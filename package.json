@@ -1,0 +1,33 @@
+{
+    "name": "google-script-service-lib",
+    "version": "1.0.0",
+    "description": "A wrapper lib for google apps script",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/types/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "npm run clean && npm run build:server && npm run build:clients && npm run copy:temp && npm run flatten:dist && npm run copy:config && npm run clean:temp",
+        "build:server": "npm --prefix src/server run build",
+        "build:clients": "find src/client -maxdepth 2 -name \"package.json\" -execdir npm run build \\;",
+        "copy:temp": "copyfiles \"src/server/dist/**/*\" _temp_dist && copyfiles \"src/client/*/dist/**/*\" _temp_dist",
+        "flatten:dist": "copyfiles --flat \"_temp_dist/**/*\" dist",
+        "copy:config": "copyfiles .appsscript.json dist",
+        "clean": "rimraf dist _temp_dist",
+        "clean:temp": "rimraf _temp_dist",
+        "watch": "npm-run-all --parallel watch:server watch:clients",
+        "watch:server": "npm --prefix src/server run watch",
+        "watch:clients": "find src/client -maxdepth 2 -name \"package.json\" -execdir npm run watch \\;"
+    },
+    "devDependencies": {
+        "typescript": "^5.x.x",
+        "esbuild": "^0.x.x",
+        "@types/google-apps-script": "^1.x.x",
+        "@google/clasp": "^2.x.x",
+        "copyfiles": "^2.4.1",
+        "rimraf": "^3.0.0",
+        "npm-run-all": "^4.1.5"
+    }
+}
