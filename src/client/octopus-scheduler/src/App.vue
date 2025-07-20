@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
+import { onMounted } from 'vue';
+import { GasFunctionService } from './googleAppsScript/gas-function-service';
+import { GasFunction } from './googleAppsScript/gas-function';
+
+onMounted(async () => {
+  var result = await new GasFunctionService().call(new GasFunction<any>("callOctopusSchedulerApi", "fooFunc", "Wow!"));
+  console.log(`result: ${result}`);
+});
 </script>
 
 <template>
@@ -21,9 +29,11 @@ import HelloWorld from './components/HelloWorld.vue'
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.vue:hover {
   filter: drop-shadow(0 0 2em #42b883aa);
 }

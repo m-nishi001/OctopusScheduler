@@ -16,9 +16,9 @@
         "@types/node": "^20.12.12",
         "@typescript-eslint/eslint-plugin": "^7.9.0",
         "@typescript-eslint/parser": "^7.9.0",
-        "core-js": "^3.44.0",
         "esbuild": "^0.25.6",
         "eslint": "^8.57.1",
+        "core-js": "^3.44.0",
         "reflect-metadata": "^0.2.2",
         "tsyringe": "^4.10.0",
         "typescript": "^5.4.5"

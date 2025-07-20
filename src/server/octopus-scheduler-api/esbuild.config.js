@@ -1,15 +1,15 @@
 import { build } from 'esbuild';
 
 build({
-    entryPoints: ['src/api.ts'],
+    entryPoints: ['src/main.ts'],
     bundle: true,
     outfile: 'dist/octopus-scheduler-api.js',
     target: 'es2020',
-    format: 'iife', // 全体をIIFEとしてバンドル
-    platform: 'browser', // GASの実行環境を想定
+    format: 'iife',
+    platform: 'browser',
     banner: {
         js: `
-let _doGet, _callCustomFunction;
+let _doGet, _callOctopusSchedulerApi;
             `
     },
     footer: {
@@ -18,8 +18,8 @@ function doGet(e){
     return _doGet(e);
 }
 
-function callCustomFunction(...args){
-    return _callCustomFunction.apply(this, args);
+function callOctopusSchedulerApi(...args){
+    return _callOctopusSchedulerApi.apply(this, args);
 }
             `
     }

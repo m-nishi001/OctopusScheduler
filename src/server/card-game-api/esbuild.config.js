@@ -9,17 +9,13 @@ build({
     platform: 'browser', // GASの実行環境を想定
     banner: {
         js: `
-let _doGet, _callCustomFunction;
+let _callCardGameApi;
             `
     },
     footer: {
         js: `
-function doGet(e){
-    return _doGet(e);
-}
-
-function callCustomFunction(...args){
-    return _callCustomFunction.apply(this, args);
+function callCardGameApi(...args){
+    return _callCardGameApi.apply(this, args);
 }
             `
     }

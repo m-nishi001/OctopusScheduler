@@ -2,7 +2,7 @@
 import * as api from './api/ClientApi';
 
 declare let _doGet: (e: GoogleAppsScript.Events.DoGet) => GoogleAppsScript.HTML.HtmlOutput;
-declare let _callCustomFunction: (functionName: string, ...args: any[]) => any;
+declare let _callCardGameApi: (functionName: string, ...args: any[]) => any;
 
 // --- APIディスパッチャ ---
 
@@ -28,4 +28,4 @@ function callCustomFunctionInternal(functionName: string, ...args: any[]): any {
 // === 内部関数をグローバル変数に代入 ===
 // ビルドツールのフッター機能などでグローバル関数として公開されるようにする
 _doGet = api.doGet;
-_callCustomFunction = callCustomFunctionInternal;
+_callCardGameApi = callCustomFunctionInternal;
