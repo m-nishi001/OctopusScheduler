@@ -54,15 +54,7 @@ export interface GasService {
      * 例えば、"getSpreadsheetData", "sendEmail" など、
      * Google Apps Script 環境で実行される特定の処理を識別します。
      */
-    readonly functionName: string;
+    readonly serviceName: string;
 
-    /**
-     * @method invoke
-     * @description このGASサービスに定義された機能を実行します。
-     * Google Apps Script 環境での特定の処理を実行する際に使用します。
-     * @param {any[]} args - 実行する機能に渡す引数の配列。引数の型や数は、実装される機能によって異なります。
-     * @returns {Promise<ApiResponse<any>>} - 実行結果を解決するPromise。
-     * 成功時は `SuccessResponse` (dataに任意の型を含む)、エラー時は `ErrorResponse` を返します。
-     */
-    invoke(...args: any[]): Promise<ApiResponse<any>>;
+    readonly functions: Record<string, (...args: any) => ApiResponse<any>>
 }

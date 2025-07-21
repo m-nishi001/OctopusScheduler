@@ -2,10 +2,19 @@ import { injectable } from "tsyringe";
 import { ApiResponse, GasService, SuccessResponse } from "./gas-service";
 
 @injectable()
-export class TestService implements GasService{
-    functionName: string = "fooFunc";
-    invoke(...args: any[]): Promise<ApiResponse<string>> {
-        return new Promise((resolve, reject) => resolve(new SuccessResponse(`fooFunc called with: ${args[0]}`)));
+export class TestService implements GasService {
+
+    serviceName: string = "TestService";
+    functions: Record<string, (...args: any) => ApiResponse<any>>;
+
+    constructor() {
+        this.functions = {
+            "fooFunc": this.fooFunc
+        }
+    }
+
+    fooFunc(arg: string): ApiResponse<string> {
+        return new SuccessResponse(`fooFunc called with: ${arg}`);
     }
 
 }

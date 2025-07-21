@@ -1,9 +1,21 @@
-class TimeScheduler {
+import { injectable } from "tsyringe";
+import { ApiResponse, GasService } from "../api/gas-service";
 
+@injectable()
+export class TimeScheduler implements GasService{
+
+    serviceName: string = "time-scheduler";
+    functions: Record<string, (...args: any) => ApiResponse<any>>;
+    
     timeSchedules!: SchedulerEvent[];
 
     constructor() {
+        this.functions = {};
+
         this.loadTimeSchedule();
+    }
+    invoke(...args: any[]): Promise<ApiResponse<any>> {
+        throw new Error("Method not implemented.");
     }
 
     loadTimeSchedule() {

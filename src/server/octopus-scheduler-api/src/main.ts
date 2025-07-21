@@ -8,25 +8,35 @@ declare let _callOctopusSchedulerApi: (functionName: string, ...args: any[]) => 
 
 /**
  * クライアントからの関数呼び出しを中継する内部ディスパッチャー関数。
- * @param {string} functionName 呼び出す関数の名前 (ClientApiクラスのメソッド名)。
+ * @param {string} callingObject 呼び出す関数の名前 (ClientApiクラスのメソッド名)。
  * @param {...any[]} args 関数に渡す引数。
  * @returns {any} 呼び出された関数の戻り値。
  * @throws {Error} 指定された関数名が見つからない場合。
  */
-function callOctopusSchedulerApiInternal(functionName: string, ...args: any[]): Promise<ApiResponse<any>> {
-  Logger.log(`API call received for: ${functionName}`);
+function callOctopusSchedulerApiInternal(callingObject: string, ...args: any[]): Promise<ApiResponse<any>> {
+  Logger.log(`API call received for: ${callingObject}`);
+  
+  // {ServiceName}.{FunctionName}の形式でやってくるのでパースする。
+  const splited = callingObject.split(".");
+  if(splited.length !== 2){
+    Logger.log(`Error: "callingObject" was invalid. ${callingObject}`);
+    throw new Error(`Invalid callingObjecgt: ${callingObject}`);
+  }
+
+  const serviceName = splited[0];
+  const functionName = splited[1];
 
   // ここでコンテナへの型登録をする
   Container.regiser();
 
   const services = container.resolveAll<GasService>("IGasService")
-  const targetService = services.find(service => service.functionName === functionName);
+  const targetService = services.find(service => service.serviceName === serviceName);
   if (targetService) {
-    return targetService.invoke(args);
+    return (targetService as any)[functionName](args);
   }
 
-  Logger.log(`Error: Unknown function name "${functionName}" was called.`);
-  throw new Error(`Unknown API function name: ${functionName}`);
+  Logger.log(`Error: Unknown function name "${callingObject}" was called.`);
+  throw new Error(`Unknown API function name: ${callingObject}`);
 }
 
 // これはPromise型で返却することができないのでとりあえずここで実装する。

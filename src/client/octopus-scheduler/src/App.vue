@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
 import { onMounted } from 'vue';
-import { GasFunctionService } from './googleAppsScript/gas-function-service';
-import { GasFunction } from './googleAppsScript/gas-function';
+import { GasFunctionService } from './google-script/gas-function-service';
+import { GasFunction } from './google-script/gas-function';
 
 onMounted(async () => {
-  var result = await new GasFunctionService().call(new GasFunction<any>("callOctopusSchedulerApi", "fooFunc", "Wow!"));
+  var result = await new GasFunctionService().call(new GasFunction<any>("callOctopusSchedulerApi", "TestService.fooFunc", "Wow!"));
   console.log(`result: ${result}`);
 });
 </script>
