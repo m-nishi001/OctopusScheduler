@@ -1,4 +1,7 @@
 import type { GasFunction } from './gas-function';
+import { ErrorResponse } from './response/error-response';
+import { FailedResponse } from './response/failed-response';
+import { SuccessResponse } from './response/success-response';
 
 declare namespace google {
     namespace script {
@@ -9,52 +12,6 @@ declare namespace google {
             [functionName: string]: (...args: any[]) => void;
         }
         const run: Run;
-    }
-}
-
-/**
- * @file Google Apps Script (GAS) 関数呼び出しを管理するサービス。
- * 単一および並列でのGAS関数呼び出し、タイムアウト処理、自動リトライ、
- * およびGAS関数からのJSONレスポンスのデシリアライズをサポートします。
- */
-
-/**
- * @typedef {object} SuccessResponse
- * @property {'success'} status - 処理が成功したことを示します。
- * @property {T} data - 成功時に返されるデータ。
- * @template T
- */
-export class SuccessResponse<T> {
-    public readonly status: 'success' = 'success';
-    public readonly data:T;
-    constructor(data: T) {
-        this.data = data;
-    }
-}
-
-/**
- * @typedef {object} ErrorResponse
- * @property {'error'} status - 個々のGAS関数呼び出し試行中にエラーが発生したことを示します。
- * @property {string} message - エラーの詳細なメッセージ。
- */
-export class ErrorResponse {
-    public readonly status: 'error' = 'error';
-    public readonly message: string;
-    constructor(message: string) {
-        this.message = message;
-    }
-}
-
-/**
- * @typedef {object} FailedResponse
- * @property {'failed'} status - 処理がリトライ上限に達しても成功しなかったことを示します。
- * @property {string} message - 最終的な失敗メッセージ。
- */
-export class FailedResponse {
-    public readonly status: 'failed' = 'failed';
-    public readonly message: string;
-    constructor(message: string) {
-        this.message = message;
     }
 }
 

@@ -1,6 +1,6 @@
 import { container } from "tsyringe";
-import { GasService } from "../api/gas-service";
-import { TestService } from "../api/test-service";
+import { GasService } from "../application/core/gas-service";
+import { TestService } from "../application/test-service";
 
 export class Container {
     static regiser() {

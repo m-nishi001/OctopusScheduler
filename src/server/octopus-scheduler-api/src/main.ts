@@ -1,7 +1,8 @@
 import "reflect-metadata";
 import { container } from "tsyringe";
 import { Container } from "./container";
-import { ApiResponse, GasService } from "./api/gas-service";
+import { GasService } from "./application/core/gas-service";
+import { ApiResponse } from "./application/core/response/api-response";
 
 declare let _doGet: (e: GoogleAppsScript.Events.DoGet) => GoogleAppsScript.HTML.HtmlOutput;
 declare let _callOctopusSchedulerApi: (functionName: string, ...args: any[]) => any;
