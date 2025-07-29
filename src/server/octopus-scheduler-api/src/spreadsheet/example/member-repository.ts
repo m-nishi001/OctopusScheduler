@@ -1,4 +1,4 @@
-import { SpreadsheetRepository } from "../spreadsheet/spreadsheet-repository";
+import { SpreadsheetRepository } from "../core/spreadsheet-repository";
 
 /**
  * メンバーエンティティの型定義。
