@@ -1,14 +1,13 @@
 import { injectable } from "tsyringe";
 import { GasService } from "./core/gas-service";
-import { ApiResponse } from "./core/response/api-response";
-import { SuccessResponse } from "./core/response/success-response";
+import { SuccessResponse } from "../adapter/response/success-response";
 import { runDriveServiceTest } from "../infrastructure/google-drvie/example";
 
 @injectable()
 export class TestService implements GasService {
 
     serviceName: string = "TestService";
-    functions: Record<string, (...args: any) => ApiResponse<any>>;
+    functions: Record<string, (args: any) => any>;
 
     constructor() {
         this.functions = {
@@ -16,7 +15,7 @@ export class TestService implements GasService {
         }
     }
 
-    fooFunc(arg: string): ApiResponse<string> {
+    fooFunc(arg: string): any {
 
         // const spreadsheetId = "1CsbGHLha756BEp-J9FAJBgeaP7eSdh6SCVr2sUo-qC0";
         // const mapper = new MemberMapper();

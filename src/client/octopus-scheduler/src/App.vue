@@ -5,13 +5,19 @@ import { GasFunctionService } from './google-script/gas-function-service';
 import { GasFunction } from './google-script/gas-function';
 
 onMounted(async () => {
-  // var result = await new GasFunctionService().call(new GasFunction<any>("callOctopusSchedulerApi", "DriveService.readyZipping", "1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS").withTimeout(20000));
-  var result = await new GasFunctionService().callParallel(
-    [
-      new GasFunction<any>("callOctopusSchedulerApi", "DriveService.zip", "1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 0).withTimeout(20000),
-      new GasFunction<any>("callOctopusSchedulerApi", "DriveService.zip", "1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 1).withTimeout(20000)
-    ]
-  );
+  var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
+  if (!gasFunctionServicie) throw new Error();
+
+  const result0 = await gasFunctionServicie.call(new GasFunction<any>("DriveService.readyZipping", "1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS").withTimeout(20000));
+  if(result0.status === "failed") throw new Error();
+
+  var result = await gasFunctionServicie
+    .callParallel(
+      [
+        new GasFunction<any>("DriveService.zip", ["1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 0]).withTimeout(20000),
+        new GasFunction<any>("DriveService.zip", ["1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 1]).withTimeout(20000)
+      ]
+    );
   console.log(`result: ${result}`);
 });
 </script>

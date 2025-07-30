@@ -1,7 +1,7 @@
 import { build } from 'esbuild';
 
 build({
-    entryPoints: ['src/main.ts'],
+    entryPoints: ['src/adapter/main.ts'],
     bundle: true,
     outfile: 'dist/octopus-scheduler-api.js',
     target: 'es2020',

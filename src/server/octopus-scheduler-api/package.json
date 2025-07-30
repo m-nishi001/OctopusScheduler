@@ -4,7 +4,6 @@
     "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
     "main": "dist/Code.js",
     "scripts": {
-        "build:server": "esbuild src/main.ts --bundle --outfile=dist/Code.js --target=es2020 --platform=node --format=iife --banner:js=\"let _doGet, _callCustomFunction;\" --footer:js=\"function doGet(e){ return _doGet(e); } function callCustomFunction(...args){ return _callCustomFunction.apply(this, args); }\" --log-level=info",
         "build": "node esbuild.config.js",
         "deploy": "npm run build && clasp push --force",
         "lint": "eslint src/**/*.ts",

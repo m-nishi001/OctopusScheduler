@@ -28,14 +28,26 @@ export type FinalGasCallResult<T> = SuccessResponse<T> | FailedResponse;
  */
 export class GasFunctionService {
 
+    private apiFunctionName: string;
+
+    private constructor(apiFunctionName: string) {
+        this.apiFunctionName = apiFunctionName;
+    }
+
+    public static create(apiFunctionName: string): GasFunctionService | null {
+        const functionName = apiFunctionName.trim();
+        if (functionName === "") {
+            console.error(`[GasFunctionService] apiFunctionName is empty.`);
+            return null;
+        }
+
+        return new GasFunctionService(apiFunctionName);
+    }
+
     /**
      * 単一のGAS関数を呼び出します。
      * タイムアウト、自動リトライ、JSONレスポンスのデシリアライズをサポートします。
-     *
      * @template T サーバーサイド関数が成功時に返すデータの型。
-     * @param {string} functionName 呼び出すサーバーサイド関数の名前。
-     * @param {any[]} args サーバーサイド関数に渡す引数。
-     * @param {GasFunctionOptions} [options] 呼び出しオプション（タイムアウト、リトライ回数、リトライ遅延）。
      * @returns {Promise<FinalGasCallResult<T>>} 最終的な呼び出し結果を含むPromise。
      */
     public async call<T>(gasFunction: GasFunction<T>): Promise<FinalGasCallResult<T>> {
@@ -101,10 +113,10 @@ export class GasFunctionService {
      * @private
      * @template T サーバーサイド関数が成功時に返すデータの型。
      * @param {string} functionName 呼び出すサーバーサイド関数の名前。
-     * @param {any[]} args サーバーサイド関数に渡す引数。
+     * @param {any} args サーバーサイド関数に渡す引数。
      * @returns {Promise<SuccessResponse<T> | ErrorResponse>} GAS関数からの結果（成功またはエラー）。
      */
-    private executeGasFunction<T>(functionName: string, args: any[]): Promise<SuccessResponse<T> | ErrorResponse> {
+    private executeGasFunction<T>(functionName: string, args: any): Promise<SuccessResponse<T> | ErrorResponse> {
         return new Promise((resolve) => {
             google.script.run
                 .withSuccessHandler((response: string) => {
@@ -130,7 +142,7 @@ export class GasFunctionService {
                 })
                 .withFailureHandler((error: Error) => {
                     resolve(new ErrorResponse(`GASクライアントエラー: ${error.message}`));
-                })[functionName](...args);
+                })[this.apiFunctionName](functionName, args);
         });
     }
 

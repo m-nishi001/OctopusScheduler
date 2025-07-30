@@ -1,27 +1,29 @@
 import "reflect-metadata";
 import { container } from "tsyringe";
-import { Container } from "./container";
-import { GasService } from "./application/core/gas-service";
-import { ApiResponse } from "./application/core/response/api-response";
+import { Container } from "../container";
+import { GasService } from "../application/core/gas-service";
+import { ApiResponse } from "./response/api-response";
+import { ErrorResponse } from "./response/error-response";
+import { SuccessResponse } from "./response/success-response";
 
 declare let _doGet: (e: GoogleAppsScript.Events.DoGet) => GoogleAppsScript.HTML.HtmlOutput;
-declare let _callOctopusSchedulerApi: (functionName: string, ...args: any[]) => any;
+declare let _callOctopusSchedulerApi: (functionName: string, args: any) => any;
 
 /**
  * クライアントからの関数呼び出しを中継する内部ディスパッチャー関数。
- * @param {string} callingObject 呼び出す関数の名前 (ClientApiクラスのメソッド名)。
- * @param {...any[]} args 関数に渡す引数。
+ * @param {string} callingObject 呼び出す関数の名前
+ * @param {any} args 関数に渡す引数。
  * @returns {any} 呼び出された関数の戻り値。
  * @throws {Error} 指定された関数名が見つからない場合。
  */
-function callOctopusSchedulerApiInternal(callingObject: string, ...args: any[]): Promise<ApiResponse<any>> {
+function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiResponse {
   Logger.log(`API call received for: ${callingObject} args: ${args}`);
-  
+
   // {ServiceName}.{FunctionName}の形式でやってくるのでパースする。
   const splited = callingObject.split(".");
-  if(splited.length !== 2){
+  if (splited.length !== 2) {
     Logger.log(`Error: "callingObject" was invalid. ${callingObject}`);
-    throw new Error(`Invalid callingObjecgt: ${callingObject}`);
+    return new ErrorResponse(`Invalid callingObjecgt: ${callingObject}`);
   }
 
   const serviceName = splited[0];
@@ -33,11 +35,16 @@ function callOctopusSchedulerApiInternal(callingObject: string, ...args: any[]):
   const services = container.resolveAll<GasService>("IGasService")
   const targetService = services.find(service => service.serviceName === serviceName);
   if (targetService) {
-    return (targetService as any)[functionName](...args);
+    try {
+      const result = (targetService as any)[functionName](args);
+      return new SuccessResponse(result);
+    } catch (e: any) {
+      return new ErrorResponse(e);
+    }
   }
 
   Logger.log(`Error: Unknown function name "${callingObject}" was called.`);
-  throw new Error(`Unknown API function name: ${callingObject}`);
+  return new ErrorResponse(`Unknown API function name: ${callingObject}`);
 }
 
 // これはPromise型で返却することができないのでとりあえずここで実装する。
@@ -57,7 +64,7 @@ _doGet = (e: GoogleAppsScript.Events.DoGet) => {
   }
 }
 
-_callOctopusSchedulerApi = async (functionName: string, ...args: any[]) => {
-  const response = await callOctopusSchedulerApiInternal(functionName, args);
+_callOctopusSchedulerApi = async (functionName: string, args: any) => {
+  const response = callOctopusSchedulerApiInternal(functionName, args);
   return JSON.stringify(response);
 }

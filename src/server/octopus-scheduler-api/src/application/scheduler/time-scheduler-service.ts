@@ -1,12 +1,12 @@
 import { injectable } from "tsyringe";
-import { ApiResponse, GasService } from "../core/gas-service";
+import { GasService } from "../core/gas-service";
 
 @injectable()
-export class TimeScheduler implements GasService{
+export class TimeScheduler implements GasService {
 
     serviceName: string = "time-scheduler";
-    functions: Record<string, (...args: any) => ApiResponse<any>>;
-    
+    functions: Record<string, (args: any) => any>;
+
     timeSchedules!: SchedulerEvent[];
 
     constructor() {
