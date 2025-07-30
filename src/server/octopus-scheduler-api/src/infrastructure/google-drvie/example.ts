@@ -1,4 +1,4 @@
-import { DriveService } from "./drive-service";
+import { GoogleDriveService } from "./google-drive-service";
 import { FileId } from "./value-object/file-id";
 import { FileIdQuery } from "./value-object/file-id-query";
 import { FileMimeType } from "./value-object/file-mime-type";
@@ -42,7 +42,7 @@ export function runDriveServiceTest() {
                     mimeType: mimeType,
                     blob: blob,
                 };
-                const createdFile = DriveService.uploadFile(uploadData);
+                const createdFile = GoogleDriveService.uploadFile(uploadData);
                 const fileId = FileId.create(createdFile.id!);
                 if (fileId) {
                     createdFileIds.push(fileId);
@@ -64,7 +64,7 @@ export function runDriveServiceTest() {
         const queryFileName = FileName.create("TestFile1.txt");
         if (queryFileName) {
             const fileNameQuery: FileNameQuery = { fileName: queryFileName, parentFolderId: testFolderId };
-            const foundFilesByName = DriveService.findFileByName(fileNameQuery);
+            const foundFilesByName = GoogleDriveService.findFileByName(fileNameQuery);
             Logger.log(`'${queryFileName.name}' で見つかったファイル数: ${foundFilesByName.length}`);
             if (foundFilesByName.length > 0) {
                 Logger.log(`見つかったファイル名: ${foundFilesByName[0].getName()}`);
@@ -78,7 +78,7 @@ export function runDriveServiceTest() {
         if (createdFileIds.length > 0 && testFolderId) {
             const fileIdQuery = FileIdQuery.create(createdFileIds, testFolderId);
             if (fileIdQuery) {
-                const foundFilesById = DriveService.findFileById(fileIdQuery);
+                const foundFilesById = GoogleDriveService.findFileById(fileIdQuery);
                 Logger.log(`ID指定で見つかったファイル数: ${foundFilesById.length}`);
                 if (foundFilesById.length === createdFileIds.length) {
                     Logger.log("全てのファイルがIDで正しく見つかりました。");
@@ -109,7 +109,7 @@ export function runDriveServiceTest() {
                     mimeType: updatedMimeType,
                     blob: updatedBlob,
                 };
-                const updatedFile = DriveService.uploadFile(updateData);
+                const updatedFile = GoogleDriveService.uploadFile(updateData);
                 Logger.log(`ファイル更新: ${updatedFile.name} (ID: ${updatedFile.id})`);
                 if (updatedFile.name === updatedFileName.name) {
                     Logger.log("ファイル名が正しく更新されました。");
@@ -128,7 +128,7 @@ export function runDriveServiceTest() {
         const updatedQueryFileName = FileName.create("TestFile1_updated.txt");
         if (updatedQueryFileName) {
             const updatedFileNameQuery: FileNameQuery = { fileName: updatedQueryFileName, parentFolderId: testFolderId };
-            const foundUpdatedFiles = DriveService.findFileByName(updatedFileNameQuery);
+            const foundUpdatedFiles = GoogleDriveService.findFileByName(updatedFileNameQuery);
             Logger.log(`'${updatedQueryFileName.name}' で見つかったファイル数: ${foundUpdatedFiles.length}`);
             if (foundUpdatedFiles.length > 0 && foundUpdatedFiles[0].getName() === updatedQueryFileName.name) {
                 Logger.log("更新されたファイルが新しい名前で正しく見つかりました。");
@@ -141,7 +141,7 @@ export function runDriveServiceTest() {
         Logger.log("\n--- Step 6: 1件ファイルを削除 ---");
         if (createdFileIds.length > 1) { // 少なくとも2つのファイルがあることを確認
             const fileToDeleteId = createdFileIds[1]; // 2番目のファイルを削除対象とする
-            const deleteResult = DriveService.deleteObjects([fileToDeleteId]);
+            const deleteResult = GoogleDriveService.deleteObjects([fileToDeleteId]);
             Logger.log(`ファイル '${fileToDeleteId.id}' の削除結果: ${deleteResult ? "成功" : "失敗"}`);
             if (!deleteResult) {
                 Logger.log("エラー: ファイル削除に失敗しました。");

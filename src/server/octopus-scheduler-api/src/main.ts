@@ -15,7 +15,7 @@ declare let _callOctopusSchedulerApi: (functionName: string, ...args: any[]) => 
  * @throws {Error} 指定された関数名が見つからない場合。
  */
 function callOctopusSchedulerApiInternal(callingObject: string, ...args: any[]): Promise<ApiResponse<any>> {
-  Logger.log(`API call received for: ${callingObject}`);
+  Logger.log(`API call received for: ${callingObject} args: ${args}`);
   
   // {ServiceName}.{FunctionName}の形式でやってくるのでパースする。
   const splited = callingObject.split(".");
@@ -33,7 +33,7 @@ function callOctopusSchedulerApiInternal(callingObject: string, ...args: any[]):
   const services = container.resolveAll<GasService>("IGasService")
   const targetService = services.find(service => service.serviceName === serviceName);
   if (targetService) {
-    return (targetService as any)[functionName](args);
+    return (targetService as any)[functionName](...args);
   }
 
   Logger.log(`Error: Unknown function name "${callingObject}" was called.`);

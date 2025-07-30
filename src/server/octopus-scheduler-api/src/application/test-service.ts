@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { GasService } from "./core/gas-service";
 import { ApiResponse } from "./core/response/api-response";
 import { SuccessResponse } from "./core/response/success-response";
-import { runDriveServiceTest } from "../drvie/example";
+import { runDriveServiceTest } from "../infrastructure/google-drvie/example";
 
 @injectable()
 export class TestService implements GasService {

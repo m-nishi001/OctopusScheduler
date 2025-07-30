@@ -6,6 +6,7 @@
 export class ErrorResponse {
     status: string = 'error';
     message: string;
+    date: string = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd HH:mm:ss");
 
     constructor(message: string) {
         this.message = message;
