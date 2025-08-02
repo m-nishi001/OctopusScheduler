@@ -1,35 +1,37 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
 import { onMounted } from 'vue';
-import { GasFunctionService } from './google-script/gas-function-service';
-import { GasFunction } from './google-script/gas-function';
+import { GasFunctionService } from './external/google-script/gas-function-service';
+import { GasFunction } from './external/google-script/gas-function';
 
 onMounted(async () => {
   var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
   if (!gasFunctionServicie) throw new Error();
 
-  const result0 = await gasFunctionServicie.call(new GasFunction<any>("DriveService.readyZipping", "1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS").withTimeout(20000));
-  if(result0.status === "failed") throw new Error();
+  // const result0 = await gasFunctionServicie.call(new GasFunction<any>("DriveService.readyZipping", "1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS").withTimeout(20000));
+  // if (result0.status === "failed") throw new Error();
 
-  var result = await gasFunctionServicie
-    .callParallel(
-      [
-        new GasFunction<any>("DriveService.zip", ["1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 0]).withTimeout(20000),
-        new GasFunction<any>("DriveService.zip", ["1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 1]).withTimeout(20000)
-      ]
-    );
+  // var result = await gasFunctionServicie
+  //   .callParallel(
+  //     [
+  //       new GasFunction<any>("DriveService.zip", ["1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 0]).withTimeout(20000),
+  //       new GasFunction<any>("DriveService.zip", ["1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 1]).withTimeout(20000)
+  //     ]
+  //   );
+
+  const result = await gasFunctionServicie.call(new GasFunction<any>("TestService.fooFunc", {}).withTimeout(20000));
   console.log(`result: ${result}`);
 });
 </script>
 
 <template>
   <div>
-    <a href="https://vite.dev" target="_blank">
+    <!-- <a href="https://vite.dev" target="_blank">
       <img src="/vite.svg" class="logo" alt="Vite logo" />
     </a>
     <a href="https://vuejs.org/" target="_blank">
       <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
+    </a> -->
   </div>
   <HelloWorld msg="Vite + Vue" />
 </template>

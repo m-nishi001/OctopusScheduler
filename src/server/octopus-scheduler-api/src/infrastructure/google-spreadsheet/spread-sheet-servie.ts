@@ -1,0 +1,299 @@
+export class SpreadSheetId {
+    id: string;
+    private constructor(id: string) {
+        this.id = id;
+    }
+
+    static create(id: string): SpreadSheetId | null {
+        if (id === "") {
+            Logger.log(`[SpreadSheetId.create] id is empty.`);
+            return null;
+        }
+        return new SpreadSheetId(id);
+    }
+}
+export class SpreadsheetLock implements Disposable {
+    private constructor() {
+    }
+
+    [Symbol.dispose](): void {
+        LockService.getScriptLock().releaseLock();
+        Logger.log(`[SpreadSheetLock.dispose] Released scriptlock.`);
+        return;
+    }
+
+    static tryLock(): SpreadsheetLock | null {
+        const _timeoutSeconds = 5;
+
+        if (!LockService.getScriptLock().tryLock(_timeoutSeconds * 1000)) {
+            Logger.log(`[SpreadSheetService.tryLock] faild to get scriptlock in ${_timeoutSeconds} seconds.`);
+            return null;
+        }
+
+        Logger.log(`[SpreadSheetService.tryLock] Got scriptlock.`);
+        return new SpreadsheetLock();
+    }
+}
+
+export class ColumnDefinition {
+    colmunName: string;
+    isKey: boolean;
+    private constructor(colmunName: string, isKey: boolean = false) {
+        this.colmunName = colmunName;
+        this.isKey = isKey;
+    }
+
+    static create(columnName: string, isKey: boolean = false): ColumnDefinition | null {
+        if (columnName === "") {
+            Logger.log(`[ColumnDefinition.create] colmunName is empty.`);
+            return null;
+        }
+
+        return new ColumnDefinition(columnName, isKey);
+    }
+}
+
+export class SpreadSheetName {
+    name: string;
+    private constructor(sheetName: string) {
+        this.name = sheetName;
+    }
+
+    static creaate(sheetName: string): SpreadSheetName | null {
+        if (sheetName === "") {
+            Logger.log(`[SheetName.create] sheetName is empty.`);
+            return null;
+        }
+
+        return new SpreadSheetName(sheetName);
+    }
+}
+
+export class SpreadSheetQuery<TEntity> {
+    spreadSheetId: SpreadSheetId;
+    spreadSheetName: SpreadSheetName;
+    prediction: (record: {}) => boolean;
+
+    constructor(
+        spreadSheetId: SpreadSheetId,
+        spreadSheetName: SpreadSheetName,
+        entityFactory: () => TEntity,
+        prediction: (entity: TEntity) => boolean) {
+        this.spreadSheetId = spreadSheetId;
+        this.spreadSheetName = spreadSheetName;
+        this.prediction = (record: {}) => {
+            const instance = entityFactory();
+            const assigned = Object.assign(instance as any, record);
+            return prediction(assigned);
+        };
+    }
+}
+
+export class SpreadSheetDto<IEntity> {
+    spreadSheetId: SpreadSheetId;
+    spreadSheetName: SpreadSheetName;
+    columns: ColumnDefinition[];
+    rows: IEntity[]
+
+    private constructor(
+        spreadSheetId: SpreadSheetId,
+        sheetName: SpreadSheetName,
+        columns: ColumnDefinition[],
+        rows: IEntity[]) {
+        this.spreadSheetId = spreadSheetId;
+        this.spreadSheetName = sheetName;
+        this.columns = columns;
+        this.rows = rows;
+    }
+
+    static create<IEntity>(
+        spreadSheetId: SpreadSheetId,
+        sheetName: SpreadSheetName,
+        columns: ColumnDefinition[],
+        rows: IEntity[]): SpreadSheetDto<IEntity> | null {
+        const keyColumnNum = columns.filter(column => column.isKey).length;
+        if (keyColumnNum > 1 || keyColumnNum === 0) {
+            Logger.log(`[Entity.create] key column num is ${keyColumnNum}`);
+            return null;
+        }
+
+        return new SpreadSheetDto<IEntity>(spreadSheetId, sheetName, columns, rows);
+    }
+}
+
+export class GooogleSpreadSheetService {
+
+    static insert<IEntity>(dto: SpreadSheetDto<IEntity>): number {
+        using lock = SpreadsheetLock.tryLock();
+        if (!lock) return -1;
+
+        Logger.log(`[SpreadSheetService.insert] inserting values to ${dto.spreadSheetName}...`);
+        const sheet = this.createSheet(dto.spreadSheetId, dto.spreadSheetName, dto.columns);
+        const exitsRecordsNum = sheet.getLastRow() - 1;
+        const insertingIndex = 1 /* ヘッダー行 */ + exitsRecordsNum + 1;
+        const columnNum = dto.columns.length;
+        const insertingRecordNum = dto.rows.length;
+
+        Logger.log(`[SpreadSheetService.insert] lastRecordRowNumber: ${exitsRecordsNum} columnNum: ${columnNum} insertingRecordNum: ${insertingRecordNum}`)
+        const range = sheet.getRange(insertingIndex, 1, insertingRecordNum, columnNum);
+        const values = dto.rows.map(row => dto.columns.map(column => (row as any)[column.colmunName]));
+        range.setNumberFormat("@").setValues(values);
+
+        Logger.log(`[SpreadSheetService.insert] completed inserting values.`);
+
+        return dto.rows.length;
+    }
+
+    static select<TEntity>(query: SpreadSheetQuery<TEntity>): TEntity[] | null {
+        using lock = SpreadsheetLock.tryLock();
+        if (!lock) return null;
+
+        Logger.log(`[SpreadSheetService.select] selecting values in the sheet name of ${query.spreadSheetName.name}...`);
+        const sheet = this.getSheet(query.spreadSheetId, query.spreadSheetName);
+        if (!sheet) return null;
+
+        if (sheet.getLastRow() === 1) {
+            Logger.log(`[SpreadSheetService.select] the sheet name of ${query.spreadSheetName.name} has no data.`);
+            return null;
+        }
+
+        const rowNum = sheet.getLastRow();
+        const columnNum = sheet.getLastColumn();
+        Logger.log(`[SpreadSheetService.select] rowNum: ${rowNum} columnNum: ${columnNum}`);
+
+        const range = sheet.getRange(1, 1, rowNum, columnNum);
+        const rows = range.getValues();
+        const founds = this.toObjectArray(rows).filter(record => query.prediction(record));
+        Logger.log(`[SpreadSheetService.select] completed selecting values in the sheet name of ${query.spreadSheetName.name}.`);
+
+        return founds;
+    }
+
+    static update<TEntity>(dto: SpreadSheetDto<TEntity>): number {
+        using lock = SpreadsheetLock.tryLock();
+        if (!lock) return -1;
+
+        Logger.log(`[SpreadSheetService.update] updating values in the sheet name of ${dto.spreadSheetName.name}...`);
+        const sheet = this.createSheet(dto.spreadSheetId, dto.spreadSheetName, dto.columns);
+
+        if (sheet.getLastRow() === 1) {
+            Logger.log(`[SpreadSheetService.update] the sheet name of ${dto.spreadSheetName.name} has no data.`);
+            return 0;
+        }
+
+        const recordNum = sheet.getLastRow() - 1;
+        const columnNum = dto.columns.length;
+        Logger.log(`[SpreadSheetService.update] recordNum: ${recordNum} columnNum: ${columnNum}`);
+
+        const keyColumnName = dto.columns.find(column => column.isKey)!.colmunName;
+        const updateTargets = dto.rows.map(row => {
+            return {
+                keyValue: (row as any)[keyColumnName],
+                values: row
+            }
+        })
+        const range = sheet.getRange(2, 1, recordNum, columnNum);
+        const rows = range.getValues();
+        const updatedRows = rows.map(row => {
+            const keyColumnValue = (row as any)[keyColumnName];
+            const updateData = updateTargets.find(target => target.keyValue === keyColumnValue);
+            if (updateData) return this.deepCopy(updateData.values);
+
+            return this.deepCopy(row);
+        });
+        range.setNumberFormat("@").setValues(updatedRows);
+        Logger.log(`[SpreadSheetService.update] completed updating values in the sheet name of ${dto.spreadSheetName.name}.`);
+
+        return updateTargets.length;
+    }
+
+    static delete<TEntity>(query: SpreadSheetQuery<TEntity>): number {
+        using lock = SpreadsheetLock.tryLock();
+        if (!lock) return 0;
+
+        Logger.log(`[SpreadSheetService.delete] deleting values in the sheet name of ${query.spreadSheetName.name}...`);
+        const sheet = this.getSheet(query.spreadSheetId, query.spreadSheetName);
+        if (!sheet) return 0;
+
+        if (sheet.getLastRow() === 1) {
+            Logger.log(`[SpreadSheetService.delete] the sheet name of ${query.spreadSheetName.name} has no data.`);
+            return 0;
+        }
+
+        const rowNum = sheet.getLastRow();
+        const columnNum = sheet.getLastColumn();
+        Logger.log(`[SpreadSheetService.delete] rowNum: ${rowNum} columnNum: ${columnNum}`);
+
+        const range = sheet.getRange(1, 1, rowNum, columnNum);
+        const rows = range.getValues();
+        const results =
+            this.toObjectArray(rows)
+                .map(record => query.prediction(record) ? new Array(columnNum) : this.deepCopy(Object.values(record)))
+                .sort((a, b) => {
+                    if (a.length === 0) return -1;
+                    if (a.length !== 0 && b.length === 0) return 1;
+                    return 0;
+                });
+        results.unshift(rows[0]);
+        range.setNumberFormat("@").setValues(results);
+        const deleteCount = results.filter(result => result.length === 0).length;
+
+        Logger.log(`[SpreadSheetService.delete] completed deleting values in the sheet name of ${query.spreadSheetName.name}. delete count is ${deleteCount}`);
+
+        return deleteCount;
+    }
+
+    private static getSpreadSheet(spreadSheetId: SpreadSheetId): GoogleAppsScript.Spreadsheet.Spreadsheet {
+        return SpreadsheetApp.openById(spreadSheetId.id);
+    }
+
+    private static getSheet(
+        spreadSheetId: SpreadSheetId,
+        sheetName: SpreadSheetName,
+        spreadSheet: GoogleAppsScript.Spreadsheet.Spreadsheet | null = null): GoogleAppsScript.Spreadsheet.Sheet | null {
+        const sheet = (spreadSheet ?? this.getSpreadSheet(spreadSheetId)).getSheetByName(sheetName.name);
+        if (sheet) {
+            Logger.log(`[SpreadSheetService.createSheet] found the sheet name of ${sheetName.name}`);
+            return sheet;
+        }
+
+        Logger.log(`[SpreadSheetService.createSheet] not found the sheett name of ${sheetName.name}`);
+        return null;
+    }
+
+    private static createSheet(
+        spreadSheetId: SpreadSheetId,
+        sheetName: SpreadSheetName,
+        columns: ColumnDefinition[]
+    ): GoogleAppsScript.Spreadsheet.Sheet {
+        const sheet = this.getSheet(spreadSheetId, sheetName);
+        if (sheet) return sheet;
+
+        const spreadSheet = this.getSpreadSheet(spreadSheetId);
+
+        Logger.log(`[SpreadSheetService.createSheet] creating new sheet name of ${sheetName.name} ...`);
+        const newSheet = spreadSheet.insertSheet(sheetName.name, spreadSheet.getNumSheets());
+        Logger.log(`[SpreadSheetService.createSheeet] the sheet name of ${sheetName.name} was created.`);
+
+        Logger.log(`[SpreadSheetService.createSheet] adding the header row...`);
+        newSheet.appendRow(columns.map(column => column.colmunName));
+        Logger.log(`[SpreadSheetService.createSheet] added the header row.`);
+
+        return newSheet;
+    }
+
+    private static deepCopy(obj: any): any {
+        return JSON.parse(JSON.stringify(obj));
+    }
+
+    private static toObjectArray(data: any[][]): any[] {
+        const header = data[0];
+        const records = data.slice(1);
+        return records.map(record => record.reduce(
+            (previous, current, index) => {
+                const columnName = header[index];
+                previous[columnName] = current;
+                return previous;
+            }, {}));
+    }
+}
