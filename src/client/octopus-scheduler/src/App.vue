@@ -3,6 +3,7 @@ import HelloWorld from './components/HelloWorld.vue'
 import { onMounted } from 'vue';
 import { GasFunctionService } from './external/google-script/gas-function-service';
 import { GasFunction } from './external/google-script/gas-function';
+import type { SuccessResponse } from './external/google-script/response/success-response';
 
 onMounted(async () => {
   var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
@@ -19,8 +20,41 @@ onMounted(async () => {
   //     ]
   //   );
 
-  const result = await gasFunctionServicie.call(new GasFunction<any>("TestService.fooFunc", {}).withTimeout(20000));
-  console.log(`result: ${result}`);
+  const result3 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.addScheduleEvents", [{
+    eventName: "TestEvent-del",
+    start: new Date(2025, 12, 10),
+    end: new Date(2025, 12, 11)
+  }]).withTimeout(20000));
+  console.log(`result: ${result3}`);
+
+  const result0 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.addScheduleEvents", [{
+    eventName: "TestEvent1",
+    start: new Date(2025, 7, 10),
+    end: new Date(2025, 7, 11)
+  }]).withTimeout(20000));
+  console.log(`result: ${result0}`);
+
+  const result1 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
+  console.log(`result: ${result1}`);
+
+  await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.updateScheduleEvents", [{
+    eventId: (result1 as SuccessResponse<any>).data[0].eventId,
+    eventName: "TestEvent1-1",
+    start: new Date(2025, 7, 11, 13, 10, 30),
+    end: new Date(2025, 7, 11, 14, 20, 19)
+  }]).withTimeout(20000));
+
+  const result2 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
+  console.log(`result: ${result2}`);
+
+  const result4 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
+  console.log(`result: ${result4}`);
+
+  const result5 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.deleteSchedduleEvent", [{
+    eventId: (result4 as SuccessResponse<any>).data[1].eventId
+  }]).withTimeout(20000));
+  console.log(`result: ${result5}`);
+
 });
 </script>
 

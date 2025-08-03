@@ -1,7 +1,6 @@
 import { injectable } from "tsyringe";
-import { GasService } from "./core/gas-service";
+import { GasService } from "./gas-service";
 import { SuccessResponse } from "../adapter/response/success-response";
-import { runSpreadSheetServiceTest } from "../infrastructure/google-spreadsheet/example/spread-sheet-service-test";
 
 @injectable()
 export class TestService implements GasService {
@@ -18,7 +17,6 @@ export class TestService implements GasService {
     fooFunc(arg: string): any {
 
         // runDriveServiceTest()
-        runSpreadSheetServiceTest();
 
         return new SuccessResponse(`fooFunc called with: ${arg}`);
     }

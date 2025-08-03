@@ -1,15 +1,15 @@
-export class SpreadSheetName {
+export class SpreadsheetName {
     name: string;
-    private constructor(sheetName: string) {
-        this.name = sheetName;
+    private constructor(name: string) {
+        this.name = name;
     }
 
-    static creaate(sheetName: string): SpreadSheetName | null {
-        if (sheetName === "") {
+    static creaate(name: string): SpreadsheetName | null {
+        if (name === "") {
             Logger.log(`[SheetName.create] sheetName is empty.`);
             return null;
         }
 
-        return new SpreadSheetName(sheetName);
+        return new SpreadsheetName(name);
     }
 }

@@ -1,17 +1,16 @@
 export class ColumnDefinition {
+
     colmunName: string;
-    isKey: boolean;
-    private constructor(colmunName: string, isKey: boolean = false) {
+
+    private constructor(colmunName: string) {
         this.colmunName = colmunName;
-        this.isKey = isKey;
     }
 
-    static create(columnName: string, isKey: boolean = false): ColumnDefinition | null {
+    static create(columnName: string): ColumnDefinition | null {
         if (columnName === "") {
             Logger.log(`[ColumnDefinition.create] colmunName is empty.`);
             return null;
         }
-
-        return new ColumnDefinition(columnName, isKey);
+        return new ColumnDefinition(columnName);
     }
 }

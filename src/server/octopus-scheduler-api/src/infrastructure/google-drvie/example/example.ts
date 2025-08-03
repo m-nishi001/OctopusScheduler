@@ -1,11 +1,12 @@
-import { GoogleDriveService } from "./google-drive-service";
-import { FileId } from "./value-object/file-id";
-import { FileIdQuery } from "./value-object/file-id-query";
-import { FileMimeType } from "./value-object/file-mime-type";
-import { FileName } from "./value-object/file-name";
-import { FileNameQuery } from "./value-object/file-name-query";
-import { FolderId } from "./value-object/folder-id";
-import { UploadData } from "./value-object/upload-data";
+import { GoogleDriveService } from "../google-drive-service";
+import { FileId } from "../value-object/file-id";
+import { FileIdQuery } from "../value-object/file-id-query";
+import { FileMimeType } from "../value-object/file-mime-type";
+import { FileName } from "../value-object/file-name";
+import { FileNameQuery } from "../value-object/file-name-query";
+import { FolderId } from "../value-object/folder-id";
+import { UploadData } from "../value-object/upload-data";
+
 
 export function runDriveServiceTest() {
     Logger.log("--- DriveService テスト開始 ---");

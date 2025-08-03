@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import { GasService } from "../core/gas-service";
+import { GasService } from "../gas-service";
 import { FolderId } from "../../infrastructure/google-drvie/value-object/folder-id";
 import { GoogleDriveService } from "../../infrastructure/google-drvie/google-drive-service";
 import { DataSize } from "../../infrastructure/google-drvie/value-object/data-size";

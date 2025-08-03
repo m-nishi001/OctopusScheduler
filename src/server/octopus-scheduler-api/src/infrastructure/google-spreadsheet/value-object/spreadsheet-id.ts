@@ -1,14 +1,14 @@
-export class SpreadSheetId {
+export class SpreadsheetId {
     id: string;
     private constructor(id: string) {
         this.id = id;
     }
 
-    static create(id: string): SpreadSheetId | null {
+    static create(id: string): SpreadsheetId | null {
         if (id === "") {
-            Logger.log(`[SpreadSheetId.create] id is empty.`);
+            Logger.log(`[SpreadsheetId.create] id is empty.`);
             return null;
         }
-        return new SpreadSheetId(id);
+        return new SpreadsheetId(id);
     }
 }

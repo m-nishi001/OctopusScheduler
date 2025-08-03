@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { container } from "tsyringe";
 import { Container } from "../container";
-import { GasService } from "../application/core/gas-service";
+import { GasService } from "../application/gas-service";
 import { ApiResponse } from "./response/api-response";
 import { ErrorResponse } from "./response/error-response";
 import { SuccessResponse } from "./response/success-response";
@@ -33,10 +33,14 @@ function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiR
   Container.regiser();
 
   const services = container.resolveAll<GasService>("IGasService")
-  const targetService = services.find(service => service.serviceName === serviceName);
+  const targetService = services.find(service => {
+    Logger.log(`[Main.ts] callOctopusSchedulerApiInternal current service name: ${service.serviceName} target service name: ${serviceName}`);
+    return service.serviceName === serviceName
+  });
   if (targetService) {
     try {
-      const result = (targetService as any)[functionName](args);
+      const result = (targetService as any)[functionName](JSON.parse(args));
+      Logger.log(`[callOctopusSchedulerApiInternal] result: ${JSON.stringify(result)}`);
       return new SuccessResponse(result);
     } catch (e: any) {
       return new ErrorResponse(e);

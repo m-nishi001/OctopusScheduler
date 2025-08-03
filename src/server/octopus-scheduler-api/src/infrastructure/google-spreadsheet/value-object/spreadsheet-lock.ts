@@ -4,7 +4,7 @@ export class SpreadsheetLock implements Disposable {
 
     [Symbol.dispose](): void {
         LockService.getScriptLock().releaseLock();
-        Logger.log(`[SpreadSheetLock.dispose] Released scriptlock.`);
+        Logger.log(`[SpreadsheetLock.dispose] Released scriptlock.`);
         return;
     }
 
@@ -12,11 +12,11 @@ export class SpreadsheetLock implements Disposable {
         const _timeoutSeconds = 5;
 
         if (!LockService.getScriptLock().tryLock(_timeoutSeconds * 1000)) {
-            Logger.log(`[SpreadSheetService.tryLock] faild to get scriptlock in ${_timeoutSeconds} seconds.`);
+            Logger.log(`[SpreadsheetService.tryLock] faild to get scriptlock in ${_timeoutSeconds} seconds.`);
             return null;
         }
 
-        Logger.log(`[SpreadSheetService.tryLock] Got scriptlock.`);
+        Logger.log(`[SpreadsheetService.tryLock] Got scriptlock.`);
         return new SpreadsheetLock();
     }
 }

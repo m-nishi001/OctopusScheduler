@@ -142,7 +142,7 @@ export class GasFunctionService {
                 })
                 .withFailureHandler((error: Error) => {
                     resolve(new ErrorResponse(`GASクライアントエラー: ${error.message}`));
-                })[this.apiFunctionName](functionName, args);
+                })[this.apiFunctionName](functionName, JSON.stringify(args));
         });
     }
 
