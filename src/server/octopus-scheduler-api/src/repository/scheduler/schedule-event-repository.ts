@@ -17,7 +17,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     }
 
     add(events: ScheduleEvent[]): number {
-        const serialized = this.serialize(events);
+        const serialized = events.map(this.serialize);
         return this.externalRepository.insert(this.tableName, serialized);
     }
 
@@ -40,7 +40,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
         return this.externalRepository.update(
             this.tableName,
             (obj: any) => predicate(this.deserialize(obj)),
-            (obj: any) => this.serialize([executor(this.deserialize(obj))])[0]
+            (obj: any) => this.serialize(executor(this.deserialize(obj)))
         );
     }
 
@@ -51,20 +51,17 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
         );
     }
 
-    private serialize(scheduleEvents: ScheduleEvent[]): any[] {
-        if (scheduleEvents.length === 0) return [];
-        return scheduleEvents.map(scheduleEvent => {
-            return {
-                eventId: scheduleEvent.eventId.id,
-                eventName: scheduleEvent.eventName.name,
-                timeSpan: JSON.stringify(
-                    {
-                        start: Utilities.formatDate(new Date(scheduleEvent.timeSpan.start), "JST", "yyyy/MM/dd HH:mm:ss"),
-                        end: Utilities.formatDate(new Date(scheduleEvent.timeSpan.end), "JST", "yyyy/MM/dd HH:mm:ss")
-                    }
-                )
-            }
-        });
+    private serialize(scheduleEvent: ScheduleEvent): any {
+        return {
+            eventId: scheduleEvent.eventId.id,
+            eventName: scheduleEvent.eventName.name,
+            timeSpan: JSON.stringify(
+                {
+                    start: Utilities.formatDate(new Date(scheduleEvent.timeSpan.start), "JST", "yyyy/MM/dd HH:mm:ss"),
+                    end: Utilities.formatDate(new Date(scheduleEvent.timeSpan.end), "JST", "yyyy/MM/dd HH:mm:ss")
+                }
+            )
+        };
     }
 
     private deserialize(obj: any): ScheduleEvent {
