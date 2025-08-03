@@ -5,7 +5,7 @@ import { GasFunctionService } from './googleAppsScript/gas-function-service';
 import { GasFunction } from './googleAppsScript/gas-function';
 
 onMounted(async () => {
-  var result = await new GasFunctionService().call(new GasFunction<any>("callOctopusSchedulerApi", "fooFunc", "Wow!"));
+  var result = await new GasFunctionService().call(new GasFunction<any>("callContentDeckApi", "fooFunc", "Wow!"));
   console.log(`result: ${result}`);
 });
 </script>
