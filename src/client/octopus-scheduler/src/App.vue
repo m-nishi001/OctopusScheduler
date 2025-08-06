@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
 import { onMounted } from 'vue';
-import { GasFunctionService } from './external/google-script/gas-function-service';
-import { GasFunction } from './external/google-script/gas-function';
-import type { SuccessResponse } from './external/google-script/response/success-response';
+import { GasFunction, GasFunctionService, SuccessResponse } from '@common-lib/google-apps-script/gas-script-service';
 
 onMounted(async () => {
   var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
@@ -68,6 +66,7 @@ onMounted(async () => {
     </a> -->
   </div>
   <HelloWorld msg="Vite + Vue" />
+  <router-view />
 </template>
 
 <style scoped>

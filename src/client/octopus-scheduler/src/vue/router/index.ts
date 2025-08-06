@@ -1,51 +1,27 @@
-// import { createRouter, createWebHistory } from 'vue-router'; // Vue 3の場合
-// // import VueRouter from 'vue-router'; // Vue 2の場合
-// // import Vue from 'vue'; // Vue 2の場合
+import { createRouter, createWebHashHistory } from 'vue-router'
+import { routes } from '@content-deck/router'
+import { HistoryService } from '../../../../commonLib/src/google-apps-script/gas-history-service';
 
-// // Vue 2の場合:
-// // Vue.use(VueRouter);
+const router = createRouter({
+    history: createWebHashHistory(),
+    routes
+});
 
-// // 1. ルートコンポーネントのインポート
-// import Home from '../views/Home.vue';
-// import About from '../views/About.vue';
-// import NotFound from '../views/NotFound.vue'; // 存在しないパス用のコンポーネント
+// ブラウザのURLの変更はHash値の変更であるため、これを定義済ルートとマッピングする
+router.beforeEach((to, from, next) => {
+    //const nameFromHash = to.hash.slice(1); // 先頭の"#"を除去する
+    console.log(`[router.beforeEach] to: ${to.fullPath} from: ${from.fullPath}`);
+    next();
+});
 
-// // 2. ルートの定義
-// // それぞれのルートはパスとコンポーネントのマッピングを定義します。
-// const routes = [
-//   {
-//     path: '/',
-//     name: 'Home',
-//     component: Home,
-//   },
-//   {
-//     path: '/about',
-//     name: 'About',
-//     // ルートベースのコード分割 (Route-level code-splitting)
-//     // これにより、このルートが訪問されたときにのみ、対応するコンポーネントのチャンクがロードされます。
-//     component: () => import(/* webpackChunkName: "about" */ '../views/About.vue'),
-//   },
-//   // 404 Not Found のルート (常に最後に配置)
-//   {
-//     path: '/:pathMatch(.*)*', // Vue Router 4 (Vue 3) の構文
-//     // path: '*', // Vue Router 3 (Vue 2) の構文
-//     name: 'NotFound',
-//     component: NotFound,
-//   },
-// ];
+// 画面遷移が発生したらGoogle apps scriptの関数を通じてブラウザのURL（ハッシュ値）を変更する
+router.afterEach(route => {
+    HistoryService.replace(null, undefined, route.hash);
+});
 
-// // 3. ルーターインスタンスの作成
-// // Vue 3の場合:
-// const router = createRouter({
-//   history: createWebHistory(), // HTML5 History モードを使用
-//   routes, // 上で定義したルート
-// });
+// Google apps scriptのHistoryChangeHandlerを設定する
+HistoryService.setChangeHandler(event => {
+    router.push({ path: '/', hash: `#${event.location.hash}` });
+});
 
-// // Vue 2の場合:
-// // const router = new VueRouter({
-// //   mode: 'history', // HTML5 History モードを使用
-// //   routes,
-// // });
-
-// // 4. ルーターインスタンスのエクスポート
-// export default router;
+export default router

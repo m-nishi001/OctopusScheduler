@@ -9,15 +9,11 @@ build({
     platform: 'browser',
     banner: {
         js: `
-let _doGet, _callContentDockApi;
+let _callContentDockApi;
             `
     },
     footer: {
         js: `
-function doGet(e){
-    return _doGet(e);
-}
-
 function callContentDockApi(...args){
     return _callContentDockApi.apply(this, args);
 }

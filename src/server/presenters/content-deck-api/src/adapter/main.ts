@@ -6,7 +6,6 @@ import { ApiResponse } from "./response/api-response";
 import { ErrorResponse } from "./response/error-response";
 import { SuccessResponse } from "./response/success-response";
 
-declare let _doGet: (e: GoogleAppsScript.Events.DoGet) => GoogleAppsScript.HTML.HtmlOutput;
 declare let _callContentDockApi: (functionName: string, args: any) => any;
 
 /**
@@ -49,23 +48,6 @@ function callContentDockApiInternal(callingObject: string, args: any): ApiRespon
 
   Logger.log(`Error: Unknown function name "${callingObject}" was called.`);
   return new ErrorResponse(`Unknown API function name: ${callingObject}`);
-}
-
-// これはPromise型で返却することができないのでとりあえずここで実装する。
-// （GAS側の型チェックに引っかかる模様）
-_doGet = (e: GoogleAppsScript.Events.DoGet) => {
-  try {
-    const template = HtmlService.createTemplateFromFile("content-dock-index");
-    return template.evaluate()
-      .setTitle('入社歓迎アプリ')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-
-  } catch (error) {
-    console.error(`Error in doGetInternal: ${(error as Error).stack}`);
-    return HtmlService.createHtmlOutput(
-      `<html><body><h1>エラー</h1><p>アプリケーションの読み込みに失敗しました。</p></body></html>`
-    );
-  }
 }
 
 _callContentDockApi = async (functionName: string, args: any) => {

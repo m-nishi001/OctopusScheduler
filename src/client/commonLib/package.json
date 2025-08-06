@@ -1,0 +1,24 @@
+{
+    "name": "my-gas-webapp",
+    "version": "1.0.0",
+    "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
+    "scripts": {
+        "build-local": "node esbuild.config.js",
+        "build": "",
+        "deploy": "npm run build && clasp push --force",
+        "lint": "eslint src/**/*.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@google/clasp": "^2.4.2",
+        "@types/google-apps-script": "^1.0.83",
+        "@types/node": "^20.12.12",
+        "@typescript-eslint/eslint-plugin": "^7.9.0",
+        "@typescript-eslint/parser": "^7.9.0",
+        "esbuild": "^0.25.6",
+        "eslint": "^8.57.1",
+        "core-js": "^3.44.0",
+        "typescript": "^5.4.5",
+        "localforage": "^1.10.0"
+    }
+}

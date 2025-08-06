@@ -12,6 +12,15 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@content-deck/*": [
+        "/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck/src/*"
+      ],
+      "@common-lib/*": [
+        "/root/google_apps_script/octopus-scheduler/src/client/commonLib/src/*"
+      ]
+    }
   },
   "include": [
     "src/**/*.ts",

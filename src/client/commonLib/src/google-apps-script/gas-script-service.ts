@@ -1,8 +1,3 @@
-import type { GasFunction } from './gas-function';
-import { ErrorResponse } from './response/error-response';
-import { FailedResponse } from './response/failed-response';
-import { SuccessResponse } from './response/success-response';
-
 declare namespace google {
     namespace script {
         interface Run {
@@ -12,6 +7,137 @@ declare namespace google {
             [functionName: string]: (...args: any[]) => void;
         }
         const run: Run;
+    }
+}
+
+export class ErrorResponse {
+    public readonly status: string = 'error';
+    public readonly message: string;
+    constructor(message: string) {
+        this.message = message;
+    }
+}
+
+export class SuccessResponse<T> {
+    public readonly status: string = 'success';
+    public readonly data: T;
+    constructor(data: T) {
+        this.data = data;
+    }
+}
+
+export class FailedResponse {
+    public readonly status: string = 'failed';
+    public readonly message: string;
+    constructor(message: string) {
+        this.message = message;
+    }
+}
+
+export class GasFunctionOptions {
+
+    private static readonly DEFAULT_TIMEOUT_MS = 10000;
+    private static readonly DEFAULT_RETRIES = 3;
+    private static readonly DEFAULT_RETRY_DELAY_MS = 1000;
+
+    private readonly timeout: number;
+    private readonly retries: number;
+    private readonly retryDelay: number;
+
+    constructor(
+        retries: number = GasFunctionOptions.DEFAULT_RETRIES,
+        retryDelay: number = GasFunctionOptions.DEFAULT_RETRY_DELAY_MS,
+        timeout: number = GasFunctionOptions.DEFAULT_TIMEOUT_MS
+    ) {
+        if (retries < 0) {
+            throw new Error("Retries cannot be negative.");
+        }
+        if (retryDelay < 0) {
+            throw new Error("Retry delay cannot be negative.");
+        }
+        if (timeout < 0) {
+            throw new Error("Timeout cannot be negative.");
+        }
+
+        this.retries = retries;
+        this.retryDelay = retryDelay;
+        this.timeout = timeout;
+    }
+
+    getTimeout(): number {
+        return this.timeout;
+    }
+    getRetries(): number {
+        return this.retries;
+    }
+    getRetryDelay(): number {
+        return this.retryDelay;
+    }
+    withTimeout(timeout: number): GasFunctionOptions {
+        return new GasFunctionOptions(this.retries, this.retryDelay, timeout);
+    }
+    withRetries(retries: number): GasFunctionOptions {
+        return new GasFunctionOptions(retries, this.retryDelay, this.timeout);
+    }
+    withRetryDelay(retryDelay: number): GasFunctionOptions {
+        return new GasFunctionOptions(this.retries, retryDelay, this.timeout);
+    }
+}
+
+export class GasFunction<TResult> {
+
+    public functionName: string;
+    public args: any = {};
+    public options: GasFunctionOptions = new GasFunctionOptions();
+
+    /**
+     * GasFunctionビルダーの新しいインスタンスを作成します。
+     * @param {string} functionName 呼び出すサーバーサイド関数の名前。
+     * @param {any} args サーバーサイド関数に渡す初期引数（オプション）。
+     */
+    constructor(functionName: string, args: any) {
+        this.functionName = functionName;
+        this.args = args;
+    }
+
+    /**
+     * GAS関数に渡す引数を設定します。
+     * @param {any} args 引数のオブジェクト。
+     * @returns {GasFunction<TResult>} チェーン可能なビルダーインスタンス。
+     */
+    public withArgs(args: any): GasFunction<TResult> {
+        this.args = args;
+        return this;
+    }
+
+    /**
+     * リトライ回数を設定します。
+     * @param {number} count リトライ回数。
+     * @returns {GasFunction<TResult>} チェーン可能なビルダーインスタンス。
+     */
+    public withRetryCount(count: number): GasFunction<TResult> {
+        this.options = this.options.withRetries(count);
+        return this;
+    }
+
+    /**
+     * リトライ間の待機時間を設定します（ミリ秒）。
+     * @param {number} ms 待機時間（ミリ秒）。
+     * @returns {GasFunction<TResult>} チェーン可能なビルダーインスタンス。
+     */
+    public withRetryInterval(ms: number): GasFunction<TResult> {
+        this.options = this.options.withRetryDelay(ms);
+        return this;
+    }
+
+    /**
+     * タイムアウト時間を設定します（ミリ秒）。
+     * @param {number} ms タイムアウト時間（ミリ秒）。
+     * @returns {GasFunction<TResult>} チェーン可能なビルダーインスタンス。
+     */
+    public withTimeout(ms: number): GasFunction<TResult> {
+        this.options = this.options.withTimeout(ms);
+        return this;
     }
 }
 
