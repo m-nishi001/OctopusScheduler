@@ -10,30 +10,22 @@
     ],
     "scripts": {
         "build": "npm run clean && npm run build:all && npm run copy:all-artifucts-to-temp && npm run flatten:dist && npm run clean:temp",
-        
         "clean": "rimraf dist _temp_dist",
         "clean:temp": "rimraf _temp_dist",
-        
         "build:server": "find src/server -maxdepth 3 -name \"package.json\" -execdir npm run build \\;",
         "build:clients": "find src/client -maxdepth 3 -name \"package.json\" -execdir npm run build \\;",
         "build:all": "npm run build:server && npm run build:clients",
-        
-        "copy:client-games-to-temp":"copyfiles \"src/client/games/*/dist/**/*\" _temp_dist",
-        "copy:client-presenters-to-temp":"copyfiles \"src/client/presenters/*/dist/**/*\" _temp_dist",
-        "copy:client-to-temp":"copyfiles \"src/client/*/dist/**/*\" _temp_dist",
+        "copy:client-games-to-temp": "copyfiles \"src/client/games/*/dist/**/*\" _temp_dist",
+        "copy:client-presenters-to-temp": "copyfiles \"src/client/presenters/*/dist/**/*\" _temp_dist",
+        "copy:client-to-temp": "copyfiles \"src/client/*/dist/**/*\" _temp_dist",
         "copy:all-clients-to-temp": "npm run copy:client-games-to-temp && npm run copy:client-presenters-to-temp && npm run copy:client-to-temp",
-
         "copy:server-games-to-temp": "copyfiles \"src/server/games/*/dist/**/*\" _temp_dist",
         "copy:server-presenters-to-temp": "copyfiles \"src/server/presenters/*/dist/**/*\" _temp_dist",
         "copy:server-to-temp": "copyfiles \"src/server/*/dist/**/*\" _temp_dist",
         "copy:all-servers-to-temp": "npm run copy:server-games-to-temp && npm run copy:server-presenters-to-temp && npm run copy:server-to-temp",
-        
         "copy:all-artifucts-to-temp": "npm run copy:all-clients-to-temp && npm run copy:all-servers-to-temp && npm run copy:appscript-json-to-temp",
-        
-        "copy:appscript-json-to-temp":"copyfiles appsscript.json _temp_dist",
-        
+        "copy:appscript-json-to-temp": "copyfiles appsscript.json _temp_dist",
         "flatten:dist": "copyfiles --flat \"_temp_dist/**/*\" dist",
-        
         "watch": "npm-run-all --parallel watch:server watch:clients",
         "watch:server": "npm --prefix src/server run watch",
         "watch:clients": "find src/client -maxdepth 2 -name \"package.json\" -execdir npm run watch \\;"

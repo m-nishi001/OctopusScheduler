@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import HelloWorld from './components/HelloWorld.vue'
 import { onMounted } from 'vue';
-import { GasFunctionService } from './googleAppsScript/gas-function-service';
-import { GasFunction } from './googleAppsScript/gas-function';
+
+import { GasFunction, GasFunctionService } from '@common-lib/google-apps-script/gas-script-service'
 
 onMounted(async () => {
-  var result = await new GasFunctionService().call(new GasFunction<any>("callContentDeckApi", "fooFunc", "Wow!"));
-  console.log(`result: ${result}`);
+  var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
+  if (!gasFunctionServicie) throw new Error();
+
+  const result1 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
+  console.log(`result: ${result1}`);
 });
 </script>
 

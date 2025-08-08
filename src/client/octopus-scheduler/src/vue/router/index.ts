@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { routes } from '@content-deck/router'
-import { HistoryService } from '../../../../commonLib/src/google-apps-script/gas-history-service';
+import { HistoryService } from '@common-lib/google-apps-script/gas-history-service';
 
 const router = createRouter({
     history: createWebHashHistory(),
@@ -21,7 +21,7 @@ router.afterEach(route => {
 
 // Google apps scriptのHistoryChangeHandlerを設定する
 HistoryService.setChangeHandler(event => {
-    router.push({ path: '/', hash: `#${event.location.hash}` });
+    router.push({ path: '/', hash: `#${event.location.hash.slice(1)}` }); 
 });
 
 export default router

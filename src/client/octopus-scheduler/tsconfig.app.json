@@ -17,14 +17,13 @@
       "@content-deck/*": [
         "/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck/src/*"
       ],
-      "@common-lib/*": [
-        "/root/google_apps_script/octopus-scheduler/src/client/commonLib/src/*"
+      "@common-lib/*":[
+        "/root/google_apps_script/octopus-scheduler/src/client/common-lib/src/*"
       ]
     }
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.vue"
-  ]
+    "src/**/*.vue", ]
 }

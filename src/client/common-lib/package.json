@@ -1,11 +1,10 @@
 {
-    "name": "my-gas-webapp",
+    "name": "common-lib",
     "version": "1.0.0",
     "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
+    "main": "dist/Code.js",
     "scripts": {
-        "build-local": "node esbuild.config.js",
         "build": "",
-        "deploy": "npm run build && clasp push --force",
         "lint": "eslint src/**/*.ts",
         "typecheck": "tsc --noEmit"
     },
@@ -15,10 +14,15 @@
         "@types/node": "^20.12.12",
         "@typescript-eslint/eslint-plugin": "^7.9.0",
         "@typescript-eslint/parser": "^7.9.0",
+        "core-js": "^3.44.0",
         "esbuild": "^0.25.6",
         "eslint": "^8.57.1",
-        "core-js": "^3.44.0",
-        "typescript": "^5.4.5",
-        "localforage": "^1.10.0"
+        "localforage": "^1.10.0",
+        "reflect-metadata": "^0.2.2",
+        "tsyringe": "^4.10.0",
+        "typescript": "^5.4.5"
+    },
+    "dependencies": {
+        "glob": "^11.0.3"
     }
 }
