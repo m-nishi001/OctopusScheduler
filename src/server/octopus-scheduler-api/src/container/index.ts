@@ -6,7 +6,9 @@ import { IScheduleEventRepository } from "../domain/scheduler/schedule-event-rep
 import { ScheduleEventRepository } from "../repository/scheduler/schedule-event-repository";
 import { ScheduleEventService } from "../application/schedule-event/schedule-event-service";
 import { IRepository } from "../repository/repository";
-import { SpreadsheetService } from "../infrastructure/google-spreadsheet/spreadsheet-servie";
+
+// SharedPackages
+import { SpreadsheetService } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-spreadsheet-servie";
 
 export class Container {
     static regiser() {

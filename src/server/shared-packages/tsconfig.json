@@ -13,7 +13,7 @@
     "moduleResolution": "node", // How modules get resolved (node is common for build tools)
     "resolveJsonModule": true, // Allow importing JSON files
     "noEmit": true, // Do not emit output files (JS). Rely on ESBuild for bundling. Set true if using `tsc` only for type checking without `--noEmit` flag.
-    "rootDirs": ["src", "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src"],
+    "rootDir": "src", // Specifies the root directory of input files
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },

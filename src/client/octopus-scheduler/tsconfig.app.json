@@ -18,7 +18,10 @@
         "/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck/src/*"
       ],
       "@common-lib/*":[
-        "/root/google_apps_script/octopus-scheduler/src/client/common-lib/src/*"
+        "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/*"
+      ],
+      "@shared-composables/*":[
+        "/root/google_apps_script/octopus-scheduler/src/client/package/shared-composables"
       ]
     }
   },

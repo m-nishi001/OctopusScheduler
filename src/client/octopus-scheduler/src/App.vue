@@ -3,6 +3,8 @@ import { onMounted } from 'vue';
 import { GasFunction, GasFunctionService } from '@common-lib/google-apps-script/gas-script-service'
 
 onMounted(async () => {
+
+
   var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
   if (!gasFunctionServicie) throw new Error();
 
@@ -32,9 +34,6 @@ onMounted(async () => {
   // }]).withTimeout(20000));
   // console.log(`result: ${result0}`);
 
-  const result1 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
-  console.log(`result: ${result1}`);
-
   // await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.updateScheduleEvents", [{
   //   eventId: (result1 as SuccessResponse<any>).data[0].eventId,
   //   eventName: "TestEvent1-1",
@@ -42,8 +41,8 @@ onMounted(async () => {
   //   end: new Date(2025, 7, 11, 14, 20, 19)
   // }]).withTimeout(20000));
 
-  // const result2 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
-  // console.log(`result: ${result2}`);
+  const result2 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
+  console.log(`result: ${result2}`);
 
   // const result4 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
   // console.log(`result: ${result4}`);

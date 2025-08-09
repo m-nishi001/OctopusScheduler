@@ -10,9 +10,10 @@ export default defineConfig({
   ],
   build: {
     target: "es2020",
-  }, resolve: {
+  },
+  resolve: {
     alias: {
-      '@common-lib': path.resolve(__dirname, '/root/google_apps_script/octopus-scheduler/src/client/common-lib/src')
+      '@common-lib': path.resolve(__dirname, '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src'),
     },
   }
 })

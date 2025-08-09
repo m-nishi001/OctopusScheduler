@@ -14,7 +14,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@content-deck': path.resolve(__dirname, '/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck/src'),
-      '@common-lib': path.resolve(__dirname, '/root/google_apps_script/octopus-scheduler/src/client/common-lib/src')
+      '@common-lib': path.resolve(__dirname, '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src'),
+      '@shared-composables': path.resolve(__dirname, '/root/google_apps_script/octopus-scheduler/src/client/package/shared-composables/src')
     },
   }
 })

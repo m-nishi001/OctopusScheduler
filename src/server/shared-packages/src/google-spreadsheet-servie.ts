@@ -1,11 +1,82 @@
-import { injectable } from "tsyringe";
-import { IRepository } from "../../repository/repository";
-import { SpreadSheetInfo } from "./spreadsheet-info";
-import { ColumnDefinition } from "./value-object/column-definition";
-import { SpreadsheetLock } from "./value-object/spreadsheet-lock";
+export class SpreadSheetInfo {
+    static getSpreadSheetId(): SpreadsheetId {
+        const spreadSheetId = PropertiesService.getScriptProperties().getProperty("spreadsheet-id") || "";
+        return SpreadsheetId.create(spreadSheetId)!; // nullになることはあり得ない（ようにする必要がある）
+    }
+}
 
-@injectable()
-export class SpreadsheetService implements IRepository {
+class SpreadsheetLock implements Disposable {
+    private constructor() {
+    }
+
+    [Symbol.dispose](): void {
+        LockService.getScriptLock().releaseLock();
+        Logger.log(`[SpreadsheetLock.dispose] Released scriptlock.`);
+        return;
+    }
+
+    static tryLock(): SpreadsheetLock | null {
+        const _timeoutSeconds = 5;
+
+        if (!LockService.getScriptLock().tryLock(_timeoutSeconds * 1000)) {
+            Logger.log(`[SpreadsheetService.tryLock] faild to get scriptlock in ${_timeoutSeconds} seconds.`);
+            return null;
+        }
+
+        Logger.log(`[SpreadsheetService.tryLock] Got scriptlock.`);
+        return new SpreadsheetLock();
+    }
+}
+
+export class ColumnDefinition {
+
+    colmunName: string;
+
+    private constructor(colmunName: string) {
+        this.colmunName = colmunName;
+    }
+
+    static create(columnName: string): ColumnDefinition | null {
+        if (columnName === "") {
+            Logger.log(`[ColumnDefinition.create] colmunName is empty.`);
+            return null;
+        }
+        return new ColumnDefinition(columnName);
+    }
+}
+
+export class SpreadsheetId {
+    id: string;
+    private constructor(id: string) {
+        this.id = id;
+    }
+
+    static create(id: string): SpreadsheetId | null {
+        if (id === "") {
+            Logger.log(`[SpreadsheetId.create] id is empty.`);
+            return null;
+        }
+        return new SpreadsheetId(id);
+    }
+}
+
+export class SpreadsheetName {
+    name: string;
+    private constructor(name: string) {
+        this.name = name;
+    }
+
+    static creaate(name: string): SpreadsheetName | null {
+        if (name === "") {
+            Logger.log(`[SheetName.create] sheetName is empty.`);
+            return null;
+        }
+
+        return new SpreadsheetName(name);
+    }
+}
+
+export class SpreadsheetService {
     insert(sheetName: string, records: any[]): number {
         using lock = SpreadsheetLock.tryLock();
         if (!lock) return -1;

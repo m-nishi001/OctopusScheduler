@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    /* Refference */
+    "baseUrl": ".",
+    "paths": {
+      "@common-lib/*":[
+        "/root/google_apps_script/octopus-scheduler/src/client/common-lib/src/*"
+      ],
+      "@shared-composables/*": [
+        "/root/google_apps_script/octopus-scheduler/src/client/package/shared-composables/*"
+      ]
+    }
+  },
+  "include": ["vite.config.ts"]
+}

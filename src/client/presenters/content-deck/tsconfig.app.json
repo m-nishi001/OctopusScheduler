@@ -15,8 +15,8 @@
     "baseUrl": ".",
     "paths": {
       "@common-lib/*": [
-        "/root/google_apps_script/octopus-scheduler/src/client/common-lib/src/*"
-      ]
+        "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/*"
+      ],
     }
   },
   "include": [
