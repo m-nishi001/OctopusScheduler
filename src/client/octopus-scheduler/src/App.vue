@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { GasFunction, GasFunctionService } from '@common-lib/google-apps-script/gas-script-service'
+import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service'
 
 onMounted(async () => {
 
@@ -41,8 +41,11 @@ onMounted(async () => {
   //   end: new Date(2025, 7, 11, 14, 20, 19)
   // }]).withTimeout(20000));
 
-  const result2 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
-  console.log(`result: ${result2}`);
+  await gasFunctionServicie.all(
+    gasFunctionServicie
+      .createCall<any>("ScheduleEventService.findAllScheduleEvents", {})
+      .withTimeout(20000)
+      .withSuccessed(o => console.log(`result: ${o}`)));
 
   // const result4 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
   // console.log(`result: ${result4}`);

@@ -2,12 +2,31 @@ import "reflect-metadata";
 import { container } from "tsyringe";
 import { Container } from "../container";
 import { GasService } from "../application/gas-service";
-import { ApiResponse } from "./response/api-response";
-import { ErrorResponse } from "./response/error-response";
-import { SuccessResponse } from "./response/success-response";
 
 declare let _doGet: (e: GoogleAppsScript.Events.DoGet) => GoogleAppsScript.HTML.HtmlOutput;
 declare let _callOctopusSchedulerApi: (functionName: string, args: any) => any;
+
+type ApiResponse = SuccessResponse | ErrorResponse;
+
+export class ErrorResponse {
+  status: string = 'error';
+  message: string;
+  date: string = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd HH:mm:ss");
+
+  constructor(message: string) {
+    this.message = message;
+  }
+};
+
+export class SuccessResponse {
+  status: string = 'success';
+  data: any;
+  date: string = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd HH:mm:ss");
+
+  constructor(data: any) {
+    this.data = data;
+  }
+};
 
 /**
  * クライアントからの関数呼び出しを中継する内部ディスパッチャー関数。
@@ -57,7 +76,7 @@ _doGet = (e: GoogleAppsScript.Events.DoGet) => {
   try {
     const template = HtmlService.createTemplateFromFile("octopus-scheduler-index");
     return template.evaluate()
-      .setTitle('入社歓迎アプリ')
+      .setTitle('Fail Loading...')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 
   } catch (error) {

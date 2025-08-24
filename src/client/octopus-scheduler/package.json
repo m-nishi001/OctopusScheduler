@@ -9,10 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "content-deck-project": "/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck",
     "localforage": "^1.10.0",
+    "mitt": "^3.0.1",
     "vue": "^3.5.17",
-    "vue-router": "^4.5.1",
-    "content-deck-project" : "/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck"
+    "vue-router": "^4.5.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.0",

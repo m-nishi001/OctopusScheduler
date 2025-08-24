@@ -4,15 +4,6 @@ import { ref } from 'vue'
 defineProps<{ msg: string }>()
 
 const count = ref(0)
-
-import { GasFunction, GasFunctionService } from '@common-lib/google-apps-script/gas-script-service'
-
-var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
-if (!gasFunctionServicie) throw new Error();
-
-gasFunctionServicie
-  .call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000))
-  .then(result => console.log(`result anohter: ${result}`));
 </script>
 
 <template>

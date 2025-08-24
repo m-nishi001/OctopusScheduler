@@ -1,67 +1,31 @@
-export class DataSize {
+/**
+ * データサイズを扱うための値オブジェクト。
+ * サービスの外部に公開されない内部クラスです。
+ */
+class DataSize {
     private readonly bytes: number;
     private static readonly BYTES_IN_KB = 1024;
     private static readonly BYTES_IN_MB = 1024 * DataSize.BYTES_IN_KB;
     private static readonly BYTES_IN_GB = 1024 * DataSize.BYTES_IN_MB;
 
-    constructor(value: number | DataSize, unit?: 'B' | 'KB' | 'MB' | 'GB') {
-        if (value instanceof DataSize) { this.bytes = value.bytes; return; }
-        if (typeof value === 'number') {
-            switch (unit) {
-                case 'B': this.bytes = value; break;
-                case 'KB': this.bytes = value * DataSize.BYTES_IN_KB; break;
-                case 'MB': this.bytes = value * DataSize.BYTES_IN_MB; break;
-                case 'GB': this.bytes = value * DataSize.BYTES_IN_GB; break;
-                default: this.bytes = value; break;
-            }
-        } else {
-            throw new Error('無効なコンストラクタ引数です。');
+    constructor(value: number, unit: 'B' | 'KB' | 'MB' | 'GB') {
+        switch (unit) {
+            case 'B': this.bytes = value; break;
+            case 'KB': this.bytes = value * DataSize.BYTES_IN_KB; break;
+            case 'MB': this.bytes = value * DataSize.BYTES_IN_MB; break;
+            case 'GB': this.bytes = value * DataSize.BYTES_IN_GB; break;
+            default: this.bytes = value; break;
         }
     }
 
     public toBytes(): number { return this.bytes; }
-    public toKilobytes(): number { return this.bytes / DataSize.BYTES_IN_KB; }
-    public toMegabytes(): number { return this.bytes / DataSize.BYTES_IN_MB; }
-    public toGigabytes(): number { return this.bytes / DataSize.BYTES_IN_GB; }
-
-    public equals(other: DataSize): boolean { return this.bytes === other.bytes; }
-
-    public toString(unit: 'B' | 'KB' | 'MB' | 'GB' = 'B', fractionDigits: number = 2): string {
-        let value: number; let unitString: string;
-        switch (unit) {
-            case 'B': value = this.toBytes(); unitString = 'B'; break;
-            case 'KB': value = this.toKilobytes(); unitString = 'KB'; break;
-            case 'MB': value = this.toMegabytes(); unitString = 'MB'; break;
-            case 'GB': value = this.toGigabytes(); unitString = 'GB'; break;
-            default: value = this.toBytes(); unitString = 'B'; break;
-        }
-        return `${value.toFixed(fractionDigits)}${unitString}`;
-    }
 }
 
-export class FileIdQuery {
-    public readonly ids: FileId[];
-    public readonly parentFolderId: FolderId;
-
-    private constructor(ids: FileId[], parentFolderId: FolderId) {
-        this.ids = ids;
-        this.parentFolderId = parentFolderId;
-    }
-
-    static create(ids: FileId[], parentFolderId: FolderId): FileIdQuery | null {
-        if (!ids || ids.length === 0) {
-            Logger.log(`[FileIdQuery} ids length is 0.`);
-            return null;
-        }
-        if (!parentFolderId) {
-            Logger.log(`[FileIdQuery} parentFolderId was invalid. Input value is ${parentFolderId}`);
-            return null;
-        }
-        return new FileIdQuery(ids, parentFolderId);
-    }
-}
-
-export class FileId {
+/**
+ * ファイルIDを扱うための値オブジェクト。
+ * サービスの外部に公開されない内部クラスです。
+ */
+class FileId {
     public readonly id: string;
 
     private constructor(id: string) {
@@ -70,31 +34,46 @@ export class FileId {
 
     static create(id: string): FileId | null {
         if (!id || id === "") {
-            Logger.log(`[FileId] name was invalid. Input value is ${id}`);
+            Logger.log(`[FileId] ID is invalid. Input value is ${id}`);
             return null;
         }
         return new FileId(id);
     }
 }
 
-export class FileMimeType {
+/**
+ * ファイル名を扱うための値オブジェクト。
+ * サービスの外部に公開されない内部クラスです。
+ */
+class FileName {
+    public readonly name: string;
+
+    private constructor(name: string) {
+        this.name = name;
+    }
+
+    static create(name: string): FileName | null {
+        if (!name || name === "") {
+            Logger.log(`[FileName] Name is invalid. Input value is ${name}`);
+            return null;
+        }
+        return new FileName(name);
+    }
+}
+
+/**
+ * MIMEタイプを扱うための値オブジェクト。
+ * サービスの外部に公開されない内部クラスです。
+ */
+class FileMimeType {
     private readonly value: string;
 
     private static normalizationMap = new Map([
-        ['jpeg', 'image/jpeg'],
-        ['jpg', 'image/jpeg'],
-        ['image', 'image/jpeg'],
-        ['txt', 'text/plain'],
-        ['text', 'text/plain'],
-        ['html', 'text/html'],
-        ['json', 'application/json'],
-        ['pdf', 'application/pdf'],
-        ['csv', 'text/csv'],
-        ['xml', 'application/xml'],
-        ['zip', 'application/zip'],
-        ['javascript', 'application/javascript'],
-        ['js', 'application/javascript'],
-        ['css', 'text/css'],
+        ['jpeg', 'image/jpeg'], ['jpg', 'image/jpeg'], ['image', 'image/jpeg'],
+        ['txt', 'text/plain'], ['text', 'text/plain'], ['html', 'text/html'],
+        ['json', 'application/json'], ['pdf', 'application/pdf'], ['csv', 'text/csv'],
+        ['xml', 'application/xml'], ['zip', 'application/zip'], ['javascript', 'application/javascript'],
+        ['js', 'application/javascript'], ['css', 'text/css'],
         ['doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
         ['docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
         ['xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
@@ -115,61 +94,17 @@ export class FileMimeType {
 
     static create(rawMimeType: string) {
         if (typeof rawMimeType !== 'string' || rawMimeType.trim() === '') {
-            Logger.log('Error: MIMEタイプは空でない文字列である必要があります。');
+            Logger.log('Error: MIME type must be a non-empty string.');
             return null;
         }
 
         const normalizedMimeType = FileMimeType.normalize(rawMimeType.trim().toLowerCase());
-
-        if (!FileMimeType.isValid(normalizedMimeType)) {
-            Logger.log(`Error: 不正なMIMEタイプが指定されました: "${rawMimeType}" (正規化後: "${normalizedMimeType}")`);
-            return null;
-        }
 
         return new FileMimeType(normalizedMimeType);
     }
 
     private static normalize(mimeType: string) {
         return FileMimeType.normalizationMap.get(mimeType) || mimeType;
-    }
-
-    private static isValid(mimeType: string) {
-        const mimeTypePattern = /^[a-zA-Z0-9\-\.]+\/[a-zA-Z0-9\-\.\+]+$/;
-        if (mimeTypePattern.test(mimeType)) {
-            return true;
-        }
-
-        const googleMimeTypes = [
-            'application/vnd.google-apps.document',
-            'application/vnd.google-apps.spreadsheet',
-            'application/vnd.google-apps.presentation',
-            'application/vnd.google-apps.drawing',
-            'application/vnd.google-apps.script',
-            'application/vnd.google-apps.folder',
-            'application/vnd.google-apps.form',
-            'application/vnd.google-apps.site',
-            'application/vnd.google-apps.map',
-            'application/vnd.google-apps.fusiontable',
-            'application/vnd.google-apps.script-json',
-            'application/vnd.google-apps.shortcut'
-        ];
-        if (googleMimeTypes.includes(mimeType)) {
-            return true;
-        }
-
-        const commonMimeTypes = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp',
-            'text/plain', 'text/html', 'text/css', 'text/csv',
-            'application/json', 'application/pdf', 'application/xml', 'application/zip',
-            'application/javascript',
-            'audio/mpeg', 'audio/wav',
-            'video/mp4', 'video/webm'
-        ];
-        if (commonMimeTypes.includes(mimeType)) {
-            return true;
-        }
-
-        return false;
     }
 
     toString() {
@@ -181,28 +116,11 @@ export class FileMimeType {
     }
 }
 
-export interface FileNameQuery {
-    readonly fileName: FileName;
-    readonly parentFolderId: FolderId;
-}
-
-export class FileName {
-    public readonly name: string;
-
-    private constructor(name: string) {
-        this.name = name;
-    }
-
-    static create(name: string): FileName | null {
-        if (!name || name === "") {
-            Logger.log(`[FileName] name was invalid. Input value is ${name}`);
-            return null;
-        }
-        return new FileName(name);
-    }
-}
-
-export class FolderId {
+/**
+ * フォルダIDを扱うための値オブジェクト。
+ * サービスの外部に公開されない内部クラスです。
+ */
+class FolderId {
     public readonly id: string;
 
     private constructor(id: string) {
@@ -211,113 +129,179 @@ export class FolderId {
 
     static create(id: string): FolderId | null {
         if (!id || id === "") {
-            Logger.log(`[FolderId] name was invalid. Input value is ${id}`);
+            Logger.log(`[FolderId] ID is invalid. Input value is ${id}`);
             return null;
         }
         return new FolderId(id);
     }
 }
 
-export interface UploadData {
-    readonly fileId: FileId | null;
-    readonly fileName: FileName;
-    readonly parentFolderId: FolderId;
-    readonly mimeType: FileMimeType;
-    readonly blob: GoogleAppsScript.Base.Blob;
-}
-
+/**
+ * Google Driveの操作を抽象化するサービスクラス。
+ * このクラスのパブリックメソッドのみを外部に公開し、複雑なロジックを隠蔽します。
+ */
 export class GoogleDriveService {
-    static findFileByName(query: FileNameQuery): GoogleAppsScript.Drive.File[] {
-        const fileItelator = DriveApp.getFolderById(query.parentFolderId.id).getFiles();
+    /**
+     * 指定されたフォルダ内でファイル名を使ってファイルを探します。
+     * @param options 検索オプション。ファイル名と親フォルダIDを含みます。
+     * @returns 見つかったファイルの配列。
+     */
+    static findFileByName(options: { fileName: string, parentFolderId: string }): GoogleAppsScript.Drive.File[] {
+        const fileName = FileName.create(options.fileName);
+        const parentFolderId = FolderId.create(options.parentFolderId);
 
-        let founds = [];
-        while (fileItelator.hasNext()) {
-            const file = fileItelator.next();
-            if (query.fileName.name === file.getName()) {
-                founds.push(file);
-            }
+        if (!fileName || !parentFolderId) {
+            Logger.log('Error: Invalid file name or folder ID.');
+            return [];
         }
 
-        return founds;
+        try {
+            const folder = DriveApp.getFolderById(parentFolderId.id);
+            const fileIterator = folder.getFilesByName(fileName.name);
+            const founds: GoogleAppsScript.Drive.File[] = [];
+
+            while (fileIterator.hasNext()) {
+                founds.push(fileIterator.next());
+            }
+
+            return founds;
+        } catch (e: any) {
+            Logger.log(`[findFileByName] ${e}`);
+            return [];
+        }
     }
 
-    static findFileById(query: FileIdQuery): GoogleAppsScript.Drive.File[] {
-        const fileItelator = DriveApp.getFolderById(query.parentFolderId.id).getFiles();
-
-        let founds = [];
-        while (fileItelator.hasNext()) {
-            const file = fileItelator.next();
-            const id = file.getId();
-            if (query.ids.some(fileId => fileId.id === id)) {
-                founds.push(file);
-            }
+    /**
+     * 指定されたフォルダ内でファイルIDを使ってファイルを探します。
+     * DriveAppのイテレータを使用する代わりに、Google Drive APIを直接使用します。
+     * @param options 検索オプション。ファイルIDの配列と親フォルダIDを含みます。
+     * @returns 見つかったファイルの配列。
+     */
+    static findFileByIds(options: { fileIds: string[], parentFolderId: string }): GoogleAppsScript.Drive.File[] {
+        if (!options.fileIds || options.fileIds.length === 0) {
+            Logger.log('Error: File IDs array is empty.');
+            return [];
         }
 
-        return founds;
-    }
+        try {
+            const founds: GoogleAppsScript.Drive.File[] = [];
+            const fileIdSet = new Set(options.fileIds);
 
-    static findFileDataById(query: FileIdQuery): GoogleAppsScript.Base.Blob[] {
-        const fileItelator = DriveApp.getFolderById(query.parentFolderId.id).getFiles();
+            // Drive.Files.get()で個々のファイルを直接取得
+            fileIdSet.forEach(fileId => {
+                try {
+                    const file = DriveApp.getFileById(fileId);
+                    // 親フォルダが一致するか確認
+                    if (file.getParents().hasNext() && file.getParents().next().getId() === options.parentFolderId) {
+                        founds.push(file);
+                    }
+                } catch (e: any) {
+                    // ファイルが見つからない、またはアクセス権がない場合はスキップ
+                    Logger.log(`[findFileByIds] File with ID ${fileId} not found or access denied.`);
+                }
+            });
 
-        let founds = [];
-        while (fileItelator.hasNext()) {
-            const file = fileItelator.next();
-            const id = file.getId();
-            if (query.ids.some(fileId => fileId.id === id)) {
-                founds.push(file.getBlob());
-            }
+            return founds;
+        } catch (e: any) {
+            Logger.log(`[findFileByIds] ${e}`);
+            return [];
         }
-
-        return founds;
     }
 
-    static uploadFile(data: UploadData): GoogleAppsScript.Drive_v3.Drive.V3.Schema.File {
-        if (data.fileId !== null) {
-            const fileMetadata: GoogleAppsScript.Drive_v3.Drive.V3.Schema.File = {
-                name: data.fileName.name,
-                mimeType: data.mimeType.toString(),
-            };
-            return Drive.Files.update(fileMetadata, data.fileId.id, data.blob);
+    /**
+     * 指定されたIDのファイルの内容（Blob）を取得します。
+     * @param options 検索オプション。ファイルIDの配列と親フォルダIDを含みます。
+     * @returns ファイルの内容（Blob）の配列。
+     */
+    static findFileDataByIds(options: { fileIds: string[], parentFolderId: string }): GoogleAppsScript.Base.Blob[] {
+        const files = this.findFileByIds(options);
+        return files.map(file => file.getBlob());
+    }
+
+    /**
+     * ファイルをアップロードまたは更新します。
+     * @param options アップロードオプション。ファイルID、ファイル名、親フォルダID、MIMEタイプ、Blobを含みます。
+     * fileIdが提供された場合、既存のファイルが更新されます。
+     * @returns アップロードまたは更新されたファイル。
+     */
+    static uploadFile(options: { fileId?: string, fileName: string, parentFolderId: string, mimeType: string, blob: GoogleAppsScript.Base.Blob }): GoogleAppsScript.Drive_v3.Drive.V3.Schema.File | null {
+        const fileId = options.fileId ? FileId.create(options.fileId) : null;
+        const fileName = FileName.create(options.fileName);
+        const parentFolderId = FolderId.create(options.parentFolderId);
+        const mimeType = FileMimeType.create(options.mimeType);
+
+        if (!fileName || !parentFolderId || !mimeType) {
+            Logger.log('Error: Invalid upload options.');
+            return null;
         }
 
         const fileMetadata: GoogleAppsScript.Drive_v3.Drive.V3.Schema.File = {
-            name: data.fileName.name,
-            mimeType: data.mimeType.toString(),
-            parents: [data.parentFolderId.id]
+            name: fileName.name,
+            mimeType: mimeType.toString(),
+            parents: [parentFolderId.id]
         };
-        return Drive.Files.create(fileMetadata, data.blob);
-    }
-
-    static deleteObjects(targets: FileId[] | FolderId[]): boolean {
-        if (targets.length === 0) return true;
 
         try {
-            targets.forEach(fileId => Drive.Files.remove(fileId.id));
+            if (fileId) {
+                return Drive.Files.update(fileMetadata, fileId.id, options.blob);
+            } else {
+                return Drive.Files.create(fileMetadata, options.blob);
+            }
         } catch (e: any) {
-            Logger.log(`[deleteObjects] ${e}`);
+            Logger.log(`[uploadFile] ${e}`);
+            return null;
+        }
+    }
+
+    /**
+     * 指定されたIDのファイルまたはフォルダを削除します。
+     * @param ids 削除するファイルまたはフォルダのIDの配列。
+     * @returns 削除が成功した場合はtrue、失敗した場合はfalse。
+     */
+    static deleteFilesOrFolders(ids: string[]): boolean {
+        if (ids.length === 0) return true;
+
+        try {
+            ids.forEach(id => {
+                // IDのバリデーションは内部で行う
+                const fileId = FileId.create(id);
+                if (fileId) {
+                    Drive.Files.remove(fileId.id);
+                }
+            });
+            return true;
+        } catch (e: any) {
+            Logger.log(`[deleteFilesOrFolders] ${e}`);
             return false;
         }
-
-        return true;
     }
 
     private static readonly ZIP_READY_CONFIG_FILE_NAME = "zip-ready-config.json";
 
-    static readyZipping(target: FolderId, partationDataSize: DataSize): number {
-        if (partationDataSize.toBytes() <= 0) {
-            Logger.log(`[readyZipping] partationDataSize is invalid. the value is ${partationDataSize}`);
+    /**
+     * フォルダ内のファイルを指定したサイズで分割し、ZIP化の準備をします。
+     * @param options フォルダIDと分割サイズ（バイト単位）を含むオプション。
+     * @returns 作成されたZIPファイルの分割数。
+     */
+    static readyZipping(options: { folderId: string, partitionSizeInBytes: number }): number {
+        const folderId = FolderId.create(options.folderId);
+        const partationDataSize = new DataSize(options.partitionSizeInBytes, 'B');
+
+        if (!folderId || partationDataSize.toBytes() <= 0) {
+            Logger.log(`[readyZipping] Invalid folder ID or partition size.`);
             return 0;
         }
 
         try {
-            const folder = DriveApp.getFolderById(target.id);
-            const fileItelator = folder.getFiles();
+            const folder = DriveApp.getFolderById(folderId.id);
+            const fileIterator = folder.getFiles();
 
             let totalFileSize = 0;
-            const fileSet: FileId[][] = [];
-            while (fileItelator.hasNext()) {
-                const file = fileItelator.next();
+            const fileSet: FileId[][] = [[]];
+            while (fileIterator.hasNext()) {
+                const file = fileIterator.next();
 
+                // ZIPファイルと設定ファイルは削除
                 if (file.getMimeType() === MimeType.ZIP || file.getName() === GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME) {
                     file.setTrashed(true);
                     continue;
@@ -333,10 +317,12 @@ export class GoogleDriveService {
                 totalFileSize += fileSize;
             }
 
+            // 設定ファイルを保存
             folder.createFile(
                 GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME,
-                JSON.stringify(fileSet),
-                MimeType.PLAIN_TEXT);
+                JSON.stringify(fileSet.filter(set => set.length > 0)),
+                MimeType.PLAIN_TEXT
+            );
 
             return fileSet.length;
         } catch (e: any) {
@@ -345,37 +331,55 @@ export class GoogleDriveService {
         }
     }
 
-    static zip(target: FolderId, seq: number): boolean {
-        if (seq < 0) {
-            Logger.log(`[zip] seq is invalid. the number is ${seq}`);
+    /**
+     * 事前に準備された設定ファイルに基づいて、指定されたシーケンス番号のファイルをZIP化します。
+     * DriveAppのイテレータを使用する代わりに、Drive.Files.get()を直接使用します。
+     * @param options フォルダIDとZIP化するシーケンス番号を含むオプション。
+     * @returns ZIP化が成功した場合はtrue、失敗した場合はfalse。
+     */
+    static zip(options: { folderId: string, sequence: number }): boolean {
+        const folderId = FolderId.create(options.folderId);
+        if (!folderId || options.sequence < 0) {
+            Logger.log(`[zip] Invalid folder ID or sequence number.`);
             return false;
         }
 
         try {
-            const folder = DriveApp.getFolderById(target.id);
-            const foundFiles = folder.getFilesByName(GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME)
+            const folder = DriveApp.getFolderById(folderId.id);
+            const foundFiles = folder.getFilesByName(GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME);
+
             if (!foundFiles.hasNext()) {
                 Logger.log(`[zip] ${GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME} is not found. Must call "readyZipping" before calling this.`);
                 return false;
             }
 
             const configOrigin = foundFiles.next().getBlob().getDataAsString();
-            const configs = JSON.parse(configOrigin) as FileId[][];
-            const targetFileIds = configs[seq];
+            const configs = JSON.parse(configOrigin) as { id: string }[][];
+            const targetFileIds = configs[options.sequence];
 
-            const fileItelator = folder.getFiles();
-            const targetBlobs: GoogleAppsScript.Base.Blob[] = [];
-            while (fileItelator.hasNext()) {
-                const file = fileItelator.next();
-
-                if (targetFileIds.some(fileId => fileId.id === file.getId())) {
-                    targetBlobs.push(file.getBlob());
-                }
-
-                if (targetFileIds.length === targetBlobs.length) break;
+            if (!targetFileIds) {
+                Logger.log(`[zip] Sequence number ${options.sequence} is out of bounds.`);
+                return false;
             }
 
-            const zip = Utilities.zip(targetBlobs, `${folder.getName()}_zip_${seq}.zip`);
+            const targetBlobs: GoogleAppsScript.Base.Blob[] = [];
+
+            // Drive.Files.get()を呼び出して、必要なファイルだけを取得
+            targetFileIds.forEach(fileId => {
+                try {
+                    const file = DriveApp.getFileById(fileId.id);
+                    targetBlobs.push(file.getBlob());
+                } catch (e: any) {
+                    Logger.log(`[zip] Error getting file with ID ${fileId.id}: ${e}`);
+                }
+            });
+
+            if (targetBlobs.length !== targetFileIds.length) {
+                Logger.log(`[zip] Some target files were not found.`);
+                return false;
+            }
+
+            const zip = Utilities.zip(targetBlobs, `${folder.getName()}_zip_${options.sequence}.zip`);
             folder.createFile(zip);
             return true;
         } catch (e: any) {
@@ -383,5 +387,4 @@ export class GoogleDriveService {
             return false;
         }
     }
-
 }
