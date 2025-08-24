@@ -1,0 +1,38 @@
+
+> content-deck-api@1.0.0 lint
+> eslint src/**/*.ts
+
+[1G[0K=============
+
+WARNING: You are currently running a version of TypeScript which is not officially supported by @typescript-eslint/typescript-estree.
+
+You may find that it works just fine, or you may not.
+
+SUPPORTED TYPESCRIPT VERSIONS: >=4.7.4 <5.6.0
+
+YOUR TYPESCRIPT VERSION: 5.9.2
+
+Please only submit bug reports when using the officially supported version.
+
+=============
+[0m[0m
+[0m[4m/root/google_apps_script/octopus-scheduler/src/server/content-deck-api/src/adapter/main.ts[24m[0m
+[0m  [2m11:18[22m  [31merror[39m  'Utilities' is not defined                                [2mno-undef[22m[0m
+[0m  [2m20:18[22m  [31merror[39m  'Utilities' is not defined                                [2mno-undef[22m[0m
+[0m  [2m28:3[22m   [31merror[39m  'Logger' is not defined                                   [2mno-undef[22m[0m
+[0m  [2m33:5[22m   [31merror[39m  'Logger' is not defined                                   [2mno-undef[22m[0m
+[0m  [2m45:5[22m   [31merror[39m  'Logger' is not defined                                   [2mno-undef[22m[0m
+[0m  [2m51:7[22m   [31merror[39m  'Logger' is not defined                                   [2mno-undef[22m[0m
+[0m  [2m58:3[22m   [31merror[39m  'Logger' is not defined                                   [2mno-undef[22m[0m
+[0m  [2m62:1[22m   [31merror[39m  '_callContentDockApi' is assigned a value but never used  [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m[0m
+[0m[31m[1m✖ 8 problems (8 errors, 0 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[0m
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m Lifecycle script `lint` failed with error:
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mcode[39m [33m1[39m
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mpath[39m /root/google_apps_script/octopus-scheduler/src/server/content-deck-api
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mworkspace[39m content-deck-api@1.0.0
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mlocation[39m /root/google_apps_script/octopus-scheduler/src/server/content-deck-api
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m command failed
+[1G[0K⠙[1G[0K[1mnpm[22m [31merror[39m [94mcommand[39m sh -c eslint src/**/*.ts
+[1G[0K⠙[1G[0K

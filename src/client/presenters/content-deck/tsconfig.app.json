@@ -12,16 +12,27 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
     "baseUrl": ".",
     "paths": {
       "@common-lib/*": [
-        "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/*"
+        "../packages/common-lib/src/*"
       ],
-    }
+      "common-lib": [
+        "../packages/common-lib/src"
+      ],
+      "common-lib/*": [
+        "../packages/common-lib/src/*"
+      ]
+    },
+    "outDir": "dist",
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
     "src/**/*.vue"
-  ]
+  ],
 }

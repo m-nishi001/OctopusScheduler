@@ -1,23 +1,20 @@
 {
-    "name": "octopus-scheduler-api",
+    "name": "shared-packages",
     "version": "1.0.0",
     "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
     "main": "dist/Code.js",
     "scripts": {
         "build": "node esbuild.config.js",
-        "deploy": "npm run build && clasp push --force",
         "lint": "eslint src/**/*.ts",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "deploy": "npm run build && clasp push --force"
     },
     "devDependencies": {
-        "@google/clasp": "^2.4.2",
-        "@types/google-apps-script": "^1.0.83",
-        "@types/node": "^20.12.12",
-        "@typescript-eslint/eslint-plugin": "^7.9.0",
-        "@typescript-eslint/parser": "^7.9.0",
-        "esbuild": "^0.25.6",
-        "eslint": "^8.57.1",
-        "core-js": "^3.44.0",
-        "typescript": "^5.4.5"
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.83",
+    "@types/node": "^20.12.12",
+    "esbuild": "^0.25.6",
+    "core-js": "^3.44.0",
+    "typescript": "^5.4.5"
     }
 }

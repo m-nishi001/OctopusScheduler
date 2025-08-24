@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { LocalStorageService } from "../../../presenters/common-lib/src/storage/local-storage-service";
+import { LocalStorageService } from "common-lib/storage/local-storage-service";
 
 /**
  * LocalStorageService を使用してローカルストレージ操作を行うための Composable 関数。
@@ -10,7 +10,7 @@ export function useLocalStorage() {
     // LocalStorageService のインスタンスを作成
     // アプリケーション全体でシングルトンとして管理することも可能だが、
     // ここでは Composable ごとにインスタンスを作成するシンプルな方法を採用
-    const storageService = new LocalStorageService();
+    const storageService = new LocalStorageService('app', 'default');
 
     const loading = ref(false); // 非同期操作のローディング状態
     const error = ref<Error | null>(null); // 非同期操作で発生したエラー

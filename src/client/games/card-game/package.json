@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "vue-tsc -b && vite build && mv dist/index.html dist/card-game-index.html",
-    "preview": "vite preview"
+    "build": "vue-tsc -b && vite build",
+    "lint": "eslint --ext .ts,.vue src",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "vue": "^3.5.17",

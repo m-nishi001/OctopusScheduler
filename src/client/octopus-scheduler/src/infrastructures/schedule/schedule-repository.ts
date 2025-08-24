@@ -1,8 +1,8 @@
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
 import type { IScheduleRepository } from "src/domains/schedule/repository/schedule-repository";
 import { Schedule } from "src/domains/schedule/entity/schedule";
 import { ScheduleMapper } from "./schedule-mapper";
-import { LocalStorageService } from "@common-lib/storage/local-storage-service";
+import { LocalStorageService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/storage/local-storage-service.ts";
 import { StorageConfig } from "src/infrastructures/storage-config";
 import { ScheduleMetadata } from "src/domains/schedule/vo/schedule-metadata";
 

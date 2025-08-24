@@ -2,8 +2,8 @@ import { Audio } from "src/domains/assets/audio/entity/audio";
 import type { IAudioRepository } from "src/domains/assets/audio/repository/audio-repository";
 import { AudioId } from "src/domains/assets/audio/vo/audio-id";
 import { AudioMetadata } from "src/domains/assets/audio/vo/audio-metadata";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
-import { LocalStorageService } from "@common-lib/storage/local-storage-service"
+import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
+import { LocalStorageService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/storage/local-storage-service.ts";
 import { StorageConfig } from "src/infrastructures/storage-config";
 import { AssetConverter } from "../asset-converter";
 

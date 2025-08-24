@@ -4,8 +4,6 @@
     "target": "ES2022", /* ターゲットとするECMAScriptバージョン。サポートしたいブラウザ環境によって調整。 */
     "lib": [
       "ES2022",
-      "DOM",
-      "DOM.Iterable"
     ], /* ブラウザ環境で利用するAPIの型定義を含める。 */
     "module": "ESNext", /* 生成するモジュールコードの形式。通常はバンドラーで処理されるためESNext。 */
     "moduleResolution": "node", /* モジュール解決戦略。Node.jsの解決方法に合わせる。 */
@@ -35,7 +33,15 @@
     "allowJs": false, /* JavaScriptファイルのコンパイルを許可しない。 */
     "checkJs": false, /* JavaScriptファイルの型チェックを許可しない。 */
     "downlevelIteration": true, /* ES5/ES3ターゲットでイテレータのダウンレベル化を許可する。 */
-    "importHelpers": true /* tslibからヘルパー関数をインポートする（バンドルサイズ削減）。 */
+    "importHelpers": true, /* tslibからヘルパー関数をインポートする（バンドルサイズ削減） */
+    "paths": {
+      "common-lib": [
+        "./src/client/packages/common-lib/src"
+      ],
+      "common-lib/*": [
+        "./src/client/packages/common-lib/src/*"
+      ]
+    }
   },
   "include": [
     "src/**/*" /* コンパイル対象のファイル。 */

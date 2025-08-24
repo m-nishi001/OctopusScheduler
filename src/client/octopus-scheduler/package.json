@@ -5,16 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "vue-tsc -b && vite build && mv dist/index.html dist/octopus-scheduler-index.html",
-    "preview": "vite preview"
+    "build": "vue-tsc -b && vite build",
+    "lint": "eslint --ext .ts,.vue src",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "content-deck-project": "/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
   },
+  "types": "dist/types",
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",

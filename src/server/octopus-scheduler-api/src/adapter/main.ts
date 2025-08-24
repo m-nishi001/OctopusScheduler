@@ -74,7 +74,7 @@ function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiR
 // （GAS側の型チェックに引っかかる模様）
 _doGet = (e: GoogleAppsScript.Events.DoGet) => {
   try {
-    const template = HtmlService.createTemplateFromFile("octopus-scheduler-index");
+    const template = HtmlService.createTemplateFromFile("index");
     return template.evaluate()
       .setTitle('Fail Loading...')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');

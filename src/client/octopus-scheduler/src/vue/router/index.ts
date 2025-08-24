@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { routes } from '@content-deck/router'
-import { HistoryService } from '@common-lib/google-apps-script/gas-history-service';
+import { routes } from '/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck/src/router/index.ts'
+import { HistoryService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-history-service.ts';
 
 const router = createRouter({
     history: createWebHashHistory(),
@@ -21,7 +21,7 @@ router.afterEach(route => {
 
 // Google apps scriptのHistoryChangeHandlerを設定する
 HistoryService.setChangeHandler(event => {
-    router.push({ path: '/', hash: `#${event.location.hash.slice(1)}` }); 
+    router.push({ path: '/', hash: `#${event.location.hash.slice(1)}` });
 });
 
 export default router

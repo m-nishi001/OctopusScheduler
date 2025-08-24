@@ -2,8 +2,8 @@ import { Image } from "src/domains/assets/image/entity/image";
 import type { IImageRepository } from "src/domains/assets/image/repository/image-repository";
 import { ImageId } from "src/domains/assets/image/vo/image-id";
 import { ImageMetadata } from "src/domains/assets/image/vo/image-metadata";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
-import { LocalStorageService } from "@common-lib/storage/local-storage-service"
+import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
+import { LocalStorageService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/storage/local-storage-service.ts";
 import { StorageConfig } from "src/infrastructures/storage-config";
 import { AssetConverter } from "../asset-converter";
 

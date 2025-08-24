@@ -2,8 +2,8 @@ import { Movie } from "src/domains/assets/movie/entity/movie";
 import type { IMovieRepository } from "src/domains/assets/movie/repository/movie-repository";
 import { MovieId } from "src/domains/assets/movie/vo/movie-id";
 import { MovieMetadata } from "src/domains/assets/movie/vo/movie-metadata";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
-import { LocalStorageService } from "@common-lib/storage/local-storage-service"
+import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
+import { LocalStorageService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/storage/local-storage-service.ts";
 import { StorageConfig } from "src/infrastructures/storage-config";
 import { AssetConverter } from "../asset-converter";
 

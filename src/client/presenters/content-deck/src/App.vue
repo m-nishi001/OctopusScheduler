@@ -2,7 +2,7 @@
 import HelloWorld from './components/HelloWorld.vue'
 import { onMounted } from 'vue';
 
-import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service'
+import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts'
 
 onMounted(async () => {
   var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
