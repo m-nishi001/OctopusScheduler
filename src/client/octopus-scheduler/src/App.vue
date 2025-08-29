@@ -64,6 +64,45 @@ onMounted(async () => {
     });
   }
 
+  // 3.5 update (更新テスト)
+  if (firstId) {
+    await new Promise<void>(resolve => {
+      gasFunctionService
+        .createCall<any>("ScheduleService.save", JSON.stringify({
+          id: firstId,
+          eventName: "更新テストイベント",
+          start: new Date(2025, 7, 28, 13, 0, 0),
+          end: new Date(2025, 7, 28, 15, 0, 0)
+        }))
+        .withTimeout(20000)
+        .withSuccessed(updateResult => {
+          console.log("[ScheduleService.save: update]", updateResult);
+          resolve();
+        })
+        .withFailuered(message => {
+          console.error("[ScheduleService.save: update] failed", message);
+          resolve();
+        })
+        .invoke();
+    });
+
+    // 更新後の確認
+    await new Promise<void>(resolve => {
+      gasFunctionService
+        .createCall<any>("ScheduleService.findById", firstId)
+        .withTimeout(20000)
+        .withSuccessed(findResult => {
+          console.log("[ScheduleService.findById: after update]", findResult);
+          resolve();
+        })
+        .withFailuered(message => {
+          console.error("[ScheduleService.findById: after update] failed", message);
+          resolve();
+        })
+        .invoke();
+    });
+  }
+
   // 4. delete (削除)
   if (firstId) {
     await new Promise<void>(resolve => {
