@@ -3,58 +3,49 @@ import { onMounted } from 'vue';
 import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts'
 
 onMounted(async () => {
+  const gasFunctionService = GasFunctionService.create("callOctopusSchedulerApi");
+  if (!gasFunctionService) throw new Error();
 
+  // 1. save (新規スケジュール登録)
 
-  var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
-  if (!gasFunctionServicie) throw new Error();
+  const saveResult = await gasFunctionService
+    .createCall<any>("ScheduleService.save", JSON.stringify({
+      eventName: "疎通テストイベント",
+      start: new Date(2025, 7, 28, 10, 0, 0),
+      end: new Date(2025, 7, 28, 12, 0, 0)
+    }))
+    .withTimeout(20000)
+    .invoke();
+  console.log("[ScheduleService.save]", saveResult);
 
-  // const result0 = await gasFunctionServicie.call(new GasFunction<any>("DriveService.readyZipping", "1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS").withTimeout(20000));
-  // if (result0.status === "failed") throw new Error();
+  // 2. getScheduleMetadatas (一覧取得)
 
-  // var result = await gasFunctionServicie
-  //   .callParallel(
-  //     [
-  //       new GasFunction<any>("DriveService.zip", ["1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 0]).withTimeout(20000),
-  //       new GasFunction<any>("DriveService.zip", ["1Ign_7fctDdaEoR1X9gMm_7Qjz1poUsxS", 1]).withTimeout(20000)
-  //     ]
-  //   );
+  const metaResult = await gasFunctionService
+    .createCall<any>("ScheduleService.getScheduleMetadatas")
+    .withTimeout(20000)
+    .invoke();
+  console.log("[ScheduleService.getScheduleMetadatas]", metaResult);
 
+  // 3. findById (個別取得)
 
-  // const result3 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.addScheduleEvents", [{
-  //   eventName: "TestEvent-del",
-  //   start: new Date(2025, 12, 10),
-  //   end: new Date(2025, 12, 11)
-  // }]).withTimeout(20000));
-  // console.log(`result: ${result3}`);
-
-  // const result0 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.addScheduleEvents", [{
-  //   eventName: "TestEvent1",
-  //   start: new Date(2025, 7, 10),
-  //   end: new Date(2025, 7, 11)
-  // }]).withTimeout(20000));
-  // console.log(`result: ${result0}`);
-
-  // await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.updateScheduleEvents", [{
-  //   eventId: (result1 as SuccessResponse<any>).data[0].eventId,
-  //   eventName: "TestEvent1-1",
-  //   start: new Date(2025, 7, 11, 13, 10, 30),
-  //   end: new Date(2025, 7, 11, 14, 20, 19)
-  // }]).withTimeout(20000));
-
-  await gasFunctionServicie.all(
-    gasFunctionServicie
-      .createCall<any>("ScheduleEventService.findAllScheduleEvents", {})
+  let firstId = null;
+  if (Array.isArray(metaResult) && metaResult.length > 0) {
+    firstId = metaResult[0].scheduleId;
+    const findResult = await gasFunctionService
+      .createCall<any>("ScheduleService.findById", firstId)
       .withTimeout(20000)
-      .withSuccessed(o => console.log(`result: ${o}`)));
+      .invoke();
+    console.log("[ScheduleService.findById]", findResult);
+  }
 
-  // const result4 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.findAllScheduleEvents", {}).withTimeout(20000));
-  // console.log(`result: ${result4}`);
-
-  // const result5 = await gasFunctionServicie.call(new GasFunction<any>("ScheduleEventService.deleteSchedduleEvent", [{
-  //   eventId: (result4 as SuccessResponse<any>).data[1].eventId
-  // }]).withTimeout(20000));
-  // console.log(`result: ${result5}`);
-
+  // 4. delete (削除)
+  if (firstId) {
+    const deleteResult = await gasFunctionService
+      .createCall<any>("ScheduleService.delete", firstId)
+      .withTimeout(20000)
+      .invoke();
+    console.log("[ScheduleService.delete]", deleteResult);
+  }
 });
 </script>
 
