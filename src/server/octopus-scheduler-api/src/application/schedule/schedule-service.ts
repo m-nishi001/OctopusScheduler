@@ -1,7 +1,7 @@
 import { inject, injectable } from "tsyringe";
+import { IScheduleEventRepository } from "../../domain/scheduler/schedule-event-reposiotry";
 import { GasService } from "../gas-service";
 import { ScheduleEvent } from "../../domain/scheduler/entity/schedule-event";
-import { IScheduleEventRepository } from "../../domain/scheduler/schedule-event-reposiotry";
 import { ScheduleEventName } from "../../domain/scheduler/value-object/schedule-event-name";
 import { ScheduleTimeSpan } from "../../domain/scheduler/value-object/schedule-timespan";
 import { ScheduleEventId } from "../../domain/scheduler/value-object/schedule-event-id";
@@ -85,25 +85,5 @@ export class ScheduleService implements GasService {
             start: event.timeSpan.start,
             end: event.timeSpan.end
         };
-    }
-
-    // (Legacy) Kept for compatibility, but not used by client
-    private deleteSchedduleEvent(args: { eventId: string }[]): { deletedCount: number } {
-        if (args.length === 0) {
-            Logger.log(`[ScheduleService.deleteSchedduleEvent] args is empty.`);
-            return { deletedCount: 0 };
-        }
-        try {
-            const eventIds = args.map(arg => ScheduleEventId.from(arg.eventId));
-            if (eventIds.some(eventId => !eventId)) throw new Error();
-            const deletedCount = this.repository.delete(
-                (entity: ScheduleEvent) => eventIds.some(eventId => eventId!.equals(entity.eventId))
-            );
-            Logger.log(`[ScheduleService.delteScheduleEvent] commpleted deleting schedule events. deleted count is ${deletedCount}`);
-            return { deletedCount: deletedCount };
-        } catch(e) {
-            Logger.log(`[ScheduleService.deleteSchedduleEvent] deleting schedule event was failed. ${e}`);
-            return { deletedCount: 0 };
-        }
     }
 }

@@ -5,8 +5,9 @@ import { ScheduleEventName } from "../../domain/scheduler/value-object/schedule-
 import { ScheduleTimeSpan } from "../../domain/scheduler/value-object/schedule-timespan";
 import { ScheduleEventId } from "../../domain/scheduler/value-object/schedule-event-id";
 import { DataAccessService, IRepository } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-spreadsheet-servie";
+import { injectable } from "tsyringe";
 
-// スケジュールイベントをGoogle Spreadsheetで管理するリポジトリ実装
+@injectable()
 export class SpreadsheetScheduleEventRepository implements IScheduleEventRepository {
 	private readonly repository: IRepository<any>;
 	private readonly sheetName = "ScheduleEvents";
