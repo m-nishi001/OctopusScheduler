@@ -7,44 +7,83 @@ onMounted(async () => {
   if (!gasFunctionService) throw new Error();
 
   // 1. save (新規スケジュール登録)
-
-  const saveResult = await gasFunctionService
-    .createCall<any>("ScheduleService.save", JSON.stringify({
-      eventName: "疎通テストイベント",
-      start: new Date(2025, 7, 28, 10, 0, 0),
-      end: new Date(2025, 7, 28, 12, 0, 0)
-    }))
-    .withTimeout(20000)
-    .invoke();
-  console.log("[ScheduleService.save]", saveResult);
+  await new Promise<void>(resolve => {
+    gasFunctionService
+      .createCall<any>("ScheduleService.save", JSON.stringify({
+        eventName: "疎通テストイベント",
+        start: new Date(2025, 7, 28, 10, 0, 0),
+        end: new Date(2025, 7, 28, 12, 0, 0)
+      }))
+      .withTimeout(20000)
+      .withSuccessed(saveResult => {
+        console.log("[ScheduleService.save]", saveResult);
+        resolve();
+      })
+      .withFailuered(message => {
+        console.error("[ScheduleService.save] failed", message);
+        resolve();
+      })
+      .invoke();
+  });
 
   // 2. getScheduleMetadatas (一覧取得)
-
-  const metaResult = await gasFunctionService
-    .createCall<any>("ScheduleService.getScheduleMetadatas")
-    .withTimeout(20000)
-    .invoke();
-  console.log("[ScheduleService.getScheduleMetadatas]", metaResult);
+  let metaResult: any[] = [];
+  await new Promise<void>(resolve => {
+    gasFunctionService
+      .createCall<any[]>("ScheduleService.getScheduleMetadatas")
+      .withTimeout(20000)
+      .withSuccessed(result => {
+        console.log("[ScheduleService.getScheduleMetadatas]", result);
+        metaResult = result;
+        resolve();
+      })
+      .withFailuered(message => {
+        console.error("[ScheduleService.getScheduleMetadatas] failed", message);
+        resolve();
+      })
+      .invoke();
+  });
 
   // 3. findById (個別取得)
-
-  let firstId = null;
+  let firstId: string | null = null;
   if (Array.isArray(metaResult) && metaResult.length > 0) {
     firstId = metaResult[0].scheduleId;
-    const findResult = await gasFunctionService
-      .createCall<any>("ScheduleService.findById", firstId)
-      .withTimeout(20000)
-      .invoke();
-    console.log("[ScheduleService.findById]", findResult);
+    await new Promise<void>(resolve => {
+      gasFunctionService
+        .createCall<any>("ScheduleService.findById", firstId)
+        .withTimeout(20000)
+        .withSuccessed(findResult => {
+          console.log("[ScheduleService.findById]", findResult);
+          resolve();
+        })
+        .withFailuered(message => {
+          console.error("[ScheduleService.findById] failed", message);
+          resolve();
+        })
+        .invoke();
+    });
   }
 
   // 4. delete (削除)
   if (firstId) {
-    const deleteResult = await gasFunctionService
-      .createCall<any>("ScheduleService.delete", firstId)
-      .withTimeout(20000)
-      .invoke();
-    console.log("[ScheduleService.delete]", deleteResult);
+    await new Promise<void>(resolve => {
+      gasFunctionService
+        .createCall<any>("ScheduleService.delete", firstId)
+        .withTimeout(20000)
+        .withSuccessed(deleteResult => {
+          if (deleteResult && typeof deleteResult.deletedCount === 'number' && deleteResult.deletedCount > 0) {
+            console.log("[ScheduleService.delete] 削除成功", deleteResult);
+          } else {
+            console.warn("[ScheduleService.delete] 削除対象なし", deleteResult);
+          }
+          resolve();
+        })
+        .withFailuered(message => {
+          console.error("[ScheduleService.delete] failed", message);
+          resolve();
+        })
+        .invoke();
+    });
   }
 });
 </script>

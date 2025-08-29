@@ -65,13 +65,12 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 
 	delete(predicate: (entity: ScheduleEvent) => boolean): number {
 		const all = this.findAll();
-		let deleted = 0;
-		for (const event of all) {
-			if (predicate(event)) {
-				const result = this.repository.delete((obj: any) => obj.id === event.eventId.id);
-				if (result) deleted++;
-			}
-		}
-		return deleted;
+		const beforeCount = all.length;
+		this.repository.delete((obj: any) => {
+			const event = all.find(e => e.eventId.id === obj.id);
+			return event ? predicate(event) : false;
+		});
+		const afterCount = this.findAll().length;
+		return beforeCount - afterCount;
 	}
 }

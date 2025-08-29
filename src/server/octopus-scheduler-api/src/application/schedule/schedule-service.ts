@@ -51,15 +51,15 @@ export class ScheduleService implements GasService {
 
 
     // Delete a schedule event by id
-    private delete(id: string): { deleted: boolean } {
+    private delete(id: string): { deletedCount: number } {
         try {
             const eventId = ScheduleEventId.from(id);
             if (!eventId) throw new Error('Invalid eventId');
             const deletedCount = this.repository.delete((entity: ScheduleEvent) => entity.eventId.equals(eventId));
-            return { deleted: deletedCount > 0 };
+            return { deletedCount };
         } catch (e) {
             Logger.log(`[ScheduleService.delete] failed: ${e}`);
-            return { deleted: false };
+            return { deletedCount: 0 };
         }
     }
 
