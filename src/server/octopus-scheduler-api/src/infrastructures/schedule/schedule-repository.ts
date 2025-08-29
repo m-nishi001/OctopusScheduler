@@ -22,8 +22,8 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 			this.repository.save({
 				id: event.eventId.id,
 				eventName: event.eventName.name,
-				start: event.timeSpan.start.toISOString(),
-				end: event.timeSpan.end.toISOString()
+				start: new Date(event.timeSpan.start).toISOString(),
+				end: new Date(event.timeSpan.end).toISOString()
 			});
 			count++;
 		}
@@ -54,8 +54,8 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 				this.repository.save({
 					id: updatedEvent.eventId.id,
 					eventName: updatedEvent.eventName.name,
-					start: updatedEvent.timeSpan.start.toISOString(),
-					end: updatedEvent.timeSpan.end.toISOString()
+					start: new Date(updatedEvent.timeSpan.start).toISOString(),
+					end: new Date(updatedEvent.timeSpan.end).toISOString()
 				});
 				updated++;
 			}
