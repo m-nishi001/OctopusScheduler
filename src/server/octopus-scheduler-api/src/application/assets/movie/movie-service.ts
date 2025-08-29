@@ -19,20 +19,32 @@ export class MovieService implements GasService {
         };
     }
 
-    private async saveMovie(args: { movieId: string, movieName: string, data64: string }) {
+    private saveMovie(args: { movieId?: string, movieName: string, data64: string }): { movieId: string } {
         try {
             const blob = Utilities.newBlob(Utilities.base64Decode(args.data64), 'video/mp4', args.movieName);
-            const movie = Movie.fromEntity(new MovieId(args.movieId), args.movieName, blob);
-            await this.repository.save(movie);
-            return { saved: true };
+            let movie: Movie;
+            let movieId: string;
+            if (args.movieId) {
+                movie = Movie.fromEntity(new MovieId(args.movieId), args.movieName, blob);
+                this.repository.save(movie);
+                movieId = args.movieId;
+            } else {
+                movie = Movie.createNew(args.movieName, blob);
+                this.repository.save(movie);
+                movieId = movie.id.toString();
+            }
+            return { movieId };
         } catch (e) {
             Logger.log(`[MovieService.saveMovie] failed: ${e}`);
-            return { saved: false };
+            throw e;
         }
     }
 
-    private async getMovieMetadatas(): Promise<any[]> {
-        const movies = await this.repository.findAll();
+    /**
+     * ムービーメタデータ一覧をJSオブジェクト配列で返却
+     */
+    private getMovieMetadatas(): Array<{ movieId: string; movieName: string; lastUpdatedAt: string }> {
+        const movies: Movie[] = this.repository.findAll();
         return movies.map((m: Movie) => ({
             movieId: m.id.toString(),
             movieName: m.name,
@@ -40,8 +52,11 @@ export class MovieService implements GasService {
         }));
     }
 
-    private async getMovie(movieId: string): Promise<string | null> {
-        const movie = await this.repository.findById(new MovieId(movieId));
+    /**
+     * ムービーデータをbase64文字列で返却
+     */
+    private getMovie(movieId: string): string | null {
+        const movie: Movie | null = this.repository.findById(new MovieId(movieId));
         if (!movie) return null;
         const blob = movie.movieData;
         return Utilities.base64Encode(blob.getBytes());

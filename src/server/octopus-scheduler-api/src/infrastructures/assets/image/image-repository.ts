@@ -7,23 +7,17 @@ import { GoogleDriveService } from "/root/google_apps_script/octopus-scheduler/s
 
 @injectable()
 export class ImageRepository implements IImageRepository {
-    private folderName = "ImageAssets"; // 画像ファイルを保存するGoogle Driveのフォルダ名
 
-    private getImageFolderId(): string {
-        const rootFolder = DriveApp.getRootFolder();
-        const folders = rootFolder.getFoldersByName(this.folderName);
-        let folder = folders.hasNext() ? folders.next() : rootFolder.createFolder(this.folderName);
-        return folder.getId();
-    }
+    private static readonly imageFolderId: string = PropertiesService.getScriptProperties().getProperty('octopus-schedule-api-image') ?? (() => { throw new Error('Image folder ID is not set in ScriptProperties.'); })();
 
-    async save(image: Image): Promise<void> {
-        const folderId = this.getImageFolderId();
+    save(image: Image): void {
+        const folderId = ImageRepository.imageFolderId;
         let mimeType: string = 'image/png';
         if (image.imageData.getContentType) {
             const mt = image.imageData.getContentType();
             if (mt) mimeType = mt;
         }
-        await GoogleDriveService.uploadFile({
+        GoogleDriveService.uploadFile({
             fileId: image.id.toString(),
             fileName: image.name,
             parentFolderId: folderId,
@@ -32,18 +26,17 @@ export class ImageRepository implements IImageRepository {
         });
     }
 
-    async findById(id: ImageId): Promise<Image | null> {
-        const folderId = this.getImageFolderId();
-        const files = await GoogleDriveService.findFileByIds({ fileIds: [id.toString()], parentFolderId: folderId });
-        if (files.length > 0) {
-            const file = files[0];
+    findById(id: ImageId): Image | null {
+        try {
+            const file = DriveApp.getFileById(id.toString());
             return Image.fromEntity(new ImageId(file.getId()), file.getName(), file.getBlob());
+        } catch (e) {
+            return null;
         }
-        return null;
     }
 
-    async findAll(): Promise<Image[]> {
-        const folderId = this.getImageFolderId();
+    findAll(): Image[] {
+        const folderId = ImageRepository.imageFolderId;
         const files = DriveApp.getFolderById(folderId).getFiles();
         const images: Image[] = [];
         while (files.hasNext()) {
@@ -53,7 +46,7 @@ export class ImageRepository implements IImageRepository {
         return images;
     }
 
-    async delete(id: ImageId): Promise<void> {
-        await GoogleDriveService.deleteFilesOrFolders([id.toString()]);
+    delete(id: ImageId): void {
+        GoogleDriveService.deleteFilesOrFolders([id.toString()]);
     }
 }

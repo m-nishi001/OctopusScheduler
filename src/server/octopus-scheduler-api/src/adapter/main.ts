@@ -59,7 +59,7 @@ function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiR
   if (targetService) {
     try {
       const result = (targetService as any)[functionName](JSON.parse(args));
-      Logger.log(`[callOctopusSchedulerApiInternal] result: ${JSON.stringify(result)}`);
+      // Logger.log(`[callOctopusSchedulerApiInternal] result: ${JSON.stringify(result)}`);
       return new SuccessResponse(result);
     } catch (e: any) {
       return new ErrorResponse(e);

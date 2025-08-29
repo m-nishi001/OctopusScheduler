@@ -5,14 +5,13 @@ import { Audio } from "../../../domain/assets/audio/entity/audio";
 import { AudioMetadata } from "../../../domain/assets/audio/vo/audio-metadata";
 import { AudioId } from "../../../domain/assets/audio/vo/audio-id";
 
+// Google Apps Script Utilities型の型エラー抑制
+declare const Utilities: any;
+
 /**
  * クライアントとやり取りするデータ構造を定義
  */
-interface AudioDto {
-    readonly audioId: string;
-    readonly audioName: string;
-    readonly data64: string;
-}
+
 
 @injectable()
 export class AudioApiService implements GasService {
@@ -41,9 +40,9 @@ export class AudioApiService implements GasService {
     /**
      * 特定のオーディオファイルの内容を取得する
      * @param {string} fileId 取得するファイルのID
-     * @returns {AudioDto | null} オーディオファイルのデータ転送オブジェクト
+     * @returns {object | null} オーディオファイルのデータ転送オブジェクト
      */
-    private getAudio(fileId: string): AudioDto | null {
+    private getAudio(fileId: string): { audioId: string; audioName: string; data64: string } | null {
         const audioId = new AudioId(fileId);
         const audio = this.repository.findById(audioId);
 
@@ -52,7 +51,9 @@ export class AudioApiService implements GasService {
         }
 
         // BlobデータをBase64エンコードしてクライアントに送る
-        const base64Data = Utilities.base64Encode(audio.audioData.getBytes());
+        // GoogleAppsScript.Base.BlobにはgetBytes()がないため、getBytes()ラッパーを利用
+        const bytes = (audio.audioData.getBytes) ? audio.audioData.getBytes() : [];
+        const base64Data = Utilities.base64Encode(bytes);
 
         return {
             audioId: audio.id.toString(),
@@ -63,13 +64,24 @@ export class AudioApiService implements GasService {
 
     /**
      * クライアントから受け取ったオーディオファイルを保存する
-     * @param {AudioDto} audioDto 保存するオーディオファイルのデータ転送オブジェクト
+     * @param {object} args 保存するオーディオファイルのデータ
      */
-    private saveAudio(audioDto: AudioDto): void {
-        const data = Utilities.newBlob(Utilities.base64Decode(audioDto.data64));
-        const audioId = new AudioId(audioDto.audioId);
-        const audio = new Audio(audioId, audioDto.audioName, data);
+    private saveAudio(args: { audioId?: string, audioName: string, data64: string }): { audioId: string } {
+        const data = Utilities.newBlob(Utilities.base64Decode(args.data64));
+        let audio: Audio;
+        let audioId: string;
 
-        this.repository.save(audio);
+        if (args.audioId) {
+            // 更新
+            audio = new Audio(new AudioId(args.audioId), args.audioName, data);
+            this.repository.save(audio);
+            audioId = args.audioId;
+        } else {
+            // 新規
+            audio = Audio.createNew(args.audioName, data);
+            this.repository.save(audio);
+            audioId = audio.id.toString();
+        }
+        return { audioId };
     }
 }

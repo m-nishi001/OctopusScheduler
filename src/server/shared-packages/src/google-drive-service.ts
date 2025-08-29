@@ -243,7 +243,12 @@ export class GoogleDriveService {
 
         try {
             if (fileId) {
-                return Drive.Files.update(fileMetadata, fileId.id, options.blob);
+                try {
+                    DriveApp.getFileById(fileId.id);
+                    return Drive.Files.update(fileMetadata, fileId.id, options.blob);
+                } catch (e) {
+                    return Drive.Files.create(fileMetadata, options.blob);
+                }
             } else {
                 return Drive.Files.create(fileMetadata, options.blob);
             }

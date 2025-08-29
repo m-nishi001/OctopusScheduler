@@ -7,19 +7,11 @@ import { AudioMetadata } from "../../../domain/assets/audio/vo/audio-metadata";
 
 @injectable()
 export class AudioRepository implements IAudioRepository {
-    private folderName = "AudioAssets"; // オーディオファイルを保存するGoogle Driveのフォルダ名
 
-    private getAudioFolderId(): string {
-        const rootFolder = DriveApp.getRootFolder();
-        let folder = rootFolder.getFoldersByName(this.folderName).next();
-        if (!folder) {
-            folder = rootFolder.createFolder(this.folderName);
-        }
-        return folder.getId();
-    }
+    private static readonly audioFolderId: string = PropertiesService.getScriptProperties().getProperty('octopus-schedule-api-audio') ?? (() => { throw new Error('Audio folder ID is not set in ScriptProperties.'); })();
 
     save(audio: Audio): void {
-        const folderId = this.getAudioFolderId();
+        const folderId = AudioRepository.audioFolderId;
         const mimeType = audio.audioData.getContentType() || 'audio/mpeg';
 
         GoogleDriveService.uploadFile({
@@ -32,19 +24,16 @@ export class AudioRepository implements IAudioRepository {
     }
 
     findById(id: AudioId): Audio | null {
-        const folderId = this.getAudioFolderId();
-        const files = GoogleDriveService.findFileByIds({ fileIds: [id.toString()], parentFolderId: folderId });
-
-        if (files.length > 0) {
-            const file = files[0];
+        try {
+            const file = DriveApp.getFileById(id.toString());
             return new Audio(new AudioId(file.getId()), file.getName(), file.getBlob());
+        } catch (e) {
+            return null;
         }
-
-        return null;
     }
 
     findAll(): Audio[] {
-        const folderId = this.getAudioFolderId();
+        const folderId = AudioRepository.audioFolderId;
         const files = DriveApp.getFolderById(folderId).getFiles();
         const audios: Audio[] = [];
         while (files.hasNext()) {
@@ -55,7 +44,7 @@ export class AudioRepository implements IAudioRepository {
     }
 
     findAllMetadatas(): AudioMetadata[] {
-        const folderId = this.getAudioFolderId();
+        const folderId = AudioRepository.audioFolderId;
         const files = DriveApp.getFolderById(folderId).getFiles();
         const metadatas: AudioMetadata[] = [];
         while (files.hasNext()) {

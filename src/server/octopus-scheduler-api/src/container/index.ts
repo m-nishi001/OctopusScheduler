@@ -13,15 +13,17 @@ import { IMovieRepository } from "../domain/assets/movie/repository/movie-reposi
 import { MovieRepository } from "../infrastructures/assets/movie/movie-repository";
 import { IScheduleEventRepository } from "../domain/scheduler/schedule-event-reposiotry";
 import { SpreadsheetScheduleEventRepository } from "../infrastructures/schedule/schedule-repository";
+import { AudioApiService } from "../application/assets/audio/audio-api-service";
 
 export class Container {
     static regiser() {
-    container.register<GasService>("IGasService", { useClass: ScheduleService });
-    container.register<GasService>("IGasService", { useClass: ImageService });
-    container.register<GasService>("IGasService", { useClass: MovieService });
-    container.register<IScheduleEventRepository>("IScheduleEventRepository", { useClass: SpreadsheetScheduleEventRepository });
-    container.register<IAudioRepository>("IAudioRepository", { useClass: AudioRepository });
-    container.register<IImageRepository>("IImageRepository", { useClass: ImageRepository });
-    container.register<IMovieRepository>("IMovieRepository", { useClass: MovieRepository });
+        container.register<GasService>("IGasService", { useClass: ScheduleService });
+        container.register<GasService>("IGasService", { useClass: ImageService });
+        container.register<GasService>("IGasService", { useClass: MovieService });
+        container.register<GasService>("IGasService", { useClass: AudioApiService });
+        container.register<IScheduleEventRepository>("IScheduleEventRepository", { useClass: SpreadsheetScheduleEventRepository });
+        container.register<IAudioRepository>("IAudioRepository", { useClass: AudioRepository });
+        container.register<IImageRepository>("IImageRepository", { useClass: ImageRepository });
+        container.register<IMovieRepository>("IMovieRepository", { useClass: MovieRepository });
     }
 }

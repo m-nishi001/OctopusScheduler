@@ -3,127 +3,196 @@ import { onMounted } from 'vue';
 import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts'
 
 onMounted(async () => {
-  const gasFunctionService = GasFunctionService.create("callOctopusSchedulerApi");
-  if (!gasFunctionService) throw new Error();
+  const googleFunctionService = GasFunctionService.create("callOctopusSchedulerApi")!!;
 
-  // 1. save (新規スケジュール登録)
-  await new Promise<void>(resolve => {
-    gasFunctionService
-      .createCall<any>("ScheduleService.save", JSON.stringify({
-        eventName: "疎通テストイベント",
-        start: new Date(2025, 7, 28, 10, 0, 0),
-        end: new Date(2025, 7, 28, 12, 0, 0)
-      }))
-      .withTimeout(20000)
-      .withSuccessed(saveResult => {
-        console.log("[ScheduleService.save]", saveResult);
-        resolve();
-      })
-      .withFailuered(message => {
-        console.error("[ScheduleService.save] failed", message);
-        resolve();
-      })
-      .invoke();
-  });
+  // === 追加: Audio, Image, Movie サービスのテスト ===
+  const audioFileIds = [
+    "1CcJaRELLzF4gPMDTqNBUjVwYpmu9OYBL",
+    "1ySOu_pAvMC2OQ1YCc24qvO7c9KUBKnpA"
+  ];
+  const imageFileIds = [
+    "1B2Pv7HAJjSYbgSF5N4CbnTBEkchIeGtI",
+    "1Oe5w-xWZOxOVfBXpa_C33Ovx_IJzTDl9"
+  ];
+  const movieFileIds = [
+    "1Z0MojrHPaviTxF0hwgSq3c9q4nlXfl6F",
+    "1aPSnNBqTggwLcKwdBe0fZqnp58zP41Q8"
+  ];
 
-  // 2. getScheduleMetadatas (一覧取得)
-  let metaResult: any[] = [];
-  await new Promise<void>(resolve => {
-    gasFunctionService
-      .createCall<any[]>("ScheduleService.getScheduleMetadatas")
-      .withTimeout(20000)
-      .withSuccessed(result => {
-        console.log("[ScheduleService.getScheduleMetadatas]", result);
-        metaResult = result;
-        resolve();
-      })
-      .withFailuered(message => {
-        console.error("[ScheduleService.getScheduleMetadatas] failed", message);
-        resolve();
-      })
-      .invoke();
-  });
-
-  // 3. findById (個別取得)
-  let firstId: string | null = null;
-  if (Array.isArray(metaResult) && metaResult.length > 0) {
-    firstId = metaResult[0].scheduleId;
-    await new Promise<void>(resolve => {
-      gasFunctionService
-        .createCall<any>("ScheduleService.findById", firstId)
+  // --- Audio Service テスト ---
+  async function getAudio(audioId: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("AudioService.getAudio", audioId)
         .withTimeout(20000)
-        .withSuccessed(findResult => {
-          console.log("[ScheduleService.findById]", findResult);
-          resolve();
-        })
+        .withRetryCount(1)
+        .withSuccessed(audio => resolve(audio))
         .withFailuered(message => {
-          console.error("[ScheduleService.findById] failed", message);
-          resolve();
+          console.error(`[AudioService.getAudio] failed`, message);
+          resolve(null);
         })
         .invoke();
     });
   }
-
-  // 3.5 update (更新テスト)
-  if (firstId) {
-    await new Promise<void>(resolve => {
-      gasFunctionService
-        .createCall<any>("ScheduleService.save", JSON.stringify({
-          id: firstId,
-          eventName: "更新テストイベント",
-          start: new Date(2025, 7, 28, 13, 0, 0),
-          end: new Date(2025, 7, 28, 15, 0, 0)
-        }))
+  async function saveAudio(audioName: string, data64: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("AudioService.saveAudio", { audioName, data64 })
         .withTimeout(20000)
-        .withSuccessed(updateResult => {
-          console.log("[ScheduleService.save: update]", updateResult);
-          resolve();
-        })
+        .withRetryCount(1)
+        .withSuccessed(result => resolve(result))
         .withFailuered(message => {
-          console.error("[ScheduleService.save: update] failed", message);
-          resolve();
-        })
-        .invoke();
-    });
-
-    // 更新後の確認
-    await new Promise<void>(resolve => {
-      gasFunctionService
-        .createCall<any>("ScheduleService.findById", firstId)
-        .withTimeout(20000)
-        .withSuccessed(findResult => {
-          console.log("[ScheduleService.findById: after update]", findResult);
-          resolve();
-        })
-        .withFailuered(message => {
-          console.error("[ScheduleService.findById: after update] failed", message);
-          resolve();
+          console.error(`[AudioService.saveAudio] failed`, message);
+          resolve(null);
         })
         .invoke();
     });
   }
-
-  // 4. delete (削除)
-  if (firstId) {
-    await new Promise<void>(resolve => {
-      gasFunctionService
-        .createCall<any>("ScheduleService.delete", firstId)
+  async function updateAudio(audioId: string, audioName: string, data64: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("AudioService.saveAudio", { audioId, audioName, data64 })
         .withTimeout(20000)
-        .withSuccessed(deleteResult => {
-          if (deleteResult && typeof deleteResult.deletedCount === 'number' && deleteResult.deletedCount > 0) {
-            console.log("[ScheduleService.delete] 削除成功", deleteResult);
-          } else {
-            console.warn("[ScheduleService.delete] 削除対象なし", deleteResult);
-          }
-          resolve();
-        })
+        .withRetryCount(1)
+        .withSuccessed(result => resolve(result))
         .withFailuered(message => {
-          console.error("[ScheduleService.delete] failed", message);
-          resolve();
+          console.error(`[AudioService.saveAudio: update] failed`, message);
+          resolve(null);
         })
         .invoke();
     });
   }
+  for (const audioId of audioFileIds) {
+    const audio = await getAudio(audioId);
+    console.log(`[AudioService.getAudio]`, audio);
+    if (audio) {
+      const newAudioName = audio.audioName + "_copy";
+      const saveResult = await saveAudio(newAudioName, audio.data64);
+      console.log(`[AudioService.saveAudio]`, saveResult);
+      if (saveResult && saveResult.audioId) {
+        const updateResult = await updateAudio(saveResult.audioId, newAudioName + "_updated", audio.data64);
+        console.log(`[AudioService.saveAudio: update]`, updateResult);
+        // 削除APIがあればここで呼ぶ
+      }
+    }
+  }
+
+  // --- Image Service テスト ---
+  async function getImage(imageId: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("ImageService.getImage", imageId)
+        .withTimeout(20000)
+        .withRetryCount(1)
+        .withSuccessed(data => resolve(data))
+        .withFailuered(message => {
+          console.error(`[ImageService.getImage] failed`, message);
+          resolve(null);
+        })
+        .invoke();
+    });
+  }
+  async function saveImage(imageName: string, data64: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("ImageService.saveImage", { imageName, data64 })
+        .withTimeout(20000)
+        .withRetryCount(1)
+        .withSuccessed(result => resolve(result))
+        .withFailuered(message => {
+          console.error(`[ImageService.saveImage] failed`, message);
+          resolve(null);
+        })
+        .invoke();
+    });
+  }
+  async function updateImage(imageId: string, imageName: string, data64: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("ImageService.saveImage", { imageId, imageName, data64 })
+        .withTimeout(20000)
+        .withRetryCount(1)
+        .withSuccessed(result => resolve(result))
+        .withFailuered(message => {
+          console.error(`[ImageService.saveImage: update] failed`, message);
+          resolve(null);
+        })
+        .invoke();
+    });
+  }
+  for (const imageId of imageFileIds) {
+    const imageData = await getImage(imageId);
+    console.log(`[ImageService.getImage]`, imageData);
+    if (imageData) {
+      const newImageName = imageId + "_copy.png";
+      const saveResult = await saveImage(newImageName, imageData);
+      console.log(`[ImageService.saveImage]`, saveResult);
+      if (saveResult && saveResult.imageId) {
+        const updateResult = await updateImage(saveResult.imageId, newImageName + "_updated.png", imageData);
+        console.log(`[ImageService.saveImage: update]`, updateResult);
+        // 削除APIがあればここで呼ぶ
+      }
+    }
+  }
+
+  // --- Movie Service テスト ---
+  async function getMovie(movieId: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("MovieService.getMovie", movieId)
+        .withTimeout(20000)
+        .withRetryCount(1)
+        .withSuccessed(data => resolve(data))
+        .withFailuered(message => {
+          console.error(`[MovieService.getMovie] failed`, message);
+          resolve(null);
+        })
+        .invoke();
+    });
+  }
+  async function saveMovie(movieName: string, data64: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("MovieService.saveMovie", { movieName, data64 })
+        .withTimeout(20000)
+        .withRetryCount(1)
+        .withSuccessed(result => resolve(result))
+        .withFailuered(message => {
+          console.error(`[MovieService.saveMovie] failed`, message);
+          resolve(null);
+        })
+        .invoke();
+    });
+  }
+  async function updateMovie(movieId: string, movieName: string, data64: string) {
+    return new Promise<any>((resolve) => {
+      googleFunctionService
+        .createCall<any>("MovieService.saveMovie", { movieId, movieName, data64 })
+        .withTimeout(20000)
+        .withRetryCount(1)
+        .withSuccessed(result => resolve(result))
+        .withFailuered(message => {
+          console.error(`[MovieService.saveMovie: update] failed`, message);
+          resolve(null);
+        })
+        .invoke();
+    });
+  }
+  for (const movieId of movieFileIds) {
+    const movieData = await getMovie(movieId);
+    console.log(`[MovieService.getMovie]`, movieData);
+    if (movieData) {
+      const newMovieName = movieId + "_copy.mp4";
+      const saveResult = await saveMovie(newMovieName, movieData);
+      console.log(`[MovieService.saveMovie]`, saveResult);
+      if (saveResult && saveResult.movieId) {
+        const updateResult = await updateMovie(saveResult.movieId, newMovieName + "_updated.mp4", movieData);
+        console.log(`[MovieService.saveMovie: update]`, updateResult);
+        // 削除APIがあればここで呼ぶ
+      }
+    }
+  }
+
 });
 </script>
 

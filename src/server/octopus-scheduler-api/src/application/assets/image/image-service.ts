@@ -19,20 +19,32 @@ export class ImageService implements GasService {
         };
     }
 
-    private async saveImage(args: { imageId: string, imageName: string, data64: string }) {
+    private saveImage(args: { imageId?: string, imageName: string, data64: string }): { imageId: string } {
         try {
             const blob = Utilities.newBlob(Utilities.base64Decode(args.data64), 'image/png', args.imageName);
-            const image = Image.fromEntity(new ImageId(args.imageId), args.imageName, blob);
-            await this.repository.save(image);
-            return { saved: true };
+            let image: Image;
+            let imageId: string;
+            if (args.imageId) {
+                image = Image.fromEntity(new ImageId(args.imageId), args.imageName, blob);
+                this.repository.save(image);
+                imageId = args.imageId;
+            } else {
+                image = Image.createNew(args.imageName, blob);
+                this.repository.save(image);
+                imageId = image.id.toString();
+            }
+            return { imageId };
         } catch (e) {
             Logger.log(`[ImageService.saveImage] failed: ${e}`);
-            return { saved: false };
+            throw e;
         }
     }
 
-    private async getImageMetadatas(): Promise<any[]> {
-        const images = await this.repository.findAll();
+    /**
+     * 画像メタデータ一覧をJSオブジェクト配列で返却
+     */
+    private getImageMetadatas(): Array<{ imageId: string; imageName: string; lastUpdatedAt: string }> {
+        const images: Image[] = this.repository.findAll();
         return images.map((img: Image) => ({
             imageId: img.id.toString(),
             imageName: img.name,
@@ -40,8 +52,11 @@ export class ImageService implements GasService {
         }));
     }
 
-    private async getImage(imageId: string): Promise<string | null> {
-        const image = await this.repository.findById(new ImageId(imageId));
+    /**
+     * 画像データをbase64文字列で返却
+     */
+    private getImage(imageId: string): string | null {
+        const image: Image | null = this.repository.findById(new ImageId(imageId));
         if (!image) return null;
         // 画像データをbase64で返す
         const blob = image.imageData;

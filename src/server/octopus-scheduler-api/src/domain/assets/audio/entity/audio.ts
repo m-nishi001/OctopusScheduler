@@ -9,6 +9,17 @@ export class Audio {
   private data: GoogleAppsScript.Base.Blob;
 
   /**
+   * 新規Audioエンティティを生成するファクトリメソッド
+   * @param audioName オーディオ名
+   * @param data GoogleAppsScript.Base.Blob形式のオーディオデータ
+   */
+  public static createNew(audioName: string, data: GoogleAppsScript.Base.Blob): Audio {
+    // 一意なID生成（ここではタイムスタンプを利用）
+    const id = new AudioId(`${Date.now()}`);
+    return new Audio(id, audioName, data);
+  }
+
+  /**
    * Audioエンティティのコンストラクタ
    * @param audioId オーディオID
    * @param audioName オーディオ名

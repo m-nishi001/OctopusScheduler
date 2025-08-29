@@ -6,23 +6,17 @@ import { GoogleDriveService } from "/root/google_apps_script/octopus-scheduler/s
 
 @injectable()
 export class MovieRepository implements IMovieRepository {
-    private folderName = "MovieAssets"; // 動画ファイルを保存するGoogle Driveのフォルダ名
 
-    private getMovieFolderId(): string {
-        const rootFolder = DriveApp.getRootFolder();
-        const folders = rootFolder.getFoldersByName(this.folderName);
-        let folder = folders.hasNext() ? folders.next() : rootFolder.createFolder(this.folderName);
-        return folder.getId();
-    }
+    private static readonly movieFolderId: string = PropertiesService.getScriptProperties().getProperty('octopus-schedule-api-movie') ?? (() => { throw new Error('Movie folder ID is not set in ScriptProperties.'); })();
 
-    async save(movie: Movie): Promise<void> {
-        const folderId = this.getMovieFolderId();
+    save(movie: Movie): void {
+        const folderId = MovieRepository.movieFolderId;
         let mimeType: string = 'video/mp4';
         if (movie.movieData.getContentType) {
             const mt = movie.movieData.getContentType();
             if (mt) mimeType = mt;
         }
-        await GoogleDriveService.uploadFile({
+        GoogleDriveService.uploadFile({
             fileId: movie.id.toString(),
             fileName: movie.name,
             parentFolderId: folderId,
@@ -31,18 +25,17 @@ export class MovieRepository implements IMovieRepository {
         });
     }
 
-    async findById(id: MovieId): Promise<Movie | null> {
-        const folderId = this.getMovieFolderId();
-        const files = await GoogleDriveService.findFileByIds({ fileIds: [id.toString()], parentFolderId: folderId });
-        if (files.length > 0) {
-            const file = files[0];
+    findById(id: MovieId): Movie | null {
+        try {
+            const file = DriveApp.getFileById(id.toString());
             return Movie.fromEntity(new MovieId(file.getId()), file.getName(), file.getBlob());
+        } catch (e) {
+            return null;
         }
-        return null;
     }
 
-    async findAll(): Promise<Movie[]> {
-        const folderId = this.getMovieFolderId();
+    findAll(): Movie[] {
+        const folderId = MovieRepository.movieFolderId;
         const files = DriveApp.getFolderById(folderId).getFiles();
         const movies: Movie[] = [];
         while (files.hasNext()) {
@@ -52,7 +45,7 @@ export class MovieRepository implements IMovieRepository {
         return movies;
     }
 
-    async delete(id: MovieId): Promise<void> {
-        await GoogleDriveService.deleteFilesOrFolders([id.toString()]);
+    delete(id: MovieId): void {
+        GoogleDriveService.deleteFilesOrFolders([id.toString()]);
     }
 }
