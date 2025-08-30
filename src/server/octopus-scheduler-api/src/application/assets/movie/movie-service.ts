@@ -53,12 +53,16 @@ export class MovieService implements GasService {
     }
 
     /**
-     * ムービーデータをbase64文字列で返却
+     * ムービーデータをbase64文字列で返却（audioと同様にid, name, data64を含むオブジェクト形式）
      */
-    private getMovie(movieId: string): string | null {
+    private getMovie(movieId: string): { movieId: string; movieName: string; data64: string } | null {
         const movie: Movie | null = this.repository.findById(new MovieId(movieId));
         if (!movie) return null;
         const blob = movie.movieData;
-        return Utilities.base64Encode(blob.getBytes());
+        return {
+            movieId: movie.id.toString(),
+            movieName: movie.name,
+            data64: Utilities.base64Encode(blob.getBytes())
+        };
     }
 }

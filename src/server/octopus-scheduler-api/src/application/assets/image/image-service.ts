@@ -53,13 +53,16 @@ export class ImageService implements GasService {
     }
 
     /**
-     * 画像データをbase64文字列で返却
+     * 画像データをbase64文字列で返却（audioと同様にid, name, data64を含むオブジェクト形式）
      */
-    private getImage(imageId: string): string | null {
+    private getImage(imageId: string): { imageId: string; imageName: string; data64: string } | null {
         const image: Image | null = this.repository.findById(new ImageId(imageId));
         if (!image) return null;
-        // 画像データをbase64で返す
         const blob = image.imageData;
-        return Utilities.base64Encode(blob.getBytes());
+        return {
+            imageId: image.id.toString(),
+            imageName: image.name,
+            data64: Utilities.base64Encode(blob.getBytes())
+        };
     }
 }
