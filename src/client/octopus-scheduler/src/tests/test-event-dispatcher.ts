@@ -1,22 +1,29 @@
 import { eventHandlers } from '../eventHandlers/eventHandlers';
 import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts';
 
-// サーバーAPI経由で最新イベントを取得（targetTime指定可）
-async function fetchLatestEvent(targetTime?: string): Promise<{ type: string, detail: any } | null> {
+// サーバーAPI経由で最新イベント群を取得（targetTime指定可）
+type ScheduleEventResult = {
+    id: string;
+    eventName: string;
+    start: string;
+    end: string;
+    eventDetailJson: string;
+};
+
+type LatestEventsResponse = {
+    startEvents: ScheduleEventResult[];
+    endEvents: ScheduleEventResult[];
+};
+
+async function fetchLatestEvents(targetTime?: string): Promise<LatestEventsResponse | null> {
     const gasService = GasFunctionService.create('callOctopusSchedulerApi');
     if (!gasService) return null;
     return new Promise((resolve) => {
         gasService.createCall<any>('ScheduleService.getLatestEvent', targetTime ? { targetTime } : {})
             .withTimeout(10000)
             .withSuccessed((result) => {
-                if (result && result.eventName && result.eventDetailJson) {
-                    let detail = null;
-                    try {
-                        detail = JSON.parse(result.eventDetailJson);
-                    } catch (e) {
-                        console.error('eventDetailJson parse error', e);
-                    }
-                    resolve({ type: result.eventName, detail });
+                if (result && (Array.isArray(result.startEvents) || Array.isArray(result.endEvents))) {
+                    resolve(result);
                 } else {
                     resolve(null);
                 }
@@ -117,15 +124,41 @@ export async function testEventDispatcher() {
         console.log('eventTimes:', eventTimes);
 
         for (const e of eventTimes) {
-            const event = await fetchLatestEvent(e.start);
-            if (event) {
-                console.log('取得イベント:', event.type, event.detail);
-                const handler = eventHandlers[event.type];
-                if (handler) {
-                    handler(event.detail);
-                    console.log('ハンドラ実行済み:', event.type);
-                } else {
-                    console.warn('ハンドラ未定義:', event.type);
+            const latest = await fetchLatestEvents(e.start);
+            if (latest) {
+                // 開始イベント
+                for (const se of latest.startEvents || []) {
+                    let detail = null;
+                    try {
+                        detail = JSON.parse(se.eventDetailJson);
+                    } catch (err) {
+                        console.error('eventDetailJson parse error', err);
+                    }
+                    console.log('取得開始イベント:', se.eventName, detail);
+                    const handler = eventHandlers[se.eventName];
+                    if (handler) {
+                        handler(detail);
+                        console.log('ハンドラ実行済み:', se.eventName);
+                    } else {
+                        console.warn('ハンドラ未定義:', se.eventName);
+                    }
+                }
+                // 終了イベント
+                for (const ee of latest.endEvents || []) {
+                    let detail = null;
+                    try {
+                        detail = JSON.parse(ee.eventDetailJson);
+                    } catch (err) {
+                        console.error('eventDetailJson parse error', err);
+                    }
+                    console.log('取得終了イベント:', ee.eventName, detail);
+                    const handler = eventHandlers[ee.eventName];
+                    if (handler) {
+                        handler(detail);
+                        console.log('ハンドラ実行済み:', ee.eventName);
+                    } else {
+                        console.warn('ハンドラ未定義:', ee.eventName);
+                    }
                 }
             } else {
                 console.log('該当イベントなし');

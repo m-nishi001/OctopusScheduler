@@ -12,7 +12,7 @@ import { IImageRepository } from "../domain/assets/image/repository/image-reposi
 import { ImageRepository } from "../infrastructures/assets/image/image-repository";
 import { IMovieRepository } from "../domain/assets/movie/repository/movie-repository";
 import { MovieRepository } from "../infrastructures/assets/movie/movie-repository";
-import { IScheduleEventRepository } from "../domain/scheduler/schedule-event-reposiotry";
+import { IScheduleEventRepository } from "../domain/schedule/schedule-event-reposiotry";
 import { SpreadsheetScheduleEventRepository } from "../infrastructures/schedule/schedule-repository";
 import { AudioApiService } from "../application/assets/audio/audio-api-service";
 

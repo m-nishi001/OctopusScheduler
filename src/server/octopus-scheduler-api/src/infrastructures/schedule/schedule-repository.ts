@@ -1,9 +1,9 @@
 
-import { ScheduleEvent } from "../../domain/scheduler/entity/schedule-event";
-import { IScheduleEventRepository } from "../../domain/scheduler/schedule-event-reposiotry";
-import { ScheduleEventName } from "../../domain/scheduler/value-object/schedule-event-name";
-import { ScheduleTimeSpan } from "../../domain/scheduler/value-object/schedule-timespan";
-import { ScheduleEventId } from "../../domain/scheduler/value-object/schedule-event-id";
+import { ScheduleEvent } from "../../domain/schedule/entity/schedule-event";
+import { IScheduleEventRepository } from "../../domain/schedule/schedule-event-reposiotry";
+import { ScheduleEventName } from "../../domain/schedule/value-object/schedule-event-name";
+import { ScheduleTimeSpan } from "../../domain/schedule/value-object/schedule-timespan";
+import { ScheduleEventId } from "../../domain/schedule/value-object/schedule-event-id";
 import { DataAccessService, IRepository } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-spreadsheet-servie";
 import { injectable } from "tsyringe";
 

@@ -1,10 +1,11 @@
 import { inject, injectable } from "tsyringe";
-import { IScheduleEventRepository } from "../../domain/scheduler/schedule-event-reposiotry";
+import { IScheduleEventRepository } from "../../domain/schedule/schedule-event-reposiotry";
 import { GasService } from "../gas-service";
-import { ScheduleEvent } from "../../domain/scheduler/entity/schedule-event";
-import { ScheduleEventName } from "../../domain/scheduler/value-object/schedule-event-name";
-import { ScheduleTimeSpan } from "../../domain/scheduler/value-object/schedule-timespan";
-import { ScheduleEventId } from "../../domain/scheduler/value-object/schedule-event-id";
+import { ScheduleEvent } from "../../domain/schedule/entity/schedule-event";
+import { GetLatestEventsService } from "../../domain/schedule/service/get-latest-events-service";
+import { ScheduleEventName } from "../../domain/schedule/value-object/schedule-event-name";
+import { ScheduleTimeSpan } from "../../domain/schedule/value-object/schedule-timespan";
+import { ScheduleEventId } from "../../domain/schedule/value-object/schedule-event-id";
 
 @injectable()
 export class ScheduleService implements GasService {
@@ -23,9 +24,8 @@ export class ScheduleService implements GasService {
         };
     }
 
-    // 現在時刻（日本時間）または指定時刻で実行すべき最新イベントを返す
+    // 現在時刻（日本時間）または指定時刻で開始・終了すべきイベントを配列で返す
     private getLatestEvent(args?: { targetTime?: string }): any {
-
         const now = args && args.targetTime
             ? new Date(args.targetTime)
             : new Date(Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss'));
@@ -33,36 +33,26 @@ export class ScheduleService implements GasService {
         Logger.log(`[ScheduleService.getLatestEvent] targetTime: ${args && args.targetTime ? args.targetTime : 'not provided'}, now: ${Utilities.formatDate(now, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss')}`);
 
         const all = this.repository.findAll();
-        // 開始<=now<=終了のイベントを優先
-        const active = all.find(e => e.timeSpan.start <= now && now <= e.timeSpan.end);
-        if (active) {
-            const result = {
-                id: active.eventId.id,
-                eventName: active.eventName.name,
-                start: active.timeSpan.start,
-                end: active.timeSpan.end,
-                eventDetailJson: active.eventDetailJson
-            };
-            Logger.log(`[ScheduleService.getLatestEvent] returning active event: ${JSON.stringify(result)}`);
-            return result;
-        }
-        // それ以外は開始<=nowのうち最も近いもの
-        const past = all.filter(e => e.timeSpan.start <= now)
-            .sort((a, b) => b.timeSpan.start.getTime() - a.timeSpan.start.getTime());
-        if (past.length > 0) {
-            const latest = past[0];
-            const result = {
-                id: latest.eventId.id,
-                eventName: latest.eventName.name,
-                start: latest.timeSpan.start,
-                end: latest.timeSpan.end,
-                eventDetailJson: latest.eventDetailJson
-            };
-            Logger.log(`[ScheduleService.getLatestEvent] returning latest past event: ${JSON.stringify(result)}`);
-            return result;
-        }
-        Logger.log(`[ScheduleService.getLatestEvent] returning null (no event found)`);
-        return null;
+        const { startEvents, endEvents } = GetLatestEventsService.execute(all, now);
+
+        Logger.log(`[ScheduleService.getLatestEvent] returning startEvents: ${JSON.stringify(startEvents.map(e => e.eventId.id))}, endEvents: ${JSON.stringify(endEvents.map(e => e.eventId.id))}`);
+
+        return {
+            startEvents: startEvents.map(e => ({
+                id: e.eventId.id,
+                eventName: e.eventName.name,
+                start: e.timeSpan.start,
+                end: e.timeSpan.end,
+                eventDetailJson: e.eventDetailJson
+            })),
+            endEvents: endEvents.map(e => ({
+                id: e.eventId.id,
+                eventName: e.eventName.name,
+                start: e.timeSpan.start,
+                end: e.timeSpan.end,
+                eventDetailJson: e.eventDetailJson
+            }))
+        };
     }
 
     // Save or update a schedule event
