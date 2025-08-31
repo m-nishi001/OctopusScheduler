@@ -1,6 +1,7 @@
 
 import { Image } from "../../../domain/assets/image/entity/image";
 import { IImageRepository } from "../../../domain/assets/image/repository/image-repository";
+import { ImageMetadata } from "../../../domain/assets/image/vo/image-metadata";
 import { ImageId } from "../../../domain/assets/image/vo/image-id";
 import { injectable } from "tsyringe";
 import { GoogleDriveService } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-drive-service";
@@ -44,6 +45,22 @@ export class ImageRepository implements IImageRepository {
             images.push(Image.fromEntity(new ImageId(file.getId()), file.getName(), file.getBlob()));
         }
         return images;
+    }
+
+    findAllMetadatas(): ImageMetadata[] {
+        const folderId = ImageRepository.imageFolderId;
+        const files = DriveApp.getFolderById(folderId).getFiles();
+        const metadatas: ImageMetadata[] = [];
+        while (files.hasNext()) {
+            const file = files.next();
+            const lastUpdated = file.getLastUpdated();
+            metadatas.push(new ImageMetadata(
+                file.getId(),
+                file.getName(),
+                new Date(typeof lastUpdated === 'string' ? Date.parse(lastUpdated) : lastUpdated.valueOf())
+            ));
+        }
+        return metadatas;
     }
 
     delete(id: ImageId): void {

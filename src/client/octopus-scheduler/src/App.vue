@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { test } from './tests/test-services';
+import { testAssetManagementService } from './tests/test-asset-management-service';
 
 onMounted(async () => {
   await test();
+  await testAssetManagementService();
 });
 </script>
 

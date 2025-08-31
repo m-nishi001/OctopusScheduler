@@ -49,7 +49,12 @@ export class AudioRepository implements IAudioRepository {
         const metadatas: AudioMetadata[] = [];
         while (files.hasNext()) {
             const file = files.next();
-            metadatas.push(new AudioMetadata(file.getId(), file.getName(), file.getLastUpdated() as Date));
+            const lastUpdated = file.getLastUpdated();
+            metadatas.push(new AudioMetadata(
+                file.getId(),
+                file.getName(),
+                new Date(typeof lastUpdated === 'string' ? Date.parse(lastUpdated) : lastUpdated.valueOf())
+            ));
         }
         return metadatas;
     }

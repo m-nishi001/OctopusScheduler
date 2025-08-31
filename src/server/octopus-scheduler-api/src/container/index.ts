@@ -3,6 +3,7 @@ import { GasService } from "../application/gas-service";
 import { ScheduleService } from "../application/schedule/schedule-service";
 import { ImageService } from "../application/assets/image/image-service";
 import { MovieService } from "../application/assets/movie/movie-service";
+import { AssetMetadataService } from "../application/assets/asset-management/asset-metadata-service";
 
 import { IAudioRepository } from "../domain/assets/audio/repository/audio-repository";
 import { AudioRepository } from "../infrastructures/assets/audio/audio-repository";
@@ -21,6 +22,7 @@ export class Container {
         container.register<GasService>("IGasService", { useClass: ImageService });
         container.register<GasService>("IGasService", { useClass: MovieService });
         container.register<GasService>("IGasService", { useClass: AudioApiService });
+        container.register<GasService>("IGasService", { useClass: AssetMetadataService });
         container.register<IScheduleEventRepository>("IScheduleEventRepository", { useClass: SpreadsheetScheduleEventRepository });
         container.register<IAudioRepository>("IAudioRepository", { useClass: AudioRepository });
         container.register<IImageRepository>("IImageRepository", { useClass: ImageRepository });
