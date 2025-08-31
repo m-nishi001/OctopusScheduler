@@ -1,4 +1,4 @@
-import { domainEventBus } from "src/domains/event-bus";
+import { domainEventBus } from "../../../event-bus";
 import type { IEventDetail } from "./event-detail";
 
 export class AudioDetail implements IEventDetail {

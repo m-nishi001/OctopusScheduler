@@ -17,9 +17,52 @@ export class ScheduleService implements GasService {
         this.functions = {
             "save": this.save.bind(this),
             "delete": this.delete.bind(this),
-            "getScheduleMetadatas": this.getScheduleMetadatas.bind(this),
-            "findById": this.findById.bind(this)
+            "getAllScheduleEvents": this.getAllScheduleEvents.bind(this),
+            "findById": this.findById.bind(this),
+            "getLatestEvent": this.getLatestEvent.bind(this)
         };
+    }
+
+    // 現在時刻（日本時間）または指定時刻で実行すべき最新イベントを返す
+    private getLatestEvent(args?: { targetTime?: string }): any {
+
+        const now = args && args.targetTime
+            ? new Date(args.targetTime)
+            : new Date(Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss'));
+
+        Logger.log(`[ScheduleService.getLatestEvent] targetTime: ${args && args.targetTime ? args.targetTime : 'not provided'}, now: ${Utilities.formatDate(now, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss')}`);
+
+        const all = this.repository.findAll();
+        // 開始<=now<=終了のイベントを優先
+        const active = all.find(e => e.timeSpan.start <= now && now <= e.timeSpan.end);
+        if (active) {
+            const result = {
+                id: active.eventId.id,
+                eventName: active.eventName.name,
+                start: active.timeSpan.start,
+                end: active.timeSpan.end,
+                eventDetailJson: active.eventDetailJson
+            };
+            Logger.log(`[ScheduleService.getLatestEvent] returning active event: ${JSON.stringify(result)}`);
+            return result;
+        }
+        // それ以外は開始<=nowのうち最も近いもの
+        const past = all.filter(e => e.timeSpan.start <= now)
+            .sort((a, b) => b.timeSpan.start.getTime() - a.timeSpan.start.getTime());
+        if (past.length > 0) {
+            const latest = past[0];
+            const result = {
+                id: latest.eventId.id,
+                eventName: latest.eventName.name,
+                start: latest.timeSpan.start,
+                end: latest.timeSpan.end,
+                eventDetailJson: latest.eventDetailJson
+            };
+            Logger.log(`[ScheduleService.getLatestEvent] returning latest past event: ${JSON.stringify(result)}`);
+            return result;
+        }
+        Logger.log(`[ScheduleService.getLatestEvent] returning null (no event found)`);
+        return null;
     }
 
     // Save or update a schedule event
@@ -31,7 +74,8 @@ export class ScheduleService implements GasService {
             const eventName = ScheduleEventName.create(obj.eventName);
             const timespan = ScheduleTimeSpan.create(obj.start, obj.end);
             if (!eventName || !timespan) throw new Error('Invalid eventName or timespan');
-            const event = new ScheduleEvent(eventName, timespan, eventId);
+            const eventDetailJson = obj.eventDetailJson ?? "{}";
+            const event = new ScheduleEvent(eventName, timespan, eventId, eventDetailJson);
             if (eventId) {
                 // update
                 this.repository.update(
@@ -64,12 +108,15 @@ export class ScheduleService implements GasService {
     }
 
 
-    // Get all schedule metadatas
-    private getScheduleMetadatas(): any[] {
+
+    // Get all schedule events (full info)
+    private getAllScheduleEvents(): any[] {
         return this.repository.findAll().map(scheduleEvent => ({
-            scheduleId: scheduleEvent.eventId.id,
+            id: scheduleEvent.eventId.id,
             eventName: scheduleEvent.eventName.name,
-            lastUpdatedAt: scheduleEvent.timeSpan.end // or another field if available
+            start: scheduleEvent.timeSpan.start,
+            end: scheduleEvent.timeSpan.end,
+            eventDetailJson: scheduleEvent.eventDetailJson
         }));
     }
 

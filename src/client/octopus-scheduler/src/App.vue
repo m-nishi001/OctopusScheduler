@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { test } from './tests/test-services';
-import { testAssetManagementService } from './tests/test-asset-management-service';
+// import { test } from './tests/test-services';
+// import { testAssetManagementService } from './tests/test-asset-management-service';
+import { testEventDispatcher } from './tests/test-event-dispatcher';
 
 onMounted(async () => {
-  await test();
-  await testAssetManagementService();
+  // await test();
+  // await testAssetManagementService();
+  testEventDispatcher();
 });
 </script>
 
