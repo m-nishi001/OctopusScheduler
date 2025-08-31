@@ -6,29 +6,34 @@ import { ImageEventDetail } from "../value-object/image-event-detail";
 import { MusicEventDetail } from "../value-object/music-event-detail";
 import { TransitionEventDetail } from "../value-object/transition-event-detail";
 
+
 export class ScheduleEvent {
     static Empty: ScheduleEvent = new ScheduleEvent(
         ScheduleEventName.Empty,
         ScheduleTimeSpan.Empty,
         ScheduleEventId.Empty,
-        "{}"
+        "{}",
+        null
     );
 
     eventId: ScheduleEventId;
     eventName: ScheduleEventName;
     timeSpan: ScheduleTimeSpan;
     eventDetailJson: string; // イベント固有情報(JSON文字列)
+    processedAt: Date | null; // 処理済み日時（未処理ならnull）
 
     constructor(
         eventName: ScheduleEventName,
         timeSpan: ScheduleTimeSpan,
         eventId: ScheduleEventId | null = null,
-        eventDetailJson: string = "{}"
+        eventDetailJson: string = "{}",
+        processedAt: Date | null = null
     ) {
         this.eventId = eventId ?? ScheduleEventId.new();
         this.eventName = eventName;
         this.timeSpan = timeSpan;
         this.eventDetailJson = eventDetailJson;
+        this.processedAt = processedAt;
     }
 
     equals(another: ScheduleEvent): boolean {
@@ -43,13 +48,15 @@ export class ScheduleEvent {
         eventName: ScheduleEventName,
         timeSpan: ScheduleTimeSpan,
         detail: VideoEventDetail | ImageEventDetail | MusicEventDetail | TransitionEventDetail,
-        eventId: ScheduleEventId | null = null
+        eventId: ScheduleEventId | null = null,
+        processedAt: Date | null = null
     ): ScheduleEvent {
         return new ScheduleEvent(
             eventName,
             timeSpan,
             eventId,
-            JSON.stringify(detail)
+            JSON.stringify(detail),
+            processedAt
         );
     }
 

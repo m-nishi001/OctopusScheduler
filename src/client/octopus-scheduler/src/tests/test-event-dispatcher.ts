@@ -125,6 +125,7 @@ export async function testEventDispatcher() {
 
         for (const e of eventTimes) {
             const latest = await fetchLatestEvents(e.start);
+            const processedIds: string[] = [];
             if (latest) {
                 // 開始イベント
                 for (const se of latest.startEvents || []) {
@@ -142,6 +143,7 @@ export async function testEventDispatcher() {
                     } else {
                         console.warn('ハンドラ未定義:', se.eventName);
                     }
+                    processedIds.push(se.id);
                 }
                 // 終了イベント
                 for (const ee of latest.endEvents || []) {
@@ -159,6 +161,23 @@ export async function testEventDispatcher() {
                     } else {
                         console.warn('ハンドラ未定義:', ee.eventName);
                     }
+                    processedIds.push(ee.id);
+                }
+                // 取得・処理したイベントIDをサーバに送信して処理済みにマーク
+                if (processedIds.length > 0) {
+                    await new Promise((resolve) => {
+                        gasService.createCall<any>('ScheduleService.markEventsAsProcessed', { eventIds: processedIds })
+                            .withTimeout(10000)
+                            .withSuccessed((result) => {
+                                console.log('markEventsAsProcessed result:', result);
+                                resolve(true);
+                            })
+                            .withFailuered((message) => {
+                                console.error('markEventsAsProcessed failed', message);
+                                resolve(false);
+                            })
+                            .invoke();
+                    });
                 }
             } else {
                 console.log('該当イベントなし');

@@ -20,7 +20,8 @@ export class ScheduleService implements GasService {
             "delete": this.delete.bind(this),
             "getAllScheduleEvents": this.getAllScheduleEvents.bind(this),
             "findById": this.findById.bind(this),
-            "getLatestEvent": this.getLatestEvent.bind(this)
+            "getLatestEvent": this.getLatestEvent.bind(this),
+            "markEventsAsProcessed": this.markEventsAsProcessed.bind(this)
         };
     }
 
@@ -32,7 +33,8 @@ export class ScheduleService implements GasService {
 
         Logger.log(`[ScheduleService.getLatestEvent] targetTime: ${args && args.targetTime ? args.targetTime : 'not provided'}, now: ${Utilities.formatDate(now, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss')}`);
 
-        const all = this.repository.findAll();
+        // 未処理イベントのみ取得
+        const all = this.repository.findAll().filter(e => !e.processedAt);
         const { startEvents, endEvents } = GetLatestEventsService.execute(all, now);
 
         Logger.log(`[ScheduleService.getLatestEvent] returning startEvents: ${JSON.stringify(startEvents.map(e => e.eventId.id))}, endEvents: ${JSON.stringify(endEvents.map(e => e.eventId.id))}`);
@@ -53,6 +55,25 @@ export class ScheduleService implements GasService {
                 eventDetailJson: e.eventDetailJson
             }))
         };
+    }
+
+    // 指定したイベントID群を処理済みにする
+    private markEventsAsProcessed(args: { eventIds: string[] }): { updated: number } {
+        if (!args || !Array.isArray(args.eventIds)) return { updated: 0 };
+        const now = new Date();
+        const updated = this.repository.update(
+            (entity: ScheduleEvent) => args.eventIds.includes(entity.eventId.id),
+            (entity: ScheduleEvent) => {
+                return new ScheduleEvent(
+                    entity.eventName,
+                    entity.timeSpan,
+                    entity.eventId,
+                    entity.eventDetailJson,
+                    now
+                );
+            }
+        );
+        return { updated };
     }
 
     // Save or update a schedule event

@@ -24,7 +24,8 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 				eventName: event.eventName.name,
 				start: new Date(event.timeSpan.start).toISOString(),
 				end: new Date(event.timeSpan.end).toISOString(),
-				eventDetailJson: event.eventDetailJson // 固有情報を保存
+				eventDetailJson: event.eventDetailJson, // 固有情報を保存
+				processedAt: event.processedAt ? event.processedAt.toISOString() : null
 			});
 			count++;
 		}
@@ -43,7 +44,8 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 			const timeSpan = ScheduleTimeSpan.create(new Date(obj.start), new Date(obj.end)) ?? ScheduleTimeSpan.Empty;
 			const eventId = ScheduleEventId.from(obj.id) ?? ScheduleEventId.Empty;
 			const eventDetailJson = typeof obj.eventDetailJson === "string" ? obj.eventDetailJson : "{}";
-			return new ScheduleEvent(eventName, timeSpan, eventId, eventDetailJson);
+			const processedAt = obj.processedAt ? new Date(obj.processedAt) : null;
+			return new ScheduleEvent(eventName, timeSpan, eventId, eventDetailJson, processedAt);
 		});
 	}
 
@@ -58,7 +60,8 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 					eventName: updatedEvent.eventName.name,
 					start: new Date(updatedEvent.timeSpan.start).toISOString(),
 					end: new Date(updatedEvent.timeSpan.end).toISOString(),
-					eventDetailJson: updatedEvent.eventDetailJson
+					eventDetailJson: updatedEvent.eventDetailJson,
+					processedAt: updatedEvent.processedAt ? updatedEvent.processedAt.toISOString() : null
 				});
 				updated++;
 			}
