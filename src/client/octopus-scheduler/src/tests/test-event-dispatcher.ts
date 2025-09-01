@@ -1,5 +1,6 @@
 import { eventHandlers } from '../eventHandlers/eventHandlers';
 import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts';
+import { usePolling } from '/root/google_apps_script/octopus-scheduler/src/client/packages/shared-composables/src/use-polling';
 
 // サーバーAPI経由で最新イベント群を取得（targetTime指定可）
 type ScheduleEventResult = {
@@ -97,94 +98,104 @@ export async function testEventDispatcher() {
     }
 
     // 3. ディスパッチ処理・取得・ハンドリング検証
+    let eventTimes: { type: string, start: string }[] = [];
+    let currentIndex = 0;
+    let initialized = false;
+    let stopPolling: (() => void) | null = null;
+
     async function pollEvents() {
-        // サーバーから最新の全イベントメタ情報を再取得
         if (!gasService) return;
-        let allEvents: any[] = [];
-        await new Promise((resolve) => {
-            gasService.createCall<any>('ScheduleService.getAllScheduleEvents')
-                .withTimeout(10000)
-                .withSuccessed((result) => {
-                    allEvents = Array.isArray(result) ? result : [];
-                    resolve(true);
-                })
-                .withFailuered(() => resolve(false))
-                .invoke();
-        });
-
-        // mapの前のallEventsを出力
-        console.log('allEvents:', allEvents);
-
-        const eventTimes = allEvents
-            .filter(e => !!e.start)
-            .map(e => ({ type: e.eventName, start: e.start }))
-            .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-
-        // map/filter/sort後のeventTimesを出力
-        console.log('eventTimes:', eventTimes);
-
-        for (const e of eventTimes) {
-            const latest = await fetchLatestEvents(e.start);
-            const processedIds: string[] = [];
-            if (latest) {
-                // 開始イベント
-                for (const se of latest.startEvents || []) {
-                    let detail = null;
-                    try {
-                        detail = JSON.parse(se.eventDetailJson);
-                    } catch (err) {
-                        console.error('eventDetailJson parse error', err);
-                    }
-                    console.log('取得開始イベント:', se.eventName, detail);
-                    const handler = eventHandlers[se.eventName];
-                    if (handler) {
-                        handler(detail);
-                        console.log('ハンドラ実行済み:', se.eventName);
-                    } else {
-                        console.warn('ハンドラ未定義:', se.eventName);
-                    }
-                    processedIds.push(se.id);
-                }
-                // 終了イベント
-                for (const ee of latest.endEvents || []) {
-                    let detail = null;
-                    try {
-                        detail = JSON.parse(ee.eventDetailJson);
-                    } catch (err) {
-                        console.error('eventDetailJson parse error', err);
-                    }
-                    console.log('取得終了イベント:', ee.eventName, detail);
-                    const handler = eventHandlers[ee.eventName];
-                    if (handler) {
-                        handler(detail);
-                        console.log('ハンドラ実行済み:', ee.eventName);
-                    } else {
-                        console.warn('ハンドラ未定義:', ee.eventName);
-                    }
-                    processedIds.push(ee.id);
-                }
-                // 取得・処理したイベントIDをサーバに送信して処理済みにマーク
-                if (processedIds.length > 0) {
-                    await new Promise((resolve) => {
-                        gasService.createCall<any>('ScheduleService.markEventsAsProcessed', { eventIds: processedIds })
-                            .withTimeout(10000)
-                            .withSuccessed((result) => {
-                                console.log('markEventsAsProcessed result:', result);
-                                resolve(true);
-                            })
-                            .withFailuered((message) => {
-                                console.error('markEventsAsProcessed failed', message);
-                                resolve(false);
-                            })
-                            .invoke();
-                    });
-                }
-            } else {
-                console.log('該当イベントなし');
-            }
-            await new Promise(res => setTimeout(res, 1000));
+        if (!initialized) {
+            // 初回のみ全イベント取得
+            let allEvents: any[] = [];
+            await new Promise((resolve) => {
+                gasService.createCall<any>('ScheduleService.getAllScheduleEvents')
+                    .withTimeout(10000)
+                    .withSuccessed((result) => {
+                        allEvents = Array.isArray(result) ? result : [];
+                        resolve(true);
+                    })
+                    .withFailuered(() => resolve(false))
+                    .invoke();
+            });
+            eventTimes = allEvents
+                .filter(e => !!e.start)
+                .map(e => ({ type: e.eventName, start: e.start }))
+                .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+            console.log('eventTimes:', eventTimes);
+            initialized = true;
         }
-        console.log('==== 全イベント取得・ハンドリング完了 ====');
+        if (currentIndex >= eventTimes.length) {
+            if (stopPolling) stopPolling();
+            console.log('==== 全イベント取得・ハンドリング完了 ====');
+            return;
+        }
+        const e = eventTimes[currentIndex];
+        console.log('ポーリング中のイベント:', e);
+        currentIndex++;
+        const latest = await fetchLatestEvents(e.start);
+        console.log('fetchLatestEvents result:', latest);
+        const processedIds: string[] = [];
+        if (latest) {
+            // 開始イベント
+            for (const se of latest.startEvents || []) {
+                let detail = null;
+                try {
+                    detail = JSON.parse(se.eventDetailJson);
+                } catch (err) {
+                    console.error('eventDetailJson parse error', err);
+                }
+                console.log('取得開始イベント:', se.eventName, detail);
+                const handler = eventHandlers[se.eventName];
+                if (handler) {
+                    handler(detail);
+                    console.log('ハンドラ実行済み:', se.eventName);
+                } else {
+                    console.warn('ハンドラ未定義:', se.eventName);
+                }
+                processedIds.push(se.id);
+            }
+            // 終了イベント
+            for (const ee of latest.endEvents || []) {
+                let detail = null;
+                try {
+                    detail = JSON.parse(ee.eventDetailJson);
+                } catch (err) {
+                    console.error('eventDetailJson parse error', err);
+                }
+                console.log('取得終了イベント:', ee.eventName, detail);
+                const handler = eventHandlers[ee.eventName];
+                if (handler) {
+                    handler(detail);
+                    console.log('ハンドラ実行済み:', ee.eventName);
+                } else {
+                    console.warn('ハンドラ未定義:', ee.eventName);
+                }
+                processedIds.push(ee.id);
+            }
+            // 取得・処理したイベントIDをサーバに送信して処理済みにマーク
+            if (processedIds.length > 0) {
+                await new Promise((resolve) => {
+                    gasService.createCall<any>('ScheduleService.markEventsAsProcessed', { eventIds: processedIds })
+                        .withTimeout(10000)
+                        .withSuccessed((result) => {
+                            console.log('markEventsAsProcessed result:', result);
+                            resolve(true);
+                        })
+                        .withFailuered((message) => {
+                            console.error('markEventsAsProcessed failed', message);
+                            resolve(false);
+                        })
+                        .invoke();
+                });
+            }
+        } else {
+            console.log('該当イベントなし');
+        }
     }
-    await pollEvents();
+
+    // usePollingでポーリング実行（例: 1秒間隔、即時実行）
+    const { start, stop } = usePolling(pollEvents, 1000, { immediate: true });
+    start();
+    stopPolling = stop;
 }
