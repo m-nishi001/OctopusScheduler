@@ -1,5 +1,5 @@
 import { ref, readonly, onUnmounted } from 'vue';
-import { AudioService } from 'common-lib/audio/audio-service';
+import { AudioService } from '../../common-lib/src/audio/audio-service';
 
 /**
  * AudioServiceの機能をラップし、Vueのリアクティブな状態と統合するComposable関数
