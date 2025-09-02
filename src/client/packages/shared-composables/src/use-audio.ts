@@ -20,7 +20,7 @@ export function useAudio() {
     const error = ref<Error | null>(null);
 
     // currentTimeを更新するためのタイマーID
-    let updateTimerId: number | null = null;
+    let updateTimerId: ReturnType<typeof setInterval> | null = null;
 
     /**
      * URLまたはBlobからオーディオデータをロードする
@@ -68,7 +68,7 @@ export function useAudio() {
             isPlaying.value = true;
             // 再生開始時にcurrentTimeの更新を開始
             if (updateTimerId === null) {
-                updateTimerId = window.setInterval(() => {
+                updateTimerId = setInterval(() => {
                     if (audioInstanceId.value) {
                         currentTime.value = audioService.getCurrentTime(audioInstanceId.value);
                         // 再生が終了したらタイマーを停止する
@@ -93,7 +93,7 @@ export function useAudio() {
         isPlaying.value = false;
         // タイマーを停止
         if (updateTimerId !== null) {
-            window.clearInterval(updateTimerId);
+            clearInterval(updateTimerId);
             updateTimerId = null;
         }
     };
@@ -111,7 +111,7 @@ export function useAudio() {
             currentTime.value = 0;
             // タイマーを停止
             if (updateTimerId !== null) {
-                window.clearInterval(updateTimerId);
+                clearInterval(updateTimerId);
                 updateTimerId = null;
             }
         } catch (err) {
@@ -133,7 +133,7 @@ export function useAudio() {
     // コンポーネントがアンマウントされる際にリソースを解放する
     onUnmounted(() => {
         if (updateTimerId !== null) {
-            window.clearInterval(updateTimerId);
+            clearInterval(updateTimerId);
         }
         audioService.disposeAll();
     });
