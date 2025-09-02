@@ -24,211 +24,232 @@
  * この設計により、ドメイン層はインフラストラクチャから独立し、
  * ビジネスロジックがより表現豊かでテストしやすいものになっている。
  */
-
-declare namespace google {
-    namespace script {
-        interface Run {
-            withSuccessHandler(handler: (value: any) => void): Run;
-            withFailureHandler(handler: (error: Error) => void): Run;
-            withUserObject(object: Object): Run;
-            [functionName: string]: (...args: any[]) => void;
-        }
-
-        const run: Run;
-    }
-}
-
-
-// ==============================================================================
-// 1. Domain (ドメイン層)
-// ==============================================================================
-
-
-
-/**
- * GAS関数の呼び出しというドメインの概念を表現するインターフェース。
- * 成功時と失敗時のコールバック設定、および最終的な呼び出しを実行するメソッドを定義する。
- * @template TResult 呼び出しが成功時に返すデータの型。
- */
-export interface IGasFunction<TResult> {
-    functionName: string;
-    withArgs(args: any): IGasFunction<TResult>;
-    withRetryCount(count: number): IGasFunction<TResult>;
-    withRetryInterval(ms: number): IGasFunction<TResult>;
-    withTimeout(ms: number): IGasFunction<TResult>;
-    withSuccessed(callback: (result: TResult) => void): IGasFunction<TResult>;
-    withFailuered(callback: (message: string) => void): IGasFunction<TResult>;
-    invoke(): Promise<boolean>;
-}
-
 // ===================== Domain =====================
-
 /**
  * GAS関数の呼び出しが成功した際のレスポンス。
  * @template T 成功時のデータの型。
  */
-export class SuccessResponse<T> {
-    public readonly status: string = 'success';
-    public readonly data: T;
-    constructor(data: T) {
+export class SuccessResponse {
+    constructor(data) {
+        Object.defineProperty(this, "status", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: 'success'
+        });
+        Object.defineProperty(this, "data", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
         this.data = data;
     }
 }
-
 /**
  * GAS関数の呼び出しが失敗した際のレスポンス。
  */
 export class FailedResponse {
-    public readonly status: string = 'failed';
-    public readonly message: string;
-    constructor(message: string) {
+    constructor(message) {
+        Object.defineProperty(this, "status", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: 'failed'
+        });
+        Object.defineProperty(this, "message", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
         this.message = message;
     }
 }
-
 /**
  * GAS関数呼び出しのオプション（リトライ、タイムアウト）を表現する値オブジェクト。
  * 変更不可 (immutable) であり、新しいインスタンスを生成して状態を変更する。
  */
 export class GasFunctionOptions {
-    private static readonly DEFAULT_TIMEOUT_MS = 10000;
-    private static readonly DEFAULT_RETRIES = 3;
-    private static readonly DEFAULT_RETRY_DELAY_MS = 1000;
-
-    private readonly timeout: number;
-    private readonly retries: number;
-    private readonly retryDelay: number;
-
-    constructor(
-        retries: number = GasFunctionOptions.DEFAULT_RETRIES,
-        retryDelay: number = GasFunctionOptions.DEFAULT_RETRY_DELAY_MS,
-        timeout: number = GasFunctionOptions.DEFAULT_TIMEOUT_MS
-    ) {
-        if (retries < 0) throw new Error("Retries cannot be negative.");
-        if (retryDelay < 0) throw new Error("Retry delay cannot be negative.");
-        if (timeout < 0) throw new Error("Timeout cannot be negative.");
-
+    constructor(retries = GasFunctionOptions.DEFAULT_RETRIES, retryDelay = GasFunctionOptions.DEFAULT_RETRY_DELAY_MS, timeout = GasFunctionOptions.DEFAULT_TIMEOUT_MS) {
+        Object.defineProperty(this, "timeout", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        Object.defineProperty(this, "retries", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        Object.defineProperty(this, "retryDelay", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        if (retries < 0)
+            throw new Error("Retries cannot be negative.");
+        if (retryDelay < 0)
+            throw new Error("Retry delay cannot be negative.");
+        if (timeout < 0)
+            throw new Error("Timeout cannot be negative.");
         this.retries = retries;
         this.retryDelay = retryDelay;
         this.timeout = timeout;
     }
-
-    getTimeout(): number { return this.timeout; }
-    getRetries(): number { return this.retries; }
-    getRetryDelay(): number { return this.retryDelay; }
-
+    getTimeout() { return this.timeout; }
+    getRetries() { return this.retries; }
+    getRetryDelay() { return this.retryDelay; }
     /**
      * 新しいタイムアウト値を持つ新しいインスタンスを返す。
      */
-    withTimeout(timeout: number): GasFunctionOptions {
+    withTimeout(timeout) {
         return new GasFunctionOptions(this.retries, this.retryDelay, timeout);
     }
-
     /**
      * 新しいリトライ回数を持つ新しいインスタンスを返す。
      */
-    withRetries(retries: number): GasFunctionOptions {
+    withRetries(retries) {
         return new GasFunctionOptions(retries, this.retryDelay, this.timeout);
     }
-
     /**
      * 新しいリトライ遅延時間を持つ新しいインスタンスを返す。
      */
-    withRetryDelay(retryDelay: number): GasFunctionOptions {
+    withRetryDelay(retryDelay) {
         return new GasFunctionOptions(this.retries, retryDelay, this.timeout);
     }
 }
-
+Object.defineProperty(GasFunctionOptions, "DEFAULT_TIMEOUT_MS", {
+    enumerable: true,
+    configurable: true,
+    writable: true,
+    value: 10000
+});
+Object.defineProperty(GasFunctionOptions, "DEFAULT_RETRIES", {
+    enumerable: true,
+    configurable: true,
+    writable: true,
+    value: 3
+});
+Object.defineProperty(GasFunctionOptions, "DEFAULT_RETRY_DELAY_MS", {
+    enumerable: true,
+    configurable: true,
+    writable: true,
+    value: 1000
+});
 /**
  * GAS関数呼び出しというドメインの概念を表現するドメインオブジェクト。
  * データ（関数名、引数）と振る舞い（呼び出し、リトライ）をカプセル化する。
  * @template TResult 呼び出しが成功時に返すデータの型。
  */
-export class GasFunction<TResult> implements IGasFunction<TResult> {
-    public functionName: string;
-    public args: any;
-    public options: GasFunctionOptions;
-    private executor: GasScriptExecutor;
-    private successHandler: ((result: TResult) => void) | null = null;
-    private failureHandler: ((message: string) => void) | null = null;
-
+export class GasFunction {
     /**
      * このコンストラクタはアプリケーション層からのみアクセス可能。
      * 利用者は直接インスタンス化せず、GasFunctionServiceのnewCall()を使用する。
      */
-    constructor(functionName: string, args: any, executor: GasScriptExecutor) {
+    constructor(functionName, args, executor) {
+        Object.defineProperty(this, "functionName", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        Object.defineProperty(this, "args", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        Object.defineProperty(this, "options", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        Object.defineProperty(this, "executor", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        Object.defineProperty(this, "successHandler", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: null
+        });
+        Object.defineProperty(this, "failureHandler", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: null
+        });
         this.functionName = functionName;
         this.args = args;
         this.options = new GasFunctionOptions();
         this.executor = executor;
     }
-
     /**
      * GAS関数に渡す引数を設定する。
      */
-    public withArgs(args: any): IGasFunction<TResult> {
+    withArgs(args) {
         this.args = args;
         return this;
     }
-
     /**
      * リトライ回数を設定する。
      */
-    public withRetryCount(count: number): IGasFunction<TResult> {
+    withRetryCount(count) {
         this.options = this.options.withRetries(count);
         return this;
     }
-
     /**
      * リトライ間の待機時間を設定する（ミリ秒）。
      */
-    public withRetryInterval(ms: number): IGasFunction<TResult> {
+    withRetryInterval(ms) {
         this.options = this.options.withRetryDelay(ms);
         return this;
     }
-
     /**
      * タイムアウト時間を設定する（ミリ秒）。
      */
-    public withTimeout(ms: number): IGasFunction<TResult> {
+    withTimeout(ms) {
         this.options = this.options.withTimeout(ms);
         return this;
     }
-
     /**
      * 成功時のコールバックを設定する。
      */
-    public withSuccessed(callback: (result: TResult) => void): IGasFunction<TResult> {
+    withSuccessed(callback) {
         this.successHandler = callback;
         return this;
     }
-
     /**
      * 失敗時のコールバックを設定する。
      */
-    public withFailuered(callback: (message: string) => void): IGasFunction<TResult> {
+    withFailuered(callback) {
         this.failureHandler = callback;
         return this;
     }
-
     /**
      * GAS関数の呼び出しを実行する。
      * タイムアウト、自動リトライ、JSONレスポンスのデシリアライズを含む。
      * 成功した場合はtrue、失敗した場合はfalseを返す。
      */
-    private async callWithTimeout(timeout: number): Promise<SuccessResponse<TResult> | FailedResponse> {
+    async callWithTimeout(timeout) {
         return await Promise.race([
-            this.executor.executeGasFunction<TResult>(this.functionName, this.args),
+            this.executor.executeGasFunction(this.functionName, this.args),
             this.executor.createTimeoutPromise(timeout, this.functionName)
         ]);
     }
-
-    private isParallelLimitError(message: string): boolean {
+    isParallelLimitError(message) {
         return message.includes("Service invoked too many times in a short time") ||
             message.includes("Exception: Service invoked too many times");
     }
-
-    private async retryInvoke(): Promise<boolean> {
+    async retryInvoke() {
         const timeout = this.options.getTimeout();
         const retries = this.options.getRetries();
         const retryDelay = this.options.getRetryDelay();
@@ -237,41 +258,33 @@ export class GasFunction<TResult> implements IGasFunction<TResult> {
         let parallelErrorAttempts = 0;
         while (true) {
             attempts++;
-
-            let result: SuccessResponse<TResult> | FailedResponse;
-            let errorMessage: string = "";
+            let result;
+            let errorMessage = "";
             try {
                 result = await this.callWithTimeout(timeout);
                 if (result instanceof SuccessResponse) {
-                    if (this.successHandler) this.successHandler(result.data);
+                    if (this.successHandler)
+                        this.successHandler(result.data);
                     return true;
                 }
                 errorMessage = result.message;
-            } catch (error: any) {
+            }
+            catch (error) {
                 errorMessage = error.message;
             }
-
             const handleResult = await this.handleError(errorMessage, attempts, retries, parallelErrorAttempts, retryDelay, MAX_PARALLEL_ERROR_RETRY);
-
-            if (this.isParallelLimitError(errorMessage)) parallelErrorAttempts++;
-
-            if (handleResult === "retry") continue;
-            else return false;
+            if (this.isParallelLimitError(errorMessage))
+                parallelErrorAttempts++;
+            if (handleResult === "retry")
+                continue;
+            else
+                return false;
         }
     }
-
-    public async invoke(): Promise<boolean> {
+    async invoke() {
         return await this.retryInvoke();
     }
-
-    private async handleError(
-        errorMessage: string,
-        attempts: number,
-        retries: number,
-        parallelErrorAttempts: number,
-        retryDelay: number,
-        maxParallelErrorRetry: number
-    ): Promise<"retry" | "fail"> {
+    async handleError(errorMessage, attempts, retries, parallelErrorAttempts, retryDelay, maxParallelErrorRetry) {
         if (this.isParallelLimitError(errorMessage) && parallelErrorAttempts < maxParallelErrorRetry) {
             console.warn(`GAS関数 '${this.functionName}' 並列上限超過エラーでリトライ (試行 ${parallelErrorAttempts + 1}/${maxParallelErrorRetry}): ${errorMessage}`);
             await new Promise(resolve => setTimeout(resolve, retryDelay));
@@ -281,81 +294,81 @@ export class GasFunction<TResult> implements IGasFunction<TResult> {
             console.warn(`GAS関数 '${this.functionName}' の呼び出しが失敗しました (試行 ${attempts}/${retries + 1}): ${errorMessage}`);
             await new Promise(resolve => setTimeout(resolve, retryDelay));
             return "retry";
-        } else {
+        }
+        else {
             console.error(`GAS関数 '${this.functionName}' の呼び出しが最大リトライ回数 (${retries}) を超えて失敗しました: ${errorMessage}`);
-            if (this.failureHandler) this.failureHandler(errorMessage);
+            if (this.failureHandler)
+                this.failureHandler(errorMessage);
             return "fail";
         }
     }
 }
-
-
 // ==============================================================================
 // 2. Infrastructure (インフラストラクチャ層)
 // ==============================================================================
-
 // ===================== Infrastructure =====================
 /**
  * GASサーバーからの応答を処理するための抽象クラス。
  * ポリモーフィズムを活用して、各ステータスごとの処理をカプセル化する。
  */
-abstract class GasResponseHandler<T> {
-    abstract handle(functionName: string, rawResponse: string): SuccessResponse<T> | FailedResponse;
+class GasResponseHandler {
 }
-
 /**
  * GASサーバーからの成功応答を処理する具体的なハンドラ。
  */
-class SuccessResponseHandler<T> extends GasResponseHandler<T> {
-    handle(functionName: string, rawResponse: string): SuccessResponse<T> | FailedResponse {
+class SuccessResponseHandler extends GasResponseHandler {
+    handle(functionName, rawResponse) {
         try {
-            const parsedResponse: { status: 'success', data?: T } = JSON.parse(rawResponse);
+            const parsedResponse = JSON.parse(rawResponse);
             if (parsedResponse.data !== undefined) {
-                return new SuccessResponse<T>(parsedResponse.data);
-            } else {
+                return new SuccessResponse(parsedResponse.data);
+            }
+            else {
                 return new FailedResponse(`GAS関数 '${functionName}' から成功ステータスが返されましたが、データがありません。`);
             }
-        } catch (e: any) {
+        }
+        catch (e) {
             return new FailedResponse(`GAS関数 '${functionName}' からの成功応答のパースに失敗しました: ${e.message}. 応答: ${rawResponse}`);
         }
     }
 }
-
 /**
  * GASサーバーからのエラー応答を処理する具体的なハンドラ。
  */
-class ErrorResponseHandler<T> extends GasResponseHandler<T> {
-    handle(functionName: string, rawResponse: string): SuccessResponse<T> | FailedResponse {
+class ErrorResponseHandler extends GasResponseHandler {
+    handle(functionName, rawResponse) {
         try {
-            const parsedResponse: { status: 'error', message?: string } = JSON.parse(rawResponse);
+            const parsedResponse = JSON.parse(rawResponse);
             return new FailedResponse(parsedResponse.message || `不明なGASエラー: ${rawResponse}`);
-        } catch (e: any) {
+        }
+        catch (e) {
             return new FailedResponse(`GAS関数 '${functionName}' からの応答のパースに失敗しました: ${e.message}. 応答: ${rawResponse}`);
         }
     }
 }
-
 /**
  * 未知のGASサーバー応答を処理するデフォルトハンドラ。
  */
-class DefaultResponseHandler<T> extends GasResponseHandler<T> {
-    handle(functionName: string, rawResponse: string): SuccessResponse<T> | FailedResponse {
+class DefaultResponseHandler extends GasResponseHandler {
+    handle(functionName, rawResponse) {
         return new FailedResponse(`GAS関数 '${functionName}' から予期しないステータスが返されました: ${rawResponse}`);
     }
 }
-
 /**
  * Google Apps Scriptの実行を専門に扱うインフラストラクチャサービス。
  * google.script.runの呼び出し、JSONのデシリアライズ、エラーハンドリングを担当する。
  */
 export class GasFunctionService {
-    private executor: GasScriptExecutor;
-
-    private constructor(apiFunctionName: string) {
+    constructor(apiFunctionName) {
+        Object.defineProperty(this, "executor", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
         this.executor = new GasScriptExecutor(apiFunctionName);
     }
-
-    public static create(apiFunctionName: string): GasFunctionService | null {
+    static create(apiFunctionName) {
         const functionName = apiFunctionName.trim();
         if (functionName === "") {
             console.error(`[GasFunctionService] apiFunctionName is empty.`);
@@ -363,7 +376,6 @@ export class GasFunctionService {
         }
         return new GasFunctionService(apiFunctionName);
     }
-
     /**
      * 新しいGasFunctionドメインオブジェクトを作成するファクトリメソッド。
      * アプリケーション層からドメイン層への入口となる。
@@ -372,10 +384,9 @@ export class GasFunctionService {
      * @param {any} args サーバーサイド関数に渡す初期引数（オプション）。
      * @returns {IGasFunction<TResult>}
      */
-    public createCall<TResult>(functionName: string, args: any = {}): IGasFunction<TResult> {
-        return new GasFunction<TResult>(functionName, args, this.executor);
+    createCall(functionName, args = {}) {
+        return new GasFunction(functionName, args, this.executor);
     }
-
     /**
      * 複数のGAS関数を並列で実行する。
      * Promise.allSettled()を利用して、すべての呼び出しが完了するのを待つ。
@@ -383,51 +394,58 @@ export class GasFunctionService {
      * @param {Array<IGasFunction<T>>} calls 呼び出すGasFunctionドメインオブジェクトの配列。
      * @returns {Promise<PromiseSettledResult<boolean>[]>} 各呼び出しの最終結果を含むPromiseの配列。
      */
-    public async all<T>(...calls: Array<IGasFunction<T>>): Promise<PromiseSettledResult<boolean>[]> {
+    async all(...calls) {
         const promises = calls.map(gasFunction => gasFunction.invoke());
         return Promise.allSettled(promises);
     }
 }
-
 // ===================== Infrastructure =====================
 export class GasScriptExecutor {
-    private apiFunctionName: string;
-    private responseHandlers: { [key: string]: GasResponseHandler<any> };
-
-    constructor(apiFunctionName: string) {
+    constructor(apiFunctionName) {
+        Object.defineProperty(this, "apiFunctionName", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
+        Object.defineProperty(this, "responseHandlers", {
+            enumerable: true,
+            configurable: true,
+            writable: true,
+            value: void 0
+        });
         this.apiFunctionName = apiFunctionName;
         this.responseHandlers = {
             'success': new SuccessResponseHandler(),
             'error': new ErrorResponseHandler(),
         };
     }
-
     /**
      * 実際のGAS関数呼び出しを実行し、JSONレスポンスをデシリアライズする。
      * ポリモーフィズムを活用して、ステータスごとの分岐を排除している。
      */
-    public executeGasFunction<T>(functionName: string, args: any): Promise<SuccessResponse<T> | FailedResponse> {
+    executeGasFunction(functionName, args) {
         return new Promise((resolve) => {
             google.script.run
-                .withSuccessHandler((response: string) => {
-                    try {
-                        const parsedResponse: { status: string, [key: string]: any } = JSON.parse(response);
-                        const handler = this.responseHandlers[parsedResponse.status] || new DefaultResponseHandler();
-                        resolve(handler.handle(functionName, response));
-                    } catch (e: any) {
-                        resolve(new FailedResponse(`GAS関数 '${functionName}' からの応答のパースに失敗しました: ${e.message}. 応答: ${response}`));
-                    }
-                })
-                .withFailureHandler((error: Error) => {
-                    resolve(new FailedResponse(`GASクライアントエラー: ${error.message}`));
-                })[this.apiFunctionName](functionName, JSON.stringify(args));
+                .withSuccessHandler((response) => {
+                try {
+                    const parsedResponse = JSON.parse(response);
+                    const handler = this.responseHandlers[parsedResponse.status] || new DefaultResponseHandler();
+                    resolve(handler.handle(functionName, response));
+                }
+                catch (e) {
+                    resolve(new FailedResponse(`GAS関数 '${functionName}' からの応答のパースに失敗しました: ${e.message}. 応答: ${response}`));
+                }
+            })
+                .withFailureHandler((error) => {
+                resolve(new FailedResponse(`GASクライアントエラー: ${error.message}`));
+            })[this.apiFunctionName](functionName, JSON.stringify(args));
         });
     }
-
     /**
      * タイムアウト用のPromiseを作成する。
      */
-    public createTimeoutPromise(ms: number, functionName: string): Promise<FailedResponse> {
+    createTimeoutPromise(ms, functionName) {
         return new Promise(resolve => {
             setTimeout(() => {
                 resolve(new FailedResponse(`GAS関数 '${functionName}' の呼び出しが ${ms}ms でタイムアウトしました。`));
@@ -435,8 +453,3 @@ export class GasScriptExecutor {
         });
     }
 }
-
-
-
-
-

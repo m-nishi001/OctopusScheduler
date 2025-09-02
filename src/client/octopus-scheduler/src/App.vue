@@ -1,13 +1,25 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-// import { test } from './tests/test-services';
-// import { testAssetManagementService } from './tests/test-asset-management-service';
-import { testEventDispatcher } from './tests/test-event-dispatcher';
+import { AudioRepository } from './infrastructures/assets/audio/audio-repository';
+import { ImageRepository } from './infrastructures/assets/image/image-repository';
+import { MovieRepository } from './infrastructures/assets/movie/movie-repository';
 
 onMounted(async () => {
-  // await test();
-  // await testAssetManagementService();
-  testEventDispatcher();
+  // 各アセットの同期処理を一括実行
+  const audioRepo = new AudioRepository();
+  const imageRepo = new ImageRepository();
+  const movieRepo = new MovieRepository();
+
+  try {
+    await Promise.all([
+      audioRepo.sync(),
+      imageRepo.sync(),
+      movieRepo.sync(),
+    ]);
+    console.log('全アセットの同期が完了しました');
+  } catch (e) {
+    console.error('アセット同期中にエラーが発生しました', e);
+  }
 });
 </script>
 

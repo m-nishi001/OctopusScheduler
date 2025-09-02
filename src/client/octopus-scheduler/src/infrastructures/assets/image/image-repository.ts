@@ -1,10 +1,10 @@
-import { Image } from "src/domains/assets/image/entity/image";
-import type { IImageRepository } from "src/domains/assets/image/repository/image-repository";
-import { ImageId } from "src/domains/assets/image/vo/image-id";
-import { ImageMetadata } from "src/domains/assets/image/vo/image-metadata";
-import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
-import { LocalStorageService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/storage/local-storage-service.ts";
-import { StorageConfig } from "src/infrastructures/storage-config";
+import { Image } from "../../../domains/assets/image/entity/image";
+import type { IImageRepository } from "../../../domains/assets/image/repository/image-repository";
+import { ImageId } from "../../../domains/assets/image/vo/image-id";
+import { ImageMetadata } from "../../../domains/assets/image/vo/image-metadata";
+import { GasFunctionService } from "../../../../../packages/common-lib/src/google-apps-script/gas-script-service.ts";
+import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service.ts";
+import { StorageConfig } from "../../storage-config";
 import { AssetConverter } from "../asset-converter";
 
 export class ImageRepository implements IImageRepository {

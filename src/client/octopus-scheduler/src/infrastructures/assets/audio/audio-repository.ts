@@ -1,10 +1,10 @@
-import { Audio } from "src/domains/assets/audio/entity/audio";
-import type { IAudioRepository } from "src/domains/assets/audio/repository/audio-repository";
-import { AudioId } from "src/domains/assets/audio/vo/audio-id";
-import { AudioMetadata } from "src/domains/assets/audio/vo/audio-metadata";
-import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
-import { LocalStorageService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/storage/local-storage-service.ts";
-import { StorageConfig } from "src/infrastructures/storage-config";
+import { Audio } from "../../../domains/assets/audio/entity/audio";
+import type { IAudioRepository } from "../../../domains/assets/audio/repository/audio-repository";
+import { AudioId } from "../../../domains/assets/audio/vo/audio-id";
+import { AudioMetadata } from "../../../domains/assets/audio/vo/audio-metadata";
+import { GasFunctionService } from "../../../../../packages/common-lib/src/google-apps-script/gas-script-service.ts";
+import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service.ts";
+import { StorageConfig } from "../../storage-config";
 import { AssetConverter } from "../asset-converter";
 
 export class AudioRepository implements IAudioRepository {

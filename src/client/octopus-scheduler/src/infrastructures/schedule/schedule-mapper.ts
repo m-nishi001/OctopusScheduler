@@ -1,14 +1,14 @@
-import { Schedule } from "src/domains/schedule/entity/schedule";
-import type { IEvent } from "src/domains/schedule/entity/event";
-import { AudioEvent } from "src/domains/schedule/entity/events/audio-event";
-import { ImageEvent } from "src/domains/schedule/entity/events/image-event";
-import { VideoEvent } from "src/domains/schedule/entity/events/video-event";
-import { TransitionEvent } from "src/domains/schedule/entity/events/transition-event";
-import { AudioDetail } from "src/domains/schedule/vo/event-details/audio-detail";
-import { ImageDetail } from "src/domains/schedule/vo/event-details/image-detail";
-import { TransitionDetail } from "src/domains/schedule/vo/event-details/transition-detail";
-import { VideoDetail } from "src/domains/schedule/vo/event-details/video-detail";
-import { TimeSpan } from "src/domains/schedule/vo/timespan";
+import { Schedule } from "../../domains/schedule/entity/schedule";
+import type { IEvent } from "../../domains/schedule/entity/event";
+import { AudioEvent } from "../../domains/schedule/entity/events/audio-event";
+import { ImageEvent } from "../../domains/schedule/entity/events/image-event";
+import { VideoEvent } from "../../domains/schedule/entity/events/video-event";
+import { TransitionEvent } from "../../domains/schedule/entity/events/transition-event";
+import { AudioDetail } from "../../domains/schedule/vo/event-details/audio-detail";
+import { ImageDetail } from "../../domains/schedule/vo/event-details/image-detail";
+import { TransitionDetail } from "../../domains/schedule/vo/event-details/transition-detail";
+import { VideoDetail } from "../../domains/schedule/vo/event-details/video-detail";
+import { TimeSpan } from "../../domains/schedule/vo/timespan";
 
 /**
  * GASから返されるEventオブジェクトのJSON構造を定義
