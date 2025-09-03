@@ -47,6 +47,7 @@ export class AudioApiService implements GasService {
         const audio = this.repository.findById(audioId);
 
         if (!audio) {
+            Logger.log(`Audio with ID ${fileId} not found.`);
             return null;
         }
 
@@ -54,6 +55,9 @@ export class AudioApiService implements GasService {
         // GoogleAppsScript.Base.BlobにはgetBytes()がないため、getBytes()ラッパーを利用
         const bytes = (audio.audioData.getBytes) ? audio.audioData.getBytes() : [];
         const base64Data = Utilities.base64Encode(bytes);
+
+        Logger.log(`bytes: ${bytes && bytes.length ? bytes.length : 0}`);
+        Logger.log(`base64Data: ${base64Data ? base64Data.substring(0, 30) + '...' : 'undefined'}`);
 
         return {
             audioId: audio.id.toString(),

@@ -1,21 +1,12 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { AudioRepository } from './infrastructures/assets/audio/audio-repository';
-import { ImageRepository } from './infrastructures/assets/image/image-repository';
-import { MovieRepository } from './infrastructures/assets/movie/movie-repository';
+import { AssetSyncService } from './applications/assets/asset-sync-service';
 
 onMounted(async () => {
-  // 各アセットの同期処理を一括実行
-  const audioRepo = new AudioRepository();
-  const imageRepo = new ImageRepository();
-  const movieRepo = new MovieRepository();
-
+  // クリーンアーキテクチャに従い、アプリケーションサービス経由で同期処理を実行
+  const assetSyncService = new AssetSyncService();
   try {
-    await Promise.all([
-      audioRepo.sync(),
-      imageRepo.sync(),
-      movieRepo.sync(),
-    ]);
+    await assetSyncService.syncAll();
     console.log('全アセットの同期が完了しました');
   } catch (e) {
     console.error('アセット同期中にエラーが発生しました', e);

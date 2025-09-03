@@ -14,7 +14,7 @@ export class AudioRepository implements IAudioRepository {
     private readonly audioMetadataStoreName = "AudioMetadataStore";
 
     constructor() {
-        const apiName = "octopus-scheduler";
+        const apiName = "callOctopusSchedulerApi";
         const service = GasFunctionService.create(apiName);
         if (!service) {
             throw new Error(`Failed to create GasFunctionService for API: ${apiName}`);
@@ -156,11 +156,11 @@ export class AudioRepository implements IAudioRepository {
 
             const audioPromises = filesToUpdate.map(meta =>
                 this.service
-                    .createCall<string>("AudioService.getAudio", meta.audioId)
+                    .createCall<any>("AudioService.getAudio", meta.audioId)
                     .withTimeout(20000)
                     .withSuccessed(base64Data => {
                         if (base64Data) {
-                            const blobData = AssetConverter.base64ToBlob(base64Data, 'audio/mpeg');
+                            const blobData = AssetConverter.base64ToBlob(base64Data.data64, 'audio/mpeg');
                             const audio = Audio.reconstruct(meta.audioId, meta.audioName, blobData);
                             remoteAudios.push(audio);
                         }

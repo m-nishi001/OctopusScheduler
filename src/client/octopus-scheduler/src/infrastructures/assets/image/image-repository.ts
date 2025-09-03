@@ -14,7 +14,7 @@ export class ImageRepository implements IImageRepository {
     private readonly imageMetadataStoreName = "ImageMetadataStore";
 
     constructor() {
-        const apiName = "octopus-scheduler";
+        const apiName = "callOctopusSchedulerApi";
         const service = GasFunctionService.create(apiName);
         if (!service) {
             throw new Error(`Failed to create GasFunctionService for API: ${apiName}`);
@@ -159,11 +159,11 @@ export class ImageRepository implements IImageRepository {
 
             const imagePromises = filesToUpdate.map(meta =>
                 this.service
-                    .createCall<string>("ImageService.getImage", meta.imageId)
+                    .createCall<any>("ImageService.getImage", meta.imageId)
                     .withTimeout(20000)
                     .withSuccessed(base64Data => {
                         if (base64Data) {
-                            const blobData = AssetConverter.base64ToBlob(base64Data, 'image/png');
+                            const blobData = AssetConverter.base64ToBlob(base64Data.data64, 'image/png');
                             const image = Image.reconstruct(meta.imageId, meta.imageName, blobData);
                             remoteImages.push(image);
                         }
