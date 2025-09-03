@@ -1,7 +1,7 @@
-import { Audio } from "src/domains/assets/audio/entity/audio";
-import type { IAudioRepository } from "src/domains/assets/audio/repository/audio-repository";
-import { AudioId } from "src/domains/assets/audio/vo/audio-id";
-import { AudioRepository } from "src/infrastructures/assets/audio/audio-repository";
+import { Audio } from "../../../domains/assets/audio/entity/audio";
+import type { IAudioRepository } from "../../../domains/assets/audio/repository/audio-repository";
+import { AudioId } from "../../../domains/assets/audio/vo/audio-id";
+import { AudioRepository } from "../../../infrastructures/assets/audio/audio-repository";
 
 /**
  * AudioエンティティのCRUD操作を調整するアプリケーションサービス。

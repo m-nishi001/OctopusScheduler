@@ -1,7 +1,7 @@
-import { Image } from "src/domains/assets/image/entity/image";
-import type { IImageRepository } from "src/domains/assets/image/repository/image-repository";
-import { ImageId } from "src/domains/assets/image/vo/image-id";
-import { ImageRepository } from "src/infrastructures/assets/image/image-repository";
+import { Image } from "../../../domains/assets/image/entity/image";
+import type { IImageRepository } from "../../../domains/assets/image/repository/image-repository";
+import { ImageId } from "../../../domains/assets/image/vo/image-id";
+import { ImageRepository } from "../../../infrastructures/assets/image/image-repository";
 
 /**
  * ImageエンティティのCRUD操作を調整するアプリケーションサービス。

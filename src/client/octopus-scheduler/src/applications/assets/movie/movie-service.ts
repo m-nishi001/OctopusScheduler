@@ -1,7 +1,7 @@
-import { Movie } from "src/domains/assets/movie/entity/movie";
-import type { IMovieRepository } from "src/domains/assets/movie/repository/movie-repository";
-import { MovieId } from "src/domains/assets/movie/vo/movie-id";
-import { MovieRepository } from "src/infrastructures/assets/movie/movie-repository";
+import { Movie } from "../../../domains/assets/movie/entity/movie";
+import type { IMovieRepository } from "../../../domains/assets/movie/repository/movie-repository";
+import { MovieId } from "../../../domains/assets/movie/vo/movie-id";
+import { MovieRepository } from "../../../infrastructures/assets/movie/movie-repository";
 
 /**
  * MovieエンティティのCRUD操作を調整するアプリケーションサービス。
