@@ -1,6 +1,7 @@
 import { MovieId } from "../vo/movie-id";
 
 export class Movie {
+
   private movieId: MovieId;
   private movieName: string;
   private data: Blob;
@@ -32,6 +33,10 @@ export class Movie {
    */
   public static reconstruct(id: string, name: string, data: Blob): Movie {
     return new Movie(new MovieId(id), name, data);
+  }
+
+  public static reconstructFromObject(obj: Movie): Movie {
+    return new Movie(obj.movieId, obj.movieName, obj.data);
   }
 
   public get id(): MovieId {

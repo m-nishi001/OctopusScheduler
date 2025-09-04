@@ -62,7 +62,7 @@ export class ImageRepository implements IImageRepository {
             }
         }
 
-        return image ? Image.reconstruct(image.id.toString(), image.name, image.imageData) : null;
+        return image ? Image.reconstructFromObject(image) : null;
     }
 
     public async findAll(): Promise<Image[]> {
@@ -76,7 +76,7 @@ export class ImageRepository implements IImageRepository {
                 console.log(`${images.size} images found after sync.`);
             }
         }
-        return Array.from(images.values()).map(i => Image.reconstruct(i.id.toString(), i.name, i.imageData));
+        return Array.from(images.values()).map(i => Image.reconstructFromObject(i));
     }
 
     public async delete(id: ImageId): Promise<void> {

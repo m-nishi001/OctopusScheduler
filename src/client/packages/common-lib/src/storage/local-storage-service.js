@@ -61,7 +61,12 @@ export class LocalStorageService {
     async getAll() {
         const results = new Map();
         await this.lfInstance.iterate((value, key) => {
-            results.set(key, value.data);
+            try {
+                results.set(key, value.data);
+            }
+            catch (err) {
+                console.error(`[getAll] Error setting key:`, key, err);
+            }
         });
         return results;
     }

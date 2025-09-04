@@ -16,6 +16,7 @@
     ],
     "scripts": {
         "build": "turbo run build && node scripts/prepare-dist.js",
+        "build:force": "turbo run build --force && node scripts/prepare-dist.js",
         "lint": "turbo run lint",
         "typecheck": "turbo run typecheck",
         "clean": "rimraf dist",

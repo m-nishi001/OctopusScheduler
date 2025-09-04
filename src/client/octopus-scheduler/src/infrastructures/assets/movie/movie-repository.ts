@@ -60,7 +60,7 @@ export class MovieRepository implements IMovieRepository {
                 console.log(`Movie with ID ${id.toString()} found after sync.`);
             }
         }
-        return movie ? Movie.reconstruct(movie.id.toString(), movie.name, movie.movieData) : null;
+        return movie ? Movie.reconstructFromObject(movie) : null;
     }
 
     public async findAll(): Promise<Movie[]> {
@@ -73,7 +73,7 @@ export class MovieRepository implements IMovieRepository {
                 console.log(`${movies.size} movies found after sync.`);
             }
         }
-        return Array.from(movies.values()).map(m => Movie.reconstruct(m.id.toString(), m.name, m.movieData));
+        return Array.from(movies.values()).map(m => Movie.reconstructFromObject(m));
     }
 
     public async delete(id: MovieId): Promise<void> {

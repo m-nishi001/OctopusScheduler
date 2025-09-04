@@ -1,6 +1,7 @@
 import { ImageId } from "../vo/image-id";
 
 export class Image {
+    
     private imageId: ImageId;
     private imageName: string;
     private data: Blob;
@@ -18,6 +19,15 @@ export class Image {
 
     public static reconstruct(id: string, name: string, data: Blob): Image {
         return new Image(new ImageId(id), name, data);
+    }
+
+    /**
+     * DTO/plain object から Image エンティティを復元する
+     * @param obj { id: string, name: string, data: Blob }
+     * @returns Image
+     */
+    public static reconstructFromObject(obj: Image): Image {
+        return new Image(obj.imageId, obj.imageName, obj.data);
     }
 
     public get id(): ImageId {

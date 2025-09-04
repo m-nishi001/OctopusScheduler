@@ -70,8 +70,12 @@ export class LocalStorageService {
      */
     async getAll<T>(): Promise<Map<string, T>> {
         const results = new Map<string, T>();
-        await this.lfInstance.iterate<StoredData<T>, void>((value, key) => {
-            results.set(key, value.data);
+        await this.lfInstance.iterate((value: StoredData<T>, key: string) => {
+            try {
+                results.set(key, value.data);
+            } catch (err) {
+                console.error(`[getAll] Error setting key:`, key, err);
+            }
         });
         return results;
     }

@@ -25,8 +25,8 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from 'vue';
 
-type Asset = { id: string; name: string };
-defineProps<{ type: string; assets: Asset[] }>();
+const props = defineProps<{ type: string; assets: { id: string; name: string }[] }>();
+console.log('AssetList assets:', props.assets);
 const emit = defineEmits(['add', 'edit', 'delete']);
 </script>
 
@@ -36,10 +36,13 @@ table {
   border-collapse: collapse;
   margin-bottom: 1em;
 }
-th, td {
+
+th,
+td {
   border: 1px solid #ccc;
   padding: 0.5em;
 }
+
 button {
   margin-right: 0.5em;
 }

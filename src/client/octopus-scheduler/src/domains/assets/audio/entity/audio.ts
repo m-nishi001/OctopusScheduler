@@ -1,6 +1,7 @@
 import { AudioId } from "../vo/audio-id";
 
 export class Audio {
+
   private audioId: AudioId;
   private audioName: string;
   private data: Blob;
@@ -31,6 +32,15 @@ export class Audio {
    */
   public static reconstruct(id: string, name: string, data: Blob): Audio {
     return new Audio(new AudioId(id), name, data);
+  }
+
+  /**
+   * DTO/plain object から Audio エンティティを復元する（base64→Blob変換含む）
+   * @param obj { id: string, name: string, audioDataBase64: string }
+   * @returns Audio
+   */
+  public static reconstructFromObject(obj: Audio): Audio {
+    return new Audio(obj.audioId, obj.audioName, obj.data);
   }
 
   public get id(): AudioId {

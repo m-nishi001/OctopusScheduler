@@ -62,8 +62,9 @@ export class AssetConverter {
         let decodedBase64 = pureBase64.replace(/\s/g, '');
         try {
             decodedBase64 = decodeURIComponent(decodedBase64);
-        } catch (_) {
+        } catch (ex) {
             // decodeURIComponent失敗時はそのまま
+            console.error('Failed to decodeURIComponent:', ex);
         }
         // atobで例外が出る場合はcatchして詳細を出す
         let byteCharacters: string;

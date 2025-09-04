@@ -51,29 +51,39 @@ export class AudioRepository implements IAudioRepository {
     }
 
     public async findById(id: AudioId): Promise<Audio | null> {
-        let audio = await this.storage.get<Audio>(id.toString());
-        if (!audio) {
+        let audioObj = await this.storage.get<any>(id.toString());
+        if (!audioObj) {
             console.log(`Audio with ID ${id.toString()} not found locally. Starting sync...`);
             await this.sync();
-            audio = await this.storage.get<Audio>(id.toString());
-            if (audio) {
+            audioObj = await this.storage.get<any>(id.toString());
+            if (audioObj) {
                 console.log(`Audio with ID ${id.toString()} found after sync.`);
             }
         }
-        return audio ? Audio.reconstruct(audio.id.toString(), audio.name, audio.audioData) : null;
+        if (!audioObj) return null;
+        return Audio.reconstructFromObject(audioObj);
     }
 
     public async findAll(): Promise<Audio[]> {
-        let audios = await this.storage.getAll<Audio>();
-        if (audios.size === 0) {
+        let audioObjs = await this.storage.getAll<any>();
+        if (audioObjs.size === 0) {
             console.log("No audios found locally. Starting sync...");
             await this.sync();
-            audios = await this.storage.getAll<Audio>();
-            if (audios.size > 0) {
-                console.log(`${audios.size} audios found after sync.`);
+            audioObjs = await this.storage.getAll<any>();
+            if (audioObjs.size > 0) {
+                console.log(`${audioObjs.size} audios found after sync.`);
             }
         }
-        return Array.from(audios.values()).map(a => Audio.reconstruct(a.id.toString(), a.name, a.audioData));
+        // plain object から Audio エンティティへ復元
+        const audios: Audio[] = [];
+        for (const obj of audioObjs.values()) {
+            try {
+                audios.push(Audio.reconstructFromObject(obj));
+            } catch (e) {
+                console.error("Audio復元失敗", e, obj);
+            }
+        }
+        return audios;
     }
 
     public async delete(id: AudioId): Promise<void> {
@@ -169,7 +179,7 @@ export class AudioRepository implements IAudioRepository {
 
             await this.service.all(...audioPromises);
 
-            const audiosToSave = new Map<string, Audio>(remoteAudios.map(audio => [audio.id.toString(), audio]));
+            const audiosToSave = new Map(remoteAudios.map(audio => [audio.id.toString(), audio]));
             await this.storage.saveMultiple<Audio>(audiosToSave);
 
             const localMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), this.audioMetadataStoreName);

@@ -11,11 +11,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useLocalStorage } from '../../../packages/shared-composables/src/use-localstorage';
 import { AudioService } from '../applications/assets/audio/audio-service';
 import { ImageService } from '../applications/assets/image/image-service';
 import { MovieService } from '../applications/assets/movie/movie-service';
+import AssetList from "./AssetList.vue";
+import AssetTypeTabs from "./AssetTypeTabs.vue";
+import AssetUploadDialog from "./AssetUploadDialog.vue";
 
 type AssetType = 'Audio' | 'Image' | 'Movie';
 const selectedType = ref<AssetType>('Audio');
@@ -30,6 +33,10 @@ const assets = ref<Record<AssetType, Asset[]>>({
 
 const { save, remove } = useLocalStorage();
 
+// assetsが更新されたらコンソール出力
+watch(assets, (newVal) => {
+    console.log('assets updated:', newVal);
+});
 
 // AssetTypeごとにapplication serviceを切り替え
 const audioService = new AudioService();
@@ -39,26 +46,50 @@ const movieService = new MovieService();
 
 // application service経由でアセット一覧を取得
 async function fetchAssets() {
+    const newAssets: Record<AssetType, Asset[]> = {
+        Audio: [],
+        Image: [],
+        Movie: []
+    };
     for (const type of ['Audio', 'Image', 'Movie'] as AssetType[]) {
         try {
             let arr: any[] = [];
             if (type === 'Audio') {
                 arr = await audioService.getAllAudios();
-                assets.value.Audio = arr.map((a: any) => ({ id: a.id.value || a.id, name: a.name, data: a.audioData }));
-                arr.forEach(async (a: any) => await save(a.id.value || a.id, a));
+                console.log('Audio assets:', arr);
+                newAssets.Audio = arr.map((a: any) => ({
+                    id: a.audioId?.id || a.audioId,
+                    name: a.audioName,
+                    data: a.data
+                }));
+                arr.forEach(async (a: any) => await save(a.audioId?.id || a.audioId, a));
             } else if (type === 'Image') {
                 arr = await imageService.getAllImages();
-                assets.value.Image = arr.map((a: any) => ({ id: a.id.value || a.id, name: a.name, data: a.imageData }));
-                arr.forEach(async (a: any) => await save(a.id.value || a.id, a));
+                console.log('Image assets:', arr);
+                newAssets.Image = arr.map((a: any) => ({
+                    id: a.imageId?.id || a.imageId,
+                    name: a.imageName,
+                    data: a.data
+                }));
+                arr.forEach(async (a: any) => await save(a.imageId?.id || a.imageId, a));
             } else if (type === 'Movie') {
                 arr = await movieService.getAllMovies();
-                assets.value.Movie = arr.map((a: any) => ({ id: a.id.value || a.id, name: a.name, data: a.movieData }));
-                arr.forEach(async (a: any) => await save(a.id.value || a.id, a));
+                console.log('Movie assets:', arr);
+                newAssets.Movie = arr.map((a: any) => ({
+                    id: a.movieId?.id || a.movieId,
+                    name: a.movieName,
+                    data: a.data
+                }));
+                arr.forEach(async (a: any) => await save(a.movieId?.id || a.movieId, a));
             }
         } catch (e) {
             alert(type + '取得失敗: ' + (e instanceof Error ? e.message : e));
         }
     }
+    console.log('Fetched assets:', newAssets);
+    assets.value = newAssets;
+    // currentAssetsの値を出力
+    console.log('currentAssets:', assets.value[selectedType.value]);
 }
 
 onMounted(() => {

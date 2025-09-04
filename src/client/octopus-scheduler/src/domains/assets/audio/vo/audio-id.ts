@@ -1,5 +1,5 @@
 export class AudioId {
-  readonly id: string;
+  private readonly id: string;
 
   constructor(value: string) {
     if (!value) {
