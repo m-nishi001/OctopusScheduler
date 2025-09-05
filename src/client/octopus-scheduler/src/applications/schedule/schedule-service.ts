@@ -1,7 +1,7 @@
-import { Schedule } from "src/domains/schedule/entity/schedule";
-import type { IEvent } from "src/domains/schedule/entity/event";
-import type { IScheduleRepository } from "src/domains/schedule/repository/schedule-repository";
-import { ScheduleRepository } from "src/infrastructures/schedule/schedule-repository";
+import { Schedule } from "../../domains/schedule/entity/schedule";
+import type { IEvent } from "../../domains/schedule/entity/event";
+import type { IScheduleRepository } from "../../domains/schedule/repository/schedule-repository";
+import { ScheduleRepository } from "../../infrastructures/schedule/schedule-repository";
 
 export class ScheduleService {
     private readonly scheduleRepository: IScheduleRepository;
@@ -69,13 +69,5 @@ export class ScheduleService {
      */
     public async deleteSchedule(scheduleId: string): Promise<void> {
         await this.scheduleRepository.delete(scheduleId);
-    }
-
-    /**
-     * スケジュールデータを同期する
-     */
-    public async syncSchedules(): Promise<void> {
-        await this.scheduleRepository.sync();
-        console.log("Schedules synchronized successfully.");
     }
 }

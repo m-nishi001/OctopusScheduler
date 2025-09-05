@@ -224,8 +224,9 @@ export class GasFunction<TResult> implements IGasFunction<TResult> {
     }
 
     private isParallelLimitError(message: string): boolean {
-        return message.includes("Service invoked too many times in a short time") ||
-            message.includes("Exception: Service invoked too many times");
+        console.log("Checking for parallel limit error in message:", message);
+        return String(message).includes("Service invoked too many times in a short time") ||
+            String(message).includes("Exception: Service invoked too many times");
     }
 
     private async retryInvoke(): Promise<boolean> {

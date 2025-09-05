@@ -10,50 +10,53 @@ import { TransitionDetail } from "../../domains/schedule/vo/event-details/transi
 import { VideoDetail } from "../../domains/schedule/vo/event-details/video-detail";
 import { TimeSpan } from "../../domains/schedule/vo/timespan";
 
-/**
- * GASから返されるEventオブジェクトのJSON構造を定義
- */
-interface EventJson {
-    id: string;
-    _eventName: string;
-    _timeSpan: { startTime: string; endTime: string; };
-    eventDetail: any;
-}
 
 /**
- * GASから返されるScheduleオブジェクトのJSON構造を定義
+ * APIの戻り値イベント型（ローカル型定義）
  */
-interface ScheduleJson {
+type ApiScheduleEvent = {
     id: string;
-    version: number;
-    events: EventJson[];
-}
+    eventName: string;
+    start: string;
+    end: string;
+    eventDetailJson?: string;
+};
 
 /**
- * JSONデータから対応するエンティティオブジェクトにデシリアライズ/シリアライズする責務を持つ
+ * JSONデータから対応するエンティティオブジェクトにデシリアライズ/シリアライズする責任を持つ
  */
 export class ScheduleMapper {
     /**
-     * JSONデータから対応するエンティティオブジェクトにデシリアライズする
+     * APIの戻り値（単一イベント）からScheduleエンティティを生成
      */
-    public static toDomain(json: ScheduleJson): Schedule {
-        const events: IEvent[] = json.events.map(eventJson => {
-            const timeSpan = new TimeSpan(new Date(eventJson._timeSpan.startTime), new Date(eventJson._timeSpan.endTime));
-            const detail = eventJson.eventDetail;
-            switch (eventJson._eventName) {
-                case "AudioEvent":
-                    return new AudioEvent(eventJson.id, timeSpan, new AudioDetail(detail.audioID, detail.fadeInMs, detail.fadeOutMs));
-                case "ImageEvent":
-                    return new ImageEvent(eventJson.id, timeSpan, new ImageDetail(detail.imageID, detail.fadeInMs, detail.fadeOutMs));
-                case "TransitionEvent":
-                    return new TransitionEvent(eventJson.id, timeSpan, new TransitionDetail(new URL(detail.destinationURL)));
-                case "VideoEvent":
-                    return new VideoEvent(eventJson.id, timeSpan, new VideoDetail(detail.videoID, detail.fadeInMs, detail.fadeOutMs));
-                default:
-                    throw new Error(`未知のイベントタイプ: ${eventJson._eventName}`);
-            }
-        });
-        return Schedule.reconstruct(json.id, json.version, events);
+    public static toDomain(json: ApiScheduleEvent): Schedule {
+        try {
+            const event: IEvent = ScheduleMapper.eventToDomain(json);
+            return Schedule.reconstruct(json.id, 1, [event]);
+        } catch (error) {
+            console.error(`[ScheduleMapper] Error mapping schedule data:`, error);
+            throw new Error("Invalid schedule event data format");
+        }
+    }
+
+    /**
+     * APIイベントデータをIEventへ変換
+     */
+    private static eventToDomain(eventJson: ApiScheduleEvent): IEvent {
+        const timeSpan = new TimeSpan(new Date(eventJson.start), new Date(eventJson.end));
+        const detail = eventJson.eventDetailJson ? JSON.parse(eventJson.eventDetailJson) : {};
+        switch (eventJson.eventName) {
+            case "music":
+                return new AudioEvent(eventJson.id, timeSpan, new AudioDetail(detail.audioID, detail.fadeInMs, detail.fadeOutMs));
+            case "image":
+                return new ImageEvent(eventJson.id, timeSpan, new ImageDetail(detail.imageID, detail.fadeInMs, detail.fadeOutMs));
+            case "transition":
+                return new TransitionEvent(eventJson.id, timeSpan, new TransitionDetail(new URL(detail.destinationURL)));
+            case "video":
+                return new VideoEvent(eventJson.id, timeSpan, new VideoDetail(detail.videoID, detail.fadeInMs, detail.fadeOutMs));
+            default:
+                throw new Error(`未知のイベントタイプ: ${eventJson.eventName}`);
+        }
     }
 
     /**

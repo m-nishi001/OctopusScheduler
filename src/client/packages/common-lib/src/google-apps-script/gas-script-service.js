@@ -246,8 +246,9 @@ export class GasFunction {
         ]);
     }
     isParallelLimitError(message) {
-        return message.includes("Service invoked too many times in a short time") ||
-            message.includes("Exception: Service invoked too many times");
+        console.log("Checking for parallel limit error in message:", message);
+        return String(message).includes("Service invoked too many times in a short time") ||
+            String(message).includes("Exception: Service invoked too many times");
     }
     async retryInvoke() {
         const timeout = this.options.getTimeout();

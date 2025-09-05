@@ -122,13 +122,15 @@ export class ScheduleService implements GasService {
 
     // Get all schedule events (full info)
     private getAllScheduleEvents(): any[] {
-        return this.repository.findAll().map(scheduleEvent => ({
-            id: scheduleEvent.eventId.id,
-            eventName: scheduleEvent.eventName.name,
-            start: scheduleEvent.timeSpan.start,
-            end: scheduleEvent.timeSpan.end,
-            eventDetailJson: scheduleEvent.eventDetailJson
-        }));
+        return this.repository.findAll().map(scheduleEvent => (
+            {
+                id: scheduleEvent.eventId.id,
+                eventName: scheduleEvent.eventName.name,
+                start: scheduleEvent.timeSpan.start,
+                end: scheduleEvent.timeSpan.end,
+                eventDetailJson: scheduleEvent.eventDetailJson
+            }
+        ));
     }
 
     // Find a schedule event by id
