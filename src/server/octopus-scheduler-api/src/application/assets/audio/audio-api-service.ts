@@ -1,9 +1,10 @@
 import { injectable, inject } from "tsyringe";
 import { GasService } from "../../gas-service";
-import { IAudioRepository } from "../../../domain/assets/audio/repository/audio-repository";
-import { Audio } from "../../../domain/assets/audio/entity/audio";
+import { SaveAudioUseCase } from "./usecases/save-audio-usecase";
+import { GetAudioUseCase } from "./usecases/get-audio-usecase";
+import { GetAudioMetadatasUseCase } from "./usecases/get-audio-metadatas-usecase";
+import { RenameAudioUseCase } from "./usecases/rename-audio-usecase";
 import { AudioMetadata } from "../../../domain/assets/audio/vo/audio-metadata";
-import { AudioId } from "../../../domain/assets/audio/vo/audio-id";
 
 // Google Apps Script Utilities型の型エラー抑制
 declare const Utilities: any;
@@ -18,14 +19,26 @@ export class AudioApiService implements GasService {
     public readonly serviceName: string = "AudioService";
     public readonly functions: Record<string, (args: any) => any>;
 
-    private repository: IAudioRepository;
+    private saveAudioUseCase: SaveAudioUseCase;
+    private getAudioUseCase: GetAudioUseCase;
+    private getAudioMetadatasUseCase: GetAudioMetadatasUseCase;
+    private renameAudioUseCase: RenameAudioUseCase;
 
-    constructor(@inject("IAudioRepository") repository: IAudioRepository) {
-        this.repository = repository;
+    constructor(
+        @inject(SaveAudioUseCase) saveAudioUseCase: SaveAudioUseCase,
+        @inject(GetAudioUseCase) getAudioUseCase: GetAudioUseCase,
+        @inject(GetAudioMetadatasUseCase) getAudioMetadatasUseCase: GetAudioMetadatasUseCase,
+        @inject(RenameAudioUseCase) renameAudioUseCase: RenameAudioUseCase
+    ) {
+        this.saveAudioUseCase = saveAudioUseCase;
+        this.getAudioUseCase = getAudioUseCase;
+        this.getAudioMetadatasUseCase = getAudioMetadatasUseCase;
+        this.renameAudioUseCase = renameAudioUseCase;
         this.functions = {
             "getAudioMetadatas": this.getAudioMetadatas.bind(this),
             "getAudio": this.getAudio.bind(this),
-            "saveAudio": this.saveAudio.bind(this)
+            "saveAudio": this.saveAudio.bind(this),
+            "renameAudio": this.renameAudio.bind(this)
         };
     }
 
@@ -34,7 +47,7 @@ export class AudioApiService implements GasService {
      * @returns {AudioMetadata[]} オーディオファイルメタデータの配列
      */
     private getAudioMetadatas(): AudioMetadata[] {
-        return this.repository.findAllMetadatas();
+        return this.getAudioMetadatasUseCase.execute();
     }
 
     /**
@@ -43,22 +56,13 @@ export class AudioApiService implements GasService {
      * @returns {object | null} オーディオファイルのデータ転送オブジェクト
      */
     private getAudio(fileId: string): { audioId: string; audioName: string; data64: string } | null {
-        const audioId = new AudioId(fileId);
-        const audio = this.repository.findById(audioId);
-
+        const audio = this.getAudioUseCase.execute(fileId);
         if (!audio) {
             Logger.log(`Audio with ID ${fileId} not found.`);
             return null;
         }
-
-        // BlobデータをBase64エンコードしてクライアントに送る
-        // GoogleAppsScript.Base.BlobにはgetBytes()がないため、getBytes()ラッパーを利用
         const bytes = (audio.audioData.getBytes) ? audio.audioData.getBytes() : [];
         const base64Data = Utilities.base64Encode(bytes);
-
-        Logger.log(`bytes: ${bytes && bytes.length ? bytes.length : 0}`);
-        Logger.log(`base64Data: ${base64Data ? base64Data.substring(0, 30) + '...' : 'undefined'}`);
-
         return {
             audioId: audio.id.toString(),
             audioName: audio.name,
@@ -72,20 +76,12 @@ export class AudioApiService implements GasService {
      */
     private saveAudio(args: { audioId?: string, audioName: string, data64: string }): { audioId: string } {
         const data = Utilities.newBlob(Utilities.base64Decode(args.data64));
-        let audio: Audio;
-        let audioId: string;
-
-        if (args.audioId) {
-            // 更新
-            audio = new Audio(new AudioId(args.audioId), args.audioName, data);
-            this.repository.save(audio);
-            audioId = args.audioId;
-        } else {
-            // 新規
-            audio = Audio.createNew(args.audioName, data);
-            this.repository.save(audio);
-            audioId = audio.id.toString();
-        }
+        const audioId = this.saveAudioUseCase.execute({ audioId: args.audioId, audioName: args.audioName, data });
         return { audioId };
+    }
+
+    private renameAudio(args: { audioId: string; newName: string }): { audioId: string } {
+        this.renameAudioUseCase.execute(args.audioId, args.newName);
+        return { audioId: args.audioId };
     }
 }

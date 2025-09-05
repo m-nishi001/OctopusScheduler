@@ -107,13 +107,13 @@ export class MovieRepository implements IMovieRepository {
     }
 
     private async getRemoteMetadatas(): Promise<MovieMetadata[]> {
-        let remoteMetadatas = new Array<MovieMetadata>;
-        const metadataCall = this.service.createCall<MovieMetadata[]>("MovieService.getMovieMetadatas");
+        let remoteMetadatas = new Array<MovieMetadata>();
+        const metadataCall = this.service.createCall<any>("MovieService.getMovieMetadatas");
         await metadataCall
             .withTimeout(20000)
             .withSuccessed(metadatas => {
                 if (metadatas) {
-                    remoteMetadatas = metadatas;
+                    remoteMetadatas = AssetConverter.normalizeMetadatas<MovieMetadata>(metadatas);
                 }
             })
             .withFailuered(message => console.error("Failed to get remote movie metadata:", message))
@@ -159,10 +159,13 @@ export class MovieRepository implements IMovieRepository {
                     .createCall<any>("MovieService.getMovie", meta.movieId)
                     .withTimeout(20000)
                     .withSuccessed(base64Data => {
-                        if (base64Data) {
-                            const blobData = AssetConverter.base64ToBlob(base64Data.data64, 'video/mp4');
+                        const data64 = AssetConverter.extractBase64Data(base64Data);
+                        if (data64) {
+                            const blobData = AssetConverter.base64ToBlob(data64, 'video/mp4');
                             const movie = Movie.reconstruct(meta.movieId, meta.movieName, blobData);
                             remoteMovies.push(movie);
+                        } else {
+                            console.warn(`MovieService.getMovie returned unexpected payload for id=${meta.movieId}`, base64Data);
                         }
                     })
             );

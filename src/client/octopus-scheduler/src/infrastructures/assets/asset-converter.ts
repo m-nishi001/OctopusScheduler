@@ -3,6 +3,31 @@
  */
 export class AssetConverter {
     /**
+     * Normalize metadata responses from the API.
+     * Accepts an array or an object keyed by id and returns an array of values.
+     */
+    public static normalizeMetadatas<T>(metadatas: any): T[] {
+        if (!metadatas) return [];
+        if (Array.isArray(metadatas)) return metadatas as T[];
+        if (typeof metadatas === 'object') return Object.values(metadatas) as T[];
+        return [];
+    }
+
+    /**
+     * Extract base64 payload from various API shapes.
+     * Accepts a string (pure base64 or data URL) or an object with a `data64` field.
+     */
+    public static extractBase64Data(payload: any): string | null {
+        if (!payload) return null;
+        if (typeof payload === 'string') return payload;
+        if (typeof payload === 'object') {
+            if (typeof payload.data64 === 'string') return payload.data64;
+            // some APIs may return { data: { data64: '...' } }
+            if (payload.data && typeof payload.data.data64 === 'string') return payload.data.data64;
+        }
+        return null;
+    }
+    /**
      * BlobデータをBase64形式に変換する（インラインWeb Worker利用、ObjectURL経由、メモリリーク防止）
      */
     public static blobToBase64(blob: Blob): Promise<string> {

@@ -1,62 +1,56 @@
 import { inject, injectable } from "tsyringe";
 import { GasService } from "../../gas-service";
-import { IImageRepository } from "../../../domain/assets/image/repository/image-repository";
-import { ImageId } from "../../../domain/assets/image/vo/image-id";
-import { Image } from "../../../domain/assets/image/entity/image";
+import { GetImageUseCase } from "./usecases/get-image-usecase";
+import { SaveImageUseCase } from "./usecases/save-image-usecase";
+import { GetImageMetadatasUseCase } from "./usecases/get-image-metadatas-usecase";
+import { RenameImageUseCase } from "./usecases/rename-image-usecase";
 
 @injectable()
 export class ImageService implements GasService {
     readonly serviceName = "ImageService";
     readonly functions: Record<string, (args: any) => any>;
-    private repository: IImageRepository;
+    private saveImageUseCase: SaveImageUseCase;
+    private getImageUseCase: GetImageUseCase;
+    private getImageMetadatasUseCase: GetImageMetadatasUseCase;
+    private renameImageUseCase: RenameImageUseCase;
 
-    constructor(@inject("IImageRepository") repository: IImageRepository) {
-        this.repository = repository;
+    constructor(
+        @inject(SaveImageUseCase) saveImageUseCase: SaveImageUseCase,
+        @inject(GetImageUseCase) getImageUseCase: GetImageUseCase,
+        @inject(GetImageMetadatasUseCase) getImageMetadatasUseCase: GetImageMetadatasUseCase,
+        @inject(RenameImageUseCase) renameImageUseCase: RenameImageUseCase
+    ) {
+        this.saveImageUseCase = saveImageUseCase;
+        this.getImageUseCase = getImageUseCase;
+        this.getImageMetadatasUseCase = getImageMetadatasUseCase;
+        this.renameImageUseCase = renameImageUseCase;
         this.functions = {
             saveImage: this.saveImage.bind(this),
             getImageMetadatas: this.getImageMetadatas.bind(this),
-            getImage: this.getImage.bind(this)
+            getImage: this.getImage.bind(this),
+            renameImage: this.renameImage.bind(this)
         };
     }
 
     private saveImage(args: { imageId?: string, imageName: string, data64: string }): { imageId: string } {
-        try {
-            const blob = Utilities.newBlob(Utilities.base64Decode(args.data64), 'image/png', args.imageName);
-            let image: Image;
-            let imageId: string;
-            if (args.imageId) {
-                image = Image.fromEntity(new ImageId(args.imageId), args.imageName, blob);
-                this.repository.save(image);
-                imageId = args.imageId;
-            } else {
-                image = Image.createNew(args.imageName, blob);
-                this.repository.save(image);
-                imageId = image.id.toString();
-            }
-            return { imageId };
-        } catch (e) {
-            Logger.log(`[ImageService.saveImage] failed: ${e}`);
-            throw e;
-        }
+        const blob = Utilities.newBlob(Utilities.base64Decode(args.data64), 'image/png', args.imageName);
+        const imageId = this.saveImageUseCase.execute({ imageId: args.imageId, imageName: args.imageName, data: blob });
+        return { imageId };
     }
 
     /**
      * 画像メタデータ一覧をJSオブジェクト配列で返却
      */
     private getImageMetadatas(): Array<{ imageId: string; imageName: string; lastUpdatedAt: string }> {
-        const images: Image[] = this.repository.findAll();
-        return images.map((img: Image) => ({
-            imageId: img.id.toString(),
-            imageName: img.name,
-            lastUpdatedAt: new Date().toISOString() // 必要に応じて修正
-        }));
+        const metas = this.getImageMetadatasUseCase.execute();
+        return metas.map(meta => ({ imageId: meta.imageId, imageName: meta.imageName, lastUpdatedAt: meta.lastUpdatedAt.toISOString() }));
     }
 
     /**
      * 画像データをbase64文字列で返却（audioと同様にid, name, data64を含むオブジェクト形式）
      */
     private getImage(imageId: string): { imageId: string; imageName: string; data64: string } | null {
-        const image: Image | null = this.repository.findById(new ImageId(imageId));
+        const image = this.getImageUseCase.execute(imageId);
         if (!image) return null;
         const blob = image.imageData;
         return {
@@ -64,5 +58,10 @@ export class ImageService implements GasService {
             imageName: image.name,
             data64: Utilities.base64Encode(blob.getBytes())
         };
+    }
+
+    private renameImage(args: { imageId: string; newName: string }): { imageId: string } {
+        this.renameImageUseCase.execute(args.imageId, args.newName);
+        return { imageId: args.imageId };
     }
 }

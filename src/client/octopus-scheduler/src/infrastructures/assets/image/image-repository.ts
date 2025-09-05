@@ -110,13 +110,13 @@ export class ImageRepository implements IImageRepository {
     }
 
     private async getRemoteMetadatas(): Promise<ImageMetadata[]> {
-        let remoteMetadatas = new Array<ImageMetadata>;
-        const metadataCall = this.service.createCall<ImageMetadata[]>("ImageService.getImageMetadatas");
+        let remoteMetadatas = new Array<ImageMetadata>();
+        const metadataCall = this.service.createCall<any>("ImageService.getImageMetadatas");
         await metadataCall
             .withTimeout(20000)
             .withSuccessed(metadatas => {
                 if (metadatas) {
-                    remoteMetadatas = metadatas;
+                    remoteMetadatas = AssetConverter.normalizeMetadatas<ImageMetadata>(metadatas);
                 }
             })
             .withFailuered(message => console.error("Failed to get remote image metadata:", message))
@@ -162,10 +162,13 @@ export class ImageRepository implements IImageRepository {
                     .createCall<any>("ImageService.getImage", meta.imageId)
                     .withTimeout(20000)
                     .withSuccessed(base64Data => {
-                        if (base64Data) {
-                            const blobData = AssetConverter.base64ToBlob(base64Data.data64, 'image/png');
+                        const data64 = AssetConverter.extractBase64Data(base64Data);
+                        if (data64) {
+                            const blobData = AssetConverter.base64ToBlob(data64, 'image/png');
                             const image = Image.reconstruct(meta.imageId, meta.imageName, blobData);
                             remoteImages.push(image);
+                        } else {
+                            console.warn(`ImageService.getImage returned unexpected payload for id=${meta.imageId}`, base64Data);
                         }
                     })
             );

@@ -117,13 +117,14 @@ export class AudioRepository implements IAudioRepository {
     }
 
     private async getRemoteMetadatas(): Promise<AudioMetadata[]> {
-        let remoteMetadatas = new Array<AudioMetadata>;
-        const metadataCall = this.service.createCall<AudioMetadata[]>("AudioService.getAudioMetadatas");
+        let remoteMetadatas = new Array<AudioMetadata>();
+        const metadataCall = this.service.createCall<any>("AudioService.getAudioMetadatas");
         await metadataCall
             .withTimeout(20000)
             .withSuccessed(metadatas => {
                 if (metadatas) {
-                    remoteMetadatas = metadatas;
+                    // Normalize different API shapes (array or object)
+                    remoteMetadatas = AssetConverter.normalizeMetadatas<AudioMetadata>(metadatas);
                 }
             })
             .withFailuered(message => console.error("Failed to get remote audio metadata:", message))
@@ -169,10 +170,13 @@ export class AudioRepository implements IAudioRepository {
                     .createCall<any>("AudioService.getAudio", meta.audioId)
                     .withTimeout(20000)
                     .withSuccessed(base64Data => {
-                        if (base64Data) {
-                            const blobData = AssetConverter.base64ToBlob(base64Data.data64, 'audio/mpeg');
+                        const data64 = AssetConverter.extractBase64Data(base64Data);
+                        if (data64) {
+                            const blobData = AssetConverter.base64ToBlob(data64, 'audio/mpeg');
                             const audio = Audio.reconstruct(meta.audioId, meta.audioName, blobData);
                             remoteAudios.push(audio);
+                        } else {
+                            console.warn(`AudioService.getAudio returned unexpected payload for id=${meta.audioId}`, base64Data);
                         }
                     })
             );
