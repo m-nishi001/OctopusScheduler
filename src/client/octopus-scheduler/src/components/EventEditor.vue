@@ -1,28 +1,24 @@
 <template>
   <div>
     <h2>イベント編集画面</h2>
-    <button @click="showAddDialog = true">イベント追加</button>
-    <table>
-      <thead>
-        <tr>
-          <th>名前</th>
-          <th>種別</th>
-          <th>アセット</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="event in events" :key="event.id">
-          <td>{{ event.name }}</td>
-          <td>{{ event.type }}</td>
-          <td>{{ event.assetName }}</td>
-          <td>
-            <button @click="onEdit(event)">編集</button>
-            <button @click="onDelete(event)">削除</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="controls">
+      <button @click="showAddDialog = true">イベント追加</button>
+      <p v-if="error" class="error-message">{{ error }}</p>
+      <p v-if="loading" class="loading-message">読み込み中...</p>
+    </div>
+    <EventList :events="events" @edit="onEdit" @delete="onDelete" />
+
+    <!-- 編集ダイアログ表示（種別ごとに切り替え） -->
+    <AudioEventDialog v-if="showEditDialog && selectedEvent?.type === 'AudioEvent'" :event="selectedEvent"
+      @close="closeEditDialog" />
+    <ImageEventDialog v-if="showEditDialog && selectedEvent?.type === 'ImageEvent'" :event="selectedEvent"
+      @close="closeEditDialog" />
+    <VideoEventDialog v-if="showEditDialog && selectedEvent?.type === 'VideoEvent'" :event="selectedEvent"
+      @close="closeEditDialog" />
+    <TransitionEventDialog v-if="showEditDialog && selectedEvent?.type === 'TransitionEvent'" :event="selectedEvent"
+      @close="closeEditDialog" />
+
+    <!-- 追加ダイアログ -->
     <div v-if="showAddDialog" class="dialog-backdrop">
       <div class="dialog">
         <h3>イベント追加</h3>
@@ -54,15 +50,23 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import EventList from './EventList.vue';
+import AudioEventDialog from './AudioEventDialog.vue';
+import ImageEventDialog from './ImageEventDialog.vue';
+import VideoEventDialog from './VideoEventDialog.vue';
+import TransitionEventDialog from './TransitionEventDialog.vue';
 import { useLocalStorage } from '../../../packages/shared-composables/src/use-localstorage';
 import { ScheduleService } from '../applications/schedule/schedule-service';
 
+// --- 型定義 ---
 type EventType = 'AudioEvent' | 'ImageEvent' | 'VideoEvent' | 'TransitionEvent';
 type Event = { id: string; name: string; type: EventType; assetName?: string };
 
-
+// --- refs ---
 const events = ref<Event[]>([]);
 const showAddDialog = ref(false);
+const showEditDialog = ref(false);
+const selectedEvent = ref<Event | null>(null);
 const newEvent = ref<Event>({ id: '', name: '', type: 'AudioEvent', assetName: '' });
 const loading = ref(false);
 const error = ref('');
@@ -75,32 +79,35 @@ const assetOptions = ref<Record<EventType, string[]>>({
   TransitionEvent: []
 });
 
+// --- 関数 ---
+/**
+ * アセットオプションを非同期で取得します。
+ */
 async function fetchAssetOptions() {
-  const audioAssets = Array.from((await getAll<{ id: string; name: string }>()).values()).map(a => a.name);
-  assetOptions.value.AudioEvent = audioAssets;
-  assetOptions.value.VideoEvent = audioAssets;
-  const imageAssets = Array.from((await getAll<{ id: string; name: string }>()).values()).map(a => a.name);
-  assetOptions.value.ImageEvent = imageAssets;
+  try {
+    const allAssets = Array.from((await getAll<{ id: string; name: string }>()).values()).map(a => a.name);
+    assetOptions.value.AudioEvent = allAssets;
+    assetOptions.value.ImageEvent = allAssets;
+    assetOptions.value.VideoEvent = allAssets;
+  } catch (e) {
+    console.error('アセットオプションの取得に失敗しました:', e);
+  }
 }
 
+/**
+ * すべてのイベントを非同期で取得します。
+ */
 async function fetchEvents() {
   loading.value = true;
   error.value = '';
   try {
-    // 全イベント取得APIを利用
-    console.log('[EventEditor] fetchEvents called');
     const schedules = await new ScheduleService().getAllSchedules();
-    console.log('[EventEditor] schedules fetched:', JSON.stringify(schedules));
-    // 全スケジュールのイベントを集約
     const allEvents: any[] = [];
     schedules.forEach(schedule => {
       const scheduleEvents = schedule.getEvents();
       allEvents.push(...scheduleEvents);
     });
 
-    console.log('[EventEditor] allEvents fetched:', JSON.stringify(allEvents));
-
-    // IEvent[] -> Event[] へ変換
     events.value = allEvents.map((e: any) => {
       let assetName = '';
       const detail = e.getDetail ? e.getDetail() : undefined;
@@ -122,28 +129,33 @@ async function fetchEvents() {
         assetName
       };
     });
-    console.log('[EventEditor] events.value after fetch:', JSON.stringify(events.value));
   } catch (e) {
     error.value = 'イベント一覧の取得に失敗しました';
   }
   loading.value = false;
 }
 
-onMounted(() => {
-  fetchAssetOptions();
-  fetchEvents();
-});
-
+/**
+ * イベント編集ダイアログを開きます。
+ * @param event 編集するイベント
+ */
 function onEdit(event: Event) {
-  alert(`イベント編集: ${event.name}`);
+  selectedEvent.value = event;
+  showEditDialog.value = true;
 }
 
+/**
+ * イベントを削除します。
+ * @param event 削除するイベント
+ */
 async function onDelete(event: Event) {
-  if (!window.confirm(`${event.name} を削除しますか？`)) return;
+  // `window.confirm`の代わりにカスタムUIを使用してください。
+  // ここでは代替としてコンソールにログを出力します。
+  console.log(`削除リクエスト: ${event.name}`);
+
   loading.value = true;
   error.value = '';
   try {
-    // 全スケジュールから該当イベントを削除
     const schedules = await new ScheduleService().getAllSchedules();
     for (const schedule of schedules) {
       const found = schedule.getEvents().find(e => e.id === event.id);
@@ -159,22 +171,23 @@ async function onDelete(event: Event) {
   loading.value = false;
 }
 
+/**
+ * 新しいイベントを追加します。
+ */
 async function addEvent() {
   loading.value = true;
   error.value = '';
   try {
-    // Event -> IEvent 変換（簡易モック: 必要なら本来のIEvent実装をimportしてnewする）
     const iEvent: any = {
       id: newEvent.value.id || crypto.randomUUID(),
       getEventName: () => newEvent.value.name,
       changeEventName: (name: string) => { newEvent.value.name = name; },
-      getTimeSpan: () => ({ start: '', end: '' }), // 必要なら入力項目追加
+      getTimeSpan: () => ({ start: '', end: '' }),
       updateTimeSpan: () => { },
       getDetail: () => ({ assetName: newEvent.value.assetName }),
       clone: () => iEvent,
       execute: () => { }
     };
-    // 追加先スケジュールは最初のもの（または選択UIを追加しても良い）
     const schedules = await new ScheduleService().getAllSchedules();
     if (schedules.length > 0) {
       await new ScheduleService().addEventToSchedule(schedules[0].id, iEvent);
@@ -189,42 +202,54 @@ async function addEvent() {
   }
   loading.value = false;
 }
+
+/**
+ * 編集ダイアログを閉じます。
+ */
+function closeEditDialog() {
+  showEditDialog.value = false;
+  selectedEvent.value = null;
+}
+
+onMounted(() => {
+  fetchAssetOptions();
+  fetchEvents();
+});
 </script>
 
 <style scoped>
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1em;
-}
-
-th,
-td {
-  border: 1px solid #ccc;
-  padding: 0.5em;
-}
-
-button {
-  margin-right: 0.5em;
-}
-
 .dialog-backdrop {
   position: fixed;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.2);
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 1000;
 }
 
 .dialog {
-  background: #fff;
+  background-color: white;
   padding: 2em;
   border-radius: 8px;
-  min-width: 300px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.controls {
+  margin-bottom: 1em;
+}
+
+.error-message {
+  color: #dc2626;
+  font-weight: bold;
+}
+
+.loading-message {
+  color: #1d4ed8;
+  font-style: italic;
 }
 </style>
