@@ -7,14 +7,6 @@ import { RenameAudioUseCase } from "./usecases/rename-audio-usecase";
 import { DeleteAudioUseCase } from "./usecases/delete-audio-usecase";
 import { AudioMetadata } from "../../../domain/assets/audio/vo/audio-metadata";
 
-// Google Apps Script Utilities型の型エラー抑制
-declare const Utilities: any;
-
-/**
- * クライアントとやり取りするデータ構造を定義
- */
-
-
 @injectable()
 export class AudioApiService implements GasService {
     public readonly serviceName: string = "AudioService";
@@ -47,38 +39,25 @@ export class AudioApiService implements GasService {
         };
     }
 
-    /**
-     * Google Driveに保存されているオーディオファイルのメタデータを取得する
-     * @returns {AudioMetadata[]} オーディオファイルメタデータの配列
-     */
-    private getAudioMetadatas(): AudioMetadata[] {
+    private getAudioMetadatas(): { audioId: string; audioName: string; lastUpdatedAt: Date }[] {
         return this.getAudioMetadatasUseCase.execute();
     }
 
-    /**
-     * 特定のオーディオファイルの内容を取得する
-     * @param {string} fileId 取得するファイルのID
-     * @returns {object | null} オーディオファイルのデータ転送オブジェクト
-     */
-    private getAudio(fileId: string): { audioId: string; audioName: string; data64: string } | null {
+    private getAudio(fileId: string): { audioId: string; audioName: string; audioData: string } | null {
         const audio = this.getAudioUseCase.execute(fileId);
         if (!audio) {
             Logger.log(`Audio with ID ${fileId} not found.`);
             return null;
         }
-        const bytes = (audio.audioData.getBytes) ? audio.audioData.getBytes() : [];
-        const base64Data = Utilities.base64Encode(bytes);
+        const bytes = audio.audioData.getBytes ? audio.audioData.getBytes() : [];
+        const audioData = Utilities.base64Encode(bytes);
         return {
             audioId: audio.id.toString(),
             audioName: audio.name,
-            data64: base64Data
+            audioData: audioData
         };
     }
 
-    /**
-     * クライアントから受け取ったオーディオファイルを保存する
-     * @param {object} args 保存するオーディオファイルのデータ
-     */
     private saveAudio(args: { audioId?: string, audioName: string, data64: string }): { audioId: string } {
         const data = Utilities.newBlob(Utilities.base64Decode(args.data64));
         const audioId = this.saveAudioUseCase.execute({ audioId: args.audioId, audioName: args.audioName, data });

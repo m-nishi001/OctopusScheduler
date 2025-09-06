@@ -6,7 +6,7 @@ export class GetAudioUseCase {
   constructor(private readonly audioRepository: IAudioRepository) {}
 
   async execute(id: string): Promise<Audio | null> {
-    const audioId = new AudioId(id);
+    const audioId = AudioId.create(id);
     return await this.audioRepository.findById(audioId);
   }
 }

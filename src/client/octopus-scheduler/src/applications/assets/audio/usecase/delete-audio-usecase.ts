@@ -5,7 +5,7 @@ export class DeleteAudioUseCase {
   constructor(private readonly audioRepository: IAudioRepository) {}
 
   async execute(id: string): Promise<void> {
-    const audioId = new AudioId(id);
+    const audioId = AudioId.create(id);
     await this.audioRepository.delete(audioId);
   }
 }

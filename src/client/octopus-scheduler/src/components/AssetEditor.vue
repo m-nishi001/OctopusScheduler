@@ -20,6 +20,7 @@ import { ImageService } from '../applications/assets/image/image-service';
 import { MovieService } from '../applications/assets/movie/movie-service';
 import { ref, onMounted, computed } from 'vue';
 import { useLocalStorage } from '../../../packages/shared-composables/src';
+import { AssetSyncService } from '../applications/assets/asset-sync-service';
 
 
 type AssetType = 'Audio' | 'Image' | 'Movie';
@@ -44,9 +45,26 @@ class AudioGetter implements AssetGetter {
     nameKey = 'audioName';
     dataKey = 'data';
     dataProp = 'audioData';
-    getAll() { return this.service.getAllAudios(); }
+    getAll() {
+        return new Promise<{ audioId: string; audioName: string; audioData?: Blob }[]>(async (resolve, reject) => {
+            try {
+                const audios = await this.service.getAllAudios();
+                if (!audios) {
+                    resolve([]);
+                    return;
+                }
+                resolve(audios.map(audio => ({
+                    audioId: String(audio.audioId),
+                    audioName: audio.audioName,
+                    data: audio.audioData
+                })));
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
     getById(id: string) { return this.service.getAudioById(id); }
-    saveNew(name: string, blob: Blob) { return this.service.saveNewAudio(name, blob); }
+    saveNew(name: string, blob: Blob) { return this.service.addNewAudio(name, blob); }
     delete(id: string) { return this.service.deleteAudio(id); }
     rename(entity: any, newName: string) { entity.rename(newName); }
 }
@@ -107,7 +125,10 @@ async function fetchAssets() {
     assets.value = newAssets;
 }
 
-onMounted(fetchAssets);
+onMounted(async () => {
+    await new AssetSyncService().syncAll();
+    await fetchAssets();
+});
 
 const currentAssets = computed(() => assets.value[selectedType.value]);
 

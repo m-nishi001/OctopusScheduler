@@ -1,6 +1,6 @@
 import type { IAudioRepository } from "../../../domains/assets/audio/repository/audio-repository";
 import { AudioRepository } from "../../../infrastructures/assets/audio/audio-repository";
-import { SaveAudioUseCase } from "./usecase/save-audio-usecase";
+import { AddAudioUseCase as AddAudioUseCase } from "./usecase/add-audio-usecase";
 import { GetAudioUseCase } from "./usecase/get-audio-usecase";
 import { ListAudiosUseCase } from "./usecase/list-audios-usecase";
 import { DeleteAudioUseCase } from "./usecase/delete-audio-usecase";
@@ -8,7 +8,7 @@ import { SyncAudiosUseCase } from "./usecase/sync-audios-usecase";
 import { Audio } from "../../../domains/assets/audio/entity/audio";
 
 export class AudioService {
-    private readonly saveUc: SaveAudioUseCase;
+    private readonly addUc: AddAudioUseCase;
     private readonly getUc: GetAudioUseCase;
     private readonly listUc: ListAudiosUseCase;
     private readonly deleteUc: DeleteAudioUseCase;
@@ -16,16 +16,16 @@ export class AudioService {
 
     constructor(audioRepository?: IAudioRepository) {
         const repo = audioRepository ?? new AudioRepository();
-        this.saveUc = new SaveAudioUseCase(repo);
+        this.addUc = new AddAudioUseCase(repo);
         this.getUc = new GetAudioUseCase(repo);
         this.listUc = new ListAudiosUseCase(repo);
         this.deleteUc = new DeleteAudioUseCase(repo);
         this.syncUc = new SyncAudiosUseCase(repo);
     }
 
-    public async saveNewAudio(audioName: string, data: Blob): Promise<void> {
+    public async addNewAudio(audioName: string, data: Blob): Promise<void> {
         try {
-            await this.saveUc.execute(audioName, data);
+            await this.addUc.execute(audioName, data);
         } catch (error) {
             console.error("Failed to save new audio:", error);
             throw new Error("Failed to save new audio.");

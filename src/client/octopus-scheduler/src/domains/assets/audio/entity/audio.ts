@@ -2,66 +2,40 @@ import { AudioId } from "../vo/audio-id";
 
 export class Audio {
 
-  private audioId: AudioId;
-  private audioName: string;
-  private data: Blob;
+  private _audioId: AudioId;
+  private _audioName: string;
+  private _audioData: Blob;
 
   private constructor(audioId: AudioId, audioName: string, data: Blob) {
-    this.audioId = audioId;
-    this.audioName = audioName;
-    this.data = data;
+    this._audioId = audioId;
+    this._audioName = audioName;
+    this._audioData = data;
   }
 
-  /**
-   * 新しいオーディオを生成するためのファクトリーメソッド
-   * @param audioName オーディオ名
-   * @param data Blob形式のオーディオデータ
-   * @returns 新しいAudioエンティティ
-   */
-  public static create(audioName: string, data: Blob): Audio {
-    const newId = new AudioId(crypto.randomUUID());
-    return new Audio(newId, audioName, data);
+  public get audioId(): AudioId {
+    return this._audioId;
   }
 
-  public static from(obj: unknown): Audio {
-    if (obj instanceof Audio) return obj;
-    const plain = obj as Partial<Record<string, unknown>> | undefined;
-    const rawId = plain?.audioId ?? plain?.id ?? plain?.audioID;
-    const audioId = AudioId.from(rawId as unknown);
-    const name = (plain?.audioName ?? plain?.name ?? "") as string;
-    const data = (plain?.audioData ?? plain?.data) as Blob;
-    return new Audio(audioId, name, data as Blob);
-  }
-
-  // compatibility aliases
-  public static createNew(audioName: string, data: Blob): Audio {
-    return Audio.create(audioName, data);
-  }
-
-  public static reconstruct(id: string, name: string, data: Blob): Audio {
-    return new Audio(new AudioId(id), name, data);
-  }
-
-  public static reconstructFromObject(obj: unknown): Audio {
-    return Audio.from(obj);
-  }
-
-  public get id(): AudioId {
-    return this.audioId;
-  }
-
-  public get name(): string {
-    return this.audioName;
+  public get audioName(): string {
+    return this._audioName;
   }
 
   public get audioData(): Blob {
-    return this.data;
+    return this._audioData;
+  }
+
+  public static create(audioName: string, data: Blob, audioId: AudioId | null = null): Audio {
+    return new Audio(audioId ?? AudioId.create(), audioName, data);
+  }
+
+  public static from(another: Audio): Audio {
+    return new Audio(AudioId.from(another._audioId), another._audioName, another._audioData);
   }
 
   public renameAudio(newName: string): void {
     if (!newName || newName.trim().length === 0) {
       throw new Error("オーディオ名は空にできません。");
     }
-    this.audioName = newName;
+    this._audioName = newName;
   }
 }
