@@ -15,4 +15,12 @@ export class AudioDetail implements IEventDetail {
   public execute(): void {
     domainEventBus.emit('audio-playback', this);
   }
+  public static from(obj: unknown): AudioDetail {
+    if (obj instanceof AudioDetail) return obj;
+    const plain = obj as Record<string, unknown> | undefined;
+    const audioID = (plain?.audioID ?? plain?.audioId ?? plain?.id ?? "") as string;
+    const fadeInMs = typeof plain?.fadeInMs === 'number' ? (plain!.fadeInMs as number) : Number(plain?.fadeInMs ?? 0);
+    const fadeOutMs = typeof plain?.fadeOutMs === 'number' ? (plain!.fadeOutMs as number) : Number(plain?.fadeOutMs ?? 0);
+    return new AudioDetail(audioID, fadeInMs, fadeOutMs);
+  }
 }

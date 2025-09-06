@@ -18,25 +18,35 @@ export class Movie {
    * @param data Blobデータ
    * @returns 新しいMovieエンティティ
    */
-  public static createNew(movieName: string, data: Blob): Movie {
+  public static create(movieName: string, data: Blob): Movie {
     const newId = new MovieId(crypto.randomUUID());
     return new Movie(newId, movieName, data);
   }
 
   /**
-   * 永続化されたデータからMovieエンティティを再構築するためのファクトリーメソッド
-   * リポジトリ層でのみ利用されることを想定
-   * @param id string形式のID
-   * @param name string形式の名前
-   * @param data Blobデータ
-   * @returns 再構築されたMovieエンティティ
+   * Create or rehydrate Movie from a plain object or Movie instance
    */
+  public static from(obj: unknown): Movie {
+    if (obj instanceof Movie) return obj;
+    const plain = obj as Partial<Record<string, unknown>> | undefined;
+    const rawId = plain?.movieId ?? plain?.id ?? plain?.movieID;
+    const movieId = MovieId.from(rawId as unknown);
+    const name = (plain?.movieName ?? plain?.name ?? "") as string;
+    const data = (plain?.movieData ?? plain?.data) as Blob;
+    return new Movie(movieId, name, data as Blob);
+  }
+
+  // Backwards-compatible aliases
+  public static createNew(movieName: string, data: Blob): Movie {
+    return Movie.create(movieName, data);
+  }
+
   public static reconstruct(id: string, name: string, data: Blob): Movie {
     return new Movie(new MovieId(id), name, data);
   }
 
-  public static reconstructFromObject(obj: Movie): Movie {
-    return new Movie(obj.movieId, obj.movieName, obj.data);
+  public static reconstructFromObject(obj: unknown): Movie {
+    return Movie.from(obj);
   }
 
   public get id(): MovieId {

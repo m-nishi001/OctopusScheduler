@@ -42,18 +42,18 @@ export class ScheduleMapper {
     /**
      * APIイベントデータをIEventへ変換
      */
-    private static eventToDomain(eventJson: ApiScheduleEvent): IEvent {
-        const timeSpan = new TimeSpan(new Date(eventJson.start), new Date(eventJson.end));
-        const detail = eventJson.eventDetailJson ? JSON.parse(eventJson.eventDetailJson) : {};
+    public static eventToDomain(eventJson: ApiScheduleEvent): IEvent {
+        const timeSpan = TimeSpan.from({ start: eventJson.start, end: eventJson.end });
+        const detailObj = eventJson.eventDetailJson ? JSON.parse(eventJson.eventDetailJson) : {};
         switch (eventJson.eventName) {
             case "music":
-                return new AudioEvent(eventJson.id, timeSpan, new AudioDetail(detail.audioID, detail.fadeInMs, detail.fadeOutMs));
+                return new AudioEvent(eventJson.id, timeSpan, AudioDetail.from(detailObj));
             case "image":
-                return new ImageEvent(eventJson.id, timeSpan, new ImageDetail(detail.imageID, detail.fadeInMs, detail.fadeOutMs));
+                return new ImageEvent(eventJson.id, timeSpan, ImageDetail.from(detailObj));
             case "transition":
-                return new TransitionEvent(eventJson.id, timeSpan, new TransitionDetail(new URL(detail.destinationURL)));
+                return new TransitionEvent(eventJson.id, timeSpan, TransitionDetail.from(detailObj));
             case "video":
-                return new VideoEvent(eventJson.id, timeSpan, new VideoDetail(detail.videoID, detail.fadeInMs, detail.fadeOutMs));
+                return new VideoEvent(eventJson.id, timeSpan, VideoDetail.from(detailObj));
             default:
                 throw new Error(`未知のイベントタイプ: ${eventJson.eventName}`);
         }

@@ -20,7 +20,7 @@ export class Schedule {
    * @param events イベントのリスト
    */
   public static reconstruct(id: string, version: number, events: IEvent[] = []): Schedule {
-    return new Schedule(id, version, events);
+  return new Schedule(id, version, events);
   }
 
   private constructor(

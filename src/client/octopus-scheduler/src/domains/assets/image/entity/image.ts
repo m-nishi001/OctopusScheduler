@@ -12,13 +12,10 @@ export class Image {
         this.data = data;
     }
 
-    public static createNew(imageName: string, data: Blob): Image {
+    // primary factory
+    public static create(imageName: string, data: Blob): Image {
         const newId = new ImageId(crypto.randomUUID());
         return new Image(newId, imageName, data);
-    }
-
-    public static reconstruct(id: string, name: string, data: Blob): Image {
-        return new Image(new ImageId(id), name, data);
     }
 
     /**
@@ -26,8 +23,27 @@ export class Image {
      * @param obj { id: string, name: string, data: Blob }
      * @returns Image
      */
-    public static reconstructFromObject(obj: Image): Image {
-        return new Image(obj.imageId, obj.imageName, obj.data);
+    public static from(obj: unknown): Image {
+        if (obj instanceof Image) return obj;
+        const plain = obj as Partial<Record<string, unknown>> | undefined;
+        const rawId = plain?.imageId ?? plain?.id ?? plain?.imageID;
+        const imageId = ImageId.from(rawId as unknown);
+        const name = (plain?.imageName ?? plain?.name ?? "") as string;
+        const data = (plain?.imageData ?? plain?.data) as Blob;
+        return new Image(imageId, name, data as Blob);
+    }
+
+    // Compatibility aliases
+    public static createNew(imageName: string, data: Blob): Image {
+        return Image.create(imageName, data);
+    }
+
+    public static reconstruct(id: string, name: string, data: Blob): Image {
+        return new Image(new ImageId(id), name, data);
+    }
+
+    public static reconstructFromObject(obj: unknown): Image {
+        return Image.from(obj);
     }
 
     public get id(): ImageId {

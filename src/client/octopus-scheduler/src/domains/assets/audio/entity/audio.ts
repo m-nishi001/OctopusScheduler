@@ -18,29 +18,32 @@ export class Audio {
    * @param data Blob形式のオーディオデータ
    * @returns 新しいAudioエンティティ
    */
-  public static createNew(audioName: string, data: Blob): Audio {
+  public static create(audioName: string, data: Blob): Audio {
     const newId = new AudioId(crypto.randomUUID());
     return new Audio(newId, audioName, data);
   }
 
-  /**
-   * 永続化されたデータからAudioエンティティを再構築するためのファクトリーメソッド
-   * @param id string形式のID
-   * @param name string形式の名前
-   * @param data Blob形式のデータ
-   * @returns 再構築されたAudioエンティティ
-   */
+  public static from(obj: unknown): Audio {
+    if (obj instanceof Audio) return obj;
+    const plain = obj as Partial<Record<string, unknown>> | undefined;
+    const rawId = plain?.audioId ?? plain?.id ?? plain?.audioID;
+    const audioId = AudioId.from(rawId as unknown);
+    const name = (plain?.audioName ?? plain?.name ?? "") as string;
+    const data = (plain?.audioData ?? plain?.data) as Blob;
+    return new Audio(audioId, name, data as Blob);
+  }
+
+  // compatibility aliases
+  public static createNew(audioName: string, data: Blob): Audio {
+    return Audio.create(audioName, data);
+  }
+
   public static reconstruct(id: string, name: string, data: Blob): Audio {
     return new Audio(new AudioId(id), name, data);
   }
 
-  /**
-   * DTO/plain object から Audio エンティティを復元する（base64→Blob変換含む）
-   * @param obj { id: string, name: string, audioDataBase64: string }
-   * @returns Audio
-   */
-  public static reconstructFromObject(obj: Audio): Audio {
-    return new Audio(obj.audioId, obj.audioName, obj.data);
+  public static reconstructFromObject(obj: unknown): Audio {
+    return Audio.from(obj);
   }
 
   public get id(): AudioId {
