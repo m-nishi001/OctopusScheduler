@@ -36,38 +36,35 @@ export class SuccessResponse {
  * @throws {Error} 指定された関数名が見つからない場合。
  */
 function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiResponse {
-  Logger.log(`API call received for: ${callingObject} args: ${args}`);
+  Logger.log(`[OctopusSchedulerAPI] Function: ${callingObject}, Args: ${JSON.stringify(args)}`);
 
   // {ServiceName}.{FunctionName}の形式でやってくるのでパースする。
-  const splited = callingObject.split(".");
-  if (splited.length !== 2) {
-    Logger.log(`Error: "callingObject" was invalid. ${callingObject}`);
-    return new ErrorResponse(`Invalid callingObjecgt: ${callingObject}`);
+  const [serviceName, functionName] = callingObject.split(".", 2);
+  if (!serviceName || !functionName) {
+    Logger.log(`Error: "callingObject" was invalid: ${callingObject}`);
+    return new ErrorResponse(`Invalid callingObject: ${callingObject}`);
   }
-
-  const serviceName = splited[0];
-  const functionName = splited[1];
 
   // ここでコンテナへの型登録をする
   Container.regiser();
 
-  const services = container.resolveAll<GasService>("IGasService")
-  const targetService = services.find(service => {
-    Logger.log(`[Main.ts] callOctopusSchedulerApiInternal current service name: ${service.serviceName} target service name: ${serviceName}`);
-    return service.serviceName === serviceName
-  });
-  if (targetService) {
-    try {
-      const result = (targetService as any)[functionName](JSON.parse(args));
-      // Logger.log(`[callOctopusSchedulerApiInternal] result: ${JSON.stringify(result)}`);
-      return new SuccessResponse(result);
-    } catch (e: any) {
-      return new ErrorResponse(e);
-    }
+  const targetFunction = container
+    .resolveAll<GasService>("IGasService")
+    .map(service => service.functions[functionName])
+    .find(func => func !== undefined);
+
+  if (!targetFunction) {
+    Logger.log(`Error: Function "${functionName}" not found on service "${serviceName}".`);
+    return new ErrorResponse(`Function "${functionName}" not found on service "${serviceName}".`);
   }
 
-  Logger.log(`Error: Unknown function name "${callingObject}" was called.`);
-  return new ErrorResponse(`Unknown API function name: ${callingObject}`);
+  try {
+    const parameters = JSON.parse(args);
+    const result = targetFunction(parameters);
+    return new SuccessResponse(result);
+  } catch (e: any) {
+    return new ErrorResponse(e);
+  }
 }
 
 // これはPromise型で返却することができないのでとりあえずここで実装する。
@@ -76,7 +73,7 @@ _doGet = (e: GoogleAppsScript.Events.DoGet) => {
   try {
     const template = HtmlService.createTemplateFromFile("index");
     return template.evaluate()
-      .setTitle('Fail Loading...')
+      .setTitle('Sample App')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 
   } catch (error) {

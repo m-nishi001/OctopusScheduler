@@ -30,27 +30,27 @@ import { AudioApiService } from "../application/assets/audio/audio-api-service";
 
 export class Container {
     static regiser() {
-    container.register<GasService>("IGasService", { useClass: ScheduleService });
-    container.register<GasService>("IGasService", { useClass: ImageService });
-    container.register<GasService>("IGasService", { useClass: MovieService });
-    container.register<GasService>("IGasService", { useClass: AudioApiService });
-    container.register<GasService>("IGasService", { useClass: AssetMetadataService });
+        container.register<GasService>("IGasService", { useClass: ScheduleService });
+        container.register<GasService>("IGasService", { useClass: ImageService });
+        container.register<GasService>("IGasService", { useClass: MovieService });
+        container.register<GasService>("IGasService", { useClass: AudioApiService });
+        container.register<GasService>("IGasService", { useClass: AssetMetadataService });
 
-    // register asset use cases
-    container.register(SaveImageUseCase, { useClass: SaveImageUseCase });
-    container.register(GetImageUseCase, { useClass: GetImageUseCase });
-    container.register(GetImageMetadatasUseCase, { useClass: GetImageMetadatasUseCase });
-    container.register(RenameImageUseCase, { useClass: RenameImageUseCase });
+        // register asset use cases
+        container.register(SaveImageUseCase, { useClass: SaveImageUseCase });
+        container.register(GetImageUseCase, { useClass: GetImageUseCase });
+        container.register(GetImageMetadatasUseCase, { useClass: GetImageMetadatasUseCase });
+        container.register(RenameImageUseCase, { useClass: RenameImageUseCase });
 
-    container.register(SaveMovieUseCase, { useClass: SaveMovieUseCase });
-    container.register(GetMovieUseCase, { useClass: GetMovieUseCase });
-    container.register(GetMovieMetadatasUseCase, { useClass: GetMovieMetadatasUseCase });
-    container.register(RenameMovieUseCase, { useClass: RenameMovieUseCase });
+        container.register(SaveMovieUseCase, { useClass: SaveMovieUseCase });
+        container.register(GetMovieUseCase, { useClass: GetMovieUseCase });
+        container.register(GetMovieMetadatasUseCase, { useClass: GetMovieMetadatasUseCase });
+        container.register(RenameMovieUseCase, { useClass: RenameMovieUseCase });
 
-    container.register(SaveAudioUseCase, { useClass: SaveAudioUseCase });
-    container.register(GetAudioUseCase, { useClass: GetAudioUseCase });
-    container.register(GetAudioMetadatasUseCase, { useClass: GetAudioMetadatasUseCase });
-    container.register(RenameAudioUseCase, { useClass: RenameAudioUseCase });
+        container.register(SaveAudioUseCase, { useClass: SaveAudioUseCase });
+        container.register(GetAudioUseCase, { useClass: GetAudioUseCase });
+        container.register(GetAudioMetadatasUseCase, { useClass: GetAudioMetadatasUseCase });
+        container.register(RenameAudioUseCase, { useClass: RenameAudioUseCase });
         container.register<IScheduleEventRepository>("IScheduleEventRepository", { useClass: SpreadsheetScheduleEventRepository });
         container.register<IAudioRepository>("IAudioRepository", { useClass: AudioRepository });
         container.register<IImageRepository>("IImageRepository", { useClass: ImageRepository });

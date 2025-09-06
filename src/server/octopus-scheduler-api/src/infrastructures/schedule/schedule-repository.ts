@@ -39,7 +39,7 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 
 	findAll(): ScheduleEvent[] {
 		const records = this.repository.find(() => true);
-		return records.map(obj => {
+		const results = records.map(obj => {
 			const eventName = ScheduleEventName.create(obj.eventName) ?? ScheduleEventName.Empty;
 			const timeSpan = ScheduleTimeSpan.create(new Date(obj.start), new Date(obj.end)) ?? ScheduleTimeSpan.Empty;
 			const eventId = ScheduleEventId.from(obj.id) ?? ScheduleEventId.Empty;
@@ -47,6 +47,8 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 			const processedAt = obj.processedAt ? new Date(obj.processedAt) : null;
 			return new ScheduleEvent(eventName, timeSpan, eventId, eventDetailJson, processedAt);
 		});
+		Logger.log(`[SpreadsheetScheduleEventRepository] Retrieved ${JSON.stringify(results)} schedule events.`);
+		return results;
 	}
 
 	update(predicate: (entity: ScheduleEvent) => boolean, executor: (entity: ScheduleEvent) => ScheduleEvent): number {
