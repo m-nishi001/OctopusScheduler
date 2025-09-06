@@ -5,7 +5,6 @@ export class SaveImageUseCase {
   constructor(private readonly imageRepository: IImageRepository) {}
 
   async execute(imageName: string, data: Blob): Promise<void> {
-    const image = Image.createNew(imageName, data);
-    await this.imageRepository.save(image);
+    await this.imageRepository.save(Image.create(imageName, data));
   }
 }

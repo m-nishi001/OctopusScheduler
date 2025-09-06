@@ -9,35 +9,31 @@ import { AssetConverter } from "../asset-converter";
 
 export class MovieRepository implements IMovieRepository {
     private readonly service;
-    private readonly storage: LocalStorageService;
-    private readonly movieStoreName = "MovieData";
-    private readonly movieMetadataStoreName = "MovieMetadataStore";
+    private readonly movieDataStorage: LocalStorageService;
+    private readonly movieMetadataStorage: LocalStorageService;
 
     constructor() {
         const apiName = "callOctopusSchedulerApi";
-        const service = GasFunctionService.create(apiName);
-        if (!service) {
-            throw new Error(`Failed to create GasFunctionService for API: ${apiName}`);
-        }
-        this.service = service;
-        this.storage = new LocalStorageService(StorageConfig.getDbName(), this.movieStoreName);
+        this.service = GasFunctionService.create(apiName)!;
+        this.movieDataStorage = new LocalStorageService(StorageConfig.getDbName(), "MovieData");
+        this.movieMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), "MovieMetadataStore");
     }
 
     public async save(movie: Movie): Promise<void> {
         try {
-            await this.storage.save<Movie>(movie.id.toString(), movie);
-            console.log(`Movie with ID ${movie.id.toString()} saved to local storage.`);
+            await this.movieDataStorage.save<Movie>(movie.movieId.toString(), movie);
+            console.log(`Movie with ID ${movie.movieId.toString()} saved to local storage.`);
 
             const base64Data = await AssetConverter.blobToBase64(movie.movieData);
             const movieDataToSend = {
-                movieId: movie.id.toString(),
-                movieName: movie.name,
+                movieId: movie.movieId.toString(),
+                movieName: movie.movieName,
                 data64: base64Data
             };
             await this.service
                 .createCall<void>("MovieService.saveMovie", movieDataToSend)
                 .withTimeout(20000)
-                .withSuccessed(() => console.log(`Movie with ID ${movie.id.toString()} saved to remote.`))
+                .withSuccessed(() => console.log(`Movie with ID ${movie.movieId.toString()} saved to remote.`))
                 .withFailuered(message => {
                     console.error(`Failed to save movie to remote:`, message);
                     throw new Error("Failed to save movie to remote.");
@@ -45,35 +41,19 @@ export class MovieRepository implements IMovieRepository {
                 .invoke();
 
         } catch (error) {
-            console.error(`Failed to save movie with ID ${movie.id.toString()}:`, error);
+            console.error(`Failed to save movie with ID ${movie.movieId.toString()}:`, error);
             throw new Error("Failed to save movie.");
         }
     }
 
     public async findById(id: MovieId): Promise<Movie | null> {
-        let movie = await this.storage.get<Movie>(id.toString());
-        if (!movie) {
-            console.log(`Movie with ID ${id.toString()} not found locally. Starting sync...`);
-            await this.sync();
-            movie = await this.storage.get<Movie>(id.toString());
-            if (movie) {
-                console.log(`Movie with ID ${id.toString()} found after sync.`);
-            }
-        }
-        return movie ? Movie.reconstructFromObject(movie) : null;
+        const movie = await this.movieDataStorage.get<Movie>(id.toString());
+        return movie ? Movie.from(movie) : null;
     }
 
     public async findAll(): Promise<Movie[]> {
-        let movies = await this.storage.getAll<Movie>();
-        if (movies.size === 0) {
-            console.log("No movies found locally. Starting sync...");
-            await this.sync();
-            movies = await this.storage.getAll<Movie>();
-            if (movies.size > 0) {
-                console.log(`${movies.size} movies found after sync.`);
-            }
-        }
-        return Array.from(movies.values()).map(m => Movie.reconstructFromObject(m));
+        const movies = await this.movieDataStorage.getAll<Movie>();
+        return Array.from(movies.values()).map(m => Movie.from(m));
     }
 
     public async delete(id: MovieId): Promise<void> {
@@ -90,9 +70,8 @@ export class MovieRepository implements IMovieRepository {
                 .invoke();
 
             // Remove local data and metadata
-            await this.storage.delete(id.toString());
-            const localMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), this.movieMetadataStoreName);
-            await localMetadataStorage.delete(id.toString());
+            await this.movieDataStorage.delete(id.toString());
+            await this.movieMetadataStorage.delete(id.toString());
             console.log(`Movie with ID ${id.toString()} deleted successfully (remote + local).`);
         } catch (error) {
             console.error(`Failed to delete movie with ID ${id.toString()}:`, error);
@@ -109,11 +88,10 @@ export class MovieRepository implements IMovieRepository {
             }
 
             const localMetadatas = await this.getLocalMetadatas();
-            const remoteMetadataMap = new Map<string, MovieMetadata>(remoteMetadatas.map(meta => [meta.movieId, meta]));
-            const localMetadataMap = new Map<string, MovieMetadata>(Array.from(localMetadatas.values()).map(meta => [meta.movieId, meta]));
+            const localMovieMetadatas = Array.from(localMetadatas.values());
 
-            await this.removeStaleFiles(remoteMetadataMap, localMetadataMap);
-            await this.fetchAndUpdateFiles(remoteMetadatas, localMetadataMap);
+            await this.removeStaleFiles(remoteMetadatas, localMovieMetadatas);
+            await this.fetchAndUpdateFiles(remoteMetadatas, localMovieMetadatas);
         } catch (error) {
             console.error("An error occurred during sync:", error);
             throw new Error("Failed to sync movies.");
@@ -136,31 +114,30 @@ export class MovieRepository implements IMovieRepository {
     }
 
     private async getLocalMetadatas(): Promise<Map<string, MovieMetadata>> {
-        const localMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), this.movieMetadataStoreName);
-        return await localMetadataStorage.getAll<MovieMetadata>();
+        return await this.movieMetadataStorage.getAll<MovieMetadata>();
     }
 
     private async removeStaleFiles(
-        remoteMetadataMap: Map<string, MovieMetadata>,
-        localMetadataMap: Map<string, MovieMetadata>
+        remoteMetadatas: MovieMetadata[],
+        localMetadatas: MovieMetadata[]
     ): Promise<void> {
-        const filesToRemove = Array.from(localMetadataMap.keys())
-            .filter(fileId => !remoteMetadataMap.has(fileId));
+        const filesToRemove = localMetadatas
+            .filter(localMeta => !remoteMetadatas.some(remoteMeta => remoteMeta.movieId === localMeta.movieId))
+            .map(meta => meta.movieId);
 
         if (filesToRemove.length > 0) {
             console.log("Removing locally-deleted remote files:", filesToRemove);
-            await this.storage.removeMultiple(filesToRemove);
-            const localMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), this.movieMetadataStoreName);
-            await localMetadataStorage.removeMultiple(filesToRemove);
+            await this.movieDataStorage.removeMultiple(filesToRemove);
+            await this.movieMetadataStorage.removeMultiple(filesToRemove);
         }
     }
 
     private async fetchAndUpdateFiles(
         remoteMetadatas: MovieMetadata[],
-        localMetadataMap: Map<string, MovieMetadata>
+        localMetadatas: MovieMetadata[]
     ): Promise<void> {
         const filesToUpdate = remoteMetadatas.filter(remoteMeta => {
-            const localMeta = localMetadataMap.get(remoteMeta.movieId);
+            const localMeta = localMetadatas.find(localMeta => localMeta.movieId === remoteMeta.movieId);
             return !localMeta || localMeta.lastUpdatedAt < remoteMeta.lastUpdatedAt;
         });
 
@@ -170,28 +147,26 @@ export class MovieRepository implements IMovieRepository {
 
             const moviePromises = filesToUpdate.map(meta =>
                 this.service
-                    .createCall<any>("MovieService.getMovie", meta.movieId)
+                    .createCall<{ movieId: string; movieName: string; data64: string } | null>("MovieService.getMovie", meta.movieId)
                     .withTimeout(20000)
-                    .withSuccessed(base64Data => {
-                        const data64 = AssetConverter.extractBase64Data(base64Data);
-                        if (data64) {
-                            const blobData = AssetConverter.base64ToBlob(data64, 'video/mp4');
-                            const movie = Movie.reconstruct(meta.movieId, meta.movieName, blobData);
+                    .withSuccessed(payload => {
+                        if (payload) {
+                            const blobData = AssetConverter.base64ToBlob(payload.data64, 'video/mp4');
+                            const movie = Movie.create(payload.movieName, blobData, MovieId.create(payload.movieId));
                             remoteMovies.push(movie);
                         } else {
-                            console.warn(`MovieService.getMovie returned unexpected payload for id=${meta.movieId}`, base64Data);
+                            console.warn(`MovieService.getMovie returned unexpected payload for id=${meta.movieId}`, payload);
                         }
                     })
             );
 
             await this.service.all(...moviePromises);
 
-            const moviesToSave = new Map<string, Movie>(remoteMovies.map(movie => [movie.id.toString(), movie]));
-            await this.storage.saveMultiple<Movie>(moviesToSave);
+            const moviesToSave = new Map<string, Movie>(remoteMovies.map(movie => [movie.movieId.toString(), movie]));
+            await this.movieDataStorage.saveMultiple<Movie>(moviesToSave);
 
-            const localMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), this.movieMetadataStoreName);
             const metadatasToSave = new Map<string, MovieMetadata>(filesToUpdate.map(meta => [meta.movieId, meta]));
-            await localMetadataStorage.saveMultiple<MovieMetadata>(metadatasToSave);
+            await this.movieMetadataStorage.saveMultiple<MovieMetadata>(metadatasToSave);
 
             console.log(`Successfully updated ${remoteMovies.length} movies and their metadata.`);
         } else {

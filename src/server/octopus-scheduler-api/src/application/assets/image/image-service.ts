@@ -20,8 +20,8 @@ export class ImageService implements GasService {
         @inject(SaveImageUseCase) saveImageUseCase: SaveImageUseCase,
         @inject(GetImageUseCase) getImageUseCase: GetImageUseCase,
         @inject(GetImageMetadatasUseCase) getImageMetadatasUseCase: GetImageMetadatasUseCase,
-        @inject(RenameImageUseCase) renameImageUseCase: RenameImageUseCase
-        , @inject(DeleteImageUseCase) deleteImageUseCase: DeleteImageUseCase
+        @inject(RenameImageUseCase) renameImageUseCase: RenameImageUseCase,
+        @inject(DeleteImageUseCase) deleteImageUseCase: DeleteImageUseCase
     ) {
         this.saveImageUseCase = saveImageUseCase;
         this.getImageUseCase = getImageUseCase;
@@ -43,26 +43,20 @@ export class ImageService implements GasService {
         return { imageId };
     }
 
-    /**
-     * 画像メタデータ一覧をJSオブジェクト配列で返却
-     */
-    private getImageMetadatas(): Array<{ imageId: string; imageName: string; lastUpdatedAt: string }> {
+    private getImageMetadatas(): { imageId: string; imageName: string; lastUpdatedAt: Date }[] {
         const metas = this.getImageMetadatasUseCase.execute();
-        return metas.map(meta => ({ imageId: meta.imageId, imageName: meta.imageName, lastUpdatedAt: meta.lastUpdatedAt.toISOString() }));
+        return metas.map(meta => ({ imageId: meta.imageId, imageName: meta.imageName, lastUpdatedAt: meta.lastUpdatedAt }));
     }
 
-    /**
-     * 画像データをbase64文字列で返却（audioと同様にid, name, data64を含むオブジェクト形式）
-     */
     private getImage(imageId: string): { imageId: string; imageName: string; data64: string } | null {
         const image = this.getImageUseCase.execute(imageId);
-        if (!image) return null;
-        const blob = image.imageData;
-        return {
-            imageId: image.id.toString(),
-            imageName: image.name,
-            data64: Utilities.base64Encode(blob.getBytes())
-        };
+        return image
+            ? {
+                imageId: image.id.toString(),
+                imageName: image.name,
+                data64: Utilities.base64Encode(image.imageData.getBytes())
+            }
+            : null;
     }
 
     private renameImage(args: { imageId: string; newName: string }): { imageId: string } {

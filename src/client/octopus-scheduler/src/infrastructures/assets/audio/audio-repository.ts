@@ -11,15 +11,12 @@ export class AudioRepository implements IAudioRepository {
     private readonly service;
     private readonly audioStorage: LocalStorageService;
     private readonly audioMetadataStorage: LocalStorageService;
-    private readonly audioStoreName = "AudioData";
-    private readonly audioMetadataStoreName = "AudioMetadataStore";
 
     constructor() {
         const apiName = "callOctopusSchedulerApi";
-        const service = GasFunctionService.create(apiName)!;
-        this.service = service;
-        this.audioStorage = new LocalStorageService(StorageConfig.getDbName(), this.audioStoreName);
-        this.audioMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), this.audioMetadataStoreName);
+        this.service = GasFunctionService.create(apiName)!;
+        this.audioStorage = new LocalStorageService(StorageConfig.getDbName(), "AudioData");
+        this.audioMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), "AudioMetadataStore");
     }
 
     public async save(audio: Audio): Promise<void> {

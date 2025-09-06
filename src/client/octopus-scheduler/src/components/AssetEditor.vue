@@ -75,7 +75,24 @@ class ImageGetter implements AssetGetter {
     nameKey = 'imageName';
     dataKey = 'data';
     dataProp = 'imageData';
-    getAll() { return this.service.getAllImages(); }
+    getAll() {
+        return new Promise<{ imageId: string; imageName: string; imageData?: Blob }[]>(async (resolve, reject) => {
+            try {
+                const images = await this.service.getAllImages();
+                if (!images) {
+                    resolve([]);
+                    return;
+                }
+                resolve(images.map(image => ({
+                    imageId: String(image.imageId),
+                    imageName: image.imageName,
+                    data: image.imageData
+                })));
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
     getById(id: string) { return this.service.getImageById(id); }
     saveNew(name: string, blob: Blob) { return this.service.saveNewImage(name, blob); }
     delete(id: string) { return this.service.deleteImage(id); }
@@ -88,7 +105,24 @@ class MovieGetter implements AssetGetter {
     nameKey = 'movieName';
     dataKey = 'data';
     dataProp = 'movieData';
-    getAll() { return this.service.getAllMovies(); }
+    getAll() {
+        return new Promise<{ movieId: string; movieName: string; movieData?: Blob }[]>(async (resolve, reject) => {
+            try {
+                const movies = await this.service.getAllMovies();
+                if (!movies) {
+                    resolve([]);
+                    return;
+                }
+                resolve(movies.map(movie => ({
+                    movieId: String(movie.movieId),
+                    movieName: movie.movieName,
+                    data: movie.movieData
+                })));
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
     getById(id: string) { return this.service.getMovieById(id); }
     saveNew(name: string, blob: Blob) { return this.service.saveNewMovie(name, blob); }
     delete(id: string) { return this.service.deleteMovie(id); }

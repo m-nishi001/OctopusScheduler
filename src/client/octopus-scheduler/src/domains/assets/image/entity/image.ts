@@ -1,67 +1,41 @@
 import { ImageId } from "../vo/image-id";
 
 export class Image {
-    
-    private imageId: ImageId;
-    private imageName: string;
-    private data: Blob;
 
-    private constructor(imageId: ImageId, imageName: string, data: Blob) {
-        this.imageId = imageId;
-        this.imageName = imageName;
-        this.data = data;
+    private _imageId: ImageId;
+    private _imageName: string;
+    private _imageData: Blob;
+
+    private constructor(imageId: ImageId, imageName: string, imageData: Blob) {
+        this._imageId = imageId;
+        this._imageName = imageName;
+        this._imageData = imageData;
     }
 
-    // primary factory
-    public static create(imageName: string, data: Blob): Image {
-        const newId = new ImageId(crypto.randomUUID());
-        return new Image(newId, imageName, data);
+    public static create(imageName: string, imageData: Blob, imageId: ImageId | null = null): Image {
+        return new Image((imageId ?? ImageId.create()), imageName, imageData);
     }
 
-    /**
-     * DTO/plain object から Image エンティティを復元する
-     * @param obj { id: string, name: string, data: Blob }
-     * @returns Image
-     */
-    public static from(obj: unknown): Image {
-        if (obj instanceof Image) return obj;
-        const plain = obj as Partial<Record<string, unknown>> | undefined;
-        const rawId = plain?.imageId ?? plain?.id ?? plain?.imageID;
-        const imageId = ImageId.from(rawId as unknown);
-        const name = (plain?.imageName ?? plain?.name ?? "") as string;
-        const data = (plain?.imageData ?? plain?.data) as Blob;
-        return new Image(imageId, name, data as Blob);
+    public static from(another: Image): Image {
+        return new Image(ImageId.from(another._imageId), another._imageName, another._imageData);
     }
 
-    // Compatibility aliases
-    public static createNew(imageName: string, data: Blob): Image {
-        return Image.create(imageName, data);
+    public get imageId(): ImageId {
+        return this._imageId;
     }
 
-    public static reconstruct(id: string, name: string, data: Blob): Image {
-        return new Image(new ImageId(id), name, data);
-    }
-
-    public static reconstructFromObject(obj: unknown): Image {
-        return Image.from(obj);
-    }
-
-    public get id(): ImageId {
-        return this.imageId;
-    }
-
-    public get name(): string {
-        return this.imageName;
+    public get imageName(): string {
+        return this._imageName;
     }
 
     public get imageData(): Blob {
-        return this.data;
+        return this._imageData;
     }
 
     public renameImage(newName: string): void {
         if (!newName || newName.trim().length === 0) {
             throw new Error("画像名は空にできません。");
         }
-        this.imageName = newName;
+        this._imageName = newName;
     }
 }

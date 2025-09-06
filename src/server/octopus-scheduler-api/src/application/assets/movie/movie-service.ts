@@ -20,8 +20,8 @@ export class MovieService implements GasService {
         @inject(SaveMovieUseCase) saveMovieUseCase: SaveMovieUseCase,
         @inject(GetMovieUseCase) getMovieUseCase: GetMovieUseCase,
         @inject(GetMovieMetadatasUseCase) getMovieMetadatasUseCase: GetMovieMetadatasUseCase,
-        @inject(RenameMovieUseCase) renameMovieUseCase: RenameMovieUseCase
-        , @inject(DeleteMovieUseCase) deleteMovieUseCase: DeleteMovieUseCase
+        @inject(RenameMovieUseCase) renameMovieUseCase: RenameMovieUseCase,
+        @inject(DeleteMovieUseCase) deleteMovieUseCase: DeleteMovieUseCase
     ) {
         this.saveMovieUseCase = saveMovieUseCase;
         this.getMovieUseCase = getMovieUseCase;
@@ -43,17 +43,11 @@ export class MovieService implements GasService {
         return { movieId };
     }
 
-    /**
-     * ムービーメタデータ一覧をJSオブジェクト配列で返却
-     */
-    private getMovieMetadatas(): Array<{ movieId: string; movieName: string; lastUpdatedAt: string }> {
+    private getMovieMetadatas(): Array<{ movieId: string; movieName: string; lastUpdatedAt: Date }> {
         const metas = this.getMovieMetadatasUseCase.execute();
-        return metas.map(meta => ({ movieId: meta.movieId, movieName: meta.movieName, lastUpdatedAt: meta.lastUpdatedAt.toISOString() }));
+        return metas.map(meta => ({ movieId: meta.movieId, movieName: meta.movieName, lastUpdatedAt: meta.lastUpdatedAt }));
     }
 
-    /**
-     * ムービーデータをbase64文字列で返却（audioと同様にid, name, data64を含むオブジェクト形式）
-     */
     private getMovie(movieId: string): { movieId: string; movieName: string; data64: string } | null {
         const movie = this.getMovieUseCase.execute(movieId);
         if (!movie) return null;

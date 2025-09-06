@@ -5,7 +5,6 @@ export class DeleteMovieUseCase {
     constructor(private readonly movieRepository: IMovieRepository) { }
 
     async execute(id: string): Promise<void> {
-        const movieId = new MovieId(id);
-        await this.movieRepository.delete(movieId);
+        await this.movieRepository.delete(MovieId.create(id));
     }
 }

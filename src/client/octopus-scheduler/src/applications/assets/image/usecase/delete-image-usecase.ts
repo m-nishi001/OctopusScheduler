@@ -5,7 +5,6 @@ export class DeleteImageUseCase {
   constructor(private readonly imageRepository: IImageRepository) {}
 
   async execute(id: string): Promise<void> {
-    const imageId = new ImageId(id);
-    await this.imageRepository.delete(imageId);
+    await this.imageRepository.delete(ImageId.create(id));
   }
 }

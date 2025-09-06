@@ -3,10 +3,9 @@ import type { IImageRepository } from "../../../../domains/assets/image/reposito
 import { ImageId } from "../../../../domains/assets/image/vo/image-id";
 
 export class GetImageUseCase {
-  constructor(private readonly imageRepository: IImageRepository) {}
+  constructor(private readonly imageRepository: IImageRepository) { }
 
   async execute(id: string): Promise<Image | null> {
-    const imageId = new ImageId(id);
-    return await this.imageRepository.findById(imageId);
+    return await this.imageRepository.findById(ImageId.create(id));
   }
 }

@@ -6,7 +6,6 @@ export class GetMovieUseCase {
     constructor(private readonly movieRepository: IMovieRepository) { }
 
     async execute(id: string): Promise<Movie | null> {
-        const movieId = new MovieId(id);
-        return await this.movieRepository.findById(movieId);
+        return await this.movieRepository.findById(MovieId.create(id));
     }
 }

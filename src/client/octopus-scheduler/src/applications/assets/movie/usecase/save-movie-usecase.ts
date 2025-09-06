@@ -5,7 +5,6 @@ export class SaveMovieUseCase {
   constructor(private readonly movieRepository: IMovieRepository) {}
 
   async execute(movieName: string, data: Blob): Promise<void> {
-    const movie = Movie.createNew(movieName, data);
-    await this.movieRepository.save(movie);
+    await this.movieRepository.save(Movie.create(movieName, data));
   }
 }
