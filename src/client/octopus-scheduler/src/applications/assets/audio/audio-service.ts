@@ -1,82 +1,67 @@
-import { Audio } from "../../../domains/assets/audio/entity/audio";
 import type { IAudioRepository } from "../../../domains/assets/audio/repository/audio-repository";
-import { AudioId } from "../../../domains/assets/audio/vo/audio-id";
 import { AudioRepository } from "../../../infrastructures/assets/audio/audio-repository";
+import { SaveAudioUseCase } from "./usecase/save-audio-usecase";
+import { GetAudioUseCase } from "./usecase/get-audio-usecase";
+import { ListAudiosUseCase } from "./usecase/list-audios-usecase";
+import { DeleteAudioUseCase } from "./usecase/delete-audio-usecase";
+import { SyncAudiosUseCase } from "./usecase/sync-audios-usecase";
+import { Audio } from "../../../domains/assets/audio/entity/audio";
 
-/**
- * AudioエンティティのCRUD操作を調整するアプリケーションサービス。
- * ドメイン層とインフラ層を疎結合に保ち、プレゼンテーション層からの要求を処理します。
- */
 export class AudioService {
-    private readonly audioRepository: IAudioRepository;
+    private readonly saveUc: SaveAudioUseCase;
+    private readonly getUc: GetAudioUseCase;
+    private readonly listUc: ListAudiosUseCase;
+    private readonly deleteUc: DeleteAudioUseCase;
+    private readonly syncUc: SyncAudiosUseCase;
 
-    constructor() {
-        this.audioRepository = new AudioRepository();
+    constructor(audioRepository?: IAudioRepository) {
+        const repo = audioRepository ?? new AudioRepository();
+        this.saveUc = new SaveAudioUseCase(repo);
+        this.getUc = new GetAudioUseCase(repo);
+        this.listUc = new ListAudiosUseCase(repo);
+        this.deleteUc = new DeleteAudioUseCase(repo);
+        this.syncUc = new SyncAudiosUseCase(repo);
     }
 
-    /**
-     * 新しいオーディオを保存する
-     * @param audioName オーディオ名
-     * @param data Blob形式のオーディオデータ
-     */
     public async saveNewAudio(audioName: string, data: Blob): Promise<void> {
         try {
-            const audio = Audio.createNew(audioName, data);
-            await this.audioRepository.save(audio);
+            await this.saveUc.execute(audioName, data);
         } catch (error) {
             console.error("Failed to save new audio:", error);
             throw new Error("Failed to save new audio.");
         }
     }
 
-    /**
-     * 指定されたIDのオーディオを取得する
-     * @param audioId オーディオID
-     * @returns Audioエンティティまたはnull
-     */
     public async getAudioById(audioId: string): Promise<Audio | null> {
         try {
-            const id = new AudioId(audioId);
-            return await this.audioRepository.findById(id);
+            return await this.getUc.execute(audioId);
         } catch (error) {
             console.error(`Failed to get audio with ID ${audioId}:`, error);
             return null;
         }
     }
 
-    /**
-     * すべてのオーディオを取得する
-     * @returns Audioエンティティの配列
-     */
     public async getAllAudios(): Promise<Audio[]> {
         try {
-            return await this.audioRepository.findAll();
+            return await this.listUc.execute();
         } catch (error) {
             console.error("Failed to get all audios:", error);
             return [];
         }
     }
 
-    /**
-     * 指定されたオーディオを削除する
-     * @param audioId 削除するオーディオのID
-     */
     public async deleteAudio(audioId: string): Promise<void> {
         try {
-            const id = new AudioId(audioId);
-            await this.audioRepository.delete(id);
+            await this.deleteUc.execute(audioId);
         } catch (error) {
             console.error(`Failed to delete audio with ID ${audioId}:`, error);
             throw new Error("Failed to delete audio.");
         }
     }
 
-    /**
-     * ローカルストレージとリモートのオーディオデータを同期する
-     */
     public async syncAudios(): Promise<void> {
         try {
-            await this.audioRepository.sync();
+            await this.syncUc.execute();
             console.log("Audios synchronized successfully.");
         } catch (error) {
             console.error("Failed to sync audios:", error);

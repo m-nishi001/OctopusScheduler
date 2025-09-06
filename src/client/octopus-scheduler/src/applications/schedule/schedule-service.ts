@@ -2,72 +2,52 @@ import { Schedule } from "../../domains/schedule/entity/schedule";
 import type { IEvent } from "../../domains/schedule/entity/event";
 import type { IScheduleRepository } from "../../domains/schedule/repository/schedule-repository";
 import { ScheduleRepository } from "../../infrastructures/schedule/schedule-repository";
+import { CreateScheduleUseCase } from "./usecase/create-schedule-usecase";
+import { AddEventUseCase } from "./usecase/add-event-usecase";
+import { RemoveEventUseCase } from "./usecase/remove-event-usecase";
+import { GetScheduleUseCase } from "./usecase/get-schedule-usecase";
+import { ListSchedulesUseCase } from "./usecase/list-schedules-usecase";
+import { DeleteScheduleUseCase } from "./usecase/delete-schedule-usecase";
 
 export class ScheduleService {
-    private readonly scheduleRepository: IScheduleRepository;
+        private readonly createUc: CreateScheduleUseCase;
+        private readonly addEventUc: AddEventUseCase;
+        private readonly removeEventUc: RemoveEventUseCase;
+        private readonly getUc: GetScheduleUseCase;
+        private readonly listUc: ListSchedulesUseCase;
+        private readonly deleteUc: DeleteScheduleUseCase;
 
-    constructor() {
-        this.scheduleRepository = new ScheduleRepository();
+    constructor(scheduleRepository?: IScheduleRepository) {
+        const repo = scheduleRepository ?? new ScheduleRepository();
+        this.createUc = new CreateScheduleUseCase(repo);
+        this.addEventUc = new AddEventUseCase(repo);
+        this.removeEventUc = new RemoveEventUseCase(repo);
+        this.getUc = new GetScheduleUseCase(repo);
+        this.listUc = new ListSchedulesUseCase(repo);
+        this.deleteUc = new DeleteScheduleUseCase(repo);
     }
 
-    /**
-     * 新しいスケジュールを作成して保存する
-     */
     public async createNewSchedule(): Promise<void> {
-        const newSchedule = Schedule.createNew();
-        await this.scheduleRepository.save(newSchedule);
+            await this.createUc.execute();
     }
 
-    /**
-     * 特定のスケジュールにイベントを追加する
-     * @param scheduleId スケジュールID
-     * @param event イベントエンティティ
-     */
     public async addEventToSchedule(scheduleId: string, event: IEvent): Promise<void> {
-        const schedule = await this.scheduleRepository.findById(scheduleId);
-        if (!schedule) {
-            throw new Error("Schedule not found.");
-        }
-        schedule.addEvent(event);
-        await this.scheduleRepository.save(schedule);
+            await this.addEventUc.execute(scheduleId, event);
     }
 
-    /**
-     * 特定のスケジュールからイベントを削除する
-     * @param scheduleId スケジュールID
-     * @param eventId 削除するイベントのID
-     */
     public async removeEventFromSchedule(scheduleId: string, eventId: string): Promise<void> {
-        const schedule = await this.scheduleRepository.findById(scheduleId);
-        if (!schedule) {
-            throw new Error("Schedule not found.");
-        }
-        schedule.removeEvent(eventId);
-        await this.scheduleRepository.save(schedule);
+            await this.removeEventUc.execute(scheduleId, eventId);
     }
 
-    /**
-     * 指定されたIDのスケジュールを取得する
-     * @param scheduleId スケジュールID
-     * @returns Scheduleエンティティまたはnull
-     */
     public async getScheduleById(scheduleId: string): Promise<Schedule | null> {
-        return await this.scheduleRepository.findById(scheduleId);
+            return await this.getUc.execute(scheduleId);
     }
 
-    /**
-     * すべてのスケジュールを取得する
-     * @returns Scheduleエンティティの配列
-     */
     public async getAllSchedules(): Promise<Schedule[]> {
-        return await this.scheduleRepository.findAll();
+            return await this.listUc.execute();
     }
 
-    /**
-     * スケジュールを削除する
-     * @param scheduleId 削除するスケジュールのID
-     */
     public async deleteSchedule(scheduleId: string): Promise<void> {
-        await this.scheduleRepository.delete(scheduleId);
+            await this.deleteUc.execute(scheduleId);
     }
 }
