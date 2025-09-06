@@ -22,111 +22,60 @@ import { ref, onMounted, computed } from 'vue';
 import { useLocalStorage } from '../../../packages/shared-composables/src';
 import { AssetSyncService } from '../applications/assets/asset-sync-service';
 
+import type { Audio } from '../domains/assets/audio/entity/audio';
+import type { Image } from '../domains/assets/image/entity/image';
+import type { Movie } from '../domains/assets/movie/entity/movie';
 
 type AssetType = 'Audio' | 'Image' | 'Movie';
 type Asset = { id: string; name: string; data?: Blob };
 
-
-interface AssetGetter {
-    getAll(): Promise<any[]>;
-    getById(id: string): Promise<any>;
+interface AssetGetter<TEntity> {
+    getAll(): Promise<TEntity[]>;
+    getById(id: string): Promise<TEntity | null>;
     saveNew(name: string, blob: Blob): Promise<void>;
     delete(id: string): Promise<void>;
-    idKey: string;
-    nameKey: string;
-    dataKey: string;
-    dataProp: string;
-    rename(entity: any, newName: string): void;
+    idOf(entity: TEntity): string;
+    nameOf(entity: TEntity): string;
+    dataOf(entity: TEntity): Blob | undefined;
+    rename(entity: TEntity, newName: string): void;
 }
 
-class AudioGetter implements AssetGetter {
+class AudioGetter implements AssetGetter<Audio> {
     private service = new AudioService();
-    idKey = 'audioId';
-    nameKey = 'audioName';
-    dataKey = 'data';
-    dataProp = 'audioData';
-    getAll() {
-        return new Promise<{ audioId: string; audioName: string; audioData?: Blob }[]>(async (resolve, reject) => {
-            try {
-                const audios = await this.service.getAllAudios();
-                if (!audios) {
-                    resolve([]);
-                    return;
-                }
-                resolve(audios.map(audio => ({
-                    audioId: String(audio.audioId),
-                    audioName: audio.audioName,
-                    data: audio.audioData
-                })));
-            } catch (e) {
-                reject(e);
-            }
-        });
+    async getAll(): Promise<Audio[]> {
+        return await this.service.getAllAudios();
     }
     getById(id: string) { return this.service.getAudioById(id); }
     saveNew(name: string, blob: Blob) { return this.service.addNewAudio(name, blob); }
     delete(id: string) { return this.service.deleteAudio(id); }
-    rename(entity: any, newName: string) { entity.rename(newName); }
+    idOf(entity: Audio) { return String(entity.audioId?.toString()); }
+    nameOf(entity: Audio) { return entity.audioName; }
+    dataOf(entity: Audio) { return entity.audioData; }
+    rename(entity: Audio, newName: string) { entity.renameAudio(newName); }
 }
 
-class ImageGetter implements AssetGetter {
+class ImageGetter implements AssetGetter<Image> {
     private service = new ImageService();
-    idKey = 'imageId';
-    nameKey = 'imageName';
-    dataKey = 'data';
-    dataProp = 'imageData';
-    getAll() {
-        return new Promise<{ imageId: string; imageName: string; imageData?: Blob }[]>(async (resolve, reject) => {
-            try {
-                const images = await this.service.getAllImages();
-                if (!images) {
-                    resolve([]);
-                    return;
-                }
-                resolve(images.map(image => ({
-                    imageId: String(image.imageId),
-                    imageName: image.imageName,
-                    data: image.imageData
-                })));
-            } catch (e) {
-                reject(e);
-            }
-        });
-    }
+    async getAll(): Promise<Image[]> { return await this.service.getAllImages(); }
     getById(id: string) { return this.service.getImageById(id); }
     saveNew(name: string, blob: Blob) { return this.service.saveNewImage(name, blob); }
     delete(id: string) { return this.service.deleteImage(id); }
-    rename(entity: any, newName: string) { entity.rename(newName); }
+    idOf(entity: Image) { return String(entity.imageId?.toString()); }
+    nameOf(entity: Image) { return entity.imageName; }
+    dataOf(entity: Image) { return entity.imageData; }
+    rename(entity: Image, newName: string) { entity.renameImage(newName); }
 }
 
-class MovieGetter implements AssetGetter {
+class MovieGetter implements AssetGetter<Movie> {
     private service = new MovieService();
-    idKey = 'movieId';
-    nameKey = 'movieName';
-    dataKey = 'data';
-    dataProp = 'movieData';
-    getAll() {
-        return new Promise<{ movieId: string; movieName: string; movieData?: Blob }[]>(async (resolve, reject) => {
-            try {
-                const movies = await this.service.getAllMovies();
-                if (!movies) {
-                    resolve([]);
-                    return;
-                }
-                resolve(movies.map(movie => ({
-                    movieId: String(movie.movieId),
-                    movieName: movie.movieName,
-                    data: movie.movieData
-                })));
-            } catch (e) {
-                reject(e);
-            }
-        });
-    }
+    async getAll(): Promise<Movie[]> { return await this.service.getAllMovies(); }
     getById(id: string) { return this.service.getMovieById(id); }
     saveNew(name: string, blob: Blob) { return this.service.saveNewMovie(name, blob); }
     delete(id: string) { return this.service.deleteMovie(id); }
-    rename(entity: any, newName: string) { entity.rename(newName); }
+    idOf(entity: Movie) { return String(entity.movieId?.toString()); }
+    nameOf(entity: Movie) { return entity.movieName; }
+    dataOf(entity: Movie) { return entity.movieData; }
+    rename(entity: Movie, newName: string) { entity.renameMovie(newName); }
 }
 
 const selectedType = ref<AssetType>('Audio');
@@ -134,24 +83,60 @@ const showUploadDialog = ref(false);
 const assets = ref<Record<AssetType, Asset[]>>({ Audio: [], Image: [], Movie: [] });
 const { save, remove } = useLocalStorage();
 
-const assetGetters: Record<AssetType, AssetGetter> = {
+type GetterMap = {
+    Audio: AssetGetter<Audio>;
+    Image: AssetGetter<Image>;
+    Movie: AssetGetter<Movie>;
+};
+
+const assetGetters: GetterMap = {
     Audio: new AudioGetter(),
     Image: new ImageGetter(),
     Movie: new MovieGetter()
 };
 
+function getGetter<T extends AssetType>(type: T): GetterMap[T] {
+    return assetGetters[type];
+}
+
 async function fetchAssets() {
     const newAssets: Record<AssetType, Asset[]> = { Audio: [], Image: [], Movie: [] };
     await Promise.all((Object.keys(assetGetters) as AssetType[]).map(async (type) => {
         try {
-            const getter = assetGetters[type];
+            const getter = getGetter(type);
             const arr = await getter.getAll();
-            newAssets[type] = arr.map((a: any) => ({
-                id: a[getter.idKey]?.id || a[getter.idKey],
-                name: a[getter.nameKey],
-                data: a[getter.dataKey]
-            }));
-            await Promise.all(arr.map((a: any) => save(a[getter.idKey]?.id || a[getter.idKey], a)));
+            switch (type) {
+                case 'Audio': {
+                    const g = getter as AssetGetter<Audio>;
+                    newAssets[type] = (arr as Audio[]).map(entity => ({
+                        id: g.idOf(entity),
+                        name: g.nameOf(entity),
+                        data: g.dataOf(entity)
+                    }));
+                    await Promise.all((arr as Audio[]).map(entity => save(g.idOf(entity), entity)));
+                    break;
+                }
+                case 'Image': {
+                    const g = getter as AssetGetter<Image>;
+                    newAssets[type] = (arr as Image[]).map(entity => ({
+                        id: g.idOf(entity),
+                        name: g.nameOf(entity),
+                        data: g.dataOf(entity)
+                    }));
+                    await Promise.all((arr as Image[]).map(entity => save(g.idOf(entity), entity)));
+                    break;
+                }
+                case 'Movie': {
+                    const g = getter as AssetGetter<Movie>;
+                    newAssets[type] = (arr as Movie[]).map(entity => ({
+                        id: g.idOf(entity),
+                        name: g.nameOf(entity),
+                        data: g.dataOf(entity)
+                    }));
+                    await Promise.all((arr as Movie[]).map(entity => save(g.idOf(entity), entity)));
+                    break;
+                }
+            }
         } catch (e) {
             alert(type + '取得失敗: ' + (e instanceof Error ? e.message : e));
         }
@@ -182,11 +167,39 @@ async function onEdit(asset: Asset) {
     const newName = window.prompt(`${selectedType.value}アセット名を編集`, asset.name);
     if (!newName || newName === asset.name) return;
     try {
-        const getter = assetGetters[selectedType.value];
-        const entity = await getter.getById(asset.id);
-        if (!entity) throw new Error('エンティティ取得失敗');
-        getter.rename(entity, newName);
-        await getter.saveNew(newName, entity[getter.dataProp]);
+        const type = selectedType.value;
+        switch (type) {
+            case 'Audio': {
+                const g = getGetter('Audio');
+                const entity = await g.getById(asset.id);
+                if (!entity) throw new Error('エンティティ取得失敗');
+                g.rename(entity, newName);
+                const data = g.dataOf(entity);
+                if (!data) throw new Error('エンティティのバイナリデータが見つかりません');
+                await g.saveNew(newName, data);
+                break;
+            }
+            case 'Image': {
+                const g = getGetter('Image');
+                const entity = await g.getById(asset.id);
+                if (!entity) throw new Error('エンティティ取得失敗');
+                g.rename(entity, newName);
+                const data = g.dataOf(entity);
+                if (!data) throw new Error('エンティティのバイナリデータが見つかりません');
+                await g.saveNew(newName, data);
+                break;
+            }
+            case 'Movie': {
+                const g = getGetter('Movie');
+                const entity = await g.getById(asset.id);
+                if (!entity) throw new Error('エンティティ取得失敗');
+                g.rename(entity, newName);
+                const data = g.dataOf(entity);
+                if (!data) throw new Error('エンティティのバイナリデータが見つかりません');
+                await g.saveNew(newName, data);
+                break;
+            }
+        }
         await fetchAssets();
     } catch (e) {
         alert('更新失敗: ' + (e instanceof Error ? e.message : e));
