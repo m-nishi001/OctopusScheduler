@@ -4,6 +4,7 @@ import { SaveMovieUseCase } from "./usecases/save-movie-usecase";
 import { GetMovieUseCase } from "./usecases/get-movie-usecase";
 import { GetMovieMetadatasUseCase } from "./usecases/get-movie-metadatas-usecase";
 import { RenameMovieUseCase } from "./usecases/rename-movie-usecase";
+import { DeleteMovieUseCase } from "./usecases/delete-movie-usecase";
 
 @injectable()
 export class MovieService implements GasService {
@@ -13,22 +14,26 @@ export class MovieService implements GasService {
     private getMovieUseCase: GetMovieUseCase;
     private getMovieMetadatasUseCase: GetMovieMetadatasUseCase;
     private renameMovieUseCase: RenameMovieUseCase;
+    private deleteMovieUseCase: DeleteMovieUseCase;
 
     constructor(
         @inject(SaveMovieUseCase) saveMovieUseCase: SaveMovieUseCase,
         @inject(GetMovieUseCase) getMovieUseCase: GetMovieUseCase,
         @inject(GetMovieMetadatasUseCase) getMovieMetadatasUseCase: GetMovieMetadatasUseCase,
         @inject(RenameMovieUseCase) renameMovieUseCase: RenameMovieUseCase
+        , @inject(DeleteMovieUseCase) deleteMovieUseCase: DeleteMovieUseCase
     ) {
         this.saveMovieUseCase = saveMovieUseCase;
         this.getMovieUseCase = getMovieUseCase;
         this.getMovieMetadatasUseCase = getMovieMetadatasUseCase;
         this.renameMovieUseCase = renameMovieUseCase;
+        this.deleteMovieUseCase = deleteMovieUseCase;
         this.functions = {
             saveMovie: this.saveMovie.bind(this),
             getMovieMetadatas: this.getMovieMetadatas.bind(this),
             getMovie: this.getMovie.bind(this),
-            renameMovie: this.renameMovie.bind(this)
+            renameMovie: this.renameMovie.bind(this),
+            deleteMovie: this.deleteMovie.bind(this)
         };
     }
 
@@ -63,5 +68,10 @@ export class MovieService implements GasService {
     private renameMovie(args: { movieId: string; newName: string }): { movieId: string } {
         this.renameMovieUseCase.execute(args.movieId, args.newName);
         return { movieId: args.movieId };
+    }
+
+    private deleteMovie(movieId: string): { movieId: string } {
+        this.deleteMovieUseCase.execute(movieId);
+        return { movieId };
     }
 }

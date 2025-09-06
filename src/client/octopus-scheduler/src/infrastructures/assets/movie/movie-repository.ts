@@ -78,8 +78,22 @@ export class MovieRepository implements IMovieRepository {
 
     public async delete(id: MovieId): Promise<void> {
         try {
+            // Request remote deletion first
+            await this.service
+                .createCall<void>("MovieService.deleteMovie", id.toString())
+                .withTimeout(20000)
+                .withSuccessed(() => console.log(`Movie with ID ${id.toString()} deleted on remote.`))
+                .withFailuered(message => {
+                    console.error(`Failed to delete movie on remote:`, message);
+                    throw new Error("Failed to delete movie on remote.");
+                })
+                .invoke();
+
+            // Remove local data and metadata
             await this.storage.delete(id.toString());
-            console.log(`Movie with ID ${id.toString()} deleted successfully.`);
+            const localMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), this.movieMetadataStoreName);
+            await localMetadataStorage.delete(id.toString());
+            console.log(`Movie with ID ${id.toString()} deleted successfully (remote + local).`);
         } catch (error) {
             console.error(`Failed to delete movie with ID ${id.toString()}:`, error);
             throw new Error("Failed to delete movie.");

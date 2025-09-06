@@ -81,8 +81,22 @@ export class ImageRepository implements IImageRepository {
 
     public async delete(id: ImageId): Promise<void> {
         try {
+            // Request remote deletion first
+            await this.service
+                .createCall<void>("ImageService.deleteImage", id.toString())
+                .withTimeout(20000)
+                .withSuccessed(() => console.log(`Image with ID ${id.toString()} deleted on remote.`))
+                .withFailuered(message => {
+                    console.error(`Failed to delete image on remote:`, message);
+                    throw new Error("Failed to delete image on remote.");
+                })
+                .invoke();
+
+            // Remove local data and metadata
             await this.storage.delete(id.toString());
-            console.log(`Image with ID ${id.toString()} deleted successfully.`);
+            const localMetadataStorage = new LocalStorageService(StorageConfig.getDbName(), this.imageMetadataStoreName);
+            await localMetadataStorage.delete(id.toString());
+            console.log(`Image with ID ${id.toString()} deleted successfully (remote + local).`);
         } catch (error) {
             console.error(`Failed to delete image with ID ${id.toString()}:`, error);
             throw new Error("Failed to delete image.");

@@ -4,6 +4,7 @@ import { GetImageUseCase } from "./usecases/get-image-usecase";
 import { SaveImageUseCase } from "./usecases/save-image-usecase";
 import { GetImageMetadatasUseCase } from "./usecases/get-image-metadatas-usecase";
 import { RenameImageUseCase } from "./usecases/rename-image-usecase";
+import { DeleteImageUseCase } from "./usecases/delete-image-usecase";
 
 @injectable()
 export class ImageService implements GasService {
@@ -13,22 +14,26 @@ export class ImageService implements GasService {
     private getImageUseCase: GetImageUseCase;
     private getImageMetadatasUseCase: GetImageMetadatasUseCase;
     private renameImageUseCase: RenameImageUseCase;
+    private deleteImageUseCase: DeleteImageUseCase;
 
     constructor(
         @inject(SaveImageUseCase) saveImageUseCase: SaveImageUseCase,
         @inject(GetImageUseCase) getImageUseCase: GetImageUseCase,
         @inject(GetImageMetadatasUseCase) getImageMetadatasUseCase: GetImageMetadatasUseCase,
         @inject(RenameImageUseCase) renameImageUseCase: RenameImageUseCase
+        , @inject(DeleteImageUseCase) deleteImageUseCase: DeleteImageUseCase
     ) {
         this.saveImageUseCase = saveImageUseCase;
         this.getImageUseCase = getImageUseCase;
         this.getImageMetadatasUseCase = getImageMetadatasUseCase;
         this.renameImageUseCase = renameImageUseCase;
+        this.deleteImageUseCase = deleteImageUseCase;
         this.functions = {
             saveImage: this.saveImage.bind(this),
             getImageMetadatas: this.getImageMetadatas.bind(this),
             getImage: this.getImage.bind(this),
-            renameImage: this.renameImage.bind(this)
+            renameImage: this.renameImage.bind(this),
+            deleteImage: this.deleteImage.bind(this)
         };
     }
 
@@ -63,5 +68,10 @@ export class ImageService implements GasService {
     private renameImage(args: { imageId: string; newName: string }): { imageId: string } {
         this.renameImageUseCase.execute(args.imageId, args.newName);
         return { imageId: args.imageId };
+    }
+
+    private deleteImage(imageId: string): { imageId: string } {
+        this.deleteImageUseCase.execute(imageId);
+        return { imageId };
     }
 }

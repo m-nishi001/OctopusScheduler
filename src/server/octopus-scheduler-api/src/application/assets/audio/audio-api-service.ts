@@ -4,6 +4,7 @@ import { SaveAudioUseCase } from "./usecases/save-audio-usecase";
 import { GetAudioUseCase } from "./usecases/get-audio-usecase";
 import { GetAudioMetadatasUseCase } from "./usecases/get-audio-metadatas-usecase";
 import { RenameAudioUseCase } from "./usecases/rename-audio-usecase";
+import { DeleteAudioUseCase } from "./usecases/delete-audio-usecase";
 import { AudioMetadata } from "../../../domain/assets/audio/vo/audio-metadata";
 
 // Google Apps Script Utilities型の型エラー抑制
@@ -23,22 +24,26 @@ export class AudioApiService implements GasService {
     private getAudioUseCase: GetAudioUseCase;
     private getAudioMetadatasUseCase: GetAudioMetadatasUseCase;
     private renameAudioUseCase: RenameAudioUseCase;
+    private deleteAudioUseCase: DeleteAudioUseCase;
 
     constructor(
         @inject(SaveAudioUseCase) saveAudioUseCase: SaveAudioUseCase,
         @inject(GetAudioUseCase) getAudioUseCase: GetAudioUseCase,
         @inject(GetAudioMetadatasUseCase) getAudioMetadatasUseCase: GetAudioMetadatasUseCase,
         @inject(RenameAudioUseCase) renameAudioUseCase: RenameAudioUseCase
+        , @inject(DeleteAudioUseCase) deleteAudioUseCase: DeleteAudioUseCase
     ) {
         this.saveAudioUseCase = saveAudioUseCase;
         this.getAudioUseCase = getAudioUseCase;
         this.getAudioMetadatasUseCase = getAudioMetadatasUseCase;
         this.renameAudioUseCase = renameAudioUseCase;
+        this.deleteAudioUseCase = deleteAudioUseCase;
         this.functions = {
             "getAudioMetadatas": this.getAudioMetadatas.bind(this),
             "getAudio": this.getAudio.bind(this),
             "saveAudio": this.saveAudio.bind(this),
-            "renameAudio": this.renameAudio.bind(this)
+            "renameAudio": this.renameAudio.bind(this),
+            "deleteAudio": this.deleteAudio.bind(this)
         };
     }
 
@@ -83,5 +88,10 @@ export class AudioApiService implements GasService {
     private renameAudio(args: { audioId: string; newName: string }): { audioId: string } {
         this.renameAudioUseCase.execute(args.audioId, args.newName);
         return { audioId: args.audioId };
+    }
+
+    private deleteAudio(audioId: string): { audioId: string } {
+        this.deleteAudioUseCase.execute(audioId);
+        return { audioId };
     }
 }
