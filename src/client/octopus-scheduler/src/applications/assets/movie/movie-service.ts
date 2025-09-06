@@ -1,31 +1,18 @@
 import type { IMovieRepository } from "../../../domains/assets/movie/repository/movie-repository";
 import { MovieRepository } from "../../../infrastructures/assets/movie/movie-repository";
-import { SaveMovieUseCase } from "./usecase/save-movie-usecase";
-import { GetMovieUseCase } from "./usecase/get-movie-usecase";
-import { ListMoviesUseCase } from "./usecase/list-movies-usecase";
-import { DeleteMovieUseCase } from "./usecase/delete-movie-usecase";
-import { SyncMoviesUseCase } from "./usecase/sync-movies-usecase";
 import { Movie } from "../../../domains/assets/movie/entity/movie";
+import { MovieId } from "../../../domains/assets/movie/vo/movie-id";
 
 export class MovieService {
-    private readonly saveUc: SaveMovieUseCase;
-    private readonly getUc: GetMovieUseCase;
-    private readonly listUc: ListMoviesUseCase;
-    private readonly deleteUc: DeleteMovieUseCase;
-    private readonly syncUc: SyncMoviesUseCase;
+    private readonly movieRepository: IMovieRepository;
 
     constructor(movieRepository?: IMovieRepository) {
-        const repo = movieRepository ?? new MovieRepository();
-        this.saveUc = new SaveMovieUseCase(repo);
-        this.getUc = new GetMovieUseCase(repo);
-        this.listUc = new ListMoviesUseCase(repo);
-        this.deleteUc = new DeleteMovieUseCase(repo);
-        this.syncUc = new SyncMoviesUseCase(repo);
+        this.movieRepository = movieRepository ?? new MovieRepository();
     }
 
     public async saveNewMovie(movieName: string, data: Blob): Promise<void> {
         try {
-            await this.saveUc.execute(movieName, data);
+            await this.movieRepository.save(Movie.create(movieName, data));
         } catch (error) {
             console.error("Failed to save new movie:", error);
             throw new Error("Failed to save new movie.");
@@ -34,7 +21,7 @@ export class MovieService {
 
     public async getMovieById(movieId: string): Promise<Movie | null> {
         try {
-            return await this.getUc.execute(movieId);
+            return await this.movieRepository.findById(MovieId.create(movieId));
         } catch (error) {
             console.error(`Failed to get movie with ID ${movieId}:`, error);
             return null;
@@ -43,7 +30,7 @@ export class MovieService {
 
     public async getAllMovies(): Promise<Movie[]> {
         try {
-            return await this.listUc.execute();
+            return await this.movieRepository.findAll();
         } catch (error) {
             console.error("Failed to get all movies:", error);
             return [];
@@ -52,7 +39,7 @@ export class MovieService {
 
     public async deleteMovie(movieId: string): Promise<void> {
         try {
-            await this.deleteUc.execute(movieId);
+            await this.movieRepository.delete(MovieId.create(movieId));
         } catch (error) {
             console.error(`Failed to delete movie with ID ${movieId}:`, error);
             throw new Error("Failed to delete movie.");
@@ -61,7 +48,7 @@ export class MovieService {
 
     public async syncMovies(): Promise<void> {
         try {
-            await this.syncUc.execute();
+            await this.movieRepository.sync();
             console.log("Movies synchronized successfully.");
         } catch (error) {
             console.error("Failed to sync movies:", error);
