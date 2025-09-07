@@ -150,7 +150,9 @@ namespace SpreadsheetDataStore {
                 record.reduce((previous, current, columnIndex) => {
                     const columnName = header[columnIndex];
                     if (columnName) {
-                        previous[columnName] = current;
+                        previous[columnName] = (typeof current === 'string' && current.startsWith('{'))
+                            ? JSON.parse(current)
+                            : current;
                     }
                     return previous;
                 }, {})
@@ -216,12 +218,15 @@ namespace SpreadsheetDataStore {
                 Logger.log(`[DataStoreRepository.save] Updated record with ID: ${entityWithId.id}`);
             } else {
                 // Insert a new record
-                if (!sheet) {
-                    const newSheet = this.accessor.createSheet(this.sheetName, columnDefinitions as ColumnDefinition[]);
-                    newSheet.appendRow(Object.values(entity as object));
-                } else {
-                    sheet.appendRow(Object.values(entity as object));
-                }
+                const targetSheet = sheet ?? this.accessor.createSheet(this.sheetName, columnDefinitions as ColumnDefinition[]);
+                const values = Object
+                    .values(entity as object)
+                    .map(value =>
+                        typeof value === 'object' && value !== null
+                            ? JSON.stringify(value)
+                            : value
+                    );
+                targetSheet.appendRow(values);
                 Logger.log(`[DataStoreRepository.save] Inserted new record.`);
             }
             return entity;

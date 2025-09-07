@@ -1,5 +1,5 @@
-import { IScheduleEventRepository } from "../../../domain/schedule/schedule-event-reposiotry";
-import { GetLatestEventsService } from "../../../domain/schedule/service/get-latest-events-service";
+import { ScheduleEventFactory } from "../../../domain/schedule-event/schedule-event-factory";
+import { IScheduleEventRepository } from "../../../domain/schedule-event/schedule-event-reposiotry";
 
 export class GetLatestEventsUseCase {
     constructor(private repository: IScheduleEventRepository) { }
@@ -11,26 +11,15 @@ export class GetLatestEventsUseCase {
 
         Logger.log(`[GetLatestEventsUseCase] targetTime: ${targetTime ? targetTime : 'not provided'}, now: ${Utilities.formatDate(now, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss')}`);
 
-        const all = this.repository.findAll().filter(e => !e.processedAt);
-        const { startEvents, endEvents } = GetLatestEventsService.execute(all, now);
+        const all = this.repository.find(e => !e.processedAt);
+        const startEvents = all.filter(e => e.scheduleTimeSpan.start <= now && now < e.scheduleTimeSpan.end);
+        const endEvents = all.filter(e => e.scheduleTimeSpan.end <= now);
 
-        Logger.log(`[GetLatestEventsUseCase] returning startEvents: ${JSON.stringify(startEvents.map(e => e.eventId.id))}, endEvents: ${JSON.stringify(endEvents.map(e => e.eventId.id))}`);
+        Logger.log(`[GetLatestEventsUseCase] returning startEvents: ${JSON.stringify(startEvents.map(e => e.scheduleEventId))}, endEvents: ${JSON.stringify(endEvents.map(e => e.scheduleEventId))}`);
 
         return {
-            startEvents: startEvents.map(e => ({
-                id: e.eventId.id,
-                eventName: e.eventName.name,
-                start: e.timeSpan.start,
-                end: e.timeSpan.end,
-                eventDetailJson: e.eventDetailJson
-            })),
-            endEvents: endEvents.map(e => ({
-                id: e.eventId.id,
-                eventName: e.eventName.name,
-                start: e.timeSpan.start,
-                end: e.timeSpan.end,
-                eventDetailJson: e.eventDetailJson
-            }))
+            startEvents: startEvents.map(e => ScheduleEventFactory.convertToEntity(e)),
+            endEvents: endEvents.map(e => ScheduleEventFactory.convertToEntity(e)),
         };
     }
 }

@@ -1,17 +1,15 @@
-import { IScheduleEventRepository } from "../../../domain/schedule/schedule-event-reposiotry";
+import { IScheduleEvent } from "../../../domain/schedule-event/entity/schedule-event";
+import { ScheduleEventFactory } from "../../../domain/schedule-event/schedule-event-factory";
+import { IScheduleEventRepository } from "../../../domain/schedule-event/schedule-event-reposiotry";
 
 export class GetAllSchedulesUseCase {
     constructor(private repository: IScheduleEventRepository) { }
 
-    execute(): any[] {
+    execute(): IScheduleEvent[] {
         return this.repository
             .findAll()
-            .map(scheduleEvent => ({
-                id: scheduleEvent.eventId.id,
-                eventName: scheduleEvent.eventName.name,
-                start: scheduleEvent.timeSpan.start,
-                end: scheduleEvent.timeSpan.end,
-                eventDetailJson: scheduleEvent.eventDetailJson
-            }));
+            .map(scheduleEvent => ScheduleEventFactory.convertToEntity(scheduleEvent))
+            .filter((event): event is IScheduleEvent => event !== null)
+            .map(event => event.serialize());
     }
 }

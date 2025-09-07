@@ -1,81 +1,54 @@
-
-import { ScheduleEvent } from "../../domain/schedule/entity/schedule-event";
-import { IScheduleEventRepository } from "../../domain/schedule/schedule-event-reposiotry";
-import { ScheduleEventName } from "../../domain/schedule/value-object/schedule-event-name";
-import { ScheduleTimeSpan } from "../../domain/schedule/value-object/schedule-timespan";
-import { ScheduleEventId } from "../../domain/schedule/value-object/schedule-event-id";
+import { IScheduleEvent } from "../../domain/schedule-event/entity/schedule-event";
+import { IScheduleEventRepository } from "../../domain/schedule-event/schedule-event-reposiotry";
 import { DataAccessService, IRepository } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-spreadsheet-servie";
 import { injectable } from "tsyringe";
 
 @injectable()
 export class SpreadsheetScheduleEventRepository implements IScheduleEventRepository {
-	private readonly repository: IRepository<any>;
+	private readonly repository: IRepository<IScheduleEvent>;
 	private readonly sheetName = "ScheduleEvents";
 
 	constructor() {
-		this.repository = DataAccessService.getRepository<any>(this.sheetName);
+		this.repository = DataAccessService.getRepository<IScheduleEvent>(this.sheetName);
 	}
 
-	add(events: ScheduleEvent[]): number {
+	add(events: IScheduleEvent[]): number {
 		let count = 0;
 		for (const event of events) {
-			this.repository.save({
-				id: event.eventId.id,
-				eventName: event.eventName.name,
-				start: new Date(event.timeSpan.start).toISOString(),
-				end: new Date(event.timeSpan.end).toISOString(),
-				eventDetailJson: event.eventDetailJson, // 固有情報を保存
-				processedAt: event.processedAt ? event.processedAt.toISOString() : null
-			});
+			this.repository.save(event.serialize());
 			count++;
 		}
 		return count;
 	}
 
-	find(predicate: (entity: ScheduleEvent) => boolean): ScheduleEvent[] {
-		// いったん全件取得し、ScheduleEventに変換してからpredicateで絞り込む
+	find(predicate: (entity: IScheduleEvent) => boolean): IScheduleEvent[] {
 		return this.findAll().filter(predicate);
 	}
 
-	findAll(): ScheduleEvent[] {
+	findAll(): IScheduleEvent[] {
 		const records = this.repository.find(() => true);
-		const results = records.map(obj => {
-			const eventName = ScheduleEventName.create(obj.eventName) ?? ScheduleEventName.Empty;
-			const timeSpan = ScheduleTimeSpan.create(new Date(obj.start), new Date(obj.end)) ?? ScheduleTimeSpan.Empty;
-			const eventId = ScheduleEventId.from(obj.id) ?? ScheduleEventId.Empty;
-			const eventDetailJson = typeof obj.eventDetailJson === "string" ? obj.eventDetailJson : "{}";
-			const processedAt = obj.processedAt ? new Date(obj.processedAt) : null;
-			return new ScheduleEvent(eventName, timeSpan, eventId, eventDetailJson, processedAt);
-		});
-		Logger.log(`[SpreadsheetScheduleEventRepository] Retrieved ${JSON.stringify(results)} schedule events.`);
-		return results;
+		Logger.log(`[SpreadsheetScheduleEventRepository] Retrieved ${JSON.stringify(records)} schedule events.`);
+		return records;
 	}
 
-	update(predicate: (entity: ScheduleEvent) => boolean, executor: (entity: ScheduleEvent) => ScheduleEvent): number {
+	update(predicate: (entity: IScheduleEvent) => boolean, executor: (entity: IScheduleEvent) => IScheduleEvent): number {
 		const all = this.findAll();
 		let updated = 0;
 		for (const event of all) {
 			if (predicate(event)) {
 				const updatedEvent = executor(event);
-				this.repository.save({
-					id: updatedEvent.eventId.id,
-					eventName: updatedEvent.eventName.name,
-					start: new Date(updatedEvent.timeSpan.start).toISOString(),
-					end: new Date(updatedEvent.timeSpan.end).toISOString(),
-					eventDetailJson: updatedEvent.eventDetailJson,
-					processedAt: updatedEvent.processedAt ? updatedEvent.processedAt.toISOString() : null
-				});
+				this.repository.save(updatedEvent);
 				updated++;
 			}
 		}
 		return updated;
 	}
 
-	delete(predicate: (entity: ScheduleEvent) => boolean): number {
+	delete(predicate: (entity: IScheduleEvent) => boolean): number {
 		const all = this.findAll();
 		const beforeCount = all.length;
 		this.repository.delete((obj: any) => {
-			const event = all.find(e => e.eventId.id === obj.id);
+			const event = all.find(e => e.scheduleEventId === obj.id);
 			return event ? predicate(event) : false;
 		});
 		const afterCount = this.findAll().length;

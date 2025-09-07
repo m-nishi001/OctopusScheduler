@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { AssetSyncService } from './applications/assets/asset-sync-service';
+import { AssetSyncService } from './model/applications/assets/asset-sync-service';
 
 onMounted(async () => {
   // クリーンアーキテクチャに従い、アプリケーションサービス経由で同期処理を実行

@@ -2,6 +2,6 @@ import "reflect-metadata";
 import { createApp } from 'vue';
 import './style.css'
 import App from './App.vue';
-import router from './router';
+import router from './ui/router';
 
 createApp(App).use(router).mount('#app');

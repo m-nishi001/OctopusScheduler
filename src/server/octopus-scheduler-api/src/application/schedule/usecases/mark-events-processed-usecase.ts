@@ -1,24 +1,23 @@
-import { IScheduleEventRepository } from "../../../domain/schedule/schedule-event-reposiotry";
-import { ScheduleEvent } from "../../../domain/schedule/entity/schedule-event";
+import { IScheduleEventRepository } from "../../../domain/schedule-event/schedule-event-reposiotry";
+import { IScheduleEvent } from "../../../domain/schedule-event/entity/schedule-event";
+import { ScheduleEventFactory } from "../../../domain/schedule-event/schedule-event-factory";
 
 export class MarkEventsProcessedUseCase {
     constructor(private repository: IScheduleEventRepository) { }
 
-    execute(args: { eventIds: string[] } | undefined): { updated: number } {
-        if (!args || !Array.isArray(args.eventIds)) return { updated: 0 };
+    execute(args: { scheduleEventIds: string[] } | undefined): { updated: number } {
+        if (!args || !Array.isArray(args.scheduleEventIds)) return { updated: 0 };
         const now = new Date();
         const updated = this.repository.update(
-            (entity: ScheduleEvent) => args.eventIds.includes(entity.eventId.id),
-            (entity: ScheduleEvent) => {
-                return new ScheduleEvent(
-                    entity.eventName,
-                    entity.timeSpan,
-                    entity.eventId,
-                    entity.eventDetailJson,
-                    now
-                );
+            (entity: IScheduleEvent) => args.scheduleEventIds.includes(entity.scheduleEventId),
+            (entity: IScheduleEvent) => {
+                const scheduleEvent = ScheduleEventFactory.convertToEntity(entity);
+
+                if (!scheduleEvent) throw new Error("Failed to convert to entity");
+
+                return scheduleEvent.markAsProcessed(now);
             }
         );
-        return { updated };
+        return { updated: updated };
     }
 }
