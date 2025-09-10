@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { AssetSyncService } from './model/applications/assets/asset-sync-service';
 
 onMounted(async () => {
   // クリーンアーキテクチャに従い、アプリケーションサービス経由で同期処理を実行
-  const assetSyncService = new AssetSyncService();
-  try {
-    await assetSyncService.syncAll();
-    console.log('全アセットの同期が完了しました');
-  } catch (e) {
-    console.error('アセット同期中にエラーが発生しました', e);
-  }
+  // const assetSyncService = new AssetSyncService();
+  // try {
+  //   await assetSyncService.syncAll();
+  //   console.log('全アセットの同期が完了しました');
+  // } catch (e) {
+  //   console.error('アセット同期中にエラーが発生しました', e);
+  // }
 });
 </script>
 

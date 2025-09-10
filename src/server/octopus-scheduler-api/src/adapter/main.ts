@@ -50,6 +50,7 @@ function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiR
 
   const targetFunction = container
     .resolveAll<GasService>("IGasService")
+    .filter(service => service.serviceName === serviceName)
     .map(service => service.functions[functionName])
     .find(func => func !== undefined);
 

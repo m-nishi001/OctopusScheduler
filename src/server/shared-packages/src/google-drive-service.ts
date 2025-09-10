@@ -238,7 +238,6 @@ export class GoogleDriveService {
         const fileMetadata: GoogleAppsScript.Drive_v3.Drive.V3.Schema.File = {
             name: fileName.name,
             mimeType: mimeType.toString(),
-            parents: [parentFolderId.id]
         };
 
         try {
@@ -247,6 +246,7 @@ export class GoogleDriveService {
                     DriveApp.getFileById(fileId.id);
                     return Drive.Files.update(fileMetadata, fileId.id, options.blob);
                 } catch (e) {
+                    Logger.log(`[uploadFile] Failed to update file with ID ${fileId.id}: ${e}`);
                     return Drive.Files.create(fileMetadata, options.blob);
                 }
             } else {

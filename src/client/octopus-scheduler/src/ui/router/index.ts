@@ -8,8 +8,8 @@ const routes = [
   },
   {
     path: '/assets',
-    name: 'asset-editor',
-    component: () => import('../components/AssetList/AssetEditor.vue')
+    name: 'asset-list-editor',
+    component: () => import('../components/AssetList/AssetListEditor.vue')
   },
   {
     path: '/events',
