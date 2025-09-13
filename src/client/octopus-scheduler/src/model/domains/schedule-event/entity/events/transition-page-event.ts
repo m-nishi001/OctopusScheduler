@@ -1,8 +1,10 @@
+import { injectable } from "tsyringe";
 import type { IScheduleEventType } from "../../vo/event-types/event-type";
 import { PlayAudioEventType } from "../../vo/event-types/events/play-audio-event-type";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 import type { IScheduleEvent } from "../schedule-event";
 
+@injectable()
 export class TransitionPageEvent implements IScheduleEvent {
     private _scheduleEventId: string;
     private _scheduleEventName: string;
@@ -14,53 +16,44 @@ export class TransitionPageEvent implements IScheduleEvent {
     // 独自のプロパティ
     private _scheduleEventDetail: TransitionPageDetail;
 
-    private constructor(
-        scheduleEventId: string,
-        scheudleEventName: string,
-        scheduleTimespan: ScheduleTimeSpan,
-        scheduleEventDetail: TransitionPageDetail,
-        processedAt: Date | null,
-        registeredAt: Date,
-        updatedAt: Date
-    ) {
-        this._scheduleEventId = scheduleEventId;
-        this._scheduleEventName = scheudleEventName;
-        this._scheduleTimespan = scheduleTimespan;
-        this._scheduleEventDetail = scheduleEventDetail;
-        this._processedAt = processedAt;
-        this._registeredAt = registeredAt;
-        this._updatedAt = updatedAt;
-    }
+        public constructor() {
+            this._scheduleEventId = "";
+            this._scheduleEventName = "";
+            this._scheduleTimespan = ScheduleTimeSpan.Empty;
+            this._scheduleEventDetail = new TransitionPageDetail("");
+            this._processedAt = null;
+            this._registeredAt = new Date();
+            this._updatedAt = new Date();
+        }
 
     static create(eventName: string): TransitionPageEvent | null {
         if (eventName === "") {
             console.log(`[TransitionPageEvent.create] eventName is empty.`);
             return null;
         }
-
-        return new TransitionPageEvent(
-            "", // サーバー側でIDを採番するため空文字をセット
-            eventName,
-            ScheduleTimeSpan.Empty,
-            new TransitionPageDetail(""),
-            null,
-            new Date(),
-            new Date()
-        );
+        const instance = new TransitionPageEvent();
+        instance._scheduleEventId = "";
+        instance._scheduleEventName = eventName;
+        instance._scheduleTimespan = ScheduleTimeSpan.Empty;
+        instance._scheduleEventDetail = new TransitionPageDetail("");
+        instance._processedAt = null;
+        instance._registeredAt = new Date();
+        instance._updatedAt = new Date();
+        return instance;
     }
 
     static from(event: IScheduleEvent): TransitionPageEvent | null {
-        return new TransitionPageEvent(
-            event.scheduleEventId,
-            event.scheduleEventName,
-            event.scheduleTimeSpan,
-            event.scheduleEventDetail instanceof TransitionPageDetail
-                ? event.scheduleEventDetail
-                : new TransitionPageDetail(event.scheduleEventDetail?.transitionUrl ?? ""),
-            event.processedAt,
-            event.registeredAt,
-            event.updatedAt
-        );
+        const instance = new TransitionPageEvent();
+        instance._scheduleEventId = event.scheduleEventId;
+        instance._scheduleEventName = event.scheduleEventName;
+        instance._scheduleTimespan = event.scheduleTimeSpan;
+        instance._scheduleEventDetail = event.scheduleEventDetail instanceof TransitionPageDetail
+            ? event.scheduleEventDetail
+            : new TransitionPageDetail(event.scheduleEventDetail?.transitionUrl ?? "");
+        instance._processedAt = event.processedAt;
+        instance._registeredAt = event.registeredAt;
+        instance._updatedAt = event.updatedAt;
+        return instance;
     }
 
     serialize(): IScheduleEvent {
@@ -84,24 +77,20 @@ export class TransitionPageEvent implements IScheduleEvent {
         return this._scheduleEventId === another.scheduleEventId;
     }
 
-    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): IScheduleEvent {
+    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): void {
         this._scheduleTimespan = newTimeSpan;
-        return this;
     }
 
-    updateEventDetail(newEventDetail: TransitionPageDetail): IScheduleEvent {
+    updateEventDetail(newEventDetail: TransitionPageDetail): void {
         this._scheduleEventDetail = newEventDetail;
-        return this;
     }
 
-    updateEventName(newEventName: string): IScheduleEvent {
+    updateEventName(newEventName: string): void {
         this._scheduleEventName = newEventName;
-        return this;
     }
 
-    markAsProcessed(processedAt: Date = new Date()): IScheduleEvent {
+    markAsProcessed(processedAt: Date = new Date()): void {
         this._processedAt = processedAt;
-        return this;
     }
 
     get scheduleEventId(): string {

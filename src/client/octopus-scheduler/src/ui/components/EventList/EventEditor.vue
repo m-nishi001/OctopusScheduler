@@ -31,7 +31,7 @@
         </tr>
       </tbody>
     </table>
-    <div v-if="editing" class="editor-form">
+    <div v-if="editing && form" class="editor-form">
       <h3>{{ isNew ? '新規イベント追加' : 'イベント編集' }}</h3>
       <form @submit.prevent="onSave">
         <label>
@@ -41,7 +41,7 @@
         <label>
           種別:
           <select v-model="form.eventType">
-            <option v-for="type in eventTypes" :key="type.scheduleEventType" :value="type">
+            <option v-for="type in eventTypes" :key="type.eventType" :value="type.eventType">
               {{ type.displayName }}
             </option>
           </select>
@@ -64,36 +64,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
-import { ScheduleEventService } from '../../../model/applications/schedule/schedule-event-service';
+import { ScheduleEventService } from '../../../model/applications/schedule-event/schedule-event-service';
 import type { IScheduleEvent } from '../../../model/domains/schedule-event/entity/schedule-event';
-import { PlayAudioEventType } from '../../../model/domains/schedule-event/vo/event-types/events/play-audio-event-type';
-import { PlayMovieEventType } from '../../../model/domains/schedule-event/vo/event-types/events/play-movie-event-type';
-import { ShowImageEventType } from '../../../model/domains/schedule-event/vo/event-types/events/show-image-event-type';
-import { TransitionPageEventType } from '../../../model/domains/schedule-event/vo/event-types/events/transition-page-event';
-import { ScheduleTimeSpan } from '../../../model/domains/schedule-event/vo/schedule-timespan';
+import type { CreateScheduleEventDto } from '../../../model/applications/schedule-event/dtos/create-schedule-event-dto';
+import type { EventTypeDto } from '../../../model/applications/schedule-event/dtos/event-type-dto';
 
 const events = ref<IScheduleEvent[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const editing = ref(false);
 const isNew = ref(true);
+const eventTypes = ref<EventTypeDto[]>([]);
 
-const eventTypes = [
-  new PlayAudioEventType(),
-  new PlayMovieEventType(),
-  new ShowImageEventType(),
-  new TransitionPageEventType()
-];
-
-const form = reactive({
-  eventId: '',
-  eventName: '',
-  eventType: eventTypes[0],
-  start: '',
-  end: ''
-});
+const form = ref<CreateScheduleEventDto | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 
@@ -125,39 +110,37 @@ function onReload() {
 function onNew() {
   isNew.value = true;
   editing.value = true;
-  form.eventId = '';
-  form.eventName = '';
-  form.eventType = eventTypes[0];
-  form.start = '';
-  form.end = '';
+  form.value = {
+    eventName: '',
+    eventType: eventTypes.value[0]?.eventType ?? '',
+    start: '',
+    end: '',
+    detail: undefined
+  };
 }
 
 function onEdit(ev: IScheduleEvent) {
   isNew.value = false;
   editing.value = true;
-  form.eventId = ev.scheduleEventId;
-  form.eventName = ev.scheduleEventName;
-  form.eventType = eventTypes.find(t => t.scheduleEventType === ev.scheduleEventType.scheduleEventType) || eventTypes[0];
-  form.start = ev.scheduleTimeSpan?.start ? new Date(ev.scheduleTimeSpan.start).toISOString().slice(0, 16) : '';
-  form.end = ev.scheduleTimeSpan?.end ? new Date(ev.scheduleTimeSpan.end).toISOString().slice(0, 16) : '';
+  form.value = {
+    eventName: ev.scheduleEventName,
+    eventType: ev.scheduleEventType.scheduleEventType,
+    start: ev.scheduleTimeSpan?.start ? new Date(ev.scheduleTimeSpan.start).toISOString().slice(0, 16) : '',
+    end: ev.scheduleTimeSpan?.end ? new Date(ev.scheduleTimeSpan.end).toISOString().slice(0, 16) : '',
+    detail: ev.scheduleEventDetail ?? undefined
+  };
 }
 
 async function onSave() {
-  if (!form.eventName || !form.start || !form.end) {
+  if (!form.value?.eventName || !form.value?.start || !form.value?.end || !form.value?.eventType) {
     alert('必須項目を入力してください');
     return;
   }
   saving.value = true;
   try {
-    const startDate = new Date(form.start);
-    const endDate = new Date(form.end);
-    const timeSpan = ScheduleTimeSpan.create(startDate, endDate);
-    if (!timeSpan) throw new Error('開始日時と終了日時が不正です');
-
     if (isNew.value) {
       // 新規作成
-      await scheduleEventService.createNewScheduleEvent(form.eventType, form.eventName);
-      // 更新系は未実装のため、編集は不可
+      await scheduleEventService.createScheduleEvent(form.value);
     } else {
       alert('編集（update）は未実装です。');
     }

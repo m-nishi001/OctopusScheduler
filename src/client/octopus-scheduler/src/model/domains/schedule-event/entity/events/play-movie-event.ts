@@ -1,8 +1,10 @@
+import { injectable } from "tsyringe";
 import type { IScheduleEventType } from "../../vo/event-types/event-type";
 import { PlayAudioEventType } from "../../vo/event-types/events/play-audio-event-type";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 import type { IScheduleEvent } from "../schedule-event";
 
+@injectable()
 export class PlayMovieEvent implements IScheduleEvent {
     private _scheduleEventId: string;
     private _scheduleEventName: string;
@@ -14,51 +16,42 @@ export class PlayMovieEvent implements IScheduleEvent {
     // 独自のプロパティ
     private _scheduleEventDetail: PlayMovieEventDetail;
 
-    private constructor(
-        scheduleEventId: string,
-        scheduuleEventName: string,
-        scheduleTimespan: ScheduleTimeSpan,
-        scheduleEventDetail: PlayMovieEventDetail,
-        processedAt: Date | null,
-        registeredAt: Date,
-        updatedAt: Date
-    ) {
-        this._scheduleEventId = scheduleEventId;
-        this._scheduleEventName = scheduuleEventName;
-        this._scheduleTimespan = scheduleTimespan;
-        this._scheduleEventDetail = scheduleEventDetail;
-        this._processedAt = processedAt;
-        this._registeredAt = registeredAt;
-        this._updatedAt = updatedAt;
-    }
+        public constructor() {
+            this._scheduleEventId = "";
+            this._scheduleEventName = "";
+            this._scheduleTimespan = ScheduleTimeSpan.Empty;
+            this._scheduleEventDetail = new PlayMovieEventDetail("");
+            this._processedAt = null;
+            this._registeredAt = new Date();
+            this._updatedAt = new Date();
+        }
 
     static create(eventName: string): PlayMovieEvent | null {
         if (eventName === "") {
             console.log(`[PlayMovieEvent.create] eventName is empty.`);
             return null;
         }
-
-        return new PlayMovieEvent(
-            "", // サーバー側でIDを採番するため空文字をセット
-            eventName,
-            ScheduleTimeSpan.Empty,
-            new PlayMovieEventDetail(""),
-            null,
-            new Date(),
-            new Date()
-        );
+        const instance = new PlayMovieEvent();
+        instance._scheduleEventId = "";
+        instance._scheduleEventName = eventName;
+        instance._scheduleTimespan = ScheduleTimeSpan.Empty;
+        instance._scheduleEventDetail = new PlayMovieEventDetail("");
+        instance._processedAt = null;
+        instance._registeredAt = new Date();
+        instance._updatedAt = new Date();
+        return instance;
     }
 
     static from(another: IScheduleEvent): PlayMovieEvent | null {
-        return new PlayMovieEvent(
-            another.scheduleEventId,
-            another.scheduleEventName,
-            another.scheduleTimeSpan,
-            new PlayMovieEventDetail(another.scheduleEventDetail.movieId),
-            another.processedAt,
-            another.registeredAt,
-            another.updatedAt
-        );
+        const instance = new PlayMovieEvent();
+        instance._scheduleEventId = another.scheduleEventId;
+        instance._scheduleEventName = another.scheduleEventName;
+        instance._scheduleTimespan = another.scheduleTimeSpan;
+        instance._scheduleEventDetail = new PlayMovieEventDetail(another.scheduleEventDetail.movieId);
+        instance._processedAt = another.processedAt;
+        instance._registeredAt = another.registeredAt;
+        instance._updatedAt = another.updatedAt;
+        return instance;
     }
 
     serialize(): IScheduleEvent {
@@ -82,24 +75,20 @@ export class PlayMovieEvent implements IScheduleEvent {
         return this._scheduleEventId === another.scheduleEventId;
     }
 
-    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): IScheduleEvent {
+    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): void {
         this._scheduleTimespan = newTimeSpan;
-        return this;
     }
 
-    updateEventDetail(newEventDetail: PlayMovieEventDetail): IScheduleEvent {
+    updateEventDetail(newEventDetail: PlayMovieEventDetail): void {
         this._scheduleEventDetail = newEventDetail;
-        return this;
     }
 
-    updateEventName(newEventName: string): IScheduleEvent {
+    updateEventName(newEventName: string): void {
         this._scheduleEventName = newEventName;
-        return this;
     }
 
-    markAsProcessed(processedAt: Date = new Date()): IScheduleEvent {
+    markAsProcessed(processedAt: Date = new Date()): void {
         this._processedAt = processedAt;
-        return this;
     }
 
     get scheduleEventId(): string {

@@ -1,8 +1,10 @@
+import { injectable } from "tsyringe";
 import type { IScheduleEventType } from "../../vo/event-types/event-type";
 import { PlayAudioEventType } from "../../vo/event-types/events/play-audio-event-type";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 import type { IScheduleEvent } from "../schedule-event";
 
+@injectable()
 export class PlayAudioEvent implements IScheduleEvent {
     private _scheduleEventId: string;
     private _scheduleEventName: string;
@@ -14,22 +16,15 @@ export class PlayAudioEvent implements IScheduleEvent {
     // 独自のプロパティ
     private _scheduleEventDetail: PlayAudioEventDetail;
 
-    private constructor(
-        eventId: string,
-        eventName: string,
-        timeSpan: ScheduleTimeSpan,
-        eventDetail: PlayAudioEventDetail,
-        processedAt: Date | null,
-        registeredAt: Date,
-        updatedAt: Date
-    ) {
-        this._scheduleEventId = eventId;
-        this._scheduleEventName = eventName;
-        this._scheduleTimespan = timeSpan;
-        this._scheduleEventDetail = eventDetail;
-        this._processedAt = processedAt;
-        this._registeredAt = registeredAt;
-        this._updatedAt = updatedAt;
+    public constructor() {
+        // 空の初期化（必要ならデフォルト値をセット）
+        this._scheduleEventId = "";
+        this._scheduleEventName = "";
+        this._scheduleTimespan = ScheduleTimeSpan.Empty;
+        this._scheduleEventDetail = new PlayAudioEventDetail("");
+        this._processedAt = null;
+        this._registeredAt = new Date();
+        this._updatedAt = new Date();
     }
 
     static create(eventName: string): PlayAudioEvent | null {
@@ -37,28 +32,27 @@ export class PlayAudioEvent implements IScheduleEvent {
             console.log(`[PlayAudioEvent.create] eventName is empty.`);
             return null;
         }
-
-        return new PlayAudioEvent(
-            "", // サーバー側でIDを採番するため空文字をセット
-            eventName,
-            ScheduleTimeSpan.Empty,
-            new PlayAudioEventDetail(""),
-            null,
-            new Date(),
-            new Date()
-        );
+        const instance = new PlayAudioEvent();
+        instance._scheduleEventId = "";
+        instance._scheduleEventName = eventName;
+        instance._scheduleTimespan = ScheduleTimeSpan.Empty;
+        instance._scheduleEventDetail = new PlayAudioEventDetail("");
+        instance._processedAt = null;
+        instance._registeredAt = new Date();
+        instance._updatedAt = new Date();
+        return instance;
     }
 
     static from(another: IScheduleEvent): PlayAudioEvent | null {
-        return new PlayAudioEvent(
-            another.scheduleEventId,
-            another.scheduleEventName,
-            another.scheduleTimeSpan,
-            another.scheduleEventDetail,
-            another.processedAt,
-            another.registeredAt,
-            another.updatedAt
-        );
+        const instance = new PlayAudioEvent();
+        instance._scheduleEventId = another.scheduleEventId;
+        instance._scheduleEventName = another.scheduleEventName;
+        instance._scheduleTimespan = another.scheduleTimeSpan;
+        instance._scheduleEventDetail = another.scheduleEventDetail;
+        instance._processedAt = another.processedAt;
+        instance._registeredAt = another.registeredAt;
+        instance._updatedAt = another.updatedAt;
+        return instance;
     }
 
     serialize(): IScheduleEvent {
@@ -82,24 +76,20 @@ export class PlayAudioEvent implements IScheduleEvent {
         return this._scheduleEventId === another.scheduleEventId;
     }
 
-    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): IScheduleEvent {
+    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): void {
         this._scheduleTimespan = newTimeSpan;
-        return this;
     }
 
-    updateEventDetail(newEventDetail: PlayAudioEventDetail): IScheduleEvent {
+    updateEventDetail(newEventDetail: PlayAudioEventDetail): void {
         this._scheduleEventDetail = newEventDetail;
-        return this;
     }
 
-    updateEventName(newEventName: string): IScheduleEvent {
+    updateEventName(newEventName: string): void {
         this._scheduleEventName = newEventName;
-        return this;
     }
 
-    markAsProcessed(processedAt: Date = new Date()): IScheduleEvent {
+    markAsProcessed(processedAt: Date = new Date()): void {
         this._processedAt = processedAt;
-        return this;
     }
 
     get scheduleEventId(): string {

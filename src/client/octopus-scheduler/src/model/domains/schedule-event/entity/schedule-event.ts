@@ -14,11 +14,10 @@ export interface IScheduleEvent {
     // シリアライズ用
     serialize(): IScheduleEvent;
 
-    // 更新系
-    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): IScheduleEvent;
-    updateEventName(newEventName: string): IScheduleEvent;
-    updateEventDetail(newDetail: any): IScheduleEvent;
-    markAsProcessed(processedAt: Date): IScheduleEvent;
+    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): void;
+    updateEventName(newEventName: string): void;
+    updateEventDetail(newDetail: any): void;
+    markAsProcessed(processedAt: Date): void;
 
     // イベントの実行
     executeScheduleEvent(): void;
