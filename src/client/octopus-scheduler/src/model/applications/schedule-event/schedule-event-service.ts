@@ -78,7 +78,7 @@ export class ScheduleEventService {
         }));
     }
 
-    private convertToEntity(data: any): IScheduleEvent | null {
+    private convertToEntity(data: IScheduleEvent): IScheduleEvent | null {
         const eventType = data.scheduleEventType?.scheduleEventType || data.scheduleEventType;
         const instance = this._eventInstances.find(inst => inst.scheduleEventType?.scheduleEventType === eventType);
         if (!instance) return null;
