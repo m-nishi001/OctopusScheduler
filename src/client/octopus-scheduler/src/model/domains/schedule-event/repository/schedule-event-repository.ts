@@ -6,4 +6,5 @@ export interface IScheduleEventRepository {
     findAll(): Promise<IScheduleEvent[]>;
     update(scheduleEvent: IScheduleEvent): Promise<void>;
     delete(scheduleEventId: string): Promise<void>;
+    fetchLatestEvents(): Promise<{ startedEvents: IScheduleEvent[]; endedEvents: IScheduleEvent[] }>;
 }

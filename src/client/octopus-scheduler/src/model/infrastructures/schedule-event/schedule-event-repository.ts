@@ -53,4 +53,14 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
             .withFailuered((message: string) => { throw new Error(`Failed to delete schedule from remote: ${message}`); })
             .invoke();
     }
+
+    public async fetchLatestEvents(): Promise<{ startedEvents: IScheduleEvent[]; endedEvents: IScheduleEvent[] }> {
+        return new Promise((resolve, reject) => {
+            this.service
+                .createCall<any>("ScheduleService.getLatestEvents")
+                .withSuccessed(resolve)
+                .withFailuered(message => reject(new Error(`Failed to fetch latest events: ${message}`)))
+                .invoke();
+        });
+    }
 }

@@ -56,11 +56,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { AssetService } from '../../../model/applications/assets/asset-service';
-import { Asset } from '../../../model/domains/assets/entity/assset';
-import { AudioType } from '../../../model/domains/assets/vo/audio-asset-type';
-import { ImageType } from '../../../model/domains/assets/vo/image-asset-type';
-import { VideoType } from '../../../model/domains/assets/vo/video-asset-type';
+import { AssetService } from '../../../../model/applications/assets/asset-service';
+import { Asset } from '../../../../model/domains/assets/entity/assset';
+import { AudioType } from '../../../../model/domains/assets/vo/audio-asset-type';
+import { ImageType } from '../../../../model/domains/assets/vo/image-asset-type';
+import { VideoType } from '../../../../model/domains/assets/vo/video-asset-type';
 import { container } from "tsyringe";
 
 type AssetTypeName = 'audio' | 'image' | 'video';

@@ -8,6 +8,7 @@ import { FindScheduleByIdUseCase } from "./usecases/find-schedule-by-id-usecase"
 import { GetLatestEventsUseCase } from "./usecases/get-latest-events-usecase";
 import { MarkEventsProcessedUseCase } from "./usecases/mark-events-processed-usecase";
 import { UpdateScheduleEventUseCase } from "./usecases/update-schedule-usecase";
+import { IScheduleEvent } from "../../domain/schedule-event/entity/schedule-event";
 
 @injectable()
 export class ScheduleService implements GasService {
@@ -31,7 +32,10 @@ export class ScheduleService implements GasService {
             "findAll": () => getAllUc.execute(),
             "update": (args: any) => updateUc.execute(args),
             "delete": (id: string) => deleteUc.execute(id),
-            "getLatestEvent": (args?: { targetTime?: string }) => getLatestUc.execute(args && args.targetTime ? args.targetTime : undefined),
+            "getLatestEvents": (args?: { targetTime?: string }): {
+                startedEvents: (IScheduleEvent | null)[];
+                endedEvents: (IScheduleEvent | null)[];
+            } => getLatestUc.execute(args && args.targetTime ? args.targetTime : undefined),
             "markEventsAsProcessed": (args: { scheduleEventIds: string[] }) => markProcessedUc.execute(args)
         };
     }

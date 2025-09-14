@@ -66,10 +66,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
-import { ScheduleEventService } from '../../../model/applications/schedule-event/schedule-event-service';
-import type { IScheduleEvent } from '../../../model/domains/schedule-event/entity/schedule-event';
-import type { CreateScheduleEventDto } from '../../../model/applications/schedule-event/dtos/create-schedule-event-dto';
-import type { EventTypeDto } from '../../../model/applications/schedule-event/dtos/event-type-dto';
+import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
+import type { IScheduleEvent } from '../../../../model/domains/schedule-event/entity/schedule-event';
+import type { CreateScheduleEventDto } from '../../../../model/applications/schedule-event/dtos/create-schedule-event-dto';
+import type { EventTypeDto } from '../../../../model/applications/schedule-event/dtos/event-type-dto';
 
 const events = ref<IScheduleEvent[]>([]);
 const loading = ref(false);

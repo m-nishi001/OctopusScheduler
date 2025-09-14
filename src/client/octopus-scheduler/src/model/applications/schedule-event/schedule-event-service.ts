@@ -4,13 +4,14 @@ import { PlayAudioEventTypeDto } from "./dtos/event-types/play-audio-event-type-
 import type { IScheduleEvent } from "../../domains/schedule-event/entity/schedule-event";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/repository/schedule-event-repository";
 import type { CreateScheduleEventDto } from "./dtos/create-schedule-event-dto";
+import type { IScheduleEventService } from "./ischedule-event-service";
 import { injectable, inject, injectAll } from "tsyringe";
 import { PlayMovieEventTypeDto } from "./dtos/event-types/play-movie-event-type-dto";
 import { ShowImageEventTypeDto } from "./dtos/event-types/show-image-event-type-dto";
 import { TransitionPageEventTypeDto } from "./dtos/event-types/transition-page-event-type-dto";
 
 @injectable()
-export class ScheduleEventService {
+export class ScheduleEventService implements IScheduleEventService {
     private _repo: IScheduleEventRepository;
     private _eventInstances: IScheduleEvent[];
 
@@ -54,6 +55,20 @@ export class ScheduleEventService {
         return scheduleEvents
             .map(event => this.convertToEntity(event))
             .filter(event => event !== null);
+    }
+
+    async getCurrentScheduleEvent(): Promise<{
+        startEvents: IScheduleEvent[],
+        endEvents: IScheduleEvent[]
+    }> {
+        const { startedEvents, endedEvents } = await this._repo.fetchLatestEvents();
+        console.log("Fetched current schedule events:", { startedEvents, endedEvents });
+        console.log("startedEvents size:", startedEvents.length);
+        console.log("endedEvents size:", endedEvents.length);
+        return {
+            startEvents: startedEvents,
+            endEvents: endedEvents
+        };
     }
 
     async deleteScheduleEvent(scheduleEventId: string): Promise<void> {
