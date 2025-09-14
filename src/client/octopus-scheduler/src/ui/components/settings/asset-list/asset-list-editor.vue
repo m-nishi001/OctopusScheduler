@@ -1,54 +1,61 @@
 <template>
-    <div class="asset-list-editor">
-        <h2>アセット管理</h2>
-
-        <div class="controls">
-            <label>
-                種別:
-                <select v-model="selectedType">
-                    <option value="audio">Audio</option>
-                    <option value="image">Image</option>
-                    <option value="video">Video</option>
-                </select>
-            </label>
-            <button @click="onSync" :disabled="syncing">同期</button>
-        </div>
-
-        <table class="asset-table">
-            <thead>
-                <tr>
-                    <th>名前</th>
-                    <th>最終更新</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="asset in filteredAssets" :key="asset.assetId">
-                    <td>{{ asset.assetName }}</td>
-                    <td>{{ formatDate(asset.updatedAt) }}</td>
-                    <td>
-                        <button @click="onRename(asset)">名前変更</button>
-                        <button @click="onDelete(asset)">削除</button>
-                    </td>
-                </tr>
-                <tr v-if="filteredAssets.length === 0">
-                    <td colspan="3">アセットが見つかりません。</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="add-form">
-            <h3>アセット追加</h3>
-            <label>
-                名前:
-                <input v-model="newName" placeholder="アセット名" />
-            </label>
-            <label>
-                ファイル:
-                <input type="file" @change="onFileChange" />
-            </label>
-            <div style="margin-top:0.5em;">
-                <button @click="onAdd" :disabled="adding">追加</button>
+    <div class="asset-list-editor dark-bg">
+        <div class="editor-content">
+            <h2 class="editor-title">
+                <span class="editor-icon">🗂️</span> アセット管理
+            </h2>
+            <div class="controls">
+                <label>
+                    種別:
+                    <select v-model="selectedType">
+                        <option value="audio">Audio</option>
+                        <option value="image">Image</option>
+                        <option value="video">Video</option>
+                    </select>
+                </label>
+                <button class="main-btn" @click="onSync" :disabled="syncing">
+                    <span class="btn-icon">🔄</span> 同期
+                </button>
+            </div>
+            <div class="table-section">
+                <table class="asset-table">
+                    <thead>
+                        <tr>
+                            <th>名前</th>
+                            <th>最終更新</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="asset in filteredAssets" :key="asset.assetId">
+                            <td>{{ asset.assetName }}</td>
+                            <td>{{ formatDate(asset.updatedAt) }}</td>
+                            <td>
+                                <button class="main-btn small" @click="onRename(asset)"><span class="btn-icon">✏️</span> 名前変更</button>
+                                <button class="main-btn small" @click="onDelete(asset)"><span class="btn-icon">🗑️</span> 削除</button>
+                            </td>
+                        </tr>
+                        <tr v-if="filteredAssets.length === 0">
+                            <td colspan="3">アセットが見つかりません。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="add-form">
+                <h3>アセット追加</h3>
+                <label>
+                    名前:
+                    <input v-model="newName" placeholder="アセット名" />
+                </label>
+                <label>
+                    ファイル:
+                    <input type="file" @change="onFileChange" />
+                </label>
+                <div style="margin-top:0.5em;">
+                    <button class="main-btn" @click="onAdd" :disabled="adding">
+                        <span class="btn-icon">➕</span> 追加
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -181,26 +188,156 @@ async function onDelete(asset: any) {
 </script>
 
 <style scoped>
+
+.asset-list-editor {
+    background: linear-gradient(135deg, #181818 0%, #222 100%);
+    color: #fff;
+    min-height: 100vh;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+.editor-content {
+    width: 100vw;
+    height: 100vh;
+    padding: 2em;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    /* ベース層の背景・枠装飾を削除 */
+}
+.editor-title {
+    font-size: 2em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-bottom: 2em;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    color: #fff;
+    text-shadow: 0 2px 12px #000a;
+}
+.editor-icon {
+    font-size: 1.3em;
+}
 .controls {
     display: flex;
-    gap: 1rem;
+    gap: 1.2em;
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5em;
+    width: 100%;
+    justify-content: center;
 }
-
+.main-btn {
+    font-size: 1.05em;
+    font-weight: 600;
+    padding: 0.8em 2em;
+    background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
+    outline: none;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+}
+.main-btn .btn-icon {
+    font-size: 1.2em;
+}
+.main-btn:hover, .main-btn:focus {
+    background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+    transform: translateY(-2px) scale(1.04);
+}
+.main-btn:active {
+    background: #1a1a1a;
+    transform: scale(0.98);
+}
+.main-btn.small {
+    font-size: 0.95em;
+    padding: 0.5em 1.2em;
+    margin-right: 0.5em;
+}
+.table-section {
+    width: 100%;
+    margin-bottom: 1.5em;
+}
 .asset-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 1rem;
+    background: #232323;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
 }
-
 .asset-table th,
 .asset-table td {
-    border: 1px solid #ddd;
-    padding: 0.5rem;
+    border: 1px solid #444;
+    padding: 0.7rem;
+    color: #fff;
 }
-
+.asset-table th {
+    background: #222;
+    font-weight: 600;
+}
+.asset-table tr {
+    transition: background 0.15s;
+}
+.asset-table tr:hover {
+    background: #2a2a2a;
+}
 .add-form {
-    margin-top: 1rem;
+    margin-top: 1.5em;
+    width: 100%;
+    background: #232323;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    padding: 1.2em 1em;
+}
+.add-form h3 {
+    margin-bottom: 1em;
+    color: #8fd3ff;
+}
+.add-form label {
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+    margin-bottom: 0.7em;
+    color: #fff;
+}
+.add-form input[type="text"],
+.add-form input[type="file"] {
+    background: #333;
+    color: #fff;
+    border: 1px solid #666;
+    padding: 0.4em 0.8em;
+    border-radius: 6px;
+}
+@media (max-width: 600px) {
+    .editor-content {
+        width: 100vw;
+        height: 100vh;
+        padding: 0.5em;
+    }
+    .editor-title {
+        font-size: 1.2em;
+    }
+    .main-btn {
+        font-size: 0.95em;
+        padding: 0.7em 1.2em;
+    }
+    .asset-table th,
+    .asset-table td {
+        padding: 0.4em;
+    }
+    .add-form {
+        padding: 0.7em 0.3em;
+    }
 }
 </style>
