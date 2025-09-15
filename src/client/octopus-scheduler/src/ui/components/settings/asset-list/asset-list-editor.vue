@@ -31,8 +31,12 @@
                             <td>{{ asset.assetName }}</td>
                             <td>{{ formatDate(asset.updatedAt) }}</td>
                             <td>
-                                <button class="main-btn small" @click="onRename(asset)"><span class="btn-icon">✏️</span> 名前変更</button>
-                                <button class="main-btn small" @click="onDelete(asset)"><span class="btn-icon">🗑️</span> 削除</button>
+                                <button class="main-btn small" @click="onPreview(asset)"><span
+                                        class="btn-icon">👁️</span> プレビュー</button>
+                                <button class="main-btn small" @click="onRename(asset)"><span class="btn-icon">✏️</span>
+                                    名前変更</button>
+                                <button class="main-btn small" @click="onDelete(asset)"><span
+                                        class="btn-icon">🗑️</span> 削除</button>
                             </td>
                         </tr>
                         <tr v-if="filteredAssets.length === 0">
@@ -57,12 +61,31 @@
                     </button>
                 </div>
             </div>
+            <!-- プレビューモーダル -->
+            <AssetPreviewModal v-if="previewAsset" @close="closePreview">
+                <template v-if="previewAssetType === 'audio'">
+                    <div style="text-align:center;">
+                        <h3>音楽プレビュー: {{ previewAsset.assetName }}</h3>
+                        <AudioPreview :asset="previewAsset" />
+                    </div>
+                </template>
+                <template v-else-if="previewAssetType === 'image'">
+                    <ImagePreview :src="getAssetUrl(previewAsset)" :name="previewAsset.assetName" />
+                </template>
+                <template v-else-if="previewAssetType === 'video'">
+                    <VideoPreview :src="getAssetUrl(previewAsset)" :name="previewAsset.assetName" />
+                </template>
+            </AssetPreviewModal>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import AssetPreviewModal from './AssetPreviewModal.vue';
+import AudioPreview from './AudioPreview.vue';
+import ImagePreview from './ImagePreview.vue';
+import VideoPreview from './VideoPreview.vue';
 import { AssetService } from '../../../../model/applications/assets/asset-service';
 import { Asset } from '../../../../model/domains/assets/entity/assset';
 import { AudioType } from '../../../../model/domains/assets/vo/audio-asset-type';
@@ -73,11 +96,34 @@ import { container } from "tsyringe";
 type AssetTypeName = 'audio' | 'image' | 'video';
 
 const selectedType = ref<AssetTypeName>('audio');
-const assets = ref<Asset[]>([]);
+const assets = ref<any[]>([]);
 const newName = ref('');
 const newFile = ref<File | null>(null);
 const adding = ref(false);
 const syncing = ref(false);
+
+// プレビュー用状態
+const previewAsset = ref<any>(null);
+const previewAssetType = ref<AssetTypeName | null>(null);
+
+function getAssetUrl(asset: Asset | null): string {
+    return asset?.assetData || '';
+}
+
+function onPreview(asset: any) {
+    // assetTypeNameの判定
+    const typeName = asset.assetType?.assetTypeName;
+    if (typeName?.includes('audio')) previewAssetType.value = 'audio';
+    else if (typeName?.includes('image')) previewAssetType.value = 'image';
+    else if (typeName?.includes('video')) previewAssetType.value = 'video';
+    else previewAssetType.value = null;
+    previewAsset.value = asset;
+}
+
+function closePreview() {
+    previewAsset.value = null;
+    previewAssetType.value = null;
+}
 
 // use concrete repository + service from client infra
 const service = container.resolve(AssetService);
@@ -188,7 +234,6 @@ async function onDelete(asset: any) {
 </script>
 
 <style scoped>
-
 .asset-list-editor {
     background: linear-gradient(135deg, #181818 0%, #222 100%);
     color: #fff;
@@ -198,6 +243,7 @@ async function onDelete(asset: any) {
     display: flex;
     flex-direction: column;
 }
+
 .editor-content {
     width: 100vw;
     height: 100vh;
@@ -207,6 +253,7 @@ async function onDelete(asset: any) {
     box-sizing: border-box;
     /* ベース層の背景・枠装飾を削除 */
 }
+
 .editor-title {
     font-size: 2em;
     font-weight: 700;
@@ -218,9 +265,11 @@ async function onDelete(asset: any) {
     color: #fff;
     text-shadow: 0 2px 12px #000a;
 }
+
 .editor-icon {
     font-size: 1.3em;
 }
+
 .controls {
     display: flex;
     gap: 1.2em;
@@ -229,6 +278,7 @@ async function onDelete(asset: any) {
     width: 100%;
     justify-content: center;
 }
+
 .main-btn {
     font-size: 1.05em;
     font-weight: 600;
@@ -238,7 +288,7 @@ async function onDelete(asset: any) {
     border: none;
     border-radius: 12px;
     cursor: pointer;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
     transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
     outline: none;
     position: relative;
@@ -246,27 +296,34 @@ async function onDelete(asset: any) {
     align-items: center;
     gap: 0.7em;
 }
+
 .main-btn .btn-icon {
     font-size: 1.2em;
 }
-.main-btn:hover, .main-btn:focus {
+
+.main-btn:hover,
+.main-btn:focus {
     background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
-    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
     transform: translateY(-2px) scale(1.04);
 }
+
 .main-btn:active {
     background: #1a1a1a;
     transform: scale(0.98);
 }
+
 .main-btn.small {
     font-size: 0.95em;
     padding: 0.5em 1.2em;
     margin-right: 0.5em;
 }
+
 .table-section {
     width: 100%;
     margin-bottom: 1.5em;
 }
+
 .asset-table {
     width: 100%;
     border-collapse: collapse;
@@ -274,36 +331,43 @@ async function onDelete(asset: any) {
     background: #232323;
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
+
 .asset-table th,
 .asset-table td {
     border: 1px solid #444;
     padding: 0.7rem;
     color: #fff;
 }
+
 .asset-table th {
     background: #222;
     font-weight: 600;
 }
+
 .asset-table tr {
     transition: background 0.15s;
 }
+
 .asset-table tr:hover {
     background: #2a2a2a;
 }
+
 .add-form {
     margin-top: 1.5em;
     width: 100%;
     background: #232323;
     border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
     padding: 1.2em 1em;
 }
+
 .add-form h3 {
     margin-bottom: 1em;
     color: #8fd3ff;
 }
+
 .add-form label {
     display: flex;
     align-items: center;
@@ -311,6 +375,7 @@ async function onDelete(asset: any) {
     margin-bottom: 0.7em;
     color: #fff;
 }
+
 .add-form input[type="text"],
 .add-form input[type="file"] {
     background: #333;
@@ -319,23 +384,28 @@ async function onDelete(asset: any) {
     padding: 0.4em 0.8em;
     border-radius: 6px;
 }
+
 @media (max-width: 600px) {
     .editor-content {
         width: 100vw;
         height: 100vh;
         padding: 0.5em;
     }
+
     .editor-title {
         font-size: 1.2em;
     }
+
     .main-btn {
         font-size: 0.95em;
         padding: 0.7em 1.2em;
     }
+
     .asset-table th,
     .asset-table td {
         padding: 0.4em;
     }
+
     .add-form {
         padding: 0.7em 0.3em;
     }
