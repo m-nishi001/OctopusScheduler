@@ -140,6 +140,24 @@ namespace SpreadsheetDataStore {
         }
 
         /**
+         * JSONセル値のデシリアライズ時にISO8601日付文字列をDate型へ変換する再帰関数
+         */
+        private static parseWithDateConversion(obj: any): any {
+            if (Array.isArray(obj)) {
+                return obj.map(SpreadsheetAccessor.parseWithDateConversion);
+            } else if (obj && typeof obj === 'object') {
+                for (const key in obj) {
+                    obj[key] = SpreadsheetAccessor.parseWithDateConversion(obj[key]);
+                }
+                return obj;
+            } else if (typeof obj === 'string' && obj.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/)) {
+                // JST変換例: Utilities.formatDate(new Date(obj), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss')
+                return new Date(obj);
+            }
+            return obj;
+        }
+
+        /**
          * 2次元配列をオブジェクト配列に変換します。
          * Converts a 2D array to an array of objects.
          */
@@ -151,7 +169,7 @@ namespace SpreadsheetDataStore {
                     const columnName = header[columnIndex];
                     if (columnName) {
                         previous[columnName] = (typeof current === 'string' && current.startsWith('{'))
-                            ? JSON.parse(current)
+                            ? SpreadsheetAccessor.parseWithDateConversion(JSON.parse(current))
                             : current;
                     }
                     return previous;
