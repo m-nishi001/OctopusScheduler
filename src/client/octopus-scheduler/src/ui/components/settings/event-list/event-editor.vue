@@ -178,6 +178,7 @@ function onCancel() {
 }
 
 onMounted(() => {
+  eventTypes.value = scheduleEventService.getEventTypeList();
   fetchEvents();
 });
 </script>
