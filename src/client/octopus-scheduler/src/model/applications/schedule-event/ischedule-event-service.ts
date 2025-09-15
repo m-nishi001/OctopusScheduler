@@ -9,9 +9,10 @@ export interface IScheduleEventService {
         endEvents: IScheduleEvent[]
     }>;
     deleteScheduleEvent(scheduleEventId: string): Promise<void>;
-    getEventTypeList(): Array<{
+    getEventTypeList(): Promise<Array<{
         eventType: string;
         displayName: string;
-        displayDescription: string
-    }>;
+        displayDescription: string;
+        settingsSchema: any;
+    }>>;
 }

@@ -49,7 +49,7 @@
           </label>
           <label>
             種別:
-            <select v-model="form.eventType">
+            <select v-model="form.eventType" @change="onEventTypeChange">
               <option v-for="type in eventTypes" :key="type.eventType" :value="type.eventType">
                 {{ type.displayName }}
               </option>
@@ -63,6 +63,27 @@
             終了:
             <input v-model="form.end" type="datetime-local" required />
           </label>
+          <!-- 動的フォーム生成部分 -->
+          <template v-if="currentSettingsSchema">
+            <template v-for="([key, prop]) in Object.entries(currentSettingsSchema.properties)" :key="key">
+              <label>
+                {{ (prop as any).title }}:
+                <template v-if="(prop as any).type === 'string' && (prop as any).oneOf && (prop as any).oneOf.length">
+                  <select :value="form.detail?.[key]"
+                    @change="e => { const target = e.target as HTMLSelectElement | null; if (target) setDetailValue(key, String(target.value)); }">
+                    <option v-for="opt in (prop as any).oneOf" :key="opt.const" :value="opt.const">
+                      {{ opt.title }}
+                    </option>
+                  </select>
+                </template>
+                <template v-else>
+                  <input :value="form.detail?.[key]"
+                    @input="e => { const target = e.target as HTMLInputElement | null; if (target) setDetailValue(key, String(target.value)); }"
+                    type="text" />
+                </template>
+              </label>
+            </template>
+          </template>
           <div class="form-actions">
             <button class="main-btn" type="submit" :disabled="saving">{{ isNew ? '追加' : '保存' }}</button>
             <button class="main-btn" type="button" @click="onCancel">キャンセル</button>
@@ -81,6 +102,13 @@ import type { IScheduleEvent } from '../../../../model/domains/schedule-event/en
 import type { CreateScheduleEventDto } from '../../../../model/applications/schedule-event/dtos/create-schedule-event-dto';
 import type { EventTypeDto } from '../../../../model/applications/schedule-event/dtos/event-type-dto';
 
+// 動的フォームの値更新用関数
+function setDetailValue(key: string, value: any) {
+  if (!form.value) return;
+  if (!form.value.detail) form.value.detail = {};
+  form.value.detail[key] = value;
+}
+
 const events = ref<IScheduleEvent[]>([]);
 const loading = ref(false);
 const saving = ref(false);
@@ -89,6 +117,7 @@ const isNew = ref(true);
 const eventTypes = ref<EventTypeDto[]>([]);
 
 const form = ref<CreateScheduleEventDto | null>(null);
+const currentSettingsSchema = ref<any | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 
@@ -117,6 +146,11 @@ function onReload() {
   fetchEvents();
 }
 
+function updateSettingsSchema(eventType: string) {
+  const typeObj = eventTypes.value.find(t => t.eventType === eventType);
+  currentSettingsSchema.value = typeObj?.settingsSchema ?? null;
+}
+
 function onNew() {
   isNew.value = true;
   editing.value = true;
@@ -125,8 +159,9 @@ function onNew() {
     eventType: eventTypes.value[0]?.eventType ?? '',
     start: '',
     end: '',
-    detail: undefined
+    detail: {}
   };
+  updateSettingsSchema(form.value.eventType);
 }
 
 function onEdit(ev: IScheduleEvent) {
@@ -137,8 +172,20 @@ function onEdit(ev: IScheduleEvent) {
     eventType: ev.scheduleEventType.scheduleEventType,
     start: ev.scheduleTimeSpan?.start ? new Date(ev.scheduleTimeSpan.start).toISOString().slice(0, 16) : '',
     end: ev.scheduleTimeSpan?.end ? new Date(ev.scheduleTimeSpan.end).toISOString().slice(0, 16) : '',
-    detail: ev.scheduleEventDetail ?? undefined
+    detail: ev.scheduleEventDetail ?? {}
   };
+  updateSettingsSchema(form.value.eventType);
+}
+
+function onEventTypeChange(e: Event) {
+  const target = e.target as HTMLSelectElement | null;
+  if (!target) return;
+  const selectedType = target.value;
+  if (form.value) {
+    form.value.eventType = selectedType;
+    updateSettingsSchema(selectedType);
+    form.value.detail = {};
+  }
 }
 
 async function onSave() {
@@ -177,14 +224,13 @@ function onCancel() {
   editing.value = false;
 }
 
-onMounted(() => {
-  eventTypes.value = scheduleEventService.getEventTypeList();
+onMounted(async () => {
+  eventTypes.value = await scheduleEventService.getEventTypeList();
   fetchEvents();
 });
 </script>
 
 <style scoped>
-
 .event-list-editor {
   background: linear-gradient(135deg, #181818 0%, #222 100%);
   color: #fff;
@@ -194,6 +240,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
 }
+
 .editor-content {
   width: 100vw;
   height: 100vh;
@@ -203,6 +250,7 @@ onMounted(() => {
   box-sizing: border-box;
   /* ベース層の背景・枠装飾を削除 */
 }
+
 .editor-title {
   font-size: 2em;
   font-weight: 700;
@@ -214,9 +262,11 @@ onMounted(() => {
   color: #fff;
   text-shadow: 0 2px 12px #000a;
 }
+
 .editor-icon {
   font-size: 1.3em;
 }
+
 .controls {
   display: flex;
   gap: 1.2em;
@@ -225,6 +275,7 @@ onMounted(() => {
   width: 100%;
   justify-content: center;
 }
+
 .main-btn {
   font-size: 1.05em;
   font-weight: 600;
@@ -234,7 +285,7 @@ onMounted(() => {
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
   transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
   outline: none;
   position: relative;
@@ -242,27 +293,34 @@ onMounted(() => {
   align-items: center;
   gap: 0.7em;
 }
+
 .main-btn .btn-icon {
   font-size: 1.2em;
 }
-.main-btn:hover, .main-btn:focus {
+
+.main-btn:hover,
+.main-btn:focus {
   background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
-  box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
   transform: translateY(-2px) scale(1.04);
 }
+
 .main-btn:active {
   background: #1a1a1a;
   transform: scale(0.98);
 }
+
 .main-btn.small {
   font-size: 0.95em;
   padding: 0.5em 1.2em;
   margin-right: 0.5em;
 }
+
 .table-section {
   width: 100%;
   margin-bottom: 1.5em;
 }
+
 .event-table {
   width: 100%;
   border-collapse: collapse;
@@ -270,24 +328,29 @@ onMounted(() => {
   background: #232323;
   border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
+
 .event-table th,
 .event-table td {
   border: 1px solid #444;
   padding: 0.7rem;
   color: #fff;
 }
+
 .event-table th {
   background: #222;
   font-weight: 600;
 }
+
 .event-table tr {
   transition: background 0.15s;
 }
+
 .event-table tr:hover {
   background: #2a2a2a;
 }
+
 .editor-form {
   border: 1px solid #444;
   padding: 1.2em 1em;
@@ -295,13 +358,15 @@ onMounted(() => {
   margin-top: 1.5em;
   color: #fff;
   border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
   width: 100%;
 }
+
 .editor-form h3 {
   margin-bottom: 1em;
   color: #8fd3ff;
 }
+
 .editor-form input,
 .editor-form select {
   background: #333;
@@ -311,6 +376,7 @@ onMounted(() => {
   border-radius: 6px;
   margin-bottom: 0.7em;
 }
+
 .editor-form label {
   display: flex;
   align-items: center;
@@ -318,28 +384,34 @@ onMounted(() => {
   margin-bottom: 0.7em;
   color: #fff;
 }
+
 .form-actions {
   margin-top: 1em;
   display: flex;
   gap: 1.2em;
 }
+
 @media (max-width: 600px) {
   .editor-content {
     width: 100vw;
     height: 100vh;
     padding: 0.5em;
   }
+
   .editor-title {
     font-size: 1.2em;
   }
+
   .main-btn {
     font-size: 0.95em;
     padding: 0.7em 1.2em;
   }
+
   .event-table th,
   .event-table td {
     padding: 0.4em;
   }
+
   .editor-form {
     padding: 0.7em 0.3em;
   }

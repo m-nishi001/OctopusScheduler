@@ -6,6 +6,7 @@ import type { IScheduleEventRepository } from "../../domains/schedule-event/repo
 import type { CreateScheduleEventDto } from "./dtos/create-schedule-event-dto";
 import type { IScheduleEventService } from "./ischedule-event-service";
 import { injectable, inject, injectAll } from "tsyringe";
+import { AssetService } from "../assets/asset-service";
 import { PlayMovieEventTypeDto } from "./dtos/event-types/play-movie-event-type-dto";
 import { ShowImageEventTypeDto } from "./dtos/event-types/show-image-event-type-dto";
 import { TransitionPageEventTypeDto } from "./dtos/event-types/transition-page-event-type-dto";
@@ -14,13 +15,16 @@ import { TransitionPageEventTypeDto } from "./dtos/event-types/transition-page-e
 export class ScheduleEventService implements IScheduleEventService {
     private _repo: IScheduleEventRepository;
     private _eventInstances: IScheduleEvent[];
+    private _assetService: AssetService;
 
     constructor(
         @inject("IScheduleEventRepository") scheduleEventRepository: IScheduleEventRepository,
-        @injectAll("IScheduleEvent") eventInstances: IScheduleEvent[]
+        @injectAll("IScheduleEvent") eventInstances: IScheduleEvent[],
+        @inject("AssetService") assetService: AssetService
     ) {
         this._repo = scheduleEventRepository;
         this._eventInstances = eventInstances;
+        this._assetService = assetService;
     }
 
     async createScheduleEvent(dto: CreateScheduleEventDto): Promise<IScheduleEvent | null> {
@@ -75,21 +79,30 @@ export class ScheduleEventService implements IScheduleEventService {
         await this._repo.delete(scheduleEventId);
     }
 
-    getEventTypeList(): Array<{
+    async getEventTypeList(): Promise<Array<{
         eventType: string;
         displayName: string;
-        displayDescription: string
-    }> {
+        displayDescription: string;
+        settingsSchema: any;
+    }>> {
+        const allAssets = await this._assetService.getAllAssets();
         const eventTypeDtos = [
-            new PlayAudioEventTypeDto(),
-            new PlayMovieEventTypeDto(),
-            new ShowImageEventTypeDto(),
-            new TransitionPageEventTypeDto()
+            new PlayAudioEventTypeDto(
+                allAssets.filter(a => a.assetType.assetTypeName.includes('audio')).map(a => ({ id: a.assetId, name: a.assetName }))
+            ),
+            new PlayMovieEventTypeDto(
+                allAssets.filter(a => a.assetType.assetTypeName.includes('video')).map(a => ({ id: a.assetId, name: a.assetName }))
+            ),
+            new ShowImageEventTypeDto(
+                allAssets.filter(a => a.assetType.assetTypeName.includes('image')).map(a => ({ id: a.assetId, name: a.assetName }))
+            ),
+            new TransitionPageEventTypeDto([])
         ];
         return eventTypeDtos.map(dto => ({
             eventType: dto.eventType,
             displayName: dto.displayName,
-            displayDescription: dto.displayDescription
+            displayDescription: dto.displayDescription,
+            settingsSchema: dto.settingsSchema
         }));
     }
 

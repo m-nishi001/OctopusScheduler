@@ -17,8 +17,8 @@ export class Container {
     container.register<IAssetRepository>("IAssetRepository", { useClass: AssetRepository });
     container.register<IScheduleEventRepository>("IScheduleEventRepository", { useClass: ScheduleEventRepository });
 
-  container.register<IScheduleEventService>("IScheduleEventService", { useClass: ScheduleEventService });
-  container.register("AssetService", { useClass: AssetService });
+    container.register<IScheduleEventService>("IScheduleEventService", { useClass: ScheduleEventService });
+    container.register("AssetService", { useClass: AssetService });
 
     container.register("IScheduleEvent", { useClass: PlayAudioEvent });
     container.register("IScheduleEvent", { useClass: PlayMovieEvent });
