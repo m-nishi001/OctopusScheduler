@@ -107,6 +107,23 @@ export class ScheduleEventService implements IScheduleEventService {
     }
 
     private convertToEntity(data: IScheduleEvent): IScheduleEvent | null {
+        /**
+         * Converts a plain IScheduleEvent object (often deserialized from storage/JSON)
+         * back into a fully functional event class instance (e.g. PlayAudioEvent).
+         *
+         * Why this is needed:
+         * - When you deserialize an object, you lose its class methods and prototype chain.
+         * - This function finds the correct event class (by eventType),
+         *   then uses its static 'from' method to reconstruct a proper instance.
+         *
+         * Implementation details:
+         * - Finds a sample instance of the correct event type from DI container.
+         * - Gets its constructor (the class itself).
+         * - If the class has a static 'from' method, calls it to create a new instance.
+         * - Returns null if no matching type or method is found.
+         *
+         * This pattern is common in TypeScript/JavaScript for restoring class functionality after deserialization.
+         */
         const eventType = data.scheduleEventType?.scheduleEventType || data.scheduleEventType;
         const instance = this._eventInstances.find(inst => inst.scheduleEventType?.scheduleEventType === eventType);
         if (!instance) return null;
