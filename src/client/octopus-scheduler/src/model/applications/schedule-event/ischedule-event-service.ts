@@ -1,4 +1,5 @@
 import type { IScheduleEvent } from "../../domains/schedule-event/entity/schedule-event";
+import type { EventTypeDto } from "./dtos/event-type-dto";
 
 export interface IScheduleEventService {
     createScheduleEvent(dto: any): Promise<IScheduleEvent | null>;
@@ -9,10 +10,5 @@ export interface IScheduleEventService {
         endEvents: IScheduleEvent[]
     }>;
     deleteScheduleEvent(scheduleEventId: string): Promise<void>;
-    getEventTypeList(): Promise<Array<{
-        eventType: string;
-        displayName: string;
-        displayDescription: string;
-        settingsSchema: any;
-    }>>;
+    getEventTypeList(): Promise<EventTypeDto[]>;
 }

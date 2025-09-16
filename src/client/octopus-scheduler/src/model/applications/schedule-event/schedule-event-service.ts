@@ -10,6 +10,7 @@ import { AssetService } from "../assets/asset-service";
 import { PlayMovieEventTypeDto } from "./dtos/event-types/play-movie-event-type-dto";
 import { ShowImageEventTypeDto } from "./dtos/event-types/show-image-event-type-dto";
 import { TransitionPageEventTypeDto } from "./dtos/event-types/transition-page-event-type-dto";
+import type { EventTypeDto } from "./dtos/event-type-dto";
 
 @injectable()
 export class ScheduleEventService implements IScheduleEventService {
@@ -79,12 +80,7 @@ export class ScheduleEventService implements IScheduleEventService {
         await this._repo.delete(scheduleEventId);
     }
 
-    async getEventTypeList(): Promise<Array<{
-        eventType: string;
-        displayName: string;
-        displayDescription: string;
-        settingsSchema: any;
-    }>> {
+    async getEventTypeList(): Promise<EventTypeDto[]> {
         const allAssets = await this._assetService.getAllAssets();
         const eventTypeDtos = [
             new PlayAudioEventTypeDto(
