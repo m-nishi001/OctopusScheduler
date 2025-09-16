@@ -1,40 +1,35 @@
 <template>
   <div class="dynamic-form">
-    <template v-if="schema">
-      <template v-for="([key, prop]) in Object.entries(schema.properties)" :key="key">
-        <label>
-          {{ (prop as any).title }}:
-          <template v-if="(prop as any).type === 'string' && (prop as any).oneOf && (prop as any).oneOf.length">
-            <select :value="modelValue[key]"
-              @change="e => { const target = e.target as HTMLSelectElement | null; if (target) emitChange(key, String(target.value)); }">
-              <option v-for="opt in (prop as any).oneOf" :key="opt.const" :value="opt.const">
-                {{ opt.title }}
-              </option>
-            </select>
-          </template>
-          <template v-else>
-            <input :value="modelValue[key]"
-              @input="e => { const target = e.target as HTMLInputElement | null; if (target) emitChange(key, String(target.value)); }"
-              type="text" />
-          </template>
-        </label>
-      </template>
+    <template v-for="prop in schema.properties" :key="prop.key">
+      <component
+        :is="getComponent(prop.controlType)"
+        :label="prop.label"
+        :options="prop.options"
+        :modelValue="modelValue[prop.key]"
+        @update:modelValue="(val: any) => emitChange(prop.key, val)"
+      />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue';
+import type { FormSchema } from '../../../../model/applications/schedule-event/dtos/form-schema';
+import TextInput from '../../common/TextInput.vue';
+import DropDown from '../../common/DropDown.vue';
 
-const props = defineProps<{
-  schema: any;
-  modelValue: Record<string, any>;
-}>();
+const props = defineProps<{ schema: FormSchema; modelValue: Record<string, any> }>();
 const emit = defineEmits<{ (e: 'update:modelValue', value: Record<string, any>): void }>();
 
 function emitChange(key: string, value: any) {
-  const newValue = { ...props.modelValue, [key]: value };
-  emit('update:modelValue', newValue);
+  emit('update:modelValue', { ...props.modelValue, [key]: value });
+}
+
+function getComponent(type: string) {
+  switch (type) {
+    case 'text': return TextInput;
+    case 'dropdown': return DropDown;
+    default: return TextInput;
+  }
 }
 </script>
 

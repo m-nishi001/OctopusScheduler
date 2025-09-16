@@ -2,20 +2,25 @@ export class ShowImageEventTypeDto {
   readonly eventType = "ShowImageEvent";
   readonly displayName = "画像表示イベント";
   readonly displayDescription = "指定した画像を表示します。";
-  readonly settingsSchema: any;
+  readonly settingsSchema: FormSchema;
 
   constructor(imageAssets: { id: string; name: string }[]) {
+    const options: FormOption[] = imageAssets.map(asset => ({
+      value: asset.id,
+      label: asset.name
+    }));
     this.settingsSchema = {
-      type: "object",
-      properties: {
-        imageId: {
-          type: "string",
-          title: "画像",
+      properties: [
+        {
+          key: "imageId",
+          label: "画像",
           description: "画像のアセット群から選択",
-          oneOf: imageAssets.map(asset => ({ const: asset.id, title: asset.name }))
+          controlType: "dropdown",
+          required: true,
+          options
         }
-      },
-      required: ["imageId"]
+      ]
     };
   }
 }
+import type { FormSchema, FormOption } from '../form-schema';
