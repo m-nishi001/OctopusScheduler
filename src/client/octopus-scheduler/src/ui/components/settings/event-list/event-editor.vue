@@ -63,27 +63,9 @@
             終了:
             <input v-model="form.end" type="datetime-local" required />
           </label>
-          <!-- 動的フォーム生成部分 -->
-          <template v-if="currentSettingsSchema">
-            <template v-for="([key, prop]) in Object.entries(currentSettingsSchema.properties)" :key="key">
-              <label>
-                {{ (prop as any).title }}:
-                <template v-if="(prop as any).type === 'string' && (prop as any).oneOf && (prop as any).oneOf.length">
-                  <select :value="form.detail?.[key]"
-                    @change="e => { const target = e.target as HTMLSelectElement | null; if (target) setDetailValue(key, String(target.value)); }">
-                    <option v-for="opt in (prop as any).oneOf" :key="opt.const" :value="opt.const">
-                      {{ opt.title }}
-                    </option>
-                  </select>
-                </template>
-                <template v-else>
-                  <input :value="form.detail?.[key]"
-                    @input="e => { const target = e.target as HTMLInputElement | null; if (target) setDetailValue(key, String(target.value)); }"
-                    type="text" />
-                </template>
-              </label>
-            </template>
-          </template>
+          <!-- 動的フォーム生成部分をdynamic-form.vueに置換 -->
+          <dynamic-form v-if="currentSettingsSchema" :schema="currentSettingsSchema" :model-value="form.detail"
+            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
           <div class="form-actions">
             <button class="main-btn" type="submit" :disabled="saving">{{ isNew ? '追加' : '保存' }}</button>
             <button class="main-btn" type="button" @click="onCancel">キャンセル</button>
@@ -101,13 +83,7 @@ import { ScheduleEventService } from '../../../../model/applications/schedule-ev
 import type { IScheduleEvent } from '../../../../model/domains/schedule-event/entity/schedule-event';
 import type { CreateScheduleEventDto } from '../../../../model/applications/schedule-event/dtos/create-schedule-event-dto';
 import type { EventTypeDto } from '../../../../model/applications/schedule-event/dtos/event-type-dto';
-
-// 動的フォームの値更新用関数
-function setDetailValue(key: string, value: any) {
-  if (!form.value) return;
-  if (!form.value.detail) form.value.detail = {};
-  form.value.detail[key] = value;
-}
+import DynamicForm from './dynamic-form.vue';
 
 const events = ref<IScheduleEvent[]>([]);
 const loading = ref(false);
