@@ -175,7 +175,19 @@ async function onSave() {
       // 新規作成
       await scheduleEventService.createScheduleEvent(form.value);
     } else {
-      alert('編集（update）は未実装です。');
+      // 編集（update）
+      const targetId = events.value.find(ev =>
+        ev.scheduleEventName === form.value?.eventName &&
+        ev.scheduleEventType.scheduleEventType === form.value?.eventType
+      )?.scheduleEventId;
+      if (!targetId) {
+        alert('編集対象イベントIDが取得できませんでした');
+        return;
+      }
+      await scheduleEventService.updateScheduleEvent({
+        scheduleEventId: targetId,
+        ...form.value
+      });
     }
     editing.value = false;
     await fetchEvents();

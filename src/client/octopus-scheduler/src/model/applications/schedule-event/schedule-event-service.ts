@@ -28,6 +28,32 @@ export class ScheduleEventService implements IScheduleEventService {
         this._assetService = assetService;
     }
 
+    async updateScheduleEvent(dto: { scheduleEventId: string } & CreateScheduleEventDto): Promise<IScheduleEvent | null> {
+        const eventInstance = this._eventInstances.find(
+            inst => inst.scheduleEventType?.scheduleEventType === dto.eventType
+        );
+        
+        if (!eventInstance) throw new Error("Unknown eventType: " + dto.eventType);
+        
+        eventInstance.updateEventName(dto.eventName);
+        eventInstance.updateEventDetail(dto.detail);
+        
+        if (dto.start && dto.end && eventInstance.updateTimeSpan) {
+            const startDate = new Date(dto.start);
+            const endDate = new Date(dto.end);
+            if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                const timeSpan = ScheduleTimeSpan.create(startDate, endDate);
+                if (timeSpan) {
+                    eventInstance.updateTimeSpan(timeSpan);
+                }
+            }
+        }
+        // IDをセット
+        (eventInstance as any).scheduleEventId = dto.scheduleEventId;
+        await this._repo.update(eventInstance);
+        return this.convertToEntity(eventInstance);
+    }
+
     async createScheduleEvent(dto: CreateScheduleEventDto): Promise<IScheduleEvent | null> {
         const eventInstance = this._eventInstances.find(
             inst => inst.scheduleEventType?.scheduleEventType === dto.eventType
