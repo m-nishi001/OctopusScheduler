@@ -14,7 +14,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
 
     public async add(scheduleEvent: IScheduleEvent): Promise<void> {
         await this.service
-            .createCall<string>("ScheduleService.add", scheduleEvent.serialize())
+            .createCall<string>("ScheduleService.add", scheduleEvent)
             .withSuccessed(() => console.log("Schedule saved successfully to remote."))
             .withFailuered((message: string) => { throw new Error(`Failed to save schedule to remote: ${message}`); })
             .invoke();

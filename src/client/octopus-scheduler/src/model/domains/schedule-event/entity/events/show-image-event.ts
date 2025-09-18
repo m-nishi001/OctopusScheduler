@@ -42,9 +42,9 @@ export class ShowImageEvent implements IScheduleEvent {
         return instance;
     }
 
-    static from(event: IScheduleEvent): ShowImageEvent | null {
+    static from(event: IScheduleEvent, scheduleEventId?: string): ShowImageEvent | null {
         const instance = new ShowImageEvent();
-        instance._scheduleEventId = event.scheduleEventId;
+        instance._scheduleEventId = scheduleEventId ?? event.scheduleEventId;
         instance._scheduleEventName = event.scheduleEventName;
         instance._scheduleTimespan = event.scheduleTimeSpan;
         instance._scheduleEventDetail = new ShowImageEventDetail(event.scheduleEventDetail.movieId ?? "");

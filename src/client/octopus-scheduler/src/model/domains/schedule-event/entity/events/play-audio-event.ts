@@ -43,9 +43,9 @@ export class PlayAudioEvent implements IScheduleEvent {
         return instance;
     }
 
-    static from(another: IScheduleEvent): PlayAudioEvent | null {
+    static from(another: IScheduleEvent, scheduleEventId?: string): PlayAudioEvent | null {
         const instance = new PlayAudioEvent();
-        instance._scheduleEventId = another.scheduleEventId;
+        instance._scheduleEventId = scheduleEventId ?? another.scheduleEventId;
         instance._scheduleEventName = another.scheduleEventName;
         instance._scheduleTimespan = another.scheduleTimeSpan;
         instance._scheduleEventDetail = another.scheduleEventDetail;

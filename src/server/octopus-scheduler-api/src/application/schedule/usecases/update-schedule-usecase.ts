@@ -13,10 +13,10 @@ export class UpdateScheduleEventUseCase {
         }
 
         const count = this.repository.update(
-            (entity: IScheduleEvent) => entity.scheduleEventId !== args.scheduleEventId,
+            (entity: IScheduleEvent) => entity.scheduleEventId === args.scheduleEventId,
             () => {
-                const entity = ScheduleEventFactory.convertToEntity(args)
-
+                const entity = ScheduleEventFactory.convertFromClientObject(args);
+                
                 if (!entity) throw new Error("Failed to convert to entity");
 
                 return entity;

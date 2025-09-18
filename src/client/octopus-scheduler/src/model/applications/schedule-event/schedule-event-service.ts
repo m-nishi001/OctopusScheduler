@@ -29,48 +29,13 @@ export class ScheduleEventService implements IScheduleEventService {
     }
 
     async updateScheduleEvent(dto: { scheduleEventId: string } & CreateScheduleEventDto): Promise<IScheduleEvent | null> {
-        const eventInstance = this._eventInstances.find(
-            inst => inst.scheduleEventType?.scheduleEventType === dto.eventType
-        );
-        
-        if (!eventInstance) throw new Error("Unknown eventType: " + dto.eventType);
-        
-        eventInstance.updateEventName(dto.eventName);
-        eventInstance.updateEventDetail(dto.detail);
-        
-        if (dto.start && dto.end && eventInstance.updateTimeSpan) {
-            const startDate = new Date(dto.start);
-            const endDate = new Date(dto.end);
-            if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-                const timeSpan = ScheduleTimeSpan.create(startDate, endDate);
-                if (timeSpan) {
-                    eventInstance.updateTimeSpan(timeSpan);
-                }
-            }
-        }
-        // IDをセット
-        (eventInstance as any).scheduleEventId = dto.scheduleEventId;
+        const eventInstance = this.createOrUpdateEventInstance(dto);
         await this._repo.update(eventInstance);
         return this.convertToEntity(eventInstance);
     }
 
     async createScheduleEvent(dto: CreateScheduleEventDto): Promise<IScheduleEvent | null> {
-        const eventInstance = this._eventInstances.find(
-            inst => inst.scheduleEventType?.scheduleEventType === dto.eventType
-        );
-        if (!eventInstance) throw new Error("Unknown eventType: " + dto.eventType);
-        eventInstance.updateEventName(dto.eventName);
-        eventInstance.updateEventDetail(dto.detail);
-        if (dto.start && dto.end && eventInstance.updateTimeSpan) {
-            const startDate = new Date(dto.start);
-            const endDate = new Date(dto.end);
-            if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-                const timeSpan = ScheduleTimeSpan.create(startDate, endDate);
-                if (timeSpan) {
-                    eventInstance.updateTimeSpan(timeSpan);
-                }
-            }
-        }
+        const eventInstance = this.createOrUpdateEventInstance(dto);
         await this._repo.add(eventInstance);
         return this.convertToEntity(eventInstance);
     }
@@ -154,5 +119,38 @@ export class ScheduleEventService implements IScheduleEventService {
             return ctor.from(data);
         }
         return null;
+    }
+
+    private createOrUpdateEventInstance(
+        dto: Partial<CreateScheduleEventDto> & { scheduleEventId?: string }
+    ): IScheduleEvent {
+
+        const found = this._eventInstances.find(
+            inst => inst.scheduleEventType?.scheduleEventType === dto.eventType
+        );
+
+        if (!found) throw new Error("Unknown eventType: " + dto.eventType);
+
+        const ctor = (found as any).constructor;
+        const newInstance = ctor.from(found, dto.scheduleEventId);
+
+        if (!newInstance) throw new Error("Failed to clone eventInstance.");
+
+        const eventInstance = newInstance as IScheduleEvent;
+
+        eventInstance.updateEventName(dto.eventName ?? "");
+
+        if (dto.detail) eventInstance.updateEventDetail(dto.detail);
+
+        const startDate = new Date(dto.start || "");
+        const endDate = new Date(dto.end || "");
+        const timeSum = startDate.getTime() + endDate.getTime();
+        if (!isNaN(timeSum)) {
+            eventInstance.updateTimeSpan(ScheduleTimeSpan.create(startDate, endDate)!);
+        }
+
+        console.log("Created/Updated event instance:", eventInstance);
+
+        return eventInstance.serialize();
     }
 }

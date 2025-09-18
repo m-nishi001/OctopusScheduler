@@ -42,9 +42,9 @@ export class TransitionPageEvent implements IScheduleEvent {
         return instance;
     }
 
-    static from(event: IScheduleEvent): TransitionPageEvent | null {
+    static from(event: IScheduleEvent, scheduleEventId?: string): TransitionPageEvent | null {
         const instance = new TransitionPageEvent();
-        instance._scheduleEventId = event.scheduleEventId;
+        instance._scheduleEventId = scheduleEventId ?? event.scheduleEventId;
         instance._scheduleEventName = event.scheduleEventName;
         instance._scheduleTimespan = event.scheduleTimeSpan;
         instance._scheduleEventDetail = event.scheduleEventDetail instanceof TransitionPageDetail

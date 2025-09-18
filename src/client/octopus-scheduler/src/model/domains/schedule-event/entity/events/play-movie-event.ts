@@ -42,9 +42,9 @@ export class PlayMovieEvent implements IScheduleEvent {
         return instance;
     }
 
-    static from(another: IScheduleEvent): PlayMovieEvent | null {
+    static from(another: IScheduleEvent, scheduleEventId?: string): PlayMovieEvent | null {
         const instance = new PlayMovieEvent();
-        instance._scheduleEventId = another.scheduleEventId;
+        instance._scheduleEventId = scheduleEventId ?? another.scheduleEventId;
         instance._scheduleEventName = another.scheduleEventName;
         instance._scheduleTimespan = another.scheduleTimeSpan;
         instance._scheduleEventDetail = new PlayMovieEventDetail(another.scheduleEventDetail.movieId);
