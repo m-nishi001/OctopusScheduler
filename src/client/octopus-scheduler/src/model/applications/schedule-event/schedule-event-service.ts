@@ -99,7 +99,7 @@ export class ScheduleEventService implements IScheduleEventService {
             new ShowImageEventTypeDto(
                 allAssets.filter(a => a.assetType.assetTypeName.includes('image')).map(a => ({ id: a.assetId, name: a.assetName }))
             ),
-            new TransitionPageEventTypeDto([])
+            new TransitionPageEventTypeDto()
         ];
         return eventTypeDtos.map(dto => ({
             eventType: dto.eventType,

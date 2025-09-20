@@ -3,7 +3,7 @@
 > content-deck-api@1.0.0 build
 > node esbuild.config.js
 
-[1G[0K(node:89902) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///root/google_apps_script/octopus-scheduler/src/server/content-deck-api/esbuild.config.js is not specified and it doesn't parse as CommonJS.
+[1G[0K(node:96687) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///root/google_apps_script/octopus-scheduler/src/server/content-deck-api/esbuild.config.js is not specified and it doesn't parse as CommonJS.
 Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
 To eliminate this warning, add "type": "module" to /root/google_apps_script/octopus-scheduler/src/server/content-deck-api/package.json.
 (Use `node --trace-warnings ...` to show where the warning was created)
