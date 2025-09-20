@@ -1,4 +1,3 @@
-
 <template>
   <div class="home dark-bg">
     <div class="home-content">
@@ -27,7 +26,6 @@ const goToSettings = () => router.push({ name: 'settings' });
 </script>
 
 <style scoped>
-
 .home {
   background: linear-gradient(135deg, #181818 0%, #222 100%);
   color: #fff;
@@ -37,6 +35,7 @@ const goToSettings = () => router.push({ name: 'settings' });
   display: flex;
   flex-direction: column;
 }
+
 .home-content {
   width: 100vw;
   height: 100vh;
@@ -44,8 +43,8 @@ const goToSettings = () => router.push({ name: 'settings' });
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  /* ベース層の背景・枠装飾を削除 */
 }
+
 .home-title {
   font-size: 2.2em;
   font-weight: 700;
@@ -57,9 +56,11 @@ const goToSettings = () => router.push({ name: 'settings' });
   color: #fff;
   text-shadow: 0 2px 12px #000a;
 }
+
 .octo-icon {
   font-size: 1.3em;
 }
+
 .btn-group {
   display: flex;
   gap: 1.5em;
@@ -67,6 +68,7 @@ const goToSettings = () => router.push({ name: 'settings' });
   width: 100%;
   justify-content: center;
 }
+
 .main-btn {
   font-size: 1.1em;
   font-weight: 600;
@@ -76,7 +78,7 @@ const goToSettings = () => router.push({ name: 'settings' });
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
   transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
   outline: none;
   position: relative;
@@ -84,33 +86,41 @@ const goToSettings = () => router.push({ name: 'settings' });
   align-items: center;
   gap: 0.7em;
 }
+
 .main-btn .btn-icon {
   font-size: 1.2em;
 }
-.main-btn:hover, .main-btn:focus {
+
+.main-btn:hover,
+.main-btn:focus {
   background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
-  box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
   transform: translateY(-2px) scale(1.04);
 }
+
 .main-btn:active {
   background: #1a1a1a;
   transform: scale(0.98);
 }
+
 .desc {
   color: #bbb;
   font-size: 1em;
   margin-top: 1em;
   text-align: center;
 }
+
 @media (max-width: 600px) {
   .home-content {
     width: 100vw;
     height: 100vh;
     padding: 0.5em;
   }
+
   .home-title {
     font-size: 1.3em;
   }
+
   .main-btn {
     font-size: 1em;
     padding: 0.7em 1.2em;
