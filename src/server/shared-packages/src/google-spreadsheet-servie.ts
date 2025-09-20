@@ -139,15 +139,26 @@ namespace SpreadsheetDataStore {
             return newSheet;
         }
 
+    }
+
+    /**
+     * IRepositoryをスプレッドシートで実装するクラス
+     * Class implementing IRepository with a spreadsheet backend.
+     */
+    export class DataStoreRepository<T> implements IRepository<T> {
+
+        private readonly sheetName: SpreadsheetName;
+        private readonly accessor: SpreadsheetAccessor;
+
         /**
          * JSONセル値のデシリアライズ時にISO8601日付文字列をDate型へ変換する再帰関数
          */
         private static parseWithDateConversion(obj: any): any {
             if (Array.isArray(obj)) {
-                return obj.map(SpreadsheetAccessor.parseWithDateConversion);
+                return obj.map(DataStoreRepository.parseWithDateConversion);
             } else if (obj && typeof obj === 'object') {
                 for (const key in obj) {
-                    obj[key] = SpreadsheetAccessor.parseWithDateConversion(obj[key]);
+                    obj[key] = DataStoreRepository.parseWithDateConversion(obj[key]);
                 }
                 return obj;
             } else if (typeof obj === 'string' && obj.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/)) {
@@ -158,38 +169,42 @@ namespace SpreadsheetDataStore {
         }
 
         /**
-         * 2次元配列をオブジェクト配列に変換します。
-         * Converts a 2D array to an array of objects.
+         * 2次元配列をオブジェクト配列に変換する共通処理
          */
-        toObjectArray(data: any[][]): any[] {
+        private toObjectArray(data: any[][]): any[] {
             if (data.length === 0) return [];
             const header = data[0];
             const array = data.slice(1).map(record =>
                 record.reduce((previous, current, columnIndex) => {
                     const columnName = header[columnIndex];
-                    if (columnName) {
-                        previous[columnName] = (typeof current === 'string' && current.startsWith('{'))
-                            ? SpreadsheetAccessor.parseWithDateConversion(JSON.parse(current))
-                            : current;
+                    if (typeof current === 'string' && current.startsWith('{')) {
+                        Logger.log(current)
+                        Logger.log(`[DataStoreRepository.toObjectArray] Parsing JSON for column ${columnName}: ${JSON.parse(current)}`);
+                        previous[columnName] = DataStoreRepository.parseWithDateConversion(JSON.parse(current));
+                    } else {
+                        Logger.log(`[DataStoreRepository.toObjectArray] Assigning value for column ${columnName}: ${current}`);
+                        previous[columnName] = current;
                     }
                     return previous;
                 }, {})
             );
             return array;
         }
-    }
-
-    /**
-     * IRepositoryをスプレッドシートで実装するクラス
-     * Class implementing IRepository with a spreadsheet backend.
-     */
-    export class DataStoreRepository<T> implements IRepository<T> {
-        private readonly sheetName: SpreadsheetName;
-        private readonly accessor: SpreadsheetAccessor;
 
         constructor(sheetName: SpreadsheetName, accessor: SpreadsheetAccessor) {
             this.sheetName = sheetName;
             this.accessor = accessor;
+        }
+
+        /**
+         * JSオブジェクトをスプレッドシート用配列に変換する共通処理
+         */
+        private toRowArray(entity: T): any[] {
+            return Object.values(entity as object).map(value =>
+                typeof value === 'object' && value !== null
+                    ? JSON.stringify(value)
+                    : value
+            );
         }
 
         /**
@@ -206,13 +221,7 @@ namespace SpreadsheetDataStore {
                 throw new Error("Invalid entity properties for column definitions.");
             }
             const targetSheet = sheet ?? this.accessor.createSheet(this.sheetName, columnDefinitions as ColumnDefinition[]);
-            const values = Object
-                .values(entity as object)
-                .map(value =>
-                    typeof value === 'object' && value !== null
-                        ? JSON.stringify(value)
-                        : value
-                );
+            const values = this.toRowArray(entity);
             targetSheet.appendRow(values);
             Logger.log(`[DataStoreRepository.add] Inserted new record.`);
             return entity;
@@ -239,7 +248,7 @@ namespace SpreadsheetDataStore {
                 }
                 if (predicate(record)) {
                     const updated = updateEntity(record);
-                    const updatedRow = Object.keys(updated as object).map(key => (updated as any)[key]);
+                    const updatedRow = this.toRowArray(updated);
                     sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
                     updatedCount++;
                 }
@@ -261,7 +270,7 @@ namespace SpreadsheetDataStore {
             const sheet = this.accessor.getSheet(this.sheetName);
             if (!sheet || sheet.getLastRow() <= 1) return [];
 
-            const records = this.accessor.toObjectArray(sheet.getDataRange().getValues()) as T[];
+            const records = this.toObjectArray(sheet.getDataRange().getValues()) as T[];
             return records.filter(predicate);
         }
 
@@ -291,7 +300,7 @@ namespace SpreadsheetDataStore {
             const values = dataRange.getValues();
             const header = values.shift()!; // Get header and remove from array
 
-            const records = this.accessor.toObjectArray(values) as T[];
+            const records = this.toObjectArray([header, ...values]) as T[];
             const remainingRecords = records.filter(record => !predicate(record));
 
             // Clear the sheet first to remove all existing data.

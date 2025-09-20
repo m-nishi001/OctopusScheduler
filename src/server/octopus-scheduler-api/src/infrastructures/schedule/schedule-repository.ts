@@ -26,34 +26,27 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 	}
 
 	findAll(): IScheduleEvent[] {
-		const records = this.repository.find(() => true);
-		Logger.log(`[SpreadsheetScheduleEventRepository] Retrieved ${JSON.stringify(records)} schedule events.`);
-		return records;
+		try {
+			const records = this.repository.find(() => true);
+			Logger.log(`[SpreadsheetScheduleEventRepository] Retrieved ${JSON.stringify(records)} schedule events.`);
+			return records;
+		} catch (e) {
+			Logger.log(`[SpreadsheetScheduleEventRepository] Error retrieving schedule events: ${e}`);
+			throw e;
+		}
 	}
 
-	update(predicate: (entity: IScheduleEvent) => boolean, executor: (entity: IScheduleEvent) => IScheduleEvent): number {
-		const all = this.findAll();
-		let updated = 0;
-		for (const event of all) {
-			if (predicate(event)) {
-				const updatedEvent = executor(event);
-				this.repository.update(
-					(e: any) => e.scheduleEventId === updatedEvent.scheduleEventId,
-					() => updatedEvent.serialize()
-				);
-				updated++;
-			}
-		}
-		return updated;
+	update(
+		predicate: (entity: IScheduleEvent) => boolean,
+		executor: (entity: IScheduleEvent) => IScheduleEvent): number {
+		return this.repository.update(
+			predicate,
+			(entity: IScheduleEvent) => executor(entity).serialize());
 	}
 
 	delete(predicate: (entity: IScheduleEvent) => boolean): number {
-		const all = this.findAll();
-		const beforeCount = all.length;
-		this.repository.delete((obj: any) => {
-			const event = all.find(e => e.scheduleEventId === obj.id);
-			return event ? predicate(event) : false;
-		});
+		const beforeCount = this.findAll().length;
+		this.repository.delete(predicate);
 		const afterCount = this.findAll().length;
 		return beforeCount - afterCount;
 	}
