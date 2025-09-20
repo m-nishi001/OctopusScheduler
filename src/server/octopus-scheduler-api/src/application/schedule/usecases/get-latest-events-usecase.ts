@@ -35,7 +35,7 @@ export class GetLatestEventsUseCase {
                     return null;
                 }
 
-                return factory.createFromRepository(e);
+                return factory.create(e);
             }),
 
             endedEvents: endedEvents.map(e => {
@@ -46,7 +46,7 @@ export class GetLatestEventsUseCase {
                     return null;
                 }
 
-                return factory.createFromRepository(e);
+                return factory.create(e);
             }),
         };
     }

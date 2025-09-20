@@ -18,7 +18,7 @@ export class MarkEventsProcessedUseCase {
 
                 if (!factory) throw new Error("Failed to find factory");
 
-                const scheduleEvent = factory.createFromRepository(entity);
+                const scheduleEvent = factory.create(entity);
 
                 if (!scheduleEvent) throw new Error("Failed to convert to entity");
 

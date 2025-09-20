@@ -1,9 +1,8 @@
-import { IScheduleEventType } from "../value-object/event-types/event-type";
 import { ScheduleTimeSpan } from "../value-object/schedule-timespan";
 
 export interface IScheduleEvent {
     readonly scheduleEventId: string;
-    readonly scheduleEventType: IScheduleEventType
+    readonly scheduleEventType: string; // イベント種別名（例: "PlayAudioEvent"）
     readonly scheduleEventName: string;
     readonly scheduleTimeSpan: ScheduleTimeSpan;
     readonly scheduleEventDetail: any; // 独自のプロパティ

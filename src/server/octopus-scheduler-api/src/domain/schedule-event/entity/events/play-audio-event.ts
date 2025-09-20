@@ -1,9 +1,10 @@
 import { IScheduleEvent } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../value-object/schedule-timespan";
-import { IScheduleEventType } from "../../value-object/event-types/event-type";
-import { PlayAudioEventType } from "../../value-object/event-types/events/play-audio-event-type";
 
 export class PlayAudioEvent implements IScheduleEvent {
+
+    static readonly scheduleEventType = "PlayAudioEvent";
+
     private _scheduleEventId: string;
     private _scheduleEventName: string;
     private _scheduleTimespan: ScheduleTimeSpan;
@@ -32,44 +33,19 @@ export class PlayAudioEvent implements IScheduleEvent {
         this._updatedAt = updatedAt;
     }
 
-    static create(eventName: string): PlayAudioEvent | null {
-        if (eventName === "") {
-            console.log(`[PlayAudioEvent.create] eventName is empty.`);
+    static from(event: IScheduleEvent): PlayAudioEvent | null {
+        if (!event || !event.scheduleEventName) {
+            console.log(`[PlayAudioEvent.create] event or eventName is invalid.`);
             return null;
         }
-
         return new PlayAudioEvent(
-            Utilities.getUuid(),
-            eventName,
-            ScheduleTimeSpan.Empty,
-            new PlayAudioEventDetail(""),
-            null,
-            new Date(),
-            new Date()
-        );
-    }
-
-    static createByClient(source: IScheduleEvent): PlayAudioEvent | null {
-        return new PlayAudioEvent(
-            Utilities.getUuid(),
-            source.scheduleEventName,
-            source.scheduleTimeSpan,
-            source.scheduleEventDetail,
-            source.processedAt,
-            source.registeredAt,
-            source.updatedAt
-        );
-    }
-
-    static from(another: IScheduleEvent): PlayAudioEvent | null {
-        return new PlayAudioEvent(
-            another.scheduleEventId,
-            another.scheduleEventName,
-            another.scheduleTimeSpan,
-            another.scheduleEventDetail,
-            another.processedAt,
-            another.registeredAt,
-            another.updatedAt
+            event.scheduleEventId === "" ? Utilities.getUuid() : event.scheduleEventId,
+            event.scheduleEventName,
+            event.scheduleTimeSpan,
+            event.scheduleEventDetail,
+            event.processedAt,
+            event.registeredAt,
+            event.updatedAt
         );
     }
 
@@ -114,8 +90,8 @@ export class PlayAudioEvent implements IScheduleEvent {
         return this._scheduleEventId;
     }
 
-    get scheduleEventType(): IScheduleEventType {
-        return new PlayAudioEventType();
+    get scheduleEventType(): string {
+        return "PlayAudioEvent";
     }
 
     get scheduleEventName(): string {
@@ -130,7 +106,7 @@ export class PlayAudioEvent implements IScheduleEvent {
         return this._processedAt;
     }
 
-    get scheduleEventDetail(): any {
+    get scheduleEventDetail(): PlayAudioEventDetail {
         return this._scheduleEventDetail;
     }
 

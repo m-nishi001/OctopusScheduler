@@ -19,7 +19,7 @@ export class GetAllSchedulesUseCase {
                     return null;
                 }
 
-                return factory.createFromRepository(scheduleEvent);
+                return factory.create(scheduleEvent);
             })
             .filter((event): event is IScheduleEvent => event !== null)
             .map(event => event.serialize());

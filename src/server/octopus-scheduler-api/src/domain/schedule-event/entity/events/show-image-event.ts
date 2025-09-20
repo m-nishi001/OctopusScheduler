@@ -1,8 +1,10 @@
 import { IScheduleEvent } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../value-object/schedule-timespan";
-import { IScheduleEventType } from "../../value-object/event-types/event-type";
 
 export class ShowImageEvent implements IScheduleEvent {
+
+    static readonly scheduleEventType = "ShowImageEvent";
+
     private _eventId: string;
     private _eventName: string;
     private _timeSpan: ScheduleTimeSpan;
@@ -31,38 +33,13 @@ export class ShowImageEvent implements IScheduleEvent {
         this._updatedAt = updatedAt;
     }
 
-    static create(eventName: string): ShowImageEvent | null {
-        if (eventName === "") {
-            console.log(`[ShowImageEvent.create] eventName is empty.`);
+    static from(event: IScheduleEvent): ShowImageEvent | null {
+        if (!event || !event.scheduleEventName) {
+            console.log(`[ShowImageEvent.create] event or eventName is invalid.`);
             return null;
         }
-
         return new ShowImageEvent(
-            Utilities.getUuid(),
-            eventName,
-            ScheduleTimeSpan.Empty,
-            new ShowImageEventDetail(""),
-            null,
-            new Date(),
-            new Date()
-        );
-    }
-
-    static createByClient(source: IScheduleEvent): ShowImageEvent | null {
-        return new ShowImageEvent(
-            Utilities.getUuid(),
-            source.scheduleEventName,
-            source.scheduleTimeSpan,
-            source.scheduleEventDetail,
-            source.processedAt,
-            source.registeredAt,
-            source.updatedAt
-        );
-    }
-
-    static from(event: IScheduleEvent): ShowImageEvent | null {
-        return new ShowImageEvent(
-            event.scheduleEventId,
+            event.scheduleEventId === "" ? Utilities.getUuid() : event.scheduleEventId,
             event.scheduleEventName,
             event.scheduleTimeSpan,
             event.scheduleEventDetail,
@@ -113,13 +90,8 @@ export class ShowImageEvent implements IScheduleEvent {
         return this._eventId;
     }
 
-    get scheduleEventType(): IScheduleEventType {
-        return {
-            scheduleEventType: "ShowImageEvent",
-            displayName: "画像表示イベント",
-            displayDescription: "指定した画像を表示します。",
-            createEvent: () => null
-        };
+    get scheduleEventType(): string {
+        return "ShowImageEvent";
     }
 
     get scheduleEventName(): string {
@@ -134,7 +106,7 @@ export class ShowImageEvent implements IScheduleEvent {
         return this._processedAt;
     }
 
-    get scheduleEventDetail(): any {
+    get scheduleEventDetail(): ShowImageEventDetail {
         return this._eventDetail;
     }
 

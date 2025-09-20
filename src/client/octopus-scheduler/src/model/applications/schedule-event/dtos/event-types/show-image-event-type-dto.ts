@@ -1,5 +1,6 @@
+import { ShowImageEvent } from '../../../../domains/schedule-event/entity/events/show-image-event';
 export class ShowImageEventTypeDto {
-  readonly eventType = "ShowImageEvent";
+  readonly eventType = ShowImageEvent.scheduleEventTypeName;
   readonly displayName = "画像表示イベント";
   readonly displayDescription = "指定した画像を表示します。";
   readonly settingsSchema: FormSchema;

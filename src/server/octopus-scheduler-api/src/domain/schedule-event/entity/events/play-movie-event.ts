@@ -1,8 +1,10 @@
 import { IScheduleEvent } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../value-object/schedule-timespan";
-import { IScheduleEventType } from "../../value-object/event-types/event-type";
 
 export class PlayMovieEvent implements IScheduleEvent {
+
+    static readonly scheduleEventType = "PlayMovieEvent";
+
     private _eventId: string;
     private _eventName: string;
     private _timeSpan: ScheduleTimeSpan;
@@ -31,44 +33,19 @@ export class PlayMovieEvent implements IScheduleEvent {
         this._updatedAt = updatedAt;
     }
 
-    static create(eventName: string): PlayMovieEvent | null {
-        if (eventName === "") {
-            console.log(`[PlayMovieEvent.create] eventName is empty.`);
+    static from(event: IScheduleEvent): PlayMovieEvent | null {
+        if (!event || !event.scheduleEventName) {
+            console.log(`[PlayMovieEvent.create] event or eventName is invalid.`);
             return null;
         }
-
         return new PlayMovieEvent(
-            Utilities.getUuid(),
-            eventName,
-            ScheduleTimeSpan.Empty,
-            new PlayMovieEventDetail(""),
-            null,
-            new Date(),
-            new Date()
-        );
-    }
-
-    static createByClient(source: IScheduleEvent): PlayMovieEvent | null {
-        return new PlayMovieEvent(
-            Utilities.getUuid(),
-            source.scheduleEventName,
-            source.scheduleTimeSpan,
-            source.scheduleEventDetail,
-            source.processedAt,
-            source.registeredAt,
-            source.updatedAt
-        );
-    }
-
-    static from(another: IScheduleEvent): PlayMovieEvent | null {
-        return new PlayMovieEvent(
-            another.scheduleEventId,
-            another.scheduleEventName,
-            another.scheduleTimeSpan,
-            another.scheduleEventDetail,
-            another.processedAt,
-            another.registeredAt,
-            another.updatedAt
+            event.scheduleEventId === "" ? Utilities.getUuid() : event.scheduleEventId,
+            event.scheduleEventName,
+            event.scheduleTimeSpan,
+            event.scheduleEventDetail,
+            event.processedAt,
+            event.registeredAt,
+            event.updatedAt
         );
     }
 
@@ -113,13 +90,8 @@ export class PlayMovieEvent implements IScheduleEvent {
         return this._eventId;
     }
 
-    get scheduleEventType(): IScheduleEventType {
-        return {
-            scheduleEventType: "PlayMovieEvent",
-            displayName: "映像再生イベント",
-            displayDescription: "指定した映像を再生します。",
-            createEvent: () => null
-        };
+    get scheduleEventType(): string {
+        return "PlayMovieEvent";
     }
 
     get scheduleEventName(): string {
@@ -134,7 +106,7 @@ export class PlayMovieEvent implements IScheduleEvent {
         return this._processedAt;
     }
 
-    get scheduleEventDetail(): any {
+    get scheduleEventDetail(): PlayMovieEventDetail {
         return this._eventDetail;
     }
 

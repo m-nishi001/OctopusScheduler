@@ -25,11 +25,7 @@ export class UpdateScheduleEventUseCase {
                     throw new Error("Failed to find factory");
                 }
 
-                const entity = factory.createFromClient(args);
-
-                Logger.log(`[UpdateScheduleEventUseCase] args: ${JSON.stringify(args)}`);
-                Logger.log(`[UpdateScheduleEventUseCase] entity: ${JSON.stringify(entity)}`);
-
+                const entity = factory.create(args);
                 if (!entity) throw new Error("Failed to convert to entity");
 
                 return entity;

@@ -1,9 +1,8 @@
-import type { IScheduleEventType } from "../vo/event-types/event-type";
 import type { ScheduleTimeSpan } from "../vo/schedule-timespan";
 
 export interface IScheduleEvent {
     readonly scheduleEventId: string;
-    readonly scheduleEventType: IScheduleEventType
+    readonly scheduleEventType: string;
     readonly scheduleEventName: string;
     readonly scheduleTimeSpan: ScheduleTimeSpan;
     readonly scheduleEventDetail: any; // 独自のプロパティ

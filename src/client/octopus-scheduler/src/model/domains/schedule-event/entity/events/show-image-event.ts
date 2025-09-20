@@ -1,63 +1,47 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventType } from "../../vo/event-types/event-type";
-import { ShowImageEventType } from "../../vo/event-types/events/show-image-event-type";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 import type { IScheduleEvent } from "../schedule-event";
 
 @injectable()
 export class ShowImageEvent implements IScheduleEvent {
+
+    static readonly scheduleEventTypeName: string = "ShowImageEvent";
+
     private _scheduleEventId: string;
     private _scheduleEventName: string;
     private _scheduleTimespan: ScheduleTimeSpan;
     private _processedAt: Date | null;
     private _registeredAt: Date;
     private _updatedAt: Date;
-
-    // 独自のプロパティ
     private _scheduleEventDetail: ShowImageEventDetail;
 
-        public constructor() {
-            this._scheduleEventId = "";
-            this._scheduleEventName = "";
-            this._scheduleTimespan = ScheduleTimeSpan.Empty;
-            this._scheduleEventDetail = new ShowImageEventDetail("");
-            this._processedAt = null;
-            this._registeredAt = new Date();
-            this._updatedAt = new Date();
-        }
-
-    static create(eventName: string): ShowImageEvent | null {
-        if (eventName === "") {
-            console.log(`[ShowImageEvent.create] eventName is empty.`);
-            return null;
-        }
-        const instance = new ShowImageEvent();
-        instance._scheduleEventId = "";
-        instance._scheduleEventName = eventName;
-        instance._scheduleTimespan = ScheduleTimeSpan.Empty;
-        instance._scheduleEventDetail = new ShowImageEventDetail("");
-        instance._processedAt = null;
-        instance._registeredAt = new Date();
-        instance._updatedAt = new Date();
-        return instance;
+    public constructor() {
+        this._scheduleEventId = "";
+        this._scheduleEventName = "";
+        this._scheduleTimespan = ScheduleTimeSpan.Empty;
+        this._scheduleEventDetail = new ShowImageEventDetail("");
+        this._processedAt = null;
+        this._registeredAt = new Date();
+        this._updatedAt = new Date();
     }
+
 
     static from(event: IScheduleEvent, scheduleEventId?: string): ShowImageEvent | null {
         const instance = new ShowImageEvent();
         instance._scheduleEventId = scheduleEventId ?? event.scheduleEventId;
         instance._scheduleEventName = event.scheduleEventName;
-        instance._scheduleTimespan = event.scheduleTimeSpan;
-        instance._scheduleEventDetail = new ShowImageEventDetail(event.scheduleEventDetail.movieId ?? "");
-        instance._processedAt = event.processedAt;
-        instance._registeredAt = event.registeredAt;
-        instance._updatedAt = event.updatedAt;
+        instance._scheduleTimespan = ScheduleTimeSpan.create(new Date(event.scheduleTimeSpan.start), new Date(event.scheduleTimeSpan.end))!;
+        instance._scheduleEventDetail = event.scheduleEventDetail;
+        instance._processedAt = new Date(event.processedAt ?? "");
+        instance._registeredAt = new Date(event.registeredAt);
+        instance._updatedAt = new Date(event.updatedAt);
         return instance;
     }
 
     serialize(): IScheduleEvent {
         return {
             scheduleEventId: this._scheduleEventId,
-            scheduleEventType: this.scheduleEventType,
+            scheduleEventType: ShowImageEvent.scheduleEventTypeName,
             scheduleEventName: this._scheduleEventName,
             scheduleTimeSpan: this._scheduleTimespan,
             scheduleEventDetail: this._scheduleEventDetail,
@@ -95,8 +79,8 @@ export class ShowImageEvent implements IScheduleEvent {
         return this._scheduleEventId;
     }
 
-    get scheduleEventType(): IScheduleEventType {
-        return new ShowImageEventType();
+    get scheduleEventType(): string {
+        return ShowImageEvent.scheduleEventTypeName;
     }
 
     get scheduleEventName(): string {

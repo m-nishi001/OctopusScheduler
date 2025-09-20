@@ -16,12 +16,7 @@ export class AddScheduleEventUseCase {
             return { added: false };
         }
 
-        Logger.log(`[AddScheduleEventUseCase] using factory ${factory.constructor.name} for scheduleEventType ${args.scheduleEventType}`);
-        
-        const entity = factory.createFromClient(args);
-
-        Logger.log(`[AddScheduleEventUseCase] created entity: ${JSON.stringify(entity)}`);
-
+        const entity = factory.create(args);
         if (!entity) throw new Error("Failed to convert to entity");
 
         const count = this.repository.add([entity]);

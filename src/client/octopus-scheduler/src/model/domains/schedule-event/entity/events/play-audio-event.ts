@@ -1,23 +1,21 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventType } from "../../vo/event-types/event-type";
-import { PlayAudioEventType } from "../../vo/event-types/events/play-audio-event-type";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 import type { IScheduleEvent } from "../schedule-event";
 
 @injectable()
 export class PlayAudioEvent implements IScheduleEvent {
+
+    static readonly scheduleEventTypeName: string = "PlayAudioEvent";
+
     private _scheduleEventId: string;
     private _scheduleEventName: string;
     private _scheduleTimespan: ScheduleTimeSpan;
     private _processedAt: Date | null;
     private _registeredAt: Date;
     private _updatedAt: Date;
-
-    // 独自のプロパティ
     private _scheduleEventDetail: PlayAudioEventDetail;
 
     public constructor() {
-        // 空の初期化（必要ならデフォルト値をセット）
         this._scheduleEventId = "";
         this._scheduleEventName = "";
         this._scheduleTimespan = ScheduleTimeSpan.Empty;
@@ -27,38 +25,23 @@ export class PlayAudioEvent implements IScheduleEvent {
         this._updatedAt = new Date();
     }
 
-    static create(eventName: string): PlayAudioEvent | null {
-        if (eventName === "") {
-            console.log(`[PlayAudioEvent.create] eventName is empty.`);
-            return null;
-        }
-        const instance = new PlayAudioEvent();
-        instance._scheduleEventId = "";
-        instance._scheduleEventName = eventName;
-        instance._scheduleTimespan = ScheduleTimeSpan.Empty;
-        instance._scheduleEventDetail = new PlayAudioEventDetail("");
-        instance._processedAt = null;
-        instance._registeredAt = new Date();
-        instance._updatedAt = new Date();
-        return instance;
-    }
 
     static from(another: IScheduleEvent, scheduleEventId?: string): PlayAudioEvent | null {
         const instance = new PlayAudioEvent();
         instance._scheduleEventId = scheduleEventId ?? another.scheduleEventId;
         instance._scheduleEventName = another.scheduleEventName;
-        instance._scheduleTimespan = another.scheduleTimeSpan;
+        instance._scheduleTimespan = ScheduleTimeSpan.create(new Date(another.scheduleTimeSpan.start), new Date(another.scheduleTimeSpan.end))!;
         instance._scheduleEventDetail = another.scheduleEventDetail;
-        instance._processedAt = another.processedAt;
-        instance._registeredAt = another.registeredAt;
-        instance._updatedAt = another.updatedAt;
+        instance._processedAt = new Date(another.processedAt ?? "");
+        instance._registeredAt = new Date(another.registeredAt);
+        instance._updatedAt = new Date(another.updatedAt);
         return instance;
     }
 
     serialize(): IScheduleEvent {
         return {
             scheduleEventId: this._scheduleEventId,
-            scheduleEventType: this.scheduleEventType,
+            scheduleEventType: PlayAudioEvent.scheduleEventTypeName,
             scheduleEventName: this._scheduleEventName,
             scheduleTimeSpan: this._scheduleTimespan,
             scheduleEventDetail: this._scheduleEventDetail,
@@ -96,8 +79,8 @@ export class PlayAudioEvent implements IScheduleEvent {
         return this._scheduleEventId;
     }
 
-    get scheduleEventType(): IScheduleEventType {
-        return new PlayAudioEventType();
+    get scheduleEventType(): string {
+        return PlayAudioEvent.scheduleEventTypeName;
     }
 
     get scheduleEventName(): string {

@@ -17,6 +17,6 @@ export class FindScheduleByIdUseCase {
             return null;
         }
 
-        return factory.createFromRepository(event);
+        return factory.create(event);
     }
 }

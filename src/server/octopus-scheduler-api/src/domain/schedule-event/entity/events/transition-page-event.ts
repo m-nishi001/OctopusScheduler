@@ -1,8 +1,10 @@
 import { IScheduleEvent } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../value-object/schedule-timespan";
-import { IScheduleEventType } from "../../value-object/event-types/event-type";
 
 export class TransitionPageEvent implements IScheduleEvent {
+
+    static readonly scheduleEventType = "TransitionPageEvent";
+
     private _eventId: string;
     private _eventName: string;
     private _timeSpan: ScheduleTimeSpan;
@@ -31,38 +33,13 @@ export class TransitionPageEvent implements IScheduleEvent {
         this._updatedAt = updatedAt;
     }
 
-    static create(eventName: string): TransitionPageEvent | null {
-        if (eventName === "") {
-            console.log(`[TransitionPageEvent.create] eventName is empty.`);
+    static from(event: IScheduleEvent): TransitionPageEvent | null {
+        if (!event || !event.scheduleEventName) {
+            console.log(`[TransitionPageEvent.create] event or eventName is invalid.`);
             return null;
         }
-
         return new TransitionPageEvent(
-            Utilities.getUuid(),
-            eventName,
-            ScheduleTimeSpan.Empty,
-            new TransitionPageDetail(""),
-            null,
-            new Date(),
-            new Date()
-        );
-    }
-
-    static createByClient(source: IScheduleEvent): TransitionPageEvent | null {
-        return new TransitionPageEvent(
-            Utilities.getUuid(),
-            source.scheduleEventName,
-            source.scheduleTimeSpan,
-            source.scheduleEventDetail,
-            source.processedAt,
-            source.registeredAt,
-            source.updatedAt
-        );
-    }
-
-    static from(event: IScheduleEvent): TransitionPageEvent | null {
-        return new TransitionPageEvent(
-            event.scheduleEventId,
+            event.scheduleEventId === "" ? Utilities.getUuid() : event.scheduleEventId,
             event.scheduleEventName,
             event.scheduleTimeSpan,
             event.scheduleEventDetail,
@@ -113,13 +90,8 @@ export class TransitionPageEvent implements IScheduleEvent {
         return this._eventId;
     }
 
-    get scheduleEventType(): IScheduleEventType {
-        return {
-            scheduleEventType: "TransitionPageEvent",
-            displayName: "ページ遷移イベント",
-            displayDescription: "指定したページに遷移します。",
-            createEvent: () => null
-        };
+    get scheduleEventType(): string {
+        return "TransitionPageEvent";
     }
 
     get scheduleEventName(): string {
@@ -134,7 +106,7 @@ export class TransitionPageEvent implements IScheduleEvent {
         return this._processedAt;
     }
 
-    get scheduleEventDetail(): any {
+    get scheduleEventDetail(): TransitionPageDetail {
         return this._eventDetail;
     }
 

@@ -26,9 +26,9 @@
                     <tbody>
                         <tr v-for="ev in events" :key="ev.scheduleEventId">
                             <td>{{ ev.scheduleEventName }}</td>
-                            <td>{{ ev.scheduleEventType.displayName }}</td>
-                            <td>{{ formatDate(ev.scheduleTimeSpan?.start) }}</td>
-                            <td>{{ formatDate(ev.scheduleTimeSpan?.end) }}</td>
+                            <td>{{ ev.displayName }}</td>
+                            <td>{{ formatDate(ev.start) }}</td>
+                            <td>{{ formatDate(ev.end) }}</td>
                             <td>
                                 <button class="main-btn small" @click="onEdit(ev)" :disabled="loading"><span
                                         class="btn-icon">✏️</span>
@@ -49,11 +49,11 @@
                 <form @submit.prevent="isNew ? onAdd() : onUpdate()">
                     <label>
                         イベント名:
-                        <input v-model="form.eventName" required />
+                        <input v-model="form.scheduleEventName" required />
                     </label>
                     <label>
                         種別:
-                        <select v-model="form.eventType" @change="onEventTypeChange">
+                        <select v-model="form.scheduleEventType" @change="onEventTypeChange">
                             <option v-for="type in eventTypes" :key="type.eventType" :value="type.eventType">
                                 {{ type.displayName }}
                             </option>
@@ -69,8 +69,8 @@
                     </label>
                     <!-- 動的フォーム生成部分をdynamic-form.vueに置換 -->
                     <dynamic-form v-if="currentSettingsSchema" :schema="currentSettingsSchema"
-                        :model-value="form.detail"
-                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
+                        :model-value="form.scheduleEventDetail"
+                        @update:modelValue="(val: any) => { if (form) form.scheduleEventDetail = val; }" />
                     <div class="form-actions">
                         <button class="main-btn" type="submit" :disabled="saving">{{ isNew ? '追加' : '保存' }}</button>
                         <button class="main-btn" type="button" @click="onCancel">キャンセル</button>
@@ -85,20 +85,20 @@
 import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
-import type { IScheduleEvent } from '../../../../model/domains/schedule-event/entity/schedule-event';
+import type { EventDto } from '../../../../model/applications/schedule-event/dtos/event-dto';
 import type { CreateScheduleEventDto } from '../../../../model/applications/schedule-event/dtos/create-schedule-event-dto';
+import type { UpdateScheduleEventDto } from '../../../../model/applications/schedule-event/dtos/update-schedule-event-dto';
 import type { EventTypeDto } from '../../../../model/applications/schedule-event/dtos/event-type-dto';
 import DynamicForm from './dynamic-form.vue';
 
-const events = ref<IScheduleEvent[]>([]);
+const events = ref<EventDto[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const editing = ref(false);
 const isNew = ref(true);
 const eventTypes = ref<EventTypeDto[]>([]);
 
-// 編集時はIDも保持する
-const form = ref<(CreateScheduleEventDto & { scheduleEventId?: string }) | null>(null);
+const form = ref<CreateScheduleEventDto | UpdateScheduleEventDto | null>(null);
 const currentSettingsSchema = ref<any | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
@@ -116,7 +116,7 @@ async function fetchEvents() {
     loading.value = true;
     try {
         const list = await scheduleEventService.getAllScheduleEvents();
-        events.value = list ?? [];
+        events.value = (list ?? []) as EventDto[];
     } catch (e) {
         alert('イベント取得に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -137,27 +137,27 @@ function onNew() {
     isNew.value = true;
     editing.value = true;
     form.value = {
-        eventName: '',
-        eventType: eventTypes.value[0]?.eventType ?? '',
+        scheduleEventName: '',
+        scheduleEventType: eventTypes.value[0]?.eventType ?? '',
         start: '',
         end: '',
-        detail: {}
-    };
-    updateSettingsSchema(form.value.eventType);
+        scheduleEventDetail: {}
+    } as CreateScheduleEventDto;
+    updateSettingsSchema(form.value.scheduleEventType);
 }
 
-function onEdit(ev: IScheduleEvent) {
+function onEdit(ev: EventDto) {
     isNew.value = false;
     editing.value = true;
     form.value = {
-        scheduleEventId: ev.scheduleEventId, // 編集対象IDを保持
-        eventName: ev.scheduleEventName,
-        eventType: ev.scheduleEventType.scheduleEventType,
-        start: ev.scheduleTimeSpan?.start ? new Date(ev.scheduleTimeSpan.start).toISOString().slice(0, 16) : '',
-        end: ev.scheduleTimeSpan?.end ? new Date(ev.scheduleTimeSpan.end).toISOString().slice(0, 16) : '',
-        detail: ev.scheduleEventDetail ?? {}
-    };
-    updateSettingsSchema(form.value.eventType);
+        scheduleEventId: ev.scheduleEventId,
+        scheduleEventName: ev.scheduleEventName,
+        scheduleEventType: ev.scheduleEventType,
+        start: ev.start,
+        end: ev.end,
+        scheduleEventDetail: ev.scheduleEventDetail
+    } as UpdateScheduleEventDto;
+    updateSettingsSchema(form.value.scheduleEventType);
 }
 
 function onEventTypeChange(e: Event) {
@@ -165,17 +165,17 @@ function onEventTypeChange(e: Event) {
     if (!target) return;
     const selectedType = target.value;
     if (form.value) {
-        form.value.eventType = selectedType;
+        form.value.scheduleEventType = selectedType;
         updateSettingsSchema(selectedType);
         // 新規作成時のみリセット、編集時は既存detailを保持
         if (isNew.value) {
-            form.value.detail = {};
+            form.value.scheduleEventDetail = {};
         }
     }
 }
 
 function validateForm() {
-    if (!form.value?.eventName || !form.value?.start || !form.value?.end || !form.value?.eventType) {
+    if (!form.value?.scheduleEventName || !form.value?.start || !form.value?.end || !form.value?.scheduleEventType) {
         alert('必須項目を入力してください');
         return false;
     }
@@ -184,29 +184,21 @@ function validateForm() {
 
 async function onAdd() {
     if (!validateForm()) return;
-
     saving.value = true;
-
     try {
-        const dto: CreateScheduleEventDto = {
-            eventName: form.value!.eventName,
-            eventType: form.value!.eventType,
-            start: form.value!.start,
-            end: form.value!.end,
-            detail: form.value!.detail
-        };
+        const dto = form.value as CreateScheduleEventDto;
         const newEvent = await scheduleEventService.createScheduleEvent(dto);
         if (newEvent) {
             events.value.push(newEvent);
             form.value = {
                 scheduleEventId: newEvent.scheduleEventId,
-                eventName: newEvent.scheduleEventName,
-                eventType: newEvent.scheduleEventType.scheduleEventType,
-                start: newEvent.scheduleTimeSpan?.start ? new Date(newEvent.scheduleTimeSpan.start).toISOString().slice(0, 16) : '',
-                end: newEvent.scheduleTimeSpan?.end ? new Date(newEvent.scheduleTimeSpan.end).toISOString().slice(0, 16) : '',
-                detail: newEvent.scheduleEventDetail ?? {}
-            };
-            updateSettingsSchema(form.value.eventType);
+                scheduleEventName: newEvent.scheduleEventName,
+                scheduleEventType: newEvent.scheduleEventType,
+                start: newEvent.start,
+                end: newEvent.end,
+                scheduleEventDetail: newEvent.scheduleEventDetail
+            } as UpdateScheduleEventDto;
+            updateSettingsSchema(form.value.scheduleEventType);
         }
     } catch (e) {
         alert('追加に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -219,23 +211,13 @@ async function onUpdate() {
     if (!validateForm()) return;
     saving.value = true;
     try {
-        const targetId = form.value?.scheduleEventId;
-        if (!targetId) {
+        const dto = form.value as UpdateScheduleEventDto;
+        if (!dto.scheduleEventId) {
             alert('編集対象イベントIDが取得できませんでした');
             return;
         }
-
-        await scheduleEventService.updateScheduleEvent({
-            scheduleEventId: targetId,
-            eventName: form.value!.eventName,
-            eventType: form.value!.eventType,
-            start: form.value!.start,
-            end: form.value!.end,
-            detail: form.value!.detail
-        });
-
+        await scheduleEventService.updateScheduleEvent(dto);
         editing.value = false;
-
         await fetchEvents();
     } catch (e) {
         alert('更新に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -244,7 +226,7 @@ async function onUpdate() {
     }
 }
 
-async function onDelete(ev: IScheduleEvent) {
+async function onDelete(ev: EventDto) {
     if (!confirm(`${ev.scheduleEventName} を削除しますか？`)) return;
     try {
         await scheduleEventService.deleteScheduleEvent(ev.scheduleEventId);
@@ -282,7 +264,6 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    /* ベース層の背景・枠装飾を削除 */
 }
 
 .editor-title {

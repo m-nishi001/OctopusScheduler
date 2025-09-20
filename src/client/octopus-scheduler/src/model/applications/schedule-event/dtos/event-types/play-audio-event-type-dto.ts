@@ -1,7 +1,8 @@
 import type { FormSchema, FormOption } from '../form-schema';
+import { PlayAudioEvent } from '../../../../domains/schedule-event/entity/events/play-audio-event';
 
 export class PlayAudioEventTypeDto {
-  readonly eventType = "PlayAudioEvent";
+  readonly eventType = PlayAudioEvent.scheduleEventTypeName;
   readonly displayName = "音声再生イベント";
   readonly displayDescription = "指定した音声を再生します。";
   readonly settingsSchema: FormSchema;
