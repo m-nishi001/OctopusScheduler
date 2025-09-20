@@ -177,14 +177,9 @@ namespace SpreadsheetDataStore {
             const array = data.slice(1).map(record =>
                 record.reduce((previous, current, columnIndex) => {
                     const columnName = header[columnIndex];
-                    if (typeof current === 'string' && current.startsWith('{')) {
-                        Logger.log(current)
-                        Logger.log(`[DataStoreRepository.toObjectArray] Parsing JSON for column ${columnName}: ${JSON.parse(current)}`);
-                        previous[columnName] = DataStoreRepository.parseWithDateConversion(JSON.parse(current));
-                    } else {
-                        Logger.log(`[DataStoreRepository.toObjectArray] Assigning value for column ${columnName}: ${current}`);
-                        previous[columnName] = current;
-                    }
+                    previous[columnName] = (typeof current === 'string' && current.startsWith('{'))
+                        ? DataStoreRepository.parseWithDateConversion(JSON.parse(current))
+                        : current;
                     return previous;
                 }, {})
             );
