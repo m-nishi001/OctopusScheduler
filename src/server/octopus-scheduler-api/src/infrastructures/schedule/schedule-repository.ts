@@ -4,7 +4,7 @@ import { ISpreadsheetService, SpreadsheetService } from "/root/google_apps_scrip
 import { injectable } from "tsyringe";
 
 @injectable()
-export class SpreadsheetScheduleEventRepository implements IScheduleEventRepository {
+export class ScheduleEventRepository implements IScheduleEventRepository {
 	private readonly repository: ISpreadsheetService<IScheduleEvent>;
 	private readonly sheetName = "ScheduleEvents";
 
