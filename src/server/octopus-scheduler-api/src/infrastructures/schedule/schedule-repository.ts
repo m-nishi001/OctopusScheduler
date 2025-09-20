@@ -26,14 +26,7 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 	}
 
 	findAll(): IScheduleEvent[] {
-		try {
-			const records = this.repository.find(() => true);
-			Logger.log(`[SpreadsheetScheduleEventRepository] Retrieved ${JSON.stringify(records)} schedule events.`);
-			return records;
-		} catch (e) {
-			Logger.log(`[SpreadsheetScheduleEventRepository] Error retrieving schedule events: ${e}`);
-			throw e;
-		}
+		return this.repository.find(() => true);
 	}
 
 	update(
