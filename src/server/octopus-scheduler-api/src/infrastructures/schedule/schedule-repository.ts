@@ -15,7 +15,7 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 	add(events: IScheduleEvent[]): number {
 		let count = 0;
 		for (const event of events) {
-			this.repository.save(event.serialize());
+			this.repository.add(event.serialize());
 			count++;
 		}
 		return count;
@@ -37,7 +37,10 @@ export class SpreadsheetScheduleEventRepository implements IScheduleEventReposit
 		for (const event of all) {
 			if (predicate(event)) {
 				const updatedEvent = executor(event);
-				this.repository.save(updatedEvent);
+				this.repository.update(
+					(e: any) => e.scheduleEventId === updatedEvent.scheduleEventId,
+					() => updatedEvent.serialize()
+				);
 				updated++;
 			}
 		}

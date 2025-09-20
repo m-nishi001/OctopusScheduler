@@ -12,9 +12,7 @@ export class MarkEventsProcessedUseCase {
             (entity: IScheduleEvent) => args.scheduleEventIds.includes(entity.scheduleEventId),
             (entity: IScheduleEvent) => {
                 const scheduleEvent = ScheduleEventFactory.convertToEntity(entity);
-
                 if (!scheduleEvent) throw new Error("Failed to convert to entity");
-
                 return scheduleEvent.markAsProcessed(now);
             }
         );

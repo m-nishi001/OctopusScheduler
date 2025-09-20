@@ -16,9 +16,7 @@ export class UpdateScheduleEventUseCase {
             (entity: IScheduleEvent) => entity.scheduleEventId === args.scheduleEventId,
             () => {
                 const entity = ScheduleEventFactory.convertFromClientObject(args);
-                
                 if (!entity) throw new Error("Failed to convert to entity");
-
                 return entity;
             }
         );

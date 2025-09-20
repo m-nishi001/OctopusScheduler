@@ -193,61 +193,59 @@ namespace SpreadsheetDataStore {
         }
 
         /**
-         * エンティティを保存（新規作成 or 更新）します。
-         * Saves an entity (create or update).
+         * 新規追加
          */
-        save(entity: T): T {
+        add(entity: T): T {
             using lock = SpreadsheetLock.tryLock();
             if (!lock) {
-                throw new Error("Failed to acquire lock for save operation.");
+                throw new Error("Failed to acquire lock for add operation.");
             }
-
             const sheet = this.accessor.getSheet(this.sheetName);
             const columnDefinitions = Object.keys(entity as object).map(key => ColumnDefinition.create(key));
             if (columnDefinitions.some(def => !def)) {
                 throw new Error("Invalid entity properties for column definitions.");
             }
+            const targetSheet = sheet ?? this.accessor.createSheet(this.sheetName, columnDefinitions as ColumnDefinition[]);
+            const values = Object
+                .values(entity as object)
+                .map(value =>
+                    typeof value === 'object' && value !== null
+                        ? JSON.stringify(value)
+                        : value
+                );
+            targetSheet.appendRow(values);
+            Logger.log(`[DataStoreRepository.add] Inserted new record.`);
+            return entity;
+        }
 
-            // Check for existing record
-            const entityWithId = entity as { id?: string };
-            let existingRecordIndex = -1;
-            if (typeof entityWithId.id !== 'undefined') {
-                const values = sheet?.getDataRange().getValues() ?? [];
-                if (values.length > 1) {
-                    const header = values[0];
-                    for (let i = 1; i < values.length; i++) {
-                        const record: any = {};
-                        for (let j = 0; j < header.length; j++) {
-                            record[header[j]] = values[i][j];
-                        }
-                        if (record.id === entityWithId.id) {
-                            existingRecordIndex = i;
-                            break;
-                        }
-                    }
+        /**
+         * 更新
+         */
+        update(predicate: (entity: T) => boolean, updateEntity: (entity: T) => T): number {
+            using lock = SpreadsheetLock.tryLock();
+            if (!lock) {
+                throw new Error("Failed to acquire lock for update operation.");
+            }
+            const sheet = this.accessor.getSheet(this.sheetName);
+            if (!sheet) return 0;
+            const values = sheet.getDataRange().getValues();
+            if (values.length <= 1) return 0;
+            const header = values[0];
+            let updatedCount = 0;
+            for (let i = 1; i < values.length; i++) {
+                const record: any = {};
+                for (let j = 0; j < header.length; j++) {
+                    record[header[j]] = values[i][j];
+                }
+                if (predicate(record)) {
+                    const updated = updateEntity(record);
+                    const updatedRow = Object.keys(updated as object).map(key => (updated as any)[key]);
+                    sheet.getRange(i + 1, 1, 1, updatedRow.length).setValues([updatedRow]);
+                    updatedCount++;
                 }
             }
-
-            if (existingRecordIndex !== -1) {
-                // Update existing record
-                const sheetRange = sheet!.getRange(existingRecordIndex + 1, 1, 1, Object.keys(entity as object).length);
-                const updatedRow = Object.keys(entity as object).map(key => (entity as any)[key]);
-                sheetRange.setValues([updatedRow]);
-                Logger.log(`[DataStoreRepository.save] Updated record with ID: ${entityWithId.id}`);
-            } else {
-                // Insert a new record
-                const targetSheet = sheet ?? this.accessor.createSheet(this.sheetName, columnDefinitions as ColumnDefinition[]);
-                const values = Object
-                    .values(entity as object)
-                    .map(value =>
-                        typeof value === 'object' && value !== null
-                            ? JSON.stringify(value)
-                            : value
-                    );
-                targetSheet.appendRow(values);
-                Logger.log(`[DataStoreRepository.save] Inserted new record.`);
-            }
-            return entity;
+            Logger.log(`[DataStoreRepository.update] Updated ${updatedCount} record(s).`);
+            return updatedCount;
         }
 
         /**
@@ -325,10 +323,11 @@ namespace SpreadsheetDataStore {
  * Repository interface abstracting data store access.
  */
 export interface IRepository<T> {
-    save(entity: T): T;
+    add(entity: T): T;
+    update(predicate: (entity: T) => boolean, updateEntity: (entity: T) => T): number;
+    delete(predicate: (entity: T) => boolean): boolean;
     find(predicate: (entity: T) => boolean): T[];
     findOne(predicate: (entity: T) => boolean): T | null;
-    delete(predicate: (entity: T) => boolean): boolean;
 }
 
 // ==============================================================================
