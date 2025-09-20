@@ -303,7 +303,7 @@ namespace SpreadsheetDataStore {
 
             if (remainingRecords.length > 0) {
                 // Prepare new data to write back, including the header.
-                const updatedValues = [header, ...remainingRecords.map(record => Object.values(record as object))];
+                const updatedValues = [header, ...remainingRecords.map(record => this.toRowArray(record))];
                 sheet.getRange(1, 1, updatedValues.length, updatedValues[0].length).setValues(updatedValues);
             } else {
                 // If all records are deleted, just write back the header.
