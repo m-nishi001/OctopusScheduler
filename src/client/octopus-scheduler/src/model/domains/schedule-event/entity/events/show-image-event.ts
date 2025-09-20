@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import type { IScheduleEventType } from "../../vo/event-types/event-type";
-import { PlayAudioEventType } from "../../vo/event-types/events/play-audio-event-type";
+import { ShowImageEventType } from "../../vo/event-types/events/show-image-event-type";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 import type { IScheduleEvent } from "../schedule-event";
 
@@ -96,7 +96,7 @@ export class ShowImageEvent implements IScheduleEvent {
     }
 
     get scheduleEventType(): IScheduleEventType {
-        return new PlayAudioEventType();
+        return new ShowImageEventType();
     }
 
     get scheduleEventName(): string {

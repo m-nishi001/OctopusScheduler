@@ -1,6 +1,4 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventType } from "../../vo/event-types/event-type";
-import { PlayAudioEventType } from "../../vo/event-types/events/play-audio-event-type";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 import type { IScheduleEvent } from "../schedule-event";
 
@@ -97,8 +95,8 @@ export class TransitionPageEvent implements IScheduleEvent {
         return this._scheduleEventId;
     }
 
-    get scheduleEventType(): IScheduleEventType {
-        return new PlayAudioEventType();
+    get scheduleEventType(): any {
+        return { scheduleEventType: "TransitionPageEvent", displayName: "ページ遷移イベント", displayDescription: "指定したページに遷移します。" };
     }
 
     get scheduleEventName(): string {

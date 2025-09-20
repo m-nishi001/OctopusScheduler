@@ -15,8 +15,12 @@ export class AddScheduleEventUseCase {
             Logger.log(`[AddScheduleEventUseCase] failed: no factory found for scheduleEventType ${args.scheduleEventType}`);
             return { added: false };
         }
+
+        Logger.log(`[AddScheduleEventUseCase] using factory ${factory.constructor.name} for scheduleEventType ${args.scheduleEventType}`);
         
         const entity = factory.createFromClient(args);
+
+        Logger.log(`[AddScheduleEventUseCase] created entity: ${JSON.stringify(entity)}`);
 
         if (!entity) throw new Error("Failed to convert to entity");
 
