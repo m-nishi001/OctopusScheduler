@@ -1,7 +1,6 @@
 import { IScheduleEvent } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../value-object/schedule-timespan";
 import { IScheduleEventType } from "../../value-object/event-types/event-type";
-import { PlayAudioEventType } from "../../value-object/event-types/events/play-audio-event-type";
 
 export class TransitionPageEvent implements IScheduleEvent {
     private _eventId: string;
@@ -115,7 +114,12 @@ export class TransitionPageEvent implements IScheduleEvent {
     }
 
     get scheduleEventType(): IScheduleEventType {
-        return new PlayAudioEventType();
+        return {
+            scheduleEventType: "TransitionPageEvent",
+            displayName: "ページ遷移イベント",
+            displayDescription: "指定したページに遷移します。",
+            createEvent: () => null
+        };
     }
 
     get scheduleEventName(): string {

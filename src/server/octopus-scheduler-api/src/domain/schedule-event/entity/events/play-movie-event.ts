@@ -1,7 +1,6 @@
 import { IScheduleEvent } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../value-object/schedule-timespan";
 import { IScheduleEventType } from "../../value-object/event-types/event-type";
-import { PlayAudioEventType } from "../../value-object/event-types/events/play-audio-event-type";
 
 export class PlayMovieEvent implements IScheduleEvent {
     private _eventId: string;
@@ -115,7 +114,12 @@ export class PlayMovieEvent implements IScheduleEvent {
     }
 
     get scheduleEventType(): IScheduleEventType {
-        return new PlayAudioEventType();
+        return {
+            scheduleEventType: "PlayMovieEvent",
+            displayName: "映像再生イベント",
+            displayDescription: "指定した映像を再生します。",
+            createEvent: () => null
+        };
     }
 
     get scheduleEventName(): string {

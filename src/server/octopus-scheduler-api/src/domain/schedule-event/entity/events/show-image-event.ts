@@ -1,7 +1,6 @@
 import { IScheduleEvent } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../value-object/schedule-timespan";
 import { IScheduleEventType } from "../../value-object/event-types/event-type";
-import { PlayAudioEventType } from "../../value-object/event-types/events/play-audio-event-type";
 
 export class ShowImageEvent implements IScheduleEvent {
     private _eventId: string;
@@ -115,7 +114,12 @@ export class ShowImageEvent implements IScheduleEvent {
     }
 
     get scheduleEventType(): IScheduleEventType {
-        return new PlayAudioEventType();
+        return {
+            scheduleEventType: "ShowImageEvent",
+            displayName: "画像表示イベント",
+            displayDescription: "指定した画像を表示します。",
+            createEvent: () => null
+        };
     }
 
     get scheduleEventName(): string {
