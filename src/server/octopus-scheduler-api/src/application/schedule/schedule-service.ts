@@ -1,5 +1,6 @@
-import { inject, injectable } from "tsyringe";
+import { inject, injectable, injectAll } from "tsyringe";
 import { IScheduleEventRepository } from "../../domain/schedule-event/schedule-event-reposiotry";
+import { IScheduleEventFactory } from "./factory/ischedule-event-factory";
 import { GasService } from "../gas-service";
 import { AddScheduleEventUseCase } from "./usecases/add-schedule-usecase";
 import { DeleteScheduleUseCase } from "./usecases/delete-schedule-usecase";
@@ -16,15 +17,19 @@ export class ScheduleService implements GasService {
     functions: Record<string, (args: any) => any>;
     repository: IScheduleEventRepository;
 
-    constructor(@inject("IScheduleEventRepository") repository: IScheduleEventRepository) {
+    constructor(
+        @inject("IScheduleEventRepository") repository: IScheduleEventRepository,
+        @injectAll("IScheduleEventFactory") factories: IScheduleEventFactory[]
+    ) {
         this.repository = repository;
-        const addUc = new AddScheduleEventUseCase(this.repository);
-        const getAllUc = new GetAllSchedulesUseCase(this.repository);
-        const findByIdUc = new FindScheduleByIdUseCase(this.repository);
-        const getLatestUc = new GetLatestEventsUseCase(this.repository);
-        const updateUc = new UpdateScheduleEventUseCase(this.repository);
+
+        const addUc = new AddScheduleEventUseCase(this.repository, factories);
+        const getAllUc = new GetAllSchedulesUseCase(this.repository, factories);
+        const findByIdUc = new FindScheduleByIdUseCase(this.repository, factories);
+        const getLatestUc = new GetLatestEventsUseCase(this.repository, factories);
+        const updateUc = new UpdateScheduleEventUseCase(this.repository, factories);
         const deleteUc = new DeleteScheduleUseCase(this.repository);
-        const markProcessedUc = new MarkEventsProcessedUseCase(this.repository);
+        const markProcessedUc = new MarkEventsProcessedUseCase(this.repository, factories);
 
         this.functions = {
             "add": (args: any) => addUc.execute(args),

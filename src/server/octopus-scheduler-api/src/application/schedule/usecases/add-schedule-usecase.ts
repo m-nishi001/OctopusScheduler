@@ -1,13 +1,22 @@
 import { IScheduleEventRepository } from "../../../domain/schedule-event/schedule-event-reposiotry";
 import { IScheduleEvent } from "../../../domain/schedule-event/entity/schedule-event";
-import { ScheduleEventFactory } from "../../../domain/schedule-event/schedule-event-factory";
+import { IScheduleEventFactory } from "../factory/ischedule-event-factory";
 
 export class AddScheduleEventUseCase {
-    constructor(private repository: IScheduleEventRepository) { }
+    constructor(
+        private repository: IScheduleEventRepository,
+        private scheduleEventFactories: IScheduleEventFactory[]
+    ) { }
 
     execute(args: IScheduleEvent): { added: boolean } {
 
-        const entity = ScheduleEventFactory.convertFromClientObject(args)
+        const factory = this.scheduleEventFactories.find(f => f.supports(args.scheduleEventType));
+        if (!factory) {
+            Logger.log(`[AddScheduleEventUseCase] failed: no factory found for scheduleEventType ${args.scheduleEventType}`);
+            return { added: false };
+        }
+        
+        const entity = factory.createFromClient(args);
 
         if (!entity) throw new Error("Failed to convert to entity");
 

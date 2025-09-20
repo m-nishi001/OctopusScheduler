@@ -1,9 +1,12 @@
 import { IScheduleEvent } from "../../../domain/schedule-event/entity/schedule-event";
-import { ScheduleEventFactory } from "../../../domain/schedule-event/schedule-event-factory";
+import { IScheduleEventFactory } from "../factory/ischedule-event-factory";
 import { IScheduleEventRepository } from "../../../domain/schedule-event/schedule-event-reposiotry";
 
 export class GetLatestEventsUseCase {
-    constructor(private repository: IScheduleEventRepository) { }
+    constructor(
+        private repository: IScheduleEventRepository,
+        private scheduleEventFactories: IScheduleEventFactory[]
+    ) { }
 
     execute(
         targetTime?: string
@@ -24,8 +27,27 @@ export class GetLatestEventsUseCase {
         Logger.log(`[GetLatestEventsUseCase] returning startedEvents: ${JSON.stringify(startedEvents.map(e => e.scheduleEventId))}, endedEvents: ${JSON.stringify(endedEvents.map(e => e.scheduleEventId))}`);
 
         return {
-            startedEvents: startedEvents.map(e => ScheduleEventFactory.convertToEntity(e)),
-            endedEvents: endedEvents.map(e => ScheduleEventFactory.convertToEntity(e)),
+            startedEvents: startedEvents.map(e => {
+                const factory = this.scheduleEventFactories.find(f => f.supports(e.scheduleEventType));
+
+                if (!factory) {
+                    Logger.log(`[GetLatestEventsUseCase] failed: no factory found for scheduleEventType ${e.scheduleEventType}`);
+                    return null;
+                }
+
+                return factory.createFromRepository(e);
+            }),
+
+            endedEvents: endedEvents.map(e => {
+                const factory = this.scheduleEventFactories.find(f => f.supports(e.scheduleEventType));
+
+                if (!factory) {
+                    Logger.log(`[GetLatestEventsUseCase] failed: no factory found for scheduleEventType ${e.scheduleEventType}`);
+                    return null;
+                }
+
+                return factory.createFromRepository(e);
+            }),
         };
     }
 }
