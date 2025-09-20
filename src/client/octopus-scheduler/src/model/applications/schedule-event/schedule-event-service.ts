@@ -1,4 +1,3 @@
-
 import { ScheduleTimeSpan } from "../../domains/schedule-event/vo/schedule-timespan";
 import { PlayAudioEventTypeDto } from "./dtos/event-types/play-audio-event-type-dto";
 import type { IScheduleEvent } from "../../domains/schedule-event/entity/schedule-event";
@@ -6,6 +5,7 @@ import type { IScheduleEventRepository } from "../../domains/schedule-event/repo
 import type { CreateScheduleEventDto } from "./dtos/create-schedule-event-dto";
 import type { IScheduleEventService } from "./ischedule-event-service";
 import { injectable, inject, injectAll } from "tsyringe";
+import type { IScheduleEventFactory } from "./factory/ischedule-event-factory";
 import { AssetService } from "../assets/asset-service";
 import { PlayMovieEventTypeDto } from "./dtos/event-types/play-movie-event-type-dto";
 import { ShowImageEventTypeDto } from "./dtos/event-types/show-image-event-type-dto";
@@ -15,17 +15,17 @@ import type { EventTypeDto } from "./dtos/event-type-dto";
 @injectable()
 export class ScheduleEventService implements IScheduleEventService {
     private _repo: IScheduleEventRepository;
-    private _eventInstances: IScheduleEvent[];
     private _assetService: AssetService;
+    private _eventFactories: IScheduleEventFactory[];
 
     constructor(
         @inject("IScheduleEventRepository") scheduleEventRepository: IScheduleEventRepository,
-        @injectAll("IScheduleEvent") eventInstances: IScheduleEvent[],
-        @inject("AssetService") assetService: AssetService
+        @inject("AssetService") assetService: AssetService,
+        @injectAll("IScheduleEventFactory") eventFactories: IScheduleEventFactory[]
     ) {
         this._repo = scheduleEventRepository;
-        this._eventInstances = eventInstances;
         this._assetService = assetService;
+        this._eventFactories = eventFactories;
     }
 
     async updateScheduleEvent(dto: { scheduleEventId: string } & CreateScheduleEventDto): Promise<IScheduleEvent | null> {
@@ -94,63 +94,43 @@ export class ScheduleEventService implements IScheduleEventService {
     }
 
     private convertToEntity(data: IScheduleEvent): IScheduleEvent | null {
-        /**
-         * Converts a plain IScheduleEvent object (often deserialized from storage/JSON)
-         * back into a fully functional event class instance (e.g. PlayAudioEvent).
-         *
-         * Why this is needed:
-         * - When you deserialize an object, you lose its class methods and prototype chain.
-         * - This function finds the correct event class (by eventType),
-         *   then uses its static 'from' method to reconstruct a proper instance.
-         *
-         * Implementation details:
-         * - Finds a sample instance of the correct event type from DI container.
-         * - Gets its constructor (the class itself).
-         * - If the class has a static 'from' method, calls it to create a new instance.
-         * - Returns null if no matching type or method is found.
-         *
-         * This pattern is common in TypeScript/JavaScript for restoring class functionality after deserialization.
-         */
-        const eventType = data.scheduleEventType?.scheduleEventType || data.scheduleEventType;
-        const instance = this._eventInstances.find(inst => inst.scheduleEventType?.scheduleEventType === eventType);
-        if (!instance) return null;
-        const ctor = (instance as any).constructor;
-        if (typeof ctor.from === "function") {
-            return ctor.from(data);
-        }
-        return null;
+        const factory = this._eventFactories.find(f => f.supports(data.scheduleEventType));
+        if (!factory) return null;
+        return factory.createFromRepository(data);
     }
 
     private createOrUpdateEventInstance(
         dto: Partial<CreateScheduleEventDto> & { scheduleEventId?: string }
     ): IScheduleEvent {
-
-        const found = this._eventInstances.find(
-            inst => inst.scheduleEventType?.scheduleEventType === dto.eventType
-        );
-
-        if (!found) throw new Error("Unknown eventType: " + dto.eventType);
-
-        const ctor = (found as any).constructor;
-        const newInstance = ctor.from(found, dto.scheduleEventId);
-
-        if (!newInstance) throw new Error("Failed to clone eventInstance.");
-
-        const eventInstance = newInstance as IScheduleEvent;
-
+        const factory = this._eventFactories.find(f => f.supports({ scheduleEventType: dto.eventType } as any));
+        if (!factory) throw new Error("Unknown eventType: " + dto.eventType);
+        const eventInstance = factory.createFromClient({
+            scheduleEventId: dto.scheduleEventId ?? "",
+            scheduleEventType: { scheduleEventType: dto.eventType } as any,
+            scheduleEventName: dto.eventName ?? "",
+            scheduleTimeSpan: ScheduleTimeSpan.Empty,
+            scheduleEventDetail: dto.detail ?? {},
+            processedAt: null,
+            registeredAt: new Date(),
+            updatedAt: new Date(),
+            serialize: function () { return this; },
+            updateTimeSpan: () => { },
+            updateEventName: () => { },
+            updateEventDetail: () => { },
+            markAsProcessed: () => { },
+            executeScheduleEvent: () => { }
+        });
+        if (!eventInstance) throw new Error("Failed to create eventInstance.");
+        // 以降は従来通りプロパティ更新
         eventInstance.updateEventName(dto.eventName ?? "");
-
         if (dto.detail) eventInstance.updateEventDetail(dto.detail);
-
         const startDate = new Date(dto.start || "");
         const endDate = new Date(dto.end || "");
         const timeSum = startDate.getTime() + endDate.getTime();
         if (!isNaN(timeSum)) {
             eventInstance.updateTimeSpan(ScheduleTimeSpan.create(startDate, endDate)!);
         }
-
         console.log("Created/Updated event instance:", eventInstance);
-
         return eventInstance.serialize();
     }
 }

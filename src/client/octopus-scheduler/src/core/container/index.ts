@@ -11,6 +11,11 @@ import { PlayMovieEvent } from '../../model/domains/schedule-event/entity/events
 import { ShowImageEvent } from '../../model/domains/schedule-event/entity/events/show-image-event';
 import { TransitionPageEvent } from '../../model/domains/schedule-event/entity/events/transition-page-event';
 
+import { PlayAudioEventFactory } from '../../model/applications/schedule-event/factory/play-audio-event-factory';
+import { PlayMovieEventFactory } from '../../model/applications/schedule-event/factory/play-movie-event-factory';
+import { ShowImageEventFactory } from '../../model/applications/schedule-event/factory/show-image-event-factory';
+import { TransitionPageEventFactory } from '../../model/applications/schedule-event/factory/transition-page-event-factory';
+
 export class Container {
 
   static Register() {
@@ -24,6 +29,11 @@ export class Container {
     container.register("IScheduleEvent", { useClass: PlayMovieEvent });
     container.register("IScheduleEvent", { useClass: ShowImageEvent });
     container.register("IScheduleEvent", { useClass: TransitionPageEvent });
+
+    container.register("IScheduleEventFactory", { useClass: PlayAudioEventFactory });
+    container.register("IScheduleEventFactory", { useClass: PlayMovieEventFactory });
+    container.register("IScheduleEventFactory", { useClass: ShowImageEventFactory });
+    container.register("IScheduleEventFactory", { useClass: TransitionPageEventFactory });
   }
 
 }
