@@ -188,7 +188,6 @@ async function onAdd() {
     saving.value = true;
 
     try {
-
         const dto: CreateScheduleEventDto = {
             eventName: form.value!.eventName,
             eventType: form.value!.eventType,
@@ -196,19 +195,19 @@ async function onAdd() {
             end: form.value!.end,
             detail: form.value!.detail
         };
-        await scheduleEventService.createScheduleEvent(dto);
-        await fetchEvents();
-
-        const updated = events.value.find(ev => ev.scheduleEventId === form.value?.scheduleEventId)!;
-        form.value = {
-            scheduleEventId: updated.scheduleEventId,
-            eventName: updated.scheduleEventName,
-            eventType: updated.scheduleEventType.scheduleEventType,
-            start: updated.scheduleTimeSpan?.start ? new Date(updated.scheduleTimeSpan.start).toISOString().slice(0, 16) : '',
-            end: updated.scheduleTimeSpan?.end ? new Date(updated.scheduleTimeSpan.end).toISOString().slice(0, 16) : '',
-            detail: updated.scheduleEventDetail ?? {}
-        };
-        updateSettingsSchema(form.value.eventType);
+        const newEvent = await scheduleEventService.createScheduleEvent(dto);
+        if (newEvent) {
+            events.value.push(newEvent);
+            form.value = {
+                scheduleEventId: newEvent.scheduleEventId,
+                eventName: newEvent.scheduleEventName,
+                eventType: newEvent.scheduleEventType.scheduleEventType,
+                start: newEvent.scheduleTimeSpan?.start ? new Date(newEvent.scheduleTimeSpan.start).toISOString().slice(0, 16) : '',
+                end: newEvent.scheduleTimeSpan?.end ? new Date(newEvent.scheduleTimeSpan.end).toISOString().slice(0, 16) : '',
+                detail: newEvent.scheduleEventDetail ?? {}
+            };
+            updateSettingsSchema(form.value.eventType);
+        }
     } catch (e) {
         alert('追加に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
