@@ -45,9 +45,16 @@ class SpreadsheetHelper {
     }
 }
 
-class DataStoreRepository<T> implements IRepository<T> {
+export class SpreadsheetService<T> implements ISpreadsheetService<T> {
+    private readonly sheetName: string;
 
-    constructor(private readonly sheetName: string) { }
+    private constructor(sheetName: string) {
+        this.sheetName = sheetName;
+    }
+
+    static getService<T>(sheetName: string): ISpreadsheetService<T> {
+        return new SpreadsheetService<T>(sheetName);
+    }
 
     add(entity: T): T {
         const lock = SpreadsheetHelper.tryLock();
@@ -139,16 +146,10 @@ class DataStoreRepository<T> implements IRepository<T> {
     }
 }
 
-export interface IRepository<T> {
+export interface ISpreadsheetService<T> {
     add(entity: T): T;
     update(predicate: (entity: T) => boolean, updateEntity: (entity: T) => T): number;
     delete(predicate: (entity: T) => boolean): boolean;
     find(predicate: (entity: T) => boolean): T[];
     findOne(predicate: (entity: T) => boolean): T | null;
-}
-
-export class DataAccessService {
-    public static getRepository<T>(sheetName: string): IRepository<T> {
-        return new DataStoreRepository<T>(sheetName);
-    }
 }

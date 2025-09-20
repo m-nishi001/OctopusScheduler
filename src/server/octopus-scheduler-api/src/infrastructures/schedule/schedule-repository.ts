@@ -1,15 +1,15 @@
 import { IScheduleEvent } from "../../domain/schedule-event/entity/schedule-event";
 import { IScheduleEventRepository } from "../../domain/schedule-event/schedule-event-reposiotry";
-import { DataAccessService, IRepository } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-spreadsheet-servie";
+import { ISpreadsheetService, SpreadsheetService } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-spreadsheet-servie";
 import { injectable } from "tsyringe";
 
 @injectable()
 export class SpreadsheetScheduleEventRepository implements IScheduleEventRepository {
-	private readonly repository: IRepository<IScheduleEvent>;
+	private readonly repository: ISpreadsheetService<IScheduleEvent>;
 	private readonly sheetName = "ScheduleEvents";
 
 	constructor() {
-		this.repository = DataAccessService.getRepository<IScheduleEvent>(this.sheetName);
+		this.repository = SpreadsheetService.getService<IScheduleEvent>(this.sheetName);
 	}
 
 	add(events: IScheduleEvent[]): number {
