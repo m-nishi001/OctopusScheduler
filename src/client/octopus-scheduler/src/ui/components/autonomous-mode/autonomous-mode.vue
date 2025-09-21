@@ -32,18 +32,16 @@
                     <button class="main-btn" @click="showVideoModal = true">
                         <span class="btn-icon">🎬</span> 動画再生
                     </button>
-                    <button class="main-btn" @click="onStopVideo">
-                        <span class="btn-icon">⏹️</span> 動画停止
-                    </button>
                 </div>
             </div>
+            <FullScreenVideo v-if="showVideoModal" :src="videoUrl" :visible="showVideoModal" :fadeOutDuration="0"
+                :onClose="closeVideoModal" />
+            <FullScreenImage v-if="showImageModal" :src="imageAssetUrl" :visible="showImageModal" :fadeOutDuration="0"
+                :onClose="closeImageModal" />
         </div>
         <div v-if="showVideoModal" class="modal-bg">
             <div class="modal">
-                <video ref="videoRef" :src="videoUrl" controls autoplay></video>
-                <button @click="closeVideoModal" class="close-btn main-btn">
-                    <span class="btn-icon">❌</span> 閉じる
-                </button>
+                <!-- 動画停止ボタンは不要なので削除 -->
             </div>
         </div>
     </div>
@@ -53,6 +51,11 @@
 import { ref, onMounted } from 'vue';
 import { useAudio } from '../../../../../packages/shared-composables/src/use-audio';
 import { usePolling } from '../../../../../packages/shared-composables/src/use-polling';
+import { useVideo } from '../../../ui/composables/use-video';
+import { useImage } from '../../../ui/composables/use-image';
+import FullScreenVideo from '../FullScreenVideo.vue';
+import FullScreenImage from '../FullScreenImage.vue';
+import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import type { IScheduleEventService } from '../../../model/applications/schedule-event/ischedule-event-service';
 import type { AssetService } from '../../../model/applications/assets/asset-service';
@@ -62,71 +65,89 @@ const currentEvent = ref('');
 const endingEvent = ref('');
 
 const { load, play, stop, error: audioError } = useAudio();
+const { isPlaying: isVideoPlaying, play: playVideo, stop: stopVideo } = useVideo();
+const { isVisible: isImageVisible, show: showImage, hide: hideImage } = useImage();
 
 const audioUrl = ref('');
 const videoUrl = ref('');
+const imageAssetUrl = ref('');
 
 const showVideoModal = ref(false);
-const videoRef = ref<HTMLVideoElement | null>(null);
+const showImageModal = ref(false);
 
-// DI解決
+const router = useRouter();
+
 const scheduleEventService = container.resolve<IScheduleEventService>('IScheduleEventService');
 const assetService = container.resolve<AssetService>('AssetService');
 
-// 再生状態管理
 const isAudioPlaying = ref(false);
-const isVideoPlaying = ref(false);
 
 const handleEvents = async () => {
     const { startEvents, endEvents } = await scheduleEventService.getCurrentScheduleEvent();
 
-    // UI表示用
     upcomingEvent.value = startEvents.length > 0 ? startEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
     currentEvent.value = startEvents.length > 0 ? startEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
     endingEvent.value = endEvents.length > 0 ? endEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
 
     // 音楽再生イベント
-    const audioStart = startEvents.find(e => e.scheduleEventType === 'play-audio');
-    const audioEnd = endEvents.find(e => e.scheduleEventType === 'play-audio');
-    if (audioStart && audioStart.scheduleEventDetail?.assetId) {
-        const asset = await assetService.getAssetById(audioStart.scheduleEventDetail.assetId);
+    const audioStart = startEvents.find(e => e.scheduleEventType === 'PlayAudioEvent');
+    const audioEnd = endEvents.find(e => e.scheduleEventType === 'PlayAudioEvent');
+    if (audioStart && audioStart.scheduleEventDetail?.audioId) {
+        const asset = await assetService.getAssetById(audioStart.scheduleEventDetail.audioId);
         if (asset && asset.assetData) {
             audioUrl.value = asset.assetData;
             await load(audioUrl.value);
-            await play();
+            await play({ fadeIn: 0 });
             isAudioPlaying.value = true;
         }
     }
     if (audioEnd && isAudioPlaying.value) {
-        await stop();
+        await stop(audioEnd.scheduleEventDetail?.fadeOutDuration);
         isAudioPlaying.value = false;
     }
 
     // 動画再生イベント
-    const videoStart = startEvents.find(e => e.scheduleEventType === 'play-movie');
-    const videoEnd = endEvents.find(e => e.scheduleEventType === 'play-movie');
-    if (videoStart && videoStart.scheduleEventDetail?.assetId) {
-        const asset = await assetService.getAssetById(videoStart.scheduleEventDetail.assetId);
+    const videoStart = startEvents.find(e => e.scheduleEventType === 'PlayMovieEvent');
+    const videoEnd = endEvents.find(e => e.scheduleEventType === 'PlayMovieEvent');
+    if (videoStart && videoStart.scheduleEventDetail?.movieId) {
+        const asset = await assetService.getAssetById(videoStart.scheduleEventDetail.movieId);
         if (asset && asset.assetData) {
             videoUrl.value = asset.assetData;
-            if (videoRef.value) {
-                videoRef.value.src = videoUrl.value;
-                videoRef.value.play();
-                isVideoPlaying.value = true;
-            }
+            showVideoModal.value = true;
+            playVideo(videoUrl.value);
         }
     }
-    if (videoEnd && isVideoPlaying.value && videoRef.value) {
-        videoRef.value.pause();
-        videoRef.value.currentTime = 0;
-        isVideoPlaying.value = false;
+    if (videoEnd && isVideoPlaying.value) {
+        stopVideo(videoEnd.scheduleEventDetail?.fadeOutDuration);
+        showVideoModal.value = false;
+    }
+
+    // 画像表示イベント
+    const imageStart = startEvents.find(e => e.scheduleEventType === 'ShowImageEvent');
+    const imageEnd = endEvents.find(e => e.scheduleEventType === 'ShowImageEvent');
+    if (imageStart && imageStart.scheduleEventDetail?.imageId) {
+        const asset = await assetService.getAssetById(imageStart.scheduleEventDetail.imageId);
+        if (asset && asset.assetData) {
+            imageAssetUrl.value = asset.assetData;
+            showImage(imageAssetUrl.value);
+            showImageModal.value = true;
+        }
+    }
+    if (imageEnd && isImageVisible.value) {
+        hideImage(imageEnd.scheduleEventDetail?.fadeOutDuration);
+        showImageModal.value = false;
+    }
+
+    // 画面遷移イベント
+    const transitionStart = startEvents.find(e => e.scheduleEventType === 'TransitionPageEvent');
+    if (transitionStart && transitionStart.scheduleEventDetail?.transitionUrl) {
+        router.replace({ hash: transitionStart.scheduleEventDetail.transitionUrl });
     }
 };
 
 const { start } = usePolling(handleEvents, 5000, { immediate: true });
 
 onMounted(() => {
-    console.log('[autonomous-mode] ポーリング開始');
     start();
 });
 
@@ -143,14 +164,11 @@ const onStopAudio = async () => {
 };
 const closeVideoModal = () => {
     showVideoModal.value = false;
-    onStopVideo();
+    stopVideo();
 };
-const onStopVideo = () => {
-    if (videoRef.value) {
-        videoRef.value.pause();
-        videoRef.value.currentTime = 0;
-        isVideoPlaying.value = false;
-    }
+const closeImageModal = () => {
+    showImageModal.value = false;
+    hideImage();
 };
 </script>
 <style scoped>

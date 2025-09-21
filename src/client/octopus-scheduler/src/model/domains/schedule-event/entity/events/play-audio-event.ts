@@ -110,8 +110,10 @@ export class PlayAudioEvent implements IScheduleEvent {
 
 export class PlayAudioEventDetail {
     readonly audioId: string;
+    readonly fadeOutDuration?: number;
 
-    constructor(audioId: string) {
+    constructor(audioId: string, fadeOutDuration?: number) {
         this.audioId = audioId;
+        this.fadeOutDuration = fadeOutDuration;
     }
 }

@@ -110,8 +110,10 @@ export class ShowImageEvent implements IScheduleEvent {
 
 export class ShowImageEventDetail {
     readonly imageId: string;
+    readonly fadeOutDuration?: number;
 
-    constructor(imageId: string) {
+    constructor(imageId: string, fadeOutDuration?: number) {
         this.imageId = imageId;
+        this.fadeOutDuration = fadeOutDuration;
     }
 }

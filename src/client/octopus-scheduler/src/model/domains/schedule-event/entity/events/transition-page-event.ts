@@ -110,8 +110,10 @@ export class TransitionPageEvent implements IScheduleEvent {
 
 export class TransitionPageDetail {
     readonly transitionUrl: string;
+    readonly fadeOutDuration?: number;
 
-    constructor(transitionUrl: string) {
+    constructor(transitionUrl: string, fadeOutDuration?: number) {
         this.transitionUrl = transitionUrl;
+        this.fadeOutDuration = fadeOutDuration;
     }
 }

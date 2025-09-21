@@ -110,8 +110,10 @@ export class PlayMovieEvent implements IScheduleEvent {
 
 export class PlayMovieEventDetail {
     readonly movieId: string;
+    readonly fadeOutDuration?: number;
 
-    constructor(movieId: string) {
+    constructor(movieId: string, fadeOutDuration?: number) {
         this.movieId = movieId;
+        this.fadeOutDuration = fadeOutDuration;
     }
 }
