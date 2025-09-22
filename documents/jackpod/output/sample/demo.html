@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>デモ抽選画面 | ジャックポッド大会</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="common.js"></script>
+</head>
+<body>
+  <div style="display:flex;justify-content:center;align-items:center;height:calc(100vh - 64px);">
+    <div class="panel" style="background:#fff;box-shadow:0 2px 16px #d1d5db;border-radius:24px;padding:48px 56px;min-width:420px;max-width:90vw;text-align:center;">
+      <div class="title" style="margin-bottom:32px;">デモ抽選画面</div>
+      <div id="demo-result" style="margin-bottom:32px;"></div>
+      <div style="margin-top:32px;display:none;" id="next-wrap">
+        <button id="next-btn" data-next onclick="nextPage('draw.html')">本抽選画面へ</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    // 管理画面設定から取得（仮データ）
+    const demoPrizes = [
+      { id: 1, name: 'サンプル景品A' },
+      { id: 2, name: 'サンプル景品B' },
+      { id: 3, name: 'サンプル景品C' }
+    ];
+    function startDemoDraw() {
+      showRoulette(demoPrizes, prize => {
+        document.getElementById('demo-result').innerHTML = `<div class='fade-in'>デモ抽選結果: <b>${prize.name}</b></div>`;
+        setTimeout(() => {
+          showModal('では本番です！！', 1800);
+          setTimeout(() => {
+            document.getElementById('next-wrap').style.display = '';
+          }, 2000);
+        }, 1200);
+      });
+    }
+    window.onload = startDemoDraw;
+  </script>
+</body>
+</html>

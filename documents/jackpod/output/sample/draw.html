@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>本抽選画面 | ジャックポッド大会</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="common.js"></script>
+</head>
+<body>
+  <div style="display:flex;justify-content:center;align-items:center;height:calc(100vh - 64px);">
+    <div class="panel" style="background:#fff;box-shadow:0 2px 16px #d1d5db;border-radius:24px;padding:48px 56px;min-width:420px;max-width:90vw;text-align:center;">
+      <div class="title" style="margin-bottom:32px;">本抽選画面</div>
+      <div id="draw-member" style="margin-bottom:24px;"></div>
+      <div id="draw-action" style="margin-bottom:24px;"></div>
+      <div id="draw-result" style="margin-bottom:24px;"></div>
+      <div style="margin-top:32px;display:none;" id="next-wrap">
+        <button id="next-btn" data-next onclick="nextPage('draw.html')">次の人を抽選します！</button>
+        <button id="end-btn" style="display:none;" onclick="nextPage('result.html')">抽選終了</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    // 仮データ（管理画面設定から取得）
+    let members = [
+      { id: 1, name: '山田太郎', photo: 'assets/member1.png' },
+      { id: 2, name: '佐藤花子', photo: 'assets/member2.png' }
+    ];
+    let prizes = [
+      { id: 1, name: 'サンプル景品A', rank: 'high' },
+      { id: 2, name: 'サンプル景品B', rank: 'low' },
+      { id: 3, name: 'サンプル景品C', rank: 'normal' }
+    ];
+    let drawnMemberIds = window.drawnMemberIds || [];
+    let drawnPrizeIds = window.drawnPrizeIds || [];
+    let drawCount = drawnMemberIds.length;
+    function updateDrawState() {
+      // 残景品数半分時のモーダル
+      const remainPrize = prizes.length - drawnPrizeIds.length;
+      if (remainPrize === Math.floor(prizes.length/2)) {
+        showModal('残り半分です！', 1800);
+      }
+      // メンバー抽選
+      const member = drawMember(members, drawnMemberIds);
+      if (!member) {
+        document.getElementById('draw-member').innerHTML = '<b>全メンバー抽選済み</b>';
+        document.getElementById('draw-action').innerHTML = '';
+        document.getElementById('next-wrap').style.display = '';
+        document.getElementById('next-btn').style.display = 'none';
+        document.getElementById('end-btn').style.display = '';
+        return;
+      }
+      document.getElementById('draw-member').innerHTML = `<img src='${member.photo}' style='width:80px;border-radius:50%;margin-bottom:8px;'><br><b>${member.name}</b><br>前にでてきてください！`;
+      document.getElementById('draw-action').innerHTML = 'Enterキーで景品抽選開始';
+      document.getElementById('draw-result').innerHTML = '';
+      document.getElementById('next-wrap').style.display = 'none';
+      // Enterキーで抽選開始
+      function onDrawStart(e) {
+        if (e.key === 'Enter') {
+          document.removeEventListener('keydown', onDrawStart);
+          // 景品抽選
+          showRoulette(prizes.filter(p=>!drawnPrizeIds.includes(p.id)), prize => {
+            drawnMemberIds.push(member.id);
+            drawnPrizeIds.push(prize.id);
+            document.getElementById('draw-result').innerHTML = `<div class='fade-in' style='font-size:1.5rem;'>当選景品: <b>${prize.name}</b></div>`;
+            setTimeout(() => {
+              if (drawnPrizeIds.length >= prizes.length) {
+                document.getElementById('draw-action').innerHTML = 'これで抽選は終了です！';
+                document.getElementById('next-wrap').style.display = '';
+                document.getElementById('next-btn').style.display = 'none';
+                document.getElementById('end-btn').style.display = '';
+              } else {
+                document.getElementById('draw-action').innerHTML = 'Enterキーで次の人を抽選します！';
+                document.getElementById('next-wrap').style.display = '';
+                document.getElementById('next-btn').style.display = '';
+                document.getElementById('end-btn').style.display = 'none';
+                window.drawnMemberIds = drawnMemberIds;
+                window.drawnPrizeIds = drawnPrizeIds;
+              }
+            }, 1200);
+          });
+        }
+      }
+      document.addEventListener('keydown', onDrawStart);
+    }
+    updateDrawState();
+    // 次の人抽選
+    document.getElementById('next-btn').onclick = () => {
+      updateDrawState();
+    };
+    // 抽選終了
+    document.getElementById('end-btn').onclick = () => {
+      nextPage('result.html');
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>最終結果画面 | ジャックポッド大会</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="common.js"></script>
+</head>
+<body>
+  <div style="display:flex;justify-content:center;align-items:center;height:calc(100vh - 64px);">
+    <div class="panel" style="background:#fff;box-shadow:0 2px 16px #d1d5db;border-radius:24px;padding:48px 56px;min-width:420px;max-width:90vw;text-align:center;">
+      <div class="title" style="margin-bottom:32px;">最終結果画面</div>
+      <div id="result-list" style="margin-bottom:32px;"></div>
+      <div style="margin-top:32px;display:none;" id="special-wrap">
+        <button id="special-btn" data-next onclick="showSpecial()">特別表示</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    // 仮データ（抽選結果）
+    const members = [
+      { id: 1, name: '山田太郎', photo: 'assets/member1.png' },
+      { id: 2, name: '佐藤花子', photo: 'assets/member2.png' }
+    ];
+    const prizes = [
+      { id: 1, name: 'サンプル景品A', rank: 'high' },
+      { id: 2, name: 'サンプル景品B', rank: 'low' },
+      { id: 3, name: 'サンプル景品C', rank: 'normal' }
+    ];
+    const results = [
+      { memberId: 1, prizeId: 2 },
+      { memberId: 2, prizeId: 1 }
+    ];
+    // スクロール表示（最高/最低ランク除外）
+    function showResultList() {
+      const list = document.createElement('div');
+      list.style.height = '80px';
+      list.style.overflow = 'hidden';
+      list.style.background = '#fff3f3';
+      list.style.borderRadius = '8px';
+      list.style.margin = '16px 0';
+      const scroll = document.createElement('div');
+      scroll.style.animation = 'scrollUp 3s linear 1';
+      results.forEach(r => {
+        const prize = prizes.find(p=>p.id===r.prizeId);
+        if (prize.rank==='high'||prize.rank==='low') return;
+        const member = members.find(m=>m.id===r.memberId);
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '16px';
+        row.innerHTML = `<img src='${member.photo}' style='width:32px;border-radius:50%;'>${member.name} ${prize.name}`;
+        scroll.appendChild(row);
+      });
+      list.appendChild(scroll);
+      document.getElementById('result-list').appendChild(list);
+      setTimeout(() => {
+        document.getElementById('special-wrap').style.display = '';
+      }, 3200);
+    }
+    showResultList();
+    // 特別表示（最高/最低ランク）
+    function showSpecial() {
+      const high = results.find(r=>prizes.find(p=>p.id===r.prizeId).rank==='high');
+      const low = results.find(r=>prizes.find(p=>p.id===r.prizeId).rank==='low');
+      const wrap = document.getElementById('result-list');
+      wrap.innerHTML = '';
+      if (high) {
+        const member = members.find(m=>m.id===high.memberId);
+        const prize = prizes.find(p=>p.id===high.prizeId);
+        wrap.innerHTML += `<div class='fade-in' style='font-size:2rem;margin:32px 0;'>最高ランク当選者<br><img src='${member.photo}' style='width:80px;border-radius:50%;'><br>${member.name} ${prize.name}</div>`;
+      }
+      setTimeout(() => {
+        if (low) {
+          const member = members.find(m=>m.id===low.memberId);
+          const prize = prizes.find(p=>p.id===low.prizeId);
+          wrap.innerHTML += `<div class='fade-in' style='font-size:2rem;margin:32px 0;'>最低ランク当選者<br><img src='${member.photo}' style='width:80px;border-radius:50%;'><br>${member.name} ${prize.name}</div>`;
+        }
+        setTimeout(() => {
+          // 黒画面フェードイン→ホーム遷移
+          const black = document.createElement('div');
+          black.style.position = 'fixed';
+          black.style.top = '0';
+          black.style.left = '0';
+          black.style.width = '100vw';
+          black.style.height = '100vh';
+          black.style.background = '#222';
+          black.style.opacity = '0';
+          black.style.transition = 'opacity 1.5s';
+          document.body.appendChild(black);
+          setTimeout(()=>{
+            black.style.opacity = '1';
+            setTimeout(()=>nextPage('home.html'), 1800);
+          }, 100);
+        }, 2200);
+      }, 2200);
+    }
+    document.getElementById('special-btn').onclick = showSpecial;
+  </script>
+</body>
+</html>

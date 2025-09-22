@@ -1,0 +1,169 @@
+画面全体を使うパネルレイアウト
+.panel {
+  background: #fff;
+  box-shadow: 0 2px 16px #d1d5db;
+  border-radius: 16px;
+  padding: 24px 32px;
+  min-width: 0;
+  max-width: 100vw;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+body {
+  background: linear-gradient(135deg, #e0e7ff 0%, #fce7f3 100%);
+  font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+  color: #333;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  width: 100vw;
+  height: 100vh;
+}
+html {
+  overflow-x: hidden;
+  overflow-y: auto;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* 管理画面のmain領域とコンテンツ領域のスクロール対応 */
+#admin-main {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: calc(100vh - 64px);
+}
+#admin-content {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  padding-bottom: 48px;
+}
+/* 新規コンテンツ追加フォームの整列 */
+#new-content-ui {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+#new-content-ui select,
+#new-content-ui textarea,
+#new-content-ui input[type="number"],
+#new-content-ui input[type="file"] {
+  margin-bottom: 8px;
+  min-width: 120px;
+  box-sizing: border-box;
+}
+#new-content-ui textarea {
+  min-width: 320px;
+  max-width: 400px;
+}
+#new-content-ui button {
+  margin-bottom: 8px;
+}
+@media (max-width: 700px) {
+  #admin-content {
+    max-width: 98vw;
+  }
+  #new-content-ui {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #new-content-ui textarea {
+    min-width: 180px;
+    max-width: 98vw;
+  }
+}
+body {
+  background: linear-gradient(135deg, #e0e7ff 0%, #fce7f3 100%);
+  font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+  color: #333;
+  margin: 0;
+  overflow: hidden;
+}
+html {
+  overflow: hidden;
+}
+#app {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+button {
+  background: #a5b4fc;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(160, 160, 160, 0.1);
+  transition: background 0.2s;
+}
+button:hover {
+  background: #818cf8;
+}
+.progress-bar {
+  width: 300px;
+  height: 16px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 24px auto;
+}
+.progress {
+  height: 100%;
+  background: #fca5a5;
+  width: 0;
+  transition: width 0.5s;
+}
+.title {
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-bottom: 32px;
+  color: #6366f1;
+  text-shadow: 0 2px 8px #e0e7ff;
+}
+
+@keyframes scrollUp {
+  0% { transform: translateY(60px); }
+  100% { transform: translateY(-60px); }
+}
+
+.modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(60, 60, 60, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px 48px;
+  box-shadow: 0 4px 24px #a5b4fc;
+  text-align: center;
+  font-size: 1.3rem;
+  color: #7c3aed;
+}
+.fade-in {
+  animation: fadeIn 1.2s;
+}
+.fade-out {
+  animation: fadeOut 1.2s;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>説明画面 | ジャックポッド大会</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="common.js"></script>
+</head>
+<body>
+  <div style="display:flex;justify-content:center;align-items:center;height:calc(100vh - 64px);">
+    <div class="panel" style="background:#fff;box-shadow:0 2px 16px #d1d5db;border-radius:24px;padding:48px 56px;min-width:420px;max-width:90vw;text-align:center;">
+      <div class="title" style="margin-bottom:32px;">説明画面</div>
+      <div id="desc-content" style="margin-bottom:32px;"></div>
+      <div style="margin-top:32px;display:none;" id="next-wrap">
+        <button id="next-btn" data-next onclick="nextPage('demo.html')">次へ</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    // IndexedDBから説明画面設定を取得して反映
+    let descList = [];
+    let idx = 0;
+    async function loadDescriptionContents() {
+      descList = await getScreenContentList('description');
+      if (!descList || descList.length === 0) {
+        document.getElementById('desc-content').innerHTML = '<div style="color:#aaa;">設定コンテンツがありません</div>';
+        return;
+      }
+      idx = 0;
+      showContent(idx);
+    }
+    function showContent(i) {
+      if (i >= descList.length) {
+        document.getElementById('next-wrap').style.display = '';
+        return;
+      }
+      const c = descList[i];
+      const wrap = document.getElementById('desc-content');
+      wrap.innerHTML = '';
+      if (c.type === 'text') {
+        const div = document.createElement('div');
+        div.className = 'fade-in';
+        div.innerHTML = c.value;
+        wrap.appendChild(div);
+      } else if (c.type === 'bgm') {
+        const audio = new Audio(c.value); audio.loop = true; audio.play();
+        wrap.innerHTML += `<div>BGM再生中: ${c.value}</div>`;
+      } else if (c.type === 'video') {
+        const video = document.createElement('video');
+        video.src = c.value; video.autoplay = true; video.controls = false; video.style.width = '60%';
+        wrap.appendChild(video);
+        wrap.innerHTML += `<div>動画再生中: ${c.value}</div>`;
+      }
+    }
+    function nextContent() {
+      if (idx < descList.length) {
+        showContent(idx);
+        idx++;
+      } else {
+        document.getElementById('next-wrap').style.display = '';
+      }
+    }
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('next-wrap').style.display === 'none') {
+        nextContent();
+      }
+    });
+    loadDescriptionContents();
+  </script>
+</body>
+</html>

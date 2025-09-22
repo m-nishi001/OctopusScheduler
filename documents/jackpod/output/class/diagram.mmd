@@ -1,0 +1,33 @@
+
+classDiagram
+  class Member {
+    +id: string
+    +name: string
+    +photoUrl: string
+  }
+  class Prize {
+    +id: string
+    +name: string
+    +rank: string // 'high' | 'normal' | 'low'
+  }
+  class ScreenContent {
+    +id: string
+    +screen: string // 画面キー
+    +type: string // 'bgm' | 'video' | 'text'
+    +value: string // ファイル名またはHTML
+  }
+  class DrawResult {
+    +member: Member
+    +prize: Prize
+    +rank: string
+  }
+  class AppController {
+    +start()
+    +nextScreen()
+    +drawDemo()
+    +drawMain()
+    +showResult()
+  }
+  Member "1" -- "*" DrawResult
+  Prize "1" -- "*" DrawResult
+  ScreenContent "*" -- "1" AppController

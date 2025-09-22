@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ホーム画面 | ジャックポッド大会</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="common.js"></script>
+</head>
+<body>
+  <div class="title">2025年度 ジャックポッド大会！</div>
+  <div id="progress-wrap">
+    <div class="progress-bar"><div class="progress" id="progress"></div></div>
+    <div id="progress-label">アセットダウンロード中...</div>
+  </div>
+  <div id="start-wrap" style="display:none;margin-top:32px;">
+    <button id="start-btn" data-next onclick="nextPage('opening.html')">スタート</button>
+    <button id="admin-btn" style="margin-left:16px;" onclick="nextPage('admin.html')">管理画面</button>
+  </div>
+  <script>
+    // ホーム画面BGM再生（ユーザー操作時のみ）
+    let homeBgmAudio = null;
+    async function playHomeBgm() {
+      if (homeBgmAudio) {
+        homeBgmAudio.pause();
+        homeBgmAudio = null;
+      }
+      if (window.getHomeBgm) {
+        const bgm = await window.getHomeBgm();
+        if (bgm && bgm.value) {
+          homeBgmAudio = new Audio(bgm.value);
+          homeBgmAudio.loop = true;
+          homeBgmAudio.volume = 0.7;
+          homeBgmAudio.play();
+        }
+      }
+    }
+    // アセットダウンロード進捗シミュレーション
+    let simProgress = 0;
+    function simulateDownload() {
+      simProgress += 0.2;
+      if (simProgress > 1) simProgress = 1;
+      document.getElementById('progress').style.width = (simProgress * 100) + '%';
+      document.getElementById('progress-label').textContent = `アセットダウンロード中... (${Math.round(simProgress*100)}%)`;
+      if (simProgress < 1) {
+        setTimeout(simulateDownload, 1000);
+      } else {
+        document.getElementById('progress-label').textContent = 'アセットダウンロード完了';
+        setTimeout(() => {
+          document.getElementById('progress-wrap').style.display = 'none';
+          document.getElementById('start-wrap').style.display = '';
+        }, 600);
+      }
+    }
+    simulateDownload();
+    // スタート/管理画面ボタン押下時にBGM再生
+    window.addEventListener('DOMContentLoaded', () => {
+      let bgmPlayed = false;
+      document.body.addEventListener('click', async () => {
+        if (!bgmPlayed) {
+          bgmPlayed = true;
+          await playHomeBgm();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

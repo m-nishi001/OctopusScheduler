@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>管理画面 | ジャックポッド大会</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    #admin-layout {
+      overflow: hidden !important;
+    }
+    #admin-main {
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      max-height: calc(100vh - 64px);
+    }
+    #admin-content {
+      width: 100%;
+      max-width: 700px;
+      margin: 0 auto;
+      padding-bottom: 48px;
+    }
+    /* 連続プレビュー用 */
+    #preview-all-area {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80vw;
+      height: 80vh;
+      max-width: 1200px;
+      min-width: 320px;
+      max-height: 90vh;
+      z-index: 9999;
+      background: rgba(0,0,0,0.85);
+      border-radius: 18px;
+      box-shadow: 0 8px 32px #0008;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      overflow: auto;
+    }
+    .preview-text {
+      width: 100%;
+      color: #fff;
+      font-size: 1.3em;
+      text-align: center;
+      background: none;
+      border-radius: 12px;
+      margin: 0 auto;
+      padding: 16px 0;
+      opacity: 0;
+      transition: opacity 1.2s;
+    }
+    .fade-in {
+      opacity: 1 !important;
+      transition: opacity 1.2s;
+    }
+    .fade-out {
+      opacity: 0 !important;
+      transition: opacity 1.2s;
+    }
+    .scroll-up {
+      animation: scrollUp linear forwards;
+    }
+    .scroll-down {
+      animation: scrollDown linear forwards;
+    }
+    @keyframes scrollUp {
+      from { transform: translateY(100%); opacity: 0; }
+      20% { opacity: 1; }
+      to { transform: translateY(-100%); opacity: 0; }
+    }
+    @keyframes scrollDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      20% { opacity: 1; }
+      to { transform: translateY(100%); opacity: 0; }
+    }
+    /* 新規コンテンツ追加フォームの整列 */
+    #new-content-ui {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 16px;
+      align-items: end;
+    }
+    #new-content-ui select,
+    #new-content-ui textarea,
+    #new-content-ui input[type="number"],
+    #new-content-ui input[type="file"] {
+      margin-bottom: 8px;
+      min-width: 120px;
+      box-sizing: border-box;
+    }
+    #new-content-ui textarea {
+      min-width: 320px;
+      max-width: 400px;
+    }
+    #new-content-ui button {
+      margin-bottom: 8px;
+    }
+    @media (max-width: 700px) {
+      #admin-content {
+        max-width: 98vw;
+      }
+      #new-content-ui {
+        grid-template-columns: 1fr 1fr;
+        grid-auto-rows: minmax(48px, auto);
+      }
+      #new-content-ui textarea {
+        min-width: 120px;
+        max-width: 98vw;
+      }
+    }
+  </style>
+  <script src="common.js"></script>
+</head>
+<body>
+  <div class="title" style="display:flex;justify-content:space-between;align-items:center;padding:0 24px;">
+    <span>管理画面</span>
+    <button onclick="nextPage('home.html')" style="margin-left:auto;">ホーム画面へ戻る</button>
+  </div>
+  <div id="admin-layout" style="display:flex;height:calc(100vh - 64px);width:100vw;max-width:100vw;overflow:hidden;">
+    <nav id="admin-menu" style="width:240px;background:#ede9fe;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 0;box-shadow:2px 0 8px #d1d5db;">
+      <button class="menu-btn" id="menu-member" style="width:180px;margin-bottom:24px;">メンバー管理</button>
+      <button class="menu-btn" id="menu-prize" style="width:180px;margin-bottom:24px;">景品管理</button>
+      <button class="menu-btn" id="menu-setting" style="width:180px;">画面設定</button>
+    </nav>
+    <main id="admin-main" style="flex:1;display:block;background:#fafafa;padding:48px 0 0 0;overflow:hidden;">
+      <div id="admin-content" style="width:100%;max-width:700px;margin:0 auto;"></div>
+    </main>
+  </div>
+  <!-- ホーム画面へ戻るボタンはヘッダー領域に移動 -->
+  <script>
+    // 管理画面メニュー
+    let adminContent;
+    document.addEventListener('DOMContentLoaded', () => {
+      adminContent = document.getElementById('admin-content');
+      document.getElementById('menu-member').onclick = () => showMember();
+      document.getElementById('menu-prize').onclick = () => showPrize();
+      document.getElementById('menu-setting').onclick = () => showSetting();
+      // 初期表示
+      showMember();
+    });
+    function clearMenuActive() {
+      document.querySelectorAll('.menu-btn').forEach(btn => btn.style.background = '');
+    }
+    function showMember() {
+      clearMenuActive();
+      document.getElementById('menu-member').style.background = '#c7d2fe';
+      adminContent.innerHTML = `
+        <h2 style='text-align:left;color:#7c3aed;margin-bottom:24px;'>メンバー管理</h2>
+        <div style='margin-bottom:16px;'>
+          <button onclick='deleteCheckedMembers()' style='background:#fca5a5;color:#fff;padding:8px 24px;border-radius:8px;'>チェック一括削除</button>
+        </div>
+        <div id='member-list' style='margin-bottom:24px;'></div>
+        <div style='display:flex;flex-direction:row;gap:24px;'>
+          <div style='flex:1;'>
+            <label style='font-weight:600;color:#6366f1;'>名前
+              <input type='text' id='member-name' placeholder='名前' style='width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid #c7d2fe;'>
+            </label>
+          </div>
+          <div style='flex:1;'>
+            <label style='font-weight:600;color:#6366f1;'>顔写真
+              <input type='file' id='member-photo' accept='image/*' style='width:100%;margin-top:4px;'>
+            </label>
+          </div>
+          <div style='display:flex;align-items:end;'>
+            <button onclick='addMember()' style='margin-top:8px;'>追加</button>
+          </div>
+        </div>
+        <div id='member-edit-area'></div>
+      `;
+      loadMembers();
+    }
+
+    // メンバー管理機能（グローバルスコープに移動）
+    async function loadMembers() {
+      const members = await dbGetAll('members');
+      const list = document.getElementById('member-list');
+      list.innerHTML = '';
+      members.forEach(m => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '8px';
+        row.style.marginBottom = '8px';
+        row.innerHTML = `
+          <input type='checkbox' class='member-check' value='${m.id}'>
+          <img src='${m.photo}' style='width:32px;border-radius:50%;'>
+          <span>${m.name}</span>
+          <button onclick='editMember(${m.id})' style='margin-left:8px;background:#a5b4fc;color:#222;padding:4px 10px;border-radius:8px;'>編集</button>
+        `;
+        list.appendChild(row);
+      });
+      // 編集エリア初期化
+      const editArea = document.getElementById('member-edit-area');
+      if (editArea) editArea.innerHTML = '';
+    }
+
+    async function addMember() {
+      const name = document.getElementById('member-name').value;
+      const photoInput = document.getElementById('member-photo');
+      if (!name || !photoInput.files[0]) return alert('名前と写真必須');
+      uploadImage(photoInput.files[0], async dataUrl => {
+        await dbPut('members', { name, photo: dataUrl });
+        document.getElementById('member-name').value = '';
+        photoInput.value = '';
+        loadMembers();
+      });
+    }
+
+    async function editMember(id) {
+      const members = await dbGetAll('members');
+      const member = members.find(m => m.id === id);
+      if (!member) return;
+      const editArea = document.getElementById('member-edit-area');
+      editArea.innerHTML = `
+        <div style='margin-top:24px;padding:16px;border:1px solid #c7d2fe;border-radius:12px;background:#f3f4f6;'>
+          <h3 style='color:#6366f1;'>メンバー編集</h3>
+          <label>名前: <input type='text' id='edit-member-name' value='${member.name}' style='margin-right:8px;padding:4px;border-radius:8px;border:1px solid #c7d2fe;'></label>
+          <label>顔写真: <input type='file' id='edit-member-photo' accept='image/*'></label>
+          <img src='${member.photo}' style='width:32px;border-radius:50%;margin-left:8px;'>
+          <button onclick='saveMember(${id})' style='margin-left:16px;background:#6366f1;color:#fff;padding:4px 16px;border-radius:8px;'>保存</button>
+          <button onclick='cancelEditMember()' style='margin-left:8px;background:#aaa;color:#fff;padding:4px 16px;border-radius:8px;'>キャンセル</button>
+        </div>
+      `;
+    }
+
+    async function saveMember(id) {
+      const name = document.getElementById('edit-member-name').value;
+      const photoInput = document.getElementById('edit-member-photo');
+      let photo = null;
+      if (photoInput.files[0]) {
+        await new Promise(res => {
+          uploadImage(photoInput.files[0], dataUrl => {
+            photo = dataUrl;
+            res();
+          });
+        });
+      }
+      const members = await dbGetAll('members');
+      const member = members.find(m => m.id === id);
+      if (!member) return;
+      member.name = name;
+      if (photo) member.photo = photo;
+      await dbPut('members', member);
+      loadMembers();
+      cancelEditMember();
+    }
+
+    function cancelEditMember() {
+      const editArea = document.getElementById('member-edit-area');
+      if (editArea) editArea.innerHTML = '';
+    }
+
+    async function deleteCheckedMembers() {
+      const checks = Array.from(document.querySelectorAll('.member-check:checked')).map(c => Number(c.value));
+      if (checks.length === 0) return alert('削除対象を選択してください');
+      const members = await dbGetAll('members');
+      for (const id of checks) {
+        const member = members.find(m => m.id === id);
+        if (member) {
+          // IndexedDBから削除
+          const db = await dbPromise;
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction('members', 'readwrite');
+            tx.objectStore('members').delete(id);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          });
+        }
+      }
+      loadMembers();
+    }
+    function showPrize() {
+      clearMenuActive();
+      document.getElementById('menu-prize').style.background = '#c7d2fe';
+        adminContent.innerHTML = `
+          <h2 style='text-align:left;color:#7c3aed;margin-bottom:24px;'>景品管理</h2>
+          <div style='margin-bottom:16px;'>
+            <button onclick='sortPrizesByRank()' style='padding:6px 18px;border-radius:8px;background:#ede9fe;color:#6366f1;font-weight:600;'>ランクでソート</button>
+          </div>
+          <div id='prize-list' style='margin-bottom:24px;'></div>
+          <div style='display:flex;flex-direction:row;gap:24px;'>
+            <div style='flex:2;'>
+              <label style='font-weight:600;color:#6366f1;'>景品名
+                <input type='text' id='prize-name' placeholder='景品名' style='width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid #c7d2fe;'>
+              </label>
+            </div>
+            <div style='flex:1;'>
+              <label style='font-weight:600;color:#6366f1;'>ランク
+                <input type='number' id='prize-rank' min='1' max='10' list='rank-list' style='width:100%;margin-top:4px;padding:8px;border-radius:8px;border:1px solid #c7d2fe;'>
+                <datalist id='rank-list'>
+                  ${Array.from({length:10},(_,i)=>`<option value='${i+1}'>${i+1}</option>`).join('')}
+                </datalist>
+              </label>
+            </div>
+            <div style='flex:1;'>
+              <label style='font-weight:600;color:#6366f1;'>画像
+                <input type='file' id='prize-image' accept='image/*' style='width:100%;margin-top:4px;'>
+              </label>
+            </div>
+            <div style='display:flex;align-items:end;'>
+              <button onclick='addPrize()' style='margin-top:8px;'>追加</button>
+            </div>
+          </div>
+          <div id='prize-edit-area'></div>
+        `;
+        loadPrizes();
+    }
+    // グローバルでactiveScreenを管理
+    let activeScreen = 'home';
+    function showSetting() {
+      clearMenuActive();
+      document.getElementById('menu-setting').style.background = '#c7d2fe';
+      const screens = [
+        { key: 'home', label: 'ホーム画面' },
+        { key: 'opening', label: 'オープニング画面' },
+        { key: 'description', label: '説明画面' },
+        { key: 'demo', label: 'デモ抽選画面' },
+        { key: 'draw', label: '本抽選画面' },
+        { key: 'result', label: '最終結果画面' }
+      ];
+      function renderTabs() {
+        return `<div style='display:flex;gap:8px;margin-bottom:16px;'>${screens.map(s => `<button class='tab-btn' data-key='${s.key}' style='padding:8px 16px;border-radius:8px;border:none;background:${activeScreen===s.key?'#c7d2fe':'#ede9fe'};color:#6366f1;font-weight:600;cursor:pointer;'>${s.label}</button>`).join('')}</div>`;
+      }
+      function renderSettingUI() {
+        let html = `
+          <div id='setting-list-wrap'></div>
+          <div style='margin-top:24px;'>
+            <h3 style='color:#6366f1;'>新規コンテンツ追加</h3>
+            <div id='new-content-ui'></div>
+            <div id='preview-area' style='margin-top:16px;'></div>
+          </div>
+        `;
+        if (activeScreen !== 'home') {
+          html += `
+            <div style='margin-top:24px;display:flex;gap:16px;'>
+              <button onclick='deleteCheckedScreenContent()' style='background:#fca5a5;color:#fff;padding:8px 24px;border-radius:8px;'>チェック一括削除</button>
+              <button onclick='previewAllScreenContents()' style='background:#6366f1;color:#fff;padding:8px 24px;border-radius:8px;'>連続プレビュー</button>
+            </div>
+            <div id='preview-all-area' style='margin-top:24px;'></div>
+          `;
+        }
+        return html;
+      }
+      adminContent.innerHTML = `
+        <h2 style='text-align:left;color:#7c3aed;margin-bottom:24px;'>画面設定</h2>
+        ${renderTabs()}
+        ${renderSettingUI()}
+      `;
+      // 新規コンテンツ追加UIの動的生成
+      function renderNewContentUI() {
+        if (activeScreen === 'home') {
+          // ホーム画面はBGMのみ・最大1件
+          let html = `<div style='grid-column:1/3;'>
+            <label style='font-weight:600;color:#6366f1;display:block;margin-bottom:4px;'>BGM（初期表示時に連続再生する音楽）</label>
+            <input type='file' id='home-bgm-file' accept='audio/*' style='padding:8px;border-radius:8px;width:100%;'>
+          </div>
+          <div style='grid-column:1/3;margin-top:8px;'>
+            <button id='home-bgm-save' style='padding:8px 16px;margin-right:8px;'>保存</button>
+            <button id='home-bgm-reset' style='padding:8px 16px;background:#fca5a5;color:#fff;border-radius:8px;'>リセット</button>
+          </div>
+          <div id='home-bgm-status' style='grid-column:1/3;margin-top:8px;color:#6366f1;'></div>`;
+          document.getElementById('new-content-ui').innerHTML = html;
+          // 現在のBGM設定を表示
+          window.loadHomeBgmStatus = async function() {
+            const bgm = await window.getHomeBgm();
+            const status = document.getElementById('home-bgm-status');
+            if (!status) return;
+            if (!bgm) {
+              status.innerHTML = '未設定';
+            } else {
+              let name = bgm.fileName || 'アップロード済み';
+              status.innerHTML = `設定済み: ${name} <audio src='${bgm.value}' controls style='vertical-align:middle;width:180px;'></audio>`;
+            }
+          };
+          window.loadHomeBgmStatus();
+          document.getElementById('home-bgm-save').onclick = async function() {
+            const fileInput = document.getElementById('home-bgm-file');
+            if (!fileInput.files[0]) {
+              await window.setHomeBgm(null);
+              window.loadHomeBgmStatus();
+              showModal('未設定として保存しました');
+              return;
+            }
+            const file = fileInput.files[0];
+            uploadFile(file, async url => {
+              await window.setHomeBgm({ value: url, fileName: file.name });
+              window.loadHomeBgmStatus();
+              showModal('保存しました');
+            });
+          };
+          document.getElementById('home-bgm-reset').onclick = async function() {
+            await window.setHomeBgm(null);
+            window.loadHomeBgmStatus();
+            showModal('リセットしました');
+          };
+          return;
+        }
+        // ...従来の他画面UI...
+        // ...existing code...
+      }
+      renderNewContentUI();
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+          activeScreen = btn.getAttribute('data-key');
+          showSetting();
+        };
+      });
+      window.loadScreenContentList = async function(screenKey) {
+        const list = await getScreenContentList(screenKey);
+        const wrap = document.getElementById('setting-list-wrap');
+        if (!wrap) return;
+        if (list.length === 0) {
+          wrap.innerHTML = '<div style="color:#aaa;">設定コンテンツはありません</div>';
+          return;
+        }
+        function getValueDisplay(c) {
+          if (c.type === 'text') {
+            return c.value ? c.value.replace(/<[^>]*>/g, '').slice(0, 10) + (c.value.length > 10 ? '...' : '') : '';
+          } else if (c.type === 'bgm' || c.type === 'video') {
+            // DataURLの場合、ファイル名を保存していればそれを表示。なければDataURLの先頭だけ
+            if (c.fileName) return c.fileName;
+            if (typeof c.value === 'string' && c.value.startsWith('data:')) {
+              const match = c.value.match(/filename=([^;]*)/);
+              if (match) return match[1];
+              return 'アップロード済み';
+            }
+            return c.value;
+          }
+          return '';
+        }
+        wrap.innerHTML = `<table style='width:100%;border-collapse:collapse;'>
+          <thead><tr style='background:#ede9fe;'>
+            <th style='width:32px;'></th>
+            <th>タイプ</th>
+            <th>値</th>
+            <th>表示方法</th>
+            <th>開始タイミング</th>
+            <th>操作</th>
+          </tr></thead>
+          <tbody>
+            ${list.map((c, idx) => `
+              <tr>
+                <td><input type='checkbox' class='setting-check' value='${c.id}'></td>
+                <td>${c.type}</td>
+                <td>${getValueDisplay(c)}</td>
+                <td>${c.mode||'-'}</td>
+                <td>${c.timingType||'-'} (${c.timingInterval||'-'}秒)</td>
+                <td style='white-space:nowrap;'>
+                  <button onclick='editScreenContent(${c.id})' style='background:#a5b4fc;color:#222;padding:4px 10px;border-radius:8px;margin-right:4px;'>編集</button>
+                  <button onclick='moveScreenContentUp(${c.id})' style='background:#dbeafe;color:#222;padding:4px 8px;border-radius:8px;margin-right:2px;' ${idx===0?'disabled':''}>↑</button>
+                  <button onclick='moveScreenContentDown(${c.id})' style='background:#dbeafe;color:#222;padding:4px 8px;border-radius:8px;' ${idx===list.length-1?'disabled':''}>↓</button>
+                  <button onclick='deleteScreenContentSingle(${c.id})' style='background:#fca5a5;color:#fff;padding:4px 12px;border-radius:8px;margin-left:4px;'>削除</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+      };
+  window.handleAddScreenContent = async function() {
+        const type = document.getElementById('setting-type').value;
+        let value = '';
+        let mode = '';
+        let fadeIn = null, showTime = null, fadeOut = null, scrollTime = null;
+        let shouldReset = false;
+        function resetNewContentUI() {
+          // グローバル変数も初期化
+          window._settingType = 'bgm';
+          window._settingMode = 'fade';
+          window._settingTimingType = 'wait';
+          window._settingTimingInterval = 1;
+          window._fadeIn = 1.2;
+          window._showTime = 2.0;
+          window._fadeOut = 1.2;
+          window._scrollTime = 3.0;
+          window._settingValue = '';
+          // UI再描画
+          if (typeof renderNewContentUI === 'function') {
+            renderNewContentUI();
+          }
+        }
+        if (type === 'bgm' || type === 'video') {
+          const fileInput = document.getElementById('setting-file');
+          if (!fileInput.files[0]) return showModal('ファイルを選択してください');
+          const file = fileInput.files[0];
+          await uploadFile(file, async url => {
+            value = url;
+            const timingType = document.getElementById('setting-timing-type').value;
+            const timingInterval = parseInt(document.getElementById('setting-timing-interval').value) || 1;
+            const fileName = file.name;
+            await window.addScreenContent(activeScreen, { type, value, timingType, timingInterval, fileName });
+            loadScreenContentList(activeScreen);
+            shouldReset = true;
+            resetNewContentUI();
+          });
+          return;
+        } else if (type === 'text') {
+          value = document.getElementById('setting-value').value.trim();
+          mode = document.getElementById('setting-mode').value;
+          if (!value) return showModal('HTMLを入力してください');
+          if (mode === 'fade') {
+            fadeIn = parseFloat(document.getElementById('fade-in').value) || 1.2;
+            showTime = parseFloat(document.getElementById('show-time').value) || 2.0;
+            fadeOut = parseFloat(document.getElementById('fade-out').value) || 1.2;
+          } else if (mode === 'scroll-up' || mode === 'scroll-down') {
+            scrollTime = parseFloat(document.getElementById('scroll-time').value) || 3.0;
+          }
+          shouldReset = true;
+        }
+        const timingType = document.getElementById('setting-timing-type').value;
+        const timingInterval = parseInt(document.getElementById('setting-timing-interval').value) || 1;
+        await window.addScreenContent(activeScreen, { type, value, mode, timingType, timingInterval, fadeIn, showTime, fadeOut, scrollTime });
+        loadScreenContentList(activeScreen);
+        // フォーム初期化
+        if (shouldReset) {
+          resetNewContentUI();
+        }
+      };
+      window.previewScreenContent = function() {
+        const type = document.getElementById('setting-type').value;
+        const value = document.getElementById('setting-value').value.trim();
+        const mode = document.getElementById('setting-mode').value;
+        const previewArea = document.getElementById('preview-area');
+        previewArea.innerHTML = '';
+        if (!value) {
+          previewArea.innerHTML = '<div style="color:#aaa;">プレビューする内容を入力してください</div>';
+          return;
+        }
+        if (type === 'text') {
+          const div = document.createElement('div');
+          div.innerHTML = value;
+          div.style.background = '#000';
+          div.style.color = '#fff';
+          div.style.padding = '24px';
+          div.style.margin = '8px 0';
+          div.style.fontSize = '1.2em';
+          div.style.borderRadius = '12px';
+          div.className = mode;
+          previewArea.appendChild(div);
+        } else if (type === 'bgm') {
+          previewArea.innerHTML = `<div style='color:#fff;background:#222;padding:16px;border-radius:8px;'>BGM再生: ${value}</div>`;
+        } else if (type === 'video') {
+          previewArea.innerHTML = `<video src='${value}' autoplay controls style='width:60%;background:#000;border-radius:12px;'></video>`;
+        }
+      };
+      window.deleteScreenContentSingle = async function(id) {
+        await deleteScreenContent(activeScreen, id);
+        loadScreenContentList(activeScreen);
+      };
+      // 連続プレビュー機能
+      window.previewAllScreenContents = async function() {
+        const list = await getScreenContentList(activeScreen);
+        if (!list.length) {
+          showModal('プレビューするコンテンツがありません');
+          return;
+        }
+        const previewArea = document.getElementById('preview-all-area');
+        previewArea.innerHTML = '';
+        previewArea.style.display = 'flex';
+        let idx = 0;
+        let audio = null;
+        let video = null;
+        async function showNext() {
+          if (audio) { audio.pause(); audio = null; }
+          if (video) { video.pause(); video = null; }
+          if (idx >= list.length) {
+            previewArea.innerHTML = '<div style="color:#6366f1;font-weight:600;">全コンテンツのプレビューが完了しました</div>';
+            setTimeout(()=>{ previewArea.innerHTML = ''; previewArea.style.display = 'none'; }, 2000);
+            return;
+          }
+          const c = list[idx];
+          previewArea.innerHTML = '';
+          if (c.type === 'text') {
+            const div = document.createElement('div');
+            div.className = 'preview-text';
+            div.innerHTML = c.value;
+            previewArea.appendChild(div);
+            let duration = 2000;
+            if (c.mode === 'fade') {
+              div.classList.add('fade-in');
+              duration = (c.fadeIn || 1.2) * 1000 + (c.showTime || 2.0) * 1000 + (c.fadeOut || 1.2) * 1000;
+              setTimeout(()=>{ div.classList.remove('fade-in'); div.classList.add('fade-out'); }, (c.fadeIn || 1.2) * 1000 + (c.showTime || 2.0) * 1000);
+            } else if (c.mode === 'scroll-up') {
+              div.classList.add('scroll-up');
+              div.style.animationDuration = ((c.scrollTime || 3.0) + 's');
+              duration = (c.scrollTime || 3.0) * 1000;
+            } else if (c.mode === 'scroll-down') {
+              div.classList.add('scroll-down');
+              div.style.animationDuration = ((c.scrollTime || 3.0) + 's');
+              duration = (c.scrollTime || 3.0) * 1000;
+            } else {
+              div.classList.add('fade-in');
+              duration = 2000;
+            }
+            setTimeout(()=>{ idx++; showNext(); }, duration);
+          } else if (c.type === 'bgm') {
+            previewArea.innerHTML = `<div style='color:#fff;background:#222;padding:16px;border-radius:8px;'>BGM再生: ${c.value}</div>`;
+            audio = new Audio(c.value);
+            audio.volume = 0.7;
+            audio.play();
+            audio.onended = ()=>{ idx++; showNext(); };
+            setTimeout(()=>{ if (!audio.paused) { audio.pause(); idx++; showNext(); } }, 5000);
+          } else if (c.type === 'video') {
+            previewArea.innerHTML = `<video id='preview-video' src='${c.value}' autoplay controls style='width:100%;max-width:960px;background:#000;border-radius:12px;'></video>`;
+            video = previewArea.querySelector('#preview-video');
+            video.onended = ()=>{ idx++; showNext(); };
+            setTimeout(()=>{ if (!video.paused) { video.pause(); idx++; showNext(); } }, 8000);
+          } else {
+            setTimeout(()=>{ idx++; showNext(); }, 1000);
+          }
+        }
+        showNext();
+      };
+      window.deleteCheckedScreenContent = async function() {
+        const checks = Array.from(document.querySelectorAll('.setting-check:checked')).map(c => Number(c.value));
+        if (checks.length === 0) return showModal('削除対象を選択してください');
+  await window.deleteCheckedScreenContentImpl(activeScreen, checks);
+    loadScreenContentList(activeScreen);
+      };
+      // 編集・順番入れ替え機能
+      window.editScreenContent = async function(id) {
+        const list = await getScreenContentList(activeScreen);
+        const item = list.find(c => c.id === id);
+        if (!item) return;
+        // フォームに値をセット
+        window._settingType = item.type;
+        window._settingValue = item.value || '';
+        window._settingMode = item.mode || 'fade';
+        window._fadeIn = item.fadeIn || 1.2;
+        window._showTime = item.showTime || 2.0;
+        window._fadeOut = item.fadeOut || 1.2;
+        window._scrollTime = item.scrollTime || 3.0;
+        window._settingTimingType = item.timingType || 'wait';
+        window._settingTimingInterval = item.timingInterval || 1;
+        // 編集モードフラグ
+        window._editScreenContentId = id;
+        // UI再描画
+        if (typeof renderNewContentUI === 'function') renderNewContentUI();
+        // 追加ボタンを「保存」に変更
+        const addBtn = document.querySelector('#new-content-ui button[onclick="handleAddScreenContent()"]');
+        if (addBtn) {
+          addBtn.textContent = '保存';
+          addBtn.onclick = function() { handleSaveScreenContent(); };
+        }
+      };
+      window.handleSaveScreenContent = async function() {
+        const id = window._editScreenContentId;
+        if (!id) return;
+        const type = document.getElementById('setting-type').value;
+        let value = '';
+        let mode = '';
+        let fadeIn = null, showTime = null, fadeOut = null, scrollTime = null;
+        if (type === 'bgm' || type === 'video') {
+          const fileInput = document.getElementById('setting-file');
+          if (!fileInput.files[0]) return showModal('ファイルを選択してください');
+          await uploadFile(fileInput.files[0], async url => {
+            value = url;
+            const timingType = document.getElementById('setting-timing-type').value;
+            const timingInterval = parseInt(document.getElementById('setting-timing-interval').value) || 1;
+            await updateScreenContent(activeScreen, id, { type, value, timingType, timingInterval });
+            loadScreenContentList(activeScreen);
+            resetEditMode();
+          });
+          return;
+        } else if (type === 'text') {
+          value = document.getElementById('setting-value').value.trim();
+          mode = document.getElementById('setting-mode').value;
+          if (!value) return showModal('HTMLを入力してください');
+          if (mode === 'fade') {
+            fadeIn = parseFloat(document.getElementById('fade-in').value) || 1.2;
+            showTime = parseFloat(document.getElementById('show-time').value) || 2.0;
+            fadeOut = parseFloat(document.getElementById('fade-out').value) || 1.2;
+          } else if (mode === 'scroll-up' || mode === 'scroll-down') {
+            scrollTime = parseFloat(document.getElementById('scroll-time').value) || 3.0;
+          }
+        }
+        const timingType = document.getElementById('setting-timing-type').value;
+        const timingInterval = parseInt(document.getElementById('setting-timing-interval').value) || 1;
+        await updateScreenContent(activeScreen, id, { type, value, mode, timingType, timingInterval, fadeIn, showTime, fadeOut, scrollTime });
+        loadScreenContentList(activeScreen);
+        resetEditMode();
+      };
+      window.updateScreenContent = async function(screenKey, id, newData) {
+        let list = await getScreenContentList(screenKey);
+        list = list.map(c => c.id === id ? { ...c, ...newData } : c);
+        await setScreenContentList(screenKey, list);
+      };
+      function resetEditMode() {
+        window._editScreenContentId = null;
+        window._settingType = 'bgm';
+        window._settingMode = 'fade';
+        window._settingTimingType = 'wait';
+        window._settingTimingInterval = 1;
+        window._fadeIn = 1.2;
+        window._showTime = 2.0;
+        window._fadeOut = 1.2;
+        window._scrollTime = 3.0;
+        window._settingValue = '';
+        if (typeof renderNewContentUI === 'function') renderNewContentUI();
+        // 追加ボタンを元に戻す
+        const addBtn = document.querySelector('#new-content-ui button[onclick]');
+        if (addBtn) {
+          addBtn.textContent = '追加';
+          addBtn.onclick = function() { handleAddScreenContent(); };
+        }
+      }
+      // 順番入れ替え
+      window.moveScreenContentUp = async function(id) {
+        let list = await getScreenContentList(activeScreen);
+        const idx = list.findIndex(c => c.id === id);
+        if (idx > 0) {
+          [list[idx-1], list[idx]] = [list[idx], list[idx-1]];
+          await setScreenContentList(activeScreen, list);
+          loadScreenContentList(activeScreen);
+        }
+      };
+      window.moveScreenContentDown = async function(id) {
+        let list = await getScreenContentList(activeScreen);
+        const idx = list.findIndex(c => c.id === id);
+        if (idx < list.length-1) {
+          [list[idx], list[idx+1]] = [list[idx+1], list[idx]];
+          await setScreenContentList(activeScreen, list);
+          loadScreenContentList(activeScreen);
+        }
+      };
+      loadScreenContentList(activeScreen);
+    }
+    // メンバー管理
+    async function loadMembers() {
+      const members = await dbGetAll('members');
+      const list = document.getElementById('member-list');
+      list.innerHTML = '';
+      members.forEach(m => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '8px';
+        row.style.marginBottom = '8px';
+        row.innerHTML = `
+          <input type='checkbox' class='member-check' value='${m.id}'>
+          <img src='${m.photo}' style='width:32px;border-radius:50%;'>
+          <span>${m.name}</span>
+          <button onclick='editMember(${m.id})' style='margin-left:8px;background:#a5b4fc;color:#222;padding:4px 10px;border-radius:8px;'>編集</button>
+        `;
+        list.appendChild(row);
+      });
+      // 編集エリア初期化
+      const editArea = document.getElementById('member-edit-area');
+      if (editArea) editArea.innerHTML = '';
+    }
+    async function addMember() {
+      const name = document.getElementById('member-name').value;
+      const photoInput = document.getElementById('member-photo');
+      if (!name || !photoInput.files[0]) return alert('名前と写真必須');
+      uploadImage(photoInput.files[0], async dataUrl => {
+        await dbPut('members', { name, photo: dataUrl });
+        document.getElementById('member-name').value = '';
+        photoInput.value = '';
+        loadMembers();
+      });
+    // メンバー編集機能
+    async function editMember(id) {
+      const members = await dbGetAll('members');
+      const member = members.find(m => m.id === id);
+      if (!member) return;
+      const editArea = document.getElementById('member-edit-area');
+      editArea.innerHTML = `
+        <div style='margin-top:24px;padding:16px;border:1px solid #c7d2fe;border-radius:12px;background:#f3f4f6;'>
+          <h3 style='color:#6366f1;'>メンバー編集</h3>
+          <label>名前: <input type='text' id='edit-member-name' value='${member.name}' style='margin-right:8px;padding:4px;border-radius:8px;border:1px solid #c7d2fe;'></label>
+          <label>顔写真: <input type='file' id='edit-member-photo' accept='image/*'></label>
+          <img src='${member.photo}' style='width:32px;border-radius:50%;margin-left:8px;'>
+          <button onclick='saveMember(${id})' style='margin-left:16px;background:#6366f1;color:#fff;padding:4px 16px;border-radius:8px;'>保存</button>
+          <button onclick='cancelEditMember()' style='margin-left:8px;background:#aaa;color:#fff;padding:4px 16px;border-radius:8px;'>キャンセル</button>
+        </div>
+      `;
+    }
+    async function saveMember(id) {
+      const name = document.getElementById('edit-member-name').value;
+      const photoInput = document.getElementById('edit-member-photo');
+      let photo = null;
+      if (photoInput.files[0]) {
+        await new Promise(res => {
+          uploadImage(photoInput.files[0], dataUrl => {
+            photo = dataUrl;
+            res();
+          });
+        });
+      }
+      const members = await dbGetAll('members');
+      const member = members.find(m => m.id === id);
+      if (!member) return;
+      member.name = name;
+      if (photo) member.photo = photo;
+      await dbPut('members', member);
+      loadMembers();
+      cancelEditMember();
+    }
+    function cancelEditMember() {
+      const editArea = document.getElementById('member-edit-area');
+      if (editArea) editArea.innerHTML = '';
+    }
+    // 一括削除機能
+    async function deleteCheckedMembers() {
+      const checks = Array.from(document.querySelectorAll('.member-check:checked')).map(c => Number(c.value));
+      if (checks.length === 0) return alert('削除対象を選択してください');
+      const members = await dbGetAll('members');
+      for (const id of checks) {
+        const member = members.find(m => m.id === id);
+        if (member) {
+          // IndexedDBから削除
+          const db = await dbPromise;
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction('members', 'readwrite');
+            tx.objectStore('members').delete(id);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          });
+        }
+      }
+      loadMembers();
+    }
+    }
+    // 景品管理
+    async function loadPrizes() {
+      const prizes = await dbGetAll('prizes');
+      const list = document.getElementById('prize-list');
+      list.innerHTML = '';
+      prizes.sort((a,b)=>(a.rank||0)-(b.rank||0));
+      prizes.forEach(p => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '12px';
+        row.style.marginBottom = '8px';
+        row.innerHTML = `
+          ${p.image ? `<img src='${p.image}' style='width:32px;height:32px;object-fit:cover;border-radius:8px;'>` : ''}
+          <span>${p.name}</span>
+          <span style='font-size:0.9em;color:#7c3aed;'>(ランク: ${p.rank})</span>
+          <button onclick='editPrize(${p.id})' style='margin-left:8px;background:#a5b4fc;color:#222;padding:4px 10px;border-radius:8px;'>編集</button>
+          <button onclick='deletePrize(${p.id})' style='margin-left:4px;background:#fca5a5;color:#fff;padding:4px 10px;border-radius:8px;'>削除</button>
+        `;
+        list.appendChild(row);
+      });
+      // 編集エリア初期化
+      const editArea = document.getElementById('prize-edit-area');
+      if (editArea) editArea.innerHTML = '';
+    // 景品編集機能（windowに登録）
+    window.editPrize = async function(id) {
+      const prizes = await dbGetAll('prizes');
+      const prize = prizes.find(p => p.id === id);
+      if (!prize) return;
+      const editArea = document.getElementById('prize-edit-area');
+      editArea.innerHTML = `
+        <div style='margin-top:24px;padding:16px;border:1px solid #c7d2fe;border-radius:12px;background:#f3f4f6;'>
+          <h3 style='color:#6366f1;'>景品編集</h3>
+          <label>景品名: <input type='text' id='edit-prize-name' value='${prize.name}' style='margin-right:8px;padding:4px;border-radius:8px;border:1px solid #c7d2fe;'></label>
+          <label>ランク: <input type='number' id='edit-prize-rank' value='${prize.rank}' min='1' max='10' style='margin-right:8px;padding:4px;border-radius:8px;border:1px solid #c7d2fe;width:60px;'></label>
+          <label>画像: <input type='file' id='edit-prize-image' accept='image/*'></label>
+          ${prize.image ? `<img src='${prize.image}' style='width:32px;height:32px;object-fit:cover;border-radius:8px;margin-left:8px;'>` : ''}
+          <button onclick='savePrize(${id})' style='margin-left:16px;background:#6366f1;color:#fff;padding:4px 16px;border-radius:8px;'>保存</button>
+          <button onclick='cancelEditPrize()' style='margin-left:8px;background:#aaa;color:#fff;padding:4px 16px;border-radius:8px;'>キャンセル</button>
+        </div>
+      `;
+    }
+    window.savePrize = async function(id) {
+      const name = document.getElementById('edit-prize-name').value;
+      const rank = parseInt(document.getElementById('edit-prize-rank').value);
+      const imageInput = document.getElementById('edit-prize-image');
+      let image = null;
+      if (imageInput.files[0]) {
+        await new Promise(res => {
+          uploadImage(imageInput.files[0], dataUrl => {
+            image = dataUrl;
+            res();
+          });
+        });
+      }
+      const prizes = await dbGetAll('prizes');
+      const prize = prizes.find(p => p.id === id);
+      if (!prize) return;
+      prize.name = name;
+      prize.rank = rank;
+      if (image) prize.image = image;
+      await dbPut('prizes', prize);
+      loadPrizes();
+      window.cancelEditPrize();
+    }
+    window.cancelEditPrize = function() {
+      const editArea = document.getElementById('prize-edit-area');
+      if (editArea) editArea.innerHTML = '';
+    }
+    window.deletePrize = async function(id) {
+      await dbDelete('prizes', id);
+      loadPrizes();
+    }
+    }
+    async function addPrize() {
+      const name = document.getElementById('prize-name').value;
+      const rank = parseInt(document.getElementById('prize-rank').value);
+      const imageInput = document.getElementById('prize-image');
+      if (!name) return alert('景品名必須');
+      if (!rank || rank < 1 || rank > 10) return alert('ランクは1-10の整数値で入力してください');
+      if (imageInput.files[0]) {
+        uploadImage(imageInput.files[0], async dataUrl => {
+          await dbPut('prizes', { name, rank, image: dataUrl });
+          document.getElementById('prize-name').value = '';
+          document.getElementById('prize-rank').value = '';
+          imageInput.value = '';
+          loadPrizes();
+        });
+      } else {
+        await dbPut('prizes', { name, rank });
+        document.getElementById('prize-name').value = '';
+        document.getElementById('prize-rank').value = '';
+        loadPrizes();
+      }
+    }
+    // 画面設定
+    // 景品リストをランクでソート
+    window.sortPrizesByRank = async function() {
+      const prizes = await dbGetAll('prizes');
+      prizes.sort((a,b)=>(a.rank||0)-(b.rank||0));
+      const list = document.getElementById('prize-list');
+      list.innerHTML = '';
+      prizes.forEach(p => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '12px';
+        row.style.marginBottom = '8px';
+        row.innerHTML = `
+          ${p.image ? `<img src='${p.image}' style='width:32px;height:32px;object-fit:cover;border-radius:8px;'>` : ''}
+          <span>${p.name}</span>
+          <span style='font-size:0.9em;color:#7c3aed;'>(ランク: ${p.rank})</span>
+        `;
+        list.appendChild(row);
+      });
+    }
+    async function saveSettings() {
+      await saveConfig('bgm', document.getElementById('setting-bgm').value);
+      await saveConfig('video', document.getElementById('setting-video').value);
+      await saveConfig('scroll', document.getElementById('setting-scroll').value);
+      showModal('保存しました', 1200);
+    }
+    async function loadSettings() {
+      document.getElementById('setting-bgm').value = await loadConfig('bgm') || '';
+      document.getElementById('setting-video').value = await loadConfig('video') || '';
+      document.getElementById('setting-scroll').value = await loadConfig('scroll') || 4;
+    }
+    // 初期表示
+    // ...existing code...
+  </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>オープニング画面 | ジャックポッド大会</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      color: #fff;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .fullscreen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .scroll-up {
+      animation: scrollUp 3s linear forwards;
+    }
+    .scroll-down {
+      animation: scrollDown 3s linear forwards;
+    }
+    @keyframes scrollUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes scrollDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .fade-in {
+      animation: fadeIn 1.2s;
+    }
+    .fade-out {
+      animation: fadeOut 1.2s;
+      opacity: 0;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+  </style>
+  <script src="common.js"></script>
+</head>
+  <body>
+    <div class="fullscreen">
+      <div style="width:80vw;max-width:900px;text-align:center;">
+        <div class="title" style="margin-bottom:32px;">オープニング</div>
+        <div id="op-content" style="margin-bottom:32px;"></div>
+        <div style="margin-top:32px;display:none;" id="next-wrap">
+          <button id="next-btn" data-next onclick="nextPage('description.html')">次へ</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    // IndexedDBからオープニング画面設定を取得して反映
+    async function loadOpeningContents() {
+      const list = await getScreenContentList('opening');
+      if (!list || list.length === 0) {
+        document.getElementById('op-content').innerHTML = '<div style="color:#aaa;">設定コンテンツがありません</div>';
+        return;
+      }
+      let idx = 0;
+      function showContent(i) {
+        if (i >= list.length) {
+          document.getElementById('next-wrap').style.display = '';
+          return;
+        }
+        const c = list[i];
+        const wrap = document.getElementById('op-content');
+        wrap.innerHTML = '';
+        if (c.type === 'bgm') {
+          const audio = new Audio(c.value); audio.loop = true; audio.play();
+          wrap.innerHTML += `<div>BGM再生中: ${c.value}</div>`;
+          setTimeout(() => showContent(i+1), 1000);
+        } else if (c.type === 'video') {
+          const video = document.createElement('video');
+          video.src = c.value; video.autoplay = true; video.controls = false; video.style.width = '60%';
+          wrap.appendChild(video);
+          wrap.innerHTML += `<div>動画再生中: ${c.value}</div>`;
+          video.onended = () => showContent(i+1);
+          setTimeout(() => showContent(i+1), 6000);
+        } else if (c.type === 'text') {
+          // textはHTMLとして表示、mode等はvalueに含める
+          const div = document.createElement('div');
+          let mode = c.mode || 'fade'; // mode: 'fade', 'scroll-up', 'scroll-down'
+          div.innerHTML = c.value;
+          if (mode === 'fade') {
+            div.className = 'fade-in';
+            wrap.appendChild(div);
+            // フェードイン・表示・フェードアウト時間を反映
+            const fadeIn = c.fadeIn || 1.2;
+            const showTime = c.showTime || 2.0;
+            const fadeOut = c.fadeOut || 1.2;
+            div.style.animationDuration = fadeIn + 's';
+            setTimeout(() => {
+              div.className = 'fade-out';
+              div.style.animationDuration = fadeOut + 's';
+              setTimeout(() => showContent(i+1), fadeOut * 1000);
+            }, showTime * 1000);
+          } else if (mode === 'scroll-up' || mode === 'scroll-down') {
+            div.className = mode;
+            wrap.appendChild(div);
+            // スクロール時間を反映
+            const scrollTime = c.scrollTime || 3.0;
+            div.style.animationDuration = scrollTime + 's';
+            setTimeout(() => showContent(i+1), scrollTime * 1000);
+          } else {
+            wrap.appendChild(div);
+            setTimeout(() => showContent(i+1), 2000);
+          }
+        }
+      }
+      showContent(0);
+    }
+    loadOpeningContents();
+  </script>
+</body>
+</html>
