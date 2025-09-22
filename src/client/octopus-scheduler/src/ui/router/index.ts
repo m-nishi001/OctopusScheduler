@@ -1,6 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router';
-
-const routes = [
+const octopusSchedulerRoutes = [
   {
     path: '/',
     name: 'home',
@@ -28,9 +26,4 @@ const routes = [
   }
 ];
 
-const router = createRouter({
-  history: createWebHashHistory(),
-  routes
-});
-
-export default router;
+export default octopusSchedulerRoutes;

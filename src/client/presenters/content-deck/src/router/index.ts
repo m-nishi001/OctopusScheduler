@@ -1,7 +1,7 @@
 export const routes = [
     {
-        path: '/',
-        name: 'home',
+        path: '/home_sub',
+        name: 'home_sub',
         component: () => import("../components/HelloWorld.vue")
     }
 ]
