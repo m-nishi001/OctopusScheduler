@@ -195,8 +195,8 @@ class ShowImageEventStrategy implements ScheduleEventStrategy {
 // 画面遷移イベントStrategy
 class TransitionPageEventStrategy implements ScheduleEventStrategy {
     async start(event: any) {
-        if (event.scheduleEventDetail?.transitionUrl) {
-            router.replace({ hash: event.scheduleEventDetail.transitionUrl });
+        if (event.scheduleEventDetail?.pageUrl) {
+            router.replace({ name: event.scheduleEventDetail.pageUrl });
         }
     }
     async end() {
