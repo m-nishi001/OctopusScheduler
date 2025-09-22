@@ -72,6 +72,15 @@ function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiR
 // （GAS側の型チェックに引っかかる模様）
 _doGet = (e: GoogleAppsScript.Events.DoGet) => {
   try {
+
+    // 途中でエラー等が発生した場合において、ScriptLockが解放されないままとなることを防止するため、
+    // ここでScriptLockを解放する。
+    try {
+      LockService.getScriptLock().releaseLock();
+    } catch {
+      // 既に解放されている場合は無視
+    }
+
     const template = HtmlService.createTemplateFromFile("index");
     return template.evaluate()
       .setTitle('Sample App')

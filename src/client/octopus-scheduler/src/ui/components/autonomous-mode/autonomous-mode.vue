@@ -7,18 +7,29 @@
             <div class="event-section">
                 <div class="event-block">
                     <h3>今から開始するイベント</h3>
-                    <div class="event-value">{{ upcomingEvent }}</div>
+                    <div class="event-value">{{ eventPollingService.state.upcomingEvent }}</div>
                 </div>
                 <div class="event-block">
                     <h3>今実行しているイベント</h3>
-                    <div class="event-value">{{ currentEvent }}</div>
+                    <div class="event-value">{{ eventPollingService.state.currentEvent }}</div>
                 </div>
                 <div class="event-block">
                     <h3>今から終了するイベント</h3>
-                    <div class="event-value">{{ endingEvent }}</div>
+                    <div class="event-value">{{ eventPollingService.state.endingEvent }}</div>
                 </div>
             </div>
             <div class="control-section">
+                <div class="polling-controls">
+                    <button class="main-btn" @click="onStartPolling" :disabled="eventPollingService.state.isPolling">
+                        <span class="btn-icon">🔄</span> ポーリング開始
+                    </button>
+                    <button class="main-btn" @click="onStopPolling" :disabled="!eventPollingService.state.isPolling">
+                        <span class="btn-icon">⏹️</span> ポーリング停止
+                    </button>
+                    <span class="event-value" style="margin-left:1em;">
+                        ポーリング状態: <b>{{ eventPollingService.state.isPolling ? '稼働中' : '停止中' }}</b>
+                    </span>
+                </div>
                 <div class="audio-controls">
                     <button class="main-btn" @click="onPlayAudio">
                         <span class="btn-icon">🎵</span> 音楽再生
@@ -26,189 +37,35 @@
                     <button class="main-btn" @click="onStopAudio">
                         <span class="btn-icon">⏹️</span> 音楽停止
                     </button>
-                    <span v-if="audioError" class="error-msg">{{ audioError?.message }}</span>
+                    <span v-if="eventPollingService.state.audioError" class="error-msg">{{
+                        eventPollingService.state.audioError?.message }}</span>
                 </div>
                 <div class="video-controls">
-                    <button class="main-btn" @click="showVideoModal = true">
+                    <button class="main-btn" @click="eventPollingService.state.showVideoModal = true">
                         <span class="btn-icon">🎬</span> 動画再生
                     </button>
                 </div>
-            </div>
-            <FullScreenVideo ref="fullScreenVideoRef" v-if="showVideoModal" :src="videoUrl" :visible="showVideoModal"
-                :fadeOutDuration="0" :onClose="closeVideoModal" />
-            <FullScreenImage ref="fullScreenImageRef" v-if="showImageModal" :src="imageAssetUrl"
-                :visible="showImageModal" :fadeOutDuration="0" :onClose="closeImageModal" />
-        </div>
-        <div v-if="showVideoModal" class="modal-bg">
-            <div class="modal">
-                <!-- 動画停止ボタンは不要なので削除 -->
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useAudio } from '../../../../../packages/shared-composables/src/use-audio';
-import { usePolling } from '../../../../../packages/shared-composables/src/use-polling';
-import FullScreenVideo from '../FullScreenVideo.vue';
-import FullScreenImage from '../FullScreenImage.vue';
-import { useRouter } from 'vue-router';
-import { container } from 'tsyringe';
-import type { IScheduleEventService } from '../../../model/applications/schedule-event/ischedule-event-service';
-import type { AssetService } from '../../../model/applications/assets/asset-service';
-
-const upcomingEvent = ref('');
-const currentEvent = ref('');
-const endingEvent = ref('');
-
-const { load, play, stop, error: audioError } = useAudio();
-
-const audioUrl = ref('');
-const videoUrl = ref('');
-const imageAssetUrl = ref('');
-
-const showVideoModal = ref(false);
-const showImageModal = ref(false);
-const fullScreenVideoRef = ref();
-const fullScreenImageRef = ref();
-
-const router = useRouter();
-
-const scheduleEventService = container.resolve<IScheduleEventService>('IScheduleEventService');
-const assetService = container.resolve<AssetService>('AssetService');
-
-const isAudioPlaying = ref(false);
-
-const handleEvents = async () => {
-    const { startEvents, endEvents } = await scheduleEventService.getCurrentScheduleEvent();
-    console.log('Start Events:', startEvents);
-    console.log('End Events:', endEvents);
-
-    upcomingEvent.value = startEvents.length > 0 ? startEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
-    currentEvent.value = startEvents.length > 0 ? startEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
-    endingEvent.value = endEvents.length > 0 ? endEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
-
-    for (const event of startEvents) {
-        const strategy = strategyMap[event.scheduleEventType];
-        if (strategy) await strategy.start(event);
-    }
-    for (const event of endEvents) {
-        const strategy = strategyMap[event.scheduleEventType];
-        if (strategy) await strategy.end(event);
-    }
-
-    if (startEvents.length > 0) {
-        await scheduleEventService.markEventsAsStarted({ scheduleEventIds: startEvents.map(e => e.scheduleEventId) });
-    }
-    if (endEvents.length > 0) {
-        await scheduleEventService.markEventsAsEnded({ scheduleEventIds: endEvents.map(e => e.scheduleEventId) });
-    }
-};
-
-const { start } = usePolling(handleEvents, 5000, { immediate: true });
-
-onMounted(() => {
-    start();
-});
-
+import { inject } from 'vue';
+const eventPollingService = inject('eventPollingService') as any;
 const onPlayAudio = async () => {
-    if (audioUrl.value) {
-        await load(audioUrl.value);
-        await play();
-        isAudioPlaying.value = true;
+    if (eventPollingService?.state.audioUrl) {
+        await eventPollingService.playAudio();
     }
 };
-
 const onStopAudio = async () => {
-    await stop();
-    isAudioPlaying.value = false;
+    await eventPollingService.stopAudio();
 };
-
-const closeVideoModal = () => {
-    showVideoModal.value = false;
+const onStartPolling = () => {
+    eventPollingService.startPolling();
 };
-
-const closeImageModal = () => {
-    showImageModal.value = false;
-};
-
-// Strategyインターフェース
-interface ScheduleEventStrategy {
-    start(event: any): Promise<void>;
-    end(event: any): Promise<void>;
-}
-
-// 音楽再生イベントStrategy
-class PlayAudioEventStrategy implements ScheduleEventStrategy {
-    async start(event: any) {
-        if (event.scheduleEventDetail?.audioId) {
-            const asset = await assetService.getAssetById(event.scheduleEventDetail.audioId);
-            if (asset && asset.assetData) {
-                audioUrl.value = asset.assetData;
-                await load(audioUrl.value);
-                await play({ fadeIn: 0 });
-                isAudioPlaying.value = true;
-            }
-        }
-    }
-    async end(event: any) {
-        if (isAudioPlaying.value) {
-            await stop(event.scheduleEventDetail?.fadeOutDuration);
-            isAudioPlaying.value = false;
-        }
-    }
-}
-
-// 動画再生イベントStrategy
-class PlayMovieEventStrategy implements ScheduleEventStrategy {
-    async start(event: any) {
-        if (event.scheduleEventDetail?.movieId) {
-            const asset = await assetService.getAssetById(event.scheduleEventDetail.movieId);
-            if (asset && asset.assetData) {
-                videoUrl.value = asset.assetData;
-                showVideoModal.value = true;
-            }
-        }
-    }
-    async end(event: any) {
-        fullScreenVideoRef.value?.stopAndClose(event?.scheduleEventDetail?.fadeOutDuration);
-    }
-}
-
-// 画像表示イベントStrategy
-class ShowImageEventStrategy implements ScheduleEventStrategy {
-    async start(event: any) {
-        if (event.scheduleEventDetail?.imageId) {
-            const asset = await assetService.getAssetById(event.scheduleEventDetail.imageId);
-            if (asset && asset.assetData) {
-                imageAssetUrl.value = asset.assetData;
-                showImageModal.value = true;
-            }
-        }
-    }
-    async end(event: any) {
-        fullScreenImageRef.value?.hide(event?.scheduleEventDetail?.fadeOutDuration);
-    }
-}
-
-// 画面遷移イベントStrategy
-class TransitionPageEventStrategy implements ScheduleEventStrategy {
-    async start(event: any) {
-        if (event.scheduleEventDetail?.pageUrl) {
-            router.replace({ name: event.scheduleEventDetail.pageUrl });
-        }
-    }
-    async end() {
-        // 終了処理不要
-    }
-}
-
-const strategyMap: Record<string, ScheduleEventStrategy> = {
-    PlayAudioEvent: new PlayAudioEventStrategy(),
-    PlayMovieEvent: new PlayMovieEventStrategy(),
-    ShowImageEvent: new ShowImageEventStrategy(),
-    TransitionPageEvent: new TransitionPageEventStrategy(),
+const onStopPolling = () => {
+    eventPollingService.stopPolling();
 };
 </script>
 <style scoped>
@@ -229,7 +86,6 @@ const strategyMap: Record<string, ScheduleEventStrategy> = {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    /* ベース層の背景・枠装飾を削除 */
 }
 
 .auto-title {

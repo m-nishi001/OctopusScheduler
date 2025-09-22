@@ -22,6 +22,7 @@ const fadeStyle = computed(() => {
 
 function updateVideoUrl() {
     if (props.src instanceof Blob) {
+        console.log('[FullScreenVideo]Blob detected');
         if (objectUrl) {
             URL.revokeObjectURL(objectUrl);
         }
