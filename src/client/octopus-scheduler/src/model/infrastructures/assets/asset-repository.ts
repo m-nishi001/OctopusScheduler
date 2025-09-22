@@ -62,12 +62,7 @@ export class AssetRepository implements IAssetRepository {
         if (!assets || assets.size === 0) return [];
 
         return Array.from(assets.values())
-            .map(obj => {
-                console.log('Asset object from storage:', obj);
-                const a = Asset.from(obj);
-                console.log('Deserialized Asset:', a);
-                return a;
-            })
+            .map(obj => Asset.from(obj))
             .filter(asset => asset !== null) as Asset[];
     }
 
