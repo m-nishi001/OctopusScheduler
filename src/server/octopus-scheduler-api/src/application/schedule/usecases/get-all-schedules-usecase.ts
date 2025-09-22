@@ -12,16 +12,7 @@ export class GetAllSchedulesUseCase {
         try {
             return this.repository
                 .findAll()
-                .map(scheduleEvent => {
-                    const factory = this.scheduleEventFactories.find(f => f.supports(scheduleEvent.scheduleEventType));
-
-                    if (!factory) {
-                        Logger.log(`[GetAllSchedulesUseCase] failed: no factory found for scheduleEventType ${scheduleEvent.scheduleEventType}`);
-                        return null;
-                    }
-
-                    return factory.create(scheduleEvent);
-                })
+                .map(scheduleEvent => this.scheduleEventFactories.find(f => f.supports(scheduleEvent.scheduleEventType))?.create(scheduleEvent))
                 .filter((event): event is IScheduleEvent => event !== null)
                 .map(event => event.serialize());
         } catch (error) {

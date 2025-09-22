@@ -38,8 +38,8 @@ export class ScheduleService implements GasService {
             "update": (args: any) => updateUc.execute(args),
             "delete": (id: string) => deleteUc.execute(id),
             "getLatestEvents": (args?: { targetTime?: string }): {
-                startedEvents: (IScheduleEvent | null)[];
-                endedEvents: (IScheduleEvent | null)[];
+                startedEvents: (IScheduleEvent)[];
+                endedEvents: (IScheduleEvent)[];
             } => getLatestUc.execute(args && args.targetTime ? args.targetTime : undefined),
             "markEventsAsProcessed": (args: { scheduleEventIds: string[] }) => markProcessedUc.execute(args)
         };

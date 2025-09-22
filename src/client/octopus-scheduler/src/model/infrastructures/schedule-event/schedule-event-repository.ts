@@ -63,4 +63,12 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
                 .invoke();
         });
     }
+
+    public async markEventsAsProcessed(scheduleEventIds: string[]): Promise<void> {
+        await this.service
+            .createCall<string>("ScheduleService.markEventsAsProcessed", { scheduleEventIds })
+            .withSuccessed(() => console.log("Marked events as processed successfully on remote."))
+            .withFailuered((message: string) => { throw new Error(`Failed to mark events as processed on remote: ${message}`); })
+            .invoke();
+    }
 }

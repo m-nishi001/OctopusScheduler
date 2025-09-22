@@ -11,47 +11,34 @@ export class GetLatestEventsUseCase {
     execute(
         targetTime?: string
     ): {
-        startedEvents: (IScheduleEvent | null)[];
-        endedEvents: (IScheduleEvent | null)[];
+        startedEvents: (IScheduleEvent)[];
+        endedEvents: (IScheduleEvent)[];
     } {
-        const now = targetTime
-            ? new Date(targetTime)
-            : new Date(Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss'));
+        try {
+            const now = targetTime
+                ? new Date(targetTime)
+                : new Date(Utilities.formatDate(new Date(), 'JST', 'yyyy/MM/dd HH:mm:ss'));
 
-        Logger.log(`[GetLatestEventsUseCase] targetTime: ${targetTime ? targetTime : 'not provided'}, now: ${Utilities.formatDate(now, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss')}`);
+            Logger.log(`[GetLatestEventsUseCase] targetTime: ${targetTime ? targetTime : 'not provided'}, now: ${Utilities.formatDate(now, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss')}`);
 
-        const all = this.repository
-            .find(e => !e.processedAt)
-            .map(e => this.scheduleEventFactories
-                .find(f => f.supports(e.scheduleEventType))?.create(e))
-            .filter((e): e is IScheduleEvent => e !== undefined);
-        const startedEvents = all.filter(e => e.scheduleTimeSpan.start <= now && now < e.scheduleTimeSpan.end);
-        const endedEvents = all.filter(e => e.scheduleTimeSpan.end <= now);
+            const all = this.repository
+                .find(e => !e.processedAt)
+                .map(e => this.scheduleEventFactories.find(f => f.supports(e.scheduleEventType))?.create(e))
+                .filter((e): e is IScheduleEvent => e !== null);
 
-        Logger.log(`[GetLatestEventsUseCase] returning startedEvents: ${JSON.stringify(startedEvents.map(e => e.scheduleEventId))}, endedEvents: ${JSON.stringify(endedEvents.map(e => e.scheduleEventId))}`);
+            const startedEvents = all.filter(e => e.scheduleTimeSpan.start <= now && now < e.scheduleTimeSpan.end);
+            const endedEvents = all.filter(e => e.scheduleTimeSpan.end <= now);
 
-        return {
-            startedEvents: startedEvents.map(e => {
-                const factory = this.scheduleEventFactories.find(f => f.supports(e.scheduleEventType));
-
-                if (!factory) {
-                    Logger.log(`[GetLatestEventsUseCase] failed: no factory found for scheduleEventType ${e.scheduleEventType}`);
-                    return null;
-                }
-
-                return factory.create(e);
-            }),
-
-            endedEvents: endedEvents.map(e => {
-                const factory = this.scheduleEventFactories.find(f => f.supports(e.scheduleEventType));
-
-                if (!factory) {
-                    Logger.log(`[GetLatestEventsUseCase] failed: no factory found for scheduleEventType ${e.scheduleEventType}`);
-                    return null;
-                }
-
-                return factory.create(e);
-            }),
-        };
+            return {
+                startedEvents: startedEvents.map(e => e.serialize()),
+                endedEvents: endedEvents.map(e => e.serialize()),
+            };
+        } catch (error) {
+            Logger.log(`[GetLatestEventsUseCase] error: ${error}`);
+            return {
+                startedEvents: [],
+                endedEvents: [],
+            };
+        }
     }
 }

@@ -84,6 +84,8 @@ const isAudioPlaying = ref(false);
 
 const handleEvents = async () => {
     const { startEvents, endEvents } = await scheduleEventService.getCurrentScheduleEvent();
+    console.log('Start Events:', startEvents);
+    console.log('End Events:', endEvents);
 
     upcomingEvent.value = startEvents.length > 0 ? startEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
     currentEvent.value = startEvents.length > 0 ? startEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
@@ -96,8 +98,11 @@ const handleEvents = async () => {
         const asset = await assetService.getAssetById(audioStart.scheduleEventDetail.audioId);
         if (asset && asset.assetData) {
             audioUrl.value = asset.assetData;
+            console.log("Playing audio: Loading...");
             await load(audioUrl.value);
+            console.log("Playing audio: Playing...");
             await play({ fadeIn: 0 });
+            console.log("Playing audio: Playing now.");
             isAudioPlaying.value = true;
         }
     }
@@ -143,6 +148,11 @@ const handleEvents = async () => {
     if (transitionStart && transitionStart.scheduleEventDetail?.transitionUrl) {
         router.replace({ hash: transitionStart.scheduleEventDetail.transitionUrl });
     }
+
+    console.log('Marking events as processed:', [...startEvents, ...endEvents].map(e => e.scheduleEventId));
+    scheduleEventService.markEventsAsProcessed({
+        scheduleEventIds: [...startEvents, ...endEvents].map(e => e.scheduleEventId)
+    });
 };
 
 const { start } = usePolling(handleEvents, 5000, { immediate: true });

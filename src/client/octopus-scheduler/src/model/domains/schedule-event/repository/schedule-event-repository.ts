@@ -7,4 +7,5 @@ export interface IScheduleEventRepository {
     update(scheduleEvent: IScheduleEvent): Promise<void>;
     delete(scheduleEventId: string): Promise<void>;
     fetchLatestEvents(): Promise<{ startedEvents: IScheduleEvent[]; endedEvents: IScheduleEvent[] }>;
+    markEventsAsProcessed(scheduleEventIds: string[]): Promise<void>;
 }

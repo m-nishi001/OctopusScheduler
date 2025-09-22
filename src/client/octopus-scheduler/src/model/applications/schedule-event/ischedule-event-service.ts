@@ -15,4 +15,5 @@ export interface IScheduleEventService {
     deleteScheduleEvent(scheduleEventId: string): Promise<void>;
     getEventTypeList(): Promise<EventTypeDto[]>;
     updateScheduleEvent(dto: UpdateScheduleEventDto): Promise<EventDto | null>;
+    markEventsAsProcessed(args: { scheduleEventIds: string[] }): Promise<void>;
 }

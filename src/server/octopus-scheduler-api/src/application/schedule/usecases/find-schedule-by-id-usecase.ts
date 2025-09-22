@@ -9,14 +9,13 @@ export class FindScheduleByIdUseCase {
     ) { }
 
     execute(scheduleId: string): IScheduleEvent | null {
-        const event = this.repository.find((e) => e.scheduleEventId === scheduleId)[0];
-        const factory = this.scheduleEventFactories.find(f => f.supports(event.scheduleEventType));
-
-        if (!factory) {
-            Logger.log(`[FindScheduleByIdUseCase] failed: no factory found for scheduleEventType ${event.scheduleEventType}`);
+        try {
+            const event = this.repository.find(e => e.scheduleEventId === scheduleId)[0];
+            const factory = this.scheduleEventFactories.find(f => f.supports(event.scheduleEventType))!;
+            return factory.create(event);
+        } catch (error) {
+            Logger.log(`[FindScheduleByIdUseCase] error: ${error}`);
             return null;
         }
-
-        return factory.create(event);
     }
 }

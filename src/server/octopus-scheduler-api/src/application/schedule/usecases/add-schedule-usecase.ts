@@ -9,23 +9,20 @@ export class AddScheduleEventUseCase {
     ) { }
 
     execute(args: IScheduleEvent): { added: boolean } {
+        try {
+            const factory = this.scheduleEventFactories.find(f => f.supports(args.scheduleEventType))!;
+            const entity = factory.create(args)!;
+            const count = this.repository.add([entity]);
+            if (count === 0) {
+                Logger.log(`[AddScheduleEventUseCase] failed: no entity added for scheduleEventId ${args.scheduleEventId}`);
+                return { added: false };
+            }
 
-        const factory = this.scheduleEventFactories.find(f => f.supports(args.scheduleEventType));
-        if (!factory) {
-            Logger.log(`[AddScheduleEventUseCase] failed: no factory found for scheduleEventType ${args.scheduleEventType}`);
+            return { added: true };
+        } catch (error) {
+            Logger.log(`[AddScheduleEventUseCase] error: ${error}`);
             return { added: false };
         }
-
-        const entity = factory.create(args);
-        if (!entity) throw new Error("Failed to convert to entity");
-
-        const count = this.repository.add([entity]);
-        if (count === 0) {
-            Logger.log(`[AddScheduleEventUseCase] failed: no entity added for scheduleEventId ${args.scheduleEventId}`);
-            return { added: false };
-        }
-
-        return { added: true };
     }
 
 }

@@ -30,18 +30,63 @@ class SpreadsheetHelper {
     static toObjectArray(data: any[][]): any[] {
         if (data.length === 0) return [];
         const header = data[0];
-        return data.slice(1).map(record => {
-            const obj: any = {};
-            for (let i = 0; i < header.length; i++) {
-                const val = record[i];
-                obj[header[i]] = (typeof val === 'string' && val.startsWith('{')) ? JSON.parse(val) : val;
-            }
-            return obj;
-        });
+        return data
+            .slice(1)
+            .map(record => {
+                const obj: any = {};
+                for (let i = 0; i < header.length; i++) {
+                    obj[header[i]] = SpreadsheetHelper.deepDeserialize(record[i]);
+                }
+                return obj;
+            });
     }
 
     static toRowArray(entity: any): any[] {
-        return Object.values(entity).map(value => typeof value === 'object' && value !== null ? JSON.stringify(value) : value);
+        return Object.values(entity).map(value => SpreadsheetHelper.deepSerialize(value));
+    }
+
+    private static deepDeserialize(value: any): any {
+        if (typeof value === 'string') {
+            // JSON文字列か判定
+            if (value.startsWith('{') || value.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(value);
+                    return SpreadsheetHelper.deepDeserialize(parsed);
+                } catch {
+                    // パース失敗時はそのまま返す
+                }
+            }
+            // 日付文字列か判定
+            if (!isNaN(new Date(value).getTime())) {
+                return new Date(value);
+            }
+            return value;
+        } else if (Array.isArray(value)) {
+            return value.map(v => SpreadsheetHelper.deepDeserialize(v));
+        } else if (typeof value === 'object' && value !== null) {
+            const obj: any = {};
+            for (const key in value) {
+                obj[key] = SpreadsheetHelper.deepDeserialize(value[key]);
+            }
+            return obj;
+        }
+        return value;
+    }
+
+    private static deepSerialize(value: any): any {
+        if (value instanceof Date) {
+            return value.toISOString();
+        } else if (Array.isArray(value)) {
+            return JSON.stringify(value.map(v => SpreadsheetHelper.deepSerialize(v)));
+        } else if (typeof value === 'object' && value !== null) {
+            // オブジェクトの場合は各プロパティを再帰的にシリアライズ
+            const obj: any = {};
+            for (const key in value) {
+                obj[key] = SpreadsheetHelper.deepSerialize(value[key]);
+            }
+            return JSON.stringify(obj);
+        }
+        return value;
     }
 }
 

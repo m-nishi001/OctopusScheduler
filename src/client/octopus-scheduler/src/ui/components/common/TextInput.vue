@@ -1,7 +1,7 @@
 <template>
   <label>
     {{ label }}
-  <input :value="modelValue" @input="onInput" type="text" />
+    <input :value="modelValue" @input="onInput" type="text" />
   </label>
 </template>
 <script setup lang="ts">

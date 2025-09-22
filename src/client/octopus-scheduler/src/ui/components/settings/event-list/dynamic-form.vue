@@ -1,13 +1,8 @@
 <template>
   <div class="dynamic-form">
     <template v-for="prop in schema.properties" :key="prop.key">
-      <component
-        :is="getComponent(prop.controlType)"
-        :label="prop.label"
-        :options="prop.options"
-        :modelValue="modelValue[prop.key]"
-        @update:modelValue="(val: any) => emitChange(prop.key, val)"
-      />
+      <component :is="getComponent(prop.controlType)" :label="prop.label" :options="prop.options"
+        :modelValue="modelValue[prop.key]" @update:modelValue="(val: any) => emitChange(prop.key, val)" />
     </template>
   </div>
 </template>
@@ -41,6 +36,7 @@ function getComponent(type: string) {
   margin-bottom: 0.7em;
   color: #fff;
 }
+
 .dynamic-form input,
 .dynamic-form select {
   background: #333;

@@ -17,7 +17,6 @@ import type { EventDto } from "./dtos/event-dto";
 @injectable()
 export class ScheduleEventService implements IScheduleEventService {
 
-    private _eventTypeMap: Map<string, EventTypeDto> = new Map();
     private _repo: IScheduleEventRepository;
     private _assetService: AssetService;
     private _eventFactories: IScheduleEventFactory[];
@@ -35,9 +34,6 @@ export class ScheduleEventService implements IScheduleEventService {
     async createScheduleEvent(dto: CreateScheduleEventDto): Promise<EventDto | null> {
         const eventInstance = this.createOrUpdateEventInstance(dto);
         await this._repo.add(eventInstance);
-        if (this._eventTypeMap.size === 0) {
-            await this.getEventTypeList();
-        }
         const entity = this.toDomainEvent(eventInstance);
         return entity ? this.toEventDto(entity) : null;
     }
@@ -63,9 +59,6 @@ export class ScheduleEventService implements IScheduleEventService {
         const scheduleEvents = await this._repo.findAll();
         console.log("Fetched schedule events:", scheduleEvents);
 
-        if (this._eventTypeMap.size === 0) {
-            await this.getEventTypeList();
-        }
 
         return scheduleEvents
             .map(event => this.toDomainEvent(event))
@@ -78,12 +71,15 @@ export class ScheduleEventService implements IScheduleEventService {
         endEvents: EventDto[]
     }> {
         const { startedEvents, endedEvents } = await this._repo.fetchLatestEvents();
-        console.log("Fetched current schedule events:", { startedEvents, endedEvents });
-        console.log("startedEvents size:", startedEvents.length);
-        console.log("endedEvents size:", endedEvents.length);
         return {
-            startEvents: startedEvents.map(this.toEventDto),
-            endEvents: endedEvents.map(this.toEventDto)
+            startEvents: startedEvents.map(event => {
+                const entity = this.toDomainEvent(event)!;
+                return this.toEventDto(entity);
+            }),
+            endEvents: endedEvents.map(event => {
+                const entity = this.toDomainEvent(event)!;
+                return this.toEventDto(entity);
+            })
         };
     }
 
@@ -109,17 +105,28 @@ export class ScheduleEventService implements IScheduleEventService {
         }));
     }
 
+    async markEventsAsProcessed(args: { scheduleEventIds: string[] }): Promise<void> {
+        await this._repo.markEventsAsProcessed(args.scheduleEventIds);
+    }
+
+    private static toDatetimeLocalString(date: Date): string {
+        const pad = (n: Number) => n.toString().padStart(2, '0');
+        return date.getFullYear() +
+            '-' + pad(date.getMonth() + 1) +
+            '-' + pad(date.getDate()) +
+            'T' + pad(date.getHours()) +
+            ':' + pad(date.getMinutes());
+    }
+
     private toEventDto(event: IScheduleEvent): EventDto {
-        const typeDto = this._eventTypeMap.get(event.scheduleEventType);
-        console.log("Mapping event to DTO:", event, "with typeDto:", typeDto);
         return {
             scheduleEventId: event.scheduleEventId,
             scheduleEventName: event.scheduleEventName,
             scheduleEventType: event.scheduleEventType,
-            displayName: typeDto?.displayName ?? event.scheduleEventType,
-            displayDescription: typeDto?.displayDescription ?? '',
-            start: event.scheduleTimeSpan?.start.toISOString().slice(0, 16) ?? '',
-            end: event.scheduleTimeSpan?.end.toISOString().slice(0, 16) ?? '',
+            displayName: event.scheduleEventType,
+            displayDescription: '',
+            start: ScheduleEventService.toDatetimeLocalString(new Date(event.scheduleTimeSpan?.start)),
+            end: ScheduleEventService.toDatetimeLocalString(new Date(event.scheduleTimeSpan?.end)),
             scheduleEventDetail: event.scheduleEventDetail ?? {}
         };
     }
