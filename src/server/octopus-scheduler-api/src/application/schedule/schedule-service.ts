@@ -7,9 +7,10 @@ import { DeleteScheduleUseCase } from "./usecases/delete-schedule-usecase";
 import { GetAllSchedulesUseCase } from "./usecases/get-all-schedules-usecase";
 import { FindScheduleByIdUseCase } from "./usecases/find-schedule-by-id-usecase";
 import { GetLatestEventsUseCase } from "./usecases/get-latest-events-usecase";
-import { MarkEventsProcessedUseCase } from "./usecases/mark-events-processed-usecase";
 import { UpdateScheduleEventUseCase } from "./usecases/update-schedule-usecase";
 import { IScheduleEvent } from "../../domain/schedule-event/entity/schedule-event";
+import { MarkEventsStartedUseCase } from "./usecases/mark-events-started-usecase";
+import { MarkEventsEndedUseCase } from "./usecases/mark-events-ended-usecase";
 
 @injectable()
 export class ScheduleService implements GasService {
@@ -29,7 +30,8 @@ export class ScheduleService implements GasService {
         const getLatestUc = new GetLatestEventsUseCase(this.repository, factories);
         const updateUc = new UpdateScheduleEventUseCase(this.repository, factories);
         const deleteUc = new DeleteScheduleUseCase(this.repository);
-        const markProcessedUc = new MarkEventsProcessedUseCase(this.repository, factories);
+    const markStartedUc = new MarkEventsStartedUseCase(this.repository, factories);
+    const markEndedUc = new MarkEventsEndedUseCase(this.repository, factories);
 
         this.functions = {
             "add": (args: any) => addUc.execute(args),
@@ -41,7 +43,9 @@ export class ScheduleService implements GasService {
                 startedEvents: (IScheduleEvent)[];
                 endedEvents: (IScheduleEvent)[];
             } => getLatestUc.execute(args && args.targetTime ? args.targetTime : undefined),
-            "markEventsAsProcessed": (args: { scheduleEventIds: string[] }) => markProcessedUc.execute(args)
+            "markEventsAsStarted": (args: { scheduleEventIds: string[] }) => markStartedUc.execute(args)
+            ,
+            "markEventsAsEnded": (args: { scheduleEventIds: string[] }) => markEndedUc.execute(args)
         };
     }
 }

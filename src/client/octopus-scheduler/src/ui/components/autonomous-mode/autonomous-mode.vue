@@ -34,10 +34,10 @@
                     </button>
                 </div>
             </div>
-            <FullScreenVideo v-if="showVideoModal" :src="videoUrl" :visible="showVideoModal" :fadeOutDuration="0"
-                :onClose="closeVideoModal" />
-            <FullScreenImage v-if="showImageModal" :src="imageAssetUrl" :visible="showImageModal" :fadeOutDuration="0"
-                :onClose="closeImageModal" />
+            <FullScreenVideo ref="fullScreenVideoRef" v-if="showVideoModal" :src="videoUrl" :visible="showVideoModal"
+                :fadeOutDuration="0" :onClose="closeVideoModal" />
+            <FullScreenImage ref="fullScreenImageRef" v-if="showImageModal" :src="imageAssetUrl"
+                :visible="showImageModal" :fadeOutDuration="0" :onClose="closeImageModal" />
         </div>
         <div v-if="showVideoModal" class="modal-bg">
             <div class="modal">
@@ -51,8 +51,6 @@
 import { ref, onMounted } from 'vue';
 import { useAudio } from '../../../../../packages/shared-composables/src/use-audio';
 import { usePolling } from '../../../../../packages/shared-composables/src/use-polling';
-import { useVideo } from '../../../ui/composables/use-video';
-import { useImage } from '../../../ui/composables/use-image';
 import FullScreenVideo from '../FullScreenVideo.vue';
 import FullScreenImage from '../FullScreenImage.vue';
 import { useRouter } from 'vue-router';
@@ -65,8 +63,6 @@ const currentEvent = ref('');
 const endingEvent = ref('');
 
 const { load, play, stop, error: audioError } = useAudio();
-const { isPlaying: isVideoPlaying, play: playVideo, stop: stopVideo } = useVideo();
-const { isVisible: isImageVisible, show: showImage, hide: hideImage } = useImage();
 
 const audioUrl = ref('');
 const videoUrl = ref('');
@@ -74,6 +70,8 @@ const imageAssetUrl = ref('');
 
 const showVideoModal = ref(false);
 const showImageModal = ref(false);
+const fullScreenVideoRef = ref();
+const fullScreenImageRef = ref();
 
 const router = useRouter();
 
@@ -91,68 +89,21 @@ const handleEvents = async () => {
     currentEvent.value = startEvents.length > 0 ? startEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
     endingEvent.value = endEvents.length > 0 ? endEvents.map(e => e.scheduleEventName).join(', ') : '（なし）';
 
-    // 音楽再生イベント
-    const audioStart = startEvents.find(e => e.scheduleEventType === 'PlayAudioEvent');
-    const audioEnd = endEvents.find(e => e.scheduleEventType === 'PlayAudioEvent');
-    if (audioStart && audioStart.scheduleEventDetail?.audioId) {
-        const asset = await assetService.getAssetById(audioStart.scheduleEventDetail.audioId);
-        if (asset && asset.assetData) {
-            audioUrl.value = asset.assetData;
-            console.log("Playing audio: Loading...");
-            await load(audioUrl.value);
-            console.log("Playing audio: Playing...");
-            await play({ fadeIn: 0 });
-            console.log("Playing audio: Playing now.");
-            isAudioPlaying.value = true;
-        }
+    for (const event of startEvents) {
+        const strategy = strategyMap[event.scheduleEventType];
+        if (strategy) await strategy.start(event);
     }
-    if (audioEnd && isAudioPlaying.value) {
-        await stop(audioEnd.scheduleEventDetail?.fadeOutDuration);
-        isAudioPlaying.value = false;
+    for (const event of endEvents) {
+        const strategy = strategyMap[event.scheduleEventType];
+        if (strategy) await strategy.end(event);
     }
 
-    // 動画再生イベント
-    const videoStart = startEvents.find(e => e.scheduleEventType === 'PlayMovieEvent');
-    const videoEnd = endEvents.find(e => e.scheduleEventType === 'PlayMovieEvent');
-    if (videoStart && videoStart.scheduleEventDetail?.movieId) {
-        const asset = await assetService.getAssetById(videoStart.scheduleEventDetail.movieId);
-        if (asset && asset.assetData) {
-            videoUrl.value = asset.assetData;
-            showVideoModal.value = true;
-            playVideo(videoUrl.value);
-        }
+    if (startEvents.length > 0) {
+        await scheduleEventService.markEventsAsStarted({ scheduleEventIds: startEvents.map(e => e.scheduleEventId) });
     }
-    if (videoEnd && isVideoPlaying.value) {
-        stopVideo(videoEnd.scheduleEventDetail?.fadeOutDuration);
-        showVideoModal.value = false;
+    if (endEvents.length > 0) {
+        await scheduleEventService.markEventsAsEnded({ scheduleEventIds: endEvents.map(e => e.scheduleEventId) });
     }
-
-    // 画像表示イベント
-    const imageStart = startEvents.find(e => e.scheduleEventType === 'ShowImageEvent');
-    const imageEnd = endEvents.find(e => e.scheduleEventType === 'ShowImageEvent');
-    if (imageStart && imageStart.scheduleEventDetail?.imageId) {
-        const asset = await assetService.getAssetById(imageStart.scheduleEventDetail.imageId);
-        if (asset && asset.assetData) {
-            imageAssetUrl.value = asset.assetData;
-            showImage(imageAssetUrl.value);
-            showImageModal.value = true;
-        }
-    }
-    if (imageEnd && isImageVisible.value) {
-        hideImage(imageEnd.scheduleEventDetail?.fadeOutDuration);
-        showImageModal.value = false;
-    }
-
-    // 画面遷移イベント
-    const transitionStart = startEvents.find(e => e.scheduleEventType === 'TransitionPageEvent');
-    if (transitionStart && transitionStart.scheduleEventDetail?.transitionUrl) {
-        router.replace({ hash: transitionStart.scheduleEventDetail.transitionUrl });
-    }
-
-    console.log('Marking events as processed:', [...startEvents, ...endEvents].map(e => e.scheduleEventId));
-    scheduleEventService.markEventsAsProcessed({
-        scheduleEventIds: [...startEvents, ...endEvents].map(e => e.scheduleEventId)
-    });
 };
 
 const { start } = usePolling(handleEvents, 5000, { immediate: true });
@@ -168,17 +119,96 @@ const onPlayAudio = async () => {
         isAudioPlaying.value = true;
     }
 };
+
 const onStopAudio = async () => {
     await stop();
     isAudioPlaying.value = false;
 };
+
 const closeVideoModal = () => {
     showVideoModal.value = false;
-    stopVideo();
 };
+
 const closeImageModal = () => {
     showImageModal.value = false;
-    hideImage();
+};
+
+// Strategyインターフェース
+interface ScheduleEventStrategy {
+    start(event: any): Promise<void>;
+    end(event: any): Promise<void>;
+}
+
+// 音楽再生イベントStrategy
+class PlayAudioEventStrategy implements ScheduleEventStrategy {
+    async start(event: any) {
+        if (event.scheduleEventDetail?.audioId) {
+            const asset = await assetService.getAssetById(event.scheduleEventDetail.audioId);
+            if (asset && asset.assetData) {
+                audioUrl.value = asset.assetData;
+                await load(audioUrl.value);
+                await play({ fadeIn: 0 });
+                isAudioPlaying.value = true;
+            }
+        }
+    }
+    async end(event: any) {
+        if (isAudioPlaying.value) {
+            await stop(event.scheduleEventDetail?.fadeOutDuration);
+            isAudioPlaying.value = false;
+        }
+    }
+}
+
+// 動画再生イベントStrategy
+class PlayMovieEventStrategy implements ScheduleEventStrategy {
+    async start(event: any) {
+        if (event.scheduleEventDetail?.movieId) {
+            const asset = await assetService.getAssetById(event.scheduleEventDetail.movieId);
+            if (asset && asset.assetData) {
+                videoUrl.value = asset.assetData;
+                showVideoModal.value = true;
+            }
+        }
+    }
+    async end(event: any) {
+        fullScreenVideoRef.value?.stopAndClose(event?.scheduleEventDetail?.fadeOutDuration);
+    }
+}
+
+// 画像表示イベントStrategy
+class ShowImageEventStrategy implements ScheduleEventStrategy {
+    async start(event: any) {
+        if (event.scheduleEventDetail?.imageId) {
+            const asset = await assetService.getAssetById(event.scheduleEventDetail.imageId);
+            if (asset && asset.assetData) {
+                imageAssetUrl.value = asset.assetData;
+                showImageModal.value = true;
+            }
+        }
+    }
+    async end(event: any) {
+        fullScreenImageRef.value?.hide(event?.scheduleEventDetail?.fadeOutDuration);
+    }
+}
+
+// 画面遷移イベントStrategy
+class TransitionPageEventStrategy implements ScheduleEventStrategy {
+    async start(event: any) {
+        if (event.scheduleEventDetail?.transitionUrl) {
+            router.replace({ hash: event.scheduleEventDetail.transitionUrl });
+        }
+    }
+    async end() {
+        // 終了処理不要
+    }
+}
+
+const strategyMap: Record<string, ScheduleEventStrategy> = {
+    PlayAudioEvent: new PlayAudioEventStrategy(),
+    PlayMovieEvent: new PlayMovieEventStrategy(),
+    ShowImageEvent: new ShowImageEventStrategy(),
+    TransitionPageEvent: new TransitionPageEventStrategy(),
 };
 </script>
 <style scoped>

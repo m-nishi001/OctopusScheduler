@@ -60,6 +60,9 @@ class SpreadsheetHelper {
             if (!isNaN(new Date(value).getTime())) {
                 return new Date(value);
             }
+            if( value === "null") {
+                return null;
+            }
             return value;
         } else if (Array.isArray(value)) {
             return value.map(v => SpreadsheetHelper.deepDeserialize(v));
@@ -74,7 +77,9 @@ class SpreadsheetHelper {
     }
 
     private static deepSerialize(value: any): any {
-        if (value instanceof Date) {
+        if (value === null) {
+            return "null";
+        } else if (value instanceof Date) {
             return value.toISOString();
         } else if (Array.isArray(value)) {
             return JSON.stringify(value.map(v => SpreadsheetHelper.deepSerialize(v)));

@@ -1,6 +1,7 @@
+
 <template>
   <div v-if="visible" class="fullscreen-image" :style="fadeStyle">
-    <img :src="src" alt="表示画像" />
+    <img :src="imageUrl" alt="表示画像" />
     <button @click="onClose" class="close-btn main-btn">
       <span class="btn-icon">❌</span> 閉じる
     </button>
@@ -8,12 +9,53 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, watch, onUnmounted, computed, defineExpose } from 'vue';
+defineExpose({ hide });
 
-const props = defineProps<{ src: string; visible: boolean; fadeOutDuration?: number; onClose: () => void }>();
+const props = defineProps<{ src: string | Blob; visible: boolean; fadeOutDuration?: number; onClose: () => void }>();
+
+const imageUrl = ref('');
+let objectUrl: string | null = null;
 
 const fadeStyle = computed(() => {
   return props.fadeOutDuration ? { transition: `opacity ${props.fadeOutDuration}ms` } : {};
+});
+
+function hide(fadeOutDuration?: number) {
+  if (fadeOutDuration && fadeOutDuration > 0) {
+    // フェードアウト後にダイアログを閉じる
+    const el = document.querySelector('.fullscreen-image') as HTMLElement | null;
+    if (el) {
+      el.style.transition = `opacity ${fadeOutDuration}ms`;
+      el.style.opacity = '0';
+    }
+    setTimeout(() => {
+      if (el) {
+        el.style.opacity = '1';
+      }
+      props.onClose();
+    }, fadeOutDuration);
+  } else {
+    props.onClose();
+  }
+}
+
+watch(() => props.src, (src) => {
+  if (src instanceof Blob) {
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+    }
+    objectUrl = URL.createObjectURL(src);
+    imageUrl.value = objectUrl;
+  } else {
+    imageUrl.value = src;
+  }
+}, { immediate: true });
+
+onUnmounted(() => {
+  if (objectUrl) {
+    URL.revokeObjectURL(objectUrl);
+  }
 });
 </script>
 

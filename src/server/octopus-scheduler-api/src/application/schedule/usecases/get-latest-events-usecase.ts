@@ -22,12 +22,19 @@ export class GetLatestEventsUseCase {
             Logger.log(`[GetLatestEventsUseCase] targetTime: ${targetTime ? targetTime : 'not provided'}, now: ${Utilities.formatDate(now, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss')}`);
 
             const all = this.repository
-                .find(e => !e.processedAt)
+                .find(e => e.startedAt === null || e.endedAt === null)
                 .map(e => this.scheduleEventFactories.find(f => f.supports(e.scheduleEventType))?.create(e))
                 .filter((e): e is IScheduleEvent => e !== null);
 
-            const startedEvents = all.filter(e => e.scheduleTimeSpan.start <= now && now < e.scheduleTimeSpan.end);
-            const endedEvents = all.filter(e => e.scheduleTimeSpan.end <= now);
+            Logger.log(`[GetLatestEventsUseCase] found events: ${JSON.stringify(all.map(e => e.serialize()))}`);
+
+            const startedEvents = all
+                .filter(e => e.startedAt === null)
+                .filter(e => e.scheduleTimeSpan.start <= now && now < e.scheduleTimeSpan.end);
+
+            const endedEvents = all
+                .filter(e => e.endedAt === null)
+                .filter(e => e.scheduleTimeSpan.end <= now);
 
             return {
                 startedEvents: startedEvents.map(e => e.serialize()),

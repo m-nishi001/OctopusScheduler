@@ -9,15 +9,19 @@ export interface IScheduleEvent {
     readonly processedAt: Date | null;
     readonly registeredAt: Date;
     readonly updatedAt: Date;
+    readonly startedAt: Date | null;
+    readonly endedAt: Date | null;
 
     equals(another: IScheduleEvent): boolean;
 
     // シリアライズ系
     serialize(): IScheduleEvent
-    
+
     // 更新系
     updateTimeSpan(newTimeSpan: ScheduleTimeSpan): IScheduleEvent;
     updateEventName(newEventName: string): IScheduleEvent;
     updateEventDetail(newDetail: any): IScheduleEvent;
     markAsProcessed(processedAt: Date): IScheduleEvent;
+    markAsStarted(startedAt: Date): IScheduleEvent;
+    markAsEnded(endedAt: Date): IScheduleEvent;
 }

@@ -27,7 +27,7 @@ export class AssetRepository implements IAssetRepository {
             let assetId: string = "";
             await this.service
                 .createCall<{ assetId: string }>("AssetService.addAsset", serialized)
-                .withTimeout(20000)
+                .withTimeout(60000)
                 .withSuccessed(({ assetId: returnedId }) => assetId = returnedId)
                 .withFailuered(message => {
                     console.error(`Failed to save asset to remote:`, message);
@@ -77,7 +77,7 @@ export class AssetRepository implements IAssetRepository {
             // First request remote update
             await this.service
                 .createCall<void>("AssetService.updateName", { assetId, newName })
-                .withTimeout(20000)
+                .withTimeout(10000)
                 .withSuccessed(() => console.log(`Asset with ID ${assetId} updated on remote.`))
                 .withFailuered(message => {
                     console.error(`Failed to update asset on remote:`, message);
@@ -105,7 +105,7 @@ export class AssetRepository implements IAssetRepository {
             // First request remote deletion
             await this.service
                 .createCall<void>("AssetService.deleteAsset", assetId)
-                .withTimeout(20000)
+                .withTimeout(10000)
                 .withSuccessed(() => console.log(`Asset with ID ${assetId} deleted on remote.`))
                 .withFailuered(message => {
                     console.error(`Failed to delete asset on remote:`, message);
@@ -161,7 +161,7 @@ export class AssetRepository implements IAssetRepository {
         return new Promise((resolve, reject) => {
             this.service
                 .createCall<{ assetId: string; updatedAt: string }[]>("AssetService.getAllMetadatas")
-                .withTimeout(20000)
+                .withTimeout(60000)
                 .withSuccessed(metadatas => {
                     resolve(metadatas.map(metadata => (
                         {
@@ -184,7 +184,7 @@ export class AssetRepository implements IAssetRepository {
         const promises = assetIds.map(assetId =>
             this.service
                 .createCall<Asset>("AssetService.getAssetById", assetId)
-                .withTimeout(20000)
+                .withTimeout(60000)
                 .withSuccessed(asset => {
                     if (asset) assets.push(asset)
                 })

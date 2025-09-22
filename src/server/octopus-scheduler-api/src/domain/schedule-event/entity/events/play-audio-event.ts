@@ -11,6 +11,8 @@ export class PlayAudioEvent implements IScheduleEvent {
     private _processedAt: Date | null;
     private _registeredAt: Date;
     private _updatedAt: Date;
+    private _startedAt: Date | null = null;
+    private _endedAt: Date | null = null;
 
     // 独自のプロパティ
     private _scheduleEventDetail: PlayAudioEventDetail;
@@ -22,7 +24,9 @@ export class PlayAudioEvent implements IScheduleEvent {
         scheduleEventDetail: PlayAudioEventDetail,
         processedAt: Date | null,
         registeredAt: Date,
-        updatedAt: Date
+        updatedAt: Date,
+        startedAt?: Date | null,
+        endedAt?: Date | null
     ) {
         this._scheduleEventId = scheduleEventId;
         this._scheduleEventName = scheduleEventName;
@@ -31,6 +35,8 @@ export class PlayAudioEvent implements IScheduleEvent {
         this._processedAt = processedAt;
         this._registeredAt = registeredAt;
         this._updatedAt = updatedAt;
+        this._startedAt = startedAt ?? null;
+        this._endedAt = endedAt ?? null;
     }
 
     static from(event: IScheduleEvent): PlayAudioEvent | null {
@@ -45,7 +51,9 @@ export class PlayAudioEvent implements IScheduleEvent {
             event.scheduleEventDetail,
             event.processedAt,
             event.registeredAt,
-            event.updatedAt
+            event.updatedAt,
+            event.startedAt ?? null,
+            event.endedAt ?? null
         );
     }
 
@@ -58,7 +66,9 @@ export class PlayAudioEvent implements IScheduleEvent {
             scheduleEventDetail: this.scheduleEventDetail,
             processedAt: this.processedAt,
             registeredAt: this.registeredAt,
-            updatedAt: this.updatedAt
+            updatedAt: this.updatedAt,
+            startedAt: this.startedAt,
+            endedAt: this.endedAt
         } as IScheduleEvent;
     }
 
@@ -116,6 +126,24 @@ export class PlayAudioEvent implements IScheduleEvent {
 
     get updatedAt(): Date {
         return this._updatedAt;
+    }
+
+    get startedAt(): Date | null {
+        return this._startedAt;
+    }
+
+    get endedAt(): Date | null {
+        return this._endedAt;
+    }
+
+    markAsStarted(startedAt: Date): IScheduleEvent {
+        this._startedAt = startedAt;
+        return this;
+    }
+
+    markAsEnded(endedAt: Date): IScheduleEvent {
+        this._endedAt = endedAt;
+        return this;
     }
 
 }

@@ -105,8 +105,13 @@ export class ScheduleEventService implements IScheduleEventService {
         }));
     }
 
-    async markEventsAsProcessed(args: { scheduleEventIds: string[] }): Promise<void> {
-        await this._repo.markEventsAsProcessed(args.scheduleEventIds);
+
+    async markEventsAsStarted(args: { scheduleEventIds: string[] }): Promise<void> {
+        await this._repo.markEventsAsStarted(args.scheduleEventIds);
+    }
+
+    async markEventsAsEnded(args: { scheduleEventIds: string[] }): Promise<void> {
+        await this._repo.markEventsAsEnded(args.scheduleEventIds);
     }
 
     private static toDatetimeLocalString(date: Date): string {
