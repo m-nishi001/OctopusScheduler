@@ -7,8 +7,8 @@ export default defineConfig({
     vue(),
     viteSingleFile(),
   ],
-   build: {
+  build: {
     target: "es2020",
     outDir: 'dist',
-  },
+  }
 })

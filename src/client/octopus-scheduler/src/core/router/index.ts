@@ -1,11 +1,12 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { routes } from '/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck/src/router/index.ts'
-import octopusSchedulerRoutes from '/root/google_apps_script/octopus-scheduler/src/client/octopus-scheduler/src/ui/router/index.ts';
 import { HistoryService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-history-service.ts';
+import octopusSchedulerRoutes from '/root/google_apps_script/octopus-scheduler/src/client/octopus-scheduler/src/ui/router/index.ts';
+import jackpodGameRoutes from '/root/google_apps_script/octopus-scheduler/src/client/games/jackpod-game/src/core/router/index.ts';
 
 const router = createRouter({
     history: createWebHashHistory(),
-    routes: [...routes, ...octopusSchedulerRoutes]
+    routes: [...routes, ...octopusSchedulerRoutes, ...jackpodGameRoutes]
 });
 
 // ブラウザのURLの変更はHash値の変更であるため、これを定義済ルートとマッピングする

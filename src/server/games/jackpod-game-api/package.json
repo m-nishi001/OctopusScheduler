@@ -13,8 +13,8 @@
         "@google/clasp": "^2.4.2",
         "@types/google-apps-script": "^1.0.83",
         "@types/node": "^20.12.12",
-        "core-js": "^3.44.0",
         "esbuild": "^0.25.6",
+        "core-js": "^3.44.0",
         "reflect-metadata": "^0.2.2",
         "tsyringe": "^4.10.0",
         "typescript": "^5.4.5"

@@ -1,12 +1,12 @@
 import { build } from 'esbuild';
 
 build({
-    entryPoints: ['src/api.ts'],
+    entryPoints: ['src/infrastructure/external/main.ts'],
     bundle: true,
-    outfile: 'dist/jacpod-game-api.js',
+    outfile: 'dist/jackpod-game-api.js',
     target: 'es2020',
-    format: 'iife', // 全体をIIFEとしてバンドル
-    platform: 'browser', // GASの実行環境を想定
+    format: 'iife',
+    platform: 'browser',
     banner: {
         js: `
 let _callJackpodGameApi;

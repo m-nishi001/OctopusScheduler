@@ -1,6 +1,6 @@
 import { IScheduleEvent } from "../../domain/schedule-event/entity/schedule-event";
 import { IScheduleEventRepository } from "../../domain/schedule-event/schedule-event-reposiotry";
-import { ISpreadsheetService, SpreadsheetService } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-spreadsheet-servie";
+import { ISpreadsheetService, SpreadsheetService } from "/root/google_apps_script/octopus-scheduler/src/server/shared-packages/src/google-spreadsheet-service";
 import { injectable } from "tsyringe";
 
 @injectable()
