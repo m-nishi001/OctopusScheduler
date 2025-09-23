@@ -1,8 +1,8 @@
 <template>
   <div class="panel">
     <h1 class="title">2025年度 ジャックポッド大会！</h1>
-    <button @click="$router.push('/opening')">スタート</button>
-    <button @click="$router.push('/admin')">管理画面</button>
+    <button @click="$router.push('/jackpot-opening')">スタート</button>
+    <button @click="$router.push('/jackpot-admin')">管理画面</button>
   </div>
 </template>
 <script lang="ts">

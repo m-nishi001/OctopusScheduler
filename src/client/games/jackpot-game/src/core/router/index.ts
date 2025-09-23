@@ -5,7 +5,7 @@ import ResultView from '../../ui/components/ResultView.vue';
 import HistoryView from '../../ui/components/HistoryView.vue';
 import AdminView from '../../ui/components/AdminView.vue';
 
-const jackpodGameRoutes = [
+const jackpotGameRoutes = [
   { path: '/jackpot-home', component: HomeView },
   { path: '/jackpot-draw', component: DrawView },
   { path: '/jackpot-result', component: ResultView },
@@ -18,4 +18,4 @@ const jackpodGameRoutes = [
 //   routes,
 // });
 
-export default jackpodGameRoutes;
+export default jackpotGameRoutes;

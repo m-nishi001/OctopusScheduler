@@ -45,7 +45,7 @@ export default {
         loading.value = false;
       }
     };
-    const goResult = () => router.push('/result');
+    const goResult = () => router.push('/jackpot-result');
     return { loading, showResult, winners, executeDraw, goResult };
   },
 };

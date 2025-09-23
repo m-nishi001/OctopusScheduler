@@ -16,8 +16,8 @@ export default {
   components: { MainLayout, Button },
   setup() {
     const router = useRouter();
-    const startDraw = () => router.push('/draw');
-    const goHistory = () => router.push('/history');
+    const startDraw = () => router.push('/jackpot-draw');
+    const goHistory = () => router.push('/jackpot-history');
     return { startDraw, goHistory };
   },
 };
