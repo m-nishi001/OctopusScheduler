@@ -44,14 +44,14 @@
 </template>
 
 <script lang="ts">
-import MainLayout from './MainLayout.vue';
-import Button from './Button.vue';
-import Loader from './Loader.vue';
-import Modal from './Modal.vue';
+import MainLayout from '../common/MainLayout.vue';
+import Button from '../common/Button.vue';
+import Loader from '../common/Loader.vue';
+import Modal from '../common/Modal.vue';
 import { ref } from 'vue';
-import type { User } from '../../model/domains/user/User';
-import { DrawService } from '../../model/applications/DrawService';
-import { ResultService } from '../../model/applications/ResultService';
+import type { User } from '../../../model/domains/user/User';
+import { DrawService } from '../../../model/applications/DrawService';
+import { ResultService } from '../../../model/applications/ResultService';
 import { useRouter } from 'vue-router';
 
 export default {

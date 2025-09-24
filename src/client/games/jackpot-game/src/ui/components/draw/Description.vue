@@ -7,7 +7,7 @@
 	</MainLayout>
 </template>
 <script lang="ts">
-import MainLayout from './MainLayout.vue';
+import MainLayout from '../common/MainLayout.vue';
 import { onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 export default {

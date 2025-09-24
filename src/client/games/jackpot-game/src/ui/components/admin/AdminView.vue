@@ -16,10 +16,10 @@
 </template>
 
 <script lang="ts">
-import AdminLayout from './AdminLayout.vue';
-import Button from './Button.vue';
+import AdminLayout from '../common/AdminLayout.vue';
+import Button from '../common/Button.vue';
 import { ref } from 'vue';
-import { AdminService } from '../../model/applications/AdminService';
+import { AdminService } from '../../../model/applications/AdminService';
 
 export default {
   name: 'AdminView',

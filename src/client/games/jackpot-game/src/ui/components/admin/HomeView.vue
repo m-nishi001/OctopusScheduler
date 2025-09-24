@@ -7,8 +7,8 @@
 </template>
 
 <script lang="ts">
-import MainLayout from './MainLayout.vue';
-import Button from './Button.vue';
+import MainLayout from '../common/MainLayout.vue';
+import Button from '../common/Button.vue';
 import { useRouter } from 'vue-router';
 
 export default {

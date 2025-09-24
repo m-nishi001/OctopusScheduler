@@ -1,10 +1,10 @@
 // import { createRouter, createWebHistory } from 'vue-router';
-import HomeView from '../../ui/components/HomeView.vue';
-import DrawView from '../../ui/components/DrawView.vue';
-import ResultView from '../../ui/components/ResultView.vue';
-import HistoryView from '../../ui/components/HistoryView.vue';
-import AdminView from '../../ui/components/AdminView.vue';
-import OpeningView from '../../ui/components/OpeningView.vue';
+import HomeView from '../../ui/components/admin/HomeView.vue';
+import DrawView from '../../ui/components/draw/DrawView.vue';
+import ResultView from '../../ui/components/draw/ResultView.vue';
+import HistoryView from '../../ui/components/draw/HistoryView.vue';
+import AdminView from '../../ui/components/admin/AdminView.vue';
+import OpeningView from '../../ui/components/draw/OpeningView.vue';
 
 const jackpotGameRoutes = [
   { path: '/jackpot-home', component: HomeView },

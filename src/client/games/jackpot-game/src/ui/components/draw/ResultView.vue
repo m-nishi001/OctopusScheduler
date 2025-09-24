@@ -10,12 +10,12 @@
 </template>
 
 <script lang="ts">
-import MainLayout from './MainLayout.vue';
-import Button from './Button.vue';
+import MainLayout from '../common/MainLayout.vue';
+import Button from '../common/Button.vue';
 import { ref, onMounted } from 'vue';
-import type { User } from '../../model/domains/user/User';
+import type { User } from '../../../model/domains/user/User';
 import { useRouter } from 'vue-router';
-import { ResultService } from '../../model/applications/ResultService';
+import { ResultService } from '../../../model/applications/ResultService';
 
 export default {
   name: 'ResultView',

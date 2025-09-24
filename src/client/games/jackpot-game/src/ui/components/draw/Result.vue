@@ -15,10 +15,10 @@
 	</MainLayout>
 </template>
 <script lang="ts">
-import MainLayout from './MainLayout.vue';
+import MainLayout from '../common/MainLayout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ResultService } from '../../model/applications/ResultService';
+import { ResultService } from '../../../model/applications/ResultService';
 
 export default {
 	name: 'Result',
@@ -35,7 +35,7 @@ export default {
 			try {
 				const result = await resultService.getResult(drawId);
 				// API型に合わせて当選者名のみ表示
-				winners.value = result.winners.map(w => ({ name: w.name }));
+				winners.value = result.winners.map((w: { name: string }) => ({ name: w.name }));
 			} catch (e) {
 				// エラー処理
 			} finally {

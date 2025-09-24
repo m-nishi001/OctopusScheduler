@@ -8,7 +8,7 @@
   </MainLayout>
 </template>
 <script lang="ts">
-import MainLayout from './MainLayout.vue';
+import MainLayout from '../common/MainLayout.vue';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },
