@@ -1,8 +1,8 @@
 <template>
   <MainLayout>
-    <h2>抽選を開始する</h2>
-    <Button @click="startDraw">抽選開始</Button>
-    <Button customClass="ml-2" @click="goHistory">履歴を見る</Button>
+    <h2>Jackpod ホーム</h2>
+    <Button @click="goAdmin">管理画面</Button>
+    <Button customClass="ml-2" @click="goOpening">スタート</Button>
   </MainLayout>
 </template>
 
@@ -16,9 +16,9 @@ export default {
   components: { MainLayout, Button },
   setup() {
     const router = useRouter();
-    const startDraw = () => router.push('/jackpot-draw');
-    const goHistory = () => router.push('/jackpot-history');
-    return { startDraw, goHistory };
+    const goAdmin = () => router.push('/jackpot-admin');
+    const goOpening = () => router.push('/jackpot-opening');
+    return { goAdmin, goOpening };
   },
 };
 </script>

@@ -4,6 +4,7 @@ import DrawView from '../../ui/components/DrawView.vue';
 import ResultView from '../../ui/components/ResultView.vue';
 import HistoryView from '../../ui/components/HistoryView.vue';
 import AdminView from '../../ui/components/AdminView.vue';
+import OpeningView from '../../ui/components/OpeningView.vue';
 
 const jackpotGameRoutes = [
   { path: '/jackpot-home', component: HomeView },
@@ -11,6 +12,7 @@ const jackpotGameRoutes = [
   { path: '/jackpot-result', component: ResultView },
   { path: '/jackpot-history', component: HistoryView },
   { path: '/jackpot-admin', component: AdminView },
+  { path: '/jackpot-opening', component: OpeningView },
 ];
 
 // const router = createRouter({
