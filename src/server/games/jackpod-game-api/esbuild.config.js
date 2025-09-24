@@ -3,19 +3,19 @@ import { build } from 'esbuild';
 build({
     entryPoints: ['src/infrastructure/external/main.ts'],
     bundle: true,
-    outfile: 'dist/jackpod-game-api.js',
+    outfile: 'dist/jackpot-game-api.js',
     target: 'es2020',
     format: 'iife',
     platform: 'browser',
     banner: {
         js: `
-let _callJackpodGameApi;
+let _calljackpotGameApi;
             `
     },
     footer: {
         js: `
-function callJackpodGameApi(...args){
-    return _callJackpodGameApi.apply(this, args);
+function callJackpotGameApi(...args){
+    return _calljackpotGameApi.apply(this, args);
 }
             `
     }

@@ -1,3 +1,4 @@
+import { injectable } from "tsyringe";
 import { DrawResult } from "../../domain/entities/draw-result";
 import { Member } from "../../domain/entities/member";
 import { Prize } from "../../domain/entities/prize";
@@ -6,16 +7,19 @@ import { IDrawResultRepository } from "../../domain/repositories/draw-result-rep
 import { IMemberRepository } from "../../domain/repositories/member-repository";
 import { IPrizeRepository } from "../../domain/repositories/prize-repository";
 import { IScreenContentRepository } from "../../domain/repositories/screen-content-repository";
+import { GasService } from "./gas-service";
+import { inject } from "tsyringe";
 
-export class JackpodGasService {
-    public serviceName = "JackpodService";
-    public functions: { [key: string]: Function };
+@injectable()
+export class JackpotApiService implements GasService {
+    public serviceName = "JackpotApiService";
+    public functions: Record<string, (args: any) => any>;
 
     constructor(
-        private memberRepo: IMemberRepository,
-        private prizeRepo: IPrizeRepository,
-        private drawResultRepo: IDrawResultRepository,
-        private screenContentRepo: IScreenContentRepository
+        @inject("IMemberRepository") private memberRepo: IMemberRepository,
+        @inject("IPrizeRepository") private prizeRepo: IPrizeRepository,
+        @inject("IDrawResultRepository") private drawResultRepo: IDrawResultRepository,
+        @inject("IScreenContentRepository") private screenContentRepo: IScreenContentRepository
     ) {
         this.functions = {
             getMembers: this.getMembers.bind(this),

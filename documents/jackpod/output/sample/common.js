@@ -38,10 +38,10 @@ async function deleteCheckedScreenContent(screenKey, ids) {
 }
 // グローバル登録
 window.deleteCheckedScreenContentImpl = deleteCheckedScreenContent;
-// Jackpod サンプルアプリ 共通JS
+// jackpot サンプルアプリ 共通JS
 // IndexedDBラッパー・画面遷移・アセット管理・抽選・演出・管理画面連携
 
-const DB_NAME = 'jackpod2025';
+const DB_NAME = 'jackpot2025';
 const DB_VERSION = 1;
 const STORE_CONFIG = 'config';
 const STORE_MEMBERS = 'members';

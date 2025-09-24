@@ -1,7 +1,8 @@
-import { adminApi } from '../infrastructures/api/adminApi';
+import { AdminRepository } from '../infrastructures/repository/admin-repository';
 
 export class AdminService {
-  async updateSettings(settings: object): Promise<void> {
-    await adminApi.updateSettings(settings);
-  }
+    private readonly repo = new AdminRepository();
+    async updateSettings(settings: object): Promise<void> {
+        await this.repo.updateSettings(settings);
+    }
 }

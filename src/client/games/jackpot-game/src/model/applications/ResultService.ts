@@ -1,8 +1,9 @@
 import type { ResultResponse } from './ResultResponse';
-import { resultApi } from '../infrastructures/api/resultApi';
+import { ResultRepository } from '../infrastructures/repository/result-repository';
 
 export class ResultService {
-  async getResult(drawId: string): Promise<ResultResponse> {
-    return await resultApi.getResult(drawId);
-  }
+    private readonly repo = new ResultRepository();
+    async getResult(drawId: string): Promise<ResultResponse> {
+        return await this.repo.getResult(drawId);
+    }
 }

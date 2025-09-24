@@ -1,5 +1,5 @@
 {
-    "name": "jackpod-game-api",
+    "name": "jackpot-game-api",
     "version": "1.0.0",
     "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
     "main": "dist/Code.js",

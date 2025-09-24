@@ -1,7 +1,7 @@
 <template>
   <div class="main-layout">
     <header>
-      <h1>Jackpod 抽選アプリ</h1>
+      <h1>jackpot 抽選アプリ</h1>
     </header>
     <main>
       <slot />

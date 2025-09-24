@@ -1,9 +1,10 @@
 import type { DrawRequest } from './DrawRequest';
 import type { DrawResponse } from './DrawResponse';
-import { drawApi } from '../infrastructures/api/drawApi';
+import { DrawRepository } from '../infrastructures/repository/draw-repository';
 
 export class DrawService {
-  async executeDraw(request: DrawRequest): Promise<DrawResponse> {
-    return await drawApi.executeDraw(request);
-  }
+    private readonly repo = new DrawRepository();
+    async executeDraw(request: DrawRequest): Promise<DrawResponse> {
+        return await this.repo.executeDraw(request);
+    }
 }
