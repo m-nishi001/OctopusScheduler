@@ -1,3 +1,5 @@
+export type ScreenType = 'home' | 'opening' | 'description' | 'demo' | 'main' | 'result' | 'admin';
+
 export interface AnimationSettings {
   type: 'fade' | 'zoom' | 'scroll' | 'slide' | 'particle' | 'custom';
   duration?: number;
@@ -5,12 +7,20 @@ export interface AnimationSettings {
   params?: Record<string, any>;
 }
 
-export interface ScreenContent {
+export interface ScreenElement {
   id: string;
-  screen: string;
   type: 'text' | 'image' | 'video' | 'button' | 'progress' | 'list' | 'modal';
   content?: string;
   assetId?: string;
   style?: string;
   animation?: AnimationSettings;
+}
+
+export interface ScreenConfig {
+  type: ScreenType;
+  bgmAssetId?: string;
+  seAssetIds?: string[];
+  backgroundStyle: string;
+  elements: ScreenElement[];
+  animationSettings?: AnimationSettings;
 }

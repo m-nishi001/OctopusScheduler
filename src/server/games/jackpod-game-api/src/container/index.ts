@@ -10,6 +10,8 @@ import { IDrawResultRepository } from "../domain/repositories/draw-result-reposi
 import { DrawResultRepository } from "../infrastructure/repositories/draw-result-repository";
 import { IScreenContentRepository } from "../domain/repositories/screen-content-repository";
 import { ScreenContentRepository } from "../infrastructure/repositories/screen-content-repository";
+import { AssetService } from "../application/services/asset-service";
+import { AssetRepository } from "../infrastructure/repositories/asset-repository";
 
 export class Container {
     static register() {
@@ -19,5 +21,7 @@ export class Container {
         container.register<IPrizeRepository>("IPrizeRepository", { useClass: PrizeRepository });
         container.register<IDrawResultRepository>("IDrawResultRepository", { useClass: DrawResultRepository });
         container.register<IScreenContentRepository>("IScreenContentRepository", { useClass: ScreenContentRepository });
+    container.register<AssetService>("IAssetService", { useClass: AssetService });
+        container.register("IAssetRepository", { useClass: AssetRepository });
     }
 }

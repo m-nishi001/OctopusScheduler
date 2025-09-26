@@ -26,7 +26,11 @@ export class JackpotApiService implements GasService {
             getPrizes: this.getPrizes.bind(this),
             draw: this.draw.bind(this),
             getResults: this.getResults.bind(this),
-            getScreenContents: this.getScreenContents.bind(this)
+            getResult: this.getResult.bind(this),
+            saveResult: this.saveResult.bind(this),
+            getScreenContents: this.getScreenContents.bind(this),
+            getScreenConfig: this.getScreenConfig.bind(this),
+            saveScreenConfig: this.saveScreenConfig.bind(this)
         };
     }
 
@@ -39,19 +43,38 @@ export class JackpotApiService implements GasService {
     }
 
     async draw(params: { memberId: string; prizeId: string }): Promise<DrawResult> {
-        const member = await this.memberRepo.findById(params.memberId);
-        const prize = await this.prizeRepo.findById(params.prizeId);
-        if (!member || !prize) throw new Error("Member or Prize not found");
-        const result: DrawResult = { member, prize, rank: prize.rank };
-        await this.drawResultRepo.save(result);
-        return result;
+    const member = await this.memberRepo.findById(params.memberId);
+    const prize = await this.prizeRepo.findById(params.prizeId);
+    if (!member || !prize) throw new Error("Member or Prize not found");
+    const drawId = `${Date.now()}_${member.id}_${prize.id}`;
+    const result: DrawResult = { drawId, member, prize, rank: prize.rank };
+    await this.drawResultRepo.save(result);
+    return result;
     }
 
     async getResults(): Promise<DrawResult[]> {
         return await this.drawResultRepo.findAll();
     }
 
+        async getResult(drawId: string): Promise<DrawResult | null> {
+            return await this.drawResultRepo.findById(drawId);
+        }
+
+        async saveResult(result: DrawResult): Promise<void> {
+            await this.drawResultRepo.save(result);
+        }
+
     async getScreenContents(): Promise<ScreenContent[]> {
         return await this.screenContentRepo.findAll();
     }
+
+        async getScreenConfig(): Promise<ScreenContent[]> {
+            return await this.screenContentRepo.findAll();
+        }
+
+        async saveScreenConfig(configs: ScreenContent[]): Promise<void> {
+            for (const config of configs) {
+                await this.screenContentRepo.save(config);
+            }
+        }
 }

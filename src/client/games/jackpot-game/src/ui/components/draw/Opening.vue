@@ -9,8 +9,28 @@
 </template>
 <script lang="ts">
 import MainLayout from '../common/MainLayout.vue';
+import type { ScreenConfig } from '../../../model/domains/screen-config/ScreenConfig';
 export default {
   name: 'Opening',
   components: { MainLayout },
+  setup() {
+    // 仮のScreenConfig（設計書準拠）
+    const screenConfig: ScreenConfig = {
+      type: 'opening',
+      bgmAssetId: 'asset_bgm_opening',
+      seAssetIds: ['asset_se_scroll', 'asset_se_fade'],
+      backgroundStyle: 'linear-gradient(to right, #a5b4fc, #f9a8d4)',
+      elements: [
+        { id: 'title', type: 'text', content: 'オープニング' },
+        { id: 'nextBtn', type: 'button', content: '次へ' }
+      ],
+      animationSettings: {
+        type: 'scroll',
+        duration: 2.0,
+        params: { direction: 'up' }
+      }
+    };
+    return { screenConfig };
+  },
 };
 </script>

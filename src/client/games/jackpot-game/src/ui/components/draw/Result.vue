@@ -19,6 +19,7 @@ import MainLayout from '../common/MainLayout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ResultService } from '../../../model/applications/ResultService';
+import type { ScreenConfig } from '../../../model/domains/screen-config/ScreenConfig';
 
 export default {
 	name: 'Result',
@@ -28,6 +29,24 @@ export default {
 		const winners = ref<{ name: string }[]>([]);
 		const loading = ref(true);
 		const resultService = new ResultService();
+
+		// 仮のScreenConfig（設計書準拠）
+		const screenConfig: ScreenConfig = {
+			type: 'result',
+			bgmAssetId: 'asset_bgm_result',
+			seAssetIds: ['asset_se_scroll', 'asset_se_winner'],
+			backgroundStyle: 'linear-gradient(to right, #f9a8d4, #2196f3)',
+			elements: [
+				{ id: 'title', type: 'text', content: '結果画面' },
+				{ id: 'resultList', type: 'list' },
+				{ id: 'homeBtn', type: 'button', content: 'ホームへ' }
+			],
+			animationSettings: {
+				type: 'scroll',
+				duration: 2.0,
+				params: { direction: 'up' }
+			}
+		};
 
 		const fetchResult = async () => {
 			// 仮のdrawId（本来は画面遷移時に渡す）
@@ -51,7 +70,7 @@ export default {
 			fetchResult();
 		});
 		onUnmounted(() => window.removeEventListener('keydown', handleKey));
-		return { winners, loading };
+		return { winners, loading, screenConfig };
 	},
 };
 </script>

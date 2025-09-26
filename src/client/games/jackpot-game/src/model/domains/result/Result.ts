@@ -1,7 +1,7 @@
-import type { User } from "../user/User";
+import type { LotteryResult } from "../draw-result/DrawResult";
 
 export interface Result {
   drawId: string;
-  winners: User[];
+  results: LotteryResult[];
   executedAt: string;
 }

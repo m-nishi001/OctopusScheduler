@@ -17,6 +17,11 @@ export class DrawResultRepository implements IDrawResultRepository {
         return this.repository.find((r: DrawResult) => true);
     }
 
+        async findById(drawId: string): Promise<DrawResult | null> {
+            const results = this.repository.find((r: DrawResult) => r.drawId === drawId);
+            return results.length > 0 ? results[0] : null;
+        }
+
     async save(result: DrawResult): Promise<void> {
         this.repository.add(result);
     }

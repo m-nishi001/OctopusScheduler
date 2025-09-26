@@ -9,8 +9,28 @@
 </template>
 <script lang="ts">
 import MainLayout from '../common/MainLayout.vue';
+import type { ScreenConfig } from '../../../model/domains/screen-config/ScreenConfig';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },
+  setup() {
+    // 仮のScreenConfig（設計書準拠）
+    const screenConfig: ScreenConfig = {
+      type: 'demo',
+      bgmAssetId: 'asset_bgm_demo',
+      seAssetIds: ['asset_se_draw'],
+      backgroundStyle: 'linear-gradient(to right, #f9a8d4, #a5b4fc)',
+      elements: [
+        { id: 'title', type: 'text', content: 'デモ抽選画面' },
+        { id: 'mainDrawBtn', type: 'button', content: '本抽選へ' }
+      ],
+      animationSettings: {
+        type: 'zoom',
+        duration: 1.2,
+        params: { scale: 1.1 }
+      }
+    };
+    return { screenConfig };
+  },
 };
 </script>

@@ -1,6 +1,13 @@
 import { GoogleDriveService } from "../../../../../shared-packages/src/google-drive-service";
 
 export class AssetRepository {
+    static convertToBlobFromDataUrl(dataUrl: string, assetName: string, mimeType?: string): GoogleAppsScript.Base.Blob {
+        const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) throw new Error("Invalid data URL format.");
+        const base64Data = matches[2];
+        const decodedData = Utilities.base64Decode(base64Data);
+        return Utilities.newBlob(decodedData, mimeType || matches[1], assetName);
+    }
     private static readonly assetFolderId: string = PropertiesService
         .getScriptProperties()
         .getProperty('jackpot-game-api-asset') ?? (() => { throw new Error('Asset folder ID is not set in ScriptProperties.'); })();

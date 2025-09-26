@@ -9,8 +9,28 @@
 </template>
 <script lang="ts">
 import MainLayout from '../common/MainLayout.vue';
+import type { ScreenConfig } from '../../../model/domains/screen-config/ScreenConfig';
 export default {
   name: 'MainDraw',
   components: { MainLayout },
+  setup() {
+    // 仮のScreenConfig（設計書準拠）
+    const screenConfig: ScreenConfig = {
+      type: 'main',
+      bgmAssetId: 'asset_bgm_main',
+      seAssetIds: ['asset_se_draw', 'asset_se_result'],
+      backgroundStyle: 'linear-gradient(to right, #a5b4fc, #fef08a)',
+      elements: [
+        { id: 'title', type: 'text', content: '本抽選画面' },
+        { id: 'resultBtn', type: 'button', content: '結果へ' }
+      ],
+      animationSettings: {
+        type: 'particle',
+        duration: 2.0,
+        params: { effect: 'firework' }
+      }
+    };
+    return { screenConfig };
+  },
 };
 </script>
