@@ -54,8 +54,7 @@
 <script lang="ts">
 import MainLayout from '../common/MainLayout.vue';
 import Button from '../common/Button.vue';
-import { ref, onMounted } from 'vue';
-import type { History } from '../../../model/domains/history/History';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { HistoryService } from '../../../model/applications/HistoryService';
 
@@ -63,11 +62,14 @@ export default {
   name: 'HistoryView',
   components: { MainLayout, Button },
   setup() {
-  const history = ref<History[]>([]);
-    const router = useRouter();
     const historyService = new HistoryService();
-    onMounted(async () => {
+    const history = ref<any[]>([]);
+    const fetchHistory = async () => {
       history.value = await historyService.getHistory();
+    };
+    const router = useRouter();
+    onMounted(() => {
+      fetchHistory();
     });
     const viewDetail = (id: string) => router.push(`/history/${id}`);
     const goHome = () => router.push('/');

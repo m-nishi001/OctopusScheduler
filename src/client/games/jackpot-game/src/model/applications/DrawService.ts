@@ -1,5 +1,5 @@
-import type { DrawRequest } from './DrawRequest';
-import type { DrawResponse } from './DrawResponse';
+import type { DrawRequest } from './dto/DrawRequest';
+import type { DrawResponse } from './dto/DrawResponse';
 import { DrawRepository } from '../infrastructures/repository/draw-repository';
 
 export class DrawService {

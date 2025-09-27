@@ -1,5 +1,5 @@
-import type { ResultResponse } from './ResultResponse';
-import { ResultRepository } from '../infrastructures/repository/result-repository';
+import type { ResultResponse } from './dto/ResultResponse';
+import { ResultRepository } from '../../model/infrastructures/repository/result-repository';
 
 export class ResultService {
     private readonly repo = new ResultRepository();

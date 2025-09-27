@@ -6,9 +6,9 @@
 			<div v-if="loading">結果取得中...</div>
 			<div v-else class="result-list" style="max-height:300px;overflow-y:auto;">
 				<ul>
-					<li v-for="w in winners" :key="w.name" style="margin-bottom:1em;">
-					<span class="winner-name">{{ w.name }}</span>
-					</li>
+					  <li v-for="w in winners" :key="w.memberId" style="margin-bottom:1em;">
+					  <span class="winner-name">{{ getMemberName(w.memberId) }}</span>
+					  </li>
 				</ul>
 			</div>
 		</div>
@@ -19,42 +19,40 @@ import MainLayout from '../common/MainLayout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ResultService } from '../../../model/applications/ResultService';
+import type { LotteryResultDto, MemberDto } from '../../../model/applications/dto/CommonDtos';
 import type { ScreenConfig } from '../../../model/domains/screen-config/ScreenConfig';
+import { ScreenConfigService } from '../../../model/applications/ScreenConfigService';
 
 export default {
 	name: 'Result',
 	components: { MainLayout },
 	setup() {
 		const router = useRouter();
-		const winners = ref<{ name: string }[]>([]);
+		const winners = ref<LotteryResultDto[]>([]);
+		const members = ref<MemberDto[]>([]);
 		const loading = ref(true);
 		const resultService = new ResultService();
 
-		// 仮のScreenConfig（設計書準拠）
-		const screenConfig: ScreenConfig = {
-			type: 'result',
-			bgmAssetId: 'asset_bgm_result',
-			seAssetIds: ['asset_se_scroll', 'asset_se_winner'],
-			backgroundStyle: 'linear-gradient(to right, #f9a8d4, #2196f3)',
-			elements: [
-				{ id: 'title', type: 'text', content: '結果画面' },
-				{ id: 'resultList', type: 'list' },
-				{ id: 'homeBtn', type: 'button', content: 'ホームへ' }
-			],
-			animationSettings: {
-				type: 'scroll',
-				duration: 2.0,
-				params: { direction: 'up' }
-			}
-		};
+		// ScreenConfigServiceから取得
+		const screenConfig = ref<ScreenConfig | null>(null);
+		const screenConfigService = new ScreenConfigService();
+		onMounted(async () => {
+			screenConfig.value = await screenConfigService.fetchScreenConfig('result');
+			fetchResult();
+		});
 
 		const fetchResult = async () => {
 			// 仮のdrawId（本来は画面遷移時に渡す）
 			const drawId = 'latest';
 			try {
-				const result = await resultService.getResult(drawId);
-				// API型に合わせて当選者名のみ表示
-				winners.value = result.winners.map((w: { name: string }) => ({ name: w.name }));
+						const result = await resultService.getResult(drawId);
+						winners.value = result.results;
+						// 仮: メンバー情報を取得するAPI呼び出し（本来はServiceから取得）
+						members.value = [
+							{ id: '1', name: '山田太郎', order: 1 },
+							{ id: '2', name: '佐藤花子', order: 2 },
+							{ id: '3', name: '鈴木一郎', order: 3 }
+						];
 			} catch (e) {
 				// エラー処理
 			} finally {
@@ -70,7 +68,12 @@ export default {
 			fetchResult();
 		});
 		onUnmounted(() => window.removeEventListener('keydown', handleKey));
-		return { winners, loading, screenConfig };
+			// メンバー名取得関数
+			const getMemberName = (memberId: string) => {
+				const member = members.value.find(m => m.id === memberId);
+				return member ? member.name : memberId;
+			};
+			return { winners, loading, screenConfig, getMemberName };
 	},
 };
 </script>

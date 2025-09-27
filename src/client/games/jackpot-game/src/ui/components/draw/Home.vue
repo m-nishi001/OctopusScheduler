@@ -8,6 +8,7 @@
         <button @click="goAdmin"
           class="bg-gradient-to-r from-indigo-400 to-purple-400 text-white font-semibold px-6 py-3 rounded-lg shadow hover:scale-105 transition">管理画面</button>
       </div>
+      <ProgressBar :percent="progress" label="ダウンロード進捗" />
       <div class="auto-navi mt-4">
         <label>
           <input type="checkbox" v-model="autoNavigate" />
@@ -20,35 +21,52 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import MainLayout from '../common/MainLayout.vue';
+import ProgressBar from './ProgressBar.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfig } from '../../../model/domains/screen-config/ScreenConfig';
+import { ScreenConfigService } from '../../../model/applications/ScreenConfigService';
 export default {
   name: 'Home',
-  components: { MainLayout },
+  components: { MainLayout, ProgressBar },
   setup() {
     const router = useRouter();
     const autoNavigate = ref(false);
     const goOpening = () => router.push('/jackpot-opening');
     const goAdmin = () => router.push('/jackpot-admin');
 
-    // 仮のScreenConfig（設計書準拠）
-    const screenConfig: ScreenConfig = {
-      type: 'home',
-      bgmAssetId: 'asset_bgm_home',
-      seAssetIds: ['asset_se_start', 'asset_se_admin'],
-      backgroundStyle: 'linear-gradient(to right, #f9a8d4, #fef08a)',
-      elements: [
-        { id: 'title', type: 'text', content: '2025年度 ジャックポッド大会！' },
-        { id: 'progress', type: 'progress' },
-        { id: 'startBtn', type: 'button', content: 'スタート' },
-        { id: 'adminBtn', type: 'button', content: '管理画面' }
-      ],
-      animationSettings: {
-        type: 'fade',
-        duration: 1.0,
-        params: { scale: 1.2 }
+    // ScreenConfigServiceから取得
+    const screenConfig = ref<ScreenConfig | null>(null);
+    const screenConfigService = new ScreenConfigService();
+    onMounted(async () => {
+      screenConfig.value = await screenConfigService.fetchScreenConfig('home');
+    });
+
+    // プログレスバー進捗（仮: 0→100%を2秒でアニメーション）
+    const progress = ref(0);
+    onMounted(() => {
+      let p = 0;
+      const timer = setInterval(() => {
+        p += 5;
+        progress.value = p;
+        if (p >= 100) clearInterval(timer);
+      }, 100);
+    });
+
+    // BGM/SE制御（DL完了後再生開始）
+    const bgmAudio = ref<HTMLAudioElement | null>(null);
+    const playBGM = () => {
+      if (!screenConfig.value?.bgmAssetId) return;
+      if (!bgmAudio.value) {
+        bgmAudio.value = new Audio(`/assets/bgm/${screenConfig.value.bgmAssetId.replace('asset_bgm_', '')}.mp3`);
+        bgmAudio.value.loop = true;
       }
+      bgmAudio.value.play();
     };
+    watch(progress, (val) => {
+      if (val === 100) playBGM();
+    });
+
+    // SE再生関数（未使用のため削除）
 
     // Enterキーでスタート
     const handleKey = (e: KeyboardEvent) => {
@@ -70,7 +88,7 @@ export default {
         if (autoTimer) window.clearTimeout(autoTimer);
       }
     });
-    return { goOpening, goAdmin, autoNavigate, screenConfig };
+  return { goOpening, goAdmin, autoNavigate, screenConfig, progress };
   },
 };
 </script>

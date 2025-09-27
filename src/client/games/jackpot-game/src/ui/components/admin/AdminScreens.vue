@@ -1,17 +1,64 @@
 <template>
   <div class="admin-section">
     <h2>画面管理</h2>
-    <form class="admin-form">
-      <input type="text" placeholder="画面名" class="admin-input" />
-      <button type="submit" class="admin-btn">保存</button>
+    <form class="admin-form" @submit.prevent="addScreen">
+      <input v-model="screenName" type="text" placeholder="画面名" class="admin-input" />
+      <button type="submit" class="admin-btn">追加</button>
     </form>
     <ul class="admin-list">
-      <li class="admin-list-item">サンプル画面</li>
+      <li v-for="(screen, idx) in screens" :key="screen.id" class="admin-list-item">
+        <span>{{ screen.screen }}</span>
+        <button class="admin-btn ml-2" @click="editScreen(idx)">編集</button>
+        <button class="admin-btn ml-2" @click="deleteScreen(idx)">削除</button>
+      </li>
     </ul>
+    <div v-if="editIdx !== null" class="admin-edit-box">
+      <h3>画面編集</h3>
+      <input v-model="editName" type="text" class="admin-input" />
+      <button class="admin-btn" @click="saveEdit">保存</button>
+      <button class="admin-btn ml-2" @click="cancelEdit">キャンセル</button>
+    </div>
   </div>
 </template>
 <script setup lang="ts">
-// 画面管理ロジック（必要に応じて拡張）
+import { ref } from 'vue';
+import type { ScreenContent } from '/root/google_apps_script/octopus-scheduler/src/client/games/jackpot-game/src/model/domains/member/Member';
+function uuid() {
+  return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+}
+const screens = ref<ScreenContent[]>([
+  { id: uuid(), screen: 'サンプル画面', type: 'text', value: '' }
+]);
+const screenName = ref('');
+const addScreen = () => {
+  if (!screenName.value) return;
+  screens.value.push({
+    id: uuid(),
+    screen: screenName.value,
+    type: 'text',
+    value: ''
+  });
+  screenName.value = '';
+};
+const editIdx = ref<number|null>(null);
+const editName = ref('');
+const editScreen = (idx: number) => {
+  editIdx.value = idx;
+  editName.value = screens.value[idx].screen;
+};
+const saveEdit = () => {
+  if (editIdx.value === null) return;
+  screens.value[editIdx.value].screen = editName.value;
+  editIdx.value = null;
+  editName.value = '';
+};
+const cancelEdit = () => {
+  editIdx.value = null;
+  editName.value = '';
+};
+const deleteScreen = (idx: number) => {
+  screens.value.splice(idx, 1);
+};
 </script>
 
 <style scoped>

@@ -1,6 +1,6 @@
-import type { DrawRequest } from '../../applications/DrawRequest';
-import type { DrawResponse } from '../../applications/DrawResponse';
 import { injectable } from "tsyringe";
+import type { DrawRequest } from '../../applications/dto/DrawRequest';
+import type { DrawResponse } from '../../applications/dto/DrawResponse';
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 
 @injectable()
@@ -20,3 +20,5 @@ export class DrawRepository {
     });
   }
 }
+
+// DTOはapplications/dto配下に移動

@@ -6,7 +6,7 @@
     <Modal :visible="showResult" @close="showResult = false">
       <h3 class="jp-modal-title">抽選結果</h3>
       <ul class="jp-winner-list">
-        <li v-for="winner in winners" :key="winner.id" class="jp-winner-item">{{ winner.name }}</li>
+  <li v-for="winner in winners" :key="winner.memberId" class="jp-winner-item">{{ getMemberName(winner.memberId) }}</li>
       </ul>
       <Button @click="goResult">結果画面へ</Button>
     </Modal>
@@ -49,7 +49,7 @@ import Button from '../common/Button.vue';
 import Loader from '../common/Loader.vue';
 import Modal from '../common/Modal.vue';
 import { ref } from 'vue';
-import type { User } from '../../../model/domains/user/User';
+import type { LotteryResultDto, MemberDto } from '../../../model/applications/dto/CommonDtos';
 import { DrawService } from '../../../model/applications/DrawService';
 import { ResultService } from '../../../model/applications/ResultService';
 import { useRouter } from 'vue-router';
@@ -60,7 +60,8 @@ export default {
   setup() {
     const loading = ref(false);
     const showResult = ref(false);
-  const winners = ref<User[]>([]);
+  const winners = ref<LotteryResultDto[]>([]);
+  const members = ref<MemberDto[]>([]);
     const router = useRouter();
     const drawService = new DrawService();
     const resultService = new ResultService();
@@ -69,14 +70,25 @@ export default {
       try {
         const drawRes = await drawService.executeDraw({ drawName: '抽選', candidateIds: ['1','2','3'], winnerCount: 1 });
         const resultRes = await resultService.getResult(drawRes.drawId);
-        winners.value = resultRes.winners;
+        winners.value = resultRes.results;
+        // 仮: メンバー情報を取得するAPI呼び出し（本来はServiceから取得）
+        members.value = [
+          { id: '1', name: '山田太郎', order: 1 },
+          { id: '2', name: '佐藤花子', order: 2 },
+          { id: '3', name: '鈴木一郎', order: 3 }
+        ];
         showResult.value = true;
       } finally {
         loading.value = false;
       }
     };
     const goResult = () => router.push('/jackpot-result');
-    return { loading, showResult, winners, executeDraw, goResult };
+    // メンバー名取得関数
+    const getMemberName = (memberId: string) => {
+      const member = members.value.find(m => m.id === memberId);
+      return member ? member.name : memberId;
+    };
+    return { loading, showResult, winners, executeDraw, goResult, getMemberName };
   },
 };
 </script>

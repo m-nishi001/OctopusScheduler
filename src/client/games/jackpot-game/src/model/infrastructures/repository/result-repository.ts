@@ -1,6 +1,7 @@
-import type { ResultResponse } from '../../applications/ResultResponse';
+import type { ResultResponse } from '../../applications/dto/ResultResponse';
 import { injectable } from "tsyringe";
-import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
+import type { Result } from '../../domains/result/Result';
+import { GasFunctionService } from '../../../../../../packages/common-lib/src/google-apps-script/gas-script-service';
 
 @injectable()
 export class ResultRepository {
@@ -19,3 +20,7 @@ export class ResultRepository {
     });
   }
 }
+
+export interface GetResultsRequest {}
+export interface GetResultsResponse { results: Result[]; }
+// DTOはapplications/dto配下に移動
