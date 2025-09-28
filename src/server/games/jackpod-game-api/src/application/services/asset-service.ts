@@ -1,9 +1,8 @@
-
 import { injectable, inject } from "tsyringe";
 import { GasService } from "./gas-service";
 import { AssetRepositoryImpl, AssetRepositoryImplStatic } from "../../infrastructure/repositories/asset-repository";
-import { Asset } from '../../domain/entities/asset';
 import { AssetRepository as DomainAssetRepository } from '../../domain/repositories/asset-repository';
+import { AssetDto } from '../dtos/asset-dto';
 
 @injectable()
 export class AssetService implements GasService {
@@ -47,11 +46,14 @@ export class AssetService implements GasService {
     }
 
     // ドメイン用
-    async uploadDomainAsset(asset: Asset): Promise<string> {
-        return await this.domainRepository.uploadAsset(asset);
+    async uploadDomainAsset(asset: AssetDto): Promise<string> {
+        // TODO: DTO→Entity変換ロジックを実装
+        return await this.domainRepository.uploadAsset(asset as any);
     }
 
-    async getDomainAsset(id: string): Promise<Asset | null> {
-        return await this.domainRepository.getAsset(id);
+    async getDomainAsset(id: string): Promise<AssetDto | null> {
+        // TODO: Entity→DTO変換ロジックを実装
+        const asset = await this.domainRepository.getAsset(id);
+        return asset as any;
     }
 }

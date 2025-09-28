@@ -3,6 +3,12 @@ import { injectable } from "tsyringe";
 import { Member } from '../../domain/entities/member';
 import { Prize } from '../../domain/entities/prize';
 import { Result } from '../../domain/entities/result';
+import { MemberDto } from '../dtos/member-dto';
+import { PrizeDto } from '../dtos/prize-dto';
+import { toMember, toMemberDto } from '../dtos/member-mapper';
+import { toPrize, toPrizeDto } from '../dtos/prize-mapper';
+import { toLotteryResultDto } from '../dtos/lottery-result-mapper';
+import { ResultDto } from '../dtos/result-dto';
 import { GasService } from "./gas-service";
 import { DrawResultService } from "./draw-result-service";
 import { inject } from "tsyringe";
@@ -27,19 +33,21 @@ export class LotteryService implements GasService {
     }
 
     // メンバー抽選（確率調整可能）
-    drawMember(args: { members: Member[], weights?: number[] }): Member {
-        return this.memberDrawStrategy(args.members, { weights: args.weights });
+    drawMember(args: { members: MemberDto[], weights?: number[] }): MemberDto {
+        const domainMembers = args.members.map(toMember);
+        const drawn = this.memberDrawStrategy(domainMembers, { weights: args.weights });
+        return toMemberDto(drawn);
     }
 
-    // 景品抽選（確率調整可能）
-    drawPrize(args: { prizes: Prize[], weights?: number[] }): Prize {
-        return this.prizeDrawStrategy(args.prizes, { weights: args.weights });
+    drawPrize(args: { prizes: PrizeDto[], weights?: number[] }): PrizeDto {
+        const domainPrizes = args.prizes.map(toPrize);
+        const drawn = this.prizeDrawStrategy(domainPrizes, { weights: args.weights });
+        return toPrizeDto(drawn);
     }
 
-    // 一括抽選（メンバー×景品）
-    drawAll(args: { prizes: Prize[], members: Member[], memberWeights?: number[], prizeWeights?: number[] }): Result[] {
-        const members = args.members.slice();
-        const prizes = args.prizes.slice();
+    drawAll(args: { prizes: PrizeDto[], members: MemberDto[], memberWeights?: number[], prizeWeights?: number[] }): ResultDto[] {
+        const members = args.members.map(toMember);
+        const prizes = args.prizes.map(toPrize);
         const memberWeights = args.memberWeights;
         const prizeWeights = args.prizeWeights;
         const results: Result[] = [];
@@ -58,18 +66,22 @@ export class LotteryService implements GasService {
         }
         // 保存処理（非同期）
         if (this.drawResultService !== undefined) {
-            results.forEach(result => {
+            results.forEach((result, i) => {
+                const memberEntity = shuffledMembers.find(m => m.id === result.memberId)!;
+                const prizeEntity = shuffledPrizes.find(p => p.id === result.prizeId)!;
+                const memberDto = { ...toMemberDto(memberEntity), order: i + 1 };
+                const prizeDto = { ...toPrizeDto(prizeEntity), order: i + 1 };
                 this.drawResultService?.save({
                     result: {
                         drawId: `${result.memberId}_${result.prizeId}`,
-                        member: shuffledMembers.find(m => m.id === result.memberId)!,
-                        prize: shuffledPrizes.find(p => p.id === result.prizeId)!,
-                        rank: shuffledPrizes.find(p => p.id === result.prizeId)?.rank || "normal"
+                        member: memberDto,
+                        prize: prizeDto,
+                        rank: typeof prizeDto.rank === 'string' ? prizeDto.rank : String(prizeDto.rank || "normal")
                     }
                 });
             });
         }
-        return results;
+        return results.map(toLotteryResultDto);
     }
 
     // --- 抽選ロジック（Strategy） ---

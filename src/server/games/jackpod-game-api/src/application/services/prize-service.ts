@@ -1,8 +1,8 @@
-
 import { injectable, inject } from "tsyringe";
 import { IPrizeRepository } from "../../domain/repositories/prize-repository";
-import { Prize } from "../../domain/entities/prize";
 import { GasService } from "./gas-service";
+import { PrizeDto } from '../dtos/prize-dto';
+import { toPrizeDto, toPrize } from '../dtos/prize-mapper';
 
 @injectable()
 export class PrizeService implements GasService {
@@ -18,16 +18,18 @@ export class PrizeService implements GasService {
         };
     }
 
-    async getAll(): Promise<Prize[]> {
-        return this.repository.findAll();
+    async getAll(): Promise<PrizeDto[]> {
+        const prizes = await this.repository.findAll();
+        return prizes.map(toPrizeDto);
     }
 
-    async getById(args: { id: string }): Promise<Prize | null> {
-        return this.repository.findById(args.id);
+    async getById(args: { id: string }): Promise<PrizeDto | null> {
+        const prize = await this.repository.findById(args.id);
+        return prize ? toPrizeDto(prize) : null;
     }
 
-    async save(args: { prize: Prize }): Promise<void> {
-        return this.repository.save(args.prize);
+    async save(args: { prize: PrizeDto }): Promise<void> {
+        return this.repository.save(toPrize(args.prize));
     }
 
     async delete(args: { id: string }): Promise<void> {

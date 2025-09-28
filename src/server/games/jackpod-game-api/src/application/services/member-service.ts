@@ -1,8 +1,8 @@
-
 import { injectable, inject } from "tsyringe";
 import { IMemberRepository } from "../../domain/repositories/member-repository";
-import { Member } from "../../domain/entities/member";
 import { GasService } from "./gas-service";
+import { MemberDto } from '../dtos/member-dto';
+import { toMemberDto, toMember } from '../dtos/member-mapper';
 
 @injectable()
 export class MemberService implements GasService {
@@ -18,16 +18,18 @@ export class MemberService implements GasService {
         };
     }
 
-    async getAll(): Promise<Member[]> {
-        return this.repository.findAll();
+    async getAll(): Promise<MemberDto[]> {
+        const members = await this.repository.findAll();
+        return members.map(toMemberDto);
     }
 
-    async getById(args: { id: string }): Promise<Member | null> {
-        return this.repository.findById(args.id);
+    async getById(args: { id: string }): Promise<MemberDto | null> {
+        const member = await this.repository.findById(args.id);
+        return member ? toMemberDto(member) : null;
     }
 
-    async save(args: { member: Member }): Promise<void> {
-        return this.repository.save(args.member);
+    async save(args: { member: MemberDto }): Promise<void> {
+        return this.repository.save(toMember(args.member));
     }
 
     async delete(args: { id: string }): Promise<void> {
