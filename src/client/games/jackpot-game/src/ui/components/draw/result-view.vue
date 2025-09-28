@@ -38,13 +38,15 @@ export default {
       const drawId = 'main';
       const response = await resultService.getResult(drawId);
       // APIのresultsをwinners形式に変換（必要に応じて）
-      winners.value = response.results.map((r: any, idx: number) => ({
-        id: idx + 1,
-        name: r.memberName || r.memberId,
-        photo: r.photoAssetId || '/assets/img/member1.png',
-        prize: r.prizeName || r.prizeId,
-        rank: r.rank || 1
-      }));
+      winners.value = response?.results
+        ? response.results.map((r: any, idx: number) => ({
+          id: idx + 1,
+          name: r.memberName || r.memberId,
+          photo: r.photoAssetId || '/assets/img/member1.png',
+          prize: r.prizeName || r.prizeId,
+          rank: r.rank || 1
+        }))
+        : [];
     };
     onMounted(() => {
       fetchResults();
@@ -106,6 +108,7 @@ export default {
   margin-bottom: 32px;
   font-family: 'Orbitron', 'Montserrat', sans-serif;
 }
+
 .jp-winner-list {
   list-style: none;
   padding: 0;
@@ -113,6 +116,7 @@ export default {
   max-height: 220px;
   overflow-y: auto;
 }
+
 .jp-winner-item {
   background: linear-gradient(90deg, #e3eafc 0%, #fff 100%);
   color: #2a5298;
@@ -121,41 +125,48 @@ export default {
   margin: 8px 0;
   padding: 10px 18px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(42,82,152,0.08);
+  box-shadow: 0 2px 8px rgba(42, 82, 152, 0.08);
   display: flex;
   align-items: center;
 }
+
 .special {
   background: linear-gradient(90deg, #f9a8d4 0%, #fef08a 100%);
   color: #d946ef;
   font-weight: bold;
   border: 2px solid #f9a8d4;
 }
+
 .lowest {
   background: linear-gradient(90deg, #a5b4fc 0%, #e0e7ff 100%);
   color: #6366f1;
   font-weight: bold;
   border: 2px solid #a5b4fc;
 }
+
 .winner-name {
   margin-left: 8px;
   font-size: 1.1em;
 }
+
 .winner-prize {
   margin-left: 8px;
   font-size: 1em;
   color: #64748b;
 }
+
 .special-winner {
   margin-top: 12px;
   color: #d946ef;
   font-weight: bold;
 }
+
 .lowest-winner {
   margin-top: 8px;
   color: #6366f1;
   font-weight: bold;
 }
+
 .fade-black {
   position: fixed;
   top: 0;
@@ -167,16 +178,23 @@ export default {
   z-index: 9999;
   transition: opacity 1.2s;
 }
+
 .result-content {
   transition: opacity 1.2s;
 }
-.fade-black-enter-active, .fade-black-leave-active {
+
+.fade-black-enter-active,
+.fade-black-leave-active {
   transition: opacity 1.2s;
 }
-.fade-black-enter-from, .fade-black-leave-to {
+
+.fade-black-enter-from,
+.fade-black-leave-to {
   opacity: 0;
 }
-.fade-black-enter-to, .fade-black-leave-from {
+
+.fade-black-enter-to,
+.fade-black-leave-from {
   opacity: 0.85;
 }
 </style>

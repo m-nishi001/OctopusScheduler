@@ -6,6 +6,7 @@ export class AssetService {
 
   async fetchAssets(): Promise<AssetDto[]> {
     const assets = await this.repo.fetchAssets();
+    if (!Array.isArray(assets) || !assets) return [];
     // Entity -> DTO変換（必要ならマッピング処理を追加）
     return assets.map(a => ({ ...a }));
   }

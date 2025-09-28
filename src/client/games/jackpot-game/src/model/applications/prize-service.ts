@@ -6,6 +6,7 @@ export class PrizeService {
 
   async fetchPrizes(): Promise<PrizeDto[]> {
     const prizes = await this.repo.fetchPrizes();
+    if (!Array.isArray(prizes) || !prizes) return [];
     // Entity -> DTO変換（必要ならマッピング処理を追加）
     return prizes.map(p => ({ ...p }));
   }

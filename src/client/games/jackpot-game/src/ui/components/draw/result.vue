@@ -6,9 +6,9 @@
 			<div v-if="loading">結果取得中...</div>
 			<div v-else class="result-list" style="max-height:300px;overflow-y:auto;">
 				<ul>
-					  <li v-for="w in winners" :key="w.memberId" style="margin-bottom:1em;">
-					  <span class="winner-name">{{ getMemberName(w.memberId) }}</span>
-					  </li>
+					<li v-for="w in winners" :key="w.memberId" style="margin-bottom:1em;">
+						<span class="winner-name">{{ getMemberName(w.memberId) }}</span>
+					</li>
 				</ul>
 			</div>
 		</div>
@@ -46,14 +46,14 @@ export default {
 			// 仮のdrawId（本来は画面遷移時に渡す）
 			const drawId = 'latest';
 			try {
-						const result = await resultService.getResult(drawId);
-						winners.value = result.results;
-						// 仮: メンバー情報を取得するAPI呼び出し（本来はServiceから取得）
-						members.value = [
-							{ id: '1', name: '山田太郎', order: 1 },
-							{ id: '2', name: '佐藤花子', order: 2 },
-							{ id: '3', name: '鈴木一郎', order: 3 }
-						];
+				const result = await resultService.getResult(drawId);
+				winners.value = result?.results ?? [];
+				// 仮: メンバー情報を取得するAPI呼び出し（本来はServiceから取得）
+				members.value = [
+					{ id: '1', name: '山田太郎', order: 1 },
+					{ id: '2', name: '佐藤花子', order: 2 },
+					{ id: '3', name: '鈴木一郎', order: 3 }
+				];
 			} catch (e) {
 				// エラー処理
 			} finally {
@@ -69,33 +69,33 @@ export default {
 			fetchResult();
 		});
 		onUnmounted(() => window.removeEventListener('keydown', handleKey));
-			// メンバー名取得関数
-			const getMemberName = (memberId: string) => {
-				const member = members.value.find(m => m.id === memberId);
-				return member ? member.name : memberId;
-			};
-			return { winners, loading, screenConfig, getMemberName };
+		// メンバー名取得関数
+		const getMemberName = (memberId: string) => {
+			const member = members.value.find(m => m.id === memberId);
+			return member ? member.name : memberId;
+		};
+		return { winners, loading, screenConfig, getMemberName };
 	},
 };
 </script>
 .result-list {
-	animation: scrollResult 2s linear;
+animation: scrollResult 2s linear;
 }
 .winner-name {
-	font-weight: bold;
-	font-size: 1.2em;
+font-weight: bold;
+font-size: 1.2em;
 }
 .prize-rank.high {
-	color: #e91e63;
-	font-weight: bold;
+color: #e91e63;
+font-weight: bold;
 }
 .prize-rank.normal {
-	color: #2196f3;
+color: #2196f3;
 }
 .prize-rank.low {
-	color: #9e9e9e;
+color: #9e9e9e;
 }
 @keyframes scrollResult {
-	0% { opacity: 0; transform: translateY(30px); }
-	100% { opacity: 1; transform: translateY(0); }
+0% { opacity: 0; transform: translateY(30px); }
+100% { opacity: 1; transform: translateY(0); }
 }

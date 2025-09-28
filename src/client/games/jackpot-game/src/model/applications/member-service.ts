@@ -6,6 +6,7 @@ export class MemberService {
 
   async fetchMembers(): Promise<MemberDto[]> {
     const members = await this.repo.fetchMembers();
+    if (!Array.isArray(members) || !members) return [];
     // Entity -> DTO変換（必要ならマッピング処理を追加）
     return members.map(m => ({ ...m }));
   }
