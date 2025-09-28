@@ -1,5 +1,18 @@
 
+
 > card-game-api@1.0.0 typecheck
 > tsc --noEmit
 
-[1G[0K[1G[0K
+[1G[0K[96msrc/_bk/domains/member/MemberApplicationService.ts[0m:[93m95[0m:[93m46[0m - [91merror[0m[90m TS2339: [0mProperty 'name' does not exist on type '{ id: string; driveFileId: string; }'.
+
+[7m95[0m             member.imageAssetName = newAsset.name;
+[7m  [0m [91m                                             ~~~~[0m
+
+[96msrc/_bk/domains/member/MemberApplicationService.ts[0m:[93m136[0m:[93m46[0m - [91merror[0m[90m TS2339: [0mProperty 'name' does not exist on type '{ id: string; driveFileId: string; }'.
+
+[7m136[0m             member.imageAssetName = newAsset.name;
+[7m   [0m [91m                                             ~~~~[0m
+
+
+Found 2 errors in the same file, starting at: src/_bk/domains/member/MemberApplicationService.ts[90m:95[0m
+
