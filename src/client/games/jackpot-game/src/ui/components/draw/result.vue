@@ -78,24 +78,38 @@ export default {
 	},
 };
 </script>
+<style scoped>
 .result-list {
-animation: scrollResult 2s linear;
+	animation: scrollResult 2s linear;
 }
+
 .winner-name {
-font-weight: bold;
-font-size: 1.2em;
+	font-weight: bold;
+	font-size: 1.2em;
 }
+
 .prize-rank.high {
-color: #e91e63;
-font-weight: bold;
+	color: #e91e63;
+	font-weight: bold;
 }
+
 .prize-rank.normal {
-color: #2196f3;
+	color: #2196f3;
 }
+
 .prize-rank.low {
-color: #9e9e9e;
+	color: #9e9e9e;
 }
+
 @keyframes scrollResult {
-0% { opacity: 0; transform: translateY(30px); }
-100% { opacity: 1; transform: translateY(0); }
+	0% {
+		opacity: 0;
+		transform: translateY(30px);
+	}
+
+	100% {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
+</style>
