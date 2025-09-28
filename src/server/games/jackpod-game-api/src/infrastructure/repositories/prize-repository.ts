@@ -14,35 +14,35 @@ export class PrizeRepository implements IPrizeRepository {
     }
 
 
-    async findAll(): Promise<Prize[]> {
+    findAll(): Prize[] {
         return this.repository.find((p: Prize) => true);
     }
 
-    async findById(id: string): Promise<Prize | null> {
+    findById(id: string): Prize | null {
         return this.repository.find((p: Prize) => p.id === id)[0] || null;
     }
 
-    async findManyByIds(ids: string[]): Promise<Prize[]> {
+    findManyByIds(ids: string[]): Prize[] {
         return this.repository.find((p: Prize) => ids.includes(p.id));
     }
 
-    async save(prize: Prize): Promise<void> {
+    save(prize: Prize): void {
         this.repository.add(prize);
     }
 
-    async update(id: string, updateEntity: (prize: Prize) => Prize): Promise<number> {
+    update(id: string, updateEntity: (prize: Prize) => Prize): number {
         return this.repository.update((p: Prize) => p.id === id, updateEntity);
     }
 
-    async updateMany(ids: string[], updateEntity: (prize: Prize) => Prize): Promise<number> {
+    updateMany(ids: string[], updateEntity: (prize: Prize) => Prize): number {
         return this.repository.update((p: Prize) => ids.includes(p.id), updateEntity);
     }
 
-    async delete(id: string): Promise<void> {
+    delete(id: string): void {
         this.repository.delete((p: Prize) => p.id === id);
     }
 
-    async deleteMany(ids: string[]): Promise<void> {
+    deleteMany(ids: string[]): void {
         this.repository.delete((p: Prize) => ids.includes(p.id));
     }
 }

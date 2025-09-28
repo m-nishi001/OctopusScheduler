@@ -16,12 +16,12 @@ export class ResultService implements GasService {
         };
     }
 
-    async saveResult(args: { result: ResultDto }): Promise<void> {
-        await this.repository.saveResult(toResult(args.result));
+    saveResult(args: { result: ResultDto }): void {
+        this.repository.saveResult(toResult(args.result));
     }
 
-    async getResults(): Promise<ResultDto[]> {
-        const results = await this.repository.getResults();
+    getResults(): ResultDto[] {
+        const results = this.repository.getResults();
         return results.map(toResultDto);
     }
 }

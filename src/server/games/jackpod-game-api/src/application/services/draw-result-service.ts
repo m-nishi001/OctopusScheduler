@@ -17,17 +17,17 @@ export class DrawResultService implements GasService {
         };
     }
 
-    async getAll(): Promise<DrawResultDto[]> {
-        const results = await this.repository.findAll();
+    getAll(): DrawResultDto[] {
+        const results = this.repository.findAll();
         return results.map(toDrawResultDto);
     }
 
-    async getById(args: { drawId: string }): Promise<DrawResultDto | null> {
-        const result = await this.repository.findById(args.drawId);
+    getById(args: { drawId: string }): DrawResultDto | null {
+        const result = this.repository.findById(args.drawId);
         return result ? toDrawResultDto(result) : null;
     }
 
-    async save(args: { result: DrawResultDto }): Promise<void> {
-        return this.repository.save(toDrawResult(args.result));
+    save(args: { result: DrawResultDto }): void {
+        this.repository.save(toDrawResult(args.result));
     }
 }

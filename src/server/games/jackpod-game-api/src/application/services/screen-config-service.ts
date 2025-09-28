@@ -22,44 +22,44 @@ export class ScreenConfigService implements GasService {
         };
     }
 
-    async saveScreenConfig(args: { config: ScreenConfigDto }): Promise<void> {
-        await this.repository.saveScreenConfig(toScreenConfig(args.config));
+    saveScreenConfig(args: { config: ScreenConfigDto }): void {
+        this.repository.saveScreenConfig(toScreenConfig(args.config));
     }
 
-    async getScreenConfig(): Promise<ScreenConfigDto | null> {
-        const config = await this.repository.getScreenConfig();
+    getScreenConfig(): ScreenConfigDto | null {
+        const config = this.repository.getScreenConfig();
         return config ? toScreenConfigDto(config) : null;
     }
 
-    async findAll(): Promise<ScreenConfigDto[]> {
-        const configs = await this.repository.findAll();
+    findAll(): ScreenConfigDto[] {
+        const configs = this.repository.findAll();
         return configs.map(toScreenConfigDto);
     }
 
-    async findByType(args: { type: string }): Promise<ScreenConfigDto | null> {
-        const config = await this.repository.findByType(args.type);
+    findByType(args: { type: string }): ScreenConfigDto | null {
+        const config = this.repository.findByType(args.type);
         return config ? toScreenConfigDto(config) : null;
     }
 
-    async update(args: { type: string; updateEntity: (config: ScreenConfigDto) => ScreenConfigDto }): Promise<number> {
-        return await this.repository.update(
+    update(args: { type: string; updateEntity: (config: ScreenConfigDto) => ScreenConfigDto }): number {
+        return this.repository.update(
             args.type,
             (entity: ScreenConfig) => toScreenConfig(args.updateEntity(toScreenConfigDto(entity)))
         );
     }
 
-    async updateMany(args: { types: string[]; updateEntity: (config: ScreenConfigDto) => ScreenConfigDto }): Promise<number> {
-        return await this.repository.updateMany(
+    updateMany(args: { types: string[]; updateEntity: (config: ScreenConfigDto) => ScreenConfigDto }): number {
+        return this.repository.updateMany(
             args.types,
             (entity: ScreenConfig) => toScreenConfig(args.updateEntity(toScreenConfigDto(entity)))
         );
     }
 
-    async delete(args: { type: string }): Promise<void> {
-        await this.repository.delete(args.type);
+    delete(args: { type: string }): void {
+        this.repository.delete(args.type);
     }
 
-    async deleteMany(args: { types: string[] }): Promise<void> {
-        await this.repository.deleteMany(args.types);
+    deleteMany(args: { types: string[] }): void {
+        this.repository.deleteMany(args.types);
     }
 }

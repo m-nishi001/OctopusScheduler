@@ -14,35 +14,35 @@ export class MemberRepository implements IMemberRepository {
     }
 
 
-    async findAll(): Promise<Member[]> {
+    findAll(): Member[] {
         return this.repository.find((m: Member) => true);
     }
 
-    async findById(id: string): Promise<Member | null> {
+    findById(id: string): Member | null {
         return this.repository.find((m: Member) => m.id === id)[0] || null;
     }
 
-    async findManyByIds(ids: string[]): Promise<Member[]> {
+    findManyByIds(ids: string[]): Member[] {
         return this.repository.find((m: Member) => ids.includes(m.id));
     }
 
-    async save(member: Member): Promise<void> {
+    save(member: Member): void {
         this.repository.add(member);
     }
 
-    async update(id: string, updateEntity: (member: Member) => Member): Promise<number> {
+    update(id: string, updateEntity: (member: Member) => Member): number {
         return this.repository.update((m: Member) => m.id === id, updateEntity);
     }
 
-    async updateMany(ids: string[], updateEntity: (member: Member) => Member): Promise<number> {
+    updateMany(ids: string[], updateEntity: (member: Member) => Member): number {
         return this.repository.update((m: Member) => ids.includes(m.id), updateEntity);
     }
 
-    async delete(id: string): Promise<void> {
+    delete(id: string): void {
         this.repository.delete((m: Member) => m.id === id);
     }
 
-    async deleteMany(ids: string[]): Promise<void> {
+    deleteMany(ids: string[]): void {
         this.repository.delete((m: Member) => ids.includes(m.id));
     }
 }

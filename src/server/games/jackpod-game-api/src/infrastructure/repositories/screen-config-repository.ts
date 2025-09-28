@@ -13,37 +13,37 @@ export class ScreenConfigRepositoryImpl implements ScreenConfigRepository {
         this.repository = SpreadsheetService.getService<ScreenConfig>(this.sheetName);
     }
 
-    async saveScreenConfig(config: ScreenConfig): Promise<void> {
+    saveScreenConfig(config: ScreenConfig): void {
         this.repository.add(config);
     }
 
-    async getScreenConfig(): Promise<ScreenConfig | null> {
+    getScreenConfig(): ScreenConfig | null {
         const configs = this.repository.find((c: ScreenConfig) => true);
         return configs.length > 0 ? configs[0] : null;
     }
 
-    async findAll(): Promise<ScreenConfig[]> {
+    findAll(): ScreenConfig[] {
         return this.repository.find((c: ScreenConfig) => true);
     }
 
-    async findByType(type: string): Promise<ScreenConfig | null> {
+    findByType(type: string): ScreenConfig | null {
         const configs = this.repository.find((c: ScreenConfig) => c.type === type);
         return configs.length > 0 ? configs[0] : null;
     }
 
-    async update(type: string, updateEntity: (config: ScreenConfig) => ScreenConfig): Promise<number> {
+    update(type: string, updateEntity: (config: ScreenConfig) => ScreenConfig): number {
         return this.repository.update((c: ScreenConfig) => c.type === type, updateEntity);
     }
 
-    async updateMany(types: string[], updateEntity: (config: ScreenConfig) => ScreenConfig): Promise<number> {
+    updateMany(types: string[], updateEntity: (config: ScreenConfig) => ScreenConfig): number {
         return this.repository.update((c: ScreenConfig) => types.includes(c.type), updateEntity);
     }
 
-    async delete(type: string): Promise<void> {
+    delete(type: string): void {
         this.repository.delete((c: ScreenConfig) => c.type === type);
     }
 
-    async deleteMany(types: string[]): Promise<void> {
+    deleteMany(types: string[]): void {
         this.repository.delete((c: ScreenConfig) => types.includes(c.type));
     }
 }

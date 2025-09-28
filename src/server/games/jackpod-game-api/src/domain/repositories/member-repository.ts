@@ -1,12 +1,12 @@
 import { Member } from "../../domain/entities/member";
 
 export interface IMemberRepository {
-    findAll(): Promise<Member[]>;
-    findById(id: string): Promise<Member | null>;
-    findManyByIds(ids: string[]): Promise<Member[]>;
-    save(member: Member): Promise<void>;
-    update(id: string, updateEntity: (member: Member) => Member): Promise<number>;
-    updateMany(ids: string[], updateEntity: (member: Member) => Member): Promise<number>;
-    delete(id: string): Promise<void>;
-    deleteMany(ids: string[]): Promise<void>;
+    findAll(): Member[];
+    findById(id: string): Member | null;
+    findManyByIds(ids: string[]): Member[];
+    save(member: Member): void;
+    update(id: string, updateEntity: (member: Member) => Member): number;
+    updateMany(ids: string[], updateEntity: (member: Member) => Member): number;
+    delete(id: string): void;
+    deleteMany(ids: string[]): void;
 }

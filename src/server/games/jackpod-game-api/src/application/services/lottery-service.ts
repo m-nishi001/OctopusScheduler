@@ -64,7 +64,7 @@ export class LotteryService implements GasService {
                 isWinner: true
             });
         }
-        // 保存処理（非同期）
+        // 保存処理（同期）
         if (this.drawResultService !== undefined) {
             results.forEach((result, i) => {
                 const memberEntity = shuffledMembers.find(m => m.id === result.memberId)!;

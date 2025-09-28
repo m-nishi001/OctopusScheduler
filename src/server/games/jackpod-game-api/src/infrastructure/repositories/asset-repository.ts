@@ -9,7 +9,7 @@ function getAssetFolderId(): string {
 }
 
 export class AssetRepositoryImpl implements IAssetRepository {
-    async uploadAsset(asset: Asset): Promise<string> {
+    uploadAsset(asset: Asset): string {
         // asset.url is assumed to be a dataUrl
         const blob = AssetRepositoryImplStatic.convertToBlobFromDataUrl(asset.url, asset.name, asset.type);
         const folderId = getAssetFolderId();
@@ -22,7 +22,7 @@ export class AssetRepositoryImpl implements IAssetRepository {
         return file ? file.id || '' : '';
     }
 
-    async getAsset(id: string): Promise<Asset | null> {
+    getAsset(id: string): Asset | null {
         const folderId = getAssetFolderId();
         const files = GoogleDriveService.findFileByIds({ fileIds: [id], parentFolderId: folderId });
         if (files.length === 0) return null;
@@ -45,18 +45,18 @@ export class AssetRepositoryImpl implements IAssetRepository {
         };
     }
 
-    async updateAsset(id: string, updateAsset: (asset: Asset) => Asset): Promise<string> {
+    updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string {
         // Fetch asset, update, and re-upload
-        const asset = await this.getAsset(id);
+        const asset = this.getAsset(id);
         if (!asset) return '';
         const updated = updateAsset(asset);
         return this.uploadAsset(updated);
     }
 
-    async updateManyAssets(ids: string[], updateAsset: (asset: Asset) => Asset): Promise<string[]> {
+    updateManyAssets(ids: string[], updateAsset: (asset: Asset) => Asset): string[] {
         const results: string[] = [];
         for (const id of ids) {
-            const updatedId = await this.updateAsset(id, updateAsset);
+            const updatedId = this.updateAsset(id, updateAsset);
             results.push(updatedId);
         }
         return results;

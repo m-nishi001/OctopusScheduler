@@ -18,21 +18,21 @@ export class MemberService implements GasService {
         };
     }
 
-    async getAll(): Promise<MemberDto[]> {
-        const members = await this.repository.findAll();
+    getAll(): MemberDto[] {
+        const members = this.repository.findAll();
         return members.map(toMemberDto);
     }
 
-    async getById(args: { id: string }): Promise<MemberDto | null> {
-        const member = await this.repository.findById(args.id);
+    getById(args: { id: string }): MemberDto | null {
+        const member = this.repository.findById(args.id);
         return member ? toMemberDto(member) : null;
     }
 
-    async save(args: { member: MemberDto }): Promise<void> {
-        return this.repository.save(toMember(args.member));
+    save(args: { member: MemberDto }): void {
+        this.repository.save(toMember(args.member));
     }
 
-    async delete(args: { id: string }): Promise<void> {
-        return this.repository.delete(args.id);
+    delete(args: { id: string }): void {
+        this.repository.delete(args.id);
     }
 }

@@ -46,14 +46,14 @@ export class AssetService implements GasService {
     }
 
     // ドメイン用
-    async uploadDomainAsset(asset: AssetDto): Promise<string> {
+    uploadDomainAsset(asset: AssetDto): string {
         // TODO: DTO→Entity変換ロジックを実装
-        return await this.domainRepository.uploadAsset(asset as any);
+        return this.domainRepository.uploadAsset(asset as any);
     }
 
-    async getDomainAsset(id: string): Promise<AssetDto | null> {
+    getDomainAsset(id: string): AssetDto | null {
         // TODO: Entity→DTO変換ロジックを実装
-        const asset = await this.domainRepository.getAsset(id);
+        const asset = this.domainRepository.getAsset(id);
         return asset as any;
     }
 }
