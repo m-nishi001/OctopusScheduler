@@ -1,6 +1,6 @@
 
 import { GasFunctionService } from '../../../../../../packages/common-lib/src/google-apps-script/gas-script-service';
-import type { Asset } from '../../domains/asset/Asset';
+import type { Asset } from '../../domains/asset/asset';
 import { useLocalStorage } from '../../../../../../packages/shared-composables/src/use-localstorage';
 const ASSET_CACHE_KEY = 'assets';
 

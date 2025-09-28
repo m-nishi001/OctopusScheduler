@@ -1,15 +1,15 @@
 import { injectable, inject } from "tsyringe";
 import { ScreenConfig } from '../../domain/entities/screen-config';
-import { ScreenConfigRepository } from '../../domain/repositories/screen-config-repository';
-import { GasService } from "./gas-service";
-import { ScreenConfigDto, toScreenConfig, toScreenConfigDto } from '../dtos/screen-config-dto';
+import { IScreenConfigRepository } from '../../domain/repositories/screen-config-repository';
+import { GasService } from "./gas.service";
+import { ScreenConfigDto, toScreenConfig, toScreenConfigDto } from '../dtos/screen-config.dto';
 
 @injectable()
 export class ScreenConfigService implements GasService {
     public serviceName = "ScreenConfigService";
     public functions: Record<string, (args: any) => any>;
 
-    constructor(@inject("IScreenConfigRepository") private readonly repository: ScreenConfigRepository) {
+    constructor(@inject("IScreenConfigRepository") private readonly repository: IScreenConfigRepository) {
         this.functions = {
             saveScreenConfig: this.saveScreenConfig.bind(this),
             getScreenConfig: this.getScreenConfig.bind(this),

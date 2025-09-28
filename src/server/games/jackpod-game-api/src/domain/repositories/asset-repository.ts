@@ -1,6 +1,6 @@
 import { Asset } from '../entities/asset';
 
-export interface AssetRepository {
+export interface IAssetRepository {
   uploadAsset(asset: Asset): string;
   getAsset(id: string): Asset | null;
   updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string;

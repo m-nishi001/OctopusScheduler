@@ -2,13 +2,13 @@ import { injectable } from "tsyringe";
 
 import { Member } from '../../domain/entities/member';
 import { Prize } from '../../domain/entities/prize';
-import { MemberDto } from '../dtos/member-dto';
-import { PrizeDto } from '../dtos/prize-dto';
-import { toMember, toMemberDto } from '../dtos/member-mapper';
-import { toPrize, toPrizeDto } from '../dtos/prize-mapper';
-import { DrawResultDto } from '../dtos/draw-result-dto';
-import { GasService } from "./gas-service";
-import { DrawResultService } from "./draw-result-service";
+import { MemberDto } from '../dtos/member.dto';
+import { PrizeDto } from '../dtos/prize.dto';
+import { toMember, toMemberDto } from '../dtos/member.mapper';
+import { toPrize, toPrizeDto } from '../dtos/prize.mapper';
+import { DrawResultDto } from '../dtos/draw-result.dto';
+import { GasService } from "./gas.service";
+import { DrawResultService } from "./draw-result.service";
 import { inject } from "tsyringe";
 
 @injectable()

@@ -1,6 +1,6 @@
 import { ScreenConfig } from '../entities/screen-config';
 
-export interface ScreenConfigRepository {
+export interface IScreenConfigRepository {
   saveScreenConfig(config: ScreenConfig): void;
   getScreenConfig(): ScreenConfig | null;
   findAll(): ScreenConfig[];

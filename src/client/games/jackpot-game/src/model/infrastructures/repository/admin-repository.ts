@@ -10,7 +10,7 @@ export class AdminRepository {
 
     async updateSettings(settings: object): Promise<void> {
         await this.service
-            .createCall<void>("ScreenConfigService.updateSettings", settings)
+            .createCall<void>("ScreenConfigService.update", settings)
             .withSuccessed(() => console.log("Settings updated"))
             .withFailuered(message => { throw new Error(`Failed to update settings: ${message}`); })
             .invoke();

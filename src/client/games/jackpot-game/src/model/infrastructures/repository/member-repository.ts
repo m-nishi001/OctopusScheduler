@@ -1,7 +1,7 @@
 
 import { GasFunctionService } from '../../../../../../packages/common-lib/src/google-apps-script/gas-script-service';
 import { useLocalStorage } from '../../../../../../packages/shared-composables/src/use-localstorage';
-import type { Member } from '../../domains/member/Member';
+import type { Member } from '../../domains/member/member';
 
 const MEMBER_CACHE_KEY = 'members';
 
@@ -17,7 +17,7 @@ export class MemberRepository {
         if (!this.gasService) return [];
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<{ members: Member[] }>('MemberService.getMembers')
+                .createCall<{ members: Member[] }>('MemberService.getAll')
                 .withSuccessed((res: { members: Member[] }) => {
                     this.localStorage.save(MEMBER_CACHE_KEY, res.members);
                     resolve(res.members);
@@ -34,7 +34,7 @@ export class MemberRepository {
         if (!this.gasService) return;
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<void>('MemberService.saveMember', member)
+                .createCall<void>('MemberService.save', { member })
                 .withSuccessed(() => resolve())
                 .withFailuered((msg: string) => reject(new Error(msg)))
                 .invoke();
@@ -48,7 +48,7 @@ export class MemberRepository {
         if (!this.gasService) return;
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<void>('MemberService.updateMember', member)
+                .createCall<void>('MemberService.save', { member })
                 .withSuccessed(() => resolve())
                 .withFailuered((msg: string) => reject(new Error(msg)))
                 .invoke();
@@ -62,7 +62,7 @@ export class MemberRepository {
         if (!this.gasService) return;
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<void>('MemberService.deleteMember', { memberId })
+                .createCall<void>('MemberService.delete', { id: memberId })
                 .withSuccessed(() => resolve())
                 .withFailuered((msg: string) => reject(new Error(msg)))
                 .invoke();
@@ -73,7 +73,7 @@ export class MemberRepository {
         if (!this.gasService) return [];
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<{ members: Member[] }>('MemberService.getMembers')
+                .createCall<{ members: Member[] }>('MemberService.getAll')
                 .withSuccessed((res: { members: Member[] }) => {
                     this.localStorage.save(MEMBER_CACHE_KEY, res.members);
                     resolve(res.members);

@@ -1,8 +1,8 @@
 import { injectable, inject } from "tsyringe";
 import { IMemberRepository } from "../../domain/repositories/member-repository";
-import { GasService } from "./gas-service";
-import { MemberDto } from '../dtos/member-dto';
-import { toMemberDto, toMember } from '../dtos/member-mapper';
+import { GasService } from "./gas.service";
+import { MemberDto } from '../dtos/member.dto';
+import { toMemberDto, toMember } from '../dtos/member.mapper';
 
 @injectable()
 export class MemberService implements GasService {

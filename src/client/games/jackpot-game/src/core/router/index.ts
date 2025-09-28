@@ -1,14 +1,14 @@
 // import { createRouter, createWebHistory } from 'vue-router';
 
-import HomeView from '../../ui/components/admin/HomeView.vue';
-import DrawView from '../../ui/components/draw/DrawView.vue';
-import ResultView from '../../ui/components/draw/ResultView.vue';
-import HistoryView from '../../ui/components/draw/HistoryView.vue';
-import OpeningView from '../../ui/components/draw/OpeningView.vue';
-import AdminLayout from '../../ui/components/admin/AdminLayout.vue';
-import AdminMembers from '../../ui/components/admin/AdminMembers.vue';
-import AdminPrizes from '../../ui/components/admin/AdminPrizes.vue';
-import AdminScreens from '../../ui/components/admin/AdminScreens.vue';
+import HomeView from '../../ui/components/admin/home-view.vue';
+import DrawView from '../../ui/components/draw/draw-view.vue';
+import ResultView from '../../ui/components/draw/result-view.vue';
+import HistoryView from '../../ui/components/draw/history-view.vue';
+import OpeningView from '../../ui/components/draw/opening-view.vue';
+import AdminLayout from '../../ui/components/admin/admin-layout.vue';
+import AdminMembers from '../../ui/components/admin/admin-members.vue';
+import AdminPrizes from '../../ui/components/admin/admin-prizes.vue';
+import AdminScreens from '../../ui/components/admin/admin-screens.vue';
 
 
 const jackpotGameRoutes = [

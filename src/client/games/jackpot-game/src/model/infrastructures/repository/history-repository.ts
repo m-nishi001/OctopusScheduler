@@ -1,4 +1,4 @@
-import type { History } from '../../domains/history/History';
+import type { History } from '../../domains/history/history';
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 

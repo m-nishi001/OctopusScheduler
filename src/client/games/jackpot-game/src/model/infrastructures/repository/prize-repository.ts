@@ -1,5 +1,5 @@
 
-import type { Prize } from '../../domains/prize/Prize';
+import type { Prize } from '../../domains/prize/prize';
 import { GasFunctionService } from '../../../../../../packages/common-lib/src/google-apps-script/gas-script-service';
 import { useLocalStorage } from '../../../../../../packages/shared-composables/src/use-localstorage';
 const PRIZE_CACHE_KEY = 'prizes';
@@ -18,7 +18,7 @@ export class PrizeRepository {
         if (!this.gasService) return [];
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<{ prizes: Prize[] }>('PrizeService.getPrizes')
+                .createCall<{ prizes: Prize[] }>('PrizeService.getAll')
                 .withSuccessed((res: { prizes: Prize[] }) => {
                     this.localStorage.save(PRIZE_CACHE_KEY, res.prizes);
                     resolve(res.prizes);
@@ -37,7 +37,7 @@ export class PrizeRepository {
         if (!this.gasService) return;
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<void>('PrizeService.savePrize', prize)
+                .createCall<void>('PrizeService.save', { prize })
                 .withSuccessed(() => resolve())
                 .withFailuered((msg: string) => reject(new Error(msg)))
                 .invoke();
@@ -53,7 +53,7 @@ export class PrizeRepository {
         if (!this.gasService) return;
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<void>('PrizeService.updatePrize', prize)
+                .createCall<void>('PrizeService.save', { prize })
                 .withSuccessed(() => resolve())
                 .withFailuered((msg: string) => reject(new Error(msg)))
                 .invoke();
@@ -69,7 +69,7 @@ export class PrizeRepository {
         if (!this.gasService) return;
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<void>('PrizeService.deletePrize', { prizeId })
+                .createCall<void>('PrizeService.delete', { id: prizeId })
                 .withSuccessed(() => resolve())
                 .withFailuered((msg: string) => reject(new Error(msg)))
                 .invoke();
@@ -81,7 +81,7 @@ export class PrizeRepository {
         if (!this.gasService) return [];
         return new Promise((resolve, reject) => {
             this.gasService
-                .createCall<{ prizes: Prize[] }>('PrizeService.getPrizes')
+                .createCall<{ prizes: Prize[] }>('PrizeService.getAll')
                 .withSuccessed((res: { prizes: Prize[] }) => {
                     this.localStorage.save(PRIZE_CACHE_KEY, res.prizes);
                     resolve(res.prizes);

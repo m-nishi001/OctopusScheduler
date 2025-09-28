@@ -1,11 +1,11 @@
 
 import { injectable } from "tsyringe";
-import { ScreenConfigRepository } from '../../domain/repositories/screen-config-repository';
+import { IScreenConfigRepository } from '../../domain/repositories/screen-config-repository';
 import { ScreenConfig } from '../../domain/entities/screen-config';
 import { ISpreadsheetService, SpreadsheetService } from "../../../../../shared-packages/src/google-spreadsheet-service";
 
 @injectable()
-export class ScreenConfigRepositoryImpl implements ScreenConfigRepository {
+export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
     private readonly repository: ISpreadsheetService<ScreenConfig>;
     private readonly sheetName = "ScreenConfigs";
 

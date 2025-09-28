@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import type { DrawRequest } from '../../applications/dto/DrawRequest';
-import type { DrawResponse } from '../../applications/dto/DrawResponse';
+import type { DrawRequest } from '../../applications/dto/draw-request';
+import type { DrawResponse } from '../../applications/dto/draw-response';
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 
 @injectable()

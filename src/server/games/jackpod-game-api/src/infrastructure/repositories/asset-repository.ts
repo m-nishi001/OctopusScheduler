@@ -1,6 +1,6 @@
 
 import { Asset } from '../../domain/entities/asset';
-import type { AssetRepository as IAssetRepository } from '../../domain/repositories/asset-repository';
+import type { IAssetRepository as IAssetRepository } from '../../domain/repositories/asset-repository';
 import { GoogleDriveService } from "../../../../../shared-packages/src/google-drive-service";
 
 function getAssetFolderId(): string {
