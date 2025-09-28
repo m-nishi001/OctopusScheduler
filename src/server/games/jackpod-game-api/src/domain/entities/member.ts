@@ -1,5 +1,7 @@
 export interface Member {
     id: string;
     name: string;
-    photoUrl: string;
+    photoAssetId?: string;
+    attributes?: string[];
+    order: number;
 }

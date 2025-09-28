@@ -1,8 +1,7 @@
-export interface User {
+export interface MemberDto {
   id: string;
   name: string;
-  email?: string;
   photoAssetId?: string;
   attributes?: string[];
-  order?: number;
+  order: number;
 }

@@ -7,11 +7,14 @@ export interface AnimationSettings {
   params?: Record<string, any>;
 }
 
+export type ScreenElementType = 'text' | 'image' | 'video' | 'button' | 'progress' | 'list' | 'modal' | 'bgm';
+
 export interface ScreenElement {
   id: string;
-  type: 'text' | 'image' | 'video' | 'button' | 'progress' | 'list' | 'modal';
+  type: ScreenElementType;
   content?: string;
   assetId?: string;
+  value?: string;
   style?: string;
   animation?: AnimationSettings;
 }

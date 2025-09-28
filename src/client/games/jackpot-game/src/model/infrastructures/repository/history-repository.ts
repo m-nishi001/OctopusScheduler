@@ -4,18 +4,18 @@ import { GasFunctionService } from "../../../../../../packages/common-lib/src/go
 
 @injectable()
 export class HistoryRepository {
-  private readonly service;
-  constructor() {
-    this.service = GasFunctionService.create("callJackpotGameApi")!;
-  }
+    private readonly service;
+    constructor() {
+        this.service = GasFunctionService.create("callJackpotGameApi")!;
+    }
 
-  async getHistory(): Promise<History[]> {
-    return new Promise((resolve, reject) => {
-      this.service
-        .createCall<History[]>("JackpotApiService.getResults")
-        .withSuccessed(resolve)
-        .withFailuered((message: string) => reject(new Error(`Failed to get history: ${message}`)))
-        .invoke();
-    });
-  }
+    async getHistory(): Promise<History[]> {
+        return new Promise((resolve, reject) => {
+            this.service
+                .createCall<History[]>("DrawResultService.getResults")
+                .withSuccessed(resolve)
+                .withFailuered((message: string) => reject(new Error(`Failed to get history: ${message}`)))
+                .invoke();
+        });
+    }
 }

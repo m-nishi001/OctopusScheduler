@@ -1,5 +1,5 @@
 import { PrizeRepository } from '../../model/infrastructures/repository/prize-repository';
-import type { PrizeDto } from './dto/CommonDtos';
+import type { PrizeDto } from './dto/PrizeDto';
 
 export class PrizeService {
   private readonly repo = new PrizeRepository();

@@ -6,4 +6,6 @@ export interface DrawResult {
     member: Member;
     prize: Prize;
     rank: string;
+    order: number;
+    isWinner: boolean;
 }

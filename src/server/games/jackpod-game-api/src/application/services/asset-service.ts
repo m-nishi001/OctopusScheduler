@@ -46,14 +46,46 @@ export class AssetService implements GasService {
     }
 
     // ドメイン用
-    uploadDomainAsset(asset: AssetDto): string {
-        // TODO: DTO→Entity変換ロジックを実装
-        return this.domainRepository.uploadAsset(asset as any);
+    uploadDomainAsset(assetDto: AssetDto): string {
+        // DTO→Entity変換
+        const assetEntity = this.toAssetEntity(assetDto);
+        return this.domainRepository.uploadAsset(assetEntity);
     }
 
     getDomainAsset(id: string): AssetDto | null {
-        // TODO: Entity→DTO変換ロジックを実装
-        const asset = this.domainRepository.getAsset(id);
-        return asset as any;
+        // Entity→DTO変換
+        const assetEntity = this.domainRepository.getAsset(id);
+        return assetEntity ? this.toAssetDto(assetEntity) : null;
+    }
+
+    /**
+     * DTO→Entity変換
+     */
+    private toAssetEntity(dto: AssetDto): any {
+        // AssetEntity型が明確なら型を指定
+        return {
+            id: dto.id,
+            type: dto.type,
+            url: dto.url,
+            name: dto.name,
+            uploadedAt: dto.uploadedAt,
+            size: dto.size,
+            meta: dto.meta ?? {}
+        };
+    }
+
+    /**
+     * Entity→DTO変換
+     */
+    private toAssetDto(entity: any): AssetDto {
+        return {
+            id: entity.id,
+            type: entity.type,
+            url: entity.url,
+            name: entity.name,
+            uploadedAt: entity.uploadedAt,
+            size: entity.size,
+            meta: entity.meta ?? {}
+        };
     }
 }

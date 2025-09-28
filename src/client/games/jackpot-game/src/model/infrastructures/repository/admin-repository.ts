@@ -3,16 +3,16 @@ import { GasFunctionService } from "../../../../../../packages/common-lib/src/go
 
 @injectable()
 export class AdminRepository {
-  private readonly service;
-  constructor() {
-    this.service = GasFunctionService.create("callJackpotGameApi")!;
-  }
+    private readonly service;
+    constructor() {
+        this.service = GasFunctionService.create("callJackpotGameApi")!;
+    }
 
-  async updateSettings(settings: object): Promise<void> {
-    await this.service
-      .createCall<void>("JackpotApiService.updateSettings", settings)
-      .withSuccessed(() => console.log("Settings updated"))
-      .withFailuered(message => { throw new Error(`Failed to update settings: ${message}`); })
-      .invoke();
-  }
+    async updateSettings(settings: object): Promise<void> {
+        await this.service
+            .createCall<void>("ScreenConfigService.updateSettings", settings)
+            .withSuccessed(() => console.log("Settings updated"))
+            .withFailuered(message => { throw new Error(`Failed to update settings: ${message}`); })
+            .invoke();
+    }
 }

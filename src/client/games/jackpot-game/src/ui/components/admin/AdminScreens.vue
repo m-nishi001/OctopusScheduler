@@ -7,7 +7,7 @@
     </form>
     <ul class="admin-list">
       <li v-for="(screen, idx) in screens" :key="screen.id" class="admin-list-item">
-        <span>{{ screen.screen }}</span>
+  <span>{{ screen.content }}</span>
         <button class="admin-btn ml-2" @click="editScreen(idx)">編集</button>
         <button class="admin-btn ml-2" @click="deleteScreen(idx)">削除</button>
       </li>
@@ -22,19 +22,19 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { ScreenContent } from '/root/google_apps_script/octopus-scheduler/src/client/games/jackpot-game/src/model/domains/member/Member';
+import type { ScreenElement } from '/root/google_apps_script/octopus-scheduler/src/client/games/jackpot-game/src/model/domains/screen-config/ScreenConfig';
 function uuid() {
   return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
 }
-const screens = ref<ScreenContent[]>([
-  { id: uuid(), screen: 'サンプル画面', type: 'text', value: '' }
+const screens = ref<ScreenElement[]>([
+  { id: uuid(), type: 'text', content: 'サンプル画面', value: '' }
 ]);
 const screenName = ref('');
 const addScreen = () => {
   if (!screenName.value) return;
   screens.value.push({
     id: uuid(),
-    screen: screenName.value,
+  content: screenName.value,
     type: 'text',
     value: ''
   });
@@ -44,11 +44,11 @@ const editIdx = ref<number|null>(null);
 const editName = ref('');
 const editScreen = (idx: number) => {
   editIdx.value = idx;
-  editName.value = screens.value[idx].screen;
+  editName.value = screens.value[idx].content ?? '';
 };
 const saveEdit = () => {
   if (editIdx.value === null) return;
-  screens.value[editIdx.value].screen = editName.value;
+  screens.value[editIdx.value].content = editName.value;
   editIdx.value = null;
   editName.value = '';
 };

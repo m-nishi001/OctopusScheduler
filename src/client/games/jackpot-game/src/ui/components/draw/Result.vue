@@ -19,7 +19,8 @@ import MainLayout from '../common/MainLayout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ResultService } from '../../../model/applications/ResultService';
-import type { LotteryResultDto, MemberDto } from '../../../model/applications/dto/CommonDtos';
+import type { LotteryResultDto } from '../../../model/applications/dto/LotteryResultDto';
+import type { MemberDto } from '../../../model/applications/dto/MemberDto';
 import type { ScreenConfig } from '../../../model/domains/screen-config/ScreenConfig';
 import { ScreenConfigService } from '../../../model/applications/ScreenConfigService';
 

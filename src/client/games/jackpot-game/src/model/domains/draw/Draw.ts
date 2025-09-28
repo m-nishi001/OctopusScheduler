@@ -1,9 +1,9 @@
-import type { User } from "../user/User";
+import type { Member } from "../member/Member";
 
 export interface Draw {
   id: string;
   name: string;
-  candidates: User[];
+  candidates: Member[];
   status: 'pending' | 'drawing' | 'completed';
   createdAt: string;
 }

@@ -1,5 +1,5 @@
 import { AssetRepository } from '../../model/infrastructures/repository/asset-repository';
-import type { AssetDto } from './dto/CommonDtos';
+import type { AssetDto } from './dto/AssetDto';
 
 export class AssetService {
   private readonly repo = new AssetRepository();

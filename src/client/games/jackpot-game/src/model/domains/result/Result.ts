@@ -1,7 +1,7 @@
-import type { LotteryResult } from "../draw-result/DrawResult";
+import type { DrawResult } from "../draw-result/DrawResult";
 
 export interface Result {
-  drawId: string;
-  results: LotteryResult[];
-  executedAt: string;
+    drawId: string;
+    results: DrawResult[];
+    executedAt: string;
 }

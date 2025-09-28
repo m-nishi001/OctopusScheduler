@@ -1,5 +1,5 @@
 import { MemberRepository } from '../../model/infrastructures/repository/member-repository';
-import type { MemberDto } from './dto/CommonDtos';
+import type { MemberDto } from './dto/MemberDto';
 
 export class MemberService {
   private readonly repo = new MemberRepository();

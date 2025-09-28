@@ -6,4 +6,6 @@ export interface DrawResultDto {
   member: MemberDto;
   prize: PrizeDto;
   rank: string;
+  order: number;
+  isWinner: boolean;
 }

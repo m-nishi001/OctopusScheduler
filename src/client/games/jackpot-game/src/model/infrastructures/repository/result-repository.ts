@@ -5,22 +5,21 @@ import { GasFunctionService } from '../../../../../../packages/common-lib/src/go
 
 @injectable()
 export class ResultRepository {
-  private readonly service;
-  constructor() {
-    this.service = GasFunctionService.create("callJackpotGameApi")!;
-  }
+    private readonly service;
+    constructor() {
+        this.service = GasFunctionService.create("callJackpotGameApi")!;
+    }
 
-  async getResult(drawId: string): Promise<ResultResponse> {
-    return new Promise((resolve, reject) => {
-      this.service
-        .createCall<ResultResponse>("JackpotApiService.getResult", { drawId })
-        .withSuccessed(resolve)
-        .withFailuered((message: string) => reject(new Error(`Failed to get result: ${message}`)))
-        .invoke();
-    });
-  }
+    async getResult(drawId: string): Promise<ResultResponse> {
+        return new Promise((resolve, reject) => {
+            this.service
+                .createCall<ResultResponse>("DrawResultService.getResult", { drawId })
+                .withSuccessed(resolve)
+                .withFailuered((message: string) => reject(new Error(`Failed to get result: ${message}`)))
+                .invoke();
+        });
+    }
 }
 
-export interface GetResultsRequest {}
+export interface GetResultsRequest { }
 export interface GetResultsResponse { results: Result[]; }
-// DTOはapplications/dto配下に移動

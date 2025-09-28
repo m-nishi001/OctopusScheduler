@@ -8,7 +8,9 @@ export function toDrawResultDto(entity: DrawResult): DrawResultDto {
     drawId: entity.drawId,
     member: toMemberDto(entity.member),
     prize: toPrizeDto(entity.prize),
-    rank: entity.rank
+    rank: entity.rank,
+    order: entity.order,
+    isWinner: entity.isWinner
   };
 }
 
@@ -17,6 +19,8 @@ export function toDrawResult(entity: DrawResultDto): DrawResult {
     drawId: entity.drawId,
     member: toMember(entity.member),
     prize: toPrize(entity.prize),
-    rank: entity.rank
+    rank: entity.rank,
+    order: entity.order,
+    isWinner: entity.isWinner
   };
 }

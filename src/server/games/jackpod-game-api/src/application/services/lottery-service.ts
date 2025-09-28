@@ -63,7 +63,9 @@ export class LotteryService implements GasService {
                 drawId: `${memberDto.id}_${prizeDto.id}`,
                 member: memberDto,
                 prize: prizeDto,
-                rank: typeof prizeDto.rank === 'string' ? prizeDto.rank : String(prizeDto.rank || "normal")
+                rank: typeof prizeDto.rank === 'string' ? prizeDto.rank : String(prizeDto.rank || "normal"),
+                order: i + 1,
+                isWinner: true // 抽選結果なのでtrueで固定（必要に応じてロジック変更可）
             };
             results.push(drawResult);
             this.drawResultService?.save({ result: drawResult });
