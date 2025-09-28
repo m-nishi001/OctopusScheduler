@@ -1,4 +1,3 @@
-// --- Entity <-> DTO 変換ロジック ---
 import type { ScreenConfig, ScreenElement, AnimationSettings } from '../../domain/entities/screen-config';
 
 export function toScreenConfig(dto: ScreenConfigDto): ScreenConfig {

@@ -1,5 +1,5 @@
 export interface Member {
-  id: string;
-  name: string;
-  photoUrl: string;
+    id: string;
+    name: string;
+    photoUrl: string;
 }

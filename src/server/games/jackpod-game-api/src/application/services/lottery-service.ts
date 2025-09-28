@@ -2,13 +2,11 @@ import { injectable } from "tsyringe";
 
 import { Member } from '../../domain/entities/member';
 import { Prize } from '../../domain/entities/prize';
-import { Result } from '../../domain/entities/result';
 import { MemberDto } from '../dtos/member-dto';
 import { PrizeDto } from '../dtos/prize-dto';
 import { toMember, toMemberDto } from '../dtos/member-mapper';
 import { toPrize, toPrizeDto } from '../dtos/prize-mapper';
-import { toLotteryResultDto } from '../dtos/lottery-result-mapper';
-import { ResultDto } from '../dtos/result-dto';
+import { DrawResultDto } from '../dtos/draw-result-dto';
 import { GasService } from "./gas-service";
 import { DrawResultService } from "./draw-result-service";
 import { inject } from "tsyringe";
@@ -45,43 +43,32 @@ export class LotteryService implements GasService {
         return toPrizeDto(drawn);
     }
 
-    drawAll(args: { prizes: PrizeDto[], members: MemberDto[], memberWeights?: number[], prizeWeights?: number[] }): ResultDto[] {
+    drawAll(args: { prizes: PrizeDto[], members: MemberDto[], memberWeights?: number[], prizeWeights?: number[] }): DrawResultDto[] {
         const members = args.members.map(toMember);
         const prizes = args.prizes.map(toPrize);
         const memberWeights = args.memberWeights;
         const prizeWeights = args.prizeWeights;
-        const results: Result[] = [];
+        const results: DrawResultDto[] = [];
 
         // シャッフルしてペアリング（重複なし）
         const shuffledMembers = this.shuffleWithWeights(members, memberWeights);
         const shuffledPrizes = this.shuffleWithWeights(prizes, prizeWeights);
         const count = Math.min(shuffledMembers.length, shuffledPrizes.length);
         for (let i = 0; i < count; i++) {
-            results.push({
-                memberId: shuffledMembers[i].id,
-                prizeId: shuffledPrizes[i].id,
-                order: i + 1,
-                isWinner: true
-            });
+            const memberEntity = shuffledMembers[i];
+            const prizeEntity = shuffledPrizes[i];
+            const memberDto = { ...toMemberDto(memberEntity), order: i + 1 };
+            const prizeDto = { ...toPrizeDto(prizeEntity), order: i + 1 };
+            const drawResult: DrawResultDto = {
+                drawId: `${memberDto.id}_${prizeDto.id}`,
+                member: memberDto,
+                prize: prizeDto,
+                rank: typeof prizeDto.rank === 'string' ? prizeDto.rank : String(prizeDto.rank || "normal")
+            };
+            results.push(drawResult);
+            this.drawResultService?.save({ result: drawResult });
         }
-        // 保存処理（同期）
-        if (this.drawResultService !== undefined) {
-            results.forEach((result, i) => {
-                const memberEntity = shuffledMembers.find(m => m.id === result.memberId)!;
-                const prizeEntity = shuffledPrizes.find(p => p.id === result.prizeId)!;
-                const memberDto = { ...toMemberDto(memberEntity), order: i + 1 };
-                const prizeDto = { ...toPrizeDto(prizeEntity), order: i + 1 };
-                this.drawResultService?.save({
-                    result: {
-                        drawId: `${result.memberId}_${result.prizeId}`,
-                        member: memberDto,
-                        prize: prizeDto,
-                        rank: typeof prizeDto.rank === 'string' ? prizeDto.rank : String(prizeDto.rank || "normal")
-                    }
-                });
-            });
-        }
-        return results.map(toLotteryResultDto);
+        return results;
     }
 
     // --- 抽選ロジック（Strategy） ---

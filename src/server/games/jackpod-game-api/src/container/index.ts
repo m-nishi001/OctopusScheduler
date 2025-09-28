@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { AssetService } from "../application/services/asset-service";
 import { GasService } from "../application/services/gas-service";
 import { LotteryService } from "../application/services/lottery-service";
-import { ResultService } from "../application/services/result-service";
+// import { ResultService } from "../application/services/result-service";
 import { ScreenConfigService } from "../application/services/screen-config-service";
 
 import { DrawResultService } from "../application/services/draw-result-service";
@@ -30,7 +30,7 @@ export class Container {
 
         container.register<GasService>("IGasService", { useClass: ScreenConfigService });
         container.register<GasService>("IGasService", { useClass: LotteryService });
-        container.register<GasService>("IGasService", { useClass: ResultService });
+    // container.register<GasService>("IGasService", { useClass: ResultService });
         container.register<GasService>("IGasService", { useClass: AssetService });
         container.register<GasService>("IGasService", { useClass: DrawResultService });
         container.register<GasService>("IGasService", { useClass: MemberService });
