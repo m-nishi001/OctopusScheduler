@@ -32,7 +32,7 @@ export default {
                 if (currentSlide.value < slides.value.length - 1) {
                     currentSlide.value++;
                 } else {
-                    router.push('/jackpot-draw');
+                    router.push('/jackpot-demo');
                 }
             }
         };

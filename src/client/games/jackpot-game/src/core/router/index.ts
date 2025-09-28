@@ -4,6 +4,8 @@ import ResultView from "../../ui/components/draw/result-view.vue";
 import HistoryView from "../../ui/components/draw/history-view.vue";
 import OpeningView from "../../ui/components/draw/opening-view.vue";
 import DescriptionView from "../../ui/components/draw/description-view.vue";
+import DemoDraw from "../../ui/components/draw/demo-draw.vue";
+import MainDraw from "../../ui/components/draw/main-draw.vue";
 import AdminLayout from "../../ui/components/admin/admin-layout.vue";
 import AdminMembers from "../../ui/components/admin/admin-members.vue";
 import AdminPrizes from "../../ui/components/admin/admin-prizes.vue";
@@ -17,6 +19,8 @@ const jackpotGameRoutes = [
   { path: "/jackpot-history", component: HistoryView },
   { path: "/jackpot-opening", component: OpeningView },
   { path: "/jackpot-description", component: DescriptionView },
+  { path: "/jackpot-demo", component: DemoDraw },
+  { path: "/main-draw", component: MainDraw },
   {
     path: "/jackpot-admin",
     component: AdminLayout,

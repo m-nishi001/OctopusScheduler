@@ -125,7 +125,7 @@ export default {
           result.value = null;
           currentMember.value = members.value[Math.floor(Math.random() * members.value.length)];
         } else if (prizes.value.length === 0) {
-          router.push('/result');
+          router.push('/jackpot-result');
         }
       }
     };
