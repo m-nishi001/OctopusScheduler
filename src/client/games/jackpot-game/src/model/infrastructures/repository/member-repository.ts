@@ -1,10 +1,13 @@
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
+import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
+import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
 
 const MEMBER_CACHE_KEY = "members";
 
-export class MemberRepository {
+@injectable()
+export class MemberRepository implements IMemberRepository {
   /** 差分更新: 変更・新規・削除のみ反映 */
   async saveMembers(newMembers: Member[]): Promise<void> {
     const oldMembers =
@@ -111,9 +114,8 @@ export class MemberRepository {
     });
   }
 
-  async getMemberById(memberId: string): Promise<Member | undefined> {
-    const members = await this.fetchMembers();
-    return members.find((m) => m.id === memberId);
+  async saveMember(member: Member): Promise<void> {
+    await this.addMember(member);
   }
 }
 

@@ -34,9 +34,4 @@ const jackpotGameRoutes = [
   },
 ];
 
-// const router = createRouter({
-//   history: createWebHistory(),
-//   routes,
-// });
-
 export default jackpotGameRoutes;

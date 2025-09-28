@@ -1,10 +1,14 @@
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
+import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
 import type { AssetDto } from "../../applications/dto/asset-dto";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
+import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
+
 const ASSET_CACHE_KEY = "assets";
 
-export class AssetRepository {
+@injectable()
+export class AssetRepository implements IAssetRepository {
   private readonly gasService =
     GasFunctionService.create("callJackpotGameApi")!;
   private readonly localStorage = useLocalStorage();

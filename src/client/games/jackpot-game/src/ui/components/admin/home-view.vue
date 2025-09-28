@@ -17,11 +17,14 @@ import { ref, onMounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import Button from '../common/button.vue';
 import { useRouter } from 'vue-router';
+import { Container } from '../../../core/container';
 
 export default {
   name: 'HomeView',
   components: { MainLayout, Button },
   setup() {
+    Container.register();
+
     const router = useRouter();
     const assetsLoaded = ref(false);
     const progress = ref(0);
