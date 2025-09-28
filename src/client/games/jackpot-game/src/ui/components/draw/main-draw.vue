@@ -4,7 +4,7 @@
       <h2 class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">本抽選画面</h2>
       <div v-if="!drawn">
         <div class="member-box mb-4">
-          <img :src="currentMember.photo" class="w-24 h-24 rounded-full mx-auto mb-2" />
+          <img :src="currentMember.photoUrl" class="w-24 h-24 rounded-full mx-auto mb-2" />
           <div class="text-lg font-bold text-indigo-700">{{ currentMember.name }}</div>
         </div>
         <button @click="runMainDraw"
@@ -36,7 +36,7 @@ import { MemberService } from '../../../model/applications/member-service';
 import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
+import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
 export default {
   name: 'MainDraw',
@@ -44,7 +44,7 @@ export default {
   setup() {
     const router = useRouter();
     // ScreenConfigServiceから取得
-    const screenConfig = ref<ScreenConfig | null>(null);
+    const screenConfig = ref<ScreenConfigDto | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
       screenConfig.value = await screenConfigService.fetchScreenConfig('main');
@@ -68,8 +68,9 @@ export default {
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = () => {
+      if (!screenConfig.value?.bgmAssetUrl) return;
       if (!bgmAudio.value) {
-        bgmAudio.value = new Audio('/assets/bgm/main_bgm.mp3');
+        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
         bgmAudio.value.loop = true;
       }
       bgmAudio.value.play();
@@ -81,7 +82,10 @@ export default {
     });
 
     const playSE = (se: string) => {
-      const seAudio = new Audio(`/assets/se/${se}.mp3`);
+      if (!screenConfig.value?.seAssetUrls) return;
+      const assetUrl = screenConfig.value.seAssetUrls.find(url => url.includes(se));
+      if (!assetUrl) return;
+      const seAudio = new Audio(assetUrl);
       seAudio.play();
     };
 

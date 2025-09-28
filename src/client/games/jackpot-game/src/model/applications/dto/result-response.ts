@@ -1,5 +1,5 @@
-import type { LotteryResultDto } from './lottery-result-dto';
+import type { DrawResultDto } from "./draw-result-dto";
 
 export interface ResultResponse {
-  results: LotteryResultDto[];
+  results: DrawResultDto[];
 }

@@ -1,5 +1,9 @@
+import type { PrizeDto } from "./prize-dto";
+import type { MemberDto } from "./member-dto";
+
 export interface DrawRequest {
-  drawName: string;
-  candidateIds: string[];
-  winnerCount: number;
+  prizes: PrizeDto[];
+  members: MemberDto[];
+  memberWeights?: number[];
+  prizeWeights?: number[];
 }

@@ -25,6 +25,8 @@ import { ResultService } from '../../../model/applications/result-service';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
+import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
+import { ScreenConfigService } from '../../../model/applications/screen-config-service';
 
 export default {
   name: 'ResultView',
@@ -33,19 +35,22 @@ export default {
     const router = useRouter();
     // APIから取得
     const resultService = container.resolve(ResultService);
+    const screenConfigService = container.resolve(ScreenConfigService);
+    const screenConfig = ref<ScreenConfigDto | null>(null);
     const winners = ref<any[]>([]);
     const fetchResults = async () => {
       // 仮のdrawId（本来は画面遷移やstateから取得）
       const drawId = 'main';
       const response = await resultService.getResult(drawId);
+      screenConfig.value = await screenConfigService.fetchScreenConfig('result');
       // APIのresultsをwinners形式に変換（必要に応じて）
       winners.value = response?.results
         ? response.results.map((r: any, idx: number) => ({
           id: idx + 1,
-          name: r.memberName || r.memberId,
-          photo: r.photoAssetId || '/assets/img/member1.png',
-          prize: r.prizeName || r.prizeId,
-          rank: r.rank || 1
+          name: r.member.name,
+          photo: r.member.photoUrl,
+          prize: r.prize.name,
+          rank: r.prize.rank
         }))
         : [];
     };
@@ -56,8 +61,9 @@ export default {
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = () => {
+      if (!screenConfig.value?.bgmAssetUrl) return;
       if (!bgmAudio.value) {
-        bgmAudio.value = new Audio('/assets/bgm/result_bgm.mp3');
+        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
         bgmAudio.value.loop = true;
       }
       bgmAudio.value.play();

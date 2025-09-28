@@ -13,7 +13,17 @@ export class MemberService {
   async fetchMembers(): Promise<MemberDto[]> {
     const members = await this.repo.fetchMembers();
     if (!Array.isArray(members) || !members) return [];
-    return members.map((m) => ({ ...m }));
+    // アセットIDをURLに解決
+    const resolvedMembers = await Promise.all(
+      members.map(async (m) => {
+        if (m.photoAssetId) {
+          const asset = await this.assetRepo.getAssetById(m.photoAssetId);
+          return { ...m, photoUrl: asset?.url };
+        }
+        return m;
+      })
+    );
+    return resolvedMembers;
   }
 
   async addMember(member: MemberDto): Promise<void> {

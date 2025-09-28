@@ -23,7 +23,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
+import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
 import { container } from 'tsyringe';
 export default {
@@ -32,7 +32,7 @@ export default {
   setup() {
     const router = useRouter();
     // ScreenConfigServiceから取得
-    const screenConfig = ref<ScreenConfig | null>(null);
+    const screenConfig = ref<ScreenConfigDto | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
       screenConfig.value = await screenConfigService.fetchScreenConfig('demo');
@@ -46,8 +46,9 @@ export default {
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = () => {
+      if (!screenConfig.value?.bgmAssetUrl) return;
       if (!bgmAudio.value) {
-        bgmAudio.value = new Audio('/assets/bgm/demo_bgm.mp3');
+        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
         bgmAudio.value.loop = true;
       }
       bgmAudio.value.play();
@@ -57,7 +58,10 @@ export default {
     });
 
     const playSE = (se: string) => {
-      const seAudio = new Audio(`/assets/se/${se}.mp3`);
+      if (!screenConfig.value?.seAssetUrls) return;
+      const assetUrl = screenConfig.value.seAssetUrls.find(url => url.includes(se));
+      if (!assetUrl) return;
+      const seAudio = new Audio(assetUrl);
       seAudio.play();
     };
 

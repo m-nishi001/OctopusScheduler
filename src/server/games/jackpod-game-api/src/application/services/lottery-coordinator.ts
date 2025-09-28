@@ -9,6 +9,7 @@ import { DrawResultDto } from "../dtos/draw-result.dto";
 import { GasService } from "./gas-service";
 import { DrawStrategy } from "../../domain/draw-strategies/draw-strategy";
 import { DrawPairingService } from "./draw-pairing-service";
+import { DrawResultService } from "./draw-result-service";
 
 @injectable()
 export class LotteryCoordinator implements GasService {
@@ -19,12 +20,14 @@ export class LotteryCoordinator implements GasService {
     @inject("MemberDrawStrategy")
     private memberDrawStrategy: DrawStrategy<Member>,
     @inject("PrizeDrawStrategy") private prizeDrawStrategy: DrawStrategy<Prize>,
-    @inject(DrawPairingService) private drawPairingService: DrawPairingService
+    @inject(DrawPairingService) private drawPairingService: DrawPairingService,
+    @inject(DrawResultService) private drawResultService: DrawResultService
   ) {
     this.functions = {
       drawMember: this.drawMember.bind(this),
       drawPrize: this.drawPrize.bind(this),
       drawAll: this.drawAll.bind(this),
+      draw: this.draw.bind(this),
     };
   }
 
@@ -58,5 +61,22 @@ export class LotteryCoordinator implements GasService {
       args.memberWeights,
       args.prizeWeights
     );
+  }
+
+  draw(args: {
+    prizes: PrizeDto[];
+    members: MemberDto[];
+    memberWeights?: number[];
+    prizeWeights?: number[];
+  }): { drawId: string; status: "completed" } {
+    const drawId = `draw_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    const results = this.drawAll(args);
+    for (const result of results) {
+      result.drawId = drawId;
+      this.drawResultService.save({ result });
+    }
+    return { drawId, status: "completed" };
   }
 }

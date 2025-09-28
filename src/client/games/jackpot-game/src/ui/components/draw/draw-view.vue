@@ -1,16 +1,22 @@
 <template>
   <MainLayout>
     <h2 class="jp-title">抽選実行</h2>
-    <Button @click="executeDraw" :disabled="loading">抽選する</Button>
+    <Button @click="executeDraw" :disabled="loading || currentStep !== 'idle'">抽選開始</Button>
     <Loader v-if="loading" />
-    <Modal :visible="showResult" @close="showResult = false">
-      <h3 class="jp-modal-title">抽選結果</h3>
-      <ul class="jp-winner-list">
-        <li v-for="winner in winners" :key="winner.memberId" class="jp-winner-item">{{ getMemberName(winner.memberId) }}
-        </li>
-      </ul>
+    <div v-if="currentStep === 'member'" class="selection-area">
+      <h3>メンバー選出</h3>
+      <div class="member-display" ref="memberDisplay">{{ selectedMember?.name }}</div>
+      <p>Enterキーで景品抽選へ</p>
+    </div>
+    <div v-if="currentStep === 'prize'" class="selection-area">
+      <h3>景品抽選</h3>
+      <div class="prize-display" ref="prizeDisplay">{{ selectedPrize?.name }}</div>
+      <p>Enterキーで次へ</p>
+    </div>
+    <div v-if="currentStep === 'finished'" class="finished-area">
+      <h3>抽選終了</h3>
       <Button @click="goResult">結果画面へ</Button>
-    </Modal>
+    </div>
   </MainLayout>
   <style scoped>
     .jp-title {
@@ -21,44 +27,119 @@
       font-family: 'Orbitron', 'Montserrat', sans-serif;
     }
 
-    .jp-modal-title {
-      font-size: 1.5em;
-      color: #2a5298;
-      margin-bottom: 18px;
-      font-family: 'Orbitron', 'Montserrat', sans-serif;
+    .selection-area {
+      margin-top: 32px;
+      text-align: center;
     }
 
-    .jp-winner-list {
-      list-style: none;
-      padding: 0;
-      margin-bottom: 24px;
-    }
-
-    .jp-winner-item {
-      background: linear-gradient(90deg, #e3eafc 0%, #fff 100%);
-      color: #2a5298;
-      font-size: 1.1em;
-      font-family: 'Montserrat', sans-serif;
-      margin: 8px 0;
-      padding: 10px 18px;
+    .member-display,
+    .prize-display {
+      font-size: 2em;
+      color: #fff;
+      margin: 20px 0;
+      padding: 20px;
+      background: #232b36;
       border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(42, 82, 152, 0.08);
+    }
+
+    .finished-area {
+      margin-top: 32px;
+      text-align: center;
     }
   </style>
 </template>
 
 <script lang="ts">
+import { ref } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import Button from '../common/button.vue';
 import Loader from '../common/loader.vue';
-import Modal from '../common/modal.vue';
-import { useDraw } from '../../composables/use-draw';
+import { DrawService } from '../../../model/applications/draw-service';
+import { ResultService } from '../../../model/applications/result-service';
+import { PrizeService } from '../../../model/applications/prize-service';
+import { MemberService } from '../../../model/applications/member-service';
+import type { MemberDto } from '../../../model/applications/dto/member-dto';
+import type { PrizeDto } from '../../../model/applications/dto/prize-dto';
+import type { DrawResultDto } from '../../../model/applications/dto/draw-result-dto';
+import { useRouter } from 'vue-router';
+import { container } from 'tsyringe';
+import gsap from 'gsap';
 
 export default {
   name: 'DrawView',
-  components: { MainLayout, Button, Loader, Modal },
+  components: { MainLayout, Button, Loader },
   setup() {
-    return useDraw();
+    const loading = ref(false);
+    const currentStep = ref<'idle' | 'member' | 'prize' | 'finished'>('idle');
+    const selectedMember = ref<MemberDto | null>(null);
+    const selectedPrize = ref<PrizeDto | null>(null);
+    const remainingPrizes = ref<PrizeDto[]>([]);
+    const remainingMembers = ref<MemberDto[]>([]);
+    const results = ref<DrawResultDto[]>([]);
+    const router = useRouter();
+    const drawService = container.resolve(DrawService);
+    const resultService = container.resolve(ResultService);
+    const prizeService = container.resolve(PrizeService);
+    const memberService = container.resolve(MemberService);
+    const memberDisplay = ref<HTMLElement | null>(null);
+    const prizeDisplay = ref<HTMLElement | null>(null);
+
+    const executeDraw = async () => {
+      loading.value = true;
+      try {
+        const members = await memberService.fetchMembers();
+        const prizes = await prizeService.fetchPrizes();
+        remainingMembers.value = [...members];
+        remainingPrizes.value = [...prizes];
+        results.value = [];
+
+        const drawRes = await drawService.executeDraw({
+          prizes: prizes,
+          members: members,
+        });
+        const resultRes = await resultService.getResult(drawRes.drawId);
+        results.value = resultRes?.results ?? [];
+
+        // 演出ループ (実際の結果を使って)
+        for (const result of results.value) {
+          // member selection
+          currentStep.value = 'member';
+          selectedMember.value = result.member;
+          if (memberDisplay.value) {
+            gsap.fromTo(memberDisplay.value, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5 });
+          }
+          await waitForEnter();
+
+          // prize selection
+          currentStep.value = 'prize';
+          selectedPrize.value = result.prize;
+          if (prizeDisplay.value) {
+            gsap.fromTo(prizeDisplay.value, { rotation: 0, opacity: 0 }, { rotation: 360, opacity: 1, duration: 1, ease: 'power2.out' });
+          }
+          await waitForEnter();
+        }
+
+        currentStep.value = 'finished';
+      } finally {
+        loading.value = false;
+      }
+    };
+
+    const waitForEnter = () => {
+      return new Promise<void>((resolve) => {
+        const handler = (e: KeyboardEvent) => {
+          if (e.key === 'Enter') {
+            document.removeEventListener('keydown', handler);
+            resolve();
+          }
+        };
+        document.addEventListener('keydown', handler);
+      });
+    };
+
+    const goResult = () => router.push('/jackpot-result');
+
+    return { loading, currentStep, selectedMember, selectedPrize, executeDraw, goResult, memberDisplay, prizeDisplay };
   },
 };
 </script>

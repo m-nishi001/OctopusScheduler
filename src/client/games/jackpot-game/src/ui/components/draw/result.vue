@@ -6,8 +6,8 @@
 			<div v-if="loading">結果取得中...</div>
 			<div v-else class="result-list" style="max-height:300px;overflow-y:auto;">
 				<ul>
-					<li v-for="w in winners" :key="w.memberId" style="margin-bottom:1em;">
-						<span class="winner-name">{{ getMemberName(w.memberId) }}</span>
+					<li v-for="w in winners" :key="w.member.id" style="margin-bottom:1em;">
+						<span class="winner-name">{{ w.member.name }}</span>
 					</li>
 				</ul>
 			</div>
@@ -19,7 +19,7 @@ import MainLayout from '../common/main-layout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ResultService } from '../../../model/applications/result-service';
-import type { LotteryResultDto } from '../../../model/applications/dto/lottery-result-dto';
+import type { DrawResultDto } from '../../../model/applications/dto/draw-result-dto';
 import type { MemberDto } from '../../../model/applications/dto/member-dto';
 import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
@@ -30,14 +30,14 @@ export default {
 	components: { MainLayout },
 	setup() {
 		const router = useRouter();
-		const winners = ref<LotteryResultDto[]>([]);
+		const winners = ref<DrawResultDto[]>([]);
 		const members = ref<MemberDto[]>([]);
 		const loading = ref(true);
 		const resultService = container.resolve(ResultService);
 
-	// ScreenConfigServiceから取得
-	const screenConfig = ref<ScreenConfig | null>(null);
-	const screenConfigService = container.resolve(ScreenConfigService);
+		// ScreenConfigServiceから取得
+		const screenConfig = ref<ScreenConfig | null>(null);
+		const screenConfigService = container.resolve(ScreenConfigService);
 		onMounted(async () => {
 			screenConfig.value = await screenConfigService.fetchScreenConfig('result');
 			fetchResult();

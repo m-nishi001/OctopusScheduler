@@ -23,7 +23,7 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import ProgressBar from './progress-bar.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
+import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
 import { container } from 'tsyringe';
 export default {
@@ -36,7 +36,7 @@ export default {
     const goAdmin = () => router.push('/jackpot-admin');
 
     // ScreenConfigServiceから取得
-    const screenConfig = ref<ScreenConfig | null>(null);
+    const screenConfig = ref<ScreenConfigDto | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
       screenConfig.value = await screenConfigService.fetchScreenConfig('home');
@@ -56,9 +56,9 @@ export default {
     // BGM/SE制御（DL完了後再生開始）
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = () => {
-      if (!screenConfig.value?.bgmAssetId) return;
+      if (!screenConfig.value?.bgmAssetUrl) return;
       if (!bgmAudio.value) {
-        bgmAudio.value = new Audio(`/assets/bgm/${screenConfig.value.bgmAssetId.replace('asset_bgm_', '')}.mp3`);
+        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
         bgmAudio.value.loop = true;
       }
       bgmAudio.value.play();
@@ -89,12 +89,11 @@ export default {
         if (autoTimer) window.clearTimeout(autoTimer);
       }
     });
-  return { goOpening, goAdmin, autoNavigate, screenConfig, progress };
+    return { goOpening, goAdmin, autoNavigate, screenConfig, progress };
   },
 };
 </script>
 <style scoped>
-
 .auto-navi {
   margin-bottom: 1em;
   text-align: center;

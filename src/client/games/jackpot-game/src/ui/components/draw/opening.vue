@@ -7,7 +7,7 @@
             <h2 class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">{{ el.content }}</h2>
           </template>
           <template v-if="el.type === 'image'">
-            <img :src="el.assetId" class="mx-auto mb-4" />
+            <img :src="el.assetUrl" class="mx-auto mb-4" />
           </template>
         </div>
       </transition-group>
@@ -20,7 +20,7 @@
 import { ref, onMounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
+import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
 import { container } from 'tsyringe';
 export default {
@@ -28,7 +28,7 @@ export default {
   components: { MainLayout },
   setup() {
     // ScreenConfigServiceから取得
-    const screenConfig = ref<ScreenConfig | null>(null);
+    const screenConfig = ref<ScreenConfigDto | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
       screenConfig.value = await screenConfigService.fetchScreenConfig('opening');
@@ -39,9 +39,9 @@ export default {
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = () => {
-      if (!screenConfig.value?.bgmAssetId) return;
+      if (!screenConfig.value?.bgmAssetUrl) return;
       if (!bgmAudio.value) {
-        bgmAudio.value = new Audio(`/assets/bgm/${screenConfig.value.bgmAssetId.replace('asset_bgm_', '')}.mp3`);
+        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
         bgmAudio.value.loop = true;
       }
       bgmAudio.value.play();
@@ -49,16 +49,16 @@ export default {
 
     // SE再生
     const playSE = (seType: string) => {
-      if (!screenConfig.value?.seAssetIds) return;
+      if (!screenConfig.value?.seAssetUrls) return;
       // seType: 'scroll' or 'fade' など
-      const assetId = screenConfig.value.seAssetIds.find(id => id.includes(seType));
-      if (!assetId) return;
-      const seAudio = new Audio(`/assets/se/${assetId.replace('asset_se_', '')}.mp3`);
+      const assetUrl = screenConfig.value.seAssetUrls.find(url => url.includes(seType));
+      if (!assetUrl) return;
+      const seAudio = new Audio(assetUrl);
       seAudio.play();
     };
 
     // スクロールアニメーション要素表示
-    const visibleElements = ref<ScreenConfig['elements']>([]);
+    const visibleElements = ref<ScreenConfigDto['elements']>([]);
     let idx = 0;
     const showNext = () => {
       if (!screenConfig.value) return;

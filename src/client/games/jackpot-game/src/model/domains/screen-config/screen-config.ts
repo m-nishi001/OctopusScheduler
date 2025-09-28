@@ -1,13 +1,28 @@
-export type ScreenType = 'home' | 'opening' | 'description' | 'demo' | 'main' | 'result' | 'admin';
+export type ScreenType =
+  | "home"
+  | "opening"
+  | "description"
+  | "demo"
+  | "main"
+  | "result"
+  | "admin";
 
 export interface AnimationSettings {
-  type: 'fade' | 'zoom' | 'scroll' | 'slide' | 'particle' | 'custom';
+  type: "fade" | "zoom" | "scroll" | "slide" | "particle" | "custom";
   duration?: number;
   delay?: number;
   params?: Record<string, any>;
 }
 
-export type ScreenElementType = 'text' | 'image' | 'video' | 'button' | 'progress' | 'list' | 'modal' | 'bgm';
+export type ScreenElementType =
+  | "text"
+  | "image"
+  | "video"
+  | "button"
+  | "progress"
+  | "list"
+  | "modal"
+  | "bgm";
 
 export interface ScreenElement {
   id: string;

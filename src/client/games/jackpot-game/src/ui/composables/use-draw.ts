@@ -1,6 +1,7 @@
 import { ref } from "vue";
-import type { LotteryResultDto } from "../../model/applications/dto/lottery-result-dto";
+import type { DrawResultDto } from "../../model/applications/dto/draw-result-dto";
 import type { MemberDto } from "../../model/applications/dto/member-dto";
+import type { PrizeDto } from "../../model/applications/dto/prize-dto";
 import { DrawService } from "../../model/applications/draw-service";
 import { ResultService } from "../../model/applications/result-service";
 import { useRouter } from "vue-router";
@@ -9,8 +10,9 @@ import { container } from "tsyringe";
 export function useDraw() {
   const loading = ref(false);
   const showResult = ref(false);
-  const winners = ref<LotteryResultDto[]>([]);
+  const winners = ref<DrawResultDto[]>([]);
   const members = ref<MemberDto[]>([]);
+  const prizes = ref<PrizeDto[]>([]);
   const router = useRouter();
   const drawService = container.resolve(DrawService);
   const resultService = container.resolve(ResultService);
@@ -18,19 +20,23 @@ export function useDraw() {
   const executeDraw = async () => {
     loading.value = true;
     try {
-      const drawRes = await drawService.executeDraw({
-        drawName: "抽選",
-        candidateIds: ["1", "2", "3"],
-        winnerCount: 1,
-      });
-      const resultRes = await resultService.getResult(drawRes.drawId);
-      winners.value = resultRes?.results ?? [];
-      // 仮: メンバー情報を取得するAPI呼び出し（本来はServiceから取得）
+      // 仮データ
       members.value = [
         { id: "1", name: "山田太郎", order: 1 },
         { id: "2", name: "佐藤花子", order: 2 },
         { id: "3", name: "鈴木一郎", order: 3 },
       ];
+      prizes.value = [
+        { id: "p1", name: "景品A", rank: 1, order: 1 },
+        { id: "p2", name: "景品B", rank: 2, order: 2 },
+        { id: "p3", name: "景品C", rank: 3, order: 3 },
+      ];
+      const drawRes = await drawService.executeDraw({
+        prizes: prizes.value,
+        members: members.value,
+      });
+      const resultRes = await resultService.getResult(drawRes.drawId);
+      winners.value = resultRes?.results ?? [];
       showResult.value = true;
     } finally {
       loading.value = false;
