@@ -13,7 +13,6 @@ export class DrawResultRepository implements IDrawResultRepository {
         this.repository = SpreadsheetService.getService<DrawResult>(this.sheetName);
     }
 
-
     findAll(): DrawResult[] {
         return this.repository.find((r: DrawResult) => true);
     }

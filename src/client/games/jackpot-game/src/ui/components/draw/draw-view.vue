@@ -58,6 +58,7 @@ import type { MemberDto } from '../../../model/applications/dto/member-dto';
 import { DrawService } from '../../../model/applications/draw-service';
 import { ResultService } from '../../../model/applications/result-service';
 import { useRouter } from 'vue-router';
+import { container } from 'tsyringe';
 
 export default {
   name: 'DrawView',
@@ -68,8 +69,8 @@ export default {
     const winners = ref<LotteryResultDto[]>([]);
     const members = ref<MemberDto[]>([]);
     const router = useRouter();
-    const drawService = new DrawService();
-    const resultService = new ResultService();
+    const drawService = container.resolve(DrawService);
+    const resultService = container.resolve(ResultService);
     const executeDraw = async () => {
       loading.value = true;
       try {

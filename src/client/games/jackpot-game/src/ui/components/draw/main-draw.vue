@@ -33,6 +33,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { PrizeService } from '../../../model/applications/prize-service';
 import { MemberService } from '../../../model/applications/member-service';
+import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
@@ -44,7 +45,7 @@ export default {
     const router = useRouter();
     // ScreenConfigServiceから取得
     const screenConfig = ref<ScreenConfig | null>(null);
-    const screenConfigService = new ScreenConfigService();
+    const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
       screenConfig.value = await screenConfigService.fetchScreenConfig('main');
       fetchPrizes();
@@ -53,8 +54,8 @@ export default {
     });
 
     // APIから取得
-    const prizeService = new PrizeService();
-    const memberService = new MemberService();
+    const prizeService = container.resolve(PrizeService);
+    const memberService = container.resolve(MemberService);
     const prizes = ref<any[]>([]);
     const members = ref<any[]>([]);
     const fetchPrizes = async () => {
@@ -84,8 +85,8 @@ export default {
       seAudio.play();
     };
 
-  // メンバー選出
-  const currentMember = ref<any>(null);
+    // メンバー選出
+    const currentMember = ref<any>(null);
 
     // 抽選ロジック
     const drawn = ref(false);
@@ -100,7 +101,7 @@ export default {
       // ランダムメンバー選出
       currentMember.value = members.value[Math.floor(Math.random() * members.value.length)];
       setTimeout(() => {
-  result.value = { member: currentMember.value?.name, prize: typeof prize === 'string' ? prize : prize.name };
+        result.value = { member: currentMember.value?.name, prize: typeof prize === 'string' ? prize : prize.name };
         drawn.value = true;
         prizes.value.splice(prizeIdx, 1);
         // 残り半分でモーダル表示

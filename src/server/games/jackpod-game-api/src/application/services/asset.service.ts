@@ -25,10 +25,29 @@ export class AssetService implements GasService {
     }
 
     // GAS API用
-    uploadAsset(args: { fileName: string; mimeType: string; dataUrl: string }): { assetId: string } {
+    uploadAsset(args: { fileName: string; mimeType: string; dataUrl: string }): { asset: AssetDto } {
         const blob = AssetRepositoryImplStatic.convertToBlobFromDataUrl(args.dataUrl, args.fileName, args.mimeType);
         const assetId = AssetRepositoryImplStatic.uploadAsset(args.fileName, args.mimeType, blob);
-        return { assetId };
+        // Driveから保存済みアセット情報を取得
+        const file = AssetRepositoryImplStatic.getAssetById(assetId);
+        const asset: AssetDto = file ? {
+            id: file.getId(),
+            type: args.mimeType.startsWith('image/') ? 'image' : args.mimeType.startsWith('video/') ? 'video' : args.mimeType.startsWith('audio/') ? 'audio' : 'text',
+            url: '',
+            name: file.getName(),
+            uploadedAt: '',
+            size: file.getSize(),
+            meta: {}
+        } : {
+            id: assetId,
+            type: 'image',
+            url: '',
+            name: args.fileName,
+            uploadedAt: '',
+            size: 0,
+            meta: {}
+        };
+        return { asset };
     }
 
     deleteAsset(args: { assetId: string }): { success: boolean } {

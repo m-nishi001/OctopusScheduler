@@ -28,8 +28,10 @@ export class MemberService implements GasService {
         return member ? toMemberDto(member) : null;
     }
 
-    save(args: { member: MemberDto }): void {
-        this.repository.save(toMember(args.member));
+    save(args: { member: MemberDto }): { member: MemberDto } {
+        const saved = this.repository.save(toMember(args.member));
+        // ID採番済みのMemberをDTO化して返却
+        return { member: toMemberDto(saved) };
     }
 
     delete(args: { id: string }): void {

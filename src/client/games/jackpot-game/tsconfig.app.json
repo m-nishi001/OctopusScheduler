@@ -7,9 +7,11 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": true,
+  "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
+  ,"experimentalDecorators": true
+  ,"emitDecoratorMetadata": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

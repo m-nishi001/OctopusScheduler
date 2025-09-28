@@ -13,7 +13,6 @@ export class MemberRepository implements IMemberRepository {
         this.repository = SpreadsheetService.getService<Member>(this.sheetName);
     }
 
-
     findAll(): Member[] {
         return this.repository.find((m: Member) => true);
     }
@@ -26,8 +25,8 @@ export class MemberRepository implements IMemberRepository {
         return this.repository.find((m: Member) => ids.includes(m.id));
     }
 
-    save(member: Member): void {
-        this.repository.add(member);
+    save(member: Member): Member {
+        return this.repository.add(member);
     }
 
     update(id: string, updateEntity: (member: Member) => Member): number {

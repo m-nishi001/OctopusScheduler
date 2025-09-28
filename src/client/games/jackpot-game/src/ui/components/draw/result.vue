@@ -23,6 +23,7 @@ import type { LotteryResultDto } from '../../../model/applications/dto/lottery-r
 import type { MemberDto } from '../../../model/applications/dto/member-dto';
 import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
+import { container } from 'tsyringe';
 
 export default {
 	name: 'Result',
@@ -32,11 +33,11 @@ export default {
 		const winners = ref<LotteryResultDto[]>([]);
 		const members = ref<MemberDto[]>([]);
 		const loading = ref(true);
-		const resultService = new ResultService();
+		const resultService = container.resolve(ResultService);
 
-		// ScreenConfigServiceから取得
-		const screenConfig = ref<ScreenConfig | null>(null);
-		const screenConfigService = new ScreenConfigService();
+	// ScreenConfigServiceから取得
+	const screenConfig = ref<ScreenConfig | null>(null);
+	const screenConfigService = container.resolve(ScreenConfigService);
 		onMounted(async () => {
 			screenConfig.value = await screenConfigService.fetchScreenConfig('result');
 			fetchResult();

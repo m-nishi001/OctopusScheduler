@@ -25,6 +25,7 @@ import ProgressBar from './progress-bar.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
+import { container } from 'tsyringe';
 export default {
   name: 'Home',
   components: { MainLayout, ProgressBar },
@@ -36,7 +37,7 @@ export default {
 
     // ScreenConfigServiceから取得
     const screenConfig = ref<ScreenConfig | null>(null);
-    const screenConfigService = new ScreenConfigService();
+    const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
       screenConfig.value = await screenConfigService.fetchScreenConfig('home');
     });

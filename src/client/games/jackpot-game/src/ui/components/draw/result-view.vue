@@ -24,6 +24,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { ResultService } from '../../../model/applications/result-service';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
+import { container } from 'tsyringe';
 
 export default {
   name: 'ResultView',
@@ -31,7 +32,7 @@ export default {
   setup() {
     const router = useRouter();
     // APIから取得
-    const resultService = new ResultService();
+    const resultService = container.resolve(ResultService);
     const winners = ref<any[]>([]);
     const fetchResults = async () => {
       // 仮のdrawId（本来は画面遷移やstateから取得）

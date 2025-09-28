@@ -24,6 +24,7 @@ import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfig, ScreenElement } from '../../../model/domains/screen-config/screen-config';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
+import { container } from 'tsyringe';
 export default {
 	name: 'Description',
 	components: { MainLayout },
@@ -31,7 +32,7 @@ export default {
 		const router = useRouter();
 			// ScreenConfigServiceから取得
 			const screenConfig = ref<ScreenConfig | null>(null);
-			const screenConfigService = new ScreenConfigService();
+			const screenConfigService = container.resolve(ScreenConfigService);
 			const slideIndex = ref(0);
 			const currentSlide = ref<ScreenElement | null>(null);
 			onMounted(async () => {

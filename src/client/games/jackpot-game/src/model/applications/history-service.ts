@@ -1,18 +1,21 @@
 import type { HistoryDto } from './dto/history-dto';
-import { HistoryRepository } from '../infrastructures/repository/history-repository';
+import type { LotteryResultDto } from './dto/lottery-result-dto';
+import { injectable, inject } from 'tsyringe';
+import type { IHistoryRepository } from '../domains/history/repository/IHistoryRepository';
 
+@injectable()
 export class HistoryService {
-    private readonly repo = new HistoryRepository();
+    constructor(@inject("IHistoryRepository") private repo: IHistoryRepository) {}
     async getHistory(): Promise<HistoryDto[]> {
         const history = await this.repo.getHistory();
         // DrawResult[] -> LotteryResultDto[] へ変換
         return history.map(h => ({
             id: h.id,
             drawName: h.drawName,
-            result: h.result?.results
-                ? h.result.results.map(r => ({
-                    memberId: r.member.id,
-                    prizeId: r.prize.id,
+            result: Array.isArray(h.result)
+                ? h.result.map((r: LotteryResultDto) => ({
+                    memberId: r.memberId,
+                    prizeId: r.prizeId,
                     order: r.order,
                     isWinner: r.isWinner
                 }))

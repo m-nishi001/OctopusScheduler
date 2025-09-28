@@ -1,9 +1,11 @@
 import type { DrawRequest } from './dto/draw-request';
 import type { DrawResponse } from './dto/draw-response';
-import { DrawRepository } from '../infrastructures/repository/draw-repository';
+import { injectable, inject } from 'tsyringe';
+import type { IDrawRepository } from '../domains/draw/repository/IDrawRepository';
 
+@injectable()
 export class DrawService {
-    private readonly repo = new DrawRepository();
+    constructor(@inject("IDrawRepository") private repo: IDrawRepository) {}
     async executeDraw(request: DrawRequest): Promise<DrawResponse> {
         return await this.repo.executeDraw(request);
     }
