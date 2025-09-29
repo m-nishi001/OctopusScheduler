@@ -2,7 +2,34 @@
   <button class="admin-btn mt-4" @click="savePrizes">保存</button>
   <div class="admin-section">
     <h2>景品管理</h2>
-    <form class="admin-form" @submit.prevent="addPrize">
+    <div class="admin-controls">
+      <select v-model="sortBy" @change="sortPrizes" class="admin-input">
+        <option value="name">名前順</option>
+        <option value="rank">ランク順</option>
+        <option value="order">追加順</option>
+      </select>
+      <button class="admin-btn" @click="showAddModal = true">追加</button>
+      <button class="admin-btn" @click="bulkDelete" :disabled="selectedPrizes.length === 0">一括削除</button>
+    </div>
+    <div class="admin-grid">
+      <div v-for="(prize, idx) in prizes" :key="idx" class="admin-card">
+        <input type="checkbox" v-model="selectedPrizes" :value="idx" class="admin-checkbox" />
+        <div class="admin-card-content">
+          <img v-if="prize.imageAssetId" :src="prize.imageAssetId" alt="image" class="admin-thumbnail" />
+          <div v-else class="admin-thumbnail-placeholder">No Image</div>
+          <h3>{{ prize.name }}</h3>
+          <p>ランク: {{ prize.rank }}</p>
+          <p v-if="prize.description">説明: {{ prize.description }}</p>
+          <button class="admin-btn" @click="editPrize(idx)">編集</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 追加モーダル -->
+  <div v-if="showAddModal" class="admin-modal" @click="showAddModal = false">
+    <div class="admin-modal-content" @click.stop>
+      <h3>景品追加</h3>
       <input v-model="prizeName" type="text" placeholder="景品名" class="admin-input" />
       <input type="file" @change="onImageChange" accept="image/*" class="admin-input" />
       <div v-if="imagePreview" class="admin-photo-preview">
@@ -16,24 +43,18 @@
         <option value="中">中</option>
         <option value="低">低</option>
       </select>
-      <button type="submit" class="admin-btn">追加</button>
-    </form>
-    <ul class="admin-list">
-      <li v-for="(prize, idx) in prizes" :key="idx" class="admin-list-item">
-        <span>{{ prize.name }}（{{ prize.rank }}）</span>
-        <span v-if="prize.imageAssetId">
-          <img :src="prize.imageAssetId" alt="image" style="max-width:40px;max-height:40px;vertical-align:middle;" />
-        </span>
-        <span v-if="prize.description">説明: {{ prize.description }}</span>
-        <span v-if="prize.bgmAssetId">BGM: {{ prize.bgmAssetId }}</span>
-        <span v-if="prize.seAssetIds && prize.seAssetIds.length">SE: {{ prize.seAssetIds.join(', ') }}</span>
-        <button class="admin-btn ml-2" @click="editPrize(idx)">編集</button>
-        <button class="admin-btn ml-2" @click="deletePrize(idx)">削除</button>
-      </li>
-    </ul>
-    <div v-if="editIdx !== null" class="admin-edit-box">
+      <div class="admin-modal-buttons">
+        <button class="admin-btn" @click="addPrize">追加</button>
+        <button class="admin-btn" @click="showAddModal = false">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 編集モーダル -->
+  <div v-if="editIdx !== null" class="admin-modal" @click="editIdx = null">
+    <div class="admin-modal-content" @click.stop>
       <h3>景品編集</h3>
-      <input v-model="editName" type="text" class="admin-input" />
+      <input v-model="editName" type="text" placeholder="景品名" class="admin-input" />
       <select v-model="editRank" class="admin-input">
         <option value="高">高</option>
         <option value="中">中</option>
@@ -46,8 +67,10 @@
       <input v-model="editDescriptionInput" type="text" placeholder="説明" class="admin-input" />
       <input v-model="editBgmAssetIdInput" type="text" placeholder="BGM Asset ID" class="admin-input" />
       <input v-model="editSeAssetIdsInput" type="text" placeholder="SE Asset IDs（カンマ区切り）" class="admin-input" />
-      <button class="admin-btn" @click="saveEdit">保存</button>
-      <button class="admin-btn ml-2" @click="cancelEdit">キャンセル</button>
+      <div class="admin-modal-buttons">
+        <button class="admin-btn" @click="saveEdit">保存</button>
+        <button class="admin-btn" @click="editIdx = null">キャンセル</button>
+      </div>
     </div>
   </div>
 </template>
@@ -59,6 +82,9 @@ import { container } from 'tsyringe';
 const prizeService = container.resolve(PrizeService);
 const prizes = ref<any[]>([]);
 const originalPrizes = ref<any[]>([]);
+const selectedPrizes = ref<number[]>([]);
+const sortBy = ref('name');
+const showAddModal = ref(false);
 const isPrizeChanged = (prize: any, original: any) => {
   return JSON.stringify(prize) !== JSON.stringify(original);
 };
@@ -79,6 +105,24 @@ const savePrizes = async () => {
 const fetchPrizes = async () => {
   prizes.value = await prizeService.fetchPrizes();
   originalPrizes.value = JSON.parse(JSON.stringify(prizes.value));
+  sortPrizes();
+};
+const sortPrizes = () => {
+  if (sortBy.value === 'name') {
+    prizes.value.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortBy.value === 'rank') {
+    const rankOrder: Record<string, number> = { '高': 1, '中': 2, '低': 3 };
+    prizes.value.sort((a, b) => rankOrder[a.rank] - rankOrder[b.rank]);
+  } else if (sortBy.value === 'order') {
+    prizes.value.sort((a, b) => a.order - b.order);
+  }
+};
+const bulkDelete = () => {
+  selectedPrizes.value.sort((a, b) => b - a);
+  for (const idx of selectedPrizes.value) {
+    prizes.value.splice(idx, 1);
+  }
+  selectedPrizes.value = [];
 };
 const prizeName = ref('');
 const prizeRank = ref('高');
@@ -106,7 +150,8 @@ const addPrize = () => {
     imageAssetId: imageAssetId.value,
     description: descriptionInput.value,
     bgmAssetId: bgmAssetIdInput.value,
-    seAssetIds: seAssetIdsInput.value ? seAssetIdsInput.value.split(',').map(a => a.trim()) : []
+    seAssetIds: seAssetIdsInput.value ? seAssetIdsInput.value.split(',').map(a => a.trim()) : [],
+    order: prizes.value.length + 1
   } as any);
   prizeName.value = '';
   prizeRank.value = '高';
@@ -115,6 +160,8 @@ const addPrize = () => {
   descriptionInput.value = '';
   bgmAssetIdInput.value = '';
   seAssetIdsInput.value = '';
+  showAddModal.value = false;
+  sortPrizes();
 };
 const editIdx = ref<number | null>(null);
 const editName = ref('');
@@ -164,20 +211,7 @@ const saveEdit = () => {
   editDescriptionInput.value = '';
   editBgmAssetIdInput.value = '';
   editSeAssetIdsInput.value = '';
-};
-const cancelEdit = () => {
-  editIdx.value = null;
-  editName.value = '';
-  editRank.value = '高';
-  editImageAssetId.value = '';
-  editImagePreview.value = '';
-  editDescriptionInput.value = '';
-  editBgmAssetIdInput.value = '';
-  editSeAssetIdsInput.value = '';
-};
-const deletePrize = (idx: number) => {
-  // TODO: API経由で削除する実装に変更
-  prizes.value.splice(idx, 1);
+  sortPrizes();
 };
 
 onMounted(() => {
@@ -190,11 +224,11 @@ onMounted(() => {
   margin-bottom: 32px;
 }
 
-.admin-form {
+.admin-controls {
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
-  flex-wrap: wrap;
+  align-items: center;
 }
 
 .admin-input {
@@ -226,20 +260,134 @@ onMounted(() => {
   background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
 }
 
-.admin-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+.admin-btn:disabled {
+  background: #555;
+  cursor: not-allowed;
 }
 
-.admin-list-item {
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.admin-card {
   background: #232b36;
   color: #fff;
-  padding: 10px 16px;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.admin-checkbox {
+  margin-bottom: 8px;
+}
+
+.admin-card-content {
+  width: 100%;
+}
+
+.admin-thumbnail {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
   border-radius: 8px;
   margin-bottom: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.admin-thumbnail-placeholder {
+  width: 100%;
+  height: 150px;
+  background: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  color: #ccc;
+}
+
+.admin-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.2rem;
+}
+
+.admin-card p {
+  margin: 0 0 8px 0;
+  color: #ccc;
+}
+
+.admin-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.admin-modal-content {
+  background: #232b36;
+  color: #fff;
+  padding: 32px;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.admin-modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 24px;
+}
+
+.admin-modal-content .admin-input,
+.admin-modal-content .admin-photo-preview {
+  margin-bottom: 30px;
+}
+
+.admin-input[type="file"] {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 2px dashed #555;
+  background: #232b36;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.admin-input[type="file"]:hover {
+  border-color: #4f8cff;
+}
+
+.admin-input[type="file"]::-webkit-file-upload-button {
+  background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
+  color: #232b36;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.admin-input[type="file"]::-webkit-file-upload-button:hover {
+  background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
+}
+
+.admin-modal-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  margin-top: 34px;
 }
 </style>

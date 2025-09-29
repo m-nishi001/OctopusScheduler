@@ -2,9 +2,13 @@ import type { Prize } from "../../domains/prize/prize";
 import type { PrizeDto } from "../../applications/dto/prize-dto";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
+import { injectable } from "tsyringe";
+import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
+
 const PRIZE_CACHE_KEY = "prizes";
 
-export class PrizeRepository {
+@injectable()
+export class PrizeRepository implements IPrizeRepository {
   /** 差分更新: 変更・新規・削除のみ反映 */
   async savePrizes(newPrizes: Prize[]): Promise<void> {
     const oldPrizes =
@@ -29,7 +33,7 @@ export class PrizeRepository {
     GasFunctionService.create("callJackpotGameApi")!;
   private readonly localStorage = useLocalStorage();
 
-  async fetchPrizes(): Promise<Prize[]> {
+  async fetchPrizes(): Promise<PrizeDto[]> {
     // 1. キャッシュ優先
     const cached = await this.localStorage.get<Prize[]>(PRIZE_CACHE_KEY);
     if (cached && cached.length > 0) {
@@ -85,8 +89,9 @@ export class PrizeRepository {
 
   async deletePrize(prizeId: string): Promise<void> {
     // 1. キャッシュ削除
-    let prizes = (await this.localStorage.get<Prize[]>(PRIZE_CACHE_KEY)) || [];
-    prizes = prizes.filter((p: Prize) => p.id !== prizeId);
+    let prizes =
+      (await this.localStorage.get<PrizeDto[]>(PRIZE_CACHE_KEY)) || [];
+    prizes = prizes.filter((p: PrizeDto) => p.id !== prizeId);
     await this.localStorage.save(PRIZE_CACHE_KEY, prizes);
     // 2. GAS API削除
     if (!this.gasService) return;
@@ -99,7 +104,7 @@ export class PrizeRepository {
     });
   }
 
-  async syncPrizesWithServer(): Promise<Prize[]> {
+  async syncPrizesWithServer(): Promise<PrizeDto[]> {
     // 強制的にサーバーから取得しキャッシュ更新
     if (!this.gasService) return [];
     return new Promise((resolve, reject) => {
@@ -114,7 +119,7 @@ export class PrizeRepository {
     });
   }
 
-  async getPrizeById(prizeId: string): Promise<Prize | undefined> {
+  async getPrizeById(prizeId: string): Promise<PrizeDto | undefined> {
     const prizes = await this.fetchPrizes();
     return prizes.find((p) => p.id === prizeId);
   }
