@@ -18,6 +18,11 @@ export class AssetService {
     await this.repo.addAsset(asset);
   }
 
+  /** 複数新規追加専用 */
+  async addAssets(files: File[]): Promise<void> {
+    await this.repo.addAssets(files);
+  }
+
   async updateAsset(asset: AssetDto): Promise<void> {
     await this.repo.updateAsset(asset);
   }

@@ -124,12 +124,3 @@ export class PrizeRepository implements IPrizeRepository {
     return prizes.find((p) => p.id === prizeId);
   }
 }
-
-export interface GetPrizesRequest {}
-export interface GetPrizesResponse {
-  prizes: Prize[];
-}
-export interface ErrorResponse {
-  code: string;
-  message: string;
-}

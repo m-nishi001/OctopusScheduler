@@ -49,6 +49,46 @@ export class AssetRepository implements IAssetRepository {
     });
   }
 
+  async addAssets(files: File[]): Promise<void> {
+    if (!this.gasService) return;
+    const assetDtos: AssetDto[] = [];
+    for (const file of files) {
+      const dataUrl = await fileToDataUrl(file);
+      const asset: AssetDto = {
+        id: String(Date.now() + Math.random()),
+        name: file.name,
+        type: getAssetType(file.type),
+        url: dataUrl,
+        uploadedAt: new Date().toISOString(),
+        size: file.size,
+        meta: {},
+      };
+      assetDtos.push(asset);
+    }
+    const calls = assetDtos.map((asset) =>
+      this.gasService!.createCall<{ asset: AssetDto }>(
+        "AssetService.addAsset",
+        asset
+      ).withTimeout(30000)
+    );
+    const results = await this.gasService!.all(...calls);
+    // 成功したものをローカルストレージに追加
+    const successfulAssets: AssetDto[] = [];
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled" && result.value) {
+        successfulAssets.push(assetDtos[index]);
+      }
+    });
+    if (successfulAssets.length > 0) {
+      const current =
+        (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+      await this.localStorage.save(ASSET_CACHE_KEY, [
+        ...current,
+        ...successfulAssets,
+      ]);
+    }
+  }
+
   async updateAsset(asset: Asset): Promise<void> {
     let assets = (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
     assets = assets.map((a: Asset) => (a.id === asset.id ? asset : a));
@@ -97,11 +137,20 @@ export class AssetRepository implements IAssetRepository {
   }
 }
 
-export interface GetAssetsRequest {}
-export interface GetAssetsResponse {
-  assets: Asset[];
-}
-export interface ErrorResponse {
-  code: string;
-  message: string;
-}
+const fileToDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
+const getAssetType = (
+  mimeType: string
+): "image" | "video" | "audio" | "text" => {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return "text";
+};

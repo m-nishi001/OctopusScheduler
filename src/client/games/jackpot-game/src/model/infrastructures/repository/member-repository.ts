@@ -118,12 +118,3 @@ export class MemberRepository implements IMemberRepository {
     await this.addMember(member);
   }
 }
-
-export interface GetMembersRequest {}
-export interface GetMembersResponse {
-  members: Member[];
-}
-export interface ErrorResponse {
-  code: string;
-  message: string;
-}

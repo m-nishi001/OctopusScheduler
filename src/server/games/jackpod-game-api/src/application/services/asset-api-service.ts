@@ -21,6 +21,7 @@ export class AssetApiService implements GasService {
       getAssets: this.getAssets.bind(this),
       uploadDomainAsset: this.uploadDomainAsset.bind(this),
       getDomainAsset: this.getDomainAsset.bind(this),
+      addAsset: this.addAsset.bind(this),
     };
   }
 
@@ -89,6 +90,67 @@ export class AssetApiService implements GasService {
   getDomainAsset(id: string): AssetDto | null {
     const assetEntity = this.repository.getAsset(id);
     return assetEntity ? toAssetDto(assetEntity) : null;
+  }
+
+  addAsset(args: { asset: AssetDto }): { asset: AssetDto } {
+    const assetDto = args.asset;
+    if (!assetDto.url.startsWith("data:")) {
+      throw new Error("Invalid data URL");
+    }
+    const blob = AssetRepositoryImplStatic.convertToBlobFromDataUrl(
+      assetDto.url,
+      assetDto.name,
+      assetDto.type === "image"
+        ? "image/png"
+        : assetDto.type === "video"
+          ? "video/mp4"
+          : assetDto.type === "audio"
+            ? "audio/mp3"
+            : "text/plain"
+    );
+    const assetId = AssetRepositoryImplStatic.uploadAsset(
+      assetDto.name,
+      assetDto.type === "image"
+        ? "image/png"
+        : assetDto.type === "video"
+          ? "video/mp4"
+          : assetDto.type === "audio"
+            ? "audio/mp3"
+            : "text/plain",
+      blob
+    );
+    const file = AssetRepositoryImplStatic.getAssetById(assetId);
+    const type = this.getAssetType(
+      file
+        ? file.getMimeType()
+        : assetDto.type === "image"
+          ? "image/png"
+          : assetDto.type === "video"
+            ? "video/mp4"
+            : assetDto.type === "audio"
+              ? "audio/mp3"
+              : "text/plain"
+    );
+    const uploadedAsset: AssetDto = file
+      ? {
+          id: file.getId(),
+          type,
+          url: file.getDownloadUrl(),
+          name: file.getName(),
+          uploadedAt: file.getDateCreated().toISOString(),
+          size: file.getSize(),
+          meta: {},
+        }
+      : {
+          id: assetId,
+          type,
+          url: "",
+          name: assetDto.name,
+          uploadedAt: new Date().toISOString(),
+          size: assetDto.size,
+          meta: {},
+        };
+    return { asset: uploadedAsset };
   }
 
   private getAssetType(mimeType: string): "image" | "video" | "audio" | "text" {
