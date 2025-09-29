@@ -3,6 +3,5 @@ export interface MemberDto {
   name: string;
   photoAssetId?: string;
   photoUrl?: string;
-  attributes?: string[];
   order: number;
 }

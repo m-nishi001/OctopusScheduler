@@ -18,7 +18,6 @@
             class="admin-thumbnail" />
           <div v-else class="admin-thumbnail-placeholder">No Image</div>
           <h3>{{ member.name }}</h3>
-          <p v-if="member.attributes && member.attributes.length">属性: {{ member.attributes.join(', ') }}</p>
           <button class="admin-btn" @click="editMember(idx)">編集</button>
         </div>
       </div>
@@ -34,7 +33,6 @@
       <div v-if="photoPreview" class="admin-photo-preview">
         <img :src="photoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
       </div>
-      <input v-model="attributeInput" type="text" placeholder="属性（カンマ区切り可）" class="admin-input" />
       <div class="admin-modal-buttons">
         <button class="admin-btn" @click="addMember">追加</button>
         <button class="admin-btn" @click="showAddModal = false">キャンセル</button>
@@ -51,7 +49,6 @@
       <div v-if="editPhotoPreview" class="admin-photo-preview">
         <img :src="editPhotoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
       </div>
-      <input v-model="editAttributeInput" type="text" placeholder="属性（カンマ区切り可）" class="admin-input" />
       <div class="admin-modal-buttons">
         <button class="admin-btn" @click="saveEdit">保存</button>
         <button class="admin-btn" @click="editIdx = null">キャンセル</button>
@@ -109,7 +106,6 @@ const bulkDelete = () => {
 const memberName = ref('');
 const photoAssetId = ref('');
 const photoPreview = ref('');
-const attributeInput = ref('');
 const onPhotoChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
@@ -127,13 +123,11 @@ const addMember = () => {
     id: String(Date.now()),
     name: memberName.value,
     photoAssetId: photoAssetId.value,
-    attributes: attributeInput.value ? attributeInput.value.split(',').map(a => a.trim()) : [],
     order: members.value.length + 1
   });
   memberName.value = '';
   photoAssetId.value = '';
   photoPreview.value = '';
-  attributeInput.value = '';
   showAddModal.value = false;
   sortMembers();
 };
@@ -141,7 +135,6 @@ const editIdx = ref<number | null>(null);
 const editName = ref('');
 const editPhotoAssetId = ref('');
 const editPhotoPreview = ref('');
-const editAttributeInput = ref('');
 const onEditPhotoChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
@@ -155,21 +148,22 @@ const onEditPhotoChange = (e: Event) => {
 };
 const editMember = (idx: number) => {
   editIdx.value = idx;
-  editName.value = members.value[idx].name;
-  editPhotoAssetId.value = members.value[idx].photoAssetId || '';
-  editPhotoPreview.value = members.value[idx].photoAssetId || '';
-  editAttributeInput.value = members.value[idx].attributes ? members.value[idx].attributes.join(', ') : '';
+  const member = members.value[idx];
+  editName.value = member.name;
+  editPhotoAssetId.value = member.photoAssetId || '';
+  editPhotoPreview.value = member.photoAssetId || '';
 };
 const saveEdit = () => {
   if (editIdx.value === null) return;
-  members.value[editIdx.value].name = editName.value;
-  members.value[editIdx.value].photoAssetId = editPhotoAssetId.value;
-  members.value[editIdx.value].attributes = editAttributeInput.value ? editAttributeInput.value.split(',').map(a => a.trim()) : [];
+  members.value[editIdx.value] = {
+    name: editName.value,
+    photoAssetId: editPhotoAssetId.value,
+    order: members.value[editIdx.value].order
+  } as any;
   editIdx.value = null;
   editName.value = '';
   editPhotoAssetId.value = '';
   editPhotoPreview.value = '';
-  editAttributeInput.value = '';
   sortMembers();
 };
 
