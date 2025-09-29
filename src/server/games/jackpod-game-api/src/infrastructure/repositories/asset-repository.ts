@@ -51,6 +51,39 @@ export class AssetRepositoryImpl implements IAssetRepository {
     };
   }
 
+  findAll(): Asset[] {
+    const folderId = getAssetFolderId();
+    if (!folderId) {
+      console.warn(
+        "[AssetRepository] jackpot-game-asset-folder-id is not set in script properties."
+      );
+      return [];
+    }
+    try {
+      const files = AssetRepositoryImplStatic.listAssets();
+      return files.map((file) => {
+        let type: "image" | "video" | "audio" | "text" = "text";
+        const mimeType = file.getMimeType();
+        if (mimeType.startsWith("image/")) type = "image";
+        else if (mimeType.startsWith("video/")) type = "video";
+        else if (mimeType.startsWith("audio/")) type = "audio";
+        else type = "text";
+        return {
+          id: file.getId(),
+          type,
+          url: file.getDownloadUrl(),
+          name: file.getName(),
+          uploadedAt: file.getDateCreated().toISOString(),
+          size: file.getSize(),
+          meta: {},
+        };
+      });
+    } catch (error) {
+      console.error("[AssetRepository] Error in findAll:", error);
+      return [];
+    }
+  }
+
   updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string {
     // Fetch asset, update, and re-upload
     const asset = this.getAsset(id);
@@ -114,12 +147,23 @@ export class AssetRepositoryImplStatic {
   static listAssets(): GoogleAppsScript.Drive.File[] {
     // List all files in the asset folder
     const folderId = getAssetFolderId();
-    const folder = DriveApp.getFolderById(folderId);
-    const fileIterator = folder.getFiles();
-    const files: GoogleAppsScript.Drive.File[] = [];
-    while (fileIterator.hasNext()) {
-      files.push(fileIterator.next());
+    if (!folderId) {
+      console.warn(
+        "[AssetRepository] jackpot-game-asset-folder-id is not set in script properties."
+      );
+      return [];
     }
-    return files;
+    try {
+      const folder = DriveApp.getFolderById(folderId);
+      const fileIterator = folder.getFiles();
+      const files: GoogleAppsScript.Drive.File[] = [];
+      while (fileIterator.hasNext()) {
+        files.push(fileIterator.next());
+      }
+      return files;
+    } catch (error) {
+      console.error("[AssetRepository] Error in listAssets:", error);
+      return [];
+    }
   }
 }

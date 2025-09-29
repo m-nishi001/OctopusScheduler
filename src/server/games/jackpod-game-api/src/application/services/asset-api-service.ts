@@ -7,7 +7,7 @@ import { toAssetEntity, toAssetDto } from "../dtos/asset.mapper";
 
 @injectable()
 export class AssetApiService implements GasService {
-  readonly serviceName = "AssetDomainService";
+  readonly serviceName = "AssetService";
   readonly functions: Record<string, (args: any) => any>;
 
   constructor(
@@ -18,6 +18,7 @@ export class AssetApiService implements GasService {
       deleteAsset: this.deleteAsset.bind(this),
       getAssetById: this.getAssetById.bind(this),
       listAssets: this.listAssets.bind(this),
+      getAssets: this.getAssets.bind(this),
       uploadDomainAsset: this.uploadDomainAsset.bind(this),
       getDomainAsset: this.getDomainAsset.bind(this),
     };
@@ -73,6 +74,11 @@ export class AssetApiService implements GasService {
 
   listAssets(): GoogleAppsScript.Drive.File[] {
     return AssetRepositoryImplStatic.listAssets();
+  }
+
+  getAssets(): { assets: AssetDto[] } {
+    const assets = this.repository.findAll();
+    return { assets: assets.map(toAssetDto) };
   }
 
   uploadDomainAsset(assetDto: AssetDto): string {

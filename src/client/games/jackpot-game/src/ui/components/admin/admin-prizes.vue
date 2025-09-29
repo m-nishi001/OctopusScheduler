@@ -5,7 +5,7 @@
     <div class="admin-controls">
       <select v-model="sortBy" @change="sortPrizes" class="admin-input">
         <option value="name">名前順</option>
-        <option value="rank">ランク順</option>
+        <option value="probability">確率順</option>
         <option value="order">追加順</option>
       </select>
       <button class="admin-btn" @click="showAddModal = true">追加</button>
@@ -15,11 +15,11 @@
       <div v-for="(prize, idx) in prizes" :key="idx" class="admin-card">
         <input type="checkbox" v-model="selectedPrizes" :value="idx" class="admin-checkbox" />
         <div class="admin-card-content">
-          <img v-if="prize.imageAssetId" :src="prize.imageAssetId" alt="image" class="admin-thumbnail" />
+          <img v-if="prize.imageAssetId" :src="prize.imageAssetId" alt="image" class="admin-thumbnail"
+            @error="onImageError" />
           <div v-else class="admin-thumbnail-placeholder">No Image</div>
           <h3>{{ prize.name }}</h3>
-          <p>ランク: {{ prize.rank }}</p>
-          <p v-if="prize.description">説明: {{ prize.description }}</p>
+          <p>当選確率: {{ prize.probability }}/10</p>
           <button class="admin-btn" @click="editPrize(idx)">編集</button>
         </div>
       </div>
@@ -33,16 +33,22 @@
       <input v-model="prizeName" type="text" placeholder="景品名" class="admin-input" />
       <input type="file" @change="onImageChange" accept="image/*" class="admin-input" />
       <div v-if="imagePreview" class="admin-photo-preview">
-        <img :src="imagePreview" alt="preview" style="max-width:80px;max-height:80px;" />
+        <img :src="imagePreview" alt="preview" style="max-width:80px;max-height:80px;" @error="onImageError" />
       </div>
-      <input v-model="descriptionInput" type="text" placeholder="説明" class="admin-input" />
-      <input v-model="bgmAssetIdInput" type="text" placeholder="BGM Asset ID" class="admin-input" />
-      <input v-model="seAssetIdsInput" type="text" placeholder="SE Asset IDs（カンマ区切り）" class="admin-input" />
-      <select v-model="prizeRank" class="admin-input">
-        <option value="高">高</option>
-        <option value="中">中</option>
-        <option value="低">低</option>
+      <label>BGM1:</label>
+      <select v-model="bgm1AssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
       </select>
+      <input type="file" @change="onBgm1Change" accept="audio/*" class="admin-input" />
+      <label>BGM2:</label>
+      <select v-model="bgm2AssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+      </select>
+      <input type="file" @change="onBgm2Change" accept="audio/*" class="admin-input" />
+      <input v-model.number="prizeProbability" type="number" min="1" max="10" placeholder="当選確率 (1-10)"
+        class="admin-input" />
       <div class="admin-modal-buttons">
         <button class="admin-btn" @click="addPrize">追加</button>
         <button class="admin-btn" @click="showAddModal = false">キャンセル</button>
@@ -55,18 +61,24 @@
     <div class="admin-modal-content" @click.stop>
       <h3>景品編集</h3>
       <input v-model="editName" type="text" placeholder="景品名" class="admin-input" />
-      <select v-model="editRank" class="admin-input">
-        <option value="高">高</option>
-        <option value="中">中</option>
-        <option value="低">低</option>
-      </select>
       <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
       <div v-if="editImagePreview" class="admin-photo-preview">
-        <img :src="editImagePreview" alt="preview" style="max-width:80px;max-height:80px;" />
+        <img :src="editImagePreview" alt="preview" style="max-width:80px;max-height:80px;" @error="onImageError" />
       </div>
-      <input v-model="editDescriptionInput" type="text" placeholder="説明" class="admin-input" />
-      <input v-model="editBgmAssetIdInput" type="text" placeholder="BGM Asset ID" class="admin-input" />
-      <input v-model="editSeAssetIdsInput" type="text" placeholder="SE Asset IDs（カンマ区切り）" class="admin-input" />
+      <label>BGM1:</label>
+      <select v-model="editBgm1AssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+      </select>
+      <input type="file" @change="onEditBgm1Change" accept="audio/*" class="admin-input" />
+      <label>BGM2:</label>
+      <select v-model="editBgm2AssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+      </select>
+      <input type="file" @change="onEditBgm2Change" accept="audio/*" class="admin-input" />
+      <input v-model.number="editProbability" type="number" min="1" max="10" placeholder="当選確率 (1-10)"
+        class="admin-input" />
       <div class="admin-modal-buttons">
         <button class="admin-btn" @click="saveEdit">保存</button>
         <button class="admin-btn" @click="editIdx = null">キャンセル</button>
@@ -75,11 +87,13 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { PrizeService } from '../../../model/applications/prize-service';
+import { AssetService } from '../../../model/applications/asset-service';
 
 import { container } from 'tsyringe';
 const prizeService = container.resolve(PrizeService);
+const assetService = container.resolve(AssetService);
 const prizes = ref<any[]>([]);
 const originalPrizes = ref<any[]>([]);
 const selectedPrizes = ref<number[]>([]);
@@ -110,9 +124,8 @@ const fetchPrizes = async () => {
 const sortPrizes = () => {
   if (sortBy.value === 'name') {
     prizes.value.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (sortBy.value === 'rank') {
-    const rankOrder: Record<string, number> = { '高': 1, '中': 2, '低': 3 };
-    prizes.value.sort((a, b) => rankOrder[a.rank] - rankOrder[b.rank]);
+  } else if (sortBy.value === 'probability') {
+    prizes.value.sort((a, b) => b.probability - a.probability);
   } else if (sortBy.value === 'order') {
     prizes.value.sort((a, b) => a.order - b.order);
   }
@@ -125,12 +138,28 @@ const bulkDelete = () => {
   selectedPrizes.value = [];
 };
 const prizeName = ref('');
-const prizeRank = ref('高');
+const prizeProbability = ref(5);
 const imageAssetId = ref('');
 const imagePreview = ref('');
-const descriptionInput = ref('');
-const bgmAssetIdInput = ref('');
-const seAssetIdsInput = ref('');
+const bgm1AssetId = ref('');
+const bgm1Preview = ref('');
+const bgm2AssetId = ref('');
+const bgm2Preview = ref('');
+const assets = ref<any[]>([]);
+const fetchAssets = async () => {
+  try {
+    assets.value = await assetService.fetchAssets();
+  } catch (error) {
+    console.error('Failed to fetch assets:', error);
+    assets.value = [];
+  }
+};
+const audioAssets = computed(() => assets.value.filter(asset => asset.type === 'audio'));
+const onImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjNTU1Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjY2NjIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPk5vIEltYWdlPC90ZXh0Pgo8L3N2Zz4=';
+  img.alt = 'No Image';
+};
 const onImageChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
@@ -142,35 +171,58 @@ const onImageChange = (e: Event) => {
     reader.readAsDataURL(file);
   }
 };
+const onBgm1Change = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      bgm1Preview.value = ev.target?.result as string;
+      bgm1AssetId.value = bgm1Preview.value;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+const onBgm2Change = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      bgm2Preview.value = ev.target?.result as string;
+      bgm2AssetId.value = bgm2Preview.value;
+    };
+    reader.readAsDataURL(file);
+  }
+};
 const addPrize = () => {
   if (!prizeName.value) return;
   prizes.value.push({
     name: prizeName.value,
-    rank: prizeRank.value,
+    probability: prizeProbability.value,
     imageAssetId: imageAssetId.value,
-    description: descriptionInput.value,
-    bgmAssetId: bgmAssetIdInput.value,
-    seAssetIds: seAssetIdsInput.value ? seAssetIdsInput.value.split(',').map(a => a.trim()) : [],
+    bgm1AssetId: bgm1AssetId.value,
+    bgm2AssetId: bgm2AssetId.value,
     order: prizes.value.length + 1
   } as any);
   prizeName.value = '';
-  prizeRank.value = '高';
+  prizeProbability.value = 5;
   imageAssetId.value = '';
   imagePreview.value = '';
-  descriptionInput.value = '';
-  bgmAssetIdInput.value = '';
-  seAssetIdsInput.value = '';
+  bgm1AssetId.value = '';
+  bgm1Preview.value = '';
+  bgm2AssetId.value = '';
+  bgm2Preview.value = '';
   showAddModal.value = false;
   sortPrizes();
 };
 const editIdx = ref<number | null>(null);
 const editName = ref('');
-const editRank = ref('高');
+const editProbability = ref(5);
 const editImageAssetId = ref('');
 const editImagePreview = ref('');
-const editDescriptionInput = ref('');
-const editBgmAssetIdInput = ref('');
-const editSeAssetIdsInput = ref('');
+const editBgm1AssetId = ref('');
+const editBgm1Preview = ref('');
+const editBgm2AssetId = ref('');
+const editBgm2Preview = ref('');
 const onEditImageChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
@@ -182,40 +234,64 @@ const onEditImageChange = (e: Event) => {
     reader.readAsDataURL(file);
   }
 };
+const onEditBgm1Change = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      editBgm1Preview.value = ev.target?.result as string;
+      editBgm1AssetId.value = editBgm1Preview.value;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+const onEditBgm2Change = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      editBgm2Preview.value = ev.target?.result as string;
+      editBgm2AssetId.value = editBgm2Preview.value;
+    };
+    reader.readAsDataURL(file);
+  }
+};
 const editPrize = (idx: number) => {
   editIdx.value = idx;
   const prize = prizes.value[idx];
   editName.value = prize.name;
-  editRank.value = prize.rank;
+  editProbability.value = prize.probability;
   editImageAssetId.value = prize.imageAssetId || '';
   editImagePreview.value = prize.imageAssetId || '';
-  editDescriptionInput.value = prize.description || '';
-  editBgmAssetIdInput.value = prize.bgmAssetId || '';
-  editSeAssetIdsInput.value = prize.seAssetIds ? prize.seAssetIds.join(', ') : '';
+  editBgm1AssetId.value = prize.bgm1AssetId || '';
+  editBgm1Preview.value = prize.bgm1AssetId || '';
+  editBgm2AssetId.value = prize.bgm2AssetId || '';
+  editBgm2Preview.value = prize.bgm2AssetId || '';
 };
 const saveEdit = () => {
   if (editIdx.value === null) return;
   prizes.value[editIdx.value] = {
     name: editName.value,
-    rank: editRank.value,
+    probability: editProbability.value,
     imageAssetId: editImageAssetId.value,
-    description: editDescriptionInput.value,
-    bgmAssetId: editBgmAssetIdInput.value,
-    seAssetIds: editSeAssetIdsInput.value ? editSeAssetIdsInput.value.split(',').map(a => a.trim()) : []
+    bgm1AssetId: editBgm1AssetId.value,
+    bgm2AssetId: editBgm2AssetId.value
   } as any;
   editIdx.value = null;
   editName.value = '';
-  editRank.value = '高';
+  editProbability.value = 5;
   editImageAssetId.value = '';
   editImagePreview.value = '';
-  editDescriptionInput.value = '';
-  editBgmAssetIdInput.value = '';
-  editSeAssetIdsInput.value = '';
+  editBgm1AssetId.value = '';
+  editBgm1Preview.value = '';
+  editBgm2AssetId.value = '';
+  editBgm2Preview.value = '';
   sortPrizes();
 };
 
 onMounted(() => {
   fetchPrizes();
+  fetchAssets();
 });
 </script>
 

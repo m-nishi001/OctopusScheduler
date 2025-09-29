@@ -1,8 +1,12 @@
-import { Asset } from '../entities/asset';
+import { Asset } from "../entities/asset";
 
 export interface IAssetRepository {
   uploadAsset(asset: Asset): string;
   getAsset(id: string): Asset | null;
+  findAll(): Asset[];
   updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string;
-  updateManyAssets(ids: string[], updateAsset: (asset: Asset) => Asset): string[];
+  updateManyAssets(
+    ids: string[],
+    updateAsset: (asset: Asset) => Asset
+  ): string[];
 }

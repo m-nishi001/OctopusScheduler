@@ -27,9 +27,9 @@ export function useDraw() {
         { id: "3", name: "鈴木一郎", order: 3 },
       ];
       prizes.value = [
-        { id: "p1", name: "景品A", rank: 1, order: 1 },
-        { id: "p2", name: "景品B", rank: 2, order: 2 },
-        { id: "p3", name: "景品C", rank: 3, order: 3 },
+        { id: "p1", name: "景品A", probability: 1, order: 1 },
+        { id: "p2", name: "景品B", probability: 2, order: 2 },
+        { id: "p3", name: "景品C", probability: 3, order: 3 },
       ];
       const drawRes = await drawService.executeDraw({
         prizes: prizes.value,

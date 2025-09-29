@@ -1,10 +1,9 @@
 export interface PrizeDto {
   id: string;
   name: string;
-  rank: number;
+  probability: number;
   imageAssetId?: string;
-  description?: string;
+  bgm1AssetId?: string;
+  bgm2AssetId?: string;
   order: number;
-  bgmAssetId?: string;
-  seAssetIds?: string[];
 }

@@ -1,19 +1,26 @@
-import { Prize } from '../../domain/entities/prize';
-import { PrizeDto } from './prize-dto';
+import { Prize } from "../../domain/entities/prize";
+import { PrizeDto } from "./prize.dto";
 
 export function toPrizeDto(entity: Prize): PrizeDto {
   return {
     id: entity.id,
     name: entity.name,
-    rank: entity.rank === 'high' ? 1 : entity.rank === 'low' ? 3 : 2,
-    order: 0 // 必要に応じて
+    probability: entity.probability,
+    imageAssetId: entity.imageAssetId,
+    bgm1AssetId: entity.bgm1AssetId,
+    bgm2AssetId: entity.bgm2AssetId,
+    order: entity.order,
   };
 }
 
-export function toPrize(entity: PrizeDto): Prize {
+export function toPrize(dto: PrizeDto): Prize {
   return {
-    id: entity.id,
-    name: entity.name,
-    rank: entity.rank === 1 ? 'high' : entity.rank === 3 ? 'low' : 'normal'
+    id: dto.id,
+    name: dto.name,
+    probability: dto.probability,
+    imageAssetId: dto.imageAssetId,
+    bgm1AssetId: dto.bgm1AssetId,
+    bgm2AssetId: dto.bgm2AssetId,
+    order: dto.order,
   };
 }
