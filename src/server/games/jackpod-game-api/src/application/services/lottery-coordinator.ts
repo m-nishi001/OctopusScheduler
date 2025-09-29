@@ -20,8 +20,9 @@ export class LotteryCoordinator implements GasService {
     @inject("MemberDrawStrategy")
     private memberDrawStrategy: DrawStrategy<Member>,
     @inject("PrizeDrawStrategy") private prizeDrawStrategy: DrawStrategy<Prize>,
-    @inject(DrawPairingService) private drawPairingService: DrawPairingService,
-    @inject(DrawResultService) private drawResultService: DrawResultService
+    @inject("DrawPairingService")
+    private drawPairingService: DrawPairingService,
+    @inject("DrawResultService") private drawResultService: DrawResultService
   ) {
     this.functions = {
       drawMember: this.drawMember.bind(this),

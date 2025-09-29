@@ -1,4 +1,4 @@
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import { Member } from "../../domain/entities/member";
 import { Prize } from "../../domain/entities/prize";
 import { DrawResultDto } from "../dtos/draw-result.dto";
@@ -8,7 +8,9 @@ import { DrawResultService } from "./draw-result-service";
 
 @injectable()
 export class DrawPairingService {
-  constructor(private drawResultService?: DrawResultService) {}
+  constructor(
+    @inject("DrawResultService") private drawResultService?: DrawResultService
+  ) {}
 
   pairAndSave(
     members: Member[],

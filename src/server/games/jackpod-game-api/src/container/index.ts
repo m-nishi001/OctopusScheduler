@@ -64,7 +64,7 @@ export class Container {
     container.register<GasService>("IGasService", { useClass: MemberService });
     container.register<GasService>("IGasService", { useClass: PrizeService });
 
-    container.register<DrawResultService>(DrawResultService, {
+    container.register<DrawResultService>("DrawResultService", {
       useClass: DrawResultService,
     });
 
@@ -74,7 +74,7 @@ export class Container {
     container.register<DrawStrategy<Prize>>("PrizeDrawStrategy", {
       useClass: UniformDrawStrategy,
     });
-    container.register<DrawPairingService>(DrawPairingService, {
+    container.register<DrawPairingService>("DrawPairingService", {
       useClass: DrawPairingService,
     });
   }
