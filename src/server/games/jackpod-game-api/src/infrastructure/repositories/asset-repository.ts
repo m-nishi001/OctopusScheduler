@@ -4,7 +4,13 @@ import { GoogleDriveService } from "../../../../../shared-packages/src/google-dr
 
 function getAssetFolderId(): string {
   const props = PropertiesService.getScriptProperties();
-  return props.getProperty("jackpot-game-asset-folder-id") || "";
+  const folderId = props.getProperty("jackpot-game-asset-folder-id");
+  if (!folderId) {
+    throw new Error(
+      "jackpot-game-asset-folder-id is not set in script properties."
+    );
+  }
+  return folderId;
 }
 
 export class AssetRepositoryImpl implements IAssetRepository {

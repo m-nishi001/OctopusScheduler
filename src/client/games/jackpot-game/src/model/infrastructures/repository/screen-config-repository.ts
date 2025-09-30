@@ -1,11 +1,18 @@
-import type { ScreenConfig } from '../../domains/screen-config/screen-config';
+import { injectable } from "tsyringe";
+import type { ScreenConfig } from "../../domains/screen-config/screen-config";
+import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
 
-export class ScreenConfigRepository {
+@injectable()
+export class ScreenConfigRepository implements IScreenConfigRepository {
   private cache: Map<string, ScreenConfig> = new Map();
 
   // 画面設定を取得
-  async fetchScreenConfig(type: string): Promise<ScreenConfig | undefined> {
-    return this.cache.get(type);
+  async fetchScreenConfig(type: string): Promise<ScreenConfig> {
+    const config = this.cache.get(type);
+    if (!config) {
+      throw new Error(`Screen config for type '${type}' not found`);
+    }
+    return config;
   }
 
   // 差分更新保存
@@ -14,7 +21,7 @@ export class ScreenConfigRepository {
       const prev = this.cache.get(config.type);
       if (!prev || JSON.stringify(prev) !== JSON.stringify(config)) {
         // 差分があれば保存（ここでは仮にlocalStorage保存）
-        localStorage.setItem('screen_' + config.type, JSON.stringify(config));
+        localStorage.setItem("screen_" + config.type, JSON.stringify(config));
         this.cache.set(config.type, config);
       }
     }
@@ -23,7 +30,7 @@ export class ScreenConfigRepository {
   // 初期化（localStorageからロード）
   async loadAllFromStorage(types: string[]): Promise<void> {
     for (const type of types) {
-      const raw = localStorage.getItem('screen_' + type);
+      const raw = localStorage.getItem("screen_" + type);
       if (raw) {
         this.cache.set(type, JSON.parse(raw));
       }

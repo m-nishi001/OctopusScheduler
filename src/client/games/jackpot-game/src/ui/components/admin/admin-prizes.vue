@@ -31,22 +31,39 @@
     <div class="admin-modal-content" @click.stop>
       <h3>景品追加</h3>
       <input v-model="prizeName" type="text" placeholder="景品名" class="admin-input" />
-      <input type="file" @change="onImageChange" accept="image/*" class="admin-input" />
+      <label>画像:</label>
+      <div class="asset-mode">
+        <label><input type="radio" v-model="imageMode" value="upload" /> アップロード</label>
+        <label><input type="radio" v-model="imageMode" value="select" /> 既存から選択</label>
+      </div>
+      <input v-if="imageMode === 'upload'" type="file" @change="onImageChange" accept="image/*" class="admin-input" />
+      <select v-if="imageMode === 'select'" v-model="imageAssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+      </select>
       <div v-if="imagePreview" class="admin-photo-preview">
         <img :src="imagePreview" alt="preview" style="max-width:80px;max-height:80px;" @error="onImageError" />
       </div>
       <label>BGM1:</label>
-      <select v-model="bgm1AssetId" class="admin-input">
+      <div class="asset-mode">
+        <label><input type="radio" v-model="bgm1Mode" value="select" /> 既存から選択</label>
+        <label><input type="radio" v-model="bgm1Mode" value="upload" /> アップロード</label>
+      </div>
+      <select v-if="bgm1Mode === 'select'" v-model="bgm1AssetId" class="admin-input">
         <option value="">選択なし</option>
         <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
       </select>
-      <input type="file" @change="onBgm1Change" accept="audio/*" class="admin-input" />
+      <input v-if="bgm1Mode === 'upload'" type="file" @change="onBgm1Change" accept="audio/*" class="admin-input" />
       <label>BGM2:</label>
-      <select v-model="bgm2AssetId" class="admin-input">
+      <div class="asset-mode">
+        <label><input type="radio" v-model="bgm2Mode" value="select" /> 既存から選択</label>
+        <label><input type="radio" v-model="bgm2Mode" value="upload" /> アップロード</label>
+      </div>
+      <select v-if="bgm2Mode === 'select'" v-model="bgm2AssetId" class="admin-input">
         <option value="">選択なし</option>
         <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
       </select>
-      <input type="file" @change="onBgm2Change" accept="audio/*" class="admin-input" />
+      <input v-if="bgm2Mode === 'upload'" type="file" @change="onBgm2Change" accept="audio/*" class="admin-input" />
       <input v-model.number="prizeProbability" type="number" min="1" max="10" placeholder="当選確率 (1-10)"
         class="admin-input" />
       <div class="admin-modal-buttons">
@@ -61,22 +78,42 @@
     <div class="admin-modal-content" @click.stop>
       <h3>景品編集</h3>
       <input v-model="editName" type="text" placeholder="景品名" class="admin-input" />
-      <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
+      <label>画像:</label>
+      <div class="asset-mode">
+        <label><input type="radio" v-model="editImageMode" value="upload" /> アップロード</label>
+        <label><input type="radio" v-model="editImageMode" value="select" /> 既存から選択</label>
+      </div>
+      <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange" accept="image/*"
+        class="admin-input" />
+      <select v-if="editImageMode === 'select'" v-model="editImageAssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+      </select>
       <div v-if="editImagePreview" class="admin-photo-preview">
         <img :src="editImagePreview" alt="preview" style="max-width:80px;max-height:80px;" @error="onImageError" />
       </div>
       <label>BGM1:</label>
-      <select v-model="editBgm1AssetId" class="admin-input">
+      <div class="asset-mode">
+        <label><input type="radio" v-model="editBgm1Mode" value="select" /> 既存から選択</label>
+        <label><input type="radio" v-model="editBgm1Mode" value="upload" /> アップロード</label>
+      </div>
+      <select v-if="editBgm1Mode === 'select'" v-model="editBgm1AssetId" class="admin-input">
         <option value="">選択なし</option>
         <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
       </select>
-      <input type="file" @change="onEditBgm1Change" accept="audio/*" class="admin-input" />
+      <input v-if="editBgm1Mode === 'upload'" type="file" @change="onEditBgm1Change" accept="audio/*"
+        class="admin-input" />
       <label>BGM2:</label>
-      <select v-model="editBgm2AssetId" class="admin-input">
+      <div class="asset-mode">
+        <label><input type="radio" v-model="editBgm2Mode" value="select" /> 既存から選択</label>
+        <label><input type="radio" v-model="editBgm2Mode" value="upload" /> アップロード</label>
+      </div>
+      <select v-if="editBgm2Mode === 'select'" v-model="editBgm2AssetId" class="admin-input">
         <option value="">選択なし</option>
         <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
       </select>
-      <input type="file" @change="onEditBgm2Change" accept="audio/*" class="admin-input" />
+      <input v-if="editBgm2Mode === 'upload'" type="file" @change="onEditBgm2Change" accept="audio/*"
+        class="admin-input" />
       <input v-model.number="editProbability" type="number" min="1" max="10" placeholder="当選確率 (1-10)"
         class="admin-input" />
       <div class="admin-modal-buttons">
@@ -140,12 +177,13 @@ const bulkDelete = () => {
 const prizeName = ref('');
 const prizeProbability = ref(5);
 const imageAssetId = ref('');
-const imagePreview = ref('');
+const imagePreview = computed(() => imageAssetId.value);
 const bgm1AssetId = ref('');
-const bgm1Preview = ref('');
 const bgm2AssetId = ref('');
-const bgm2Preview = ref('');
 const assets = ref<any[]>([]);
+const imageMode = ref('upload');
+const bgm1Mode = ref('select');
+const bgm2Mode = ref('select');
 const fetchAssets = async () => {
   try {
     assets.value = await assetService.fetchAssets();
@@ -155,6 +193,7 @@ const fetchAssets = async () => {
   }
 };
 const audioAssets = computed(() => assets.value.filter(asset => asset.type === 'audio'));
+const imageAssets = computed(() => assets.value.filter(asset => asset.type === 'image'));
 const onImageError = (event: Event) => {
   const img = event.target as HTMLImageElement;
   img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjNTU1Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjY2NjIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPk5vIEltYWdlPC90ZXh0Pgo8L3N2Zz4=';
@@ -165,8 +204,7 @@ const onImageChange = (e: Event) => {
   if (file) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      imagePreview.value = ev.target?.result as string;
-      imageAssetId.value = imagePreview.value;
+      imageAssetId.value = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
@@ -176,8 +214,7 @@ const onBgm1Change = (e: Event) => {
   if (file) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      bgm1Preview.value = ev.target?.result as string;
-      bgm1AssetId.value = bgm1Preview.value;
+      bgm1AssetId.value = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
@@ -187,8 +224,7 @@ const onBgm2Change = (e: Event) => {
   if (file) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      bgm2Preview.value = ev.target?.result as string;
-      bgm2AssetId.value = bgm2Preview.value;
+      bgm2AssetId.value = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
@@ -206,11 +242,8 @@ const addPrize = () => {
   prizeName.value = '';
   prizeProbability.value = 5;
   imageAssetId.value = '';
-  imagePreview.value = '';
   bgm1AssetId.value = '';
-  bgm1Preview.value = '';
   bgm2AssetId.value = '';
-  bgm2Preview.value = '';
   showAddModal.value = false;
   sortPrizes();
 };
@@ -218,18 +251,18 @@ const editIdx = ref<number | null>(null);
 const editName = ref('');
 const editProbability = ref(5);
 const editImageAssetId = ref('');
-const editImagePreview = ref('');
+const editImagePreview = computed(() => editImageAssetId.value);
 const editBgm1AssetId = ref('');
-const editBgm1Preview = ref('');
 const editBgm2AssetId = ref('');
-const editBgm2Preview = ref('');
+const editImageMode = ref('upload');
+const editBgm1Mode = ref('select');
+const editBgm2Mode = ref('select');
 const onEditImageChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      editImagePreview.value = ev.target?.result as string;
-      editImageAssetId.value = editImagePreview.value;
+      editImageAssetId.value = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
@@ -239,8 +272,7 @@ const onEditBgm1Change = (e: Event) => {
   if (file) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      editBgm1Preview.value = ev.target?.result as string;
-      editBgm1AssetId.value = editBgm1Preview.value;
+      editBgm1AssetId.value = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
@@ -250,8 +282,7 @@ const onEditBgm2Change = (e: Event) => {
   if (file) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      editBgm2Preview.value = ev.target?.result as string;
-      editBgm2AssetId.value = editBgm2Preview.value;
+      editBgm2AssetId.value = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
@@ -262,11 +293,11 @@ const editPrize = (idx: number) => {
   editName.value = prize.name;
   editProbability.value = prize.probability;
   editImageAssetId.value = prize.imageAssetId || '';
-  editImagePreview.value = prize.imageAssetId || '';
+  editImageMode.value = prize.imageAssetId && !prize.imageAssetId.startsWith('data:') ? 'select' : 'upload';
   editBgm1AssetId.value = prize.bgm1AssetId || '';
-  editBgm1Preview.value = prize.bgm1AssetId || '';
+  editBgm1Mode.value = prize.bgm1AssetId && !prize.bgm1AssetId.startsWith('data:') ? 'select' : 'upload';
   editBgm2AssetId.value = prize.bgm2AssetId || '';
-  editBgm2Preview.value = prize.bgm2AssetId || '';
+  editBgm2Mode.value = prize.bgm2AssetId && !prize.bgm2AssetId.startsWith('data:') ? 'select' : 'upload';
 };
 const saveEdit = () => {
   if (editIdx.value === null) return;
@@ -281,11 +312,8 @@ const saveEdit = () => {
   editName.value = '';
   editProbability.value = 5;
   editImageAssetId.value = '';
-  editImagePreview.value = '';
   editBgm1AssetId.value = '';
-  editBgm1Preview.value = '';
   editBgm2AssetId.value = '';
-  editBgm2Preview.value = '';
   sortPrizes();
 };
 
@@ -465,5 +493,17 @@ onMounted(() => {
   gap: 16px;
   justify-content: flex-end;
   margin-top: 34px;
+}
+
+.asset-mode {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.asset-mode label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

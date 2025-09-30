@@ -92,8 +92,8 @@ export class AssetApiService implements GasService {
     return assetEntity ? toAssetDto(assetEntity) : null;
   }
 
-  addAsset(args: { asset: AssetDto }): { asset: AssetDto } {
-    const assetDto = args.asset;
+  addAsset(args: AssetDto): { asset: AssetDto } {
+    const assetDto = args;
     if (!assetDto.url.startsWith("data:")) {
       throw new Error("Invalid data URL");
     }

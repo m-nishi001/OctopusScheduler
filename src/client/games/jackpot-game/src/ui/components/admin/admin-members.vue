@@ -29,7 +29,15 @@
     <div class="admin-modal-content" @click.stop>
       <h3>メンバー追加</h3>
       <input v-model="memberName" type="text" placeholder="名前" class="admin-input" />
-      <input type="file" @change="onPhotoChange" accept="image/*" class="admin-input" />
+      <div class="photo-mode">
+        <label><input type="radio" v-model="photoMode" value="upload" /> アップロード</label>
+        <label><input type="radio" v-model="photoMode" value="select" /> 既存から選択</label>
+      </div>
+      <input v-if="photoMode === 'upload'" type="file" @change="onPhotoChange" accept="image/*" class="admin-input" />
+      <select v-if="photoMode === 'select'" v-model="photoAssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+      </select>
       <div v-if="photoPreview" class="admin-photo-preview">
         <img :src="photoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
       </div>
@@ -45,7 +53,16 @@
     <div class="admin-modal-content" @click.stop>
       <h3>メンバー編集</h3>
       <input v-model="editName" type="text" placeholder="名前" class="admin-input" />
-      <input type="file" @change="onEditPhotoChange" accept="image/*" class="admin-input" />
+      <div class="photo-mode">
+        <label><input type="radio" v-model="editPhotoMode" value="upload" /> アップロード</label>
+        <label><input type="radio" v-model="editPhotoMode" value="select" /> 既存から選択</label>
+      </div>
+      <input v-if="editPhotoMode === 'upload'" type="file" @change="onEditPhotoChange" accept="image/*"
+        class="admin-input" />
+      <select v-if="editPhotoMode === 'select'" v-model="editPhotoAssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+      </select>
       <div v-if="editPhotoPreview" class="admin-photo-preview">
         <img :src="editPhotoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
       </div>
@@ -57,16 +74,22 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { MemberService } from '../../../model/applications/member-service';
+import { AssetService } from '../../../model/applications/asset-service';
 
 import { container } from 'tsyringe';
 const memberService = container.resolve(MemberService);
+const assetService = container.resolve(AssetService);
 const members = ref<any[]>([]);
 const originalMembers = ref<any[]>([]);
 const selectedMembers = ref<number[]>([]);
 const sortBy = ref('name');
 const showAddModal = ref(false);
+const assets = ref<any[]>([]);
+const photoMode = ref('upload');
+const editPhotoMode = ref('upload');
+const imageAssets = computed(() => assets.value.filter(asset => asset.type === 'image'));
 const isMemberChanged = (member: any, original: any) => {
   return JSON.stringify(member) !== JSON.stringify(original);
 };
@@ -89,6 +112,9 @@ const fetchMembers = async () => {
   originalMembers.value = JSON.parse(JSON.stringify(members.value));
   sortMembers();
 };
+const fetchAssets = async () => {
+  assets.value = await assetService.fetchAssets();
+};
 const sortMembers = () => {
   if (sortBy.value === 'name') {
     members.value.sort((a, b) => a.name.localeCompare(b.name));
@@ -105,14 +131,13 @@ const bulkDelete = () => {
 };
 const memberName = ref('');
 const photoAssetId = ref('');
-const photoPreview = ref('');
+const photoPreview = computed(() => photoAssetId.value);
 const onPhotoChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      photoPreview.value = ev.target?.result as string;
-      photoAssetId.value = photoPreview.value;
+      photoAssetId.value = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
@@ -127,21 +152,19 @@ const addMember = () => {
   });
   memberName.value = '';
   photoAssetId.value = '';
-  photoPreview.value = '';
   showAddModal.value = false;
   sortMembers();
 };
 const editIdx = ref<number | null>(null);
 const editName = ref('');
 const editPhotoAssetId = ref('');
-const editPhotoPreview = ref('');
+const editPhotoPreview = computed(() => editPhotoAssetId.value);
 const onEditPhotoChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     const reader = new FileReader();
     reader.onload = (ev) => {
-      editPhotoPreview.value = ev.target?.result as string;
-      editPhotoAssetId.value = editPhotoPreview.value;
+      editPhotoAssetId.value = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   }
@@ -151,7 +174,7 @@ const editMember = (idx: number) => {
   const member = members.value[idx];
   editName.value = member.name;
   editPhotoAssetId.value = member.photoAssetId || '';
-  editPhotoPreview.value = member.photoAssetId || '';
+  editPhotoMode.value = member.photoAssetId && !member.photoAssetId.startsWith('data:') ? 'select' : 'upload';
 };
 const saveEdit = () => {
   if (editIdx.value === null) return;
@@ -163,12 +186,12 @@ const saveEdit = () => {
   editIdx.value = null;
   editName.value = '';
   editPhotoAssetId.value = '';
-  editPhotoPreview.value = '';
   sortMembers();
 };
 
 onMounted(() => {
   fetchMembers();
+  fetchAssets();
 });
 </script>
 
@@ -337,10 +360,15 @@ onMounted(() => {
   background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
 }
 
-.admin-modal-buttons {
+.photo-mode {
   display: flex;
   gap: 16px;
-  justify-content: flex-end;
-  margin-top: 34px;
+  margin-bottom: 16px;
+}
+
+.photo-mode label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>
