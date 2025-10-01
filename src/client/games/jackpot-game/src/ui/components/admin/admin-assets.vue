@@ -28,8 +28,9 @@
             </div>
         </form>
         <div class="admin-actions">
+            <button class="admin-btn sync-btn" @click="syncAssets" :disabled="syncing">Google Driveと同期</button>
             <button class="admin-btn delete-btn" @click="deleteSelectedAssets"
-                :disabled="!selectedAssets.length">選択したアセットを削除</button>
+                :disabled="!selectedAssets.length || syncing">選択したアセットを削除</button>
         </div>
         <ul class="admin-list">
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
@@ -55,6 +56,14 @@
                 <button class="admin-btn ml-2" @click="deleteAsset(asset.id)">削除</button>
             </li>
         </ul>
+    </div>
+    <!-- 同期モーダル -->
+    <div v-if="syncing" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Google Driveと同期中...</h3>
+            <p>アセットを同期しています。しばらくお待ちください。</p>
+            <div class="spinner"></div>
+        </div>
     </div>
 </template>
 
@@ -84,6 +93,7 @@ type UploadStatus = {
 
 const uploadStatuses = ref<UploadStatus[]>([]);
 const uploading = ref(false);
+const syncing = ref(false);
 
 const members = ref<any[]>([]);
 const prizes = ref<any[]>([]);
@@ -145,6 +155,19 @@ const deleteSelectedAssets = async () => {
     selectedAssets.value = [];
     // 必要に応じて同期（今回はローカルストレージが更新されているので不要）
     // await fetchAssets();
+};
+
+const syncAssets = async () => {
+    syncing.value = true;
+    try {
+        await assetService.syncAssetsWithGoogleDrive();
+        await fetchAssets();
+    } catch (error) {
+        console.error('同期エラー:', error);
+        // エラー表示を追加可能
+    } finally {
+        syncing.value = false;
+    }
 };
 
 const getUsage = (assetId: string) => {
@@ -370,5 +393,55 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     gap: 12px;
+}
+
+.sync-btn {
+    background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+}
+
+.sync-btn:hover {
+    background: linear-gradient(90deg, #20c997 0%, #28a745 100%);
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #232b36;
+    color: #fff;
+    padding: 32px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.spinner {
+    margin: 16px auto;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #4f8cff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 </style>

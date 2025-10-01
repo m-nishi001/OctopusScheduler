@@ -19,6 +19,7 @@ export class AssetApiService implements GasService {
       getAssetById: this.getAssetById.bind(this),
       listAssets: this.listAssets.bind(this),
       getAssets: this.getAssets.bind(this),
+      getAssetIds: this.getAssetIds.bind(this),
       uploadDomainAsset: this.uploadDomainAsset.bind(this),
       getDomainAsset: this.getDomainAsset.bind(this),
       addAsset: this.addAsset.bind(this),
@@ -82,14 +83,21 @@ export class AssetApiService implements GasService {
     return { assets: assets.map(toAssetDto) };
   }
 
+  getAssetIds(): { ids: string[] } {
+    const ids = this.repository.findAllIds();
+    return { ids };
+  }
+
   uploadDomainAsset(assetDto: AssetDto): string {
     const assetEntity = toAssetEntity(assetDto);
     return this.repository.uploadAsset(assetEntity);
   }
 
-  getDomainAsset(id: string): AssetDto | null {
+  // Consistent response shape expected by client-side GasFunction consumers.
+  // Always return an object with an `asset` field which is either AssetDto or null.
+  getDomainAsset(id: string): { asset: AssetDto | null } {
     const assetEntity = this.repository.getAsset(id);
-    return assetEntity ? toAssetDto(assetEntity) : null;
+    return { asset: assetEntity ? toAssetDto(assetEntity) : null };
   }
 
   addAsset(args: AssetDto): { asset: AssetDto } {

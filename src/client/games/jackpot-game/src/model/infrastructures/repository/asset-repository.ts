@@ -135,7 +135,8 @@ export class AssetRepository implements IAssetRepository {
       this.gasService
         .createCall<void>("AssetService.deleteAsset", { assetId })
         .withSuccessed(async () => {
-          let assets = (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+          let assets =
+            (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
           assets = assets.filter((a: Asset) => a.id !== assetId);
           await this.localStorage.save(ASSET_CACHE_KEY, assets);
           resolve();
@@ -147,14 +148,16 @@ export class AssetRepository implements IAssetRepository {
 
   async deleteAssets(assetIds: string[]): Promise<void> {
     if (!this.gasService) return;
-    const promises = assetIds.map(assetId =>
-      new Promise<void>((resolve, reject) => {
-        this.gasService!
-          .createCall<void>("AssetService.deleteAsset", { assetId })
-          .withSuccessed(() => resolve())
-          .withFailuered((msg: string) => reject(new Error(msg)))
-          .invoke();
-      })
+    const promises = assetIds.map(
+      (assetId) =>
+        new Promise<void>((resolve, reject) => {
+          this.gasService!.createCall<void>("AssetService.deleteAsset", {
+            assetId,
+          })
+            .withSuccessed(() => resolve())
+            .withFailuered((msg: string) => reject(new Error(msg)))
+            .invoke();
+        })
     );
     await Promise.all(promises);
     // 全てのサーバー削除が成功したら、ローカルストレージを更新
@@ -177,20 +180,79 @@ export class AssetRepository implements IAssetRepository {
     });
   }
 
+  async syncAssetsWithGoogleDrive(): Promise<void> {
+    if (!this.gasService) return;
+    // サーバーからアセットIDリストを取得
+    const { ids }: { ids: string[] } = await new Promise((resolve, reject) => {
+      this.gasService!.createCall<{ ids: string[] }>("AssetService.getAssetIds")
+        .withTimeout(30000)
+        .withSuccessed((res: { ids: string[] }) => resolve(res))
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+    // 各IDに対してgetDomainAssetを並列で呼び出し
+    // サーバー側が { asset: Asset } を返す場合と、Asset そのもの or null を返す場合があるため
+    // 柔軟にハンドリングする。各呼び出しは失敗しても個別に null を返すようにして
+    // Promise.all が reject にならないようにする。
+    const assetPromises = ids.map(
+      (id) =>
+        new Promise<Asset | null>((resolve) => {
+          this.gasService!.createCall<{ asset: Asset | null }>(
+            "AssetService.getDomainAsset",
+            id
+          )
+            .withTimeout(120000) // 2分に延長
+            .withSuccessed((res: { asset: Asset | null }) => {
+              // サーバーは常に { asset: Asset | null } を返す想定
+              resolve(res.asset);
+            })
+            .withFailuered(() => {
+              // 個別の取得に失敗しても全体を止めない（null を返す）
+              resolve(null);
+            })
+            .invoke();
+        })
+    );
+    const serverAssetsRaw = await Promise.all(assetPromises);
+    // null / undefined の要素を取り除き、id を持つ要素だけを採用
+    const serverAssets = serverAssetsRaw.filter(
+      (a): a is Asset =>
+        !!a && (a as any).id !== undefined && (a as any).id !== null
+    );
+    // ローカルアセットを取得
+    const localAssets =
+      (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+    // IDセットで比較
+    const serverIds = new Set(serverAssets.map((a) => a.id));
+    const localIds = new Set(localAssets.map((a) => a.id));
+    // サーバーにあってローカルにない: 追加
+    const toAdd = serverAssets.filter((a) => !localIds.has(a.id));
+    // ローカルにあってサーバーにない: 削除
+    const toDelete = localAssets
+      .filter((a) => !serverIds.has(a.id))
+      .map((a) => a.id);
+    // 並列実行
+    const addPromises = toAdd.map(
+      (asset) =>
+        new Promise<void>((resolve) => {
+          // ローカルストレージに追加
+          this.localStorage.get<Asset[]>(ASSET_CACHE_KEY).then((current) => {
+            const updated = current ? [...current, asset] : [asset];
+            this.localStorage
+              .save(ASSET_CACHE_KEY, updated)
+              .then(() => resolve());
+          });
+        })
+    );
+    const deletePromises = toDelete.map((assetId) => this.deleteAsset(assetId));
+    await Promise.all([...addPromises, ...deletePromises]);
+  }
+
   async getAssetById(assetId: string): Promise<Asset | undefined> {
     const assets = await this.fetchAssets();
     return assets.find((a) => a.id === assetId);
   }
 }
-
-const fileToDataUrl = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
 
 const getAssetType = (
   mimeType: string
@@ -199,4 +261,13 @@ const getAssetType = (
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.startsWith("audio/")) return "audio";
   return "text";
+};
+
+const fileToDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 };

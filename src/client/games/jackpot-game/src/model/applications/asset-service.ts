@@ -37,4 +37,8 @@ export class AssetService {
   async deleteAssets(assetIds: string[]): Promise<void> {
     await this.repo.deleteAssets(assetIds);
   }
+
+  async syncAssetsWithGoogleDrive(): Promise<void> {
+    await this.repo.syncAssetsWithGoogleDrive();
+  }
 }

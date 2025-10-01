@@ -46,12 +46,17 @@ export class AssetRepositoryImpl implements IAssetRepository {
     else if (mimeType.startsWith("video/")) type = "video";
     else if (mimeType.startsWith("audio/")) type = "audio";
     else type = "text";
+    // Generate data URL from blob
+    const blob = file.getBlob();
+    const bytes = blob.getBytes();
+    const base64Data = Utilities.base64Encode(bytes);
+    const dataUrl = "data:" + mimeType + ";base64," + base64Data;
     return {
       id: file.getId(),
       type,
-      url: "", // Optionally, generate a download URL or dataUrl
+      url: dataUrl,
       name: file.getName(),
-      uploadedAt: "", // Optionally, get created date
+      uploadedAt: file.getDateCreated().toISOString(),
       size: file.getSize(),
       meta: {},
     };
@@ -74,10 +79,15 @@ export class AssetRepositoryImpl implements IAssetRepository {
         else if (mimeType.startsWith("video/")) type = "video";
         else if (mimeType.startsWith("audio/")) type = "audio";
         else type = "text";
+        // Generate data URL from blob
+        const blob = file.getBlob();
+        const bytes = blob.getBytes();
+        const base64Data = Utilities.base64Encode(bytes);
+        const dataUrl = "data:" + mimeType + ";base64," + base64Data;
         return {
           id: file.getId(),
           type,
-          url: file.getDownloadUrl(),
+          url: dataUrl,
           name: file.getName(),
           uploadedAt: file.getDateCreated().toISOString(),
           size: file.getSize(),
@@ -86,6 +96,23 @@ export class AssetRepositoryImpl implements IAssetRepository {
       });
     } catch (error) {
       console.error("[AssetRepository] Error in findAll:", error);
+      return [];
+    }
+  }
+
+  findAllIds(): string[] {
+    const folderId = getAssetFolderId();
+    if (!folderId) {
+      console.warn(
+        "[AssetRepository] jackpot-game-asset-folder-id is not set in script properties."
+      );
+      return [];
+    }
+    try {
+      const files = AssetRepositoryImplStatic.listAssets();
+      return files.map((file) => file.getId());
+    } catch (error) {
+      console.error("[AssetRepository] Error in findAllIds:", error);
       return [];
     }
   }
