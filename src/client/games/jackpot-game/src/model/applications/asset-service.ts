@@ -19,8 +19,11 @@ export class AssetService {
   }
 
   /** 複数新規追加専用 */
-  async addAssets(files: File[]): Promise<void> {
-    await this.repo.addAssets(files);
+  async addAssets(
+    files: File[],
+    onProgress?: (index: number, success: boolean) => void
+  ): Promise<{ successful: File[]; failed: File[] }> {
+    return this.repo.addAssets(files, onProgress);
   }
 
   async updateAsset(asset: AssetDto): Promise<void> {
@@ -29,5 +32,9 @@ export class AssetService {
 
   async deleteAsset(assetId: string): Promise<void> {
     await this.repo.deleteAsset(assetId);
+  }
+
+  async deleteAssets(assetIds: string[]): Promise<void> {
+    await this.repo.deleteAssets(assetIds);
   }
 }

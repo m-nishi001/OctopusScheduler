@@ -7,11 +7,25 @@
                 <strong>選択中のファイル（{{ selectedFiles.length }}）:</strong>
                 <ul>
                     <li v-for="(f, idx) in selectedFiles" :key="f.name + '-' + idx">
-                        {{ f.name }} <small>({{ formatSize(f.size) }})</small>
+                        <div class="file-row">
+                            <span class="file-name">{{ f.name }}</span>
+                            <span class="file-size">{{ formatSize(f.size) }}</span>
+                            <span class="file-status" v-if="uploadStatuses[idx]">
+                                <template v-if="uploadStatuses[idx].status === 'pending'">(未開始)</template>
+                                <template v-else-if="uploadStatuses[idx].status === 'uploading'">(アップロード中)</template>
+                                <template v-else-if="uploadStatuses[idx].status === 'success'">(完了)</template>
+                                <template v-else-if="uploadStatuses[idx].status === 'failed'">(失敗)</template>
+                            </span>
+                        </div>
+                        <div class="file-msg" v-if="uploadStatuses[idx] && uploadStatuses[idx].message">{{
+                            uploadStatuses[idx].message }}</div>
                     </li>
                 </ul>
             </div>
-            <button type="submit" class="admin-btn" :disabled="!selectedFiles.length">追加</button>
+            <div class="upload-actions">
+                <button type="submit" class="admin-btn" :disabled="!selectedFiles.length || uploading">追加</button>
+                <span class="uploading-indicator" v-if="uploading">アップロード中...</span>
+            </div>
         </form>
         <div class="admin-actions">
             <button class="admin-btn delete-btn" @click="deleteSelectedAssets"
@@ -61,6 +75,16 @@ const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);
 const selectedAssets = ref<string[]>([]);
 
+type UploadStatus = {
+    name: string;
+    size: number;
+    status: 'pending' | 'uploading' | 'success' | 'failed';
+    message?: string;
+}
+
+const uploadStatuses = ref<UploadStatus[]>([]);
+const uploading = ref(false);
+
 const members = ref<any[]>([]);
 const prizes = ref<any[]>([]);
 const screenConfigs = ref<any[]>([]);
@@ -80,26 +104,47 @@ const onFileChange = (e: Event) => {
     const files = (e.target as HTMLInputElement).files;
     if (files) {
         selectedFiles.value = Array.from(files);
+        // initialize upload statuses
+        uploadStatuses.value = selectedFiles.value.map(f => ({
+            name: f.name,
+            size: f.size,
+            status: 'pending' as const,
+        }));
     }
 };
 
 const addAssets = async () => {
     if (!selectedFiles.value.length) return;
-    await assetService.addAssets(selectedFiles.value);
-    fetchAssets();
+    uploading.value = true;
+    // アップロード開始時に全てをuploadingに設定
+    uploadStatuses.value = selectedFiles.value.map(f => ({
+        name: f.name,
+        size: f.size,
+        status: 'uploading' as const,
+    }));
+    await assetService.addAssets(selectedFiles.value, (index, success) => {
+        // 個別の完了時にステータス更新
+        uploadStatuses.value[index].status = success ? 'success' : 'failed';
+        uploadStatuses.value[index].message = success ? undefined : 'アップロード失敗';
+    });
+    uploading.value = false;
+    await fetchAssets();
     selectedFiles.value = [];
 };
 
 const deleteAsset = async (id: string) => {
     await assetService.deleteAsset(id);
-    fetchAssets();
+    // サーバー削除成功後にリアルタイムにリストから削除
+    assets.value = assets.value.filter(asset => asset.id !== id);
 };
 
 const deleteSelectedAssets = async () => {
-    const promises = selectedAssets.value.map(id => assetService.deleteAsset(id));
-    await Promise.all(promises);
+    await assetService.deleteAssets(selectedAssets.value);
+    // サーバー削除成功後にリアルタイムにリストから削除
+    assets.value = assets.value.filter(asset => !selectedAssets.value.includes(asset.id));
     selectedAssets.value = [];
-    fetchAssets();
+    // 必要に応じて同期（今回はローカルストレージが更新されているので不要）
+    // await fetchAssets();
 };
 
 const getUsage = (assetId: string) => {
@@ -288,5 +333,42 @@ onMounted(async () => {
 .selected-files li {
     font-size: 0.95rem;
     color: #cfe8ff;
+}
+
+.file-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.file-name {
+    font-weight: 600;
+}
+
+.file-size {
+    color: #9fb7d6;
+    font-size: 0.9rem;
+}
+
+.file-status {
+    margin-left: 8px;
+    color: #ffd580;
+}
+
+.file-msg {
+    color: #ff9b9b;
+    font-size: 0.85rem;
+}
+
+.uploading-indicator {
+    margin-left: 12px;
+    color: #cfe8ff;
+    font-weight: 700;
+}
+
+.upload-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 </style>

@@ -49,8 +49,11 @@ export class AssetRepository implements IAssetRepository {
     });
   }
 
-  async addAssets(files: File[]): Promise<void> {
-    if (!this.gasService) return;
+  async addAssets(
+    files: File[],
+    onProgress?: (index: number, success: boolean) => void
+  ): Promise<{ successful: File[]; failed: File[] }> {
+    if (!this.gasService) return { successful: [], failed: files };
     const assetDtos: AssetDto[] = [];
     for (const file of files) {
       const dataUrl = await fileToDataUrl(file);
@@ -71,15 +74,37 @@ export class AssetRepository implements IAssetRepository {
         asset
       ).withTimeout(30000)
     );
-    const results = await this.gasService!.all(...calls);
-    // 成功したものをローカルストレージに追加
-    const successfulAssets: AssetDto[] = [];
-    results.forEach((result, index) => {
-      if (result.status === "fulfilled" && result.value) {
-        successfulAssets.push(assetDtos[index]);
+    // 各呼び出しのPromiseを作成し、完了時にonProgressを呼ぶ
+    const promises = calls.map(async (call, index) => {
+      try {
+        const result = await call.invoke();
+        if (onProgress) onProgress(index, result);
+        return { index, success: result };
+      } catch (error) {
+        if (onProgress) onProgress(index, false);
+        return { index, success: false };
       }
     });
-    if (successfulAssets.length > 0) {
+    // 全ての呼び出しが完了するのを待つ
+    const results = await Promise.all(promises);
+    // 成功したファイルと失敗したファイルを分ける
+    const successful: File[] = [];
+    const failed: File[] = [];
+    results.forEach(({ index, success }) => {
+      if (success) {
+        successful.push(files[index]);
+      } else {
+        failed.push(files[index]);
+      }
+    });
+    // 成功したものをローカルストレージに追加
+    if (successful.length > 0) {
+      const successfulAssets: AssetDto[] = [];
+      results.forEach(({ index, success }) => {
+        if (success) {
+          successfulAssets.push(assetDtos[index]);
+        }
+      });
       const current =
         (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
       await this.localStorage.save(ASSET_CACHE_KEY, [
@@ -87,6 +112,7 @@ export class AssetRepository implements IAssetRepository {
         ...successfulAssets,
       ]);
     }
+    return { successful, failed };
   }
 
   async updateAsset(asset: Asset): Promise<void> {
@@ -104,17 +130,37 @@ export class AssetRepository implements IAssetRepository {
   }
 
   async deleteAsset(assetId: string): Promise<void> {
-    let assets = (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-    assets = assets.filter((a: Asset) => a.id !== assetId);
-    await this.localStorage.save(ASSET_CACHE_KEY, assets);
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
         .createCall<void>("AssetService.deleteAsset", { assetId })
-        .withSuccessed(() => resolve())
+        .withSuccessed(async () => {
+          let assets = (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+          assets = assets.filter((a: Asset) => a.id !== assetId);
+          await this.localStorage.save(ASSET_CACHE_KEY, assets);
+          resolve();
+        })
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
+  }
+
+  async deleteAssets(assetIds: string[]): Promise<void> {
+    if (!this.gasService) return;
+    const promises = assetIds.map(assetId =>
+      new Promise<void>((resolve, reject) => {
+        this.gasService!
+          .createCall<void>("AssetService.deleteAsset", { assetId })
+          .withSuccessed(() => resolve())
+          .withFailuered((msg: string) => reject(new Error(msg)))
+          .invoke();
+      })
+    );
+    await Promise.all(promises);
+    // 全てのサーバー削除が成功したら、ローカルストレージを更新
+    let assets = (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+    assets = assets.filter((a: Asset) => !assetIds.includes(a.id));
+    await this.localStorage.save(ASSET_CACHE_KEY, assets);
   }
 
   async syncAssetsWithServer(): Promise<Asset[]> {
