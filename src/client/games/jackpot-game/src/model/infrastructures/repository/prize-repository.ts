@@ -2,6 +2,7 @@ import type { Prize } from "../../domains/prize/prize";
 import type { PrizeDto } from "../../applications/dto/prize-dto";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
+import { StorageConfig } from "../../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
 import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
 
@@ -31,7 +32,10 @@ export class PrizeRepository implements IPrizeRepository {
   }
   private readonly gasService =
     GasFunctionService.create("callJackpotGameApi")!;
-  private readonly localStorage = useLocalStorage();
+  private readonly localStorage = useLocalStorage(
+    StorageConfig.getDbName(),
+    StorageConfig.getStoreName("PrizeData")
+  );
 
   async fetchPrizes(): Promise<PrizeDto[]> {
     // 1. キャッシュ優先

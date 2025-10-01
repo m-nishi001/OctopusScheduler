@@ -3,6 +3,7 @@ import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
 import type { AssetDto } from "../../applications/dto/asset-dto";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
+import { StorageConfig } from "../../../infrastructures/storage-config";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 
 const ASSET_CACHE_KEY = "assets";
@@ -11,7 +12,10 @@ const ASSET_CACHE_KEY = "assets";
 export class AssetRepository implements IAssetRepository {
   private readonly gasService =
     GasFunctionService.create("callJackpotGameApi")!;
-  private readonly localStorage = useLocalStorage();
+  private readonly localStorage = useLocalStorage(
+    StorageConfig.getDbName(),
+    StorageConfig.getStoreName("AssetData")
+  );
 
   async fetchAssets(): Promise<Asset[]> {
     const cached = await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY);
