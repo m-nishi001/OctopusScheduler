@@ -9,16 +9,13 @@ export class AssetService {
   async fetchAssets(): Promise<AssetDto[]> {
     const assets = await this.repo.fetchAssets();
     if (!Array.isArray(assets) || !assets) return [];
-    // Entity -> DTO変換（必要ならマッピング処理を追加）
     return assets.map((a) => ({ ...a }));
   }
 
-  /** 新規追加専用 */
   async addAsset(asset: AssetDto): Promise<void> {
     await this.repo.addAsset(asset);
   }
 
-  /** 複数新規追加専用 */
   async addAssets(
     files: File[],
     onProgress?: (index: number, success: boolean) => void
