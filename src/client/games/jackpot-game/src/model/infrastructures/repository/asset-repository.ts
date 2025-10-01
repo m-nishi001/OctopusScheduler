@@ -62,7 +62,7 @@ export class AssetRepository implements IAssetRepository {
     for (const file of files) {
       const dataUrl = await fileToDataUrl(file);
       const asset: AssetDto = {
-        id: String(Date.now() + Math.random()),
+        id: "",
         name: file.name,
         type: getAssetType(file.type),
         url: dataUrl,
@@ -79,36 +79,38 @@ export class AssetRepository implements IAssetRepository {
       ).withTimeout(30000)
     );
     // 各呼び出しのPromiseを作成し、完了時にonProgressを呼ぶ
-    const promises = calls.map(async (call, index) => {
-      try {
-        const result = await call.invoke();
-        if (onProgress) onProgress(index, result);
-        return { index, success: result };
-      } catch (error) {
-        if (onProgress) onProgress(index, false);
-        return { index, success: false };
-      }
+    const promises = calls.map((call, index) => {
+      return new Promise<{ index: number; success: AssetDto | false }>(
+        (resolve) => {
+          call
+            .withSuccessed((res: { asset: AssetDto }) => {
+              if (onProgress) onProgress(index, true);
+              resolve({ index, success: res.asset });
+            })
+            .withFailuered(() => {
+              if (onProgress) onProgress(index, false);
+              resolve({ index, success: false });
+            })
+            .invoke();
+        }
+      );
     });
     // 全ての呼び出しが完了するのを待つ
     const results = await Promise.all(promises);
     // 成功したファイルと失敗したファイルを分ける
     const successful: File[] = [];
     const failed: File[] = [];
+    const successfulAssets: AssetDto[] = [];
     results.forEach(({ index, success }) => {
       if (success) {
         successful.push(files[index]);
+        successfulAssets.push(success);
       } else {
         failed.push(files[index]);
       }
     });
     // 成功したものをローカルストレージに追加
     if (successful.length > 0) {
-      const successfulAssets: AssetDto[] = [];
-      results.forEach(({ index, success }) => {
-        if (success) {
-          successfulAssets.push(assetDtos[index]);
-        }
-      });
       const current =
         (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
       await this.localStorage.save(ASSET_CACHE_KEY, [
