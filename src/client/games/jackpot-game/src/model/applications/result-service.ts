@@ -19,7 +19,7 @@ export class ResultService {
           const asset = await this.assetRepo.getAssetById(
             r.member.photoAssetId
           );
-          return { ...r, member: { ...r.member, photoUrl: asset?.url } };
+          return { ...r, member: { ...r.member, photoUrl: asset?.dataUrl } };
         }
         return r;
       })

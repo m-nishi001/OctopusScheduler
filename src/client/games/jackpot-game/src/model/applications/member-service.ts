@@ -18,7 +18,7 @@ export class MemberService {
       members.map(async (m) => {
         if (m.photoAssetId) {
           const asset = await this.assetRepo.getAssetById(m.photoAssetId);
-          return { ...m, photoUrl: asset?.url };
+          return { ...m, photoUrl: asset?.dataUrl };
         }
         return m;
       })
@@ -34,14 +34,14 @@ export class MemberService {
       const assetDto = {
         id: member.photoAssetId || "",
         type: "image" as "image",
-        url: "",
+        dataUrl: "",
         name: member.name + "_photo",
         uploadedAt: new Date().toISOString(),
         size: (member as any).photoAsset.size || 0,
       };
       await this.assetRepo.addAsset(assetDto);
       member.photoAssetId = assetDto.id;
-      (member as any).photoAssetUrl = assetDto.url;
+      (member as any).photoAssetUrl = assetDto.dataUrl;
     }
     if (typeof this.repo.addMember === "function") {
       await this.repo.addMember(member);
@@ -58,14 +58,14 @@ export class MemberService {
       const assetDto = {
         id: member.photoAssetId || "",
         type: "image" as "image",
-        url: "",
+        dataUrl: "",
         name: member.name + "_photo",
         uploadedAt: new Date().toISOString(),
         size: (member as any).photoAsset.size || 0,
       };
       await this.assetRepo.updateAsset(assetDto);
       member.photoAssetId = assetDto.id;
-      (member as any).photoAssetUrl = assetDto.url;
+      (member as any).photoAssetUrl = assetDto.dataUrl;
     }
     await this.repo.updateMember(member);
   }

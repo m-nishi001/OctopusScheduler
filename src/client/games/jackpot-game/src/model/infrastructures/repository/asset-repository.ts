@@ -65,7 +65,7 @@ export class AssetRepository implements IAssetRepository {
         id: "",
         name: file.name,
         type: getAssetType(file.type),
-        url: dataUrl,
+        dataUrl: dataUrl,
         uploadedAt: new Date().toISOString(),
         size: file.size,
         meta: {},
@@ -85,6 +85,8 @@ export class AssetRepository implements IAssetRepository {
           call
             .withSuccessed((res: { asset: AssetDto }) => {
               if (onProgress) onProgress(index, true);
+              // サーバーから返ってきたdataUrlをdataUrlに置き換え
+              res.asset.dataUrl = assetDtos[index].dataUrl;
               resolve({ index, success: res.asset });
             })
             .withFailuered(() => {

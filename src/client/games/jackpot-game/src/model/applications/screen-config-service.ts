@@ -22,14 +22,14 @@ export class ScreenConfigService {
 
     if (config.bgmAssetId) {
       const bgmAsset = await this.assetRepo.getAssetById(config.bgmAssetId);
-      resolvedConfig.bgmAssetUrl = bgmAsset?.url;
+      resolvedConfig.bgmAssetUrl = bgmAsset?.dataUrl;
     }
 
     if (config.seAssetIds) {
       resolvedConfig.seAssetUrls = await Promise.all(
         config.seAssetIds.map(async (id) => {
           const asset = await this.assetRepo.getAssetById(id);
-          return asset?.url || "";
+          return asset?.dataUrl || "";
         })
       );
     }
@@ -38,7 +38,7 @@ export class ScreenConfigService {
       config.elements.map(async (element) => {
         if (element.assetId) {
           const asset = await this.assetRepo.getAssetById(element.assetId);
-          return { ...element, assetUrl: asset?.url };
+          return { ...element, assetUrl: asset?.dataUrl };
         }
         return element;
       })

@@ -4,7 +4,7 @@ export function toAssetEntity(dto: AssetDto): any {
   return {
     id: dto.id,
     type: dto.type,
-    url: dto.url,
+    dataUrl: dto.dataUrl,
     name: dto.name,
     uploadedAt: dto.uploadedAt,
     size: dto.size,
@@ -16,7 +16,7 @@ export function toAssetDto(entity: any): AssetDto {
   return {
     id: entity.id,
     type: entity.type,
-    url: entity.url,
+    dataUrl: entity.dataUrl,
     name: entity.name,
     uploadedAt: entity.uploadedAt,
     size: entity.size,

@@ -47,7 +47,7 @@ export class AssetApiService implements GasService {
       ? {
           id: file.getId(),
           type,
-          url: "",
+          dataUrl: "",
           name: file.getName(),
           uploadedAt: "",
           size: file.getSize(),
@@ -56,7 +56,7 @@ export class AssetApiService implements GasService {
       : {
           id: assetId,
           type,
-          url: "",
+          dataUrl: "",
           name: args.fileName,
           uploadedAt: "",
           size: 0,
@@ -102,11 +102,11 @@ export class AssetApiService implements GasService {
 
   addAsset(args: AssetDto): { asset: AssetDto } {
     const assetDto = args;
-    if (!assetDto.url.startsWith("data:")) {
+    if (!assetDto.dataUrl.startsWith("data:")) {
       throw new Error("Invalid data URL");
     }
     const blob = AssetRepositoryImplStatic.convertToBlobFromDataUrl(
-      assetDto.url,
+      assetDto.dataUrl,
       assetDto.name,
       assetDto.type === "image"
         ? "image/png"
@@ -143,7 +143,7 @@ export class AssetApiService implements GasService {
       ? {
           id: file.getId(),
           type,
-          url: file.getDownloadUrl(),
+          dataUrl: file.getDownloadUrl(),
           name: file.getName(),
           uploadedAt: file.getDateCreated().toISOString(),
           size: file.getSize(),
@@ -152,7 +152,7 @@ export class AssetApiService implements GasService {
       : {
           id: assetId,
           type,
-          url: "",
+          dataUrl: "",
           name: assetDto.name,
           uploadedAt: new Date().toISOString(),
           size: assetDto.size,

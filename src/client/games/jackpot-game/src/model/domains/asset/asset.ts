@@ -1,7 +1,7 @@
 export interface Asset {
   id: string;
-  type: 'image' | 'video' | 'audio' | 'text';
-  url: string;
+  type: "image" | "video" | "audio" | "text";
+  dataUrl: string;
   name: string;
   uploadedAt: string;
   size: number;

@@ -15,9 +15,9 @@ function getAssetFolderId(): string {
 
 export class AssetRepositoryImpl implements IAssetRepository {
   uploadAsset(asset: Asset): string {
-    // asset.url is assumed to be a dataUrl
+    // asset.dataUrl is assumed to be a dataUrl
     const blob = AssetRepositoryImplStatic.convertToBlobFromDataUrl(
-      asset.url,
+      asset.dataUrl,
       asset.name,
       asset.type
     );
@@ -54,7 +54,7 @@ export class AssetRepositoryImpl implements IAssetRepository {
     return {
       id: file.getId(),
       type,
-      url: dataUrl,
+      dataUrl: dataUrl,
       name: file.getName(),
       uploadedAt: file.getDateCreated().toISOString(),
       size: file.getSize(),
@@ -87,7 +87,7 @@ export class AssetRepositoryImpl implements IAssetRepository {
         return {
           id: file.getId(),
           type,
-          url: dataUrl,
+          dataUrl: dataUrl,
           name: file.getName(),
           uploadedAt: file.getDateCreated().toISOString(),
           size: file.getSize(),

@@ -36,11 +36,11 @@
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedAssets" :value="asset.id" />
                 <div class="asset-preview">
-                    <img v-if="asset.type === 'image' && asset.url" :src="asset.url" alt="preview"
+                    <img v-if="asset.type === 'image' && asset.dataUrl" :src="asset.dataUrl" alt="preview"
                         class="preview-img" />
-                    <video v-else-if="asset.type === 'video' && asset.url" :src="asset.url" controls
+                    <video v-else-if="asset.type === 'video' && asset.dataUrl" :src="asset.dataUrl" controls
                         class="preview-video"></video>
-                    <audio v-else-if="asset.type === 'audio' && asset.url" :src="asset.url" controls
+                    <audio v-else-if="asset.type === 'audio' && asset.dataUrl" :src="asset.dataUrl" controls
                         class="preview-audio"></audio>
                     <span v-else>{{ asset.name }}</span>
                 </div>

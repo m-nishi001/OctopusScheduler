@@ -25,14 +25,14 @@ export class PrizeService {
       const assetDto = {
         id: prize.imageAssetId || "",
         type: "image" as "image",
-        url: "",
+        dataUrl: "",
         name: prize.name + "_image",
         uploadedAt: new Date().toISOString(),
         size: (prize as any).imageAsset.size || 0,
       };
       await this.assetRepo.addAsset(assetDto);
       prize.imageAssetId = assetDto.id;
-      (prize as any).imageAssetUrl = assetDto.url;
+      (prize as any).imageAssetUrl = assetDto.dataUrl;
     }
     await this.repo.addPrize(prize);
   }
@@ -45,14 +45,14 @@ export class PrizeService {
       const assetDto = {
         id: prize.imageAssetId || "",
         type: "image" as "image",
-        url: "",
+        dataUrl: "",
         name: prize.name + "_image",
         uploadedAt: new Date().toISOString(),
         size: (prize as any).imageAsset.size || 0,
       };
       await this.assetRepo.updateAsset(assetDto);
       prize.imageAssetId = assetDto.id;
-      (prize as any).imageAssetUrl = assetDto.url;
+      (prize as any).imageAssetUrl = assetDto.dataUrl;
     }
     await this.repo.updatePrize(prize);
   }
