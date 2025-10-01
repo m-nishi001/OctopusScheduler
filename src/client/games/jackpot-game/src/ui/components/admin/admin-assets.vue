@@ -3,6 +3,14 @@
         <h2>アセット管理</h2>
         <form class="admin-form" @submit.prevent="addAssets">
             <input type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple class="admin-input" />
+            <div v-if="selectedFiles.length" class="selected-files">
+                <strong>選択中のファイル（{{ selectedFiles.length }}）:</strong>
+                <ul>
+                    <li v-for="(f, idx) in selectedFiles" :key="f.name + '-' + idx">
+                        {{ f.name }} <small>({{ formatSize(f.size) }})</small>
+                    </li>
+                </ul>
+            </div>
             <button type="submit" class="admin-btn" :disabled="!selectedFiles.length">追加</button>
         </form>
         <div class="admin-actions">
@@ -261,5 +269,24 @@ onMounted(async () => {
 
 .ml-2 {
     margin-left: 8px;
+}
+
+.selected-files {
+    width: 100%;
+    color: #ddd;
+    margin-top: 8px;
+}
+
+.selected-files ul {
+    list-style: none;
+    padding: 8px 12px;
+    margin: 4px 0 0 0;
+    background: #1e262d;
+    border-radius: 6px;
+}
+
+.selected-files li {
+    font-size: 0.95rem;
+    color: #cfe8ff;
 }
 </style>
