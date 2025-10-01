@@ -14,9 +14,15 @@ function getAssetFolderId(): string {
 }
 
 export class AssetRepositoryImpl implements IAssetRepository {
+  private assetTypeToMimeTypeMap: Record<string, string> = {
+    image: "image/png",
+    video: "video/mp4",
+    audio: "audio/mp3",
+    text: "text/plain",
+  };
+
   uploadAsset(asset: Asset): string {
-    // asset.dataUrl is assumed to be a dataUrl
-    const blob = AssetRepositoryImplStatic.convertToBlobFromDataUrl(
+    const blob = this.convertToBlobFromDataUrl(
       asset.dataUrl,
       asset.name,
       asset.type
@@ -25,7 +31,7 @@ export class AssetRepositoryImpl implements IAssetRepository {
     const file = GoogleDriveService.uploadFile({
       fileName: asset.name,
       parentFolderId: folderId,
-      mimeType: asset.type,
+      mimeType: this.getMimeTypeFromAssetType(asset.type),
       blob: blob,
     });
     return file ? file.id || "" : "";
@@ -39,27 +45,7 @@ export class AssetRepositoryImpl implements IAssetRepository {
     });
     if (files.length === 0) return null;
     const file = files[0];
-    // Map mimeType to Asset.type
-    let type: "image" | "video" | "audio" | "text" = "text";
-    const mimeType = file.getMimeType();
-    if (mimeType.startsWith("image/")) type = "image";
-    else if (mimeType.startsWith("video/")) type = "video";
-    else if (mimeType.startsWith("audio/")) type = "audio";
-    else type = "text";
-    // Generate data URL from blob
-    const blob = file.getBlob();
-    const bytes = blob.getBytes();
-    const base64Data = Utilities.base64Encode(bytes);
-    const dataUrl = "data:" + mimeType + ";base64," + base64Data;
-    return {
-      id: file.getId(),
-      type,
-      dataUrl: dataUrl,
-      name: file.getName(),
-      uploadedAt: file.getDateCreated().toISOString(),
-      size: file.getSize(),
-      meta: {},
-    };
+    return this.mapFileToAsset(file);
   }
 
   findAll(): Asset[] {
@@ -71,29 +57,8 @@ export class AssetRepositoryImpl implements IAssetRepository {
       return [];
     }
     try {
-      const files = AssetRepositoryImplStatic.listAssets();
-      return files.map((file) => {
-        let type: "image" | "video" | "audio" | "text" = "text";
-        const mimeType = file.getMimeType();
-        if (mimeType.startsWith("image/")) type = "image";
-        else if (mimeType.startsWith("video/")) type = "video";
-        else if (mimeType.startsWith("audio/")) type = "audio";
-        else type = "text";
-        // Generate data URL from blob
-        const blob = file.getBlob();
-        const bytes = blob.getBytes();
-        const base64Data = Utilities.base64Encode(bytes);
-        const dataUrl = "data:" + mimeType + ";base64," + base64Data;
-        return {
-          id: file.getId(),
-          type,
-          dataUrl: dataUrl,
-          name: file.getName(),
-          uploadedAt: file.getDateCreated().toISOString(),
-          size: file.getSize(),
-          meta: {},
-        };
-      });
+      const files = this.listAssets();
+      return files.map((file) => this.mapFileToAsset(file));
     } catch (error) {
       console.error("[AssetRepository] Error in findAll:", error);
       return [];
@@ -109,7 +74,7 @@ export class AssetRepositoryImpl implements IAssetRepository {
       return [];
     }
     try {
-      const files = AssetRepositoryImplStatic.listAssets();
+      const files = this.listAssets();
       return files.map((file) => file.getId());
     } catch (error) {
       console.error("[AssetRepository] Error in findAllIds:", error);
@@ -118,7 +83,6 @@ export class AssetRepositoryImpl implements IAssetRepository {
   }
 
   updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string {
-    // Fetch asset, update, and re-upload
     const asset = this.getAsset(id);
     if (!asset) return "";
     const updated = updateAsset(asset);
@@ -135,6 +99,75 @@ export class AssetRepositoryImpl implements IAssetRepository {
       results.push(updatedId);
     }
     return results;
+  }
+
+  private convertToBlobFromDataUrl(
+    dataUrl: string,
+    assetName: string,
+    assetType: string
+  ): GoogleAppsScript.Base.Blob {
+    const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
+    if (!matches || matches.length !== 3)
+      throw new Error("Invalid data URL format.");
+    const base64Data = matches[2];
+    const decodedData = Utilities.base64Decode(base64Data);
+    return Utilities.newBlob(
+      decodedData,
+      this.getMimeTypeFromAssetType(assetType),
+      assetName
+    );
+  }
+
+  private getMimeTypeFromAssetType(assetType: string): string {
+    return this.assetTypeToMimeTypeMap[assetType] || "text/plain";
+  }
+
+  private getAssetTypeFromMimeType(
+    mimeType: string
+  ): "image" | "video" | "audio" | "text" {
+    const mainType = mimeType.split("/")[0];
+    switch (mainType) {
+      case "image":
+        return "image";
+      case "video":
+        return "video";
+      case "audio":
+        return "audio";
+      default:
+        return "text";
+    }
+  }
+
+  private generateDataUrlFromBlob(blob: GoogleAppsScript.Base.Blob): string {
+    const bytes = blob.getBytes();
+    const base64Data = Utilities.base64Encode(bytes);
+    return "data:" + blob.getContentType() + ";base64," + base64Data;
+  }
+
+  private mapFileToAsset(file: GoogleAppsScript.Drive.File): Asset {
+    const type = this.getAssetTypeFromMimeType(file.getMimeType());
+    const blob = file.getBlob();
+    const dataUrl = this.generateDataUrlFromBlob(blob);
+    return {
+      id: file.getId(),
+      type,
+      dataUrl: dataUrl,
+      name: file.getName(),
+      uploadedAt: file.getDateCreated().toISOString(),
+      size: file.getSize(),
+      meta: {},
+    };
+  }
+
+  private listAssets(): GoogleAppsScript.Drive.File[] {
+    const folderId = getAssetFolderId();
+    const folder = DriveApp.getFolderById(folderId);
+    const fileIterator = folder.getFiles();
+    const files: GoogleAppsScript.Drive.File[] = [];
+    while (fileIterator.hasNext()) {
+      files.push(fileIterator.next());
+    }
+    return files;
   }
 }
 
@@ -178,7 +211,6 @@ export class AssetRepositoryImplStatic {
     return files.length > 0 ? files[0] : null;
   }
   static listAssets(): GoogleAppsScript.Drive.File[] {
-    // List all files in the asset folder
     const folderId = getAssetFolderId();
     if (!folderId) {
       console.warn(
