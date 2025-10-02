@@ -154,6 +154,7 @@ export class AssetRepositoryImpl implements IAssetRepository {
       dataUrl: dataUrl,
       name: file.getName(),
       uploadedAt: file.getDateCreated().toISOString(),
+      lastUpdated: file.getLastUpdated().toISOString(),
       size: file.getSize(),
       meta: {},
     };

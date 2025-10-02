@@ -28,6 +28,7 @@ export class PrizeService {
         dataUrl: "",
         name: prize.name + "_image",
         uploadedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
         size: (prize as any).imageAsset.size || 0,
       };
       await this.assetRepo.addAsset(assetDto);
@@ -48,6 +49,7 @@ export class PrizeService {
         dataUrl: "",
         name: prize.name + "_image",
         uploadedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
         size: (prize as any).imageAsset.size || 0,
       };
       await this.assetRepo.updateAsset(assetDto);

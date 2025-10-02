@@ -1,7 +1,10 @@
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
-import type { AssetDto } from "../../applications/dto/asset-dto";
+import type {
+  AssetDto,
+  AssetMetadataDto,
+} from "../../applications/dto/asset-dto";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../../infrastructures/storage-config";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
@@ -67,6 +70,7 @@ export class AssetRepository implements IAssetRepository {
         type: getAssetType(file.type),
         dataUrl: dataUrl,
         uploadedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
         size: file.size,
         meta: {},
       };
@@ -190,70 +194,80 @@ export class AssetRepository implements IAssetRepository {
 
   async syncAssetsWithGoogleDrive(): Promise<void> {
     if (!this.gasService) return;
-    // サーバーからアセットIDリストを取得
-    const { ids }: { ids: string[] } = await new Promise((resolve, reject) => {
-      this.gasService!.createCall<{ ids: string[] }>("AssetService.getAssetIds")
-        .withTimeout(30000)
-        .withSuccessed((res: { ids: string[] }) => resolve(res))
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
-    // 各IDに対してgetDomainAssetを並列で呼び出し
-    // サーバー側が { asset: Asset } を返す場合と、Asset そのもの or null を返す場合があるため
-    // 柔軟にハンドリングする。各呼び出しは失敗しても個別に null を返すようにして
-    // Promise.all が reject にならないようにする。
-    const assetPromises = ids.map(
+    // サーバーからアセットメタデータを取得
+    const { assets: serverAssetsInfo }: { assets: AssetMetadataDto[] } =
+      await new Promise((resolve, reject) => {
+        this.gasService!.createCall<{
+          assets: AssetMetadataDto[];
+        }>("AssetService.getAssetMetadata")
+          .withTimeout(30000)
+          .withSuccessed((res: { assets: AssetMetadataDto[] }) => resolve(res))
+          .withFailuered((msg: string) => reject(new Error(msg)))
+          .invoke();
+      });
+    // ローカルアセットを取得
+    const localAssets =
+      (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+    // IDをキーとしたマップ作成
+    const localAssetsMap = new Map(localAssets.map((a) => [a.id, a]));
+    const serverAssetsMap = new Map(serverAssetsInfo.map((a) => [a.id, a]));
+    // 追加・更新・削除を決定
+    const toAdd: string[] = [];
+    const toUpdate: string[] = [];
+    const toDelete: string[] = [];
+    // サーバーにあってローカルにない: 追加
+    for (const serverAsset of serverAssetsInfo) {
+      if (!localAssetsMap.has(serverAsset.id)) {
+        toAdd.push(serverAsset.id);
+      } else {
+        // ローカルにある場合、最終更新日時を比較
+        const localAsset = localAssetsMap.get(serverAsset.id)!;
+        if (
+          new Date(localAsset.lastUpdated) < new Date(serverAsset.lastUpdated)
+        ) {
+          toUpdate.push(serverAsset.id);
+        }
+      }
+    }
+    // ローカルにあってサーバーにない: 削除
+    for (const localAsset of localAssets) {
+      if (!serverAssetsMap.has(localAsset.id)) {
+        toDelete.push(localAsset.id);
+      }
+    }
+    // 追加・更新のアセットデータを並列取得
+    const assetPromises = [...toAdd, ...toUpdate].map(
       (id) =>
         new Promise<Asset | null>((resolve) => {
           this.gasService!.createCall<{ asset: Asset | null }>(
             "AssetService.getDomainAsset",
             id
           )
-            .withTimeout(120000) // 2分に延長
+            .withTimeout(120000)
             .withSuccessed((res: { asset: Asset | null }) => {
-              // サーバーは常に { asset: Asset | null } を返す想定
               resolve(res.asset);
             })
             .withFailuered(() => {
-              // 個別の取得に失敗しても全体を止めない（null を返す）
               resolve(null);
             })
             .invoke();
         })
     );
-    const serverAssetsRaw = await Promise.all(assetPromises);
-    // null / undefined の要素を取り除き、id を持つ要素だけを採用
-    const serverAssets = serverAssetsRaw.filter(
-      (a): a is Asset =>
-        !!a && (a as any).id !== undefined && (a as any).id !== null
+    const newOrUpdatedAssets = await Promise.all(assetPromises);
+    const validAssets = newOrUpdatedAssets.filter(
+      (a): a is Asset => !!a && a.id !== undefined && a.id !== null
     );
-    // ローカルアセットを取得
-    const localAssets =
-      (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-    // IDセットで比較
-    const serverIds = new Set(serverAssets.map((a) => a.id));
-    const localIds = new Set(localAssets.map((a) => a.id));
-    // サーバーにあってローカルにない: 追加
-    const toAdd = serverAssets.filter((a) => !localIds.has(a.id));
-    // ローカルにあってサーバーにない: 削除
-    const toDelete = localAssets
-      .filter((a) => !serverIds.has(a.id))
-      .map((a) => a.id);
-    // 並列実行
-    const addPromises = toAdd.map(
-      (asset) =>
-        new Promise<void>((resolve) => {
-          // ローカルストレージに追加
-          this.localStorage.get<Asset[]>(ASSET_CACHE_KEY).then((current) => {
-            const updated = current ? [...current, asset] : [asset];
-            this.localStorage
-              .save(ASSET_CACHE_KEY, updated)
-              .then(() => resolve());
-          });
-        })
+    // ローカルストレージ更新
+    let updatedLocalAssets = localAssets.filter(
+      (a) => !toDelete.includes(a.id)
     );
-    const deletePromises = toDelete.map((assetId) => this.deleteAsset(assetId));
-    await Promise.all([...addPromises, ...deletePromises]);
+    // 既存の更新分を削除
+    updatedLocalAssets = updatedLocalAssets.filter(
+      (a) => !toUpdate.includes(a.id)
+    );
+    // 新規と更新を追加
+    updatedLocalAssets = [...updatedLocalAssets, ...validAssets];
+    await this.localStorage.save(ASSET_CACHE_KEY, updatedLocalAssets);
   }
 
   async getAssetById(assetId: string): Promise<Asset | undefined> {

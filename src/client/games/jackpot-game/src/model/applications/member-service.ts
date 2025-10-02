@@ -37,6 +37,7 @@ export class MemberService {
         dataUrl: "",
         name: member.name + "_photo",
         uploadedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
         size: (member as any).photoAsset.size || 0,
       };
       await this.assetRepo.addAsset(assetDto);
@@ -61,6 +62,7 @@ export class MemberService {
         dataUrl: "",
         name: member.name + "_photo",
         uploadedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
         size: (member as any).photoAsset.size || 0,
       };
       await this.assetRepo.updateAsset(assetDto);

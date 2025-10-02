@@ -1,9 +1,13 @@
 import { injectable, inject } from "tsyringe";
 import { GasService } from "./gas-service";
-import { AssetDto } from "../dtos/asset.dto";
+import { AssetDto, AssetMetadataDto } from "../dtos/asset.dto";
 import { AssetRepositoryImplStatic } from "../../infrastructure/repositories/asset-repository";
 import { IAssetRepository } from "../../domain/repositories/asset-repository";
-import { toAssetEntity, toAssetDto } from "../dtos/asset.mapper";
+import {
+  toAssetEntity,
+  toAssetDto,
+  toAssetMetadataDto,
+} from "../dtos/asset.mapper";
 
 @injectable()
 export class AssetApiService implements GasService {
@@ -20,6 +24,7 @@ export class AssetApiService implements GasService {
       listAssets: this.listAssets.bind(this),
       getAssets: this.getAssets.bind(this),
       getAssetIds: this.getAssetIds.bind(this),
+      getAssetMetadata: this.getAssetMetadata.bind(this),
       uploadDomainAsset: this.uploadDomainAsset.bind(this),
       getDomainAsset: this.getDomainAsset.bind(this),
       addAsset: this.addAsset.bind(this),
@@ -50,6 +55,7 @@ export class AssetApiService implements GasService {
           dataUrl: "",
           name: file.getName(),
           uploadedAt: "",
+          lastUpdated: file.getLastUpdated().toISOString(),
           size: file.getSize(),
           meta: {},
         }
@@ -59,6 +65,7 @@ export class AssetApiService implements GasService {
           dataUrl: "",
           name: args.fileName,
           uploadedAt: "",
+          lastUpdated: new Date().toISOString(),
           size: 0,
           meta: {},
         };
@@ -86,6 +93,11 @@ export class AssetApiService implements GasService {
   getAssetIds(): { ids: string[] } {
     const ids = this.repository.findAllIds();
     return { ids };
+  }
+
+  getAssetMetadata(): { assets: AssetMetadataDto[] } {
+    const assets = this.repository.findAll();
+    return { assets: assets.map(toAssetMetadataDto) };
   }
 
   uploadDomainAsset(assetDto: AssetDto): string {
@@ -146,6 +158,7 @@ export class AssetApiService implements GasService {
           dataUrl: file.getDownloadUrl(),
           name: file.getName(),
           uploadedAt: file.getDateCreated().toISOString(),
+          lastUpdated: file.getLastUpdated().toISOString(),
           size: file.getSize(),
           meta: {},
         }
@@ -155,6 +168,7 @@ export class AssetApiService implements GasService {
           dataUrl: "",
           name: assetDto.name,
           uploadedAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
           size: assetDto.size,
           meta: {},
         };

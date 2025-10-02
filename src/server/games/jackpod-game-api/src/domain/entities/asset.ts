@@ -4,6 +4,7 @@ export interface Asset {
   dataUrl: string;
   name: string;
   uploadedAt: string;
+  lastUpdated: string;
   size: number;
   meta?: Record<string, any>;
 }
