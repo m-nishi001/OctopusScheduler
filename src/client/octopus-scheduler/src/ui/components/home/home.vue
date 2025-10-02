@@ -11,6 +11,9 @@
         <button class="main-btn" @click="goToSettings">
           <span class="btn-icon">⚙️</span> 設定画面
         </button>
+        <button class="main-btn" @click="goToJackpotGame">
+          <span class="btn-icon">🎰</span> Jackpot Game
+        </button>
       </div>
       <p class="desc">ここにロード画面や初期同期処理を追加予定。</p>
     </div>
@@ -22,6 +25,7 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 const goToAutonomous = () => router.push({ name: 'autonomous-mode' });
 const goToSettings = () => router.push({ name: 'settings' });
+const goToJackpotGame = () => router.push('/jackpot-home');
 // 今後ロード画面や同期処理を追加
 </script>
 
