@@ -54,15 +54,14 @@ export default {
     });
 
     // APIから取得
-    const prizeService = container.resolve(PrizeService);
-    const memberService = container.resolve(MemberService);
     const prizes = ref<any[]>([]);
     const members = ref<any[]>([]);
+    const drawOrchestrator = container.resolve<any>("DrawOrchestrator");
     const fetchPrizes = async () => {
-      prizes.value = await prizeService.fetchPrizes();
+      prizes.value = await container.resolve(PrizeService).fetchPrizes();
     };
     const fetchMembers = async () => {
-      members.value = await memberService.fetchMembers();
+      members.value = await container.resolve(MemberService).fetchMembers();
     };
 
     // BGM/SE制御
@@ -92,28 +91,33 @@ export default {
     // メンバー選出
     const currentMember = ref<any>(null);
 
-    // 抽選ロジック
+    // 抽選ロジック (モデル層へ委譲)
     const drawn = ref(false);
     const result = ref<{ member: string; prize: string } | null>(null);
     const showHalfModal = ref(false);
-    const runMainDraw = () => {
+    const runMainDraw = async () => {
       if (drawn.value || prizes.value.length === 0 || members.value.length === 0) return;
       playSE('draw');
-      // ランダム賞品選出
-      const prizeIdx = Math.floor(Math.random() * prizes.value.length);
-      const prize = prizes.value[prizeIdx]?.name || prizes.value[prizeIdx] || '';
-      // ランダムメンバー選出
-      currentMember.value = members.value[Math.floor(Math.random() * members.value.length)];
-      setTimeout(() => {
-        result.value = { member: currentMember.value?.name, prize: typeof prize === 'string' ? prize : prize.name };
-        drawn.value = true;
-        prizes.value.splice(prizeIdx, 1);
-        // 残り半分でモーダル表示
+      drawn.value = true;
+      try {
+        const res = await drawOrchestrator.executeDrawWith({ prizes: prizes.value, members: members.value });
+        const resultRes = await drawOrchestrator.fetchResult(res.drawId);
+        const winner = resultRes?.results?.[0];
+        if (winner) {
+          currentMember.value = winner.member;
+          result.value = { member: winner.member.name || winner.member.id, prize: winner.prize.name || winner.prize.id };
+        }
+        if (result.value && result.value.prize) {
+          const idx = prizes.value.findIndex((p) => (p.id ? p.id === result.value!.prize : p.name === result.value!.prize));
+          if (idx >= 0) prizes.value.splice(idx, 1);
+        }
         if (prizes.value.length === 3) {
           showHalfModal.value = true;
           setTimeout(() => { showHalfModal.value = false; }, 2000);
         }
-      }, 1200);
+      } finally {
+        // keep drawn true until user proceeds
+      }
     };
 
     // Enterキーで次の抽選 or 結果画面へ
@@ -123,7 +127,7 @@ export default {
           // 次の抽選
           drawn.value = false;
           result.value = null;
-          currentMember.value = members.value[Math.floor(Math.random() * members.value.length)];
+          currentMember.value = null;
         } else if (prizes.value.length === 0) {
           router.push('/jackpot-result');
         }

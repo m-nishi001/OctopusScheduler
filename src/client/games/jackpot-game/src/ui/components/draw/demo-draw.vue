@@ -26,6 +26,8 @@ import { useRouter } from 'vue-router';
 import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
 import { container } from 'tsyringe';
+import { PrizeService } from '../../../model/applications/prize-service';
+import { MemberService } from '../../../model/applications/member-service';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },
@@ -39,9 +41,12 @@ export default {
       setTimeout(playBGM, 1200);
     });
 
-    // 仮のメンバー・賞品リスト
-    const members = ['山田太郎', '佐藤花子', '鈴木一郎'];
-    const prizes = ['豪華景品A', '参加賞B', '特別賞C'];
+    // データはモデル層から取得
+    const prizes = ref<any[]>([]);
+    const members = ref<any[]>([]);
+    const drawOrchestrator = container.resolve<any>("DrawOrchestrator");
+    const fetchPrizes = async () => { prizes.value = await container.resolve<any>(PrizeService).fetchPrizes(); };
+    const fetchMembers = async () => { members.value = await container.resolve<any>(MemberService).fetchMembers(); };
 
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
@@ -55,6 +60,8 @@ export default {
     };
     onMounted(() => {
       setTimeout(playBGM, 1200);
+      fetchPrizes();
+      fetchMembers();
     });
 
     const playSE = (se: string) => {
@@ -68,16 +75,24 @@ export default {
     // 抽選ロジック
     const drawn = ref(false);
     const result = ref<{ member: string; prize: string } | null>(null);
-    const runDemoDraw = () => {
+    const runDemoDraw = async () => {
       if (drawn.value) return;
       playSE('draw');
-      // ランダム抽選
-      const member = members[Math.floor(Math.random() * members.length)];
-      const prize = prizes[Math.floor(Math.random() * prizes.length)];
-      setTimeout(() => {
-        result.value = { member, prize };
-        drawn.value = true;
-      }, 1200); // 演出用ディレイ
+      drawn.value = true;
+      // perform a lightweight draw using orchestrator with available data
+      try {
+        // ensure data
+        prizes.value = await container.resolve<any>(PrizeService).fetchPrizes();
+        members.value = await container.resolve<any>(MemberService).fetchMembers();
+        const res = await drawOrchestrator.executeDrawWith({ prizes: prizes.value, members: members.value });
+        const resultRes = await drawOrchestrator.fetchResult(res.drawId);
+        const winner = resultRes?.results?.[0];
+        if (winner) {
+          result.value = { member: winner.member.name || winner.member.id, prize: winner.prize.name || winner.prize.id };
+        }
+      } finally {
+        // no-op
+      }
     };
 
     // Enterキーで本抽選へ

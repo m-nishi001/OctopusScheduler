@@ -34,6 +34,7 @@ export default {
 		const members = ref<MemberDto[]>([]);
 		const loading = ref(true);
 		const resultService = container.resolve(ResultService);
+		const memberService = container.resolve<any>('MemberService');
 
 		// ScreenConfigServiceから取得
 		const screenConfig = ref<ScreenConfig | null>(null);
@@ -49,12 +50,8 @@ export default {
 			try {
 				const result = await resultService.getResult(drawId);
 				winners.value = result?.results ?? [];
-				// 仮: メンバー情報を取得するAPI呼び出し（本来はServiceから取得）
-				members.value = [
-					{ id: '1', name: '山田太郎', order: 1 },
-					{ id: '2', name: '佐藤花子', order: 2 },
-					{ id: '3', name: '鈴木一郎', order: 3 }
-				];
+				// メンバー情報はモデル層から取得
+				members.value = await memberService.fetchMembers();
 			} catch (e) {
 				// エラー処理
 			} finally {

@@ -7,6 +7,11 @@ import type { IMemberRepository } from "../../model/domains/member/repository/IM
 import type { IAssetRepository } from "../../model/domains/asset/repository/IAssetRepository";
 import type { IPrizeRepository } from "../../model/domains/prize/repository/IPrizeRepository";
 import type { IScreenConfigRepository } from "../../model/domains/screen-config/repository/IScreenConfigRepository";
+import { DrawOrchestrator } from "../../model/applications/draw-orchestrator";
+import { DrawService } from "../../model/applications/draw-service";
+import { ResultService } from "../../model/applications/result-service";
+import { PrizeService } from "../../model/applications/prize-service";
+import { MemberService } from "../../model/applications/member-service";
 
 export class Container {
   static register() {
@@ -22,5 +27,13 @@ export class Container {
     container.register<IScreenConfigRepository>("IScreenConfigRepository", {
       useClass: ScreenConfigRepository,
     });
+    container.register<DrawOrchestrator>("DrawOrchestrator", {
+      useClass: DrawOrchestrator,
+    });
+    // register application services so they can be resolved by class
+    container.register("DrawService", { useClass: DrawService } as any);
+    container.register("ResultService", { useClass: ResultService } as any);
+    container.register("PrizeService", { useClass: PrizeService } as any);
+    container.register("MemberService", { useClass: MemberService } as any);
   }
 }

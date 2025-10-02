@@ -55,10 +55,6 @@ import { ref } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import Button from '../common/button.vue';
 import Loader from '../common/loader.vue';
-import { DrawService } from '../../../model/applications/draw-service';
-import { ResultService } from '../../../model/applications/result-service';
-import { PrizeService } from '../../../model/applications/prize-service';
-import { MemberService } from '../../../model/applications/member-service';
 import type { MemberDto } from '../../../model/applications/dto/member-dto';
 import type { PrizeDto } from '../../../model/applications/dto/prize-dto';
 import type { DrawResultDto } from '../../../model/applications/dto/draw-result-dto';
@@ -74,31 +70,18 @@ export default {
     const currentStep = ref<'idle' | 'member' | 'prize' | 'finished'>('idle');
     const selectedMember = ref<MemberDto | null>(null);
     const selectedPrize = ref<PrizeDto | null>(null);
-    const remainingPrizes = ref<PrizeDto[]>([]);
-    const remainingMembers = ref<MemberDto[]>([]);
     const results = ref<DrawResultDto[]>([]);
     const router = useRouter();
-    const drawService = container.resolve(DrawService);
-    const resultService = container.resolve(ResultService);
-    const prizeService = container.resolve(PrizeService);
-    const memberService = container.resolve(MemberService);
+    const drawOrchestrator = container.resolve<any>('DrawOrchestrator');
     const memberDisplay = ref<HTMLElement | null>(null);
     const prizeDisplay = ref<HTMLElement | null>(null);
 
     const executeDraw = async () => {
       loading.value = true;
       try {
-        const members = await memberService.fetchMembers();
-        const prizes = await prizeService.fetchPrizes();
-        remainingMembers.value = [...members];
-        remainingPrizes.value = [...prizes];
-        results.value = [];
-
-        const drawRes = await drawService.executeDraw({
-          prizes: prizes,
-          members: members,
-        });
-        const resultRes = await resultService.getResult(drawRes.drawId);
+        // delegate draw orchestration to model layer
+        const drawRes = await drawOrchestrator.executeFullDraw();
+        const resultRes = await drawOrchestrator.fetchResult(drawRes.drawId);
         results.value = resultRes?.results ?? [];
 
         // 演出ループ (実際の結果を使って)
