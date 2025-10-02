@@ -192,7 +192,9 @@ export class AssetRepository implements IAssetRepository {
     });
   }
 
-  async syncAssetsWithGoogleDrive(): Promise<void> {
+  async syncAssetsWithGoogleDrive(
+    onProgress?: (message: string) => void
+  ): Promise<void> {
     if (!this.gasService) return;
     // サーバーからアセットメタデータを取得
     const { assets: serverAssetsInfo }: { assets: AssetMetadataDto[] } =
@@ -205,6 +207,7 @@ export class AssetRepository implements IAssetRepository {
           .withFailuered((msg: string) => reject(new Error(msg)))
           .invoke();
       });
+    onProgress?.("メタデータ取得完了");
     // ローカルアセットを取得
     const localAssets =
       (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
@@ -236,38 +239,56 @@ export class AssetRepository implements IAssetRepository {
       }
     }
     // 追加・更新のアセットデータを並列取得
-    const assetPromises = [...toAdd, ...toUpdate].map(
-      (id) =>
-        new Promise<Asset | null>((resolve) => {
-          this.gasService!.createCall<{ asset: Asset | null }>(
-            "AssetService.getDomainAsset",
-            id
-          )
-            .withTimeout(120000)
-            .withSuccessed((res: { asset: Asset | null }) => {
-              resolve(res.asset);
-            })
-            .withFailuered(() => {
-              resolve(null);
-            })
-            .invoke();
-        })
-    );
-    const newOrUpdatedAssets = await Promise.all(assetPromises);
-    const validAssets = newOrUpdatedAssets.filter(
-      (a): a is Asset => !!a && a.id !== undefined && a.id !== null
-    );
-    // ローカルストレージ更新
-    let updatedLocalAssets = localAssets.filter(
-      (a) => !toDelete.includes(a.id)
-    );
-    // 既存の更新分を削除
-    updatedLocalAssets = updatedLocalAssets.filter(
-      (a) => !toUpdate.includes(a.id)
-    );
-    // 新規と更新を追加
-    updatedLocalAssets = [...updatedLocalAssets, ...validAssets];
-    await this.localStorage.save(ASSET_CACHE_KEY, updatedLocalAssets);
+    if (toAdd.length + toUpdate.length > 0) {
+      onProgress?.(
+        `ファイルダウンロード中 (${toAdd.length + toUpdate.length}件)`
+      );
+      const assetPromises = [...toAdd, ...toUpdate].map(
+        (id) =>
+          new Promise<Asset | null>((resolve) => {
+            this.gasService!.createCall<{ asset: Asset | null }>(
+              "AssetService.getDomainAsset",
+              id
+            )
+              .withTimeout(120000)
+              .withSuccessed((res: { asset: Asset | null }) => {
+                const asset = res.asset;
+                if (asset) {
+                  onProgress?.(
+                    `${asset.name} (${(asset.size / 1024).toFixed(1)}KB): ダウンロード中`
+                  );
+                }
+                resolve(asset);
+              })
+              .withFailuered(() => {
+                resolve(null);
+              })
+              .invoke();
+          })
+      );
+      const newOrUpdatedAssets = await Promise.all(assetPromises);
+      const validAssets = newOrUpdatedAssets.filter(
+        (a): a is Asset => !!a && a.id !== undefined && a.id !== null
+      );
+      // ローカルストレージ更新
+      let updatedLocalAssets = localAssets.filter(
+        (a) => !toDelete.includes(a.id)
+      );
+      // 既存の更新分を削除
+      updatedLocalAssets = updatedLocalAssets.filter(
+        (a) => !toUpdate.includes(a.id)
+      );
+      // 新規と更新を追加
+      updatedLocalAssets = [...updatedLocalAssets, ...validAssets];
+      await this.localStorage.save(ASSET_CACHE_KEY, updatedLocalAssets);
+    } else if (toDelete.length > 0) {
+      // 削除のみの場合もローカルストレージを更新
+      let updatedLocalAssets = localAssets.filter(
+        (a) => !toDelete.includes(a.id)
+      );
+      await this.localStorage.save(ASSET_CACHE_KEY, updatedLocalAssets);
+    }
+    onProgress?.("同期完了");
   }
 
   async getAssetById(assetId: string): Promise<Asset | undefined> {

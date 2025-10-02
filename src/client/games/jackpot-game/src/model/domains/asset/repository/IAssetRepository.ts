@@ -12,6 +12,8 @@ export interface IAssetRepository {
   deleteAsset(assetId: string): Promise<void>;
   deleteAssets(assetIds: string[]): Promise<void>;
   syncAssetsWithServer(): Promise<Asset[]>;
-  syncAssetsWithGoogleDrive(): Promise<void>;
+  syncAssetsWithGoogleDrive(
+    onProgress?: (message: string) => void
+  ): Promise<void>;
   getAssetById(assetId: string): Promise<Asset | undefined>;
 }

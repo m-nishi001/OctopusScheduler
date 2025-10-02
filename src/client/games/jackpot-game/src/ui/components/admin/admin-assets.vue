@@ -61,7 +61,7 @@
     <div v-if="syncing" class="modal-overlay">
         <div class="modal-content">
             <h3>Google Driveと同期中...</h3>
-            <p>アセットを同期しています。しばらくお待ちください。</p>
+            <p>{{ syncMessage || "アセットを同期しています。しばらくお待ちください。" }}</p>
             <div class="spinner"></div>
         </div>
     </div>
@@ -94,6 +94,7 @@ type UploadStatus = {
 const uploadStatuses = ref<UploadStatus[]>([]);
 const uploading = ref(false);
 const syncing = ref(false);
+const syncMessage = ref("");
 
 const members = ref<any[]>([]);
 const prizes = ref<any[]>([]);
@@ -159,14 +160,18 @@ const deleteSelectedAssets = async () => {
 
 const syncAssets = async () => {
     syncing.value = true;
+    syncMessage.value = "";
     try {
-        await assetService.syncAssetsWithGoogleDrive();
+        await assetService.syncAssetsWithGoogleDrive((message) => {
+            syncMessage.value = message;
+        });
         await fetchAssets();
     } catch (error) {
         console.error('同期エラー:', error);
         // エラー表示を追加可能
     } finally {
         syncing.value = false;
+        syncMessage.value = "";
     }
 };
 
