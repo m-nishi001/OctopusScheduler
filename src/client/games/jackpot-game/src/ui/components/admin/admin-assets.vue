@@ -31,6 +31,8 @@
             <button class="admin-btn sync-btn" @click="syncAssets" :disabled="syncing">Google Driveと同期</button>
             <button class="admin-btn delete-btn" @click="deleteSelectedAssets"
                 :disabled="!selectedAssets.length || syncing">選択したアセットを削除</button>
+            <button class="admin-btn delete-all-btn" @click="deleteAllAssets"
+                :disabled="!assets.length || syncing || deleteAllDeleting">全件削除</button>
         </div>
         <ul class="admin-list">
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
@@ -65,6 +67,14 @@
             <div class="spinner"></div>
         </div>
     </div>
+    <!-- 全件削除モーダル -->
+    <div v-if="deleteAllDeleting" class="modal-overlay">
+        <div class="modal-content">
+            <h3>全件削除中...</h3>
+            <p>{{ deleteAllMessage }}</p>
+            <div class="spinner"></div>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -95,6 +105,8 @@ const uploadStatuses = ref<UploadStatus[]>([]);
 const uploading = ref(false);
 const syncing = ref(false);
 const syncMessage = ref("");
+const deleteAllDeleting = ref(false);
+const deleteAllMessage = ref("");
 
 const members = ref<any[]>([]);
 const prizes = ref<any[]>([]);
@@ -156,6 +168,36 @@ const deleteSelectedAssets = async () => {
     selectedAssets.value = [];
     // 必要に応じて同期（今回はローカルストレージが更新されているので不要）
     // await fetchAssets();
+};
+
+const deleteAllAssets = async () => {
+    deleteAllDeleting.value = true;
+    deleteAllMessage.value = "全件削除を開始します...";
+    const allIds = assets.value.map(asset => asset.id);
+    const promises = allIds.map(async (id) => {
+        const asset = assets.value.find(a => a.id === id);
+        try {
+            await assetService.deleteAsset(id);
+            return { id, success: true, name: asset?.name };
+        } catch (error) {
+            return { id, success: false, name: asset?.name };
+        }
+    });
+    let completed = 0;
+    const updateMessage = (result: { id: string; success: boolean; name?: string }) => {
+        if (result.success) {
+            assets.value = assets.value.filter(a => a.id !== result.id);
+        }
+        completed++;
+        deleteAllMessage.value = `${result.name} を削除${result.success ? '完了' : '失敗'} (${completed}/${allIds.length})`;
+        if (completed === allIds.length) {
+            deleteAllDeleting.value = false;
+            deleteAllMessage.value = "";
+        }
+    };
+    promises.forEach(promise => {
+        promise.then(updateMessage);
+    });
 };
 
 const syncAssets = async () => {
@@ -278,6 +320,14 @@ onMounted(async () => {
     background: linear-gradient(90deg, #ffaeae 0%, #ff4f4f 100%);
 }
 
+.delete-all-btn {
+    background: linear-gradient(90deg, #ff4f4f 0%, #ffaeae 100%);
+}
+
+.delete-all-btn:hover {
+    background: linear-gradient(90deg, #ffaeae 0%, #ff4f4f 100%);
+}
+
 .admin-actions {
     margin-bottom: 16px;
 }
@@ -301,6 +351,11 @@ onMounted(async () => {
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+.admin-list-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
 }
 
 .asset-preview {
