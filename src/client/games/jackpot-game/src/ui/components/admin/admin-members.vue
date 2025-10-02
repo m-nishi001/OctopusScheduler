@@ -197,24 +197,25 @@ onMounted(() => {
 
 <style scoped>
 .admin-section {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .admin-controls {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 18px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .admin-input {
-  padding: 10px 16px;
+  padding: 10px 14px;
   border-radius: 8px;
   border: none;
   background: #232b36;
   color: #fff;
-  font-size: 1rem;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  font-size: 0.98rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .admin-input:focus {
@@ -222,87 +223,91 @@ onMounted(() => {
 }
 
 .admin-btn {
-  padding: 10px 24px;
-  border-radius: 8px;
+  padding: 9px 16px;
+  border-radius: 10px;
   border: none;
   background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
   color: #232b36;
-  font-weight: bold;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: box-shadow 0.18s, transform 0.12s;
 }
 
 .admin-btn:hover {
-  background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
+  box-shadow: 0 6px 18px rgba(79, 140, 255, 0.14);
 }
 
 .admin-btn:disabled {
-  background: #555;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .admin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
 }
 
 .admin-card {
   background: #232b36;
   color: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  gap: 12px;
+  align-items: center;
 }
 
 .admin-checkbox {
-  margin-bottom: 8px;
+  margin-left: 4px;
 }
 
 .admin-card-content {
+  display: flex;
+  gap: 12px;
+  align-items: center;
   width: 100%;
 }
 
 .admin-thumbnail {
-  width: 100%;
-  height: 150px;
+  width: 96px;
+  height: 96px;
   object-fit: cover;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: 6px;
+  flex: 0 0 96px;
 }
 
 .admin-thumbnail-placeholder {
-  width: 100%;
-  height: 150px;
-  background: #555;
+  width: 96px;
+  height: 96px;
+  background: #2f3438;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  color: #ccc;
+  border-radius: 6px;
+  color: #bfcbdc;
+  flex: 0 0 96px;
 }
 
 .admin-card h3 {
-  margin: 0 0 8px 0;
-  font-size: 1.2rem;
+  margin: 0;
+  font-size: 1.05rem;
 }
 
 .admin-card p {
-  margin: 0 0 8px 0;
-  color: #ccc;
+  margin: 6px 0 0 0;
+  color: #c9d7e6;
+}
+
+.admin-card-content button {
+  margin-left: auto;
 }
 
 .admin-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.54);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -312,33 +317,31 @@ onMounted(() => {
 .admin-modal-content {
   background: #232b36;
   color: #fff;
-  padding: 32px;
-  border-radius: 8px;
-  max-width: 600px;
-  width: 90%;
+  padding: 28px;
+  border-radius: 10px;
+  max-width: 640px;
+  width: 92%;
   max-height: 80vh;
   overflow-y: auto;
 }
 
 .admin-modal-content h3 {
   margin-top: 0;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .admin-modal-content .admin-input,
 .admin-modal-content .admin-photo-preview {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .admin-input[type="file"] {
-  padding: 10px 16px;
+  padding: 10px 12px;
   border-radius: 8px;
-  border: 2px dashed #555;
+  border: 2px dashed #434b51;
   background: #232b36;
   color: #fff;
-  font-size: 1rem;
   cursor: pointer;
-  transition: border-color 0.2s;
 }
 
 .admin-input[type="file"]:hover {
@@ -349,26 +352,20 @@ onMounted(() => {
   background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
   color: #232b36;
   border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  margin-right: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-right: 8px;
 }
 
-.admin-input[type="file"]::-webkit-file-upload-button:hover {
-  background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
-}
-
-.photo-mode {
+.photo-mode,
+.admin-modal-buttons {
   display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.photo-mode label {
-  display: flex;
+  gap: 12px;
   align-items: center;
-  gap: 8px;
+}
+
+.admin-modal-buttons {
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 </style>
