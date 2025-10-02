@@ -33,26 +33,19 @@ export default {
   components: { MainLayout },
   setup() {
     const router = useRouter();
-    // APIから取得
     const resultService = container.resolve(ResultService);
     const screenConfigService = container.resolve(ScreenConfigService);
     const screenConfig = ref<ScreenConfigDto | null>(null);
     const winners = ref<any[]>([]);
+    const specialWinner = ref<any | undefined>(undefined);
+    const lowestWinner = ref<any | undefined>(undefined);
     const fetchResults = async () => {
-      // 仮のdrawId（本来は画面遷移やstateから取得）
       const drawId = 'main';
-      const response = await resultService.getResult(drawId);
+      const view = await resultService.getResultForView(drawId);
       screenConfig.value = await screenConfigService.fetchScreenConfig('result');
-      // APIのresultsをwinners形式に変換（必要に応じて）
-      winners.value = response?.results
-        ? response.results.map((r: any, idx: number) => ({
-          id: idx + 1,
-          name: r.member.name,
-          photo: r.member.photoUrl,
-          prize: r.prize.name,
-          rank: r.prize.rank
-        }))
-        : [];
+      winners.value = view.winners || [];
+      specialWinner.value = view.specialWinner;
+      lowestWinner.value = view.lowestWinner;
     };
     onMounted(() => {
       fetchResults();
@@ -72,15 +65,7 @@ export default {
       setTimeout(playBGM, 1200);
     });
 
-    // 最高/最低ランク当選者
-    const specialWinner = ref<typeof winners.value[0] | undefined>(undefined);
-    const lowestWinner = ref<typeof winners.value[0] | undefined>(undefined);
-    onMounted(() => {
-      let maxRank = Math.min(...winners.value.map(w => w.rank));
-      let minRank = Math.max(...winners.value.map(w => w.rank));
-      specialWinner.value = winners.value.find(w => w.rank === maxRank);
-      lowestWinner.value = winners.value.find(w => w.rank === minRank);
-    });
+    // 最高/最低ランク当選者は ResultService 側で算出済み
 
     // フェードイン・Enterキーでホームへ
     const fadeOut = ref(false);

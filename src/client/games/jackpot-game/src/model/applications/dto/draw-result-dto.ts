@@ -5,7 +5,7 @@ export interface DrawResultDto {
   drawId: string;
   member: MemberDto;
   prize: PrizeDto;
-  rank: string;
+  rank: number | null;
   order: number;
   isWinner: boolean;
 }

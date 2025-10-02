@@ -31,10 +31,8 @@ export class DrawPairingService {
         drawId: `${memberDto.id}_${prizeDto.id}`,
         member: memberDto,
         prize: prizeDto,
-        rank:
-          typeof prizeDto.rank === "string"
-            ? prizeDto.rank
-            : String(prizeDto.rank || "normal"),
+        // normalize rank to numeric; prizeDto.rank is optional number
+        rank: typeof prizeDto.rank === "number" ? prizeDto.rank : null,
         order: i + 1,
         isWinner: true,
       };

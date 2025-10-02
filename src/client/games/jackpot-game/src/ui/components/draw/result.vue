@@ -20,7 +20,6 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ResultService } from '../../../model/applications/result-service';
 import type { DrawResultDto } from '../../../model/applications/dto/draw-result-dto';
-import type { MemberDto } from '../../../model/applications/dto/member-dto';
 import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
 import { container } from 'tsyringe';
@@ -31,48 +30,26 @@ export default {
 	setup() {
 		const router = useRouter();
 		const winners = ref<DrawResultDto[]>([]);
-		const members = ref<MemberDto[]>([]);
 		const loading = ref(true);
 		const resultService = container.resolve(ResultService);
-		const memberService = container.resolve<any>('MemberService');
-
-		// ScreenConfigServiceから取得
 		const screenConfig = ref<ScreenConfig | null>(null);
 		const screenConfigService = container.resolve(ScreenConfigService);
 		onMounted(async () => {
 			screenConfig.value = await screenConfigService.fetchScreenConfig('result');
-			fetchResult();
-		});
-
-		const fetchResult = async () => {
-			// 仮のdrawId（本来は画面遷移時に渡す）
-			const drawId = 'latest';
 			try {
-				const result = await resultService.getResult(drawId);
+				const result = await resultService.getResult('latest');
 				winners.value = result?.results ?? [];
-				// メンバー情報はモデル層から取得
-				members.value = await memberService.fetchMembers();
-			} catch (e) {
-				// エラー処理
 			} finally {
 				loading.value = false;
 			}
-		};
+			window.addEventListener('keydown', handleKey);
+		});
 
 		const handleKey = (e: KeyboardEvent) => {
 			if (e.key === 'Enter') router.push('/');
 		};
-		onMounted(() => {
-			window.addEventListener('keydown', handleKey);
-			fetchResult();
-		});
 		onUnmounted(() => window.removeEventListener('keydown', handleKey));
-		// メンバー名取得関数
-		const getMemberName = (memberId: string) => {
-			const member = members.value.find(m => m.id === memberId);
-			return member ? member.name : memberId;
-		};
-		return { winners, loading, screenConfig, getMemberName };
+		return { winners, loading, screenConfig };
 	},
 };
 </script>
