@@ -1,168 +1,329 @@
 <template>
   <div class="admin-section">
-    <h2>画面管理</h2>
-    <form class="admin-form" @submit.prevent="addScreen">
-      <input v-model="screenName" type="text" placeholder="画面名" class="admin-input" />
-      <select v-model="screenType" class="admin-input">
-        <option value="home">ホーム</option>
-        <option value="opening">オープニング</option>
-        <option value="description">説明</option>
-        <option value="demo">デモ</option>
-        <option value="main">本抽選</option>
-        <option value="result">結果</option>
-        <option value="admin">管理</option>
-      </select>
-      <input v-model="bgmAssetIdInput" type="text" placeholder="BGM Asset ID" class="admin-input" />
-      <input v-model="seAssetIdsInput" type="text" placeholder="SE Asset IDs（カンマ区切り）" class="admin-input" />
-      <input v-model="backgroundStyleInput" type="text" placeholder="背景スタイル" class="admin-input" />
-      <input v-model="animationTypeInput" type="text" placeholder="アニメーションタイプ" class="admin-input" />
-      <input v-model="animationDurationInput" type="number" placeholder="アニメーション時間(ms)" class="admin-input" />
-      <button type="submit" class="admin-btn">追加</button>
-    </form>
-  <ul class="admin-list">
-      <li v-for="(screen, idx) in screens" :key="screen.id" class="admin-list-item">
-  <span>{{ screen.content }}</span>
-  <span>種別: {{ screen.type }}</span>
-  <span v-if="screen.bgmAssetId">BGM: {{ screen.bgmAssetId }}</span>
-  <span v-if="screen.seAssetIds && screen.seAssetIds.length">SE: {{ screen.seAssetIds.join(', ') }}</span>
-  <span v-if="screen.backgroundStyle">背景: {{ screen.backgroundStyle }}</span>
-  <span v-if="screen.animation">アニメーション: {{ screen.animation.type }} ({{ screen.animation.duration }}ms)</span>
-        <button class="admin-btn ml-2" @click="editScreen(idx)">編集</button>
-        <button class="admin-btn ml-2" @click="deleteScreen(idx)">削除</button>
-      </li>
-    </ul>
-  <div v-if="editIdx !== null" class="admin-edit-box">
-  <button class="admin-btn mt-4" @click="saveScreens">保存</button>
-      <h3>画面編集</h3>
-      <input v-model="editName" type="text" class="admin-input" />
-      <select v-model="editType" class="admin-input">
-        <option value="home">ホーム</option>
-        <option value="opening">オープニング</option>
-        <option value="description">説明</option>
-        <option value="demo">デモ</option>
-        <option value="main">本抽選</option>
-        <option value="result">結果</option>
-        <option value="admin">管理</option>
-      </select>
-      <input v-model="editBgmAssetIdInput" type="text" placeholder="BGM Asset ID" class="admin-input" />
-      <input v-model="editSeAssetIdsInput" type="text" placeholder="SE Asset IDs（カンマ区切り）" class="admin-input" />
-      <input v-model="editBackgroundStyleInput" type="text" placeholder="背景スタイル" class="admin-input" />
-      <input v-model="editAnimationTypeInput" type="text" placeholder="アニメーションタイプ" class="admin-input" />
-      <input v-model="editAnimationDurationInput" type="number" placeholder="アニメーション時間(ms)" class="admin-input" />
-      <button class="admin-btn" @click="saveEdit">保存</button>
-      <button class="admin-btn ml-2" @click="cancelEdit">キャンセル</button>
+    <h2>画面設定</h2>
+    <div class="tabs">
+      <button v-for="tab in tabs" :key="tab.key" :class="['tab-button', { active: activeTab === tab.key }]"
+        @click="activeTab = tab.key">
+        {{ tab.label }}
+      </button>
     </div>
+    <div class="tab-content">
+      <HomeScreenConfig v-if="activeTab === 'home'" :audio-assets="audioAssets" :config="homeConfig"
+        @update="updateHomeConfig" />
+      <OpeningScreenConfig v-if="activeTab === 'opening'" :audio-assets="audioAssets" :image-assets="imageAssets"
+        :config="openingConfig" @update="updateOpeningConfig" />
+      <DescriptionScreenConfig v-if="activeTab === 'description'" :audio-assets="audioAssets"
+        :image-assets="imageAssets" :config="descriptionConfig" @update="updateDescriptionConfig" />
+      <DemoScreenConfig v-if="activeTab === 'demo'" :audio-assets="audioAssets" :members="members" :prizes="prizes"
+        :config="demoConfig" @update="updateDemoConfig" />
+      <MainScreenConfig v-if="activeTab === 'main'" :audio-assets="audioAssets" :config="mainConfig"
+        @update="updateMainConfig" />
+      <ResultScreenConfig v-if="activeTab === 'result'" :audio-assets="audioAssets" :config="resultConfig"
+        @update="updateResultConfig" />
+    </div>
+    <button class="admin-btn mt-4" @click="saveConfigs">保存</button>
   </div>
 </template>
 <script setup lang="ts">
-// ...existing code...
+import { ref, onMounted, computed } from 'vue';
+import { AssetService } from '../../../model/applications/asset-service';
+import { MemberService } from '../../../model/applications/member-service';
+import { PrizeService } from '../../../model/applications/prize-service';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repository/screen-config-repository';
-const screenConfigRepository = new ScreenConfigRepository();
-const fetchScreens = async () => {
-  // 必要な画面種別一覧
-  const types = ['home','opening','description','demo','main','result','admin'];
-  await screenConfigRepository.loadAllFromStorage(types);
-  screens.value = types.map(type => screenConfigRepository.fetchScreenConfig(type)).filter(Boolean);
+import { container } from 'tsyringe';
+import HomeScreenConfig from './screens/HomeScreenConfig.vue';
+import OpeningScreenConfig from './screens/OpeningScreenConfig.vue';
+import DescriptionScreenConfig from './screens/DescriptionScreenConfig.vue';
+import DemoScreenConfig from './screens/DemoScreenConfig.vue';
+import MainScreenConfig from './screens/MainScreenConfig.vue';
+import ResultScreenConfig from './screens/ResultScreenConfig.vue';
+
+const assetService = container.resolve(AssetService);
+const memberService = container.resolve(MemberService);
+const prizeService = container.resolve(PrizeService);
+const screenConfigRepository = container.resolve(ScreenConfigRepository);
+
+const activeTab = ref('home');
+const tabs = [
+  { key: 'home', label: 'ホーム' },
+  { key: 'opening', label: 'オープニング' },
+  { key: 'description', label: '説明' },
+  { key: 'demo', label: 'デモ抽選' },
+  { key: 'main', label: '本抽選' },
+  { key: 'result', label: '最終結果' },
+];
+
+const assets = ref<any[]>([]);
+const members = ref<any[]>([]);
+const prizes = ref<any[]>([]);
+
+const fetchAssets = async () => {
+  try {
+    assets.value = await assetService.fetchAssets();
+  } catch (error) {
+    console.error('Failed to fetch assets:', error);
+    assets.value = [];
+  }
 };
-fetchScreens();
-const saveScreens = async () => {
-  await screenConfigRepository.saveScreenConfigs(screens.value);
+
+const fetchMembers = async () => {
+  try {
+    members.value = await memberService.fetchMembers();
+  } catch (error) {
+    console.error('Failed to fetch members:', error);
+    members.value = [];
+  }
 };
-import { ref } from 'vue';
-function uuid() {
-  return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-}
-const screens = ref<any[]>([]);
-const screenName = ref('');
-const screenType = ref('home');
-const bgmAssetIdInput = ref('');
-const seAssetIdsInput = ref('');
-const backgroundStyleInput = ref('');
-const animationTypeInput = ref('');
-const animationDurationInput = ref(0);
-const addScreen = () => {
-  if (!screenName.value) return;
-  screens.value.push({
-    id: uuid(),
-    content: screenName.value,
-    type: screenType.value,
-    bgmAssetId: bgmAssetIdInput.value,
-    seAssetIds: seAssetIdsInput.value ? seAssetIdsInput.value.split(',').map(a => a.trim()) : [],
-    backgroundStyle: backgroundStyleInput.value,
-    animation: animationTypeInput.value ? { type: animationTypeInput.value, duration: animationDurationInput.value } : undefined
-  });
-  screenName.value = '';
-  screenType.value = 'home';
-  bgmAssetIdInput.value = '';
-  seAssetIdsInput.value = '';
-  backgroundStyleInput.value = '';
-  animationTypeInput.value = '';
-  animationDurationInput.value = 0;
+
+const fetchPrizes = async () => {
+  try {
+    prizes.value = await prizeService.fetchPrizes();
+  } catch (error) {
+    console.error('Failed to fetch prizes:', error);
+    prizes.value = [];
+  }
 };
-const editIdx = ref<number|null>(null);
-const editName = ref('');
-const editType = ref('home');
-const editBgmAssetIdInput = ref('');
-const editSeAssetIdsInput = ref('');
-const editBackgroundStyleInput = ref('');
-const editAnimationTypeInput = ref('');
-const editAnimationDurationInput = ref(0);
-const editScreen = (idx: number) => {
-  editIdx.value = idx;
-  const screen = screens.value[idx];
-  editName.value = screen.content ?? '';
-  editType.value = screen.type ?? 'home';
-  editBgmAssetIdInput.value = screen.bgmAssetId || '';
-  editSeAssetIdsInput.value = screen.seAssetIds ? screen.seAssetIds.join(', ') : '';
-  editBackgroundStyleInput.value = screen.backgroundStyle || '';
-  editAnimationTypeInput.value = screen.animation?.type || '';
-  editAnimationDurationInput.value = screen.animation?.duration || 0;
+
+const audioAssets = computed(() => assets.value.filter(asset => asset.type === 'audio'));
+const imageAssets = computed(() => assets.value.filter(asset => asset.type === 'image'));
+
+// 各画面の設定
+const homeConfig = ref({
+  bgmMode: 'select',
+  bgmAssetId: '',
+  buttonSeMode: 'select',
+  buttonSeAssetId: '',
+  progressSeMode: 'select',
+  progressSeAssetId: '',
+});
+
+const openingConfig = ref({
+  bgmMode: 'select',
+  bgmAssetId: '',
+  contents: [] as any[],
+});
+
+const descriptionConfig = ref({
+  slides: [] as any[],
+});
+
+const demoConfig = ref({
+  winnerMemberId: '',
+  winnerPrizeId: '',
+  bgmMode: 'select',
+  bgmAssetId: '',
+  seMode: 'select',
+  seAssetId: '',
+});
+
+const mainConfig = ref({
+  bgmMode: 'select',
+  bgmAssetId: '',
+  memberSeMode: 'select',
+  memberSeAssetId: '',
+  prizeStartSeMode: 'select',
+  prizeStartSeAssetId: '',
+  lotterySeMode: 'select',
+  lotterySeAssetId: '',
+  confirmSeMode: 'select',
+  confirmSeAssetId: '',
+  winnerSeMode: 'select',
+  winnerSeAssetId: '',
+  nextSeMode: 'select',
+  nextSeAssetId: '',
+  halfSeMode: 'select',
+  halfSeAssetId: '',
+  endSeMode: 'select',
+  endSeAssetId: '',
+});
+
+const resultConfig = ref({
+  bgmMode: 'select',
+  bgmAssetId: '',
+  scrollSeMode: 'select',
+  scrollSeAssetId: '',
+  highSeMode: 'select',
+  highSeAssetId: '',
+  lowSeMode: 'select',
+  lowSeAssetId: '',
+  fadeSeMode: 'select',
+  fadeSeAssetId: '',
+});
+
+// 更新関数
+const updateHomeConfig = (config: any) => {
+  homeConfig.value = config;
 };
-const saveEdit = () => {
-  if (editIdx.value === null) return;
-  screens.value[editIdx.value] = {
-    ...screens.value[editIdx.value],
-    content: editName.value,
-    type: editType.value,
-    bgmAssetId: editBgmAssetIdInput.value,
-    seAssetIds: editSeAssetIdsInput.value ? editSeAssetIdsInput.value.split(',').map(a => a.trim()) : [],
-    backgroundStyle: editBackgroundStyleInput.value,
-    animation: editAnimationTypeInput.value ? { type: editAnimationTypeInput.value, duration: editAnimationDurationInput.value } : undefined
-  };
-  editIdx.value = null;
-  editName.value = '';
-  editType.value = 'home';
-  editBgmAssetIdInput.value = '';
-  editSeAssetIdsInput.value = '';
-  editBackgroundStyleInput.value = '';
-  editAnimationTypeInput.value = '';
-  editAnimationDurationInput.value = 0;
+
+const updateOpeningConfig = (config: any) => {
+  openingConfig.value = config;
 };
-const cancelEdit = () => {
-  editIdx.value = null;
-  editName.value = '';
-  editType.value = 'home';
-  editBgmAssetIdInput.value = '';
-  editSeAssetIdsInput.value = '';
-  editBackgroundStyleInput.value = '';
-  editAnimationTypeInput.value = '';
-  editAnimationDurationInput.value = 0;
+
+const updateDescriptionConfig = (config: any) => {
+  descriptionConfig.value = config;
 };
-const deleteScreen = (idx: number) => {
-  screens.value.splice(idx, 1);
+
+const updateDemoConfig = (config: any) => {
+  demoConfig.value = config;
 };
+
+const updateMainConfig = (config: any) => {
+  mainConfig.value = config;
+};
+
+const updateResultConfig = (config: any) => {
+  resultConfig.value = config;
+};
+
+const saveConfigs = async () => {
+  try {
+    const configs = [
+      {
+        type: 'home' as const,
+        bgmAssetId: homeConfig.value.bgmAssetId || undefined,
+        seAssetIds: [homeConfig.value.buttonSeAssetId, homeConfig.value.progressSeAssetId].filter(id => id),
+        backgroundStyle: '',
+        elements: [],
+      },
+      {
+        type: 'opening' as const,
+        bgmAssetId: openingConfig.value.bgmAssetId || undefined,
+        seAssetIds: openingConfig.value.contents.flatMap(content => content.seAssetId ? [content.seAssetId] : []),
+        backgroundStyle: '',
+        elements: openingConfig.value.contents.map(content => ({
+          id: Math.random().toString(),
+          type: (content.type === 'text' ? 'text' : 'image') as 'text' | 'image',
+          content: content.text,
+          assetId: content.assetId,
+          animation: { type: content.effect as 'fade' | 'zoom' | 'scroll' | 'slide' | 'particle' | 'custom', duration: content.duration },
+        })),
+      },
+      {
+        type: 'description' as const,
+        bgmAssetId: undefined,
+        seAssetIds: descriptionConfig.value.slides.flatMap(slide => slide.bgmAssetId ? [slide.bgmAssetId] : []),
+        backgroundStyle: '',
+        elements: descriptionConfig.value.slides.map(slide => ({
+          id: Math.random().toString(),
+          type: 'text' as const,
+          content: slide.html,
+          assetId: slide.imageAssetId,
+          animation: { type: slide.effect as 'fade' | 'zoom' | 'scroll' | 'slide' | 'particle' | 'custom', duration: slide.duration },
+        })),
+      },
+      {
+        type: 'demo' as const,
+        bgmAssetId: demoConfig.value.bgmAssetId || undefined,
+        seAssetIds: demoConfig.value.seAssetId ? [demoConfig.value.seAssetId] : [],
+        backgroundStyle: '',
+        elements: [],
+      },
+      {
+        type: 'main' as const,
+        bgmAssetId: mainConfig.value.bgmAssetId || undefined,
+        seAssetIds: [
+          mainConfig.value.memberSeAssetId,
+          mainConfig.value.prizeStartSeAssetId,
+          mainConfig.value.lotterySeAssetId,
+          mainConfig.value.confirmSeAssetId,
+          mainConfig.value.winnerSeAssetId,
+          mainConfig.value.nextSeAssetId,
+          mainConfig.value.halfSeAssetId,
+          mainConfig.value.endSeAssetId,
+        ].filter(id => id),
+        backgroundStyle: '',
+        elements: [],
+      },
+      {
+        type: 'result' as const,
+        bgmAssetId: resultConfig.value.bgmAssetId || undefined,
+        seAssetIds: [
+          resultConfig.value.scrollSeAssetId,
+          resultConfig.value.highSeAssetId,
+          resultConfig.value.lowSeAssetId,
+          resultConfig.value.fadeSeAssetId,
+        ].filter(id => id),
+        backgroundStyle: '',
+        elements: [],
+      },
+    ];
+    await screenConfigRepository.saveScreenConfigs(configs);
+    alert('設定を保存しました');
+  } catch (error) {
+    console.error('Failed to save configs:', error);
+    alert('保存に失敗しました');
+  }
+};
+
+onMounted(() => {
+  fetchAssets();
+  fetchMembers();
+  fetchPrizes();
+});
 </script>
 
 <style scoped>
 .admin-section {
   margin-bottom: 32px;
 }
-.admin-form {
+
+.tabs {
   display: flex;
-  gap: 16px;
+  gap: 8px;
   margin-bottom: 24px;
-  flex-wrap: wrap;
+  border-bottom: 1px solid #555;
 }
+
+.tab-button {
+  padding: 12px 24px;
+  border: none;
+  background: #333;
+  color: #ccc;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  transition: background 0.2s, color 0.2s;
+}
+
+.tab-button.active {
+  background: #4f8cff;
+  color: #fff;
+}
+
+.tab-content {
+  padding: 24px;
+  background: #232b36;
+  border-radius: 8px;
+}
+
+.screen-config {
+  margin-bottom: 24px;
+}
+
+.screen-config h3 {
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.config-item {
+  margin-bottom: 24px;
+}
+
+.config-item label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.content-item,
+.slide-item {
+  border: 1px solid #555;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: #333;
+}
+
 .admin-input {
   padding: 10px 16px;
   border-radius: 8px;
@@ -170,11 +331,15 @@ const deleteScreen = (idx: number) => {
   background: #232b36;
   color: #fff;
   font-size: 1rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  margin-bottom: 8px;
+  width: 100%;
 }
+
 .admin-input:focus {
   outline: 2px solid #4f8cff;
 }
+
 .admin-btn {
   padding: 10px 24px;
   border-radius: 8px;
@@ -185,22 +350,30 @@ const deleteScreen = (idx: number) => {
   cursor: pointer;
   transition: background 0.2s;
 }
+
 .admin-btn:hover {
   background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
 }
-.admin-list {
-  list-style: none;
-  padding: 0;
+
+.asset-mode {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
 }
-.admin-list-item {
-  background: #232b36;
+
+.asset-mode label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: #fff;
-  padding: 10px 16px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+textarea.admin-input {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.mt-4 {
+  margin-top: 16px;
 }
 </style>
