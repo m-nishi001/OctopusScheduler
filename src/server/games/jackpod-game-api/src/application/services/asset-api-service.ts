@@ -96,8 +96,8 @@ export class AssetApiService implements GasService {
   }
 
   getAssetMetadata(): { assets: AssetMetadataDto[] } {
-    const assets = this.repository.findAll();
-    return { assets: assets.map(toAssetMetadataDto) };
+    const assets = this.repository.findAllMetadata();
+    return { assets };
   }
 
   uploadDomainAsset(assetDto: AssetDto): string {

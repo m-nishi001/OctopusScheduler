@@ -1,6 +1,7 @@
 import { Asset } from "../../domain/entities/asset";
 import type { IAssetRepository as IAssetRepository } from "../../domain/repositories/asset-repository";
 import { GoogleDriveService } from "../../../../../shared-packages/src/google-drive-service";
+import type { AssetMetadataDto } from "../../application/dtos/asset.dto";
 
 function getAssetFolderId(): string {
   const props = PropertiesService.getScriptProperties();
@@ -82,6 +83,23 @@ export class AssetRepositoryImpl implements IAssetRepository {
     }
   }
 
+  findAllMetadata(): AssetMetadataDto[] {
+    const folderId = getAssetFolderId();
+    if (!folderId) {
+      console.warn(
+        "[AssetRepository] jackpot-game-asset-folder-id is not set in script properties."
+      );
+      return [];
+    }
+    try {
+      const files = this.listAssets();
+      return files.map((file) => this.mapFileToAssetMetadata(file));
+    } catch (error) {
+      console.error("[AssetRepository] Error in findAllMetadata:", error);
+      return [];
+    }
+  }
+
   updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string {
     const asset = this.getAsset(id);
     if (!asset) return "";
@@ -152,6 +170,21 @@ export class AssetRepositoryImpl implements IAssetRepository {
       id: file.getId(),
       type,
       dataUrl: dataUrl,
+      name: file.getName(),
+      uploadedAt: file.getDateCreated().toISOString(),
+      lastUpdated: file.getLastUpdated().toISOString(),
+      size: file.getSize(),
+      meta: {},
+    };
+  }
+
+  private mapFileToAssetMetadata(
+    file: GoogleAppsScript.Drive.File
+  ): AssetMetadataDto {
+    const type = this.getAssetTypeFromMimeType(file.getMimeType());
+    return {
+      id: file.getId(),
+      type,
       name: file.getName(),
       uploadedAt: file.getDateCreated().toISOString(),
       lastUpdated: file.getLastUpdated().toISOString(),
