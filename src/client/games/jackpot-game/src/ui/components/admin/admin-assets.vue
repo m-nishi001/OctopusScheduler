@@ -221,17 +221,18 @@ onMounted(async () => {
 .admin-form {
     display: flex;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 18px;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .admin-input {
-    padding: 10px 16px;
+    padding: 10px 14px;
     border-radius: 8px;
     border: none;
     background: #232b36;
     color: #fff;
-    font-size: 1rem;
+    font-size: 0.98rem;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
@@ -239,86 +240,89 @@ onMounted(async () => {
     outline: 2px solid #4f8cff;
 }
 
+/* Primary action look */
 .admin-btn {
-    padding: 10px 24px;
-    border-radius: 8px;
+    padding: 9px 18px;
+    border-radius: 10px;
     border: none;
     background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
     color: #232b36;
-    font-weight: bold;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: box-shadow 0.18s, background 0.18s, transform 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .admin-btn:hover {
-    background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
+    box-shadow: 0 6px 18px rgba(79, 140, 255, 0.16);
 }
 
 .admin-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.55;
     cursor: not-allowed;
 }
 
-.delete-btn {
-    background: linear-gradient(90deg, #ff4f4f 0%, #ffaeae 100%);
-}
-
-.delete-btn:hover {
-    background: linear-gradient(90deg, #ffaeae 0%, #ff4f4f 100%);
-}
-
+.delete-btn,
 .delete-all-btn {
-    background: linear-gradient(90deg, #ff4f4f 0%, #ffaeae 100%);
+    background: linear-gradient(90deg, #ff6b6b 0%, #ffb3b3 100%);
 }
 
+.delete-btn:hover,
 .delete-all-btn:hover {
-    background: linear-gradient(90deg, #ffaeae 0%, #ff4f4f 100%);
+    box-shadow: 0 6px 18px rgba(255, 107, 107, 0.14);
 }
 
 .admin-actions {
-    margin-bottom: 16px;
+    margin-bottom: 18px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .admin-list {
     list-style: none;
     padding: 0;
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+    margin: 0;
+    display: block;
 }
 
 .admin-list-item {
     background: #232b36;
     color: #fff;
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-    display: flex;
+    padding: 14px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
+    display: grid;
+    grid-template-columns: 36px 110px 1fr auto;
+    gap: 14px;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
 }
 
 .admin-list-item input[type="checkbox"] {
     width: 20px;
     height: 20px;
+    justify-self: center;
 }
 
 .asset-preview {
-    width: 100px;
-    height: 100px;
+    width: 110px;
+    height: 96px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #333;
-    border-radius: 4px;
+    background: #2a3137;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
 .preview-img {
     max-width: 100%;
     max-height: 100%;
-    border-radius: 4px;
+    display: block;
 }
 
 .preview-video,
@@ -328,7 +332,8 @@ onMounted(async () => {
 }
 
 .asset-info {
-    flex: 1;
+    min-width: 0;
+    /* allow text truncation inside grid */
 }
 
 .usage-info ul {
@@ -339,7 +344,7 @@ onMounted(async () => {
 
 .usage-info li {
     font-size: 0.9em;
-    color: #ccc;
+    color: #c9d7e6;
 }
 
 .ml-2 {
@@ -367,7 +372,7 @@ onMounted(async () => {
 
 .file-row {
     display: flex;
-    gap: 8px;
+    gap: 12px;
     align-items: center;
 }
 
@@ -399,7 +404,7 @@ onMounted(async () => {
 .upload-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
 }
 
 .sync-btn {
@@ -407,7 +412,7 @@ onMounted(async () => {
 }
 
 .sync-btn:hover {
-    background: linear-gradient(90deg, #20c997 0%, #28a745 100%);
+    box-shadow: 0 6px 18px rgba(32, 201, 151, 0.12);
 }
 
 .modal-overlay {
@@ -426,10 +431,10 @@ onMounted(async () => {
 .modal-content {
     background: #232b36;
     color: #fff;
-    padding: 32px;
-    border-radius: 8px;
+    padding: 28px;
+    border-radius: 10px;
     text-align: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
 }
 
 .spinner {
@@ -450,5 +455,9 @@ onMounted(async () => {
     100% {
         transform: rotate(360deg);
     }
+}
+
+.admin-list-item button {
+    white-space: nowrap;
 }
 </style>
