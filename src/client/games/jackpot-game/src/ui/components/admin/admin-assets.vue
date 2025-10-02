@@ -80,15 +80,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { AssetService } from '../../../model/applications/asset-service';
-import { MemberService } from '../../../model/applications/member-service';
-import { PrizeService } from '../../../model/applications/prize-service';
-import { ScreenConfigService } from '../../../model/applications/screen-config-service';
-
 import { container } from 'tsyringe';
 const assetService = container.resolve(AssetService);
-const memberService = container.resolve(MemberService);
-const prizeService = container.resolve(PrizeService);
-const screenConfigService = container.resolve(ScreenConfigService);
 
 const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);
@@ -108,19 +101,22 @@ const syncMessage = ref("");
 const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
-const members = ref<any[]>([]);
-const prizes = ref<any[]>([]);
-const screenConfigs = ref<any[]>([]);
+// members/prizes/screenConfigs are no longer used directly in this UI; AssetService aggregates usage info
+const usageMap = ref<Record<string, string[]>>({});
+const deleteMessage = ref('');
 
 const fetchAssets = async () => {
     assets.value = await assetService.fetchAssets();
 };
 
 const fetchUsageData = async () => {
-    members.value = await memberService.fetchMembers();
-    prizes.value = await prizeService.fetchPrizes();
-    const screenTypes = ['home', 'opening', 'description', 'demo', 'main', 'result', 'admin'];
-    screenConfigs.value = await Promise.all(screenTypes.map(type => screenConfigService.fetchScreenConfig(type)));
+    // Use AssetService helper to aggregate usage info from domain services
+    const ids = assets.value.map(a => a.id);
+    if (ids.length === 0) {
+        usageMap.value = {};
+        return;
+    }
+    usageMap.value = await assetService.getUsagesForAssets(ids);
 };
 
 const onFileChange = (e: Event) => {
@@ -162,41 +158,25 @@ const deleteAsset = async (id: string) => {
 };
 
 const deleteSelectedAssets = async () => {
-    await assetService.deleteAssets(selectedAssets.value);
-    // サーバー削除成功後にリアルタイムにリストから削除
-    assets.value = assets.value.filter(asset => !selectedAssets.value.includes(asset.id));
+    if (!selectedAssets.value.length) return;
+    await assetService.deleteAssetsWithProgress(selectedAssets.value, ({ id, success, name, completed, total }) => {
+        if (success) assets.value = assets.value.filter(a => a.id !== id);
+        deleteMessage.value = `${name || id} を削除${success ? '完了' : '失敗'} (${completed}/${total})`;
+    });
     selectedAssets.value = [];
-    // 必要に応じて同期（今回はローカルストレージが更新されているので不要）
-    // await fetchAssets();
 };
 
 const deleteAllAssets = async () => {
     deleteAllDeleting.value = true;
     deleteAllMessage.value = "全件削除を開始します...";
     const allIds = assets.value.map(asset => asset.id);
-    const promises = allIds.map(async (id) => {
-        const asset = assets.value.find(a => a.id === id);
-        try {
-            await assetService.deleteAsset(id);
-            return { id, success: true, name: asset?.name };
-        } catch (error) {
-            return { id, success: false, name: asset?.name };
-        }
-    });
-    let completed = 0;
-    const updateMessage = (result: { id: string; success: boolean; name?: string }) => {
-        if (result.success) {
-            assets.value = assets.value.filter(a => a.id !== result.id);
-        }
-        completed++;
-        deleteAllMessage.value = `${result.name} を削除${result.success ? '完了' : '失敗'} (${completed}/${allIds.length})`;
-        if (completed === allIds.length) {
+    await assetService.deleteAssetsWithProgress(allIds, ({ id, success, name, completed, total }) => {
+        if (success) assets.value = assets.value.filter(a => a.id !== id);
+        deleteAllMessage.value = `${name || id} を削除${success ? '完了' : '失敗'} (${completed}/${total})`;
+        if (completed === total) {
             deleteAllDeleting.value = false;
             deleteAllMessage.value = "";
         }
-    };
-    promises.forEach(promise => {
-        promise.then(updateMessage);
     });
 };
 
@@ -218,40 +198,7 @@ const syncAssets = async () => {
 };
 
 const getUsage = (assetId: string) => {
-    const usages: string[] = [];
-    // Members
-    members.value.forEach(member => {
-        if (member.photoAssetId === assetId) {
-            usages.push(`メンバー: ${member.name}`);
-        }
-    });
-    // Prizes
-    prizes.value.forEach(prize => {
-        if (prize.imageAssetId === assetId) {
-            usages.push(`景品: ${prize.name} (画像)`);
-        }
-        if (prize.bgm1AssetId === assetId) {
-            usages.push(`景品: ${prize.name} (BGM1)`);
-        }
-        if (prize.bgm2AssetId === assetId) {
-            usages.push(`景品: ${prize.name} (BGM2)`);
-        }
-    });
-    // ScreenConfigs
-    screenConfigs.value.forEach(config => {
-        if (config.bgmAssetId === assetId) {
-            usages.push(`画面設定: ${config.type} (BGM)`);
-        }
-        if (config.seAssetIds && config.seAssetIds.includes(assetId)) {
-            usages.push(`画面設定: ${config.type} (SE)`);
-        }
-        config.elements.forEach((element: any) => {
-            if (element.assetId === assetId) {
-                usages.push(`画面設定: ${config.type} (要素: ${element.type})`);
-            }
-        });
-    });
-    return usages;
+    return usageMap.value[assetId] || [];
 };
 
 const formatSize = (size: number) => {
