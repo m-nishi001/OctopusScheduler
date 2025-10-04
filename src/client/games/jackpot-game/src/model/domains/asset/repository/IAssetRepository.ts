@@ -7,7 +7,7 @@ export interface IAssetRepository {
   addAssets(
     files: File[],
     onProgress?: (index: number, success: boolean) => void
-  ): Promise<{ successful: File[]; failed: File[] }>;
+  ): Promise<{ successful: Asset[]; failed: File[] }>;
   updateAsset(asset: Asset): Promise<void>;
   deleteAsset(assetId: string): Promise<void>;
   deleteAssets(assetIds: string[]): Promise<void>;

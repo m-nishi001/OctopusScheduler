@@ -22,7 +22,6 @@ export class AssetApiService implements GasService {
       deleteAsset: this.deleteAsset.bind(this),
       getAssetById: this.getAssetById.bind(this),
       listAssets: this.listAssets.bind(this),
-      getAssets: this.getAssets.bind(this),
       getAssetIds: this.getAssetIds.bind(this),
       getAssetMetadata: this.getAssetMetadata.bind(this),
       uploadDomainAsset: this.uploadDomainAsset.bind(this),
@@ -83,11 +82,6 @@ export class AssetApiService implements GasService {
 
   listAssets(): GoogleAppsScript.Drive.File[] {
     return AssetRepositoryImplStatic.listAssets();
-  }
-
-  getAssets(): { assets: AssetDto[] } {
-    const assets = this.repository.findAll();
-    return { assets: assets.map(toAssetDto) };
   }
 
   getAssetIds(): { ids: string[] } {

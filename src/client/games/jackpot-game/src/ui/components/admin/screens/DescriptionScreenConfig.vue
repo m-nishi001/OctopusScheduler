@@ -11,7 +11,7 @@
                 </div>
                 <select v-if="slide.imageMode === 'select'" v-model="slide.imageAssetId" class="admin-input">
                     <option value="">選択なし</option>
-                    <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                    <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                 </select>
                 <input v-if="slide.imageMode === 'upload'" type="file" @change="(e) => onImageChange(e, idx)"
                     accept="image/*" class="admin-input" />
@@ -21,7 +21,7 @@
                 </div>
                 <select v-if="slide.bgmMode === 'select'" v-model="slide.bgmAssetId" class="admin-input">
                     <option value="">選択なし</option>
-                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                 </select>
                 <input v-if="slide.bgmMode === 'upload'" type="file" @change="(e) => onBgmChange(e, idx)"
                     accept="audio/*" class="admin-input" />
@@ -40,40 +40,54 @@
 <script setup lang="ts">
 import { ref, defineEmits } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     audioAssets: any[];
     imageAssets: any[];
+    assetService: any;
 }>();
 
 const emit = defineEmits<{
     update: [config: any];
+    uploading: [isUploading: boolean];
 }>();
 
 const config = ref({
     slides: [] as any[],
 });
 
-const onImageChange = (e: Event, idx: number) => {
+const onImageChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.slides[idx].imageAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.slides[idx].imageAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload image:', error);
+        } finally {
+            emit('uploading', false);
+        }
     }
 };
 
-const onBgmChange = (e: Event, idx: number) => {
+const onBgmChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.slides[idx].bgmAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.slides[idx].bgmAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload BGM:', error);
+        } finally {
+            emit('uploading', false);
+        }
     }
 };
 

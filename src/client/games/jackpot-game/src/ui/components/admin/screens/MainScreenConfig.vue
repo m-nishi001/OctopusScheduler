@@ -9,7 +9,7 @@
             </div>
             <select v-if="config.bgmMode === 'select'" v-model="config.bgmAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.bgmMode === 'upload'" type="file" @change="onBgmChange" accept="audio/*"
                 class="admin-input" />
@@ -22,7 +22,7 @@
             </div>
             <select v-if="config.memberSeMode === 'select'" v-model="config.memberSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.memberSeMode === 'upload'" type="file" @change="onMemberSeChange" accept="audio/*"
                 class="admin-input" />
@@ -36,7 +36,7 @@
             <select v-if="config.prizeStartSeMode === 'select'" v-model="config.prizeStartSeAssetId"
                 class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.prizeStartSeMode === 'upload'" type="file" @change="onPrizeStartSeChange"
                 accept="audio/*" class="admin-input" />
@@ -49,7 +49,7 @@
             </div>
             <select v-if="config.lotterySeMode === 'select'" v-model="config.lotterySeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.lotterySeMode === 'upload'" type="file" @change="onLotterySeChange" accept="audio/*"
                 class="admin-input" />
@@ -62,7 +62,7 @@
             </div>
             <select v-if="config.confirmSeMode === 'select'" v-model="config.confirmSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.confirmSeMode === 'upload'" type="file" @change="onConfirmSeChange" accept="audio/*"
                 class="admin-input" />
@@ -75,7 +75,7 @@
             </div>
             <select v-if="config.winnerSeMode === 'select'" v-model="config.winnerSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.winnerSeMode === 'upload'" type="file" @change="onWinnerSeChange" accept="audio/*"
                 class="admin-input" />
@@ -88,7 +88,7 @@
             </div>
             <select v-if="config.nextSeMode === 'select'" v-model="config.nextSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.nextSeMode === 'upload'" type="file" @change="onNextSeChange" accept="audio/*"
                 class="admin-input" />
@@ -101,7 +101,7 @@
             </div>
             <select v-if="config.halfSeMode === 'select'" v-model="config.halfSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.halfSeMode === 'upload'" type="file" @change="onHalfSeChange" accept="audio/*"
                 class="admin-input" />
@@ -125,8 +125,9 @@
 <script setup lang="ts">
 import { ref, defineEmits } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     audioAssets: any[];
+    assetService: any;
 }>();
 
 const emit = defineEmits<{
@@ -154,111 +155,138 @@ const config = ref({
     endSeAssetId: '',
 });
 
-const onBgmChange = (e: Event) => {
+const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.bgmAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.bgmAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload BGM:', error);
+        }
     }
 };
 
-const onMemberSeChange = (e: Event) => {
+const onMemberSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.memberSeAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.memberSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload member SE:', error);
+        }
     }
 };
 
-const onPrizeStartSeChange = (e: Event) => {
+const onPrizeStartSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.prizeStartSeAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.prizeStartSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload prize start SE:', error);
+        }
     }
 };
 
-const onLotterySeChange = (e: Event) => {
+const onLotterySeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.lotterySeAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.lotterySeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload lottery SE:', error);
+        }
     }
 };
 
-const onConfirmSeChange = (e: Event) => {
+const onConfirmSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.confirmSeAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.confirmSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload confirm SE:', error);
+        }
     }
 };
 
-const onWinnerSeChange = (e: Event) => {
+const onWinnerSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.winnerSeAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.winnerSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload winner SE:', error);
+        }
     }
 };
 
-const onNextSeChange = (e: Event) => {
+const onNextSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.nextSeAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.nextSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload next SE:', error);
+        }
     }
 };
 
-const onHalfSeChange = (e: Event) => {
+const onHalfSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.halfSeAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.halfSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload half SE:', error);
+        }
     }
 };
 
-const onEndSeChange = (e: Event) => {
+const onEndSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.endSeAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.endSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload end SE:', error);
+        }
     }
 };
 </script>

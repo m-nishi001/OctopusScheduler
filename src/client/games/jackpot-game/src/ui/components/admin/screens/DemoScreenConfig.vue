@@ -47,10 +47,11 @@
 <script setup lang="ts">
 import { ref, defineEmits } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     audioAssets: any[];
     members: any[];
     prizes: any[];
+    assetService: any;
 }>();
 
 const emit = defineEmits<{
@@ -66,27 +67,33 @@ const config = ref({
     seAssetId: '',
 });
 
-const onBgmChange = (e: Event) => {
+const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.bgmAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.bgmAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload BGM:', error);
+        }
     }
 };
 
-const onSeChange = (e: Event) => {
+const onSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.seAssetId = ev.target?.result as string;
-            emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.seAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload SE:', error);
+        }
     }
 };
 </script>

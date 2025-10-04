@@ -1,9 +1,6 @@
 <template>
   <div class="main-layout">
-    <header>
-      <h1>jackpot 抽選アプリ</h1>
-    </header>
-    <main>
+    <main :class="{ 'full-screen': fullScreen }">
       <slot />
     </main>
   </div>
@@ -12,34 +9,36 @@
 <script lang="ts">
 export default {
   name: 'MainLayout',
+  props: {
+    fullScreen: { type: Boolean, default: false },
+  },
 };
 </script>
 
 <style scoped>
 .main-layout {
   min-height: 100vh;
-  background: linear-gradient(135deg, #ffe5ec 0%, #b8c0ff 100%);
+  background: radial-gradient(circle at 10% 10%, #fff5f7 0%, transparent 30%),
+    radial-gradient(circle at 90% 90%, #f3f0ff 0%, transparent 30%),
+    linear-gradient(135deg, #fff0f6 0%, #f6f0ff 50%, #eef7ff 100%);
   display: flex;
   flex-direction: column;
 }
-header {
-  background: #fcd5ce;
-  color: #6d6875;
-  padding: 14px 0 10px 0;
-  box-shadow: 0 2px 12px rgba(184,192,255,0.18);
-  text-align: center;
-  font-size: 1.5em;
-  letter-spacing: 0.08em;
-  font-family: 'Montserrat', 'Arial', sans-serif;
-  text-shadow: 0 1px 4px #b8c0ff;
-  border-bottom: 2px solid #b8c0ff;
-}
+
 main {
   flex: 1;
-  padding: 32px 16px;
+  padding: 40px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  color: #3b2f3f;
+}
+
+/* when fullScreen is requested, allow content to use the whole viewport without padding */
+main.full-screen {
+  padding: 0;
+  align-items: stretch;
   justify-content: center;
 }
 </style>

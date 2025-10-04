@@ -9,7 +9,7 @@
             </div>
             <select v-if="localConfig.bgmMode === 'select'" v-model="localConfig.bgmAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="localConfig.bgmMode === 'upload'" type="file" @change="onBgmChange" accept="audio/*"
                 class="admin-input" />
@@ -23,7 +23,7 @@
             <select v-if="localConfig.buttonSeMode === 'select'" v-model="localConfig.buttonSeAssetId"
                 class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="localConfig.buttonSeMode === 'upload'" type="file" @change="onButtonSeChange" accept="audio/*"
                 class="admin-input" />
@@ -37,7 +37,7 @@
             <select v-if="localConfig.progressSeMode === 'select'" v-model="localConfig.progressSeAssetId"
                 class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="localConfig.progressSeMode === 'upload'" type="file" @change="onProgressSeChange"
                 accept="audio/*" class="admin-input" />
@@ -50,11 +50,13 @@ import { ref, defineProps, defineEmits, watch } from 'vue';
 
 const props = defineProps<{
     audioAssets: any[];
+    assetService: any;
     config: any;
 }>();
 
 const emit = defineEmits<{
     update: [config: any];
+    uploading: [isUploading: boolean];
 }>();
 
 const localConfig = ref({ ...props.config });
@@ -63,39 +65,57 @@ watch(() => props.config, (newConfig) => {
     localConfig.value = { ...newConfig };
 }, { deep: true });
 
-const onBgmChange = (e: Event) => {
+const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            localConfig.value.bgmAssetId = ev.target?.result as string;
-            emit('update', localConfig.value);
-        };
-        reader.readAsDataURL(file);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                localConfig.value.bgmAssetId = result.successful[0].id;
+                emit('update', localConfig.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload BGM:', error);
+        } finally {
+            emit('uploading', false);
+        }
     }
 };
 
-const onButtonSeChange = (e: Event) => {
+const onButtonSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            localConfig.value.buttonSeAssetId = ev.target?.result as string;
-            emit('update', localConfig.value);
-        };
-        reader.readAsDataURL(file);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                localConfig.value.buttonSeAssetId = result.successful[0].id;
+                emit('update', localConfig.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload button SE:', error);
+        } finally {
+            emit('uploading', false);
+        }
     }
 };
 
-const onProgressSeChange = (e: Event) => {
+const onProgressSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            localConfig.value.progressSeAssetId = ev.target?.result as string;
-            emit('update', localConfig.value);
-        };
-        reader.readAsDataURL(file);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                localConfig.value.progressSeAssetId = result.successful[0].id;
+                emit('update', localConfig.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload progress SE:', error);
+        } finally {
+            emit('uploading', false);
+        }
     }
 };
 </script>

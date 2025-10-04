@@ -81,7 +81,7 @@ export class ApiHandler {
     try {
       const parameters = JSON.parse(args);
       const result = targetFunction(parameters);
-      return new SuccessResponse(result);
+      return new SuccessResponse(result !== undefined ? result : null);
     } catch (e: any) {
       return new ErrorResponse(e);
     }

@@ -17,8 +17,19 @@ export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
     );
   }
 
-  saveScreenConfig(config: ScreenConfig): void {
+  createScreenConfig(config: ScreenConfig): void {
     this.repository.add(config);
+  }
+
+  updateScreenConfig(config: ScreenConfig): void {
+    this.repository.update(
+      (c: ScreenConfig) => c.type === config.type,
+      () => config
+    );
+  }
+
+  deleteScreenConfig(type: string): void {
+    this.repository.delete((c: ScreenConfig) => c.type === type);
   }
 
   getScreenConfig(): ScreenConfig | null {

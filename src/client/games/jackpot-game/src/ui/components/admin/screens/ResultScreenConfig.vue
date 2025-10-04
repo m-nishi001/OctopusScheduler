@@ -9,7 +9,7 @@
             </div>
             <select v-if="config.bgmMode === 'select'" v-model="config.bgmAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.bgmMode === 'upload'" type="file" @change="onBgmChange" accept="audio/*"
                 class="admin-input" />
@@ -22,7 +22,7 @@
             </div>
             <select v-if="config.scrollSeMode === 'select'" v-model="config.scrollSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.scrollSeMode === 'upload'" type="file" @change="onScrollSeChange" accept="audio/*"
                 class="admin-input" />
@@ -35,7 +35,7 @@
             </div>
             <select v-if="config.highSeMode === 'select'" v-model="config.highSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.highSeMode === 'upload'" type="file" @change="onHighSeChange" accept="audio/*"
                 class="admin-input" />
@@ -48,7 +48,7 @@
             </div>
             <select v-if="config.lowSeMode === 'select'" v-model="config.lowSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.lowSeMode === 'upload'" type="file" @change="onLowSeChange" accept="audio/*"
                 class="admin-input" />
@@ -61,7 +61,7 @@
             </div>
             <select v-if="config.fadeSeMode === 'select'" v-model="config.fadeSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.fadeSeMode === 'upload'" type="file" @change="onFadeSeChange" accept="audio/*"
                 class="admin-input" />
@@ -72,8 +72,9 @@
 <script setup lang="ts">
 import { ref, defineEmits } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     audioAssets: any[];
+    assetService: any;
 }>();
 
 const emit = defineEmits<{
@@ -93,63 +94,58 @@ const config = ref({
     fadeSeAssetId: '',
 });
 
-const onBgmChange = (e: Event) => {
+const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.bgmAssetId = ev.target?.result as string;
+        const result = await props.assetService.addAssets([file]);
+        if (result.successful.length > 0) {
+            config.value.bgmAssetId = result.successful[0].id;
             emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        }
     }
 };
 
-const onScrollSeChange = (e: Event) => {
+const onScrollSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.scrollSeAssetId = ev.target?.result as string;
+        const result = await props.assetService.addAssets([file]);
+        if (result.successful.length > 0) {
+            config.value.scrollSeAssetId = result.successful[0].id;
             emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        }
     }
 };
 
-const onHighSeChange = (e: Event) => {
+const onHighSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.highSeAssetId = ev.target?.result as string;
+        const result = await props.assetService.addAssets([file]);
+        if (result.successful.length > 0) {
+            config.value.highSeAssetId = result.successful[0].id;
             emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        }
     }
 };
 
-const onLowSeChange = (e: Event) => {
+const onLowSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.lowSeAssetId = ev.target?.result as string;
+        const result = await props.assetService.addAssets([file]);
+        if (result.successful.length > 0) {
+            config.value.lowSeAssetId = result.successful[0].id;
             emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        }
     }
 };
 
-const onFadeSeChange = (e: Event) => {
+const onFadeSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            config.value.fadeSeAssetId = ev.target?.result as string;
+        const result = await props.assetService.addAssets([file]);
+        if (result.successful.length > 0) {
+            config.value.fadeSeAssetId = result.successful[0].id;
             emit('update', config.value);
-        };
-        reader.readAsDataURL(file);
+        }
     }
 };
 </script>

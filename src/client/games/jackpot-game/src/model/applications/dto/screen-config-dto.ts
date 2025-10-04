@@ -16,9 +16,11 @@ export interface ScreenElementDto {
 }
 
 export interface ScreenConfigDto {
+  id?: string;
   type: ScreenType;
   bgmAssetId?: string;
   bgmAssetUrl?: string;
+  displayMode?: "list" | "html";
   seAssetIds?: string[];
   seAssetUrls?: string[];
   backgroundStyle: string;

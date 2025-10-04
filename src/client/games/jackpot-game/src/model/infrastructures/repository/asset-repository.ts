@@ -25,17 +25,7 @@ export class AssetRepository implements IAssetRepository {
     if (cached && cached.length > 0) {
       return cached;
     }
-    if (!this.gasService) return [];
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<{ assets: Asset[] }>("AssetService.getAssets")
-        .withSuccessed((res: { assets: Asset[] }) => {
-          this.localStorage.save(ASSET_CACHE_KEY, res.assets);
-          resolve(res.assets);
-        })
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
+    return [];
   }
 
   async addAsset(asset: AssetDto): Promise<void> {
@@ -59,7 +49,7 @@ export class AssetRepository implements IAssetRepository {
   async addAssets(
     files: File[],
     onProgress?: (index: number, success: boolean) => void
-  ): Promise<{ successful: File[]; failed: File[] }> {
+  ): Promise<{ successful: Asset[]; failed: File[] }> {
     if (!this.gasService) return { successful: [], failed: files };
     const assetDtos: AssetDto[] = [];
     for (const file of files) {
@@ -80,7 +70,7 @@ export class AssetRepository implements IAssetRepository {
       this.gasService!.createCall<{ asset: AssetDto }>(
         "AssetService.addAsset",
         asset
-      ).withTimeout(30000)
+      ).withTimeout(120000)
     );
     // 各呼び出しのPromiseを作成し、完了時にonProgressを呼ぶ
     const promises = calls.map((call, index) => {
@@ -104,12 +94,12 @@ export class AssetRepository implements IAssetRepository {
     // 全ての呼び出しが完了するのを待つ
     const results = await Promise.all(promises);
     // 成功したファイルと失敗したファイルを分ける
-    const successful: File[] = [];
+    const successful: Asset[] = [];
     const failed: File[] = [];
     const successfulAssets: AssetDto[] = [];
     results.forEach(({ index, success }) => {
       if (success) {
-        successful.push(files[index]);
+        successful.push(success);
         successfulAssets.push(success);
       } else {
         failed.push(files[index]);
@@ -179,17 +169,7 @@ export class AssetRepository implements IAssetRepository {
   }
 
   async syncAssetsWithServer(): Promise<Asset[]> {
-    if (!this.gasService) return [];
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<{ assets: Asset[] }>("AssetService.getAssets")
-        .withSuccessed((res: { assets: Asset[] }) => {
-          this.localStorage.save(ASSET_CACHE_KEY, res.assets);
-          resolve(res.assets);
-        })
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
+    return [];
   }
 
   async syncAssetsWithGoogleDrive(
@@ -202,7 +182,7 @@ export class AssetRepository implements IAssetRepository {
         this.gasService!.createCall<{
           assets: AssetMetadataDto[];
         }>("AssetService.getAssetMetadata")
-          .withTimeout(30000)
+          .withTimeout(120000)
           .withSuccessed((res: { assets: AssetMetadataDto[] }) => resolve(res))
           .withFailuered((msg: string) => reject(new Error(msg)))
           .invoke();

@@ -46,4 +46,8 @@ export class ScreenConfigService {
 
     return resolvedConfig;
   }
+
+  async saveScreenConfigs(configs: ScreenConfigDto[]): Promise<void> {
+    await this.repo.saveScreenConfigs(configs);
+  }
 }

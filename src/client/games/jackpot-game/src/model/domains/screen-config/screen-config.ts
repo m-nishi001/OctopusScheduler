@@ -12,6 +12,7 @@ export interface AnimationSettings {
   duration?: number;
   delay?: number;
   params?: Record<string, any>;
+  scrollDirection?: "up" | "down" | "left" | "right";
 }
 
 export type ScreenElementType =
@@ -22,7 +23,8 @@ export type ScreenElementType =
   | "progress"
   | "list"
   | "modal"
-  | "bgm";
+  | "bgm"
+  | "html";
 
 export interface ScreenElement {
   id: string;
@@ -35,6 +37,7 @@ export interface ScreenElement {
 }
 
 export interface ScreenConfig {
+  id?: string;
   type: ScreenType;
   bgmAssetId?: string;
   seAssetIds?: string[];

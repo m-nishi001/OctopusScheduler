@@ -25,7 +25,7 @@ export class AssetService {
   async addAssets(
     files: File[],
     onProgress?: (index: number, success: boolean) => void
-  ): Promise<{ successful: File[]; failed: File[] }> {
+  ): Promise<{ successful: AssetDto[]; failed: File[] }> {
     return this.repo.addAssets(files, onProgress);
   }
 
