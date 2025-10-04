@@ -177,6 +177,31 @@ export default {
     onMounted(async () => {
       screenConfig.value = await screenConfigService.fetchScreenConfig('opening');
 
+      // If elements are configured to scroll downward, reverse their order
+      // so that the visual sequence scrolls down as if the list were flipped.
+      const maybeReverseForDownScroll = (cfg: any) => {
+        if (!cfg || !Array.isArray(cfg.elements) || cfg.elements.length <= 1) return;
+        const indexed = cfg.elements.map((el: any, idx: number) => ({ el, idx }));
+        const scrollIndexed = indexed.filter((x: any) => {
+          const t = x.el?.animation?.type || x.el?.effect || '';
+          return t === 'scroll';
+        });
+        if (scrollIndexed.length === 0) return;
+        const allDown = scrollIndexed.every((x: any) => {
+          const dir = x.el?.animation?.scrollDirection || x.el?.scrollDirection || 'up';
+          return dir === 'down';
+        });
+        if (!allDown) return;
+        const reversed = [...cfg.elements];
+        const scrollItems = scrollIndexed.map((x: any) => x.el).reverse();
+        for (let i = 0; i < scrollIndexed.length; i++) {
+          reversed[scrollIndexed[i].idx] = scrollItems[i];
+        }
+        cfg.elements = reversed;
+      };
+
+      maybeReverseForDownScroll(screenConfig.value);
+
       // initialize bgm early so it plays during sequences or fullscreen HTML
       if (screenConfig.value?.bgmAssetUrl) {
         bgm.value = new Audio(screenConfig.value.bgmAssetUrl);
