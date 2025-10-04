@@ -1,14 +1,18 @@
 <template>
   <MainLayout>
-    <div class="w-full max-w-xl mx-auto text-center bg-white/80 rounded-xl shadow-lg p-8">
-      <h1 class="text-3xl font-bold text-indigo-700 mb-6 drop-shadow">2025年度 ジャックポッド大会！</h1>
-      <div class="flex flex-col gap-4 items-center">
-        <button @click="goOpening"
-          class="bg-gradient-to-r from-pink-400 to-yellow-300 text-white font-semibold px-6 py-3 rounded-lg shadow hover:scale-105 transition">スタート</button>
-        <button @click="goAdmin"
-          class="bg-gradient-to-r from-indigo-400 to-purple-400 text-white font-semibold px-6 py-3 rounded-lg shadow hover:scale-105 transition">管理画面</button>
+    <div class="home-container">
+      <h1 class="home-title">2025年度 ジャックポッド大会！</h1>
+
+      <div v-if="!assetsLoaded" class="progress-container">
+        <div class="progress-bar" :style="{ width: progress + '%' }"></div>
+        <p>アセットをダウンロード中... {{ Math.round(progress) }}%</p>
       </div>
-      <ProgressBar :percent="progress" label="ダウンロード進捗" />
+
+      <div class="actions">
+        <button v-if="assetsLoaded" @click="goOpening" class="start-button">スタート</button>
+        <button @click="goAdmin" class="admin-button">管理画面</button>
+      </div>
+
       <div class="auto-navi mt-4">
         <label>
           <input type="checkbox" v-model="autoNavigate" />
@@ -18,42 +22,60 @@
     </div>
   </MainLayout>
 </template>
+
 <script lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import MainLayout from '../common/main-layout.vue';
-import ProgressBar from './progress-bar.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
 import { container } from 'tsyringe';
+import { Container } from '../../../core/container';
+
 export default {
   name: 'Home',
-  components: { MainLayout, ProgressBar },
+  components: { MainLayout },
   setup() {
+    Container.register();
+
     const router = useRouter();
     const autoNavigate = ref(false);
     const goOpening = () => router.push('/jackpot-opening');
     const goAdmin = () => router.push('/jackpot-admin');
 
-    // ScreenConfigServiceから取得
     const screenConfig = ref<ScreenConfigDto | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    onMounted(async () => {
-      screenConfig.value = await screenConfigService.fetchScreenConfig('home');
-    });
 
-    // プログレスバー進捗（仮: 0→100%を2秒でアニメーション）
+    const assetsLoaded = ref(false);
     const progress = ref(0);
+
+    const loadAssets = async () => {
+      try {
+        progress.value = 10;
+        await screenConfigService.syncScreenConfigs(['home', 'opening']);
+        progress.value = 40;
+      } catch (e) {
+        progress.value = 50;
+      }
+      screenConfig.value = await screenConfigService.fetchScreenConfig('home');
+
+      // simulate asset download progress
+      for (let i = progress.value; i <= 100; i += 10) {
+        progress.value = i;
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      assetsLoaded.value = true;
+    };
+
     onMounted(() => {
-      let p = 0;
-      const timer = setInterval(() => {
-        p += 5;
-        progress.value = p;
-        if (p >= 100) clearInterval(timer);
-      }, 100);
+      loadAssets();
+      window.addEventListener('keydown', handleKey);
+    });
+    onUnmounted(() => {
+      window.removeEventListener('keydown', handleKey);
     });
 
-    // BGM/SE制御（DL完了後再生開始）
+    // BGM control
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = () => {
       if (!screenConfig.value?.bgmAssetUrl) return;
@@ -67,20 +89,12 @@ export default {
       if (val === 100) playBGM();
     });
 
-    // SE再生関数（未使用のため削除）
-
     // Enterキーでスタート
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter') goOpening();
     };
-    onMounted(() => {
-      window.addEventListener('keydown', handleKey);
-    });
-    onUnmounted(() => {
-      window.removeEventListener('keydown', handleKey);
-    });
 
-    // 自動遷移
+    // auto navigate
     let autoTimer: number | undefined;
     watch(autoNavigate, (val) => {
       if (val) {
@@ -89,14 +103,100 @@ export default {
         if (autoTimer) window.clearTimeout(autoTimer);
       }
     });
-    return { goOpening, goAdmin, autoNavigate, screenConfig, progress };
+
+    return { goOpening, goAdmin, autoNavigate, screenConfig, progress, assetsLoaded };
   },
 };
 </script>
+
 <style scoped>
+.home-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+}
+
+.home-title {
+  font-size: 3em;
+  color: #fff;
+  text-shadow: 0 2px 16px #2a5298;
+  margin-bottom: 40px;
+  animation: titleAnimation 2s ease-in-out;
+}
+
+@keyframes titleAnimation {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.progress-container {
+  margin-bottom: 24px;
+}
+
+.progress-bar {
+  width: 300px;
+  height: 20px;
+  background: #232b36;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
+  transition: width 0.2s;
+}
+
+.actions {
+  margin-bottom: 18px;
+}
+
+.start-button {
+  margin-bottom: 12px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #ff7a7a, #ffd26f);
+  color: #fff;
+  border: none;
+}
+
+.admin-button {
+  opacity: 0.8;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  color: #fff;
+  border: none;
+}
+
 .auto-navi {
   margin-bottom: 1em;
   text-align: center;
-  color: #444;
+  color: #fff;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

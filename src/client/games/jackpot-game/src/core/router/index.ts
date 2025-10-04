@@ -1,4 +1,4 @@
-import HomeView from "../../ui/components/admin/home-view.vue";
+import HomeView from "../../ui/components/draw/home.vue";
 import DrawView from "../../ui/components/draw/draw-view.vue";
 import ResultView from "../../ui/components/draw/result-view.vue";
 import HistoryView from "../../ui/components/draw/history-view.vue";

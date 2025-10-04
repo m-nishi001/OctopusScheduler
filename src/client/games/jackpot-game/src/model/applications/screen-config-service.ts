@@ -50,4 +50,16 @@ export class ScreenConfigService {
   async saveScreenConfigs(configs: ScreenConfigDto[]): Promise<void> {
     await this.repo.saveScreenConfigs(configs);
   }
+
+  // Ensure local storage/cache is synchronized with server for the given screen types
+  async syncScreenConfigs(types: string[]): Promise<void> {
+    if (!types || types.length === 0) return;
+    if (typeof this.repo.loadAllFromStorage === "function") {
+      try {
+        await this.repo.loadAllFromStorage(types);
+      } catch (e) {
+        // swallow error: sync is best-effort
+      }
+    }
+  }
 }
