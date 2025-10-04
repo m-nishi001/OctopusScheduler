@@ -292,12 +292,28 @@ export default {
   width: 100%;
   display: flex;
   justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .html-content {
   width: 100vw;
   height: 100vh;
   overflow: auto;
+}
+
+/* Ensure any text or images inside content-item don't exceed container */
+.content-item img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.content-item>div,
+.content-item>* {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
 }
 
 .centered-html {

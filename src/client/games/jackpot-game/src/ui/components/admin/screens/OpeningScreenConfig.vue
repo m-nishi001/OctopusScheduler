@@ -261,6 +261,8 @@ const getAssetUrl = (assetId: string) => {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     margin-bottom: 8px;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .admin-input:focus {
@@ -293,5 +295,22 @@ const getAssetUrl = (assetId: string) => {
     align-items: center;
     gap: 8px;
     color: #fff;
+}
+
+/* Ensure children in the config area use border-box sizing so padding doesn't cause overflow */
+.screen-config,
+.screen-config * {
+    box-sizing: border-box;
+}
+
+/* Prevent content boxes from allowing children to overflow horizontally */
+.content-item {
+    overflow: hidden;
+    word-break: break-word;
+}
+
+textarea.admin-input {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 </style>
