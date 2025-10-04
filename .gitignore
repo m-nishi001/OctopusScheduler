@@ -1,3 +1,7 @@
 node_modules
 dist
-.turbo
+.turbo/
+
+# Ignore per-project build logs created during the workspace build
+**/build.log
+build.log
