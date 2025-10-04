@@ -51,9 +51,9 @@ export class ScreenConfigService {
   }
 
   async syncScreenConfigs(): Promise<void> {
-    if (typeof this.repo.loadAllFromStorage === "function") {
+    if (typeof this.repo.syncScreenConfigs === "function") {
       try {
-        await this.repo.loadAllFromStorage();
+        await this.repo.syncScreenConfigs();
       } catch (e) {
         // swallow error: sync is best-effort
       }
