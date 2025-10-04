@@ -41,6 +41,28 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
           // persist to local for offline
           await this.localStorage.save(`screen_${type}`, dto);
           return dto;
+        } else {
+          // Server explicitly reports no config for this type. Treat server as source-of-truth:
+          // remove any local copy and clear cache entry, then return a default config (do not persist locally)
+          try {
+            await this.localStorage.remove(`screen_${type}`);
+          } catch (e) {
+            console.warn(
+              `Failed to remove local screen config for type '${type}':`,
+              e
+            );
+          }
+          this.cache.delete(type);
+          const defaultConfig: ScreenConfig = {
+            type: type as ScreenConfig["type"],
+            bgmAssetId: undefined,
+            seAssetIds: [],
+            backgroundStyle: "",
+            elements: [],
+          };
+          // Keep default in in-memory cache so UI can use it during this session.
+          this.cache.set(type, defaultConfig);
+          return defaultConfig;
         }
       } catch (e) {
         console.warn(
@@ -143,11 +165,31 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
             .withFailuered((msg: string) => reject(new Error(msg)))
             .invoke();
         });
-        // server returned array of configs
+        // create map of server configs by type
+        const serverMap = new Map<string, any>();
         for (const cfg of res) {
           if (cfg && cfg.type) {
-            await this.localStorage.save(`screen_${cfg.type}`, cfg);
-            this.cache.set(cfg.type, cfg);
+            serverMap.set(cfg.type, cfg);
+          }
+        }
+        // persist server-returned configs and update cache for those types
+        for (const [type, cfg] of serverMap.entries()) {
+          await this.localStorage.save(`screen_${type}`, cfg);
+          this.cache.set(type, cfg);
+        }
+        // For requested types that were NOT returned by server, remove local entries so local matches spreadsheet
+        for (const type of types) {
+          if (!serverMap.has(type)) {
+            try {
+              await this.localStorage.remove(`screen_${type}`);
+            } catch (e) {
+              // ignore removal errors but log
+              console.warn(
+                `Failed to remove local screen config for type '${type}':`,
+                e
+              );
+            }
+            this.cache.delete(type);
           }
         }
         return;
