@@ -19,7 +19,23 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     const config = this.cache.get(type);
     if (config) return config;
 
-    // Try to get from GAS first (server is source of truth). If fails, fall back to localStorage
+    // Prefer local storage (assume syncScreenConfigs already populated it). If not present, fall back to GAS.
+    try {
+      const stored = await this.localStorage.get<ScreenConfig>(
+        `screen_${type}`
+      );
+      if (stored) {
+        this.cache.set(type, stored);
+        return stored;
+      }
+    } catch (e) {
+      console.warn(
+        `Failed to load screen config from storage for type '${type}':`,
+        e
+      );
+    }
+
+    // If not found locally, try to get from GAS (server is source of truth).
     if (this.gasService) {
       try {
         const dtoPromise = new Promise<ScreenConfig | null>(

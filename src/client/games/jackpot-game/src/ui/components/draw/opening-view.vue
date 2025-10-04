@@ -235,14 +235,9 @@ export default {
         }, durationMs);
       } else {
         // In non-fullscreen mode, render all elements (including html) in the DOM and run sequence
-        // wait a tick so DOM renders content-items
-        setTimeout(() => startSequence(), 120);
-      }
-
-      if (screenConfig.value?.bgmAssetUrl) {
-        bgm.value = new Audio(screenConfig.value.bgmAssetUrl);
-        bgm.value.loop = true;
-        setTimeout(() => bgm.value?.play().catch(() => { }), 500);
+        // ensure DOM updates are flushed, then start sequence immediately
+        await nextTick();
+        startSequence();
       }
     });
 
