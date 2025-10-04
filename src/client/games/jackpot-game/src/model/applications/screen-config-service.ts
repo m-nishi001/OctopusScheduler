@@ -12,7 +12,6 @@ export class ScreenConfigService {
 
   async fetchScreenConfig(screenType: string): Promise<ScreenConfigDto> {
     const config = await this.repo.fetchScreenConfig(screenType);
-    // アセットIDをURLに解決
     const resolvedConfig: ScreenConfigDto = {
       ...config,
       bgmAssetUrl: undefined,
@@ -51,7 +50,6 @@ export class ScreenConfigService {
     await this.repo.saveScreenConfigs(configs);
   }
 
-  // Ensure local storage/cache is synchronized with server for the given screen types
   async syncScreenConfigs(types: string[]): Promise<void> {
     if (!types || types.length === 0) return;
     if (typeof this.repo.loadAllFromStorage === "function") {
