@@ -52,7 +52,7 @@ export default {
     const loadAssets = async () => {
       try {
         progress.value = 10;
-        await screenConfigService.syncScreenConfigs(['home', 'opening']);
+        await screenConfigService.syncScreenConfigs();
         progress.value = 40;
       } catch (e) {
         progress.value = 50;

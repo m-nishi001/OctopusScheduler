@@ -155,8 +155,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
   }
 
   // 初期化（localStorageからロード）
-  async loadAllFromStorage(types: string[]): Promise<void> {
-    // Try loading from server first (source-of-truth). If fails, load from local storage
+  async loadAllFromStorage(): Promise<void> {
     if (this.gasService) {
       try {
         const res = await new Promise<any[]>((resolve, reject) => {
@@ -165,33 +164,39 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
             .withFailuered((msg: string) => reject(new Error(msg)))
             .invoke();
         });
-        // create map of server configs by type
+
         const serverMap = new Map<string, any>();
         for (const cfg of res) {
-          if (cfg && cfg.type) {
-            serverMap.set(cfg.type, cfg);
-          }
+          if (cfg && cfg.type) serverMap.set(cfg.type, cfg);
         }
-        // persist server-returned configs and update cache for those types
+
+        // Persist all server-returned configs in parallel and update cache
+        const savePromises: Promise<void>[] = [];
         for (const [type, cfg] of serverMap.entries()) {
-          await this.localStorage.save(`screen_${type}`, cfg);
+          savePromises.push(this.localStorage.save(`screen_${type}`, cfg));
           this.cache.set(type, cfg);
         }
-        // For requested types that were NOT returned by server, remove local entries so local matches spreadsheet
-        for (const type of types) {
-          if (!serverMap.has(type)) {
-            try {
-              await this.localStorage.remove(`screen_${type}`);
-            } catch (e) {
-              // ignore removal errors but log
-              console.warn(
-                `Failed to remove local screen config for type '${type}':`,
-                e
-              );
+        await Promise.all(savePromises);
+
+        // Prune local entries not present on server
+        try {
+          const allLocal = await this.localStorage.getAll<ScreenConfig>();
+          const toRemove: string[] = [];
+          for (const key of allLocal.keys()) {
+            if (key.startsWith("screen_")) {
+              const type = key.substring("screen_".length);
+              if (!serverMap.has(type)) toRemove.push(key);
             }
-            this.cache.delete(type);
           }
+          if (toRemove.length > 0) {
+            await this.localStorage.removeMultiple(toRemove);
+            for (const k of toRemove)
+              this.cache.delete(k.substring("screen_".length));
+          }
+        } catch (e) {
+          console.warn("Failed to prune local storage after server sync:", e);
         }
+
         return;
       } catch (e) {
         console.warn(
@@ -201,11 +206,17 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
       }
     }
 
-    for (const type of types) {
-      const obj = await this.localStorage.get<ScreenConfig>(`screen_${type}`);
-      if (obj) {
-        this.cache.set(type, obj);
+    // Fallback: load all entries from local storage and populate cache
+    try {
+      const all = await this.localStorage.getAll<ScreenConfig>();
+      for (const [key, val] of all.entries()) {
+        if (key.startsWith("screen_")) {
+          const type = key.substring("screen_".length);
+          this.cache.set(type, val);
+        }
       }
+    } catch (e) {
+      console.warn("Failed to load screen configs from local storage:", e);
     }
   }
 }

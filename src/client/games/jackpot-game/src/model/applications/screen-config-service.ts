@@ -50,11 +50,10 @@ export class ScreenConfigService {
     await this.repo.saveScreenConfigs(configs);
   }
 
-  async syncScreenConfigs(types: string[]): Promise<void> {
-    if (!types || types.length === 0) return;
+  async syncScreenConfigs(): Promise<void> {
     if (typeof this.repo.loadAllFromStorage === "function") {
       try {
-        await this.repo.loadAllFromStorage(types);
+        await this.repo.loadAllFromStorage();
       } catch (e) {
         // swallow error: sync is best-effort
       }
