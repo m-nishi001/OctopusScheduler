@@ -14,6 +14,9 @@
         <button class="main-btn" @click="goToJackpotGame">
           <span class="btn-icon">🎰</span> Jackpot Game
         </button>
+        <button class="main-btn" @click="goToCardGame">
+          <span class="btn-icon">🃏</span> Card Game
+        </button>
       </div>
       <p class="desc">ここにロード画面や初期同期処理を追加予定。</p>
     </div>
@@ -26,6 +29,7 @@ const router = useRouter();
 const goToAutonomous = () => router.push({ name: 'autonomous-mode' });
 const goToSettings = () => router.push({ name: 'settings' });
 const goToJackpotGame = () => router.push('/jackpot-home');
+const goToCardGame = () => router.push('/card-home');
 // 今後ロード画面や同期処理を追加
 </script>
 
