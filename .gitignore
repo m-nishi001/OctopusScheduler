@@ -1,7 +1,9 @@
 node_modules
 dist
-.turbo/
 
 # Ignore per-project build logs created during the workspace build
 **/build.log
 build.log
+.**/.turbo/
+# Also ignore any .turbo directories anywhere (older Git versions may need this)
+**/.turbo
