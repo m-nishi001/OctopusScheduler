@@ -268,8 +268,35 @@ body.jackpot-fullscreen {
   margin: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
-  /* hide scrollbars */
-  background: #071428 !important;
-  /* match THREE scene background to remove outer light border */
+  background: radial-gradient(circle at 50% 30%, #1b0b05 0%, #0b0503 35%, #040203 100%) !important;
+}
+
+/* subtle stage spotlight for overlay readability */
+.home-root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 28%, rgba(255, 238, 200, 0.06) 0%, rgba(0, 0, 0, 0.45) 40%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.home-overlay {
+  /* make overlay text warm and bold to match jackpot vibe */
+  z-index: 3;
+  text-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+}
+
+.home-title {
+  color: #fff0d9;
+  letter-spacing: 0.6px
+}
+
+.subtitle {
+  color: rgba(255, 220, 190, 0.9);
+}
+
+.start-button {
+  background: linear-gradient(90deg, #ffd36f, #ff7a7a);
 }
 </style>
