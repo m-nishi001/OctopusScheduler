@@ -27,7 +27,7 @@ export default {
 
 main {
   flex: 1;
-  padding: 40px 20px;
+  /* padding: 40px 20px; */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -40,5 +40,19 @@ main.full-screen {
   padding: 0;
   align-items: stretch;
   justify-content: center;
+}
+
+/* if the global jackpot-fullscreen is active, force layout to be full-bleed and hide background */
+:global(html.jackpot-fullscreen) .main-layout,
+:global(body.jackpot-fullscreen) .main-layout {
+  min-height: 100vh;
+  background: transparent !important;
+}
+
+:global(html.jackpot-fullscreen) main,
+:global(body.jackpot-fullscreen) main {
+  padding: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
 }
 </style>

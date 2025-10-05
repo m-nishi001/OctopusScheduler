@@ -1,31 +1,33 @@
 <template>
   <MainLayout>
-    <div class="home-container">
-      <h1 class="home-title">2025年度 ジャックポッド大会！</h1>
+    <div class="home-root">
+      <ThreeHero :loaded="assetsLoaded" class="bg-hero" />
 
-      <div v-if="!assetsLoaded" class="progress-container">
-        <div class="progress-bar" :style="{ width: progress + '%' }"></div>
-        <p>アセットをダウンロード中... {{ Math.round(progress) }}%</p>
-      </div>
+      <div class="home-overlay">
+        <h1 class="home-title">2025年度 ジャックポッド大会！</h1>
 
-      <div class="actions">
-        <button v-if="assetsLoaded" @click="goOpening" class="start-button">スタート</button>
-        <button @click="goAdmin" class="admin-button">管理画面</button>
-      </div>
+        <p class="subtitle">3Dで彩られたワクワクの世界へ — 準備ができたらスタート！</p>
 
-      <div class="auto-navi mt-4">
-        <label>
-          <input type="checkbox" v-model="autoNavigate" />
-          自動遷移（3秒後にスタート）
-        </label>
+        <div class="controls">
+          <button v-if="assetsLoaded" ref="startBtn" @click="goOpening" class="start-button">スタート</button>
+          <button ref="adminBtn" @click="goAdmin" class="admin-button">管理画面</button>
+        </div>
+
+        <div v-if="!assetsLoaded" class="load-footer">
+          <div class="progress-wrap">
+            <div class="progress-line" :style="{ width: progress + '%' }"></div>
+          </div>
+          <div class="progress-text">アセットをダウンロード中... {{ Math.round(progress) }}%</div>
+        </div>
       </div>
     </div>
   </MainLayout>
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
+import ThreeHero from '../../components/ThreeHero.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
 import { ScreenConfigService } from '../../../model/applications/screen-config-service';
@@ -34,12 +36,11 @@ import { Container } from '../../../core/container';
 
 export default {
   name: 'Home',
-  components: { MainLayout },
+  components: { MainLayout, ThreeHero },
   setup() {
     Container.register();
 
     const router = useRouter();
-    const autoNavigate = ref(false);
     const goOpening = () => router.push('/jackpot-opening');
     const goAdmin = () => router.push('/jackpot-admin');
 
@@ -48,6 +49,21 @@ export default {
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
+    // button refs for animation
+    const startBtn = ref<HTMLButtonElement | null>(null);
+    const adminBtn = ref<HTMLButtonElement | null>(null);
+    let gsap: any = null;
+
+    const bgmAudio = ref<HTMLAudioElement | null>(null);
+    const playBGM = () => {
+      if (!screenConfig.value?.bgmAssetUrl) return;
+      if (!bgmAudio.value) {
+        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
+        bgmAudio.value.loop = true;
+      }
+      // ignore play promise rejection (autoplay policies)
+      void bgmAudio.value.play?.().catch(() => { });
+    };
 
     const loadAssets = async () => {
       try {
@@ -59,144 +75,201 @@ export default {
       }
       screenConfig.value = await screenConfigService.fetchScreenConfig('home');
 
-      // simulate asset download progress
-      for (let i = progress.value; i <= 100; i += 10) {
+      for (let i = progress.value; i <= 100; i += 8) {
         progress.value = i;
-        await new Promise((r) => setTimeout(r, 150));
+        await new Promise((r) => setTimeout(r, 120));
       }
       assetsLoaded.value = true;
     };
 
-    onMounted(() => {
+    onMounted(async () => {
+      // set global fullscreen class so body/html have no margin and no scrollbars for this view
+      document.documentElement.classList.add('jackpot-fullscreen');
+      document.body.classList.add('jackpot-fullscreen');
+
       loadAssets();
       window.addEventListener('keydown', handleKey);
-    });
-    onUnmounted(() => {
-      window.removeEventListener('keydown', handleKey);
+      // lazy load gsap to avoid bundling cost if not needed
+      try { const mod = await import('gsap'); gsap = mod?.gsap || mod; } catch (e) { gsap = null; }
     });
 
-    // BGM control
-    const bgmAudio = ref<HTMLAudioElement | null>(null);
-    const playBGM = () => {
-      if (!screenConfig.value?.bgmAssetUrl) return;
-      if (!bgmAudio.value) {
-        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
-        bgmAudio.value.loop = true;
+    onUnmounted(() => {
+      window.removeEventListener('keydown', handleKey);
+      document.documentElement.classList.remove('jackpot-fullscreen');
+      document.body.classList.remove('jackpot-fullscreen');
+      if (bgmAudio.value) {
+        try { bgmAudio.value.pause(); } catch (e) { }
+        bgmAudio.value = null;
       }
-      bgmAudio.value.play();
-    };
+    });
+
     watch(progress, (val) => {
       if (val === 100) playBGM();
     });
 
-    // Enterキーでスタート
+    // animate buttons when loaded becomes true
+    watch(assetsLoaded, async (val) => {
+      if (!val) return;
+      await nextTick();
+      const s = startBtn.value;
+      const a = adminBtn.value;
+      if (gsap && s && a) {
+        gsap.set([s, a], { scale: 0.8, opacity: 0, filter: 'drop-shadow(0 0 0 rgba(0,0,0,0))' });
+        gsap.to(s, { scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.5)' });
+        gsap.to(a, { scale: 1, opacity: 0.95, duration: 0.6, delay: 0.08, ease: 'back.out(1.4)' });
+        // subtle pulsing glow on start button
+        gsap.to(s, { boxShadow: '0px 18px 60px rgba(255,122,122,0.16)', duration: 1.2, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+      } else if (s && a) {
+        s.style.opacity = '1';
+        a.style.opacity = '0.95';
+      }
+    });
+
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter') goOpening();
     };
 
-    // auto navigate
-    let autoTimer: number | undefined;
-    watch(autoNavigate, (val) => {
-      if (val) {
-        autoTimer = window.setTimeout(goOpening, 3000);
-      } else {
-        if (autoTimer) window.clearTimeout(autoTimer);
-      }
-    });
-
-    return { goOpening, goAdmin, autoNavigate, screenConfig, progress, assetsLoaded };
+    return { goOpening, goAdmin, screenConfig, progress, assetsLoaded, startBtn, adminBtn };
   },
 };
 </script>
 
 <style scoped>
-.home-container {
+.home-root {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.bg-hero {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.home-overlay {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  height: 100%;
+  padding: 24px;
   text-align: center;
+  pointer-events: none;
 }
 
 .home-title {
-  font-size: 3em;
+  font-size: clamp(28px, 6vw, 56px);
   color: #fff;
-  text-shadow: 0 2px 16px #2a5298;
-  margin-bottom: 40px;
-  animation: titleAnimation 2s ease-in-out;
+  text-shadow: 0 8px 36px rgba(0, 0, 0, 0.6);
+  margin-bottom: 12px;
+  animation: titleAnimation 900ms cubic-bezier(.22, .9, .32, 1);
+  pointer-events: auto;
 }
 
-@keyframes titleAnimation {
-  0% {
-    transform: scale(0.8);
-    opacity: 0;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+.subtitle {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: clamp(14px, 2.4vw, 18px);
+  margin: 4px 0 8px;
 }
 
-.progress-container {
-  margin-bottom: 24px;
-}
-
-.progress-bar {
-  width: 300px;
-  height: 20px;
-  background: #232b36;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-
-.progress-bar::after {
-  content: '';
-  display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-  transition: width 0.2s;
-}
-
-.actions {
-  margin-bottom: 18px;
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+  pointer-events: auto;
 }
 
 .start-button {
-  margin-bottom: 12px;
-  padding: 10px 20px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #ff7a7a, #ffd26f);
-  color: #fff;
+  padding: 12px 28px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #ffd26f, #ff7a7a);
+  color: #111;
   border: none;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 30px rgba(255, 122, 122, 0.14);
 }
 
 .admin-button {
-  opacity: 0.8;
-  padding: 8px 16px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
   color: #fff;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
 }
 
-.auto-navi {
-  margin-bottom: 1em;
+.progress-wrap {
+  width: min(520px, 72vw);
+  height: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-line {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd36f, #ff7aa0);
+  transition: width 220ms linear;
+}
+
+.progress-text {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+}
+
+.load-footer {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
   text-align: center;
-  color: #fff;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+@keyframes titleAnimation {
+  from {
+    transform: translateY(-8px) scale(.98);
+    opacity: 0
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1
+  }
 }
 
 @keyframes fadeIn {
-  0% {
+  from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(10px)
   }
 
-  100% {
+  to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0)
   }
+}
+</style>
+
+/* global rules to remove outer padding/margins and hide scrollbar while in fullscreen mode */
+<style>
+html.jackpot-fullscreen,
+body.jackpot-fullscreen {
+  height: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  /* hide scrollbars */
+  background: #071428 !important;
+  /* match THREE scene background to remove outer light border */
 }
 </style>
