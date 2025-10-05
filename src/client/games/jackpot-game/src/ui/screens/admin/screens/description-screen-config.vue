@@ -187,4 +187,20 @@ textarea.admin-input {
     resize: vertical;
     min-height: 100px;
 }
+
+/* Prevent inputs and flex children from causing horizontal overflow */
+.admin-input {
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.asset-mode {
+    flex-wrap: wrap;
+}
+
+.slide-item,
+.config-item {
+    min-width: 0;
+}
 </style>

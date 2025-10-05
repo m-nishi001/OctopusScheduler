@@ -340,4 +340,19 @@ const onEndSeChange = async (e: Event) => {
     gap: 8px;
     color: #fff;
 }
+
+/* Prevent inputs and flex children from causing horizontal overflow */
+.admin-input {
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.asset-mode {
+    flex-wrap: wrap;
+}
+
+.config-item {
+    min-width: 0;
+}
 </style>
