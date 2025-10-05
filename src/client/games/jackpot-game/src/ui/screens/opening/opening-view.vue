@@ -6,7 +6,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import OpeningSequence from './opening-sequence.vue';
 import OpeningHtml from './opening-html.vue';
@@ -37,6 +37,13 @@ export default {
       if (screenConfig.value?.displayMode === 'html' && htmlEl) {
         isHtmlFullscreen.value = true;
         htmlElement.value = htmlEl;
+      }
+    });
+
+    onUnmounted(() => {
+      if (bgm.value) {
+        try { bgm.value.pause(); } catch (e) { }
+        bgm.value = null;
       }
     });
 
