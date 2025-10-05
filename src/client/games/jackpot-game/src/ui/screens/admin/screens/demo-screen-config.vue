@@ -52,13 +52,14 @@ const props = defineProps<{
     members: any[];
     prizes: any[];
     assetService: any;
+    config?: any;
 }>();
 
 const emit = defineEmits<{
     update: [config: any];
 }>();
 
-const config = ref({
+const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
     winnerMemberId: '',
     winnerPrizeId: '',
     bgmMode: 'select',
@@ -66,6 +67,11 @@ const config = ref({
     seMode: 'select',
     seAssetId: '',
 });
+
+import { watch } from 'vue';
+watch(() => props.config, (newCfg: any) => {
+    config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : { winnerMemberId: '', winnerPrizeId: '' };
+}, { deep: true });
 
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];

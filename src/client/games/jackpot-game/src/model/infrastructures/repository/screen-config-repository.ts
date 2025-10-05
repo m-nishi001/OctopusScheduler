@@ -47,10 +47,6 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     if (this.gasService) {
       try {
         await this.saveToGasParallel(toSave);
-        for (const cfg of toSave) {
-          await this.localStorage.save(`screen_${cfg.type}`, cfg);
-          this.cache.set(cfg.type, cfg);
-        }
         return;
       } catch (e) {
         console.warn(

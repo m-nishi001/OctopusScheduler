@@ -162,13 +162,15 @@ const loadScreenConfigs = async () => {
       } else if (type === 'description') {
         descriptionConfig.value = {
           id: config.id || '',
-          slides: config.elements.map(el => ({
+          slides: config.elements.map((el, idx) => ({
             id: el.id,
             html: el.content || '',
             imageAssetId: el.assetId || '',
+            imageMode: el.assetId ? 'select' : 'select',
             effect: el.animation?.type || 'fade',
             duration: el.animation?.duration || 1000,
-            bgmAssetId: '',
+            bgmAssetId: (config.seAssetIds && config.seAssetIds[idx]) || '',
+            bgmMode: (config.seAssetIds && config.seAssetIds[idx]) ? 'select' : 'select',
           })),
         };
       } else if (type === 'demo') {
@@ -410,7 +412,11 @@ const saveConfigs = async () => {
         elements: [],
       },
     ];
+
     await screenConfigService.saveScreenConfigs(configs as any);
+    await screenConfigService.syncScreenConfigs();
+    await loadScreenConfigs();
+
     saveStatus.value = '保存に成功しました';
     // small delay so user sees success
     await new Promise((r) => setTimeout(r, 800));

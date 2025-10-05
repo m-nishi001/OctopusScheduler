@@ -75,13 +75,14 @@ import { ref, defineEmits } from 'vue';
 const props = defineProps<{
     audioAssets: any[];
     assetService: any;
+    config?: any;
 }>();
 
 const emit = defineEmits<{
     update: [config: any];
 }>();
 
-const config = ref({
+const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
     bgmMode: 'select',
     bgmAssetId: '',
     scrollSeMode: 'select',
@@ -93,6 +94,11 @@ const config = ref({
     fadeSeMode: 'select',
     fadeSeAssetId: '',
 });
+
+import { watch } from 'vue';
+watch(() => props.config, (newCfg: any) => {
+    config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : { bgmMode: 'select' };
+}, { deep: true });
 
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
