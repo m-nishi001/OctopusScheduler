@@ -5,8 +5,10 @@
 			<label>スライド:</label>
 			<div v-for="(slide, idx) in config.slides" :key="idx" class="slide-item">
 				<div style="display:flex;gap:8px;align-items:flex-start;">
-					<textarea :ref="(el) => (textareaRefs[idx] = el as HTMLTextAreaElement)" v-model="slide.html"
-						placeholder="HTML内容" class="admin-input" rows="4"></textarea>
+					<div class="editor-container">
+						<textarea v-model="slide.html" class="html-editor" placeholder="HTMLコンテンツを入力"></textarea>
+						<div class="preview" v-html="resolveHtml(slide.html)"></div>
+					</div>
 					<div style="display:flex;flex-direction:column;gap:8px;min-width:180px">
 						<label style="color:#fff">アセット挿入</label>
 						<select v-model="selectedAssetForInsert[idx]" class="admin-input">
@@ -14,15 +16,15 @@
 							<option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
 							</option>
 						</select>
-						<button class="admin-btn" @click="onInsertSelectedAsset(idx)">挿入</button>
-						<div style="text-align:center;">または</div>
+						<button class="admin-btn" @click="insertAsset(idx)">挿入</button>
+						<div style="text-align:center;color:#fff;">または</div>
 						<input type="file" @change="(e) => onUploadAndInsert(e, idx)" accept="image/*,video/*,audio/*"
 							class="admin-input" />
 					</div>
 				</div>
 				<div class="asset-mode">
-					<label><input type="radio" v-model="slide.imageMode" value="select" /> 画像選択</label>
-					<label><input type="radio" v-model="slide.imageMode" value="upload" /> 画像アップロード</label>
+					<label><input type="radio" v-model="slide.imageMode" value="select" /> 背景画像選択</label>
+					<label><input type="radio" v-model="slide.imageMode" value="upload" /> 背景画像アップロード</label>
 				</div>
 				<select v-if="slide.imageMode === 'select'" v-model="slide.imageAssetId" class="admin-input">
 					<option value="">選択なし</option>
@@ -53,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits, watch } from 'vue';
+import { ref, defineEmits, watch, onMounted } from 'vue';
 
 const props = defineProps<{
 	audioAssets: any[];
@@ -67,11 +69,16 @@ const emit = defineEmits<{
 	uploading: [isUploading: boolean];
 }>();
 
+// props.config が存在すればディープコピーし、なければ空の slides 配列を持つオブジェクトを初期値とする
 const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : { slides: [] as any[] });
 
-const textareaRefs = ref<(HTMLTextAreaElement | null)[]>([]);
-
 const selectedAssetForInsert = ref<string[]>([]);
+
+const assets = ref<any[]>([]);
+
+onMounted(async () => {
+	assets.value = await props.assetService.fetchAssets();
+});
 
 watch(() => props.config, (newCfg: any) => {
 	config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : { slides: [] };
@@ -81,13 +88,41 @@ watch(() => props.config, (newCfg: any) => {
 watch(config, (newVal: any) => {
 	try {
 		const normalizedProp = props.config ? JSON.parse(JSON.stringify(props.config)) : undefined;
-		if (JSON.stringify(normalizedProp) !== JSON.stringify(newVal)) {
-			emit('update', newVal);
+		const plainNewVal = JSON.parse(JSON.stringify(newVal));
+		if (JSON.stringify(normalizedProp) !== JSON.stringify(plainNewVal)) {
+			emit('update', plainNewVal);
 		}
 	} catch (e) {
-		emit('update', newVal);
+		emit('update', JSON.parse(JSON.stringify(newVal)));
 	}
 }, { deep: true });
+
+const resolveHtml = (html: string) => {
+	if (!html || typeof html !== 'string') return html;
+	const assetMap = new Map(assets.value.map((a: any) => [a.id, a]));
+	return html.replace(
+		/\{asset:([a-zA-Z0-9_-]+)\}/g,
+		(_m: string, aid: string) => {
+			const a = assetMap.get(aid);
+			if (!a) return '';
+			if (a.type === 'image') return `<img src="${a.dataUrl}" alt="${a.name}" />`;
+			if (a.type === 'video') return `<video src="${a.dataUrl}" controls></video>`;
+			if (a.type === 'audio') return `<audio src="${a.dataUrl}" controls></audio>`;
+			return '';
+		}
+	);
+};
+
+const insertAsset = (idx: number) => {
+	const assetId = selectedAssetForInsert.value[idx];
+	if (assetId) {
+		const asset = props.imageAssets.find((a: any) => a.id === assetId);
+		if (asset) {
+			const imgTag = `<p><img src="{asset:${asset.id}}" alt="${asset.name}" /></p>`;
+			config.value.slides[idx].html += imgTag;
+		}
+	}
+};
 
 const onImageChange = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
@@ -97,7 +132,7 @@ const onImageChange = async (e: Event, idx: number) => {
 			const result = await props.assetService.addAssets([file]);
 			if (result.successful.length > 0) {
 				config.value.slides[idx].imageAssetId = result.successful[0].id;
-				emit('update', config.value);
+				// update は watch によって自動的に行われる
 			}
 		} catch (error) {
 			console.error('Failed to upload image:', error);
@@ -115,31 +150,12 @@ const onBgmChange = async (e: Event, idx: number) => {
 			const result = await props.assetService.addAssets([file]);
 			if (result.successful.length > 0) {
 				config.value.slides[idx].bgmAssetId = result.successful[0].id;
-				emit('update', config.value);
+				// update は watch によって自動的に行われる
 			}
 		} catch (error) {
 			console.error('Failed to upload BGM:', error);
 		} finally {
 			emit('uploading', false);
-		}
-	}
-};
-
-const onInsertSelectedAsset = (idx: number) => {
-	const assetId = selectedAssetForInsert.value[idx];
-	if (assetId) {
-		const asset = props.imageAssets.find(a => a.id === assetId);
-		if (asset) {
-			const imgTag = `{asset:${asset.id}}`;
-			const textarea = textareaRefs.value[idx];
-			if (textarea) {
-				const start = textarea.selectionStart;
-				const end = textarea.selectionEnd;
-				const text = textarea.value;
-				const newText = text.slice(0, start) + imgTag + text.slice(end);
-				config.value.slides[idx].html = newText;
-				emit('update', config.value);
-			}
 		}
 	}
 };
@@ -152,16 +168,11 @@ const onUploadAndInsert = async (e: Event, idx: number) => {
 			const result = await props.assetService.addAssets([file]);
 			if (result.successful.length > 0) {
 				const asset = result.successful[0];
-				const imgTag = `{asset:${asset.id}}`;
-				const textarea = textareaRefs.value[idx];
-				if (textarea) {
-					const start = textarea.selectionStart;
-					const end = textarea.selectionEnd;
-					const text = textarea.value;
-					const newText = text.slice(0, start) + imgTag + text.slice(end);
-					config.value.slides[idx].html = newText;
-					emit('update', config.value);
-				}
+				// プレースホルダー形式でHTMLタグを挿入
+				const imgTag = `<p><img src="{asset:${asset.id}}" alt="${asset.name}" /></p>`;
+				// TinyMCE のエディタに挿入
+				// ここでは直接挿入できないので、v-model で更新
+				config.value.slides[idx].html += imgTag;
 			}
 		} catch (error) {
 			console.error('Failed to upload and insert asset:', error);
@@ -173,7 +184,7 @@ const onUploadAndInsert = async (e: Event, idx: number) => {
 
 const addSlide = () => {
 	config.value.slides.push({
-		html: '',
+		html: '<p>新しいスライドのコンテンツ</p>',
 		imageMode: 'select',
 		imageAssetId: '',
 		bgmMode: 'select',
@@ -181,12 +192,15 @@ const addSlide = () => {
 		effect: 'fade',
 		duration: 5000,
 	});
-	emit('update', config.value);
+	// スライドが追加されたため、エディタ配列を再構築する (これは構造変更なので必須)
+	selectedAssetForInsert.value.push('');
+	// update は watch によって自動的に行われる
 };
 
 const removeSlide = (idx: number) => {
 	config.value.slides.splice(idx, 1);
-	emit('update', config.value);
+	selectedAssetForInsert.value.splice(idx, 1);
+	// update は watch によって自動的に行われる
 };
 </script>
 
@@ -263,11 +277,6 @@ const removeSlide = (idx: number) => {
 	color: #fff;
 }
 
-textarea.admin-input {
-	resize: vertical;
-	min-height: 100px;
-}
-
 /* Prevent inputs and flex children from causing horizontal overflow */
 .admin-input {
 	box-sizing: border-box;
@@ -282,5 +291,33 @@ textarea.admin-input {
 .slide-item,
 .config-item {
 	min-width: 0;
+}
+
+.editor-container {
+	flex: 1;
+}
+
+.html-editor {
+	width: 100%;
+	height: 200px;
+	padding: 10px;
+	border: 1px solid #555;
+	border-radius: 8px;
+	background: #232b36;
+	color: #fff;
+	font-family: monospace;
+	font-size: 14px;
+	box-sizing: border-box;
+	resize: vertical;
+}
+
+.preview {
+	margin-top: 16px;
+	padding: 10px;
+	border: 1px solid #555;
+	border-radius: 8px;
+	background: #1e262d;
+	color: #fff;
+	min-height: 100px;
 }
 </style>
