@@ -1,9 +1,9 @@
 import { ref } from "vue";
-import type { DrawResultDto } from "../../model/applications/dto/draw-result-dto";
-import type { MemberDto } from "../../model/applications/dto/member-dto";
-import type { PrizeDto } from "../../model/applications/dto/prize-dto";
-import { DrawService } from "../../model/applications/draw-service";
-import { ResultService } from "../../model/applications/result-service";
+import type { DrawResultDto } from "../../../model/applications/dto/draw-result-dto";
+import type { MemberDto } from "../../../model/applications/dto/member-dto";
+import type { PrizeDto } from "../../../model/applications/dto/prize-dto";
+import { DrawService } from "../../../model/applications/draw-service";
+import { ResultService } from "../../../model/applications/result-service";
 import { useRouter } from "vue-router";
 import { container } from "tsyringe";
 

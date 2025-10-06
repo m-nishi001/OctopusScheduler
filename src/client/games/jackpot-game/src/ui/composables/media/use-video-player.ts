@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref } from "vue";
 
 export function useVideoPlayer() {
   const video = ref<HTMLVideoElement | null>(null);
@@ -6,9 +6,11 @@ export function useVideoPlayer() {
 
   function play(src: string) {
     if (!video.value) {
-      video.value = document.createElement('video');
+      video.value = document.createElement("video");
       video.value.src = src;
-      video.value.onended = () => { isPlaying.value = false; };
+      video.value.onended = () => {
+        isPlaying.value = false;
+      };
     } else {
       video.value.src = src;
     }

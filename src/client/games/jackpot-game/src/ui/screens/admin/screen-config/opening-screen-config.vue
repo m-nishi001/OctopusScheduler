@@ -16,13 +16,6 @@
         </div>
         <div class="config-item">
             <label>コンテンツ:</label>
-            <div class="display-mode">
-                <label>表示モード:</label>
-                <select v-model="localConfig.displayMode" class="admin-input">
-                    <option value="list">従来リスト</option>
-                    <option value="html">HTML（フルスクリーン）</option>
-                </select>
-            </div>
             <div v-for="(content, idx) in localConfig.contents" :key="idx" class="content-item">
                 <select v-model="content.type" class="admin-input">
                     <option value="text">テキスト</option>
@@ -39,11 +32,8 @@
                     </div>
                     <select v-if="content.imageMode === 'select'" v-model="content.assetId" class="admin-input">
                         <option value="">選択なし</option>
-                        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
-                        </option>
+                        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                     </select>
-                    <img v-if="content.imageMode === 'select' && content.assetId" :src="getAssetUrl(content.assetId)"
-                        style="max-width:200px;max-height:200px;margin-top:8px;border-radius:8px;" />
                     <input v-if="content.imageMode === 'upload'" type="file" @change="(e) => onImageChange(e, idx)"
                         accept="image/*" class="admin-input" />
                 </div>
@@ -53,15 +43,6 @@
                     <option value="static">静止</option>
                 </select>
                 <input v-model.number="content.duration" type="number" placeholder="表示時間(ms)" class="admin-input" />
-                <div v-if="content.effect === 'scroll'">
-                    <label>スクロール方向:</label>
-                    <select v-model="content.scrollDirection" class="admin-input">
-                        <option value="up">上へ</option>
-                        <option value="down">下へ</option>
-                        <option value="left">左へ</option>
-                        <option value="right">右へ</option>
-                    </select>
-                </div>
                 <div class="asset-mode">
                     <label><input type="radio" v-model="content.seMode" value="select" /> SE選択</label>
                     <label><input type="radio" v-model="content.seMode" value="upload" /> SEアップロード</label>
@@ -96,27 +77,22 @@ const emit = defineEmits<{
 
 const normalizeConfig = (cfg: any) => {
     if (!cfg) return {
-        id: '',
         bgmMode: 'select',
         bgmAssetId: '',
-        displayMode: 'list',
         contents: [] as any[],
     };
     const copy = JSON.parse(JSON.stringify(cfg));
     copy.bgmMode = copy.bgmMode || 'select';
     copy.bgmAssetId = copy.bgmAssetId || '';
-    copy.displayMode = copy.displayMode || 'list';
     copy.contents = Array.isArray(copy.contents) ? copy.contents.map((c: any) => ({
-        id: c.id || '',
         type: c.type || 'text',
-        text: c.content || c.text || '',
+        text: c.text || '',
         content: c.content || '',
         assetId: c.assetId || '',
-        imageMode: c.imageMode || (c.assetId ? 'select' : 'select'),
+        imageMode: c.imageMode || 'select',
         seMode: c.seMode || 'select',
-        effect: c.effect || c.animation?.type || 'fade',
-        duration: c.duration || c.animation?.duration || 3000,
-        scrollDirection: c.scrollDirection || c.animation?.scrollDirection || 'up',
+        effect: c.effect || 'fade',
+        duration: c.duration || 3000,
         seAssetId: c.seAssetId || '',
     })) : [];
     return copy;
@@ -128,17 +104,8 @@ watch(() => props.config, (newConfig) => {
     localConfig.value = normalizeConfig(newConfig);
 }, { deep: true });
 
-// propagate local edits to parent so parent can save the latest config
 watch(localConfig, (newVal) => {
-    try {
-        const normalizedProp = normalizeConfig(props.config);
-        // only emit if there's an actual difference to avoid feedback loop
-        if (JSON.stringify(normalizedProp) !== JSON.stringify(newVal)) {
-            emit('update', newVal);
-        }
-    } catch (e) {
-        emit('update', newVal);
-    }
+    emit('update', newVal);
 }, { deep: true });
 
 const onBgmChange = async (e: Event) => {
@@ -199,14 +166,13 @@ const addContent = () => {
     localConfig.value.contents.push({
         type: 'text',
         text: '',
+        content: '',
         imageMode: 'select',
         assetId: '',
         effect: 'scroll',
         duration: 3000,
-        scrollDirection: 'up',
         seMode: 'select',
         seAssetId: '',
-        content: '',
     });
     emit('update', localConfig.value);
 };
@@ -214,11 +180,6 @@ const addContent = () => {
 const removeContent = (idx: number) => {
     localConfig.value.contents.splice(idx, 1);
     emit('update', localConfig.value);
-};
-
-const getAssetUrl = (assetId: string) => {
-    const asset = props.imageAssets.find(a => a.id === assetId);
-    return asset ? asset.url : '';
 };
 </script>
 
@@ -261,8 +222,6 @@ const getAssetUrl = (assetId: string) => {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     margin-bottom: 8px;
     width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
 }
 
 .admin-input:focus {
@@ -297,20 +256,19 @@ const getAssetUrl = (assetId: string) => {
     color: #fff;
 }
 
-/* Ensure children in the config area use border-box sizing so padding doesn't cause overflow */
-.screen-config,
-.screen-config * {
+/* Prevent inputs and flex children from causing horizontal overflow */
+.admin-input {
     box-sizing: border-box;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
-/* Prevent content boxes from allowing children to overflow horizontally */
-.content-item {
-    overflow: hidden;
-    word-break: break-word;
+.asset-mode {
+    flex-wrap: wrap;
 }
 
-textarea.admin-input {
-    white-space: pre-wrap;
-    overflow-wrap: break-word;
+.content-item,
+.config-item {
+    min-width: 0;
 }
 </style>

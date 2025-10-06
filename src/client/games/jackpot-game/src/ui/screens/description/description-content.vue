@@ -4,7 +4,9 @@
 			<transition-group name="slide-in" tag="div">
 				<div v-if="currentSlide" :key="currentSlide.id" class="slide-item">
 					<template v-if="currentSlide.type === 'text'">
-						<h2 class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">{{ currentSlide.content }}</h2>
+						<div v-if="isHtml(currentSlide.content)" class="mb-6" v-html="currentSlide.content"></div>
+						<h2 v-else class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">{{ currentSlide.content
+							}}</h2>
 					</template>
 					<template v-if="currentSlide.type === 'image'">
 						<img :src="currentSlide.assetUrl" class="mx-auto mb-4" />
@@ -78,7 +80,12 @@ export default {
 		onMounted(() => window.addEventListener('keydown', handleKey));
 		onUnmounted(() => window.removeEventListener('keydown', handleKey));
 
-		return { screenConfig, currentSlide };
+		const isHtml = (s: any) => {
+			if (!s || typeof s !== 'string') return false;
+			return /<[^>]+>/.test(s);
+		};
+
+		return { screenConfig, currentSlide, isHtml };
 	},
 };
 </script>

@@ -23,7 +23,7 @@
             </div>
             <select v-if="config.bgmMode === 'select'" v-model="config.bgmAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.bgmMode === 'upload'" type="file" @change="onBgmChange" accept="audio/*"
                 class="admin-input" />
@@ -36,7 +36,7 @@
             </div>
             <select v-if="config.seMode === 'select'" v-model="config.seAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.seMode === 'upload'" type="file" @change="onSeChange" accept="audio/*"
                 class="admin-input" />

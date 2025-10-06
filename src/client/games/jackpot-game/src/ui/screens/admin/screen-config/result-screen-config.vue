@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits } from 'vue';
+import { ref, defineEmits, watch } from 'vue';
 
 const props = defineProps<{
     audioAssets: any[];
@@ -80,6 +80,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     update: [config: any];
+    uploading: [isUploading: boolean];
 }>();
 
 const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
@@ -95,18 +96,46 @@ const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
     fadeSeAssetId: '',
 });
 
-import { watch } from 'vue';
 watch(() => props.config, (newCfg: any) => {
-    config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : { bgmMode: 'select' };
+    config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : {
+        bgmMode: 'select',
+        bgmAssetId: '',
+        scrollSeMode: 'select',
+        scrollSeAssetId: '',
+        highSeMode: 'select',
+        highSeAssetId: '',
+        lowSeMode: 'select',
+        lowSeAssetId: '',
+        fadeSeMode: 'select',
+        fadeSeAssetId: '',
+    };
+}, { deep: true });
+
+watch(config, (newVal: any) => {
+    try {
+        const normalizedProp = props.config ? JSON.parse(JSON.stringify(props.config)) : undefined;
+        if (JSON.stringify(normalizedProp) !== JSON.stringify(newVal)) {
+            emit('update', newVal);
+        }
+    } catch (e) {
+        emit('update', newVal);
+    }
 }, { deep: true });
 
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const result = await props.assetService.addAssets([file]);
-        if (result.successful.length > 0) {
-            config.value.bgmAssetId = result.successful[0].id;
-            emit('update', config.value);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.bgmAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload BGM:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -114,10 +143,17 @@ const onBgmChange = async (e: Event) => {
 const onScrollSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const result = await props.assetService.addAssets([file]);
-        if (result.successful.length > 0) {
-            config.value.scrollSeAssetId = result.successful[0].id;
-            emit('update', config.value);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.scrollSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload scroll SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -125,10 +161,17 @@ const onScrollSeChange = async (e: Event) => {
 const onHighSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const result = await props.assetService.addAssets([file]);
-        if (result.successful.length > 0) {
-            config.value.highSeAssetId = result.successful[0].id;
-            emit('update', config.value);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.highSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload high SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -136,10 +179,17 @@ const onHighSeChange = async (e: Event) => {
 const onLowSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const result = await props.assetService.addAssets([file]);
-        if (result.successful.length > 0) {
-            config.value.lowSeAssetId = result.successful[0].id;
-            emit('update', config.value);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.lowSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload low SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -147,10 +197,17 @@ const onLowSeChange = async (e: Event) => {
 const onFadeSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const result = await props.assetService.addAssets([file]);
-        if (result.successful.length > 0) {
-            config.value.fadeSeAssetId = result.successful[0].id;
-            emit('update', config.value);
+        emit('uploading', true);
+        try {
+            const result = await props.assetService.addAssets([file]);
+            if (result.successful.length > 0) {
+                config.value.fadeSeAssetId = result.successful[0].id;
+                emit('update', config.value);
+            }
+        } catch (error) {
+            console.error('Failed to upload fade SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -204,5 +261,20 @@ const onFadeSeChange = async (e: Event) => {
     align-items: center;
     gap: 8px;
     color: #fff;
+}
+
+/* Prevent inputs and flex children from causing horizontal overflow */
+.admin-input {
+    box-sizing: border-box;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.asset-mode {
+    flex-wrap: wrap;
+}
+
+.config-item {
+    min-width: 0;
 }
 </style>

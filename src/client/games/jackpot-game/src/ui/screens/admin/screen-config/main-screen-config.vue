@@ -114,7 +114,7 @@
             </div>
             <select v-if="config.endSeMode === 'select'" v-model="config.endSeAssetId" class="admin-input">
                 <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
             </select>
             <input v-if="config.endSeMode === 'upload'" type="file" @change="onEndSeChange" accept="audio/*"
                 class="admin-input" />
@@ -123,18 +123,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits } from 'vue';
+import { ref, defineEmits, watch } from 'vue';
 
 const props = defineProps<{
     audioAssets: any[];
     assetService: any;
+    config?: any;
 }>();
 
 const emit = defineEmits<{
     update: [config: any];
+    uploading: [isUploading: boolean];
 }>();
 
-const config = ref({
+const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
     bgmMode: 'select',
     bgmAssetId: '',
     memberSeMode: 'select',
@@ -155,9 +157,44 @@ const config = ref({
     endSeAssetId: '',
 });
 
+watch(() => props.config, (newCfg: any) => {
+    config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : {
+        bgmMode: 'select',
+        bgmAssetId: '',
+        memberSeMode: 'select',
+        memberSeAssetId: '',
+        prizeStartSeMode: 'select',
+        prizeStartSeAssetId: '',
+        lotterySeMode: 'select',
+        lotterySeAssetId: '',
+        confirmSeMode: 'select',
+        confirmSeAssetId: '',
+        winnerSeMode: 'select',
+        winnerSeAssetId: '',
+        nextSeMode: 'select',
+        nextSeAssetId: '',
+        halfSeMode: 'select',
+        halfSeAssetId: '',
+        endSeMode: 'select',
+        endSeAssetId: '',
+    };
+}, { deep: true });
+
+watch(config, (newVal: any) => {
+    try {
+        const normalizedProp = props.config ? JSON.parse(JSON.stringify(props.config)) : undefined;
+        if (JSON.stringify(normalizedProp) !== JSON.stringify(newVal)) {
+            emit('update', newVal);
+        }
+    } catch (e) {
+        emit('update', newVal);
+    }
+}, { deep: true });
+
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -166,6 +203,8 @@ const onBgmChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload BGM:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -173,6 +212,7 @@ const onBgmChange = async (e: Event) => {
 const onMemberSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -181,6 +221,8 @@ const onMemberSeChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload member SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -188,6 +230,7 @@ const onMemberSeChange = async (e: Event) => {
 const onPrizeStartSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -196,6 +239,8 @@ const onPrizeStartSeChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload prize start SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -203,6 +248,7 @@ const onPrizeStartSeChange = async (e: Event) => {
 const onLotterySeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -211,6 +257,8 @@ const onLotterySeChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload lottery SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -218,6 +266,7 @@ const onLotterySeChange = async (e: Event) => {
 const onConfirmSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -226,6 +275,8 @@ const onConfirmSeChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload confirm SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -233,6 +284,7 @@ const onConfirmSeChange = async (e: Event) => {
 const onWinnerSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -241,6 +293,8 @@ const onWinnerSeChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload winner SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -248,6 +302,7 @@ const onWinnerSeChange = async (e: Event) => {
 const onNextSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -256,6 +311,8 @@ const onNextSeChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload next SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -263,6 +320,7 @@ const onNextSeChange = async (e: Event) => {
 const onHalfSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -271,6 +329,8 @@ const onHalfSeChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload half SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
@@ -278,6 +338,7 @@ const onHalfSeChange = async (e: Event) => {
 const onEndSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
+        emit('uploading', true);
         try {
             const result = await props.assetService.addAssets([file]);
             if (result.successful.length > 0) {
@@ -286,6 +347,8 @@ const onEndSeChange = async (e: Event) => {
             }
         } catch (error) {
             console.error('Failed to upload end SE:', error);
+        } finally {
+            emit('uploading', false);
         }
     }
 };
