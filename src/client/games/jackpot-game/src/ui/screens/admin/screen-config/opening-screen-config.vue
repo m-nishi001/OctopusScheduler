@@ -101,7 +101,9 @@ const normalizeConfig = (cfg: any) => {
 const localConfig = ref(normalizeConfig(props.config));
 
 watch(() => props.config, (newConfig) => {
-    localConfig.value = normalizeConfig(newConfig);
+    if (JSON.stringify(newConfig) !== JSON.stringify(localConfig.value)) {
+        localConfig.value = normalizeConfig(newConfig);
+    }
 }, { deep: true });
 
 watch(localConfig, (newVal) => {
