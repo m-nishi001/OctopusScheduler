@@ -1,7 +1,3 @@
-/**
- * データサイズを扱うための値オブジェクト。
- * サービスの外部に公開されない内部クラスです。
- */
 class DataSize {
   private readonly bytes: number;
   private static readonly BYTES_IN_KB = 1024;
@@ -33,10 +29,6 @@ class DataSize {
   }
 }
 
-/**
- * ファイルIDを扱うための値オブジェクト。
- * サービスの外部に公開されない内部クラスです。
- */
 class FileId {
   public readonly id: string;
 
@@ -53,10 +45,6 @@ class FileId {
   }
 }
 
-/**
- * ファイル名を扱うための値オブジェクト。
- * サービスの外部に公開されない内部クラスです。
- */
 class FileName {
   public readonly name: string;
 
@@ -73,10 +61,6 @@ class FileName {
   }
 }
 
-/**
- * MIMEタイプを扱うための値オブジェクト。
- * サービスの外部に公開されない内部クラスです。
- */
 class FileMimeType {
   private readonly value: string;
 
@@ -157,10 +141,6 @@ class FileMimeType {
   }
 }
 
-/**
- * フォルダIDを扱うための値オブジェクト。
- * サービスの外部に公開されない内部クラスです。
- */
 class FolderId {
   public readonly id: string;
 
@@ -177,16 +157,7 @@ class FolderId {
   }
 }
 
-/**
- * Google Driveの操作を抽象化するサービスクラス。
- * このクラスのパブリックメソッドのみを外部に公開し、複雑なロジックを隠蔽します。
- */
-export class GoogleDriveService {
-  /**
-   * 指定されたフォルダ内でファイル名を使ってファイルを探します。
-   * @param options 検索オプション。ファイル名と親フォルダIDを含みます。
-   * @returns 見つかったファイルの配列。
-   */
+class FileSearchService {
   static findFileByName(options: {
     fileName: string;
     parentFolderId: string;
@@ -215,12 +186,6 @@ export class GoogleDriveService {
     }
   }
 
-  /**
-   * 指定されたフォルダ内でファイルIDを使ってファイルを探します。
-   * DriveAppのイテレータを使用する代わりに、Google Drive APIを直接使用します。
-   * @param options 検索オプション。ファイルIDの配列と親フォルダIDを含みます。
-   * @returns 見つかったファイルの配列。
-   */
   static findFileByIds(options: {
     fileIds: string[];
     parentFolderId: string;
@@ -234,13 +199,11 @@ export class GoogleDriveService {
       const founds: GoogleAppsScript.Drive.File[] = [];
       const fileIdSet = new Set(options.fileIds);
 
-      // Drive.Files.get()で個々のファイルを直接取得
       fileIdSet.forEach((fileId) => {
         try {
           const file = DriveApp.getFileById(fileId);
           founds.push(file);
         } catch (e: any) {
-          // ファイルが見つからない、またはアクセス権がない場合はスキップ
           Logger.log(
             `[findFileByIds] File with ID ${fileId} not found or access denied.`
           );
@@ -254,11 +217,6 @@ export class GoogleDriveService {
     }
   }
 
-  /**
-   * 指定されたIDのファイルの内容（Blob）を取得します。
-   * @param options 検索オプション。ファイルIDの配列と親フォルダIDを含みます。
-   * @returns ファイルの内容（Blob）の配列。
-   */
   static findFileDataByIds(options: {
     fileIds: string[];
     parentFolderId: string;
@@ -266,13 +224,9 @@ export class GoogleDriveService {
     const files = this.findFileByIds(options);
     return files.map((file) => file.getBlob());
   }
+}
 
-  /**
-   * ファイルをアップロードまたは更新します。
-   * @param options アップロードオプション。ファイルID、ファイル名、親フォルダID、MIMEタイプ、Blobを含みます。
-   * fileIdが提供された場合、既存のファイルが更新されます。
-   * @returns アップロードまたは更新されたファイル。
-   */
+class FileUploadService {
   static uploadFile(options: {
     fileId?: string;
     fileName: string;
@@ -320,18 +274,14 @@ export class GoogleDriveService {
       return null;
     }
   }
+}
 
-  /**
-   * 指定されたIDのファイルまたはフォルダを削除します。
-   * @param ids 削除するファイルまたはフォルダのIDの配列。
-   * @returns 削除が成功した場合はtrue、失敗した場合はfalse。
-   */
+class FileDeleteService {
   static deleteFilesOrFolders(ids: string[]): boolean {
     if (ids.length === 0) return true;
 
     try {
       ids.forEach((id) => {
-        // IDのバリデーションは内部で行う
         const fileId = FileId.create(id);
         if (fileId) {
           Drive.Files.remove(fileId.id);
@@ -343,14 +293,11 @@ export class GoogleDriveService {
       return false;
     }
   }
+}
 
+class ZipService {
   private static readonly ZIP_READY_CONFIG_FILE_NAME = "zip-ready-config.json";
 
-  /**
-   * フォルダ内のファイルを指定したサイズで分割し、ZIP化の準備をします。
-   * @param options フォルダIDと分割サイズ（バイト単位）を含むオプション。
-   * @returns 作成されたZIPファイルの分割数。
-   */
   static readyZipping(options: {
     folderId: string;
     partitionSizeInBytes: number;
@@ -372,10 +319,9 @@ export class GoogleDriveService {
       while (fileIterator.hasNext()) {
         const file = fileIterator.next();
 
-        // ZIPファイルと設定ファイルは削除
         if (
           file.getMimeType() === MimeType.ZIP ||
-          file.getName() === GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME
+          file.getName() === ZipService.ZIP_READY_CONFIG_FILE_NAME
         ) {
           file.setTrashed(true);
           continue;
@@ -391,9 +337,8 @@ export class GoogleDriveService {
         totalFileSize += fileSize;
       }
 
-      // 設定ファイルを保存
       folder.createFile(
-        GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME,
+        ZipService.ZIP_READY_CONFIG_FILE_NAME,
         JSON.stringify(fileSet.filter((set) => set.length > 0)),
         MimeType.PLAIN_TEXT
       );
@@ -405,12 +350,6 @@ export class GoogleDriveService {
     }
   }
 
-  /**
-   * 事前に準備された設定ファイルに基づいて、指定されたシーケンス番号のファイルをZIP化します。
-   * DriveAppのイテレータを使用する代わりに、Drive.Files.get()を直接使用します。
-   * @param options フォルダIDとZIP化するシーケンス番号を含むオプション。
-   * @returns ZIP化が成功した場合はtrue、失敗した場合はfalse。
-   */
   static zip(options: { folderId: string; sequence: number }): boolean {
     const folderId = FolderId.create(options.folderId);
     if (!folderId || options.sequence < 0) {
@@ -421,12 +360,12 @@ export class GoogleDriveService {
     try {
       const folder = DriveApp.getFolderById(folderId.id);
       const foundFiles = folder.getFilesByName(
-        GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME
+        ZipService.ZIP_READY_CONFIG_FILE_NAME
       );
 
       if (!foundFiles.hasNext()) {
         Logger.log(
-          `[zip] ${GoogleDriveService.ZIP_READY_CONFIG_FILE_NAME} is not found. Must call "readyZipping" before calling this.`
+          `[zip] ${ZipService.ZIP_READY_CONFIG_FILE_NAME} is not found. Must call "readyZipping" before calling this.`
         );
         return false;
       }
@@ -444,7 +383,6 @@ export class GoogleDriveService {
 
       const targetBlobs: GoogleAppsScript.Base.Blob[] = [];
 
-      // Drive.Files.get()を呼び出して、必要なファイルだけを取得
       targetFileIds.forEach((fileId) => {
         try {
           const file = DriveApp.getFileById(fileId.id);
@@ -469,5 +407,53 @@ export class GoogleDriveService {
       Logger.log(`[zip] ${e}`);
       return false;
     }
+  }
+}
+
+export class GoogleDriveService {
+  static findFileByName(options: {
+    fileName: string;
+    parentFolderId: string;
+  }): GoogleAppsScript.Drive.File[] {
+    return FileSearchService.findFileByName(options);
+  }
+
+  static findFileByIds(options: {
+    fileIds: string[];
+    parentFolderId: string;
+  }): GoogleAppsScript.Drive.File[] {
+    return FileSearchService.findFileByIds(options);
+  }
+
+  static findFileDataByIds(options: {
+    fileIds: string[];
+    parentFolderId: string;
+  }): GoogleAppsScript.Base.Blob[] {
+    return FileSearchService.findFileDataByIds(options);
+  }
+
+  static uploadFile(options: {
+    fileId?: string;
+    fileName: string;
+    parentFolderId: string;
+    mimeType: string;
+    blob: GoogleAppsScript.Base.Blob;
+  }): GoogleAppsScript.Drive_v3.Drive.V3.Schema.File | null {
+    return FileUploadService.uploadFile(options);
+  }
+
+  static deleteFilesOrFolders(ids: string[]): boolean {
+    return FileDeleteService.deleteFilesOrFolders(ids);
+  }
+
+  static readyZipping(options: {
+    folderId: string;
+    partitionSizeInBytes: number;
+  }): number {
+    return ZipService.readyZipping(options);
+  }
+
+  static zip(options: { folderId: string; sequence: number }): boolean {
+    return ZipService.zip(options);
   }
 }
