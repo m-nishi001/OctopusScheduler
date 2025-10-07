@@ -6,43 +6,105 @@ import {
   SpreadsheetService,
 } from "../../../../../shared-packages/src/google-spreadsheet-service";
 
+interface ScreenConfigRow {
+  screenName: string;
+  settingName: string;
+  settingValue: string;
+}
+
 @injectable()
 export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
-  private readonly repository: ISpreadsheetService<ScreenConfig>;
+  private readonly repository: ISpreadsheetService<ScreenConfigRow>;
   private readonly sheetName = "ScreenConfigs";
 
   constructor() {
-    this.repository = SpreadsheetService.getService<ScreenConfig>(
+    this.repository = SpreadsheetService.getService<ScreenConfigRow>(
       this.sheetName
     );
   }
 
+  private toRows(config: ScreenConfig): ScreenConfigRow[] {
+    const rows: ScreenConfigRow[] = [];
+    const screenName = config.type;
+    for (const [key, value] of Object.entries(config)) {
+      if (key === "type") continue;
+      let settingValue: string;
+      if (typeof value === "string") {
+        settingValue = value;
+      } else {
+        settingValue = JSON.stringify(value);
+      }
+      rows.push({
+        screenName,
+        settingName: key,
+        settingValue,
+      });
+    }
+    return rows;
+  }
+
+  private fromRows(rows: ScreenConfigRow[]): ScreenConfig[] {
+    const grouped = rows.reduce(
+      (acc, row) => {
+        if (!acc[row.screenName]) {
+          acc[row.screenName] = [];
+        }
+        acc[row.screenName].push(row);
+        return acc;
+      },
+      {} as Record<string, ScreenConfigRow[]>
+    );
+
+    const configs: ScreenConfig[] = [];
+    for (const screenName in grouped) {
+      const configRows = grouped[screenName];
+      const config: any = { type: screenName };
+      for (const row of configRows) {
+        const value = row.settingValue;
+        try {
+          config[row.settingName] = JSON.parse(value);
+        } catch {
+          config[row.settingName] = value;
+        }
+      }
+      configs.push(config as ScreenConfig);
+    }
+    return configs;
+  }
+
   createScreenConfig(config: ScreenConfig): void {
-    this.repository.add(config);
+    const rows = this.toRows(config);
+    for (const row of rows) {
+      this.repository.add(row);
+    }
   }
 
   updateScreenConfig(config: ScreenConfig): void {
-    this.repository.update(
-      (c: ScreenConfig) => c.type === config.type,
-      () => config
+    this.repository.delete(
+      (r: ScreenConfigRow) => r.screenName === config.type
     );
+    this.createScreenConfig(config);
   }
 
   deleteScreenConfig(type: string): void {
-    this.repository.delete((c: ScreenConfig) => c.type === type);
+    this.repository.delete((r: ScreenConfigRow) => r.screenName === type);
   }
 
   getScreenConfig(): ScreenConfig | null {
-    const configs = this.repository.find((c: ScreenConfig) => true);
+    const configs = this.findAll();
     return configs.length > 0 ? configs[0] : null;
   }
 
   findAll(): ScreenConfig[] {
-    return this.repository.find((c: ScreenConfig) => true);
+    const rows = this.repository.find((r: ScreenConfigRow) => true);
+    return this.fromRows(rows);
   }
 
   findByType(type: string): ScreenConfig | null {
-    const configs = this.repository.find((c: ScreenConfig) => c.type === type);
+    const rows = this.repository.find(
+      (r: ScreenConfigRow) => r.screenName === type
+    );
+    const configs = this.fromRows(rows);
     return configs.length > 0 ? configs[0] : null;
   }
 
@@ -50,27 +112,31 @@ export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
     type: string,
     updateEntity: (config: ScreenConfig) => ScreenConfig
   ): number {
-    return this.repository.update(
-      (c: ScreenConfig) => c.type === type,
-      updateEntity
-    );
+    const config = this.findByType(type);
+    if (!config) return 0;
+    const updated = updateEntity(config);
+    this.updateScreenConfig(updated);
+    return 1;
   }
 
   updateMany(
     types: string[],
     updateEntity: (config: ScreenConfig) => ScreenConfig
   ): number {
-    return this.repository.update(
-      (c: ScreenConfig) => types.includes(c.type),
-      updateEntity
-    );
+    let count = 0;
+    for (const type of types) {
+      count += this.update(type, updateEntity);
+    }
+    return count;
   }
 
   delete(type: string): void {
-    this.repository.delete((c: ScreenConfig) => c.type === type);
+    this.deleteScreenConfig(type);
   }
 
   deleteMany(types: string[]): void {
-    this.repository.delete((c: ScreenConfig) => types.includes(c.type));
+    for (const type of types) {
+      this.deleteScreenConfig(type);
+    }
   }
 }
