@@ -52,7 +52,7 @@ export default {
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio || 1);
             renderer.setSize(width, height, false);
-            (renderer as any).outputEncoding = (THREE as any).sRGBEncoding;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
             container.value.appendChild(renderer.domElement);
             renderer.domElement.style.width = '100vw';
             renderer.domElement.style.height = '100vh';
