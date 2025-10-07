@@ -22,6 +22,7 @@ export function useAdminScreens() {
     demoConfig,
     mainConfig,
     resultConfig,
+    endingConfig,
     loadScreenConfigs,
     updateHomeConfig,
     updateOpeningConfig,
@@ -29,6 +30,7 @@ export function useAdminScreens() {
     updateDemoConfig,
     updateMainConfig,
     updateResultConfig,
+    updateEndingConfig,
     saveConfigs,
   } = useScreenConfigs();
 
@@ -40,6 +42,7 @@ export function useAdminScreens() {
     { key: "demo", label: "デモ抽選" },
     { key: "main", label: "本抽選" },
     { key: "result", label: "最終結果" },
+    { key: "ending", label: "エンディング" },
   ];
 
   const saving = ref(false);
@@ -110,12 +113,14 @@ export function useAdminScreens() {
     demoConfig,
     mainConfig,
     resultConfig,
+    endingConfig,
     updateHomeConfig,
     updateOpeningConfig,
     updateDescriptionConfig,
     updateDemoConfig,
     updateMainConfig,
     updateResultConfig,
+    updateEndingConfig,
     onUploading,
     saveConfigs,
     handleSave,

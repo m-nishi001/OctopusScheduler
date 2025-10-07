@@ -11,7 +11,7 @@
       </ul>
       <div v-if="specialWinner" class="special-winner">最高ランク当選者: {{ specialWinner?.name }}</div>
       <div v-if="lowestWinner" class="lowest-winner">最低ランク当選者: {{ lowestWinner?.name }}</div>
-      <p class="mt-4 text-green-700 font-bold">Enterキーでホーム画面へ</p>
+      <p class="mt-4 text-green-700 font-bold">Enterキーでエンディング画面へ</p>
     </div>
     <transition name="fade-black">
       <div v-if="fadeOut" class="fade-black"></div>
@@ -73,7 +73,7 @@ export default {
       if (e.key === 'Enter' && !fadeOut.value) {
         fadeOut.value = true;
         setTimeout(() => {
-          router.push('/');
+          router.push('/jackpot-ending');
         }, 1200);
       }
     };

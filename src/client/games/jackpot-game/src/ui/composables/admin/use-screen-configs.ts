@@ -70,6 +70,13 @@ export function useScreenConfigs() {
     fadeSeMode: "select",
     fadeSeAssetId: "",
   });
+  const endingConfig = ref<any>({
+    id: "",
+    bgmMode: "select",
+    bgmAssetId: "",
+    displayMode: "list",
+    contents: [],
+  });
 
   const loadScreenConfigs = async () => {
     try {
@@ -81,6 +88,7 @@ export function useScreenConfigs() {
         "demo",
         "main",
         "result",
+        "ending",
       ];
       // For admin UI we want the raw stored config (placeholders like {asset:ID} preserved)
       const results = await Promise.all(
@@ -189,6 +197,26 @@ export function useScreenConfigs() {
             fadeSeMode: "select",
             fadeSeAssetId: config.seAssetIds?.[3] || "",
           };
+        } else if (type === "ending") {
+          endingConfig.value = {
+            id: config.id || "",
+            bgmMode: config.bgmAssetId ? "select" : "select",
+            bgmAssetId: config.bgmAssetId || "",
+            displayMode: config.displayMode || "list",
+            contents: config.elements.map((el: any) => ({
+              id: el.id,
+              type: el.type,
+              text: el.content || "",
+              content: el.content || "",
+              assetId: el.assetId || "",
+              imageMode: "select",
+              seMode: "select",
+              effect: el.animation?.type || "fade",
+              duration: el.animation?.duration || 1000,
+              scrollDirection: el.animation?.scrollDirection || "up",
+              seAssetId: "",
+            })),
+          };
         }
       });
     } catch (error) {
@@ -213,6 +241,9 @@ export function useScreenConfigs() {
   };
   const updateResultConfig = (config: any) => {
     resultConfig.value = config;
+  };
+  const updateEndingConfig = (config: any) => {
+    endingConfig.value = config;
   };
 
   const saveConfigs = async () => {
@@ -306,6 +337,29 @@ export function useScreenConfigs() {
         backgroundStyle: "",
         elements: [],
       },
+      {
+        id: endingConfig.value.id,
+        type: "ending" as const,
+        bgmAssetId: endingConfig.value.bgmAssetId || undefined,
+        seAssetIds: endingConfig.value.contents.flatMap((c: any) =>
+          c.seAssetId ? [c.seAssetId] : []
+        ),
+        backgroundStyle: "",
+        displayMode: endingConfig.value.displayMode || "list",
+        elements: endingConfig.value.contents.map((content: any) => ({
+          type: content.type as any,
+          content:
+            content.type === "html"
+              ? content.content || content.text
+              : content.text,
+          assetId: content.assetId,
+          animation: {
+            type: content.effect as any,
+            duration: content.duration,
+            scrollDirection: content.scrollDirection,
+          },
+        })),
+      },
     ];
 
     await screenConfigService.saveScreenConfigs(configs as any);
@@ -322,6 +376,7 @@ export function useScreenConfigs() {
     demoConfig,
     mainConfig,
     resultConfig,
+    endingConfig,
     loadScreenConfigs,
     updateHomeConfig,
     updateOpeningConfig,
@@ -329,6 +384,7 @@ export function useScreenConfigs() {
     updateDemoConfig,
     updateMainConfig,
     updateResultConfig,
+    updateEndingConfig,
     saveConfigs,
   } as const;
 }

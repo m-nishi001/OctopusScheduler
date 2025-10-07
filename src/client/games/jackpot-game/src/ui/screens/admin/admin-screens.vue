@@ -21,6 +21,8 @@
         :config="mainConfig" @update="updateMainConfig" />
       <ResultScreenConfig v-if="activeTab === 'result'" :audio-assets="audioAssets" :asset-service="assetService"
         :config="resultConfig" @update="updateResultConfig" />
+      <EndingScreenConfig v-if="activeTab === 'ending'" :audio-assets="audioAssets" :image-assets="imageAssets"
+        :asset-service="assetService" :config="endingConfig" @update="updateEndingConfig" @uploading="onUploading" />
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="admin-btn mt-4" @click="handleSave" :disabled="saving || uploading || loading"
@@ -61,6 +63,7 @@ import DescriptionScreenConfig from './screen-config/description-screen-config.v
 import DemoScreenConfig from './screen-config/demo-screen-config.vue';
 import MainScreenConfig from './screen-config/main-screen-config.vue';
 import ResultScreenConfig from './screen-config/result-screen-config.vue';
+import EndingScreenConfig from './screen-config/ending-screen-config.vue';
 import { useAdminScreens } from '../../composables/admin/use-admin-screens';
 
 const {
@@ -74,6 +77,7 @@ const {
   demoConfig,
   mainConfig,
   resultConfig,
+  endingConfig,
   members,
   prizes,
   onUploading,
@@ -89,6 +93,7 @@ const {
   updateDemoConfig,
   updateMainConfig,
   updateResultConfig,
+  updateEndingConfig,
   assetService,
 } = useAdminScreens();
 </script>

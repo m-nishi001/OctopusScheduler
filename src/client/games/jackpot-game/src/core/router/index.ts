@@ -3,6 +3,7 @@ import DrawView from "../../ui/screens/main-draw/draw-view.vue";
 import ResultView from "../../ui/screens/result/result-view.vue";
 import HistoryView from "../../ui/screens/result/history-view.vue";
 import OpeningView from "../../ui/screens/opening/opening-view.vue";
+import EndingView from "../../ui/screens/ending/ending-view.vue";
 import DescriptionView from "../../ui/screens/description/description-view.vue";
 import DemoDraw from "../../ui/screens/demo/demo-draw.vue";
 import MainDraw from "../../ui/screens/main-draw/main-draw.vue";
@@ -18,6 +19,7 @@ const jackpotGameRoutes = [
   { path: "/jackpot-result", component: ResultView },
   { path: "/jackpot-history", component: HistoryView },
   { path: "/jackpot-opening", component: OpeningView },
+  { path: "/jackpot-ending", component: EndingView },
   { path: "/jackpot-description", component: DescriptionView },
   { path: "/jackpot-demo", component: DemoDraw },
   { path: "/main-draw", component: MainDraw },
