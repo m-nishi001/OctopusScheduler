@@ -16,50 +16,45 @@ export class PrizeService {
     return prizes.map((p) => ({ ...p }));
   }
 
-  /** 新規追加専用 */
-  async addPrize(prize: PrizeDto): Promise<void> {
-    if (
-      (prize as any).imageAsset &&
-      typeof (prize as any).imageAsset !== "string"
-    ) {
-      const assetDto = {
-        id: prize.imageAssetId || "",
-        type: "image" as "image",
-        dataUrl: "",
-        name: prize.name + "_image",
-        uploadedAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        size: (prize as any).imageAsset.size || 0,
-      };
-      await this.assetRepo.addAsset(assetDto);
-      prize.imageAssetId = assetDto.id;
-      (prize as any).imageAssetUrl = assetDto.dataUrl;
+  async batchOperations(adds: PrizeDto[], updates: PrizeDto[], deletes: string[]): Promise<void> {
+    for (const prize of adds) {
+      if (
+        (prize as any).imageAsset &&
+        typeof (prize as any).imageAsset !== "string"
+      ) {
+        const assetDto = {
+          id: prize.imageAssetId || "",
+          type: "image" as "image",
+          dataUrl: "",
+          name: prize.name + "_image",
+          uploadedAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          size: (prize as any).imageAsset.size || 0,
+        };
+        await this.assetRepo.addAsset(assetDto);
+        prize.imageAssetId = assetDto.id;
+        (prize as any).imageAssetUrl = assetDto.dataUrl;
+      }
     }
-    await this.repo.addPrize(prize);
-  }
-
-  async updatePrize(prize: PrizeDto): Promise<void> {
-    if (
-      (prize as any).imageAsset &&
-      typeof (prize as any).imageAsset !== "string"
-    ) {
-      const assetDto = {
-        id: prize.imageAssetId || "",
-        type: "image" as "image",
-        dataUrl: "",
-        name: prize.name + "_image",
-        uploadedAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        size: (prize as any).imageAsset.size || 0,
-      };
-      await this.assetRepo.updateAsset(assetDto);
-      prize.imageAssetId = assetDto.id;
-      (prize as any).imageAssetUrl = assetDto.dataUrl;
+    for (const prize of updates) {
+      if (
+        (prize as any).imageAsset &&
+        typeof (prize as any).imageAsset !== "string"
+      ) {
+        const assetDto = {
+          id: prize.imageAssetId || "",
+          type: "image" as "image",
+          dataUrl: "",
+          name: prize.name + "_image",
+          uploadedAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          size: (prize as any).imageAsset.size || 0,
+        };
+        await this.assetRepo.updateAsset(assetDto);
+        prize.imageAssetId = assetDto.id;
+        (prize as any).imageAssetUrl = assetDto.dataUrl;
+      }
     }
-    await this.repo.updatePrize(prize);
-  }
-
-  async deletePrize(prizeId: string): Promise<void> {
-    await this.repo.deletePrize(prizeId);
+    await this.repo.batchOperations(adds, updates, deletes);
   }
 }

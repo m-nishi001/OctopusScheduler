@@ -163,18 +163,25 @@ const isPrizeChanged = (prize: any, original: any) => {
   return JSON.stringify(prize) !== JSON.stringify(original);
 };
 const savePrizes = async () => {
+  const adds: any[] = [];
+  const updates: any[] = [];
+  const deletes: string[] = [];
   for (let i = 0; i < prizes.value.length; i++) {
     const prize = prizes.value[i];
     const original = originalPrizes.value[i];
-    if (!original || isPrizeChanged(prize, original)) {
-      if (!original) {
-        await prizeService.addPrize(prize);
-      } else {
-        await prizeService.updatePrize(prize);
-      }
-      originalPrizes.value[i] = JSON.parse(JSON.stringify(prize));
+    if (!original) {
+      adds.push(prize);
+    } else if (isPrizeChanged(prize, original)) {
+      updates.push(prize);
     }
   }
+  for (const original of originalPrizes.value) {
+    if (!prizes.value.find((p: any) => p.id === original.id)) {
+      deletes.push(original.id);
+    }
+  }
+  await prizeService.batchOperations(adds, updates, deletes);
+  originalPrizes.value = JSON.parse(JSON.stringify(prizes.value));
 };
 const fetchPrizes = async () => {
   prizes.value = await prizeService.fetchPrizes();

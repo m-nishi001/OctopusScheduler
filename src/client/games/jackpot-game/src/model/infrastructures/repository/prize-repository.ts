@@ -10,26 +10,6 @@ const PRIZE_CACHE_KEY = "prizes";
 
 @injectable()
 export class PrizeRepository implements IPrizeRepository {
-  /** 差分更新: 変更・新規・削除のみ反映 */
-  async savePrizes(newPrizes: Prize[]): Promise<void> {
-    const oldPrizes =
-      (await this.localStorage.get<Prize[]>(PRIZE_CACHE_KEY)) || [];
-    // 新規・更新
-    for (const prize of newPrizes) {
-      const prev = oldPrizes.find((p) => p.id === prize.id);
-      if (!prev) {
-        await this.addPrize(prize);
-      } else if (JSON.stringify(prev) !== JSON.stringify(prize)) {
-        await this.updatePrize(prize);
-      }
-    }
-    // 削除
-    for (const old of oldPrizes) {
-      if (!newPrizes.find((p) => p.id === old.id)) {
-        await this.deletePrize(old.id);
-      }
-    }
-  }
   private readonly gasService =
     GasFunctionService.create("callJackpotGameApi")!;
   private readonly localStorage = useLocalStorage(
@@ -57,51 +37,26 @@ export class PrizeRepository implements IPrizeRepository {
     });
   }
 
-  async addPrize(prize: PrizeDto): Promise<void> {
-    // 1. キャッシュ保存
-    const prizes =
-      (await this.localStorage.get<PrizeDto[]>(PRIZE_CACHE_KEY)) || [];
-    prizes.push(prize);
-    await this.localStorage.save(PRIZE_CACHE_KEY, prizes);
-    // 2. GAS API追加
-    if (!this.gasService) return;
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<void>("PrizeService.addPrize", { prize })
-        .withSuccessed(() => resolve())
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
-  }
-
-  async updatePrize(prize: PrizeDto): Promise<void> {
+  async batchOperations(adds: PrizeDto[], updates: PrizeDto[], deletes: string[]): Promise<void> {
     // 1. キャッシュ更新
     let prizes =
       (await this.localStorage.get<PrizeDto[]>(PRIZE_CACHE_KEY)) || [];
-    prizes = prizes.map((p: PrizeDto) => (p.id === prize.id ? prize : p));
+    // adds
+    prizes.push(...adds);
+    // updates
+    for (const update of updates) {
+      const idx = prizes.findIndex((p) => p.id === update.id);
+      if (idx >= 0) prizes[idx] = update;
+    }
+    // deletes
+    prizes = prizes.filter((p) => !deletes.includes(p.id));
     await this.localStorage.save(PRIZE_CACHE_KEY, prizes);
-    // 2. GAS API更新
+    // 2. GAS API
     if (!this.gasService) return;
+    const updateArgs = updates.map((u) => ({ ids: [u.id], prize: u }));
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<void>("PrizeService.updatePrize", { prize })
-        .withSuccessed(() => resolve())
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
-  }
-
-  async deletePrize(prizeId: string): Promise<void> {
-    // 1. キャッシュ削除
-    let prizes =
-      (await this.localStorage.get<PrizeDto[]>(PRIZE_CACHE_KEY)) || [];
-    prizes = prizes.filter((p: PrizeDto) => p.id !== prizeId);
-    await this.localStorage.save(PRIZE_CACHE_KEY, prizes);
-    // 2. GAS API削除
-    if (!this.gasService) return;
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<void>("PrizeService.delete", { id: prizeId })
+        .createCall<void>("PrizeService.batchOperations", { adds, updates: updateArgs, deletes })
         .withSuccessed(() => resolve())
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
