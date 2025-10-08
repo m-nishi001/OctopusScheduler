@@ -27,30 +27,17 @@ export class MemberRepository implements IMemberRepository {
     return this.repository.find((m: Member) => ids.includes(m.id));
   }
 
-  add(member: Member): Member {
-    return this.repository.add(member);
-  }
-
-  addMany(members: Member[]): Member[] {
-    return members.map((m) => this.repository.add(m));
-  }
-
-  update(id: string, updateEntity: (member: Member) => Member): number {
-    return this.repository.update((m: Member) => m.id === id, updateEntity);
-  }
-
-  updateMany(ids: string[], updateEntity: (member: Member) => Member): number {
-    return this.repository.update(
-      (m: Member) => ids.includes(m.id),
-      updateEntity
-    );
-  }
-
-  delete(id: string): void {
-    this.repository.delete((m: Member) => m.id === id);
-  }
-
-  deleteMany(ids: string[]): void {
-    this.repository.delete((m: Member) => ids.includes(m.id));
+  batchOperations(operations: {
+    add: Member[];
+    update: { id: string; updateFn: (member: Member) => Member }[];
+    delete: string[];
+  }): void {
+    const transaction = this.repository.beginTransaction();
+    transaction.addMany(operations.add);
+    for (const updateOp of operations.update) {
+      transaction.updateMany([updateOp.id], updateOp.updateFn);
+    }
+    transaction.deleteMany(operations.delete);
+    transaction.commit();
   }
 }

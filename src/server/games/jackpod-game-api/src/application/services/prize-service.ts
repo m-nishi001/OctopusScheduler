@@ -15,9 +15,7 @@ export class PrizeService implements GasService {
     this.functions = {
       getAll: this.getAll.bind(this),
       getById: this.getById.bind(this),
-      addPrize: this.addPrize.bind(this),
-      updatePrize: this.updatePrize.bind(this),
-      delete: this.delete.bind(this),
+      batchOperations: this.batchOperations.bind(this),
     };
   }
 
@@ -31,15 +29,17 @@ export class PrizeService implements GasService {
     return prize ? toPrizeDto(prize) : null;
   }
 
-  addPrize(args: { prize: PrizeDto }): void {
-    this.repository.save(toPrize(args.prize));
-  }
-
-  updatePrize(args: { prize: PrizeDto }): void {
-    this.repository.update(args.prize.id, (p) => toPrize(args.prize));
-  }
-
-  delete(args: { id: string }): void {
-    this.repository.delete(args.id);
+  batchOperations(args: {
+    adds: PrizeDto[];
+    updates: { ids: string[]; prize: PrizeDto }[];
+    deletes: string[];
+  }): void {
+    const adds = args.adds.map(toPrize);
+    const updates = args.updates.map((u) => ({
+      ids: u.ids,
+      updateFn: (_: any) => toPrize(u.prize),
+    }));
+    const deletes = args.deletes;
+    this.repository.batchOperations(adds, updates, deletes);
   }
 }

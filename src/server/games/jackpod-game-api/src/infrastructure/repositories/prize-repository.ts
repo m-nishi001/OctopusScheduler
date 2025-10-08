@@ -27,26 +27,17 @@ export class PrizeRepository implements IPrizeRepository {
     return this.repository.find((p: Prize) => ids.includes(p.id));
   }
 
-  save(prize: Prize): void {
-    this.repository.add(prize);
-  }
-
-  update(id: string, updateEntity: (prize: Prize) => Prize): number {
-    return this.repository.update((p: Prize) => p.id === id, updateEntity);
-  }
-
-  updateMany(ids: string[], updateEntity: (prize: Prize) => Prize): number {
-    return this.repository.update(
-      (p: Prize) => ids.includes(p.id),
-      updateEntity
-    );
-  }
-
-  delete(id: string): void {
-    this.repository.delete((p: Prize) => p.id === id);
-  }
-
-  deleteMany(ids: string[]): void {
-    this.repository.delete((p: Prize) => ids.includes(p.id));
+  batchOperations(
+    adds: Prize[],
+    updates: { ids: string[]; updateFn: (prize: Prize) => Prize }[],
+    deletes: string[]
+  ): void {
+    const transaction = this.repository.beginTransaction();
+    transaction.addMany(adds);
+    for (const update of updates) {
+      transaction.updateMany(update.ids, update.updateFn);
+    }
+    transaction.deleteMany(deletes);
+    transaction.commit();
   }
 }
