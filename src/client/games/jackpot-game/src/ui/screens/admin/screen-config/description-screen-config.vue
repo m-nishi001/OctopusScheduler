@@ -118,7 +118,7 @@ const insertAsset = (idx: number) => {
 	if (assetId) {
 		const asset = props.imageAssets.find((a: any) => a.id === assetId);
 		if (asset) {
-			const imgTag = `<p><img src="{asset:${asset.id}}" alt="${asset.name}" /></p>`;
+			const imgTag = `<p>"{asset:${asset.id}}"</p>`;
 			config.value.slides[idx].html += imgTag;
 		}
 	}

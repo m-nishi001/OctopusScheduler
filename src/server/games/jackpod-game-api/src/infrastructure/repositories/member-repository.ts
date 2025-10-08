@@ -27,8 +27,12 @@ export class MemberRepository implements IMemberRepository {
     return this.repository.find((m: Member) => ids.includes(m.id));
   }
 
-  save(member: Member): Member {
+  add(member: Member): Member {
     return this.repository.add(member);
+  }
+
+  addMany(members: Member[]): Member[] {
+    return members.map((m) => this.repository.add(m));
   }
 
   update(id: string, updateEntity: (member: Member) => Member): number {

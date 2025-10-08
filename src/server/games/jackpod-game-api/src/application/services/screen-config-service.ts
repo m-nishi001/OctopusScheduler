@@ -18,8 +18,8 @@ export class ScreenConfigService implements GasService {
     private readonly repository: IScreenConfigRepository
   ) {
     this.functions = {
-      createScreenConfig: this.createScreenConfig.bind(this),
-      updateScreenConfig: this.updateScreenConfig.bind(this),
+      createScreenConfigs: this.createScreenConfigs.bind(this),
+      updateScreenConfigs: this.updateScreenConfigs.bind(this),
       deleteScreenConfig: this.deleteScreenConfig.bind(this),
       getScreenConfig: this.getScreenConfig.bind(this),
       findAll: this.findAll.bind(this),
@@ -31,21 +31,23 @@ export class ScreenConfigService implements GasService {
     };
   }
 
-  createScreenConfig(args: { config: ScreenConfigDto }): string {
-    const config = toScreenConfig(args.config);
-    config.id = Utilities.getUuid();
-    config.elements.forEach((element) => {
-      if (!element.id) {
-        element.id = Utilities.getUuid();
-      }
+  createScreenConfigs(args: { configs: ScreenConfigDto[] }): string {
+    const configs = args.configs.map(toScreenConfig);
+    configs.forEach((config) => {
+      config.id = Utilities.getUuid();
+      config.elements.forEach((element) => {
+        if (!element.id) {
+          element.id = Utilities.getUuid();
+        }
+      });
     });
-    this.repository.createScreenConfig(config);
+    this.repository.createScreenConfigs(configs);
     return "ok";
   }
 
-  updateScreenConfig(args: { config: ScreenConfigDto }): string {
-    const config = toScreenConfig(args.config);
-    this.repository.updateScreenConfig(config);
+  updateScreenConfigs(args: { configs: ScreenConfigDto[] }): string {
+    const configs = args.configs.map(toScreenConfig);
+    this.repository.updateScreenConfigs(configs);
     return "ok";
   }
 

@@ -24,9 +24,11 @@ export class AssetApiService implements GasService {
       listAssets: this.listAssets.bind(this),
       getAssetIds: this.getAssetIds.bind(this),
       getAssetMetadata: this.getAssetMetadata.bind(this),
+      getAllMetadatas: this.getAssetMetadata.bind(this),
       uploadDomainAsset: this.uploadDomainAsset.bind(this),
       getDomainAsset: this.getDomainAsset.bind(this),
       addAsset: this.addAsset.bind(this),
+      updateName: this.updateName.bind(this),
     };
   }
 
@@ -167,6 +169,13 @@ export class AssetApiService implements GasService {
           meta: {},
         };
     return { asset: uploadedAsset };
+  }
+
+  updateName(args: { assetId: string; newName: string }): void {
+    this.repository.updateAsset(args.assetId, (a) => ({
+      ...a,
+      name: args.newName,
+    }));
   }
 
   private getAssetType(mimeType: string): "image" | "video" | "audio" | "text" {

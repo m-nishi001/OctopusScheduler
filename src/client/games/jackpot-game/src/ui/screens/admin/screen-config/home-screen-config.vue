@@ -65,6 +65,12 @@ watch(() => props.config, (newConfig) => {
     localConfig.value = { ...newConfig };
 }, { deep: true });
 
+watch(() => localConfig.value, (newConfig) => {
+    if (JSON.stringify(newConfig) !== JSON.stringify(props.config)) {
+        emit('update', newConfig);
+    }
+}, { deep: true });
+
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {

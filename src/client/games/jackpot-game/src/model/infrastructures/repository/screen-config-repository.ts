@@ -147,21 +147,45 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
   }
 
   private async saveToGasParallel(configs: ScreenConfig[]): Promise<void> {
-    const promises = configs.map(
-      (config) =>
+    const creates = configs.filter((c) => !c.id);
+    const updates = configs.filter((c) => c.id);
+
+    const promises: Promise<void>[] = [];
+
+    if (creates.length > 0) {
+      promises.push(
         new Promise<void>((resolve, reject) => {
-          const method = config.id
-            ? "updateScreenConfig"
-            : "createScreenConfig";
-          this.gasService!.createCall<void>(`ScreenConfigService.${method}`, {
-            config,
-          })
+          this.gasService!.createCall<void>(
+            "ScreenConfigService.createScreenConfigs",
+            {
+              configs: creates,
+            }
+          )
             .withTimeout(120000)
             .withSuccessed(() => resolve())
             .withFailuered((msg: string) => reject(new Error(msg)))
             .invoke();
         })
-    );
+      );
+    }
+
+    if (updates.length > 0) {
+      promises.push(
+        new Promise<void>((resolve, reject) => {
+          this.gasService!.createCall<void>(
+            "ScreenConfigService.updateScreenConfigs",
+            {
+              configs: updates,
+            }
+          )
+            .withTimeout(120000)
+            .withSuccessed(() => resolve())
+            .withFailuered((msg: string) => reject(new Error(msg)))
+            .invoke();
+        })
+      );
+    }
+
     await Promise.all(promises);
   }
 

@@ -73,6 +73,17 @@ watch(() => props.config, (newCfg: any) => {
     config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : { winnerMemberId: '', winnerPrizeId: '' };
 }, { deep: true });
 
+watch(config, (newVal: any) => {
+    try {
+        const normalizedProp = props.config ? JSON.parse(JSON.stringify(props.config)) : undefined;
+        if (JSON.stringify(normalizedProp) !== JSON.stringify(newVal)) {
+            emit('update', newVal);
+        }
+    } catch (e) {
+        emit('update', newVal);
+    }
+}, { deep: true });
+
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {

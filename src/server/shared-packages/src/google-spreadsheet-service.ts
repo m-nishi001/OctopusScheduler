@@ -53,6 +53,116 @@ class LockManager {
   }
 }
 
+export class Transaction<T> {
+  private cache: T[] = [];
+  private readonly sheetName: string;
+  private readonly service: SpreadsheetService<T>;
+  private committed = false;
+
+  constructor(sheetName: string, service: SpreadsheetService<T>) {
+    this.sheetName = sheetName;
+    this.service = service;
+    this.loadCache();
+  }
+
+  private loadCache(): void {
+    const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+    if (sheet && sheet.getLastRow() > 1) {
+      this.cache = SpreadsheetAccessor.toObjectArray(
+        sheet.getDataRange().getValues()
+      ) as T[];
+    }
+  }
+
+  add(entity: T): T {
+    this.cache.push(entity);
+    return entity;
+  }
+
+  addMany(entities: T[]): T[] {
+    this.cache.push(...entities);
+    return entities;
+  }
+
+  update(
+    predicate: (entity: T) => boolean,
+    updateEntity: (entity: T) => T
+  ): number {
+    let updatedCount = 0;
+    for (let i = 0; i < this.cache.length; i++) {
+      if (predicate(this.cache[i])) {
+        this.cache[i] = updateEntity(this.cache[i]);
+        updatedCount++;
+      }
+    }
+    return updatedCount;
+  }
+
+  updateMany(ids: string[], updateEntity: (entity: T) => T): number {
+    let updatedCount = 0;
+    for (let i = 0; i < this.cache.length; i++) {
+      const entity = this.cache[i] as any;
+      if (ids.includes(entity.id)) {
+        this.cache[i] = updateEntity(this.cache[i]);
+        updatedCount++;
+      }
+    }
+    return updatedCount;
+  }
+
+  delete(predicate: (entity: T) => boolean): number {
+    const initialLength = this.cache.length;
+    this.cache = this.cache.filter((entity) => !predicate(entity));
+    return initialLength - this.cache.length;
+  }
+
+  deleteMany(ids: string[]): number {
+    const initialLength = this.cache.length;
+    this.cache = this.cache.filter((entity: any) => !ids.includes(entity.id));
+    return initialLength - this.cache.length;
+  }
+
+  find(predicate: (entity: T) => boolean): T[] {
+    return this.cache.filter(predicate);
+  }
+
+  findOne(predicate: (entity: T) => boolean): T | null {
+    const results = this.find(predicate);
+    return results.length > 0 ? results[0] : null;
+  }
+
+  commit(): void {
+    if (this.committed) throw new Error("Transaction already committed.");
+    const lock = LockManager.tryLock();
+    if (!lock) throw new Error("Failed to acquire lock for commit.");
+    try {
+      let sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      if (!sheet && this.cache.length > 0) {
+        sheet = SpreadsheetAccessor.createSheet(
+          this.sheetName,
+          Object.keys(this.cache[0] as object)
+        );
+      }
+      if (sheet) {
+        sheet.clearContents();
+        if (this.cache.length > 0) {
+          const header = Object.keys(this.cache[0] as object);
+          const rows = [
+            header,
+            ...this.cache.map((entity) =>
+              SpreadsheetAccessor.toRowArray(entity)
+            ),
+          ];
+          sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+        }
+      }
+      this.committed = true;
+    } finally {
+      lock.releaseLock();
+    }
+  }
+}
+
 class SpreadsheetAccessor {
   static getSpreadsheetId(): string {
     const id =
@@ -112,6 +222,10 @@ export class SpreadsheetService<T> implements ISpreadsheetService<T> {
     return new SpreadsheetService<T>(sheetName);
   }
 
+  beginTransaction(): Transaction<T> {
+    return new Transaction<T>(this.sheetName, this);
+  }
+
   add(entity: T): T {
     const lock = LockManager.tryLock();
     if (!lock) throw new Error("Failed to acquire lock for add operation.");
@@ -167,6 +281,41 @@ export class SpreadsheetService<T> implements ISpreadsheetService<T> {
     }
   }
 
+  delete(predicate: (entity: T) => boolean): number {
+    const lock = LockManager.tryLock();
+    if (!lock) throw new Error("Failed to acquire lock for delete operation.");
+    try {
+      const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      if (!sheet || sheet.getLastRow() <= 1) return 0;
+      const dataRange = sheet.getDataRange();
+      const values = dataRange.getValues();
+      const header = values.shift()!;
+      const records = SpreadsheetAccessor.toObjectArray([
+        header,
+        ...values,
+      ]) as T[];
+      const remainingRecords = records.filter((record) => !predicate(record));
+      const deletedCount = records.length - remainingRecords.length;
+      sheet.clearContents();
+      if (remainingRecords.length > 0) {
+        const updatedValues = [
+          header,
+          ...remainingRecords.map((record) =>
+            SpreadsheetAccessor.toRowArray(record)
+          ),
+        ];
+        sheet
+          .getRange(1, 1, updatedValues.length, updatedValues[0].length)
+          .setValues(updatedValues);
+      } else {
+        sheet.getRange(1, 1, 1, header.length).setValues([header]);
+      }
+      return deletedCount;
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
   find(predicate: (entity: T) => boolean): T[] {
     const lock = LockManager.tryLock();
     if (!lock) throw new Error("Failed to acquire lock for find operation.");
@@ -186,49 +335,16 @@ export class SpreadsheetService<T> implements ISpreadsheetService<T> {
     const results = this.find(predicate);
     return results.length > 0 ? results[0] : null;
   }
-
-  delete(predicate: (entity: T) => boolean): boolean {
-    const lock = LockManager.tryLock();
-    if (!lock) throw new Error("Failed to acquire lock for delete operation.");
-    try {
-      const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
-      if (!sheet || sheet.getLastRow() <= 1) return false;
-      const dataRange = sheet.getDataRange();
-      const values = dataRange.getValues();
-      const header = values.shift()!;
-      const records = SpreadsheetAccessor.toObjectArray([
-        header,
-        ...values,
-      ]) as T[];
-      const remainingRecords = records.filter((record) => !predicate(record));
-      sheet.clearContents();
-      if (remainingRecords.length > 0) {
-        const updatedValues = [
-          header,
-          ...remainingRecords.map((record) =>
-            SpreadsheetAccessor.toRowArray(record)
-          ),
-        ];
-        sheet
-          .getRange(1, 1, updatedValues.length, updatedValues[0].length)
-          .setValues(updatedValues);
-      } else {
-        sheet.getRange(1, 1, 1, header.length).setValues([header]);
-      }
-      return records.length !== remainingRecords.length;
-    } finally {
-      lock.releaseLock();
-    }
-  }
 }
 
 export interface ISpreadsheetService<T> {
+  beginTransaction(): Transaction<T>;
   add(entity: T): T;
   update(
     predicate: (entity: T) => boolean,
     updateEntity: (entity: T) => T
   ): number;
-  delete(predicate: (entity: T) => boolean): boolean;
+  delete(predicate: (entity: T) => boolean): number;
   find(predicate: (entity: T) => boolean): T[];
   findOne(predicate: (entity: T) => boolean): T | null;
 }

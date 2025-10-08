@@ -1,8 +1,8 @@
 import { ScreenConfig } from "../entities/screen-config";
 
 export interface IScreenConfigRepository {
-  createScreenConfig(config: ScreenConfig): void;
-  updateScreenConfig(config: ScreenConfig): void;
+  createScreenConfigs(configs: ScreenConfig[]): void;
+  updateScreenConfigs(configs: ScreenConfig[]): void;
   deleteScreenConfig(type: string): void;
   getScreenConfig(): ScreenConfig | null;
   findAll(): ScreenConfig[];

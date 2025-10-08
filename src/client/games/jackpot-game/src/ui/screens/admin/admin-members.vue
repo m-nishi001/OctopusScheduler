@@ -94,18 +94,24 @@ const isMemberChanged = (member: any, original: any) => {
   return JSON.stringify(member) !== JSON.stringify(original);
 };
 const saveMembers = async () => {
+  const toAdd: any[] = [];
+  const toUpdate: any[] = [];
   for (let i = 0; i < members.value.length; i++) {
     const member = members.value[i];
     const original = originalMembers.value[i];
-    if (!original || isMemberChanged(member, original)) {
-      if (!original) {
-        await memberService.addMember(member);
-      } else {
-        await memberService.updateMember(member);
-      }
-      originalMembers.value[i] = JSON.parse(JSON.stringify(member));
+    if (!original) {
+      toAdd.push(member);
+    } else if (isMemberChanged(member, original)) {
+      toUpdate.push(member);
     }
   }
+  if (toAdd.length > 0) {
+    await memberService.addMembers(toAdd);
+  }
+  if (toUpdate.length > 0) {
+    await memberService.updateMembers(toUpdate);
+  }
+  originalMembers.value = JSON.parse(JSON.stringify(members.value));
 };
 const fetchMembers = async () => {
   members.value = await memberService.fetchMembers();

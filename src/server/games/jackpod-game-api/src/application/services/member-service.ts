@@ -15,7 +15,10 @@ export class MemberService implements GasService {
     this.functions = {
       getAll: this.getAll.bind(this),
       getById: this.getById.bind(this),
-      save: this.save.bind(this),
+      addMember: this.addMember.bind(this),
+      addMembers: this.addMembers.bind(this),
+      updateMember: this.updateMember.bind(this),
+      updateMembers: this.updateMembers.bind(this),
       delete: this.delete.bind(this),
     };
   }
@@ -30,10 +33,24 @@ export class MemberService implements GasService {
     return member ? toMemberDto(member) : null;
   }
 
-  save(args: { member: MemberDto }): { member: MemberDto } {
-    const saved = this.repository.save(toMember(args.member));
-    // ID採番済みのMemberをDTO化して返却
+  addMember(args: { member: MemberDto }): { member: MemberDto } {
+    const saved = this.repository.add(toMember(args.member));
     return { member: toMemberDto(saved) };
+  }
+
+  addMembers(args: { members: MemberDto[] }): { members: MemberDto[] } {
+    const saved = this.repository.addMany(args.members.map(toMember));
+    return { members: saved.map(toMemberDto) };
+  }
+
+  updateMember(args: { member: MemberDto }): void {
+    this.repository.update(args.member.id, (m) => toMember(args.member));
+  }
+
+  updateMembers(args: { members: MemberDto[] }): void {
+    for (const member of args.members) {
+      this.repository.update(member.id, (m) => toMember(member));
+    }
   }
 
   delete(args: { id: string }): void {

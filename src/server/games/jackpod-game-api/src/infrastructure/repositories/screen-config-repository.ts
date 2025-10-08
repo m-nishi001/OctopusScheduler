@@ -72,18 +72,27 @@ export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
     return configs;
   }
 
-  createScreenConfig(config: ScreenConfig): void {
-    const rows = this.toRows(config);
-    for (const row of rows) {
-      this.repository.add(row);
+  createScreenConfigs(configs: ScreenConfig[]): void {
+    const transaction = this.repository.beginTransaction();
+    for (const config of configs) {
+      const rows = this.toRows(config);
+      for (const row of rows) {
+        transaction.add(row);
+      }
     }
+    transaction.commit();
   }
 
-  updateScreenConfig(config: ScreenConfig): void {
-    this.repository.delete(
-      (r: ScreenConfigRow) => r.screenName === config.type
-    );
-    this.createScreenConfig(config);
+  updateScreenConfigs(configs: ScreenConfig[]): void {
+    const transaction = this.repository.beginTransaction();
+    for (const config of configs) {
+      transaction.delete((r: ScreenConfigRow) => r.screenName === config.type);
+      const rows = this.toRows(config);
+      for (const row of rows) {
+        transaction.add(row);
+      }
+    }
+    transaction.commit();
   }
 
   deleteScreenConfig(type: string): void {
@@ -115,7 +124,13 @@ export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
     const config = this.findByType(type);
     if (!config) return 0;
     const updated = updateEntity(config);
-    this.updateScreenConfig(updated);
+    this.repository.delete(
+      (r: ScreenConfigRow) => r.screenName === updated.type
+    );
+    const rows = this.toRows(updated);
+    for (const row of rows) {
+      this.repository.add(row);
+    }
     return 1;
   }
 

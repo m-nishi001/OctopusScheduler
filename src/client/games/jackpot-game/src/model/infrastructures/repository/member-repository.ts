@@ -9,27 +9,6 @@ const MEMBER_CACHE_KEY = "members";
 
 @injectable()
 export class MemberRepository implements IMemberRepository {
-  /** 差分更新: 変更・新規・削除のみ反映 */
-  async saveMembers(newMembers: Member[]): Promise<void> {
-    const oldMembers =
-      (await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY)) || [];
-    // 新規・更新
-    for (const member of newMembers) {
-      const prev = oldMembers.find((m) => m.id === member.id);
-      if (!prev) {
-        // 新規追加はサーバー保存→ID受信→ローカル保存
-        await this.addMember(member);
-      } else if (JSON.stringify(prev) !== JSON.stringify(member)) {
-        await this.updateMember(member);
-      }
-    }
-    // 削除
-    for (const old of oldMembers) {
-      if (!newMembers.find((m) => m.id === old.id)) {
-        await this.deleteMember(old.id);
-      }
-    }
-  }
   private readonly gasService =
     GasFunctionService.create("callJackpotGameApi")!;
   private readonly localStorage = useLocalStorage(
@@ -61,9 +40,30 @@ export class MemberRepository implements IMemberRepository {
       this.gasService
         .createCall<{ member: Member }>("MemberService.addMember", { member })
         .withSuccessed((res: { member: Member }) => {
-          // サーバーから返却されたID付きメンバーでローカル保存
           this.localStorage.get<Member[]>(MEMBER_CACHE_KEY).then((members) => {
             const updated = members ? [...members, res.member] : [res.member];
+            this.localStorage
+              .save(MEMBER_CACHE_KEY, updated)
+              .then(() => resolve());
+          });
+        })
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
+  async addMembers(members: Member[]): Promise<void> {
+    if (!this.gasService) return;
+    return new Promise((resolve, reject) => {
+      this.gasService
+        .createCall<{ members: Member[] }>("MemberService.addMembers", {
+          members,
+        })
+        .withSuccessed((res: { members: Member[] }) => {
+          this.localStorage.get<Member[]>(MEMBER_CACHE_KEY).then((existing) => {
+            const updated = existing
+              ? [...existing, ...res.members]
+              : res.members;
             this.localStorage
               .save(MEMBER_CACHE_KEY, updated)
               .then(() => resolve());
@@ -89,6 +89,25 @@ export class MemberRepository implements IMemberRepository {
     });
   }
 
+  async updateMembers(members: Member[]): Promise<void> {
+    let localMembers =
+      (await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY)) || [];
+    for (const member of members) {
+      localMembers = localMembers.map((m: Member) =>
+        m.id === member.id ? member : m
+      );
+    }
+    await this.localStorage.save(MEMBER_CACHE_KEY, localMembers);
+    if (!this.gasService) return;
+    return new Promise((resolve, reject) => {
+      this.gasService
+        .createCall<void>("MemberService.updateMembers", { members })
+        .withSuccessed(() => resolve())
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
   async deleteMember(memberId: string): Promise<void> {
     let members =
       (await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY)) || [];
@@ -104,6 +123,24 @@ export class MemberRepository implements IMemberRepository {
     });
   }
 
+  async deleteMembers(ids: string[]): Promise<void> {
+    let members =
+      (await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY)) || [];
+    members = members.filter((m: Member) => !ids.includes(m.id));
+    await this.localStorage.save(MEMBER_CACHE_KEY, members);
+    if (!this.gasService) return;
+    // サーバー側にdeleteManyがないので、個別に削除
+    for (const id of ids) {
+      await new Promise<void>((resolve, reject) => {
+        this.gasService
+          .createCall<void>("MemberService.delete", { id })
+          .withSuccessed(() => resolve())
+          .withFailuered((msg: string) => reject(new Error(msg)))
+          .invoke();
+      });
+    }
+  }
+
   async syncMembersWithServer(): Promise<Member[]> {
     if (!this.gasService) return [];
     return new Promise((resolve, reject) => {
@@ -116,9 +153,5 @@ export class MemberRepository implements IMemberRepository {
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
-  }
-
-  async saveMember(member: Member): Promise<void> {
-    await this.addMember(member);
   }
 }
