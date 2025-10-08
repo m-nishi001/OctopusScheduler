@@ -17,16 +17,12 @@ export class MemberRepository implements IMemberRepository {
   );
 
   async fetchMembers(): Promise<Member[]> {
-    const cached = await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY);
-    if (cached && cached.length > 0) {
-      return cached;
-    }
     if (!this.gasService) return [];
     return new Promise((resolve, reject) => {
       this.gasService
         .createCall<{ members: Member[] }>("MemberService.getAll")
-        .withSuccessed((res: { members: Member[] }) => {
-          this.localStorage.save(MEMBER_CACHE_KEY, res.members);
+        .withSuccessed(async (res: { members: Member[] }) => {
+          await this.localStorage.save(MEMBER_CACHE_KEY, res.members);
           resolve(res.members);
         })
         .withFailuered((msg: string) => reject(new Error(msg)))
@@ -56,20 +52,6 @@ export class MemberRepository implements IMemberRepository {
       this.gasService
         .createCall<void>("MemberService.batchOperations", { operations })
         .withSuccessed(() => resolve())
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
-  }
-
-  async syncMembersWithServer(): Promise<Member[]> {
-    if (!this.gasService) return [];
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<{ members: Member[] }>("MemberService.getAll")
-        .withSuccessed((res: { members: Member[] }) => {
-          this.localStorage.save(MEMBER_CACHE_KEY, res.members);
-          resolve(res.members);
-        })
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
