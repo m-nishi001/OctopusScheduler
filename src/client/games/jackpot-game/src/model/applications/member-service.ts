@@ -13,7 +13,6 @@ export class MemberService {
   async fetchMembers(): Promise<MemberDto[]> {
     const members = await this.repo.fetchMembers();
     if (!Array.isArray(members) || !members) return [];
-    // アセットIDをURLに解決
     const resolvedMembers = await Promise.all(
       members.map(async (m) => {
         if (m.photoAssetId) {
