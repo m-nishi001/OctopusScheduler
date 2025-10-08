@@ -26,33 +26,12 @@ export class MemberService {
     return resolvedMembers;
   }
 
-  async addMember(member: MemberDto): Promise<void> {
-    if (
-      (member as any).photoAsset &&
-      typeof (member as any).photoAsset !== "string"
-    ) {
-      const assetDto = {
-        id: member.photoAssetId || "",
-        type: "image" as "image",
-        dataUrl: "",
-        name: member.name + "_photo",
-        uploadedAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        size: (member as any).photoAsset.size || 0,
-      };
-      await this.assetRepo.addAsset(assetDto);
-      member.photoAssetId = assetDto.id;
-      (member as any).photoAssetUrl = assetDto.dataUrl;
-    }
-    if (typeof this.repo.addMember === "function") {
-      await this.repo.addMember(member);
-    } else {
-      throw new Error("addMember is not implemented in IMemberRepository");
-    }
-  }
-
-  async addMembers(members: MemberDto[]): Promise<void> {
-    for (const member of members) {
+  async batchOperations(operations: {
+    add: MemberDto[];
+    update: MemberDto[];
+    delete: string[];
+  }): Promise<void> {
+    for (const member of operations.add) {
       if (
         (member as any).photoAsset &&
         typeof (member as any).photoAsset !== "string"
@@ -71,36 +50,7 @@ export class MemberService {
         (member as any).photoAssetUrl = assetDto.dataUrl;
       }
     }
-    if (typeof this.repo.addMembers === "function") {
-      await this.repo.addMembers(members);
-    } else {
-      throw new Error("addMembers is not implemented in IMemberRepository");
-    }
-  }
-
-  async updateMember(member: MemberDto): Promise<void> {
-    if (
-      (member as any).photoAsset &&
-      typeof (member as any).photoAsset !== "string"
-    ) {
-      const assetDto = {
-        id: member.photoAssetId || "",
-        type: "image" as "image",
-        dataUrl: "",
-        name: member.name + "_photo",
-        uploadedAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        size: (member as any).photoAsset.size || 0,
-      };
-      await this.assetRepo.updateAsset(assetDto);
-      member.photoAssetId = assetDto.id;
-      (member as any).photoAssetUrl = assetDto.dataUrl;
-    }
-    await this.repo.updateMember(member);
-  }
-
-  async updateMembers(members: MemberDto[]): Promise<void> {
-    for (const member of members) {
+    for (const member of operations.update) {
       if (
         (member as any).photoAsset &&
         typeof (member as any).photoAsset !== "string"
@@ -119,14 +69,6 @@ export class MemberService {
         (member as any).photoAssetUrl = assetDto.dataUrl;
       }
     }
-    if (typeof this.repo.updateMembers === "function") {
-      await this.repo.updateMembers(members);
-    } else {
-      throw new Error("updateMembers is not implemented in IMemberRepository");
-    }
-  }
-
-  async deleteMember(memberId: string): Promise<void> {
-    await this.repo.deleteMember(memberId);
+    await this.repo.batchOperations(operations);
   }
 }

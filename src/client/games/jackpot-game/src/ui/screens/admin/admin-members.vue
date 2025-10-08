@@ -8,11 +8,10 @@
         <option value="order">追加順</option>
       </select>
       <button class="admin-btn" @click="showAddModal = true">追加</button>
-      <button class="admin-btn" @click="bulkDelete" :disabled="selectedMembers.length === 0">一括削除</button>
     </div>
     <div class="admin-grid">
       <div v-for="(member, idx) in members" :key="member.id" class="admin-card">
-        <input type="checkbox" v-model="selectedMembers" :value="idx" class="admin-checkbox" />
+        <input type="checkbox" v-model="selectedMembers" :value="member.id" class="admin-checkbox" />
         <div class="admin-card-content">
           <img v-if="member.photoAssetId || member.photoUrl" :src="member.photoAssetId || member.photoUrl" alt="photo"
             class="admin-thumbnail" />
@@ -83,7 +82,7 @@ const memberService = container.resolve(MemberService);
 const assetService = container.resolve(AssetService);
 const members = ref<any[]>([]);
 const originalMembers = ref<any[]>([]);
-const selectedMembers = ref<number[]>([]);
+const selectedMembers = ref<string[]>([]);
 const sortBy = ref('name');
 const showAddModal = ref(false);
 const assets = ref<any[]>([]);
@@ -94,23 +93,17 @@ const isMemberChanged = (member: any, original: any) => {
   return JSON.stringify(member) !== JSON.stringify(original);
 };
 const saveMembers = async () => {
-  const toAdd: any[] = [];
-  const toUpdate: any[] = [];
-  for (let i = 0; i < members.value.length; i++) {
-    const member = members.value[i];
-    const original = originalMembers.value[i];
-    if (!original) {
-      toAdd.push(member);
-    } else if (isMemberChanged(member, original)) {
-      toUpdate.push(member);
-    }
-  }
-  if (toAdd.length > 0) {
-    await memberService.addMembers(toAdd);
-  }
-  if (toUpdate.length > 0) {
-    await memberService.updateMembers(toUpdate);
-  }
+  const toAdd = members.value.filter(m => !originalMembers.value.find((o: any) => o.id === m.id));
+  const toUpdate = members.value.filter(m => {
+    const original = originalMembers.value.find((o: any) => o.id === m.id);
+    return original && isMemberChanged(m, original);
+  });
+  const toDelete = originalMembers.value.filter((o: any) => !members.value.find((m: any) => m.id === o.id)).map((o: any) => o.id);
+  await memberService.batchOperations({
+    add: toAdd,
+    update: toUpdate,
+    delete: toDelete
+  });
   originalMembers.value = JSON.parse(JSON.stringify(members.value));
 };
 const fetchMembers = async () => {
@@ -127,13 +120,6 @@ const sortMembers = () => {
   } else if (sortBy.value === 'order') {
     members.value.sort((a, b) => a.order - b.order);
   }
-};
-const bulkDelete = () => {
-  selectedMembers.value.sort((a, b) => b - a);
-  for (const idx of selectedMembers.value) {
-    members.value.splice(idx, 1);
-  }
-  selectedMembers.value = [];
 };
 const memberName = ref('');
 const photoAssetId = ref('');
