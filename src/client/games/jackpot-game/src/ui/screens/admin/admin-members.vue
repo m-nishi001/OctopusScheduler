@@ -1,5 +1,4 @@
 <template>
-  <button class="admin-btn mt-4" @click="saveMembers">保存</button>
   <div class="admin-section">
     <h2>メンバー管理</h2>
     <div class="admin-controls">
@@ -8,12 +7,13 @@
         <option value="order">追加順</option>
       </select>
       <button class="admin-btn" @click="showAddModal = true">追加</button>
+      <button class="admin-btn" @click="saveMembers">保存</button>
     </div>
     <div class="admin-grid">
       <div v-for="(member, idx) in members" :key="member.id" class="admin-card">
         <input type="checkbox" v-model="selectedMembers" :value="member.id" class="admin-checkbox" />
         <div class="admin-card-content">
-          <img v-if="member.photoAssetId || member.photoUrl" :src="member.photoAssetId || member.photoUrl" alt="photo"
+          <img v-if="member.photoAssetId || member.photoAsset" :src="getMemberImageSrc(member)" alt="photo"
             class="admin-thumbnail" />
           <div v-else class="admin-thumbnail-placeholder">No Image</div>
           <h3>{{ member.name }}</h3>
@@ -33,7 +33,8 @@
         <label><input type="radio" v-model="photoMode" value="select" /> 既存から選択</label>
       </div>
       <input v-if="photoMode === 'upload'" type="file" @change="onPhotoChange" accept="image/*" class="admin-input" />
-      <select v-if="photoMode === 'select'" v-model="photoAssetId" class="admin-input">
+      <select v-if="photoMode === 'select'" v-model="photoAssetId" class="admin-input"
+        @change="photoPreview = photoAssetId">
         <option value="">選択なし</option>
         <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
       </select>
@@ -58,7 +59,8 @@
       </div>
       <input v-if="editPhotoMode === 'upload'" type="file" @change="onEditPhotoChange" accept="image/*"
         class="admin-input" />
-      <select v-if="editPhotoMode === 'select'" v-model="editPhotoAssetId" class="admin-input">
+      <select v-if="editPhotoMode === 'select'" v-model="editPhotoAssetId" class="admin-input"
+        @change="editPhotoPreview = editPhotoAssetId">
         <option value="">選択なし</option>
         <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
       </select>
@@ -75,10 +77,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { MemberService } from '../../../model/applications/member/member-service';
+import { MemberBatchService } from '../../../model/applications/member/member-batch-service';
+import { AssetDto } from '../../../model/applications/asset/dto/asset-dto';
 import { AssetService } from '../../../model/applications/asset/asset-service';
 
 import { container } from 'tsyringe';
 const memberService = container.resolve(MemberService);
+const memberBatchService = container.resolve(MemberBatchService);
 const assetService = container.resolve(AssetService);
 const members = ref<any[]>([]);
 const originalMembers = ref<any[]>([]);
@@ -89,6 +94,11 @@ const assets = ref<any[]>([]);
 const photoMode = ref('upload');
 const editPhotoMode = ref('upload');
 const imageAssets = computed(() => assets.value.filter(asset => asset.type === 'image'));
+const getMemberImageSrc = (member: any) => {
+  if (member.photoAssetId) return member.photoAssetId;
+  if (member.photoAsset) return member.photoAsset.dataUrl;
+  return '';
+};
 const isMemberChanged = (member: any, original: any) => {
   return JSON.stringify(member) !== JSON.stringify(original);
 };
@@ -98,8 +108,8 @@ const saveMembers = async () => {
     const original = originalMembers.value.find((o: any) => o.id === m.id);
     return original && isMemberChanged(m, original);
   });
-  const toDelete = originalMembers.value.filter((o: any) => !members.value.find((m: any) => m.id === o.id)).map((o: any) => o.id);
-  await memberService.batchOperations({
+  const toDelete = originalMembers.value.filter((o: any) => !members.value.find((m: any) => m.id === o.id));
+  await memberBatchService.execute({
     add: toAdd,
     update: toUpdate,
     delete: toDelete
@@ -123,61 +133,80 @@ const sortMembers = () => {
 };
 const memberName = ref('');
 const photoAssetId = ref('');
-const photoPreview = computed(() => photoAssetId.value);
-const onPhotoChange = (e: Event) => {
+const photoAsset = ref<AssetDto | undefined>();
+const photoPreview = ref('');
+const onPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      photoAssetId.value = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    photoAsset.value = new AssetDto(file);
+    photoPreview.value = await photoAsset.value.dataUrl;
   }
 };
 const addMember = () => {
   if (!memberName.value) return;
-  members.value.push({
+  const newMember: any = {
     id: String(Date.now()),
     name: memberName.value,
-    photoAssetId: photoAssetId.value,
     order: members.value.length + 1
-  });
+  };
+  if (photoMode.value === 'upload' && photoAsset.value) {
+    newMember.photoAsset = photoAsset.value;
+  } else if (photoMode.value === 'select' && photoAssetId.value) {
+    newMember.photoAssetId = photoAssetId.value;
+  }
+  members.value.push(newMember);
   memberName.value = '';
+  photoAsset.value = undefined;
   photoAssetId.value = '';
+  photoPreview.value = '';
   showAddModal.value = false;
   sortMembers();
 };
 const editIdx = ref<number | null>(null);
 const editName = ref('');
 const editPhotoAssetId = ref('');
-const editPhotoPreview = computed(() => editPhotoAssetId.value);
-const onEditPhotoChange = (e: Event) => {
+const editPhotoAsset = ref<AssetDto | undefined>();
+const editPhotoPreview = ref('');
+const onEditPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      editPhotoAssetId.value = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    editPhotoAsset.value = new AssetDto(file);
+    editPhotoPreview.value = await editPhotoAsset.value.dataUrl;
   }
 };
 const editMember = (idx: number) => {
   editIdx.value = idx;
   const member = members.value[idx];
   editName.value = member.name;
-  editPhotoAssetId.value = member.photoAssetId || '';
-  editPhotoMode.value = member.photoAssetId && !member.photoAssetId.startsWith('data:') ? 'select' : 'upload';
+  if (member.photoAssetId && !member.photoAssetId.startsWith('data:')) {
+    editPhotoMode.value = 'select';
+    editPhotoAssetId.value = member.photoAssetId || '';
+    editPhotoPreview.value = member.photoAssetId;
+  } else {
+    editPhotoMode.value = 'upload';
+    editPhotoAsset.value = member.photoAsset;
+    if (editPhotoAsset.value) {
+      editPhotoAsset.value.dataUrl.then(url => editPhotoPreview.value = url);
+    }
+  }
 };
 const saveEdit = () => {
   if (editIdx.value === null) return;
-  members.value[editIdx.value] = {
+  const updatedMember: any = {
     name: editName.value,
-    photoAssetId: editPhotoAssetId.value,
     order: members.value[editIdx.value].order
-  } as any;
+  };
+  if (editPhotoMode.value === 'upload' && editPhotoAsset.value) {
+    updatedMember.photoAsset = editPhotoAsset.value;
+  } else if (editPhotoMode.value === 'select' && editPhotoAssetId.value) {
+    updatedMember.photoAssetId = editPhotoAssetId.value;
+  }
+  members.value[editIdx.value] = { ...members.value[editIdx.value], ...updatedMember };
   editIdx.value = null;
   editName.value = '';
+  editPhotoAsset.value = undefined;
   editPhotoAssetId.value = '';
+  editPhotoPreview.value = '';
   sortMembers();
 };
 

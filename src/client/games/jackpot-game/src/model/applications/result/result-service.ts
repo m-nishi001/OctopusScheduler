@@ -19,7 +19,10 @@ export class ResultService {
           const asset = await this.assetRepo.getAssetById(
             r.member.photoAssetId
           );
-          return { ...r, member: { ...r.member, photoUrl: asset?.dataUrl } };
+          return {
+            ...r,
+            member: { ...r.member, photoDataUrl: asset?.dataUrl },
+          };
         }
         return r;
       })
@@ -43,7 +46,7 @@ export class ResultService {
       return {
         id: idx + 1,
         name: r.member?.name || r.member?.id,
-        photo: r.member?.photoUrl || r.member?.photoAssetId || "",
+        photo: r.member?.photoAssetId || "",
         prize: r.prize?.name || r.prize?.id || "",
         rank,
         raw: r,

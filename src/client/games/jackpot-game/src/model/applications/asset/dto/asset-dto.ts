@@ -1,3 +1,5 @@
+import type { Asset } from "../../../domains/asset/asset";
+
 const getAssetType = (
   mimeType: string
 ): "image" | "video" | "audio" | "text" => {
@@ -42,7 +44,8 @@ export class AssetMetadataDto {
 }
 
 export class AssetDto extends AssetMetadataDto {
-  dataUrl: string;
+  private _dataUrl?: string;
+  private _dataUrlPromise?: Promise<string>;
   private file?: File;
 
   constructor(file: File);
@@ -77,7 +80,7 @@ export class AssetDto extends AssetMetadataDto {
         new Date().toISOString(),
         arg.size
       );
-      this.dataUrl = "";
+      this._dataUrl = undefined;
       this.file = arg;
     } else {
       super(
@@ -88,13 +91,33 @@ export class AssetDto extends AssetMetadataDto {
         arg.lastUpdated,
         arg.size
       );
-      this.dataUrl = arg.dataUrl;
+      this._dataUrl = arg.dataUrl;
     }
   }
 
-  async setDataUrl(): Promise<void> {
-    if (this.file && this.dataUrl === "") {
-      this.dataUrl = await fileToDataUrl(this.file);
+  get dataUrl(): Promise<string> {
+    if (this._dataUrl) return Promise.resolve(this._dataUrl);
+    if (this._dataUrlPromise) return this._dataUrlPromise;
+    if (this.file) {
+      this._dataUrlPromise = fileToDataUrl(this.file).then((url) => {
+        this._dataUrl = url;
+        return url;
+      });
+      return this._dataUrlPromise;
     }
+    return Promise.resolve(this._dataUrl || "");
+  }
+
+  async toAsset(): Promise<Asset> {
+    const dataUrl = await this.dataUrl;
+    return {
+      id: this.id,
+      type: this.type,
+      dataUrl,
+      name: this.name,
+      uploadedAt: this.uploadedAt,
+      lastUpdated: this.lastUpdated,
+      size: this.size,
+    };
   }
 }

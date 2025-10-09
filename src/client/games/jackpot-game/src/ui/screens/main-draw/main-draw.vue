@@ -4,7 +4,7 @@
       <h2 class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">本抽選画面</h2>
       <div v-if="!drawn">
         <div class="member-box mb-4">
-          <img :src="currentMember.photoUrl" class="w-24 h-24 rounded-full mx-auto mb-2" />
+          <img :src="currentMember.photoDataUrl" class="w-24 h-24 rounded-full mx-auto mb-2" />
           <div class="text-lg font-bold text-indigo-700">{{ currentMember.name }}</div>
         </div>
         <button @click="runMainDraw"

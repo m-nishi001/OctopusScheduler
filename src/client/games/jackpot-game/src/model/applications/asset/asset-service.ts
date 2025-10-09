@@ -18,29 +18,59 @@ export class AssetService {
     return assets.map((a) => new AssetDto(a));
   }
 
-  async addAsset(asset: AssetDto): Promise<void> {
-    await this.repo.addAssets([asset]);
+  async getAssetById(assetId: string): Promise<AssetDto | undefined> {
+    const asset = await this.repo.getAssetById(assetId);
+    return asset ? new AssetDto(asset) : undefined;
+  }
+
+  async addAsset(asset: AssetDto): Promise<AssetDto> {
+    const assetEntity = await asset.toAsset();
+    const result = await this.repo.addAssets([assetEntity]);
+    asset.id = result.successful[0].id;
+    return asset;
   }
 
   async addAssets(
-    files: File[],
+    files: File[] | AssetDto[],
     onProgress?: (index: number, success: boolean) => void
   ): Promise<{ successful: AssetDto[]; failed: AssetDto[] }> {
-    const assetDtos: AssetDto[] = [];
-    for (const file of files) {
-      const asset = new AssetDto(file);
-      await asset.setDataUrl();
-      assetDtos.push(asset);
+    let assetDtos: AssetDto[];
+    if (files.length > 0 && files[0] instanceof File) {
+      assetDtos = (files as File[]).map((file) => new AssetDto(file));
+    } else {
+      assetDtos = files as AssetDto[];
     }
-    const result = await this.repo.addAssets(assetDtos, onProgress);
+    const assetEntities = await Promise.all(
+      assetDtos.map((dto) => dto.toAsset())
+    );
+    const result = await this.repo.addAssets(assetEntities, onProgress);
+    // id をセット
+    result.successful.forEach((asset, index) => {
+      assetDtos[index].id = asset.id;
+    });
     return {
-      successful: result.successful.map((a) => new AssetDto(a)),
-      failed: result.failed.map((a) => new AssetDto(a)),
+      successful: result.successful
+        .map(
+          (asset) =>
+            assetDtos.find(
+              (dto) => dto.name === asset.name && dto.size === asset.size
+            )!
+        )
+        .filter(Boolean),
+      failed: result.failed
+        .map(
+          (asset) =>
+            assetDtos.find(
+              (dto) => dto.name === asset.name && dto.size === asset.size
+            )!
+        )
+        .filter(Boolean),
     };
   }
 
   async updateAsset(asset: AssetDto): Promise<void> {
-    await this.repo.updateAssets([asset]);
+    const assetEntity = await asset.toAsset();
+    await this.repo.updateAssets([assetEntity]);
   }
 
   async deleteAsset(assetId: string): Promise<void> {

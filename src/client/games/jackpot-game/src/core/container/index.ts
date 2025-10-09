@@ -12,6 +12,7 @@ import { DrawService } from "../../model/applications/draw/draw-service";
 import { ResultService } from "../../model/applications/result/result-service";
 import { PrizeService } from "../../model/applications/prize/prize-service";
 import { MemberService } from "../../model/applications/member/member-service";
+import { MemberBatchService } from "../../model/applications/member/member-batch-service";
 
 export class Container {
   static register() {
@@ -30,10 +31,12 @@ export class Container {
     container.register<DrawOrchestrator>("DrawOrchestrator", {
       useClass: DrawOrchestrator,
     });
-    // register application services so they can be resolved by class
     container.register("DrawService", { useClass: DrawService } as any);
     container.register("ResultService", { useClass: ResultService } as any);
     container.register("PrizeService", { useClass: PrizeService } as any);
     container.register("MemberService", { useClass: MemberService } as any);
+    container.register("MemberBatchService", {
+      useClass: MemberBatchService,
+    } as any);
   }
 }

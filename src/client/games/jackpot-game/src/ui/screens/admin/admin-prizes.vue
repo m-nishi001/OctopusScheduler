@@ -15,8 +15,8 @@
       <div v-for="(prize, idx) in prizes" :key="idx" class="admin-card">
         <input type="checkbox" v-model="selectedPrizes" :value="idx" class="admin-checkbox" />
         <div class="admin-card-content">
-          <img v-if="prize.imageAssetId" :src="prize.imageAssetId" alt="image" class="admin-thumbnail"
-            @error="onImageError" />
+          <img v-if="prize.imageDataUrl || prize.imageAssetId" :src="prize.imageDataUrl || prize.imageAssetId"
+            alt="image" class="admin-thumbnail" @error="onImageError" />
           <div v-else class="admin-thumbnail-placeholder">No Image</div>
           <h3>{{ prize.name }}</h3>
           <p>当選確率: {{ prize.probability }}/10</p>
@@ -46,7 +46,7 @@
             class="admin-input" />
           <select v-if="imageMode === 'select'" v-model="imageAssetId" class="admin-input">
             <option value="">選択なし</option>
-            <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
           </select>
         </div>
         <div v-if="imagePreview" class="admin-photo-preview">
@@ -63,7 +63,7 @@
         <div class="form-control">
           <select v-if="bgm1Mode === 'select'" v-model="bgm1AssetId" class="admin-input">
             <option value="">選択なし</option>
-            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
           </select>
           <input v-if="bgm1Mode === 'upload'" type="file" @change="onBgm1Change" accept="audio/*" class="admin-input" />
         </div>
@@ -78,7 +78,7 @@
         <div class="form-control">
           <select v-if="bgm2Mode === 'select'" v-model="bgm2AssetId" class="admin-input">
             <option value="">選択なし</option>
-            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
           </select>
           <input v-if="bgm2Mode === 'upload'" type="file" @change="onBgm2Change" accept="audio/*" class="admin-input" />
         </div>
@@ -148,11 +148,14 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { PrizeService } from '../../../model/applications/prize/prize-service';
+import { PrizeBatchService } from '../../../model/applications/prize/prize-batch-service';
+import { PrizeFetchService } from '../../../model/applications/prize/prize-fetch-service';
 import { AssetService } from '../../../model/applications/asset/asset-service';
+import { AssetDto } from '../../../model/applications/asset/dto/asset-dto';
 
 import { container } from 'tsyringe';
-const prizeService = container.resolve(PrizeService);
+const prizeBatchService = container.resolve(PrizeBatchService);
+const prizeFetchService = container.resolve(PrizeFetchService);
 const assetService = container.resolve(AssetService);
 const prizes = ref<any[]>([]);
 const originalPrizes = ref<any[]>([]);
@@ -163,28 +166,21 @@ const isPrizeChanged = (prize: any, original: any) => {
   return JSON.stringify(prize) !== JSON.stringify(original);
 };
 const savePrizes = async () => {
-  const adds: any[] = [];
-  const updates: any[] = [];
-  const deletes: string[] = [];
-  for (let i = 0; i < prizes.value.length; i++) {
-    const prize = prizes.value[i];
-    const original = originalPrizes.value[i];
-    if (!original) {
-      adds.push(prize);
-    } else if (isPrizeChanged(prize, original)) {
-      updates.push(prize);
-    }
-  }
-  for (const original of originalPrizes.value) {
-    if (!prizes.value.find((p: any) => p.id === original.id)) {
-      deletes.push(original.id);
-    }
-  }
-  await prizeService.batchOperations(adds, updates, deletes);
+  const toAdd = prizes.value.filter(p => !originalPrizes.value.find((o: any) => o.id === p.id));
+  const toUpdate = prizes.value.filter(p => {
+    const original = originalPrizes.value.find((o: any) => o.id === p.id);
+    return original && isPrizeChanged(p, original);
+  });
+  const toDelete = originalPrizes.value.filter((o: any) => !prizes.value.find((p: any) => p.id === o.id));
+  await prizeBatchService.execute({
+    add: toAdd,
+    update: toUpdate,
+    delete: toDelete
+  });
   originalPrizes.value = JSON.parse(JSON.stringify(prizes.value));
 };
 const fetchPrizes = async () => {
-  prizes.value = await prizeService.fetchPrizes();
+  prizes.value = await prizeFetchService.fetchPrizes();
   originalPrizes.value = JSON.parse(JSON.stringify(prizes.value));
   sortPrizes();
 };
@@ -207,9 +203,12 @@ const bulkDelete = () => {
 const prizeName = ref('');
 const prizeProbability = ref(5);
 const imageAssetId = ref('');
-const imagePreview = computed(() => imageAssetId.value);
+const imageAsset = ref<AssetDto | undefined>();
+const imagePreview = ref('');
 const bgm1AssetId = ref('');
+const bgm1Asset = ref<AssetDto | undefined>();
 const bgm2AssetId = ref('');
+const bgm2Asset = ref<AssetDto | undefined>();
 const assets = ref<any[]>([]);
 const imageMode = ref('upload');
 const bgm1Mode = ref('select');
@@ -229,51 +228,58 @@ const onImageError = (event: Event) => {
   img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjNTU1Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjY2NjIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPk5vIEltYWdlPC90ZXh0Pgo8L3N2Zz4=';
   img.alt = 'No Image';
 };
-const onImageChange = (e: Event) => {
+const onImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      imageAssetId.value = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    imageAsset.value = new AssetDto(file);
+    imagePreview.value = await imageAsset.value.dataUrl;
   }
 };
-const onBgm1Change = (e: Event) => {
+const onBgm1Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      bgm1AssetId.value = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    bgm1Asset.value = new AssetDto(file);
   }
 };
-const onBgm2Change = (e: Event) => {
+const onBgm2Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      bgm2AssetId.value = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    bgm2Asset.value = new AssetDto(file);
   }
 };
 const addPrize = () => {
   if (!prizeName.value) return;
-  prizes.value.push({
+  const newPrize: any = {
+    id: String(Date.now()),
     name: prizeName.value,
     probability: prizeProbability.value,
-    imageAssetId: imageAssetId.value,
-    bgm1AssetId: bgm1AssetId.value,
-    bgm2AssetId: bgm2AssetId.value,
     order: prizes.value.length + 1
-  } as any);
+  };
+  if (imageMode.value === 'upload' && imageAsset.value) {
+    newPrize.imageAsset = imageAsset.value;
+  } else if (imageMode.value === 'select' && imageAssetId.value) {
+    newPrize.imageAssetId = imageAssetId.value;
+  }
+  if (bgm1Mode.value === 'upload' && bgm1Asset.value) {
+    newPrize.bgm1Asset = bgm1Asset.value;
+  } else if (bgm1Mode.value === 'select' && bgm1AssetId.value) {
+    newPrize.bgm1AssetId = bgm1AssetId.value;
+  }
+  if (bgm2Mode.value === 'upload' && bgm2Asset.value) {
+    newPrize.bgm2Asset = bgm2Asset.value;
+  } else if (bgm2Mode.value === 'select' && bgm2AssetId.value) {
+    newPrize.bgm2AssetId = bgm2AssetId.value;
+  }
+  prizes.value.push(newPrize);
   prizeName.value = '';
   prizeProbability.value = 5;
   imageAssetId.value = '';
+  imageAsset.value = undefined;
+  imagePreview.value = '';
   bgm1AssetId.value = '';
+  bgm1Asset.value = undefined;
   bgm2AssetId.value = '';
+  bgm2Asset.value = undefined;
   showAddModal.value = false;
   sortPrizes();
 };
@@ -281,40 +287,32 @@ const editIdx = ref<number | null>(null);
 const editName = ref('');
 const editProbability = ref(5);
 const editImageAssetId = ref('');
-const editImagePreview = computed(() => editImageAssetId.value);
+const editImageAsset = ref<AssetDto | undefined>();
+const editImagePreview = ref('');
 const editBgm1AssetId = ref('');
+const editBgm1Asset = ref<AssetDto | undefined>();
 const editBgm2AssetId = ref('');
+const editBgm2Asset = ref<AssetDto | undefined>();
 const editImageMode = ref('upload');
 const editBgm1Mode = ref('select');
 const editBgm2Mode = ref('select');
-const onEditImageChange = (e: Event) => {
+const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      editImageAssetId.value = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    editImageAsset.value = new AssetDto(file);
+    editImagePreview.value = await editImageAsset.value.dataUrl;
   }
 };
-const onEditBgm1Change = (e: Event) => {
+const onEditBgm1Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      editBgm1AssetId.value = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    editBgm1Asset.value = new AssetDto(file);
   }
 };
-const onEditBgm2Change = (e: Event) => {
+const onEditBgm2Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      editBgm2AssetId.value = ev.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+    editBgm2Asset.value = new AssetDto(file);
   }
 };
 const editPrize = (idx: number) => {
@@ -323,27 +321,48 @@ const editPrize = (idx: number) => {
   editName.value = prize.name;
   editProbability.value = prize.probability;
   editImageAssetId.value = prize.imageAssetId || '';
-  editImageMode.value = prize.imageAssetId && !prize.imageAssetId.startsWith('data:') ? 'select' : 'upload';
+  editImageAsset.value = prize.imageAsset;
+  if (editImageAsset.value) {
+    editImageAsset.value.dataUrl.then(url => editImagePreview.value = url);
+  }
   editBgm1AssetId.value = prize.bgm1AssetId || '';
-  editBgm1Mode.value = prize.bgm1AssetId && !prize.bgm1AssetId.startsWith('data:') ? 'select' : 'upload';
+  editBgm1Asset.value = prize.bgm1Asset;
   editBgm2AssetId.value = prize.bgm2AssetId || '';
-  editBgm2Mode.value = prize.bgm2AssetId && !prize.bgm2AssetId.startsWith('data:') ? 'select' : 'upload';
+  editBgm2Asset.value = prize.bgm2Asset;
 };
 const saveEdit = () => {
   if (editIdx.value === null) return;
-  prizes.value[editIdx.value] = {
+  const updatedPrize: any = {
     name: editName.value,
     probability: editProbability.value,
-    imageAssetId: editImageAssetId.value,
-    bgm1AssetId: editBgm1AssetId.value,
-    bgm2AssetId: editBgm2AssetId.value
-  } as any;
+    order: prizes.value[editIdx.value].order
+  };
+  if (editImageAsset.value) {
+    updatedPrize.imageAsset = editImageAsset.value;
+  } else if (editImageAssetId.value) {
+    updatedPrize.imageAssetId = editImageAssetId.value;
+  }
+  if (editBgm1Asset.value) {
+    updatedPrize.bgm1Asset = editBgm1Asset.value;
+  } else if (editBgm1AssetId.value) {
+    updatedPrize.bgm1AssetId = editBgm1AssetId.value;
+  }
+  if (editBgm2Asset.value) {
+    updatedPrize.bgm2Asset = editBgm2Asset.value;
+  } else if (editBgm2AssetId.value) {
+    updatedPrize.bgm2AssetId = editBgm2AssetId.value;
+  }
+  prizes.value[editIdx.value] = { ...prizes.value[editIdx.value], ...updatedPrize };
   editIdx.value = null;
   editName.value = '';
   editProbability.value = 5;
   editImageAssetId.value = '';
+  editImageAsset.value = undefined;
+  editImagePreview.value = '';
   editBgm1AssetId.value = '';
+  editBgm1Asset.value = undefined;
   editBgm2AssetId.value = '';
+  editBgm2Asset.value = undefined;
   sortPrizes();
 };
 
