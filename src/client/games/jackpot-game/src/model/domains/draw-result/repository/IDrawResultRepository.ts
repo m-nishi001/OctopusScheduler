@@ -1,4 +1,4 @@
-import type { LotteryResultDto } from '../../../applications/dto/lottery-result-dto';
+import type { LotteryResultDto } from "../../../applications/draw/dto/lottery-result-dto";
 
 export interface IDrawResultRepository {
   fetchDrawResults(): Promise<LotteryResultDto[]>;

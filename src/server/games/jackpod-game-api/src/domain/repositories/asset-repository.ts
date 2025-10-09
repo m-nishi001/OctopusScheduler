@@ -12,4 +12,5 @@ export interface IAssetRepository {
     ids: string[],
     updateAsset: (asset: Asset) => Asset
   ): string[];
+  deleteAsset(id: string): void;
 }

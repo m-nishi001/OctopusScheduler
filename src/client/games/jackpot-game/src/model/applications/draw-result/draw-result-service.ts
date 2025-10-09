@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
-import type { IDrawResultRepository } from "../domains/draw-result/repository/IDrawResultRepository";
-import type { LotteryResultDto } from "./dto/lottery-result-dto";
+import type { IDrawResultRepository } from "../../domains/draw-result/repository/IDrawResultRepository";
+import type { LotteryResultDto } from "../draw/dto/lottery-result-dto";
 
 @injectable()
 export class DrawResultService {

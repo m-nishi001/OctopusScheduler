@@ -11,7 +11,7 @@ import MainLayout from '../common/main-layout.vue';
 import OpeningSequence from '../opening/opening-sequence.vue';
 import OpeningHtml from '../opening/opening-html.vue';
 import { container } from 'tsyringe';
-import { ScreenConfigService } from '../../../model/applications/screen-config-service';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 
 export default {
     name: 'EndingView',

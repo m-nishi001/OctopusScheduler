@@ -1,10 +1,7 @@
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
-import type {
-  AssetDto,
-  AssetMetadataDto,
-} from "../../applications/dto/asset-dto";
+import type { AssetMetadataDto } from "../../applications/asset/dto/asset-dto";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../../infrastructures/storage-config";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
@@ -28,12 +25,12 @@ export class AssetRepository implements IAssetRepository {
     return [];
   }
 
-  async addAsset(asset: AssetDto): Promise<void> {
+  async addAsset(asset: Asset): Promise<void> {
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<{ asset: AssetDto }>("AssetService.addAsset", asset)
-        .withSuccessed((res: { asset: AssetDto }) => {
+        .createCall<{ asset: Asset }>("AssetService.addAsset", asset)
+        .withSuccessed((res: { asset: Asset }) => {
           this.localStorage.get<Asset[]>(ASSET_CACHE_KEY).then((assets) => {
             const updated = assets ? [...assets, res.asset] : [res.asset];
             this.localStorage
@@ -47,40 +44,23 @@ export class AssetRepository implements IAssetRepository {
   }
 
   async addAssets(
-    files: File[],
+    assets: Asset[],
     onProgress?: (index: number, success: boolean) => void
-  ): Promise<{ successful: Asset[]; failed: File[] }> {
-    if (!this.gasService) return { successful: [], failed: files };
-    const assetDtos: AssetDto[] = [];
-    for (const file of files) {
-      const dataUrl = await fileToDataUrl(file);
-      const asset: AssetDto = {
-        id: "",
-        name: file.name,
-        type: getAssetType(file.type),
-        dataUrl: dataUrl,
-        uploadedAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        size: file.size,
-        meta: {},
-      };
-      assetDtos.push(asset);
-    }
-    const calls = assetDtos.map((asset) =>
-      this.gasService!.createCall<{ asset: AssetDto }>(
+  ): Promise<{ successful: Asset[]; failed: Asset[] }> {
+    if (!this.gasService) return { successful: [], failed: [] };
+    const calls = assets.map((asset) =>
+      this.gasService!.createCall<{ asset: Asset }>(
         "AssetService.addAsset",
         asset
       ).withTimeout(120000)
     );
     // 各呼び出しのPromiseを作成し、完了時にonProgressを呼ぶ
     const promises = calls.map((call, index) => {
-      return new Promise<{ index: number; success: AssetDto | false }>(
+      return new Promise<{ index: number; success: Asset | false }>(
         (resolve) => {
           call
-            .withSuccessed((res: { asset: AssetDto }) => {
+            .withSuccessed((res: { asset: Asset }) => {
               if (onProgress) onProgress(index, true);
-              // サーバーから返ってきたdataUrlをdataUrlに置き換え
-              res.asset.dataUrl = assetDtos[index].dataUrl;
               resolve({ index, success: res.asset });
             })
             .withFailuered(() => {
@@ -95,14 +75,14 @@ export class AssetRepository implements IAssetRepository {
     const results = await Promise.all(promises);
     // 成功したファイルと失敗したファイルを分ける
     const successful: Asset[] = [];
-    const failed: File[] = [];
-    const successfulAssets: AssetDto[] = [];
+    const failed: Asset[] = [];
+    const successfulAssets: Asset[] = [];
     results.forEach(({ index, success }) => {
       if (success) {
         successful.push(success);
         successfulAssets.push(success);
       } else {
-        failed.push(files[index]);
+        failed.push(assets[index]);
       }
     });
     // 成功したものをローカルストレージに追加
@@ -117,35 +97,22 @@ export class AssetRepository implements IAssetRepository {
     return { successful, failed };
   }
 
-  async updateAsset(asset: Asset): Promise<void> {
-    let assets = (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-    assets = assets.map((a: Asset) => (a.id === asset.id ? asset : a));
-    await this.localStorage.save(ASSET_CACHE_KEY, assets);
-    if (!this.gasService) return;
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<void>("AssetService.updateAsset", asset)
-        .withSuccessed(() => resolve())
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
-  }
-
-  async deleteAsset(assetId: string): Promise<void> {
-    if (!this.gasService) return;
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<void>("AssetService.deleteAsset", { assetId })
-        .withSuccessed(async () => {
-          let assets =
-            (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-          assets = assets.filter((a: Asset) => a.id !== assetId);
-          await this.localStorage.save(ASSET_CACHE_KEY, assets);
-          resolve();
-        })
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
+  async updateAssets(assets: Asset[]): Promise<void> {
+    for (const asset of assets) {
+      let currentAssets =
+        (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+      currentAssets = currentAssets.map((a: Asset) =>
+        a.id === asset.id ? asset : a
+      );
+      await this.localStorage.save(ASSET_CACHE_KEY, currentAssets);
+      if (!this.gasService) continue;
+      await new Promise<void>((resolve, reject) => {
+        this.gasService!.createCall<void>("AssetService.updateAsset", asset)
+          .withSuccessed(() => resolve())
+          .withFailuered((msg: string) => reject(new Error(msg)))
+          .invoke();
+      });
+    }
   }
 
   async deleteAssets(assetIds: string[]): Promise<void> {
@@ -166,10 +133,6 @@ export class AssetRepository implements IAssetRepository {
     let assets = (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
     assets = assets.filter((a: Asset) => !assetIds.includes(a.id));
     await this.localStorage.save(ASSET_CACHE_KEY, assets);
-  }
-
-  async syncAssetsWithServer(): Promise<Asset[]> {
-    return [];
   }
 
   async syncAssetsWithGoogleDrive(
@@ -227,8 +190,8 @@ export class AssetRepository implements IAssetRepository {
         (id) =>
           new Promise<Asset | null>((resolve) => {
             this.gasService!.createCall<{ asset: Asset | null }>(
-              "AssetService.getDomainAsset",
-              id
+              "AssetService.getAssetById",
+              { assetId: id }
             )
               .withTimeout(120000)
               .withSuccessed((res: { asset: Asset | null }) => {
@@ -276,21 +239,3 @@ export class AssetRepository implements IAssetRepository {
     return assets.find((a) => a.id === assetId);
   }
 }
-
-const getAssetType = (
-  mimeType: string
-): "image" | "video" | "audio" | "text" => {
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType.startsWith("video/")) return "video";
-  if (mimeType.startsWith("audio/")) return "audio";
-  return "text";
-};
-
-const fileToDataUrl = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};

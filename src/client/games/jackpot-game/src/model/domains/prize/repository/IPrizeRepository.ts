@@ -1,7 +1,11 @@
-import type { PrizeDto } from "../../../applications/dto/prize-dto";
+import type { PrizeDto } from "../../../applications/prize/dto/prize-dto";
 
 export interface IPrizeRepository {
   fetchPrizes(): Promise<PrizeDto[]>;
-  batchOperations(adds: PrizeDto[], updates: PrizeDto[], deletes: string[]): Promise<void>;
+  batchOperations(
+    adds: PrizeDto[],
+    updates: PrizeDto[],
+    deletes: string[]
+  ): Promise<void>;
   syncPrizesWithServer(): Promise<PrizeDto[]>;
 }

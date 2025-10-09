@@ -21,12 +21,12 @@
 
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { ResultService } from '../../../model/applications/result-service';
+import { ResultService } from '../../../model/applications/result/result-service';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
-import { ScreenConfigService } from '../../../model/applications/screen-config-service';
+import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 
 export default {
   name: 'ResultView',

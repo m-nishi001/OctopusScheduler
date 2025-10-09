@@ -1,7 +1,8 @@
 import { injectable, inject } from "tsyringe";
-import type { IPrizeRepository } from "../domains/prize/repository/IPrizeRepository";
-import type { IAssetRepository } from "../../model/domains/asset/repository/IAssetRepository";
+import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
+import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 import type { PrizeDto } from "./dto/prize-dto";
+import { AssetDto } from "../asset/dto/asset-dto";
 
 @injectable()
 export class PrizeService {
@@ -16,22 +17,20 @@ export class PrizeService {
     return prizes.map((p) => ({ ...p }));
   }
 
-  async batchOperations(adds: PrizeDto[], updates: PrizeDto[], deletes: string[]): Promise<void> {
+  async batchOperations(
+    adds: PrizeDto[],
+    updates: PrizeDto[],
+    deletes: string[]
+  ): Promise<void> {
     for (const prize of adds) {
       if (
         (prize as any).imageAsset &&
         typeof (prize as any).imageAsset !== "string"
       ) {
-        const assetDto = {
-          id: prize.imageAssetId || "",
-          type: "image" as "image",
-          dataUrl: "",
-          name: prize.name + "_image",
-          uploadedAt: new Date().toISOString(),
-          lastUpdated: new Date().toISOString(),
-          size: (prize as any).imageAsset.size || 0,
-        };
-        await this.assetRepo.addAsset(assetDto);
+        const file = (prize as any).imageAsset as File;
+        const assetDto = new AssetDto(file);
+        await assetDto.setDataUrl();
+        await this.assetRepo.addAssets([assetDto]);
         prize.imageAssetId = assetDto.id;
         (prize as any).imageAssetUrl = assetDto.dataUrl;
       }
@@ -41,16 +40,10 @@ export class PrizeService {
         (prize as any).imageAsset &&
         typeof (prize as any).imageAsset !== "string"
       ) {
-        const assetDto = {
-          id: prize.imageAssetId || "",
-          type: "image" as "image",
-          dataUrl: "",
-          name: prize.name + "_image",
-          uploadedAt: new Date().toISOString(),
-          lastUpdated: new Date().toISOString(),
-          size: (prize as any).imageAsset.size || 0,
-        };
-        await this.assetRepo.updateAsset(assetDto);
+        const file = (prize as any).imageAsset as File;
+        const assetDto = new AssetDto(file);
+        await assetDto.setDataUrl();
+        await this.assetRepo.updateAssets([assetDto]);
         prize.imageAssetId = assetDto.id;
         (prize as any).imageAssetUrl = assetDto.dataUrl;
       }

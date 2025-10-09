@@ -3,43 +3,30 @@ import type { IAssetRepository as IAssetRepository } from "../../domain/reposito
 import { GoogleDriveService } from "../../../../../shared-packages/src/google-drive-service";
 import type { AssetMetadataDto } from "../../application/dtos/asset.dto";
 
-function getAssetFolderId(): string {
-  const props = PropertiesService.getScriptProperties();
-  const folderId = props.getProperty("jackpot-game-asset-folder-id");
-  if (!folderId) {
-    throw new Error(
-      "jackpot-game-asset-folder-id is not set in script properties."
-    );
+export class AssetRepository implements IAssetRepository {
+  findAll(): Asset[] {
+    const folderId = this.getAssetFolderId();
+    if (!folderId) return [];
+    const files = this.listAssets();
+    return files.map((file) => this.mapFileToAsset(file));
   }
-  return folderId;
-}
 
-export class AssetRepositoryImpl implements IAssetRepository {
-  private assetTypeToMimeTypeMap: Record<string, string> = {
-    image: "image/png",
-    video: "video/mp4",
-    audio: "audio/mp3",
-    text: "text/plain",
-  };
+  findAllIds(): string[] {
+    const folderId = this.getAssetFolderId();
+    if (!folderId) return [];
+    const files = this.listAssets();
+    return files.map((file) => file.getId());
+  }
 
-  uploadAsset(asset: Asset): string {
-    const blob = this.convertToBlobFromDataUrl(
-      asset.dataUrl,
-      asset.name,
-      asset.type
-    );
-    const folderId = getAssetFolderId();
-    const file = GoogleDriveService.uploadFile({
-      fileName: asset.name,
-      parentFolderId: folderId,
-      mimeType: this.getMimeTypeFromAssetType(asset.type),
-      blob: blob,
-    });
-    return file ? file.id || "" : "";
+  findAllMetadata(): AssetMetadataDto[] {
+    const folderId = this.getAssetFolderId();
+    if (!folderId) return [];
+    const files = this.listAssets();
+    return files.map((file) => this.mapFileToAssetMetadata(file));
   }
 
   getAsset(id: string): Asset | null {
-    const folderId = getAssetFolderId();
+    const folderId = this.getAssetFolderId();
     const files = GoogleDriveService.findFileByIds({
       fileIds: [id],
       parentFolderId: folderId,
@@ -47,57 +34,6 @@ export class AssetRepositoryImpl implements IAssetRepository {
     if (files.length === 0) return null;
     const file = files[0];
     return this.mapFileToAsset(file);
-  }
-
-  findAll(): Asset[] {
-    const folderId = getAssetFolderId();
-    if (!folderId) {
-      console.warn(
-        "[AssetRepository] jackpot-game-asset-folder-id is not set in script properties."
-      );
-      return [];
-    }
-    try {
-      const files = this.listAssets();
-      return files.map((file) => this.mapFileToAsset(file));
-    } catch (error) {
-      console.error("[AssetRepository] Error in findAll:", error);
-      return [];
-    }
-  }
-
-  findAllIds(): string[] {
-    const folderId = getAssetFolderId();
-    if (!folderId) {
-      console.warn(
-        "[AssetRepository] jackpot-game-asset-folder-id is not set in script properties."
-      );
-      return [];
-    }
-    try {
-      const files = this.listAssets();
-      return files.map((file) => file.getId());
-    } catch (error) {
-      console.error("[AssetRepository] Error in findAllIds:", error);
-      return [];
-    }
-  }
-
-  findAllMetadata(): AssetMetadataDto[] {
-    const folderId = getAssetFolderId();
-    if (!folderId) {
-      console.warn(
-        "[AssetRepository] jackpot-game-asset-folder-id is not set in script properties."
-      );
-      return [];
-    }
-    try {
-      const files = this.listAssets();
-      return files.map((file) => this.mapFileToAssetMetadata(file));
-    } catch (error) {
-      console.error("[AssetRepository] Error in findAllMetadata:", error);
-      return [];
-    }
   }
 
   updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string {
@@ -111,49 +47,33 @@ export class AssetRepositoryImpl implements IAssetRepository {
     ids: string[],
     updateAsset: (asset: Asset) => Asset
   ): string[] {
-    const results: string[] = [];
-    for (const id of ids) {
-      const updatedId = this.updateAsset(id, updateAsset);
-      results.push(updatedId);
-    }
-    return results;
+    return ids.map((id) => this.updateAsset(id, updateAsset));
+  }
+
+  uploadAsset(asset: Asset): string {
+    const blob = this.convertToBlobFromDataUrl(asset.dataUrl, asset.name);
+    const folderId = this.getAssetFolderId();
+    const file = GoogleDriveService.uploadFile({
+      fileName: asset.name,
+      parentFolderId: folderId,
+      mimeType: blob.getContentType() || "text/plain",
+      blob: blob,
+    });
+    return file ? file.id || "" : "";
+  }
+
+  deleteAsset(id: string): void {
+    GoogleDriveService.deleteFilesOrFolders([id]);
   }
 
   private convertToBlobFromDataUrl(
     dataUrl: string,
-    assetName: string,
-    assetType: string
+    assetName: string
   ): GoogleAppsScript.Base.Blob {
-    const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
-    if (!matches || matches.length !== 3)
-      throw new Error("Invalid data URL format.");
-    const base64Data = matches[2];
+    const base64Data = dataUrl.split(",")[1];
+    const mimeType = dataUrl.split(",")[0].split(":")[1].split(";")[0];
     const decodedData = Utilities.base64Decode(base64Data);
-    return Utilities.newBlob(
-      decodedData,
-      this.getMimeTypeFromAssetType(assetType),
-      assetName
-    );
-  }
-
-  private getMimeTypeFromAssetType(assetType: string): string {
-    return this.assetTypeToMimeTypeMap[assetType] || "text/plain";
-  }
-
-  private getAssetTypeFromMimeType(
-    mimeType: string
-  ): "image" | "video" | "audio" | "text" {
-    const mainType = mimeType.split("/")[0];
-    switch (mainType) {
-      case "image":
-        return "image";
-      case "video":
-        return "video";
-      case "audio":
-        return "audio";
-      default:
-        return "text";
-    }
+    return Utilities.newBlob(decodedData, mimeType, assetName);
   }
 
   private generateDataUrlFromBlob(blob: GoogleAppsScript.Base.Blob): string {
@@ -162,8 +82,31 @@ export class AssetRepositoryImpl implements IAssetRepository {
     return "data:" + blob.getContentType() + ";base64," + base64Data;
   }
 
+  private getAssetFolderId(): string {
+    const props = PropertiesService.getScriptProperties();
+    const folderId = props.getProperty("jackpot-game-asset-folder-id");
+    if (!folderId) {
+      throw new Error(
+        "jackpot-game-asset-folder-id is not set in script properties."
+      );
+    }
+    return folderId;
+  }
+
+  private listAssets(): GoogleAppsScript.Drive.File[] {
+    const folderId = this.getAssetFolderId();
+    const folder = DriveApp.getFolderById(folderId);
+    const fileIterator = folder.getFiles();
+    const files: GoogleAppsScript.Drive.File[] = [];
+    while (fileIterator.hasNext()) {
+      files.push(fileIterator.next());
+    }
+    return files;
+  }
+
   private mapFileToAsset(file: GoogleAppsScript.Drive.File): Asset {
-    const type = this.getAssetTypeFromMimeType(file.getMimeType());
+    const mimeType = file.getMimeType();
+    const type = mimeType.split("/")[0] as "image" | "video" | "audio" | "text";
     const blob = file.getBlob();
     const dataUrl = this.generateDataUrlFromBlob(blob);
     return {
@@ -174,14 +117,14 @@ export class AssetRepositoryImpl implements IAssetRepository {
       uploadedAt: file.getDateCreated().toISOString(),
       lastUpdated: file.getLastUpdated().toISOString(),
       size: file.getSize(),
-      meta: {},
     };
   }
 
   private mapFileToAssetMetadata(
     file: GoogleAppsScript.Drive.File
   ): AssetMetadataDto {
-    const type = this.getAssetTypeFromMimeType(file.getMimeType());
+    const mimeType = file.getMimeType();
+    const type = mimeType.split("/")[0] as "image" | "video" | "audio" | "text";
     return {
       id: file.getId(),
       type,
@@ -189,80 +132,6 @@ export class AssetRepositoryImpl implements IAssetRepository {
       uploadedAt: file.getDateCreated().toISOString(),
       lastUpdated: file.getLastUpdated().toISOString(),
       size: file.getSize(),
-      meta: {},
     };
-  }
-
-  private listAssets(): GoogleAppsScript.Drive.File[] {
-    const folderId = getAssetFolderId();
-    const folder = DriveApp.getFolderById(folderId);
-    const fileIterator = folder.getFiles();
-    const files: GoogleAppsScript.Drive.File[] = [];
-    while (fileIterator.hasNext()) {
-      files.push(fileIterator.next());
-    }
-    return files;
-  }
-}
-
-// Static utility methods for legacy GAS API compatibility
-export class AssetRepositoryImplStatic {
-  static convertToBlobFromDataUrl(
-    dataUrl: string,
-    assetName: string,
-    mimeType?: string
-  ): GoogleAppsScript.Base.Blob {
-    const matches = dataUrl.match(/^data:(.+);base64,(.+)$/);
-    if (!matches || matches.length !== 3)
-      throw new Error("Invalid data URL format.");
-    const base64Data = matches[2];
-    const decodedData = Utilities.base64Decode(base64Data);
-    return Utilities.newBlob(decodedData, mimeType || matches[1], assetName);
-  }
-  static uploadAsset(
-    fileName: string,
-    mimeType: string,
-    blob: GoogleAppsScript.Base.Blob
-  ): string {
-    const folderId = getAssetFolderId();
-    const file = GoogleDriveService.uploadFile({
-      fileName,
-      parentFolderId: folderId,
-      mimeType,
-      blob,
-    });
-    return file ? file.id || "" : "";
-  }
-  static deleteAsset(assetId: string): void {
-    GoogleDriveService.deleteFilesOrFolders([assetId]);
-  }
-  static getAssetById(assetId: string): GoogleAppsScript.Drive.File | null {
-    const folderId = getAssetFolderId();
-    const files = GoogleDriveService.findFileByIds({
-      fileIds: [assetId],
-      parentFolderId: folderId,
-    });
-    return files.length > 0 ? files[0] : null;
-  }
-  static listAssets(): GoogleAppsScript.Drive.File[] {
-    const folderId = getAssetFolderId();
-    if (!folderId) {
-      console.warn(
-        "[AssetRepository] jackpot-game-asset-folder-id is not set in script properties."
-      );
-      return [];
-    }
-    try {
-      const folder = DriveApp.getFolderById(folderId);
-      const fileIterator = folder.getFiles();
-      const files: GoogleAppsScript.Drive.File[] = [];
-      while (fileIterator.hasNext()) {
-        files.push(fileIterator.next());
-      }
-      return files;
-    } catch (error) {
-      console.error("[AssetRepository] Error in listAssets:", error);
-      return [];
-    }
   }
 }

@@ -2,9 +2,9 @@ import { injectable, inject } from "tsyringe";
 import type { DrawRequest } from "./dto/draw-request";
 import type { DrawResponse } from "./dto/draw-response";
 import { DrawService } from "./draw-service";
-import { ResultService } from "./result-service";
-import { PrizeService } from "./prize-service";
-import { MemberService } from "./member-service";
+import { ResultService } from "../result/result-service";
+import { PrizeService } from "../prize/prize-service";
+import { MemberService } from "../member/member-service";
 
 @injectable()
 export class DrawOrchestrator {

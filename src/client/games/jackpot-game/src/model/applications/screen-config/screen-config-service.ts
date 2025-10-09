@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
-import type { IScreenConfigRepository } from "../domains/screen-config/repository/IScreenConfigRepository";
-import type { IAssetRepository } from "../domains/asset/repository/IAssetRepository";
+import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
+import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 import type { ScreenConfigDto } from "./dto/screen-config-dto";
 
 @injectable()

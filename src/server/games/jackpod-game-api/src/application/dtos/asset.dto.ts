@@ -1,53 +1,65 @@
 import type { Asset } from "../../domain/entities/asset";
 
-export interface AssetMetadataDto {
+export class AssetMetadataDto {
   id: string;
   type: "image" | "video" | "audio" | "text";
   name: string;
   uploadedAt: string;
   lastUpdated: string;
   size: number;
-  meta?: Record<string, any>;
+
+  constructor(
+    id: string,
+    type: "image" | "video" | "audio" | "text",
+    name: string,
+    uploadedAt: string,
+    lastUpdated: string,
+    size: number
+  ) {
+    this.id = id;
+    this.type = type;
+    this.name = name;
+    this.uploadedAt = uploadedAt;
+    this.lastUpdated = lastUpdated;
+    this.size = size;
+  }
 }
 
-export interface AssetDto extends AssetMetadataDto {
+export class AssetDto extends AssetMetadataDto {
   dataUrl: string;
-}
 
-export function toAssetDto(entity: Asset): AssetDto {
-  return {
-    id: entity.id,
-    type: entity.type,
-    dataUrl: entity.dataUrl,
-    name: entity.name,
-    uploadedAt: entity.uploadedAt,
-    lastUpdated: entity.lastUpdated,
-    size: entity.size,
-    meta: entity.meta,
-  };
-}
+  constructor(entity: Asset) {
+    super(
+      entity.id,
+      entity.type,
+      entity.name,
+      entity.uploadedAt,
+      entity.lastUpdated,
+      entity.size
+    );
+    this.dataUrl = entity.dataUrl;
+  }
 
-export function toAssetMetadataDto(entity: Asset): AssetMetadataDto {
-  return {
-    id: entity.id,
-    type: entity.type,
-    name: entity.name,
-    uploadedAt: entity.uploadedAt,
-    lastUpdated: entity.lastUpdated,
-    size: entity.size,
-    meta: entity.meta,
-  };
-}
+  static toAsset(dto: AssetDto): Asset {
+    return {
+      id: dto.id,
+      type: dto.type,
+      dataUrl: dto.dataUrl,
+      name: dto.name,
+      uploadedAt: dto.uploadedAt,
+      lastUpdated: dto.lastUpdated,
+      size: dto.size,
+    };
+  }
 
-export function toAsset(entity: AssetDto): Asset {
-  return {
-    id: entity.id,
-    type: entity.type,
-    dataUrl: entity.dataUrl,
-    name: entity.name,
-    uploadedAt: entity.uploadedAt,
-    lastUpdated: entity.lastUpdated,
-    size: entity.size,
-    meta: entity.meta,
-  };
+  static toAssetMetadataDto(entity: Asset): AssetMetadataDto {
+    return new AssetMetadataDto(
+      entity.id,
+      entity.type,
+      entity.name,
+      entity.uploadedAt,
+      entity.lastUpdated,
+      entity.size
+    );
+  }
 }

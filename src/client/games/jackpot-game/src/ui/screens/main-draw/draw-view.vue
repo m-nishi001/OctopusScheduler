@@ -51,16 +51,20 @@
 </template>
 
 <script lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import Button from '../common/button.vue';
 import Loader from '../common/loader.vue';
-import type { MemberDto } from '../../../model/applications/dto/member-dto';
-import type { PrizeDto } from '../../../model/applications/dto/prize-dto';
-import type { DrawResultDto } from '../../../model/applications/dto/draw-result-dto';
+import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
+import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
+import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import gsap from 'gsap';
+import { DrawService } from '../../../model/applications/draw/draw-service';
+import { ResultService } from '../../../model/applications/result/result-service';
+import { PrizeService } from '../../../model/applications/prize/prize-service';
+import { MemberService } from '../../../model/applications/member/member-service';
 
 export default {
   name: 'DrawView',
@@ -72,16 +76,28 @@ export default {
     const selectedPrize = ref<PrizeDto | null>(null);
     const results = ref<DrawResultDto[]>([]);
     const router = useRouter();
-    const drawOrchestrator = container.resolve<any>('DrawOrchestrator');
+    const drawService = container.resolve(DrawService);
+    const resultService = container.resolve(ResultService);
+    const prizeService = container.resolve(PrizeService);
+    const memberService = container.resolve(MemberService);
+    const prizes = ref<PrizeDto[]>([]);
+    const members = ref<MemberDto[]>([]);
     const memberDisplay = ref<HTMLElement | null>(null);
     const prizeDisplay = ref<HTMLElement | null>(null);
+
+    onMounted(async () => {
+      prizes.value = await prizeService.fetchPrizes();
+      members.value = await memberService.fetchMembers();
+    });
 
     const executeDraw = async () => {
       loading.value = true;
       try {
-        // delegate draw orchestration to model layer
-        const drawRes = await drawOrchestrator.executeFullDraw();
-        const resultRes = await drawOrchestrator.fetchResult(drawRes.drawId);
+        const drawRes = await drawService.executeDraw({
+          prizes: prizes.value,
+          members: members.value,
+        });
+        const resultRes = await resultService.getResult(drawRes.drawId);
         results.value = resultRes?.results ?? [];
 
         // 演出ループ (実際の結果を使って)

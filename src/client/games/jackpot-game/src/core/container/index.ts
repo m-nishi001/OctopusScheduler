@@ -7,11 +7,11 @@ import type { IMemberRepository } from "../../model/domains/member/repository/IM
 import type { IAssetRepository } from "../../model/domains/asset/repository/IAssetRepository";
 import type { IPrizeRepository } from "../../model/domains/prize/repository/IPrizeRepository";
 import type { IScreenConfigRepository } from "../../model/domains/screen-config/repository/IScreenConfigRepository";
-import { DrawOrchestrator } from "../../model/applications/draw-orchestrator";
-import { DrawService } from "../../model/applications/draw-service";
-import { ResultService } from "../../model/applications/result-service";
-import { PrizeService } from "../../model/applications/prize-service";
-import { MemberService } from "../../model/applications/member-service";
+import { DrawOrchestrator } from "../../model/applications/draw/draw-orchestrator";
+import { DrawService } from "../../model/applications/draw/draw-service";
+import { ResultService } from "../../model/applications/result/result-service";
+import { PrizeService } from "../../model/applications/prize/prize-service";
+import { MemberService } from "../../model/applications/member/member-service";
 
 export class Container {
   static register() {

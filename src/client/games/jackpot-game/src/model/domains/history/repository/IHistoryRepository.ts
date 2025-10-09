@@ -1,4 +1,4 @@
-import type { HistoryDto } from '../../../applications/dto/history-dto';
+import type { HistoryDto } from "../../../applications/history/dto/history-dto";
 
 export interface IHistoryRepository {
   getHistory(): Promise<HistoryDto[]>;

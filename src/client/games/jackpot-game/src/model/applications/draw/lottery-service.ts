@@ -1,5 +1,5 @@
 import { injectable, inject } from "tsyringe";
-import type { IDrawRepository } from "../domains/draw/repository/IDrawRepository";
+import type { IDrawRepository } from "../../domains/draw/repository/IDrawRepository";
 import type { DrawRequest } from "./dto/draw-request";
 import type { DrawResponse } from "./dto/draw-response";
 

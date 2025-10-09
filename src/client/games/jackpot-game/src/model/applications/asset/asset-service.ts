@@ -1,12 +1,12 @@
 import { injectable, inject, container } from "tsyringe";
-import type { IAssetRepository } from "../../model/domains/asset/repository/IAssetRepository";
-import type { AssetDto } from "./dto/asset-dto";
-import type { MemberDto } from "./dto/member-dto";
-import type { PrizeDto } from "./dto/prize-dto";
-import type { ScreenConfigDto } from "./dto/screen-config-dto";
-import { MemberService } from "./member-service";
-import { PrizeService } from "./prize-service";
-import { ScreenConfigService } from "./screen-config-service";
+import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
+import { AssetDto } from "./dto/asset-dto";
+import type { MemberDto } from "../member/dto/member-dto";
+import type { PrizeDto } from "../prize/dto/prize-dto";
+import type { ScreenConfigDto } from "../screen-config/dto/screen-config-dto";
+import { MemberService } from "../member/member-service";
+import { PrizeService } from "../prize/prize-service";
+import { ScreenConfigService } from "../screen-config/screen-config-service";
 
 @injectable()
 export class AssetService {
@@ -15,26 +15,36 @@ export class AssetService {
   async fetchAssets(): Promise<AssetDto[]> {
     const assets = await this.repo.fetchAssets();
     if (!Array.isArray(assets) || !assets) return [];
-    return assets.map((a) => ({ ...a }));
+    return assets.map((a) => new AssetDto(a));
   }
 
   async addAsset(asset: AssetDto): Promise<void> {
-    await this.repo.addAsset(asset);
+    await this.repo.addAssets([asset]);
   }
 
   async addAssets(
     files: File[],
     onProgress?: (index: number, success: boolean) => void
-  ): Promise<{ successful: AssetDto[]; failed: File[] }> {
-    return this.repo.addAssets(files, onProgress);
+  ): Promise<{ successful: AssetDto[]; failed: AssetDto[] }> {
+    const assetDtos: AssetDto[] = [];
+    for (const file of files) {
+      const asset = new AssetDto(file);
+      await asset.setDataUrl();
+      assetDtos.push(asset);
+    }
+    const result = await this.repo.addAssets(assetDtos, onProgress);
+    return {
+      successful: result.successful.map((a) => new AssetDto(a)),
+      failed: result.failed.map((a) => new AssetDto(a)),
+    };
   }
 
   async updateAsset(asset: AssetDto): Promise<void> {
-    await this.repo.updateAsset(asset);
+    await this.repo.updateAssets([asset]);
   }
 
   async deleteAsset(assetId: string): Promise<void> {
-    await this.repo.deleteAsset(assetId);
+    await this.repo.deleteAssets([assetId]);
   }
 
   async deleteAssets(assetIds: string[]): Promise<void> {
@@ -47,14 +57,9 @@ export class AssetService {
     await this.repo.syncAssetsWithGoogleDrive(onProgress);
   }
 
-  /**
-   * 指定したアセットID群について、使用箇所の文字列配列を返す。
-   * UIはこの結果をそのまま表示するだけにする想定。
-   */
   async getUsagesForAssets(
     assetIds: string[]
   ): Promise<Record<string, string[]>> {
-    // resolve application-level services dynamically to avoid constructor churn / circular deps
     const memberService = container.resolve(MemberService);
     const prizeService = container.resolve(PrizeService);
     const screenConfigService = container.resolve(ScreenConfigService);
@@ -123,9 +128,6 @@ export class AssetService {
     return map;
   }
 
-  /**
-   * 指定したアセットID一覧を逐次削除し、進捗を onProgress に渡す。UI側は進捗表示だけ行う。
-   */
   async deleteAssetsWithProgress(
     assetIds: string[],
     onProgress?: (result: {
@@ -141,14 +143,13 @@ export class AssetService {
     for (const id of assetIds) {
       let name: string | undefined = undefined;
       try {
-        // try to get local metadata for nicer progress messages
         const asset = await this.repo.getAssetById?.(id as any);
         name = (asset as any)?.name;
       } catch (e) {
         /* ignore */
       }
       try {
-        await this.deleteAsset(id);
+        await this.deleteAssets([id]);
         completed++;
         onProgress?.({ id, success: true, name, completed, total });
       } catch (e) {

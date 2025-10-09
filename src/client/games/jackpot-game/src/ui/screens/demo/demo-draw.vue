@@ -23,11 +23,11 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
-import { ScreenConfigService } from '../../../model/applications/screen-config-service';
+import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { container } from 'tsyringe';
-import { PrizeService } from '../../../model/applications/prize-service';
-import { MemberService } from '../../../model/applications/member-service';
+import { PrizeService } from '../../../model/applications/prize/prize-service';
+import { MemberService } from '../../../model/applications/member/member-service';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },

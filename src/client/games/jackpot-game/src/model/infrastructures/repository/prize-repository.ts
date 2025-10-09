@@ -1,5 +1,5 @@
 import type { Prize } from "../../domains/prize/prize";
-import type { PrizeDto } from "../../applications/dto/prize-dto";
+import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../../infrastructures/storage-config";
@@ -37,7 +37,11 @@ export class PrizeRepository implements IPrizeRepository {
     });
   }
 
-  async batchOperations(adds: PrizeDto[], updates: PrizeDto[], deletes: string[]): Promise<void> {
+  async batchOperations(
+    adds: PrizeDto[],
+    updates: PrizeDto[],
+    deletes: string[]
+  ): Promise<void> {
     // 1. キャッシュ更新
     let prizes =
       (await this.localStorage.get<PrizeDto[]>(PRIZE_CACHE_KEY)) || [];
@@ -56,7 +60,11 @@ export class PrizeRepository implements IPrizeRepository {
     const updateArgs = updates.map((u) => ({ ids: [u.id], prize: u }));
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<void>("PrizeService.batchOperations", { adds, updates: updateArgs, deletes })
+        .createCall<void>("PrizeService.batchOperations", {
+          adds,
+          updates: updateArgs,
+          deletes,
+        })
         .withSuccessed(() => resolve())
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();

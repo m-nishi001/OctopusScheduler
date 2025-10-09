@@ -6,5 +6,4 @@ export interface Asset {
   uploadedAt: string;
   lastUpdated: string;
   size: number;
-  meta?: Record<string, any>;
 }

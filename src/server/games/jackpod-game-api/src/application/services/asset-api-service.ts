@@ -1,13 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { GasService } from "./gas-service";
 import { AssetDto, AssetMetadataDto } from "../dtos/asset.dto";
-import { AssetRepositoryImplStatic } from "../../infrastructure/repositories/asset-repository";
 import { IAssetRepository } from "../../domain/repositories/asset-repository";
-import {
-  toAssetEntity,
-  toAssetDto,
-  toAssetMetadataDto,
-} from "../dtos/asset.mapper";
 
 @injectable()
 export class AssetApiService implements GasService {
@@ -18,77 +12,21 @@ export class AssetApiService implements GasService {
     @inject("IAssetRepository") private repository: IAssetRepository
   ) {
     this.functions = {
-      uploadAsset: this.uploadAsset.bind(this),
       deleteAsset: this.deleteAsset.bind(this),
       getAssetById: this.getAssetById.bind(this),
-      listAssets: this.listAssets.bind(this),
-      getAssetIds: this.getAssetIds.bind(this),
       getAssetMetadata: this.getAssetMetadata.bind(this),
-      getAllMetadatas: this.getAssetMetadata.bind(this),
-      uploadDomainAsset: this.uploadDomainAsset.bind(this),
-      getDomainAsset: this.getDomainAsset.bind(this),
       addAsset: this.addAsset.bind(this),
-      updateName: this.updateName.bind(this),
     };
   }
 
-  uploadAsset(args: { fileName: string; mimeType: string; dataUrl: string }): {
-    asset: AssetDto;
-  } {
-    const blob = AssetRepositoryImplStatic.convertToBlobFromDataUrl(
-      args.dataUrl,
-      args.fileName,
-      args.mimeType
-    );
-    const assetId = AssetRepositoryImplStatic.uploadAsset(
-      args.fileName,
-      args.mimeType,
-      blob
-    );
-    const file = AssetRepositoryImplStatic.getAssetById(assetId);
-
-    const type = this.getAssetType(args.mimeType);
-
-    const asset: AssetDto = file
-      ? {
-          id: file.getId(),
-          type,
-          dataUrl: "",
-          name: file.getName(),
-          uploadedAt: "",
-          lastUpdated: file.getLastUpdated().toISOString(),
-          size: file.getSize(),
-          meta: {},
-        }
-      : {
-          id: assetId,
-          type,
-          dataUrl: "",
-          name: args.fileName,
-          uploadedAt: "",
-          lastUpdated: new Date().toISOString(),
-          size: 0,
-          meta: {},
-        };
-    return { asset };
-  }
-
   deleteAsset(args: { assetId: string }): { success: boolean } {
-    AssetRepositoryImplStatic.deleteAsset(args.assetId);
+    this.repository.deleteAsset(args.assetId);
     return { success: true };
   }
 
-  getAssetById(args: { assetId: string }): GoogleAppsScript.Drive.File | null {
-    return AssetRepositoryImplStatic.getAssetById(args.assetId);
-  }
-
-  listAssets(): GoogleAppsScript.Drive.File[] {
-    return AssetRepositoryImplStatic.listAssets();
-  }
-
-  getAssetIds(): { ids: string[] } {
-    const ids = this.repository.findAllIds();
-    return { ids };
+  getAssetById(args: { assetId: string }): { asset: AssetDto | null } {
+    const asset = this.repository.getAsset(args.assetId);
+    return { asset: asset ? new AssetDto(asset) : null };
   }
 
   getAssetMetadata(): { assets: AssetMetadataDto[] } {
@@ -96,97 +34,10 @@ export class AssetApiService implements GasService {
     return { assets };
   }
 
-  uploadDomainAsset(assetDto: AssetDto): string {
-    const assetEntity = toAssetEntity(assetDto);
-    return this.repository.uploadAsset(assetEntity);
-  }
-
-  // Consistent response shape expected by client-side GasFunction consumers.
-  // Always return an object with an `asset` field which is either AssetDto or null.
-  getDomainAsset(id: string): { asset: AssetDto | null } {
-    const assetEntity = this.repository.getAsset(id);
-    return { asset: assetEntity ? toAssetDto(assetEntity) : null };
-  }
-
   addAsset(args: AssetDto): { asset: AssetDto } {
-    const assetDto = args;
-    if (!assetDto.dataUrl.startsWith("data:")) {
-      throw new Error("Invalid data URL");
-    }
-    const blob = AssetRepositoryImplStatic.convertToBlobFromDataUrl(
-      assetDto.dataUrl,
-      assetDto.name,
-      assetDto.type === "image"
-        ? "image/png"
-        : assetDto.type === "video"
-          ? "video/mp4"
-          : assetDto.type === "audio"
-            ? "audio/mp3"
-            : "text/plain"
-    );
-    const assetId = AssetRepositoryImplStatic.uploadAsset(
-      assetDto.name,
-      assetDto.type === "image"
-        ? "image/png"
-        : assetDto.type === "video"
-          ? "video/mp4"
-          : assetDto.type === "audio"
-            ? "audio/mp3"
-            : "text/plain",
-      blob
-    );
-    const file = AssetRepositoryImplStatic.getAssetById(assetId);
-    const type = this.getAssetType(
-      file
-        ? file.getMimeType()
-        : assetDto.type === "image"
-          ? "image/png"
-          : assetDto.type === "video"
-            ? "video/mp4"
-            : assetDto.type === "audio"
-              ? "audio/mp3"
-              : "text/plain"
-    );
-    const uploadedAsset: AssetDto = file
-      ? {
-          id: file.getId(),
-          type,
-          dataUrl: file.getDownloadUrl(),
-          name: file.getName(),
-          uploadedAt: file.getDateCreated().toISOString(),
-          lastUpdated: file.getLastUpdated().toISOString(),
-          size: file.getSize(),
-          meta: {},
-        }
-      : {
-          id: assetId,
-          type,
-          dataUrl: "",
-          name: assetDto.name,
-          uploadedAt: new Date().toISOString(),
-          lastUpdated: new Date().toISOString(),
-          size: assetDto.size,
-          meta: {},
-        };
-    return { asset: uploadedAsset };
-  }
-
-  updateName(args: { assetId: string; newName: string }): void {
-    this.repository.updateAsset(args.assetId, (a) => ({
-      ...a,
-      name: args.newName,
-    }));
-  }
-
-  private getAssetType(mimeType: string): "image" | "video" | "audio" | "text" {
-    if (mimeType.startsWith("image/")) {
-      return "image";
-    } else if (mimeType.startsWith("video/")) {
-      return "video";
-    } else if (mimeType.startsWith("audio/")) {
-      return "audio";
-    } else {
-      return "text";
-    }
+    const assetEntity = AssetDto.toAsset(args);
+    const assetId = this.repository.uploadAsset(assetEntity);
+    const uploadedAsset = this.repository.getAsset(assetId);
+    return { asset: uploadedAsset ? new AssetDto(uploadedAsset) : args };
   }
 }

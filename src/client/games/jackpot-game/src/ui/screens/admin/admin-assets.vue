@@ -79,7 +79,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { AssetService } from '../../../model/applications/asset-service';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 import { container } from 'tsyringe';
 const assetService = container.resolve(AssetService);
 

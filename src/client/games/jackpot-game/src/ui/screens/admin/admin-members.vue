@@ -74,8 +74,8 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { MemberService } from '../../../model/applications/member-service';
-import { AssetService } from '../../../model/applications/asset-service';
+import { MemberService } from '../../../model/applications/member/member-service';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 
 import { container } from 'tsyringe';
 const memberService = container.resolve(MemberService);

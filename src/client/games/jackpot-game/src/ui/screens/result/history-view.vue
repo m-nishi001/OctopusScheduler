@@ -61,7 +61,7 @@ import MainLayout from '../common/main-layout.vue';
 import Button from '../common/button.vue';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { HistoryService } from '../../../model/applications/history-service';
+import { HistoryService } from '../../../model/applications/history/history-service';
 import { container } from 'tsyringe';
 
 export default {

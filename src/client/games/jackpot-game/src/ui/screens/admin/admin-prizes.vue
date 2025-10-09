@@ -148,8 +148,8 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { PrizeService } from '../../../model/applications/prize-service';
-import { AssetService } from '../../../model/applications/asset-service';
+import { PrizeService } from '../../../model/applications/prize/prize-service';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 
 import { container } from 'tsyringe';
 const prizeService = container.resolve(PrizeService);

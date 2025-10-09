@@ -32,9 +32,9 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenElementDto } from '../../../model/applications/dto/screen-config-dto';
-import type { ScreenConfigDto } from '../../../model/applications/dto/screen-config-dto';
-import { ScreenConfigService } from '../../../model/applications/screen-config-service';
+import type { ScreenElementDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
+import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',

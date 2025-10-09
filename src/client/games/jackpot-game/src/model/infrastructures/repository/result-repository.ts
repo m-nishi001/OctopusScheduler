@@ -1,4 +1,4 @@
-import type { ResultResponse } from "../../applications/dto/result-response";
+import type { ResultResponse } from "../../applications/result/dto/result-response";
 import { injectable } from "tsyringe";
 import type { Result } from "../../domains/result/result";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";

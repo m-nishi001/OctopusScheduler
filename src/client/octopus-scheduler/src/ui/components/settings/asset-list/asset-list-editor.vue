@@ -38,8 +38,6 @@
                             <td>
                                 <button class="main-btn small" @click="onPreview(asset)"><span
                                         class="btn-icon">👁️</span> プレビュー</button>
-                                <button class="main-btn small" @click="onRename(asset)"><span class="btn-icon">✏️</span>
-                                    名前変更</button>
                                 <button class="main-btn small" @click="onDelete(asset)"><span
                                         class="btn-icon">🗑️</span> 削除</button>
                             </td>
@@ -215,18 +213,6 @@ async function onSync() {
         alert('同期に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
         syncing.value = false;
-    }
-}
-
-async function onRename(asset: any) {
-    const newN = window.prompt('新しい名前を入力してください', asset.assetName);
-    if (!newN || newN === asset.assetName) return;
-    try {
-        await service.updateAsset(asset.assetId, newN);
-        await loadAssets();
-    } catch (e) {
-        console.error('Rename failed', e);
-        alert('名前変更に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     }
 }
 

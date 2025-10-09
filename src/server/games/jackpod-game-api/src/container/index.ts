@@ -23,7 +23,7 @@ import { IScreenConfigRepository } from "../domain/repositories/screen-config-re
 import { MemberRepository } from "../infrastructure/repositories/member-repository";
 import { PrizeRepository } from "../infrastructure/repositories/prize-repository";
 import { DrawResultRepository } from "../infrastructure/repositories/draw-result-repository";
-import { AssetRepositoryImpl } from "../infrastructure/repositories/asset-repository";
+import { AssetRepository } from "../infrastructure/repositories/asset-repository";
 import { ScreenConfigRepositoryImpl } from "../infrastructure/repositories/screen-config-repository";
 
 export class Container {
@@ -38,7 +38,7 @@ export class Container {
       useClass: DrawResultRepository,
     });
     container.register<IAssetRepository>("IAssetRepository", {
-      useClass: AssetRepositoryImpl,
+      useClass: AssetRepository,
     });
     container.register<IScreenConfigRepository>("IScreenConfigRepository", {
       useClass: ScreenConfigRepositoryImpl,
@@ -47,7 +47,7 @@ export class Container {
     container.register<AssetApiService>("IAssetService", {
       useClass: AssetApiService,
     });
-    container.register("IAssetRepository", { useClass: AssetRepositoryImpl });
+    container.register("IAssetRepository", { useClass: AssetRepository });
 
     container.register<GasService>("IGasService", {
       useClass: ScreenConfigService,

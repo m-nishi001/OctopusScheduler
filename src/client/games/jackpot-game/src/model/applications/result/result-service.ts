@@ -1,7 +1,7 @@
 import type { ResultResponse } from "./dto/result-response";
 import { injectable, inject } from "tsyringe";
-import type { IResultRepository } from "../../model/domains/result/repository/IResultRepository";
-import type { IAssetRepository } from "../domains/asset/repository/IAssetRepository";
+import type { IResultRepository } from "../../domains/result/repository/IResultRepository";
+import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 
 @injectable()
 export class ResultService {

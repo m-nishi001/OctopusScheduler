@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import type { LotteryResultDto } from "../../applications/dto/lottery-result-dto";
+import type { LotteryResultDto } from "../../applications/draw/dto/lottery-result-dto";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 
 @injectable()
