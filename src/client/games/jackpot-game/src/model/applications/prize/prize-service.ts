@@ -12,20 +12,16 @@ export class PrizeService {
     return prizes.map(fromPrize);
   }
 
-  async batchOperations(operations: {
-    add: PrizeDto[];
-    update: PrizeDto[];
-    delete: string[];
-  }): Promise<void> {
-    const addEntities = operations.add.map(toPrize);
-    await this.repo.addPrizes(addEntities);
+  async addPrize(prize: PrizeDto): Promise<void> {
+    await this.repo.addPrizes([toPrize(prize)]);
+  }
 
-    const updateOps = operations.update.map((dto) => ({
-      id: dto.id,
-      updateFn: (_: any) => toPrize(dto),
-    }));
+  async updatePrize(id: string, prize: PrizeDto): Promise<void> {
+    const updateOps = [{ id, updateFn: (_: any) => toPrize(prize) }];
     await this.repo.updatePrizes(updateOps);
+  }
 
-    await this.repo.deletePrizes(operations.delete);
+  async deletePrize(id: string): Promise<void> {
+    await this.repo.deletePrizes([id]);
   }
 }

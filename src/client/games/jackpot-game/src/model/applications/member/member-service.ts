@@ -12,20 +12,16 @@ export class MemberService {
     return members.map(fromMember);
   }
 
-  async batchOperations(operations: {
-    add: MemberDto[];
-    update: MemberDto[];
-    delete: string[];
-  }): Promise<void> {
-    const addEntities = operations.add.map(toMember);
-    await this.repo.addMembers(addEntities);
+  async addMember(member: MemberDto): Promise<void> {
+    await this.repo.addMembers([toMember(member)]);
+  }
 
-    const updateOps = operations.update.map((dto) => ({
-      id: dto.id,
-      updateFn: (_: any) => toMember(dto),
-    }));
+  async updateMember(id: string, member: MemberDto): Promise<void> {
+    const updateOps = [{ id, updateFn: (_: any) => toMember(member) }];
     await this.repo.updateMembers(updateOps);
+  }
 
-    await this.repo.deleteMembers(operations.delete);
+  async deleteMember(id: string): Promise<void> {
+    await this.repo.deleteMembers([id]);
   }
 }
