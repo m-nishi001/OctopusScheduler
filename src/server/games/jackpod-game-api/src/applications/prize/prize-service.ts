@@ -13,16 +13,17 @@ export class PrizeService implements GasService {
     @inject("IPrizeRepository") private readonly repository: IPrizeRepository
   ) {
     this.functions = {
-      getPrizeById: this.getPrizeById.bind(this),
+      getPrizes: this.getPrizes.bind(this),
       addPrizes: this.addPrizes.bind(this),
       updatePrizes: this.updatePrizes.bind(this),
       deletePrizes: this.deletePrizes.bind(this),
+      batchOperations: this.batchOperations.bind(this),
     };
   }
 
-  getPrizeById(args: { id: string }): PrizeDto | null {
-    const prize = this.repository.getPrizeById(args.id);
-    return prize ? toPrizeDto(prize) : null;
+  getPrizes(): PrizeDto[] {
+    const prizes = this.repository.getPrizes();
+    return prizes.map(toPrizeDto);
   }
 
   addPrizes(args: { prizes: PrizeDto[] }): void {
@@ -40,5 +41,21 @@ export class PrizeService implements GasService {
 
   deletePrizes(args: { ids: string[] }): void {
     this.repository.deletePrizes(args.ids);
+  }
+
+  batchOperations(args: {
+    adds: PrizeDto[];
+    updates: { id: string; prize: PrizeDto }[];
+    deletes: string[];
+  }): void {
+    if (args.adds.length > 0) {
+      this.addPrizes({ prizes: args.adds });
+    }
+    if (args.updates.length > 0) {
+      this.updatePrizes({ updates: args.updates });
+    }
+    if (args.deletes.length > 0) {
+      this.deletePrizes({ ids: args.deletes });
+    }
   }
 }

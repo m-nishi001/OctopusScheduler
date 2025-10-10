@@ -15,19 +15,14 @@ export class DrawResultService implements GasService {
   ) {
     this.functions = {
       addDrawResults: this.addDrawResults.bind(this),
-      addDrawResult: this.addDrawResult.bind(this),
-      getAllDrawResults: this.getAllDrawResults.bind(this),
+      getDrawResults: this.getDrawResults.bind(this),
       deleteDrawResults: this.deleteDrawResults.bind(this),
     };
   }
 
-  getAllDrawResults(): DrawResultDto[] {
+  getDrawResults(): DrawResultDto[] {
     const results = this.repository.getDrawResults();
     return results.map(toDrawResultDto);
-  }
-
-  addDrawResult(args: { result: DrawResultDto }): void {
-    this.repository.addDrawResults([toDrawResult(args.result)]);
   }
 
   addDrawResults(args: { results: DrawResultDto[] }): void {

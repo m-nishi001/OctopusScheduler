@@ -25,7 +25,7 @@ export class PrizeRepository implements IPrizeRepository {
     if (!this.gasService) return [];
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<{ prizes: Prize[] }>("PrizeService.getAll")
+        .createCall<{ prizes: Prize[] }>("PrizeService.getPrizes")
         .withSuccessed((res: { prizes: Prize[] }) => {
           this.localStorage.save(PRIZE_CACHE_KEY, res.prizes);
           resolve(res.prizes);

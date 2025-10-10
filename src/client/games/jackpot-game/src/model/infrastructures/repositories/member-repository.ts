@@ -24,7 +24,7 @@ export class MemberRepository implements IMemberRepository {
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<{ members: Member[] }>("MemberService.getAll")
+        .createCall<{ members: Member[] }>("MemberService.getMembers")
         .withSuccessed(async (res: { members: Member[] }) => {
           await this.localStorage.save(MEMBER_CACHE_KEY, res.members);
           resolve();

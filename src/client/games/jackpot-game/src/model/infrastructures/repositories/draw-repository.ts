@@ -13,7 +13,7 @@ export class DrawRepository {
   async executeDraw(request: DrawRequest): Promise<DrawResponse> {
     return new Promise((resolve, reject) => {
       this.service
-        .createCall<DrawResponse>("LotteryService.draw", request)
+        .createCall<DrawResponse>("DrawService.draw", request)
         .withSuccessed(resolve)
         .withFailuered((message: string) =>
           reject(new Error(`Failed to execute draw: ${message}`))

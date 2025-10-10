@@ -13,8 +13,8 @@ export class DrawResultRepository {
     return new Promise((resolve, reject) => {
       this.service
         .createCall<{ result: LotteryResultDto }>(
-          "DrawResultService.addDrawResult",
-          result
+          "DrawResultService.addDrawResults",
+          { results: [result] }
         )
         .withSuccessed(() => resolve())
         .withFailuered((message: string) =>

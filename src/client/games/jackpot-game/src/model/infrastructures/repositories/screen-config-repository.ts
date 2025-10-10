@@ -111,9 +111,12 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     if (!this.gasService) return undefined;
     try {
       const dto = await new Promise<ScreenConfig | null>((resolve, reject) => {
-        this.gasService!.createCall<any>("ScreenConfigService.findByType", {
-          type,
-        })
+        this.gasService!.createCall<any>(
+          "ScreenConfigService.getScreenConfig",
+          {
+            id: type,
+          }
+        )
           .withSuccessed((res: any) =>
             resolve(res ? (res as ScreenConfig) : null)
           )
@@ -156,7 +159,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
       promises.push(
         new Promise<void>((resolve, reject) => {
           this.gasService!.createCall<void>(
-            "ScreenConfigService.createScreenConfigs",
+            "ScreenConfigService.addScreenConfigs",
             {
               configs: creates,
             }
@@ -200,7 +203,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     const map = new Map<string, any>();
     if (!this.gasService) return map;
     const res = await new Promise<any[]>((resolve, reject) => {
-      this.gasService!.createCall<any[]>("ScreenConfigService.findAll")
+      this.gasService!.createCall<any[]>("ScreenConfigService.getScreenConfigs")
         .withSuccessed((r: any) => resolve(r || []))
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();

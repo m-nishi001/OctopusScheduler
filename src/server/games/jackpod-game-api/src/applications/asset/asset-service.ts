@@ -13,8 +13,8 @@ export class AssetService implements GasService {
   ) {
     this.functions = {
       deleteAsset: this.deleteAsset.bind(this),
-      getAssetById: this.getAssetById.bind(this),
-      getAssetMetadata: this.getAssetMetadata.bind(this),
+      getAsset: this.getAsset.bind(this),
+      getAssets: this.getAssets.bind(this),
       addAsset: this.addAsset.bind(this),
     };
   }
@@ -24,12 +24,12 @@ export class AssetService implements GasService {
     return { success: true };
   }
 
-  getAssetById(args: { assetId: string }): { asset: AssetDto | null } {
+  getAsset(args: { assetId: string }): { asset: AssetDto | null } {
     const asset = this.repository.getAsset(args.assetId);
     return { asset: asset ? new AssetDto(asset) : null };
   }
 
-  getAssetMetadata(): { assets: AssetMetadataDto[] } {
+  getAssets(): { assets: AssetMetadataDto[] } {
     const assets = this.repository.findAllMetadata();
     return { assets };
   }

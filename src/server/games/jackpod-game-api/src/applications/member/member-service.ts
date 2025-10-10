@@ -13,16 +13,17 @@ export class MemberService implements GasService {
     @inject("IMemberRepository") private readonly repository: IMemberRepository
   ) {
     this.functions = {
-      getMemberById: this.getMemberById.bind(this),
+      getMembers: this.getMembers.bind(this),
       addMembers: this.addMembers.bind(this),
       updateMembers: this.updateMembers.bind(this),
       deleteMembers: this.deleteMembers.bind(this),
+      batchOperations: this.batchOperations.bind(this),
     };
   }
 
-  getMemberById(args: { id: string }): MemberDto | null {
-    const member = this.repository.getMemberById(args.id);
-    return member ? toMemberDto(member) : null;
+  getMembers(): MemberDto[] {
+    const members = this.repository.getMembers();
+    return members.map(toMemberDto);
   }
 
   addMembers(args: { members: MemberDto[] }): void {
@@ -40,5 +41,21 @@ export class MemberService implements GasService {
 
   deleteMembers(args: { ids: string[] }): void {
     this.repository.deleteMembers(args.ids);
+  }
+
+  batchOperations(args: {
+    add: MemberDto[];
+    update: MemberDto[];
+    delete: string[];
+  }): void {
+    if (args.add.length > 0) {
+      this.addMembers({ members: args.add });
+    }
+    if (args.update.length > 0) {
+      this.updateMembers({ members: args.update });
+    }
+    if (args.delete.length > 0) {
+      this.deleteMembers({ ids: args.delete });
+    }
   }
 }
