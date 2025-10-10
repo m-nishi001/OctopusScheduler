@@ -1,12 +1,11 @@
 import { Member } from "../../domain/entities/member";
 
 export interface IMemberRepository {
-  findAll(): Member[];
-  findById(id: string): Member | null;
-  findManyByIds(ids: string[]): Member[];
-  batchOperations(operations: {
-    add: Member[];
-    update: { id: string; updateFn: (member: Member) => Member }[];
-    delete: string[];
-  }): void;
+  getMembers(): Member[];
+  getMemberById(id: string): Member | null;
+  addMembers(members: Member[]): void;
+  updateMembers(
+    updates: { id: string; updateFn: (member: Member) => Member }[]
+  ): void;
+  deleteMembers(ids: string[]): void;
 }

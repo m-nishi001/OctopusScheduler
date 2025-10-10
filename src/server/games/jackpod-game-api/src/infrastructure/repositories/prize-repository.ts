@@ -15,29 +15,33 @@ export class PrizeRepository implements IPrizeRepository {
     this.repository = SpreadsheetService.getService<Prize>(this.sheetName);
   }
 
-  findAll(): Prize[] {
+  getPrizes(): Prize[] {
     return this.repository.find((p: Prize) => true);
   }
 
-  findById(id: string): Prize | null {
+  getPrizeById(id: string): Prize | null {
     return this.repository.find((p: Prize) => p.id === id)[0] || null;
   }
 
-  findManyByIds(ids: string[]): Prize[] {
-    return this.repository.find((p: Prize) => ids.includes(p.id));
+  addPrizes(prizes: Prize[]): void {
+    const transaction = this.repository.beginTransaction();
+    transaction.addMany(prizes);
+    transaction.commit();
   }
 
-  batchOperations(
-    adds: Prize[],
-    updates: { ids: string[]; updateFn: (prize: Prize) => Prize }[],
-    deletes: string[]
+  updatePrizes(
+    updates: { id: string; updateFn: (prize: Prize) => Prize }[]
   ): void {
     const transaction = this.repository.beginTransaction();
-    transaction.addMany(adds);
     for (const update of updates) {
-      transaction.updateMany(update.ids, update.updateFn);
+      transaction.updateMany([update.id], update.updateFn);
     }
-    transaction.deleteMany(deletes);
+    transaction.commit();
+  }
+
+  deletePrizes(ids: string[]): void {
+    const transaction = this.repository.beginTransaction();
+    transaction.deleteMany(ids);
     transaction.commit();
   }
 }

@@ -53,12 +53,12 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
       const configRows = grouped[screenName];
       const config: any = { type: screenName };
       for (const row of configRows) {
-        const value =
-          row.settingValue.startsWith('"') ||
-          row.settingValue.startsWith("{") ||
-          row.settingValue.startsWith("[")
-            ? JSON.parse(row.settingValue)
-            : row.settingValue;
+        let value: any;
+        try {
+          value = JSON.parse(row.settingValue);
+        } catch {
+          value = row.settingValue;
+        }
         config[row.settingName] = value;
       }
       configs.push(config as ScreenConfig);

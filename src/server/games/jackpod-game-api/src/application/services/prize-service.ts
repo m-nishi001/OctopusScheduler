@@ -21,24 +21,24 @@ export class PrizeService implements GasService {
   }
 
   getPrizeById(args: { id: string }): PrizeDto | null {
-    const prize = this.repository.findById(args.id);
+    const prize = this.repository.getPrizeById(args.id);
     return prize ? toPrizeDto(prize) : null;
   }
 
   addPrizes(args: { prizes: PrizeDto[] }): void {
     const adds = args.prizes.map(toPrize);
-    this.repository.batchOperations(adds, [], []);
+    this.repository.addPrizes(adds);
   }
 
-  updatePrizes(args: { updates: { ids: string[]; prize: PrizeDto }[] }): void {
+  updatePrizes(args: { updates: { id: string; prize: PrizeDto }[] }): void {
     const updates = args.updates.map((u) => ({
-      ids: u.ids,
+      id: u.id,
       updateFn: (_: any) => toPrize(u.prize),
     }));
-    this.repository.batchOperations([], updates, []);
+    this.repository.updatePrizes(updates);
   }
 
   deletePrizes(args: { ids: string[] }): void {
-    this.repository.batchOperations([], [], args.ids);
+    this.repository.deletePrizes(args.ids);
   }
 }

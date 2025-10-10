@@ -15,29 +15,33 @@ export class MemberRepository implements IMemberRepository {
     this.repository = SpreadsheetService.getService<Member>(this.sheetName);
   }
 
-  findAll(): Member[] {
-    return this.repository.find((m: Member) => true);
+  getMembers(): Member[] {
+    return this.repository.find(() => true);
   }
 
-  findById(id: string): Member | null {
+  getMemberById(id: string): Member | null {
     return this.repository.find((m: Member) => m.id === id)[0] || null;
   }
 
-  findManyByIds(ids: string[]): Member[] {
-    return this.repository.find((m: Member) => ids.includes(m.id));
+  addMembers(members: Member[]): void {
+    const transaction = this.repository.beginTransaction();
+    transaction.addMany(members);
+    transaction.commit();
   }
 
-  batchOperations(operations: {
-    add: Member[];
-    update: { id: string; updateFn: (member: Member) => Member }[];
-    delete: string[];
-  }): void {
+  updateMembers(
+    updates: { id: string; updateFn: (member: Member) => Member }[]
+  ): void {
     const transaction = this.repository.beginTransaction();
-    transaction.addMany(operations.add);
-    for (const updateOp of operations.update) {
-      transaction.updateMany([updateOp.id], updateOp.updateFn);
+    for (const update of updates) {
+      transaction.updateMany([update.id], update.updateFn);
     }
-    transaction.deleteMany(operations.delete);
+    transaction.commit();
+  }
+
+  deleteMembers(ids: string[]): void {
+    const transaction = this.repository.beginTransaction();
+    transaction.deleteMany(ids);
     transaction.commit();
   }
 }
