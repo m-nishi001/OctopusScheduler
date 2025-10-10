@@ -2,8 +2,6 @@ import { container } from "tsyringe";
 
 import { AssetService } from "../application/services/asset-service";
 import { GasService } from "../application/services/gas-service";
-import { LotteryCoordinator } from "../application/services/lottery-coordinator";
-import { DrawPairingService } from "../application/services/draw-pairing-service";
 import { UniformDrawStrategy } from "../domain/draw-strategies/uniform-draw-strategy";
 import { DrawStrategy } from "../domain/draw-strategies/draw-strategy";
 import { Member } from "../domain/entities/member";
@@ -53,9 +51,6 @@ export class Container {
       useClass: ScreenConfigService,
     });
     container.register<GasService>("IGasService", {
-      useClass: LotteryCoordinator,
-    });
-    container.register<GasService>("IGasService", {
       useClass: AssetService,
     });
     container.register<GasService>("IGasService", {
@@ -73,9 +68,6 @@ export class Container {
     });
     container.register<DrawStrategy<Prize>>("PrizeDrawStrategy", {
       useClass: UniformDrawStrategy,
-    });
-    container.register<DrawPairingService>("DrawPairingService", {
-      useClass: DrawPairingService,
     });
   }
 }
