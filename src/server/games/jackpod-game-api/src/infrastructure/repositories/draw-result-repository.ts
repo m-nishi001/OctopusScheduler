@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import { IDrawResultRepository } from "../../domain/repositories/draw-result-repository";
-import { DrawResult } from "../../domain/entities/draw-result";
+import { IDrawResultRepository } from "../../domain/draw/draw-result-repository";
+import { DrawResult } from "../../domain/draw/draw-result";
 import {
   ISpreadsheetService,
   SpreadsheetService,

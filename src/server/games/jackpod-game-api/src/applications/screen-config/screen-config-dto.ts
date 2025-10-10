@@ -2,7 +2,7 @@ import {
   ScreenConfig,
   ScreenElement,
   AnimationSettings,
-} from "../../domain/entities/screen-config";
+} from "../../domain/screen-config/screen-config";
 
 export function toScreenConfig(dto: ScreenConfigDto): ScreenConfig {
   return new ScreenConfig(

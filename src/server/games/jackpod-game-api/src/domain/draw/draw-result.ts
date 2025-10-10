@@ -1,5 +1,5 @@
-import { Member } from "./member";
-import { Prize } from "./prize";
+import { Member } from "../member/member";
+import { Prize } from "../prize/prize";
 
 export interface DrawResult {
   drawId: string;

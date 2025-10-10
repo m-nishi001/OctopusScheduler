@@ -1,4 +1,4 @@
-import { Asset } from "../entities/asset";
+import { Asset } from "./asset";
 import { AssetMetadataDto } from "../../applications/asset/asset-dto";
 
 export interface IAssetRepository {

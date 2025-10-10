@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { GasService } from "../draw/gas-service";
 import { AssetDto, AssetMetadataDto } from "./asset-dto";
-import { IAssetRepository } from "../../domain/repositories/asset-repository";
+import { IAssetRepository } from "../../domain/asset/asset-repository";
 
 @injectable()
 export class AssetService implements GasService {

@@ -1,4 +1,4 @@
-import { DrawResult } from "../../domain/entities/draw-result";
+import { DrawResult } from "../../domain/draw/draw-result";
 import { DrawResultDto } from "./draw-result-dto";
 import { toMemberDto, toMember } from "../member/member-mapper";
 import { toPrizeDto, toPrize } from "../prize/prize-mapper";

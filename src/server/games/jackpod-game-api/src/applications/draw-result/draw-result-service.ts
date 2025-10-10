@@ -2,7 +2,7 @@ import { injectable, inject } from "tsyringe";
 import { GasService } from "../draw/gas-service";
 import { DrawResultDto } from "./draw-result-dto";
 import { toDrawResultDto, toDrawResult } from "./draw-result-mapper";
-import { IDrawResultRepository } from "../../domain/repositories/draw-result-repository";
+import { IDrawResultRepository } from "../../domain/draw/draw-result-repository";
 
 @injectable()
 export class DrawResultService implements GasService {

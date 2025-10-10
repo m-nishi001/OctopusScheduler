@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import { IMemberRepository } from "../../domain/repositories/member-repository";
-import { Member } from "../../domain/entities/member";
+import { IMemberRepository } from "../../domain/member/member-repository";
+import { Member } from "../../domain/member/member";
 import {
   ISpreadsheetService,
   SpreadsheetService,

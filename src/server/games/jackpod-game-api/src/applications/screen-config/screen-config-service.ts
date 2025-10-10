@@ -5,7 +5,7 @@ import {
   toScreenConfig,
   toScreenConfigDto,
 } from "./screen-config-dto";
-import { IScreenConfigRepository } from "../../domain/repositories/screen-config-repository";
+import { IScreenConfigRepository } from "../../domain/screen-config/screen-config-repository";
 
 @injectable()
 export class ScreenConfigService implements GasService {

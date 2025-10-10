@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import { IScreenConfigRepository } from "../../domain/repositories/screen-config-repository";
-import { ScreenConfig } from "../../domain/entities/screen-config";
+import { IScreenConfigRepository } from "../../domain/screen-config/screen-config-repository";
+import { ScreenConfig } from "../../domain/screen-config/screen-config";
 import {
   ISpreadsheetService,
   SpreadsheetService,

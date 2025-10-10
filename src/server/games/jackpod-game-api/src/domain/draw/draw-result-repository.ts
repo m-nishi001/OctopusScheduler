@@ -1,4 +1,4 @@
-import { DrawResult } from "../../domain/entities/draw-result";
+import { DrawResult } from "./draw-result";
 
 export interface IDrawResultRepository {
   getDrawResults(): DrawResult[];

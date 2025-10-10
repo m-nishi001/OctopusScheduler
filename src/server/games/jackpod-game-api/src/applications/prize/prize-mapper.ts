@@ -1,4 +1,4 @@
-import { Prize } from "../../domain/entities/prize";
+import { Prize } from "../../domain/prize/prize";
 import { PrizeDto } from "./prize-dto";
 
 export function toPrizeDto(entity: Prize): PrizeDto {

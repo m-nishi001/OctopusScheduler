@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import { IPrizeRepository } from "../../domain/repositories/prize-repository";
-import { Prize } from "../../domain/entities/prize";
+import { IPrizeRepository } from "../../domain/prize/prize-repository";
+import { Prize } from "../../domain/prize/prize";
 import {
   ISpreadsheetService,
   SpreadsheetService,

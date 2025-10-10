@@ -1,4 +1,4 @@
-import { Member } from "../../domain/entities/member";
+import { Member } from "../../domain/member/member";
 import { MemberDto } from "./member-dto";
 
 export function toMemberDto(entity: Member): MemberDto {

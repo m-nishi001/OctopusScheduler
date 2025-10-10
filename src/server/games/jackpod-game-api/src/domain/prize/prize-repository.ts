@@ -1,4 +1,4 @@
-import { Prize } from "../../domain/entities/prize";
+import { Prize } from "./prize";
 
 export interface IPrizeRepository {
   getPrizes(): Prize[];

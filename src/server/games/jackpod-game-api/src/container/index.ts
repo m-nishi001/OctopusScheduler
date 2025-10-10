@@ -8,11 +8,11 @@ import { DrawResultService } from "../applications/draw-result/draw-result-servi
 import { MemberService } from "../applications/member/member-service";
 import { PrizeService } from "../applications/prize/prize-service";
 
-import { IMemberRepository } from "../domain/repositories/member-repository";
-import { IPrizeRepository } from "../domain/repositories/prize-repository";
-import { IDrawResultRepository } from "../domain/repositories/draw-result-repository";
-import { IAssetRepository } from "../domain/repositories/asset-repository";
-import { IScreenConfigRepository } from "../domain/repositories/screen-config-repository";
+import { IMemberRepository } from "../domain/member/member-repository";
+import { IPrizeRepository } from "../domain/prize/prize-repository";
+import { IDrawResultRepository } from "../domain/draw/draw-result-repository";
+import { IAssetRepository } from "../domain/asset/asset-repository";
+import { IScreenConfigRepository } from "../domain/screen-config/screen-config-repository";
 
 import { MemberRepository } from "../infrastructure/repositories/member-repository";
 import { PrizeRepository } from "../infrastructure/repositories/prize-repository";

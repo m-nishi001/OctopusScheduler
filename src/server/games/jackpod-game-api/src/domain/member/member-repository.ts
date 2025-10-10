@@ -1,4 +1,4 @@
-import { Member } from "../../domain/entities/member";
+import { Member } from "./member";
 
 export interface IMemberRepository {
   getMembers(): Member[];
