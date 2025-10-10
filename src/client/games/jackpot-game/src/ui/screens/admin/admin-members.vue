@@ -1,57 +1,47 @@
 <template>
   <div class="admin-section">
-    <h2>メンバー管理</h2>
-    <div class="admin-controls">
-      <select v-model="sortBy" @change="sortMembers" class="admin-input">
-        <option value="name">名前順</option>
-        <option value="order">追加順</option>
-      </select>
-      <button class="admin-btn" @click="showAddModal = true">追加</button>
-      <button class="admin-btn" @click="saveMembers">保存</button>
-    </div>
-    <div class="admin-grid">
-      <div v-for="(member, idx) in members" :key="member.id" class="admin-card">
-        <input type="checkbox" v-model="selectedMembers" :value="member.id" class="admin-checkbox" />
-        <div class="admin-card-content">
-          <img v-if="member.photoAssetId || member.photoAsset" :src="getMemberImageSrc(member)" alt="photo"
-            class="admin-thumbnail" />
-          <div v-else class="admin-thumbnail-placeholder">No Image</div>
-          <h3>{{ member.name }}</h3>
-          <button class="admin-btn" @click="editMember(idx)">編集</button>
+    <h2>メンバー設定</h2>
+    <form class="admin-form" @submit.prevent="addMembers">
+      <div class="member-input-group">
+        <input v-model="memberName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
+        <div class="photo-mode">
+          <label><input type="radio" v-model="photoMode" value="upload" /> アップロード</label>
+          <label><input type="radio" v-model="photoMode" value="select" /> 既存から選択</label>
         </div>
+        <input v-if="photoMode === 'upload'" type="file" @change="onPhotoChange" accept="image/*" class="admin-input" />
+        <select v-if="photoMode === 'select'" v-model="photoAssetId" class="admin-input">
+          <option value="">選択なし</option>
+          <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+        </select>
+        <button type="submit" class="admin-btn" :disabled="!memberName.trim()">追加</button>
       </div>
+    </form>
+    <div class="admin-actions">
+      <button class="admin-btn delete-btn" @click="deleteSelectedMembers"
+        :disabled="!selectedMembers.length">選択したメンバーを削除</button>
+      <button class="admin-btn delete-all-btn" @click="deleteAllMembers"
+        :disabled="!members.length || deleteAllDeleting">全件削除</button>
     </div>
+    <ul class="admin-list">
+      <li v-for="member in members" :key="member.id" class="admin-list-item">
+        <input type="checkbox" v-model="selectedMembers" :value="member.id" />
+        <div class="member-preview">
+          <img v-if="member.photoAssetId || member.photoAsset" :src="getMemberImageSrc(member)" alt="photo"
+            class="preview-img" />
+          <span v-else>{{ member.name }}</span>
+        </div>
+        <div class="member-info">
+          <span>{{ member.name }}</span>
+        </div>
+        <button class="admin-btn" @click="editMember(member)">詳細</button>
+      </li>
+    </ul>
   </div>
 
-  <!-- 追加モーダル -->
-  <div v-if="showAddModal" class="admin-modal" @click="showAddModal = false">
-    <div class="admin-modal-content" @click.stop>
-      <h3>メンバー追加</h3>
-      <input v-model="memberName" type="text" placeholder="名前" class="admin-input" />
-      <div class="photo-mode">
-        <label><input type="radio" v-model="photoMode" value="upload" /> アップロード</label>
-        <label><input type="radio" v-model="photoMode" value="select" /> 既存から選択</label>
-      </div>
-      <input v-if="photoMode === 'upload'" type="file" @change="onPhotoChange" accept="image/*" class="admin-input" />
-      <select v-if="photoMode === 'select'" v-model="photoAssetId" class="admin-input"
-        @change="photoPreview = photoAssetId">
-        <option value="">選択なし</option>
-        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
-      </select>
-      <div v-if="photoPreview" class="admin-photo-preview">
-        <img :src="photoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
-      </div>
-      <div class="admin-modal-buttons">
-        <button class="admin-btn" @click="addMember">追加</button>
-        <button class="admin-btn" @click="showAddModal = false">キャンセル</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 編集モーダル -->
-  <div v-if="editIdx !== null" class="admin-modal" @click="editIdx = null">
-    <div class="admin-modal-content" @click.stop>
-      <h3>メンバー編集</h3>
+  <!-- 詳細モーダル -->
+  <div v-if="editMemberData" class="modal-overlay" @click="editMemberData = null">
+    <div class="modal-content" @click.stop>
+      <h3>メンバー詳細</h3>
       <input v-model="editName" type="text" placeholder="名前" class="admin-input" />
       <div class="photo-mode">
         <label><input type="radio" v-model="editPhotoMode" value="upload" /> アップロード</label>
@@ -59,18 +49,26 @@
       </div>
       <input v-if="editPhotoMode === 'upload'" type="file" @change="onEditPhotoChange" accept="image/*"
         class="admin-input" />
-      <select v-if="editPhotoMode === 'select'" v-model="editPhotoAssetId" class="admin-input"
-        @change="editPhotoPreview = editPhotoAssetId">
+      <select v-if="editPhotoMode === 'select'" v-model="editPhotoAssetId" class="admin-input">
         <option value="">選択なし</option>
-        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.url">{{ asset.name }}</option>
+        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
       </select>
       <div v-if="editPhotoPreview" class="admin-photo-preview">
         <img :src="editPhotoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
       </div>
       <div class="admin-modal-buttons">
         <button class="admin-btn" @click="saveEdit">保存</button>
-        <button class="admin-btn" @click="editIdx = null">キャンセル</button>
+        <button class="admin-btn" @click="editMemberData = null">キャンセル</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 全件削除モーダル -->
+  <div v-if="deleteAllDeleting" class="modal-overlay">
+    <div class="modal-content">
+      <h3>全件削除中...</h3>
+      <p>{{ deleteAllMessage }}</p>
+      <div class="spinner"></div>
     </div>
   </div>
 </template>
@@ -84,10 +82,7 @@ import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
 const assetService = container.resolve(AssetService);
 const members = ref<any[]>([]);
-const originalMembers = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
-const sortBy = ref('name');
-const showAddModal = ref(false);
 const assets = ref<any[]>([]);
 const photoMode = ref('upload');
 const editPhotoMode = ref('upload');
@@ -97,49 +92,37 @@ const getMemberImageSrc = (member: any) => {
   if (member.photoAsset) return member.photoAsset.dataUrl;
   return '';
 };
-const isMemberChanged = (member: any, original: any) => {
-  return JSON.stringify(member) !== JSON.stringify(original);
-};
-const saveMembers = async () => {
-  const toAdd = members.value.filter(m => !originalMembers.value.find((o: any) => o.id === m.id));
-  const toUpdate = members.value.filter(m => {
-    const original = originalMembers.value.find((o: any) => o.id === m.id);
-    return original && isMemberChanged(m, original);
-  });
-  const toDelete = originalMembers.value.filter((o: any) => !members.value.find((m: any) => m.id === o.id));
-  if (toAdd.length > 0) await memberRepo.addMembers(toAdd);
-  if (toUpdate.length > 0) await memberRepo.updateMembers(toUpdate.map(u => ({ id: u.id, updateFn: () => u })));
-  if (toDelete.length > 0) await memberRepo.deleteMembers(toDelete.map(d => d.id));
-  originalMembers.value = JSON.parse(JSON.stringify(members.value));
-};
+
 const fetchMembers = async () => {
-  members.value = await memberRepo.getMembers();
-  originalMembers.value = JSON.parse(JSON.stringify(members.value));
-  sortMembers();
-};
-const fetchAssets = async () => {
-  assets.value = await assetService.getAllAssets();
-};
-const sortMembers = () => {
-  if (sortBy.value === 'name') {
-    members.value.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (sortBy.value === 'order') {
-    members.value.sort((a, b) => a.order - b.order);
+  try {
+    members.value = await memberRepo.getMembers();
+  } catch (error) {
+    console.error("Failed to fetch members:", error);
+    members.value = [];
   }
 };
+
+const fetchAssets = async () => {
+  try {
+    assets.value = await assetService.getAllAssets();
+  } catch (error) {
+    console.error("Failed to fetch assets:", error);
+    assets.value = [];
+  }
+};
+
 const memberName = ref('');
 const photoAssetId = ref('');
 const photoAsset = ref<AssetDto | undefined>();
-const photoPreview = ref('');
 const onPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     photoAsset.value = new AssetDto(file);
-    photoPreview.value = await photoAsset.value.dataUrl;
   }
 };
-const addMember = () => {
-  if (!memberName.value) return;
+
+const addMembers = async () => {
+  if (!memberName.value.trim()) return;
   const newMember: any = {
     id: String(Date.now()),
     name: memberName.value,
@@ -150,19 +133,51 @@ const addMember = () => {
   } else if (photoMode.value === 'select' && photoAssetId.value) {
     newMember.photoAssetId = photoAssetId.value;
   }
-  members.value.push(newMember);
-  memberName.value = '';
-  photoAsset.value = undefined;
-  photoAssetId.value = '';
-  photoPreview.value = '';
-  showAddModal.value = false;
-  sortMembers();
+  try {
+    await memberRepo.addMembers([newMember]);
+    await fetchMembers();
+    memberName.value = '';
+    photoAsset.value = undefined;
+    photoAssetId.value = '';
+  } catch (error) {
+    console.error("Failed to add member:", error);
+  }
 };
-const editIdx = ref<number | null>(null);
+
+const deleteSelectedMembers = async () => {
+  if (!selectedMembers.value.length) return;
+  try {
+    await memberRepo.deleteMembers(selectedMembers.value);
+    await fetchMembers();
+    selectedMembers.value = [];
+  } catch (error) {
+    console.error("Failed to delete members:", error);
+  }
+};
+
+const deleteAllDeleting = ref(false);
+const deleteAllMessage = ref('');
+
+const deleteAllMembers = async () => {
+  if (!members.value.length) return;
+  deleteAllDeleting.value = true;
+  deleteAllMessage.value = 'メンバーを削除しています...';
+  try {
+    await memberRepo.deleteMembers(members.value.map(m => m.id));
+    await fetchMembers();
+  } catch (error) {
+    console.error("Failed to delete all members:", error);
+  } finally {
+    deleteAllDeleting.value = false;
+  }
+};
+
+const editMemberData = ref<any>(null);
 const editName = ref('');
 const editPhotoAssetId = ref('');
 const editPhotoAsset = ref<AssetDto | undefined>();
 const editPhotoPreview = ref('');
+
 const onEditPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
@@ -170,13 +185,13 @@ const onEditPhotoChange = async (e: Event) => {
     editPhotoPreview.value = await editPhotoAsset.value.dataUrl;
   }
 };
-const editMember = (idx: number) => {
-  editIdx.value = idx;
-  const member = members.value[idx];
+
+const editMember = (member: any) => {
+  editMemberData.value = member;
   editName.value = member.name;
-  if (member.photoAssetId && !member.photoAssetId.startsWith('data:')) {
+  if (member.photoAssetId) {
     editPhotoMode.value = 'select';
-    editPhotoAssetId.value = member.photoAssetId || '';
+    editPhotoAssetId.value = member.photoAssetId;
     editPhotoPreview.value = member.photoAssetId;
   } else {
     editPhotoMode.value = 'upload';
@@ -186,24 +201,29 @@ const editMember = (idx: number) => {
     }
   }
 };
-const saveEdit = () => {
-  if (editIdx.value === null) return;
-  const updatedMember: any = {
-    name: editName.value,
-    order: members.value[editIdx.value].order
+
+const saveEdit = async () => {
+  if (!editMemberData.value) return;
+  const updatedMember = {
+    ...editMemberData.value,
+    name: editName.value
   };
   if (editPhotoMode.value === 'upload' && editPhotoAsset.value) {
     updatedMember.photoAsset = editPhotoAsset.value;
   } else if (editPhotoMode.value === 'select' && editPhotoAssetId.value) {
     updatedMember.photoAssetId = editPhotoAssetId.value;
   }
-  members.value[editIdx.value] = { ...members.value[editIdx.value], ...updatedMember };
-  editIdx.value = null;
-  editName.value = '';
-  editPhotoAsset.value = undefined;
-  editPhotoAssetId.value = '';
-  editPhotoPreview.value = '';
-  sortMembers();
+  try {
+    await memberRepo.updateMembers([{ id: updatedMember.id, updateFn: () => updatedMember }]);
+    await fetchMembers();
+    editMemberData.value = null;
+    editName.value = '';
+    editPhotoAsset.value = undefined;
+    editPhotoAssetId.value = '';
+    editPhotoPreview.value = '';
+  } catch (error) {
+    console.error("Failed to update member:", error);
+  }
 };
 
 onMounted(() => {
@@ -214,25 +234,88 @@ onMounted(() => {
 
 <style scoped>
 .admin-section {
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
-.admin-controls {
+.admin-form {
+  margin-bottom: 24px;
+}
+
+.member-input-group {
   display: flex;
   gap: 12px;
-  margin-bottom: 18px;
   align-items: center;
   flex-wrap: wrap;
 }
 
+.member-name-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.photo-mode {
+  display: flex;
+  gap: 16px;
+}
+
+.photo-mode label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.admin-list {
+  list-style: none;
+  padding: 0;
+}
+
+.admin-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #232b36;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.member-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #333;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.member-info {
+  flex: 1;
+  color: #fff;
+}
+
 .admin-input {
-  padding: 10px 14px;
+  padding: 10px 16px;
   border-radius: 8px;
   border: none;
   background: #232b36;
   color: #fff;
-  font-size: 0.98rem;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  font-size: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .admin-input:focus {
@@ -240,149 +323,75 @@ onMounted(() => {
 }
 
 .admin-btn {
-  padding: 9px 16px;
-  border-radius: 10px;
+  padding: 10px 24px;
+  border-radius: 8px;
   border: none;
   background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
   color: #232b36;
-  font-weight: 700;
+  font-weight: bold;
   cursor: pointer;
-  transition: box-shadow 0.18s, transform 0.12s;
+  transition: background 0.2s;
 }
 
 .admin-btn:hover {
-  box-shadow: 0 6px 18px rgba(79, 140, 255, 0.14);
+  background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
 }
 
-.admin-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+.admin-btn.delete-btn {
+  background: linear-gradient(90deg, #ff4f4f 0%, #ffaeae 100%);
 }
 
-.admin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 18px;
+.admin-btn.delete-btn:hover {
+  background: linear-gradient(90deg, #ffaeae 0%, #ff4f4f 100%);
 }
 
-.admin-card {
-  background: #232b36;
-  color: #fff;
-  border-radius: 10px;
-  padding: 12px 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  display: flex;
-  gap: 12px;
-  align-items: center;
+.admin-btn.delete-all-btn {
+  background: linear-gradient(90deg, #ff4f4f 0%, #ffaeae 100%);
 }
 
-.admin-checkbox {
-  margin-left: 4px;
+.admin-btn.delete-all-btn:hover {
+  background: linear-gradient(90deg, #ffaeae 0%, #ff4f4f 100%);
 }
 
-.admin-card-content {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  width: 100%;
-}
-
-.admin-thumbnail {
-  width: 96px;
-  height: 96px;
-  object-fit: cover;
-  border-radius: 6px;
-  flex: 0 0 96px;
-}
-
-.admin-thumbnail-placeholder {
-  width: 96px;
-  height: 96px;
-  background: #2f3438;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  color: #bfcbdc;
-  flex: 0 0 96px;
-}
-
-.admin-card h3 {
-  margin: 0;
-  font-size: 1.05rem;
-}
-
-.admin-card p {
-  margin: 6px 0 0 0;
-  color: #c9d7e6;
-}
-
-.admin-card-content button {
-  margin-left: auto;
-}
-
-.admin-modal {
+.modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.54);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
-.admin-modal-content {
+.modal-content {
   background: #232b36;
   color: #fff;
   padding: 28px;
   border-radius: 10px;
-  max-width: 640px;
-  width: 92%;
-  max-height: 80vh;
-  overflow-y: auto;
+  text-align: center;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
 }
 
-.admin-modal-content h3 {
-  margin-top: 0;
-  margin-bottom: 20px;
+.spinner {
+  margin: 16px auto;
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4f8cff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-.admin-modal-content .admin-input,
-.admin-modal-content .admin-photo-preview {
-  margin-bottom: 20px;
-}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
 
-.admin-input[type="file"] {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 2px dashed #434b51;
-  background: #232b36;
-  color: #fff;
-  cursor: pointer;
-}
-
-.admin-input[type="file"]:hover {
-  border-color: #4f8cff;
-}
-
-.admin-input[type="file"]::-webkit-file-upload-button {
-  background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-  color: #232b36;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 6px;
-  margin-right: 8px;
-}
-
-.photo-mode,
-.admin-modal-buttons {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.admin-modal-buttons {
-  justify-content: flex-end;
-  margin-top: 18px;
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>

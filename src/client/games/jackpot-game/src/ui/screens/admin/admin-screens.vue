@@ -1,27 +1,21 @@
 <template>
   <div class="admin-section">
-    <h2>画面設定</h2>
-    <div class="tabs">
-      <button v-for="tab in tabs" :key="tab.key" :class="['tab-button', { active: activeTab === tab.key }]"
-        @click="activeTab = tab.key">
-        {{ tab.label }}
-      </button>
-    </div>
+    <h2>画面設定 - {{ screenLabels[activeScreen] }}</h2>
     <div class="tab-content">
-      <HomeScreenConfig v-if="activeTab === 'home'" :audio-assets="audioAssets" :asset-service="assetService"
+      <HomeScreenConfig v-if="activeScreen === 'home'" :audio-assets="audioAssets" :asset-service="assetService"
         :config="homeConfig" @update="updateHomeConfig" @uploading="onUploading" />
-      <OpeningScreenConfig v-if="activeTab === 'opening'" :audio-assets="audioAssets" :image-assets="imageAssets"
+      <OpeningScreenConfig v-if="activeScreen === 'opening'" :audio-assets="audioAssets" :image-assets="imageAssets"
         :asset-service="assetService" :config="openingConfig" @update="updateOpeningConfig" @uploading="onUploading" />
-      <DescriptionScreenConfig v-if="activeTab === 'description'" :audio-assets="audioAssets"
+      <DescriptionScreenConfig v-if="activeScreen === 'description'" :audio-assets="audioAssets"
         :image-assets="imageAssets" :asset-service="assetService" :config="descriptionConfig"
         @update="updateDescriptionConfig" @uploading="onUploading" />
-      <DemoScreenConfig v-if="activeTab === 'demo'" :audio-assets="audioAssets" :members="members" :prizes="prizes"
+      <DemoScreenConfig v-if="activeScreen === 'demo'" :audio-assets="audioAssets" :members="members" :prizes="prizes"
         :asset-service="assetService" :config="demoConfig" @update="updateDemoConfig" />
-      <MainScreenConfig v-if="activeTab === 'main'" :audio-assets="audioAssets" :asset-service="assetService"
+      <MainScreenConfig v-if="activeScreen === 'main'" :audio-assets="audioAssets" :asset-service="assetService"
         :config="mainConfig" @update="updateMainConfig" />
-      <ResultScreenConfig v-if="activeTab === 'result'" :audio-assets="audioAssets" :asset-service="assetService"
+      <ResultScreenConfig v-if="activeScreen === 'result'" :audio-assets="audioAssets" :asset-service="assetService"
         :config="resultConfig" @update="updateResultConfig" />
-      <EndingScreenConfig v-if="activeTab === 'ending'" :audio-assets="audioAssets" :image-assets="imageAssets"
+      <EndingScreenConfig v-if="activeScreen === 'ending'" :audio-assets="audioAssets" :image-assets="imageAssets"
         :asset-service="assetService" :config="endingConfig" @update="updateEndingConfig" @uploading="onUploading" />
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
@@ -58,6 +52,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { useRoute } from 'vue-router';
 import HomeScreenConfig from './screen-config/home-screen-config.vue';
 import OpeningScreenConfig from './screen-config/opening-screen-config.vue';
 import DescriptionScreenConfig from './screen-config/description-screen-config.vue';
@@ -72,6 +67,18 @@ import type { IMemberRepository } from '../../../model/domains/member/repository
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/IPrizeRepository';
 
 // Inline asset logic from useAssets composable
+const route = useRoute();
+const activeScreen = computed(() => route.params.screenType as string || 'home');
+const screenLabels: Record<string, string> = {
+  home: 'ホーム',
+  opening: 'オープニング',
+  description: '説明',
+  demo: 'デモ抽選',
+  main: '本抽選',
+  result: '最終結果',
+  ending: 'エンディング'
+};
+
 const assetService = container.resolve(
   AssetService
 ) as unknown as AssetService;
@@ -484,17 +491,6 @@ const saveConfigs = async () => {
   await loadScreenConfigs();
 };
 
-const activeTab = ref("home");
-const tabs = [
-  { key: "home", label: "ホーム" },
-  { key: "opening", label: "オープニング" },
-  { key: "description", label: "説明" },
-  { key: "demo", label: "デモ抽選" },
-  { key: "main", label: "本抽選" },
-  { key: "result", label: "最終結果" },
-  { key: "ending", label: "エンディング" },
-];
-
 const saving = ref(false);
 const saveStatus = ref("");
 const uploading = ref(false);
@@ -547,28 +543,6 @@ onMounted(async () => {
 <style scoped>
 .admin-section {
   margin-bottom: 32px;
-}
-
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-  border-bottom: 1px solid #555;
-}
-
-.tab-button {
-  padding: 12px 24px;
-  border: none;
-  background: #333;
-  color: #ccc;
-  cursor: pointer;
-  border-radius: 8px 8px 0 0;
-  transition: background 0.2s, color 0.2s;
-}
-
-.tab-button.active {
-  background: #4f8cff;
-  color: #fff;
 }
 
 .tab-content {
