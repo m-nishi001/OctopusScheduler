@@ -3,7 +3,7 @@ import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
 import type { AssetMetadataDto } from "../../applications/asset/dto/asset-dto";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
-import { StorageConfig } from "../../../infrastructures/storage-config";
+import { StorageConfig } from "../../infrastructures/storage-config";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 
 const ASSET_CACHE_KEY = "assets";

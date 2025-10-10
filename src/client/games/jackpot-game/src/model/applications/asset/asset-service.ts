@@ -2,7 +2,7 @@ import { injectable, inject } from "tsyringe";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 import { AssetDto } from "./dto/asset-dto";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
-import { StorageConfig } from "../../../infrastructures/storage-config";
+import { StorageConfig } from "../../../model/infrastructures/storage-config";
 import type { Asset } from "../../domains/asset/asset";
 
 @injectable()

@@ -3,7 +3,7 @@ import { GasFunctionService } from "../../../../../../packages/common-lib/src/go
 import type { ScreenConfig } from "../../domains/screen-config/screen-config";
 import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
-import { StorageConfig } from "../../../infrastructures/storage-config";
+import { StorageConfig } from "../../infrastructures/storage-config";
 
 @injectable()
 export class ScreenConfigRepository implements IScreenConfigRepository {

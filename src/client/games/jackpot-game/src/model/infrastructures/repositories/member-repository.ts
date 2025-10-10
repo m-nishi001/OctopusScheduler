@@ -1,6 +1,6 @@
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
-import { StorageConfig } from "../../../infrastructures/storage-config";
+import { StorageConfig } from "../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
 import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
