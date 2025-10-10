@@ -28,12 +28,8 @@ export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
     const screenName = config.type;
     for (const [key, value] of Object.entries(config)) {
       if (key === "type") continue;
-      let settingValue: string;
-      if (typeof value === "string") {
-        settingValue = value;
-      } else {
-        settingValue = JSON.stringify(value);
-      }
+      const settingValue =
+        typeof value === "string" ? value : JSON.stringify(value);
       rows.push({
         screenName,
         settingName: key,
@@ -46,10 +42,7 @@ export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
   private fromRows(rows: ScreenConfigRow[]): ScreenConfig[] {
     const grouped = rows.reduce(
       (acc, row) => {
-        if (!acc[row.screenName]) {
-          acc[row.screenName] = [];
-        }
-        acc[row.screenName].push(row);
+        (acc[row.screenName] ||= []).push(row);
         return acc;
       },
       {} as Record<string, ScreenConfigRow[]>
@@ -60,27 +53,30 @@ export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
       const configRows = grouped[screenName];
       const config: any = { type: screenName };
       for (const row of configRows) {
-        const value = row.settingValue;
-        try {
-          config[row.settingName] = JSON.parse(value);
-        } catch {
-          config[row.settingName] = value;
-        }
+        const value =
+          row.settingValue.startsWith('"') ||
+          row.settingValue.startsWith("{") ||
+          row.settingValue.startsWith("[")
+            ? JSON.parse(row.settingValue)
+            : row.settingValue;
+        config[row.settingName] = value;
       }
       configs.push(config as ScreenConfig);
     }
     return configs;
   }
 
-  createScreenConfigs(configs: ScreenConfig[]): void {
-    const transaction = this.repository.beginTransaction();
-    for (const config of configs) {
-      const rows = this.toRows(config);
-      for (const row of rows) {
-        transaction.add(row);
-      }
-    }
-    transaction.commit();
+  getScreenConfigs(): ScreenConfig[] {
+    const rows = this.repository.find((r: ScreenConfigRow) => true);
+    return this.fromRows(rows);
+  }
+
+  getScreenConfigById(type: string): ScreenConfig | null {
+    const rows = this.repository.find(
+      (r: ScreenConfigRow) => r.screenName === type
+    );
+    const configs = this.fromRows(rows);
+    return configs.length > 0 ? configs[0] : null;
   }
 
   updateScreenConfigs(configs: ScreenConfig[]): void {
@@ -95,63 +91,20 @@ export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
     transaction.commit();
   }
 
-  deleteScreenConfig(type: string): void {
-    this.repository.delete((r: ScreenConfigRow) => r.screenName === type);
-  }
-
-  getScreenConfig(): ScreenConfig | null {
-    const configs = this.findAll();
-    return configs.length > 0 ? configs[0] : null;
-  }
-
-  findAll(): ScreenConfig[] {
-    const rows = this.repository.find((r: ScreenConfigRow) => true);
-    return this.fromRows(rows);
-  }
-
-  findByType(type: string): ScreenConfig | null {
-    const rows = this.repository.find(
-      (r: ScreenConfigRow) => r.screenName === type
-    );
-    const configs = this.fromRows(rows);
-    return configs.length > 0 ? configs[0] : null;
-  }
-
-  update(
-    type: string,
-    updateEntity: (config: ScreenConfig) => ScreenConfig
-  ): number {
-    const config = this.findByType(type);
-    if (!config) return 0;
-    const updated = updateEntity(config);
-    this.repository.delete(
-      (r: ScreenConfigRow) => r.screenName === updated.type
-    );
-    const rows = this.toRows(updated);
-    for (const row of rows) {
-      this.repository.add(row);
-    }
-    return 1;
-  }
-
-  updateMany(
-    types: string[],
-    updateEntity: (config: ScreenConfig) => ScreenConfig
-  ): number {
-    let count = 0;
+  deleteScreenConfigs(types: string[]): void {
     for (const type of types) {
-      count += this.update(type, updateEntity);
+      this.repository.delete((r: ScreenConfigRow) => r.screenName === type);
     }
-    return count;
   }
 
-  delete(type: string): void {
-    this.deleteScreenConfig(type);
-  }
-
-  deleteMany(types: string[]): void {
-    for (const type of types) {
-      this.deleteScreenConfig(type);
+  addScreenConfigs(configs: ScreenConfig[]): void {
+    const transaction = this.repository.beginTransaction();
+    for (const config of configs) {
+      const rows = this.toRows(config);
+      for (const row of rows) {
+        transaction.add(row);
+      }
     }
+    transaction.commit();
   }
 }

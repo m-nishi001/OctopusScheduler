@@ -26,12 +26,12 @@ export class ScreenConfigService implements GasService {
   }
 
   getScreenConfigs(): ScreenConfigDto[] {
-    const configs = this.repository.findAll();
+    const configs = this.repository.getScreenConfigs();
     return configs.map(toScreenConfigDto);
   }
 
   getScreenConfigById(args: { id: string }): ScreenConfigDto | null {
-    const config = this.repository.findByType(args.id);
+    const config = this.repository.getScreenConfigById(args.id);
     return config ? toScreenConfigDto(config) : null;
   }
 
@@ -41,12 +41,11 @@ export class ScreenConfigService implements GasService {
   }
 
   deleteScreenConfigs(args: { ids: string[] }): void {
-    this.repository.deleteMany(args.ids);
+    this.repository.deleteScreenConfigs(args.ids);
   }
 
-  addScreenConfigs(args: { configs: ScreenConfigDto[] }): string {
+  addScreenConfigs(args: { configs: ScreenConfigDto[] }): void {
     const configs = args.configs.map(toScreenConfig);
-    this.repository.createScreenConfigs(configs);
-    return "ok";
+    this.repository.addScreenConfigs(configs);
   }
 }
