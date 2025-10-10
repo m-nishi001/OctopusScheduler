@@ -24,7 +24,7 @@ import { MemberRepository } from "../infrastructure/repositories/member-reposito
 import { PrizeRepository } from "../infrastructure/repositories/prize-repository";
 import { DrawResultRepository } from "../infrastructure/repositories/draw-result-repository";
 import { AssetRepository } from "../infrastructure/repositories/asset-repository";
-import { ScreenConfigRepositoryImpl } from "../infrastructure/repositories/screen-config-repository";
+import { ScreenConfigRepository } from "../infrastructure/repositories/screen-config-repository";
 
 export class Container {
   static register() {
@@ -41,7 +41,7 @@ export class Container {
       useClass: AssetRepository,
     });
     container.register<IScreenConfigRepository>("IScreenConfigRepository", {
-      useClass: ScreenConfigRepositoryImpl,
+      useClass: ScreenConfigRepository,
     });
 
     container.register<AssetApiService>("IAssetService", {

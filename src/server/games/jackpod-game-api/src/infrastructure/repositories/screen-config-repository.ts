@@ -13,7 +13,7 @@ interface ScreenConfigRow {
 }
 
 @injectable()
-export class ScreenConfigRepositoryImpl implements IScreenConfigRepository {
+export class ScreenConfigRepository implements IScreenConfigRepository {
   private readonly repository: ISpreadsheetService<ScreenConfigRow>;
   private readonly sheetName = "ScreenConfigs";
 
