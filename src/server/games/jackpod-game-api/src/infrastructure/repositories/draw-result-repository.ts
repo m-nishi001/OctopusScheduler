@@ -15,50 +15,39 @@ export class DrawResultRepository implements IDrawResultRepository {
     this.repository = SpreadsheetService.getService<DrawResult>(this.sheetName);
   }
 
-  findAll(): DrawResult[] {
-    return this.repository.find((r: DrawResult) => true);
+  getDrawResults(): DrawResult[] {
+    return this.repository.find(() => true);
   }
 
-  findById(drawId: string): DrawResult | null {
+  getDrawResultById(drawId: string): DrawResult | null {
     const results = this.repository.find(
       (r: DrawResult) => r.drawId === drawId
     );
     return results.length > 0 ? results[0] : null;
   }
 
-  findManyByIds(ids: string[]): DrawResult[] {
-    return this.repository.find((r: DrawResult) => ids.includes(r.drawId));
+  updateDrawResults(results: DrawResult[]): void {
+    const transaction = this.repository.beginTransaction();
+    for (const result of results) {
+      transaction.update(
+        (r: DrawResult) => r.drawId === result.drawId,
+        () => result
+      );
+    }
+    transaction.commit();
   }
 
-  save(result: DrawResult): void {
-    this.repository.add(result);
+  deleteDrawResults(drawIds: string[]): void {
+    for (const drawId of drawIds) {
+      this.repository.delete((r: DrawResult) => r.drawId === drawId);
+    }
   }
 
-  update(
-    drawId: string,
-    updateEntity: (result: DrawResult) => DrawResult
-  ): number {
-    return this.repository.update(
-      (r: DrawResult) => r.drawId === drawId,
-      updateEntity
-    );
-  }
-
-  updateMany(
-    ids: string[],
-    updateEntity: (result: DrawResult) => DrawResult
-  ): number {
-    return this.repository.update(
-      (r: DrawResult) => ids.includes(r.drawId),
-      updateEntity
-    );
-  }
-
-  delete(drawId: string): void {
-    this.repository.delete((r: DrawResult) => r.drawId === drawId);
-  }
-
-  deleteMany(ids: string[]): void {
-    this.repository.delete((r: DrawResult) => ids.includes(r.drawId));
+  addDrawResults(results: DrawResult[]): void {
+    const transaction = this.repository.beginTransaction();
+    for (const result of results) {
+      transaction.add(result);
+    }
+    transaction.commit();
   }
 }
