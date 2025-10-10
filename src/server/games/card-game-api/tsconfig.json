@@ -2,9 +2,7 @@
   "compilerOptions": {
     "target": "ES2020", // Target environment (GAS V8 runtime supports modern JS)
     "module": "ESNext", // Use modern module system, ESBuild will handle bundling
-    "lib": [
-      "ESNext"
-    ],
+    "lib": ["ESNext"],
     "useDefineForClassFields": true,
     "strict": true, // Enable all strict type-checking options
     "esModuleInterop": true, // Enables emit interoperability between CommonJS and ES Modules
@@ -17,11 +15,10 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": [
-    "src/**/*"
-  ], 
+  "include": ["src/**/*"],
   "exclude": [
     "node_modules", // Exclude dependencies
-    "dist" // Exclude build output directory
+    "dist", // Exclude build output directory
+    "src/_bk" // Exclude backup directory
   ]
 }

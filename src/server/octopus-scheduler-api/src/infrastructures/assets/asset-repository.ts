@@ -86,4 +86,9 @@ export class AssetRepository implements IAssetRepository {
   delete(assetId: string): void {
     GoogleDriveService.deleteFilesOrFolders([assetId.toString()]);
   }
+
+  update(asset: Asset): void {
+    const file = DriveApp.getFileById(asset.assetId);
+    file.setName(asset.assetName);
+  }
 }

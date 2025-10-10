@@ -21,16 +21,16 @@ export class DrawResultService implements GasService {
   }
 
   getAll(): DrawResultDto[] {
-    const results = this.repository.findAll();
+    const results = this.repository.getDrawResults();
     return results.map(toDrawResultDto);
   }
 
   getById(args: { drawId: string }): DrawResultDto | null {
-    const result = this.repository.findById(args.drawId);
+    const result = this.repository.getDrawResultById(args.drawId);
     return result ? toDrawResultDto(result) : null;
   }
 
   save(args: { result: DrawResultDto }): void {
-    this.repository.save(toDrawResult(args.result));
+    this.repository.addDrawResults([toDrawResult(args.result)]);
   }
 }

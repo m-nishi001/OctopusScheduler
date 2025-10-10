@@ -6,5 +6,6 @@ export interface IAssetRepository {
   findById(assetId: string): Asset | null;
   findAll(): Asset[];
   getAllMetadatas(): AssetMetadata[];
+  update(asset: Asset): void;
   delete(assetId: string): void;
 }
