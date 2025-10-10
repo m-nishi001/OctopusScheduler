@@ -18,14 +18,23 @@ export class DrawService {
   draw(input: DrawInput): DrawPair[] {
     const { members, prizes, variable } = input;
 
-    // 景品の重みを確変変数で調整
+    // 景品の重みを確変変数で調整（負値にならないよう clamp）
     const adjustedPrizes = prizes.map((prize) => ({
       ...prize,
-      weight: this.adjustPrizeWeight(prize.weight, variable),
+      weight: Math.max(0, this.adjustPrizeWeight(prize.weight, variable)),
+    }));
+
+    // メンバーの weight が不正な場合もあるため安全化（デフォルト1）
+    const safeMembers = members.map((m) => ({
+      ...m,
+      weight:
+        typeof (m as any).weight === "number"
+          ? Math.max(0, (m as any).weight)
+          : 1,
     }));
 
     // メンバーを重みでシャッフル
-    const shuffledMembers = this.shuffleWithWeights(members);
+    const shuffledMembers = this.shuffleWithWeights(safeMembers);
 
     // 景品を重みでシャッフル
     const shuffledPrizes = this.shuffleWithWeights(adjustedPrizes);
@@ -69,10 +78,16 @@ export class DrawService {
   }
 
   private selectWeighted<T extends { weight: number }>(pool: T[]): T {
-    const total = pool.reduce((sum, item) => sum + item.weight, 0);
+    const total = pool.reduce((sum, item) => sum + Math.max(0, item.weight), 0);
+    // total が 0 の場合（すべて weight が 0）には一様ランダムで選択
+    if (total <= 0) {
+      const idx = Math.floor(Math.random() * pool.length);
+      return pool[idx];
+    }
     let r = Math.random() * total;
     for (const item of pool) {
-      r -= item.weight;
+      const w = Math.max(0, item.weight);
+      r -= w;
       if (r < 0) return item;
     }
     return pool[pool.length - 1];
