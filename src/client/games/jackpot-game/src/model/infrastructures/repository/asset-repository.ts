@@ -17,12 +17,13 @@ export class AssetRepository implements IAssetRepository {
     StorageConfig.getStoreName("AssetData")
   );
 
-  async fetchAssets(): Promise<Asset[]> {
-    const cached = await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY);
-    if (cached && cached.length > 0) {
-      return cached;
-    }
-    return [];
+  async getAssetById(assetId: string): Promise<Asset | undefined> {
+    const assets = await this.getAllAssets();
+    return assets.find((a) => a.id === assetId);
+  }
+
+  async getAllAssets(): Promise<Asset[]> {
+    return (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
   }
 
   async addAsset(asset: Asset): Promise<void> {
@@ -47,72 +48,73 @@ export class AssetRepository implements IAssetRepository {
     assets: Asset[],
     onProgress?: (index: number, success: boolean) => void
   ): Promise<{ successful: Asset[]; failed: Asset[] }> {
-    if (!this.gasService) return { successful: [], failed: [] };
-    const calls = assets.map((asset) =>
-      this.gasService!.createCall<{ asset: Asset }>(
-        "AssetService.addAsset",
-        asset
-      ).withTimeout(120000)
+    const { successful, failed } = await this.performBatchApiCalls(
+      assets,
+      onProgress
     );
-    // 各呼び出しのPromiseを作成し、完了時にonProgressを呼ぶ
+    await this.updateLocalStorageAfterBatch(successful);
+    return { successful, failed };
+  }
+
+  private async performBatchApiCalls(
+    assets: Asset[],
+    onProgress?: (index: number, success: boolean) => void
+  ): Promise<{ successful: Asset[]; failed: Asset[] }> {
+    if (!this.gasService) return { successful: [], failed: [] };
+    const calls = assets.map((asset) => {
+      const method = asset.id
+        ? "AssetService.updateAsset"
+        : "AssetService.addAsset";
+      return this.gasService!.createCall<{ asset: Asset }>(
+        method,
+        asset
+      ).withTimeout(120000);
+    });
     const promises = calls.map((call, index) => {
       return new Promise<{ index: number; success: Asset | false }>(
         (resolve) => {
           call
             .withSuccessed((res: { asset: Asset }) => {
-              if (onProgress) onProgress(index, true);
+              onProgress?.(index, true);
               resolve({ index, success: res.asset });
             })
             .withFailuered(() => {
-              if (onProgress) onProgress(index, false);
+              onProgress?.(index, false);
               resolve({ index, success: false });
             })
             .invoke();
         }
       );
     });
-    // 全ての呼び出しが完了するのを待つ
     const results = await Promise.all(promises);
-    // 成功したファイルと失敗したファイルを分ける
     const successful: Asset[] = [];
     const failed: Asset[] = [];
-    const successfulAssets: Asset[] = [];
     results.forEach(({ index, success }) => {
       if (success) {
         successful.push(success);
-        successfulAssets.push(success);
       } else {
         failed.push(assets[index]);
       }
     });
-    // 成功したものをローカルストレージに追加
-    if (successful.length > 0) {
-      const current =
-        (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-      await this.localStorage.save(ASSET_CACHE_KEY, [
-        ...current,
-        ...successfulAssets,
-      ]);
-    }
     return { successful, failed };
   }
 
-  async updateAssets(assets: Asset[]): Promise<void> {
-    for (const asset of assets) {
-      let currentAssets =
-        (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-      currentAssets = currentAssets.map((a: Asset) =>
-        a.id === asset.id ? asset : a
-      );
-      await this.localStorage.save(ASSET_CACHE_KEY, currentAssets);
-      if (!this.gasService) continue;
-      await new Promise<void>((resolve, reject) => {
-        this.gasService!.createCall<void>("AssetService.updateAsset", asset)
-          .withSuccessed(() => resolve())
-          .withFailuered((msg: string) => reject(new Error(msg)))
-          .invoke();
-      });
-    }
+  private async updateLocalStorageAfterBatch(
+    successful: Asset[]
+  ): Promise<void> {
+    if (successful.length === 0) return;
+    const current =
+      (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+    let updated = [...current];
+    successful.forEach((asset) => {
+      const existingIndex = updated.findIndex((a) => a.id === asset.id);
+      if (existingIndex >= 0) {
+        updated[existingIndex] = asset;
+      } else {
+        updated.push(asset);
+      }
+    });
+    await this.localStorage.save(ASSET_CACHE_KEY, updated);
   }
 
   async deleteAssets(assetIds: string[]): Promise<void> {
@@ -135,38 +137,52 @@ export class AssetRepository implements IAssetRepository {
     await this.localStorage.save(ASSET_CACHE_KEY, assets);
   }
 
-  async syncAssetsWithGoogleDrive(
-    onProgress?: (message: string) => void
-  ): Promise<void> {
+  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
     if (!this.gasService) return;
-    // サーバーからアセットメタデータを取得
-    const { assets: serverAssetsInfo }: { assets: AssetMetadataDto[] } =
-      await new Promise((resolve, reject) => {
-        this.gasService!.createCall<{
-          assets: AssetMetadataDto[];
-        }>("AssetService.getAssetMetadata")
-          .withTimeout(120000)
-          .withSuccessed((res: { assets: AssetMetadataDto[] }) => resolve(res))
-          .withFailuered((msg: string) => reject(new Error(msg)))
-          .invoke();
-      });
-    onProgress?.("メタデータ取得完了");
-    // ローカルアセットを取得
-    const localAssets =
-      (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-    // IDをキーとしたマップ作成
+    const serverAssetsInfo = await this.fetchAssetMetadata(onProgress);
+    const localAssets = await this.getAllAssets();
+    const { toAdd, toUpdate, toDelete } = this.determineSyncChanges(
+      localAssets,
+      serverAssetsInfo
+    );
+    const newAssets = await this.downloadAssets(
+      [...toAdd, ...toUpdate],
+      onProgress
+    );
+    await this.updateLocalStorageAfterSync(toDelete, newAssets, localAssets);
+    onProgress?.("同期完了");
+  }
+
+  private async fetchAssetMetadata(
+    onProgress?: (message: string) => void
+  ): Promise<AssetMetadataDto[]> {
+    return new Promise((resolve, reject) => {
+      this.gasService!.createCall<{ assets: AssetMetadataDto[] }>(
+        "AssetService.getAssetMetadata"
+      )
+        .withTimeout(120000)
+        .withSuccessed((res: { assets: AssetMetadataDto[] }) => {
+          onProgress?.("メタデータ取得完了");
+          resolve(res.assets);
+        })
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
+  private determineSyncChanges(
+    localAssets: Asset[],
+    serverAssets: AssetMetadataDto[]
+  ): { toAdd: string[]; toUpdate: string[]; toDelete: string[] } {
     const localAssetsMap = new Map(localAssets.map((a) => [a.id, a]));
-    const serverAssetsMap = new Map(serverAssetsInfo.map((a) => [a.id, a]));
-    // 追加・更新・削除を決定
+    const serverAssetsMap = new Map(serverAssets.map((a) => [a.id, a]));
     const toAdd: string[] = [];
     const toUpdate: string[] = [];
     const toDelete: string[] = [];
-    // サーバーにあってローカルにない: 追加
-    for (const serverAsset of serverAssetsInfo) {
+    for (const serverAsset of serverAssets) {
       if (!localAssetsMap.has(serverAsset.id)) {
         toAdd.push(serverAsset.id);
       } else {
-        // ローカルにある場合、最終更新日時を比較
         const localAsset = localAssetsMap.get(serverAsset.id)!;
         if (
           new Date(localAsset.lastUpdated) < new Date(serverAsset.lastUpdated)
@@ -175,67 +191,59 @@ export class AssetRepository implements IAssetRepository {
         }
       }
     }
-    // ローカルにあってサーバーにない: 削除
     for (const localAsset of localAssets) {
       if (!serverAssetsMap.has(localAsset.id)) {
         toDelete.push(localAsset.id);
       }
     }
-    // 追加・更新のアセットデータを並列取得
-    if (toAdd.length + toUpdate.length > 0) {
-      onProgress?.(
-        `ファイルダウンロード中 (${toAdd.length + toUpdate.length}件)`
-      );
-      const assetPromises = [...toAdd, ...toUpdate].map(
-        (id) =>
-          new Promise<Asset | null>((resolve) => {
-            this.gasService!.createCall<{ asset: Asset | null }>(
-              "AssetService.getAssetById",
-              { assetId: id }
-            )
-              .withTimeout(120000)
-              .withSuccessed((res: { asset: Asset | null }) => {
-                const asset = res.asset;
-                if (asset) {
-                  onProgress?.(
-                    `${asset.name} (${(asset.size / 1024).toFixed(1)}KB): ダウンロード中`
-                  );
-                }
-                resolve(asset);
-              })
-              .withFailuered(() => {
-                resolve(null);
-              })
-              .invoke();
-          })
-      );
-      const newOrUpdatedAssets = await Promise.all(assetPromises);
-      const validAssets = newOrUpdatedAssets.filter(
-        (a): a is Asset => !!a && a.id !== undefined && a.id !== null
-      );
-      // ローカルストレージ更新
-      let updatedLocalAssets = localAssets.filter(
-        (a) => !toDelete.includes(a.id)
-      );
-      // 既存の更新分を削除
-      updatedLocalAssets = updatedLocalAssets.filter(
-        (a) => !toUpdate.includes(a.id)
-      );
-      // 新規と更新を追加
-      updatedLocalAssets = [...updatedLocalAssets, ...validAssets];
-      await this.localStorage.save(ASSET_CACHE_KEY, updatedLocalAssets);
-    } else if (toDelete.length > 0) {
-      // 削除のみの場合もローカルストレージを更新
-      let updatedLocalAssets = localAssets.filter(
-        (a) => !toDelete.includes(a.id)
-      );
-      await this.localStorage.save(ASSET_CACHE_KEY, updatedLocalAssets);
-    }
-    onProgress?.("同期完了");
+    return { toAdd, toUpdate, toDelete };
   }
 
-  async getAssetById(assetId: string): Promise<Asset | undefined> {
-    const assets = await this.fetchAssets();
-    return assets.find((a) => a.id === assetId);
+  private async downloadAssets(
+    ids: string[],
+    onProgress?: (message: string) => void
+  ): Promise<Asset[]> {
+    if (ids.length === 0) return [];
+    onProgress?.(`ファイルダウンロード中 (${ids.length}件)`);
+    const assetPromises = ids.map(
+      (id) =>
+        new Promise<Asset | null>((resolve) => {
+          this.gasService!.createCall<{ asset: Asset | null }>(
+            "AssetService.getAssetById",
+            { assetId: id }
+          )
+            .withTimeout(120000)
+            .withSuccessed((res: { asset: Asset | null }) => {
+              const asset = res.asset;
+              if (asset) {
+                onProgress?.(
+                  `${asset.name} (${(asset.size / 1024).toFixed(1)}KB): ダウンロード中`
+                );
+              }
+              resolve(asset);
+            })
+            .withFailuered(() => resolve(null))
+            .invoke();
+        })
+    );
+    const newOrUpdatedAssets = await Promise.all(assetPromises);
+    return newOrUpdatedAssets.filter(
+      (a): a is Asset => !!a && a.id !== undefined && a.id !== null
+    );
+  }
+
+  private async updateLocalStorageAfterSync(
+    toDelete: string[],
+    newAssets: Asset[],
+    localAssets: Asset[]
+  ): Promise<void> {
+    let updatedLocalAssets = localAssets.filter(
+      (a) => !toDelete.includes(a.id)
+    );
+    updatedLocalAssets = updatedLocalAssets.filter(
+      (a) => !newAssets.some((na) => na.id === a.id)
+    );
+    updatedLocalAssets = [...updatedLocalAssets, ...newAssets];
+    await this.localStorage.save(ASSET_CACHE_KEY, updatedLocalAssets);
   }
 }

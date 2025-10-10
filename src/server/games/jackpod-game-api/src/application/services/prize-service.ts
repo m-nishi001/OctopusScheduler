@@ -13,33 +13,32 @@ export class PrizeService implements GasService {
     @inject("IPrizeRepository") private readonly repository: IPrizeRepository
   ) {
     this.functions = {
-      getAll: this.getAll.bind(this),
-      getById: this.getById.bind(this),
-      batchOperations: this.batchOperations.bind(this),
+      getPrizeById: this.getPrizeById.bind(this),
+      addPrizes: this.addPrizes.bind(this),
+      updatePrizes: this.updatePrizes.bind(this),
+      deletePrizes: this.deletePrizes.bind(this),
     };
   }
 
-  getAll(): PrizeDto[] {
-    const prizes = this.repository.findAll();
-    return prizes.map(toPrizeDto);
-  }
-
-  getById(args: { id: string }): PrizeDto | null {
+  getPrizeById(args: { id: string }): PrizeDto | null {
     const prize = this.repository.findById(args.id);
     return prize ? toPrizeDto(prize) : null;
   }
 
-  batchOperations(args: {
-    adds: PrizeDto[];
-    updates: { ids: string[]; prize: PrizeDto }[];
-    deletes: string[];
-  }): void {
-    const adds = args.adds.map(toPrize);
+  addPrizes(args: { prizes: PrizeDto[] }): void {
+    const adds = args.prizes.map(toPrize);
+    this.repository.batchOperations(adds, [], []);
+  }
+
+  updatePrizes(args: { updates: { ids: string[]; prize: PrizeDto }[] }): void {
     const updates = args.updates.map((u) => ({
       ids: u.ids,
       updateFn: (_: any) => toPrize(u.prize),
     }));
-    const deletes = args.deletes;
-    this.repository.batchOperations(adds, updates, deletes);
+    this.repository.batchOperations([], updates, []);
+  }
+
+  deletePrizes(args: { ids: string[] }): void {
+    this.repository.batchOperations([], [], args.ids);
   }
 }

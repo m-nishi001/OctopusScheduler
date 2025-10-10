@@ -7,7 +7,8 @@ export class MemberService {
   constructor(@inject("IMemberRepository") private repo: IMemberRepository) {}
 
   async fetchMembers(): Promise<MemberDto[]> {
-    return this.repo.fetchMembers();
+    await this.repo.syncMembers();
+    return this.repo.getMembers();
   }
 
   async batchOperations(operations: {

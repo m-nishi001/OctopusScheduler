@@ -122,7 +122,7 @@ const fetchMembers = async () => {
   sortMembers();
 };
 const fetchAssets = async () => {
-  assets.value = await assetService.fetchAssets();
+  assets.value = await assetService.getAllAssets();
 };
 const sortMembers = () => {
   if (sortBy.value === 'name') {

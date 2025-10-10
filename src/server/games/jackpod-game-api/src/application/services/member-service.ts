@@ -14,39 +14,44 @@ export class MemberService implements GasService {
     @inject("IMemberRepository") private readonly repository: IMemberRepository
   ) {
     this.functions = {
-      getAll: this.getAll.bind(this),
-      getById: this.getById.bind(this),
-      batchOperations: this.batchOperations.bind(this),
+      getMemberById: this.getMemberById.bind(this),
+      addMembers: this.addMembers.bind(this),
+      updateMembers: this.updateMembers.bind(this),
+      deleteMembers: this.deleteMembers.bind(this),
     };
   }
 
-  getAll(): MemberDto[] {
-    const members = this.repository.findAll();
-    return members.map(toMemberDto);
-  }
-
-  getById(args: { id: string }): MemberDto | null {
+  getMemberById(args: { id: string }): MemberDto | null {
     const member = this.repository.findById(args.id);
     return member ? toMemberDto(member) : null;
   }
 
-  batchOperations(args: {
-    operations: {
-      add: MemberDto[];
-      update: MemberDto[];
-      delete: string[];
-    };
-  }): void {
-    const addMembers = args.operations.add.map(toMember);
-    const updateOps = args.operations.update.map((dto) => ({
+  addMembers(args: { members: MemberDto[] }): void {
+    const addMembers = args.members.map(toMember);
+    this.repository.batchOperations({
+      add: addMembers,
+      update: [],
+      delete: [],
+    });
+  }
+
+  updateMembers(args: { members: MemberDto[] }): void {
+    const updateOps = args.members.map((dto) => ({
       id: dto.id,
       updateFn: (m: Member) => toMember(dto),
     }));
-    const deleteIds = args.operations.delete;
     this.repository.batchOperations({
-      add: addMembers,
+      add: [],
       update: updateOps,
-      delete: deleteIds,
+      delete: [],
+    });
+  }
+
+  deleteMembers(args: { ids: string[] }): void {
+    this.repository.batchOperations({
+      add: [],
+      update: [],
+      delete: args.ids,
     });
   }
 }

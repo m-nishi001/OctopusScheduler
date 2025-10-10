@@ -215,7 +215,7 @@ const bgm1Mode = ref('select');
 const bgm2Mode = ref('select');
 const fetchAssets = async () => {
   try {
-    assets.value = await assetService.fetchAssets();
+    assets.value = await assetService.getAllAssets();
   } catch (error) {
     console.error('Failed to fetch assets:', error);
     assets.value = [];

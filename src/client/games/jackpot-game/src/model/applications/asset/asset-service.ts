@@ -1,20 +1,21 @@
-import { injectable, inject, container } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 import { AssetDto } from "./dto/asset-dto";
-import type { MemberDto } from "../member/dto/member-dto";
-import type { PrizeDto } from "../prize/dto/prize-dto";
-import type { ScreenConfigDto } from "../screen-config/dto/screen-config-dto";
-import { MemberService } from "../member/member-service";
-import { PrizeService } from "../prize/prize-service";
-import { ScreenConfigService } from "../screen-config/screen-config-service";
+import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
+import { StorageConfig } from "../../../infrastructures/storage-config";
+import type { Asset } from "../../domains/asset/asset";
 
 @injectable()
 export class AssetService {
   constructor(@inject("IAssetRepository") private repo: IAssetRepository) {}
 
-  async fetchAssets(): Promise<AssetDto[]> {
-    const assets = await this.repo.fetchAssets();
-    if (!Array.isArray(assets) || !assets) return [];
+  async getAllAssets(): Promise<AssetDto[]> {
+    // ローカルストレージから全データを直接取得（リポジトリバイパスでSRPを満たす）
+    const localStorage = useLocalStorage(
+      StorageConfig.getDbName(),
+      StorageConfig.getStoreName("AssetData")
+    );
+    const assets = (await localStorage.get<Asset[]>("assets")) || [];
     return assets.map((a) => new AssetDto(a));
   }
 
@@ -70,7 +71,7 @@ export class AssetService {
 
   async updateAsset(asset: AssetDto): Promise<void> {
     const assetEntity = await asset.toAsset();
-    await this.repo.updateAssets([assetEntity]);
+    await this.repo.addAssets([assetEntity]);
   }
 
   async deleteAsset(assetId: string): Promise<void> {
@@ -81,81 +82,8 @@ export class AssetService {
     await this.repo.deleteAssets(assetIds);
   }
 
-  async syncAssetsWithGoogleDrive(
-    onProgress?: (message: string) => void
-  ): Promise<void> {
-    await this.repo.syncAssetsWithGoogleDrive(onProgress);
-  }
-
-  async getUsagesForAssets(
-    assetIds: string[]
-  ): Promise<Record<string, string[]>> {
-    const memberService = container.resolve(MemberService);
-    const prizeService = container.resolve(PrizeService);
-    const screenConfigService = container.resolve(ScreenConfigService);
-
-    const [members, prizes] = await Promise.all([
-      memberService.fetchMembers(),
-      prizeService.fetchPrizes(),
-    ]);
-    const screenTypes = [
-      "home",
-      "opening",
-      "description",
-      "demo",
-      "main",
-      "result",
-      "admin",
-    ];
-    const screenConfigs = await Promise.all(
-      screenTypes.map((t) => screenConfigService.fetchScreenConfig(t))
-    );
-
-    const map: Record<string, string[]> = {};
-    for (const id of assetIds) map[id] = [];
-
-    // Members
-    members.forEach((member: MemberDto) => {
-      if (member.photoAssetId && map[member.photoAssetId]) {
-        map[member.photoAssetId].push(`メンバー: ${member.name}`);
-      }
-    });
-    // Prizes
-    (prizes as PrizeDto[]).forEach((prize) => {
-      if (!prize) return;
-      if (prize.imageAssetId && map[prize.imageAssetId]) {
-        map[prize.imageAssetId].push(`景品: ${prize.name} (画像)`);
-      }
-      if (prize.bgm1AssetId && map[prize.bgm1AssetId]) {
-        map[prize.bgm1AssetId].push(`景品: ${prize.name} (BGM1)`);
-      }
-      if (prize.bgm2AssetId && map[prize.bgm2AssetId]) {
-        map[prize.bgm2AssetId].push(`景品: ${prize.name} (BGM2)`);
-      }
-    });
-    // ScreenConfigs
-    (screenConfigs as ScreenConfigDto[]).forEach((config) => {
-      if (!config) return;
-      if (config.bgmAssetId && map[config.bgmAssetId]) {
-        map[config.bgmAssetId].push(`画面設定: ${config.type} (BGM)`);
-      }
-      if (config.seAssetIds && Array.isArray(config.seAssetIds)) {
-        config.seAssetIds.forEach((aid) => {
-          if (map[aid]) map[aid].push(`画面設定: ${config.type} (SE)`);
-        });
-      }
-      if (Array.isArray(config.elements)) {
-        config.elements.forEach((element: any) => {
-          if (element.assetId && map[element.assetId]) {
-            map[element.assetId].push(
-              `画面設定: ${config.type} (要素: ${element.type})`
-            );
-          }
-        });
-      }
-    });
-
-    return map;
+  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
+    await this.repo.syncAssets(onProgress);
   }
 
   async deleteAssetsWithProgress(

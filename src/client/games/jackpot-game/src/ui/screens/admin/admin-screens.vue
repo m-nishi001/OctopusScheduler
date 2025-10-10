@@ -80,7 +80,7 @@ const assets = ref<any[]>([]);
 
 const fetchAssets = async () => {
   try {
-    assets.value = await assetService.fetchAssets();
+    assets.value = await assetService.getAllAssets();
   } catch (error) {
     console.error("Failed to fetch assets:", error);
     assets.value = [];
@@ -89,11 +89,11 @@ const fetchAssets = async () => {
 
 const syncWithDrive = async (onMessage?: (msg: string) => void) => {
   try {
-    await assetService.syncAssetsWithGoogleDrive((message: string) => {
+    await assetService.syncAssets((message: string) => {
       if (onMessage) onMessage(message);
     });
   } catch (e) {
-    console.error("syncAssetsWithGoogleDrive failed", e);
+    console.error("syncAssets failed", e);
   }
 };
 

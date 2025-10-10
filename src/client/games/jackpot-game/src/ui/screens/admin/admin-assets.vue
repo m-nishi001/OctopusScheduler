@@ -80,8 +80,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { AssetService } from '../../../model/applications/asset/asset-service';
+import { AssetUsageService } from '../../../model/applications/asset/asset-usage-service';
 import { container } from 'tsyringe';
 const assetService = container.resolve(AssetService);
+const assetUsageService = container.resolve(AssetUsageService);
 
 const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);
@@ -106,17 +108,15 @@ const usageMap = ref<Record<string, string[]>>({});
 const deleteMessage = ref('');
 
 const fetchAssets = async () => {
-    assets.value = await assetService.fetchAssets();
-};
-
-const fetchUsageData = async () => {
-    // Use AssetService helper to aggregate usage info from domain services
+    assets.value = await assetService.getAllAssets();
+}; const fetchUsageData = async () => {
+    // Use AssetUsageService to aggregate usage info from domain services
     const ids = assets.value.map(a => a.id);
     if (ids.length === 0) {
         usageMap.value = {};
         return;
     }
-    usageMap.value = await assetService.getUsagesForAssets(ids);
+    usageMap.value = await assetUsageService.getUsagesForAssets(ids);
 };
 
 const onFileChange = (e: Event) => {
@@ -184,7 +184,7 @@ const syncAssets = async () => {
     syncing.value = true;
     syncMessage.value = "";
     try {
-        await assetService.syncAssetsWithGoogleDrive((message) => {
+        await assetService.syncAssets((message) => {
             syncMessage.value = message;
         });
         await fetchAssets();

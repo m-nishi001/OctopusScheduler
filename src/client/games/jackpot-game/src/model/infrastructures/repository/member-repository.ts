@@ -16,14 +16,18 @@ export class MemberRepository implements IMemberRepository {
     StorageConfig.getStoreName("MemberData")
   );
 
-  async fetchMembers(): Promise<Member[]> {
-    if (!this.gasService) return [];
+  async getMembers(): Promise<Member[]> {
+    return (await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY)) || [];
+  }
+
+  async syncMembers(): Promise<void> {
+    if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
         .createCall<{ members: Member[] }>("MemberService.getAll")
         .withSuccessed(async (res: { members: Member[] }) => {
           await this.localStorage.save(MEMBER_CACHE_KEY, res.members);
-          resolve(res.members);
+          resolve();
         })
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();

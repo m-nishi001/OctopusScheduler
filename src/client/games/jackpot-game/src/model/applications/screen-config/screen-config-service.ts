@@ -74,7 +74,7 @@ export class ScreenConfigService {
     );
 
     // Resolve inline placeholders in element.content like {asset:ASSET_ID} -> <img|video|audio ...>
-    const allAssets = await this.assetRepo.fetchAssets();
+    const allAssets = await this.assetRepo.getAllAssets();
     const assetMap = new Map(allAssets.map((a: any) => [a.id, a]));
     resolvedConfig.elements = resolvedConfig.elements.map((el: any) => {
       if (!el.content || typeof el.content !== "string") return el;

@@ -18,12 +18,10 @@ export class PrizeRepository implements IPrizeRepository {
   );
 
   async fetchPrizes(): Promise<PrizeDto[]> {
-    // 1. キャッシュ優先
     const cached = await this.localStorage.get<Prize[]>(PRIZE_CACHE_KEY);
     if (cached && cached.length > 0) {
       return cached;
     }
-    // 2. GAS APIフォールバック
     if (!this.gasService) return [];
     return new Promise((resolve, reject) => {
       this.gasService
@@ -42,20 +40,15 @@ export class PrizeRepository implements IPrizeRepository {
     updates: PrizeDto[],
     deletes: string[]
   ): Promise<void> {
-    // 1. キャッシュ更新
     let prizes =
       (await this.localStorage.get<PrizeDto[]>(PRIZE_CACHE_KEY)) || [];
-    // adds
     prizes.push(...adds);
-    // updates
     for (const update of updates) {
       const idx = prizes.findIndex((p) => p.id === update.id);
       if (idx >= 0) prizes[idx] = update;
     }
-    // deletes
     prizes = prizes.filter((p) => !deletes.includes(p.id));
     await this.localStorage.save(PRIZE_CACHE_KEY, prizes);
-    // 2. GAS API
     if (!this.gasService) return;
     const updateArgs = updates.map((u) => ({ ids: [u.id], prize: u }));
     return new Promise((resolve, reject) => {
@@ -72,7 +65,6 @@ export class PrizeRepository implements IPrizeRepository {
   }
 
   async syncPrizesWithServer(): Promise<PrizeDto[]> {
-    // 強制的にサーバーから取得しキャッシュ更新
     if (!this.gasService) return [];
     return new Promise((resolve, reject) => {
       this.gasService

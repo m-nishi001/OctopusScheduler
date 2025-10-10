@@ -1,6 +1,5 @@
 import type { ResultResponse } from "../../applications/result/dto/result-response";
 import { injectable } from "tsyringe";
-import type { Result } from "../../domains/result/result";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 
 @injectable()
@@ -27,9 +26,4 @@ export class ResultRepository {
         .invoke();
     });
   }
-}
-
-export interface GetResultsRequest {}
-export interface GetResultsResponse {
-  results: Result[];
 }
