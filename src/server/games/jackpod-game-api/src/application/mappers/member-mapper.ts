@@ -1,5 +1,5 @@
 import { Member } from "../../domain/entities/member";
-import { MemberDto } from "../dtos/member.dto";
+import { MemberDto } from "../dtos/member-dto";
 
 export function toMemberDto(entity: Member): MemberDto {
   return {

@@ -1,5 +1,5 @@
 import { Asset } from "../entities/asset";
-import { AssetMetadataDto } from "../../application/dtos/asset.dto";
+import { AssetMetadataDto } from "../../application/dtos/asset-dto";
 
 export interface IAssetRepository {
   uploadAsset(asset: Asset): string;

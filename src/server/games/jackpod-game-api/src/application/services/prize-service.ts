@@ -1,8 +1,8 @@
 import { injectable, inject } from "tsyringe";
 import { IPrizeRepository } from "../../domain/repositories/prize-repository";
 import { GasService } from "./gas-service";
-import { PrizeDto } from "../dtos/prize.dto";
-import { toPrizeDto, toPrize } from "../mappers/prize.mapper";
+import { PrizeDto } from "../dtos/prize-dto";
+import { toPrizeDto, toPrize } from "../mappers/prize-mapper";
 
 @injectable()
 export class PrizeService implements GasService {
