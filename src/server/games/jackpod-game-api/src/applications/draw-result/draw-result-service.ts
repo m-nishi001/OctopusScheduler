@@ -21,20 +21,20 @@ export class DrawResultService implements GasService {
     };
   }
 
-  async getAllDrawResults(): Promise<DrawResultDto[]> {
-    const results = await this.repository.getDrawResults();
+  getAllDrawResults(): DrawResultDto[] {
+    const results = this.repository.getDrawResults();
     return results.map(toDrawResultDto);
   }
 
-  async addDrawResult(args: { result: DrawResultDto }): Promise<void> {
-    await this.repository.addDrawResults([toDrawResult(args.result)]);
+  addDrawResult(args: { result: DrawResultDto }): void {
+    this.repository.addDrawResults([toDrawResult(args.result)]);
   }
 
-  async addDrawResults(args: { results: DrawResultDto[] }): Promise<void> {
-    await this.repository.addDrawResults(args.results.map(toDrawResult));
+  addDrawResults(args: { results: DrawResultDto[] }): void {
+    this.repository.addDrawResults(args.results.map(toDrawResult));
   }
 
-  async deleteDrawResults(args: { drawIds: string[] }): Promise<void> {
-    await this.repository.deleteDrawResults(args.drawIds);
+  deleteDrawResults(args: { drawIds: string[] }): void {
+    this.repository.deleteDrawResults(args.drawIds);
   }
 }

@@ -20,27 +20,25 @@ export class PrizeService implements GasService {
     };
   }
 
-  async getPrizeById(args: { id: string }): Promise<PrizeDto | null> {
-    const prize = await this.repository.getPrizeById(args.id);
+  getPrizeById(args: { id: string }): PrizeDto | null {
+    const prize = this.repository.getPrizeById(args.id);
     return prize ? toPrizeDto(prize) : null;
   }
 
-  async addPrizes(args: { prizes: PrizeDto[] }): Promise<void> {
+  addPrizes(args: { prizes: PrizeDto[] }): void {
     const adds = args.prizes.map(toPrize);
-    await this.repository.addPrizes(adds);
+    this.repository.addPrizes(adds);
   }
 
-  async updatePrizes(args: {
-    updates: { id: string; prize: PrizeDto }[];
-  }): Promise<void> {
+  updatePrizes(args: { updates: { id: string; prize: PrizeDto }[] }): void {
     const updates = args.updates.map((u) => ({
       id: u.id,
       updateFn: (_: any) => toPrize(u.prize),
     }));
-    await this.repository.updatePrizes(updates);
+    this.repository.updatePrizes(updates);
   }
 
-  async deletePrizes(args: { ids: string[] }): Promise<void> {
-    await this.repository.deletePrizes(args.ids);
+  deletePrizes(args: { ids: string[] }): void {
+    this.repository.deletePrizes(args.ids);
   }
 }

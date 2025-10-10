@@ -1,9 +1,9 @@
 import { DrawResult } from "./draw-result";
 
 export interface IDrawResultRepository {
-  getDrawResults(): Promise<DrawResult[]>;
-  getDrawResultById(drawId: string): Promise<DrawResult | null>;
-  updateDrawResults(results: DrawResult[]): Promise<void>;
-  deleteDrawResults(drawIds: string[]): Promise<void>;
-  addDrawResults(results: DrawResult[]): Promise<void>;
+  getDrawResults(): DrawResult[];
+  getDrawResultById(drawId: string): DrawResult | null;
+  updateDrawResults(results: DrawResult[]): void;
+  deleteDrawResults(drawIds: string[]): void;
+  addDrawResults(results: DrawResult[]): void;
 }

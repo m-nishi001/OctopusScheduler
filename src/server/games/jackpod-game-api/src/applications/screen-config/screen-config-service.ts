@@ -25,31 +25,27 @@ export class ScreenConfigService implements GasService {
     };
   }
 
-  async getScreenConfigs(): Promise<ScreenConfigDto[]> {
-    const configs = await this.repository.getScreenConfigs();
+  getScreenConfigs(): ScreenConfigDto[] {
+    const configs = this.repository.getScreenConfigs();
     return configs.map(toScreenConfigDto);
   }
 
-  async getScreenConfigById(args: {
-    id: string;
-  }): Promise<ScreenConfigDto | null> {
-    const config = await this.repository.getScreenConfigById(args.id);
+  getScreenConfigById(args: { id: string }): ScreenConfigDto | null {
+    const config = this.repository.getScreenConfigById(args.id);
     return config ? toScreenConfigDto(config) : null;
   }
 
-  async updateScreenConfigs(args: {
-    configs: ScreenConfigDto[];
-  }): Promise<void> {
+  updateScreenConfigs(args: { configs: ScreenConfigDto[] }): void {
     const configs = args.configs.map(toScreenConfig);
-    await this.repository.updateScreenConfigs(configs);
+    this.repository.updateScreenConfigs(configs);
   }
 
-  async deleteScreenConfigs(args: { ids: string[] }): Promise<void> {
-    await this.repository.deleteScreenConfigs(args.ids);
+  deleteScreenConfigs(args: { ids: string[] }): void {
+    this.repository.deleteScreenConfigs(args.ids);
   }
 
-  async addScreenConfigs(args: { configs: ScreenConfigDto[] }): Promise<void> {
+  addScreenConfigs(args: { configs: ScreenConfigDto[] }): void {
     const configs = args.configs.map(toScreenConfig);
-    await this.repository.addScreenConfigs(configs);
+    this.repository.addScreenConfigs(configs);
   }
 }

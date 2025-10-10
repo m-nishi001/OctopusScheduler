@@ -19,27 +19,25 @@ export class AssetService implements GasService {
     };
   }
 
-  async deleteAsset(args: { assetId: string }): Promise<{ success: boolean }> {
-    await this.repository.deleteAsset(args.assetId);
+  deleteAsset(args: { assetId: string }): { success: boolean } {
+    this.repository.deleteAsset(args.assetId);
     return { success: true };
   }
 
-  async getAssetById(args: {
-    assetId: string;
-  }): Promise<{ asset: AssetDto | null }> {
-    const asset = await this.repository.getAsset(args.assetId);
+  getAssetById(args: { assetId: string }): { asset: AssetDto | null } {
+    const asset = this.repository.getAsset(args.assetId);
     return { asset: asset ? new AssetDto(asset) : null };
   }
 
-  async getAssetMetadata(): Promise<{ assets: AssetMetadataDto[] }> {
-    const assets = await this.repository.findAllMetadata();
+  getAssetMetadata(): { assets: AssetMetadataDto[] } {
+    const assets = this.repository.findAllMetadata();
     return { assets };
   }
 
-  async addAsset(args: AssetDto): Promise<{ asset: AssetDto }> {
+  addAsset(args: AssetDto): { asset: AssetDto } {
     const assetEntity = AssetDto.toAsset(args);
-    const assetId = await this.repository.uploadAsset(assetEntity);
-    const uploadedAsset = await this.repository.getAsset(assetId);
+    const assetId = this.repository.uploadAsset(assetEntity);
+    const uploadedAsset = this.repository.getAsset(assetId);
     return { asset: uploadedAsset ? new AssetDto(uploadedAsset) : args };
   }
 }
