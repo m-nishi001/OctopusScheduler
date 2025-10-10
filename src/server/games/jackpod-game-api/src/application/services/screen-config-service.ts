@@ -1,5 +1,4 @@
 import { injectable, inject } from "tsyringe";
-import { ScreenConfig } from "../../domain/entities/screen-config";
 import { IScreenConfigRepository } from "../../domain/repositories/screen-config-repository";
 import { GasService } from "./gas-service";
 import {
@@ -18,82 +17,36 @@ export class ScreenConfigService implements GasService {
     private readonly repository: IScreenConfigRepository
   ) {
     this.functions = {
-      createScreenConfigs: this.createScreenConfigs.bind(this),
-      updateScreenConfigs: this.updateScreenConfigs.bind(this),
-      deleteScreenConfig: this.deleteScreenConfig.bind(this),
-      getScreenConfig: this.getScreenConfig.bind(this),
-      findAll: this.findAll.bind(this),
-      findByType: this.findByType.bind(this),
-      update: this.update.bind(this),
-      updateMany: this.updateMany.bind(this),
-      delete: this.delete.bind(this),
-      deleteMany: this.deleteMany.bind(this),
+      getScreenConfigs: this.getScreenConfigs,
+      getScreenConfigById: this.getScreenConfigById,
+      updateScreenConfigs: this.updateScreenConfigs,
+      deleteScreenConfigs: this.deleteScreenConfigs,
+      addScreenConfigs: this.addScreenConfigs,
     };
   }
 
-  createScreenConfigs(args: { configs: ScreenConfigDto[] }): string {
-    const configs = args.configs.map(toScreenConfig);
-    configs.forEach((config) => {
-      config.id = Utilities.getUuid();
-      config.elements.forEach((element) => {
-        if (!element.id) {
-          element.id = Utilities.getUuid();
-        }
-      });
-    });
-    this.repository.createScreenConfigs(configs);
-    return "ok";
-  }
-
-  updateScreenConfigs(args: { configs: ScreenConfigDto[] }): string {
-    const configs = args.configs.map(toScreenConfig);
-    this.repository.updateScreenConfigs(configs);
-    return "ok";
-  }
-
-  deleteScreenConfig(args: { type: string }): string {
-    this.repository.deleteScreenConfig(args.type);
-    return "ok";
-  }
-
-  getScreenConfig(): ScreenConfigDto | null {
-    const config = this.repository.getScreenConfig();
-    return config ? toScreenConfigDto(config) : null;
-  }
-
-  findAll(): ScreenConfigDto[] {
+  getScreenConfigs(): ScreenConfigDto[] {
     const configs = this.repository.findAll();
     return configs.map(toScreenConfigDto);
   }
 
-  findByType(args: { type: string }): ScreenConfigDto | null {
-    const config = this.repository.findByType(args.type);
+  getScreenConfigById(args: { id: string }): ScreenConfigDto | null {
+    const config = this.repository.findByType(args.id);
     return config ? toScreenConfigDto(config) : null;
   }
 
-  update(args: {
-    type: string;
-    updateEntity: (config: ScreenConfigDto) => ScreenConfigDto;
-  }): number {
-    return this.repository.update(args.type, (entity: ScreenConfig) =>
-      toScreenConfig(args.updateEntity(toScreenConfigDto(entity)))
-    );
+  updateScreenConfigs(args: { configs: ScreenConfigDto[] }): void {
+    const configs = args.configs.map(toScreenConfig);
+    this.repository.updateScreenConfigs(configs);
   }
 
-  updateMany(args: {
-    types: string[];
-    updateEntity: (config: ScreenConfigDto) => ScreenConfigDto;
-  }): number {
-    return this.repository.updateMany(args.types, (entity: ScreenConfig) =>
-      toScreenConfig(args.updateEntity(toScreenConfigDto(entity)))
-    );
+  deleteScreenConfigs(args: { ids: string[] }): void {
+    this.repository.deleteMany(args.ids);
   }
 
-  delete(args: { type: string }): void {
-    this.repository.delete(args.type);
-  }
-
-  deleteMany(args: { types: string[] }): void {
-    this.repository.deleteMany(args.types);
+  addScreenConfigs(args: { configs: ScreenConfigDto[] }): string {
+    const configs = args.configs.map(toScreenConfig);
+    this.repository.createScreenConfigs(configs);
+    return "ok";
   }
 }

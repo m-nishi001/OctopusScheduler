@@ -1,21 +1,19 @@
-import type {
+import {
   ScreenConfig,
   ScreenElement,
   AnimationSettings,
 } from "../../domain/entities/screen-config";
 
 export function toScreenConfig(dto: ScreenConfigDto): ScreenConfig {
-  return {
-    id: dto.id || "",
-    type: dto.type,
-    bgmAssetId: dto.bgmAssetId,
-    seAssetIds: dto.seAssetIds,
-    backgroundStyle: dto.backgroundStyle,
-    elements: dto.elements.map(toScreenElement),
-    animationSettings: dto.animationSettings
-      ? toAnimationSettings(dto.animationSettings)
-      : undefined,
-  };
+  return new ScreenConfig(
+    dto.type,
+    dto.backgroundStyle,
+    dto.elements,
+    dto.bgmAssetId,
+    dto.seAssetIds,
+    dto.animationSettings,
+    dto.id
+  );
 }
 
 export function toScreenConfigDto(entity: ScreenConfig): ScreenConfigDto {

@@ -7,7 +7,7 @@ export type ScreenType =
   | "result"
   | "admin";
 
-export interface ScreenConfig {
+export class ScreenConfig {
   id: string;
   type: ScreenType;
   bgmAssetId?: string;
@@ -15,6 +15,27 @@ export interface ScreenConfig {
   backgroundStyle: string;
   elements: ScreenElement[];
   animationSettings?: AnimationSettings;
+
+  constructor(
+    type: ScreenType,
+    backgroundStyle: string,
+    elements: ScreenElement[],
+    bgmAssetId?: string,
+    seAssetIds?: string[],
+    animationSettings?: AnimationSettings,
+    id?: string
+  ) {
+    this.id = id || Utilities.getUuid();
+    this.type = type;
+    this.bgmAssetId = bgmAssetId;
+    this.seAssetIds = seAssetIds;
+    this.backgroundStyle = backgroundStyle;
+    this.elements = elements.map((element) => ({
+      ...element,
+      id: element.id || Utilities.getUuid(),
+    }));
+    this.animationSettings = animationSettings;
+  }
 }
 
 export type ScreenElementType =
