@@ -1,6 +1,6 @@
 import { container } from "tsyringe";
 
-import { AssetApiService } from "../application/services/asset-api-service";
+import { AssetService } from "../application/services/asset-service";
 import { GasService } from "../application/services/gas-service";
 import { LotteryCoordinator } from "../application/services/lottery-coordinator";
 import { DrawPairingService } from "../application/services/draw-pairing-service";
@@ -44,8 +44,8 @@ export class Container {
       useClass: ScreenConfigRepository,
     });
 
-    container.register<AssetApiService>("IAssetService", {
-      useClass: AssetApiService,
+    container.register<AssetService>("IAssetService", {
+      useClass: AssetService,
     });
     container.register("IAssetRepository", { useClass: AssetRepository });
 
@@ -56,7 +56,7 @@ export class Container {
       useClass: LotteryCoordinator,
     });
     container.register<GasService>("IGasService", {
-      useClass: AssetApiService,
+      useClass: AssetService,
     });
     container.register<GasService>("IGasService", {
       useClass: DrawResultService,

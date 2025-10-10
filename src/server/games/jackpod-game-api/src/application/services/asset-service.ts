@@ -4,7 +4,7 @@ import { AssetDto, AssetMetadataDto } from "../dtos/asset.dto";
 import { IAssetRepository } from "../../domain/repositories/asset-repository";
 
 @injectable()
-export class AssetApiService implements GasService {
+export class AssetService implements GasService {
   readonly serviceName = "AssetService";
   readonly functions: Record<string, (args: any) => any>;
 
