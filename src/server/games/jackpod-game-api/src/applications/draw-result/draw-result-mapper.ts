@@ -1,7 +1,7 @@
 import { DrawResult } from "../../domain/entities/draw-result";
-import { DrawResultDto } from "../dtos/draw-result-dto";
-import { toMemberDto, toMember } from "./member-mapper";
-import { toPrizeDto, toPrize } from "./prize-mapper";
+import { DrawResultDto } from "./draw-result-dto";
+import { toMemberDto, toMember } from "../member/member-mapper";
+import { toPrizeDto, toPrize } from "../prize/prize-mapper";
 
 export function toDrawResultDto(entity: DrawResult): DrawResultDto {
   return {

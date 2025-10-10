@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { container } from "tsyringe";
-import { GasService } from "../../application/services/gas-service";
+import { GasService } from "../../applications/draw/gas-service";
 
 type ApiResponse = SuccessResponse | ErrorResponse;
 

@@ -1,11 +1,11 @@
 import { injectable, inject } from "tsyringe";
-import { IScreenConfigRepository } from "../../domain/repositories/screen-config-repository";
-import { GasService } from "./gas-service";
+import { GasService } from "../draw/gas-service";
 import {
   ScreenConfigDto,
   toScreenConfig,
   toScreenConfigDto,
-} from "../dtos/screen-config-dto";
+} from "./screen-config-dto";
+import { IScreenConfigRepository } from "../../domain/repositories/screen-config-repository";
 
 @injectable()
 export class ScreenConfigService implements GasService {

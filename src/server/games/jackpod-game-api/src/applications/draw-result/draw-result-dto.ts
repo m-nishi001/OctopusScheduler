@@ -1,5 +1,5 @@
-import { MemberDto } from "./member-dto";
-import { PrizeDto } from "./prize-dto";
+import { MemberDto } from "../member/member-dto";
+import { PrizeDto } from "../prize/prize-dto";
 
 export interface DrawResultDto {
   drawId: string;

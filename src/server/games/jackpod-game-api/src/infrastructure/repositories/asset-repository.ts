@@ -1,7 +1,7 @@
 import { Asset } from "../../domain/entities/asset";
 import type { IAssetRepository as IAssetRepository } from "../../domain/repositories/asset-repository";
 import { GoogleDriveService } from "../../../../../shared-packages/src/google-drive-service";
-import type { AssetMetadataDto } from "../../application/dtos/asset-dto";
+import type { AssetMetadataDto } from "../../applications/asset/asset-dto";
 
 export class AssetRepository implements IAssetRepository {
   findAll(): Asset[] {

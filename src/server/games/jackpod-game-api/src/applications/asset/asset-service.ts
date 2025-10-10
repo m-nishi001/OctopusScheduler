@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
-import { GasService } from "./gas-service";
-import { AssetDto, AssetMetadataDto } from "../dtos/asset-dto";
+import { GasService } from "../draw/gas-service";
+import { AssetDto, AssetMetadataDto } from "./asset-dto";
 import { IAssetRepository } from "../../domain/repositories/asset-repository";
 
 @injectable()

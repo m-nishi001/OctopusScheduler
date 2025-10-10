@@ -1,12 +1,12 @@
 import { container } from "tsyringe";
 
-import { AssetService } from "../application/services/asset-service";
-import { GasService } from "../application/services/gas-service";
-import { ScreenConfigService } from "../application/services/screen-config-service";
+import { AssetService } from "../applications/asset/asset-service";
+import { GasService } from "../applications/draw/gas-service";
+import { ScreenConfigService } from "../applications/screen-config/screen-config-service";
 
-import { DrawResultService } from "../application/services/draw-result-service";
-import { MemberService } from "../application/services/member-service";
-import { PrizeService } from "../application/services/prize-service";
+import { DrawResultService } from "../applications/draw-result/draw-result-service";
+import { MemberService } from "../applications/member/member-service";
+import { PrizeService } from "../applications/prize/prize-service";
 
 import { IMemberRepository } from "../domain/repositories/member-repository";
 import { IPrizeRepository } from "../domain/repositories/prize-repository";
