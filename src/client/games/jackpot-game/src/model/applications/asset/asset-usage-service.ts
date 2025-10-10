@@ -1,5 +1,4 @@
 import { injectable, inject } from "tsyringe";
-import type { MemberDto } from "../member/dto/member-dto";
 import type { PrizeDto } from "../prize/dto/prize-dto";
 import type { ScreenConfigDto } from "../screen-config/dto/screen-config-dto";
 import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
@@ -39,7 +38,7 @@ export class AssetUsageService {
     for (const id of assetIds) map[id] = [];
 
     // Members
-    members.forEach((member: MemberDto) => {
+    members.forEach((member) => {
       if (member.photoAssetId && map[member.photoAssetId]) {
         map[member.photoAssetId].push(`メンバー: ${member.name}`);
       }
