@@ -1,12 +1,16 @@
 import type { Asset } from "../asset";
+import { AssetMetadataDto } from "../../../applications/asset/dto/asset-dto";
 
 export interface IAssetRepository {
-  addAssets(
-    assets: Asset[],
-    onProgress?: (index: number, success: boolean) => void
-  ): Promise<{ successful: Asset[]; failed: Asset[] }>;
-  getAllAssets(): Promise<Asset[]>;
-  syncAssets(onProgress?: (message: string) => void): Promise<void>;
-  getAssetById(assetId: string): Promise<Asset | undefined>;
-  deleteAssets(assetIds: string[]): Promise<void>;
+  uploadAsset(asset: Asset): string;
+  getAsset(id: string): Asset | null;
+  findAll(): Asset[];
+  findAllIds(): string[];
+  findAllMetadata(): AssetMetadataDto[];
+  updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string;
+  updateManyAssets(
+    ids: string[],
+    updateAsset: (asset: Asset) => Asset
+  ): string[];
+  deleteAsset(id: string): void;
 }

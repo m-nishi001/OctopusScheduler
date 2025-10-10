@@ -20,25 +20,25 @@ export class MemberService implements GasService {
     };
   }
 
-  getMemberById(args: { id: string }): MemberDto | null {
-    const member = this.repository.getMemberById(args.id);
+  async getMemberById(args: { id: string }): Promise<MemberDto | null> {
+    const member = await this.repository.getMemberById(args.id);
     return member ? toMemberDto(member) : null;
   }
 
-  addMembers(args: { members: MemberDto[] }): void {
+  async addMembers(args: { members: MemberDto[] }): Promise<void> {
     const addMembers = args.members.map(toMember);
-    this.repository.addMembers(addMembers);
+    await this.repository.addMembers(addMembers);
   }
 
-  updateMembers(args: { members: MemberDto[] }): void {
+  async updateMembers(args: { members: MemberDto[] }): Promise<void> {
     const updateOps = args.members.map((dto) => ({
       id: dto.id,
       updateFn: () => toMember(dto),
     }));
-    this.repository.updateMembers(updateOps);
+    await this.repository.updateMembers(updateOps);
   }
 
-  deleteMembers(args: { ids: string[] }): void {
-    this.repository.deleteMembers(args.ids);
+  async deleteMembers(args: { ids: string[] }): Promise<void> {
+    await this.repository.deleteMembers(args.ids);
   }
 }

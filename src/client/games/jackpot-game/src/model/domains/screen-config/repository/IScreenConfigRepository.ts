@@ -1,7 +1,9 @@
-import type { ScreenConfig } from "../../../domains/screen-config/screen-config";
+import type { ScreenConfig } from "../screen-config";
 
 export interface IScreenConfigRepository {
-  fetchScreenConfig(screenType: string): Promise<ScreenConfig>;
-  saveScreenConfigs(newConfigs: ScreenConfig[]): Promise<void>;
-  syncScreenConfigs(): Promise<void>;
+  getScreenConfigs(): ScreenConfig[];
+  getScreenConfigById(type: string): ScreenConfig | null;
+  updateScreenConfigs(configs: ScreenConfig[]): void;
+  deleteScreenConfigs(types: string[]): void;
+  addScreenConfigs(configs: ScreenConfig[]): void;
 }

@@ -1,11 +1,11 @@
 import { Member } from "./member";
 
 export interface IMemberRepository {
-  getMembers(): Member[];
-  getMemberById(id: string): Member | null;
-  addMembers(members: Member[]): void;
+  getMembers(): Promise<Member[]>;
+  getMemberById(id: string): Promise<Member | null>;
+  addMembers(members: Member[]): Promise<void>;
   updateMembers(
     updates: { id: string; updateFn: (member: Member) => Member }[]
-  ): void;
-  deleteMembers(ids: string[]): void;
+  ): Promise<void>;
+  deleteMembers(ids: string[]): Promise<void>;
 }
