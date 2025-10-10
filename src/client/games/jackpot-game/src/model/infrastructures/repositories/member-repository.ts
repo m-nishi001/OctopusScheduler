@@ -20,41 +20,52 @@ export class MemberRepository implements IMemberRepository {
     return (await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY)) || [];
   }
 
-  async syncMembers(): Promise<void> {
+  async getMemberById(id: string): Promise<Member | null> {
+    const members = await this.getMembers();
+    return members.find((m) => m.id === id) || null;
+  }
+
+  async addMembers(members: Member[]): Promise<void> {
+    const current = await this.getMembers();
+    const updated = [...current, ...members];
+    await this.localStorage.save(MEMBER_CACHE_KEY, updated);
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<{ members: Member[] }>("MemberService.getMembers")
-        .withSuccessed(async (res: { members: Member[] }) => {
-          await this.localStorage.save(MEMBER_CACHE_KEY, res.members);
-          resolve();
-        })
+        .createCall<void>("MemberService.addMembers", { members })
+        .withSuccessed(() => resolve())
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
   }
 
-  async batchOperations(operations: {
-    add: Member[];
-    update: Member[];
-    delete: string[];
-  }): Promise<void> {
-    let localMembers =
-      (await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY)) || [];
-    localMembers = [...localMembers, ...operations.add];
-    for (const member of operations.update) {
-      localMembers = localMembers.map((m: Member) =>
-        m.id === member.id ? member : m
-      );
-    }
-    localMembers = localMembers.filter(
-      (m: Member) => !operations.delete.includes(m.id)
-    );
-    await this.localStorage.save(MEMBER_CACHE_KEY, localMembers);
+  async updateMembers(
+    updates: { id: string; updateFn: (member: Member) => Member }[]
+  ): Promise<void> {
+    const current = await this.getMembers();
+    const updated = current.map((m) => {
+      const update = updates.find((u) => u.id === m.id);
+      return update ? update.updateFn(m) : m;
+    });
+    await this.localStorage.save(MEMBER_CACHE_KEY, updated);
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<void>("MemberService.batchOperations", { operations })
+        .createCall<void>("MemberService.updateMembers", { updates })
+        .withSuccessed(() => resolve())
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
+  async deleteMembers(ids: string[]): Promise<void> {
+    const current = await this.getMembers();
+    const updated = current.filter((m) => !ids.includes(m.id));
+    await this.localStorage.save(MEMBER_CACHE_KEY, updated);
+    if (!this.gasService) return;
+    return new Promise((resolve, reject) => {
+      this.gasService
+        .createCall<void>("MemberService.deleteMembers", { ids })
         .withSuccessed(() => resolve())
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();

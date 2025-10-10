@@ -24,29 +24,32 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
-import { PrizeService } from '../../../model/applications/prize/prize-service';
-import { MemberService } from '../../../model/applications/member/member-service';
+import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
+import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
+import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
+import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },
   setup() {
     const router = useRouter();
-    // ScreenConfigServiceから取得
+    // ScreenConfigRepositoryから取得
     const screenConfig = ref<ScreenConfigDto | null>(null);
-    const screenConfigService = container.resolve(ScreenConfigService);
+    const screenConfigRepo = container.resolve(ScreenConfigRepository);
     onMounted(async () => {
-      screenConfig.value = await screenConfigService.fetchScreenConfig('demo');
+      screenConfig.value = await screenConfigRepo.getScreenConfigById('demo');
       setTimeout(playBGM, 1200);
     });
 
     // データはモデル層から取得
     const prizes = ref<any[]>([]);
     const members = ref<any[]>([]);
-    const drawOrchestrator = container.resolve<any>("DrawOrchestrator");
-    const fetchPrizes = async () => { prizes.value = await container.resolve<any>(PrizeService).fetchPrizes(); };
-    const fetchMembers = async () => { members.value = await container.resolve<any>(MemberService).fetchMembers(); };
+    const prizeRepo = container.resolve(PrizeRepository);
+    const memberRepo = container.resolve(MemberRepository);
+    const fetchPrizes = async () => { prizes.value = await prizeRepo.getPrizes(); };
+    const fetchMembers = async () => { members.value = await memberRepo.getMembers(); };
 
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
@@ -82,11 +85,13 @@ export default {
       // perform a lightweight draw using orchestrator with available data
       try {
         // ensure data
-        prizes.value = await container.resolve<any>(PrizeService).fetchPrizes();
-        members.value = await container.resolve<any>(MemberService).fetchMembers();
-        const res = await drawOrchestrator.executeDrawWith({ prizes: prizes.value, members: members.value });
-        const resultRes = await drawOrchestrator.fetchResult(res.drawId);
-        const winner = resultRes?.results?.[0];
+        prizes.value = await prizeRepo.getPrizes();
+        members.value = await memberRepo.getMembers();
+        const drawRepo = container.resolve(DrawRepository);
+        const drawResultRepo = container.resolve(DrawResultRepository);
+        const res = await drawRepo.executeDraw({ prizes: prizes.value, members: members.value });
+        const resultRes = await drawResultRepo.getDrawResultById(res.drawId);
+        const winner = resultRes;
         if (winner) {
           result.value = { member: winner.member.name || winner.member.id, prize: winner.prize.name || winner.prize.id };
         }

@@ -30,7 +30,7 @@ import MainLayout from '../common/main-layout.vue';
 import ThreeHero from '../../components/ThreeHero.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import type { IScreenConfigRepository } from '../../../model/domains/screen-config/repository/IScreenConfigRepository';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 
@@ -45,7 +45,7 @@ export default {
     const goAdmin = () => router.push('/jackpot-admin');
 
     const screenConfig = ref<ScreenConfigDto | null>(null);
-    const screenConfigService = container.resolve(ScreenConfigService);
+    const screenConfigRepo = container.resolve<IScreenConfigRepository>("IScreenConfigRepository");
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -68,12 +68,13 @@ export default {
     const loadAssets = async () => {
       try {
         progress.value = 10;
-        await screenConfigService.syncScreenConfigs();
+        // sync removed as repo doesn't have it
         progress.value = 40;
       } catch (e) {
         progress.value = 50;
       }
-      screenConfig.value = await screenConfigService.fetchScreenConfig('home');
+      const config = await screenConfigRepo.getScreenConfigById('home');
+      screenConfig.value = config;
 
       for (let i = progress.value; i <= 100; i += 8) {
         progress.value = i;

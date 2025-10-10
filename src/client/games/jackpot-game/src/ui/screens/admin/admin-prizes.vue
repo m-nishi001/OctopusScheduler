@@ -148,14 +148,12 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { PrizeBatchService } from '../../../model/applications/prize/prize-batch-service';
-import { PrizeFetchService } from '../../../model/applications/prize/prize-fetch-service';
+import type { IPrizeRepository } from '../../../model/domains/prize/repository/IPrizeRepository';
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { AssetDto } from '../../../model/applications/asset/dto/asset-dto';
 
 import { container } from 'tsyringe';
-const prizeBatchService = container.resolve(PrizeBatchService);
-const prizeFetchService = container.resolve(PrizeFetchService);
+const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
 const assetService = container.resolve(AssetService);
 const prizes = ref<any[]>([]);
 const originalPrizes = ref<any[]>([]);
@@ -172,15 +170,13 @@ const savePrizes = async () => {
     return original && isPrizeChanged(p, original);
   });
   const toDelete = originalPrizes.value.filter((o: any) => !prizes.value.find((p: any) => p.id === o.id));
-  await prizeBatchService.execute({
-    add: toAdd,
-    update: toUpdate,
-    delete: toDelete
-  });
+  if (toAdd.length > 0) await prizeRepo.addPrizes(toAdd);
+  if (toUpdate.length > 0) await prizeRepo.updatePrizes(toUpdate.map(u => ({ id: u.id, updateFn: () => u })));
+  if (toDelete.length > 0) await prizeRepo.deletePrizes(toDelete.map(d => d.id));
   originalPrizes.value = JSON.parse(JSON.stringify(prizes.value));
 };
 const fetchPrizes = async () => {
-  prizes.value = await prizeFetchService.fetchPrizes();
+  prizes.value = await prizeRepo.getPrizes();
   originalPrizes.value = JSON.parse(JSON.stringify(prizes.value));
   sortPrizes();
 };

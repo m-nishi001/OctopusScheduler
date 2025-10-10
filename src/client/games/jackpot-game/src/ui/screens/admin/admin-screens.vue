@@ -66,15 +66,18 @@ import MainScreenConfig from './screen-config/main-screen-config.vue';
 import ResultScreenConfig from './screen-config/result-screen-config.vue';
 import EndingScreenConfig from './screen-config/ending-screen-config.vue';
 import { container } from "tsyringe";
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import type { IScreenConfigRepository } from '../../../model/domains/screen-config/repository/IScreenConfigRepository';
 import { AssetService } from '../../../model/applications/asset/asset-service';
-import { MemberService } from '../../../model/applications/member/member-service';
-import { PrizeService } from '../../../model/applications/prize/prize-service';
+import type { IMemberRepository } from '../../../model/domains/member/repository/IMemberRepository';
+import type { IPrizeRepository } from '../../../model/domains/prize/repository/IPrizeRepository';
 
 // Inline asset logic from useAssets composable
 const assetService = container.resolve(
   AssetService
 ) as unknown as AssetService;
+const screenConfigRepo = container.resolve<IScreenConfigRepository>("IScreenConfigRepository");
+const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
+const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
 
 const assets = ref<any[]>([]);
 
@@ -105,19 +108,12 @@ const imageAssets = computed(() =>
 );
 
 // Inline entities logic from useEntities composable
-const memberService = container.resolve(
-  MemberService
-) as unknown as MemberService;
-const prizeService = container.resolve(
-  PrizeService
-) as unknown as PrizeService;
-
 const members = ref<any[]>([]);
 const prizes = ref<any[]>([]);
 
 const fetchMembers = async () => {
   try {
-    members.value = await memberService.fetchMembers();
+    members.value = await memberRepo.getMembers();
   } catch (error) {
     console.error("Failed to fetch members:", error);
     members.value = [];
@@ -126,16 +122,12 @@ const fetchMembers = async () => {
 
 const fetchPrizes = async () => {
   try {
-    prizes.value = await prizeService.fetchPrizes();
+    prizes.value = await prizeRepo.getPrizes();
   } catch (error) {
     console.error("Failed to fetch prizes:", error);
     prizes.value = [];
   }
 };
-
-const screenConfigService = container.resolve(
-  ScreenConfigService
-) as unknown as ScreenConfigService;
 
 const loading = ref(false);
 const loadingStatus = ref("");
@@ -223,17 +215,13 @@ const loadScreenConfigs = async () => {
     // For admin UI we want the raw stored config (placeholders like {asset:ID} preserved)
     const results = await Promise.all(
       screenTypes.map((type) =>
-        // request without resolving assets so admin shows placeholders
-        // (ScreenConfigService.fetchScreenConfigWithOptions returns resolved or raw)
-        // default runtime consumers can still call fetchScreenConfig(...) which resolves assets
-        (screenConfigService as any).fetchScreenConfigWithOptions(type, {
-          resolveAssets: false,
-        })
+        screenConfigRepo.getScreenConfigById(type)
       )
     );
 
     results.forEach((config: any, idx: number) => {
       const type = screenTypes[idx];
+      if (!config) return;
       if (type === "home") {
         homeConfig.value = {
           id: config.id || "",
@@ -492,8 +480,7 @@ const saveConfigs = async () => {
     },
   ];
 
-  await screenConfigService.saveScreenConfigs(configs as any);
-  await screenConfigService.syncScreenConfigs();
+  await screenConfigRepo.updateScreenConfigs(configs as any);
   await loadScreenConfigs();
 };
 

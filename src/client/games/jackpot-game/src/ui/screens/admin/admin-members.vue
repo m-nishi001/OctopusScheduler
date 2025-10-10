@@ -76,14 +76,12 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { MemberService } from '../../../model/applications/member/member-service';
-import { MemberBatchService } from '../../../model/applications/member/member-batch-service';
+import type { IMemberRepository } from '../../../model/domains/member/repository/IMemberRepository';
 import { AssetDto } from '../../../model/applications/asset/dto/asset-dto';
 import { AssetService } from '../../../model/applications/asset/asset-service';
 
 import { container } from 'tsyringe';
-const memberService = container.resolve(MemberService);
-const memberBatchService = container.resolve(MemberBatchService);
+const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
 const assetService = container.resolve(AssetService);
 const members = ref<any[]>([]);
 const originalMembers = ref<any[]>([]);
@@ -109,15 +107,13 @@ const saveMembers = async () => {
     return original && isMemberChanged(m, original);
   });
   const toDelete = originalMembers.value.filter((o: any) => !members.value.find((m: any) => m.id === o.id));
-  await memberBatchService.execute({
-    add: toAdd,
-    update: toUpdate,
-    delete: toDelete
-  });
+  if (toAdd.length > 0) await memberRepo.addMembers(toAdd);
+  if (toUpdate.length > 0) await memberRepo.updateMembers(toUpdate.map(u => ({ id: u.id, updateFn: () => u })));
+  if (toDelete.length > 0) await memberRepo.deleteMembers(toDelete.map(d => d.id));
   originalMembers.value = JSON.parse(JSON.stringify(members.value));
 };
 const fetchMembers = async () => {
-  members.value = await memberService.fetchMembers();
+  members.value = await memberRepo.getMembers();
   originalMembers.value = JSON.parse(JSON.stringify(members.value));
   sortMembers();
 };

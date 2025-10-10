@@ -20,14 +20,14 @@ export class AssetService {
   }
 
   async getAssetById(assetId: string): Promise<AssetDto | undefined> {
-    const asset = await this.repo.getAssetById(assetId);
+    const asset = await this.repo.getAsset(assetId);
     return asset ? new AssetDto(asset) : undefined;
   }
 
   async addAsset(asset: AssetDto): Promise<AssetDto> {
     const assetEntity = await asset.toAsset();
-    const result = await this.repo.addAssets([assetEntity]);
-    asset.id = result.successful[0].id;
+    const id = await this.repo.uploadAsset(assetEntity);
+    asset.id = id;
     return asset;
   }
 
@@ -44,7 +44,7 @@ export class AssetService {
     const assetEntities = await Promise.all(
       assetDtos.map((dto) => dto.toAsset())
     );
-    const result = await this.repo.addAssets(assetEntities, onProgress);
+    const result = await this.repo.uploadAssets(assetEntities, onProgress);
     // id をセット
     result.successful.forEach((asset, index) => {
       assetDtos[index].id = asset.id;
@@ -71,7 +71,7 @@ export class AssetService {
 
   async updateAsset(asset: AssetDto): Promise<void> {
     const assetEntity = await asset.toAsset();
-    await this.repo.addAssets([assetEntity]);
+    await this.repo.uploadAssets([assetEntity]);
   }
 
   async deleteAsset(assetId: string): Promise<void> {
@@ -101,7 +101,7 @@ export class AssetService {
     for (const id of assetIds) {
       let name: string | undefined = undefined;
       try {
-        const asset = await this.repo.getAssetById?.(id as any);
+        const asset = await this.repo.getAsset?.(id as any);
         name = (asset as any)?.name;
       } catch (e) {
         /* ignore */

@@ -1,11 +1,11 @@
 import type { Prize } from "../prize";
 
 export interface IPrizeRepository {
-  getPrizes(): Prize[];
-  getPrizeById(id: string): Prize | null;
-  addPrizes(prizes: Prize[]): void;
+  getPrizes(): Promise<Prize[]>;
+  getPrizeById(id: string): Promise<Prize | null>;
+  addPrizes(prizes: Prize[]): Promise<void>;
   updatePrizes(
     updates: { id: string; updateFn: (prize: Prize) => Prize }[]
-  ): void;
-  deletePrizes(ids: string[]): void;
+  ): Promise<void>;
+  deletePrizes(ids: string[]): Promise<void>;
 }

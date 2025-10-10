@@ -34,20 +34,20 @@ import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenElementDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
 import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',
 	components: { MainLayout },
 	setup() {
 		const router = useRouter();
-		// ScreenConfigServiceから取得
+		// ScreenConfigRepositoryから取得
 		const screenConfig = ref<ScreenConfigDto | null>(null);
-		const screenConfigService = container.resolve(ScreenConfigService);
+		const screenConfigRepo = container.resolve(ScreenConfigRepository);
 		const slideIndex = ref(0);
 		const currentSlide = ref<ScreenElementDto | null>(null);
 		onMounted(async () => {
-			screenConfig.value = await screenConfigService.fetchScreenConfig('description');
+			screenConfig.value = await screenConfigRepo.getScreenConfigById('description');
 			currentSlide.value = screenConfig.value?.elements[0] ?? null;
 			setTimeout(playBGM, 1200);
 		});

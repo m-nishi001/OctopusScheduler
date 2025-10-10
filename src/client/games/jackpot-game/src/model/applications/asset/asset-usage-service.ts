@@ -2,25 +2,25 @@ import { injectable, inject } from "tsyringe";
 import type { MemberDto } from "../member/dto/member-dto";
 import type { PrizeDto } from "../prize/dto/prize-dto";
 import type { ScreenConfigDto } from "../screen-config/dto/screen-config-dto";
-import { MemberService } from "../member/member-service";
-import { PrizeService } from "../prize/prize-service";
-import { ScreenConfigService } from "../screen-config/screen-config-service";
+import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
+import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
+import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
 
 @injectable()
 export class AssetUsageService {
   constructor(
-    @inject(MemberService) private memberService: MemberService,
-    @inject(PrizeService) private prizeService: PrizeService,
-    @inject(ScreenConfigService)
-    private screenConfigService: ScreenConfigService
+    @inject("IMemberRepository") private memberRepo: IMemberRepository,
+    @inject("IPrizeRepository") private prizeRepo: IPrizeRepository,
+    @inject("IScreenConfigRepository")
+    private screenConfigRepo: IScreenConfigRepository
   ) {}
 
   async getUsagesForAssets(
     assetIds: string[]
   ): Promise<Record<string, string[]>> {
     const [members, prizes] = await Promise.all([
-      this.memberService.fetchMembers(),
-      this.prizeService.fetchPrizes(),
+      this.memberRepo.getMembers(),
+      this.prizeRepo.getPrizes(),
     ]);
     const screenTypes = [
       "home",
@@ -32,7 +32,7 @@ export class AssetUsageService {
       "admin",
     ];
     const screenConfigs = await Promise.all(
-      screenTypes.map((t) => this.screenConfigService.fetchScreenConfig(t))
+      screenTypes.map((t) => this.screenConfigRepo.getScreenConfigById(t))
     );
 
     const map: Record<string, string[]> = {};

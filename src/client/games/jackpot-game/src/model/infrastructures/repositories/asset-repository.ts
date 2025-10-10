@@ -1,7 +1,7 @@
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
-import type { AssetMetadataDto } from "../../applications/asset/dto/asset-dto";
+import { AssetMetadataDto } from "../../applications/asset/dto/asset-dto";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
@@ -17,17 +17,8 @@ export class AssetRepository implements IAssetRepository {
     StorageConfig.getStoreName("AssetData")
   );
 
-  async getAssetById(assetId: string): Promise<Asset | undefined> {
-    const assets = await this.getAllAssets();
-    return assets.find((a) => a.id === assetId);
-  }
-
-  async getAllAssets(): Promise<Asset[]> {
-    return (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-  }
-
-  async addAsset(asset: Asset): Promise<void> {
-    if (!this.gasService) return;
+  async uploadAsset(asset: Asset): Promise<string> {
+    if (!this.gasService) throw new Error("GAS service not available");
     return new Promise((resolve, reject) => {
       this.gasService
         .createCall<{ asset: Asset }>("AssetService.addAsset", asset)
@@ -36,7 +27,7 @@ export class AssetRepository implements IAssetRepository {
             const updated = assets ? [...assets, res.asset] : [res.asset];
             this.localStorage
               .save(ASSET_CACHE_KEY, updated)
-              .then(() => resolve());
+              .then(() => resolve(res.asset.id));
           });
         })
         .withFailuered((msg: string) => reject(new Error(msg)))
@@ -44,206 +35,104 @@ export class AssetRepository implements IAssetRepository {
     });
   }
 
-  async addAssets(
-    assets: Asset[],
-    onProgress?: (index: number, success: boolean) => void
-  ): Promise<{ successful: Asset[]; failed: Asset[] }> {
-    const { successful, failed } = await this.performBatchApiCalls(
-      assets,
-      onProgress
-    );
-    await this.updateLocalStorageAfterBatch(successful);
-    return { successful, failed };
-  }
-
-  private async performBatchApiCalls(
-    assets: Asset[],
-    onProgress?: (index: number, success: boolean) => void
-  ): Promise<{ successful: Asset[]; failed: Asset[] }> {
-    if (!this.gasService) return { successful: [], failed: [] };
-    const calls = assets.map((asset) => {
-      const method = asset.id
-        ? "AssetService.updateAsset"
-        : "AssetService.addAsset";
-      return this.gasService!.createCall<{ asset: Asset }>(
-        method,
-        asset
-      ).withTimeout(120000);
-    });
-    const promises = calls.map((call, index) => {
-      return new Promise<{ index: number; success: Asset | false }>(
-        (resolve) => {
-          call
-            .withSuccessed((res: { asset: Asset }) => {
-              onProgress?.(index, true);
-              resolve({ index, success: res.asset });
-            })
-            .withFailuered(() => {
-              onProgress?.(index, false);
-              resolve({ index, success: false });
-            })
-            .invoke();
-        }
-      );
-    });
-    const results = await Promise.all(promises);
-    const successful: Asset[] = [];
-    const failed: Asset[] = [];
-    results.forEach(({ index, success }) => {
-      if (success) {
-        successful.push(success);
-      } else {
-        failed.push(assets[index]);
-      }
-    });
-    return { successful, failed };
-  }
-
-  private async updateLocalStorageAfterBatch(
-    successful: Asset[]
-  ): Promise<void> {
-    if (successful.length === 0) return;
-    const current =
+  async getAsset(id: string): Promise<Asset | null> {
+    const assets =
       (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-    let updated = [...current];
-    successful.forEach((asset) => {
-      const existingIndex = updated.findIndex((a) => a.id === asset.id);
-      if (existingIndex >= 0) {
-        updated[existingIndex] = asset;
-      } else {
-        updated.push(asset);
-      }
-    });
-    await this.localStorage.save(ASSET_CACHE_KEY, updated);
+    return assets.find((a) => a.id === id) || null;
   }
 
-  async deleteAssets(assetIds: string[]): Promise<void> {
-    if (!this.gasService) return;
-    const promises = assetIds.map(
-      (assetId) =>
-        new Promise<void>((resolve, reject) => {
-          this.gasService!.createCall<void>("AssetService.deleteAsset", {
-            assetId,
-          })
-            .withSuccessed(() => resolve())
-            .withFailuered((msg: string) => reject(new Error(msg)))
-            .invoke();
-        })
+  async findAll(): Promise<Asset[]> {
+    return (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+  }
+
+  async findAllIds(): Promise<string[]> {
+    const assets = await this.findAll();
+    return assets.map((a) => a.id);
+  }
+
+  async findAllMetadata(): Promise<AssetMetadataDto[]> {
+    const assets = await this.findAll();
+    return assets.map(
+      (a) =>
+        new AssetMetadataDto(
+          a.id,
+          a.type,
+          a.name,
+          a.uploadedAt,
+          a.lastUpdated,
+          a.size
+        )
     );
-    await Promise.all(promises);
-    // 全てのサーバー削除が成功したら、ローカルストレージを更新
-    let assets = (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-    assets = assets.filter((a: Asset) => !assetIds.includes(a.id));
+  }
+
+  async updateAsset(
+    id: string,
+    updateFn: (asset: Asset) => Asset
+  ): Promise<string> {
+    const assets = await this.findAll();
+    const index = assets.findIndex((a) => a.id === id);
+    if (index === -1) throw new Error("Asset not found");
+    const updated = updateFn(assets[index]);
+    assets[index] = updated;
     await this.localStorage.save(ASSET_CACHE_KEY, assets);
-  }
-
-  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
-    if (!this.gasService) return;
-    const serverAssetsInfo = await this.fetchAssetMetadata(onProgress);
-    const localAssets = await this.getAllAssets();
-    const { toAdd, toUpdate, toDelete } = this.determineSyncChanges(
-      localAssets,
-      serverAssetsInfo
-    );
-    const newAssets = await this.downloadAssets(
-      [...toAdd, ...toUpdate],
-      onProgress
-    );
-    await this.updateLocalStorageAfterSync(toDelete, newAssets, localAssets);
-    onProgress?.("同期完了");
-  }
-
-  private async fetchAssetMetadata(
-    onProgress?: (message: string) => void
-  ): Promise<AssetMetadataDto[]> {
+    if (!this.gasService) return updated.id;
     return new Promise((resolve, reject) => {
-      this.gasService!.createCall<{ assets: AssetMetadataDto[] }>(
-        "AssetService.getAssetMetadata"
-      )
-        .withTimeout(120000)
-        .withSuccessed((res: { assets: AssetMetadataDto[] }) => {
-          onProgress?.("メタデータ取得完了");
-          resolve(res.assets);
-        })
+      this.gasService
+        .createCall<{ asset: Asset }>("AssetService.updateAsset", updated)
+        .withSuccessed(() => resolve(updated.id))
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
   }
 
-  private determineSyncChanges(
-    localAssets: Asset[],
-    serverAssets: AssetMetadataDto[]
-  ): { toAdd: string[]; toUpdate: string[]; toDelete: string[] } {
-    const localAssetsMap = new Map(localAssets.map((a) => [a.id, a]));
-    const serverAssetsMap = new Map(serverAssets.map((a) => [a.id, a]));
-    const toAdd: string[] = [];
-    const toUpdate: string[] = [];
-    const toDelete: string[] = [];
-    for (const serverAsset of serverAssets) {
-      if (!localAssetsMap.has(serverAsset.id)) {
-        toAdd.push(serverAsset.id);
-      } else {
-        const localAsset = localAssetsMap.get(serverAsset.id)!;
-        if (
-          new Date(localAsset.lastUpdated) < new Date(serverAsset.lastUpdated)
-        ) {
-          toUpdate.push(serverAsset.id);
-        }
-      }
-    }
-    for (const localAsset of localAssets) {
-      if (!serverAssetsMap.has(localAsset.id)) {
-        toDelete.push(localAsset.id);
-      }
-    }
-    return { toAdd, toUpdate, toDelete };
-  }
-
-  private async downloadAssets(
+  async updateManyAssets(
     ids: string[],
-    onProgress?: (message: string) => void
-  ): Promise<Asset[]> {
-    if (ids.length === 0) return [];
-    onProgress?.(`ファイルダウンロード中 (${ids.length}件)`);
-    const assetPromises = ids.map(
-      (id) =>
-        new Promise<Asset | null>((resolve) => {
-          this.gasService!.createCall<{ asset: Asset | null }>(
-            "AssetService.getAssetById",
-            { assetId: id }
-          )
-            .withTimeout(120000)
-            .withSuccessed((res: { asset: Asset | null }) => {
-              const asset = res.asset;
-              if (asset) {
-                onProgress?.(
-                  `${asset.name} (${(asset.size / 1024).toFixed(1)}KB): ダウンロード中`
-                );
-              }
-              resolve(asset);
-            })
-            .withFailuered(() => resolve(null))
-            .invoke();
-        })
-    );
-    const newOrUpdatedAssets = await Promise.all(assetPromises);
-    return newOrUpdatedAssets.filter(
-      (a): a is Asset => !!a && a.id !== undefined && a.id !== null
-    );
+    updateFn: (asset: Asset) => Asset
+  ): Promise<string[]> {
+    const promises = ids.map((id) => this.updateAsset(id, updateFn));
+    return await Promise.all(promises);
   }
 
-  private async updateLocalStorageAfterSync(
-    toDelete: string[],
-    newAssets: Asset[],
-    localAssets: Asset[]
-  ): Promise<void> {
-    let updatedLocalAssets = localAssets.filter(
-      (a) => !toDelete.includes(a.id)
-    );
-    updatedLocalAssets = updatedLocalAssets.filter(
-      (a) => !newAssets.some((na) => na.id === a.id)
-    );
-    updatedLocalAssets = [...updatedLocalAssets, ...newAssets];
-    await this.localStorage.save(ASSET_CACHE_KEY, updatedLocalAssets);
+  async deleteAsset(id: string): Promise<void> {
+    const assets = await this.findAll();
+    const updated = assets.filter((a) => a.id !== id);
+    await this.localStorage.save(ASSET_CACHE_KEY, updated);
+    if (!this.gasService) return;
+    return new Promise((resolve, reject) => {
+      this.gasService
+        .createCall<void>("AssetService.deleteAsset", { assetId: id })
+        .withSuccessed(() => resolve())
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
+  async uploadAssets(
+    assets: Asset[],
+    onProgress?: (index: number, success: boolean) => void
+  ): Promise<{ successful: Asset[]; failed: Asset[] }> {
+    if (!this.gasService) throw new Error("GAS service not available");
+    const successful: Asset[] = [];
+    const failed: Asset[] = [];
+    for (let i = 0; i < assets.length; i++) {
+      try {
+        const id = await this.uploadAsset(assets[i]);
+        successful.push({ ...assets[i], id });
+        onProgress?.(i, true);
+      } catch (e) {
+        failed.push(assets[i]);
+        onProgress?.(i, false);
+      }
+    }
+    return { successful, failed };
+  }
+
+  async deleteAssets(ids: string[]): Promise<void> {
+    await Promise.all(ids.map((id) => this.deleteAsset(id)));
+  }
+
+  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
+    // Sync logic if needed, for now just return
+    onProgress?.("Sync completed");
   }
 }

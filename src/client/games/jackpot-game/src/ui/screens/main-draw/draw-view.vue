@@ -61,10 +61,10 @@ import type { DrawResultDto } from '../../../model/applications/draw-result/dto/
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import gsap from 'gsap';
-import { DrawService } from '../../../model/applications/draw/draw-service';
-import { ResultService } from '../../../model/applications/result/result-service';
-import { PrizeService } from '../../../model/applications/prize/prize-service';
-import { MemberService } from '../../../model/applications/member/member-service';
+import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
+import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
+import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
+import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
 
 export default {
   name: 'DrawView',
@@ -76,29 +76,29 @@ export default {
     const selectedPrize = ref<PrizeDto | null>(null);
     const results = ref<DrawResultDto[]>([]);
     const router = useRouter();
-    const drawService = container.resolve(DrawService);
-    const resultService = container.resolve(ResultService);
-    const prizeService = container.resolve(PrizeService);
-    const memberService = container.resolve(MemberService);
+    const drawRepo = container.resolve(DrawRepository);
+    const drawResultRepo = container.resolve(DrawResultRepository);
+    const prizeRepo = container.resolve(PrizeRepository);
+    const memberRepo = container.resolve(MemberRepository);
     const prizes = ref<PrizeDto[]>([]);
     const members = ref<MemberDto[]>([]);
     const memberDisplay = ref<HTMLElement | null>(null);
     const prizeDisplay = ref<HTMLElement | null>(null);
 
     onMounted(async () => {
-      prizes.value = await prizeService.fetchPrizes();
-      members.value = await memberService.fetchMembers();
+      prizes.value = await prizeRepo.getPrizes();
+      members.value = await memberRepo.getMembers();
     });
 
     const executeDraw = async () => {
       loading.value = true;
       try {
-        const drawRes = await drawService.executeDraw({
+        const drawRes = await drawRepo.executeDraw({
           prizes: prizes.value,
           members: members.value,
         });
-        const resultRes = await resultService.getResult(drawRes.drawId);
-        results.value = resultRes?.results ?? [];
+        const resultRes = await drawResultRepo.getDrawResultById(drawRes.drawId);
+        results.value = resultRes ? [resultRes] : [];
 
         // 演出ループ (実際の結果を使って)
         for (const result of results.value) {

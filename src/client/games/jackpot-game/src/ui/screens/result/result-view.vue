@@ -21,31 +21,33 @@
 
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { ResultService } from '../../../model/applications/result/result-service';
+import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 
 export default {
   name: 'ResultView',
   components: { MainLayout },
   setup() {
     const router = useRouter();
-    const resultService = container.resolve(ResultService);
-    const screenConfigService = container.resolve(ScreenConfigService);
+    const drawResultRepo = container.resolve(DrawResultRepository);
+    const screenConfigRepo = container.resolve(ScreenConfigRepository);
     const screenConfig = ref<ScreenConfigDto | null>(null);
     const winners = ref<any[]>([]);
     const specialWinner = ref<any | undefined>(undefined);
     const lowestWinner = ref<any | undefined>(undefined);
     const fetchResults = async () => {
-      const drawId = 'main';
-      const view = await resultService.getResultForView(drawId);
-      screenConfig.value = await screenConfigService.fetchScreenConfig('result');
-      winners.value = view.winners || [];
-      specialWinner.value = view.specialWinner;
-      lowestWinner.value = view.lowestWinner;
+      const results = await drawResultRepo.getDrawResults();
+      screenConfig.value = await screenConfigRepo.getScreenConfigById('result');
+      winners.value = results.map(r => ({ ...r.member, prize: r.prize.name, id: r.member.id, photo: r.member.photoAssetId }));
+      const ranks = results.map(r => r.rank || 0);
+      const minRank = Math.min(...ranks);
+      const maxRank = Math.max(...ranks);
+      specialWinner.value = results.find(r => r.rank === minRank)?.member;
+      lowestWinner.value = results.find(r => r.rank === maxRank)?.member;
     };
     onMounted(() => {
       fetchResults();

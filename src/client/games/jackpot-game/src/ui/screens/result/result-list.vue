@@ -18,10 +18,10 @@
 import MainLayout from '../common/main-layout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ResultService } from '../../../model/applications/result/result-service';
+import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
 import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
 
 export default {
@@ -31,14 +31,14 @@ export default {
 		const router = useRouter();
 		const winners = ref<DrawResultDto[]>([]);
 		const loading = ref(true);
-		const resultService = container.resolve(ResultService);
+		const drawResultRepo = container.resolve(DrawResultRepository);
 		const screenConfig = ref<ScreenConfig | null>(null);
-		const screenConfigService = container.resolve(ScreenConfigService);
+		const screenConfigRepo = container.resolve(ScreenConfigRepository);
 		onMounted(async () => {
-			screenConfig.value = await screenConfigService.fetchScreenConfig('result');
+			screenConfig.value = await screenConfigRepo.getScreenConfigById('result');
 			try {
-				const result = await resultService.getResult('latest');
-				winners.value = result?.results ?? [];
+				const results = await drawResultRepo.getDrawResults();
+				winners.value = results;
 			} finally {
 				loading.value = false;
 			}
