@@ -14,23 +14,27 @@ export class DrawResultService implements GasService {
     private readonly repository: IDrawResultRepository
   ) {
     this.functions = {
-      getAll: this.getAll.bind(this),
-      getById: this.getById.bind(this),
-      save: this.save.bind(this),
+      addDrawResults: this.addDrawResults.bind(this),
+      addDrawResult: this.addDrawResult.bind(this),
+      getAllDrawResults: this.getAllDrawResults.bind(this),
+      deleteDrawResults: this.deleteDrawResults.bind(this),
     };
   }
 
-  getAll(): DrawResultDto[] {
+  getAllDrawResults(): DrawResultDto[] {
     const results = this.repository.getDrawResults();
     return results.map(toDrawResultDto);
   }
 
-  getById(args: { drawId: string }): DrawResultDto | null {
-    const result = this.repository.getDrawResultById(args.drawId);
-    return result ? toDrawResultDto(result) : null;
+  addDrawResult(args: { result: DrawResultDto }): void {
+    this.repository.addDrawResults([toDrawResult(args.result)]);
   }
 
-  save(args: { result: DrawResultDto }): void {
-    this.repository.addDrawResults([toDrawResult(args.result)]);
+  addDrawResults(args: { results: DrawResultDto[] }): void {
+    this.repository.addDrawResults(args.results.map(toDrawResult));
+  }
+
+  deleteDrawResults(args: { drawIds: string[] }): void {
+    this.repository.deleteDrawResults(args.drawIds);
   }
 }
