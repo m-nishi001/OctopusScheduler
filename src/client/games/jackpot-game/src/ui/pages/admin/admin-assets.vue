@@ -1,12 +1,10 @@
 <template>
     <div class="admin-section">
         <h2>アセット管理</h2>
-        <div class="admin-form">
-            <button type="button" class="admin-btn icon-btn" @click.prevent="openAddModal" title="Add assets">
+        <div class="admin-actions">
+            <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal" title="Add assets">
                 <span class="emoji">➕</span>
             </button>
-        </div>
-        <div class="admin-actions">
             <button class="admin-btn icon-only sync-icon" @click="syncAssets" :disabled="syncing"
                 :title="'Sync with Google Drive'">
                 <span class="emoji">🔄</span>
@@ -584,6 +582,23 @@ onMounted(async () => {
     background: rgba(255, 255, 255, 0.02);
 }
 
+/* Add button specific style: make it visually prominent but match small icon sizing */
+.add-icon {
+    padding: 10px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #b6d8ff 0%, #8aaeff 100%);
+    color: #232b36;
+    border: none;
+    box-shadow: 0 6px 18px rgba(79, 140, 255, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-icon:hover {
+    transform: translateY(-2px);
+}
+
 .select-all-icon {
     /* visually distinct but subtle */
     border-radius: 8px;
@@ -598,6 +613,12 @@ onMounted(async () => {
 .icon-btn svg,
 .admin-btn svg {
     display: inline-block;
+}
+
+.icon-only .emoji,
+.add-icon .emoji {
+    font-size: 20px;
+    line-height: 1;
 }
 
 .sr-only {
