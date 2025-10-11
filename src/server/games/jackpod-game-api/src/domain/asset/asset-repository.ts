@@ -4,6 +4,7 @@ import { AssetMetadataDto } from "../../applications/asset/asset-dto";
 export interface IAssetRepository {
   uploadAsset(asset: Asset): string;
   getAsset(id: string): Asset | null;
+  getAssetMetadata(id: string): AssetMetadataDto | null;
   findAll(): Asset[];
   findAllIds(): string[];
   findAllMetadata(): AssetMetadataDto[];

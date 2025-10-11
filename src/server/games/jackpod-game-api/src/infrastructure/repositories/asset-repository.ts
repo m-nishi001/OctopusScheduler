@@ -36,6 +36,17 @@ export class AssetRepository implements IAssetRepository {
     return this.mapFileToAsset(file);
   }
 
+  getAssetMetadata(id: string): AssetMetadataDto | null {
+    const folderId = this.getAssetFolderId();
+    const files = GoogleDriveService.findFileByIds({
+      fileIds: [id],
+      parentFolderId: folderId,
+    });
+    if (files.length === 0) return null;
+    const file = files[0];
+    return this.mapFileToAssetMetadata(file);
+  }
+
   updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string {
     const asset = this.getAsset(id);
     if (!asset) return "";

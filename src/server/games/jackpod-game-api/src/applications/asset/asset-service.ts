@@ -14,6 +14,7 @@ export class AssetService implements GasService {
     this.functions = {
       deleteAsset: this.deleteAsset.bind(this),
       getAsset: this.getAsset.bind(this),
+      getAssetMetaData: this.getAssetMetaData.bind(this),
       getAssets: this.getAssets.bind(this),
       addAsset: this.addAsset.bind(this),
     };
@@ -27,6 +28,13 @@ export class AssetService implements GasService {
   getAsset(args: { assetId: string }): { asset: AssetDto | null } {
     const asset = this.repository.getAsset(args.assetId);
     return { asset: asset ? new AssetDto(asset) : null };
+  }
+
+  getAssetMetaData(args: { assetId: string }): {
+    metadata: AssetMetadataDto | null;
+  } {
+    const metadata = this.repository.getAssetMetadata(args.assetId);
+    return { metadata };
   }
 
   getAssets(): { assets: AssetDto[] } {
