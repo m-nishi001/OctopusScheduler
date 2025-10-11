@@ -1,10 +1,10 @@
-import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 import { FileUtils } from "../../infrastructures/utils/file-utils";
+import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 
 interface AssetMetadata {
   id: string;
@@ -28,10 +28,17 @@ export class AssetRepository implements IAssetRepository {
     this.synchronizer = new AssetSynchronizer(this.localStorage);
   }
 
-  async addAssets(assets: Asset[]): Promise<string[]> {
+  async addAssets(
+    assets: Asset[],
+    onProgress?: (
+      index: number,
+      status: "完了" | "失敗",
+      message?: string
+    ) => void
+  ): Promise<string[]> {
     const gasService = GasFunctionService.create("callJackpotGameApi");
     if (!gasService) throw new Error("GAS service not available");
-    const promises = assets.map(async (asset) => {
+    const promises = assets.map(async (asset, index) => {
       const method = asset.id
         ? "AssetService.updateAsset"
         : "AssetService.addAsset";
@@ -40,10 +47,14 @@ export class AssetRepository implements IAssetRepository {
           .createCall<{ asset: Asset }>(method, { asset })
           .withSuccessed(async (res: { asset: Asset }) => {
             await this.localStorage.save(res.asset.id, res.asset);
+            onProgress?.(index, "完了");
             resolve(res.asset.id);
           })
           .withTimeout(120000)
-          .withFailuered((msg: string) => reject(new Error(msg)))
+          .withFailuered((msg: string) => {
+            onProgress?.(index, "失敗", msg);
+            reject(new Error(msg));
+          })
           .invoke();
       });
     });

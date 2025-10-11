@@ -79,10 +79,10 @@
                             <span class="file-name">{{ f.name }}</span>
                             <span class="file-size">({{ FileUtils.formatSize(f.size) }})</span>
                             <span class="file-status" v-if="uploadStatuses[idx]">
-                                <template v-if="uploadStatuses[idx].status === 'pending'">(未開始)</template>
-                                <template v-else-if="uploadStatuses[idx].status === 'uploading'">(アップロード中)</template>
-                                <template v-else-if="uploadStatuses[idx].status === 'success'">(完了)</template>
-                                <template v-else-if="uploadStatuses[idx].status === 'failed'">(失敗)</template>
+                                <template v-if="uploadStatuses[idx].status === '未開始'">(未開始)</template>
+                                <template v-else-if="uploadStatuses[idx].status === 'アップロード中'">(アップロード中)</template>
+                                <template v-else-if="uploadStatuses[idx].status === '完了'">(完了)</template>
+                                <template v-else-if="uploadStatuses[idx].status === '失敗'">(失敗)</template>
                             </span>
                         </div>
                         <div class="file-msg" v-if="uploadStatuses[idx] && uploadStatuses[idx].message">{{
@@ -136,7 +136,7 @@ const confirmAdd = async () => { await addAssets(); closeAddModal(); };
 type UploadStatus = {
     name: string;
     size: number;
-    status: 'pending' | 'uploading' | 'success' | 'failed';
+    status: '未開始' | 'アップロード中' | '完了' | '失敗';
     message?: string;
 }
 
@@ -169,7 +169,7 @@ const onFileChange = (e: Event) => {
         uploadStatuses.value = selectedFiles.value.map(f => ({
             name: f.name,
             size: f.size,
-            status: 'pending' as const,
+            status: '未開始' as const,
         }));
     }
 };
@@ -181,7 +181,7 @@ const addAssets = async () => {
     uploadStatuses.value = selectedFiles.value.map(f => ({
         name: f.name,
         size: f.size,
-        status: 'uploading' as const,
+        status: 'アップロード中' as const,
     }));
     const assetDtos = await Promise.all(selectedFiles.value.map(async (file) => {
         const dataUrl = await FileUtils.readAsDataUrl(file);
@@ -195,18 +195,9 @@ const addAssets = async () => {
             size: file.size
         });
     }));
-    const result = await assetService.addAssets(assetDtos);
-    // アップロード結果に基づいてステータス更新
-    result.successful.forEach((_asset, index) => {
-        uploadStatuses.value[index].status = 'success';
-        uploadStatuses.value[index].message = undefined;
-    });
-    result.failed.forEach((asset) => {
-        const failedIndex = selectedFiles.value.findIndex(f => f.name === asset.name && f.size === asset.size);
-        if (failedIndex !== -1) {
-            uploadStatuses.value[failedIndex].status = 'failed';
-            uploadStatuses.value[failedIndex].message = 'アップロード失敗';
-        }
+    await assetService.addAssets(assetDtos, (index, status, message) => {
+        uploadStatuses.value[index].status = status;
+        uploadStatuses.value[index].message = message;
     });
     uploading.value = false;
     await fetchAssets();
@@ -214,8 +205,19 @@ const addAssets = async () => {
 };
 
 const deleteAsset = async (id: string) => {
-    await assetService.deleteAsset(id);
-    assets.value = assets.value.filter(asset => asset.id !== id);
+    deleteAllDeleting.value = true;
+    deleteAllMessage.value = "ファイル削除中...";
+    const asset = assets.value.find(a => a.id === id);
+    const progressList = [{ id, name: asset?.name || id, status: '削除中' as '削除中' | '削除済' | '削除失敗' }];
+    await assetService.deleteAssetsWithProgress([id], ({ id: deletedId, success }) => {
+        const item = progressList.find(p => p.id === deletedId);
+        if (item) {
+            item.status = success ? '削除済' : '削除失敗';
+        }
+        deleteAllMessage.value = `ファイル削除中...\n${progressList.map(p => `${p.name}：${p.status}`).join('\n')}`;
+        if (success) assets.value = assets.value.filter(a => a.id !== deletedId);
+    });
+    deleteAllDeleting.value = false;
 };
 
 const deleteSelectedAssets = async () => {

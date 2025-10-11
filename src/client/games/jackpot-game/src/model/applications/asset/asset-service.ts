@@ -24,29 +24,20 @@ export class AssetService {
   }
 
   async addAssets(
-    assetDtos: AssetDto[]
-  ): Promise<{ successful: AssetDto[]; failed: AssetDto[] }> {
+    assetDtos: AssetDto[],
+    onProgress?: (
+      index: number,
+      status: "完了" | "失敗",
+      message?: string
+    ) => void
+  ): Promise<void> {
     const assetEntities = await Promise.all(
       assetDtos.map((dto) => dto.toAsset())
     );
-    // addAssets does not have onProgress, so simulate
-    const ids = await this.repo.addAssets(assetEntities);
-    // Assume all successful for now, since addAssets returns ids
-    const successful = assetEntities.map((asset, index) => {
-      assetDtos[index].id = ids[index];
-      return asset;
+    const ids = await this.repo.addAssets(assetEntities, onProgress);
+    ids.forEach((id, index) => {
+      assetDtos[index].id = id;
     });
-    return {
-      successful: successful
-        .map(
-          (asset) =>
-            assetDtos.find(
-              (dto) => dto.name === asset.name && dto.size === asset.size
-            )!
-        )
-        .filter(Boolean),
-      failed: [],
-    };
   }
 
   async updateAsset(asset: AssetDto): Promise<void> {
