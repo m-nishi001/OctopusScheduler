@@ -7,7 +7,7 @@ import EndingView from "../../ui/screens/ending/ending-view.vue";
 import DescriptionView from "../../ui/screens/description/description-view.vue";
 import DemoDraw from "../../ui/screens/demo/demo-draw.vue";
 import MainDraw from "../../ui/screens/main-draw/main-draw.vue";
-import AdminLayout from "../../ui/screens/admin/admin-layout.vue";
+import AdminLayout from "../../ui/screens/admin/frames/admin-view.vue";
 import AdminMembers from "../../ui/screens/admin/admin-members.vue";
 import AdminPrizes from "../../ui/screens/admin/admin-prizes.vue";
 import AdminScreens from "../../ui/screens/admin/admin-screens.vue";

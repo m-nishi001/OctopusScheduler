@@ -2,7 +2,7 @@
   <div class="admin-layout">
     <AdminHeader />
     <div class="admin-body">
-      <AdminSidebar />
+      <AdminSidemenu />
       <main class="admin-content">
         <router-view />
       </main>
@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import AdminHeader from './admin-header.vue';
-import AdminSidebar from './admin-sidebar.vue';
+import AdminSidemenu from './admin-sidemenu.vue';
 </script>
 
 <style scoped>
