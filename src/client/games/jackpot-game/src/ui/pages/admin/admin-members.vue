@@ -274,7 +274,7 @@ const addMember = async () => {
   if (!modalName.value.trim()) return;
   adding.value = true;
   const newMember: MemberDto = {
-    id: String(Date.now()),
+    id: "",
     name: modalName.value,
     order: members.value.length + 1,
     photoAssetId: photoAssetId.value || undefined
