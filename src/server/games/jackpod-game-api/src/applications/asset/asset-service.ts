@@ -29,9 +29,9 @@ export class AssetService implements GasService {
     return { asset: asset ? new AssetDto(asset) : null };
   }
 
-  getAssets(): { assets: AssetMetadataDto[] } {
-    const assets = this.repository.findAllMetadata();
-    return { assets };
+  getAssets(): { assets: AssetDto[] } {
+    const assets = this.repository.findAll();
+    return { assets: assets.map((a) => new AssetDto(a)) };
   }
 
   addAsset(args: AssetDto): { asset: AssetDto } {

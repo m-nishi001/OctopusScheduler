@@ -2,6 +2,7 @@ import { GasFunctionService } from "../../../../../../packages/common-lib/src/go
 import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
 import { AssetMetadataDto } from "../../applications/asset/dto/asset-dto";
+import { AssetDto } from "../../applications/asset/dto/asset-dto";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
@@ -112,18 +113,19 @@ export class AssetRepository implements IAssetRepository {
     onProgress?: (index: number, success: boolean) => void
   ): Promise<{ successful: Asset[]; failed: Asset[] }> {
     if (!this.gasService) throw new Error("GAS service not available");
-    const successful: Asset[] = [];
-    const failed: Asset[] = [];
-    for (let i = 0; i < assets.length; i++) {
+    const promises = assets.map(async (asset, index) => {
       try {
-        const id = await this.uploadAsset(assets[i]);
-        successful.push({ ...assets[i], id });
-        onProgress?.(i, true);
+        const id = await this.uploadAsset(asset);
+        onProgress?.(index, true);
+        return { ...asset, id };
       } catch (e) {
-        failed.push(assets[i]);
-        onProgress?.(i, false);
+        onProgress?.(index, false);
+        return null;
       }
-    }
+    });
+    const results = await Promise.all(promises);
+    const successful = results.filter((r): r is Asset => r !== null);
+    const failed = assets.filter((_, index) => results[index] === null);
     return { successful, failed };
   }
 
@@ -132,7 +134,22 @@ export class AssetRepository implements IAssetRepository {
   }
 
   async syncAssets(onProgress?: (message: string) => void): Promise<void> {
-    // Sync logic if needed, for now just return
-    onProgress?.("Sync completed");
+    if (!this.gasService) throw new Error("GAS service not available");
+    onProgress?.("Google Driveからアセット情報を取得中...");
+    return new Promise((resolve, reject) => {
+      this.gasService
+        .createCall<{ assets: AssetDto[] }>("AssetService.getAssets")
+        .withSuccessed(async (res: { assets: AssetDto[] }) => {
+          onProgress?.("IndexedDBに同期中...");
+          const serverAssets = await Promise.all(
+            res.assets.map((dto) => dto.toAsset())
+          );
+          await this.localStorage.save(ASSET_CACHE_KEY, serverAssets);
+          onProgress?.("同期完了");
+          resolve();
+        })
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
   }
 }
