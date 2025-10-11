@@ -10,16 +10,17 @@
 
 <style scoped>
 .admin-header {
-  background: #232b36;
-  color: #fff;
-  padding: 12px 32px;
-  height: 56px;
+  background: #2b3036;
+  color: #ffffff;
+  padding: 8px 28px;
+  height: 48px;
   display: flex;
   align-items: center;
-  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+  box-shadow: none;
 }
+
 .admin-title {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: bold;
   margin: 0;
 }

@@ -20,7 +20,7 @@ import AdminSidemenu from './admin-sidemenu.vue';
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #232b36;
+  background: #23252b;
 }
 
 .admin-body {
@@ -31,8 +31,8 @@ import AdminSidemenu from './admin-sidemenu.vue';
 
 .admin-content {
   flex: 1;
-  padding: 24px 5vw;
-  background: #232b36;
+  padding: 20px 4vw;
+  background: transparent;
   color: #fff;
   min-width: 0;
   overflow: auto;

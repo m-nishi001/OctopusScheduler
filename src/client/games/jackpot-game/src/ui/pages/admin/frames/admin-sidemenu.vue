@@ -69,13 +69,10 @@ const selectScreen = (screenType: string) => {
 
 <style scoped>
 .admin-sidebar {
-  width: 200px;
-  background: #263040;
+  width: 220px;
+  background: #222731;
   color: #fff;
-  padding: 32px 0;
-  /* let flex layout stretch this element to match sibling height
-    avoid using percentage heights which can produce mismatched sizes
-    under flex containers */
+  padding: 16px 0;
   align-self: stretch;
   min-height: 0;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
@@ -101,8 +98,8 @@ const selectScreen = (screenType: string) => {
   color: #fff;
   text-decoration: none;
   font-weight: 500;
-  padding: 12px 24px;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border-radius: 12px;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -112,9 +109,10 @@ const selectScreen = (screenType: string) => {
 }
 
 .router-link-active.menu-link {
-  background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-  color: #232b36;
-  font-weight: bold;
+  background: linear-gradient(180deg, rgba(125, 95, 255, 0.18) 0%, rgba(174, 225, 255, 0.08) 100%);
+  color: #e9e9ff;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .submenu {
