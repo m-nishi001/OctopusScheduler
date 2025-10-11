@@ -4,28 +4,27 @@ import { GoogleDriveService } from "../../../../../shared-packages/src/google-dr
 import type { AssetMetadataDto } from "../../applications/asset/asset-dto";
 
 export class AssetRepository implements IAssetRepository {
-  findAll(): Asset[] {
+  addAssets(assets: Asset[]): string[] {
+    return assets.map((asset) => {
+      if (asset.id) {
+        // Update existing asset: delete old and upload new
+        this.deleteAssets([asset.id]);
+        return this.uploadAsset(asset);
+      } else {
+        // Upload new asset
+        return this.uploadAsset(asset);
+      }
+    });
+  }
+
+  getAllAssets(): Asset[] {
     const folderId = this.getAssetFolderId();
     if (!folderId) return [];
     const files = this.listAssets();
     return files.map((file) => this.mapFileToAsset(file));
   }
 
-  findAllIds(): string[] {
-    const folderId = this.getAssetFolderId();
-    if (!folderId) return [];
-    const files = this.listAssets();
-    return files.map((file) => file.getId());
-  }
-
-  findAllMetadata(): AssetMetadataDto[] {
-    const folderId = this.getAssetFolderId();
-    if (!folderId) return [];
-    const files = this.listAssets();
-    return files.map((file) => this.mapFileToAssetMetadata(file));
-  }
-
-  getAsset(id: string): Asset | null {
+  getAssetById(id: string): Asset | null {
     const folderId = this.getAssetFolderId();
     const files = GoogleDriveService.findFileByIds({
       fileIds: [id],
@@ -36,45 +35,15 @@ export class AssetRepository implements IAssetRepository {
     return this.mapFileToAsset(file);
   }
 
-  getAssetMetadata(id: string): AssetMetadataDto | null {
+  getAllAssetMetadata(): AssetMetadataDto[] {
     const folderId = this.getAssetFolderId();
-    const files = GoogleDriveService.findFileByIds({
-      fileIds: [id],
-      parentFolderId: folderId,
-    });
-    if (files.length === 0) return null;
-    const file = files[0];
-    return this.mapFileToAssetMetadata(file);
+    if (!folderId) return [];
+    const files = this.listAssets();
+    return files.map((file) => this.mapFileToAssetMetadata(file));
   }
 
-  updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string {
-    const asset = this.getAsset(id);
-    if (!asset) return "";
-    const updated = updateAsset(asset);
-    return this.uploadAsset(updated);
-  }
-
-  updateManyAssets(
-    ids: string[],
-    updateAsset: (asset: Asset) => Asset
-  ): string[] {
-    return ids.map((id) => this.updateAsset(id, updateAsset));
-  }
-
-  uploadAsset(asset: Asset): string {
-    const blob = this.convertToBlobFromDataUrl(asset.dataUrl, asset.name);
-    const folderId = this.getAssetFolderId();
-    const file = GoogleDriveService.uploadFile({
-      fileName: asset.name,
-      parentFolderId: folderId,
-      mimeType: blob.getContentType() || "text/plain",
-      blob: blob,
-    });
-    return file ? file.id || "" : "";
-  }
-
-  deleteAsset(id: string): void {
-    GoogleDriveService.deleteFilesOrFolders([id]);
+  deleteAssets(ids: string[]): void {
+    GoogleDriveService.deleteFilesOrFolders(ids);
   }
 
   private convertToBlobFromDataUrl(
@@ -144,5 +113,17 @@ export class AssetRepository implements IAssetRepository {
       lastUpdated: file.getLastUpdated().toISOString(),
       size: file.getSize(),
     };
+  }
+
+  private uploadAsset(asset: Asset): string {
+    const blob = this.convertToBlobFromDataUrl(asset.dataUrl, asset.name);
+    const folderId = this.getAssetFolderId();
+    const file = GoogleDriveService.uploadFile({
+      fileName: asset.name,
+      parentFolderId: folderId,
+      mimeType: blob.getContentType() || "text/plain",
+      blob: blob,
+    });
+    return file ? file.id || "" : "";
   }
 }

@@ -2,16 +2,9 @@ import { Asset } from "./asset";
 import { AssetMetadataDto } from "../../applications/asset/asset-dto";
 
 export interface IAssetRepository {
-  uploadAsset(asset: Asset): string;
-  getAsset(id: string): Asset | null;
-  getAssetMetadata(id: string): AssetMetadataDto | null;
-  findAll(): Asset[];
-  findAllIds(): string[];
-  findAllMetadata(): AssetMetadataDto[];
-  updateAsset(id: string, updateAsset: (asset: Asset) => Asset): string;
-  updateManyAssets(
-    ids: string[],
-    updateAsset: (asset: Asset) => Asset
-  ): string[];
-  deleteAsset(id: string): void;
+  addAssets(assets: Asset[]): string[];
+  getAllAssets(): Asset[];
+  getAssetById(id: string): Asset | null;
+  getAllAssetMetadata(): AssetMetadataDto[];
+  deleteAssets(ids: string[]): void;
 }
