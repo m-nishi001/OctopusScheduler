@@ -71,22 +71,40 @@
     <div class="modal-content">
       <h3>メンバーを追加</h3>
       <p>追加するメンバーの情報を入力してください。</p>
-      <div class="member-input-group">
-        <input v-model="newMemberName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
-        <div class="photo-mode">
-          <label><input type="radio" v-model="newPhotoMode" value="upload" /> アップロード</label>
-          <label><input type="radio" v-model="newPhotoMode" value="select" /> 既存から選択</label>
+      <div class="add-modal-grid">
+        <div class="add-form-column">
+          <label class="field-label">名前</label>
+          <input v-model="newMemberName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
+
+          <div class="field-block">
+            <label class="field-label">写真</label>
+            <div class="photo-mode">
+              <label><input type="radio" v-model="newPhotoMode" value="upload" /> アップロード</label>
+              <label><input type="radio" v-model="newPhotoMode" value="select" /> 既存から選択</label>
+            </div>
+            <input v-if="newPhotoMode === 'upload'" type="file" @change="onNewPhotoChange" accept="image/*"
+              class="admin-input file-input" />
+            <div v-if="newPhotoMode === 'upload' && newPhotoFilename" class="file-name">{{ newPhotoFilename }}</div>
+
+            <select v-if="newPhotoMode === 'select'" v-model="newPhotoAssetId" class="admin-input">
+              <option value="">選択なし</option>
+              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+            <!-- selectedAssetName display removed to avoid duplicate listing; preview on the right will show selected image -->
+          </div>
         </div>
-        <input v-if="newPhotoMode === 'upload'" type="file" @change="onNewPhotoChange" accept="image/*"
-          class="admin-input" />
-        <select v-if="newPhotoMode === 'select'" v-model="newPhotoAssetId" class="admin-input">
-          <option value="">選択なし</option>
-          <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-        </select>
+
+        <div class="add-side-column">
+          <div class="preview-box">
+            <img v-if="newPhotoPreview" :src="newPhotoPreview" alt="preview" class="preview-img" />
+            <div v-else class="preview-placeholder">プレビュー</div>
+          </div>
+        </div>
       </div>
+
       <div class="modal-actions">
         <button class="admin-btn" @click="confirmAdd" :disabled="!newMemberName.trim() || adding">追加</button>
-        <button class="admin-btn" @click="closeAddModal" :disabled="adding">キャンセル</button>
+        <button class="admin-btn cancel-primary" @click="closeAddModal" :disabled="adding">キャンセル</button>
       </div>
     </div>
   </div>
@@ -159,7 +177,7 @@ const isAllSelected = computed({
 // add modal state and actions
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
-const closeAddModal = () => { showAddModal.value = false; newMemberName.value = ''; newPhotoAsset.value = undefined; newPhotoAssetId.value = ''; };
+const closeAddModal = () => { showAddModal.value = false; newMemberName.value = ''; newPhotoAsset.value = undefined; newPhotoAssetId.value = ''; newPhotoFilename.value = ''; };
 const confirmAdd = async () => { await addMember(); closeAddModal(); };
 
 // delete modal state
@@ -179,6 +197,19 @@ const newMemberName = ref('');
 const newPhotoMode = ref('upload');
 const newPhotoAssetId = ref('');
 const newPhotoAsset = ref<AssetDto | undefined>();
+const newPhotoFilename = ref('');
+
+// preview for new member photo: prefer uploaded asset dataUrl, otherwise show selected asset's data (if available)
+const newPhotoPreview = computed(() => {
+  if (newPhotoAsset.value && (newPhotoAsset.value as any).dataUrl) return (newPhotoAsset.value as any).dataUrl;
+  const id = newPhotoAssetId.value;
+  const asset = assets.value.find((a: any) => a.id === id);
+  if (asset) {
+    // asset may be stored as dataUrl or URL
+    return asset.dataUrl || asset.url || asset.id || '';
+  }
+  return '';
+});
 
 const onNewPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -193,6 +224,7 @@ const onNewPhotoChange = async (e: Event) => {
       lastUpdated: new Date().toISOString(),
       size: file.size
     });
+    newPhotoFilename.value = file.name;
   }
 };
 
@@ -584,6 +616,69 @@ onMounted(() => {
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
   max-width: 720px;
   width: 90%;
+}
+
+.add-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 18px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.add-form-column .field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #cfe8ff;
+  font-weight: 600;
+}
+
+.field-block {
+  margin-top: 12px;
+}
+
+.add-side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.photo-mode.vertical {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-box {
+  width: 160px;
+  height: 160px;
+  background: #2a3137;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.preview-box .preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  display: block
+}
+
+.preview-placeholder {
+  color: #9fb8db
+}
+
+.file-name {
+  margin-top: 8px;
+  color: #cfe8ff;
+  font-size: 0.92rem;
+}
+
+.cancel-primary {
+  background: #3b4650;
+  color: #fff;
 }
 
 .modal-actions {
