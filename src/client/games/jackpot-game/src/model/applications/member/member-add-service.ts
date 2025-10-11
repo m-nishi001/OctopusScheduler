@@ -14,10 +14,9 @@ export class MemberAddService {
   ) {}
 
   async createTempAsset(file: File): Promise<Asset> {
-    const tempId = `temp-${Date.now()}`;
     const dataUrl = await FileUtils.readAsDataUrl(file);
     return {
-      id: tempId,
+      id: "",
       name: file.name,
       type: FileUtils.getAssetType(file.type),
       dataUrl,
