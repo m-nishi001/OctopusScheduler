@@ -24,44 +24,23 @@ export class AssetRepository implements IAssetRepository {
     StorageConfig.getStoreName("AssetData")
   );
 
-  private async callAssetApi(
-    method: string,
-    asset: Asset,
-    onSuccess: (res: { asset: Asset }) => Promise<void>
-  ): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      this.gasService
-        .createCall<{ asset: Asset }>(method, { asset })
-        .withSuccessed(async (res: { asset: Asset }) => {
-          await onSuccess(res);
-          resolve(res.asset.id);
-        })
-        .withTimeout(120000)
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
-  }
-
   async addAssets(assets: Asset[]): Promise<string[]> {
     if (!this.gasService) throw new Error("GAS service not available");
     const promises = assets.map(async (asset) => {
-      if (asset.id) {
-        return this.callAssetApi(
-          "AssetService.updateAsset",
-          asset,
-          async (res) => {
+      const method = asset.id
+        ? "AssetService.updateAsset"
+        : "AssetService.addAsset";
+      return new Promise<string>((resolve, reject) => {
+        this.gasService
+          .createCall<{ asset: Asset }>(method, { asset })
+          .withSuccessed(async (res: { asset: Asset }) => {
             await this.localStorage.save(res.asset.id, res.asset);
-          }
-        );
-      } else {
-        return this.callAssetApi(
-          "AssetService.addAsset",
-          asset,
-          async (res) => {
-            await this.localStorage.save(res.asset.id, res.asset);
-          }
-        );
-      }
+            resolve(res.asset.id);
+          })
+          .withTimeout(120000)
+          .withFailuered((msg: string) => reject(new Error(msg)))
+          .invoke();
+      });
     });
     return await Promise.all(promises);
   }
