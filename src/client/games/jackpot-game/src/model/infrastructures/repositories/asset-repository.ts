@@ -2,18 +2,12 @@ import { injectable } from "tsyringe";
 import type { Asset } from "../../domains/asset/asset";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
-import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
+import type {
+  IAssetRepository,
+  AssetMetadata,
+} from "../../domains/asset/repository/IAssetRepository";
 import { FileUtils } from "../../infrastructures/utils/file-utils";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
-
-interface AssetMetadata {
-  id: string;
-  type: "image" | "video" | "audio" | "text";
-  name: string;
-  uploadedAt: string;
-  lastUpdated: string;
-  size: number;
-}
 
 @injectable()
 export class AssetRepository implements IAssetRepository {
@@ -88,7 +82,19 @@ export class AssetRepository implements IAssetRepository {
   }
 
   async syncAssets(onProgress?: (message: string) => void): Promise<void> {
-    return this.synchronizer.execute(onProgress);
+    await this.synchronizer.execute(onProgress);
+  }
+
+  async getAllAssetMetadata(): Promise<AssetMetadata[]> {
+    const assets = await this.getAssets();
+    return assets.map((asset) => ({
+      id: asset.id,
+      type: asset.type,
+      name: asset.name,
+      uploadedAt: asset.uploadedAt,
+      lastUpdated: asset.lastUpdated,
+      size: asset.size,
+    }));
   }
 }
 

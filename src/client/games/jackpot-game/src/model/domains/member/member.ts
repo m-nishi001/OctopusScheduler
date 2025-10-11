@@ -3,4 +3,5 @@ export interface Member {
   name: string;
   photoAssetId?: string;
   order: number;
+  photoDataUrl?: string;
 }

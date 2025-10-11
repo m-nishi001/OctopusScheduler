@@ -1,5 +1,8 @@
 import { injectable, inject } from "tsyringe";
-import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
+import type {
+  IAssetRepository,
+  AssetMetadata,
+} from "../../domains/asset/repository/IAssetRepository";
 import { AssetDto } from "./dto/asset-dto";
 
 @injectable()
@@ -11,9 +14,9 @@ export class AssetService {
     return assets.map((a) => new AssetDto(a));
   }
 
-  async getAssetById(assetId: string): Promise<AssetDto | undefined> {
-    const asset = await this.repo.getAssetById(assetId);
-    return asset ? new AssetDto(asset) : undefined;
+  async getAssetById(id: string): Promise<AssetDto | null> {
+    const asset = await this.repo.getAssetById(id);
+    return asset ? new AssetDto(asset) : null;
   }
 
   async addAssets(
@@ -33,21 +36,19 @@ export class AssetService {
     });
   }
 
+  async deleteAssets(
+    ids: string[],
+    onProgress?: (result: { id: string; success: boolean }) => void
+  ): Promise<void> {
+    await this.repo.deleteAssets(ids);
+    ids.forEach((id) => onProgress?.({ id, success: true }));
+  }
+
   async syncAssets(onProgress?: (message: string) => void): Promise<void> {
     await this.repo.syncAssets(onProgress);
   }
 
-  async deleteAssets(
-    assetIds: string[],
-    onProgress?: (result: { id: string; success: boolean }) => void
-  ): Promise<void> {
-    for (const id of assetIds) {
-      try {
-        await this.repo.deleteAssets([id]);
-        onProgress?.({ id, success: true });
-      } catch (e) {
-        onProgress?.({ id, success: false });
-      }
-    }
+  public getAllAssetMetadata(): Promise<AssetMetadata[]> {
+    return this.repo.getAllAssetMetadata();
   }
 }

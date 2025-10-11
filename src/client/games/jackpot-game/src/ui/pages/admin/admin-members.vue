@@ -146,19 +146,18 @@ import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { MemberService } from '../../../model/applications/member/member-service';
 import { FileUtils } from '../../../../src/model/infrastructures/utils/file-utils';
+import type { AssetMetadata } from "../../../model/domains/asset/repository/IAssetRepository";
 
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
-const assetService = container.resolve(AssetService);
-const memberService = container.resolve(MemberService);
+const assetService = container.resolve<AssetService>(AssetService);
+const memberService = container.resolve<MemberService>(MemberService);
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
-const assets = ref<any[]>([]);
-const imageAssets = computed(() => assets.value.filter(asset => asset.type === 'image'));
+const assets = ref<AssetMetadata[]>([]);
+const imageAssets = computed(() => assets.value.filter((asset: AssetMetadata) => asset.type === 'image'));
 const getMemberImageSrc = (member: any) => {
-  if (member.photoAssetId) return member.photoAssetId;
-  if (member.photoAsset) return member.photoAsset.dataUrl;
-  return '';
+  return member.photoDataUrl || '';
 };
 
 const isAllSelected = computed({
@@ -177,7 +176,7 @@ const isAllSelected = computed({
 // add modal state and actions
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
-const closeAddModal = () => { showAddModal.value = false; newMemberName.value = ''; newPhotoAsset.value = undefined; newPhotoAssetId.value = ''; newPhotoFilename.value = ''; };
+const closeAddModal = () => { showAddModal.value = false; newMemberName.value = ''; newPhotoAsset.value = undefined; newPhotoAssetId.value = ''; newPhotoFilename.value = ''; newPhotoPreview.value = ''; };
 const confirmAdd = async () => { await addMember(); closeAddModal(); };
 
 // delete modal state
@@ -195,21 +194,22 @@ const syncMessage = ref("");
 
 const newMemberName = ref('');
 const newPhotoMode = ref('upload');
+const updateNewPhotoPreview = async () => {
+  if (newPhotoAsset.value && (newPhotoAsset.value as any).dataUrl) {
+    newPhotoPreview.value = (newPhotoAsset.value as any).dataUrl;
+  } else if (newPhotoAssetId.value) {
+    const asset = await assetService.getAssetById(newPhotoAssetId.value);
+    newPhotoPreview.value = asset?.dataUrl || '';
+  } else {
+    newPhotoPreview.value = '';
+  }
+};
 const newPhotoAssetId = ref('');
 const newPhotoAsset = ref<AssetDto | undefined>();
 const newPhotoFilename = ref('');
 
 // preview for new member photo: prefer uploaded asset dataUrl, otherwise show selected asset's data (if available)
-const newPhotoPreview = computed(() => {
-  if (newPhotoAsset.value && (newPhotoAsset.value as any).dataUrl) return (newPhotoAsset.value as any).dataUrl;
-  const id = newPhotoAssetId.value;
-  const asset = assets.value.find((a: any) => a.id === id);
-  if (asset) {
-    // asset may be stored as dataUrl or URL
-    return asset.dataUrl || asset.url || asset.id || '';
-  }
-  return '';
-});
+const newPhotoPreview = ref('');
 
 const onNewPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -225,6 +225,7 @@ const onNewPhotoChange = async (e: Event) => {
       size: file.size
     });
     newPhotoFilename.value = file.name;
+    await updateNewPhotoPreview();
   }
 };
 
@@ -295,7 +296,14 @@ const syncMembers = async () => {
 
 const fetchMembers = async () => {
   try {
-    members.value = await memberRepo.getMembers();
+    const fetchedMembers = await memberRepo.getMembers();
+    for (const member of fetchedMembers) {
+      if (member.photoAssetId) {
+        const asset = await assetService.getAssetById(member.photoAssetId);
+        member.photoDataUrl = asset?.dataUrl;
+      }
+    }
+    members.value = fetchedMembers;
   } catch (error) {
     console.error("Failed to fetch members:", error);
     members.value = [];
@@ -304,7 +312,7 @@ const fetchMembers = async () => {
 
 const fetchAssets = async () => {
   try {
-    assets.value = await assetService.getAllAssets();
+    assets.value = await assetService.getAllAssetMetadata();
   } catch (error) {
     console.error("Failed to fetch assets:", error);
     assets.value = [];
@@ -313,10 +321,20 @@ const fetchAssets = async () => {
 
 const editMemberData = ref<any>(null);
 const editName = ref('');
+const editPhotoMode = ref('upload');
 const editPhotoAssetId = ref('');
 const editPhotoAsset = ref<AssetDto | undefined>();
 const editPhotoPreview = ref('');
-const editPhotoMode = ref('upload');
+const updateEditPhotoPreview = async () => {
+  if (editPhotoAsset.value && editPhotoAsset.value.dataUrl) {
+    editPhotoPreview.value = editPhotoAsset.value.dataUrl;
+  } else if (editPhotoAssetId.value) {
+    const asset = await assetService.getAssetById(editPhotoAssetId.value);
+    editPhotoPreview.value = asset?.dataUrl || '';
+  } else {
+    editPhotoPreview.value = '';
+  }
+};
 
 const onEditPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -331,7 +349,7 @@ const onEditPhotoChange = async (e: Event) => {
       lastUpdated: new Date().toISOString(),
       size: file.size
     });
-    editPhotoPreview.value = editPhotoAsset.value.dataUrl;
+    await updateEditPhotoPreview();
   }
 };
 
@@ -341,7 +359,7 @@ const editMember = (member: any) => {
   if (member.photoAssetId) {
     editPhotoMode.value = 'select';
     editPhotoAssetId.value = member.photoAssetId;
-    editPhotoPreview.value = member.photoAssetId;
+    editPhotoPreview.value = member.photoDataUrl || '';
   } else {
     editPhotoMode.value = 'upload';
     editPhotoAsset.value = member.photoAsset;

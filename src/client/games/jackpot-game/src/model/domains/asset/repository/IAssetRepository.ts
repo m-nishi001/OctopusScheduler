@@ -1,5 +1,14 @@
 import type { Asset } from "../asset";
 
+export type AssetMetadata = {
+  id: string;
+  type: "image" | "video" | "audio" | "text";
+  name: string;
+  uploadedAt: string;
+  lastUpdated: string;
+  size: number;
+};
+
 export interface IAssetRepository {
   addAssets(
     assets: Asset[],
@@ -13,4 +22,5 @@ export interface IAssetRepository {
   getAssetById(id: string): Promise<Asset | null>;
   deleteAssets(ids: string[]): Promise<void>;
   syncAssets(onProgress?: (message: string) => void): Promise<void>;
+  getAllAssetMetadata(): Promise<AssetMetadata[]>;
 }
