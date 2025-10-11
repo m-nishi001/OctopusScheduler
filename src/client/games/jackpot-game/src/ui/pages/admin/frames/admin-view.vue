@@ -26,6 +26,7 @@ import AdminSidemenu from './admin-sidemenu.vue';
 .admin-body {
   display: flex;
   flex: 1;
+  min-height: 0;
 }
 
 .admin-content {
@@ -34,6 +35,8 @@ import AdminSidemenu from './admin-sidemenu.vue';
   background: #232b36;
   color: #fff;
   min-width: 0;
+  overflow: auto;
+  min-height: 0;
 }
 
 @media (max-width: 900px) {

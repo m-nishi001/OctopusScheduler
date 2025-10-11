@@ -73,7 +73,11 @@ const selectScreen = (screenType: string) => {
   background: #263040;
   color: #fff;
   padding: 32px 0;
-  min-height: 100vh;
+  /* let flex layout stretch this element to match sibling height
+    avoid using percentage heights which can produce mismatched sizes
+    under flex containers */
+  align-self: stretch;
+  min-height: 0;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
