@@ -24,15 +24,20 @@ export class MemberRepository implements IMemberRepository {
     return (await this.localStorage.get<Member>(id)) || null;
   }
 
-  async addMembers(members: Member[]): Promise<void> {
+  async addMembers(members: Member[]): Promise<Member[]> {
     for (const member of members) {
       await this.localStorage.save(member.id, member);
     }
-    if (!this.gasService) return;
+    if (!this.gasService) return members;
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<void>("MemberService.addMembers", { members })
-        .withSuccessed(() => resolve())
+        .createCall<Member[]>("MemberService.addMembers", { members })
+        .withSuccessed((res: Member[]) => {
+          for (const member of res) {
+            this.localStorage.save(member.id, member);
+          }
+          resolve(res);
+        })
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });

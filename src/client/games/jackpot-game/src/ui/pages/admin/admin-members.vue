@@ -134,13 +134,16 @@ import type { IMemberRepository } from '../../../model/domains/member/repository
 import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { MemberService } from '../../../model/applications/member/member-service';
-import { FileUtils } from '../../../../src/model/infrastructures/utils/file-utils';
+import { MemberAddService } from '../../../model/applications/member/member-add-service';
 import type { AssetMetadata } from "../../../model/domains/asset/repository/IAssetRepository";
+import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
+import type { Asset } from "../../../model/domains/asset/asset";
 
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
 const assetService = container.resolve<AssetService>(AssetService);
 const memberService = container.resolve<MemberService>(MemberService);
+const memberAddService = container.resolve<MemberAddService>(MemberAddService);
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
 const assets = ref<AssetMetadata[]>([]);
@@ -171,6 +174,7 @@ const modalPhotoAsset = ref<AssetDto | undefined>();
 const modalPhotoPreview = ref('');
 const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
+const tempAsset = ref<Asset | null>(null);
 
 // modal actions
 const openModal = (mode: 'add' | 'edit', data?: any) => {
@@ -183,6 +187,7 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
     modalPhotoPreview.value = '';
     modalPhotoFilename.value = '';
     photoAssetId.value = '';
+    tempAsset.value = null;
   } else if (mode === 'edit' && data) {
     modalName.value = data.name;
     if (data.photoAssetId) {
@@ -206,6 +211,7 @@ const closeModal = () => {
   modalPhotoPreview.value = '';
   modalPhotoFilename.value = '';
   photoAssetId.value = '';
+  tempAsset.value = null;
 };
 const confirmModal = async () => {
   if (modalMode.value === 'add') {
@@ -258,37 +264,24 @@ const updateModalPhotoPreview = async () => {
 const onModalPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const dataUrl = await FileUtils.readAsDataUrl(file);
-    modalPhotoAsset.value = new AssetDto({
-      id: "",
-      type: FileUtils.getAssetType(file.type),
-      dataUrl,
-      name: file.name,
-      uploadedAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      size: file.size
-    });
+    tempAsset.value = await memberAddService.createTempAsset(file);
     modalPhotoFilename.value = file.name;
-    await updateModalPhotoPreview();
+    modalPhotoPreview.value = tempAsset.value.dataUrl;
   }
 };
 
 const addMember = async () => {
   if (!modalName.value.trim()) return;
   adding.value = true;
-  const newMember: any = {
+  const newMember: MemberDto = {
     id: String(Date.now()),
     name: modalName.value,
-    order: members.value.length + 1
+    order: members.value.length + 1,
+    photoAssetId: photoAssetId.value || undefined
   };
-  if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
-    newMember.photoAsset = modalPhotoAsset.value;
-  } else if (modalPhotoMode.value === 'select' && photoAssetId.value) {
-    newMember.photoAssetId = photoAssetId.value;
-  }
   try {
-    await memberRepo.addMembers([newMember]);
-    await fetchMembers();
+    const addedMember = await memberAddService.saveMember(newMember, tempAsset.value || undefined);
+    members.value.push(addedMember);
   } catch (error) {
     console.error("Failed to add member:", error);
   } finally {
@@ -370,6 +363,12 @@ onMounted(() => {
 
 watch(photoAssetId, async () => {
   await updateModalPhotoPreview();
+});
+
+watch(modalPhotoMode, () => {
+  if (modalPhotoMode.value === 'select') {
+    tempAsset.value = null;
+  }
 });
 </script>
 

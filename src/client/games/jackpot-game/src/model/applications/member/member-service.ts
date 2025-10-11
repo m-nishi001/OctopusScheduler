@@ -12,8 +12,9 @@ export class MemberService {
     return members.map(fromMember);
   }
 
-  async addMember(member: MemberDto): Promise<void> {
-    await this.repo.addMembers([toMember(member)]);
+  async addMember(member: MemberDto): Promise<MemberDto> {
+    const addedMembers = await this.repo.addMembers([toMember(member)]);
+    return fromMember(addedMembers[0]);
   }
 
   async updateMember(id: string, member: MemberDto): Promise<void> {
