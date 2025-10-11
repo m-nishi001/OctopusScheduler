@@ -1,40 +1,32 @@
 <template>
     <div class="admin-section">
         <h2>アセット管理</h2>
-        <form class="admin-form" @submit.prevent="addAssets">
-            <input type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple class="admin-input" />
-            <div v-if="selectedFiles.length" class="selected-files">
-                <strong>選択中のファイル（{{ selectedFiles.length }}）:</strong>
-                <ul>
-                    <li v-for="(f, idx) in selectedFiles" :key="f.name + '-' + idx">
-                        <div class="file-row">
-                            <span class="file-name">{{ f.name }}</span>
-                            <span class="file-size">{{ FileUtils.formatSize(f.size) }}</span>
-                            <span class="file-status" v-if="uploadStatuses[idx]">
-                                <template v-if="uploadStatuses[idx].status === 'pending'">(未開始)</template>
-                                <template v-else-if="uploadStatuses[idx].status === 'uploading'">(アップロード中)</template>
-                                <template v-else-if="uploadStatuses[idx].status === 'success'">(完了)</template>
-                                <template v-else-if="uploadStatuses[idx].status === 'failed'">(失敗)</template>
-                            </span>
-                        </div>
-                        <div class="file-msg" v-if="uploadStatuses[idx] && uploadStatuses[idx].message">{{
-                            uploadStatuses[idx].message }}</div>
-                    </li>
-                </ul>
-            </div>
+        <div class="admin-form">
+            <!-- Add button opens modal dialog -->
+            <button type="button" class="admin-btn icon-btn" @click.prevent="openAddModal" title="Add assets">
+                <span class="emoji">➕</span>
+            </button>
+            <!-- selected files list removed here because the modal displays selected files. -->
             <div class="upload-actions">
-                <button type="submit" class="admin-btn" :disabled="!selectedFiles.length || uploading">追加</button>
-                <span class="uploading-indicator" v-if="uploading">アップロード中...</span>
+                <!-- primary add action is the icon button to avoid duplication -->
+                <!-- Uploading status removed per design: do not display global uploading text -->
             </div>
-        </form>
-        <div class="admin-actions">
-            <button class="admin-btn sync-btn" @click="syncAssets" :disabled="syncing">Google Driveと同期</button>
-            <button class="admin-btn delete-btn" @click="deleteSelectedAssets"
-                :disabled="!selectedAssets.length || syncing">選択したアセットを削除</button>
-            <button class="admin-btn delete-all-btn" @click="deleteAllAssets"
-                :disabled="!assets.length || syncing || deleteAllDeleting">全件削除</button>
         </div>
-        <ul class="admin-list">
+        <div class="admin-actions">
+            <button class="admin-btn icon-only sync-icon" @click="syncAssets" :disabled="syncing"
+                :title="'Sync with Google Drive'">
+                <span class="emoji">🔄</span>
+            </button>
+            <button class="admin-btn icon-only delete-icon" @click="deleteSelectedAssets"
+                :disabled="!selectedAssets.length || syncing" title="Delete selected">
+                <span class="emoji">🗑️</span>
+            </button>
+            <button class="admin-btn icon-only delete-all-icon" @click="deleteAllAssets"
+                :disabled="!assets.length || syncing || deleteAllDeleting" title="Delete all">
+                <span class="emoji">⚠️</span>
+            </button>
+        </div>
+        <ul v-if="assets.length" class="admin-list">
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedAssets" :value="asset.id" />
                 <div class="asset-preview">
@@ -58,6 +50,9 @@
                 <button class="admin-btn ml-2" @click="deleteAsset(asset.id)">削除</button>
             </li>
         </ul>
+        <div v-else class="empty-state">
+            アセットはありません
+        </div>
     </div>
     <!-- 同期モーダル -->
     <div v-if="syncing" class="modal-overlay">
@@ -73,6 +68,38 @@
             <h3>全件削除中...</h3>
             <p>{{ deleteAllMessage }}</p>
             <div class="spinner"></div>
+        </div>
+    </div>
+    <!-- Add Assets Modal -->
+    <div v-if="showAddModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>アセットを追加</h3>
+            <p>追加するファイルを選択してください。</p>
+            <input ref="fileInput" type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
+                class="admin-input" />
+            <div class="selected-files" v-if="selectedFiles.length">
+                <strong>選択中（{{ selectedFiles.length }}）:</strong>
+                <ul>
+                    <li v-for="(f, idx) in selectedFiles" :key="f.name + '-' + idx">
+                        <div class="modal-file-row">
+                            <span class="file-name">{{ f.name }}</span>
+                            <span class="file-size">({{ FileUtils.formatSize(f.size) }})</span>
+                            <span class="file-status" v-if="uploadStatuses[idx]">
+                                <template v-if="uploadStatuses[idx].status === 'pending'">(未開始)</template>
+                                <template v-else-if="uploadStatuses[idx].status === 'uploading'">(アップロード中)</template>
+                                <template v-else-if="uploadStatuses[idx].status === 'success'">(完了)</template>
+                                <template v-else-if="uploadStatuses[idx].status === 'failed'">(失敗)</template>
+                            </span>
+                        </div>
+                        <div class="file-msg" v-if="uploadStatuses[idx] && uploadStatuses[idx].message">{{
+                            uploadStatuses[idx].message }}</div>
+                    </li>
+                </ul>
+            </div>
+            <div class="modal-actions">
+                <button class="admin-btn" @click="confirmAdd" :disabled="!selectedFiles.length">追加</button>
+                <button class="admin-btn" @click="closeAddModal">キャンセル</button>
+            </div>
         </div>
     </div>
 </template>
@@ -91,6 +118,14 @@ const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);
 const selectedAssets = ref<string[]>([]);
 
+// file input ref used inside add modal
+const fileInput = ref<HTMLInputElement | null>(null);
+
+// add modal state and actions
+const showAddModal = ref(false);
+const openAddModal = () => { showAddModal.value = true; };
+const closeAddModal = () => { showAddModal.value = false; selectedFiles.value = []; uploadStatuses.value = []; };
+const confirmAdd = async () => { await addAssets(); closeAddModal(); };
 type UploadStatus = {
     name: string;
     size: number;
@@ -229,10 +264,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.admin-section {
-    margin-bottom: 32px;
-}
-
 .admin-form {
     display: flex;
     gap: 16px;
@@ -301,7 +332,6 @@ onMounted(async () => {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: block;
 }
 
 .admin-list-item {
@@ -334,21 +364,16 @@ onMounted(async () => {
     overflow: hidden;
 }
 
-.preview-img {
+.preview-img,
+.preview-video,
+.preview-audio {
     max-width: 100%;
     max-height: 100%;
     display: block;
 }
 
-.preview-video,
-.preview-audio {
-    max-width: 100%;
-    max-height: 100%;
-}
-
 .asset-info {
     min-width: 0;
-    /* allow text truncation inside grid */
 }
 
 .usage-info ul {
@@ -380,9 +405,34 @@ onMounted(async () => {
     border-radius: 6px;
 }
 
-.selected-files li {
-    font-size: 0.95rem;
-    color: #cfe8ff;
+/* Styles specifically when selected-files appears inside modal */
+.modal-content .selected-files ul {
+    padding: 12px 16px;
+    background: linear-gradient(180deg, rgba(28, 34, 40, 0.9) 0%, rgba(27, 30, 35, 0.85) 100%);
+    border-radius: 8px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.modal-file-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 8px 6px;
+}
+
+.modal-content .file-name {
+    font-weight: 700;
+    color: #e7f6ff;
+}
+
+.modal-content .file-size {
+    color: #9fb7d6;
+}
+
+.modal-content .file-status {
+    color: #ffd580;
+    margin-left: 6px;
 }
 
 .file-row {
@@ -448,8 +498,17 @@ onMounted(async () => {
     color: #fff;
     padding: 28px;
     border-radius: 10px;
-    text-align: center;
+    text-align: left;
     box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
+    max-width: 720px;
+    width: 90%;
+}
+
+.modal-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
 }
 
 .spinner {
@@ -474,5 +533,46 @@ onMounted(async () => {
 
 .admin-list-item button {
     white-space: nowrap;
+}
+
+.visually-hidden {
+    position: absolute !important;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    clip: rect(1px, 1px, 1px, 1px);
+    white-space: nowrap;
+    border: 0;
+    padding: 0;
+    margin: -1px;
+}
+
+.icon-only {
+    padding: 8px;
+    border-radius: 8px;
+    background: transparent;
+    color: #cfe8ff;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.icon-only:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.icon-btn svg,
+.admin-btn svg {
+    display: inline-block;
+}
+
+.sr-only {
+    position: absolute !important;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    clip: rect(1px, 1px, 1px, 1px);
+    white-space: nowrap;
+    border: 0;
+    padding: 0;
+    margin: -1px;
 }
 </style>
