@@ -209,7 +209,7 @@ const deleteAsset = async (id: string) => {
     deleteAllMessage.value = "ファイル削除中...";
     const asset = assets.value.find(a => a.id === id);
     const progressList = [{ id, name: asset?.name || id, status: '削除中' as '削除中' | '削除済' | '削除失敗' }];
-    await assetService.deleteAssetsWithProgress([id], ({ id: deletedId, success }) => {
+    await assetService.deleteAssets([id], ({ id: deletedId, success }) => {
         const item = progressList.find(p => p.id === deletedId);
         if (item) {
             item.status = success ? '削除済' : '削除失敗';
@@ -228,7 +228,7 @@ const deleteSelectedAssets = async () => {
         const asset = assets.value.find(a => a.id === id);
         return { id, name: asset?.name || id, status: '削除中' as '削除中' | '削除済' | '削除失敗' };
     });
-    await assetService.deleteAssetsWithProgress(selectedAssets.value, ({ id, success }) => {
+    await assetService.deleteAssets(selectedAssets.value, ({ id, success }) => {
         const item = progressList.find(p => p.id === id);
         if (item) {
             item.status = success ? '削除済' : '削除失敗';

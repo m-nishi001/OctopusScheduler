@@ -16,13 +16,6 @@ export class AssetService {
     return asset ? new AssetDto(asset) : undefined;
   }
 
-  async addAsset(asset: AssetDto): Promise<AssetDto> {
-    const assetEntity = await asset.toAsset();
-    const ids = await this.repo.addAssets([assetEntity]);
-    asset.id = ids[0];
-    return asset;
-  }
-
   async addAssets(
     assetDtos: AssetDto[],
     onProgress?: (
@@ -40,30 +33,17 @@ export class AssetService {
     });
   }
 
-  async updateAsset(asset: AssetDto): Promise<void> {
-    const assetEntity = await asset.toAsset();
-    await this.repo.addAssets([assetEntity]);
-  }
-
-  async deleteAsset(assetId: string): Promise<void> {
-    await this.repo.deleteAssets([assetId]);
-  }
-
-  async deleteAssets(assetIds: string[]): Promise<void> {
-    await this.repo.deleteAssets(assetIds);
-  }
-
   async syncAssets(onProgress?: (message: string) => void): Promise<void> {
     await this.repo.syncAssets(onProgress);
   }
 
-  async deleteAssetsWithProgress(
+  async deleteAssets(
     assetIds: string[],
     onProgress?: (result: { id: string; success: boolean }) => void
   ): Promise<void> {
     for (const id of assetIds) {
       try {
-        await this.deleteAssets([id]);
+        await this.repo.deleteAssets([id]);
         onProgress?.({ id, success: true });
       } catch (e) {
         onProgress?.({ id, success: false });
