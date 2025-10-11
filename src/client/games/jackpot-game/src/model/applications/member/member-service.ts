@@ -27,7 +27,6 @@ export class MemberService {
   }
 
   async syncMembers(): Promise<void> {
-    // サーバーから全メンバーを取得してローカルストレージに同期
     await this.repo.syncMembers();
   }
 }
