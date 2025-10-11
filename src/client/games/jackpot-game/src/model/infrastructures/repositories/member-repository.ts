@@ -4,6 +4,7 @@ import { StorageConfig } from "../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
 import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
+import type { MemberDto } from "../../applications/member/dto/member-dto";
 
 @injectable()
 export class MemberRepository implements IMemberRepository {
@@ -73,13 +74,12 @@ export class MemberRepository implements IMemberRepository {
     if (!this.gasService) throw new Error("GAS service not available");
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<{ members: any[] }>("MemberService.getMembers")
-        .withSuccessed(async (res: { members: any[] }) => {
-          const serverMembers = res.members.map((m) => ({
+        .createCall<MemberDto[]>("MemberService.getMembers")
+        .withSuccessed(async (res: MemberDto[]) => {
+          const serverMembers = res.map((m) => ({
             id: m.id,
             name: m.name,
             photoAssetId: m.photoAssetId,
-            attributes: m.attributes,
             order: m.order,
           }));
           for (const member of serverMembers) {

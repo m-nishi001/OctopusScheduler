@@ -4,6 +4,7 @@ import { useLocalStorage } from "../../../../../../packages/shared-composables/s
 import { StorageConfig } from "../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
 import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
+import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
 
 @injectable()
 export class PrizeRepository implements IPrizeRepository {
@@ -73,9 +74,19 @@ export class PrizeRepository implements IPrizeRepository {
     if (!this.gasService) throw new Error("GAS service not available");
     return new Promise((resolve, reject) => {
       this.gasService
-        .createCall<{ prizes: Prize[] }>("PrizeService.getPrizes")
-        .withSuccessed(async (res: { prizes: Prize[] }) => {
-          for (const prize of res.prizes) {
+        .createCall<PrizeDto[]>("PrizeService.getPrizes")
+        .withSuccessed(async (res: PrizeDto[]) => {
+          const serverPrizes = res.map((p) => ({
+            id: p.id,
+            name: p.name,
+            probability: p.probability,
+            rank: p.rank,
+            imageAssetId: p.imageAssetId,
+            bgm1AssetId: p.bgm1AssetId,
+            bgm2AssetId: p.bgm2AssetId,
+            order: p.order,
+          }));
+          for (const prize of serverPrizes) {
             await this.localStorage.save(prize.id, prize);
           }
           resolve();
