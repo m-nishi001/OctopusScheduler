@@ -4,7 +4,7 @@
       <ul>
         <li>
           <router-link to="/jackpot-admin/assets" class="menu-link">
-            <span class="icon">�</span> アセット管理
+            <span class="icon">📁</span> アセット管理
           </router-link>
         </li>
         <li>
