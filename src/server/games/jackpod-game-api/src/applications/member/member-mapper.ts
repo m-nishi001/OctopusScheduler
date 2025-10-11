@@ -6,7 +6,7 @@ export function toMemberDto(entity: Member): MemberDto {
     id: entity.id,
     name: entity.name,
     photoAssetId: entity.photoAssetId, //
-    order: entity.order,
+    rank: entity.rank,
   };
 }
 
@@ -15,6 +15,6 @@ export function toMember(entity: MemberDto): Member {
     id: entity.id,
     name: entity.name,
     photoAssetId: entity.photoAssetId ?? "",
-    order: entity.order ?? 0,
+    rank: entity.rank ?? 0,
   };
 }

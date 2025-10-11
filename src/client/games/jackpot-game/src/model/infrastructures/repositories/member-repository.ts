@@ -109,7 +109,7 @@ export class MemberRepository implements IMemberRepository {
       id: m.id,
       name: m.name,
       photoAssetId: m.photoAssetId,
-      order: m.order,
+      rank: m.rank,
     }));
 
     for (const member of serverMembers) {
