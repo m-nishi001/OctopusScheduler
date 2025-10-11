@@ -2,15 +2,9 @@
     <div class="admin-section">
         <h2>アセット管理</h2>
         <div class="admin-form">
-            <!-- Add button opens modal dialog -->
             <button type="button" class="admin-btn icon-btn" @click.prevent="openAddModal" title="Add assets">
                 <span class="emoji">➕</span>
             </button>
-            <!-- selected files list removed here because the modal displays selected files. -->
-            <div class="upload-actions">
-                <!-- primary add action is the icon button to avoid duplication -->
-                <!-- Uploading status removed per design: do not display global uploading text -->
-            </div>
         </div>
         <div class="admin-actions">
             <button class="admin-btn icon-only sync-icon" @click="syncAssets" :disabled="syncing"
@@ -54,7 +48,6 @@
             アセットはありません
         </div>
     </div>
-    <!-- 同期モーダル -->
     <div v-if="syncing" class="modal-overlay">
         <div class="modal-content">
             <h3>Google Driveと同期中...</h3>
@@ -62,7 +55,6 @@
             <div class="spinner"></div>
         </div>
     </div>
-    <!-- 全件削除モーダル -->
     <div v-if="deleteAllDeleting" class="modal-overlay">
         <div class="modal-content">
             <h3>全件削除中...</h3>
@@ -70,7 +62,6 @@
             <div class="spinner"></div>
         </div>
     </div>
-    <!-- Add Assets Modal -->
     <div v-if="showAddModal" class="modal-overlay">
         <div class="modal-content">
             <h3>アセットを追加</h3>
@@ -140,7 +131,6 @@ const syncMessage = ref("");
 const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
-// members/prizes/screenConfigs are no longer used directly in this UI; AssetService aggregates usage info
 const usageMap = ref<Record<string, string[]>>({});
 const deleteMessage = ref('');
 
