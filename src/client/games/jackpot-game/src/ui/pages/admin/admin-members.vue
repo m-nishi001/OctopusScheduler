@@ -75,7 +75,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/IMemberRepository';
-import { AssetDto } from '../../../model/applications/asset/dto/asset-dto';
+import { AssetDto, createAssetDtoFromFile } from "../../../../src/model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
 
 import { container } from 'tsyringe';
@@ -181,8 +181,7 @@ const editPhotoPreview = ref('');
 const onEditPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editPhotoAsset.value = new AssetDto(file);
-    await editPhotoAsset.value.loadDataUrl();
+    editPhotoAsset.value = await createAssetDtoFromFile(file);
     editPhotoPreview.value = editPhotoAsset.value.dataUrl || '';
   }
 };
@@ -198,9 +197,7 @@ const editMember = (member: any) => {
     editPhotoMode.value = 'upload';
     editPhotoAsset.value = member.photoAsset;
     if (editPhotoAsset.value) {
-      editPhotoAsset.value.loadDataUrl().then(() => {
-        editPhotoPreview.value = editPhotoAsset.value?.dataUrl || '';
-      });
+      editPhotoPreview.value = editPhotoAsset.value.dataUrl || '';
     }
   }
 };

@@ -1,4 +1,5 @@
 import type { Asset } from "../../../domains/asset/asset";
+import { FileUtils } from "../../../infrastructures/utils/file-utils";
 
 const getAssetType = (
   mimeType: string
@@ -7,15 +8,6 @@ const getAssetType = (
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.startsWith("audio/")) return "audio";
   return "text";
-};
-
-const fileToDataUrl = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 };
 
 export class AssetMetadataDto {
@@ -45,7 +37,6 @@ export class AssetMetadataDto {
 
 export class AssetDto extends AssetMetadataDto {
   private _dataUrl?: string;
-  private file?: File;
 
   constructor(file: File);
   constructor(entity: {
@@ -80,7 +71,6 @@ export class AssetDto extends AssetMetadataDto {
         arg.size
       );
       this._dataUrl = undefined;
-      this.file = arg;
     } else {
       super(
         arg.id,
@@ -98,15 +88,11 @@ export class AssetDto extends AssetMetadataDto {
     return this._dataUrl;
   }
 
-  async loadDataUrl(): Promise<void> {
-    if (this._dataUrl) return;
-    if (this.file) {
-      this._dataUrl = await fileToDataUrl(this.file);
-    }
+  set dataUrl(value: string | undefined) {
+    this._dataUrl = value;
   }
 
   async toAsset(): Promise<Asset> {
-    await this.loadDataUrl();
     return {
       id: this.id,
       type: this.type,
@@ -117,4 +103,10 @@ export class AssetDto extends AssetMetadataDto {
       size: this.size,
     };
   }
+}
+
+export async function createAssetDtoFromFile(file: File): Promise<AssetDto> {
+  const assetDto = new AssetDto(file);
+  assetDto.dataUrl = await FileUtils.readAsDataUrl(file);
+  return assetDto;
 }

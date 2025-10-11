@@ -79,7 +79,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/IPrizeRepository';
-import { AssetDto } from '../../../model/applications/asset/dto/asset-dto';
+import { AssetDto, createAssetDtoFromFile } from "../../../../src/model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
 
 import { container } from 'tsyringe';
@@ -189,8 +189,7 @@ const editImageMode = ref('upload');
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editImageAsset.value = new AssetDto(file);
-    await editImageAsset.value.loadDataUrl();
+    editImageAsset.value = await createAssetDtoFromFile(file);
     editImagePreview.value = editImageAsset.value.dataUrl || '';
   }
 };
@@ -207,9 +206,7 @@ const editPrize = (prize: any) => {
     editImageMode.value = 'upload';
     editImageAsset.value = prize.imageAsset;
     if (editImageAsset.value) {
-      editImageAsset.value.loadDataUrl().then(() => {
-        editImagePreview.value = editImageAsset.value?.dataUrl || '';
-      });
+      editImagePreview.value = editImageAsset.value.dataUrl || '';
     }
   }
 };
