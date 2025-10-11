@@ -68,36 +68,15 @@ export class AssetService {
 
   async deleteAssetsWithProgress(
     assetIds: string[],
-    onProgress?: (result: {
-      id: string;
-      success: boolean;
-      name?: string;
-      size?: number;
-      completed: number;
-      total: number;
-    }) => void
+    onProgress?: (result: { id: string; success: boolean }) => void
   ): Promise<void> {
-    const total = assetIds.length;
-    let completed = 0;
-    const promises = assetIds.map(async (id) => {
-      let name: string | undefined = undefined;
-      let size: number | undefined = undefined;
-      try {
-        const asset = await this.repo.getAssetById(id);
-        name = asset?.name;
-        size = asset?.size;
-      } catch (e) {
-        /* ignore */
-      }
+    for (const id of assetIds) {
       try {
         await this.deleteAssets([id]);
-        completed++;
-        onProgress?.({ id, success: true, name, size, completed, total });
+        onProgress?.({ id, success: true });
       } catch (e) {
-        completed++;
-        onProgress?.({ id, success: false, name, size, completed, total });
+        onProgress?.({ id, success: false });
       }
-    });
-    await Promise.all(promises);
+    }
   }
 }

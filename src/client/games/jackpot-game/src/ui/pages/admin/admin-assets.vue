@@ -61,7 +61,7 @@
     <div v-if="deleteAllDeleting" class="modal-overlay">
         <div class="modal-content">
             <h3>全件削除中...</h3>
-            <p>{{ deleteAllMessage }}</p>
+            <pre>{{ deleteAllMessage }}</pre>
             <div class="spinner"></div>
         </div>
     </div>
@@ -148,7 +148,6 @@ const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
 const usageMap = ref<Record<string, string[]>>({});
-const deleteMessage = ref('');
 
 const fetchAssets = async () => {
     assets.value = await assetService.getAllAssets();
@@ -221,10 +220,21 @@ const deleteAsset = async (id: string) => {
 
 const deleteSelectedAssets = async () => {
     if (!selectedAssets.value.length) return;
-    await assetService.deleteAssetsWithProgress(selectedAssets.value, ({ id, success, name, size, completed, total }) => {
-        if (success) assets.value = assets.value.filter(a => a.id !== id);
-        deleteMessage.value = `${name || id} を削除${success ? '完了' : '失敗'} (${FileUtils.formatSize(size || 0)}) (${completed}/${total})`;
+    deleteAllDeleting.value = true;
+    deleteAllMessage.value = "ファイル削除中...";
+    const progressList = selectedAssets.value.map(id => {
+        const asset = assets.value.find(a => a.id === id);
+        return { id, name: asset?.name || id, status: '削除中' as '削除中' | '削除済' | '削除失敗' };
     });
+    await assetService.deleteAssetsWithProgress(selectedAssets.value, ({ id, success }) => {
+        const item = progressList.find(p => p.id === id);
+        if (item) {
+            item.status = success ? '削除済' : '削除失敗';
+        }
+        deleteAllMessage.value = `ファイル削除中...\n${progressList.map(p => `${p.name}：${p.status}`).join('\n')}`;
+        if (success) assets.value = assets.value.filter(a => a.id !== id);
+    });
+    deleteAllDeleting.value = false;
     selectedAssets.value = [];
 };
 
