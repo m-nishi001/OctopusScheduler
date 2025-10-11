@@ -77,7 +77,7 @@ export class AssetRepository implements IAssetRepository {
   }
 
   async syncAssets(onProgress?: (message: string) => void): Promise<void> {
-    return this.synchronizer.syncAssets(onProgress);
+    return this.synchronizer.execute(onProgress);
   }
 }
 
@@ -86,9 +86,24 @@ class AssetSynchronizer {
     private readonly localStorage: ReturnType<typeof useLocalStorage>
   ) {}
 
-  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
+  async execute(onProgress?: (message: string) => void): Promise<void> {
     const gasService = GasFunctionService.create("callJackpotGameApi");
     if (!gasService) throw new Error("GAS service not available");
+
+    const metadata = await this.fetchMetadata(gasService, onProgress);
+    const localAssets = await this.getLocalAssets();
+    const { toUpdate, toDelete } = this.compareWithLocal(metadata, localAssets);
+
+    await this.deleteObsoleteAssets(toDelete, onProgress);
+    await this.downloadUpdatedAssets(toUpdate, gasService, onProgress);
+
+    onProgress?.("同期完了");
+  }
+
+  private async fetchMetadata(
+    gasService: GasFunctionService,
+    onProgress?: (message: string) => void
+  ): Promise<AssetMetadata[]> {
     onProgress?.("Google Driveからアセットメタデータを取得中...");
     return new Promise((resolve, reject) => {
       gasService
@@ -96,62 +111,80 @@ class AssetSynchronizer {
           "AssetService.getAllAssetMetadata"
         )
         .withTimeout(15000)
-        .withSuccessed(async (res: { metadata: AssetMetadata[] }) => {
-          onProgress?.("ローカルストレージと比較中...");
-          const allLocalAssets = await this.localStorage.getAll<Asset>();
-          const localAssets = Array.from(allLocalAssets.values());
-          const serverIds = new Set(res.metadata.map((meta) => meta.id));
-          const toUpdate = res.metadata.filter((meta) => {
-            const local = localAssets.find((a) => a.id === meta.id);
-            return (
-              !local || new Date(local.lastUpdated) < new Date(meta.lastUpdated)
-            );
-          });
-          const toDelete = localAssets.filter(
-            (local) => !serverIds.has(local.id)
-          );
-          if (toDelete.length > 0) {
-            onProgress?.(`${toDelete.length}個の不要なアセットを削除中...`);
-            await this.localStorage.removeMultiple(toDelete.map((a) => a.id));
+        .withSuccessed((res: { metadata: AssetMetadata[] }) =>
+          resolve(res.metadata)
+        )
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
+  private async getLocalAssets(): Promise<Asset[]> {
+    const allLocalAssets = await this.localStorage.getAll<Asset>();
+    return Array.from(allLocalAssets.values());
+  }
+
+  private compareWithLocal(
+    metadata: AssetMetadata[],
+    localAssets: Asset[]
+  ): {
+    toUpdate: AssetMetadata[];
+    toDelete: Asset[];
+  } {
+    const serverIds = new Set(metadata.map((meta) => meta.id));
+    const toUpdate = metadata.filter((meta) => {
+      const local = localAssets.find((a) => a.id === meta.id);
+      return !local || new Date(local.lastUpdated) < new Date(meta.lastUpdated);
+    });
+    const toDelete = localAssets.filter((local) => !serverIds.has(local.id));
+    return { toUpdate, toDelete };
+  }
+
+  private async deleteObsoleteAssets(
+    toDelete: Asset[],
+    onProgress?: (message: string) => void
+  ): Promise<void> {
+    if (toDelete.length > 0) {
+      onProgress?.(`${toDelete.length}個の不要なアセットを削除中...`);
+      await this.localStorage.removeMultiple(toDelete.map((a) => a.id));
+    }
+  }
+
+  private async downloadUpdatedAssets(
+    toUpdate: AssetMetadata[],
+    gasService: GasFunctionService,
+    onProgress?: (message: string) => void
+  ): Promise<void> {
+    if (toUpdate.length === 0) return;
+
+    onProgress?.(`${toUpdate.length}個のアセットをダウンロード中...`);
+    const downloadPromises = toUpdate.map((meta) =>
+      this.downloadAsset(meta, gasService, onProgress)
+    );
+    await Promise.all(downloadPromises);
+  }
+
+  private async downloadAsset(
+    meta: AssetMetadata,
+    gasService: GasFunctionService,
+    onProgress?: (message: string) => void
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      onProgress?.(
+        `${meta.name} をダウンロード中... (${FileUtils.formatSize(meta.size)})`
+      );
+      gasService
+        .createCall<{ asset: Asset | null }>("AssetService.getAsset", {
+          assetId: meta.id,
+        })
+        .withTimeout(120000)
+        .withSuccessed(async (assetRes: { asset: Asset | null }) => {
+          if (assetRes.asset) {
+            await this.localStorage.save(assetRes.asset.id, assetRes.asset);
           }
-          if (toUpdate.length === 0) {
-            onProgress?.("同期完了");
-            resolve();
-            return;
-          }
-          onProgress?.(`${toUpdate.length}個のアセットをダウンロード中...`);
-          const downloadPromises = toUpdate.map(
-            (meta) =>
-              new Promise<void>((resolveDownload, rejectDownload) => {
-                onProgress?.(
-                  `${meta.name} をダウンロード中... (${FileUtils.formatSize(meta.size)})`
-                );
-                gasService!
-                  .createCall<{ asset: Asset | null }>(
-                    "AssetService.getAsset",
-                    { assetId: meta.id }
-                  )
-                  .withTimeout(120000)
-                  .withSuccessed(async (assetRes: { asset: Asset | null }) => {
-                    if (assetRes.asset) {
-                      await this.localStorage.save(
-                        assetRes.asset.id,
-                        assetRes.asset
-                      );
-                    }
-                    onProgress?.(
-                      `${meta.name} ダウンロード完了 (${FileUtils.formatSize(meta.size)})`
-                    );
-                    resolveDownload();
-                  })
-                  .withFailuered((msg: string) =>
-                    rejectDownload(new Error(msg))
-                  )
-                  .invoke();
-              })
+          onProgress?.(
+            `${meta.name} ダウンロード完了 (${FileUtils.formatSize(meta.size)})`
           );
-          await Promise.all(downloadPromises);
-          onProgress?.("同期完了");
           resolve();
         })
         .withFailuered((msg: string) => reject(new Error(msg)))
