@@ -73,6 +73,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
       "result",
       "admin",
     ]; // 仮定
+    const serverConfigs: ScreenConfig[] = [];
     const promises = allTypes.map(async (type) => {
       try {
         const dto = await new Promise<ScreenConfig | null>(
@@ -87,6 +88,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
           }
         );
         if (dto) {
+          serverConfigs.push(dto);
           this.cache.set(type, dto);
           await this.localStorage.save(`screen_${type}`, dto);
         }
@@ -95,6 +97,14 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
       }
     });
     await Promise.all(promises);
+    // サーバーにないローカルの設定を削除
+    const localConfigs = await this.getScreenConfigs();
+    const serverTypes = new Set(serverConfigs.map((c) => c.type));
+    const toDelete = localConfigs.filter((c) => !serverTypes.has(c.type));
+    for (const config of toDelete) {
+      await this.localStorage.remove(`screen_${config.type}`);
+      this.cache.delete(config.type);
+    }
   }
 
   private async loadFromLocal(type: string): Promise<ScreenConfig | undefined> {

@@ -106,13 +106,23 @@ export class AssetRepository implements IAssetRepository {
         .withSuccessed(async (res: { metadata: AssetMetadata[] }) => {
           onProgress?.("ローカルストレージと比較中...");
           const localAssets = await this.getAssets();
-          const localMap = new Map(localAssets.map((a) => [a.id, a]));
+          const serverIds = new Set(res.metadata.map((meta) => meta.id));
           const toUpdate = res.metadata.filter((meta) => {
-            const local = localMap.get(meta.id);
+            const local = localAssets.find((a) => a.id === meta.id);
             return (
               !local || new Date(local.lastUpdated) < new Date(meta.lastUpdated)
             );
           });
+          const toDelete = localAssets.filter(
+            (local) => !serverIds.has(local.id)
+          );
+          if (toDelete.length > 0) {
+            onProgress?.(`${toDelete.length}個の不要なアセットを削除中...`);
+            await this.localStorage.save(
+              ASSET_CACHE_KEY,
+              localAssets.filter((a) => serverIds.has(a.id))
+            );
+          }
           if (toUpdate.length === 0) {
             onProgress?.("同期完了");
             resolve();
