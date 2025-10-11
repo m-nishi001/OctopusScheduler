@@ -63,20 +63,29 @@ export class MemberRepository implements IMemberRepository {
   ): Promise<void> {
     if (!this.gasService) return;
 
+    const updatedMembers: Member[] = [];
+    for (const update of updates) {
+      const current = await this.localStorage.get<Member>(update.id);
+      if (current) {
+        const updated = update.updateFn(current);
+        updatedMembers.push(updated);
+      }
+    }
+
+    const memberDtos = updatedMembers.map(fromMember);
+
     await new Promise<void>((resolve, reject) => {
       this.gasService
-        .createCall<void>("MemberService.updateMembers", { updates })
+        .createCall<void>("MemberService.updateMembers", {
+          members: memberDtos,
+        })
         .withSuccessed(resolve)
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
 
-    for (const update of updates) {
-      const current = await this.localStorage.get<Member>(update.id);
-      if (current) {
-        const updated = update.updateFn(current);
-        await this.localStorage.save(update.id, updated);
-      }
+    for (const updated of updatedMembers) {
+      await this.localStorage.save(updated.id, updated);
     }
   }
 
