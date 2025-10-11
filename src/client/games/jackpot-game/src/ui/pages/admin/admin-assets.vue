@@ -15,11 +15,14 @@
                 :disabled="!selectedAssets.length || syncing" title="Delete selected">
                 <span class="emoji">🗑️</span>
             </button>
-            <button class="admin-btn icon-only delete-all-icon" @click="deleteAllAssets"
-                :disabled="!assets.length || syncing || deleteAllDeleting" title="Delete all">
-                <span class="emoji">⚠️</span>
-            </button>
         </div>
+        <div v-if="assets.length" class="list-controls">
+            <label class="select-all-label">
+                <input type="checkbox" v-model="isAllSelected" class="select-all-checkbox" />
+                <span class="sr-only">全選択</span>
+            </label>
+        </div>
+
         <ul v-if="assets.length" class="admin-list">
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedAssets" :value="asset.id" />
@@ -96,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { AssetDto } from "../../../model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { AssetUsageService } from '../../../model/applications/asset/asset-usage-service';
@@ -108,6 +111,19 @@ const assetUsageService = container.resolve(AssetUsageService);
 const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);
 const selectedAssets = ref<string[]>([]);
+
+const isAllSelected = computed({
+    get: () => {
+        return assets.value.length > 0 && selectedAssets.value.length === assets.value.length;
+    },
+    set: (val: boolean) => {
+        if (val) {
+            selectedAssets.value = assets.value.map(a => a.id);
+        } else {
+            selectedAssets.value = [];
+        }
+    }
+});
 
 // file input ref used inside add modal
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -212,19 +228,7 @@ const deleteSelectedAssets = async () => {
     selectedAssets.value = [];
 };
 
-const deleteAllAssets = async () => {
-    deleteAllDeleting.value = true;
-    deleteAllMessage.value = "全件削除を開始します...";
-    const allIds = assets.value.map(asset => asset.id);
-    await assetService.deleteAssetsWithProgress(allIds, ({ id, success, name, size, completed, total }) => {
-        if (success) assets.value = assets.value.filter(a => a.id !== id);
-        deleteAllMessage.value = `${name || id} を削除${success ? '完了' : '失敗'} (${FileUtils.formatSize(size || 0)}) (${completed}/${total})`;
-        if (completed === total) {
-            deleteAllDeleting.value = false;
-            deleteAllMessage.value = "";
-        }
-    });
-};
+selectedAssets.value = [];
 
 const syncAssets = async () => {
     syncing.value = true;
@@ -322,6 +326,25 @@ onMounted(async () => {
     list-style: none;
     padding: 0;
     margin: 0;
+}
+
+.list-controls {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.select-all-checkbox {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    vertical-align: middle;
+    /* Use same look as list checkboxes (native) */
+}
+
+.select-all-label {
+    /* tweak to align with item checkbox column */
+    margin-left: 10px;
 }
 
 .admin-list-item {
@@ -547,6 +570,17 @@ onMounted(async () => {
 
 .icon-only:hover {
     background: rgba(255, 255, 255, 0.02);
+}
+
+.select-all-icon {
+    /* visually distinct but subtle */
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+    color: #dbeeff;
+}
+
+.select-all-icon .emoji {
+    font-weight: 700;
 }
 
 .icon-btn svg,
