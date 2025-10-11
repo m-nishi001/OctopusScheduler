@@ -54,6 +54,12 @@
         </div>
 
         <div class="field-block">
+          <label class="field-label">順位</label>
+          <input v-model.number="modalOrder" type="number" placeholder="順位" min="1" :max="modalMaxOrder" step="1"
+            class="admin-input" />
+        </div>
+
+        <div class="field-block">
           <label class="field-label">写真</label>
           <div class="photo-mode">
             <label><input type="radio" v-model="modalPhotoMode" value="upload" /> アップロード</label>
@@ -89,9 +95,10 @@
 
       <div class="modal-footer">
         <div class="admin-modal-buttons">
-          <button class="admin-btn" @click="confirmModal" :disabled="!modalName.trim() || adding">{{ modalMode === 'add'
-            ?
-            '追加' : '保存' }}</button>
+          <button class="admin-btn" @click="confirmModal" :disabled="!modalName.trim() || modalOrder < 1 || adding">{{
+            modalMode === 'add'
+              ?
+              '追加' : '保存' }}</button>
           <button class="admin-btn cancel-primary" @click="closeModal">キャンセル</button>
         </div>
       </div>
@@ -169,6 +176,8 @@ const isAllSelected = computed({
 const modalMode = ref<'add' | 'edit' | null>(null);
 const modalData = ref<any>(null);
 const modalName = ref('');
+const modalOrder = ref(1);
+const modalMaxOrder = ref(1);
 const modalPhotoMode = ref('upload');
 const modalPhotoAsset = ref<AssetDto | undefined>();
 const modalPhotoPreview = ref('');
@@ -182,6 +191,8 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
   modalData.value = data || null;
   if (mode === 'add') {
     modalName.value = '';
+    modalOrder.value = members.value.length + 1;
+    modalMaxOrder.value = 10;
     modalPhotoMode.value = 'upload';
     modalPhotoAsset.value = undefined;
     modalPhotoPreview.value = '';
@@ -190,6 +201,8 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
     tempAsset.value = null;
   } else if (mode === 'edit' && data) {
     modalName.value = data.name;
+    modalOrder.value = data.order;
+    modalMaxOrder.value = 10;
     if (data.photoAssetId) {
       modalPhotoMode.value = 'select';
       photoAssetId.value = data.photoAssetId;
@@ -207,6 +220,8 @@ const closeModal = () => {
   modalMode.value = null;
   modalData.value = null;
   modalName.value = '';
+  modalOrder.value = 1;
+  modalMaxOrder.value = 1;
   modalPhotoAsset.value = undefined;
   modalPhotoPreview.value = '';
   modalPhotoFilename.value = '';
@@ -220,7 +235,8 @@ const confirmModal = async () => {
     if (!modalData.value) return;
     const updatedMember = {
       ...modalData.value,
-      name: modalName.value
+      name: modalName.value,
+      order: modalOrder.value
     };
     if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
       updatedMember.photoAsset = modalPhotoAsset.value;
@@ -276,7 +292,7 @@ const addMember = async () => {
   const newMember: MemberDto = {
     id: "",
     name: modalName.value,
-    order: members.value.length + 1,
+    order: modalOrder.value,
     photoAssetId: photoAssetId.value || undefined
   };
   try {
