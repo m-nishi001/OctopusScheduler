@@ -27,7 +27,7 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
-import ThreeHero from '../../components/ThreeHero.vue';
+import ThreeHero from '../../shared/graphics/ThreeHero.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
 import type { IScreenConfigRepository } from '../../../model/domains/screen-config/repository/IScreenConfigRepository';
