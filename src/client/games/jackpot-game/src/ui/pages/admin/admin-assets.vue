@@ -198,7 +198,7 @@ const addAssets = async () => {
         uploadStatuses.value[index].message = message;
     });
     uploading.value = false;
-    await fetchAssets();
+    assets.value.push(...assetDtos);
     selectedFiles.value = [];
 };
 
