@@ -68,7 +68,7 @@
             <h3>アセットを追加</h3>
             <p>追加するファイルを選択してください。</p>
             <input ref="fileInput" type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
-                class="admin-input" />
+                class="admin-input" :disabled="uploading" />
             <div class="selected-files" v-if="selectedFiles.length">
                 <strong>選択中（{{ selectedFiles.length }}）:</strong>
                 <ul>
@@ -89,8 +89,8 @@
                 </ul>
             </div>
             <div class="modal-actions">
-                <button class="admin-btn" @click="confirmAdd" :disabled="!selectedFiles.length">追加</button>
-                <button class="admin-btn" @click="closeAddModal">キャンセル</button>
+                <button class="admin-btn" @click="confirmAdd" :disabled="!selectedFiles.length || uploading">追加</button>
+                <button class="admin-btn" @click="closeAddModal" :disabled="uploading">キャンセル</button>
             </div>
         </div>
     </div>
