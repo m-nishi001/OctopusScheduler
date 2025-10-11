@@ -7,4 +7,11 @@ export class FileUtils {
       reader.readAsDataURL(file);
     });
   }
+
+  static getAssetType(mimeType: string): "image" | "video" | "audio" | "text" {
+    if (mimeType.startsWith("image/")) return "image";
+    if (mimeType.startsWith("video/")) return "video";
+    if (mimeType.startsWith("audio/")) return "audio";
+    return "text";
+  }
 }

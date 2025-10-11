@@ -75,8 +75,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/IMemberRepository';
-import { AssetDto, createAssetDtoFromFile } from "../../../../src/model/applications/asset/dto/asset-dto";
+import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
+import { FileUtils } from '../../../../src/model/infrastructures/utils/file-utils';
 
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
@@ -117,7 +118,16 @@ const photoAsset = ref<AssetDto | undefined>();
 const onPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    photoAsset.value = new AssetDto(file);
+    const dataUrl = await FileUtils.readAsDataUrl(file);
+    photoAsset.value = new AssetDto({
+      id: "",
+      type: FileUtils.getAssetType(file.type),
+      dataUrl,
+      name: file.name,
+      uploadedAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      size: file.size
+    });
   }
 };
 
@@ -181,8 +191,17 @@ const editPhotoPreview = ref('');
 const onEditPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editPhotoAsset.value = await createAssetDtoFromFile(file);
-    editPhotoPreview.value = editPhotoAsset.value.dataUrl || '';
+    const dataUrl = await FileUtils.readAsDataUrl(file);
+    editPhotoAsset.value = new AssetDto({
+      id: "",
+      type: FileUtils.getAssetType(file.type),
+      dataUrl,
+      name: file.name,
+      uploadedAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      size: file.size
+    });
+    editPhotoPreview.value = editPhotoAsset.value.dataUrl;
   }
 };
 

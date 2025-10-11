@@ -24,14 +24,8 @@ export class AssetService {
   }
 
   async addAssets(
-    files: File[] | AssetDto[]
+    assetDtos: AssetDto[]
   ): Promise<{ successful: AssetDto[]; failed: AssetDto[] }> {
-    let assetDtos: AssetDto[];
-    if (files.length > 0 && files[0] instanceof File) {
-      assetDtos = (files as File[]).map((file) => new AssetDto(file));
-    } else {
-      assetDtos = files as AssetDto[];
-    }
     const assetEntities = await Promise.all(
       assetDtos.map((dto) => dto.toAsset())
     );
