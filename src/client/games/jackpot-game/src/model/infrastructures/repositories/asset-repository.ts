@@ -17,21 +17,26 @@ interface AssetMetadata {
 
 @injectable()
 export class AssetRepository implements IAssetRepository {
-  private readonly gasService =
-    GasFunctionService.create("callJackpotGameApi")!;
-  private readonly localStorage = useLocalStorage(
-    StorageConfig.getDbName(),
-    StorageConfig.getStoreName("AssetData")
-  );
+  private readonly localStorage: ReturnType<typeof useLocalStorage>;
+  private readonly synchronizer: AssetSynchronizer;
+
+  constructor() {
+    this.localStorage = useLocalStorage(
+      StorageConfig.getDbName(),
+      StorageConfig.getStoreName("AssetData")
+    );
+    this.synchronizer = new AssetSynchronizer(this.localStorage);
+  }
 
   async addAssets(assets: Asset[]): Promise<string[]> {
-    if (!this.gasService) throw new Error("GAS service not available");
+    const gasService = GasFunctionService.create("callJackpotGameApi");
+    if (!gasService) throw new Error("GAS service not available");
     const promises = assets.map(async (asset) => {
       const method = asset.id
         ? "AssetService.updateAsset"
         : "AssetService.addAsset";
       return new Promise<string>((resolve, reject) => {
-        this.gasService
+        gasService
           .createCall<{ asset: Asset }>(method, { asset })
           .withSuccessed(async (res: { asset: Asset }) => {
             await this.localStorage.save(res.asset.id, res.asset);
@@ -56,11 +61,12 @@ export class AssetRepository implements IAssetRepository {
 
   async deleteAssets(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
-    if (!this.gasService) return;
+    const gasService = GasFunctionService.create("callJackpotGameApi");
+    if (!gasService) return;
     const promises = ids.map(
       (id) =>
         new Promise<void>((resolve, reject) => {
-          this.gasService
+          gasService
             .createCall<void>("AssetService.deleteAsset", { assetId: id })
             .withSuccessed(() => resolve())
             .withFailuered((msg: string) => reject(new Error(msg)))
@@ -71,17 +77,29 @@ export class AssetRepository implements IAssetRepository {
   }
 
   async syncAssets(onProgress?: (message: string) => void): Promise<void> {
-    if (!this.gasService) throw new Error("GAS service not available");
+    return this.synchronizer.syncAssets(onProgress);
+  }
+}
+
+class AssetSynchronizer {
+  constructor(
+    private readonly localStorage: ReturnType<typeof useLocalStorage>
+  ) {}
+
+  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
+    const gasService = GasFunctionService.create("callJackpotGameApi");
+    if (!gasService) throw new Error("GAS service not available");
     onProgress?.("Google Driveからアセットメタデータを取得中...");
     return new Promise((resolve, reject) => {
-      this.gasService
+      gasService
         .createCall<{ metadata: AssetMetadata[] }>(
           "AssetService.getAllAssetMetadata"
         )
         .withTimeout(15000)
         .withSuccessed(async (res: { metadata: AssetMetadata[] }) => {
           onProgress?.("ローカルストレージと比較中...");
-          const localAssets = await this.getAssets();
+          const allLocalAssets = await this.localStorage.getAll<Asset>();
+          const localAssets = Array.from(allLocalAssets.values());
           const serverIds = new Set(res.metadata.map((meta) => meta.id));
           const toUpdate = res.metadata.filter((meta) => {
             const local = localAssets.find((a) => a.id === meta.id);
@@ -108,10 +126,11 @@ export class AssetRepository implements IAssetRepository {
                 onProgress?.(
                   `${meta.name} をダウンロード中... (${FileUtils.formatSize(meta.size)})`
                 );
-                this.gasService!.createCall<{ asset: Asset | null }>(
-                  "AssetService.getAsset",
-                  { assetId: meta.id }
-                )
+                gasService!
+                  .createCall<{ asset: Asset | null }>(
+                    "AssetService.getAsset",
+                    { assetId: meta.id }
+                  )
                   .withTimeout(120000)
                   .withSuccessed(async (assetRes: { asset: Asset | null }) => {
                     if (assetRes.asset) {
