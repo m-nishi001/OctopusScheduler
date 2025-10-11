@@ -9,7 +9,7 @@
                     <li v-for="(f, idx) in selectedFiles" :key="f.name + '-' + idx">
                         <div class="file-row">
                             <span class="file-name">{{ f.name }}</span>
-                            <span class="file-size">{{ formatSize(f.size) }}</span>
+                            <span class="file-size">{{ FileUtils.formatSize(f.size) }}</span>
                             <span class="file-status" v-if="uploadStatuses[idx]">
                                 <template v-if="uploadStatuses[idx].status === 'pending'">(未開始)</template>
                                 <template v-else-if="uploadStatuses[idx].status === 'uploading'">(アップロード中)</template>
@@ -47,7 +47,7 @@
                     <span v-else>{{ asset.name }}</span>
                 </div>
                 <div class="asset-info">
-                    <span>{{ asset.name }} ({{ asset.type }}) - {{ formatSize(asset.size) }}</span>
+                    <span>{{ asset.name }} ({{ asset.type }}) - {{ FileUtils.formatSize(asset.size) }}</span>
                     <div class="usage-info">
                         <strong>使用場所:</strong>
                         <ul>
@@ -180,9 +180,9 @@ const deleteAsset = async (id: string) => {
 
 const deleteSelectedAssets = async () => {
     if (!selectedAssets.value.length) return;
-    await assetService.deleteAssetsWithProgress(selectedAssets.value, ({ id, success, name, completed, total }) => {
+    await assetService.deleteAssetsWithProgress(selectedAssets.value, ({ id, success, name, size, completed, total }) => {
         if (success) assets.value = assets.value.filter(a => a.id !== id);
-        deleteMessage.value = `${name || id} を削除${success ? '完了' : '失敗'} (${completed}/${total})`;
+        deleteMessage.value = `${name || id} を削除${success ? '完了' : '失敗'} (${FileUtils.formatSize(size || 0)}) (${completed}/${total})`;
     });
     selectedAssets.value = [];
 };
@@ -191,9 +191,9 @@ const deleteAllAssets = async () => {
     deleteAllDeleting.value = true;
     deleteAllMessage.value = "全件削除を開始します...";
     const allIds = assets.value.map(asset => asset.id);
-    await assetService.deleteAssetsWithProgress(allIds, ({ id, success, name, completed, total }) => {
+    await assetService.deleteAssetsWithProgress(allIds, ({ id, success, name, size, completed, total }) => {
         if (success) assets.value = assets.value.filter(a => a.id !== id);
-        deleteAllMessage.value = `${name || id} を削除${success ? '完了' : '失敗'} (${completed}/${total})`;
+        deleteAllMessage.value = `${name || id} を削除${success ? '完了' : '失敗'} (${FileUtils.formatSize(size || 0)}) (${completed}/${total})`;
         if (completed === total) {
             deleteAllDeleting.value = false;
             deleteAllMessage.value = "";
@@ -220,12 +220,6 @@ const syncAssets = async () => {
 
 const getUsage = (assetId: string) => {
     return usageMap.value[assetId] || [];
-};
-
-const formatSize = (size: number) => {
-    if (size < 1024) return `${size} B`;
-    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 onMounted(async () => {

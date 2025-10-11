@@ -4,6 +4,7 @@ import type { Asset } from "../../domains/asset/asset";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
+import { FileUtils } from "../../infrastructures/utils/file-utils";
 
 interface AssetMetadata {
   id: string;
@@ -29,7 +30,6 @@ export class AssetRepository implements IAssetRepository {
     if (!this.gasService) throw new Error("GAS service not available");
     const promises = assets.map(async (asset) => {
       if (asset.id) {
-        // Update existing asset
         return new Promise<string>((resolve, reject) => {
           this.gasService
             .createCall<{ asset: Asset }>("AssetService.updateAsset", asset)
@@ -43,11 +43,11 @@ export class AssetRepository implements IAssetRepository {
               }
               resolve(res.asset.id);
             })
+            .withTimeout(120000)
             .withFailuered((msg: string) => reject(new Error(msg)))
             .invoke();
         });
       } else {
-        // Upload new asset
         return new Promise<string>((resolve, reject) => {
           this.gasService
             .createCall<{ asset: Asset }>("AssetService.addAsset", asset)
@@ -58,6 +58,7 @@ export class AssetRepository implements IAssetRepository {
               await this.localStorage.save(ASSET_CACHE_KEY, cached);
               resolve(res.asset.id);
             })
+            .withTimeout(120000)
             .withFailuered((msg: string) => reject(new Error(msg)))
             .invoke();
         });
@@ -133,6 +134,9 @@ export class AssetRepository implements IAssetRepository {
           const downloadPromises = toUpdate.map(
             (meta) =>
               new Promise<void>((resolveDownload, rejectDownload) => {
+                onProgress?.(
+                  `${meta.name} をダウンロード中... (${FileUtils.formatSize(meta.size)})`
+                );
                 this.gasService!.createCall<{ asset: Asset | null }>(
                   "AssetService.getAsset",
                   { assetId: meta.id }
@@ -154,6 +158,9 @@ export class AssetRepository implements IAssetRepository {
                       }
                       await this.localStorage.save(ASSET_CACHE_KEY, cached);
                     }
+                    onProgress?.(
+                      `${meta.name} ダウンロード完了 (${FileUtils.formatSize(meta.size)})`
+                    );
                     resolveDownload();
                   })
                   .withFailuered((msg: string) =>
