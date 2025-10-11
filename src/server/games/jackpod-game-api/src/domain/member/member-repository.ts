@@ -3,7 +3,7 @@ import { Member } from "./member";
 export interface IMemberRepository {
   getMembers(): Member[];
   getMemberById(id: string): Member | null;
-  addMembers(members: Member[]): void;
+  addMembers(members: Member[]): string[];
   updateMembers(
     updates: { id: string; updateFn: (member: Member) => Member }[]
   ): void;

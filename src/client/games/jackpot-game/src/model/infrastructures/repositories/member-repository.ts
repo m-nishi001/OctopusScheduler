@@ -5,6 +5,7 @@ import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
 import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
+import { fromMember, toMember } from "../../applications/member/dto/member-dto";
 
 @injectable()
 export class MemberRepository implements IMemberRepository {
@@ -25,27 +26,51 @@ export class MemberRepository implements IMemberRepository {
   }
 
   async addMembers(members: Member[]): Promise<Member[]> {
-    for (const member of members) {
-      await this.localStorage.save(member.id, member);
-    }
     if (!this.gasService) return members;
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<Member[]>("MemberService.addMembers", { members })
-        .withSuccessed((res: Member[]) => {
-          for (const member of res) {
-            this.localStorage.save(member.id, member);
-          }
-          resolve(res);
-        })
+
+    const memberDtos = members.map(fromMember);
+
+    const ids = await new Promise<string[]>((resolve, reject) => {
+      this.gasService!.createCall<string[]>("MemberService.addMembers", {
+        members: memberDtos,
+      })
+        .withSuccessed(resolve)
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
+
+    const addedMembers = await Promise.all(
+      ids.map(async (id) => {
+        const dto = await new Promise<MemberDto>((resolve, reject) => {
+          this.gasService!.createCall<MemberDto>(
+            "MemberService.getMemberById",
+            { id }
+          )
+            .withSuccessed(resolve)
+            .withFailuered((msg: string) => reject(new Error(msg)))
+            .invoke();
+        });
+        const member = toMember(dto);
+        await this.localStorage.save(member.id, member);
+        return member;
+      })
+    );
+    return addedMembers;
   }
 
   async updateMembers(
     updates: { id: string; updateFn: (member: Member) => Member }[]
   ): Promise<void> {
+    if (!this.gasService) return;
+
+    await new Promise<void>((resolve, reject) => {
+      this.gasService
+        .createCall<void>("MemberService.updateMembers", { updates })
+        .withSuccessed(resolve)
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+
     for (const update of updates) {
       const current = await this.localStorage.get<Member>(update.id);
       if (current) {
@@ -53,47 +78,42 @@ export class MemberRepository implements IMemberRepository {
         await this.localStorage.save(update.id, updated);
       }
     }
-    if (!this.gasService) return;
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<void>("MemberService.updateMembers", { updates })
-        .withSuccessed(() => resolve())
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
   }
 
   async deleteMembers(ids: string[]): Promise<void> {
-    await this.localStorage.removeMultiple(ids);
     if (!this.gasService) return;
-    return new Promise((resolve, reject) => {
+
+    await new Promise<void>((resolve, reject) => {
       this.gasService
         .createCall<void>("MemberService.deleteMembers", { ids })
-        .withSuccessed(() => resolve())
+        .withSuccessed(resolve)
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
+
+    await this.localStorage.removeMultiple(ids);
   }
 
   async syncMembers(): Promise<void> {
     if (!this.gasService) throw new Error("GAS service not available");
-    return new Promise((resolve, reject) => {
+
+    const res = await new Promise<MemberDto[]>((resolve, reject) => {
       this.gasService
         .createCall<MemberDto[]>("MemberService.getMembers")
-        .withSuccessed(async (res: MemberDto[]) => {
-          const serverMembers = res.map((m) => ({
-            id: m.id,
-            name: m.name,
-            photoAssetId: m.photoAssetId,
-            order: m.order,
-          }));
-          for (const member of serverMembers) {
-            await this.localStorage.save(member.id, member);
-          }
-          resolve();
-        })
+        .withSuccessed(resolve)
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
+
+    const serverMembers = res.map((m) => ({
+      id: m.id,
+      name: m.name,
+      photoAssetId: m.photoAssetId,
+      order: m.order,
+    }));
+
+    for (const member of serverMembers) {
+      await this.localStorage.save(member.id, member);
+    }
   }
 }

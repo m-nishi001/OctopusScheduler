@@ -23,10 +23,15 @@ export class MemberRepository implements IMemberRepository {
     return this.repository.find((m: Member) => m.id === id)[0] || null;
   }
 
-  addMembers(members: Member[]): void {
+  addMembers(members: Member[]): string[] {
+    const membersWithId = members.map((member) => ({
+      ...member,
+      id: member.id || Utilities.getUuid(),
+    }));
     const transaction = this.repository.beginTransaction();
-    transaction.addMany(members);
+    transaction.addMany(membersWithId);
     transaction.commit();
+    return membersWithId.map((m) => m.id);
   }
 
   updateMembers(

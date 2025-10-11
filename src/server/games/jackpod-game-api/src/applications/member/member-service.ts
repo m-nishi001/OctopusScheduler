@@ -14,6 +14,7 @@ export class MemberService implements GasService {
   ) {
     this.functions = {
       getMembers: this.getMembers.bind(this),
+      getMemberById: this.getMemberById.bind(this),
       addMembers: this.addMembers.bind(this),
       updateMembers: this.updateMembers.bind(this),
       deleteMembers: this.deleteMembers.bind(this),
@@ -26,9 +27,15 @@ export class MemberService implements GasService {
     return members.map(toMemberDto);
   }
 
-  addMembers(args: { members: MemberDto[] }): void {
+  getMemberById(args: { id: string }): MemberDto | null {
+    const member = this.repository.getMemberById(args.id);
+    return member ? toMemberDto(member) : null;
+  }
+
+  addMembers(args: { members: MemberDto[] }): string[] {
     const addMembers = args.members.map(toMember);
-    this.repository.addMembers(addMembers);
+    const added = this.repository.addMembers(addMembers);
+    return added;
   }
 
   updateMembers(args: { members: MemberDto[] }): void {
