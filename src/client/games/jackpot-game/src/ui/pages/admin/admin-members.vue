@@ -41,35 +41,10 @@
     </div>
   </div>
 
-  <!-- 詳細モーダル -->
-  <div v-if="editMemberData" class="modal-overlay" @click="editMemberData = null">
-    <div class="modal-content" @click.stop>
-      <h3>メンバー詳細</h3>
-      <input v-model="editName" type="text" placeholder="名前" class="admin-input" />
-      <div class="photo-mode">
-        <label><input type="radio" v-model="editPhotoMode" value="upload" /> アップロード</label>
-        <label><input type="radio" v-model="editPhotoMode" value="select" /> 既存から選択</label>
-      </div>
-      <input v-if="editPhotoMode === 'upload'" type="file" @change="onEditPhotoChange" accept="image/*"
-        class="admin-input" />
-      <select v-if="editPhotoMode === 'select'" v-model="photoAssetId" class="admin-input">
-        <option value="">選択なし</option>
-        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-      </select>
-      <div v-if="editPhotoPreview" class="admin-photo-preview">
-        <img :src="editPhotoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
-      </div>
-      <div class="admin-modal-buttons">
-        <button class="admin-btn" @click="saveEdit">保存</button>
-        <button class="admin-btn" @click="editMemberData = null">キャンセル</button>
-      </div>
-    </div>
-  </div>
-
   <!-- 追加/編集モーダル -->
   <div v-if="modalMode" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
-      <h3>{{ modalMode === 'add' ? 'メンバーを追加' : 'メンバー詳細' }}</h3>
+      <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
       <p v-if="modalMode === 'add'">追加するメンバーの情報を入力してください。</p>
       <input v-model="modalName" type="text" placeholder="メンバー名" class="admin-input" />
       <div class="photo-mode">
@@ -208,7 +183,22 @@ const confirmModal = async () => {
   if (modalMode.value === 'add') {
     await addMember();
   } else if (modalMode.value === 'edit') {
-    await saveEdit();
+    if (!modalData.value) return;
+    const updatedMember = {
+      ...modalData.value,
+      name: modalName.value
+    };
+    if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
+      updatedMember.photoAsset = modalPhotoAsset.value;
+    } else if (modalPhotoMode.value === 'select' && photoAssetId.value) {
+      updatedMember.photoAssetId = photoAssetId.value;
+    }
+    try {
+      await memberRepo.updateMembers([{ id: updatedMember.id, updateFn: () => updatedMember }]);
+      await fetchMembers();
+    } catch (error) {
+      console.error("Failed to update member:", error);
+    }
   }
   closeModal();
 };
@@ -345,60 +335,6 @@ const fetchAssets = async () => {
   }
 };
 
-const editMemberData = ref<any>(null);
-const editName = ref('');
-const editPhotoMode = ref('upload');
-const editPhotoAsset = ref<AssetDto | undefined>();
-const editPhotoPreview = ref('');
-const updateEditPhotoPreview = async () => {
-  if (editPhotoAsset.value && editPhotoAsset.value.dataUrl) {
-    editPhotoPreview.value = editPhotoAsset.value.dataUrl;
-  } else if (photoAssetId.value) {
-    const asset = await assetService.getAssetById(photoAssetId.value);
-    editPhotoPreview.value = asset?.dataUrl || '';
-  } else {
-    editPhotoPreview.value = '';
-  }
-};
-
-const onEditPhotoChange = async (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    const dataUrl = await FileUtils.readAsDataUrl(file);
-    editPhotoAsset.value = new AssetDto({
-      id: "",
-      type: FileUtils.getAssetType(file.type),
-      dataUrl,
-      name: file.name,
-      uploadedAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      size: file.size
-    });
-    await updateEditPhotoPreview();
-  }
-};
-
-
-
-const saveEdit = async () => {
-  if (!modalData.value) return;
-  const updatedMember = {
-    ...modalData.value,
-    name: modalName.value
-  };
-  if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
-    updatedMember.photoAsset = modalPhotoAsset.value;
-  } else if (modalPhotoMode.value === 'select' && photoAssetId.value) {
-    updatedMember.photoAssetId = photoAssetId.value;
-  }
-  try {
-    await memberRepo.updateMembers([{ id: updatedMember.id, updateFn: () => updatedMember }]);
-    await fetchMembers();
-  } catch (error) {
-    console.error("Failed to update member:", error);
-  }
-};
-
 onMounted(() => {
   fetchMembers();
   fetchAssets();
@@ -406,7 +342,6 @@ onMounted(() => {
 
 watch(photoAssetId, async () => {
   await updateModalPhotoPreview();
-  await updateEditPhotoPreview();
 });
 </script>
 
