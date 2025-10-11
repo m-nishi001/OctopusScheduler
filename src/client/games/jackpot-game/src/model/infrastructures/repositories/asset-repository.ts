@@ -103,6 +103,7 @@ export class AssetRepository implements IAssetRepository {
         .createCall<{ metadata: AssetMetadata[] }>(
           "AssetService.getAllAssetMetadata"
         )
+        .withRetryInterval(15000)
         .withSuccessed(async (res: { metadata: AssetMetadata[] }) => {
           onProgress?.("ローカルストレージと比較中...");
           const localAssets = await this.getAssets();
@@ -136,6 +137,7 @@ export class AssetRepository implements IAssetRepository {
                   "AssetService.getAsset",
                   { assetId: meta.id }
                 )
+                  .withRetryInterval(120000)
                   .withSuccessed(async (assetRes: { asset: Asset | null }) => {
                     if (assetRes.asset) {
                       const cached =
