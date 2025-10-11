@@ -26,42 +26,55 @@ export class AssetRepository implements IAssetRepository {
     StorageConfig.getStoreName("AssetData")
   );
 
+  // ヘルパー関数: API呼び出しとキャッシュ更新の共通処理
+  private async callAssetApi(
+    method: string,
+    asset: Asset,
+    onSuccess: (res: { asset: Asset }) => Promise<void>
+  ): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      this.gasService
+        .createCall<{ asset: Asset }>(method, { asset })
+        .withSuccessed(async (res: { asset: Asset }) => {
+          await onSuccess(res);
+          resolve(res.asset.id);
+        })
+        .withTimeout(120000)
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
   async addAssets(assets: Asset[]): Promise<string[]> {
     if (!this.gasService) throw new Error("GAS service not available");
     const promises = assets.map(async (asset) => {
       if (asset.id) {
-        return new Promise<string>((resolve, reject) => {
-          this.gasService
-            .createCall<{ asset: Asset }>("AssetService.updateAsset", asset)
-            .withSuccessed(async (res: { asset: Asset }) => {
-              const cached =
-                (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-              const index = cached.findIndex((a) => a.id === asset.id);
-              if (index !== -1) {
-                cached[index] = res.asset;
-                await this.localStorage.save(ASSET_CACHE_KEY, cached);
-              }
-              resolve(res.asset.id);
-            })
-            .withTimeout(120000)
-            .withFailuered((msg: string) => reject(new Error(msg)))
-            .invoke();
-        });
-      } else {
-        return new Promise<string>((resolve, reject) => {
-          this.gasService
-            .createCall<{ asset: Asset }>("AssetService.addAsset", asset)
-            .withSuccessed(async (res: { asset: Asset }) => {
-              const cached =
-                (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-              cached.push(res.asset);
+        // 既存アセット更新
+        return this.callAssetApi(
+          "AssetService.updateAsset",
+          asset,
+          async (res) => {
+            const cached =
+              (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+            const index = cached.findIndex((a) => a.id === asset.id);
+            if (index !== -1) {
+              cached[index] = res.asset;
               await this.localStorage.save(ASSET_CACHE_KEY, cached);
-              resolve(res.asset.id);
-            })
-            .withTimeout(120000)
-            .withFailuered((msg: string) => reject(new Error(msg)))
-            .invoke();
-        });
+            }
+          }
+        );
+      } else {
+        // 新規アセット追加
+        return this.callAssetApi(
+          "AssetService.addAsset",
+          asset,
+          async (res) => {
+            const cached =
+              (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+            cached.push(res.asset);
+            await this.localStorage.save(ASSET_CACHE_KEY, cached);
+          }
+        );
       }
     });
     return await Promise.all(promises);
