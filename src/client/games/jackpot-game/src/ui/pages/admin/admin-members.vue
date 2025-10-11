@@ -182,7 +182,8 @@ const onEditPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     editPhotoAsset.value = new AssetDto(file);
-    editPhotoPreview.value = await editPhotoAsset.value.dataUrl;
+    await editPhotoAsset.value.loadDataUrl();
+    editPhotoPreview.value = editPhotoAsset.value.dataUrl || '';
   }
 };
 
@@ -197,7 +198,9 @@ const editMember = (member: any) => {
     editPhotoMode.value = 'upload';
     editPhotoAsset.value = member.photoAsset;
     if (editPhotoAsset.value) {
-      editPhotoAsset.value.dataUrl.then(url => editPhotoPreview.value = url);
+      editPhotoAsset.value.loadDataUrl().then(() => {
+        editPhotoPreview.value = editPhotoAsset.value?.dataUrl || '';
+      });
     }
   }
 };

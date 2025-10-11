@@ -45,7 +45,6 @@ export class AssetMetadataDto {
 
 export class AssetDto extends AssetMetadataDto {
   private _dataUrl?: string;
-  private _dataUrlPromise?: Promise<string>;
   private file?: File;
 
   constructor(file: File);
@@ -95,41 +94,23 @@ export class AssetDto extends AssetMetadataDto {
     }
   }
 
-  get dataUrl(): Promise<string> {
-    if (this._dataUrl) {
-      const p = Promise.resolve(this._dataUrl);
-      try {
-        (p as any).toString = () => this._dataUrl as string;
-        (p as any)[Symbol.toPrimitive] = () => this._dataUrl as string;
-      } catch {
-        // ignore if environment doesn't allow Symbol assignment
-      }
-      return p;
-    }
-    if (this._dataUrlPromise) return this._dataUrlPromise;
+  get dataUrl(): string | undefined {
+    return this._dataUrl;
+  }
+
+  async loadDataUrl(): Promise<void> {
+    if (this._dataUrl) return;
     if (this.file) {
-      this._dataUrlPromise = fileToDataUrl(this.file).then((url) => {
-        this._dataUrl = url;
-        return url;
-      });
-      return this._dataUrlPromise;
+      this._dataUrl = await fileToDataUrl(this.file);
     }
-    const p = Promise.resolve(this._dataUrl || "");
-    try {
-      (p as any).toString = () => this._dataUrl || "";
-      (p as any)[Symbol.toPrimitive] = () => this._dataUrl || "";
-    } catch {
-      // ignore
-    }
-    return p;
   }
 
   async toAsset(): Promise<Asset> {
-    const dataUrl = await this.dataUrl;
+    await this.loadDataUrl();
     return {
       id: this.id,
       type: this.type,
-      dataUrl,
+      dataUrl: this._dataUrl || "",
       name: this.name,
       uploadedAt: this.uploadedAt,
       lastUpdated: this.lastUpdated,

@@ -190,7 +190,8 @@ const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     editImageAsset.value = new AssetDto(file);
-    editImagePreview.value = await editImageAsset.value.dataUrl;
+    await editImageAsset.value.loadDataUrl();
+    editImagePreview.value = editImageAsset.value.dataUrl || '';
   }
 };
 
@@ -206,7 +207,9 @@ const editPrize = (prize: any) => {
     editImageMode.value = 'upload';
     editImageAsset.value = prize.imageAsset;
     if (editImageAsset.value) {
-      editImageAsset.value.dataUrl.then(url => editImagePreview.value = url);
+      editImageAsset.value.loadDataUrl().then(() => {
+        editImagePreview.value = editImageAsset.value?.dataUrl || '';
+      });
     }
   }
 };
