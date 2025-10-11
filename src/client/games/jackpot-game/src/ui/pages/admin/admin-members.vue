@@ -2,7 +2,7 @@
   <div class="admin-section">
     <h2>メンバー設定</h2>
     <div class="admin-actions">
-      <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal" title="Add members">
+      <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openModal('add')" title="Add members">
         <span class="emoji">➕</span>
       </button>
       <button class="admin-btn icon-only sync-icon" @click="syncMembers" :disabled="syncing"
@@ -32,7 +32,7 @@
         <div class="member-info">
           <span>{{ member.name }}</span>
         </div>
-        <button class="admin-btn ml-2" @click="editMember(member)">詳細</button>
+        <button class="admin-btn ml-2" @click="openModal('edit', member)">詳細</button>
         <button class="admin-btn ml-2 delete-btn" @click="deleteMember(member.id)">削除</button>
       </li>
     </ul>
@@ -52,7 +52,7 @@
       </div>
       <input v-if="editPhotoMode === 'upload'" type="file" @change="onEditPhotoChange" accept="image/*"
         class="admin-input" />
-      <select v-if="editPhotoMode === 'select'" v-model="editPhotoAssetId" class="admin-input">
+      <select v-if="editPhotoMode === 'select'" v-model="photoAssetId" class="admin-input">
         <option value="">選択なし</option>
         <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
       </select>
@@ -66,45 +66,31 @@
     </div>
   </div>
 
-  <!-- 追加モーダル -->
-  <div v-if="showAddModal" class="modal-overlay">
-    <div class="modal-content">
-      <h3>メンバーを追加</h3>
-      <p>追加するメンバーの情報を入力してください。</p>
-      <div class="add-modal-grid">
-        <div class="add-form-column">
-          <label class="field-label">名前</label>
-          <input v-model="newMemberName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
-
-          <div class="field-block">
-            <label class="field-label">写真</label>
-            <div class="photo-mode">
-              <label><input type="radio" v-model="newPhotoMode" value="upload" /> アップロード</label>
-              <label><input type="radio" v-model="newPhotoMode" value="select" /> 既存から選択</label>
-            </div>
-            <input v-if="newPhotoMode === 'upload'" type="file" @change="onNewPhotoChange" accept="image/*"
-              class="admin-input file-input" />
-            <div v-if="newPhotoMode === 'upload' && newPhotoFilename" class="file-name">{{ newPhotoFilename }}</div>
-
-            <select v-if="newPhotoMode === 'select'" v-model="newPhotoAssetId" class="admin-input">
-              <option value="">選択なし</option>
-              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-            <!-- selectedAssetName display removed to avoid duplicate listing; preview on the right will show selected image -->
-          </div>
-        </div>
-
-        <div class="add-side-column">
-          <div class="preview-box">
-            <img v-if="newPhotoPreview" :src="newPhotoPreview" alt="preview" class="preview-img" />
-            <div v-else class="preview-placeholder">プレビュー</div>
-          </div>
-        </div>
+  <!-- 追加/編集モーダル -->
+  <div v-if="modalMode" class="modal-overlay" @click="closeModal">
+    <div class="modal-content" @click.stop>
+      <h3>{{ modalMode === 'add' ? 'メンバーを追加' : 'メンバー詳細' }}</h3>
+      <p v-if="modalMode === 'add'">追加するメンバーの情報を入力してください。</p>
+      <input v-model="modalName" type="text" placeholder="メンバー名" class="admin-input" />
+      <div class="photo-mode">
+        <label><input type="radio" v-model="modalPhotoMode" value="upload" /> アップロード</label>
+        <label><input type="radio" v-model="modalPhotoMode" value="select" /> 既存から選択</label>
       </div>
+      <input v-if="modalPhotoMode === 'upload'" type="file" @change="onModalPhotoChange" accept="image/*"
+        class="admin-input" />
+      <div v-if="modalPhotoMode === 'upload' && modalPhotoFilename" class="file-name">{{ modalPhotoFilename }}</div>
 
-      <div class="modal-actions">
-        <button class="admin-btn" @click="confirmAdd" :disabled="!newMemberName.trim() || adding">追加</button>
-        <button class="admin-btn cancel-primary" @click="closeAddModal" :disabled="adding">キャンセル</button>
+      <select v-if="modalPhotoMode === 'select'" v-model="photoAssetId" class="admin-input">
+        <option value="">選択なし</option>
+        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+      </select>
+      <div v-if="modalPhotoPreview" class="admin-photo-preview">
+        <img :src="modalPhotoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
+      </div>
+      <div class="admin-modal-buttons">
+        <button class="admin-btn" @click="confirmModal" :disabled="!modalName.trim() || adding">{{ modalMode === 'add' ?
+          '追加' : '保存' }}</button>
+        <button class="admin-btn" @click="closeModal">キャンセル</button>
       </div>
     </div>
   </div>
@@ -140,7 +126,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/IMemberRepository';
 import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
@@ -173,11 +159,59 @@ const isAllSelected = computed({
   }
 });
 
-// add modal state and actions
-const showAddModal = ref(false);
-const openAddModal = () => { showAddModal.value = true; };
-const closeAddModal = () => { showAddModal.value = false; newMemberName.value = ''; newPhotoAsset.value = undefined; newPhotoAssetId.value = ''; newPhotoFilename.value = ''; newPhotoPreview.value = ''; };
-const confirmAdd = async () => { await addMember(); closeAddModal(); };
+// modal state
+const modalMode = ref<'add' | 'edit' | null>(null);
+const modalData = ref<any>(null);
+const modalName = ref('');
+const modalPhotoMode = ref('upload');
+const modalPhotoAsset = ref<AssetDto | undefined>();
+const modalPhotoPreview = ref('');
+const modalPhotoFilename = ref('');
+const photoAssetId = ref('');
+
+// modal actions
+const openModal = (mode: 'add' | 'edit', data?: any) => {
+  modalMode.value = mode;
+  modalData.value = data || null;
+  if (mode === 'add') {
+    modalName.value = '';
+    modalPhotoMode.value = 'upload';
+    modalPhotoAsset.value = undefined;
+    modalPhotoPreview.value = '';
+    modalPhotoFilename.value = '';
+    photoAssetId.value = '';
+  } else if (mode === 'edit' && data) {
+    modalName.value = data.name;
+    if (data.photoAssetId) {
+      modalPhotoMode.value = 'select';
+      photoAssetId.value = data.photoAssetId;
+      modalPhotoPreview.value = data.photoDataUrl || '';
+    } else {
+      modalPhotoMode.value = 'upload';
+      modalPhotoAsset.value = data.photoAsset;
+      if (modalPhotoAsset.value) {
+        modalPhotoPreview.value = modalPhotoAsset.value.dataUrl || '';
+      }
+    }
+  }
+};
+const closeModal = () => {
+  modalMode.value = null;
+  modalData.value = null;
+  modalName.value = '';
+  modalPhotoAsset.value = undefined;
+  modalPhotoPreview.value = '';
+  modalPhotoFilename.value = '';
+  photoAssetId.value = '';
+};
+const confirmModal = async () => {
+  if (modalMode.value === 'add') {
+    await addMember();
+  } else if (modalMode.value === 'edit') {
+    await saveEdit();
+  }
+  closeModal();
+};
 
 // delete modal state
 const showDeleteModal = ref(false);
@@ -192,30 +226,22 @@ const deleteMessage = ref("");
 const syncing = ref(false);
 const syncMessage = ref("");
 
-const newMemberName = ref('');
-const newPhotoMode = ref('upload');
-const updateNewPhotoPreview = async () => {
-  if (newPhotoAsset.value && (newPhotoAsset.value as any).dataUrl) {
-    newPhotoPreview.value = (newPhotoAsset.value as any).dataUrl;
-  } else if (newPhotoAssetId.value) {
-    const asset = await assetService.getAssetById(newPhotoAssetId.value);
-    newPhotoPreview.value = asset?.dataUrl || '';
+const updateModalPhotoPreview = async () => {
+  if (modalPhotoAsset.value && modalPhotoAsset.value.dataUrl) {
+    modalPhotoPreview.value = modalPhotoAsset.value.dataUrl;
+  } else if (photoAssetId.value) {
+    const asset = await assetService.getAssetById(photoAssetId.value);
+    modalPhotoPreview.value = asset?.dataUrl || '';
   } else {
-    newPhotoPreview.value = '';
+    modalPhotoPreview.value = '';
   }
 };
-const newPhotoAssetId = ref('');
-const newPhotoAsset = ref<AssetDto | undefined>();
-const newPhotoFilename = ref('');
 
-// preview for new member photo: prefer uploaded asset dataUrl, otherwise show selected asset's data (if available)
-const newPhotoPreview = ref('');
-
-const onNewPhotoChange = async (e: Event) => {
+const onModalPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
     const dataUrl = await FileUtils.readAsDataUrl(file);
-    newPhotoAsset.value = new AssetDto({
+    modalPhotoAsset.value = new AssetDto({
       id: "",
       type: FileUtils.getAssetType(file.type),
       dataUrl,
@@ -224,23 +250,23 @@ const onNewPhotoChange = async (e: Event) => {
       lastUpdated: new Date().toISOString(),
       size: file.size
     });
-    newPhotoFilename.value = file.name;
-    await updateNewPhotoPreview();
+    modalPhotoFilename.value = file.name;
+    await updateModalPhotoPreview();
   }
 };
 
 const addMember = async () => {
-  if (!newMemberName.value.trim()) return;
+  if (!modalName.value.trim()) return;
   adding.value = true;
   const newMember: any = {
     id: String(Date.now()),
-    name: newMemberName.value,
+    name: modalName.value,
     order: members.value.length + 1
   };
-  if (newPhotoMode.value === 'upload' && newPhotoAsset.value) {
-    newMember.photoAsset = newPhotoAsset.value;
-  } else if (newPhotoMode.value === 'select' && newPhotoAssetId.value) {
-    newMember.photoAssetId = newPhotoAssetId.value;
+  if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
+    newMember.photoAsset = modalPhotoAsset.value;
+  } else if (modalPhotoMode.value === 'select' && photoAssetId.value) {
+    newMember.photoAssetId = photoAssetId.value;
   }
   try {
     await memberRepo.addMembers([newMember]);
@@ -322,14 +348,13 @@ const fetchAssets = async () => {
 const editMemberData = ref<any>(null);
 const editName = ref('');
 const editPhotoMode = ref('upload');
-const editPhotoAssetId = ref('');
 const editPhotoAsset = ref<AssetDto | undefined>();
 const editPhotoPreview = ref('');
 const updateEditPhotoPreview = async () => {
   if (editPhotoAsset.value && editPhotoAsset.value.dataUrl) {
     editPhotoPreview.value = editPhotoAsset.value.dataUrl;
-  } else if (editPhotoAssetId.value) {
-    const asset = await assetService.getAssetById(editPhotoAssetId.value);
+  } else if (photoAssetId.value) {
+    const asset = await assetService.getAssetById(photoAssetId.value);
     editPhotoPreview.value = asset?.dataUrl || '';
   } else {
     editPhotoPreview.value = '';
@@ -353,41 +378,22 @@ const onEditPhotoChange = async (e: Event) => {
   }
 };
 
-const editMember = (member: any) => {
-  editMemberData.value = member;
-  editName.value = member.name;
-  if (member.photoAssetId) {
-    editPhotoMode.value = 'select';
-    editPhotoAssetId.value = member.photoAssetId;
-    editPhotoPreview.value = member.photoDataUrl || '';
-  } else {
-    editPhotoMode.value = 'upload';
-    editPhotoAsset.value = member.photoAsset;
-    if (editPhotoAsset.value) {
-      editPhotoPreview.value = editPhotoAsset.value.dataUrl || '';
-    }
-  }
-};
+
 
 const saveEdit = async () => {
-  if (!editMemberData.value) return;
+  if (!modalData.value) return;
   const updatedMember = {
-    ...editMemberData.value,
-    name: editName.value
+    ...modalData.value,
+    name: modalName.value
   };
-  if (editPhotoMode.value === 'upload' && editPhotoAsset.value) {
-    updatedMember.photoAsset = editPhotoAsset.value;
-  } else if (editPhotoMode.value === 'select' && editPhotoAssetId.value) {
-    updatedMember.photoAssetId = editPhotoAssetId.value;
+  if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
+    updatedMember.photoAsset = modalPhotoAsset.value;
+  } else if (modalPhotoMode.value === 'select' && photoAssetId.value) {
+    updatedMember.photoAssetId = photoAssetId.value;
   }
   try {
     await memberRepo.updateMembers([{ id: updatedMember.id, updateFn: () => updatedMember }]);
     await fetchMembers();
-    editMemberData.value = null;
-    editName.value = '';
-    editPhotoAsset.value = undefined;
-    editPhotoAssetId.value = '';
-    editPhotoPreview.value = '';
   } catch (error) {
     console.error("Failed to update member:", error);
   }
@@ -396,6 +402,11 @@ const saveEdit = async () => {
 onMounted(() => {
   fetchMembers();
   fetchAssets();
+});
+
+watch(photoAssetId, async () => {
+  await updateModalPhotoPreview();
+  await updateEditPhotoPreview();
 });
 </script>
 
