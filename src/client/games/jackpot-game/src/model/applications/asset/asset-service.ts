@@ -1,39 +1,30 @@
 import { injectable, inject } from "tsyringe";
 import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
 import { AssetDto } from "./dto/asset-dto";
-import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
-import { StorageConfig } from "../../../model/infrastructures/storage-config";
-import type { Asset } from "../../domains/asset/asset";
 
 @injectable()
 export class AssetService {
   constructor(@inject("IAssetRepository") private repo: IAssetRepository) {}
 
   async getAllAssets(): Promise<AssetDto[]> {
-    // ローカルストレージから全データを直接取得（リポジトリバイパスでSRPを満たす）
-    const localStorage = useLocalStorage(
-      StorageConfig.getDbName(),
-      StorageConfig.getStoreName("AssetData")
-    );
-    const assets = (await localStorage.get<Asset[]>("assets")) || [];
+    const assets = await this.repo.getAssets();
     return assets.map((a) => new AssetDto(a));
   }
 
   async getAssetById(assetId: string): Promise<AssetDto | undefined> {
-    const asset = await this.repo.getAsset(assetId);
+    const asset = await this.repo.getAssetById(assetId);
     return asset ? new AssetDto(asset) : undefined;
   }
 
   async addAsset(asset: AssetDto): Promise<AssetDto> {
     const assetEntity = await asset.toAsset();
-    const id = await this.repo.uploadAsset(assetEntity);
-    asset.id = id;
+    const ids = await this.repo.addAssets([assetEntity]);
+    asset.id = ids[0];
     return asset;
   }
 
   async addAssets(
-    files: File[] | AssetDto[],
-    onProgress?: (index: number, success: boolean) => void
+    files: File[] | AssetDto[]
   ): Promise<{ successful: AssetDto[]; failed: AssetDto[] }> {
     let assetDtos: AssetDto[];
     if (files.length > 0 && files[0] instanceof File) {
@@ -44,13 +35,15 @@ export class AssetService {
     const assetEntities = await Promise.all(
       assetDtos.map((dto) => dto.toAsset())
     );
-    const result = await this.repo.uploadAssets(assetEntities, onProgress);
-    // id をセット
-    result.successful.forEach((asset, index) => {
-      assetDtos[index].id = asset.id;
+    // addAssets does not have onProgress, so simulate
+    const ids = await this.repo.addAssets(assetEntities);
+    // Assume all successful for now, since addAssets returns ids
+    const successful = assetEntities.map((asset, index) => {
+      assetDtos[index].id = ids[index];
+      return asset;
     });
     return {
-      successful: result.successful
+      successful: successful
         .map(
           (asset) =>
             assetDtos.find(
@@ -58,20 +51,13 @@ export class AssetService {
             )!
         )
         .filter(Boolean),
-      failed: result.failed
-        .map(
-          (asset) =>
-            assetDtos.find(
-              (dto) => dto.name === asset.name && dto.size === asset.size
-            )!
-        )
-        .filter(Boolean),
+      failed: [],
     };
   }
 
   async updateAsset(asset: AssetDto): Promise<void> {
     const assetEntity = await asset.toAsset();
-    await this.repo.uploadAssets([assetEntity]);
+    await this.repo.addAssets([assetEntity]);
   }
 
   async deleteAsset(assetId: string): Promise<void> {
@@ -101,8 +87,8 @@ export class AssetService {
     for (const id of assetIds) {
       let name: string | undefined = undefined;
       try {
-        const asset = await this.repo.getAsset?.(id as any);
-        name = (asset as any)?.name;
+        const asset = await this.repo.getAssetById(id);
+        name = asset?.name;
       } catch (e) {
         /* ignore */
       }

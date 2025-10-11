@@ -141,10 +141,18 @@ const addAssets = async () => {
         size: f.size,
         status: 'uploading' as const,
     }));
-    await assetService.addAssets(selectedFiles.value, (index, success) => {
-        // 個別の完了時にステータス更新
-        uploadStatuses.value[index].status = success ? 'success' : 'failed';
-        uploadStatuses.value[index].message = success ? undefined : 'アップロード失敗';
+    const result = await assetService.addAssets(selectedFiles.value);
+    // アップロード結果に基づいてステータス更新
+    result.successful.forEach((_asset, index) => {
+        uploadStatuses.value[index].status = 'success';
+        uploadStatuses.value[index].message = undefined;
+    });
+    result.failed.forEach((asset) => {
+        const failedIndex = selectedFiles.value.findIndex(f => f.name === asset.name && f.size === asset.size);
+        if (failedIndex !== -1) {
+            uploadStatuses.value[failedIndex].status = 'failed';
+            uploadStatuses.value[failedIndex].message = 'アップロード失敗';
+        }
     });
     uploading.value = false;
     await fetchAssets();
@@ -153,7 +161,6 @@ const addAssets = async () => {
 
 const deleteAsset = async (id: string) => {
     await assetService.deleteAsset(id);
-    // サーバー削除成功後にリアルタイムにリストから削除
     assets.value = assets.value.filter(asset => asset.id !== id);
 };
 

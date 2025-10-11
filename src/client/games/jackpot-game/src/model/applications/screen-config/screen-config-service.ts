@@ -43,14 +43,14 @@ export class ScreenConfigService {
     }
 
     if (config.bgmAssetId) {
-      const bgmAsset = await this.assetRepo.getAsset(config.bgmAssetId);
+      const bgmAsset = await this.assetRepo.getAssetById(config.bgmAssetId);
       resolvedConfig.bgmAssetUrl = bgmAsset?.dataUrl;
     }
 
     if (config.seAssetIds) {
       resolvedConfig.seAssetUrls = await Promise.all(
         config.seAssetIds.map(async (id: string) => {
-          const asset = await this.assetRepo.getAsset(id);
+          const asset = await this.assetRepo.getAssetById(id);
           return asset?.dataUrl || "";
         })
       );
@@ -59,14 +59,14 @@ export class ScreenConfigService {
     resolvedConfig.elements = await Promise.all(
       (config.elements || []).map(async (element: any) => {
         if (element.assetId) {
-          const asset = await this.assetRepo.getAsset(element.assetId);
+          const asset = await this.assetRepo.getAssetById(element.assetId);
           return { ...element, assetUrl: asset?.dataUrl };
         }
         return element;
       })
     );
 
-    const allAssets = await this.assetRepo.findAll();
+    const allAssets = await this.assetRepo.getAssets();
     const assetMap = new Map(allAssets.map((a) => [a.id, a]));
     resolvedConfig.elements = resolvedConfig.elements.map((el: any) => {
       if (!el.content || typeof el.content !== "string") return el;
