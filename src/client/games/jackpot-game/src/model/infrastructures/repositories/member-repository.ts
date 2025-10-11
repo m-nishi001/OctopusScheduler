@@ -5,8 +5,6 @@ import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
 import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
 
-const MEMBER_CACHE_KEY = "members";
-
 @injectable()
 export class MemberRepository implements IMemberRepository {
   private readonly gasService =
@@ -17,18 +15,18 @@ export class MemberRepository implements IMemberRepository {
   );
 
   async getMembers(): Promise<Member[]> {
-    return (await this.localStorage.get<Member[]>(MEMBER_CACHE_KEY)) || [];
+    const allMembers = await this.localStorage.getAll<Member>();
+    return Array.from(allMembers.values());
   }
 
   async getMemberById(id: string): Promise<Member | null> {
-    const members = await this.getMembers();
-    return members.find((m) => m.id === id) || null;
+    return (await this.localStorage.get<Member>(id)) || null;
   }
 
   async addMembers(members: Member[]): Promise<void> {
-    const current = await this.getMembers();
-    const updated = [...current, ...members];
-    await this.localStorage.save(MEMBER_CACHE_KEY, updated);
+    for (const member of members) {
+      await this.localStorage.save(member.id, member);
+    }
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
@@ -42,12 +40,13 @@ export class MemberRepository implements IMemberRepository {
   async updateMembers(
     updates: { id: string; updateFn: (member: Member) => Member }[]
   ): Promise<void> {
-    const current = await this.getMembers();
-    const updated = current.map((m) => {
-      const update = updates.find((u) => u.id === m.id);
-      return update ? update.updateFn(m) : m;
-    });
-    await this.localStorage.save(MEMBER_CACHE_KEY, updated);
+    for (const update of updates) {
+      const current = await this.localStorage.get<Member>(update.id);
+      if (current) {
+        const updated = update.updateFn(current);
+        await this.localStorage.save(update.id, updated);
+      }
+    }
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
@@ -59,9 +58,7 @@ export class MemberRepository implements IMemberRepository {
   }
 
   async deleteMembers(ids: string[]): Promise<void> {
-    const current = await this.getMembers();
-    const updated = current.filter((m) => !ids.includes(m.id));
-    await this.localStorage.save(MEMBER_CACHE_KEY, updated);
+    await this.localStorage.removeMultiple(ids);
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
@@ -78,7 +75,6 @@ export class MemberRepository implements IMemberRepository {
       this.gasService
         .createCall<{ members: any[] }>("MemberService.getMembers")
         .withSuccessed(async (res: { members: any[] }) => {
-          // サーバーから取得したメンバーをローカルに保存
           const serverMembers = res.members.map((m) => ({
             id: m.id,
             name: m.name,
@@ -86,7 +82,9 @@ export class MemberRepository implements IMemberRepository {
             attributes: m.attributes,
             order: m.order,
           }));
-          await this.localStorage.save(MEMBER_CACHE_KEY, serverMembers);
+          for (const member of serverMembers) {
+            await this.localStorage.save(member.id, member);
+          }
           resolve();
         })
         .withFailuered((msg: string) => reject(new Error(msg)))

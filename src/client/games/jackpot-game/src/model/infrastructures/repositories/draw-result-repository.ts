@@ -4,8 +4,6 @@ import { GasFunctionService } from "../../../../../../packages/common-lib/src/go
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
 
-const DRAW_RESULT_CACHE_KEY = "drawResults";
-
 @injectable()
 export class DrawResultRepository {
   private readonly service;
@@ -18,21 +16,16 @@ export class DrawResultRepository {
   }
 
   async getDrawResults(): Promise<DrawResultDto[]> {
-    return (
-      (await this.localStorage.get<DrawResultDto[]>(DRAW_RESULT_CACHE_KEY)) ||
-      []
-    );
+    const allResults = await this.localStorage.getAll<DrawResultDto>();
+    return Array.from(allResults.values());
   }
 
   async getDrawResultById(drawId: string): Promise<DrawResultDto | null> {
-    const results = await this.getDrawResults();
-    return results.find((r: DrawResultDto) => r.drawId === drawId) || null;
+    return (await this.localStorage.get<DrawResultDto>(drawId)) || null;
   }
 
   async saveDrawResult(result: DrawResultDto): Promise<void> {
-    const current = await this.getDrawResults();
-    const updated = [...current, result];
-    await this.localStorage.save(DRAW_RESULT_CACHE_KEY, updated);
+    await this.localStorage.save(result.drawId, result);
     if (!this.service) return;
     return new Promise((resolve, reject) => {
       this.service
@@ -44,11 +37,7 @@ export class DrawResultRepository {
   }
 
   async updateDrawResult(result: DrawResultDto): Promise<void> {
-    const current = await this.getDrawResults();
-    const index = current.findIndex((r) => r.drawId === result.drawId);
-    if (index === -1) throw new Error("Draw result not found");
-    current[index] = result;
-    await this.localStorage.save(DRAW_RESULT_CACHE_KEY, current);
+    await this.localStorage.save(result.drawId, result);
     if (!this.service) return;
     return new Promise((resolve, reject) => {
       this.service
@@ -60,9 +49,7 @@ export class DrawResultRepository {
   }
 
   async deleteDrawResult(resultId: string): Promise<void> {
-    const current = await this.getDrawResults();
-    const updated = current.filter((r) => r.drawId !== resultId);
-    await this.localStorage.save(DRAW_RESULT_CACHE_KEY, updated);
+    await this.localStorage.remove(resultId);
     if (!this.service) return;
     return new Promise((resolve, reject) => {
       this.service
@@ -79,7 +66,9 @@ export class DrawResultRepository {
       this.service
         .createCall<DrawResultDto[]>("DrawResultService.getDrawResults", {})
         .withSuccessed(async (results: DrawResultDto[]) => {
-          await this.localStorage.save(DRAW_RESULT_CACHE_KEY, results);
+          for (const result of results) {
+            await this.localStorage.save(result.drawId, result);
+          }
           resolve();
         })
         .withFailuered((msg: string) => reject(new Error(msg)))

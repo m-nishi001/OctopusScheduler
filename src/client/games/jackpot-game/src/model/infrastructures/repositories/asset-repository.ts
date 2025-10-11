@@ -24,7 +24,6 @@ export class AssetRepository implements IAssetRepository {
     StorageConfig.getStoreName("AssetData")
   );
 
-  // ヘルパー関数: API呼び出しとキャッシュ更新の共通処理
   private async callAssetApi(
     method: string,
     asset: Asset,
@@ -47,7 +46,6 @@ export class AssetRepository implements IAssetRepository {
     if (!this.gasService) throw new Error("GAS service not available");
     const promises = assets.map(async (asset) => {
       if (asset.id) {
-        // 既存アセット更新
         return this.callAssetApi(
           "AssetService.updateAsset",
           asset,
@@ -56,7 +54,6 @@ export class AssetRepository implements IAssetRepository {
           }
         );
       } else {
-        // 新規アセット追加
         return this.callAssetApi(
           "AssetService.addAsset",
           asset,

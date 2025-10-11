@@ -5,8 +5,6 @@ import { StorageConfig } from "../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
 import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
 
-const PRIZE_CACHE_KEY = "prizes";
-
 @injectable()
 export class PrizeRepository implements IPrizeRepository {
   private readonly gasService =
@@ -17,18 +15,18 @@ export class PrizeRepository implements IPrizeRepository {
   );
 
   async getPrizes(): Promise<Prize[]> {
-    return (await this.localStorage.get<Prize[]>(PRIZE_CACHE_KEY)) || [];
+    const allPrizes = await this.localStorage.getAll<Prize>();
+    return Array.from(allPrizes.values());
   }
 
   async getPrizeById(id: string): Promise<Prize | null> {
-    const prizes = await this.getPrizes();
-    return prizes.find((p) => p.id === id) || null;
+    return (await this.localStorage.get<Prize>(id)) || null;
   }
 
   async addPrizes(prizes: Prize[]): Promise<void> {
-    const current = await this.getPrizes();
-    const updated = [...current, ...prizes];
-    await this.localStorage.save(PRIZE_CACHE_KEY, updated);
+    for (const prize of prizes) {
+      await this.localStorage.save(prize.id, prize);
+    }
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
@@ -42,12 +40,13 @@ export class PrizeRepository implements IPrizeRepository {
   async updatePrizes(
     updates: { id: string; updateFn: (prize: Prize) => Prize }[]
   ): Promise<void> {
-    const current = await this.getPrizes();
-    const updated = current.map((p) => {
-      const update = updates.find((u) => u.id === p.id);
-      return update ? update.updateFn(p) : p;
-    });
-    await this.localStorage.save(PRIZE_CACHE_KEY, updated);
+    for (const update of updates) {
+      const current = await this.localStorage.get<Prize>(update.id);
+      if (current) {
+        const updated = update.updateFn(current);
+        await this.localStorage.save(update.id, updated);
+      }
+    }
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
@@ -59,9 +58,7 @@ export class PrizeRepository implements IPrizeRepository {
   }
 
   async deletePrizes(ids: string[]): Promise<void> {
-    const current = await this.getPrizes();
-    const updated = current.filter((p) => !ids.includes(p.id));
-    await this.localStorage.save(PRIZE_CACHE_KEY, updated);
+    await this.localStorage.removeMultiple(ids);
     if (!this.gasService) return;
     return new Promise((resolve, reject) => {
       this.gasService
@@ -78,7 +75,9 @@ export class PrizeRepository implements IPrizeRepository {
       this.gasService
         .createCall<{ prizes: Prize[] }>("PrizeService.getPrizes")
         .withSuccessed(async (res: { prizes: Prize[] }) => {
-          await this.localStorage.save(PRIZE_CACHE_KEY, res.prizes);
+          for (const prize of res.prizes) {
+            await this.localStorage.save(prize.id, prize);
+          }
           resolve();
         })
         .withFailuered((msg: string) => reject(new Error(msg)))
