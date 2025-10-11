@@ -15,8 +15,6 @@ interface AssetMetadata {
   size: number;
 }
 
-const ASSET_CACHE_KEY = "assets";
-
 @injectable()
 export class AssetRepository implements IAssetRepository {
   private readonly gasService =
@@ -54,13 +52,7 @@ export class AssetRepository implements IAssetRepository {
           "AssetService.updateAsset",
           asset,
           async (res) => {
-            const cached =
-              (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-            const index = cached.findIndex((a) => a.id === asset.id);
-            if (index !== -1) {
-              cached[index] = res.asset;
-              await this.localStorage.save(ASSET_CACHE_KEY, cached);
-            }
+            await this.localStorage.save(res.asset.id, res.asset);
           }
         );
       } else {
@@ -69,10 +61,7 @@ export class AssetRepository implements IAssetRepository {
           "AssetService.addAsset",
           asset,
           async (res) => {
-            const cached =
-              (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-            cached.push(res.asset);
-            await this.localStorage.save(ASSET_CACHE_KEY, cached);
+            await this.localStorage.save(res.asset.id, res.asset);
           }
         );
       }
@@ -81,20 +70,16 @@ export class AssetRepository implements IAssetRepository {
   }
 
   async getAssets(): Promise<Asset[]> {
-    return (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
+    const allAssets = await this.localStorage.getAll<Asset>();
+    return Array.from(allAssets.values());
   }
 
   async getAssetById(id: string): Promise<Asset | null> {
-    const assets =
-      (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-    return assets.find((a) => a.id === id) || null;
+    return (await this.localStorage.get<Asset>(id)) || null;
   }
 
   async deleteAssets(ids: string[]): Promise<void> {
-    const cached =
-      (await this.localStorage.get<Asset[]>(ASSET_CACHE_KEY)) || [];
-    const updated = cached.filter((a) => !ids.includes(a.id));
-    await this.localStorage.save(ASSET_CACHE_KEY, updated);
+    await this.localStorage.removeMultiple(ids);
     if (!this.gasService) return;
     const promises = ids.map(
       (id) =>
@@ -133,10 +118,7 @@ export class AssetRepository implements IAssetRepository {
           );
           if (toDelete.length > 0) {
             onProgress?.(`${toDelete.length}個の不要なアセットを削除中...`);
-            await this.localStorage.save(
-              ASSET_CACHE_KEY,
-              localAssets.filter((a) => serverIds.has(a.id))
-            );
+            await this.localStorage.removeMultiple(toDelete.map((a) => a.id));
           }
           if (toUpdate.length === 0) {
             onProgress?.("同期完了");
@@ -157,19 +139,10 @@ export class AssetRepository implements IAssetRepository {
                   .withTimeout(120000)
                   .withSuccessed(async (assetRes: { asset: Asset | null }) => {
                     if (assetRes.asset) {
-                      const cached =
-                        (await this.localStorage.get<Asset[]>(
-                          ASSET_CACHE_KEY
-                        )) || [];
-                      const index = cached.findIndex(
-                        (a) => a.id === assetRes.asset!.id
+                      await this.localStorage.save(
+                        assetRes.asset.id,
+                        assetRes.asset
                       );
-                      if (index !== -1) {
-                        cached[index] = assetRes.asset;
-                      } else {
-                        cached.push(assetRes.asset);
-                      }
-                      await this.localStorage.save(ASSET_CACHE_KEY, cached);
                     }
                     onProgress?.(
                       `${meta.name} ダウンロード完了 (${FileUtils.formatSize(meta.size)})`
