@@ -97,6 +97,7 @@ export class ScreenConfigService {
   }
 
   async syncScreenConfigs(): Promise<void> {
-    // sync not implemented
+    // サーバーから全画面設定を取得してローカルストレージに同期
+    await this.repo.syncScreenConfigs();
   }
 }

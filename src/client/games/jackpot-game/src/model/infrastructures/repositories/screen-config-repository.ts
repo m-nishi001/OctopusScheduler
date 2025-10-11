@@ -1,7 +1,6 @@
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { ScreenConfig } from "../../domains/screen-config/screen-config";
-import type { ScreenType } from "../../domains/screen-config/screen-config";
 import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
@@ -27,17 +26,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     const fromLocal = await this.loadFromLocal(type);
     if (fromLocal) return fromLocal;
 
-    const fromServer = await this.fetchFromGas(type);
-    if (fromServer) {
-      this.cache.set(type, fromServer);
-      await this.localStorage.save(`screen_${type}`, fromServer);
-      return fromServer;
-    }
-
-    const fallback = this.createDefaultConfig(type);
-    this.cache.set(type, fallback);
-    await this.localStorage.save(`screen_${type}`, fallback);
-    return fallback;
+    return null; // 同期関数でサーバーから取得
   }
 
   async updateScreenConfigs(configs: ScreenConfig[]): Promise<void> {
@@ -72,8 +61,40 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     await this.updateScreenConfigs(configs);
   }
 
-  private createDefaultConfig(type: string): ScreenConfig {
-    return new ScreenConfig(type as ScreenType, "", []);
+  async syncScreenConfigs(): Promise<void> {
+    if (!this.gasService) throw new Error("GAS service not available");
+    // サーバーから全画面設定を取得
+    const allTypes: string[] = [
+      "home",
+      "opening",
+      "description",
+      "demo",
+      "main",
+      "result",
+      "admin",
+    ]; // 仮定
+    const promises = allTypes.map(async (type) => {
+      try {
+        const dto = await new Promise<ScreenConfig | null>(
+          (resolve, reject) => {
+            this.gasService!.createCall<any>(
+              "ScreenConfigService.getScreenConfig",
+              { id: type }
+            )
+              .withSuccessed((res: any) => resolve(res ? res : null))
+              .withFailuered((msg: string) => reject(new Error(msg)))
+              .invoke();
+          }
+        );
+        if (dto) {
+          this.cache.set(type, dto);
+          await this.localStorage.save(`screen_${type}`, dto);
+        }
+      } catch (e) {
+        console.warn(`Failed to sync screen config for ${type}:`, e);
+      }
+    });
+    await Promise.all(promises);
   }
 
   private async loadFromLocal(type: string): Promise<ScreenConfig | undefined> {
@@ -92,27 +113,6 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
       );
     }
     return undefined;
-  }
-
-  private async fetchFromGas(
-    type: string
-  ): Promise<ScreenConfig | null | undefined> {
-    if (!this.gasService) return undefined;
-    try {
-      const dto = await new Promise<ScreenConfig | null>((resolve, reject) => {
-        this.gasService!.createCall<any>(
-          "ScreenConfigService.getScreenConfig",
-          { id: type }
-        )
-          .withSuccessed((res: any) => resolve(res ? res : null))
-          .withFailuered((msg: string) => reject(new Error(msg)))
-          .invoke();
-      });
-      return dto;
-    } catch (e) {
-      console.warn("Failed to fetch screen config from GAS:", e);
-      return undefined;
-    }
   }
 
   private async saveToGas(configs: ScreenConfig[]): Promise<void> {

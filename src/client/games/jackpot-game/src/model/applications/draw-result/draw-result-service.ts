@@ -23,4 +23,9 @@ export class DrawResultService {
   async deleteDrawResult(resultId: string): Promise<void> {
     await this.repo.deleteDrawResult(resultId);
   }
+
+  async syncDrawResults(): Promise<void> {
+    // サーバーから全抽選結果を取得してローカルストレージに同期
+    await this.repo.syncDrawResults();
+  }
 }

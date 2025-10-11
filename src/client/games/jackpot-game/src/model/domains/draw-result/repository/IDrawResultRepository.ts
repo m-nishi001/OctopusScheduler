@@ -6,4 +6,5 @@ export interface IDrawResultRepository {
   addDrawResult?(result: LotteryResultDto): Promise<void>;
   updateDrawResult(result: LotteryResultDto): Promise<void>;
   deleteDrawResult(resultId: string): Promise<void>;
+  syncDrawResults(): Promise<void>;
 }

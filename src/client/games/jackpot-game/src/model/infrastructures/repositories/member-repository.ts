@@ -71,4 +71,26 @@ export class MemberRepository implements IMemberRepository {
         .invoke();
     });
   }
+
+  async syncMembers(): Promise<void> {
+    if (!this.gasService) throw new Error("GAS service not available");
+    return new Promise((resolve, reject) => {
+      this.gasService
+        .createCall<{ members: any[] }>("MemberService.getMembers")
+        .withSuccessed(async (res: { members: any[] }) => {
+          // サーバーから取得したメンバーをローカルに保存
+          const serverMembers = res.members.map((m) => ({
+            id: m.id,
+            name: m.name,
+            photoAssetId: m.photoAssetId,
+            attributes: m.attributes,
+            order: m.order,
+          }));
+          await this.localStorage.save(MEMBER_CACHE_KEY, serverMembers);
+          resolve();
+        })
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
 }

@@ -6,4 +6,5 @@ export interface IScreenConfigRepository {
   updateScreenConfigs(configs: ScreenConfig[]): Promise<void>;
   deleteScreenConfigs(types: string[]): Promise<void>;
   addScreenConfigs(configs: ScreenConfig[]): Promise<void>;
+  syncScreenConfigs(): Promise<void>;
 }

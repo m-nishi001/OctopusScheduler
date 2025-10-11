@@ -24,4 +24,9 @@ export class MemberService {
   async deleteMember(id: string): Promise<void> {
     await this.repo.deleteMembers([id]);
   }
+
+  async syncMembers(): Promise<void> {
+    // サーバーから全メンバーを取得してローカルストレージに同期
+    await this.repo.syncMembers();
+  }
 }

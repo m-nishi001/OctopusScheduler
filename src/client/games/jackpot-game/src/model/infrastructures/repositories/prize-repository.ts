@@ -17,21 +17,7 @@ export class PrizeRepository implements IPrizeRepository {
   );
 
   async getPrizes(): Promise<Prize[]> {
-    const cached = await this.localStorage.get<Prize[]>(PRIZE_CACHE_KEY);
-    if (cached && cached.length > 0) {
-      return cached;
-    }
-    if (!this.gasService) return [];
-    return new Promise((resolve, reject) => {
-      this.gasService
-        .createCall<{ prizes: Prize[] }>("PrizeService.getPrizes")
-        .withSuccessed((res: { prizes: Prize[] }) => {
-          this.localStorage.save(PRIZE_CACHE_KEY, res.prizes);
-          resolve(res.prizes);
-        })
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
+    return (await this.localStorage.get<Prize[]>(PRIZE_CACHE_KEY)) || [];
   }
 
   async getPrizeById(id: string): Promise<Prize | null> {
@@ -81,6 +67,20 @@ export class PrizeRepository implements IPrizeRepository {
       this.gasService
         .createCall<void>("PrizeService.deletePrizes", { ids })
         .withSuccessed(() => resolve())
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
+  async syncPrizes(): Promise<void> {
+    if (!this.gasService) throw new Error("GAS service not available");
+    return new Promise((resolve, reject) => {
+      this.gasService
+        .createCall<{ prizes: Prize[] }>("PrizeService.getPrizes")
+        .withSuccessed(async (res: { prizes: Prize[] }) => {
+          await this.localStorage.save(PRIZE_CACHE_KEY, res.prizes);
+          resolve();
+        })
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();
     });
