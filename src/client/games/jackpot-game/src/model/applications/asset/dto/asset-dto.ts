@@ -96,7 +96,16 @@ export class AssetDto extends AssetMetadataDto {
   }
 
   get dataUrl(): Promise<string> {
-    if (this._dataUrl) return Promise.resolve(this._dataUrl);
+    if (this._dataUrl) {
+      const p = Promise.resolve(this._dataUrl);
+      try {
+        (p as any).toString = () => this._dataUrl as string;
+        (p as any)[Symbol.toPrimitive] = () => this._dataUrl as string;
+      } catch {
+        // ignore if environment doesn't allow Symbol assignment
+      }
+      return p;
+    }
     if (this._dataUrlPromise) return this._dataUrlPromise;
     if (this.file) {
       this._dataUrlPromise = fileToDataUrl(this.file).then((url) => {
@@ -105,7 +114,14 @@ export class AssetDto extends AssetMetadataDto {
       });
       return this._dataUrlPromise;
     }
-    return Promise.resolve(this._dataUrl || "");
+    const p = Promise.resolve(this._dataUrl || "");
+    try {
+      (p as any).toString = () => this._dataUrl || "";
+      (p as any)[Symbol.toPrimitive] = () => this._dataUrl || "";
+    } catch {
+      // ignore
+    }
+    return p;
   }
 
   async toAsset(): Promise<Asset> {
