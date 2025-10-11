@@ -43,29 +43,57 @@
 
   <!-- 追加/編集モーダル -->
   <div v-if="modalMode" class="modal-overlay" @click="closeModal">
-    <div class="modal-content" @click.stop>
-      <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
-      <p v-if="modalMode === 'add'">追加するメンバーの情報を入力してください。</p>
-      <input v-model="modalName" type="text" placeholder="メンバー名" class="admin-input" />
-      <div class="photo-mode">
-        <label><input type="radio" v-model="modalPhotoMode" value="upload" /> アップロード</label>
-        <label><input type="radio" v-model="modalPhotoMode" value="select" /> 既存から選択</label>
-      </div>
-      <input v-if="modalPhotoMode === 'upload'" type="file" @change="onModalPhotoChange" accept="image/*"
-        class="admin-input" />
-      <div v-if="modalPhotoMode === 'upload' && modalPhotoFilename" class="file-name">{{ modalPhotoFilename }}</div>
+    <div class="modal-content add-modal-grid" @click.stop>
+      <div class="add-form-column">
+        <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
+        <p v-if="modalMode === 'add'">追加するメンバーの情報を入力してください。</p>
 
-      <select v-if="modalPhotoMode === 'select'" v-model="photoAssetId" class="admin-input">
-        <option value="">選択なし</option>
-        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-      </select>
-      <div v-if="modalPhotoPreview" class="admin-photo-preview">
-        <img :src="modalPhotoPreview" alt="preview" style="max-width:80px;max-height:80px;" />
+        <div class="field-block">
+          <label class="field-label">名前</label>
+          <input v-model="modalName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">写真</label>
+          <div class="photo-mode">
+            <label><input type="radio" v-model="modalPhotoMode" value="upload" /> アップロード</label>
+            <label><input type="radio" v-model="modalPhotoMode" value="select" /> 既存から選択</label>
+          </div>
+
+          <div style="margin-top:10px">
+            <input v-if="modalPhotoMode === 'upload'" type="file" @change="onModalPhotoChange" accept="image/*"
+              class="admin-input" />
+            <div v-if="modalPhotoMode === 'upload' && modalPhotoFilename" class="file-name">{{ modalPhotoFilename }}
+            </div>
+
+            <select v-if="modalPhotoMode === 'select'" v-model="photoAssetId" class="admin-input"
+              style="margin-top:8px">
+              <option value="">選択なし</option>
+              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+          </div>
+        </div>
+
       </div>
-      <div class="admin-modal-buttons">
-        <button class="admin-btn" @click="confirmModal" :disabled="!modalName.trim() || adding">{{ modalMode === 'add' ?
-          '追加' : '保存' }}</button>
-        <button class="admin-btn" @click="closeModal">キャンセル</button>
+
+      <div class="add-side-column">
+        <div class="preview-box">
+          <template v-if="modalPhotoPreview">
+            <img :src="modalPhotoPreview" alt="preview" class="preview-img" />
+          </template>
+          <template v-else>
+            <div class="preview-placeholder">プレビュー</div>
+          </template>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="admin-modal-buttons">
+          <button class="admin-btn" @click="confirmModal" :disabled="!modalName.trim() || adding">{{ modalMode === 'add'
+            ?
+            '追加' : '保存' }}</button>
+          <button class="admin-btn cancel-primary" @click="closeModal">キャンセル</button>
+        </div>
       </div>
     </div>
   </div>
@@ -578,14 +606,14 @@ watch(photoAssetId, async () => {
   border-radius: 10px;
   text-align: left;
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-  max-width: 720px;
+  max-width: 620px;
   width: 90%;
 }
 
 .add-modal-grid {
   display: grid;
-  grid-template-columns: 1fr 240px;
-  gap: 18px;
+  grid-template-columns: 1fr 260px;
+  gap: 12px;
   align-items: start;
   margin-top: 12px;
 }
@@ -614,8 +642,8 @@ watch(photoAssetId, async () => {
 }
 
 .preview-box {
-  width: 160px;
-  height: 160px;
+  width: 240px;
+  height: 240px;
   background: #2a3137;
   border-radius: 8px;
   display: flex;
@@ -625,9 +653,10 @@ watch(photoAssetId, async () => {
 }
 
 .preview-box .preview-img {
-  max-width: 100%;
-  max-height: 100%;
-  display: block
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .preview-placeholder {
@@ -643,6 +672,13 @@ watch(photoAssetId, async () => {
 .cancel-primary {
   background: #3b4650;
   color: #fff;
+}
+
+.modal-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 .modal-actions {
