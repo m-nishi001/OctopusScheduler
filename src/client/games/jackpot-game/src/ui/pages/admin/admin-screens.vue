@@ -528,35 +528,29 @@ const handleSave = async () => {
       });
       await assetService.addAssets(tempAssets.value);
 
-      // Replace temp IDs with real IDs in configs
-      const idMap = new Map<string, string>();
-      tempAssets.value.forEach(asset => {
-        const tempId = Array.from(tempIdMap.keys()).find(key => tempIdMap.get(key) === asset);
-        if (tempId) {
-          idMap.set(tempId, asset.id);
-        }
-      });
+      // Replace empty IDs with real IDs in configs
+      const ids = tempAssets.value.map(asset => asset.id);
+      let idIndex = 0;
 
-      // Replace in all configs
-      const replaceTempIds = (obj: any) => {
+      const replaceEmptyIds = (obj: any) => {
         for (const key in obj) {
-          if (typeof obj[key] === 'string' && obj[key].startsWith('temp_')) {
-            if (idMap.has(obj[key])) {
-              obj[key] = idMap.get(obj[key]);
+          if (typeof obj[key] === 'string' && obj[key] === '') {
+            if (idIndex < ids.length) {
+              obj[key] = ids[idIndex++];
             }
           } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-            replaceTempIds(obj[key]);
+            replaceEmptyIds(obj[key]);
           }
         }
       };
 
-      replaceTempIds(homeConfig.value);
-      replaceTempIds(openingConfig.value);
-      replaceTempIds(descriptionConfig.value);
-      replaceTempIds(demoConfig.value);
-      replaceTempIds(mainConfig.value);
-      replaceTempIds(resultConfig.value);
-      replaceTempIds(endingConfig.value);
+      replaceEmptyIds(homeConfig.value);
+      replaceEmptyIds(openingConfig.value);
+      replaceEmptyIds(descriptionConfig.value);
+      replaceEmptyIds(demoConfig.value);
+      replaceEmptyIds(mainConfig.value);
+      replaceEmptyIds(resultConfig.value);
+      replaceEmptyIds(endingConfig.value);
 
       // Clear tempAssets
       tempAssets.value = [];

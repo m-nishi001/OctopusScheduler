@@ -79,10 +79,9 @@ const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         try {
-            const tempId = 'temp_' + Date.now();
             const dataUrl = await FileUtils.readAsDataUrl(file);
             const assetDto = new AssetDto({
-                id: tempId,
+                id: "",
                 type: FileUtils.getAssetType(file.type),
                 dataUrl,
                 name: file.name,
@@ -91,7 +90,7 @@ const onBgmChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            localConfig.value.bgmAssetId = tempId;
+            localConfig.value.bgmAssetId = "";
             emit('update', localConfig.value);
             emit('tempAssets', tempAssets.value);
         } catch (error) {
@@ -104,10 +103,9 @@ const onButtonSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         try {
-            const tempId = 'temp_' + Date.now();
             const dataUrl = await FileUtils.readAsDataUrl(file);
             const assetDto = new AssetDto({
-                id: tempId,
+                id: "",
                 type: FileUtils.getAssetType(file.type),
                 dataUrl,
                 name: file.name,
@@ -116,7 +114,7 @@ const onButtonSeChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            localConfig.value.buttonSeAssetId = tempId;
+            localConfig.value.buttonSeAssetId = "";
             emit('update', localConfig.value);
             emit('tempAssets', tempAssets.value);
         } catch (error) {
@@ -129,10 +127,9 @@ const onProgressSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         try {
-            const tempId = 'temp_' + Date.now();
             const dataUrl = await FileUtils.readAsDataUrl(file);
             const assetDto = new AssetDto({
-                id: tempId,
+                id: "",
                 type: FileUtils.getAssetType(file.type),
                 dataUrl,
                 name: file.name,
@@ -141,7 +138,7 @@ const onProgressSeChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            localConfig.value.progressSeAssetId = tempId;
+            localConfig.value.progressSeAssetId = "";
             emit('update', localConfig.value);
             emit('tempAssets', tempAssets.value);
         } catch (error) {

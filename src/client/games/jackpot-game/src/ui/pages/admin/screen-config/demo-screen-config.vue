@@ -92,10 +92,9 @@ const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         try {
-            const tempId = 'temp_' + Date.now();
             const dataUrl = await FileUtils.readAsDataUrl(file);
             const assetDto = new AssetDto({
-                id: tempId,
+                id: "",
                 type: FileUtils.getAssetType(file.type),
                 dataUrl,
                 name: file.name,
@@ -104,7 +103,7 @@ const onBgmChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            config.value.bgmAssetId = tempId;
+            config.value.bgmAssetId = assetDto.id;
             emit('update', config.value);
             emit('tempAssets', tempAssets.value);
         } catch (error) {
@@ -117,10 +116,9 @@ const onSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         try {
-            const tempId = 'temp_' + Date.now();
             const dataUrl = await FileUtils.readAsDataUrl(file);
             const assetDto = new AssetDto({
-                id: tempId,
+                id: "",
                 type: FileUtils.getAssetType(file.type),
                 dataUrl,
                 name: file.name,
@@ -129,7 +127,7 @@ const onSeChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            config.value.seAssetId = tempId;
+            config.value.seAssetId = assetDto.id;
             emit('update', config.value);
             emit('tempAssets', tempAssets.value);
         } catch (error) {

@@ -132,10 +132,9 @@ const onImageChange = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
 	if (file) {
 		try {
-			const tempId = 'temp_' + Date.now();
 			const dataUrl = await FileUtils.readAsDataUrl(file);
 			const assetDto = new AssetDto({
-				id: tempId,
+				id: "",
 				type: FileUtils.getAssetType(file.type),
 				dataUrl,
 				name: file.name,
@@ -144,7 +143,7 @@ const onImageChange = async (e: Event, idx: number) => {
 				size: file.size,
 			});
 			tempAssets.value.push(assetDto);
-			config.value.slides[idx].imageAssetId = tempId;
+			config.value.slides[idx].imageAssetId = "";
 			emit('update', config.value);
 			emit('tempAssets', tempAssets.value);
 		} catch (error) {
@@ -157,10 +156,9 @@ const onBgmChange = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
 	if (file) {
 		try {
-			const tempId = 'temp_' + Date.now();
 			const dataUrl = await FileUtils.readAsDataUrl(file);
 			const assetDto = new AssetDto({
-				id: tempId,
+				id: "",
 				type: FileUtils.getAssetType(file.type),
 				dataUrl,
 				name: file.name,
@@ -169,7 +167,7 @@ const onBgmChange = async (e: Event, idx: number) => {
 				size: file.size,
 			});
 			tempAssets.value.push(assetDto);
-			config.value.slides[idx].bgmAssetId = tempId;
+			config.value.slides[idx].bgmAssetId = "";
 			emit('update', config.value);
 			emit('tempAssets', tempAssets.value);
 		} catch (error) {
@@ -185,7 +183,7 @@ const onUploadAndInsert = async (e: Event, idx: number) => {
 			const tempId = 'temp_' + Date.now();
 			const dataUrl = await FileUtils.readAsDataUrl(file);
 			const assetDto = new AssetDto({
-				id: tempId,
+				id: "",
 				type: FileUtils.getAssetType(file.type),
 				dataUrl,
 				name: file.name,
