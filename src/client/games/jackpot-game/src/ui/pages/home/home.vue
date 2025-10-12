@@ -30,9 +30,9 @@ import MainLayout from '../common/main-layout.vue';
 import ThreeHero from '../../shared/graphics/ThreeHero.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
-import type { IScreenConfigRepository } from '../../../model/domains/screen-config/repository/IScreenConfigRepository';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 
 export default {
   name: 'Home',
@@ -45,7 +45,7 @@ export default {
     const goAdmin = () => router.push('/jackpot-admin');
 
     const screenConfig = ref<ScreenConfigDto | null>(null);
-    const screenConfigRepo = container.resolve<IScreenConfigRepository>("IScreenConfigRepository");
+    const screenConfigService = container.resolve(ScreenConfigService);
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -73,7 +73,7 @@ export default {
       } catch (e) {
         progress.value = 50;
       }
-      const config = await screenConfigRepo.getScreenConfigById('home');
+      const config = await screenConfigService.fetchScreenConfig('home');
       screenConfig.value = config;
 
       for (let i = progress.value; i <= 100; i += 8) {
