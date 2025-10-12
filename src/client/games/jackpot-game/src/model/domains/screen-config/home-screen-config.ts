@@ -27,6 +27,18 @@ export class HomeScreenConfig implements IScreenConfig {
     return records;
   }
 
+  static fromRecords(
+    id: string,
+    records: Map<string, string>
+  ): HomeScreenConfig {
+    return new HomeScreenConfig(
+      records.get("homeBgm") || "",
+      records.get("buttonClikingSE") || "",
+      records.get("onCompletedLoadingSE") || "",
+      id
+    );
+  }
+
   private generateUuid(): string {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
       /[xy]/g,

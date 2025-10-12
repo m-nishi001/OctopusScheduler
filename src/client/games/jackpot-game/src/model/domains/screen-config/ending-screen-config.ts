@@ -2,7 +2,7 @@ import type { IScreenConfig, ScreenType } from "./i-screen-config";
 
 export class EndingScreenConfig implements IScreenConfig {
   id: string;
-  type: ScreenType = "admin";
+  type: ScreenType = "ending";
   endingBgm: string;
   endingSe1: string;
   endingSe2: string;
@@ -25,6 +25,18 @@ export class EndingScreenConfig implements IScreenConfig {
     records.set("endingSe1", this.endingSe1);
     records.set("endingSe2", this.endingSe2);
     return records;
+  }
+
+  static fromRecords(
+    id: string,
+    records: Map<string, string>
+  ): EndingScreenConfig {
+    return new EndingScreenConfig(
+      records.get("endingBgm") || "",
+      records.get("endingSe1") || "",
+      records.get("endingSe2") || "",
+      id
+    );
   }
 
   private generateUuid(): string {

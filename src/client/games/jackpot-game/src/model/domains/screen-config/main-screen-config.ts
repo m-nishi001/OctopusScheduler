@@ -22,6 +22,18 @@ export class MainScreenConfig implements IScreenConfig {
     return records;
   }
 
+  static fromRecords(
+    id: string,
+    records: Map<string, string>
+  ): MainScreenConfig {
+    return new MainScreenConfig(
+      records.get("mainBgm") || "",
+      records.get("mainSe1") || "",
+      records.get("mainSe2") || "",
+      id
+    );
+  }
+
   private generateUuid(): string {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
       /[xy]/g,

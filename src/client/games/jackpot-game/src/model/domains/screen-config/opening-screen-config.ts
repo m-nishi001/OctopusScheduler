@@ -39,6 +39,18 @@ export class OpeningScreenConfig implements IScreenConfig {
     return records;
   }
 
+  static fromRecords(
+    id: string,
+    records: Map<string, string>
+  ): OpeningScreenConfig {
+    return new OpeningScreenConfig(
+      (records.get("bgmMode") as "select" | "upload") || "select",
+      records.get("bgmAssetId") || "",
+      JSON.parse(records.get("contents") || "[]"),
+      id
+    );
+  }
+
   private generateUuid(): string {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
       /[xy]/g,

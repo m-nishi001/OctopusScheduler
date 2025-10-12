@@ -22,6 +22,18 @@ export class DemoScreenConfig implements IScreenConfig {
     return records;
   }
 
+  static fromRecords(
+    id: string,
+    records: Map<string, string>
+  ): DemoScreenConfig {
+    return new DemoScreenConfig(
+      records.get("demoBgm") || "",
+      records.get("demoSe1") || "",
+      records.get("demoSe2") || "",
+      id
+    );
+  }
+
   private generateUuid(): string {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
       /[xy]/g,

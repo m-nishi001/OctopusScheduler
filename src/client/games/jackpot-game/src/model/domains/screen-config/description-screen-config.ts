@@ -53,6 +53,17 @@ export class DescriptionScreenConfig implements IScreenConfig {
     return records;
   }
 
+  static fromRecords(
+    id: string,
+    records: Map<string, string>
+  ): DescriptionScreenConfig {
+    return new DescriptionScreenConfig(
+      records.get("descriptionBgm") || "",
+      JSON.parse(records.get("screenElements") || "[]"),
+      id
+    );
+  }
+
   private generateUuid(): string {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
       /[xy]/g,

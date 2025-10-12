@@ -27,6 +27,18 @@ export class ResultScreenConfig implements IScreenConfig {
     return records;
   }
 
+  static fromRecords(
+    id: string,
+    records: Map<string, string>
+  ): ResultScreenConfig {
+    return new ResultScreenConfig(
+      records.get("resultBgm") || "",
+      records.get("resultSe1") || "",
+      records.get("resultSe2") || "",
+      id
+    );
+  }
+
   private generateUuid(): string {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
       /[xy]/g,

@@ -5,7 +5,7 @@ export type ScreenType =
   | "demo"
   | "main"
   | "result"
-  | "admin";
+  | "ending";
 
 export interface IScreenConfig {
   id: string;
