@@ -27,7 +27,10 @@ export class PrizeService implements GasService {
   }
 
   addPrizes(args: { prizes: PrizeDto[] }): void {
-    const adds = args.prizes.map(toPrize);
+    const adds = args.prizes.map(toPrize).map((prize) => ({
+      ...prize,
+      id: Utilities.getUuid(),
+    }));
     this.repository.addPrizes(adds);
   }
 
