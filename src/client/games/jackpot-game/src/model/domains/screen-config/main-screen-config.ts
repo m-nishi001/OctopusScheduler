@@ -1,14 +1,12 @@
 import type { IScreenConfig, ScreenType } from "./i-screen-config";
 
 export class MainScreenConfig implements IScreenConfig {
-  id: string;
   type: ScreenType = "main";
   mainBgm: string;
   mainSe1: string;
   mainSe2: string;
 
-  constructor(mainBgm: string, mainSe1: string, mainSe2: string, id?: string) {
-    this.id = id || this.generateUuid();
+  constructor(mainBgm: string, mainSe1: string, mainSe2: string) {
     this.mainBgm = mainBgm;
     this.mainSe1 = mainSe1;
     this.mainSe2 = mainSe2;
@@ -22,26 +20,11 @@ export class MainScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(
-    id: string,
-    records: Map<string, string>
-  ): MainScreenConfig {
+  static fromRecords(records: Map<string, string>): MainScreenConfig {
     return new MainScreenConfig(
       records.get("mainBgm") || "",
       records.get("mainSe1") || "",
-      records.get("mainSe2") || "",
-      id
-    );
-  }
-
-  private generateUuid(): string {
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-      /[xy]/g,
-      function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      }
+      records.get("mainSe2") || ""
     );
   }
 }

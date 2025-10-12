@@ -14,13 +14,13 @@ export class ResultScreenConfigConverter implements IScreenConfigConverter {
     for (const setting of settings) {
       records.set(setting.settingName, setting.settingValue);
     }
-    return ResultScreenConfig.fromRecords(settings[0]?.id || "", records);
+    return ResultScreenConfig.fromRecords(records);
   }
 
   toSettings(dto: ResultScreenConfig): ScreenSetting[] {
     const settings: ScreenSetting[] = [];
     for (const [key, value] of dto.toRecords()) {
-      settings.push(new ScreenSetting(dto.id, dto.type, key, value));
+      settings.push(new ScreenSetting(dto.type, key, value));
     }
     return settings;
   }

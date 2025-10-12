@@ -1,7 +1,6 @@
 import type { IScreenConfig, ScreenType } from "./i-screen-config";
 
 export class HomeScreenConfig implements IScreenConfig {
-  id: string;
   type: ScreenType = "home";
   homeBgm: string;
   buttonClikingSE: string;
@@ -10,10 +9,8 @@ export class HomeScreenConfig implements IScreenConfig {
   constructor(
     homeBgm: string,
     buttonClikingSE: string,
-    onCompletedLoadingSE: string,
-    id?: string
+    onCompletedLoadingSE: string
   ) {
-    this.id = id || this.generateUuid();
     this.homeBgm = homeBgm;
     this.buttonClikingSE = buttonClikingSE;
     this.onCompletedLoadingSE = onCompletedLoadingSE;
@@ -27,26 +24,11 @@ export class HomeScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(
-    id: string,
-    records: Map<string, string>
-  ): HomeScreenConfig {
+  static fromRecords(records: Map<string, string>): HomeScreenConfig {
     return new HomeScreenConfig(
       records.get("homeBgm") || "",
       records.get("buttonClikingSE") || "",
-      records.get("onCompletedLoadingSE") || "",
-      id
-    );
-  }
-
-  private generateUuid(): string {
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-      /[xy]/g,
-      function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      }
+      records.get("onCompletedLoadingSE") || ""
     );
   }
 }

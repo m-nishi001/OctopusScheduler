@@ -13,7 +13,6 @@ export interface OpeningContent {
 }
 
 export class OpeningScreenConfig implements IScreenConfig {
-  id: string;
   type: ScreenType = "opening";
   bgmMode: "select" | "upload";
   bgmAssetId: string;
@@ -22,10 +21,8 @@ export class OpeningScreenConfig implements IScreenConfig {
   constructor(
     bgmMode: "select" | "upload" = "select",
     bgmAssetId: string = "",
-    contents: OpeningContent[] = [],
-    id?: string
+    contents: OpeningContent[] = []
   ) {
-    this.id = id || this.generateUuid();
     this.bgmMode = bgmMode;
     this.bgmAssetId = bgmAssetId;
     this.contents = contents;
@@ -39,26 +36,11 @@ export class OpeningScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(
-    id: string,
-    records: Map<string, string>
-  ): OpeningScreenConfig {
+  static fromRecords(records: Map<string, string>): OpeningScreenConfig {
     return new OpeningScreenConfig(
       (records.get("bgmMode") as "select" | "upload") || "select",
       records.get("bgmAssetId") || "",
-      JSON.parse(records.get("contents") || "[]"),
-      id
-    );
-  }
-
-  private generateUuid(): string {
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-      /[xy]/g,
-      function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      }
+      JSON.parse(records.get("contents") || "[]")
     );
   }
 }

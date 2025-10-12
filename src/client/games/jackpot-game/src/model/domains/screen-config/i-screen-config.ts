@@ -8,7 +8,6 @@ export type ScreenType =
   | "ending";
 
 export interface IScreenConfig {
-  id: string;
   type: ScreenType;
   toRecords(): Map<string, string>;
 }

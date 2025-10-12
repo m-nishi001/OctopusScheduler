@@ -36,7 +36,10 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
             .invoke();
         });
         settings.forEach((setting) =>
-          this.localStorage.save(setting.id, setting)
+          this.localStorage.save(
+            setting.screenName + "_" + setting.settingName,
+            setting
+          )
         );
       } catch (e) {
         console.warn("Failed to save to GAS:", e);
@@ -58,7 +61,10 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
         }
       );
       settings.forEach((setting) =>
-        this.localStorage.save(setting.id, setting)
+        this.localStorage.save(
+          setting.screenName + "_" + setting.settingName,
+          setting
+        )
       );
     } catch (e) {
       console.warn("Failed to sync screen configs:", e);

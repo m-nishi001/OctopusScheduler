@@ -31,17 +31,11 @@ export interface AnimationSettings {
 }
 
 export class DescriptionScreenConfig implements IScreenConfig {
-  id: string;
   type: ScreenType = "description";
   descriptionBgm: string;
   screenElements: ScreenElement[];
 
-  constructor(
-    descriptionBgm: string,
-    screenElements: ScreenElement[],
-    id?: string
-  ) {
-    this.id = id || this.generateUuid();
+  constructor(descriptionBgm: string, screenElements: ScreenElement[]) {
     this.descriptionBgm = descriptionBgm;
     this.screenElements = screenElements;
   }
@@ -53,25 +47,10 @@ export class DescriptionScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(
-    id: string,
-    records: Map<string, string>
-  ): DescriptionScreenConfig {
+  static fromRecords(records: Map<string, string>): DescriptionScreenConfig {
     return new DescriptionScreenConfig(
       records.get("descriptionBgm") || "",
-      JSON.parse(records.get("screenElements") || "[]"),
-      id
-    );
-  }
-
-  private generateUuid(): string {
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
-      /[xy]/g,
-      function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === "x" ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      }
+      JSON.parse(records.get("screenElements") || "[]")
     );
   }
 }

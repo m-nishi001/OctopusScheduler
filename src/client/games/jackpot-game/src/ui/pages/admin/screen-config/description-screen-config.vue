@@ -55,7 +55,6 @@ const {
 } = useScreenSettingData();
 
 const localConfig = ref({
-	id: "",
 	descriptionBgm: "",
 });
 
@@ -64,7 +63,6 @@ const loadConfig = async () => {
 		const config = await screenConfigService.fetchScreenConfig("description");
 		if (config) {
 			localConfig.value = {
-				id: config.id || "",
 				descriptionBgm: (config as any).descriptionBgm || "",
 			};
 		}
@@ -79,8 +77,7 @@ const handleSaveClick = async () => {
 	await handleSave(async () => {
 		const config = new DescriptionScreenConfig(
 			localConfig.value.descriptionBgm,
-			[],
-			localConfig.value.id || undefined
+			[]
 		);
 		const converter = container.resolve(DescriptionScreenConfigConverter);
 		const settings = converter.toSettings(config);

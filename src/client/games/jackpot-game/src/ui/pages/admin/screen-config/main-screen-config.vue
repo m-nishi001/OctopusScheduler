@@ -69,7 +69,6 @@ const {
 } = useScreenSettingData();
 
 const localConfig = ref({
-    id: "",
     mainBgm: "",
     mainSe1: "",
     mainSe2: "",
@@ -80,7 +79,6 @@ const loadConfig = async () => {
         const config = await screenConfigService.fetchScreenConfig("main");
         if (config) {
             localConfig.value = {
-                id: config.id || "",
                 mainBgm: (config as any).mainBgm || "",
                 mainSe1: (config as any).mainSe1 || "",
                 mainSe2: (config as any).mainSe2 || "",
@@ -100,8 +98,7 @@ const handleSaveClick = async () => {
         const config = new MainScreenConfig(
             localConfig.value.mainBgm,
             localConfig.value.mainSe1,
-            localConfig.value.mainSe2,
-            localConfig.value.id || undefined
+            localConfig.value.mainSe2
         );
         const converter = container.resolve(MainScreenConfigConverter);
         const settings = converter.toSettings(config);
