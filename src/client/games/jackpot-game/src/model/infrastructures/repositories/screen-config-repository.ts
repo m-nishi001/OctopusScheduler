@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
-import { ScreenSettings } from "../../../../../../packages/common-lib/src/screen-settings";
+import { ScreenSetting } from "../../../../../../packages/common-lib/src/screen-settings";
 import type { IScreenConfig } from "../../domains/screen-config/IScreenConfig";
 import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
@@ -51,9 +51,13 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
           }
         }
         await new Promise<void>((resolve, reject) => {
+          const settings = records.map(
+            ([id, screenName, settingName, settingValue]) =>
+              new ScreenSetting(id, screenName, settingName, settingValue)
+          );
           this.gasService!.createCall<void>(
             "ScreenConfigService.updateScreenConfig",
-            records
+            settings
           )
             .withSuccessed(() => resolve())
             .withFailuered((msg: string) => reject(new Error(msg)))
@@ -83,21 +87,28 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     if (!this.gasService) throw new Error("GAS service not available");
     // サーバーから全画面設定を取得
     try {
-      const settings: ScreenSettings = await new Promise<ScreenSettings>(
+      const settings: ScreenSetting[] = await new Promise<ScreenSetting[]>(
         (resolve, reject) => {
-          this.gasService!.createCall<ScreenSettings>(
+          this.gasService!.createCall<ScreenSetting[]>(
             "ScreenConfigService.getScreenConfigs"
           )
-            .withSuccessed((res: ScreenSettings) => resolve(res))
+            .withSuccessed((res: ScreenSetting[]) => resolve(res))
             .withFailuered((msg: string) => reject(new Error(msg)))
             .invoke();
         }
       );
-      // settings.settings を grouped して IScreenConfig に変換
-      const grouped = settings.settings.reduce(
-        (acc, [id, type, key, value]) => {
-          acc[type] ||= { id, type, records: new Map<string, string>() };
-          acc[type].records.set(key, value);
+      // settings を grouped して IScreenConfig に変換
+      const grouped = settings.reduce(
+        (acc, setting) => {
+          acc[setting.screenName] ||= {
+            id: setting.id,
+            type: setting.screenName,
+            records: new Map<string, string>(),
+          };
+          acc[setting.screenName].records.set(
+            setting.settingName,
+            setting.settingValue
+          );
           return acc;
         },
         {} as Record<

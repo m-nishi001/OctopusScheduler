@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { GasService } from "../draw/gas-service";
 import { IScreenConfigRepository } from "../../domain/screen-config/screen-config-repository";
-import { ScreenSettings } from "../../domain/screen-config/screen-settings";
+import { ScreenSetting } from "../../domain/screen-config/screen-settings";
 
 @injectable()
 export class ScreenConfigService implements GasService {
@@ -20,19 +20,19 @@ export class ScreenConfigService implements GasService {
     };
   }
 
-  getScreenConfigs(): ScreenSettings {
+  getScreenConfigs(): ScreenSetting[] {
     return this.repository.getScreenConfigs();
   }
 
-  updateScreenConfig(args: string[][]): void {
-    this.repository.updateScreenSettings(new ScreenSettings(args));
+  updateScreenConfig(args: ScreenSetting[]): void {
+    this.repository.updateScreenSettings(args);
   }
 
   deleteScreenConfig(args: { type: string }): void {
     this.repository.deleteScreenConfigs([args.type]);
   }
 
-  addScreenConfigs(args: { configs: ScreenSettings }): void {
+  addScreenConfigs(args: { configs: ScreenSetting[] }): void {
     this.repository.addScreenConfigs(args.configs);
   }
 }

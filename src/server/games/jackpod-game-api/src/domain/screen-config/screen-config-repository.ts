@@ -1,8 +1,8 @@
-import { ScreenSettings } from "./screen-settings";
+import { ScreenSetting } from "./screen-settings";
 
 export interface IScreenConfigRepository {
-  getScreenConfigs(): ScreenSettings;
-  updateScreenSettings(settings: ScreenSettings): void;
+  getScreenConfigs(): ScreenSetting[];
+  updateScreenSettings(settings: ScreenSetting[]): void;
   deleteScreenConfigs(types: string[]): void;
-  addScreenConfigs(configs: ScreenSettings): void;
+  addScreenConfigs(configs: ScreenSetting[]): void;
 }
