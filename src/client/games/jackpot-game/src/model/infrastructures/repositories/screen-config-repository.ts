@@ -1,6 +1,5 @@
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
-import { ScreenSetting } from "../../../../../../packages/common-lib/src/screen-settings";
 import type { IScreenConfig } from "../../domains/screen-config/IScreenConfig";
 import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
@@ -12,6 +11,7 @@ import { DemoScreenConfig } from "../../domains/screen-config/DemoScreenConfig";
 import { MainScreenConfig } from "../../domains/screen-config/MainScreenConfig";
 import { ResultScreenConfig } from "../../domains/screen-config/ResultScreenConfig";
 import { EndingScreenConfig } from "../../domains/screen-config/EndingScreenConfig";
+import { ScreenSetting } from "../../domains/screen-config/screen-setting";
 
 @injectable()
 export class ScreenConfigRepository implements IScreenConfigRepository {
