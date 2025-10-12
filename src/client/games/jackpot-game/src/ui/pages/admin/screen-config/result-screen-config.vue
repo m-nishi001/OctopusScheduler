@@ -78,11 +78,9 @@ const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("result");
         if (config) {
-            localConfig.value = {
-                resultBgm: (config as any).resultBgm || "",
-                resultSe1: (config as any).resultSe1 || "",
-                resultSe2: (config as any).resultSe2 || "",
-            };
+            localConfig.value.resultBgm = (config as any).resultBgm || "";
+            localConfig.value.resultSe1 = (config as any).resultSe1 || "";
+            localConfig.value.resultSe2 = (config as any).resultSe2 || "";
         }
     } catch (error) {
         console.error("Failed to load result config:", error);

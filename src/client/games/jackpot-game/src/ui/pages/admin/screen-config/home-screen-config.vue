@@ -140,22 +140,20 @@ const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("home");
         if (config) {
-            localConfig.value = {
-                homeBgm: (config as any).homeBgm || "",
-                homeBgmMode: "select",
-                homeBgmFilename: "",
-                homeBgmTempAsset: null,
-                buttonClikingSE: (config as any).buttonClikingSE || "",
-                buttonClikingSEMode: "select",
-                buttonClikingSEFilename: "",
-                buttonClikingSETempAsset: null,
-                onCompletedLoadingSE: (config as any).onCompletedLoadingSE || "",
-                onCompletedLoadingSEMode: "select",
-                onCompletedLoadingSEFilename: "",
-                onCompletedLoadingSETempAsset: null,
-                title: (config as any).title || "2025年度 ジャックポッド大会！",
-                subtitle: (config as any).subtitle || "",
-            };
+            localConfig.value.homeBgm = (config as any).homeBgm || "";
+            localConfig.value.homeBgmMode = "select";
+            localConfig.value.homeBgmFilename = "";
+            localConfig.value.homeBgmTempAsset = null;
+            localConfig.value.buttonClikingSE = (config as any).buttonClikingSE || "";
+            localConfig.value.buttonClikingSEMode = "select";
+            localConfig.value.buttonClikingSEFilename = "";
+            localConfig.value.buttonClikingSETempAsset = null;
+            localConfig.value.onCompletedLoadingSE = (config as any).onCompletedLoadingSE || "";
+            localConfig.value.onCompletedLoadingSEMode = "select";
+            localConfig.value.onCompletedLoadingSEFilename = "";
+            localConfig.value.onCompletedLoadingSETempAsset = null;
+            localConfig.value.title = (config as any).title || "2025年度 ジャックポッド大会！";
+            localConfig.value.subtitle = (config as any).subtitle || "";
         }
     } catch (error) {
         console.error("Failed to load home config:", error);

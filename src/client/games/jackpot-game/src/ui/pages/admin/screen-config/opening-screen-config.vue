@@ -85,7 +85,9 @@ const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("opening");
         if (config) {
-            localConfig.value = config as OpeningScreenSetting;
+            const openingConfig = config as OpeningScreenSetting;
+            localConfig.value.bgmAssetId = openingConfig.bgmAssetId;
+            localConfig.value.contents = openingConfig.contents;
         }
     } catch (error) {
         console.error("Failed to load opening config:", error);

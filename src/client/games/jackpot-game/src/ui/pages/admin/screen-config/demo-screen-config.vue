@@ -78,11 +78,9 @@ const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("demo");
         if (config) {
-            localConfig.value = {
-                demoBgm: (config as any).demoBgm || "",
-                demoSe1: (config as any).demoSe1 || "",
-                demoSe2: (config as any).demoSe2 || "",
-            };
+            localConfig.value.demoBgm = (config as any).demoBgm || "";
+            localConfig.value.demoSe1 = (config as any).demoSe1 || "";
+            localConfig.value.demoSe2 = (config as any).demoSe2 || "";
         }
     } catch (error) {
         console.error("Failed to load demo config:", error);

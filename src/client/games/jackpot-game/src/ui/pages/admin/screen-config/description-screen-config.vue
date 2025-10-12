@@ -62,9 +62,7 @@ const loadConfig = async () => {
 	try {
 		const config = await screenConfigService.fetchScreenConfig("description");
 		if (config) {
-			localConfig.value = {
-				descriptionBgm: (config as any).descriptionBgm || "",
-			};
+			localConfig.value.descriptionBgm = (config as any).descriptionBgm || "";
 		}
 	} catch (error) {
 		console.error("Failed to load description config:", error);

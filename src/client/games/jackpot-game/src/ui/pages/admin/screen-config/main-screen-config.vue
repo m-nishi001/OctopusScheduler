@@ -78,11 +78,9 @@ const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("main");
         if (config) {
-            localConfig.value = {
-                mainBgm: (config as any).mainBgm || "",
-                mainSe1: (config as any).mainSe1 || "",
-                mainSe2: (config as any).mainSe2 || "",
-            };
+            localConfig.value.mainBgm = (config as any).mainBgm || "";
+            localConfig.value.mainSe1 = (config as any).mainSe1 || "";
+            localConfig.value.mainSe2 = (config as any).mainSe2 || "";
         }
     } catch (error) {
         console.error("Failed to load main config:", error);

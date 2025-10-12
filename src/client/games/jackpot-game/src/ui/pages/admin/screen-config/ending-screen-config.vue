@@ -78,11 +78,9 @@ const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("ending");
         if (config) {
-            localConfig.value = {
-                endingBgm: (config as any).endingBgm || "",
-                endingSe1: (config as any).endingSe1 || "",
-                endingSe2: (config as any).endingSe2 || "",
-            };
+            localConfig.value.endingBgm = (config as any).endingBgm || "";
+            localConfig.value.endingSe1 = (config as any).endingSe1 || "";
+            localConfig.value.endingSe2 = (config as any).endingSe2 || "";
         }
     } catch (error) {
         console.error("Failed to load ending config:", error);
