@@ -6,12 +6,14 @@ import { toMember } from "./dto/member-dto";
 import type { Asset } from "../../domains/asset/asset";
 import type { Member } from "../../domains/member/member";
 import { FileUtils } from "../../infrastructures/utils/file-utils";
+import { AssetService } from "../asset/asset-service";
 
 @injectable()
 export class MemberAddService {
   constructor(
     @inject("IAssetRepository") private assetRepo: IAssetRepository,
-    @inject("IMemberRepository") private memberRepo: IMemberRepository
+    @inject("IMemberRepository") private memberRepo: IMemberRepository,
+    @inject(AssetService) private assetService: AssetService
   ) {}
 
   async createTempAsset(file: File): Promise<Asset> {
@@ -44,6 +46,10 @@ export class MemberAddService {
     const addedMember = addedMembers[0];
     if (tempAsset) {
       addedMember.photoDataUrl = tempAsset.dataUrl;
+    }
+    if (assetId) {
+      // ここは待たなくて良い。
+      this.assetService.registerRef(assetId, addedMember.id);
     }
     return addedMember;
   }

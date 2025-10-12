@@ -5,7 +5,7 @@ import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
-import { fromMember, toMember } from "../../applications/member/dto/member-dto";
+import { fromMember } from "../../applications/member/dto/member-dto";
 
 @injectable()
 export class MemberRepository implements IMemberRepository {
@@ -39,22 +39,16 @@ export class MemberRepository implements IMemberRepository {
         .invoke();
     });
 
-    const addedMembers = await Promise.all(
-      ids.map(async (id) => {
-        const dto = await new Promise<MemberDto>((resolve, reject) => {
-          this.gasService!.createCall<MemberDto>(
-            "MemberService.getMemberById",
-            { id }
-          )
-            .withSuccessed(resolve)
-            .withFailuered((msg: string) => reject(new Error(msg)))
-            .invoke();
-        });
-        const member = toMember(dto);
-        await this.localStorage.save(member.id, member);
-        return member;
-      })
-    );
+    // 渡したmembersと返されたidsを組み合わせてローカルストレージに保存
+    const addedMembers = members.map((member, index) => ({
+      ...member,
+      id: ids[index],
+    }));
+
+    for (const addedMember of addedMembers) {
+      await this.localStorage.save(addedMember.id, addedMember);
+    }
+
     return addedMembers;
   }
 

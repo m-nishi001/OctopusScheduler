@@ -307,10 +307,6 @@ const addMember = async () => {
   try {
     const addedMember = await memberAddService.saveMember(newMember, tempAsset.value || undefined);
     members.value.push(addedMember);
-    // Register asset reference
-    if (addedMember.photoAssetId) {
-      await assetService.registerRef(addedMember.photoAssetId, addedMember.id);
-    }
   } catch (error) {
     console.error("Failed to add member:", error);
   } finally {
