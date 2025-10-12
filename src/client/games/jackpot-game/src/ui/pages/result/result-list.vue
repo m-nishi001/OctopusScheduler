@@ -21,7 +21,7 @@ import { useRouter } from 'vue-router';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
 import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
-import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { container } from 'tsyringe';
 
 export default {
@@ -33,9 +33,9 @@ export default {
 		const loading = ref(true);
 		const drawResultRepo = container.resolve(DrawResultRepository);
 		const screenConfig = ref<IScreenConfig | null>(null);
-		const screenConfigRepo = container.resolve(ScreenConfigRepository);
+		const screenConfigService = container.resolve(ScreenConfigService);
 		onMounted(async () => {
-			screenConfig.value = await screenConfigRepo.getScreenConfigById('result');
+			screenConfig.value = await screenConfigService.fetchScreenConfig('result');
 			try {
 				const results = await drawResultRepo.getDrawResults();
 				winners.value = results;

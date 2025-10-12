@@ -34,7 +34,7 @@ import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenElement } from '../../../model/domains/screen-config/description-screen-config';
 import { DescriptionScreenConfig } from '../../../model/domains/screen-config/description-screen-config';
-import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',
@@ -43,7 +43,7 @@ export default {
 		const router = useRouter();
 		// ScreenConfigRepositoryから取得
 		const screenConfig = ref<DescriptionScreenConfig | null>(null);
-		const screenConfigRepo = container.resolve(ScreenConfigRepository);
+		const screenConfigService = container.resolve(ScreenConfigService);
 		const slideIndex = ref(0);
 		const currentSlide = ref<ScreenElement | null>(null);
 
@@ -70,7 +70,7 @@ export default {
 		const bgmAssetUrl = computed(() => (screenConfig.value as DescriptionScreenConfig)?.descriptionBgm);
 
 		onMounted(async () => {
-			screenConfig.value = await screenConfigRepo.getScreenConfigById('description') as DescriptionScreenConfig;
+			screenConfig.value = await screenConfigService.fetchScreenConfig('description') as DescriptionScreenConfig;
 			currentSlide.value = elements.value[0] ?? null;
 			setTimeout(playBGM, 1200);
 		});
