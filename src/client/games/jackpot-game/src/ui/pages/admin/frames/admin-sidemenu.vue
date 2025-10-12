@@ -4,7 +4,7 @@
       <ul>
         <li>
           <router-link to="/jackpot-admin/members" class="menu-link">
-            <span class="icon">�</span> メンバー設定
+            <span class="icon">👥</span> メンバー設定
           </router-link>
         </li>
         <li>
