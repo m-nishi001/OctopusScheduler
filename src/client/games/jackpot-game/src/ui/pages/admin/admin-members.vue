@@ -142,6 +142,7 @@ import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { MemberService } from '../../../model/applications/member/member-service';
 import { MemberAddService } from '../../../model/applications/member/member-add-service';
+import { MemberDeleteService } from '../../../model/applications/member/member-delete-service';
 import type { AssetMetadata } from "../../../model/domains/asset/repository/i-asset-repository";
 import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
 import type { Asset } from "../../../model/domains/asset/asset";
@@ -151,6 +152,7 @@ const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
 const assetService = container.resolve<AssetService>(AssetService);
 const memberService = container.resolve<MemberService>(MemberService);
 const memberAddService = container.resolve<MemberAddService>(MemberAddService);
+const memberDeleteService = container.resolve<MemberDeleteService>(MemberDeleteService);
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
 const assets = ref<AssetMetadata[]>([]);
@@ -318,12 +320,7 @@ const deleteMember = async (id: string) => {
   deleting.value = true;
   deleteMessage.value = "メンバーを削除しています...";
   try {
-    const member = members.value.find(m => m.id === id);
-    await memberRepo.deleteMembers([id]);
-    // Unregister asset reference
-    if (member?.photoAssetId) {
-      await assetService.unregisterRef(member.photoAssetId, member.id);
-    }
+    await memberDeleteService.deleteMember(id);
     await fetchMembers();
   } catch (error) {
     console.error("Failed to delete member:", error);
@@ -337,14 +334,7 @@ const deleteSelectedMembers = async () => {
   deleting.value = true;
   deleteMessage.value = "メンバーを削除しています...";
   try {
-    const membersToDelete = members.value.filter(m => selectedMembers.value.includes(m.id));
-    await memberRepo.deleteMembers(selectedMembers.value);
-    // Unregister asset references
-    for (const member of membersToDelete) {
-      if (member.photoAssetId) {
-        await assetService.unregisterRef(member.photoAssetId, member.id);
-      }
-    }
+    await memberDeleteService.deleteMembers(selectedMembers.value);
     await fetchMembers();
     selectedMembers.value = [];
   } catch (error) {

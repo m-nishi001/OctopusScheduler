@@ -22,10 +22,6 @@ export class MemberService {
     await this.repo.updateMembers(updateOps);
   }
 
-  async deleteMember(id: string): Promise<void> {
-    await this.repo.deleteMembers([id]);
-  }
-
   async syncMembers(): Promise<void> {
     await this.repo.syncMembers();
   }

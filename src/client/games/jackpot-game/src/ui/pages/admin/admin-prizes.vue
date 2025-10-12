@@ -240,6 +240,7 @@ import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { PrizeService } from '../../../model/applications/prize/prize-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
+import { PrizeDeleteService } from '../../../model/applications/prize/prize-delete-service';
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/i-prize-repository';
 
 import { container } from 'tsyringe';
@@ -247,6 +248,7 @@ const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
 const assetService = container.resolve(AssetService);
 const prizeService = container.resolve(PrizeService);
 const prizeAddService = container.resolve(PrizeAddService);
+const prizeDeleteService = container.resolve(PrizeDeleteService);
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
 const assets = ref<any[]>([]);
@@ -344,18 +346,7 @@ const deletePrize = async (id: string) => {
   deleting.value = true;
   deleteMessage.value = "景品を削除しています...";
   try {
-    const prize = prizes.value.find(p => p.id === id);
-    await prizeRepo.deletePrizes([id]);
-    // Unregister asset references
-    if (prize?.imageAssetId) {
-      await assetService.unregisterRef(prize.imageAssetId, prize.id);
-    }
-    if (prize?.bgm1AssetId) {
-      await assetService.unregisterRef(prize.bgm1AssetId, prize.id);
-    }
-    if (prize?.bgm2AssetId) {
-      await assetService.unregisterRef(prize.bgm2AssetId, prize.id);
-    }
+    await prizeDeleteService.deletePrize(id);
     await fetchPrizes();
   } catch (error) {
     console.error("Failed to delete prize:", error);
@@ -369,20 +360,7 @@ const deleteSelectedPrizes = async () => {
   deleting.value = true;
   deleteMessage.value = "景品を削除しています...";
   try {
-    const prizesToDelete = prizes.value.filter(p => selectedPrizes.value.includes(p.id));
-    await prizeRepo.deletePrizes(selectedPrizes.value);
-    // Unregister asset references
-    for (const prize of prizesToDelete) {
-      if (prize.imageAssetId) {
-        await assetService.unregisterRef(prize.imageAssetId, prize.id);
-      }
-      if (prize.bgm1AssetId) {
-        await assetService.unregisterRef(prize.bgm1AssetId, prize.id);
-      }
-      if (prize.bgm2AssetId) {
-        await assetService.unregisterRef(prize.bgm2AssetId, prize.id);
-      }
-    }
+    await prizeDeleteService.deletePrizes(selectedPrizes.value);
     await fetchPrizes();
     selectedPrizes.value = [];
   } catch (error) {

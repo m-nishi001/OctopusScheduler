@@ -21,10 +21,6 @@ export class PrizeService {
     await this.repo.updatePrizes(updateOps);
   }
 
-  async deletePrize(id: string): Promise<void> {
-    await this.repo.deletePrizes([id]);
-  }
-
   async syncPrizes(): Promise<void> {
     // サーバーから全景品を取得してローカルストレージに同期
     await this.repo.syncPrizes();
