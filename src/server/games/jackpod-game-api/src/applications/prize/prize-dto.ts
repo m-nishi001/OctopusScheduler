@@ -7,5 +7,4 @@ export interface PrizeDto {
   bgm1AssetId?: string;
   bgm2AssetId?: string;
   order: number;
-  imageDataUrl?: string;
 }
