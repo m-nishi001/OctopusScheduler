@@ -13,10 +13,10 @@ export class ScreenConfigService implements GasService {
     private readonly repository: IScreenConfigRepository
   ) {
     this.functions = {
-      getScreenConfigs: this.getScreenConfigs,
-      updateScreenConfig: this.updateScreenConfig,
-      deleteScreenConfig: this.deleteScreenConfig,
-      addScreenConfigs: this.addScreenConfigs,
+      getScreenConfigs: this.getScreenConfigs.bind(this),
+      updateScreenConfig: this.updateScreenConfig.bind(this),
+      deleteScreenConfig: this.deleteScreenConfig.bind(this),
+      addScreenConfigs: this.addScreenConfigs.bind(this),
     };
   }
 
