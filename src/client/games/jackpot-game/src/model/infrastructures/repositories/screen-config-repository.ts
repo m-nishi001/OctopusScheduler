@@ -1,9 +1,17 @@
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
+import { ScreenSettings } from "../../../../../../packages/common-lib/src/screen-settings";
 import type { IScreenConfig } from "../../domains/screen-config/IScreenConfig";
 import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
+import { HomeScreenConfig } from "../../domains/screen-config/HomeScreenConfig";
+import { OpeningScreenConfig } from "../../domains/screen-config/OpeningScreenConfig";
+import { DescriptionScreenConfig } from "../../domains/screen-config/DescriptionScreenConfig";
+import { DemoScreenConfig } from "../../domains/screen-config/DemoScreenConfig";
+import { MainScreenConfig } from "../../domains/screen-config/MainScreenConfig";
+import { ResultScreenConfig } from "../../domains/screen-config/ResultScreenConfig";
+import { EndingScreenConfig } from "../../domains/screen-config/EndingScreenConfig";
 
 @injectable()
 export class ScreenConfigRepository implements IScreenConfigRepository {
@@ -36,19 +44,21 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     }
     if (this.gasService) {
       try {
-        const promises = configs.map(
-          (config) =>
-            new Promise<void>((resolve, reject) => {
-              this.gasService!.createCall<void>(
-                "ScreenConfigService.updateScreenConfig",
-                config
-              )
-                .withSuccessed(() => resolve())
-                .withFailuered((msg: string) => reject(new Error(msg)))
-                .invoke();
-            })
-        );
-        await Promise.all(promises);
+        const records: string[][] = [];
+        for (const config of configs) {
+          for (const [key, value] of config.toRecords()) {
+            records.push([config.id, config.type, key, value]);
+          }
+        }
+        await new Promise<void>((resolve, reject) => {
+          this.gasService!.createCall<void>(
+            "ScreenConfigService.updateScreenConfig",
+            records
+          )
+            .withSuccessed(() => resolve())
+            .withFailuered((msg: string) => reject(new Error(msg)))
+            .invoke();
+        });
       } catch (e) {
         console.warn("Failed to save to GAS:", e);
       }
@@ -72,46 +82,106 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
   async syncScreenConfigs(): Promise<void> {
     if (!this.gasService) throw new Error("GAS service not available");
     // サーバーから全画面設定を取得
-    const allTypes: string[] = [
-      "home",
-      "opening",
-      "description",
-      "demo",
-      "main",
-      "result",
-      "admin",
-    ]; // 仮定
-    const serverConfigs: IScreenConfig[] = [];
-    const promises = allTypes.map(async (type) => {
-      try {
-        const dto = await new Promise<IScreenConfig | null>(
-          (resolve, reject) => {
-            this.gasService!.createCall<any>(
-              "ScreenConfigService.getScreenConfig",
-              { id: type }
-            )
-              .withSuccessed((res: any) => resolve(res ? res : null))
-              .withFailuered((msg: string) => reject(new Error(msg)))
-              .invoke();
-          }
-        );
-        if (dto) {
-          serverConfigs.push(dto);
-          this.cache.set(type, dto);
-          await this.localStorage.save(`screen_${type}`, dto);
+    try {
+      const settings: ScreenSettings = await new Promise<ScreenSettings>(
+        (resolve, reject) => {
+          this.gasService!.createCall<ScreenSettings>(
+            "ScreenConfigService.getScreenConfigs"
+          )
+            .withSuccessed((res: ScreenSettings) => resolve(res))
+            .withFailuered((msg: string) => reject(new Error(msg)))
+            .invoke();
         }
-      } catch (e) {
-        console.warn(`Failed to sync screen config for ${type}:`, e);
+      );
+      // settings.settings を grouped して IScreenConfig に変換
+      const grouped = settings.settings.reduce(
+        (acc, [id, type, key, value]) => {
+          acc[type] ||= { id, type, records: new Map<string, string>() };
+          acc[type].records.set(key, value);
+          return acc;
+        },
+        {} as Record<
+          string,
+          { id: string; type: string; records: Map<string, string> }
+        >
+      );
+      const serverConfigs: IScreenConfig[] = [];
+      for (const type in grouped) {
+        const { id, records: configMap } = grouped[type];
+        let config: IScreenConfig;
+        switch (type) {
+          case "home":
+            config = new HomeScreenConfig(
+              configMap.get("homeBgm") || "",
+              configMap.get("buttonClikingSE") || "",
+              configMap.get("onCompletedLoadingSE") || "",
+              id
+            );
+            break;
+          case "opening":
+            config = new OpeningScreenConfig(
+              configMap.get("openingBgm") || "",
+              configMap.get("openingSe1") || "",
+              configMap.get("openingSe2") || "",
+              id
+            );
+            break;
+          case "description":
+            config = new DescriptionScreenConfig(
+              configMap.get("descriptionBgm") || "",
+              JSON.parse(configMap.get("screenElements") || "[]"),
+              id
+            );
+            break;
+          case "demo":
+            config = new DemoScreenConfig(
+              configMap.get("demoBgm") || "",
+              configMap.get("demoSe1") || "",
+              configMap.get("demoSe2") || "",
+              id
+            );
+            break;
+          case "main":
+            config = new MainScreenConfig(
+              configMap.get("mainBgm") || "",
+              configMap.get("mainSe1") || "",
+              configMap.get("mainSe2") || "",
+              id
+            );
+            break;
+          case "result":
+            config = new ResultScreenConfig(
+              configMap.get("resultBgm") || "",
+              configMap.get("resultSe1") || "",
+              configMap.get("resultSe2") || "",
+              id
+            );
+            break;
+          case "ending":
+            config = new EndingScreenConfig(
+              configMap.get("endingBgm") || "",
+              configMap.get("endingSe1") || "",
+              configMap.get("endingSe2") || "",
+              id
+            );
+            break;
+          default:
+            continue;
+        }
+        serverConfigs.push(config);
+        this.cache.set(type, config);
+        await this.localStorage.save(`screen_${type}`, config);
       }
-    });
-    await Promise.all(promises);
-    // サーバーにないローカルの設定を削除
-    const localConfigs = await this.getScreenConfigs();
-    const serverTypes = new Set(serverConfigs.map((c) => c.type));
-    const toDelete = localConfigs.filter((c) => !serverTypes.has(c.type));
-    for (const config of toDelete) {
-      await this.localStorage.remove(`screen_${config.type}`);
-      this.cache.delete(config.type);
+      // サーバーにないローカルの設定を削除
+      const localConfigs = await this.getScreenConfigs();
+      const serverTypes = new Set(serverConfigs.map((c) => c.type));
+      const toDelete = localConfigs.filter((c) => !serverTypes.has(c.type));
+      for (const config of toDelete) {
+        await this.localStorage.remove(`screen_${config.type}`);
+        this.cache.delete(config.type);
+      }
+    } catch (e) {
+      console.warn("Failed to sync screen configs:", e);
     }
   }
 

@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { GasService } from "../draw/gas-service";
-import { IScreenConfig } from "../../domain/screen-config/IScreenConfig";
 import { IScreenConfigRepository } from "../../domain/screen-config/screen-config-repository";
+import { ScreenSettings } from "../../domain/screen-config/screen-settings";
 
 @injectable()
 export class ScreenConfigService implements GasService {
@@ -14,30 +14,25 @@ export class ScreenConfigService implements GasService {
   ) {
     this.functions = {
       getScreenConfigs: this.getScreenConfigs,
-      getScreenConfig: this.getScreenConfig,
       updateScreenConfig: this.updateScreenConfig,
       deleteScreenConfig: this.deleteScreenConfig,
       addScreenConfigs: this.addScreenConfigs,
     };
   }
 
-  getScreenConfigs(): IScreenConfig[] {
+  getScreenConfigs(): ScreenSettings {
     return this.repository.getScreenConfigs();
   }
 
-  getScreenConfig(args: { id: string }): IScreenConfig | null {
-    return this.repository.getScreenConfigById(args.id);
-  }
-
-  updateScreenConfig(args: { config: IScreenConfig }): void {
-    this.repository.updateScreenConfigs([args.config]);
+  updateScreenConfig(args: string[][]): void {
+    this.repository.updateScreenSettings(new ScreenSettings(args));
   }
 
   deleteScreenConfig(args: { type: string }): void {
     this.repository.deleteScreenConfigs([args.type]);
   }
 
-  addScreenConfigs(args: { configs: IScreenConfig[] }): void {
+  addScreenConfigs(args: { configs: ScreenSettings }): void {
     this.repository.addScreenConfigs(args.configs);
   }
 }
