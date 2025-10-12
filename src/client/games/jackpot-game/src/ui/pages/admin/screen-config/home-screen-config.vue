@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
-import { HomeScreenConfig } from '../../../../model/domains/screen-config/home-screen-config';
+import { HomeScreenSetting } from '../../../../model/domains/screen-config/home-screen-setting';
 import { HomeScreenConfigConverter } from '../../../../model/applications/screen-config/home/home-screen-config-converter';
 import { container } from 'tsyringe';
 
@@ -104,7 +104,7 @@ onMounted(async () => {
 
 const handleSaveClick = async () => {
     await handleSave(async () => {
-        const config = new HomeScreenConfig(
+        const config = new HomeScreenSetting(
             localConfig.value.homeBgm,
             localConfig.value.buttonClikingSE,
             localConfig.value.onCompletedLoadingSE

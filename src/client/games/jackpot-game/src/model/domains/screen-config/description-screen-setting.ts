@@ -1,4 +1,4 @@
-import type { IScreenConfig, ScreenType } from "./i-screen-config";
+import type { IScreenSetting, ScreenType } from "./i-screen-setting";
 
 export type ScreenElementType =
   | "text"
@@ -30,7 +30,7 @@ export interface AnimationSettings {
   scrollDirection?: "up" | "down" | "left" | "right";
 }
 
-export class DescriptionScreenConfig implements IScreenConfig {
+export class DescriptionScreenSetting implements IScreenSetting {
   type: ScreenType = "description";
   descriptionBgm: string;
   screenElements: ScreenElement[];
@@ -47,8 +47,8 @@ export class DescriptionScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(records: Map<string, string>): DescriptionScreenConfig {
-    return new DescriptionScreenConfig(
+  static fromRecords(records: Map<string, string>): DescriptionScreenSetting {
+    return new DescriptionScreenSetting(
       records.get("descriptionBgm") || "",
       JSON.parse(records.get("screenElements") || "[]")
     );

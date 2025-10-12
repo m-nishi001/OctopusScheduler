@@ -23,7 +23,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
+import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { container } from 'tsyringe';
 import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
@@ -31,18 +31,18 @@ import { MemberRepository } from '../../../model/infrastructures/repositories/me
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
-import { DemoScreenConfig } from '../../../model/domains/screen-config/demo-screen-config';
+import { DemoScreenSetting } from '../../../model/domains/screen-config/demo-screen-setting';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },
   setup() {
     const router = useRouter();
     // ScreenConfigRepositoryから取得
-    const screenConfig = ref<IScreenConfig | null>(null);
+    const screenConfig = ref<IScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('demo');
-      screenConfig.value = config ?? new DemoScreenConfig("", "", "");
+      screenConfig.value = config ?? new DemoScreenSetting("", "", "");
       setTimeout(playBGM, 1200);
     });
 

@@ -29,12 +29,12 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import ThreeHero from '../../shared/graphics/three-hero.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
+import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import type { IAssetRepository } from '../../../model/domains/asset/repository/i-asset-repository';
-import { HomeScreenConfig } from '../../../model/domains/screen-config/home-screen-config';
+import { HomeScreenSetting } from '../../../model/domains/screen-config/home-screen-setting';
 
 export default {
   name: 'Home',
@@ -46,7 +46,7 @@ export default {
     const goOpening = () => router.push('/jackpot-opening');
     const goAdmin = () => router.push('/jackpot-admin');
 
-    const screenConfig = ref<IScreenConfig | null>(null);
+    const screenConfig = ref<IScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     const assetRepo = container.resolve<IAssetRepository>("IAssetRepository");
 
@@ -83,7 +83,7 @@ export default {
         progress.value = 50;
       }
       const config = await screenConfigService.fetchScreenConfig('home');
-      screenConfig.value = config ?? new HomeScreenConfig("", "", "");
+      screenConfig.value = config ?? new HomeScreenSetting("", "", "");
 
       for (let i = progress.value; i <= 100; i += 8) {
         progress.value = i;

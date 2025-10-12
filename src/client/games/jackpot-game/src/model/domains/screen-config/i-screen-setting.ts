@@ -7,7 +7,7 @@ export type ScreenType =
   | "result"
   | "ending";
 
-export interface IScreenConfig {
+export interface IScreenSetting {
   type: ScreenType;
   toRecords(): Map<string, string>;
 }

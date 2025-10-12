@@ -54,7 +54,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
-import { MainScreenConfig } from '../../../../model/domains/screen-config/main-screen-config';
+import { MainScreenSetting } from '../../../../model/domains/screen-config/main-screen-setting';
 import { MainScreenConfigConverter } from '../../../../model/applications/screen-config/main/main-screen-config-converter';
 import { container } from 'tsyringe';
 
@@ -95,7 +95,7 @@ onMounted(async () => {
 
 const handleSaveClick = async () => {
     await handleSave(async () => {
-        const config = new MainScreenConfig(
+        const config = new MainScreenSetting(
             localConfig.value.mainBgm,
             localConfig.value.mainSe1,
             localConfig.value.mainSe2

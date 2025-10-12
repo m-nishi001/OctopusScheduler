@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
-import type { IScreenConfigRepository } from "../../domains/screen-config/repository/i-screen-config-repository";
+import type { IScreenSettingRepository } from "../../domains/screen-config/repository/i-screen-setting-repository";
 import { ScreenSetting } from "../../domains/screen-config/screen-setting";
-import type { IScreenConfig } from "../../domains/screen-config/i-screen-config";
+import type { IScreenSetting } from "../../domains/screen-config/i-screen-setting";
 import {
   IScreenConfigConverterToken,
   type IScreenConfigConverter,
@@ -11,10 +11,10 @@ import { container } from "tsyringe";
 @injectable()
 export class ScreenConfigService {
   constructor(
-    @inject("IScreenConfigRepository") private repo: IScreenConfigRepository
+    @inject("IScreenSettingRepository") private repo: IScreenSettingRepository
   ) {}
 
-  async fetchScreenConfig(type: string): Promise<IScreenConfig | null> {
+  async fetchScreenConfig(type: string): Promise<IScreenSetting | null> {
     const settings = await this.repo.getScreenSettingsByType(type);
     const converters = container.resolveAll<IScreenConfigConverter>(
       IScreenConfigConverterToken

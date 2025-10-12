@@ -1,6 +1,6 @@
-import type { IScreenConfig, ScreenType } from "./i-screen-config";
+import type { IScreenSetting, ScreenType } from "./i-screen-setting";
 
-export class MainScreenConfig implements IScreenConfig {
+export class MainScreenSetting implements IScreenSetting {
   type: ScreenType = "main";
   mainBgm: string;
   mainSe1: string;
@@ -20,8 +20,8 @@ export class MainScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(records: Map<string, string>): MainScreenConfig {
-    return new MainScreenConfig(
+  static fromRecords(records: Map<string, string>): MainScreenSetting {
+    return new MainScreenSetting(
       records.get("mainBgm") || "",
       records.get("mainSe1") || "",
       records.get("mainSe2") || ""

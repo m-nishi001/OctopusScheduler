@@ -65,7 +65,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
-import { OpeningScreenConfig, type OpeningContent } from '../../../../model/domains/screen-config/opening-screen-config';
+import { OpeningScreenSetting, type OpeningContent } from '../../../../model/domains/screen-config/opening-screen-setting';
 import { OpeningScreenConfigConverter } from '../../../../model/applications/screen-config/opening/opening-screen-config-converter';
 import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
 import { container } from 'tsyringe';
@@ -79,13 +79,13 @@ const {
     onTempAssets,
 } = useScreenSettingData();
 
-const localConfig = ref<OpeningScreenConfig>(new OpeningScreenConfig());
+const localConfig = ref<OpeningScreenSetting>(new OpeningScreenSetting());
 
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("opening");
         if (config) {
-            localConfig.value = config as OpeningScreenConfig;
+            localConfig.value = config as OpeningScreenSetting;
         }
     } catch (error) {
         console.error("Failed to load opening config:", error);
@@ -186,7 +186,7 @@ const removeContent = (idx: number) => {
 const handleSaveClick = async () => {
     await handleSave(async () => {
         const converter = container.resolve(OpeningScreenConfigConverter);
-        const settings = converter.toSettings(localConfig.value as OpeningScreenConfig);
+        const settings = converter.toSettings(localConfig.value as OpeningScreenSetting);
         await screenConfigService.saveScreenConfigs(settings);
         await loadConfig();
     });

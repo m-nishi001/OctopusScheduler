@@ -25,10 +25,10 @@ import { DrawResultRepository } from '../../../model/infrastructures/repositorie
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
+import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
-import { ResultScreenConfig } from '../../../model/domains/screen-config/result-screen-config';
+import { ResultScreenSetting } from '../../../model/domains/screen-config/result-screen-setting';
 
 export default {
   name: 'ResultView',
@@ -37,14 +37,14 @@ export default {
     const router = useRouter();
     const drawResultRepo = container.resolve(DrawResultRepository);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const screenConfig = ref<IScreenConfig | null>(null);
+    const screenConfig = ref<IScreenSetting | null>(null);
     const winners = ref<any[]>([]);
     const specialWinner = ref<any | undefined>(undefined);
     const lowestWinner = ref<any | undefined>(undefined);
     const fetchResults = async () => {
       const results = await drawResultRepo.getDrawResults();
       const config = await screenConfigService.fetchScreenConfig('result');
-      screenConfig.value = config ?? new ResultScreenConfig("", "", "");
+      screenConfig.value = config ?? new ResultScreenSetting("", "", "");
       winners.value = results.map(r => ({ ...r.member, prize: r.prize.name, id: r.member.id, photo: r.member.photoAssetId }));
       const ranks = results.map(r => r.rank || 0);
       const minRank = Math.min(...ranks);

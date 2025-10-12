@@ -1,6 +1,6 @@
-import type { IScreenConfig, ScreenType } from "./i-screen-config";
+import type { IScreenSetting, ScreenType } from "./i-screen-setting";
 
-export class EndingScreenConfig implements IScreenConfig {
+export class EndingScreenSetting implements IScreenSetting {
   type: ScreenType = "ending";
   endingBgm: string;
   endingSe1: string;
@@ -20,8 +20,8 @@ export class EndingScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(records: Map<string, string>): EndingScreenConfig {
-    return new EndingScreenConfig(
+  static fromRecords(records: Map<string, string>): EndingScreenSetting {
+    return new EndingScreenSetting(
       records.get("endingBgm") || "",
       records.get("endingSe1") || "",
       records.get("endingSe2") || ""

@@ -1,6 +1,6 @@
-import type { IScreenConfig, ScreenType } from "./i-screen-config";
+import type { IScreenSetting, ScreenType } from "./i-screen-setting";
 
-export class ResultScreenConfig implements IScreenConfig {
+export class ResultScreenSetting implements IScreenSetting {
   type: ScreenType = "result";
   resultBgm: string;
   resultSe1: string;
@@ -20,8 +20,8 @@ export class ResultScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(records: Map<string, string>): ResultScreenConfig {
-    return new ResultScreenConfig(
+  static fromRecords(records: Map<string, string>): ResultScreenSetting {
+    return new ResultScreenSetting(
       records.get("resultBgm") || "",
       records.get("resultSe1") || "",
       records.get("resultSe2") || ""

@@ -1,12 +1,12 @@
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
-import type { IScreenConfigRepository } from "../../domains/screen-config/repository/i-screen-config-repository";
+import type { IScreenSettingRepository } from "../../domains/screen-config/repository/i-screen-setting-repository";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
 import { ScreenSetting } from "../../domains/screen-config/screen-setting";
 
 @injectable()
-export class ScreenConfigRepository implements IScreenConfigRepository {
+export class ScreenConfigRepository implements IScreenSettingRepository {
   private readonly localStorage = useLocalStorage(
     StorageConfig.getDbName(),
     StorageConfig.getStoreName("ScreenConfigData")

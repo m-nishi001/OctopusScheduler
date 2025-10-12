@@ -6,7 +6,7 @@ import { ScreenConfigRepository } from "../../model/infrastructures/repositories
 import type { IMemberRepository } from "../../model/domains/member/repository/i-member-repository";
 import type { IAssetRepository } from "../../model/domains/asset/repository/i-asset-repository";
 import type { IPrizeRepository } from "../../model/domains/prize/repository/i-prize-repository";
-import type { IScreenConfigRepository } from "../../model/domains/screen-config/repository/i-screen-config-repository";
+import type { IScreenSettingRepository } from "../../model/domains/screen-config/repository/i-screen-setting-repository";
 import { AssetService } from "../../model/applications/asset/asset-service";
 import { HomeScreenConfigConverter } from "../../model/applications/screen-config/home/home-screen-config-converter";
 import { OpeningScreenConfigConverter } from "../../model/applications/screen-config/opening/opening-screen-config-converter";
@@ -26,8 +26,8 @@ export class Container {
     );
     container.register<IAssetRepository>("IAssetRepository", AssetRepository);
     container.register<IPrizeRepository>("IPrizeRepository", PrizeRepository);
-    container.register<IScreenConfigRepository>(
-      "IScreenConfigRepository",
+    container.register<IScreenSettingRepository>(
+      "IScreenSettingRepository",
       ScreenConfigRepository
     );
     container.register<AssetService>("AssetService", AssetService);
@@ -52,7 +52,7 @@ export class Container {
     container.register(IScreenConfigConverterToken, {
       useClass: EndingScreenConfigConverter,
     });
-    container.register("IScreenConfigRepository", {
+    container.register("IScreenSettingRepository", {
       useClass: ScreenConfigRepository,
     });
     container.register(ScreenConfigService, {

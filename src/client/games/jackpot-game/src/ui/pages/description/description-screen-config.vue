@@ -13,7 +13,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
+import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 import { container } from 'tsyringe';
@@ -23,7 +23,7 @@ export default {
 	setup() {
 		const router = useRouter();
 		// ScreenConfigRepositoryから取得
-		const screenConfig = ref<IScreenConfig | null>(null);
+		const screenConfig = ref<IScreenSetting | null>(null);
 		const screenConfigService = container.resolve(ScreenConfigService);
 		onMounted(async () => {
 			screenConfig.value = await screenConfigService.fetchScreenConfig('description');

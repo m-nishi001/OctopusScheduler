@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
-import { DescriptionScreenConfig } from '../../../../model/domains/screen-config/description-screen-config';
+import { DescriptionScreenSetting } from '../../../../model/domains/screen-config/description-screen-setting';
 import { DescriptionScreenConfigConverter } from '../../../../model/applications/screen-config/description/description-screen-config-converter';
 import { container } from 'tsyringe';
 
@@ -75,7 +75,7 @@ const loadConfig = async () => {
 
 const handleSaveClick = async () => {
 	await handleSave(async () => {
-		const config = new DescriptionScreenConfig(
+		const config = new DescriptionScreenSetting(
 			localConfig.value.descriptionBgm,
 			[]
 		);

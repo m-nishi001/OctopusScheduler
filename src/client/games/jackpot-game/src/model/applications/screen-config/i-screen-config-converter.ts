@@ -1,11 +1,11 @@
-import type { ScreenType } from "../../domains/screen-config/i-screen-config";
+import type { ScreenType } from "../../domains/screen-config/i-screen-setting";
 import { ScreenSetting } from "../../domains/screen-config/screen-setting";
-import type { IScreenConfig } from "../../domains/screen-config/i-screen-config";
+import type { IScreenSetting } from "../../domains/screen-config/i-screen-setting";
 
 export const IScreenConfigConverterToken = Symbol("IScreenConfigConverter");
 
 export interface IScreenConfigConverter {
   getType(): ScreenType;
-  toDto(settings: ScreenSetting[]): IScreenConfig;
-  toSettings(dto: IScreenConfig): ScreenSetting[];
+  toDto(settings: ScreenSetting[]): IScreenSetting;
+  toSettings(dto: IScreenSetting): ScreenSetting[];
 }

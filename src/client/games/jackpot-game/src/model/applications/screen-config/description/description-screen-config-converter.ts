@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { ScreenSetting } from "../../../domains/screen-config/screen-setting";
-import { DescriptionScreenConfig } from "../../../domains/screen-config/description-screen-config";
+import { DescriptionScreenSetting } from "../../../domains/screen-config/description-screen-setting";
 import type { IScreenConfigConverter } from "../i-screen-config-converter";
 
 @injectable()
@@ -11,15 +11,15 @@ export class DescriptionScreenConfigConverter
     return "description";
   }
 
-  toDto(settings: ScreenSetting[]): DescriptionScreenConfig {
+  toDto(settings: ScreenSetting[]): DescriptionScreenSetting {
     const records = new Map<string, string>();
     for (const setting of settings) {
       records.set(setting.settingName, setting.settingValue);
     }
-    return DescriptionScreenConfig.fromRecords(records);
+    return DescriptionScreenSetting.fromRecords(records);
   }
 
-  toSettings(dto: DescriptionScreenConfig): ScreenSetting[] {
+  toSettings(dto: DescriptionScreenSetting): ScreenSetting[] {
     const settings: ScreenSetting[] = [];
     for (const [key, value] of dto.toRecords()) {
       settings.push(new ScreenSetting(dto.type, key, value));

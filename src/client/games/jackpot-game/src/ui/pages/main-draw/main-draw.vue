@@ -36,23 +36,23 @@ import { MemberRepository } from '../../../model/infrastructures/repositories/me
 import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
+import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
-import { MainScreenConfig } from '../../../model/domains/screen-config/main-screen-config';
+import { MainScreenSetting } from '../../../model/domains/screen-config/main-screen-setting';
 export default {
   name: 'MainDraw',
   components: { MainLayout },
   setup() {
     const router = useRouter();
     // ScreenConfigRepositoryから取得
-    const screenConfig = ref<IScreenConfig | null>(null);
+    const screenConfig = ref<IScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('main');
-      screenConfig.value = config ?? new MainScreenConfig("", "", "");
+      screenConfig.value = config ?? new MainScreenSetting("", "", "");
       fetchPrizes();
       fetchMembers();
       setTimeout(playBGM, 1200);

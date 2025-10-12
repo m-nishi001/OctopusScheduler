@@ -1,4 +1,4 @@
-import type { IScreenConfig, ScreenType } from "./i-screen-config";
+import type { IScreenSetting, ScreenType } from "./i-screen-setting";
 
 export interface OpeningContent {
   type: "text" | "image" | "html";
@@ -12,7 +12,7 @@ export interface OpeningContent {
   seAssetId?: string;
 }
 
-export class OpeningScreenConfig implements IScreenConfig {
+export class OpeningScreenSetting implements IScreenSetting {
   type: ScreenType = "opening";
   bgmMode: "select" | "upload";
   bgmAssetId: string;
@@ -36,8 +36,8 @@ export class OpeningScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(records: Map<string, string>): OpeningScreenConfig {
-    return new OpeningScreenConfig(
+  static fromRecords(records: Map<string, string>): OpeningScreenSetting {
+    return new OpeningScreenSetting(
       (records.get("bgmMode") as "select" | "upload") || "select",
       records.get("bgmAssetId") || "",
       JSON.parse(records.get("contents") || "[]")

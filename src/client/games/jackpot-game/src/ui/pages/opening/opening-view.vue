@@ -12,7 +12,7 @@ import OpeningSequence from './opening-sequence.vue';
 import OpeningHtml from './opening-html.vue';
 import { container } from 'tsyringe';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { OpeningScreenConfig } from '../../../model/domains/screen-config/opening-screen-config';
+import { OpeningScreenSetting } from '../../../model/domains/screen-config/opening-screen-setting';
 
 export default {
   name: 'OpeningView',
@@ -27,7 +27,7 @@ export default {
 
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('opening');
-      screenConfig.value = config ?? new OpeningScreenConfig();
+      screenConfig.value = config ?? new OpeningScreenSetting();
 
       if (screenConfig.value?.bgmAssetUrl) {
         bgm.value = new Audio(screenConfig.value.bgmAssetUrl);

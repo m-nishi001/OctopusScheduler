@@ -1,6 +1,6 @@
-import type { IScreenConfig, ScreenType } from "./i-screen-config";
+import type { IScreenSetting, ScreenType } from "./i-screen-setting";
 
-export class DemoScreenConfig implements IScreenConfig {
+export class DemoScreenSetting implements IScreenSetting {
   type: ScreenType = "demo";
   demoBgm: string;
   demoSe1: string;
@@ -20,8 +20,8 @@ export class DemoScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(records: Map<string, string>): DemoScreenConfig {
-    return new DemoScreenConfig(
+  static fromRecords(records: Map<string, string>): DemoScreenSetting {
+    return new DemoScreenSetting(
       records.get("demoBgm") || "",
       records.get("demoSe1") || "",
       records.get("demoSe2") || ""

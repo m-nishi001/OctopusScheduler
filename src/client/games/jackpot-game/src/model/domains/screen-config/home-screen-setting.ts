@@ -1,6 +1,6 @@
-import type { IScreenConfig, ScreenType } from "./i-screen-config";
+import type { IScreenSetting, ScreenType } from "./i-screen-setting";
 
-export class HomeScreenConfig implements IScreenConfig {
+export class HomeScreenSetting implements IScreenSetting {
   type: ScreenType = "home";
   homeBgm: string;
   buttonClikingSE: string;
@@ -24,8 +24,8 @@ export class HomeScreenConfig implements IScreenConfig {
     return records;
   }
 
-  static fromRecords(records: Map<string, string>): HomeScreenConfig {
-    return new HomeScreenConfig(
+  static fromRecords(records: Map<string, string>): HomeScreenSetting {
+    return new HomeScreenSetting(
       records.get("homeBgm") || "",
       records.get("buttonClikingSE") || "",
       records.get("onCompletedLoadingSE") || ""
