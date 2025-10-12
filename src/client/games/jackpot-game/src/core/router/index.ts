@@ -30,7 +30,7 @@ const jackpotGameRoutes = [
       { path: "", component: AdminMembers },
       { path: "members", component: AdminMembers },
       { path: "prizes", component: AdminPrizes },
-      { path: "screens", component: AdminScreens },
+      { path: "screens/:screenType?", component: AdminScreens },
       { path: "assets", component: AdminAssets },
     ],
   },

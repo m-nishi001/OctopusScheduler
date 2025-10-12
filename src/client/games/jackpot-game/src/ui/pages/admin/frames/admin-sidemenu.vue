@@ -24,25 +24,25 @@
           </div>
           <ul v-if="screensSubmenuOpen" class="submenu-list">
             <li>
-              <a href="#" class="submenu-link" @click="selectScreen('home')">ホーム</a>
+              <router-link to="/jackpot-admin/screens/home" class="submenu-link">ホーム</router-link>
             </li>
             <li>
-              <a href="#" class="submenu-link" @click="selectScreen('opening')">オープニング</a>
+              <router-link to="/jackpot-admin/screens/opening" class="submenu-link">オープニング</router-link>
             </li>
             <li>
-              <a href="#" class="submenu-link" @click="selectScreen('description')">説明</a>
+              <router-link to="/jackpot-admin/screens/description" class="submenu-link">説明</router-link>
             </li>
             <li>
-              <a href="#" class="submenu-link" @click="selectScreen('demo')">デモ抽選</a>
+              <router-link to="/jackpot-admin/screens/demo" class="submenu-link">デモ抽選</router-link>
             </li>
             <li>
-              <a href="#" class="submenu-link" @click="selectScreen('main')">本抽選</a>
+              <router-link to="/jackpot-admin/screens/main" class="submenu-link">本抽選</router-link>
             </li>
             <li>
-              <a href="#" class="submenu-link" @click="selectScreen('result')">最終結果</a>
+              <router-link to="/jackpot-admin/screens/result" class="submenu-link">最終結果</router-link>
             </li>
             <li>
-              <a href="#" class="submenu-link" @click="selectScreen('ending')">エンディング</a>
+              <router-link to="/jackpot-admin/screens/ending" class="submenu-link">エンディング</router-link>
             </li>
           </ul>
         </li>
@@ -53,17 +53,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 
-const router = useRouter();
 const screensSubmenuOpen = ref(false);
 
 const toggleScreensSubmenu = () => {
   screensSubmenuOpen.value = !screensSubmenuOpen.value;
-};
-
-const selectScreen = (screenType: string) => {
-  router.push(`/jackpot-admin/screens/${screenType}`);
 };
 </script>
 
