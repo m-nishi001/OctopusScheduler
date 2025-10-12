@@ -66,11 +66,18 @@ export class Transaction<T> {
   }
 
   private loadCache(): void {
-    const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
-    if (sheet && sheet.getLastRow() > 1) {
-      this.cache = SpreadsheetAccessor.toObjectArray(
-        sheet.getDataRange().getValues()
-      ) as T[];
+    try {
+      const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      if (sheet && sheet.getLastRow() > 1) {
+        this.cache = SpreadsheetAccessor.toObjectArray(
+          sheet.getDataRange().getValues()
+        ) as T[];
+      } else {
+        this.cache = [];
+      }
+    } catch (e) {
+      console.error("Failed to load cache:", e);
+      this.cache = [];
     }
   }
 
