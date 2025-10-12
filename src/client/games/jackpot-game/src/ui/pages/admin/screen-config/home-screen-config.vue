@@ -6,21 +6,52 @@
                 <h3>ホーム画面設定</h3>
                 <div class="config-item">
                     <label>ホームBGM:</label>
-                    <select v-model="localConfig.homeBgm" class="admin-input">
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="localConfig.homeBgmMode" value="upload" /> アップロード</label>
+                        <label><input type="radio" v-model="localConfig.homeBgmMode" value="select" /> 既存から選択</label>
+                    </div>
+                    <input v-if="localConfig.homeBgmMode === 'upload'" type="file" @change="(e) => onHomeBgmChange(e)"
+                        accept="audio/*" class="admin-input" />
+                    <div v-if="localConfig.homeBgmMode === 'upload' && localConfig.homeBgmFilename" class="file-name">{{
+                        localConfig.homeBgmFilename }}</div>
+                    <select v-if="localConfig.homeBgmMode === 'select'" v-model="localConfig.homeBgm"
+                        class="admin-input">
                         <option value="">選択なし</option>
                         <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                     </select>
                 </div>
                 <div class="config-item">
                     <label>ボタンクリックSE:</label>
-                    <select v-model="localConfig.buttonClikingSE" class="admin-input">
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="localConfig.buttonClikingSEMode" value="upload" />
+                            アップロード</label>
+                        <label><input type="radio" v-model="localConfig.buttonClikingSEMode" value="select" />
+                            既存から選択</label>
+                    </div>
+                    <input v-if="localConfig.buttonClikingSEMode === 'upload'" type="file"
+                        @change="onButtonClikingSEChange" accept="audio/*" class="admin-input" />
+                    <div v-if="localConfig.buttonClikingSEMode === 'upload' && localConfig.buttonClikingSEFilename"
+                        class="file-name">{{ localConfig.buttonClikingSEFilename }}</div>
+                    <select v-if="localConfig.buttonClikingSEMode === 'select'" v-model="localConfig.buttonClikingSE"
+                        class="admin-input">
                         <option value="">選択なし</option>
                         <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                     </select>
                 </div>
                 <div class="config-item">
                     <label>読み込み完了SE:</label>
-                    <select v-model="localConfig.onCompletedLoadingSE" class="admin-input">
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="localConfig.onCompletedLoadingSEMode" value="upload" />
+                            アップロード</label>
+                        <label><input type="radio" v-model="localConfig.onCompletedLoadingSEMode" value="select" />
+                            既存から選択</label>
+                    </div>
+                    <input v-if="localConfig.onCompletedLoadingSEMode === 'upload'" type="file"
+                        @change="onOnCompletedLoadingSEChange" accept="audio/*" class="admin-input" />
+                    <div v-if="localConfig.onCompletedLoadingSEMode === 'upload' && localConfig.onCompletedLoadingSEFilename"
+                        class="file-name">{{ localConfig.onCompletedLoadingSEFilename }}</div>
+                    <select v-if="localConfig.onCompletedLoadingSEMode === 'select'"
+                        v-model="localConfig.onCompletedLoadingSE" class="admin-input">
                         <option value="">選択なし</option>
                         <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                     </select>
@@ -65,6 +96,9 @@ import { useScreenSettingData } from './use-screen-setting-data';
 import { HomeScreenSetting } from '../../../../model/domains/screen-config/home-screen-setting';
 import { HomeScreenConfigConverter } from '../../../../model/applications/screen-config/home/home-screen-config-converter';
 import { container } from 'tsyringe';
+import { AssetDto } from "../../../../model/applications/asset/dto/asset-dto";
+import { FileUtils } from '../../../../model/infrastructures/utils/file-utils';
+import type { Asset } from "../../../../model/domains/asset/asset";
 
 const {
     screenConfigService,
@@ -75,12 +109,23 @@ const {
     saveStatus,
     uploading,
     handleSave,
+    onTempAssets,
+    assetService,
 } = useScreenSettingData();
 
 const localConfig = ref({
     homeBgm: "",
+    homeBgmMode: "select",
+    homeBgmFilename: "",
+    homeBgmTempAsset: null as AssetDto | null,
     buttonClikingSE: "",
+    buttonClikingSEMode: "select",
+    buttonClikingSEFilename: "",
+    buttonClikingSETempAsset: null as AssetDto | null,
     onCompletedLoadingSE: "",
+    onCompletedLoadingSEMode: "select",
+    onCompletedLoadingSEFilename: "",
+    onCompletedLoadingSETempAsset: null as AssetDto | null,
 });
 
 const loadConfig = async () => {
@@ -89,8 +134,17 @@ const loadConfig = async () => {
         if (config) {
             localConfig.value = {
                 homeBgm: (config as any).homeBgm || "",
+                homeBgmMode: "select",
+                homeBgmFilename: "",
+                homeBgmTempAsset: null,
                 buttonClikingSE: (config as any).buttonClikingSE || "",
+                buttonClikingSEMode: "select",
+                buttonClikingSEFilename: "",
+                buttonClikingSETempAsset: null,
                 onCompletedLoadingSE: (config as any).onCompletedLoadingSE || "",
+                onCompletedLoadingSEMode: "select",
+                onCompletedLoadingSEFilename: "",
+                onCompletedLoadingSETempAsset: null,
             };
         }
     } catch (error) {
@@ -98,16 +152,93 @@ const loadConfig = async () => {
     }
 };
 
-onMounted(async () => {
-    await loadConfig();
-});
+const onHomeBgmChange = async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+        const dataUrl = await FileUtils.readAsDataUrl(file);
+        const asset: Asset = {
+            id: "",
+            name: file.name,
+            type: FileUtils.getAssetType(file.type),
+            dataUrl,
+            uploadedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            size: file.size,
+            referenceFrom: [],
+        };
+        const tempAsset = new AssetDto(asset);
+        localConfig.value.homeBgmTempAsset = tempAsset;
+        localConfig.value.homeBgmFilename = file.name;
+        onTempAssets([tempAsset]);
+    }
+};
+
+const onButtonClikingSEChange = async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+        const dataUrl = await FileUtils.readAsDataUrl(file);
+        const asset: Asset = {
+            id: "",
+            name: file.name,
+            type: FileUtils.getAssetType(file.type),
+            dataUrl,
+            uploadedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            size: file.size,
+            referenceFrom: [],
+        };
+        const tempAsset = new AssetDto(asset);
+        localConfig.value.buttonClikingSETempAsset = tempAsset;
+        localConfig.value.buttonClikingSEFilename = file.name;
+        onTempAssets([tempAsset]);
+    }
+};
+
+const onOnCompletedLoadingSEChange = async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+        const dataUrl = await FileUtils.readAsDataUrl(file);
+        const asset: Asset = {
+            id: "",
+            name: file.name,
+            type: FileUtils.getAssetType(file.type),
+            dataUrl,
+            uploadedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            size: file.size,
+            referenceFrom: [],
+        };
+        const tempAsset = new AssetDto(asset);
+        localConfig.value.onCompletedLoadingSETempAsset = tempAsset;
+        localConfig.value.onCompletedLoadingSEFilename = file.name;
+        onTempAssets([tempAsset]);
+    }
+};
 
 const handleSaveClick = async () => {
     await handleSave(async () => {
+        // Collect temp assets
+        const tempAssetsToAdd: AssetDto[] = [];
+        if (localConfig.value.homeBgmTempAsset) tempAssetsToAdd.push(localConfig.value.homeBgmTempAsset);
+        if (localConfig.value.buttonClikingSETempAsset) tempAssetsToAdd.push(localConfig.value.buttonClikingSETempAsset);
+        if (localConfig.value.onCompletedLoadingSETempAsset) tempAssetsToAdd.push(localConfig.value.onCompletedLoadingSETempAsset);
+
+        // Upload temp assets and get IDs
+        let homeBgmId = localConfig.value.homeBgm;
+        let buttonClikingSEId = localConfig.value.buttonClikingSE;
+        let onCompletedLoadingSEId = localConfig.value.onCompletedLoadingSE;
+
+        if (tempAssetsToAdd.length > 0) {
+            await assetService.addAssets(tempAssetsToAdd);
+            homeBgmId = localConfig.value.homeBgmTempAsset?.id || localConfig.value.homeBgm;
+            buttonClikingSEId = localConfig.value.buttonClikingSETempAsset?.id || localConfig.value.buttonClikingSE;
+            onCompletedLoadingSEId = localConfig.value.onCompletedLoadingSETempAsset?.id || localConfig.value.onCompletedLoadingSE;
+        }
+
         const config = new HomeScreenSetting(
-            localConfig.value.homeBgm,
-            localConfig.value.buttonClikingSE,
-            localConfig.value.onCompletedLoadingSE
+            homeBgmId,
+            buttonClikingSEId,
+            onCompletedLoadingSEId
         );
         const converter = container.resolve(HomeScreenConfigConverter);
         const settings = converter.toSettings(config);
@@ -115,6 +246,10 @@ const handleSaveClick = async () => {
         await loadConfig();
     });
 };
+
+onMounted(async () => {
+    await loadConfig();
+});
 </script>
 
 <style scoped>
