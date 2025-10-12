@@ -43,7 +43,7 @@ import { useScreenSettingData } from './useScreenSettingData';
 import { DescriptionScreenConfig } from '../../../../model/domains/screen-config/DescriptionScreenConfig';
 
 const {
-	screenConfigRepo,
+	screenConfigService,
 	audioAssets,
 	loading,
 	loadingStatus,
@@ -59,7 +59,7 @@ const localConfig = ref({
 
 const loadConfig = async () => {
 	try {
-		const config = await screenConfigRepo.getScreenConfigById("description");
+		const config = await screenConfigService.fetchScreenConfig("description");
 		if (config) {
 			const descriptionConfig = config as DescriptionScreenConfig;
 			localConfig.value = {
@@ -83,7 +83,7 @@ const handleSaveClick = async () => {
 			[],
 			localConfig.value.id || undefined
 		);
-		await screenConfigRepo.updateScreenConfigs([config]);
+		await screenConfigService.saveScreenConfigs([config]);
 		await loadConfig();
 	});
 };

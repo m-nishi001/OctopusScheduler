@@ -57,7 +57,7 @@ import { useScreenSettingData } from './useScreenSettingData';
 import { EndingScreenConfig } from '../../../../model/domains/screen-config/EndingScreenConfig';
 
 const {
-    screenConfigRepo,
+    screenConfigService,
     audioAssets,
     loading,
     loadingStatus,
@@ -75,7 +75,7 @@ const localConfig = ref({
 
 const loadConfig = async () => {
     try {
-        const config = await screenConfigRepo.getScreenConfigById("ending");
+        const config = await screenConfigService.fetchScreenConfig("ending");
         if (config) {
             const endingConfig = config as EndingScreenConfig;
             localConfig.value = {
@@ -102,7 +102,7 @@ const handleSaveClick = async () => {
             localConfig.value.endingSe2,
             localConfig.value.id || undefined
         );
-        await screenConfigRepo.updateScreenConfigs([config]);
+        await screenConfigService.saveScreenConfigs([config]);
         await loadConfig();
     });
 };

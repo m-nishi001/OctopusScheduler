@@ -1,18 +1,16 @@
 import { ref, computed, onMounted } from "vue";
 import { container } from "tsyringe";
-import type { IScreenConfigRepository } from "../../../../model/domains/screen-config/repository/IScreenConfigRepository";
 import { AssetService } from "../../../../model/applications/asset/asset-service";
 import type { IMemberRepository } from "../../../../model/domains/member/repository/IMemberRepository";
 import type { IPrizeRepository } from "../../../../model/domains/prize/repository/IPrizeRepository";
 import { AssetDto } from "../../../../model/applications/asset/dto/asset-dto";
+import { ScreenConfigService } from "../../../../model/applications/screen-config/screen-config-service";
 
 export function useScreenSettingData() {
   const assetService = container.resolve(
     AssetService
   ) as unknown as AssetService;
-  const screenConfigRepo = container.resolve<IScreenConfigRepository>(
-    "IScreenConfigRepository"
-  );
+  const screenConfigService = container.resolve(ScreenConfigService);
   const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
   const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
 
@@ -125,7 +123,7 @@ export function useScreenSettingData() {
 
   return {
     assetService,
-    screenConfigRepo,
+    screenConfigService,
     memberRepo,
     prizeRepo,
     assets,
