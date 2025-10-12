@@ -34,6 +34,7 @@ import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import type { IAssetRepository } from '../../../model/domains/asset/repository/i-asset-repository';
+import { HomeScreenConfig } from '../../../model/domains/screen-config/home-screen-config';
 
 export default {
   name: 'Home',
@@ -82,7 +83,7 @@ export default {
         progress.value = 50;
       }
       const config = await screenConfigService.fetchScreenConfig('home');
-      screenConfig.value = config;
+      screenConfig.value = config ?? new HomeScreenConfig("", "", "");
 
       for (let i = progress.value; i <= 100; i += 8) {
         progress.value = i;

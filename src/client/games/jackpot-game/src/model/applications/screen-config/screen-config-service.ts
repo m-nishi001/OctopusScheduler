@@ -8,9 +8,8 @@ export class ScreenConfigService {
     @inject("IScreenConfigRepository") private repo: IScreenConfigRepository
   ) {}
 
-  async fetchScreenConfig(screenType: string): Promise<IScreenConfig> {
+  async fetchScreenConfig(screenType: string): Promise<IScreenConfig | null> {
     const config = await this.repo.getScreenConfigById(screenType);
-    if (!config) throw new Error(`Screen config not found: ${screenType}`);
     return config;
   }
 

@@ -14,9 +14,10 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
-import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 import { container } from 'tsyringe';
+import { DescriptionScreenConfig } from '../../../model/domains/screen-config/description-screen-config';
 export default {
 	name: 'Description',
 	components: { MainLayout },
@@ -24,9 +25,10 @@ export default {
 		const router = useRouter();
 		// ScreenConfigRepositoryから取得
 		const screenConfig = ref<IScreenConfig | null>(null);
-		const screenConfigRepo = container.resolve(ScreenConfigRepository);
+		const screenConfigService = container.resolve(ScreenConfigService);
 		onMounted(async () => {
-			screenConfig.value = await screenConfigRepo.getScreenConfigById('description');
+			const config = await screenConfigService.fetchScreenConfig('description');
+			screenConfig.value = config ?? new DescriptionScreenConfig("", []);
 			setTimeout(playBGM, 1200);
 		});
 

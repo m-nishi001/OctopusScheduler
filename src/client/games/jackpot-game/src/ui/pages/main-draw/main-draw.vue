@@ -37,10 +37,11 @@ import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
-import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
+import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
+import { MainScreenConfig } from '../../../model/domains/screen-config/main-screen-config';
 export default {
   name: 'MainDraw',
   components: { MainLayout },
@@ -48,9 +49,10 @@ export default {
     const router = useRouter();
     // ScreenConfigRepositoryから取得
     const screenConfig = ref<IScreenConfig | null>(null);
-    const screenConfigRepo = container.resolve(ScreenConfigRepository);
+    const screenConfigService = container.resolve(ScreenConfigService);
     onMounted(async () => {
-      screenConfig.value = await screenConfigRepo.getScreenConfigById('main');
+      const config = await screenConfigService.fetchScreenConfig('main');
+      screenConfig.value = config ?? new MainScreenConfig("", "", "");
       fetchPrizes();
       fetchMembers();
       setTimeout(playBGM, 1200);
