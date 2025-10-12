@@ -131,9 +131,9 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
             break;
           case "opening":
             config = new OpeningScreenConfig(
-              configMap.get("openingBgm") || "",
-              configMap.get("openingSe1") || "",
-              configMap.get("openingSe2") || "",
+              (configMap.get("bgmMode") as "select" | "upload") || "select",
+              configMap.get("bgmAssetId") || "",
+              JSON.parse(configMap.get("contents") || "[]"),
               id
             );
             break;

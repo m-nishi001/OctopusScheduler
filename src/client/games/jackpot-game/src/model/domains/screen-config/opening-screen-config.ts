@@ -1,29 +1,41 @@
 import type { IScreenConfig, ScreenType } from "./i-screen-config";
 
+export interface OpeningContent {
+  type: "text" | "image" | "html";
+  text?: string;
+  content?: string;
+  imageMode?: "select" | "upload";
+  assetId?: string;
+  effect: "scroll" | "fade" | "static";
+  duration: number;
+  seMode?: "select" | "upload";
+  seAssetId?: string;
+}
+
 export class OpeningScreenConfig implements IScreenConfig {
   id: string;
   type: ScreenType = "opening";
-  openingBgm: string;
-  openingSe1: string;
-  openingSe2: string;
+  bgmMode: "select" | "upload";
+  bgmAssetId: string;
+  contents: OpeningContent[];
 
   constructor(
-    openingBgm: string,
-    openingSe1: string,
-    openingSe2: string,
+    bgmMode: "select" | "upload" = "select",
+    bgmAssetId: string = "",
+    contents: OpeningContent[] = [],
     id?: string
   ) {
     this.id = id || this.generateUuid();
-    this.openingBgm = openingBgm;
-    this.openingSe1 = openingSe1;
-    this.openingSe2 = openingSe2;
+    this.bgmMode = bgmMode;
+    this.bgmAssetId = bgmAssetId;
+    this.contents = contents;
   }
 
   toRecords(): Map<string, string> {
     const records = new Map<string, string>();
-    records.set("openingBgm", this.openingBgm);
-    records.set("openingSe1", this.openingSe1);
-    records.set("openingSe2", this.openingSe2);
+    records.set("bgmMode", this.bgmMode);
+    records.set("bgmAssetId", this.bgmAssetId);
+    records.set("contents", JSON.stringify(this.contents));
     return records;
   }
 

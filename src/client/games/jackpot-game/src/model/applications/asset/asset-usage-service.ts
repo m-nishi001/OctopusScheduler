@@ -76,11 +76,10 @@ export class AssetUsageService {
           ].filter(Boolean);
           break;
         case "opening":
-          bgmAssetId = (config as OpeningScreenConfig).openingBgm;
-          seAssetIds = [
-            (config as OpeningScreenConfig).openingSe1,
-            (config as OpeningScreenConfig).openingSe2,
-          ].filter(Boolean);
+          bgmAssetId = (config as OpeningScreenConfig).bgmAssetId;
+          seAssetIds = (config as OpeningScreenConfig).contents
+            .map((c) => c.seAssetId)
+            .filter((id): id is string => Boolean(id));
           break;
         case "description":
           bgmAssetId = (config as DescriptionScreenConfig).descriptionBgm;
