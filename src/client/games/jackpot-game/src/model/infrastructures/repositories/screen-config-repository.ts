@@ -36,7 +36,19 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     }
     if (this.gasService) {
       try {
-        await this.saveToGas(configs);
+        const promises = configs.map(
+          (config) =>
+            new Promise<void>((resolve, reject) => {
+              this.gasService!.createCall<void>(
+                "ScreenConfigService.updateScreenConfig",
+                config
+              )
+                .withSuccessed(() => resolve())
+                .withFailuered((msg: string) => reject(new Error(msg)))
+                .invoke();
+            })
+        );
+        await Promise.all(promises);
       } catch (e) {
         console.warn("Failed to save to GAS:", e);
       }
@@ -55,10 +67,6 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
         console.warn("Failed to delete from GAS:", e);
       }
     }
-  }
-
-  async addScreenConfigs(configs: IScreenConfig[]): Promise<void> {
-    await this.updateScreenConfigs(configs);
   }
 
   async syncScreenConfigs(): Promise<void> {
@@ -125,23 +133,6 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
       );
     }
     return undefined;
-  }
-
-  private async saveToGas(configs: IScreenConfig[]): Promise<void> {
-    if (!this.gasService) return;
-    const promises = configs.map(
-      (config) =>
-        new Promise<void>((resolve, reject) => {
-          this.gasService!.createCall<void>(
-            "ScreenConfigService.updateScreenConfig",
-            config
-          )
-            .withSuccessed(() => resolve())
-            .withFailuered((msg: string) => reject(new Error(msg)))
-            .invoke();
-        })
-    );
-    await Promise.all(promises);
   }
 
   private async deleteFromGas(types: string[]): Promise<void> {
