@@ -25,9 +25,8 @@ import { DrawResultRepository } from '../../../model/infrastructures/repositorie
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 import { ResultScreenSetting } from '../../../model/domains/screen-config/result-screen-setting';
 
 export default {
@@ -35,16 +34,17 @@ export default {
   components: { MainLayout },
   setup() {
     const router = useRouter();
-    const drawResultRepo = container.resolve(DrawResultRepository);
-    const screenConfigService = container.resolve(ScreenConfigService);
-    const screenConfig = ref<IScreenSetting | null>(null);
     const winners = ref<any[]>([]);
     const specialWinner = ref<any | undefined>(undefined);
     const lowestWinner = ref<any | undefined>(undefined);
+    const resultConfig = ref<ResultScreenSetting | null>(null);
+    const screenConfigService = container.resolve(ScreenConfigService);
+    const assetService = container.resolve<AssetService>("AssetService");
+    const drawResultRepo = container.resolve(DrawResultRepository);
     const fetchResults = async () => {
       const results = await drawResultRepo.getDrawResults();
       const config = await screenConfigService.fetchScreenConfig('result');
-      screenConfig.value = config ?? new ResultScreenSetting("", "", "");
+      resultConfig.value = config as ResultScreenSetting ?? new ResultScreenSetting("", "", "");
       winners.value = results.map(r => ({ ...r.member, prize: r.prize.name, id: r.member.id, photo: r.member.photoAssetId }));
       const ranks = results.map(r => r.rank || 0);
       const minRank = Math.min(...ranks);
@@ -59,17 +59,13 @@ export default {
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = async () => {
-      if (!screenConfig.value) return;
-      const resultConfig = screenConfig.value as any; // ResultScreenConfig
-      if (!resultConfig.resultBgm) return;
-      const assetRepo = container.resolve(AssetRepository);
-      const asset = await assetRepo.getAssetById(resultConfig.resultBgm);
-      if (!asset) return;
-      if (!bgmAudio.value) {
+      if (!resultConfig.value || !resultConfig.value.resultBgm) return;
+      const asset = await assetService.getAssetById(resultConfig.value.resultBgm);
+      if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
+        bgmAudio.value.play();
       }
-      bgmAudio.value.play();
     };
     onMounted(() => {
       setTimeout(playBGM, 1200);

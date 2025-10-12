@@ -36,9 +36,8 @@ import { MemberRepository } from '../../../model/infrastructures/repositories/me
 import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import { MainScreenSetting } from '../../../model/domains/screen-config/main-screen-setting';
@@ -48,11 +47,12 @@ export default {
   setup() {
     const router = useRouter();
     // ScreenConfigRepositoryから取得
-    const screenConfig = ref<IScreenSetting | null>(null);
+    const mainConfig = ref<MainScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
+    const assetService = container.resolve<AssetService>("AssetService");
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('main');
-      screenConfig.value = config ?? new MainScreenSetting("", "", "");
+      mainConfig.value = config as MainScreenSetting ?? new MainScreenSetting("", "", "");
       fetchPrizes();
       fetchMembers();
       setTimeout(playBGM, 1200);
@@ -73,32 +73,27 @@ export default {
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = async () => {
-      if (!screenConfig.value) return;
-      const mainConfig = screenConfig.value as any; // MainScreenConfig
-      if (!mainConfig.mainBgm) return;
-      const assetRepo = container.resolve(AssetRepository);
-      const asset = await assetRepo.getAssetById(mainConfig.mainBgm);
-      if (!asset) return;
-      if (!bgmAudio.value) {
+      if (!mainConfig.value || !mainConfig.value.mainBgm) return;
+      const asset = await assetService.getAssetById(mainConfig.value.mainBgm);
+      if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
+        bgmAudio.value.play();
       }
-      bgmAudio.value.play();
     };
 
     const playSE = async (se: string) => {
-      if (!screenConfig.value) return;
-      const mainConfig = screenConfig.value as any; // MainScreenConfig
-      const assetRepo = container.resolve(AssetRepository);
+      if (!mainConfig.value) return;
       let assetId: string | undefined;
       if (se === 'draw') {
-        assetId = mainConfig.mainSe1; // assuming mainSe1 is for draw
+        assetId = mainConfig.value.mainSe1;
       }
       if (!assetId) return;
-      const asset = await assetRepo.getAssetById(assetId);
-      if (!asset) return;
-      const seAudio = new Audio(asset.dataUrl);
-      seAudio.play();
+      const asset = await assetService.getAssetById(assetId);
+      if (asset && asset.dataUrl) {
+        const seAudio = new Audio(asset.dataUrl);
+        seAudio.play();
+      }
     };
 
     // メンバー選出
@@ -151,7 +146,7 @@ export default {
     onMounted(() => window.addEventListener('keydown', handleKey));
     onUnmounted(() => window.removeEventListener('keydown', handleKey));
 
-    return { screenConfig, runMainDraw, drawn, result, currentMember, prizes, showHalfModal };
+    return { mainConfig, runMainDraw, drawn, result, currentMember, prizes, showHalfModal };
   },
 };
 </script>

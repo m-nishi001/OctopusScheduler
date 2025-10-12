@@ -13,9 +13,9 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
+import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DescriptionScreenSetting } from '../../../model/domains/screen-config/description-screen-setting';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',
@@ -23,30 +23,26 @@ export default {
 	setup() {
 		const router = useRouter();
 		// ScreenConfigRepositoryから取得
-		const screenConfig = ref<IScreenSetting | null>(null);
+		const descriptionConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenConfigService = container.resolve(ScreenConfigService);
+		const assetService = container.resolve(AssetService);
 		onMounted(async () => {
-			screenConfig.value = await screenConfigService.fetchScreenConfig('description');
-			setTimeout(playBGM, 1200);
+			const config = await screenConfigService.fetchScreenConfig('description');
+			descriptionConfig.value = config as DescriptionScreenSetting ?? new DescriptionScreenSetting("", []);
+			await playBGM();
 		});
 
 		// BGM/SE制御
 		const bgmAudio = ref<HTMLAudioElement | null>(null);
 		const playBGM = async () => {
-			if (!screenConfig.value) return;
-			const descriptionConfig = screenConfig.value as any; // DescriptionScreenConfig
-			if (!descriptionConfig.descriptionBgm) return;
-			const assetRepo = container.resolve(AssetRepository);
-			const asset = await assetRepo.getAssetById(descriptionConfig.descriptionBgm);
-			if (!asset) return;
-			if (!bgmAudio.value) {
+			if (!descriptionConfig.value || !descriptionConfig.value.descriptionBgm) return;
+			const asset = await assetService.getAssetById(descriptionConfig.value.descriptionBgm);
+			if (asset && asset.dataUrl) {
 				bgmAudio.value = new Audio(asset.dataUrl);
 				bgmAudio.value.loop = true;
+				bgmAudio.value.play().catch(() => { });
 			}
-			bgmAudio.value.play();
-		};
-
-		// Enterキーで次へ
+		};		// Enterキーで次へ
 		const handleKey = (e: KeyboardEvent) => {
 			if (e.key === 'Enter') {
 				router.push('/demo-draw');
@@ -55,7 +51,7 @@ export default {
 		onMounted(() => window.addEventListener('keydown', handleKey));
 		onUnmounted(() => window.removeEventListener('keydown', handleKey));
 
-		return { screenConfig };
+		return { descriptionConfig };
 	},
 };
 </script>

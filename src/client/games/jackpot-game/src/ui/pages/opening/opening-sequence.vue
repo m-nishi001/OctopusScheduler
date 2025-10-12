@@ -2,7 +2,7 @@
     <div class="opening-container" ref="containerEl">
         <div class="scroll-wrapper">
             <div class="scroll-content" ref="scrollContent">
-                <div v-for="(el, idx) in screenConfig?.elements || []" :key="el.id" class="content-item"
+                <div v-for="(el, idx) in screenConfig?.contents || []" :key="el.id" class="content-item"
                     :data-index="idx" v-show="idx === currentIndex">
                     <template v-if="el.type === 'text'">
                         <div v-html="formatText(el.content)"></div>
@@ -106,7 +106,7 @@ export default {
         };
 
         const startSequence = async () => {
-            if (!scrollContent.value || !props.screenConfig) return;
+            if (!scrollContent.value || !props.openingConfig) return;
             const elements = Array.from(scrollContent.value.querySelectorAll('.content-item')) as HTMLElement[];
             elements.forEach(el => gsap.set(el, { opacity: 0 }));
 
@@ -115,7 +115,7 @@ export default {
                 currentIndex.value = i;
                 await nextTick();
                 const el = elements[i];
-                const elementConfig = props.screenConfig.elements[i];
+                const elementConfig = props.screenConfig.contents[i];
                 await new Promise((r) => setTimeout(r, 60));
 
                 const durationMs = elementConfig?.duration || elementConfig?.animation?.duration || 3000;
@@ -153,8 +153,8 @@ export default {
         onMounted(async () => {
             // If elements are configured to scroll downward, reverse their order
             const maybeReverseForDownScroll = (cfg: any) => {
-                if (!cfg || !Array.isArray(cfg.elements) || cfg.elements.length <= 1) return;
-                const indexed = cfg.elements.map((el: any, idx: number) => ({ el, idx }));
+                if (!cfg || !Array.isArray(cfg.contents) || cfg.contents.length <= 1) return;
+                const indexed = cfg.contents.map((el: any, idx: number) => ({ el, idx }));
                 const scrollIndexed = indexed.filter((x: any) => {
                     const t = x.el?.animation?.type || x.el?.effect || '';
                     return t === 'scroll';
@@ -165,12 +165,12 @@ export default {
                     return dir === 'down';
                 });
                 if (!allDown) return;
-                const reversed = [...cfg.elements];
+                const reversed = [...cfg.contents];
                 const scrollItems = scrollIndexed.map((x: any) => x.el).reverse();
                 for (let i = 0; i < scrollIndexed.length; i++) {
                     reversed[scrollIndexed[i].idx] = scrollItems[i];
                 }
-                cfg.elements = reversed;
+                cfg.contents = reversed;
             };
 
             maybeReverseForDownScroll(props.screenConfig);

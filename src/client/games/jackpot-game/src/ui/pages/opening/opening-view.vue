@@ -1,7 +1,7 @@
 <template>
   <MainLayout :fullScreen="true">
-    <OpeningHtml v-if="screenConfig && isHtmlFullscreen" :element="htmlElement" :bgm="bgm" />
-    <OpeningSequence v-else-if="screenConfig" :screenConfig="screenConfig" />
+    <OpeningHtml v-if="openingConfig && isHtmlFullscreen" :element="htmlElement" :bgm="bgm" />
+    <OpeningSequence v-else-if="openingConfig" :screenConfig="openingConfig" />
   </MainLayout>
 </template>
 
@@ -12,6 +12,7 @@ import OpeningSequence from './opening-sequence.vue';
 import OpeningHtml from './opening-html.vue';
 import { container } from 'tsyringe';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 import { OpeningScreenSetting } from '../../../model/domains/screen-config/opening-screen-setting';
 
 export default {
@@ -19,7 +20,7 @@ export default {
   components: { MainLayout, OpeningSequence, OpeningHtml },
   setup() {
     const screenConfigService = container.resolve(ScreenConfigService);
-    const screenConfig = ref<any | null>(null);
+    const openingConfig = ref<OpeningScreenSetting | null>(null);
     const bgm = ref<HTMLAudioElement | null>(null);
 
     const isHtmlFullscreen = ref(false);
@@ -27,16 +28,19 @@ export default {
 
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('opening');
-      screenConfig.value = config ?? new OpeningScreenSetting();
+      openingConfig.value = config as OpeningScreenSetting ?? new OpeningScreenSetting();
 
-      if (screenConfig.value?.bgmAssetUrl) {
-        bgm.value = new Audio(screenConfig.value.bgmAssetUrl);
+      if (openingConfig.value?.bgmAssetId) {
+        const assetService = container.resolve(AssetService);
+        const assetDto = await assetService.getAssetById(openingConfig.value.bgmAssetId);
+        const url = assetDto?.dataUrl;
+        bgm.value = new Audio(url);
         bgm.value.loop = true;
-        setTimeout(() => bgm.value?.play().catch(() => { }), 500);
+        bgm.value.play().catch(() => { });
       }
 
-      const htmlEl = screenConfig.value?.elements?.find((e: any) => e.type === 'html');
-      if (screenConfig.value?.displayMode === 'html' && htmlEl) {
+      const htmlEl = openingConfig.value?.contents?.find((e: any) => e.type === 'html');
+      if (htmlEl) {
         isHtmlFullscreen.value = true;
         htmlElement.value = htmlEl;
       }
@@ -49,7 +53,7 @@ export default {
       }
     });
 
-    return { screenConfig, isHtmlFullscreen, htmlElement, bgm };
+    return { openingConfig, isHtmlFullscreen, htmlElement, bgm };
   }
 };
 </script>

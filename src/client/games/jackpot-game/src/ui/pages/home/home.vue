@@ -25,15 +25,14 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import ThreeHero from '../../shared/graphics/three-hero.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import type { IAssetRepository } from '../../../model/domains/asset/repository/i-asset-repository';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 import { HomeScreenSetting } from '../../../model/domains/screen-config/home-screen-setting';
 
 export default {
@@ -46,11 +45,9 @@ export default {
     const goOpening = () => router.push('/jackpot-opening');
     const goAdmin = () => router.push('/jackpot-admin');
 
-    const screenConfig = ref<IScreenSetting | null>(null);
+    const homeConfig = ref<HomeScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetRepo = container.resolve<IAssetRepository>("IAssetRepository");
-
-    const homeConfig = computed(() => screenConfig.value as HomeScreenSetting | null);
+    const assetService = container.resolve<AssetService>("AssetService");
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -61,9 +58,8 @@ export default {
 
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = async () => {
-      if (!screenConfig.value || !("homeBgm" in screenConfig.value)) return;
-      const homeConfig = screenConfig.value as any;
-      const asset = await assetRepo.getAssetById(homeConfig.homeBgm);
+      if (!homeConfig.value || !homeConfig.value.homeBgm) return;
+      const asset = await assetService.getAssetById(homeConfig.value.homeBgm);
       if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
@@ -85,13 +81,12 @@ export default {
         progress.value = 50;
       }
       const config = await screenConfigService.fetchScreenConfig('home');
-      screenConfig.value = config ?? new HomeScreenSetting("", "", "", "", "");
+      homeConfig.value = config as HomeScreenSetting ?? new HomeScreenSetting("", "", "", "", "");
 
       for (let i = progress.value; i <= 100; i += 8) {
         progress.value = i;
         await new Promise((r) => setTimeout(r, 120));
       }
-      assetsLoaded.value = true;
     };
 
     onMounted(async () => {
@@ -99,7 +94,8 @@ export default {
       document.documentElement.classList.add('jackpot-fullscreen');
       document.body.classList.add('jackpot-fullscreen');
 
-      loadAssets();
+      await loadAssets();
+      await playBGM();
       window.addEventListener('keydown', handleKey);
       // lazy load gsap to avoid bundling cost if not needed
       try { const mod = await import('gsap'); gsap = mod?.gsap || mod; } catch (e) { gsap = null; }
@@ -116,7 +112,9 @@ export default {
     });
 
     watch(progress, async (val) => {
-      if (val === 100) await playBGM();
+      if (val === 100) {
+        assetsLoaded.value = true;
+      }
     });
 
     // animate buttons when loaded becomes true
@@ -141,7 +139,7 @@ export default {
       if (e.key === 'Enter') goOpening();
     };
 
-    return { goOpening, goAdmin, screenConfig, homeConfig, progress, assetsLoaded, startBtn, adminBtn };
+    return { goOpening, goAdmin, homeConfig, progress, assetsLoaded, startBtn, adminBtn };
   },
 };
 </script>

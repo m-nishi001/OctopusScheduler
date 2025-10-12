@@ -23,14 +23,13 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { container } from 'tsyringe';
 import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
-import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 import { DemoScreenSetting } from '../../../model/domains/screen-config/demo-screen-setting';
 export default {
   name: 'DemoDraw',
@@ -38,13 +37,9 @@ export default {
   setup() {
     const router = useRouter();
     // ScreenConfigRepositoryから取得
-    const screenConfig = ref<IScreenSetting | null>(null);
+    const demoConfig = ref<DemoScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    onMounted(async () => {
-      const config = await screenConfigService.fetchScreenConfig('demo');
-      screenConfig.value = config ?? new DemoScreenSetting("", "", "");
-      setTimeout(playBGM, 1200);
-    });
+    const assetService = container.resolve(AssetService);
 
     // データはモデル層から取得
     const prizes = ref<any[]>([]);
@@ -57,37 +52,35 @@ export default {
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = async () => {
-      if (!screenConfig.value) return;
-      const demoConfig = screenConfig.value as any; // DemoScreenConfig
-      if (!demoConfig.demoBgm) return;
-      const assetRepo = container.resolve(AssetRepository);
-      const asset = await assetRepo.getAssetById(demoConfig.demoBgm);
-      if (!asset) return;
-      if (!bgmAudio.value) {
+      if (!demoConfig.value || !demoConfig.value.demoBgm) return;
+      const asset = await assetService.getAssetById(demoConfig.value.demoBgm);
+      if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
+        bgmAudio.value.play().catch(() => { });
       }
-      bgmAudio.value.play();
     };
-    onMounted(() => {
-      setTimeout(playBGM, 1200);
-      fetchPrizes();
-      fetchMembers();
+
+    onMounted(async () => {
+      const config = await screenConfigService.fetchScreenConfig('demo');
+      demoConfig.value = config as DemoScreenSetting ?? new DemoScreenSetting("", "", "");
+      await playBGM();
+      await fetchPrizes();
+      await fetchMembers();
     });
 
     const playSE = async (se: string) => {
-      if (!screenConfig.value) return;
-      const demoConfig = screenConfig.value as any; // DemoScreenConfig
-      const assetRepo = container.resolve(AssetRepository);
+      if (!demoConfig.value) return;
       let assetId: string | undefined;
       if (se === 'draw') {
-        assetId = demoConfig.demoSe1; // assuming demoSe1 is for draw
+        assetId = demoConfig.value.demoSe1;
       }
       if (!assetId) return;
-      const asset = await assetRepo.getAssetById(assetId);
-      if (!asset) return;
-      const seAudio = new Audio(asset.dataUrl);
-      seAudio.play();
+      const asset = await assetService.getAssetById(assetId);
+      if (asset && asset.dataUrl) {
+        const seAudio = new Audio(asset.dataUrl);
+        seAudio.play().catch(() => { });
+      }
     };
 
     // 抽選ロジック
@@ -100,8 +93,8 @@ export default {
       // perform a lightweight draw using orchestrator with available data
       try {
         // ensure data
-        prizes.value = await prizeRepo.getPrizes();
-        members.value = await memberRepo.getMembers();
+        await fetchPrizes();
+        await fetchMembers();
         const drawRepo = container.resolve(DrawRepository);
         const drawResultRepo = container.resolve(DrawResultRepository);
         const res = await drawRepo.executeDraw({ prizes: prizes.value, members: members.value });
@@ -124,7 +117,7 @@ export default {
     onMounted(() => window.addEventListener('keydown', handleKey));
     onUnmounted(() => window.removeEventListener('keydown', handleKey));
 
-    return { screenConfig, runDemoDraw, drawn, result };
+    return { demoConfig, runDemoDraw, drawn, result };
   },
 };
 </script>
