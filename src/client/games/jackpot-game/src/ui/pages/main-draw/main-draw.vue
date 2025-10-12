@@ -42,6 +42,7 @@ import { AssetRepository } from '../../../model/infrastructures/repositories/ass
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import { MainScreenConfig } from '../../../model/domains/screen-config/main-screen-config';
+import { ScreenConfigConverterManager } from '../../../model/applications/screen-config/screen-config-converter-manager';
 export default {
   name: 'MainDraw',
   components: { MainLayout },
@@ -50,9 +51,10 @@ export default {
     // ScreenConfigRepositoryから取得
     const screenConfig = ref<IScreenConfig | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
+    const converterManager = container.resolve(ScreenConfigConverterManager);
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('main');
-      screenConfig.value = config ?? new MainScreenConfig("", "", "");
+      screenConfig.value = converterManager.convertToDto('main', config) ?? new MainScreenConfig("", "", "");
       fetchPrizes();
       fetchMembers();
       setTimeout(playBGM, 1200);

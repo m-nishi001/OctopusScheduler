@@ -29,6 +29,7 @@ import type { IScreenConfig } from '../../../model/domains/screen-config/i-scree
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 import { ResultScreenConfig } from '../../../model/domains/screen-config/result-screen-config';
+import { ScreenConfigConverterManager } from '../../../model/applications/screen-config/screen-config-converter-manager';
 
 export default {
   name: 'ResultView',
@@ -37,6 +38,7 @@ export default {
     const router = useRouter();
     const drawResultRepo = container.resolve(DrawResultRepository);
     const screenConfigService = container.resolve(ScreenConfigService);
+    const converterManager = container.resolve(ScreenConfigConverterManager);
     const screenConfig = ref<IScreenConfig | null>(null);
     const winners = ref<any[]>([]);
     const specialWinner = ref<any | undefined>(undefined);
@@ -44,7 +46,7 @@ export default {
     const fetchResults = async () => {
       const results = await drawResultRepo.getDrawResults();
       const config = await screenConfigService.fetchScreenConfig('result');
-      screenConfig.value = config ?? new ResultScreenConfig("", "", "");
+      screenConfig.value = converterManager.convertToDto('result', config) ?? new ResultScreenConfig("", "", "");
       winners.value = results.map(r => ({ ...r.member, prize: r.prize.name, id: r.member.id, photo: r.member.photoAssetId }));
       const ranks = results.map(r => r.rank || 0);
       const minRank = Math.min(...ranks);

@@ -58,6 +58,7 @@ import { EndingScreenConfig } from '../../../../model/domains/screen-config/endi
 
 const {
     screenConfigService,
+    converterManager,
     audioAssets,
     loading,
     loadingStatus,
@@ -76,10 +77,10 @@ const localConfig = ref({
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("ending");
-        if (config) {
-            const endingConfig = config as EndingScreenConfig;
+        const endingConfig = converterManager.convertToDto("ending", config) as EndingScreenConfig;
+        if (endingConfig) {
             localConfig.value = {
-                id: config.id || "",
+                id: endingConfig.id || "",
                 endingBgm: endingConfig.endingBgm || "",
                 endingSe1: endingConfig.endingSe1 || "",
                 endingSe2: endingConfig.endingSe2 || "",

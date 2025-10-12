@@ -32,6 +32,7 @@ import { DrawRepository } from '../../../model/infrastructures/repositories/draw
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 import { DemoScreenConfig } from '../../../model/domains/screen-config/demo-screen-config';
+import { ScreenConfigConverterManager } from '../../../model/applications/screen-config/screen-config-converter-manager';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },
@@ -40,9 +41,10 @@ export default {
     // ScreenConfigRepositoryから取得
     const screenConfig = ref<IScreenConfig | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
+    const converterManager = container.resolve(ScreenConfigConverterManager);
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('demo');
-      screenConfig.value = config ?? new DemoScreenConfig("", "", "");
+      screenConfig.value = converterManager.convertToDto('demo', config) ?? new DemoScreenConfig("", "", "");
       setTimeout(playBGM, 1200);
     });
 

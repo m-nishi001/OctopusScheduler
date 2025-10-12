@@ -58,6 +58,7 @@ import { MainScreenConfig } from '../../../../model/domains/screen-config/main-s
 
 const {
     screenConfigService,
+    converterManager,
     audioAssets,
     loading,
     loadingStatus,
@@ -76,10 +77,10 @@ const localConfig = ref({
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("main");
-        if (config) {
-            const mainConfig = config as MainScreenConfig;
+        const mainConfig = converterManager.convertToDto("main", config) as MainScreenConfig;
+        if (mainConfig) {
             localConfig.value = {
-                id: config.id || "",
+                id: mainConfig.id || "",
                 mainBgm: mainConfig.mainBgm || "",
                 mainSe1: mainConfig.mainSe1 || "",
                 mainSe2: mainConfig.mainSe2 || "",

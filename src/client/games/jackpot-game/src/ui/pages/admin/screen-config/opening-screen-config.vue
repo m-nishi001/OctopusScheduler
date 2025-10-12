@@ -70,6 +70,7 @@ import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
 
 const {
     screenConfigService,
+    converterManager,
     audioAssets,
     imageAssets,
     saving,
@@ -82,8 +83,8 @@ const localConfig = ref<OpeningScreenConfig>(new OpeningScreenConfig());
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("opening");
-        if (config) {
-            const openingConfig = config as OpeningScreenConfig;
+        const openingConfig = converterManager.convertToDto("opening", config) as OpeningScreenConfig;
+        if (openingConfig) {
             localConfig.value = openingConfig;
         }
     } catch (error) {

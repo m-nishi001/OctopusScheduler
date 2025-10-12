@@ -44,6 +44,7 @@ import { DescriptionScreenConfig } from '../../../../model/domains/screen-config
 
 const {
 	screenConfigService,
+	converterManager,
 	audioAssets,
 	loading,
 	loadingStatus,
@@ -60,19 +61,17 @@ const localConfig = ref({
 const loadConfig = async () => {
 	try {
 		const config = await screenConfigService.fetchScreenConfig("description");
-		if (config) {
-			const descriptionConfig = config as DescriptionScreenConfig;
+		const descriptionConfig = converterManager.convertToDto("description", config) as DescriptionScreenConfig;
+		if (descriptionConfig) {
 			localConfig.value = {
-				id: config.id || "",
+				id: descriptionConfig.id || "",
 				descriptionBgm: descriptionConfig.descriptionBgm || "",
 			};
 		}
 	} catch (error) {
 		console.error("Failed to load description config:", error);
 	}
-};
-
-onMounted(async () => {
+}; onMounted(async () => {
 	await loadConfig();
 });
 

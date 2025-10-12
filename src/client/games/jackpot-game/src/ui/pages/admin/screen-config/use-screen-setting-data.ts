@@ -1,16 +1,18 @@
 import { ref, computed, onMounted } from "vue";
-import { container } from "tsyringe";
-import { AssetService } from "../../../../model/applications/asset/asset-service";
+import { ScreenConfigService } from "../../../../model/applications/screen-config/screen-config-service";
+import { ScreenConfigConverterManager } from "../../../../model/applications/screen-config/screen-config-converter-manager";
+import { container } from "../../../../model/infrastructures/container";
+import { AssetDto } from "../../../../model/applications/asset/dto/asset-dto";
 import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
 import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
-import { AssetDto } from "../../../../model/applications/asset/dto/asset-dto";
-import { ScreenConfigService } from "../../../../model/applications/screen-config/screen-config-service";
+import { AssetService } from "../../../../model/applications/asset/asset-service";
 
 export function useScreenSettingData() {
   const assetService = container.resolve(
     AssetService
   ) as unknown as AssetService;
   const screenConfigService = container.resolve(ScreenConfigService);
+  const converterManager = container.resolve(ScreenConfigConverterManager);
   const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
   const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
 
@@ -124,6 +126,7 @@ export function useScreenSettingData() {
   return {
     assetService,
     screenConfigService,
+    converterManager,
     memberRepo,
     prizeRepo,
     assets,

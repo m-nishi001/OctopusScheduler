@@ -58,6 +58,7 @@ import { DemoScreenConfig } from '../../../../model/domains/screen-config/demo-s
 
 const {
     screenConfigService,
+    converterManager,
     audioAssets,
     loading,
     loadingStatus,
@@ -76,10 +77,10 @@ const localConfig = ref({
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("demo");
-        if (config) {
-            const demoConfig = config as DemoScreenConfig;
+        const demoConfig = converterManager.convertToDto("demo", config) as DemoScreenConfig;
+        if (demoConfig) {
             localConfig.value = {
-                id: config.id || "",
+                id: demoConfig.id || "",
                 demoBgm: demoConfig.demoBgm || "",
                 demoSe1: demoConfig.demoSe1 || "",
                 demoSe2: demoConfig.demoSe2 || "",

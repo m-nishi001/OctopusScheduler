@@ -58,6 +58,7 @@ import { ResultScreenConfig } from '../../../../model/domains/screen-config/resu
 
 const {
     screenConfigService,
+    converterManager,
     audioAssets,
     loading,
     loadingStatus,
@@ -76,10 +77,10 @@ const localConfig = ref({
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("result");
-        if (config) {
-            const resultConfig = config as ResultScreenConfig;
+        const resultConfig = converterManager.convertToDto("result", config) as ResultScreenConfig;
+        if (resultConfig) {
             localConfig.value = {
-                id: config.id || "",
+                id: resultConfig.id || "",
                 resultBgm: resultConfig.resultBgm || "",
                 resultSe1: resultConfig.resultSe1 || "",
                 resultSe2: resultConfig.resultSe2 || "",

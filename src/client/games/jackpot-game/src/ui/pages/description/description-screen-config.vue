@@ -15,6 +15,7 @@ import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenConfigConverterManager } from '../../../model/applications/screen-config/screen-config-converter-manager';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 import { container } from 'tsyringe';
 import { DescriptionScreenConfig } from '../../../model/domains/screen-config/description-screen-config';
@@ -26,9 +27,10 @@ export default {
 		// ScreenConfigRepositoryから取得
 		const screenConfig = ref<IScreenConfig | null>(null);
 		const screenConfigService = container.resolve(ScreenConfigService);
+		const converterManager = container.resolve(ScreenConfigConverterManager);
 		onMounted(async () => {
 			const config = await screenConfigService.fetchScreenConfig('description');
-			screenConfig.value = config ?? new DescriptionScreenConfig("", []);
+			screenConfig.value = converterManager.convertToDto('description', config) ?? new DescriptionScreenConfig("", []);
 			setTimeout(playBGM, 1200);
 		});
 

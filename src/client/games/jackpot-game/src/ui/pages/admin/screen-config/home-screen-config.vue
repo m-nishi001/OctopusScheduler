@@ -66,6 +66,7 @@ import { HomeScreenConfig } from '../../../../model/domains/screen-config/home-s
 
 const {
     screenConfigService,
+    converterManager,
     audioAssets,
     loading,
     loadingStatus,
@@ -85,12 +86,13 @@ const localConfig = ref({
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("home");
-        if (config) {
+        const homeConfig = converterManager.convertToDto("home", config) as HomeScreenConfig;
+        if (homeConfig) {
             localConfig.value = {
-                id: config.id || "",
-                homeBgm: (config as any).homeBgm || "",
-                buttonClikingSE: (config as any).buttonClikingSE || "",
-                onCompletedLoadingSE: (config as any).onCompletedLoadingSE || "",
+                id: homeConfig.id || "",
+                homeBgm: homeConfig.homeBgm || "",
+                buttonClikingSE: homeConfig.buttonClikingSE || "",
+                onCompletedLoadingSE: homeConfig.onCompletedLoadingSE || "",
             };
         }
     } catch (error) {

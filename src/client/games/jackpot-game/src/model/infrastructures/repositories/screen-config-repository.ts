@@ -67,6 +67,17 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     return null;
   }
 
+  async getScreenSettings(): Promise<ScreenSetting[]> {
+    return (
+      (await this.localStorage.get<ScreenSetting[]>("screenConfigs")) || []
+    );
+  }
+
+  async getScreenSettingsByType(type: string): Promise<ScreenSetting[]> {
+    const allSettings = await this.getScreenSettings();
+    return allSettings.filter((setting) => setting.screenName === type);
+  }
+
   async updateScreenConfigs(configs: IScreenConfig[]): Promise<void> {
     const allSettings =
       (await this.localStorage.get<ScreenSetting[]>("screenConfigs")) || [];
@@ -104,6 +115,25 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
           this.gasService!.createCall<void>(
             "ScreenConfigService.updateScreenConfig",
             settingsToUpdate
+          )
+            .withSuccessed(() => resolve())
+            .withFailuered((msg: string) => reject(new Error(msg)))
+            .invoke();
+        });
+      } catch (e) {
+        console.warn("Failed to save to GAS:", e);
+      }
+    }
+  }
+
+  async updateScreenSettings(settings: ScreenSetting[]): Promise<void> {
+    await this.localStorage.save("screenConfigs", settings);
+    if (this.gasService) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          this.gasService!.createCall<void>(
+            "ScreenConfigService.updateScreenConfig",
+            settings
           )
             .withSuccessed(() => resolve())
             .withFailuered((msg: string) => reject(new Error(msg)))
