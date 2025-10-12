@@ -86,18 +86,44 @@
 
         <div class="field-block">
           <label class="field-label">BGM1</label>
-          <select v-model="editBgm1AssetId" class="admin-input">
-            <option value="">選択なし</option>
-            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-          </select>
+          <div class="bgm-mode">
+            <label><input type="radio" v-model="editBgm1Mode" value="upload" /> アップロード</label>
+            <label><input type="radio" v-model="editBgm1Mode" value="select" /> 既存から選択</label>
+          </div>
+
+          <div style="margin-top:10px">
+            <input v-if="editBgm1Mode === 'upload'" type="file" @change="onEditBgm1Change" accept="audio/*"
+              class="admin-input" />
+            <div v-if="editBgm1Mode === 'upload' && editBgm1Filename" class="file-name">{{ editBgm1Filename }}
+            </div>
+
+            <select v-if="editBgm1Mode === 'select'" v-model="editBgm1AssetId" class="admin-input"
+              style="margin-top:8px">
+              <option value="">選択なし</option>
+              <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+          </div>
         </div>
 
         <div class="field-block">
           <label class="field-label">BGM2</label>
-          <select v-model="editBgm2AssetId" class="admin-input">
-            <option value="">選択なし</option>
-            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-          </select>
+          <div class="bgm-mode">
+            <label><input type="radio" v-model="editBgm2Mode" value="upload" /> アップロード</label>
+            <label><input type="radio" v-model="editBgm2Mode" value="select" /> 既存から選択</label>
+          </div>
+
+          <div style="margin-top:10px">
+            <input v-if="editBgm2Mode === 'upload'" type="file" @change="onEditBgm2Change" accept="audio/*"
+              class="admin-input" />
+            <div v-if="editBgm2Mode === 'upload' && editBgm2Filename" class="file-name">{{ editBgm2Filename }}
+            </div>
+
+            <select v-if="editBgm2Mode === 'select'" v-model="editBgm2AssetId" class="admin-input"
+              style="margin-top:8px">
+              <option value="">選択なし</option>
+              <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+          </div>
         </div>
 
       </div>
@@ -166,18 +192,42 @@
 
         <div class="field-block">
           <label class="field-label">BGM1</label>
-          <select v-model="newBgm1AssetId" class="admin-input">
-            <option value="">選択なし</option>
-            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-          </select>
+          <div class="bgm-mode">
+            <label><input type="radio" v-model="newBgm1Mode" value="upload" /> アップロード</label>
+            <label><input type="radio" v-model="newBgm1Mode" value="select" /> 既存から選択</label>
+          </div>
+
+          <div style="margin-top:10px">
+            <input v-if="newBgm1Mode === 'upload'" type="file" @change="onNewBgm1Change" accept="audio/*"
+              class="admin-input" />
+            <div v-if="newBgm1Mode === 'upload' && newBgm1Filename" class="file-name">{{ newBgm1Filename }}
+            </div>
+
+            <select v-if="newBgm1Mode === 'select'" v-model="newBgm1AssetId" class="admin-input" style="margin-top:8px">
+              <option value="">選択なし</option>
+              <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+          </div>
         </div>
 
         <div class="field-block">
           <label class="field-label">BGM2</label>
-          <select v-model="newBgm2AssetId" class="admin-input">
-            <option value="">選択なし</option>
-            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-          </select>
+          <div class="bgm-mode">
+            <label><input type="radio" v-model="newBgm2Mode" value="upload" /> アップロード</label>
+            <label><input type="radio" v-model="newBgm2Mode" value="select" /> 既存から選択</label>
+          </div>
+
+          <div style="margin-top:10px">
+            <input v-if="newBgm2Mode === 'upload'" type="file" @change="onNewBgm2Change" accept="audio/*"
+              class="admin-input" />
+            <div v-if="newBgm2Mode === 'upload' && newBgm2Filename" class="file-name">{{ newBgm2Filename }}
+            </div>
+
+            <select v-if="newBgm2Mode === 'select'" v-model="newBgm2AssetId" class="admin-input" style="margin-top:8px">
+              <option value="">選択なし</option>
+              <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -276,7 +326,7 @@ const isAllSelected = computed({
 // add modal state and actions
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
-const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeProbability.value = 5; newPrizeRank.value = undefined; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; };
+const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeProbability.value = 5; newPrizeRank.value = undefined; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; newBgm1Mode.value = 'select'; newBgm2Mode.value = 'select'; newBgm1Filename.value = ''; newBgm2Filename.value = ''; tempBgm1Asset.value = null; tempBgm2Asset.value = null; };
 const confirmAdd = async () => { await addPrize(); closeAddModal(); };
 
 // delete modal state
@@ -302,8 +352,14 @@ const newImageFilename = ref('');
 const newImagePreview = ref('');
 const newBgm1AssetId = ref('');
 const newBgm2AssetId = ref('');
+const newBgm1Mode = ref('select');
+const newBgm2Mode = ref('select');
+const newBgm1Filename = ref('');
+const newBgm2Filename = ref('');
 
 const tempAsset = ref<Asset | null>(null);
+const tempBgm1Asset = ref<Asset | null>(null);
+const tempBgm2Asset = ref<Asset | null>(null);
 
 const onNewImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -311,6 +367,22 @@ const onNewImageChange = async (e: Event) => {
     tempAsset.value = await prizeAddService.createTempAsset(file);
     newImageFilename.value = file.name;
     newImagePreview.value = tempAsset.value.dataUrl;
+  }
+};
+
+const onNewBgm1Change = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    tempBgm1Asset.value = await prizeAddService.createTempAsset(file);
+    newBgm1Filename.value = file.name;
+  }
+};
+
+const onNewBgm2Change = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    tempBgm2Asset.value = await prizeAddService.createTempAsset(file);
+    newBgm2Filename.value = file.name;
   }
 };
 
@@ -327,14 +399,22 @@ const addPrize = async () => {
   if (newImageMode.value === 'select' && newImageAssetId.value) {
     newPrize.imageAssetId = newImageAssetId.value;
   }
-  if (newBgm1AssetId.value) newPrize.bgm1AssetId = newBgm1AssetId.value;
-  if (newBgm2AssetId.value) newPrize.bgm2AssetId = newBgm2AssetId.value;
+  if (newBgm1Mode.value === 'select' && newBgm1AssetId.value) {
+    newPrize.bgm1AssetId = newBgm1AssetId.value;
+  }
+  if (newBgm2Mode.value === 'select' && newBgm2AssetId.value) {
+    newPrize.bgm2AssetId = newBgm2AssetId.value;
+  }
   try {
-    const addedPrize = await prizeAddService.savePrize(newPrize, tempAsset.value || undefined);
+    const addedPrize = await prizeAddService.savePrize(newPrize, tempAsset.value || undefined, tempBgm1Asset.value || undefined, tempBgm2Asset.value || undefined);
     prizes.value.push(addedPrize);
     tempAsset.value = null;
+    tempBgm1Asset.value = null;
+    tempBgm2Asset.value = null;
     newImagePreview.value = '';
     newImageFilename.value = '';
+    newBgm1Filename.value = '';
+    newBgm2Filename.value = '';
   } catch (error) {
     console.error("Failed to add prize:", error);
   } finally {
@@ -419,8 +499,14 @@ const editImageMode = ref('upload');
 const editImageFilename = ref('');
 const editBgm1AssetId = ref('');
 const editBgm2AssetId = ref('');
+const editBgm1Mode = ref('select');
+const editBgm2Mode = ref('select');
+const editBgm1Filename = ref('');
+const editBgm2Filename = ref('');
 
 const editTempAsset = ref<Asset | null>(null);
+const editTempBgm1Asset = ref<Asset | null>(null);
+const editTempBgm2Asset = ref<Asset | null>(null);
 
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -428,6 +514,22 @@ const onEditImageChange = async (e: Event) => {
     editTempAsset.value = await prizeAddService.createTempAsset(file);
     editImageFilename.value = file.name;
     editImagePreview.value = editTempAsset.value.dataUrl;
+  }
+};
+
+const onEditBgm1Change = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    editTempBgm1Asset.value = await prizeAddService.createTempAsset(file);
+    editBgm1Filename.value = file.name;
+  }
+};
+
+const onEditBgm2Change = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    editTempBgm2Asset.value = await prizeAddService.createTempAsset(file);
+    editBgm2Filename.value = file.name;
   }
 };
 
@@ -445,8 +547,22 @@ const editPrize = (prize: any) => {
   }
   editImageFilename.value = '';
   editTempAsset.value = null;
-  editBgm1AssetId.value = prize.bgm1AssetId || '';
-  editBgm2AssetId.value = prize.bgm2AssetId || '';
+  if (prize.bgm1AssetId) {
+    editBgm1Mode.value = 'select';
+    editBgm1AssetId.value = prize.bgm1AssetId;
+  } else {
+    editBgm1Mode.value = 'upload';
+  }
+  if (prize.bgm2AssetId) {
+    editBgm2Mode.value = 'select';
+    editBgm2AssetId.value = prize.bgm2AssetId;
+  } else {
+    editBgm2Mode.value = 'upload';
+  }
+  editBgm1Filename.value = '';
+  editBgm2Filename.value = '';
+  editTempBgm1Asset.value = null;
+  editTempBgm2Asset.value = null;
 };
 
 const saveEdit = async () => {
@@ -457,14 +573,26 @@ const saveEdit = async () => {
     await assetService.addAssets([assetDto]);
     assetId = assetDto.id;
   }
+  let bgm1AssetId: string | undefined;
+  if (editTempBgm1Asset.value) {
+    const assetDto = new AssetDto(editTempBgm1Asset.value);
+    await assetService.addAssets([assetDto]);
+    bgm1AssetId = assetDto.id;
+  }
+  let bgm2AssetId: string | undefined;
+  if (editTempBgm2Asset.value) {
+    const assetDto = new AssetDto(editTempBgm2Asset.value);
+    await assetService.addAssets([assetDto]);
+    bgm2AssetId = assetDto.id;
+  }
   const updatedPrize = {
     ...editPrizeData.value,
     name: editName.value,
     probability: editProbability.value,
     rank: editRank.value,
     imageAssetId: assetId || editImageAssetId.value,
-    bgm1AssetId: editBgm1AssetId.value || undefined,
-    bgm2AssetId: editBgm2AssetId.value || undefined,
+    bgm1AssetId: bgm1AssetId || editBgm1AssetId.value,
+    bgm2AssetId: bgm2AssetId || editBgm2AssetId.value,
   };
   try {
     await prizeRepo.updatePrizes([{ id: updatedPrize.id, updateFn: () => updatedPrize }]);
@@ -479,6 +607,12 @@ const saveEdit = async () => {
     editTempAsset.value = null;
     editBgm1AssetId.value = '';
     editBgm2AssetId.value = '';
+    editBgm1Mode.value = 'select';
+    editBgm2Mode.value = 'select';
+    editBgm1Filename.value = '';
+    editBgm2Filename.value = '';
+    editTempBgm1Asset.value = null;
+    editTempBgm2Asset.value = null;
   } catch (error) {
     console.error("Failed to update prize:", error);
   }

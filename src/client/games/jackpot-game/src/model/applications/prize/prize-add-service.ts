@@ -30,15 +30,32 @@ export class PrizeAddService {
     };
   }
 
-  async savePrize(prize: PrizeDto, tempAsset?: Asset): Promise<Prize> {
+  async savePrize(
+    prize: PrizeDto,
+    tempAsset?: Asset,
+    tempBgm1Asset?: Asset,
+    tempBgm2Asset?: Asset
+  ): Promise<Prize> {
     let assetId: string | undefined;
     if (tempAsset) {
       const assets = await this.assetRepo.addAssets([tempAsset]);
       assetId = assets[0];
     }
+    let bgm1AssetId: string | undefined;
+    if (tempBgm1Asset) {
+      const assets = await this.assetRepo.addAssets([tempBgm1Asset]);
+      bgm1AssetId = assets[0];
+    }
+    let bgm2AssetId: string | undefined;
+    if (tempBgm2Asset) {
+      const assets = await this.assetRepo.addAssets([tempBgm2Asset]);
+      bgm2AssetId = assets[0];
+    }
     const prizeToSave = {
       ...prize,
       imageAssetId: assetId || prize.imageAssetId,
+      bgm1AssetId: bgm1AssetId || prize.bgm1AssetId,
+      bgm2AssetId: bgm2AssetId || prize.bgm2AssetId,
     };
     await this.prizeRepo.addPrizes([toPrize(prizeToSave)]);
     const addedPrize = toPrize(prizeToSave);
@@ -48,6 +65,12 @@ export class PrizeAddService {
     if (assetId) {
       // ここは待たなくて良い。
       this.assetService.registerRef(assetId, addedPrize.id);
+    }
+    if (bgm1AssetId) {
+      this.assetService.registerRef(bgm1AssetId, addedPrize.id);
+    }
+    if (bgm2AssetId) {
+      this.assetService.registerRef(bgm2AssetId, addedPrize.id);
     }
     return addedPrize;
   }
