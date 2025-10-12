@@ -1,4 +1,4 @@
-import type { IScreenConfig } from "../IScreenConfig";
+import type { IScreenConfig } from "../i-screen-config";
 
 export interface IScreenConfigRepository {
   getScreenConfigs(): Promise<IScreenConfig[]>;

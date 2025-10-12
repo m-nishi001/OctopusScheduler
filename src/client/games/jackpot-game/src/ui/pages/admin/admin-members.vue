@@ -137,12 +137,12 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
-import type { IMemberRepository } from '../../../model/domains/member/repository/IMemberRepository';
+import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
 import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { MemberService } from '../../../model/applications/member/member-service';
 import { MemberAddService } from '../../../model/applications/member/member-add-service';
-import type { AssetMetadata } from "../../../model/domains/asset/repository/IAssetRepository";
+import type { AssetMetadata } from "../../../model/domains/asset/repository/i-asset-repository";
 import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
 import type { Asset } from "../../../model/domains/asset/asset";
 

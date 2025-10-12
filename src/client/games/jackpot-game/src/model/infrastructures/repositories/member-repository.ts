@@ -3,7 +3,7 @@ import { useLocalStorage } from "../../../../../../packages/shared-composables/s
 import { StorageConfig } from "../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
-import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
+import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
 import { fromMember, toMember } from "../../applications/member/dto/member-dto";
 

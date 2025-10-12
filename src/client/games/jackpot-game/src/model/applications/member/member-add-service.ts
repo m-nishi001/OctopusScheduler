@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
-import type { IAssetRepository } from "../../domains/asset/repository/IAssetRepository";
-import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
+import type { IAssetRepository } from "../../domains/asset/repository/i-asset-repository";
+import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { toMember } from "./dto/member-dto";
 import type { Asset } from "../../domains/asset/asset";

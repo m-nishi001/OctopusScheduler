@@ -1,15 +1,15 @@
 import { injectable, inject } from "tsyringe";
 import type { PrizeDto } from "../prize/dto/prize-dto";
-import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
-import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
-import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
-import { HomeScreenConfig } from "../../domains/screen-config/HomeScreenConfig";
-import { OpeningScreenConfig } from "../../domains/screen-config/OpeningScreenConfig";
-import { DescriptionScreenConfig } from "../../domains/screen-config/DescriptionScreenConfig";
-import { DemoScreenConfig } from "../../domains/screen-config/DemoScreenConfig";
-import { MainScreenConfig } from "../../domains/screen-config/MainScreenConfig";
-import { ResultScreenConfig } from "../../domains/screen-config/ResultScreenConfig";
-import { EndingScreenConfig } from "../../domains/screen-config/EndingScreenConfig";
+import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
+import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
+import type { IScreenConfigRepository } from "../../domains/screen-config/repository/i-screen-config-repository";
+import { HomeScreenConfig } from "../../domains/screen-config/home-screen-config";
+import { OpeningScreenConfig } from "../../domains/screen-config/opening-screen-config";
+import { DescriptionScreenConfig } from "../../domains/screen-config/description-screen-config";
+import { DemoScreenConfig } from "../../domains/screen-config/demo-screen-config";
+import { MainScreenConfig } from "../../domains/screen-config/main-screen-config";
+import { ResultScreenConfig } from "../../domains/screen-config/result-screen-config";
+import { EndingScreenConfig } from "../../domains/screen-config/ending-screen-config";
 
 @injectable()
 export class AssetUsageService {

@@ -1,8 +1,8 @@
 import { ref, computed, onMounted } from "vue";
 import { container } from "tsyringe";
 import { AssetService } from "../../../../model/applications/asset/asset-service";
-import type { IMemberRepository } from "../../../../model/domains/member/repository/IMemberRepository";
-import type { IPrizeRepository } from "../../../../model/domains/prize/repository/IPrizeRepository";
+import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
+import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
 import { AssetDto } from "../../../../model/applications/asset/dto/asset-dto";
 import { ScreenConfigService } from "../../../../model/applications/screen-config/screen-config-service";
 

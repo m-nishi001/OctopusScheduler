@@ -1,4 +1,4 @@
-import type { IScreenConfig, ScreenType } from "./IScreenConfig";
+import type { IScreenConfig, ScreenType } from "./i-screen-config";
 
 export class OpeningScreenConfig implements IScreenConfig {
   id: string;

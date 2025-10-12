@@ -39,8 +39,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useScreenSettingData } from './useScreenSettingData';
-import { DescriptionScreenConfig } from '../../../../model/domains/screen-config/DescriptionScreenConfig';
+import { useScreenSettingData } from './use-screen-setting-data';
+import { DescriptionScreenConfig } from '../../../../model/domains/screen-config/description-screen-config';
 
 const {
 	screenConfigService,

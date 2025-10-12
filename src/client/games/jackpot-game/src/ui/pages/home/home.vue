@@ -27,13 +27,13 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
-import ThreeHero from '../../shared/graphics/ThreeHero.vue';
+import ThreeHero from '../../shared/graphics/three-hero.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenConfig } from '../../../model/domains/screen-config/IScreenConfig';
+import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import type { IAssetRepository } from '../../../model/domains/asset/repository/IAssetRepository';
+import type { IAssetRepository } from '../../../model/domains/asset/repository/i-asset-repository';
 
 export default {
   name: 'Home',

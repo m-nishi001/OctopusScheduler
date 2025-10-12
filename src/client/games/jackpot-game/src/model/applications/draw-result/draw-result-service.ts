@@ -1,5 +1,5 @@
 import { injectable, inject } from "tsyringe";
-import type { IDrawResultRepository } from "../../domains/draw-result/repository/IDrawResultRepository";
+import type { IDrawResultRepository } from "../../domains/draw-result/repository/i-draw-result-repository";
 import type { LotteryResultDto } from "../draw/dto/lottery-result-dto";
 
 @injectable()

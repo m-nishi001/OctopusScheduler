@@ -25,7 +25,7 @@ import { DrawResultRepository } from '../../../model/infrastructures/repositorie
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import type { IScreenConfig } from '../../../model/domains/screen-config/IScreenConfig';
+import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 

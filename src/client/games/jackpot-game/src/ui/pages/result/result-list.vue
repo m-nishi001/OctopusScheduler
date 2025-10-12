@@ -20,7 +20,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
-import type { IScreenConfig } from '../../../model/domains/screen-config/IScreenConfig';
+import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
 

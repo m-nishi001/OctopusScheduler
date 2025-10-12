@@ -3,7 +3,7 @@ import { GasFunctionService } from "../../../../../../packages/common-lib/src/go
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
-import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
+import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
 import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
 
 @injectable()

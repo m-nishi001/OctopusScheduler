@@ -1,5 +1,5 @@
 import { injectable, inject } from "tsyringe";
-import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
+import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
 import type { PrizeDto } from "./dto/prize-dto";
 import { fromPrize, toPrize } from "./dto/prize-dto";
 

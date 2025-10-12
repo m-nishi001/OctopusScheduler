@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
-import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
-import type { IScreenConfig } from "../../domains/screen-config/IScreenConfig";
+import type { IScreenConfigRepository } from "../../domains/screen-config/repository/i-screen-config-repository";
+import type { IScreenConfig } from "../../domains/screen-config/i-screen-config";
 
 @injectable()
 export class ScreenConfigService {

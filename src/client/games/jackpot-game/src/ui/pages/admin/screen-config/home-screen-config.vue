@@ -61,8 +61,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useScreenSettingData } from './useScreenSettingData';
-import { HomeScreenConfig } from '../../../../model/domains/screen-config/HomeScreenConfig';
+import { useScreenSettingData } from './use-screen-setting-data';
+import { HomeScreenConfig } from '../../../../model/domains/screen-config/home-screen-config';
 
 const {
     screenConfigService,

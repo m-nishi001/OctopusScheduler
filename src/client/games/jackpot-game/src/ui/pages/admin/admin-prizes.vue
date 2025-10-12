@@ -240,7 +240,7 @@ import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { PrizeService } from '../../../model/applications/prize/prize-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
-import type { IPrizeRepository } from '../../../model/domains/prize/repository/IPrizeRepository';
+import type { IPrizeRepository } from '../../../model/domains/prize/repository/i-prize-repository';
 
 import { container } from 'tsyringe';
 const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");

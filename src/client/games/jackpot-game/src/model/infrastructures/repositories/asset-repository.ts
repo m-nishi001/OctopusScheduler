@@ -5,7 +5,7 @@ import { StorageConfig } from "../../infrastructures/storage-config";
 import type {
   IAssetRepository,
   AssetMetadata,
-} from "../../domains/asset/repository/IAssetRepository";
+} from "../../domains/asset/repository/i-asset-repository";
 import { FileUtils } from "../../infrastructures/utils/file-utils";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 

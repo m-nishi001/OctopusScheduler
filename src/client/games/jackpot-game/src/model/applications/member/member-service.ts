@@ -1,5 +1,5 @@
 import { injectable, inject } from "tsyringe";
-import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
+import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { fromMember, toMember } from "./dto/member-dto";
 

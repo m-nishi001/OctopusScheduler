@@ -3,10 +3,10 @@ import { MemberRepository } from "../../model/infrastructures/repositories/membe
 import { AssetRepository } from "../../model/infrastructures/repositories/asset-repository";
 import { PrizeRepository } from "../../model/infrastructures/repositories/prize-repository";
 import { ScreenConfigRepository } from "../../model/infrastructures/repositories/screen-config-repository";
-import type { IMemberRepository } from "../../model/domains/member/repository/IMemberRepository";
-import type { IAssetRepository } from "../../model/domains/asset/repository/IAssetRepository";
-import type { IPrizeRepository } from "../../model/domains/prize/repository/IPrizeRepository";
-import type { IScreenConfigRepository } from "../../model/domains/screen-config/repository/IScreenConfigRepository";
+import type { IMemberRepository } from "../../model/domains/member/repository/i-member-repository";
+import type { IAssetRepository } from "../../model/domains/asset/repository/i-asset-repository";
+import type { IPrizeRepository } from "../../model/domains/prize/repository/i-prize-repository";
+import type { IScreenConfigRepository } from "../../model/domains/screen-config/repository/i-screen-config-repository";
 import { AssetService } from "../../model/applications/asset/asset-service";
 import { AssetUsageService } from "../../model/applications/asset/asset-usage-service";
 

@@ -2,7 +2,7 @@ import { injectable, inject } from "tsyringe";
 import type {
   IAssetRepository,
   AssetMetadata,
-} from "../../domains/asset/repository/IAssetRepository";
+} from "../../domains/asset/repository/i-asset-repository";
 import { AssetDto } from "./dto/asset-dto";
 
 @injectable()

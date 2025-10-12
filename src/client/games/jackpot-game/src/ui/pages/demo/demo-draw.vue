@@ -23,7 +23,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { IScreenConfig } from '../../../model/domains/screen-config/IScreenConfig';
+import type { IScreenConfig } from '../../../model/domains/screen-config/i-screen-config';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
 import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
