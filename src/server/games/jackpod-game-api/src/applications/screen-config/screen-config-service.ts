@@ -19,8 +19,8 @@ export class ScreenConfigService implements GasService {
     this.functions = {
       getScreenConfigs: this.getScreenConfigs,
       getScreenConfig: this.getScreenConfig,
-      updateScreenConfigs: this.updateScreenConfigs,
-      deleteScreenConfigs: this.deleteScreenConfigs,
+      updateScreenConfig: this.updateScreenConfig,
+      deleteScreenConfig: this.deleteScreenConfig,
       addScreenConfigs: this.addScreenConfigs,
     };
   }
@@ -35,13 +35,13 @@ export class ScreenConfigService implements GasService {
     return config ? toScreenConfigDto(config) : null;
   }
 
-  updateScreenConfigs(args: { configs: ScreenConfigDto[] }): void {
-    const configs = args.configs.map(toScreenConfig);
-    this.repository.updateScreenConfigs(configs);
+  updateScreenConfig(args: { config: ScreenConfigDto }): void {
+    const config = toScreenConfig(args.config);
+    this.repository.updateScreenConfigs([config]);
   }
 
-  deleteScreenConfigs(args: { ids: string[] }): void {
-    this.repository.deleteScreenConfigs(args.ids);
+  deleteScreenConfig(args: { type: string }): void {
+    this.repository.deleteScreenConfigs([args.type]);
   }
 
   addScreenConfigs(args: { configs: ScreenConfigDto[] }): void {
