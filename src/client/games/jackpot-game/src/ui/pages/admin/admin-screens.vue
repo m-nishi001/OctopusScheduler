@@ -3,20 +3,22 @@
     <h2>画面設定 - {{ screenLabels[activeScreen] }}</h2>
     <div class="tab-content">
       <HomeScreenConfig v-if="activeScreen === 'home'" :audio-assets="audioAssets" :asset-service="assetService"
-        :config="homeConfig" @update="updateHomeConfig" @uploading="onUploading" />
+        :config="homeConfig" @update="updateHomeConfig" @uploading="onUploading" @tempAssets="onTempAssets" />
       <OpeningScreenConfig v-if="activeScreen === 'opening'" :audio-assets="audioAssets" :image-assets="imageAssets"
-        :asset-service="assetService" :config="openingConfig" @update="updateOpeningConfig" @uploading="onUploading" />
+        :asset-service="assetService" :config="openingConfig" @update="updateOpeningConfig" @uploading="onUploading"
+        @tempAssets="onTempAssets" />
       <DescriptionScreenConfig v-if="activeScreen === 'description'" :audio-assets="audioAssets"
         :image-assets="imageAssets" :asset-service="assetService" :config="descriptionConfig"
-        @update="updateDescriptionConfig" @uploading="onUploading" />
+        @update="updateDescriptionConfig" @uploading="onUploading" @tempAssets="onTempAssets" />
       <DemoScreenConfig v-if="activeScreen === 'demo'" :audio-assets="audioAssets" :members="members" :prizes="prizes"
-        :asset-service="assetService" :config="demoConfig" @update="updateDemoConfig" />
+        :asset-service="assetService" :config="demoConfig" @update="updateDemoConfig" @tempAssets="onTempAssets" />
       <MainScreenConfig v-if="activeScreen === 'main'" :audio-assets="audioAssets" :asset-service="assetService"
-        :config="mainConfig" @update="updateMainConfig" />
+        :config="mainConfig" @update="updateMainConfig" @tempAssets="onTempAssets" />
       <ResultScreenConfig v-if="activeScreen === 'result'" :audio-assets="audioAssets" :asset-service="assetService"
-        :config="resultConfig" @update="updateResultConfig" />
+        :config="resultConfig" @update="updateResultConfig" @tempAssets="onTempAssets" />
       <EndingScreenConfig v-if="activeScreen === 'ending'" :audio-assets="audioAssets" :image-assets="imageAssets"
-        :asset-service="assetService" :config="endingConfig" @update="updateEndingConfig" @uploading="onUploading" />
+        :asset-service="assetService" :config="endingConfig" @update="updateEndingConfig" @uploading="onUploading"
+        @tempAssets="onTempAssets" />
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="admin-btn mt-4" @click="handleSave" :disabled="saving || uploading || loading"
@@ -65,6 +67,7 @@ import type { IScreenConfigRepository } from '../../../model/domains/screen-conf
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import type { IMemberRepository } from '../../../model/domains/member/repository/IMemberRepository';
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/IPrizeRepository';
+import { AssetDto } from '../../../model/applications/asset/dto/asset-dto';
 
 // Inline asset logic from useAssets composable
 const route = useRoute();
@@ -494,9 +497,20 @@ const saveConfigs = async () => {
 const saving = ref(false);
 const saveStatus = ref("");
 const uploading = ref(false);
+const tempAssets = ref<AssetDto[]>([]);
 
 const onUploading = (isUploading: boolean) => {
   uploading.value = isUploading;
+};
+
+const onTempAssets = (newTempAssets: AssetDto[]) => {
+  // Merge tempAssets from different components
+  const existingIds = tempAssets.value.map(a => a.id);
+  newTempAssets.forEach(asset => {
+    if (!existingIds.includes(asset.id)) {
+      tempAssets.value.push(asset);
+    }
+  });
 };
 
 const handleSave = async () => {
@@ -504,6 +518,50 @@ const handleSave = async () => {
   try {
     saving.value = true;
     saveStatus.value = "保存中...";
+
+    // Upload temp assets first
+    if (tempAssets.value.length > 0) {
+      saveStatus.value = "アセットをアップロード中...";
+      const tempIdMap = new Map<string, AssetDto>();
+      tempAssets.value.forEach(asset => {
+        tempIdMap.set(asset.id, asset);
+      });
+      await assetService.addAssets(tempAssets.value);
+
+      // Replace temp IDs with real IDs in configs
+      const idMap = new Map<string, string>();
+      tempAssets.value.forEach(asset => {
+        const tempId = Array.from(tempIdMap.keys()).find(key => tempIdMap.get(key) === asset);
+        if (tempId) {
+          idMap.set(tempId, asset.id);
+        }
+      });
+
+      // Replace in all configs
+      const replaceTempIds = (obj: any) => {
+        for (const key in obj) {
+          if (typeof obj[key] === 'string' && obj[key].startsWith('temp_')) {
+            if (idMap.has(obj[key])) {
+              obj[key] = idMap.get(obj[key]);
+            }
+          } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            replaceTempIds(obj[key]);
+          }
+        }
+      };
+
+      replaceTempIds(homeConfig.value);
+      replaceTempIds(openingConfig.value);
+      replaceTempIds(descriptionConfig.value);
+      replaceTempIds(demoConfig.value);
+      replaceTempIds(mainConfig.value);
+      replaceTempIds(resultConfig.value);
+      replaceTempIds(endingConfig.value);
+
+      // Clear tempAssets
+      tempAssets.value = [];
+    }
+
     await saveConfigs();
     saveStatus.value = "保存しました";
   } catch (err) {

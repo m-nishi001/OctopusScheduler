@@ -46,6 +46,8 @@
 
 <script setup lang="ts">
 import { ref, defineEmits } from 'vue';
+import { FileUtils } from '../../../../model/infrastructures/utils/file-utils';
+import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
 
 const props = defineProps<{
     audioAssets: any[];
@@ -57,6 +59,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     update: [config: any];
+    tempAssets: [tempAssets: AssetDto[]];
 }>();
 
 const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
@@ -67,6 +70,7 @@ const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
     seMode: 'select',
     seAssetId: '',
 });
+const tempAssets = ref<AssetDto[]>([]);
 
 import { watch } from 'vue';
 watch(() => props.config, (newCfg: any) => {
@@ -88,13 +92,23 @@ const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.bgmAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.bgmAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload BGM:', error);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -103,13 +117,23 @@ const onSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.seAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.seAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload SE:', error);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };

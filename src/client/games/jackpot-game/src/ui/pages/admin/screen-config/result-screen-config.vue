@@ -71,6 +71,8 @@
 
 <script setup lang="ts">
 import { ref, defineEmits, watch } from 'vue';
+import { FileUtils } from '../../../../model/infrastructures/utils/file-utils';
+import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
 
 const props = defineProps<{
     audioAssets: any[];
@@ -81,6 +83,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     update: [config: any];
     uploading: [isUploading: boolean];
+    tempAssets: [tempAssets: AssetDto[]];
 }>();
 
 const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
@@ -95,6 +98,7 @@ const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
     fadeSeMode: 'select',
     fadeSeAssetId: '',
 });
+const tempAssets = ref<AssetDto[]>([]);
 
 watch(() => props.config, (newCfg: any) => {
     config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : {
@@ -125,17 +129,24 @@ watch(config, (newVal: any) => {
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.bgmAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.bgmAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload BGM:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -143,17 +154,24 @@ const onBgmChange = async (e: Event) => {
 const onScrollSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.scrollSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.scrollSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload scroll SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -161,17 +179,24 @@ const onScrollSeChange = async (e: Event) => {
 const onHighSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.highSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.highSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload high SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -179,17 +204,24 @@ const onHighSeChange = async (e: Event) => {
 const onLowSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.lowSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.lowSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload low SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -197,17 +229,24 @@ const onLowSeChange = async (e: Event) => {
 const onFadeSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.fadeSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.fadeSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload fade SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };

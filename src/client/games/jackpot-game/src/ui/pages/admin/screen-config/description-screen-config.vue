@@ -56,6 +56,8 @@
 
 <script setup lang="ts">
 import { ref, defineEmits, watch, onMounted } from 'vue';
+import { FileUtils } from '../../../../model/infrastructures/utils/file-utils';
+import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
 
 const props = defineProps<{
 	audioAssets: any[];
@@ -67,10 +69,12 @@ const props = defineProps<{
 const emit = defineEmits<{
 	update: [config: any];
 	uploading: [isUploading: boolean];
+	tempAssets: [tempAssets: AssetDto[]];
 }>();
 
 // props.config が存在すればディープコピーし、なければ空の slides 配列を持つオブジェクトを初期値とする
 const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : { slides: [] as any[] });
+const tempAssets = ref<AssetDto[]>([]);
 
 const selectedAssetForInsert = ref<string[]>([]);
 
@@ -127,17 +131,24 @@ const insertAsset = (idx: number) => {
 const onImageChange = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
 	if (file) {
-		emit('uploading', true);
 		try {
-			const result = await props.assetService.addAssets([file]);
-			if (result.successful.length > 0) {
-				config.value.slides[idx].imageAssetId = result.successful[0].id;
-				// update は watch によって自動的に行われる
-			}
+			const tempId = 'temp_' + Date.now();
+			const dataUrl = await FileUtils.readAsDataUrl(file);
+			const assetDto = new AssetDto({
+				id: tempId,
+				type: FileUtils.getAssetType(file.type),
+				dataUrl,
+				name: file.name,
+				uploadedAt: new Date().toISOString(),
+				lastUpdated: new Date().toISOString(),
+				size: file.size,
+			});
+			tempAssets.value.push(assetDto);
+			config.value.slides[idx].imageAssetId = tempId;
+			emit('update', config.value);
+			emit('tempAssets', tempAssets.value);
 		} catch (error) {
-			console.error('Failed to upload image:', error);
-		} finally {
-			emit('uploading', false);
+			console.error('Failed to create temp asset:', error);
 		}
 	}
 };
@@ -145,17 +156,24 @@ const onImageChange = async (e: Event, idx: number) => {
 const onBgmChange = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
 	if (file) {
-		emit('uploading', true);
 		try {
-			const result = await props.assetService.addAssets([file]);
-			if (result.successful.length > 0) {
-				config.value.slides[idx].bgmAssetId = result.successful[0].id;
-				// update は watch によって自動的に行われる
-			}
+			const tempId = 'temp_' + Date.now();
+			const dataUrl = await FileUtils.readAsDataUrl(file);
+			const assetDto = new AssetDto({
+				id: tempId,
+				type: FileUtils.getAssetType(file.type),
+				dataUrl,
+				name: file.name,
+				uploadedAt: new Date().toISOString(),
+				lastUpdated: new Date().toISOString(),
+				size: file.size,
+			});
+			tempAssets.value.push(assetDto);
+			config.value.slides[idx].bgmAssetId = tempId;
+			emit('update', config.value);
+			emit('tempAssets', tempAssets.value);
 		} catch (error) {
-			console.error('Failed to upload BGM:', error);
-		} finally {
-			emit('uploading', false);
+			console.error('Failed to create temp asset:', error);
 		}
 	}
 };
@@ -163,26 +181,31 @@ const onBgmChange = async (e: Event, idx: number) => {
 const onUploadAndInsert = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
 	if (file) {
-		emit('uploading', true);
 		try {
-			const result = await props.assetService.addAssets([file]);
-			if (result.successful.length > 0) {
-				const asset = result.successful[0];
-				// プレースホルダー形式でHTMLタグを挿入
-				const imgTag = `<p><img src="{asset:${asset.id}}" alt="${asset.name}" /></p>`;
-				// TinyMCE のエディタに挿入
-				// ここでは直接挿入できないので、v-model で更新
-				config.value.slides[idx].html += imgTag;
-			}
+			const tempId = 'temp_' + Date.now();
+			const dataUrl = await FileUtils.readAsDataUrl(file);
+			const assetDto = new AssetDto({
+				id: tempId,
+				type: FileUtils.getAssetType(file.type),
+				dataUrl,
+				name: file.name,
+				uploadedAt: new Date().toISOString(),
+				lastUpdated: new Date().toISOString(),
+				size: file.size,
+			});
+			tempAssets.value.push(assetDto);
+			// プレースホルダー形式でHTMLタグを挿入
+			const imgTag = `<p><img src="{asset:${tempId}}" alt="${assetDto.name}" /></p>`;
+			// TinyMCE のエディタに挿入
+			// ここでは直接挿入できないので、v-model で更新
+			config.value.slides[idx].html += imgTag;
+			emit('update', config.value);
+			emit('tempAssets', tempAssets.value);
 		} catch (error) {
-			console.error('Failed to upload and insert asset:', error);
-		} finally {
-			emit('uploading', false);
+			console.error('Failed to create temp asset:', error);
 		}
 	}
-};
-
-const addSlide = () => {
+}; const addSlide = () => {
 	config.value.slides.push({
 		html: '<p>新しいスライドのコンテンツ</p>',
 		imageMode: 'select',

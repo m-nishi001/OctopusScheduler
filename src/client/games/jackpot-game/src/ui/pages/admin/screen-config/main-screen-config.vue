@@ -124,6 +124,8 @@
 
 <script setup lang="ts">
 import { ref, defineEmits, watch } from 'vue';
+import { FileUtils } from '../../../../model/infrastructures/utils/file-utils';
+import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
 
 const props = defineProps<{
     audioAssets: any[];
@@ -134,6 +136,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     update: [config: any];
     uploading: [isUploading: boolean];
+    tempAssets: [tempAssets: AssetDto[]];
 }>();
 
 const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
@@ -156,6 +159,7 @@ const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
     endSeMode: 'select',
     endSeAssetId: '',
 });
+const tempAssets = ref<AssetDto[]>([]);
 
 watch(() => props.config, (newCfg: any) => {
     config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : {
@@ -194,17 +198,24 @@ watch(config, (newVal: any) => {
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.bgmAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.bgmAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload BGM:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -212,17 +223,24 @@ const onBgmChange = async (e: Event) => {
 const onMemberSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.memberSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.memberSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload member SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -230,17 +248,24 @@ const onMemberSeChange = async (e: Event) => {
 const onPrizeStartSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.prizeStartSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.prizeStartSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload prize start SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -248,17 +273,24 @@ const onPrizeStartSeChange = async (e: Event) => {
 const onLotterySeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.lotterySeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.lotterySeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload lottery SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -266,17 +298,24 @@ const onLotterySeChange = async (e: Event) => {
 const onConfirmSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.confirmSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.confirmSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload confirm SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -284,17 +323,24 @@ const onConfirmSeChange = async (e: Event) => {
 const onWinnerSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.winnerSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.winnerSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload winner SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -302,17 +348,24 @@ const onWinnerSeChange = async (e: Event) => {
 const onNextSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.nextSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.nextSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload next SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -320,17 +373,24 @@ const onNextSeChange = async (e: Event) => {
 const onHalfSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.halfSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.halfSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload half SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
@@ -338,17 +398,24 @@ const onHalfSeChange = async (e: Event) => {
 const onEndSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        emit('uploading', true);
         try {
-            const result = await props.assetService.addAssets([file]);
-            if (result.successful.length > 0) {
-                config.value.endSeAssetId = result.successful[0].id;
-                emit('update', config.value);
-            }
+            const tempId = 'temp_' + Date.now();
+            const dataUrl = await FileUtils.readAsDataUrl(file);
+            const assetDto = new AssetDto({
+                id: tempId,
+                type: FileUtils.getAssetType(file.type),
+                dataUrl,
+                name: file.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: file.size,
+            });
+            tempAssets.value.push(assetDto);
+            config.value.endSeAssetId = tempId;
+            emit('update', config.value);
+            emit('tempAssets', tempAssets.value);
         } catch (error) {
-            console.error('Failed to upload end SE:', error);
-        } finally {
-            emit('uploading', false);
+            console.error('Failed to create temp asset:', error);
         }
     }
 };
