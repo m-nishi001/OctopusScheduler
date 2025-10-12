@@ -14,9 +14,8 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
   private readonly gasService = GasFunctionService.create("callJackpotGameApi");
 
   async getScreenSettings(): Promise<ScreenSetting[]> {
-    return (
-      (await this.localStorage.get<ScreenSetting[]>("screenConfigs")) || []
-    );
+    const allSettings = await this.localStorage.getAll<ScreenSetting>();
+    return Array.from(allSettings.values());
   }
 
   async getScreenSettingsByType(type: string): Promise<ScreenSetting[]> {
@@ -25,7 +24,6 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
   }
 
   async updateScreenSettings(settings: ScreenSetting[]): Promise<void> {
-    await this.localStorage.save("screenConfigs", settings);
     if (this.gasService) {
       try {
         await new Promise<void>((resolve, reject) => {
@@ -37,6 +35,9 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
             .withFailuered((msg: string) => reject(new Error(msg)))
             .invoke();
         });
+        settings.forEach((setting) =>
+          this.localStorage.save(setting.id, setting)
+        );
       } catch (e) {
         console.warn("Failed to save to GAS:", e);
       }
@@ -56,7 +57,9 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
             .invoke();
         }
       );
-      await this.localStorage.save("screenConfigs", settings);
+      settings.forEach((setting) =>
+        this.localStorage.save(setting.id, setting)
+      );
     } catch (e) {
       console.warn("Failed to sync screen configs:", e);
     }
