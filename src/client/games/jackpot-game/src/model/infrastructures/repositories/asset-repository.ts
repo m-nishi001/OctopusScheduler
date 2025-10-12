@@ -35,11 +35,12 @@ export class AssetRepository implements IAssetRepository {
     const promises = assets.map(async (asset, index) => {
       return new Promise<string>((resolve, reject) => {
         gasService
-          .createCall<{ asset: Asset }>("AssetService.addAsset", { asset })
-          .withSuccessed(async (res: { asset: Asset }) => {
-            await this.localStorage.save(res.asset.id, res.asset);
+          .createCall<{ assetId: string }>("AssetService.addAsset", { asset })
+          .withSuccessed(async (res: { assetId: string }) => {
+            const assetWithId: Asset = { ...asset, id: res.assetId };
+            await this.localStorage.save(res.assetId, assetWithId);
             onProgress?.(index, "完了");
-            resolve(res.asset.id);
+            resolve(res.assetId);
           })
           .withTimeout(120000)
           .withFailuered((msg: string) => {

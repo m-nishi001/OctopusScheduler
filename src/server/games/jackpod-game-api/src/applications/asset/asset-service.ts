@@ -42,12 +42,11 @@ export class AssetService implements GasService {
     return { assets: assets.map((a) => new AssetDto(a)) };
   }
 
-  addAsset(args: { asset: AssetDto }): { asset: AssetDto } {
+  addAsset(args: { asset: AssetDto }): { assetId: string } {
     const assetEntity = AssetDto.toAsset(args.asset);
     const assetIds = this.repository.addAssets([assetEntity]);
     const assetId = assetIds[0];
-    const uploadedAsset = this.repository.getAssetById(assetId);
-    return { asset: uploadedAsset ? new AssetDto(uploadedAsset) : args.asset };
+    return { assetId };
   }
 
   registerRef(args: { assetId: string; refSourceId: string }): {
