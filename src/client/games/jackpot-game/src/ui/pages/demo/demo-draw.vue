@@ -23,20 +23,21 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
+import type { IScreenConfig } from '../../../model/domains/screen-config/IScreenConfig';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
 import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
+import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },
   setup() {
     const router = useRouter();
     // ScreenConfigRepositoryから取得
-    const screenConfig = ref<ScreenConfigDto | null>(null);
+    const screenConfig = ref<IScreenConfig | null>(null);
     const screenConfigRepo = container.resolve(ScreenConfigRepository);
     onMounted(async () => {
       screenConfig.value = await screenConfigRepo.getScreenConfigById('demo');
@@ -53,10 +54,15 @@ export default {
 
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
-    const playBGM = () => {
-      if (!screenConfig.value?.bgmAssetUrl) return;
+    const playBGM = async () => {
+      if (!screenConfig.value) return;
+      const demoConfig = screenConfig.value as any; // DemoScreenConfig
+      if (!demoConfig.demoBgm) return;
+      const assetRepo = container.resolve(AssetRepository);
+      const asset = await assetRepo.getAssetById(demoConfig.demoBgm);
+      if (!asset) return;
       if (!bgmAudio.value) {
-        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
+        bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
       }
       bgmAudio.value.play();
@@ -67,11 +73,18 @@ export default {
       fetchMembers();
     });
 
-    const playSE = (se: string) => {
-      if (!screenConfig.value?.seAssetUrls) return;
-      const assetUrl = screenConfig.value.seAssetUrls.find(url => url.includes(se));
-      if (!assetUrl) return;
-      const seAudio = new Audio(assetUrl);
+    const playSE = async (se: string) => {
+      if (!screenConfig.value) return;
+      const demoConfig = screenConfig.value as any; // DemoScreenConfig
+      const assetRepo = container.resolve(AssetRepository);
+      let assetId: string | undefined;
+      if (se === 'draw') {
+        assetId = demoConfig.demoSe1; // assuming demoSe1 is for draw
+      }
+      if (!assetId) return;
+      const asset = await assetRepo.getAssetById(assetId);
+      if (!asset) return;
+      const seAudio = new Audio(asset.dataUrl);
       seAudio.play();
     };
 

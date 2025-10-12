@@ -20,7 +20,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
-import type { ScreenConfig } from '../../../model/domains/screen-config/screen-config';
+import type { IScreenConfig } from '../../../model/domains/screen-config/IScreenConfig';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
 
@@ -32,7 +32,7 @@ export default {
 		const winners = ref<DrawResultDto[]>([]);
 		const loading = ref(true);
 		const drawResultRepo = container.resolve(DrawResultRepository);
-		const screenConfig = ref<ScreenConfig | null>(null);
+		const screenConfig = ref<IScreenConfig | null>(null);
 		const screenConfigRepo = container.resolve(ScreenConfigRepository);
 		onMounted(async () => {
 			screenConfig.value = await screenConfigRepo.getScreenConfigById('result');

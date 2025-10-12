@@ -25,8 +25,9 @@ import { DrawResultRepository } from '../../../model/infrastructures/repositorie
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
+import type { IScreenConfig } from '../../../model/domains/screen-config/IScreenConfig';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
+import { AssetRepository } from '../../../model/infrastructures/repositories/asset-repository';
 
 export default {
   name: 'ResultView',
@@ -35,7 +36,7 @@ export default {
     const router = useRouter();
     const drawResultRepo = container.resolve(DrawResultRepository);
     const screenConfigRepo = container.resolve(ScreenConfigRepository);
-    const screenConfig = ref<ScreenConfigDto | null>(null);
+    const screenConfig = ref<IScreenConfig | null>(null);
     const winners = ref<any[]>([]);
     const specialWinner = ref<any | undefined>(undefined);
     const lowestWinner = ref<any | undefined>(undefined);
@@ -55,10 +56,15 @@ export default {
 
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
-    const playBGM = () => {
-      if (!screenConfig.value?.bgmAssetUrl) return;
+    const playBGM = async () => {
+      if (!screenConfig.value) return;
+      const resultConfig = screenConfig.value as any; // ResultScreenConfig
+      if (!resultConfig.resultBgm) return;
+      const assetRepo = container.resolve(AssetRepository);
+      const asset = await assetRepo.getAssetById(resultConfig.resultBgm);
+      if (!asset) return;
       if (!bgmAudio.value) {
-        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
+        bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
       }
       bgmAudio.value.play();

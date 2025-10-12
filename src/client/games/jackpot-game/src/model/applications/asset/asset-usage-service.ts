@@ -1,9 +1,15 @@
 import { injectable, inject } from "tsyringe";
 import type { PrizeDto } from "../prize/dto/prize-dto";
-import type { ScreenConfigDto } from "../screen-config/dto/screen-config-dto";
 import type { IMemberRepository } from "../../domains/member/repository/IMemberRepository";
 import type { IPrizeRepository } from "../../domains/prize/repository/IPrizeRepository";
 import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
+import { HomeScreenConfig } from "../../domains/screen-config/HomeScreenConfig";
+import { OpeningScreenConfig } from "../../domains/screen-config/OpeningScreenConfig";
+import { DescriptionScreenConfig } from "../../domains/screen-config/DescriptionScreenConfig";
+import { DemoScreenConfig } from "../../domains/screen-config/DemoScreenConfig";
+import { MainScreenConfig } from "../../domains/screen-config/MainScreenConfig";
+import { ResultScreenConfig } from "../../domains/screen-config/ResultScreenConfig";
+import { EndingScreenConfig } from "../../domains/screen-config/EndingScreenConfig";
 
 @injectable()
 export class AssetUsageService {
@@ -57,25 +63,67 @@ export class AssetUsageService {
       }
     });
     // ScreenConfigs
-    (screenConfigs as ScreenConfigDto[]).forEach((config) => {
+    screenConfigs.forEach((config) => {
       if (!config) return;
-      if (config.bgmAssetId && map[config.bgmAssetId]) {
-        map[config.bgmAssetId].push(`画面設定: ${config.type} (BGM)`);
+      let bgmAssetId: string | undefined;
+      let seAssetIds: string[] = [];
+      switch (config.type) {
+        case "home":
+          bgmAssetId = (config as HomeScreenConfig).homeBgm;
+          seAssetIds = [
+            (config as HomeScreenConfig).buttonClikingSE,
+            (config as HomeScreenConfig).onCompletedLoadingSE,
+          ].filter(Boolean);
+          break;
+        case "opening":
+          bgmAssetId = (config as OpeningScreenConfig).openingBgm;
+          seAssetIds = [
+            (config as OpeningScreenConfig).openingSe1,
+            (config as OpeningScreenConfig).openingSe2,
+          ].filter(Boolean);
+          break;
+        case "description":
+          bgmAssetId = (config as DescriptionScreenConfig).descriptionBgm;
+          seAssetIds = [
+            (config as DescriptionScreenConfig).descriptionSe1,
+            (config as DescriptionScreenConfig).descriptionSe2,
+          ].filter(Boolean);
+          break;
+        case "demo":
+          bgmAssetId = (config as DemoScreenConfig).demoBgm;
+          seAssetIds = [
+            (config as DemoScreenConfig).demoSe1,
+            (config as DemoScreenConfig).demoSe2,
+          ].filter(Boolean);
+          break;
+        case "main":
+          bgmAssetId = (config as MainScreenConfig).mainBgm;
+          seAssetIds = [
+            (config as MainScreenConfig).mainSe1,
+            (config as MainScreenConfig).mainSe2,
+          ].filter(Boolean);
+          break;
+        case "result":
+          bgmAssetId = (config as ResultScreenConfig).resultBgm;
+          seAssetIds = [
+            (config as ResultScreenConfig).resultSe1,
+            (config as ResultScreenConfig).resultSe2,
+          ].filter(Boolean);
+          break;
+        case "admin":
+          bgmAssetId = (config as EndingScreenConfig).endingBgm;
+          seAssetIds = [
+            (config as EndingScreenConfig).endingSe1,
+            (config as EndingScreenConfig).endingSe2,
+          ].filter(Boolean);
+          break;
       }
-      if (config.seAssetIds && Array.isArray(config.seAssetIds)) {
-        config.seAssetIds.forEach((aid) => {
-          if (map[aid]) map[aid].push(`画面設定: ${config.type} (SE)`);
-        });
+      if (bgmAssetId && map[bgmAssetId]) {
+        map[bgmAssetId].push(`画面設定: ${config.type} (BGM)`);
       }
-      if (Array.isArray(config.elements)) {
-        config.elements.forEach((element: any) => {
-          if (element.assetId && map[element.assetId]) {
-            map[element.assetId].push(
-              `画面設定: ${config.type} (要素: ${element.type})`
-            );
-          }
-        });
-      }
+      seAssetIds.forEach((aid) => {
+        if (map[aid]) map[aid].push(`画面設定: ${config.type} (SE)`);
+      });
     });
 
     return map;

@@ -1,25 +1,25 @@
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
-import { ScreenConfig } from "../../domains/screen-config/screen-config";
+import type { IScreenConfig } from "../../domains/screen-config/IScreenConfig";
 import type { IScreenConfigRepository } from "../../domains/screen-config/repository/IScreenConfigRepository";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
 
 @injectable()
 export class ScreenConfigRepository implements IScreenConfigRepository {
-  private cache: Map<string, ScreenConfig> = new Map();
+  private cache: Map<string, IScreenConfig> = new Map();
   private readonly localStorage = useLocalStorage(
     StorageConfig.getDbName(),
     StorageConfig.getStoreName("ScreenConfigData")
   );
   private readonly gasService = GasFunctionService.create("callJackpotGameApi");
 
-  async getScreenConfigs(): Promise<ScreenConfig[]> {
-    const all = await this.localStorage.getAll<ScreenConfig>();
+  async getScreenConfigs(): Promise<IScreenConfig[]> {
+    const all = await this.localStorage.getAll<IScreenConfig>();
     return Array.from(all.values()).filter((v) => v.type);
   }
 
-  async getScreenConfigById(type: string): Promise<ScreenConfig | null> {
+  async getScreenConfigById(type: string): Promise<IScreenConfig | null> {
     const fromCache = this.cache.get(type);
     if (fromCache) return fromCache;
 
@@ -29,7 +29,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     return null; // 同期関数でサーバーから取得
   }
 
-  async updateScreenConfigs(configs: ScreenConfig[]): Promise<void> {
+  async updateScreenConfigs(configs: IScreenConfig[]): Promise<void> {
     for (const config of configs) {
       await this.localStorage.save(`screen_${config.type}`, config);
       this.cache.set(config.type, config);
@@ -57,7 +57,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     }
   }
 
-  async addScreenConfigs(configs: ScreenConfig[]): Promise<void> {
+  async addScreenConfigs(configs: IScreenConfig[]): Promise<void> {
     await this.updateScreenConfigs(configs);
   }
 
@@ -73,10 +73,10 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
       "result",
       "admin",
     ]; // 仮定
-    const serverConfigs: ScreenConfig[] = [];
+    const serverConfigs: IScreenConfig[] = [];
     const promises = allTypes.map(async (type) => {
       try {
-        const dto = await new Promise<ScreenConfig | null>(
+        const dto = await new Promise<IScreenConfig | null>(
           (resolve, reject) => {
             this.gasService!.createCall<any>(
               "ScreenConfigService.getScreenConfig",
@@ -107,9 +107,11 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     }
   }
 
-  private async loadFromLocal(type: string): Promise<ScreenConfig | undefined> {
+  private async loadFromLocal(
+    type: string
+  ): Promise<IScreenConfig | undefined> {
     try {
-      const stored = await this.localStorage.get<ScreenConfig>(
+      const stored = await this.localStorage.get<IScreenConfig>(
         `screen_${type}`
       );
       if (stored) {
@@ -125,7 +127,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
     return undefined;
   }
 
-  private async saveToGas(configs: ScreenConfig[]): Promise<void> {
+  private async saveToGas(configs: IScreenConfig[]): Promise<void> {
     if (!this.gasService) return;
     const promises = configs.map(
       (config) =>

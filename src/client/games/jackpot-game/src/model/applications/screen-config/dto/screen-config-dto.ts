@@ -2,7 +2,7 @@ import type {
   ScreenType,
   AnimationSettings,
   ScreenElementType,
-} from "../../../domains/screen-config/screen-config";
+} from "../../../domains/screen-config/IScreenConfig";
 
 export interface ScreenElementDto {
   id: string;

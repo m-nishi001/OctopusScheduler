@@ -21,7 +21,7 @@
 			<div class="navigation-hint">
 				<span class="hint-text">Press ENTER to continue</span>
 				<div class="progress-dots">
-					<span v-for="(element, index) in screenConfig?.elements" :key="element.id" class="dot"
+					<span v-for="(element, index) in elements" :key="element.id" class="dot"
 						:class="{ active: index === slideIndex }"></span>
 				</div>
 			</div>
@@ -29,11 +29,11 @@
 	</MainLayout>
 </template>
 <script lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenElementDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
-import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
+import type { ScreenElement } from '../../../model/domains/screen-config/IScreenConfig';
+import { DescriptionScreenConfig } from '../../../model/domains/screen-config/DescriptionScreenConfig';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
 export default {
@@ -42,30 +42,57 @@ export default {
 	setup() {
 		const router = useRouter();
 		// ScreenConfigRepositoryから取得
-		const screenConfig = ref<ScreenConfigDto | null>(null);
+		const screenConfig = ref<DescriptionScreenConfig | null>(null);
 		const screenConfigRepo = container.resolve(ScreenConfigRepository);
 		const slideIndex = ref(0);
-		const currentSlide = ref<ScreenElementDto | null>(null);
+		const currentSlide = ref<ScreenElement | null>(null);
+
+		// 固定のスライド要素
+		const elements = ref<ScreenElement[]>([
+			{
+				id: 'slide1',
+				type: 'text',
+				content: 'Welcome to the Jackpot Game!\n\nThis is an exciting adventure where you can win amazing prizes.',
+			},
+			{
+				id: 'slide2',
+				type: 'image',
+				assetId: 'description-image-1',
+				assetUrl: '/assets/images/description1.png', // 仮定
+			},
+			{
+				id: 'slide3',
+				type: 'text',
+				content: 'Follow the instructions carefully and enjoy the game!',
+			},
+		]);
+
+		const bgmAssetUrl = computed(() => (screenConfig.value as DescriptionScreenConfig)?.descriptionBgm);
+		const seAssetUrls = computed(() => [
+			(screenConfig.value as DescriptionScreenConfig)?.descriptionSe1,
+			(screenConfig.value as DescriptionScreenConfig)?.descriptionSe2,
+		].filter(Boolean));
+
 		onMounted(async () => {
-			screenConfig.value = await screenConfigRepo.getScreenConfigById('description');
-			currentSlide.value = screenConfig.value?.elements[0] ?? null;
+			screenConfig.value = await screenConfigRepo.getScreenConfigById('description') as DescriptionScreenConfig;
+			currentSlide.value = elements.value[0] ?? null;
 			setTimeout(playBGM, 1200);
 		});
 
 		// BGM/SE制御
 		const bgmAudio = ref<HTMLAudioElement | null>(null);
 		const playBGM = () => {
-			if (!screenConfig.value?.bgmAssetUrl) return;
+			if (!bgmAssetUrl.value) return;
 			if (!bgmAudio.value) {
-				bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
+				bgmAudio.value = new Audio(bgmAssetUrl.value);
 				bgmAudio.value.loop = true;
 			}
 			bgmAudio.value.play();
 		};
 
 		const playSE = (seType: string) => {
-			if (!screenConfig.value?.seAssetUrls) return;
-			const assetUrl = screenConfig.value.seAssetUrls.find(url => url.includes(seType));
+			if (!seAssetUrls.value) return;
+			const assetUrl = seAssetUrls.value.find((url: string) => url.includes(seType));
 			if (!assetUrl) return;
 			const seAudio = new Audio(assetUrl);
 			seAudio.play();
@@ -73,10 +100,9 @@ export default {
 
 		// スライド管理
 		const nextSlide = () => {
-			if (!screenConfig.value) return;
-			if (slideIndex.value < screenConfig.value.elements.length - 1) {
+			if (slideIndex.value < elements.value.length - 1) {
 				slideIndex.value++;
-				currentSlide.value = screenConfig.value.elements[slideIndex.value];
+				currentSlide.value = elements.value[slideIndex.value];
 				playSE('slide');
 			} else {
 				router.push('/demo-draw');
@@ -93,7 +119,7 @@ export default {
 			return /<[^>]+>/.test(s);
 		};
 
-		return { screenConfig, currentSlide, slideIndex, isHtml };
+		return { screenConfig, currentSlide, slideIndex, elements, isHtml };
 	},
 };
 </script>
