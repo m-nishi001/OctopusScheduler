@@ -43,7 +43,7 @@ export class AssetDto {
     this.lastUpdated = entity.lastUpdated;
     this.size = entity.size;
     this.dataUrl = entity.dataUrl;
-    this.referenceFrom = entity.referenceFrom;
+    this.referenceFrom = [...entity.referenceFrom];
   }
 
   async toAsset(): Promise<Asset> {
@@ -55,7 +55,7 @@ export class AssetDto {
       uploadedAt: this.uploadedAt,
       lastUpdated: this.lastUpdated,
       size: this.size,
-      referenceFrom: this.referenceFrom,
+      referenceFrom: [...this.referenceFrom],
     };
   }
 }
