@@ -82,6 +82,7 @@ export class AssetRepository implements IAssetRepository {
     this.spreadsheetService.update(
       (info) => info.assetId === assetId,
       (info) => {
+        if (!Array.isArray(info.referenceFrom)) info.referenceFrom = [];
         if (!info.referenceFrom.includes(refSourceId)) {
           info.referenceFrom.push(refSourceId);
         }
@@ -94,6 +95,7 @@ export class AssetRepository implements IAssetRepository {
     this.spreadsheetService.update(
       (info) => info.assetId === assetId,
       (info) => {
+        if (!Array.isArray(info.referenceFrom)) info.referenceFrom = [];
         info.referenceFrom = info.referenceFrom.filter(
           (id) => id !== refSourceId
         );
