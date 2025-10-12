@@ -10,7 +10,13 @@ import MainDraw from "../../ui/pages/main-draw/main-draw.vue";
 import AdminLayout from "../../ui/pages/admin/frames/admin-view.vue";
 import AdminMembers from "../../ui/pages/admin/admin-members.vue";
 import AdminPrizes from "../../ui/pages/admin/admin-prizes.vue";
-import AdminScreens from "../../ui/pages/admin/admin-screens.vue";
+import HomeScreenConfig from "../../ui/pages/admin/screen-config/home-screen-config.vue";
+import OpeningScreenConfig from "../../ui/pages/admin/screen-config/opening-screen-config.vue";
+import DescriptionScreenConfig from "../../ui/pages/admin/screen-config/description-screen-config.vue";
+import DemoScreenConfig from "../../ui/pages/admin/screen-config/demo-screen-config.vue";
+import MainScreenConfig from "../../ui/pages/admin/screen-config/main-screen-config.vue";
+import ResultScreenConfig from "../../ui/pages/admin/screen-config/result-screen-config.vue";
+import EndingScreenConfig from "../../ui/pages/admin/screen-config/ending-screen-config.vue";
 import AdminAssets from "../../ui/pages/admin/admin-assets.vue";
 
 const jackpotGameRoutes = [
@@ -30,7 +36,13 @@ const jackpotGameRoutes = [
       { path: "", component: AdminMembers },
       { path: "members", component: AdminMembers },
       { path: "prizes", component: AdminPrizes },
-      { path: "screens/:screenType?", component: AdminScreens },
+      { path: "screens/home", component: HomeScreenConfig },
+      { path: "screens/opening", component: OpeningScreenConfig },
+      { path: "screens/description", component: DescriptionScreenConfig },
+      { path: "screens/demo", component: DemoScreenConfig },
+      { path: "screens/main", component: MainScreenConfig },
+      { path: "screens/result", component: ResultScreenConfig },
+      { path: "screens/ending", component: EndingScreenConfig },
       { path: "assets", component: AdminAssets },
     ],
   },

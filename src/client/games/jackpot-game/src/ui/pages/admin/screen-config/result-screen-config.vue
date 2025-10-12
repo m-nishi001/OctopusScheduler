@@ -1,92 +1,134 @@
 <template>
-    <div class="screen-config">
-        <h3>最終結果画面設定</h3>
-        <div class="config-item">
-            <label>BGM:</label>
-            <div class="asset-mode">
-                <label><input type="radio" v-model="config.bgmMode" value="select" /> 既存から選択</label>
-                <label><input type="radio" v-model="config.bgmMode" value="upload" /> アップロード</label>
+    <div class="admin-section">
+        <h2>最終結果画面設定</h2>
+        <div class="tab-content">
+            <div class="screen-config">
+                <h3>最終結果画面設定</h3>
+                <div class="config-item">
+                    <label>BGM:</label>
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="localConfig.bgmMode" value="select" /> 既存から選択</label>
+                        <label><input type="radio" v-model="localConfig.bgmMode" value="upload" /> アップロード</label>
+                    </div>
+                    <select v-if="localConfig.bgmMode === 'select'" v-model="localConfig.bgmAssetId"
+                        class="admin-input">
+                        <option value="">選択なし</option>
+                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                    </select>
+                    <input v-if="localConfig.bgmMode === 'upload'" type="file" @change="onBgmChange" accept="audio/*"
+                        class="admin-input" />
+                </div>
+                <div class="config-item">
+                    <label>結果リストスクロールSE:</label>
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="localConfig.scrollSeMode" value="select" /> 既存から選択</label>
+                        <label><input type="radio" v-model="localConfig.scrollSeMode" value="upload" /> アップロード</label>
+                    </div>
+                    <select v-if="localConfig.scrollSeMode === 'select'" v-model="localConfig.scrollSeAssetId"
+                        class="admin-input">
+                        <option value="">選択なし</option>
+                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                    </select>
+                    <input v-if="localConfig.scrollSeMode === 'upload'" type="file" @change="onScrollSeChange"
+                        accept="audio/*" class="admin-input" />
+                </div>
+                <div class="config-item">
+                    <label>最高ランク景品当選者表示SE:</label>
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="localConfig.highSeMode" value="select" /> 既存から選択</label>
+                        <label><input type="radio" v-model="localConfig.highSeMode" value="upload" /> アップロード</label>
+                    </div>
+                    <select v-if="localConfig.highSeMode === 'select'" v-model="localConfig.highSeAssetId"
+                        class="admin-input">
+                        <option value="">選択なし</option>
+                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                    </select>
+                    <input v-if="localConfig.highSeMode === 'upload'" type="file" @change="onHighSeChange"
+                        accept="audio/*" class="admin-input" />
+                </div>
+                <div class="config-item">
+                    <label>最低ランク景品当選者表示SE:</label>
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="localConfig.lowSeMode" value="select" /> 既存から選択</label>
+                        <label><input type="radio" v-model="localConfig.lowSeMode" value="upload" /> アップロード</label>
+                    </div>
+                    <select v-if="localConfig.lowSeMode === 'select'" v-model="localConfig.lowSeAssetId"
+                        class="admin-input">
+                        <option value="">選択なし</option>
+                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                    </select>
+                    <input v-if="localConfig.lowSeMode === 'upload'" type="file" @change="onLowSeChange"
+                        accept="audio/*" class="admin-input" />
+                </div>
+                <div class="config-item">
+                    <label>黒画面フェードインSE:</label>
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="localConfig.fadeSeMode" value="select" /> 既存から選択</label>
+                        <label><input type="radio" v-model="localConfig.fadeSeMode" value="upload" /> アップロード</label>
+                    </div>
+                    <select v-if="localConfig.fadeSeMode === 'select'" v-model="localConfig.fadeSeAssetId"
+                        class="admin-input">
+                        <option value="">選択なし</option>
+                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                    </select>
+                    <input v-if="localConfig.fadeSeMode === 'upload'" type="file" @change="onFadeSeChange"
+                        accept="audio/*" class="admin-input" />
+                </div>
             </div>
-            <select v-if="config.bgmMode === 'select'" v-model="config.bgmAssetId" class="admin-input">
-                <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-            <input v-if="config.bgmMode === 'upload'" type="file" @change="onBgmChange" accept="audio/*"
-                class="admin-input" />
-        </div>
-        <div class="config-item">
-            <label>結果リストスクロールSE:</label>
-            <div class="asset-mode">
-                <label><input type="radio" v-model="config.scrollSeMode" value="select" /> 既存から選択</label>
-                <label><input type="radio" v-model="config.scrollSeMode" value="upload" /> アップロード</label>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving || uploading"
+                    :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
+                <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
-            <select v-if="config.scrollSeMode === 'select'" v-model="config.scrollSeAssetId" class="admin-input">
-                <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-            <input v-if="config.scrollSeMode === 'upload'" type="file" @change="onScrollSeChange" accept="audio/*"
-                class="admin-input" />
-        </div>
-        <div class="config-item">
-            <label>最高ランク景品当選者表示SE:</label>
-            <div class="asset-mode">
-                <label><input type="radio" v-model="config.highSeMode" value="select" /> 既存から選択</label>
-                <label><input type="radio" v-model="config.highSeMode" value="upload" /> アップロード</label>
+            <!-- ロードモーダル -->
+            <div v-if="loading" class="modal-overlay">
+                <div class="modal-content">
+                    <h3>{{ loadingStatus || 'データを読み込み中...' }}</h3>
+                    <p>アセットを読み込んでいます。しばらくお待ちください。</p>
+                    <div class="spinner"></div>
+                </div>
             </div>
-            <select v-if="config.highSeMode === 'select'" v-model="config.highSeAssetId" class="admin-input">
-                <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-            <input v-if="config.highSeMode === 'upload'" type="file" @change="onHighSeChange" accept="audio/*"
-                class="admin-input" />
-        </div>
-        <div class="config-item">
-            <label>最低ランク景品当選者表示SE:</label>
-            <div class="asset-mode">
-                <label><input type="radio" v-model="config.lowSeMode" value="select" /> 既存から選択</label>
-                <label><input type="radio" v-model="config.lowSeMode" value="upload" /> アップロード</label>
+            <!-- 保存モーダル -->
+            <div v-if="saving" class="modal-overlay">
+                <div class="modal-content">
+                    <h3>保存中...</h3>
+                    <p>{{ saveStatus }}</p>
+                    <div class="spinner"></div>
+                </div>
             </div>
-            <select v-if="config.lowSeMode === 'select'" v-model="config.lowSeAssetId" class="admin-input">
-                <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-            <input v-if="config.lowSeMode === 'upload'" type="file" @change="onLowSeChange" accept="audio/*"
-                class="admin-input" />
-        </div>
-        <div class="config-item">
-            <label>黒画面フェードインSE:</label>
-            <div class="asset-mode">
-                <label><input type="radio" v-model="config.fadeSeMode" value="select" /> 既存から選択</label>
-                <label><input type="radio" v-model="config.fadeSeMode" value="upload" /> アップロード</label>
+            <!-- アップロードモーダル -->
+            <div v-if="uploading" class="modal-overlay">
+                <div class="modal-content">
+                    <h3>アセットをアップロード中...</h3>
+                    <p>ファイルをアップロードしています。しばらくお待ちください。</p>
+                    <div class="spinner"></div>
+                </div>
             </div>
-            <select v-if="config.fadeSeMode === 'select'" v-model="config.fadeSeAssetId" class="admin-input">
-                <option value="">選択なし</option>
-                <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-            <input v-if="config.fadeSeMode === 'upload'" type="file" @change="onFadeSeChange" accept="audio/*"
-                class="admin-input" />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineEmits, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { FileUtils } from '../../../../model/infrastructures/utils/file-utils';
 import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
+import { useScreenSettingData } from './useScreenSettingData';
 
-const props = defineProps<{
-    audioAssets: any[];
-    assetService: any;
-    config?: any;
-}>();
+const {
+    screenConfigRepo,
+    audioAssets,
+    loading,
+    loadingStatus,
+    saving,
+    saveStatus,
+    uploading,
+    tempAssets,
+    onTempAssets,
+    handleSave,
+} = useScreenSettingData();
 
-const emit = defineEmits<{
-    update: [config: any];
-    uploading: [isUploading: boolean];
-    tempAssets: [tempAssets: AssetDto[]];
-}>();
-
-const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
+const localConfig = ref({
+    id: "",
     bgmMode: 'select',
     bgmAssetId: '',
     scrollSeMode: 'select',
@@ -98,33 +140,33 @@ const config = ref(props.config ? JSON.parse(JSON.stringify(props.config)) : {
     fadeSeMode: 'select',
     fadeSeAssetId: '',
 });
-const tempAssets = ref<AssetDto[]>([]);
 
-watch(() => props.config, (newCfg: any) => {
-    config.value = newCfg ? JSON.parse(JSON.stringify(newCfg)) : {
-        bgmMode: 'select',
-        bgmAssetId: '',
-        scrollSeMode: 'select',
-        scrollSeAssetId: '',
-        highSeMode: 'select',
-        highSeAssetId: '',
-        lowSeMode: 'select',
-        lowSeAssetId: '',
-        fadeSeMode: 'select',
-        fadeSeAssetId: '',
-    };
-}, { deep: true });
-
-watch(config, (newVal: any) => {
+const loadConfig = async () => {
     try {
-        const normalizedProp = props.config ? JSON.parse(JSON.stringify(props.config)) : undefined;
-        if (JSON.stringify(normalizedProp) !== JSON.stringify(newVal)) {
-            emit('update', newVal);
+        const config = await screenConfigRepo.getScreenConfigById("result");
+        if (config) {
+            localConfig.value = {
+                id: config.id || "",
+                bgmMode: config.bgmAssetId ? "select" : "select",
+                bgmAssetId: config.bgmAssetId || "",
+                scrollSeMode: "select",
+                scrollSeAssetId: config.seAssetIds?.[0] || "",
+                highSeMode: "select",
+                highSeAssetId: config.seAssetIds?.[1] || "",
+                lowSeMode: "select",
+                lowSeAssetId: config.seAssetIds?.[2] || "",
+                fadeSeMode: "select",
+                fadeSeAssetId: config.seAssetIds?.[3] || "",
+            };
         }
-    } catch (e) {
-        emit('update', newVal);
+    } catch (error) {
+        console.error("Failed to load result config:", error);
     }
-}, { deep: true });
+};
+
+onMounted(async () => {
+    await loadConfig();
+});
 
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
@@ -141,9 +183,8 @@ const onBgmChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            config.value.bgmAssetId = "";
-            emit('update', config.value);
-            emit('tempAssets', tempAssets.value);
+            localConfig.value.bgmAssetId = "";
+            onTempAssets(tempAssets.value);
         } catch (error) {
             console.error('Failed to create temp asset:', error);
         }
@@ -165,9 +206,8 @@ const onScrollSeChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            config.value.scrollSeAssetId = "";
-            emit('update', config.value);
-            emit('tempAssets', tempAssets.value);
+            localConfig.value.scrollSeAssetId = "";
+            onTempAssets(tempAssets.value);
         } catch (error) {
             console.error('Failed to create temp asset:', error);
         }
@@ -189,9 +229,8 @@ const onHighSeChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            config.value.highSeAssetId = "";
-            emit('update', config.value);
-            emit('tempAssets', tempAssets.value);
+            localConfig.value.highSeAssetId = "";
+            onTempAssets(tempAssets.value);
         } catch (error) {
             console.error('Failed to create temp asset:', error);
         }
@@ -213,9 +252,8 @@ const onLowSeChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            config.value.lowSeAssetId = "";
-            emit('update', config.value);
-            emit('tempAssets', tempAssets.value);
+            localConfig.value.lowSeAssetId = "";
+            onTempAssets(tempAssets.value);
         } catch (error) {
             console.error('Failed to create temp asset:', error);
         }
@@ -237,13 +275,32 @@ const onFadeSeChange = async (e: Event) => {
                 size: file.size,
             });
             tempAssets.value.push(assetDto);
-            config.value.fadeSeAssetId = "";
-            emit('update', config.value);
-            emit('tempAssets', tempAssets.value);
+            localConfig.value.fadeSeAssetId = "";
+            onTempAssets(tempAssets.value);
         } catch (error) {
             console.error('Failed to create temp asset:', error);
         }
     }
+};
+
+const handleSaveClick = async () => {
+    await handleSave(async () => {
+        const config = {
+            id: localConfig.value.id,
+            type: "result" as const,
+            bgmAssetId: localConfig.value.bgmAssetId || undefined,
+            seAssetIds: [
+                localConfig.value.scrollSeAssetId,
+                localConfig.value.highSeAssetId,
+                localConfig.value.lowSeAssetId,
+                localConfig.value.fadeSeAssetId,
+            ].filter((id: any) => id),
+            backgroundStyle: "",
+            elements: [],
+        };
+        await screenConfigRepo.updateScreenConfigs([config] as any);
+        await loadConfig();
+    });
 };
 </script>
 
