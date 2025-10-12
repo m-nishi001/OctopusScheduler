@@ -56,6 +56,14 @@
                         <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                     </select>
                 </div>
+                <div class="config-item">
+                    <label>タイトル文言:</label>
+                    <input type="text" v-model="localConfig.title" class="admin-input" />
+                </div>
+                <div class="config-item">
+                    <label>サブタイトル文言:</label>
+                    <input type="text" v-model="localConfig.subtitle" class="admin-input" />
+                </div>
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
                 <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving || uploading"
@@ -124,6 +132,8 @@ const localConfig = ref({
     onCompletedLoadingSEMode: "select",
     onCompletedLoadingSEFilename: "",
     onCompletedLoadingSETempAsset: null as AssetDto | null,
+    title: "",
+    subtitle: "",
 });
 
 const loadConfig = async () => {
@@ -143,6 +153,8 @@ const loadConfig = async () => {
                 onCompletedLoadingSEMode: "select",
                 onCompletedLoadingSEFilename: "",
                 onCompletedLoadingSETempAsset: null,
+                title: (config as any).title || "2025年度 ジャックポッド大会！",
+                subtitle: (config as any).subtitle || "",
             };
         }
     } catch (error) {
@@ -203,7 +215,9 @@ const handleSaveClick = async () => {
         const config = new HomeScreenSetting(
             homeBgmId,
             buttonClikingSEId,
-            onCompletedLoadingSEId
+            onCompletedLoadingSEId,
+            localConfig.value.title,
+            localConfig.value.subtitle
         );
         const converter = container.resolve(HomeScreenConfigConverter);
         const settings = converter.toSettings(config);
