@@ -3,18 +3,18 @@
     <nav>
       <ul>
         <li>
-          <router-link to="/jackpot-admin/assets" class="menu-link">
-            <span class="icon">📁</span> アセット管理
-          </router-link>
-        </li>
-        <li>
           <router-link to="/jackpot-admin/members" class="menu-link">
-            <span class="icon">👤</span> メンバー設定
+            <span class="icon">�</span> メンバー設定
           </router-link>
         </li>
         <li>
           <router-link to="/jackpot-admin/prizes" class="menu-link">
             <span class="icon">🎁</span> 景品設定
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/jackpot-admin/assets" class="menu-link">
+            <span class="icon">📁</span> アセット管理
           </router-link>
         </li>
         <li class="submenu">
