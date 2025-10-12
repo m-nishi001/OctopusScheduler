@@ -28,8 +28,8 @@ export class ScreenConfigService implements GasService {
     this.repository.updateScreenSettings(args);
   }
 
-  deleteScreenConfig(args: { type: string }): void {
-    this.repository.deleteScreenConfigs([args.type]);
+  deleteScreenConfig(args: { screenName: string }): void {
+    this.repository.deleteScreenConfigs([args.screenName]);
   }
 
   addScreenConfigs(args: { configs: ScreenSetting[] }): void {
