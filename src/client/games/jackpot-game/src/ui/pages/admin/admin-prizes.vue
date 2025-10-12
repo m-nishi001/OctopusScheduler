@@ -42,85 +42,162 @@
 
   <!-- 詳細モーダル -->
   <div v-if="editPrizeData" class="modal-overlay" @click="editPrizeData = null">
-    <div class="modal-content" @click.stop>
-      <h3>景品詳細</h3>
-      <input v-model="editName" type="text" placeholder="景品名" class="admin-input" />
-      <input v-model.number="editProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
-        class="admin-input" />
-      <input v-model.number="editRank" type="number" placeholder="順位" min="1" class="admin-input" />
-      <div class="image-mode">
-        <label><input type="radio" v-model="editImageMode" value="upload" /> アップロード</label>
-        <label><input type="radio" v-model="editImageMode" value="select" /> 既存から選択</label>
+    <div class="modal-content add-modal-grid" @click.stop>
+      <div class="add-form-column">
+        <h3>景品詳細</h3>
+        <p>景品の情報を編集してください。</p>
+
+        <div class="field-block">
+          <label class="field-label">名前</label>
+          <input v-model="editName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">確率</label>
+          <input v-model.number="editProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
+            class="admin-input" />
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">順位</label>
+          <input v-model.number="editRank" type="number" placeholder="順位" min="1" class="admin-input" />
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">画像</label>
+          <div class="image-mode">
+            <label><input type="radio" v-model="editImageMode" value="upload" /> アップロード</label>
+            <label><input type="radio" v-model="editImageMode" value="select" /> 既存から選択</label>
+          </div>
+
+          <div style="margin-top:10px">
+            <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange" accept="image/*"
+              class="admin-input" />
+            <div v-if="editImageMode === 'upload' && editImageFilename" class="file-name">{{ editImageFilename }}
+            </div>
+
+            <select v-if="editImageMode === 'select'" v-model="editImageAssetId" class="admin-input"
+              style="margin-top:8px">
+              <option value="">選択なし</option>
+              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">BGM1</label>
+          <select v-model="editBgm1AssetId" class="admin-input">
+            <option value="">選択なし</option>
+            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+          </select>
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">BGM2</label>
+          <select v-model="editBgm2AssetId" class="admin-input">
+            <option value="">選択なし</option>
+            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+          </select>
+        </div>
+
       </div>
-      <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange" accept="image/*"
-        class="admin-input" />
-      <select v-if="editImageMode === 'select'" v-model="editImageAssetId" class="admin-input">
-        <option value="">選択なし</option>
-        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-      </select>
-      <div class="bgm-mode">
-        <label>BGM1:</label>
-        <select v-model="editBgm1AssetId" class="admin-input">
-          <option value="">選択なし</option>
-          <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-        </select>
+
+      <div class="add-side-column">
+        <div class="preview-box">
+          <template v-if="editImagePreview">
+            <img :src="editImagePreview" alt="preview" class="preview-img" />
+          </template>
+          <template v-else>
+            <div class="preview-placeholder">プレビュー</div>
+          </template>
+        </div>
       </div>
-      <div class="bgm-mode">
-        <label>BGM2:</label>
-        <select v-model="editBgm2AssetId" class="admin-input">
-          <option value="">選択なし</option>
-          <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-        </select>
-      </div>
-      <div v-if="editImagePreview" class="admin-photo-preview">
-        <img :src="editImagePreview" alt="preview" style="max-width:80px;max-height:80px;" />
-      </div>
-      <div class="admin-modal-buttons">
-        <button class="admin-btn" @click="saveEdit">保存</button>
-        <button class="admin-btn" @click="editPrizeData = null">キャンセル</button>
+
+      <div class="modal-footer">
+        <div class="admin-modal-buttons">
+          <button class="admin-btn" @click="saveEdit">保存</button>
+          <button class="admin-btn cancel-primary" @click="editPrizeData = null">キャンセル</button>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- 追加モーダル -->
   <div v-if="showAddModal" class="modal-overlay">
-    <div class="modal-content">
-      <h3>景品を追加</h3>
-      <p>追加する景品の情報を入力してください。</p>
-      <div class="prize-input-group">
-        <input v-model="newPrizeName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
-        <input v-model.number="newPrizeProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
-          class="admin-input" />
-        <input v-model.number="newPrizeRank" type="number" placeholder="順位" min="1" class="admin-input" />
-        <div class="image-mode">
-          <label><input type="radio" v-model="newImageMode" value="upload" /> アップロード</label>
-          <label><input type="radio" v-model="newImageMode" value="select" /> 既存から選択</label>
+    <div class="modal-content add-modal-grid">
+      <div class="add-form-column">
+        <h3>景品を追加</h3>
+        <p>追加する景品の情報を入力してください。</p>
+        <div class="field-block">
+          <label class="field-label">名前</label>
+          <input v-model="newPrizeName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
         </div>
-        <input v-if="newImageMode === 'upload'" type="file" @change="onNewImageChange" accept="image/*"
-          class="admin-input" />
-        <select v-if="newImageMode === 'select'" v-model="newImageAssetId" class="admin-input">
-          <option value="">選択なし</option>
-          <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-        </select>
-        <div class="bgm-mode">
-          <label>BGM1:</label>
+
+        <div class="field-block">
+          <label class="field-label">確率</label>
+          <input v-model.number="newPrizeProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
+            class="admin-input" />
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">順位</label>
+          <input v-model.number="newPrizeRank" type="number" placeholder="順位" min="1" class="admin-input" />
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">画像</label>
+          <div class="image-mode">
+            <label><input type="radio" v-model="newImageMode" value="upload" /> アップロード</label>
+            <label><input type="radio" v-model="newImageMode" value="select" /> 既存から選択</label>
+          </div>
+          <div style="margin-top:10px">
+            <input v-if="newImageMode === 'upload'" type="file" @change="onNewImageChange" accept="image/*"
+              class="admin-input" />
+            <div v-if="newImageMode === 'upload' && newImageFilename" class="file-name">{{ newImageFilename }}
+            </div>
+
+            <select v-if="newImageMode === 'select'" v-model="newImageAssetId" class="admin-input"
+              style="margin-top:8px">
+              <option value="">選択なし</option>
+              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field-block">
+          <label class="field-label">BGM1</label>
           <select v-model="newBgm1AssetId" class="admin-input">
             <option value="">選択なし</option>
             <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
           </select>
         </div>
-        <div class="bgm-mode">
-          <label>BGM2:</label>
+
+        <div class="field-block">
+          <label class="field-label">BGM2</label>
           <select v-model="newBgm2AssetId" class="admin-input">
             <option value="">選択なし</option>
             <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
           </select>
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="admin-btn" @click="confirmAdd"
-          :disabled="!newPrizeName.trim() || !newPrizeProbability || adding">追加</button>
-        <button class="admin-btn" @click="closeAddModal" :disabled="adding">キャンセル</button>
+
+      <div class="add-side-column">
+        <div class="preview-box">
+          <template v-if="newImagePreview">
+            <img :src="newImagePreview" alt="preview" class="preview-img" />
+          </template>
+          <template v-else>
+            <div class="preview-placeholder">プレビュー</div>
+          </template>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="admin-modal-buttons">
+          <button class="admin-btn" @click="confirmAdd"
+            :disabled="!newPrizeName.trim() || !newPrizeProbability || adding">追加</button>
+          <button class="admin-btn cancel-primary" @click="closeAddModal" :disabled="adding">キャンセル</button>
+        </div>
       </div>
     </div>
   </div>
@@ -158,16 +235,18 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import type { IPrizeRepository } from '../../../model/domains/prize/repository/IPrizeRepository';
+import type { Asset } from "../../../model/domains/asset/asset";
 import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { PrizeService } from '../../../model/applications/prize/prize-service';
-import { FileUtils } from '../../../../src/model/infrastructures/utils/file-utils';
+import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
+import type { IPrizeRepository } from '../../../model/domains/prize/repository/IPrizeRepository';
 
 import { container } from 'tsyringe';
 const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
 const assetService = container.resolve(AssetService);
 const prizeService = container.resolve(PrizeService);
+const prizeAddService = container.resolve(PrizeAddService);
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
 const assets = ref<any[]>([]);
@@ -195,7 +274,7 @@ const isAllSelected = computed({
 // add modal state and actions
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
-const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeProbability.value = 5; newPrizeRank.value = undefined; newImageAsset.value = undefined; newImageAssetId.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; };
+const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeProbability.value = 5; newPrizeRank.value = undefined; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; };
 const confirmAdd = async () => { await addPrize(); closeAddModal(); };
 
 // delete modal state
@@ -217,22 +296,19 @@ const newPrizeRank = ref<number | undefined>();
 const newImageMode = ref('upload');
 const newImageAssetId = ref('');
 const newImageAsset = ref<AssetDto | undefined>();
+const newImageFilename = ref('');
+const newImagePreview = ref('');
 const newBgm1AssetId = ref('');
 const newBgm2AssetId = ref('');
+
+const tempAsset = ref<Asset | null>(null);
 
 const onNewImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const dataUrl = await FileUtils.readAsDataUrl(file);
-    newImageAsset.value = new AssetDto({
-      id: "",
-      type: FileUtils.getAssetType(file.type),
-      dataUrl,
-      name: file.name,
-      uploadedAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      size: file.size
-    });
+    tempAsset.value = await prizeAddService.createTempAsset(file);
+    newImageFilename.value = file.name;
+    newImagePreview.value = tempAsset.value.dataUrl;
   }
 };
 
@@ -246,16 +322,17 @@ const addPrize = async () => {
     rank: newPrizeRank.value,
     order: prizes.value.length + 1
   };
-  if (newImageMode.value === 'upload' && newImageAsset.value) {
-    newPrize.imageAsset = newImageAsset.value;
-  } else if (newImageMode.value === 'select' && newImageAssetId.value) {
+  if (newImageMode.value === 'select' && newImageAssetId.value) {
     newPrize.imageAssetId = newImageAssetId.value;
   }
   if (newBgm1AssetId.value) newPrize.bgm1AssetId = newBgm1AssetId.value;
   if (newBgm2AssetId.value) newPrize.bgm2AssetId = newBgm2AssetId.value;
   try {
-    await prizeRepo.addPrizes([newPrize]);
-    await fetchPrizes();
+    const addedPrize = await prizeAddService.savePrize(newPrize, tempAsset.value || undefined);
+    prizes.value.push(addedPrize);
+    tempAsset.value = null;
+    newImagePreview.value = '';
+    newImageFilename.value = '';
   } catch (error) {
     console.error("Failed to add prize:", error);
   } finally {
@@ -307,7 +384,14 @@ const syncPrizes = async () => {
 
 const fetchPrizes = async () => {
   try {
-    prizes.value = await prizeRepo.getPrizes();
+    const fetchedPrizes = await prizeRepo.getPrizes();
+    for (const prize of fetchedPrizes) {
+      if (prize.imageAssetId) {
+        const asset = await assetService.getAssetById(prize.imageAssetId);
+        prize.imageDataUrl = asset?.dataUrl;
+      }
+    }
+    prizes.value = fetchedPrizes;
   } catch (error) {
     console.error("Failed to fetch prizes:", error);
     prizes.value = [];
@@ -328,26 +412,20 @@ const editName = ref('');
 const editProbability = ref(5);
 const editRank = ref<number | undefined>();
 const editImageAssetId = ref('');
-const editImageAsset = ref<AssetDto | undefined>();
 const editImagePreview = ref('');
 const editImageMode = ref('upload');
+const editImageFilename = ref('');
 const editBgm1AssetId = ref('');
 const editBgm2AssetId = ref('');
+
+const editTempAsset = ref<Asset | null>(null);
 
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const dataUrl = await FileUtils.readAsDataUrl(file);
-    editImageAsset.value = new AssetDto({
-      id: "",
-      type: FileUtils.getAssetType(file.type),
-      dataUrl,
-      name: file.name,
-      uploadedAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      size: file.size
-    });
-    editImagePreview.value = editImageAsset.value.dataUrl;
+    editTempAsset.value = await prizeAddService.createTempAsset(file);
+    editImageFilename.value = file.name;
+    editImagePreview.value = editTempAsset.value.dataUrl;
   }
 };
 
@@ -359,33 +437,33 @@ const editPrize = (prize: any) => {
   if (prize.imageAssetId) {
     editImageMode.value = 'select';
     editImageAssetId.value = prize.imageAssetId;
-    editImagePreview.value = prize.imageAssetId;
+    editImagePreview.value = prize.imageDataUrl || prize.imageAssetId;
   } else {
     editImageMode.value = 'upload';
-    editImageAsset.value = prize.imageAsset;
-    if (editImageAsset.value) {
-      editImagePreview.value = editImageAsset.value.dataUrl || '';
-    }
   }
+  editImageFilename.value = '';
+  editTempAsset.value = null;
   editBgm1AssetId.value = prize.bgm1AssetId || '';
   editBgm2AssetId.value = prize.bgm2AssetId || '';
 };
 
 const saveEdit = async () => {
   if (!editPrizeData.value) return;
+  let assetId: string | undefined;
+  if (editTempAsset.value) {
+    const assetDto = new AssetDto(editTempAsset.value);
+    await assetService.addAssets([assetDto]);
+    assetId = assetDto.id;
+  }
   const updatedPrize = {
     ...editPrizeData.value,
     name: editName.value,
     probability: editProbability.value,
-    rank: editRank.value
+    rank: editRank.value,
+    imageAssetId: assetId || editImageAssetId.value,
+    bgm1AssetId: editBgm1AssetId.value || undefined,
+    bgm2AssetId: editBgm2AssetId.value || undefined,
   };
-  if (editImageMode.value === 'upload' && editImageAsset.value) {
-    updatedPrize.imageAsset = editImageAsset.value;
-  } else if (editImageMode.value === 'select' && editImageAssetId.value) {
-    updatedPrize.imageAssetId = editImageAssetId.value;
-  }
-  if (editBgm1AssetId.value) updatedPrize.bgm1AssetId = editBgm1AssetId.value;
-  if (editBgm2AssetId.value) updatedPrize.bgm2AssetId = editBgm2AssetId.value;
   try {
     await prizeRepo.updatePrizes([{ id: updatedPrize.id, updateFn: () => updatedPrize }]);
     await fetchPrizes();
@@ -393,9 +471,10 @@ const saveEdit = async () => {
     editName.value = '';
     editProbability.value = 5;
     editRank.value = undefined;
-    editImageAsset.value = undefined;
     editImageAssetId.value = '';
     editImagePreview.value = '';
+    editImageFilename.value = '';
+    editTempAsset.value = null;
     editBgm1AssetId.value = '';
     editBgm2AssetId.value = '';
   } catch (error) {
@@ -653,8 +732,82 @@ onMounted(() => {
   border-radius: 10px;
   text-align: left;
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-  max-width: 720px;
+  max-width: 620px;
   width: 90%;
+}
+
+.add-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 12px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.add-form-column .field-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #cfe8ff;
+  font-weight: 600;
+}
+
+.field-block {
+  margin-top: 12px;
+}
+
+.add-side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.preview-box {
+  width: 240px;
+  height: 240px;
+  background: #2a3137;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.preview-box .preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preview-placeholder {
+  color: #9fb8db
+}
+
+.file-name {
+  margin-top: 8px;
+  color: #cfe8ff;
+  font-size: 0.92rem;
+}
+
+.modal-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.admin-modal-buttons {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.cancel-primary {
+  background: #3b4650;
+  color: #fff;
 }
 
 .modal-actions {

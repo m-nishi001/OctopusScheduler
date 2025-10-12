@@ -9,6 +9,7 @@ export interface PrizeDto {
   bgm1AssetId?: string;
   bgm2AssetId?: string;
   order: number;
+  imageDataUrl?: string;
 }
 
 export const toPrize = (dto: PrizeDto): Prize => ({
@@ -20,6 +21,7 @@ export const toPrize = (dto: PrizeDto): Prize => ({
   bgm1AssetId: dto.bgm1AssetId,
   bgm2AssetId: dto.bgm2AssetId,
   order: dto.order,
+  imageDataUrl: dto.imageDataUrl,
 });
 
 export const fromPrize = (prize: Prize): PrizeDto => ({
@@ -31,4 +33,5 @@ export const fromPrize = (prize: Prize): PrizeDto => ({
   bgm1AssetId: prize.bgm1AssetId,
   bgm2AssetId: prize.bgm2AssetId,
   order: prize.order,
+  imageDataUrl: prize.imageDataUrl,
 });

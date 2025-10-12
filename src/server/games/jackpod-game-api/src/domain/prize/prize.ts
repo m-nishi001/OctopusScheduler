@@ -7,4 +7,5 @@ export interface Prize {
   bgm1AssetId?: string;
   bgm2AssetId?: string;
   order: number;
+  imageDataUrl?: string;
 }

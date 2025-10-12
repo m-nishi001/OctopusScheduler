@@ -11,6 +11,7 @@ export function toPrizeDto(entity: Prize): PrizeDto {
     bgm1AssetId: entity.bgm1AssetId,
     bgm2AssetId: entity.bgm2AssetId,
     order: entity.order,
+    imageDataUrl: entity.imageDataUrl,
   };
 }
 
@@ -24,5 +25,6 @@ export function toPrize(dto: PrizeDto): Prize {
     bgm1AssetId: dto.bgm1AssetId,
     bgm2AssetId: dto.bgm2AssetId,
     order: dto.order,
+    imageDataUrl: dto.imageDataUrl,
   };
 }
