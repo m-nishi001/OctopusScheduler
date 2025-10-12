@@ -22,8 +22,10 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
   }
 
   updateScreenSettings(settings: ScreenSetting[]): void {
+    if (settings.length === 0) return;
+    const screenName = settings[0].screenName;
     const transaction = this.repository.beginTransaction();
-    transaction.delete((r: ScreenSetting) => true);
+    transaction.delete((r: ScreenSetting) => r.screenName === screenName);
     for (const setting of settings) {
       transaction.add(setting);
     }
