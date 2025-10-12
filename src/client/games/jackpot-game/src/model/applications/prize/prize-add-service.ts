@@ -6,12 +6,14 @@ import { toPrize } from "./dto/prize-dto";
 import type { Asset } from "../../domains/asset/asset";
 import type { Prize } from "../../domains/prize/prize";
 import { FileUtils } from "../../infrastructures/utils/file-utils";
+import { AssetService } from "../asset/asset-service";
 
 @injectable()
 export class PrizeAddService {
   constructor(
     @inject("IAssetRepository") private assetRepo: IAssetRepository,
-    @inject("IPrizeRepository") private prizeRepo: IPrizeRepository
+    @inject("IPrizeRepository") private prizeRepo: IPrizeRepository,
+    @inject(AssetService) private assetService: AssetService
   ) {}
 
   async createTempAsset(file: File): Promise<Asset> {
@@ -42,6 +44,10 @@ export class PrizeAddService {
     const addedPrize = toPrize(prizeToSave);
     if (tempAsset) {
       addedPrize.imageDataUrl = tempAsset.dataUrl;
+    }
+    if (assetId) {
+      // ここは待たなくて良い。
+      this.assetService.registerRef(assetId, addedPrize.id);
     }
     return addedPrize;
   }

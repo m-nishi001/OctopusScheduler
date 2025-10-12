@@ -344,7 +344,18 @@ const deletePrize = async (id: string) => {
   deleting.value = true;
   deleteMessage.value = "景品を削除しています...";
   try {
+    const prize = prizes.value.find(p => p.id === id);
     await prizeRepo.deletePrizes([id]);
+    // Unregister asset references
+    if (prize?.imageAssetId) {
+      await assetService.unregisterRef(prize.imageAssetId, prize.id);
+    }
+    if (prize?.bgm1AssetId) {
+      await assetService.unregisterRef(prize.bgm1AssetId, prize.id);
+    }
+    if (prize?.bgm2AssetId) {
+      await assetService.unregisterRef(prize.bgm2AssetId, prize.id);
+    }
     await fetchPrizes();
   } catch (error) {
     console.error("Failed to delete prize:", error);
@@ -358,7 +369,20 @@ const deleteSelectedPrizes = async () => {
   deleting.value = true;
   deleteMessage.value = "景品を削除しています...";
   try {
+    const prizesToDelete = prizes.value.filter(p => selectedPrizes.value.includes(p.id));
     await prizeRepo.deletePrizes(selectedPrizes.value);
+    // Unregister asset references
+    for (const prize of prizesToDelete) {
+      if (prize.imageAssetId) {
+        await assetService.unregisterRef(prize.imageAssetId, prize.id);
+      }
+      if (prize.bgm1AssetId) {
+        await assetService.unregisterRef(prize.bgm1AssetId, prize.id);
+      }
+      if (prize.bgm2AssetId) {
+        await assetService.unregisterRef(prize.bgm2AssetId, prize.id);
+      }
+    }
     await fetchPrizes();
     selectedPrizes.value = [];
   } catch (error) {
