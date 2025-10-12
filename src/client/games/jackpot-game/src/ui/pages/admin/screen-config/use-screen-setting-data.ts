@@ -88,8 +88,7 @@ export function useScreenSettingData() {
 
       if (tempAssets.value.length > 0) {
         saveStatus.value = "アセットをアップロード中...";
-        await assetService.addAssets(tempAssets.value);
-        tempAssets.value = [];
+        tempAssets.value = await assetService.addAssets(tempAssets.value);
       }
 
       await saveFunction();

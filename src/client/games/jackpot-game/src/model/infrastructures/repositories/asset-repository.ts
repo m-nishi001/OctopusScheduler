@@ -33,12 +33,9 @@ export class AssetRepository implements IAssetRepository {
     const gasService = GasFunctionService.create("callJackpotGameApi");
     if (!gasService) throw new Error("GAS service not available");
     const promises = assets.map(async (asset, index) => {
-      const method = asset.id
-        ? "AssetService.updateAsset"
-        : "AssetService.addAsset";
       return new Promise<string>((resolve, reject) => {
         gasService
-          .createCall<{ asset: Asset }>(method, { asset })
+          .createCall<{ asset: Asset }>("AssetService.addAsset", { asset })
           .withSuccessed(async (res: { asset: Asset }) => {
             await this.localStorage.save(res.asset.id, res.asset);
             onProgress?.(index, "完了");

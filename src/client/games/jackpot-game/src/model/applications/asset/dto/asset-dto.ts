@@ -26,14 +26,14 @@ export class AssetMetadataDto {
 }
 
 export class AssetDto {
-  id: string;
-  type: "image" | "video" | "audio" | "text";
-  name: string;
-  uploadedAt: string;
-  lastUpdated: string;
-  size: number;
-  dataUrl: string;
-  referenceFrom: string[];
+  readonly id: string;
+  readonly type: "image" | "video" | "audio" | "text";
+  readonly name: string;
+  readonly uploadedAt: string;
+  readonly lastUpdated: string;
+  readonly size: number;
+  readonly dataUrl: string;
+  readonly referenceFrom: string[];
 
   constructor(entity: Asset) {
     this.id = entity.id;

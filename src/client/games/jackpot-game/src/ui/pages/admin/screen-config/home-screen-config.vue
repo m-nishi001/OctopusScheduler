@@ -206,7 +206,11 @@ const handleSaveClick = async () => {
         let onCompletedLoadingSEId = localConfig.value.onCompletedLoadingSE;
 
         if (tempAssetsToAdd.length > 0) {
-            await assetService.addAssets(tempAssetsToAdd);
+            const updatedAssets = await assetService.addAssets(tempAssetsToAdd);
+            // Update temp assets with new IDs
+            localConfig.value.homeBgmTempAsset = updatedAssets.find(a => a.name === localConfig.value.homeBgmTempAsset?.name) || localConfig.value.homeBgmTempAsset;
+            localConfig.value.buttonClikingSETempAsset = updatedAssets.find(a => a.name === localConfig.value.buttonClikingSETempAsset?.name) || localConfig.value.buttonClikingSETempAsset;
+            localConfig.value.onCompletedLoadingSETempAsset = updatedAssets.find(a => a.name === localConfig.value.onCompletedLoadingSETempAsset?.name) || localConfig.value.onCompletedLoadingSETempAsset;
             homeBgmId = localConfig.value.homeBgmTempAsset?.id || localConfig.value.homeBgm;
             buttonClikingSEId = localConfig.value.buttonClikingSETempAsset?.id || localConfig.value.buttonClikingSE;
             onCompletedLoadingSEId = localConfig.value.onCompletedLoadingSETempAsset?.id || localConfig.value.onCompletedLoadingSE;

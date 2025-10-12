@@ -171,12 +171,12 @@ const addAssets = async () => {
     const assetDtos = await Promise.all(selectedFiles.value.map(async (file) => {
         return await assetService.createAssetDtoFromFile(file);
     }));
-    await assetService.addAssets(assetDtos, (index, status, message) => {
+    const updatedAssets = await assetService.addAssets(assetDtos, (index, status, message) => {
         uploadStatuses.value[index].status = status;
         uploadStatuses.value[index].message = message;
     });
     uploading.value = false;
-    assets.value.push(...assetDtos);
+    assets.value.push(...updatedAssets);
     selectedFiles.value = [];
 };
 

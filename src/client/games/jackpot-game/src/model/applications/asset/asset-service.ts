@@ -28,14 +28,19 @@ export class AssetService {
       status: "完了" | "失敗",
       message?: string
     ) => void
-  ): Promise<void> {
+  ): Promise<AssetDto[]> {
     const assetEntities = await Promise.all(
       assetDtos.map((dto) => dto.toAsset())
     );
     const ids = await this.repo.addAssets(assetEntities, onProgress);
-    ids.forEach((id, index) => {
-      assetDtos[index].id = id;
+    const updatedAssetDtos = ids.map((id, index) => {
+      const updatedAsset: Asset = {
+        ...assetEntities[index],
+        id,
+      };
+      return new AssetDto(updatedAsset);
     });
+    return updatedAssetDtos;
   }
 
   async deleteAssets(

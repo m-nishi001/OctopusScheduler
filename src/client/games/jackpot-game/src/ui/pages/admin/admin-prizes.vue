@@ -568,17 +568,20 @@ const saveEdit = async () => {
   if (!editPrizeData.value) return;
   let assetId: string | undefined;
   if (editTempAsset.value) {
-    await assetService.addAssets([editTempAsset.value]);
+    const updatedAssets = await assetService.addAssets([editTempAsset.value]);
+    editTempAsset.value = updatedAssets[0];
     assetId = editTempAsset.value.id;
   }
   let bgm1AssetId: string | undefined;
   if (editTempBgm1Asset.value) {
-    await assetService.addAssets([editTempBgm1Asset.value]);
+    const updatedAssets = await assetService.addAssets([editTempBgm1Asset.value]);
+    editTempBgm1Asset.value = updatedAssets[0];
     bgm1AssetId = editTempBgm1Asset.value.id;
   }
   let bgm2AssetId: string | undefined;
   if (editTempBgm2Asset.value) {
-    await assetService.addAssets([editTempBgm2Asset.value]);
+    const updatedAssets = await assetService.addAssets([editTempBgm2Asset.value]);
+    editTempBgm2Asset.value = updatedAssets[0];
     bgm2AssetId = editTempBgm2Asset.value.id;
   }
   const updatedPrize = {
