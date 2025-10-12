@@ -372,9 +372,10 @@ const fetchAssets = async () => {
   }
 };
 
-onMounted(() => {
-  fetchMembers();
-  fetchAssets();
+onMounted(async () => {
+  await syncMembers();
+  await fetchMembers();
+  await fetchAssets();
 });
 
 watch(photoAssetId, async () => {

@@ -482,9 +482,10 @@ const saveEdit = async () => {
   }
 };
 
-onMounted(() => {
-  fetchPrizes();
-  fetchAssets();
+onMounted(async () => {
+  await syncPrizes();
+  await fetchPrizes();
+  await fetchAssets();
 });
 </script>
 

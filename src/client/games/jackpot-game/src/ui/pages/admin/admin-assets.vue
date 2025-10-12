@@ -262,6 +262,7 @@ const getUsage = (assetId: string) => {
 };
 
 onMounted(async () => {
+    await syncAssets();
     await fetchAssets();
     await fetchUsageData();
 });
