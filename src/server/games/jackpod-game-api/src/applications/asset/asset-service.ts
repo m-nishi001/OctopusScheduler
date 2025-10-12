@@ -17,6 +17,8 @@ export class AssetService implements GasService {
       getAllAssetMetadata: this.getAllAssetMetadata.bind(this),
       getAssets: this.getAssets.bind(this),
       addAsset: this.addAsset.bind(this),
+      registerRef: this.registerRef.bind(this),
+      unregisterRef: this.unregisterRef.bind(this),
     };
   }
 
@@ -46,5 +48,19 @@ export class AssetService implements GasService {
     const assetId = assetIds[0];
     const uploadedAsset = this.repository.getAssetById(assetId);
     return { asset: uploadedAsset ? new AssetDto(uploadedAsset) : args.asset };
+  }
+
+  registerRef(args: { assetId: string; refSourceId: string }): {
+    success: boolean;
+  } {
+    this.repository.registerRef(args.assetId, args.refSourceId);
+    return { success: true };
+  }
+
+  unregisterRef(args: { assetId: string; refSourceId: string }): {
+    success: boolean;
+  } {
+    this.repository.unregisterRef(args.assetId, args.refSourceId);
+    return { success: true };
   }
 }

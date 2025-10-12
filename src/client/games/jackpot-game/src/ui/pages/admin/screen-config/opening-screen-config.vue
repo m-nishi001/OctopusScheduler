@@ -111,6 +111,7 @@ const onBgmChange = async (e: Event) => {
             uploadedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             size: file.size,
+            referenceFrom: [],
         });
         onTempAssets([assetDto]);
         localConfig.value.bgmAssetId = assetDto.id;
@@ -133,6 +134,7 @@ const onImageChange = async (e: Event, idx: number) => {
             uploadedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             size: file.size,
+            referenceFrom: [],
         });
         onTempAssets([assetDto]);
         localConfig.value.contents[idx].assetId = assetDto.id;
@@ -155,6 +157,7 @@ const onSeChange = async (e: Event, idx: number) => {
             uploadedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             size: file.size,
+            referenceFrom: [],
         });
         onTempAssets([assetDto]);
         localConfig.value.contents[idx].seAssetId = assetDto.id;

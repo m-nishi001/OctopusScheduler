@@ -27,6 +27,7 @@ export class AssetMetadataDto {
 
 export class AssetDto extends AssetMetadataDto {
   dataUrl: string;
+  referenceFrom: string[];
 
   constructor(entity: Asset) {
     super(
@@ -38,6 +39,7 @@ export class AssetDto extends AssetMetadataDto {
       entity.size
     );
     this.dataUrl = entity.dataUrl;
+    this.referenceFrom = entity.referenceFrom;
   }
 
   static toAsset(dto: AssetDto): Asset {
@@ -49,6 +51,7 @@ export class AssetDto extends AssetMetadataDto {
       uploadedAt: dto.uploadedAt,
       lastUpdated: dto.lastUpdated,
       size: dto.size,
+      referenceFrom: dto.referenceFrom || [],
     };
   }
 
@@ -61,5 +64,24 @@ export class AssetDto extends AssetMetadataDto {
       entity.lastUpdated,
       entity.size
     );
+  }
+}
+
+export class AssetInfo {
+  assetId: string;
+  assetType: "image" | "video" | "audio" | "text";
+  assetName: string;
+  referenceFrom: string[];
+
+  constructor(
+    assetId: string,
+    assetType: "image" | "video" | "audio" | "text",
+    assetName: string,
+    referenceFrom: string[]
+  ) {
+    this.assetId = assetId;
+    this.assetType = assetType;
+    this.assetName = assetName;
+    this.referenceFrom = referenceFrom;
   }
 }

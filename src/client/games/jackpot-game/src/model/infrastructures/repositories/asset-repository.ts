@@ -96,6 +96,33 @@ export class AssetRepository implements IAssetRepository {
       size: asset.size,
     }));
   }
+
+  async registerRef(assetId: string, refSourceId: string): Promise<void> {
+    const gasService = GasFunctionService.create("callJackpotGameApi");
+    if (!gasService) throw new Error("GAS service not available");
+    return new Promise<void>((resolve, reject) => {
+      gasService
+        .createCall<void>("AssetService.registerRef", { assetId, refSourceId })
+        .withSuccessed(() => resolve())
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
+
+  async unregisterRef(assetId: string, refSourceId: string): Promise<void> {
+    const gasService = GasFunctionService.create("callJackpotGameApi");
+    if (!gasService) throw new Error("GAS service not available");
+    return new Promise<void>((resolve, reject) => {
+      gasService
+        .createCall<void>("AssetService.unregisterRef", {
+          assetId,
+          refSourceId,
+        })
+        .withSuccessed(() => resolve())
+        .withFailuered((msg: string) => reject(new Error(msg)))
+        .invoke();
+    });
+  }
 }
 
 class AssetSynchronizer {

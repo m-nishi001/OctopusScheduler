@@ -7,4 +7,6 @@ export interface IAssetRepository {
   getAssetById(id: string): Asset | null;
   getAllAssetMetadata(): AssetMetadataDto[];
   deleteAssets(ids: string[]): void;
+  registerRef(assetId: string, refSourceId: string): void;
+  unregisterRef(assetId: string, refSourceId: string): void;
 }

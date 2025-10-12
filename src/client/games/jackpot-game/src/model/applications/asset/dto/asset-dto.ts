@@ -25,36 +25,25 @@ export class AssetMetadataDto {
   }
 }
 
-export class AssetDto extends AssetMetadataDto {
+export class AssetDto {
+  id: string;
+  type: "image" | "video" | "audio" | "text";
+  name: string;
+  uploadedAt: string;
+  lastUpdated: string;
+  size: number;
   dataUrl: string;
+  referenceFrom: string[];
 
-  constructor(entity: {
-    id: string;
-    type: "image" | "video" | "audio" | "text";
-    dataUrl: string;
-    name: string;
-    uploadedAt: string;
-    lastUpdated: string;
-    size: number;
-  });
-  constructor(arg: {
-    id: string;
-    type: "image" | "video" | "audio" | "text";
-    dataUrl: string;
-    name: string;
-    uploadedAt: string;
-    lastUpdated: string;
-    size: number;
-  }) {
-    super(
-      arg.id,
-      arg.type,
-      arg.name,
-      arg.uploadedAt,
-      arg.lastUpdated,
-      arg.size
-    );
-    this.dataUrl = arg.dataUrl;
+  constructor(entity: Asset) {
+    this.id = entity.id;
+    this.type = entity.type;
+    this.name = entity.name;
+    this.uploadedAt = entity.uploadedAt;
+    this.lastUpdated = entity.lastUpdated;
+    this.size = entity.size;
+    this.dataUrl = entity.dataUrl;
+    this.referenceFrom = entity.referenceFrom;
   }
 
   async toAsset(): Promise<Asset> {
@@ -66,6 +55,7 @@ export class AssetDto extends AssetMetadataDto {
       uploadedAt: this.uploadedAt,
       lastUpdated: this.lastUpdated,
       size: this.size,
+      referenceFrom: this.referenceFrom,
     };
   }
 }

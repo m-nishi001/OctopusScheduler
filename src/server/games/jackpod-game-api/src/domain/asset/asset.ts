@@ -6,4 +6,5 @@ export interface Asset {
   uploadedAt: string;
   lastUpdated: string;
   size: number;
+  referenceFrom: string[];
 }

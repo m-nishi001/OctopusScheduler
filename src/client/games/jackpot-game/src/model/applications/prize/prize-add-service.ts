@@ -24,6 +24,7 @@ export class PrizeAddService {
       uploadedAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
       size: file.size,
+      referenceFrom: [],
     };
   }
 

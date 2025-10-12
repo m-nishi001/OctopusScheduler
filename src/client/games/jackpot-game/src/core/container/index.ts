@@ -8,7 +8,6 @@ import type { IAssetRepository } from "../../model/domains/asset/repository/i-as
 import type { IPrizeRepository } from "../../model/domains/prize/repository/i-prize-repository";
 import type { IScreenConfigRepository } from "../../model/domains/screen-config/repository/i-screen-config-repository";
 import { AssetService } from "../../model/applications/asset/asset-service";
-import { AssetUsageService } from "../../model/applications/asset/asset-usage-service";
 
 export class Container {
   static register() {
@@ -23,9 +22,5 @@ export class Container {
       ScreenConfigRepository
     );
     container.register<AssetService>("AssetService", AssetService);
-    container.register<AssetUsageService>(
-      "AssetUsageService",
-      AssetUsageService
-    );
   }
 }

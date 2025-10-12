@@ -2,10 +2,15 @@ import { Asset } from "../../domain/asset/asset";
 import type { IAssetRepository as IAssetRepository } from "../../domain/asset/asset-repository";
 import { GoogleDriveService } from "../../../../../shared-packages/src/google-drive-service";
 import type { AssetMetadataDto } from "../../applications/asset/asset-dto";
+import { SpreadsheetService } from "../../../../../shared-packages/src/google-spreadsheet-service";
+import { AssetInfo } from "../../applications/asset/asset-dto";
 
 export class AssetRepository implements IAssetRepository {
+  private readonly spreadsheetService =
+    SpreadsheetService.getService<AssetInfo>("AssetInfo");
+
   addAssets(assets: Asset[]): string[] {
-    return assets.map((asset) => {
+    const assetIds = assets.map((asset) => {
       if (asset.id) {
         // Update existing asset: delete old and upload new
         this.deleteAssets([asset.id]);
@@ -15,13 +20,36 @@ export class AssetRepository implements IAssetRepository {
         return this.uploadAsset(asset);
       }
     });
+    // Add to spreadsheet
+    const transaction = this.spreadsheetService.beginTransaction();
+    const assetInfos = assetIds.map((id, index) => {
+      const asset = assets[index];
+      return new AssetInfo(
+        id,
+        asset.type,
+        asset.name,
+        asset.referenceFrom || []
+      );
+    });
+    transaction.addMany(assetInfos);
+    transaction.commit();
+    return assetIds;
   }
 
   getAllAssets(): Asset[] {
     const folderId = this.getAssetFolderId();
     if (!folderId) return [];
     const files = this.listAssets();
-    return files.map((file) => this.mapFileToAsset(file));
+    const assetInfos = this.spreadsheetService.find(() => true);
+    const assetInfoMap = new Map(
+      assetInfos.map((info) => [info.assetId, info])
+    );
+    return files.map((file) => {
+      const asset = this.mapFileToAsset(file);
+      const info = assetInfoMap.get(asset.id);
+      asset.referenceFrom = info ? info.referenceFrom : [];
+      return asset;
+    });
   }
 
   getAssetById(id: string): Asset | null {
@@ -32,7 +60,10 @@ export class AssetRepository implements IAssetRepository {
     });
     if (files.length === 0) return null;
     const file = files[0];
-    return this.mapFileToAsset(file);
+    const asset = this.mapFileToAsset(file);
+    const info = this.spreadsheetService.findOne((info) => info.assetId === id);
+    asset.referenceFrom = info ? info.referenceFrom : [];
+    return asset;
   }
 
   getAllAssetMetadata(): AssetMetadataDto[] {
@@ -44,6 +75,31 @@ export class AssetRepository implements IAssetRepository {
 
   deleteAssets(ids: string[]): void {
     GoogleDriveService.deleteFilesOrFolders(ids);
+    this.spreadsheetService.delete((info) => ids.includes(info.assetId));
+  }
+
+  registerRef(assetId: string, refSourceId: string): void {
+    this.spreadsheetService.update(
+      (info) => info.assetId === assetId,
+      (info) => {
+        if (!info.referenceFrom.includes(refSourceId)) {
+          info.referenceFrom.push(refSourceId);
+        }
+        return info;
+      }
+    );
+  }
+
+  unregisterRef(assetId: string, refSourceId: string): void {
+    this.spreadsheetService.update(
+      (info) => info.assetId === assetId,
+      (info) => {
+        info.referenceFrom = info.referenceFrom.filter(
+          (id) => id !== refSourceId
+        );
+        return info;
+      }
+    );
   }
 
   private convertToBlobFromDataUrl(
@@ -97,6 +153,7 @@ export class AssetRepository implements IAssetRepository {
       uploadedAt: file.getDateCreated().toISOString(),
       lastUpdated: file.getLastUpdated().toISOString(),
       size: file.getSize(),
+      referenceFrom: [],
     };
   }
 

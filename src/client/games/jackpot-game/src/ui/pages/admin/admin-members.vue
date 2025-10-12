@@ -233,6 +233,7 @@ const confirmModal = async () => {
     await addMember();
   } else if (modalMode.value === 'edit') {
     if (!modalData.value) return;
+    const oldPhotoAssetId = modalData.value.photoAssetId;
     const updatedMember = {
       ...modalData.value,
       name: modalName.value,
@@ -245,6 +246,14 @@ const confirmModal = async () => {
     }
     try {
       await memberRepo.updateMembers([{ id: updatedMember.id, updateFn: () => updatedMember }]);
+      // Handle asset references
+      const newPhotoAssetId = updatedMember.photoAssetId;
+      if (oldPhotoAssetId && oldPhotoAssetId !== newPhotoAssetId) {
+        await assetService.unregisterRef(oldPhotoAssetId, updatedMember.id);
+      }
+      if (newPhotoAssetId && newPhotoAssetId !== oldPhotoAssetId) {
+        await assetService.registerRef(newPhotoAssetId, updatedMember.id);
+      }
       await fetchMembers();
     } catch (error) {
       console.error("Failed to update member:", error);
@@ -298,6 +307,10 @@ const addMember = async () => {
   try {
     const addedMember = await memberAddService.saveMember(newMember, tempAsset.value || undefined);
     members.value.push(addedMember);
+    // Register asset reference
+    if (addedMember.photoAssetId) {
+      await assetService.registerRef(addedMember.photoAssetId, addedMember.id);
+    }
   } catch (error) {
     console.error("Failed to add member:", error);
   } finally {
@@ -309,7 +322,12 @@ const deleteMember = async (id: string) => {
   deleting.value = true;
   deleteMessage.value = "メンバーを削除しています...";
   try {
+    const member = members.value.find(m => m.id === id);
     await memberRepo.deleteMembers([id]);
+    // Unregister asset reference
+    if (member?.photoAssetId) {
+      await assetService.unregisterRef(member.photoAssetId, member.id);
+    }
     await fetchMembers();
   } catch (error) {
     console.error("Failed to delete member:", error);
@@ -323,7 +341,14 @@ const deleteSelectedMembers = async () => {
   deleting.value = true;
   deleteMessage.value = "メンバーを削除しています...";
   try {
+    const membersToDelete = members.value.filter(m => selectedMembers.value.includes(m.id));
     await memberRepo.deleteMembers(selectedMembers.value);
+    // Unregister asset references
+    for (const member of membersToDelete) {
+      if (member.photoAssetId) {
+        await assetService.unregisterRef(member.photoAssetId, member.id);
+      }
+    }
     await fetchMembers();
     selectedMembers.value = [];
   } catch (error) {

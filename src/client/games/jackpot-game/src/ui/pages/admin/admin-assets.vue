@@ -100,11 +100,9 @@
 import { ref, onMounted, computed } from 'vue';
 import { AssetDto } from "../../../model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
-import { AssetUsageService } from '../../../model/applications/asset/asset-usage-service';
 import { FileUtils } from '../../../model/infrastructures/utils/file-utils';
 import { container } from 'tsyringe';
 const assetService = container.resolve(AssetService);
-const assetUsageService = container.resolve(AssetUsageService);
 
 const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);
@@ -145,18 +143,8 @@ const syncMessage = ref("");
 const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
-const usageMap = ref<Record<string, string[]>>({});
-
 const fetchAssets = async () => {
     assets.value = await assetService.getAllAssets();
-}; const fetchUsageData = async () => {
-    // Use AssetUsageService to aggregate usage info from domain services
-    const ids = assets.value.map(a => a.id);
-    if (ids.length === 0) {
-        usageMap.value = {};
-        return;
-    }
-    usageMap.value = await assetUsageService.getUsagesForAssets(ids);
 };
 
 const onFileChange = (e: Event) => {
@@ -190,7 +178,8 @@ const addAssets = async () => {
             name: file.name,
             uploadedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
-            size: file.size
+            size: file.size,
+            referenceFrom: []
         });
     }));
     await assetService.addAssets(assetDtos, (index, status, message) => {
@@ -258,13 +247,13 @@ const syncAssets = async () => {
 };
 
 const getUsage = (assetId: string) => {
-    return usageMap.value[assetId] || [];
+    const asset = assets.value.find(a => a.id === assetId);
+    return asset ? asset.referenceFrom : [];
 };
 
 onMounted(async () => {
     await syncAssets();
     await fetchAssets();
-    await fetchUsageData();
 });
 </script>
 
