@@ -84,10 +84,7 @@ export class AssetUsageService {
           break;
         case "description":
           bgmAssetId = (config as DescriptionScreenConfig).descriptionBgm;
-          seAssetIds = [
-            (config as DescriptionScreenConfig).descriptionSe1,
-            (config as DescriptionScreenConfig).descriptionSe2,
-          ].filter(Boolean);
+          seAssetIds = [];
           break;
         case "demo":
           bgmAssetId = (config as DemoScreenConfig).demoBgm;

@@ -29,10 +29,11 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import ThreeHero from '../../shared/graphics/ThreeHero.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenConfigDto } from '../../../model/applications/screen-config/dto/screen-config-dto';
+import type { IScreenConfig } from '../../../model/domains/screen-config/IScreenConfig';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import type { IAssetRepository } from '../../../model/domains/asset/repository/IAssetRepository';
 
 export default {
   name: 'Home',
@@ -44,8 +45,9 @@ export default {
     const goOpening = () => router.push('/jackpot-opening');
     const goAdmin = () => router.push('/jackpot-admin');
 
-    const screenConfig = ref<ScreenConfigDto | null>(null);
+    const screenConfig = ref<IScreenConfig | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
+    const assetRepo = container.resolve<IAssetRepository>("IAssetRepository");
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -55,14 +57,20 @@ export default {
     let gsap: any = null;
 
     const bgmAudio = ref<HTMLAudioElement | null>(null);
-    const playBGM = () => {
-      if (!screenConfig.value?.bgmAssetUrl) return;
-      if (!bgmAudio.value) {
-        bgmAudio.value = new Audio(screenConfig.value.bgmAssetUrl);
+    const playBGM = async () => {
+      if (!screenConfig.value || !("homeBgm" in screenConfig.value)) return;
+      const homeConfig = screenConfig.value as any;
+      const asset = await assetRepo.getAssetById(homeConfig.homeBgm);
+      if (asset && asset.dataUrl) {
+        bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
+        bgmAudio.value.volume = 0.5;
+        try {
+          await bgmAudio.value.play();
+        } catch (e) {
+          console.warn("BGM play failed:", e);
+        }
       }
-      // ignore play promise rejection (autoplay policies)
-      void bgmAudio.value.play?.().catch(() => { });
     };
 
     const loadAssets = async () => {
@@ -104,8 +112,8 @@ export default {
       }
     });
 
-    watch(progress, (val) => {
-      if (val === 100) playBGM();
+    watch(progress, async (val) => {
+      if (val === 100) await playBGM();
     });
 
     // animate buttons when loaded becomes true

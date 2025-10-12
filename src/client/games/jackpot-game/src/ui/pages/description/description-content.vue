@@ -32,7 +32,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenElement } from '../../../model/domains/screen-config/IScreenConfig';
+import type { ScreenElement } from '../../../model/domains/screen-config/DescriptionScreenConfig';
 import { DescriptionScreenConfig } from '../../../model/domains/screen-config/DescriptionScreenConfig';
 import { ScreenConfigRepository } from '../../../model/infrastructures/repositories/screen-config-repository';
 import { container } from 'tsyringe';
@@ -68,10 +68,6 @@ export default {
 		]);
 
 		const bgmAssetUrl = computed(() => (screenConfig.value as DescriptionScreenConfig)?.descriptionBgm);
-		const seAssetUrls = computed(() => [
-			(screenConfig.value as DescriptionScreenConfig)?.descriptionSe1,
-			(screenConfig.value as DescriptionScreenConfig)?.descriptionSe2,
-		].filter(Boolean));
 
 		onMounted(async () => {
 			screenConfig.value = await screenConfigRepo.getScreenConfigById('description') as DescriptionScreenConfig;
@@ -90,20 +86,11 @@ export default {
 			bgmAudio.value.play();
 		};
 
-		const playSE = (seType: string) => {
-			if (!seAssetUrls.value) return;
-			const assetUrl = seAssetUrls.value.find((url: string) => url.includes(seType));
-			if (!assetUrl) return;
-			const seAudio = new Audio(assetUrl);
-			seAudio.play();
-		};
-
 		// スライド管理
 		const nextSlide = () => {
 			if (slideIndex.value < elements.value.length - 1) {
 				slideIndex.value++;
 				currentSlide.value = elements.value[slideIndex.value];
-				playSE('slide');
 			} else {
 				router.push('/demo-draw');
 			}

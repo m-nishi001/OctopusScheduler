@@ -11,20 +11,6 @@
 						<option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
 					</select>
 				</div>
-				<div class="config-item">
-					<label>説明SE1:</label>
-					<select v-model="localConfig.descriptionSe1" class="admin-input">
-						<option value="">選択なし</option>
-						<option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-					</select>
-				</div>
-				<div class="config-item">
-					<label>説明SE2:</label>
-					<select v-model="localConfig.descriptionSe2" class="admin-input">
-						<option value="">選択なし</option>
-						<option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-					</select>
-				</div>
 			</div>
 			<div style="display:flex;align-items:center;gap:12px;">
 				<button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving"
@@ -69,8 +55,6 @@ const {
 const localConfig = ref({
 	id: "",
 	descriptionBgm: "",
-	descriptionSe1: "",
-	descriptionSe2: "",
 });
 
 const loadConfig = async () => {
@@ -81,8 +65,6 @@ const loadConfig = async () => {
 			localConfig.value = {
 				id: config.id || "",
 				descriptionBgm: descriptionConfig.descriptionBgm || "",
-				descriptionSe1: descriptionConfig.descriptionSe1 || "",
-				descriptionSe2: descriptionConfig.descriptionSe2 || "",
 			};
 		}
 	} catch (error) {
@@ -98,8 +80,7 @@ const handleSaveClick = async () => {
 	await handleSave(async () => {
 		const config = new DescriptionScreenConfig(
 			localConfig.value.descriptionBgm,
-			localConfig.value.descriptionSe1,
-			localConfig.value.descriptionSe2,
+			[],
 			localConfig.value.id || undefined
 		);
 		await screenConfigRepo.updateScreenConfigs([config]);

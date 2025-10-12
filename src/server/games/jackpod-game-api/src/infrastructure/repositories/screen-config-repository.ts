@@ -82,8 +82,7 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
         case "description":
           config = new DescriptionScreenConfig(
             configMap.get("descriptionBgm") || "",
-            configMap.get("descriptionSe1") || "",
-            configMap.get("descriptionSe2") || "",
+            JSON.parse(configMap.get("screenElements") || "[]"),
             configRows.find((r) => r.settingName === "id")?.settingValue ||
               undefined
           );
