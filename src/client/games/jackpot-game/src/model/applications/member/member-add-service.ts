@@ -3,9 +3,8 @@ import type { IAssetRepository } from "../../domains/asset/repository/i-asset-re
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { toMember } from "./dto/member-dto";
-import type { Asset } from "../../domains/asset/asset";
+import type { AssetDto } from "../asset/dto/asset-dto";
 import type { Member } from "../../domains/member/member";
-import { FileUtils } from "../../infrastructures/utils/file-utils";
 import { AssetService } from "../asset/asset-service";
 
 @injectable()
@@ -16,24 +15,15 @@ export class MemberAddService {
     @inject(AssetService) private assetService: AssetService
   ) {}
 
-  async createTempAsset(file: File): Promise<Asset> {
-    const dataUrl = await FileUtils.readAsDataUrl(file);
-    return {
-      id: "",
-      name: file.name,
-      type: FileUtils.getAssetType(file.type),
-      dataUrl,
-      uploadedAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      size: file.size,
-      referenceFrom: [],
-    };
-  }
-
-  async saveMember(member: MemberDto, tempAsset?: Asset): Promise<Member> {
+  async saveMember(
+    member: MemberDto,
+    tempAssetDto?: AssetDto
+  ): Promise<Member> {
     let assetId: string | undefined;
-    if (tempAsset) {
-      const assets = await this.assetRepo.addAssets([tempAsset]);
+    if (tempAssetDto) {
+      const assets = await this.assetRepo.addAssets([
+        await tempAssetDto.toAsset(),
+      ]);
       assetId = assets[0];
     }
     const memberToSave = {
@@ -44,8 +34,8 @@ export class MemberAddService {
       toMember(memberToSave),
     ]);
     const addedMember = addedMembers[0];
-    if (tempAsset) {
-      addedMember.photoDataUrl = tempAsset.dataUrl;
+    if (tempAssetDto) {
+      addedMember.photoDataUrl = tempAssetDto.dataUrl;
     }
     if (assetId) {
       // ここは待たなくて良い。

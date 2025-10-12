@@ -4,6 +4,8 @@ import type {
   AssetMetadata,
 } from "../../domains/asset/repository/i-asset-repository";
 import { AssetDto } from "./dto/asset-dto";
+import { FileUtils } from "../../infrastructures/utils/file-utils";
+import type { Asset } from "../../domains/asset/asset";
 
 @injectable()
 export class AssetService {
@@ -58,5 +60,20 @@ export class AssetService {
 
   async unregisterRef(assetId: string, refSourceId: string): Promise<void> {
     await this.repo.unregisterRef(assetId, refSourceId);
+  }
+
+  async createAssetDtoFromFile(file: File): Promise<AssetDto> {
+    const dataUrl = await FileUtils.readAsDataUrl(file);
+    const asset: Asset = {
+      id: "",
+      name: file.name,
+      type: FileUtils.getAssetType(file.type),
+      dataUrl,
+      uploadedAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      size: file.size,
+      referenceFrom: [],
+    };
+    return new AssetDto(asset);
   }
 }

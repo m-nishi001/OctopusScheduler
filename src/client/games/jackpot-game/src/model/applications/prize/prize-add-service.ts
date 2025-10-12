@@ -3,9 +3,8 @@ import type { IAssetRepository } from "../../domains/asset/repository/i-asset-re
 import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
 import type { PrizeDto } from "./dto/prize-dto";
 import { toPrize } from "./dto/prize-dto";
-import type { Asset } from "../../domains/asset/asset";
+import type { AssetDto } from "../asset/dto/asset-dto";
 import type { Prize } from "../../domains/prize/prize";
-import { FileUtils } from "../../infrastructures/utils/file-utils";
 import { AssetService } from "../asset/asset-service";
 
 @injectable()
@@ -16,39 +15,31 @@ export class PrizeAddService {
     @inject(AssetService) private assetService: AssetService
   ) {}
 
-  async createTempAsset(file: File): Promise<Asset> {
-    const dataUrl = await FileUtils.readAsDataUrl(file);
-    return {
-      id: "",
-      name: file.name,
-      type: FileUtils.getAssetType(file.type),
-      dataUrl,
-      uploadedAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      size: file.size,
-      referenceFrom: [],
-    };
-  }
-
   async savePrize(
     prize: PrizeDto,
-    tempAsset?: Asset,
-    tempBgm1Asset?: Asset,
-    tempBgm2Asset?: Asset
+    tempAssetDto?: AssetDto,
+    tempBgm1AssetDto?: AssetDto,
+    tempBgm2AssetDto?: AssetDto
   ): Promise<Prize> {
     let assetId: string | undefined;
-    if (tempAsset) {
-      const assets = await this.assetRepo.addAssets([tempAsset]);
+    if (tempAssetDto) {
+      const assets = await this.assetRepo.addAssets([
+        await tempAssetDto.toAsset(),
+      ]);
       assetId = assets[0];
     }
     let bgm1AssetId: string | undefined;
-    if (tempBgm1Asset) {
-      const assets = await this.assetRepo.addAssets([tempBgm1Asset]);
+    if (tempBgm1AssetDto) {
+      const assets = await this.assetRepo.addAssets([
+        await tempBgm1AssetDto.toAsset(),
+      ]);
       bgm1AssetId = assets[0];
     }
     let bgm2AssetId: string | undefined;
-    if (tempBgm2Asset) {
-      const assets = await this.assetRepo.addAssets([tempBgm2Asset]);
+    if (tempBgm2AssetDto) {
+      const assets = await this.assetRepo.addAssets([
+        await tempBgm2AssetDto.toAsset(),
+      ]);
       bgm2AssetId = assets[0];
     }
     const prizeToSave = {
@@ -59,8 +50,8 @@ export class PrizeAddService {
     };
     await this.prizeRepo.addPrizes([toPrize(prizeToSave)]);
     const addedPrize = toPrize(prizeToSave);
-    if (tempAsset) {
-      addedPrize.imageDataUrl = tempAsset.dataUrl;
+    if (tempAssetDto) {
+      addedPrize.imageDataUrl = tempAssetDto.dataUrl;
     }
     if (assetId) {
       // ここは待たなくて良い。

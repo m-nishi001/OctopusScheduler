@@ -285,8 +285,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import type { Asset } from "../../../model/domains/asset/asset";
-import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto";
+import { AssetDto } from "../../../model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { PrizeService } from '../../../model/applications/prize/prize-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
@@ -357,14 +356,14 @@ const newBgm2Mode = ref('select');
 const newBgm1Filename = ref('');
 const newBgm2Filename = ref('');
 
-const tempAsset = ref<Asset | null>(null);
-const tempBgm1Asset = ref<Asset | null>(null);
-const tempBgm2Asset = ref<Asset | null>(null);
+const tempAsset = ref<AssetDto | null>(null);
+const tempBgm1Asset = ref<AssetDto | null>(null);
+const tempBgm2Asset = ref<AssetDto | null>(null);
 
 const onNewImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempAsset.value = await prizeAddService.createTempAsset(file);
+    tempAsset.value = await assetService.createAssetDtoFromFile(file);
     newImageFilename.value = file.name;
     newImagePreview.value = tempAsset.value.dataUrl;
   }
@@ -373,7 +372,7 @@ const onNewImageChange = async (e: Event) => {
 const onNewBgm1Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempBgm1Asset.value = await prizeAddService.createTempAsset(file);
+    tempBgm1Asset.value = await assetService.createAssetDtoFromFile(file);
     newBgm1Filename.value = file.name;
   }
 };
@@ -381,7 +380,7 @@ const onNewBgm1Change = async (e: Event) => {
 const onNewBgm2Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempBgm2Asset.value = await prizeAddService.createTempAsset(file);
+    tempBgm2Asset.value = await assetService.createAssetDtoFromFile(file);
     newBgm2Filename.value = file.name;
   }
 };
@@ -504,14 +503,14 @@ const editBgm2Mode = ref('select');
 const editBgm1Filename = ref('');
 const editBgm2Filename = ref('');
 
-const editTempAsset = ref<Asset | null>(null);
-const editTempBgm1Asset = ref<Asset | null>(null);
-const editTempBgm2Asset = ref<Asset | null>(null);
+const editTempAsset = ref<AssetDto | null>(null);
+const editTempBgm1Asset = ref<AssetDto | null>(null);
+const editTempBgm2Asset = ref<AssetDto | null>(null);
 
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempAsset.value = await prizeAddService.createTempAsset(file);
+    editTempAsset.value = await assetService.createAssetDtoFromFile(file);
     editImageFilename.value = file.name;
     editImagePreview.value = editTempAsset.value.dataUrl;
   }
@@ -520,7 +519,7 @@ const onEditImageChange = async (e: Event) => {
 const onEditBgm1Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempBgm1Asset.value = await prizeAddService.createTempAsset(file);
+    editTempBgm1Asset.value = await assetService.createAssetDtoFromFile(file);
     editBgm1Filename.value = file.name;
   }
 };
@@ -528,7 +527,7 @@ const onEditBgm1Change = async (e: Event) => {
 const onEditBgm2Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempBgm2Asset.value = await prizeAddService.createTempAsset(file);
+    editTempBgm2Asset.value = await assetService.createAssetDtoFromFile(file);
     editBgm2Filename.value = file.name;
   }
 };
@@ -569,21 +568,18 @@ const saveEdit = async () => {
   if (!editPrizeData.value) return;
   let assetId: string | undefined;
   if (editTempAsset.value) {
-    const assetDto = new AssetDto(editTempAsset.value);
-    await assetService.addAssets([assetDto]);
-    assetId = assetDto.id;
+    await assetService.addAssets([editTempAsset.value]);
+    assetId = editTempAsset.value.id;
   }
   let bgm1AssetId: string | undefined;
   if (editTempBgm1Asset.value) {
-    const assetDto = new AssetDto(editTempBgm1Asset.value);
-    await assetService.addAssets([assetDto]);
-    bgm1AssetId = assetDto.id;
+    await assetService.addAssets([editTempBgm1Asset.value]);
+    bgm1AssetId = editTempBgm1Asset.value.id;
   }
   let bgm2AssetId: string | undefined;
   if (editTempBgm2Asset.value) {
-    const assetDto = new AssetDto(editTempBgm2Asset.value);
-    await assetService.addAssets([assetDto]);
-    bgm2AssetId = assetDto.id;
+    await assetService.addAssets([editTempBgm2Asset.value]);
+    bgm2AssetId = editTempBgm2Asset.value.id;
   }
   const updatedPrize = {
     ...editPrizeData.value,

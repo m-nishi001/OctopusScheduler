@@ -145,7 +145,6 @@ import { MemberAddService } from '../../../model/applications/member/member-add-
 import { MemberDeleteService } from '../../../model/applications/member/member-delete-service';
 import type { AssetMetadata } from "../../../model/domains/asset/repository/i-asset-repository";
 import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
-import type { Asset } from "../../../model/domains/asset/asset";
 
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
@@ -185,7 +184,7 @@ const modalPhotoAsset = ref<AssetDto | undefined>();
 const modalPhotoPreview = ref('');
 const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
-const tempAsset = ref<Asset | null>(null);
+const tempAsset = ref<AssetDto | null>(null);
 
 // modal actions
 const openModal = (mode: 'add' | 'edit', data?: any) => {
@@ -291,7 +290,7 @@ const updateModalPhotoPreview = async () => {
 const onModalPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempAsset.value = await memberAddService.createTempAsset(file);
+    tempAsset.value = await assetService.createAssetDtoFromFile(file);
     modalPhotoFilename.value = file.name;
     modalPhotoPreview.value = tempAsset.value.dataUrl;
   }

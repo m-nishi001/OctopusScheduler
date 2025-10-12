@@ -98,7 +98,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { AssetDto } from "../../../model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { FileUtils } from '../../../model/infrastructures/utils/file-utils';
 import { container } from 'tsyringe';
@@ -170,17 +169,7 @@ const addAssets = async () => {
         status: 'アップロード中' as const,
     }));
     const assetDtos = await Promise.all(selectedFiles.value.map(async (file) => {
-        const dataUrl = await FileUtils.readAsDataUrl(file);
-        return new AssetDto({
-            id: "",
-            type: FileUtils.getAssetType(file.type),
-            dataUrl,
-            name: file.name,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: file.size,
-            referenceFrom: []
-        });
+        return await assetService.createAssetDtoFromFile(file);
     }));
     await assetService.addAssets(assetDtos, (index, status, message) => {
         uploadStatuses.value[index].status = status;

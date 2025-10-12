@@ -97,8 +97,6 @@ import { HomeScreenSetting } from '../../../../model/domains/screen-config/home-
 import { HomeScreenConfigConverter } from '../../../../model/applications/screen-config/home/home-screen-config-converter';
 import { container } from 'tsyringe';
 import { AssetDto } from "../../../../model/applications/asset/dto/asset-dto";
-import { FileUtils } from '../../../../model/infrastructures/utils/file-utils';
-import type { Asset } from "../../../../model/domains/asset/asset";
 
 const {
     screenConfigService,
@@ -155,18 +153,7 @@ const loadConfig = async () => {
 const onHomeBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const dataUrl = await FileUtils.readAsDataUrl(file);
-        const asset: Asset = {
-            id: "",
-            name: file.name,
-            type: FileUtils.getAssetType(file.type),
-            dataUrl,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: file.size,
-            referenceFrom: [],
-        };
-        const tempAsset = new AssetDto(asset);
+        const tempAsset = await assetService.createAssetDtoFromFile(file);
         localConfig.value.homeBgmTempAsset = tempAsset;
         localConfig.value.homeBgmFilename = file.name;
         onTempAssets([tempAsset]);
@@ -176,18 +163,7 @@ const onHomeBgmChange = async (e: Event) => {
 const onButtonClikingSEChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const dataUrl = await FileUtils.readAsDataUrl(file);
-        const asset: Asset = {
-            id: "",
-            name: file.name,
-            type: FileUtils.getAssetType(file.type),
-            dataUrl,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: file.size,
-            referenceFrom: [],
-        };
-        const tempAsset = new AssetDto(asset);
+        const tempAsset = await assetService.createAssetDtoFromFile(file);
         localConfig.value.buttonClikingSETempAsset = tempAsset;
         localConfig.value.buttonClikingSEFilename = file.name;
         onTempAssets([tempAsset]);
@@ -197,18 +173,7 @@ const onButtonClikingSEChange = async (e: Event) => {
 const onOnCompletedLoadingSEChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const dataUrl = await FileUtils.readAsDataUrl(file);
-        const asset: Asset = {
-            id: "",
-            name: file.name,
-            type: FileUtils.getAssetType(file.type),
-            dataUrl,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: file.size,
-            referenceFrom: [],
-        };
-        const tempAsset = new AssetDto(asset);
+        const tempAsset = await assetService.createAssetDtoFromFile(file);
         localConfig.value.onCompletedLoadingSETempAsset = tempAsset;
         localConfig.value.onCompletedLoadingSEFilename = file.name;
         onTempAssets([tempAsset]);
