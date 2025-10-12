@@ -8,6 +8,15 @@ import type { IAssetRepository } from "../../model/domains/asset/repository/i-as
 import type { IPrizeRepository } from "../../model/domains/prize/repository/i-prize-repository";
 import type { IScreenConfigRepository } from "../../model/domains/screen-config/repository/i-screen-config-repository";
 import { AssetService } from "../../model/applications/asset/asset-service";
+import { HomeScreenConfigConverter } from "../../model/applications/screen-config/home/home-screen-config-converter";
+import { OpeningScreenConfigConverter } from "../../model/applications/screen-config/opening/opening-screen-config-converter";
+import { DescriptionScreenConfigConverter } from "../../model/applications/screen-config/description/description-screen-config-converter";
+import { DemoScreenConfigConverter } from "../../model/applications/screen-config/demo/demo-screen-config-converter";
+import { MainScreenConfigConverter } from "../../model/applications/screen-config/main/main-screen-config-converter";
+import { ResultScreenConfigConverter } from "../../model/applications/screen-config/result/result-screen-config-converter";
+import { EndingScreenConfigConverter } from "../../model/applications/screen-config/ending/ending-screen-config-converter";
+import { IScreenConfigConverterToken } from "../../model/applications/screen-config/i-screen-config-converter";
+import { ScreenConfigService } from "../../model/applications/screen-config/screen-config-service";
 
 export class Container {
   static register() {
@@ -22,5 +31,32 @@ export class Container {
       ScreenConfigRepository
     );
     container.register<AssetService>("AssetService", AssetService);
+    container.register(IScreenConfigConverterToken, {
+      useClass: HomeScreenConfigConverter,
+    });
+    container.register(IScreenConfigConverterToken, {
+      useClass: OpeningScreenConfigConverter,
+    });
+    container.register(IScreenConfigConverterToken, {
+      useClass: DescriptionScreenConfigConverter,
+    });
+    container.register(IScreenConfigConverterToken, {
+      useClass: DemoScreenConfigConverter,
+    });
+    container.register(IScreenConfigConverterToken, {
+      useClass: MainScreenConfigConverter,
+    });
+    container.register(IScreenConfigConverterToken, {
+      useClass: ResultScreenConfigConverter,
+    });
+    container.register(IScreenConfigConverterToken, {
+      useClass: EndingScreenConfigConverter,
+    });
+    container.register("IScreenConfigRepository", {
+      useClass: ScreenConfigRepository,
+    });
+    container.register(ScreenConfigService, {
+      useClass: ScreenConfigService,
+    });
   }
 }

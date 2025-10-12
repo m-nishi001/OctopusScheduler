@@ -63,10 +63,11 @@
 import { ref, onMounted } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
 import { HomeScreenConfig } from '../../../../model/domains/screen-config/home-screen-config';
+import { HomeScreenConfigConverter } from '../../../../model/applications/screen-config/home/home-screen-config-converter';
+import { container } from 'tsyringe';
 
 const {
     screenConfigService,
-    converterManager,
     audioAssets,
     loading,
     loadingStatus,
@@ -86,13 +87,12 @@ const localConfig = ref({
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("home");
-        const homeConfig = converterManager.convertToDto("home", config) as HomeScreenConfig;
-        if (homeConfig) {
+        if (config) {
             localConfig.value = {
-                id: homeConfig.id || "",
-                homeBgm: homeConfig.homeBgm || "",
-                buttonClikingSE: homeConfig.buttonClikingSE || "",
-                onCompletedLoadingSE: homeConfig.onCompletedLoadingSE || "",
+                id: config.id || "",
+                homeBgm: (config as any).homeBgm || "",
+                buttonClikingSE: (config as any).buttonClikingSE || "",
+                onCompletedLoadingSE: (config as any).onCompletedLoadingSE || "",
             };
         }
     } catch (error) {
@@ -112,7 +112,9 @@ const handleSaveClick = async () => {
             localConfig.value.onCompletedLoadingSE,
             localConfig.value.id || undefined
         );
-        await screenConfigService.saveScreenConfigs([config]);
+        const converter = container.resolve(HomeScreenConfigConverter);
+        const settings = converter.toSettings(config);
+        await screenConfigService.saveScreenConfigs(settings);
         await loadConfig();
     });
 };

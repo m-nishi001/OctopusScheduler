@@ -41,10 +41,11 @@
 import { ref, onMounted } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
 import { DescriptionScreenConfig } from '../../../../model/domains/screen-config/description-screen-config';
+import { DescriptionScreenConfigConverter } from '../../../../model/applications/screen-config/description/description-screen-config-converter';
+import { container } from 'tsyringe';
 
 const {
 	screenConfigService,
-	converterManager,
 	audioAssets,
 	loading,
 	loadingStatus,
@@ -61,11 +62,10 @@ const localConfig = ref({
 const loadConfig = async () => {
 	try {
 		const config = await screenConfigService.fetchScreenConfig("description");
-		const descriptionConfig = converterManager.convertToDto("description", config) as DescriptionScreenConfig;
-		if (descriptionConfig) {
+		if (config) {
 			localConfig.value = {
-				id: descriptionConfig.id || "",
-				descriptionBgm: descriptionConfig.descriptionBgm || "",
+				id: config.id || "",
+				descriptionBgm: (config as any).descriptionBgm || "",
 			};
 		}
 	} catch (error) {
@@ -82,7 +82,9 @@ const handleSaveClick = async () => {
 			[],
 			localConfig.value.id || undefined
 		);
-		await screenConfigService.saveScreenConfigs([config]);
+		const converter = container.resolve(DescriptionScreenConfigConverter);
+		const settings = converter.toSettings(config);
+		await screenConfigService.saveScreenConfigs(settings);
 		await loadConfig();
 	});
 };

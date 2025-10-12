@@ -1,14 +1,14 @@
+import { injectable } from "tsyringe";
 import { ScreenSetting } from "../../../domains/screen-config/screen-setting";
 import { MainScreenConfig } from "../../../domains/screen-config/main-screen-config";
+import type { IScreenConfigConverter } from "../i-screen-config-converter";
 
-export interface IScreenConfigConverter<T> {
-  toDto(settings: ScreenSetting[]): T;
-  toSettings(dto: T): ScreenSetting[];
-}
+@injectable()
+export class MainScreenConfigConverter implements IScreenConfigConverter {
+  getType(): "main" {
+    return "main";
+  }
 
-export class MainScreenConfigConverter
-  implements IScreenConfigConverter<MainScreenConfig>
-{
   toDto(settings: ScreenSetting[]): MainScreenConfig {
     const records = new Map<string, string>();
     for (const setting of settings) {

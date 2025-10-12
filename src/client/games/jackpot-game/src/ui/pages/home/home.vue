@@ -33,7 +33,6 @@ import type { IScreenConfig } from '../../../model/domains/screen-config/i-scree
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { ScreenConfigConverterManager } from '../../../model/applications/screen-config/screen-config-converter-manager';
 import type { IAssetRepository } from '../../../model/domains/asset/repository/i-asset-repository';
 import { HomeScreenConfig } from '../../../model/domains/screen-config/home-screen-config';
 
@@ -49,7 +48,6 @@ export default {
 
     const screenConfig = ref<IScreenConfig | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const converterManager = container.resolve(ScreenConfigConverterManager);
     const assetRepo = container.resolve<IAssetRepository>("IAssetRepository");
 
     const assetsLoaded = ref(false);
@@ -85,7 +83,7 @@ export default {
         progress.value = 50;
       }
       const config = await screenConfigService.fetchScreenConfig('home');
-      screenConfig.value = converterManager.convertToDto('home', config) ?? new HomeScreenConfig("", "", "");
+      screenConfig.value = config ?? new HomeScreenConfig("", "", "");
 
       for (let i = progress.value; i <= 100; i += 8) {
         progress.value = i;

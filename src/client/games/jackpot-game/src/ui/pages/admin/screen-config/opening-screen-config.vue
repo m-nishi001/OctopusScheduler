@@ -66,11 +66,12 @@
 import { ref, onMounted } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
 import { OpeningScreenConfig, type OpeningContent } from '../../../../model/domains/screen-config/opening-screen-config';
+import { OpeningScreenConfigConverter } from '../../../../model/applications/screen-config/opening/opening-screen-config-converter';
 import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
+import { container } from 'tsyringe';
 
 const {
     screenConfigService,
-    converterManager,
     audioAssets,
     imageAssets,
     saving,
@@ -83,9 +84,8 @@ const localConfig = ref<OpeningScreenConfig>(new OpeningScreenConfig());
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("opening");
-        const openingConfig = converterManager.convertToDto("opening", config) as OpeningScreenConfig;
-        if (openingConfig) {
-            localConfig.value = openingConfig;
+        if (config) {
+            localConfig.value = config as OpeningScreenConfig;
         }
     } catch (error) {
         console.error("Failed to load opening config:", error);
@@ -185,7 +185,9 @@ const removeContent = (idx: number) => {
 
 const handleSaveClick = async () => {
     await handleSave(async () => {
-        await screenConfigService.saveScreenConfigs([localConfig.value]);
+        const converter = container.resolve(OpeningScreenConfigConverter);
+        const settings = converter.toSettings(localConfig.value as OpeningScreenConfig);
+        await screenConfigService.saveScreenConfigs(settings);
         await loadConfig();
     });
 };
