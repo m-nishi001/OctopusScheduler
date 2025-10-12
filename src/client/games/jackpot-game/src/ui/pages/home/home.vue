@@ -33,6 +33,9 @@ import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetService } from '../../../model/applications/asset/asset-service';
+import { PrizeService } from '../../../model/applications/prize/prize-service';
+import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
+import { MemberService } from '../../../model/applications/member/member-service';
 import { HomeScreenSetting } from '../../../model/domains/screen-config/home-screen-setting';
 
 export default {
@@ -48,6 +51,9 @@ export default {
     const homeConfig = ref<HomeScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     const assetService = container.resolve<AssetService>("AssetService");
+    const prizeService = container.resolve(PrizeService);
+    const drawResultService = container.resolve(DrawResultService);
+    const memberService = container.resolve(MemberService);
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -75,8 +81,19 @@ export default {
     const loadAssets = async () => {
       try {
         progress.value = 10;
-        // sync removed as repo doesn't have it
-        progress.value = 40;
+        const syncTasks = [
+          assetService.syncAssets(),
+          prizeService.syncPrizes(),
+          drawResultService.syncDrawResults(),
+          memberService.syncMembers(),
+          screenConfigService.syncScreenConfigs(),
+        ];
+        const totalTasks = syncTasks.length;
+        const progressPerTask = 30 / totalTasks;
+        await Promise.all(syncTasks.map(async (task) => {
+          await task;
+          progress.value += progressPerTask;
+        }));
       } catch (e) {
         progress.value = 50;
       }
