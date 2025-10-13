@@ -56,15 +56,18 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       .invoke();
   }
 
-  async addScheduleEvents(events: IScheduleEventEntity[]): Promise<void> {
-    await this.service
-      .createCall<void>("ScheduleService.addScheduleEvents", { events })
-      .withSuccessed(() =>
-        console.log("Schedule events added successfully to remote.")
-      )
-      .withFailuered((message: string) => {
-        throw new Error(`Failed to add schedule events to remote: ${message}`);
-      })
-      .invoke();
+  async addScheduleEvents(events: IScheduleEventEntity[]): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      this.service
+        .createCall<string[]>("ScheduleService.addScheduleEvents", { events })
+        .withSuccessed((data) => resolve(data))
+        .withFailuered((message: string) => {
+          console.error("Failed to add schedule events to remote:", message);
+          reject(
+            new Error(`Failed to add schedule events to remote: ${message}`)
+          );
+        })
+        .invoke();
+    });
   }
 }

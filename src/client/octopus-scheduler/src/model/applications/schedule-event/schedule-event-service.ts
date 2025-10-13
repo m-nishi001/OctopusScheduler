@@ -21,8 +21,8 @@ export class ScheduleEventService {
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 
-  async addScheduleEvents(events: IScheduleEventEntity[]): Promise<void> {
-    await this.scheduleEventRepository.addScheduleEvents(events);
+  async addScheduleEvents(events: IScheduleEventEntity[]): Promise<string[]> {
+    return await this.scheduleEventRepository.addScheduleEvents(events);
   }
 
   async getCurrentScheduleEvent(): Promise<{

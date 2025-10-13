@@ -40,11 +40,14 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     }
   }
 
-  addScheduleEvents(events: ScheduleEvent[]): void {
+  addScheduleEvents(events: ScheduleEvent[]): string[] {
+    const ids: string[] = [];
     const transaction = this.repository.beginTransaction();
     for (const event of events) {
       transaction.add(event);
+      ids.push(event.id);
     }
     transaction.commit();
+    return ids;
   }
 }

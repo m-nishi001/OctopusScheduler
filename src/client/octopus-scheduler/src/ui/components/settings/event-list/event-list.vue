@@ -202,8 +202,8 @@ async function onContentSubmit(form: any) {
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
             // Add
-            const newEvent = new ShowContentEventEntity(
-                crypto.randomUUID(),
+            const tempEvent = new ShowContentEventEntity(
+                '',
                 form.startTime,
                 form.endTime,
                 form.contentType,
@@ -214,7 +214,7 @@ async function onContentSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            await scheduleEventService.addScheduleEvents([newEvent]);
+            await scheduleEventService.addScheduleEvents([tempEvent]);
         }
         await fetchEvents();
         closeDialogs();
@@ -240,8 +240,8 @@ async function onMusicSubmit(form: any) {
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
             // Add
-            const newEvent = new PlayAudioEventEntity(
-                crypto.randomUUID(),
+            const tempEvent = new PlayAudioEventEntity(
+                '',
                 form.startTime,
                 form.endTime,
                 form.audioId,
@@ -250,7 +250,7 @@ async function onMusicSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            await scheduleEventService.addScheduleEvents([newEvent]);
+            await scheduleEventService.addScheduleEvents([tempEvent]);
         }
         await fetchEvents();
         closeDialogs();
@@ -276,8 +276,8 @@ async function onTransitionSubmit(form: any) {
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
             // Add
-            const newEvent = new TransitionPageEventEntity(
-                crypto.randomUUID(),
+            const tempEvent = new TransitionPageEventEntity(
+                '',
                 form.startTime,
                 form.endTime,
                 form.transitionUrl,
@@ -286,7 +286,7 @@ async function onTransitionSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            await scheduleEventService.addScheduleEvents([newEvent]);
+            await scheduleEventService.addScheduleEvents([tempEvent]);
         }
         await fetchEvents();
         closeDialogs();

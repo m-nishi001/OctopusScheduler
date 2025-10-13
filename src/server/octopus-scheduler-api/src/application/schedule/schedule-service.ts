@@ -32,7 +32,24 @@ export class ScheduleService implements GasService {
     this.repository.deleteScheduleEvents(args.ids);
   }
 
-  addScheduleEvents(args: { events: ScheduleEvent[] }): void {
-    this.repository.addScheduleEvents(args.events);
+  addScheduleEvents(args: { events: ScheduleEvent[] }): string[] {
+    const ids: string[] = [];
+    for (const event of args.events) {
+      if (!event.id) {
+        const newId = Utilities.getUuid();
+        const newEvent = new ScheduleEvent(
+          newId,
+          event.type,
+          event.settingName,
+          event.settingValue
+        );
+        this.repository.addScheduleEvents([newEvent]);
+        ids.push(newId);
+      } else {
+        this.repository.addScheduleEvents([event]);
+        ids.push(event.id);
+      }
+    }
+    return ids;
   }
 }
