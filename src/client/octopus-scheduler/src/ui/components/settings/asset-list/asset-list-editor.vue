@@ -120,7 +120,8 @@
             </template>
             <template v-else-if="previewAssetType === 'image'">
                 <div style="display: flex; flex-direction: column; align-items: center;">
-                    <img :src="previewAsset.dataUrl" alt="画像プレビュー" style="max-width: 80vw; max-height: 70vh; border-radius: 8px; box-shadow: 0 2px 16px #000a;" />
+                    <img :src="previewAsset.dataUrl" alt="画像プレビュー"
+                        style="max-width: 80vw; max-height: 70vh; border-radius: 8px; box-shadow: 0 2px 16px #000a;" />
                     <div v-if="previewAsset.name" style="margin-top: 1em; color: #8fd3ff;">
                         {{ previewAsset.name }}
                     </div>

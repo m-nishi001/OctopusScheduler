@@ -5,6 +5,9 @@
                 <span class="editor-icon">📅</span> スケジュールイベント管理
             </h2>
             <div class="controls">
+                <button class="main-btn" @click="onAdd" :disabled="loading">
+                    <span class="btn-icon">➕</span> 追加
+                </button>
                 <button class="main-btn" @click="onReload" :disabled="loading">
                     <span class="btn-icon">🔄</span> 再読込
                 </button>
@@ -38,12 +41,15 @@
                         <tr v-for="ev in events" :key="ev.id">
                             <td><input type="checkbox" v-model="selectedEvents" :value="ev.id" /></td>
                             <td>{{ ev.type }}</td>
-                            <td>{{ ev.type }}</td>
+                            <td>{{ getTypeLabel(ev.type) }}</td>
                             <td>{{ formatDate(ev.startTime) }}</td>
                             <td>{{ formatDate(ev.endTime) }}</td>
                             <td>
-                                <button class="main-btn small" @click="onDelete(ev)" :disabled="loading"><span
-                                        class="btn-icon">🗑️</span>
+                                <button class="main-btn small" @click="onEdit(ev)" :disabled="loading"><span
+                                        class="btn-icon">✏️</span>
+                                    編集</button>
+                                <button class="main-btn small delete-btn" @click="onDelete(ev)"
+                                    :disabled="loading"><span class="btn-icon">🗑️</span>
                                     削除</button>
                             </td>
                         </tr>
@@ -54,6 +60,15 @@
                 </table>
             </div>
         </div>
+
+        <EventTypeSelectionDialog v-if="showTypeSelection" @select="onTypeSelected"
+            @close="showTypeSelection = false" />
+        <ContentDisplayEventDialog v-if="showContentDialog" :event="editingEvent as any" @submit="onContentSubmit"
+            @close="closeDialogs" />
+        <MusicPlaybackEventDialog v-if="showMusicDialog" :event="editingEvent as any" @submit="onMusicSubmit"
+            @close="closeDialogs" />
+        <ScreenTransitionEventDialog v-if="showTransitionDialog" :event="editingEvent as any"
+            @submit="onTransitionSubmit" @close="closeDialogs" />
     </div>
 </template>
 
@@ -62,12 +77,24 @@ import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
 import type { IScheduleEventEntity } from '../../../../model/domains/schedule-event/i-schedule-event-entity';
+import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
+import ContentDisplayEventDialog from './dialogs/content-display-event-dialog.vue';
+import MusicPlaybackEventDialog from './dialogs/music-playback-event-dialog.vue';
+import ScreenTransitionEventDialog from './dialogs/screen-transition-event-dialog.vue';
+import { ShowContentEventEntity } from '../../../../model/domains/schedule-event/show-content-event/show-content-event-entity';
+import { PlayAudioEventEntity } from '../../../../model/domains/schedule-event/play-audio-event/play-audio-event-entity';
+import { TransitionPageEventEntity } from '../../../../model/domains/schedule-event/transition-page-event/transition-page-event-entity';
 
 const events = ref<IScheduleEventEntity[]>([]);
 const loading = ref(false);
 const selectedEvents = ref<string[]>([]);
 const syncing = ref(false);
 const deleting = ref(false);
+const showTypeSelection = ref(false);
+const showContentDialog = ref(false);
+const showMusicDialog = ref(false);
+const showTransitionDialog = ref(false);
+const editingEvent = ref<IScheduleEventEntity | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 
@@ -83,6 +110,15 @@ const isAllSelected = computed({
         }
     }
 });
+
+function getTypeLabel(type: string): string {
+    switch (type) {
+        case 'ShowContentEvent': return 'コンテンツ表示';
+        case 'PlayAudioEvent': return '音楽再生';
+        case 'TransitionPageEvent': return '画面遷移';
+        default: return type;
+    }
+}
 
 function formatDate(d: any) {
     try {
@@ -102,6 +138,160 @@ async function fetchEvents() {
         alert('イベント取得に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
         loading.value = false;
+    }
+}
+
+function onAdd() {
+    editingEvent.value = null;
+    showTypeSelection.value = true;
+}
+
+function onTypeSelected(type: string) {
+    showTypeSelection.value = false;
+    switch (type) {
+        case 'ShowContentEvent':
+            showContentDialog.value = true;
+            break;
+        case 'PlayAudioEvent':
+            showMusicDialog.value = true;
+            break;
+        case 'TransitionPageEvent':
+            showTransitionDialog.value = true;
+            break;
+    }
+}
+
+function onEdit(ev: IScheduleEventEntity) {
+    editingEvent.value = ev;
+    switch (ev.type) {
+        case 'ShowContentEvent':
+            showContentDialog.value = true;
+            break;
+        case 'PlayAudioEvent':
+            showMusicDialog.value = true;
+            break;
+        case 'TransitionPageEvent':
+            showTransitionDialog.value = true;
+            break;
+    }
+}
+
+function closeDialogs() {
+    showContentDialog.value = false;
+    showMusicDialog.value = false;
+    showTransitionDialog.value = false;
+    editingEvent.value = null;
+}
+
+async function onContentSubmit(form: any) {
+    try {
+        if (editingEvent.value) {
+            // Update
+            const updated = new ShowContentEventEntity(
+                editingEvent.value.id,
+                form.startTime,
+                form.endTime,
+                form.contentType,
+                form.contentId,
+                form.htmlString,
+                form.fadeOutDuration,
+                editingEvent.value.processedAt,
+                editingEvent.value.registeredAt,
+                new Date()
+            );
+            await scheduleEventService.updateScheduleEvents([updated]);
+        } else {
+            // Add
+            const newEvent = new ShowContentEventEntity(
+                crypto.randomUUID(),
+                form.startTime,
+                form.endTime,
+                form.contentType,
+                form.contentId,
+                form.htmlString,
+                form.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            await scheduleEventService.addScheduleEvents([newEvent]);
+        }
+        await fetchEvents();
+        closeDialogs();
+    } catch (e) {
+        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    }
+}
+
+async function onMusicSubmit(form: any) {
+    try {
+        if (editingEvent.value) {
+            // Update
+            const updated = new PlayAudioEventEntity(
+                editingEvent.value.id,
+                form.startTime,
+                form.endTime,
+                form.audioId,
+                form.fadeOutDuration,
+                editingEvent.value.processedAt,
+                editingEvent.value.registeredAt,
+                new Date()
+            );
+            await scheduleEventService.updateScheduleEvents([updated]);
+        } else {
+            // Add
+            const newEvent = new PlayAudioEventEntity(
+                crypto.randomUUID(),
+                form.startTime,
+                form.endTime,
+                form.audioId,
+                form.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            await scheduleEventService.addScheduleEvents([newEvent]);
+        }
+        await fetchEvents();
+        closeDialogs();
+    } catch (e) {
+        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    }
+}
+
+async function onTransitionSubmit(form: any) {
+    try {
+        if (editingEvent.value) {
+            // Update
+            const updated = new TransitionPageEventEntity(
+                editingEvent.value.id,
+                form.startTime,
+                form.endTime,
+                form.transitionUrl,
+                form.fadeOutDuration,
+                editingEvent.value.processedAt,
+                editingEvent.value.registeredAt,
+                new Date()
+            );
+            await scheduleEventService.updateScheduleEvents([updated]);
+        } else {
+            // Add
+            const newEvent = new TransitionPageEventEntity(
+                crypto.randomUUID(),
+                form.startTime,
+                form.endTime,
+                form.transitionUrl,
+                form.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            await scheduleEventService.addScheduleEvents([newEvent]);
+        }
+        await fetchEvents();
+        closeDialogs();
+    } catch (e) {
+        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     }
 }
 
