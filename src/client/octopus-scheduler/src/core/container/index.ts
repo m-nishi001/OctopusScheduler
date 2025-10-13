@@ -5,9 +5,9 @@ import { AssetRepository } from "../../model/infrastructures/assets/asset-reposi
 import { container } from "tsyringe";
 import { ScheduleEventService } from "../../model/applications/schedule-event/schedule-event-service";
 import { AssetService } from "../../model/applications/assets/asset-service";
-import { PlayAudioEventConverter } from "../../model/applications/schedule-event/converters/play-audio-event-converter";
-import { ShowContentEventConverter } from "../../model/applications/schedule-event/converters/show-content-event-converter";
-import { TransitionPageEventConverter } from "../../model/applications/schedule-event/converters/transition-page-event-converter";
+import { PlayAudioEventConverter } from "../../model/applications/schedule-event/play-audio-event/play-audio-event-converter";
+import { ShowContentEventConverter } from "../../model/applications/schedule-event/show-content-event/show-content-event-converter";
+import { TransitionPageEventConverter } from "../../model/applications/schedule-event/transition-page-event/transition-page-event-converter";
 
 export class Container {
   static Register() {
