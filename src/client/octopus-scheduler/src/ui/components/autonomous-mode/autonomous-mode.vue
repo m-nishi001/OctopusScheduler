@@ -7,27 +7,27 @@
             <div class="event-section">
                 <div class="event-block">
                     <h3>今から開始するイベント</h3>
-                    <div class="event-value">{{ eventPollingService.state.upcomingEvent }}</div>
+                    <div class="event-value">{{ localState.upcomingEvent }}</div>
                 </div>
                 <div class="event-block">
                     <h3>今実行しているイベント</h3>
-                    <div class="event-value">{{ eventPollingService.state.currentEvent }}</div>
+                    <div class="event-value">{{ localState.currentEvent }}</div>
                 </div>
                 <div class="event-block">
                     <h3>今から終了するイベント</h3>
-                    <div class="event-value">{{ eventPollingService.state.endingEvent }}</div>
+                    <div class="event-value">{{ localState.endingEvent }}</div>
                 </div>
             </div>
             <div class="control-section">
                 <div class="polling-controls">
-                    <button class="main-btn" @click="onStartPolling" :disabled="eventPollingService.state.isPolling">
+                    <button class="main-btn" @click="onStartPolling" :disabled="localState.isPolling">
                         <span class="btn-icon">🔄</span> ポーリング開始
                     </button>
-                    <button class="main-btn" @click="onStopPolling" :disabled="!eventPollingService.state.isPolling">
+                    <button class="main-btn" @click="onStopPolling" :disabled="!localState.isPolling">
                         <span class="btn-icon">⏹️</span> ポーリング停止
                     </button>
                     <span class="event-value" style="margin-left:1em;">
-                        ポーリング状態: <b>{{ eventPollingService.state.isPolling ? '稼働中' : '停止中' }}</b>
+                        ポーリング状態: <b>{{ localState.isPolling ? '稼働中' : '停止中' }}</b>
                     </span>
                 </div>
                 <div class="audio-controls">
@@ -37,11 +37,11 @@
                     <button class="main-btn" @click="onStopAudio">
                         <span class="btn-icon">⏹️</span> 音楽停止
                     </button>
-                    <span v-if="eventPollingService.state.audioError" class="error-msg">{{
-                        eventPollingService.state.audioError?.message }}</span>
+                    <span v-if="globalState.audioError" class="error-msg">{{
+                        (globalState.audioError as any)?.message }}</span>
                 </div>
                 <div class="video-controls">
-                    <button class="main-btn" @click="eventPollingService.state.showVideoModal = true">
+                    <button class="main-btn" @click="globalState.showVideoModal = true">
                         <span class="btn-icon">🎬</span> 動画再生
                     </button>
                 </div>
@@ -51,22 +51,145 @@
 </template>
 
 <script setup lang="ts">
-import { inject } from 'vue';
+import { inject, reactive, onMounted } from 'vue';
+import type { IScheduleEventEntity } from 'src/model/domains/schedule-event/i-schedule-event-entity';
+import type { PlayAudioEventEntity } from 'src/model/domains/schedule-event/play-audio-event/play-audio-event-entity';
+import type { ShowContentEventEntity } from 'src/model/domains/schedule-event/show-content-event/show-content-event-entity';
+import type { TransitionPageEventEntity } from 'src/model/domains/schedule-event/transition-page-event/transition-page-event-entity';
+
 const eventPollingService = inject('eventPollingService') as any;
-const onPlayAudio = async () => {
-    if (eventPollingService?.state.audioUrl) {
-        await eventPollingService.playAudio();
+const assetService = inject('assetService') as any;
+const globalState = inject('globalState') as any;
+
+const localState = reactive({
+    upcomingEvent: "",
+    currentEvent: "",
+    endingEvent: "",
+    isPolling: false,
+});
+
+const onEvents = async (startEvents: IScheduleEventEntity[], endEvents: IScheduleEventEntity[]) => {
+    localState.upcomingEvent = startEvents.length > 0 ? startEvents.map((e) => e.type).join(", ") : "（なし）";
+    localState.currentEvent = startEvents.length > 0 ? startEvents.map((e) => e.type).join(", ") : "（なし）";
+    localState.endingEvent = endEvents.length > 0 ? endEvents.map((e) => e.type).join(", ") : "（なし）";
+
+    for (const event of startEvents) {
+        await executeStart(event);
+    }
+    for (const event of endEvents) {
+        await executeEnd(event);
     }
 };
-const onStopAudio = async () => {
-    await eventPollingService.stopAudio();
+
+const executeStart = async (event: IScheduleEventEntity) => {
+    const type = event.type;
+    if (type === "PlayAudioEvent") {
+        await playAudio(event);
+    } else if (type === "ShowContentEvent") {
+        await showContent(event);
+    } else if (type === "TransitionPageEvent") {
+        await transitionPage(event);
+    }
 };
+
+const executeEnd = async (event: IScheduleEventEntity) => {
+    const type = event.type;
+    if (type === "PlayAudioEvent") {
+        await stopAudio();
+    } else if (type === "ShowContentEvent") {
+        await hideContent(event);
+    }
+};
+
+const playAudio = async (event?: IScheduleEventEntity) => {
+    globalState.isAudioPlaying = true;
+    if (event) {
+        const playAudioEvent = event as PlayAudioEventEntity;
+        if (playAudioEvent.audioId) {
+            const asset = await assetService.getAssetById(playAudioEvent.audioId);
+            if (asset && asset.dataUrl) {
+                globalState.audioUrl = asset.dataUrl;
+            } else {
+                globalState.audioUrl = "";
+            }
+        }
+    }
+};
+
+const stopAudio = async () => {
+    globalState.isAudioPlaying = false;
+};
+
+const showContent = async (event: IScheduleEventEntity) => {
+    const showContentEvent = event as ShowContentEventEntity;
+    if (showContentEvent.contentType === "image") {
+        globalState.showImageModal = true;
+        if (showContentEvent.contentId) {
+            const asset = await assetService.getAssetById(showContentEvent.contentId);
+            if (asset && asset.dataUrl) {
+                globalState.imageAssetUrl = asset.dataUrl;
+            } else {
+                globalState.imageAssetUrl = "";
+            }
+        }
+    } else if (showContentEvent.contentType === "movie") {
+        globalState.showVideoModal = true;
+        if (showContentEvent.contentId) {
+            const asset = await assetService.getAssetById(showContentEvent.contentId);
+            if (asset && asset.dataUrl) {
+                globalState.videoUrl = asset.dataUrl;
+            } else {
+                globalState.videoUrl = "";
+            }
+        }
+    } else if (showContentEvent.contentType === "html") {
+        globalState.showHtmlModal = true;
+        globalState.htmlContent = showContentEvent.htmlString || "";
+    }
+};
+
+const hideContent = async (event: IScheduleEventEntity) => {
+    const showContentEvent = event as ShowContentEventEntity;
+    if (showContentEvent.contentType === "image") {
+        globalState.showImageModal = false;
+    } else if (showContentEvent.contentType === "movie") {
+        globalState.showVideoModal = false;
+    } else if (showContentEvent.contentType === "html") {
+        globalState.showHtmlModal = false;
+        globalState.htmlContent = "";
+    }
+};
+
+const transitionPage = async (event: IScheduleEventEntity) => {
+    const transitionPageEvent = event as TransitionPageEventEntity;
+    if (transitionPageEvent.transitionUrl) {
+        globalState.nextPage = transitionPageEvent.transitionUrl;
+    }
+};
+
+const onPlayAudio = async () => {
+    if (globalState.audioUrl) {
+        await playAudio();
+    }
+};
+
+const onStopAudio = async () => {
+    await stopAudio();
+};
+
 const onStartPolling = () => {
+    localState.isPolling = true;
     eventPollingService.startPolling();
 };
+
 const onStopPolling = () => {
+    localState.isPolling = false;
     eventPollingService.stopPolling();
 };
+
+onMounted(() => {
+    eventPollingService.setOnEventsCallback(onEvents);
+});
 </script>
 <style scoped>
 .autonomous-mode {

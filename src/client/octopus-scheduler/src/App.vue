@@ -8,8 +8,9 @@ import FullScreenImage from './ui/components/full-screen-image.vue';
 import FullScreenHtml from './ui/components/full-screen-html.vue';
 
 const eventPollingService = inject<EventPollingService>('eventPollingService');
-if (!eventPollingService) {
-    throw new Error('EventPollingService not provided');
+const globalState = inject<any>('globalState');
+if (!eventPollingService || !globalState) {
+    throw new Error('Services not provided');
 }
 
 const router = useRouter();
@@ -18,30 +19,30 @@ const audio = useAudio();
 const videoRef = ref();
 const imageRef = ref();
 
-watch(() => eventPollingService.state.showVideoModal, (visible) => {
+watch(() => globalState.showVideoModal, (visible) => {
     if (!visible && videoRef.value?.stopAndClose) {
         videoRef.value.stopAndClose(300);
     }
 });
 
-watch(() => eventPollingService.state.showImageModal, (visible) => {
+watch(() => globalState.showImageModal, (visible) => {
     if (!visible && imageRef.value?.hide) {
         imageRef.value.hide(300);
     }
 });
 
-watch(() => eventPollingService.state.nextPage, (nextPageUrl) => {
+watch(() => globalState.nextPage, (nextPageUrl) => {
     if (nextPageUrl) {
         router.replace({ path: nextPageUrl });
-        eventPollingService.state.nextPage = null;
+        globalState.nextPage = null;
     }
 });
 
 watch(
-    () => eventPollingService.state.isAudioPlaying,
+    () => globalState.isAudioPlaying,
     async (isPlaying) => {
-        if (isPlaying && eventPollingService.state.audioUrl) {
-            await audio.load(eventPollingService.state.audioUrl);
+        if (isPlaying && globalState.audioUrl) {
+            await audio.load(globalState.audioUrl);
             await audio.play();
         } else if (!isPlaying) {
             await audio.stop();
@@ -53,15 +54,15 @@ watch(
 <template>
     <div>
         <router-view />
-        <FullScreenVideo ref="videoRef" v-if="eventPollingService.state.showVideoModal"
-            :src="eventPollingService.state.videoUrl" :visible="eventPollingService.state.showVideoModal"
-            :fadeOutDuration="0" :onClose="() => eventPollingService.state.showVideoModal = false" />
-        <FullScreenImage ref="imageRef" v-if="eventPollingService.state.showImageModal"
-            :src="eventPollingService.state.imageAssetUrl" :visible="eventPollingService.state.showImageModal"
-            :fadeOutDuration="0" :onClose="() => eventPollingService.state.showImageModal = false" />
-        <FullScreenHtml v-if="eventPollingService.state.showHtmlModal"
-            :htmlContent="eventPollingService.state.htmlContent" :visible="eventPollingService.state.showHtmlModal"
-            :fadeOutDuration="0" :onClose="() => eventPollingService.state.showHtmlModal = false" />
+        <FullScreenVideo ref="videoRef" v-if="globalState.showVideoModal" :src="globalState.videoUrl"
+            :visible="globalState.showVideoModal" :fadeOutDuration="0"
+            :onClose="() => globalState.showVideoModal = false" />
+        <FullScreenImage ref="imageRef" v-if="globalState.showImageModal" :src="globalState.imageAssetUrl"
+            :visible="globalState.showImageModal" :fadeOutDuration="0"
+            :onClose="() => globalState.showImageModal = false" />
+        <FullScreenHtml v-if="globalState.showHtmlModal" :htmlContent="globalState.htmlContent"
+            :visible="globalState.showHtmlModal" :fadeOutDuration="0"
+            :onClose="() => globalState.showHtmlModal = false" />
     </div>
 </template>
 
