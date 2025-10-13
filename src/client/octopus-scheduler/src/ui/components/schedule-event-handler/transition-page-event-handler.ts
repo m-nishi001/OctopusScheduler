@@ -1,11 +1,11 @@
-import { eventBus } from "../../../../core/event-bus";
+import { eventBus } from "../../../core/event-bus";
 
 export class TransitionPageEventHandler {
-  constructor(private globalState: any) {
+  constructor(private router: any) {
     eventBus.on("transitionPage", this.handleTransitionPage.bind(this));
   }
 
   private async handleTransitionPage(data: { transitionUrl: string }) {
-    this.globalState.nextPage = data.transitionUrl;
+    this.router.push({ path: data.transitionUrl });
   }
 }

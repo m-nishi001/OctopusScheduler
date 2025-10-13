@@ -5,9 +5,6 @@
         <span class="octo-icon">🐙</span> Octopus Scheduler
       </h1>
       <div class="btn-group">
-        <button class="main-btn" @click="goToAutonomous">
-          <span class="btn-icon">🚀</span> 自立モード開始
-        </button>
         <button class="main-btn" @click="goToSettings">
           <span class="btn-icon">⚙️</span> 設定画面
         </button>
@@ -15,8 +12,38 @@
           <span class="btn-icon">🎰</span> Jackpot Game
         </button>
         <button class="main-btn" @click="goToCardGame">
-          <span class="btn-icon">🃏</span> Card Game
+          <span class="btn-icon">�</span> Card Game
         </button>
+      </div>
+      <div class="autonomous-section">
+        <h2>自立モード</h2>
+        <div class="event-section">
+          <div class="event-block">
+            <h3>今から開始するイベント</h3>
+            <div class="event-value">{{ localState.upcomingEvent }}</div>
+          </div>
+          <div class="event-block">
+            <h3>今実行しているイベント</h3>
+            <div class="event-value">{{ localState.currentEvent }}</div>
+          </div>
+          <div class="event-block">
+            <h3>今から終了するイベント</h3>
+            <div class="event-value">{{ localState.endingEvent }}</div>
+          </div>
+        </div>
+        <div class="control-section">
+          <div class="polling-controls">
+            <button class="main-btn" @click="onStartPolling" :disabled="localState.isPolling">
+              <span class="btn-icon">🔄</span> ポーリング開始
+            </button>
+            <button class="main-btn" @click="onStopPolling" :disabled="!localState.isPolling">
+              <span class="btn-icon">⏹️</span> ポーリング停止
+            </button>
+            <span class="event-value" style="margin-left:1em;">
+              ポーリング状態: <b>{{ localState.isPolling ? '稼働中' : '停止中' }}</b>
+            </span>
+          </div>
+        </div>
       </div>
       <p class="desc">ここにロード画面や初期同期処理を追加予定。</p>
     </div>
@@ -24,13 +51,58 @@
 </template>
 
 <script setup lang="ts">
+import { inject, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import type { IScheduleEventEntity } from '../../../model/domains/schedule-event/i-schedule-event-entity';
+import { PlayAudioEventHandler } from '../schedule-event-handler/play-audio-event-handler';
+import { ShowContentEventHandler } from '../schedule-event-handler/show-content/show-content-event-handler';
+import { TransitionPageEventHandler } from '../schedule-event-handler/transition-page-event-handler';
+
 const router = useRouter();
-const goToAutonomous = () => router.push({ name: 'autonomous-mode' });
+const eventPollingService = inject('eventPollingService') as any;
+const assetService = inject('assetService') as any;
+const audio = inject('audio') as any;
+
+const localState = reactive({
+  upcomingEvent: "",
+  currentEvent: "",
+  endingEvent: "",
+  isPolling: false,
+});
+
 const goToSettings = () => router.push({ name: 'settings' });
 const goToJackpotGame = () => router.push('/jackpot-home');
 const goToCardGame = () => router.push('/card-home');
-// 今後ロード画面や同期処理を追加
+
+const onEvents = async (startEvents: IScheduleEventEntity[], endEvents: IScheduleEventEntity[]) => {
+  localState.upcomingEvent = startEvents.length > 0 ? startEvents.map((e) => e.type).join(", ") : "（なし）";
+  localState.currentEvent = startEvents.length > 0 ? startEvents.map((e) => e.type).join(", ") : "（なし）";
+  localState.endingEvent = endEvents.length > 0 ? endEvents.map((e) => e.type).join(", ") : "（なし）";
+
+  for (const event of startEvents) {
+    await event.execute(true);
+  }
+  for (const event of endEvents) {
+    await event.execute(false);
+  }
+};
+
+const onStartPolling = () => {
+  localState.isPolling = true;
+  eventPollingService.startPolling();
+};
+
+const onStopPolling = () => {
+  localState.isPolling = false;
+  eventPollingService.stopPolling();
+};
+
+onMounted(() => {
+  eventPollingService.setOnEventsCallback(onEvents);
+  new PlayAudioEventHandler(audio, assetService);
+  new ShowContentEventHandler(router);
+  new TransitionPageEventHandler(router);
+});
 </script>
 
 <style scoped>
@@ -111,6 +183,59 @@ const goToCardGame = () => router.push('/card-home');
   transform: scale(0.98);
 }
 
+.autonomous-section {
+  width: 100%;
+  margin-bottom: 2em;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2em;
+}
+
+.autonomous-section h2 {
+  font-size: 1.5em;
+  color: #8fd3ff;
+  text-align: center;
+}
+
+.event-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2em;
+}
+
+.event-block {
+  background: #232323;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  padding: 1em 1.2em;
+}
+
+.event-block h3 {
+  font-size: 1.1em;
+  margin-bottom: 0.5em;
+  color: #8fd3ff;
+}
+
+.event-value {
+  font-size: 1.1em;
+  color: #fff;
+  word-break: break-all;
+}
+
+.control-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5em;
+}
+
+.polling-controls {
+  display: flex;
+  gap: 1.2em;
+  justify-content: center;
+}
+
 .desc {
   color: #bbb;
   font-size: 1em;
@@ -132,6 +257,16 @@ const goToCardGame = () => router.push('/card-home');
   .main-btn {
     font-size: 1em;
     padding: 0.7em 1.2em;
+  }
+
+  .event-block {
+    padding: 0.7em 0.5em;
+  }
+
+  .polling-controls {
+    gap: 0.7em;
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>
