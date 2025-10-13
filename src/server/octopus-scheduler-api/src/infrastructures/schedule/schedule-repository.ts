@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { IScheduleEventRepository } from "../../domain/schedule-event/schedule-event-reposiotry";
-import { ScheduleEvent } from "../../domain/schedule-event/entity/schedule-event";
+import { ScheduleEvent } from "../../domain/schedule-event/schedule-event";
 import {
   ISpreadsheetService,
   SpreadsheetService,

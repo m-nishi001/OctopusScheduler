@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { GasService } from "../gas-service";
 import { IScheduleEventRepository } from "../../domain/schedule-event/schedule-event-reposiotry";
-import { ScheduleEvent } from "../../domain/schedule-event/entity/schedule-event";
+import { ScheduleEvent } from "../../domain/schedule-event/schedule-event";
 
 @injectable()
 export class ScheduleService implements GasService {

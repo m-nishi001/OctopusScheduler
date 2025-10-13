@@ -1,4 +1,4 @@
-import { ScheduleEvent } from "./entity/schedule-event";
+import { ScheduleEvent } from "./schedule-event";
 
 export interface IScheduleEventRepository {
   getScheduleEvents(): ScheduleEvent[];

@@ -4,7 +4,7 @@ import { ScheduleService } from "../application/schedule/schedule-service";
 import { IScheduleEventRepository } from "../domain/schedule-event/schedule-event-reposiotry";
 import { ScheduleEventRepository } from "../infrastructures/schedule/schedule-repository";
 import { AssetService } from "../application/assets/asset-service";
-import { IAssetRepository } from "../domain/assets/repository/asset-repository";
+import { IAssetRepository } from "../domain/assets/asset-repository";
 import { AssetRepository } from "../infrastructures/assets/asset-repository";
 
 export class Container {

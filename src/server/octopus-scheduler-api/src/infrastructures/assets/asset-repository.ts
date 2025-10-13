@@ -1,5 +1,5 @@
-import { Asset } from "../../domain/assets/entity/asset";
-import type { IAssetRepository } from "../../domain/assets/repository/asset-repository";
+import { Asset } from "../../domain/assets/asset";
+import type { IAssetRepository } from "../../domain/assets/asset-repository";
 import { GoogleDriveService } from "../../../../shared-packages/src/google-drive-service";
 import type { AssetMetadataDto } from "../../application/assets/asset-dto";
 import { SpreadsheetService } from "../../../../shared-packages/src/google-spreadsheet-service";

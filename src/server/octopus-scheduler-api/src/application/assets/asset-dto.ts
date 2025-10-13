@@ -1,4 +1,4 @@
-import type { Asset } from "../../domain/assets/entity/asset";
+import type { Asset } from "../../domain/assets/asset";
 
 export class AssetMetadataDto {
   id: string;

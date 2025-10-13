@@ -1,4 +1,4 @@
-import { Asset } from "../entity/asset";
+import { Asset } from "./asset";
 
 export type AssetMetadata = {
   id: string;
