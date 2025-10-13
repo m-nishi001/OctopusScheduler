@@ -1,94 +1,188 @@
-import { injectable } from "tsyringe";
-import { IAssetRepository } from "../../domain/assets/repository/asset-repository";
 import { Asset } from "../../domain/assets/entity/asset";
-import { AssetMetadata } from "../../domain/assets/vo/asset-metadata";
-import { AssetType } from "../../domain/assets/vo/asset-type";
+import type { IAssetRepository } from "../../domain/assets/repository/asset-repository";
 import { GoogleDriveService } from "../../../../shared-packages/src/google-drive-service";
+import type { AssetMetadataDto } from "../../application/assets/asset-dto";
+import { SpreadsheetService } from "../../../../shared-packages/src/google-spreadsheet-service";
+import { AssetInfo } from "../../application/assets/asset-dto";
 
-@injectable()
 export class AssetRepository implements IAssetRepository {
-  private static readonly assetFolderId: string =
-    PropertiesService.getScriptProperties().getProperty(
-      "octopus-schedule-api-asset"
-    ) ??
-    (() => {
-      throw new Error("Asset folder ID is not set in ScriptProperties.");
-    })();
+  private readonly spreadsheetService =
+    SpreadsheetService.getService<AssetInfo>("AssetInfo");
 
-  add(asset: Asset): string {
-    const uploadedFile = GoogleDriveService.uploadFile({
-      fileName: asset.assetName,
-      parentFolderId: AssetRepository.assetFolderId,
-      mimeType: asset.assetData.getContentType() || "application/octet-stream",
-      blob: asset.assetData,
+  addAssets(assets: Asset[]): string[] {
+    const assetIds = assets.map((asset) => {
+      if (asset.id) {
+        // Update existing asset: delete old and upload new
+        this.deleteAssets([asset.id]);
+        return this.uploadAsset(asset);
+      } else {
+        // Upload new asset
+        return this.uploadAsset(asset);
+      }
     });
-
-    if (!uploadedFile || !uploadedFile.id)
-      throw new Error("Failed to retrieve uploaded file ID.");
-
-    return uploadedFile.id;
+    // Add to spreadsheet
+    const transaction = this.spreadsheetService.beginTransaction();
+    const assetInfos = assetIds.map((id, index) => {
+      const asset = assets[index];
+      return new AssetInfo(
+        id,
+        asset.type,
+        asset.name,
+        asset.referenceFrom || []
+      );
+    });
+    transaction.addMany(assetInfos);
+    transaction.commit();
+    return assetIds;
   }
 
-  getAllMetadatas(): AssetMetadata[] {
-    const folderId = AssetRepository.assetFolderId;
-    const files = DriveApp.getFolderById(folderId).getFiles();
-    const metadatas: AssetMetadata[] = [];
-    while (files.hasNext()) {
-      const file = files.next();
-      metadatas.push(
-        new AssetMetadata(
-          file.getId(),
-          file.getName(),
-          file.getMimeType(),
-          file.getSize(),
-          file.getDateCreated() as Date,
-          file.getLastUpdated() as Date
-        )
+  getAllAssets(): Asset[] {
+    const folderId = this.getAssetFolderId();
+    if (!folderId) return [];
+    const files = this.listAssets();
+    const assetInfos = this.spreadsheetService.find(() => true);
+    const assetInfoMap = new Map(
+      assetInfos.map((info) => [info.assetId, info])
+    );
+    return files.map((file) => {
+      const asset = this.mapFileToAsset(file);
+      const info = assetInfoMap.get(asset.id);
+      asset.referenceFrom = info ? info.referenceFrom : [];
+      return asset;
+    });
+  }
+
+  getAssetById(id: string): Asset | null {
+    const folderId = this.getAssetFolderId();
+    const files = GoogleDriveService.findFileByIds({
+      fileIds: [id],
+      parentFolderId: folderId,
+    });
+    if (files.length === 0) return null;
+    const file = files[0];
+    const asset = this.mapFileToAsset(file);
+    const info = this.spreadsheetService.findOne((info) => info.assetId === id);
+    asset.referenceFrom = info ? info.referenceFrom : [];
+    return asset;
+  }
+
+  getAllAssetMetadata(): AssetMetadataDto[] {
+    const folderId = this.getAssetFolderId();
+    if (!folderId) return [];
+    const files = this.listAssets();
+    return files.map((file) => this.mapFileToAssetMetadata(file));
+  }
+
+  deleteAssets(ids: string[]): void {
+    GoogleDriveService.deleteFilesOrFolders(ids);
+    this.spreadsheetService.delete((info) => ids.includes(info.assetId));
+  }
+
+  registerRef(assetId: string, refSourceId: string): void {
+    this.spreadsheetService.update(
+      (info) => info.assetId === assetId,
+      (info) => {
+        if (!Array.isArray(info.referenceFrom)) info.referenceFrom = [];
+        if (!info.referenceFrom.includes(refSourceId)) {
+          info.referenceFrom.push(refSourceId);
+        }
+        return info;
+      }
+    );
+  }
+
+  unregisterRef(assetId: string, refSourceId: string): void {
+    this.spreadsheetService.update(
+      (info) => info.assetId === assetId,
+      (info) => {
+        if (!Array.isArray(info.referenceFrom)) info.referenceFrom = [];
+        info.referenceFrom = info.referenceFrom.filter(
+          (id: string) => id !== refSourceId
+        );
+        return info;
+      }
+    );
+  }
+
+  private convertToBlobFromDataUrl(
+    dataUrl: string,
+    assetName: string
+  ): GoogleAppsScript.Base.Blob {
+    const base64Data = dataUrl.split(",")[1];
+    const mimeType = dataUrl.split(",")[0].split(":")[1].split(";")[0];
+    const decodedData = Utilities.base64Decode(base64Data);
+    return Utilities.newBlob(decodedData, mimeType, assetName);
+  }
+
+  private generateDataUrlFromBlob(blob: GoogleAppsScript.Base.Blob): string {
+    const bytes = blob.getBytes();
+    const base64Data = Utilities.base64Encode(bytes);
+    return "data:" + blob.getContentType() + ";base64," + base64Data;
+  }
+
+  private getAssetFolderId(): string {
+    const props = PropertiesService.getScriptProperties();
+    const folderId = props.getProperty("octopus-scheduler-asset-folder-id");
+    if (!folderId) {
+      throw new Error(
+        "octopus-scheduler-asset-folder-id is not set in script properties."
       );
     }
-    return metadatas;
+    return folderId;
   }
 
-  findById(assetId: string): Asset | null {
-    try {
-      const file = DriveApp.getFileById(assetId);
-      return Asset.createFrom({
-        assetId: file.getId(),
-        assetName: file.getName(),
-        assetType: new AssetType(file.getMimeType()),
-        assetData: file.getBlob(),
-        updatedAt: file.getLastUpdated() as Date,
-      } as Asset);
-    } catch (e) {
-      return null;
+  private listAssets(): GoogleAppsScript.Drive.File[] {
+    const folderId = this.getAssetFolderId();
+    const folder = DriveApp.getFolderById(folderId);
+    const fileIterator = folder.getFiles();
+    const files: GoogleAppsScript.Drive.File[] = [];
+    while (fileIterator.hasNext()) {
+      files.push(fileIterator.next());
     }
+    return files;
   }
 
-  findAll(): Asset[] {
-    const folderId = AssetRepository.assetFolderId;
-    const files = DriveApp.getFolderById(folderId).getFiles();
-    const assets: Asset[] = [];
-    while (files.hasNext()) {
-      const file = files.next();
-      assets.push(
-        Asset.createFrom({
-          assetId: file.getId(),
-          assetName: file.getName(),
-          assetType: new AssetType(file.getMimeType()),
-          assetData: file.getBlob(),
-          updatedAt: file.getLastUpdated() as Date,
-        } as Asset)
-      );
-    }
-    return assets;
+  private mapFileToAsset(file: GoogleAppsScript.Drive.File): Asset {
+    const mimeType = file.getMimeType();
+    const type = mimeType.split("/")[0] as "image" | "video" | "audio" | "text";
+    const blob = file.getBlob();
+    const dataUrl = this.generateDataUrlFromBlob(blob);
+    return {
+      id: file.getId(),
+      type,
+      dataUrl: dataUrl,
+      name: file.getName(),
+      uploadedAt: file.getDateCreated().toISOString(),
+      lastUpdated: file.getLastUpdated().toISOString(),
+      size: file.getSize(),
+      referenceFrom: [],
+    };
   }
 
-  delete(assetId: string): void {
-    GoogleDriveService.deleteFilesOrFolders([assetId.toString()]);
+  private mapFileToAssetMetadata(
+    file: GoogleAppsScript.Drive.File
+  ): AssetMetadataDto {
+    const mimeType = file.getMimeType();
+    const type = mimeType.split("/")[0] as "image" | "video" | "audio" | "text";
+    return {
+      id: file.getId(),
+      type,
+      name: file.getName(),
+      uploadedAt: file.getDateCreated().toISOString(),
+      lastUpdated: file.getLastUpdated().toISOString(),
+      size: file.getSize(),
+    };
   }
 
-  update(asset: Asset): void {
-    const file = DriveApp.getFileById(asset.assetId);
-    file.setName(asset.assetName);
+  private uploadAsset(asset: Asset): string {
+    const blob = this.convertToBlobFromDataUrl(asset.dataUrl, asset.name);
+    const folderId = this.getAssetFolderId();
+    const file = GoogleDriveService.uploadFile({
+      fileName: asset.name,
+      parentFolderId: folderId,
+      mimeType: blob.getContentType() || "text/plain",
+      blob: blob,
+    });
+    return file ? file.id || "" : "";
   }
 }

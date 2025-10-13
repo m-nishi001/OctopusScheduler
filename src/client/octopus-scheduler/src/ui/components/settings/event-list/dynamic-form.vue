@@ -1,18 +1,17 @@
 <template>
   <div class="dynamic-form">
-    <template v-for="prop in schema.properties" :key="prop.key">
-      <component :is="getComponent(prop.controlType)" :label="prop.label" :options="prop.options"
-        :modelValue="modelValue[prop.key]" @update:modelValue="(val: any) => emitChange(prop.key, val)" />
+    <template v-for="key in Object.keys(schema.properties)" :key="key">
+      <component :is="getComponent('text')" :label="schema.properties[key].title" :modelValue="modelValue[key]"
+        @update:modelValue="(val: any) => emitChange(key, val)" />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { FormSchema } from '../../../../model/applications/schedule-event/dtos/form-schema';
 import TextInput from '../../common/TextInput.vue';
 import DropDown from '../../common/DropDown.vue';
 
-const props = defineProps<{ schema: FormSchema; modelValue: Record<string, any> }>();
+const props = defineProps<{ schema: any; modelValue: Record<string, any> }>();
 const emit = defineEmits<{ (e: 'update:modelValue', value: Record<string, any>): void }>();
 
 function emitChange(key: string, value: any) {

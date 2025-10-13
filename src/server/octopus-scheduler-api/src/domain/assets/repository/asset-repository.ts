@@ -1,11 +1,20 @@
 import { Asset } from "../entity/asset";
-import { AssetMetadata } from "../vo/asset-metadata";
+
+export type AssetMetadata = {
+  id: string;
+  type: "image" | "video" | "audio" | "text";
+  name: string;
+  uploadedAt: string;
+  lastUpdated: string;
+  size: number;
+};
 
 export interface IAssetRepository {
-  add(asset: Asset): string;
-  findById(assetId: string): Asset | null;
-  findAll(): Asset[];
-  getAllMetadatas(): AssetMetadata[];
-  update(asset: Asset): void;
-  delete(assetId: string): void;
+  addAssets(assets: Asset[]): string[];
+  getAllAssets(): Asset[];
+  getAssetById(id: string): Asset | null;
+  getAllAssetMetadata(): AssetMetadata[];
+  deleteAssets(ids: string[]): void;
+  registerRef(assetId: string, refSourceId: string): void;
+  unregisterRef(assetId: string, refSourceId: string): void;
 }

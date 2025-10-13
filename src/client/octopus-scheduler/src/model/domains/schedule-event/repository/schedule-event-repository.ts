@@ -1,12 +1,8 @@
-import type { IScheduleEvent } from "../entity/schedule-event";
+import { ScheduleEventDto } from "../entity/schedule-event";
 
 export interface IScheduleEventRepository {
-    add(scheduleEvent: IScheduleEvent): Promise<void>;
-    findById(scheduleEventId: string): Promise<IScheduleEvent | null>;
-    findAll(): Promise<IScheduleEvent[]>;
-    update(scheduleEvent: IScheduleEvent): Promise<void>;
-    delete(scheduleEventId: string): Promise<void>;
-    fetchLatestEvents(): Promise<{ startedEvents: IScheduleEvent[]; endedEvents: IScheduleEvent[] }>;
-    markEventsAsStarted(scheduleEventIds: string[]): Promise<void>;
-    markEventsAsEnded(scheduleEventIds: string[]): Promise<void>;
+  getScheduleEvents(): Promise<ScheduleEventDto[]>;
+  updateScheduleEvents(events: ScheduleEventDto[]): Promise<void>;
+  deleteScheduleEvents(ids: string[]): Promise<void>;
+  addScheduleEvents(events: ScheduleEventDto[]): Promise<void>;
 }

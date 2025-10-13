@@ -32,9 +32,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="asset in filteredAssets" :key="asset.assetId">
-                            <td>{{ asset.assetName }}</td>
-                            <td>{{ formatDate(asset.updatedAt) }}</td>
+                        <tr v-for="asset in filteredAssets" :key="asset.id">
+                            <td>{{ asset.name }}</td>
+                            <td>{{ formatDate(asset.lastUpdated) }}</td>
                             <td>
                                 <button class="main-btn small" @click="onPreview(asset)"><span
                                         class="btn-icon">👁️</span> プレビュー</button>
@@ -90,10 +90,7 @@ import AudioPreview from './AudioPreview.vue';
 import ImagePreview from './ImagePreview.vue';
 import VideoPreview from './VideoPreview.vue';
 import { AssetService } from '../../../../model/applications/assets/asset-service';
-import { Asset } from '../../../../model/domains/assets/entity/assset';
-import { AudioType } from '../../../../model/domains/assets/vo/audio-asset-type';
-import { ImageType } from '../../../../model/domains/assets/vo/image-asset-type';
-import { VideoType } from '../../../../model/domains/assets/vo/video-asset-type';
+import type { Asset } from '../../../../model/domains/assets/entity/asset';
 import { container } from "tsyringe";
 
 type AssetTypeName = 'audio' | 'image' | 'video';
@@ -110,15 +107,15 @@ const previewAsset = ref<any>(null);
 const previewAssetType = ref<AssetTypeName | null>(null);
 
 function getAssetUrl(asset: Asset | null): string {
-    return asset?.assetData || '';
+    return asset?.dataUrl || '';
 }
 
 function onPreview(asset: any) {
-    // assetTypeNameの判定
-    const typeName = asset.assetType?.assetTypeName;
-    if (typeName?.includes('audio')) previewAssetType.value = 'audio';
-    else if (typeName?.includes('image')) previewAssetType.value = 'image';
-    else if (typeName?.includes('video')) previewAssetType.value = 'video';
+    // typeの判定
+    const type = asset.type;
+    if (type?.includes('audio')) previewAssetType.value = 'audio';
+    else if (type?.includes('image')) previewAssetType.value = 'image';
+    else if (type?.includes('video')) previewAssetType.value = 'video';
     else previewAssetType.value = null;
     previewAsset.value = asset;
 }
@@ -147,12 +144,12 @@ function formatDate(d: any) {
 const filteredAssets = computed(() => {
     console.log('Filtering assets by type:', selectedType.value);
     console.log('All assets:', assets.value);
-    return assets.value.filter(a => (a.assetType?.assetTypeName ?? '').includes(selectedType.value) === true);
+    return assets.value.filter(a => (a.type ?? '').includes(selectedType.value) === true);
 });
 
 async function loadAssets() {
     try {
-        const list = await service.getAllAssets();
+        const list = await service.getAssets();
         assets.value = list || [];
     } catch (e) {
         console.error('Failed to load assets', e);
@@ -169,28 +166,27 @@ function onFileChange(e: Event) {
     if (t.files && t.files.length > 0) newFile.value = t.files[0];
 }
 
-function createTypeInstance(type: AssetTypeName) {
-    switch (type) {
-        case 'audio': return new AudioType();
-        case 'image': return new ImageType();
-        case 'video': return new VideoType();
-    }
-}
-
 async function onAdd() {
     if (!newName.value) { alert('名前を入力してください'); return; }
     if (!newFile.value) { alert('ファイルを選択してください'); return; }
     adding.value = true;
     try {
         const buf = await newFile.value.arrayBuffer();
-        const blob = new Blob([buf], { type: newFile.value.type || 'application/octet-stream' });
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const dataUrl = `data:${newFile.value.type};base64,${base64}`;
 
-        const typeInst = createTypeInstance(selectedType.value);
-        const asset = Asset.create(typeInst as any);
-        asset.updateAssetName(newName.value);
-        asset.updateAssetData(blob);
+        const asset: Asset = {
+            id: crypto.randomUUID(),
+            type: selectedType.value,
+            dataUrl,
+            name: newName.value,
+            uploadedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            size: buf.byteLength,
+            referenceFrom: []
+        };
 
-        await service.addAsset(asset);
+        await service.addAssets([asset]);
         newName.value = '';
         newFile.value = null;
         await loadAssets();
@@ -217,9 +213,9 @@ async function onSync() {
 }
 
 async function onDelete(asset: any) {
-    if (!window.confirm(`${asset.assetName} を削除しますか？`)) return;
+    if (!window.confirm(`${asset.name} を削除しますか？`)) return;
     try {
-        await service.deleteAsset(asset.assetId);
+        await service.deleteAssets([asset.id]);
         await loadAssets();
     } catch (e) {
         console.error('Delete failed', e);

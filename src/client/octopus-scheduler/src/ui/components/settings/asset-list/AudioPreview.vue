@@ -21,7 +21,7 @@
 import { onMounted } from 'vue';
 import { useAudio } from '../../../../../../packages/shared-composables/src/use-audio';
 import { defineProps } from 'vue';
-import type { Asset } from 'src/model/domains/assets/entity/assset';
+import type { Asset } from 'src/model/domains/assets/entity/asset';
 const props = defineProps<{ asset: Asset }>();
 
 const { load, play, pause, stop, isLoading, isPlaying, currentTime, duration, error } = useAudio();
@@ -33,8 +33,8 @@ function formatTime(sec: number) {
 }
 
 onMounted(async () => {
-  if (props.asset.assetData) {
-    await load(props.asset.assetData);
+  if (props.asset.dataUrl) {
+    await load(props.asset.dataUrl);
   }
 });
 
@@ -54,6 +54,7 @@ function onStop() { stop(); }
   border-radius: 8px;
   cursor: pointer;
 }
+
 .main-btn:disabled {
   background: #444;
   color: #aaa;

@@ -1,5 +1,5 @@
-import type { Asset } from "src/model/domains/assets/entity/assset";
-import type { IAssetRepository } from "src/model/domains/assets/repository/asset-repository";
+import type { Asset } from "../../domains/assets/entity/asset";
+import type { IAssetRepository } from "../../domains/assets/repository/asset-repository";
 import { injectable, inject } from "tsyringe";
 
 @injectable()
@@ -8,23 +8,42 @@ export class AssetService {
     @inject("IAssetRepository") private assetRepository: IAssetRepository
   ) {}
 
-  async addAsset(asset: Asset): Promise<void> {
-    await this.assetRepository.add(asset);
+  async addAssets(
+    assets: Asset[],
+    onProgress?: (
+      index: number,
+      status: "完了" | "失敗",
+      message?: string
+    ) => void
+  ): Promise<string[]> {
+    return await this.assetRepository.addAssets(assets, onProgress);
+  }
+
+  async getAssets(): Promise<Asset[]> {
+    return await this.assetRepository.getAssets();
   }
 
   async getAssetById(id: string): Promise<Asset | null> {
-    return await this.assetRepository.findById(id);
+    return await this.assetRepository.getAssetById(id);
   }
 
-  async getAllAssets(): Promise<Asset[]> {
-    return await this.assetRepository.findAll();
+  async deleteAssets(ids: string[]): Promise<void> {
+    await this.assetRepository.deleteAssets(ids);
   }
 
-  async deleteAsset(id: string): Promise<void> {
-    await this.assetRepository.delete(id);
+  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
+    await this.assetRepository.syncAssets(onProgress);
   }
 
-  async syncAssets(): Promise<void> {
-    await this.assetRepository.sync();
+  async getAllAssetMetadata() {
+    return await this.assetRepository.getAllAssetMetadata();
+  }
+
+  async registerRef(assetId: string, refSourceId: string): Promise<void> {
+    return await this.assetRepository.registerRef(assetId, refSourceId);
+  }
+
+  async unregisterRef(assetId: string, refSourceId: string): Promise<void> {
+    return await this.assetRepository.unregisterRef(assetId, refSourceId);
   }
 }

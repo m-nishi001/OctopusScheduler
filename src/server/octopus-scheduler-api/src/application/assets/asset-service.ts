@@ -1,60 +1,65 @@
-import { inject, injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import { GasService } from "../gas-service";
-import { Asset } from "../../domain/assets/entity/asset";
+import { AssetDto, AssetMetadataDto } from "./asset-dto";
 import { IAssetRepository } from "../../domain/assets/repository/asset-repository";
-import { AssetMetadata } from "../../domain/assets/vo/asset-metadata";
 
 @injectable()
 export class AssetService implements GasService {
+  readonly serviceName = "AssetService";
+  readonly functions: Record<string, (args: any) => any>;
 
-    readonly serviceName = "AssetService";
-    readonly functions: Record<string, (args: any) => any>;
+  constructor(
+    @inject("IAssetRepository") private repository: IAssetRepository
+  ) {
+    this.functions = {
+      deleteAsset: this.deleteAsset.bind(this),
+      getAsset: this.getAsset.bind(this),
+      getAllAssetMetadata: this.getAllAssetMetadata.bind(this),
+      getAssets: this.getAssets.bind(this),
+      addAsset: this.addAsset.bind(this),
+      registerRef: this.registerRef.bind(this),
+      unregisterRef: this.unregisterRef.bind(this),
+    };
+  }
 
-    constructor(@inject("IAssetRepository") private repository: IAssetRepository) {
-        this.functions = {
-            "addAsset": this.addAsset.bind(this),
-            "getAssetById": this.getAssetById.bind(this),
-            "updateName": this.updateName.bind(this),
-            "deleteAsset": this.deleteAsset.bind(this),
-            "getAllMetadatas": this.getAllMetadatas.bind(this)
-        };
-    }
+  deleteAsset(args: { assetId: string }): { success: boolean } {
+    this.repository.deleteAssets([args.assetId]);
+    return { success: true };
+  }
 
-    private addAsset(source: Asset): { assetId: string } {
-        const entity = Asset.createFromClient(source);
-        const assetId = this.repository.add(entity);
-        return { assetId };
-    }
+  getAsset(args: { assetId: string }): { asset: AssetDto | null } {
+    const asset = this.repository.getAssetById(args.assetId);
+    return { asset: asset ? new AssetDto(asset) : null };
+  }
 
-    private getAssetById(assetId: string): Asset | null {
-        const entity = this.repository.findById(assetId);
-        return entity ? entity.serializeForClient() : null;
-    }
+  getAllAssetMetadata(): { metadata: AssetMetadataDto[] } {
+    const metadata = this.repository.getAllAssetMetadata();
+    return { metadata };
+  }
 
-    private updateName(args: { assetId: string, newName: string }): { assetId: string } {
-        const entity = this.repository.findById(args.assetId);
+  getAssets(): { assets: AssetDto[] } {
+    const assets = this.repository.getAllAssets();
+    return { assets: assets.map((a) => new AssetDto(a)) };
+  }
 
-        if (!entity) throw new Error(`Asset with ID ${args.assetId} not found.`);
+  addAsset(args: { asset: AssetDto }): { assetId: string } {
+    const assetEntity = AssetDto.toAsset(args.asset);
+    const assetIds = this.repository.addAssets([assetEntity]);
+    const assetId = assetIds[0];
+    return { assetId };
+  }
 
-        entity.updateAssetName(args.newName);
-        this.repository.update(entity);
+  registerRef(args: { assetId: string; refSourceId: string }): {
+    success: boolean;
+  } {
+    this.repository.registerRef(args.assetId, args.refSourceId);
+    return { success: true };
+  }
 
-        return { assetId: entity.assetId };
-    }
-
-    private deleteAsset(assetId: string): { success: boolean } {
-        this.repository.delete(assetId);
-        return { success: true };
-    }
-
-    private getAllMetadatas(): {
-        assetId: string;
-        updatedAt: Date
-    }[] {
-        return this.repository.getAllMetadatas()
-            .map((assetMetadata: AssetMetadata) => ({
-                assetId: assetMetadata.assetId,
-                updatedAt: assetMetadata.updatedAt
-            }));
-    }
+  unregisterRef(args: { assetId: string; refSourceId: string }): {
+    success: boolean;
+  } {
+    this.repository.unregisterRef(args.assetId, args.refSourceId);
+    return { success: true };
+  }
 }

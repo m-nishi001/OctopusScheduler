@@ -1,9 +1,8 @@
-import { IScheduleEvent } from "./entity/schedule-event";
+import { ScheduleEvent } from "./entity/schedule-event";
 
 export interface IScheduleEventRepository {
-    add(events: IScheduleEvent[]): number;
-    find(predicate: (entity: IScheduleEvent) => boolean): IScheduleEvent[];
-    findAll(): IScheduleEvent[];
-    update(predicate: (entity: IScheduleEvent) => boolean, executor: (entity: IScheduleEvent) => IScheduleEvent): number;
-    delete(predicate: (entity: IScheduleEvent) => boolean): number;
+  getScheduleEvents(): ScheduleEvent[];
+  updateScheduleEvents(events: ScheduleEvent[]): void;
+  deleteScheduleEvents(ids: string[]): void;
+  addScheduleEvents(events: ScheduleEvent[]): void;
 }

@@ -1,23 +1,32 @@
 import type { ScheduleTimeSpan } from "../vo/schedule-timespan";
 
-export interface IScheduleEvent {
-    readonly scheduleEventId: string;
-    readonly scheduleEventType: string;
-    readonly scheduleEventName: string;
-    readonly scheduleTimeSpan: ScheduleTimeSpan;
-    readonly scheduleEventDetail: any; // 独自のプロパティ
-    readonly processedAt: Date | null;
-    readonly registeredAt: Date;
-    readonly updatedAt: Date;
+export class ScheduleEventDto {
+  public readonly id: string;
+  public readonly type: string;
+  public readonly name: string;
+  public readonly timeSpan: ScheduleTimeSpan;
+  public readonly detail: any;
+  public readonly processedAt: Date | null;
+  public readonly registeredAt: Date;
+  public readonly updatedAt: Date;
 
-    // シリアライズ用
-    serialize(): IScheduleEvent;
-
-    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): void;
-    updateEventName(newEventName: string): void;
-    updateEventDetail(newDetail: any): void;
-    markAsProcessed(processedAt: Date): void;
-
-    // イベントの実行
-    executeScheduleEvent(): void;
+  constructor(
+    id: string,
+    type: string,
+    name: string,
+    timeSpan: ScheduleTimeSpan,
+    detail: any,
+    processedAt: Date | null,
+    registeredAt: Date,
+    updatedAt: Date
+  ) {
+    this.id = id;
+    this.type = type;
+    this.name = name;
+    this.timeSpan = timeSpan;
+    this.detail = detail;
+    this.processedAt = processedAt;
+    this.registeredAt = registeredAt;
+    this.updatedAt = updatedAt;
+  }
 }

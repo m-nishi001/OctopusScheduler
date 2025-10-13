@@ -29,11 +29,11 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="ev in events" :key="ev.scheduleEventId">
-                            <td>{{ ev.scheduleEventName }}</td>
-                            <td>{{ ev.displayName }}</td>
-                            <td>{{ formatDate(ev.start) }}</td>
-                            <td>{{ formatDate(ev.end) }}</td>
+                        <tr v-for="ev in events" :key="ev.id">
+                            <td>{{ ev.name }}</td>
+                            <td>{{ ev.type }}</td>
+                            <td>{{ formatDate(ev.timeSpan.start) }}</td>
+                            <td>{{ formatDate(ev.timeSpan.end) }}</td>
                             <td>
                                 <button class="main-btn small" @click="onEdit(ev)" :disabled="loading"><span
                                         class="btn-icon">✏️</span>
@@ -54,11 +54,11 @@
                 <form @submit.prevent="isNew ? onAdd() : onUpdate()">
                     <label>
                         イベント名:
-                        <input v-model="form.scheduleEventName" required />
+                        <input v-model="form.name" required />
                     </label>
                     <label>
                         種別:
-                        <select v-model="form.scheduleEventType" @change="onEventTypeChange">
+                        <select v-model="form.type" @change="onEventTypeChange">
                             <option v-for="type in eventTypes" :key="type.eventType" :value="type.eventType">
                                 {{ type.displayName }}
                             </option>
@@ -66,16 +66,16 @@
                     </label>
                     <label>
                         開始:
-                        <input v-model="form.start" type="datetime-local" required />
+                        <input v-model="form.timeSpan.start" type="datetime-local" required />
                     </label>
                     <label>
                         終了:
-                        <input v-model="form.end" type="datetime-local" required />
+                        <input v-model="form.timeSpan.end" type="datetime-local" required />
                     </label>
                     <!-- 動的フォーム生成部分をdynamic-form.vueに置換 -->
                     <dynamic-form v-if="currentSettingsSchema" :schema="currentSettingsSchema"
-                        :model-value="form.scheduleEventDetail"
-                        @update:modelValue="(val: any) => { if (form) form.scheduleEventDetail = val; }" />
+                        :model-value="form.detail"
+                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
                     <div class="form-actions">
                         <button class="main-btn" type="submit" :disabled="saving">{{ isNew ? '追加' : '保存' }}</button>
                         <button class="main-btn" type="button" @click="onCancel">キャンセル</button>
@@ -93,20 +93,17 @@ const router = useRouter();
 const goBack = () => router.back();
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
-import type { EventDto } from '../../../../model/applications/schedule-event/dtos/event-dto';
-import type { CreateScheduleEventDto } from '../../../../model/applications/schedule-event/dtos/create-schedule-event-dto';
-import type { UpdateScheduleEventDto } from '../../../../model/applications/schedule-event/dtos/update-schedule-event-dto';
-import type { EventTypeDto } from '../../../../model/applications/schedule-event/dtos/event-type-dto';
+import type { ScheduleEventDto } from '../../../../model/domains/schedule-event/entity/schedule-event';
 import DynamicForm from './dynamic-form.vue';
 
-const events = ref<EventDto[]>([]);
+const events = ref<ScheduleEventDto[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const editing = ref(false);
 const isNew = ref(true);
-const eventTypes = ref<EventTypeDto[]>([]);
+const eventTypes = ref<any[]>([]);
 
-const form = ref<CreateScheduleEventDto | UpdateScheduleEventDto | null>(null);
+const form = ref<any>(null);
 const currentSettingsSchema = ref<any | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
@@ -123,8 +120,8 @@ function formatDate(d: any) {
 async function fetchEvents() {
     loading.value = true;
     try {
-        const list = await scheduleEventService.getAllScheduleEvents();
-        events.value = (list ?? []) as EventDto[];
+        const list = await scheduleEventService.getScheduleEvents();
+        events.value = list ?? [];
     } catch (e) {
         alert('イベント取得に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -137,7 +134,7 @@ function onReload() {
 }
 
 function updateSettingsSchema(eventType: string) {
-    const typeObj = eventTypes.value.find(t => t.eventType === eventType);
+    const typeObj = eventTypes.value.find((t: any) => t.eventType === eventType);
     currentSettingsSchema.value = typeObj?.settingsSchema ?? null;
 }
 
@@ -145,69 +142,69 @@ function onNew() {
     isNew.value = true;
     editing.value = true;
     form.value = {
-        scheduleEventName: '',
-        scheduleEventType: eventTypes.value[0]?.eventType ?? '',
-        start: '',
-        end: '',
-        scheduleEventDetail: {}
-    } as CreateScheduleEventDto;
-    updateSettingsSchema(form.value.scheduleEventType);
+        id: '',
+        name: '',
+        type: eventTypes.value[0]?.eventType ?? '',
+        timeSpan: { start: '', end: '' },
+        detail: {},
+        processedAt: null,
+        registeredAt: new Date(),
+        updatedAt: new Date()
+    };
+    updateSettingsSchema(form.value.type);
 }
 
-function onEdit(ev: EventDto) {
+function onEdit(ev: ScheduleEventDto) {
     isNew.value = false;
     editing.value = true;
     form.value = {
-        scheduleEventId: ev.scheduleEventId,
-        scheduleEventName: ev.scheduleEventName,
-        scheduleEventType: ev.scheduleEventType,
-        start: ev.start,
-        end: ev.end,
-        scheduleEventDetail: ev.scheduleEventDetail
-    } as UpdateScheduleEventDto;
-    updateSettingsSchema(form.value.scheduleEventType);
+        id: ev.id,
+        name: ev.name,
+        type: ev.type,
+        timeSpan: { start: ev.timeSpan.start.toISOString().slice(0, 16), end: ev.timeSpan.end.toISOString().slice(0, 16) },
+        detail: ev.detail,
+        processedAt: ev.processedAt,
+        registeredAt: ev.registeredAt,
+        updatedAt: ev.updatedAt
+    };
+    updateSettingsSchema(form.value.type);
 }
 
-function onEventTypeChange(e: Event) {
-    const target = e.target as HTMLSelectElement | null;
-    if (!target) return;
-    const selectedType = target.value;
-    if (form.value) {
-        form.value.scheduleEventType = selectedType;
-        updateSettingsSchema(selectedType);
-        // 新規作成時のみリセット、編集時は既存detailを保持
-        if (isNew.value) {
-            form.value.scheduleEventDetail = {};
-        }
+function onEventTypeChange() {
+    if (!form.value) return;
+    updateSettingsSchema(form.value.type);
+    // 新規作成時のみリセット、編集時は既存detailを保持
+    if (isNew.value) {
+        form.value.detail = {};
     }
-}
-
-function validateForm() {
-    if (!form.value?.scheduleEventName || !form.value?.start || !form.value?.end || !form.value?.scheduleEventType) {
-        alert('必須項目を入力してください');
-        return false;
-    }
-    return true;
 }
 
 async function onAdd() {
-    if (!validateForm()) return;
+    if (!form.value) return;
+    if (!form.value.name || !form.value.timeSpan.start || !form.value.timeSpan.end || !form.value.type) {
+        alert('必須項目を入力してください');
+        return;
+    }
     saving.value = true;
     try {
-        const dto = form.value as CreateScheduleEventDto;
-        const newEvent = await scheduleEventService.createScheduleEvent(dto);
-        if (newEvent) {
-            events.value.push(newEvent);
-            form.value = {
-                scheduleEventId: newEvent.scheduleEventId,
-                scheduleEventName: newEvent.scheduleEventName,
-                scheduleEventType: newEvent.scheduleEventType,
-                start: newEvent.start,
-                end: newEvent.end,
-                scheduleEventDetail: newEvent.scheduleEventDetail
-            } as UpdateScheduleEventDto;
-            updateSettingsSchema(form.value.scheduleEventType);
-        }
+        const dto: ScheduleEventDto = {
+            id: crypto.randomUUID(),
+            type: form.value.type,
+            name: form.value.name,
+            timeSpan: {
+                start: new Date(form.value.timeSpan.start),
+                end: new Date(form.value.timeSpan.end),
+                equals: () => false // dummy
+            },
+            detail: form.value.detail,
+            processedAt: null,
+            registeredAt: new Date(),
+            updatedAt: new Date()
+        };
+        await scheduleEventService.addScheduleEvents([dto]);
+        editing.value = false;
+        form.value = null;
+        await fetchEvents();
     } catch (e) {
         alert('追加に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -216,16 +213,30 @@ async function onAdd() {
 }
 
 async function onUpdate() {
-    if (!validateForm()) return;
+    if (!form.value) return;
+    if (!form.value.name || !form.value.timeSpan.start || !form.value.timeSpan.end || !form.value.type) {
+        alert('必須項目を入力してください');
+        return;
+    }
     saving.value = true;
     try {
-        const dto = form.value as UpdateScheduleEventDto;
-        if (!dto.scheduleEventId) {
-            alert('編集対象イベントIDが取得できませんでした');
-            return;
-        }
-        await scheduleEventService.updateScheduleEvent(dto);
+        const dto: ScheduleEventDto = {
+            id: form.value.id,
+            type: form.value.type,
+            name: form.value.name,
+            timeSpan: {
+                start: new Date(form.value.timeSpan.start),
+                end: new Date(form.value.timeSpan.end),
+                equals: () => false // dummy
+            },
+            detail: form.value.detail,
+            processedAt: form.value.processedAt,
+            registeredAt: form.value.registeredAt,
+            updatedAt: new Date()
+        };
+        await scheduleEventService.updateScheduleEvents([dto]);
         editing.value = false;
+        form.value = null;
         await fetchEvents();
     } catch (e) {
         alert('更新に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -234,10 +245,10 @@ async function onUpdate() {
     }
 }
 
-async function onDelete(ev: EventDto) {
-    if (!confirm(`${ev.scheduleEventName} を削除しますか？`)) return;
+async function onDelete(ev: ScheduleEventDto) {
+    if (!confirm(`${ev.name} を削除しますか？`)) return;
     try {
-        await scheduleEventService.deleteScheduleEvent(ev.scheduleEventId);
+        await scheduleEventService.deleteScheduleEvents([ev.id]);
         await fetchEvents();
     } catch (e) {
         alert('削除に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -249,7 +260,12 @@ function onCancel() {
 }
 
 onMounted(async () => {
-    eventTypes.value = await scheduleEventService.getEventTypeList();
+    eventTypes.value = [
+        { eventType: 'PlayAudioEvent', displayName: '音声再生', settingsSchema: { type: 'object', properties: { audioId: { type: 'string', title: '音声アセットID' } } } },
+        { eventType: 'PlayMovieEvent', displayName: '動画再生', settingsSchema: { type: 'object', properties: { movieId: { type: 'string', title: '動画アセットID' } } } },
+        { eventType: 'ShowImageEvent', displayName: '画像表示', settingsSchema: { type: 'object', properties: { imageId: { type: 'string', title: '画像アセットID' } } } },
+        { eventType: 'TransitionPageEvent', displayName: 'ページ遷移', settingsSchema: { type: 'object', properties: { pageUrl: { type: 'string', title: 'ページURL' } } } }
+    ];
     fetchEvents();
 });
 </script>

@@ -1,165 +1,88 @@
-import { ScheduleTimeSpan } from "../../domains/schedule-event/vo/schedule-timespan";
-import { PlayAudioEventTypeDto } from "./dtos/event-types/play-audio-event-type-dto";
-import type { IScheduleEvent } from "../../domains/schedule-event/entity/schedule-event";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/repository/schedule-event-repository";
-import type { CreateScheduleEventDto } from "./dtos/create-schedule-event-dto";
-import type { UpdateScheduleEventDto } from "./dtos/update-schedule-event-dto";
-import type { IScheduleEventService } from "./ischedule-event-service";
-import { injectable, inject, injectAll } from "tsyringe";
-import type { IScheduleEventFactory } from "./factory/ischedule-event-factory";
-import { AssetService } from "../assets/asset-service";
-import { PlayMovieEventTypeDto } from "./dtos/event-types/play-movie-event-type-dto";
-import { ShowImageEventTypeDto } from "./dtos/event-types/show-image-event-type-dto";
-import { TransitionPageEventTypeDto } from "./dtos/event-types/transition-page-event-type-dto";
-import type { EventTypeDto } from "./dtos/event-type-dto";
-import type { EventDto } from "./dtos/event-dto";
+import { ScheduleEventDto } from "../../domains/schedule-event/entity/schedule-event";
+import { injectable, inject } from "tsyringe";
 
 @injectable()
-export class ScheduleEventService implements IScheduleEventService {
+export class ScheduleEventService {
+  constructor(
+    @inject("IScheduleEventRepository")
+    private scheduleEventRepository: IScheduleEventRepository
+  ) {}
 
-    private _repo: IScheduleEventRepository;
-    private _assetService: AssetService;
-    private _eventFactories: IScheduleEventFactory[];
+  async getScheduleEvents(): Promise<ScheduleEventDto[]> {
+    return await this.scheduleEventRepository.getScheduleEvents();
+  }
 
-    constructor(
-        @inject("IScheduleEventRepository") scheduleEventRepository: IScheduleEventRepository,
-        @inject("AssetService") assetService: AssetService,
-        @injectAll("IScheduleEventFactory") eventFactories: IScheduleEventFactory[]
-    ) {
-        this._repo = scheduleEventRepository;
-        this._assetService = assetService;
-        this._eventFactories = eventFactories;
-    }
+  async updateScheduleEvents(events: ScheduleEventDto[]): Promise<void> {
+    await this.scheduleEventRepository.updateScheduleEvents(events);
+  }
 
-    async createScheduleEvent(dto: CreateScheduleEventDto): Promise<EventDto | null> {
-        const eventInstance = this.createOrUpdateEventInstance(dto);
-        await this._repo.add(eventInstance);
-        const entity = this.toDomainEvent(eventInstance);
-        return entity ? this.toEventDto(entity) : null;
-    }
+  async deleteScheduleEvents(ids: string[]): Promise<void> {
+    await this.scheduleEventRepository.deleteScheduleEvents(ids);
+  }
 
-    async updateScheduleEvent(dto: UpdateScheduleEventDto): Promise<EventDto | null> {
-        const eventInstance = this.createOrUpdateEventInstance(dto);
-        await this._repo.update(eventInstance);
-        const entity = this.toDomainEvent(eventInstance);
-        return entity ? this.toEventDto(entity) : null;
-    }
+  async addScheduleEvents(events: ScheduleEventDto[]): Promise<void> {
+    await this.scheduleEventRepository.addScheduleEvents(events);
+  }
 
-    async deleteScheduleEvent(scheduleEventId: string): Promise<void> {
-        await this._repo.delete(scheduleEventId);
-    }
+  async getCurrentScheduleEvent(): Promise<{
+    startEvents: ScheduleEventDto[];
+    endEvents: ScheduleEventDto[];
+  }> {
+    const events = await this.getScheduleEvents();
+    const now = new Date();
+    const startEvents = events.filter(
+      (e) =>
+        e.timeSpan.start <= now &&
+        now < e.timeSpan.end &&
+        e.processedAt === null
+    );
+    const endEvents = events.filter(
+      (e) =>
+        e.timeSpan.end <= now &&
+        e.processedAt !== null &&
+        e.registeredAt === null
+    );
+    return { startEvents, endEvents };
+  }
 
-    async getScheduleEventById(scheduleEventId: string): Promise<EventDto | null> {
-        const scheduleEvent = await this._repo.findById(scheduleEventId);
-        const entity = scheduleEvent ? this.toDomainEvent(scheduleEvent) : null;
-        return entity ? this.toEventDto(entity) : null;
-    }
+  async markEventsAsStarted(scheduleEventIds: string[]): Promise<void> {
+    const events = await this.getScheduleEvents();
+    const now = new Date();
+    const updated = events.map((e) =>
+      scheduleEventIds.includes(e.id)
+        ? new ScheduleEventDto(
+            e.id,
+            e.type,
+            e.name,
+            e.timeSpan,
+            e.detail,
+            now,
+            e.registeredAt,
+            now
+          )
+        : e
+    );
+    await this.updateScheduleEvents(updated);
+  }
 
-    async getAllScheduleEvents(): Promise<EventDto[]> {
-        const scheduleEvents = await this._repo.findAll();
-        console.log("Fetched schedule events:", scheduleEvents);
-
-
-        return scheduleEvents
-            .map(event => this.toDomainEvent(event))
-            .filter(event => event !== null)
-            .map(event => this.toEventDto(event!));
-    }
-
-    async getCurrentScheduleEvent(): Promise<{
-        startEvents: EventDto[],
-        endEvents: EventDto[]
-    }> {
-        const { startedEvents, endedEvents } = await this._repo.fetchLatestEvents();
-        return {
-            startEvents: startedEvents.map(event => {
-                const entity = this.toDomainEvent(event)!;
-                return this.toEventDto(entity);
-            }),
-            endEvents: endedEvents.map(event => {
-                const entity = this.toDomainEvent(event)!;
-                return this.toEventDto(entity);
-            })
-        };
-    }
-
-    async getEventTypeList(): Promise<EventTypeDto[]> {
-        const allAssets = await this._assetService.getAllAssets();
-        const eventTypeDtos = [
-            new PlayAudioEventTypeDto(
-                allAssets.filter(a => a.assetType.assetTypeName.includes('audio')).map(a => ({ id: a.assetId, name: a.assetName }))
-            ),
-            new PlayMovieEventTypeDto(
-                allAssets.filter(a => a.assetType.assetTypeName.includes('video')).map(a => ({ id: a.assetId, name: a.assetName }))
-            ),
-            new ShowImageEventTypeDto(
-                allAssets.filter(a => a.assetType.assetTypeName.includes('image')).map(a => ({ id: a.assetId, name: a.assetName }))
-            ),
-            new TransitionPageEventTypeDto()
-        ];
-        return eventTypeDtos.map(dto => ({
-            eventType: dto.eventType,
-            displayName: dto.displayName,
-            displayDescription: dto.displayDescription,
-            settingsSchema: dto.settingsSchema
-        }));
-    }
-
-
-    async markEventsAsStarted(args: { scheduleEventIds: string[] }): Promise<void> {
-        await this._repo.markEventsAsStarted(args.scheduleEventIds);
-    }
-
-    async markEventsAsEnded(args: { scheduleEventIds: string[] }): Promise<void> {
-        await this._repo.markEventsAsEnded(args.scheduleEventIds);
-    }
-
-    private static toDatetimeLocalString(date: Date): string {
-        const pad = (n: Number) => n.toString().padStart(2, '0');
-        return date.getFullYear() +
-            '-' + pad(date.getMonth() + 1) +
-            '-' + pad(date.getDate()) +
-            'T' + pad(date.getHours()) +
-            ':' + pad(date.getMinutes());
-    }
-
-    private toEventDto(event: IScheduleEvent): EventDto {
-        return {
-            scheduleEventId: event.scheduleEventId,
-            scheduleEventName: event.scheduleEventName,
-            scheduleEventType: event.scheduleEventType,
-            displayName: event.scheduleEventType,
-            displayDescription: '',
-            start: ScheduleEventService.toDatetimeLocalString(new Date(event.scheduleTimeSpan?.start)),
-            end: ScheduleEventService.toDatetimeLocalString(new Date(event.scheduleTimeSpan?.end)),
-            scheduleEventDetail: event.scheduleEventDetail ?? {}
-        };
-    }
-
-    private toDomainEvent(reposiotyEntity: IScheduleEvent): IScheduleEvent | null {
-        const factory = this._eventFactories.find(f => f.supports(reposiotyEntity.scheduleEventType));
-        return factory ? factory.createFrom(reposiotyEntity) : null;
-    }
-
-    private createOrUpdateEventInstance(dto: CreateScheduleEventDto | UpdateScheduleEventDto): IScheduleEvent {
-        const factory = this._eventFactories.find(f => f.supports(dto.scheduleEventType));
-        if (!factory) throw new Error("Unknown eventType: " + dto.scheduleEventType);
-
-        const eventInstance = factory.createFrom({
-            scheduleEventId: (dto as UpdateScheduleEventDto)?.scheduleEventId ?? "",
-            scheduleEventType: { scheduleEventType: dto.scheduleEventType } as any,
-            scheduleEventName: dto.scheduleEventName ?? "",
-            scheduleTimeSpan: ScheduleTimeSpan.create(new Date(dto.start || ""), new Date(dto.end || "")) ?? ScheduleTimeSpan.Empty,
-            scheduleEventDetail: dto.scheduleEventDetail ?? {},
-            processedAt: null,
-            registeredAt: new Date(),
-            updatedAt: new Date(),
-        } as IScheduleEvent);
-
-        if (!eventInstance) throw new Error("Failed to create eventInstance.");
-
-        console.log("Created/Updated event instance:", eventInstance);
-
-        return eventInstance.serialize();
-    }
+  async markEventsAsEnded(scheduleEventIds: string[]): Promise<void> {
+    const events = await this.getScheduleEvents();
+    const now = new Date();
+    const updated = events.map((e) =>
+      scheduleEventIds.includes(e.id)
+        ? new ScheduleEventDto(
+            e.id,
+            e.type,
+            e.name,
+            e.timeSpan,
+            e.detail,
+            e.processedAt,
+            now,
+            now
+          )
+        : e
+    );
+    await this.updateScheduleEvents(updated);
+  }
 }

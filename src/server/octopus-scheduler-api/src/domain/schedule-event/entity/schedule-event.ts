@@ -1,27 +1,32 @@
 import { ScheduleTimeSpan } from "../value-object/schedule-timespan";
 
-export interface IScheduleEvent {
-    readonly scheduleEventId: string;
-    readonly scheduleEventType: string; // イベント種別名（例: "PlayAudioEvent"）
-    readonly scheduleEventName: string;
-    readonly scheduleTimeSpan: ScheduleTimeSpan;
-    readonly scheduleEventDetail: any; // 独自のプロパティ
-    readonly processedAt: Date | null;
-    readonly registeredAt: Date;
-    readonly updatedAt: Date;
-    readonly startedAt: Date | null;
-    readonly endedAt: Date | null;
+export class ScheduleEvent {
+  public readonly id: string;
+  public readonly type: string;
+  public readonly name: string;
+  public readonly timeSpan: ScheduleTimeSpan;
+  public readonly detail: any;
+  public readonly processedAt: Date | null;
+  public readonly registeredAt: Date;
+  public readonly updatedAt: Date;
 
-    equals(another: IScheduleEvent): boolean;
-
-    // シリアライズ系
-    serialize(): IScheduleEvent
-
-    // 更新系
-    updateTimeSpan(newTimeSpan: ScheduleTimeSpan): IScheduleEvent;
-    updateEventName(newEventName: string): IScheduleEvent;
-    updateEventDetail(newDetail: any): IScheduleEvent;
-    markAsProcessed(processedAt: Date): IScheduleEvent;
-    markAsStarted(startedAt: Date): IScheduleEvent;
-    markAsEnded(endedAt: Date): IScheduleEvent;
+  constructor(
+    id: string,
+    type: string,
+    name: string,
+    timeSpan: ScheduleTimeSpan,
+    detail: any,
+    processedAt: Date | null,
+    registeredAt: Date,
+    updatedAt: Date
+  ) {
+    this.id = id;
+    this.type = type;
+    this.name = name;
+    this.timeSpan = timeSpan;
+    this.detail = detail;
+    this.processedAt = processedAt;
+    this.registeredAt = registeredAt;
+    this.updatedAt = updatedAt;
+  }
 }
