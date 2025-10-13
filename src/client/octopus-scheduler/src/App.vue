@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { useAudio } from '../../packages/shared-composables/src/use-audio';
 import FullScreenVideo from './ui/components/full-screen-video.vue';
 import FullScreenImage from './ui/components/full-screen-image.vue';
+import FullScreenHtml from './ui/components/full-screen-html.vue';
 
 const eventPollingService = inject<EventPollingService>('eventPollingService');
 if (!eventPollingService) {
@@ -58,6 +59,9 @@ watch(
         <FullScreenImage ref="imageRef" v-if="eventPollingService.state.showImageModal"
             :src="eventPollingService.state.imageAssetUrl" :visible="eventPollingService.state.showImageModal"
             :fadeOutDuration="0" :onClose="() => eventPollingService.state.showImageModal = false" />
+        <FullScreenHtml v-if="eventPollingService.state.showHtmlModal"
+            :htmlContent="eventPollingService.state.htmlContent" :visible="eventPollingService.state.showHtmlModal"
+            :fadeOutDuration="0" :onClose="() => eventPollingService.state.showHtmlModal = false" />
     </div>
 </template>
 

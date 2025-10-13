@@ -11,8 +11,10 @@ export interface EventPollingState {
   audioUrl: string;
   videoUrl: string;
   imageAssetUrl: string;
+  htmlContent: string;
   showVideoModal: boolean;
   showImageModal: boolean;
+  showHtmlModal: boolean;
   isAudioPlaying: boolean;
   audioError: any;
   nextPage: string | null;
@@ -27,8 +29,10 @@ export class EventPollingService {
     audioUrl: "",
     videoUrl: "",
     imageAssetUrl: "",
+    htmlContent: "",
     showVideoModal: false,
     showImageModal: false,
+    showHtmlModal: false,
     isAudioPlaying: false,
     audioError: null,
     nextPage: null,
@@ -96,12 +100,9 @@ export class EventPollingService {
     if (type === "PlayAudioEvent") {
       if (method === "start") await this.playAudio(event);
       else await this.stopAudio();
-    } else if (type === "PlayMovieEvent") {
-      if (method === "start") await this.showVideo(event);
-      else await this.hideVideo();
-    } else if (type === "ShowImageEvent") {
-      if (method === "start") await this.showImage(event);
-      else await this.hideImage();
+    } else if (type === "ShowContentEvent") {
+      if (method === "start") await this.showContent(event);
+      else await this.hideContent(event);
     } else if (type === "TransitionPageEvent") {
       if (method === "start") {
         await this.transitionPage(event);
@@ -137,19 +138,45 @@ export class EventPollingService {
   async hideVideo() {
     this.state.showVideoModal = false;
   }
-  async showImage(event?: ScheduleEventDto) {
-    this.state.showImageModal = true;
-    if (event?.detail?.imageId) {
-      const asset = await this.assetService.getAssetById(event.detail.imageId);
-      if (asset && asset.dataUrl) {
-        this.state.imageAssetUrl = asset.dataUrl;
-      } else {
-        this.state.imageAssetUrl = "";
+  async showContent(event?: ScheduleEventDto) {
+    if (event?.detail?.contentType === "image") {
+      this.state.showImageModal = true;
+      if (event.detail.contentId) {
+        const asset = await this.assetService.getAssetById(
+          event.detail.contentId
+        );
+        if (asset && asset.dataUrl) {
+          this.state.imageAssetUrl = asset.dataUrl;
+        } else {
+          this.state.imageAssetUrl = "";
+        }
       }
+    } else if (event?.detail?.contentType === "movie") {
+      this.state.showVideoModal = true;
+      if (event.detail.contentId) {
+        const asset = await this.assetService.getAssetById(
+          event.detail.contentId
+        );
+        if (asset && asset.dataUrl) {
+          this.state.videoUrl = asset.dataUrl;
+        } else {
+          this.state.videoUrl = "";
+        }
+      }
+    } else if (event?.detail?.contentType === "html") {
+      this.state.showHtmlModal = true;
+      this.state.htmlContent = event.detail.htmlString || "";
     }
   }
-  async hideImage() {
-    this.state.showImageModal = false;
+  async hideContent(event?: ScheduleEventDto) {
+    if (event?.detail?.contentType === "image") {
+      this.state.showImageModal = false;
+    } else if (event?.detail?.contentType === "movie") {
+      this.state.showVideoModal = false;
+    } else if (event?.detail?.contentType === "html") {
+      this.state.showHtmlModal = false;
+      this.state.htmlContent = "";
+    }
   }
   async transitionPage(event: ScheduleEventDto) {
     if (event.detail?.pageUrl) {
