@@ -12,6 +12,6 @@ export class TransitionPageEventHandler {
     data: { transitionUrl: string },
     router: Router
   ) {
-    router.push({ path: data.transitionUrl });
+    await router.push({ path: data.transitionUrl });
   }
 }
