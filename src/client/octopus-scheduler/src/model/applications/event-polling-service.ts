@@ -1,7 +1,9 @@
 import { container } from "tsyringe";
+import { injectable } from "tsyringe";
 import type { ScheduleEventService } from "./schedule-event/schedule-event-service";
 import type { IScheduleEventDto } from "./schedule-event/i-schedule-event-dto";
 
+@injectable()
 export class EventPollingService {
   private syncTimer: any = null;
   private eventTimer: any = null;

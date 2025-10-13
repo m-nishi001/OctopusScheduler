@@ -8,6 +8,7 @@ import { AssetService } from "../../model/applications/assets/asset-service";
 import { PlayAudioEventConverter } from "../../model/applications/schedule-event/play-audio-event/play-audio-event-converter";
 import { ShowContentEventConverter } from "../../model/applications/schedule-event/show-content-event/show-content-event-converter";
 import { TransitionPageEventConverter } from "../../model/applications/schedule-event/transition-page-event/transition-page-event-converter";
+import { EventPollingService } from "../../model/applications/event-polling-service";
 
 export class Container {
   static Register() {
@@ -31,5 +32,6 @@ export class Container {
     container.register("TransitionPageEventConverter", {
       useClass: TransitionPageEventConverter,
     });
+    container.registerSingleton("EventPollingService", EventPollingService);
   }
 }
