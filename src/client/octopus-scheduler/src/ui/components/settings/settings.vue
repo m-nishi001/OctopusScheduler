@@ -30,7 +30,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import EventEditor from './event-list/event-editor.vue';
+import EventEditor from './event-list/event-list.vue';
 import AssetListEditor from './asset-list/asset-list-editor.vue';
 
 const router = useRouter();
@@ -159,7 +159,7 @@ const goHome = () => router.push({ name: 'home' });
   }
 
   .sidebar-btn {
-    flex-shrink:0;
+    flex-shrink: 0;
     padding: 0.7em 1em;
   }
 
