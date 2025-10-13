@@ -13,7 +13,8 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
 
   constructor() {
     this.repository = SpreadsheetService.getService<ScheduleEvent>(
-      this.sheetName
+      this.sheetName,
+      "octopus-schedule-api-spreadsheet"
     );
   }
 

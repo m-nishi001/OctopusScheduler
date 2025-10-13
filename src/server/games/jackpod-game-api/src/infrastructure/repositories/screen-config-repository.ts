@@ -13,7 +13,8 @@ export class ScreenConfigRepository implements IScreenConfigRepository {
 
   constructor() {
     this.repository = SpreadsheetService.getService<ScreenSetting>(
-      this.sheetName
+      this.sheetName,
+      "jackpot-game-api-spreadsheet"
     );
   }
 

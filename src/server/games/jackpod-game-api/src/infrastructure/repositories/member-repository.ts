@@ -12,7 +12,10 @@ export class MemberRepository implements IMemberRepository {
   private readonly sheetName = "Members";
 
   constructor() {
-    this.repository = SpreadsheetService.getService<Member>(this.sheetName);
+    this.repository = SpreadsheetService.getService<Member>(
+      this.sheetName,
+      "jackpot-game-api-spreadsheet"
+    );
   }
 
   getMembers(): Member[] {

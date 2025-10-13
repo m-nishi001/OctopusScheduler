@@ -57,17 +57,26 @@ export class Transaction<T> {
   private cache: T[] = [];
   private readonly sheetName: string;
   private readonly service: SpreadsheetService<T>;
+  private readonly spreadsheetIdKey: string;
   private committed = false;
 
-  constructor(sheetName: string, service: SpreadsheetService<T>) {
+  constructor(
+    sheetName: string,
+    service: SpreadsheetService<T>,
+    spreadsheetIdKey: string
+  ) {
     this.sheetName = sheetName;
     this.service = service;
+    this.spreadsheetIdKey = spreadsheetIdKey;
     this.loadCache();
   }
 
   private loadCache(): void {
     try {
-      const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      const sheet = SpreadsheetAccessor.getSheet(
+        this.sheetName,
+        this.spreadsheetIdKey
+      );
       if (sheet && sheet.getLastRow() > 1) {
         this.cache = SpreadsheetAccessor.toObjectArray(
           sheet.getDataRange().getValues()
@@ -144,10 +153,11 @@ export class Transaction<T> {
     if (!lock) throw new Error("Failed to acquire lock for commit.");
     try {
       let sheet = SpreadsheetAccessor.getSheet(this.sheetName);
-      if (!sheet && this.cache.length > 0) {
+      if (this.cache.length > 0) {
         sheet = SpreadsheetAccessor.createSheet(
           this.sheetName,
-          Object.keys(this.cache[0] as object)
+          Object.keys(this.cache[0] as object),
+          this.spreadsheetIdKey
         );
       }
       if (sheet) {
@@ -171,27 +181,36 @@ export class Transaction<T> {
 }
 
 class SpreadsheetAccessor {
-  static getSpreadsheetId(): string {
+  static getSpreadsheetId(spreadsheetIdKey: string = "spreadsheet-id"): string {
     const id =
-      PropertiesService.getScriptProperties().getProperty("spreadsheet-id") ||
+      PropertiesService.getScriptProperties().getProperty(spreadsheetIdKey) ||
       "";
-    if (!id) throw new Error("Spreadsheet ID not found in script properties.");
+    if (!id)
+      throw new Error(
+        `Spreadsheet ID not found in script properties for key: ${spreadsheetIdKey}.`
+      );
     return id;
   }
 
-  static getSpreadsheet(): GoogleAppsScript.Spreadsheet.Spreadsheet {
-    return SpreadsheetApp.openById(this.getSpreadsheetId());
+  static getSpreadsheet(
+    spreadsheetIdKey: string = "spreadsheet-id"
+  ): GoogleAppsScript.Spreadsheet.Spreadsheet {
+    return SpreadsheetApp.openById(this.getSpreadsheetId(spreadsheetIdKey));
   }
 
-  static getSheet(name: string): GoogleAppsScript.Spreadsheet.Sheet | null {
-    return this.getSpreadsheet().getSheetByName(name);
+  static getSheet(
+    name: string,
+    spreadsheetIdKey: string = "spreadsheet-id"
+  ): GoogleAppsScript.Spreadsheet.Sheet | null {
+    return this.getSpreadsheet(spreadsheetIdKey).getSheetByName(name);
   }
 
   static createSheet(
     name: string,
-    columns: string[]
+    columns: string[],
+    spreadsheetIdKey: string = "spreadsheet-id"
   ): GoogleAppsScript.Spreadsheet.Sheet {
-    const ss = this.getSpreadsheet();
+    const ss = this.getSpreadsheet(spreadsheetIdKey);
     let sheet = ss.getSheetByName(name);
     if (sheet) return sheet;
     sheet = ss.insertSheet(name, ss.getNumSheets());
@@ -220,28 +239,37 @@ class SpreadsheetAccessor {
 
 export class SpreadsheetService<T> implements ISpreadsheetService<T> {
   private readonly sheetName: string;
+  private readonly spreadsheetIdKey: string;
 
-  private constructor(sheetName: string) {
+  private constructor(sheetName: string, spreadsheetIdKey: string) {
     this.sheetName = sheetName;
+    this.spreadsheetIdKey = spreadsheetIdKey;
   }
 
-  static getService<T>(sheetName: string): ISpreadsheetService<T> {
-    return new SpreadsheetService<T>(sheetName);
+  static getService<T>(
+    sheetName: string,
+    spreadsheetIdKey: string = "spreadsheet-id"
+  ): ISpreadsheetService<T> {
+    return new SpreadsheetService<T>(sheetName, spreadsheetIdKey);
   }
 
   beginTransaction(): Transaction<T> {
-    return new Transaction<T>(this.sheetName, this);
+    return new Transaction<T>(this.sheetName, this, this.spreadsheetIdKey);
   }
 
   add(entity: T): T {
     const lock = LockManager.tryLock();
     if (!lock) throw new Error("Failed to acquire lock for add operation.");
     try {
-      let sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      let sheet = SpreadsheetAccessor.getSheet(
+        this.sheetName,
+        this.spreadsheetIdKey
+      );
       if (!sheet)
         sheet = SpreadsheetAccessor.createSheet(
           this.sheetName,
-          Object.keys(entity as object)
+          Object.keys(entity as object),
+          this.spreadsheetIdKey
         );
       sheet.appendRow(SpreadsheetAccessor.toRowArray(entity));
       return entity;
@@ -257,7 +285,10 @@ export class SpreadsheetService<T> implements ISpreadsheetService<T> {
     const lock = LockManager.tryLock();
     if (!lock) throw new Error("Failed to acquire lock for update operation.");
     try {
-      const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      const sheet = SpreadsheetAccessor.getSheet(
+        this.sheetName,
+        this.spreadsheetIdKey
+      );
       if (!sheet) return 0;
       const values = sheet.getDataRange().getValues();
       if (values.length <= 1) return 0;
@@ -292,7 +323,10 @@ export class SpreadsheetService<T> implements ISpreadsheetService<T> {
     const lock = LockManager.tryLock();
     if (!lock) throw new Error("Failed to acquire lock for delete operation.");
     try {
-      const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      const sheet = SpreadsheetAccessor.getSheet(
+        this.sheetName,
+        this.spreadsheetIdKey
+      );
       if (!sheet || sheet.getLastRow() <= 1) return 0;
       const dataRange = sheet.getDataRange();
       const values = dataRange.getValues();
@@ -327,7 +361,10 @@ export class SpreadsheetService<T> implements ISpreadsheetService<T> {
     const lock = LockManager.tryLock();
     if (!lock) throw new Error("Failed to acquire lock for find operation.");
     try {
-      const sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      const sheet = SpreadsheetAccessor.getSheet(
+        this.sheetName,
+        this.spreadsheetIdKey
+      );
       if (!sheet || sheet.getLastRow() <= 1) return [];
       const records = SpreadsheetAccessor.toObjectArray(
         sheet.getDataRange().getValues()

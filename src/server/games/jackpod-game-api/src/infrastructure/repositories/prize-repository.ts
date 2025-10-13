@@ -12,7 +12,10 @@ export class PrizeRepository implements IPrizeRepository {
   private readonly sheetName = "Prizes";
 
   constructor() {
-    this.repository = SpreadsheetService.getService<Prize>(this.sheetName);
+    this.repository = SpreadsheetService.getService<Prize>(
+      this.sheetName,
+      "jackpot-game-api-spreadsheet"
+    );
   }
 
   getPrizes(): Prize[] {

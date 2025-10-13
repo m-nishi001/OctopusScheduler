@@ -12,7 +12,10 @@ export class DrawResultRepository implements IDrawResultRepository {
   private readonly sheetName = "DrawResults";
 
   constructor() {
-    this.repository = SpreadsheetService.getService<DrawResult>(this.sheetName);
+    this.repository = SpreadsheetService.getService<DrawResult>(
+      this.sheetName,
+      "jackpot-game-api-spreadsheet"
+    );
   }
 
   getDrawResults(): DrawResult[] {

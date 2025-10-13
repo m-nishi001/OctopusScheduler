@@ -7,7 +7,10 @@ import { AssetInfo } from "../../application/assets/asset-dto";
 
 export class AssetRepository implements IAssetRepository {
   private readonly spreadsheetService =
-    SpreadsheetService.getService<AssetInfo>("AssetInfo");
+    SpreadsheetService.getService<AssetInfo>(
+      "AssetInfo",
+      "octopus-schedule-api-spreadsheet"
+    );
 
   addAssets(assets: Asset[]): string[] {
     const assetIds = assets.map((asset) => {
