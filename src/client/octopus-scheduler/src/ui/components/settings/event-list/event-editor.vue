@@ -67,8 +67,17 @@
                         終了:
                         <input v-model="form.timeSpan.end" type="datetime-local" required />
                     </label>
-                    <!-- 動的フォーム生成部分をdynamic-form.vueに置換 -->
-                    <dynamic-form v-if="currentSettingsSchema" :schema="currentSettingsSchema"
+                    <!-- 各イベントタイプの設定コンポーネント -->
+                    <PlayAudioEventConfig v-if="form.type === 'PlayAudioEvent' && form.detail"
+                        :model-value="form.detail"
+                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
+                    <PlayMovieEventConfig v-if="form.type === 'PlayMovieEvent' && form.detail"
+                        :model-value="form.detail"
+                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
+                    <ShowImageEventConfig v-if="form.type === 'ShowImageEvent' && form.detail"
+                        :model-value="form.detail"
+                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
+                    <TransitionPageEventConfig v-if="form.type === 'TransitionPageEvent' && form.detail"
                         :model-value="form.detail"
                         @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
                     <div class="form-actions">
@@ -86,7 +95,10 @@ import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
 import type { ScheduleEventDto } from '../../../../model/domains/schedule-event/entity/schedule-event';
-import DynamicForm from './dynamic-form.vue';
+import PlayAudioEventConfig from './play-audio-event/play-audio-event-config.vue';
+import PlayMovieEventConfig from './play-movie-event/play-movie-event-config.vue';
+import ShowImageEventConfig from './show-image-event/show-image-event-config.vue';
+import TransitionPageEventConfig from './transition-page-event/transition-page-event-config.vue';
 
 const events = ref<ScheduleEventDto[]>([]);
 const loading = ref(false);
@@ -96,7 +108,6 @@ const isNew = ref(true);
 const eventTypes = ref<any[]>([]);
 
 const form = ref<any>(null);
-const currentSettingsSchema = ref<any | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 
@@ -125,10 +136,21 @@ function onReload() {
     fetchEvents();
 }
 
-function updateSettingsSchema(eventType: string) {
-    const typeObj = eventTypes.value.find((t: any) => t.eventType === eventType);
-    currentSettingsSchema.value = typeObj?.settingsSchema ?? null;
+function getDefaultDetail(eventType: string) {
+    switch (eventType) {
+        case 'PlayAudioEvent':
+            return { audioId: '' };
+        case 'PlayMovieEvent':
+            return { movieId: '' };
+        case 'ShowImageEvent':
+            return { imageId: '' };
+        case 'TransitionPageEvent':
+            return { transitionUrl: '' };
+        default:
+            return {};
+    }
 }
+
 
 function onNew() {
     isNew.value = true;
@@ -138,12 +160,11 @@ function onNew() {
         name: '',
         type: eventTypes.value[0]?.eventType ?? '',
         timeSpan: { start: '', end: '' },
-        detail: {},
+        detail: getDefaultDetail(eventTypes.value[0]?.eventType ?? ''),
         processedAt: null,
         registeredAt: new Date(),
         updatedAt: new Date()
     };
-    updateSettingsSchema(form.value.type);
 }
 
 function onEdit(ev: ScheduleEventDto) {
@@ -159,15 +180,13 @@ function onEdit(ev: ScheduleEventDto) {
         registeredAt: ev.registeredAt,
         updatedAt: ev.updatedAt
     };
-    updateSettingsSchema(form.value.type);
 }
 
 function onEventTypeChange() {
     if (!form.value) return;
-    updateSettingsSchema(form.value.type);
     // 新規作成時のみリセット、編集時は既存detailを保持
     if (isNew.value) {
-        form.value.detail = {};
+        form.value.detail = getDefaultDetail(form.value.type);
     }
 }
 
@@ -253,10 +272,10 @@ function onCancel() {
 
 onMounted(async () => {
     eventTypes.value = [
-        { eventType: 'PlayAudioEvent', displayName: '音声再生', settingsSchema: { type: 'object', properties: { audioId: { type: 'string', title: '音声アセットID' } } } },
-        { eventType: 'PlayMovieEvent', displayName: '動画再生', settingsSchema: { type: 'object', properties: { movieId: { type: 'string', title: '動画アセットID' } } } },
-        { eventType: 'ShowImageEvent', displayName: '画像表示', settingsSchema: { type: 'object', properties: { imageId: { type: 'string', title: '画像アセットID' } } } },
-        { eventType: 'TransitionPageEvent', displayName: 'ページ遷移', settingsSchema: { type: 'object', properties: { pageUrl: { type: 'string', title: 'ページURL' } } } }
+        { eventType: 'PlayAudioEvent', displayName: '音声再生' },
+        { eventType: 'PlayMovieEvent', displayName: '動画再生' },
+        { eventType: 'ShowImageEvent', displayName: '画像表示' },
+        { eventType: 'TransitionPageEvent', displayName: 'ページ遷移' }
     ];
     fetchEvents();
 });

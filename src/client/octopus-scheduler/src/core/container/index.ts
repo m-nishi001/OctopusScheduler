@@ -5,6 +5,10 @@ import { AssetRepository } from "../../model/infrastructures/assets/asset-reposi
 import { container } from "tsyringe";
 import { ScheduleEventService } from "../../model/applications/schedule-event/schedule-event-service";
 import { AssetService } from "../../model/applications/assets/asset-service";
+import { PlayAudioEventConverter } from "../../model/applications/schedule-event/converters/play-audio-event-converter";
+import { PlayMovieEventConverter } from "../../model/applications/schedule-event/converters/play-movie-event-converter";
+import { ShowImageEventConverter } from "../../model/applications/schedule-event/converters/show-image-event-converter";
+import { TransitionPageEventConverter } from "../../model/applications/schedule-event/converters/transition-page-event-converter";
 
 export class Container {
   static Register() {
@@ -18,6 +22,18 @@ export class Container {
     container.register("AssetService", { useClass: AssetService });
     container.register("ScheduleEventService", {
       useClass: ScheduleEventService,
+    });
+    container.register("PlayAudioEventConverter", {
+      useClass: PlayAudioEventConverter,
+    });
+    container.register("PlayMovieEventConverter", {
+      useClass: PlayMovieEventConverter,
+    });
+    container.register("ShowImageEventConverter", {
+      useClass: ShowImageEventConverter,
+    });
+    container.register("TransitionPageEventConverter", {
+      useClass: TransitionPageEventConverter,
     });
   }
 }
