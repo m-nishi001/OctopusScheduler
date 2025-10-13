@@ -3,6 +3,7 @@ import { useLocalStorage } from "/root/google_apps_script/octopus-scheduler/src/
 import { StorageConfig } from "../storage-config";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
 import { ScheduleEvent } from "../../domains/schedule-event/schedule-event";
+import { ScheduleEventExecutionStatus } from "../../domains/schedule-event/execution-status";
 import { injectable } from "tsyringe";
 
 @injectable()
@@ -11,6 +12,10 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
   private readonly localStorage = useLocalStorage(
     StorageConfig.getDbName(),
     StorageConfig.getStoreName("ScheduleEventData")
+  );
+  private readonly executionStatusStorage = useLocalStorage(
+    StorageConfig.getDbName(),
+    StorageConfig.getStoreName("ScheduleEventExecutionStatus")
   );
 
   constructor() {
@@ -110,5 +115,54 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
         })
         .invoke();
     });
+  }
+
+  async getExecutionStatus(
+    eventId: string
+  ): Promise<ScheduleEventExecutionStatus | null> {
+    const status =
+      await this.executionStatusStorage.get<ScheduleEventExecutionStatus>(
+        eventId
+      );
+    return status || null;
+  }
+
+  async updateExecutionStatus(
+    status: ScheduleEventExecutionStatus
+  ): Promise<void> {
+    await this.executionStatusStorage.save(status.eventId, status);
+  }
+
+  async getAllExecutionStatuses(): Promise<ScheduleEventExecutionStatus[]> {
+    const allStatuses =
+      await this.executionStatusStorage.getAll<ScheduleEventExecutionStatus>();
+    return Array.from(allStatuses.values());
+  }
+
+  async markEventAsStarted(eventId: string): Promise<void> {
+    const currentStatus = await this.getExecutionStatus(eventId);
+    const newStatus = currentStatus
+      ? currentStatus.markAsStarted()
+      : ScheduleEventExecutionStatus.create(eventId).markAsStarted();
+    await this.updateExecutionStatus(newStatus);
+  }
+
+  async markEventAsCompleted(eventId: string): Promise<void> {
+    const currentStatus = await this.getExecutionStatus(eventId);
+    if (currentStatus) {
+      const newStatus = currentStatus.markAsCompleted();
+      await this.updateExecutionStatus(newStatus);
+    }
+  }
+
+  async markEventAsFailed(
+    eventId: string,
+    errorMessage: string
+  ): Promise<void> {
+    const currentStatus = await this.getExecutionStatus(eventId);
+    if (currentStatus) {
+      const newStatus = currentStatus.markAsFailed(errorMessage);
+      await this.updateExecutionStatus(newStatus);
+    }
   }
 }
