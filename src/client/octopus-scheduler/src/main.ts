@@ -8,6 +8,7 @@ import { EventPollingService } from "./model/applications/event-polling-service"
 import { AssetService } from "./model/applications/assets/asset-service";
 import { container } from "tsyringe";
 import { useAudio } from "../../packages/shared-composables/src/use-audio";
+import { registerEventHandlers } from "./ui/components/schedule-event-handler/register-event-handlers";
 
 Container.Register();
 
@@ -19,3 +20,5 @@ app.provide("eventPollingService", eventPollingService);
 app.provide("assetService", assetService);
 app.provide("audio", audio);
 app.use(router).mount("#app");
+
+registerEventHandlers(audio, assetService, router);

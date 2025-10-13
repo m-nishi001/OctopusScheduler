@@ -51,36 +51,14 @@
 </template>
 
 <script setup lang="ts">
-import { inject, reactive, onMounted } from 'vue';
+import { reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import type { IScheduleEventDto } from '../../../model/applications/schedule-event/i-schedule-event-dto';
-import { PlayAudioEventHandler } from '../schedule-event-handler/play-audio-event-handler';
-import { ShowContentEventHandler } from '../schedule-event-handler/show-content/show-content-event-handler';
-import { TransitionPageEventHandler } from '../schedule-event-handler/transition-page-event-handler';
 import { EventPollingService } from '../../../model/applications/event-polling-service';
-import { AssetService } from '../../../model/applications/assets/asset-service';
-import { type Ref } from 'vue';
 import { container } from 'tsyringe';
-
-interface AudioService {
-  audioInstanceId: Ref<string>;
-  isLoading: Ref<boolean>;
-  isPlaying: Ref<boolean>;
-  currentTime: Ref<number>;
-  duration: Ref<number>;
-  volume: Ref<number>;
-  error: Ref<any>;
-  load: (audio: string | Blob) => Promise<void>;
-  play: (options?: { fadeIn?: number; isRepeat?: boolean }) => Promise<void>;
-  pause: () => void;
-  stop: (options?: { fadeOut?: number }) => Promise<void>;
-  setVolume: (volume: number) => void;
-}
 
 const router = useRouter();
 const eventPollingService = container.resolve(EventPollingService);
-const assetService = container.resolve(AssetService);
-const audio = inject('audio') as AudioService;
 
 const localState = reactive({
   upcomingEvent: "",
@@ -118,9 +96,6 @@ const onStopPolling = () => {
 
 onMounted(() => {
   eventPollingService.setOnEventsCallback(onEvents);
-  new PlayAudioEventHandler(audio, assetService);
-  new ShowContentEventHandler(router);
-  new TransitionPageEventHandler(router);
 });
 </script>
 

@@ -1,25 +1,28 @@
 import { eventBus } from "../../../core/event-bus";
 
 export class PlayAudioEventHandler {
-  constructor(
-    private audio: any,
-    private assetService: any
-  ) {
-    eventBus.on("playAudio", this.handlePlayAudio.bind(this));
-    eventBus.on("stopAudio", this.handleStopAudio.bind(this));
+  static register(audio: any, assetService: any) {
+    eventBus.on("playAudio", (data: { audioId?: string }) =>
+      this.handlePlayAudio(data, audio, assetService)
+    );
+    eventBus.on("stopAudio", () => this.handleStopAudio(audio));
   }
 
-  private async handlePlayAudio(data: { audioId?: string }) {
+  private static async handlePlayAudio(
+    data: { audioId?: string },
+    audio: any,
+    assetService: any
+  ) {
     if (data.audioId) {
-      const asset = await this.assetService.getAssetById(data.audioId);
+      const asset = await assetService.getAssetById(data.audioId);
       if (asset && asset.dataUrl) {
-        await this.audio.load(asset.dataUrl);
-        await this.audio.play();
+        await audio.load(asset.dataUrl);
+        await audio.play();
       }
     }
   }
 
-  private async handleStopAudio() {
-    await this.audio.stop();
+  private static async handleStopAudio(audio: any) {
+    await audio.stop();
   }
 }

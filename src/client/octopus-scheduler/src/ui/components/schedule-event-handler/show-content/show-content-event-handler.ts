@@ -1,26 +1,36 @@
 import { eventBus } from "../../../../core/event-bus";
 
 export class ShowContentEventHandler {
-  constructor(private router: any) {
-    eventBus.on("showContent", this.handleShowContent.bind(this));
-    eventBus.on("hideContent", this.handleHideContent.bind(this));
+  static register(router: any) {
+    eventBus.on(
+      "showContent",
+      (data: {
+        contentType: "image" | "movie" | "html";
+        contentId?: string;
+        htmlString?: string;
+      }) => this.handleShowContent(data, router)
+    );
+    eventBus.on("hideContent", () => this.handleHideContent(router));
   }
 
-  private async handleShowContent(data: {
-    contentType: "image" | "movie" | "html";
-    contentId?: string;
-    htmlString?: string;
-  }) {
+  private static async handleShowContent(
+    data: {
+      contentType: "image" | "movie" | "html";
+      contentId?: string;
+      htmlString?: string;
+    },
+    router: any
+  ) {
     if (data.contentType === "image") {
       if (data.contentId) {
-        this.router.push({
+        router.push({
           name: "show-image",
           params: { id: data.contentId },
         });
       }
     } else if (data.contentType === "movie") {
       if (data.contentId) {
-        this.router.push({
+        router.push({
           name: "show-video",
           params: { id: data.contentId },
         });
@@ -28,13 +38,13 @@ export class ShowContentEventHandler {
     } else if (data.contentType === "html") {
       if (data.htmlString) {
         const encoded = encodeURIComponent(data.htmlString);
-        this.router.push({ name: "show-html", params: { content: encoded } });
+        router.push({ name: "show-html", params: { content: encoded } });
       }
     }
   }
 
-  private async handleHideContent() {
+  private static async handleHideContent(router: any) {
     // コンテンツを隠すために、前のページに戻る
-    this.router.back();
+    router.back();
   }
 }
