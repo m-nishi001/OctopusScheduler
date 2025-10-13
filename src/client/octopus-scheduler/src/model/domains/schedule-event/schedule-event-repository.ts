@@ -1,4 +1,4 @@
-import { ScheduleEventDto } from "../entity/schedule-event";
+import { ScheduleEventDto } from "./schedule-event";
 
 export interface IScheduleEventRepository {
   getScheduleEvents(): Promise<ScheduleEventDto[]>;

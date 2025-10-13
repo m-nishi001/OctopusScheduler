@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
-import { ScheduleEventDto } from "../../../domains/schedule-event/entity/schedule-event";
-import { TransitionPageDetail } from "../../../domains/schedule-event/entity/events/transition-page-event";
-import { TransitionPageEventEntity } from "../../../domains/schedule-event/entity/transition-page-event-entity";
+import { ScheduleEventDto } from "../../../domains/schedule-event/schedule-event";
+import { TransitionPageDetail } from "../../../domains/schedule-event/transition-page-event/transition-page-event-entity";
+import { TransitionPageEventEntity } from "../../../domains/schedule-event/transition-page-event/transition-page-event-entity";
 
 @injectable()
 export class TransitionPageEventConverter {

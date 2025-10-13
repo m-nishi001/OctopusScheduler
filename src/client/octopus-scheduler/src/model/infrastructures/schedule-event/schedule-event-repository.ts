@@ -1,6 +1,6 @@
 import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
-import type { IScheduleEventRepository } from "../../domains/schedule-event/repository/schedule-event-repository";
-import { ScheduleEventDto } from "../../domains/schedule-event/entity/schedule-event";
+import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
+import { ScheduleEventDto } from "../../domains/schedule-event/schedule-event";
 import { injectable } from "tsyringe";
 
 @injectable()

@@ -1,5 +1,5 @@
-import type { IScheduleEventRepository } from "../../domains/schedule-event/repository/schedule-event-repository";
-import { ScheduleEventDto } from "../../domains/schedule-event/entity/schedule-event";
+import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
+import { ScheduleEventDto } from "../../domains/schedule-event/schedule-event";
 import { injectable, inject } from "tsyringe";
 
 @injectable()

@@ -1,5 +1,5 @@
-import type { IScheduleEventEntity } from "./i-schedule-event-entity";
-import { ScheduleTimeSpan } from "../vo/schedule-timespan";
+import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import { ScheduleTimeSpan } from "../schedule-timespan";
 
 export class PlayAudioEventEntity implements IScheduleEventEntity {
   public readonly id: string;

@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
-import { ScheduleEventDto } from "../../../domains/schedule-event/entity/schedule-event";
-import { PlayAudioEventDetail } from "../../../domains/schedule-event/entity/events/play-audio-event";
-import { PlayAudioEventEntity } from "../../../domains/schedule-event/entity/play-audio-event-entity";
+import { ScheduleEventDto } from "../../../domains/schedule-event/schedule-event";
+import { PlayAudioEventDetail } from "../../../domains/schedule-event/play-audio-event/play-audio-event-entity";
+import { PlayAudioEventEntity } from "../../../domains/schedule-event/play-audio-event/play-audio-event-entity";
 
 @injectable()
 export class PlayAudioEventConverter {

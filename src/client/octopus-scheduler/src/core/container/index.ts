@@ -1,6 +1,6 @@
 import { ScheduleEventRepository } from "../../model/infrastructures/schedule-event/schedule-event-repository";
 import type { IAssetRepository } from "../../model/domains/assets/repository/asset-repository";
-import type { IScheduleEventRepository } from "../../model/domains/schedule-event/repository/schedule-event-repository";
+import type { IScheduleEventRepository } from "../../model/domains/schedule-event/schedule-event-repository";
 import { AssetRepository } from "../../model/infrastructures/assets/asset-repository";
 import { container } from "tsyringe";
 import { ScheduleEventService } from "../../model/applications/schedule-event/schedule-event-service";

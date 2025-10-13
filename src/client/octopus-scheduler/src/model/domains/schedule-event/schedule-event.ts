@@ -1,4 +1,4 @@
-import type { ScheduleTimeSpan } from "../vo/schedule-timespan";
+import type { ScheduleTimeSpan } from "./schedule-timespan";
 
 export class ScheduleEventDto {
   public readonly id: string;

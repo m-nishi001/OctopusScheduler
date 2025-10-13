@@ -61,7 +61,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
-import type { ScheduleEventDto } from '../../../../model/domains/schedule-event/entity/schedule-event';
+import type { ScheduleEventDto } from '../../../../model/domains/schedule-event/schedule-event';
 
 const events = ref<ScheduleEventDto[]>([]);
 const loading = ref(false);

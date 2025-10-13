@@ -1,7 +1,7 @@
 import { reactive } from "vue";
 import { container } from "tsyringe";
 import type { ScheduleEventService } from "./schedule-event/schedule-event-service";
-import type { ScheduleEventDto } from "../domains/schedule-event/entity/schedule-event";
+import type { ScheduleEventDto } from "../domains/schedule-event/schedule-event";
 import type { AssetService } from "./assets/asset-service";
 
 export interface EventPollingState {

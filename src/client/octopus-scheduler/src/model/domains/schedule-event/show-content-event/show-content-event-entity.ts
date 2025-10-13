@@ -1,8 +1,15 @@
-import { ScheduleEventDto } from "../schedule-event";
-import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
+import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import { ScheduleTimeSpan } from "../schedule-timespan";
 
-export class ShowContentEventEntity extends ScheduleEventDto {
+export class ShowContentEventEntity implements IScheduleEventEntity {
+  public readonly id: string;
+  public readonly type: string = "ShowContentEvent";
+  public readonly name: string;
+  public readonly timeSpan: ScheduleTimeSpan;
   public readonly detail: ShowContentEventDetail;
+  public readonly processedAt: Date | null;
+  public readonly registeredAt: Date;
+  public readonly updatedAt: Date;
 
   constructor(
     id: string,
@@ -13,17 +20,13 @@ export class ShowContentEventEntity extends ScheduleEventDto {
     registeredAt: Date,
     updatedAt: Date
   ) {
-    super(
-      id,
-      "ShowContentEvent",
-      name,
-      timeSpan,
-      detail,
-      processedAt,
-      registeredAt,
-      updatedAt
-    );
+    this.id = id;
+    this.name = name;
+    this.timeSpan = timeSpan;
     this.detail = detail;
+    this.processedAt = processedAt;
+    this.registeredAt = registeredAt;
+    this.updatedAt = updatedAt;
   }
 }
 
