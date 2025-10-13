@@ -8,9 +8,6 @@
                 <button class="main-btn" @click="onReload" :disabled="loading">
                     <span class="btn-icon">🔄</span> 再読込
                 </button>
-                <button class="main-btn" @click="onNew">
-                    <span class="btn-icon">➕</span> 新規追加
-                </button>
                 <button class="main-btn" @click="onSync" :disabled="syncing">
                     <span class="btn-icon">🔄</span> 同期
                 </button>
@@ -45,9 +42,6 @@
                             <td>{{ formatDate(ev.timeSpan.start) }}</td>
                             <td>{{ formatDate(ev.timeSpan.end) }}</td>
                             <td>
-                                <button class="main-btn small" @click="onEdit(ev)" :disabled="loading"><span
-                                        class="btn-icon">✏️</span>
-                                    編集</button>
                                 <button class="main-btn small" @click="onDelete(ev)" :disabled="loading"><span
                                         class="btn-icon">🗑️</span>
                                     削除</button>
@@ -59,66 +53,6 @@
                     </tbody>
                 </table>
             </div>
-            <div v-if="editing && form" class="modal-overlay" @click="onCancel">
-                <div class="modal-content" @click.stop>
-                    <h3>{{ isNew ? '新規イベント追加' : 'イベント編集' }}</h3>
-                    <form @submit.prevent="isNew ? onAdd() : onUpdate()">
-                        <label>
-                            イベント名:
-                            <input v-model="form.name" required />
-                        </label>
-                        <label>
-                            種別:
-                            <select v-model="form.type" @change="onEventTypeChange">
-                                <option v-for="type in eventTypes" :key="type.eventType" :value="type.eventType">
-                                    {{ type.displayName }}
-                                </option>
-                            </select>
-                        </label>
-                        <label>
-                            開始:
-                            <input v-model="form.timeSpan.start" type="datetime-local" required />
-                        </label>
-                        <label>
-                            終了:
-                            <input v-model="form.timeSpan.end" type="datetime-local" required />
-                        </label>
-                        <!-- 各イベントタイプの設定コンポーネント -->
-                        <PlayAudioEventConfig v-if="form.type === 'PlayAudioEvent' && form.detail"
-                            :model-value="form.detail"
-                            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
-                        <PlayMovieEventConfig v-if="form.type === 'PlayMovieEvent' && form.detail"
-                            :model-value="form.detail"
-                            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
-                        <ShowImageEventConfig v-if="form.type === 'ShowImageEvent' && form.detail"
-                            :model-value="form.detail"
-                            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
-                        <TransitionPageEventConfig v-if="form.type === 'TransitionPageEvent' && form.detail"
-                            :model-value="form.detail"
-                            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
-                        <div class="form-actions">
-                            <button class="main-btn" type="submit" :disabled="saving">{{ isNew ? '追加' : '保存' }}</button>
-                            <button class="main-btn" type="button" @click="onCancel">キャンセル</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- イベント種別選択モーダル -->
-            <div v-if="showEventTypeModal" class="modal-overlay" @click="closeEventTypeModal">
-                <div class="modal-content" @click.stop>
-                    <h3>追加するイベント種別を選択</h3>
-                    <div class="event-type-list">
-                        <button v-for="type in eventTypes" :key="type.eventType" class="event-type-btn"
-                            @click="selectEventType(type.eventType)">
-                            {{ type.displayName }}
-                        </button>
-                    </div>
-                    <div class="form-actions">
-                        <button class="main-btn" type="button" @click="closeEventTypeModal">キャンセル</button>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </template>
@@ -128,23 +62,12 @@ import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
 import type { ScheduleEventDto } from '../../../../model/domains/schedule-event/entity/schedule-event';
-import PlayAudioEventConfig from './play-audio-event/play-audio-event-config.vue';
-import PlayMovieEventConfig from './play-movie-event/play-movie-event-config.vue';
-import ShowImageEventConfig from './show-image-event/show-image-event-config.vue';
-import TransitionPageEventConfig from './transition-page-event/transition-page-event-config.vue';
 
 const events = ref<ScheduleEventDto[]>([]);
 const loading = ref(false);
-const saving = ref(false);
-const editing = ref(false);
-const isNew = ref(true);
-const eventTypes = ref<any[]>([]);
 const selectedEvents = ref<string[]>([]);
 const syncing = ref(false);
 const deleting = ref(false);
-const showEventTypeModal = ref(false);
-
-const form = ref<any>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 
@@ -212,135 +135,6 @@ async function onDeleteSelected() {
     }
 }
 
-function getDefaultDetail(eventType: string) {
-    switch (eventType) {
-        case 'PlayAudioEvent':
-            return { audioId: '' };
-        case 'PlayMovieEvent':
-            return { movieId: '' };
-        case 'ShowImageEvent':
-            return { imageId: '' };
-        case 'TransitionPageEvent':
-            return { transitionUrl: '' };
-        default:
-            return {};
-    }
-}
-
-
-function onNew() {
-    showEventTypeModal.value = true;
-}
-
-function closeEventTypeModal() {
-    showEventTypeModal.value = false;
-}
-
-function selectEventType(eventType: string) {
-    showEventTypeModal.value = false;
-    isNew.value = true;
-    editing.value = true;
-    form.value = {
-        id: '',
-        name: '',
-        type: eventType,
-        timeSpan: { start: '', end: '' },
-        detail: getDefaultDetail(eventType),
-        processedAt: null,
-        registeredAt: new Date(),
-        updatedAt: new Date()
-    };
-}
-
-function onEdit(ev: ScheduleEventDto) {
-    isNew.value = false;
-    editing.value = true;
-    form.value = {
-        id: ev.id,
-        name: ev.name,
-        type: ev.type,
-        timeSpan: { start: ev.timeSpan.start.toISOString().slice(0, 16), end: ev.timeSpan.end.toISOString().slice(0, 16) },
-        detail: ev.detail,
-        processedAt: ev.processedAt,
-        registeredAt: ev.registeredAt,
-        updatedAt: ev.updatedAt
-    };
-}
-
-function onEventTypeChange() {
-    if (!form.value) return;
-    // 新規作成時のみリセット、編集時は既存detailを保持
-    if (isNew.value) {
-        form.value.detail = getDefaultDetail(form.value.type);
-    }
-}
-
-async function onAdd() {
-    if (!form.value) return;
-    if (!form.value.name || !form.value.timeSpan.start || !form.value.timeSpan.end || !form.value.type) {
-        alert('必須項目を入力してください');
-        return;
-    }
-    saving.value = true;
-    try {
-        const dto: ScheduleEventDto = {
-            id: crypto.randomUUID(),
-            type: form.value.type,
-            name: form.value.name,
-            timeSpan: {
-                start: new Date(form.value.timeSpan.start),
-                end: new Date(form.value.timeSpan.end),
-                equals: () => false // dummy
-            },
-            detail: form.value.detail,
-            processedAt: null,
-            registeredAt: new Date(),
-            updatedAt: new Date()
-        };
-        await scheduleEventService.addScheduleEvents([dto]);
-        editing.value = false;
-        form.value = null;
-        await fetchEvents();
-    } catch (e) {
-        alert('追加に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-    } finally {
-        saving.value = false;
-    }
-}
-
-async function onUpdate() {
-    if (!form.value) return;
-    if (!form.value.name || !form.value.timeSpan.start || !form.value.timeSpan.end || !form.value.type) {
-        alert('必須項目を入力してください');
-        return;
-    }
-    saving.value = true;
-    try {
-        const dto: ScheduleEventDto = {
-            id: form.value.id,
-            type: form.value.type,
-            name: form.value.name,
-            timeSpan: {
-                start: new Date(form.value.timeSpan.start),
-                end: new Date(form.value.timeSpan.end),
-                equals: () => false // dummy
-            },
-            detail: form.value.detail,
-            processedAt: form.value.processedAt,
-            registeredAt: form.value.registeredAt,
-            updatedAt: new Date()
-        };
-        await scheduleEventService.updateScheduleEvents([dto]);
-        editing.value = false;
-        form.value = null;
-        await fetchEvents();
-    } catch (e) {
-        alert('更新に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-    } finally {
-        saving.value = false;
-    }
-}
-
 async function onDelete(ev: ScheduleEventDto) {
     if (!confirm(`${ev.name} を削除しますか？`)) return;
     try {
@@ -351,18 +145,7 @@ async function onDelete(ev: ScheduleEventDto) {
     }
 }
 
-function onCancel() {
-    editing.value = false;
-    form.value = null;
-}
-
 onMounted(async () => {
-    eventTypes.value = [
-        { eventType: 'PlayAudioEvent', displayName: '音声再生' },
-        { eventType: 'PlayMovieEvent', displayName: '動画再生' },
-        { eventType: 'ShowImageEvent', displayName: '画像表示' },
-        { eventType: 'TransitionPageEvent', displayName: 'ページ遷移' }
-    ];
     fetchEvents();
 });
 </script>

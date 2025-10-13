@@ -1,6 +1,18 @@
 <template>
     <div class="event-config">
-        <h3>音声再生イベント設定</h3>
+        <h3>{{ isNew ? '音声再生イベント新規作成' : '音声再生イベント編集' }}</h3>
+        <div class="config-item">
+            <label>イベント名:</label>
+            <input v-model="localEvent.name" type="text" class="admin-input" placeholder="イベント名を入力" />
+        </div>
+        <div class="config-item">
+            <label>開始日時:</label>
+            <input v-model="localEvent.timeSpan.start" type="datetime-local" class="admin-input" />
+        </div>
+        <div class="config-item">
+            <label>終了日時:</label>
+            <input v-model="localEvent.timeSpan.end" type="datetime-local" class="admin-input" />
+        </div>
         <div class="config-item">
             <label>音声アセット:</label>
             <select v-model="localConfig.audioId" class="admin-input">
@@ -10,7 +22,7 @@
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
             <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving"
-                :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
+                :style="{ opacity: saving ? 0.6 : 1 }">{{ isNew ? '作成' : '保存' }}</button>
             <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
         </div>
         <!-- ロードモーダル -->
@@ -39,13 +51,15 @@ import { PlayAudioEventDetail } from '../../../../../model/domains/schedule-even
 import { ScheduleEventDto } from '../../../../../model/domains/schedule-event/entity/schedule-event';
 import { PlayAudioEventConverter } from '../../../../../model/applications/schedule-event/converters/play-audio-event-converter';
 import { container } from 'tsyringe';
+import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
 
 interface Props {
     modelValue: ScheduleEventDto;
+    isNew?: boolean;
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ (e: 'update:modelValue', value: ScheduleEventDto): void }>();
+const emit = defineEmits<{ (e: 'update:modelValue', value: ScheduleEventDto): void; (e: 'saved'): void }>();
 
 const {
     audioAssets,
@@ -57,14 +71,35 @@ const {
 } = useEventSettingData();
 
 const converter = container.resolve(PlayAudioEventConverter);
+const scheduleEventService = container.resolve(ScheduleEventService);
 
 const localConfig = ref({
     audioId: "",
 });
 
+const localEvent = ref({
+    name: "",
+    timeSpan: { start: "", end: "" },
+});
+
 const loadConfig = () => {
-    const detail = converter.toDto(props.modelValue);
-    localConfig.value.audioId = detail.audioId || "";
+    if (props.isNew) {
+        localEvent.value = {
+            name: "",
+            timeSpan: { start: "", end: "" },
+        };
+        localConfig.value.audioId = "";
+    } else {
+        const detail = converter.toDto(props.modelValue);
+        localEvent.value = {
+            name: props.modelValue.name,
+            timeSpan: {
+                start: props.modelValue.timeSpan.start.toISOString().slice(0, 16),
+                end: props.modelValue.timeSpan.end.toISOString().slice(0, 16),
+            },
+        };
+        localConfig.value.audioId = detail.audioId || "";
+    }
 };
 
 onMounted(() => {
@@ -72,18 +107,32 @@ onMounted(() => {
 });
 
 const handleSaveClick = async () => {
+    if (!localEvent.value.name || !localEvent.value.timeSpan.start || !localEvent.value.timeSpan.end) {
+        alert('必須項目を入力してください');
+        return;
+    }
     await handleSave(async () => {
         const detail = new PlayAudioEventDetail(localConfig.value.audioId);
-        const updatedEvent = converter.toEntity(detail, {
-            id: props.modelValue.id,
-            type: props.modelValue.type,
-            name: props.modelValue.name,
-            timeSpan: props.modelValue.timeSpan,
-            processedAt: props.modelValue.processedAt,
-            registeredAt: props.modelValue.registeredAt,
+        const eventData = {
+            id: props.isNew ? crypto.randomUUID() : props.modelValue.id,
+            type: 'PlayAudioEvent',
+            name: localEvent.value.name,
+            timeSpan: {
+                start: new Date(localEvent.value.timeSpan.start),
+                end: new Date(localEvent.value.timeSpan.end),
+                equals: () => false,
+            },
+            detail,
+            processedAt: props.isNew ? null : props.modelValue.processedAt,
+            registeredAt: props.isNew ? new Date() : props.modelValue.registeredAt,
             updatedAt: new Date(),
-        });
-        emit('update:modelValue', updatedEvent);
+        };
+        if (props.isNew) {
+            await scheduleEventService.addScheduleEvents([eventData]);
+        } else {
+            await scheduleEventService.updateScheduleEvents([eventData]);
+        }
+        emit('saved');
     });
 };
 </script>
