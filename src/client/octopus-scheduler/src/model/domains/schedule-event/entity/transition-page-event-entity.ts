@@ -1,12 +1,12 @@
-import type { IScheduleEventDto } from "../i-schedule-event-dto";
-import { ScheduleTimeSpan } from "../../../domains/schedule-event/vo/schedule-timespan";
+import type { IScheduleEventEntity } from "./i-schedule-event-entity";
+import { ScheduleTimeSpan } from "../vo/schedule-timespan";
 
-export class PlayAudioEventDto implements IScheduleEventDto {
+export class TransitionPageEventEntity implements IScheduleEventEntity {
   public readonly id: string;
-  public readonly type: string = "PlayAudioEvent";
+  public readonly type: string = "TransitionPageEvent";
   public readonly name: string;
   public readonly timeSpan: ScheduleTimeSpan;
-  public readonly detail: PlayAudioEventDetail;
+  public readonly detail: TransitionPageDetail;
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
   public readonly updatedAt: Date;
@@ -15,7 +15,7 @@ export class PlayAudioEventDto implements IScheduleEventDto {
     id: string,
     name: string,
     timeSpan: ScheduleTimeSpan,
-    detail: PlayAudioEventDetail,
+    detail: TransitionPageDetail,
     processedAt: Date | null,
     registeredAt: Date,
     updatedAt: Date
@@ -30,12 +30,12 @@ export class PlayAudioEventDto implements IScheduleEventDto {
   }
 }
 
-export class PlayAudioEventDetail {
-  readonly audioId: string;
+export class TransitionPageDetail {
+  readonly transitionUrl: string;
   readonly fadeOutDuration?: number;
 
-  constructor(audioId: string, fadeOutDuration?: number) {
-    this.audioId = audioId;
+  constructor(transitionUrl: string, fadeOutDuration?: number) {
+    this.transitionUrl = transitionUrl;
     this.fadeOutDuration = fadeOutDuration;
   }
 }

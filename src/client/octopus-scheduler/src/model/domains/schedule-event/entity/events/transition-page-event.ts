@@ -1,7 +1,7 @@
 import { ScheduleEventDto } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 
-export class TransitionPageEventDto extends ScheduleEventDto {
+export class TransitionPageEventEntity extends ScheduleEventDto {
   public readonly detail: TransitionPageDetail;
 
   constructor(

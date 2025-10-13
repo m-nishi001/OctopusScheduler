@@ -1,7 +1,7 @@
-import type { IScheduleEventDto } from "../i-schedule-event-dto";
-import { ScheduleTimeSpan } from "../../../domains/schedule-event/vo/schedule-timespan";
+import type { IScheduleEventEntity } from "./i-schedule-event-entity";
+import { ScheduleTimeSpan } from "../vo/schedule-timespan";
 
-export class ShowContentEventDto implements IScheduleEventDto {
+export class ShowContentEventEntity implements IScheduleEventEntity {
   public readonly id: string;
   public readonly type: string = "ShowContentEvent";
   public readonly name: string;

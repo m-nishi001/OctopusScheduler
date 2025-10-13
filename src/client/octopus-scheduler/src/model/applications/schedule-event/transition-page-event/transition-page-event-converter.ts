@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import { ScheduleEventDto } from "../../../domains/schedule-event/entity/schedule-event";
 import { TransitionPageDetail } from "../../../domains/schedule-event/entity/events/transition-page-event";
-import { TransitionPageEventDto } from "./transition-page-event-dto";
+import { TransitionPageEventEntity } from "../../../domains/schedule-event/entity/transition-page-event-entity";
 
 @injectable()
 export class TransitionPageEventConverter {
@@ -19,8 +19,8 @@ export class TransitionPageEventConverter {
     };
   }
 
-  toTransitionPageEventDto(event: ScheduleEventDto): TransitionPageEventDto {
-    return new TransitionPageEventDto(
+  toTransitionPageEventDto(event: ScheduleEventDto): TransitionPageEventEntity {
+    return new TransitionPageEventEntity(
       event.id,
       event.name,
       event.timeSpan,

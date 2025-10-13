@@ -1,7 +1,7 @@
 import { ScheduleEventDto } from "../schedule-event";
 import { ScheduleTimeSpan } from "../../vo/schedule-timespan";
 
-export class PlayAudioEventDto extends ScheduleEventDto {
+export class PlayAudioEventEntity extends ScheduleEventDto {
   public readonly detail: PlayAudioEventDetail;
 
   constructor(

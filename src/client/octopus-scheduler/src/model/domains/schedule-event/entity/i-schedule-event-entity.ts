@@ -1,6 +1,6 @@
-import type { ScheduleTimeSpan } from "../../domains/schedule-event/vo/schedule-timespan";
+import type { ScheduleTimeSpan } from "../vo/schedule-timespan";
 
-export interface IScheduleEventDto {
+export interface IScheduleEventEntity {
   readonly id: string;
   readonly type: string;
   readonly name: string;

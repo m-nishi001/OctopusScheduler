@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import { ScheduleEventDto } from "../../../domains/schedule-event/entity/schedule-event";
 import { ShowContentEventDetail } from "../../../domains/schedule-event/entity/events/show-content-event";
-import { ShowContentEventDto } from "./show-content-event-dto";
+import { ShowContentEventEntity } from "../../../domains/schedule-event/entity/show-content-event-entity";
 
 @injectable()
 export class ShowContentEventConverter {
@@ -19,8 +19,8 @@ export class ShowContentEventConverter {
     };
   }
 
-  toShowContentEventDto(event: ScheduleEventDto): ShowContentEventDto {
-    return new ShowContentEventDto(
+  toShowContentEventDto(event: ScheduleEventDto): ShowContentEventEntity {
+    return new ShowContentEventEntity(
       event.id,
       event.name,
       event.timeSpan,
