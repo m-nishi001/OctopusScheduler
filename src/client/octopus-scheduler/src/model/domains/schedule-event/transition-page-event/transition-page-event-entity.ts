@@ -1,4 +1,5 @@
 import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import { eventBus } from "../../../../core/event-bus";
 
 export class TransitionPageEventEntity implements IScheduleEventEntity {
   public readonly id: string;
@@ -29,6 +30,12 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
+  }
+
+  async execute(isStart: boolean): Promise<void> {
+    if (isStart) {
+      eventBus.emit("transitionPage", { transitionUrl: this.transitionUrl });
+    }
   }
 
   toRecords(): Map<string, string> {

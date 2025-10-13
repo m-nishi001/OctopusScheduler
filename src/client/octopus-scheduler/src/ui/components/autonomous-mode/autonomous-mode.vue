@@ -53,9 +53,9 @@
 <script setup lang="ts">
 import { inject, reactive, onMounted } from 'vue';
 import type { IScheduleEventEntity } from 'src/model/domains/schedule-event/i-schedule-event-entity';
-import type { PlayAudioEventEntity } from 'src/model/domains/schedule-event/play-audio-event/play-audio-event-entity';
-import type { ShowContentEventEntity } from 'src/model/domains/schedule-event/show-content-event/show-content-event-entity';
-import type { TransitionPageEventEntity } from 'src/model/domains/schedule-event/transition-page-event/transition-page-event-entity';
+import { PlayAudioEventHandler } from './handlers/play-audio-event-handler';
+import { ShowContentEventHandler } from './handlers/show-content-event-handler';
+import { TransitionPageEventHandler } from './handlers/transition-page-event-handler';
 
 const eventPollingService = inject('eventPollingService') as any;
 const assetService = inject('assetService') as any;
@@ -74,107 +74,21 @@ const onEvents = async (startEvents: IScheduleEventEntity[], endEvents: ISchedul
     localState.endingEvent = endEvents.length > 0 ? endEvents.map((e) => e.type).join(", ") : "（なし）";
 
     for (const event of startEvents) {
-        await executeStart(event);
+        await event.execute(true);
     }
     for (const event of endEvents) {
-        await executeEnd(event);
-    }
-};
-
-const executeStart = async (event: IScheduleEventEntity) => {
-    const type = event.type;
-    if (type === "PlayAudioEvent") {
-        await playAudio(event);
-    } else if (type === "ShowContentEvent") {
-        await showContent(event);
-    } else if (type === "TransitionPageEvent") {
-        await transitionPage(event);
-    }
-};
-
-const executeEnd = async (event: IScheduleEventEntity) => {
-    const type = event.type;
-    if (type === "PlayAudioEvent") {
-        await stopAudio();
-    } else if (type === "ShowContentEvent") {
-        await hideContent(event);
-    }
-};
-
-const playAudio = async (event?: IScheduleEventEntity) => {
-    globalState.isAudioPlaying = true;
-    if (event) {
-        const playAudioEvent = event as PlayAudioEventEntity;
-        if (playAudioEvent.audioId) {
-            const asset = await assetService.getAssetById(playAudioEvent.audioId);
-            if (asset && asset.dataUrl) {
-                globalState.audioUrl = asset.dataUrl;
-            } else {
-                globalState.audioUrl = "";
-            }
-        }
-    }
-};
-
-const stopAudio = async () => {
-    globalState.isAudioPlaying = false;
-};
-
-const showContent = async (event: IScheduleEventEntity) => {
-    const showContentEvent = event as ShowContentEventEntity;
-    if (showContentEvent.contentType === "image") {
-        globalState.showImageModal = true;
-        if (showContentEvent.contentId) {
-            const asset = await assetService.getAssetById(showContentEvent.contentId);
-            if (asset && asset.dataUrl) {
-                globalState.imageAssetUrl = asset.dataUrl;
-            } else {
-                globalState.imageAssetUrl = "";
-            }
-        }
-    } else if (showContentEvent.contentType === "movie") {
-        globalState.showVideoModal = true;
-        if (showContentEvent.contentId) {
-            const asset = await assetService.getAssetById(showContentEvent.contentId);
-            if (asset && asset.dataUrl) {
-                globalState.videoUrl = asset.dataUrl;
-            } else {
-                globalState.videoUrl = "";
-            }
-        }
-    } else if (showContentEvent.contentType === "html") {
-        globalState.showHtmlModal = true;
-        globalState.htmlContent = showContentEvent.htmlString || "";
-    }
-};
-
-const hideContent = async (event: IScheduleEventEntity) => {
-    const showContentEvent = event as ShowContentEventEntity;
-    if (showContentEvent.contentType === "image") {
-        globalState.showImageModal = false;
-    } else if (showContentEvent.contentType === "movie") {
-        globalState.showVideoModal = false;
-    } else if (showContentEvent.contentType === "html") {
-        globalState.showHtmlModal = false;
-        globalState.htmlContent = "";
-    }
-};
-
-const transitionPage = async (event: IScheduleEventEntity) => {
-    const transitionPageEvent = event as TransitionPageEventEntity;
-    if (transitionPageEvent.transitionUrl) {
-        globalState.nextPage = transitionPageEvent.transitionUrl;
+        await event.execute(false);
     }
 };
 
 const onPlayAudio = async () => {
     if (globalState.audioUrl) {
-        await playAudio();
+        globalState.isAudioPlaying = true;
     }
 };
 
 const onStopAudio = async () => {
-    await stopAudio();
+    globalState.isAudioPlaying = false;
 };
 
 const onStartPolling = () => {
@@ -189,6 +103,9 @@ const onStopPolling = () => {
 
 onMounted(() => {
     eventPollingService.setOnEventsCallback(onEvents);
+    new PlayAudioEventHandler(globalState, assetService);
+    new ShowContentEventHandler(globalState, assetService);
+    new TransitionPageEventHandler(globalState);
 });
 </script>
 <style scoped>

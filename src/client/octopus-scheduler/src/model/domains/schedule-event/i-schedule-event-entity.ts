@@ -6,5 +6,6 @@ export interface IScheduleEventEntity {
   readonly processedAt: Date | null;
   readonly registeredAt: Date;
   readonly updatedAt: Date;
+  execute(isStart: boolean): Promise<void>;
   toRecords(): Map<string, string>;
 }

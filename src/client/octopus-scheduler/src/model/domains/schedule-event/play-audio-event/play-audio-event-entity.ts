@@ -1,4 +1,5 @@
 import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import { eventBus } from "../../../../core/event-bus";
 
 export class PlayAudioEventEntity implements IScheduleEventEntity {
   public readonly id: string;
@@ -29,6 +30,14 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
+  }
+
+  async execute(isStart: boolean): Promise<void> {
+    if (isStart) {
+      eventBus.emit("playAudio", { audioId: this.audioId });
+    } else {
+      eventBus.emit("stopAudio");
+    }
   }
 
   toRecords(): Map<string, string> {

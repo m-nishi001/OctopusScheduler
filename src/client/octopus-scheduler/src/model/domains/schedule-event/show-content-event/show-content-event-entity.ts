@@ -1,4 +1,5 @@
 import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import { eventBus } from "../../../../core/event-bus";
 
 export class ShowContentEventEntity implements IScheduleEventEntity {
   public readonly id: string;
@@ -35,6 +36,18 @@ export class ShowContentEventEntity implements IScheduleEventEntity {
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
+  }
+
+  async execute(isStart: boolean): Promise<void> {
+    if (isStart) {
+      eventBus.emit("showContent", {
+        contentType: this.contentType,
+        contentId: this.contentId,
+        htmlString: this.htmlString,
+      });
+    } else {
+      eventBus.emit("hideContent", { contentType: this.contentType });
+    }
   }
 
   toRecords(): Map<string, string> {
