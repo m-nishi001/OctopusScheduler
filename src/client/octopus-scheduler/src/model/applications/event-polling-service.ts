@@ -3,7 +3,8 @@ import type { ScheduleEventService } from "./schedule-event/schedule-event-servi
 import type { IScheduleEventEntity } from "./schedule-event/i-schedule-event-entity";
 
 export class EventPollingService {
-  private pollingTimer: any = null;
+  private syncTimer: any = null;
+  private eventTimer: any = null;
   private scheduleEventService = container.resolve<ScheduleEventService>(
     "ScheduleEventService"
   );
@@ -22,15 +23,29 @@ export class EventPollingService {
   }
 
   public startPolling(interval = 5000) {
-    if (this.pollingTimer) return;
-    this.pollingTimer = setInterval(() => this.handleEvents(), interval);
+    if (this.syncTimer || this.eventTimer) return;
+    this.syncTimer = setInterval(() => this.syncEvents(), interval);
+    this.eventTimer = setInterval(() => this.handleEvents(), interval);
+    this.syncEvents();
     this.handleEvents();
   }
 
   public stopPolling() {
-    if (this.pollingTimer) {
-      clearInterval(this.pollingTimer);
-      this.pollingTimer = null;
+    if (this.syncTimer) {
+      clearInterval(this.syncTimer);
+      this.syncTimer = null;
+    }
+    if (this.eventTimer) {
+      clearInterval(this.eventTimer);
+      this.eventTimer = null;
+    }
+  }
+
+  private async syncEvents() {
+    try {
+      await this.scheduleEventService.syncScheduleEvents();
+    } catch (error) {
+      console.error("Failed to sync schedule events:", error);
     }
   }
 
