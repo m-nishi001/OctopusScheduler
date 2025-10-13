@@ -70,4 +70,8 @@ export class ScheduleEventService {
     );
     await this.updateScheduleEvents(updated);
   }
+
+  async syncScheduleEvents(): Promise<void> {
+    await this.scheduleEventRepository.syncScheduleEvents();
+  }
 }

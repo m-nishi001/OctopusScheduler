@@ -5,4 +5,5 @@ export interface IScheduleEventRepository {
   updateScheduleEvents(events: IScheduleEventEntity[]): Promise<void>;
   deleteScheduleEvents(ids: string[]): Promise<void>;
   addScheduleEvents(events: IScheduleEventEntity[]): Promise<string[]>;
+  syncScheduleEvents(): Promise<void>;
 }

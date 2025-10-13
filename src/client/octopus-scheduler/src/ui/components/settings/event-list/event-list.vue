@@ -129,7 +129,7 @@ function formatDate(d: any) {
     }
 }
 
-async function fetchEvents() {
+async function getAllScheduleEvents() {
     loading.value = true;
     try {
         const list = await scheduleEventService.getScheduleEvents();
@@ -214,9 +214,24 @@ async function onContentSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            await scheduleEventService.addScheduleEvents([tempEvent]);
+            const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
+            const newEvent = new ShowContentEventEntity(
+                ids[0],
+                form.startTime,
+                form.endTime,
+                form.contentType,
+                form.contentId,
+                form.htmlString,
+                form.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            events.value.push(newEvent);
         }
-        await fetchEvents();
+        if (editingEvent.value) {
+            await getAllScheduleEvents();
+        }
         closeDialogs();
     } catch (e) {
         alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -250,9 +265,22 @@ async function onMusicSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            await scheduleEventService.addScheduleEvents([tempEvent]);
+            const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
+            const newEvent = new PlayAudioEventEntity(
+                ids[0],
+                form.startTime,
+                form.endTime,
+                form.audioId,
+                form.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            events.value.push(newEvent);
         }
-        await fetchEvents();
+        if (editingEvent.value) {
+            await getAllScheduleEvents();
+        }
         closeDialogs();
     } catch (e) {
         alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -286,9 +314,22 @@ async function onTransitionSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            await scheduleEventService.addScheduleEvents([tempEvent]);
+            const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
+            const newEvent = new TransitionPageEventEntity(
+                ids[0],
+                form.startTime,
+                form.endTime,
+                form.transitionUrl,
+                form.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            events.value.push(newEvent);
         }
-        await fetchEvents();
+        if (editingEvent.value) {
+            await getAllScheduleEvents();
+        }
         closeDialogs();
     } catch (e) {
         alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -296,13 +337,14 @@ async function onTransitionSubmit(form: any) {
 }
 
 function onReload() {
-    fetchEvents();
+    getAllScheduleEvents();
 }
 
 async function onSync() {
     syncing.value = true;
     try {
-        await fetchEvents();
+        await scheduleEventService.syncScheduleEvents();
+        await getAllScheduleEvents();
     } catch (e) {
         alert('同期に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -317,7 +359,7 @@ async function onDeleteSelected() {
     try {
         await scheduleEventService.deleteScheduleEvents(selectedEvents.value);
         selectedEvents.value = [];
-        await fetchEvents();
+        await getAllScheduleEvents();
     } catch (e) {
         alert('削除に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -329,14 +371,15 @@ async function onDelete(ev: IScheduleEventEntity) {
     if (!confirm(`${ev.type} を削除しますか？`)) return;
     try {
         await scheduleEventService.deleteScheduleEvents([ev.id]);
-        await fetchEvents();
+        await getAllScheduleEvents();
     } catch (e) {
         alert('削除に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     }
 }
 
 onMounted(async () => {
-    fetchEvents();
+    await scheduleEventService.syncScheduleEvents();
+    getAllScheduleEvents();
 });
 </script>
 
