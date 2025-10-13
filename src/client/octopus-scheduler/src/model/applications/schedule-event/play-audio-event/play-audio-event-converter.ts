@@ -1,25 +1,25 @@
 import { injectable } from "tsyringe";
-import { ScheduleEventDto } from "../../../domains/schedule-event/schedule-event";
+import type { IScheduleEventEntity } from "../../../domains/schedule-event/i-schedule-event-entity";
 import { PlayAudioEventDetail } from "../../../domains/schedule-event/play-audio-event/play-audio-event-entity";
 import { PlayAudioEventEntity } from "../../../domains/schedule-event/play-audio-event/play-audio-event-entity";
 
 @injectable()
 export class PlayAudioEventConverter {
-  toDto(event: ScheduleEventDto): PlayAudioEventDetail {
+  toDto(event: IScheduleEventEntity): PlayAudioEventDetail {
     return event.detail as PlayAudioEventDetail;
   }
 
   toEntity(
     detail: PlayAudioEventDetail,
-    baseEvent: Omit<ScheduleEventDto, "detail">
-  ): ScheduleEventDto {
+    baseEvent: Omit<IScheduleEventEntity, "detail">
+  ): IScheduleEventEntity {
     return {
       ...baseEvent,
       detail,
     };
   }
 
-  toPlayAudioEventDto(event: ScheduleEventDto): PlayAudioEventEntity {
+  toPlayAudioEventDto(event: IScheduleEventEntity): PlayAudioEventEntity {
     return new PlayAudioEventEntity(
       event.id,
       event.name,

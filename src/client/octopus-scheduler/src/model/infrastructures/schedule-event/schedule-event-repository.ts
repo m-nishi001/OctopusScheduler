@@ -1,6 +1,6 @@
 import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
-import { ScheduleEventDto } from "../../domains/schedule-event/schedule-event";
+import type { IScheduleEventEntity } from "../../domains/schedule-event/i-schedule-event-entity";
 import { injectable } from "tsyringe";
 
 @injectable()
@@ -12,10 +12,10 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     this.service = GasFunctionService.create(apiName)!;
   }
 
-  async getScheduleEvents(): Promise<ScheduleEventDto[]> {
+  async getScheduleEvents(): Promise<IScheduleEventEntity[]> {
     return new Promise((resolve) => {
       this.service
-        .createCall<ScheduleEventDto[]>("ScheduleService.getScheduleEvents")
+        .createCall<IScheduleEventEntity[]>("ScheduleService.getScheduleEvents")
         .withSuccessed((data) => resolve(data))
         .withFailuered((message) => {
           console.error(
@@ -28,7 +28,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     });
   }
 
-  async updateScheduleEvents(events: ScheduleEventDto[]): Promise<void> {
+  async updateScheduleEvents(events: IScheduleEventEntity[]): Promise<void> {
     await this.service
       .createCall<void>("ScheduleService.updateScheduleEvents", events)
       .withSuccessed(() =>
@@ -56,7 +56,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       .invoke();
   }
 
-  async addScheduleEvents(events: ScheduleEventDto[]): Promise<void> {
+  async addScheduleEvents(events: IScheduleEventEntity[]): Promise<void> {
     await this.service
       .createCall<void>("ScheduleService.addScheduleEvents", { events })
       .withSuccessed(() =>

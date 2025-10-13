@@ -61,9 +61,9 @@
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
-import type { ScheduleEventDto } from '../../../../model/domains/schedule-event/schedule-event';
+import type { IScheduleEventEntity } from '../../../../model/domains/schedule-event/i-schedule-event-entity';
 
-const events = ref<ScheduleEventDto[]>([]);
+const events = ref<IScheduleEventEntity[]>([]);
 const loading = ref(false);
 const selectedEvents = ref<string[]>([]);
 const syncing = ref(false);
@@ -135,7 +135,7 @@ async function onDeleteSelected() {
     }
 }
 
-async function onDelete(ev: ScheduleEventDto) {
+async function onDelete(ev: IScheduleEventEntity) {
     if (!confirm(`${ev.name} を削除しますか？`)) return;
     try {
         await scheduleEventService.deleteScheduleEvents([ev.id]);

@@ -1,7 +1,7 @@
 import { reactive } from "vue";
 import { container } from "tsyringe";
 import type { ScheduleEventService } from "./schedule-event/schedule-event-service";
-import type { ScheduleEventDto } from "../domains/schedule-event/schedule-event";
+import type { IScheduleEventEntity } from "../domains/schedule-event/i-schedule-event-entity";
 import type { AssetService } from "./assets/asset-service";
 
 export interface EventPollingState {
@@ -95,7 +95,7 @@ export class EventPollingService {
     }
   }
 
-  async executeStrategy(event: ScheduleEventDto, method: "start" | "end") {
+  async executeStrategy(event: IScheduleEventEntity, method: "start" | "end") {
     const type = event.type;
     if (type === "PlayAudioEvent") {
       if (method === "start") await this.playAudio(event);
@@ -110,7 +110,7 @@ export class EventPollingService {
     }
   }
 
-  async playAudio(event?: ScheduleEventDto) {
+  async playAudio(event?: IScheduleEventEntity) {
     this.state.isAudioPlaying = true;
     if (event?.detail?.audioId) {
       const asset = await this.assetService.getAssetById(event.detail.audioId);
@@ -124,7 +124,7 @@ export class EventPollingService {
   async stopAudio() {
     this.state.isAudioPlaying = false;
   }
-  async showVideo(event?: ScheduleEventDto) {
+  async showVideo(event?: IScheduleEventEntity) {
     this.state.showVideoModal = true;
     if (event?.detail?.movieId) {
       const asset = await this.assetService.getAssetById(event.detail.movieId);
@@ -138,7 +138,7 @@ export class EventPollingService {
   async hideVideo() {
     this.state.showVideoModal = false;
   }
-  async showContent(event?: ScheduleEventDto) {
+  async showContent(event?: IScheduleEventEntity) {
     if (event?.detail?.contentType === "image") {
       this.state.showImageModal = true;
       if (event.detail.contentId) {
@@ -168,7 +168,7 @@ export class EventPollingService {
       this.state.htmlContent = event.detail.htmlString || "";
     }
   }
-  async hideContent(event?: ScheduleEventDto) {
+  async hideContent(event?: IScheduleEventEntity) {
     if (event?.detail?.contentType === "image") {
       this.state.showImageModal = false;
     } else if (event?.detail?.contentType === "movie") {
@@ -178,7 +178,7 @@ export class EventPollingService {
       this.state.htmlContent = "";
     }
   }
-  async transitionPage(event: ScheduleEventDto) {
+  async transitionPage(event: IScheduleEventEntity) {
     if (event.detail?.pageUrl) {
       this.state.nextPage = event.detail.pageUrl;
     }

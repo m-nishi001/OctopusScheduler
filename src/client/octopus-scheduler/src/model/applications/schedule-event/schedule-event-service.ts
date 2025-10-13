@@ -1,5 +1,5 @@
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
-import { ScheduleEventDto } from "../../domains/schedule-event/schedule-event";
+import type { IScheduleEventEntity } from "../../domains/schedule-event/i-schedule-event-entity";
 import { injectable, inject } from "tsyringe";
 
 @injectable()
@@ -9,11 +9,11 @@ export class ScheduleEventService {
     private scheduleEventRepository: IScheduleEventRepository
   ) {}
 
-  async getScheduleEvents(): Promise<ScheduleEventDto[]> {
+  async getScheduleEvents(): Promise<IScheduleEventEntity[]> {
     return await this.scheduleEventRepository.getScheduleEvents();
   }
 
-  async updateScheduleEvents(events: ScheduleEventDto[]): Promise<void> {
+  async updateScheduleEvents(events: IScheduleEventEntity[]): Promise<void> {
     await this.scheduleEventRepository.updateScheduleEvents(events);
   }
 
@@ -21,13 +21,13 @@ export class ScheduleEventService {
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 
-  async addScheduleEvents(events: ScheduleEventDto[]): Promise<void> {
+  async addScheduleEvents(events: IScheduleEventEntity[]): Promise<void> {
     await this.scheduleEventRepository.addScheduleEvents(events);
   }
 
   async getCurrentScheduleEvent(): Promise<{
-    startEvents: ScheduleEventDto[];
-    endEvents: ScheduleEventDto[];
+    startEvents: IScheduleEventEntity[];
+    endEvents: IScheduleEventEntity[];
   }> {
     const events = await this.getScheduleEvents();
     const now = new Date();
@@ -51,16 +51,11 @@ export class ScheduleEventService {
     const now = new Date();
     const updated = events.map((e) =>
       scheduleEventIds.includes(e.id)
-        ? new ScheduleEventDto(
-            e.id,
-            e.type,
-            e.name,
-            e.timeSpan,
-            e.detail,
-            now,
-            e.registeredAt,
-            now
-          )
+        ? {
+            ...e,
+            processedAt: now,
+            updatedAt: now,
+          }
         : e
     );
     await this.updateScheduleEvents(updated);
@@ -71,16 +66,11 @@ export class ScheduleEventService {
     const now = new Date();
     const updated = events.map((e) =>
       scheduleEventIds.includes(e.id)
-        ? new ScheduleEventDto(
-            e.id,
-            e.type,
-            e.name,
-            e.timeSpan,
-            e.detail,
-            e.processedAt,
-            now,
-            now
-          )
+        ? {
+            ...e,
+            registeredAt: now,
+            updatedAt: now,
+          }
         : e
     );
     await this.updateScheduleEvents(updated);
