@@ -1,42 +1,48 @@
+import Home from "../components/home/home.vue";
+import Settings from "../components/settings/settings.vue";
+import AssetListEditor from "../components/settings/asset-list/asset-list-editor.vue";
+import EventEditor from "../components/settings/event-list/event-editor.vue";
+import ShowImage from "../components/schedule-event-handler/show-content/show-image.vue";
+import ShowVideo from "../components/schedule-event-handler/show-content/show-video.vue";
+import ShowHtml from "../components/schedule-event-handler/show-content/show-html.vue";
+
 const octopusSchedulerRoutes = [
   {
     path: "/",
     name: "home",
-    component: () => import("../components/home/home.vue"),
+    component: Home,
   },
   {
     path: "/settings",
     name: "settings",
-    component: () => import("../components/settings/settings.vue"),
+    component: Settings,
   },
   {
     path: "/assets",
     name: "asset-list-editor",
-    component: () =>
-      import("../components/settings/asset-list/asset-list-editor.vue"),
+    component: AssetListEditor,
   },
   {
     path: "/events",
     name: "event-editor",
-    component: () =>
-      import("../components/settings/event-list/event-editor.vue"),
+    component: EventEditor,
   },
   {
     path: "/show-image/:id",
     name: "show-image",
-    component: () => import("../components/show-content/show-image.vue"),
+    component: ShowImage,
     props: true,
   },
   {
     path: "/show-video/:id",
     name: "show-video",
-    component: () => import("../components/show-content/show-video.vue"),
+    component: ShowVideo,
     props: true,
   },
   {
     path: "/show-html/:content",
     name: "show-html",
-    component: () => import("../components/show-content/show-html.vue"),
+    component: ShowHtml,
     props: true,
   },
 ];
