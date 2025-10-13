@@ -7,4 +7,5 @@ export interface Asset {
   lastUpdated: string;
   size: number;
   referenceFrom: string[];
+  directoryId?: string;
 }

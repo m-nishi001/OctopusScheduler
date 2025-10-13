@@ -91,6 +91,7 @@ export class AssetRepository implements IAssetRepository {
       uploadedAt: asset.uploadedAt,
       lastUpdated: asset.lastUpdated,
       size: asset.size,
+      directoryId: asset.directoryId,
     }));
   }
 

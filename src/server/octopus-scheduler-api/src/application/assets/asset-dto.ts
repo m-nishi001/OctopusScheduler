@@ -7,6 +7,7 @@ export class AssetMetadataDto {
   uploadedAt: string;
   lastUpdated: string;
   size: number;
+  directoryId?: string;
 
   constructor(
     id: string,
@@ -14,7 +15,8 @@ export class AssetMetadataDto {
     name: string,
     uploadedAt: string,
     lastUpdated: string,
-    size: number
+    size: number,
+    directoryId?: string
   ) {
     this.id = id;
     this.type = type;
@@ -22,6 +24,7 @@ export class AssetMetadataDto {
     this.uploadedAt = uploadedAt;
     this.lastUpdated = lastUpdated;
     this.size = size;
+    this.directoryId = directoryId;
   }
 }
 
@@ -36,7 +39,8 @@ export class AssetDto extends AssetMetadataDto {
       entity.name,
       entity.uploadedAt,
       entity.lastUpdated,
-      entity.size
+      entity.size,
+      entity.directoryId
     );
     this.dataUrl = entity.dataUrl;
     this.referenceFrom = entity.referenceFrom;
@@ -52,6 +56,7 @@ export class AssetDto extends AssetMetadataDto {
       lastUpdated: dto.lastUpdated,
       size: dto.size,
       referenceFrom: dto.referenceFrom || [],
+      directoryId: dto.directoryId,
     };
   }
 
@@ -62,7 +67,8 @@ export class AssetDto extends AssetMetadataDto {
       entity.name,
       entity.uploadedAt,
       entity.lastUpdated,
-      entity.size
+      entity.size,
+      entity.directoryId
     );
   }
 }

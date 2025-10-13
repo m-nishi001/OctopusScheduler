@@ -10,6 +10,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import { eventBus } from "../../../../core/event-bus";
+import { container } from "tsyringe";
+import type { IAssetRepository } from "../../../../model/domains/assets/repository/asset-repository";
 
 interface SlideshowData {
     folderId: string;
@@ -23,18 +25,18 @@ const images = ref<{ id: string; url: string; name: string }[]>([]);
 const currentIndex = ref(0);
 const intervalId = ref<number | null>(null);
 const slideshowData = ref<SlideshowData | null>(null);
+const assetRepository = container.resolve<IAssetRepository>("IAssetRepository");
 
 const startSlideshow = async (data: SlideshowData) => {
     slideshowData.value = data;
-    // TODO: Fetch images from Google Drive folder using folderId
-    // For now, mock data
-    images.value = [
-        { id: "1", url: "/placeholder1.jpg", name: "Image 1" },
-        { id: "2", url: "/placeholder2.jpg", name: "Image 2" },
-    ];
+    const allMetadata = await assetRepository.getAllAssetMetadata();
+    const assetMetadata = allMetadata.filter(meta => meta.directoryId === data.folderId && meta.type === "image");
+    images.value = assetMetadata.map(meta => ({ id: meta.id, url: "", name: meta.name }));
     currentIndex.value = 0;
-    intervalId.value = setInterval(() => {
+    await loadCurrentImage();
+    intervalId.value = setInterval(async () => {
         currentIndex.value = (currentIndex.value + 1) % images.value.length;
+        await loadCurrentImage();
     }, data.displayDuration * 1000);
     // TODO: Play BGM
 };
@@ -44,8 +46,38 @@ const stopSlideshow = () => {
         clearInterval(intervalId.value);
         intervalId.value = null;
     }
+    images.value.forEach(img => {
+        if (img.url) {
+            URL.revokeObjectURL(img.url);
+        }
+    });
     images.value = [];
     // TODO: Stop BGM
+};
+
+const loadCurrentImage = async () => {
+    const currentImage = images.value[currentIndex.value];
+    if (!currentImage || currentImage.url) return;
+    const asset = await assetRepository.getAssetById(currentImage.id);
+    if (asset && asset.dataUrl) {
+        currentImage.url = asset.dataUrl;
+    }
+    // Preload next image
+    const nextIndex = (currentIndex.value + 1) % images.value.length;
+    const nextImage = images.value[nextIndex];
+    if (nextImage && !nextImage.url) {
+        const nextAsset = await assetRepository.getAssetById(nextImage.id);
+        if (nextAsset && nextAsset.dataUrl) {
+            nextImage.url = nextAsset.dataUrl;
+        }
+    }
+    // Unload previous image to save memory
+    const prevIndex = currentIndex.value === 0 ? images.value.length - 1 : currentIndex.value - 1;
+    const prevImage = images.value[prevIndex];
+    if (prevImage && prevImage.url) {
+        URL.revokeObjectURL(prevImage.url);
+        prevImage.url = "";
+    }
 };
 
 const getSlideStyle = (index: number) => {

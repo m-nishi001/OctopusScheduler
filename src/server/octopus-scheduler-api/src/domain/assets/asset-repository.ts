@@ -7,6 +7,7 @@ export type AssetMetadata = {
   uploadedAt: string;
   lastUpdated: string;
   size: number;
+  directoryId?: string;
 };
 
 export interface IAssetRepository {

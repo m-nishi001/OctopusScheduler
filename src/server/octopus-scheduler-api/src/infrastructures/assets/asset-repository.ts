@@ -136,11 +136,22 @@ export class AssetRepository implements IAssetRepository {
 
   private listAssets(): GoogleAppsScript.Drive.File[] {
     const folderId = this.getAssetFolderId();
+    return this.listAssetsRecursively(folderId);
+  }
+
+  private listAssetsRecursively(
+    folderId: string
+  ): GoogleAppsScript.Drive.File[] {
     const folder = DriveApp.getFolderById(folderId);
-    const fileIterator = folder.getFiles();
     const files: GoogleAppsScript.Drive.File[] = [];
+    const fileIterator = folder.getFiles();
     while (fileIterator.hasNext()) {
       files.push(fileIterator.next());
+    }
+    const folderIterator = folder.getFolders();
+    while (folderIterator.hasNext()) {
+      const subFolder = folderIterator.next();
+      files.push(...this.listAssetsRecursively(subFolder.getId()));
     }
     return files;
   }
@@ -150,6 +161,15 @@ export class AssetRepository implements IAssetRepository {
     const type = mimeType.split("/")[0] as "image" | "video" | "audio" | "text";
     const blob = file.getBlob();
     const dataUrl = this.generateDataUrlFromBlob(blob);
+    const parents = file.getParents();
+    let directoryId: string | undefined;
+    while (parents.hasNext()) {
+      const parent = parents.next();
+      if (parent.getId() !== this.getAssetFolderId()) {
+        directoryId = parent.getId();
+        break;
+      }
+    }
     return {
       id: file.getId(),
       type,
@@ -159,6 +179,7 @@ export class AssetRepository implements IAssetRepository {
       lastUpdated: file.getLastUpdated().toISOString(),
       size: file.getSize(),
       referenceFrom: [],
+      directoryId,
     };
   }
 
@@ -167,6 +188,15 @@ export class AssetRepository implements IAssetRepository {
   ): AssetMetadataDto {
     const mimeType = file.getMimeType();
     const type = mimeType.split("/")[0] as "image" | "video" | "audio" | "text";
+    const parents = file.getParents();
+    let directoryId: string | undefined;
+    while (parents.hasNext()) {
+      const parent = parents.next();
+      if (parent.getId() !== this.getAssetFolderId()) {
+        directoryId = parent.getId();
+        break;
+      }
+    }
     return {
       id: file.getId(),
       type,
@@ -174,6 +204,7 @@ export class AssetRepository implements IAssetRepository {
       uploadedAt: file.getDateCreated().toISOString(),
       lastUpdated: file.getLastUpdated().toISOString(),
       size: file.getSize(),
+      directoryId,
     };
   }
 
