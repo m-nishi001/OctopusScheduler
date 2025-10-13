@@ -5,6 +5,7 @@ import { injectable, inject } from "tsyringe";
 import { PlayAudioEventConverter } from "./play-audio-event/play-audio-event-converter";
 import { ShowContentEventConverter } from "./show-content-event/show-content-event-converter";
 import { TransitionPageEventConverter } from "./transition-page-event/transition-page-event-converter";
+import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
 
 @injectable()
 export class ScheduleEventService {
@@ -71,14 +72,28 @@ export class ScheduleEventService {
     endEvents: IScheduleEventDto[];
   }> {
     const events = await this.getScheduleEvents();
+    const executionStatuses =
+      await this.scheduleEventRepository.getAllExecutionStatuses();
     const now = new Date();
-    const startEvents = events.filter(
-      (e) => e.startTime <= now && now < e.endTime && e.processedAt === null
-    );
-    const endEvents = events.filter(
-      (e) =>
-        e.endTime <= now && e.processedAt !== null && e.registeredAt === null
-    );
+    const startEvents: IScheduleEventDto[] = [];
+    const endEvents: IScheduleEventDto[] = [];
+
+    for (const event of events) {
+      const status =
+        (executionStatuses[event.id] as ExecutionStatus) ||
+        ExecutionStatus.Pending;
+
+      if (
+        status === ExecutionStatus.Pending &&
+        event.startTime <= now &&
+        now < event.endTime
+      ) {
+        startEvents.push(event);
+      } else if (status === ExecutionStatus.Running && event.endTime <= now) {
+        endEvents.push(event);
+      }
+    }
+
     return { startEvents, endEvents };
   }
 
@@ -95,6 +110,13 @@ export class ScheduleEventService {
         : e
     );
     await this.updateScheduleEvents(updated);
+    // Update execution statuses
+    for (const id of scheduleEventIds) {
+      await this.scheduleEventRepository.updateExecutionStatus(
+        id,
+        ExecutionStatus.Running
+      );
+    }
   }
 
   async markEventsAsEnded(scheduleEventIds: string[]): Promise<void> {
@@ -110,6 +132,13 @@ export class ScheduleEventService {
         : e
     );
     await this.updateScheduleEvents(updated);
+    // Update execution statuses
+    for (const id of scheduleEventIds) {
+      await this.scheduleEventRepository.updateExecutionStatus(
+        id,
+        ExecutionStatus.Completed
+      );
+    }
   }
 
   async syncScheduleEvents(): Promise<void> {

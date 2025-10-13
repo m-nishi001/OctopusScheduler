@@ -24,10 +24,10 @@ export class EventPollingService {
     this.onEventsCallback = callback;
   }
 
-  public startPolling(interval = 5000) {
+  public startPolling(syncInterval = 10000, eventInterval = 1000) {
     if (this.syncTimer || this.eventTimer) return;
-    this.syncTimer = setInterval(() => this.syncEvents(), interval);
-    this.eventTimer = setInterval(() => this.handleEvents(), interval);
+    this.syncTimer = setInterval(() => this.syncEvents(), syncInterval);
+    this.eventTimer = setInterval(() => this.handleEvents(), eventInterval);
     this.syncEvents();
     this.handleEvents();
   }
