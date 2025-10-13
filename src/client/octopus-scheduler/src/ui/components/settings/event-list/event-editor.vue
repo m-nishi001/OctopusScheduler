@@ -11,11 +11,25 @@
                 <button class="main-btn" @click="onNew">
                     <span class="btn-icon">➕</span> 新規追加
                 </button>
+                <button class="main-btn" @click="onSync" :disabled="syncing">
+                    <span class="btn-icon">🔄</span> 同期
+                </button>
+                <button class="main-btn delete-btn" @click="onDeleteSelected"
+                    :disabled="!selectedEvents.length || deleting">
+                    <span class="btn-icon">🗑️</span> 選択削除
+                </button>
+            </div>
+            <div v-if="events.length" class="list-controls">
+                <label class="select-all-label">
+                    <input type="checkbox" v-model="isAllSelected" class="select-all-checkbox" />
+                    <span class="sr-only">全選択</span>
+                </label>
             </div>
             <div class="table-section">
                 <table class="event-table">
                     <thead>
                         <tr>
+                            <th>選択</th>
                             <th>イベント名</th>
                             <th>種別</th>
                             <th>開始</th>
@@ -25,6 +39,7 @@
                     </thead>
                     <tbody>
                         <tr v-for="ev in events" :key="ev.id">
+                            <td><input type="checkbox" v-model="selectedEvents" :value="ev.id" /></td>
                             <td>{{ ev.name }}</td>
                             <td>{{ ev.type }}</td>
                             <td>{{ formatDate(ev.timeSpan.start) }}</td>
@@ -39,59 +54,77 @@
                             </td>
                         </tr>
                         <tr v-if="events.length === 0">
-                            <td colspan="5">イベントがありません。</td>
+                            <td colspan="6">イベントがありません。</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-            <div v-if="editing && form" class="editor-form">
-                <h3>{{ isNew ? '新規イベント追加' : 'イベント編集' }}</h3>
-                <form @submit.prevent="isNew ? onAdd() : onUpdate()">
-                    <label>
-                        イベント名:
-                        <input v-model="form.name" required />
-                    </label>
-                    <label>
-                        種別:
-                        <select v-model="form.type" @change="onEventTypeChange">
-                            <option v-for="type in eventTypes" :key="type.eventType" :value="type.eventType">
-                                {{ type.displayName }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        開始:
-                        <input v-model="form.timeSpan.start" type="datetime-local" required />
-                    </label>
-                    <label>
-                        終了:
-                        <input v-model="form.timeSpan.end" type="datetime-local" required />
-                    </label>
-                    <!-- 各イベントタイプの設定コンポーネント -->
-                    <PlayAudioEventConfig v-if="form.type === 'PlayAudioEvent' && form.detail"
-                        :model-value="form.detail"
-                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
-                    <PlayMovieEventConfig v-if="form.type === 'PlayMovieEvent' && form.detail"
-                        :model-value="form.detail"
-                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
-                    <ShowImageEventConfig v-if="form.type === 'ShowImageEvent' && form.detail"
-                        :model-value="form.detail"
-                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
-                    <TransitionPageEventConfig v-if="form.type === 'TransitionPageEvent' && form.detail"
-                        :model-value="form.detail"
-                        @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
-                    <div class="form-actions">
-                        <button class="main-btn" type="submit" :disabled="saving">{{ isNew ? '追加' : '保存' }}</button>
-                        <button class="main-btn" type="button" @click="onCancel">キャンセル</button>
+            <div v-if="editing && form" class="modal-overlay" @click="onCancel">
+                <div class="modal-content" @click.stop>
+                    <h3>{{ isNew ? '新規イベント追加' : 'イベント編集' }}</h3>
+                    <form @submit.prevent="isNew ? onAdd() : onUpdate()">
+                        <label>
+                            イベント名:
+                            <input v-model="form.name" required />
+                        </label>
+                        <label>
+                            種別:
+                            <select v-model="form.type" @change="onEventTypeChange">
+                                <option v-for="type in eventTypes" :key="type.eventType" :value="type.eventType">
+                                    {{ type.displayName }}
+                                </option>
+                            </select>
+                        </label>
+                        <label>
+                            開始:
+                            <input v-model="form.timeSpan.start" type="datetime-local" required />
+                        </label>
+                        <label>
+                            終了:
+                            <input v-model="form.timeSpan.end" type="datetime-local" required />
+                        </label>
+                        <!-- 各イベントタイプの設定コンポーネント -->
+                        <PlayAudioEventConfig v-if="form.type === 'PlayAudioEvent' && form.detail"
+                            :model-value="form.detail"
+                            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
+                        <PlayMovieEventConfig v-if="form.type === 'PlayMovieEvent' && form.detail"
+                            :model-value="form.detail"
+                            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
+                        <ShowImageEventConfig v-if="form.type === 'ShowImageEvent' && form.detail"
+                            :model-value="form.detail"
+                            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
+                        <TransitionPageEventConfig v-if="form.type === 'TransitionPageEvent' && form.detail"
+                            :model-value="form.detail"
+                            @update:modelValue="(val: any) => { if (form) form.detail = val; }" />
+                        <div class="form-actions">
+                            <button class="main-btn" type="submit" :disabled="saving">{{ isNew ? '追加' : '保存' }}</button>
+                            <button class="main-btn" type="button" @click="onCancel">キャンセル</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- イベント種別選択モーダル -->
+            <div v-if="showEventTypeModal" class="modal-overlay" @click="closeEventTypeModal">
+                <div class="modal-content" @click.stop>
+                    <h3>追加するイベント種別を選択</h3>
+                    <div class="event-type-list">
+                        <button v-for="type in eventTypes" :key="type.eventType" class="event-type-btn"
+                            @click="selectEventType(type.eventType)">
+                            {{ type.displayName }}
+                        </button>
                     </div>
-                </form>
+                    <div class="form-actions">
+                        <button class="main-btn" type="button" @click="closeEventTypeModal">キャンセル</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
 import type { ScheduleEventDto } from '../../../../model/domains/schedule-event/entity/schedule-event';
@@ -106,10 +139,27 @@ const saving = ref(false);
 const editing = ref(false);
 const isNew = ref(true);
 const eventTypes = ref<any[]>([]);
+const selectedEvents = ref<string[]>([]);
+const syncing = ref(false);
+const deleting = ref(false);
+const showEventTypeModal = ref(false);
 
 const form = ref<any>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
+
+const isAllSelected = computed({
+    get: () => {
+        return events.value.length > 0 && selectedEvents.value.length === events.value.length;
+    },
+    set: (val: boolean) => {
+        if (val) {
+            selectedEvents.value = events.value.map(ev => ev.id);
+        } else {
+            selectedEvents.value = [];
+        }
+    }
+});
 
 function formatDate(d: any) {
     try {
@@ -136,6 +186,32 @@ function onReload() {
     fetchEvents();
 }
 
+async function onSync() {
+    syncing.value = true;
+    try {
+        await fetchEvents();
+    } catch (e) {
+        alert('同期に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+        syncing.value = false;
+    }
+}
+
+async function onDeleteSelected() {
+    if (!selectedEvents.value.length) return;
+    if (!confirm(`${selectedEvents.value.length} 件のイベントを削除しますか？`)) return;
+    deleting.value = true;
+    try {
+        await scheduleEventService.deleteScheduleEvents(selectedEvents.value);
+        selectedEvents.value = [];
+        await fetchEvents();
+    } catch (e) {
+        alert('削除に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+        deleting.value = false;
+    }
+}
+
 function getDefaultDetail(eventType: string) {
     switch (eventType) {
         case 'PlayAudioEvent':
@@ -153,14 +229,23 @@ function getDefaultDetail(eventType: string) {
 
 
 function onNew() {
+    showEventTypeModal.value = true;
+}
+
+function closeEventTypeModal() {
+    showEventTypeModal.value = false;
+}
+
+function selectEventType(eventType: string) {
+    showEventTypeModal.value = false;
     isNew.value = true;
     editing.value = true;
     form.value = {
         id: '',
         name: '',
-        type: eventTypes.value[0]?.eventType ?? '',
+        type: eventType,
         timeSpan: { start: '', end: '' },
-        detail: getDefaultDetail(eventTypes.value[0]?.eventType ?? ''),
+        detail: getDefaultDetail(eventType),
         processedAt: null,
         registeredAt: new Date(),
         updatedAt: new Date()
@@ -268,6 +353,7 @@ async function onDelete(ev: ScheduleEventDto) {
 
 function onCancel() {
     editing.value = false;
+    form.value = null;
 }
 
 onMounted(async () => {
@@ -467,6 +553,97 @@ onMounted(async () => {
     margin-top: 1em;
     display: flex;
     gap: 1.2em;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #232323;
+    color: #fff;
+    padding: 2em;
+    border-radius: 10px;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-content h3 {
+    margin-bottom: 1em;
+    color: #8fd3ff;
+}
+
+.event-type-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+    margin-bottom: 1em;
+}
+
+.event-type-btn {
+    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
+    color: #232b36;
+    border: none;
+    border-radius: 10px;
+    padding: 1em;
+    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: 600;
+    transition: box-shadow 0.18s, transform 0.12s;
+}
+
+.event-type-btn:hover {
+    box-shadow: 0 6px 18px rgba(79, 140, 255, 0.16);
+    transform: translateY(-2px);
+}
+
+.list-controls {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.select-all-label {
+    margin-left: 10px;
+}
+
+.select-all-checkbox {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    vertical-align: middle;
+}
+
+.sr-only {
+    position: absolute !important;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    clip: rect(1px, 1px, 1px, 1px);
+    white-space: nowrap;
+    border: 0;
+    padding: 0;
+    margin: -1px;
+}
+
+.delete-btn {
+    background: linear-gradient(90deg, #ff6b6b 0%, #ffb3b3 100%);
+}
+
+.delete-btn:hover {
+    box-shadow: 0 6px 18px rgba(255, 107, 107, 0.14);
 }
 
 @media (max-width: 600px) {
