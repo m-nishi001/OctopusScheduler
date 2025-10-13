@@ -1,31 +1,41 @@
 <template>
   <div class="settings dark-bg">
-    <div class="settings-content">
-      <div class="nav-group">
-        <button class="main-btn nav-btn" @click="goHome">
-          <span class="btn-icon">🏠</span> ホームへ
-        </button>
-      </div>
-      <h2 class="settings-title">
+    <header class="settings-header">
+      <h1 class="settings-title">
         <span class="settings-icon">⚙️</span> 設定画面
-      </h2>
-      <div class="btn-group">
-        <button class="main-btn" @click="goToAssets">
-          <span class="btn-icon">🗂️</span> アセット編集
-        </button>
-        <button class="main-btn" @click="goToEvents">
-          <span class="btn-icon">📅</span> イベント編集
-        </button>
-      </div>
+      </h1>
+      <button class="main-btn nav-btn" @click="goHome">
+        <span class="btn-icon">🏠</span> ホームへ
+      </button>
+    </header>
+    <div class="settings-main">
+      <aside class="settings-sidebar">
+        <nav class="sidebar-nav">
+          <button class="sidebar-btn" :class="{ active: currentTab === 'events' }" @click="currentTab = 'events'">
+            <span class="btn-icon">�</span> イベント管理
+          </button>
+          <button class="sidebar-btn" :class="{ active: currentTab === 'assets' }" @click="currentTab = 'assets'">
+            <span class="btn-icon">�️</span> アセット管理
+          </button>
+        </nav>
+      </aside>
+      <main class="settings-content">
+        <EventEditor v-if="currentTab === 'events'" />
+        <AssetListEditor v-else />
+      </main>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import EventEditor from './event-list/event-editor.vue';
+import AssetListEditor from './asset-list/asset-list-editor.vue';
+
 const router = useRouter();
-const goToAssets = () => router.push({ name: 'asset-list-editor' });
-const goToEvents = () => router.push({ name: 'event-editor' });
+const currentTab = ref('events');
+
 const goHome = () => router.push({ name: 'home' });
 </script>
 
@@ -40,20 +50,69 @@ const goHome = () => router.push({ name: 'home' });
   flex-direction: column;
 }
 
-.settings-content {
-  width: 100vw;
-  height: 100vh;
-  padding: 2em;
+.settings-header {
   display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  /* ベース層の背景・枠装飾を削除 */
+  justify-content: space-between;
+  align-items: center;
+  padding: 1em 2em;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.nav-group {
+.settings-title {
+  font-size: 1.5em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0;
   display: flex;
-  justify-content: flex-start;
-  margin-bottom: 1em;
+  align-items: center;
+  gap: 0.5em;
+  color: #fff;
+  text-shadow: 0 2px 12px #000a;
+}
+
+.settings-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.settings-sidebar {
+  width: 250px;
+  background: rgba(0, 0, 0, 0.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1em 0;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  padding: 1em 2em;
+  text-align: left;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  transition: background 0.2s;
+}
+
+.sidebar-btn:hover,
+.sidebar-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.settings-content {
+  flex: 1;
+  padding: 0;
+  overflow: auto;
 }
 
 .nav-btn {
@@ -66,56 +125,9 @@ const goHome = () => router.push({ name: 'home' });
   font-size: 1em;
   font-weight: 600;
   padding: 0.7em 1.8em;
-  margin-right: 1em;
   display: flex;
   align-items: center;
   gap: 0.7em;
-}
-
-.settings-title {
-  font-size: 2em;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  margin-bottom: 2em;
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  color: #fff;
-  text-shadow: 0 2px 12px #000a;
-}
-
-.settings-icon {
-  font-size: 1.3em;
-}
-
-.btn-group {
-  display: flex;
-  gap: 1.5em;
-  margin-bottom: 2em;
-  width: 100%;
-  justify-content: center;
-}
-
-.main-btn {
-  font-size: 1.1em;
-  font-weight: 600;
-  padding: 0.9em 2.2em;
-  background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-  transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
-  outline: none;
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.7em;
-}
-
-.main-btn .btn-icon {
-  font-size: 1.2em;
 }
 
 .main-btn:hover,
@@ -131,19 +143,28 @@ const goHome = () => router.push({ name: 'home' });
 }
 
 @media (max-width: 600px) {
-  .settings-content {
-    width: 100vw;
-    height: 100vh;
-    padding: 0.5em;
+  .settings-main {
+    flex-direction: column;
+  }
+
+  .settings-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .sidebar-btn {
+    flex-shrink:0;
+    padding: 0.7em 1em;
   }
 
   .settings-title {
     font-size: 1.3em;
-  }
-
-  .main-btn {
-    font-size: 1em;
-    padding: 0.7em 1.2em;
   }
 
   .nav-btn {

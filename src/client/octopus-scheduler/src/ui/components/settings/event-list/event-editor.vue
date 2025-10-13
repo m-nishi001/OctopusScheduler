@@ -1,11 +1,6 @@
 <template>
-    <div class="event-list-editor dark-bg">
+    <div class="event-list-editor">
         <div class="editor-content">
-            <div class="nav-group">
-                <button class="main-btn nav-btn" @click="goBack">
-                    <span class="btn-icon">⬅️</span> 戻る
-                </button>
-            </div>
             <h2 class="editor-title">
                 <span class="editor-icon">📅</span> スケジュールイベント管理
             </h2>
@@ -88,9 +83,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-const router = useRouter();
-const goBack = () => router.back();
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
 import type { ScheduleEventDto } from '../../../../model/domains/schedule-event/entity/schedule-event';
@@ -272,18 +264,16 @@ onMounted(async () => {
 
 <style scoped>
 .event-list-editor {
-    background: linear-gradient(135deg, #181818 0%, #222 100%);
     color: #fff;
-    min-height: 100vh;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
 }
 
 .editor-content {
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     padding: 2em;
     display: flex;
     flex-direction: column;
