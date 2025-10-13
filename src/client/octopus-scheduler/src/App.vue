@@ -3,8 +3,8 @@ import type { EventPollingService } from './model/applications/event-polling-ser
 import { inject, watch, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAudio } from '../../packages/shared-composables/src/use-audio';
-import FullScreenVideo from './ui/components/FullScreenVideo.vue';
-import FullScreenImage from './ui/components/FullScreenImage.vue';
+import FullScreenVideo from './ui/components/full-screen-video.vue';
+import FullScreenImage from './ui/components/full-screen-image.vue';
 
 const eventPollingService = inject<EventPollingService>('eventPollingService');
 if (!eventPollingService) {

@@ -80,10 +80,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import AssetPreviewModal from './AssetPreviewModal.vue';
-import AudioPreview from './AudioPreview.vue';
-import ImagePreview from './ImagePreview.vue';
-import VideoPreview from './VideoPreview.vue';
+import AssetPreviewModal from './asset-preview-modal.vue';
+import AudioPreview from './audio-preview.vue';
+import ImagePreview from './image-preview.vue';
+import VideoPreview from './video-preview.vue';
 import { AssetService } from '../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../model/domains/assets/entity/asset';
 import { container } from "tsyringe";
