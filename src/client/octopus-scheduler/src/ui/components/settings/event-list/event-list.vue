@@ -76,16 +76,16 @@
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
-import type { IScheduleEventEntity } from '../../../../model/applications/schedule-event/i-schedule-event-entity';
+import type { IScheduleEventDto } from '../../../../model/applications/schedule-event/i-schedule-event-dto';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
 import ContentDisplayEventDialog from './dialogs/content-display-event-dialog.vue';
 import MusicPlaybackEventDialog from './dialogs/music-playback-event-dialog.vue';
 import ScreenTransitionEventDialog from './dialogs/screen-transition-event-dialog.vue';
-import { ShowContentEventEntity } from '../../../../model/applications/schedule-event/show-content-event/show-content-event-entity';
-import { PlayAudioEventEntity } from '../../../../model/applications/schedule-event/play-audio-event/play-audio-event-entity';
-import { TransitionPageEventEntity } from '../../../../model/applications/schedule-event/transition-page-event/transition-page-event-entity';
+import { ShowContentEventDto } from '../../../../model/applications/schedule-event/show-content-event/show-content-event-dto';
+import { PlayAudioEventDto } from '../../../../model/applications/schedule-event/play-audio-event/play-audio-event-dto';
+import { TransitionPageEventDto } from '../../../../model/applications/schedule-event/transition-page-event/transition-page-event-dto';
 
-const events = ref<IScheduleEventEntity[]>([]);
+const events = ref<IScheduleEventDto[]>([]);
 const loading = ref(false);
 const selectedEvents = ref<string[]>([]);
 const syncing = ref(false);
@@ -94,7 +94,7 @@ const showTypeSelection = ref(false);
 const showContentDialog = ref(false);
 const showMusicDialog = ref(false);
 const showTransitionDialog = ref(false);
-const editingEvent = ref<IScheduleEventEntity | null>(null);
+const editingEvent = ref<IScheduleEventDto | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 
@@ -161,7 +161,7 @@ function onTypeSelected(type: string) {
     }
 }
 
-function onEdit(ev: IScheduleEventEntity) {
+function onEdit(ev: IScheduleEventDto) {
     editingEvent.value = ev;
     switch (ev.type) {
         case 'ShowContentEvent':
@@ -187,7 +187,7 @@ async function onContentSubmit(form: any) {
     try {
         if (editingEvent.value) {
             // Update
-            const updated = new ShowContentEventEntity(
+            const updated = new ShowContentEventDto(
                 editingEvent.value.id,
                 form.startTime,
                 form.endTime,
@@ -202,7 +202,7 @@ async function onContentSubmit(form: any) {
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
             // Add
-            const tempEvent = new ShowContentEventEntity(
+            const tempEvent = new ShowContentEventDto(
                 '',
                 form.startTime,
                 form.endTime,
@@ -215,7 +215,7 @@ async function onContentSubmit(form: any) {
                 new Date()
             );
             const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
-            const newEvent = new ShowContentEventEntity(
+            const newEvent = new ShowContentEventDto(
                 ids[0],
                 form.startTime,
                 form.endTime,
@@ -242,7 +242,7 @@ async function onMusicSubmit(form: any) {
     try {
         if (editingEvent.value) {
             // Update
-            const updated = new PlayAudioEventEntity(
+            const updated = new PlayAudioEventDto(
                 editingEvent.value.id,
                 form.startTime,
                 form.endTime,
@@ -255,7 +255,7 @@ async function onMusicSubmit(form: any) {
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
             // Add
-            const tempEvent = new PlayAudioEventEntity(
+            const tempEvent = new PlayAudioEventDto(
                 '',
                 form.startTime,
                 form.endTime,
@@ -266,7 +266,7 @@ async function onMusicSubmit(form: any) {
                 new Date()
             );
             const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
-            const newEvent = new PlayAudioEventEntity(
+            const newEvent = new PlayAudioEventDto(
                 ids[0],
                 form.startTime,
                 form.endTime,
@@ -291,7 +291,7 @@ async function onTransitionSubmit(form: any) {
     try {
         if (editingEvent.value) {
             // Update
-            const updated = new TransitionPageEventEntity(
+            const updated = new TransitionPageEventDto(
                 editingEvent.value.id,
                 form.startTime,
                 form.endTime,
@@ -304,7 +304,7 @@ async function onTransitionSubmit(form: any) {
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
             // Add
-            const tempEvent = new TransitionPageEventEntity(
+            const tempEvent = new TransitionPageEventDto(
                 '',
                 form.startTime,
                 form.endTime,
@@ -315,7 +315,7 @@ async function onTransitionSubmit(form: any) {
                 new Date()
             );
             const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
-            const newEvent = new TransitionPageEventEntity(
+            const newEvent = new TransitionPageEventDto(
                 ids[0],
                 form.startTime,
                 form.endTime,
@@ -367,7 +367,7 @@ async function onDeleteSelected() {
     }
 }
 
-async function onDelete(ev: IScheduleEventEntity) {
+async function onDelete(ev: IScheduleEventDto) {
     if (!confirm(`${ev.type} を削除しますか？`)) return;
     try {
         await scheduleEventService.deleteScheduleEvents([ev.id]);

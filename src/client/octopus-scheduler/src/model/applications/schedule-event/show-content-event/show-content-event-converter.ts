@@ -1,57 +1,21 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventEntity } from "../i-schedule-event-entity";
-import { ShowContentEventEntity } from "./show-content-event-entity";
-
-export interface ShowContentEventDetail {
-  contentType: "image" | "movie" | "html";
-  contentId?: string;
-  htmlString?: string;
-  fadeOutDuration?: number;
-}
+import type { IScheduleEventDto } from "../i-schedule-event-dto";
+import { ShowContentEventDto } from "./show-content-event-dto";
 
 @injectable()
 export class ShowContentEventConverter {
-  toDto(event: IScheduleEventEntity): ShowContentEventDetail {
-    const showContentEvent = event as ShowContentEventEntity;
-    return {
-      contentType: showContentEvent.contentType,
-      contentId: showContentEvent.contentId,
-      htmlString: showContentEvent.htmlString,
-      fadeOutDuration: showContentEvent.fadeOutDuration,
-    };
-  }
-
-  toEntity(
-    detail: ShowContentEventDetail,
-    baseEvent: Omit<IScheduleEventEntity, "detail">
-  ): IScheduleEventEntity {
-    return new ShowContentEventEntity(
-      baseEvent.id,
-      baseEvent.startTime,
-      baseEvent.endTime,
-      detail.contentType,
-      detail.contentId,
-      detail.htmlString,
-      detail.fadeOutDuration,
-      baseEvent.processedAt,
-      baseEvent.registeredAt,
-      baseEvent.updatedAt
-    );
-  }
-
-  toShowContentEventDto(event: IScheduleEventEntity): ShowContentEventEntity {
-    const showContentEvent = event as ShowContentEventEntity;
-    return new ShowContentEventEntity(
-      event.id,
-      event.startTime,
-      event.endTime,
-      showContentEvent.contentType,
-      showContentEvent.contentId,
-      showContentEvent.htmlString,
-      showContentEvent.fadeOutDuration,
-      event.processedAt,
-      event.registeredAt,
-      event.updatedAt
+  toEntity(records: Record<string, string>): IScheduleEventDto {
+    return new ShowContentEventDto(
+      records.id,
+      new Date(records.startTime),
+      new Date(records.endTime),
+      records.contentType as "image" | "movie" | "html",
+      records.contentId || undefined,
+      records.htmlString || undefined,
+      records.fadeOutDuration ? parseInt(records.fadeOutDuration) : undefined,
+      records.processedAt ? new Date(records.processedAt) : null,
+      new Date(records.registeredAt),
+      new Date(records.updatedAt)
     );
   }
 }

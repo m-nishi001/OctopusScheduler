@@ -1,49 +1,19 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventEntity } from "../i-schedule-event-entity";
-import { PlayAudioEventEntity } from "./play-audio-event-entity";
-
-export interface PlayAudioEventDetail {
-  audioId: string;
-  fadeOutDuration?: number;
-}
+import type { IScheduleEventDto } from "../i-schedule-event-dto";
+import { PlayAudioEventDto } from "./play-audio-event-dto";
 
 @injectable()
 export class PlayAudioEventConverter {
-  toDto(event: IScheduleEventEntity): PlayAudioEventDetail {
-    const playAudioEvent = event as PlayAudioEventEntity;
-    return {
-      audioId: playAudioEvent.audioId,
-      fadeOutDuration: playAudioEvent.fadeOutDuration,
-    };
-  }
-
-  toEntity(
-    detail: PlayAudioEventDetail,
-    baseEvent: Omit<IScheduleEventEntity, "detail">
-  ): IScheduleEventEntity {
-    return new PlayAudioEventEntity(
-      baseEvent.id,
-      baseEvent.startTime,
-      baseEvent.endTime,
-      detail.audioId,
-      detail.fadeOutDuration,
-      baseEvent.processedAt,
-      baseEvent.registeredAt,
-      baseEvent.updatedAt
-    );
-  }
-
-  toPlayAudioEventDto(event: IScheduleEventEntity): PlayAudioEventEntity {
-    const playAudioEvent = event as PlayAudioEventEntity;
-    return new PlayAudioEventEntity(
-      event.id,
-      event.startTime,
-      event.endTime,
-      playAudioEvent.audioId,
-      playAudioEvent.fadeOutDuration,
-      event.processedAt,
-      event.registeredAt,
-      event.updatedAt
+  toEntity(records: Record<string, string>): IScheduleEventDto {
+    return new PlayAudioEventDto(
+      records.id,
+      new Date(records.startTime),
+      new Date(records.endTime),
+      records.audioId,
+      records.fadeOutDuration ? parseInt(records.fadeOutDuration) : undefined,
+      records.processedAt ? new Date(records.processedAt) : null,
+      new Date(records.registeredAt),
+      new Date(records.updatedAt)
     );
   }
 }

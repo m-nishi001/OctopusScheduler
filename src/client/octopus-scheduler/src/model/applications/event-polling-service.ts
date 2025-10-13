@@ -1,6 +1,6 @@
 import { container } from "tsyringe";
 import type { ScheduleEventService } from "./schedule-event/schedule-event-service";
-import type { IScheduleEventEntity } from "./schedule-event/i-schedule-event-entity";
+import type { IScheduleEventDto } from "./schedule-event/i-schedule-event-dto";
 
 export class EventPollingService {
   private syncTimer: any = null;
@@ -9,14 +9,14 @@ export class EventPollingService {
     "ScheduleEventService"
   );
   private onEventsCallback?: (
-    startEvents: IScheduleEventEntity[],
-    endEvents: IScheduleEventEntity[]
+    startEvents: IScheduleEventDto[],
+    endEvents: IScheduleEventDto[]
   ) => void;
 
   public setOnEventsCallback(
     callback: (
-      startEvents: IScheduleEventEntity[],
-      endEvents: IScheduleEventEntity[]
+      startEvents: IScheduleEventDto[],
+      endEvents: IScheduleEventDto[]
     ) => void
   ) {
     this.onEventsCallback = callback;

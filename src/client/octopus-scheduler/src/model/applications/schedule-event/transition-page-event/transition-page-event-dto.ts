@@ -1,12 +1,12 @@
-import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import type { IScheduleEventDto } from "../i-schedule-event-dto";
 import { eventBus } from "../../../../core/event-bus";
 
-export class PlayAudioEventEntity implements IScheduleEventEntity {
+export class TransitionPageEventDto implements IScheduleEventDto {
   public readonly id: string;
-  public readonly type: string = "PlayAudioEvent";
+  public readonly type: string = "TransitionPageEvent";
   public readonly startTime: Date;
   public readonly endTime: Date;
-  public readonly audioId: string;
+  public readonly transitionUrl: string;
   public readonly fadeOutDuration?: number;
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
@@ -16,7 +16,7 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
     id: string,
     startTime: Date,
     endTime: Date,
-    audioId: string,
+    transitionUrl: string,
     fadeOutDuration: number | undefined,
     processedAt: Date | null,
     registeredAt: Date,
@@ -25,7 +25,7 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
     this.id = id;
     this.startTime = startTime;
     this.endTime = endTime;
-    this.audioId = audioId;
+    this.transitionUrl = transitionUrl;
     this.fadeOutDuration = fadeOutDuration;
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
@@ -34,9 +34,7 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
 
   async execute(isStart: boolean): Promise<void> {
     if (isStart) {
-      eventBus.emit("playAudio", { audioId: this.audioId });
-    } else {
-      eventBus.emit("stopAudio");
+      eventBus.emit("transitionPage", { transitionUrl: this.transitionUrl });
     }
   }
 
@@ -46,7 +44,7 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
       ["type", this.type],
       ["startTime", this.startTime.toISOString()],
       ["endTime", this.endTime.toISOString()],
-      ["audioId", this.audioId],
+      ["transitionUrl", this.transitionUrl],
       ["fadeOutDuration", this.fadeOutDuration?.toString() ?? ""],
       ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],
       ["registeredAt", this.registeredAt.toISOString()],

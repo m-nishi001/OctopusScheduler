@@ -31,10 +31,10 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { TransitionPageEventEntity } from '../../../../../model/applications/schedule-event/transition-page-event/transition-page-event-entity';
+import type { TransitionPageEventDto } from '../../../../../model/applications/schedule-event/transition-page-event/transition-page-event-dto';
 
 interface Props {
-    event?: TransitionPageEventEntity;
+    event?: TransitionPageEventDto;
 }
 
 const props = defineProps<Props>();

@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { inject, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import type { IScheduleEventEntity } from '../../../model/applications/schedule-event/i-schedule-event-entity';
+import type { IScheduleEventDto } from '../../../model/applications/schedule-event/i-schedule-event-dto';
 import { PlayAudioEventHandler } from '../schedule-event-handler/play-audio-event-handler';
 import { ShowContentEventHandler } from '../schedule-event-handler/show-content/show-content-event-handler';
 import { TransitionPageEventHandler } from '../schedule-event-handler/transition-page-event-handler';
@@ -74,7 +74,7 @@ const goToSettings = () => router.push({ name: 'settings' });
 const goToJackpotGame = () => router.push('/jackpot-home');
 const goToCardGame = () => router.push('/card-home');
 
-const onEvents = async (startEvents: IScheduleEventEntity[], endEvents: IScheduleEventEntity[]) => {
+const onEvents = async (startEvents: IScheduleEventDto[], endEvents: IScheduleEventDto[]) => {
   localState.upcomingEvent = startEvents.length > 0 ? startEvents.map((e) => e.type).join(", ") : "（なし）";
   localState.currentEvent = startEvents.length > 0 ? startEvents.map((e) => e.type).join(", ") : "（なし）";
   localState.endingEvent = endEvents.length > 0 ? endEvents.map((e) => e.type).join(", ") : "（なし）";

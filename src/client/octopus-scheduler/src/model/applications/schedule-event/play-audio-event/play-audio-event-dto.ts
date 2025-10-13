@@ -1,12 +1,12 @@
-import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import type { IScheduleEventDto } from "../i-schedule-event-dto";
 import { eventBus } from "../../../../core/event-bus";
 
-export class TransitionPageEventEntity implements IScheduleEventEntity {
+export class PlayAudioEventDto implements IScheduleEventDto {
   public readonly id: string;
-  public readonly type: string = "TransitionPageEvent";
+  public readonly type: string = "PlayAudioEvent";
   public readonly startTime: Date;
   public readonly endTime: Date;
-  public readonly transitionUrl: string;
+  public readonly audioId: string;
   public readonly fadeOutDuration?: number;
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
@@ -16,7 +16,7 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
     id: string,
     startTime: Date,
     endTime: Date,
-    transitionUrl: string,
+    audioId: string,
     fadeOutDuration: number | undefined,
     processedAt: Date | null,
     registeredAt: Date,
@@ -25,7 +25,7 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
     this.id = id;
     this.startTime = startTime;
     this.endTime = endTime;
-    this.transitionUrl = transitionUrl;
+    this.audioId = audioId;
     this.fadeOutDuration = fadeOutDuration;
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
@@ -34,7 +34,9 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
 
   async execute(isStart: boolean): Promise<void> {
     if (isStart) {
-      eventBus.emit("transitionPage", { transitionUrl: this.transitionUrl });
+      eventBus.emit("playAudio", { audioId: this.audioId });
+    } else {
+      eventBus.emit("stopAudio");
     }
   }
 
@@ -44,7 +46,7 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
       ["type", this.type],
       ["startTime", this.startTime.toISOString()],
       ["endTime", this.endTime.toISOString()],
-      ["transitionUrl", this.transitionUrl],
+      ["audioId", this.audioId],
       ["fadeOutDuration", this.fadeOutDuration?.toString() ?? ""],
       ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],
       ["registeredAt", this.registeredAt.toISOString()],

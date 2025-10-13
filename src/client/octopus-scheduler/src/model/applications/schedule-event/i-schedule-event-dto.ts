@@ -1,4 +1,4 @@
-export interface IScheduleEventEntity {
+export interface IScheduleEventDto {
   readonly id: string;
   readonly type: string;
   readonly startTime: Date;

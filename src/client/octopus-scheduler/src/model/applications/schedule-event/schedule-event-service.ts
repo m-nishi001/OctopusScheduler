@@ -1,71 +1,42 @@
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
-import type { IScheduleEventEntity } from "./i-schedule-event-entity";
+import type { IScheduleEventDto } from "./i-schedule-event-dto";
 import { ScheduleEvent } from "../../domains/schedule-event/schedule-event";
-import { PlayAudioEventEntity } from "./play-audio-event/play-audio-event-entity";
-import { ShowContentEventEntity } from "./show-content-event/show-content-event-entity";
-import { TransitionPageEventEntity } from "./transition-page-event/transition-page-event-entity";
 import { injectable, inject } from "tsyringe";
+import { PlayAudioEventConverter } from "./play-audio-event/play-audio-event-converter";
+import { ShowContentEventConverter } from "./show-content-event/show-content-event-converter";
+import { TransitionPageEventConverter } from "./transition-page-event/transition-page-event-converter";
 
 @injectable()
 export class ScheduleEventService {
   constructor(
     @inject("IScheduleEventRepository")
-    private scheduleEventRepository: IScheduleEventRepository
+    private scheduleEventRepository: IScheduleEventRepository,
+    @inject("PlayAudioEventConverter")
+    private playAudioConverter: PlayAudioEventConverter,
+    @inject("ShowContentEventConverter")
+    private showContentConverter: ShowContentEventConverter,
+    @inject("TransitionPageEventConverter")
+    private transitionPageConverter: TransitionPageEventConverter
   ) {}
 
-  private deserialize(scheduleEvent: ScheduleEvent): IScheduleEventEntity {
+  private deserialize(scheduleEvent: ScheduleEvent): IScheduleEventDto {
     const records = JSON.parse(scheduleEvent.settingValue) as Record<
       string,
       string
     >;
     switch (scheduleEvent.type) {
       case "PlayAudioEvent":
-        return new PlayAudioEventEntity(
-          records.id,
-          new Date(records.startTime),
-          new Date(records.endTime),
-          records.audioId,
-          records.fadeOutDuration
-            ? parseInt(records.fadeOutDuration)
-            : undefined,
-          records.processedAt ? new Date(records.processedAt) : null,
-          new Date(records.registeredAt),
-          new Date(records.updatedAt)
-        );
+        return this.playAudioConverter.toEntity(records);
       case "ShowContentEvent":
-        return new ShowContentEventEntity(
-          records.id,
-          new Date(records.startTime),
-          new Date(records.endTime),
-          records.contentType as "image" | "movie" | "html",
-          records.contentId || undefined,
-          records.htmlString || undefined,
-          records.fadeOutDuration
-            ? parseInt(records.fadeOutDuration)
-            : undefined,
-          records.processedAt ? new Date(records.processedAt) : null,
-          new Date(records.registeredAt),
-          new Date(records.updatedAt)
-        );
+        return this.showContentConverter.toEntity(records);
       case "TransitionPageEvent":
-        return new TransitionPageEventEntity(
-          records.id,
-          new Date(records.startTime),
-          new Date(records.endTime),
-          records.transitionUrl,
-          records.fadeOutDuration
-            ? parseInt(records.fadeOutDuration)
-            : undefined,
-          records.processedAt ? new Date(records.processedAt) : null,
-          new Date(records.registeredAt),
-          new Date(records.updatedAt)
-        );
+        return this.transitionPageConverter.toEntity(records);
       default:
         throw new Error(`Unknown event type: ${scheduleEvent.type}`);
     }
   }
 
-  private serialize(event: IScheduleEventEntity): ScheduleEvent {
+  private serialize(event: IScheduleEventDto): ScheduleEvent {
     const records = event.toRecords();
     return new ScheduleEvent(
       event.id,
@@ -75,13 +46,13 @@ export class ScheduleEventService {
     );
   }
 
-  async getScheduleEvents(): Promise<IScheduleEventEntity[]> {
+  async getScheduleEvents(): Promise<IScheduleEventDto[]> {
     const scheduleEvents =
       await this.scheduleEventRepository.getScheduleEvents();
     return scheduleEvents.map((e) => this.deserialize(e));
   }
 
-  async updateScheduleEvents(events: IScheduleEventEntity[]): Promise<void> {
+  async updateScheduleEvents(events: IScheduleEventDto[]): Promise<void> {
     const scheduleEvents = events.map((e) => this.serialize(e));
     await this.scheduleEventRepository.updateScheduleEvents(scheduleEvents);
   }
@@ -90,14 +61,14 @@ export class ScheduleEventService {
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 
-  async addScheduleEvents(events: IScheduleEventEntity[]): Promise<string[]> {
+  async addScheduleEvents(events: IScheduleEventDto[]): Promise<string[]> {
     const scheduleEvents = events.map((e) => this.serialize(e));
     return await this.scheduleEventRepository.addScheduleEvents(scheduleEvents);
   }
 
   async getCurrentScheduleEvent(): Promise<{
-    startEvents: IScheduleEventEntity[];
-    endEvents: IScheduleEventEntity[];
+    startEvents: IScheduleEventDto[];
+    endEvents: IScheduleEventDto[];
   }> {
     const events = await this.getScheduleEvents();
     const now = new Date();

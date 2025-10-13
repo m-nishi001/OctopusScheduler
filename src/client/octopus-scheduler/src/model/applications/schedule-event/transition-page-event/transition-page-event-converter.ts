@@ -1,51 +1,19 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventEntity } from "../i-schedule-event-entity";
-import { TransitionPageEventEntity } from "./transition-page-event-entity";
-
-export interface TransitionPageDetail {
-  transitionUrl: string;
-  fadeOutDuration?: number;
-}
+import type { IScheduleEventDto } from "../i-schedule-event-dto";
+import { TransitionPageEventDto } from "./transition-page-event-dto";
 
 @injectable()
 export class TransitionPageEventConverter {
-  toDto(event: IScheduleEventEntity): TransitionPageDetail {
-    const transitionPageEvent = event as TransitionPageEventEntity;
-    return {
-      transitionUrl: transitionPageEvent.transitionUrl,
-      fadeOutDuration: transitionPageEvent.fadeOutDuration,
-    };
-  }
-
-  toEntity(
-    detail: TransitionPageDetail,
-    baseEvent: Omit<IScheduleEventEntity, "detail">
-  ): IScheduleEventEntity {
-    return new TransitionPageEventEntity(
-      baseEvent.id,
-      baseEvent.startTime,
-      baseEvent.endTime,
-      detail.transitionUrl,
-      detail.fadeOutDuration,
-      baseEvent.processedAt,
-      baseEvent.registeredAt,
-      baseEvent.updatedAt
-    );
-  }
-
-  toTransitionPageEventDto(
-    event: IScheduleEventEntity
-  ): TransitionPageEventEntity {
-    const transitionPageEvent = event as TransitionPageEventEntity;
-    return new TransitionPageEventEntity(
-      event.id,
-      event.startTime,
-      event.endTime,
-      transitionPageEvent.transitionUrl,
-      transitionPageEvent.fadeOutDuration,
-      event.processedAt,
-      event.registeredAt,
-      event.updatedAt
+  toEntity(records: Record<string, string>): IScheduleEventDto {
+    return new TransitionPageEventDto(
+      records.id,
+      new Date(records.startTime),
+      new Date(records.endTime),
+      records.transitionUrl,
+      records.fadeOutDuration ? parseInt(records.fadeOutDuration) : undefined,
+      records.processedAt ? new Date(records.processedAt) : null,
+      new Date(records.registeredAt),
+      new Date(records.updatedAt)
     );
   }
 }

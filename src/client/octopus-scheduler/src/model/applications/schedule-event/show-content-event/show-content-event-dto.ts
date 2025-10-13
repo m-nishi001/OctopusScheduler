@@ -1,7 +1,7 @@
-import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import type { IScheduleEventDto } from "../i-schedule-event-dto";
 import { eventBus } from "../../../../core/event-bus";
 
-export class ShowContentEventEntity implements IScheduleEventEntity {
+export class ShowContentEventDto implements IScheduleEventDto {
   public readonly id: string;
   public readonly type: string = "ShowContentEvent";
   public readonly startTime: Date;
