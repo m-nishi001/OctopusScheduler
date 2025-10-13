@@ -21,4 +21,4 @@ app.provide("assetService", assetService);
 app.provide("audio", audio);
 app.use(router).mount("#app");
 
-registerEventHandlers(audio, assetService, router);
+registerEventHandlers(router);

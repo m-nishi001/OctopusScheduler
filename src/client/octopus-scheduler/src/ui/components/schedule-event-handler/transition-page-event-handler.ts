@@ -1,7 +1,8 @@
+import type { Router } from "vue-router";
 import { eventBus } from "../../../core/event-bus";
 
 export class TransitionPageEventHandler {
-  static register(router: any) {
+  static register(router: Router) {
     eventBus.on("transitionPage", (data: { transitionUrl: string }) =>
       this.handleTransitionPage(data, router)
     );
@@ -9,7 +10,7 @@ export class TransitionPageEventHandler {
 
   private static async handleTransitionPage(
     data: { transitionUrl: string },
-    router: any
+    router: Router
   ) {
     router.push({ path: data.transitionUrl });
   }

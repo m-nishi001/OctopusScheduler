@@ -1,28 +1,46 @@
 import { eventBus } from "../../../core/event-bus";
+import { AudioService } from "../../../../../packages/common-lib/src/audio/audio-service";
+import { container } from "tsyringe";
 
 export class PlayAudioEventHandler {
-  static register(audio: any, assetService: any) {
+  private static audioService = new AudioService();
+  private static playingInstances = new Map<string, string>();
+
+  static register() {
+    const assetService = container.resolve("AssetService");
     eventBus.on("playAudio", (data: { audioId?: string }) =>
-      this.handlePlayAudio(data, audio, assetService)
+      this.handlePlayAudio(data, assetService)
     );
-    eventBus.on("stopAudio", () => this.handleStopAudio(audio));
+    eventBus.on("stopAudio", () => this.handleStopAudio());
   }
 
   private static async handlePlayAudio(
     data: { audioId?: string },
-    audio: any,
     assetService: any
   ) {
     if (data.audioId) {
-      const asset = await assetService.getAssetById(data.audioId);
-      if (asset && asset.dataUrl) {
-        await audio.load(asset.dataUrl);
-        await audio.play();
+      try {
+        const asset = await assetService.getAssetById(data.audioId);
+        if (asset && asset.dataUrl) {
+          const instanceId = await this.audioService.loadFromUrl(asset.dataUrl);
+          await this.audioService.play(instanceId);
+          this.playingInstances.set(data.audioId, instanceId);
+        }
+      } catch (error) {
+        console.error("Failed to play audio:", error);
       }
     }
   }
 
-  private static async handleStopAudio(audio: any) {
-    await audio.stop();
+  private static async handleStopAudio() {
+    for (const instanceId of this.playingInstances.values()) {
+      try {
+        await this.audioService.stop(instanceId);
+        this.audioService.disposeInstance(instanceId);
+      } catch (error) {
+        console.error("Failed to stop audio:", error);
+      }
+    }
+    this.playingInstances.clear();
   }
 }

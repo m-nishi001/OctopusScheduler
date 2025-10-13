@@ -1,7 +1,8 @@
+import type { Router } from "vue-router";
 import { eventBus } from "../../../../core/event-bus";
 
 export class ShowContentEventHandler {
-  static register(router: any) {
+  static register(router: Router) {
     eventBus.on(
       "showContent",
       (data: {
@@ -19,7 +20,7 @@ export class ShowContentEventHandler {
       contentId?: string;
       htmlString?: string;
     },
-    router: any
+    router: Router
   ) {
     if (data.contentType === "image") {
       if (data.contentId) {
@@ -43,7 +44,7 @@ export class ShowContentEventHandler {
     }
   }
 
-  private static async handleHideContent(router: any) {
+  private static async handleHideContent(router: Router) {
     // コンテンツを隠すために、前のページに戻る
     router.back();
   }
