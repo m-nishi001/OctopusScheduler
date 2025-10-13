@@ -1,6 +1,6 @@
 import { container } from "tsyringe";
 import type { ScheduleEventService } from "./schedule-event/schedule-event-service";
-import type { IScheduleEventEntity } from "src/model/domains/schedule-event/i-schedule-event-entity";
+import type { IScheduleEventEntity } from "./schedule-event/i-schedule-event-entity";
 
 export class EventPollingService {
   private pollingTimer: any = null;

@@ -76,14 +76,14 @@
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
-import type { IScheduleEventEntity } from '../../../../model/domains/schedule-event/i-schedule-event-entity';
+import type { IScheduleEventEntity } from '../../../../model/applications/schedule-event/i-schedule-event-entity';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
 import ContentDisplayEventDialog from './dialogs/content-display-event-dialog.vue';
 import MusicPlaybackEventDialog from './dialogs/music-playback-event-dialog.vue';
 import ScreenTransitionEventDialog from './dialogs/screen-transition-event-dialog.vue';
-import { ShowContentEventEntity } from '../../../../model/domains/schedule-event/show-content-event/show-content-event-entity';
-import { PlayAudioEventEntity } from '../../../../model/domains/schedule-event/play-audio-event/play-audio-event-entity';
-import { TransitionPageEventEntity } from '../../../../model/domains/schedule-event/transition-page-event/transition-page-event-entity';
+import { ShowContentEventEntity } from '../../../../model/applications/schedule-event/show-content-event/show-content-event-entity';
+import { PlayAudioEventEntity } from '../../../../model/applications/schedule-event/play-audio-event/play-audio-event-entity';
+import { TransitionPageEventEntity } from '../../../../model/applications/schedule-event/transition-page-event/transition-page-event-entity';
 
 const events = ref<IScheduleEventEntity[]>([]);
 const loading = ref(false);

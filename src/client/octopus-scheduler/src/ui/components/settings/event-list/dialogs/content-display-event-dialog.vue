@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { ShowContentEventEntity } from '../../../../../model/domains/schedule-event/show-content-event/show-content-event-entity';
+import type { ShowContentEventEntity } from '../../../../../model/applications/schedule-event/show-content-event/show-content-event-entity';
 
 interface Props {
     event?: ShowContentEventEntity;

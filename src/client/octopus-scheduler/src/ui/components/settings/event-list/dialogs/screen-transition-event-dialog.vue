@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { TransitionPageEventEntity } from '../../../../../model/domains/schedule-event/transition-page-event/transition-page-event-entity';
+import type { TransitionPageEventEntity } from '../../../../../model/applications/schedule-event/transition-page-event/transition-page-event-entity';
 
 interface Props {
     event?: TransitionPageEventEntity;

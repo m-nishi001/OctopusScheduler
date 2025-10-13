@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventEntity } from "../../../domains/schedule-event/i-schedule-event-entity";
-import { PlayAudioEventEntity } from "../../../domains/schedule-event/play-audio-event/play-audio-event-entity";
+import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import { PlayAudioEventEntity } from "./play-audio-event-entity";
 
 export interface PlayAudioEventDetail {
   audioId: string;

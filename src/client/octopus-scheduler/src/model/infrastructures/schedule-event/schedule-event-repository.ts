@@ -2,7 +2,7 @@ import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/s
 import { useLocalStorage } from "/root/google_apps_script/octopus-scheduler/src/client/packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../storage-config";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
-import type { IScheduleEventEntity } from "../../domains/schedule-event/i-schedule-event-entity";
+import { ScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable } from "tsyringe";
 
 @injectable()
@@ -18,12 +18,12 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     this.service = GasFunctionService.create(apiName)!;
   }
 
-  async getScheduleEvents(): Promise<IScheduleEventEntity[]> {
-    const allEvents = await this.localStorage.getAll<IScheduleEventEntity>();
+  async getScheduleEvents(): Promise<ScheduleEvent[]> {
+    const allEvents = await this.localStorage.getAll<ScheduleEvent>();
     return Array.from(allEvents.values());
   }
 
-  async updateScheduleEvents(events: IScheduleEventEntity[]): Promise<void> {
+  async updateScheduleEvents(events: ScheduleEvent[]): Promise<void> {
     if (!this.service) return;
 
     await this.service
@@ -61,7 +61,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     await this.localStorage.removeMultiple(ids);
   }
 
-  async addScheduleEvents(events: IScheduleEventEntity[]): Promise<string[]> {
+  async addScheduleEvents(events: ScheduleEvent[]): Promise<string[]> {
     if (!this.service) return events.map((e) => e.id);
 
     return new Promise((resolve, reject) => {
@@ -95,7 +95,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
 
     return new Promise((resolve, reject) => {
       this.service
-        .createCall<IScheduleEventEntity[]>("ScheduleService.getScheduleEvents")
+        .createCall<ScheduleEvent[]>("ScheduleService.getScheduleEvents")
         .withSuccessed(async (data) => {
           for (const event of data) {
             await this.localStorage.save(event.id, event);

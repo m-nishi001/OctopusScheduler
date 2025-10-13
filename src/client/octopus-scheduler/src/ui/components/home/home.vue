@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { inject, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import type { IScheduleEventEntity } from '../../../model/domains/schedule-event/i-schedule-event-entity';
+import type { IScheduleEventEntity } from '../../../model/applications/schedule-event/i-schedule-event-entity';
 import { PlayAudioEventHandler } from '../schedule-event-handler/play-audio-event-handler';
 import { ShowContentEventHandler } from '../schedule-event-handler/show-content/show-content-event-handler';
 import { TransitionPageEventHandler } from '../schedule-event-handler/transition-page-event-handler';

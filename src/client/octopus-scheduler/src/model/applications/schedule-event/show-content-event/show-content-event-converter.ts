@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventEntity } from "../../../domains/schedule-event/i-schedule-event-entity";
-import { ShowContentEventEntity } from "../../../domains/schedule-event/show-content-event/show-content-event-entity";
+import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import { ShowContentEventEntity } from "./show-content-event-entity";
 
 export interface ShowContentEventDetail {
   contentType: "image" | "movie" | "html";

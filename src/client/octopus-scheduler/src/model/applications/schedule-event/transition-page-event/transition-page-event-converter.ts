@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventEntity } from "../../../domains/schedule-event/i-schedule-event-entity";
-import { TransitionPageEventEntity } from "../../../domains/schedule-event/transition-page-event/transition-page-event-entity";
+import type { IScheduleEventEntity } from "../i-schedule-event-entity";
+import { TransitionPageEventEntity } from "./transition-page-event-entity";
 
 export interface TransitionPageDetail {
   transitionUrl: string;

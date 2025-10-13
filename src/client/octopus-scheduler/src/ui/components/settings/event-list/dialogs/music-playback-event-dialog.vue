@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { PlayAudioEventEntity } from '../../../../../model/domains/schedule-event/play-audio-event/play-audio-event-entity';
+import type { PlayAudioEventEntity } from '../../../../../model/applications/schedule-event/play-audio-event/play-audio-event-entity';
 
 interface Props {
     event?: PlayAudioEventEntity;
