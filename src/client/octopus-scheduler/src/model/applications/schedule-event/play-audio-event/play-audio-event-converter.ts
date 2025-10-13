@@ -23,7 +23,8 @@ export class PlayAudioEventConverter {
   ): IScheduleEventEntity {
     return new PlayAudioEventEntity(
       baseEvent.id,
-      baseEvent.timeSpan,
+      baseEvent.startTime,
+      baseEvent.endTime,
       detail.audioId,
       detail.fadeOutDuration,
       baseEvent.processedAt,
@@ -36,7 +37,8 @@ export class PlayAudioEventConverter {
     const playAudioEvent = event as PlayAudioEventEntity;
     return new PlayAudioEventEntity(
       event.id,
-      event.timeSpan,
+      event.startTime,
+      event.endTime,
       playAudioEvent.audioId,
       playAudioEvent.fadeOutDuration,
       event.processedAt,

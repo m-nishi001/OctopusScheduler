@@ -32,16 +32,11 @@ export class ScheduleEventService {
     const events = await this.getScheduleEvents();
     const now = new Date();
     const startEvents = events.filter(
-      (e) =>
-        e.timeSpan.start <= now &&
-        now < e.timeSpan.end &&
-        e.processedAt === null
+      (e) => e.startTime <= now && now < e.endTime && e.processedAt === null
     );
     const endEvents = events.filter(
       (e) =>
-        e.timeSpan.end <= now &&
-        e.processedAt !== null &&
-        e.registeredAt === null
+        e.endTime <= now && e.processedAt !== null && e.registeredAt === null
     );
     return { startEvents, endEvents };
   }

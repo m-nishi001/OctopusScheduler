@@ -23,7 +23,8 @@ export class TransitionPageEventConverter {
   ): IScheduleEventEntity {
     return new TransitionPageEventEntity(
       baseEvent.id,
-      baseEvent.timeSpan,
+      baseEvent.startTime,
+      baseEvent.endTime,
       detail.transitionUrl,
       detail.fadeOutDuration,
       baseEvent.processedAt,
@@ -38,7 +39,8 @@ export class TransitionPageEventConverter {
     const transitionPageEvent = event as TransitionPageEventEntity;
     return new TransitionPageEventEntity(
       event.id,
-      event.timeSpan,
+      event.startTime,
+      event.endTime,
       transitionPageEvent.transitionUrl,
       transitionPageEvent.fadeOutDuration,
       event.processedAt,

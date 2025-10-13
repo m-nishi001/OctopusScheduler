@@ -1,10 +1,10 @@
 import type { IScheduleEventEntity } from "../i-schedule-event-entity";
-import { ScheduleTimeSpan } from "../schedule-timespan";
 
 export class ShowContentEventEntity implements IScheduleEventEntity {
   public readonly id: string;
   public readonly type: string = "ShowContentEvent";
-  public readonly timeSpan: ScheduleTimeSpan;
+  public readonly startTime: Date;
+  public readonly endTime: Date;
   public readonly contentType: "image" | "movie" | "html";
   public readonly contentId?: string;
   public readonly htmlString?: string;
@@ -15,7 +15,8 @@ export class ShowContentEventEntity implements IScheduleEventEntity {
 
   constructor(
     id: string,
-    timeSpan: ScheduleTimeSpan,
+    startTime: Date,
+    endTime: Date,
     contentType: "image" | "movie" | "html",
     contentId: string | undefined,
     htmlString: string | undefined,
@@ -25,7 +26,8 @@ export class ShowContentEventEntity implements IScheduleEventEntity {
     updatedAt: Date
   ) {
     this.id = id;
-    this.timeSpan = timeSpan;
+    this.startTime = startTime;
+    this.endTime = endTime;
     this.contentType = contentType;
     this.contentId = contentId;
     this.htmlString = htmlString;
@@ -39,8 +41,8 @@ export class ShowContentEventEntity implements IScheduleEventEntity {
     return new Map([
       ["id", this.id],
       ["type", this.type],
-      ["timeSpan.start", this.timeSpan.start.toISOString()],
-      ["timeSpan.end", this.timeSpan.end.toISOString()],
+      ["startTime", this.startTime.toISOString()],
+      ["endTime", this.endTime.toISOString()],
       ["contentType", this.contentType],
       ["contentId", this.contentId ?? ""],
       ["htmlString", this.htmlString ?? ""],

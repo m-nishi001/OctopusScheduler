@@ -1,10 +1,10 @@
 import type { IScheduleEventEntity } from "../i-schedule-event-entity";
-import { ScheduleTimeSpan } from "../schedule-timespan";
 
 export class PlayAudioEventEntity implements IScheduleEventEntity {
   public readonly id: string;
   public readonly type: string = "PlayAudioEvent";
-  public readonly timeSpan: ScheduleTimeSpan;
+  public readonly startTime: Date;
+  public readonly endTime: Date;
   public readonly audioId: string;
   public readonly fadeOutDuration?: number;
   public readonly processedAt: Date | null;
@@ -13,7 +13,8 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
 
   constructor(
     id: string,
-    timeSpan: ScheduleTimeSpan,
+    startTime: Date,
+    endTime: Date,
     audioId: string,
     fadeOutDuration: number | undefined,
     processedAt: Date | null,
@@ -21,7 +22,8 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
     updatedAt: Date
   ) {
     this.id = id;
-    this.timeSpan = timeSpan;
+    this.startTime = startTime;
+    this.endTime = endTime;
     this.audioId = audioId;
     this.fadeOutDuration = fadeOutDuration;
     this.processedAt = processedAt;
@@ -33,8 +35,8 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
     return new Map([
       ["id", this.id],
       ["type", this.type],
-      ["timeSpan.start", this.timeSpan.start.toISOString()],
-      ["timeSpan.end", this.timeSpan.end.toISOString()],
+      ["startTime", this.startTime.toISOString()],
+      ["endTime", this.endTime.toISOString()],
       ["audioId", this.audioId],
       ["fadeOutDuration", this.fadeOutDuration?.toString() ?? ""],
       ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],

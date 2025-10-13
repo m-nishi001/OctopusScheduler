@@ -39,8 +39,8 @@
                             <td><input type="checkbox" v-model="selectedEvents" :value="ev.id" /></td>
                             <td>{{ ev.type }}</td>
                             <td>{{ ev.type }}</td>
-                            <td>{{ formatDate(ev.timeSpan.start) }}</td>
-                            <td>{{ formatDate(ev.timeSpan.end) }}</td>
+                            <td>{{ formatDate(ev.startTime) }}</td>
+                            <td>{{ formatDate(ev.endTime) }}</td>
                             <td>
                                 <button class="main-btn small" @click="onDelete(ev)" :disabled="loading"><span
                                         class="btn-icon">🗑️</span>

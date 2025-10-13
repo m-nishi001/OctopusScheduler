@@ -27,7 +27,8 @@ export class ShowContentEventConverter {
   ): IScheduleEventEntity {
     return new ShowContentEventEntity(
       baseEvent.id,
-      baseEvent.timeSpan,
+      baseEvent.startTime,
+      baseEvent.endTime,
       detail.contentType,
       detail.contentId,
       detail.htmlString,
@@ -42,7 +43,8 @@ export class ShowContentEventConverter {
     const showContentEvent = event as ShowContentEventEntity;
     return new ShowContentEventEntity(
       event.id,
-      event.timeSpan,
+      event.startTime,
+      event.endTime,
       showContentEvent.contentType,
       showContentEvent.contentId,
       showContentEvent.htmlString,
