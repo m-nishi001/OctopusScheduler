@@ -5,6 +5,7 @@ import EventEditor from "../components/settings/event-list/event-list.vue";
 import ShowImage from "../components/schedule-event-handler/show-content/show-image.vue";
 import ShowVideo from "../components/schedule-event-handler/show-content/show-video.vue";
 import ShowHtml from "../components/schedule-event-handler/show-content/show-html.vue";
+import ShowSlideshow from "../components/schedule-event-handler/show-content/show-slideshow.vue";
 
 const octopusSchedulerRoutes = [
   {
@@ -43,6 +44,12 @@ const octopusSchedulerRoutes = [
     path: "/show-html/:content",
     name: "show-html",
     component: ShowHtml,
+    props: true,
+  },
+  {
+    path: "/show-slideshow/:data",
+    name: "show-slideshow",
+    component: ShowSlideshow,
     props: true,
   },
 ];

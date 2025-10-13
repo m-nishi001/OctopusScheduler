@@ -10,4 +10,12 @@ export const eventBus = mitt<{
   };
   hideContent: { contentType: "image" | "movie" | "html" };
   transitionPage: { transitionUrl: string };
+  startSlideshow: {
+    folderId: string;
+    displayDuration: number;
+    transitionType: "fade" | "slide";
+    slideDirection?: "left" | "right" | "up" | "down";
+    bgmIds: string[];
+  };
+  stopSlideshow: void;
 }>();

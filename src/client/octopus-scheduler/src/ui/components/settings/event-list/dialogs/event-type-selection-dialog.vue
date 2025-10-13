@@ -6,6 +6,7 @@
                 <button class="event-type-btn" @click="selectType('ShowContentEvent')">コンテンツ表示イベント</button>
                 <button class="event-type-btn" @click="selectType('PlayAudioEvent')">音楽再生イベント</button>
                 <button class="event-type-btn" @click="selectType('TransitionPageEvent')">画面遷移イベント</button>
+                <button class="event-type-btn" @click="selectType('SlideshowEvent')">スライドショーイベント</button>
             </div>
             <div class="form-actions">
                 <button class="main-btn" @click="onClose">キャンセル</button>

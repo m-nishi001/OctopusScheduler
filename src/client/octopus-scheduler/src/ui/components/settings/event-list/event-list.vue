@@ -69,6 +69,8 @@
             @close="closeDialogs" />
         <ScreenTransitionEventDialog v-if="showTransitionDialog" :event="editingEvent as any"
             @submit="onTransitionSubmit" @close="closeDialogs" />
+        <SlideshowEventDialog v-if="showSlideshowDialog" :event="editingEvent as any" @submit="onSlideshowSubmit"
+            @close="closeDialogs" />
     </div>
 </template>
 
@@ -81,9 +83,11 @@ import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue'
 import ContentDisplayEventDialog from './dialogs/content-display-event-dialog.vue';
 import MusicPlaybackEventDialog from './dialogs/music-playback-event-dialog.vue';
 import ScreenTransitionEventDialog from './dialogs/screen-transition-event-dialog.vue';
+import SlideshowEventDialog from './dialogs/slideshow-event-dialog.vue';
 import { ShowContentEventDto } from '../../../../model/applications/schedule-event/show-content-event/show-content-event-dto';
 import { PlayAudioEventDto } from '../../../../model/applications/schedule-event/play-audio-event/play-audio-event-dto';
 import { TransitionPageEventDto } from '../../../../model/applications/schedule-event/transition-page-event/transition-page-event-dto';
+import { SlideshowEventDto } from '../../../../model/applications/schedule-event/slideshow-event/slideshow-event-dto';
 
 const events = ref<IScheduleEventDto[]>([]);
 const loading = ref(false);
@@ -94,6 +98,7 @@ const showTypeSelection = ref(false);
 const showContentDialog = ref(false);
 const showMusicDialog = ref(false);
 const showTransitionDialog = ref(false);
+const showSlideshowDialog = ref(false);
 const editingEvent = ref<IScheduleEventDto | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
@@ -116,6 +121,7 @@ function getTypeLabel(type: string): string {
         case 'ShowContentEvent': return 'コンテンツ表示';
         case 'PlayAudioEvent': return '音楽再生';
         case 'TransitionPageEvent': return '画面遷移';
+        case 'SlideshowEvent': return 'スライドショー';
         default: return type;
     }
 }
@@ -158,6 +164,9 @@ function onTypeSelected(type: string) {
         case 'TransitionPageEvent':
             showTransitionDialog.value = true;
             break;
+        case 'SlideshowEvent':
+            showSlideshowDialog.value = true;
+            break;
     }
 }
 
@@ -173,6 +182,9 @@ function onEdit(ev: IScheduleEventDto) {
         case 'TransitionPageEvent':
             showTransitionDialog.value = true;
             break;
+        case 'SlideshowEvent':
+            showSlideshowDialog.value = true;
+            break;
     }
 }
 
@@ -180,6 +192,7 @@ function closeDialogs() {
     showContentDialog.value = false;
     showMusicDialog.value = false;
     showTransitionDialog.value = false;
+    showSlideshowDialog.value = false;
     editingEvent.value = null;
 }
 
@@ -321,6 +334,64 @@ async function onTransitionSubmit(form: any) {
                 form.endTime,
                 form.transitionUrl,
                 form.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            events.value.push(newEvent);
+        }
+        if (editingEvent.value) {
+            await getAllScheduleEvents();
+        }
+        closeDialogs();
+    } catch (e) {
+        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    }
+}
+
+async function onSlideshowSubmit(form: any) {
+    try {
+        if (editingEvent.value) {
+            // Update
+            const updated = new SlideshowEventDto(
+                editingEvent.value.id,
+                form.startTime,
+                form.endTime,
+                form.folderId,
+                form.displayDuration,
+                form.transitionType,
+                form.slideDirection,
+                form.bgmIds,
+                editingEvent.value.processedAt,
+                editingEvent.value.registeredAt,
+                new Date()
+            );
+            await scheduleEventService.updateScheduleEvents([updated]);
+        } else {
+            // Add
+            const tempEvent = new SlideshowEventDto(
+                '',
+                form.startTime,
+                form.endTime,
+                form.folderId,
+                form.displayDuration,
+                form.transitionType,
+                form.slideDirection,
+                form.bgmIds,
+                null,
+                new Date(),
+                new Date()
+            );
+            const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
+            const newEvent = new SlideshowEventDto(
+                ids[0],
+                form.startTime,
+                form.endTime,
+                form.folderId,
+                form.displayDuration,
+                form.transitionType,
+                form.slideDirection,
+                form.bgmIds,
                 null,
                 new Date(),
                 new Date()
