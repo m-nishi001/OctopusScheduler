@@ -22,7 +22,6 @@ export class ShowContentEventConverter {
   toShowContentEventDto(event: IScheduleEventEntity): ShowContentEventEntity {
     return new ShowContentEventEntity(
       event.id,
-      event.name,
       event.timeSpan,
       event.detail as ShowContentEventDetail,
       event.processedAt,

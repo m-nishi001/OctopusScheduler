@@ -24,7 +24,6 @@ export class TransitionPageEventConverter {
   ): TransitionPageEventEntity {
     return new TransitionPageEventEntity(
       event.id,
-      event.name,
       event.timeSpan,
       event.detail as TransitionPageDetail,
       event.processedAt,

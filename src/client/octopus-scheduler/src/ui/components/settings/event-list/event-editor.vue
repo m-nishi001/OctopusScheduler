@@ -37,7 +37,7 @@
                     <tbody>
                         <tr v-for="ev in events" :key="ev.id">
                             <td><input type="checkbox" v-model="selectedEvents" :value="ev.id" /></td>
-                            <td>{{ ev.name }}</td>
+                            <td>{{ ev.type }}</td>
                             <td>{{ ev.type }}</td>
                             <td>{{ formatDate(ev.timeSpan.start) }}</td>
                             <td>{{ formatDate(ev.timeSpan.end) }}</td>
@@ -136,7 +136,7 @@ async function onDeleteSelected() {
 }
 
 async function onDelete(ev: IScheduleEventEntity) {
-    if (!confirm(`${ev.name} を削除しますか？`)) return;
+    if (!confirm(`${ev.type} を削除しますか？`)) return;
     try {
         await scheduleEventService.deleteScheduleEvents([ev.id]);
         await fetchEvents();

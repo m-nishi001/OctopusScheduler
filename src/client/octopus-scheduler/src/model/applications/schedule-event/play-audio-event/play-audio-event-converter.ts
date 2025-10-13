@@ -22,7 +22,6 @@ export class PlayAudioEventConverter {
   toPlayAudioEventDto(event: IScheduleEventEntity): PlayAudioEventEntity {
     return new PlayAudioEventEntity(
       event.id,
-      event.name,
       event.timeSpan,
       event.detail as PlayAudioEventDetail,
       event.processedAt,

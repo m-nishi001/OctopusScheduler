@@ -4,7 +4,6 @@ import { ScheduleTimeSpan } from "../schedule-timespan";
 export class TransitionPageEventEntity implements IScheduleEventEntity {
   public readonly id: string;
   public readonly type: string = "TransitionPageEvent";
-  public readonly name: string;
   public readonly timeSpan: ScheduleTimeSpan;
   public readonly detail: TransitionPageDetail;
   public readonly processedAt: Date | null;
@@ -13,7 +12,6 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
 
   constructor(
     id: string,
-    name: string,
     timeSpan: ScheduleTimeSpan,
     detail: TransitionPageDetail,
     processedAt: Date | null,
@@ -21,12 +19,23 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
     updatedAt: Date
   ) {
     this.id = id;
-    this.name = name;
     this.timeSpan = timeSpan;
     this.detail = detail;
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
+  }
+
+  toRecords(): Map<string, string> {
+    return new Map([
+      ["id", this.id],
+      ["type", this.type],
+      ["timeSpan.start", this.timeSpan.start.toISOString()],
+      ["timeSpan.end", this.timeSpan.end.toISOString()],
+      ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],
+      ["registeredAt", this.registeredAt.toISOString()],
+      ["updatedAt", this.updatedAt.toISOString()],
+    ]);
   }
 }
 

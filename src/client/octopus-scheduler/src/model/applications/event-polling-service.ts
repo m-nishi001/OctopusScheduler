@@ -65,15 +65,15 @@ export class EventPollingService {
       await this.scheduleEventService.getCurrentScheduleEvent();
     this.state.upcomingEvent =
       startEvents.length > 0
-        ? startEvents.map((e) => e.name).join(", ")
+        ? startEvents.map((e) => e.type).join(", ")
         : "（なし）";
     this.state.currentEvent =
       startEvents.length > 0
-        ? startEvents.map((e) => e.name).join(", ")
+        ? startEvents.map((e) => e.type).join(", ")
         : "（なし）";
     this.state.endingEvent =
       endEvents.length > 0
-        ? endEvents.map((e) => e.name).join(", ")
+        ? endEvents.map((e) => e.type).join(", ")
         : "（なし）";
 
     for (const event of startEvents) {
