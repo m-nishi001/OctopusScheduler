@@ -5,7 +5,10 @@ export class ShowContentEventEntity implements IScheduleEventEntity {
   public readonly id: string;
   public readonly type: string = "ShowContentEvent";
   public readonly timeSpan: ScheduleTimeSpan;
-  public readonly detail: ShowContentEventDetail;
+  public readonly contentType: "image" | "movie" | "html";
+  public readonly contentId?: string;
+  public readonly htmlString?: string;
+  public readonly fadeOutDuration?: number;
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
   public readonly updatedAt: Date;
@@ -13,14 +16,20 @@ export class ShowContentEventEntity implements IScheduleEventEntity {
   constructor(
     id: string,
     timeSpan: ScheduleTimeSpan,
-    detail: ShowContentEventDetail,
+    contentType: "image" | "movie" | "html",
+    contentId: string | undefined,
+    htmlString: string | undefined,
+    fadeOutDuration: number | undefined,
     processedAt: Date | null,
     registeredAt: Date,
     updatedAt: Date
   ) {
     this.id = id;
     this.timeSpan = timeSpan;
-    this.detail = detail;
+    this.contentType = contentType;
+    this.contentId = contentId;
+    this.htmlString = htmlString;
+    this.fadeOutDuration = fadeOutDuration;
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
@@ -32,28 +41,13 @@ export class ShowContentEventEntity implements IScheduleEventEntity {
       ["type", this.type],
       ["timeSpan.start", this.timeSpan.start.toISOString()],
       ["timeSpan.end", this.timeSpan.end.toISOString()],
+      ["contentType", this.contentType],
+      ["contentId", this.contentId ?? ""],
+      ["htmlString", this.htmlString ?? ""],
+      ["fadeOutDuration", this.fadeOutDuration?.toString() ?? ""],
       ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],
       ["registeredAt", this.registeredAt.toISOString()],
       ["updatedAt", this.updatedAt.toISOString()],
     ]);
-  }
-}
-
-export class ShowContentEventDetail {
-  readonly contentType: "image" | "movie" | "html";
-  readonly contentId?: string;
-  readonly htmlString?: string;
-  readonly fadeOutDuration?: number;
-
-  constructor(
-    contentType: "image" | "movie" | "html",
-    contentId?: string,
-    htmlString?: string,
-    fadeOutDuration?: number
-  ) {
-    this.contentType = contentType;
-    this.contentId = contentId;
-    this.htmlString = htmlString;
-    this.fadeOutDuration = fadeOutDuration;
   }
 }

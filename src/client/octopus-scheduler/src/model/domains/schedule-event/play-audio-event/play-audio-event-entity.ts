@@ -5,7 +5,8 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
   public readonly id: string;
   public readonly type: string = "PlayAudioEvent";
   public readonly timeSpan: ScheduleTimeSpan;
-  public readonly detail: PlayAudioEventDetail;
+  public readonly audioId: string;
+  public readonly fadeOutDuration?: number;
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
   public readonly updatedAt: Date;
@@ -13,14 +14,16 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
   constructor(
     id: string,
     timeSpan: ScheduleTimeSpan,
-    detail: PlayAudioEventDetail,
+    audioId: string,
+    fadeOutDuration: number | undefined,
     processedAt: Date | null,
     registeredAt: Date,
     updatedAt: Date
   ) {
     this.id = id;
     this.timeSpan = timeSpan;
-    this.detail = detail;
+    this.audioId = audioId;
+    this.fadeOutDuration = fadeOutDuration;
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
@@ -32,19 +35,11 @@ export class PlayAudioEventEntity implements IScheduleEventEntity {
       ["type", this.type],
       ["timeSpan.start", this.timeSpan.start.toISOString()],
       ["timeSpan.end", this.timeSpan.end.toISOString()],
+      ["audioId", this.audioId],
+      ["fadeOutDuration", this.fadeOutDuration?.toString() ?? ""],
       ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],
       ["registeredAt", this.registeredAt.toISOString()],
       ["updatedAt", this.updatedAt.toISOString()],
     ]);
-  }
-}
-
-export class PlayAudioEventDetail {
-  readonly audioId: string;
-  readonly fadeOutDuration?: number;
-
-  constructor(audioId: string, fadeOutDuration?: number) {
-    this.audioId = audioId;
-    this.fadeOutDuration = fadeOutDuration;
   }
 }

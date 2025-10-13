@@ -5,7 +5,8 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
   public readonly id: string;
   public readonly type: string = "TransitionPageEvent";
   public readonly timeSpan: ScheduleTimeSpan;
-  public readonly detail: TransitionPageDetail;
+  public readonly transitionUrl: string;
+  public readonly fadeOutDuration?: number;
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
   public readonly updatedAt: Date;
@@ -13,14 +14,16 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
   constructor(
     id: string,
     timeSpan: ScheduleTimeSpan,
-    detail: TransitionPageDetail,
+    transitionUrl: string,
+    fadeOutDuration: number | undefined,
     processedAt: Date | null,
     registeredAt: Date,
     updatedAt: Date
   ) {
     this.id = id;
     this.timeSpan = timeSpan;
-    this.detail = detail;
+    this.transitionUrl = transitionUrl;
+    this.fadeOutDuration = fadeOutDuration;
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
@@ -32,19 +35,11 @@ export class TransitionPageEventEntity implements IScheduleEventEntity {
       ["type", this.type],
       ["timeSpan.start", this.timeSpan.start.toISOString()],
       ["timeSpan.end", this.timeSpan.end.toISOString()],
+      ["transitionUrl", this.transitionUrl],
+      ["fadeOutDuration", this.fadeOutDuration?.toString() ?? ""],
       ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],
       ["registeredAt", this.registeredAt.toISOString()],
       ["updatedAt", this.updatedAt.toISOString()],
     ]);
-  }
-}
-
-export class TransitionPageDetail {
-  readonly transitionUrl: string;
-  readonly fadeOutDuration?: number;
-
-  constructor(transitionUrl: string, fadeOutDuration?: number) {
-    this.transitionUrl = transitionUrl;
-    this.fadeOutDuration = fadeOutDuration;
   }
 }
