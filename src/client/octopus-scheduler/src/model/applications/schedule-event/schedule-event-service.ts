@@ -6,6 +6,7 @@ import { PlayAudioEventConverter } from "./play-audio-event/play-audio-event-con
 import { ShowContentEventConverter } from "./show-content-event/show-content-event-converter";
 import { TransitionPageEventConverter } from "./transition-page-event/transition-page-event-converter";
 import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
+import { AssetService } from "../assets/asset-service";
 
 @injectable()
 export class ScheduleEventService {
@@ -17,7 +18,9 @@ export class ScheduleEventService {
     @inject("ShowContentEventConverter")
     private showContentConverter: ShowContentEventConverter,
     @inject("TransitionPageEventConverter")
-    private transitionPageConverter: TransitionPageEventConverter
+    private transitionPageConverter: TransitionPageEventConverter,
+    @inject("AssetService")
+    private assetService: AssetService
   ) {}
 
   private deserialize(scheduleEvents: ScheduleEvent[]): IScheduleEventDto {
@@ -68,12 +71,23 @@ export class ScheduleEventService {
   }
 
   async deleteScheduleEvents(ids: string[]): Promise<void> {
+    const events = await this.getScheduleEvents();
+    const toDelete = events.filter((e) => ids.includes(e.id));
+    for (const event of toDelete) {
+      await event.unregisterAssetRefs(this.assetService);
+    }
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 
   async addScheduleEvents(events: IScheduleEventDto[]): Promise<string> {
     const scheduleEvents = events.map((e) => this.serialize(e)).flat();
-    return await this.scheduleEventRepository.addScheduleEvents(scheduleEvents);
+    const id =
+      await this.scheduleEventRepository.addScheduleEvents(scheduleEvents);
+    // Register asset references
+    for (const event of events) {
+      await event.registerAssetRefs(this.assetService, id);
+    }
+    return id;
   }
 
   async getCurrentScheduleEvent(): Promise<{

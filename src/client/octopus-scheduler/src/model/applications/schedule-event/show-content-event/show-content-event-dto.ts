@@ -1,5 +1,6 @@
 import type { IScheduleEventDto } from "../i-schedule-event-dto";
 import { eventBus } from "../../../../core/event-bus";
+import { AssetService } from "../../assets/asset-service";
 
 export class ShowContentEventDto implements IScheduleEventDto {
   public readonly id: string;
@@ -92,5 +93,20 @@ export class ShowContentEventDto implements IScheduleEventDto {
       ["registeredAt", this.registeredAt.toISOString()],
       ["updatedAt", this.updatedAt.toISOString()],
     ]);
+  }
+
+  async registerAssetRefs(
+    assetService: AssetService,
+    eventId: string
+  ): Promise<void> {
+    if (this.contentId && this.contentType !== "html") {
+      await assetService.registerRef(this.contentId, eventId);
+    }
+  }
+
+  async unregisterAssetRefs(assetService: AssetService): Promise<void> {
+    if (this.contentId && this.contentType !== "html") {
+      await assetService.unregisterRef(this.contentId, this.id);
+    }
   }
 }
