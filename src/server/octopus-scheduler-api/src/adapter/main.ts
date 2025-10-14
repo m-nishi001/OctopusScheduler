@@ -26,7 +26,7 @@ export class SuccessResponse {
   date: string = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd HH:mm:ss");
 
   constructor(data: any) {
-    this.data = data;
+    this.data = data ?? null;
   }
 }
 

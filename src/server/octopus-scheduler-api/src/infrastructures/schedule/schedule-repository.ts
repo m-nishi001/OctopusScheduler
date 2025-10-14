@@ -47,7 +47,6 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       const newEvent = new ScheduleEvent(
         eventId,
         event.type,
-        event.eventType,
         event.settingName,
         event.settingValue
       );

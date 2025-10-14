@@ -35,7 +35,6 @@ export class ScheduleService implements GasService {
   addScheduleEvents(args: { events: ScheduleEvent[] }): string {
     const eventsWithoutId = args.events.map((event) => ({
       type: event.type,
-      eventType: event.eventType,
       settingName: event.settingName,
       settingValue: event.settingValue,
     }));

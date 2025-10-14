@@ -40,8 +40,6 @@ export class TransitionPageEventDto implements IScheduleEventDto {
 
   toRecords(): Map<string, string> {
     return new Map([
-      ["id", this.id],
-      ["type", this.type],
       ["startTime", this.startTime.toISOString()],
       ["endTime", this.endTime.toISOString()],
       ["transitionUrl", this.transitionUrl],
