@@ -4,5 +4,5 @@ export interface IScheduleEventRepository {
   getScheduleEvents(): ScheduleEvent[];
   updateScheduleEvents(events: ScheduleEvent[]): void;
   deleteScheduleEvents(ids: string[]): void;
-  addScheduleEvents(events: ScheduleEvent[]): string[];
+  addScheduleEvents(events: Omit<ScheduleEvent, "id">[]): string;
 }

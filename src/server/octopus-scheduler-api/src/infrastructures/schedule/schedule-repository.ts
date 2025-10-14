@@ -40,14 +40,20 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     }
   }
 
-  addScheduleEvents(events: ScheduleEvent[]): string[] {
-    const ids: string[] = [];
+  addScheduleEvents(events: Omit<ScheduleEvent, "id">[]): string {
+    const eventId = Utilities.getUuid();
     const transaction = this.repository.beginTransaction();
     for (const event of events) {
-      transaction.add(event);
-      ids.push(event.id);
+      const newEvent = new ScheduleEvent(
+        eventId,
+        event.type,
+        event.eventType,
+        event.settingName,
+        event.settingValue
+      );
+      transaction.add(newEvent);
     }
     transaction.commit();
-    return ids;
+    return eventId;
   }
 }

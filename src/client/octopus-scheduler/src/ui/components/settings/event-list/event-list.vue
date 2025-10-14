@@ -224,9 +224,9 @@ async function onContentSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
+            const id = await scheduleEventService.addScheduleEvents([tempEvent]);
             const newEvent = new ShowContentEventDto(
-                ids[0],
+                id,
                 form.startTime,
                 form.endTime,
                 form.contentType,
@@ -275,9 +275,9 @@ async function onMusicSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
+            const id = await scheduleEventService.addScheduleEvents([tempEvent]);
             const newEvent = new PlayAudioEventDto(
-                ids[0],
+                id,
                 form.startTime,
                 form.endTime,
                 form.audioId,
@@ -324,9 +324,9 @@ async function onTransitionSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
+            const id = await scheduleEventService.addScheduleEvents([tempEvent]);
             const newEvent = new TransitionPageEventDto(
-                ids[0],
+                id,
                 form.startTime,
                 form.endTime,
                 form.transitionUrl,
@@ -379,9 +379,9 @@ async function onSlideshowSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            const ids = await scheduleEventService.addScheduleEvents([tempEvent]);
+            const id = await scheduleEventService.addScheduleEvents([tempEvent]);
             const newEvent = new SlideshowEventDto(
-                ids[0],
+                id,
                 form.startTime,
                 form.endTime,
                 form.folderId,

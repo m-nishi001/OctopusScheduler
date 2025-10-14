@@ -72,7 +72,7 @@ export class ScheduleEventService {
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 
-  async addScheduleEvents(events: IScheduleEventDto[]): Promise<string[]> {
+  async addScheduleEvents(events: IScheduleEventDto[]): Promise<string> {
     const scheduleEvents = events.map((e) => this.serialize(e)).flat();
     return await this.scheduleEventRepository.addScheduleEvents(scheduleEvents);
   }

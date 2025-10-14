@@ -43,8 +43,9 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       })
       .invoke();
 
-    const eventsMap = new Map(events.map((e) => [e.id, e]));
-    await this.localStorage.saveMultiple(eventsMap);
+    for (const event of events) {
+      await this.localStorage.save(`${event.id}_${event.settingName}`, event);
+    }
   }
 
   async deleteScheduleEvents(ids: string[]): Promise<void> {
@@ -62,23 +63,27 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       })
       .invoke();
 
-    await this.localStorage.removeMultiple(ids);
+    const allEvents = await this.localStorage.getAll<ScheduleEvent>();
+    const keysToDelete = Array.from(allEvents.entries())
+      .filter(([, event]) => ids.includes(event.id))
+      .map(([key]) => key);
+    await this.localStorage.removeMultiple(keysToDelete);
   }
 
-  async addScheduleEvents(events: ScheduleEvent[]): Promise<string[]> {
-    if (!this.service) return events.map((e) => e.id);
+  async addScheduleEvents(events: ScheduleEvent[]): Promise<string> {
+    if (!this.service) return events[0].id;
 
     return new Promise((resolve, reject) => {
       this.service
-        .createCall<string[]>("ScheduleService.addScheduleEvents", { events })
+        .createCall<string>("ScheduleService.addScheduleEvents", { events })
         .withSuccessed(async (data) => {
-          // 渡したeventsと返されたidsを組み合わせてローカルストレージに保存
-          const addedEvents = events.map((event, index) => ({
-            ...event,
-            id: data[index],
-          }));
-          const eventsMap = new Map(addedEvents.map((e) => [e.id, e]));
-          await this.localStorage.saveMultiple(eventsMap);
+          for (const event of events) {
+            const addedEvent = { ...event, id: data };
+            await this.localStorage.save(
+              `${addedEvent.id}_${addedEvent.settingName}`,
+              addedEvent
+            );
+          }
           resolve(data);
         })
         .withTimeout(30000)
@@ -100,7 +105,9 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
         .createCall<ScheduleEvent[]>("ScheduleService.getScheduleEvents")
         .withSuccessed(async (data) => {
           await this.localStorage.clear();
-          const eventsMap = new Map(data.map((e) => [e.id, e]));
+          const eventsMap = new Map(
+            data.map((e) => [`${e.id}_${e.settingName}`, e])
+          );
           await this.localStorage.saveMultiple(eventsMap);
           resolve();
         })
