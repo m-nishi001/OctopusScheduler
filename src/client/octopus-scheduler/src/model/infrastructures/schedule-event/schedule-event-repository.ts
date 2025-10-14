@@ -99,6 +99,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       this.service
         .createCall<ScheduleEvent[]>("ScheduleService.getScheduleEvents")
         .withSuccessed(async (data) => {
+          await this.localStorage.clear();
           const eventsMap = new Map(data.map((e) => [e.id, e]));
           await this.localStorage.saveMultiple(eventsMap);
           resolve();
