@@ -1,28 +1,26 @@
 <template>
     <div class="fullscreen-video">
-        <video :src="videoUrl" controls autoplay></video>
-        <button @click="onClose" class="close-btn main-btn">
-            <span class="btn-icon">❌</span> 閉じる
-        </button>
+        <video :src="videoUrl" controls autoplay :class="displayModeClass"></video>
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch, onUnmounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onMounted, ref, watch, onUnmounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../model/applications/assets/asset-service';
 
 const route = useRoute();
-const router = useRouter();
 const assetService = container.resolve<AssetService>('AssetService');
 
 const videoUrl = ref('');
 let objectUrl: string | null = null;
 
-const onClose = () => {
-    router.back();
-};
+const displayMode = ref(route.query.displayMode as string || 'fade');
+
+const displayModeClass = computed(() => {
+    return displayMode.value === 'fade' ? 'fade-in' : displayMode.value;
+});
 
 function updateVideoUrl() {
     // Blob handling if needed
@@ -67,7 +65,49 @@ video {
     max-height: 80vh;
 }
 
-.close-btn {
-    margin-top: 1rem;
+.fade-in {
+    animation: fadeIn 1.2s;
+}
+
+.scroll-up {
+    animation: scrollUp 3s linear forwards;
+}
+
+.scroll-down {
+    animation: scrollDown 3s linear forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scrollUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes scrollDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 </style>

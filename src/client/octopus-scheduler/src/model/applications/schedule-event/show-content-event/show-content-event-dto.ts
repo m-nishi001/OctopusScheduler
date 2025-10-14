@@ -10,6 +10,7 @@ export class ShowContentEventDto implements IScheduleEventDto {
   public readonly contentId?: string;
   public readonly htmlString?: string;
   public readonly fadeOutDuration?: number;
+  public readonly displayMode?: "fade" | "scroll-up" | "scroll-down";
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
   public readonly updatedAt: Date;
@@ -22,6 +23,7 @@ export class ShowContentEventDto implements IScheduleEventDto {
     contentId: string | undefined,
     htmlString: string | undefined,
     fadeOutDuration: number | undefined,
+    displayMode: "fade" | "scroll-up" | "scroll-down" | undefined,
     processedAt: Date | null,
     registeredAt: Date,
     updatedAt: Date
@@ -33,6 +35,7 @@ export class ShowContentEventDto implements IScheduleEventDto {
     this.contentId = contentId;
     this.htmlString = htmlString;
     this.fadeOutDuration = fadeOutDuration;
+    this.displayMode = displayMode;
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
@@ -44,6 +47,7 @@ export class ShowContentEventDto implements IScheduleEventDto {
         contentType: this.contentType,
         contentId: this.contentId,
         htmlString: this.htmlString,
+        displayMode: this.displayMode,
       });
     } else {
       eventBus.emit("hideContent", { contentType: this.contentType });
@@ -60,6 +64,7 @@ export class ShowContentEventDto implements IScheduleEventDto {
       ["contentId", this.contentId ?? ""],
       ["htmlString", this.htmlString ?? ""],
       ["fadeOutDuration", this.fadeOutDuration?.toString() ?? ""],
+      ["displayMode", this.displayMode ?? ""],
       ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],
       ["registeredAt", this.registeredAt.toISOString()],
       ["updatedAt", this.updatedAt.toISOString()],

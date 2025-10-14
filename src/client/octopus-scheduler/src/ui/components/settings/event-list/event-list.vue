@@ -208,6 +208,7 @@ async function onContentSubmit(form: any) {
                 form.contentId,
                 form.htmlString,
                 form.fadeOutDuration,
+                form.displayMode,
                 editingEvent.value.processedAt,
                 editingEvent.value.registeredAt,
                 new Date()
@@ -224,6 +225,7 @@ async function onContentSubmit(form: any) {
                 form.contentId,
                 form.htmlString,
                 form.fadeOutDuration,
+                form.displayMode,
                 null,
                 new Date(),
                 new Date()
@@ -237,6 +239,7 @@ async function onContentSubmit(form: any) {
                 form.contentId,
                 form.htmlString,
                 form.fadeOutDuration,
+                form.displayMode,
                 null,
                 new Date(),
                 new Date()

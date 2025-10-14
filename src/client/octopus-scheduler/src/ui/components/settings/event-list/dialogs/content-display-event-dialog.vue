@@ -57,9 +57,12 @@
                     <textarea id="htmlString" v-model="form.htmlString" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="fadeOutDuration">フェードアウト時間 (秒)</label>
-                    <input id="fadeOutDuration" type="number" v-model.number="form.fadeOutDuration" min="0"
-                        step="0.1" />
+                    <label for="displayMode">表示方法</label>
+                    <select id="displayMode" v-model="form.displayMode">
+                        <option value="fade">フェード</option>
+                        <option value="scroll-up">スクロールアップ</option>
+                        <option value="scroll-down">スクロールダウン</option>
+                    </select>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="main-btn" @click="onClose">キャンセル</button>
@@ -97,6 +100,7 @@ const form = ref({
     contentId: props.event?.contentId || '',
     htmlString: props.event?.htmlString || '',
     fadeOutDuration: props.event?.fadeOutDuration || 0,
+    displayMode: props.event?.displayMode || 'fade',
     assetSource: 'existing' as 'existing' | 'upload',
     selectedAssetId: '',
     uploadFile: null as File | null,
@@ -114,6 +118,7 @@ watch(() => props.event, (newEvent) => {
             contentId: newEvent.contentId || '',
             htmlString: newEvent.htmlString || '',
             fadeOutDuration: newEvent.fadeOutDuration || 0,
+            displayMode: newEvent.displayMode || 'fade',
             assetSource: 'existing',
             selectedAssetId: newEvent.contentId || '',
             uploadFile: null,
@@ -127,6 +132,7 @@ watch(() => props.event, (newEvent) => {
             contentId: '',
             htmlString: '',
             fadeOutDuration: 0,
+            displayMode: 'fade',
             assetSource: 'existing',
             selectedAssetId: '',
             uploadFile: null,

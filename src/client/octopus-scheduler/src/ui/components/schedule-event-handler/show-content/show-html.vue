@@ -1,28 +1,27 @@
 <template>
     <div class="fullscreen-html">
-        <div class="html-content" v-html="htmlContent"></div>
-        <button @click="onClose" class="close-btn main-btn">
-            <span class="btn-icon">❌</span> 閉じる
-        </button>
+        <div class="html-content" v-html="htmlContent" :class="displayModeClass"></div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, ref, computed } from 'vue';
+import { useRoute } from 'vue-router';
 
 interface Props {
     content: string;
 }
 
 const props = defineProps<Props>();
-const router = useRouter();
+const route = useRoute();
 
 const htmlContent = ref('');
 
-const onClose = () => {
-    router.back();
-};
+const displayMode = ref(route.query.displayMode as string || 'fade');
+
+const displayModeClass = computed(() => {
+    return displayMode.value === 'fade' ? 'fade-in' : displayMode.value;
+});
 
 onMounted(() => {
     htmlContent.value = decodeURIComponent(props.content || '');
@@ -51,7 +50,49 @@ onMounted(() => {
     overflow: auto;
 }
 
-.close-btn {
-    margin-top: 1rem;
+.fade-in {
+    animation: fadeIn 1.2s;
+}
+
+.scroll-up {
+    animation: scrollUp 3s linear forwards;
+}
+
+.scroll-down {
+    animation: scrollDown 3s linear forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes scrollUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes scrollDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 </style>
