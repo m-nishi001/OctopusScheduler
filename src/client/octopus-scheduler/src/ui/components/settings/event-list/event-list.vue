@@ -4,6 +4,9 @@
             <div v-if="syncing" class="sync-status">
                 <span class="sync-icon">🔄</span> 同期中...
             </div>
+            <div v-if="saving" class="sync-status">
+                <span class="sync-icon">💾</span> 保存中...
+            </div>
             <h2 class="editor-title">
                 <span class="editor-icon">📅</span> スケジュールイベント管理
             </h2>
@@ -107,6 +110,7 @@ const showMusicDialog = ref(false);
 const showTransitionDialog = ref(false);
 const showSlideshowDialog = ref(false);
 const editingEvent = ref<IScheduleEventDto | null>(null);
+const saving = ref(false);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 const assetService = container.resolve(AssetService);
@@ -226,6 +230,7 @@ function closeDialogs() {
 }
 
 async function onContentSubmit(form: any) {
+    saving.value = true;
     try {
         let eventId: string;
         if (editingEvent.value) {
@@ -271,30 +276,9 @@ async function onContentSubmit(form: any) {
                 new Date()
             );
             const id = await scheduleEventService.addScheduleEvents([tempEvent]);
-            const newEvent = new ShowContentEventDto(
-                id,
-                form.startTime,
-                form.endTime,
-                form.contentType,
-                form.contentId,
-                form.htmlString,
-                form.fadeOutDuration,
-                form.displayMode,
-                form.effect,
-                form.duration,
-                form.fadeInTime,
-                form.fadeOutTime,
-                form.scrollDirection,
-                null,
-                new Date(),
-                new Date()
-            );
-            events.value.push(newEvent);
             eventId = id;
         }
-        if (editingEvent.value) {
-            await getAllScheduleEvents();
-        }
+        await getAllScheduleEvents();
         // Register asset reference
         if (form.contentId && eventId && form.contentType !== 'html') {
             try {
@@ -303,13 +287,18 @@ async function onContentSubmit(form: any) {
                 console.error('Failed to register asset reference:', e);
             }
         }
-        closeDialogs();
+        if (editingEvent.value) {
+            closeDialogs();
+        }
     } catch (e) {
         alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+        saving.value = false;
     }
 }
 
 async function onMusicSubmit(form: any) {
+    saving.value = true;
     try {
         if (editingEvent.value) {
             // Update
@@ -336,29 +325,21 @@ async function onMusicSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            const id = await scheduleEventService.addScheduleEvents([tempEvent]);
-            const newEvent = new PlayAudioEventDto(
-                id,
-                form.startTime,
-                form.endTime,
-                form.audioId,
-                form.fadeOutDuration,
-                null,
-                new Date(),
-                new Date()
-            );
-            events.value.push(newEvent);
+            await scheduleEventService.addScheduleEvents([tempEvent]);
         }
+        await getAllScheduleEvents();
         if (editingEvent.value) {
-            await getAllScheduleEvents();
+            closeDialogs();
         }
-        closeDialogs();
     } catch (e) {
         alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+        saving.value = false;
     }
 }
 
 async function onTransitionSubmit(form: any) {
+    saving.value = true;
     try {
         if (editingEvent.value) {
             // Update
@@ -385,29 +366,21 @@ async function onTransitionSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            const id = await scheduleEventService.addScheduleEvents([tempEvent]);
-            const newEvent = new TransitionPageEventDto(
-                id,
-                form.startTime,
-                form.endTime,
-                form.transitionUrl,
-                form.fadeOutDuration,
-                null,
-                new Date(),
-                new Date()
-            );
-            events.value.push(newEvent);
+            await scheduleEventService.addScheduleEvents([tempEvent]);
         }
+        await getAllScheduleEvents();
         if (editingEvent.value) {
-            await getAllScheduleEvents();
+            closeDialogs();
         }
-        closeDialogs();
     } catch (e) {
         alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+        saving.value = false;
     }
 }
 
 async function onSlideshowSubmit(form: any) {
+    saving.value = true;
     try {
         if (editingEvent.value) {
             // Update
@@ -440,28 +413,16 @@ async function onSlideshowSubmit(form: any) {
                 new Date(),
                 new Date()
             );
-            const id = await scheduleEventService.addScheduleEvents([tempEvent]);
-            const newEvent = new SlideshowEventDto(
-                id,
-                form.startTime,
-                form.endTime,
-                form.folderId,
-                form.displayDuration,
-                form.transitionType,
-                form.slideDirection,
-                form.bgmIds,
-                null,
-                new Date(),
-                new Date()
-            );
-            events.value.push(newEvent);
+            await scheduleEventService.addScheduleEvents([tempEvent]);
         }
+        await getAllScheduleEvents();
         if (editingEvent.value) {
-            await getAllScheduleEvents();
+            closeDialogs();
         }
-        closeDialogs();
     } catch (e) {
         alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+        saving.value = false;
     }
 }
 
