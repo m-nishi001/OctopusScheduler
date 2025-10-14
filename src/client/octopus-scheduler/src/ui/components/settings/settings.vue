@@ -4,10 +4,8 @@
     <div class="admin-body">
       <AdminSidemenu :currentTab="currentTab" @tabChange="currentTab = $event" />
       <main class="admin-content">
-        <div class="settings-main">
-          <EventEditor v-if="currentTab === 'events'" />
-          <AssetListEditor v-else />
-        </div>
+        <EventEditor v-if="currentTab === 'events'" />
+        <AssetListEditor v-else />
       </main>
     </div>
   </div>
@@ -45,14 +43,6 @@ const currentTab = ref('events');
   min-width: 0;
   overflow: auto;
   min-height: 0;
-}
-
-.settings-main {
-  background: linear-gradient(135deg, #181818 0%, #222 100%);
-  color: #fff;
-  min-height: 100%;
-  padding: 1em;
-  border-radius: 8px;
 }
 
 @media (max-width: 900px) {
