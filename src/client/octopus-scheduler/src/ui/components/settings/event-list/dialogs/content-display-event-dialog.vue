@@ -59,8 +59,8 @@ const emit = defineEmits<{
 const isEdit = ref(!!props.event);
 
 const form = ref({
-    startTime: props.event ? formatDateTime(props.event.startTime) : '',
-    endTime: props.event ? formatDateTime(props.event.endTime) : '',
+    startTime: props.event ? formatDateTime(props.event.startTime) : formatDateTime(new Date()),
+    endTime: props.event ? formatDateTime(props.event.endTime) : formatDateTime(new Date(Date.now() + 60000)),
     contentType: props.event?.contentType || 'image',
     contentId: props.event?.contentId || '',
     htmlString: props.event?.htmlString || '',
@@ -80,8 +80,8 @@ watch(() => props.event, (newEvent) => {
         isEdit.value = true;
     } else {
         form.value = {
-            startTime: '',
-            endTime: '',
+            startTime: formatDateTime(new Date()),
+            endTime: formatDateTime(new Date(Date.now() + 60000)),
             contentType: 'image',
             contentId: '',
             htmlString: '',

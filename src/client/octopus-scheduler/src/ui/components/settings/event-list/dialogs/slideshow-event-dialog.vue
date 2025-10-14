@@ -66,8 +66,8 @@ const emit = defineEmits<{
 const isEdit = ref(!!props.event);
 
 const form = ref({
-    startTime: props.event ? formatDateTime(props.event.startTime) : '',
-    endTime: props.event ? formatDateTime(props.event.endTime) : '',
+    startTime: props.event ? formatDateTime(props.event.startTime) : formatDateTime(new Date()),
+    endTime: props.event ? formatDateTime(props.event.endTime) : formatDateTime(new Date(Date.now() + 60000)),
     folderId: props.event?.folderId || '',
     displayDuration: props.event?.displayDuration || 5,
     transitionType: props.event?.transitionType || 'fade',
@@ -89,8 +89,8 @@ watch(() => props.event, (newEvent) => {
         isEdit.value = true;
     } else {
         form.value = {
-            startTime: '',
-            endTime: '',
+            startTime: formatDateTime(new Date()),
+            endTime: formatDateTime(new Date(Date.now() + 60000)),
             folderId: '',
             displayDuration: 5,
             transitionType: 'fade',
