@@ -36,8 +36,47 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="bgmIds">BGM ID (カンマ区切りで複数指定)</label>
-                    <input id="bgmIds" type="text" v-model="form.bgmIds" />
+                    <label>BGM アセット</label>
+                    <div class="bgm-list">
+                        <div v-for="(bgm, index) in form.bgmList" :key="index" class="bgm-item">
+                            <span>{{ bgm.name || bgm.id }}</span>
+                            <button type="button" @click="removeBgm(index)" class="remove-btn">×</button>
+                        </div>
+                        <div class="add-bgm">
+                            <label>アセットソース</label>
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" value="existing" v-model="newBgmSource" />
+                                    既存アセットを選択
+                                </label>
+                                <label>
+                                    <input type="radio" value="upload" v-model="newBgmSource" />
+                                    新規アップロード
+                                </label>
+                            </div>
+                            <div v-if="newBgmSource === 'existing'">
+                                <select v-model="selectedBgmId">
+                                    <option value="">選択してください</option>
+                                    <option v-for="asset in filteredAudioAssets" :key="asset.id" :value="asset.id">
+                                        {{ asset.name }}
+                                    </option>
+                                </select>
+                                <button type="button" @click="addExistingBgm" class="add-btn">追加</button>
+                            </div>
+                            <div v-if="newBgmSource === 'upload'">
+                                <div class="file-picker">
+                                    <input ref="bgmFileInput" class="hidden-file-input" type="file"
+                                        @change="onBgmFileChange" accept=".mp3,.wav,.ogg,.m4a" />
+                                    <button type="button" class="file-btn" @click.prevent="openBgmFilePicker">Choose
+                                        File</button>
+                                    <span class="file-name">{{ newBgmFile ? newBgmFile.name : 'No file chosen' }}</span>
+                                    <button v-if="newBgmFile" type="button" class="clear-btn"
+                                        @click.prevent="clearBgmFile">×</button>
+                                </div>
+                                <button type="button" @click="addUploadBgm" class="add-btn">追加</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="main-btn" @click="onClose">キャンセル</button>
@@ -49,7 +88,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
+import { container } from 'tsyringe';
+import { AssetService } from '../../../../../model/applications/assets/asset-service';
+import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 import type { SlideshowEventDto } from '../../../../../model/applications/schedule-event/slideshow-event/slideshow-event-dto';
 
 interface Props {
@@ -73,7 +115,14 @@ const form = ref({
     transitionType: props.event?.transitionType || 'fade',
     slideDirection: props.event?.slideDirection || 'left',
     bgmIds: props.event?.bgmIds.join(',') || '',
+    bgmList: [] as { id: string, name: string }[],
 });
+
+const newBgmSource = ref<'existing' | 'upload'>('existing');
+const selectedBgmId = ref('');
+const newBgmFile = ref<File | null>(null);
+const assets = ref<Asset[]>([]);
+const assetService = container.resolve(AssetService);
 
 watch(() => props.event, (newEvent) => {
     if (newEvent) {
@@ -85,6 +134,7 @@ watch(() => props.event, (newEvent) => {
             transitionType: newEvent.transitionType,
             slideDirection: newEvent.slideDirection || 'left',
             bgmIds: newEvent.bgmIds.join(','),
+            bgmList: newEvent.bgmIds.map(id => ({ id, name: getAssetName(id) })),
         };
         isEdit.value = true;
     } else {
@@ -96,13 +146,92 @@ watch(() => props.event, (newEvent) => {
             transitionType: 'fade',
             slideDirection: 'left',
             bgmIds: '',
+            bgmList: [],
         };
         isEdit.value = false;
     }
 });
 
+onMounted(async () => {
+    await loadAssets();
+});
+
+const filteredAudioAssets = computed(() => {
+    return assets.value.filter(asset => asset.type === 'audio');
+});
+
+function getAssetName(id: string): string {
+    const asset = assets.value.find(a => a.id === id);
+    return asset ? asset.name : id;
+}
+
+async function loadAssets() {
+    try {
+        assets.value = await assetService.getAssets();
+    } catch (e) {
+        console.error('Failed to load assets:', e);
+    }
+}
+
 function formatDateTime(date: Date): string {
     return date.toISOString().slice(0, 16);
+}
+
+function removeBgm(index: number) {
+    form.value.bgmList.splice(index, 1);
+}
+
+function addExistingBgm() {
+    if (selectedBgmId.value) {
+        const asset = assets.value.find(a => a.id === selectedBgmId.value);
+        if (asset && !form.value.bgmList.some(b => b.id === asset.id)) {
+            form.value.bgmList.push({ id: asset.id, name: asset.name });
+        }
+        selectedBgmId.value = '';
+    }
+}
+
+async function addUploadBgm() {
+    if (newBgmFile.value) {
+        try {
+            const asset: Asset = {
+                id: '',
+                type: 'audio',
+                dataUrl: '',
+                name: newBgmFile.value.name,
+                uploadedAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                size: newBgmFile.value.size,
+                referenceFrom: [],
+            };
+            const fileReader = new FileReader();
+            fileReader.onload = async (e) => {
+                asset.dataUrl = e.target?.result as string;
+                const ids = await assetService.addAssets([asset]);
+                form.value.bgmList.push({ id: ids[0], name: asset.name });
+                newBgmFile.value = null;
+            };
+            fileReader.readAsDataURL(newBgmFile.value);
+        } catch (e) {
+            alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+        }
+    }
+}
+
+function onBgmFileChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    newBgmFile.value = target.files?.[0] || null;
+}
+
+const bgmFileInput = ref<HTMLInputElement | null>(null);
+
+function openBgmFilePicker() {
+    bgmFileInput.value?.click();
+}
+
+function clearBgmFile() {
+    newBgmFile.value = null;
+    if (bgmFileInput.value) bgmFileInput.value.value = '';
 }
 
 function onSubmit() {
@@ -116,7 +245,7 @@ function onSubmit() {
         ...form.value,
         startTime,
         endTime,
-        bgmIds: form.value.bgmIds.split(',').map(id => id.trim()).filter(id => id),
+        bgmIds: form.value.bgmList.map(b => b.id),
     });
     emit('close');
 }
@@ -208,5 +337,99 @@ function onClose() {
     background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
     transform: translateY(-2px) scale(1.04);
+}
+
+.bgm-list {
+    border: 1px solid #666;
+    border-radius: 6px;
+    padding: 0.5em;
+    background: #333;
+}
+
+.bgm-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5em;
+    background: #444;
+    margin-bottom: 0.5em;
+    border-radius: 4px;
+}
+
+.remove-btn {
+    background: #ff6b6b;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.2em 0.5em;
+    cursor: pointer;
+}
+
+.add-bgm {
+    margin-top: 1em;
+    padding-top: 1em;
+    border-top: 1px solid #666;
+}
+
+.radio-group {
+    display: flex;
+    gap: 1em;
+    margin-bottom: 0.5em;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    color: #fff;
+}
+
+.add-btn {
+    background: #4f8cff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5em 1em;
+    cursor: pointer;
+    margin-top: 0.5em;
+}
+
+.file-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    margin-bottom: 0.5em;
+}
+
+.hidden-file-input {
+    display: none;
+}
+
+.file-btn {
+    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
+    color: #232b36;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5em 0.9em;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.file-name {
+    color: #ddd;
+    font-size: 0.95em;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clear-btn {
+    background: transparent;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 0 0.5em;
+    cursor: pointer;
 }
 </style>
