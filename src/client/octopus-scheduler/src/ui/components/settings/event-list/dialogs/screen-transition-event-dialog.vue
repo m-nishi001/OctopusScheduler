@@ -1,5 +1,5 @@
 <template>
-    <div class="modal-overlay" @click="onClose">
+    <div class="modal-overlay">
         <div class="modal-content" @click.stop>
             <h3>{{ isEdit ? '画面遷移イベント編集' : '画面遷移イベント追加' }}</h3>
             <form @submit.prevent="onSubmit">

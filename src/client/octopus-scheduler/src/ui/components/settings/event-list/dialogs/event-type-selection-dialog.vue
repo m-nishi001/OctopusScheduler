@@ -1,5 +1,5 @@
 <template>
-    <div class="modal-overlay" @click="onClose">
+    <div class="modal-overlay">
         <div class="modal-content" @click.stop>
             <h3>スケジュールイベント種別選択</h3>
             <div class="event-type-list">
