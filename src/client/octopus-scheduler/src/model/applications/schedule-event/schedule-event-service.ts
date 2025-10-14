@@ -20,41 +20,50 @@ export class ScheduleEventService {
     private transitionPageConverter: TransitionPageEventConverter
   ) {}
 
-  private deserialize(scheduleEvent: ScheduleEvent): IScheduleEventDto {
-    const records = JSON.parse(scheduleEvent.settingValue) as Record<
-      string,
-      string
-    >;
-    switch (scheduleEvent.type) {
+  private deserialize(scheduleEvents: ScheduleEvent[]): IScheduleEventDto {
+    const records = new Map<string, string>();
+    for (const e of scheduleEvents) {
+      records.set(e.settingName, e.settingValue);
+    }
+    const recordObj = Object.fromEntries(records);
+    const type = recordObj.type;
+    if (!type) throw new Error("Type not found in records");
+    switch (type) {
       case "PlayAudioEvent":
-        return this.playAudioConverter.toEntity(records);
+        return this.playAudioConverter.toEntity(recordObj);
       case "ShowContentEvent":
-        return this.showContentConverter.toEntity(records);
+        return this.showContentConverter.toEntity(recordObj);
       case "TransitionPageEvent":
-        return this.transitionPageConverter.toEntity(records);
+        return this.transitionPageConverter.toEntity(recordObj);
       default:
-        throw new Error(`Unknown event type: ${scheduleEvent.type}`);
+        throw new Error(`Unknown event type: ${type}`);
     }
   }
 
-  private serialize(event: IScheduleEventDto): ScheduleEvent {
+  private serialize(event: IScheduleEventDto): ScheduleEvent[] {
     const records = event.toRecords();
-    return new ScheduleEvent(
-      event.id,
-      event.type,
-      "records",
-      JSON.stringify(Object.fromEntries(records))
+    return Array.from(records.entries()).map(
+      ([key, value]) => new ScheduleEvent(event.id, event.type, key, value)
     );
   }
 
   async getScheduleEvents(): Promise<IScheduleEventDto[]> {
     const scheduleEvents =
       await this.scheduleEventRepository.getScheduleEvents();
-    return scheduleEvents.map((e) => this.deserialize(e));
+    const grouped = new Map<string, ScheduleEvent[]>();
+    for (const e of scheduleEvents) {
+      if (!grouped.has(e.id)) grouped.set(e.id, []);
+      grouped.get(e.id)!.push(e);
+    }
+    const events: IScheduleEventDto[] = [];
+    for (const group of grouped.values()) {
+      events.push(this.deserialize(group));
+    }
+    return events;
   }
 
   async updateScheduleEvents(events: IScheduleEventDto[]): Promise<void> {
-    const scheduleEvents = events.map((e) => this.serialize(e));
+    const scheduleEvents = events.map((e) => this.serialize(e)).flat();
     await this.scheduleEventRepository.updateScheduleEvents(scheduleEvents);
   }
 
@@ -63,7 +72,7 @@ export class ScheduleEventService {
   }
 
   async addScheduleEvents(events: IScheduleEventDto[]): Promise<string[]> {
-    const scheduleEvents = events.map((e) => this.serialize(e));
+    const scheduleEvents = events.map((e) => this.serialize(e)).flat();
     return await this.scheduleEventRepository.addScheduleEvents(scheduleEvents);
   }
 

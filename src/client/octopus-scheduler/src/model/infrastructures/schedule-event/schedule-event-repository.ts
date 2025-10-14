@@ -35,6 +35,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       .withSuccessed(() =>
         console.log("Schedule events updated successfully on remote.")
       )
+      .withTimeout(30000)
       .withFailuered((message: string) => {
         throw new Error(
           `Failed to update schedule events on remote: ${message}`
@@ -42,9 +43,8 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       })
       .invoke();
 
-    for (const event of events) {
-      await this.localStorage.save(event.id, event);
-    }
+    const eventsMap = new Map(events.map((e) => [e.id, e]));
+    await this.localStorage.saveMultiple(eventsMap);
   }
 
   async deleteScheduleEvents(ids: string[]): Promise<void> {
@@ -77,13 +77,11 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
             ...event,
             id: data[index],
           }));
-
-          for (const addedEvent of addedEvents) {
-            await this.localStorage.save(addedEvent.id, addedEvent);
-          }
-
+          const eventsMap = new Map(addedEvents.map((e) => [e.id, e]));
+          await this.localStorage.saveMultiple(eventsMap);
           resolve(data);
         })
+        .withTimeout(30000)
         .withFailuered((message: string) => {
           console.error("Failed to add schedule events to remote:", message);
           reject(
@@ -101,9 +99,8 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       this.service
         .createCall<ScheduleEvent[]>("ScheduleService.getScheduleEvents")
         .withSuccessed(async (data) => {
-          for (const event of data) {
-            await this.localStorage.save(event.id, event);
-          }
+          const eventsMap = new Map(data.map((e) => [e.id, e]));
+          await this.localStorage.saveMultiple(eventsMap);
           resolve();
         })
         .withFailuered((message: string) => {
