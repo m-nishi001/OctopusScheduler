@@ -3,30 +3,32 @@ import { container } from "tsyringe";
 import { Container } from "../container";
 import { GasService } from "../application/gas-service";
 
-declare let _doGet: (e: GoogleAppsScript.Events.DoGet) => GoogleAppsScript.HTML.HtmlOutput;
+declare let _doGet: (
+  e: GoogleAppsScript.Events.DoGet
+) => GoogleAppsScript.HTML.HtmlOutput;
 declare let _callOctopusSchedulerApi: (functionName: string, args: any) => any;
 
 type ApiResponse = SuccessResponse | ErrorResponse;
 
 export class ErrorResponse {
-  status: string = 'error';
+  status: string = "error";
   message: string;
   date: string = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd HH:mm:ss");
 
   constructor(message: string) {
     this.message = message;
   }
-};
+}
 
 export class SuccessResponse {
-  status: string = 'success';
+  status: string = "success";
   data: any;
   date: string = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd HH:mm:ss");
 
   constructor(data: any) {
     this.data = data;
   }
-};
+}
 
 /**
  * クライアントからの関数呼び出しを中継する内部ディスパッチャー関数。
@@ -35,8 +37,13 @@ export class SuccessResponse {
  * @returns {any} 呼び出された関数の戻り値。
  * @throws {Error} 指定された関数名が見つからない場合。
  */
-function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiResponse {
-  Logger.log(`[OctopusSchedulerAPI] Function: ${callingObject}, Args: ${JSON.stringify(args)}`);
+function callOctopusSchedulerApiInternal(
+  callingObject: string,
+  args: any
+): ApiResponse {
+  Logger.log(
+    `[OctopusSchedulerAPI] Function: ${callingObject}, Args: ${JSON.stringify(args)}`
+  );
 
   // {ServiceName}.{FunctionName}の形式でやってくるのでパースする。
   const [serviceName, functionName] = callingObject.split(".", 2);
@@ -50,13 +57,17 @@ function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiR
 
   const targetFunction = container
     .resolveAll<GasService>("IGasService")
-    .filter(service => service.serviceName === serviceName)
-    .map(service => service.functions[functionName])
-    .find(func => func !== undefined);
+    .filter((service) => service.serviceName === serviceName)
+    .map((service) => service.functions[functionName])
+    .find((func) => func !== undefined);
 
   if (!targetFunction) {
-    Logger.log(`Error: Function "${functionName}" not found on service "${serviceName}".`);
-    return new ErrorResponse(`Function "${functionName}" not found on service "${serviceName}".`);
+    Logger.log(
+      `Error: Function "${functionName}" not found on service "${serviceName}".`
+    );
+    return new ErrorResponse(
+      `Function "${functionName}" not found on service "${serviceName}".`
+    );
   }
 
   try {
@@ -64,6 +75,7 @@ function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiR
     const result = targetFunction(parameters);
     return new SuccessResponse(result);
   } catch (e: any) {
+    Logger.log(`Error in function "${functionName}": ${e.message}`);
     return new ErrorResponse(e);
   }
 }
@@ -72,7 +84,6 @@ function callOctopusSchedulerApiInternal(callingObject: string, args: any): ApiR
 // （GAS側の型チェックに引っかかる模様）
 _doGet = (e: GoogleAppsScript.Events.DoGet) => {
   try {
-
     // 途中でエラー等が発生した場合において、ScriptLockが解放されないままとなることを防止するため、
     // ここでScriptLockを解放する。
     try {
@@ -82,19 +93,19 @@ _doGet = (e: GoogleAppsScript.Events.DoGet) => {
     }
 
     const template = HtmlService.createTemplateFromFile("index");
-    return template.evaluate()
-      .setTitle('Sample App')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-
+    return template
+      .evaluate()
+      .setTitle("Sample App")
+      .addMetaTag("viewport", "width=device-width, initial-scale=1");
   } catch (error) {
     console.error(`Error in doGetInternal: ${(error as Error).stack}`);
     return HtmlService.createHtmlOutput(
       `<html><body><h1>エラー</h1><p>アプリケーションの読み込みに失敗しました。</p></body></html>`
     );
   }
-}
+};
 
 _callOctopusSchedulerApi = async (functionName: string, args: any) => {
   const response = callOctopusSchedulerApiInternal(functionName, args);
   return JSON.stringify(response);
-}
+};

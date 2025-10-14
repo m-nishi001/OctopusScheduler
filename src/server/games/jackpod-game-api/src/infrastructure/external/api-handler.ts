@@ -83,6 +83,7 @@ export class ApiHandler {
       const result = targetFunction(parameters);
       return new SuccessResponse(result !== undefined ? result : null);
     } catch (e: any) {
+      Logger.log(`Error in function "${targetFunction.name}": ${e.message}`);
       return new ErrorResponse(e);
     }
   }
