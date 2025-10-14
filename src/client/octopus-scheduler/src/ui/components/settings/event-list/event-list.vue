@@ -11,9 +11,6 @@
                 <button class="main-btn" @click="onReload" :disabled="loading">
                     <span class="btn-icon">🔄</span> 再読込
                 </button>
-                <button class="main-btn" @click="onSync" :disabled="syncing">
-                    <span class="btn-icon">🔄</span> 同期
-                </button>
                 <button class="main-btn delete-btn" @click="onDeleteSelected"
                     :disabled="!selectedEvents.length || deleting">
                     <span class="btn-icon">🗑️</span> 選択削除
@@ -407,11 +404,7 @@ async function onSlideshowSubmit(form: any) {
     }
 }
 
-function onReload() {
-    getAllScheduleEvents();
-}
-
-async function onSync() {
+async function onReload() {
     syncing.value = true;
     try {
         await scheduleEventService.syncScheduleEvents();
