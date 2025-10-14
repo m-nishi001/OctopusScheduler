@@ -26,7 +26,7 @@ export class ScheduleEventService {
       records.set(e.settingName, e.settingValue);
     }
     const recordObj = Object.fromEntries(records);
-    const type = recordObj.type;
+    const type = scheduleEvents[0]?.eventType || recordObj.type;
     if (!type) throw new Error("Type not found in records");
     switch (type) {
       case "PlayAudioEvent":
@@ -43,7 +43,8 @@ export class ScheduleEventService {
   private serialize(event: IScheduleEventDto): ScheduleEvent[] {
     const records = event.toRecords();
     return Array.from(records.entries()).map(
-      ([key, value]) => new ScheduleEvent(event.id, event.type, key, value)
+      ([key, value]) =>
+        new ScheduleEvent(event.id, event.type, event.type, key, value)
     );
   }
 
