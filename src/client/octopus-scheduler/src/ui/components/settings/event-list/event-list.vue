@@ -85,6 +85,7 @@ import { ShowContentEventDto } from '../../../../model/applications/schedule-eve
 import { PlayAudioEventDto } from '../../../../model/applications/schedule-event/play-audio-event/play-audio-event-dto';
 import { TransitionPageEventDto } from '../../../../model/applications/schedule-event/transition-page-event/transition-page-event-dto';
 import { SlideshowEventDto } from '../../../../model/applications/schedule-event/slideshow-event/slideshow-event-dto';
+import { AssetService } from '../../../../model/applications/assets/asset-service';
 
 const events = ref<IScheduleEventDto[]>([]);
 const loading = ref(false);
@@ -99,6 +100,7 @@ const showSlideshowDialog = ref(false);
 const editingEvent = ref<IScheduleEventDto | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
+const assetService = container.resolve(AssetService);
 
 const isAllSelected = computed({
     get: () => {
@@ -195,6 +197,7 @@ function closeDialogs() {
 
 async function onContentSubmit(form: any) {
     try {
+        let eventId: string;
         if (editingEvent.value) {
             // Update
             const updated = new ShowContentEventDto(
@@ -210,6 +213,7 @@ async function onContentSubmit(form: any) {
                 new Date()
             );
             await scheduleEventService.updateScheduleEvents([updated]);
+            eventId = editingEvent.value.id;
         } else {
             // Add
             const tempEvent = new ShowContentEventDto(
@@ -238,9 +242,18 @@ async function onContentSubmit(form: any) {
                 new Date()
             );
             events.value.push(newEvent);
+            eventId = id;
         }
         if (editingEvent.value) {
             await getAllScheduleEvents();
+        }
+        // Register asset reference
+        if (form.contentId && eventId && form.contentType !== 'html') {
+            try {
+                await assetService.registerRef(form.contentId, eventId);
+            } catch (e) {
+                console.error('Failed to register asset reference:', e);
+            }
         }
         closeDialogs();
     } catch (e) {

@@ -20,8 +20,37 @@
                     </select>
                 </div>
                 <div class="form-group" v-if="form.contentType !== 'html'">
-                    <label for="contentId">コンテンツID</label>
-                    <input id="contentId" type="text" v-model="form.contentId" required />
+                    <label>アセットソース</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" value="existing" v-model="form.assetSource" />
+                            既存アセットを選択
+                        </label>
+                        <label>
+                            <input type="radio" value="upload" v-model="form.assetSource" />
+                            新規アップロード
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" v-if="form.contentType !== 'html' && form.assetSource === 'existing'">
+                    <label for="selectedAsset">既存アセット</label>
+                    <select id="selectedAsset" v-model="form.selectedAssetId" required>
+                        <option value="">選択してください</option>
+                        <option v-for="asset in filteredAssets" :key="asset.id" :value="asset.id">
+                            {{ asset.name }}
+                        </option>
+                    </select>
+                </div>
+                <div class="form-group" v-if="form.contentType !== 'html' && form.assetSource === 'upload'">
+                    <label for="uploadFile">アップロードファイル</label>
+                    <div class="file-picker">
+                        <input id="uploadFile" ref="fileInput" class="hidden-file-input" type="file"
+                            @change="onFileChange" accept=".jpg,.jpeg,.png,.gif,.mp4,.webm,.ogg" />
+                        <button type="button" class="file-btn" @click.prevent="openFilePicker">Choose File</button>
+                        <span class="file-name">{{ form.uploadFile ? form.uploadFile.name : 'No file chosen' }}</span>
+                        <button v-if="form.uploadFile" type="button" class="clear-btn"
+                            @click.prevent="clearFile">×</button>
+                    </div>
                 </div>
                 <div class="form-group" v-if="form.contentType === 'html'">
                     <label for="htmlString">HTML文字列</label>
@@ -42,7 +71,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
+import { container } from 'tsyringe';
+import { AssetService } from '../../../../../model/applications/assets/asset-service';
+import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 import type { ShowContentEventDto } from '../../../../../model/applications/schedule-event/show-content-event/show-content-event-dto';
 
 interface Props {
@@ -65,7 +97,13 @@ const form = ref({
     contentId: props.event?.contentId || '',
     htmlString: props.event?.htmlString || '',
     fadeOutDuration: props.event?.fadeOutDuration || 0,
+    assetSource: 'existing' as 'existing' | 'upload',
+    selectedAssetId: '',
+    uploadFile: null as File | null,
 });
+
+const assets = ref<Asset[]>([]);
+const assetService = container.resolve(AssetService);
 
 watch(() => props.event, (newEvent) => {
     if (newEvent) {
@@ -76,6 +114,9 @@ watch(() => props.event, (newEvent) => {
             contentId: newEvent.contentId || '',
             htmlString: newEvent.htmlString || '',
             fadeOutDuration: newEvent.fadeOutDuration || 0,
+            assetSource: 'existing',
+            selectedAssetId: newEvent.contentId || '',
+            uploadFile: null,
         };
         isEdit.value = true;
     } else {
@@ -86,32 +127,109 @@ watch(() => props.event, (newEvent) => {
             contentId: '',
             htmlString: '',
             fadeOutDuration: 0,
+            assetSource: 'existing',
+            selectedAssetId: '',
+            uploadFile: null,
         };
         isEdit.value = false;
     }
 });
 
+onMounted(async () => {
+    await loadAssets();
+});
+
+const filteredAssets = computed(() => {
+    const type = form.value.contentType === 'image' ? 'image' : 'video';
+    return assets.value.filter(asset => asset.type === type);
+});
+
+async function loadAssets() {
+    try {
+        assets.value = await assetService.getAssets();
+    } catch (e) {
+        console.error('Failed to load assets:', e);
+    }
+}
+
 function formatDateTime(date: Date): string {
     return date.toISOString().slice(0, 16);
 }
 
-function onSubmit() {
+async function onSubmit() {
     const startTime = new Date(form.value.startTime);
     const endTime = new Date(form.value.endTime);
     if (startTime >= endTime) {
         alert('開始時間が終了時間より後です。');
         return;
     }
+
+    let contentId = form.value.contentId;
+
+    if (form.value.contentType === 'image' || form.value.contentType === 'movie') {
+        if (form.value.assetSource === 'existing') {
+            contentId = form.value.selectedAssetId;
+        } else if (form.value.assetSource === 'upload' && form.value.uploadFile) {
+            try {
+                const asset: Asset = {
+                    id: '',
+                    type: form.value.contentType === 'image' ? 'image' : 'video',
+                    dataUrl: '',
+                    name: form.value.uploadFile.name,
+                    uploadedAt: new Date().toISOString(),
+                    lastUpdated: new Date().toISOString(),
+                    size: form.value.uploadFile.size,
+                    referenceFrom: [],
+                };
+                const fileReader = new FileReader();
+                fileReader.onload = async (e) => {
+                    asset.dataUrl = e.target?.result as string;
+                    const ids = await assetService.addAssets([asset]);
+                    contentId = ids[0];
+                    emit('submit', {
+                        ...form.value,
+                        startTime,
+                        endTime,
+                        contentId,
+                    });
+                    emit('close');
+                };
+                fileReader.readAsDataURL(form.value.uploadFile);
+                return;
+            } catch (e) {
+                alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+                return;
+            }
+        }
+    }
+
     emit('submit', {
         ...form.value,
         startTime,
         endTime,
+        contentId,
     });
     emit('close');
 }
 
 function onClose() {
     emit('close');
+}
+
+function onFileChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    form.value.uploadFile = target.files?.[0] || null;
+}
+
+const fileInput = ref<HTMLInputElement | null>(null);
+
+function openFilePicker() {
+    fileInput.value?.click();
+}
+
+function clearFile() {
+    form.value.uploadFile = null;
+    if (fileInput.value) fileInput.value.value = '';
 }
 </script>
 
@@ -192,10 +310,59 @@ function onClose() {
     outline: none;
 }
 
-.main-btn:hover,
-.main-btn:focus {
-    background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
-    transform: translateY(-2px) scale(1.04);
+.radio-group {
+    display: flex;
+    gap: 1em;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    color: #fff;
+}
+
+.radio-group {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow: auto;
+}
+
+.file-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+}
+
+.hidden-file-input {
+    display: none;
+}
+
+.file-btn {
+    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
+    color: #232b36;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5em 0.9em;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.file-name {
+    color: #ddd;
+    font-size: 0.95em;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clear-btn {
+    background: transparent;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 0 0.5em;
+    cursor: pointer;
 }
 </style>
