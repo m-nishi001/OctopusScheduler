@@ -1,6 +1,9 @@
 <template>
     <div class="event-list-editor">
         <div class="editor-content">
+            <div v-if="syncing" class="sync-status">
+                <span class="sync-icon">🔄</span> 同期中...
+            </div>
             <h2 class="editor-title">
                 <span class="editor-icon">📅</span> スケジュールイベント管理
             </h2>
@@ -10,6 +13,9 @@
                 </button>
                 <button class="main-btn" @click="onReload" :disabled="loading">
                     <span class="btn-icon">🔄</span> 再読込
+                </button>
+                <button class="main-btn execute-btn" @click="onExecute" :disabled="!selectedEvents.length || executing">
+                    <span class="btn-icon">▶️</span> 実行
                 </button>
                 <button class="main-btn delete-btn" @click="onDeleteSelected"
                     :disabled="!selectedEvents.length || deleting">
@@ -73,6 +79,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
 import type { IScheduleEventDto } from '../../../../model/applications/schedule-event/i-schedule-event-dto';
@@ -92,6 +99,8 @@ const loading = ref(false);
 const selectedEvents = ref<string[]>([]);
 const syncing = ref(false);
 const deleting = ref(false);
+const executing = ref(false);
+const interruptFlag = ref(false);
 const showTypeSelection = ref(false);
 const showContentDialog = ref(false);
 const showMusicDialog = ref(false);
@@ -101,6 +110,7 @@ const editingEvent = ref<IScheduleEventDto | null>(null);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 const assetService = container.resolve(AssetService);
+const router = useRouter();
 
 const isAllSelected = computed({
     get: () => {
@@ -122,6 +132,26 @@ function getTypeLabel(type: string): string {
         case 'TransitionPageEvent': return '画面遷移';
         case 'SlideshowEvent': return 'スライドショー';
         default: return type;
+    }
+}
+
+function calculateWaitTime(event: IScheduleEventDto): number {
+    const baseTime = 5000; // 5秒
+    switch (event.type) {
+        case 'ShowContentEvent':
+            const showEvent = event as any; // Type assertion for simplicity
+            return baseTime + (showEvent.fadeInTime || 0) + (showEvent.fadeOutTime || 0) + (showEvent.duration || 0);
+        case 'PlayAudioEvent':
+            const audioEvent = event as any;
+            return baseTime + (audioEvent.fadeOutDuration || 0);
+        case 'TransitionPageEvent':
+            const transitionEvent = event as any;
+            return baseTime + (transitionEvent.fadeOutDuration || 0);
+        case 'SlideshowEvent':
+            const slideshowEvent = event as any;
+            return baseTime + (slideshowEvent.displayDuration || 0);
+        default:
+            return baseTime;
     }
 }
 
@@ -447,6 +477,58 @@ async function onReload() {
     }
 }
 
+async function onExecute() {
+    if (!selectedEvents.value.length || executing.value) return;
+    executing.value = true;
+    interruptFlag.value = false;
+
+    const selectedEventObjects = events.value.filter(ev => selectedEvents.value.includes(ev.id));
+
+    // ESC リスナー追加
+    const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+            interruptFlag.value = true;
+            event.preventDefault();
+        }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    try {
+        for (const event of selectedEventObjects) {
+            if (interruptFlag.value) break;
+
+            // 開始実行
+            await event.execute(true);
+
+            // 待機時間計算
+            const waitTime = calculateWaitTime(event);
+            await new Promise(resolve => {
+                const timeout = setTimeout(resolve, waitTime);
+                // 中断チェック
+                const checkInterrupt = () => {
+                    if (interruptFlag.value) {
+                        clearTimeout(timeout);
+                        resolve(void 0);
+                    } else {
+                        setTimeout(checkInterrupt, 100);
+                    }
+                };
+                checkInterrupt();
+            });
+
+            // 終了実行
+            await event.execute(false);
+        }
+    } catch (e) {
+        alert('実行中にエラーが発生しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+        executing.value = false;
+        document.removeEventListener('keydown', handleKeyDown);
+        // スケジュールイベント管理画面に戻る
+        router.push('/settings');
+    }
+}
+
 async function onDeleteSelected() {
     if (!selectedEvents.value.length) return;
     if (!confirm(`${selectedEvents.value.length} 件のイベントを削除しますか？`)) return;
@@ -474,8 +556,13 @@ async function onDelete(ev: IScheduleEventDto) {
 }
 
 onMounted(async () => {
-    await scheduleEventService.syncScheduleEvents();
-    getAllScheduleEvents();
+    syncing.value = true;
+    try {
+        await scheduleEventService.syncScheduleEvents();
+    } finally {
+        syncing.value = false;
+    }
+    await getAllScheduleEvents();
 });
 </script>
 
@@ -495,6 +582,7 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    position: relative;
 }
 
 .nav-group {
@@ -533,6 +621,35 @@ onMounted(async () => {
 
 .editor-icon {
     font-size: 1.3em;
+}
+
+.sync-status {
+    position: absolute;
+    top: 1em;
+    right: 1em;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 0.5em 1em;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: 0.9em;
+    z-index: 10;
+}
+
+.sync-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .controls {
@@ -756,6 +873,14 @@ onMounted(async () => {
 
 .delete-btn:hover {
     box-shadow: 0 6px 18px rgba(255, 107, 107, 0.14);
+}
+
+.execute-btn {
+    background: linear-gradient(90deg, #4caf50 0%, #81c784 100%);
+}
+
+.execute-btn:hover {
+    box-shadow: 0 6px 18px rgba(76, 175, 80, 0.14);
 }
 
 @media (max-width: 600px) {

@@ -24,14 +24,14 @@ export class ScheduleEventService {
   ) {}
 
   private deserialize(scheduleEvents: ScheduleEvent[]): IScheduleEventDto {
+    const scheduleEventType = scheduleEvents[0].type;
     const records = new Map<string, string>();
     for (const e of scheduleEvents) {
       records.set(e.settingName, e.settingValue);
     }
     const recordObj = Object.fromEntries(records);
-    const type = recordObj.type;
-    if (!type) throw new Error("Type not found in records");
-    switch (type) {
+    if (!scheduleEventType) throw new Error("Type not found in records");
+    switch (scheduleEventType) {
       case "PlayAudioEvent":
         return this.playAudioConverter.toEntity(recordObj);
       case "ShowContentEvent":
@@ -39,7 +39,7 @@ export class ScheduleEventService {
       case "TransitionPageEvent":
         return this.transitionPageConverter.toEntity(recordObj);
       default:
-        throw new Error(`Unknown event type: ${type}`);
+        throw new Error(`Unknown event type: ${scheduleEventType}`);
     }
   }
 
