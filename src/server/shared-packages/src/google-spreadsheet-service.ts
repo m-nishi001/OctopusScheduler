@@ -152,7 +152,10 @@ export class Transaction<T> {
     const lock = LockManager.tryLock();
     if (!lock) throw new Error("Failed to acquire lock for commit.");
     try {
-      let sheet = SpreadsheetAccessor.getSheet(this.sheetName);
+      let sheet = SpreadsheetAccessor.getSheet(
+        this.sheetName,
+        this.spreadsheetIdKey
+      );
       if (this.cache.length > 0) {
         sheet = SpreadsheetAccessor.createSheet(
           this.sheetName,
@@ -181,7 +184,7 @@ export class Transaction<T> {
 }
 
 class SpreadsheetAccessor {
-  static getSpreadsheetId(spreadsheetIdKey: string = "spreadsheet-id"): string {
+  static getSpreadsheetId(spreadsheetIdKey: string): string {
     const id =
       PropertiesService.getScriptProperties().getProperty(spreadsheetIdKey) ||
       "";
@@ -193,14 +196,14 @@ class SpreadsheetAccessor {
   }
 
   static getSpreadsheet(
-    spreadsheetIdKey: string = "spreadsheet-id"
+    spreadsheetIdKey: string
   ): GoogleAppsScript.Spreadsheet.Spreadsheet {
     return SpreadsheetApp.openById(this.getSpreadsheetId(spreadsheetIdKey));
   }
 
   static getSheet(
     name: string,
-    spreadsheetIdKey: string = "spreadsheet-id"
+    spreadsheetIdKey: string
   ): GoogleAppsScript.Spreadsheet.Sheet | null {
     return this.getSpreadsheet(spreadsheetIdKey).getSheetByName(name);
   }
@@ -208,7 +211,7 @@ class SpreadsheetAccessor {
   static createSheet(
     name: string,
     columns: string[],
-    spreadsheetIdKey: string = "spreadsheet-id"
+    spreadsheetIdKey: string
   ): GoogleAppsScript.Spreadsheet.Sheet {
     const ss = this.getSpreadsheet(spreadsheetIdKey);
     let sheet = ss.getSheetByName(name);
@@ -248,7 +251,7 @@ export class SpreadsheetService<T> implements ISpreadsheetService<T> {
 
   static getService<T>(
     sheetName: string,
-    spreadsheetIdKey: string = "spreadsheet-id"
+    spreadsheetIdKey: string
   ): ISpreadsheetService<T> {
     return new SpreadsheetService<T>(sheetName, spreadsheetIdKey);
   }
