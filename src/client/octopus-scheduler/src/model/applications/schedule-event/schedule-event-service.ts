@@ -2,9 +2,7 @@ import type { IScheduleEventRepository } from "../../domains/schedule-event/sche
 import type { IScheduleEventDto } from "./i-schedule-event-dto";
 import { ScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable, inject } from "tsyringe";
-import { PlayAudioEventConverter } from "./play-audio-event/play-audio-event-converter";
-import { ShowContentEventConverter } from "./show-content-event/show-content-event-converter";
-import { TransitionPageEventConverter } from "./transition-page-event/transition-page-event-converter";
+import type { IScheduleEventConverter } from "./i-schedule-event-converter";
 import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
 import { AssetService } from "../assets/asset-service";
 
@@ -13,12 +11,8 @@ export class ScheduleEventService {
   constructor(
     @inject("IScheduleEventRepository")
     private scheduleEventRepository: IScheduleEventRepository,
-    @inject("PlayAudioEventConverter")
-    private playAudioConverter: PlayAudioEventConverter,
-    @inject("ShowContentEventConverter")
-    private showContentConverter: ShowContentEventConverter,
-    @inject("TransitionPageEventConverter")
-    private transitionPageConverter: TransitionPageEventConverter,
+    @inject("ScheduleEventConverters")
+    private converters: Map<string, IScheduleEventConverter>,
     @inject("AssetService")
     private assetService: AssetService
   ) {}
@@ -31,16 +25,9 @@ export class ScheduleEventService {
     }
     const recordObj = Object.fromEntries(records);
     if (!scheduleEventType) throw new Error("Type not found in records");
-    switch (scheduleEventType) {
-      case "PlayAudioEvent":
-        return this.playAudioConverter.toEntity(recordObj);
-      case "ShowContentEvent":
-        return this.showContentConverter.toEntity(recordObj);
-      case "TransitionPageEvent":
-        return this.transitionPageConverter.toEntity(recordObj);
-      default:
-        throw new Error(`Unknown event type: ${scheduleEventType}`);
-    }
+    const converter = this.converters.get(scheduleEventType);
+    if (!converter) throw new Error(`Unknown event type: ${scheduleEventType}`);
+    return converter.toEntity(recordObj);
   }
 
   private serialize(event: IScheduleEventDto): ScheduleEvent[] {

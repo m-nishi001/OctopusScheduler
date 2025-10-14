@@ -8,6 +8,7 @@ import { AssetService } from "../../model/applications/assets/asset-service";
 import { PlayAudioEventConverter } from "../../model/applications/schedule-event/play-audio-event/play-audio-event-converter";
 import { ShowContentEventConverter } from "../../model/applications/schedule-event/show-content-event/show-content-event-converter";
 import { TransitionPageEventConverter } from "../../model/applications/schedule-event/transition-page-event/transition-page-event-converter";
+import type { IScheduleEventConverter } from "../../model/applications/schedule-event/i-schedule-event-converter";
 import { EventPollingService } from "../../model/applications/event-polling-service";
 
 export class Container {
@@ -23,14 +24,15 @@ export class Container {
     container.register("ScheduleEventService", {
       useClass: ScheduleEventService,
     });
-    container.register("PlayAudioEventConverter", {
-      useClass: PlayAudioEventConverter,
-    });
-    container.register("ShowContentEventConverter", {
-      useClass: ShowContentEventConverter,
-    });
-    container.register("TransitionPageEventConverter", {
-      useClass: TransitionPageEventConverter,
+    container.register("ScheduleEventConverters", {
+      useValue: new Map<string, IScheduleEventConverter>([
+        ["PlayAudioEvent", container.resolve(PlayAudioEventConverter)],
+        ["ShowContentEvent", container.resolve(ShowContentEventConverter)],
+        [
+          "TransitionPageEvent",
+          container.resolve(TransitionPageEventConverter),
+        ],
+      ]),
     });
     container.registerSingleton("EventPollingService", EventPollingService);
   }

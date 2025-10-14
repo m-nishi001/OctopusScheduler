@@ -1,9 +1,10 @@
 import { injectable } from "tsyringe";
 import type { IScheduleEventDto } from "../i-schedule-event-dto";
 import { ShowContentEventDto } from "./show-content-event-dto";
+import type { IScheduleEventConverter } from "../i-schedule-event-converter";
 
 @injectable()
-export class ShowContentEventConverter {
+export class ShowContentEventConverter implements IScheduleEventConverter {
   toEntity(records: Record<string, string>): IScheduleEventDto {
     return new ShowContentEventDto(
       records.id,

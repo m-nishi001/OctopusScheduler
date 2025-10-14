@@ -1,9 +1,10 @@
 import { injectable } from "tsyringe";
 import type { IScheduleEventDto } from "../i-schedule-event-dto";
 import { TransitionPageEventDto } from "./transition-page-event-dto";
+import type { IScheduleEventConverter } from "../i-schedule-event-converter";
 
 @injectable()
-export class TransitionPageEventConverter {
+export class TransitionPageEventConverter implements IScheduleEventConverter {
   toEntity(records: Record<string, string>): IScheduleEventDto {
     return new TransitionPageEventDto(
       records.id,
