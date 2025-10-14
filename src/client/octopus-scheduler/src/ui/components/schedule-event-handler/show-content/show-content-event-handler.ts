@@ -20,6 +20,11 @@ export class ShowContentEventHandler {
       contentId?: string;
       htmlString?: string;
       displayMode?: "fade" | "scroll-up" | "scroll-down";
+      effect?: "fade" | "scroll" | "static";
+      duration?: number;
+      fadeInTime?: number;
+      fadeOutTime?: number;
+      scrollDirection?: "up" | "down" | "left" | "right";
     },
     router: Router
   ) {
@@ -28,7 +33,14 @@ export class ShowContentEventHandler {
         router.push({
           name: "show-image",
           params: { id: data.contentId },
-          query: { displayMode: data.displayMode || "fade" },
+          query: {
+            displayMode: data.displayMode || "fade",
+            effect: data.effect || "fade",
+            duration: data.duration?.toString() || "3",
+            fadeInTime: data.fadeInTime?.toString() || "1",
+            fadeOutTime: data.fadeOutTime?.toString() || "1",
+            scrollDirection: data.scrollDirection || "up",
+          },
         });
       }
     } else if (data.contentType === "movie") {
@@ -36,7 +48,11 @@ export class ShowContentEventHandler {
         router.push({
           name: "show-video",
           params: { id: data.contentId },
-          query: { displayMode: data.displayMode || "fade" },
+          query: {
+            displayMode: data.displayMode || "fade",
+            effect: data.effect || "fade",
+            fadeInTime: data.fadeInTime?.toString() || "1",
+          },
         });
       }
     } else if (data.contentType === "html") {

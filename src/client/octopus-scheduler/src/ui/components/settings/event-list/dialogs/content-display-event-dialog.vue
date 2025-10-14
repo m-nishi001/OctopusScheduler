@@ -58,11 +58,32 @@
                 </div>
                 <div class="form-group">
                     <label for="displayMode">表示方法</label>
-                    <select id="displayMode" v-model="form.displayMode">
+                    <select id="displayMode" v-model="form.effect">
                         <option value="fade">フェード</option>
-                        <option value="scroll-up">スクロールアップ</option>
-                        <option value="scroll-down">スクロールダウン</option>
+                        <option value="scroll">スクロール</option>
+                        <option value="static">静的表示</option>
                     </select>
+                </div>
+                <div v-if="form.effect === 'fade'" class="form-group">
+                    <label for="fadeInTime">フェードイン時間 (秒)</label>
+                    <input id="fadeInTime" type="number" step="0.1" v-model.number="form.fadeInTime" min="0" />
+                </div>
+                <div v-if="form.effect === 'fade'" class="form-group">
+                    <label for="fadeOutTime">フェードアウト時間 (秒)</label>
+                    <input id="fadeOutTime" type="number" step="0.1" v-model.number="form.fadeOutTime" min="0" />
+                </div>
+                <div v-if="form.effect === 'scroll'" class="form-group">
+                    <label for="scrollDirection">スクロール方向</label>
+                    <select id="scrollDirection" v-model="form.scrollDirection">
+                        <option value="up">上</option>
+                        <option value="down">下</option>
+                        <option value="left">左</option>
+                        <option value="right">右</option>
+                    </select>
+                </div>
+                <div v-if="form.effect === 'scroll' || form.effect === 'static'" class="form-group">
+                    <label for="duration">表示時間 (秒)</label>
+                    <input id="duration" type="number" step="0.1" v-model.number="form.duration" min="0" />
                 </div>
                 <div class="form-actions">
                     <button type="button" class="main-btn" @click="onClose">キャンセル</button>
@@ -101,6 +122,11 @@ const form = ref({
     htmlString: props.event?.htmlString || '',
     fadeOutDuration: props.event?.fadeOutDuration || 0,
     displayMode: props.event?.displayMode || 'fade',
+    effect: props.event?.effect || 'fade',
+    duration: props.event?.duration || 3,
+    fadeInTime: props.event?.fadeInTime || 1,
+    fadeOutTime: props.event?.fadeOutTime || 1,
+    scrollDirection: props.event?.scrollDirection || 'up',
     assetSource: 'existing' as 'existing' | 'upload',
     selectedAssetId: '',
     uploadFile: null as File | null,
@@ -119,6 +145,11 @@ watch(() => props.event, (newEvent) => {
             htmlString: newEvent.htmlString || '',
             fadeOutDuration: newEvent.fadeOutDuration || 0,
             displayMode: newEvent.displayMode || 'fade',
+            effect: newEvent.effect || 'fade',
+            duration: newEvent.duration || 3,
+            fadeInTime: newEvent.fadeInTime || 1,
+            fadeOutTime: newEvent.fadeOutTime || 1,
+            scrollDirection: newEvent.scrollDirection || 'up',
             assetSource: 'existing',
             selectedAssetId: newEvent.contentId || '',
             uploadFile: null,
@@ -133,6 +164,11 @@ watch(() => props.event, (newEvent) => {
             htmlString: '',
             fadeOutDuration: 0,
             displayMode: 'fade',
+            effect: 'fade',
+            duration: 3,
+            fadeInTime: 1,
+            fadeOutTime: 1,
+            scrollDirection: 'up',
             assetSource: 'existing',
             selectedAssetId: '',
             uploadFile: null,

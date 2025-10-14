@@ -1,25 +1,28 @@
 <template>
     <div class="fullscreen-video">
-        <video :src="videoUrl" controls autoplay :class="displayModeClass"></video>
+        <video ref="videoEl" :src="videoUrl" controls autoplay :class="displayModeClass"></video>
     </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch, onUnmounted, computed } from 'vue';
+import { onMounted, ref, watch, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../model/applications/assets/asset-service';
+import gsap from 'gsap';
 
 const route = useRoute();
 const assetService = container.resolve<AssetService>('AssetService');
 
 const videoUrl = ref('');
 let objectUrl: string | null = null;
+const videoEl = ref<HTMLVideoElement | null>(null);
 
-const displayMode = ref(route.query.displayMode as string || 'fade');
+const effect = ref(route.query.effect as string || 'fade');
+const fadeInTime = ref(parseFloat(route.query.fadeInTime as string) || 1);
 
 const displayModeClass = computed(() => {
-    return displayMode.value === 'fade' ? 'fade-in' : displayMode.value;
+    return effect.value === 'fade' ? 'fade-in' : '';
 });
 
 function updateVideoUrl() {
@@ -36,7 +39,21 @@ onMounted(async () => {
             videoUrl.value = asset.dataUrl;
         }
     }
+    await nextTick();
+    startAnimation();
 });
+
+function startAnimation() {
+    if (!videoEl.value) return;
+    const el = videoEl.value;
+    gsap.set(el, { opacity: 0 });
+
+    if (effect.value === 'fade') {
+        gsap.to(el, { opacity: 1, duration: fadeInTime.value });
+    } else {
+        gsap.set(el, { opacity: 1 });
+    }
+}
 
 onUnmounted(() => {
     if (objectUrl) {

@@ -11,6 +11,11 @@ export class ShowContentEventDto implements IScheduleEventDto {
   public readonly htmlString?: string;
   public readonly fadeOutDuration?: number;
   public readonly displayMode?: "fade" | "scroll-up" | "scroll-down";
+  public readonly effect?: "fade" | "scroll" | "static";
+  public readonly duration?: number;
+  public readonly fadeInTime?: number;
+  public readonly fadeOutTime?: number;
+  public readonly scrollDirection?: "up" | "down" | "left" | "right";
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
   public readonly updatedAt: Date;
@@ -24,6 +29,11 @@ export class ShowContentEventDto implements IScheduleEventDto {
     htmlString: string | undefined,
     fadeOutDuration: number | undefined,
     displayMode: "fade" | "scroll-up" | "scroll-down" | undefined,
+    effect: "fade" | "scroll" | "static" | undefined,
+    duration: number | undefined,
+    fadeInTime: number | undefined,
+    fadeOutTime: number | undefined,
+    scrollDirection: "up" | "down" | "left" | "right" | undefined,
     processedAt: Date | null,
     registeredAt: Date,
     updatedAt: Date
@@ -36,6 +46,11 @@ export class ShowContentEventDto implements IScheduleEventDto {
     this.htmlString = htmlString;
     this.fadeOutDuration = fadeOutDuration;
     this.displayMode = displayMode;
+    this.effect = effect;
+    this.duration = duration;
+    this.fadeInTime = fadeInTime;
+    this.fadeOutTime = fadeOutTime;
+    this.scrollDirection = scrollDirection;
     this.processedAt = processedAt;
     this.registeredAt = registeredAt;
     this.updatedAt = updatedAt;
@@ -48,6 +63,11 @@ export class ShowContentEventDto implements IScheduleEventDto {
         contentId: this.contentId,
         htmlString: this.htmlString,
         displayMode: this.displayMode,
+        effect: this.effect,
+        duration: this.duration,
+        fadeInTime: this.fadeInTime,
+        fadeOutTime: this.fadeOutTime,
+        scrollDirection: this.scrollDirection,
       });
     } else {
       eventBus.emit("hideContent", { contentType: this.contentType });
@@ -65,6 +85,11 @@ export class ShowContentEventDto implements IScheduleEventDto {
       ["htmlString", this.htmlString ?? ""],
       ["fadeOutDuration", this.fadeOutDuration?.toString() ?? ""],
       ["displayMode", this.displayMode ?? ""],
+      ["effect", this.effect ?? ""],
+      ["duration", this.duration?.toString() ?? ""],
+      ["fadeInTime", this.fadeInTime?.toString() ?? ""],
+      ["fadeOutTime", this.fadeOutTime?.toString() ?? ""],
+      ["scrollDirection", this.scrollDirection ?? ""],
       ["processedAt", this.processedAt ? this.processedAt.toISOString() : ""],
       ["registeredAt", this.registeredAt.toISOString()],
       ["updatedAt", this.updatedAt.toISOString()],

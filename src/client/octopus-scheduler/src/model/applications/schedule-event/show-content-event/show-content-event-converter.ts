@@ -14,6 +14,11 @@ export class ShowContentEventConverter {
       records.htmlString || undefined,
       records.fadeOutDuration ? parseInt(records.fadeOutDuration) : undefined,
       records.displayMode as "fade" | "scroll-up" | "scroll-down" | undefined,
+      records.effect as "fade" | "scroll" | "static" | undefined,
+      records.duration ? parseInt(records.duration) : undefined,
+      records.fadeInTime ? parseFloat(records.fadeInTime) : undefined,
+      records.fadeOutTime ? parseFloat(records.fadeOutTime) : undefined,
+      records.scrollDirection as "up" | "down" | "left" | "right" | undefined,
       records.processedAt ? new Date(records.processedAt) : null,
       new Date(records.registeredAt),
       new Date(records.updatedAt)

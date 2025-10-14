@@ -8,6 +8,11 @@ export const eventBus = mitt<{
     contentId?: string;
     htmlString?: string;
     displayMode?: "fade" | "scroll-up" | "scroll-down";
+    effect?: "fade" | "scroll" | "static";
+    duration?: number;
+    fadeInTime?: number;
+    fadeOutTime?: number;
+    scrollDirection?: "up" | "down" | "left" | "right";
   };
   hideContent: { contentType: "image" | "movie" | "html" };
   transitionPage: { transitionUrl: string };
