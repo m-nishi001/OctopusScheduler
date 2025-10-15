@@ -27,9 +27,6 @@ export default {
     const htmlElement = ref<any | null>(null);
 
     onMounted(async () => {
-      // Sync screen configs from server
-      await screenConfigService.syncScreenConfigs();
-
       const config = await screenConfigService.fetchScreenConfig('opening');
       openingConfig.value = config as OpeningScreenSetting ?? new OpeningScreenSetting();
 

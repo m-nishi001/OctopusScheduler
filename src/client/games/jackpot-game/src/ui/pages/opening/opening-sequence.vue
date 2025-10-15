@@ -2,8 +2,8 @@
     <div class="opening-container" ref="containerEl">
         <div class="scroll-wrapper">
             <div class="scroll-content" ref="scrollContent">
-                <div v-for="(el, idx) in screenConfig?.contents || []" :key="idx" class="content-item"
-                    :data-index="idx" v-show="idx === currentIndex">
+                <div v-for="(el, idx) in screenConfig?.contents || []" :key="idx" class="content-item" :data-index="idx"
+                    v-show="idx === currentIndex">
                     <template v-if="el.type === 'text'">
                         <div v-html="formatText(el.text || el.content)"></div>
                     </template>
