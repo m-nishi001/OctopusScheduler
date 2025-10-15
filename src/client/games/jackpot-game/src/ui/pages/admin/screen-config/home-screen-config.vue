@@ -68,6 +68,8 @@
             <div style="display:flex;align-items:center;gap:12px;">
                 <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving || uploading"
                     :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
+                <button class="admin-btn mt-4" @click="handleSyncClick" :disabled="syncing"
+                    :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
                 <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
             <!-- ロードモーダル -->
@@ -91,6 +93,14 @@
                 <div class="modal-content">
                     <h3>アセットをアップロード中...</h3>
                     <p>ファイルをアップロードしています。しばらくお待ちください。</p>
+                    <div class="spinner"></div>
+                </div>
+            </div>
+            <!-- 同期モーダル -->
+            <div v-if="syncing" class="modal-overlay">
+                <div class="modal-content">
+                    <h3>同期中...</h3>
+                    <p>{{ syncStatus }}</p>
                     <div class="spinner"></div>
                 </div>
             </div>
@@ -119,6 +129,9 @@ const {
     assetService,
     fetchAssets,
 } = useScreenSettingData();
+
+const syncing = ref(false);
+const syncStatus = ref("");
 
 const localConfig = ref({
     homeBgm: "",
@@ -241,6 +254,21 @@ const handleSaveClick = async () => {
 onMounted(async () => {
     await loadConfig();
 });
+
+const handleSyncClick = async () => {
+    syncing.value = true;
+    syncStatus.value = "サーバーと同期中...";
+    try {
+        await screenConfigService.syncScreenConfigs();
+        await loadConfig();
+        syncStatus.value = "同期完了";
+    } catch (error) {
+        console.error("Failed to sync screen configs:", error);
+        syncStatus.value = "同期に失敗しました";
+    } finally {
+        syncing.value = false;
+    }
+};
 </script>
 
 <style scoped>

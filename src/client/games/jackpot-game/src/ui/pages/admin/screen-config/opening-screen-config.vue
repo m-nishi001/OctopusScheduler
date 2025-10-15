@@ -58,6 +58,8 @@
             <button class="admin-btn" @click="addContent">コンテンツ追加</button>
             <button class="admin-btn" @click="handleSaveClick" :disabled="saving"
                 :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
+            <button class="admin-btn" @click="handleSyncClick" :disabled="syncing"
+                :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
         </div>
     </div>
     <!-- 保存モーダル -->
@@ -65,6 +67,14 @@
         <div class="modal-content">
             <h3>保存中...</h3>
             <p>{{ saveStatus }}</p>
+            <div class="spinner"></div>
+        </div>
+    </div>
+    <!-- 同期モーダル -->
+    <div v-if="syncing" class="modal-overlay">
+        <div class="modal-content">
+            <h3>同期中...</h3>
+            <p>{{ syncStatus }}</p>
             <div class="spinner"></div>
         </div>
     </div>
@@ -89,6 +99,9 @@ const {
     saveStatus,
     handleSave,
 } = useScreenSettingData();
+
+const syncing = ref(false);
+const syncStatus = ref("");
 
 const localConfig = ref({
     bgmAssetId: "",
@@ -159,6 +172,25 @@ const removeContent = (idx: number) => {
     localConfig.value.contents.splice(idx, 1);
 };
 
+onMounted(async () => {
+    await loadConfig();
+});
+
+const handleSyncClick = async () => {
+    syncing.value = true;
+    syncStatus.value = "サーバーと同期中...";
+    try {
+        await screenConfigService.syncScreenConfigs();
+        await loadConfig();
+        syncStatus.value = "同期完了";
+    } catch (error) {
+        console.error("Failed to sync screen configs:", error);
+        syncStatus.value = "同期に失敗しました";
+    } finally {
+        syncing.value = false;
+    }
+};
+
 const handleSaveClick = async () => {
     await handleSave(async () => {
         const oldTempAssets = [...tempAssets.value]; // 保存前のコピー
@@ -208,6 +240,7 @@ const handleSaveClick = async () => {
         await fetchAssets();
     });
 };
+
 </script>
 
 <style scoped>
