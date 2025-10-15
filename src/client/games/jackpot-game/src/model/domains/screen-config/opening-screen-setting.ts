@@ -32,15 +32,30 @@ export class OpeningScreenSetting implements IScreenSetting {
     const records = new Map<string, string>();
     records.set("bgmMode", this.bgmMode);
     records.set("bgmAssetId", this.bgmAssetId);
-    records.set("contents", JSON.stringify(this.contents));
+    this.contents.forEach((content, index) => {
+      records.set(`contents_${index}`, JSON.stringify(content));
+    });
     return records;
   }
 
   static fromRecords(records: Map<string, string>): OpeningScreenSetting {
-    return new OpeningScreenSetting(
-      (records.get("bgmMode") as "select" | "upload") || "select",
-      records.get("bgmAssetId") || "",
-      JSON.parse(records.get("contents") || "[]")
-    );
+    const bgmMode = (records.get("bgmMode") as "select" | "upload") || "select";
+    const bgmAssetId = records.get("bgmAssetId") || "";
+    const contents: OpeningContent[] = [];
+    const contentKeys: string[] = [];
+    for (const key of records.keys()) {
+      if (key.startsWith("contents_")) {
+        contentKeys.push(key);
+      }
+    }
+    contentKeys.sort((a, b) => {
+      const aIndex = parseInt(a.split("_")[1]);
+      const bIndex = parseInt(b.split("_")[1]);
+      return aIndex - bIndex;
+    });
+    for (const key of contentKeys) {
+      contents.push(JSON.parse(records.get(key)!));
+    }
+    return new OpeningScreenSetting(bgmMode, bgmAssetId, contents);
   }
 }
