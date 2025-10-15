@@ -61,7 +61,7 @@ export class DrawResultRepository implements IDrawResultRepository {
     });
   }
 
-  async syncDrawResults(): Promise<void> {
+  async syncDrawResults(): Promise<{ synced: number }> {
     if (!this.service) throw new Error("GAS service not available");
     return new Promise((resolve, reject) => {
       this.service
@@ -70,7 +70,7 @@ export class DrawResultRepository implements IDrawResultRepository {
           for (const result of results) {
             await this.localStorage.save(result.drawId, result);
           }
-          resolve();
+          resolve({ synced: results.length });
         })
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();

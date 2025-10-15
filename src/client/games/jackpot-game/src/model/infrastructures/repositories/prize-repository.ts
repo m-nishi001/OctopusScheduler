@@ -70,7 +70,7 @@ export class PrizeRepository implements IPrizeRepository {
     });
   }
 
-  async syncPrizes(): Promise<void> {
+  async syncPrizes(): Promise<{ synced: number }> {
     if (!this.gasService) throw new Error("GAS service not available");
     return new Promise((resolve, reject) => {
       this.gasService
@@ -89,7 +89,7 @@ export class PrizeRepository implements IPrizeRepository {
           for (const prize of serverPrizes) {
             await this.localStorage.save(prize.id, prize);
           }
-          resolve();
+          resolve({ synced: res.length });
         })
         .withFailuered((msg: string) => reject(new Error(msg)))
         .invoke();

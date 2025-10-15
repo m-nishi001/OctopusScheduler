@@ -39,7 +39,7 @@ export class ScreenConfigService {
     await this.repo.updateScreenSettings(settings);
   }
 
-  async syncScreenConfigs(): Promise<void> {
-    await this.repo.syncScreenConfigs();
+  async syncScreenConfigs(): Promise<{ synced: number }> {
+    return await this.repo.syncScreenConfigs();
   }
 }

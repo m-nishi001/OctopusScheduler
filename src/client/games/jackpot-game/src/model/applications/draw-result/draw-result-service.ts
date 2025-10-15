@@ -28,8 +28,8 @@ export class DrawResultService {
     await this.repo.deleteDrawResult(resultId);
   }
 
-  async syncDrawResults(): Promise<void> {
+  async syncDrawResults(): Promise<{ synced: number }> {
     // サーバーから全抽選結果を取得してローカルストレージに同期
-    await this.repo.syncDrawResults();
+    return await this.repo.syncDrawResults();
   }
 }

@@ -97,7 +97,7 @@ export class MemberRepository implements IMemberRepository {
     await this.localStorage.removeMultiple(ids);
   }
 
-  async syncMembers(): Promise<void> {
+  async syncMembers(): Promise<{ synced: number }> {
     if (!this.gasService) throw new Error("GAS service not available");
 
     const res = await new Promise<MemberDto[]>((resolve, reject) => {
@@ -118,5 +118,7 @@ export class MemberRepository implements IMemberRepository {
     for (const member of serverMembers) {
       await this.localStorage.save(member.id, member);
     }
+
+    return { synced: res.length };
   }
 }

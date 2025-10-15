@@ -47,7 +47,7 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
     }
   }
 
-  async syncScreenConfigs(): Promise<void> {
+  async syncScreenConfigs(): Promise<{ synced: number }> {
     if (!this.gasService) throw new Error("GAS service not available");
     try {
       const settings: ScreenSetting[] = await new Promise<ScreenSetting[]>(
@@ -66,8 +66,10 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
           setting
         )
       );
+      return { synced: settings.length };
     } catch (e) {
       console.warn("Failed to sync screen configs:", e);
+      return { synced: 0 };
     }
   }
 }

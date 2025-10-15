@@ -21,8 +21,8 @@ export class PrizeService {
     await this.repo.updatePrizes(updateOps);
   }
 
-  async syncPrizes(): Promise<void> {
+  async syncPrizes(): Promise<{ synced: number }> {
     // サーバーから全景品を取得してローカルストレージに同期
-    await this.repo.syncPrizes();
+    return await this.repo.syncPrizes();
   }
 }

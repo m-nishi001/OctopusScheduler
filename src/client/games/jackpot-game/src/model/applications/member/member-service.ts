@@ -22,7 +22,7 @@ export class MemberService {
     await this.repo.updateMembers(updateOps);
   }
 
-  async syncMembers(): Promise<void> {
-    await this.repo.syncMembers();
+  async syncMembers(): Promise<{ synced: number }> {
+    return await this.repo.syncMembers();
   }
 }
