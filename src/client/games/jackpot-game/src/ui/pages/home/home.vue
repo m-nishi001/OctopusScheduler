@@ -17,7 +17,8 @@
           <div class="progress-wrap">
             <div class="progress-line" :style="{ width: progress + '%' }"></div>
           </div>
-          <div class="progress-text">アセットをダウンロード中... {{ Math.round(progress) }}%</div>
+          <div v-for="task in syncTasks" :key="task.label" class="progress-text">{{ task.label }}: {{ task.status }}
+          </div>
         </div>
       </div>
     </div>
@@ -57,6 +58,13 @@ export default {
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
+    const syncTasks = ref([
+      { label: "アセット", status: "準備中" },
+      { label: "賞品", status: "準備中" },
+      { label: "抽選結果", status: "準備中" },
+      { label: "メンバー", status: "準備中" },
+      { label: "画面設定", status: "準備中" },
+    ]);
     // button refs for animation
     const startBtn = ref<HTMLButtonElement | null>(null);
     const adminBtn = ref<HTMLButtonElement | null>(null);
@@ -81,29 +89,34 @@ export default {
     const loadAssets = async () => {
       try {
         progress.value = 10;
-        const syncTasks = [
-          assetService.syncAssets(),
-          prizeService.syncPrizes(),
-          drawResultService.syncDrawResults(),
-          memberService.syncMembers(),
-          screenConfigService.syncScreenConfigs(),
+        const tasks = [
+          { task: assetService.syncAssets(), index: 0 },
+          { task: prizeService.syncPrizes(), index: 1 },
+          { task: drawResultService.syncDrawResults(), index: 2 },
+          { task: memberService.syncMembers(), index: 3 },
+          { task: screenConfigService.syncScreenConfigs(), index: 4 },
         ];
-        const totalTasks = syncTasks.length;
+        const totalTasks = tasks.length;
         const progressPerTask = 30 / totalTasks;
-        await Promise.all(syncTasks.map(async (task) => {
+        await Promise.all(tasks.map(async ({ task, index }) => {
+          syncTasks.value[index].status = "同期中";
           await task;
+          syncTasks.value[index].status = "完了";
           progress.value += progressPerTask;
         }));
       } catch (e) {
         progress.value = 50;
+        syncTasks.value.forEach(t => t.status = "エラー");
       }
       const config = await screenConfigService.fetchScreenConfig('home');
       homeConfig.value = config as HomeScreenSetting ?? new HomeScreenSetting("", "", "", "", "");
 
-      for (let i = progress.value; i <= 100; i += 8) {
+      for (let i = progress.value; i < 100;) {
+        i = Math.min(i + 8, 100);
         progress.value = i;
         await new Promise((r) => setTimeout(r, 120));
       }
+      progress.value = 100;
     };
 
     onMounted(async () => {
@@ -156,7 +169,7 @@ export default {
       if (e.key === 'Enter') goOpening();
     };
 
-    return { goOpening, goAdmin, homeConfig, progress, assetsLoaded, startBtn, adminBtn };
+    return { goOpening, goAdmin, homeConfig, progress, assetsLoaded, startBtn, adminBtn, syncTasks };
   },
 };
 </script>

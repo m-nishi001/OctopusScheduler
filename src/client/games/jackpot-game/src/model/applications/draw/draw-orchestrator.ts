@@ -23,8 +23,8 @@ export class DrawOrchestrator {
     if (response.pairs) {
       await Promise.all(
         response.pairs.map(async (p, i) => {
-          const member = members.find(m => m.id === p.memberId);
-          const prize = prizes.find(pr => pr.id === p.prizeId);
+          const member = members.find((m) => m.id === p.memberId);
+          const prize = prizes.find((pr) => pr.id === p.prizeId);
           if (member && prize) {
             await this.resultService.addDrawResult({
               drawId: `${p.memberId}-${p.prizeId}-${Date.now()}`,
