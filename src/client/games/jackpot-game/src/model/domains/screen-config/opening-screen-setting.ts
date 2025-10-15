@@ -53,7 +53,12 @@ export class OpeningScreenSetting implements IScreenSetting {
       return aIndex - bIndex;
     });
     for (const key of contentKeys) {
-      contents.push(JSON.parse(records.get(key)!));
+      const value = records.get(key)!;
+      if (typeof value === "string") {
+        contents.push(JSON.parse(value));
+      } else {
+        contents.push(value as OpeningContent);
+      }
     }
     return new OpeningScreenSetting(bgmMode, bgmAssetId, contents);
   }
