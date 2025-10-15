@@ -27,6 +27,9 @@ export default {
     const htmlElement = ref<any | null>(null);
 
     onMounted(async () => {
+      // Sync screen configs from server
+      await screenConfigService.syncScreenConfigs();
+
       const config = await screenConfigService.fetchScreenConfig('opening');
       openingConfig.value = config as OpeningScreenSetting ?? new OpeningScreenSetting();
 
@@ -43,6 +46,21 @@ export default {
       if (htmlEl) {
         isHtmlFullscreen.value = true;
         htmlElement.value = htmlEl;
+      }
+
+      // Resolve asset URLs for contents
+      if (openingConfig.value?.contents) {
+        const assetService = container.resolve(AssetService);
+        for (const content of openingConfig.value.contents) {
+          if (content.assetId) {
+            try {
+              const assetDto = await assetService.getAssetById(content.assetId);
+              (content as any).assetUrl = assetDto?.dataUrl;
+            } catch (e) {
+              console.warn('Failed to load asset for content:', content, e);
+            }
+          }
+        }
       }
     });
 

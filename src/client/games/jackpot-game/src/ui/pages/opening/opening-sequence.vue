@@ -2,10 +2,10 @@
     <div class="opening-container" ref="containerEl">
         <div class="scroll-wrapper">
             <div class="scroll-content" ref="scrollContent">
-                <div v-for="(el, idx) in screenConfig?.contents || []" :key="el.id" class="content-item"
+                <div v-for="(el, idx) in screenConfig?.contents || []" :key="idx" class="content-item"
                     :data-index="idx" v-show="idx === currentIndex">
                     <template v-if="el.type === 'text'">
-                        <div v-html="formatText(el.content)"></div>
+                        <div v-html="formatText(el.text || el.content)"></div>
                     </template>
                     <template v-else-if="el.type === 'image'">
                         <img :src="el.assetUrl" style="max-width:80%;" />
@@ -106,7 +106,7 @@ export default {
         };
 
         const startSequence = async () => {
-            if (!scrollContent.value || !props.openingConfig) return;
+            if (!scrollContent.value || !props.screenConfig) return;
             const elements = Array.from(scrollContent.value.querySelectorAll('.content-item')) as HTMLElement[];
             elements.forEach(el => gsap.set(el, { opacity: 0 }));
 
