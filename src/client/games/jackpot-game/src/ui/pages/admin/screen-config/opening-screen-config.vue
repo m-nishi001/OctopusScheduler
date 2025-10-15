@@ -192,10 +192,11 @@ const handleSaveClick = async () => {
     try {
         const oldTempAssets = [...tempAssets.value]; // 保存前のコピー
         const tempAssetMap = new Map<string, string>();
+        let updatedAssets: any[] = [];
 
         // アップロード後に tempAssets が更新される
         if (tempAssets.value.length > 0) {
-            const updatedAssets = await assetService.addAssets(tempAssets.value);
+            updatedAssets = await assetService.addAssets(tempAssets.value);
             updatedAssets.forEach((asset: any, index: number) => {
                 tempAssetMap.set(oldTempAssets[index].id, asset.id);
             });
@@ -219,6 +220,14 @@ const handleSaveClick = async () => {
         await screenConfigService.saveScreenConfigs(settings);
 
         await loadConfig();
+
+        // Register references for newly uploaded assets
+        if (tempAssets.value.length > 0) {
+            const assetIds = updatedAssets.map((a: any) => a.id);
+            for (const assetId of assetIds) {
+                await assetService.registerRef(assetId, "opening");
+            }
+        }
 
         // tempAssets をクリア
         tempAssets.value = [];

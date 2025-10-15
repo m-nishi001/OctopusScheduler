@@ -227,6 +227,14 @@ const handleSaveClick = async () => {
         await screenConfigService.saveScreenConfigs(settings);
         await loadConfig();
         await fetchAssets();
+
+        // Register references for newly uploaded assets
+        if (tempAssetsToAdd.length > 0) {
+            const assetIds = tempAssetsToAdd.map(a => a.id);
+            for (const assetId of assetIds) {
+                await assetService.registerRef(assetId, "home");
+            }
+        }
     });
 };
 
