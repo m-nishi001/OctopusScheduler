@@ -51,7 +51,12 @@ export class AssetService {
     ids.forEach((id) => onProgress?.({ id, success: true }));
   }
 
-  async syncAssets(onProgress?: (message: string, progress?: { current: number; total: number }) => void): Promise<{ updated: number; deleted: number }> {
+  async syncAssets(
+    onProgress?: (
+      message: string,
+      progress?: { current: number; total: number }
+    ) => void
+  ): Promise<{ updated: number; deleted: number }> {
     return await this.repo.syncAssets(onProgress);
   }
 

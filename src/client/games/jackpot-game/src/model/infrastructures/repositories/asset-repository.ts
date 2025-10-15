@@ -79,7 +79,12 @@ export class AssetRepository implements IAssetRepository {
     await Promise.all(promises);
   }
 
-  async syncAssets(onProgress?: (message: string, progress?: { current: number; total: number }) => void): Promise<{ updated: number; deleted: number }> {
+  async syncAssets(
+    onProgress?: (
+      message: string,
+      progress?: { current: number; total: number }
+    ) => void
+  ): Promise<{ updated: number; deleted: number }> {
     return await this.synchronizer.execute(onProgress);
   }
 
@@ -128,7 +133,12 @@ class AssetSynchronizer {
     private readonly localStorage: ReturnType<typeof useLocalStorage>
   ) {}
 
-  async execute(onProgress?: (message: string, progress?: { current: number; total: number }) => void): Promise<{ updated: number; deleted: number }> {
+  async execute(
+    onProgress?: (
+      message: string,
+      progress?: { current: number; total: number }
+    ) => void
+  ): Promise<{ updated: number; deleted: number }> {
     const gasService = GasFunctionService.create("callJackpotGameApi");
     if (!gasService) throw new Error("GAS service not available");
 
@@ -139,13 +149,19 @@ class AssetSynchronizer {
     await this.deleteObsoleteAssets(toDelete, onProgress);
     await this.downloadUpdatedAssets(toUpdate, gasService, onProgress);
 
-    onProgress?.("同期完了", { current: toUpdate.length, total: toUpdate.length });
+    onProgress?.("同期完了", {
+      current: toUpdate.length,
+      total: toUpdate.length,
+    });
     return { updated: toUpdate.length, deleted: toDelete.length };
   }
 
   private async fetchMetadata(
     gasService: GasFunctionService,
-    onProgress?: (message: string, progress?: { current: number; total: number }) => void
+    onProgress?: (
+      message: string,
+      progress?: { current: number; total: number }
+    ) => void
   ): Promise<AssetMetadata[]> {
     onProgress?.("Google Driveからアセットメタデータを取得中...");
     return new Promise((resolve, reject) => {
@@ -185,7 +201,10 @@ class AssetSynchronizer {
 
   private async deleteObsoleteAssets(
     toDelete: Asset[],
-    onProgress?: (message: string, progress?: { current: number; total: number }) => void
+    onProgress?: (
+      message: string,
+      progress?: { current: number; total: number }
+    ) => void
   ): Promise<void> {
     if (toDelete.length > 0) {
       onProgress?.(`${toDelete.length}個の不要なアセットを削除中...`);
@@ -196,16 +215,25 @@ class AssetSynchronizer {
   private async downloadUpdatedAssets(
     toUpdate: AssetMetadata[],
     gasService: GasFunctionService,
-    onProgress?: (message: string, progress?: { current: number; total: number }) => void
+    onProgress?: (
+      message: string,
+      progress?: { current: number; total: number }
+    ) => void
   ): Promise<void> {
     if (toUpdate.length === 0) return;
 
-    onProgress?.(`${toUpdate.length}個のアセットをダウンロード中...`, { current: 0, total: toUpdate.length });
+    onProgress?.(`${toUpdate.length}個のアセットをダウンロード中...`, {
+      current: 0,
+      total: toUpdate.length,
+    });
     let completed = 0;
     const downloadPromises = toUpdate.map((meta) =>
       this.downloadAsset(meta, gasService, onProgress, () => {
         completed++;
-        onProgress?.(`${toUpdate.length}個のアセットをダウンロード中...`, { current: completed, total: toUpdate.length });
+        onProgress?.(`${toUpdate.length}個のアセットをダウンロード中...`, {
+          current: completed,
+          total: toUpdate.length,
+        });
       })
     );
     await Promise.all(downloadPromises);
@@ -214,7 +242,10 @@ class AssetSynchronizer {
   private async downloadAsset(
     meta: AssetMetadata,
     gasService: GasFunctionService,
-    onProgress?: (message: string, progress?: { current: number; total: number }) => void,
+    onProgress?: (
+      message: string,
+      progress?: { current: number; total: number }
+    ) => void,
     onComplete?: () => void
   ): Promise<void> {
     return new Promise((resolve, reject) => {

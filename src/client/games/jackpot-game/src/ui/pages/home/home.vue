@@ -17,7 +17,9 @@
           <div class="progress-wrap">
             <div class="progress-line" :style="{ width: progress + '%' }"></div>
           </div>
-          <div v-for="task in syncTasks" :key="task.label" class="progress-text">{{ task.label }}: {{ task.status }}{{ task.total > 0 ? (task.status === '同期中' && task.current > 0 ? ` (${task.current}件/${task.total}件)` : ` (${task.total}件)`) : '' }}
+          <div v-for="task in syncTasks" :key="task.label" class="progress-text">{{ task.label }}: {{ task.status }}{{
+            task.total > 0 ? (task.status === '同期中' ? ` (${task.current}件/${task.total}件)` : `
+            (${task.total}件)`) : '' }}
           </div>
         </div>
       </div>
@@ -90,12 +92,14 @@ export default {
       try {
         progress.value = 10;
         const tasks = [
-          { task: assetService.syncAssets((_message, progressInfo) => {
+          {
+            task: assetService.syncAssets((_message, progressInfo) => {
               if (progressInfo) {
                 syncTasks.value[0].current = progressInfo.current;
                 syncTasks.value[0].total = progressInfo.total;
               }
-            }), index: 0 },
+            }), index: 0
+          },
           { task: prizeService.syncPrizes(), index: 1 },
           { task: drawResultService.syncDrawResults(), index: 2 },
           { task: memberService.syncMembers(), index: 3 },

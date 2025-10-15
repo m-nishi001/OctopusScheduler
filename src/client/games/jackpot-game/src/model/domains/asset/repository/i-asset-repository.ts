@@ -21,7 +21,12 @@ export interface IAssetRepository {
   getAssets(): Promise<Asset[]>;
   getAssetById(id: string): Promise<Asset | null>;
   deleteAssets(ids: string[]): Promise<void>;
-  syncAssets(onProgress?: (message: string, progress?: { current: number; total: number }) => void): Promise<{ updated: number; deleted: number }>;
+  syncAssets(
+    onProgress?: (
+      message: string,
+      progress?: { current: number; total: number }
+    ) => void
+  ): Promise<{ updated: number; deleted: number }>;
   getAllAssetMetadata(): Promise<AssetMetadata[]>;
   registerRef(assetId: string, refSourceId: string): Promise<void>;
   unregisterRef(assetId: string, refSourceId: string): Promise<void>;
