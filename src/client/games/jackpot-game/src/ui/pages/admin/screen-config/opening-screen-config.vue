@@ -77,6 +77,7 @@ const {
     assetService,
     onTempAssets,
     tempAssets,
+    fetchAssets,
 } = useScreenSettingData();
 
 const localConfig = ref<OpeningScreenSetting>(new OpeningScreenSetting());
@@ -221,6 +222,7 @@ const handleSaveClick = async () => {
 
         // tempAssets をクリア
         tempAssets.value = [];
+        await fetchAssets();
     } finally {
         saving.value = false;
     }

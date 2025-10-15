@@ -117,6 +117,7 @@ const {
     handleSave,
     onTempAssets,
     assetService,
+    fetchAssets,
 } = useScreenSettingData();
 
 const localConfig = ref({
@@ -225,6 +226,7 @@ const handleSaveClick = async () => {
         const settings = converter.toSettings(config);
         await screenConfigService.saveScreenConfigs(settings);
         await loadConfig();
+        await fetchAssets();
     });
 };
 
