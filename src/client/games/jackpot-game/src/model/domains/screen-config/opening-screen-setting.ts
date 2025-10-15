@@ -30,7 +30,6 @@ export class OpeningScreenSetting implements IScreenSetting {
 
   toRecords(): Map<string, string> {
     const records = new Map<string, string>();
-    records.set("bgmMode", this.bgmMode);
     records.set("bgmAssetId", this.bgmAssetId);
     this.contents.forEach((content, index) => {
       records.set(`contents_${index}`, JSON.stringify(content));
@@ -39,8 +38,8 @@ export class OpeningScreenSetting implements IScreenSetting {
   }
 
   static fromRecords(records: Map<string, string>): OpeningScreenSetting {
-    const bgmMode = (records.get("bgmMode") as "select" | "upload") || "select";
     const bgmAssetId = records.get("bgmAssetId") || "";
+    const bgmMode: "select" | "upload" = bgmAssetId ? "select" : "select";
     const contents: OpeningContent[] = [];
     const contentKeys: string[] = [];
     for (const key of records.keys()) {

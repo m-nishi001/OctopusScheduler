@@ -74,12 +74,13 @@ const {
     screenConfigService,
     audioAssets,
     imageAssets,
-    saving,
-    handleSave,
+    assetService,
     onTempAssets,
+    tempAssets,
 } = useScreenSettingData();
 
 const localConfig = ref<OpeningScreenSetting>(new OpeningScreenSetting());
+const saving = ref(false);
 
 const loadConfig = async () => {
     try {
@@ -186,12 +187,43 @@ const removeContent = (idx: number) => {
 };
 
 const handleSaveClick = async () => {
-    await handleSave(async () => {
+    saving.value = true;
+    try {
+        const oldTempAssets = [...tempAssets.value]; // 保存前のコピー
+        const tempAssetMap = new Map<string, string>();
+
+        // アップロード後に tempAssets が更新される
+        if (tempAssets.value.length > 0) {
+            const updatedAssets = await assetService.addAssets(tempAssets.value);
+            updatedAssets.forEach((asset: any, index: number) => {
+                tempAssetMap.set(oldTempAssets[index].id, asset.id);
+            });
+        }
+
+        // localConfig のアセットIDを置き換え
+        if (tempAssetMap.has(localConfig.value.bgmAssetId)) {
+            localConfig.value.bgmAssetId = tempAssetMap.get(localConfig.value.bgmAssetId)!;
+        }
+        localConfig.value.contents.forEach(content => {
+            if (content.assetId && tempAssetMap.has(content.assetId)) {
+                content.assetId = tempAssetMap.get(content.assetId)!;
+            }
+            if (content.seAssetId && tempAssetMap.has(content.seAssetId)) {
+                content.seAssetId = tempAssetMap.get(content.seAssetId)!;
+            }
+        });
+
         const converter = container.resolve(OpeningScreenConfigConverter);
         const settings = converter.toSettings(localConfig.value as OpeningScreenSetting);
         await screenConfigService.saveScreenConfigs(settings);
+
         await loadConfig();
-    });
+
+        // tempAssets をクリア
+        tempAssets.value = [];
+    } finally {
+        saving.value = false;
+    }
 };
 </script>
 

@@ -7,11 +7,14 @@ import {
   type IScreenConfigConverter,
 } from "./i-screen-config-converter";
 import { container } from "tsyringe";
+import { AssetService } from "../asset/asset-service";
+import type { AssetDto } from "../asset/dto/asset-dto";
 
 @injectable()
 export class ScreenConfigService {
   constructor(
-    @inject("IScreenSettingRepository") private repo: IScreenSettingRepository
+    @inject("IScreenSettingRepository") private repo: IScreenSettingRepository,
+    private assetService: AssetService
   ) {}
 
   async fetchScreenConfig(type: string): Promise<IScreenSetting | null> {
@@ -26,7 +29,13 @@ export class ScreenConfigService {
     return null;
   }
 
-  async saveScreenConfigs(settings: ScreenSetting[]): Promise<void> {
+  async saveScreenConfigs(
+    settings: ScreenSetting[],
+    tempAssets?: AssetDto[]
+  ): Promise<void> {
+    if (tempAssets && tempAssets.length > 0) {
+      await this.assetService.addAssets(tempAssets);
+    }
     await this.repo.updateScreenSettings(settings);
   }
 
