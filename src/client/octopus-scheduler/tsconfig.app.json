@@ -13,11 +13,12 @@
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "baseUrl": ".",
-    "outDir": "dist",
+    "paths": {
+      "model/*": ["src/model/*"],
+      "ui/*": ["src/ui/*"],
+      "core/*": ["src/core/*"]
+    },
+    "outDir": "dist"
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.vue"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

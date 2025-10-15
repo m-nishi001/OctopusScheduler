@@ -7,6 +7,8 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { container } from 'tsyringe';
+import { AssetService } from 'model/applications/assets/asset-service';
 
 interface Props {
     content: string;
@@ -16,6 +18,7 @@ const props = defineProps<Props>();
 const route = useRoute();
 
 const htmlContent = ref('');
+const assetService = container.resolve(AssetService) as AssetService;
 
 const displayMode = ref(route.query.displayMode as string || 'fade');
 
@@ -23,8 +26,36 @@ const displayModeClass = computed(() => {
     return displayMode.value === 'fade' ? 'fade-in' : displayMode.value;
 });
 
-onMounted(() => {
-    htmlContent.value = decodeURIComponent(props.content || '');
+onMounted(async () => {
+    let html = decodeURIComponent(props.content || '');
+    const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
+    const assetIds = [];
+    let match;
+    while ((match = assetRegex.exec(html)) !== null) {
+        assetIds.push(match[2]);
+    }
+    const assetMap = new Map<string, string>();
+    for (const id of assetIds) {
+        try {
+            const asset = await assetService.getAssetById(id);
+            if (asset) {
+                assetMap.set(id, asset.dataUrl);
+            }
+        } catch (e) {
+            console.error('Failed to load asset:', id, e);
+        }
+    }
+    html = html.replace(assetRegex, (match, type, assetId) => {
+        const dataUrl = assetMap.get(assetId);
+        if (!dataUrl) return match;
+        if (type === 'image') {
+            return `<img src="${dataUrl}" alt="asset" />`;
+        } else if (type === 'video') {
+            return `<video src="${dataUrl}" controls autoplay></video>`;
+        }
+        return match;
+    });
+    htmlContent.value = html;
 });
 </script>
 

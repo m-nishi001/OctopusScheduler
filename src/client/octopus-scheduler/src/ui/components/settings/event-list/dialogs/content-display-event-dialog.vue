@@ -54,7 +54,55 @@
                 </div>
                 <div class="form-group" v-if="form.contentType === 'html'">
                     <label for="htmlString">HTML文字列</label>
-                    <textarea id="htmlString" v-model="form.htmlString" required></textarea>
+                    <textarea id="htmlString" ref="htmlTextarea" v-model="form.htmlString" required></textarea>
+                    <div class="asset-insert-section">
+                        <label>アセット挿入</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" value="existing" v-model="form.assetInsertSource" />
+                                既存アセットを選択
+                            </label>
+                            <label>
+                                <input type="radio" value="upload" v-model="form.assetInsertSource" />
+                                新規アップロード
+                            </label>
+                        </div>
+                        <div v-if="form.assetInsertSource === 'existing'" class="asset-insert-controls">
+                            <select v-model="form.insertAssetType">
+                                <option value="image">画像</option>
+                                <option value="video">動画</option>
+                            </select>
+                            <select v-model="form.insertAssetId">
+                                <option value="">選択してください</option>
+                                <option v-for="asset in filteredInsertAssets" :key="asset.id" :value="asset.id">
+                                    {{ asset.name }}
+                                </option>
+                            </select>
+                            <button type="button" @click="insertAsset" :disabled="!form.insertAssetId">挿入</button>
+                        </div>
+                        <div v-if="form.assetInsertSource === 'upload'" class="asset-insert-controls">
+                            <select v-model="form.insertAssetType">
+                                <option value="image">画像</option>
+                                <option value="video">動画</option>
+                            </select>
+                            <div class="file-picker">
+                                <input ref="insertFileInput" class="hidden-file-input" type="file"
+                                    @change="onInsertFileChange"
+                                    :accept="form.insertAssetType === 'image' ? 'image/*' : 'video/*'" />
+                                <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
+                                    File</button>
+                                <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
+                                    }}</span>
+                                <button v-if="form.insertFile" type="button" class="clear-btn"
+                                    @click.prevent="clearInsertFile">×</button>
+                            </div>
+                            <button type="button" @click="insertAsset" :disabled="!form.insertFile">挿入</button>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="form.contentType === 'html'" class="form-group">
+                    <label>プレビュー</label>
+                    <div class="html-preview" v-html="processedHtml"></div>
                 </div>
                 <div class="form-group">
                     <label for="displayMode">表示方法</label>
@@ -130,10 +178,56 @@ const form = ref({
     assetSource: 'existing' as 'existing' | 'upload',
     selectedAssetId: '',
     uploadFile: null as File | null,
+    assetInsertSource: 'existing' as 'existing' | 'upload',
+    insertAssetType: 'image' as 'image' | 'video',
+    insertAssetId: '',
+    insertFile: null as File | null,
+    tempAssets: [] as Asset[],
 });
 
 const assets = ref<Asset[]>([]);
 const assetService = container.resolve(AssetService);
+
+const assetMap = ref<Map<string, string>>(new Map());
+
+const processedHtml = computed(() => {
+    if (!form.value.htmlString) return '';
+    let html = form.value.htmlString;
+    const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
+    html = html.replace(assetRegex, (match, type, assetId) => {
+        const dataUrl = assetMap.value.get(assetId);
+        if (!dataUrl) return match;
+        if (type === 'image') {
+            return `<img src="${dataUrl}" alt="asset" />`;
+        } else if (type === 'video') {
+            return `<video src="${dataUrl}" controls autoplay></video>`;
+        }
+        return match;
+    });
+    return html;
+});
+
+watch(() => form.value.htmlString, async (newHtml) => {
+    if (!newHtml) return;
+    const assetIds = [];
+    const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
+    let match;
+    while ((match = assetRegex.exec(newHtml)) !== null) {
+        assetIds.push(match[2]);
+    }
+    for (const id of assetIds) {
+        if (!assetMap.value.has(id)) {
+            try {
+                const asset = await assetService.getAssetById(id);
+                if (asset) {
+                    assetMap.value.set(id, asset.dataUrl);
+                }
+            } catch (e) {
+                console.error('Failed to load asset:', id, e);
+            }
+        }
+    }
+}, { deep: true });
 
 watch(() => props.event, (newEvent) => {
     if (newEvent) {
@@ -153,6 +247,11 @@ watch(() => props.event, (newEvent) => {
             assetSource: 'existing',
             selectedAssetId: newEvent.contentId || '',
             uploadFile: null,
+            assetInsertSource: 'existing',
+            insertAssetType: 'image',
+            insertAssetId: '',
+            insertFile: null,
+            tempAssets: [],
         };
         isEdit.value = true;
     } else {
@@ -172,6 +271,11 @@ watch(() => props.event, (newEvent) => {
             assetSource: 'existing',
             selectedAssetId: '',
             uploadFile: null,
+            assetInsertSource: 'existing',
+            insertAssetType: 'image',
+            insertAssetId: '',
+            insertFile: null,
+            tempAssets: [],
         };
         isEdit.value = false;
     }
@@ -186,9 +290,18 @@ const filteredAssets = computed(() => {
     return assets.value.filter(asset => asset.type === type);
 });
 
+const filteredInsertAssets = computed(() => {
+    const type = form.value.insertAssetType;
+    return assets.value.filter(asset => asset.type === type);
+});
+
 async function loadAssets() {
     try {
-        assets.value = await assetService.getAssets();
+        assets.value = await assetService.getAssets(); // まずローカルストレージから取得して表示
+        // バックグラウンドでGoogle Driveと同期
+        assetService.syncAssets().then(async () => {
+            assets.value = await assetService.getAssets(); // 同期後に再取得
+        }).catch(e => console.error('Sync failed:', e));
     } catch (e) {
         console.error('Failed to load assets:', e);
     }
@@ -207,6 +320,21 @@ async function onSubmit() {
     }
 
     let contentId = form.value.contentId;
+    let htmlString = form.value.htmlString;
+
+    // Upload temp assets and replace temp IDs in htmlString
+    if (form.value.tempAssets.length > 0) {
+        try {
+            const ids = await assetService.addAssets(form.value.tempAssets);
+            form.value.tempAssets.forEach((asset, index) => {
+                const realId = ids[index];
+                htmlString = htmlString.replace(new RegExp(`{{asset:(${asset.type}):${asset.id}}}`, 'g'), `{{asset:$1:${realId}}}`);
+            });
+        } catch (e) {
+            alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+            return;
+        }
+    }
 
     if (form.value.contentType === 'image' || form.value.contentType === 'movie') {
         if (form.value.assetSource === 'existing') {
@@ -233,6 +361,7 @@ async function onSubmit() {
                         startTime,
                         endTime,
                         contentId,
+                        htmlString,
                     });
                     emit('close');
                 };
@@ -250,6 +379,7 @@ async function onSubmit() {
         startTime,
         endTime,
         contentId,
+        htmlString,
     });
     emit('close');
 }
@@ -265,6 +395,10 @@ function onFileChange(event: Event) {
 
 const fileInput = ref<HTMLInputElement | null>(null);
 
+const htmlTextarea = ref<HTMLTextAreaElement | null>(null);
+
+const insertFileInput = ref<HTMLInputElement | null>(null);
+
 function openFilePicker() {
     fileInput.value?.click();
 }
@@ -272,6 +406,59 @@ function openFilePicker() {
 function clearFile() {
     form.value.uploadFile = null;
     if (fileInput.value) fileInput.value.value = '';
+}
+
+function insertAsset() {
+    if (form.value.assetInsertSource === 'existing' && form.value.insertAssetId) {
+        insertAtCursor(`{{asset:${form.value.insertAssetType}:${form.value.insertAssetId}}}`);
+    } else if (form.value.assetInsertSource === 'upload' && form.value.insertFile) {
+        const asset: Asset = {
+            id: '',
+            type: form.value.insertAssetType,
+            dataUrl: '',
+            name: form.value.insertFile.name,
+            uploadedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            size: form.value.insertFile.size,
+            referenceFrom: [],
+        };
+        const fileReader = new FileReader();
+        fileReader.onload = (e) => {
+            asset.dataUrl = e.target?.result as string;
+            form.value.tempAssets.push(asset);
+            const tempId = `temp_${Date.now()}_${Math.random()}`;
+            asset.id = tempId;
+            insertAtCursor(`{{asset:${form.value.insertAssetType}:${tempId}}}`);
+            assetMap.value.set(tempId, asset.dataUrl);
+        };
+        fileReader.readAsDataURL(form.value.insertFile);
+    }
+}
+
+function onInsertFileChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    form.value.insertFile = target.files?.[0] || null;
+}
+
+function openInsertFilePicker() {
+    insertFileInput.value?.click();
+}
+
+function clearInsertFile() {
+    form.value.insertFile = null;
+    if (insertFileInput.value) insertFileInput.value.value = '';
+}
+
+function insertAtCursor(text: string) {
+    if (!htmlTextarea.value) return;
+    const textarea = htmlTextarea.value;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = form.value.htmlString.substring(0, start);
+    const after = form.value.htmlString.substring(end);
+    form.value.htmlString = before + text + after;
+    textarea.focus();
+    textarea.setSelectionRange(start + text.length, start + text.length);
 }
 </script>
 
@@ -406,5 +593,29 @@ function clearFile() {
     border-radius: 6px;
     padding: 0 0.5em;
     cursor: pointer;
+}
+
+.asset-insert-section {
+    border: 1px solid #666;
+    border-radius: 6px;
+    padding: 0.5em;
+    margin-top: 0.5em;
+}
+
+.asset-insert-controls {
+    display: flex;
+    gap: 0.5em;
+    align-items: center;
+    margin-top: 0.5em;
+}
+
+.html-preview {
+    border: 1px solid #666;
+    border-radius: 6px;
+    padding: 0.5em;
+    background: #333;
+    color: #fff;
+    max-height: 200px;
+    overflow-y: auto;
 }
 </style>
