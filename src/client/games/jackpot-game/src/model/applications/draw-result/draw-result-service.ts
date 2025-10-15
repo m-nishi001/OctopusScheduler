@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import type { IDrawResultRepository } from "../../domains/draw-result/repository/i-draw-result-repository";
-import type { LotteryResultDto } from "../draw/dto/lottery-result-dto";
+import type { DrawResultDto } from "./dto/draw-result-dto";
 
 @injectable()
 export class DrawResultService {
@@ -8,15 +8,19 @@ export class DrawResultService {
     @inject("IDrawResultRepository") private repo: IDrawResultRepository
   ) {}
 
-  async fetchDrawResults(): Promise<LotteryResultDto[]> {
-    return await this.repo.fetchDrawResults();
+  async getDrawResults(): Promise<DrawResultDto[]> {
+    return await this.repo.getDrawResults();
   }
 
-  async addDrawResult(result: LotteryResultDto): Promise<void> {
-    await this.repo.saveDrawResult(result);
+  async getDrawResultById(drawId: string): Promise<DrawResultDto | null> {
+    return await this.repo.getDrawResultById(drawId);
   }
 
-  async updateDrawResult(result: LotteryResultDto): Promise<void> {
+  async addDrawResult(result: DrawResultDto): Promise<void> {
+    await this.repo.addDrawResult(result);
+  }
+
+  async updateDrawResult(result: DrawResultDto): Promise<void> {
     await this.repo.updateDrawResult(result);
   }
 

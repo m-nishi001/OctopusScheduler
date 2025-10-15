@@ -39,7 +39,7 @@ import { useRouter } from 'vue-router';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
-import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
+import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import { MainScreenSetting } from '../../../model/domains/screen-config/main-screen-setting';
 export default {
   name: 'MainDraw',
@@ -109,9 +109,9 @@ export default {
       drawn.value = true;
       try {
         const drawRepo = container.resolve(DrawRepository);
-        const drawResultRepo = container.resolve(DrawResultRepository);
+        const drawResultService = container.resolve(DrawResultService);
         const res = await drawRepo.executeDraw({ prizes: prizes.value, members: members.value });
-        const resultRes = await drawResultRepo.getDrawResultById(res.drawId);
+        const resultRes = await drawResultService.getDrawResultById(res.drawId);
         const winner = resultRes;
         if (winner) {
           currentMember.value = winner.member;

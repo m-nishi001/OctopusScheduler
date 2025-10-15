@@ -62,7 +62,7 @@ import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import gsap from 'gsap';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
-import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
+import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
 
@@ -77,7 +77,7 @@ export default {
     const results = ref<DrawResultDto[]>([]);
     const router = useRouter();
     const drawRepo = container.resolve(DrawRepository);
-    const drawResultRepo = container.resolve(DrawResultRepository);
+    const drawResultService = container.resolve(DrawResultService);
     const prizeRepo = container.resolve(PrizeRepository);
     const memberRepo = container.resolve(MemberRepository);
     const prizes = ref<PrizeDto[]>([]);
@@ -97,7 +97,7 @@ export default {
           prizes: prizes.value,
           members: members.value,
         });
-        const resultRes = await drawResultRepo.getDrawResultById(drawRes.drawId);
+        const resultRes = await drawResultService.getDrawResultById(drawRes.drawId);
         results.value = resultRes ? [resultRes] : [];
 
         // 演出ループ (実際の結果を使って)

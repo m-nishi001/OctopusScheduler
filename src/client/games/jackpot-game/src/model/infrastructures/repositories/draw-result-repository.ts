@@ -3,9 +3,10 @@ import type { DrawResultDto } from "../../applications/draw-result/dto/draw-resu
 import { GasFunctionService } from "../../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../../infrastructures/storage-config";
+import type { IDrawResultRepository } from "../../domains/draw-result/repository/i-draw-result-repository";
 
 @injectable()
-export class DrawResultRepository {
+export class DrawResultRepository implements IDrawResultRepository {
   private readonly service;
   private readonly localStorage = useLocalStorage(
     StorageConfig.getDbName(),
@@ -24,7 +25,7 @@ export class DrawResultRepository {
     return (await this.localStorage.get<DrawResultDto>(drawId)) || null;
   }
 
-  async saveDrawResult(result: DrawResultDto): Promise<void> {
+  async addDrawResult(result: DrawResultDto): Promise<void> {
     await this.localStorage.save(result.drawId, result);
     if (!this.service) return;
     return new Promise((resolve, reject) => {

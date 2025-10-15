@@ -18,7 +18,7 @@
 import MainLayout from '../common/main-layout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
+import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
 import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
@@ -31,13 +31,13 @@ export default {
 		const router = useRouter();
 		const winners = ref<DrawResultDto[]>([]);
 		const loading = ref(true);
-		const drawResultRepo = container.resolve(DrawResultRepository);
+		const drawResultService = container.resolve(DrawResultService);
 		const screenConfig = ref<IScreenSetting | null>(null);
 		const screenConfigService = container.resolve(ScreenConfigService);
 		onMounted(async () => {
 			screenConfig.value = await screenConfigService.fetchScreenConfig('result');
 			try {
-				const results = await drawResultRepo.getDrawResults();
+				const results = await drawResultService.getDrawResults();
 				winners.value = results;
 			} finally {
 				loading.value = false;

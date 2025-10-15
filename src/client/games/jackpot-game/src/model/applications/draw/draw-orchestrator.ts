@@ -22,14 +22,20 @@ export class DrawOrchestrator {
     const response = await this.drawService.executeDraw(req);
     if (response.pairs) {
       await Promise.all(
-        response.pairs.map((p, i) =>
-          this.resultService.addDrawResult({
-            memberId: p.memberId,
-            prizeId: p.prizeId,
-            order: i + 1,
-            isWinner: true,
-          })
-        )
+        response.pairs.map(async (p, i) => {
+          const member = members.find(m => m.id === p.memberId);
+          const prize = prizes.find(pr => pr.id === p.prizeId);
+          if (member && prize) {
+            await this.resultService.addDrawResult({
+              drawId: `${p.memberId}-${p.prizeId}-${Date.now()}`,
+              member,
+              prize,
+              rank: null,
+              order: i + 1,
+              isWinner: true,
+            });
+          }
+        })
       );
     }
     return response;
@@ -47,6 +53,6 @@ export class DrawOrchestrator {
   }
 
   async fetchResult() {
-    return await this.resultService.fetchDrawResults();
+    return await this.resultService.getDrawResults();
   }
 }

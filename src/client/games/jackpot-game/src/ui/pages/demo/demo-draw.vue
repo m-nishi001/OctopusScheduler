@@ -28,7 +28,7 @@ import { container } from 'tsyringe';
 import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
-import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
+import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import { AssetService } from '../../../model/applications/asset/asset-service';
 import { DemoScreenSetting } from '../../../model/domains/screen-config/demo-screen-setting';
 export default {
@@ -96,9 +96,9 @@ export default {
         await fetchPrizes();
         await fetchMembers();
         const drawRepo = container.resolve(DrawRepository);
-        const drawResultRepo = container.resolve(DrawResultRepository);
+        const drawResultService = container.resolve(DrawResultService);
         const res = await drawRepo.executeDraw({ prizes: prizes.value, members: members.value });
-        const resultRes = await drawResultRepo.getDrawResultById(res.drawId);
+        const resultRes = await drawResultService.getDrawResultById(res.drawId);
         const winner = resultRes;
         if (winner) {
           result.value = { member: winner.member.name || winner.member.id, prize: winner.prize.name || winner.prize.id };

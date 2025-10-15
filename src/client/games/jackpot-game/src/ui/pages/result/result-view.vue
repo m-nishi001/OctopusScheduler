@@ -21,7 +21,7 @@
 
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { DrawResultRepository } from '../../../model/infrastructures/repositories/draw-result-repository';
+import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
@@ -40,9 +40,9 @@ export default {
     const resultConfig = ref<ResultScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     const assetService = container.resolve<AssetService>("AssetService");
-    const drawResultRepo = container.resolve(DrawResultRepository);
+    const drawResultService = container.resolve(DrawResultService);
     const fetchResults = async () => {
-      const results = await drawResultRepo.getDrawResults();
+      const results = await drawResultService.getDrawResults();
       const config = await screenConfigService.fetchScreenConfig('result');
       resultConfig.value = config as ResultScreenSetting ?? new ResultScreenSetting("", "", "");
       winners.value = results.map(r => ({ ...r.member, prize: r.prize.name, id: r.member.id, photo: r.member.photoAssetId }));

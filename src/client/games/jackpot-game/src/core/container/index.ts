@@ -3,10 +3,12 @@ import { MemberRepository } from "../../model/infrastructures/repositories/membe
 import { AssetRepository } from "../../model/infrastructures/repositories/asset-repository";
 import { PrizeRepository } from "../../model/infrastructures/repositories/prize-repository";
 import { ScreenConfigRepository } from "../../model/infrastructures/repositories/screen-config-repository";
+import { DrawResultRepository } from "../../model/infrastructures/repositories/draw-result-repository";
 import type { IMemberRepository } from "../../model/domains/member/repository/i-member-repository";
 import type { IAssetRepository } from "../../model/domains/asset/repository/i-asset-repository";
 import type { IPrizeRepository } from "../../model/domains/prize/repository/i-prize-repository";
 import type { IScreenSettingRepository } from "../../model/domains/screen-config/repository/i-screen-setting-repository";
+import type { IDrawResultRepository } from "../../model/domains/draw-result/repository/i-draw-result-repository";
 import { AssetService } from "../../model/applications/asset/asset-service";
 import { HomeScreenConfigConverter } from "../../model/applications/screen-config/home/home-screen-config-converter";
 import { OpeningScreenConfigConverter } from "../../model/applications/screen-config/opening/opening-screen-config-converter";
@@ -17,6 +19,7 @@ import { ResultScreenConfigConverter } from "../../model/applications/screen-con
 import { EndingScreenConfigConverter } from "../../model/applications/screen-config/ending/ending-screen-config-converter";
 import { IScreenConfigConverterToken } from "../../model/applications/screen-config/i-screen-config-converter";
 import { ScreenConfigService } from "../../model/applications/screen-config/screen-config-service";
+import { DrawResultService } from "../../model/applications/draw-result/draw-result-service";
 
 export class Container {
   static register() {
@@ -29,6 +32,10 @@ export class Container {
     container.register<IScreenSettingRepository>(
       "IScreenSettingRepository",
       ScreenConfigRepository
+    );
+    container.register<IDrawResultRepository>(
+      "IDrawResultRepository",
+      DrawResultRepository
     );
     container.register<AssetService>("AssetService", AssetService);
     container.register(IScreenConfigConverterToken, {
@@ -57,6 +64,9 @@ export class Container {
     });
     container.register(ScreenConfigService, {
       useClass: ScreenConfigService,
+    });
+    container.register(DrawResultService, {
+      useClass: DrawResultService,
     });
   }
 }

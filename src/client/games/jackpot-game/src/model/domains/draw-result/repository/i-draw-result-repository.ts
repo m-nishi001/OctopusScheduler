@@ -1,10 +1,10 @@
-import type { LotteryResultDto } from "../../../applications/draw/dto/lottery-result-dto";
+import type { DrawResultDto } from "../../../applications/draw-result/dto/draw-result-dto";
 
 export interface IDrawResultRepository {
-  fetchDrawResults(): Promise<LotteryResultDto[]>;
-  saveDrawResult(result: LotteryResultDto): Promise<void>;
-  addDrawResult?(result: LotteryResultDto): Promise<void>;
-  updateDrawResult(result: LotteryResultDto): Promise<void>;
+  getDrawResults(): Promise<DrawResultDto[]>;
+  getDrawResultById(drawId: string): Promise<DrawResultDto | null>;
+  addDrawResult(result: DrawResultDto): Promise<void>;
+  updateDrawResult(result: DrawResultDto): Promise<void>;
   deleteDrawResult(resultId: string): Promise<void>;
   syncDrawResults(): Promise<void>;
 }
