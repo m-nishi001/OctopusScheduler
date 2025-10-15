@@ -52,7 +52,7 @@ export default {
     const assetService = container.resolve<AssetService>("AssetService");
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('main');
-      mainConfig.value = config as MainScreenSetting ?? new MainScreenSetting("", "", "");
+      mainConfig.value = config as MainScreenSetting ?? new MainScreenSetting([], [], 1, []);
       fetchPrizes();
       fetchMembers();
       setTimeout(playBGM, 1200);
@@ -73,8 +73,8 @@ export default {
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = async () => {
-      if (!mainConfig.value || !mainConfig.value.mainBgm) return;
-      const asset = await assetService.getAssetById(mainConfig.value.mainBgm);
+      if (!mainConfig.value || !mainConfig.value.memberLotteryBgms.length) return;
+      const asset = await assetService.getAssetById(mainConfig.value.memberLotteryBgms[0]);
       if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
@@ -82,18 +82,8 @@ export default {
       }
     };
 
-    const playSE = async (se: string) => {
-      if (!mainConfig.value) return;
-      let assetId: string | undefined;
-      if (se === 'draw') {
-        assetId = mainConfig.value.mainSe1;
-      }
-      if (!assetId) return;
-      const asset = await assetService.getAssetById(assetId);
-      if (asset && asset.dataUrl) {
-        const seAudio = new Audio(asset.dataUrl);
-        seAudio.play();
-      }
+    const playSE = async () => {
+      // SE playback removed as per new config
     };
 
     // メンバー選出
@@ -105,7 +95,7 @@ export default {
     const showHalfModal = ref(false);
     const runMainDraw = async () => {
       if (drawn.value || prizes.value.length === 0 || members.value.length === 0) return;
-      playSE('draw');
+      playSE();
       drawn.value = true;
       try {
         const drawRepo = container.resolve(DrawRepository);

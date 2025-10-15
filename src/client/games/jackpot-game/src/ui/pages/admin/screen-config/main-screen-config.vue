@@ -4,26 +4,71 @@
         <div class="tab-content">
             <div class="screen-config">
                 <h3>本抽選画面設定</h3>
+                
+                <!-- メンバー抽選のBGM -->
                 <div class="config-item">
-                    <label>本抽選BGM:</label>
-                    <select v-model="localConfig.mainBgm" class="admin-input">
-                        <option value="">選択なし</option>
-                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                    </select>
+                    <label>メンバー抽選のBGM:</label>
+                    <div v-for="(_, index) in localConfig.memberLotteryBgms" :key="index" class="bgm-item">
+                        <select v-model="localConfig.memberLotteryBgms[index]" class="admin-input">
+                            <option value="">選択なし</option>
+                            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                        </select>
+                        <button @click="removeMemberBgm(index)" class="remove-btn">削除</button>
+                    </div>
+                    <button @click="addMemberBgm" class="add-btn">BGM追加</button>
                 </div>
+
+                <!-- 景品単位で抽選音楽 -->
                 <div class="config-item">
-                    <label>本抽選SE1:</label>
-                    <select v-model="localConfig.mainSe1" class="admin-input">
-                        <option value="">選択なし</option>
-                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                    </select>
+                    <label>景品単位で抽選音楽:</label>
+                    <div v-for="prize in prizes" :key="prize.id" class="prize-music-item">
+                        <div class="prize-name">{{ prize.name }}</div>
+                        <div class="music-selects">
+                            <div>
+                                <label>Primary:</label>
+                                <select :value="getPrizeMusic(prize.id, 'primary')" @change="updatePrizeMusic(prize.id, 'primary', ($event.target as HTMLSelectElement).value)" class="admin-input">
+                                    <option value="">選択なし</option>
+                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Secondary:</label>
+                                <select :value="getPrizeMusic(prize.id, 'secondary')" @change="updatePrizeMusic(prize.id, 'secondary', ($event.target as HTMLSelectElement).value)" class="admin-input">
+                                    <option value="">選択なし</option>
+                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- 確変タイミング -->
                 <div class="config-item">
-                    <label>本抽選SE2:</label>
-                    <select v-model="localConfig.mainSe2" class="admin-input">
-                        <option value="">選択なし</option>
-                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                    </select>
+                    <label>確変タイミング (景品が何個出てきたら):</label>
+                    <input type="number" v-model.number="localConfig.variableTiming" :min="1" :max="maxVariableTiming" class="admin-input" />
+                    <div class="hint">1 から {{ maxVariableTiming }} の範囲で入力してください。</div>
+                </div>
+
+                <!-- 景品単位での抽選アニメーション -->
+                <div class="config-item">
+                    <label>景品単位での抽選アニメーション:</label>
+                    <div v-for="prize in prizes" :key="prize.id" class="prize-animation-item">
+                        <div class="prize-name">{{ prize.name }}</div>
+                        <div class="animation-selects">
+                            <div>
+                                <label>Primary:</label>
+                                <select :value="getPrizeAnimation(prize.id, 'primary')" @change="updatePrizeAnimation(prize.id, 'primary', ($event.target as HTMLSelectElement).value)" class="admin-input">
+                                    <option value="">未実装</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Secondary:</label>
+                                <select :value="getPrizeAnimation(prize.id, 'secondary')" @change="updatePrizeAnimation(prize.id, 'secondary', ($event.target as HTMLSelectElement).value)" class="admin-input">
+                                    <option value="">未実装</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
@@ -62,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
 import { MainScreenSetting } from '../../../../model/domains/screen-config/main-screen-setting';
 import { MainScreenConfigConverter } from '../../../../model/applications/screen-config/main/main-screen-config-converter';
@@ -71,6 +116,7 @@ import { container } from 'tsyringe';
 const {
     screenConfigService,
     audioAssets,
+    prizes,
     loading,
     loadingStatus,
     saving,
@@ -82,18 +128,21 @@ const syncing = ref(false);
 const syncStatus = ref("");
 
 const localConfig = ref({
-    mainBgm: "",
-    mainSe1: "",
-    mainSe2: "",
+    memberLotteryBgms: [] as string[],
+    prizeLotteryMusics: [] as { prizeId: string; primary: string; secondary: string }[],
+    variableTiming: 1,
+    prizeAnimations: [] as { prizeId: string; primary: string; secondary: string }[],
 });
 
 const loadConfig = async () => {
     try {
         const config = await screenConfigService.fetchScreenConfig("main");
         if (config) {
-            localConfig.value.mainBgm = (config as any).mainBgm || "";
-            localConfig.value.mainSe1 = (config as any).mainSe1 || "";
-            localConfig.value.mainSe2 = (config as any).mainSe2 || "";
+            const mainConfig = config as MainScreenSetting;
+            localConfig.value.memberLotteryBgms = mainConfig.memberLotteryBgms || [];
+            localConfig.value.prizeLotteryMusics = mainConfig.prizeLotteryMusics || [];
+            localConfig.value.variableTiming = mainConfig.variableTiming || 1;
+            localConfig.value.prizeAnimations = mainConfig.prizeAnimations || [];
         }
     } catch (error) {
         console.error("Failed to load main config:", error);
@@ -122,9 +171,10 @@ const handleSyncClick = async () => {
 const handleSaveClick = async () => {
     await handleSave(async () => {
         const config = new MainScreenSetting(
-            localConfig.value.mainBgm,
-            localConfig.value.mainSe1,
-            localConfig.value.mainSe2
+            localConfig.value.memberLotteryBgms,
+            localConfig.value.prizeLotteryMusics,
+            localConfig.value.variableTiming,
+            localConfig.value.prizeAnimations
         );
         const converter = container.resolve(MainScreenConfigConverter);
         const settings = converter.toSettings(config);
@@ -132,6 +182,44 @@ const handleSaveClick = async () => {
         await loadConfig();
     });
 };
+
+const addMemberBgm = () => {
+    localConfig.value.memberLotteryBgms.push("");
+};
+
+const removeMemberBgm = (index: number) => {
+    localConfig.value.memberLotteryBgms.splice(index, 1);
+};
+
+const updatePrizeMusic = (prizeId: string, type: 'primary' | 'secondary', value: string) => {
+    let existing = localConfig.value.prizeLotteryMusics.find(p => p.prizeId === prizeId);
+    if (!existing) {
+        existing = { prizeId, primary: '', secondary: '' };
+        localConfig.value.prizeLotteryMusics.push(existing);
+    }
+    existing[type] = value;
+};
+
+const getPrizeMusic = (prizeId: string, type: 'primary' | 'secondary') => {
+    const existing = localConfig.value.prizeLotteryMusics.find(p => p.prizeId === prizeId);
+    return existing ? existing[type] : '';
+};
+
+const updatePrizeAnimation = (prizeId: string, type: 'primary' | 'secondary', value: string) => {
+    let existing = localConfig.value.prizeAnimations.find(p => p.prizeId === prizeId);
+    if (!existing) {
+        existing = { prizeId, primary: '', secondary: '' };
+        localConfig.value.prizeAnimations.push(existing);
+    }
+    existing[type] = value;
+};
+
+const getPrizeAnimation = (prizeId: string, type: 'primary' | 'secondary') => {
+    const existing = localConfig.value.prizeAnimations.find(p => p.prizeId === prizeId);
+    return existing ? existing[type] : '';
+};
+
+const maxVariableTiming = computed(() => prizes.value.length);
 </script>
 
 <style scoped>
@@ -197,6 +285,54 @@ const handleSaveClick = async () => {
 
 .config-item {
     min-width: 0;
+}
+
+.bgm-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.remove-btn, .add-btn {
+    padding: 6px 12px;
+    background: #4f8cff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.remove-btn:hover, .add-btn:hover {
+    background: #3a7bd5;
+}
+
+.prize-music-item, .prize-animation-item {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: #1a1a1a;
+    border-radius: 8px;
+}
+
+.prize-name {
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+.music-selects, .animation-selects {
+    display: flex;
+    gap: 16px;
+}
+
+.music-selects > div, .animation-selects > div {
+    flex: 1;
+}
+
+.hint {
+    font-size: 0.8rem;
+    color: #ccc;
+    margin-top: 4px;
 }
 
 .modal-overlay {

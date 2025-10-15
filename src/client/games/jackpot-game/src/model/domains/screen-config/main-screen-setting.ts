@@ -2,29 +2,42 @@ import type { IScreenSetting, ScreenType } from "./i-screen-setting";
 
 export class MainScreenSetting implements IScreenSetting {
   type: ScreenType = "main";
-  mainBgm: string;
-  mainSe1: string;
-  mainSe2: string;
+  memberLotteryBgms: string[];
+  prizeLotteryMusics: { prizeId: string; primary: string; secondary: string }[];
+  variableTiming: number;
+  prizeAnimations: { prizeId: string; primary: string; secondary: string }[];
 
-  constructor(mainBgm: string, mainSe1: string, mainSe2: string) {
-    this.mainBgm = mainBgm;
-    this.mainSe1 = mainSe1;
-    this.mainSe2 = mainSe2;
+  constructor(
+    memberLotteryBgms: string[],
+    prizeLotteryMusics: { prizeId: string; primary: string; secondary: string }[],
+    variableTiming: number,
+    prizeAnimations: { prizeId: string; primary: string; secondary: string }[]
+  ) {
+    this.memberLotteryBgms = memberLotteryBgms;
+    this.prizeLotteryMusics = prizeLotteryMusics;
+    this.variableTiming = variableTiming;
+    this.prizeAnimations = prizeAnimations;
   }
 
   toRecords(): Map<string, string> {
     const records = new Map<string, string>();
-    records.set("mainBgm", this.mainBgm);
-    records.set("mainSe1", this.mainSe1);
-    records.set("mainSe2", this.mainSe2);
+    records.set("memberLotteryBgms", JSON.stringify(this.memberLotteryBgms));
+    records.set("prizeLotteryMusics", JSON.stringify(this.prizeLotteryMusics));
+    records.set("variableTiming", this.variableTiming.toString());
+    records.set("prizeAnimations", JSON.stringify(this.prizeAnimations));
     return records;
   }
 
   static fromRecords(records: Map<string, string>): MainScreenSetting {
+    const memberLotteryBgms = JSON.parse(records.get("memberLotteryBgms") || "[]");
+    const prizeLotteryMusics = JSON.parse(records.get("prizeLotteryMusics") || "[]");
+    const variableTiming = parseInt(records.get("variableTiming") || "1");
+    const prizeAnimations = JSON.parse(records.get("prizeAnimations") || "[]");
     return new MainScreenSetting(
-      records.get("mainBgm") || "",
-      records.get("mainSe1") || "",
-      records.get("mainSe2") || ""
+      memberLotteryBgms,
+      prizeLotteryMusics,
+      variableTiming,
+      prizeAnimations
     );
   }
 }
