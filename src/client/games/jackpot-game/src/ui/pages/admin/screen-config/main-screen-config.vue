@@ -4,14 +4,15 @@
         <div class="tab-content">
             <div class="screen-config">
                 <h3>本抽選画面設定</h3>
-                
+
                 <!-- メンバー抽選のBGM -->
                 <div class="config-item">
                     <label>メンバー抽選のBGM:</label>
                     <div v-for="(_, index) in localConfig.memberLotteryBgms" :key="index" class="bgm-item">
                         <select v-model="localConfig.memberLotteryBgms[index]" class="admin-input">
                             <option value="">選択なし</option>
-                            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
+                            </option>
                         </select>
                         <button @click="removeMemberBgm(index)" class="remove-btn">削除</button>
                     </div>
@@ -26,16 +27,22 @@
                         <div class="music-selects">
                             <div>
                                 <label>Primary:</label>
-                                <select :value="getPrizeMusic(prize.id, 'primary')" @change="updatePrizeMusic(prize.id, 'primary', ($event.target as HTMLSelectElement).value)" class="admin-input">
+                                <select :value="getPrizeMusic(prize.id, 'primary')"
+                                    @change="updatePrizeMusic(prize.id, 'primary', ($event.target as HTMLSelectElement).value)"
+                                    class="admin-input">
                                     <option value="">選択なし</option>
-                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
+                                        }}</option>
                                 </select>
                             </div>
                             <div>
                                 <label>Secondary:</label>
-                                <select :value="getPrizeMusic(prize.id, 'secondary')" @change="updatePrizeMusic(prize.id, 'secondary', ($event.target as HTMLSelectElement).value)" class="admin-input">
+                                <select :value="getPrizeMusic(prize.id, 'secondary')"
+                                    @change="updatePrizeMusic(prize.id, 'secondary', ($event.target as HTMLSelectElement).value)"
+                                    class="admin-input">
                                     <option value="">選択なし</option>
-                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
+                                        }}</option>
                                 </select>
                             </div>
                         </div>
@@ -45,7 +52,8 @@
                 <!-- 確変タイミング -->
                 <div class="config-item">
                     <label>確変タイミング (景品が何個出てきたら):</label>
-                    <input type="number" v-model.number="localConfig.variableTiming" :min="1" :max="maxVariableTiming" class="admin-input" />
+                    <input type="number" v-model.number="localConfig.variableTiming" :min="1" :max="maxVariableTiming"
+                        class="admin-input" />
                     <div class="hint">1 から {{ maxVariableTiming }} の範囲で入力してください。</div>
                 </div>
 
@@ -57,18 +65,50 @@
                         <div class="animation-selects">
                             <div>
                                 <label>Primary:</label>
-                                <select :value="getPrizeAnimation(prize.id, 'primary')" @change="updatePrizeAnimation(prize.id, 'primary', ($event.target as HTMLSelectElement).value)" class="admin-input">
+                                <select :value="getPrizeAnimation(prize.id, 'primary')"
+                                    @change="updatePrizeAnimation(prize.id, 'primary', ($event.target as HTMLSelectElement).value)"
+                                    class="admin-input">
                                     <option value="">未実装</option>
+                                    <option value="roulette">ルーレット</option>
+                                    <option value="slot">スロット</option>
+                                    <option value="treasure">宝箱</option>
+                                    <option value="particle">パーティクル</option>
+                                    <option value="zoom">ズーム</option>
                                 </select>
+                                <button @click="previewAnimation(getPrizeAnimation(prize.id, 'primary'), prize)"
+                                    class="preview-btn">プレビュー</button>
                             </div>
                             <div>
                                 <label>Secondary:</label>
-                                <select :value="getPrizeAnimation(prize.id, 'secondary')" @change="updatePrizeAnimation(prize.id, 'secondary', ($event.target as HTMLSelectElement).value)" class="admin-input">
+                                <select :value="getPrizeAnimation(prize.id, 'secondary')"
+                                    @change="updatePrizeAnimation(prize.id, 'secondary', ($event.target as HTMLSelectElement).value)"
+                                    class="admin-input">
                                     <option value="">未実装</option>
+                                    <option value="roulette">ルーレット</option>
+                                    <option value="slot">スロット</option>
+                                    <option value="treasure">宝箱</option>
+                                    <option value="particle">パーティクル</option>
+                                    <option value="zoom">ズーム</option>
                                 </select>
+                                <button @click="previewAnimation(getPrizeAnimation(prize.id, 'secondary'), prize)"
+                                    class="preview-btn">プレビュー</button>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- アニメーションプレビュー -->
+                <div v-if="previewVisible" class="animation-preview">
+                    <h4>アニメーションプレビュー</h4>
+                    <RouletteAnimation v-if="previewType === 'roulette'" :selectedPrize="previewPrize"
+                        :showResult="true" />
+                    <SlotAnimation v-if="previewType === 'slot'" :selectedPrize="previewPrize" :showResult="true" />
+                    <TreasureAnimation v-if="previewType === 'treasure'" :selectedPrize="previewPrize"
+                        :showResult="true" />
+                    <ParticleAnimation v-if="previewType === 'particle'" :selectedPrize="previewPrize"
+                        :showResult="true" />
+                    <ZoomAnimation v-if="previewType === 'zoom'" :selectedPrize="previewPrize" :showResult="true" />
+                    <button @click="closePreview" class="close-btn">閉じる</button>
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
@@ -112,6 +152,12 @@ import { useScreenSettingData } from './use-screen-setting-data';
 import { MainScreenSetting } from '../../../../model/domains/screen-config/main-screen-setting';
 import { MainScreenConfigConverter } from '../../../../model/applications/screen-config/main/main-screen-config-converter';
 import { container } from 'tsyringe';
+import RouletteAnimation from '../../main-draw/RouletteAnimation.vue';
+import SlotAnimation from '../../main-draw/SlotAnimation.vue';
+import TreasureAnimation from '../../main-draw/TreasureAnimation.vue';
+import ParticleAnimation from '../../main-draw/ParticleAnimation.vue';
+import ZoomAnimation from '../../main-draw/ZoomAnimation.vue';
+import type { PrizeDto } from '../../../../model/applications/prize/dto/prize-dto';
 
 const {
     screenConfigService,
@@ -126,6 +172,10 @@ const {
 
 const syncing = ref(false);
 const syncStatus = ref("");
+
+const previewVisible = ref(false);
+const previewType = ref('');
+const previewPrize = ref<PrizeDto | null>(null);
 
 const localConfig = ref({
     memberLotteryBgms: [] as string[],
@@ -219,6 +269,19 @@ const getPrizeAnimation = (prizeId: string, type: 'primary' | 'secondary') => {
     return existing ? existing[type] : '';
 };
 
+const previewAnimation = (type: string, prize: PrizeDto) => {
+    if (!type) return;
+    previewType.value = type;
+    previewPrize.value = prize;
+    previewVisible.value = true;
+};
+
+const closePreview = () => {
+    previewVisible.value = false;
+    previewType.value = '';
+    previewPrize.value = null;
+};
+
 const maxVariableTiming = computed(() => prizes.value.length);
 </script>
 
@@ -294,7 +357,8 @@ const maxVariableTiming = computed(() => prizes.value.length);
     margin-bottom: 8px;
 }
 
-.remove-btn, .add-btn {
+.remove-btn,
+.add-btn {
     padding: 6px 12px;
     background: #4f8cff;
     color: #fff;
@@ -303,11 +367,13 @@ const maxVariableTiming = computed(() => prizes.value.length);
     cursor: pointer;
 }
 
-.remove-btn:hover, .add-btn:hover {
+.remove-btn:hover,
+.add-btn:hover {
     background: #3a7bd5;
 }
 
-.prize-music-item, .prize-animation-item {
+.prize-music-item,
+.prize-animation-item {
     margin-bottom: 16px;
     padding: 12px;
     background: #1a1a1a;
@@ -320,13 +386,55 @@ const maxVariableTiming = computed(() => prizes.value.length);
     color: #fff;
 }
 
-.music-selects, .animation-selects {
+.music-selects,
+.animation-selects {
     display: flex;
     gap: 16px;
 }
 
-.music-selects > div, .animation-selects > div {
+.animation-selects>div {
     flex: 1;
+}
+
+.preview-btn {
+    padding: 6px 12px;
+    background: #28a745;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 8px;
+}
+
+.preview-btn:hover {
+    background: #218838;
+}
+
+.animation-preview {
+    margin-top: 24px;
+    padding: 16px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.animation-preview h4 {
+    color: #fff;
+    margin-bottom: 16px;
+}
+
+.close-btn {
+    margin-top: 16px;
+    padding: 8px 16px;
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.close-btn:hover {
+    background: #c82333;
 }
 
 .hint {
