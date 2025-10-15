@@ -60,6 +60,14 @@
                 :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
         </div>
     </div>
+    <!-- 保存モーダル -->
+    <div v-if="saving" class="modal-overlay">
+        <div class="modal-content">
+            <h3>保存中...</h3>
+            <p>{{ saveStatus }}</p>
+            <div class="spinner"></div>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -67,7 +75,6 @@ import { ref, onMounted } from 'vue';
 import { useScreenSettingData } from './use-screen-setting-data';
 import { OpeningScreenSetting, type OpeningContent } from '../../../../model/domains/screen-config/opening-screen-setting';
 import { OpeningScreenConfigConverter } from '../../../../model/applications/screen-config/opening/opening-screen-config-converter';
-import { AssetDto } from '../../../../model/applications/asset/dto/asset-dto';
 import { container } from 'tsyringe';
 
 const {
@@ -78,10 +85,16 @@ const {
     onTempAssets,
     tempAssets,
     fetchAssets,
+    saving,
+    saveStatus,
+    handleSave,
 } = useScreenSettingData();
 
-const localConfig = ref<OpeningScreenSetting>(new OpeningScreenSetting());
-const saving = ref(false);
+const localConfig = ref({
+    bgmAssetId: "",
+    bgmMode: "select",
+    contents: [] as OpeningContent[],
+});
 
 const loadConfig = async () => {
     try {
@@ -89,6 +102,7 @@ const loadConfig = async () => {
         if (config) {
             const openingConfig = config as OpeningScreenSetting;
             localConfig.value.bgmAssetId = openingConfig.bgmAssetId;
+            localConfig.value.bgmMode = "select";
             localConfig.value.contents = openingConfig.contents;
         }
     } catch (error) {
@@ -103,69 +117,27 @@ onMounted(async () => {
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const dataUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-        });
-        const assetDto = new AssetDto({
-            id: `temp_${Date.now()}`,
-            type: 'audio',
-            dataUrl,
-            name: file.name,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: file.size,
-            referenceFrom: [],
-        });
-        onTempAssets([assetDto]);
-        localConfig.value.bgmAssetId = assetDto.id;
+        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        onTempAssets([tempAsset]);
+        localConfig.value.bgmAssetId = tempAsset.id;
     }
 };
 
 const onImageChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const dataUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-        });
-        const assetDto = new AssetDto({
-            id: `temp_${Date.now()}`,
-            type: 'image',
-            dataUrl,
-            name: file.name,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: file.size,
-            referenceFrom: [],
-        });
-        onTempAssets([assetDto]);
-        localConfig.value.contents[idx].assetId = assetDto.id;
+        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        onTempAssets([tempAsset]);
+        localConfig.value.contents[idx].assetId = tempAsset.id;
     }
 };
 
 const onSeChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const dataUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-        });
-        const assetDto = new AssetDto({
-            id: `temp_${Date.now()}`,
-            type: 'audio',
-            dataUrl,
-            name: file.name,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: file.size,
-            referenceFrom: [],
-        });
-        onTempAssets([assetDto]);
-        localConfig.value.contents[idx].seAssetId = assetDto.id;
+        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        onTempAssets([tempAsset]);
+        localConfig.value.contents[idx].seAssetId = tempAsset.id;
     }
 };
 
@@ -188,8 +160,7 @@ const removeContent = (idx: number) => {
 };
 
 const handleSaveClick = async () => {
-    saving.value = true;
-    try {
+    await handleSave(async () => {
         const oldTempAssets = [...tempAssets.value]; // 保存前のコピー
         const tempAssetMap = new Map<string, string>();
         let updatedAssets: any[] = [];
@@ -215,8 +186,11 @@ const handleSaveClick = async () => {
             }
         });
 
+        const config = new OpeningScreenSetting();
+        config.bgmAssetId = localConfig.value.bgmAssetId;
+        config.contents = localConfig.value.contents;
         const converter = container.resolve(OpeningScreenConfigConverter);
-        const settings = converter.toSettings(localConfig.value as OpeningScreenSetting);
+        const settings = converter.toSettings(config);
         await screenConfigService.saveScreenConfigs(settings);
 
         await loadConfig();
@@ -232,9 +206,7 @@ const handleSaveClick = async () => {
         // tempAssets をクリア
         tempAssets.value = [];
         await fetchAssets();
-    } finally {
-        saving.value = false;
-    }
+    });
 };
 </script>
 
@@ -325,5 +297,47 @@ const handleSaveClick = async () => {
 .content-item,
 .config-item {
     min-width: 0;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #232b36;
+    color: #fff;
+    padding: 28px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
+}
+
+.spinner {
+    margin: 16px auto;
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #4f8cff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 </style>
