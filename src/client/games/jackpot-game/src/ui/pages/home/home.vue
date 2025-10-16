@@ -134,6 +134,12 @@ export default {
     };
 
     onMounted(async () => {
+      if (bgmAudio.value) {
+        bgmAudio.value.pause();
+        bgmAudio.value = null;
+      }
+      window.removeEventListener('keydown', handleKey);
+
       // set global fullscreen class so body/html have no margin and no scrollbars for this view
       document.documentElement.classList.add('jackpot-fullscreen');
       document.body.classList.add('jackpot-fullscreen');
