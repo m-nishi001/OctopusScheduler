@@ -32,7 +32,7 @@
                                     class="admin-input">
                                     <option value="">選択なし</option>
                                     <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
+                                    }}</option>
                                 </select>
                             </div>
                             <div>
@@ -42,7 +42,7 @@
                                     class="admin-input">
                                     <option value="">選択なし</option>
                                     <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
+                                    }}</option>
                                 </select>
                             </div>
                         </div>
@@ -100,7 +100,7 @@
                 <!-- アニメーションプレビュー -->
                 <div v-if="previewVisible" class="animation-preview">
                     <h4>アニメーションプレビュー</h4>
-                    <RouletteAnimation v-if="previewType === 'roulette'" :selectedPrize="previewPrize"
+                    <RouletteAnimation v-if="previewType === 'roulette'" :prizes="prizes" :selectedPrize="previewPrize"
                         :showResult="true" />
                     <SlotAnimation v-if="previewType === 'slot'" :selectedPrize="previewPrize" :showResult="true" />
                     <TreasureAnimation v-if="previewType === 'treasure'" :selectedPrize="previewPrize"
