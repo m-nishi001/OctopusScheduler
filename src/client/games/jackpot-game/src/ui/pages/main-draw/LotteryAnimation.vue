@@ -4,29 +4,35 @@
             <canvas ref="rouletteCanvas"></canvas>
             <div class="result-display" v-if="showResult">{{ selectedPrize?.name }}</div>
         </div>
+
         <div v-else-if="animationType === 'slot'" class="slot-container">
             <canvas ref="slotCanvas"></canvas>
             <div class="result-display" v-if="showResult">{{ selectedPrize?.name }}</div>
         </div>
+
         <div v-else-if="animationType === 'treasure'" class="treasure-container">
             <canvas ref="treasureCanvas"></canvas>
             <div class="result-display" v-if="showResult">{{ selectedPrize?.name }}</div>
         </div>
+
         <div v-else-if="animationType === 'particle'" class="particle-container">
             <canvas ref="particleCanvas"></canvas>
             <div class="result-display" v-if="showResult">{{ selectedPrize?.name }}</div>
         </div>
+
         <div v-else-if="animationType === 'zoom'" class="zoom-container">
             <div class="prize-item" ref="zoomPrize" v-if="selectedPrize">
                 <img :src="selectedPrize.imageAssetId" :alt="selectedPrize.name" />
                 <p>{{ selectedPrize.name }}</p>
             </div>
         </div>
+
         <div v-else-if="animationType === 'bonus-switch'" class="bonus-container">
             <div class="initial-prize" ref="initialPrize" v-if="initialPrize">{{ initialPrize.name }}</div>
             <div class="bonus-text" ref="bonusText" v-if="showBonus">ボーナス！</div>
             <div class="final-prize" ref="finalPrize" v-if="finalPrize">{{ finalPrize.name }}</div>
         </div>
+
         <div v-else-if="animationType === 'mirage'" class="mirage-container">
             <div class="fake-prize" ref="fakePrize" v-if="fakePrize">{{ fakePrize.name }}</div>
             <div class="real-prize" ref="realPrize" v-if="realPrize">{{ realPrize.name }}</div>
@@ -34,174 +40,231 @@
     </div>
 </template>
 
-<script lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import * as THREE from 'three';
+<script lang="ts" setup>
+import { ref, onMounted, watch, onUnmounted, computed } from 'vue';
 import gsap from 'gsap';
 import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
 
-export default {
-    name: 'LotteryAnimation',
-    props: {
-        animationType: {
-            type: String,
-            required: true,
-            validator: (value: string) => [
-                'roulette', 'slot', 'treasure', 'particle', 'zoom', 'bonus-switch', 'mirage'
-            ].includes(value)
-        },
-        selectedPrize: {
-            type: Object as () => PrizeDto | null,
-            default: null
-        },
-        initialPrize: {
-            type: Object as () => PrizeDto | null,
-            default: null
-        },
-        finalPrize: {
-            type: Object as () => PrizeDto | null,
-            default: null
-        },
-        fakePrize: {
-            type: Object as () => PrizeDto | null,
-            default: null
-        },
-        realPrize: {
-            type: Object as () => PrizeDto | null,
-            default: null
-        },
-        showResult: {
-            type: Boolean,
-            default: false
-        },
-        showBonus: {
-            type: Boolean,
-            default: false
-        }
-    },
-    setup(props) {
-        const container = ref<HTMLElement | null>(null);
-        const rouletteCanvas = ref<HTMLCanvasElement | null>(null);
-        const slotCanvas = ref<HTMLCanvasElement | null>(null);
-        const treasureCanvas = ref<HTMLCanvasElement | null>(null);
-        const particleCanvas = ref<HTMLCanvasElement | null>(null);
-        const zoomPrize = ref<HTMLElement | null>(null);
-        const initialPrize = ref<HTMLElement | null>(null);
-        const bonusText = ref<HTMLElement | null>(null);
-        const finalPrize = ref<HTMLElement | null>(null);
-        const fakePrize = ref<HTMLElement | null>(null);
-        const realPrize = ref<HTMLElement | null>(null);
+interface Props {
+    animationType: 'roulette' | 'slot' | 'treasure' | 'particle' | 'zoom' | 'bonus-switch' | 'mirage';
+    prizes?: PrizeDto[];
+    selectedPrize?: PrizeDto | null;
+    initialPrize?: PrizeDto | null;
+    finalPrize?: PrizeDto | null;
+    fakePrize?: PrizeDto | null;
+    realPrize?: PrizeDto | null;
+    showResult?: boolean;
+    showBonus?: boolean;
+}
 
-        let scene: THREE.Scene | null = null;
-        let camera: THREE.Camera | null = null;
-        let renderer: THREE.WebGLRenderer | null = null;
+const props = defineProps<Props>();
 
-        onMounted(() => {
-            if (props.animationType === 'roulette') initRoulette();
-            else if (props.animationType === 'treasure') initTreasure();
-            else if (props.animationType === 'particle') initParticle();
-        });
+const animationType = computed(() => props.animationType);
+const prizes = computed(() => props.prizes || []);
+const selectedPrize = computed(() => props.selectedPrize || null);
+const showResult = computed(() => !!props.showResult);
+const showBonus = computed(() => !!props.showBonus);
+const initialPrize = computed(() => props.initialPrize || null);
+const finalPrize = computed(() => props.finalPrize || null);
+const fakePrize = computed(() => props.fakePrize || null);
+const realPrize = computed(() => props.realPrize || null);
 
-        watch(() => props.showResult, (newVal) => {
-            if (newVal) {
-                if (props.animationType === 'zoom') animateZoom();
-                else if (props.animationType === 'bonus-switch') animateBonusSwitch();
-                else if (props.animationType === 'mirage') animateMirage();
-            }
-        });
+const container = ref<HTMLElement | null>(null);
+const rouletteCanvas = ref<HTMLCanvasElement | null>(null);
+const slotCanvas = ref<HTMLCanvasElement | null>(null);
+const treasureCanvas = ref<HTMLCanvasElement | null>(null);
+const particleCanvas = ref<HTMLCanvasElement | null>(null);
+const zoomPrize = ref<HTMLElement | null>(null);
+const bonusText = ref<HTMLElement | null>(null);
 
-        const initRoulette = () => {
-            if (!rouletteCanvas.value) return;
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ canvas: rouletteCanvas.value, alpha: true });
-            renderer.setSize(400, 400);
+let rafId: number | null = null;
+let currentAngle = { value: 0 } as { value: number };
+let spinning = false;
 
-            // Simple roulette geometry
-            const geometry = new THREE.CylinderGeometry(1, 1, 0.1, 8);
-            const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const roulette = new THREE.Mesh(geometry, material);
-            scene.add(roulette);
+onMounted(() => {
+    if (animationType.value === 'roulette') initRoulette();
+    else if (animationType.value === 'treasure') initTreasure();
+    else if (animationType.value === 'particle') initParticle();
+});
 
-            camera.position.z = 5;
-
-            // Animation
-            gsap.to(roulette.rotation, { y: Math.PI * 4, duration: 3, ease: 'power2.out' });
-        };
-
-        const initTreasure = () => {
-            if (!treasureCanvas.value) return;
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ canvas: treasureCanvas.value, alpha: true });
-            renderer.setSize(400, 400);
-
-            // Simple treasure chest
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const material = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
-            const chest = new THREE.Mesh(geometry, material);
-            scene.add(chest);
-
-            camera.position.z = 5;
-
-            // Open animation
-            gsap.to(chest.rotation, { x: -Math.PI / 4, duration: 1, delay: 1 });
-        };
-
-        const initParticle = () => {
-            if (!particleCanvas.value) return;
-            // Simple particle effect with canvas
-            const ctx = particleCanvas.value.getContext('2d');
-            if (!ctx) return;
-            particleCanvas.value.width = 400;
-            particleCanvas.value.height = 400;
-
-            // Draw particles
-            for (let i = 0; i < 50; i++) {
-                ctx.beginPath();
-                ctx.arc(Math.random() * 400, Math.random() * 400, 2, 0, Math.PI * 2);
-                ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
-                ctx.fill();
-            }
-        };
-
-        const animateZoom = () => {
-            if (!zoomPrize.value) return;
-            gsap.fromTo(zoomPrize.value, { scale: 0.5, opacity: 0 }, { scale: 2, opacity: 1, duration: 1 });
-        };
-
-        const animateBonusSwitch = () => {
-            if (!initialPrize.value || !bonusText.value || !finalPrize.value) return;
-            gsap.timeline()
-                .to(initialPrize.value, { opacity: 1, duration: 0.5 })
-                .to(initialPrize.value, { opacity: 0, duration: 0.5, delay: 1 })
-                .to(bonusText.value, { opacity: 1, scale: 1.5, duration: 0.5 })
-                .to(bonusText.value, { opacity: 0, duration: 0.5, delay: 1 })
-                .to(finalPrize.value, { opacity: 1, duration: 0.5 });
-        };
-
-        const animateMirage = () => {
-            if (!fakePrize.value || !realPrize.value) return;
-            gsap.timeline()
-                .to(fakePrize.value, { opacity: 1, duration: 0.5 })
-                .to(fakePrize.value, { opacity: 0, scale: 0.5, duration: 0.5, delay: 1 })
-                .to(realPrize.value, { opacity: 1, scale: 1.2, duration: 0.5 });
-        };
-
-        return {
-            container,
-            rouletteCanvas,
-            slotCanvas,
-            treasureCanvas,
-            particleCanvas,
-            zoomPrize,
-            initialPrize,
-            bonusText,
-            finalPrize,
-            fakePrize,
-            realPrize
-        };
+watch(showResult, (newVal) => {
+    if (newVal) {
+        if (animationType.value === 'zoom') animateZoom();
+        else if (animationType.value === 'bonus-switch') animateBonusSwitch();
+        else if (animationType.value === 'mirage') animateMirage();
     }
+});
+
+watch(selectedPrize, (newVal) => {
+    if (animationType.value === 'roulette' && newVal) {
+        spinToSelected();
+    }
+});
+
+onUnmounted(() => {
+    if (rafId) cancelAnimationFrame(rafId);
+});
+
+const initRoulette = () => {
+    if (!rouletteCanvas.value) return;
+    const canvas = rouletteCanvas.value;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const size = 400;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+    ctx.scale(dpr, dpr);
+
+    const drawWheel = (angle = currentAngle.value) => {
+        const w = size;
+        const h = size;
+        const cx = w / 2;
+        const cy = h / 2;
+        const radius = Math.min(w, h) * 0.4;
+        ctx.clearRect(0, 0, w, h);
+
+        const sectors = (prizes.value && prizes.value.length) ? prizes.value.length : 8;
+        const sectorAngle = (Math.PI * 2) / sectors;
+
+        for (let i = 0; i < sectors; i++) {
+            const start = angle + i * sectorAngle;
+            const end = start + sectorAngle;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.arc(cx, cy, radius, start, end);
+            ctx.closePath();
+            const hue = (i * 360 / sectors + 30) % 360;
+            ctx.fillStyle = `hsl(${hue}, 80%, 45%)`;
+            ctx.fill();
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // label
+            ctx.save();
+            const mid = start + sectorAngle / 2;
+            ctx.translate(cx + Math.cos(mid) * radius * 0.65, cy + Math.sin(mid) * radius * 0.65);
+            ctx.rotate(mid + Math.PI / 2);
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const label = (prizes.value && prizes.value[i]) ? prizes.value[i].name : `#${i + 1}`;
+            wrapText(ctx, label, 0, 0, 80, 14);
+            ctx.restore();
+        }
+
+        // center circle
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius * 0.18, 0, Math.PI * 2);
+        ctx.fillStyle = '#222';
+        ctx.fill();
+
+        // pointer
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - radius - 6);
+        ctx.lineTo(cx - 12, cy - radius + 18);
+        ctx.lineTo(cx + 12, cy - radius + 18);
+        ctx.closePath();
+        ctx.fillStyle = '#ffd400';
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.stroke();
+    };
+
+    const wrapText = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) => {
+        const words = text.split(' ');
+        let line = '';
+        let test = '';
+        let ty = y;
+        for (let n = 0; n < words.length; n++) {
+            test = line + words[n] + ' ';
+            const metrics = ctx.measureText(test);
+            if (metrics.width > maxWidth && n > 0) {
+                ctx.fillText(line, x, ty);
+                line = words[n] + ' ';
+                ty += lineHeight;
+            } else {
+                line = test;
+            }
+        }
+        ctx.fillText(line, x, ty);
+    };
+
+    const render = () => {
+        drawWheel();
+        rafId = requestAnimationFrame(render);
+    };
+    render();
+};
+
+const spinToSelected = async () => {
+    if (!rouletteCanvas.value || spinning) return;
+    const sectors = (prizes.value && prizes.value.length) ? prizes.value.length : 8;
+    const sectorAngle = (Math.PI * 2) / sectors;
+    const selectedIndex = prizes.value && selectedPrize.value ? prizes.value.findIndex(p => p.id === selectedPrize.value?.id) : -1;
+    const targetIndex = selectedIndex >= 0 ? selectedIndex : Math.floor(Math.random() * sectors);
+    const randomRounds = 3 + Math.floor(Math.random() * 3);
+    const targetMidAngle = (targetIndex + 0.5) * sectorAngle;
+    const finalAngle = -Math.PI / 2 - targetMidAngle + randomRounds * Math.PI * 2 + (Math.random() - 0.5) * (sectorAngle * 0.6);
+
+    spinning = true;
+    await gsap.to(currentAngle, { value: finalAngle, duration: 4, ease: 'power3.out' });
+    spinning = false;
+};
+
+const initTreasure = () => {
+    if (!treasureCanvas.value) return;
+    const canvas = treasureCanvas.value;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    canvas.width = 400;
+    canvas.height = 400;
+    ctx.fillStyle = '#6b3';
+    ctx.fillRect(120, 160, 160, 120);
+    ctx.fillStyle = '#000';
+    ctx.fillText('Chest', 200, 220);
+};
+
+const initParticle = () => {
+    if (!particleCanvas.value) return;
+    const ctx = particleCanvas.value.getContext('2d');
+    if (!ctx) return;
+    particleCanvas.value.width = 400;
+    particleCanvas.value.height = 400;
+
+    for (let i = 0; i < 50; i++) {
+        ctx.beginPath();
+        ctx.arc(Math.random() * 400, Math.random() * 400, 2, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
+        ctx.fill();
+    }
+};
+
+const animateZoom = () => {
+    if (!zoomPrize.value) return;
+    gsap.fromTo(zoomPrize.value, { scale: 0.5, opacity: 0 }, { scale: 2, opacity: 1, duration: 1 });
+};
+
+const animateBonusSwitch = () => {
+    if (!initialPrize.value || !bonusText.value || !finalPrize.value) return;
+    gsap.timeline()
+        .to(initialPrize.value, { opacity: 1, duration: 0.5 })
+        .to(initialPrize.value, { opacity: 0, duration: 0.5, delay: 1 })
+        .to(bonusText.value, { opacity: 1, scale: 1.5, duration: 0.5 })
+        .to(bonusText.value, { opacity: 0, duration: 0.5, delay: 1 })
+        .to(finalPrize.value, { opacity: 1, duration: 0.5 });
+};
+
+const animateMirage = () => {
+    if (!fakePrize.value || !realPrize.value) return;
+    gsap.timeline()
+        .to(fakePrize.value, { opacity: 1, duration: 0.5 })
+        .to(fakePrize.value, { opacity: 0, scale: 0.5, duration: 0.5, delay: 1 })
+        .to(realPrize.value, { opacity: 1, scale: 1.2, duration: 0.5 });
 };
 </script>
 
@@ -252,4 +315,3 @@ canvas {
     opacity: 0;
 }
 </style>
-<parameter name="filePath">/root/google_apps_script/octopus-scheduler/src/client/games/jackpot-game/src/ui/pages/main-draw/LotteryAnimation.vue
