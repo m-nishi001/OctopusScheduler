@@ -1,7 +1,7 @@
 // Google Drive and Spreadsheet CRUD operations for jackpot-game-api
 
-import { GoogleDriveService } from "./services/google-drive-service";
-import { SpreadsheetService } from "./services/spreadsheet-service";
+import { GoogleDriveService } from "../../../shared-packages/src/google-drive-service";
+import { SpreadsheetService } from "../../../shared-packages/src/google-spreadsheet-service";
 
 interface DriveData {
   fileId: string;
