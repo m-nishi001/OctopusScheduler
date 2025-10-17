@@ -199,11 +199,11 @@ export class AssetRepository implements IAssetRepository {
     }));
   }
 
-  async registerRef(assetId: string, refSourceId: string): Promise<void> {
+  async registerRef(_assetId: string, _refSourceId: string): Promise<void> {
     // No GAS call needed
   }
 
-  async unregisterRef(assetId: string, refSourceId: string): Promise<void> {
+  async unregisterRef(_assetId: string, _refSourceId: string): Promise<void> {
     // No GAS call needed
   }
 }
