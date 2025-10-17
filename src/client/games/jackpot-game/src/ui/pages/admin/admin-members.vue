@@ -134,22 +134,21 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
-import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto";
-import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DriveDataDto } from '../../../model/applications/asset/dto/drive-data-dto';
+import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { MemberAddService } from '../../../model/applications/member/member-add-service';
 import { MemberDeleteService } from '../../../model/applications/member/member-delete-service';
-import type { AssetMetadata } from "../../../model/domains/asset/repository/i-asset-repository";
 import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
 
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
-const assetService = container.resolve<AssetService>(AssetService);
+const driveDataService = container.resolve<DriveDataService>("DriveDataService");
 const memberAddService = container.resolve<MemberAddService>(MemberAddService);
 const memberDeleteService = container.resolve<MemberDeleteService>(MemberDeleteService);
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
-const assets = ref<AssetMetadata[]>([]);
-const imageAssets = computed(() => assets.value.filter((asset: AssetMetadata) => asset.type === 'image'));
+const assets = ref<DriveDataDto[]>([]);
+const imageAssets = computed(() => assets.value.filter((asset) => asset.type.startsWith('image/')));
 const getMemberImageSrc = (member: any) => {
   return member.photoDataUrl || '';
 };
@@ -174,11 +173,11 @@ const modalName = ref('');
 const modalRank = ref(1);
 const modalMaxRank = ref(1);
 const modalPhotoMode = ref('upload');
-const modalPhotoAsset = ref<AssetDto | undefined>();
+const modalPhotoAsset = ref<DriveDataDto | undefined>();
 const modalPhotoPreview = ref('');
 const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
-const tempAsset = ref<AssetDto | null>(null);
+const tempAsset = ref<DriveDataDto | null>(null);
 
 // modal actions
 const openModal = (mode: 'add' | 'edit', data?: any) => {
@@ -265,7 +264,7 @@ const updateModalPhotoPreview = async () => {
   if (modalPhotoAsset.value && modalPhotoAsset.value.dataUrl) {
     modalPhotoPreview.value = modalPhotoAsset.value.dataUrl;
   } else if (photoAssetId.value) {
-    const asset = await assetService.getAssetById(photoAssetId.value);
+    const asset = await driveDataService.getDriveDataById(photoAssetId.value);
     modalPhotoPreview.value = asset?.dataUrl || '';
   } else {
     modalPhotoPreview.value = '';
@@ -275,7 +274,7 @@ const updateModalPhotoPreview = async () => {
 const onModalPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempAsset.value = await assetService.createAssetDtoFromFile(file);
+    tempAsset.value = await driveDataService.createDriveDataDtoFromFile(file);
     modalPhotoFilename.value = file.name;
     modalPhotoPreview.value = tempAsset.value.dataUrl;
   }
@@ -333,7 +332,7 @@ const fetchMembers = async () => {
     const fetchedMembers = await memberRepo.getMembers();
     for (const member of fetchedMembers) {
       if (member.photoAssetId) {
-        const asset = await assetService.getAssetById(member.photoAssetId);
+        const asset = await driveDataService.getDriveDataById(member.photoAssetId);
         member.photoDataUrl = asset?.dataUrl;
       }
     }
@@ -346,7 +345,7 @@ const fetchMembers = async () => {
 
 const fetchAssets = async () => {
   try {
-    assets.value = await assetService.getAllAssetMetadata();
+    assets.value = await driveDataService.getAllDriveData();
   } catch (error) {
     console.error("Failed to fetch assets:", error);
     assets.value = [];

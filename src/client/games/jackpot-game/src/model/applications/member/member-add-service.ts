@@ -1,28 +1,28 @@
 import { injectable, inject } from "tsyringe";
-import type { IAssetRepository } from "../../domains/asset/repository/i-asset-repository";
+import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { toMember } from "./dto/member-dto";
-import type { AssetDto } from "../asset/dto/asset-dto";
+import type { DriveDataDto } from "../asset/dto/drive-data-dto";
 import type { Member } from "../../domains/member/member";
 
 @injectable()
 export class MemberAddService {
   constructor(
-    @inject("IAssetRepository") private assetRepo: IAssetRepository,
+    @inject("IDriveDataRepository") private driveDataRepo: IDriveDataRepository,
     @inject("IMemberRepository") private memberRepo: IMemberRepository
   ) {}
 
   async saveMember(
     member: MemberDto,
-    tempAssetDto?: AssetDto
+    tempDriveDataDto?: DriveDataDto
   ): Promise<Member> {
     let assetId: string | undefined;
-    if (tempAssetDto) {
-      const assets = await this.assetRepo.addAssets([
-        await tempAssetDto.toAsset(),
+    if (tempDriveDataDto) {
+      const driveData = await this.driveDataRepo.addDriveData([
+        await tempDriveDataDto.toDriveData(),
       ]);
-      assetId = assets[0];
+      assetId = driveData[0];
     }
     const memberToSave = {
       ...member,
@@ -32,8 +32,8 @@ export class MemberAddService {
       toMember(memberToSave),
     ]);
     const addedMember = addedMembers[0];
-    if (tempAssetDto) {
-      addedMember.photoDataUrl = tempAssetDto.dataUrl;
+    if (tempDriveDataDto) {
+      addedMember.photoDataUrl = tempDriveDataDto.dataUrl;
     }
     return addedMember;
   }

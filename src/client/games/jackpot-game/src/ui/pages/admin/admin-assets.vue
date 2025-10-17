@@ -98,10 +98,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { FileUtils } from '../../../model/infrastructures/utils/file-utils';
 import { container } from 'tsyringe';
-const assetService = container.resolve(AssetService);
+const driveDataService = container.resolve(DriveDataService);
 
 const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);
@@ -143,7 +143,7 @@ const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
 const fetchAssets = async () => {
-    assets.value = await assetService.getAllAssets();
+    assets.value = await driveDataService.getAllDriveData();
 };
 
 const onFileChange = (e: Event) => {
@@ -169,9 +169,9 @@ const addAssets = async () => {
         status: 'アップロード中' as const,
     }));
     const assetDtos = await Promise.all(selectedFiles.value.map(async (file) => {
-        return await assetService.createAssetDtoFromFile(file);
+        return await driveDataService.createDriveDataDtoFromFile(file);
     }));
-    const updatedAssets = await assetService.addAssets(assetDtos, (index, status, message) => {
+    const updatedAssets = await driveDataService.addDriveData(assetDtos, (index, status, message) => {
         uploadStatuses.value[index].status = status;
         uploadStatuses.value[index].message = message;
     });
@@ -185,7 +185,7 @@ const deleteAsset = async (id: string) => {
     deleteAllMessage.value = "ファイル削除中...";
     const asset = assets.value.find(a => a.id === id);
     const progressList = [{ id, name: asset?.name || id, status: '削除中' as '削除中' | '削除済' | '削除失敗' }];
-    await assetService.deleteAssets([id], ({ id: deletedId, success }) => {
+    await driveDataService.deleteDriveData([id], ({ id: deletedId, success }) => {
         const item = progressList.find(p => p.id === deletedId);
         if (item) {
             item.status = success ? '削除済' : '削除失敗';
@@ -204,7 +204,7 @@ const deleteSelectedAssets = async () => {
         const asset = assets.value.find(a => a.id === id);
         return { id, name: asset?.name || id, status: '削除中' as '削除中' | '削除済' | '削除失敗' };
     });
-    await assetService.deleteAssets(selectedAssets.value, ({ id, success }) => {
+    await driveDataService.deleteDriveData(selectedAssets.value, ({ id, success }) => {
         const item = progressList.find(p => p.id === id);
         if (item) {
             item.status = success ? '削除済' : '削除失敗';
@@ -222,7 +222,7 @@ const syncAssets = async () => {
     syncing.value = true;
     syncMessage.value = "";
     try {
-        await assetService.syncAssets((message) => {
+        await driveDataService.syncDriveData((message) => {
             syncMessage.value = message;
         });
         await fetchAssets();

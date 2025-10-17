@@ -123,7 +123,7 @@ const loadConfig = async () => {
 const onImageChange = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
 	if (file) {
-		const tempAsset = await assetService.createAssetDtoFromFile(file);
+		const tempAsset = await assetService.createDriveDataDtoFromFile(file);
 		onTempAssets([tempAsset]);
 		localConfig.value.screenElements[idx].assetId = tempAsset.id;
 	}
@@ -166,7 +166,7 @@ const handleSaveClick = async () => {
 		let updatedAssets: any[] = [];
 
 		if (tempAssets.value.length > 0) {
-			updatedAssets = await assetService.addAssets(tempAssets.value);
+			updatedAssets = await assetService.addDriveData(tempAssets.value);
 			updatedAssets.forEach((asset: any, index: number) => {
 				tempAssetMap.set(oldTempAssets[index].id, asset.id);
 			});

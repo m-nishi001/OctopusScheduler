@@ -130,7 +130,7 @@ onMounted(async () => {
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        const tempAsset = await assetService.createDriveDataDtoFromFile(file);
         onTempAssets([tempAsset]);
         localConfig.value.bgmAssetId = tempAsset.id;
     }
@@ -139,7 +139,7 @@ const onBgmChange = async (e: Event) => {
 const onImageChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        const tempAsset = await assetService.createDriveDataDtoFromFile(file);
         onTempAssets([tempAsset]);
         localConfig.value.contents[idx].assetId = tempAsset.id;
     }
@@ -148,7 +148,7 @@ const onImageChange = async (e: Event, idx: number) => {
 const onSeChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        const tempAsset = await assetService.createDriveDataDtoFromFile(file);
         onTempAssets([tempAsset]);
         localConfig.value.contents[idx].seAssetId = tempAsset.id;
     }
@@ -195,15 +195,11 @@ const handleSaveClick = async () => {
     await handleSave(async () => {
         const oldTempAssets = [...tempAssets.value]; // 保存前のコピー
         const tempAssetMap = new Map<string, string>();
-        let updatedAssets: any[] = [];
 
-        // アップロード後に tempAssets が更新される
-        if (tempAssets.value.length > 0) {
-            updatedAssets = await assetService.addAssets(tempAssets.value);
-            updatedAssets.forEach((asset: any, index: number) => {
-                tempAssetMap.set(oldTempAssets[index].id, asset.id);
-            });
-        }
+        // tempAssets は handleSave で更新される
+        tempAssets.value.forEach((asset: any, index: number) => {
+            tempAssetMap.set(oldTempAssets[index].id, asset.id);
+        });
 
         // localConfig のアセットIDを置き換え
         if (tempAssetMap.has(localConfig.value.bgmAssetId)) {
@@ -226,10 +222,6 @@ const handleSaveClick = async () => {
         await screenConfigService.saveScreenConfigs(settings);
 
         await loadConfig();
-
-        // Register references for newly uploaded assets
-        if (tempAssets.value.length > 0) {
-        }
 
         // tempAssets をクリア
         tempAssets.value = [];

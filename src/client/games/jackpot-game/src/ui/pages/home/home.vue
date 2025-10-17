@@ -35,7 +35,7 @@ import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { HomeScreenSetting } from '../../../model/domains/screen-config/home-screen-setting';
 
 export default {
@@ -50,7 +50,7 @@ export default {
 
     const homeConfig = ref<HomeScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetService>("AssetService");
+    const assetService = container.resolve<DriveDataService>("DriveDataService");
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -71,7 +71,7 @@ export default {
 
     const playBGM = async () => {
       if (!homeConfig.value || !homeConfig.value.homeBgm) return;
-      const asset = await assetService.getAssetById(homeConfig.value.homeBgm);
+      const asset = await assetService.getDriveDataById(homeConfig.value.homeBgm);
       if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
@@ -89,7 +89,7 @@ export default {
         progress.value = 10;
         const tasks = [
           {
-            task: assetService.syncAssets((_message, progressInfo) => {
+            task: assetService.syncDriveData((_message, progressInfo) => {
               if (progressInfo) {
                 syncTasks.value[0].current = progressInfo.current;
                 syncTasks.value[0].total = progressInfo.total;

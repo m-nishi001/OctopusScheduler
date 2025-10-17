@@ -26,7 +26,7 @@ import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { ResultScreenSetting } from '../../../model/domains/screen-config/result-screen-setting';
 
 export default {
@@ -39,7 +39,7 @@ export default {
     const lowestWinner = ref<any | undefined>(undefined);
     const resultConfig = ref<ResultScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetService>("AssetService");
+    const assetService = container.resolve<DriveDataService>("DriveDataService");
     const drawResultService = container.resolve(DrawResultService);
     const fetchResults = async () => {
       const results = await drawResultService.getDrawResults();
@@ -60,7 +60,7 @@ export default {
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = async () => {
       if (!resultConfig.value || !resultConfig.value.resultBgm) return;
-      const asset = await assetService.getAssetById(resultConfig.value.resultBgm);
+      const asset = await assetService.getDriveDataById(resultConfig.value.resultBgm);
       if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;

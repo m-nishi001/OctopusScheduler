@@ -7,11 +7,15 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-  "erasableSyntaxOnly": false,
+    "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
-  ,"experimentalDecorators": true
-  ,"emitDecoratorMetadata": true
+    "noUncheckedSideEffectImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@server": ["../../../../server"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

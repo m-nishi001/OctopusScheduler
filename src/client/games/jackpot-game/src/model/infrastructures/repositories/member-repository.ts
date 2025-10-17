@@ -1,16 +1,13 @@
 import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
-import { StorageConfig } from "../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 
-declare const google: any;
-
 @injectable()
 export class MemberRepository implements IMemberRepository {
   private readonly localStorage = new LocalStorageService(
-    StorageConfig.getDbName(),
-    StorageConfig.getStoreName("MemberData")
+    "jackpot-game",
+    "MemberData"
   );
 
   async getMembers(): Promise<Member[]> {

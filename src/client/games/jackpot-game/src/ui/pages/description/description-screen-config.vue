@@ -14,7 +14,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { DescriptionScreenSetting } from '../../../model/domains/screen-config/description-screen-setting';
 import { container } from 'tsyringe';
 export default {
@@ -25,7 +25,7 @@ export default {
 		// ScreenConfigRepositoryから取得
 		const descriptionConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenConfigService = container.resolve(ScreenConfigService);
-		const assetService = container.resolve(AssetService);
+		const assetService = container.resolve(DriveDataService);
 		onMounted(async () => {
 			const config = await screenConfigService.fetchScreenConfig('description');
 			descriptionConfig.value = config as DescriptionScreenSetting ?? new DescriptionScreenSetting("", []);
@@ -36,7 +36,7 @@ export default {
 		const bgmAudio = ref<HTMLAudioElement | null>(null);
 		const playBGM = async () => {
 			if (!descriptionConfig.value || !descriptionConfig.value.descriptionBgm) return;
-			const asset = await assetService.getAssetById(descriptionConfig.value.descriptionBgm);
+			const asset = await assetService.getDriveDataById(descriptionConfig.value.descriptionBgm);
 			if (asset && asset.dataUrl) {
 				bgmAudio.value = new Audio(asset.dataUrl);
 				bgmAudio.value.loop = true;

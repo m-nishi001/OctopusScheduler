@@ -37,7 +37,7 @@ import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import { MainScreenSetting } from '../../../model/domains/screen-config/main-screen-setting';
@@ -49,7 +49,7 @@ export default {
     // ScreenConfigRepositoryから取得
     const mainConfig = ref<MainScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetService>("AssetService");
+    const assetService = container.resolve<DriveDataService>("DriveDataService");
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('main');
       mainConfig.value = config as MainScreenSetting ?? new MainScreenSetting([], [], 1, []);
@@ -74,7 +74,7 @@ export default {
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = async () => {
       if (!mainConfig.value || !mainConfig.value.memberLotteryBgms.length) return;
-      const asset = await assetService.getAssetById(mainConfig.value.memberLotteryBgms[0]);
+      const asset = await assetService.getDriveDataById(mainConfig.value.memberLotteryBgms[0]);
       if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;

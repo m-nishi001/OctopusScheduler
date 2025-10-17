@@ -1,14 +1,13 @@
 import { injectable } from "tsyringe";
 import type { DrawResultDto } from "../../applications/draw-result/dto/draw-result-dto";
 import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
-import { StorageConfig } from "../../infrastructures/storage-config";
 import type { IDrawResultRepository } from "../../domains/draw-result/repository/i-draw-result-repository";
 
 @injectable()
 export class DrawResultRepository implements IDrawResultRepository {
   private readonly localStorage = new LocalStorageService(
-    StorageConfig.getDbName(),
-    StorageConfig.getStoreName("DrawResultData")
+    "jackpot-game",
+    "DrawResultData"
   );
 
   async getDrawResults(): Promise<DrawResultDto[]> {

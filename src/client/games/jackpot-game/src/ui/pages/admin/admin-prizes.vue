@@ -282,15 +282,15 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { AssetDto } from "../../../model/applications/asset/dto/asset-dto";
-import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DriveDataDto } from "../../../model/applications/asset/dto/drive-data-dto";
+import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
 import { PrizeDeleteService } from '../../../model/applications/prize/prize-delete-service';
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/i-prize-repository';
 
 import { container } from 'tsyringe';
 const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
-const assetService = container.resolve(AssetService);
+const driveDataService = container.resolve(DriveDataService);
 const prizeAddService = container.resolve(PrizeAddService);
 const prizeDeleteService = container.resolve(PrizeDeleteService);
 const prizes = ref<any[]>([]);
@@ -341,7 +341,7 @@ const newPrizeProbability = ref(5);
 const newPrizeRank = ref<number | undefined>();
 const newImageMode = ref('upload');
 const newImageAssetId = ref('');
-const newImageAsset = ref<AssetDto | undefined>();
+const newImageAsset = ref<DriveDataDto | undefined>();
 const newImageFilename = ref('');
 const newImagePreview = ref('');
 const newBgm1AssetId = ref('');
@@ -351,14 +351,14 @@ const newBgm2Mode = ref('select');
 const newBgm1Filename = ref('');
 const newBgm2Filename = ref('');
 
-const tempAsset = ref<AssetDto | null>(null);
-const tempBgm1Asset = ref<AssetDto | null>(null);
-const tempBgm2Asset = ref<AssetDto | null>(null);
+const tempAsset = ref<DriveDataDto | null>(null);
+const tempBgm1Asset = ref<DriveDataDto | null>(null);
+const tempBgm2Asset = ref<DriveDataDto | null>(null);
 
 const onNewImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempAsset.value = await assetService.createAssetDtoFromFile(file);
+    tempAsset.value = await driveDataService.createDriveDataDtoFromFile(file);
     newImageFilename.value = file.name;
     newImagePreview.value = tempAsset.value.dataUrl;
   }
@@ -367,7 +367,7 @@ const onNewImageChange = async (e: Event) => {
 const onNewBgm1Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempBgm1Asset.value = await assetService.createAssetDtoFromFile(file);
+    tempBgm1Asset.value = await driveDataService.createDriveDataDtoFromFile(file);
     newBgm1Filename.value = file.name;
   }
 };
@@ -375,7 +375,7 @@ const onNewBgm1Change = async (e: Event) => {
 const onNewBgm2Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempBgm2Asset.value = await assetService.createAssetDtoFromFile(file);
+    tempBgm2Asset.value = await driveDataService.createDriveDataDtoFromFile(file);
     newBgm2Filename.value = file.name;
   }
 };
@@ -449,7 +449,7 @@ const fetchPrizes = async () => {
     const fetchedPrizes = await prizeRepo.getPrizes();
     for (const prize of fetchedPrizes) {
       if (prize.imageAssetId) {
-        const asset = await assetService.getAssetById(prize.imageAssetId);
+        const asset = await driveDataService.getDriveDataById(prize.imageAssetId);
         prize.imageDataUrl = asset?.dataUrl;
       }
     }
@@ -462,7 +462,7 @@ const fetchPrizes = async () => {
 
 const fetchAssets = async () => {
   try {
-    assets.value = await assetService.getAllAssets();
+    assets.value = await driveDataService.getAllDriveData();
   } catch (error) {
     console.error("Failed to fetch assets:", error);
     assets.value = [];
@@ -484,14 +484,14 @@ const editBgm2Mode = ref('select');
 const editBgm1Filename = ref('');
 const editBgm2Filename = ref('');
 
-const editTempAsset = ref<AssetDto | null>(null);
-const editTempBgm1Asset = ref<AssetDto | null>(null);
-const editTempBgm2Asset = ref<AssetDto | null>(null);
+const editTempAsset = ref<DriveDataDto | null>(null);
+const editTempBgm1Asset = ref<DriveDataDto | null>(null);
+const editTempBgm2Asset = ref<DriveDataDto | null>(null);
 
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempAsset.value = await assetService.createAssetDtoFromFile(file);
+    editTempAsset.value = await driveDataService.createDriveDataDtoFromFile(file);
     editImageFilename.value = file.name;
     editImagePreview.value = editTempAsset.value.dataUrl;
   }
@@ -500,7 +500,7 @@ const onEditImageChange = async (e: Event) => {
 const onEditBgm1Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempBgm1Asset.value = await assetService.createAssetDtoFromFile(file);
+    editTempBgm1Asset.value = await driveDataService.createDriveDataDtoFromFile(file);
     editBgm1Filename.value = file.name;
   }
 };
@@ -508,7 +508,7 @@ const onEditBgm1Change = async (e: Event) => {
 const onEditBgm2Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempBgm2Asset.value = await assetService.createAssetDtoFromFile(file);
+    editTempBgm2Asset.value = await driveDataService.createDriveDataDtoFromFile(file);
     editBgm2Filename.value = file.name;
   }
 };
@@ -549,19 +549,19 @@ const saveEdit = async () => {
   if (!editPrizeData.value) return;
   let assetId: string | undefined;
   if (editTempAsset.value) {
-    const updatedAssets = await assetService.addAssets([editTempAsset.value]);
+    const updatedAssets = await driveDataService.addDriveData([editTempAsset.value]);
     editTempAsset.value = updatedAssets[0];
     assetId = editTempAsset.value.id;
   }
   let bgm1AssetId: string | undefined;
   if (editTempBgm1Asset.value) {
-    const updatedAssets = await assetService.addAssets([editTempBgm1Asset.value]);
+    const updatedAssets = await driveDataService.addDriveData([editTempBgm1Asset.value]);
     editTempBgm1Asset.value = updatedAssets[0];
     bgm1AssetId = editTempBgm1Asset.value.id;
   }
   let bgm2AssetId: string | undefined;
   if (editTempBgm2Asset.value) {
-    const updatedAssets = await assetService.addAssets([editTempBgm2Asset.value]);
+    const updatedAssets = await driveDataService.addDriveData([editTempBgm2Asset.value]);
     editTempBgm2Asset.value = updatedAssets[0];
     bgm2AssetId = editTempBgm2Asset.value.id;
   }

@@ -1,15 +1,15 @@
 import { ref, computed, onMounted } from "vue";
 import { ScreenConfigService } from "../../../../model/applications/screen-config/screen-config-service";
-import { AssetDto } from "../../../../model/applications/asset/dto/asset-dto";
+import { DriveDataDto } from "../../../../model/applications/asset/dto/drive-data-dto";
 import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
 import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
-import { AssetService } from "../../../../model/applications/asset/asset-service";
+import { DriveDataService } from "../../../../model/applications/asset/drive-data-service";
 import { container } from "tsyringe";
 
 export function useScreenSettingData() {
   const assetService = container.resolve(
-    AssetService
-  ) as unknown as AssetService;
+    DriveDataService
+  ) as unknown as DriveDataService;
   const screenConfigService = container.resolve(ScreenConfigService);
   const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
   const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
@@ -22,11 +22,11 @@ export function useScreenSettingData() {
   const saving = ref(false);
   const saveStatus = ref("");
   const uploading = ref(false);
-  const tempAssets = ref<AssetDto[]>([]);
+  const tempAssets = ref<DriveDataDto[]>([]);
 
   const fetchAssets = async () => {
     try {
-      assets.value = await assetService.getAllAssets();
+      assets.value = await assetService.getAllDriveData();
     } catch (error) {
       console.error("Failed to fetch assets:", error);
       assets.value = [];
@@ -35,7 +35,7 @@ export function useScreenSettingData() {
 
   const syncWithDrive = async (onMessage?: (msg: string) => void) => {
     try {
-      await assetService.syncAssets((message: string) => {
+      await assetService.syncDriveData((message: string) => {
         if (onMessage) onMessage(message);
       });
     } catch (e) {
@@ -72,8 +72,8 @@ export function useScreenSettingData() {
     uploading.value = isUploading;
   };
 
-  const onTempAssets = (newTempAssets: AssetDto[]) => {
-    const existingIds = tempAssets.value.map((a: AssetDto) => a.id);
+  const onTempAssets = (newTempAssets: DriveDataDto[]) => {
+    const existingIds = tempAssets.value.map((a: DriveDataDto) => a.id);
     newTempAssets.forEach((asset) => {
       if (!existingIds.includes(asset.id)) {
         tempAssets.value.push(asset);
@@ -88,7 +88,7 @@ export function useScreenSettingData() {
 
       if (tempAssets.value.length > 0) {
         saveStatus.value = "アセットをアップロード中...";
-        tempAssets.value = await assetService.addAssets(tempAssets.value);
+        tempAssets.value = await assetService.addDriveData(tempAssets.value);
       }
 
       await saveFunction();

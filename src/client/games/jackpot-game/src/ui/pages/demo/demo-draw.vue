@@ -29,7 +29,7 @@ import { PrizeRepository } from '../../../model/infrastructures/repositories/pri
 import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
-import { AssetService } from '../../../model/applications/asset/asset-service';
+import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { DemoScreenSetting } from '../../../model/domains/screen-config/demo-screen-setting';
 export default {
   name: 'DemoDraw',
@@ -39,7 +39,7 @@ export default {
     // ScreenConfigRepositoryから取得
     const demoConfig = ref<DemoScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve(AssetService);
+    const assetService = container.resolve(DriveDataService);
 
     // データはモデル層から取得
     const prizes = ref<any[]>([]);
@@ -53,7 +53,7 @@ export default {
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     const playBGM = async () => {
       if (!demoConfig.value || !demoConfig.value.demoBgm) return;
-      const asset = await assetService.getAssetById(demoConfig.value.demoBgm);
+      const asset = await assetService.getDriveDataById(demoConfig.value.demoBgm);
       if (asset && asset.dataUrl) {
         bgmAudio.value = new Audio(asset.dataUrl);
         bgmAudio.value.loop = true;
@@ -76,7 +76,7 @@ export default {
         assetId = demoConfig.value.demoSe1;
       }
       if (!assetId) return;
-      const asset = await assetService.getAssetById(assetId);
+      const asset = await assetService.getDriveDataById(assetId);
       if (asset && asset.dataUrl) {
         const seAudio = new Audio(asset.dataUrl);
         seAudio.play().catch(() => { });

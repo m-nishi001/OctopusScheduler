@@ -114,7 +114,7 @@ import { useScreenSettingData } from './use-screen-setting-data';
 import { HomeScreenSetting } from '../../../../model/domains/screen-config/home-screen-setting';
 import { HomeScreenConfigConverter } from '../../../../model/applications/screen-config/home/home-screen-config-converter';
 import { container } from 'tsyringe';
-import { AssetDto } from "../../../../model/applications/asset/dto/asset-dto";
+import { DriveDataDto } from "../../../../model/applications/asset/dto/drive-data-dto";
 
 const {
     screenConfigService,
@@ -137,15 +137,15 @@ const localConfig = ref({
     homeBgm: "",
     homeBgmMode: "select",
     homeBgmFilename: "",
-    homeBgmTempAsset: null as AssetDto | null,
+    homeBgmTempAsset: null as DriveDataDto | null,
     buttonClikingSE: "",
     buttonClikingSEMode: "select",
     buttonClikingSEFilename: "",
-    buttonClikingSETempAsset: null as AssetDto | null,
+    buttonClikingSETempAsset: null as DriveDataDto | null,
     onCompletedLoadingSE: "",
     onCompletedLoadingSEMode: "select",
     onCompletedLoadingSEFilename: "",
-    onCompletedLoadingSETempAsset: null as AssetDto | null,
+    onCompletedLoadingSETempAsset: null as DriveDataDto | null,
     title: "",
     subtitle: "",
 });
@@ -177,7 +177,7 @@ const loadConfig = async () => {
 const onHomeBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        const tempAsset = await assetService.createDriveDataDtoFromFile(file);
         localConfig.value.homeBgmTempAsset = tempAsset;
         localConfig.value.homeBgmFilename = file.name;
         onTempAssets([tempAsset]);
@@ -187,7 +187,7 @@ const onHomeBgmChange = async (e: Event) => {
 const onButtonClikingSEChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        const tempAsset = await assetService.createDriveDataDtoFromFile(file);
         localConfig.value.buttonClikingSETempAsset = tempAsset;
         localConfig.value.buttonClikingSEFilename = file.name;
         onTempAssets([tempAsset]);
@@ -197,7 +197,7 @@ const onButtonClikingSEChange = async (e: Event) => {
 const onOnCompletedLoadingSEChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const tempAsset = await assetService.createAssetDtoFromFile(file);
+        const tempAsset = await assetService.createDriveDataDtoFromFile(file);
         localConfig.value.onCompletedLoadingSETempAsset = tempAsset;
         localConfig.value.onCompletedLoadingSEFilename = file.name;
         onTempAssets([tempAsset]);
@@ -207,7 +207,7 @@ const onOnCompletedLoadingSEChange = async (e: Event) => {
 const handleSaveClick = async () => {
     await handleSave(async () => {
         // Collect temp assets
-        const tempAssetsToAdd: AssetDto[] = [];
+        const tempAssetsToAdd: DriveDataDto[] = [];
         if (localConfig.value.homeBgmTempAsset) tempAssetsToAdd.push(localConfig.value.homeBgmTempAsset);
         if (localConfig.value.buttonClikingSETempAsset) tempAssetsToAdd.push(localConfig.value.buttonClikingSETempAsset);
         if (localConfig.value.onCompletedLoadingSETempAsset) tempAssetsToAdd.push(localConfig.value.onCompletedLoadingSETempAsset);
@@ -218,7 +218,7 @@ const handleSaveClick = async () => {
         let onCompletedLoadingSEId = localConfig.value.onCompletedLoadingSE;
 
         if (tempAssetsToAdd.length > 0) {
-            const updatedAssets = await assetService.addAssets(tempAssetsToAdd);
+            const updatedAssets = await assetService.addDriveData(tempAssetsToAdd);
             // Update temp assets with new IDs
             localConfig.value.homeBgmTempAsset = updatedAssets.find(a => a.name === localConfig.value.homeBgmTempAsset?.name) || localConfig.value.homeBgmTempAsset;
             localConfig.value.buttonClikingSETempAsset = updatedAssets.find(a => a.name === localConfig.value.buttonClikingSETempAsset?.name) || localConfig.value.buttonClikingSETempAsset;
