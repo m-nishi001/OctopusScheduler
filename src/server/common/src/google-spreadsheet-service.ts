@@ -1,4 +1,4 @@
-interface SpreadsheetData {
+export interface SpreadsheetData {
   sheetName: string;
   data: any[][]; // 2D array
 }
@@ -10,16 +10,17 @@ export class SpreadsheetService {
     this.spreadsheetId = spreadsheetId;
   }
 
-  addSpreadsheetData(spreadsheetData: SpreadsheetData): void {
+  upsertSpreadsheetData(spreadsheetData: SpreadsheetData): void {
     if (!this.spreadsheetId) return;
     const spreadsheet = SpreadsheetApp.openById(this.spreadsheetId);
-    const sheet = spreadsheet.getSheetByName(spreadsheetData.sheetName);
-    if (!sheet) return;
+    let sheet = spreadsheet.getSheetByName(spreadsheetData.sheetName);
+    if (!sheet) {
+      sheet = spreadsheet.insertSheet(spreadsheetData.sheetName);
+    }
+    sheet.clear();
     const data = spreadsheetData.data;
     if (data.length > 0) {
-      sheet
-        .getRange(sheet.getLastRow() + 1, 1, data.length, data[0].length)
-        .setValues(data);
+      sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
     }
   }
 
@@ -44,21 +45,6 @@ export class SpreadsheetService {
     const sheet = spreadsheet.getSheetByName(sheetName);
     if (sheet) {
       spreadsheet.deleteSheet(sheet);
-    }
-  }
-
-  updateSpreadsheetData(
-    sheetName: string,
-    spreadsheetData: SpreadsheetData
-  ): void {
-    if (!this.spreadsheetId) return;
-    const spreadsheet = SpreadsheetApp.openById(this.spreadsheetId);
-    const sheet = spreadsheet.getSheetByName(sheetName);
-    if (!sheet) return;
-    sheet.clear();
-    const data = spreadsheetData.data;
-    if (data.length > 0) {
-      sheet.getRange(1, 1, data.length, data[0].length).setValues(data);
     }
   }
 }

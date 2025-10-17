@@ -1,4 +1,4 @@
-interface DriveData {
+export interface DriveData {
   metadata: DriveMetadata;
   fileName: string;
   fileKind: string; // MimeType
@@ -7,14 +7,14 @@ interface DriveData {
   parentFolderId: string;
 }
 
-interface DriveMetadata {
+export interface DriveMetadata {
   driveDataId: string;
   fileId: string;
   parentFolderId: string;
   lastUpdate: Date;
 }
 
-interface OperationResult<T = void> {
+export interface OperationResult<T = void> {
   status: "success" | "duplicate" | "error";
   data?: T;
   message?: string;
