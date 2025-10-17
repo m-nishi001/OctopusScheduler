@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
   "main": "dist/Code.js",
-  "types": "src/drive-types.d.ts",
   "scripts": {
     "build": "tsc -b",
     "lint": "eslint src/**/*.ts",
