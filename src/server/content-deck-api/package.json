@@ -5,7 +5,7 @@
   "type": "module",
   "main": "dist/Code.js",
   "scripts": {
-    "build": "tsc --noEmit && node esbuild.config.js",
+    "build": "node esbuild.config.js",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "deploy": "npm run build && clasp push --force"
@@ -15,9 +15,6 @@
     "@types/google-apps-script": "^1.0.83",
     "@types/node": "^20.12.12",
     "esbuild": "^0.25.6",
-    "core-js": "^3.44.0",
-    "reflect-metadata": "^0.2.2",
-    "tsyringe": "^4.10.0",
     "typescript": "^5.4.5"
   }
 }

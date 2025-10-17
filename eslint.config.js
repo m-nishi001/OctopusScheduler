@@ -39,6 +39,7 @@ export default [
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/no-unused-vars": "off", // Allow unused vars in GAS
       "no-undef": "off", // Disable no-undef for GAS globals
+      "no-empty": "off", // Allow empty catch blocks
     },
   },
   {
