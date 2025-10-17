@@ -1,4 +1,4 @@
-// Google Drive and Spreadsheet CRUD operations for jackpot-game-api
+// Google Drive and Spreadsheet CRUD operations for octopus-scheduler-api
 
 import { GoogleDriveService } from "./services/google-drive-service";
 import { SpreadsheetService } from "./services/spreadsheet-service";
@@ -22,6 +22,10 @@ interface SpreadsheetData {
   data: any[][]; // 2D array
 }
 
+declare let _doGet: (
+  e: GoogleAppsScript.Events.DoGet
+) => GoogleAppsScript.HTML.HtmlOutput;
+
 declare let _addDriveData: (driveData: DriveData) => void;
 declare let _getDriveMetaData: () => DriveMetadata[];
 declare let _getDriveData: (dataId: string) => DriveData | null;
@@ -39,7 +43,7 @@ declare let _updateSpreadsheetData: (
 // Instantiate services
 const driveService = new GoogleDriveService();
 const spreadsheetId = PropertiesService.getScriptProperties().getProperty(
-  "jackpot-game-api-spreadsheet"
+  "octopus-schedule-api-spreadsheet"
 );
 const spreadsheetService = new SpreadsheetService(spreadsheetId);
 
@@ -60,3 +64,22 @@ _removeSpreadsheetData =
   spreadsheetService.removeSpreadsheetData.bind(spreadsheetService);
 _updateSpreadsheetData =
   spreadsheetService.updateSpreadsheetData.bind(spreadsheetService);
+
+_doGet = (e: GoogleAppsScript.Events.DoGet) => {
+  try {
+    try {
+      LockService.getScriptLock().releaseLock();
+    } catch {}
+
+    const template = HtmlService.createTemplateFromFile("index");
+    return template
+      .evaluate()
+      .setTitle("Sample App")
+      .addMetaTag("viewport", "width=device-width, initial-scale=1");
+  } catch (error) {
+    console.error(`Error in doGetInternal: ${(error as Error).stack}`);
+    return HtmlService.createHtmlOutput(
+      `<html><body><h1>エラー</h1><p>アプリケーションの読み込みに失敗しました。</p></body></html>`
+    );
+  }
+};
