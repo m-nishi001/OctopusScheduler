@@ -1,4 +1,3 @@
-import { GasFunctionService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts";
 import { useLocalStorage } from "/root/google_apps_script/octopus-scheduler/src/client/packages/shared-composables/src/use-localstorage";
 import { StorageConfig } from "../storage-config";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
@@ -7,7 +6,6 @@ import { injectable } from "tsyringe";
 
 @injectable()
 export class ScheduleEventRepository implements IScheduleEventRepository {
-  private readonly service;
   private readonly localStorage = useLocalStorage(
     StorageConfig.getDbName(),
     StorageConfig.getStoreName("ScheduleEventData")
@@ -18,8 +16,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
   );
 
   constructor() {
-    const apiName = "callOctopusSchedulerApi";
-    this.service = GasFunctionService.create(apiName)!;
+    // No GAS service needed
   }
 
   async getScheduleEvents(): Promise<ScheduleEvent[]> {
@@ -28,41 +25,12 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
   }
 
   async updateScheduleEvents(events: ScheduleEvent[]): Promise<void> {
-    if (!this.service) return;
-
-    await this.service
-      .createCall<void>("ScheduleService.updateScheduleEvents", events)
-      .withSuccessed(() =>
-        console.log("Schedule events updated successfully on remote.")
-      )
-      .withTimeout(30000)
-      .withFailuered((message: string) => {
-        throw new Error(
-          `Failed to update schedule events on remote: ${message}`
-        );
-      })
-      .invoke();
-
     for (const event of events) {
       await this.localStorage.save(`${event.id}_${event.settingName}`, event);
     }
   }
 
   async deleteScheduleEvents(ids: string[]): Promise<void> {
-    if (!this.service) return;
-
-    await this.service
-      .createCall<void>("ScheduleService.deleteScheduleEvents", { ids })
-      .withSuccessed(() =>
-        console.log("Schedule events deleted successfully from remote.")
-      )
-      .withFailuered((message: string) => {
-        throw new Error(
-          `Failed to delete schedule events from remote: ${message}`
-        );
-      })
-      .invoke();
-
     const allEvents = await this.localStorage.getAll<ScheduleEvent>();
     const keysToDelete = Array.from(allEvents.entries())
       .filter(([, event]) => ids.includes(event.id))
@@ -71,53 +39,38 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
   }
 
   async addScheduleEvents(events: ScheduleEvent[]): Promise<string> {
-    if (!this.service) return events[0].id;
-
-    return new Promise((resolve, reject) => {
-      this.service
-        .createCall<string>("ScheduleService.addScheduleEvents", { events })
-        .withSuccessed(async (data) => {
-          for (const event of events) {
-            const addedEvent = { ...event, id: data };
-            await this.localStorage.save(
-              `${addedEvent.id}_${addedEvent.settingName}`,
-              addedEvent
-            );
-          }
-          resolve(data);
-        })
-        .withTimeout(30000)
-        .withFailuered((message: string) => {
-          console.error("Failed to add schedule events to remote:", message);
-          reject(
-            new Error(`Failed to add schedule events to remote: ${message}`)
-          );
-        })
-        .invoke();
-    });
+    const id = crypto.randomUUID();
+    for (const event of events) {
+      const addedEvent = { ...event, id };
+      await this.localStorage.save(
+        `${addedEvent.id}_${addedEvent.settingName}`,
+        addedEvent
+      );
+    }
+    return id;
   }
 
   async syncScheduleEvents(): Promise<void> {
-    if (!this.service) throw new Error("GAS service not available");
-
     return new Promise((resolve, reject) => {
-      this.service
-        .createCall<ScheduleEvent[]>("ScheduleService.getScheduleEvents")
-        .withSuccessed(async (data) => {
-          await this.localStorage.clear();
-          const eventsMap = new Map(
-            data.map((e) => [`${e.id}_${e.settingName}`, e])
+      (globalThis as any).google.script.run
+        .withSuccessHandler((data: any) => {
+          this.localStorage.clear();
+          const eventsMap = new Map<string, ScheduleEvent>(
+            data.map((e: any) => [
+              `${e.id}_${e.settingName}`,
+              e as ScheduleEvent,
+            ])
           );
-          await this.localStorage.saveMultiple(eventsMap);
+          this.localStorage.saveMultiple(eventsMap);
           resolve();
         })
-        .withFailuered((message: string) => {
-          console.error("Failed to sync schedule events from server:", message);
+        .withFailureHandler((error: any) => {
+          console.error("Failed to sync schedule events from server:", error);
           reject(
-            new Error(`Failed to sync schedule events from server: ${message}`)
+            new Error(`Failed to sync schedule events from server: ${error}`)
           );
         })
-        .invoke();
+        .getSpreadsheetData("ScheduleEvents");
     });
   }
 

@@ -1,96 +1,178 @@
-import "reflect-metadata";
-import { container } from "tsyringe";
-import { Container } from "../container";
-import { GasService } from "../application/gas-service";
+// import { GoogleDriveService, SpreadsheetService } from "../../../shared-packages/src";
+
+interface DriveData {
+  fileId: string;
+  fileName: string;
+  fileKind: string;
+  fileData: string;
+  uploadDate: Date;
+  lastUpdate: Date;
+}
+
+interface DriveMetadata {
+  fileId: string;
+  lastUpdate: Date;
+}
+
+interface SpreadsheetData {
+  sheetName: string;
+  data: any[][];
+}
 
 declare let _doGet: (
   e: GoogleAppsScript.Events.DoGet
 ) => GoogleAppsScript.HTML.HtmlOutput;
-declare let _callOctopusSchedulerApi: (functionName: string, args: any) => any;
 
-type ApiResponse = SuccessResponse | ErrorResponse;
+declare let _addDriveData: (driveData: DriveData) => void;
+declare let _getDriveMetaData: () => DriveMetadata[];
+declare let _getDriveData: (dataId: string) => DriveData | null;
+declare let _removeDriveData: (dataId: string) => void;
+declare let _updateDriveData: (driveData: DriveData) => void;
 
-export class ErrorResponse {
-  status: string = "error";
-  message: string;
-  date: string = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd HH:mm:ss");
+declare let _addSpreadsheetData: (spreadsheetData: SpreadsheetData) => void;
+declare let _getAllSpreadsheetNames: () => string[];
+declare let _getSpreadsheetData: (sheetName: string) => SpreadsheetData | null;
+declare let _removeSpreadsheetData: (sheetName: string) => void;
+declare let _updateSpreadsheetData: (
+  sheetName: string,
+  spreadsheetData: SpreadsheetData
+) => void;
 
-  constructor(message: string) {
-    this.message = message;
-  }
-}
-
-export class SuccessResponse {
-  status: string = "success";
-  data: any;
-  date: string = Utilities.formatDate(new Date(), "JST", "yyyy/MM/dd HH:mm:ss");
-
-  constructor(data: any) {
-    this.data = data ?? null;
-  }
-}
-
-/**
- * クライアントからの関数呼び出しを中継する内部ディスパッチャー関数。
- * @param {string} callingObject 呼び出す関数の名前
- * @param {any} args 関数に渡す引数。
- * @returns {any} 呼び出された関数の戻り値。
- * @throws {Error} 指定された関数名が見つからない場合。
- */
-function callOctopusSchedulerApiInternal(
-  callingObject: string,
-  args: any
-): ApiResponse {
-  Logger.log(
-    `[OctopusSchedulerAPI] Function: ${callingObject}, Args: ${JSON.stringify(args)}`
+_addDriveData = (driveData: DriveData): void => {
+  const blob = Utilities.newBlob(
+    Utilities.base64Decode(driveData.fileData),
+    driveData.fileKind,
+    driveData.fileName
   );
+  const file = DriveApp.createFile(blob);
+  // Note: fileId is not returned, but can be retrieved if needed
+};
 
-  // {ServiceName}.{FunctionName}の形式でやってくるのでパースする。
-  const [serviceName, functionName] = callingObject.split(".", 2);
-  if (!serviceName || !functionName) {
-    Logger.log(`Error: "callingObject" was invalid: ${callingObject}`);
-    return new ErrorResponse(`Invalid callingObject: ${callingObject}`);
+_getDriveMetaData = (): DriveMetadata[] => {
+  // Assuming files are in a specific folder, get metadata
+  const folder = DriveApp.getFolderById("some-folder-id"); // Replace with actual folder ID
+  const files = folder.getFiles();
+  const metadata: DriveMetadata[] = [];
+  while (files.hasNext()) {
+    const file = files.next();
+    metadata.push({
+      fileId: file.getId(),
+      lastUpdate: new Date(file.getLastUpdated().getTime()),
+    });
   }
+  return metadata;
+};
 
-  // ここでコンテナへの型登録をする
-  Container.regiser();
-
-  const targetFunction = container
-    .resolveAll<GasService>("IGasService")
-    .filter((service) => service.serviceName === serviceName)
-    .map((service) => service.functions[functionName])
-    .find((func) => func !== undefined);
-
-  if (!targetFunction) {
-    Logger.log(
-      `Error: Function "${functionName}" not found on service "${serviceName}".`
-    );
-    return new ErrorResponse(
-      `Function "${functionName}" not found on service "${serviceName}".`
-    );
-  }
-
+_getDriveData = (dataId: string): DriveData | null => {
   try {
-    const parameters = JSON.parse(args);
-    const result = targetFunction(parameters);
-    return new SuccessResponse(result);
-  } catch (e: any) {
-    Logger.log(`Error in function "${functionName}": ${e.message}`);
-    return new ErrorResponse(e);
+    const file = DriveApp.getFileById(dataId);
+    const blob = file.getBlob();
+    const dataUrl = Utilities.base64Encode(blob.getBytes());
+    return {
+      fileId: dataId,
+      fileName: file.getName(),
+      fileKind: file.getMimeType(),
+      fileData: dataUrl,
+      uploadDate: new Date(file.getDateCreated().getTime()),
+      lastUpdate: new Date(file.getLastUpdated().getTime()),
+    };
+  } catch {
+    return null;
   }
-}
+};
 
-// これはPromise型で返却することができないのでとりあえずここで実装する。
-// （GAS側の型チェックに引っかかる模様）
+_removeDriveData = (dataId: string): void => {
+  const file = DriveApp.getFileById(dataId);
+  file.setTrashed(true);
+};
+
+_updateDriveData = (driveData: DriveData): void => {
+  const file = DriveApp.getFileById(driveData.fileId);
+  const blob = Utilities.newBlob(
+    Utilities.base64Decode(driveData.fileData),
+    driveData.fileKind,
+    driveData.fileName
+  );
+  file.setContent(blob.getDataAsString());
+  file.setName(driveData.fileName);
+};
+
+_addSpreadsheetData = (spreadsheetData: SpreadsheetData): void => {
+  const spreadsheet = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(
+      "octopus-schedule-api-spreadsheet"
+    ) || ""
+  );
+  const sheet = spreadsheet.getSheetByName(spreadsheetData.sheetName);
+  if (!sheet) return;
+  const data = spreadsheetData.data;
+  sheet
+    .getRange(sheet.getLastRow() + 1, 1, data.length, data[0].length)
+    .setValues(data);
+};
+
+_getAllSpreadsheetNames = (): string[] => {
+  const ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(
+      "octopus-schedule-api-spreadsheet"
+    ) || ""
+  );
+  return ss.getSheets().map((sheet) => sheet.getName());
+};
+
+_getSpreadsheetData = (sheetName: string): SpreadsheetData | null => {
+  const spreadsheet = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(
+      "octopus-schedule-api-spreadsheet"
+    ) || ""
+  );
+  const sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) return null;
+  const data = sheet.getDataRange().getValues();
+  return { sheetName, data };
+};
+
+_removeSpreadsheetData = (sheetName: string): void => {
+  const spreadsheet = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(
+      "octopus-schedule-api-spreadsheet"
+    ) || ""
+  );
+  const sheet = spreadsheet.getSheetByName(sheetName);
+  if (sheet) {
+    spreadsheet.deleteSheet(sheet);
+  }
+};
+
+_updateSpreadsheetData = (
+  sheetName: string,
+  spreadsheetData: SpreadsheetData
+): void => {
+  const spreadsheet = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(
+      "octopus-schedule-api-spreadsheet"
+    ) || ""
+  );
+  const sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) return;
+  sheet.clear();
+  if (spreadsheetData.data.length > 0) {
+    sheet
+      .getRange(
+        1,
+        1,
+        spreadsheetData.data.length,
+        spreadsheetData.data[0].length
+      )
+      .setValues(spreadsheetData.data);
+  }
+};
+
 _doGet = (e: GoogleAppsScript.Events.DoGet) => {
   try {
-    // 途中でエラー等が発生した場合において、ScriptLockが解放されないままとなることを防止するため、
-    // ここでScriptLockを解放する。
     try {
       LockService.getScriptLock().releaseLock();
-    } catch {
-      // 既に解放されている場合は無視
-    }
+    } catch {}
 
     const template = HtmlService.createTemplateFromFile("index");
     return template
@@ -103,9 +185,4 @@ _doGet = (e: GoogleAppsScript.Events.DoGet) => {
       `<html><body><h1>エラー</h1><p>アプリケーションの読み込みに失敗しました。</p></body></html>`
     );
   }
-};
-
-_callOctopusSchedulerApi = async (functionName: string, args: any) => {
-  const response = callOctopusSchedulerApiInternal(functionName, args);
-  return JSON.stringify(response);
 };

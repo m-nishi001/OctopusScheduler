@@ -6,19 +6,16 @@ import type {
   IAssetRepository,
   AssetMetadata,
 } from "../../domains/assets/repository/asset-repository";
-import { GasFunctionService } from "../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 
 @injectable()
 export class AssetRepository implements IAssetRepository {
   private readonly localStorage: ReturnType<typeof useLocalStorage>;
-  private readonly synchronizer: AssetSynchronizer;
 
   constructor() {
     this.localStorage = useLocalStorage(
       StorageConfig.getDbName(),
       StorageConfig.getStoreName("AssetData")
     );
-    this.synchronizer = new AssetSynchronizer(this.localStorage);
   }
 
   async addAssets(
@@ -29,27 +26,15 @@ export class AssetRepository implements IAssetRepository {
       message?: string
     ) => void
   ): Promise<string[]> {
-    const gasService = GasFunctionService.create("callOctopusSchedulerApi");
-    if (!gasService) throw new Error("GAS service not available");
-    const promises = assets.map(async (asset, index) => {
-      return new Promise<string>((resolve, reject) => {
-        gasService
-          .createCall<{ assetId: string }>("AssetService.addAsset", { asset })
-          .withSuccessed(async (res: { assetId: string }) => {
-            const assetWithId: Asset = { ...asset, id: res.assetId };
-            await this.localStorage.save(res.assetId, assetWithId);
-            onProgress?.(index, "完了");
-            resolve(res.assetId);
-          })
-          .withTimeout(120000)
-          .withFailuered((msg: string) => {
-            onProgress?.(index, "失敗", msg);
-            reject(new Error(msg));
-          })
-          .invoke();
-      });
-    });
-    return await Promise.all(promises);
+    const ids: string[] = [];
+    for (const [index, asset] of assets.entries()) {
+      const id = crypto.randomUUID();
+      const assetWithId: Asset = { ...asset, id };
+      await this.localStorage.save(id, assetWithId);
+      ids.push(id);
+      onProgress?.(index, "完了");
+    }
+    return ids;
   }
 
   async getAssets(): Promise<Asset[]> {
@@ -63,102 +48,33 @@ export class AssetRepository implements IAssetRepository {
 
   async deleteAssets(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
-    const gasService = GasFunctionService.create("callOctopusSchedulerApi");
-    if (!gasService) return;
-    const promises = ids.map(
-      (id) =>
-        new Promise<void>((resolve, reject) => {
-          gasService
-            .createCall<void>("AssetService.deleteAsset", { assetId: id })
-            .withSuccessed(() => resolve())
-            .withFailuered((msg: string) => reject(new Error(msg)))
-            .invoke();
-        })
-    );
-    await Promise.all(promises);
   }
 
   async syncAssets(onProgress?: (message: string) => void): Promise<void> {
-    await this.synchronizer.execute(onProgress);
-  }
-
-  async getAllAssetMetadata(): Promise<AssetMetadata[]> {
-    const assets = await this.getAssets();
-    return assets.map((asset) => ({
-      id: asset.id,
-      type: asset.type,
-      name: asset.name,
-      uploadedAt: asset.uploadedAt,
-      lastUpdated: asset.lastUpdated,
-      size: asset.size,
-      directoryId: asset.directoryId,
-    }));
-  }
-
-  async registerRef(assetId: string, refSourceId: string): Promise<void> {
-    const gasService = GasFunctionService.create("callOctopusSchedulerApi");
-    if (!gasService) throw new Error("GAS service not available");
-    return new Promise<void>((resolve, reject) => {
-      gasService
-        .createCall<void>("AssetService.registerRef", { assetId, refSourceId })
-        .withSuccessed(() => resolve())
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
-  }
-
-  async unregisterRef(assetId: string, refSourceId: string): Promise<void> {
-    const gasService = GasFunctionService.create("callOctopusSchedulerApi");
-    if (!gasService) throw new Error("GAS service not available");
-    return new Promise<void>((resolve, reject) => {
-      gasService
-        .createCall<void>("AssetService.unregisterRef", {
-          assetId,
-          refSourceId,
+    return new Promise((resolve, reject) => {
+      onProgress?.("Google Driveからアセットメタデータを取得中...");
+      (globalThis as any).google.script.run
+        .withSuccessHandler((metadata: any[]) => {
+          this.handleMetadata(metadata, onProgress)
+            .then(() => resolve())
+            .catch(reject);
         })
-        .withSuccessed(() => resolve())
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
+        .withFailureHandler((error: any) => reject(new Error(error)))
+        .getDriveMetaData();
     });
   }
-}
 
-class AssetSynchronizer {
-  constructor(
-    private readonly localStorage: ReturnType<typeof useLocalStorage>
-  ) {}
-
-  async execute(onProgress?: (message: string) => void): Promise<void> {
-    const gasService = GasFunctionService.create("callOctopusSchedulerApi");
-    if (!gasService) throw new Error("GAS service not available");
-
-    const metadata = await this.fetchMetadata(gasService, onProgress);
+  private async handleMetadata(
+    metadata: any[],
+    onProgress?: (message: string) => void
+  ): Promise<void> {
     const localAssets = await this.getLocalAssets();
     const { toUpdate, toDelete } = this.compareWithLocal(metadata, localAssets);
 
     await this.deleteObsoleteAssets(toDelete, onProgress);
-    await this.downloadUpdatedAssets(toUpdate, gasService, onProgress);
+    await this.downloadUpdatedAssets(toUpdate, onProgress);
 
     onProgress?.("同期完了");
-  }
-
-  private async fetchMetadata(
-    gasService: GasFunctionService,
-    onProgress?: (message: string) => void
-  ): Promise<AssetMetadata[]> {
-    onProgress?.("Google Driveからアセットメタデータを取得中...");
-    return new Promise((resolve, reject) => {
-      gasService
-        .createCall<{ metadata: AssetMetadata[] }>(
-          "AssetService.getAllAssetMetadata"
-        )
-        .withTimeout(15000)
-        .withSuccessed((res: { metadata: AssetMetadata[] }) =>
-          resolve(res.metadata)
-        )
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
-    });
   }
 
   private async getLocalAssets(): Promise<Asset[]> {
@@ -167,16 +83,16 @@ class AssetSynchronizer {
   }
 
   private compareWithLocal(
-    metadata: AssetMetadata[],
+    metadata: any[],
     localAssets: Asset[]
   ): {
-    toUpdate: AssetMetadata[];
+    toUpdate: any[];
     toDelete: Asset[];
   } {
-    const serverIds = new Set(metadata.map((meta) => meta.id));
+    const serverIds = new Set(metadata.map((meta) => meta.fileId));
     const toUpdate = metadata.filter((meta) => {
-      const local = localAssets.find((a) => a.id === meta.id);
-      return !local || new Date(local.lastUpdated) < new Date(meta.lastUpdated);
+      const local = localAssets.find((a) => a.id === meta.fileId);
+      return !local || new Date(local.lastUpdated) < new Date(meta.lastUpdate);
     });
     const toDelete = localAssets.filter((local) => !serverIds.has(local.id));
     return { toUpdate, toDelete };
@@ -193,40 +109,69 @@ class AssetSynchronizer {
   }
 
   private async downloadUpdatedAssets(
-    toUpdate: AssetMetadata[],
-    gasService: GasFunctionService,
+    toUpdate: any[],
     onProgress?: (message: string) => void
   ): Promise<void> {
     if (toUpdate.length === 0) return;
 
     onProgress?.(`${toUpdate.length}個のアセットをダウンロード中...`);
     const downloadPromises = toUpdate.map((meta) =>
-      this.downloadAsset(meta, gasService, onProgress)
+      this.downloadAsset(meta, onProgress)
     );
     await Promise.all(downloadPromises);
   }
 
   private async downloadAsset(
-    meta: AssetMetadata,
-    gasService: GasFunctionService,
+    meta: any,
     onProgress?: (message: string) => void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      onProgress?.(`${meta.name} をダウンロード中...`);
-      gasService
-        .createCall<{ asset: Asset | null }>("AssetService.getAsset", {
-          assetId: meta.id,
-        })
-        .withTimeout(120000)
-        .withSuccessed(async (assetRes: { asset: Asset | null }) => {
-          if (assetRes.asset) {
-            await this.localStorage.save(assetRes.asset.id, assetRes.asset);
+      onProgress?.(`${meta.fileName} をダウンロード中...`);
+      (globalThis as any).google.script.run
+        .withSuccessHandler((assetData: any) => {
+          if (assetData) {
+            const asset: Asset = {
+              id: assetData.fileId,
+              name: assetData.fileName,
+              type: assetData.fileKind.startsWith("image/")
+                ? "image"
+                : assetData.fileKind.startsWith("audio/")
+                  ? "audio"
+                  : "video",
+              dataUrl: assetData.fileData,
+              uploadedAt: assetData.uploadDate,
+              lastUpdated: assetData.lastUpdate,
+              size: assetData.fileData.length,
+              referenceFrom: [],
+            };
+            this.localStorage.save(asset.id, asset);
           }
-          onProgress?.(`${meta.name} ダウンロード完了`);
+          onProgress?.(`${meta.fileName} ダウンロード完了`);
           resolve();
         })
-        .withFailuered((msg: string) => reject(new Error(msg)))
-        .invoke();
+        .withFailureHandler((error: any) => reject(new Error(error)))
+        .getDriveData(meta.fileId);
     });
+  }
+
+  async getAllAssetMetadata(): Promise<AssetMetadata[]> {
+    const assets = await this.getAssets();
+    return assets.map((asset) => ({
+      id: asset.id,
+      type: asset.type,
+      name: asset.name,
+      uploadedAt: asset.uploadedAt,
+      lastUpdated: asset.lastUpdated,
+      size: asset.size,
+      directoryId: asset.directoryId,
+    }));
+  }
+
+  async registerRef(_assetId: string, _refSourceId: string): Promise<void> {
+    // No GAS call needed
+  }
+
+  async unregisterRef(_assetId: string, _refSourceId: string): Promise<void> {
+    // No GAS call needed
   }
 }

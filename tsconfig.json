@@ -1,53 +1,45 @@
 {
   "compilerOptions": {
     /* プロジェクトオプション */
-    "target": "ES2022", /* ターゲットとするECMAScriptバージョン。サポートしたいブラウザ環境によって調整。 */
-    "lib": [
-      "ES2022",
-    ], /* ブラウザ環境で利用するAPIの型定義を含める。 */
-    "module": "ESNext", /* 生成するモジュールコードの形式。通常はバンドラーで処理されるためESNext。 */
-    "moduleResolution": "node", /* モジュール解決戦略。Node.jsの解決方法に合わせる。 */
-    "rootDir": "src", /* ソースファイルのルートディレクトリ。 */
-    "outDir": "dist", /* コンパイル済みJavaScriptファイルの出力ディレクトリ。 */
-    "declaration": true, /* 型定義ファイル (.d.ts) を生成する。ライブラリでは必須。 */
-    "declarationDir": "dist/types", /* 型定義ファイルの出力ディレクトリ。 */
-    "sourceMap": true, /* ソースマップを生成する。デバッグに便利。 */
-    "composite": true, /* 複合プロジェクトを有効にする（オプション、大規模プロジェクト向け）。 */
-    "strict": true, /* 全ての厳格な型チェックオプションを有効にする。強く推奨。 */
+    "target": "ES2022" /* ターゲットとするECMAScriptバージョン。サポートしたいブラウザ環境によって調整。 */,
+    "lib": ["ES2022"] /* ブラウザ環境で利用するAPIの型定義を含める。 */,
+    "module": "ESNext" /* 生成するモジュールコードの形式。通常はバンドラーで処理されるためESNext。 */,
+    "moduleResolution": "node" /* モジュール解決戦略。Node.jsの解決方法に合わせる。 */,
+    "rootDir": "src" /* ソースファイルのルートディレクトリ。 */,
+    "outDir": "dist" /* コンパイル済みJavaScriptファイルの出力ディレクトリ。 */,
+    "declaration": true /* 型定義ファイル (.d.ts) を生成する。ライブラリでは必須。 */,
+    "declarationDir": "dist/types" /* 型定義ファイルの出力ディレクトリ。 */,
+    "sourceMap": true /* ソースマップを生成する。デバッグに便利。 */,
+    "composite": true /* 複合プロジェクトを有効にする（オプション、大規模プロジェクト向け）。 */,
+    "strict": true /* 全ての厳格な型チェックオプションを有効にする。強く推奨。 */,
     /* 厳格な型チェックオプション（`"strict": true`に含まれるが、個別に設定することも可能） */
-    "noImplicitAny": true, /* 'any'型の暗黙的な使用を禁止する。 */
-    "strictNullChecks": true, /* nullおよびundefinedに対する厳格なチェックを有効にする。 */
-    "strictFunctionTypes": true, /* 関数の型チェックを厳格にする。 */
-    "strictPropertyInitialization": true, /* クラスプロパティの初期化チェックを厳格にする。 */
-    "noImplicitThis": true, /* 'this'に対する暗黙的な'any'型を禁止する。 */
-    "alwaysStrict": true, /* 常に厳格モードでJavaScriptを生成する。 */
-    "useUnknownInCatchVariables": true, /* catch句の変数をunknownにする（TypeScript 4.4以降）。 */
+    "noImplicitAny": true /* 'any'型の暗黙的な使用を禁止する。 */,
+    "strictNullChecks": true /* nullおよびundefinedに対する厳格なチェックを有効にする。 */,
+    "strictFunctionTypes": true /* 関数の型チェックを厳格にする。 */,
+    "strictPropertyInitialization": true /* クラスプロパティの初期化チェックを厳格にする。 */,
+    "noImplicitThis": true /* 'this'に対する暗黙的な'any'型を禁止する。 */,
+    "alwaysStrict": true /* 常に厳格モードでJavaScriptを生成する。 */,
+    "useUnknownInCatchVariables": true /* catch句の変数をunknownにする（TypeScript 4.4以降）。 */,
     /* モジュール解決オプション */
-    "esModuleInterop": true, /* CommonJS/AMDモジュールとの互換性を向上させる。 */
-    "allowSyntheticDefaultImports": true, /* デフォルトインポートがないモジュールからのデフォルトインポートを許可する。 */
-    "forceConsistentCasingInFileNames": true, /* ファイル名の大文字小文字の一貫性を強制する。 */
+    "esModuleInterop": true /* CommonJS/AMDモジュールとの互換性を向上させる。 */,
+    "allowSyntheticDefaultImports": true /* デフォルトインポートがないモジュールからのデフォルトインポートを許可する。 */,
+    "forceConsistentCasingInFileNames": true /* ファイル名の大文字小文字の一貫性を強制する。 */,
     /* その他 */
-    "skipLibCheck": true, /* 宣言ファイルの型チェックをスキップする。ビルド時間の短縮に。 */
-    "noEmitOnError": true, /* エラー発生時にJavaScriptファイルの出力を停止する。 */
-    "resolveJsonModule": true, /* .jsonファイルのモジュールのインポートを許可する。 */
-    "allowJs": false, /* JavaScriptファイルのコンパイルを許可しない。 */
-    "checkJs": false, /* JavaScriptファイルの型チェックを許可しない。 */
-    "downlevelIteration": true, /* ES5/ES3ターゲットでイテレータのダウンレベル化を許可する。 */
-    "importHelpers": true, /* tslibからヘルパー関数をインポートする（バンドルサイズ削減） */
+    "skipLibCheck": true /* 宣言ファイルの型チェックをスキップする。ビルド時間の短縮に。 */,
+    "noEmitOnError": true /* エラー発生時にJavaScriptファイルの出力を停止する。 */,
+    "resolveJsonModule": true /* .jsonファイルのモジュールのインポートを許可する。 */,
+    "allowJs": false /* JavaScriptファイルのコンパイルを許可しない。 */,
+    "checkJs": false /* JavaScriptファイルの型チェックを許可しない。 */,
+    "downlevelIteration": true /* ES5/ES3ターゲットでイテレータのダウンレベル化を許可する。 */,
+    "importHelpers": true /* tslibからヘルパー関数をインポートする（バンドルサイズ削減） */,
     "paths": {
-      "common-lib": [
-        "./src/client/packages/common-lib/src"
-      ],
-      "common-lib/*": [
-        "./src/client/packages/common-lib/src/*"
-      ]
+      "common-lib": ["./src/client/packages/common-lib/src"],
+      "common-lib/*": ["./src/client/packages/common-lib/src/*"]
     }
   },
-  "include": [
-    "src/**/*" /* コンパイル対象のファイル。 */
-  ],
+  "include": ["src/**/*" /* コンパイル対象のファイル。 */],
   "exclude": [
-    "node_modules", /* コンパイル対象から除外するディレクトリ。 */
+    "node_modules" /* コンパイル対象から除外するディレクトリ。 */,
     "dist" /* コンパイル対象から除外するディレクトリ。 */
   ]
 }
