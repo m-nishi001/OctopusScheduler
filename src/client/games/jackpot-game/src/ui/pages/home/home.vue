@@ -73,6 +73,8 @@ export default {
     let gsap: any = null;
 
     const bgmAudio = ref<HTMLAudioElement | null>(null);
+    const unmounted = ref(false);
+
     const playBGM = async () => {
       if (!homeConfig.value || !homeConfig.value.homeBgm) return;
       const asset = await assetService.getAssetById(homeConfig.value.homeBgm);
@@ -145,13 +147,16 @@ export default {
       document.body.classList.add('jackpot-fullscreen');
 
       await loadAssets();
-      await playBGM();
-      window.addEventListener('keydown', handleKey);
+      if (!unmounted.value) {
+        await playBGM();
+        window.addEventListener('keydown', handleKey);
+      }
       // lazy load gsap to avoid bundling cost if not needed
       try { const mod = await import('gsap'); gsap = mod?.gsap || mod; } catch (e) { gsap = null; }
     });
 
     onUnmounted(() => {
+      unmounted.value = true;
       window.removeEventListener('keydown', handleKey);
       document.documentElement.classList.remove('jackpot-fullscreen');
       document.body.classList.remove('jackpot-fullscreen');
