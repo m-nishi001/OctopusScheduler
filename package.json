@@ -11,8 +11,7 @@
     "src/client/packages/*",
     "src/server/*",
     "src/server/games/*",
-    "src/server/presenters/*",
-    "src/server/shared-packages/*"
+    "src/server/presenters/*"
   ],
   "scripts": {
     "build": "turbo run build && node scripts/prepare-dist.js",

@@ -3,17 +3,22 @@
 // octopus-schedulerのdist配下をdist/client/octopus-scheduler/にコピー
 // appsscript.jsonをdist直下にコピー
 
-
-
-import { existsSync, mkdirSync, readdirSync, lstatSync, copyFileSync, rmSync } from 'fs';
-import { resolve, join, basename, dirname, relative } from 'path';
-import { fileURLToPath } from 'url';
-import { sync } from 'glob';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  lstatSync,
+  copyFileSync,
+  rmSync,
+} from "fs";
+import { resolve, join, basename, dirname, relative } from "path";
+import { fileURLToPath } from "url";
+import { sync } from "glob";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, '..');
-const distDir = join(rootDir, 'dist');
+const rootDir = resolve(__dirname, "..");
+const distDir = join(rootDir, "dist");
 
 // distディレクトリを初期化
 if (existsSync(distDir)) {
@@ -22,15 +27,18 @@ if (existsSync(distDir)) {
 mkdirSync(distDir, { recursive: true });
 
 // server, clientのdist配下を全て探索
-const serverProjects = sync('src/server/**/', {
+const serverProjects = sync("src/server/**/", {
   cwd: rootDir,
   absolute: false,
   nodir: false,
-}).filter(p =>
-  (/^src\/server\/[^/]+\/?$/.test(p) || /^src\/server\/[^/]+\/[^/]+\/?$/.test(p)) &&
-  existsSync(join(rootDir, p, 'dist'))
+}).filter(
+  (p) =>
+    (/^src\/server\/[^/]+\/?$/.test(p) ||
+      /^src\/server\/[^/]+\/[^/]+\/?$/.test(p)) &&
+    existsSync(join(rootDir, p, "dist")) &&
+    !p.includes("shared-packages")
 );
-const clientProject = 'src/client/octopus-scheduler';
+const clientProject = "src/client/octopus-scheduler";
 
 function walkFiles(dir, callback, baseDir = dir) {
   for (const entry of readdirSync(dir)) {
@@ -47,7 +55,7 @@ function walkFiles(dir, callback, baseDir = dir) {
 // serverプロジェクトのdist配下をフラットにコピー
 
 for (const proj of serverProjects) {
-  const srcDist = join(rootDir, proj, 'dist');
+  const srcDist = join(rootDir, proj, "dist");
   if (!existsSync(srcDist)) continue;
   walkFiles(srcDist, (fullPath, relPath) => {
     const fileName = relPath.split(/[\\/]/).pop();
@@ -59,9 +67,8 @@ for (const proj of serverProjects) {
   });
 }
 
-
 // clientプロジェクトのdist配下をフラットにコピー
-const clientSrcDist = join(rootDir, clientProject, 'dist');
+const clientSrcDist = join(rootDir, clientProject, "dist");
 if (existsSync(clientSrcDist)) {
   walkFiles(clientSrcDist, (fullPath, relPath) => {
     const fileName = relPath.split(/[\\/]/).pop();
@@ -74,9 +81,9 @@ if (existsSync(clientSrcDist)) {
 }
 
 // appsscript.jsonをdist直下にコピー
-const appsscriptJson = join(rootDir, 'appsscript.json');
+const appsscriptJson = join(rootDir, "appsscript.json");
 if (existsSync(appsscriptJson)) {
-  copyFileSync(appsscriptJson, join(distDir, 'appsscript.json'));
+  copyFileSync(appsscriptJson, join(distDir, "appsscript.json"));
 }
 
-console.log('dist直下へフラットに成果物を集約しました。');
+console.log("dist直下へフラットに成果物を集約しました。");
