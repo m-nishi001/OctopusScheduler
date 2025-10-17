@@ -14,22 +14,59 @@ interface DriveMetadata {
   lastUpdate: Date;
 }
 
+interface OperationResult<T = void> {
+  status: "success" | "duplicate" | "error";
+  data?: T;
+  message?: string;
+}
+
 export class GoogleDriveService {
-  addDriveData(driveData: DriveData): DriveMetadata {
-    const blob = Utilities.newBlob(
-      Utilities.base64Decode(driveData.fileDataUrl),
-      driveData.fileKind,
-      driveData.fileName
-    );
-    const folder = DriveApp.getFolderById(driveData.parentFolderId);
-    const file = folder.createFile(blob);
-    file.setName(`${driveData.metadata.driveDataId}_${driveData.fileName}`);
-    return {
-      driveDataId: driveData.metadata.driveDataId,
-      fileId: file.getId(),
-      parentFolderId: file.getParents().next().getId(),
-      lastUpdate: new Date(file.getLastUpdated().getTime()),
-    };
+  private cache: GoogleAppsScript.Cache.Cache;
+
+  constructor() {
+    this.cache = CacheService.getScriptCache();
+  }
+  addDriveData(driveData: DriveData): OperationResult<DriveMetadata> {
+    const driveDataId = driveData.metadata.driveDataId;
+    const cacheKey = driveDataId;
+    const currentStatus = this.cache.get(cacheKey);
+
+    if (currentStatus === "saved") {
+      return {
+        status: "duplicate",
+        message: `DriveData with ID ${driveDataId} is already saved.`,
+      };
+    }
+    if (currentStatus === "saving") {
+      return {
+        status: "error",
+        message: `DriveData with ID ${driveDataId} is currently being saved.`,
+      };
+    }
+
+    this.cache.put(cacheKey, "saving", 3600); // 1 hour expiration
+
+    try {
+      const blob = Utilities.newBlob(
+        Utilities.base64Decode(driveData.fileDataUrl),
+        driveData.fileKind,
+        driveData.fileName
+      );
+      const folder = DriveApp.getFolderById(driveData.parentFolderId);
+      const file = folder.createFile(blob);
+      file.setName(`${driveDataId}_${driveData.fileName}`);
+      const metadata: DriveMetadata = {
+        driveDataId,
+        fileId: file.getId(),
+        parentFolderId: file.getParents().next().getId(),
+        lastUpdate: new Date(file.getLastUpdated().getTime()),
+      };
+      this.cache.put(cacheKey, "saved", 3600);
+      return { status: "success", data: metadata };
+    } catch (error) {
+      this.cache.remove(cacheKey);
+      return { status: "error", message: (error as Error).message };
+    }
   }
 
   getDriveMetaData(folderId: string): DriveMetadata[] {
@@ -89,13 +126,29 @@ export class GoogleDriveService {
   removeDriveData(dataId: string): void {
     try {
       const file = DriveApp.getFileById(dataId);
+      const fileName = file.getName();
+      const driveDataId = fileName.split("_")[0];
       file.setTrashed(true);
+      this.cache.remove(driveDataId);
     } catch {
       // Ignore if file not found
     }
   }
 
-  updateDriveData(driveData: DriveData): void {
+  updateDriveData(driveData: DriveData): OperationResult<void> {
+    const driveDataId = driveData.metadata.driveDataId;
+    const cacheKey = driveDataId;
+    const currentStatus = this.cache.get(cacheKey);
+
+    if (currentStatus !== "saved") {
+      return {
+        status: "error",
+        message: `DriveData with ID ${driveDataId} is not saved or is being processed.`,
+      };
+    }
+
+    this.cache.put(cacheKey, "updating", 3600);
+
     try {
       const file = DriveApp.getFileById(driveData.metadata.fileId);
       const blob = Utilities.newBlob(
@@ -104,9 +157,12 @@ export class GoogleDriveService {
         driveData.fileName
       );
       file.setContent(blob.getDataAsString());
-      file.setName(`${driveData.metadata.driveDataId}_${driveData.fileName}`);
-    } catch {
-      // Ignore if file not found
+      file.setName(`${driveDataId}_${driveData.fileName}`);
+      this.cache.put(cacheKey, "saved", 3600);
+      return { status: "success" };
+    } catch (error) {
+      this.cache.remove(cacheKey);
+      return { status: "error", message: (error as Error).message };
     }
   }
 }
