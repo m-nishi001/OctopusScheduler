@@ -8,5 +8,4 @@ export interface IMemberRepository {
     updates: { id: string; updateFn: (member: Member) => Member }[]
   ): Promise<void>;
   deleteMembers(ids: string[]): Promise<void>;
-  syncMembers(): Promise<{ synced: number }>;
 }

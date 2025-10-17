@@ -64,14 +64,6 @@ export class AssetService {
     return this.repo.getAllAssetMetadata();
   }
 
-  async registerRef(assetId: string, refSourceId: string): Promise<void> {
-    await this.repo.registerRef(assetId, refSourceId);
-  }
-
-  async unregisterRef(assetId: string, refSourceId: string): Promise<void> {
-    await this.repo.unregisterRef(assetId, refSourceId);
-  }
-
   async createAssetDtoFromFile(file: File): Promise<AssetDto> {
     const dataUrl = await FileUtils.readAsDataUrl(file);
     const asset: Asset = {

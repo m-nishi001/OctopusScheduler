@@ -229,10 +229,6 @@ const handleSaveClick = async () => {
 
         // Register references for newly uploaded assets
         if (tempAssets.value.length > 0) {
-            const assetIds = updatedAssets.map((a: any) => a.id);
-            for (const assetId of assetIds) {
-                await assetService.registerRef(assetId, "opening");
-            }
         }
 
         // tempAssets をクリア

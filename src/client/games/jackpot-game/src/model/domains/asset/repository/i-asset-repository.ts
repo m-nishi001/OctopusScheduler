@@ -28,6 +28,4 @@ export interface IAssetRepository {
     ) => void
   ): Promise<{ updated: number; deleted: number }>;
   getAllAssetMetadata(): Promise<AssetMetadata[]>;
-  registerRef(assetId: string, refSourceId: string): Promise<void>;
-  unregisterRef(assetId: string, refSourceId: string): Promise<void>;
 }

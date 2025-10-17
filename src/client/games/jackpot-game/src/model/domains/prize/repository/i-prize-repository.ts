@@ -8,5 +8,4 @@ export interface IPrizeRepository {
     updates: { id: string; updateFn: (prize: Prize) => Prize }[]
   ): Promise<void>;
   deletePrizes(ids: string[]): Promise<void>;
-  syncPrizes(): Promise<{ synced: number }>;
 }

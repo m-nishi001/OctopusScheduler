@@ -188,10 +188,6 @@ const handleSaveClick = async () => {
 		await loadConfig();
 
 		if (tempAssets.value.length > 0) {
-			const assetIds = updatedAssets.map((a: any) => a.id);
-			for (const assetId of assetIds) {
-				await assetService.registerRef(assetId, "description");
-			}
 		}
 
 		tempAssets.value = [];

@@ -5,9 +5,6 @@
       <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal" title="Add prizes">
         <span class="emoji">➕</span>
       </button>
-      <button class="admin-btn icon-only sync-icon" @click="syncPrizes" :disabled="syncing" :title="'Sync with Server'">
-        <span class="emoji">🔄</span>
-      </button>
       <button class="admin-btn icon-only delete-icon" @click="openDeleteModal"
         :disabled="!selectedPrizes.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
@@ -287,7 +284,6 @@
 import { ref, onMounted, computed } from 'vue';
 import { AssetDto } from "../../../model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
-import { PrizeService } from '../../../model/applications/prize/prize-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
 import { PrizeDeleteService } from '../../../model/applications/prize/prize-delete-service';
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/i-prize-repository';
@@ -295,7 +291,6 @@ import type { IPrizeRepository } from '../../../model/domains/prize/repository/i
 import { container } from 'tsyringe';
 const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
 const assetService = container.resolve(AssetService);
-const prizeService = container.resolve(PrizeService);
 const prizeAddService = container.resolve(PrizeAddService);
 const prizeDeleteService = container.resolve(PrizeDeleteService);
 const prizes = ref<any[]>([]);
@@ -446,20 +441,6 @@ const deleteSelectedPrizes = async () => {
     console.error("Failed to delete prizes:", error);
   } finally {
     deleting.value = false;
-  }
-};
-
-const syncPrizes = async () => {
-  syncing.value = true;
-  syncMessage.value = "";
-  try {
-    await prizeService.syncPrizes();
-    await fetchPrizes();
-  } catch (error) {
-    console.error('同期エラー:', error);
-  } finally {
-    syncing.value = false;
-    syncMessage.value = "";
   }
 };
 
@@ -618,7 +599,6 @@ const saveEdit = async () => {
 };
 
 onMounted(async () => {
-  await syncPrizes();
   await fetchPrizes();
   await fetchAssets();
 });

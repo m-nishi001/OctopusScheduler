@@ -1,4 +1,4 @@
-import { useLocalStorage } from "../../../../../../packages/shared-composables/src/use-localstorage";
+import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
 import { StorageConfig } from "../../infrastructures/storage-config";
 import { injectable } from "tsyringe";
 import type { Member } from "../../domains/member/member";
@@ -8,7 +8,7 @@ declare const google: any;
 
 @injectable()
 export class MemberRepository implements IMemberRepository {
-  private readonly localStorage = useLocalStorage(
+  private readonly localStorage = new LocalStorageService(
     StorageConfig.getDbName(),
     StorageConfig.getStoreName("MemberData")
   );
@@ -49,29 +49,5 @@ export class MemberRepository implements IMemberRepository {
 
   async deleteMembers(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
-  }
-
-  async syncMembers(): Promise<{ synced: number }> {
-    return new Promise((resolve, reject) => {
-      google.script.run
-        .withSuccessHandler((data: any) => {
-          if (data) {
-            const serverMembers = data.data.map((row: any[]) => ({
-              id: row[0],
-              name: row[1],
-              photoAssetId: row[2],
-              rank: row[3],
-            }));
-            for (const member of serverMembers) {
-              this.localStorage.save(member.id, member);
-            }
-            resolve({ synced: serverMembers.length });
-          } else {
-            resolve({ synced: 0 });
-          }
-        })
-        .withFailureHandler((error: any) => reject(new Error(error)))
-        .getSpreadsheetData("Members");
-    });
   }
 }

@@ -5,10 +5,6 @@
       <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openModal('add')" title="Add members">
         <span class="emoji">➕</span>
       </button>
-      <button class="admin-btn icon-only sync-icon" @click="syncMembers" :disabled="syncing"
-        :title="'Sync with Server'">
-        <span class="emoji">🔄</span>
-      </button>
       <button class="admin-btn icon-only delete-icon" @click="openDeleteModal"
         :disabled="!selectedMembers.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
@@ -140,7 +136,6 @@ import { ref, onMounted, computed, watch } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
 import { AssetDto } from "../../../../src/model/applications/asset/dto/asset-dto";
 import { AssetService } from '../../../model/applications/asset/asset-service';
-import { MemberService } from '../../../model/applications/member/member-service';
 import { MemberAddService } from '../../../model/applications/member/member-add-service';
 import { MemberDeleteService } from '../../../model/applications/member/member-delete-service';
 import type { AssetMetadata } from "../../../model/domains/asset/repository/i-asset-repository";
@@ -149,7 +144,6 @@ import type { MemberDto } from "../../../model/applications/member/dto/member-dt
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
 const assetService = container.resolve<AssetService>(AssetService);
-const memberService = container.resolve<MemberService>(MemberService);
 const memberAddService = container.resolve<MemberAddService>(MemberAddService);
 const memberDeleteService = container.resolve<MemberDeleteService>(MemberDeleteService);
 const members = ref<any[]>([]);
@@ -234,7 +228,6 @@ const confirmModal = async () => {
     await addMember();
   } else if (modalMode.value === 'edit') {
     if (!modalData.value) return;
-    const oldPhotoAssetId = modalData.value.photoAssetId;
     const updatedMember = {
       ...modalData.value,
       name: modalName.value,
@@ -247,14 +240,6 @@ const confirmModal = async () => {
     }
     try {
       await memberRepo.updateMembers([{ id: updatedMember.id, updateFn: () => updatedMember }]);
-      // Handle asset references
-      const newPhotoAssetId = updatedMember.photoAssetId;
-      if (oldPhotoAssetId && oldPhotoAssetId !== newPhotoAssetId) {
-        await assetService.unregisterRef(oldPhotoAssetId, updatedMember.id);
-      }
-      if (newPhotoAssetId && newPhotoAssetId !== oldPhotoAssetId) {
-        await assetService.registerRef(newPhotoAssetId, updatedMember.id);
-      }
       await fetchMembers();
     } catch (error) {
       console.error("Failed to update member:", error);
@@ -343,20 +328,6 @@ const deleteSelectedMembers = async () => {
   }
 };
 
-const syncMembers = async () => {
-  syncing.value = true;
-  syncMessage.value = "";
-  try {
-    await memberService.syncMembers();
-    await fetchMembers();
-  } catch (error) {
-    console.error('同期エラー:', error);
-  } finally {
-    syncing.value = false;
-    syncMessage.value = "";
-  }
-};
-
 const fetchMembers = async () => {
   try {
     const fetchedMembers = await memberRepo.getMembers();
@@ -383,7 +354,6 @@ const fetchAssets = async () => {
 };
 
 onMounted(async () => {
-  await syncMembers();
   await fetchMembers();
   await fetchAssets();
 });

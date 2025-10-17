@@ -20,9 +20,4 @@ export class PrizeService {
     const updateOps = [{ id, updateFn: (_: any) => toPrize(prize) }];
     await this.repo.updatePrizes(updateOps);
   }
-
-  async syncPrizes(): Promise<{ synced: number }> {
-    // サーバーから全景品を取得してローカルストレージに同期
-    return await this.repo.syncPrizes();
-  }
 }

@@ -36,9 +36,6 @@ import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetService } from '../../../model/applications/asset/asset-service';
-import { PrizeService } from '../../../model/applications/prize/prize-service';
-import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
-import { MemberService } from '../../../model/applications/member/member-service';
 import { HomeScreenSetting } from '../../../model/domains/screen-config/home-screen-setting';
 
 export default {
@@ -54,9 +51,6 @@ export default {
     const homeConfig = ref<HomeScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
     const assetService = container.resolve<AssetService>("AssetService");
-    const prizeService = container.resolve(PrizeService);
-    const drawResultService = container.resolve(DrawResultService);
-    const memberService = container.resolve(MemberService);
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -102,9 +96,9 @@ export default {
               }
             }), index: 0
           },
-          { task: prizeService.syncPrizes(), index: 1 },
-          { task: drawResultService.syncDrawResults(), index: 2 },
-          { task: memberService.syncMembers(), index: 3 },
+          { task: Promise.resolve({ synced: 0 }), index: 1 },
+          { task: Promise.resolve({ synced: 0 }), index: 2 },
+          { task: Promise.resolve({ synced: 0 }), index: 3 },
           { task: screenConfigService.syncScreenConfigs(), index: 4 },
         ];
         const totalTasks = tasks.length;

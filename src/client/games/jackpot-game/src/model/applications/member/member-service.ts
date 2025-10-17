@@ -21,8 +21,4 @@ export class MemberService {
     const updateOps = [{ id, updateFn: (_: any) => toMember(member) }];
     await this.repo.updateMembers(updateOps);
   }
-
-  async syncMembers(): Promise<{ synced: number }> {
-    return await this.repo.syncMembers();
-  }
 }

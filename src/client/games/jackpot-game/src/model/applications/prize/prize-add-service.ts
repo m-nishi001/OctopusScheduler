@@ -5,14 +5,12 @@ import type { PrizeDto } from "./dto/prize-dto";
 import { toPrize } from "./dto/prize-dto";
 import type { AssetDto } from "../asset/dto/asset-dto";
 import type { Prize } from "../../domains/prize/prize";
-import { AssetService } from "../asset/asset-service";
 
 @injectable()
 export class PrizeAddService {
   constructor(
     @inject("IAssetRepository") private assetRepo: IAssetRepository,
-    @inject("IPrizeRepository") private prizeRepo: IPrizeRepository,
-    @inject(AssetService) private assetService: AssetService
+    @inject("IPrizeRepository") private prizeRepo: IPrizeRepository
   ) {}
 
   async savePrize(
@@ -52,16 +50,6 @@ export class PrizeAddService {
     const addedPrize = toPrize(prizeToSave);
     if (tempAssetDto) {
       addedPrize.imageDataUrl = tempAssetDto.dataUrl;
-    }
-    if (assetId) {
-      // ここは待たなくて良い。
-      this.assetService.registerRef(assetId, addedPrize.id);
-    }
-    if (bgm1AssetId) {
-      this.assetService.registerRef(bgm1AssetId, addedPrize.id);
-    }
-    if (bgm2AssetId) {
-      this.assetService.registerRef(bgm2AssetId, addedPrize.id);
     }
     return addedPrize;
   }

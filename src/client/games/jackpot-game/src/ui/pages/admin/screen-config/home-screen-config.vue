@@ -243,10 +243,6 @@ const handleSaveClick = async () => {
 
         // Register references for newly uploaded assets
         if (tempAssetsToAdd.length > 0) {
-            const assetIds = tempAssetsToAdd.map(a => a.id);
-            for (const assetId of assetIds) {
-                await assetService.registerRef(assetId, "home");
-            }
         }
     });
 };
