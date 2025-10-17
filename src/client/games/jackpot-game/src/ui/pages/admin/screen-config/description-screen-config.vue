@@ -11,6 +11,35 @@
 						<option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
 					</select>
 				</div>
+				<div class="config-item">
+					<label>コンテンツ:</label>
+					<div v-for="(element, idx) in localConfig.screenElements" :key="element.id" class="element-item">
+						<select v-model="element.type" class="admin-input">
+							<option value="text">テキスト</option>
+							<option value="image">画像</option>
+							<option value="html">HTML</option>
+							<option value="modal">モーダル</option>
+						</select>
+						<textarea v-if="element.type === 'text' || element.type === 'html' || element.type === 'modal'"
+							v-model="element.content" placeholder="内容" class="admin-input" rows="4"></textarea>
+						<div v-if="element.type === 'image'">
+							<div class="asset-mode">
+								<label><input type="radio" v-model="element.imageMode" value="select" /> 既存から選択</label>
+								<label><input type="radio" v-model="element.imageMode" value="upload" /> アップロード</label>
+							</div>
+							<select v-if="element.imageMode === 'select'" v-model="element.assetId" class="admin-input">
+								<option value="">選択なし</option>
+								<option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
+								</option>
+							</select>
+							<input v-if="element.imageMode === 'upload'" type="file"
+								@change="(e) => onImageChange(e, idx)" accept="image/*" class="admin-input" />
+						</div>
+						<input v-model="element.style" placeholder="スタイル (CSS)" class="admin-input" />
+						<button class="admin-btn" @click="removeElement(idx)">削除</button>
+					</div>
+					<button class="admin-btn" @click="addElement">コンテンツ追加</button>
+				</div>
 			</div>
 			<div style="display:flex;align-items:center;gap:12px;">
 				<button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving"
@@ -57,6 +86,11 @@ import { container } from 'tsyringe';
 const {
 	screenConfigService,
 	audioAssets,
+	imageAssets,
+	assetService,
+	onTempAssets,
+	tempAssets,
+	fetchAssets,
 	loading,
 	loadingStatus,
 	saving,
@@ -69,6 +103,7 @@ const syncStatus = ref("");
 
 const localConfig = ref({
 	descriptionBgm: "",
+	screenElements: [] as any[],
 });
 
 const loadConfig = async () => {
@@ -76,6 +111,7 @@ const loadConfig = async () => {
 		const config = await screenConfigService.fetchScreenConfig("description");
 		if (config) {
 			localConfig.value.descriptionBgm = (config as any).descriptionBgm || "";
+			localConfig.value.screenElements = (config as any).screenElements || [];
 		}
 	} catch (error) {
 		console.error("Failed to load description config:", error);
@@ -83,6 +119,30 @@ const loadConfig = async () => {
 }; onMounted(async () => {
 	await loadConfig();
 });
+
+const onImageChange = async (e: Event, idx: number) => {
+	const file = (e.target as HTMLInputElement).files?.[0];
+	if (file) {
+		const tempAsset = await assetService.createAssetDtoFromFile(file);
+		onTempAssets([tempAsset]);
+		localConfig.value.screenElements[idx].assetId = tempAsset.id;
+	}
+};
+
+const addElement = () => {
+	localConfig.value.screenElements.push({
+		id: `element-${Date.now()}`,
+		type: 'text',
+		content: '',
+		imageMode: 'select',
+		assetId: '',
+		style: '',
+	});
+};
+
+const removeElement = (idx: number) => {
+	localConfig.value.screenElements.splice(idx, 1);
+};
 
 const handleSyncClick = async () => {
 	syncing.value = true;
@@ -101,14 +161,41 @@ const handleSyncClick = async () => {
 
 const handleSaveClick = async () => {
 	await handleSave(async () => {
+		const oldTempAssets = [...tempAssets.value];
+		const tempAssetMap = new Map<string, string>();
+		let updatedAssets: any[] = [];
+
+		if (tempAssets.value.length > 0) {
+			updatedAssets = await assetService.addAssets(tempAssets.value);
+			updatedAssets.forEach((asset: any, index: number) => {
+				tempAssetMap.set(oldTempAssets[index].id, asset.id);
+			});
+		}
+
+		localConfig.value.screenElements.forEach(element => {
+			if (element.assetId && tempAssetMap.has(element.assetId)) {
+				element.assetId = tempAssetMap.get(element.assetId)!;
+			}
+		});
+
 		const config = new DescriptionScreenSetting(
 			localConfig.value.descriptionBgm,
-			[]
+			localConfig.value.screenElements
 		);
 		const converter = container.resolve(DescriptionScreenConfigConverter);
 		const settings = converter.toSettings(config);
 		await screenConfigService.saveScreenConfigs(settings);
 		await loadConfig();
+
+		if (tempAssets.value.length > 0) {
+			const assetIds = updatedAssets.map((a: any) => a.id);
+			for (const assetId of assetIds) {
+				await assetService.registerRef(assetId, "description");
+			}
+		}
+
+		tempAssets.value = [];
+		await fetchAssets();
 	});
 };
 </script>
@@ -134,7 +221,7 @@ const handleSaveClick = async () => {
 	color: #fff;
 }
 
-.slide-item {
+.element-item {
 	border: 1px solid #555;
 	padding: 16px;
 	margin-bottom: 16px;

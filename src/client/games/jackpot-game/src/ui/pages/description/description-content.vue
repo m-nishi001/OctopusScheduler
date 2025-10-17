@@ -1,22 +1,28 @@
 <template>
 	<MainLayout>
 		<div class="description-screen">
-			<div class="slide-container">
-				<transition-group name="slide-transition" tag="div">
-					<div v-if="currentSlide" :key="currentSlide.id" class="slide-content">
-						<template v-if="currentSlide.type === 'text'">
-							<div v-if="isHtml(currentSlide.content)" class="slide-html" v-html="currentSlide.content">
-							</div>
-							<div v-else class="slide-text">{{ currentSlide.content }}</div>
-						</template>
-						<template v-if="currentSlide.type === 'image'">
-							<img :src="currentSlide.assetUrl" class="slide-image" />
-						</template>
-						<template v-if="currentSlide.type === 'modal'">
-							<div class="slide-modal">{{ currentSlide.content }}</div>
-						</template>
-					</div>
-				</transition-group>
+			<div class="content-frame">
+				<div class="slide-container">
+					<transition-group name="slide-transition" tag="div">
+						<div v-if="currentSlide" :key="currentSlide.id" class="slide-content">
+							<template v-if="currentSlide.type === 'text'">
+								<div v-if="isHtml(currentSlide.content)" class="slide-html"
+									v-html="currentSlide.content">
+								</div>
+								<div v-else class="slide-text">{{ currentSlide.content }}</div>
+							</template>
+							<template v-if="currentSlide.type === 'image'">
+								<img :src="currentSlide.assetUrl" class="slide-image" />
+							</template>
+							<template v-if="currentSlide.type === 'modal'">
+								<div class="slide-modal">{{ currentSlide.content }}</div>
+							</template>
+							<template v-if="currentSlide.type === 'html'">
+								<div class="slide-html" v-html="currentSlide.content"></div>
+							</template>
+						</div>
+					</transition-group>
+				</div>
 			</div>
 			<div class="navigation-hint">
 				<span class="hint-text">Press ENTER to continue</span>
@@ -35,6 +41,7 @@ import { useRouter } from 'vue-router';
 import type { ScreenElement } from '../../../model/domains/screen-config/description-screen-setting';
 import { DescriptionScreenSetting } from '../../../model/domains/screen-config/description-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { AssetService } from '../../../model/applications/asset/asset-service';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',
@@ -47,31 +54,24 @@ export default {
 		const slideIndex = ref(0);
 		const currentSlide = ref<ScreenElement | null>(null);
 
-		// 固定のスライド要素
-		const elements = ref<ScreenElement[]>([
-			{
-				id: 'slide1',
-				type: 'text',
-				content: 'Welcome to the Jackpot Game!\n\nThis is an exciting adventure where you can win amazing prizes.',
-			},
-			{
-				id: 'slide2',
-				type: 'image',
-				assetId: 'description-image-1',
-				assetUrl: '/assets/images/description1.png', // 仮定
-			},
-			{
-				id: 'slide3',
-				type: 'text',
-				content: 'Follow the instructions carefully and enjoy the game!',
-			},
-		]);
+		const elements = ref<ScreenElement[]>([]);
 
 		const bgmAssetUrl = computed(() => (screenConfig.value as DescriptionScreenSetting)?.descriptionBgm);
 
+		const assetService = container.resolve(AssetService);
+
 		onMounted(async () => {
 			screenConfig.value = await screenConfigService.fetchScreenConfig('description') as DescriptionScreenSetting;
-			currentSlide.value = elements.value[0] ?? null;
+			elements.value = screenConfig.value?.screenElements || [];
+			for (const element of elements.value) {
+				if (element.assetId) {
+					const asset = await assetService.getAssetById(element.assetId);
+					element.assetUrl = asset?.dataUrl || '';
+				}
+			}
+			if (elements.value.length > 0) {
+				currentSlide.value = elements.value[0];
+			}
 			setTimeout(playBGM, 1200);
 		});
 
@@ -136,14 +136,27 @@ export default {
 	pointer-events: none;
 }
 
+.content-frame {
+	width: 80%;
+	height: 70%;
+	border: 2px solid rgba(255, 255, 255, 0.5);
+	border-radius: 16px;
+	background: rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(10px);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 2rem;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
 .slide-container {
 	flex: 1;
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	width: 100%;
-	max-width: 1200px;
-	padding: 2rem;
+	max-width: 100%;
 }
 
 .slide-content {
