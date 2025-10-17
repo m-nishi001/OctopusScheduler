@@ -9,15 +9,11 @@ build({
   platform: "browser",
   banner: {
     js: `
-let _doGet, _addDriveData, _getDriveMetaData, _getDriveData, _removeDriveData, _updateDriveData, _addSpreadsheetData, _getAllSpreadsheetNames, _getSpreadsheetData, _removeSpreadsheetData, _updateSpreadsheetData;
+let _addDriveData, _getDriveMetaData, _getDriveData, _removeDriveData, _updateDriveData, _addSpreadsheetData, _getAllSpreadsheetNames, _getSpreadsheetData, _removeSpreadsheetData, _updateSpreadsheetData;
             `,
   },
   footer: {
     js: `
-function doGet(e){
-    return _doGet(e);
-}
-
 function addDriveData(driveData) { return _addDriveData.apply(this, [driveData]); }
 function getDriveMetaData() { return _getDriveMetaData.apply(this, []); }
 function getDriveData(dataId) { return _getDriveData.apply(this, [dataId]); }
