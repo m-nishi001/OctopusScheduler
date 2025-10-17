@@ -15,7 +15,6 @@
     "@types/google-apps-script": "^1.0.83",
     "@types/node": "^20.12.12",
     "esbuild": "^0.25.6",
-    "core-js": "^3.44.0",
     "typescript": "^5.4.5"
   }
 }
