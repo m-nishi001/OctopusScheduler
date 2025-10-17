@@ -8,17 +8,20 @@
     "esModuleInterop": true, // Enables emit interoperability between CommonJS and ES Modules
     "skipLibCheck": true, // Skip type checking of declaration files
     "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file.
-    "moduleResolution": "node", // How modules get resolved (node is common for build tools)
+    "moduleResolution": "bundler", // How modules get resolved (node is common for build tools)
     "resolveJsonModule": true, // Allow importing JSON files
     "noEmit": true, // Do not emit output files (JS). Rely on ESBuild for bundling. Set true if using `tsc` only for type checking without `--noEmit` flag.
-    "rootDir": "src", // Specifies the root directory of input files
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "rootDirs": ["src", "../../../../shared-packages/src"],
+    "paths": {
+      "shared-packages": ["../../../../shared-packages/dist/types"]
+    }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../../../../shared-packages/src/**/*"],
   "exclude": [
     "node_modules", // Exclude dependencies
-    "dist", // Exclude build output directory
-    "src/_bk" // Exclude backup directory
+    "dist" // Exclude build output directory
   ]
 }
