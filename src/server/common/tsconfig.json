@@ -10,9 +10,10 @@
     "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file.
     "moduleResolution": "node", // How modules get resolved (node is common for build tools)
     "resolveJsonModule": true, // Allow importing JSON files
-    "noEmit": true, // Do not emit output files (JS). Rely on ESBuild for bundling. Set true if using `tsc` only for type checking without `--noEmit` flag.
+    "noEmit": false, // Emit declaration files so this package can act as a types package
     "declaration": true,
     "declarationDir": "dist/types",
+    "composite": true,
     "rootDir": "src", // Specifies the root directory of input files
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true

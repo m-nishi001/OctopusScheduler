@@ -1,11 +1,11 @@
 {
-  "name": "shared-packages",
+  "name": "@octopus/server-common",
   "version": "1.0.0",
   "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
   "type": "module",
   "main": "dist/Code.js",
   "scripts": {
-    "build": "tsc && node esbuild.config.js",
+    "build": "tsc -p tsconfig.json && node esbuild.config.js",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "deploy": "npm run build && clasp push --force"
