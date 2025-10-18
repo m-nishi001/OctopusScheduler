@@ -17,11 +17,12 @@ export default defineComponent({
 
         async function callService() {
             if (!service) return;
-            service
-                .createCall<{ name: string }>('TestService.GetName')
-                .withSuccessed((res: { name: string }) => { name.value = res.name; })
-                .withFailuered((msg: string) => { name.value = `ERROR: ${msg}`; })
-                .invoke();
+            try {
+                const res = await service.call<{ name: string }>('TestService.GetName');
+                name.value = res.name;
+            } catch (e: any) {
+                name.value = `ERROR: ${e?.message ?? String(e)}`;
+            }
         }
 
         return { name, callService };

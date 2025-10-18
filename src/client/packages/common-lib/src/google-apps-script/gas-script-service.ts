@@ -39,11 +39,33 @@ export interface GasFunctionOptions {
  * リトライ機構とタイムアウトを備える。
  */
 export class GasFunctionService {
+  // Optional API function name used by some callers (e.g. a single GAS entrypoint that
+  // dispatches to domain functions). This field is set by the static `create()` factory
+  // to preserve backward-compatible public API expected in other packages.
+  private functionName?: string;
+
+  /**
+   * Compatibility factory used by existing consumers: `GasFunctionService.create('callX')`.
+   * Returns null when the given name is empty (keeps behavior similar to older impls).
+   */
+  public static create(functionName: string): GasFunctionService | null {
+    const name = String(functionName || "").trim();
+    if (name === "") {
+      console.error(`[GasFunctionService] functionName is empty.`);
+      return null;
+    }
+    const svc = new GasFunctionService();
+    svc.functionName = name;
+    return svc;
+  }
   private static readonly DEFAULT_TIMEOUT_MS = 10000;
   private static readonly DEFAULT_RETRIES = 3;
   private static readonly DEFAULT_RETRY_DELAY_MS = 1000;
 
   private options: Required<GasFunctionOptions>;
+  // Optional instance-level handlers that can be set fluently.
+  private instanceSuccessHandler: ((value: any) => void) | null = null;
+  private instanceFailureHandler: ((err: string) => void) | null = null;
 
   constructor(options: GasFunctionOptions = {}) {
     this.options = {
@@ -55,35 +77,69 @@ export class GasFunctionService {
   }
 
   /**
+   * Set an instance-level success handler. Returns `this` for fluent chaining.
+   */
+  public withSuccessHandler(handler: (value: any) => void): this {
+    this.instanceSuccessHandler = handler;
+    return this;
+  }
+
+  /**
+   * Set an instance-level failure handler. Returns `this` for fluent chaining.
+   */
+  public withFailuerHandler(handler: (message: string) => void): this {
+    // backward-compatible misspelled method name
+    this.instanceFailureHandler = handler;
+    return this;
+  }
+
+  /**
+   * Correctly spelled alias for withFailuerHandler to improve API ergonomics.
+   */
+  public withFailureHandler(handler: (message: string) => void): this {
+    this.instanceFailureHandler = handler;
+    return this;
+  }
+
+  /**
    * GAS関数を呼び出す。
    * @param functionName 呼び出す関数名
    * @param args 引数
    * @returns Promise<T> 成功時のデータ
    */
   public async call<T = any>(functionName: string, args: any = {}): Promise<T> {
-    return this.callWithRetry<T>(functionName, args);
-  }
+    const resp = await this.runWithRetry<T>(functionName, args);
 
-  /**
-   * Proxyを使って、service.functionName(args) のように呼び出せるようにする。
-   */
-  public get proxy(): any {
-    return new Proxy(this, {
-      get: (target, prop: string) => {
-        if (
-          typeof prop === "string" &&
-          prop !== "proxy" &&
-          prop !== "call" &&
-          prop !== "callWithRetry"
-        ) {
-          return (args: any = {}) => this.call(prop, args);
+    if (resp.status === "success") {
+      if (this.instanceSuccessHandler) {
+        try {
+          this.instanceSuccessHandler(resp.data);
+        } catch (_e) {
+          // ignore handler errors
         }
-        return (target as any)[prop];
-      },
-    });
+      }
+      return resp.data as T;
+    }
+
+    if (this.instanceFailureHandler) {
+      try {
+        this.instanceFailureHandler(resp.message);
+      } catch (_e) {
+        // ignore handler errors
+      }
+    }
+
+    throw new Error(resp.message);
   }
 
-  private async callWithRetry<T>(functionName: string, args: any): Promise<T> {
+  // Only `call<T>` is exported; other convenience shims were removed to
+  // simplify the public surface. Use `call<T>(...)` which throws on error and
+  // returns T on success.
+
+  private async runWithRetry<T>(
+    functionName: string,
+    args: any
+  ): Promise<GasResponse<T>> {
     let attempts = 0;
     let parallelErrorAttempts = 0;
     const MAX_PARALLEL_ERROR_RETRY = 100;
@@ -97,42 +153,43 @@ export class GasFunctionService {
           this.createTimeoutPromise(functionName),
         ]);
 
-        if (result.status === "success") {
-          return result.data;
-        } else {
-          throw new Error(result.message);
-        }
-      } catch (error: any) {
-        const errorMessage = error.message;
+        if (result.status === "success") return result;
+
+        const msg = result.message ?? "Unknown error";
 
         if (
-          this.isParallelLimitError(errorMessage) &&
+          this.isParallelLimitError(msg) &&
           parallelErrorAttempts < MAX_PARALLEL_ERROR_RETRY
         ) {
           parallelErrorAttempts++;
-          console.warn(
-            `GAS関数 '${functionName}' 並列上限超過エラーでリトライ (試行 ${parallelErrorAttempts}/${MAX_PARALLEL_ERROR_RETRY}): ${errorMessage}`
-          );
-          await new Promise((resolve) =>
-            setTimeout(resolve, this.options.retryDelay)
-          );
+          await new Promise((r) => setTimeout(r, this.options.retryDelay));
           continue;
         }
 
         if (attempts <= this.options.retries) {
-          console.warn(
-            `GAS関数 '${functionName}' の呼び出しが失敗しました (試行 ${attempts}/${this.options.retries + 1}): ${errorMessage}`
-          );
-          await new Promise((resolve) =>
-            setTimeout(resolve, this.options.retryDelay)
-          );
+          await new Promise((r) => setTimeout(r, this.options.retryDelay));
           continue;
-        } else {
-          console.error(
-            `GAS関数 '${functionName}' の呼び出しが最大リトライ回数 (${this.options.retries}) を超えて失敗しました: ${errorMessage}`
-          );
-          throw error;
         }
+
+        return { status: "error", message: msg };
+      } catch (error: any) {
+        const msg = error?.message ?? String(error ?? "");
+
+        if (
+          this.isParallelLimitError(msg) &&
+          parallelErrorAttempts < MAX_PARALLEL_ERROR_RETRY
+        ) {
+          parallelErrorAttempts++;
+          await new Promise((r) => setTimeout(r, this.options.retryDelay));
+          continue;
+        }
+
+        if (attempts <= this.options.retries) {
+          await new Promise((r) => setTimeout(r, this.options.retryDelay));
+          continue;
+        }
+
+        return { status: "error", message: msg };
       }
     }
   }
@@ -142,6 +199,11 @@ export class GasFunctionService {
     args: any
   ): Promise<GasResponse<T>> {
     return new Promise((resolve) => {
+      const runTarget =
+        this.functionName && this.functionName.trim() !== ""
+          ? this.functionName
+          : functionName;
+
       google.script.run
         .withSuccessHandler((response: string) => {
           try {
@@ -160,9 +222,17 @@ export class GasFunctionService {
             message: `クライアントエラー: ${error.message}`,
           });
         })
-        [functionName](args);
+        [runTarget](
+          // If we use a dispatcher functionName we pass the target functionName and
+          // args as a JSON string to preserve the behavior of the newer implementation.
+          this.functionName && this.functionName.trim() !== ""
+            ? (functionName as any)
+            : args
+        );
     });
   }
+
+  // `createCall` compatibility shim removed. Use `call<T>(functionName, args)`.
 
   private createTimeoutPromise(functionName: string): Promise<never> {
     return new Promise((_, reject) => {
