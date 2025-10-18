@@ -1,22 +1,22 @@
-import { useLocalStorage } from "/root/google_apps_script/octopus-scheduler/src/client/packages/shared-composables/src/use-localstorage";
-import { StorageConfig } from "../storage-config";
+import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
 import { ScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable } from "tsyringe";
 
 @injectable()
 export class ScheduleEventRepository implements IScheduleEventRepository {
-  private readonly localStorage = useLocalStorage(
-    StorageConfig.getDbName(),
-    StorageConfig.getStoreName("ScheduleEventData")
-  );
-  private readonly executionStatusStorage = useLocalStorage(
-    StorageConfig.getDbName(),
-    StorageConfig.getStoreName("ScheduleEventExecutionStatus")
-  );
+  private readonly localStorage: LocalStorageService;
+  private readonly executionStatusStorage: LocalStorageService;
 
   constructor() {
-    // No GAS service needed
+    this.localStorage = new LocalStorageService(
+      "octopus-scheduler",
+      "ScheduleEventData"
+    );
+    this.executionStatusStorage = new LocalStorageService(
+      "octopus-scheduler",
+      "ScheduleEventExecutionStatus"
+    );
   }
 
   async getScheduleEvents(): Promise<ScheduleEvent[]> {
@@ -32,10 +32,13 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
 
   async deleteScheduleEvents(ids: string[]): Promise<void> {
     const allEvents = await this.localStorage.getAll<ScheduleEvent>();
-    const keysToDelete = Array.from(allEvents.entries())
-      .filter(([, event]) => ids.includes(event.id))
-      .map(([key]) => key);
-    await this.localStorage.removeMultiple(keysToDelete);
+    const keysToDelete: string[] = [];
+    for (const [key, event] of allEvents.entries()) {
+      if (ids.includes(event.id)) keysToDelete.push(key);
+    }
+    if (keysToDelete.length > 0) {
+      await this.localStorage.removeMultiple(keysToDelete);
+    }
   }
 
   async addScheduleEvents(events: ScheduleEvent[]): Promise<string> {
@@ -51,27 +54,8 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
   }
 
   async syncScheduleEvents(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      (globalThis as any).google.script.run
-        .withSuccessHandler((data: any) => {
-          this.localStorage.clear();
-          const eventsMap = new Map<string, ScheduleEvent>(
-            data.map((e: any) => [
-              `${e.id}_${e.settingName}`,
-              e as ScheduleEvent,
-            ])
-          );
-          this.localStorage.saveMultiple(eventsMap);
-          resolve();
-        })
-        .withFailureHandler((error: any) => {
-          console.error("Failed to sync schedule events from server:", error);
-          reject(
-            new Error(`Failed to sync schedule events from server: ${error}`)
-          );
-        })
-        .getSpreadsheetData("ScheduleEvents");
-    });
+    console.info("syncScheduleEvents: not implemented (GAS calls removed)");
+    return Promise.resolve();
   }
 
   async getExecutionStatus(eventId: string): Promise<string | null> {
@@ -85,7 +69,11 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
 
   async getAllExecutionStatuses(): Promise<{ [eventId: string]: string }> {
     const allStatuses = await this.executionStatusStorage.getAll<string>();
-    return Object.fromEntries(allStatuses);
+    const result: { [eventId: string]: string } = {};
+    for (const [k, v] of allStatuses.entries()) {
+      result[k] = v;
+    }
+    return result;
   }
 
   async markEventAsStarted(eventId: string): Promise<void> {
