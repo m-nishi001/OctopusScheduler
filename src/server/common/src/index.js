@@ -1,1 +1,1 @@
-export * from './gas-types';
+export * from "./gas-types";
