@@ -1,1 +1,1 @@
-{"root":["./src/audio/audio-service.ts","./src/google-apps-script/gas-history-service.ts","./src/google-apps-script/gas-script-service.ts","./src/storage/local-storage-service.ts"],"version":"5.9.2"}
+{"root":["./src/gas-types.ts","./src/audio/audio-service.ts","./src/google-apps-script/gas-history-service.ts","./src/google-apps-script/gas-script-service.ts","./src/storage/local-storage-service.ts"],"version":"5.9.2"}

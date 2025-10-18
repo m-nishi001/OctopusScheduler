@@ -5,14 +5,14 @@ import { onMounted } from 'vue';
 import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts'
 
 onMounted(async () => {
-  var gasFunctionServicie = GasFunctionService.create("callOctopusSchedulerApi");
-  if (!gasFunctionServicie) throw new Error();
+  const gasFunctionService = new GasFunctionService({ timeout: 20000 });
 
-  const func = gasFunctionServicie
-    .createCall<any>("ScheduleEventService.findAllScheduleEvents")
-    .withTimeout(20000)
-    .withSuccessed(o => console.log(`result: ${o}`));
-  await gasFunctionServicie.all(func);
+  try {
+    const result = await gasFunctionService.call<any>("ScheduleEventService.findAllScheduleEvents");
+    console.log(`result: ${result}`);
+  } catch (error) {
+    console.error('Error calling GAS function:', error);
+  }
 });
 </script>
 
