@@ -1,10 +1,10 @@
 import { injectable } from "tsyringe";
-import type { Asset } from "../../domains/assets/entity/asset";
 import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
+import type { IAssetRepository } from "../../domains/assets/repository/asset-repository";
 import type {
-  IAssetRepository,
-  AssetMetadata,
-} from "../../domains/assets/repository/asset-repository";
+  DriveData,
+  DriveMetadata,
+} from "@octopus/server-common/drive-types";
 
 @injectable()
 export class AssetRepository implements IAssetRepository {
@@ -13,12 +13,12 @@ export class AssetRepository implements IAssetRepository {
   constructor() {
     this.localStorage = new LocalStorageService(
       "octopus-scheduler",
-      "AssetData"
+      "DriveData"
     );
   }
 
   async addAssets(
-    assets: Asset[],
+    driveData: DriveData[],
     onProgress?: (
       index: number,
       status: "完了" | "失敗",
@@ -26,23 +26,35 @@ export class AssetRepository implements IAssetRepository {
     ) => void
   ): Promise<string[]> {
     const ids: string[] = [];
-    for (const [index, asset] of assets.entries()) {
+    for (const [index, data] of driveData.entries()) {
       const id = crypto.randomUUID();
-      const assetWithId: Asset = { ...asset, id };
-      await this.localStorage.save(id, assetWithId);
+      const dataWithId: DriveData = {
+        ...data,
+        metadata: {
+          ...(data.metadata || ({} as DriveMetadata)),
+          driveDataId: id,
+          lastUpdate:
+            data.metadata?.lastUpdate || data.uploadDate || new Date(),
+          parentFolderId:
+            data.metadata?.parentFolderId || data.parentFolderId || "",
+          fileId: data.metadata?.fileId || "",
+        },
+        uploadDate: data.uploadDate || new Date(),
+      };
+      await this.localStorage.save(id, dataWithId);
       ids.push(id);
       onProgress?.(index, "完了");
     }
     return ids;
   }
 
-  async getAssets(): Promise<Asset[]> {
-    const allAssets = await this.localStorage.getAll<Asset>();
-    return Array.from(allAssets.values());
+  async getAssets(): Promise<DriveData[]> {
+    const all = await this.localStorage.getAll<DriveData>();
+    return Array.from(all.values());
   }
 
-  async getAssetById(id: string): Promise<Asset | null> {
-    return (await this.localStorage.get<Asset>(id)) || null;
+  async getAssetById(id: string): Promise<DriveData | null> {
+    return (await this.localStorage.get<DriveData>(id)) || null;
   }
 
   async deleteAssets(ids: string[]): Promise<void> {
@@ -55,16 +67,7 @@ export class AssetRepository implements IAssetRepository {
     return Promise.resolve();
   }
 
-  async getAllAssetMetadata(): Promise<AssetMetadata[]> {
-    const assets = await this.getAssets();
-    return assets.map((asset) => ({
-      id: asset.id,
-      type: asset.type,
-      name: asset.name,
-      uploadedAt: asset.uploadedAt,
-      lastUpdated: asset.lastUpdated,
-      size: asset.size,
-      directoryId: asset.directoryId,
-    }));
+  async getAllAssetMetadata(): Promise<DriveData[]> {
+    return await this.getAssets();
   }
 }

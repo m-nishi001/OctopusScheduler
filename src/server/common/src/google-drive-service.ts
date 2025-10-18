@@ -40,6 +40,7 @@ export class GoogleDriveService {
         fileId: file.getId(),
         parentFolderId: file.getParents().next().getId(),
         lastUpdate: new Date(file.getLastUpdated().getTime()),
+        size: file.getSize(),
       };
       this.cache.put(cacheKey, "saved", 3600);
       return { status: "success", data: metadata };
@@ -63,6 +64,7 @@ export class GoogleDriveService {
         fileId: file.getId(),
         parentFolderId: folderId,
         lastUpdate: new Date(file.getLastUpdated().getTime()),
+        size: file.getSize(),
       });
     }
     // Recursively add files in subfolders
@@ -89,6 +91,7 @@ export class GoogleDriveService {
         fileId: dataId,
         parentFolderId,
         lastUpdate: new Date(file.getLastUpdated().getTime()),
+        size: file.getSize(),
       };
       return {
         metadata,

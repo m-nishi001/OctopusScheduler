@@ -202,7 +202,6 @@ async function addUploadBgm() {
                 uploadedAt: new Date().toISOString(),
                 lastUpdated: new Date().toISOString(),
                 size: newBgmFile.value.size,
-                referenceFrom: [],
             };
             const fileReader = new FileReader();
             fileReader.onload = async (e) => {

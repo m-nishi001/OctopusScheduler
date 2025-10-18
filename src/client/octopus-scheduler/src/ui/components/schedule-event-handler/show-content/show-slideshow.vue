@@ -30,8 +30,10 @@ const assetRepository = container.resolve<IAssetRepository>("IAssetRepository");
 const startSlideshow = async (data: SlideshowData) => {
     slideshowData.value = data;
     const allMetadata = await assetRepository.getAllAssetMetadata();
-    const assetMetadata = allMetadata.filter(meta => meta.directoryId === data.folderId && meta.type === "image");
-    images.value = assetMetadata.map(meta => ({ id: meta.id, url: "", name: meta.name }));
+    const assetMetadata = allMetadata.filter(
+        (meta: any) => meta.metadata?.parentFolderId === data.folderId && meta.fileKind?.startsWith("image")
+    );
+    images.value = assetMetadata.map((meta: any) => ({ id: meta.metadata.driveDataId, url: "", name: meta.fileName }));
     currentIndex.value = 0;
     await loadCurrentImage();
     intervalId.value = setInterval(async () => {
@@ -59,16 +61,16 @@ const loadCurrentImage = async () => {
     const currentImage = images.value[currentIndex.value];
     if (!currentImage || currentImage.url) return;
     const asset = await assetRepository.getAssetById(currentImage.id);
-    if (asset && asset.dataUrl) {
-        currentImage.url = asset.dataUrl;
+    if (asset && (asset as any).fileDataUrl) {
+        currentImage.url = (asset as any).fileDataUrl;
     }
     // Preload next image
     const nextIndex = (currentIndex.value + 1) % images.value.length;
     const nextImage = images.value[nextIndex];
     if (nextImage && !nextImage.url) {
         const nextAsset = await assetRepository.getAssetById(nextImage.id);
-        if (nextAsset && nextAsset.dataUrl) {
-            nextImage.url = nextAsset.dataUrl;
+        if (nextAsset && (nextAsset as any).fileDataUrl) {
+            nextImage.url = (nextAsset as any).fileDataUrl;
         }
     }
     // Unload previous image to save memory

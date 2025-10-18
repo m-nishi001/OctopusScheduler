@@ -33,7 +33,6 @@ export class DriveDataDto {
   readonly lastUpdated: Date;
   readonly size: number;
   readonly dataUrl: string;
-  readonly referenceFrom: string[];
 
   constructor(entity: DriveData) {
     this.id = entity.metadata.driveDataId;
@@ -41,9 +40,8 @@ export class DriveDataDto {
     this.name = entity.fileName;
     this.uploadedAt = entity.uploadDate;
     this.lastUpdated = entity.metadata.lastUpdate;
-    this.size = 0; // DriveData has no size
+    this.size = entity.metadata.size ?? 0;
     this.dataUrl = entity.fileDataUrl;
-    this.referenceFrom = []; // DriveData has no referenceFrom
   }
 
   async toDriveData(): Promise<DriveData> {

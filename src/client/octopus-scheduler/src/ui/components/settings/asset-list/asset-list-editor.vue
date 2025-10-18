@@ -238,7 +238,6 @@ const addAssets = async () => {
             uploadedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             size: buf.byteLength,
-            referenceFrom: []
         };
     }));
     await assetService.addAssets(assetDtos);
@@ -280,8 +279,10 @@ const syncAssets = async () => {
 };
 
 const getUsage = (assetId: string) => {
-    const asset = assets.value.find(a => a.id === assetId);
-    return asset ? asset.referenceFrom : [];
+    // referenceFrom removed — usage tracking not available on DriveData. Return empty list.
+    // Mark assetId as used to satisfy TypeScript (no-op).
+    void assetId;
+    return [] as string[];
 };
 
 // preview functions

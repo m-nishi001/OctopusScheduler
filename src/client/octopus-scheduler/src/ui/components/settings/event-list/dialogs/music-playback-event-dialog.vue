@@ -159,7 +159,6 @@ async function onSubmit() {
                 uploadedAt: new Date().toISOString(),
                 lastUpdated: new Date().toISOString(),
                 size: form.value.uploadFile.size,
-                referenceFrom: [],
             };
             const fileReader = new FileReader();
             fileReader.onload = async (e) => {

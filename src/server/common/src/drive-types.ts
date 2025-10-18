@@ -12,6 +12,7 @@ export interface DriveMetadata {
   fileId: string;
   parentFolderId: string;
   lastUpdate: Date;
+  size?: number;
 }
 
 export interface OperationResult<T = void> {

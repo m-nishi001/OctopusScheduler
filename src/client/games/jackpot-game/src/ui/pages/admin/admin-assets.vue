@@ -235,9 +235,9 @@ const syncAssets = async () => {
     }
 };
 
-const getUsage = (assetId: string) => {
-    const asset = assets.value.find(a => a.id === assetId);
-    return asset ? asset.referenceFrom : [];
+const getUsage = (_assetId: string) => {
+    // referenceFrom removed — usage tracking not available on DriveData. Return empty list.
+    return [] as string[];
 };
 
 onMounted(async () => {

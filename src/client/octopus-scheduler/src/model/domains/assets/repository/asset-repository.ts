@@ -1,27 +1,19 @@
-import type { Asset } from "../entity/asset";
+import type { DriveData } from "@octopus/server-common/drive-types";
 
-export type AssetMetadata = {
-  id: string;
-  type: "image" | "video" | "audio" | "text";
-  name: string;
-  uploadedAt: string;
-  lastUpdated: string;
-  size: number;
-  directoryId?: string;
-};
+export type AssetMetadata = DriveData;
 
 export interface IAssetRepository {
   addAssets(
-    assets: Asset[],
+    assets: DriveData[],
     onProgress?: (
       index: number,
       status: "完了" | "失敗",
       message?: string
     ) => void
   ): Promise<string[]>;
-  getAssets(): Promise<Asset[]>;
-  getAssetById(id: string): Promise<Asset | null>;
+  getAssets(): Promise<DriveData[]>;
+  getAssetById(id: string): Promise<DriveData | null>;
   deleteAssets(ids: string[]): Promise<void>;
   syncAssets(onProgress?: (message: string) => void): Promise<void>;
-  getAllAssetMetadata(): Promise<AssetMetadata[]>;
+  getAllAssetMetadata(): Promise<DriveData[]>;
 }

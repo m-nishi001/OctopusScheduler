@@ -92,7 +92,7 @@
                                 <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
                                     File</button>
                                 <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
-                                    }}</span>
+                                }}</span>
                                 <button v-if="form.insertFile" type="button" class="clear-btn"
                                     @click.prevent="clearInsertFile">×</button>
                             </div>
@@ -349,7 +349,6 @@ async function onSubmit() {
                     uploadedAt: new Date().toISOString(),
                     lastUpdated: new Date().toISOString(),
                     size: form.value.uploadFile.size,
-                    referenceFrom: [],
                 };
                 const fileReader = new FileReader();
                 fileReader.onload = async (e) => {
@@ -420,7 +419,6 @@ function insertAsset() {
             uploadedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             size: form.value.insertFile.size,
-            referenceFrom: [],
         };
         const fileReader = new FileReader();
         fileReader.onload = (e) => {
