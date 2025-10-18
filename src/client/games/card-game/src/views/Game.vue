@@ -13,12 +13,12 @@ import { GasFunctionService } from '../../../../packages/common-lib/src/google-a
 export default defineComponent({
     setup() {
         const name = ref<string>('');
-        const service = GasFunctionService.create('callCardGameApi');
+        const service = new GasFunctionService('callCardGameApi');
 
         async function callService() {
             if (!service) return;
             try {
-                const res = await service.call<{ name: string }>('TestService.GetName');
+                const res = await service.call<{ name: string }>({ functionName: 'TestService.GetName' });
                 name.value = res.name;
             } catch (e: any) {
                 name.value = `ERROR: ${e?.message ?? String(e)}`;

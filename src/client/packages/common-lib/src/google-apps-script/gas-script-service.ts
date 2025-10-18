@@ -39,25 +39,9 @@ export interface GasFunctionOptions {
  * リトライ機構とタイムアウトを備える。
  */
 export class GasFunctionService {
-  // Optional API function name used by some callers (e.g. a single GAS entrypoint that
-  // dispatches to domain functions). This field is set by the static `create()` factory
-  // to preserve backward-compatible public API expected in other packages.
   private functionName?: string;
 
-  /**
-   * Compatibility factory used by existing consumers: `GasFunctionService.create('callX')`.
-   * Returns null when the given name is empty (keeps behavior similar to older impls).
-   */
-  public static create(functionName: string): GasFunctionService | null {
-    const name = String(functionName || "").trim();
-    if (name === "") {
-      console.error(`[GasFunctionService] functionName is empty.`);
-      return null;
-    }
-    const svc = new GasFunctionService();
-    svc.functionName = name;
-    return svc;
-  }
+  // Compatibility factory removed. Use `new GasFunctionService(functionName)` instead.
   private static readonly DEFAULT_TIMEOUT_MS = 10000;
   private static readonly DEFAULT_RETRIES = 3;
   private static readonly DEFAULT_RETRY_DELAY_MS = 1000;
@@ -67,7 +51,11 @@ export class GasFunctionService {
   private instanceSuccessHandler: ((value: any) => void) | null = null;
   private instanceFailureHandler: ((err: string) => void) | null = null;
 
-  constructor(options: GasFunctionOptions = {}) {
+  constructor(functionName?: string, options: GasFunctionOptions = {}) {
+    if (functionName && String(functionName).trim() !== "") {
+      this.functionName = String(functionName).trim();
+    }
+
     this.options = {
       timeout: options.timeout ?? GasFunctionService.DEFAULT_TIMEOUT_MS,
       retries: options.retries ?? GasFunctionService.DEFAULT_RETRIES,
@@ -107,8 +95,8 @@ export class GasFunctionService {
    * @param args 引数
    * @returns Promise<T> 成功時のデータ
    */
-  public async call<T = any>(functionName: string, args: any = {}): Promise<T> {
-    const resp = await this.runWithRetry<T>(functionName, args);
+  public async call<T = any>(args: any = {}): Promise<T> {
+    const resp = await this.runWithRetry<T>(args);
 
     if (resp.status === "success") {
       if (this.instanceSuccessHandler) {
@@ -136,10 +124,7 @@ export class GasFunctionService {
   // simplify the public surface. Use `call<T>(...)` which throws on error and
   // returns T on success.
 
-  private async runWithRetry<T>(
-    functionName: string,
-    args: any
-  ): Promise<GasResponse<T>> {
+  private async runWithRetry<T>(args: any): Promise<GasResponse<T>> {
     let attempts = 0;
     let parallelErrorAttempts = 0;
     const MAX_PARALLEL_ERROR_RETRY = 100;
@@ -149,8 +134,8 @@ export class GasFunctionService {
 
       try {
         const result = await Promise.race([
-          this.executeGasFunction<T>(functionName, args),
-          this.createTimeoutPromise(functionName),
+          this.executeGasFunction<T>(args),
+          this.createTimeoutPromise(this.functionName ?? "anonymous"),
         ]);
 
         if (result.status === "success") return result;
@@ -194,41 +179,59 @@ export class GasFunctionService {
     }
   }
 
-  private executeGasFunction<T>(
-    functionName: string,
-    args: any
-  ): Promise<GasResponse<T>> {
+  private executeGasFunction<T>(args: any): Promise<GasResponse<T>> {
     return new Promise((resolve) => {
       const runTarget =
         this.functionName && this.functionName.trim() !== ""
           ? this.functionName
-          : functionName;
+          : undefined;
 
-      google.script.run
-        .withSuccessHandler((response: string) => {
-          try {
-            const parsed: GasResponse<T> = JSON.parse(response);
-            resolve(parsed);
-          } catch (e: any) {
-            resolve({
-              status: "error",
-              message: `応答のパースに失敗しました: ${e.message}. 応答: ${response}`,
-            });
-          }
-        })
-        .withFailureHandler((error: Error) => {
+      const runner = runTarget ? google.script.run : google.script.run;
+
+      const successHandler = (response: string) => {
+        try {
+          const parsed: GasResponse<T> = JSON.parse(response);
+          resolve(parsed);
+        } catch (e: any) {
           resolve({
             status: "error",
-            message: `クライアントエラー: ${error.message}`,
+            message: `応答のパースに失敗しました: ${e.message}. 応答: ${response}`,
           });
-        })
-        [runTarget](
-          // If we use a dispatcher functionName we pass the target functionName and
-          // args as a JSON string to preserve the behavior of the newer implementation.
-          this.functionName && this.functionName.trim() !== ""
-            ? (functionName as any)
-            : args
-        );
+        }
+      };
+
+      const failureHandler = (error: Error) => {
+        resolve({
+          status: "error",
+          message: `クライアントエラー: ${error.message}`,
+        });
+      };
+
+      const callWith = runner
+        .withSuccessHandler(successHandler)
+        .withFailureHandler(failureHandler);
+
+      if (runTarget) {
+        (callWith as any)[runTarget](args);
+      } else {
+        // When no instance-level functionName is provided, args is expected to be
+        // either the function name (string) for direct invocation, or an object
+        // containing { functionName, ...payload } for compatibility.
+        if (typeof args === "string") {
+          (callWith as any)[args]();
+        } else if (args && typeof args.functionName === "string") {
+          const fn = args.functionName;
+          const payload = Object.assign({}, args);
+          delete (payload as any).functionName;
+          (callWith as any)[fn](payload);
+        } else {
+          // No function to call — resolve with error
+          resolve({
+            status: "error",
+            message: "呼び出すGAS関数名が指定されていません。",
+          });
+        }
+      }
     });
   }
 
