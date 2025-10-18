@@ -58,6 +58,8 @@ for (const proj of serverProjects) {
   const srcDist = join(rootDir, proj, "dist");
   if (!existsSync(srcDist)) continue;
   walkFiles(srcDist, (fullPath, relPath) => {
+    // skip TypeScript declaration files
+    if (/\.d\.ts$/i.test(relPath)) return;
     const fileName = relPath.split(/[\\/]/).pop();
     const destPath = join(distDir, fileName);
     if (existsSync(destPath)) {
@@ -71,6 +73,8 @@ for (const proj of serverProjects) {
 const clientSrcDist = join(rootDir, clientProject, "dist");
 if (existsSync(clientSrcDist)) {
   walkFiles(clientSrcDist, (fullPath, relPath) => {
+    // skip TypeScript declaration files
+    if (/\.d\.ts$/i.test(relPath)) return;
     const fileName = relPath.split(/[\\/]/).pop();
     const destPath = join(distDir, fileName);
     if (existsSync(destPath)) {
