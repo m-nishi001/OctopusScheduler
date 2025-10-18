@@ -2,7 +2,10 @@ import { injectable, inject } from "tsyringe";
 import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
 import { DriveDataDto } from "./dto/drive-data-dto";
 import { FileUtils } from "../../infrastructures/utils/file-utils";
-import type { DriveData, DriveMetadata } from "common-lib/src/drive-types";
+import type {
+  DriveData,
+  DriveMetadata,
+} from "../../../../../../../server/common/src/drive-types";
 
 @injectable()
 export class DriveDataService {

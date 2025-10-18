@@ -1,4 +1,4 @@
-import type { DriveData } from "common-lib/src/drive-types";
+import type { DriveData } from "../../../../../../../../server/common/src/drive-types";
 
 export class DriveDataMetadataDto {
   id: string;

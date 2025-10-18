@@ -1,6 +1,7 @@
-import type { DriveData, DriveMetadata } from "common-lib/src/drive-types";
-
-export type { DriveMetadata };
+import type {
+  DriveData,
+  DriveMetadata,
+} from "../../../../../../../../server/common/src/drive-types";
 
 export interface IDriveDataRepository {
   addDriveData(
