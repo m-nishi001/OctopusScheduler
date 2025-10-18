@@ -24,30 +24,19 @@ declare namespace google {
   }
 }
 
-/**
- * GAS関数呼び出しのオプション。
- */
 export interface GasFunctionOptions {
   timeout?: number;
   retries?: number;
   retryDelay?: number;
 }
 
-/**
- * Google Apps Script関数呼び出しサービス。
- * JSオブジェクトチックにGAS関数を呼び出すことができる。
- * リトライ機構とタイムアウトを備える。
- */
 export class GasFunctionService {
-  private functionName?: string;
-
-  // Compatibility factory removed. Use `new GasFunctionService(functionName)` instead.
   private static readonly DEFAULT_TIMEOUT_MS = 10000;
   private static readonly DEFAULT_RETRIES = 3;
   private static readonly DEFAULT_RETRY_DELAY_MS = 1000;
 
+  private functionName?: string;
   private options: Required<GasFunctionOptions>;
-  // Optional instance-level handlers that can be set fluently.
   private instanceSuccessHandler: ((value: any) => void) | null = null;
   private instanceFailureHandler: ((err: string) => void) | null = null;
 
@@ -64,37 +53,16 @@ export class GasFunctionService {
     };
   }
 
-  /**
-   * Set an instance-level success handler. Returns `this` for fluent chaining.
-   */
   public withSuccessHandler(handler: (value: any) => void): this {
     this.instanceSuccessHandler = handler;
     return this;
   }
 
-  /**
-   * Set an instance-level failure handler. Returns `this` for fluent chaining.
-   */
-  public withFailuerHandler(handler: (message: string) => void): this {
-    // backward-compatible misspelled method name
-    this.instanceFailureHandler = handler;
-    return this;
-  }
-
-  /**
-   * Correctly spelled alias for withFailuerHandler to improve API ergonomics.
-   */
   public withFailureHandler(handler: (message: string) => void): this {
     this.instanceFailureHandler = handler;
     return this;
   }
 
-  /**
-   * GAS関数を呼び出す。
-   * @param functionName 呼び出す関数名
-   * @param args 引数
-   * @returns Promise<T> 成功時のデータ
-   */
   public async call<T = any>(args: any = {}): Promise<T> {
     const resp = await this.runWithRetry<T>(args);
 
@@ -119,10 +87,6 @@ export class GasFunctionService {
 
     throw new Error(resp.message);
   }
-
-  // Only `call<T>` is exported; other convenience shims were removed to
-  // simplify the public surface. Use `call<T>(...)` which throws on error and
-  // returns T on success.
 
   private async runWithRetry<T>(args: any): Promise<GasResponse<T>> {
     let attempts = 0;
@@ -186,8 +150,6 @@ export class GasFunctionService {
           ? this.functionName
           : undefined;
 
-      const runner = runTarget ? google.script.run : google.script.run;
-
       const successHandler = (response: string) => {
         try {
           const parsed: GasResponse<T> = JSON.parse(response);
@@ -207,35 +169,20 @@ export class GasFunctionService {
         });
       };
 
-      const callWith = runner
+      const callWith = google.script.run
         .withSuccessHandler(successHandler)
         .withFailureHandler(failureHandler);
 
       if (runTarget) {
         (callWith as any)[runTarget](args);
       } else {
-        // When no instance-level functionName is provided, args is expected to be
-        // either the function name (string) for direct invocation, or an object
-        // containing { functionName, ...payload } for compatibility.
-        if (typeof args === "string") {
-          (callWith as any)[args]();
-        } else if (args && typeof args.functionName === "string") {
-          const fn = args.functionName;
-          const payload = Object.assign({}, args);
-          delete (payload as any).functionName;
-          (callWith as any)[fn](payload);
-        } else {
-          // No function to call — resolve with error
-          resolve({
-            status: "error",
-            message: "呼び出すGAS関数名が指定されていません。",
-          });
-        }
+        resolve({
+          status: "error",
+          message: "呼び出すGAS関数名が指定されていません。",
+        });
       }
     });
   }
-
-  // `createCall` compatibility shim removed. Use `call<T>(functionName, args)`.
 
   private createTimeoutPromise(functionName: string): Promise<never> {
     return new Promise((_, reject) => {
