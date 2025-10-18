@@ -1,11 +1,11 @@
 // Google Drive and Spreadsheet CRUD operations for jackpot-game-api
 
 import {
-  GoogleDriveService,
   DriveData,
-  DriveMetadata,
   OperationResult,
-} from "../../../common/src/google-drive-service";
+  DriveMetadata,
+} from "../../../common/src/drive-types";
+import { GoogleDriveService } from "../../../common/src/google-drive-service";
 import {
   SpreadsheetService,
   SpreadsheetData,
