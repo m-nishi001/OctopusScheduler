@@ -1,7 +1,5 @@
 import type { DriveData } from "@octopus/server-common/drive-types";
 
-export type AssetMetadata = DriveData;
-
 export interface IAssetRepository {
   addAssets(
     assets: DriveData[],
