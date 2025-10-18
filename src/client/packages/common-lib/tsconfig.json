@@ -9,6 +9,10 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@server-common/gas-types": ["../../../../server/common/src/gas-types.ts"]
+    },
     "resolveJsonModule": true,
     "declaration": false,
     "declarationMap": false,

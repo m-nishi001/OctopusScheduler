@@ -12,27 +12,16 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
-    "lib": [
-      "ESNext",
-      "DOM"
-    ],
+    "lib": ["ESNext", "DOM"],
     "baseUrl": ".",
     "paths": {
-      "@common-lib/*": [
-        "../packages/common-lib/src/*"
-      ],
-      "common-lib": [
-        "../packages/common-lib/src"
-      ],
-      "common-lib/*": [
-        "../packages/common-lib/src/*"
-      ]
+      "@common-lib/*": ["../packages/common-lib/src/*"],
+      "common-lib": ["../packages/common-lib/src"],
+      "common-lib/*": ["../packages/common-lib/src/*"],
+      "@octopus/server-common": ["../../../server/common/src"],
+      "@octopus/server-common/*": ["../../../server/common/src/*"]
     },
-    "outDir": "dist",
+    "outDir": "dist"
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.vue"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

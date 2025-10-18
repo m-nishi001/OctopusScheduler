@@ -19,16 +19,3 @@ export interface OperationResult<T = void> {
   data?: T;
   message?: string;
 }
-
-/**
- * GAS関数呼び出しのレスポンス。
- */
-export type GasResponse<T> =
-  | {
-      status: "success";
-      data: T;
-    }
-  | {
-      status: "error";
-      message: string;
-    };

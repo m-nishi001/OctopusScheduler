@@ -16,9 +16,12 @@
     "paths": {
       "model/*": ["src/model/*"],
       "ui/*": ["src/ui/*"],
-      "core/*": ["src/core/*"]
+      "core/*": ["src/core/*"],
+      "@octopus/server-common": ["../../server/common/src"],
+      "@octopus/server-common/*": ["../../server/common/src/*"]
     },
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [{ "path": "../../server/common" }]
 }

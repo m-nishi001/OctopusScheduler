@@ -9,7 +9,7 @@
  * - リトライ機構を備える
  */
 
-import type { GasResponse } from "../gas-types";
+import type { GasResponse } from "@octopus/server-common";
 
 declare namespace google {
   namespace script {

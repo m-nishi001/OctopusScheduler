@@ -34,7 +34,10 @@
     "importHelpers": true /* tslibからヘルパー関数をインポートする（バンドルサイズ削減） */,
     "paths": {
       "common-lib": ["./src/client/packages/common-lib/src"],
-      "common-lib/*": ["./src/client/packages/common-lib/src/*"]
+      "common-lib/*": ["./src/client/packages/common-lib/src/*"],
+      "@server-common/gas-types": ["./src/server/common/src/gas-types.ts"],
+      "@octopus/server-common": ["./src/server/common/src"],
+      "@octopus/server-common/*": ["./src/server/common/src/*"]
     }
   },
   "include": ["src/**/*" /* コンパイル対象のファイル。 */],
