@@ -25,7 +25,8 @@
         "/root/google_apps_script/octopus-scheduler/src/client/packages/shared-composables/*"
       ]
     },
-    "composite": true
+    "composite": true,
+    "outDir": "dist"
   },
   "include": ["vite.config.ts"]
 }
