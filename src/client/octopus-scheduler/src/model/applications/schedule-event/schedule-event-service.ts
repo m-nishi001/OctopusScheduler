@@ -4,7 +4,6 @@ import { ScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable, inject } from "tsyringe";
 import type { IScheduleEventConverter } from "./i-schedule-event-converter";
 import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
-import { AssetService } from "../assets/asset-service";
 
 @injectable()
 export class ScheduleEventService {
@@ -12,9 +11,7 @@ export class ScheduleEventService {
     @inject("IScheduleEventRepository")
     private scheduleEventRepository: IScheduleEventRepository,
     @inject("ScheduleEventConverters")
-    private converters: Map<string, IScheduleEventConverter>,
-    @inject("AssetService")
-    private assetService: AssetService
+    private converters: Map<string, IScheduleEventConverter>
   ) {}
 
   private deserialize(scheduleEvents: ScheduleEvent[]): IScheduleEventDto {
@@ -58,11 +55,7 @@ export class ScheduleEventService {
   }
 
   async deleteScheduleEvents(ids: string[]): Promise<void> {
-    const events = await this.getScheduleEvents();
-    const toDelete = events.filter((e) => ids.includes(e.id));
-    for (const event of toDelete) {
-      await event.unregisterAssetRefs(this.assetService);
-    }
+    // previously cleaned up asset refs; no longer needed
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 
@@ -70,10 +63,6 @@ export class ScheduleEventService {
     const scheduleEvents = events.map((e) => this.serialize(e)).flat();
     const id =
       await this.scheduleEventRepository.addScheduleEvents(scheduleEvents);
-    // Register asset references
-    for (const event of events) {
-      await event.registerAssetRefs(this.assetService, id);
-    }
     return id;
   }
 

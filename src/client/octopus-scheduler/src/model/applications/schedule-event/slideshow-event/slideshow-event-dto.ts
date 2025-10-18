@@ -1,6 +1,5 @@
 import type { IScheduleEventDto } from "../i-schedule-event-dto";
 import { eventBus } from "../../../../core/event-bus";
-import { AssetService } from "../../assets/asset-service";
 
 export class SlideshowEventDto implements IScheduleEventDto {
   public readonly id: string;
@@ -69,20 +68,5 @@ export class SlideshowEventDto implements IScheduleEventDto {
       ["registeredAt", this.registeredAt.toISOString()],
       ["updatedAt", this.updatedAt.toISOString()],
     ]);
-  }
-
-  async registerAssetRefs(
-    assetService: AssetService,
-    eventId: string
-  ): Promise<void> {
-    for (const bgmId of this.bgmIds) {
-      await assetService.registerRef(bgmId, eventId);
-    }
-  }
-
-  async unregisterAssetRefs(assetService: AssetService): Promise<void> {
-    for (const bgmId of this.bgmIds) {
-      await assetService.unregisterRef(bgmId, this.id);
-    }
   }
 }

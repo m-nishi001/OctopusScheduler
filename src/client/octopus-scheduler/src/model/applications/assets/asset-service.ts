@@ -38,12 +38,4 @@ export class AssetService {
   async getAllAssetMetadata() {
     return await this.assetRepository.getAllAssetMetadata();
   }
-
-  async registerRef(assetId: string, refSourceId: string): Promise<void> {
-    return await this.assetRepository.registerRef(assetId, refSourceId);
-  }
-
-  async unregisterRef(assetId: string, refSourceId: string): Promise<void> {
-    return await this.assetRepository.unregisterRef(assetId, refSourceId);
-  }
 }
