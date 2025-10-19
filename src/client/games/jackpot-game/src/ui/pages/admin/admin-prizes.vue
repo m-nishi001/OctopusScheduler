@@ -410,11 +410,30 @@ const addPrize = async () => {
     newPrize.bgm2AssetId = newBgm2AssetId.value;
   }
   try {
-    const addedPrize = await prizeService.savePrize(newPrize, tempAsset.value || undefined, tempBgm1Asset.value || undefined, tempBgm2Asset.value || undefined);
+    // Pre-register uploaded assets and attach their ids to the prize
+    if (tempAsset.value) {
+      const updated = await assetDataService.addAssetData([tempAsset.value]);
+      newPrize.imageAssetId = updated[0].id;
+      // keep preview for UI
+      try {
+        newPrize.imageDataUrl = URL.createObjectURL(tempAsset.value.blob);
+      } catch {
+        newPrize.imageDataUrl = '';
+      }
+      tempAsset.value = null;
+    }
+    if (tempBgm1Asset.value) {
+      const updated = await assetDataService.addAssetData([tempBgm1Asset.value]);
+      newPrize.bgm1AssetId = updated[0].id;
+      tempBgm1Asset.value = null;
+    }
+    if (tempBgm2Asset.value) {
+      const updated = await assetDataService.addAssetData([tempBgm2Asset.value]);
+      newPrize.bgm2AssetId = updated[0].id;
+      tempBgm2Asset.value = null;
+    }
+    const addedPrize = await prizeService.savePrize(newPrize);
     prizes.value.push(addedPrize);
-    tempAsset.value = null;
-    tempBgm1Asset.value = null;
-    tempBgm2Asset.value = null;
     newImagePreview.value = '';
     newImageFilename.value = '';
     newBgm1Filename.value = '';

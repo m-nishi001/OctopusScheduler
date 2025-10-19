@@ -2,16 +2,11 @@ import { injectable, inject } from "tsyringe";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { fromMember, toMember } from "./dto/member-dto";
-import { AssetDataService } from "../asset/asset-data-service";
-import type { Asset } from "../../domains/drive-data/asset-data";
 import type { Member } from "../../domains/member/member";
 
 @injectable()
 export class MemberService {
-  constructor(
-    @inject("AssetDataService") private AssetDataService: AssetDataService,
-    @inject("IMemberRepository") private repo: IMemberRepository
-  ) {}
+  constructor(@inject("IMemberRepository") private repo: IMemberRepository) {}
 
   async fetchMembers(): Promise<MemberDto[]> {
     const members = await this.repo.getMembers();
@@ -28,28 +23,10 @@ export class MemberService {
     await this.repo.updateMembers(updateOps);
   }
 
-  async saveMember(member: MemberDto, tempAsset?: Asset): Promise<Member> {
-    let assetId: string | undefined;
-    if (tempAsset) {
-      const updated = await this.AssetDataService.addAssetData([tempAsset]);
-      assetId = updated[0].id || undefined;
-    }
-    const memberToSave = {
-      ...member,
-      photoAssetId: assetId || member.photoAssetId,
-    };
+  async saveMember(member: MemberDto): Promise<Member> {
+    const memberToSave = { ...member };
     const addedMembers = await this.repo.addMembers([toMember(memberToSave)]);
-    const addedMember = addedMembers[0];
-    if (tempAsset) {
-      try {
-        addedMember.photoDataUrl = URL.createObjectURL(tempAsset.blob);
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.warn("Failed to create object URL for member photo blob", e);
-        addedMember.photoDataUrl = "";
-      }
-    }
-    return addedMember;
+    return addedMembers[0];
   }
 
   async deleteMember(id: string): Promise<void> {

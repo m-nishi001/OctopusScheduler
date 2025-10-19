@@ -333,7 +333,17 @@ const addMember = async () => {
     photoAssetId: photoAssetId.value || undefined
   };
   try {
-    const addedMember = await memberService.saveMember(newMember, tempAsset.value || undefined);
+    let previewBlob: Blob | undefined;
+    if (tempAsset.value) {
+      const updated = await assetDataService.addAssetData([tempAsset.value]);
+      newMember.photoAssetId = updated[0].id;
+      previewBlob = tempAsset.value.blob;
+      tempAsset.value = null;
+    }
+    const addedMember = await memberService.saveMember(newMember);
+    if (previewBlob) {
+      try { (addedMember as any).photoDataUrl = URL.createObjectURL(previewBlob); } catch { (addedMember as any).photoDataUrl = ''; }
+    }
     members.value.push(addedMember);
   } catch (error) {
     console.error("Failed to add member:", error);
