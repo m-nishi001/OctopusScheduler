@@ -136,15 +136,13 @@ import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
 import type { Asset } from '../../../model/domains/drive-data/asset-data';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { MemberAddService } from '../../../model/applications/member/member-add-service';
-import { MemberDeleteService } from '../../../model/applications/member/member-delete-service';
+import { MemberService } from '../../../model/applications/member/member-service';
 import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
 
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
 const driveDataService = container.resolve<AssetDataService>("DriveDataService");
-const memberAddService = container.resolve<MemberAddService>(MemberAddService);
-const memberDeleteService = container.resolve<MemberDeleteService>(MemberDeleteService);
+const memberService = container.resolve(MemberService);
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
 const assets = ref<Asset[]>([]);
@@ -335,7 +333,7 @@ const addMember = async () => {
     photoAssetId: photoAssetId.value || undefined
   };
   try {
-    const addedMember = await memberAddService.saveMember(newMember, tempAsset.value || undefined);
+    const addedMember = await memberService.saveMember(newMember, tempAsset.value || undefined);
     members.value.push(addedMember);
   } catch (error) {
     console.error("Failed to add member:", error);
@@ -348,7 +346,7 @@ const deleteMember = async (id: string) => {
   deleting.value = true;
   deleteMessage.value = "メンバーを削除しています...";
   try {
-    await memberDeleteService.deleteMember(id);
+    await memberService.deleteMember(id);
     await fetchMembers();
   } catch (error) {
     console.error("Failed to delete member:", error);
@@ -362,7 +360,7 @@ const deleteSelectedMembers = async () => {
   deleting.value = true;
   deleteMessage.value = "メンバーを削除しています...";
   try {
-    await memberDeleteService.deleteMembers(selectedMembers.value);
+    await memberService.deleteMembers(selectedMembers.value);
     await fetchMembers();
     selectedMembers.value = [];
   } catch (error) {

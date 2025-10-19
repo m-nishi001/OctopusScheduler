@@ -284,15 +284,13 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import type { Asset } from "../../../model/domains/drive-data/asset-data";
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
-import { PrizeDeleteService } from '../../../model/applications/prize/prize-delete-service';
+import { PrizeService } from '../../../model/applications/prize/prize-service';
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/i-prize-repository';
 
 import { container } from 'tsyringe';
 const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
 const driveDataService = container.resolve(AssetDataService);
-const prizeAddService = container.resolve(PrizeAddService);
-const prizeDeleteService = container.resolve(PrizeDeleteService);
+const prizeService = container.resolve(PrizeService);
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
 const assets = ref<any[]>([]);
@@ -412,7 +410,7 @@ const addPrize = async () => {
     newPrize.bgm2AssetId = newBgm2AssetId.value;
   }
   try {
-    const addedPrize = await prizeAddService.savePrize(newPrize, tempAsset.value || undefined, tempBgm1Asset.value || undefined, tempBgm2Asset.value || undefined);
+    const addedPrize = await prizeService.savePrize(newPrize, tempAsset.value || undefined, tempBgm1Asset.value || undefined, tempBgm2Asset.value || undefined);
     prizes.value.push(addedPrize);
     tempAsset.value = null;
     tempBgm1Asset.value = null;
@@ -432,7 +430,7 @@ const deletePrize = async (id: string) => {
   deleting.value = true;
   deleteMessage.value = "景品を削除しています...";
   try {
-    await prizeDeleteService.deletePrize(id);
+    await prizeService.deletePrize(id);
     await fetchPrizes();
   } catch (error) {
     console.error("Failed to delete prize:", error);
@@ -446,7 +444,7 @@ const deleteSelectedPrizes = async () => {
   deleting.value = true;
   deleteMessage.value = "景品を削除しています...";
   try {
-    await prizeDeleteService.deletePrizes(selectedPrizes.value);
+    await prizeService.deletePrizes(selectedPrizes.value);
     await fetchPrizes();
     selectedPrizes.value = [];
   } catch (error) {
