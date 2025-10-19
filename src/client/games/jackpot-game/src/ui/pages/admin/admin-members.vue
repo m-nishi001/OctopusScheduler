@@ -148,7 +148,7 @@ const memberDeleteService = container.resolve<MemberDeleteService>(MemberDeleteS
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
 const assets = ref<Asset[]>([]);
-const imageAssets = computed(() => assets.value.filter((asset) => ((asset as any).blob as Blob).type.startsWith('image')));
+const imageAssets = computed(() => assets.value.filter((asset) => asset.blob.type.startsWith('image')));
 // map to hold object URLs for member photos keyed by asset id
 const objectUrlMap = new Map<string, string>();
 const getMemberImageSrc = (member: any) => {
@@ -207,13 +207,13 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
     } else {
       modalPhotoMode.value = 'upload';
       modalPhotoAsset.value = data.photoAsset;
-      if (modalPhotoAsset.value && (modalPhotoAsset.value as any).blob) {
+      if (modalPhotoAsset.value) {
         // create preview from blob
         if (modalPhotoPreviewUrl) {
           try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { }
           modalPhotoPreviewUrl = undefined;
         }
-        modalPhotoPreviewUrl = URL.createObjectURL((modalPhotoAsset.value as any).blob as Blob);
+        modalPhotoPreviewUrl = URL.createObjectURL(modalPhotoAsset.value.blob);
         modalPhotoPreview.value = modalPhotoPreviewUrl;
       } else {
         modalPhotoPreview.value = '';
@@ -278,13 +278,13 @@ const updateModalPhotoPreview = async () => {
     modalPhotoPreviewUrl = undefined;
   }
 
-  if (modalPhotoAsset.value && (modalPhotoAsset.value as any).blob) {
-    modalPhotoPreviewUrl = URL.createObjectURL((modalPhotoAsset.value as any).blob as Blob);
+  if (modalPhotoAsset.value) {
+    modalPhotoPreviewUrl = URL.createObjectURL(modalPhotoAsset.value.blob);
     modalPhotoPreview.value = modalPhotoPreviewUrl;
   } else if (photoAssetId.value) {
     const asset = await driveDataService.getDriveDataById(photoAssetId.value);
-    if (asset && asset.blob) {
-      modalPhotoPreviewUrl = URL.createObjectURL(asset.blob as Blob);
+    if (asset) {
+      modalPhotoPreviewUrl = URL.createObjectURL(asset.blob);
       modalPhotoPreview.value = modalPhotoPreviewUrl;
     } else {
       modalPhotoPreview.value = '';
@@ -379,7 +379,7 @@ const fetchMembers = async () => {
     for (const member of fetchedMembers) {
       if (member.photoAssetId) {
         const asset = await driveDataService.getDriveDataById(member.photoAssetId);
-        if (asset && asset.id && asset.blob) {
+        if (asset && asset.id) {
           try { objectUrlMap.set(member.photoAssetId, URL.createObjectURL(asset.blob)); } catch { }
         }
       }

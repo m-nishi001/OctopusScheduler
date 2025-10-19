@@ -52,9 +52,7 @@ export class PrizeAddService {
       // For UI convenience store an object URL created from the blob so
       // components can preview without reading an inline data URL.
       try {
-        addedPrize.imageDataUrl = tempDriveDataDto.blob
-          ? URL.createObjectURL(tempDriveDataDto.blob)
-          : "";
+        addedPrize.imageDataUrl = URL.createObjectURL(tempDriveDataDto.blob);
       } catch (e) {
         // fallback to empty string if object URL creation fails
         // eslint-disable-next-line no-console

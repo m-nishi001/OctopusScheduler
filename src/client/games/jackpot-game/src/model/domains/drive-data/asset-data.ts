@@ -39,7 +39,7 @@ export class Asset {
     uploadedAt: Date,
     lastUpdated: Date,
     size: number,
-    blob?: Blob
+    blob: Blob
   ) {
     this.id = id ?? "";
     this.type = type ?? "";
@@ -47,8 +47,6 @@ export class Asset {
     this.uploadedAt = uploadedAt ?? new Date();
     this.lastUpdated = lastUpdated ?? new Date();
     this.size = size ?? 0;
-    // Ensure blob is always present. If caller provided a Blob use it,
-    // otherwise create an empty Blob so the type is always satisfied.
-    this.blob = blob ?? new Blob();
+    this.blob = blob;
   }
 }

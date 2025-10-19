@@ -43,15 +43,7 @@ export class AssetDataService {
     return this.repo.getAllAssetDataMetadata();
   }
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {
-    return new Asset(
-      "",
-      file.type,
-      file.name,
-      new Date(),
-      new Date(),
-      0,
-      undefined
-    );
+    return new Asset("", file.type, file.name, new Date(), new Date(), 0, file);
   }
 
   async createDriveDataDtoWithBlobFromFile(

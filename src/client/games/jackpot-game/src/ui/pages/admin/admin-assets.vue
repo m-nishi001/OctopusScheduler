@@ -155,7 +155,7 @@ const fetchAssets = async () => {
     // prepare object URLs for items that have blobs
     for (const a of assets.value) {
         try {
-            if (a.blob && a.id && !objectUrlMap.has(a.id)) {
+            if (a.id && !objectUrlMap.has(a.id)) {
                 objectUrlMap.set(a.id, URL.createObjectURL(a.blob));
             }
         } catch (e) { /* ignore */ }
@@ -290,7 +290,7 @@ onMounted(async () => {
 });
 
 function deriveAssetKind(asset: any): string {
-    const mime = asset?.blob?.type || '';
+    const mime = asset.blob.type || '';
     if (typeof mime === 'string') {
         if (mime.startsWith('image')) return 'image';
         if (mime.startsWith('video')) return 'video';
