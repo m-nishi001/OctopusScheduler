@@ -47,8 +47,9 @@
                         <input id="uploadFile" ref="fileInput" class="hidden-file-input" type="file"
                             @change="onFileChange" accept=".jpg,.jpeg,.png,.gif,.mp4,.webm,.ogg" />
                         <button type="button" class="file-btn" @click.prevent="openFilePicker">Choose File</button>
-                        <span class="file-name">{{ form.uploadFile ? form.uploadFile.name : 'No file chosen' }}</span>
-                        <button v-if="form.uploadFile" type="button" class="clear-btn"
+                        <span class="file-name">{{ form.uploadFiles && form.uploadFiles[0] ? form.uploadFiles[0].name :
+                            'No file chosen' }}</span>
+                        <button v-if="form.uploadFiles && form.uploadFiles[0]" type="button" class="clear-btn"
                             @click.prevent="clearFile">×</button>
                     </div>
                 </div>
@@ -91,12 +92,7 @@
                                     :accept="form.insertAssetType === 'image' ? 'image/*' : 'video/*'" />
                                 <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
                                     File</button>
-                                <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
-                                    }}</span>
-                                <button v-if="form.insertFile" type="button" class="clear-btn"
-                                    @click.prevent="clearInsertFile">×</button>
                             </div>
-                            <button type="button" @click="insertAsset" :disabled="!form.insertFile">挿入</button>
                         </div>
                     </div>
                 </div>
@@ -179,12 +175,11 @@ function entityToForm(e: ShowContentEvent) {
         scrollDirection: e.scrollDirection ?? 'up',
         assetSource: 'existing' as 'existing' | 'upload',
         selectedAssetId: e.contentId ?? '',
-        uploadFile: null as File | null,
         assetInsertSource: 'existing' as 'existing' | 'upload',
         insertAssetType: 'image' as 'image' | 'video',
         insertAssetId: '',
-        insertFile: null as File | null,
-        tempAssets: [] as any[],
+        // unified upload file list; index 0 = main content file (may be null), following = inserted files
+        uploadFiles: [] as (File | null)[],
     };
 }
 
@@ -289,39 +284,35 @@ async function onSubmit() {
     let contentId = form.value.contentId;
     let htmlString = form.value.htmlString;
 
-    // Upload temp assets and replace temp IDs in htmlString
-    if (form.value.tempAssets.length > 0) {
-        try {
-            const ids = await assetService.addAssets(form.value.tempAssets);
-            form.value.tempAssets.forEach((asset, index) => {
-                const realId = ids[index];
-                htmlString = htmlString.replace(new RegExp(`{{asset:(${asset.insertAssetType || 'image'}):${asset.id}}}`, 'g'), `{{asset:$1:${realId}}}`);
-            });
-        } catch (e) {
-            alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-            return;
-        }
-    }
-
     if (form.value.contentType === 'image' || form.value.contentType === 'movie') {
-        if (form.value.assetSource === 'existing') {
-            contentId = form.value.selectedAssetId;
-        } else if (form.value.assetSource === 'upload' && form.value.uploadFile) {
+        // Decide by presence of a queued main upload file at uploadFiles[0]: if present, upload it; otherwise use selectedAssetId
+        const mainFile = form.value.uploadFiles && form.value.uploadFiles[0] ? form.value.uploadFiles[0] : null;
+        if (mainFile) {
             try {
+                const inferredType = mainFile.type.startsWith('image') ? 'image' : 'video';
                 const asset: any = {
                     id: '',
-                    type: form.value.contentType === 'image' ? 'image' : 'video',
-                    name: form.value.uploadFile.name,
+                    type: inferredType,
+                    name: mainFile.name,
                     uploadedAt: new Date().toISOString(),
                     lastUpdated: new Date().toISOString(),
-                    size: form.value.uploadFile.size,
-                    blob: form.value.uploadFile,
+                    size: mainFile.size,
+                    blob: mainFile,
                 };
                 const ids = await assetService.addAssets([asset]);
                 contentId = ids[0];
-                // continue to persist below
+                // clear main upload slot but keep array shape
+                form.value.uploadFiles[0] = null;
+                if (fileInput && fileInput.value) fileInput.value.value = '';
             } catch (e) {
                 alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+                return;
+            }
+        } else {
+            // no main upload -> use selected asset id (may be empty if user didn't select)
+            contentId = form.value.selectedAssetId;
+            if (!contentId) {
+                alert('画像/動画を選択するかファイルをアップロードしてください。');
                 return;
             }
         }
@@ -330,12 +321,52 @@ async function onSubmit() {
     const scheduleEventService = container.resolve(ScheduleEventService);
 
     try {
-        if (form.value.tempAssets.length > 0) {
-            const ids = await assetService.addAssets(form.value.tempAssets);
-            form.value.tempAssets.forEach((asset, index) => {
-                const realId = ids[index];
-                htmlString = htmlString.replace(new RegExp(`{{asset:(${asset.insertAssetType || 'image'}):${asset.id}}}`, 'g'), `{{asset:$1:${realId}}}`);
-            });
+        // Upload any files queued by insertAsset (they use temporary UP{index} ids as placeholders) and replace placeholders
+        if (form.value.uploadFiles && form.value.uploadFiles.length > 0) {
+            try {
+                const assetsToAdd: any[] = [];
+                const indexToIdsPos: Array<number | null> = new Array(form.value.uploadFiles.length).fill(null);
+                for (let i = 0; i < form.value.uploadFiles.length; i++) {
+                    const f = form.value.uploadFiles[i];
+                    if (!f) continue; // skip cleared slots
+                    indexToIdsPos[i] = assetsToAdd.length;
+                    const inferredType = f.type && f.type.startsWith('image') ? 'image' : 'video';
+                    assetsToAdd.push({
+                        id: '',
+                        type: inferredType,
+                        name: f.name,
+                        uploadedAt: new Date().toISOString(),
+                        lastUpdated: new Date().toISOString(),
+                        size: f.size,
+                        blob: f,
+                    });
+                }
+                if (assetsToAdd.length > 0) {
+                    const ids = await assetService.addAssets(assetsToAdd);
+                    // replace placeholders based on UP{index}
+                    for (let i = 0; i < indexToIdsPos.length; i++) {
+                        const pos = indexToIdsPos[i];
+                        if (pos === null) continue;
+                        const realId = ids[pos as number];
+                        // determine type from original file's mime
+                        const original = form.value.uploadFiles[i]!;
+                        const mimeType = original.type || '';
+                        const wantType = mimeType.startsWith('image') ? 'image' : 'video';
+                        const tempId = `UP${i}`;
+                        htmlString = htmlString.replace(new RegExp(`{{asset:(${wantType}):${tempId}}}`, 'g'), `{{asset:$1:${realId}}}`);
+                        const url = assetMap.value.get(tempId);
+                        if (url) {
+                            assetMap.value.set(realId, url);
+                            assetMap.value.delete(tempId);
+                        }
+                    }
+                }
+                // clear uploadFiles array while preserving shape
+                form.value.uploadFiles = [];
+            } catch (err) {
+                alert('アセットアップロードに失敗しました: ' + (err instanceof Error ? err.message : String(err)));
+                return;
+            }
         }
 
         const baseParams = {
@@ -412,7 +443,11 @@ function onClose() {
 
 function onFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
-    form.value.uploadFile = target.files?.[0] || null;
+    const file = target.files?.[0] || null;
+    if (!file) return;
+    // ensure uploadFiles has index 0
+    if (!form.value.uploadFiles) form.value.uploadFiles = [];
+    form.value.uploadFiles[0] = file;
 }
 
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -426,40 +461,13 @@ function openFilePicker() {
 }
 
 function clearFile() {
-    form.value.uploadFile = null;
+    if (form.value.uploadFiles) form.value.uploadFiles[0] = null;
     if (fileInput.value) fileInput.value.value = '';
 }
 
-function insertAsset() {
+async function insertAsset() {
     if (form.value.assetInsertSource === 'existing' && form.value.insertAssetId) {
         insertAtCursor(`{{asset:${form.value.insertAssetType}:${form.value.insertAssetId}}}`);
-    } else if (form.value.assetInsertSource === 'upload' && form.value.insertFile) {
-        const asset: any = {
-            id: '',
-            insertAssetType: form.value.insertAssetType,
-            name: form.value.insertFile.name,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: form.value.insertFile.size,
-        };
-        // store blob and create object URL for preview
-        asset.blob = form.value.insertFile as unknown as Blob;
-        try {
-            const url = URL.createObjectURL(form.value.insertFile as File);
-            createdUrls.push(url);
-            // store mapping for preview
-            const tempId = `temp_${Date.now()}_${Math.random()}`;
-            asset.id = tempId;
-            form.value.tempAssets.push(asset);
-            insertAtCursor(`{{asset:${form.value.insertAssetType}:${tempId}}}`);
-            assetMap.value.set(tempId, url);
-        } catch (err) {
-            console.error('Failed to create object URL for insert asset', err);
-            form.value.tempAssets.push(asset);
-            const tempId = `temp_${Date.now()}_${Math.random()}`;
-            asset.id = tempId;
-            insertAtCursor(`{{asset:${form.value.insertAssetType}:${tempId}}}`);
-        }
     }
 }
 
@@ -471,16 +479,32 @@ onUnmounted(() => {
 });
 function onInsertFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
-    form.value.insertFile = target.files?.[0] || null;
+    const file = target.files?.[0] || null;
+    if (!file) return;
+    const type = form.value.insertAssetType || 'image';
+    // use index-based temp id so we can map to uploadFiles indices
+    if (!form.value.uploadFiles) form.value.uploadFiles = [];
+    const idx = form.value.uploadFiles.length; // append
+    const tempId = `UP${idx}`;
+    // insert placeholder into textarea
+    insertAtCursor(`{{asset:${type}:${tempId}}}`);
+    // create preview URL
+    try {
+        const url = URL.createObjectURL(file);
+        createdUrls.push(url);
+        assetMap.value.set(tempId, url);
+    } catch (err) {
+        console.error('Failed to create preview URL for insert file', err);
+    }
+    // queue for upload on submit
+    // push the file into uploadFiles; preview URL keyed by tempId
+    form.value.uploadFiles.push(file);
+    // clear the input value so selecting the same file again works
+    try { target.value = ''; } catch (e) { }
 }
 
 function openInsertFilePicker() {
-    insertFileInput.value?.click();
-}
-
-function clearInsertFile() {
-    form.value.insertFile = null;
-    if (insertFileInput.value) insertFileInput.value.value = '';
+    insertFileInput.value?.click?.();
 }
 
 function insertAtCursor(text: string) {
