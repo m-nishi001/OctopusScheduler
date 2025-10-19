@@ -134,7 +134,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
-import type { Asset } from '../../../model/applications/asset/dto/asset-data';
+import type { Asset } from '../../../model/domains/drive-data/asset-data';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { MemberAddService } from '../../../model/applications/member/member-add-service';
 import { MemberDeleteService } from '../../../model/applications/member/member-delete-service';
