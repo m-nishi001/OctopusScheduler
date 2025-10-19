@@ -67,19 +67,26 @@ export default {
     let gsap: any = null;
 
     const bgmAudio = ref<HTMLAudioElement | null>(null);
+    let bgmObjectUrl: string | undefined;
     const unmounted = ref(false);
 
     const playBGM = async () => {
       if (!homeConfig.value || !homeConfig.value.homeBgm) return;
       const asset = await assetService.getDriveDataById(homeConfig.value.homeBgm);
-      if (asset && asset.dataUrl) {
-        bgmAudio.value = new Audio(asset.dataUrl);
-        bgmAudio.value.loop = true;
-        bgmAudio.value.volume = 0.5;
-        try {
-          await bgmAudio.value.play();
-        } catch (e) {
-          console.warn("BGM play failed:", e);
+      if (asset) {
+        let url = (asset as any).dataUrl as string | undefined;
+        if (!url && (asset as any).blob) {
+          try { bgmObjectUrl = URL.createObjectURL((asset as any).blob); url = bgmObjectUrl; } catch (err) { console.error(err); }
+        }
+        if (url) {
+          bgmAudio.value = new Audio(url);
+          bgmAudio.value.loop = true;
+          bgmAudio.value.volume = 0.5;
+          try {
+            await bgmAudio.value.play();
+          } catch (e) {
+            console.warn("BGM play failed:", e);
+          }
         }
       }
     };
@@ -157,6 +164,10 @@ export default {
       if (bgmAudio.value) {
         try { bgmAudio.value.pause(); } catch (e) { }
         bgmAudio.value = null;
+      }
+      if (bgmObjectUrl) {
+        try { URL.revokeObjectURL(bgmObjectUrl); } catch (e) { }
+        bgmObjectUrl = undefined;
       }
     });
 

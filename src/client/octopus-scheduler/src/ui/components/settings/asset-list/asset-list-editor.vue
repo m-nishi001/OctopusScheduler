@@ -114,33 +114,50 @@ const syncing = ref(false);
 const previewAsset = ref<any>(null);
 const previewAssetType = ref<string | null>(null);
 
-const fetchAssets = async () => { assets.value = await assetService.getAssets(); };
+const fetchAssets = async () => {
+    const raw = await assetService.getAssets();
+    // create object URLs for UI preview when blob exists
+    assets.value = raw.map(a => {
+        const copy: any = { ...a };
+        if (!copy.dataUrl && copy.blob) {
+            try {
+                copy.dataUrl = URL.createObjectURL(copy.blob);
+            } catch (err) {
+                console.error('Failed to create object URL for asset', err);
+            }
+        }
+        return copy;
+    });
+};
 
 const onFileChange = (e: Event) => { const files = (e.target as HTMLInputElement).files; if (files) selectedFiles.value = Array.from(files); };
 
 const addAssets = async () => {
     if (!selectedFiles.value.length) return;
     uploading.value = true;
-    const assetDtos = await Promise.all(selectedFiles.value.map(async (file) => {
-        const buf = await file.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-        const dataUrl = `data:${file.type};base64,${base64}`;
+    const assetPairs = selectedFiles.value.map((file) => {
         let type: 'audio' | 'image' | 'video' = 'image';
         if (file.type.includes('audio')) type = 'audio';
         else if (file.type.includes('video')) type = 'video';
-        return {
-            id: crypto.randomUUID(),
+        const id = crypto.randomUUID();
+        const now = new Date().toISOString();
+        const assetForStore: any = {
+            id,
             type,
-            dataUrl,
+            blob: file,
             name: file.name,
-            uploadedAt: new Date().toISOString(),
-            lastUpdated: new Date().toISOString(),
-            size: buf.byteLength,
+            uploadedAt: now,
+            lastUpdated: now,
+            size: file.size,
         };
-    }));
+        const assetForUI = { ...assetForStore, dataUrl: URL.createObjectURL(file) };
+        return { store: assetForStore, ui: assetForUI };
+    });
     try {
-        await assetService.addAssets(assetDtos);
-        assets.value.push(...assetDtos);
+        // store assets (persist blobs)
+        await assetService.addAssets(assetPairs.map(p => p.store));
+        // push UI copies with object URLs
+        assets.value.push(...assetPairs.map(p => p.ui));
     } finally {
         uploading.value = false;
         selectedFiles.value = [];

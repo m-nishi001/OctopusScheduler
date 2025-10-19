@@ -21,10 +21,30 @@ export class PlayAudioEventHandler {
     if (data.audioId) {
       try {
         const asset = await assetService.getAssetById(data.audioId);
-        if (asset && asset.dataUrl) {
-          const instanceId = await this.audioService.loadFromUrl(asset.dataUrl);
-          await this.audioService.play(instanceId);
-          this.playingInstances.set(data.audioId, instanceId);
+        if (asset) {
+          let url: string | undefined = (asset as any).dataUrl;
+          let createdUrl: string | undefined;
+          if (!url && (asset as any).blob) {
+            try {
+              createdUrl = URL.createObjectURL((asset as any).blob);
+              url = createdUrl;
+            } catch (err) {
+              console.error("Failed to create object URL for audio", err);
+            }
+          }
+          if (url) {
+            const instanceId = await this.audioService.loadFromUrl(url);
+            await this.audioService.play(instanceId);
+            this.playingInstances.set(data.audioId, instanceId);
+            if (createdUrl) {
+              // schedule revoke after short delay to ensure loaded by audio service
+              setTimeout(() => {
+                try {
+                  URL.revokeObjectURL(createdUrl!);
+                } catch (e) {}
+              }, 1000);
+            }
+          }
         }
       } catch (error) {
         console.error("Failed to play audio:", error);

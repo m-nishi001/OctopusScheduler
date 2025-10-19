@@ -38,8 +38,18 @@ onMounted(async () => {
     const id = route.params.id as string;
     if (id) {
         const asset = await assetService.getAssetById(id);
-        if (asset && asset.dataUrl) {
-            imageUrl.value = asset.dataUrl;
+        if (asset) {
+            if ((asset as any).blob) {
+                try {
+                    objectUrl = URL.createObjectURL((asset as any).blob);
+                    imageUrl.value = objectUrl;
+                } catch (err) {
+                    console.error('Failed to create object URL for image', err);
+                    if (asset.dataUrl) imageUrl.value = asset.dataUrl;
+                }
+            } else if (asset.dataUrl) {
+                imageUrl.value = asset.dataUrl;
+            }
         }
     }
     await nextTick();

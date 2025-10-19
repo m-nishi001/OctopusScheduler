@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { AssetService } from 'model/applications/assets/asset-service';
@@ -25,6 +25,7 @@ const displayMode = ref(route.query.displayMode as string || 'fade');
 const displayModeClass = computed(() => {
     return displayMode.value === 'fade' ? 'fade-in' : displayMode.value;
 });
+const createdUrls: string[] = [];
 
 onMounted(async () => {
     let html = decodeURIComponent(props.content || '');
@@ -39,7 +40,16 @@ onMounted(async () => {
         try {
             const asset = await assetService.getAssetById(id);
             if (asset) {
-                assetMap.set(id, asset.dataUrl);
+                let url = (asset as any).dataUrl as string | undefined;
+                if (!url && (asset as any).blob) {
+                    try {
+                        url = URL.createObjectURL((asset as any).blob);
+                        createdUrls.push(url);
+                    } catch (err) {
+                        console.error('Failed to create object URL for asset in html', err);
+                    }
+                }
+                if (url) assetMap.set(id, url);
             }
         } catch (e) {
             console.error('Failed to load asset:', id, e);
@@ -56,6 +66,12 @@ onMounted(async () => {
         return match;
     });
     htmlContent.value = html;
+});
+
+onUnmounted(() => {
+    createdUrls.forEach((u: string) => {
+        try { URL.revokeObjectURL(u); } catch (e) { }
+    });
 });
 </script>
 

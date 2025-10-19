@@ -35,8 +35,18 @@ onMounted(async () => {
     const id = route.params.id as string;
     if (id) {
         const asset = await assetService.getAssetById(id);
-        if (asset && asset.dataUrl) {
-            videoUrl.value = asset.dataUrl;
+        if (asset) {
+            if ((asset as any).blob) {
+                try {
+                    objectUrl = URL.createObjectURL((asset as any).blob);
+                    videoUrl.value = objectUrl;
+                } catch (err) {
+                    console.error('Failed to create object URL for video', err);
+                    if (asset.dataUrl) videoUrl.value = asset.dataUrl;
+                }
+            } else if (asset.dataUrl) {
+                videoUrl.value = asset.dataUrl;
+            }
         }
     }
     await nextTick();

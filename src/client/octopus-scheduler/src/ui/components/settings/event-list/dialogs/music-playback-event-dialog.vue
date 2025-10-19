@@ -151,29 +151,24 @@ async function onSubmit() {
         audioId = form.value.selectedAssetId;
     } else if (form.value.assetSource === 'upload' && form.value.uploadFile) {
         try {
-            const asset: Asset = {
+            const asset: any = {
                 id: '',
                 type: 'audio',
-                dataUrl: '',
                 name: form.value.uploadFile.name,
                 uploadedAt: new Date().toISOString(),
                 lastUpdated: new Date().toISOString(),
                 size: form.value.uploadFile.size,
+                blob: form.value.uploadFile,
             };
-            const fileReader = new FileReader();
-            fileReader.onload = async (e) => {
-                asset.dataUrl = e.target?.result as string;
-                const ids = await assetService.addAssets([asset]);
-                audioId = ids[0];
-                emit('submit', {
-                    ...form.value,
-                    startTime,
-                    endTime,
-                    audioId,
-                });
-                emit('close');
-            };
-            fileReader.readAsDataURL(form.value.uploadFile);
+            const ids = await assetService.addAssets([asset]);
+            audioId = ids[0];
+            emit('submit', {
+                ...form.value,
+                startTime,
+                endTime,
+                audioId,
+            });
+            emit('close');
             return;
         } catch (e) {
             alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));

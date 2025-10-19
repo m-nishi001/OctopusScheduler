@@ -58,13 +58,20 @@ export default {
 
     // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
+    let bgmObjectUrl: string | undefined;
     const playBGM = async () => {
       if (!resultConfig.value || !resultConfig.value.resultBgm) return;
       const asset = await assetService.getDriveDataById(resultConfig.value.resultBgm);
-      if (asset && asset.dataUrl) {
-        bgmAudio.value = new Audio(asset.dataUrl);
-        bgmAudio.value.loop = true;
-        bgmAudio.value.play();
+      if (asset) {
+        let url = (asset as any).dataUrl as string | undefined;
+        if (!url && (asset as any).blob) {
+          try { bgmObjectUrl = URL.createObjectURL((asset as any).blob); url = bgmObjectUrl; } catch (err) { console.error(err); }
+        }
+        if (url) {
+          bgmAudio.value = new Audio(url);
+          bgmAudio.value.loop = true;
+          bgmAudio.value.play().catch(() => { });
+        }
       }
     };
     onMounted(() => {
@@ -84,7 +91,17 @@ export default {
       }
     };
     onMounted(() => window.addEventListener('keydown', handleKey));
-    onUnmounted(() => window.removeEventListener('keydown', handleKey));
+    onUnmounted(() => {
+      window.removeEventListener('keydown', handleKey);
+      if (bgmAudio.value) {
+        try { bgmAudio.value.pause(); } catch (e) { }
+        bgmAudio.value = null;
+      }
+      if (bgmObjectUrl) {
+        try { URL.revokeObjectURL(bgmObjectUrl); } catch (e) { }
+        bgmObjectUrl = undefined;
+      }
+    });
 
     // 特別演出用クラス
     const winnerClass = (winner: any) => {

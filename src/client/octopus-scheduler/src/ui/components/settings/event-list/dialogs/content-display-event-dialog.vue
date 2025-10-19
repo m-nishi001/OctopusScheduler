@@ -92,7 +92,7 @@
                                 <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
                                     File</button>
                                 <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
-                                }}</span>
+                                    }}</span>
                                 <button v-if="form.insertFile" type="button" class="clear-btn"
                                     @click.prevent="clearInsertFile">×</button>
                             </div>
@@ -143,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, computed } from 'vue';
+import { ref, watch, onMounted, computed, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
@@ -189,6 +189,7 @@ const assets = ref<Asset[]>([]);
 const assetService = container.resolve(AssetService);
 
 const assetMap = ref<Map<string, string>>(new Map());
+const createdUrls: string[] = [];
 
 const processedHtml = computed(() => {
     if (!form.value.htmlString) return '';
@@ -220,7 +221,16 @@ watch(() => form.value.htmlString, async (newHtml) => {
             try {
                 const asset = await assetService.getAssetById(id);
                 if (asset) {
-                    assetMap.value.set(id, asset.dataUrl);
+                    let url = (asset as any).dataUrl as string | undefined;
+                    if (!url && (asset as any).blob) {
+                        try {
+                            url = URL.createObjectURL((asset as any).blob);
+                            createdUrls.push(url);
+                        } catch (err) {
+                            console.error('Failed to create object URL for asset', err);
+                        }
+                    }
+                    if (url) assetMap.value.set(id, url);
                 }
             } catch (e) {
                 console.error('Failed to load asset:', id, e);
@@ -341,30 +351,25 @@ async function onSubmit() {
             contentId = form.value.selectedAssetId;
         } else if (form.value.assetSource === 'upload' && form.value.uploadFile) {
             try {
-                const asset: Asset = {
+                const asset: any = {
                     id: '',
                     type: form.value.contentType === 'image' ? 'image' : 'video',
-                    dataUrl: '',
                     name: form.value.uploadFile.name,
                     uploadedAt: new Date().toISOString(),
                     lastUpdated: new Date().toISOString(),
                     size: form.value.uploadFile.size,
+                    blob: form.value.uploadFile,
                 };
-                const fileReader = new FileReader();
-                fileReader.onload = async (e) => {
-                    asset.dataUrl = e.target?.result as string;
-                    const ids = await assetService.addAssets([asset]);
-                    contentId = ids[0];
-                    emit('submit', {
-                        ...form.value,
-                        startTime,
-                        endTime,
-                        contentId,
-                        htmlString,
-                    });
-                    emit('close');
-                };
-                fileReader.readAsDataURL(form.value.uploadFile);
+                const ids = await assetService.addAssets([asset]);
+                contentId = ids[0];
+                emit('submit', {
+                    ...form.value,
+                    startTime,
+                    endTime,
+                    contentId,
+                    htmlString,
+                });
+                emit('close');
                 return;
             } catch (e) {
                 alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -420,19 +425,29 @@ function insertAsset() {
             lastUpdated: new Date().toISOString(),
             size: form.value.insertFile.size,
         };
-        const fileReader = new FileReader();
-        fileReader.onload = (e) => {
-            asset.dataUrl = e.target?.result as string;
-            form.value.tempAssets.push(asset);
-            const tempId = `temp_${Date.now()}_${Math.random()}`;
-            asset.id = tempId;
-            insertAtCursor(`{{asset:${form.value.insertAssetType}:${tempId}}}`);
-            assetMap.value.set(tempId, asset.dataUrl);
-        };
-        fileReader.readAsDataURL(form.value.insertFile);
+        // store blob and create object URL for preview
+        asset.blob = form.value.insertFile as unknown as Blob;
+        try {
+            const url = URL.createObjectURL(form.value.insertFile as File);
+            createdUrls.push(url);
+            asset.dataUrl = url;
+        } catch (err) {
+            console.error('Failed to create object URL for insert asset', err);
+        }
+        form.value.tempAssets.push(asset);
+        const tempId = `temp_${Date.now()}_${Math.random()}`;
+        asset.id = tempId;
+        insertAtCursor(`{{asset:${form.value.insertAssetType}:${tempId}}}`);
+        if (asset.dataUrl) assetMap.value.set(tempId, asset.dataUrl);
     }
 }
 
+
+onUnmounted(() => {
+    createdUrls.forEach(u => {
+        try { URL.revokeObjectURL(u); } catch (e) { }
+    });
+});
 function onInsertFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
     form.value.insertFile = target.files?.[0] || null;

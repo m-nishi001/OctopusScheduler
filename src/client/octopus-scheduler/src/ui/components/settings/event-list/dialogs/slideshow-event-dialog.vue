@@ -194,23 +194,18 @@ function addExistingBgm() {
 async function addUploadBgm() {
     if (newBgmFile.value) {
         try {
-            const asset: Asset = {
+            const asset: any = {
                 id: '',
                 type: 'audio',
-                dataUrl: '',
                 name: newBgmFile.value.name,
                 uploadedAt: new Date().toISOString(),
                 lastUpdated: new Date().toISOString(),
                 size: newBgmFile.value.size,
+                blob: newBgmFile.value,
             };
-            const fileReader = new FileReader();
-            fileReader.onload = async (e) => {
-                asset.dataUrl = e.target?.result as string;
-                const ids = await assetService.addAssets([asset]);
-                form.value.bgmList.push({ id: ids[0], name: asset.name });
-                newBgmFile.value = null;
-            };
-            fileReader.readAsDataURL(newBgmFile.value);
+            const ids = await assetService.addAssets([asset]);
+            form.value.bgmList.push({ id: ids[0], name: asset.name });
+            newBgmFile.value = null;
         } catch (e) {
             alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
         }
