@@ -187,11 +187,10 @@ const addAssets = async () => {
 
     // create DTOs while grabbing blobs for preview
     const assetDtos = await Promise.all(selectedFiles.value.map(async (file, idx) => {
-        const r = await driveDataService.createDriveDataDtoWithBlobFromFile(file);
-        // create a temp key if dto has no id yet
-        const key = r.dto.id || `tmp-${Date.now()}-${idx}`;
-        try { objectUrlMap.set(key, URL.createObjectURL(r.blob)); } catch { }
-        return r.dto;
+        const dto = await driveDataService.createDriveDataDtoFromFile(file);
+        const key = dto.id || `tmp-${Date.now()}-${idx}`;
+        try { objectUrlMap.set(key, URL.createObjectURL(file)); } catch { }
+        return dto;
     }));
 
     // show a simple global status while assets are being added

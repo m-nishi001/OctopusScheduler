@@ -297,17 +297,16 @@ const updateModalPhotoPreview = async () => {
 const onModalPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    // returns { dto, blob }
-    const result = await driveDataService.createDriveDataDtoWithBlobFromFile(file);
-    tempAsset.value = result.dto;
-    modalPhotoAsset.value = result.dto;
+    const dto = await driveDataService.createDriveDataDtoFromFile(file);
+    tempAsset.value = dto;
+    modalPhotoAsset.value = dto;
     modalPhotoFilename.value = file.name;
 
     // revoke previous
     if (modalPhotoPreviewUrl) {
       try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { };
     }
-    modalPhotoPreviewUrl = URL.createObjectURL(result.blob);
+    modalPhotoPreviewUrl = URL.createObjectURL(file);
     modalPhotoPreview.value = modalPhotoPreviewUrl;
   }
 };

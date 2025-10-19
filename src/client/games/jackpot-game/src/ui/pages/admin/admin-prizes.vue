@@ -364,14 +364,14 @@ const editImagePreviewUrl = ref<string | null>(null);
 const onNewImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const result = await driveDataService.createDriveDataDtoWithBlobFromFile(file);
-    tempAsset.value = result.dto;
+    const dto = await driveDataService.createDriveDataDtoFromFile(file);
+    tempAsset.value = dto;
     newImageFilename.value = file.name;
     if (newImagePreviewUrl.value) {
       try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch { }
       newImagePreviewUrl.value = null;
     }
-    newImagePreviewUrl.value = URL.createObjectURL(result.blob);
+    newImagePreviewUrl.value = URL.createObjectURL(file);
     newImagePreview.value = newImagePreviewUrl.value;
   }
 };
@@ -506,14 +506,14 @@ const editTempBgm2Asset = ref<Asset | null>(null);
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const result = await driveDataService.createDriveDataDtoWithBlobFromFile(file);
-    editTempAsset.value = result.dto;
+    const dto = await driveDataService.createDriveDataDtoFromFile(file);
+    editTempAsset.value = dto;
     editImageFilename.value = file.name;
     if (editImagePreviewUrl.value) {
       try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
       editImagePreviewUrl.value = null;
     }
-    editImagePreviewUrl.value = URL.createObjectURL(result.blob);
+    editImagePreviewUrl.value = URL.createObjectURL(file);
     editImagePreview.value = editImagePreviewUrl.value;
   }
 };

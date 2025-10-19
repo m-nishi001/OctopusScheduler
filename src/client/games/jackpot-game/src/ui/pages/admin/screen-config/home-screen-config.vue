@@ -177,30 +177,30 @@ const loadConfig = async () => {
 const onHomeBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const res = await assetService.createDriveDataDtoWithBlobFromFile(file);
-        localConfig.value.homeBgmTempAsset = res.dto;
+        const dto = await assetService.createDriveDataDtoFromFile(file);
+        localConfig.value.homeBgmTempAsset = dto;
         localConfig.value.homeBgmFilename = file.name;
-        onTempAssets([res.dto]);
+        onTempAssets([dto]);
     }
 };
 
 const onButtonClikingSEChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const res = await assetService.createDriveDataDtoWithBlobFromFile(file);
-        localConfig.value.buttonClikingSETempAsset = res.dto;
+        const dto = await assetService.createDriveDataDtoFromFile(file);
+        localConfig.value.buttonClikingSETempAsset = dto;
         localConfig.value.buttonClikingSEFilename = file.name;
-        onTempAssets([res.dto]);
+        onTempAssets([dto]);
     }
 };
 
 const onOnCompletedLoadingSEChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const res = await assetService.createDriveDataDtoWithBlobFromFile(file);
-        localConfig.value.onCompletedLoadingSETempAsset = res.dto;
+        const dto = await assetService.createDriveDataDtoFromFile(file);
+        localConfig.value.onCompletedLoadingSETempAsset = dto;
         localConfig.value.onCompletedLoadingSEFilename = file.name;
-        onTempAssets([res.dto]);
+        onTempAssets([dto]);
     }
 };
 

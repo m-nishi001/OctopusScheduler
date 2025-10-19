@@ -123,9 +123,9 @@ const loadConfig = async () => {
 const onImageChange = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
 	if (file) {
-		const res = await assetService.createDriveDataDtoWithBlobFromFile(file);
-		onTempAssets([res.dto]);
-		localConfig.value.screenElements[idx].assetId = res.dto.id;
+		const dto = await assetService.createDriveDataDtoFromFile(file);
+		onTempAssets([dto]);
+		localConfig.value.screenElements[idx].assetId = dto.id;
 	}
 };
 

@@ -130,27 +130,27 @@ onMounted(async () => {
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const res = await assetService.createDriveDataDtoWithBlobFromFile(file);
-        onTempAssets([res.dto]);
-        localConfig.value.bgmAssetId = res.dto.id;
+        const dto = await assetService.createDriveDataDtoFromFile(file);
+        onTempAssets([dto]);
+        localConfig.value.bgmAssetId = dto.id;
     }
 };
 
 const onImageChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const res = await assetService.createDriveDataDtoWithBlobFromFile(file);
-        onTempAssets([res.dto]);
-        localConfig.value.contents[idx].assetId = res.dto.id;
+        const dto = await assetService.createDriveDataDtoFromFile(file);
+        onTempAssets([dto]);
+        localConfig.value.contents[idx].assetId = dto.id;
     }
 };
 
 const onSeChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
-        const res = await assetService.createDriveDataDtoWithBlobFromFile(file);
-        onTempAssets([res.dto]);
-        localConfig.value.contents[idx].seAssetId = res.dto.id;
+        const dto = await assetService.createDriveDataDtoFromFile(file);
+        onTempAssets([dto]);
+        localConfig.value.contents[idx].seAssetId = dto.id;
     }
 };
 

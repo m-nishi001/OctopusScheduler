@@ -20,8 +20,6 @@ export class AssetDataService {
     return await this.repo.addAssetData(driveDataDtos);
   }
 
-  // assetDtoToDriveData removed; repository now stores AssetDataDto directly.
-
   async deleteDriveData(
     ids: string[],
     onProgress?: (result: { id: string; success: boolean }) => void
@@ -42,16 +40,8 @@ export class AssetDataService {
   public getAllDriveDataMetadata(): Promise<AssetMetadata[]> {
     return this.repo.getAllAssetDataMetadata();
   }
+
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {
     return new Asset("", file.type, file.name, new Date(), new Date(), 0, file);
-  }
-
-  async createDriveDataDtoWithBlobFromFile(
-    file: File
-  ): Promise<{ dto: Asset; blob: Blob }> {
-    return {
-      dto: new Asset("", file.type, file.name, new Date(), new Date(), 0, file),
-      blob: file,
-    };
   }
 }
