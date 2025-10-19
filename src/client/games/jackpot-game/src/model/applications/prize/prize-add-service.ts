@@ -1,5 +1,5 @@
 import { injectable, inject } from "tsyringe";
-import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
+import { DriveDataService } from "../asset/drive-data-service";
 import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
 import type { PrizeDto } from "./dto/prize-dto";
 import { toPrize } from "./dto/prize-dto";
@@ -9,7 +9,7 @@ import type { Prize } from "../../domains/prize/prize";
 @injectable()
 export class PrizeAddService {
   constructor(
-    @inject("IDriveDataRepository") private driveDataRepo: IDriveDataRepository,
+    @inject("DriveDataService") private driveDataService: DriveDataService,
     @inject("IPrizeRepository") private prizeRepo: IPrizeRepository
   ) {}
 
@@ -21,24 +21,24 @@ export class PrizeAddService {
   ): Promise<Prize> {
     let assetId: string | undefined;
     if (tempDriveDataDto) {
-      const driveData = await this.driveDataRepo.addDriveData([
-        await tempDriveDataDto.toDriveData(),
+      const updated = await this.driveDataService.addDriveData([
+        tempDriveDataDto,
       ]);
-      assetId = driveData[0];
+      assetId = updated[0].id || undefined;
     }
     let bgm1AssetId: string | undefined;
     if (tempBgm1DriveDataDto) {
-      const driveData = await this.driveDataRepo.addDriveData([
-        await tempBgm1DriveDataDto.toDriveData(),
+      const updated = await this.driveDataService.addDriveData([
+        tempBgm1DriveDataDto,
       ]);
-      bgm1AssetId = driveData[0];
+      bgm1AssetId = updated[0].id || undefined;
     }
     let bgm2AssetId: string | undefined;
     if (tempBgm2DriveDataDto) {
-      const driveData = await this.driveDataRepo.addDriveData([
-        await tempBgm2DriveDataDto.toDriveData(),
+      const updated = await this.driveDataService.addDriveData([
+        tempBgm2DriveDataDto,
       ]);
-      bgm2AssetId = driveData[0];
+      bgm2AssetId = updated[0].id || undefined;
     }
     const prizeToSave = {
       ...prize,

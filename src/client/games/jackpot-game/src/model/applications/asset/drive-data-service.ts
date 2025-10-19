@@ -32,7 +32,7 @@ export class DriveDataService {
     ) => void
   ): Promise<AssetDataDto[]> {
     const driveDataEntities = await Promise.all(
-      driveDataDtos.map((dto) => dto.toDriveData())
+      driveDataDtos.map((dto) => this.assetDtoToDriveData(dto))
     );
     const ids = await this.repo.addDriveData(driveDataEntities, onProgress);
     const updatedDriveDataDtos = ids.map((id, index) => {
@@ -46,6 +46,26 @@ export class DriveDataService {
       return new AssetDataDto(updatedDriveData);
     });
     return updatedDriveDataDtos;
+  }
+
+  // Convert an AssetDataDto to the DriveData shape expected by the repository.
+  // This used to be a public method on AssetDataDto; move it here as a private
+  // helper so UI layers can't call it directly.
+  private async assetDtoToDriveData(dto: AssetDataDto): Promise<DriveData> {
+    return {
+      metadata: {
+        driveDataId: dto.id,
+        fileId: "",
+        parentFolderId: "",
+        lastUpdate: dto.lastUpdated,
+        size: dto.size,
+      },
+      fileName: dto.name,
+      fileKind: dto.type,
+      fileDataUrl: "",
+      uploadDate: dto.uploadedAt,
+      parentFolderId: "",
+    };
   }
 
   async deleteDriveData(

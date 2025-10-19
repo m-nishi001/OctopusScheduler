@@ -47,22 +47,4 @@ export class AssetDataDto {
       this.blob = new Blob();
     }
   }
-
-  async toDriveData(): Promise<any> {
-    return {
-      metadata: {
-        driveDataId: this.id,
-        fileId: "",
-        parentFolderId: "",
-        lastUpdate: this.lastUpdated,
-        size: this.size,
-      },
-      fileName: this.name,
-      fileKind: this.type,
-      // blob-only DTO no longer exposes a fileDataUrl here
-      fileDataUrl: "",
-      uploadDate: this.uploadedAt,
-      parentFolderId: "",
-    };
-  }
 }

@@ -1,5 +1,5 @@
 import { injectable, inject } from "tsyringe";
-import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
+import { DriveDataService } from "../asset/drive-data-service";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { toMember } from "./dto/member-dto";
@@ -9,7 +9,7 @@ import type { Member } from "../../domains/member/member";
 @injectable()
 export class MemberAddService {
   constructor(
-    @inject("IDriveDataRepository") private driveDataRepo: IDriveDataRepository,
+    @inject("DriveDataService") private driveDataService: DriveDataService,
     @inject("IMemberRepository") private memberRepo: IMemberRepository
   ) {}
 
@@ -19,10 +19,10 @@ export class MemberAddService {
   ): Promise<Member> {
     let assetId: string | undefined;
     if (tempDriveDataDto) {
-      const driveData = await this.driveDataRepo.addDriveData([
-        await tempDriveDataDto.toDriveData(),
+      const updated = await this.driveDataService.addDriveData([
+        tempDriveDataDto,
       ]);
-      assetId = driveData[0];
+      assetId = updated[0].id || undefined;
     }
     const memberToSave = {
       ...member,
