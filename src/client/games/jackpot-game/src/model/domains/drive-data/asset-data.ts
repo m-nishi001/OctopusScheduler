@@ -41,12 +41,12 @@ export class Asset {
     size: number,
     blob: Blob
   ) {
-    this.id = id ?? "";
-    this.type = type ?? "";
-    this.name = name ?? "";
-    this.uploadedAt = uploadedAt ?? new Date();
-    this.lastUpdated = lastUpdated ?? new Date();
-    this.size = size ?? 0;
+    this.id = id;
+    this.type = type;
+    this.name = name;
+    this.uploadedAt = uploadedAt;
+    this.lastUpdated = lastUpdated;
+    this.size = size;
     this.blob = blob;
   }
 }
