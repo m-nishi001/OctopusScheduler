@@ -93,7 +93,7 @@ import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { SlideshowEvent } from '../../../../../model/domains/schedule-event/slideshow-event';
+import { SlideshowEvent } from '../../../../../model/domains/schedule-event/slideshow/slideshow-event';
 
 interface Props {
     event?: SlideshowEvent;

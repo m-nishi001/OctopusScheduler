@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventConverter } from "./i-schedule-event-converter";
-import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
-import { SlideshowEvent } from "../../domains/schedule-event/slideshow-event";
+import type { IScheduleEventConverter } from "../i-schedule-event-converter";
+import type { IScheduleEvent } from "../schedule-event";
+import { SlideshowEvent } from "./slideshow-event";
 
 @injectable()
 export class SlideshowEventConverter implements IScheduleEventConverter {

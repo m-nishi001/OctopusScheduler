@@ -33,7 +33,7 @@
 import { ref, watch } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { TransitionPageEvent } from '../../../../../model/domains/schedule-event/transition-page-event';
+import { TransitionPageEvent } from '../../../../../model/domains/schedule-event/transition/transition-page-event';
 
 interface Props {
     event?: TransitionPageEvent;

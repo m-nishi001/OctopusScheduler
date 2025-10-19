@@ -5,12 +5,12 @@ import { AssetRepository } from "../../model/infrastructures/assets/asset-reposi
 import { container } from "tsyringe";
 import { ScheduleEventService } from "../../model/applications/schedule-event/schedule-event-service";
 import { AssetService } from "../../model/applications/assets/asset-service";
-// application-layer converters removed; domain entities are used directly
 import { EventPollingService } from "../../model/applications/event-polling-service";
-import { IScheduleEventConverterToken } from "../../model/infrastructures/schedule-event/i-schedule-event-converter";
-import { ShowContentEventConverter } from "../../model/infrastructures/schedule-event/show-content-event-converter";
-import { PlayAudioEventConverter } from "../../model/infrastructures/schedule-event/play-audio-event-converter";
-import { SlideshowEventConverter } from "../../model/infrastructures/schedule-event/slideshow-event-converter";
+import { IScheduleEventConverterToken } from "../../model/domains/schedule-event/i-schedule-event-converter";
+import { ShowContentEventConverter } from "../../model/domains/schedule-event/show-content/show-content-event-converter";
+import { PlayAudioEventConverter } from "../../model/domains/schedule-event/play-audio/play-audio-event-converter";
+import { SlideshowEventConverter } from "../../model/domains/schedule-event/slideshow/slideshow-event-converter";
+import { TransitionPageEventConverter } from "../../model/domains/schedule-event/transition/transition-page-event-converter";
 
 export class Container {
   static Register() {
@@ -25,9 +25,7 @@ export class Container {
     container.register("ScheduleEventService", {
       useClass: ScheduleEventService,
     });
-    // no converters to register
     container.registerSingleton("EventPollingService", EventPollingService);
-    // schedule event converters
     container.register(IScheduleEventConverterToken, {
       useClass: ShowContentEventConverter,
     });
@@ -36,6 +34,9 @@ export class Container {
     });
     container.register(IScheduleEventConverterToken, {
       useClass: SlideshowEventConverter,
+    });
+    container.register(IScheduleEventConverterToken, {
+      useClass: TransitionPageEventConverter,
     });
   }
 }

@@ -63,7 +63,7 @@ import { ref, watch, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { PlayAudioEvent } from '../../../../../model/domains/schedule-event/play-audio-event';
+import { PlayAudioEvent } from '../../../../../model/domains/schedule-event/play-audio/play-audio-event';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 // PlayAudioEventDto imported for runtime usage above
 

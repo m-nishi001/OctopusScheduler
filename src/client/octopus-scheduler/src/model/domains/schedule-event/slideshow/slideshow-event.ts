@@ -1,5 +1,5 @@
-import { eventBus } from "../../../core/event-bus";
-import type { IScheduleEvent } from "./schedule-event";
+import { eventBus } from "../../../../core/event-bus";
+import type { IScheduleEvent } from "../schedule-event";
 
 export class SlideshowEvent implements IScheduleEvent {
   public readonly id: string;

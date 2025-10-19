@@ -5,7 +5,7 @@ import { injectable, injectAll } from "tsyringe";
 import {
   IScheduleEventConverterToken,
   type IScheduleEventConverter,
-} from "./i-schedule-event-converter";
+} from "../../domains/schedule-event/i-schedule-event-converter";
 
 @injectable()
 export class ScheduleEventRepository implements IScheduleEventRepository {

@@ -1,4 +1,4 @@
-import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
+import type { IScheduleEvent } from "./schedule-event";
 
 export const IScheduleEventConverterToken = Symbol("IScheduleEventConverter");
 

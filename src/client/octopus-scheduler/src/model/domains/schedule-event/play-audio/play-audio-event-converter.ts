@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
-import type { IScheduleEventConverter } from "./i-schedule-event-converter";
-import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
-import { PlayAudioEvent } from "../../domains/schedule-event/play-audio-event";
+import type { IScheduleEventConverter } from "../i-schedule-event-converter";
+import type { IScheduleEvent } from "../schedule-event";
+import { PlayAudioEvent } from "./play-audio-event";
 
 @injectable()
 export class PlayAudioEventConverter implements IScheduleEventConverter {
