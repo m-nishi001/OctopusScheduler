@@ -1,10 +1,10 @@
-import type { ScheduleEvent } from "./schedule-event";
+import type { IScheduleEvent } from "./schedule-event";
 
 export interface IScheduleEventRepository {
-  getScheduleEvents(): Promise<ScheduleEvent[]>;
-  updateScheduleEvents(events: ScheduleEvent[]): Promise<void>;
+  getScheduleEvents(): Promise<IScheduleEvent[]>;
+  updateScheduleEvents(events: IScheduleEvent[]): Promise<void>;
   deleteScheduleEvents(ids: string[]): Promise<void>;
-  addScheduleEvents(events: ScheduleEvent[]): Promise<string>;
+  addScheduleEvents(events: IScheduleEvent[]): Promise<string>;
   syncScheduleEvents(): Promise<void>;
   getExecutionStatus(eventId: string): Promise<string | null>;
   updateExecutionStatus(eventId: string, status: string): Promise<void>;
