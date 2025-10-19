@@ -21,8 +21,8 @@
       <li v-for="prize in prizes" :key="prize.id" class="admin-list-item">
         <input type="checkbox" v-model="selectedPrizes" :value="prize.id" />
         <div class="prize-preview">
-          <img v-if="prize.imageDataUrl || prize.imageAssetId" :src="prize.imageDataUrl || prize.imageAssetId"
-            alt="image" class="preview-img" @error="onImageError" />
+          <img v-if="prize.imageAssetId" :src="objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId" alt="image"
+            class="preview-img" @error="onImageError" />
           <span v-else>{{ prize.name }}</span>
         </div>
         <div class="prize-info">
@@ -296,6 +296,8 @@ const prizeDeleteService = container.resolve(PrizeDeleteService);
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
 const assets = ref<any[]>([]);
+// map to hold object URLs for preview (keyed by DriveData id or temp id)
+const objectUrlMap = new Map<string, string>();
 const imageAssets = computed(() => assets.value.filter(asset => asset.blob.type.startsWith('image')));
 const audioAssets = computed(() => assets.value.filter(asset => asset.blob.type.startsWith('audio')));
 const onImageError = (event: Event) => {
@@ -457,10 +459,13 @@ const deleteSelectedPrizes = async () => {
 const fetchPrizes = async () => {
   try {
     const fetchedPrizes = await prizeRepo.getPrizes();
+    // prefetch assets referenced by prizes to create object URLs
     for (const prize of fetchedPrizes) {
       if (prize.imageAssetId) {
         const asset = await driveDataService.getDriveDataById(prize.imageAssetId);
-        prize.imageDataUrl = asset?.dataUrl;
+        if (asset && asset.id && !objectUrlMap.has(asset.id)) {
+          try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
+        }
       }
     }
     prizes.value = fetchedPrizes;
@@ -534,10 +539,42 @@ const editPrize = (prize: any) => {
   editName.value = prize.name;
   editProbability.value = prize.probability;
   editRank.value = prize.rank;
+  // revoke any previous preview URL
+  if (editImagePreviewUrl.value) {
+    try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
+    editImagePreviewUrl.value = null;
+  }
   if (prize.imageAssetId) {
+    // prefer objectUrlMap (created from asset.blob) for UI preview
     editImageMode.value = 'select';
     editImageAssetId.value = prize.imageAssetId;
-    editImagePreview.value = prize.imageDataUrl || prize.imageAssetId;
+    editImagePreview.value = objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId;
+  } else if (prize.imageDataUrl) {
+    // prize stores inline data URL for persistence; convert to Blob and create object URL for UI
+    editImageMode.value = 'select';
+    editImageAssetId.value = '';
+    try {
+      const parts = prize.imageDataUrl.split(',');
+      const meta = parts[0] || '';
+      const isBase64 = meta.indexOf(';base64') !== -1;
+      const m = meta.match(/data:([^;]+)/);
+      const mime = m ? m[1] : 'application/octet-stream';
+      let raw = '';
+      if (isBase64) {
+        raw = atob(parts[1] || '');
+      } else {
+        raw = decodeURIComponent(parts[1] || '');
+      }
+      const u8 = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) u8[i] = raw.charCodeAt(i);
+      const b = new Blob([u8], { type: mime });
+      editImagePreviewUrl.value = URL.createObjectURL(b);
+      editImagePreview.value = editImagePreviewUrl.value;
+    } catch (e) {
+      // fallback to the raw data url only if conversion fails (should be rare)
+      console.warn('failed to convert prize.imageDataUrl to object URL', e);
+      editImagePreview.value = prize.imageDataUrl;
+    }
   } else {
     editImageMode.value = 'upload';
   }

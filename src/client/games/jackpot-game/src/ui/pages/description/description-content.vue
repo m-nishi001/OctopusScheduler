@@ -61,17 +61,21 @@ export default {
 		const assetService = container.resolve(DriveDataService); onMounted(async () => {
 			screenConfig.value = await screenConfigService.fetchScreenConfig('description') as DescriptionScreenSetting;
 			elements.value = screenConfig.value?.screenElements || [];
+			// create object URLs for elements that reference assets
+			const createdUrls: string[] = [];
 			for (const element of elements.value) {
 				if (element.assetId) {
 					const asset = await assetService.getDriveDataById(element.assetId);
 					if (asset && (asset as any).blob) {
 						try {
-							element.assetUrl = URL.createObjectURL((asset as any).blob);
+							const url = URL.createObjectURL((asset as any).blob);
+							element.assetUrl = url;
+							createdUrls.push(url);
 						} catch (e) {
-							element.assetUrl = asset.dataUrl || '';
+							element.assetUrl = '';
 						}
 					} else {
-						element.assetUrl = asset?.dataUrl || '';
+						element.assetUrl = '';
 					}
 				}
 			}
@@ -105,7 +109,17 @@ export default {
 			if (e.key === 'Enter') nextSlide();
 		};
 		onMounted(() => window.addEventListener('keydown', handleKey));
-		onUnmounted(() => window.removeEventListener('keydown', handleKey));
+		onUnmounted(() => {
+			try { window.removeEventListener('keydown', handleKey); } catch { }
+			// revoke any created object URLs
+			try {
+				for (const el of elements.value) {
+					if (el.assetUrl) {
+						try { URL.revokeObjectURL(el.assetUrl); } catch { }
+					}
+				}
+			} catch { }
+		});
 
 		const isHtml = (s: any) => {
 			if (!s || typeof s !== 'string') return false;

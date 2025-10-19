@@ -38,6 +38,9 @@ export default {
     const specialWinner = ref<any | undefined>(undefined);
     const lowestWinner = ref<any | undefined>(undefined);
     const resultConfig = ref<ResultScreenSetting | null>(null);
+    // map to hold object URLs for preview (keyed by DriveData id)
+    const objectUrlMap = new Map<string, string>();
+
     const screenConfigService = container.resolve(ScreenConfigService);
     const assetService = container.resolve<DriveDataService>("DriveDataService");
     const drawResultService = container.resolve(DrawResultService);
@@ -45,7 +48,17 @@ export default {
       const results = await drawResultService.getDrawResults();
       const config = await screenConfigService.fetchScreenConfig('result');
       resultConfig.value = config as ResultScreenSetting ?? new ResultScreenSetting("", "", "");
-      winners.value = results.map(r => ({ ...r.member, prize: r.prize.name, id: r.member.id, photo: r.member.photoAssetId }));
+      // prefetch referenced photos
+      for (const r of results) {
+        const aid = r.member.photoAssetId;
+        if (aid) {
+          const asset = await assetService.getDriveDataById(aid);
+          if (asset && asset.id && !objectUrlMap.has(asset.id)) {
+            try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
+          }
+        }
+      }
+      winners.value = results.map(r => ({ ...r.member, prize: r.prize.name, id: r.member.id, photo: (r.member.photoAssetId ? objectUrlMap.get(r.member.photoAssetId) : undefined) || r.member.photoAssetId }));
       const ranks = results.map(r => r.rank || 0);
       const minRank = Math.min(...ranks);
       const maxRank = Math.max(...ranks);
@@ -63,10 +76,12 @@ export default {
       if (!resultConfig.value || !resultConfig.value.resultBgm) return;
       const asset = await assetService.getDriveDataById(resultConfig.value.resultBgm);
       if (asset) {
-        let url = (asset as any).dataUrl as string | undefined;
-        if (!url && (asset as any).blob) {
-          try { bgmObjectUrl = URL.createObjectURL((asset as any).blob); url = bgmObjectUrl; } catch (err) { console.error(err); }
+        // Prefer using blob for UI playback. Create an object URL from blob.
+        if (asset.blob) {
+          try { bgmObjectUrl = URL.createObjectURL(asset.blob); }
+          catch (err) { console.error(err); bgmObjectUrl = undefined; }
         }
+        const url = bgmObjectUrl;
         if (url) {
           bgmAudio.value = new Audio(url);
           bgmAudio.value.loop = true;

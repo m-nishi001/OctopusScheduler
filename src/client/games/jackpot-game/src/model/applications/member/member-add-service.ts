@@ -33,7 +33,15 @@ export class MemberAddService {
     ]);
     const addedMember = addedMembers[0];
     if (tempDriveDataDto) {
-      addedMember.photoDataUrl = tempDriveDataDto.dataUrl;
+      try {
+        addedMember.photoDataUrl = tempDriveDataDto.blob
+          ? URL.createObjectURL(tempDriveDataDto.blob)
+          : "";
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to create object URL for member photo blob", e);
+        addedMember.photoDataUrl = "";
+      }
     }
     return addedMember;
   }

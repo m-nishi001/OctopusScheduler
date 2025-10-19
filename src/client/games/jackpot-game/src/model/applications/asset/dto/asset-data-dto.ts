@@ -30,8 +30,7 @@ export class AssetDataDto {
   uploadedAt: Date;
   lastUpdated: Date;
   size: number;
-  dataUrl: string;
-  blob?: Blob;
+  blob: Blob;
 
   constructor(entity: any) {
     this.id = entity?.metadata?.driveDataId ?? "";
@@ -40,9 +39,13 @@ export class AssetDataDto {
     this.uploadedAt = entity?.uploadDate ?? new Date();
     this.lastUpdated = entity?.metadata?.lastUpdate ?? new Date();
     this.size = entity?.metadata?.size ?? 0;
-    this.dataUrl = entity?.fileDataUrl ?? "";
-    // keep blob optional; repository/service may set it when available
-    this.blob = entity?.blob;
+    // Ensure blob is always present. If repository provided a Blob use it,
+    // otherwise create an empty Blob so the type is always satisfied.
+    if (entity?.blob) {
+      this.blob = entity.blob;
+    } else {
+      this.blob = new Blob();
+    }
   }
 
   async toDriveData(): Promise<any> {
@@ -56,7 +59,8 @@ export class AssetDataDto {
       },
       fileName: this.name,
       fileKind: this.type,
-      fileDataUrl: this.dataUrl,
+      // blob-only DTO no longer exposes a fileDataUrl here
+      fileDataUrl: "",
       uploadDate: this.uploadedAt,
       parentFolderId: "",
     };

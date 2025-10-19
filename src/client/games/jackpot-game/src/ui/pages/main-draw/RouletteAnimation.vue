@@ -365,7 +365,7 @@ export default {
 
             // --- 画像 ---
             const texture = new THREE.CanvasTexture(canvas);
-            if (prize && (prize.imageDataUrl || prize.imageAssetId)) {
+            if (prize && prize.imageAssetId) {
                 const img = new window.Image();
                 img.crossOrigin = 'anonymous';
                 img.onload = () => {
@@ -389,7 +389,7 @@ export default {
                     ctx.restore();
                     texture.needsUpdate = true;
                 };
-                img.src = prize.imageDataUrl || prize.imageAssetId || '';
+                img.src = prize.imageAssetId || '';
             }
             return texture;
         };

@@ -25,17 +25,17 @@
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedAssets" :value="asset.id" />
                 <div class="asset-preview">
-                    <img v-if="asset.blob.type.startsWith('image')" :src="asset.dataUrl" alt="preview"
+                    <img v-if="asset.blob.type.startsWith('image')" :src="objectUrlMap.get(asset.id)" alt="preview"
                         class="preview-img" />
-                    <video v-else-if="asset.blob.type.startsWith('video')" :src="asset.dataUrl" controls
+                    <video v-else-if="asset.blob.type.startsWith('video')" :src="objectUrlMap.get(asset.id)" controls
                         class="preview-video"></video>
-                    <audio v-else-if="asset.blob.type.startsWith('audio')" :src="asset.dataUrl" controls
+                    <audio v-else-if="asset.blob.type.startsWith('audio')" :src="objectUrlMap.get(asset.id)" controls
                         class="preview-audio"></audio>
                     <span v-else>{{ asset.name }}</span>
                 </div>
                 <div class="asset-info">
                     <span>{{ asset.name }} ({{ deriveAssetKind(asset) }}) - {{ FileUtils.formatSize(asset.size)
-                    }}</span>
+                        }}</span>
                     <div class="usage-info">
                         <strong>使用場所:</strong>
                         <ul>
@@ -197,7 +197,7 @@ const addAssets = async () => {
 
     // ensure objectUrlMap keys align with returned IDs
     for (const ua of updatedAssets) {
-        if (ua.id && ua.dataUrl) {
+        if (ua.id) {
             // if we created a tmp url for same name, try to migrate it
             const tmpKey = Array.from(objectUrlMap.keys()).find(k => k.startsWith('tmp-') && objectUrlMap.get(k)?.includes(ua.name || ''));
             if (tmpKey) {
@@ -286,7 +286,7 @@ onMounted(async () => {
 });
 
 function deriveAssetKind(asset: any): string {
-    const mime = asset?.blob?.type || asset?.dataUrl || '';
+    const mime = asset?.blob?.type || '';
     if (typeof mime === 'string') {
         if (mime.startsWith('image')) return 'image';
         if (mime.startsWith('video')) return 'video';

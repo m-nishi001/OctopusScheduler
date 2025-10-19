@@ -49,7 +49,18 @@ export class PrizeAddService {
     await this.prizeRepo.addPrizes([toPrize(prizeToSave)]);
     const addedPrize = toPrize(prizeToSave);
     if (tempDriveDataDto) {
-      addedPrize.imageDataUrl = tempDriveDataDto.dataUrl;
+      // For UI convenience store an object URL created from the blob so
+      // components can preview without reading an inline data URL.
+      try {
+        addedPrize.imageDataUrl = tempDriveDataDto.blob
+          ? URL.createObjectURL(tempDriveDataDto.blob)
+          : "";
+      } catch (e) {
+        // fallback to empty string if object URL creation fails
+        // eslint-disable-next-line no-console
+        console.warn("Failed to create object URL for prize image blob", e);
+        addedPrize.imageDataUrl = "";
+      }
     }
     return addedPrize;
   }

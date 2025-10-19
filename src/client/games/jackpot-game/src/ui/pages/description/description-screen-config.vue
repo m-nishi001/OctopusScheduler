@@ -34,27 +34,20 @@ export default {
 
 		// BGM/SE制御
 		const bgmAudio = ref<HTMLAudioElement | null>(null);
+		let bgmObjectUrl: string | undefined;
 		const playBGM = async () => {
 			if (!descriptionConfig.value || !descriptionConfig.value.descriptionBgm) return;
 			const asset = await assetService.getDriveDataById(descriptionConfig.value.descriptionBgm);
 			if (asset) {
 				if ((asset as any).blob) {
 					try {
-						const url = URL.createObjectURL((asset as any).blob);
-						bgmAudio.value = new Audio(url);
+						bgmObjectUrl = URL.createObjectURL((asset as any).blob);
+						bgmAudio.value = new Audio(bgmObjectUrl);
 						bgmAudio.value.loop = true;
 						bgmAudio.value.play().catch(() => { });
 					} catch (e) {
-						if (asset.dataUrl) {
-							bgmAudio.value = new Audio(asset.dataUrl);
-							bgmAudio.value.loop = true;
-							bgmAudio.value.play().catch(() => { });
-						}
+						console.error(e);
 					}
-				} else if (asset.dataUrl) {
-					bgmAudio.value = new Audio(asset.dataUrl);
-					bgmAudio.value.loop = true;
-					bgmAudio.value.play().catch(() => { });
 				}
 			}
 		};		// Enterキーで次へ
@@ -65,6 +58,10 @@ export default {
 		};
 		onMounted(() => window.addEventListener('keydown', handleKey));
 		onUnmounted(() => window.removeEventListener('keydown', handleKey));
+		onUnmounted(() => {
+			try { if (bgmObjectUrl) URL.revokeObjectURL(bgmObjectUrl); } catch { }
+			window.removeEventListener('keydown', handleKey);
+		});
 
 		return { descriptionConfig };
 	},

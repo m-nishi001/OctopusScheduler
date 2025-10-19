@@ -4,7 +4,8 @@
       <h2 class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">本抽選画面</h2>
       <div v-if="!drawn">
         <div class="member-box mb-4">
-          <img :src="currentMember.photoDataUrl" class="w-24 h-24 rounded-full mx-auto mb-2" />
+          <img :src="currentMember?.photoAssetId ? objectUrlMap.get(currentMember.photoAssetId) : ''"
+            class="w-24 h-24 rounded-full mx-auto mb-2" />
           <div class="text-lg font-bold text-indigo-700">{{ currentMember.name }}</div>
         </div>
         <button @click="runMainDraw"
@@ -61,6 +62,8 @@ export default {
     // APIから取得
     const prizes = ref<any[]>([]);
     const members = ref<any[]>([]);
+    // map to hold object URLs for member photos
+    const objectUrlMap = new Map<string, string>();
     const prizeRepo = container.resolve(PrizeRepository);
     const memberRepo = container.resolve(MemberRepository);
     const fetchPrizes = async () => {
@@ -68,6 +71,16 @@ export default {
     };
     const fetchMembers = async () => {
       members.value = await memberRepo.getMembers();
+      for (const m of members.value) {
+        if (m.photoAssetId && !objectUrlMap.has(m.photoAssetId)) {
+          try {
+            const asset = await assetService.getDriveDataById(m.photoAssetId);
+            if (asset && asset.id) {
+              objectUrlMap.set(m.photoAssetId, URL.createObjectURL(asset.blob));
+            }
+          } catch { }
+        }
+      }
     };
 
     // BGM/SE制御
@@ -76,16 +89,13 @@ export default {
     const playBGM = async () => {
       if (!mainConfig.value || !mainConfig.value.memberLotteryBgms.length) return;
       const asset = await assetService.getDriveDataById(mainConfig.value.memberLotteryBgms[0]);
-      if (asset) {
-        let url = (asset as any).dataUrl as string | undefined;
-        if (!url && (asset as any).blob) {
-          try { bgmObjectUrl = URL.createObjectURL((asset as any).blob); url = bgmObjectUrl; } catch (err) { console.error(err); }
-        }
-        if (url) {
-          bgmAudio.value = new Audio(url);
+      if (asset && asset.blob) {
+        try {
+          bgmObjectUrl = URL.createObjectURL(asset.blob);
+          bgmAudio.value = new Audio(bgmObjectUrl);
           bgmAudio.value.loop = true;
           try { await bgmAudio.value.play(); } catch (e) { /* ignore */ }
-        }
+        } catch (err) { console.error(err); }
       }
     };
 
@@ -153,7 +163,7 @@ export default {
       }
     });
 
-    return { mainConfig, runMainDraw, drawn, result, currentMember, prizes, showHalfModal };
+    return { mainConfig, runMainDraw, drawn, result, currentMember, prizes, showHalfModal, objectUrlMap };
   },
 };
 </script>

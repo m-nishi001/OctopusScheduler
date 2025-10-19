@@ -149,8 +149,10 @@ const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
 const assets = ref<AssetDataDto[]>([]);
 const imageAssets = computed(() => assets.value.filter((asset) => ((asset as any).blob as Blob).type.startsWith('image')));
+// map to hold object URLs for member photos keyed by asset id
+const objectUrlMap = new Map<string, string>();
 const getMemberImageSrc = (member: any) => {
-  return member.photoDataUrl || '';
+  return member.photoAssetId ? objectUrlMap.get(member.photoAssetId) || '' : '';
 };
 
 const isAllSelected = computed({
@@ -201,12 +203,20 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
     if (data.photoAssetId) {
       modalPhotoMode.value = 'select';
       photoAssetId.value = data.photoAssetId;
-      modalPhotoPreview.value = data.photoDataUrl || '';
+      modalPhotoPreview.value = objectUrlMap.get(data.photoAssetId) || '';
     } else {
       modalPhotoMode.value = 'upload';
       modalPhotoAsset.value = data.photoAsset;
-      if (modalPhotoAsset.value) {
-        modalPhotoPreview.value = modalPhotoAsset.value.dataUrl || '';
+      if (modalPhotoAsset.value && (modalPhotoAsset.value as any).blob) {
+        // create preview from blob
+        if (modalPhotoPreviewUrl) {
+          try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { }
+          modalPhotoPreviewUrl = undefined;
+        }
+        modalPhotoPreviewUrl = URL.createObjectURL((modalPhotoAsset.value as any).blob as Blob);
+        modalPhotoPreview.value = modalPhotoPreviewUrl;
+      } else {
+        modalPhotoPreview.value = '';
       }
     }
   }
@@ -271,16 +281,13 @@ const updateModalPhotoPreview = async () => {
   if (modalPhotoAsset.value && (modalPhotoAsset.value as any).blob) {
     modalPhotoPreviewUrl = URL.createObjectURL((modalPhotoAsset.value as any).blob as Blob);
     modalPhotoPreview.value = modalPhotoPreviewUrl;
-  } else if (modalPhotoAsset.value && modalPhotoAsset.value.dataUrl) {
-    // fallback to dataUrl only when blob not available
-    modalPhotoPreview.value = modalPhotoAsset.value.dataUrl;
   } else if (photoAssetId.value) {
     const asset = await driveDataService.getDriveDataById(photoAssetId.value);
-    if (asset && (asset as any).blob) {
-      modalPhotoPreviewUrl = URL.createObjectURL((asset as any).blob as Blob);
+    if (asset && asset.blob) {
+      modalPhotoPreviewUrl = URL.createObjectURL(asset.blob as Blob);
       modalPhotoPreview.value = modalPhotoPreviewUrl;
     } else {
-      modalPhotoPreview.value = asset?.dataUrl || '';
+      modalPhotoPreview.value = '';
     }
   } else {
     modalPhotoPreview.value = '';
@@ -310,6 +317,13 @@ onBeforeUnmount(() => {
     try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { };
     modalPhotoPreviewUrl = undefined;
   }
+  // revoke any object URLs created for member photos
+  try {
+    for (const url of objectUrlMap.values()) {
+      try { URL.revokeObjectURL(url); } catch { }
+    }
+    objectUrlMap.clear();
+  } catch { }
 });
 
 const addMember = async () => {
@@ -365,7 +379,9 @@ const fetchMembers = async () => {
     for (const member of fetchedMembers) {
       if (member.photoAssetId) {
         const asset = await driveDataService.getDriveDataById(member.photoAssetId);
-        member.photoDataUrl = asset?.dataUrl;
+        if (asset && asset.id && asset.blob) {
+          try { objectUrlMap.set(member.photoAssetId, URL.createObjectURL(asset.blob)); } catch { }
+        }
       }
     }
     members.value = fetchedMembers;

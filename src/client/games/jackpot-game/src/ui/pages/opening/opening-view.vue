@@ -26,6 +26,8 @@ export default {
     const isHtmlFullscreen = ref(false);
     const htmlElement = ref<any | null>(null);
 
+    let bgmObjectUrl: string | undefined;
+    const createdContentUrls: string[] = [];
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('opening');
       openingConfig.value = config as OpeningScreenSetting ?? new OpeningScreenSetting();
@@ -33,10 +35,18 @@ export default {
       if (openingConfig.value?.bgmAssetId) {
         const assetService = container.resolve(DriveDataService);
         const assetDto = await assetService.getDriveDataById(openingConfig.value.bgmAssetId);
-        const url = assetDto?.dataUrl;
-        bgm.value = new Audio(url);
-        bgm.value.loop = true;
-        bgm.value.play().catch(() => { });
+        if (assetDto && assetDto.blob) {
+          try {
+            bgmObjectUrl = URL.createObjectURL(assetDto.blob);
+            bgm.value = new Audio(bgmObjectUrl);
+          } catch (e) {
+            bgm.value = null;
+          }
+        }
+        if (bgm.value) {
+          bgm.value.loop = true;
+          bgm.value.play().catch(() => { });
+        }
       }
 
       const htmlEl = openingConfig.value?.contents?.find((e: any) => e.type === 'html');
@@ -52,7 +62,15 @@ export default {
           if (content.assetId) {
             try {
               const assetDto = await assetService.getDriveDataById(content.assetId);
-              (content as any).assetUrl = assetDto?.dataUrl;
+              if (assetDto && assetDto.blob) {
+                try {
+                  const url = URL.createObjectURL(assetDto.blob);
+                  (content as any).assetUrl = url;
+                  createdContentUrls.push(url);
+                } catch (e) { (content as any).assetUrl = undefined; }
+              } else {
+                (content as any).assetUrl = undefined;
+              }
             } catch (e) {
               console.warn('Failed to load asset for content:', content, e);
             }
@@ -66,6 +84,8 @@ export default {
         try { bgm.value.pause(); } catch (e) { }
         bgm.value = null;
       }
+      try { if (bgmObjectUrl) URL.revokeObjectURL(bgmObjectUrl); } catch { }
+      try { for (const u of createdContentUrls) URL.revokeObjectURL(u); } catch { }
     });
 
     return { openingConfig, isHtmlFullscreen, htmlElement, bgm };

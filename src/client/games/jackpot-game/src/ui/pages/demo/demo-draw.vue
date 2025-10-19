@@ -55,16 +55,13 @@ export default {
     const playBGM = async () => {
       if (!demoConfig.value || !demoConfig.value.demoBgm) return;
       const asset = await assetService.getDriveDataById(demoConfig.value.demoBgm);
-      if (asset) {
-        let url = (asset as any).dataUrl as string | undefined;
-        if (!url && (asset as any).blob) {
-          try { bgmObjectUrl = URL.createObjectURL((asset as any).blob); url = bgmObjectUrl; } catch (err) { console.error(err); }
-        }
-        if (url) {
-          bgmAudio.value = new Audio(url);
+      if (asset && (asset as any).blob) {
+        try {
+          bgmObjectUrl = URL.createObjectURL((asset as any).blob);
+          bgmAudio.value = new Audio(bgmObjectUrl);
           bgmAudio.value.loop = true;
           bgmAudio.value.play().catch(() => { });
-        }
+        } catch (err) { console.error(err); }
       }
     };
 
@@ -84,17 +81,17 @@ export default {
       }
       if (!assetId) return;
       const asset = await assetService.getDriveDataById(assetId);
-      if (asset) {
-        let url = (asset as any).dataUrl as string | undefined;
+      if (asset && (asset as any).blob) {
         let tempUrl: string | undefined;
-        if (!url && (asset as any).blob) {
-          try { tempUrl = URL.createObjectURL((asset as any).blob); url = tempUrl; } catch (err) { console.error(err); }
-        }
-        if (url) {
-          const seAudio = new Audio(url);
+        try {
+          tempUrl = URL.createObjectURL((asset as any).blob);
+          const seAudio = new Audio(tempUrl);
           seAudio.play().catch(() => { });
-          if (tempUrl) setTimeout(() => { try { URL.revokeObjectURL(tempUrl); } catch (e) { } }, 2000);
-        }
+          if (tempUrl) {
+            const urlToRevoke = tempUrl;
+            setTimeout(() => { try { URL.revokeObjectURL(urlToRevoke); } catch (e) { } }, 2000);
+          }
+        } catch (err) { console.error(err); }
       }
     };
 
