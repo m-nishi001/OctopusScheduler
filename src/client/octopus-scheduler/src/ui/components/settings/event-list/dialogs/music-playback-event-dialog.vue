@@ -122,7 +122,7 @@ onMounted(async () => {
 });
 
 const filteredAssets = computed(() => {
-    return assets.value.filter(asset => asset.type === 'audio');
+    return assets.value.filter(asset => ((asset as any).blob as Blob).type.startsWith('audio'));
 });
 
 async function loadAssets() {
@@ -153,7 +153,6 @@ async function onSubmit() {
         try {
             const asset: any = {
                 id: '',
-                type: 'audio',
                 name: form.value.uploadFile.name,
                 uploadedAt: new Date().toISOString(),
                 lastUpdated: new Date().toISOString(),

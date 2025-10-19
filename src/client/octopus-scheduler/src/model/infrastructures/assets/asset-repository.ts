@@ -9,20 +9,14 @@ export class AssetRepository implements IAssetRepository {
   private readonly localStorage: LocalStorageService;
 
   constructor() {
-    // store domain Assets locally under store name "Asset"
     this.localStorage = new LocalStorageService("octopus-scheduler", "Asset");
   }
 
   private async driveDataToAsset(d: DriveData): Promise<Asset> {
     const asset: Asset = {
       id: d.metadata?.driveDataId || crypto.randomUUID(),
-      type: d.fileKind?.startsWith("image")
-        ? "image"
-        : d.fileKind?.startsWith("video")
-          ? "video"
-          : d.fileKind?.startsWith("audio")
-            ? "audio"
-            : "text",
+      // initially set an empty Blob; replaced below when fetch succeeds
+      blob: new Blob(),
       name: d.fileName,
       uploadedAt: d.uploadDate
         ? d.uploadDate.toISOString()
@@ -34,7 +28,6 @@ export class AssetRepository implements IAssetRepository {
       directoryId: d.metadata?.parentFolderId || undefined,
     };
 
-    // DriveData.fileDataUrl is expected to be a non-empty data URL (data:<mime>;base64,...)
     try {
       const res = await fetch(d.fileDataUrl);
       asset.blob = await res.blob();

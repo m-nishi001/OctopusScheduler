@@ -148,7 +148,7 @@ const memberDeleteService = container.resolve<MemberDeleteService>(MemberDeleteS
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
 const assets = ref<DriveDataDto[]>([]);
-const imageAssets = computed(() => assets.value.filter((asset) => asset.type.startsWith('image/')));
+const imageAssets = computed(() => assets.value.filter((asset) => ((asset as any).blob as Blob).type.startsWith('image')));
 const getMemberImageSrc = (member: any) => {
   return member.photoDataUrl || '';
 };

@@ -157,7 +157,7 @@ onMounted(async () => {
 });
 
 const filteredAudioAssets = computed(() => {
-    return assets.value.filter(asset => asset.type === 'audio');
+    return assets.value.filter(asset => ((asset as any).blob as Blob).type.startsWith('audio'));
 });
 
 function getAssetName(id: string): string {
@@ -196,7 +196,6 @@ async function addUploadBgm() {
         try {
             const asset: any = {
                 id: '',
-                type: 'audio',
                 name: newBgmFile.value.name,
                 uploadedAt: new Date().toISOString(),
                 lastUpdated: new Date().toISOString(),

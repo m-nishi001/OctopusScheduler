@@ -92,7 +92,7 @@
                                 <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
                                     File</button>
                                 <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
-                                }}</span>
+                                    }}</span>
                                 <button v-if="form.insertFile" type="button" class="clear-btn"
                                     @click.prevent="clearInsertFile">×</button>
                             </div>
@@ -182,7 +182,7 @@ const form = ref({
     insertAssetType: 'image' as 'image' | 'video',
     insertAssetId: '',
     insertFile: null as File | null,
-    tempAssets: [] as Asset[],
+    tempAssets: [] as any[],
 });
 
 const assets = ref<Asset[]>([]);
@@ -293,13 +293,13 @@ onMounted(async () => {
 });
 
 const filteredAssets = computed(() => {
-    const type = form.value.contentType === 'image' ? 'image' : 'video';
-    return assets.value.filter(asset => asset.type === type);
+    const want = form.value.contentType === 'image' ? 'image' : 'video';
+    return assets.value.filter(asset => ((asset as any).blob as Blob).type.startsWith(want));
 });
 
 const filteredInsertAssets = computed(() => {
-    const type = form.value.insertAssetType;
-    return assets.value.filter(asset => asset.type === type);
+    const want = form.value.insertAssetType;
+    return assets.value.filter(asset => ((asset as any).blob as Blob).type.startsWith(want));
 });
 
 async function loadAssets() {
@@ -335,7 +335,7 @@ async function onSubmit() {
             const ids = await assetService.addAssets(form.value.tempAssets);
             form.value.tempAssets.forEach((asset, index) => {
                 const realId = ids[index];
-                htmlString = htmlString.replace(new RegExp(`{{asset:(${asset.type}):${asset.id}}}`, 'g'), `{{asset:$1:${realId}}}`);
+                htmlString = htmlString.replace(new RegExp(`{{asset:(${asset.insertAssetType || 'image'}):${asset.id}}}`, 'g'), `{{asset:$1:${realId}}}`);
             });
         } catch (e) {
             alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
@@ -413,9 +413,9 @@ function insertAsset() {
     if (form.value.assetInsertSource === 'existing' && form.value.insertAssetId) {
         insertAtCursor(`{{asset:${form.value.insertAssetType}:${form.value.insertAssetId}}}`);
     } else if (form.value.assetInsertSource === 'upload' && form.value.insertFile) {
-        const asset: Asset = {
+        const asset: any = {
             id: '',
-            type: form.value.insertAssetType,
+            insertAssetType: form.value.insertAssetType,
             name: form.value.insertFile.name,
             uploadedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),

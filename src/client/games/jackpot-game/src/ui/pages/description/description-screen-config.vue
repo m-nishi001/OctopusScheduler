@@ -37,10 +37,25 @@ export default {
 		const playBGM = async () => {
 			if (!descriptionConfig.value || !descriptionConfig.value.descriptionBgm) return;
 			const asset = await assetService.getDriveDataById(descriptionConfig.value.descriptionBgm);
-			if (asset && asset.dataUrl) {
-				bgmAudio.value = new Audio(asset.dataUrl);
-				bgmAudio.value.loop = true;
-				bgmAudio.value.play().catch(() => { });
+			if (asset) {
+				if ((asset as any).blob) {
+					try {
+						const url = URL.createObjectURL((asset as any).blob);
+						bgmAudio.value = new Audio(url);
+						bgmAudio.value.loop = true;
+						bgmAudio.value.play().catch(() => { });
+					} catch (e) {
+						if (asset.dataUrl) {
+							bgmAudio.value = new Audio(asset.dataUrl);
+							bgmAudio.value.loop = true;
+							bgmAudio.value.play().catch(() => { });
+						}
+					}
+				} else if (asset.dataUrl) {
+					bgmAudio.value = new Audio(asset.dataUrl);
+					bgmAudio.value.loop = true;
+					bgmAudio.value.play().catch(() => { });
+				}
 			}
 		};		// Enterキーで次へ
 		const handleKey = (e: KeyboardEvent) => {

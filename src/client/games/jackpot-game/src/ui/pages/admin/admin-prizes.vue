@@ -296,8 +296,8 @@ const prizeDeleteService = container.resolve(PrizeDeleteService);
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
 const assets = ref<any[]>([]);
-const imageAssets = computed(() => assets.value.filter(asset => asset.type === 'image'));
-const audioAssets = computed(() => assets.value.filter(asset => asset.type === 'audio'));
+const imageAssets = computed(() => assets.value.filter(asset => asset.blob.type.startsWith('image')));
+const audioAssets = computed(() => assets.value.filter(asset => asset.blob.type.startsWith('audio')));
 const onImageError = (event: Event) => {
   const img = event.target as HTMLImageElement;
   img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjNTU1Ii8+Cjx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmaWxsPSIjY2NjIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPk5vIEltYWdlPC90ZXh0Pgo8L3N2Zz4=';

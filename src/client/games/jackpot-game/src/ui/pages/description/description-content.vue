@@ -64,7 +64,15 @@ export default {
 			for (const element of elements.value) {
 				if (element.assetId) {
 					const asset = await assetService.getDriveDataById(element.assetId);
-					element.assetUrl = asset?.dataUrl || '';
+					if (asset && (asset as any).blob) {
+						try {
+							element.assetUrl = URL.createObjectURL((asset as any).blob);
+						} catch (e) {
+							element.assetUrl = asset.dataUrl || '';
+						}
+					} else {
+						element.assetUrl = asset?.dataUrl || '';
+					}
 				}
 			}
 			if (elements.value.length > 0) {

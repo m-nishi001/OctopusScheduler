@@ -25,16 +25,17 @@
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedAssets" :value="asset.id" />
                 <div class="asset-preview">
-                    <img v-if="asset.type === 'image' && asset.dataUrl" :src="asset.dataUrl" alt="preview"
+                    <img v-if="asset.blob.type.startsWith('image')" :src="asset.dataUrl" alt="preview"
                         class="preview-img" />
-                    <video v-else-if="asset.type === 'video' && asset.dataUrl" :src="asset.dataUrl" controls
+                    <video v-else-if="asset.blob.type.startsWith('video')" :src="asset.dataUrl" controls
                         class="preview-video"></video>
-                    <audio v-else-if="asset.type === 'audio' && asset.dataUrl" :src="asset.dataUrl" controls
+                    <audio v-else-if="asset.blob.type.startsWith('audio')" :src="asset.dataUrl" controls
                         class="preview-audio"></audio>
                     <span v-else>{{ asset.name }}</span>
                 </div>
                 <div class="asset-info">
-                    <span>{{ asset.name }} ({{ asset.type }}) - {{ FileUtils.formatSize(asset.size) }}</span>
+                    <span>{{ asset.name }} ({{ deriveAssetKind(asset) }}) - {{ FileUtils.formatSize(asset.size)
+                        }}</span>
                     <div class="usage-info">
                         <strong>使用場所:</strong>
                         <ul>
@@ -244,6 +245,16 @@ onMounted(async () => {
     await syncAssets();
     await fetchAssets();
 });
+
+function deriveAssetKind(asset: any): string {
+    const mime = asset?.blob?.type || asset?.dataUrl || '';
+    if (typeof mime === 'string') {
+        if (mime.startsWith('image')) return 'image';
+        if (mime.startsWith('video')) return 'video';
+        if (mime.startsWith('audio')) return 'audio';
+    }
+    return 'file';
+}
 </script>
 
 <style scoped>

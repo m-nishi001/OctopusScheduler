@@ -22,16 +22,16 @@
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedAssets" :value="asset.id" />
                 <div class="asset-preview">
-                    <img v-if="asset.type === 'image' && asset.url" :src="asset.url" alt="preview"
+                    <img v-if="deriveAssetKind(asset) === 'image' && asset.url" :src="asset.url" alt="preview"
                         class="preview-img" />
-                    <video v-else-if="asset.type === 'video' && asset.url" :src="asset.url" controls
+                    <video v-else-if="deriveAssetKind(asset) === 'video' && asset.url" :src="asset.url" controls
                         class="preview-video"></video>
-                    <audio v-else-if="asset.type === 'audio' && asset.url" :src="asset.url" controls
+                    <audio v-else-if="deriveAssetKind(asset) === 'audio' && asset.url" :src="asset.url" controls
                         class="preview-audio"></audio>
                     <span v-else>{{ asset.name }}</span>
                 </div>
                 <div class="asset-info">
-                    <span>{{ asset.name }} ({{ asset.type }}) - {{ asset.size }} bytes</span>
+                    <span>{{ asset.name }} ({{ deriveAssetKind(asset) }}) - {{ asset.size }} bytes</span>
                 </div>
                 <button class="admin-btn ml-2" @click="onPreview(asset)">プレビュー</button>
                 <button class="admin-btn ml-2" @click="deleteAsset(asset.id)">削除</button>
@@ -136,14 +136,10 @@ const addAssets = async () => {
     if (!selectedFiles.value.length) return;
     uploading.value = true;
     const assetPairs = selectedFiles.value.map((file) => {
-        let type: 'audio' | 'image' | 'video' = 'image';
-        if (file.type.includes('audio')) type = 'audio';
-        else if (file.type.includes('video')) type = 'video';
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
         const assetForStore: any = {
             id,
-            type,
             blob: file,
             name: file.name,
             uploadedAt: now,
@@ -169,10 +165,21 @@ const deleteSelectedAssets = async () => { if (!selectedAssets.value.length) ret
 
 const syncAssets = async () => { syncing.value = true; try { await assetService.syncAssets(); await fetchAssets(); } finally { syncing.value = false; } };
 
-const onPreview = (asset: any) => { previewAsset.value = asset; previewAssetType.value = asset.type; };
+const onPreview = (asset: any) => { previewAsset.value = asset; previewAssetType.value = deriveAssetKind(asset); };
 const closePreview = () => { previewAsset.value = null; previewAssetType.value = null; };
 
 onMounted(async () => { await fetchAssets(); });
+
+function deriveAssetKind(asset: any): string {
+    // blob is guaranteed to be present; use it directly.
+    const mime = asset.blob.type;
+    if (typeof mime === 'string') {
+        if (mime.startsWith('image')) return 'image';
+        if (mime.startsWith('video')) return 'video';
+        if (mime.startsWith('audio')) return 'audio';
+    }
+    return 'file';
+}
 </script>
 
 <style scoped>
