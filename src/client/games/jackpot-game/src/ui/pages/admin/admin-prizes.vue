@@ -282,7 +282,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import type { Asset } from "../../../model/applications/asset/dto/asset-data-dto";
+import type { Asset } from "../../../model/applications/asset/dto/asset-data";
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
 import { PrizeDeleteService } from '../../../model/applications/prize/prize-delete-service';

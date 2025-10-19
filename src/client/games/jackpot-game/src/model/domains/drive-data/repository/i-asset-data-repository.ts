@@ -1,7 +1,7 @@
 import type {
   Asset,
   AssetMetadata,
-} from "../../../applications/asset/dto/asset-data-dto";
+} from "../../../applications/asset/dto/asset-data";
 
 export interface IAssetDataRepository {
   addAssetData(assetData: Asset[]): Promise<Asset[]>;

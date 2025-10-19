@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import type { IAssetDataRepository } from "../../domains/drive-data/repository/i-asset-data-repository";
-import { Asset, AssetMetadata } from "./dto/asset-data-dto";
+import { Asset, AssetMetadata } from "./dto/asset-data";
 
 @injectable()
 export class AssetDataService {

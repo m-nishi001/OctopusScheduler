@@ -3,7 +3,7 @@ import { AssetDataService } from "../asset/asset-data-service";
 import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
 import type { PrizeDto } from "./dto/prize-dto";
 import { toPrize } from "./dto/prize-dto";
-import type { Asset } from "../asset/dto/asset-data-dto";
+import type { Asset } from "../asset/dto/asset-data";
 import type { Prize } from "../../domains/prize/prize";
 
 @injectable()

@@ -1,10 +1,7 @@
 import { injectable } from "tsyringe";
 import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
 import type { IAssetDataRepository } from "../../domains/drive-data/repository/i-asset-data-repository";
-import {
-  Asset,
-  AssetMetadata,
-} from "../../applications/asset/dto/asset-data-dto";
+import { Asset, AssetMetadata } from "../../applications/asset/dto/asset-data";
 
 @injectable()
 export class AssetDataRepository implements IAssetDataRepository {

@@ -1,6 +1,6 @@
 import { ref, computed, onMounted } from "vue";
 import { ScreenConfigService } from "../../../../model/applications/screen-config/screen-config-service";
-import type { Asset } from "../../../../model/applications/asset/dto/asset-data-dto";
+import type { Asset } from "../../../../model/applications/asset/dto/asset-data";
 import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
 import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
 import { AssetDataService } from "../../../../model/applications/asset/asset-data-service";

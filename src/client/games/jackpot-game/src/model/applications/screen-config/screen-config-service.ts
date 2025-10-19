@@ -8,7 +8,7 @@ import {
 } from "./i-screen-config-converter";
 import { container } from "tsyringe";
 import { AssetDataService } from "../asset/asset-data-service";
-import type { Asset } from "../asset/dto/asset-data-dto";
+import type { Asset } from "../asset/dto/asset-data";
 
 @injectable()
 export class ScreenConfigService {

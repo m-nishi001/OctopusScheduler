@@ -114,7 +114,7 @@ import { useScreenSettingData } from './use-screen-setting-data';
 import { HomeScreenSetting } from '../../../../model/domains/screen-config/home-screen-setting';
 import { HomeScreenConfigConverter } from '../../../../model/applications/screen-config/home/home-screen-config-converter';
 import { container } from 'tsyringe';
-import type { Asset } from "../../../../model/applications/asset/dto/asset-data-dto";
+import type { Asset } from "../../../../model/applications/asset/dto/asset-data";
 
 const {
     screenConfigService,
