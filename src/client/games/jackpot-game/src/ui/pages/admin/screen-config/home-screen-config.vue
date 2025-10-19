@@ -114,7 +114,7 @@ import { useScreenSettingData } from './use-screen-setting-data';
 import { HomeScreenSetting } from '../../../../model/domains/screen-config/home-screen-setting';
 import { HomeScreenConfigConverter } from '../../../../model/applications/screen-config/home/home-screen-config-converter';
 import { container } from 'tsyringe';
-import { DriveDataDto } from "../../../../model/applications/asset/dto/drive-data-dto";
+import type { AssetDataDto } from "../../../../model/applications/asset/dto/asset-data-dto";
 
 const {
     screenConfigService,
@@ -137,15 +137,15 @@ const localConfig = ref({
     homeBgm: "",
     homeBgmMode: "select",
     homeBgmFilename: "",
-    homeBgmTempAsset: null as DriveDataDto | null,
+    homeBgmTempAsset: null as AssetDataDto | null,
     buttonClikingSE: "",
     buttonClikingSEMode: "select",
     buttonClikingSEFilename: "",
-    buttonClikingSETempAsset: null as DriveDataDto | null,
+    buttonClikingSETempAsset: null as AssetDataDto | null,
     onCompletedLoadingSE: "",
     onCompletedLoadingSEMode: "select",
     onCompletedLoadingSEFilename: "",
-    onCompletedLoadingSETempAsset: null as DriveDataDto | null,
+    onCompletedLoadingSETempAsset: null as AssetDataDto | null,
     title: "",
     subtitle: "",
 });
@@ -207,7 +207,7 @@ const onOnCompletedLoadingSEChange = async (e: Event) => {
 const handleSaveClick = async () => {
     await handleSave(async () => {
         // Collect temp assets
-        const tempAssetsToAdd: DriveDataDto[] = [];
+        const tempAssetsToAdd: AssetDataDto[] = [];
         if (localConfig.value.homeBgmTempAsset) tempAssetsToAdd.push(localConfig.value.homeBgmTempAsset);
         if (localConfig.value.buttonClikingSETempAsset) tempAssetsToAdd.push(localConfig.value.buttonClikingSETempAsset);
         if (localConfig.value.onCompletedLoadingSETempAsset) tempAssetsToAdd.push(localConfig.value.onCompletedLoadingSETempAsset);

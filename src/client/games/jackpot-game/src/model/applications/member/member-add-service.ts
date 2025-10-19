@@ -3,7 +3,7 @@ import type { IDriveDataRepository } from "../../domains/drive-data/repository/i
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { toMember } from "./dto/member-dto";
-import type { DriveDataDto } from "../asset/dto/drive-data-dto";
+import type { AssetDataDto } from "../asset/dto/asset-data-dto";
 import type { Member } from "../../domains/member/member";
 
 @injectable()
@@ -15,7 +15,7 @@ export class MemberAddService {
 
   async saveMember(
     member: MemberDto,
-    tempDriveDataDto?: DriveDataDto
+    tempDriveDataDto?: AssetDataDto
   ): Promise<Member> {
     let assetId: string | undefined;
     if (tempDriveDataDto) {

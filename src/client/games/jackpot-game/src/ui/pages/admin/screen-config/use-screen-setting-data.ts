@@ -1,6 +1,6 @@
 import { ref, computed, onMounted } from "vue";
 import { ScreenConfigService } from "../../../../model/applications/screen-config/screen-config-service";
-import { DriveDataDto } from "../../../../model/applications/asset/dto/drive-data-dto";
+import type { AssetDataDto } from "../../../../model/applications/asset/dto/asset-data-dto";
 import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
 import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
 import { DriveDataService } from "../../../../model/applications/asset/drive-data-service";
@@ -22,7 +22,7 @@ export function useScreenSettingData() {
   const saving = ref(false);
   const saveStatus = ref("");
   const uploading = ref(false);
-  const tempAssets = ref<DriveDataDto[]>([]);
+  const tempAssets = ref<AssetDataDto[]>([]);
 
   const fetchAssets = async () => {
     try {
@@ -72,8 +72,8 @@ export function useScreenSettingData() {
     uploading.value = isUploading;
   };
 
-  const onTempAssets = (newTempAssets: DriveDataDto[]) => {
-    const existingIds = tempAssets.value.map((a: DriveDataDto) => a.id);
+  const onTempAssets = (newTempAssets: AssetDataDto[]) => {
+    const existingIds = tempAssets.value.map((a: AssetDataDto) => a.id);
     newTempAssets.forEach((asset) => {
       if (!existingIds.includes(asset.id)) {
         tempAssets.value.push(asset);

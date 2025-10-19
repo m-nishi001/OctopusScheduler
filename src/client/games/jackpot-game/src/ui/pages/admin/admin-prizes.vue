@@ -282,7 +282,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import { DriveDataDto } from "../../../model/applications/asset/dto/drive-data-dto";
+import type { AssetDataDto } from "../../../model/applications/asset/dto/asset-data-dto";
 import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
 import { PrizeDeleteService } from '../../../model/applications/prize/prize-delete-service';
@@ -341,7 +341,7 @@ const newPrizeProbability = ref(5);
 const newPrizeRank = ref<number | undefined>();
 const newImageMode = ref('upload');
 const newImageAssetId = ref('');
-const newImageAsset = ref<DriveDataDto | undefined>();
+const newImageAsset = ref<AssetDataDto | undefined>();
 const newImageFilename = ref('');
 const newImagePreview = ref('');
 const newBgm1AssetId = ref('');
@@ -351,9 +351,9 @@ const newBgm2Mode = ref('select');
 const newBgm1Filename = ref('');
 const newBgm2Filename = ref('');
 
-const tempAsset = ref<DriveDataDto | null>(null);
-const tempBgm1Asset = ref<DriveDataDto | null>(null);
-const tempBgm2Asset = ref<DriveDataDto | null>(null);
+const tempAsset = ref<AssetDataDto | null>(null);
+const tempBgm1Asset = ref<AssetDataDto | null>(null);
+const tempBgm2Asset = ref<AssetDataDto | null>(null);
 
 // keep object URLs so we can revoke them later
 const newImagePreviewUrl = ref<string | null>(null);
@@ -494,9 +494,9 @@ const editBgm2Mode = ref('select');
 const editBgm1Filename = ref('');
 const editBgm2Filename = ref('');
 
-const editTempAsset = ref<DriveDataDto | null>(null);
-const editTempBgm1Asset = ref<DriveDataDto | null>(null);
-const editTempBgm2Asset = ref<DriveDataDto | null>(null);
+const editTempAsset = ref<AssetDataDto | null>(null);
+const editTempBgm1Asset = ref<AssetDataDto | null>(null);
+const editTempBgm2Asset = ref<AssetDataDto | null>(null);
 
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -621,10 +621,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (newImagePreviewUrl.value) {
-    try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch {}
+    try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch { }
   }
   if (editImagePreviewUrl.value) {
-    try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch {}
+    try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
   }
 });
 </script>

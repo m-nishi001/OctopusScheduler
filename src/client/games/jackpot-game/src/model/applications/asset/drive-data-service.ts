@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
-import { DriveDataDto } from "./dto/drive-data-dto";
+import { AssetDataDto } from "./dto/asset-data-dto";
 import { FileUtils } from "../../infrastructures/utils/file-utils";
 import type {
   DriveData,
@@ -13,24 +13,24 @@ export class DriveDataService {
     @inject("IDriveDataRepository") private repo: IDriveDataRepository
   ) {}
 
-  async getAllDriveData(): Promise<DriveDataDto[]> {
+  async getAllDriveData(): Promise<AssetDataDto[]> {
     const driveData = await this.repo.getDriveData();
-    return driveData.map((d) => new DriveDataDto(d));
+    return driveData.map((d) => new AssetDataDto(d));
   }
 
-  async getDriveDataById(id: string): Promise<DriveDataDto | null> {
+  async getDriveDataById(id: string): Promise<AssetDataDto | null> {
     const driveData = await this.repo.getDriveDataById(id);
-    return driveData ? new DriveDataDto(driveData) : null;
+    return driveData ? new AssetDataDto(driveData) : null;
   }
 
   async addDriveData(
-    driveDataDtos: DriveDataDto[],
+    driveDataDtos: AssetDataDto[],
     onProgress?: (
       index: number,
       status: "完了" | "失敗",
       message?: string
     ) => void
-  ): Promise<DriveDataDto[]> {
+  ): Promise<AssetDataDto[]> {
     const driveDataEntities = await Promise.all(
       driveDataDtos.map((dto) => dto.toDriveData())
     );
@@ -43,7 +43,7 @@ export class DriveDataService {
           driveDataId: id,
         },
       };
-      return new DriveDataDto(updatedDriveData);
+      return new AssetDataDto(updatedDriveData);
     });
     return updatedDriveDataDtos;
   }
@@ -69,7 +69,7 @@ export class DriveDataService {
     return this.repo.getAllDriveDataMetadata();
   }
 
-  async createDriveDataDtoFromFile(file: File): Promise<DriveDataDto> {
+  async createDriveDataDtoFromFile(file: File): Promise<AssetDataDto> {
     const dataUrl = await FileUtils.readAsDataUrl(file);
     const driveData: DriveData = {
       metadata: {
@@ -84,7 +84,7 @@ export class DriveDataService {
       uploadDate: new Date(),
       parentFolderId: "",
     };
-    return new DriveDataDto(driveData);
+    return new AssetDataDto(driveData);
   }
 
   /**
@@ -95,7 +95,7 @@ export class DriveDataService {
    */
   async createDriveDataDtoWithBlobFromFile(
     file: File
-  ): Promise<{ dto: DriveDataDto; blob: Blob }> {
+  ): Promise<{ dto: AssetDataDto; blob: Blob }> {
     const dataUrl = await FileUtils.readAsDataUrl(file);
     const driveData: DriveData = {
       metadata: {
@@ -110,6 +110,6 @@ export class DriveDataService {
       uploadDate: new Date(),
       parentFolderId: "",
     };
-    return { dto: new DriveDataDto(driveData), blob: file };
+    return { dto: new AssetDataDto(driveData), blob: file };
   }
 }
