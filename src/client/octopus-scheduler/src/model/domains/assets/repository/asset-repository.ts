@@ -13,5 +13,4 @@ export interface IAssetRepository {
   getAssetById(id: string): Promise<DriveData | null>;
   deleteAssets(ids: string[]): Promise<void>;
   syncAssets(onProgress?: (message: string) => void): Promise<void>;
-  getAllAssetMetadata(): Promise<DriveData[]>;
 }

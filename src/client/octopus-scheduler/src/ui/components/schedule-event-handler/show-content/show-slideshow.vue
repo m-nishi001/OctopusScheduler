@@ -29,7 +29,7 @@ const assetRepository = container.resolve<IAssetRepository>("IAssetRepository");
 
 const startSlideshow = async (data: SlideshowData) => {
     slideshowData.value = data;
-    const allMetadata = await assetRepository.getAllAssetMetadata();
+    const allMetadata = await assetRepository.getAssets();
     const assetMetadata = allMetadata.filter(
         (meta: any) => meta.metadata?.parentFolderId === data.folderId && meta.fileKind?.startsWith("image")
     );

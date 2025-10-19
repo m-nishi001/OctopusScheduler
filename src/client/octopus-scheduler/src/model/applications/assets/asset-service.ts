@@ -88,8 +88,4 @@ export class AssetService {
   async syncAssets(onProgress?: (message: string) => void): Promise<void> {
     await this.assetRepository.syncAssets(onProgress);
   }
-
-  async getAllAssetMetadata() {
-    return await this.assetRepository.getAllAssetMetadata();
-  }
 }

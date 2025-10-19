@@ -66,8 +66,4 @@ export class AssetRepository implements IAssetRepository {
     onProgress?.("syncAssets: not implemented (GAS calls removed)");
     return Promise.resolve();
   }
-
-  async getAllAssetMetadata(): Promise<DriveData[]> {
-    return await this.getAssets();
-  }
 }
