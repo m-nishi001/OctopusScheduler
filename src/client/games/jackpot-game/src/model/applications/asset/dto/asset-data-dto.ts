@@ -1,18 +1,4 @@
-export interface AssetMetadata {
-  id: string;
-  type: string;
-  name: string;
-  uploadedAt: Date;
-  lastUpdated: Date;
-  size: number;
-}
-
-export interface Asset extends AssetMetadata {
-  dataUrl?: string;
-  blob?: Blob;
-}
-
-export class AssetMetadataDto implements AssetMetadata {
+export class AssetMetadataDto {
   id: string;
   type: string;
   name: string;
@@ -37,7 +23,7 @@ export class AssetMetadataDto implements AssetMetadata {
   }
 }
 
-export class AssetDataDto implements Asset {
+export class AssetDataDto {
   id: string;
   type: string;
   name: string;
