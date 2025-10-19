@@ -2,6 +2,7 @@ import { LocalStorageService } from "../../../../../packages/common-lib/src/stor
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
 import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable } from "tsyringe";
+import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
 
 @injectable()
 export class ScheduleEventRepository implements IScheduleEventRepository {
@@ -51,33 +52,40 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     return Promise.resolve();
   }
 
-  async getExecutionStatus(eventId: string): Promise<string | null> {
-    const status = await this.executionStatusStorage.get<string>(eventId);
-    return status || null;
+  async getExecutionStatus(eventId: string): Promise<ExecutionStatus | null> {
+    const status =
+      await this.executionStatusStorage.get<ExecutionStatus>(eventId);
+    return (status as ExecutionStatus) || null;
   }
 
-  async updateExecutionStatus(eventId: string, status: string): Promise<void> {
-    await this.executionStatusStorage.save(eventId, status);
+  async updateExecutionStatus(
+    eventId: string,
+    status: ExecutionStatus
+  ): Promise<void> {
+    await this.executionStatusStorage.save<ExecutionStatus>(eventId, status);
   }
 
-  async getAllExecutionStatuses(): Promise<{ [eventId: string]: string }> {
-    const allStatuses = await this.executionStatusStorage.getAll<string>();
-    const result: { [eventId: string]: string } = {};
+  async getAllExecutionStatuses(): Promise<{
+    [eventId: string]: ExecutionStatus;
+  }> {
+    const allStatuses =
+      await this.executionStatusStorage.getAll<ExecutionStatus>();
+    const result: { [eventId: string]: ExecutionStatus } = {};
     for (const [k, v] of allStatuses.entries()) {
-      result[k] = v;
+      result[k] = v as ExecutionStatus;
     }
     return result;
   }
 
   async markEventAsStarted(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, "running");
+    await this.updateExecutionStatus(eventId, ExecutionStatus.Running);
   }
 
   async markEventAsCompleted(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, "completed");
+    await this.updateExecutionStatus(eventId, ExecutionStatus.Completed);
   }
 
   async markEventAsFailed(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, "completed");
+    await this.updateExecutionStatus(eventId, ExecutionStatus.Completed);
   }
 }
