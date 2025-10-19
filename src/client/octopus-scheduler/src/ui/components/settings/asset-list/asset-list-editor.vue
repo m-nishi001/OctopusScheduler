@@ -22,11 +22,11 @@
             <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedAssets" :value="asset.id" />
                 <div class="asset-preview">
-                    <img v-if="asset.type === 'image' && asset.dataUrl" :src="asset.dataUrl" alt="preview"
+                    <img v-if="asset.type === 'image' && asset.url" :src="asset.url" alt="preview"
                         class="preview-img" />
-                    <video v-else-if="asset.type === 'video' && asset.dataUrl" :src="asset.dataUrl" controls
+                    <video v-else-if="asset.type === 'video' && asset.url" :src="asset.url" controls
                         class="preview-video"></video>
-                    <audio v-else-if="asset.type === 'audio' && asset.dataUrl" :src="asset.dataUrl" controls
+                    <audio v-else-if="asset.type === 'audio' && asset.url" :src="asset.url" controls
                         class="preview-audio"></audio>
                     <span v-else>{{ asset.name }}</span>
                 </div>
@@ -71,13 +71,13 @@
         <div v-if="previewAsset" class="modal-overlay" @click.self="closePreview">
             <div class="modal-content">
                 <div v-if="previewAssetType === 'image'">
-                    <img :src="previewAsset.dataUrl" alt="preview" style="max-width:80vw;max-height:70vh" />
+                    <img :src="previewAsset.url" alt="preview" style="max-width:80vw;max-height:70vh" />
                 </div>
                 <div v-else-if="previewAssetType === 'audio'">
-                    <audio :src="previewAsset.dataUrl" controls />
+                    <audio :src="previewAsset.url" controls />
                 </div>
                 <div v-else-if="previewAssetType === 'video'">
-                    <video :src="previewAsset.dataUrl" controls style="max-width:80vw;max-height:70vh" />
+                    <video :src="previewAsset.url" controls style="max-width:80vw;max-height:70vh" />
                 </div>
                 <button class="close-btn" @click="closePreview">閉じる</button>
             </div>
@@ -119,9 +119,9 @@ const fetchAssets = async () => {
     // create object URLs for UI preview when blob exists
     assets.value = raw.map(a => {
         const copy: any = { ...a };
-        if (!copy.dataUrl && copy.blob) {
+        if (!copy.url && copy.blob) {
             try {
-                copy.dataUrl = URL.createObjectURL(copy.blob);
+                copy.url = URL.createObjectURL(copy.blob);
             } catch (err) {
                 console.error('Failed to create object URL for asset', err);
             }
@@ -150,7 +150,7 @@ const addAssets = async () => {
             lastUpdated: now,
             size: file.size,
         };
-        const assetForUI = { ...assetForStore, dataUrl: URL.createObjectURL(file) };
+        const assetForUI = { ...assetForStore, url: URL.createObjectURL(file) };
         return { store: assetForStore, ui: assetForUI };
     });
     try {

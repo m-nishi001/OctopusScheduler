@@ -22,9 +22,9 @@ export class PlayAudioEventHandler {
       try {
         const asset = await assetService.getAssetById(data.audioId);
         if (asset) {
-          let url: string | undefined = (asset as any).dataUrl;
+          let url: string | undefined;
           let createdUrl: string | undefined;
-          if (!url && (asset as any).blob) {
+          if ((asset as any).blob) {
             try {
               createdUrl = URL.createObjectURL((asset as any).blob);
               url = createdUrl;

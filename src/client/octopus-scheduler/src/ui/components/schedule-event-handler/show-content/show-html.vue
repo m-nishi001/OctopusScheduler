@@ -40,16 +40,15 @@ onMounted(async () => {
         try {
             const asset = await assetService.getAssetById(id);
             if (asset) {
-                let url = (asset as any).dataUrl as string | undefined;
-                if (!url && (asset as any).blob) {
+                if ((asset as any).blob) {
                     try {
-                        url = URL.createObjectURL((asset as any).blob);
+                        const url = URL.createObjectURL((asset as any).blob);
                         createdUrls.push(url);
+                        assetMap.set(id, url);
                     } catch (err) {
                         console.error('Failed to create object URL for asset in html', err);
                     }
                 }
-                if (url) assetMap.set(id, url);
             }
         } catch (e) {
             console.error('Failed to load asset:', id, e);

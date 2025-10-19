@@ -13,8 +13,8 @@ export class AssetRepository implements IAssetRepository {
     this.localStorage = new LocalStorageService("octopus-scheduler", "Asset");
   }
 
-  private driveDataToAsset(d: DriveData): Asset {
-    return {
+  private async driveDataToAsset(d: DriveData): Promise<Asset> {
+    const asset: Asset = {
       id: d.metadata?.driveDataId || crypto.randomUUID(),
       type: d.fileKind?.startsWith("image")
         ? "image"
@@ -23,7 +23,6 @@ export class AssetRepository implements IAssetRepository {
           : d.fileKind?.startsWith("audio")
             ? "audio"
             : "text",
-      dataUrl: d.fileDataUrl,
       name: d.fileName,
       uploadedAt: d.uploadDate
         ? d.uploadDate.toISOString()
@@ -34,6 +33,17 @@ export class AssetRepository implements IAssetRepository {
       size: d.metadata?.size || 0,
       directoryId: d.metadata?.parentFolderId || undefined,
     };
+
+    // DriveData.fileDataUrl is expected to be a non-empty data URL (data:<mime>;base64,...)
+    try {
+      const res = await fetch(d.fileDataUrl);
+      asset.blob = await res.blob();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to convert DriveData.fileDataUrl to Blob", e);
+    }
+
+    return asset;
   }
 
   async addAssets(assets: Asset[]): Promise<string[]> {
@@ -56,7 +66,7 @@ export class AssetRepository implements IAssetRepository {
     for (const v of Array.from(all.values())) {
       // migrate older DriveData shape if necessary
       if (v && v.fileDataUrl && v.metadata) {
-        results.push(this.driveDataToAsset(v as DriveData));
+        results.push(await this.driveDataToAsset(v as DriveData));
       } else {
         results.push(v as Asset);
       }
@@ -68,7 +78,7 @@ export class AssetRepository implements IAssetRepository {
     const v = await this.localStorage.get<any>(id);
     if (!v) return null;
     if (v && v.fileDataUrl && v.metadata) {
-      return this.driveDataToAsset(v as DriveData);
+      return await this.driveDataToAsset(v as DriveData);
     }
     return v as Asset;
   }

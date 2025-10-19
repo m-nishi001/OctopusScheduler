@@ -42,10 +42,7 @@ onMounted(async () => {
                     videoUrl.value = objectUrl;
                 } catch (err) {
                     console.error('Failed to create object URL for video', err);
-                    if (asset.dataUrl) videoUrl.value = asset.dataUrl;
                 }
-            } else if (asset.dataUrl) {
-                videoUrl.value = asset.dataUrl;
             }
         }
     }

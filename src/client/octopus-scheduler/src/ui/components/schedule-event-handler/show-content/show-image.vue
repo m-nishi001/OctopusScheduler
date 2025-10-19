@@ -45,10 +45,7 @@ onMounted(async () => {
                     imageUrl.value = objectUrl;
                 } catch (err) {
                     console.error('Failed to create object URL for image', err);
-                    if (asset.dataUrl) imageUrl.value = asset.dataUrl;
                 }
-            } else if (asset.dataUrl) {
-                imageUrl.value = asset.dataUrl;
             }
         }
     }

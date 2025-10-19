@@ -92,7 +92,7 @@
                                 <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
                                     File</button>
                                 <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
-                                    }}</span>
+                                }}</span>
                                 <button v-if="form.insertFile" type="button" class="clear-btn"
                                     @click.prevent="clearInsertFile">×</button>
                             </div>
@@ -196,12 +196,12 @@ const processedHtml = computed(() => {
     let html = form.value.htmlString;
     const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
     html = html.replace(assetRegex, (match, type, assetId) => {
-        const dataUrl = assetMap.value.get(assetId);
-        if (!dataUrl) return match;
+        const url = assetMap.value.get(assetId);
+        if (!url) return match;
         if (type === 'image') {
-            return `<img src="${dataUrl}" alt="asset" />`;
+            return `<img src="${url}" alt="asset" />`;
         } else if (type === 'video') {
-            return `<video src="${dataUrl}" controls autoplay></video>`;
+            return `<video src="${url}" controls autoplay></video>`;
         }
         return match;
     });
@@ -220,17 +220,14 @@ watch(() => form.value.htmlString, async (newHtml) => {
         if (!assetMap.value.has(id)) {
             try {
                 const asset = await assetService.getAssetById(id);
-                if (asset) {
-                    let url = (asset as any).dataUrl as string | undefined;
-                    if (!url && (asset as any).blob) {
-                        try {
-                            url = URL.createObjectURL((asset as any).blob);
-                            createdUrls.push(url);
-                        } catch (err) {
-                            console.error('Failed to create object URL for asset', err);
-                        }
+                if (asset && (asset as any).blob) {
+                    try {
+                        const url = URL.createObjectURL((asset as any).blob);
+                        createdUrls.push(url);
+                        assetMap.value.set(id, url);
+                    } catch (err) {
+                        console.error('Failed to create object URL for asset', err);
                     }
-                    if (url) assetMap.value.set(id, url);
                 }
             } catch (e) {
                 console.error('Failed to load asset:', id, e);
@@ -419,7 +416,6 @@ function insertAsset() {
         const asset: Asset = {
             id: '',
             type: form.value.insertAssetType,
-            dataUrl: '',
             name: form.value.insertFile.name,
             uploadedAt: new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
@@ -430,15 +426,19 @@ function insertAsset() {
         try {
             const url = URL.createObjectURL(form.value.insertFile as File);
             createdUrls.push(url);
-            asset.dataUrl = url;
+            // store mapping for preview
+            const tempId = `temp_${Date.now()}_${Math.random()}`;
+            asset.id = tempId;
+            form.value.tempAssets.push(asset);
+            insertAtCursor(`{{asset:${form.value.insertAssetType}:${tempId}}}`);
+            assetMap.value.set(tempId, url);
         } catch (err) {
             console.error('Failed to create object URL for insert asset', err);
+            form.value.tempAssets.push(asset);
+            const tempId = `temp_${Date.now()}_${Math.random()}`;
+            asset.id = tempId;
+            insertAtCursor(`{{asset:${form.value.insertAssetType}:${tempId}}}`);
         }
-        form.value.tempAssets.push(asset);
-        const tempId = `temp_${Date.now()}_${Math.random()}`;
-        asset.id = tempId;
-        insertAtCursor(`{{asset:${form.value.insertAssetType}:${tempId}}}`);
-        if (asset.dataUrl) assetMap.value.set(tempId, asset.dataUrl);
     }
 }
 

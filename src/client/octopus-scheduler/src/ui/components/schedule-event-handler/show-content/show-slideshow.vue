@@ -29,11 +29,11 @@ const assetRepository = container.resolve<IAssetRepository>("IAssetRepository");
 
 const startSlideshow = async (data: SlideshowData) => {
     slideshowData.value = data;
-    const allMetadata = await assetRepository.getAssets();
-    const assetMetadata = allMetadata.filter(
-        (meta: any) => meta.metadata?.parentFolderId === data.folderId && meta.fileKind?.startsWith("image")
+    const allAssets = await assetRepository.getAssets();
+    const assetMetadata = allAssets.filter(
+        (meta: any) => meta.directoryId === data.folderId && meta.type === "image"
     );
-    images.value = assetMetadata.map((meta: any) => ({ id: meta.metadata.driveDataId, url: "", name: meta.fileName }));
+    images.value = assetMetadata.map((meta: any) => ({ id: meta.id, url: "", name: meta.name }));
     currentIndex.value = 0;
     await loadCurrentImage();
     intervalId.value = setInterval(async () => {
@@ -61,16 +61,24 @@ const loadCurrentImage = async () => {
     const currentImage = images.value[currentIndex.value];
     if (!currentImage || currentImage.url) return;
     const asset = await assetRepository.getAssetById(currentImage.id);
-    if (asset && (asset as any).fileDataUrl) {
-        currentImage.url = (asset as any).fileDataUrl;
+    if (asset && (asset as any).blob) {
+        try {
+            currentImage.url = URL.createObjectURL((asset as any).blob);
+        } catch (err) {
+            console.error('Failed to create object URL for slideshow image', err);
+        }
     }
     // Preload next image
     const nextIndex = (currentIndex.value + 1) % images.value.length;
     const nextImage = images.value[nextIndex];
     if (nextImage && !nextImage.url) {
         const nextAsset = await assetRepository.getAssetById(nextImage.id);
-        if (nextAsset && (nextAsset as any).fileDataUrl) {
-            nextImage.url = (nextAsset as any).fileDataUrl;
+        if (nextAsset && (nextAsset as any).blob) {
+            try {
+                nextImage.url = URL.createObjectURL((nextAsset as any).blob);
+            } catch (err) {
+                console.error('Failed to create object URL for next slideshow image', err);
+            }
         }
     }
     // Unload previous image to save memory
