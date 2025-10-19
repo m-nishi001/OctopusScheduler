@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import type { DrawRequest } from "../../applications/draw/dto/draw-request";
-import type { DrawResponse } from "../../applications/draw/dto/draw-response";
+import type { DrawRequest } from "../applications/draw/dto/draw-request";
+import type { DrawResponse } from "../applications/draw/dto/draw-response";
 
 @injectable()
 export class DrawRepository {

@@ -61,10 +61,10 @@ import type { DrawResultDto } from '../../../model/applications/draw-result/dto/
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import gsap from 'gsap';
-import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
+import { DrawRepository } from '../../../model/infrastructures/draw-repository';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
-import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
-import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
+import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
+import { MemberRepository } from '../../../model/infrastructures/member-repository';
 
 export default {
   name: 'DrawView',

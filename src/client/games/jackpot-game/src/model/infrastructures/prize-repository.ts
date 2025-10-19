@@ -1,7 +1,7 @@
-import type { Prize } from "../../domains/prize/prize";
-import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
+import type { Prize } from "../domains/prize/prize";
+import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
 import { injectable } from "tsyringe";
-import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
+import type { IPrizeRepository } from "../domains/prize/repository/i-prize-repository";
 
 @injectable()
 export class PrizeRepository implements IPrizeRepository {

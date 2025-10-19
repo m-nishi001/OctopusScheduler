@@ -32,14 +32,14 @@
 </template>
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { PrizeRepository } from '../../../model/infrastructures/repositories/prize-repository';
-import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
+import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
+import { MemberRepository } from '../../../model/infrastructures/member-repository';
 import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
+import { DrawRepository } from '../../../model/infrastructures/draw-repository';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import { MainScreenSetting } from '../../../model/domains/screen-config/main-screen-setting';
 export default {

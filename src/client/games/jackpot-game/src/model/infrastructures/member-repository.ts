@@ -1,7 +1,7 @@
-import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
+import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
 import { injectable } from "tsyringe";
-import type { Member } from "../../domains/member/member";
-import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
+import type { Member } from "../domains/member/member";
+import type { IMemberRepository } from "../domains/member/repository/i-member-repository";
 
 @injectable()
 export class MemberRepository implements IMemberRepository {

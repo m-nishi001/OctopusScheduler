@@ -1,9 +1,9 @@
 import { container } from "tsyringe";
-import { MemberRepository } from "../../model/infrastructures/repositories/member-repository";
-import { AssetDataRepository } from "../../model/infrastructures/repositories/asset-data-repository";
-import { PrizeRepository } from "../../model/infrastructures/repositories/prize-repository";
-import { ScreenConfigRepository } from "../../model/infrastructures/repositories/screen-config-repository";
-import { DrawResultRepository } from "../../model/infrastructures/repositories/draw-result-repository";
+import { MemberRepository } from "../../model/infrastructures/member-repository";
+import { AssetDataRepository } from "../../model/infrastructures/asset-data-repository";
+import { PrizeRepository } from "../../model/infrastructures/prize-repository";
+import { ScreenConfigRepository } from "../../model/infrastructures/screen-config-repository";
+import { DrawResultRepository } from "../../model/infrastructures/draw-result-repository";
 import type { IMemberRepository } from "../../model/domains/member/repository/i-member-repository";
 import type { IAssetDataRepository } from "../../model/domains/drive-data/repository/i-asset-data-repository";
 import type { IPrizeRepository } from "../../model/domains/prize/repository/i-prize-repository";
