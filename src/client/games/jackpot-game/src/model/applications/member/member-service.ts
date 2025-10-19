@@ -28,15 +28,10 @@ export class MemberService {
     await this.repo.updateMembers(updateOps);
   }
 
-  async saveMember(
-    member: MemberDto,
-    tempDriveDataDto?: Asset
-  ): Promise<Member> {
+  async saveMember(member: MemberDto, tempAsset?: Asset): Promise<Member> {
     let assetId: string | undefined;
-    if (tempDriveDataDto) {
-      const updated = await this.driveDataService.addDriveData([
-        tempDriveDataDto,
-      ]);
+    if (tempAsset) {
+      const updated = await this.driveDataService.addDriveData([tempAsset]);
       assetId = updated[0].id || undefined;
     }
     const memberToSave = {
@@ -45,9 +40,9 @@ export class MemberService {
     };
     const addedMembers = await this.repo.addMembers([toMember(memberToSave)]);
     const addedMember = addedMembers[0];
-    if (tempDriveDataDto) {
+    if (tempAsset) {
       try {
-        addedMember.photoDataUrl = URL.createObjectURL(tempDriveDataDto.blob);
+        addedMember.photoDataUrl = URL.createObjectURL(tempAsset.blob);
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn("Failed to create object URL for member photo blob", e);

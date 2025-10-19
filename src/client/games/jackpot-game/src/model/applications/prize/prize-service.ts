@@ -24,29 +24,23 @@ export class PrizeService {
 
   async savePrize(
     prize: PrizeDto,
-    tempDriveDataDto?: Asset,
-    tempBgm1DriveDataDto?: Asset,
-    tempBgm2DriveDataDto?: Asset
+    tempAsset?: Asset,
+    tempBgm1Asset?: Asset,
+    tempBgm2Asset?: Asset
   ): Promise<Prize> {
     let assetId: string | undefined;
-    if (tempDriveDataDto) {
-      const updated = await this.driveDataService.addDriveData([
-        tempDriveDataDto,
-      ]);
+    if (tempAsset) {
+      const updated = await this.driveDataService.addDriveData([tempAsset]);
       assetId = updated[0].id || undefined;
     }
     let bgm1AssetId: string | undefined;
-    if (tempBgm1DriveDataDto) {
-      const updated = await this.driveDataService.addDriveData([
-        tempBgm1DriveDataDto,
-      ]);
+    if (tempBgm1Asset) {
+      const updated = await this.driveDataService.addDriveData([tempBgm1Asset]);
       bgm1AssetId = updated[0].id || undefined;
     }
     let bgm2AssetId: string | undefined;
-    if (tempBgm2DriveDataDto) {
-      const updated = await this.driveDataService.addDriveData([
-        tempBgm2DriveDataDto,
-      ]);
+    if (tempBgm2Asset) {
+      const updated = await this.driveDataService.addDriveData([tempBgm2Asset]);
       bgm2AssetId = updated[0].id || undefined;
     }
     const prizeToSave = {
@@ -57,9 +51,9 @@ export class PrizeService {
     };
     await this.repo.addPrizes([toPrize(prizeToSave)]);
     const addedPrize = toPrize(prizeToSave);
-    if (tempDriveDataDto) {
+    if (tempAsset) {
       try {
-        addedPrize.imageDataUrl = URL.createObjectURL(tempDriveDataDto.blob);
+        addedPrize.imageDataUrl = URL.createObjectURL(tempAsset.blob);
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn("Failed to create object URL for prize image blob", e);
