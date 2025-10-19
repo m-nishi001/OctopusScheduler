@@ -1,18 +1,38 @@
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
 import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
-import { injectable, inject } from "tsyringe";
+import { injectable, injectAll, inject } from "tsyringe";
 import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
+import {
+  IScheduleEventConverterToken,
+  type IScheduleEventConverter,
+} from "../../domains/schedule-event/i-schedule-event-converter";
 
 @injectable()
 export class ScheduleEventService {
+  private readonly converters: IScheduleEventConverter[];
+
   constructor(
     @inject("IScheduleEventRepository")
-    private scheduleEventRepository: IScheduleEventRepository
-    // converters removed; domain entities handle serialization
-  ) {}
+    private scheduleEventRepository: IScheduleEventRepository,
+    @injectAll(IScheduleEventConverterToken)
+    converters: IScheduleEventConverter[]
+  ) {
+    this.converters = converters;
+  }
 
   async getScheduleEvents(): Promise<IScheduleEvent[]> {
-    return await this.scheduleEventRepository.getScheduleEvents();
+    const raws = await this.scheduleEventRepository.getScheduleEvents();
+    const results: IScheduleEvent[] = [];
+    for (const raw of raws) {
+      try {
+        const converter = this.converters.find((c) => c.canRevive(raw))!;
+        const ev = converter.revive(raw);
+        if (ev) results.push(ev);
+      } catch (e) {
+        console.error("Failed to revive schedule event", e);
+      }
+    }
+    return results;
   }
 
   async updateScheduleEvents(events: IScheduleEvent[]): Promise<void> {
@@ -20,7 +40,6 @@ export class ScheduleEventService {
   }
 
   async deleteScheduleEvents(ids: string[]): Promise<void> {
-    // previously cleaned up asset refs; no longer needed
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 

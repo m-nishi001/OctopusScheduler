@@ -1,22 +1,14 @@
 import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
 import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
-import { injectable, injectAll } from "tsyringe";
-import {
-  IScheduleEventConverterToken,
-  type IScheduleEventConverter,
-} from "../../domains/schedule-event/i-schedule-event-converter";
+import { injectable } from "tsyringe";
 
 @injectable()
 export class ScheduleEventRepository implements IScheduleEventRepository {
   private readonly localStorage: LocalStorageService;
   private readonly executionStatusStorage: LocalStorageService;
-  private readonly converters: IScheduleEventConverter[];
 
-  constructor(
-    @injectAll(IScheduleEventConverterToken)
-    converters: IScheduleEventConverter[]
-  ) {
+  constructor() {
     this.localStorage = new LocalStorageService(
       "octopus-scheduler",
       "ScheduleEventData"
@@ -25,22 +17,11 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       "octopus-scheduler",
       "ScheduleEventExecutionStatus"
     );
-    this.converters = converters;
   }
 
   async getScheduleEvents(): Promise<IScheduleEvent[]> {
     const all = await this.localStorage.getAll<IScheduleEvent>();
-    const results: IScheduleEvent[] = [];
-    for (const [, raw] of all.entries()) {
-      try {
-        const converter = this.converters.find((c) => c.canRevive(raw))!;
-        const ev = converter.revive(raw);
-        if (ev) results.push(ev);
-      } catch (e) {
-        console.error("Failed to revive schedule event", e);
-      }
-    }
-    return results;
+    return Array.from(all.values());
   }
 
   async updateScheduleEvents(events: IScheduleEvent[]): Promise<void> {
