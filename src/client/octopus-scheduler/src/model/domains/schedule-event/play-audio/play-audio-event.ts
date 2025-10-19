@@ -50,33 +50,23 @@ export class PlayAudioEvent implements IScheduleEvent {
     return new PlayAudioEvent(params);
   }
 
-  static revive(raw: PlayAudioEventRaw): PlayAudioEvent {
-    const startTime =
-      raw.startTime instanceof Date ? raw.startTime : new Date(raw.startTime);
-    const endTime =
-      raw.endTime instanceof Date ? raw.endTime : new Date(raw.endTime);
-    const registeredAt =
-      raw.registeredAt instanceof Date
-        ? raw.registeredAt
-        : new Date(raw.registeredAt);
-    const updatedAt =
-      raw.updatedAt instanceof Date ? raw.updatedAt : new Date(raw.updatedAt);
-
-    const fadeOutRaw = raw.fadeOutDuration;
-    const fadeOutDuration =
-      fadeOutRaw == null || fadeOutRaw === "" ? undefined : Number(fadeOutRaw);
-
-    const processedAtRaw = raw.processedAt;
+  static revive(raw: IScheduleEvent): PlayAudioEvent {
+    const r = raw as unknown as PlayAudioEventRaw;
+    const startTime = new Date(r.startTime);
+    const endTime = new Date(r.endTime);
+    const registeredAt = new Date(r.registeredAt);
+    const updatedAt = new Date(r.updatedAt);
+    const fadeOutDuration = Number(r.fadeOutDuration);
     const processedAt =
-      processedAtRaw == null || processedAtRaw === ""
+      r.processedAt == null || r.processedAt === ""
         ? null
-        : new Date(processedAtRaw);
+        : new Date(r.processedAt);
 
     const params: PlayAudioEventParams = {
-      id: raw.id,
+      id: r.id,
       startTime,
       endTime,
-      audioId: raw.audioId,
+      audioId: r.audioId,
       fadeOutDuration,
       processedAt,
       registeredAt,

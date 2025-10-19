@@ -50,33 +50,25 @@ export class TransitionPageEvent implements IScheduleEvent {
     return new TransitionPageEvent(params);
   }
 
-  static revive(raw: TransitionPageEventRaw): TransitionPageEvent {
-    const startTime =
-      raw.startTime instanceof Date ? raw.startTime : new Date(raw.startTime);
-    const endTime =
-      raw.endTime instanceof Date ? raw.endTime : new Date(raw.endTime);
-    const registeredAt =
-      raw.registeredAt instanceof Date
-        ? raw.registeredAt
-        : new Date(raw.registeredAt);
-    const updatedAt =
-      raw.updatedAt instanceof Date ? raw.updatedAt : new Date(raw.updatedAt);
+  static revive(raw: IScheduleEvent): TransitionPageEvent {
+    const r = raw as unknown as TransitionPageEventRaw;
+    const startTime = new Date(r.startTime);
+    const endTime = new Date(r.endTime);
+    const registeredAt = new Date(r.registeredAt);
+    const updatedAt = new Date(r.updatedAt);
 
-    const fadeOutRaw = raw.fadeOutDuration;
-    const fadeOutDuration =
-      fadeOutRaw == null || fadeOutRaw === "" ? undefined : Number(fadeOutRaw);
+    const fadeOutDuration = Number(r.fadeOutDuration);
 
-    const processedAtRaw = raw.processedAt;
     const processedAt =
-      processedAtRaw == null || processedAtRaw === ""
+      r.processedAt == null || r.processedAt === ""
         ? null
-        : new Date(processedAtRaw);
+        : new Date(r.processedAt);
 
     const params: TransitionPageEventParams = {
-      id: raw.id,
+      id: r.id,
       startTime,
       endTime,
-      transitionUrl: raw.transitionUrl,
+      transitionUrl: r.transitionUrl,
       fadeOutDuration,
       processedAt,
       registeredAt,

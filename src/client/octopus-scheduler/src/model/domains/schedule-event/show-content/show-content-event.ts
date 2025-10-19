@@ -82,58 +82,37 @@ export class ShowContentEvent implements IScheduleEvent {
     return new ShowContentEvent(params);
   }
 
-  static revive(raw: ShowContentEventRaw): ShowContentEvent {
-    const startTime =
-      raw.startTime instanceof Date ? raw.startTime : new Date(raw.startTime);
-    const endTime =
-      raw.endTime instanceof Date ? raw.endTime : new Date(raw.endTime);
-    const registeredAt =
-      raw.registeredAt instanceof Date
-        ? raw.registeredAt
-        : new Date(raw.registeredAt);
-    const updatedAt =
-      raw.updatedAt instanceof Date ? raw.updatedAt : new Date(raw.updatedAt);
+  static revive(raw: IScheduleEvent): ShowContentEvent {
+    const r = raw as unknown as ShowContentEventRaw;
+    const startTime = new Date(r.startTime);
+    const endTime = new Date(r.endTime);
+    const registeredAt = new Date(r.registeredAt);
+    const updatedAt = new Date(r.updatedAt);
 
-    const fadeOutRaw = raw.fadeOutDuration;
-    const fadeOutDuration =
-      fadeOutRaw == null || fadeOutRaw === "" ? undefined : Number(fadeOutRaw);
+    const fadeOutDuration = Number(r.fadeOutDuration);
+    const duration = Number(r.duration);
+    const fadeInTime = Number(r.fadeInTime);
+    const fadeOutTime = Number(r.fadeOutTime);
 
-    const durationRaw = raw.duration;
-    const duration =
-      durationRaw == null || durationRaw === ""
-        ? undefined
-        : Number(durationRaw);
-
-    const fadeInRaw = raw.fadeInTime;
-    const fadeInTime =
-      fadeInRaw == null || fadeInRaw === "" ? undefined : Number(fadeInRaw);
-
-    const fadeOutTimeRaw = raw.fadeOutTime;
-    const fadeOutTime =
-      fadeOutTimeRaw == null || fadeOutTimeRaw === ""
-        ? undefined
-        : Number(fadeOutTimeRaw);
-
-    const processedAtRaw = raw.processedAt;
     const processedAt =
-      processedAtRaw == null || processedAtRaw === ""
+      r.processedAt == null || r.processedAt === ""
         ? null
-        : new Date(processedAtRaw);
+        : new Date(r.processedAt);
 
     const params: ShowContentEventParams = {
-      id: raw.id,
+      id: r.id,
       startTime,
       endTime,
-      contentType: raw.contentType,
-      contentId: raw.contentId,
-      htmlString: raw.htmlString,
+      contentType: r.contentType,
+      contentId: r.contentId,
+      htmlString: r.htmlString,
       fadeOutDuration,
-      displayMode: raw.displayMode as any,
-      effect: raw.effect as any,
+      displayMode: r.displayMode as any,
+      effect: r.effect as any,
       duration,
       fadeInTime,
       fadeOutTime,
-      scrollDirection: raw.scrollDirection as any,
+      scrollDirection: r.scrollDirection as any,
       processedAt,
       registeredAt,
       updatedAt,

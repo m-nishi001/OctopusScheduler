@@ -2,7 +2,6 @@ import { injectable } from "tsyringe";
 import type { IScheduleEventConverter } from "../i-schedule-event-converter";
 import type { IScheduleEvent } from "../schedule-event";
 import { TransitionPageEvent } from "./transition-page-event";
-import type { TransitionPageEventRaw } from "./transition-page-event";
 
 @injectable()
 export class TransitionPageEventConverter implements IScheduleEventConverter {
@@ -15,6 +14,6 @@ export class TransitionPageEventConverter implements IScheduleEventConverter {
   }
 
   revive(raw: IScheduleEvent): IScheduleEvent {
-    return TransitionPageEvent.revive(raw as unknown as TransitionPageEventRaw);
+    return TransitionPageEvent.revive(raw);
   }
 }

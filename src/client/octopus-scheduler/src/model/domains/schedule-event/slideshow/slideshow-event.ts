@@ -62,42 +62,34 @@ export class SlideshowEvent implements IScheduleEvent {
     return new SlideshowEvent(params);
   }
 
-  static revive(raw: SlideshowEventRaw): SlideshowEvent {
-    const startTime =
-      raw.startTime instanceof Date ? raw.startTime : new Date(raw.startTime);
-    const endTime =
-      raw.endTime instanceof Date ? raw.endTime : new Date(raw.endTime);
-    const registeredAt =
-      raw.registeredAt instanceof Date
-        ? raw.registeredAt
-        : new Date(raw.registeredAt);
-    const updatedAt =
-      raw.updatedAt instanceof Date ? raw.updatedAt : new Date(raw.updatedAt);
+  static revive(raw: IScheduleEvent): SlideshowEvent {
+    const r = raw as unknown as SlideshowEventRaw;
+    const startTime = new Date(r.startTime);
+    const endTime = new Date(r.endTime);
+    const registeredAt = new Date(r.registeredAt);
+    const updatedAt = new Date(r.updatedAt);
 
-    const dd = raw.displayDuration;
-    const displayDuration = dd == null || dd === "" ? 0 : Number(dd);
+    const displayDuration = Number(r.displayDuration);
 
     let bgmIds: string[];
-    if (Array.isArray(raw.bgmIds)) bgmIds = raw.bgmIds;
-    else if (typeof raw.bgmIds === "string")
-      bgmIds =
-        raw.bgmIds === "" ? [] : raw.bgmIds.split(",").map((s) => s.trim());
+    if (Array.isArray(r.bgmIds)) bgmIds = r.bgmIds;
+    else if (typeof r.bgmIds === "string")
+      bgmIds = r.bgmIds === "" ? [] : r.bgmIds.split(",").map((s) => s.trim());
     else bgmIds = [];
 
-    const processedAtRaw = raw.processedAt;
     const processedAt =
-      processedAtRaw == null || processedAtRaw === ""
+      r.processedAt == null || r.processedAt === ""
         ? null
-        : new Date(processedAtRaw);
+        : new Date(r.processedAt);
 
     const params: SlideshowEventParams = {
-      id: raw.id,
+      id: r.id,
       startTime,
       endTime,
-      folderId: raw.folderId,
+      folderId: r.folderId,
       displayDuration,
-      transitionType: raw.transitionType,
-      slideDirection: raw.slideDirection as any,
+      transitionType: r.transitionType,
+      slideDirection: r.slideDirection as any,
       bgmIds,
       processedAt,
       registeredAt,
