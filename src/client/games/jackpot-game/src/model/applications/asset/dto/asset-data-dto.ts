@@ -32,19 +32,23 @@ export class AssetDataDto {
   size: number;
   blob: Blob;
 
-  constructor(entity: any) {
-    this.id = entity?.metadata?.driveDataId ?? "";
-    this.type = entity?.fileKind ?? "";
-    this.name = entity?.fileName ?? "";
-    this.uploadedAt = entity?.uploadDate ?? new Date();
-    this.lastUpdated = entity?.metadata?.lastUpdate ?? new Date();
-    this.size = entity?.metadata?.size ?? 0;
-    // Ensure blob is always present. If repository provided a Blob use it,
+  constructor(
+    id: string,
+    type: string,
+    name: string,
+    uploadedAt: Date,
+    lastUpdated: Date,
+    size: number,
+    blob?: Blob
+  ) {
+    this.id = id ?? "";
+    this.type = type ?? "";
+    this.name = name ?? "";
+    this.uploadedAt = uploadedAt ?? new Date();
+    this.lastUpdated = lastUpdated ?? new Date();
+    this.size = size ?? 0;
+    // Ensure blob is always present. If caller provided a Blob use it,
     // otherwise create an empty Blob so the type is always satisfied.
-    if (entity?.blob) {
-      this.blob = entity.blob;
-    } else {
-      this.blob = new Blob();
-    }
+    this.blob = blob ?? new Blob();
   }
 }

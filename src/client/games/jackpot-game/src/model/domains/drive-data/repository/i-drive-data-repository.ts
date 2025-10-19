@@ -1,19 +1,19 @@
 import type {
-  DriveData,
-  DriveMetadata,
-} from "../../../../../../../../server/common/src/drive-types";
+  AssetDataDto,
+  AssetMetadataDto,
+} from "../../../applications/asset/dto/asset-data-dto";
 
 export interface IDriveDataRepository {
   addDriveData(
-    driveData: DriveData[],
+    driveData: AssetDataDto[],
     onProgress?: (
       index: number,
       status: "完了" | "失敗",
       message?: string
     ) => void
-  ): Promise<string[]>;
-  getDriveData(): Promise<DriveData[]>;
-  getDriveDataById(id: string): Promise<DriveData | null>;
+  ): Promise<AssetDataDto[]>;
+  getDriveData(): Promise<AssetDataDto[]>;
+  getDriveDataById(id: string): Promise<AssetDataDto | null>;
   deleteDriveData(ids: string[]): Promise<void>;
   syncDriveData(
     onProgress?: (
@@ -21,5 +21,5 @@ export interface IDriveDataRepository {
       progress?: { current: number; total: number }
     ) => void
   ): Promise<{ updated: number; deleted: number }>;
-  getAllDriveDataMetadata(): Promise<DriveMetadata[]>;
+  getAllDriveDataMetadata(): Promise<AssetMetadataDto[]>;
 }

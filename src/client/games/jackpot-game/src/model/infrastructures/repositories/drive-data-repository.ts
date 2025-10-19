@@ -1,10 +1,10 @@
 import { injectable } from "tsyringe";
 import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
 import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
-import type {
-  DriveData,
-  DriveMetadata,
-} from "../../../../../../../../src/server/common/src/drive-types";
+import {
+  AssetDataDto,
+  AssetMetadataDto,
+} from "../../applications/asset/dto/asset-data-dto";
 
 @injectable()
 export class DriveDataRepository implements IDriveDataRepository {
@@ -15,39 +15,39 @@ export class DriveDataRepository implements IDriveDataRepository {
   }
 
   async addDriveData(
-    driveData: DriveData[],
+    driveData: AssetDataDto[],
     onProgress?: (
       index: number,
       status: "完了" | "失敗",
       message?: string
     ) => void
-  ): Promise<string[]> {
-    const ids: string[] = [];
-    for (const [index, data] of driveData.entries()) {
+  ): Promise<AssetDataDto[]> {
+    const result: AssetDataDto[] = [];
+    for (const [index, dto] of driveData.entries()) {
       const id = crypto.randomUUID();
-      const dataWithId: DriveData = {
-        ...data,
-        metadata: {
-          ...data.metadata,
-          driveDataId: id,
-          lastUpdate: new Date(),
-        },
-        uploadDate: new Date(),
-      };
-      await this.localStorage.save(id, dataWithId);
-      ids.push(id);
+      const updated: AssetDataDto = new AssetDataDto(
+        id,
+        dto.type,
+        dto.name,
+        dto.uploadedAt ?? new Date(),
+        dto.lastUpdated ?? new Date(),
+        dto.size ?? 0,
+        dto.blob
+      );
+      await this.localStorage.save(id, updated);
+      result.push(updated);
       onProgress?.(index, "完了");
     }
-    return ids;
+    return result;
   }
 
-  async getDriveData(): Promise<DriveData[]> {
-    const allData = await this.localStorage.getAll<DriveData>();
+  async getDriveData(): Promise<AssetDataDto[]> {
+    const allData = await this.localStorage.getAll<AssetDataDto>();
     return Array.from(allData.values());
   }
 
-  async getDriveDataById(id: string): Promise<DriveData | null> {
-    return (await this.localStorage.get<DriveData>(id)) || null;
+  async getDriveDataById(id: string): Promise<AssetDataDto | null> {
+    return (await this.localStorage.get<AssetDataDto>(id)) || null;
   }
 
   async deleteDriveData(ids: string[]): Promise<void> {
@@ -64,8 +64,18 @@ export class DriveDataRepository implements IDriveDataRepository {
     return { updated: 0, deleted: 0 };
   }
 
-  async getAllDriveDataMetadata(): Promise<DriveMetadata[]> {
+  async getAllDriveDataMetadata(): Promise<AssetMetadataDto[]> {
     const data = await this.getDriveData();
-    return data.map((d) => d.metadata);
+    return data.map(
+      (d) =>
+        new AssetMetadataDto(
+          d.id,
+          d.type,
+          d.name,
+          d.uploadedAt,
+          d.lastUpdated,
+          d.size
+        )
+    );
   }
 }

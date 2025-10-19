@@ -1,11 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
-import { AssetDataDto } from "./dto/asset-data-dto";
-import { FileUtils } from "../../infrastructures/utils/file-utils";
-import type {
-  DriveData,
-  DriveMetadata,
-} from "../../../../../../../server/common/src/drive-types";
+import { AssetDataDto, AssetMetadataDto } from "./dto/asset-data-dto";
 
 @injectable()
 export class DriveDataService {
@@ -14,13 +9,11 @@ export class DriveDataService {
   ) {}
 
   async getAllDriveData(): Promise<AssetDataDto[]> {
-    const driveData = await this.repo.getDriveData();
-    return driveData.map((d) => new AssetDataDto(d));
+    return await this.repo.getDriveData();
   }
 
   async getDriveDataById(id: string): Promise<AssetDataDto | null> {
-    const driveData = await this.repo.getDriveDataById(id);
-    return driveData ? new AssetDataDto(driveData) : null;
+    return await this.repo.getDriveDataById(id);
   }
 
   async addDriveData(
@@ -31,42 +24,10 @@ export class DriveDataService {
       message?: string
     ) => void
   ): Promise<AssetDataDto[]> {
-    const driveDataEntities = await Promise.all(
-      driveDataDtos.map((dto) => this.assetDtoToDriveData(dto))
-    );
-    const ids = await this.repo.addDriveData(driveDataEntities, onProgress);
-    const updatedDriveDataDtos = ids.map((id, index) => {
-      const updatedDriveData: DriveData = {
-        ...driveDataEntities[index],
-        metadata: {
-          ...driveDataEntities[index].metadata,
-          driveDataId: id,
-        },
-      };
-      return new AssetDataDto(updatedDriveData);
-    });
-    return updatedDriveDataDtos;
+    return await this.repo.addDriveData(driveDataDtos, onProgress);
   }
 
-  // Convert an AssetDataDto to the DriveData shape expected by the repository.
-  // This used to be a public method on AssetDataDto; move it here as a private
-  // helper so UI layers can't call it directly.
-  private async assetDtoToDriveData(dto: AssetDataDto): Promise<DriveData> {
-    return {
-      metadata: {
-        driveDataId: dto.id,
-        fileId: "",
-        parentFolderId: "",
-        lastUpdate: dto.lastUpdated,
-        size: dto.size,
-      },
-      fileName: dto.name,
-      fileKind: dto.type,
-      fileDataUrl: "",
-      uploadDate: dto.uploadedAt,
-      parentFolderId: "",
-    };
-  }
+  // assetDtoToDriveData removed; repository now stores AssetDataDto directly.
 
   async deleteDriveData(
     ids: string[],
@@ -85,51 +46,35 @@ export class DriveDataService {
     return await this.repo.syncDriveData(onProgress);
   }
 
-  public getAllDriveDataMetadata(): Promise<DriveMetadata[]> {
+  public getAllDriveDataMetadata(): Promise<AssetMetadataDto[]> {
     return this.repo.getAllDriveDataMetadata();
   }
-
   async createDriveDataDtoFromFile(file: File): Promise<AssetDataDto> {
-    const dataUrl = await FileUtils.readAsDataUrl(file);
-    const driveData: DriveData = {
-      metadata: {
-        driveDataId: "",
-        fileId: "",
-        parentFolderId: "",
-        lastUpdate: new Date(),
-      },
-      fileName: file.name,
-      fileKind: file.type,
-      fileDataUrl: dataUrl,
-      uploadDate: new Date(),
-      parentFolderId: "",
-    };
-    return new AssetDataDto(driveData);
+    return new AssetDataDto(
+      "",
+      file.type,
+      file.name,
+      new Date(),
+      new Date(),
+      0,
+      undefined
+    );
   }
 
-  /**
-   * Create a DriveDataDto from a File and also return the Blob (File) itself.
-   * This allows UI code to show previews using URL.createObjectURL(blob) instead
-   * of relying on base64 data URLs. The existing createDriveDataDtoFromFile
-   * is left intact for backwards compatibility.
-   */
   async createDriveDataDtoWithBlobFromFile(
     file: File
   ): Promise<{ dto: AssetDataDto; blob: Blob }> {
-    const dataUrl = await FileUtils.readAsDataUrl(file);
-    const driveData: DriveData = {
-      metadata: {
-        driveDataId: "",
-        fileId: "",
-        parentFolderId: "",
-        lastUpdate: new Date(),
-      },
-      fileName: file.name,
-      fileKind: file.type,
-      fileDataUrl: dataUrl,
-      uploadDate: new Date(),
-      parentFolderId: "",
+    return {
+      dto: new AssetDataDto(
+        "",
+        file.type,
+        file.name,
+        new Date(),
+        new Date(),
+        0,
+        file
+      ),
+      blob: file,
     };
-    return { dto: new AssetDataDto(driveData), blob: file };
   }
 }
