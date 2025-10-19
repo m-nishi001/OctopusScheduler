@@ -175,7 +175,7 @@ async function onSubmit() {
     // persist
     try {
         if (isEdit.value && props.event) {
-            const updated = new PlayAudioEvent({
+            const updated = PlayAudioEvent.fromParams({
                 id: props.event.id,
                 startTime,
                 endTime,
@@ -187,7 +187,7 @@ async function onSubmit() {
             });
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = new PlayAudioEvent({
+            const tempEvent = PlayAudioEvent.fromParams({
                 id: '',
                 startTime,
                 endTime,

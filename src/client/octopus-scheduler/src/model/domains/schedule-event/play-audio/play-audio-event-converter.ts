@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import type { IScheduleEventConverter } from "../i-schedule-event-converter";
 import type { IScheduleEvent } from "../schedule-event";
 import { PlayAudioEvent } from "./play-audio-event";
+import type { PlayAudioEventRaw } from "./play-audio-event";
 
 @injectable()
 export class PlayAudioEventConverter implements IScheduleEventConverter {
@@ -9,11 +10,11 @@ export class PlayAudioEventConverter implements IScheduleEventConverter {
     return "PlayAudioEvent";
   }
 
-  canRevive(raw: any): boolean {
-    return raw && raw.type === this.getType();
+  canRevive(raw: IScheduleEvent): boolean {
+    return raw.type === this.getType();
   }
 
   revive(raw: IScheduleEvent): IScheduleEvent {
-    return new PlayAudioEvent(raw);
+    return PlayAudioEvent.revive(raw as unknown as PlayAudioEventRaw);
   }
 }

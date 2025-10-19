@@ -1,6 +1,29 @@
 import { eventBus } from "../../../../core/event-bus";
 import type { IScheduleEvent } from "../schedule-event";
 
+export interface PlayAudioEventParams {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  audioId: string;
+  fadeOutDuration?: number;
+  processedAt: Date | null;
+  registeredAt: Date;
+  updatedAt: Date;
+}
+
+export interface PlayAudioEventRaw {
+  id: string;
+  type?: string;
+  startTime: string | Date;
+  endTime: string | Date;
+  audioId: string;
+  fadeOutDuration?: string | number | null;
+  processedAt?: string | null;
+  registeredAt: string | Date;
+  updatedAt: string | Date;
+}
+
 export class PlayAudioEvent implements IScheduleEvent {
   public readonly id: string;
   public readonly type: string = "PlayAudioEvent";
@@ -12,52 +35,55 @@ export class PlayAudioEvent implements IScheduleEvent {
   public readonly registeredAt: Date;
   public readonly updatedAt: Date;
 
-  constructor(
-    arg:
-      | (IScheduleEvent & Partial<PlayAudioEvent>)
-      | {
-          id: string;
-          startTime: Date;
-          endTime: Date;
-          audioId: string;
-          fadeOutDuration?: number;
-          processedAt: Date | null;
-          registeredAt: Date;
-          updatedAt: Date;
-        }
-  ) {
-    if ((arg as IScheduleEvent).type) {
-      const ev = arg as IScheduleEvent & Partial<PlayAudioEvent>;
-      this.id = ev.id;
-      this.startTime = new Date((ev as any).startTime);
-      this.endTime = new Date((ev as any).endTime);
-      this.audioId = (ev as any).audioId;
-      const fo = (ev as any).fadeOutDuration;
-      this.fadeOutDuration = fo == null || fo === "" ? undefined : Number(fo);
-      const p = (ev as any).processedAt;
-      this.processedAt = p == null || p === "" ? null : new Date(p);
-      this.registeredAt = new Date((ev as any).registeredAt);
-      this.updatedAt = new Date((ev as any).updatedAt);
-    } else {
-      const params = arg as {
-        id: string;
-        startTime: Date;
-        endTime: Date;
-        audioId: string;
-        fadeOutDuration?: number;
-        processedAt: Date | null;
-        registeredAt: Date;
-        updatedAt: Date;
-      };
-      this.id = params.id;
-      this.startTime = params.startTime;
-      this.endTime = params.endTime;
-      this.audioId = params.audioId;
-      this.fadeOutDuration = params.fadeOutDuration;
-      this.processedAt = params.processedAt;
-      this.registeredAt = params.registeredAt;
-      this.updatedAt = params.updatedAt;
-    }
+  private constructor(params: PlayAudioEventParams) {
+    this.id = params.id;
+    this.startTime = params.startTime;
+    this.endTime = params.endTime;
+    this.audioId = params.audioId;
+    this.fadeOutDuration = params.fadeOutDuration;
+    this.processedAt = params.processedAt;
+    this.registeredAt = params.registeredAt;
+    this.updatedAt = params.updatedAt;
+  }
+
+  static fromParams(params: PlayAudioEventParams): PlayAudioEvent {
+    return new PlayAudioEvent(params);
+  }
+
+  static revive(raw: PlayAudioEventRaw): PlayAudioEvent {
+    const startTime =
+      raw.startTime instanceof Date ? raw.startTime : new Date(raw.startTime);
+    const endTime =
+      raw.endTime instanceof Date ? raw.endTime : new Date(raw.endTime);
+    const registeredAt =
+      raw.registeredAt instanceof Date
+        ? raw.registeredAt
+        : new Date(raw.registeredAt);
+    const updatedAt =
+      raw.updatedAt instanceof Date ? raw.updatedAt : new Date(raw.updatedAt);
+
+    const fadeOutRaw = raw.fadeOutDuration;
+    const fadeOutDuration =
+      fadeOutRaw == null || fadeOutRaw === "" ? undefined : Number(fadeOutRaw);
+
+    const processedAtRaw = raw.processedAt;
+    const processedAt =
+      processedAtRaw == null || processedAtRaw === ""
+        ? null
+        : new Date(processedAtRaw);
+
+    const params: PlayAudioEventParams = {
+      id: raw.id,
+      startTime,
+      endTime,
+      audioId: raw.audioId,
+      fadeOutDuration,
+      processedAt,
+      registeredAt,
+      updatedAt,
+    };
+
+    return new PlayAudioEvent(params);
   }
 
   async execute(isStart: boolean): Promise<void> {

@@ -4,6 +4,6 @@ export const IScheduleEventConverterToken = Symbol("IScheduleEventConverter");
 
 export interface IScheduleEventConverter {
   getType(): string;
-  canRevive(raw: any): boolean;
+  canRevive(raw: IScheduleEvent): boolean;
   revive(raw: IScheduleEvent): IScheduleEvent;
 }

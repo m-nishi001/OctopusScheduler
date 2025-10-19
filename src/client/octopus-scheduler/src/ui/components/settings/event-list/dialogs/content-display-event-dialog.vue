@@ -92,7 +92,7 @@
                                 <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
                                     File</button>
                                 <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
-                                    }}</span>
+                                }}</span>
                                 <button v-if="form.insertFile" type="button" class="clear-btn"
                                     @click.prevent="clearInsertFile">×</button>
                             </div>
@@ -380,7 +380,7 @@ async function onSubmit() {
         }
 
         if (props.event) {
-            const updated = new ShowContentEvent({
+            const updated = ShowContentEvent.fromParams({
                 id: props.event.id,
                 startTime,
                 endTime,
@@ -400,7 +400,7 @@ async function onSubmit() {
             });
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = new ShowContentEvent({
+            const tempEvent = ShowContentEvent.fromParams({
                 id: '',
                 startTime,
                 endTime,

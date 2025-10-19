@@ -238,7 +238,7 @@ async function onSubmit() {
     const scheduleEventService = container.resolve(ScheduleEventService);
     try {
         if (props.event) {
-            const updated = new SlideshowEvent({
+            const updated = SlideshowEvent.fromParams({
                 id: props.event.id,
                 startTime,
                 endTime,
@@ -253,7 +253,7 @@ async function onSubmit() {
             });
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = new SlideshowEvent({
+            const tempEvent = SlideshowEvent.fromParams({
                 id: '',
                 startTime,
                 endTime,

@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import type { IScheduleEventConverter } from "../i-schedule-event-converter";
 import type { IScheduleEvent } from "../schedule-event";
 import { SlideshowEvent } from "./slideshow-event";
+import type { SlideshowEventRaw } from "./slideshow-event";
 
 @injectable()
 export class SlideshowEventConverter implements IScheduleEventConverter {
@@ -9,11 +10,11 @@ export class SlideshowEventConverter implements IScheduleEventConverter {
     return "SlideshowEvent";
   }
 
-  canRevive(raw: any): boolean {
-    return raw && raw.type === this.getType();
+  canRevive(raw: IScheduleEvent): boolean {
+    return raw.type === this.getType();
   }
 
   revive(raw: IScheduleEvent): IScheduleEvent {
-    return new SlideshowEvent(raw as any);
+    return SlideshowEvent.revive(raw as unknown as SlideshowEventRaw);
   }
 }
