@@ -35,7 +35,7 @@
                 </div>
                 <div class="asset-info">
                     <span>{{ asset.name }} ({{ deriveAssetKind(asset) }}) - {{ FileUtils.formatSize(asset.size)
-                        }}</span>
+                    }}</span>
                     <div class="usage-info">
                         <strong>使用場所:</strong>
                         <ul>
@@ -190,10 +190,10 @@ const addAssets = async () => {
         return r.dto;
     }));
 
-    const updatedAssets = await driveDataService.addDriveData(assetDtos, (index, status, message) => {
-        uploadStatuses.value[index].status = status;
-        uploadStatuses.value[index].message = message;
-    });
+    // show a simple global status while assets are being added
+    uploadStatuses.value = uploadStatuses.value.map(u => ({ ...u, status: 'アップロード中' }));
+    // UI shows uploading.value spinner; set a message if desired
+    const updatedAssets = await driveDataService.addDriveData(assetDtos);
 
     // ensure objectUrlMap keys align with returned IDs
     for (const ua of updatedAssets) {

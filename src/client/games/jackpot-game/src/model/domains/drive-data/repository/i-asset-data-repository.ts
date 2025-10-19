@@ -4,14 +4,7 @@ import type {
 } from "../../../applications/asset/dto/asset-data-dto";
 
 export interface IAssetDataRepository {
-  addAssetData(
-    assetData: AssetDataDto[],
-    onProgress?: (
-      index: number,
-      status: "完了" | "失敗",
-      message?: string
-    ) => void
-  ): Promise<AssetDataDto[]>;
+  addAssetData(assetData: AssetDataDto[]): Promise<AssetDataDto[]>;
   getAssetData(): Promise<AssetDataDto[]>;
   getAssetDataById(id: string): Promise<AssetDataDto | null>;
   deleteAssetData(ids: string[]): Promise<void>;

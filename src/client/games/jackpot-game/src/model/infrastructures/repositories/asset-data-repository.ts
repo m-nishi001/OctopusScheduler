@@ -14,16 +14,9 @@ export class AssetDataRepository implements IAssetDataRepository {
     this.localStorage = new LocalStorageService("jackpot-game", "AssetData");
   }
 
-  async addAssetData(
-    driveData: AssetDataDto[],
-    onProgress?: (
-      index: number,
-      status: "完了" | "失敗",
-      message?: string
-    ) => void
-  ): Promise<AssetDataDto[]> {
+  async addAssetData(driveData: AssetDataDto[]): Promise<AssetDataDto[]> {
     const result: AssetDataDto[] = [];
-    for (const [index, dto] of driveData.entries()) {
+    for (const dto of driveData) {
       const id = crypto.randomUUID();
       const updated: AssetDataDto = new AssetDataDto(
         id,
@@ -36,7 +29,6 @@ export class AssetDataRepository implements IAssetDataRepository {
       );
       await this.localStorage.save(id, updated);
       result.push(updated);
-      onProgress?.(index, "完了");
     }
     return result;
   }

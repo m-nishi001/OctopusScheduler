@@ -16,15 +16,8 @@ export class AssetDataService {
     return await this.repo.getAssetDataById(id);
   }
 
-  async addDriveData(
-    driveDataDtos: AssetDataDto[],
-    onProgress?: (
-      index: number,
-      status: "完了" | "失敗",
-      message?: string
-    ) => void
-  ): Promise<AssetDataDto[]> {
-    return await this.repo.addAssetData(driveDataDtos, onProgress);
+  async addDriveData(driveDataDtos: AssetDataDto[]): Promise<AssetDataDto[]> {
+    return await this.repo.addAssetData(driveDataDtos);
   }
 
   // assetDtoToDriveData removed; repository now stores AssetDataDto directly.
