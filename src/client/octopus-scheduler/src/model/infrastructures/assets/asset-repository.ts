@@ -17,16 +17,9 @@ export class AssetRepository implements IAssetRepository {
     );
   }
 
-  async addAssets(
-    driveData: DriveData[],
-    onProgress?: (
-      index: number,
-      status: "完了" | "失敗",
-      message?: string
-    ) => void
-  ): Promise<string[]> {
+  async addAssets(driveData: DriveData[]): Promise<string[]> {
     const ids: string[] = [];
-    for (const [index, data] of driveData.entries()) {
+    for (const data of driveData) {
       const id = crypto.randomUUID();
       const dataWithId: DriveData = {
         ...data,
@@ -43,7 +36,6 @@ export class AssetRepository implements IAssetRepository {
       };
       await this.localStorage.save(id, dataWithId);
       ids.push(id);
-      onProgress?.(index, "完了");
     }
     return ids;
   }

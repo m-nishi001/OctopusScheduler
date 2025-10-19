@@ -9,14 +9,7 @@ export class AssetService {
     @inject("IAssetRepository") private assetRepository: IAssetRepository
   ) {}
 
-  async addAssets(
-    assets: Asset[],
-    onProgress?: (
-      index: number,
-      status: "完了" | "失敗",
-      message?: string
-    ) => void
-  ): Promise<string[]> {
+  async addAssets(assets: Asset[]): Promise<string[]> {
     const driveData: DriveData[] = assets.map((a) => ({
       metadata: {
         driveDataId: a.id,
@@ -37,7 +30,7 @@ export class AssetService {
       uploadDate: new Date(a.uploadedAt),
       parentFolderId: a.directoryId || "",
     }));
-    return await this.assetRepository.addAssets(driveData, onProgress);
+    return await this.assetRepository.addAssets(driveData);
   }
 
   async getAssets(): Promise<Asset[]> {
