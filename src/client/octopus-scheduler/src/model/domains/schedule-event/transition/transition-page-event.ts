@@ -1,7 +1,7 @@
 import { eventBus } from "../../../../core/event-bus";
 import type { IScheduleEvent } from "../schedule-event";
 
-export interface TransitionPageEventParams {
+export class TransitionPageEventParams {
   id: string;
   startTime: Date;
   endTime: Date;
@@ -10,18 +10,26 @@ export interface TransitionPageEventParams {
   processedAt: Date | null;
   registeredAt: Date;
   updatedAt: Date;
-}
 
-export interface TransitionPageEventRaw {
-  id: string;
-  type?: string;
-  startTime: string | Date;
-  endTime: string | Date;
-  transitionUrl: string;
-  fadeOutDuration?: string | number | null;
-  processedAt?: string | null;
-  registeredAt: string | Date;
-  updatedAt: string | Date;
+  constructor(data: {
+    id: string;
+    startTime: Date;
+    endTime: Date;
+    transitionUrl: string;
+    fadeOutDuration?: number;
+    processedAt: Date | null;
+    registeredAt: Date;
+    updatedAt: Date;
+  }) {
+    this.id = data.id;
+    this.startTime = data.startTime;
+    this.endTime = data.endTime;
+    this.transitionUrl = data.transitionUrl;
+    this.fadeOutDuration = data.fadeOutDuration;
+    this.processedAt = data.processedAt;
+    this.registeredAt = data.registeredAt;
+    this.updatedAt = data.updatedAt;
+  }
 }
 
 export class TransitionPageEvent implements IScheduleEvent {
@@ -51,29 +59,32 @@ export class TransitionPageEvent implements IScheduleEvent {
   }
 
   static revive(raw: IScheduleEvent): TransitionPageEvent {
-    const r = raw as unknown as TransitionPageEventRaw;
-    const startTime = new Date(r.startTime);
-    const endTime = new Date(r.endTime);
-    const registeredAt = new Date(r.registeredAt);
-    const updatedAt = new Date(r.updatedAt);
+    const r = raw as unknown as Record<string, unknown>;
+    const startTime = new Date(r.startTime as string | Date);
+    const endTime = new Date(r.endTime as string | Date);
+    const registeredAt = new Date(r.registeredAt as string | Date);
+    const updatedAt = new Date(r.updatedAt as string | Date);
 
-    const fadeOutDuration = Number(r.fadeOutDuration);
+    const fadeOutDuration = Number(
+      r.fadeOutDuration as string | number | undefined
+    );
 
+    const processedAtRaw = r.processedAt as string | null | undefined;
     const processedAt =
-      r.processedAt == null || r.processedAt === ""
+      processedAtRaw == null || processedAtRaw === ""
         ? null
-        : new Date(r.processedAt);
+        : new Date(processedAtRaw);
 
-    const params: TransitionPageEventParams = {
-      id: r.id,
+    const params = new TransitionPageEventParams({
+      id: String(r.id),
       startTime,
       endTime,
-      transitionUrl: r.transitionUrl,
+      transitionUrl: String(r.transitionUrl),
       fadeOutDuration,
       processedAt,
       registeredAt,
       updatedAt,
-    };
+    });
 
     return new TransitionPageEvent(params);
   }

@@ -1,7 +1,7 @@
 import { eventBus } from "../../../../core/event-bus";
 import type { IScheduleEvent } from "../schedule-event";
 
-export interface SlideshowEventParams {
+export class SlideshowEventParams {
   id: string;
   startTime: Date;
   endTime: Date;
@@ -13,21 +13,32 @@ export interface SlideshowEventParams {
   processedAt: Date | null;
   registeredAt: Date;
   updatedAt: Date;
-}
 
-export interface SlideshowEventRaw {
-  id: string;
-  type?: string;
-  startTime: string | Date;
-  endTime: string | Date;
-  folderId: string;
-  displayDuration?: string | number | null;
-  transitionType: "fade" | "slide";
-  slideDirection?: string | null;
-  bgmIds?: string[] | string | null;
-  processedAt?: string | null;
-  registeredAt: string | Date;
-  updatedAt: string | Date;
+  constructor(data: {
+    id: string;
+    startTime: Date;
+    endTime: Date;
+    folderId: string;
+    displayDuration: number;
+    transitionType: "fade" | "slide";
+    slideDirection?: "left" | "right" | "up" | "down";
+    bgmIds: string[];
+    processedAt: Date | null;
+    registeredAt: Date;
+    updatedAt: Date;
+  }) {
+    this.id = data.id;
+    this.startTime = data.startTime;
+    this.endTime = data.endTime;
+    this.folderId = data.folderId;
+    this.displayDuration = data.displayDuration;
+    this.transitionType = data.transitionType;
+    this.slideDirection = data.slideDirection;
+    this.bgmIds = data.bgmIds;
+    this.processedAt = data.processedAt;
+    this.registeredAt = data.registeredAt;
+    this.updatedAt = data.updatedAt;
+  }
 }
 
 export class SlideshowEvent implements IScheduleEvent {
@@ -63,38 +74,44 @@ export class SlideshowEvent implements IScheduleEvent {
   }
 
   static revive(raw: IScheduleEvent): SlideshowEvent {
-    const r = raw as unknown as SlideshowEventRaw;
-    const startTime = new Date(r.startTime);
-    const endTime = new Date(r.endTime);
-    const registeredAt = new Date(r.registeredAt);
-    const updatedAt = new Date(r.updatedAt);
+    const r = raw as unknown as Record<string, unknown>;
+    const startTime = new Date(r.startTime as string | Date);
+    const endTime = new Date(r.endTime as string | Date);
+    const registeredAt = new Date(r.registeredAt as string | Date);
+    const updatedAt = new Date(r.updatedAt as string | Date);
 
-    const displayDuration = Number(r.displayDuration);
+    const displayDuration = Number(
+      r.displayDuration as string | number | undefined
+    );
 
     let bgmIds: string[];
-    if (Array.isArray(r.bgmIds)) bgmIds = r.bgmIds;
+    if (Array.isArray(r.bgmIds)) bgmIds = r.bgmIds as string[];
     else if (typeof r.bgmIds === "string")
-      bgmIds = r.bgmIds === "" ? [] : r.bgmIds.split(",").map((s) => s.trim());
+      bgmIds =
+        (r.bgmIds as string) === ""
+          ? []
+          : (r.bgmIds as string).split(",").map((s: string) => s.trim());
     else bgmIds = [];
 
+    const processedAtRaw = r.processedAt as string | null | undefined;
     const processedAt =
-      r.processedAt == null || r.processedAt === ""
+      processedAtRaw == null || processedAtRaw === ""
         ? null
-        : new Date(r.processedAt);
+        : new Date(processedAtRaw);
 
-    const params: SlideshowEventParams = {
-      id: r.id,
+    const params = new SlideshowEventParams({
+      id: String(r.id),
       startTime,
       endTime,
-      folderId: r.folderId,
+      folderId: String(r.folderId),
       displayDuration,
-      transitionType: r.transitionType,
+      transitionType: r.transitionType as any,
       slideDirection: r.slideDirection as any,
       bgmIds,
       processedAt,
       registeredAt,
       updatedAt,
-    };
+    });
 
     return new SlideshowEvent(params);
   }

@@ -1,7 +1,7 @@
 import { eventBus } from "../../../../core/event-bus";
 import type { IScheduleEvent } from "../schedule-event";
 
-export interface ShowContentEventParams {
+export class ShowContentEventParams {
   id: string;
   startTime: Date;
   endTime: Date;
@@ -18,26 +18,42 @@ export interface ShowContentEventParams {
   processedAt: Date | null;
   registeredAt: Date;
   updatedAt: Date;
-}
 
-export interface ShowContentEventRaw {
-  id: string;
-  type?: string;
-  startTime: string | Date;
-  endTime: string | Date;
-  contentType: "image" | "movie" | "html";
-  contentId?: string;
-  htmlString?: string;
-  fadeOutDuration?: string | number | null;
-  displayMode?: string | null;
-  effect?: string | null;
-  duration?: string | number | null;
-  fadeInTime?: string | number | null;
-  fadeOutTime?: string | number | null;
-  scrollDirection?: string | null;
-  processedAt?: string | null;
-  registeredAt: string | Date;
-  updatedAt: string | Date;
+  constructor(data: {
+    id: string;
+    startTime: Date;
+    endTime: Date;
+    contentType: "image" | "movie" | "html";
+    contentId?: string;
+    htmlString?: string;
+    fadeOutDuration?: number;
+    displayMode?: "fade" | "scroll-up" | "scroll-down";
+    effect?: "fade" | "scroll" | "static";
+    duration?: number;
+    fadeInTime?: number;
+    fadeOutTime?: number;
+    scrollDirection?: "up" | "down" | "left" | "right";
+    processedAt: Date | null;
+    registeredAt: Date;
+    updatedAt: Date;
+  }) {
+    this.id = data.id;
+    this.startTime = data.startTime;
+    this.endTime = data.endTime;
+    this.contentType = data.contentType;
+    this.contentId = data.contentId;
+    this.htmlString = data.htmlString;
+    this.fadeOutDuration = data.fadeOutDuration;
+    this.displayMode = data.displayMode;
+    this.effect = data.effect;
+    this.duration = data.duration;
+    this.fadeInTime = data.fadeInTime;
+    this.fadeOutTime = data.fadeOutTime;
+    this.scrollDirection = data.scrollDirection;
+    this.processedAt = data.processedAt;
+    this.registeredAt = data.registeredAt;
+    this.updatedAt = data.updatedAt;
+  }
 }
 
 export class ShowContentEvent implements IScheduleEvent {
@@ -83,29 +99,32 @@ export class ShowContentEvent implements IScheduleEvent {
   }
 
   static revive(raw: IScheduleEvent): ShowContentEvent {
-    const r = raw as unknown as ShowContentEventRaw;
-    const startTime = new Date(r.startTime);
-    const endTime = new Date(r.endTime);
-    const registeredAt = new Date(r.registeredAt);
-    const updatedAt = new Date(r.updatedAt);
+    const r = raw as unknown as Record<string, unknown>;
+    const startTime = new Date(r.startTime as string | Date);
+    const endTime = new Date(r.endTime as string | Date);
+    const registeredAt = new Date(r.registeredAt as string | Date);
+    const updatedAt = new Date(r.updatedAt as string | Date);
 
-    const fadeOutDuration = Number(r.fadeOutDuration);
-    const duration = Number(r.duration);
-    const fadeInTime = Number(r.fadeInTime);
-    const fadeOutTime = Number(r.fadeOutTime);
+    const fadeOutDuration = Number(
+      r.fadeOutDuration as string | number | undefined
+    );
+    const duration = Number(r.duration as string | number | undefined);
+    const fadeInTime = Number(r.fadeInTime as string | number | undefined);
+    const fadeOutTime = Number(r.fadeOutTime as string | number | undefined);
 
+    const processedAtRaw = r.processedAt as string | null | undefined;
     const processedAt =
-      r.processedAt == null || r.processedAt === ""
+      processedAtRaw == null || processedAtRaw === ""
         ? null
-        : new Date(r.processedAt);
+        : new Date(processedAtRaw);
 
-    const params: ShowContentEventParams = {
-      id: r.id,
+    const params = new ShowContentEventParams({
+      id: String(r.id),
       startTime,
       endTime,
-      contentType: r.contentType,
-      contentId: r.contentId,
-      htmlString: r.htmlString,
+      contentType: r.contentType as any,
+      contentId: r.contentId as any,
+      htmlString: r.htmlString as any,
       fadeOutDuration,
       displayMode: r.displayMode as any,
       effect: r.effect as any,
@@ -116,7 +135,7 @@ export class ShowContentEvent implements IScheduleEvent {
       processedAt,
       registeredAt,
       updatedAt,
-    };
+    });
 
     return new ShowContentEvent(params);
   }

@@ -1,7 +1,7 @@
 import { eventBus } from "../../../../core/event-bus";
 import type { IScheduleEvent } from "../schedule-event";
 
-export interface PlayAudioEventParams {
+export class PlayAudioEventParams {
   id: string;
   startTime: Date;
   endTime: Date;
@@ -10,18 +10,26 @@ export interface PlayAudioEventParams {
   processedAt: Date | null;
   registeredAt: Date;
   updatedAt: Date;
-}
 
-export interface PlayAudioEventRaw {
-  id: string;
-  type?: string;
-  startTime: string | Date;
-  endTime: string | Date;
-  audioId: string;
-  fadeOutDuration?: string | number | null;
-  processedAt?: string | null;
-  registeredAt: string | Date;
-  updatedAt: string | Date;
+  constructor(data: {
+    id: string;
+    startTime: Date;
+    endTime: Date;
+    audioId: string;
+    fadeOutDuration?: number;
+    processedAt: Date | null;
+    registeredAt: Date;
+    updatedAt: Date;
+  }) {
+    this.id = data.id;
+    this.startTime = data.startTime;
+    this.endTime = data.endTime;
+    this.audioId = data.audioId;
+    this.fadeOutDuration = data.fadeOutDuration;
+    this.processedAt = data.processedAt;
+    this.registeredAt = data.registeredAt;
+    this.updatedAt = data.updatedAt;
+  }
 }
 
 export class PlayAudioEvent implements IScheduleEvent {
@@ -51,27 +59,30 @@ export class PlayAudioEvent implements IScheduleEvent {
   }
 
   static revive(raw: IScheduleEvent): PlayAudioEvent {
-    const r = raw as unknown as PlayAudioEventRaw;
-    const startTime = new Date(r.startTime);
-    const endTime = new Date(r.endTime);
-    const registeredAt = new Date(r.registeredAt);
-    const updatedAt = new Date(r.updatedAt);
-    const fadeOutDuration = Number(r.fadeOutDuration);
+    const r = raw as unknown as Record<string, unknown>;
+    const startTime = new Date(r.startTime as string | Date);
+    const endTime = new Date(r.endTime as string | Date);
+    const registeredAt = new Date(r.registeredAt as string | Date);
+    const updatedAt = new Date(r.updatedAt as string | Date);
+    const fadeOutDuration = Number(
+      r.fadeOutDuration as string | number | undefined
+    );
+    const processedAtRaw = r.processedAt as string | null | undefined;
     const processedAt =
-      r.processedAt == null || r.processedAt === ""
+      processedAtRaw == null || processedAtRaw === ""
         ? null
-        : new Date(r.processedAt);
+        : new Date(processedAtRaw);
 
-    const params: PlayAudioEventParams = {
-      id: r.id,
+    const params = new PlayAudioEventParams({
+      id: String(r.id),
       startTime,
       endTime,
-      audioId: r.audioId,
+      audioId: String(r.audioId),
       fadeOutDuration,
       processedAt,
       registeredAt,
       updatedAt,
-    };
+    });
 
     return new PlayAudioEvent(params);
   }
