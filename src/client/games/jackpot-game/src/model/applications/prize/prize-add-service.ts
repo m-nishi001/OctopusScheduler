@@ -3,7 +3,7 @@ import { AssetDataService } from "../asset/asset-data-service";
 import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
 import type { PrizeDto } from "./dto/prize-dto";
 import { toPrize } from "./dto/prize-dto";
-import type { AssetDataDto } from "../asset/dto/asset-data-dto";
+import type { Asset } from "../asset/dto/asset-data-dto";
 import type { Prize } from "../../domains/prize/prize";
 
 @injectable()
@@ -15,9 +15,9 @@ export class PrizeAddService {
 
   async savePrize(
     prize: PrizeDto,
-    tempDriveDataDto?: AssetDataDto,
-    tempBgm1DriveDataDto?: AssetDataDto,
-    tempBgm2DriveDataDto?: AssetDataDto
+    tempDriveDataDto?: Asset,
+    tempBgm1DriveDataDto?: Asset,
+    tempBgm2DriveDataDto?: Asset
   ): Promise<Prize> {
     let assetId: string | undefined;
     if (tempDriveDataDto) {

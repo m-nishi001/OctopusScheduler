@@ -1,4 +1,4 @@
-export class AssetMetadataDto {
+export class AssetMetadata {
   id: string;
   type: string;
   name: string;
@@ -23,7 +23,7 @@ export class AssetMetadataDto {
   }
 }
 
-export class AssetDataDto {
+export class Asset {
   id: string;
   type: string;
   name: string;

@@ -2,8 +2,8 @@ import { injectable } from "tsyringe";
 import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
 import type { IAssetDataRepository } from "../../domains/drive-data/repository/i-asset-data-repository";
 import {
-  AssetDataDto,
-  AssetMetadataDto,
+  Asset,
+  AssetMetadata,
 } from "../../applications/asset/dto/asset-data-dto";
 
 @injectable()
@@ -14,11 +14,11 @@ export class AssetDataRepository implements IAssetDataRepository {
     this.localStorage = new LocalStorageService("jackpot-game", "AssetData");
   }
 
-  async addAssetData(driveData: AssetDataDto[]): Promise<AssetDataDto[]> {
-    const result: AssetDataDto[] = [];
+  async addAssetData(driveData: Asset[]): Promise<Asset[]> {
+    const result: Asset[] = [];
     for (const dto of driveData) {
       const id = crypto.randomUUID();
-      const updated: AssetDataDto = new AssetDataDto(
+      const updated: Asset = new Asset(
         id,
         dto.type,
         dto.name,
@@ -33,13 +33,13 @@ export class AssetDataRepository implements IAssetDataRepository {
     return result;
   }
 
-  async getAssetData(): Promise<AssetDataDto[]> {
-    const allData = await this.localStorage.getAll<AssetDataDto>();
+  async getAssetData(): Promise<Asset[]> {
+    const allData = await this.localStorage.getAll<Asset>();
     return Array.from(allData.values());
   }
 
-  async getAssetDataById(id: string): Promise<AssetDataDto | null> {
-    return (await this.localStorage.get<AssetDataDto>(id)) || null;
+  async getAssetDataById(id: string): Promise<Asset | null> {
+    return (await this.localStorage.get<Asset>(id)) || null;
   }
 
   async deleteAssetData(ids: string[]): Promise<void> {
@@ -56,11 +56,11 @@ export class AssetDataRepository implements IAssetDataRepository {
     return { updated: 0, deleted: 0 };
   }
 
-  async getAllAssetDataMetadata(): Promise<AssetMetadataDto[]> {
+  async getAllAssetDataMetadata(): Promise<AssetMetadata[]> {
     const data = await this.getAssetData();
     return data.map(
       (d) =>
-        new AssetMetadataDto(
+        new AssetMetadata(
           d.id,
           d.type,
           d.name,

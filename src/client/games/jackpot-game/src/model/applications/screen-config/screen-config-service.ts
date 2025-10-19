@@ -8,7 +8,7 @@ import {
 } from "./i-screen-config-converter";
 import { container } from "tsyringe";
 import { AssetDataService } from "../asset/asset-data-service";
-import type { AssetDataDto } from "../asset/dto/asset-data-dto";
+import type { Asset } from "../asset/dto/asset-data-dto";
 
 @injectable()
 export class ScreenConfigService {
@@ -31,7 +31,7 @@ export class ScreenConfigService {
 
   async saveScreenConfigs(
     settings: ScreenSetting[],
-    tempAssets?: AssetDataDto[]
+    tempAssets?: Asset[]
   ): Promise<void> {
     if (tempAssets && tempAssets.length > 0) {
       await this.driveDataService.addDriveData(tempAssets);

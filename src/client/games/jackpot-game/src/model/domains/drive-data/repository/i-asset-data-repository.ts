@@ -1,12 +1,12 @@
 import type {
-  AssetDataDto,
-  AssetMetadataDto,
+  Asset,
+  AssetMetadata,
 } from "../../../applications/asset/dto/asset-data-dto";
 
 export interface IAssetDataRepository {
-  addAssetData(assetData: AssetDataDto[]): Promise<AssetDataDto[]>;
-  getAssetData(): Promise<AssetDataDto[]>;
-  getAssetDataById(id: string): Promise<AssetDataDto | null>;
+  addAssetData(assetData: Asset[]): Promise<Asset[]>;
+  getAssetData(): Promise<Asset[]>;
+  getAssetDataById(id: string): Promise<Asset | null>;
   deleteAssetData(ids: string[]): Promise<void>;
   syncAssetData(
     onProgress?: (
@@ -14,5 +14,5 @@ export interface IAssetDataRepository {
       progress?: { current: number; total: number }
     ) => void
   ): Promise<{ updated: number; deleted: number }>;
-  getAllAssetDataMetadata(): Promise<AssetMetadataDto[]>;
+  getAllAssetDataMetadata(): Promise<AssetMetadata[]>;
 }

@@ -134,7 +134,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
-import type { AssetDataDto } from '../../../model/applications/asset/dto/asset-data-dto';
+import type { Asset } from '../../../model/applications/asset/dto/asset-data-dto';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { MemberAddService } from '../../../model/applications/member/member-add-service';
 import { MemberDeleteService } from '../../../model/applications/member/member-delete-service';
@@ -147,7 +147,7 @@ const memberAddService = container.resolve<MemberAddService>(MemberAddService);
 const memberDeleteService = container.resolve<MemberDeleteService>(MemberDeleteService);
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
-const assets = ref<AssetDataDto[]>([]);
+const assets = ref<Asset[]>([]);
 const imageAssets = computed(() => assets.value.filter((asset) => ((asset as any).blob as Blob).type.startsWith('image')));
 // map to hold object URLs for member photos keyed by asset id
 const objectUrlMap = new Map<string, string>();
@@ -175,12 +175,12 @@ const modalName = ref('');
 const modalRank = ref(1);
 const modalMaxRank = ref(1);
 const modalPhotoMode = ref('upload');
-const modalPhotoAsset = ref<AssetDataDto | undefined>();
+const modalPhotoAsset = ref<Asset | undefined>();
 const modalPhotoPreview = ref('');
 let modalPhotoPreviewUrl: string | undefined;
 const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
-const tempAsset = ref<AssetDataDto | null>(null);
+const tempAsset = ref<Asset | null>(null);
 
 // modal actions
 const openModal = (mode: 'add' | 'edit', data?: any) => {

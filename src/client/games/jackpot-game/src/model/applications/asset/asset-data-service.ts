@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import type { IAssetDataRepository } from "../../domains/drive-data/repository/i-asset-data-repository";
-import { AssetDataDto, AssetMetadataDto } from "./dto/asset-data-dto";
+import { Asset, AssetMetadata } from "./dto/asset-data-dto";
 
 @injectable()
 export class AssetDataService {
@@ -8,15 +8,15 @@ export class AssetDataService {
     @inject("IAssetDataRepository") private repo: IAssetDataRepository
   ) {}
 
-  async getAllDriveData(): Promise<AssetDataDto[]> {
+  async getAllDriveData(): Promise<Asset[]> {
     return await this.repo.getAssetData();
   }
 
-  async getDriveDataById(id: string): Promise<AssetDataDto | null> {
+  async getDriveDataById(id: string): Promise<Asset | null> {
     return await this.repo.getAssetDataById(id);
   }
 
-  async addDriveData(driveDataDtos: AssetDataDto[]): Promise<AssetDataDto[]> {
+  async addDriveData(driveDataDtos: Asset[]): Promise<Asset[]> {
     return await this.repo.addAssetData(driveDataDtos);
   }
 
@@ -39,11 +39,11 @@ export class AssetDataService {
     return await this.repo.syncAssetData(onProgress);
   }
 
-  public getAllDriveDataMetadata(): Promise<AssetMetadataDto[]> {
+  public getAllDriveDataMetadata(): Promise<AssetMetadata[]> {
     return this.repo.getAllAssetDataMetadata();
   }
-  async createDriveDataDtoFromFile(file: File): Promise<AssetDataDto> {
-    return new AssetDataDto(
+  async createDriveDataDtoFromFile(file: File): Promise<Asset> {
+    return new Asset(
       "",
       file.type,
       file.name,
@@ -56,17 +56,9 @@ export class AssetDataService {
 
   async createDriveDataDtoWithBlobFromFile(
     file: File
-  ): Promise<{ dto: AssetDataDto; blob: Blob }> {
+  ): Promise<{ dto: Asset; blob: Blob }> {
     return {
-      dto: new AssetDataDto(
-        "",
-        file.type,
-        file.name,
-        new Date(),
-        new Date(),
-        0,
-        file
-      ),
+      dto: new Asset("", file.type, file.name, new Date(), new Date(), 0, file),
       blob: file,
     };
   }
