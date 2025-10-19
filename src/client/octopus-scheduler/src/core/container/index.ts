@@ -7,6 +7,10 @@ import { ScheduleEventService } from "../../model/applications/schedule-event/sc
 import { AssetService } from "../../model/applications/assets/asset-service";
 // application-layer converters removed; domain entities are used directly
 import { EventPollingService } from "../../model/applications/event-polling-service";
+import { IScheduleEventConverterToken } from "../../model/infrastructures/schedule-event/i-schedule-event-converter";
+import { ShowContentEventConverter } from "../../model/infrastructures/schedule-event/show-content-event-converter";
+import { PlayAudioEventConverter } from "../../model/infrastructures/schedule-event/play-audio-event-converter";
+import { SlideshowEventConverter } from "../../model/infrastructures/schedule-event/slideshow-event-converter";
 
 export class Container {
   static Register() {
@@ -23,5 +27,15 @@ export class Container {
     });
     // no converters to register
     container.registerSingleton("EventPollingService", EventPollingService);
+    // schedule event converters
+    container.register(IScheduleEventConverterToken, {
+      useClass: ShowContentEventConverter,
+    });
+    container.register(IScheduleEventConverterToken, {
+      useClass: PlayAudioEventConverter,
+    });
+    container.register(IScheduleEventConverterToken, {
+      useClass: SlideshowEventConverter,
+    });
   }
 }
