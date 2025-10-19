@@ -40,7 +40,7 @@ export class Container {
       "IDrawResultRepository",
       DrawResultRepository
     );
-    container.register<AssetDataService>("DriveDataService", AssetDataService);
+    container.register<AssetDataService>("AssetDataService", AssetDataService);
     container.register(IScreenConfigConverterToken, {
       useClass: HomeScreenConfigConverter,
     });

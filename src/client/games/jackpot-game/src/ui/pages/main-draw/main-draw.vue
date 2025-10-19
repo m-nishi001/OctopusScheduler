@@ -50,7 +50,7 @@ export default {
     // ScreenConfigRepositoryから取得
     const mainConfig = ref<MainScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetDataService>("DriveDataService");
+    const assetService = container.resolve<AssetDataService>("AssetDataService");
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('main');
       mainConfig.value = config as MainScreenSetting ?? new MainScreenSetting([], [], 1, []);
@@ -74,7 +74,7 @@ export default {
       for (const m of members.value) {
         if (m.photoAssetId && !objectUrlMap.has(m.photoAssetId)) {
           try {
-            const asset = await assetService.getDriveDataById(m.photoAssetId);
+            const asset = await assetService.getAssetDataById(m.photoAssetId);
             if (asset && asset.id) {
               objectUrlMap.set(m.photoAssetId, URL.createObjectURL(asset.blob));
             }
@@ -88,7 +88,7 @@ export default {
     let bgmObjectUrl: string | undefined;
     const playBGM = async () => {
       if (!mainConfig.value || !mainConfig.value.memberLotteryBgms.length) return;
-      const asset = await assetService.getDriveDataById(mainConfig.value.memberLotteryBgms[0]);
+      const asset = await assetService.getAssetDataById(mainConfig.value.memberLotteryBgms[0]);
       if (asset && asset.blob) {
         try {
           bgmObjectUrl = URL.createObjectURL(asset.blob);

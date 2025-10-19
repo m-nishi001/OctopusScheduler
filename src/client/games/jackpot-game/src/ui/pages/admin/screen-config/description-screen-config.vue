@@ -166,7 +166,7 @@ const handleSaveClick = async () => {
 		let updatedAssets: any[] = [];
 
 		if (tempAssets.value.length > 0) {
-			updatedAssets = await assetService.addDriveData(tempAssets.value);
+			updatedAssets = await assetService.addAssetData(tempAssets.value);
 			updatedAssets.forEach((asset: any, index: number) => {
 				tempAssetMap.set(oldTempAssets[index].id, asset.id);
 			});

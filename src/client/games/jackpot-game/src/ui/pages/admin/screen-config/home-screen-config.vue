@@ -218,7 +218,7 @@ const handleSaveClick = async () => {
         let onCompletedLoadingSEId = localConfig.value.onCompletedLoadingSE;
 
         if (tempAssetsToAdd.length > 0) {
-            const updatedAssets = await assetService.addDriveData(tempAssetsToAdd);
+            const updatedAssets = await assetService.addAssetData(tempAssetsToAdd);
             // Update temp assets with new IDs
             localConfig.value.homeBgmTempAsset = updatedAssets.find(a => a.name === localConfig.value.homeBgmTempAsset?.name) || localConfig.value.homeBgmTempAsset;
             localConfig.value.buttonClikingSETempAsset = updatedAssets.find(a => a.name === localConfig.value.buttonClikingSETempAsset?.name) || localConfig.value.buttonClikingSETempAsset;

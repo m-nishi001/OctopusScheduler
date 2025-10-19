@@ -289,7 +289,7 @@ import type { IPrizeRepository } from '../../../model/domains/prize/repository/i
 
 import { container } from 'tsyringe';
 const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
-const driveDataService = container.resolve(AssetDataService);
+const assetDataService = container.resolve(AssetDataService);
 const prizeService = container.resolve(PrizeService);
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
@@ -362,7 +362,7 @@ const editImagePreviewUrl = ref<string | null>(null);
 const onNewImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const dto = await driveDataService.createDriveDataDtoFromFile(file);
+    const dto = await assetDataService.createDriveDataDtoFromFile(file);
     tempAsset.value = dto;
     newImageFilename.value = file.name;
     if (newImagePreviewUrl.value) {
@@ -377,7 +377,7 @@ const onNewImageChange = async (e: Event) => {
 const onNewBgm1Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempBgm1Asset.value = await driveDataService.createDriveDataDtoFromFile(file);
+    tempBgm1Asset.value = await assetDataService.createDriveDataDtoFromFile(file);
     newBgm1Filename.value = file.name;
   }
 };
@@ -385,7 +385,7 @@ const onNewBgm1Change = async (e: Event) => {
 const onNewBgm2Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempBgm2Asset.value = await driveDataService.createDriveDataDtoFromFile(file);
+    tempBgm2Asset.value = await assetDataService.createDriveDataDtoFromFile(file);
     newBgm2Filename.value = file.name;
   }
 };
@@ -460,7 +460,7 @@ const fetchPrizes = async () => {
     // prefetch assets referenced by prizes to create object URLs
     for (const prize of fetchedPrizes) {
       if (prize.imageAssetId) {
-        const asset = await driveDataService.getDriveDataById(prize.imageAssetId);
+        const asset = await assetDataService.getAssetDataById(prize.imageAssetId);
         if (asset && asset.id && !objectUrlMap.has(asset.id)) {
           try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
         }
@@ -475,7 +475,7 @@ const fetchPrizes = async () => {
 
 const fetchAssets = async () => {
   try {
-    assets.value = await driveDataService.getAllDriveData();
+    assets.value = await assetDataService.getAllAssetData();
   } catch (error) {
     console.error("Failed to fetch assets:", error);
     assets.value = [];
@@ -504,7 +504,7 @@ const editTempBgm2Asset = ref<Asset | null>(null);
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const dto = await driveDataService.createDriveDataDtoFromFile(file);
+    const dto = await assetDataService.createDriveDataDtoFromFile(file);
     editTempAsset.value = dto;
     editImageFilename.value = file.name;
     if (editImagePreviewUrl.value) {
@@ -519,7 +519,7 @@ const onEditImageChange = async (e: Event) => {
 const onEditBgm1Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempBgm1Asset.value = await driveDataService.createDriveDataDtoFromFile(file);
+    editTempBgm1Asset.value = await assetDataService.createDriveDataDtoFromFile(file);
     editBgm1Filename.value = file.name;
   }
 };
@@ -527,7 +527,7 @@ const onEditBgm1Change = async (e: Event) => {
 const onEditBgm2Change = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempBgm2Asset.value = await driveDataService.createDriveDataDtoFromFile(file);
+    editTempBgm2Asset.value = await assetDataService.createDriveDataDtoFromFile(file);
     editBgm2Filename.value = file.name;
   }
 };
@@ -600,19 +600,19 @@ const saveEdit = async () => {
   if (!editPrizeData.value) return;
   let assetId: string | undefined;
   if (editTempAsset.value) {
-    const updatedAssets = await driveDataService.addDriveData([editTempAsset.value]);
+    const updatedAssets = await assetDataService.addAssetData([editTempAsset.value]);
     editTempAsset.value = updatedAssets[0];
     assetId = editTempAsset.value.id;
   }
   let bgm1AssetId: string | undefined;
   if (editTempBgm1Asset.value) {
-    const updatedAssets = await driveDataService.addDriveData([editTempBgm1Asset.value]);
+    const updatedAssets = await assetDataService.addAssetData([editTempBgm1Asset.value]);
     editTempBgm1Asset.value = updatedAssets[0];
     bgm1AssetId = editTempBgm1Asset.value.id;
   }
   let bgm2AssetId: string | undefined;
   if (editTempBgm2Asset.value) {
-    const updatedAssets = await driveDataService.addDriveData([editTempBgm2Asset.value]);
+    const updatedAssets = await assetDataService.addAssetData([editTempBgm2Asset.value]);
     editTempBgm2Asset.value = updatedAssets[0];
     bgm2AssetId = editTempBgm2Asset.value.id;
   }

@@ -34,7 +34,7 @@ export default {
 
       if (openingConfig.value?.bgmAssetId) {
         const assetService = container.resolve(AssetDataService);
-        const assetDto = await assetService.getDriveDataById(openingConfig.value.bgmAssetId);
+        const assetDto = await assetService.getAssetDataById(openingConfig.value.bgmAssetId);
         if (assetDto && assetDto.blob) {
           try {
             bgmObjectUrl = URL.createObjectURL(assetDto.blob);
@@ -61,7 +61,7 @@ export default {
         for (const content of openingConfig.value.contents) {
           if (content.assetId) {
             try {
-              const assetDto = await assetService.getDriveDataById(content.assetId);
+              const assetDto = await assetService.getAssetDataById(content.assetId);
               if (assetDto && assetDto.blob) {
                 try {
                   const url = URL.createObjectURL(assetDto.blob);

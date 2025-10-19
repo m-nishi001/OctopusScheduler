@@ -54,7 +54,7 @@ export default {
     let bgmObjectUrl: string | undefined;
     const playBGM = async () => {
       if (!demoConfig.value || !demoConfig.value.demoBgm) return;
-      const asset = await assetService.getDriveDataById(demoConfig.value.demoBgm);
+      const asset = await assetService.getAssetDataById(demoConfig.value.demoBgm);
       if (asset && (asset as any).blob) {
         try {
           bgmObjectUrl = URL.createObjectURL((asset as any).blob);
@@ -80,7 +80,7 @@ export default {
         assetId = demoConfig.value.demoSe1;
       }
       if (!assetId) return;
-      const asset = await assetService.getDriveDataById(assetId);
+      const asset = await assetService.getAssetDataById(assetId);
       if (asset && (asset as any).blob) {
         let tempUrl: string | undefined;
         try {

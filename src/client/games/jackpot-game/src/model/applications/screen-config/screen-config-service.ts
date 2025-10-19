@@ -14,7 +14,7 @@ import type { Asset } from "../../domains/drive-data/asset-data";
 export class ScreenConfigService {
   constructor(
     @inject("IScreenSettingRepository") private repo: IScreenSettingRepository,
-    private driveDataService: AssetDataService
+    private assetDataService: AssetDataService
   ) {}
 
   async fetchScreenConfig(type: string): Promise<IScreenSetting | null> {
@@ -34,7 +34,7 @@ export class ScreenConfigService {
     tempAssets?: Asset[]
   ): Promise<void> {
     if (tempAssets && tempAssets.length > 0) {
-      await this.driveDataService.addDriveData(tempAssets);
+      await this.assetDataService.addAssetData(tempAssets);
     }
     await this.repo.updateScreenSettings(settings);
   }

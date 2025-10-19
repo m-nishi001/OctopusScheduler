@@ -50,7 +50,7 @@ export default {
 
     const homeConfig = ref<HomeScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetDataService>("DriveDataService");
+    const assetService = container.resolve<AssetDataService>("AssetDataService");
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -72,7 +72,7 @@ export default {
 
     const playBGM = async () => {
       if (!homeConfig.value || !homeConfig.value.homeBgm) return;
-      const asset = await assetService.getDriveDataById(homeConfig.value.homeBgm);
+      const asset = await assetService.getAssetDataById(homeConfig.value.homeBgm);
       if (asset && (asset as any).blob) {
         try {
           bgmObjectUrl = URL.createObjectURL((asset as any).blob);
@@ -91,7 +91,7 @@ export default {
         progress.value = 10;
         const tasks = [
           {
-            task: assetService.syncDriveData((_message, progressInfo) => {
+            task: assetService.syncAssetData((_message, progressInfo) => {
               if (progressInfo) {
                 syncTasks.value[0].current = progressInfo.current;
                 syncTasks.value[0].total = progressInfo.total;

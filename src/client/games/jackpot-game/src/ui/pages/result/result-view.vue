@@ -42,7 +42,7 @@ export default {
     const objectUrlMap = new Map<string, string>();
 
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetDataService>("DriveDataService");
+    const assetService = container.resolve<AssetDataService>("AssetDataService");
     const drawResultService = container.resolve(DrawResultService);
     const fetchResults = async () => {
       const results = await drawResultService.getDrawResults();
@@ -52,7 +52,7 @@ export default {
       for (const r of results) {
         const aid = r.member.photoAssetId;
         if (aid) {
-          const asset = await assetService.getDriveDataById(aid);
+          const asset = await assetService.getAssetDataById(aid);
           if (asset && asset.id && !objectUrlMap.has(asset.id)) {
             try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
           }
@@ -74,7 +74,7 @@ export default {
     let bgmObjectUrl: string | undefined;
     const playBGM = async () => {
       if (!resultConfig.value || !resultConfig.value.resultBgm) return;
-      const asset = await assetService.getDriveDataById(resultConfig.value.resultBgm);
+      const asset = await assetService.getAssetDataById(resultConfig.value.resultBgm);
       if (asset) {
         // Prefer using blob for UI playback. Create an object URL from blob.
         if (asset.blob) {

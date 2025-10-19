@@ -9,7 +9,7 @@ import type { Member } from "../../domains/member/member";
 @injectable()
 export class MemberService {
   constructor(
-    @inject("DriveDataService") private driveDataService: AssetDataService,
+    @inject("AssetDataService") private AssetDataService: AssetDataService,
     @inject("IMemberRepository") private repo: IMemberRepository
   ) {}
 
@@ -31,7 +31,7 @@ export class MemberService {
   async saveMember(member: MemberDto, tempAsset?: Asset): Promise<Member> {
     let assetId: string | undefined;
     if (tempAsset) {
-      const updated = await this.driveDataService.addDriveData([tempAsset]);
+      const updated = await this.AssetDataService.addAssetData([tempAsset]);
       assetId = updated[0].id || undefined;
     }
     const memberToSave = {

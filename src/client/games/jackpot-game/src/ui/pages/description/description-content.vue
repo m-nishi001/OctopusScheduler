@@ -65,7 +65,7 @@ export default {
 			const createdUrls: string[] = [];
 			for (const element of elements.value) {
 				if (element.assetId) {
-					const asset = await assetService.getDriveDataById(element.assetId);
+					const asset = await assetService.getAssetDataById(element.assetId);
 					if (asset) {
 						try {
 							const url = URL.createObjectURL(asset.blob);

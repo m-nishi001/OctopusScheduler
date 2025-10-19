@@ -106,7 +106,7 @@ function formatSize(size: number): string {
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
-const driveDataService = container.resolve(AssetDataService);
+const assetDataService = container.resolve(AssetDataService);
 
 const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);
@@ -151,7 +151,7 @@ const deleteAllMessage = ref("");
 const objectUrlMap = new Map<string, string>();
 
 const fetchAssets = async () => {
-    assets.value = await driveDataService.getAllDriveData();
+    assets.value = await assetDataService.getAllAssetData();
     // prepare object URLs for items that have blobs
     for (const a of assets.value) {
         try {
@@ -187,7 +187,7 @@ const addAssets = async () => {
 
     // create DTOs while grabbing blobs for preview
     const assetDtos = await Promise.all(selectedFiles.value.map(async (file, idx) => {
-        const dto = await driveDataService.createDriveDataDtoFromFile(file);
+        const dto = await assetDataService.createDriveDataDtoFromFile(file);
         const key = dto.id || `tmp-${Date.now()}-${idx}`;
         try { objectUrlMap.set(key, URL.createObjectURL(file)); } catch { }
         return dto;
@@ -196,7 +196,7 @@ const addAssets = async () => {
     // show a simple global status while assets are being added
     uploadStatuses.value = uploadStatuses.value.map(u => ({ ...u, status: 'アップロード中' }));
     // UI shows uploading.value spinner; set a message if desired
-    const updatedAssets = await driveDataService.addDriveData(assetDtos);
+    const updatedAssets = await assetDataService.addAssetData(assetDtos);
 
     // ensure objectUrlMap keys align with returned IDs
     for (const ua of updatedAssets) {
@@ -228,7 +228,7 @@ const deleteAsset = async (id: string) => {
     deleteAllMessage.value = "ファイル削除中...";
     const asset = assets.value.find(a => a.id === id);
     const progressList = [{ id, name: asset?.name || id, status: '削除中' as '削除中' | '削除済' | '削除失敗' }];
-    await driveDataService.deleteDriveData([id], ({ id: deletedId, success }) => {
+    await assetDataService.deleteAssetData([id], ({ id: deletedId, success }) => {
         const item = progressList.find(p => p.id === deletedId);
         if (item) {
             item.status = success ? '削除済' : '削除失敗';
@@ -247,7 +247,7 @@ const deleteSelectedAssets = async () => {
         const asset = assets.value.find(a => a.id === id);
         return { id, name: asset?.name || id, status: '削除中' as '削除中' | '削除済' | '削除失敗' };
     });
-    await driveDataService.deleteDriveData(selectedAssets.value, ({ id, success }) => {
+    await assetDataService.deleteAssetData(selectedAssets.value, ({ id, success }) => {
         const item = progressList.find(p => p.id === id);
         if (item) {
             item.status = success ? '削除済' : '削除失敗';
@@ -265,7 +265,7 @@ const syncAssets = async () => {
     syncing.value = true;
     syncMessage.value = "";
     try {
-        await driveDataService.syncDriveData((message) => {
+        await assetDataService.syncAssetData((message) => {
             syncMessage.value = message;
         });
         await fetchAssets();

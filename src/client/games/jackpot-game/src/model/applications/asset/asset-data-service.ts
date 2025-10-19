@@ -8,19 +8,19 @@ export class AssetDataService {
     @inject("IAssetDataRepository") private repo: IAssetDataRepository
   ) {}
 
-  async getAllDriveData(): Promise<Asset[]> {
+  async getAllAssetData(): Promise<Asset[]> {
     return await this.repo.getAssetData();
   }
 
-  async getDriveDataById(id: string): Promise<Asset | null> {
+  async getAssetDataById(id: string): Promise<Asset | null> {
     return await this.repo.getAssetDataById(id);
   }
 
-  async addDriveData(driveDataDtos: Asset[]): Promise<Asset[]> {
-    return await this.repo.addAssetData(driveDataDtos);
+  async addAssetData(assetData: Asset[]): Promise<Asset[]> {
+    return await this.repo.addAssetData(assetData);
   }
 
-  async deleteDriveData(
+  async deleteAssetData(
     ids: string[],
     onProgress?: (result: { id: string; success: boolean }) => void
   ): Promise<void> {
@@ -28,7 +28,7 @@ export class AssetDataService {
     ids.forEach((id) => onProgress?.({ id, success: true }));
   }
 
-  async syncDriveData(
+  async syncAssetData(
     onProgress?: (
       message: string,
       progress?: { current: number; total: number }
@@ -37,7 +37,7 @@ export class AssetDataService {
     return await this.repo.syncAssetData(onProgress);
   }
 
-  public getAllDriveDataMetadata(): Promise<AssetMetadata[]> {
+  public getAllAssetMetadata(): Promise<AssetMetadata[]> {
     return this.repo.getAllAssetDataMetadata();
   }
 

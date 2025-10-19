@@ -26,7 +26,7 @@ export function useScreenSettingData() {
 
   const fetchAssets = async () => {
     try {
-      assets.value = await assetService.getAllDriveData();
+      assets.value = await assetService.getAllAssetData();
     } catch (error) {
       console.error("Failed to fetch assets:", error);
       assets.value = [];
@@ -35,7 +35,7 @@ export function useScreenSettingData() {
 
   const syncWithDrive = async (onMessage?: (msg: string) => void) => {
     try {
-      await assetService.syncDriveData((message: string) => {
+      await assetService.syncAssetData((message: string) => {
         if (onMessage) onMessage(message);
       });
     } catch (e) {
@@ -88,7 +88,7 @@ export function useScreenSettingData() {
 
       if (tempAssets.value.length > 0) {
         saveStatus.value = "アセットをアップロード中...";
-        tempAssets.value = await assetService.addDriveData(tempAssets.value);
+        tempAssets.value = await assetService.addAssetData(tempAssets.value);
       }
 
       await saveFunction();

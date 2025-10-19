@@ -37,7 +37,7 @@ export default {
 		let bgmObjectUrl: string | undefined;
 		const playBGM = async () => {
 			if (!descriptionConfig.value || !descriptionConfig.value.descriptionBgm) return;
-			const asset = await assetService.getDriveDataById(descriptionConfig.value.descriptionBgm);
+			const asset = await assetService.getAssetDataById(descriptionConfig.value.descriptionBgm);
 			if (asset) {
 				if ((asset as any).blob) {
 					try {

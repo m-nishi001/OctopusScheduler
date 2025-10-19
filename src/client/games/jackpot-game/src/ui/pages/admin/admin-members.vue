@@ -141,7 +141,7 @@ import type { MemberDto } from "../../../model/applications/member/dto/member-dt
 
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
-const driveDataService = container.resolve<AssetDataService>("DriveDataService");
+const assetDataService = container.resolve<AssetDataService>("AssetDataService");
 const memberService = container.resolve(MemberService);
 const members = ref<any[]>([]);
 const selectedMembers = ref<string[]>([]);
@@ -280,7 +280,7 @@ const updateModalPhotoPreview = async () => {
     modalPhotoPreviewUrl = URL.createObjectURL(modalPhotoAsset.value.blob);
     modalPhotoPreview.value = modalPhotoPreviewUrl;
   } else if (photoAssetId.value) {
-    const asset = await driveDataService.getDriveDataById(photoAssetId.value);
+    const asset = await assetDataService.getAssetDataById(photoAssetId.value);
     if (asset) {
       modalPhotoPreviewUrl = URL.createObjectURL(asset.blob);
       modalPhotoPreview.value = modalPhotoPreviewUrl;
@@ -295,7 +295,7 @@ const updateModalPhotoPreview = async () => {
 const onModalPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    const dto = await driveDataService.createDriveDataDtoFromFile(file);
+    const dto = await assetDataService.createDriveDataDtoFromFile(file);
     tempAsset.value = dto;
     modalPhotoAsset.value = dto;
     modalPhotoFilename.value = file.name;
@@ -375,7 +375,7 @@ const fetchMembers = async () => {
     const fetchedMembers = await memberRepo.getMembers();
     for (const member of fetchedMembers) {
       if (member.photoAssetId) {
-        const asset = await driveDataService.getDriveDataById(member.photoAssetId);
+        const asset = await assetDataService.getAssetDataById(member.photoAssetId);
         if (asset && asset.id) {
           try { objectUrlMap.set(member.photoAssetId, URL.createObjectURL(asset.blob)); } catch { }
         }
@@ -390,7 +390,7 @@ const fetchMembers = async () => {
 
 const fetchAssets = async () => {
   try {
-    assets.value = await driveDataService.getAllDriveData();
+    assets.value = await assetDataService.getAllAssetData();
   } catch (error) {
     console.error("Failed to fetch assets:", error);
     assets.value = [];

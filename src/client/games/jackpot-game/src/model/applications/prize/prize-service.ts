@@ -9,7 +9,7 @@ import type { Prize } from "../../domains/prize/prize";
 @injectable()
 export class PrizeService {
   constructor(
-    @inject("DriveDataService") private driveDataService: AssetDataService,
+    @inject("AssetDataService") private assetDataService: AssetDataService,
     @inject("IPrizeRepository") private repo: IPrizeRepository
   ) {}
 
@@ -30,17 +30,17 @@ export class PrizeService {
   ): Promise<Prize> {
     let assetId: string | undefined;
     if (tempAsset) {
-      const updated = await this.driveDataService.addDriveData([tempAsset]);
+      const updated = await this.assetDataService.addAssetData([tempAsset]);
       assetId = updated[0].id || undefined;
     }
     let bgm1AssetId: string | undefined;
     if (tempBgm1Asset) {
-      const updated = await this.driveDataService.addDriveData([tempBgm1Asset]);
+      const updated = await this.assetDataService.addAssetData([tempBgm1Asset]);
       bgm1AssetId = updated[0].id || undefined;
     }
     let bgm2AssetId: string | undefined;
     if (tempBgm2Asset) {
-      const updated = await this.driveDataService.addDriveData([tempBgm2Asset]);
+      const updated = await this.assetDataService.addAssetData([tempBgm2Asset]);
       bgm2AssetId = updated[0].id || undefined;
     }
     const prizeToSave = {
