@@ -132,7 +132,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
 import { DriveDataDto } from '../../../model/applications/asset/dto/drive-data-dto';
 import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
@@ -175,6 +175,7 @@ const modalMaxRank = ref(1);
 const modalPhotoMode = ref('upload');
 const modalPhotoAsset = ref<DriveDataDto | undefined>();
 const modalPhotoPreview = ref('');
+let modalPhotoPreviewUrl: string | undefined;
 const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
 const tempAsset = ref<DriveDataDto | null>(null);
@@ -261,11 +262,26 @@ const syncing = ref(false);
 const syncMessage = ref("");
 
 const updateModalPhotoPreview = async () => {
-  if (modalPhotoAsset.value && modalPhotoAsset.value.dataUrl) {
+  // revoke previous preview url if any
+  if (modalPhotoPreviewUrl) {
+    try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { }
+    modalPhotoPreviewUrl = undefined;
+  }
+
+  if (modalPhotoAsset.value && (modalPhotoAsset.value as any).blob) {
+    modalPhotoPreviewUrl = URL.createObjectURL((modalPhotoAsset.value as any).blob as Blob);
+    modalPhotoPreview.value = modalPhotoPreviewUrl;
+  } else if (modalPhotoAsset.value && modalPhotoAsset.value.dataUrl) {
+    // fallback to dataUrl only when blob not available
     modalPhotoPreview.value = modalPhotoAsset.value.dataUrl;
   } else if (photoAssetId.value) {
     const asset = await driveDataService.getDriveDataById(photoAssetId.value);
-    modalPhotoPreview.value = asset?.dataUrl || '';
+    if (asset && (asset as any).blob) {
+      modalPhotoPreviewUrl = URL.createObjectURL((asset as any).blob as Blob);
+      modalPhotoPreview.value = modalPhotoPreviewUrl;
+    } else {
+      modalPhotoPreview.value = asset?.dataUrl || '';
+    }
   } else {
     modalPhotoPreview.value = '';
   }
@@ -274,11 +290,27 @@ const updateModalPhotoPreview = async () => {
 const onModalPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempAsset.value = await driveDataService.createDriveDataDtoFromFile(file);
+    // returns { dto, blob }
+    const result = await driveDataService.createDriveDataDtoWithBlobFromFile(file);
+    tempAsset.value = result.dto;
+    modalPhotoAsset.value = result.dto;
     modalPhotoFilename.value = file.name;
-    modalPhotoPreview.value = tempAsset.value.dataUrl;
+
+    // revoke previous
+    if (modalPhotoPreviewUrl) {
+      try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { };
+    }
+    modalPhotoPreviewUrl = URL.createObjectURL(result.blob);
+    modalPhotoPreview.value = modalPhotoPreviewUrl;
   }
 };
+
+onBeforeUnmount(() => {
+  if (modalPhotoPreviewUrl) {
+    try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { };
+    modalPhotoPreviewUrl = undefined;
+  }
+});
 
 const addMember = async () => {
   if (!modalName.value.trim()) return;

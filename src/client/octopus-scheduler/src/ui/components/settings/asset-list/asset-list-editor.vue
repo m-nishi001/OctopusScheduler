@@ -87,13 +87,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../model/applications/assets/asset-service';
 
 const assetService = container.resolve(AssetService);
 
 const assets = ref<any[]>([]);
+// map of asset.id -> object URL created for UI preview
+const objectUrlMap = new Map<string, string>();
 const selectedFiles = ref<File[]>([]);
 const selectedAssets = ref<string[]>([]);
 
@@ -121,7 +123,9 @@ const fetchAssets = async () => {
         const copy: any = { ...a };
         if (!copy.url && copy.blob) {
             try {
-                copy.url = URL.createObjectURL(copy.blob);
+                const url = URL.createObjectURL(copy.blob);
+                copy.url = url;
+                if (copy.id) objectUrlMap.set(copy.id, url);
             } catch (err) {
                 console.error('Failed to create object URL for asset', err);
             }
@@ -152,21 +156,54 @@ const addAssets = async () => {
     try {
         // store assets (persist blobs)
         await assetService.addAssets(assetPairs.map(p => p.store));
-        // push UI copies with object URLs
-        assets.value.push(...assetPairs.map(p => p.ui));
+        // push UI copies with object URLs and register in map
+        for (const p of assetPairs) {
+            assets.value.push(p.ui);
+            if (p.ui.id) objectUrlMap.set(p.ui.id, p.ui.url);
+        }
     } finally {
         uploading.value = false;
         selectedFiles.value = [];
     }
 };
 
-const deleteAsset = async (id: string) => { await assetService.deleteAssets([id]); assets.value = assets.value.filter(a => a.id !== id); };
-const deleteSelectedAssets = async () => { if (!selectedAssets.value.length) return; await assetService.deleteAssets(selectedAssets.value); assets.value = assets.value.filter(a => !selectedAssets.value.includes(a.id)); selectedAssets.value = []; };
+const deleteAsset = async (id: string) => {
+    await assetService.deleteAssets([id]);
+    // revoke object URL if we created one
+    const url = objectUrlMap.get(id);
+    if (url) {
+        try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+        objectUrlMap.delete(id);
+    }
+    assets.value = assets.value.filter(a => a.id !== id);
+};
+const deleteSelectedAssets = async () => {
+    if (!selectedAssets.value.length) return;
+    await assetService.deleteAssets(selectedAssets.value);
+    // revoke urls
+    for (const id of selectedAssets.value) {
+        const url = objectUrlMap.get(id);
+        if (url) {
+            try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+            objectUrlMap.delete(id);
+        }
+    }
+    assets.value = assets.value.filter(a => !selectedAssets.value.includes(a.id));
+    selectedAssets.value = [];
+};
 
 const syncAssets = async () => { syncing.value = true; try { await assetService.syncAssets(); await fetchAssets(); } finally { syncing.value = false; } };
 
 const onPreview = (asset: any) => { previewAsset.value = asset; previewAssetType.value = deriveAssetKind(asset); };
 const closePreview = () => { previewAsset.value = null; previewAssetType.value = null; };
+
+onBeforeUnmount(() => {
+    // revoke all created object URLs
+    for (const url of objectUrlMap.values()) {
+        try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+    }
+    objectUrlMap.clear();
+});
 
 onMounted(async () => { await fetchAssets(); });
 

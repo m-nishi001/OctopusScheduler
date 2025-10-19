@@ -86,4 +86,30 @@ export class DriveDataService {
     };
     return new DriveDataDto(driveData);
   }
+
+  /**
+   * Create a DriveDataDto from a File and also return the Blob (File) itself.
+   * This allows UI code to show previews using URL.createObjectURL(blob) instead
+   * of relying on base64 data URLs. The existing createDriveDataDtoFromFile
+   * is left intact for backwards compatibility.
+   */
+  async createDriveDataDtoWithBlobFromFile(
+    file: File
+  ): Promise<{ dto: DriveDataDto; blob: Blob }> {
+    const dataUrl = await FileUtils.readAsDataUrl(file);
+    const driveData: DriveData = {
+      metadata: {
+        driveDataId: "",
+        fileId: "",
+        parentFolderId: "",
+        lastUpdate: new Date(),
+      },
+      fileName: file.name,
+      fileKind: file.type,
+      fileDataUrl: dataUrl,
+      uploadDate: new Date(),
+      parentFolderId: "",
+    };
+    return { dto: new DriveDataDto(driveData), blob: file };
+  }
 }

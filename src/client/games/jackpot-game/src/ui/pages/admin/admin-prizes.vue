@@ -281,7 +281,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { DriveDataDto } from "../../../model/applications/asset/dto/drive-data-dto";
 import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
@@ -355,12 +355,22 @@ const tempAsset = ref<DriveDataDto | null>(null);
 const tempBgm1Asset = ref<DriveDataDto | null>(null);
 const tempBgm2Asset = ref<DriveDataDto | null>(null);
 
+// keep object URLs so we can revoke them later
+const newImagePreviewUrl = ref<string | null>(null);
+const editImagePreviewUrl = ref<string | null>(null);
+
 const onNewImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    tempAsset.value = await driveDataService.createDriveDataDtoFromFile(file);
+    const result = await driveDataService.createDriveDataDtoWithBlobFromFile(file);
+    tempAsset.value = result.dto;
     newImageFilename.value = file.name;
-    newImagePreview.value = tempAsset.value.dataUrl;
+    if (newImagePreviewUrl.value) {
+      try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch { }
+      newImagePreviewUrl.value = null;
+    }
+    newImagePreviewUrl.value = URL.createObjectURL(result.blob);
+    newImagePreview.value = newImagePreviewUrl.value;
   }
 };
 
@@ -491,9 +501,15 @@ const editTempBgm2Asset = ref<DriveDataDto | null>(null);
 const onEditImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (file) {
-    editTempAsset.value = await driveDataService.createDriveDataDtoFromFile(file);
+    const result = await driveDataService.createDriveDataDtoWithBlobFromFile(file);
+    editTempAsset.value = result.dto;
     editImageFilename.value = file.name;
-    editImagePreview.value = editTempAsset.value.dataUrl;
+    if (editImagePreviewUrl.value) {
+      try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
+      editImagePreviewUrl.value = null;
+    }
+    editImagePreviewUrl.value = URL.createObjectURL(result.blob);
+    editImagePreview.value = editImagePreviewUrl.value;
   }
 };
 
@@ -601,6 +617,15 @@ const saveEdit = async () => {
 onMounted(async () => {
   await fetchPrizes();
   await fetchAssets();
+});
+
+onBeforeUnmount(() => {
+  if (newImagePreviewUrl.value) {
+    try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch {}
+  }
+  if (editImagePreviewUrl.value) {
+    try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch {}
+  }
 });
 </script>
 

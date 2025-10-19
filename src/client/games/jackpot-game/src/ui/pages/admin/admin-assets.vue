@@ -35,7 +35,7 @@
                 </div>
                 <div class="asset-info">
                     <span>{{ asset.name }} ({{ deriveAssetKind(asset) }}) - {{ FileUtils.formatSize(asset.size)
-                        }}</span>
+                    }}</span>
                     <div class="usage-info">
                         <strong>使用場所:</strong>
                         <ul>
@@ -98,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
 import { FileUtils } from '../../../model/infrastructures/utils/file-utils';
 import { container } from 'tsyringe';
@@ -143,8 +143,19 @@ const syncMessage = ref("");
 const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
+// map to hold object URLs for preview (keyed by DriveData id or temp id)
+const objectUrlMap = new Map<string, string>();
+
 const fetchAssets = async () => {
     assets.value = await driveDataService.getAllDriveData();
+    // prepare object URLs for items that have blobs
+    for (const a of assets.value) {
+        try {
+            if (a.blob && a.id && !objectUrlMap.has(a.id)) {
+                objectUrlMap.set(a.id, URL.createObjectURL(a.blob));
+            }
+        } catch (e) { /* ignore */ }
+    }
 };
 
 const onFileChange = (e: Event) => {
@@ -169,17 +180,45 @@ const addAssets = async () => {
         size: f.size,
         status: 'アップロード中' as const,
     }));
-    const assetDtos = await Promise.all(selectedFiles.value.map(async (file) => {
-        return await driveDataService.createDriveDataDtoFromFile(file);
+
+    // create DTOs while grabbing blobs for preview
+    const assetDtos = await Promise.all(selectedFiles.value.map(async (file, idx) => {
+        const r = await driveDataService.createDriveDataDtoWithBlobFromFile(file);
+        // create a temp key if dto has no id yet
+        const key = r.dto.id || `tmp-${Date.now()}-${idx}`;
+        try { objectUrlMap.set(key, URL.createObjectURL(r.blob)); } catch { }
+        return r.dto;
     }));
+
     const updatedAssets = await driveDataService.addDriveData(assetDtos, (index, status, message) => {
         uploadStatuses.value[index].status = status;
         uploadStatuses.value[index].message = message;
     });
+
+    // ensure objectUrlMap keys align with returned IDs
+    for (const ua of updatedAssets) {
+        if (ua.id && ua.dataUrl) {
+            // if we created a tmp url for same name, try to migrate it
+            const tmpKey = Array.from(objectUrlMap.keys()).find(k => k.startsWith('tmp-') && objectUrlMap.get(k)?.includes(ua.name || ''));
+            if (tmpKey) {
+                const url = objectUrlMap.get(tmpKey)!;
+                objectUrlMap.delete(tmpKey);
+                objectUrlMap.set(ua.id, url);
+            }
+        }
+    }
+
     uploading.value = false;
     assets.value.push(...updatedAssets);
     selectedFiles.value = [];
 };
+
+onBeforeUnmount(() => {
+    for (const url of objectUrlMap.values()) {
+        try { URL.revokeObjectURL(url); } catch { }
+    }
+    objectUrlMap.clear();
+});
 
 const deleteAsset = async (id: string) => {
     deleteAllDeleting.value = true;
