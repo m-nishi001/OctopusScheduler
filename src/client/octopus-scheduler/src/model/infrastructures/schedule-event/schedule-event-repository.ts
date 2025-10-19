@@ -2,7 +2,7 @@ import { LocalStorageService } from "../../../../../packages/common-lib/src/stor
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
 import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable } from "tsyringe";
-import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
+import type { ExecutionStatus } from "../../domains/schedule-event/execution-status";
 
 @injectable()
 export class ScheduleEventRepository implements IScheduleEventRepository {
@@ -78,14 +78,14 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
   }
 
   async markEventAsStarted(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, ExecutionStatus.Running);
+    await this.updateExecutionStatus(eventId, "running");
   }
 
   async markEventAsCompleted(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, ExecutionStatus.Completed);
+    await this.updateExecutionStatus(eventId, "completed");
   }
 
   async markEventAsFailed(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, ExecutionStatus.Completed);
+    await this.updateExecutionStatus(eventId, "completed");
   }
 }

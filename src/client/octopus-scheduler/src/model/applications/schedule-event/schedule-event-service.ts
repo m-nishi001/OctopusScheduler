@@ -1,11 +1,11 @@
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
 import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable, injectAll, inject } from "tsyringe";
-import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
 import {
   IScheduleEventConverterToken,
   type IScheduleEventConverter,
 } from "../../domains/schedule-event/i-schedule-event-converter";
+import type { ExecutionStatus } from "model/domains/schedule-event/execution-status";
 
 @injectable()
 export class ScheduleEventService {
@@ -61,16 +61,15 @@ export class ScheduleEventService {
 
     for (const event of events) {
       const status =
-        (executionStatuses[event.id] as ExecutionStatus) ||
-        ExecutionStatus.Pending;
+        (executionStatuses[event.id] as ExecutionStatus) || "pending";
 
       if (
-        status === ExecutionStatus.Pending &&
+        status === "pending" &&
         event.startTime <= now &&
         now < event.endTime
       ) {
         startEvents.push(event);
-      } else if (status === ExecutionStatus.Running && event.endTime <= now) {
+      } else if (status === "running" && event.endTime <= now) {
         endEvents.push(event);
       }
     }
@@ -93,10 +92,7 @@ export class ScheduleEventService {
     await this.updateScheduleEvents(updated);
     // Update execution statuses
     for (const id of scheduleEventIds) {
-      await this.scheduleEventRepository.updateExecutionStatus(
-        id,
-        ExecutionStatus.Running
-      );
+      await this.scheduleEventRepository.updateExecutionStatus(id, "running");
     }
   }
 
@@ -115,10 +111,7 @@ export class ScheduleEventService {
     await this.updateScheduleEvents(updated);
     // Update execution statuses
     for (const id of scheduleEventIds) {
-      await this.scheduleEventRepository.updateExecutionStatus(
-        id,
-        ExecutionStatus.Completed
-      );
+      await this.scheduleEventRepository.updateExecutionStatus(id, "completed");
     }
   }
 

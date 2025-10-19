@@ -1,5 +1,5 @@
 import type { IScheduleEvent } from "./schedule-event";
-import { ExecutionStatus } from "./execution-status";
+import type { ExecutionStatus } from "./execution-status";
 
 export interface IScheduleEventRepository {
   getScheduleEvents(): Promise<IScheduleEvent[]>;
