@@ -73,6 +73,24 @@ export class SlideshowEvent implements IScheduleEvent {
     return new SlideshowEvent(params);
   }
 
+  static createEmpty(): SlideshowEvent {
+    const now = new Date();
+    const params = new SlideshowEventParams({
+      id: "",
+      startTime: now,
+      endTime: new Date(now.getTime() + 60000),
+      folderId: "",
+      displayDuration: 5,
+      transitionType: "fade",
+      slideDirection: "left",
+      bgmIds: [],
+      processedAt: null,
+      registeredAt: now,
+      updatedAt: now,
+    });
+    return new SlideshowEvent(params);
+  }
+
   static revive(raw: IScheduleEvent): SlideshowEvent {
     const r = raw as unknown as Record<string, unknown>;
     const startTime = new Date(r.startTime as string | Date);

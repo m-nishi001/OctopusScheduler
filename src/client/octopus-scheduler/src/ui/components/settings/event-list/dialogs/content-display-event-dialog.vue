@@ -92,7 +92,7 @@
                                 <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
                                     File</button>
                                 <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
-                                }}</span>
+                                    }}</span>
                                 <button v-if="form.insertFile" type="button" class="clear-btn"
                                     @click.prevent="clearInsertFile">×</button>
                             </div>
@@ -148,7 +148,7 @@ import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { ShowContentEvent } from '../../../../../model/domains/schedule-event/show-content/show-content-event';
+import { ShowContentEvent, ShowContentEventParams } from '../../../../../model/domains/schedule-event/show-content/show-content-event';
 
 interface Props {
     event?: ShowContentEvent;
@@ -163,28 +163,33 @@ const emit = defineEmits<{
 
 const isEdit = ref(!!props.event);
 
-const form = ref({
-    startTime: props.event ? formatDateTime(props.event.startTime) : formatDateTime(new Date()),
-    endTime: props.event ? formatDateTime(props.event.endTime) : formatDateTime(new Date(Date.now() + 60000)),
-    contentType: props.event?.contentType || 'image',
-    contentId: props.event?.contentId || '',
-    htmlString: props.event?.htmlString || '',
-    fadeOutDuration: props.event?.fadeOutDuration || 0,
-    displayMode: props.event?.displayMode || 'fade',
-    effect: props.event?.effect || 'fade',
-    duration: props.event?.duration || 3,
-    fadeInTime: props.event?.fadeInTime || 1,
-    fadeOutTime: props.event?.fadeOutTime || 1,
-    scrollDirection: props.event?.scrollDirection || 'up',
-    assetSource: 'existing' as 'existing' | 'upload',
-    selectedAssetId: '',
-    uploadFile: null as File | null,
-    assetInsertSource: 'existing' as 'existing' | 'upload',
-    insertAssetType: 'image' as 'image' | 'video',
-    insertAssetId: '',
-    insertFile: null as File | null,
-    tempAssets: [] as any[],
-});
+function entityToForm(e: ShowContentEvent) {
+    return {
+        startTime: formatDateTime(e.startTime),
+        endTime: formatDateTime(e.endTime),
+        contentType: e.contentType,
+        contentId: e.contentId ?? '',
+        htmlString: e.htmlString ?? '',
+        fadeOutDuration: e.fadeOutDuration ?? 0,
+        displayMode: e.displayMode ?? 'fade',
+        effect: e.effect ?? 'fade',
+        duration: e.duration ?? 3,
+        fadeInTime: e.fadeInTime ?? 1,
+        fadeOutTime: e.fadeOutTime ?? 1,
+        scrollDirection: e.scrollDirection ?? 'up',
+        assetSource: 'existing' as 'existing' | 'upload',
+        selectedAssetId: e.contentId ?? '',
+        uploadFile: null as File | null,
+        assetInsertSource: 'existing' as 'existing' | 'upload',
+        insertAssetType: 'image' as 'image' | 'video',
+        insertAssetId: '',
+        insertFile: null as File | null,
+        tempAssets: [] as any[],
+    };
+}
+
+const initialEntity = props.event ?? ShowContentEvent.createEmpty();
+const form = ref(entityToForm(initialEntity));
 
 const assets = ref<Asset[]>([]);
 const assetService = container.resolve(AssetService);
@@ -238,55 +243,9 @@ watch(() => form.value.htmlString, async (newHtml) => {
 }, { deep: true });
 
 watch(() => props.event, (newEvent) => {
-    if (newEvent) {
-        form.value = {
-            startTime: formatDateTime(newEvent.startTime),
-            endTime: formatDateTime(newEvent.endTime),
-            contentType: newEvent.contentType,
-            contentId: newEvent.contentId || '',
-            htmlString: newEvent.htmlString || '',
-            fadeOutDuration: newEvent.fadeOutDuration || 0,
-            displayMode: newEvent.displayMode || 'fade',
-            effect: newEvent.effect || 'fade',
-            duration: newEvent.duration || 3,
-            fadeInTime: newEvent.fadeInTime || 1,
-            fadeOutTime: newEvent.fadeOutTime || 1,
-            scrollDirection: newEvent.scrollDirection || 'up',
-            assetSource: 'existing',
-            selectedAssetId: newEvent.contentId || '',
-            uploadFile: null,
-            assetInsertSource: 'existing',
-            insertAssetType: 'image',
-            insertAssetId: '',
-            insertFile: null,
-            tempAssets: [],
-        };
-        isEdit.value = true;
-    } else {
-        form.value = {
-            startTime: formatDateTime(new Date()),
-            endTime: formatDateTime(new Date(Date.now() + 60000)),
-            contentType: 'image',
-            contentId: '',
-            htmlString: '',
-            fadeOutDuration: 0,
-            displayMode: 'fade',
-            effect: 'fade',
-            duration: 3,
-            fadeInTime: 1,
-            fadeOutTime: 1,
-            scrollDirection: 'up',
-            assetSource: 'existing',
-            selectedAssetId: '',
-            uploadFile: null,
-            assetInsertSource: 'existing',
-            insertAssetType: 'image',
-            insertAssetId: '',
-            insertFile: null,
-            tempAssets: [],
-        };
-        isEdit.value = false;
-    }
+    const e = newEvent ?? ShowContentEvent.createEmpty();
+    form.value = entityToForm(e);
+    isEdit.value = !!newEvent;
 });
 
 onMounted(async () => {
@@ -379,45 +338,62 @@ async function onSubmit() {
             });
         }
 
+        const baseParams = {
+            startTime,
+            endTime,
+            contentType: form.value.contentType,
+            contentId,
+            htmlString,
+            fadeOutDuration: form.value.fadeOutDuration,
+            displayMode: form.value.displayMode,
+            effect: form.value.effect,
+            duration: form.value.duration,
+            fadeInTime: form.value.fadeInTime,
+            fadeOutTime: form.value.fadeOutTime,
+            scrollDirection: form.value.scrollDirection,
+        } as const;
+
         if (props.event) {
-            const updated = ShowContentEvent.fromParams({
+            const params = new ShowContentEventParams({
                 id: props.event.id,
-                startTime,
-                endTime,
-                contentType: form.value.contentType,
-                contentId,
-                htmlString,
-                fadeOutDuration: form.value.fadeOutDuration,
-                displayMode: form.value.displayMode,
-                effect: form.value.effect,
-                duration: form.value.duration,
-                fadeInTime: form.value.fadeInTime,
-                fadeOutTime: form.value.fadeOutTime,
-                scrollDirection: form.value.scrollDirection,
+                startTime: baseParams.startTime,
+                endTime: baseParams.endTime,
+                contentType: baseParams.contentType,
+                contentId: baseParams.contentId,
+                htmlString: baseParams.htmlString,
+                fadeOutDuration: baseParams.fadeOutDuration,
+                displayMode: baseParams.displayMode as any,
+                effect: baseParams.effect as any,
+                duration: baseParams.duration,
+                fadeInTime: baseParams.fadeInTime,
+                fadeOutTime: baseParams.fadeOutTime,
+                scrollDirection: baseParams.scrollDirection as any,
                 processedAt: props.event.processedAt,
                 registeredAt: props.event.registeredAt,
                 updatedAt: new Date(),
             });
+            const updated = ShowContentEvent.fromParams(params);
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = ShowContentEvent.fromParams({
+            const params = new ShowContentEventParams({
                 id: '',
-                startTime,
-                endTime,
-                contentType: form.value.contentType,
-                contentId,
-                htmlString,
-                fadeOutDuration: form.value.fadeOutDuration,
-                displayMode: form.value.displayMode,
-                effect: form.value.effect,
-                duration: form.value.duration,
-                fadeInTime: form.value.fadeInTime,
-                fadeOutTime: form.value.fadeOutTime,
-                scrollDirection: form.value.scrollDirection,
+                startTime: baseParams.startTime,
+                endTime: baseParams.endTime,
+                contentType: baseParams.contentType,
+                contentId: baseParams.contentId,
+                htmlString: baseParams.htmlString,
+                fadeOutDuration: baseParams.fadeOutDuration,
+                displayMode: baseParams.displayMode as any,
+                effect: baseParams.effect as any,
+                duration: baseParams.duration,
+                fadeInTime: baseParams.fadeInTime,
+                fadeOutTime: baseParams.fadeOutTime,
+                scrollDirection: baseParams.scrollDirection as any,
                 processedAt: null,
                 registeredAt: new Date(),
                 updatedAt: new Date(),
             });
+            const tempEvent = ShowContentEvent.fromParams(params);
             await scheduleEventService.addScheduleEvents([tempEvent]);
         }
 

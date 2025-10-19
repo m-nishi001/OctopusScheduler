@@ -58,6 +58,21 @@ export class TransitionPageEvent implements IScheduleEvent {
     return new TransitionPageEvent(params);
   }
 
+  static createEmpty(): TransitionPageEvent {
+    const now = new Date();
+    const params = new TransitionPageEventParams({
+      id: "",
+      startTime: now,
+      endTime: new Date(now.getTime() + 60000),
+      transitionUrl: "",
+      fadeOutDuration: 0,
+      processedAt: null,
+      registeredAt: now,
+      updatedAt: now,
+    });
+    return new TransitionPageEvent(params);
+  }
+
   static revive(raw: IScheduleEvent): TransitionPageEvent {
     const r = raw as unknown as Record<string, unknown>;
     const startTime = new Date(r.startTime as string | Date);

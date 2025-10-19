@@ -98,6 +98,29 @@ export class ShowContentEvent implements IScheduleEvent {
     return new ShowContentEvent(params);
   }
 
+  static createEmpty(): ShowContentEvent {
+    const now = new Date();
+    const params = new ShowContentEventParams({
+      id: "",
+      startTime: now,
+      endTime: new Date(now.getTime() + 60000),
+      contentType: "image",
+      contentId: "",
+      htmlString: "",
+      fadeOutDuration: 0,
+      displayMode: "fade",
+      effect: "fade",
+      duration: 3,
+      fadeInTime: 1,
+      fadeOutTime: 1,
+      scrollDirection: "up",
+      processedAt: null,
+      registeredAt: now,
+      updatedAt: now,
+    });
+    return new ShowContentEvent(params);
+  }
+
   static revive(raw: IScheduleEvent): ShowContentEvent {
     const r = raw as unknown as Record<string, unknown>;
     const startTime = new Date(r.startTime as string | Date);

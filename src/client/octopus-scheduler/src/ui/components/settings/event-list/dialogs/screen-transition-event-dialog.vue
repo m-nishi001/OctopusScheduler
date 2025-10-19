@@ -33,7 +33,7 @@
 import { ref, watch } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { TransitionPageEvent } from '../../../../../model/domains/schedule-event/transition/transition-page-event';
+import { TransitionPageEvent, TransitionPageEventParams } from '../../../../../model/domains/schedule-event/transition/transition-page-event';
 
 interface Props {
     event?: TransitionPageEvent;
@@ -48,31 +48,22 @@ const emit = defineEmits<{
 
 const isEdit = ref(!!props.event);
 
-const form = ref({
-    startTime: props.event ? formatDateTime(props.event.startTime) : formatDateTime(new Date()),
-    endTime: props.event ? formatDateTime(props.event.endTime) : formatDateTime(new Date(Date.now() + 60000)),
-    transitionUrl: props.event?.transitionUrl || '',
-    fadeOutDuration: props.event?.fadeOutDuration || 0,
-});
+function entityToForm(e: TransitionPageEvent) {
+    return {
+        startTime: formatDateTime(e.startTime),
+        endTime: formatDateTime(e.endTime),
+        transitionUrl: e.transitionUrl ?? '',
+        fadeOutDuration: e.fadeOutDuration ?? 0,
+    };
+}
+
+const initialEntity = props.event ?? TransitionPageEvent.createEmpty();
+const form = ref(entityToForm(initialEntity));
 
 watch(() => props.event, (newEvent) => {
-    if (newEvent) {
-        form.value = {
-            startTime: formatDateTime(newEvent.startTime),
-            endTime: formatDateTime(newEvent.endTime),
-            transitionUrl: newEvent.transitionUrl,
-            fadeOutDuration: newEvent.fadeOutDuration || 0,
-        };
-        isEdit.value = true;
-    } else {
-        form.value = {
-            startTime: formatDateTime(new Date()),
-            endTime: formatDateTime(new Date(Date.now() + 60000)),
-            transitionUrl: '',
-            fadeOutDuration: 0,
-        };
-        isEdit.value = false;
-    }
+    const e = newEvent ?? TransitionPageEvent.createEmpty();
+    form.value = entityToForm(e);
+    isEdit.value = !!newEvent;
 });
 
 function formatDateTime(date: Date): string {
@@ -88,29 +79,38 @@ async function onSubmit() {
     }
     const scheduleEventService = container.resolve(ScheduleEventService);
     try {
+        const baseParams = {
+            startTime,
+            endTime,
+            transitionUrl: form.value.transitionUrl,
+            fadeOutDuration: form.value.fadeOutDuration,
+        } as const;
+
         if (props.event) {
-            const updated = TransitionPageEvent.fromParams({
+            const params = new TransitionPageEventParams({
                 id: props.event.id,
-                startTime,
-                endTime,
-                transitionUrl: form.value.transitionUrl,
-                fadeOutDuration: form.value.fadeOutDuration,
+                startTime: baseParams.startTime,
+                endTime: baseParams.endTime,
+                transitionUrl: baseParams.transitionUrl,
+                fadeOutDuration: baseParams.fadeOutDuration,
                 processedAt: props.event.processedAt,
                 registeredAt: props.event.registeredAt,
                 updatedAt: new Date(),
             });
+            const updated = TransitionPageEvent.fromParams(params);
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = TransitionPageEvent.fromParams({
+            const params = new TransitionPageEventParams({
                 id: '',
-                startTime,
-                endTime,
-                transitionUrl: form.value.transitionUrl,
-                fadeOutDuration: form.value.fadeOutDuration,
+                startTime: baseParams.startTime,
+                endTime: baseParams.endTime,
+                transitionUrl: baseParams.transitionUrl,
+                fadeOutDuration: baseParams.fadeOutDuration,
                 processedAt: null,
                 registeredAt: new Date(),
                 updatedAt: new Date(),
             });
+            const tempEvent = TransitionPageEvent.fromParams(params);
             await scheduleEventService.addScheduleEvents([tempEvent]);
         }
         emit('saved');

@@ -93,7 +93,7 @@ import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { SlideshowEvent } from '../../../../../model/domains/schedule-event/slideshow/slideshow-event';
+import { SlideshowEvent, SlideshowEventParams } from '../../../../../model/domains/schedule-event/slideshow/slideshow-event';
 
 interface Props {
     event?: SlideshowEvent;
@@ -108,16 +108,21 @@ const emit = defineEmits<{
 
 const isEdit = ref(!!props.event);
 
-const form = ref({
-    startTime: props.event ? formatDateTime(props.event.startTime) : formatDateTime(new Date()),
-    endTime: props.event ? formatDateTime(props.event.endTime) : formatDateTime(new Date(Date.now() + 60000)),
-    folderId: props.event?.folderId || '',
-    displayDuration: props.event?.displayDuration || 5,
-    transitionType: props.event?.transitionType || 'fade',
-    slideDirection: props.event?.slideDirection || 'left',
-    bgmIds: props.event?.bgmIds.join(',') || '',
-    bgmList: [] as { id: string, name: string }[],
-});
+function entityToForm(e: SlideshowEvent) {
+    return {
+        startTime: formatDateTime(e.startTime),
+        endTime: formatDateTime(e.endTime),
+        folderId: e.folderId ?? '',
+        displayDuration: e.displayDuration ?? 5,
+        transitionType: e.transitionType ?? 'fade',
+        slideDirection: e.slideDirection ?? 'left',
+        bgmIds: e.bgmIds.join(',') || '',
+        bgmList: e.bgmIds.map((id: string) => ({ id, name: getAssetName(id) })),
+    };
+}
+
+const initialEntity = props.event ?? SlideshowEvent.createEmpty();
+const form = ref(entityToForm(initialEntity));
 
 const newBgmSource = ref<'existing' | 'upload'>('existing');
 const selectedBgmId = ref('');
@@ -126,31 +131,9 @@ const assets = ref<Asset[]>([]);
 const assetService = container.resolve(AssetService);
 
 watch(() => props.event, (newEvent) => {
-    if (newEvent) {
-        form.value = {
-            startTime: formatDateTime(newEvent.startTime),
-            endTime: formatDateTime(newEvent.endTime),
-            folderId: newEvent.folderId,
-            displayDuration: newEvent.displayDuration,
-            transitionType: newEvent.transitionType,
-            slideDirection: newEvent.slideDirection || 'left',
-            bgmIds: newEvent.bgmIds.join(','),
-            bgmList: newEvent.bgmIds.map((id: string) => ({ id, name: getAssetName(id) })),
-        };
-        isEdit.value = true;
-    } else {
-        form.value = {
-            startTime: formatDateTime(new Date()),
-            endTime: formatDateTime(new Date(Date.now() + 60000)),
-            folderId: '',
-            displayDuration: 5,
-            transitionType: 'fade',
-            slideDirection: 'left',
-            bgmIds: '',
-            bgmList: [],
-        };
-        isEdit.value = false;
-    }
+    const e = newEvent ?? SlideshowEvent.createEmpty();
+    form.value = entityToForm(e);
+    isEdit.value = !!newEvent;
 });
 
 onMounted(async () => {
@@ -237,35 +220,47 @@ async function onSubmit() {
     }
     const scheduleEventService = container.resolve(ScheduleEventService);
     try {
+        const baseParams = {
+            startTime,
+            endTime,
+            folderId: form.value.folderId,
+            displayDuration: form.value.displayDuration,
+            transitionType: form.value.transitionType,
+            slideDirection: form.value.slideDirection,
+            bgmIds: form.value.bgmList.map(b => b.id),
+        } as const;
+
         if (props.event) {
-            const updated = SlideshowEvent.fromParams({
+            const params = new SlideshowEventParams({
                 id: props.event.id,
-                startTime,
-                endTime,
-                folderId: form.value.folderId,
-                displayDuration: form.value.displayDuration,
-                transitionType: form.value.transitionType,
-                slideDirection: form.value.slideDirection,
-                bgmIds: form.value.bgmList.map(b => b.id),
+                startTime: baseParams.startTime,
+                endTime: baseParams.endTime,
+                folderId: baseParams.folderId,
+                displayDuration: baseParams.displayDuration,
+                transitionType: baseParams.transitionType as any,
+                slideDirection: baseParams.slideDirection as any,
+                bgmIds: baseParams.bgmIds,
                 processedAt: props.event.processedAt,
                 registeredAt: props.event.registeredAt,
                 updatedAt: new Date(),
             });
+            const updated = SlideshowEvent.fromParams(params);
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = SlideshowEvent.fromParams({
+            const params = new SlideshowEventParams({
                 id: '',
-                startTime,
-                endTime,
-                folderId: form.value.folderId,
-                displayDuration: form.value.displayDuration,
-                transitionType: form.value.transitionType,
-                slideDirection: form.value.slideDirection,
-                bgmIds: form.value.bgmList.map(b => b.id),
+                startTime: baseParams.startTime,
+                endTime: baseParams.endTime,
+                folderId: baseParams.folderId,
+                displayDuration: baseParams.displayDuration,
+                transitionType: baseParams.transitionType as any,
+                slideDirection: baseParams.slideDirection as any,
+                bgmIds: baseParams.bgmIds,
                 processedAt: null,
                 registeredAt: new Date(),
                 updatedAt: new Date(),
             });
+            const tempEvent = SlideshowEvent.fromParams(params);
             await scheduleEventService.addScheduleEvents([tempEvent]);
         }
         emit('saved');

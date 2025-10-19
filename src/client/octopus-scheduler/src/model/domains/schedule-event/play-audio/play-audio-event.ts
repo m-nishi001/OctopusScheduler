@@ -58,6 +58,21 @@ export class PlayAudioEvent implements IScheduleEvent {
     return new PlayAudioEvent(params);
   }
 
+  static createEmpty(): PlayAudioEvent {
+    const now = new Date();
+    const params = new PlayAudioEventParams({
+      id: "",
+      startTime: now,
+      endTime: new Date(now.getTime() + 60000),
+      audioId: "",
+      fadeOutDuration: 0,
+      processedAt: null,
+      registeredAt: now,
+      updatedAt: now,
+    });
+    return new PlayAudioEvent(params);
+  }
+
   static revive(raw: IScheduleEvent): PlayAudioEvent {
     const r = raw as unknown as Record<string, unknown>;
     const startTime = new Date(r.startTime as string | Date);
