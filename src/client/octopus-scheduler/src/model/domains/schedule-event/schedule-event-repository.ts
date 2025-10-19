@@ -13,7 +13,4 @@ export interface IScheduleEventRepository {
     status: ExecutionStatus
   ): Promise<void>;
   getAllExecutionStatuses(): Promise<{ [eventId: string]: ExecutionStatus }>;
-  markEventAsStarted(eventId: string): Promise<void>;
-  markEventAsCompleted(eventId: string): Promise<void>;
-  markEventAsFailed(eventId: string): Promise<void>;
 }

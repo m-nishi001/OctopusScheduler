@@ -76,16 +76,4 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     }
     return result;
   }
-
-  async markEventAsStarted(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, "running");
-  }
-
-  async markEventAsCompleted(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, "completed");
-  }
-
-  async markEventAsFailed(eventId: string): Promise<void> {
-    await this.updateExecutionStatus(eventId, "completed");
-  }
 }
