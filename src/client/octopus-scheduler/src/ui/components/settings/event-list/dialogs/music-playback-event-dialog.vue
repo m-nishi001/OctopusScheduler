@@ -62,8 +62,10 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
+import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
+import { PlayAudioEventDto } from '../../../../../model/applications/schedule-event/play-audio-event/play-audio-event-dto';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
-import type { PlayAudioEventDto } from '../../../../../model/applications/schedule-event/play-audio-event/play-audio-event-dto';
+// PlayAudioEventDto imported for runtime usage above
 
 interface Props {
     event?: PlayAudioEventDto;
@@ -72,7 +74,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-    submit: [form: any];
+    saved: [];
     close: [];
 }>();
 
@@ -147,6 +149,8 @@ async function onSubmit() {
 
     let audioId = form.value.audioId;
 
+    const scheduleEventService = container.resolve(ScheduleEventService);
+
     if (form.value.assetSource === 'existing') {
         audioId = form.value.selectedAssetId;
     } else if (form.value.assetSource === 'upload' && form.value.uploadFile) {
@@ -161,27 +165,45 @@ async function onSubmit() {
             };
             const ids = await assetService.addAssets([asset]);
             audioId = ids[0];
-            emit('submit', {
-                ...form.value,
-                startTime,
-                endTime,
-                audioId,
-            });
-            emit('close');
-            return;
+            // continue to persist event below
         } catch (e) {
             alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
             return;
         }
     }
 
-    emit('submit', {
-        ...form.value,
-        startTime,
-        endTime,
-        audioId,
-    });
-    emit('close');
+    // persist
+    try {
+        if (isEdit.value && props.event) {
+            const updated = new PlayAudioEventDto(
+                props.event.id,
+                startTime,
+                endTime,
+                audioId,
+                form.value.fadeOutDuration,
+                props.event.processedAt,
+                props.event.registeredAt,
+                new Date()
+            );
+            await scheduleEventService.updateScheduleEvents([updated]);
+        } else {
+            const tempEvent = new PlayAudioEventDto(
+                '',
+                startTime,
+                endTime,
+                audioId,
+                form.value.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            await scheduleEventService.addScheduleEvents([tempEvent]);
+        }
+        emit('saved');
+        emit('close');
+    } catch (e) {
+        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    }
 }
 
 function onClose() {

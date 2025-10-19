@@ -92,7 +92,7 @@
                                 <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
                                     File</button>
                                 <span class="file-name">{{ form.insertFile ? form.insertFile.name : 'No file chosen'
-                                    }}</span>
+                                }}</span>
                                 <button v-if="form.insertFile" type="button" class="clear-btn"
                                     @click.prevent="clearInsertFile">×</button>
                             </div>
@@ -147,7 +147,8 @@ import { ref, watch, onMounted, computed, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
-import type { ShowContentEventDto } from '../../../../../model/applications/schedule-event/show-content-event/show-content-event-dto';
+import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
+import { ShowContentEventDto } from '../../../../../model/applications/schedule-event/show-content-event/show-content-event-dto';
 
 interface Props {
     event?: ShowContentEventDto;
@@ -156,7 +157,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-    submit: [form: any];
+    saved: [];
     close: [];
 }>();
 
@@ -359,15 +360,7 @@ async function onSubmit() {
                 };
                 const ids = await assetService.addAssets([asset]);
                 contentId = ids[0];
-                emit('submit', {
-                    ...form.value,
-                    startTime,
-                    endTime,
-                    contentId,
-                    htmlString,
-                });
-                emit('close');
-                return;
+                // continue to persist below
             } catch (e) {
                 alert('アセットアップロードに失敗しました: ' + (e instanceof Error ? e.message : String(e)));
                 return;
@@ -375,14 +368,66 @@ async function onSubmit() {
         }
     }
 
-    emit('submit', {
-        ...form.value,
-        startTime,
-        endTime,
-        contentId,
-        htmlString,
-    });
-    emit('close');
+    const scheduleEventService = container.resolve(ScheduleEventService);
+
+    try {
+        if (form.value.tempAssets.length > 0) {
+            const ids = await assetService.addAssets(form.value.tempAssets);
+            form.value.tempAssets.forEach((asset, index) => {
+                const realId = ids[index];
+                htmlString = htmlString.replace(new RegExp(`{{asset:(${asset.insertAssetType || 'image'}):${asset.id}}}`, 'g'), `{{asset:$1:${realId}}}`);
+            });
+        }
+
+        if (props.event) {
+            const updated = new ShowContentEventDto(
+                props.event.id,
+                startTime,
+                endTime,
+                form.value.contentType,
+                contentId,
+                htmlString,
+                form.value.fadeOutDuration,
+                form.value.displayMode,
+                form.value.effect,
+                form.value.duration,
+                form.value.fadeInTime,
+                form.value.fadeOutTime,
+                form.value.scrollDirection,
+                props.event.processedAt,
+                props.event.registeredAt,
+                new Date()
+            );
+            await scheduleEventService.updateScheduleEvents([updated]);
+        } else {
+            const tempEvent = new ShowContentEventDto(
+                '',
+                startTime,
+                endTime,
+                form.value.contentType,
+                contentId,
+                htmlString,
+                form.value.fadeOutDuration,
+                form.value.displayMode,
+                form.value.effect,
+                form.value.duration,
+                form.value.fadeInTime,
+                form.value.fadeOutTime,
+                form.value.scrollDirection,
+                null,
+                new Date(),
+                new Date()
+            );
+            await scheduleEventService.addScheduleEvents([tempEvent]);
+        }
+
+        emit('saved');
+        emit('close');
+        return;
+    } catch (e) {
+        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+        return;
+    }
 }
 
 function onClose() {

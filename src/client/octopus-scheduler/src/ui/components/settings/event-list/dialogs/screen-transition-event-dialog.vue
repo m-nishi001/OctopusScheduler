@@ -31,7 +31,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { TransitionPageEventDto } from '../../../../../model/applications/schedule-event/transition-page-event/transition-page-event-dto';
+import { container } from 'tsyringe';
+import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
+import { TransitionPageEventDto } from '../../../../../model/applications/schedule-event/transition-page-event/transition-page-event-dto';
 
 interface Props {
     event?: TransitionPageEventDto;
@@ -40,7 +42,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-    submit: [form: any];
+    saved: [];
     close: [];
 }>();
 
@@ -77,19 +79,45 @@ function formatDateTime(date: Date): string {
     return date.toISOString().slice(0, 16);
 }
 
-function onSubmit() {
+async function onSubmit() {
     const startTime = new Date(form.value.startTime);
     const endTime = new Date(form.value.endTime);
     if (startTime >= endTime) {
         alert('開始時間が終了時間より後です。');
         return;
     }
-    emit('submit', {
-        ...form.value,
-        startTime,
-        endTime,
-    });
-    emit('close');
+    const scheduleEventService = container.resolve(ScheduleEventService);
+    try {
+        if (props.event) {
+            const updated = new TransitionPageEventDto(
+                props.event.id,
+                startTime,
+                endTime,
+                form.value.transitionUrl,
+                form.value.fadeOutDuration,
+                props.event.processedAt,
+                props.event.registeredAt,
+                new Date()
+            );
+            await scheduleEventService.updateScheduleEvents([updated]);
+        } else {
+            const tempEvent = new TransitionPageEventDto(
+                '',
+                startTime,
+                endTime,
+                form.value.transitionUrl,
+                form.value.fadeOutDuration,
+                null,
+                new Date(),
+                new Date()
+            );
+            await scheduleEventService.addScheduleEvents([tempEvent]);
+        }
+        emit('saved');
+        emit('close');
+    } catch (e) {
+        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    }
 }
 
 function onClose() {

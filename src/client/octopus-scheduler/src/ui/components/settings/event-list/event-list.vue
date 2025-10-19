@@ -4,9 +4,7 @@
             <div v-if="syncing" class="sync-status">
                 <span class="sync-icon">🔄</span> 同期中...
             </div>
-            <div v-if="saving" class="sync-status">
-                <span class="sync-icon">💾</span> 保存中...
-            </div>
+            <!-- saving status handled inside dialogs -->
             <h2 class="editor-title">
                 <span class="editor-icon">📅</span> スケジュールイベント管理
             </h2>
@@ -69,13 +67,13 @@
 
         <EventTypeSelectionDialog v-if="showTypeSelection" @select="onTypeSelected"
             @close="showTypeSelection = false" />
-        <ContentDisplayEventDialog v-if="showContentDialog" :event="editingEvent as any" @submit="onContentSubmit"
+        <ContentDisplayEventDialog v-if="showContentDialog" :event="editingEvent as any" @saved="onDialogSaved"
             @close="closeDialogs" />
-        <MusicPlaybackEventDialog v-if="showMusicDialog" :event="editingEvent as any" @submit="onMusicSubmit"
+        <MusicPlaybackEventDialog v-if="showMusicDialog" :event="editingEvent as any" @saved="onDialogSaved"
             @close="closeDialogs" />
-        <ScreenTransitionEventDialog v-if="showTransitionDialog" :event="editingEvent as any"
-            @submit="onTransitionSubmit" @close="closeDialogs" />
-        <SlideshowEventDialog v-if="showSlideshowDialog" :event="editingEvent as any" @submit="onSlideshowSubmit"
+        <ScreenTransitionEventDialog v-if="showTransitionDialog" :event="editingEvent as any" @saved="onDialogSaved"
+            @close="closeDialogs" />
+        <SlideshowEventDialog v-if="showSlideshowDialog" :event="editingEvent as any" @saved="onDialogSaved"
             @close="closeDialogs" />
     </div>
 </template>
@@ -91,10 +89,7 @@ import ContentDisplayEventDialog from './dialogs/content-display-event-dialog.vu
 import MusicPlaybackEventDialog from './dialogs/music-playback-event-dialog.vue';
 import ScreenTransitionEventDialog from './dialogs/screen-transition-event-dialog.vue';
 import SlideshowEventDialog from './dialogs/slideshow-event-dialog.vue';
-import { ShowContentEventDto } from '../../../../model/applications/schedule-event/show-content-event/show-content-event-dto';
-import { PlayAudioEventDto } from '../../../../model/applications/schedule-event/play-audio-event/play-audio-event-dto';
-import { TransitionPageEventDto } from '../../../../model/applications/schedule-event/transition-page-event/transition-page-event-dto';
-import { SlideshowEventDto } from '../../../../model/applications/schedule-event/slideshow-event/slideshow-event-dto';
+// persistence moved into dialog components
 
 const events = ref<IScheduleEventDto[]>([]);
 const loading = ref(false);
@@ -109,7 +104,6 @@ const showMusicDialog = ref(false);
 const showTransitionDialog = ref(false);
 const showSlideshowDialog = ref(false);
 const editingEvent = ref<IScheduleEventDto | null>(null);
-const saving = ref(false);
 
 const scheduleEventService = container.resolve(ScheduleEventService);
 
@@ -228,192 +222,11 @@ function closeDialogs() {
     editingEvent.value = null;
 }
 
-async function onContentSubmit(form: any) {
-    saving.value = true;
-    try {
-        if (editingEvent.value) {
-            // Update
-            const updated = new ShowContentEventDto(
-                editingEvent.value.id,
-                form.startTime,
-                form.endTime,
-                form.contentType,
-                form.contentId,
-                form.htmlString,
-                form.fadeOutDuration,
-                form.displayMode,
-                form.effect,
-                form.duration,
-                form.fadeInTime,
-                form.fadeOutTime,
-                form.scrollDirection,
-                editingEvent.value.processedAt,
-                editingEvent.value.registeredAt,
-                new Date()
-            );
-            await scheduleEventService.updateScheduleEvents([updated]);
-            // reuse existing id
-        } else {
-            // Add
-            const tempEvent = new ShowContentEventDto(
-                '',
-                form.startTime,
-                form.endTime,
-                form.contentType,
-                form.contentId,
-                form.htmlString,
-                form.fadeOutDuration,
-                form.displayMode,
-                form.effect,
-                form.duration,
-                form.fadeInTime,
-                form.fadeOutTime,
-                form.scrollDirection,
-                null,
-                new Date(),
-                new Date()
-            );
-            await scheduleEventService.addScheduleEvents([tempEvent]);
-        }
-        await getAllScheduleEvents();
+// submit handlers moved into dialogs; watched by @saved
 
-        if (editingEvent.value) {
-            closeDialogs();
-        }
-    } catch (e) {
-        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-    } finally {
-        saving.value = false;
-    }
-}
-
-async function onMusicSubmit(form: any) {
-    saving.value = true;
-    try {
-        if (editingEvent.value) {
-            // Update
-            const updated = new PlayAudioEventDto(
-                editingEvent.value.id,
-                form.startTime,
-                form.endTime,
-                form.audioId,
-                form.fadeOutDuration,
-                editingEvent.value.processedAt,
-                editingEvent.value.registeredAt,
-                new Date()
-            );
-            await scheduleEventService.updateScheduleEvents([updated]);
-        } else {
-            // Add
-            const tempEvent = new PlayAudioEventDto(
-                '',
-                form.startTime,
-                form.endTime,
-                form.audioId,
-                form.fadeOutDuration,
-                null,
-                new Date(),
-                new Date()
-            );
-            await scheduleEventService.addScheduleEvents([tempEvent]);
-        }
-        await getAllScheduleEvents();
-        if (editingEvent.value) {
-            closeDialogs();
-        }
-    } catch (e) {
-        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-    } finally {
-        saving.value = false;
-    }
-}
-
-async function onTransitionSubmit(form: any) {
-    saving.value = true;
-    try {
-        if (editingEvent.value) {
-            // Update
-            const updated = new TransitionPageEventDto(
-                editingEvent.value.id,
-                form.startTime,
-                form.endTime,
-                form.transitionUrl,
-                form.fadeOutDuration,
-                editingEvent.value.processedAt,
-                editingEvent.value.registeredAt,
-                new Date()
-            );
-            await scheduleEventService.updateScheduleEvents([updated]);
-        } else {
-            // Add
-            const tempEvent = new TransitionPageEventDto(
-                '',
-                form.startTime,
-                form.endTime,
-                form.transitionUrl,
-                form.fadeOutDuration,
-                null,
-                new Date(),
-                new Date()
-            );
-            await scheduleEventService.addScheduleEvents([tempEvent]);
-        }
-        await getAllScheduleEvents();
-        if (editingEvent.value) {
-            closeDialogs();
-        }
-    } catch (e) {
-        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-    } finally {
-        saving.value = false;
-    }
-}
-
-async function onSlideshowSubmit(form: any) {
-    saving.value = true;
-    try {
-        if (editingEvent.value) {
-            // Update
-            const updated = new SlideshowEventDto(
-                editingEvent.value.id,
-                form.startTime,
-                form.endTime,
-                form.folderId,
-                form.displayDuration,
-                form.transitionType,
-                form.slideDirection,
-                form.bgmIds,
-                editingEvent.value.processedAt,
-                editingEvent.value.registeredAt,
-                new Date()
-            );
-            await scheduleEventService.updateScheduleEvents([updated]);
-        } else {
-            // Add
-            const tempEvent = new SlideshowEventDto(
-                '',
-                form.startTime,
-                form.endTime,
-                form.folderId,
-                form.displayDuration,
-                form.transitionType,
-                form.slideDirection,
-                form.bgmIds,
-                null,
-                new Date(),
-                new Date()
-            );
-            await scheduleEventService.addScheduleEvents([tempEvent]);
-        }
-        await getAllScheduleEvents();
-        if (editingEvent.value) {
-            closeDialogs();
-        }
-    } catch (e) {
-        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-    } finally {
-        saving.value = false;
-    }
+async function onDialogSaved() {
+    await getAllScheduleEvents();
+    closeDialogs();
 }
 
 async function onReload() {

@@ -92,7 +92,8 @@ import { ref, watch, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
-import type { SlideshowEventDto } from '../../../../../model/applications/schedule-event/slideshow-event/slideshow-event-dto';
+import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
+import { SlideshowEventDto } from '../../../../../model/applications/schedule-event/slideshow-event/slideshow-event-dto';
 
 interface Props {
     event?: SlideshowEventDto;
@@ -101,7 +102,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-    submit: [form: any];
+    saved: [];
     close: [];
 }>();
 
@@ -227,20 +228,51 @@ function clearBgmFile() {
     if (bgmFileInput.value) bgmFileInput.value.value = '';
 }
 
-function onSubmit() {
+async function onSubmit() {
     const startTime = new Date(form.value.startTime);
     const endTime = new Date(form.value.endTime);
     if (startTime >= endTime) {
         alert('開始時間が終了時間より後です。');
         return;
     }
-    emit('submit', {
-        ...form.value,
-        startTime,
-        endTime,
-        bgmIds: form.value.bgmList.map(b => b.id),
-    });
-    emit('close');
+    const scheduleEventService = container.resolve(ScheduleEventService);
+    try {
+        if (props.event) {
+            const updated = new SlideshowEventDto(
+                props.event.id,
+                startTime,
+                endTime,
+                form.value.folderId,
+                form.value.displayDuration,
+                form.value.transitionType,
+                form.value.slideDirection,
+                form.value.bgmList.map(b => b.id),
+                props.event.processedAt,
+                props.event.registeredAt,
+                new Date()
+            );
+            await scheduleEventService.updateScheduleEvents([updated]);
+        } else {
+            const tempEvent = new SlideshowEventDto(
+                '',
+                startTime,
+                endTime,
+                form.value.folderId,
+                form.value.displayDuration,
+                form.value.transitionType,
+                form.value.slideDirection,
+                form.value.bgmList.map(b => b.id),
+                null,
+                new Date(),
+                new Date()
+            );
+            await scheduleEventService.addScheduleEvents([tempEvent]);
+        }
+        emit('saved');
+        emit('close');
+    } catch (e) {
+        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    }
 }
 
 function onClose() {
