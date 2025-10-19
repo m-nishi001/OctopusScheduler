@@ -139,12 +139,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, computed, onUnmounted } from 'vue';
+import { ref, watch, computed, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
-import { AssetService } from '../../../../../model/applications/assets/asset-service';
-import type { Asset } from '../../../../../model/domains/assets/entity/asset';
-import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { ShowContentEvent, ShowContentEventParams } from '../../../../../model/domains/schedule-event/show-content/show-content-event';
+import { AssetService } from '../../../../../../model/applications/assets/asset-service';
+import type { Asset } from '../../../../../../model/domains/assets/entity/asset';
+import { ScheduleEventService } from '../../../../../../model/applications/schedule-event/schedule-event-service';
+import { ShowContentEvent } from '../../../../../../model/domains/schedule-event/show-content/show-content-event';
+import { ContentDisplayEventRegister } from './content-display-event-register';
 
 interface Props {
     event?: ShowContentEvent;
@@ -178,8 +179,7 @@ function entityToForm(e: ShowContentEvent) {
         assetInsertSource: 'existing' as 'existing' | 'upload',
         insertAssetType: 'image' as 'image' | 'video',
         insertAssetId: '',
-        // unified upload file list: entries { tempId, file, role }
-        uploadFiles: [] as Array<{ tempId: string; file: File; role: 'main' | 'insert' }>,
+        uploadFiles: [] as Array<{ tempId: string; file: File }>,
     };
 }
 
@@ -196,8 +196,28 @@ function generateTempId() {
     return 'TMP_' + Math.random().toString(36).slice(2, 9);
 }
 
+function getPrimaryType(mime?: string | null) {
+    if (!mime) return '';
+    const parts = mime.split('/');
+    return parts[0] || '';
+}
+
+function formatDateTime(date: Date): string {
+    return date.toISOString().slice(0, 16);
+}
+
+const filteredAssets = computed(() => {
+    const want = form.value.contentType === 'image' ? 'image' : 'video';
+    return assets.value.filter(asset => getPrimaryType(((asset as any).blob as Blob).type) === want);
+});
+
+const filteredInsertAssets = computed(() => {
+    const want = form.value.insertAssetType;
+    return assets.value.filter(asset => getPrimaryType(((asset as any).blob as Blob).type) === want);
+});
+
 const mainUploadEntry = computed(() => {
-    return (form.value.uploadFiles || []).find(e => e.role === 'main') || null;
+    return (form.value.uploadFiles || []).find(e => e.tempId === form.value.contentId) || null;
 });
 
 const processedHtml = computed(() => {
@@ -251,34 +271,8 @@ watch(() => props.event, (newEvent) => {
     isEdit.value = !!newEvent;
 });
 
-onMounted(async () => {
-    await loadAssets();
-});
-
-const filteredAssets = computed(() => {
-    const want = form.value.contentType === 'image' ? 'image' : 'video';
-    return assets.value.filter(asset => ((asset as any).blob as Blob).type.startsWith(want));
-});
-
-const filteredInsertAssets = computed(() => {
-    const want = form.value.insertAssetType;
-    return assets.value.filter(asset => ((asset as any).blob as Blob).type.startsWith(want));
-});
-
-async function loadAssets() {
-    try {
-        assets.value = await assetService.getAssets(); // まずローカルストレージから取得して表示
-        // バックグラウンドでGoogle Driveと同期
-        assetService.syncAssets().then(async () => {
-            assets.value = await assetService.getAssets(); // 同期後に再取得
-        }).catch(e => console.error('Sync failed:', e));
-    } catch (e) {
-        console.error('Failed to load assets:', e);
-    }
-}
-
-function formatDateTime(date: Date): string {
-    return date.toISOString().slice(0, 16);
+function onClose() {
+    emit('close');
 }
 
 async function onSubmit() {
@@ -289,69 +283,14 @@ async function onSubmit() {
         return;
     }
 
-    let contentId = form.value.contentId;
-    let htmlString = form.value.htmlString;
-
-    // For image/movie, if there's a queued main upload it will be handled in the general upload flow below.
-    // If no main upload is queued, fall back to selectedAssetId (validated after uploads).
-
-    const scheduleEventService = container.resolve(ScheduleEventService);
-
+    const register = new ContentDisplayEventRegister(assetService, container.resolve(ScheduleEventService));
     try {
-        // Upload any queued files (both main and inserted). Each entry has a stable tempId used as placeholder in htmlString.
-        if (form.value.uploadFiles && form.value.uploadFiles.length > 0) {
-            try {
-                const assetsToAdd: any[] = [];
-                const tempIdToPos: Record<string, number> = {};
-                for (let i = 0; i < form.value.uploadFiles.length; i++) {
-                    const entry = form.value.uploadFiles[i];
-                    const f = entry.file;
-                    const tempId = entry.tempId;
-                    tempIdToPos[tempId] = assetsToAdd.length;
-                    const inferredType = f.type && f.type.startsWith('image') ? 'image' : 'video';
-                    assetsToAdd.push({
-                        id: '',
-                        type: inferredType,
-                        name: f.name,
-                        uploadedAt: new Date().toISOString(),
-                        lastUpdated: new Date().toISOString(),
-                        size: f.size,
-                        blob: f,
-                    });
-                }
-                if (assetsToAdd.length > 0) {
-                    const ids = await assetService.addAssets(assetsToAdd);
-                    for (const entry of form.value.uploadFiles) {
-                        const pos = tempIdToPos[entry.tempId];
-                        const realId = ids[pos];
-                        const mimeType = entry.file.type || '';
-                        const wantType = mimeType.startsWith('image') ? 'image' : 'video';
-                        const tempId = entry.tempId;
-                        htmlString = htmlString.replace(new RegExp(`{{asset:(${wantType}):${tempId}}}`, 'g'), `{{asset:$1:${realId}}}`);
-                        const url = assetMap.value.get(tempId);
-                        if (url) {
-                            assetMap.value.set(realId, url);
-                            assetMap.value.delete(tempId);
-                        }
-                        if (entry.role === 'main') {
-                            contentId = realId;
-                        }
-                    }
-                }
-                form.value.uploadFiles = [];
-                if (fileInput.value) fileInput.value.value = '';
-            } catch (err) {
-                alert('アセットアップロードに失敗しました: ' + (err instanceof Error ? err.message : String(err)));
-                return;
-            }
-        }
-
-        const baseParams = {
+        await register.register({
             startTime,
             endTime,
             contentType: form.value.contentType,
-            contentId,
-            htmlString,
+            contentId: form.value.contentId,
+            htmlString: form.value.htmlString,
             fadeOutDuration: form.value.fadeOutDuration,
             displayMode: form.value.displayMode,
             effect: form.value.effect,
@@ -359,51 +298,9 @@ async function onSubmit() {
             fadeInTime: form.value.fadeInTime,
             fadeOutTime: form.value.fadeOutTime,
             scrollDirection: form.value.scrollDirection,
-        } as const;
-
-        if (props.event) {
-            const params = new ShowContentEventParams({
-                id: props.event.id,
-                startTime: baseParams.startTime,
-                endTime: baseParams.endTime,
-                contentType: baseParams.contentType,
-                contentId: baseParams.contentId,
-                htmlString: baseParams.htmlString,
-                fadeOutDuration: baseParams.fadeOutDuration,
-                displayMode: baseParams.displayMode as any,
-                effect: baseParams.effect as any,
-                duration: baseParams.duration,
-                fadeInTime: baseParams.fadeInTime,
-                fadeOutTime: baseParams.fadeOutTime,
-                scrollDirection: baseParams.scrollDirection as any,
-                processedAt: props.event.processedAt,
-                registeredAt: props.event.registeredAt,
-                updatedAt: new Date(),
-            });
-            const updated = ShowContentEvent.fromParams(params);
-            await scheduleEventService.updateScheduleEvents([updated]);
-        } else {
-            const params = new ShowContentEventParams({
-                id: '',
-                startTime: baseParams.startTime,
-                endTime: baseParams.endTime,
-                contentType: baseParams.contentType,
-                contentId: baseParams.contentId,
-                htmlString: baseParams.htmlString,
-                fadeOutDuration: baseParams.fadeOutDuration,
-                displayMode: baseParams.displayMode as any,
-                effect: baseParams.effect as any,
-                duration: baseParams.duration,
-                fadeInTime: baseParams.fadeInTime,
-                fadeOutTime: baseParams.fadeOutTime,
-                scrollDirection: baseParams.scrollDirection as any,
-                processedAt: null,
-                registeredAt: new Date(),
-                updatedAt: new Date(),
-            });
-            const tempEvent = ShowContentEvent.fromParams(params);
-            await scheduleEventService.addScheduleEvents([tempEvent]);
-        }
+            uploadFiles: form.value.uploadFiles,
+            existingEvent: props.event,
+        });
 
         emit('saved');
         emit('close');
@@ -414,16 +311,12 @@ async function onSubmit() {
     }
 }
 
-function onClose() {
-    emit('close');
-}
-
 function onFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0] || null;
     if (!file) return;
     if (!form.value.uploadFiles) form.value.uploadFiles = [];
-    const existingIndex = form.value.uploadFiles.findIndex((e: any) => e.role === 'main');
+    const existingIndex = form.value.uploadFiles.findIndex((e: any) => e.tempId === form.value.contentId);
     if (existingIndex !== -1) {
         const prev = form.value.uploadFiles[existingIndex];
         const prevUrl = assetMap.value.get(prev.tempId);
@@ -441,7 +334,10 @@ function onFileChange(event: Event) {
     } catch (err) {
         console.error('Failed to create object URL for main file', err);
     }
-    form.value.uploadFiles.push({ tempId, file, role: 'main' });
+    // queue as a regular upload entry and mark this tempId as the contentId (so it will
+    // be replaced with real id after upload)
+    form.value.uploadFiles.push({ tempId, file });
+    form.value.contentId = tempId;
 }
 
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -456,7 +352,7 @@ function openFilePicker() {
 
 function clearFile() {
     if (form.value.uploadFiles) {
-        const idx = form.value.uploadFiles.findIndex(e => e.role === 'main');
+        const idx = form.value.uploadFiles.findIndex(e => e.tempId === form.value.contentId);
         if (idx !== -1) {
             const ent = form.value.uploadFiles[idx];
             const url = assetMap.value.get(ent.tempId);
@@ -467,6 +363,8 @@ function clearFile() {
             form.value.uploadFiles.splice(idx, 1);
         }
     }
+    // clear primary contentId when main file cleared
+    form.value.contentId = '';
     if (fileInput.value) fileInput.value.value = '';
 }
 
@@ -482,6 +380,7 @@ onUnmounted(() => {
         try { URL.revokeObjectURL(u); } catch (e) { }
     });
 });
+
 function onInsertFileChange(event: Event) {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0] || null;
@@ -500,7 +399,7 @@ function onInsertFileChange(event: Event) {
         console.error('Failed to create preview URL for insert file', err);
     }
     // queue for upload on submit
-    form.value.uploadFiles.push({ tempId, file, role: 'insert' });
+    form.value.uploadFiles.push({ tempId, file });
     // clear the input value so selecting the same file again works
     try { target.value = ''; } catch (e) { }
 }

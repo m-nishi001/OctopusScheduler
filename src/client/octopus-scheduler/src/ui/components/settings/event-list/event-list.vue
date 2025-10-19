@@ -85,7 +85,7 @@ import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../model/applications/schedule-event/schedule-event-service';
 import type { IScheduleEvent } from '../../../../model/domains/schedule-event/schedule-event';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
-import ContentDisplayEventDialog from './dialogs/content-display-event-dialog.vue';
+import ContentDisplayEventDialog from './dialogs/content-display-event/content-display-event-dialog.vue';
 import MusicPlaybackEventDialog from './dialogs/music-playback-event-dialog.vue';
 import ScreenTransitionEventDialog from './dialogs/screen-transition-event-dialog.vue';
 import SlideshowEventDialog from './dialogs/slideshow-event-dialog.vue';
