@@ -1,7 +1,7 @@
 import { container } from "tsyringe";
 import { injectable } from "tsyringe";
 import type { ScheduleEventService } from "./schedule-event/schedule-event-service";
-import type { IScheduleEventDto } from "./schedule-event/i-schedule-event-dto";
+import type { IScheduleEvent } from "./schedule-event/../../domains/schedule-event/schedule-event";
 import type { IAssetRepository } from "../domains/assets/repository/asset-repository";
 
 @injectable()
@@ -15,14 +15,14 @@ export class EventPollingService {
   private assetRepository =
     container.resolve<IAssetRepository>("IAssetRepository");
   private onEventsCallback?: (
-    startEvents: IScheduleEventDto[],
-    endEvents: IScheduleEventDto[]
+    startEvents: IScheduleEvent[],
+    endEvents: IScheduleEvent[]
   ) => void;
 
   public setOnEventsCallback(
     callback: (
-      startEvents: IScheduleEventDto[],
-      endEvents: IScheduleEventDto[]
+      startEvents: IScheduleEvent[],
+      endEvents: IScheduleEvent[]
     ) => void
   ) {
     this.onEventsCallback = callback;

@@ -63,12 +63,12 @@ import { ref, watch, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { PlayAudioEventDto } from '../../../../../model/applications/schedule-event/play-audio-event/play-audio-event-dto';
+import { PlayAudioEvent } from '../../../../../model/domains/schedule-event/play-audio-event';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 // PlayAudioEventDto imported for runtime usage above
 
 interface Props {
-    event?: PlayAudioEventDto;
+    event?: PlayAudioEvent;
 }
 
 const props = defineProps<Props>();
@@ -175,28 +175,28 @@ async function onSubmit() {
     // persist
     try {
         if (isEdit.value && props.event) {
-            const updated = new PlayAudioEventDto(
-                props.event.id,
+            const updated = new PlayAudioEvent({
+                id: props.event.id,
                 startTime,
                 endTime,
                 audioId,
-                form.value.fadeOutDuration,
-                props.event.processedAt,
-                props.event.registeredAt,
-                new Date()
-            );
+                fadeOutDuration: form.value.fadeOutDuration,
+                processedAt: props.event.processedAt,
+                registeredAt: props.event.registeredAt,
+                updatedAt: new Date(),
+            });
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = new PlayAudioEventDto(
-                '',
+            const tempEvent = new PlayAudioEvent({
+                id: '',
                 startTime,
                 endTime,
                 audioId,
-                form.value.fadeOutDuration,
-                null,
-                new Date(),
-                new Date()
-            );
+                fadeOutDuration: form.value.fadeOutDuration,
+                processedAt: null,
+                registeredAt: new Date(),
+                updatedAt: new Date(),
+            });
             await scheduleEventService.addScheduleEvents([tempEvent]);
         }
         emit('saved');

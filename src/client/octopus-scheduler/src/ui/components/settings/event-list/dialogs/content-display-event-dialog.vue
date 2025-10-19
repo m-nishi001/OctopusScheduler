@@ -148,10 +148,10 @@ import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { ShowContentEventDto } from '../../../../../model/applications/schedule-event/show-content-event/show-content-event-dto';
+import { ShowContentEvent } from '../../../../../model/domains/schedule-event/show-content-event';
 
 interface Props {
-    event?: ShowContentEventDto;
+    event?: ShowContentEvent;
 }
 
 const props = defineProps<Props>();
@@ -196,7 +196,7 @@ const processedHtml = computed(() => {
     if (!form.value.htmlString) return '';
     let html = form.value.htmlString;
     const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
-    html = html.replace(assetRegex, (match, type, assetId) => {
+    html = html.replace(assetRegex, (match: string, type: string, assetId: string) => {
         const url = assetMap.value.get(assetId);
         if (!url) return match;
         if (type === 'image') {
@@ -211,9 +211,9 @@ const processedHtml = computed(() => {
 
 watch(() => form.value.htmlString, async (newHtml) => {
     if (!newHtml) return;
-    const assetIds = [];
+    const assetIds: string[] = [];
     const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
-    let match;
+    let match: RegExpExecArray | null = null;
     while ((match = assetRegex.exec(newHtml)) !== null) {
         assetIds.push(match[2]);
     }
@@ -380,44 +380,44 @@ async function onSubmit() {
         }
 
         if (props.event) {
-            const updated = new ShowContentEventDto(
-                props.event.id,
+            const updated = new ShowContentEvent({
+                id: props.event.id,
                 startTime,
                 endTime,
-                form.value.contentType,
+                contentType: form.value.contentType,
                 contentId,
                 htmlString,
-                form.value.fadeOutDuration,
-                form.value.displayMode,
-                form.value.effect,
-                form.value.duration,
-                form.value.fadeInTime,
-                form.value.fadeOutTime,
-                form.value.scrollDirection,
-                props.event.processedAt,
-                props.event.registeredAt,
-                new Date()
-            );
+                fadeOutDuration: form.value.fadeOutDuration,
+                displayMode: form.value.displayMode,
+                effect: form.value.effect,
+                duration: form.value.duration,
+                fadeInTime: form.value.fadeInTime,
+                fadeOutTime: form.value.fadeOutTime,
+                scrollDirection: form.value.scrollDirection,
+                processedAt: props.event.processedAt,
+                registeredAt: props.event.registeredAt,
+                updatedAt: new Date(),
+            });
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = new ShowContentEventDto(
-                '',
+            const tempEvent = new ShowContentEvent({
+                id: '',
                 startTime,
                 endTime,
-                form.value.contentType,
+                contentType: form.value.contentType,
                 contentId,
                 htmlString,
-                form.value.fadeOutDuration,
-                form.value.displayMode,
-                form.value.effect,
-                form.value.duration,
-                form.value.fadeInTime,
-                form.value.fadeOutTime,
-                form.value.scrollDirection,
-                null,
-                new Date(),
-                new Date()
-            );
+                fadeOutDuration: form.value.fadeOutDuration,
+                displayMode: form.value.displayMode,
+                effect: form.value.effect,
+                duration: form.value.duration,
+                fadeInTime: form.value.fadeInTime,
+                fadeOutTime: form.value.fadeOutTime,
+                scrollDirection: form.value.scrollDirection,
+                processedAt: null,
+                registeredAt: new Date(),
+                updatedAt: new Date(),
+            });
             await scheduleEventService.addScheduleEvents([tempEvent]);
         }
 

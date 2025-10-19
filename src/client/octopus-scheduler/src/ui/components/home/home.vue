@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import type { IScheduleEventDto } from '../../../model/applications/schedule-event/i-schedule-event-dto';
+import type { IScheduleEvent } from '../../../model/domains/schedule-event/schedule-event';
 import { EventPollingService } from '../../../model/applications/event-polling-service';
 import { container } from 'tsyringe';
 
@@ -71,17 +71,13 @@ const goToSettings = () => router.push({ name: 'settings' });
 const goToJackpotGame = () => router.push('/jackpot-home');
 const goToCardGame = () => router.push('/card-home');
 
-const onEvents = async (startEvents: IScheduleEventDto[], endEvents: IScheduleEventDto[]) => {
+const onEvents = async (startEvents: IScheduleEvent[], endEvents: IScheduleEvent[]) => {
   localState.upcomingEvent = startEvents.length > 0 ? startEvents.map((e) => e.type).join(", ") : "（なし）";
   localState.currentEvent = startEvents.length > 0 ? startEvents.map((e) => e.type).join(", ") : "（なし）";
   localState.endingEvent = endEvents.length > 0 ? endEvents.map((e) => e.type).join(", ") : "（なし）";
 
-  for (const event of startEvents) {
-    await event.execute(true);
-  }
-  for (const event of endEvents) {
-    await event.execute(false);
-  }
+  for (const event of startEvents) await event.execute(true);
+  for (const event of endEvents) await event.execute(false);
 };
 
 const onStartPolling = () => {

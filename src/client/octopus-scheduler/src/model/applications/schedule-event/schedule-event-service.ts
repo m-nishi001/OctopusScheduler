@@ -1,40 +1,129 @@
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
-import type { IScheduleEventDto } from "./i-schedule-event-dto";
+import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { ScheduleEvent } from "../../domains/schedule-event/schedule-event";
+import { ShowContentEvent } from "../../domains/schedule-event/show-content-event";
+import { PlayAudioEvent } from "../../domains/schedule-event/play-audio-event";
+import { SlideshowEvent } from "../../domains/schedule-event/slideshow-event";
 import { injectable, inject } from "tsyringe";
-import type { IScheduleEventConverter } from "./i-schedule-event-converter";
 import { ExecutionStatus } from "../../domains/schedule-event/execution-status";
 
 @injectable()
 export class ScheduleEventService {
   constructor(
     @inject("IScheduleEventRepository")
-    private scheduleEventRepository: IScheduleEventRepository,
-    @inject("ScheduleEventConverters")
-    private converters: Map<string, IScheduleEventConverter>
+    private scheduleEventRepository: IScheduleEventRepository
+    // converters removed; domain entities handle serialization
   ) {}
-
-  private deserialize(scheduleEvents: ScheduleEvent[]): IScheduleEventDto {
+  private deserialize(scheduleEvents: ScheduleEvent[]): IScheduleEvent {
     const scheduleEventType = scheduleEvents[0].type;
     const records = new Map<string, string>();
     for (const e of scheduleEvents) {
       records.set(e.settingName, e.settingValue);
     }
-    const recordObj = Object.fromEntries(records);
-    if (!scheduleEventType) throw new Error("Type not found in records");
-    const converter = this.converters.get(scheduleEventType);
-    if (!converter) throw new Error(`Unknown event type: ${scheduleEventType}`);
-    return converter.toEntity(recordObj);
+    const r = Object.fromEntries(records);
+    switch (scheduleEventType) {
+      case "ShowContentEvent":
+        return new ShowContentEvent({
+          id: r.id,
+          startTime: new Date(r.startTime),
+          endTime: new Date(r.endTime),
+          contentType: r.contentType as any,
+          contentId: r.contentId || undefined,
+          htmlString: r.htmlString || undefined,
+          fadeOutDuration: r.fadeOutDuration
+            ? parseFloat(r.fadeOutDuration)
+            : undefined,
+          displayMode: (r.displayMode as any) || undefined,
+          effect: (r.effect as any) || undefined,
+          duration: r.duration ? parseFloat(r.duration) : undefined,
+          fadeInTime: r.fadeInTime ? parseFloat(r.fadeInTime) : undefined,
+          fadeOutTime: r.fadeOutTime ? parseFloat(r.fadeOutTime) : undefined,
+          scrollDirection: (r.scrollDirection as any) || undefined,
+          processedAt: r.processedAt ? new Date(r.processedAt) : null,
+          registeredAt: new Date(r.registeredAt),
+          updatedAt: new Date(r.updatedAt),
+        });
+      case "PlayAudioEvent":
+        return new PlayAudioEvent({
+          id: r.id,
+          startTime: new Date(r.startTime),
+          endTime: new Date(r.endTime),
+          audioId: r.audioId,
+          fadeOutDuration: r.fadeOutDuration
+            ? parseFloat(r.fadeOutDuration)
+            : undefined,
+          processedAt: r.processedAt ? new Date(r.processedAt) : null,
+          registeredAt: new Date(r.registeredAt),
+          updatedAt: new Date(r.updatedAt),
+        });
+      case "SlideshowEvent":
+        return new SlideshowEvent({
+          id: r.id,
+          startTime: new Date(r.startTime),
+          endTime: new Date(r.endTime),
+          folderId: r.folderId,
+          displayDuration: parseFloat(r.displayDuration || "0"),
+          transitionType: r.transitionType as any,
+          slideDirection: (r.slideDirection as any) || undefined,
+          bgmIds: r.bgmIds ? r.bgmIds.split(",") : [],
+          processedAt: r.processedAt ? new Date(r.processedAt) : null,
+          registeredAt: new Date(r.registeredAt),
+          updatedAt: new Date(r.updatedAt),
+        });
+      default:
+        throw new Error(`Unknown event type: ${scheduleEventType}`);
+    }
   }
 
-  private serialize(event: IScheduleEventDto): ScheduleEvent[] {
-    const records = event.toRecords();
-    return Array.from(records.entries()).map(
-      ([key, value]) => new ScheduleEvent(event.id, event.type, key, value)
+  private serialize(event: IScheduleEvent): ScheduleEvent[] {
+    const values = event.serialize();
+    const keysMap: { [k: string]: string[] } = {
+      ShowContentEvent: [
+        "startTime",
+        "endTime",
+        "contentType",
+        "contentId",
+        "htmlString",
+        "fadeOutDuration",
+        "displayMode",
+        "effect",
+        "duration",
+        "fadeInTime",
+        "fadeOutTime",
+        "scrollDirection",
+        "processedAt",
+        "registeredAt",
+        "updatedAt",
+      ],
+      PlayAudioEvent: [
+        "startTime",
+        "endTime",
+        "audioId",
+        "fadeOutDuration",
+        "processedAt",
+        "registeredAt",
+        "updatedAt",
+      ],
+      SlideshowEvent: [
+        "startTime",
+        "endTime",
+        "folderId",
+        "displayDuration",
+        "transitionType",
+        "slideDirection",
+        "bgmIds",
+        "processedAt",
+        "registeredAt",
+        "updatedAt",
+      ],
+    } as const;
+    const keys = (keysMap as any)[event.type];
+    return values.map(
+      (v, i) => new ScheduleEvent(event.id, event.type, keys[i], v)
     );
   }
 
-  async getScheduleEvents(): Promise<IScheduleEventDto[]> {
+  async getScheduleEvents(): Promise<IScheduleEvent[]> {
     const scheduleEvents =
       await this.scheduleEventRepository.getScheduleEvents();
     const grouped = new Map<string, ScheduleEvent[]>();
@@ -42,14 +131,14 @@ export class ScheduleEventService {
       if (!grouped.has(e.id)) grouped.set(e.id, []);
       grouped.get(e.id)!.push(e);
     }
-    const events: IScheduleEventDto[] = [];
+    const events: IScheduleEvent[] = [];
     for (const group of grouped.values()) {
       events.push(this.deserialize(group));
     }
     return events;
   }
 
-  async updateScheduleEvents(events: IScheduleEventDto[]): Promise<void> {
+  async updateScheduleEvents(events: IScheduleEvent[]): Promise<void> {
     const scheduleEvents = events.map((e) => this.serialize(e)).flat();
     await this.scheduleEventRepository.updateScheduleEvents(scheduleEvents);
   }
@@ -59,7 +148,7 @@ export class ScheduleEventService {
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 
-  async addScheduleEvents(events: IScheduleEventDto[]): Promise<string> {
+  async addScheduleEvents(events: IScheduleEvent[]): Promise<string> {
     const scheduleEvents = events.map((e) => this.serialize(e)).flat();
     const id =
       await this.scheduleEventRepository.addScheduleEvents(scheduleEvents);
@@ -67,15 +156,15 @@ export class ScheduleEventService {
   }
 
   async getCurrentScheduleEvent(): Promise<{
-    startEvents: IScheduleEventDto[];
-    endEvents: IScheduleEventDto[];
+    startEvents: IScheduleEvent[];
+    endEvents: IScheduleEvent[];
   }> {
     const events = await this.getScheduleEvents();
     const executionStatuses =
       await this.scheduleEventRepository.getAllExecutionStatuses();
     const now = new Date();
-    const startEvents: IScheduleEventDto[] = [];
-    const endEvents: IScheduleEventDto[] = [];
+    const startEvents: IScheduleEvent[] = [];
+    const endEvents: IScheduleEvent[] = [];
 
     for (const event of events) {
       const status =

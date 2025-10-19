@@ -33,10 +33,10 @@
 import { ref, watch } from 'vue';
 import { container } from 'tsyringe';
 import { ScheduleEventService } from '../../../../../model/applications/schedule-event/schedule-event-service';
-import { TransitionPageEventDto } from '../../../../../model/applications/schedule-event/transition-page-event/transition-page-event-dto';
+import { TransitionPageEvent } from '../../../../../model/domains/schedule-event/transition-page-event';
 
 interface Props {
-    event?: TransitionPageEventDto;
+    event?: TransitionPageEvent;
 }
 
 const props = defineProps<Props>();
@@ -89,28 +89,28 @@ async function onSubmit() {
     const scheduleEventService = container.resolve(ScheduleEventService);
     try {
         if (props.event) {
-            const updated = new TransitionPageEventDto(
-                props.event.id,
+            const updated = new TransitionPageEvent({
+                id: props.event.id,
                 startTime,
                 endTime,
-                form.value.transitionUrl,
-                form.value.fadeOutDuration,
-                props.event.processedAt,
-                props.event.registeredAt,
-                new Date()
-            );
+                transitionUrl: form.value.transitionUrl,
+                fadeOutDuration: form.value.fadeOutDuration,
+                processedAt: props.event.processedAt,
+                registeredAt: props.event.registeredAt,
+                updatedAt: new Date(),
+            });
             await scheduleEventService.updateScheduleEvents([updated]);
         } else {
-            const tempEvent = new TransitionPageEventDto(
-                '',
+            const tempEvent = new TransitionPageEvent({
+                id: '',
                 startTime,
                 endTime,
-                form.value.transitionUrl,
-                form.value.fadeOutDuration,
-                null,
-                new Date(),
-                new Date()
-            );
+                transitionUrl: form.value.transitionUrl,
+                fadeOutDuration: form.value.fadeOutDuration,
+                processedAt: null,
+                registeredAt: new Date(),
+                updatedAt: new Date(),
+            });
             await scheduleEventService.addScheduleEvents([tempEvent]);
         }
         emit('saved');
