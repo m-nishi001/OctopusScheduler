@@ -1,5 +1,5 @@
 import { injectable, inject } from "tsyringe";
-import { DriveDataService } from "../asset/drive-data-service";
+import { AssetDataService } from "../asset/asset-data-service";
 import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
 import type { PrizeDto } from "./dto/prize-dto";
 import { toPrize } from "./dto/prize-dto";
@@ -9,7 +9,7 @@ import type { Prize } from "../../domains/prize/prize";
 @injectable()
 export class PrizeAddService {
   constructor(
-    @inject("DriveDataService") private driveDataService: DriveDataService,
+    @inject("DriveDataService") private driveDataService: AssetDataService,
     @inject("IPrizeRepository") private prizeRepo: IPrizeRepository
   ) {}
 

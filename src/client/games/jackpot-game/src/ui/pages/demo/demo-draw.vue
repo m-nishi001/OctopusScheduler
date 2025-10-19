@@ -29,7 +29,7 @@ import { PrizeRepository } from '../../../model/infrastructures/repositories/pri
 import { MemberRepository } from '../../../model/infrastructures/repositories/member-repository';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { DemoScreenSetting } from '../../../model/domains/screen-config/demo-screen-setting';
 export default {
   name: 'DemoDraw',
@@ -39,7 +39,7 @@ export default {
     // ScreenConfigRepositoryから取得
     const demoConfig = ref<DemoScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve(DriveDataService);
+    const assetService = container.resolve(AssetDataService);
 
     // データはモデル層から取得
     const prizes = ref<any[]>([]);

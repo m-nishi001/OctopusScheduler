@@ -35,7 +35,7 @@ import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { HomeScreenSetting } from '../../../model/domains/screen-config/home-screen-setting';
 
 export default {
@@ -50,7 +50,7 @@ export default {
 
     const homeConfig = ref<HomeScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<DriveDataService>("DriveDataService");
+    const assetService = container.resolve<AssetDataService>("DriveDataService");
 
     const assetsLoaded = ref(false);
     const progress = ref(0);

@@ -1,5 +1,5 @@
 import { injectable, inject } from "tsyringe";
-import { DriveDataService } from "../asset/drive-data-service";
+import { AssetDataService } from "../asset/asset-data-service";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { toMember } from "./dto/member-dto";
@@ -9,7 +9,7 @@ import type { Member } from "../../domains/member/member";
 @injectable()
 export class MemberAddService {
   constructor(
-    @inject("DriveDataService") private driveDataService: DriveDataService,
+    @inject("DriveDataService") private driveDataService: AssetDataService,
     @inject("IMemberRepository") private memberRepo: IMemberRepository
   ) {}
 

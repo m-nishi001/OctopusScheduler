@@ -14,7 +14,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { DescriptionScreenSetting } from '../../../model/domains/screen-config/description-screen-setting';
 import { container } from 'tsyringe';
 export default {
@@ -25,7 +25,7 @@ export default {
 		// ScreenConfigRepositoryから取得
 		const descriptionConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenConfigService = container.resolve(ScreenConfigService);
-		const assetService = container.resolve(DriveDataService);
+		const assetService = container.resolve(AssetDataService);
 		onMounted(async () => {
 			const config = await screenConfigService.fetchScreenConfig('description');
 			descriptionConfig.value = config as DescriptionScreenSetting ?? new DescriptionScreenSetting("", []);

@@ -12,7 +12,7 @@ import OpeningSequence from './opening-sequence.vue';
 import OpeningHtml from './opening-html.vue';
 import { container } from 'tsyringe';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { OpeningScreenSetting } from '../../../model/domains/screen-config/opening-screen-setting';
 
 export default {
@@ -33,7 +33,7 @@ export default {
       openingConfig.value = config as OpeningScreenSetting ?? new OpeningScreenSetting();
 
       if (openingConfig.value?.bgmAssetId) {
-        const assetService = container.resolve(DriveDataService);
+        const assetService = container.resolve(AssetDataService);
         const assetDto = await assetService.getDriveDataById(openingConfig.value.bgmAssetId);
         if (assetDto && assetDto.blob) {
           try {
@@ -57,7 +57,7 @@ export default {
 
       // Resolve asset URLs for contents
       if (openingConfig.value?.contents) {
-        const assetService = container.resolve(DriveDataService);
+        const assetService = container.resolve(AssetDataService);
         for (const content of openingConfig.value.contents) {
           if (content.assetId) {
             try {

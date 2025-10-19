@@ -38,7 +38,7 @@ import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { DrawRepository } from '../../../model/infrastructures/repositories/draw-repository';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import { MainScreenSetting } from '../../../model/domains/screen-config/main-screen-setting';
@@ -50,7 +50,7 @@ export default {
     // ScreenConfigRepositoryから取得
     const mainConfig = ref<MainScreenSetting | null>(null);
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<DriveDataService>("DriveDataService");
+    const assetService = container.resolve<AssetDataService>("DriveDataService");
     onMounted(async () => {
       const config = await screenConfigService.fetchScreenConfig('main');
       mainConfig.value = config as MainScreenSetting ?? new MainScreenSetting([], [], 1, []);

@@ -1,19 +1,19 @@
 import { injectable, inject } from "tsyringe";
-import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
+import type { IAssetDataRepository } from "../../domains/drive-data/repository/i-asset-data-repository";
 import { AssetDataDto, AssetMetadataDto } from "./dto/asset-data-dto";
 
 @injectable()
-export class DriveDataService {
+export class AssetDataService {
   constructor(
-    @inject("IDriveDataRepository") private repo: IDriveDataRepository
+    @inject("IAssetDataRepository") private repo: IAssetDataRepository
   ) {}
 
   async getAllDriveData(): Promise<AssetDataDto[]> {
-    return await this.repo.getDriveData();
+    return await this.repo.getAssetData();
   }
 
   async getDriveDataById(id: string): Promise<AssetDataDto | null> {
-    return await this.repo.getDriveDataById(id);
+    return await this.repo.getAssetDataById(id);
   }
 
   async addDriveData(
@@ -24,7 +24,7 @@ export class DriveDataService {
       message?: string
     ) => void
   ): Promise<AssetDataDto[]> {
-    return await this.repo.addDriveData(driveDataDtos, onProgress);
+    return await this.repo.addAssetData(driveDataDtos, onProgress);
   }
 
   // assetDtoToDriveData removed; repository now stores AssetDataDto directly.
@@ -33,7 +33,7 @@ export class DriveDataService {
     ids: string[],
     onProgress?: (result: { id: string; success: boolean }) => void
   ): Promise<void> {
-    await this.repo.deleteDriveData(ids);
+    await this.repo.deleteAssetData(ids);
     ids.forEach((id) => onProgress?.({ id, success: true }));
   }
 
@@ -43,11 +43,11 @@ export class DriveDataService {
       progress?: { current: number; total: number }
     ) => void
   ): Promise<{ updated: number; deleted: number }> {
-    return await this.repo.syncDriveData(onProgress);
+    return await this.repo.syncAssetData(onProgress);
   }
 
   public getAllDriveDataMetadata(): Promise<AssetMetadataDto[]> {
-    return this.repo.getAllDriveDataMetadata();
+    return this.repo.getAllAssetDataMetadata();
   }
   async createDriveDataDtoFromFile(file: File): Promise<AssetDataDto> {
     return new AssetDataDto(

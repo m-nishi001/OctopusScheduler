@@ -135,14 +135,14 @@
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
 import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
 import type { AssetDataDto } from '../../../model/applications/asset/dto/asset-data-dto';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { MemberAddService } from '../../../model/applications/member/member-add-service';
 import { MemberDeleteService } from '../../../model/applications/member/member-delete-service';
 import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
 
 import { container } from 'tsyringe';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
-const driveDataService = container.resolve<DriveDataService>("DriveDataService");
+const driveDataService = container.resolve<AssetDataService>("DriveDataService");
 const memberAddService = container.resolve<MemberAddService>(MemberAddService);
 const memberDeleteService = container.resolve<MemberDeleteService>(MemberDeleteService);
 const members = ref<any[]>([]);

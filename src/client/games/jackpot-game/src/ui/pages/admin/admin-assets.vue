@@ -99,10 +99,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { FileUtils } from '../../../model/infrastructures/utils/file-utils';
 import { container } from 'tsyringe';
-const driveDataService = container.resolve(DriveDataService);
+const driveDataService = container.resolve(AssetDataService);
 
 const assets = ref<any[]>([]);
 const selectedFiles = ref<File[]>([]);

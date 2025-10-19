@@ -1,15 +1,15 @@
 import { container } from "tsyringe";
 import { MemberRepository } from "../../model/infrastructures/repositories/member-repository";
-import { DriveDataRepository } from "../../model/infrastructures/repositories/drive-data-repository";
+import { AssetDataRepository } from "../../model/infrastructures/repositories/asset-data-repository";
 import { PrizeRepository } from "../../model/infrastructures/repositories/prize-repository";
 import { ScreenConfigRepository } from "../../model/infrastructures/repositories/screen-config-repository";
 import { DrawResultRepository } from "../../model/infrastructures/repositories/draw-result-repository";
 import type { IMemberRepository } from "../../model/domains/member/repository/i-member-repository";
-import type { IDriveDataRepository } from "../../model/domains/drive-data/repository/i-drive-data-repository";
+import type { IAssetDataRepository } from "../../model/domains/drive-data/repository/i-asset-data-repository";
 import type { IPrizeRepository } from "../../model/domains/prize/repository/i-prize-repository";
 import type { IScreenSettingRepository } from "../../model/domains/screen-config/repository/i-screen-setting-repository";
 import type { IDrawResultRepository } from "../../model/domains/draw-result/repository/i-draw-result-repository";
-import { DriveDataService } from "../../model/applications/asset/drive-data-service";
+import { AssetDataService } from "../../model/applications/asset/asset-data-service";
 import { HomeScreenConfigConverter } from "../../model/applications/screen-config/home/home-screen-config-converter";
 import { OpeningScreenConfigConverter } from "../../model/applications/screen-config/opening/opening-screen-config-converter";
 import { DescriptionScreenConfigConverter } from "../../model/applications/screen-config/description/description-screen-config-converter";
@@ -27,9 +27,9 @@ export class Container {
       "IMemberRepository",
       MemberRepository
     );
-    container.register<IDriveDataRepository>(
-      "IDriveDataRepository",
-      DriveDataRepository
+    container.register<IAssetDataRepository>(
+      "IAssetDataRepository",
+      AssetDataRepository
     );
     container.register<IPrizeRepository>("IPrizeRepository", PrizeRepository);
     container.register<IScreenSettingRepository>(
@@ -40,7 +40,7 @@ export class Container {
       "IDrawResultRepository",
       DrawResultRepository
     );
-    container.register<DriveDataService>("DriveDataService", DriveDataService);
+    container.register<AssetDataService>("DriveDataService", AssetDataService);
     container.register(IScreenConfigConverterToken, {
       useClass: HomeScreenConfigConverter,
     });

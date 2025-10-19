@@ -3,13 +3,13 @@ import { ScreenConfigService } from "../../../../model/applications/screen-confi
 import type { AssetDataDto } from "../../../../model/applications/asset/dto/asset-data-dto";
 import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
 import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
-import { DriveDataService } from "../../../../model/applications/asset/drive-data-service";
+import { AssetDataService } from "../../../../model/applications/asset/asset-data-service";
 import { container } from "tsyringe";
 
 export function useScreenSettingData() {
   const assetService = container.resolve(
-    DriveDataService
-  ) as unknown as DriveDataService;
+    AssetDataService
+  ) as unknown as AssetDataService;
   const screenConfigService = container.resolve(ScreenConfigService);
   const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
   const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");

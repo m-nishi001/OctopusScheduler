@@ -7,14 +7,14 @@ import {
   type IScreenConfigConverter,
 } from "./i-screen-config-converter";
 import { container } from "tsyringe";
-import { DriveDataService } from "../asset/drive-data-service";
+import { AssetDataService } from "../asset/asset-data-service";
 import type { AssetDataDto } from "../asset/dto/asset-data-dto";
 
 @injectable()
 export class ScreenConfigService {
   constructor(
     @inject("IScreenSettingRepository") private repo: IScreenSettingRepository,
-    private driveDataService: DriveDataService
+    private driveDataService: AssetDataService
   ) {}
 
   async fetchScreenConfig(type: string): Promise<IScreenSetting | null> {

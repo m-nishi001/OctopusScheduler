@@ -1,20 +1,20 @@
 import { injectable } from "tsyringe";
 import { LocalStorageService } from "../../../../../../packages/common-lib/src/storage/local-storage-service";
-import type { IDriveDataRepository } from "../../domains/drive-data/repository/i-drive-data-repository";
+import type { IAssetDataRepository } from "../../domains/drive-data/repository/i-asset-data-repository";
 import {
   AssetDataDto,
   AssetMetadataDto,
 } from "../../applications/asset/dto/asset-data-dto";
 
 @injectable()
-export class DriveDataRepository implements IDriveDataRepository {
+export class AssetDataRepository implements IAssetDataRepository {
   private readonly localStorage: LocalStorageService;
 
   constructor() {
-    this.localStorage = new LocalStorageService("jackpot-game", "DriveData");
+    this.localStorage = new LocalStorageService("jackpot-game", "AssetData");
   }
 
-  async addDriveData(
+  async addAssetData(
     driveData: AssetDataDto[],
     onProgress?: (
       index: number,
@@ -41,20 +41,20 @@ export class DriveDataRepository implements IDriveDataRepository {
     return result;
   }
 
-  async getDriveData(): Promise<AssetDataDto[]> {
+  async getAssetData(): Promise<AssetDataDto[]> {
     const allData = await this.localStorage.getAll<AssetDataDto>();
     return Array.from(allData.values());
   }
 
-  async getDriveDataById(id: string): Promise<AssetDataDto | null> {
+  async getAssetDataById(id: string): Promise<AssetDataDto | null> {
     return (await this.localStorage.get<AssetDataDto>(id)) || null;
   }
 
-  async deleteDriveData(ids: string[]): Promise<void> {
+  async deleteAssetData(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
   }
 
-  async syncDriveData(
+  async syncAssetData(
     onProgress?: (
       message: string,
       progress?: { current: number; total: number }
@@ -64,8 +64,8 @@ export class DriveDataRepository implements IDriveDataRepository {
     return { updated: 0, deleted: 0 };
   }
 
-  async getAllDriveDataMetadata(): Promise<AssetMetadataDto[]> {
-    const data = await this.getDriveData();
+  async getAllAssetDataMetadata(): Promise<AssetMetadataDto[]> {
+    const data = await this.getAssetData();
     return data.map(
       (d) =>
         new AssetMetadataDto(

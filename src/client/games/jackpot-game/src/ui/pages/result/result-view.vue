@@ -26,7 +26,7 @@ import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { ResultScreenSetting } from '../../../model/domains/screen-config/result-screen-setting';
 
 export default {
@@ -42,7 +42,7 @@ export default {
     const objectUrlMap = new Map<string, string>();
 
     const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<DriveDataService>("DriveDataService");
+    const assetService = container.resolve<AssetDataService>("DriveDataService");
     const drawResultService = container.resolve(DrawResultService);
     const fetchResults = async () => {
       const results = await drawResultService.getDrawResults();

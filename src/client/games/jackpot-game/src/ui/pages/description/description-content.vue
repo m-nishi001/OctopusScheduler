@@ -41,7 +41,7 @@ import { useRouter } from 'vue-router';
 import type { ScreenElement } from '../../../model/domains/screen-config/description-screen-setting';
 import { DescriptionScreenSetting } from '../../../model/domains/screen-config/description-screen-setting';
 import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',
@@ -58,7 +58,7 @@ export default {
 
 		const bgmAssetUrl = computed(() => (screenConfig.value as DescriptionScreenSetting)?.descriptionBgm);
 
-		const assetService = container.resolve(DriveDataService); onMounted(async () => {
+		const assetService = container.resolve(AssetDataService); onMounted(async () => {
 			screenConfig.value = await screenConfigService.fetchScreenConfig('description') as DescriptionScreenSetting;
 			elements.value = screenConfig.value?.screenElements || [];
 			// create object URLs for elements that reference assets

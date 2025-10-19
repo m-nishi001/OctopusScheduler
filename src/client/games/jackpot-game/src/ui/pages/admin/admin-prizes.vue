@@ -283,14 +283,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import type { AssetDataDto } from "../../../model/applications/asset/dto/asset-data-dto";
-import { DriveDataService } from '../../../model/applications/asset/drive-data-service';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { PrizeAddService } from '../../../model/applications/prize/prize-add-service';
 import { PrizeDeleteService } from '../../../model/applications/prize/prize-delete-service';
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/i-prize-repository';
 
 import { container } from 'tsyringe';
 const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
-const driveDataService = container.resolve(DriveDataService);
+const driveDataService = container.resolve(AssetDataService);
 const prizeAddService = container.resolve(PrizeAddService);
 const prizeDeleteService = container.resolve(PrizeDeleteService);
 const prizes = ref<any[]>([]);

@@ -3,23 +3,23 @@ import type {
   AssetMetadataDto,
 } from "../../../applications/asset/dto/asset-data-dto";
 
-export interface IDriveDataRepository {
-  addDriveData(
-    driveData: AssetDataDto[],
+export interface IAssetDataRepository {
+  addAssetData(
+    assetData: AssetDataDto[],
     onProgress?: (
       index: number,
       status: "完了" | "失敗",
       message?: string
     ) => void
   ): Promise<AssetDataDto[]>;
-  getDriveData(): Promise<AssetDataDto[]>;
-  getDriveDataById(id: string): Promise<AssetDataDto | null>;
-  deleteDriveData(ids: string[]): Promise<void>;
-  syncDriveData(
+  getAssetData(): Promise<AssetDataDto[]>;
+  getAssetDataById(id: string): Promise<AssetDataDto | null>;
+  deleteAssetData(ids: string[]): Promise<void>;
+  syncAssetData(
     onProgress?: (
       message: string,
       progress?: { current: number; total: number }
     ) => void
   ): Promise<{ updated: number; deleted: number }>;
-  getAllDriveDataMetadata(): Promise<AssetMetadataDto[]>;
+  getAllAssetDataMetadata(): Promise<AssetMetadataDto[]>;
 }
