@@ -34,8 +34,7 @@
                     <span v-else>{{ asset.name }}</span>
                 </div>
                 <div class="asset-info">
-                    <span>{{ asset.name }} ({{ deriveAssetKind(asset) }}) - {{ FileUtils.formatSize(asset.size)
-                    }}</span>
+                    <span>{{ asset.name }} ({{ deriveAssetKind(asset) }}) - {{ formatSize(asset.size) }}</span>
                     <div class="usage-info">
                         <strong>使用場所:</strong>
                         <ul>
@@ -76,7 +75,7 @@
                     <li v-for="(f, idx) in selectedFiles" :key="f.name + '-' + idx">
                         <div class="modal-file-row">
                             <span class="file-name">{{ f.name }}</span>
-                            <span class="file-size">({{ FileUtils.formatSize(f.size) }})</span>
+                            <span class="file-size">({{ formatSize(f.size) }})</span>
                             <span class="file-status" v-if="uploadStatuses[idx]">
                                 <template v-if="uploadStatuses[idx].status === '未開始'">(未開始)</template>
                                 <template v-else-if="uploadStatuses[idx].status === 'アップロード中'">(アップロード中)</template>
@@ -100,8 +99,13 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { FileUtils } from '../../../model/infrastructures/utils/file-utils';
 import { container } from 'tsyringe';
+
+function formatSize(size: number): string {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
 const driveDataService = container.resolve(AssetDataService);
 
 const assets = ref<any[]>([]);
