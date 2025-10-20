@@ -86,9 +86,9 @@ import { ScheduleEventService } from '../../../../model/applications/schedule-ev
 import type { IScheduleEvent } from '../../../../model/domains/schedule-event/schedule-event';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
 import ContentDisplayEventDialog from './dialogs/content-display-event/content-display-event-dialog.vue';
-import MusicPlaybackEventDialog from './dialogs/music-playback-event-dialog.vue';
-import ScreenTransitionEventDialog from './dialogs/screen-transition-event-dialog.vue';
-import SlideshowEventDialog from './dialogs/slideshow-event-dialog.vue';
+import MusicPlaybackEventDialog from './dialogs/music-playback-event/music-playback-event-dialog.vue';
+import ScreenTransitionEventDialog from './dialogs/screen-transition-event/screen-transition-event-dialog.vue';
+import SlideshowEventDialog from './dialogs/slideshow-event/slideshow-event-dialog.vue';
 // persistence moved into dialog components
 
 const events = ref<IScheduleEvent[]>([]);
