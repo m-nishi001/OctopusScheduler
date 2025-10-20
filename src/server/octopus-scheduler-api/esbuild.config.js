@@ -9,7 +9,7 @@ build({
   platform: "browser",
   banner: {
     js: `
-let _doGet, _addDriveData, _getDriveMetaData, _getDriveData, _removeDriveData, _updateDriveData, _addSpreadsheetData, _getAllSpreadsheetNames, _getSpreadsheetData, _removeSpreadsheetData, _updateSpreadsheetData;
+let _doGet, _addDriveData, _getDriveMetaData, _getDriveData, _removeDriveData, _updateDriveData, _addSpreadsheetRecords, _updateSpreadsheetRecords, _getAllSpreadsheetNames, _getSpreadsheetData, _removeSpreadsheetData;
             `,
   },
   footer: {
@@ -23,11 +23,11 @@ function getDriveMetaData() { return _getDriveMetaData.apply(this, []); }
 function getDriveData(dataId) { return _getDriveData.apply(this, [dataId]); }
 function removeDriveData(dataId) { return _removeDriveData.apply(this, [dataId]); }
 function updateDriveData(driveData) { return _updateDriveData.apply(this, [driveData]); }
-function addSpreadsheetData(spreadsheetData) { return _addSpreadsheetData.apply(this, [spreadsheetData]); }
+function addSpreadsheetRecords(payloadJson) { return _addSpreadsheetRecords.apply(this, [payloadJson]); }
 function getAllSpreadsheetNames() { return _getAllSpreadsheetNames.apply(this, []); }
 function getSpreadsheetData(sheetName) { return _getSpreadsheetData.apply(this, [sheetName]); }
 function removeSpreadsheetData(sheetName) { return _removeSpreadsheetData.apply(this, [sheetName]); }
-function updateSpreadsheetData(sheetName, spreadsheetData) { return _updateSpreadsheetData.apply(this, [sheetName, spreadsheetData]); }
+function updateSpreadsheetRecords(payloadJson) { return _updateSpreadsheetRecords.apply(this, [payloadJson]); }
             `,
   },
 }).catch(() => process.exit(1));

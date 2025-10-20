@@ -23,9 +23,12 @@ declare let _getDriveMetaData: (
 declare let _getDriveData: (dataId: string) => GasResponse<DriveData | null>;
 declare let _removeDriveData: (dataId: string) => GasResponse<void>;
 declare let _updateDriveData: (driveData: DriveData) => GasResponse<void>;
-declare let _upsertSpreadsheetData: (
-  spreadsheetData: SpreadsheetData
-) => GasResponse<void>;
+declare let _addSpreadsheetRecords: (
+  payloadJson: string
+) => GasResponse<{ added: number; duplicates?: string[] }>;
+declare let _updateSpreadsheetRecords: (
+  payloadJson: string
+) => GasResponse<{ updated: number; missingIds?: string[] }>;
 declare let _getAllSpreadsheetNames: () => GasResponse<string[]>;
 declare let _getSpreadsheetData: (
   sheetName: string
@@ -85,12 +88,48 @@ _updateDriveData = (driveData: DriveData): GasResponse<void> => {
   }
 };
 
-_upsertSpreadsheetData = (
-  spreadsheetData: SpreadsheetData
-): GasResponse<void> => {
+_addSpreadsheetRecords = (
+  payloadJson: string
+): GasResponse<{ added: number; duplicates?: string[] }> => {
   try {
-    spreadsheetService.upsertSpreadsheetData(spreadsheetData);
-    return { status: "success", data: undefined };
+    const parsed = JSON.parse(payloadJson || "{}");
+    const sheetName: string = parsed.sheetName;
+    const recs: Array<{ id: string; type: string; row: any[] }> =
+      parsed.records || [];
+    if (!sheetName || !Array.isArray(recs)) {
+      return { status: "error", message: "invalid parameters" };
+    }
+
+    const rows: any[][] = recs.map((r) => [r.id, r.type, ...(r.row || [])]);
+    spreadsheetService.appendRows(sheetName, rows);
+    return { status: "success", data: { added: rows.length } };
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+_updateSpreadsheetRecords = (
+  payloadJson: string
+): GasResponse<{ updated: number; missingIds?: string[] }> => {
+  try {
+    const parsed = JSON.parse(payloadJson || "{}");
+    const sheetName: string = parsed.sheetName;
+    const recs: Array<{ id: string; type: string; row: any[] }> =
+      parsed.records || [];
+    if (!sheetName || !Array.isArray(recs)) {
+      return { status: "error", message: "invalid parameters" };
+    }
+
+    const rowsMap = new Map<string, any[]>();
+    for (const r of recs) {
+      rowsMap.set(r.id, [r.id, r.type, ...(r.row || [])]);
+    }
+
+    const result = spreadsheetService.updateRowsById(sheetName, rowsMap, 1);
+    return {
+      status: "success",
+      data: { updated: result.updated, missingIds: result.missingIds },
+    };
   } catch (error) {
     return { status: "error", message: (error as Error).message };
   }

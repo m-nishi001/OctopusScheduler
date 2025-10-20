@@ -6,7 +6,7 @@ export interface IScheduleEventRepository {
   updateScheduleEvents(events: IScheduleEvent[]): Promise<void>;
   deleteScheduleEvents(ids: string[]): Promise<void>;
   addScheduleEvents(events: IScheduleEvent[]): Promise<string>;
-  syncScheduleEvents(): Promise<void>;
+  syncScheduleEvents(mode?: "local" | "gas"): Promise<void>;
   getExecutionStatus(eventId: string): Promise<ExecutionStatus | null>;
   updateExecutionStatus(
     eventId: string,
