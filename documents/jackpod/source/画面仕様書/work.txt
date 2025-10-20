@@ -1,0 +1,53 @@
+TASK WORK / TRACKER
+
+ファイル: documents/jackpod/source/画面仕様書/work.txt
+更新ポリシー: このファイルはこの大規模タスクの単一の真実のソース（source of truth）として常に最新化する。作業開始時・フェーズ終了時・サマリー時は必ず更新する。
+
+---
+
+1) タスクのゴール
+
+- `src/client/games/jackpot-game` のコードを現在の基本設計（local-first、asset: JSON+Blob、GASはセカンドストレージ、カスタムHTML許可）に合わせて修正・整備する。
+- 管理画面側の設計方針と整合させ、asset と storage の実装を統一する。
+- 変更は安全に段階的に行い、各段階でビルド/型チェックを通す。
+
+2) 現状（初期スナップショット）
+
+- プロジェクトには localForage を使った `LocalStorageService` が存在する（`src/client/packages/common-lib/src/storage/local-storage-service.ts`）。
+- `src/client/octopus-scheduler` 側に `AssetRepository` 実装がある。これを参考に `jackpot-game` 側のストレージを統一する必要がある。
+- 現状 TypeScript のビルドでモジュール解決エラーがいくつか出ている（以前の確認で `play-audio-event` など）。
+- あなたは「カスタム HTML を許可」「不揮発データは JSON と Blob で保持」「GAS による不揮発保存は Drive のみで良い」と指示済み。
+
+3) TODO（高優先度 → 低優先度）
+
+- (A) `jackpot-game` のストレージ層を調査し、LocalStorageService を使うように移行/整合する。
+- (B) `jackpot-game` の Asset 管理部分を `AssetRepository` の API に合わせる（add/get/delete/sync）。
+- (C) 既存の Blob/JSON の保存形式を確認し、必要なら変換・マイグレーションロジックを用意する。
+- (D) カスタム HTML を保存できるように入力/出力側を確認（XSS 対策は不要とのことなのでそのまま保存する実装で進める）。
+- (E) `jackpot-game` のビルドエラー（インポートパス等）を解消する。
+- (F) ビルドと簡易動作確認（`npm run build` 等）を行う。
+- (G) 設計書と `work.txt` を反映してドキュメントを更新する。
+
+4) 今何がどのような状況か（現状の詳細）
+
+- LocalStorageService は存在し、API（save/get/getAll/removeMultiple 等）が明確。これを利用することで local-first 実装が統一できる。
+- `src/client/games/jackpot-game` 内で LocalStorageService が未使用、あるいは独自の保存方式を使っている箇所がある可能性が高い（要調査）。
+- 既に `src/client/octopus-scheduler` 側での AssetRepository 実装はあるため、そこからコードをコピー/参照して `jackpot-game` を修正するのが最短経路。
+
+5) あと何が残っているか（高水準）
+
+- `jackpot-game` のコード調査（ファイル単位）と差分設計
+- 実際のコード修正（リポジトリ抽象化、AssetRepository採用、Blob/JSON保存）
+- ビルド・型チェックの修正
+- 基本テスト（画面起動、アセット登録、保存・同期のシミュレーション）
+
+6) 懸念点
+
+- `jackpot-game` のコードが予想よりも分散している場合、修正範囲が増える可能性がある。
+- ビルドエラーが複数箇所に波及すると修正に時間がかかる。
+- 単一ユーザー運用は簡便だが、将来的にユーザー数が増えた場合の対応を別途計画する必要がある。
+
+---
+
+最後更新: (今ここにタイムスタンプを記載します)
+
