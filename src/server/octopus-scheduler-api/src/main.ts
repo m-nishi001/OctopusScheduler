@@ -12,28 +12,40 @@ import {
   SpreadsheetData,
 } from "../../common/src/google-spreadsheet-service";
 
-declare let _doGet: (
+declare let _octopusScheduler_doGet: (
   e: GoogleAppsScript.Events.DoGet
 ) => GoogleAppsScript.HTML.HtmlOutput;
 
-declare let _addDriveData: (driveData: DriveData) => GasResponse<DriveMetadata>;
-declare let _getDriveMetaData: (
+declare let _octopusScheduler_addDriveData: (
+  driveData: DriveData
+) => GasResponse<DriveMetadata>;
+declare let _octopusScheduler_getDriveMetaData: (
   folderId: string
 ) => GasResponse<DriveMetadata[]>;
-declare let _getDriveData: (dataId: string) => GasResponse<DriveData | null>;
-declare let _removeDriveData: (dataId: string) => GasResponse<void>;
-declare let _updateDriveData: (driveData: DriveData) => GasResponse<void>;
-declare let _addSpreadsheetRecords: (
+declare let _octopusScheduler_getDriveData: (
+  dataId: string
+) => GasResponse<DriveData | null>;
+declare let _octopusScheduler_removeDriveData: (
+  dataId: string
+) => GasResponse<void>;
+declare let _octopusScheduler_updateDriveData: (
+  driveData: DriveData
+) => GasResponse<void>;
+declare let _octopusScheduler_addSpreadsheetRecords: (
   payloadJson: string
 ) => GasResponse<{ added: number; duplicates?: string[] }>;
-declare let _updateSpreadsheetRecords: (
+declare let _octopusScheduler_updateSpreadsheetRecords: (
   payloadJson: string
 ) => GasResponse<{ updated: number; missingIds?: string[] }>;
-declare let _getAllSpreadsheetNames: () => GasResponse<string[]>;
-declare let _getSpreadsheetData: (
+declare let _octopusScheduler_getAllSpreadsheetNames: () => GasResponse<
+  string[]
+>;
+declare let _octopusScheduler_getSpreadsheetData: (
   sheetName: string
 ) => GasResponse<SpreadsheetData | null>;
-declare let _removeSpreadsheetData: (sheetName: string) => GasResponse<void>;
+declare let _octopusScheduler_removeSpreadsheetData: (
+  sheetName: string
+) => GasResponse<void>;
 
 // Instantiate services
 const driveService = new GoogleDriveService();
@@ -43,7 +55,9 @@ const spreadsheetId = PropertiesService.getScriptProperties().getProperty(
 const spreadsheetService = new SpreadsheetService(spreadsheetId);
 
 // Assign global functions
-_addDriveData = (driveData: DriveData): GasResponse<DriveMetadata> => {
+_octopusScheduler_addDriveData = (
+  driveData: DriveData
+): GasResponse<DriveMetadata> => {
   try {
     const result = driveService.addDriveData(driveData);
     return { status: "success", data: result.data! };
@@ -52,7 +66,9 @@ _addDriveData = (driveData: DriveData): GasResponse<DriveMetadata> => {
   }
 };
 
-_getDriveMetaData = (folderId: string): GasResponse<DriveMetadata[]> => {
+_octopusScheduler_getDriveMetaData = (
+  folderId: string
+): GasResponse<DriveMetadata[]> => {
   try {
     const result = driveService.getDriveMetaData(folderId);
     return { status: "success", data: result };
@@ -61,7 +77,9 @@ _getDriveMetaData = (folderId: string): GasResponse<DriveMetadata[]> => {
   }
 };
 
-_getDriveData = (dataId: string): GasResponse<DriveData | null> => {
+_octopusScheduler_getDriveData = (
+  dataId: string
+): GasResponse<DriveData | null> => {
   try {
     const result = driveService.getDriveData(dataId);
     return { status: "success", data: result };
@@ -70,7 +88,7 @@ _getDriveData = (dataId: string): GasResponse<DriveData | null> => {
   }
 };
 
-_removeDriveData = (dataId: string): GasResponse<void> => {
+_octopusScheduler_removeDriveData = (dataId: string): GasResponse<void> => {
   try {
     driveService.removeDriveData(dataId);
     return { status: "success", data: undefined };
@@ -79,7 +97,9 @@ _removeDriveData = (dataId: string): GasResponse<void> => {
   }
 };
 
-_updateDriveData = (driveData: DriveData): GasResponse<void> => {
+_octopusScheduler_updateDriveData = (
+  driveData: DriveData
+): GasResponse<void> => {
   try {
     const result = driveService.updateDriveData(driveData);
     return { status: "success", data: undefined };
@@ -88,7 +108,7 @@ _updateDriveData = (driveData: DriveData): GasResponse<void> => {
   }
 };
 
-_addSpreadsheetRecords = (
+_octopusScheduler_addSpreadsheetRecords = (
   payloadJson: string
 ): GasResponse<{ added: number; duplicates?: string[] }> => {
   try {
@@ -108,7 +128,7 @@ _addSpreadsheetRecords = (
   }
 };
 
-_updateSpreadsheetRecords = (
+_octopusScheduler_updateSpreadsheetRecords = (
   payloadJson: string
 ): GasResponse<{ updated: number; missingIds?: string[] }> => {
   try {
@@ -135,7 +155,7 @@ _updateSpreadsheetRecords = (
   }
 };
 
-_getAllSpreadsheetNames = (): GasResponse<string[]> => {
+_octopusScheduler_getAllSpreadsheetNames = (): GasResponse<string[]> => {
   try {
     const result = spreadsheetService.getAllSpreadsheetNames();
     return { status: "success", data: result };
@@ -144,7 +164,7 @@ _getAllSpreadsheetNames = (): GasResponse<string[]> => {
   }
 };
 
-_getSpreadsheetData = (
+_octopusScheduler_getSpreadsheetData = (
   sheetName: string
 ): GasResponse<SpreadsheetData | null> => {
   try {
@@ -155,7 +175,9 @@ _getSpreadsheetData = (
   }
 };
 
-_removeSpreadsheetData = (sheetName: string): GasResponse<void> => {
+_octopusScheduler_removeSpreadsheetData = (
+  sheetName: string
+): GasResponse<void> => {
   try {
     spreadsheetService.removeSpreadsheetData(sheetName);
     return { status: "success", data: undefined };
@@ -164,7 +186,7 @@ _removeSpreadsheetData = (sheetName: string): GasResponse<void> => {
   }
 };
 
-_doGet = (e: GoogleAppsScript.Events.DoGet) => {
+_octopusScheduler_doGet = (e: GoogleAppsScript.Events.DoGet) => {
   try {
     try {
       LockService.getScriptLock().releaseLock();

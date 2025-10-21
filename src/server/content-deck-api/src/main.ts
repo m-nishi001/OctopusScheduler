@@ -8,7 +8,9 @@ import {
   SpreadsheetData,
 } from "../../common/src/google-spreadsheet-service";
 
-declare let _addDriveData: (driveData: DriveData) => GasResponse<DriveMetadata>;
+declare let _contentDeck_addDriveData: (
+  driveData: DriveData
+) => GasResponse<DriveMetadata>;
 declare let _getDriveMetaData: (
   folderId: string
 ) => GasResponse<DriveMetadata[]>;
@@ -35,7 +37,9 @@ const folderId = PropertiesService.getScriptProperties().getProperty(
 const spreadsheetService = new SpreadsheetService(spreadsheetId);
 
 // Assign global functions
-_addDriveData = (driveData: DriveData): GasResponse<DriveMetadata> => {
+_contentDeck_addDriveData = (
+  driveData: DriveData
+): GasResponse<DriveMetadata> => {
   try {
     const result = driveService.addDriveData(driveData);
     return { status: "success", data: result.data! };

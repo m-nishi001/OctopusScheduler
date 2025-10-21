@@ -13,23 +13,35 @@ import {
   SpreadsheetData,
 } from "../../../common/src/google-spreadsheet-service";
 
-declare let _addDriveData: (driveData: DriveData) => GasResponse<DriveMetadata>;
-declare let _getDriveMetaData: (
+declare let _jackpotGame_addDriveData: (
+  driveData: DriveData
+) => GasResponse<DriveMetadata>;
+declare let _jackpotGame_getDriveMetaData: (
   folderId: string
 ) => GasResponse<DriveMetadata[]>;
-declare let _getDriveData: (dataId: string) => GasResponse<DriveData | null>;
-declare let _removeDriveData: (dataId: string) => GasResponse<void>;
-declare let _updateDriveData: (driveData: DriveData) => GasResponse<void>;
-declare let _upsertSpreadsheetData: (
+declare let _jackpotGame_getDriveData: (
+  dataId: string
+) => GasResponse<DriveData | null>;
+declare let _jackpotGame_removeDriveData: (dataId: string) => GasResponse<void>;
+declare let _jackpotGame_updateDriveData: (
+  driveData: DriveData
+) => GasResponse<void>;
+declare let _jackpotGame_upsertSpreadsheetData: (
   spreadsheetData: SpreadsheetData
 ) => GasResponse<void>;
-declare let _getAllSpreadsheetNames: () => GasResponse<string[]>;
-declare let _getSpreadsheetData: (
+declare let _jackpotGame_getAllSpreadsheetNames: () => GasResponse<string[]>;
+declare let _jackpotGame_getSpreadsheetData: (
   sheetName: string
 ) => GasResponse<SpreadsheetData | null>;
-declare let _removeSpreadsheetData: (sheetName: string) => GasResponse<void>;
-declare let _addJson: (driveJson: DriveJsonData) => GasResponse<DriveMetadata>;
-declare let _getJson: (fileId: string) => GasResponse<{ json: string } | null>;
+declare let _jackpotGame_removeSpreadsheetData: (
+  sheetName: string
+) => GasResponse<void>;
+declare let _jackpotGame_addJson: (
+  driveJson: DriveJsonData
+) => GasResponse<DriveMetadata>;
+declare let _jackpotGame_getJson: (
+  fileId: string
+) => GasResponse<{ json: string } | null>;
 
 // Instantiate services
 const driveService = new GoogleDriveService();
@@ -56,7 +68,9 @@ function getAssetFolderId(providedFolderId?: string): string {
 }
 
 // Assign global functions
-_addDriveData = (driveData: DriveData): GasResponse<DriveMetadata> => {
+_jackpotGame_addDriveData = (
+  driveData: DriveData
+): GasResponse<DriveMetadata> => {
   try {
     const result = driveService.addDriveData(driveData);
     return { status: "success", data: result.data! };
@@ -65,7 +79,9 @@ _addDriveData = (driveData: DriveData): GasResponse<DriveMetadata> => {
   }
 };
 
-_getDriveMetaData = (folderId: string): GasResponse<DriveMetadata[]> => {
+_jackpotGame_getDriveMetaData = (
+  folderId: string
+): GasResponse<DriveMetadata[]> => {
   try {
     const result = driveService.getDriveMetaData(folderId);
     return { status: "success", data: result };
@@ -74,7 +90,7 @@ _getDriveMetaData = (folderId: string): GasResponse<DriveMetadata[]> => {
   }
 };
 
-_getDriveData = (dataId: string): GasResponse<DriveData | null> => {
+_jackpotGame_getDriveData = (dataId: string): GasResponse<DriveData | null> => {
   try {
     const result = driveService.getDriveData(dataId);
     return { status: "success", data: result };
@@ -83,7 +99,7 @@ _getDriveData = (dataId: string): GasResponse<DriveData | null> => {
   }
 };
 
-_removeDriveData = (dataId: string): GasResponse<void> => {
+_jackpotGame_removeDriveData = (dataId: string): GasResponse<void> => {
   try {
     driveService.removeDriveData(dataId);
     return { status: "success", data: undefined };
@@ -92,7 +108,7 @@ _removeDriveData = (dataId: string): GasResponse<void> => {
   }
 };
 
-_updateDriveData = (driveData: DriveData): GasResponse<void> => {
+_jackpotGame_updateDriveData = (driveData: DriveData): GasResponse<void> => {
   try {
     const result = driveService.updateDriveData(driveData);
     return { status: "success", data: undefined };
@@ -101,7 +117,7 @@ _updateDriveData = (driveData: DriveData): GasResponse<void> => {
   }
 };
 
-_upsertSpreadsheetData = (
+_jackpotGame_upsertSpreadsheetData = (
   spreadsheetData: SpreadsheetData
 ): GasResponse<void> => {
   try {
@@ -112,7 +128,7 @@ _upsertSpreadsheetData = (
   }
 };
 
-_getAllSpreadsheetNames = (): GasResponse<string[]> => {
+_jackpotGame_getAllSpreadsheetNames = (): GasResponse<string[]> => {
   try {
     const result = spreadsheetService.getAllSpreadsheetNames();
     return { status: "success", data: result };
@@ -121,7 +137,7 @@ _getAllSpreadsheetNames = (): GasResponse<string[]> => {
   }
 };
 
-_getSpreadsheetData = (
+_jackpotGame_getSpreadsheetData = (
   sheetName: string
 ): GasResponse<SpreadsheetData | null> => {
   try {
@@ -132,7 +148,7 @@ _getSpreadsheetData = (
   }
 };
 
-_removeSpreadsheetData = (sheetName: string): GasResponse<void> => {
+_jackpotGame_removeSpreadsheetData = (sheetName: string): GasResponse<void> => {
   try {
     spreadsheetService.removeSpreadsheetData(sheetName);
     return { status: "success", data: undefined };
@@ -141,7 +157,9 @@ _removeSpreadsheetData = (sheetName: string): GasResponse<void> => {
   }
 };
 
-_addJson = (driveJson: DriveJsonData): GasResponse<DriveMetadata> => {
+_jackpotGame_addJson = (
+  driveJson: DriveJsonData
+): GasResponse<DriveMetadata> => {
   try {
     const folderId = getAssetFolderId(driveJson.parentFolderId);
 
@@ -166,7 +184,9 @@ _addJson = (driveJson: DriveJsonData): GasResponse<DriveMetadata> => {
   }
 };
 
-_getJson = (fileId: string): GasResponse<{ json: string } | null> => {
+_jackpotGame_getJson = (
+  fileId: string
+): GasResponse<{ json: string } | null> => {
   try {
     const file = DriveApp.getFileById(fileId);
     const content = file.getBlob().getDataAsString();

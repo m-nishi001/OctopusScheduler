@@ -1,4 +1,51 @@
 import { build } from "esbuild";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function toCamelCase(name) {
+  return name
+    .replace(/[-_]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ""))
+    .replace(/^(.)/, (m) => m.toLowerCase());
+}
+
+function derivePrefix() {
+  const pkgPath = join(__dirname, "package.json");
+  try {
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    const raw = (pkg.name || "").replace(/-api$/, "");
+    return toCamelCase(raw);
+  } catch (e) {
+    return "package";
+  }
+}
+
+const prefix = derivePrefix();
+
+const internalNames = [
+  "doGet",
+  "addDriveData",
+  "getDriveMetaData",
+  "getDriveData",
+  "removeDriveData",
+  "updateDriveData",
+  "addSpreadsheetRecords",
+  "updateSpreadsheetRecords",
+  "getAllSpreadsheetNames",
+  "getSpreadsheetData",
+  "removeSpreadsheetData",
+];
+
+const bannerVars = internalNames.map((n) => `_${prefix}_${n}`).join(", ");
+
+const footerFns = internalNames
+  .map((n) =>
+    n === "doGet"
+      ? `function doGet(e){ return _${prefix}_doGet(e); }`
+      : `function ${n}(...args) { return _${prefix}_${n}.apply(this, args); }`
+  )
+  .join("\n");
 
 build({
   entryPoints: ["src/main.ts"],
@@ -7,27 +54,6 @@ build({
   target: "es2020",
   format: "iife",
   platform: "browser",
-  banner: {
-    js: `
-let _doGet, _addDriveData, _getDriveMetaData, _getDriveData, _removeDriveData, _updateDriveData, _addSpreadsheetRecords, _updateSpreadsheetRecords, _getAllSpreadsheetNames, _getSpreadsheetData, _removeSpreadsheetData;
-            `,
-  },
-  footer: {
-    js: `
-function doGet(e){
-    return _doGet(e);
-}
-
-function addDriveData(driveData) { return _addDriveData.apply(this, [driveData]); }
-function getDriveMetaData() { return _getDriveMetaData.apply(this, []); }
-function getDriveData(dataId) { return _getDriveData.apply(this, [dataId]); }
-function removeDriveData(dataId) { return _removeDriveData.apply(this, [dataId]); }
-function updateDriveData(driveData) { return _updateDriveData.apply(this, [driveData]); }
-function addSpreadsheetRecords(payloadJson) { return _addSpreadsheetRecords.apply(this, [payloadJson]); }
-function getAllSpreadsheetNames() { return _getAllSpreadsheetNames.apply(this, []); }
-function getSpreadsheetData(sheetName) { return _getSpreadsheetData.apply(this, [sheetName]); }
-function removeSpreadsheetData(sheetName) { return _removeSpreadsheetData.apply(this, [sheetName]); }
-function updateSpreadsheetRecords(payloadJson) { return _updateSpreadsheetRecords.apply(this, [payloadJson]); }
-            `,
-  },
+  banner: { js: `\nlet ${bannerVars};\n` },
+  footer: { js: `\n${footerFns}\n` },
 }).catch(() => process.exit(1));
