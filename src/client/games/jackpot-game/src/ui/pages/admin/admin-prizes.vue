@@ -5,13 +5,16 @@
       <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal" title="Add prizes">
         <span class="emoji">➕</span>
       </button>
+      <button class="admin-btn icon-only sync-icon" @click.prevent="openPrizesSyncModal" title="Sync prizes"
+        :disabled="syncing">
+        <span class="emoji">🔄</span>
+      </button>
       <button class="admin-btn icon-only delete-icon" @click="openDeleteModal"
         :disabled="!selectedPrizes.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
       </button>
-      <button class="admin-btn" @click="savePrizesToLocalJson">ローカルに保存</button>
-      <button class="admin-btn" @click="uploadPrizesJsonToDrive">Driveにアップロード</button>
-      <button class="admin-btn" @click="downloadPrizesJsonFromDrive">Driveから読み込み</button>
+
+      <!-- Sync actions are handled via modal (matches admin-assets) -->
     </div>
     <div v-if="prizes.length" class="list-controls">
       <label class="select-all-label">
@@ -279,6 +282,31 @@
       <h3>サーバーと同期中...</h3>
       <p>{{ syncMessage || "景品を同期しています。しばらくお待ちください。" }}</p>
       <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- 同期モード選択モーダル (ローカル優先 / Drive優先) -->
+  <div v-if="showSyncModeModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3>同期モードを選択</h3>
+      <p>同期時にどちらを正としますか？</p>
+      <div class="modal-actions">
+        <button class="admin-btn" @click.prevent="confirmPrizesSyncMode('local')">ローカル優先 (Local wins)</button>
+        <button class="admin-btn sync-btn" @click.prevent="confirmPrizesSyncMode('drive')">Drive優先 (Drive wins)</button>
+        <button class="admin-btn delete-btn" @click.prevent="showSyncModeModal = false">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 置換警告モーダル (Drive優先を選んだとき) -->
+  <div v-if="showReplaceWarningModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3>注意: ローカルデータを置換します</h3>
+      <p>Drive のコンテンツに合わせてローカルの景品を置換します。既存のローカルデータは削除されます。続行しますか？</p>
+      <div class="modal-actions">
+        <button class="admin-btn delete-btn" @click.prevent="showReplaceWarningModal = false">キャンセル</button>
+        <button class="admin-btn sync-btn" @click.prevent="performReplaceFromDrive">置換して同期する</button>
+      </div>
     </div>
   </div>
 </template>
@@ -765,6 +793,68 @@ onMounted(async () => {
   await fetchPrizes();
   await fetchAssets();
 });
+
+// Sync modal state (mirror admin-assets.vue)
+const showSyncModeModal = ref(false);
+const showReplaceWarningModal = ref(false);
+const pendingSyncMode = ref<"drive" | "local" | null>(null);
+
+const openPrizesSyncModal = () => {
+  showSyncModeModal.value = true;
+};
+
+const confirmPrizesSyncMode = async (mode: "drive" | "local") => {
+  showSyncModeModal.value = false;
+  if (mode === 'drive') {
+    pendingSyncMode.value = 'drive';
+    showReplaceWarningModal.value = true;
+    return;
+  }
+
+  // local wins: upload current local JSON to Drive
+  syncing.value = true;
+  syncMessage.value = "";
+  try {
+    await assetDataService.syncAssetData((message) => {
+      syncMessage.value = message;
+    });
+    await fetchPrizes();
+  } catch (error) {
+    console.error('同期エラー:', error);
+  } finally {
+    syncing.value = false;
+    syncMessage.value = "";
+  }
+};
+
+const performReplaceFromDrive = async () => {
+  showReplaceWarningModal.value = false;
+  if (pendingSyncMode.value !== 'drive') return;
+  pendingSyncMode.value = null;
+  syncing.value = true;
+  syncMessage.value = "";
+  try {
+    // Use assetDataService.replaceLocalWithDrive if available for prizes — fallback to prizeRepo replace flow if needed
+    if (typeof (assetDataService as any).replaceLocalWithDrive === 'function') {
+      await (assetDataService as any).replaceLocalWithDrive((message: string) => { syncMessage.value = message; });
+    } else {
+      // if not available, trigger downloadPrizesJsonFromDrive to refresh local repo
+      await downloadPrizesJsonFromDrive();
+    }
+    await fetchPrizes();
+  } catch (error) {
+    console.error('同期エラー:', error);
+  } finally {
+    syncing.value = false;
+    syncMessage.value = "";
+  }
+};
+
+// keep references to some utility functions so TypeScript doesn't complain when
+// the UI uses modal-driven flow instead of direct buttons. These are retained
+// for future use.
+void savePrizesToLocalJson;
+void uploadPrizesJsonToDrive;
 
 onBeforeUnmount(() => {
   if (newImagePreviewUrl.value) {

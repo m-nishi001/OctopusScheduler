@@ -5,16 +5,15 @@
       <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openModal('add')" title="Add members">
         <span class="emoji">➕</span>
       </button>
-      <button class="admin-btn" @click="openModal('add')" v-if="modalMode !== 'add'">メンバー追加</button>
-      <button class="admin-btn" @click="showMemberSyncModal = true">同期</button>
-      <button class="admin-btn" @click="showAssetDialog = true">アセット追加</button>
+      <button class="admin-btn icon-only sync-icon" @click.prevent="openMemberSyncModal" title="Sync members">
+        <span class="emoji">🔄</span>
+      </button>
       <button class="admin-btn icon-only delete-icon" @click="openDeleteModal"
         :disabled="!selectedMembers.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
       </button>
-      <button class="admin-btn" @click="saveMembersToLocalJson">ローカルに保存</button>
-      <button class="admin-btn" @click="uploadMembersJsonToDrive">Driveにアップロード</button>
-      <button class="admin-btn" @click="downloadMembersJsonFromDrive">Driveから読み込み</button>
+
+      <!-- Sync actions are handled via modal (matches admin-assets) -->
     </div>
     <div v-if="members.length" class="list-controls">
       <label class="select-all-label">
@@ -139,6 +138,18 @@
         <button class="admin-btn" @click.prevent="confirmMemberSyncMode('local')">ローカル優先 (Local wins)</button>
         <button class="admin-btn sync-btn" @click.prevent="confirmMemberSyncMode('drive')">Drive優先 (Drive wins)</button>
         <button class="admin-btn delete-btn" @click.prevent="showMemberSyncModal = false">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 置換警告モーダル (Drive優先を選んだとき) -->
+  <div v-if="showReplaceWarningModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3>注意: ローカルデータを置換します</h3>
+      <p>Drive のコンテンツに合わせてローカルのメンバーを置換します。既存のローカルデータは削除されます。続行しますか？</p>
+      <div class="modal-actions">
+        <button class="admin-btn delete-btn" @click.prevent="showReplaceWarningModal = false">キャンセル</button>
+        <button class="admin-btn sync-btn" @click.prevent="performReplaceFromDrive">置換して同期する</button>
       </div>
     </div>
   </div>
@@ -522,23 +533,49 @@ const bulkSaveMembers = async () => {
   bufferPreviewMap.clear();
 };
 
-// member sync modal
+// member sync modal (mirrors admin-assets flow)
 const showMemberSyncModal = ref(false);
+const showReplaceWarningModal = ref(false);
+const pendingSyncMode = ref<'local' | 'drive' | null>(null);
+
+const openMemberSyncModal = () => {
+  showMemberSyncModal.value = true;
+};
+
 const confirmMemberSyncMode = async (mode: 'local' | 'drive') => {
+  // Close the initial mode selection modal
   showMemberSyncModal.value = false;
+  if (mode === 'local') {
+    // Immediately upload local JSON to Drive
+    syncing.value = true;
+    syncMessage.value = '';
+    try {
+      await uploadMembersJsonToDrive();
+    } catch (e) {
+      console.error('Member sync (local->drive) failed', e);
+    } finally {
+      syncing.value = false;
+      syncMessage.value = '';
+    }
+  } else {
+    // Drive chosen: show replace warning modal before performing replace
+    pendingSyncMode.value = 'drive';
+    showReplaceWarningModal.value = true;
+  }
+};
+
+const performReplaceFromDrive = async () => {
+  // User confirmed replace from Drive
+  showReplaceWarningModal.value = false;
+  if (pendingSyncMode.value !== 'drive') return;
+  pendingSyncMode.value = null;
   syncing.value = true;
   syncMessage.value = '';
   try {
-    if (mode === 'local') {
-      // upload current local JSON to Drive
-      await uploadMembersJsonToDrive();
-    } else {
-      // replace local with Drive
-      await downloadMembersJsonFromDrive();
-      await fetchMembers();
-    }
+    await downloadMembersJsonFromDrive();
+    await fetchMembers();
   } catch (e) {
-    console.error('Member sync failed', e);
+    console.error('Failed to replace members from Drive', e);
   } finally {
     syncing.value = false;
     syncMessage.value = '';
