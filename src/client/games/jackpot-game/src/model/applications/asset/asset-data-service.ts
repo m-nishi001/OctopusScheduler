@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import type { IAssetDataRepository } from "../../domains/drive-data/repository/i-asset-data-repository";
-import { Asset, AssetMetadata } from "../../domains/drive-data/asset-data";
+import { Asset } from "../../domains/drive-data/asset-data";
 
 @injectable()
 export class AssetDataService {
@@ -41,10 +41,6 @@ export class AssetDataService {
     onProgress?: (message: string) => void
   ): Promise<{ replaced: number }> {
     return await this.repo.replaceLocalWithDrive(onProgress);
-  }
-
-  public getAllAssetMetadata(): Promise<AssetMetadata[]> {
-    return this.repo.getAllAssetDataMetadata();
   }
 
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {

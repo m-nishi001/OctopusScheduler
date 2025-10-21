@@ -1,4 +1,4 @@
-import type { Asset, AssetMetadata } from "../asset-data";
+import type { Asset } from "../asset-data";
 
 export interface IAssetDataRepository {
   addAssetData(assetData: Asset[]): Promise<Asset[]>;
@@ -14,5 +14,4 @@ export interface IAssetDataRepository {
   replaceLocalWithDrive(
     onProgress?: (message: string) => void
   ): Promise<{ replaced: number }>;
-  getAllAssetDataMetadata(): Promise<AssetMetadata[]>;
 }

@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
 import { GasFunctionService } from "../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
 import type { IAssetDataRepository } from "../domains/drive-data/repository/i-asset-data-repository";
-import { Asset, AssetMetadata } from "../domains/drive-data/asset-data";
+import { Asset } from "../domains/drive-data/asset-data";
 import type {
   DriveData,
   DriveMetadata,
@@ -310,25 +310,5 @@ export class AssetDataRepository implements IAssetDataRepository {
 
     onProgress?.(`Replaced local assets: ${assets.length}`);
     return { replaced: assets.length };
-  }
-
-  async getAllAssetDataMetadata(): Promise<AssetMetadata[]> {
-    const data = await this.getAssetData();
-    return data.map(
-      (d) =>
-        new AssetMetadata(
-          d.id,
-          d.type,
-          d.name,
-          // ensure returned metadata timestamps are ISO strings
-          typeof d.uploadedAt === "string"
-            ? d.uploadedAt
-            : new Date(String(d.uploadedAt)).toISOString(),
-          typeof d.lastUpdated === "string"
-            ? d.lastUpdated
-            : new Date(String(d.lastUpdated)).toISOString(),
-          d.size
-        )
-    );
   }
 }
