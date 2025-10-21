@@ -20,10 +20,10 @@ export class AssetRepository implements IAssetRepository {
       blob: new Blob(),
       name: d.fileName,
       uploadedAt: d.uploadDate
-        ? d.uploadDate.toISOString()
+        ? String(d.uploadDate)
         : new Date().toISOString(),
       lastUpdated: d.metadata?.lastUpdate
-        ? d.metadata.lastUpdate.toISOString()
+        ? String(d.metadata.lastUpdate)
         : new Date().toISOString(),
       size: d.metadata?.size || 0,
       directoryId: d.metadata?.parentFolderId || undefined,

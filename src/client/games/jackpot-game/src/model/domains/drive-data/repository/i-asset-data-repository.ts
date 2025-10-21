@@ -11,5 +11,8 @@ export interface IAssetDataRepository {
       progress?: { current: number; total: number }
     ) => void
   ): Promise<{ updated: number; deleted: number }>;
+  replaceLocalWithDrive(
+    onProgress?: (message: string) => void
+  ): Promise<{ replaced: number }>;
   getAllAssetDataMetadata(): Promise<AssetMetadata[]>;
 }

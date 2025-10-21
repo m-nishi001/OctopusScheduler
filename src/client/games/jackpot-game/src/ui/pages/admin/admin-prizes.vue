@@ -262,7 +262,6 @@
   </div>
 
   <!-- 削除中モーダル -->
-  <!-- 削除中モーダル -->
   <div v-if="deleting" class="modal-overlay">
     <div class="modal-content">
       <h3>削除中...</h3>
@@ -413,12 +412,24 @@ const addPrize = async () => {
     // Pre-register uploaded assets and attach their ids to the prize
     if (tempAsset.value) {
       const updated = await assetDataService.addAssetData([tempAsset.value]);
-      newPrize.imageAssetId = updated[0].id;
-      // keep preview for UI
+      const updatedAsset = updated[0];
+      newPrize.imageAssetId = updatedAsset.id;
+      // create object URL from the saved asset blob and register it for list preview
       try {
-        newPrize.imageDataUrl = URL.createObjectURL(tempAsset.value.blob);
+        // revoke temporary preview if any
+        if (newImagePreviewUrl.value) {
+          try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch { }
+          newImagePreviewUrl.value = null;
+          newImagePreview.value = '';
+        }
+        const url = URL.createObjectURL(updatedAsset.blob);
+        // replace any existing mapping for this id
+        if (objectUrlMap.has(updatedAsset.id)) {
+          try { URL.revokeObjectURL(objectUrlMap.get(updatedAsset.id) as string); } catch { }
+        }
+        objectUrlMap.set(updatedAsset.id, url);
       } catch {
-        newPrize.imageDataUrl = '';
+        // ignore preview failures
       }
       tempAsset.value = null;
     }
@@ -620,8 +631,16 @@ const saveEdit = async () => {
   let assetId: string | undefined;
   if (editTempAsset.value) {
     const updatedAssets = await assetDataService.addAssetData([editTempAsset.value]);
-    editTempAsset.value = updatedAssets[0];
-    assetId = editTempAsset.value.id;
+    const updatedAsset = updatedAssets[0];
+    editTempAsset.value = updatedAsset;
+    assetId = updatedAsset.id;
+    try {
+      const url = URL.createObjectURL(updatedAsset.blob);
+      if (objectUrlMap.has(updatedAsset.id)) {
+        try { URL.revokeObjectURL(objectUrlMap.get(updatedAsset.id) as string); } catch { }
+      }
+      objectUrlMap.set(updatedAsset.id, url);
+    } catch { }
   }
   let bgm1AssetId: string | undefined;
   if (editTempBgm1Asset.value) {
@@ -680,6 +699,13 @@ onBeforeUnmount(() => {
   if (editImagePreviewUrl.value) {
     try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
   }
+  // revoke all object URLs created for assets
+  try {
+    objectUrlMap.forEach((url) => {
+      try { URL.revokeObjectURL(url); } catch { }
+    });
+    objectUrlMap.clear();
+  } catch { }
 });
 </script>
 

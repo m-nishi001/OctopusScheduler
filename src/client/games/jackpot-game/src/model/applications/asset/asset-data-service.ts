@@ -37,11 +37,18 @@ export class AssetDataService {
     return await this.repo.syncAssetData(onProgress);
   }
 
+  async replaceLocalWithDrive(
+    onProgress?: (message: string) => void
+  ): Promise<{ replaced: number }> {
+    return await this.repo.replaceLocalWithDrive(onProgress);
+  }
+
   public getAllAssetMetadata(): Promise<AssetMetadata[]> {
     return this.repo.getAllAssetDataMetadata();
   }
 
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {
-    return new Asset("", file.type, file.name, new Date(), new Date(), 0, file);
+    const now = new Date().toISOString();
+    return new Asset("", file.type, file.name, now, now, 0, file);
   }
 }

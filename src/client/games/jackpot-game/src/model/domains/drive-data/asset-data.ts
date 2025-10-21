@@ -2,16 +2,17 @@ export class AssetMetadata {
   id: string;
   type: string;
   name: string;
-  uploadedAt: Date;
-  lastUpdated: Date;
+  // Use ISO string for dates to make serialization deterministic
+  uploadedAt: string;
+  lastUpdated: string;
   size: number;
 
   constructor(
     id: string,
     type: string,
     name: string,
-    uploadedAt: Date,
-    lastUpdated: Date,
+    uploadedAt: string,
+    lastUpdated: string,
     size: number
   ) {
     this.id = id;
@@ -27,8 +28,9 @@ export class Asset {
   id: string;
   type: string;
   name: string;
-  uploadedAt: Date;
-  lastUpdated: Date;
+  // Store timestamps as ISO strings to avoid Date serialization issues
+  uploadedAt: string;
+  lastUpdated: string;
   size: number;
   blob: Blob;
 
@@ -36,8 +38,8 @@ export class Asset {
     id: string,
     type: string,
     name: string,
-    uploadedAt: Date,
-    lastUpdated: Date,
+    uploadedAt: string,
+    lastUpdated: string,
     size: number,
     blob: Blob
   ) {
