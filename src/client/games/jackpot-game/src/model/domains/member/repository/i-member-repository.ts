@@ -8,4 +8,7 @@ export interface IMemberRepository {
     updates: { id: string; updateFn: (member: Member) => Member }[]
   ): Promise<void>;
   deleteMembers(ids: string[]): Promise<void>;
+  // Replace all members in the local store with the supplied array.
+  // Returns an object with the number of replaced records.
+  replaceAllMembers(members: Member[]): Promise<{ replaced: number }>;
 }

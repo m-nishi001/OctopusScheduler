@@ -5,10 +5,16 @@
       <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openModal('add')" title="Add members">
         <span class="emoji">➕</span>
       </button>
+      <button class="admin-btn" @click="openModal('add')" v-if="modalMode !== 'add'">メンバー追加</button>
+      <button class="admin-btn" @click="showMemberSyncModal = true">同期</button>
+      <button class="admin-btn" @click="showAssetDialog = true">アセット追加</button>
       <button class="admin-btn icon-only delete-icon" @click="openDeleteModal"
         :disabled="!selectedMembers.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
       </button>
+      <button class="admin-btn" @click="saveMembersToLocalJson">ローカルに保存</button>
+      <button class="admin-btn" @click="uploadMembersJsonToDrive">Driveにアップロード</button>
+      <button class="admin-btn" @click="downloadMembersJsonFromDrive">Driveから読み込み</button>
     </div>
     <div v-if="members.length" class="list-controls">
       <label class="select-all-label">
@@ -43,6 +49,28 @@
       <div class="add-form-column">
         <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
         <p v-if="modalMode === 'add'">追加するメンバーの情報を入力してください。</p>
+
+        <div v-if="modalMode === 'add'" class="multi-add-controls" style="margin-bottom:12px">
+          <label class="field-label">追加するメンバー一覧</label>
+          <div class="buffer-list" style="max-height:160px;overflow:auto;border:1px solid #444;padding:8px">
+            <div v-for="(b, idx) in addBuffer" :key="idx"
+              style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <input v-model="b.name" class="admin-input" style="flex:1" />
+              <input v-model.number="b.rank" type="number" min="1" class="admin-input" style="width:80px" />
+              <input type="file" accept="image/*" @change="onBufferFileChange($event, idx)" style="width:160px" />
+              <div v-if="bufferPreviewMap.get(idx)" style="width:48px;height:48px;overflow:hidden;border-radius:4px">
+                <img :src="bufferPreviewMap.get(idx)" style="width:100%;height:100%;object-fit:cover" />
+              </div>
+              <button class="admin-btn" @click.prevent="removeBuffer(idx)">×</button>
+            </div>
+            <div v-if="addBuffer.length === 0" style="color:#cfe8ff">+ を押して新しいメンバーを追加してください</div>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <button class="admin-btn" @click.prevent="addBufferRow">＋</button>
+            <button class="admin-btn" @click.prevent="bulkSaveMembers" :disabled="!addBuffer.length">保存</button>
+            <button class="admin-btn cancel-primary" @click.prevent="clearBuffer">クリア</button>
+          </div>
+        </div>
 
         <div class="field-block">
           <label class="field-label">名前</label>
@@ -91,12 +119,26 @@
 
       <div class="modal-footer">
         <div class="admin-modal-buttons">
-          <button class="admin-btn" @click="confirmModal" :disabled="!modalName.trim() || modalRank < 1 || adding">{{
-            modalMode === 'add'
-              ?
-              '追加' : '保存' }}</button>
+          <button class="admin-btn" @click="confirmModal"
+            :disabled="modalMode === 'edit' && (!modalName.trim() || modalRank < 1 || adding)">{{
+              modalMode === 'add'
+                ?
+                '追加' : '保存' }}</button>
           <button class="admin-btn cancel-primary" @click="closeModal">キャンセル</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- メンバー同期モード選択 -->
+  <div v-if="showMemberSyncModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3>メンバー同期モードを選択</h3>
+      <p>ローカルとDriveのどちらを優先しますか？</p>
+      <div class="modal-actions">
+        <button class="admin-btn" @click.prevent="confirmMemberSyncMode('local')">ローカル優先 (Local wins)</button>
+        <button class="admin-btn sync-btn" @click.prevent="confirmMemberSyncMode('drive')">Drive優先 (Drive wins)</button>
+        <button class="admin-btn delete-btn" @click.prevent="showMemberSyncModal = false">キャンセル</button>
       </div>
     </div>
   </div>
@@ -130,6 +172,7 @@
       <div class="spinner"></div>
     </div>
   </div>
+  <AssetSelectionDialog v-if="showAssetDialog" @close="showAssetDialog = false" @selected="onAssetsSelected" />
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
@@ -140,10 +183,13 @@ import { MemberService } from '../../../model/applications/member/member-service
 import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
 
 import { container } from 'tsyringe';
+import AssetSelectionDialog from './components/asset-selection-dialog.vue';
+import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts';
 const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
 const assetDataService = container.resolve<AssetDataService>("AssetDataService");
 const memberService = container.resolve(MemberService);
 const members = ref<any[]>([]);
+const showAssetDialog = ref(false);
 const selectedMembers = ref<string[]>([]);
 const assets = ref<Asset[]>([]);
 const imageAssets = computed(() => assets.value.filter((asset) => asset.blob.type.startsWith('image')));
@@ -179,6 +225,28 @@ let modalPhotoPreviewUrl: string | undefined;
 const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
 const tempAsset = ref<Asset | null>(null);
+// buffer for multi-add
+const addBuffer = ref<Array<{ name: string; rank: number; photoAsset?: Asset | null; photoAssetId?: string }>>([]);
+// per-buffer preview URLs (keyed by buffer index)
+const bufferPreviewMap = new Map<number, string>();
+
+const onBufferFileChange = async (e: Event, idx: number) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  try {
+    const dto = await assetDataService.createDriveDataDtoFromFile(file);
+    // assign to buffer entry
+    const entry = addBuffer.value[idx];
+    if (entry) {
+      entry.photoAsset = dto;
+      // create preview URL
+      try { const url = URL.createObjectURL(file); bufferPreviewMap.set(idx, url); } catch { }
+    }
+  } catch (err) {
+    console.error('Failed to create buffer asset DTO', err);
+  }
+};
+// buffer indicator (unused intentionally removed)
 
 // modal actions
 const openModal = (mode: 'add' | 'edit', data?: any) => {
@@ -194,6 +262,7 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
     modalPhotoFilename.value = '';
     photoAssetId.value = '';
     tempAsset.value = null;
+    addBuffer.value = [];
   } else if (mode === 'edit' && data) {
     modalName.value = data.name;
     modalRank.value = data.rank;
@@ -233,6 +302,7 @@ const closeModal = () => {
 };
 const confirmModal = async () => {
   if (modalMode.value === 'add') {
+    // Default: single add (legacy behaviour)
     await addMember();
   } else if (modalMode.value === 'edit') {
     if (!modalData.value) return;
@@ -241,14 +311,24 @@ const confirmModal = async () => {
       name: modalName.value,
       rank: modalRank.value
     };
-    if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
-      updatedMember.photoAsset = modalPhotoAsset.value;
-    } else if (modalPhotoMode.value === 'select' && photoAssetId.value) {
-      updatedMember.photoAssetId = photoAssetId.value;
-    }
     try {
+      // If upload mode, ensure asset is properly stored and photoAssetId set
+      if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
+        try {
+          const uploaded = await assetDataService.addAssetData([modalPhotoAsset.value]);
+          if (uploaded && uploaded[0] && uploaded[0].id) {
+            updatedMember.photoAssetId = uploaded[0].id;
+          }
+        } catch (e) {
+          console.error('Failed to upload photo asset during edit:', e);
+        }
+      } else if (modalPhotoMode.value === 'select' && photoAssetId.value) {
+        updatedMember.photoAssetId = photoAssetId.value;
+      }
+
       await memberRepo.updateMembers([{ id: updatedMember.id, updateFn: () => updatedMember }]);
       await fetchMembers();
+      await saveMembersToLocalJson();
     } catch (error) {
       console.error("Failed to update member:", error);
     }
@@ -320,6 +400,11 @@ onBeforeUnmount(() => {
       try { URL.revokeObjectURL(url); } catch { }
     }
     objectUrlMap.clear();
+    // revoke buffer preview urls
+    for (const url of bufferPreviewMap.values()) {
+      try { URL.revokeObjectURL(url); } catch { }
+    }
+    bufferPreviewMap.clear();
   } catch { }
 });
 
@@ -345,11 +430,21 @@ const addMember = async () => {
       try { (addedMember as any).photoDataUrl = URL.createObjectURL(previewBlob); } catch { (addedMember as any).photoDataUrl = ''; }
     }
     members.value.push(addedMember);
+    await saveMembersToLocalJson();
   } catch (error) {
     console.error("Failed to add member:", error);
   } finally {
     adding.value = false;
   }
+};
+
+const onAssetsSelected = async (ids: string[]) => {
+  // if a single asset selected, set it as current photoAssetId for modal
+  if (ids && ids.length === 1) {
+    photoAssetId.value = ids[0];
+  }
+  // refresh list
+  await fetchAssets();
 };
 
 const deleteMember = async (id: string) => {
@@ -358,10 +453,98 @@ const deleteMember = async (id: string) => {
   try {
     await memberService.deleteMember(id);
     await fetchMembers();
+    await saveMembersToLocalJson();
   } catch (error) {
     console.error("Failed to delete member:", error);
   } finally {
     deleting.value = false;
+  }
+};
+
+// multi-add buffer actions
+const addBufferRow = () => {
+  addBuffer.value.push({ name: '', rank: members.value.length + addBuffer.value.length + 1, photoAsset: null });
+};
+
+const removeBuffer = (idx: number) => {
+  const url = bufferPreviewMap.get(idx);
+  if (url) {
+    try { URL.revokeObjectURL(url); } catch { }
+    bufferPreviewMap.delete(idx);
+  }
+  addBuffer.value.splice(idx, 1);
+  // reindex bufferPreviewMap
+  const newMap = new Map<number, string>();
+  for (let i = 0; i < addBuffer.value.length; i++) {
+    const existing = bufferPreviewMap.get(i >= idx ? i + 1 : i);
+    if (existing) newMap.set(i, existing);
+  }
+  bufferPreviewMap.clear();
+  for (const [k, v] of newMap) bufferPreviewMap.set(k, v);
+};
+
+const clearBuffer = () => {
+  addBuffer.value = [];
+};
+
+const bulkSaveMembers = async () => {
+  if (!addBuffer.value.length) return;
+  adding.value = true;
+  try {
+    for (const b of addBuffer.value) {
+      let photoId: string | undefined = undefined;
+      if (b.photoAsset) {
+        try {
+          const uploaded = await assetDataService.addAssetData([b.photoAsset]);
+          if (uploaded && uploaded[0] && uploaded[0].id) photoId = uploaded[0].id;
+        } catch (e) {
+          console.error('Failed to upload buffered photo:', e);
+        }
+      }
+      const dto = {
+        id: '',
+        name: b.name,
+        rank: b.rank,
+        photoAssetId: photoId,
+      } as any;
+      const saved = await memberService.saveMember(dto);
+      members.value.push(saved);
+    }
+    // clear buffer and persist
+    addBuffer.value = [];
+    await saveMembersToLocalJson();
+  } catch (e) {
+    console.error('Failed to bulk save members', e);
+  } finally {
+    adding.value = false;
+  }
+  // cleanup previews
+  for (const url of bufferPreviewMap.values()) {
+    try { URL.revokeObjectURL(url); } catch { }
+  }
+  bufferPreviewMap.clear();
+};
+
+// member sync modal
+const showMemberSyncModal = ref(false);
+const confirmMemberSyncMode = async (mode: 'local' | 'drive') => {
+  showMemberSyncModal.value = false;
+  syncing.value = true;
+  syncMessage.value = '';
+  try {
+    if (mode === 'local') {
+      // upload current local JSON to Drive
+      await uploadMembersJsonToDrive();
+    } else {
+      // replace local with Drive
+      await downloadMembersJsonFromDrive();
+      await fetchMembers();
+    }
+  } catch (e) {
+    console.error('Member sync failed', e);
+  } finally {
+    syncing.value = false;
+    syncMessage.value = '';
   }
 };
 
@@ -373,10 +556,92 @@ const deleteSelectedMembers = async () => {
     await memberService.deleteMembers(selectedMembers.value);
     await fetchMembers();
     selectedMembers.value = [];
+    await saveMembersToLocalJson();
   } catch (error) {
     console.error("Failed to delete members:", error);
   } finally {
     deleting.value = false;
+  }
+};
+
+// local JSON export/import
+const STORAGE_KEY = 'jackpot-game-members-json';
+
+const saveMembersToLocalJson = async () => {
+  try {
+    const payload = JSON.stringify(members.value || []);
+    localStorage.setItem(STORAGE_KEY, payload);
+  } catch (e) {
+    console.error('Failed to save members JSON to localStorage', e);
+  }
+};
+
+// (removed unused) loadMembersFromLocalJson — persisted members are managed via memberRepo.getMembers
+
+// upload to Google Drive via GAS
+const uploadMembersJsonToDrive = async () => {
+  try {
+    const json = localStorage.getItem(STORAGE_KEY) || JSON.stringify(members.value || []);
+    const service = new GasFunctionService('addJson');
+    const driveJson = {
+      metadata: {
+        driveDataId: 'members-json-' + Date.now(),
+        fileId: '',
+        parentFolderId: '',
+        lastUpdate: new Date().toISOString(),
+        size: json.length,
+      },
+      fileName: 'members.json',
+      jsonText: json,
+      uploadDate: new Date().toISOString(),
+      parentFolderId: '',
+    };
+
+    const res = await service.call<any>(driveJson);
+    // server returns DriveMetadata in response (data) when successful
+    const fileId = res?.fileId || res?.data?.fileId || res?.fileId || res?.fileId;
+    if (fileId) {
+      localStorage.setItem('jackpot-members-last-file-id', fileId);
+      console.log('Uploaded members.json fileId=', fileId);
+    }
+  } catch (e) {
+    console.error('Failed to upload members JSON via GAS', e);
+  }
+};
+
+// fetch members JSON from Drive via GAS
+const downloadMembersJsonFromDrive = async () => {
+  try {
+    const lastId = localStorage.getItem('jackpot-members-last-file-id');
+    if (!lastId) {
+      console.warn('No last uploaded file id saved');
+      return;
+    }
+    const service = new GasFunctionService('getJson');
+    const resp = await service.call<{ json: string } | null>(lastId);
+    if (resp && resp.json) {
+      const json = resp.json;
+      localStorage.setItem(STORAGE_KEY, json);
+      try {
+        const parsed = JSON.parse(json || '[]');
+        if (Array.isArray(parsed)) {
+          // persist into memberRepo (localForage) so other processes/refresh see it
+          try {
+            await memberRepo.replaceAllMembers(parsed as any);
+          } catch (e) {
+            console.error('Failed to persist members into local repo:', e);
+          }
+          // refresh UI from repo
+          await fetchMembers();
+        } else {
+          console.warn('Downloaded members JSON is not an array');
+        }
+      } catch (e) {
+        console.error('Failed to parse downloaded members JSON', e);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to download members JSON via GAS', e);
   }
 };
 
@@ -392,6 +657,7 @@ const fetchMembers = async () => {
       }
     }
     members.value = fetchedMembers;
+    await saveMembersToLocalJson();
   } catch (error) {
     console.error("Failed to fetch members:", error);
     members.value = [];

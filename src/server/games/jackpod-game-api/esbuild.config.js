@@ -19,6 +19,8 @@ function getDriveMetaData() { return _getDriveMetaData.apply(this, []); }
 function getDriveData(dataId) { return _getDriveData.apply(this, [dataId]); }
 function removeDriveData(dataId) { return _removeDriveData.apply(this, [dataId]); }
 function updateDriveData(driveData) { return _updateDriveData.apply(this, [driveData]); }
+function addJson(driveJson){ return _addJson.apply(this, [driveJson]); }
+function getJson(fileId){ return _getJson.apply(this, [fileId]); }
 function addSpreadsheetData(spreadsheetData) { return _addSpreadsheetData.apply(this, [spreadsheetData]); }
 function getAllSpreadsheetNames() { return _getAllSpreadsheetNames.apply(this, []); }
 function getSpreadsheetData(sheetName) { return _getSpreadsheetData.apply(this, [sheetName]); }

@@ -3,7 +3,6 @@ export interface DriveData {
   fileName: string;
   fileKind: string; // MimeType
   fileDataUrl: string; // dataUrl
-  // uploadDate is represented as an ISO string
   uploadDate: string;
   parentFolderId: string;
 }
@@ -12,7 +11,6 @@ export interface DriveMetadata {
   driveDataId: string;
   fileId: string;
   parentFolderId: string;
-  // lastUpdate is represented as an ISO string
   lastUpdate: string;
   size?: number;
 }
@@ -21,4 +19,12 @@ export interface OperationResult<T = void> {
   status: "success" | "duplicate" | "error";
   data?: T;
   message?: string;
+}
+
+export interface DriveJsonData {
+  metadata: DriveMetadata;
+  fileName: string;
+  jsonText: string;
+  uploadDate: string;
+  parentFolderId: string;
 }

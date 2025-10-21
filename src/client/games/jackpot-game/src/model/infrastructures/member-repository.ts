@@ -47,4 +47,14 @@ export class MemberRepository implements IMemberRepository {
   async deleteMembers(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
   }
+
+  async replaceAllMembers(members: Member[]): Promise<{ replaced: number }> {
+    // clear existing store and save provided members using their ids
+    await this.localStorage.clear();
+    for (const m of members) {
+      const id = m.id || crypto.randomUUID();
+      await this.localStorage.save(id, { ...m, id });
+    }
+    return { replaced: members.length };
+  }
 }
