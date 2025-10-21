@@ -40,4 +40,20 @@ export class PrizeRepository implements IPrizeRepository {
   async deletePrizes(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
   }
+
+  async replaceAllPrizes(prizes: Prize[]): Promise<{ replaced: number }> {
+    // clear existing
+    const all = await this.localStorage.getAll<Prize>();
+    const keys = Array.from(all.keys());
+    if (keys.length) {
+      await this.localStorage.removeMultiple(keys);
+    }
+    // save provided prizes
+    for (const prize of prizes) {
+      const id =
+        prize.id || String(Date.now()) + Math.random().toString(36).slice(2, 8);
+      await this.localStorage.save(id, { ...prize, id });
+    }
+    return { replaced: prizes.length };
+  }
 }

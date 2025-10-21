@@ -235,7 +235,6 @@ const onBufferFileChange = async (e: Event, idx: number) => {
   if (!file) return;
   try {
     const dto = await assetDataService.createDriveDataDtoFromFile(file);
-    // assign to buffer entry
     const entry = addBuffer.value[idx];
     if (entry) {
       entry.photoAsset = dto;
@@ -246,7 +245,6 @@ const onBufferFileChange = async (e: Event, idx: number) => {
     console.error('Failed to create buffer asset DTO', err);
   }
 };
-// buffer indicator (unused intentionally removed)
 
 // modal actions
 const openModal = (mode: 'add' | 'edit', data?: any) => {
@@ -275,7 +273,6 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
       modalPhotoMode.value = 'upload';
       modalPhotoAsset.value = data.photoAsset;
       if (modalPhotoAsset.value) {
-        // create preview from blob
         if (modalPhotoPreviewUrl) {
           try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { }
           modalPhotoPreviewUrl = undefined;

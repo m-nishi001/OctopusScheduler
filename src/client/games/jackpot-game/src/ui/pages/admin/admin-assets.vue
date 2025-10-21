@@ -87,6 +87,16 @@
             <div class="spinner"></div>
         </div>
     </div>
+    <div v-if="showReplaceWarningModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>注意: ローカルデータを置換します</h3>
+            <p>Drive のコンテンツに合わせてローカルのアセットを置換します。既存のローカルアセットは削除されます。続行しますか？</p>
+            <div class="modal-actions">
+                <button class="admin-btn delete-btn" @click.prevent="showReplaceWarningModal = false">キャンセル</button>
+                <button class="admin-btn sync-btn" @click.prevent="performReplaceFromDrive">置換して同期する</button>
+            </div>
+        </div>
+    </div>
     <div v-if="deleteAllDeleting" class="modal-overlay">
         <div class="modal-content">
             <h3>全件削除中...</h3>
@@ -143,6 +153,8 @@ const uploading = ref(false);
 const syncing = ref(false);
 const syncMessage = ref("");
 const showSyncModeModal = ref(false);
+const showReplaceWarningModal = ref(false);
+const pendingSyncMode = ref<"drive" | "local" | null>(null);
 const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
@@ -155,7 +167,7 @@ const fetchAssets = async () => {
             if (a.id && !objectUrlMap.has(a.id)) {
                 objectUrlMap.set(a.id, URL.createObjectURL(a.blob));
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) { }
     }
 };
 
@@ -181,30 +193,24 @@ const addAssets = async () => {
         status: 'アップロード中' as const,
     }));
 
-    // create DTOs while grabbing blobs for preview
     const assetDtos = await Promise.all(selectedFiles.value.map(async (file, idx) => {
         const dto = await assetDataService.createDriveDataDtoFromFile(file);
         const key = dto.id || `tmp-${Date.now()}-${idx}`;
         try { objectUrlMap.set(key, URL.createObjectURL(file)); } catch { }
         return dto;
     }));
-
-    // show a simple global status while assets are being added
     uploadStatuses.value = uploadStatuses.value.map(u => ({ ...u, status: 'アップロード中' }));
-    // UI shows uploading.value spinner; set a message if desired
     let updatedAssets: Asset[] = [];
     try {
         updatedAssets = await assetDataService.addAssetData(assetDtos);
     } catch (e) {
-        // mark all as failed
         uploadStatuses.value = uploadStatuses.value.map(u => ({ ...u, status: '失敗', message: (e as Error).message }));
         console.error('Failed to add assets', e);
         uploading.value = false;
         return;
     }
 
-    // Update per-file statuses. Prefer index-based mapping (same order expected),
-    // fall back to name-based matching if lengths differ.
+
     if (updatedAssets.length === uploadStatuses.value.length) {
         for (let i = 0; i < uploadStatuses.value.length; i++) {
             uploadStatuses.value[i] = { ...uploadStatuses.value[i], status: '完了' };
@@ -228,7 +234,6 @@ const addAssets = async () => {
         });
     }
 
-    // migrate tmp urls to final ids
     for (const ua of updatedAssets) {
         if (ua.id) {
             const tmpKey = Array.from(objectUrlMap.keys()).find(k => k.startsWith('tmp-') && objectUrlMap.get(k)?.includes(ua.name || ''));
@@ -269,7 +274,6 @@ const deleteSelectedAssets = async () => {
         deleteAllMessage.value = `ファイル削除中...\n${progressList.map(p => `${p.name}：${p.status}`).join('\n')}`;
         if (success) assets.value = assets.value.filter(a => a.id !== id);
     });
-    // revoke object URLs for deleted assets
     for (const id of selectedAssets.value) {
         const url = objectUrlMap.get(id);
         if (url) {
@@ -289,23 +293,39 @@ const syncAssets = async () => {
 
 const confirmSyncMode = async (mode: "drive" | "local") => {
     showSyncModeModal.value = false;
+    if (mode === 'drive') {
+        pendingSyncMode.value = 'drive';
+        showReplaceWarningModal.value = true;
+        return;
+    }
+
+    // local wins: upload diffs (existing behavior)
     syncing.value = true;
     syncMessage.value = "";
     try {
-        if (mode === 'local') {
-            // local wins: upload diffs (existing behavior)
-            await assetDataService.syncAssetData((message) => {
-                syncMessage.value = message;
-            });
-            await fetchAssets();
-        } else {
-            // drive wins: replace local store with Drive contents
-            await assetDataService.replaceLocalWithDrive((message) => {
-                syncMessage.value = message;
-            });
-            // reload local listing
-            await fetchAssets();
-        }
+        await assetDataService.syncAssetData((message) => {
+            syncMessage.value = message;
+        });
+        await fetchAssets();
+    } catch (error) {
+        console.error('同期エラー:', error);
+    } finally {
+        syncing.value = false;
+        syncMessage.value = "";
+    }
+};
+
+const performReplaceFromDrive = async () => {
+    showReplaceWarningModal.value = false;
+    if (pendingSyncMode.value !== 'drive') return;
+    pendingSyncMode.value = null;
+    syncing.value = true;
+    syncMessage.value = "";
+    try {
+        await assetDataService.replaceLocalWithDrive((message) => {
+            syncMessage.value = message;
+        });
+        await fetchAssets();
     } catch (error) {
         console.error('同期エラー:', error);
     } finally {

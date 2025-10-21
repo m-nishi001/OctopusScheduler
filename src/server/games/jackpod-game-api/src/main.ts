@@ -38,6 +38,23 @@ const spreadsheetId = PropertiesService.getScriptProperties().getProperty(
 );
 const spreadsheetService = new SpreadsheetService(spreadsheetId);
 
+// Helper: resolve the asset folder id to use for uploads. Prefer provided folderId,
+// otherwise fall back to ScriptProperties key 'jackpot-game-asset-folder-id'.
+function getAssetFolderId(providedFolderId?: string): string {
+  const folderId =
+    providedFolderId ||
+    PropertiesService.getScriptProperties().getProperty(
+      "jackpot-game-asset-folder-id"
+    ) ||
+    "";
+  if (!folderId) {
+    throw new Error(
+      "ScriptProperties 'jackpot-game-asset-folder-id' is not configured and no parentFolderId was provided."
+    );
+  }
+  return folderId;
+}
+
 // Assign global functions
 _addDriveData = (driveData: DriveData): GasResponse<DriveMetadata> => {
   try {
@@ -126,14 +143,7 @@ _removeSpreadsheetData = (sheetName: string): GasResponse<void> => {
 
 _addJson = (driveJson: DriveJsonData): GasResponse<DriveMetadata> => {
   try {
-    const folderId =
-      driveJson.parentFolderId ||
-      PropertiesService.getScriptProperties().getProperty(
-        "jackpot-game-asset-folder-id"
-      ) ||
-      "";
-    if (!folderId)
-      return { status: "error", message: "folderId not configured" };
+    const folderId = getAssetFolderId(driveJson.parentFolderId);
 
     // jsonText is required; create an application/json blob from it.
     const blob = Utilities.newBlob(
@@ -141,7 +151,6 @@ _addJson = (driveJson: DriveJsonData): GasResponse<DriveMetadata> => {
       "application/json",
       driveJson.fileName
     );
-
     const folder = DriveApp.getFolderById(folderId);
     const file = folder.createFile(blob);
     const metadata: DriveMetadata = {

@@ -8,4 +8,5 @@ export interface IPrizeRepository {
     updates: { id: string; updateFn: (prize: Prize) => Prize }[]
   ): Promise<void>;
   deletePrizes(ids: string[]): Promise<void>;
+  replaceAllPrizes(prizes: Prize[]): Promise<{ replaced: number }>;
 }

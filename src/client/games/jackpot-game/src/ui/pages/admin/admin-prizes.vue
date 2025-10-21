@@ -9,6 +9,9 @@
         :disabled="!selectedPrizes.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
       </button>
+      <button class="admin-btn" @click="savePrizesToLocalJson">ローカルに保存</button>
+      <button class="admin-btn" @click="uploadPrizesJsonToDrive">Driveにアップロード</button>
+      <button class="admin-btn" @click="downloadPrizesJsonFromDrive">Driveから読み込み</button>
     </div>
     <div v-if="prizes.length" class="list-controls">
       <label class="select-all-label">
@@ -293,7 +296,6 @@ const prizeService = container.resolve(PrizeService);
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
 const assets = ref<any[]>([]);
-// map to hold object URLs for preview (keyed by DriveData id or temp id)
 const objectUrlMap = new Map<string, string>();
 const imageAssets = computed(() => assets.value.filter(asset => asset.blob.type.startsWith('image')));
 const audioAssets = computed(() => assets.value.filter(asset => asset.blob.type.startsWith('audio')));
@@ -409,7 +411,6 @@ const addPrize = async () => {
     newPrize.bgm2AssetId = newBgm2AssetId.value;
   }
   try {
-    // Pre-register uploaded assets and attach their ids to the prize
     if (tempAsset.value) {
       const updated = await assetDataService.addAssetData([tempAsset.value]);
       const updatedAsset = updated[0];
@@ -429,7 +430,6 @@ const addPrize = async () => {
         }
         objectUrlMap.set(updatedAsset.id, url);
       } catch {
-        // ignore preview failures
       }
       tempAsset.value = null;
     }
@@ -509,6 +509,80 @@ const fetchAssets = async () => {
   } catch (error) {
     console.error("Failed to fetch assets:", error);
     assets.value = [];
+  }
+};
+
+// local JSON export/import for prizes (so we can upload/download via Drive)
+const PRIZE_STORAGE_KEY = 'jackpot-game-prizes-json';
+
+const savePrizesToLocalJson = async () => {
+  try {
+    const payload = JSON.stringify(prizes.value || []);
+    localStorage.setItem(PRIZE_STORAGE_KEY, payload);
+  } catch (e) {
+    console.error('Failed to save prizes JSON to localStorage', e);
+  }
+};
+
+const uploadPrizesJsonToDrive = async () => {
+  try {
+    const json = localStorage.getItem(PRIZE_STORAGE_KEY) || JSON.stringify(prizes.value || []);
+    const service = new (await import('/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service')).GasFunctionService('addJson');
+    const driveJson = {
+      metadata: {
+        driveDataId: 'prizes-json-' + Date.now(),
+        fileId: '',
+        parentFolderId: '',
+        lastUpdate: new Date().toISOString(),
+        size: json.length,
+      },
+      fileName: 'prizes.json',
+      jsonText: json,
+      uploadDate: new Date().toISOString(),
+      parentFolderId: '',
+    };
+    const res = await service.call<any>(driveJson);
+    const fileId = res?.fileId || res?.data?.fileId;
+    if (fileId) {
+      localStorage.setItem('jackpot-prizes-last-file-id', fileId);
+      console.log('Uploaded prizes.json fileId=', fileId);
+    }
+  } catch (e) {
+    console.error('Failed to upload prizes JSON via GAS', e);
+  }
+};
+
+const downloadPrizesJsonFromDrive = async () => {
+  try {
+    const lastId = localStorage.getItem('jackpot-prizes-last-file-id');
+    if (!lastId) {
+      console.warn('No last uploaded prizes file id saved');
+      return;
+    }
+    const GasFn = (await import('/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service')).GasFunctionService;
+    const service = new GasFn('getJson');
+    const resp = await service.call<{ json: string } | null>(lastId);
+    if (resp && resp.json) {
+      const json = resp.json;
+      localStorage.setItem(PRIZE_STORAGE_KEY, json);
+      try {
+        const parsed = JSON.parse(json || '[]');
+        if (Array.isArray(parsed)) {
+          try {
+            await prizeRepo.replaceAllPrizes(parsed as any);
+          } catch (e) {
+            console.error('Failed to persist prizes into local repo:', e);
+          }
+          await fetchPrizes();
+        } else {
+          console.warn('Downloaded prizes JSON is not an array');
+        }
+      } catch (e) {
+        console.error('Failed to parse downloaded prizes JSON', e);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to download prizes JSON via GAS', e);
   }
 };
 
