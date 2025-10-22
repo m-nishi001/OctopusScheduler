@@ -44,106 +44,108 @@
   </div>
 
   <!-- 詳細モーダル -->
-  <div v-if="editPrizeData" class="modal-overlay" @click="editPrizeData = null">
-    <div class="modal-content add-modal-grid" @click.stop>
-      <div class="add-form-column">
-        <h3>景品詳細</h3>
-        <p>景品の情報を編集してください。</p>
+  <div v-if="editPrizeData" class="modal-overlay">
+    <div class="modal-content wide-modal" @click.stop>
+      <div class="add-modal-grid">
+        <div class="add-form-column">
+          <h3>景品詳細</h3>
+          <p>景品の情報を編集してください。</p>
 
-        <div class="field-block">
-          <label class="field-label">名前</label>
-          <input v-model="editName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">確率</label>
-          <input v-model.number="editProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
-            class="admin-input" />
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">順位</label>
-          <input v-model.number="editRank" type="number" placeholder="順位" min="1" class="admin-input" />
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">画像</label>
-          <div class="image-mode">
-            <label><input type="radio" v-model="editImageMode" value="upload" /> アップロード</label>
-            <label><input type="radio" v-model="editImageMode" value="select" /> 既存から選択</label>
+          <div class="field-block">
+            <label class="field-label">名前</label>
+            <input v-model="editName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
           </div>
 
-          <div style="margin-top:10px">
-            <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange" accept="image/*"
+          <div class="field-block">
+            <label class="field-label">確率</label>
+            <input v-model.number="editProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
               class="admin-input" />
-            <div v-if="editImageMode === 'upload' && editImageFilename" class="file-name">{{ editImageFilename }}
+          </div>
+
+          <div class="field-block">
+            <label class="field-label">順位</label>
+            <input v-model.number="editRank" type="number" placeholder="順位" min="1" class="admin-input" />
+          </div>
+
+          <div class="field-block">
+            <label class="field-label">画像</label>
+            <div class="image-mode">
+              <div class="image-radio-group">
+                <label><input type="radio" v-model="editImageMode" value="upload" /> アップロード</label>
+                <label><input type="radio" v-model="editImageMode" value="select" /> 既存から選択</label>
+              </div>
+              <div class="image-select-group">
+                <select v-if="editImageMode === 'select'" v-model="editImageAssetId" class="admin-input">
+                  <option value="">選択なし</option>
+                  <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <div v-if="editImageMode === 'upload'" class="image-file-input-wrap">
+                  <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
+                  <span v-if="editImageFilename" class="file-name" style="margin-left:8px">{{ editImageFilename
+                    }}</span>
+                </div>
+              </div>
             </div>
-
-            <select v-if="editImageMode === 'select'" v-model="editImageAssetId" class="admin-input"
-              style="margin-top:8px">
-              <option value="">選択なし</option>
-              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">BGM1</label>
-          <div class="bgm-mode">
-            <label><input type="radio" v-model="editBgm1Mode" value="upload" /> アップロード</label>
-            <label><input type="radio" v-model="editBgm1Mode" value="select" /> 既存から選択</label>
           </div>
 
-          <div style="margin-top:10px">
-            <input v-if="editBgm1Mode === 'upload'" type="file" @change="onEditBgm1Change" accept="audio/*"
-              class="admin-input" />
-            <div v-if="editBgm1Mode === 'upload' && editBgm1Filename" class="file-name">{{ editBgm1Filename }}
+          <div class="field-block span-2">
+            <label class="field-label">BGM1</label>
+            <div class="bgm-mode">
+              <div class="bgm-radio-group">
+                <label><input type="radio" v-model="editBgm1Mode" value="upload" /> アップロード</label>
+                <label><input type="radio" v-model="editBgm1Mode" value="select" /> 既存から選択</label>
+              </div>
+              <div class="bgm-select-group">
+                <select v-if="editBgm1Mode === 'select'" v-model="editBgm1AssetId" class="admin-input">
+                  <option value="">選択なし</option>
+                  <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <div v-if="editBgm1Mode === 'upload'" class="bgm-file-input-wrap">
+                  <input type="file" @change="onEditBgm1Change" accept="audio/*" class="admin-input" />
+                  <span v-if="editBgm1Filename" class="file-name" style="margin-left:8px">{{ editBgm1Filename }}</span>
+                </div>
+              </div>
             </div>
-
-            <select v-if="editBgm1Mode === 'select'" v-model="editBgm1AssetId" class="admin-input"
-              style="margin-top:8px">
-              <option value="">選択なし</option>
-              <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">BGM2</label>
-          <div class="bgm-mode">
-            <label><input type="radio" v-model="editBgm2Mode" value="upload" /> アップロード</label>
-            <label><input type="radio" v-model="editBgm2Mode" value="select" /> 既存から選択</label>
           </div>
 
-          <div style="margin-top:10px">
-            <input v-if="editBgm2Mode === 'upload'" type="file" @change="onEditBgm2Change" accept="audio/*"
-              class="admin-input" />
-            <div v-if="editBgm2Mode === 'upload' && editBgm2Filename" class="file-name">{{ editBgm2Filename }}
+          <div class="field-block span-2">
+            <label class="field-label">BGM2</label>
+            <div class="bgm-mode">
+              <div class="bgm-radio-group">
+                <label><input type="radio" v-model="editBgm2Mode" value="upload" /> アップロード</label>
+                <label><input type="radio" v-model="editBgm2Mode" value="select" /> 既存から選択</label>
+              </div>
+              <div class="bgm-select-group">
+                <select v-if="editBgm2Mode === 'select'" v-model="editBgm2AssetId" class="admin-input">
+                  <option value="">選択なし</option>
+                  <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <div v-if="editBgm2Mode === 'upload'" class="bgm-file-input-wrap">
+                  <input type="file" @change="onEditBgm2Change" accept="audio/*" class="admin-input" />
+                  <span v-if="editBgm2Filename" class="file-name" style="margin-left:8px">{{ editBgm2Filename }}</span>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <select v-if="editBgm2Mode === 'select'" v-model="editBgm2AssetId" class="admin-input"
-              style="margin-top:8px">
-              <option value="">選択なし</option>
-              <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
+        </div>
+
+        <div class="add-side-column">
+          <div class="preview-box">
+            <template v-if="editImagePreview">
+              <img :src="editImagePreview" alt="preview" class="preview-img" />
+            </template>
+            <template v-else>
+              <div class="preview-placeholder">プレビュー</div>
+            </template>
           </div>
         </div>
 
-      </div>
-
-      <div class="add-side-column">
-        <div class="preview-box">
-          <template v-if="editImagePreview">
-            <img :src="editImagePreview" alt="preview" class="preview-img" />
-          </template>
-          <template v-else>
-            <div class="preview-placeholder">プレビュー</div>
-          </template>
-        </div>
       </div>
 
       <div class="modal-footer">
-        <div class="admin-modal-buttons">
+        <div class="footer-left"></div>
+        <div class="footer-right admin-modal-buttons">
           <button class="admin-btn" @click="saveEdit">保存</button>
           <button class="admin-btn cancel-primary" @click="editPrizeData = null">キャンセル</button>
         </div>
@@ -153,100 +155,105 @@
 
   <!-- 追加モーダル -->
   <div v-if="showAddModal" class="modal-overlay">
-    <div class="modal-content add-modal-grid">
-      <div class="add-form-column">
-        <h3>景品を追加</h3>
-        <p>追加する景品の情報を入力してください。</p>
-        <div class="field-block">
-          <label class="field-label">名前</label>
-          <input v-model="newPrizeName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">確率</label>
-          <input v-model.number="newPrizeProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
-            class="admin-input" />
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">順位</label>
-          <input v-model.number="newPrizeRank" type="number" placeholder="順位" min="1" class="admin-input" />
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">画像</label>
-          <div class="image-mode">
-            <label><input type="radio" v-model="newImageMode" value="upload" /> アップロード</label>
-            <label><input type="radio" v-model="newImageMode" value="select" /> 既存から選択</label>
+    <div class="modal-content wide-modal">
+      <div class="add-modal-grid">
+        <div class="add-form-column">
+          <h3>景品を追加</h3>
+          <p>追加する景品の情報を入力してください。</p>
+          <div class="field-block span-2">
+            <label class="field-label">名前</label>
+            <input v-model="newPrizeName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
           </div>
-          <div style="margin-top:10px">
-            <input v-if="newImageMode === 'upload'" type="file" @change="onNewImageChange" accept="image/*"
-              class="admin-input" />
-            <div v-if="newImageMode === 'upload' && newImageFilename" class="file-name">{{ newImageFilename }}
+
+          <div class="two-col span-2">
+            <div class="field-block">
+              <label class="field-label">確率</label>
+              <input v-model.number="newPrizeProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
+                class="admin-input" />
             </div>
-
-            <select v-if="newImageMode === 'select'" v-model="newImageAssetId" class="admin-input"
-              style="margin-top:8px">
-              <option value="">選択なし</option>
-              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">BGM1</label>
-          <div class="bgm-mode">
-            <label><input type="radio" v-model="newBgm1Mode" value="upload" /> アップロード</label>
-            <label><input type="radio" v-model="newBgm1Mode" value="select" /> 既存から選択</label>
-          </div>
-
-          <div style="margin-top:10px">
-            <input v-if="newBgm1Mode === 'upload'" type="file" @change="onNewBgm1Change" accept="audio/*"
-              class="admin-input" />
-            <div v-if="newBgm1Mode === 'upload' && newBgm1Filename" class="file-name">{{ newBgm1Filename }}
+            <div class="field-block">
+              <label class="field-label">順位</label>
+              <input v-model.number="newPrizeRank" type="number" placeholder="順位" min="1" class="admin-input" />
             </div>
-
-            <select v-if="newBgm1Mode === 'select'" v-model="newBgm1AssetId" class="admin-input" style="margin-top:8px">
-              <option value="">選択なし</option>
-              <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">BGM2</label>
-          <div class="bgm-mode">
-            <label><input type="radio" v-model="newBgm2Mode" value="upload" /> アップロード</label>
-            <label><input type="radio" v-model="newBgm2Mode" value="select" /> 既存から選択</label>
           </div>
 
-          <div style="margin-top:10px">
-            <input v-if="newBgm2Mode === 'upload'" type="file" @change="onNewBgm2Change" accept="audio/*"
-              class="admin-input" />
-            <div v-if="newBgm2Mode === 'upload' && newBgm2Filename" class="file-name">{{ newBgm2Filename }}
+          <div class="field-block span-2">
+            <label class="field-label">画像</label>
+            <div class="image-mode">
+              <div class="image-radio-group">
+                <label><input type="radio" v-model="newImageMode" value="upload" /> アップロード</label>
+                <label><input type="radio" v-model="newImageMode" value="select" /> 既存から選択</label>
+              </div>
+              <div class="image-select-group">
+                <select v-if="newImageMode === 'select'" v-model="newImageAssetId" class="admin-input">
+                  <option value="">選択なし</option>
+                  <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <div v-if="newImageMode === 'upload'" class="image-file-input-wrap">
+                  <input type="file" @change="onNewImageChange" accept="image/*" class="admin-input" />
+                  <span v-if="newImageFilename" class="file-name" style="margin-left:8px">{{ newImageFilename }}</span>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <select v-if="newBgm2Mode === 'select'" v-model="newBgm2AssetId" class="admin-input" style="margin-top:8px">
-              <option value="">選択なし</option>
-              <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
+          <div class="field-block span-2">
+            <label class="field-label">BGM1</label>
+            <div class="bgm-mode">
+              <div class="bgm-radio-group">
+                <label><input type="radio" v-model="newBgm1Mode" value="upload" /> アップロード</label>
+                <label><input type="radio" v-model="newBgm1Mode" value="select" /> 既存から選択</label>
+              </div>
+              <div class="bgm-select-group">
+                <select v-if="newBgm1Mode === 'select'" v-model="newBgm1AssetId" class="admin-input">
+                  <option value="">選択なし</option>
+                  <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <div v-if="newBgm1Mode === 'upload'" class="bgm-file-input-wrap">
+                  <input type="file" @change="onNewBgm1Change" accept="audio/*" class="admin-input" />
+                  <span v-if="newBgm1Filename" class="file-name" style="margin-left:8px">{{ newBgm1Filename }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-block span-2">
+            <label class="field-label">BGM2</label>
+            <div class="bgm-mode">
+              <div class="bgm-radio-group">
+                <label><input type="radio" v-model="newBgm2Mode" value="upload" /> アップロード</label>
+                <label><input type="radio" v-model="newBgm2Mode" value="select" /> 既存から選択</label>
+              </div>
+              <div class="bgm-select-group">
+                <select v-if="newBgm2Mode === 'select'" v-model="newBgm2AssetId" class="admin-input">
+                  <option value="">選択なし</option>
+                  <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <div v-if="newBgm2Mode === 'upload'" class="bgm-file-input-wrap">
+                  <input type="file" @change="onNewBgm2Change" accept="audio/*" class="admin-input" />
+                  <span v-if="newBgm2Filename" class="file-name" style="margin-left:8px">{{ newBgm2Filename }}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="add-side-column">
-        <div class="preview-box">
-          <template v-if="newImagePreview">
-            <img :src="newImagePreview" alt="preview" class="preview-img" />
-          </template>
-          <template v-else>
-            <div class="preview-placeholder">プレビュー</div>
-          </template>
+        <div class="add-side-column">
+          <div class="preview-box">
+            <template v-if="newImagePreview">
+              <img :src="newImagePreview" alt="preview" class="preview-img" />
+            </template>
+            <template v-else>
+              <div class="preview-placeholder">プレビュー</div>
+            </template>
+          </div>
         </div>
+
       </div>
 
       <div class="modal-footer">
-        <div class="admin-modal-buttons">
+        <div class="footer-left"></div>
+        <div class="footer-right admin-modal-buttons">
           <button class="admin-btn" @click="confirmAdd"
             :disabled="!newPrizeName.trim() || !newPrizeProbability || adding">追加</button>
           <button class="admin-btn cancel-primary" @click="closeAddModal" :disabled="adding">キャンセル</button>
@@ -961,12 +968,12 @@ onBeforeUnmount(() => {
 }
 
 .admin-input {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 8px;
   border: none;
   background: #232b36;
   color: #fff;
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
@@ -1076,13 +1083,77 @@ onBeforeUnmount(() => {
 
 .bgm-mode {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
 }
 
 .bgm-mode label {
   color: #fff;
   font-weight: 700;
+}
+
+.bgm-radio-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Prevent radio label text from wrapping */
+.bgm-radio-group label {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ensure the overall bgm-mode doesn't wrap its children */
+.bgm-mode {
+  flex-wrap: nowrap;
+}
+
+.bgm-select-group {
+  min-width: 220px;
+}
+
+.bgm-file-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bgm-file-input-wrap .admin-input[type="file"] {
+  padding: 6px 10px;
+  min-width: 140px;
+}
+
+/* Image selection inline groups (mirror BGM styles) */
+.image-radio-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.image-select-group {
+  min-width: 220px;
+}
+
+.image-file-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.image-file-input-wrap .admin-input[type="file"] {
+  padding: 6px 10px;
+  min-width: 140px;
+}
+
+.image-radio-group label {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .prize-input-group {
@@ -1110,6 +1181,19 @@ onBeforeUnmount(() => {
   z-index: 1000;
 }
 
+/* hide overlay native scrollbar by default */
+.modal-overlay {
+  -ms-overflow-style: none;
+  /* IE/Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.modal-overlay::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 .modal-content {
   background: #232b36;
   color: #fff;
@@ -1121,23 +1205,64 @@ onBeforeUnmount(() => {
   width: 90%;
 }
 
+/* Wide modal class (applied only to large add/edit dialogs) */
+.modal-content.wide-modal {
+  width: 70vw;
+  max-width: none;
+  flex: 0 0 70vw;
+  margin: 0 auto;
+  /* constrain height and allow internal scrolling */
+  height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
 .add-modal-grid {
   display: grid;
   grid-template-columns: 1fr 260px;
-  gap: 12px;
+  gap: 14px;
   align-items: start;
   margin-top: 12px;
+  /* allow the grid area to expand inside the modal */
+  flex: 1 1 auto;
+  min-height: 0;
+  /* allow children to shrink and scroll correctly */
+  overflow: auto;
+  /* reserve scrollbar gutter to prevent content shift when scrollbar appears */
+  /* Use scrollbar-gutter where supported and a fallback padding reserve for others */
+  scrollbar-gutter: stable both-edges;
+  --scrollbar-reserve: 16px;
+  padding-right: var(--scrollbar-reserve);
+  box-sizing: border-box;
+}
+
+/* show a thin native scrollbar by default inside the modal grid (Firefox + WebKit) */
+.add-modal-grid {
+  /* Firefox */
+  scrollbar-width: thin;
+  /* IE/Edge legacy - use auto to allow visible bar */
+  -ms-overflow-style: auto;
+}
+
+/* WebKit (Chrome, Safari) */
+.add-modal-grid::-webkit-scrollbar {
+  width: 10px;
+}
+
+.add-modal-grid::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
 }
 
 .add-form-column .field-label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   color: #cfe8ff;
   font-weight: 600;
 }
 
 .field-block {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .add-side-column {
@@ -1147,9 +1272,32 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
+/* two-column layout for form inputs */
+.add-form-column {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px 18px;
+}
+
+.add-form-column .span-2 {
+  grid-column: 1 / -1;
+}
+
+.two-col {
+  display: contents;
+  /* allow children to flow into grid columns */
+}
+
+.buffer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: space-between;
+}
+
 .preview-box {
-  width: 240px;
-  height: 240px;
+  width: 200px;
+  height: 200px;
   background: #2a3137;
   border-radius: 8px;
   display: flex;
@@ -1178,8 +1326,23 @@ onBeforeUnmount(() => {
 .modal-footer {
   grid-column: 1 / -1;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   margin-top: 18px;
+  flex: 0 0 auto;
+}
+
+.footer-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.footer-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .admin-modal-buttons {
