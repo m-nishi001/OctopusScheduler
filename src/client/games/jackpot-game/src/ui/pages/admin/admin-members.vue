@@ -45,7 +45,7 @@
   <!-- 追加/編集モーダル -->
   <div v-if="modalMode" class="modal-overlay">
     <div class="modal-content wide-modal" @click.stop>
-      <div class="add-modal-grid">
+      <div class="add-modal-grid" :style="addModalGridStyle">
         <!-- Left: buffer list (only for add mode) -->
         <div class="buffer-column" v-if="modalMode === 'add'">
           <h3>追加するメンバー</h3>
@@ -92,12 +92,10 @@
                   <div style="margin-top:10px">
                     <input v-if="addBuffer[selectedBufferIndex].photoMode === 'upload'" type="file"
                       @change="onBufferFileChange($event, selectedBufferIndex)" accept="image/*" class="admin-input" />
-                    <div v-if="bufferPreviewMap.get(selectedBufferIndex)" class="file-name" style="margin-top:8px">
-                      <img :src="bufferPreviewMap.get(selectedBufferIndex)"
-                        style="width:72px;height:72px;object-fit:cover;border-radius:6px" />
-                    </div>
+                    <!-- small inline thumbnail removed to avoid duplicate preview; main preview box below shows the image -->
                     <select v-if="addBuffer[selectedBufferIndex].photoMode === 'select'"
-                      v-model="addBuffer[selectedBufferIndex].photoAssetId" class="admin-input" style="margin-top:8px">
+                      v-model="addBuffer[selectedBufferIndex].photoAssetId"
+                      @change="onBufferAssetSelect(selectedBufferIndex)" class="admin-input" style="margin-top:8px">
                       <option value="">選択なし</option>
                       <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                     </select>
@@ -302,8 +300,8 @@ const tempAsset = ref<Asset | null>(null);
 const addBuffer = ref<Array<{ name: string; rank: number; photoAsset?: Asset | null; photoAssetId?: string; photoMode?: string }>>([]);
 // currently selected buffer index in the left list
 const selectedBufferIndex = ref<number | null>(null);
-// per-buffer preview URLs (keyed by buffer index)
-const bufferPreviewMap = new Map<number, string>();
+// per-buffer preview URLs (keyed by buffer index) — make reactive so template updates
+const bufferPreviewMap = ref<Record<number, string>>({});
 
 const onBufferFileChange = async (e: Event, idx: number) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -313,11 +311,57 @@ const onBufferFileChange = async (e: Event, idx: number) => {
     const entry = addBuffer.value[idx];
     if (entry) {
       entry.photoAsset = dto;
+      // revoke previous preview URL for this buffer index
+      const prev = bufferPreviewMap.value[idx];
+      if (prev) {
+        try { URL.revokeObjectURL(prev); } catch { }
+        delete bufferPreviewMap.value[idx];
+      }
       // create preview URL
-      try { const url = URL.createObjectURL(file); bufferPreviewMap.set(idx, url); } catch { }
+      try { const url = URL.createObjectURL(file); bufferPreviewMap.value[idx] = url; } catch { }
     }
   } catch (err) {
     console.error('Failed to create buffer asset DTO', err);
+  }
+};
+
+// when selecting an existing asset from the buffer select dropdown, create/use a preview URL
+const onBufferAssetSelect = async (idx: number | null) => {
+  if (idx === null) return;
+  const entry = addBuffer.value[idx];
+  if (!entry) return;
+  const assetId = entry.photoAssetId;
+  // revoke any existing preview for this index
+  const prev = bufferPreviewMap.value[idx];
+  if (prev) {
+    try { URL.revokeObjectURL(prev); } catch { }
+    delete bufferPreviewMap.value[idx];
+  }
+  if (!assetId) {
+    // cleared selection
+    entry.photoAsset = null;
+    return;
+  }
+
+  // try to find asset in the loaded assets
+  let asset: Asset | null = assets.value.find(a => a.id === assetId) || null;
+  if (!asset) {
+    // fallback: fetch via service
+    try {
+      asset = await assetDataService.getAssetDataById(assetId);
+    } catch (e) {
+      console.error('Failed to fetch asset for buffer select', e);
+    }
+  }
+  if (asset) {
+    entry.photoAsset = asset as any;
+    // use existing objectUrl if available (cached for members), else create one for buffer preview
+    const cached = objectUrlMap.get(assetId);
+    if (cached) {
+      bufferPreviewMap.value[idx] = cached;
+    } else {
+      try { const url = URL.createObjectURL(asset.blob); bufferPreviewMap.value[idx] = url; } catch { }
+    }
   }
 };
 
@@ -464,7 +508,7 @@ const onModalPhotoChange = async (e: Event) => {
 // return a preview src for a buffer index (uploaded preview first, then existing asset object URL)
 const getBufferPreviewSrc = (idx: number | null) => {
   if (idx === null) return '';
-  const url = bufferPreviewMap.get(idx);
+  const url = bufferPreviewMap.value[idx];
   if (url) return url;
   const assetId = addBuffer.value[idx]?.photoAssetId;
   if (assetId) return objectUrlMap.get(assetId) || '';
@@ -483,10 +527,10 @@ onBeforeUnmount(() => {
     }
     objectUrlMap.clear();
     // revoke buffer preview urls
-    for (const url of bufferPreviewMap.values()) {
+    for (const url of Object.values(bufferPreviewMap.value)) {
       try { URL.revokeObjectURL(url); } catch { }
     }
-    bufferPreviewMap.clear();
+    bufferPreviewMap.value = {};
   } catch { }
 });
 
@@ -508,8 +552,19 @@ const addMember = async () => {
       tempAsset.value = null;
     }
     const addedMember = await memberService.saveMember(newMember);
-    if (previewBlob) {
-      try { (addedMember as any).photoDataUrl = URL.createObjectURL(previewBlob); } catch { (addedMember as any).photoDataUrl = ''; }
+    if (previewBlob && newMember.photoAssetId) {
+      try {
+        const url = URL.createObjectURL(previewBlob);
+        objectUrlMap.set(newMember.photoAssetId, url);
+        (addedMember as any).photoDataUrl = url;
+      } catch { (addedMember as any).photoDataUrl = ''; }
+    } else if (newMember.photoAssetId && !objectUrlMap.has(newMember.photoAssetId)) {
+      try {
+        const asset = await assetDataService.getAssetDataById(newMember.photoAssetId);
+        if (asset && asset.blob) {
+          try { objectUrlMap.set(newMember.photoAssetId, URL.createObjectURL(asset.blob)); } catch { }
+        }
+      } catch (e) { /* ignore */ }
     }
     members.value.push(addedMember);
     await saveMembersToLocalJson();
@@ -551,20 +606,19 @@ const addBufferRow = () => {
 };
 
 const removeBuffer = (idx: number) => {
-  const url = bufferPreviewMap.get(idx);
+  const url = bufferPreviewMap.value[idx];
   if (url) {
     try { URL.revokeObjectURL(url); } catch { }
-    bufferPreviewMap.delete(idx);
+    delete bufferPreviewMap.value[idx];
   }
   addBuffer.value.splice(idx, 1);
   // reindex bufferPreviewMap
-  const newMap = new Map<number, string>();
+  const newObj: Record<number, string> = {};
   for (let i = 0; i < addBuffer.value.length; i++) {
-    const existing = bufferPreviewMap.get(i >= idx ? i + 1 : i);
-    if (existing) newMap.set(i, existing);
+    const existing = bufferPreviewMap.value[i >= idx ? i + 1 : i];
+    if (existing) newObj[i] = existing;
   }
-  bufferPreviewMap.clear();
-  for (const [k, v] of newMap) bufferPreviewMap.set(k, v);
+  bufferPreviewMap.value = newObj;
   // adjust selected index
   if (selectedBufferIndex.value !== null) {
     if (selectedBufferIndex.value === idx) {
@@ -576,6 +630,11 @@ const removeBuffer = (idx: number) => {
 };
 
 const clearBuffer = () => {
+  // revoke any buffer preview URLs
+  for (const url of Object.values(bufferPreviewMap.value)) {
+    try { URL.revokeObjectURL(url); } catch { }
+  }
+  bufferPreviewMap.value = {};
   addBuffer.value = [];
   selectedBufferIndex.value = null;
 };
@@ -603,9 +662,21 @@ const bulkSaveMembers = async () => {
         photoAssetId: photoId,
       } as any;
       const saved = await memberService.saveMember(dto);
-      // if we had a blob preview for this buffer, ensure member preview exists
-      if (b.photoAsset && saved) {
-        try { (saved as any).photoDataUrl = URL.createObjectURL(b.photoAsset.blob); } catch { }
+      // if we had a blob preview for this buffer, ensure member preview exists and cache object URL
+      if (b.photoAsset && saved && photoId) {
+        try {
+          const url = URL.createObjectURL(b.photoAsset.blob);
+          try { objectUrlMap.set(photoId, url); } catch { }
+          (saved as any).photoDataUrl = url;
+        } catch { }
+      } else if (photoId && !objectUrlMap.has(photoId)) {
+        // if asset existed (selected) but not cached, try to fetch and cache
+        try {
+          const asset = await assetDataService.getAssetDataById(photoId);
+          if (asset && asset.blob) {
+            try { objectUrlMap.set(photoId, URL.createObjectURL(asset.blob)); } catch { }
+          }
+        } catch (e) { /* ignore */ }
       }
       members.value.push(saved);
     }
@@ -613,16 +684,18 @@ const bulkSaveMembers = async () => {
     addBuffer.value = [];
     selectedBufferIndex.value = null;
     await saveMembersToLocalJson();
+    // close the add modal after successful save
+    closeModal();
   } catch (e) {
     console.error('Failed to bulk save members', e);
   } finally {
     adding.value = false;
   }
   // cleanup previews
-  for (const url of bufferPreviewMap.values()) {
+  for (const url of Object.values(bufferPreviewMap.value)) {
     try { URL.revokeObjectURL(url); } catch { }
   }
-  bufferPreviewMap.clear();
+  bufferPreviewMap.value = {};
 };
 
 // member sync modal (mirrors admin-assets flow)
@@ -798,6 +871,11 @@ const fetchAssets = async () => {
     assets.value = [];
   }
 };
+
+// grid style for add/edit modal: show left buffer column only in add mode
+const addModalGridStyle = computed(() => {
+  return { gridTemplateColumns: modalMode.value === 'add' ? '260px 1fr' : '1fr' } as any;
+});
 
 onMounted(async () => {
   await fetchMembers();
