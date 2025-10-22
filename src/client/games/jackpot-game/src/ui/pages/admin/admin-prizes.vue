@@ -14,7 +14,7 @@
         <span class="emoji">🗑️</span>
       </button>
 
-      <!-- Sync actions are handled via modal (matches admin-assets) -->
+      
     </div>
     <div v-if="prizes.length" class="list-controls">
       <label class="select-all-label">
@@ -43,7 +43,7 @@
     </div>
   </div>
 
-  <!-- 詳細モーダル -->
+  
   <div v-if="editPrizeData" class="modal-overlay">
     <div class="modal-content wide-modal" @click.stop>
       <div class="add-modal-grid">
@@ -153,7 +153,7 @@
     </div>
   </div>
 
-  <!-- 追加モーダル -->
+  
   <div v-if="showAddModal" class="modal-overlay">
     <div class="modal-content wide-modal">
       <div class="add-modal-grid">
@@ -262,7 +262,7 @@
     </div>
   </div>
 
-  <!-- 削除確認モーダル -->
+  
   <div v-if="showDeleteModal" class="modal-overlay">
     <div class="modal-content">
       <h3>景品を削除</h3>
@@ -274,7 +274,7 @@
     </div>
   </div>
 
-  <!-- 削除中モーダル -->
+  
   <div v-if="deleting" class="modal-overlay">
     <div class="modal-content">
       <h3>削除中...</h3>
@@ -283,7 +283,7 @@
     </div>
   </div>
 
-  <!-- 同期中モーダル -->
+  
   <div v-if="syncing" class="modal-overlay">
     <div class="modal-content">
       <h3>サーバーと同期中...</h3>
@@ -292,7 +292,7 @@
     </div>
   </div>
 
-  <!-- 同期モード選択モーダル (ローカル優先 / Drive優先) -->
+  
   <div v-if="showSyncModeModal" class="modal-overlay">
     <div class="modal-content">
       <h3>同期モードを選択</h3>
@@ -305,7 +305,7 @@
     </div>
   </div>
 
-  <!-- 置換警告モーダル (Drive優先を選んだとき) -->
+  
   <div v-if="showReplaceWarningModal" class="modal-overlay">
     <div class="modal-content">
       <h3>注意: ローカルデータを置換します</h3>

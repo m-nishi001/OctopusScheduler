@@ -104,7 +104,6 @@
             <div class="spinner"></div>
         </div>
     </div>
-    <!-- Preview modal -->
     <div v-if="showPreviewModal" class="modal-overlay" @click.self="closePreview">
         <div class="modal-content preview-modal">
             <h3>アセットプレビュー</h3>

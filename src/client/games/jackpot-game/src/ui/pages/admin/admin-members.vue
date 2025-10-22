@@ -13,7 +13,6 @@
         <span class="emoji">🗑️</span>
       </button>
 
-      <!-- Sync actions are handled via modal (matches admin-assets) -->
     </div>
     <div v-if="members.length" class="list-controls">
       <label class="select-all-label">
@@ -42,11 +41,10 @@
     </div>
   </div>
 
-  <!-- 追加/編集モーダル -->
   <div v-if="modalMode" class="modal-overlay">
     <div class="modal-content wide-modal" @click.stop>
       <div class="add-modal-grid" :style="addModalGridStyle">
-        <!-- Left: buffer list (only for add mode) -->
+
         <div class="buffer-column" v-if="modalMode === 'add'">
           <h3>追加するメンバー</h3>
           <div class="buffer-list">
@@ -57,7 +55,7 @@
             </div>
             <div v-if="addBuffer.length === 0" style="color:#cfe8ff;padding:8px">+ を押して新しいメンバーを追加してください</div>
           </div>
-          <!-- buffer actions moved to modal footer so they align with Cancel -->
+
         </div>
 
         <!-- Middle: form -->
@@ -65,7 +63,7 @@
           <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
           <p v-if="modalMode === 'add'">左のリストからメンバーを選択して内容を編集できます。新しいメンバーは＋で追加。</p>
 
-          <!-- when in add mode and a buffer item is selected, edit that buffer item -->
+
           <template v-if="modalMode === 'add'">
             <div v-if="addBuffer.length">
               <div v-if="selectedBufferIndex !== null">
@@ -92,7 +90,6 @@
                   <div style="margin-top:10px">
                     <input v-if="addBuffer[selectedBufferIndex].photoMode === 'upload'" type="file"
                       @change="onBufferFileChange($event, selectedBufferIndex)" accept="image/*" class="admin-input" />
-                    <!-- small inline thumbnail removed to avoid duplicate preview; main preview box below shows the image -->
                     <select v-if="addBuffer[selectedBufferIndex].photoMode === 'select'"
                       v-model="addBuffer[selectedBufferIndex].photoAssetId"
                       @change="onBufferAssetSelect(selectedBufferIndex)" class="admin-input" style="margin-top:8px">
@@ -107,7 +104,7 @@
             <div v-else style="color:#cfe8ff">+ を押して新しいメンバーを追加してください</div>
           </template>
 
-          <!-- edit single member mode -->
+
           <template v-if="modalMode === 'edit'">
             <div class="two-col">
               <div class="field-block">
@@ -142,7 +139,7 @@
             </div>
           </template>
 
-          <!-- preview area (moved into the form column) -->
+
           <div class="preview-in-form" style="margin-top:16px"
             v-if="modalMode === 'edit' || (modalMode === 'add' && selectedBufferIndex !== null)">
             <div class="preview-box">
@@ -155,7 +152,7 @@
                 </template>
               </template>
               <template v-else>
-                <!-- preview for selected buffer -->
+
                 <template v-if="selectedBufferIndex !== null && getBufferPreviewSrc(selectedBufferIndex)">
                   <img :src="getBufferPreviewSrc(selectedBufferIndex)" alt="preview" class="preview-img" />
                 </template>
@@ -169,7 +166,7 @@
         </div>
       </div>
 
-      <!-- Preview is now part of the form column (see above) -->
+
 
       <div class="modal-footer">
         <div class="footer-left">
@@ -189,7 +186,7 @@
     </div>
   </div>
 
-  <!-- メンバー同期モード選択 -->
+
   <div v-if="showMemberSyncModal" class="modal-overlay">
     <div class="modal-content">
       <h3>メンバー同期モードを選択</h3>
@@ -202,7 +199,7 @@
     </div>
   </div>
 
-  <!-- 置換警告モーダル (Drive優先を選んだとき) -->
+
   <div v-if="showReplaceWarningModal" class="modal-overlay">
     <div class="modal-content">
       <h3>注意: ローカルデータを置換します</h3>
@@ -214,7 +211,7 @@
     </div>
   </div>
 
-  <!-- 削除確認モーダル -->
+
   <div v-if="showDeleteModal" class="modal-overlay">
     <div class="modal-content">
       <h3>メンバーを削除</h3>
@@ -226,7 +223,7 @@
     </div>
   </div>
 
-  <!-- 削除中モーダル -->
+
   <div v-if="deleting" class="modal-overlay">
     <div class="modal-content">
       <h3>削除中...</h3>
@@ -235,7 +232,7 @@
     </div>
   </div>
 
-  <!-- 同期中モーダル -->
+
   <div v-if="syncing" class="modal-overlay">
     <div class="modal-content">
       <h3>サーバーと同期中...</h3>
