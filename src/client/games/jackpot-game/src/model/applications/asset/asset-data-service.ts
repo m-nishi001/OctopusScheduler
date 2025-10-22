@@ -45,6 +45,6 @@ export class AssetDataService {
 
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {
     const now = new Date().toISOString();
-    return new Asset("", file.type, file.name, now, now, 0, file);
+    return new Asset("", file.type, file.name, now, now, file.size ?? 0, file);
   }
 }
