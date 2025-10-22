@@ -39,7 +39,7 @@
                     <tr v-for="asset in assets" :key="asset.id">
                         <td><input type="checkbox" v-model="selectedAssets" :value="asset.id" /></td>
                         <td class="thumb-cell">
-                            <div class="thumb-wrap">
+                            <div class="thumb-wrap" @click.stop="openPreview(asset)" title="プレビュー">
                                 <img v-if="(asset.blob && asset.blob.type && asset.blob.type.startsWith('image')) && objectUrlMap.get(asset.id)"
                                     :src="objectUrlMap.get(asset.id)" alt="thumb" class="thumb-img" />
 
@@ -104,6 +104,36 @@
             <div class="spinner"></div>
         </div>
     </div>
+    <!-- Preview modal -->
+    <div v-if="showPreviewModal" class="modal-overlay" @click.self="closePreview">
+        <div class="modal-content preview-modal">
+            <h3>アセットプレビュー</h3>
+            <div class="preview-body">
+                <div class="preview-media">
+                    <img v-if="previewAsset?.blob && previewAsset.blob.type && previewAsset.blob.type.startsWith('image') && previewUrl"
+                        :src="previewUrl" alt="preview image" class="preview-img" />
+
+                    <video
+                        v-else-if="previewAsset?.blob && previewAsset.blob.type && previewAsset.blob.type.startsWith('video') && previewUrl"
+                        :src="previewUrl" controls class="preview-video"></video>
+
+                    <audio
+                        v-else-if="previewAsset?.blob && previewAsset.blob.type && previewAsset.blob.type.startsWith('audio') && previewUrl"
+                        :src="previewUrl" controls class="preview-audio"></audio>
+
+                    <div v-else class="preview-empty">プレビューできません</div>
+                </div>
+                <div class="preview-info">
+                    <p><strong>ファイル名:</strong> {{ previewAsset?.name }}</p>
+                    <p><strong>サイズ:</strong> {{ previewAsset ? formatSize(previewAsset.size) : '-' }}</p>
+                    <p><strong>種別:</strong> {{ prettyAssetType(previewAsset?.blob?.type) }}</p>
+                    <div style="margin-top:12px; text-align:right;">
+                        <button class="admin-btn" @click.prevent="closePreview">閉じる</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -159,6 +189,59 @@ const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
 const objectUrlMap = new Map<string, string>();
+
+// Preview modal state
+const showPreviewModal = ref(false);
+const previewAsset = ref<Asset | null>(null);
+const previewUrl = ref<string | null>(null);
+
+function objectUrlIsManaged(url: string | null) {
+    if (!url) return false;
+    for (const v of objectUrlMap.values()) {
+        if (v === url) return true;
+    }
+    return false;
+}
+
+const openPreview = async (asset: Asset) => {
+    previewAsset.value = asset;
+    previewUrl.value = null;
+    // If we already have an object URL for this asset, reuse it
+    if (asset.id && objectUrlMap.has(asset.id)) {
+        previewUrl.value = objectUrlMap.get(asset.id) || null;
+    } else if (asset.blob) {
+        try {
+            previewUrl.value = URL.createObjectURL(asset.blob);
+        } catch (e) {
+            previewUrl.value = null;
+        }
+    } else if (asset.id) {
+        // try fetching full asset data (may bring blob)
+        try {
+            const a = await assetDataService.getAssetDataById(asset.id);
+            if (a) {
+                previewAsset.value = a;
+                if (a.blob) {
+                    previewUrl.value = URL.createObjectURL(a.blob);
+                }
+            }
+        } catch (e) {
+            console.error('プレビュー取得エラー', e);
+        }
+    }
+
+    showPreviewModal.value = true;
+};
+
+const closePreview = () => {
+    showPreviewModal.value = false;
+    // revoke preview URL only if we created it here and it's not managed elsewhere
+    if (previewUrl.value && !objectUrlIsManaged(previewUrl.value)) {
+        try { URL.revokeObjectURL(previewUrl.value); } catch { }
+    }
+    previewUrl.value = null;
+    previewAsset.value = null;
+};
 
 const fetchAssets = async () => {
     assets.value = await assetDataService.getAllAssetData();
@@ -255,6 +338,9 @@ onBeforeUnmount(() => {
         try { URL.revokeObjectURL(url); } catch { }
     }
     objectUrlMap.clear();
+    if (previewUrl.value && !objectUrlIsManaged(previewUrl.value)) {
+        try { URL.revokeObjectURL(previewUrl.value); } catch { }
+    }
 });
 
 
@@ -796,5 +882,41 @@ function prettyAssetType(mime: string | undefined): string {
 
 .thumb-empty {
     color: #9fb7d6;
+}
+
+.preview-modal .preview-body {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+}
+
+.preview-modal .preview-media {
+    flex: 1 1 60%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #111315;
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 220px;
+}
+
+.preview-img,
+.preview-video,
+.preview-audio {
+    max-width: 100%;
+    max-height: 420px;
+    display: block;
+}
+
+.preview-info {
+    flex: 0 0 320px;
+    padding: 8px 12px;
+    background: #1f262b;
+    border-radius: 8px;
+}
+
+.preview-empty {
+    color: #c9d7e6;
 }
 </style>
