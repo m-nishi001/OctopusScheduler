@@ -9,6 +9,16 @@ export default defineConfig({
     target: "es2020",
     outDir: "dist",
   },
+  server: {
+    host: true,
+    port: 5173,
+    strictPort: false,
+    hmr: {
+      protocol: "ws",
+      host: "localhost",
+      port: 5173,
+    },
+  },
   resolve: {
     alias: {
       "@server": resolve(__dirname, "../../../../server"),
