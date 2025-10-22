@@ -45,84 +45,134 @@
   <!-- 追加/編集モーダル -->
   <div v-if="modalMode" class="modal-overlay" @click="closeModal">
     <div class="modal-content add-modal-grid" @click.stop>
+      <!-- Left: buffer list (only for add mode) -->
+      <div class="buffer-column" v-if="modalMode === 'add'">
+        <h3>追加するメンバー</h3>
+        <div class="buffer-list" style="max-height:360px;overflow:auto;border:1px solid #444;padding:8px">
+          <div v-for="(b, idx) in addBuffer" :key="idx" class="buffer-item"
+            :class="{ active: selectedBufferIndex === idx }" @click="selectedBufferIndex = idx">
+            <span class="buffer-name">{{ b.name || '新しいメンバー' }}</span>
+            <button class="admin-btn" @click.stop.prevent="removeBuffer(idx)">×</button>
+          </div>
+          <div v-if="addBuffer.length === 0" style="color:#cfe8ff;padding:8px">+ を押して新しいメンバーを追加してください</div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <button class="admin-btn" @click.prevent="addBufferRow">＋</button>
+          <button class="admin-btn" @click.prevent="bulkSaveMembers" :disabled="!addBuffer.length">保存</button>
+          <button class="admin-btn cancel-primary" @click.prevent="clearBuffer">クリア</button>
+        </div>
+      </div>
+
+      <!-- Middle: form -->
       <div class="add-form-column">
         <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
-        <p v-if="modalMode === 'add'">追加するメンバーの情報を入力してください。</p>
+        <p v-if="modalMode === 'add'">左のリストからメンバーを選択して内容を編集できます。新しいメンバーは＋で追加。</p>
 
-        <div v-if="modalMode === 'add'" class="multi-add-controls" style="margin-bottom:12px">
-          <label class="field-label">追加するメンバー一覧</label>
-          <div class="buffer-list" style="max-height:160px;overflow:auto;border:1px solid #444;padding:8px">
-            <div v-for="(b, idx) in addBuffer" :key="idx"
-              style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              <input v-model="b.name" class="admin-input" style="flex:1" />
-              <input v-model.number="b.rank" type="number" min="1" class="admin-input" style="width:80px" />
-              <input type="file" accept="image/*" @change="onBufferFileChange($event, idx)" style="width:160px" />
-              <div v-if="bufferPreviewMap.get(idx)" style="width:48px;height:48px;overflow:hidden;border-radius:4px">
-                <img :src="bufferPreviewMap.get(idx)" style="width:100%;height:100%;object-fit:cover" />
+        <!-- when in add mode and a buffer item is selected, edit that buffer item -->
+        <template v-if="modalMode === 'add'">
+          <div v-if="addBuffer.length">
+            <div v-if="selectedBufferIndex !== null">
+              <div class="field-block">
+                <label class="field-label">名前</label>
+                <input v-model="addBuffer[selectedBufferIndex].name" type="text" placeholder="メンバー名"
+                  class="admin-input member-name-input" />
               </div>
-              <button class="admin-btn" @click.prevent="removeBuffer(idx)">×</button>
+              <div class="field-block">
+                <label class="field-label">ランク</label>
+                <input v-model.number="addBuffer[selectedBufferIndex].rank" type="number" placeholder="ランク" min="1"
+                  :max="modalMaxRank" step="1" class="admin-input" />
+              </div>
+              <div class="field-block">
+                <label class="field-label">写真</label>
+                <div class="photo-mode">
+                  <label><input type="radio" v-model="addBuffer[selectedBufferIndex].photoMode" value="upload" />
+                    アップロード</label>
+                  <label><input type="radio" v-model="addBuffer[selectedBufferIndex].photoMode" value="select" />
+                    既存から選択</label>
+                </div>
+                <div style="margin-top:10px">
+                  <input v-if="addBuffer[selectedBufferIndex].photoMode === 'upload'" type="file"
+                    @change="onBufferFileChange($event, selectedBufferIndex)" accept="image/*" class="admin-input" />
+                  <div v-if="bufferPreviewMap.get(selectedBufferIndex)" class="file-name" style="margin-top:8px">
+                    <img :src="bufferPreviewMap.get(selectedBufferIndex)"
+                      style="width:72px;height:72px;object-fit:cover;border-radius:6px" />
+                  </div>
+                  <select v-if="addBuffer[selectedBufferIndex].photoMode === 'select'"
+                    v-model="addBuffer[selectedBufferIndex].photoAssetId" class="admin-input" style="margin-top:8px">
+                    <option value="">選択なし</option>
+                    <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div v-if="addBuffer.length === 0" style="color:#cfe8ff">+ を押して新しいメンバーを追加してください</div>
+            <div v-else style="color:#cfe8ff">編集するメンバーを左のリストから選択してください。</div>
           </div>
-          <div style="margin-top:8px;display:flex;gap:8px">
-            <button class="admin-btn" @click.prevent="addBufferRow">＋</button>
-            <button class="admin-btn" @click.prevent="bulkSaveMembers" :disabled="!addBuffer.length">保存</button>
-            <button class="admin-btn cancel-primary" @click.prevent="clearBuffer">クリア</button>
-          </div>
-        </div>
+          <div v-else style="color:#cfe8ff">+ を押して新しいメンバーを追加してください</div>
+        </template>
 
-        <div class="field-block">
-          <label class="field-label">名前</label>
-          <input v-model="modalName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">ランク</label>
-          <input v-model.number="modalRank" type="number" placeholder="ランク" min="1" :max="modalMaxRank" step="1"
-            class="admin-input" />
-        </div>
-
-        <div class="field-block">
-          <label class="field-label">写真</label>
-          <div class="photo-mode">
-            <label><input type="radio" v-model="modalPhotoMode" value="upload" /> アップロード</label>
-            <label><input type="radio" v-model="modalPhotoMode" value="select" /> 既存から選択</label>
+        <!-- edit single member mode -->
+        <template v-if="modalMode === 'edit'">
+          <div class="field-block">
+            <label class="field-label">名前</label>
+            <input v-model="modalName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
           </div>
 
-          <div style="margin-top:10px">
-            <input v-if="modalPhotoMode === 'upload'" type="file" @change="onModalPhotoChange" accept="image/*"
+          <div class="field-block">
+            <label class="field-label">ランク</label>
+            <input v-model.number="modalRank" type="number" placeholder="ランク" min="1" :max="modalMaxRank" step="1"
               class="admin-input" />
-            <div v-if="modalPhotoMode === 'upload' && modalPhotoFilename" class="file-name">{{ modalPhotoFilename }}
-            </div>
-
-            <select v-if="modalPhotoMode === 'select'" v-model="photoAssetId" class="admin-input"
-              style="margin-top:8px">
-              <option value="">選択なし</option>
-              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-            </select>
           </div>
-        </div>
+
+          <div class="field-block">
+            <label class="field-label">写真</label>
+            <div class="photo-mode">
+              <label><input type="radio" v-model="modalPhotoMode" value="upload" /> アップロード</label>
+              <label><input type="radio" v-model="modalPhotoMode" value="select" /> 既存から選択</label>
+            </div>
+            <div style="margin-top:10px">
+              <input v-if="modalPhotoMode === 'upload'" type="file" @change="onModalPhotoChange" accept="image/*"
+                class="admin-input" />
+              <div v-if="modalPhotoMode === 'upload' && modalPhotoFilename" class="file-name">{{ modalPhotoFilename }}
+              </div>
+              <select v-if="modalPhotoMode === 'select'" v-model="photoAssetId" class="admin-input"
+                style="margin-top:8px">
+                <option value="">選択なし</option>
+                <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+              </select>
+            </div>
+          </div>
+        </template>
 
       </div>
 
+      <!-- Right: preview -->
       <div class="add-side-column">
         <div class="preview-box">
-          <template v-if="modalPhotoPreview">
-            <img :src="modalPhotoPreview" alt="preview" class="preview-img" />
+          <template v-if="modalMode === 'edit'">
+            <template v-if="modalPhotoPreview">
+              <img :src="modalPhotoPreview" alt="preview" class="preview-img" />
+            </template>
+            <template v-else>
+              <div class="preview-placeholder">プレビュー</div>
+            </template>
           </template>
           <template v-else>
-            <div class="preview-placeholder">プレビュー</div>
+            <!-- preview for selected buffer -->
+            <template v-if="selectedBufferIndex !== null && getBufferPreviewSrc(selectedBufferIndex)">
+              <img :src="getBufferPreviewSrc(selectedBufferIndex)" alt="preview" class="preview-img" />
+            </template>
+            <template v-else>
+              <div class="preview-placeholder">プレビュー</div>
+            </template>
           </template>
         </div>
       </div>
 
       <div class="modal-footer">
         <div class="admin-modal-buttons">
-          <button class="admin-btn" @click="confirmModal"
-            :disabled="modalMode === 'edit' && (!modalName.trim() || modalRank < 1 || adding)">{{
-              modalMode === 'add'
-                ?
-                '追加' : '保存' }}</button>
+          <button v-if="modalMode === 'edit'" class="admin-btn" @click="confirmModal"
+            :disabled="!modalName.trim() || modalRank < 1 || adding">保存</button>
+          <button v-else class="admin-btn" @click="confirmModal">閉じる</button>
           <button class="admin-btn cancel-primary" @click="closeModal">キャンセル</button>
         </div>
       </div>
@@ -237,7 +287,9 @@ const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
 const tempAsset = ref<Asset | null>(null);
 // buffer for multi-add
-const addBuffer = ref<Array<{ name: string; rank: number; photoAsset?: Asset | null; photoAssetId?: string }>>([]);
+const addBuffer = ref<Array<{ name: string; rank: number; photoAsset?: Asset | null; photoAssetId?: string; photoMode?: string }>>([]);
+// currently selected buffer index in the left list
+const selectedBufferIndex = ref<number | null>(null);
 // per-buffer preview URLs (keyed by buffer index)
 const bufferPreviewMap = new Map<number, string>();
 
@@ -397,6 +449,16 @@ const onModalPhotoChange = async (e: Event) => {
   }
 };
 
+// return a preview src for a buffer index (uploaded preview first, then existing asset object URL)
+const getBufferPreviewSrc = (idx: number | null) => {
+  if (idx === null) return '';
+  const url = bufferPreviewMap.get(idx);
+  if (url) return url;
+  const assetId = addBuffer.value[idx]?.photoAssetId;
+  if (assetId) return objectUrlMap.get(assetId) || '';
+  return '';
+};
+
 onBeforeUnmount(() => {
   if (modalPhotoPreviewUrl) {
     try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { };
@@ -471,7 +533,9 @@ const deleteMember = async (id: string) => {
 
 // multi-add buffer actions
 const addBufferRow = () => {
-  addBuffer.value.push({ name: '', rank: members.value.length + addBuffer.value.length + 1, photoAsset: null });
+  addBuffer.value.push({ name: '', rank: members.value.length + addBuffer.value.length + 1, photoAsset: null, photoMode: 'upload', photoAssetId: '' });
+  // auto-select the newly added row
+  selectedBufferIndex.value = addBuffer.value.length - 1;
 };
 
 const removeBuffer = (idx: number) => {
@@ -489,10 +553,19 @@ const removeBuffer = (idx: number) => {
   }
   bufferPreviewMap.clear();
   for (const [k, v] of newMap) bufferPreviewMap.set(k, v);
+  // adjust selected index
+  if (selectedBufferIndex.value !== null) {
+    if (selectedBufferIndex.value === idx) {
+      selectedBufferIndex.value = null;
+    } else if (selectedBufferIndex.value > idx) {
+      selectedBufferIndex.value = selectedBufferIndex.value - 1;
+    }
+  }
 };
 
 const clearBuffer = () => {
   addBuffer.value = [];
+  selectedBufferIndex.value = null;
 };
 
 const bulkSaveMembers = async () => {
@@ -508,6 +581,8 @@ const bulkSaveMembers = async () => {
         } catch (e) {
           console.error('Failed to upload buffered photo:', e);
         }
+      } else if (b.photoAssetId) {
+        photoId = b.photoAssetId;
       }
       const dto = {
         id: '',
@@ -516,10 +591,15 @@ const bulkSaveMembers = async () => {
         photoAssetId: photoId,
       } as any;
       const saved = await memberService.saveMember(dto);
+      // if we had a blob preview for this buffer, ensure member preview exists
+      if (b.photoAsset && saved) {
+        try { (saved as any).photoDataUrl = URL.createObjectURL(b.photoAsset.blob); } catch { }
+      }
       members.value.push(saved);
     }
     // clear buffer and persist
     addBuffer.value = [];
+    selectedBufferIndex.value = null;
     await saveMembersToLocalJson();
   } catch (e) {
     console.error('Failed to bulk save members', e);
@@ -962,10 +1042,49 @@ watch(modalPhotoMode, () => {
 
 .add-modal-grid {
   display: grid;
-  grid-template-columns: 1fr 260px;
-  gap: 12px;
+  /* left: buffer list, center: form, right: preview */
+  grid-template-columns: 240px 1fr 240px;
+  gap: 18px;
   align-items: start;
   margin-top: 12px;
+  width: 100%;
+}
+
+.buffer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.buffer-list {
+  background: #1f262b;
+  border-radius: 6px;
+  padding: 8px;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid rgba(68, 68, 68, 0.8);
+}
+
+.buffer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.buffer-item.active {
+  background: linear-gradient(90deg, rgba(79, 140, 255, 0.12), rgba(174, 225, 255, 0.04));
+}
+
+.buffer-name {
+  color: #dfefff;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .add-form-column .field-label {

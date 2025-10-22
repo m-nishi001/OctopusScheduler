@@ -12,6 +12,8 @@
     "sourceMap": true /* ソースマップを生成する。デバッグに便利。 */,
     "composite": true /* 複合プロジェクトを有効にする（オプション、大規模プロジェクト向け）。 */,
     "strict": true /* 全ての厳格な型チェックオプションを有効にする。強く推奨。 */,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     /* 厳格な型チェックオプション（`"strict": true`に含まれるが、個別に設定することも可能） */
     "noImplicitAny": true /* 'any'型の暗黙的な使用を禁止する。 */,
     "strictNullChecks": true /* nullおよびundefinedに対する厳格なチェックを有効にする。 */,
