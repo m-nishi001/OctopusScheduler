@@ -82,7 +82,7 @@
                 <div v-if="editImageMode === 'upload'" class="image-file-input-wrap">
                   <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
                   <span v-if="editImageFilename" class="file-name" style="margin-left:8px">{{ editImageFilename
-                    }}</span>
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -671,7 +671,7 @@ const onEditBgm2Change = async (e: Event) => {
   }
 };
 
-const editPrize = (prize: any) => {
+const editPrize = async (prize: any) => {
   editPrizeData.value = prize;
   editName.value = prize.name;
   editProbability.value = prize.probability;
@@ -686,6 +686,17 @@ const editPrize = (prize: any) => {
     editImageMode.value = 'select';
     editImageAssetId.value = prize.imageAssetId;
     editImagePreview.value = objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId;
+    // ensure the referenced asset exists in the assets list so the <select> has an option
+    try {
+      const exists = assets.value.find((a: any) => a.id === prize.imageAssetId);
+      if (!exists) {
+        const fetched = await assetDataService.getAssetDataById(prize.imageAssetId);
+        if (fetched) assets.value.push(fetched);
+      }
+    } catch (e) {
+      // non-fatal: dropdown may still be empty, but preview will show from objectUrlMap
+      console.warn('Failed to fetch image asset for edit select:', e);
+    }
   } else if (prize.imageDataUrl) {
     // prize stores inline data URL for persistence; convert to Blob and create object URL for UI
     editImageMode.value = 'select';
@@ -720,12 +731,32 @@ const editPrize = (prize: any) => {
   if (prize.bgm1AssetId) {
     editBgm1Mode.value = 'select';
     editBgm1AssetId.value = prize.bgm1AssetId;
+    // ensure bgm1 asset present in assets list
+    try {
+      const exists1 = assets.value.find((a: any) => a.id === prize.bgm1AssetId);
+      if (!exists1) {
+        const fetched1 = await assetDataService.getAssetDataById(prize.bgm1AssetId);
+        if (fetched1) assets.value.push(fetched1);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch bgm1 asset for edit select:', e);
+    }
   } else {
     editBgm1Mode.value = 'upload';
   }
   if (prize.bgm2AssetId) {
     editBgm2Mode.value = 'select';
     editBgm2AssetId.value = prize.bgm2AssetId;
+    // ensure bgm2 asset present in assets list
+    try {
+      const exists2 = assets.value.find((a: any) => a.id === prize.bgm2AssetId);
+      if (!exists2) {
+        const fetched2 = await assetDataService.getAssetDataById(prize.bgm2AssetId);
+        if (fetched2) assets.value.push(fetched2);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch bgm2 asset for edit select:', e);
+    }
   } else {
     editBgm2Mode.value = 'upload';
   }
@@ -1226,8 +1257,9 @@ onBeforeUnmount(() => {
   /* allow the grid area to expand inside the modal */
   flex: 1 1 auto;
   min-height: 0;
-  /* allow children to shrink and scroll correctly */
-  overflow: auto;
+  /* allow vertical scrolling only; prevent horizontal scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
   /* reserve scrollbar gutter to prevent content shift when scrollbar appears */
   /* Use scrollbar-gutter where supported and a fallback padding reserve for others */
   scrollbar-gutter: stable both-edges;
@@ -1242,6 +1274,18 @@ onBeforeUnmount(() => {
   scrollbar-width: thin;
   /* IE/Edge legacy - use auto to allow visible bar */
   -ms-overflow-style: auto;
+}
+
+/* Ensure grid children are allowed to shrink and won't force horizontal overflow */
+.add-modal-grid,
+.add-form-column,
+.add-side-column {
+  min-width: 0;
+}
+
+/* hide any accidental horizontal overflow inside the wide modal */
+.modal-content.wide-modal {
+  overflow-x: hidden;
 }
 
 /* WebKit (Chrome, Safari) */
