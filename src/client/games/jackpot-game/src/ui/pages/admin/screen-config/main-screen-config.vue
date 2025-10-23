@@ -5,7 +5,7 @@
             <div class="screen-config">
                 <h3>本抽選画面設定</h3>
 
-                <!-- メンバー抽選のBGM -->
+
                 <div class="config-item">
                     <label>メンバー抽選のBGM:</label>
                     <div v-for="(_, index) in localConfig.memberLotteryBgms" :key="index" class="bgm-item">
@@ -19,7 +19,7 @@
                     <button @click="addMemberBgm" class="add-btn">BGM追加</button>
                 </div>
 
-                <!-- 景品単位で抽選音楽 -->
+
                 <div class="config-item">
                     <label>景品単位で抽選音楽:</label>
                     <div v-for="prize in prizes" :key="prize.id" class="prize-music-item">
@@ -32,7 +32,7 @@
                                     class="admin-input">
                                     <option value="">選択なし</option>
                                     <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
+                                    }}</option>
                                 </select>
                             </div>
                             <div>
@@ -42,14 +42,14 @@
                                     class="admin-input">
                                     <option value="">選択なし</option>
                                     <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
+                                    }}</option>
                                 </select>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 確変タイミング -->
+
                 <div class="config-item">
                     <label>確変タイミング (景品が何個出てきたら):</label>
                     <input type="number" v-model.number="localConfig.variableTiming" :min="1" :max="maxVariableTiming"
@@ -57,7 +57,7 @@
                     <div class="hint">1 から {{ maxVariableTiming }} の範囲で入力してください。</div>
                 </div>
 
-                <!-- 景品単位での抽選アニメーション -->
+
                 <div class="config-item">
                     <label>景品単位での抽選アニメーション:</label>
                     <div v-for="prize in prizes" :key="prize.id" class="prize-animation-item">
@@ -97,7 +97,7 @@
                     </div>
                 </div>
 
-                <!-- アニメーションプレビュー -->
+
                 <div v-if="previewVisible" class="animation-preview">
                     <h4>アニメーションプレビュー</h4>
                     <RouletteAnimation v-if="previewType === 'roulette'" :prizes="prizes" :selectedPrize="previewPrize"
@@ -118,7 +118,7 @@
                     :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
                 <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
-            <!-- ロードモーダル -->
+
             <div v-if="loading" class="modal-overlay">
                 <div class="modal-content">
                     <h3>{{ loadingStatus || 'データを読み込み中...' }}</h3>
@@ -126,7 +126,7 @@
                     <div class="spinner"></div>
                 </div>
             </div>
-            <!-- 保存モーダル -->
+
             <div v-if="saving" class="modal-overlay">
                 <div class="modal-content">
                     <h3>保存中...</h3>
@@ -134,7 +134,7 @@
                     <div class="spinner"></div>
                 </div>
             </div>
-            <!-- 同期モーダル -->
+
             <div v-if="syncing" class="modal-overlay">
                 <div class="modal-content">
                     <h3>同期中...</h3>
@@ -229,7 +229,7 @@ const handleSaveClick = async () => {
     saving.value = true;
     saveStatus.value = '保存中...';
     try {
-        // no converters: save raw config object
+
         const payload = {
             memberLotteryBgms: localConfig.value.memberLotteryBgms,
             prizeLotteryMusics: localConfig.value.prizeLotteryMusics,
@@ -349,7 +349,7 @@ const maxVariableTiming = computed(() => prizes.value.length);
     color: #fff;
 }
 
-/* Prevent inputs and flex children from causing horizontal overflow */
+
 .admin-input {
     box-sizing: border-box;
     max-width: 100%;

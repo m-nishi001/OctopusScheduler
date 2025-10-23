@@ -62,7 +62,7 @@
                 :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
         </div>
     </div>
-    <!-- 保存モーダル -->
+
     <div v-if="saving" class="modal-overlay">
         <div class="modal-content">
             <h3>保存中...</h3>
@@ -70,7 +70,7 @@
             <div class="spinner"></div>
         </div>
     </div>
-    <!-- 同期モーダル -->
+
     <div v-if="syncing" class="modal-overlay">
         <div class="modal-content">
             <h3>同期中...</h3>
@@ -289,7 +289,7 @@ const handleSaveClick = async () => {
     color: #fff;
 }
 
-/* Prevent inputs and flex children from causing horizontal overflow */
+
 .admin-input {
     box-sizing: border-box;
     max-width: 100%;
