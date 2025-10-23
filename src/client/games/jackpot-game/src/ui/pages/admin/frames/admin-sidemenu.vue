@@ -19,10 +19,11 @@
         </li>
         <li class="submenu">
           <div class="menu-link submenu-toggle" @click="toggleScreensSubmenu">
-            <span class="icon">🖥️</span> 画面設定
+            <span class="icon">🖥️</span>
+            <span class="label">画面設定</span>
             <span class="arrow" :class="{ open: screensSubmenuOpen }">▶</span>
           </div>
-          <ul v-if="screensSubmenuOpen" class="submenu-list">
+          <ul v-show="screensSubmenuOpen" :class="['submenu-list', { open: screensSubmenuOpen }]">
             <li>
               <router-link to="/jackpot-admin/screens/home" class="submenu-link">ホーム</router-link>
             </li>
@@ -64,9 +65,9 @@ const toggleScreensSubmenu = () => {
 <style scoped>
 .admin-sidebar {
   width: 220px;
-  background: #222731;
+  background: linear-gradient(180deg,#1f2328 0%, #222731 100%);
   color: #fff;
-  padding: 16px 0;
+  padding: 18px 0;
   align-self: stretch;
   min-height: 0;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
@@ -88,18 +89,31 @@ const toggleScreensSubmenu = () => {
 .menu-link {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   color: #fff;
   text-decoration: none;
-  font-weight: 500;
-  padding: 10px 20px;
+  font-weight: 600;
+  padding: 12px 18px;
   border-radius: 12px;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s;
+}
+
+.menu-link .icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.menu-link .label {
+  flex: 1 1 auto;
 }
 
 .menu-link:hover {
-  background: #3a4660;
-  color: #aee1ff;
+  background: #2f3b52;
+  color: #bfe9ff;
 }
 
 .router-link-active.menu-link {
@@ -131,11 +145,15 @@ const toggleScreensSubmenu = () => {
 
 .submenu-list {
   list-style: none;
-  padding: 0;
-  margin: 0;
-  background: #3a4660;
-  border-radius: 8px;
+  padding: 6px;
+  margin: 0 12px;
+  background: rgba(58, 70, 96, 0.14);
+  border-radius: 10px;
   margin-top: 8px;
+  box-shadow: 0 6px 18px rgba(15, 22, 44, 0.28);
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.28s ease, padding 0.18s ease;
 }
 
 .submenu-list li {
@@ -144,14 +162,22 @@ const toggleScreensSubmenu = () => {
 
 .submenu-link {
   display: block;
-  color: #fff;
+  color: #eaf6ff;
   text-decoration: none;
-  padding: 10px 24px 10px 40px;
-  font-size: 0.9em;
-  transition: background 0.2s;
+  padding: 10px 20px 10px 36px;
+  font-size: 0.95em;
+  transition: background 0.18s ease, color 0.18s ease;
+  border-radius: 8px;
 }
 
 .submenu-link:hover {
-  background: #4f8cff;
+  background: rgba(79, 140, 255, 0.12);
+  color: #ffffff;
+}
+
+.submenu-list.open {
+  /* allow room for the items - big enough for this menu */
+  max-height: 420px;
+  padding: 8px;
 }
 </style>
