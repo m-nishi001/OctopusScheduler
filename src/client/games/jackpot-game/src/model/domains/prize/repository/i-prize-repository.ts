@@ -1,5 +1,8 @@
 import type { Prize } from "../prize";
 
+// Runtime DI token for IPrizeRepository
+export const IPrizeRepositoryToken = Symbol("IPrizeRepository");
+
 export interface IPrizeRepository {
   getPrizes(): Promise<Prize[]>;
   getPrizeById(id: string): Promise<Prize | null>;

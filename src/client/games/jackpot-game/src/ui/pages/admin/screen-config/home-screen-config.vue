@@ -110,25 +110,30 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useScreenSettingData } from './use-screen-setting-data';
-import { HomeScreenSetting } from '../../../../model/domains/screen-config/home-screen-setting';
-import { HomeScreenConfigConverter } from '../../../../model/applications/screen-config/home/home-screen-config-converter';
 import { container } from 'tsyringe';
+import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
 import type { Asset } from "../../../../model/domains/drive-data/asset-data";
 
-const {
-    screenConfigService,
-    audioAssets,
-    loading,
-    loadingStatus,
-    saving,
-    saveStatus,
-    uploading,
-    handleSave,
-    onTempAssets,
-    assetService,
-    fetchAssets,
-} = useScreenSettingData();
+const screenSettingsService = container.resolve(ScreenSettingsService);
+const assetService = container.resolve(AssetDataService);
+
+const audioAssets = ref<any[]>([]);
+const loading = ref(false);
+const loadingStatus = ref('');
+const saving = ref(false);
+const saveStatus = ref('');
+const uploading = ref(false);
+
+const fetchAssets = async () => {
+    try {
+        audioAssets.value = await assetService.getAllAssetData();
+    } catch (e) {
+        audioAssets.value = [];
+    }
+};
+
+const tempAssets: Asset[] = [];
 
 const syncing = ref(false);
 const syncStatus = ref("");
@@ -152,22 +157,22 @@ const localConfig = ref({
 
 const loadConfig = async () => {
     try {
-        const config = await screenConfigService.fetchScreenConfig("home");
-        if (config) {
-            localConfig.value.homeBgm = (config as any).homeBgm || "";
+        const cfg = await screenSettingsService.fetchScreenSetting('home', 'home-screen-settings');
+        if (cfg) {
+            localConfig.value.homeBgm = (cfg as any).homeBgm || "";
             localConfig.value.homeBgmMode = "select";
             localConfig.value.homeBgmFilename = "";
             localConfig.value.homeBgmTempAsset = null;
-            localConfig.value.buttonClikingSE = (config as any).buttonClikingSE || "";
+            localConfig.value.buttonClikingSE = (cfg as any).buttonClikingSE || "";
             localConfig.value.buttonClikingSEMode = "select";
             localConfig.value.buttonClikingSEFilename = "";
             localConfig.value.buttonClikingSETempAsset = null;
-            localConfig.value.onCompletedLoadingSE = (config as any).onCompletedLoadingSE || "";
+            localConfig.value.onCompletedLoadingSE = (cfg as any).onCompletedLoadingSE || "";
             localConfig.value.onCompletedLoadingSEMode = "select";
             localConfig.value.onCompletedLoadingSEFilename = "";
             localConfig.value.onCompletedLoadingSETempAsset = null;
-            localConfig.value.title = (config as any).title || "2025年度 ジャックポッド大会！";
-            localConfig.value.subtitle = (config as any).subtitle || "";
+            localConfig.value.title = (cfg as any).title || "2025年度 ジャックポッド大会！";
+            localConfig.value.subtitle = (cfg as any).subtitle || "";
         }
     } catch (error) {
         console.error("Failed to load home config:", error);
@@ -180,7 +185,7 @@ const onHomeBgmChange = async (e: Event) => {
         const dto = await assetService.createDriveDataDtoFromFile(file);
         localConfig.value.homeBgmTempAsset = dto;
         localConfig.value.homeBgmFilename = file.name;
-        onTempAssets([dto]);
+        tempAssets.push(dto);
     }
 };
 
@@ -190,7 +195,7 @@ const onButtonClikingSEChange = async (e: Event) => {
         const dto = await assetService.createDriveDataDtoFromFile(file);
         localConfig.value.buttonClikingSETempAsset = dto;
         localConfig.value.buttonClikingSEFilename = file.name;
-        onTempAssets([dto]);
+        tempAssets.push(dto);
     }
 };
 
@@ -200,62 +205,43 @@ const onOnCompletedLoadingSEChange = async (e: Event) => {
         const dto = await assetService.createDriveDataDtoFromFile(file);
         localConfig.value.onCompletedLoadingSETempAsset = dto;
         localConfig.value.onCompletedLoadingSEFilename = file.name;
-        onTempAssets([dto]);
+        tempAssets.push(dto);
     }
 };
 
 const handleSaveClick = async () => {
-    await handleSave(async () => {
-        // Collect temp assets
-        const tempAssetsToAdd: Asset[] = [];
-        if (localConfig.value.homeBgmTempAsset) tempAssetsToAdd.push(localConfig.value.homeBgmTempAsset);
-        if (localConfig.value.buttonClikingSETempAsset) tempAssetsToAdd.push(localConfig.value.buttonClikingSETempAsset);
-        if (localConfig.value.onCompletedLoadingSETempAsset) tempAssetsToAdd.push(localConfig.value.onCompletedLoadingSETempAsset);
-
-        // Upload temp assets and get IDs
-        let homeBgmId = localConfig.value.homeBgm;
-        let buttonClikingSEId = localConfig.value.buttonClikingSE;
-        let onCompletedLoadingSEId = localConfig.value.onCompletedLoadingSE;
-
-        if (tempAssetsToAdd.length > 0) {
-            const updatedAssets = await assetService.addAssetData(tempAssetsToAdd);
-            // Update temp assets with new IDs
-            localConfig.value.homeBgmTempAsset = updatedAssets.find(a => a.name === localConfig.value.homeBgmTempAsset?.name) || localConfig.value.homeBgmTempAsset;
-            localConfig.value.buttonClikingSETempAsset = updatedAssets.find(a => a.name === localConfig.value.buttonClikingSETempAsset?.name) || localConfig.value.buttonClikingSETempAsset;
-            localConfig.value.onCompletedLoadingSETempAsset = updatedAssets.find(a => a.name === localConfig.value.onCompletedLoadingSETempAsset?.name) || localConfig.value.onCompletedLoadingSETempAsset;
-            homeBgmId = localConfig.value.homeBgmTempAsset?.id || localConfig.value.homeBgm;
-            buttonClikingSEId = localConfig.value.buttonClikingSETempAsset?.id || localConfig.value.buttonClikingSE;
-            onCompletedLoadingSEId = localConfig.value.onCompletedLoadingSETempAsset?.id || localConfig.value.onCompletedLoadingSE;
-        }
-
-        const config = new HomeScreenSetting(
-            homeBgmId,
-            buttonClikingSEId,
-            onCompletedLoadingSEId,
-            localConfig.value.title,
-            localConfig.value.subtitle
-        );
-        const converter = container.resolve(HomeScreenConfigConverter);
-        const settings = converter.toSettings(config);
-        await screenConfigService.saveScreenConfigs(settings);
+    saving.value = true;
+    saveStatus.value = '保存中...';
+    try {
+        const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
+        const payload = {
+            homeBgm: localConfig.value.homeBgm || localConfig.value.homeBgmTempAsset?.id || '',
+            buttonClikingSE: localConfig.value.buttonClikingSE || localConfig.value.buttonClikingSETempAsset?.id || '',
+            onCompletedLoadingSE: localConfig.value.onCompletedLoadingSE || localConfig.value.onCompletedLoadingSETempAsset?.id || '',
+            title: localConfig.value.title,
+            subtitle: localConfig.value.subtitle,
+        };
+        await screenSettingsService.saveScreenSetting('home', 'home-screen-settings', payload, uploads.length ? uploads : undefined);
         await loadConfig();
         await fetchAssets();
-
-        // Register references for newly uploaded assets
-        if (tempAssetsToAdd.length > 0) {
-        }
-    });
+        saveStatus.value = '保存しました';
+    } catch (err) {
+        console.error('Failed to save home config', err);
+        saveStatus.value = '保存に失敗しました';
+    } finally {
+        saving.value = false;
+    }
 };
 
 onMounted(async () => {
-    await loadConfig();
+    await Promise.all([loadConfig(), fetchAssets()]);
 });
 
 const handleSyncClick = async () => {
     syncing.value = true;
     syncStatus.value = "サーバーと同期中...";
     try {
-        await screenConfigService.syncScreenConfigs();
+        await screenSettingsService.syncToDrive();
         await loadConfig();
         syncStatus.value = "同期完了";
     } catch (error) {

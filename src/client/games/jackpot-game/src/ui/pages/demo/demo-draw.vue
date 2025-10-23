@@ -23,7 +23,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { container } from 'tsyringe';
 import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/member-repository';
@@ -38,7 +38,7 @@ export default {
     const router = useRouter();
     // ScreenConfigRepositoryから取得
     const demoConfig = ref<DemoScreenSetting | null>(null);
-    const screenConfigService = container.resolve(ScreenConfigService);
+    const screenSettingsService = container.resolve(ScreenSettingsService);
     const assetService = container.resolve(AssetDataService);
 
     // データはモデル層から取得
@@ -66,8 +66,8 @@ export default {
     };
 
     onMounted(async () => {
-      const config = await screenConfigService.fetchScreenConfig('demo');
-      demoConfig.value = config as DemoScreenSetting ?? new DemoScreenSetting("", "", "");
+      const config = await screenSettingsService.fetchScreenSetting('demo', 'demo-screen-settings');
+      demoConfig.value = (config as DemoScreenSetting) ?? new DemoScreenSetting("", "", "");
       await playBGM();
       await fetchPrizes();
       await fetchMembers();

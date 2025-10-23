@@ -251,10 +251,11 @@ import { MemberService } from '../../../model/applications/member/member-service
 import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
 
 import { container } from 'tsyringe';
+import { IMemberRepositoryToken } from '../../../model/domains/member/repository/i-member-repository';
 import AssetSelectionDialog from './components/asset-selection-dialog.vue';
 import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts';
-const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
-const assetDataService = container.resolve<AssetDataService>("AssetDataService");
+const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
+const assetDataService = container.resolve(AssetDataService);
 const memberService = container.resolve(MemberService);
 const members = ref<any[]>([]);
 const showAssetDialog = ref(false);

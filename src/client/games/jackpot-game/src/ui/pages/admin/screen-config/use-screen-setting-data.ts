@@ -1,18 +1,17 @@
 import { ref, computed, onMounted } from "vue";
-import { ScreenConfigService } from "../../../../model/applications/screen-config/screen-config-service";
+import { ScreenSettingsService } from "../../../../model/applications/screen-config/screen-settings-service";
 import type { Asset } from "../../../../model/domains/drive-data/asset-data";
-import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
-import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
 import { AssetDataService } from "../../../../model/applications/asset/asset-data-service";
 import { container } from "tsyringe";
 
+import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
+import { IMemberRepositoryToken } from "../../../../model/domains/member/repository/i-member-repository";
+import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
+import { IPrizeRepositoryToken } from "../../../../model/domains/prize/repository/i-prize-repository";
+
 export function useScreenSettingData() {
-  const assetService = container.resolve(
-    AssetDataService
-  ) as unknown as AssetDataService;
-  const screenConfigService = container.resolve(ScreenConfigService);
-  const memberRepo = container.resolve<IMemberRepository>("IMemberRepository");
-  const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
+  const assetService = container.resolve(AssetDataService);
+  const screenConfigService = container.resolve(ScreenSettingsService);
 
   const assets = ref<any[]>([]);
   const members = ref<any[]>([]);
@@ -24,30 +23,23 @@ export function useScreenSettingData() {
   const uploading = ref(false);
   const tempAssets = ref<Asset[]>([]);
 
+  const memberRepo = container.resolve<IMemberRepository>(
+    IMemberRepositoryToken
+  );
+  const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
+
   const fetchAssets = async () => {
     try {
       assets.value = await assetService.getAllAssetData();
-    } catch (error) {
-      console.error("Failed to fetch assets:", error);
-      assets.value = [];
-    }
-  };
-
-  const syncWithDrive = async (onMessage?: (msg: string) => void) => {
-    try {
-      await assetService.syncAssetData((message: string) => {
-        if (onMessage) onMessage(message);
-      });
     } catch (e) {
-      console.error("syncAssets failed", e);
+      assets.value = [];
     }
   };
 
   const fetchMembers = async () => {
     try {
       members.value = await memberRepo.getMembers();
-    } catch (error) {
-      console.error("Failed to fetch members:", error);
+    } catch (e) {
       members.value = [];
     }
   };
@@ -55,8 +47,7 @@ export function useScreenSettingData() {
   const fetchPrizes = async () => {
     try {
       prizes.value = await prizeRepo.getPrizes();
-    } catch (error) {
-      console.error("Failed to fetch prizes:", error);
+    } catch (e) {
       prizes.value = [];
     }
   };
@@ -72,12 +63,10 @@ export function useScreenSettingData() {
     uploading.value = isUploading;
   };
 
-  const onTempAssets = (newTempAssets: Asset[]) => {
-    const existingIds = tempAssets.value.map((a: Asset) => a.id);
-    newTempAssets.forEach((asset) => {
-      if (!existingIds.includes(asset.id)) {
-        tempAssets.value.push(asset);
-      }
+  const onTempAssets = (newTemp: Asset[]) => {
+    const ids = tempAssets.value.map((a) => a.id);
+    newTemp.forEach((t) => {
+      if (!ids.includes(t.id)) tempAssets.value.push(t as Asset);
     });
   };
 
@@ -88,13 +77,14 @@ export function useScreenSettingData() {
 
       if (tempAssets.value.length > 0) {
         saveStatus.value = "アセットをアップロード中...";
-        tempAssets.value = await assetService.addAssetData(tempAssets.value);
+        const uploaded = await assetService.addAssetData(tempAssets.value);
+        tempAssets.value = uploaded;
       }
 
       await saveFunction();
       saveStatus.value = "保存しました";
-    } catch (err) {
-      console.error("Failed to save:", err);
+    } catch (e) {
+      console.error("Failed to save:", e);
       saveStatus.value = "保存に失敗しました";
     } finally {
       saving.value = false;
@@ -105,14 +95,9 @@ export function useScreenSettingData() {
     loading.value = true;
     loadingStatus.value = "データを読み込み中...";
     try {
-      await syncWithDrive((message: string) => {
-        loadingStatus.value = message;
-      });
-
       const assetsPromise = fetchAssets();
       const membersPromise = fetchMembers();
       const prizesPromise = fetchPrizes();
-
       await Promise.all([assetsPromise, membersPromise, prizesPromise]);
     } finally {
       loading.value = false;
@@ -123,8 +108,6 @@ export function useScreenSettingData() {
   return {
     assetService,
     screenConfigService,
-    memberRepo,
-    prizeRepo,
     assets,
     members,
     prizes,
@@ -135,13 +118,12 @@ export function useScreenSettingData() {
     uploading,
     tempAssets,
     fetchAssets,
-    syncWithDrive,
-    fetchMembers,
-    fetchPrizes,
     audioAssets,
     imageAssets,
     onUploading,
     onTempAssets,
     handleSave,
+    fetchMembers,
+    fetchPrizes,
   };
 }

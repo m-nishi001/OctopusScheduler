@@ -1,4 +1,5 @@
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
+import { IScheduleEventRepositoryToken } from "../../domains/schedule-event/schedule-event-repository";
 import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable, injectAll, inject } from "tsyringe";
 import {
@@ -12,7 +13,7 @@ export class ScheduleEventService {
   private readonly converters: IScheduleEventConverter[];
 
   constructor(
-    @inject("IScheduleEventRepository")
+    @inject(IScheduleEventRepositoryToken)
     private scheduleEventRepository: IScheduleEventRepository,
     @injectAll(IScheduleEventConverterToken)
     converters: IScheduleEventConverter[]

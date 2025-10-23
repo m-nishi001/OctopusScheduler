@@ -1,7 +1,6 @@
-import type { IScreenSetting, ScreenType } from "./i-screen-setting";
-
-export class EndingScreenSetting implements IScreenSetting {
-  type: ScreenType = "ending";
+// EndingScreenSetting is a concrete data class for the ending screen.
+export class EndingScreenSetting {
+  readonly type: "ending" = "ending";
   endingBgm: string;
   endingSe1: string;
   endingSe2: string;

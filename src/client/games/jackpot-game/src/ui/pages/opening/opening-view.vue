@@ -11,7 +11,7 @@ import MainLayout from '../common/main-layout.vue';
 import OpeningSequence from './opening-sequence.vue';
 import OpeningHtml from './opening-html.vue';
 import { container } from 'tsyringe';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { OpeningScreenSetting } from '../../../model/domains/screen-config/opening-screen-setting';
 
@@ -19,7 +19,7 @@ export default {
   name: 'OpeningView',
   components: { MainLayout, OpeningSequence, OpeningHtml },
   setup() {
-    const screenConfigService = container.resolve(ScreenConfigService);
+    const screenSettingsService = container.resolve(ScreenSettingsService);
     const openingConfig = ref<OpeningScreenSetting | null>(null);
     const bgm = ref<HTMLAudioElement | null>(null);
 
@@ -29,8 +29,8 @@ export default {
     let bgmObjectUrl: string | undefined;
     const createdContentUrls: string[] = [];
     onMounted(async () => {
-      const config = await screenConfigService.fetchScreenConfig('opening');
-      openingConfig.value = config as OpeningScreenSetting ?? new OpeningScreenSetting();
+      const config = await screenSettingsService.fetchScreenSetting('opening', 'opening-screen-settings');
+      openingConfig.value = (config as OpeningScreenSetting) ?? new OpeningScreenSetting();
 
       if (openingConfig.value?.bgmAssetId) {
         const assetService = container.resolve(AssetDataService);

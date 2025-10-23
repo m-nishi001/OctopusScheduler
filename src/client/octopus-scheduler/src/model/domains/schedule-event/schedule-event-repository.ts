@@ -14,3 +14,5 @@ export interface IScheduleEventRepository {
   ): Promise<void>;
   getAllExecutionStatuses(): Promise<{ [eventId: string]: ExecutionStatus }>;
 }
+
+export const IScheduleEventRepositoryToken = Symbol("IScheduleEventRepository");

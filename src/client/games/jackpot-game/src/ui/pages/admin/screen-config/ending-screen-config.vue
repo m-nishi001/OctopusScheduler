@@ -63,20 +63,16 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useScreenSettingData } from './use-screen-setting-data';
-import { EndingScreenSetting } from '../../../../model/domains/screen-config/ending-screen-setting';
-import { EndingScreenConfigConverter } from '../../../../model/applications/screen-config/ending/ending-screen-config-converter';
 import { container } from 'tsyringe';
+import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
 
-const {
-    screenConfigService,
-    audioAssets,
-    loading,
-    loadingStatus,
-    saving,
-    saveStatus,
-    handleSave,
-} = useScreenSettingData();
+const screenSettingsService = container.resolve(ScreenSettingsService);
+
+const audioAssets = ref<any[]>([]);
+const loading = ref(false);
+const loadingStatus = ref('');
+const saving = ref(false);
+const saveStatus = ref('');
 
 const syncing = ref(false);
 const syncStatus = ref("");
@@ -89,11 +85,11 @@ const localConfig = ref({
 
 const loadConfig = async () => {
     try {
-        const config = await screenConfigService.fetchScreenConfig("ending");
-        if (config) {
-            localConfig.value.endingBgm = (config as any).endingBgm || "";
-            localConfig.value.endingSe1 = (config as any).endingSe1 || "";
-            localConfig.value.endingSe2 = (config as any).endingSe2 || "";
+        const cfg = await screenSettingsService.fetchScreenSetting('ending', 'ending-screen-settings');
+        if (cfg) {
+            localConfig.value.endingBgm = (cfg as any).endingBgm || "";
+            localConfig.value.endingSe1 = (cfg as any).endingSe1 || "";
+            localConfig.value.endingSe2 = (cfg as any).endingSe2 || "";
         }
     } catch (error) {
         console.error("Failed to load ending config:", error);
@@ -108,7 +104,7 @@ const handleSyncClick = async () => {
     syncing.value = true;
     syncStatus.value = "サーバーと同期中...";
     try {
-        await screenConfigService.syncScreenConfigs();
+        await screenSettingsService.syncToDrive();
         await loadConfig();
         syncStatus.value = "同期完了";
     } catch (error) {
@@ -120,17 +116,23 @@ const handleSyncClick = async () => {
 };
 
 const handleSaveClick = async () => {
-    await handleSave(async () => {
-        const config = new EndingScreenSetting(
-            localConfig.value.endingBgm,
-            localConfig.value.endingSe1,
-            localConfig.value.endingSe2
-        );
-        const converter = container.resolve(EndingScreenConfigConverter);
-        const settings = converter.toSettings(config);
-        await screenConfigService.saveScreenConfigs(settings);
+    saving.value = true;
+    saveStatus.value = '保存中...';
+    try {
+        const payload = {
+            endingBgm: localConfig.value.endingBgm,
+            endingSe1: localConfig.value.endingSe1,
+            endingSe2: localConfig.value.endingSe2,
+        };
+        await screenSettingsService.saveScreenSetting('ending', 'ending-screen-settings', payload);
         await loadConfig();
-    });
+        saveStatus.value = '保存しました';
+    } catch (err) {
+        console.error('Failed to save ending config', err);
+        saveStatus.value = '保存に失敗しました';
+    } finally {
+        saving.value = false;
+    }
 };
 </script>
 

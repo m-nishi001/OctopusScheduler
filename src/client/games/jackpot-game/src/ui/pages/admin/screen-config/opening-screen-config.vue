@@ -82,24 +82,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useScreenSettingData } from './use-screen-setting-data';
-import { OpeningScreenSetting, type OpeningContent } from '../../../../model/domains/screen-config/opening-screen-setting';
-import { OpeningScreenConfigConverter } from '../../../../model/applications/screen-config/opening/opening-screen-config-converter';
 import { container } from 'tsyringe';
+import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
+import type { OpeningContent } from '../../../../model/domains/screen-config/opening-screen-setting';
+import type { Asset } from "../../../../model/domains/drive-data/asset-data";
 
-const {
-    screenConfigService,
-    audioAssets,
-    imageAssets,
-    assetService,
-    onTempAssets,
-    tempAssets,
-    fetchAssets,
-    saving,
-    saveStatus,
-    handleSave,
-} = useScreenSettingData();
+const screenSettingsService = container.resolve(ScreenSettingsService);
+const assetService = container.resolve(AssetDataService);
 
+const audioAssets = ref<any[]>([]);
+const imageAssets = ref<any[]>([]);
+const saving = ref(false);
+const saveStatus = ref('');
 const syncing = ref(false);
 const syncStatus = ref("");
 
@@ -109,14 +104,25 @@ const localConfig = ref({
     contents: [] as OpeningContent[],
 });
 
+const tempAssets: Asset[] = [];
+
+const fetchAssets = async () => {
+    try {
+        audioAssets.value = await assetService.getAllAssetData();
+        imageAssets.value = await assetService.getAllAssetData();
+    } catch (e) {
+        audioAssets.value = [];
+        imageAssets.value = [];
+    }
+};
+
 const loadConfig = async () => {
     try {
-        const config = await screenConfigService.fetchScreenConfig("opening");
-        if (config) {
-            const openingConfig = config as OpeningScreenSetting;
-            localConfig.value.bgmAssetId = openingConfig.bgmAssetId;
-            localConfig.value.bgmMode = "select";
-            localConfig.value.contents = openingConfig.contents;
+        const cfg = await screenSettingsService.fetchScreenSetting('opening', 'opening-screen-settings');
+        if (cfg) {
+            localConfig.value.bgmAssetId = (cfg as any).bgmAssetId || '';
+            localConfig.value.bgmMode = 'select';
+            localConfig.value.contents = (cfg as any).contents || [];
         }
     } catch (error) {
         console.error("Failed to load opening config:", error);
@@ -124,14 +130,14 @@ const loadConfig = async () => {
 };
 
 onMounted(async () => {
-    await loadConfig();
+    await Promise.all([loadConfig(), fetchAssets()]);
 });
 
 const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
-        onTempAssets([dto]);
+        tempAssets.push(dto);
         localConfig.value.bgmAssetId = dto.id;
     }
 };
@@ -140,7 +146,7 @@ const onImageChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
-        onTempAssets([dto]);
+        tempAssets.push(dto);
         localConfig.value.contents[idx].assetId = dto.id;
     }
 };
@@ -149,7 +155,7 @@ const onSeChange = async (e: Event, idx: number) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
-        onTempAssets([dto]);
+        tempAssets.push(dto);
         localConfig.value.contents[idx].seAssetId = dto.id;
     }
 };
@@ -172,15 +178,11 @@ const removeContent = (idx: number) => {
     localConfig.value.contents.splice(idx, 1);
 };
 
-onMounted(async () => {
-    await loadConfig();
-});
-
 const handleSyncClick = async () => {
     syncing.value = true;
     syncStatus.value = "サーバーと同期中...";
     try {
-        await screenConfigService.syncScreenConfigs();
+        await screenSettingsService.syncToDrive();
         await loadConfig();
         syncStatus.value = "同期完了";
     } catch (error) {
@@ -192,41 +194,24 @@ const handleSyncClick = async () => {
 };
 
 const handleSaveClick = async () => {
-    await handleSave(async () => {
-        const oldTempAssets = [...tempAssets.value]; // 保存前のコピー
-        const tempAssetMap = new Map<string, string>();
-
-        // tempAssets は handleSave で更新される
-        tempAssets.value.forEach((asset: any, index: number) => {
-            tempAssetMap.set(oldTempAssets[index].id, asset.id);
-        });
-
-        // localConfig のアセットIDを置き換え
-        if (tempAssetMap.has(localConfig.value.bgmAssetId)) {
-            localConfig.value.bgmAssetId = tempAssetMap.get(localConfig.value.bgmAssetId)!;
-        }
-        localConfig.value.contents.forEach(content => {
-            if (content.assetId && tempAssetMap.has(content.assetId)) {
-                content.assetId = tempAssetMap.get(content.assetId)!;
-            }
-            if (content.seAssetId && tempAssetMap.has(content.seAssetId)) {
-                content.seAssetId = tempAssetMap.get(content.seAssetId)!;
-            }
-        });
-
-        const config = new OpeningScreenSetting();
-        config.bgmAssetId = localConfig.value.bgmAssetId;
-        config.contents = localConfig.value.contents;
-        const converter = container.resolve(OpeningScreenConfigConverter);
-        const settings = converter.toSettings(config);
-        await screenConfigService.saveScreenConfigs(settings);
-
+    saving.value = true;
+    saveStatus.value = '保存中...';
+    try {
+        const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
+        const payload = {
+            bgmAssetId: localConfig.value.bgmAssetId || '',
+            contents: localConfig.value.contents,
+        };
+        await screenSettingsService.saveScreenSetting('opening', 'opening-screen-settings', payload, uploads.length ? uploads : undefined);
         await loadConfig();
-
-        // tempAssets をクリア
-        tempAssets.value = [];
         await fetchAssets();
-    });
+        saveStatus.value = '保存しました';
+    } catch (err) {
+        console.error('Failed to save opening config', err);
+        saveStatus.value = '保存に失敗しました';
+    } finally {
+        saving.value = false;
+    }
 };
 
 </script>

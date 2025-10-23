@@ -7,3 +7,5 @@ export interface IAssetRepository {
   deleteAssets(ids: string[]): Promise<void>;
   syncAssets(onProgress?: (message: string) => void): Promise<void>;
 }
+
+export const IAssetRepositoryToken = Symbol("IAssetRepository");

@@ -20,9 +20,9 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
-import type { IScreenSetting } from '../../../model/domains/screen-config/i-screen-setting';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+// screen config will be returned as concrete per-screen objects; use `any` here
 import { container } from 'tsyringe';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 
 export default {
 	name: 'Result',
@@ -32,10 +32,10 @@ export default {
 		const winners = ref<DrawResultDto[]>([]);
 		const loading = ref(true);
 		const drawResultService = container.resolve(DrawResultService);
-		const screenConfig = ref<IScreenSetting | null>(null);
-		const screenConfigService = container.resolve(ScreenConfigService);
+		const screenConfig = ref<any | null>(null);
+		const screenSettingsService = container.resolve(ScreenSettingsService);
 		onMounted(async () => {
-			screenConfig.value = await screenConfigService.fetchScreenConfig('result');
+			screenConfig.value = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
 			try {
 				const results = await drawResultService.getDrawResults();
 				winners.value = results;

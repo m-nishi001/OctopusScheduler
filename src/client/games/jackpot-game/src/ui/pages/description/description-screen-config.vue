@@ -13,7 +13,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { DescriptionScreenSetting } from '../../../model/domains/screen-config/description-screen-setting';
 import { container } from 'tsyringe';
@@ -24,11 +24,11 @@ export default {
 		const router = useRouter();
 		// ScreenConfigRepositoryから取得
 		const descriptionConfig = ref<DescriptionScreenSetting | null>(null);
-		const screenConfigService = container.resolve(ScreenConfigService);
+		const screenSettingsService = container.resolve(ScreenSettingsService);
 		const assetService = container.resolve(AssetDataService);
 		onMounted(async () => {
-			const config = await screenConfigService.fetchScreenConfig('description');
-			descriptionConfig.value = config as DescriptionScreenSetting ?? new DescriptionScreenSetting("", []);
+			const config = await screenSettingsService.fetchScreenSetting('description', 'description-screen-settings');
+			descriptionConfig.value = (config as DescriptionScreenSetting) ?? new DescriptionScreenSetting("", []);
 			await playBGM();
 		});
 

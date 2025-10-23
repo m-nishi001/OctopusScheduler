@@ -78,53 +78,62 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useScreenSettingData } from './use-screen-setting-data';
-import { DescriptionScreenSetting } from '../../../../model/domains/screen-config/description-screen-setting';
-import { DescriptionScreenConfigConverter } from '../../../../model/applications/screen-config/description/description-screen-config-converter';
 import { container } from 'tsyringe';
+import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
+import type { Asset } from "../../../../model/domains/drive-data/asset-data";
 
-const {
-	screenConfigService,
-	audioAssets,
-	imageAssets,
-	assetService,
-	onTempAssets,
-	tempAssets,
-	fetchAssets,
-	loading,
-	loadingStatus,
-	saving,
-	saveStatus,
-	handleSave,
-} = useScreenSettingData();
+const screenSettingsService = container.resolve(ScreenSettingsService);
+const assetService = container.resolve(AssetDataService);
 
 const syncing = ref(false);
 const syncStatus = ref("");
+
+const audioAssets = ref<any[]>([]);
+const imageAssets = ref<any[]>([]);
+const loading = ref(false);
+const loadingStatus = ref('');
+const saving = ref(false);
+const saveStatus = ref('');
 
 const localConfig = ref({
 	descriptionBgm: "",
 	screenElements: [] as any[],
 });
 
+const tempAssets: Asset[] = [];
+
+const fetchAssets = async () => {
+	try {
+		audioAssets.value = await assetService.getAllAssetData();
+		imageAssets.value = await assetService.getAllAssetData();
+	} catch (e) {
+		audioAssets.value = [];
+		imageAssets.value = [];
+	}
+};
+
 const loadConfig = async () => {
 	try {
-		const config = await screenConfigService.fetchScreenConfig("description");
-		if (config) {
-			localConfig.value.descriptionBgm = (config as any).descriptionBgm || "";
-			localConfig.value.screenElements = (config as any).screenElements || [];
+		const cfg = await screenSettingsService.fetchScreenSetting('description', 'description-screen-settings');
+		if (cfg) {
+			localConfig.value.descriptionBgm = (cfg as any).descriptionBgm || "";
+			localConfig.value.screenElements = (cfg as any).screenElements || [];
 		}
 	} catch (error) {
 		console.error("Failed to load description config:", error);
 	}
-}; onMounted(async () => {
-	await loadConfig();
+};
+
+onMounted(async () => {
+	await Promise.all([loadConfig(), fetchAssets()]);
 });
 
 const onImageChange = async (e: Event, idx: number) => {
 	const file = (e.target as HTMLInputElement).files?.[0];
 	if (file) {
 		const dto = await assetService.createDriveDataDtoFromFile(file);
-		onTempAssets([dto]);
+		tempAssets.push(dto);
 		localConfig.value.screenElements[idx].assetId = dto.id;
 	}
 };
@@ -148,7 +157,7 @@ const handleSyncClick = async () => {
 	syncing.value = true;
 	syncStatus.value = "サーバーと同期中...";
 	try {
-		await screenConfigService.syncScreenConfigs();
+		await screenSettingsService.syncToDrive();
 		await loadConfig();
 		syncStatus.value = "同期完了";
 	} catch (error) {
@@ -160,39 +169,24 @@ const handleSyncClick = async () => {
 };
 
 const handleSaveClick = async () => {
-	await handleSave(async () => {
-		const oldTempAssets = [...tempAssets.value];
-		const tempAssetMap = new Map<string, string>();
-		let updatedAssets: any[] = [];
-
-		if (tempAssets.value.length > 0) {
-			updatedAssets = await assetService.addAssetData(tempAssets.value);
-			updatedAssets.forEach((asset: any, index: number) => {
-				tempAssetMap.set(oldTempAssets[index].id, asset.id);
-			});
-		}
-
-		localConfig.value.screenElements.forEach(element => {
-			if (element.assetId && tempAssetMap.has(element.assetId)) {
-				element.assetId = tempAssetMap.get(element.assetId)!;
-			}
-		});
-
-		const config = new DescriptionScreenSetting(
-			localConfig.value.descriptionBgm,
-			localConfig.value.screenElements
-		);
-		const converter = container.resolve(DescriptionScreenConfigConverter);
-		const settings = converter.toSettings(config);
-		await screenConfigService.saveScreenConfigs(settings);
+	saving.value = true;
+	saveStatus.value = '保存中...';
+	try {
+		const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
+		const payload = {
+			descriptionBgm: localConfig.value.descriptionBgm || localConfig.value.descriptionBgm,
+			screenElements: localConfig.value.screenElements,
+		};
+		await screenSettingsService.saveScreenSetting('description', 'description-screen-settings', payload, uploads.length ? uploads : undefined);
 		await loadConfig();
-
-		if (tempAssets.value.length > 0) {
-		}
-
-		tempAssets.value = [];
 		await fetchAssets();
-	});
+		saveStatus.value = '保存しました';
+	} catch (err) {
+		console.error('Failed to save description config', err);
+		saveStatus.value = '保存に失敗しました';
+	} finally {
+		saving.value = false;
+	}
 };
 </script>
 

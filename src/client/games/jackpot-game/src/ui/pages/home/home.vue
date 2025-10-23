@@ -34,7 +34,7 @@ import ThreeHero from '../../shared/graphics/three-hero.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { HomeScreenSetting } from '../../../model/domains/screen-config/home-screen-setting';
 
@@ -49,8 +49,8 @@ export default {
     const goAdmin = () => router.push('/jackpot-admin');
 
     const homeConfig = ref<HomeScreenSetting | null>(null);
-    const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetDataService>("AssetDataService");
+    const screenSettingsService = container.resolve(ScreenSettingsService);
+    const assetService = container.resolve(AssetDataService);
 
     const assetsLoaded = ref(false);
     const progress = ref(0);
@@ -101,7 +101,7 @@ export default {
           { task: Promise.resolve({ synced: 0 }), index: 1 },
           { task: Promise.resolve({ synced: 0 }), index: 2 },
           { task: Promise.resolve({ synced: 0 }), index: 3 },
-          { task: screenConfigService.syncScreenConfigs(), index: 4 },
+          { task: screenSettingsService.syncToDrive(), index: 4 },
         ];
         const totalTasks = tasks.length;
         const progressPerTask = 30 / totalTasks;
@@ -120,8 +120,8 @@ export default {
         progress.value = 50;
         syncTasks.value.forEach(t => { t.status = "エラー"; t.current = 0; t.total = 0; });
       }
-      const config = await screenConfigService.fetchScreenConfig('home');
-      homeConfig.value = config as HomeScreenSetting ?? new HomeScreenSetting("", "", "", "", "");
+      const config = await screenSettingsService.fetchScreenSetting('home', 'home-screen-settings');
+      homeConfig.value = (config as HomeScreenSetting) ?? new HomeScreenSetting("", "", "", "", "");
 
       for (let i = progress.value; i < 100;) {
         i = Math.min(i + 8, 100);

@@ -1,5 +1,8 @@
 import type { Member } from "../member";
 
+// Runtime DI token for IMemberRepository
+export const IMemberRepositoryToken = Symbol("IMemberRepository");
+
 export interface IMemberRepository {
   getMembers(): Promise<Member[]>;
   getMemberById(id: string): Promise<Member | null>;

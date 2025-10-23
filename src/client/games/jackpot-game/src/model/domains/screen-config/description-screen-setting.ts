@@ -1,4 +1,4 @@
-import type { IScreenSetting, ScreenType } from "./i-screen-setting";
+// DescriptionScreenSetting is a concrete data class for the description screen.
 
 export type ScreenElementType =
   | "text"
@@ -30,8 +30,8 @@ export interface AnimationSettings {
   scrollDirection?: "up" | "down" | "left" | "right";
 }
 
-export class DescriptionScreenSetting implements IScreenSetting {
-  type: ScreenType = "description";
+export class DescriptionScreenSetting {
+  readonly type: "description" = "description";
   descriptionBgm: string;
   screenElements: ScreenElement[];
 

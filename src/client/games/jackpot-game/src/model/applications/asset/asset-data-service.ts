@@ -1,12 +1,17 @@
-import { injectable, inject } from "tsyringe";
+import { injectable, container } from "tsyringe";
+import { AssetDataRepository } from "../../infrastructures/asset-data-repository";
 import type { IAssetDataRepository } from "../../domains/drive-data/repository/i-asset-data-repository";
 import { Asset } from "../../domains/drive-data/asset-data";
 
 @injectable()
 export class AssetDataService {
-  constructor(
-    @inject("IAssetDataRepository") private repo: IAssetDataRepository
-  ) {}
+  private repo: IAssetDataRepository;
+
+  constructor() {
+    // Resolve repository by class token. Registrations are expected to be
+    // performed during app bootstrap.
+    this.repo = container.resolve(AssetDataRepository) as IAssetDataRepository;
+  }
 
   async getAllAssetData(): Promise<Asset[]> {
     return await this.repo.getAssetData();

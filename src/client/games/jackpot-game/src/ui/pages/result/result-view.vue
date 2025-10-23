@@ -25,7 +25,7 @@ import { DrawResultService } from '../../../model/applications/draw-result/draw-
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { ResultScreenSetting } from '../../../model/domains/screen-config/result-screen-setting';
 
@@ -41,13 +41,13 @@ export default {
     // map to hold object URLs for preview (keyed by DriveData id)
     const objectUrlMap = new Map<string, string>();
 
-    const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetDataService>("AssetDataService");
+    const screenSettingsService = container.resolve(ScreenSettingsService);
+    const assetService = container.resolve(AssetDataService);
     const drawResultService = container.resolve(DrawResultService);
     const fetchResults = async () => {
       const results = await drawResultService.getDrawResults();
-      const config = await screenConfigService.fetchScreenConfig('result');
-      resultConfig.value = config as ResultScreenSetting ?? new ResultScreenSetting("", "", "");
+      const config = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
+      resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
       // prefetch referenced photos
       for (const r of results) {
         const aid = r.member.photoAssetId;

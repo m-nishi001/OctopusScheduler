@@ -1,12 +1,15 @@
 import { injectable, inject } from "tsyringe";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
+import { IMemberRepositoryToken } from "../../domains/member/repository/i-member-repository";
 import type { MemberDto } from "./dto/member-dto";
 import { fromMember, toMember } from "./dto/member-dto";
 import type { Member } from "../../domains/member/member";
 
 @injectable()
 export class MemberService {
-  constructor(@inject("IMemberRepository") private repo: IMemberRepository) {}
+  constructor(
+    @inject(IMemberRepositoryToken) private repo: IMemberRepository
+  ) {}
 
   async fetchMembers(): Promise<MemberDto[]> {
     const members = await this.repo.getMembers();

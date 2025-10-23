@@ -14,7 +14,7 @@
         <span class="emoji">🗑️</span>
       </button>
 
-      
+
     </div>
     <div v-if="prizes.length" class="list-controls">
       <label class="select-all-label">
@@ -43,7 +43,7 @@
     </div>
   </div>
 
-  
+
   <div v-if="editPrizeData" class="modal-overlay">
     <div class="modal-content wide-modal" @click.stop>
       <div class="add-modal-grid">
@@ -82,7 +82,7 @@
                 <div v-if="editImageMode === 'upload'" class="image-file-input-wrap">
                   <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
                   <span v-if="editImageFilename" class="file-name" style="margin-left:8px">{{ editImageFilename
-                  }}</span>
+                    }}</span>
                 </div>
               </div>
             </div>
@@ -153,7 +153,7 @@
     </div>
   </div>
 
-  
+
   <div v-if="showAddModal" class="modal-overlay">
     <div class="modal-content wide-modal">
       <div class="add-modal-grid">
@@ -262,7 +262,7 @@
     </div>
   </div>
 
-  
+
   <div v-if="showDeleteModal" class="modal-overlay">
     <div class="modal-content">
       <h3>景品を削除</h3>
@@ -274,7 +274,7 @@
     </div>
   </div>
 
-  
+
   <div v-if="deleting" class="modal-overlay">
     <div class="modal-content">
       <h3>削除中...</h3>
@@ -283,7 +283,7 @@
     </div>
   </div>
 
-  
+
   <div v-if="syncing" class="modal-overlay">
     <div class="modal-content">
       <h3>サーバーと同期中...</h3>
@@ -292,7 +292,7 @@
     </div>
   </div>
 
-  
+
   <div v-if="showSyncModeModal" class="modal-overlay">
     <div class="modal-content">
       <h3>同期モードを選択</h3>
@@ -305,7 +305,7 @@
     </div>
   </div>
 
-  
+
   <div v-if="showReplaceWarningModal" class="modal-overlay">
     <div class="modal-content">
       <h3>注意: ローカルデータを置換します</h3>
@@ -325,7 +325,8 @@ import { PrizeService } from '../../../model/applications/prize/prize-service';
 import type { IPrizeRepository } from '../../../model/domains/prize/repository/i-prize-repository';
 
 import { container } from 'tsyringe';
-const prizeRepo = container.resolve<IPrizeRepository>("IPrizeRepository");
+import { IPrizeRepositoryToken } from '../../../model/domains/prize/repository/i-prize-repository';
+const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
 const prizeService = container.resolve(PrizeService);
 const prizes = ref<any[]>([]);

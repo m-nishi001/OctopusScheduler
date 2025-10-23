@@ -1,11 +1,12 @@
 import { injectable, inject } from "tsyringe";
 import type { IDrawResultRepository } from "../../domains/draw-result/repository/i-draw-result-repository";
+import { IDrawResultRepositoryToken } from "../../domains/draw-result/repository/i-draw-result-repository";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 
 @injectable()
 export class DrawResultService {
   constructor(
-    @inject("IDrawResultRepository") private repo: IDrawResultRepository
+    @inject(IDrawResultRepositoryToken) private repo: IDrawResultRepository
   ) {}
 
   async getDrawResults(): Promise<DrawResultDto[]> {

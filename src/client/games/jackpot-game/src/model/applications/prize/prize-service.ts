@@ -1,12 +1,13 @@
 import { injectable, inject } from "tsyringe";
 import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
+import { IPrizeRepositoryToken } from "../../domains/prize/repository/i-prize-repository";
 import type { PrizeDto } from "./dto/prize-dto";
 import { fromPrize, toPrize } from "./dto/prize-dto";
 import type { Prize } from "../../domains/prize/prize";
 
 @injectable()
 export class PrizeService {
-  constructor(@inject("IPrizeRepository") private repo: IPrizeRepository) {}
+  constructor(@inject(IPrizeRepositoryToken) private repo: IPrizeRepository) {}
 
   async fetchPrizes(): Promise<PrizeDto[]> {
     const prizes = await this.repo.getPrizes();

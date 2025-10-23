@@ -11,14 +11,14 @@ import MainLayout from '../common/main-layout.vue';
 import OpeningSequence from '../opening/opening-sequence.vue';
 import OpeningHtml from '../opening/opening-html.vue';
 import { container } from 'tsyringe';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { EndingScreenSetting } from '../../../model/domains/screen-config/ending-screen-setting';
 
 export default {
     name: 'EndingView',
     components: { MainLayout, OpeningSequence, OpeningHtml },
     setup() {
-        const screenConfigService = container.resolve(ScreenConfigService);
+        const screenSettingsService = container.resolve(ScreenSettingsService);
         const screenConfig = ref<any | null>(null);
         const bgm = ref<HTMLAudioElement | null>(null);
 
@@ -26,7 +26,7 @@ export default {
         const htmlElement = ref<any | null>(null);
 
         onMounted(async () => {
-            const config = await screenConfigService.fetchScreenConfig('ending');
+            const config = await screenSettingsService.fetchScreenSetting('ending', 'ending-screen-settings');
             screenConfig.value = config ?? new EndingScreenSetting("", "", "");
 
             if (screenConfig.value?.bgmAssetUrl) {

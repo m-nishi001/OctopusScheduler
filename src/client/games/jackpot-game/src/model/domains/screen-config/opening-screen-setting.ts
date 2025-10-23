@@ -1,4 +1,4 @@
-import type { IScreenSetting, ScreenType } from "./i-screen-setting";
+// OpeningScreenSetting is a concrete data class for the opening screen.
 
 export interface OpeningContent {
   type: "text" | "image" | "html";
@@ -12,8 +12,8 @@ export interface OpeningContent {
   seAssetId?: string;
 }
 
-export class OpeningScreenSetting implements IScreenSetting {
-  type: ScreenType = "opening";
+export class OpeningScreenSetting {
+  readonly type: "opening" = "opening";
   bgmMode: "select" | "upload";
   bgmAssetId: string;
   contents: OpeningContent[];

@@ -1,7 +1,6 @@
-import type { IScreenSetting, ScreenType } from "./i-screen-setting";
-
-export class ResultScreenSetting implements IScreenSetting {
-  type: ScreenType = "result";
+// ResultScreenSetting is a concrete data class for the result screen.
+export class ResultScreenSetting {
+  readonly type: "result" = "result";
   resultBgm: string;
   resultSe1: string;
   resultSe2: string;

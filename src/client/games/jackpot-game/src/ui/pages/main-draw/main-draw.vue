@@ -37,7 +37,7 @@ import { MemberRepository } from '../../../model/infrastructures/member-reposito
 import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import { ScreenConfigService } from '../../../model/applications/screen-config/screen-config-service';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { DrawRepository } from '../../../model/infrastructures/draw-repository';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
@@ -49,11 +49,11 @@ export default {
     const router = useRouter();
     // ScreenConfigRepositoryから取得
     const mainConfig = ref<MainScreenSetting | null>(null);
-    const screenConfigService = container.resolve(ScreenConfigService);
-    const assetService = container.resolve<AssetDataService>("AssetDataService");
+    const screenSettingsService = container.resolve(ScreenSettingsService);
+    const assetService = container.resolve(AssetDataService);
     onMounted(async () => {
-      const config = await screenConfigService.fetchScreenConfig('main');
-      mainConfig.value = config as MainScreenSetting ?? new MainScreenSetting([], [], 1, []);
+      const config = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
+      mainConfig.value = (config as MainScreenSetting) ?? new MainScreenSetting([], [], 1, []);
       fetchPrizes();
       fetchMembers();
       setTimeout(playBGM, 1200);

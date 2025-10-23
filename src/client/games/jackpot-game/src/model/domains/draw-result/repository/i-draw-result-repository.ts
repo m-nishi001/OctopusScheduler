@@ -1,5 +1,8 @@
 import type { DrawResultDto } from "../../../applications/draw-result/dto/draw-result-dto";
 
+// Runtime DI token for IDrawResultRepository
+export const IDrawResultRepositoryToken = Symbol("IDrawResultRepository");
+
 export interface IDrawResultRepository {
   getDrawResults(): Promise<DrawResultDto[]>;
   getDrawResultById(drawId: string): Promise<DrawResultDto | null>;

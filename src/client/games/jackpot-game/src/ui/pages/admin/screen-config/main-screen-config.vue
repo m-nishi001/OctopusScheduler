@@ -32,7 +32,7 @@
                                     class="admin-input">
                                     <option value="">選択なし</option>
                                     <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                    }}</option>
+                                        }}</option>
                                 </select>
                             </div>
                             <div>
@@ -42,7 +42,7 @@
                                     class="admin-input">
                                     <option value="">選択なし</option>
                                     <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                    }}</option>
+                                        }}</option>
                                 </select>
                             </div>
                         </div>
@@ -148,10 +148,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useScreenSettingData } from './use-screen-setting-data';
-import { MainScreenSetting } from '../../../../model/domains/screen-config/main-screen-setting';
-import { MainScreenConfigConverter } from '../../../../model/applications/screen-config/main/main-screen-config-converter';
 import { container } from 'tsyringe';
+import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
+import { ScreenConfigService } from '../../../../model/applications/screen-config/screen-config-service';
 import RouletteAnimation from '../../main-draw/RouletteAnimation.vue';
 import SlotAnimation from '../../main-draw/SlotAnimation.vue';
 import TreasureAnimation from '../../main-draw/TreasureAnimation.vue';
@@ -159,16 +159,24 @@ import ParticleAnimation from '../../main-draw/ParticleAnimation.vue';
 import ZoomAnimation from '../../main-draw/ZoomAnimation.vue';
 import type { PrizeDto } from '../../../../model/applications/prize/dto/prize-dto';
 
-const {
-    screenConfigService,
-    audioAssets,
-    prizes,
-    loading,
-    loadingStatus,
-    saving,
-    saveStatus,
-    handleSave,
-} = useScreenSettingData();
+const screenSettingsService = container.resolve(ScreenSettingsService);
+const assetService = container.resolve(AssetDataService);
+const screenConfigService = container.resolve(ScreenConfigService);
+
+const audioAssets = ref<any[]>([]);
+const prizes = ref<any[]>([]);
+const loading = ref(false);
+const loadingStatus = ref('');
+const saving = ref(false);
+const saveStatus = ref('');
+
+const fetchAssets = async () => {
+    try {
+        audioAssets.value = await assetService.getAllAssetData();
+    } catch (e) {
+        audioAssets.value = [];
+    }
+};
 
 const syncing = ref(false);
 const syncStatus = ref("");
@@ -186,21 +194,20 @@ const localConfig = ref({
 
 const loadConfig = async () => {
     try {
-        const config = await screenConfigService.fetchScreenConfig("main");
-        if (config) {
-            const mainConfig = config as MainScreenSetting;
-            localConfig.value.memberLotteryBgms = mainConfig.memberLotteryBgms || [];
-            localConfig.value.prizeLotteryMusics = mainConfig.prizeLotteryMusics || [];
-            localConfig.value.variableTiming = mainConfig.variableTiming || 1;
-            localConfig.value.prizeAnimations = mainConfig.prizeAnimations || [];
+        const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
+        if (cfg) {
+            localConfig.value.memberLotteryBgms = (cfg as any).memberLotteryBgms || [];
+            localConfig.value.prizeLotteryMusics = (cfg as any).prizeLotteryMusics || [];
+            localConfig.value.variableTiming = (cfg as any).variableTiming || 1;
+            localConfig.value.prizeAnimations = (cfg as any).prizeAnimations || [];
         }
     } catch (error) {
-        console.error("Failed to load main config:", error);
+        console.error('Failed to load main config:', error);
     }
 };
 
 onMounted(async () => {
-    await loadConfig();
+    await Promise.all([loadConfig(), fetchAssets()]);
 });
 
 const handleSyncClick = async () => {
@@ -219,18 +226,25 @@ const handleSyncClick = async () => {
 };
 
 const handleSaveClick = async () => {
-    await handleSave(async () => {
-        const config = new MainScreenSetting(
-            localConfig.value.memberLotteryBgms,
-            localConfig.value.prizeLotteryMusics,
-            localConfig.value.variableTiming,
-            localConfig.value.prizeAnimations
-        );
-        const converter = container.resolve(MainScreenConfigConverter);
-        const settings = converter.toSettings(config);
-        await screenConfigService.saveScreenConfigs(settings);
+    saving.value = true;
+    saveStatus.value = '保存中...';
+    try {
+        // no converters: save raw config object
+        const payload = {
+            memberLotteryBgms: localConfig.value.memberLotteryBgms,
+            prizeLotteryMusics: localConfig.value.prizeLotteryMusics,
+            variableTiming: localConfig.value.variableTiming,
+            prizeAnimations: localConfig.value.prizeAnimations,
+        };
+        await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload);
         await loadConfig();
-    });
+        saveStatus.value = '保存しました';
+    } catch (err) {
+        console.error('Failed to save main config', err);
+        saveStatus.value = '保存に失敗しました';
+    } finally {
+        saving.value = false;
+    }
 };
 
 const addMemberBgm = () => {

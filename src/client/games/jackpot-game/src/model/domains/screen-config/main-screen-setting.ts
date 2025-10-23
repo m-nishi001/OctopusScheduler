@@ -1,7 +1,6 @@
-import type { IScreenSetting, ScreenType } from "./i-screen-setting";
-
-export class MainScreenSetting implements IScreenSetting {
-  type: ScreenType = "main";
+// MainScreenSetting is a concrete data class for the main screen.
+export class MainScreenSetting {
+  readonly type: "main" = "main";
   memberLotteryBgms: string[];
   prizeLotteryMusics: { prizeId: string; primary: string; secondary: string }[];
   variableTiming: number;
@@ -9,7 +8,11 @@ export class MainScreenSetting implements IScreenSetting {
 
   constructor(
     memberLotteryBgms: string[],
-    prizeLotteryMusics: { prizeId: string; primary: string; secondary: string }[],
+    prizeLotteryMusics: {
+      prizeId: string;
+      primary: string;
+      secondary: string;
+    }[],
     variableTiming: number,
     prizeAnimations: { prizeId: string; primary: string; secondary: string }[]
   ) {
@@ -29,8 +32,12 @@ export class MainScreenSetting implements IScreenSetting {
   }
 
   static fromRecords(records: Map<string, string>): MainScreenSetting {
-    const memberLotteryBgms = JSON.parse(records.get("memberLotteryBgms") || "[]");
-    const prizeLotteryMusics = JSON.parse(records.get("prizeLotteryMusics") || "[]");
+    const memberLotteryBgms = JSON.parse(
+      records.get("memberLotteryBgms") || "[]"
+    );
+    const prizeLotteryMusics = JSON.parse(
+      records.get("prizeLotteryMusics") || "[]"
+    );
     const variableTiming = parseInt(records.get("variableTiming") || "1");
     const prizeAnimations = JSON.parse(records.get("prizeAnimations") || "[]");
     return new MainScreenSetting(

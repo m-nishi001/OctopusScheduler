@@ -12,7 +12,7 @@ import { AssetService } from '../../../../model/applications/assets/asset-servic
 import gsap from 'gsap';
 
 const route = useRoute();
-const assetService = container.resolve<AssetService>('AssetService');
+const assetService = container.resolve(AssetService);
 
 const videoUrl = ref('');
 let objectUrl: string | null = null;

@@ -1,13 +1,14 @@
 import { eventBus } from "../../../core/event-bus";
 import { AudioService } from "../../../../../packages/common-lib/src/audio/audio-service";
 import { container } from "tsyringe";
+import { AssetService } from "../../../model/applications/assets/asset-service";
 
 export class PlayAudioEventHandler {
   private static audioService = new AudioService();
   private static playingInstances = new Map<string, string>();
 
   static register() {
-    const assetService = container.resolve("AssetService");
+    const assetService = container.resolve(AssetService);
     eventBus.on("playAudio", (data: { audioId?: string }) =>
       this.handlePlayAudio(data, assetService)
     );

@@ -1,5 +1,8 @@
 import type { Asset } from "../asset-data";
 
+// Runtime DI token for IAssetDataRepository
+export const IAssetDataRepositoryToken = Symbol("IAssetDataRepository");
+
 export interface IAssetDataRepository {
   addAssetData(assetData: Asset[]): Promise<Asset[]>;
   getAssetData(): Promise<Asset[]>;

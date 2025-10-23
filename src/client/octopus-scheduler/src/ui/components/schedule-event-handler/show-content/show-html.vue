@@ -18,7 +18,7 @@ const props = defineProps<Props>();
 const route = useRoute();
 
 const htmlContent = ref('');
-const assetService = container.resolve(AssetService) as AssetService;
+const assetService = container.resolve(AssetService);
 
 const displayMode = ref(route.query.displayMode as string || 'fade');
 

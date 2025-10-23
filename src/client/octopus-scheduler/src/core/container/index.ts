@@ -1,7 +1,7 @@
 import { ScheduleEventRepository } from "../../model/infrastructures/schedule-event/schedule-event-repository";
-import type { IAssetRepository } from "../../model/domains/assets/repository/asset-repository";
-import type { IScheduleEventRepository } from "../../model/domains/schedule-event/schedule-event-repository";
 import { AssetRepository } from "../../model/infrastructures/assets/asset-repository";
+import { IScheduleEventRepositoryToken } from "../../model/domains/schedule-event/schedule-event-repository";
+import { IAssetRepositoryToken } from "../../model/domains/assets/repository/asset-repository";
 import { container } from "tsyringe";
 import { ScheduleEventService } from "../../model/applications/schedule-event/schedule-event-service";
 import { AssetService } from "../../model/applications/assets/asset-service";
@@ -14,18 +14,16 @@ import { TransitionPageEventConverter } from "../../model/domains/schedule-event
 
 export class Container {
   static Register() {
-    container.register<IAssetRepository>("IAssetRepository", {
-      useClass: AssetRepository,
-    });
-    container.register<IScheduleEventRepository>("IScheduleEventRepository", {
+    container.register(IAssetRepositoryToken, { useClass: AssetRepository });
+    container.register(IScheduleEventRepositoryToken, {
       useClass: ScheduleEventRepository,
     });
 
-    container.register("AssetService", { useClass: AssetService });
-    container.register("ScheduleEventService", {
+    container.register(AssetService, { useClass: AssetService });
+    container.register(ScheduleEventService, {
       useClass: ScheduleEventService,
     });
-    container.registerSingleton("EventPollingService", EventPollingService);
+    container.registerSingleton(EventPollingService, EventPollingService);
     container.register(IScheduleEventConverterToken, {
       useClass: ShowContentEventConverter,
     });

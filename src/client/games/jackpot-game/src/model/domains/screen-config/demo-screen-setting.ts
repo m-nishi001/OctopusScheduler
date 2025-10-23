@@ -1,7 +1,6 @@
-import type { IScreenSetting, ScreenType } from "./i-screen-setting";
-
-export class DemoScreenSetting implements IScreenSetting {
-  type: ScreenType = "demo";
+// DemoScreenSetting is a concrete data class for the demo screen.
+export class DemoScreenSetting {
+  readonly type: "demo" = "demo";
   demoBgm: string;
   demoSe1: string;
   demoSe2: string;

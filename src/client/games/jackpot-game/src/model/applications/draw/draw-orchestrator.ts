@@ -10,7 +10,7 @@ import { MemberService } from "../member/member-service";
 export class DrawOrchestrator {
   constructor(
     private drawService: DrawService,
-    @inject("DrawResultService") private resultService: DrawResultService,
+    @inject(DrawResultService) private resultService: DrawResultService,
     private prizeService: PrizeService,
     private memberService: MemberService
   ) {}

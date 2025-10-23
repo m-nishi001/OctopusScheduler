@@ -63,20 +63,16 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useScreenSettingData } from './use-screen-setting-data';
-import { DemoScreenSetting } from '../../../../model/domains/screen-config/demo-screen-setting';
-import { DemoScreenConfigConverter } from '../../../../model/applications/screen-config/demo/demo-screen-config-converter';
 import { container } from 'tsyringe';
+import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
 
-const {
-    screenConfigService,
-    audioAssets,
-    loading,
-    loadingStatus,
-    saving,
-    saveStatus,
-    handleSave,
-} = useScreenSettingData();
+const screenSettingsService = container.resolve(ScreenSettingsService);
+
+const audioAssets = ref<any[]>([]);
+const loading = ref(false);
+const loadingStatus = ref('');
+const saving = ref(false);
+const saveStatus = ref('');
 
 const syncing = ref(false);
 const syncStatus = ref("");
@@ -89,11 +85,11 @@ const localConfig = ref({
 
 const loadConfig = async () => {
     try {
-        const config = await screenConfigService.fetchScreenConfig("demo");
-        if (config) {
-            localConfig.value.demoBgm = (config as any).demoBgm || "";
-            localConfig.value.demoSe1 = (config as any).demoSe1 || "";
-            localConfig.value.demoSe2 = (config as any).demoSe2 || "";
+        const cfg = await screenSettingsService.fetchScreenSetting('demo', 'demo-screen-settings');
+        if (cfg) {
+            localConfig.value.demoBgm = (cfg as any).demoBgm || "";
+            localConfig.value.demoSe1 = (cfg as any).demoSe1 || "";
+            localConfig.value.demoSe2 = (cfg as any).demoSe2 || "";
         }
     } catch (error) {
         console.error("Failed to load demo config:", error);
@@ -108,7 +104,7 @@ const handleSyncClick = async () => {
     syncing.value = true;
     syncStatus.value = "サーバーと同期中...";
     try {
-        await screenConfigService.syncScreenConfigs();
+        await screenSettingsService.syncToDrive();
         await loadConfig();
         syncStatus.value = "同期完了";
     } catch (error) {
@@ -120,17 +116,23 @@ const handleSyncClick = async () => {
 };
 
 const handleSaveClick = async () => {
-    await handleSave(async () => {
-        const config = new DemoScreenSetting(
-            localConfig.value.demoBgm,
-            localConfig.value.demoSe1,
-            localConfig.value.demoSe2
-        );
-        const converter = container.resolve(DemoScreenConfigConverter);
-        const settings = converter.toSettings(config);
-        await screenConfigService.saveScreenConfigs(settings);
+    saving.value = true;
+    saveStatus.value = '保存中...';
+    try {
+        const payload = {
+            demoBgm: localConfig.value.demoBgm,
+            demoSe1: localConfig.value.demoSe1,
+            demoSe2: localConfig.value.demoSe2,
+        };
+        await screenSettingsService.saveScreenSetting('demo', 'demo-screen-settings', payload);
         await loadConfig();
-    });
+        saveStatus.value = '保存しました';
+    } catch (err) {
+        console.error('Failed to save demo config', err);
+        saveStatus.value = '保存に失敗しました';
+    } finally {
+        saving.value = false;
+    }
 };
 </script>
 
