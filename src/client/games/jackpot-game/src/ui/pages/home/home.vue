@@ -36,11 +36,11 @@ export default {
 
     const router = useRouter();
     const goOpening = async () => {
-      // play click SE (user interaction originates from button click so autoplay should be allowed)
+
       try {
         await playButtonSE();
       } catch (e) {
-        // ignore errors, proceed to navigation
+
       }
       router.push('/jackpot-opening');
     };
@@ -71,7 +71,7 @@ export default {
         await audio.play();
         return { audio, objUrl };
       } catch (e) {
-        // autoplay blocked or other error - cleanup created object URL
+
         try { audio.pause(); } catch (ex) { }
         try { URL.revokeObjectURL(objUrl); } catch (ex) { }
         throw e;
@@ -82,7 +82,7 @@ export default {
       if (!homeConfig.value || !homeConfig.value.buttonClikingSE) return null;
       try {
         const res = await tryPlayAudioFromAsset(homeConfig.value.buttonClikingSE, { loop: false, volume: 1 });
-        // If audio played, schedule revoke of object URL after it ends
+
         if (res && res.audio) {
           res.audio.addEventListener('ended', () => {
             try { URL.revokeObjectURL(res.objUrl); } catch (e) { }
@@ -90,7 +90,7 @@ export default {
         }
         return res?.audio ?? null;
       } catch (e) {
-        // playback failed (unlikely for user-generated click), just ignore
+
         return null;
       }
     };
@@ -98,7 +98,7 @@ export default {
 
     const playBGM = async () => {
       if (!homeConfig.value || !homeConfig.value.homeBgm) return;
-      // cleanup previous
+
       if (bgmAudio.value) {
         try { bgmAudio.value.pause(); } catch (e) { }
         bgmAudio.value = null;
@@ -115,10 +115,10 @@ export default {
           bgmObjectUrl = res.objUrl;
         }
       } catch (e) {
-        // autoplay blocked - set up a one-time fallback: any non-button click/tap will trigger BGM
+
         console.warn('BGM play failed (might be autoplay policy):', e);
         bgmUserInteractHandler = async (evt: Event) => {
-          // ignore clicks on buttons to avoid interfering with button actions
+
           const target = evt.target as HTMLElement | null;
           if (!target) return;
           const isButton = target.closest && (target.closest('button') || target.getAttribute('role') === 'button');
@@ -126,7 +126,7 @@ export default {
           try {
             await playBGM();
           } catch (e) { }
-          // remove listeners once attempted
+
           if (bgmUserInteractHandler) {
             document.body.removeEventListener('click', bgmUserInteractHandler as EventListener);
             document.body.removeEventListener('touchstart', bgmUserInteractHandler as EventListener);
@@ -146,12 +146,10 @@ export default {
         bgmAudio.value = null;
       }
       window.removeEventListener('keydown', handleKey);
-
-      // set global fullscreen class so body/html have no margin and no scrollbars for this view
+// set global fullscreen class so body/html have no margin and no scrollbars for this view
       document.documentElement.classList.add('jackpot-fullscreen');
       document.body.classList.add('jackpot-fullscreen');
 
-      // fetch screen config and start background audio
       (async () => {
         try {
           const config = await screenSettingsService.fetchScreenSetting('home', 'home-screen-settings');
@@ -163,7 +161,6 @@ export default {
         }
       })();
 
-      // lazy load gsap and animate buttons immediately
       try { const mod = await import('gsap'); gsap = mod?.gsap || mod; } catch (e) { gsap = null; }
       await nextTick();
       const s = startBtn.value;
@@ -184,7 +181,7 @@ export default {
       window.removeEventListener('keydown', handleKey);
       document.documentElement.classList.remove('jackpot-fullscreen');
       document.body.classList.remove('jackpot-fullscreen');
-      // remove any pending user-interact handlers used for autoplay fallback
+
       if (bgmUserInteractHandler) {
         try {
           document.body.removeEventListener('click', bgmUserInteractHandler as EventListener);

@@ -10,7 +10,6 @@
 </template>
 
 <script setup lang="ts">
-// ヘッダーのロジック（必要に応じて拡張）
 import { ref } from 'vue';
 import SyncDialog from '../../../components/sync-dialog.vue';
 
@@ -40,7 +39,7 @@ const closeSync = () => {
 
 .home-button {
   margin-left: auto;
-  /* 右寄せ */
+  
   background: #ffffff;
   color: #2b3036;
   padding: 6px 12px;

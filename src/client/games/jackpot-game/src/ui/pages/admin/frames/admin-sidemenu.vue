@@ -89,7 +89,7 @@ const isRouteActive = (path: string) => {
 </script>
 
 <style scoped>
-/* Sidebar container */
+
 .admin-sidebar {
   width: 240px;
   background: #0f1112;
@@ -114,7 +114,7 @@ nav>ul>li {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  /* balanced padding */
+  
   color: #fff;
   text-decoration: none;
   font-weight: 700;
@@ -207,7 +207,7 @@ nav>ul>li {
   border-radius: 6px
 }
 
-/* Enhanced submenu visuals */
+
 .submenu-toggle.parent-active {
   background: linear-gradient(180deg, rgba(125, 95, 255, 0.06) 0%, rgba(174, 225, 255, 0.02) 100%);
   color: #e9e9ff;

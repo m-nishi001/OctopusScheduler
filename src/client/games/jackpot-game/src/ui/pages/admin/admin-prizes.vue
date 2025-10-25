@@ -354,19 +354,16 @@ const isAllSelected = computed({
   }
 });
 
-// add modal state and actions
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
 const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeProbability.value = 5; newPrizeRank.value = undefined; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; newBgm1Mode.value = 'select'; newBgm2Mode.value = 'select'; newBgm1Filename.value = ''; newBgm2Filename.value = ''; tempBgm1Asset.value = null; tempBgm2Asset.value = null; };
 const confirmAdd = async () => { await addPrize(); closeAddModal(); };
 
-// delete modal state
 const showDeleteModal = ref(false);
 const openDeleteModal = () => { showDeleteModal.value = true; };
 const closeDeleteModal = () => { showDeleteModal.value = false; };
 const confirmDeleteSelected = async () => { await deleteSelectedPrizes(); closeDeleteModal(); };
 
-// status
 const adding = ref(false);
 const deleting = ref(false);
 const deleteMessage = ref("");
@@ -392,7 +389,6 @@ const tempAsset = ref<Asset | null>(null);
 const tempBgm1Asset = ref<Asset | null>(null);
 const tempBgm2Asset = ref<Asset | null>(null);
 
-// keep object URLs so we can revoke them later
 const newImagePreviewUrl = ref<string | null>(null);
 const editImagePreviewUrl = ref<string | null>(null);
 
@@ -451,16 +447,16 @@ const addPrize = async () => {
       const updated = await assetDataService.addAssetData([tempAsset.value]);
       const updatedAsset = updated[0];
       newPrize.imageAssetId = updatedAsset.id;
-      // create object URL from the saved asset blob and register it for list preview
+
       try {
-        // revoke temporary preview if any
+
         if (newImagePreviewUrl.value) {
           try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch { }
           newImagePreviewUrl.value = null;
           newImagePreview.value = '';
         }
         const url = URL.createObjectURL(updatedAsset.blob);
-        // replace any existing mapping for this id
+
         if (objectUrlMap.has(updatedAsset.id)) {
           try { URL.revokeObjectURL(objectUrlMap.get(updatedAsset.id) as string); } catch { }
         }
@@ -523,7 +519,7 @@ const deleteSelectedPrizes = async () => {
 const fetchPrizes = async () => {
   try {
     const fetchedPrizes = await prizeRepo.getPrizes();
-    // prefetch assets referenced by prizes to create object URLs
+
     for (const prize of fetchedPrizes) {
       if (prize.imageAssetId) {
         const asset = await assetDataService.getAssetDataById(prize.imageAssetId);
@@ -548,7 +544,6 @@ const fetchAssets = async () => {
   }
 };
 
-// local JSON export/import for prizes (so we can upload/download via Drive)
 const PRIZE_STORAGE_KEY = 'jackpot-game-prizes-json';
 
 const savePrizesToLocalJson = async () => {
@@ -677,17 +672,17 @@ const editPrize = async (prize: any) => {
   editName.value = prize.name;
   editProbability.value = prize.probability;
   editRank.value = prize.rank;
-  // revoke any previous preview URL
+
   if (editImagePreviewUrl.value) {
     try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
     editImagePreviewUrl.value = null;
   }
   if (prize.imageAssetId) {
-    // prefer objectUrlMap (created from asset.blob) for UI preview
+
     editImageMode.value = 'select';
     editImageAssetId.value = prize.imageAssetId;
     editImagePreview.value = objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId;
-    // ensure the referenced asset exists in the assets list so the <select> has an option
+
     try {
       const exists = assets.value.find((a: any) => a.id === prize.imageAssetId);
       if (!exists) {
@@ -695,11 +690,11 @@ const editPrize = async (prize: any) => {
         if (fetched) assets.value.push(fetched);
       }
     } catch (e) {
-      // non-fatal: dropdown may still be empty, but preview will show from objectUrlMap
+
       console.warn('Failed to fetch image asset for edit select:', e);
     }
   } else if (prize.imageDataUrl) {
-    // prize stores inline data URL for persistence; convert to Blob and create object URL for UI
+
     editImageMode.value = 'select';
     editImageAssetId.value = '';
     try {
@@ -720,7 +715,7 @@ const editPrize = async (prize: any) => {
       editImagePreviewUrl.value = URL.createObjectURL(b);
       editImagePreview.value = editImagePreviewUrl.value;
     } catch (e) {
-      // fallback to the raw data url only if conversion fails (should be rare)
+
       console.warn('failed to convert prize.imageDataUrl to object URL', e);
       editImagePreview.value = prize.imageDataUrl;
     }
@@ -732,7 +727,7 @@ const editPrize = async (prize: any) => {
   if (prize.bgm1AssetId) {
     editBgm1Mode.value = 'select';
     editBgm1AssetId.value = prize.bgm1AssetId;
-    // ensure bgm1 asset present in assets list
+
     try {
       const exists1 = assets.value.find((a: any) => a.id === prize.bgm1AssetId);
       if (!exists1) {
@@ -748,7 +743,7 @@ const editPrize = async (prize: any) => {
   if (prize.bgm2AssetId) {
     editBgm2Mode.value = 'select';
     editBgm2AssetId.value = prize.bgm2AssetId;
-    // ensure bgm2 asset present in assets list
+
     try {
       const exists2 = assets.value.find((a: any) => a.id === prize.bgm2AssetId);
       if (!exists2) {
@@ -833,7 +828,6 @@ onMounted(async () => {
   await fetchAssets();
 });
 
-// Sync modal state (mirror admin-assets.vue)
 const showSyncModeModal = ref(false);
 const showReplaceWarningModal = ref(false);
 const pendingSyncMode = ref<"drive" | "local" | null>(null);
@@ -850,7 +844,6 @@ const confirmPrizesSyncMode = async (mode: "drive" | "local") => {
     return;
   }
 
-  // local wins: upload current local JSON to Drive
   syncing.value = true;
   syncMessage.value = "";
   try {
@@ -873,11 +866,11 @@ const performReplaceFromDrive = async () => {
   syncing.value = true;
   syncMessage.value = "";
   try {
-    // Use assetDataService.replaceLocalWithDrive if available for prizes — fallback to prizeRepo replace flow if needed
+
     if (typeof (assetDataService as any).replaceLocalWithDrive === 'function') {
       await (assetDataService as any).replaceLocalWithDrive((message: string) => { syncMessage.value = message; });
     } else {
-      // if not available, trigger downloadPrizesJsonFromDrive to refresh local repo
+
       await downloadPrizesJsonFromDrive();
     }
     await fetchPrizes();
@@ -889,9 +882,8 @@ const performReplaceFromDrive = async () => {
   }
 };
 
-// keep references to some utility functions so TypeScript doesn't complain when
-// the UI uses modal-driven flow instead of direct buttons. These are retained
-// for future use.
+
+
 void savePrizesToLocalJson;
 void uploadPrizesJsonToDrive;
 
@@ -902,7 +894,7 @@ onBeforeUnmount(() => {
   if (editImagePreviewUrl.value) {
     try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
   }
-  // revoke all object URLs created for assets
+
   try {
     objectUrlMap.forEach((url) => {
       try { URL.revokeObjectURL(url); } catch { }
@@ -1073,7 +1065,7 @@ onBeforeUnmount(() => {
 }
 
 .sync-icon {
-  /* visually distinct but subtle */
+  
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
   color: #dbeeff;
@@ -1131,7 +1123,7 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-/* Prevent radio label text from wrapping */
+
 .bgm-radio-group label {
   white-space: nowrap;
   display: inline-flex;
@@ -1139,7 +1131,7 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 
-/* Ensure the overall bgm-mode doesn't wrap its children */
+
 .bgm-mode {
   flex-wrap: nowrap;
 }
@@ -1159,7 +1151,7 @@ onBeforeUnmount(() => {
   min-width: 140px;
 }
 
-/* Image selection inline groups (mirror BGM styles) */
+
 .image-radio-group {
   display: flex;
   gap: 12px;
@@ -1213,12 +1205,12 @@ onBeforeUnmount(() => {
   z-index: 1000;
 }
 
-/* hide overlay native scrollbar by default */
+
 .modal-overlay {
   -ms-overflow-style: none;
-  /* IE/Edge */
+  
   scrollbar-width: none;
-  /* Firefox */
+  
 }
 
 .modal-overlay::-webkit-scrollbar {
@@ -1237,13 +1229,13 @@ onBeforeUnmount(() => {
   width: 90%;
 }
 
-/* Wide modal class (applied only to large add/edit dialogs) */
+
 .modal-content.wide-modal {
   width: 70vw;
   max-width: none;
   flex: 0 0 70vw;
   margin: 0 auto;
-  /* constrain height and allow internal scrolling */
+  
   height: 60vh;
   display: flex;
   flex-direction: column;
@@ -1255,41 +1247,41 @@ onBeforeUnmount(() => {
   gap: 14px;
   align-items: start;
   margin-top: 12px;
-  /* allow the grid area to expand inside the modal */
+  
   flex: 1 1 auto;
   min-height: 0;
-  /* allow vertical scrolling only; prevent horizontal scroll */
+  
   overflow-y: auto;
   overflow-x: hidden;
-  /* reserve scrollbar gutter to prevent content shift when scrollbar appears */
-  /* Use scrollbar-gutter where supported and a fallback padding reserve for others */
+  
+  
   scrollbar-gutter: stable both-edges;
   --scrollbar-reserve: 16px;
   padding-right: var(--scrollbar-reserve);
   box-sizing: border-box;
 }
 
-/* show a thin native scrollbar by default inside the modal grid (Firefox + WebKit) */
+
 .add-modal-grid {
-  /* Firefox */
+  
   scrollbar-width: thin;
-  /* IE/Edge legacy - use auto to allow visible bar */
+  
   -ms-overflow-style: auto;
 }
 
-/* Ensure grid children are allowed to shrink and won't force horizontal overflow */
+
 .add-modal-grid,
 .add-form-column,
 .add-side-column {
   min-width: 0;
 }
 
-/* hide any accidental horizontal overflow inside the wide modal */
+
 .modal-content.wide-modal {
   overflow-x: hidden;
 }
 
-/* WebKit (Chrome, Safari) */
+
 .add-modal-grid::-webkit-scrollbar {
   width: 10px;
 }
@@ -1317,7 +1309,7 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-/* two-column layout for form inputs */
+
 .add-form-column {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -1330,7 +1322,7 @@ onBeforeUnmount(() => {
 
 .two-col {
   display: contents;
-  /* allow children to flow into grid columns */
+  
 }
 
 .buffer-column {

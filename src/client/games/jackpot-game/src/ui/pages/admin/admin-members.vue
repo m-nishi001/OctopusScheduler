@@ -58,7 +58,7 @@
 
         </div>
 
-        <!-- Middle: form -->
+        
         <div class="add-form-column">
           <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
           <p v-if="modalMode === 'add'">左のリストからメンバーを選択して内容を編集できます。新しいメンバーは＋で追加。</p>
@@ -262,7 +262,7 @@ const showAssetDialog = ref(false);
 const selectedMembers = ref<string[]>([]);
 const assets = ref<Asset[]>([]);
 const imageAssets = computed(() => assets.value.filter((asset) => asset.blob.type.startsWith('image')));
-// map to hold object URLs for member photos keyed by asset id
+
 const objectUrlMap = new Map<string, string>();
 const getMemberImageSrc = (member: any) => {
   return member.photoAssetId ? objectUrlMap.get(member.photoAssetId) || '' : '';
@@ -281,7 +281,6 @@ const isAllSelected = computed({
   }
 });
 
-// modal state
 const modalMode = ref<'add' | 'edit' | null>(null);
 const modalData = ref<any>(null);
 const modalName = ref('');
@@ -294,11 +293,11 @@ let modalPhotoPreviewUrl: string | undefined;
 const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
 const tempAsset = ref<Asset | null>(null);
-// buffer for multi-add
+
 const addBuffer = ref<Array<{ name: string; rank: number; photoAsset?: Asset | null; photoAssetId?: string; photoMode?: string }>>([]);
-// currently selected buffer index in the left list
+
 const selectedBufferIndex = ref<number | null>(null);
-// per-buffer preview URLs (keyed by buffer index) — make reactive so template updates
+
 const bufferPreviewMap = ref<Record<number, string>>({});
 
 const onBufferFileChange = async (e: Event, idx: number) => {
@@ -309,13 +308,13 @@ const onBufferFileChange = async (e: Event, idx: number) => {
     const entry = addBuffer.value[idx];
     if (entry) {
       entry.photoAsset = dto;
-      // revoke previous preview URL for this buffer index
+
       const prev = bufferPreviewMap.value[idx];
       if (prev) {
         try { URL.revokeObjectURL(prev); } catch { }
         delete bufferPreviewMap.value[idx];
       }
-      // create preview URL
+
       try { const url = URL.createObjectURL(file); bufferPreviewMap.value[idx] = url; } catch { }
     }
   } catch (err) {
@@ -323,28 +322,26 @@ const onBufferFileChange = async (e: Event, idx: number) => {
   }
 };
 
-// when selecting an existing asset from the buffer select dropdown, create/use a preview URL
 const onBufferAssetSelect = async (idx: number | null) => {
   if (idx === null) return;
   const entry = addBuffer.value[idx];
   if (!entry) return;
   const assetId = entry.photoAssetId;
-  // revoke any existing preview for this index
+
   const prev = bufferPreviewMap.value[idx];
   if (prev) {
     try { URL.revokeObjectURL(prev); } catch { }
     delete bufferPreviewMap.value[idx];
   }
   if (!assetId) {
-    // cleared selection
+
     entry.photoAsset = null;
     return;
   }
 
-  // try to find asset in the loaded assets
   let asset: Asset | null = assets.value.find(a => a.id === assetId) || null;
   if (!asset) {
-    // fallback: fetch via service
+
     try {
       asset = await assetDataService.getAssetDataById(assetId);
     } catch (e) {
@@ -353,7 +350,7 @@ const onBufferAssetSelect = async (idx: number | null) => {
   }
   if (asset) {
     entry.photoAsset = asset as any;
-    // use existing objectUrl if available (cached for members), else create one for buffer preview
+
     const cached = objectUrlMap.get(assetId);
     if (cached) {
       bufferPreviewMap.value[idx] = cached;
@@ -363,7 +360,6 @@ const onBufferAssetSelect = async (idx: number | null) => {
   }
 };
 
-// modal actions
 const openModal = (mode: 'add' | 'edit', data?: any) => {
   modalMode.value = mode;
   modalData.value = data || null;
@@ -416,7 +412,7 @@ const closeModal = () => {
 };
 const confirmModal = async () => {
   if (modalMode.value === 'add') {
-    // Default: single add (legacy behaviour)
+
     await addMember();
   } else if (modalMode.value === 'edit') {
     if (!modalData.value) return;
@@ -426,7 +422,7 @@ const confirmModal = async () => {
       rank: modalRank.value
     };
     try {
-      // If upload mode, ensure asset is properly stored and photoAssetId set
+
       if (modalPhotoMode.value === 'upload' && modalPhotoAsset.value) {
         try {
           const uploaded = await assetDataService.addAssetData([modalPhotoAsset.value]);
@@ -450,13 +446,11 @@ const confirmModal = async () => {
   closeModal();
 };
 
-// delete modal state
 const showDeleteModal = ref(false);
 const openDeleteModal = () => { showDeleteModal.value = true; };
 const closeDeleteModal = () => { showDeleteModal.value = false; };
 const confirmDeleteSelected = async () => { await deleteSelectedMembers(); closeDeleteModal(); };
 
-// status
 const adding = ref(false);
 const deleting = ref(false);
 const deleteMessage = ref("");
@@ -464,7 +458,7 @@ const syncing = ref(false);
 const syncMessage = ref("");
 
 const updateModalPhotoPreview = async () => {
-  // revoke previous preview url if any
+
   if (modalPhotoPreviewUrl) {
     try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { }
     modalPhotoPreviewUrl = undefined;
@@ -494,7 +488,6 @@ const onModalPhotoChange = async (e: Event) => {
     modalPhotoAsset.value = dto;
     modalPhotoFilename.value = file.name;
 
-    // revoke previous
     if (modalPhotoPreviewUrl) {
       try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { };
     }
@@ -503,7 +496,6 @@ const onModalPhotoChange = async (e: Event) => {
   }
 };
 
-// return a preview src for a buffer index (uploaded preview first, then existing asset object URL)
 const getBufferPreviewSrc = (idx: number | null) => {
   if (idx === null) return '';
   const url = bufferPreviewMap.value[idx];
@@ -518,13 +510,13 @@ onBeforeUnmount(() => {
     try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { };
     modalPhotoPreviewUrl = undefined;
   }
-  // revoke any object URLs created for member photos
+
   try {
     for (const url of objectUrlMap.values()) {
       try { URL.revokeObjectURL(url); } catch { }
     }
     objectUrlMap.clear();
-    // revoke buffer preview urls
+
     for (const url of Object.values(bufferPreviewMap.value)) {
       try { URL.revokeObjectURL(url); } catch { }
     }
@@ -562,7 +554,7 @@ const addMember = async () => {
         if (asset && asset.blob) {
           try { objectUrlMap.set(newMember.photoAssetId, URL.createObjectURL(asset.blob)); } catch { }
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
     }
     members.value.push(addedMember);
     await saveMembersToLocalJson();
@@ -574,11 +566,11 @@ const addMember = async () => {
 };
 
 const onAssetsSelected = async (ids: string[]) => {
-  // if a single asset selected, set it as current photoAssetId for modal
+
   if (ids && ids.length === 1) {
     photoAssetId.value = ids[0];
   }
-  // refresh list
+
   await fetchAssets();
 };
 
@@ -596,10 +588,9 @@ const deleteMember = async (id: string) => {
   }
 };
 
-// multi-add buffer actions
 const addBufferRow = () => {
   addBuffer.value.push({ name: '', rank: members.value.length + addBuffer.value.length + 1, photoAsset: null, photoMode: 'upload', photoAssetId: '' });
-  // auto-select the newly added row
+
   selectedBufferIndex.value = addBuffer.value.length - 1;
 };
 
@@ -610,14 +601,14 @@ const removeBuffer = (idx: number) => {
     delete bufferPreviewMap.value[idx];
   }
   addBuffer.value.splice(idx, 1);
-  // reindex bufferPreviewMap
+
   const newObj: Record<number, string> = {};
   for (let i = 0; i < addBuffer.value.length; i++) {
     const existing = bufferPreviewMap.value[i >= idx ? i + 1 : i];
     if (existing) newObj[i] = existing;
   }
   bufferPreviewMap.value = newObj;
-  // adjust selected index
+
   if (selectedBufferIndex.value !== null) {
     if (selectedBufferIndex.value === idx) {
       selectedBufferIndex.value = null;
@@ -628,7 +619,7 @@ const removeBuffer = (idx: number) => {
 };
 
 const clearBuffer = () => {
-  // revoke any buffer preview URLs
+
   for (const url of Object.values(bufferPreviewMap.value)) {
     try { URL.revokeObjectURL(url); } catch { }
   }
@@ -660,7 +651,7 @@ const bulkSaveMembers = async () => {
         photoAssetId: photoId,
       } as any;
       const saved = await memberService.saveMember(dto);
-      // if we had a blob preview for this buffer, ensure member preview exists and cache object URL
+
       if (b.photoAsset && saved && photoId) {
         try {
           const url = URL.createObjectURL(b.photoAsset.blob);
@@ -668,35 +659,34 @@ const bulkSaveMembers = async () => {
           (saved as any).photoDataUrl = url;
         } catch { }
       } else if (photoId && !objectUrlMap.has(photoId)) {
-        // if asset existed (selected) but not cached, try to fetch and cache
+
         try {
           const asset = await assetDataService.getAssetDataById(photoId);
           if (asset && asset.blob) {
             try { objectUrlMap.set(photoId, URL.createObjectURL(asset.blob)); } catch { }
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
       }
       members.value.push(saved);
     }
-    // clear buffer and persist
+
     addBuffer.value = [];
     selectedBufferIndex.value = null;
     await saveMembersToLocalJson();
-    // close the add modal after successful save
+
     closeModal();
   } catch (e) {
     console.error('Failed to bulk save members', e);
   } finally {
     adding.value = false;
   }
-  // cleanup previews
+
   for (const url of Object.values(bufferPreviewMap.value)) {
     try { URL.revokeObjectURL(url); } catch { }
   }
   bufferPreviewMap.value = {};
 };
 
-// member sync modal (mirrors admin-assets flow)
 const showMemberSyncModal = ref(false);
 const showReplaceWarningModal = ref(false);
 const pendingSyncMode = ref<'local' | 'drive' | null>(null);
@@ -706,10 +696,10 @@ const openMemberSyncModal = () => {
 };
 
 const confirmMemberSyncMode = async (mode: 'local' | 'drive') => {
-  // Close the initial mode selection modal
+
   showMemberSyncModal.value = false;
   if (mode === 'local') {
-    // Immediately upload local JSON to Drive
+
     syncing.value = true;
     syncMessage.value = '';
     try {
@@ -721,14 +711,14 @@ const confirmMemberSyncMode = async (mode: 'local' | 'drive') => {
       syncMessage.value = '';
     }
   } else {
-    // Drive chosen: show replace warning modal before performing replace
+
     pendingSyncMode.value = 'drive';
     showReplaceWarningModal.value = true;
   }
 };
 
 const performReplaceFromDrive = async () => {
-  // User confirmed replace from Drive
+
   showReplaceWarningModal.value = false;
   if (pendingSyncMode.value !== 'drive') return;
   pendingSyncMode.value = null;
@@ -761,7 +751,6 @@ const deleteSelectedMembers = async () => {
   }
 };
 
-// local JSON export/import
 const STORAGE_KEY = 'jackpot-game-members-json';
 
 const saveMembersToLocalJson = async () => {
@@ -773,9 +762,7 @@ const saveMembersToLocalJson = async () => {
   }
 };
 
-// (removed unused) loadMembersFromLocalJson — persisted members are managed via memberRepo.getMembers
 
-// upload to Google Drive via GAS
 const uploadMembersJsonToDrive = async () => {
   try {
     const json = localStorage.getItem(STORAGE_KEY) || JSON.stringify(members.value || []);
@@ -795,7 +782,7 @@ const uploadMembersJsonToDrive = async () => {
     };
 
     const res = await service.call<any>(driveJson);
-    // server returns DriveMetadata in response (data) when successful
+
     const fileId = res?.fileId || res?.data?.fileId || res?.fileId || res?.fileId;
     if (fileId) {
       localStorage.setItem('jackpot-members-last-file-id', fileId);
@@ -806,7 +793,6 @@ const uploadMembersJsonToDrive = async () => {
   }
 };
 
-// fetch members JSON from Drive via GAS
 const downloadMembersJsonFromDrive = async () => {
   try {
     const lastId = localStorage.getItem('jackpot-members-last-file-id');
@@ -822,13 +808,13 @@ const downloadMembersJsonFromDrive = async () => {
       try {
         const parsed = JSON.parse(json || '[]');
         if (Array.isArray(parsed)) {
-          // persist into memberRepo (localForage) so other processes/refresh see it
+
           try {
             await memberRepo.replaceAllMembers(parsed as any);
           } catch (e) {
             console.error('Failed to persist members into local repo:', e);
           }
-          // refresh UI from repo
+
           await fetchMembers();
         } else {
           console.warn('Downloaded members JSON is not an array');
@@ -870,7 +856,6 @@ const fetchAssets = async () => {
   }
 };
 
-// grid style for add/edit modal: show left buffer column only in add mode
 const addModalGridStyle = computed(() => {
   return { gridTemplateColumns: modalMode.value === 'add' ? '260px 1fr' : '1fr' } as any;
 });
@@ -896,7 +881,7 @@ watch(modalPhotoMode, () => {
   margin-bottom: 32px;
 }
 
-/* two-column helper for small groups like name + rank */
+
 .two-col {
   display: grid;
   grid-template-columns: 1fr 140px;
@@ -1066,7 +1051,7 @@ watch(modalPhotoMode, () => {
 }
 
 .sync-icon {
-  /* visually distinct but subtle */
+  
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
   color: #dbeeff;
@@ -1131,12 +1116,12 @@ watch(modalPhotoMode, () => {
   z-index: 1000;
 }
 
-/* hide overlay native scrollbar by default (avoid visible vertical bar on open) */
+
 .modal-overlay {
   -ms-overflow-style: none;
-  /* IE/Edge */
+  
   scrollbar-width: none;
-  /* Firefox */
+  
 }
 
 .modal-overlay::-webkit-scrollbar {
@@ -1155,13 +1140,13 @@ watch(modalPhotoMode, () => {
   width: 90%;
 }
 
-/* Wide modal class (applied only to large add/edit dialogs) */
+
 .modal-content.wide-modal {
   width: 70vw;
   max-width: none;
   flex: 0 0 70vw;
   margin: 0 auto;
-  /* constrain height and allow internal scrolling */
+  
   height: 60vh;
   display: flex;
   flex-direction: column;
@@ -1169,35 +1154,35 @@ watch(modalPhotoMode, () => {
 
 .add-modal-grid {
   display: grid;
-  /* left: buffer list, right: form (which contains preview) */
+  
   grid-template-columns: 260px 1fr;
   gap: 18px;
   align-items: stretch;
-  /* allow columns to stretch full height */
+  
   margin-top: 12px;
   width: 100%;
-  /* allow the grid to expand and scroll inside the modal */
+  
   flex: 1 1 auto;
   min-height: 0;
-  /* children columns scroll independently; grid itself shouldn't scroll */
+  
 }
 
-/* Right column (form) should be the primary scroll container inside the modal. */
+
 .add-form-column {
-  /* allow the form column to scroll independently */
+  
   overflow: auto;
   min-height: 0;
-  /* reserve scrollbar gutter where supported and provide a small right padding fallback */
+  
   scrollbar-gutter: stable both-edges;
   --scrollbar-reserve: 16px;
   padding-right: var(--scrollbar-reserve);
   box-sizing: border-box;
-  /* make the scrollbar visible but thin */
+  
   scrollbar-width: thin;
   -ms-overflow-style: auto;
 }
 
-/* WebKit (Chrome, Safari) */
+
 .add-form-column::-webkit-scrollbar {
   width: 10px;
 }
@@ -1211,9 +1196,9 @@ watch(modalPhotoMode, () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* make the buffer column stretch to available height so actions can sit at bottom */
+  
   min-height: 0;
-  /* allow flex children to shrink */
+  
   height: 100%;
 }
 
@@ -1226,25 +1211,25 @@ watch(modalPhotoMode, () => {
 }
 
 .buffer-list {
-  /* ensure the list can grow and scroll within the column */
+  
   flex: 1 1 auto;
   min-height: 0;
 }
 
 .buffer-list {
-  /* let the buffer list grow to fill available column height */
+  
   flex: 1 1 auto;
 }
 
 .buffer-actions {
-  /* push actions to bottom of the buffer column */
+  
   margin-top: auto;
   display: flex;
   gap: 8px;
 }
 
 .buffer-list {
-  /* let the buffer list grow to fill available column height */
+  
   flex: 1 1 auto;
 }
 
@@ -1332,9 +1317,9 @@ watch(modalPhotoMode, () => {
   display: flex;
   justify-content: flex-end;
   margin-top: 18px;
-  /* ensure footer stays visible at bottom */
+  
   flex: 0 0 auto;
-  /* ensure modal-footer does not overlap the grid content */
+  
   z-index: 2;
 }
 

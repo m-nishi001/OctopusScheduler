@@ -16,7 +16,7 @@
         </div>
         <div class="config-item">
             <label>コンテンツ:</label>
-            <!-- toolbar: add / sync / delete -->
+            
             <div class="toolbar">
                 <button class="admin-btn icon-only add-icon" @click="showAddDialog" title="追加">
                     <span class="emoji">➕</span>
@@ -52,7 +52,7 @@
                 </li>
             </ul>
 
-            <!-- toolbar contains sync; inline save/sync buttons removed per design -->
+            
         </div>
     </div>
 
@@ -71,7 +71,7 @@
             <div class="spinner"></div>
         </div>
     </div>
-    <!-- Add / Edit Content Dialog -->
+    
     <div v-if="dialogVisible" class="modal-overlay">
         <div class="modal-content dialog-modal">
             <h3>{{ editingIndex === -1 ? 'コンテンツを追加' : 'コンテンツを編集' }}</h3>
@@ -149,7 +149,7 @@ const assetService = container.resolve(AssetDataService);
 
 const audioAssets = ref<any[]>([]);
 const imageAssets = ref<any[]>([]);
-// map of asset.id -> object URL created for UI preview
+
 const assetUrlMap = new Map<string, string>();
 const saving = ref(false);
 const saveStatus = ref('');
@@ -167,7 +167,7 @@ const tempAssets: Asset[] = [];
 const fetchAssets = async () => {
     try {
         const raw = await assetService.getAllAssetData();
-        // create object URLs for UI preview when blob exists
+
         const mapped = raw.map((a: any) => {
             const copy: any = { ...a };
             if (!copy.url && copy.blob) {
@@ -181,7 +181,7 @@ const fetchAssets = async () => {
             }
             return copy;
         });
-        // Split mapped list into audio and image assets so selects only show relevant types
+
         audioAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('audio/'));
         imageAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('image/'));
     } catch (e) {
@@ -216,7 +216,6 @@ const onBgmChange = async (e: Event) => {
     }
 };
 
-// Dialog & reorder state and helpers
 const dialogVisible = ref(false);
 const editingIndex = ref<number>(-1);
 const dialogContent = ref<OpeningContent>({
@@ -269,7 +268,7 @@ const saveDialog = async () => {
         localConfig.value.contents.splice(editingIndex.value, 1, JSON.parse(JSON.stringify(dialogContent.value)));
     }
     closeDialog();
-    // Persist immediately
+
     await handleSaveClick();
 };
 
@@ -307,7 +306,7 @@ const moveDown = async (idx: number) => {
 
 const getContentTitle = (c: OpeningContent) => {
     if (!c) return '';
-    // prefer explicit content name if provided
+
     if ((c as any).name) return (c as any).name;
     if (c.type === 'text') return c.text ? (c.text.length > 30 ? c.text.substr(0, 30) + '…' : c.text) : 'テキスト';
     if (c.type === 'image') return '画像' + (c.assetId ? ` (${c.assetId})` : '');
@@ -320,13 +319,12 @@ onBeforeUnmount(() => {
         try {
             URL.revokeObjectURL(url);
         } catch (e) {
-            /* ignore */
+            
         }
     }
     assetUrlMap.clear();
 });
 
-// selection state for multi-delete
 const selectedIndices = ref<number[]>([]);
 const isAllSelected = computed({
     get: () => localConfig.value.contents.length > 0 && selectedIndices.value.length === localConfig.value.contents.length,
@@ -335,7 +333,7 @@ const isAllSelected = computed({
 
 const deleteSelectedContents = async () => {
     if (!selectedIndices.value.length) return;
-    // remove items from highest index to lowest so indices stay valid
+
     const sorted = [...selectedIndices.value].sort((a, b) => b - a);
     for (const idx of sorted) {
         localConfig.value.contents.splice(idx, 1);
@@ -388,7 +386,7 @@ const handleSaveClick = async () => {
 </script>
 
 <style scoped>
-/* keep styles from opening component (copied) */
+
 .screen-config {
     margin-bottom: 24px;
 }
@@ -649,15 +647,15 @@ const handleSaveClick = async () => {
     box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
 }
 
-/* Wider dialog for add/edit content while keeping it responsive on small screens */
+
 .modal-content.dialog-modal {
-    /* prefer a comfortable fixed width on desktop, but allow shrinking on small viewports */
+    
     width: min(720px, 92%);
     max-width: 92%;
-    /* increase horizontal padding slightly for better form layout */
+    
     padding: 32px 28px;
     text-align: left;
-    /* align form labels and inputs to left inside dialog */
+    
 }
 
 .dialog-modal label {

@@ -12,5 +12,5 @@ export default {
 </script>
 
 <style scoped>
-/* intentionally empty: presentation handled by DescriptionContent */
+
 </style>

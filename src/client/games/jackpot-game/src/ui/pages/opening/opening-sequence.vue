@@ -142,7 +142,6 @@ export default {
                 const elementConfig = props.screenConfig.contents[i];
                 await new Promise((r) => setTimeout(r, 60));
 
-                // If this is an HTML element, wait for images inside it to finish loading
                 if (elementConfig?.type === 'html') {
                     await waitForImagesIn(el);
                 }
@@ -180,7 +179,7 @@ export default {
         };
 
         onMounted(async () => {
-            // If elements are configured to scroll downward, reverse their order
+
             const maybeReverseForDownScroll = (cfg: any) => {
                 if (!cfg || !Array.isArray(cfg.contents) || cfg.contents.length <= 1) return;
                 const indexed = cfg.contents.map((el: any, idx: number) => ({ el, idx }));

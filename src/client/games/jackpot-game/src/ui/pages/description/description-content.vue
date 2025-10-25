@@ -48,7 +48,7 @@ export default {
 	components: { MainLayout },
 	setup() {
 		const router = useRouter();
-		// ScreenConfigRepositoryから取得
+
 		const screenConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenSettingsService = container.resolve(ScreenSettingsService);
 		const slideIndex = ref(0);
@@ -61,7 +61,7 @@ export default {
 		const assetService = container.resolve(AssetDataService); onMounted(async () => {
 			screenConfig.value = await screenSettingsService.fetchScreenSetting('description', 'description-screen-settings') as DescriptionScreenSetting;
 			elements.value = screenConfig.value?.screenElements || [];
-			// create object URLs for elements that reference assets
+
 			const createdUrls: string[] = [];
 			for (const element of elements.value) {
 				if (element.assetId) {
@@ -85,7 +85,6 @@ export default {
 			setTimeout(playBGM, 1200);
 		});
 
-		// BGM/SE制御
 		const bgmAudio = ref<HTMLAudioElement | null>(null);
 		const playBGM = () => {
 			if (!bgmAssetUrl.value) return;
@@ -96,7 +95,6 @@ export default {
 			bgmAudio.value.play();
 		};
 
-		// スライド管理
 		const nextSlide = () => {
 			if (slideIndex.value < elements.value.length - 1) {
 				slideIndex.value++;
@@ -111,7 +109,7 @@ export default {
 		onMounted(() => window.addEventListener('keydown', handleKey));
 		onUnmounted(() => {
 			try { window.removeEventListener('keydown', handleKey); } catch { }
-			// revoke any created object URLs
+
 			try {
 				for (const el of elements.value) {
 					if (el.assetUrl) {

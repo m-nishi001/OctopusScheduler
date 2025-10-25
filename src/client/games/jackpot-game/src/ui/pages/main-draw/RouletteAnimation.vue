@@ -2,7 +2,7 @@
     <div class="roulette-animation">
         <div class="roulette-canvas-wrapper">
             <canvas ref="canvas" @click="toggleSpin"></canvas>
-            <!-- 当たりインジケーター（真上・上向き） -->
+            
             <svg class="indicator top" width="90" height="90" viewBox="0 0 90 90">
                 <defs>
                     <filter id="glow">
@@ -18,18 +18,18 @@
                         <stop offset="100%" stop-color="#bfae6a" />
                     </radialGradient>
                 </defs>
-                <!-- ゴールド三角形（上向き） -->
+                
                 <polygon points="45,10 80,70 10,70" fill="url(#goldGrad)" stroke="#fff" stroke-width="5"
                     filter="url(#glow)" />
-                <!-- 縁取り -->
+                
                 <polygon points="45,18 72,66 18,66" fill="none" stroke="#ffb700" stroke-width="3.5" />
-                <!-- 宝石風円 -->
+                
                 <circle cx="45" cy="28" r="7" fill="#fffbe6" stroke="#ffb700" stroke-width="2.5" filter="url(#glow)" />
                 <circle cx="45" cy="28" r="4.2" fill="#ffe066" stroke="#fff" stroke-width="1.2" />
-                <!-- 星型装飾 -->
+                
                 <polygon points="45,19 47,25 53,25 48,28 50,34 45,30 40,34 42,28 37,25 43,25" fill="#fffbe6"
                     stroke="#ffb700" stroke-width="1" filter="url(#glow)" />
-                <!-- JACKPOTテキスト -->
+                
                 <text x="45" y="52" text-anchor="middle" font-size="22" font-weight="bold" fill="#fffbe6"
                     stroke="#ffb700" stroke-width="2.8" filter="url(#glow)"
                     style="font-family:'Segoe UI',Arial,sans-serif;">JACKPOT</text>
@@ -65,10 +65,10 @@ export default {
 
         let roulette: THREE.Group;
         let ringHighlight: THREE.Mesh | null = null;
-        // 背景パーティクル
+
         let bgParticles: THREE.Points | null = null;
         let spinning = false;
-        // Enterキーで開始・停止
+
         onMounted(() => {
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') toggleSpin();
@@ -78,7 +78,7 @@ export default {
         onMounted(() => {
             if (!canvas.value) return;
             scene = new THREE.Scene();
-            // 3D感を強調するため斜め視点
+
             camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ canvas: canvas.value, alpha: true, antialias: true });
             const size = 420;
@@ -86,7 +86,7 @@ export default {
             camera.position.set(0, 1.2, 7.2); // 下から見上げる
             camera.lookAt(0, 0.5, 0); // 少し上を向く
             createRoulette();
-            // --- 背景パーティクル生成（強調・アニメーション） ---
+
             const N = 180;
             const bgGeo = new THREE.BufferGeometry();
             const pos = new Float32Array(N * 3);
@@ -119,8 +119,8 @@ export default {
         });
 
         const createRoulette = () => {
-            // --- 影・床反射の追加 ---
-            // 床（グラデーションテクスチャ）
+
+
             const floorSize = 8;
             const floorCanvas = document.createElement('canvas');
             floorCanvas.width = 256;
@@ -140,7 +140,6 @@ export default {
             floorMesh.rotation.x = -Math.PI / 2;
             scene.add(floorMesh);
 
-            // 影（半透明黒円）
             const shadowGeo = new THREE.CircleGeometry(2.7, 48);
             const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.09 });
             const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
@@ -150,10 +149,10 @@ export default {
             roulette = new THREE.Group();
             const sectors = Math.max(6, props.prizes.length);
             const sectorAngle = (Math.PI * 2) / sectors;
-            // 円の中心・半径・太さを厳密に設計
-            // ルーレット本体円: radius = baseRadius
-            // 外側リング: radius = baseRadius + ringOffset, tube = ringTube
-            // 外側グロー: radius = baseRadius + glowOffset, tube = glowTube
+
+
+
+
             const baseRadius = 3.0;
             const ringOffset = 0.18;
             const ringTube = 0.10;
@@ -161,7 +160,7 @@ export default {
             const glowTube = 0.13;
             const radius = baseRadius;
             const depth = 0.18;
-            // 豪華な外周リング（金属感・光沢・均等なグロー）
+
             const ringGeom = new THREE.TorusGeometry(baseRadius + ringOffset, ringTube, 64, 160);
             const ringMat = new THREE.MeshPhysicalMaterial({
                 color: 0xfffbe6,
@@ -180,7 +179,7 @@ export default {
             });
             const ring = new THREE.Mesh(ringGeom, ringMat);
             ring.position.z = 0.12;
-            // 均等なグロー: 輪郭に半透明の光彩を追加（tube/offset厳密設計）
+
             const glowGeom = new THREE.TorusGeometry(baseRadius + glowOffset, glowTube, 64, 160);
             const glowMat = new THREE.MeshBasicMaterial({
                 color: 0xfff6b0,
@@ -193,21 +192,18 @@ export default {
             roulette.add(glow);
             roulette.add(ring);
 
-            // 内側リムライト（白い細いトーラス）
             const rimGeom = new THREE.TorusGeometry(radius + 0.09, 0.03, 16, 64);
             const rimMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 });
             const rim = new THREE.Mesh(rimGeom, rimMat);
             rim.position.z = 0.14;
             roulette.add(rim);
 
-            // --- 回転時の光反射アニメーション（リング上の動的ハイライト） ---
             const highlightGeom = new THREE.TorusGeometry(radius + 0.18, 0.14, 16, 64, Math.PI / 5);
             const highlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.38 });
             ringHighlight = new THREE.Mesh(highlightGeom, highlightMat);
             ringHighlight.position.z = 0.15;
             roulette.add(ringHighlight);
 
-            // セクター本体
             for (let i = 0; i < sectors; i++) {
                 const startAngle = i * sectorAngle;
                 const endAngle = startAngle + sectorAngle;
@@ -224,7 +220,7 @@ export default {
                 shape.lineTo(0, 0);
                 const geometry = new THREE.ShapeGeometry(shape);
                 geometry.translate(0, 0, 0);
-                // ゴールドグラデーション＋光沢
+
                 const material = new THREE.MeshPhysicalMaterial({
                     map: createTexture(i),
                     color: 0xffffff,
@@ -241,7 +237,6 @@ export default {
                 mesh.rotation.z = 0;
                 roulette.add(mesh);
 
-                // --- セクター境界線（太く・発光感） ---
                 const lineMat = new THREE.LineBasicMaterial({ color: 0xfff200, linewidth: 4 });
                 const points = [];
                 points.push(new THREE.Vector3(0, 0, -depth * 0.48));
@@ -249,18 +244,17 @@ export default {
                 const lineGeom = new THREE.BufferGeometry().setFromPoints(points);
                 const line = new THREE.Line(lineGeom, lineMat);
                 roulette.add(line);
-                // 境界線グロー（半透明の太い白ライン）
+
                 const glowMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 10, transparent: true, opacity: 0.18 });
                 const glowLine = new THREE.Line(lineGeom, glowMat);
                 roulette.add(glowLine);
             }
 
-            // ルーレット中央のJACKPOTロゴ（大きく・エンボス・光沢）
             const loader = new THREE.TextureLoader();
             loader.load(
                 'https://img.icons8.com/external-flaticons-flat-flat-icons/512/external-jackpot-casino-flaticons-flat-flat-icons-2.png',
                 (texture) => {
-                    // 明るく高彩度なエンボス風マテリアル
+
                     const mat = new THREE.MeshPhysicalMaterial({
                         map: texture,
                         transparent: true,
@@ -278,19 +272,19 @@ export default {
                     const geo = new THREE.CircleGeometry(1.18, 64); // さらにサイズ拡大
                     const mesh = new THREE.Mesh(geo, mat);
                     mesh.position.set(0, 0, 0.25);
-                    // 光沢ハイライト（半透明の白い円盤）
+
                     const glossGeo = new THREE.CircleGeometry(1.05, 64);
                     const glossMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.18 });
                     const gloss = new THREE.Mesh(glossGeo, glossMat);
                     gloss.position.set(0, 0.13, 0.28);
                     mesh.add(gloss);
-                    // グロー（淡い黄色の大円）
+
                     const glowGeo = new THREE.CircleGeometry(1.32, 64);
                     const glowMat = new THREE.MeshBasicMaterial({ color: 0xfffbe6, transparent: true, opacity: 0.18 });
                     const glow = new THREE.Mesh(glowGeo, glowMat);
                     glow.position.set(0, 0, 0.21);
                     mesh.add(glow);
-                    // リムライト（外周の細い白円）
+
                     const rimGeo = new THREE.RingGeometry(1.13, 1.18, 64);
                     const rimMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 });
                     const rim = new THREE.Mesh(rimGeo, rimMat);
@@ -300,7 +294,6 @@ export default {
                 }
             );
 
-            // ライティング
             const spot = new THREE.SpotLight(0xffffff, 1.2, 20, Math.PI / 3, 0.5, 1);
             spot.position.set(0, 6, 8);
             spot.target.position.set(0, 0, 0);
@@ -317,8 +310,8 @@ export default {
             canvas.width = 512;
             canvas.height = 512;
             const ctx = canvas.getContext('2d')!;
-            // --- セクターごとに明確な色分けと明るいグラデーション ---
-            // より明るく高彩度なカジノ配色
+
+
             const casinoColors = [
                 'hsl(48, 100%, 70%)',   // ゴールド
                 'hsl(0, 100%, 60%)',    // 赤
@@ -329,7 +322,7 @@ export default {
             ];
             const colorIdx = index % casinoColors.length;
             const baseColor = casinoColors[colorIdx];
-            // --- 明るいグラデーション ---
+
             const grad = ctx.createRadialGradient(256, 256, 40, 256, 256, 256);
             grad.addColorStop(0, '#fffbe6');
             grad.addColorStop(0.13, baseColor);
@@ -339,7 +332,6 @@ export default {
             ctx.fillStyle = grad;
             ctx.fillRect(0, 0, 512, 512);
 
-            // --- 光沢ハイライト（中央上部に楕円） ---
             ctx.save();
             ctx.globalAlpha = 0.22;
             ctx.beginPath();
@@ -351,7 +343,6 @@ export default {
             ctx.globalAlpha = 1;
             ctx.restore();
 
-            // --- セクターのテキスト ---
             ctx.font = 'bold 38px "Segoe UI", "Arial", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -363,13 +354,12 @@ export default {
             ctx.fillText(label, 256, 420);
             ctx.shadowBlur = 0;
 
-            // --- 画像 ---
             const texture = new THREE.CanvasTexture(canvas);
             if (prize && prize.imageAssetId) {
                 const img = new window.Image();
                 img.crossOrigin = 'anonymous';
                 img.onload = () => {
-                    // 画像を中央に大きく表示
+
                     const iw = 180, ih = 180;
                     ctx.save();
                     ctx.beginPath();
@@ -377,7 +367,7 @@ export default {
                     ctx.closePath();
                     ctx.clip();
                     ctx.drawImage(img, 256 - iw / 2, 110, iw, ih);
-                    // リムライト（白い円形グロー）
+
                     ctx.globalAlpha = 0.22;
                     ctx.beginPath();
                     ctx.arc(256, 200, 80, 0, Math.PI * 2);
@@ -394,13 +384,12 @@ export default {
             return texture;
         };
 
-        // パーティクル演出用
         let particles: THREE.Points | null = null;
         let particleLife = 0;
 
         const animate = () => {
             requestAnimationFrame(animate);
-            // 当たり時パーティクル
+
             if (particles && particleLife > 0) {
                 particles.rotation.z += 0.01;
                 particleLife--;
@@ -409,7 +398,7 @@ export default {
                     particles = null;
                 }
             }
-            // --- 背景パーティクルをランダムにキラッと光らせる ---
+
             if (bgParticles) {
                 const time = performance.now() * 0.002;
                 const colors = bgParticles.geometry.attributes.color;
@@ -422,9 +411,9 @@ export default {
                 }
                 colors.needsUpdate = true;
             }
-            // --- リングハイライトを回転に追従させて動かす ---
+
             if (ringHighlight && roulette) {
-                // ルーレットの回転角度に応じてハイライトの位置を動かす
+
                 const t = (performance.now() * 0.00025) % 1;
                 ringHighlight.rotation.z = roulette.rotation.z + t * Math.PI * 2;
             }
@@ -438,7 +427,7 @@ export default {
 
         const startSpin = () => {
             spinning = true;
-            // 高速回転（2倍速）
+
             gsap.to(roulette.rotation, {
                 z: "+=" + Math.PI * 2,
                 duration: 0.6,
@@ -449,7 +438,7 @@ export default {
 
         const stopSpin = () => {
             gsap.killTweensOf(roulette.rotation);
-            // ジャックポット感のある停止演出（急減速→バウンド→ピタッ）
+
             const currentZ = roulette.rotation.z;
             const targetZ = Math.ceil(currentZ / (Math.PI * 2)) * (Math.PI * 2); // ちょうど一周分で止める
             gsap.to(roulette.rotation, {
@@ -469,10 +458,8 @@ export default {
             });
         };
 
-
-        // 当たり時のエフェクト
         function showWinEffect(targetIndex: number) {
-            // セクターを発光
+
             if (roulette.children[targetIndex + 1]) { // +1: ring分
                 const mesh = roulette.children[targetIndex + 1] as THREE.Mesh;
                 const mat = mesh.material as THREE.MeshPhysicalMaterial;
@@ -482,7 +469,7 @@ export default {
                     mat.emissiveIntensity = 0.08;
                 }, 1200);
             }
-            // パーティクル
+
             if (!particles) {
                 const geo = new THREE.BufferGeometry();
                 const N = 80;
@@ -508,7 +495,7 @@ export default {
                 const sectorAngle = (Math.PI * 2) / sectors;
                 const selectedIndex = props.prizes.findIndex(p => p.id === props.selectedPrize?.id);
                 const targetIndex = selectedIndex >= 0 ? selectedIndex : Math.floor(Math.random() * sectors);
-                // 上部インジケーターに当たるように調整
+
                 const targetAngle = - (targetIndex * sectorAngle + sectorAngle / 2) + Math.PI / 2;
                 gsap.to(roulette.rotation, {
                     z: targetAngle,

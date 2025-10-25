@@ -143,7 +143,6 @@ const initRoulette = () => {
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // label
             ctx.save();
             const mid = start + sectorAngle / 2;
             ctx.translate(cx + Math.cos(mid) * radius * 0.65, cy + Math.sin(mid) * radius * 0.65);
@@ -157,13 +156,11 @@ const initRoulette = () => {
             ctx.restore();
         }
 
-        // center circle
         ctx.beginPath();
         ctx.arc(cx, cy, radius * 0.18, 0, Math.PI * 2);
         ctx.fillStyle = '#222';
         ctx.fill();
 
-        // pointer
         ctx.beginPath();
         ctx.moveTo(cx, cy - radius - 6);
         ctx.lineTo(cx - 12, cy - radius + 18);

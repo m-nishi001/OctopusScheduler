@@ -28,7 +28,6 @@ import { IPrizeRepositoryToken } from '../../model/domains/prize/repository/i-pr
 import type { IMemberRepository } from '../../model/domains/member/repository/i-member-repository';
 import type { IPrizeRepository } from '../../model/domains/prize/repository/i-prize-repository';
 
-// UI domain entries
 const domains = reactive([
     { id: 'members', label: 'メンバー設定', progress: 0, message: '準備中...', running: false },
     { id: 'prizes', label: '景品設定', progress: 0, message: '準備中...', running: false },
@@ -43,7 +42,6 @@ const assetDataService = container.resolve(AssetDataService);
 const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken as any);
 const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken as any);
 
-// helper to update domain entry
 function updateDomain(id: string, patch: Partial<any>) {
     const d = domains.find((x: any) => x.id === id) as any;
     if (!d) return;
@@ -54,13 +52,13 @@ async function syncMembers() {
     const id = 'members';
     updateDomain(id, { running: true, message: 'ファイルダウンロード中...' });
     try {
-        // use GAS getJson flow similar to admin-members
+
         const lastId = localStorage.getItem('jackpot-members-last-file-id');
         if (!lastId) {
             updateDomain(id, { message: 'Drive 上のメンバーファイルが見つかりません', progress: 100 });
             return;
         }
-        // dynamic import of GasFunctionService (keeps bundler consistent with other modules)
+
         const mod = await import('/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts');
         const GasFn = mod.GasFunctionService;
         const service = new GasFn('getJson');
@@ -94,7 +92,7 @@ async function syncPrizes() {
     try {
         const lastId = localStorage.getItem('jackpot-prizes-last-file-id');
         if (!lastId) {
-            // fallback: try to pull assets replace (some setups store prizes via assets flow)
+
             updateDomain(id, { message: 'Drive 上の景品ファイルが見つかりません', progress: 100 });
             return;
         }
@@ -128,12 +126,12 @@ async function syncAssets() {
     const id = 'assets';
     updateDomain(id, { running: true, message: 'ファイルメタデータ取得中...', progress: 10 });
     try {
-        // assetDataService.replaceLocalWithDrive provides progress callbacks
+
         if (typeof (assetDataService as any).replaceLocalWithDrive === 'function') {
             await (assetDataService as any).replaceLocalWithDrive((msg: string) => {
-                // attempt to parse progress from messages provided by repository
-                // AssetDataRepository may call onProgress with progress object in some calls — but here we get text
-                // Try to extract "X/Y" patterns
+
+
+
                 const m = msg.match(/(\d+)\/(\d+)/);
                 if (m) {
                     const cur = Number(m[1]);
@@ -141,7 +139,7 @@ async function syncAssets() {
                     const p = Math.round((cur / Math.max(1, total)) * 100);
                     updateDomain(id, { message: `ファイルダウンロード中: ${total}件中${cur}件完了...`, progress: p });
                 } else {
-                    // if message includes numbers like "Fetched 3/10" try that
+
                     updateDomain(id, { message: msg });
                 }
             });
@@ -169,10 +167,10 @@ async function syncScreens() {
 function startAll() {
     finished.value = false;
     cancelled.value = false;
-    // run all in parallel so progress updates show simultaneously
+
     Promise.allSettled([syncMembers(), syncPrizes(), syncAssets(), syncScreens()]).then(() => {
         finished.value = true;
-        // final labels for entries not touched
+
         for (const d of domains) {
             if (d.progress < 100) d.progress = 100;
             if (!d.message || d.message === '準備中...') d.message = '同期完了';
@@ -182,7 +180,7 @@ function startAll() {
 
 function cancel() {
     cancelled.value = true;
-    // For simplicity just close dialog after marking cancelled; ongoing operations may still continue but UI will ignore updates
+
     for (const d of domains) {
         if (d.progress < 100) d.message = 'キャンセルされました';
     }
@@ -190,7 +188,7 @@ function cancel() {
 }
 
 onMounted(() => {
-    // kick off sync automatically when dialog opens
+
     startAll();
 });
 </script>

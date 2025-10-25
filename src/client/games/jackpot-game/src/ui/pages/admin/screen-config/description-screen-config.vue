@@ -150,7 +150,7 @@ const assetService = container.resolve(AssetDataService);
 
 const audioAssets = ref<any[]>([]);
 const imageAssets = ref<any[]>([]);
-// map of asset.id -> object URL created for UI preview
+
 const assetUrlMap = new Map<string, string>();
 const saving = ref(false);
 const saveStatus = ref('');
@@ -181,7 +181,7 @@ const fetchAssets = async () => {
 			}
 			return copy;
 		});
-		// Split mapped list into audio and image assets so selects only show relevant types
+
 		audioAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('audio/'));
 		imageAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('image/'));
 	} catch (e) {
@@ -216,7 +216,6 @@ const onBgmChange = async (e: Event) => {
 	}
 };
 
-// Dialog & reorder state and helpers
 const dialogVisible = ref(false);
 const editingIndex = ref<number>(-1);
 const dialogContent = ref<OpeningContent>({
@@ -318,13 +317,12 @@ onBeforeUnmount(() => {
 		try {
 			URL.revokeObjectURL(url);
 		} catch (e) {
-			/* ignore */
+			
 		}
 	}
 	assetUrlMap.clear();
 });
 
-// selection state for multi-delete
 const selectedIndices = ref<number[]>([]);
 const isAllSelected = computed({
 	get: () => localConfig.value.contents.length > 0 && selectedIndices.value.length === localConfig.value.contents.length,
@@ -385,7 +383,7 @@ const handleSaveClick = async () => {
 </script>
 
 <style scoped>
-/* keep styles from opening component (copied) */
+
 .screen-config {
 	margin-bottom: 24px;
 }
@@ -646,15 +644,15 @@ const handleSaveClick = async () => {
 	box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
 }
 
-/* Wider dialog for add/edit content while keeping it responsive on small screens */
+
 .modal-content.dialog-modal {
-	/* prefer a comfortable fixed width on desktop, but allow shrinking on small viewports */
+	
 	width: min(720px, 92%);
 	max-width: 92%;
-	/* increase horizontal padding slightly for better form layout */
+	
 	padding: 32px 28px;
 	text-align: left;
-	/* align form labels and inputs to left inside dialog */
+	
 }
 
 .dialog-modal label {

@@ -47,7 +47,7 @@ export default {
   components: { MainLayout },
   setup() {
     const router = useRouter();
-    // ScreenConfigRepositoryから取得
+
     const mainConfig = ref<MainScreenSetting | null>(null);
     const screenSettingsService = container.resolve(ScreenSettingsService);
     const assetService = container.resolve(AssetDataService);
@@ -59,10 +59,9 @@ export default {
       setTimeout(playBGM, 1200);
     });
 
-    // APIから取得
     const prizes = ref<any[]>([]);
     const members = ref<any[]>([]);
-    // map to hold object URLs for member photos
+
     const objectUrlMap = new Map<string, string>();
     const prizeRepo = container.resolve(PrizeRepository);
     const memberRepo = container.resolve(MemberRepository);
@@ -83,7 +82,6 @@ export default {
       }
     };
 
-    // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     let bgmObjectUrl: string | undefined;
     const playBGM = async () => {
@@ -94,19 +92,17 @@ export default {
           bgmObjectUrl = URL.createObjectURL(asset.blob);
           bgmAudio.value = new Audio(bgmObjectUrl);
           bgmAudio.value.loop = true;
-          try { await bgmAudio.value.play(); } catch (e) { /* ignore */ }
+          try { await bgmAudio.value.play(); } catch (e) {  }
         } catch (err) { console.error(err); }
       }
     };
 
     const playSE = async () => {
-      // SE playback removed as per new config
+
     };
 
-    // メンバー選出
     const currentMember = ref<any>(null);
 
-    // 抽選ロジック (モデル層へ委譲)
     const drawn = ref(false);
     const result = ref<{ member: string; prize: string } | null>(null);
     const showHalfModal = ref(false);
@@ -133,15 +129,14 @@ export default {
           setTimeout(() => { showHalfModal.value = false; }, 2000);
         }
       } finally {
-        // keep drawn true until user proceeds
+
       }
     };
 
-    // Enterキーで次の抽選 or 結果画面へ
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
         if (drawn.value && prizes.value.length > 0) {
-          // 次の抽選
+
           drawn.value = false;
           result.value = null;
           currentMember.value = null;

@@ -1,8 +1,6 @@
 <template>
   <MainLayout :fullScreen="true">
-    <!-- Always render the sequence so contents are shown in the configured order.
-         Individual HTML contents will be handled inside the sequence (images waited-for there).
-         This avoids short-circuiting to a single fullscreen HTML element which hid other items. -->
+    
     <OpeningSequence v-if="openingConfig" :screenConfig="openingConfig" :bgm="bgm" />
   </MainLayout>
 </template>
@@ -57,7 +55,6 @@ export default {
         htmlElement.value = htmlEl;
       }
 
-      // Resolve asset URLs for contents
       if (openingConfig.value?.contents) {
         const assetService = container.resolve(AssetDataService);
         for (const content of openingConfig.value.contents) {
@@ -96,5 +93,5 @@ export default {
 </script>
 
 <style scoped>
-/* keep layout concerns in child components */
+
 </style>

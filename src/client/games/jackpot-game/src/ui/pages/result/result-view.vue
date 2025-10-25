@@ -38,7 +38,7 @@ export default {
     const specialWinner = ref<any | undefined>(undefined);
     const lowestWinner = ref<any | undefined>(undefined);
     const resultConfig = ref<ResultScreenSetting | null>(null);
-    // map to hold object URLs for preview (keyed by DriveData id)
+
     const objectUrlMap = new Map<string, string>();
 
     const screenSettingsService = container.resolve(ScreenSettingsService);
@@ -48,7 +48,7 @@ export default {
       const results = await drawResultService.getDrawResults();
       const config = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
       resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
-      // prefetch referenced photos
+
       for (const r of results) {
         const aid = r.member.photoAssetId;
         if (aid) {
@@ -69,14 +69,13 @@ export default {
       fetchResults();
     });
 
-    // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     let bgmObjectUrl: string | undefined;
     const playBGM = async () => {
       if (!resultConfig.value || !resultConfig.value.resultBgm) return;
       const asset = await assetService.getAssetDataById(resultConfig.value.resultBgm);
       if (asset) {
-        // Prefer using blob for UI playback. Create an object URL from blob.
+
         if (asset.blob) {
           try { bgmObjectUrl = URL.createObjectURL(asset.blob); }
           catch (err) { console.error(err); bgmObjectUrl = undefined; }
@@ -93,9 +92,7 @@ export default {
       setTimeout(playBGM, 1200);
     });
 
-    // 最高/最低ランク当選者は ResultService 側で算出済み
 
-    // フェードイン・Enterキーでホームへ
     const fadeOut = ref(false);
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && !fadeOut.value) {
@@ -118,7 +115,6 @@ export default {
       }
     });
 
-    // 特別演出用クラス
     const winnerClass = (winner: any) => {
       if (specialWinner.value && winner.id === specialWinner.value.id) return 'jp-winner-item special';
       if (lowestWinner.value && winner.id === lowestWinner.value.id) return 'jp-winner-item lowest';

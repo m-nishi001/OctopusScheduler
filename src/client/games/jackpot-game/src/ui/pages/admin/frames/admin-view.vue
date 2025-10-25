@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
 import AdminHeader from './admin-header.vue';
-// Temporary: use the clean sidemenu while fixing the original file
+
 import AdminSidemenu from './admin-sidemenu.vue';
 
 const handleKeyDown = (e: KeyboardEvent) => {

@@ -22,7 +22,7 @@ export default {
 	components: { MainLayout },
 	setup() {
 		const router = useRouter();
-		// ScreenConfigRepositoryから取得
+
 		const descriptionConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenSettingsService = container.resolve(ScreenSettingsService);
 		const assetService = container.resolve(AssetDataService);
@@ -32,7 +32,6 @@ export default {
 			await playBGM();
 		});
 
-		// BGM/SE制御
 		const bgmAudio = ref<HTMLAudioElement | null>(null);
 		let bgmObjectUrl: string | undefined;
 		const playBGM = async () => {

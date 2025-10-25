@@ -20,7 +20,7 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
-// screen config will be returned as concrete per-screen objects; use `any` here
+
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 

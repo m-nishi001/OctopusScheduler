@@ -27,7 +27,7 @@ export default {
 
 main {
   flex: 1;
-  /* padding: 40px 20px; */
+  
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -35,7 +35,7 @@ main {
   color: #3b2f3f;
 }
 
-/* when fullScreen is requested, allow content to use the whole viewport without padding */
+
 main.full-screen {
   padding: 0;
   align-items: stretch;

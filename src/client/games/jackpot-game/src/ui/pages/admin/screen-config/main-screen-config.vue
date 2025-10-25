@@ -173,7 +173,7 @@ const saveStatus = ref('');
 const fetchAssets = async () => {
     try {
         const all = await assetService.getAllAssetData();
-        // Keep only audio assets for selects
+
         audioAssets.value = all.filter((a: any) => !!a?.type && a.type.startsWith('audio/'));
     } catch (e) {
         audioAssets.value = [];

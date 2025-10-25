@@ -120,13 +120,12 @@ const saving = ref(false);
 const saveStatus = ref('');
 const uploading = ref(false);
 
-// refs for file input elements so we can clear them programmatically
 const homeBgmInputRef = ref<HTMLInputElement | null>(null);
 const buttonSEInputRef = ref<HTMLInputElement | null>(null);
 
 const fetchAssets = async () => {
     try {
-        // Fetch all assets then keep only audio MIME types so selects show music only
+
         const all = await assetService.getAllAssetData();
         audioAssets.value = all.filter((a: any) => !!a?.type && a.type.startsWith('audio/'));
     } catch (e) {
@@ -148,7 +147,7 @@ const localConfig = ref({
     buttonClikingSEMode: "select",
     buttonClikingSEFilename: "",
     buttonClikingSETempAsset: null as Asset | null,
-    // onCompletedLoadingSE removed
+
     title: "",
     subtitle: "",
 });
@@ -165,7 +164,7 @@ const loadConfig = async () => {
             localConfig.value.buttonClikingSEMode = "select";
             localConfig.value.buttonClikingSEFilename = "";
             localConfig.value.buttonClikingSETempAsset = null;
-            // onCompletedLoadingSE removed from config
+
             localConfig.value.title = (cfg as any).title || "2025年度 ジャックポッド大会！";
             localConfig.value.subtitle = (cfg as any).subtitle || "";
         }
@@ -174,7 +173,6 @@ const loadConfig = async () => {
     }
 };
 
-// Preview playback state & helpers
 const previewAudio = ref<HTMLAudioElement | null>(null);
 let previewObjectUrl: string | undefined;
 const previewing = ref(false);
@@ -227,7 +225,7 @@ const playPreviewFromAssetId = async (assetId: string | undefined, loop = false,
 };
 
 const previewHomeBgm = async () => {
-    // prefer upload temp asset when in upload mode
+
     if (localConfig.value.homeBgmMode === 'upload' && localConfig.value.homeBgmTempAsset) {
         await playPreviewFromBlob((localConfig.value.homeBgmTempAsset as any).blob as Blob, true, 0.5);
         return;
@@ -247,14 +245,13 @@ const previewButtonSE = async () => {
     }
 };
 
-// previewCompletedSE removed
 
 const onHomeBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
-        // mark which field this temp asset belongs to so we can map uploads
-        // back to the correct config entry after the upload completes
+
+
         (dto as any).__field = 'homeBgm';
         localConfig.value.homeBgmTempAsset = dto;
         localConfig.value.homeBgmFilename = file.name;
@@ -273,20 +270,19 @@ const onButtonClikingSEChange = async (e: Event) => {
     }
 };
 
-// onOnCompletedLoadingSEChange removed
 
 const handleSaveClick = async () => {
     saving.value = true;
     saveStatus.value = '保存中...';
     try {
-        // If there are staged temp assets, upload them and map returned IDs
-        // back into the local config so the saved screen setting will point
-        // to the uploaded assets (and the UI will show "select" with the
-        // uploaded file selected).
+
+
+
+
         const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
 
         if (uploads.length > 0) {
-            // Map returned uploads (in same order) to the original temp assets
+
             for (let i = 0; i < uploads.length; i++) {
                 const orig = tempAssets[i] as any;
                 const saved = uploads[i];
@@ -305,7 +301,6 @@ const handleSaveClick = async () => {
                 }
             }
 
-            // clear staged temp assets and file inputs
             tempAssets.length = 0;
             if (homeBgmInputRef.value) homeBgmInputRef.value.value = '';
             if (buttonSEInputRef.value) buttonSEInputRef.value.value = '';
@@ -318,8 +313,7 @@ const handleSaveClick = async () => {
             subtitle: localConfig.value.subtitle,
         };
 
-        // Pass uploads to the service; the service will only add assets
-        // that don't already have ids, avoiding duplicate saves.
+
         await screenSettingsService.saveScreenSetting(
             'home',
             'home-screen-settings',
@@ -327,7 +321,6 @@ const handleSaveClick = async () => {
             uploads.length ? uploads : undefined
         );
 
-        // Refresh config and asset list
         await loadConfig();
         await fetchAssets();
         saveStatus.value = '保存しました';
@@ -340,11 +333,10 @@ const handleSaveClick = async () => {
 };
 
 const handleClearClick = async () => {
-    // Reset modes first so any upload inputs are unmounted
+
     localConfig.value.homeBgmMode = 'select';
     localConfig.value.buttonClikingSEMode = 'select';
 
-    // Clear values
     localConfig.value.homeBgm = '';
     localConfig.value.homeBgmFilename = '';
     localConfig.value.homeBgmTempAsset = null;
@@ -357,13 +349,11 @@ const handleClearClick = async () => {
     localConfig.value.title = '';
     localConfig.value.subtitle = '';
 
-    // Clear any staged temp assets
     tempAssets.length = 0;
 
-    // Clear file input DOM elements if mounted
     if (homeBgmInputRef.value) homeBgmInputRef.value.value = '';
     if (buttonSEInputRef.value) buttonSEInputRef.value.value = '';
-    // onCompletedLoadingSE removed
+
 
     saveStatus.value = 'クリアしました';
 };

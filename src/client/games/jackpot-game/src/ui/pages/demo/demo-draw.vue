@@ -36,12 +36,11 @@ export default {
   components: { MainLayout },
   setup() {
     const router = useRouter();
-    // ScreenConfigRepositoryから取得
+
     const demoConfig = ref<DemoScreenSetting | null>(null);
     const screenSettingsService = container.resolve(ScreenSettingsService);
     const assetService = container.resolve(AssetDataService);
 
-    // データはモデル層から取得
     const prizes = ref<any[]>([]);
     const members = ref<any[]>([]);
     const prizeRepo = container.resolve(PrizeRepository);
@@ -49,7 +48,6 @@ export default {
     const fetchPrizes = async () => { prizes.value = await prizeRepo.getPrizes(); };
     const fetchMembers = async () => { members.value = await memberRepo.getMembers(); };
 
-    // BGM/SE制御
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     let bgmObjectUrl: string | undefined;
     const playBGM = async () => {
@@ -95,16 +93,15 @@ export default {
       }
     };
 
-    // 抽選ロジック
     const drawn = ref(false);
     const result = ref<{ member: string; prize: string } | null>(null);
     const runDemoDraw = async () => {
       if (drawn.value) return;
       playSE('draw');
       drawn.value = true;
-      // perform a lightweight draw using orchestrator with available data
+
       try {
-        // ensure data
+
         await fetchPrizes();
         await fetchMembers();
         const drawRepo = container.resolve(DrawRepository);
@@ -116,11 +113,10 @@ export default {
           result.value = { member: winner.member.name || winner.member.id, prize: winner.prize.name || winner.prize.id };
         }
       } finally {
-        // no-op
+
       }
     };
 
-    // Enterキーで本抽選へ
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && drawn.value) {
         router.push('/main-draw');

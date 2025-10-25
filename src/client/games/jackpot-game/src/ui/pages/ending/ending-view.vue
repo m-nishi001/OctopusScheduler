@@ -1,7 +1,6 @@
 <template>
     <MainLayout :fullScreen="true">
-        <!-- Always render the sequence so ending contents display in configured order.
-             Convert `screenConfig.elements` (ending shape) to `contents` expected by OpeningSequence. -->
+        
         <OpeningSequence v-if="screenConfig" :screenConfig="convertedConfig" :bgm="bgm" />
     </MainLayout>
 </template>
@@ -26,10 +25,9 @@ export default {
         const isHtmlFullscreen = ref(false);
         const htmlElement = ref<any | null>(null);
 
-        // Convert ending screen config shape to the shape OpeningSequence expects.
         const convertedConfig = {
             get value() {
-                // If original screenConfig uses `contents`, prefer it; otherwise use `elements`.
+
                 const cfg = screenConfig.value as any;
                 if (!cfg) return null;
                 return {
@@ -69,5 +67,5 @@ export default {
 </script>
 
 <style scoped>
-/* keep layout concerns in child components */
+
 </style>

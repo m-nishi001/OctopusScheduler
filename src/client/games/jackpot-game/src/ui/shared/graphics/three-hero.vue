@@ -24,18 +24,18 @@ export default {
             canvas.width = size;
             canvas.height = size;
             const ctx = canvas.getContext('2d')!;
-            // background circle
+
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
             ctx.fill();
-            // colored ring
+
             ctx.lineWidth = 10;
             ctx.strokeStyle = '#ff7a7a';
             ctx.beginPath();
             ctx.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
             ctx.stroke();
-            // number
+
             ctx.fillStyle = '#222';
             ctx.font = 'bold 64px sans-serif';
             ctx.textAlign = 'center';
@@ -62,7 +62,6 @@ export default {
             camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 200);
             camera.position.set(0, 2.2, 6);
 
-            // lighting: spotlight for stage
             const ambient = new THREE.AmbientLight(0xffffff, 0.25);
             scene.add(ambient);
             const spot = new THREE.SpotLight(0xfff6e6, 1.6, 15, Math.PI / 6, 0.4, 1);
@@ -70,14 +69,12 @@ export default {
             spot.castShadow = false;
             scene.add(spot);
 
-            // stage floor
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x2b1212, roughness: 0.6, metalness: 0.2 });
             const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 64), floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.position.y = -1.2;
             scene.add(floor);
 
-            // drum (open cylinder)
             const drumGroup = new THREE.Group();
             const drumRadius = 1.6;
             const drumHeight = 1.2;
@@ -93,7 +90,6 @@ export default {
             rim.position.y = -0.05;
             drumGroup.add(rim);
 
-            // inner cylinder to suggest depth
             const inner = new THREE.Mesh(new THREE.CylinderGeometry(drumRadius - 0.02, drumRadius - 0.02, drumHeight - 0.18, 64), innerMat);
             inner.position.y = -0.6;
             drumGroup.add(inner);
@@ -101,7 +97,6 @@ export default {
             drumGroup.position.y = -0.2;
             scene.add(drumGroup);
 
-            // create numbered balls inside drum
             const balls: THREE.Mesh[] = [];
             const ballCount = 8;
             for (let i = 0; i < ballCount; i++) {
@@ -116,7 +111,6 @@ export default {
                 balls.push(s);
             }
 
-            // subtle confetti / particles above drum
             const confCount = 160;
             const confPos = new Float32Array(confCount * 3);
             const confCol = new Float32Array(confCount * 3);
@@ -140,16 +134,16 @@ export default {
 
             const animate = (t: number) => {
                 const time = t * 0.001;
-                // rotate drum slowly
+
                 drumGroup.rotation.y = Math.sin(time * 0.2) * 0.18 + time * 0.04;
-                // animate balls: slight bob and spin
+
                 for (let i = 0; i < balls.length; i++) {
                     const b = balls[i];
                     const ud = b.userData as any;
                     b.position.y = -0.6 + 0.08 * Math.abs(Math.sin(time * 2 + ud.phase));
                     b.rotation.y = time * 1.2 + ud.offset;
                 }
-                // confetti motion
+
                 const positions = confGeom.attributes.position.array as Float32Array;
                 for (let i = 0; i < confCount; i++) {
                     const idx = i * 3 + 1;

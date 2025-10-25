@@ -70,9 +70,8 @@ export default {
         const resultRes = await drawResultService.getDrawResultById(drawRes.drawId);
         results.value = resultRes ? [resultRes] : [];
 
-        // 演出ループ (実際の結果を使って)
         for (const result of results.value) {
-          // member selection
+
           currentStep.value = 'member';
           selectedMember.value = result.member;
           if (memberDisplay.value) {
@@ -80,7 +79,6 @@ export default {
           }
           await waitForEnter();
 
-          // prize selection
           currentStep.value = 'prize';
           selectedPrize.value = result.prize;
           if (prizeDisplay.value) {

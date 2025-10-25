@@ -189,7 +189,6 @@ const deleteAllMessage = ref("");
 
 const objectUrlMap = new Map<string, string>();
 
-// Preview modal state
 const showPreviewModal = ref(false);
 const previewAsset = ref<Asset | null>(null);
 const previewUrl = ref<string | null>(null);
@@ -205,7 +204,7 @@ function objectUrlIsManaged(url: string | null) {
 const openPreview = async (asset: Asset) => {
     previewAsset.value = asset;
     previewUrl.value = null;
-    // If we already have an object URL for this asset, reuse it
+
     if (asset.id && objectUrlMap.has(asset.id)) {
         previewUrl.value = objectUrlMap.get(asset.id) || null;
     } else if (asset.blob) {
@@ -215,7 +214,7 @@ const openPreview = async (asset: Asset) => {
             previewUrl.value = null;
         }
     } else if (asset.id) {
-        // try fetching full asset data (may bring blob)
+
         try {
             const a = await assetDataService.getAssetDataById(asset.id);
             if (a) {
@@ -234,7 +233,7 @@ const openPreview = async (asset: Asset) => {
 
 const closePreview = () => {
     showPreviewModal.value = false;
-    // revoke preview URL only if we created it here and it's not managed elsewhere
+
     if (previewUrl.value && !objectUrlIsManaged(previewUrl.value)) {
         try { URL.revokeObjectURL(previewUrl.value); } catch { }
     }
@@ -308,7 +307,7 @@ const addAssets = async () => {
         uploadStatuses.value = uploadStatuses.value.map(u => {
             const list = byName.get(u.name);
             if (list && list.length > 0) {
-                // consume one
+
                 list.shift();
                 return { ...u, status: '完了' };
             }
@@ -384,7 +383,6 @@ const confirmSyncMode = async (mode: "drive" | "local") => {
         return;
     }
 
-    // local wins: upload diffs (existing behavior)
     syncing.value = true;
     syncMessage.value = "";
     try {
@@ -458,7 +456,7 @@ function prettyAssetType(mime: string | undefined): string {
     outline: 2px solid #4f8cff;
 }
 
-/* Primary action look */
+
 .admin-btn {
     padding: 9px 18px;
     border-radius: 10px;
@@ -517,11 +515,11 @@ function prettyAssetType(mime: string | undefined): string {
     height: 20px;
     margin: 0;
     vertical-align: middle;
-    /* Use same look as list checkboxes (native) */
+    
 }
 
 .select-all-label {
-    /* tweak to align with item checkbox column */
+    
     margin-left: 10px;
 }
 
@@ -596,7 +594,7 @@ function prettyAssetType(mime: string | undefined): string {
     border-radius: 6px;
 }
 
-/* Styles specifically when selected-files appears inside modal */
+
 .modal-content .selected-files ul {
     padding: 12px 16px;
     background: linear-gradient(180deg, rgba(28, 34, 40, 0.9) 0%, rgba(27, 30, 35, 0.85) 100%);
@@ -750,7 +748,7 @@ function prettyAssetType(mime: string | undefined): string {
     background: rgba(255, 255, 255, 0.02);
 }
 
-/* Add button specific style: make it visually prominent but match small icon sizing */
+
 .add-icon {
     padding: 10px;
     border-radius: 12px;
@@ -768,7 +766,7 @@ function prettyAssetType(mime: string | undefined): string {
 }
 
 .select-all-icon {
-    /* visually distinct but subtle */
+    
     border-radius: 8px;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
     color: #dbeeff;

@@ -311,7 +311,7 @@ onBeforeUnmount(() => {
         try {
             URL.revokeObjectURL(url);
         } catch (e) {
-            /* ignore */
+            
         }
     }
     assetUrlMap.clear();
