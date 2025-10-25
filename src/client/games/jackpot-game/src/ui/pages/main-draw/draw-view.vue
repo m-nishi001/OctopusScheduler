@@ -80,7 +80,7 @@ export default {
           await waitForEnter();
 
           currentStep.value = 'prize';
-          selectedPrize.value = result.prize;
+          selectedPrize.value = result.prize ?? null;
           if (prizeDisplay.value) {
             gsap.fromTo(prizeDisplay.value, { rotation: 0, opacity: 0 }, { rotation: 360, opacity: 1, duration: 1, ease: 'power2.out' });
           }
@@ -113,32 +113,32 @@ export default {
 </script>
 
 <style scoped>
-  .jp-title {
-    font-size: 2.2em;
-    color: #ffffff;
-    text-shadow: 0 2px 12px #87ceeb;
-    margin-bottom: 32px;
-    font-family: 'Orbitron', 'Montserrat', sans-serif;
-  }
+.jp-title {
+  font-size: 2.2em;
+  color: #ffffff;
+  text-shadow: 0 2px 12px #87ceeb;
+  margin-bottom: 32px;
+  font-family: 'Orbitron', 'Montserrat', sans-serif;
+}
 
-  .selection-area {
-    margin-top: 32px;
-    text-align: center;
-  }
+.selection-area {
+  margin-top: 32px;
+  text-align: center;
+}
 
-  .member-display,
-  .prize-display {
-    font-size: 2em;
-    color: #ffffff;
-    margin: 20px 0;
-    padding: 20px;
-    background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  }
+.member-display,
+.prize-display {
+  font-size: 2em;
+  color: #ffffff;
+  margin: 20px 0;
+  padding: 20px;
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
 
-  .finished-area {
-    margin-top: 32px;
-    text-align: center;
-  }
+.finished-area {
+  margin-top: 32px;
+  text-align: center;
+}
 </style>

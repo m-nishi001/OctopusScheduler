@@ -58,7 +58,7 @@ export default {
           }
         }
       }
-      winners.value = results.map(r => ({ ...r.member, prize: r.prize.name, id: r.member.id, photo: (r.member.photoAssetId ? objectUrlMap.get(r.member.photoAssetId) : undefined) || r.member.photoAssetId }));
+      winners.value = results.map(r => ({ ...r.member, prize: r.prize ? r.prize.name : '', id: r.member.id, photo: (r.member.photoAssetId ? objectUrlMap.get(r.member.photoAssetId) : undefined) || r.member.photoAssetId }));
       const ranks = results.map(r => r.rank || 0);
       const minRank = Math.min(...ranks);
       const maxRank = Math.max(...ranks);

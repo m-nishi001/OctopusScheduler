@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import type { DrawRequest } from "./dto/draw-request";
 import type { DrawResponse } from "./dto/draw-response";
-import { DrawService } from "./draw-service";
+import { DrawRepository } from "../../infrastructures/draw-repository";
 import { DrawResultService } from "../draw-result/draw-result-service";
 import { PrizeService } from "../prize/prize-service";
 import { MemberService } from "../member/member-service";
@@ -9,7 +9,7 @@ import { MemberService } from "../member/member-service";
 @injectable()
 export class DrawOrchestrator {
   constructor(
-    private drawService: DrawService,
+    private drawService: DrawRepository,
     @inject(DrawResultService) private resultService: DrawResultService,
     private prizeService: PrizeService,
     private memberService: MemberService
@@ -22,7 +22,7 @@ export class DrawOrchestrator {
     const response = await this.drawService.executeDraw(req);
     if (response.pairs) {
       await Promise.all(
-        response.pairs.map(async (p, i) => {
+        response.pairs.map(async (p: any, i: number) => {
           const member = members.find((m) => m.id === p.memberId);
           const prize = prizes.find((pr) => pr.id === p.prizeId);
           if (member && prize) {

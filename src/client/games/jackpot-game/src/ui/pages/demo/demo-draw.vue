@@ -110,7 +110,8 @@ export default {
         const resultRes = await drawResultService.getDrawResultById(res.drawId);
         const winner = resultRes;
         if (winner) {
-          result.value = { member: winner.member.name || winner.member.id, prize: winner.prize.name || winner.prize.id };
+          const prizeText = winner.prize ? (winner.prize.name || winner.prize.id) : '';
+          result.value = { member: winner.member.name || winner.member.id, prize: prizeText };
         }
       } finally {
 
