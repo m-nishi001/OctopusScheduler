@@ -1,7 +1,7 @@
 <template>
   <MainLayout>
     <div class="home-root">
-      <ThreeHero :loaded="assetsLoaded" class="bg-hero" />
+      <ThreeHero class="bg-hero" />
 
       <div class="home-overlay">
         <h1 class="home-title">{{ homeConfig?.title }}</h1>
@@ -9,18 +9,8 @@
         <p v-if="homeConfig?.subtitle" class="subtitle">{{ homeConfig.subtitle }}</p>
 
         <div class="controls">
-          <button v-if="assetsLoaded" ref="startBtn" @click="goOpening" class="start-button">スタート</button>
+          <button ref="startBtn" @click="goOpening" class="start-button">スタート</button>
           <button ref="adminBtn" @click="goAdmin" class="admin-button">管理画面</button>
-        </div>
-
-        <div v-if="!assetsLoaded" class="load-footer">
-          <div class="progress-wrap">
-            <div class="progress-line" :style="{ width: progress + '%' }"></div>
-          </div>
-          <div v-for="task in syncTasks" :key="task.label" class="progress-text">{{ task.label }}: {{ task.status }}{{
-            task.total > 0 ? (task.status === '同期中' ? ` (${task.current}件/${task.total}件)` : `
-            (${task.total}件)`) : '' }}
-          </div>
         </div>
       </div>
     </div>
@@ -28,7 +18,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import ThreeHero from '../../shared/graphics/three-hero.vue';
 import { useRouter } from 'vue-router';
@@ -52,16 +42,6 @@ export default {
     const screenSettingsService = container.resolve(ScreenSettingsService);
     const assetService = container.resolve(AssetDataService);
 
-    const assetsLoaded = ref(false);
-    const progress = ref(0);
-    const syncTasks = ref([
-      { label: "アセット", status: "準備中", current: 0, total: 0 },
-      { label: "賞品", status: "準備中", current: 0, total: 0 },
-      { label: "抽選結果", status: "準備中", current: 0, total: 0 },
-      { label: "メンバー", status: "準備中", current: 0, total: 0 },
-      { label: "画面設定", status: "準備中", current: 0, total: 0 },
-    ]);
-    // button refs for animation
     const startBtn = ref<HTMLButtonElement | null>(null);
     const adminBtn = ref<HTMLButtonElement | null>(null);
     let gsap: any = null;
@@ -86,50 +66,7 @@ export default {
       }
     };
 
-    const loadAssets = async () => {
-      try {
-        progress.value = 10;
-        const tasks = [
-          {
-            task: assetService.syncAssetData((_message, progressInfo) => {
-              if (progressInfo) {
-                syncTasks.value[0].current = progressInfo.current;
-                syncTasks.value[0].total = progressInfo.total;
-              }
-            }), index: 0
-          },
-          { task: Promise.resolve({ synced: 0 }), index: 1 },
-          { task: Promise.resolve({ synced: 0 }), index: 2 },
-          { task: Promise.resolve({ synced: 0 }), index: 3 },
-          { task: screenSettingsService.syncToDrive(), index: 4 },
-        ];
-        const totalTasks = tasks.length;
-        const progressPerTask = 30 / totalTasks;
-        await Promise.all(tasks.map(async ({ task, index }) => {
-          syncTasks.value[index].status = "同期中";
-          const result = await task;
-          syncTasks.value[index].status = "完了";
-          if ('updated' in result && 'deleted' in result) {
-            syncTasks.value[index].total = result.updated + result.deleted;
-          } else if ('synced' in result) {
-            syncTasks.value[index].total = result.synced;
-          }
-          progress.value += progressPerTask;
-        }));
-      } catch (e) {
-        progress.value = 50;
-        syncTasks.value.forEach(t => { t.status = "エラー"; t.current = 0; t.total = 0; });
-      }
-      const config = await screenSettingsService.fetchScreenSetting('home', 'home-screen-settings');
-      homeConfig.value = (config as HomeScreenSetting) ?? new HomeScreenSetting("", "", "", "", "");
 
-      for (let i = progress.value; i < 100;) {
-        i = Math.min(i + 8, 100);
-        progress.value = i;
-        await new Promise((r) => setTimeout(r, 120));
-      }
-      progress.value = 100;
-    };
 
     onMounted(async () => {
       if (bgmAudio.value) {
@@ -142,13 +79,32 @@ export default {
       document.documentElement.classList.add('jackpot-fullscreen');
       document.body.classList.add('jackpot-fullscreen');
 
-      await loadAssets();
-      if (!unmounted.value) {
-        await playBGM();
-        window.addEventListener('keydown', handleKey);
-      }
-      // lazy load gsap to avoid bundling cost if not needed
+      // fetch screen config and start background audio
+      (async () => {
+        try {
+          const config = await screenSettingsService.fetchScreenSetting('home', 'home-screen-settings');
+          homeConfig.value = (config as HomeScreenSetting) ?? new HomeScreenSetting("", "", "", "", "");
+          if (!unmounted.value) await playBGM();
+          window.addEventListener('keydown', handleKey);
+        } catch (e) {
+          console.warn('fetchScreenSetting/playBGM failed:', e);
+        }
+      })();
+
+      // lazy load gsap and animate buttons immediately
       try { const mod = await import('gsap'); gsap = mod?.gsap || mod; } catch (e) { gsap = null; }
+      await nextTick();
+      const s = startBtn.value;
+      const a = adminBtn.value;
+      if (gsap && s && a) {
+        gsap.set([s, a], { scale: 0.8, opacity: 0, filter: 'drop-shadow(0 0 0 rgba(0,0,0,0))' });
+        gsap.to(s, { scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.5)' });
+        gsap.to(a, { scale: 1, opacity: 0.95, duration: 0.6, delay: 0.08, ease: 'back.out(1.4)' });
+        gsap.to(s, { boxShadow: '0px 18px 60px rgba(255,122,122,0.16)', duration: 1.2, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+      } else if (s && a) {
+        s.style.opacity = '1';
+        a.style.opacity = '0.95';
+      }
     });
 
     onUnmounted(() => {
@@ -166,35 +122,13 @@ export default {
       }
     });
 
-    watch(progress, async (val) => {
-      if (val === 100) {
-        assetsLoaded.value = true;
-      }
-    });
 
-    // animate buttons when loaded becomes true
-    watch(assetsLoaded, async (val) => {
-      if (!val) return;
-      await nextTick();
-      const s = startBtn.value;
-      const a = adminBtn.value;
-      if (gsap && s && a) {
-        gsap.set([s, a], { scale: 0.8, opacity: 0, filter: 'drop-shadow(0 0 0 rgba(0,0,0,0))' });
-        gsap.to(s, { scale: 1, opacity: 1, duration: 0.6, ease: 'back.out(1.5)' });
-        gsap.to(a, { scale: 1, opacity: 0.95, duration: 0.6, delay: 0.08, ease: 'back.out(1.4)' });
-        // subtle pulsing glow on start button
-        gsap.to(s, { boxShadow: '0px 18px 60px rgba(255,122,122,0.16)', duration: 1.2, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-      } else if (s && a) {
-        s.style.opacity = '1';
-        a.style.opacity = '0.95';
-      }
-    });
 
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter') goOpening();
     };
 
-    return { goOpening, goAdmin, homeConfig, progress, assetsLoaded, startBtn, adminBtn, syncTasks };
+    return { goOpening, goAdmin, homeConfig, startBtn, adminBtn };
   },
 };
 </script>
@@ -290,15 +224,6 @@ export default {
   font-size: 0.95rem;
 }
 
-.load-footer {
-  position: absolute;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  text-align: center;
-  pointer-events: auto;
-  z-index: 3;
-}
 
 @keyframes titleAnimation {
   from {
