@@ -27,7 +27,8 @@ import { useRouter } from 'vue-router';
 export default {
     name: 'OpeningSequence',
     props: {
-        screenConfig: { type: Object, required: true }
+        screenConfig: { type: Object, required: true },
+        bgm: { type: null, required: false }
     },
     setup(props: any) {
         const router = useRouter();
@@ -105,6 +106,29 @@ export default {
             return hasHtmlTag ? raw : escapeHtml(raw).replace(/\n/g, '<br/>');
         };
 
+        const waitForImagesIn = (el: HTMLElement | null) =>
+            new Promise<void>((resolve) => {
+                if (!el) return resolve();
+                const imgs = Array.from(el.querySelectorAll('img')) as HTMLImageElement[];
+                if (imgs.length === 0) return resolve();
+                let remaining = imgs.length;
+                imgs.forEach((img) => {
+                    if (img.complete) {
+                        remaining -= 1;
+                        if (remaining === 0) resolve();
+                    } else {
+                        img.addEventListener('load', () => {
+                            remaining -= 1;
+                            if (remaining === 0) resolve();
+                        });
+                        img.addEventListener('error', () => {
+                            remaining -= 1;
+                            if (remaining === 0) resolve();
+                        });
+                    }
+                });
+            });
+
         const startSequence = async () => {
             if (!scrollContent.value || !props.screenConfig) return;
             const elements = Array.from(scrollContent.value.querySelectorAll('.content-item')) as HTMLElement[];
@@ -117,6 +141,11 @@ export default {
                 const el = elements[i];
                 const elementConfig = props.screenConfig.contents[i];
                 await new Promise((r) => setTimeout(r, 60));
+
+                // If this is an HTML element, wait for images inside it to finish loading
+                if (elementConfig?.type === 'html') {
+                    await waitForImagesIn(el);
+                }
 
                 const durationMs = elementConfig?.duration || elementConfig?.animation?.duration || 3000;
                 const animationType = elementConfig?.animation?.type || elementConfig?.effect || 'fade';

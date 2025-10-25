@@ -1,7 +1,9 @@
 <template>
   <MainLayout :fullScreen="true">
-    <OpeningHtml v-if="openingConfig && isHtmlFullscreen" :element="htmlElement" :bgm="bgm" />
-    <OpeningSequence v-else-if="openingConfig" :screenConfig="openingConfig" />
+    <!-- Always render the sequence so contents are shown in the configured order.
+         Individual HTML contents will be handled inside the sequence (images waited-for there).
+         This avoids short-circuiting to a single fullscreen HTML element which hid other items. -->
+    <OpeningSequence v-if="openingConfig" :screenConfig="openingConfig" :bgm="bgm" />
   </MainLayout>
 </template>
 
