@@ -48,27 +48,6 @@
                     </select>
                 </div>
                 <div class="config-item">
-                    <label>読み込み完了SE:</label>
-                    <div class="asset-mode">
-                        <label><input type="radio" v-model="localConfig.onCompletedLoadingSEMode" value="upload" />
-                            アップロード</label>
-                        <label><input type="radio" v-model="localConfig.onCompletedLoadingSEMode" value="select" />
-                            既存から選択</label>
-                    </div>
-                    <input v-if="localConfig.onCompletedLoadingSEMode === 'upload'" ref="completedSEInputRef"
-                        type="file" @change="onOnCompletedLoadingSEChange" accept="audio/*" class="admin-input" />
-                    <div v-if="localConfig.onCompletedLoadingSEMode === 'upload' && localConfig.onCompletedLoadingSEFilename"
-                        class="file-name">{{ localConfig.onCompletedLoadingSEFilename }}</div>
-                    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
-                        <button class="admin-btn" @click.prevent="previewCompletedSE"
-                            :disabled="previewing">プレビュー</button>
-                        <button class="admin-btn" @click.prevent="stopPreview" :disabled="!previewing">停止</button>
-                    </div>
-                    <select v-if="localConfig.onCompletedLoadingSEMode === 'select'"
-                        v-model="localConfig.onCompletedLoadingSE" class="admin-input">
-                        <option value="">選択なし</option>
-                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                    </select>
                 </div>
                 <div class="config-item">
                     <label>タイトル文言:</label>
@@ -144,7 +123,6 @@ const uploading = ref(false);
 // refs for file input elements so we can clear them programmatically
 const homeBgmInputRef = ref<HTMLInputElement | null>(null);
 const buttonSEInputRef = ref<HTMLInputElement | null>(null);
-const completedSEInputRef = ref<HTMLInputElement | null>(null);
 
 const fetchAssets = async () => {
     try {
@@ -170,10 +148,7 @@ const localConfig = ref({
     buttonClikingSEMode: "select",
     buttonClikingSEFilename: "",
     buttonClikingSETempAsset: null as Asset | null,
-    onCompletedLoadingSE: "",
-    onCompletedLoadingSEMode: "select",
-    onCompletedLoadingSEFilename: "",
-    onCompletedLoadingSETempAsset: null as Asset | null,
+    // onCompletedLoadingSE removed
     title: "",
     subtitle: "",
 });
@@ -190,10 +165,7 @@ const loadConfig = async () => {
             localConfig.value.buttonClikingSEMode = "select";
             localConfig.value.buttonClikingSEFilename = "";
             localConfig.value.buttonClikingSETempAsset = null;
-            localConfig.value.onCompletedLoadingSE = (cfg as any).onCompletedLoadingSE || "";
-            localConfig.value.onCompletedLoadingSEMode = "select";
-            localConfig.value.onCompletedLoadingSEFilename = "";
-            localConfig.value.onCompletedLoadingSETempAsset = null;
+            // onCompletedLoadingSE removed from config
             localConfig.value.title = (cfg as any).title || "2025年度 ジャックポッド大会！";
             localConfig.value.subtitle = (cfg as any).subtitle || "";
         }
@@ -275,15 +247,7 @@ const previewButtonSE = async () => {
     }
 };
 
-const previewCompletedSE = async () => {
-    if (localConfig.value.onCompletedLoadingSEMode === 'upload' && localConfig.value.onCompletedLoadingSETempAsset) {
-        await playPreviewFromBlob((localConfig.value.onCompletedLoadingSETempAsset as any).blob as Blob, false, 1);
-        return;
-    }
-    if (localConfig.value.onCompletedLoadingSE) {
-        await playPreviewFromAssetId(localConfig.value.onCompletedLoadingSE, false, 1);
-    }
-};
+// previewCompletedSE removed
 
 const onHomeBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
@@ -309,16 +273,7 @@ const onButtonClikingSEChange = async (e: Event) => {
     }
 };
 
-const onOnCompletedLoadingSEChange = async (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) {
-        const dto = await assetService.createDriveDataDtoFromFile(file);
-        (dto as any).__field = 'onCompletedLoadingSE';
-        localConfig.value.onCompletedLoadingSETempAsset = dto;
-        localConfig.value.onCompletedLoadingSEFilename = file.name;
-        tempAssets.push(dto);
-    }
-};
+// onOnCompletedLoadingSEChange removed
 
 const handleSaveClick = async () => {
     saving.value = true;
@@ -347,11 +302,6 @@ const handleSaveClick = async () => {
                     localConfig.value.buttonClikingSEMode = 'select';
                     localConfig.value.buttonClikingSEFilename = '';
                     localConfig.value.buttonClikingSETempAsset = null;
-                } else if (f === 'onCompletedLoadingSE') {
-                    localConfig.value.onCompletedLoadingSE = saved.id;
-                    localConfig.value.onCompletedLoadingSEMode = 'select';
-                    localConfig.value.onCompletedLoadingSEFilename = '';
-                    localConfig.value.onCompletedLoadingSETempAsset = null;
                 }
             }
 
@@ -359,13 +309,11 @@ const handleSaveClick = async () => {
             tempAssets.length = 0;
             if (homeBgmInputRef.value) homeBgmInputRef.value.value = '';
             if (buttonSEInputRef.value) buttonSEInputRef.value.value = '';
-            if (completedSEInputRef.value) completedSEInputRef.value.value = '';
         }
 
         const payload = {
             homeBgm: localConfig.value.homeBgm || '',
             buttonClikingSE: localConfig.value.buttonClikingSE || '',
-            onCompletedLoadingSE: localConfig.value.onCompletedLoadingSE || '',
             title: localConfig.value.title,
             subtitle: localConfig.value.subtitle,
         };
@@ -395,7 +343,6 @@ const handleClearClick = async () => {
     // Reset modes first so any upload inputs are unmounted
     localConfig.value.homeBgmMode = 'select';
     localConfig.value.buttonClikingSEMode = 'select';
-    localConfig.value.onCompletedLoadingSEMode = 'select';
 
     // Clear values
     localConfig.value.homeBgm = '';
@@ -406,9 +353,6 @@ const handleClearClick = async () => {
     localConfig.value.buttonClikingSEFilename = '';
     localConfig.value.buttonClikingSETempAsset = null;
 
-    localConfig.value.onCompletedLoadingSE = '';
-    localConfig.value.onCompletedLoadingSEFilename = '';
-    localConfig.value.onCompletedLoadingSETempAsset = null;
 
     localConfig.value.title = '';
     localConfig.value.subtitle = '';
@@ -419,7 +363,7 @@ const handleClearClick = async () => {
     // Clear file input DOM elements if mounted
     if (homeBgmInputRef.value) homeBgmInputRef.value.value = '';
     if (buttonSEInputRef.value) buttonSEInputRef.value.value = '';
-    if (completedSEInputRef.value) completedSEInputRef.value.value = '';
+    // onCompletedLoadingSE removed
 
     saveStatus.value = 'クリアしました';
 };
