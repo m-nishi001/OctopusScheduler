@@ -16,65 +16,43 @@
         </div>
         <div class="config-item">
             <label>コンテンツ:</label>
-            <button class="admin-btn add-content-btn" @click="addContent">コンテンツ追加</button>
+            <!-- toolbar: add / sync / delete -->
+            <div class="toolbar">
+                <button class="admin-btn icon-only add-icon" @click="showAddDialog" title="追加">
+                    <span class="emoji">➕</span>
+                </button>
+                <button class="admin-btn icon-only sync-icon" @click="handleSyncClick" :disabled="syncing"
+                    title="同期">🔄</button>
+                <button class="admin-btn icon-only delete-icon" @click="deleteSelectedContents"
+                    :disabled="!selectedIndices.length" title="選択削除">🗑️</button>
+            </div>
+
+            <div class="select-all-row">
+                <input type="checkbox" class="select-checkbox" v-model="isAllSelected" />
+            </div>
 
             <div v-if="localConfig.contents.length === 0" class="empty-note">コンテンツがありません。追加してください。</div>
 
-            <div v-for="(content, idx) in localConfig.contents" :key="idx" class="content-item">
-                <div class="content-controls">
-                    <select v-model="content.type" class="admin-input">
-                        <option value="text">テキスト</option>
-                        <option value="image">画像</option>
-                        <option value="html">HTML</option>
-                    </select>
-                    <input v-if="content.type === 'text'" v-model="content.text" placeholder="テキスト内容"
-                        class="admin-input" />
-                    <textarea v-if="content.type === 'html'" v-model="content.content" placeholder="HTMLを入力"
-                        class="admin-input" rows="6"></textarea>
-                    <div v-if="content.type === 'image'">
-                        <div class="asset-mode">
-                            <label><input type="radio" v-model="content.imageMode" value="select" /> 既存から選択</label>
-                            <label><input type="radio" v-model="content.imageMode" value="upload" /> アップロード</label>
-                        </div>
-                        <select v-if="content.imageMode === 'select'" v-model="content.assetId" class="admin-input">
-                            <option value="">選択なし</option>
-                            <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
-                            </option>
-                        </select>
-                        <input v-if="content.imageMode === 'upload'" type="file" @change="(e) => onImageChange(e, idx)"
-                            accept="image/*" class="admin-input" />
+            <ul class="content-list">
+                <li v-for="(content, idx) in localConfig.contents" :key="idx" class="content-list-item">
+                    <div class="select-col">
+                        <input type="checkbox" class="row-checkbox" :value="idx" v-model="selectedIndices" />
                     </div>
-                    <div class="content-row">
-                        <select v-model="content.effect" class="admin-input">
-                            <option value="scroll">スクロール</option>
-                            <option value="fade">フェード</option>
-                            <option value="static">静止</option>
-                        </select>
-                        <input v-model.number="content.duration" type="number" placeholder="表示時間(ms)"
-                            class="admin-input" />
+                    <div class="content-summary">
+                        <span class="content-index">{{ idx + 1 }}.</span>
+                        <span class="content-title">{{ getContentTitle(content) }}</span>
                     </div>
-                    <div class="asset-mode">
-                        <label><input type="radio" v-model="content.seMode" value="select" /> SE選択</label>
-                        <label><input type="radio" v-model="content.seMode" value="upload" /> SEアップロード</label>
+                    <div class="content-list-actions">
+                        <button class="admin-btn" @click="showEditDialog(idx)">詳細</button>
+                        <button class="admin-btn danger" @click="removeContent(idx)">削除</button>
+                        <button class="admin-btn" @click="moveUp(idx)" :disabled="idx === 0">↑</button>
+                        <button class="admin-btn" @click="moveDown(idx)"
+                            :disabled="idx === localConfig.contents.length - 1">↓</button>
                     </div>
-                    <select v-if="content.seMode === 'select'" v-model="content.seAssetId" class="admin-input">
-                        <option value="">選択なし</option>
-                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                    </select>
-                    <input v-if="content.seMode === 'upload'" type="file" @change="(e) => onSeChange(e, idx)"
-                        accept="audio/*" class="admin-input" />
-                </div>
-                <div class="content-actions">
-                    <button class="admin-btn danger" @click="removeContent(idx)">削除</button>
-                </div>
-            </div>
+                </li>
+            </ul>
 
-            <div class="button-row">
-                <button class="admin-btn" @click="handleSaveClick" :disabled="saving"
-                    :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
-                <button class="admin-btn" @click="handleSyncClick" :disabled="syncing"
-                    :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
-            </div>
+            <!-- toolbar contains sync; inline save/sync buttons removed per design -->
         </div>
     </div>
 
@@ -93,6 +71,69 @@
             <div class="spinner"></div>
         </div>
     </div>
+    <!-- Add / Edit Content Dialog -->
+    <div v-if="dialogVisible" class="modal-overlay">
+        <div class="modal-content dialog-modal">
+            <h3>{{ editingIndex === -1 ? 'コンテンツを追加' : 'コンテンツを編集' }}</h3>
+
+            <div class="content-controls">
+                <label>コンテンツ名:</label>
+                <input v-model="(dialogContent as any).name" placeholder="コンテンツ名" class="admin-input" />
+
+                <select v-model="dialogContent.type" class="admin-input">
+                    <option value="text">テキスト</option>
+                    <option value="image">画像</option>
+                    <option value="html">HTML</option>
+                </select>
+
+                <input v-if="dialogContent.type === 'text'" v-model="dialogContent.text" placeholder="テキスト内容"
+                    class="admin-input" />
+
+                <textarea v-if="dialogContent.type === 'html'" v-model="dialogContent.content" placeholder="HTMLを入力"
+                    class="admin-input" rows="6"></textarea>
+
+                <div v-if="dialogContent.type === 'image'">
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="dialogContent.imageMode" value="select" /> 既存から選択</label>
+                        <label><input type="radio" v-model="dialogContent.imageMode" value="upload" /> アップロード</label>
+                    </div>
+                    <select v-if="dialogContent.imageMode === 'select'" v-model="dialogContent.assetId"
+                        class="admin-input">
+                        <option value="">選択なし</option>
+                        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                    </select>
+                    <input v-if="dialogContent.imageMode === 'upload'" type="file" @change="onDialogImageChange"
+                        accept="image/*" class="admin-input" />
+                </div>
+
+                <div class="content-row">
+                    <select v-model="dialogContent.effect" class="admin-input">
+                        <option value="scroll">スクロール</option>
+                        <option value="fade">フェード</option>
+                        <option value="static">静止</option>
+                    </select>
+                    <input v-model.number="dialogContent.duration" type="number" placeholder="表示時間(ms)"
+                        class="admin-input" />
+                </div>
+
+                <div class="asset-mode">
+                    <label><input type="radio" v-model="dialogContent.seMode" value="select" /> SE選択</label>
+                    <label><input type="radio" v-model="dialogContent.seMode" value="upload" /> SEアップロード</label>
+                </div>
+                <select v-if="dialogContent.seMode === 'select'" v-model="dialogContent.seAssetId" class="admin-input">
+                    <option value="">選択なし</option>
+                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <input v-if="dialogContent.seMode === 'upload'" type="file" @change="onDialogSeChange" accept="audio/*"
+                    class="admin-input" />
+            </div>
+
+            <div class="button-row">
+                <button class="admin-btn" @click="saveDialog">保存</button>
+                <button class="admin-btn" @click="closeDialog">キャンセル</button>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -108,6 +149,8 @@ const assetService = container.resolve(AssetDataService);
 
 const audioAssets = ref<any[]>([]);
 const imageAssets = ref<any[]>([]);
+// map of asset.id -> object URL created for UI preview
+const assetUrlMap = new Map<string, string>();
 const saving = ref(false);
 const saveStatus = ref('');
 const syncing = ref(false);
@@ -123,8 +166,24 @@ const tempAssets: Asset[] = [];
 
 const fetchAssets = async () => {
     try {
-        audioAssets.value = await assetService.getAllAssetData();
-        imageAssets.value = await assetService.getAllAssetData();
+        const raw = await assetService.getAllAssetData();
+        // create object URLs for UI preview when blob exists
+        const mapped = raw.map((a: any) => {
+            const copy: any = { ...a };
+            if (!copy.url && copy.blob) {
+                try {
+                    const url = URL.createObjectURL(copy.blob);
+                    copy.url = url;
+                    if (copy.id) assetUrlMap.set(copy.id, url);
+                } catch (err) {
+                    console.error('Failed to create object URL for asset', err);
+                }
+            }
+            return copy;
+        });
+        // use same list for audio/image selection but keep full list in audioAssets/imageAssets
+        audioAssets.value = mapped;
+        imageAssets.value = mapped;
     } catch (e) {
         audioAssets.value = [];
         imageAssets.value = [];
@@ -157,40 +216,139 @@ const onBgmChange = async (e: Event) => {
     }
 };
 
-const onImageChange = async (e: Event, idx: number) => {
+// Dialog & reorder state and helpers
+const dialogVisible = ref(false);
+const editingIndex = ref<number>(-1);
+const dialogContent = ref<OpeningContent>({
+    type: 'text',
+    name: '',
+    text: '',
+    content: '',
+    imageMode: 'select',
+    assetId: '',
+    effect: 'scroll',
+    duration: 3000,
+    seMode: 'select',
+    seAssetId: '',
+} as OpeningContent);
+
+const createEmptyContent = (): OpeningContent => ({
+    type: 'text',
+    name: '',
+    text: '',
+    content: '',
+    imageMode: 'select',
+    assetId: '',
+    effect: 'scroll',
+    duration: 3000,
+    seMode: 'select',
+    seAssetId: '',
+} as OpeningContent);
+
+const showAddDialog = () => {
+    editingIndex.value = -1;
+    dialogContent.value = JSON.parse(JSON.stringify(createEmptyContent()));
+    dialogVisible.value = true;
+};
+
+const showEditDialog = (idx: number) => {
+    editingIndex.value = idx;
+    dialogContent.value = JSON.parse(JSON.stringify(localConfig.value.contents[idx] || createEmptyContent()));
+    dialogVisible.value = true;
+};
+
+const closeDialog = () => {
+    dialogVisible.value = false;
+    editingIndex.value = -1;
+};
+
+const saveDialog = async () => {
+    if (editingIndex.value === -1) {
+        localConfig.value.contents.push(JSON.parse(JSON.stringify(dialogContent.value)));
+    } else {
+        localConfig.value.contents.splice(editingIndex.value, 1, JSON.parse(JSON.stringify(dialogContent.value)));
+    }
+    closeDialog();
+    // Persist immediately
+    await handleSaveClick();
+};
+
+const onDialogImageChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
         tempAssets.push(dto);
-        localConfig.value.contents[idx].assetId = dto.id;
+        (dialogContent.value as any).assetId = dto.id;
     }
 };
 
-const onSeChange = async (e: Event, idx: number) => {
+const onDialogSeChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
         tempAssets.push(dto);
-        localConfig.value.contents[idx].seAssetId = dto.id;
+        (dialogContent.value as any).seAssetId = dto.id;
     }
 };
 
-const addContent = () => {
-    localConfig.value.contents.push({
-        type: 'text',
-        text: '',
-        content: '',
-        imageMode: 'select',
-        assetId: '',
-        effect: 'scroll',
-        duration: 3000,
-        seMode: 'select',
-        seAssetId: '',
-    } as OpeningContent);
+const moveUp = async (idx: number) => {
+    if (idx <= 0) return;
+    const arr = localConfig.value.contents;
+    [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+    await handleSaveClick();
 };
 
-const removeContent = (idx: number) => {
+const moveDown = async (idx: number) => {
+    const arr = localConfig.value.contents;
+    if (idx >= arr.length - 1) return;
+    [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+    await handleSaveClick();
+};
+
+const getContentTitle = (c: OpeningContent) => {
+    if (!c) return '';
+    // prefer explicit content name if provided
+    if ((c as any).name) return (c as any).name;
+    if (c.type === 'text') return c.text ? (c.text.length > 30 ? c.text.substr(0, 30) + '…' : c.text) : 'テキスト';
+    if (c.type === 'image') return '画像' + (c.assetId ? ` (${c.assetId})` : '');
+    if (c.type === 'html') return 'HTML';
+    return '';
+};
+
+import { onBeforeUnmount } from 'vue';
+onBeforeUnmount(() => {
+    for (const url of assetUrlMap.values()) {
+        try {
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            /* ignore */
+        }
+    }
+    assetUrlMap.clear();
+});
+
+// selection state for multi-delete
+import { computed } from 'vue';
+const selectedIndices = ref<number[]>([]);
+const isAllSelected = computed({
+    get: () => localConfig.value.contents.length > 0 && selectedIndices.value.length === localConfig.value.contents.length,
+    set: (val: boolean) => { selectedIndices.value = val ? localConfig.value.contents.map((_, i) => i) : []; }
+});
+
+const deleteSelectedContents = async () => {
+    if (!selectedIndices.value.length) return;
+    // remove items from highest index to lowest so indices stay valid
+    const sorted = [...selectedIndices.value].sort((a, b) => b - a);
+    for (const idx of sorted) {
+        localConfig.value.contents.splice(idx, 1);
+    }
+    selectedIndices.value = [];
+    await handleSaveClick();
+};
+
+const removeContent = async (idx: number) => {
     localConfig.value.contents.splice(idx, 1);
+    await handleSaveClick();
 };
 
 const handleSyncClick = async () => {
@@ -315,6 +473,113 @@ const handleSaveClick = async () => {
     flex-wrap: wrap;
 }
 
+/* list layout for content items */
+.content-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* toolbar styling to match provided mock */
+.toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 18px;
+    /* match members/prizes spacing */
+}
+
+.admin-btn.icon-only {
+    padding: 8px;
+    border-radius: 8px;
+    background: transparent;
+    color: #cfe8ff;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-btn.icon-only.add-icon {
+    padding: 10px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #b6d8ff 0%, #8aaeff 100%);
+    color: #232b36;
+    border: none;
+    box-shadow: 0 6px 18px rgba(79, 140, 255, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-only .emoji,
+.add-icon .emoji {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.admin-btn.icon-only.sync-icon,
+.admin-btn.icon-only.delete-icon {
+    padding: 8px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+    color: #dbeeff;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.select-all-row {
+    margin-bottom: 10px;
+    /* match members list-controls spacing */
+    display: flex;
+    align-items: center;
+}
+
+.select-checkbox {
+    width: 20px;
+    height: 20px;
+    accent-color: #4f8cff;
+}
+
+.row-checkbox {
+    width: 20px;
+    height: 20px;
+    accent-color: #4f8cff;
+}
+
+.content-list-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 14px;
+    background: #222831;
+    border-radius: 8px;
+}
+
+.content-thumb {
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: #111;
+}
+
+.content-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+}
+
+.content-list-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 /* New layout helpers for clearer spacing */
 .add-content-btn {
     display: block;
@@ -388,6 +653,15 @@ const handleSaveClick = async () => {
     border-radius: 10px;
     text-align: center;
     box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
+}
+
+/* left-align labels inside the dialog modal (form labels should be left-aligned) */
+.dialog-modal label {
+    display: block;
+    text-align: left;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #fff;
 }
 
 .spinner {
