@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts">
-import DescriptionContent from './description-screen-config.vue';
+import DescriptionContent from './description-content.vue';
 
 export default {
     name: 'DescriptionView',
@@ -11,6 +11,4 @@ export default {
 };
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

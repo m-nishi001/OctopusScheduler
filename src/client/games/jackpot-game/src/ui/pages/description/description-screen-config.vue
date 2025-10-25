@@ -52,7 +52,7 @@ export default {
 		};		// Enterキーで次へ
 		const handleKey = (e: KeyboardEvent) => {
 			if (e.key === 'Enter') {
-				router.push('/demo-draw');
+				router.push('/jackpot-demo');
 			}
 		};
 		onMounted(() => window.addEventListener('keydown', handleKey));

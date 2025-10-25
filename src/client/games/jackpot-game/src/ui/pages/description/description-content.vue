@@ -1,45 +1,56 @@
 <template>
 	<MainLayout>
 		<div class="description-screen">
-			<div class="content-frame">
+			<!-- show initial full-screen description hint when slideIndex is -1 -->
+			<div v-if="slideIndex === -1" class="description-content">
+				<h2 class="description-title">説明画面</h2>
+				<p class="description-text">ここにゲームの説明を記載します。</p>
+				<p class="description-text">Enterキーを押して次へ進んでください。</p>
+			</div>
+			<!-- otherwise show framed slide area -->
+			<div v-else class="content-frame">
 				<div class="inner-border">
 					<div class="inner-frame">
-						<transition-group name="slide-transition" tag="div">
-							<div v-if="currentSlide" :key="currentSlide.id" class="slide-content">
-								<template v-if="currentSlide.type === 'text'">
-									<div v-if="isHtml(currentSlide.content)" class="slide-html"
-										v-html="currentSlide.content">
-									</div>
-									<div v-else class="slide-text">{{ currentSlide.content }}</div>
-								</template>
-								<template v-if="currentSlide.type === 'image'">
-									<img :src="currentSlide.assetUrl" class="slide-image" />
-								</template>
-								<template v-if="currentSlide.type === 'modal'">
-									<div class="slide-modal">{{ currentSlide.content }}</div>
-								</template>
-								<template v-if="currentSlide.type === 'html'">
-									<div class="slide-html" v-html="currentSlide.content"></div>
-								</template>
-							</div>
-						</transition-group>
+						<div class="slide-container">
+							<transition-group name="slide-transition" tag="div">
+								<div v-if="currentSlide" :key="currentSlide.id" class="slide-content">
+									<template v-if="currentSlide.type === 'text'">
+										<div v-if="isHtml(currentSlide.content)" class="slide-html"
+											v-html="currentSlide.content">
+										</div>
+										<div v-else class="slide-text">{{ currentSlide.content }}</div>
+									</template>
+									<template v-if="currentSlide.type === 'image'">
+										<img :src="currentSlide.assetUrl" class="slide-image" />
+									</template>
+									<template v-if="currentSlide.type === 'modal'">
+										<div class="slide-modal">{{ currentSlide.content }}</div>
+									</template>
+									<template v-if="currentSlide.type === 'html'">
+										<div class="slide-html" v-html="currentSlide.content"></div>
+									</template>
+								</div>
+							</transition-group>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- only show navigation controls when slides are active -->
+			<div v-if="slideIndex !== -1">
+				<div class="navigation-hint">
+					<div class="progress-dots">
+						<span v-for="(element, index) in elements" :key="element.id" class="dot"
+							:class="{ active: index === slideIndex }"></span>
 					</div>
 				</div>
 				<button class="next-button" @click="nextSlide">次へ</button>
-			</div>
-			<div class="navigation-hint">
-				<span class="hint-text">Press ENTER to continue</span>
-				<div class="progress-dots">
-					<span v-for="(element, index) in elements" :key="element.id" class="dot"
-						:class="{ active: index === slideIndex }"></span>
-				</div>
 			</div>
 
 		</div>
 	</MainLayout>
 </template>
 <script lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import type { ScreenElement } from '../../../model/domains/screen-config/description-screen-setting';
@@ -55,22 +66,38 @@ export default {
 
 		const screenConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenSettingsService = container.resolve(ScreenSettingsService);
-		const slideIndex = ref(0);
+		// start at -1 so initial screen shows hint; first Enter will advance to index 0
+		const slideIndex = ref(-1);
 		const currentSlide = ref<ScreenElement | null>(null);
 
 		const elements = ref<ScreenElement[]>([]);
 
-		const bgmAssetUrl = computed(() => (screenConfig.value as DescriptionScreenSetting)?.descriptionBgm);
+		const assetService = container.resolve(AssetDataService);
 
-		const assetService = container.resolve(AssetDataService); onMounted(async () => {
-			screenConfig.value = await screenSettingsService.fetchScreenSetting('description', 'description-screen-settings') as DescriptionScreenSetting;
+		// track created object URLs so they can be revoked on unmount
+		const createdUrls: string[] = [];
+
+		onMounted(async () => {
+			// fetch raw config (may use differing key names depending on admin UI)
+			const cfg = await screenSettingsService.fetchScreenSetting('description', 'description-screen-settings');
+
+			// normalize to DescriptionScreenSetting shape so component can work with both legacy and current payloads
+			if (cfg) {
+				// cfg may use descriptionBgm / screenElements OR bgmAssetId / contents
+				const bgmId = (cfg as any).descriptionBgm || (cfg as any).bgmAssetId || '';
+				const elems = (cfg as any).screenElements || (cfg as any).contents || [];
+				screenConfig.value = new DescriptionScreenSetting(bgmId, elems as ScreenElement[]);
+			} else {
+				screenConfig.value = null;
+			}
+
 			elements.value = screenConfig.value?.screenElements || [];
 
-			const createdUrls: string[] = [];
+			// create object URLs for element assets (images etc.)
 			for (const element of elements.value) {
 				if (element.assetId) {
 					const asset = await assetService.getAssetDataById(element.assetId);
-					if (asset) {
+					if (asset && asset.blob) {
 						try {
 							const url = URL.createObjectURL(asset.blob);
 							element.assetUrl = url;
@@ -83,28 +110,44 @@ export default {
 					}
 				}
 			}
-			if (elements.value.length > 0) {
-				currentSlide.value = elements.value[0];
-			}
-			setTimeout(playBGM, 1200);
-		});
 
-		const bgmAudio = ref<HTMLAudioElement | null>(null);
-		const playBGM = () => {
-			if (!bgmAssetUrl.value) return;
-			if (!bgmAudio.value) {
-				bgmAudio.value = new Audio(bgmAssetUrl.value);
-				bgmAudio.value.loop = true;
+			// do not show slides immediately; wait for user to press Enter
+			// currentSlide will be set when slideIndex changes via nextSlide()
+
+			// load and play BGM if configured (BGM stored as an asset id)
+			try {
+				const bgmId = screenConfig.value?.descriptionBgm || '';
+				if (bgmId) {
+					const bgmAsset = await assetService.getAssetDataById(bgmId);
+					if (bgmAsset && bgmAsset.blob) {
+						try {
+							const bgmUrl = URL.createObjectURL(bgmAsset.blob);
+							createdUrls.push(bgmUrl);
+							const audio = new Audio(bgmUrl);
+							audio.loop = true;
+							// best-effort play (may be blocked by browser autoplay policies)
+							void audio.play().catch(() => { });
+						} catch (e) {
+							// ignore bgm errors
+						}
+					}
+				}
+			} catch (e) {
+				// ignore
 			}
-			bgmAudio.value.play();
-		};
+		});
 
 		const nextSlide = () => {
 			if (slideIndex.value < elements.value.length - 1) {
 				slideIndex.value++;
-				currentSlide.value = elements.value[slideIndex.value];
+				// only update currentSlide when slideIndex is within range
+				if (slideIndex.value >= 0 && slideIndex.value < elements.value.length) {
+					currentSlide.value = elements.value[slideIndex.value];
+				} else {
+					currentSlide.value = null;
+				}
 			} else {
-				router.push('/demo-draw');
+				router.push('/jackpot-demo');
 			}
 		};
 		const handleKey = (e: KeyboardEvent) => {
@@ -119,6 +162,9 @@ export default {
 					if (el.assetUrl) {
 						try { URL.revokeObjectURL(el.assetUrl); } catch { }
 					}
+				}
+				for (const u of createdUrls) {
+					try { URL.revokeObjectURL(u); } catch { }
 				}
 			} catch { }
 		});
@@ -159,15 +205,45 @@ export default {
 	pointer-events: none;
 }
 
+.description-content {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	color: #ffffff;
+	/* ensure white text */
+	text-align: center;
+	z-index: 1;
+}
+
+.description-title {
+	font-size: 3.2rem;
+	font-weight: 300;
+	color: #ffffff;
+	text-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
+	margin-bottom: 1.6rem;
+}
+
+.description-text {
+	font-size: 1.25rem;
+	color: rgba(255, 255, 255, 0.85);
+	line-height: 1.6;
+	margin-bottom: 0.8rem;
+}
+
 .content-frame {
 	width: 86%;
 	height: 72%;
-	background: #0b0b0b; /* deep black content area */
+	background: #0b0b0b;
+	/* deep black content area */
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	padding: 2.4rem;
 	position: relative;
+	overflow: visible;
 }
 
 .inner-border {
@@ -175,7 +251,9 @@ export default {
 	height: 100%;
 	padding: 1.2rem;
 	box-sizing: border-box;
-	border: 2px solid rgba(255,255,255,0.9); /* outer thin white border */
+	/* remove the inner white border (unwanted decorative brackets) */
+	border: none;
+	/* outer thin white border */
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -184,23 +262,29 @@ export default {
 .inner-frame {
 	width: 100%;
 	height: 100%;
-	background: #0b0b0b; /* same black, acts like inner canvas */
+	background: #0b0b0b;
+	/* same black, acts like inner canvas */
 	display: flex;
 	justify-content: center;
 	align-items: center;
+	padding: 1.6rem;
+	min-height: 56vh;
 }
 
 .slide-container {
-	flex: 1;
+	flex: 1 1 auto;
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	width: 100%;
 	max-width: 100%;
+	padding: 1rem 0;
+	overflow: hidden;
 }
 
 .slide-content {
 	width: 100%;
+	max-width: 80%;
 	text-align: center;
 }
 
@@ -253,31 +337,51 @@ export default {
 	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
+/* navigation hint sits near the very bottom of the screen when slides are active
+	   we will not show the small 'Press ENTER' hint inside the framed area, so keep
+	   this container for dots only */
 .navigation-hint {
-	position: absolute;
-	bottom: 2rem;
-	left: 50%;
-	transform: translateX(-50%);
+	/* place dots in normal flow below the frame so they are never clipped on small screens */
+	position: relative;
+	margin: 12px auto 4px auto;
+	left: 0;
+	transform: none;
 	text-align: center;
+	pointer-events: none;
+	/* make dots non-interactive */
+	width: 100%;
+	display: flex;
+	justify-content: center;
+}
+
+.progress-dots {
+	display: flex;
+	justify-content: center;
+	gap: 0.75rem;
+	margin-bottom: 0.8rem;
 }
 
 .next-button {
-	position: absolute;
-	bottom: 1.4rem; /* sits near bottom inside the content-frame */
-	left: 50%;
-	transform: translateX(-50%);
-	background: transparent;
+	/* keep button in normal document flow so it is visible on small screens */
+	position: relative;
+	margin: 6px auto 24px auto;
+	display: inline-block;
+	background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
 	color: #ffffff;
-	border: 1px solid rgba(255,255,255,0.9);
-	padding: 0.8rem 2rem;
-	border-radius: 4px;
+	border: 2px solid rgba(255, 255, 255, 0.18);
+	padding: 0.6rem 1.6rem;
+	min-width: 96px;
+	height: 40px;
+	border-radius: 6px;
 	cursor: pointer;
 	font-size: 1rem;
-	letter-spacing: .04em;
+	letter-spacing: .02em;
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+	z-index: 5;
 }
 
 .next-button:hover {
-	background: rgba(255,255,255,0.03);
+	background: rgba(255, 255, 255, 0.03);
 }
 
 .hint-text {
