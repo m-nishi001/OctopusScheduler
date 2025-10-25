@@ -289,6 +289,9 @@ const onHomeBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
+        // mark which field this temp asset belongs to so we can map uploads
+        // back to the correct config entry after the upload completes
+        (dto as any).__field = 'homeBgm';
         localConfig.value.homeBgmTempAsset = dto;
         localConfig.value.homeBgmFilename = file.name;
         tempAssets.push(dto);
@@ -299,6 +302,7 @@ const onButtonClikingSEChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
+        (dto as any).__field = 'buttonClikingSE';
         localConfig.value.buttonClikingSETempAsset = dto;
         localConfig.value.buttonClikingSEFilename = file.name;
         tempAssets.push(dto);
@@ -309,6 +313,7 @@ const onOnCompletedLoadingSEChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
+        (dto as any).__field = 'onCompletedLoadingSE';
         localConfig.value.onCompletedLoadingSETempAsset = dto;
         localConfig.value.onCompletedLoadingSEFilename = file.name;
         tempAssets.push(dto);
@@ -319,15 +324,62 @@ const handleSaveClick = async () => {
     saving.value = true;
     saveStatus.value = '保存中...';
     try {
+        // If there are staged temp assets, upload them and map returned IDs
+        // back into the local config so the saved screen setting will point
+        // to the uploaded assets (and the UI will show "select" with the
+        // uploaded file selected).
         const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
+
+        if (uploads.length > 0) {
+            // Map returned uploads (in same order) to the original temp assets
+            for (let i = 0; i < uploads.length; i++) {
+                const orig = tempAssets[i] as any;
+                const saved = uploads[i];
+                if (!orig || !saved) continue;
+                const f = orig.__field;
+                if (f === 'homeBgm') {
+                    localConfig.value.homeBgm = saved.id;
+                    localConfig.value.homeBgmMode = 'select';
+                    localConfig.value.homeBgmFilename = '';
+                    localConfig.value.homeBgmTempAsset = null;
+                } else if (f === 'buttonClikingSE') {
+                    localConfig.value.buttonClikingSE = saved.id;
+                    localConfig.value.buttonClikingSEMode = 'select';
+                    localConfig.value.buttonClikingSEFilename = '';
+                    localConfig.value.buttonClikingSETempAsset = null;
+                } else if (f === 'onCompletedLoadingSE') {
+                    localConfig.value.onCompletedLoadingSE = saved.id;
+                    localConfig.value.onCompletedLoadingSEMode = 'select';
+                    localConfig.value.onCompletedLoadingSEFilename = '';
+                    localConfig.value.onCompletedLoadingSETempAsset = null;
+                }
+            }
+
+            // clear staged temp assets and file inputs
+            tempAssets.length = 0;
+            if (homeBgmInputRef.value) homeBgmInputRef.value.value = '';
+            if (buttonSEInputRef.value) buttonSEInputRef.value.value = '';
+            if (completedSEInputRef.value) completedSEInputRef.value.value = '';
+        }
+
         const payload = {
-            homeBgm: localConfig.value.homeBgm || localConfig.value.homeBgmTempAsset?.id || '',
-            buttonClikingSE: localConfig.value.buttonClikingSE || localConfig.value.buttonClikingSETempAsset?.id || '',
-            onCompletedLoadingSE: localConfig.value.onCompletedLoadingSE || localConfig.value.onCompletedLoadingSETempAsset?.id || '',
+            homeBgm: localConfig.value.homeBgm || '',
+            buttonClikingSE: localConfig.value.buttonClikingSE || '',
+            onCompletedLoadingSE: localConfig.value.onCompletedLoadingSE || '',
             title: localConfig.value.title,
             subtitle: localConfig.value.subtitle,
         };
-        await screenSettingsService.saveScreenSetting('home', 'home-screen-settings', payload, uploads.length ? uploads : undefined);
+
+        // Pass uploads to the service; the service will only add assets
+        // that don't already have ids, avoiding duplicate saves.
+        await screenSettingsService.saveScreenSetting(
+            'home',
+            'home-screen-settings',
+            payload,
+            uploads.length ? uploads : undefined
+        );
+
+        // Refresh config and asset list
         await loadConfig();
         await fetchAssets();
         saveStatus.value = '保存しました';

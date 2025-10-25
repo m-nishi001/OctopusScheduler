@@ -26,7 +26,13 @@ export class ScreenSettingsService {
     tempAssets?: Asset[]
   ): Promise<void> {
     if (tempAssets && tempAssets.length > 0) {
-      await this.assetDataService.addAssetData(tempAssets);
+      // Only add assets that don't already have an id. Callers that have
+      // already uploaded assets will pass assets with ids and we should
+      // avoid re-uploading / creating duplicates in local store.
+      const toUpload = tempAssets.filter((a) => !a.id);
+      if (toUpload.length > 0) {
+        await this.assetDataService.addAssetData(toUpload);
+      }
     }
     const converter = payload as any;
     // convert to ScreenSetting items expected by repository
