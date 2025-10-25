@@ -16,7 +16,6 @@
         </div>
         <div class="config-item">
             <label>コンテンツ:</label>
-            <!-- toolbar: add / sync / delete -->
             <div class="toolbar">
                 <button class="admin-btn icon-only add-icon" @click="showAddDialog" title="追加">
                     <span class="emoji">➕</span>
@@ -51,8 +50,6 @@
                     </div>
                 </li>
             </ul>
-
-            <!-- toolbar contains sync; inline save/sync buttons removed per design -->
         </div>
     </div>
 
@@ -71,7 +68,6 @@
             <div class="spinner"></div>
         </div>
     </div>
-    <!-- Add / Edit Content Dialog -->
     <div v-if="dialogVisible" class="modal-overlay">
         <div class="modal-content dialog-modal">
             <h3>{{ editingIndex === -1 ? 'コンテンツを追加' : 'コンテンツを編集' }}</h3>
@@ -149,7 +145,6 @@ const assetService = container.resolve(AssetDataService);
 
 const audioAssets = ref<any[]>([]);
 const imageAssets = ref<any[]>([]);
-// map of asset.id -> object URL created for UI preview
 const assetUrlMap = new Map<string, string>();
 const saving = ref(false);
 const saveStatus = ref('');
@@ -167,7 +162,6 @@ const tempAssets: Asset[] = [];
 const fetchAssets = async () => {
     try {
         const raw = await assetService.getAllAssetData();
-        // create object URLs for UI preview when blob exists
         const mapped = raw.map((a: any) => {
             const copy: any = { ...a };
             if (!copy.url && copy.blob) {
@@ -181,7 +175,6 @@ const fetchAssets = async () => {
             }
             return copy;
         });
-        // Split mapped list into audio and image assets so selects only show relevant types
         audioAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('audio/'));
         imageAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('image/'));
     } catch (e) {
@@ -216,7 +209,6 @@ const onBgmChange = async (e: Event) => {
     }
 };
 
-// Dialog & reorder state and helpers
 const dialogVisible = ref(false);
 const editingIndex = ref<number>(-1);
 const dialogContent = ref<OpeningContent>({
@@ -269,7 +261,6 @@ const saveDialog = async () => {
         localConfig.value.contents.splice(editingIndex.value, 1, JSON.parse(JSON.stringify(dialogContent.value)));
     }
     closeDialog();
-    // Persist immediately
     await handleSaveClick();
 };
 
@@ -307,7 +298,6 @@ const moveDown = async (idx: number) => {
 
 const getContentTitle = (c: OpeningContent) => {
     if (!c) return '';
-    // prefer explicit content name if provided
     if ((c as any).name) return (c as any).name;
     if (c.type === 'text') return c.text ? (c.text.length > 30 ? c.text.substr(0, 30) + '…' : c.text) : 'テキスト';
     if (c.type === 'image') return '画像' + (c.assetId ? ` (${c.assetId})` : '');
@@ -327,7 +317,6 @@ onBeforeUnmount(() => {
     assetUrlMap.clear();
 });
 
-// selection state for multi-delete
 import { computed } from 'vue';
 const selectedIndices = ref<number[]>([]);
 const isAllSelected = computed({
@@ -337,7 +326,6 @@ const isAllSelected = computed({
 
 const deleteSelectedContents = async () => {
     if (!selectedIndices.value.length) return;
-    // remove items from highest index to lowest so indices stay valid
     const sorted = [...selectedIndices.value].sort((a, b) => b - a);
     for (const idx of sorted) {
         localConfig.value.contents.splice(idx, 1);
@@ -473,7 +461,6 @@ const handleSaveClick = async () => {
     flex-wrap: wrap;
 }
 
-/* list layout for content items */
 .content-list {
     list-style: none;
     padding: 0;
@@ -483,13 +470,11 @@ const handleSaveClick = async () => {
     gap: 12px;
 }
 
-/* toolbar styling to match provided mock */
 .toolbar {
     display: flex;
     gap: 12px;
     align-items: center;
     margin-bottom: 18px;
-    /* match members/prizes spacing */
 }
 
 .admin-btn.icon-only {
@@ -532,7 +517,6 @@ const handleSaveClick = async () => {
 
 .select-all-row {
     margin-bottom: 10px;
-    /* match members list-controls spacing */
     display: flex;
     align-items: center;
 }
@@ -580,7 +564,6 @@ const handleSaveClick = async () => {
     align-items: center;
 }
 
-/* New layout helpers for clearer spacing */
 .add-content-btn {
     display: block;
     width: 100%;
@@ -655,7 +638,13 @@ const handleSaveClick = async () => {
     box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
 }
 
-/* left-align labels inside the dialog modal (form labels should be left-aligned) */
+.modal-content.dialog-modal {
+    width: min(720px, 92%);
+    max-width: 92%;
+    padding: 32px 28px;
+    text-align: left;
+}
+
 .dialog-modal label {
     display: block;
     text-align: left;
