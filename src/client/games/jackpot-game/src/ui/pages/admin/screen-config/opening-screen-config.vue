@@ -16,50 +16,65 @@
         </div>
         <div class="config-item">
             <label>コンテンツ:</label>
+            <button class="admin-btn add-content-btn" @click="addContent">コンテンツ追加</button>
+
+            <div v-if="localConfig.contents.length === 0" class="empty-note">コンテンツがありません。追加してください。</div>
+
             <div v-for="(content, idx) in localConfig.contents" :key="idx" class="content-item">
-                <select v-model="content.type" class="admin-input">
-                    <option value="text">テキスト</option>
-                    <option value="image">画像</option>
-                    <option value="html">HTML</option>
-                </select>
-                <input v-if="content.type === 'text'" v-model="content.text" placeholder="テキスト内容" class="admin-input" />
-                <textarea v-if="content.type === 'html'" v-model="content.content" placeholder="HTMLを入力"
-                    class="admin-input" rows="6"></textarea>
-                <div v-if="content.type === 'image'">
-                    <div class="asset-mode">
-                        <label><input type="radio" v-model="content.imageMode" value="select" /> 既存から選択</label>
-                        <label><input type="radio" v-model="content.imageMode" value="upload" /> アップロード</label>
-                    </div>
-                    <select v-if="content.imageMode === 'select'" v-model="content.assetId" class="admin-input">
-                        <option value="">選択なし</option>
-                        <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                <div class="content-controls">
+                    <select v-model="content.type" class="admin-input">
+                        <option value="text">テキスト</option>
+                        <option value="image">画像</option>
+                        <option value="html">HTML</option>
                     </select>
-                    <input v-if="content.imageMode === 'upload'" type="file" @change="(e) => onImageChange(e, idx)"
-                        accept="image/*" class="admin-input" />
+                    <input v-if="content.type === 'text'" v-model="content.text" placeholder="テキスト内容"
+                        class="admin-input" />
+                    <textarea v-if="content.type === 'html'" v-model="content.content" placeholder="HTMLを入力"
+                        class="admin-input" rows="6"></textarea>
+                    <div v-if="content.type === 'image'">
+                        <div class="asset-mode">
+                            <label><input type="radio" v-model="content.imageMode" value="select" /> 既存から選択</label>
+                            <label><input type="radio" v-model="content.imageMode" value="upload" /> アップロード</label>
+                        </div>
+                        <select v-if="content.imageMode === 'select'" v-model="content.assetId" class="admin-input">
+                            <option value="">選択なし</option>
+                            <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
+                            </option>
+                        </select>
+                        <input v-if="content.imageMode === 'upload'" type="file" @change="(e) => onImageChange(e, idx)"
+                            accept="image/*" class="admin-input" />
+                    </div>
+                    <div class="content-row">
+                        <select v-model="content.effect" class="admin-input">
+                            <option value="scroll">スクロール</option>
+                            <option value="fade">フェード</option>
+                            <option value="static">静止</option>
+                        </select>
+                        <input v-model.number="content.duration" type="number" placeholder="表示時間(ms)"
+                            class="admin-input" />
+                    </div>
+                    <div class="asset-mode">
+                        <label><input type="radio" v-model="content.seMode" value="select" /> SE選択</label>
+                        <label><input type="radio" v-model="content.seMode" value="upload" /> SEアップロード</label>
+                    </div>
+                    <select v-if="content.seMode === 'select'" v-model="content.seAssetId" class="admin-input">
+                        <option value="">選択なし</option>
+                        <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                    </select>
+                    <input v-if="content.seMode === 'upload'" type="file" @change="(e) => onSeChange(e, idx)"
+                        accept="audio/*" class="admin-input" />
                 </div>
-                <select v-model="content.effect" class="admin-input">
-                    <option value="scroll">スクロール</option>
-                    <option value="fade">フェード</option>
-                    <option value="static">静止</option>
-                </select>
-                <input v-model.number="content.duration" type="number" placeholder="表示時間(ms)" class="admin-input" />
-                <div class="asset-mode">
-                    <label><input type="radio" v-model="content.seMode" value="select" /> SE選択</label>
-                    <label><input type="radio" v-model="content.seMode" value="upload" /> SEアップロード</label>
+                <div class="content-actions">
+                    <button class="admin-btn danger" @click="removeContent(idx)">削除</button>
                 </div>
-                <select v-if="content.seMode === 'select'" v-model="content.seAssetId" class="admin-input">
-                    <option value="">選択なし</option>
-                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                </select>
-                <input v-if="content.seMode === 'upload'" type="file" @change="(e) => onSeChange(e, idx)"
-                    accept="audio/*" class="admin-input" />
-                <button class="admin-btn" @click="removeContent(idx)">削除</button>
             </div>
-            <button class="admin-btn" @click="addContent">コンテンツ追加</button>
-            <button class="admin-btn" @click="handleSaveClick" :disabled="saving"
-                :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
-            <button class="admin-btn" @click="handleSyncClick" :disabled="syncing"
-                :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
+
+            <div class="button-row">
+                <button class="admin-btn" @click="handleSaveClick" :disabled="saving"
+                    :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
+                <button class="admin-btn" @click="handleSyncClick" :disabled="syncing"
+                    :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
+            </div>
         </div>
     </div>
 
@@ -253,7 +268,7 @@ const handleSaveClick = async () => {
     color: #fff;
     font-size: 1rem;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-    margin-bottom: 8px;
+    margin-bottom: 12px;
     width: 100%;
 }
 
@@ -298,6 +313,54 @@ const handleSaveClick = async () => {
 
 .asset-mode {
     flex-wrap: wrap;
+}
+
+/* New layout helpers for clearer spacing */
+.add-content-btn {
+    display: block;
+    width: 100%;
+    padding: 12px 18px;
+    margin: 8px 0 16px 0;
+}
+
+.button-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.content-item {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.content-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.content-row {
+    display: flex;
+    gap: 12px;
+}
+
+.content-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.admin-btn.danger {
+    background: linear-gradient(90deg, #ff7a7a 0%, #ffb3b3 100%);
+    color: #3a1f1f;
+}
+
+.empty-note {
+    color: #cbd5e1;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
 }
 
 .content-item,
