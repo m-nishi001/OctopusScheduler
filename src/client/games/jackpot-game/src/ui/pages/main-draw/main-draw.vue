@@ -161,16 +161,70 @@ export default {
             // run roulette auto reroll: use first dummy and first reserved as placeholders
             const dummyId = prizeRes.dummyPrizeIds && prizeRes.dummyPrizeIds.length ? prizeRes.dummyPrizeIds[0] : null;
             const finalReserved = prizeRes.reservedPrizeIds && prizeRes.reservedPrizeIds.length ? prizeRes.reservedPrizeIds[0] : null;
-            // await animation completion (runAutoReroll now returns prizeId)
-            if (rouletteRef.value?.runAutoReroll) {
-              try {
-                await rouletteRef.value.runAutoReroll({ dummyPrizeId: dummyId, finalPrizeId: finalReserved, dummyDuration: 2000, finalDuration: 2000 });
-              } catch (e) {
-                // ignore animation errors and continue
+
+            // Prepare and play BGM1 (dummy) and BGM2 (final) based on prize data
+            let rerollAudio1: HTMLAudioElement | null = null;
+            let rerollAudio2: HTMLAudioElement | null = null;
+            let rerollUrl1: string | undefined;
+            let rerollUrl2: string | undefined;
+            const dummyDuration = 2000;
+            const finalDuration = 2000;
+            try {
+              // get bgm ids from prize data (if present)
+              if (dummyId) {
+                const dummyPrize = await prizeRepo.getPrizeById(dummyId);
+                const bgmId = dummyPrize?.bgm1AssetId;
+                if (bgmId) {
+                  const asset = await assetService.getAssetDataById(bgmId);
+                  if (asset && asset.blob) {
+                    rerollUrl1 = URL.createObjectURL(asset.blob);
+                    rerollAudio1 = new Audio(rerollUrl1);
+                    try { await rerollAudio1.play(); } catch (e) { /* ignore play error */ }
+                  }
+                }
               }
-            } else {
-              // fallback wait
-              await new Promise(r => setTimeout(r, 2800));
+
+              // schedule switching to BGM2 after dummyDuration
+              if (finalReserved) {
+                const finalPrize = await prizeRepo.getPrizeById(finalReserved);
+                const bgm2Id = finalPrize?.bgm2AssetId;
+                if (bgm2Id) {
+                  const asset2 = await assetService.getAssetDataById(bgm2Id);
+                  if (asset2 && asset2.blob) {
+                    rerollUrl2 = URL.createObjectURL(asset2.blob);
+                    // we will start playback after dummyDuration
+                    setTimeout(async () => {
+                      try {
+                        if (rerollAudio1) {
+                          try { rerollAudio1.pause(); } catch (e) { }
+                        }
+                        rerollAudio2 = new Audio(rerollUrl2);
+                        try { await rerollAudio2.play(); } catch (e) { }
+                      } catch (e) {
+                        /* ignore */
+                      }
+                    }, dummyDuration);
+                  }
+                }
+              }
+
+              // await animation completion (runAutoReroll now returns prizeId)
+              if (rouletteRef.value?.runAutoReroll) {
+                try {
+                  await rouletteRef.value.runAutoReroll({ dummyPrizeId: dummyId, finalPrizeId: finalReserved, dummyDuration, finalDuration });
+                } catch (e) {
+                  // ignore animation errors and continue
+                }
+              } else {
+                // fallback wait for both durations
+                await new Promise((r) => setTimeout(r, dummyDuration + finalDuration + 200));
+              }
+            } finally {
+              // cleanup audios and object URLs
+              try { if (rerollAudio1) { try { (rerollAudio1 as any).pause(); } catch (e) { } rerollAudio1 = null; } } catch (e) { }
+              try { if (rerollAudio2) { try { (rerollAudio2 as any).pause(); } catch (e) { } rerollAudio2 = null; } } catch (e) { }
+              try { if (rerollUrl1) { URL.revokeObjectURL(rerollUrl1); rerollUrl1 = undefined; } } catch (e) { }
+              try { if (rerollUrl2) { URL.revokeObjectURL(rerollUrl2); rerollUrl2 = undefined; } } catch (e) { }
             }
             // assign reserved prize (application logic)
             const assignRes = await drawAppService.executeKakuhenAssign(memberId);
@@ -196,14 +250,37 @@ export default {
 
         // Prize stopped -> if prizes remain, reset to idle for next member draw; otherwise navigate to result
         if (phase.value === 'prizeStopped') {
-          if (prizes.value.length === 0) {
-            router.push('/jackpot-result');
-          } else {
-            // reset
+          // If a half-modal is currently shown, close it and proceed to reset/routing
+          if (showHalfModal.value) {
+            showHalfModal.value = false;
+            // continue to reset below
             result.value = null;
             currentMember.value = null;
             phase.value = 'idle';
+            return;
           }
+
+          // On Enter at prize result, ask application for remaining count and show half/finish modals as needed
+          try {
+            const last = await drawAppService.getLastPrizeCount();
+            if (last.remaining === 0) {
+              // finished
+              router.push('/jackpot-result');
+              return;
+            }
+            // show half modal when remaining is <= half
+            if (last.remaining <= Math.floor(last.total / 2)) {
+              showHalfModal.value = true;
+              return; // wait for next Enter to actually reset
+            }
+          } catch (e) {
+            // ignore and fallback to normal reset
+          }
+
+          // reset to next member draw
+          result.value = null;
+          currentMember.value = null;
+          phase.value = 'idle';
           return;
         }
       })();
