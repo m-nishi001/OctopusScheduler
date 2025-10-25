@@ -8,6 +8,8 @@ export interface PrizeDto {
   imageAssetId?: string;
   bgm1AssetId?: string;
   bgm2AssetId?: string;
+  isAssigned?: boolean;
+  isReserved?: boolean;
   order: number;
   imageDataUrl?: string;
 }
@@ -20,6 +22,8 @@ export const toPrize = (dto: PrizeDto): Prize => ({
   imageAssetId: dto.imageAssetId,
   bgm1AssetId: dto.bgm1AssetId,
   bgm2AssetId: dto.bgm2AssetId,
+  isAssigned: dto.isAssigned,
+  isReserved: dto.isReserved,
   order: dto.order,
   imageDataUrl: dto.imageDataUrl,
 });
@@ -32,6 +36,8 @@ export const fromPrize = (prize: Prize): PrizeDto => ({
   imageAssetId: prize.imageAssetId,
   bgm1AssetId: prize.bgm1AssetId,
   bgm2AssetId: prize.bgm2AssetId,
+  isAssigned: prize.isAssigned,
+  isReserved: prize.isReserved,
   order: prize.order,
   imageDataUrl: prize.imageDataUrl,
 });

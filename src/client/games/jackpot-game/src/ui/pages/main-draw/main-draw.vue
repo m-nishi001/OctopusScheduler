@@ -39,8 +39,7 @@ import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { DrawRepository } from '../../../model/infrastructures/draw-repository';
-import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
+import { DrawService } from '../../../model/applications/draw/draw-service';
 import { MainScreenSetting } from '../../../model/domains/screen-config/main-screen-setting';
 export default {
   name: 'MainDraw',
@@ -92,7 +91,7 @@ export default {
           bgmObjectUrl = URL.createObjectURL(asset.blob);
           bgmAudio.value = new Audio(bgmObjectUrl);
           bgmAudio.value.loop = true;
-          try { await bgmAudio.value.play(); } catch (e) {  }
+          try { await bgmAudio.value.play(); } catch (e) { }
         } catch (err) { console.error(err); }
       }
     };
@@ -106,28 +105,23 @@ export default {
     const drawn = ref(false);
     const result = ref<{ member: string; prize: string } | null>(null);
     const showHalfModal = ref(false);
+    const drawAppService = container.resolve(DrawService);
     const runMainDraw = async () => {
       if (drawn.value || prizes.value.length === 0 || members.value.length === 0) return;
       playSE();
       drawn.value = true;
       try {
-        const drawRepo = container.resolve(DrawRepository);
-        const drawResultService = container.resolve(DrawResultService);
-        const res = await drawRepo.executeDraw({ prizes: prizes.value, members: members.value });
-        const resultRes = await drawResultService.getDrawResultById(res.drawId);
-        const winner = resultRes;
-        if (winner) {
-          currentMember.value = winner.member;
-          result.value = { member: winner.member.name || winner.member.id, prize: winner.prize.name || winner.prize.id };
+        // 1) member draw
+        const memberRes = await drawAppService.executeMemberDraw({ requestCount: 10 });
+        if (memberRes.winnerId) {
+          const member = members.value.find((m) => m.id === memberRes.winnerId);
+          if (member) currentMember.value = member;
+        } else {
+          currentMember.value = null;
         }
-        if (result.value && result.value.prize) {
-          const idx = prizes.value.findIndex((p) => (p.id ? p.id === result.value!.prize : p.name === result.value!.prize));
-          if (idx >= 0) prizes.value.splice(idx, 1);
-        }
-        if (prizes.value.length === 3) {
-          showHalfModal.value = true;
-          setTimeout(() => { showHalfModal.value = false; }, 2000);
-        }
+
+        // show member result modal
+        result.value = { member: currentMember.value ? currentMember.value.name || currentMember.value.id : 'なし', prize: '' };
       } finally {
 
       }
@@ -136,10 +130,47 @@ export default {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
         if (drawn.value && prizes.value.length > 0) {
+          // move to prize draw
+          (async () => {
+            try {
+              const drawAppService = container.resolve(DrawService);
+              const memberId = currentMember.value ? currentMember.value.id : '';
+              const prizeRes = await drawAppService.executePrizeDraw({ memberId, requestCount: 8 });
+              if (prizeRes.isKakuhen) {
+                // kakuhen sequence: wait 2s then assign reserved prize
+                result.value = { member: currentMember.value ? currentMember.value.name : '', prize: '確変発生！' };
+                setTimeout(async () => {
+                  const assignRes = await drawAppService.executeKakuhenAssign(memberId);
+                  if (assignRes.winnerPrizeId) {
+                    const prizeObj = await prizeRepo.getPrizeById(assignRes.winnerPrizeId);
+                    result.value = { member: currentMember.value ? currentMember.value.name : '', prize: prizeObj ? prizeObj.name : assignRes.winnerPrizeId };
+                    // remove prize from UI list
+                    const idx = prizes.value.findIndex((p) => p.id === assignRes.winnerPrizeId);
+                    if (idx >= 0) prizes.value.splice(idx, 1);
+                  }
+                }, 2000);
+              } else {
+                if (prizeRes.winnerPrizeId) {
+                  const prizeObj = await prizeRepo.getPrizeById(prizeRes.winnerPrizeId);
+                  result.value = { member: currentMember.value ? currentMember.value.name : '', prize: prizeObj ? prizeObj.name : prizeRes.winnerPrizeId };
+                  const idx = prizes.value.findIndex((p) => p.id === prizeRes.winnerPrizeId);
+                  if (idx >= 0) prizes.value.splice(idx, 1);
+                }
+              }
 
-          drawn.value = false;
-          result.value = null;
-          currentMember.value = null;
+              if (prizes.value.length === 0) {
+                // finished
+              } else if (prizes.value.length === Math.ceil((await prizeRepo.getPrizes()).length / 2)) {
+                showHalfModal.value = true;
+                setTimeout(() => { showHalfModal.value = false; }, 2000);
+              }
+            } finally {
+              // reset for next member draw
+              drawn.value = false;
+              // clear currentMember so next Enter starts fresh
+              currentMember.value = null;
+            }
+          })();
         } else if (prizes.value.length === 0) {
           router.push('/jackpot-result');
         }

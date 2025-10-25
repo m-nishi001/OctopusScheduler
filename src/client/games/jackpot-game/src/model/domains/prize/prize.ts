@@ -6,6 +6,8 @@ export interface Prize {
   imageAssetId?: string;
   bgm1AssetId?: string;
   bgm2AssetId?: string;
+  isAssigned?: boolean;
+  isReserved?: boolean;
   order: number;
   imageDataUrl?: string;
 }
