@@ -68,7 +68,3 @@ const closeSync = () => {
   opacity: 0.95;
 }
 </style>
-
-<template v-if="showSync">
-  <SyncDialog @close="closeSync" />
-</template>
