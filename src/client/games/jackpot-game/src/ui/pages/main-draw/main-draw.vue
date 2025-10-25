@@ -55,7 +55,7 @@ export default {
     const assetService = container.resolve(AssetDataService);
     onMounted(async () => {
       const config = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
-      mainConfig.value = (config as MainScreenSetting) ?? new MainScreenSetting([], [], 1, []);
+      mainConfig.value = (config as MainScreenSetting) ?? new MainScreenSetting([], 1);
       fetchPrizes();
       fetchMembers();
       setTimeout(playBGM, 1200);

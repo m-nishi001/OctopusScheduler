@@ -20,34 +20,7 @@
                 </div>
 
 
-                <div class="config-item">
-                    <label>景品単位で抽選音楽:</label>
-                    <div v-for="prize in prizes" :key="prize.id" class="prize-music-item">
-                        <div class="prize-name">{{ prize.name }}</div>
-                        <div class="music-selects">
-                            <div>
-                                <label>Primary:</label>
-                                <select :value="getPrizeMusic(prize.id, 'primary')"
-                                    @change="updatePrizeMusic(prize.id, 'primary', ($event.target as HTMLSelectElement).value)"
-                                    class="admin-input">
-                                    <option value="">選択なし</option>
-                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label>Secondary:</label>
-                                <select :value="getPrizeMusic(prize.id, 'secondary')"
-                                    @change="updatePrizeMusic(prize.id, 'secondary', ($event.target as HTMLSelectElement).value)"
-                                    class="admin-input">
-                                    <option value="">選択なし</option>
-                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Per-prize BGM settings removed (handled per-prize elsewhere) -->
 
 
                 <div class="config-item">
@@ -58,58 +31,10 @@
                 </div>
 
 
-                <div class="config-item">
-                    <label>景品単位での抽選アニメーション:</label>
-                    <div v-for="prize in prizes" :key="prize.id" class="prize-animation-item">
-                        <div class="prize-name">{{ prize.name }}</div>
-                        <div class="animation-selects">
-                            <div>
-                                <label>Primary:</label>
-                                <select :value="getPrizeAnimation(prize.id, 'primary')"
-                                    @change="updatePrizeAnimation(prize.id, 'primary', ($event.target as HTMLSelectElement).value)"
-                                    class="admin-input">
-                                    <option value="">未実装</option>
-                                    <option value="roulette">ルーレット</option>
-                                    <option value="slot">スロット</option>
-                                    <option value="treasure">宝箱</option>
-                                    <option value="particle">パーティクル</option>
-                                    <option value="zoom">ズーム</option>
-                                </select>
-                                <button @click="previewAnimation(getPrizeAnimation(prize.id, 'primary'), prize)"
-                                    class="preview-btn">プレビュー</button>
-                            </div>
-                            <div>
-                                <label>Secondary:</label>
-                                <select :value="getPrizeAnimation(prize.id, 'secondary')"
-                                    @change="updatePrizeAnimation(prize.id, 'secondary', ($event.target as HTMLSelectElement).value)"
-                                    class="admin-input">
-                                    <option value="">未実装</option>
-                                    <option value="roulette">ルーレット</option>
-                                    <option value="slot">スロット</option>
-                                    <option value="treasure">宝箱</option>
-                                    <option value="particle">パーティクル</option>
-                                    <option value="zoom">ズーム</option>
-                                </select>
-                                <button @click="previewAnimation(getPrizeAnimation(prize.id, 'secondary'), prize)"
-                                    class="preview-btn">プレビュー</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- Per-prize animation settings removed (handled per-prize elsewhere) -->
 
 
-                <div v-if="previewVisible" class="animation-preview">
-                    <h4>アニメーションプレビュー</h4>
-                    <RouletteAnimation v-if="previewType === 'roulette'" :prizes="prizes" :selectedPrize="previewPrize"
-                        :showResult="true" />
-                    <SlotAnimation v-if="previewType === 'slot'" :selectedPrize="previewPrize" :showResult="true" />
-                    <TreasureAnimation v-if="previewType === 'treasure'" :selectedPrize="previewPrize"
-                        :showResult="true" />
-                    <ParticleAnimation v-if="previewType === 'particle'" :selectedPrize="previewPrize"
-                        :showResult="true" />
-                    <ZoomAnimation v-if="previewType === 'zoom'" :selectedPrize="previewPrize" :showResult="true" />
-                    <button @click="closePreview" class="close-btn">閉じる</button>
-                </div>
+                <!-- animation preview removed -->
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
                 <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving"
@@ -152,12 +77,7 @@ import { container } from 'tsyringe';
 import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
 import { ScreenConfigService } from '../../../../model/applications/screen-config/screen-config-service';
-import RouletteAnimation from '../../main-draw/RouletteAnimation.vue';
-import SlotAnimation from '../../main-draw/SlotAnimation.vue';
-import TreasureAnimation from '../../main-draw/TreasureAnimation.vue';
-import ParticleAnimation from '../../main-draw/ParticleAnimation.vue';
-import ZoomAnimation from '../../main-draw/ZoomAnimation.vue';
-import type { PrizeDto } from '../../../../model/applications/prize/dto/prize-dto';
+// Preview components removed; no imports needed
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -183,15 +103,11 @@ const fetchAssets = async () => {
 const syncing = ref(false);
 const syncStatus = ref("");
 
-const previewVisible = ref(false);
-const previewType = ref('');
-const previewPrize = ref<PrizeDto | null>(null);
+// preview UI removed: previewVisible/previewType/previewPrize deprecated
 
 const localConfig = ref({
     memberLotteryBgms: [] as string[],
-    prizeLotteryMusics: [] as { prizeId: string; primary: string; secondary: string }[],
     variableTiming: 1,
-    prizeAnimations: [] as { prizeId: string; primary: string; secondary: string }[],
 });
 
 const loadConfig = async () => {
@@ -199,9 +115,7 @@ const loadConfig = async () => {
         const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
         if (cfg) {
             localConfig.value.memberLotteryBgms = (cfg as any).memberLotteryBgms || [];
-            localConfig.value.prizeLotteryMusics = (cfg as any).prizeLotteryMusics || [];
             localConfig.value.variableTiming = (cfg as any).variableTiming || 1;
-            localConfig.value.prizeAnimations = (cfg as any).prizeAnimations || [];
         }
     } catch (error) {
         console.error('Failed to load main config:', error);
@@ -234,9 +148,7 @@ const handleSaveClick = async () => {
 
         const payload = {
             memberLotteryBgms: localConfig.value.memberLotteryBgms,
-            prizeLotteryMusics: localConfig.value.prizeLotteryMusics,
             variableTiming: localConfig.value.variableTiming,
-            prizeAnimations: localConfig.value.prizeAnimations,
         };
         await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload);
         await loadConfig();
@@ -257,46 +169,9 @@ const removeMemberBgm = (index: number) => {
     localConfig.value.memberLotteryBgms.splice(index, 1);
 };
 
-const updatePrizeMusic = (prizeId: string, type: 'primary' | 'secondary', value: string) => {
-    let existing = localConfig.value.prizeLotteryMusics.find(p => p.prizeId === prizeId);
-    if (!existing) {
-        existing = { prizeId, primary: '', secondary: '' };
-        localConfig.value.prizeLotteryMusics.push(existing);
-    }
-    existing[type] = value;
-};
+// Per-prize music/animation helpers removed
 
-const getPrizeMusic = (prizeId: string, type: 'primary' | 'secondary') => {
-    const existing = localConfig.value.prizeLotteryMusics.find(p => p.prizeId === prizeId);
-    return existing ? existing[type] : '';
-};
-
-const updatePrizeAnimation = (prizeId: string, type: 'primary' | 'secondary', value: string) => {
-    let existing = localConfig.value.prizeAnimations.find(p => p.prizeId === prizeId);
-    if (!existing) {
-        existing = { prizeId, primary: '', secondary: '' };
-        localConfig.value.prizeAnimations.push(existing);
-    }
-    existing[type] = value;
-};
-
-const getPrizeAnimation = (prizeId: string, type: 'primary' | 'secondary') => {
-    const existing = localConfig.value.prizeAnimations.find(p => p.prizeId === prizeId);
-    return existing ? existing[type] : '';
-};
-
-const previewAnimation = (type: string, prize: PrizeDto) => {
-    if (!type) return;
-    previewType.value = type;
-    previewPrize.value = prize;
-    previewVisible.value = true;
-};
-
-const closePreview = () => {
-    previewVisible.value = false;
-    previewType.value = '';
-    previewPrize.value = null;
-};
+// previewAnimation and closePreview removed
 
 const maxVariableTiming = computed(() => prizes.value.length);
 </script>
