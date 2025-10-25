@@ -10,7 +10,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "common-lib": "file:../packages/common-lib",
+    "common-lib": "file:../../packages/common-lib",
     "gsap": "^3.13.0",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
