@@ -49,8 +49,8 @@
                 :class="{ 'active-sub': isRouteActive('/jackpot-admin/screens/demo') }">デモ抽選</router-link>
             </li>
             <li>
-              <router-link to="/jackpot-admin/screens/main" class="submenu-link"
-                :class="{ 'active-sub': isRouteActive('/jackpot-admin/screens/main') }">本抽選</router-link>
+              <router-link to="/jackpot-admin/screens/draw" class="submenu-link"
+                :class="{ 'active-sub': isRouteActive('/jackpot-admin/screens/draw') }">本抽選</router-link>
             </li>
             <li>
               <router-link to="/jackpot-admin/screens/result" class="submenu-link"
@@ -89,7 +89,6 @@ const isRouteActive = (path: string) => {
 </script>
 
 <style scoped>
-
 .admin-sidebar {
   width: 240px;
   background: #0f1112;
@@ -114,7 +113,7 @@ nav>ul>li {
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  
+
   color: #fff;
   text-decoration: none;
   font-weight: 700;
