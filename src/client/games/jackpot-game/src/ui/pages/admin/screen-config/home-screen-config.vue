@@ -14,6 +14,11 @@
                         @change="(e) => onHomeBgmChange(e)" accept="audio/*" class="admin-input" />
                     <div v-if="localConfig.homeBgmMode === 'upload' && localConfig.homeBgmFilename" class="file-name">{{
                         localConfig.homeBgmFilename }}</div>
+                    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                        <button class="admin-btn" @click.prevent="previewHomeBgm" :disabled="previewing">プレビュー</button>
+                        <button class="admin-btn" @click.prevent="stopPreview" :disabled="!previewing">停止</button>
+                        <div style="color:#fff;font-size:0.9rem;">{{ previewStatus }}</div>
+                    </div>
                     <select v-if="localConfig.homeBgmMode === 'select'" v-model="localConfig.homeBgm"
                         class="admin-input">
                         <option value="">選択なし</option>
@@ -32,6 +37,10 @@
                         @change="onButtonClikingSEChange" accept="audio/*" class="admin-input" />
                     <div v-if="localConfig.buttonClikingSEMode === 'upload' && localConfig.buttonClikingSEFilename"
                         class="file-name">{{ localConfig.buttonClikingSEFilename }}</div>
+                    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                        <button class="admin-btn" @click.prevent="previewButtonSE" :disabled="previewing">プレビュー</button>
+                        <button class="admin-btn" @click.prevent="stopPreview" :disabled="!previewing">停止</button>
+                    </div>
                     <select v-if="localConfig.buttonClikingSEMode === 'select'" v-model="localConfig.buttonClikingSE"
                         class="admin-input">
                         <option value="">選択なし</option>
@@ -50,6 +59,11 @@
                         type="file" @change="onOnCompletedLoadingSEChange" accept="audio/*" class="admin-input" />
                     <div v-if="localConfig.onCompletedLoadingSEMode === 'upload' && localConfig.onCompletedLoadingSEFilename"
                         class="file-name">{{ localConfig.onCompletedLoadingSEFilename }}</div>
+                    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+                        <button class="admin-btn" @click.prevent="previewCompletedSE"
+                            :disabled="previewing">プレビュー</button>
+                        <button class="admin-btn" @click.prevent="stopPreview" :disabled="!previewing">停止</button>
+                    </div>
                     <select v-if="localConfig.onCompletedLoadingSEMode === 'select'"
                         v-model="localConfig.onCompletedLoadingSE" class="admin-input">
                         <option value="">選択なし</option>
@@ -111,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
@@ -185,6 +199,89 @@ const loadConfig = async () => {
         }
     } catch (error) {
         console.error("Failed to load home config:", error);
+    }
+};
+
+// Preview playback state & helpers
+const previewAudio = ref<HTMLAudioElement | null>(null);
+let previewObjectUrl: string | undefined;
+const previewing = ref(false);
+const previewStatus = ref('');
+
+const stopPreview = () => {
+    if (previewAudio.value) {
+        try { previewAudio.value.pause(); } catch (e) { }
+        previewAudio.value = null;
+    }
+    if (previewObjectUrl) {
+        try { URL.revokeObjectURL(previewObjectUrl); } catch (e) { }
+        previewObjectUrl = undefined;
+    }
+    previewing.value = false;
+    previewStatus.value = '';
+};
+
+const playPreviewFromBlob = async (blob: Blob | null, loop = false, volume = 1) => {
+    stopPreview();
+    if (!blob) return;
+    try {
+        previewObjectUrl = URL.createObjectURL(blob);
+        previewAudio.value = new Audio(previewObjectUrl);
+        previewAudio.value.loop = loop;
+        previewAudio.value.volume = volume;
+        await previewAudio.value.play();
+        previewing.value = true;
+        previewStatus.value = '再生中';
+        if (!loop) {
+            previewAudio.value.addEventListener('ended', () => {
+                stopPreview();
+            }, { once: true });
+        }
+    } catch (e) {
+        console.warn('Preview play failed', e);
+        stopPreview();
+    }
+};
+
+const playPreviewFromAssetId = async (assetId: string | undefined, loop = false, volume = 1) => {
+    if (!assetId) return;
+    try {
+        const asset = await assetService.getAssetDataById(assetId);
+        const blob = asset ? (asset as any).blob as Blob : null;
+        await playPreviewFromBlob(blob, loop, volume);
+    } catch (e) {
+        console.error('Failed to fetch asset for preview', e);
+    }
+};
+
+const previewHomeBgm = async () => {
+    // prefer upload temp asset when in upload mode
+    if (localConfig.value.homeBgmMode === 'upload' && localConfig.value.homeBgmTempAsset) {
+        await playPreviewFromBlob((localConfig.value.homeBgmTempAsset as any).blob as Blob, true, 0.5);
+        return;
+    }
+    if (localConfig.value.homeBgm) {
+        await playPreviewFromAssetId(localConfig.value.homeBgm, true, 0.5);
+    }
+};
+
+const previewButtonSE = async () => {
+    if (localConfig.value.buttonClikingSEMode === 'upload' && localConfig.value.buttonClikingSETempAsset) {
+        await playPreviewFromBlob((localConfig.value.buttonClikingSETempAsset as any).blob as Blob, false, 1);
+        return;
+    }
+    if (localConfig.value.buttonClikingSE) {
+        await playPreviewFromAssetId(localConfig.value.buttonClikingSE, false, 1);
+    }
+};
+
+const previewCompletedSE = async () => {
+    if (localConfig.value.onCompletedLoadingSEMode === 'upload' && localConfig.value.onCompletedLoadingSETempAsset) {
+        await playPreviewFromBlob((localConfig.value.onCompletedLoadingSETempAsset as any).blob as Blob, false, 1);
+        return;
+    }
+    if (localConfig.value.onCompletedLoadingSE) {
+        await playPreviewFromAssetId(localConfig.value.onCompletedLoadingSE, false, 1);
     }
 };
 
@@ -277,6 +374,10 @@ const handleClearClick = async () => {
 
 onMounted(async () => {
     await Promise.all([loadConfig(), fetchAssets()]);
+});
+
+onUnmounted(() => {
+    stopPreview();
 });
 
 const handleSyncClick = async () => {

@@ -35,7 +35,15 @@ export default {
     Container.register();
 
     const router = useRouter();
-    const goOpening = () => router.push('/jackpot-opening');
+    const goOpening = async () => {
+      // play click SE (user interaction originates from button click so autoplay should be allowed)
+      try {
+        await playButtonSE();
+      } catch (e) {
+        // ignore errors, proceed to navigation
+      }
+      router.push('/jackpot-opening');
+    };
     const goAdmin = () => router.push('/jackpot-admin');
 
     const homeConfig = ref<HomeScreenSetting | null>(null);
@@ -48,21 +56,85 @@ export default {
 
     const bgmAudio = ref<HTMLAudioElement | null>(null);
     let bgmObjectUrl: string | undefined;
+    let bgmUserInteractHandler: ((evt: Event) => void) | null = null;
+
+    const tryPlayAudioFromAsset = async (assetId: string | undefined, opts?: { loop?: boolean; volume?: number }) => {
+      if (!assetId) return null;
+      const asset = await assetService.getAssetDataById(assetId);
+      if (!asset || !(asset as any).blob) return null;
+      const blob = (asset as any).blob as Blob;
+      const objUrl = URL.createObjectURL(blob);
+      const audio = new Audio(objUrl);
+      audio.loop = !!opts?.loop;
+      audio.volume = typeof opts?.volume === 'number' ? opts!.volume! : 1;
+      try {
+        await audio.play();
+        return { audio, objUrl };
+      } catch (e) {
+        // autoplay blocked or other error - cleanup created object URL
+        try { audio.pause(); } catch (ex) { }
+        try { URL.revokeObjectURL(objUrl); } catch (ex) { }
+        throw e;
+      }
+    };
+
+    const playButtonSE = async () => {
+      if (!homeConfig.value || !homeConfig.value.buttonClikingSE) return null;
+      try {
+        const res = await tryPlayAudioFromAsset(homeConfig.value.buttonClikingSE, { loop: false, volume: 1 });
+        // If audio played, schedule revoke of object URL after it ends
+        if (res && res.audio) {
+          res.audio.addEventListener('ended', () => {
+            try { URL.revokeObjectURL(res.objUrl); } catch (e) { }
+          }, { once: true });
+        }
+        return res?.audio ?? null;
+      } catch (e) {
+        // playback failed (unlikely for user-generated click), just ignore
+        return null;
+      }
+    };
     const unmounted = ref(false);
 
     const playBGM = async () => {
       if (!homeConfig.value || !homeConfig.value.homeBgm) return;
-      const asset = await assetService.getAssetDataById(homeConfig.value.homeBgm);
-      if (asset && (asset as any).blob) {
-        try {
-          bgmObjectUrl = URL.createObjectURL((asset as any).blob);
-          bgmAudio.value = new Audio(bgmObjectUrl);
-          bgmAudio.value.loop = true;
-          bgmAudio.value.volume = 0.5;
-          try { await bgmAudio.value.play(); } catch (e) { console.warn("BGM play failed:", e); }
-        } catch (err) {
-          console.error(err);
+      // cleanup previous
+      if (bgmAudio.value) {
+        try { bgmAudio.value.pause(); } catch (e) { }
+        bgmAudio.value = null;
+      }
+      if (bgmObjectUrl) {
+        try { URL.revokeObjectURL(bgmObjectUrl); } catch (e) { }
+        bgmObjectUrl = undefined;
+      }
+
+      try {
+        const res = await tryPlayAudioFromAsset(homeConfig.value.homeBgm, { loop: true, volume: 0.5 });
+        if (res && res.audio) {
+          bgmAudio.value = res.audio;
+          bgmObjectUrl = res.objUrl;
         }
+      } catch (e) {
+        // autoplay blocked - set up a one-time fallback: any non-button click/tap will trigger BGM
+        console.warn('BGM play failed (might be autoplay policy):', e);
+        bgmUserInteractHandler = async (evt: Event) => {
+          // ignore clicks on buttons to avoid interfering with button actions
+          const target = evt.target as HTMLElement | null;
+          if (!target) return;
+          const isButton = target.closest && (target.closest('button') || target.getAttribute('role') === 'button');
+          if (isButton) return;
+          try {
+            await playBGM();
+          } catch (e) { }
+          // remove listeners once attempted
+          if (bgmUserInteractHandler) {
+            document.body.removeEventListener('click', bgmUserInteractHandler as EventListener);
+            document.body.removeEventListener('touchstart', bgmUserInteractHandler as EventListener);
+            bgmUserInteractHandler = null;
+          }
+        };
+        document.body.addEventListener('click', bgmUserInteractHandler as EventListener);
+        document.body.addEventListener('touchstart', bgmUserInteractHandler as EventListener);
       }
     };
 
@@ -112,6 +184,14 @@ export default {
       window.removeEventListener('keydown', handleKey);
       document.documentElement.classList.remove('jackpot-fullscreen');
       document.body.classList.remove('jackpot-fullscreen');
+      // remove any pending user-interact handlers used for autoplay fallback
+      if (bgmUserInteractHandler) {
+        try {
+          document.body.removeEventListener('click', bgmUserInteractHandler as EventListener);
+          document.body.removeEventListener('touchstart', bgmUserInteractHandler as EventListener);
+        } catch (e) { }
+        bgmUserInteractHandler = null;
+      }
       if (bgmAudio.value) {
         try { bgmAudio.value.pause(); } catch (e) { }
         bgmAudio.value = null;
