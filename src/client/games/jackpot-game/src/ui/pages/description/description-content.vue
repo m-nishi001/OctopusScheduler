@@ -2,40 +2,43 @@
 	<MainLayout>
 		<div class="description-screen">
 			<!-- show initial full-screen description hint when slideIndex is -1 -->
-			<div v-if="slideIndex === -1" class="description-content">
-				<h2 class="description-title">説明画面</h2>
-				<p class="description-text">ここにゲームの説明を記載します。</p>
-				<p class="description-text">Enterキーを押して次へ進んでください。</p>
-			</div>
-			<!-- otherwise show framed slide area -->
-			<div v-else class="content-frame">
-				<div class="inner-border">
-					<div class="inner-frame">
-						<div class="slide-container">
-							<transition-group name="slide-transition" tag="div">
-								<div v-if="currentSlide" :key="currentSlide.id" class="slide-content">
-									<template v-if="currentSlide.type === 'text'">
-										<div v-if="isHtml(currentSlide.content)" class="slide-html"
-											v-html="currentSlide.content">
-										</div>
-										<div v-else class="slide-text">{{ currentSlide.content }}</div>
-									</template>
-									<template v-if="currentSlide.type === 'image'">
-										<img :src="currentSlide.assetUrl" class="slide-image" />
-									</template>
-									<template v-if="currentSlide.type === 'modal'">
-										<div class="slide-modal">{{ currentSlide.content }}</div>
-									</template>
-									<template v-if="currentSlide.type === 'html'">
-										<div class="slide-html" v-html="currentSlide.content"></div>
-									</template>
-								</div>
-							</transition-group>
+			<transition name="initial-to-slide" mode="out-in">
+				<div v-if="slideIndex === -1" class="description-content">
+					<h2 class="description-title">説明画面</h2>
+					<p class="description-text">ここにゲームの説明を記載します。</p>
+					<p class="description-text">Enterキーを押して次へ進んでください。</p>
+				</div>
+				<!-- otherwise show framed slide area -->
+				<div v-else class="content-frame">
+					<div class="inner-border">
+						<div class="inner-frame">
+							<div class="slide-container">
+								<transition name="slide-transition" mode="out-in">
+									<div v-if="currentSlide" :key="currentSlide && (currentSlide.id || slideIndex)"
+										class="slide-content">
+										<template v-if="currentSlide.type === 'text'">
+											<div v-if="isHtml(getContent(currentSlide))" class="slide-html"
+												v-html="getContent(currentSlide)">
+											</div>
+											<div v-else class="slide-text">{{ getContent(currentSlide) }}</div>
+										</template>
+										<template v-if="currentSlide.type === 'image'">
+											<img :src="currentSlide.assetUrl" class="slide-image" />
+										</template>
+										<template v-if="currentSlide.type === 'modal'">
+											<div class="slide-modal">{{ currentSlide.content }}</div>
+										</template>
+										<template v-if="currentSlide.type === 'html'">
+											<div class="slide-html" v-html="getContent(currentSlide)"></div>
+										</template>
+									</div>
+								</transition>
+							</div>
 						</div>
 					</div>
 				</div>
-			</div>
-			<!-- only show navigation controls when slides are active -->
+			</transition>
+			<!-- only show navigation controls (dots) when slides are active -->
 			<div v-if="slideIndex !== -1">
 				<div class="navigation-hint">
 					<div class="progress-dots">
@@ -43,7 +46,6 @@
 							:class="{ active: index === slideIndex }"></span>
 					</div>
 				</div>
-				<button class="next-button" @click="nextSlide">次へ</button>
 			</div>
 
 		</div>
@@ -174,7 +176,14 @@ export default {
 			return /<[^>]+>/.test(s);
 		};
 
-		return { screenConfig, currentSlide, slideIndex, elements, isHtml, nextSlide };
+		const getContent = (el: any) => {
+			if (!el) return '';
+			if (el.content && typeof el.content === 'string') return el.content;
+			// legacy admin UI used `text` property for plain text entries
+			return (el.text && typeof el.text === 'string') ? el.text : '';
+		};
+
+		return { screenConfig, currentSlide, slideIndex, elements, isHtml, getContent, nextSlide };
 	},
 };
 </script>
@@ -361,28 +370,7 @@ export default {
 	margin-bottom: 0.8rem;
 }
 
-.next-button {
-	/* keep button in normal document flow so it is visible on small screens */
-	position: relative;
-	margin: 6px auto 24px auto;
-	display: inline-block;
-	background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-	color: #ffffff;
-	border: 2px solid rgba(255, 255, 255, 0.18);
-	padding: 0.6rem 1.6rem;
-	min-width: 96px;
-	height: 40px;
-	border-radius: 6px;
-	cursor: pointer;
-	font-size: 1rem;
-	letter-spacing: .02em;
-	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
-	z-index: 5;
-}
 
-.next-button:hover {
-	background: rgba(255, 255, 255, 0.03);
-}
 
 .hint-text {
 	color: #b0b0b0;
@@ -426,5 +414,21 @@ export default {
 .slide-transition-leave-to {
 	opacity: 0;
 	transform: translateY(-30px);
+}
+
+/* transition between the initial full-screen hint and the framed slide area */
+.initial-to-slide-enter-active,
+.initial-to-slide-leave-active {
+	transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.initial-to-slide-enter-from {
+	opacity: 0;
+	transform: translateY(24px) scale(0.995);
+}
+
+.initial-to-slide-leave-to {
+	opacity: 0;
+	transform: translateY(-18px) scale(0.995);
 }
 </style>
