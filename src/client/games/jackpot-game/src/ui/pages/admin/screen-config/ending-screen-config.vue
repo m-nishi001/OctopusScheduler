@@ -649,6 +649,17 @@ const handleSaveClick = async () => {
     box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
 }
 
+/* Wider dialog for add/edit content while keeping it responsive on small screens */
+.modal-content.dialog-modal {
+    /* prefer a comfortable fixed width on desktop, but allow shrinking on small viewports */
+    width: min(720px, 92%);
+    max-width: 92%;
+    /* increase horizontal padding slightly for better form layout */
+    padding: 32px 28px;
+    text-align: left;
+    /* align form labels and inputs to left inside dialog */
+}
+
 .dialog-modal label {
     display: block;
     text-align: left;
