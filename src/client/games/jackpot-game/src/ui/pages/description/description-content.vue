@@ -149,7 +149,7 @@ export default {
 					currentSlide.value = null;
 				}
 			} else {
-				router.push('/jackpot-demo');
+				router.push('/jackpot-draw');
 			}
 		};
 		const handleKey = (e: KeyboardEvent) => {
