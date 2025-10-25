@@ -2,17 +2,18 @@
   <MainLayout>
     <div class="w-full max-w-xl mx-auto text-center bg-white/80 rounded-xl shadow-lg p-8">
       <h2 class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">本抽選画面</h2>
-      <div v-if="!drawn">
+      <div v-if="phase === 'idle'">
         <div class="member-box mb-4">
-          <img :src="currentMember?.photoAssetId ? objectUrlMap.get(currentMember.photoAssetId) : ''"
-            class="w-24 h-24 rounded-full mx-auto mb-2" />
-          <div class="text-lg font-bold text-indigo-700">{{ currentMember.name }}</div>
+          <MemberDrawAnimation ref="memberAnimRef" :members="members" />
         </div>
-        <button @click="runMainDraw"
+        <button @click="startMemberDraw"
           class="bg-gradient-to-r from-pink-400 to-yellow-300 text-white font-semibold px-6 py-3 rounded-lg shadow hover:scale-105 transition">抽選開始</button>
         <p class="mt-4 text-gray-700">Enterキーでも抽選開始できます</p>
       </div>
       <div v-else>
+        <div class="roulette-area mb-4">
+          <RouletteAnimation ref="rouletteRef" :prizes="prizes" />
+        </div>
         <transition name="fade">
           <div class="result-box" v-if="result">
             <h3 class="text-xl font-bold text-pink-600 mb-2">当選者: {{ result.member }}</h3>
@@ -36,6 +37,8 @@ import { PrizeRepository } from '../../../model/infrastructures/prize-repository
 import { MemberRepository } from '../../../model/infrastructures/member-repository';
 import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
+import MemberDrawAnimation from './MemberDrawAnimation.vue';
+import RouletteAnimation from './RouletteAnimation.vue';
 import { useRouter } from 'vue-router';
 import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
@@ -43,7 +46,7 @@ import { DrawService } from '../../../model/applications/draw/draw-service';
 import { MainScreenSetting } from '../../../model/domains/screen-config/main-screen-setting';
 export default {
   name: 'MainDraw',
-  components: { MainLayout },
+  components: { MainLayout, MemberDrawAnimation, RouletteAnimation },
   setup() {
     const router = useRouter();
 
@@ -96,85 +99,114 @@ export default {
       }
     };
 
-    const playSE = async () => {
-
-    };
+    // sound effects placeholder (not used yet)
 
     const currentMember = ref<any>(null);
 
-    const drawn = ref(false);
+    const phase = ref<'idle' | 'memberRunning' | 'memberStopped' | 'prizeRunning' | 'prizeStopped'>('idle');
     const result = ref<{ member: string; prize: string } | null>(null);
     const showHalfModal = ref(false);
     const drawAppService = container.resolve(DrawService);
-    const runMainDraw = async () => {
-      if (drawn.value || prizes.value.length === 0 || members.value.length === 0) return;
-      playSE();
-      drawn.value = true;
-      try {
-        // 1) member draw
-        const memberRes = await drawAppService.executeMemberDraw({ requestCount: 10 });
-        if (memberRes.winnerId) {
-          const member = members.value.find((m) => m.id === memberRes.winnerId);
-          if (member) currentMember.value = member;
-        } else {
-          currentMember.value = null;
-        }
+    const memberAnimRef = ref<any>(null);
+    const rouletteRef = ref<any>(null);
 
-        // show member result modal
-        result.value = { member: currentMember.value ? currentMember.value.name || currentMember.value.id : 'なし', prize: '' };
-      } finally {
-
-      }
+    // start member draw: request candidates and begin animation
+    const startMemberDraw = async () => {
+      if (phase.value !== 'idle') return;
+      if (prizes.value.length === 0 || members.value.length === 0) return;
+      // ask application for member draw (returns winnerId and dummyIds)
+      const memberRes = await drawAppService.executeMemberDraw({ requestCount: 10 });
+      // start animation
+      memberAnimRef.value?.start?.();
+      // store planned winner id for stopping
+      (memberAnimRef.value as any).__plannedWinner = memberRes.winnerId;
+      phase.value = 'memberRunning';
     };
 
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        if (drawn.value && prizes.value.length > 0) {
-          // move to prize draw
-          (async () => {
-            try {
-              const drawAppService = container.resolve(DrawService);
-              const memberId = currentMember.value ? currentMember.value.id : '';
-              const prizeRes = await drawAppService.executePrizeDraw({ memberId, requestCount: 8 });
-              if (prizeRes.isKakuhen) {
-                // kakuhen sequence: wait 2s then assign reserved prize
-                result.value = { member: currentMember.value ? currentMember.value.name : '', prize: '確変発生！' };
-                setTimeout(async () => {
-                  const assignRes = await drawAppService.executeKakuhenAssign(memberId);
-                  if (assignRes.winnerPrizeId) {
-                    const prizeObj = await prizeRepo.getPrizeById(assignRes.winnerPrizeId);
-                    result.value = { member: currentMember.value ? currentMember.value.name : '', prize: prizeObj ? prizeObj.name : assignRes.winnerPrizeId };
-                    // remove prize from UI list
-                    const idx = prizes.value.findIndex((p) => p.id === assignRes.winnerPrizeId);
-                    if (idx >= 0) prizes.value.splice(idx, 1);
-                  }
-                }, 2000);
-              } else {
-                if (prizeRes.winnerPrizeId) {
-                  const prizeObj = await prizeRepo.getPrizeById(prizeRes.winnerPrizeId);
-                  result.value = { member: currentMember.value ? currentMember.value.name : '', prize: prizeObj ? prizeObj.name : prizeRes.winnerPrizeId };
-                  const idx = prizes.value.findIndex((p) => p.id === prizeRes.winnerPrizeId);
-                  if (idx >= 0) prizes.value.splice(idx, 1);
-                }
-              }
+      if (e.key !== 'Enter') return;
 
-              if (prizes.value.length === 0) {
-                // finished
-              } else if (prizes.value.length === Math.ceil((await prizeRepo.getPrizes()).length / 2)) {
-                showHalfModal.value = true;
-                setTimeout(() => { showHalfModal.value = false; }, 2000);
-              }
-            } finally {
-              // reset for next member draw
-              drawn.value = false;
-              // clear currentMember so next Enter starts fresh
-              currentMember.value = null;
-            }
-          })();
-        } else if (prizes.value.length === 0) {
-          router.push('/jackpot-result');
+      (async () => {
+        // Idle -> start member draw
+        if (phase.value === 'idle') {
+          await startMemberDraw();
+          return;
         }
-      }
+
+        // Member running -> stop at planned winner and show modal after 1s
+        if (phase.value === 'memberRunning') {
+          const planned = (memberAnimRef.value as any).__plannedWinner;
+          try {
+            const stoppedId = await memberAnimRef.value?.stopAt?.(planned);
+            const memberObj = members.value.find((m) => m.id === stoppedId || m.id === planned);
+            result.value = { member: memberObj ? memberObj.name : (stoppedId || planned || 'なし'), prize: '' };
+            phase.value = 'memberStopped';
+          } catch (e) {
+            // fallback
+            const memberObj = members.value.find((m) => m.id === planned);
+            result.value = { member: memberObj ? memberObj.name : (planned || 'なし'), prize: '' };
+            phase.value = 'memberStopped';
+          }
+          return;
+        }
+
+        // Member stopped -> move to prize draw screen and start prize draw
+        if (phase.value === 'memberStopped') {
+          phase.value = 'prizeRunning';
+          const memberId = (memberAnimRef.value as any).__plannedWinner || '';
+          const prizeRes = await drawAppService.executePrizeDraw({ memberId, requestCount: 8 });
+          if (prizeRes.isKakuhen) {
+            // show kakuhen message
+            result.value = { member: members.value.find((m) => m.id === memberId)?.name || memberId, prize: '確変発生！' };
+            // run roulette auto reroll: use first dummy and first reserved as placeholders
+            const dummyId = prizeRes.dummyPrizeIds && prizeRes.dummyPrizeIds.length ? prizeRes.dummyPrizeIds[0] : null;
+            const finalReserved = prizeRes.reservedPrizeIds && prizeRes.reservedPrizeIds.length ? prizeRes.reservedPrizeIds[0] : null;
+            // await animation completion (runAutoReroll now returns prizeId)
+            if (rouletteRef.value?.runAutoReroll) {
+              try {
+                await rouletteRef.value.runAutoReroll({ dummyPrizeId: dummyId, finalPrizeId: finalReserved, dummyDuration: 2000, finalDuration: 2000 });
+              } catch (e) {
+                // ignore animation errors and continue
+              }
+            } else {
+              // fallback wait
+              await new Promise(r => setTimeout(r, 2800));
+            }
+            // assign reserved prize (application logic)
+            const assignRes = await drawAppService.executeKakuhenAssign(memberId);
+            if (assignRes.winnerPrizeId) {
+              const prizeObj = await prizeRepo.getPrizeById(assignRes.winnerPrizeId);
+              result.value = { member: members.value.find((m) => m.id === memberId)?.name || memberId, prize: prizeObj ? prizeObj.name : assignRes.winnerPrizeId };
+              const idx = prizes.value.findIndex((p) => p.id === assignRes.winnerPrizeId);
+              if (idx >= 0) prizes.value.splice(idx, 1);
+            }
+            phase.value = 'prizeStopped';
+          } else {
+            // normal prize
+            if (prizeRes.winnerPrizeId) {
+              const prizeObj = await prizeRepo.getPrizeById(prizeRes.winnerPrizeId);
+              result.value = { member: members.value.find((m) => m.id === memberId)?.name || memberId, prize: prizeObj ? prizeObj.name : prizeRes.winnerPrizeId };
+              const idx = prizes.value.findIndex((p) => p.id === prizeRes.winnerPrizeId);
+              if (idx >= 0) prizes.value.splice(idx, 1);
+            }
+            phase.value = 'prizeStopped';
+          }
+          return;
+        }
+
+        // Prize stopped -> if prizes remain, reset to idle for next member draw; otherwise navigate to result
+        if (phase.value === 'prizeStopped') {
+          if (prizes.value.length === 0) {
+            router.push('/jackpot-result');
+          } else {
+            // reset
+            result.value = null;
+            currentMember.value = null;
+            phase.value = 'idle';
+          }
+          return;
+        }
+      })();
     };
     onMounted(() => window.addEventListener('keydown', handleKey));
     onUnmounted(() => {
@@ -189,7 +221,7 @@ export default {
       }
     });
 
-    return { mainConfig, runMainDraw, drawn, result, currentMember, prizes, showHalfModal, objectUrlMap };
+    return { mainConfig, startMemberDraw, phase, result, currentMember, prizes, showHalfModal, objectUrlMap, members, memberAnimRef, rouletteRef };
   },
 };
 </script>

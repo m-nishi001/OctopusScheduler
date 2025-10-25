@@ -2,7 +2,7 @@
     <div class="roulette-animation">
         <div class="roulette-canvas-wrapper">
             <canvas ref="canvas" @click="toggleSpin"></canvas>
-            
+
             <svg class="indicator top" width="90" height="90" viewBox="0 0 90 90">
                 <defs>
                     <filter id="glow">
@@ -18,18 +18,18 @@
                         <stop offset="100%" stop-color="#bfae6a" />
                     </radialGradient>
                 </defs>
-                
+
                 <polygon points="45,10 80,70 10,70" fill="url(#goldGrad)" stroke="#fff" stroke-width="5"
                     filter="url(#glow)" />
-                
+
                 <polygon points="45,18 72,66 18,66" fill="none" stroke="#ffb700" stroke-width="3.5" />
-                
+
                 <circle cx="45" cy="28" r="7" fill="#fffbe6" stroke="#ffb700" stroke-width="2.5" filter="url(#glow)" />
                 <circle cx="45" cy="28" r="4.2" fill="#ffe066" stroke="#fff" stroke-width="1.2" />
-                
+
                 <polygon points="45,19 47,25 53,25 48,28 50,34 45,30 40,34 42,28 37,25 43,25" fill="#fffbe6"
                     stroke="#ffb700" stroke-width="1" filter="url(#glow)" />
-                
+
                 <text x="45" y="52" text-anchor="middle" font-size="22" font-weight="bold" fill="#fffbe6"
                     stroke="#ffb700" stroke-width="2.8" filter="url(#glow)"
                     style="font-family:'Segoe UI',Arial,sans-serif;">JACKPOT</text>
@@ -57,7 +57,7 @@ export default {
         showResult: { type: Boolean, default: false },
         showBonus: { type: Boolean, default: false }
     },
-    setup(props) {
+    setup(props, { emit }) {
         const canvas = ref<HTMLCanvasElement | null>(null);
         let scene: THREE.Scene;
         let camera: THREE.PerspectiveCamera;
@@ -68,6 +68,7 @@ export default {
 
         let bgParticles: THREE.Points | null = null;
         let spinning = false;
+        let bgmAudio: HTMLAudioElement | null = null;
 
         onMounted(() => {
             window.addEventListener('keydown', (e) => {
@@ -425,8 +426,20 @@ export default {
             if (spinning) stopSpin(); else startSpin();
         };
 
-        const startSpin = () => {
+        const startSpin = (bgmAssetUrl?: string) => {
             spinning = true;
+            // play BGM if provided
+            try {
+                if (bgmAssetUrl) {
+                    if (bgmAudio) {
+                        try { bgmAudio.pause(); } catch (e) { }
+                        bgmAudio = null;
+                    }
+                    bgmAudio = new Audio(bgmAssetUrl);
+                    bgmAudio.loop = true;
+                    bgmAudio.play().catch(() => { });
+                }
+            } catch (e) { }
 
             gsap.to(roulette.rotation, {
                 z: "+=" + Math.PI * 2,
@@ -436,27 +449,64 @@ export default {
             });
         };
 
-        const stopSpin = () => {
+        /**
+         * Stop spin. If targetIndex is provided, decelerate and stop at that sector.
+         * If isFinal is true, this is the real stopping (will show win effect). If false, it's a dummy stop.
+         */
+        const stopSpin = (options?: { targetIndex?: number | null; isFinal?: boolean }) => {
+            const { targetIndex = null, isFinal = true } = options || {};
             gsap.killTweensOf(roulette.rotation);
 
-            const currentZ = roulette.rotation.z;
-            const targetZ = Math.ceil(currentZ / (Math.PI * 2)) * (Math.PI * 2); // ちょうど一周分で止める
-            gsap.to(roulette.rotation, {
-                z: targetZ + Math.PI * 1.5,
-                duration: 1.1,
-                ease: "power4.inOut",
-                onComplete: () => {
+            return new Promise<string | null>((resolve) => {
+                const finish = (prizeId: string | null) => {
+                    spinning = false;
+                    if (bgmAudio) {
+                        try { bgmAudio.pause(); } catch (e) { }
+                        bgmAudio = null;
+                    }
+                    emit('stopped', prizeId);
+                    resolve(prizeId);
+                };
+
+                if (targetIndex !== null && typeof targetIndex === 'number') {
+                    const sectors = Math.max(6, props.prizes.length);
+                    const sectorAngle = (Math.PI * 2) / sectors;
+                    const targetAngle = - (targetIndex * sectorAngle + sectorAngle / 2) + Math.PI / 2;
                     gsap.to(roulette.rotation, {
-                        z: targetZ + Math.PI * 2,
-                        duration: 1.2,
-                        ease: "bounce.out",
+                        z: targetAngle,
+                        duration: 1.6,
+                        ease: 'power3.inOut',
                         onComplete: () => {
-                            spinning = false;
+                            if (isFinal) showWinEffect(targetIndex);
+                            const prizeId = props.prizes[targetIndex]?.id ?? null;
+                            finish(prizeId);
                         }
                     });
+                    return;
                 }
+
+                const currentZ = roulette.rotation.z;
+                const targetZ = Math.ceil(currentZ / (Math.PI * 2)) * (Math.PI * 2);
+                gsap.to(roulette.rotation, {
+                    z: targetZ + Math.PI * 1.5,
+                    duration: 1.1,
+                    ease: "power4.inOut",
+                    onComplete: () => {
+                        gsap.to(roulette.rotation, {
+                            z: targetZ + Math.PI * 2,
+                            duration: 1.2,
+                            ease: "bounce.out",
+                            onComplete: () => {
+                                finish(null);
+                            }
+                        });
+                    }
+                });
             });
         };
+
+        // Emit stopped using Vue's emit
+        // parent can listen via @stopped or via component ref awaiting returned Promise
 
         function showWinEffect(targetIndex: number) {
 
@@ -503,12 +553,35 @@ export default {
                     ease: 'power3.out',
                     onComplete: () => {
                         showWinEffect(targetIndex);
+                        emit('stopped', props.selectedPrize?.id ?? null);
                     }
                 });
             }
         });
 
-        return { canvas, toggleSpin };
+        /**
+         * Run automatic re-draw sequence used for kakuhen: first a dummy run then a final run.
+         * parent should call via component ref: e.g. compRef.runAutoReroll({dummyId, finalId, bgm1, bgm2})
+         */
+        const runAutoReroll = async (opts: { dummyPrizeId?: string | null; finalPrizeId?: string | null; dummyDuration?: number; finalDuration?: number; bgm1Url?: string; bgm2Url?: string }) => {
+            const { dummyPrizeId = null, finalPrizeId = null, dummyDuration = 2000, finalDuration = 2000, bgm1Url, bgm2Url } = opts;
+            // hide manual controls is the parent responsibility; just perform animation
+            // first run: play bgm1 and run dummy
+            startSpin(bgm1Url);
+            const dummyIndex = dummyPrizeId ? props.prizes.findIndex(p => p.id === dummyPrizeId) : Math.floor(Math.random() * Math.max(6, props.prizes.length));
+            await new Promise(res => setTimeout(res, dummyDuration));
+            await stopSpin({ targetIndex: dummyIndex, isFinal: false });
+
+            // second run: play bgm2 and stop at finalPrizeId
+            await new Promise(res => setTimeout(res, 600));
+            startSpin(bgm2Url);
+            const finalIndex = finalPrizeId ? props.prizes.findIndex(p => p.id === finalPrizeId) : Math.floor(Math.random() * Math.max(6, props.prizes.length));
+            await new Promise(res => setTimeout(res, finalDuration));
+            const prizeId = await stopSpin({ targetIndex: finalIndex, isFinal: true });
+            return prizeId;
+        };
+
+        return { canvas, toggleSpin, startSpin, stopSpin, runAutoReroll };
     }
 };
 </script>
