@@ -2,27 +2,30 @@
 	<MainLayout>
 		<div class="description-screen">
 			<div class="content-frame">
-				<div class="slide-container">
-					<transition-group name="slide-transition" tag="div">
-						<div v-if="currentSlide" :key="currentSlide.id" class="slide-content">
-							<template v-if="currentSlide.type === 'text'">
-								<div v-if="isHtml(currentSlide.content)" class="slide-html"
-									v-html="currentSlide.content">
-								</div>
-								<div v-else class="slide-text">{{ currentSlide.content }}</div>
-							</template>
-							<template v-if="currentSlide.type === 'image'">
-								<img :src="currentSlide.assetUrl" class="slide-image" />
-							</template>
-							<template v-if="currentSlide.type === 'modal'">
-								<div class="slide-modal">{{ currentSlide.content }}</div>
-							</template>
-							<template v-if="currentSlide.type === 'html'">
-								<div class="slide-html" v-html="currentSlide.content"></div>
-							</template>
-						</div>
-					</transition-group>
+				<div class="inner-border">
+					<div class="inner-frame">
+						<transition-group name="slide-transition" tag="div">
+							<div v-if="currentSlide" :key="currentSlide.id" class="slide-content">
+								<template v-if="currentSlide.type === 'text'">
+									<div v-if="isHtml(currentSlide.content)" class="slide-html"
+										v-html="currentSlide.content">
+									</div>
+									<div v-else class="slide-text">{{ currentSlide.content }}</div>
+								</template>
+								<template v-if="currentSlide.type === 'image'">
+									<img :src="currentSlide.assetUrl" class="slide-image" />
+								</template>
+								<template v-if="currentSlide.type === 'modal'">
+									<div class="slide-modal">{{ currentSlide.content }}</div>
+								</template>
+								<template v-if="currentSlide.type === 'html'">
+									<div class="slide-html" v-html="currentSlide.content"></div>
+								</template>
+							</div>
+						</transition-group>
+					</div>
 				</div>
+				<button class="next-button" @click="nextSlide">次へ</button>
 			</div>
 			<div class="navigation-hint">
 				<span class="hint-text">Press ENTER to continue</span>
@@ -31,6 +34,7 @@
 						:class="{ active: index === slideIndex }"></span>
 				</div>
 			</div>
+
 		</div>
 	</MainLayout>
 </template>
@@ -124,7 +128,7 @@ export default {
 			return /<[^>]+>/.test(s);
 		};
 
-		return { screenConfig, currentSlide, slideIndex, elements, isHtml };
+		return { screenConfig, currentSlide, slideIndex, elements, isHtml, nextSlide };
 	},
 };
 </script>
@@ -133,7 +137,8 @@ export default {
 .description-screen {
 	width: 100vw;
 	height: 100vh;
-	background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+	/* purple-ish gradient like attachment 2 */
+	background: linear-gradient(135deg, #2b1438 0%, #5a2b6f 50%, #2a1632 100%);
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
@@ -155,17 +160,34 @@ export default {
 }
 
 .content-frame {
-	width: 80%;
-	height: 70%;
-	border: 2px solid rgba(255, 255, 255, 0.5);
-	border-radius: 16px;
-	background: rgba(255, 255, 255, 0.1);
-	backdrop-filter: blur(10px);
+	width: 86%;
+	height: 72%;
+	background: #0b0b0b; /* deep black content area */
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	padding: 2rem;
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+	padding: 2.4rem;
+	position: relative;
+}
+
+.inner-border {
+	width: 100%;
+	height: 100%;
+	padding: 1.2rem;
+	box-sizing: border-box;
+	border: 2px solid rgba(255,255,255,0.9); /* outer thin white border */
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.inner-frame {
+	width: 100%;
+	height: 100%;
+	background: #0b0b0b; /* same black, acts like inner canvas */
+	display: flex;
+	justify-content: center;
+	align-items: center;
 }
 
 .slide-container {
@@ -183,12 +205,12 @@ export default {
 }
 
 .slide-text {
-	font-size: 2.5rem;
+	/* smaller, centered simple text similar to attachment 1 */
+	font-size: 1rem;
 	font-weight: 300;
-	color: #ffffff;
-	text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+	color: #dcdcdc;
 	line-height: 1.4;
-	margin-bottom: 2rem;
+	margin: 0;
 	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -237,6 +259,25 @@ export default {
 	left: 50%;
 	transform: translateX(-50%);
 	text-align: center;
+}
+
+.next-button {
+	position: absolute;
+	bottom: 1.4rem; /* sits near bottom inside the content-frame */
+	left: 50%;
+	transform: translateX(-50%);
+	background: transparent;
+	color: #ffffff;
+	border: 1px solid rgba(255,255,255,0.9);
+	padding: 0.8rem 2rem;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 1rem;
+	letter-spacing: .04em;
+}
+
+.next-button:hover {
+	background: rgba(255,255,255,0.03);
 }
 
 .hint-text {
