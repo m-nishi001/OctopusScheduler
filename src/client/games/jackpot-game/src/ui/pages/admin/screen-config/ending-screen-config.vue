@@ -181,9 +181,9 @@ const fetchAssets = async () => {
             }
             return copy;
         });
-        // use same list for audio/image selection but keep full list in audioAssets/imageAssets
-        audioAssets.value = mapped;
-        imageAssets.value = mapped;
+        // Split mapped list into audio and image assets so selects only show relevant types
+        audioAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('audio/'));
+        imageAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('image/'));
     } catch (e) {
         audioAssets.value = [];
         imageAssets.value = [];

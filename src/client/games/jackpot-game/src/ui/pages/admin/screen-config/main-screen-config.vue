@@ -32,7 +32,7 @@
                                     class="admin-input">
                                     <option value="">選択なし</option>
                                     <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                    }}</option>
+                                        }}</option>
                                 </select>
                             </div>
                             <div>
@@ -42,7 +42,7 @@
                                     class="admin-input">
                                     <option value="">選択なし</option>
                                     <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                    }}</option>
+                                        }}</option>
                                 </select>
                             </div>
                         </div>
@@ -172,7 +172,9 @@ const saveStatus = ref('');
 
 const fetchAssets = async () => {
     try {
-        audioAssets.value = await assetService.getAllAssetData();
+        const all = await assetService.getAllAssetData();
+        // Keep only audio assets for selects
+        audioAssets.value = all.filter((a: any) => !!a?.type && a.type.startsWith('audio/'));
     } catch (e) {
         audioAssets.value = [];
     }

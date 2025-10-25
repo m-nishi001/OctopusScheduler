@@ -181,8 +181,9 @@ const fetchAssets = async () => {
 			}
 			return copy;
 		});
-		audioAssets.value = mapped;
-		imageAssets.value = mapped;
+		// Split mapped list into audio and image assets so selects only show relevant types
+		audioAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('audio/'));
+		imageAssets.value = mapped.filter((m: any) => !!m?.type && m.type.startsWith('image/'));
 	} catch (e) {
 		audioAssets.value = [];
 		imageAssets.value = [];
@@ -247,138 +248,138 @@ const createEmptyContent = (): OpeningContent => ({
 const showAddDialog = () => {
 	editingIndex.value = -1;
 	dialogContent.value = JSON.parse(JSON.stringify(createEmptyContent()));
-  dialogVisible.value = true;
+	dialogVisible.value = true;
 };
 
 const showEditDialog = (idx: number) => {
-  editingIndex.value = idx;
-  dialogContent.value = JSON.parse(JSON.stringify(localConfig.value.contents[idx] || createEmptyContent()));
-  dialogVisible.value = true;
+	editingIndex.value = idx;
+	dialogContent.value = JSON.parse(JSON.stringify(localConfig.value.contents[idx] || createEmptyContent()));
+	dialogVisible.value = true;
 };
 
 const closeDialog = () => {
-  dialogVisible.value = false;
-  editingIndex.value = -1;
+	dialogVisible.value = false;
+	editingIndex.value = -1;
 };
 
 const saveDialog = async () => {
-  if (editingIndex.value === -1) {
-    localConfig.value.contents.push(JSON.parse(JSON.stringify(dialogContent.value)));
-  } else {
-    localConfig.value.contents.splice(editingIndex.value, 1, JSON.parse(JSON.stringify(dialogContent.value)));
-  }
-  closeDialog();
-  await handleSaveClick();
+	if (editingIndex.value === -1) {
+		localConfig.value.contents.push(JSON.parse(JSON.stringify(dialogContent.value)));
+	} else {
+		localConfig.value.contents.splice(editingIndex.value, 1, JSON.parse(JSON.stringify(dialogContent.value)));
+	}
+	closeDialog();
+	await handleSaveClick();
 };
 
 const onDialogImageChange = async (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    const dto = await assetService.createDriveDataDtoFromFile(file);
-    tempAssets.push(dto);
-    (dialogContent.value as any).assetId = dto.id;
-  }
+	const file = (e.target as HTMLInputElement).files?.[0];
+	if (file) {
+		const dto = await assetService.createDriveDataDtoFromFile(file);
+		tempAssets.push(dto);
+		(dialogContent.value as any).assetId = dto.id;
+	}
 };
 
 const onDialogSeChange = async (e: Event) => {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    const dto = await assetService.createDriveDataDtoFromFile(file);
-    tempAssets.push(dto);
-    (dialogContent.value as any).seAssetId = dto.id;
-  }
+	const file = (e.target as HTMLInputElement).files?.[0];
+	if (file) {
+		const dto = await assetService.createDriveDataDtoFromFile(file);
+		tempAssets.push(dto);
+		(dialogContent.value as any).seAssetId = dto.id;
+	}
 };
 
 const moveUp = async (idx: number) => {
-  if (idx <= 0) return;
-  const arr = localConfig.value.contents;
-  [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-  await handleSaveClick();
+	if (idx <= 0) return;
+	const arr = localConfig.value.contents;
+	[arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+	await handleSaveClick();
 };
 
 const moveDown = async (idx: number) => {
-  const arr = localConfig.value.contents;
-  if (idx >= arr.length - 1) return;
-  [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-  await handleSaveClick();
+	const arr = localConfig.value.contents;
+	if (idx >= arr.length - 1) return;
+	[arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+	await handleSaveClick();
 };
 
 const getContentTitle = (c: OpeningContent) => {
-  if (!c) return '';
-  if ((c as any).name) return (c as any).name;
-  if (c.type === 'text') return c.text ? (c.text.length > 30 ? c.text.substr(0, 30) + '…' : c.text) : 'テキスト';
-  if (c.type === 'image') return '画像' + (c.assetId ? ` (${c.assetId})` : '');
-  if (c.type === 'html') return 'HTML';
-  return '';
+	if (!c) return '';
+	if ((c as any).name) return (c as any).name;
+	if (c.type === 'text') return c.text ? (c.text.length > 30 ? c.text.substr(0, 30) + '…' : c.text) : 'テキスト';
+	if (c.type === 'image') return '画像' + (c.assetId ? ` (${c.assetId})` : '');
+	if (c.type === 'html') return 'HTML';
+	return '';
 };
 
 onBeforeUnmount(() => {
-  for (const url of assetUrlMap.values()) {
-    try {
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      /* ignore */
-    }
-  }
-  assetUrlMap.clear();
+	for (const url of assetUrlMap.values()) {
+		try {
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			/* ignore */
+		}
+	}
+	assetUrlMap.clear();
 });
 
 // selection state for multi-delete
 const selectedIndices = ref<number[]>([]);
 const isAllSelected = computed({
-  get: () => localConfig.value.contents.length > 0 && selectedIndices.value.length === localConfig.value.contents.length,
-  set: (val: boolean) => { selectedIndices.value = val ? localConfig.value.contents.map((_, i) => i) : []; }
+	get: () => localConfig.value.contents.length > 0 && selectedIndices.value.length === localConfig.value.contents.length,
+	set: (val: boolean) => { selectedIndices.value = val ? localConfig.value.contents.map((_, i) => i) : []; }
 });
 
 const deleteSelectedContents = async () => {
-  if (!selectedIndices.value.length) return;
-  const sorted = [...selectedIndices.value].sort((a, b) => b - a);
-  for (const idx of sorted) {
-    localConfig.value.contents.splice(idx, 1);
-  }
-  selectedIndices.value = [];
-  await handleSaveClick();
+	if (!selectedIndices.value.length) return;
+	const sorted = [...selectedIndices.value].sort((a, b) => b - a);
+	for (const idx of sorted) {
+		localConfig.value.contents.splice(idx, 1);
+	}
+	selectedIndices.value = [];
+	await handleSaveClick();
 };
 
 const removeContent = async (idx: number) => {
-  localConfig.value.contents.splice(idx, 1);
-  await handleSaveClick();
+	localConfig.value.contents.splice(idx, 1);
+	await handleSaveClick();
 };
 
 const handleSyncClick = async () => {
-  syncing.value = true;
-  syncStatus.value = "サーバーと同期中...";
-  try {
-    await screenSettingsService.syncToDrive();
-    await loadConfig();
-    syncStatus.value = "同期完了";
-  } catch (error) {
-    console.error("Failed to sync screen configs:", error);
-    syncStatus.value = "同期に失敗しました";
-  } finally {
-    syncing.value = false;
-  }
+	syncing.value = true;
+	syncStatus.value = "サーバーと同期中...";
+	try {
+		await screenSettingsService.syncToDrive();
+		await loadConfig();
+		syncStatus.value = "同期完了";
+	} catch (error) {
+		console.error("Failed to sync screen configs:", error);
+		syncStatus.value = "同期に失敗しました";
+	} finally {
+		syncing.value = false;
+	}
 };
 
 const handleSaveClick = async () => {
-  saving.value = true;
-  saveStatus.value = '保存中...';
-  try {
-    const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
-    const payload = {
-      bgmAssetId: localConfig.value.bgmAssetId || '',
-      contents: localConfig.value.contents,
-    };
-    await screenSettingsService.saveScreenSetting('description', 'description-screen-settings', payload, uploads.length ? uploads : undefined);
-    await loadConfig();
-    await fetchAssets();
-    saveStatus.value = '保存しました';
-  } catch (err) {
-    console.error('Failed to save description config', err);
-    saveStatus.value = '保存に失敗しました';
-  } finally {
-    saving.value = false;
-  }
+	saving.value = true;
+	saveStatus.value = '保存中...';
+	try {
+		const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
+		const payload = {
+			bgmAssetId: localConfig.value.bgmAssetId || '',
+			contents: localConfig.value.contents,
+		};
+		await screenSettingsService.saveScreenSetting('description', 'description-screen-settings', payload, uploads.length ? uploads : undefined);
+		await loadConfig();
+		await fetchAssets();
+		saveStatus.value = '保存しました';
+	} catch (err) {
+		console.error('Failed to save description config', err);
+		saveStatus.value = '保存に失敗しました';
+	} finally {
+		saving.value = false;
+	}
 };
 
 </script>
@@ -518,153 +519,158 @@ const handleSaveClick = async () => {
 	padding: 8px;
 	border-radius: 8px;
 	background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-  color: #dbeeff;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+	color: #dbeeff;
+	border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .select-all-row {
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
+	margin-bottom: 10px;
+	display: flex;
+	align-items: center;
 }
 
 .select-checkbox {
-  width: 20px;
-  height: 20px;
-  accent-color: #4f8cff;
+	width: 20px;
+	height: 20px;
+	accent-color: #4f8cff;
 }
 
 .row-checkbox {
-  width: 20px;
-  height: 20px;
-  accent-color: #4f8cff;
+	width: 20px;
+	height: 20px;
+	accent-color: #4f8cff;
 }
 
 .content-list-item {
-  display: grid;
-  grid-template-columns: 36px 1fr auto;
-  gap: 12px;
-  align-items: center;
-  padding: 14px;
-  background: #222831;
-  border-radius: 8px;
+	display: grid;
+	grid-template-columns: 36px 1fr auto;
+	gap: 12px;
+	align-items: center;
+	padding: 14px;
+	background: #222831;
+	border-radius: 8px;
 }
 
 .content-thumb {
-  width: 64px;
-  height: 64px;
-  border-radius: 6px;
-  object-fit: cover;
-  background: #111;
+	width: 64px;
+	height: 64px;
+	border-radius: 6px;
+	object-fit: cover;
+	background: #111;
 }
 
 .content-summary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #fff;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	color: #fff;
 }
 
 .content-list-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+	display: flex;
+	gap: 8px;
+	align-items: center;
 }
 
 .add-content-btn {
-  display: block;
-  width: 100%;
-  padding: 12px 18px;
-  margin: 8px 0 16px 0;
+	display: block;
+	width: 100%;
+	padding: 12px 18px;
+	margin: 8px 0 16px 0;
 }
 
 .button-row {
-  display: flex;
-  gap: 12px;
-  margin-top: 12px;
-  flex-wrap: wrap;
+	display: flex;
+	gap: 12px;
+	margin-top: 12px;
+	flex-wrap: wrap;
 }
 
 .content-item {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
 }
 
 .content-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
 }
 
 .content-row {
-  display: flex;
-  gap: 12px;
+	display: flex;
+	gap: 12px;
 }
 
 .content-actions {
-  display: flex;
-  justify-content: flex-end;
+	display: flex;
+	justify-content: flex-end;
 }
 
 .admin-btn.danger {
-  background: linear-gradient(90deg, #ff7a7a 0%, #ffb3b3 100%);
-  color: #3a1f1f;
+	background: linear-gradient(90deg, #ff7a7a 0%, #ffb3b3 100%);
+	color: #3a1f1f;
 }
 
 .empty-note {
-  color: #cbd5e1;
-  font-size: 0.95rem;
-  margin-bottom: 8px;
+	color: #cbd5e1;
+	font-size: 0.95rem;
+	margin-bottom: 8px;
 }
 
 .content-item,
 .config-item {
-  min-width: 0;
+	min-width: 0;
 }
 
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
 }
 
 .modal-content {
-  background: #232b36;
-  color: #fff;
-  padding: 28px;
-  border-radius: 10px;
-  text-align: center;
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
+	background: #232b36;
+	color: #fff;
+	padding: 28px;
+	border-radius: 10px;
+	text-align: center;
+	box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
 }
 
 .dialog-modal label {
-  display: block;
-  text-align: left;
-  margin-bottom: 8px;
-  font-weight: bold;
-  color: #fff;
+	display: block;
+	text-align: left;
+	margin-bottom: 8px;
+	font-weight: bold;
+	color: #fff;
 }
 
 .spinner {
-  margin: 16px auto;
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #4f8cff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+	margin: 16px auto;
+	width: 40px;
+	height: 40px;
+	border: 4px solid #f3f3f3;
+	border-top: 4px solid #4f8cff;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+	0% {
+		transform: rotate(0deg);
+	}
+
+	100% {
+		transform: rotate(360deg);
+	}
 }
 </style>

@@ -127,7 +127,9 @@ const uploading = ref(false);
 
 const fetchAssets = async () => {
     try {
-        audioAssets.value = await assetService.getAllAssetData();
+        // Fetch all assets then keep only audio MIME types so selects show music only
+        const all = await assetService.getAllAssetData();
+        audioAssets.value = all.filter((a: any) => !!a?.type && a.type.startsWith('audio/'));
     } catch (e) {
         audioAssets.value = [];
     }

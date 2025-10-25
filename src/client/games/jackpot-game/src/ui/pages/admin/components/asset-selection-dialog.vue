@@ -9,7 +9,8 @@
                 </label>
             </div>
             <div class="asset-actions">
-                <input type="file" ref="fileInput" @change="onUpload" />
+                <!-- restrict explorer upload to audio files only -->
+                <input type="file" accept="audio/*" ref="fileInput" @change="onUpload" />
                 <div class="btn-row">
                     <button class="admin-btn" @click="chooseFromExplorer">エクスプローラーから選択</button>
                     <button class="admin-btn" @click="confirmSelection">選択</button>
@@ -36,7 +37,10 @@ const selected = ref<string[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 const load = async () => {
-    assets.value = await assetDataService.getAllAssetData();
+    // Only show audio assets in this dialog (dialog prompts "音楽を選択してください").
+    // Asset.type stores MIME type (e.g. "audio/mpeg"), so filter by audio/*.
+    const all = await assetDataService.getAllAssetData();
+    assets.value = all.filter((a) => !!a?.type && a.type.startsWith('audio/'));
 };
 
 onMounted(() => { load(); });
