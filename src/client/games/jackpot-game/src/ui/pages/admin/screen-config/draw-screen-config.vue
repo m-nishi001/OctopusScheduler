@@ -24,10 +24,38 @@
 
 
                 <div class="config-item">
-                    <label>確変タイミング (景品が何個出てきたら):</label>
-                    <input type="number" v-model.number="localConfig.variableTiming" :min="1" :max="maxVariableTiming"
+                    <label>メンバー抽選要求数 (memberDrawRequestCount)</label>
+                    <input type="number" v-model.number="localConfig.memberDrawRequestCount" min="1"
                         class="admin-input" />
-                    <div class="hint">1 から {{ maxVariableTiming }} の範囲で入力してください。</div>
+                    <div class="hint">メンバー抽選でアプリが要求する候補数（デフォルト 10）</div>
+                </div>
+
+
+                <div class="config-item">
+                    <label>確変モード (kakuhenMode)</label>
+                    <select v-model="localConfig.kakuhenMode" class="admin-input">
+                        <option value="random">ランダム</option>
+                        <option value="fixed">固定タイミング</option>
+                    </select>
+                </div>
+
+                <div class="config-item">
+                    <label>固定確変タイミング (kakuhenFixedTimings)</label>
+                    <input type="text" v-model="kakuhenFixedTimingsText" class="admin-input" placeholder="例: 3,7" />
+                    <div class="hint">kakuhenMode が fixed の場合、カンマ区切りの 1-based インデックスを入力してください。</div>
+                </div>
+
+                <div class="config-item">
+                    <label>予約する賞品数 (kakuhenReservedCount)</label>
+                    <input type="number" v-model.number="localConfig.kakuhenReservedCount" min="0"
+                        class="admin-input" />
+                </div>
+
+
+                <div class="config-item">
+                    <label>グローバル BGM ボリューム (0-1)</label>
+                    <input type="number" step="0.1" v-model.number="localConfig.globalBgmVolume" min="0" max="1"
+                        class="admin-input" />
                 </div>
 
 
@@ -72,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
@@ -84,7 +112,6 @@ const assetService = container.resolve(AssetDataService);
 const screenConfigService = container.resolve(ScreenConfigService);
 
 const audioAssets = ref<any[]>([]);
-const prizes = ref<any[]>([]);
 const loading = ref(false);
 const loadingStatus = ref('');
 const saving = ref(false);
@@ -107,7 +134,11 @@ const syncStatus = ref("");
 
 const localConfig = ref({
     memberLotteryBgms: [] as string[],
-    variableTiming: 1,
+    memberDrawRequestCount: 10,
+    kakuhenMode: 'random' as 'random' | 'fixed',
+    kakuhenFixedTimings: [] as number[],
+    kakuhenReservedCount: 4,
+    globalBgmVolume: 1,
 });
 
 const loadConfig = async () => {
@@ -115,7 +146,11 @@ const loadConfig = async () => {
         const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
         if (cfg) {
             localConfig.value.memberLotteryBgms = (cfg as any).memberLotteryBgms || [];
-            localConfig.value.variableTiming = (cfg as any).variableTiming || 1;
+            localConfig.value.memberDrawRequestCount = (cfg as any).memberDrawRequestCount || 10;
+            localConfig.value.kakuhenMode = (cfg as any).kakuhenMode || 'random';
+            localConfig.value.kakuhenFixedTimings = (cfg as any).kakuhenFixedTimings || [];
+            localConfig.value.kakuhenReservedCount = (cfg as any).kakuhenReservedCount || 4;
+            localConfig.value.globalBgmVolume = typeof (cfg as any).globalBgmVolume === 'number' ? (cfg as any).globalBgmVolume : 1;
         }
     } catch (error) {
         console.error('Failed to load main config:', error);
@@ -145,10 +180,21 @@ const handleSaveClick = async () => {
     saving.value = true;
     saveStatus.value = '保存中...';
     try {
+        // parse kakuhenFixedTimings text into array
+        const raw = kakuhenFixedTimingsText.value || '';
+        const arr = raw
+            .split(',')
+            .map((s) => parseInt(s.trim()))
+            .filter((n) => !isNaN(n) && n > 0);
+        localConfig.value.kakuhenFixedTimings = arr;
 
         const payload = {
             memberLotteryBgms: localConfig.value.memberLotteryBgms,
-            variableTiming: localConfig.value.variableTiming,
+            memberDrawRequestCount: localConfig.value.memberDrawRequestCount,
+            kakuhenMode: localConfig.value.kakuhenMode,
+            kakuhenFixedTimings: localConfig.value.kakuhenFixedTimings,
+            kakuhenReservedCount: localConfig.value.kakuhenReservedCount,
+            globalBgmVolume: localConfig.value.globalBgmVolume,
         };
         await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload);
         await loadConfig();
@@ -173,7 +219,15 @@ const removeMemberBgm = (index: number) => {
 
 // previewAnimation and closePreview removed
 
-const maxVariableTiming = computed(() => prizes.value.length);
+// removed variableTiming. keep prizes reference for potential UI use
+// helper to bind/edit kakuhen fixed timings text
+const kakuhenFixedTimingsText = ref('');
+
+// initialize kakuhenFixedTimingsText after load
+onMounted(async () => {
+    await loadConfig();
+    kakuhenFixedTimingsText.value = (localConfig.value.kakuhenFixedTimings || []).join(',');
+});
 </script>
 
 <style scoped>

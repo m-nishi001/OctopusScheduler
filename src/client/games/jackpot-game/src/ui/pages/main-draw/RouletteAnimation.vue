@@ -47,6 +47,13 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
 
+// Per-animation defaults (hardcoded here per your request)
+export const PRIZE_DRAW_REQUEST_COUNT = 8;
+export const PRIZE_DUMMY_DISPLAY_COUNT = 2;
+// kakuhen (reroll) durations used by this animation (ms)
+export const PRIZE_KAKUHEN_DUMMY_DURATION_MS = 2000;
+export const PRIZE_KAKUHEN_FINAL_DURATION_MS = 2000;
+
 export default {
     name: 'RouletteAnimation',
     props: {

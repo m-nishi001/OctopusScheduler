@@ -18,6 +18,10 @@ import type { MemberDto } from '../../../model/applications/member/dto/member-dt
 import { container } from 'tsyringe';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 
+// Per-animation defaults (hardcoded here per your request)
+export const MEMBER_DRAW_REQUEST_COUNT = 10;
+export const MEMBER_DUMMY_DISPLAY_COUNT = 0;
+
 export default {
     name: 'MemberDrawAnimation',
     props: {

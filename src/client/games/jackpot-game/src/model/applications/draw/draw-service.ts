@@ -32,9 +32,12 @@ export class DrawService {
     const wonSet = new Set(results.map((r) => r.member?.id));
 
     const domain = new DomainDrawService();
+    // Use member.rank as the weight for member draw so admin-controlled "rank" affects probability
     const domainMembers = members.map((m) => ({
       id: m.id,
-      weight: (m as any).weight ?? 1,
+      // higher rank => higher chance. fallback to 1 when rank not provided
+      weight:
+        typeof (m as any).rank === "number" ? Math.max(0, (m as any).rank) : 1,
       isWinner: wonSet.has(m.id),
     }));
     const res = domain.drawMember({

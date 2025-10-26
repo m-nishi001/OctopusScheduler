@@ -10,6 +10,8 @@ export interface PrizeDto {
   bgm2AssetId?: string;
   isAssigned?: boolean;
   isReserved?: boolean;
+  // animation to be used for this prize's draw presentation
+  animation?: string;
   order: number;
   imageDataUrl?: string;
 }
@@ -24,6 +26,7 @@ export const toPrize = (dto: PrizeDto): Prize => ({
   bgm2AssetId: dto.bgm2AssetId,
   isAssigned: dto.isAssigned,
   isReserved: dto.isReserved,
+  animation: dto.animation,
   order: dto.order,
   imageDataUrl: dto.imageDataUrl,
 });
@@ -38,6 +41,7 @@ export const fromPrize = (prize: Prize): PrizeDto => ({
   bgm2AssetId: prize.bgm2AssetId,
   isAssigned: prize.isAssigned,
   isReserved: prize.isReserved,
+  animation: prize.animation || "roulette",
   order: prize.order,
   imageDataUrl: prize.imageDataUrl,
 });
