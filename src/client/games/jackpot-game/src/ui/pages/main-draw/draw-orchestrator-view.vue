@@ -116,10 +116,9 @@ export default {
 
             const keydownDelegator = (ev: KeyboardEvent) => {
                 if (ev.key !== 'Enter') return;
-                const fn = currentEnterAction.value;
-                if (!fn) return;
-                try { fn(); } catch (e) { /* ignore handler errors */ }
+                currentEnterAction.value?.();
             };
+
             window.addEventListener('keydown', keydownDelegator);
             onUnmounted(() => window.removeEventListener('keydown', keydownDelegator));
             currentEnterAction.value = () => { void memberStart(); };
