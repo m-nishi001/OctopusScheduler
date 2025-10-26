@@ -69,9 +69,8 @@ export class DrawService {
   drawMember(opts: {
     members: {
       id: string;
-      weight?: number;
-      rank?: number;
-      isWinner?: boolean;
+      rank: number;
+      isWinner: boolean;
     }[];
     requestDummyCount: number;
   }): { winnerId: string | null; dummyIds: string[] } {
@@ -88,7 +87,7 @@ export class DrawService {
     }
     const weighted = candidates.map((m) => ({
       id: m.id,
-      weight: m.weight ?? 1,
+      weight: 1,
     }));
     const winner = this.selectWeighted(weighted);
     const dummyPool = members.map((m) => m.id).filter((id) => id !== winner.id);
@@ -116,9 +115,8 @@ export class DrawService {
   drawPrize(opts: {
     prizes: {
       id: string;
-      weight?: number;
+      weight: number;
       rank?: number;
-      isReserved?: boolean;
       isAssigned?: boolean;
     }[];
     memberRank?: number;
@@ -137,7 +135,7 @@ export class DrawService {
       };
     }
     const weighted = available.map((p) => {
-      const base = p.weight ?? 1;
+      const base = p.weight;
       const rankFactor =
         memberRank && p.rank ? 1 + (memberRank - p.rank) * 0.1 : 1;
       return { id: p.id, weight: Math.max(0, base * rankFactor) };

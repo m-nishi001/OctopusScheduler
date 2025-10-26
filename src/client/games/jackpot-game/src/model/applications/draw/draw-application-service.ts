@@ -37,7 +37,7 @@ export class DrawApplicationService {
 
     const domainMembers = members.map((m) => ({
       id: m.id,
-      weight: (m as any).rank || 1,
+      rank: m.rank,
       isWinner: wonSet.has(m.id),
     }));
 
