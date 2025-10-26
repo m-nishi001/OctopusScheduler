@@ -19,8 +19,8 @@
             <DrawResultDialog v-if="modalState === 'end'" title="抽選は終了しました"
                 :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
 
-            <DrawResultDialog v-if="modalState === 'prizeWinner'" title="景品当選" :imageUrl="prizeImageUrl"
-                primaryLabel="Enter で続行" @close="modalState = null">
+            <DrawResultDialog v-if="modalState === 'prizeWinner'" title="景品当選"
+                :assetId="latestResult?.prize?.imageAssetId" primaryLabel="Enter で続行" @close="modalState = null">
                 当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
             </DrawResultDialog>
 
@@ -70,7 +70,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
 import RouletteAnimation, { type RouletteRef } from './roulette-animation.vue';
@@ -177,21 +177,6 @@ export default {
             selectedPrize.value = null;
         };
 
-        // 画像URL（簡素化）
-        const memberImageUrl = computed(() => {
-            const id = latestResult.value?.member?.id;
-            if (!id) return undefined;
-            const m = members.value.find((x) => x.id === id);
-            return m?.photoAssetId ? 'dummy-url' : undefined;
-        });
-
-        const prizeImageUrl = computed(() => {
-            const pid = latestResult.value?.prize?.id;
-            if (!pid) return undefined;
-            const p = prizes.value.find((x) => x.id === pid);
-            return p?.imageAssetId ? 'dummy-url' : undefined;
-        });
-
         return {
             prizes,
             members,
@@ -207,8 +192,6 @@ export default {
             prizeStart,
             prizeStop,
             closeModal,
-            memberImageUrl,
-            prizeImageUrl,
         };
     }
 };

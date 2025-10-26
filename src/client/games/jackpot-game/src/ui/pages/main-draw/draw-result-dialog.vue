@@ -3,7 +3,7 @@
         <div class="bg-white rounded p-6 w-96 text-center">
             <h3 class="text-xl font-bold mb-2">{{ title }}</h3>
             <div v-if="imageUrl" class="mb-3">
-                <img :src="imageUrl" :alt="imageAlt || title" class="modal-image" />
+                <img :src="imageUrl" :alt="title" class="modal-image" />
             </div>
             <p class="mb-4">
                 <slot>{{ message }}</slot>
@@ -16,7 +16,9 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent, ref, watch, onMounted, onUnmounted } from 'vue';
+import { container } from 'tsyringe';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 
 export default defineComponent({
     name: 'DrawResultDialog',
@@ -24,13 +26,40 @@ export default defineComponent({
         title: { type: String, required: true },
         message: { type: String, required: false, default: '' },
         primaryLabel: { type: String, required: false, default: 'Enter で続行' },
-        imageUrl: { type: String, required: false, default: '' },
-        imageAlt: { type: String, required: false, default: '' }
+        assetId: { type: String, required: false, default: '' }
     },
     emits: ['close'],
-    setup(_, { emit }) {
+    setup(props, { emit }) {
+        const assetService = container.resolve(AssetDataService);
+        const imageUrl = ref<string>('');
+
+        const loadImage = async () => {
+            if (props.assetId) {
+                try {
+                    const asset = await assetService.getAssetDataById(props.assetId);
+                    if (asset && asset.blob) {
+                        imageUrl.value = URL.createObjectURL(asset.blob);
+                    }
+                } catch (e) {
+                    console.error('Failed to load asset:', e);
+                }
+            } else {
+                imageUrl.value = '';
+            }
+        };
+
+        watch(() => props.assetId, loadImage);
+
+        onMounted(loadImage);
+
+        onUnmounted(() => {
+            if (imageUrl.value) {
+                URL.revokeObjectURL(imageUrl.value);
+            }
+        });
+
         const close = () => emit('close');
-        return { close };
+        return { close, imageUrl };
     }
 });
 </script>
