@@ -1,4 +1,4 @@
-import { container } from 'tsyringe';
+import { container } from "tsyringe";
 
 // This adapter provides a small, forgiving interface to the various draw APIs
 // used across different components. It tries to resolve higher-level DrawService
@@ -7,8 +7,8 @@ import { container } from 'tsyringe';
 export const DrawAdapter = {
   async executeFullDraw(): Promise<any> {
     try {
-      const svc = container.resolve<any>('DrawService');
-      if (svc && typeof svc.executeFullDraw === 'function') {
+      const svc = container.resolve<any>("DrawService");
+      if (svc && typeof svc.executeFullDraw === "function") {
         return await svc.executeFullDraw();
       }
     } catch (e) {
@@ -16,24 +16,24 @@ export const DrawAdapter = {
     }
 
     try {
-      const repo = container.resolve<any>('DrawRepository');
-      if (repo && typeof repo.executeDraw === 'function') {
+      const repo = container.resolve<any>("DrawRepository");
+      if (repo && typeof repo.executeDraw === "function") {
         return await repo.executeDraw({});
       }
     } catch (e) {
       // ignore
     }
 
-    throw new Error('No draw implementation available');
+    throw new Error("No draw implementation available");
   },
 
   async executeMemberDraw(opts: any): Promise<any> {
     try {
-      const svc = container.resolve<any>('DrawService');
-      if (svc && typeof svc.executeMemberDraw === 'function') {
+      const svc = container.resolve<any>("DrawService");
+      if (svc && typeof svc.executeMemberDraw === "function") {
         return await svc.executeMemberDraw(opts);
       }
-    } catch (e) { }
+    } catch (e) {}
 
     // fallback: try generic executeFullDraw and interpret
     return await DrawAdapter.executeFullDraw();
@@ -41,14 +41,14 @@ export const DrawAdapter = {
 
   async executePrizeDraw(opts: any): Promise<any> {
     try {
-      const svc = container.resolve<any>('DrawService');
-      if (svc && typeof svc.executePrizeDraw === 'function') {
+      const svc = container.resolve<any>("DrawService");
+      if (svc && typeof svc.executePrizeDraw === "function") {
         return await svc.executePrizeDraw(opts);
       }
-    } catch (e) { }
+    } catch (e) {}
 
     return await DrawAdapter.executeFullDraw();
-  }
+  },
 };
 
 export default DrawAdapter;

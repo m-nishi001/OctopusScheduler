@@ -1,8 +1,8 @@
-import { ref, onUnmounted } from 'vue';
-import { container } from 'tsyringe';
-import { PrizeRepository } from '../../model/infrastructures/prize-repository';
-import { MemberRepository } from '../../model/infrastructures/member-repository';
-import { AssetDataService } from '../../model/applications/asset/asset-data-service';
+import { ref, onUnmounted } from "vue";
+import { container } from "tsyringe";
+import { PrizeRepository } from "../../model/infrastructures/prize-repository";
+import { MemberRepository } from "../../model/infrastructures/member-repository";
+import { AssetDataService } from "../../model/applications/asset/asset-data-service";
 
 export function usePrizesAndMembers() {
   const prizes = ref<any[]>([]);
