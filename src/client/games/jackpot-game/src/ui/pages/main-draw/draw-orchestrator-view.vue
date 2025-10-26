@@ -18,12 +18,12 @@
             <DrawModal v-if="modalState === 'end'" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
 
             <!-- Member winner modal -->
-            <DrawModal v-if="modalState === 'memberWinner'" title="当選者発表" primaryLabel="Enter で続行" @close="modalState = null">
+            <DrawModal v-if="modalState === 'memberWinner'" title="当選者発表" :imageUrl="memberImageUrl" primaryLabel="Enter で続行" @close="modalState = null">
                 当選者: <strong>{{ latestResult?.member }}</strong>
             </DrawModal>
 
             <!-- Prize winner modal -->
-            <DrawModal v-if="modalState === 'prizeWinner'" title="景品当選" primaryLabel="Enter で続行" @close="modalState = null">
+            <DrawModal v-if="modalState === 'prizeWinner'" title="景品当選" :imageUrl="prizeImageUrl" primaryLabel="Enter で続行" @close="modalState = null">
                 当選景品: <strong>{{ latestResult?.prize }}</strong>
             </DrawModal>
 
@@ -76,7 +76,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT } from './member-draw-animation.vue';
 import RouletteAnimation from './roulette-animation.vue';
@@ -90,7 +90,7 @@ export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawModal },
     setup() {
-        const { prizes, members, fetchPrizes, fetchMembers } = usePrizesAndMembers();
+    const { prizes, members, objectUrlMap, fetchPrizes, fetchMembers } = usePrizesAndMembers();
         const latestResult = ref<any | null>(null);
         const memberAnimRef = ref<any>(null);
         const rouletteRef = ref<any>(null);
@@ -108,6 +108,25 @@ export default {
 
         const memberAnimating = ref(false);
         const prizeAnimating = ref(false);
+
+        const memberImageUrl = computed(() => {
+            const id = latestResult.value?.memberId;
+            if (!id) return null;
+            const m = members.value.find((x: any) => x.id === id);
+            if (!m) return null;
+            if (m.photoAssetId) return objectUrlMap.get(m.photoAssetId) || null;
+            return m.photoUrl || m.imageDataUrl || null;
+        });
+
+        const prizeImageUrl = computed(() => {
+            const pid = latestResult.value?.prizeId;
+            if (!pid) return null;
+            const p = prizes.value.find((x: any) => x.id === pid);
+            if (!p) return null;
+            if (p.imageDataUrl) return p.imageDataUrl;
+            if (p.imageAssetId) return objectUrlMap.get(p.imageAssetId) || null;
+            return p.imageUrl || null;
+        });
 
         onMounted(async () => {
             await fetchPrizes();
@@ -197,7 +216,7 @@ export default {
                 stopped = null;
             }
 
-            latestResult.value = { member: members.value.find((m: any) => m.id === stopped)?.name || stopped, prize: '' };
+            latestResult.value = { memberId: stopped, member: members.value.find((m: any) => m.id === stopped)?.name || stopped, prize: '', prizeId: null };
             // prepare prize draw (pre-fetch) so prize UI knows what animation to show
             plannedPrizeRes.value = await safeTry(() => DrawAdapter.executePrizeDraw({ memberId: stopped, requestCount: 8 }), null);
             // clear plannedMemberRes now that stop target was consumed
@@ -221,6 +240,7 @@ export default {
                 try {
                     const prizeId = await rouletteRef.value.runAutoReroll({ dummyPrizeId: dummy, finalPrizeId: final, bgm1Url: null, bgm2Url: null });
                     latestResult.value.prize = prizeId || final || null;
+                    latestResult.value.prizeId = prizeId || final || null;
                     // wait 1 second before showing prize modal
                     await delay(1000);
                     modalState.value = 'prizeWinner';
@@ -244,6 +264,7 @@ export default {
                 prizeId = plannedPrizeRes.value?.winnerPrizeId || plannedPrizeRes.value?.prizeId || null;
             }
             latestResult.value.prize = prizeId || plannedPrizeRes.value?.winnerPrizeId || null;
+            latestResult.value.prizeId = prizeId || plannedPrizeRes.value?.winnerPrizeId || null;
             // wait 1 second then show prize modal; post-modal actions (remaining check and phase transition) are handled by watcher when modal closes
             await delay(1000);
             modalState.value = 'prizeWinner';
@@ -282,7 +303,7 @@ export default {
 
         // legacy memberStart removed; new memberStart/prizeStart handlers above are event-driven
 
-        return { prizes, members, latestResult, start, memberAnimRef, rouletteRef, selectedPrize, showPrizeResult, modalState, halfShown, currentPhase, memberStart, memberStop, prizeStart, prizeStop, plannedPrizeRes };
+        return { prizes, members, latestResult, start, memberAnimRef, rouletteRef, selectedPrize, showPrizeResult, modalState, halfShown, currentPhase, memberStart, memberStop, prizeStart, prizeStop, plannedPrizeRes, memberImageUrl, prizeImageUrl };
     }
 };
 </script>
