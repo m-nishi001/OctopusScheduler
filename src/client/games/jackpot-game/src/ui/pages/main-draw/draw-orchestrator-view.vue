@@ -7,10 +7,8 @@
                     <p class="mt-1 text-sm text-gray-600">Enterで操作（開始 / 停止 / 続行）</p>
                 </div>
                 <div class="controls">
-                    <button @click="memberStart" :disabled="!dataLoaded" class="btn-primary"
-                        :aria-disabled="!dataLoaded">
-                        <span v-if="!dataLoaded">読み込み中...</span>
-                        <span v-else>開始</span>
+                    <button disabled class="btn-primary" aria-disabled="true">
+                        開始
                     </button>
                 </div>
             </div>
@@ -33,9 +31,7 @@
                             <MemberDrawAnimation ref="memberAnimRef" :members="members" />
                         </div>
 
-                        <div class="start-box" role="button" tabindex="0"
-                            :class="{ 'opacity-50 cursor-not-allowed': !dataLoaded }"
-                            @click="dataLoaded && memberStart()" :aria-disabled="!dataLoaded">
+                        <div class="start-box opacity-50 cursor-not-allowed" aria-disabled="true">
                             <div class="start-label">START!!</div>
                         </div>
                     </div>
@@ -74,109 +70,49 @@
 </template>
 
 <script lang="ts">
-import { ref, reactive, toRefs, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import MainLayout from '../common/main-layout.vue';
-import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT, type MemberAnimRef } from './member-draw-animation.vue';
+import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
 import RouletteAnimation, { type RouletteRef } from './roulette-animation.vue';
 import DrawResultDialog from './draw-result-dialog.vue';
 import { DrawService } from '../../../model/applications/draw/draw-service';
 import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/member-repository';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
 import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
-import type { DrawMemberResponse } from '../../../model/applications/draw/dto/draw-member-response';
-import type { DrawPrizeResponse } from '../../../model/applications/draw/dto/draw-prize-response';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
-import type { Asset } from '../../../model/domains/drive-data/asset-data';
 import { container } from 'tsyringe';
 
 export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
     setup(_, { emit }) {
-        const state = reactive({
-            prizes: [] as PrizeDto[],
-            members: [] as MemberDto[],
-            dataLoaded: false,
-            latestResult: null as DrawResultDto | null,
-            selectedPrize: null as PrizeDto | null,
-            showPrizeResult: false,
-            modalState: null as null | 'half' | 'end' | 'memberWinner' | 'prizeWinner',
-            halfShown: false,
-            totalPrizes: null as number | null,
-            currentPhase: 'member' as 'member' | 'prize' | 'idle',
-            plannedPrizeRes: null as DrawPrizeResponse | null,
-            plannedMemberRes: null as DrawMemberResponse | null,
-        });
+        // 簡素化した状態
+        const prizes = ref<PrizeDto[]>([]);
+        const members = ref<MemberDto[]>([]);
+        const latestResult = ref<DrawResultDto | null>(null);
+        const currentPhase = ref<'member' | 'prize' | 'idle'>('member');
+        const modalState = ref<null | 'half' | 'end' | 'prizeWinner'>(null);
 
-        const tempMemberUrl = ref<string | null>(null);
-        const tempPrizeUrl = ref<string | null>(null);
-
+        // サービス
         const prizeRepo = container.resolve(PrizeRepository);
         const memberRepo = container.resolve(MemberRepository);
-        const assetService = container.resolve(AssetDataService);
-        const drawService = container.resolve(DrawService) as DrawService;
+        const drawService = container.resolve(DrawService);
 
-        const fetchObjectUrlOnce = async (assetId: string | null): Promise<string | null> => {
-            if (!assetService || !assetId) return null;
-            try {
-                const asset = await safeTry<Asset | null>(() => assetService.getAssetDataById(assetId), null);
-                if (asset && asset.blob) {
-                    return URL.createObjectURL(asset.blob);
-                }
-            } catch (e) {
-                // ignore asset fetch errors
-            }
-            return null;
-        };
-
-        const cleanup = () => {
-            if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value);
-            if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value);
-            tempMemberUrl.value = null;
-            tempPrizeUrl.value = null;
-        };
-
-        onUnmounted(cleanup);
-
-        const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-        async function safeTry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
-            try {
-                return await fn();
-            } catch (e) {
-                return fallback;
-            }
-        }
+        // アニメーション関連
         const memberAnimRef = ref<MemberAnimRef | null>(null);
         const rouletteRef = ref<RouletteRef | null>(null);
+        const selectedPrize = ref(null);
+        const showPrizeResult = ref(false);
+
+        // キーボードイベント
         const currentEnterAction = ref<(() => void) | null>(null);
 
-        const memberImageUrl = computed<string | undefined>(() => {
-            const id = state.latestResult?.member?.id;
-            if (!id) return undefined;
-            const m = state.members.find((x: MemberDto) => x.id === id);
-            if (!m) return undefined;
-            if (m.photoAssetId) return tempMemberUrl.value ?? undefined;
-            return undefined;
-        });
-
-        const prizeImageUrl = computed<string | undefined>(() => {
-            const pid = state.latestResult?.prize?.id;
-            if (!pid) return undefined;
-            const p = state.prizes.find((x: PrizeDto) => x.id === pid);
-            if (!p) return undefined;
-            if (p.imageAssetId) return tempPrizeUrl.value ?? undefined;
-            return undefined;
-        });
-
+        // データ読み込み
         onMounted(async () => {
-            const [prizes, members] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
-            state.prizes = prizes;
-            state.members = members;
-
-            state.dataLoaded = true;
+            const [prizesData, membersData] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
+            prizes.value = prizesData;
+            members.value = membersData;
 
             const keydownDelegator = (ev: KeyboardEvent) => {
                 if (ev.key !== 'Enter') return;
@@ -184,208 +120,97 @@ export default {
                 if (!fn) return;
                 try { fn(); } catch (e) { /* ignore handler errors */ }
             };
-
             window.addEventListener('keydown', keydownDelegator);
             onUnmounted(() => window.removeEventListener('keydown', keydownDelegator));
-
             currentEnterAction.value = () => { void memberStart(); };
         });
 
-        const prepareMemberPhase = async () => {
-            try {
-                state.plannedMemberRes = await drawService.executeMemberDraw({ requestCount: MEMBER_DRAW_REQUEST_COUNT });
-            } catch (e) {
-                state.plannedMemberRes = null;
-            }
-
-            try {
-                const memberId = state.plannedMemberRes?.winnerId ?? '';
-                if (memberId) {
-                    state.plannedPrizeRes = await drawService.executePrizeDraw({ memberId, requestCount: 8 });
-                } else {
-                    state.plannedPrizeRes = null;
-                }
-            } catch (e) {
-                state.plannedPrizeRes = null;
-            }
-        };
-
+        // メンバー抽選開始
         const memberStart = async () => {
-            if (!state.dataLoaded) {
-                console.warn('[DrawOrchestrator] memberStart() called before initial data was loaded. Ignoring.');
-                return;
-            }
-            state.plannedPrizeRes = null;
-
-            currentEnterAction.value = () => { void memberStop(); };
-
-            if (!state.plannedMemberRes) {
-                try {
-                    state.plannedMemberRes = await drawService.executeMemberDraw({ requestCount: MEMBER_DRAW_REQUEST_COUNT });
-                } catch (e) {
-                    state.plannedMemberRes = null;
-                }
-            }
-
-            const winnerId = state.plannedMemberRes?.winnerId ?? null;
-            if (memberAnimRef.value?.startDraw) {
-                try { memberAnimRef.value.startDraw(winnerId); } catch (e) { /* ignore */ }
-            } else if (memberAnimRef.value?.start) {
-                memberAnimRef.value.start();
-            }
-        };
-
-        const memberStop = async () => {
-            let stopped: string | null = null;
-            if (state.plannedMemberRes && memberAnimRef.value?.stopAt) {
-                const targetId = state.plannedMemberRes?.winnerId ?? null;
-                try { stopped = await memberAnimRef.value.stopAt(targetId); } catch (e) { stopped = targetId; }
-            } else if (memberAnimRef.value?.stopDraw) {
-                try { stopped = await memberAnimRef.value.stopDraw(); } catch (e) { stopped = null; }
-            } else if (memberAnimRef.value?.stopAt) {
-                try { stopped = await memberAnimRef.value.stopAt(null); } catch (e) { stopped = null; }
-            } else {
-                stopped = null;
-            }
-
-            const memberObj = state.members.find((m: MemberDto) => m.id === stopped) || { id: stopped || '', name: String(stopped || ''), photoAssetId: undefined, rank: 0 } as MemberDto;
-            state.latestResult = {
-                drawId: state.plannedMemberRes?.drawId || 'member-' + Date.now(),
-                member: memberObj,
-                prize: null,
-                rank: null,
-                order: 1,
-                isWinner: true,
-            };
-
-            try {
-                state.plannedPrizeRes = await drawService.executePrizeDraw({ memberId: state.latestResult.member.id || '', requestCount: 8 });
-            } catch (e) {
-                state.plannedPrizeRes = null;
-            }
-
-            state.plannedMemberRes = null;
-            await delay(1000);
-            const aid = state.latestResult?.member?.photoAssetId || null;
-            if (aid) {
-                if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value);
-                tempMemberUrl.value = null;
-                const url = await fetchObjectUrlOnce(aid);
-                if (url) tempMemberUrl.value = url;
-            }
-
-            emit('member-winner', { result: state.latestResult, memberImageUrl: tempMemberUrl.value });
-            currentEnterAction.value = null;
-        };
-
-        const prizeStart = async () => {
-            currentEnterAction.value = () => { void prizeStop(); };
-            if (!state.plannedPrizeRes) {
-                try {
-                    state.plannedPrizeRes = await drawService.executePrizeDraw({ memberId: state.latestResult?.member?.id || '', requestCount: 8 });
-                } catch (e) {
-                    state.plannedPrizeRes = null;
-                }
-            }
-            const prizeRes = state.plannedPrizeRes;
-            if (prizeRes && prizeRes.isKakuhen && rouletteRef.value?.runAutoReroll) {
-                const dummy = prizeRes.dummyPrizeIds && prizeRes.dummyPrizeIds[0];
-                const final = prizeRes.reservedPrizeIds && prizeRes.reservedPrizeIds[0];
-                try {
-                    const prizeId = await rouletteRef.value.runAutoReroll({ dummyPrizeId: dummy, finalPrizeId: final, bgm1Url: null, bgm2Url: null });
-                    if (!state.latestResult) {
-                        const fallbackMember = state.members.find((m) => m.id === state.plannedMemberRes?.winnerId) || state.members[0] || ({ id: '', name: '', photoAssetId: undefined, rank: 0 } as MemberDto);
-                        state.latestResult = {
-                            drawId: state.plannedMemberRes?.drawId || 'prize-' + Date.now(),
-                            member: fallbackMember,
-                            prize: null,
-                            rank: null,
-                            order: 1,
-                            isWinner: true,
-                        };
-                    }
-                    const prizeObj = state.prizes.find((p) => p.id === (prizeId || final || '')) || null;
-                    state.latestResult.prize = prizeObj;
-                    await delay(1000);
-                    state.modalState = 'prizeWinner';
-                } catch (e) { /* ignore */ }
-            } else {
-                state.selectedPrize = state.prizes.find((p: PrizeDto) => p.id === prizeRes?.winnerPrizeId) || null;
-                state.showPrizeResult = true;
-                if (rouletteRef.value?.startSpin) rouletteRef.value.startSpin();
-            }
-        };
-
-        const prizeStop = async () => {
-            let prizeId: string | null = null;
-            if (rouletteRef.value?.stopSpin) {
-                const target = state.plannedPrizeRes?.winnerPrizeId ?? null;
-                const idx = target ? state.prizes.findIndex((p: PrizeDto) => p.id === target) : null;
-                try { prizeId = await rouletteRef.value.stopSpin({ targetIndex: idx !== null && idx >= 0 ? idx : null, isFinal: true }); } catch (e) { prizeId = target; }
-            } else {
-                prizeId = state.plannedPrizeRes?.winnerPrizeId ?? null;
-            }
-            if (!state.latestResult) {
-                const fallbackMember = state.members.find((m) => m.id === state.plannedMemberRes?.winnerId) || state.members[0] || ({ id: '', name: '', photoAssetId: undefined, rank: 0 } as MemberDto);
-                state.latestResult = {
-                    drawId: state.plannedMemberRes?.drawId || 'prize-' + Date.now(),
-                    member: fallbackMember,
+            currentPhase.value = 'member';
+            const res = await drawService.executeMemberDraw({ requestCount: 10 });
+            if (res) {
+                latestResult.value = {
+                    drawId: res.drawId,
+                    member: members.value.find((m: MemberDto) => m.id === res.winnerId) || { id: '', name: '', photoAssetId: undefined, rank: 0 },
                     prize: null,
                     rank: null,
                     order: 1,
                     isWinner: true,
                 };
+                emit('member-winner', { result: latestResult.value });
+                currentPhase.value = 'prize';
+                currentEnterAction.value = () => { void prizeStart(); };
             }
-            const prizeObj2 = state.prizes.find((p) => p.id === (prizeId || state.plannedPrizeRes?.winnerPrizeId || '')) || null;
-            state.latestResult.prize = prizeObj2;
-            await delay(1000);
-            state.modalState = 'prizeWinner';
-            currentEnterAction.value = null;
         };
 
-        watch(() => state.modalState, async (now, prev) => {
-            if (now === 'prizeWinner') {
-                const pid = state.latestResult?.prize?.id;
-                const p = state.prizes.find((x: PrizeDto) => x.id === pid);
-                const aid = p?.imageAssetId || null;
-                if (aid) {
-                    if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value);
-                    tempPrizeUrl.value = null;
-                    void fetchObjectUrlOnce(aid).then((url) => { if (url) tempPrizeUrl.value = url; });
-                }
+        // 景品抽選開始
+        const prizeStart = async () => {
+            if (!latestResult.value) return;
+            const res = await drawService.executePrizeDraw({ memberId: latestResult.value!.member.id, requestCount: 8 });
+            if (res) {
+                latestResult.value.prize = prizes.value.find((p: PrizeDto) => p.id === res.winnerPrizeId) || null;
+                modalState.value = 'prizeWinner';
+                // 残りチェック
+                const count = await drawService.getLastPrizeCount();
+                if (count.remaining <= 0) modalState.value = 'end';
             }
+        };
 
-            if (prev === 'prizeWinner' && now === null) {
-                if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value);
-                tempPrizeUrl.value = null;
-                try {
-                    const cnt = await safeTry(() => drawService.getLastPrizeCount(), { remaining: 0, total: 0 });
-                    if (state.totalPrizes == null) state.totalPrizes = typeof cnt.total === 'number' ? cnt.total : state.totalPrizes;
-                    if ((cnt.remaining ?? 0) <= 0) {
-                        state.modalState = 'end';
-                    } else if (!state.halfShown && state.totalPrizes != null && (cnt.remaining ?? 0) <= Math.floor(state.totalPrizes / 2)) {
-                        state.modalState = 'half';
-                        state.halfShown = true;
-                    }
-                } catch (e) { /* ignore */ }
-
-                try { await prepareMemberPhase(); } catch (e) { /* ignore */ }
-                state.currentPhase = 'member';
-                currentEnterAction.value = () => { void memberStart(); };
-                state.showPrizeResult = false;
-                state.selectedPrize = null;
-                state.plannedPrizeRes = null;
-            }
-        });
-
-        const continueAfterMemberModal = async () => {
-            if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value);
-            tempMemberUrl.value = null;
-            state.currentPhase = 'prize';
+        // メンバー停止（アニメーション制御）
+        const memberStop = async () => {
+            // 簡素化: アニメーションなしで即時完了
             currentEnterAction.value = () => { void prizeStart(); };
         };
 
-        return { ...toRefs(state), memberAnimRef, rouletteRef, memberStart, memberStop, prizeStart, prizeStop, memberImageUrl, prizeImageUrl, continueAfterMemberModal };
+        // 景品停止
+        const prizeStop = async () => {
+            showPrizeResult.value = true;
+            modalState.value = null;
+        };
+
+        // モーダルクローズ
+        const closeModal = () => {
+            modalState.value = null;
+            currentPhase.value = 'member';
+            currentEnterAction.value = () => { void memberStart(); };
+            showPrizeResult.value = false;
+            selectedPrize.value = null;
+        };
+
+        // 画像URL（簡素化）
+        const memberImageUrl = computed(() => {
+            const id = latestResult.value?.member?.id;
+            if (!id) return undefined;
+            const m = members.value.find((x) => x.id === id);
+            return m?.photoAssetId ? 'dummy-url' : undefined;
+        });
+
+        const prizeImageUrl = computed(() => {
+            const pid = latestResult.value?.prize?.id;
+            if (!pid) return undefined;
+            const p = prizes.value.find((x) => x.id === pid);
+            return p?.imageAssetId ? 'dummy-url' : undefined;
+        });
+
+        return {
+            prizes,
+            members,
+            latestResult,
+            currentPhase,
+            modalState,
+            memberAnimRef,
+            rouletteRef,
+            selectedPrize,
+            showPrizeResult,
+            memberStart,
+            memberStop,
+            prizeStart,
+            prizeStop,
+            closeModal,
+            memberImageUrl,
+            prizeImageUrl,
+        };
     }
 };
 </script>
