@@ -79,15 +79,63 @@ import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT } from './member-draw-animation.vue';
 import RouletteAnimation from './roulette-animation.vue';
 import DrawResultDialog from './draw-result-dialog.vue';
-import { usePrizesAndMembers } from '../../composables/usePrizesAndMembers';
 import DrawAdapter from '../../../model/adapters/draw-adapter';
+import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
+import { MemberRepository } from '../../../model/infrastructures/member-repository';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { container } from 'tsyringe';
 
 export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
     setup() {
-        const { prizes, members, objectUrlMap, fetchPrizes, fetchMembers } = usePrizesAndMembers();
+        const prizes = ref<any[]>([]);
+        const members = ref<any[]>([]);
+        const objectUrlMap = new Map<string, string>();
+
+        const prizeRepo = container.resolve(PrizeRepository);
+        const memberRepo = container.resolve(MemberRepository);
+        const assetService = (() => {
+            try {
+                return container.resolve(AssetDataService);
+            } catch (e) {
+                return null as any;
+            }
+        })();
+
+        const fetchPrizes = async () => {
+            prizes.value = await prizeRepo.getPrizes();
+        };
+
+        const fetchMembers = async () => {
+            members.value = await memberRepo.getMembers();
+            if (!assetService) return;
+            for (const m of members.value) {
+                if (m.photoAssetId && !objectUrlMap.has(m.photoAssetId)) {
+                    try {
+                        const asset = await assetService.getAssetDataById(m.photoAssetId);
+                        if (asset && asset.blob) {
+                            objectUrlMap.set(m.photoAssetId, URL.createObjectURL(asset.blob));
+                        }
+                    } catch (e) {
+                        // ignore asset fetch errors
+                    }
+                }
+            }
+        };
+
+        const cleanup = () => {
+            for (const url of objectUrlMap.values()) {
+                try {
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    // ignore
+                }
+            }
+            objectUrlMap.clear();
+        };
+
+        onUnmounted(() => cleanup());
         const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
         async function safeTry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
