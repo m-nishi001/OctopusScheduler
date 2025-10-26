@@ -12,48 +12,20 @@
             </div>
 
             <!-- Half remaining modal -->
-            <div v-if="showHalfModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                <div class="bg-white rounded p-6 w-96 text-center">
-                    <h3 class="text-xl font-bold mb-2">残り半分です！</h3>
-                    <p class="mb-4">残りの景品が半分になりました。続行するには Enter を押してください。</p>
-                    <div class="mt-2">
-                        <button class="btn-primary" @click="showHalfModal = false">Enter で続行</button>
-                    </div>
-                </div>
-            </div>
+            <DrawModal v-if="modalState === 'half'" title="残り半分です！" :message="'残りの景品が半分になりました。続行するには Enter を押してください。'" @close="modalState = null" />
 
             <!-- End modal -->
-            <div v-if="showEndModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                <div class="bg-white rounded p-6 w-96 text-center">
-                    <h3 class="text-xl font-bold mb-2">抽選は終了しました</h3>
-                    <p class="mb-4">全ての景品が配布されました。Enter を押すと結果画面へ移動します。</p>
-                    <div class="mt-2">
-                        <button class="btn-primary" @click="showEndModal = false">Enter で続行</button>
-                    </div>
-                </div>
-            </div>
+            <DrawModal v-if="modalState === 'end'" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
 
             <!-- Member winner modal -->
-            <div v-if="showMemberWinnerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                <div class="bg-white rounded p-6 w-96 text-center">
-                    <h3 class="text-xl font-bold mb-2">当選者発表</h3>
-                    <p class="mb-4">当選者: <strong>{{ latestResult?.member }}</strong></p>
-                    <div class="mt-2">
-                        <button class="btn-primary" @click="showMemberWinnerModal = false">Enter で続行</button>
-                    </div>
-                </div>
-            </div>
+            <DrawModal v-if="modalState === 'memberWinner'" title="当選者発表" primaryLabel="Enter で続行" @close="modalState = null">
+                当選者: <strong>{{ latestResult?.member }}</strong>
+            </DrawModal>
 
             <!-- Prize winner modal -->
-            <div v-if="showPrizeWinnerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                <div class="bg-white rounded p-6 w-96 text-center">
-                    <h3 class="text-xl font-bold mb-2">景品当選</h3>
-                    <p class="mb-4">当選景品: <strong>{{ latestResult?.prize }}</strong></p>
-                    <div class="mt-2">
-                        <button class="btn-primary" @click="showPrizeWinnerModal = false">Enter で続行</button>
-                    </div>
-                </div>
-            </div>
+            <DrawModal v-if="modalState === 'prizeWinner'" title="景品当選" primaryLabel="Enter で続行" @close="modalState = null">
+                当選景品: <strong>{{ latestResult?.prize }}</strong>
+            </DrawModal>
 
             <div class="rich-layout">
                 <!-- Members row -->
@@ -108,28 +80,29 @@ import { ref, onMounted, onUnmounted, watch } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT } from './member-draw-animation.vue';
 import RouletteAnimation from './roulette-animation.vue';
+import DrawModal from './draw-modal.vue';
+import { delay, safeTry } from './draw-helpers';
 import { usePrizesAndMembers } from '../../composables/usePrizesAndMembers';
 import DrawAdapter from '../../../model/adapters/draw-adapter';
 import { container } from 'tsyringe';
 
 export default {
     name: 'DrawOrchestratorPage',
-    components: { MainLayout, MemberDrawAnimation, RouletteAnimation },
+    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawModal },
     setup() {
         const { prizes, members, fetchPrizes, fetchMembers } = usePrizesAndMembers();
         const latestResult = ref<any | null>(null);
         const memberAnimRef = ref<any>(null);
         const rouletteRef = ref<any>(null);
         const selectedPrize = ref<any | null>(null);
-        const showPrizeResult = ref(false);
-        const isRunning = ref(false);
-        const halfModalShown = ref(false);
-        const showHalfModal = ref(false);
-        const showEndModal = ref(false);
+    const showPrizeResult = ref(false);
+    const isRunning = ref(false);
+    // unified modal state: null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'
+    const modalState = ref<null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'>(null);
+    const halfShown = ref(false);
         const totalPrizes = ref<number | null>(null);
         const currentPhase = ref<'member' | 'prize' | 'idle'>('member');
-        const showMemberWinnerModal = ref(false);
-        const showPrizeWinnerModal = ref(false);
+    // (old booleans removed — use modalState)
         const plannedPrizeRes = ref<any | null>(null);
         const plannedMemberRes = ref<any | null>(null);
 
@@ -186,9 +159,7 @@ export default {
         // When entering member phase, prefetch the member draw so parent can prepare images / stop target
         watch(currentPhase, async (now) => {
             if (now === 'member') {
-                try {
-                    plannedMemberRes.value = await DrawAdapter.executeMemberDraw({ requestCount: MEMBER_DRAW_REQUEST_COUNT });
-                } catch (e) { plannedMemberRes.value = null; }
+                plannedMemberRes.value = await safeTry(() => DrawAdapter.executeMemberDraw({ requestCount: MEMBER_DRAW_REQUEST_COUNT }), null);
                 // start visual animation loop if child supports it
                 try { if (memberAnimRef.value?.start) memberAnimRef.value.start(); } catch (e) { }
             }
@@ -228,19 +199,19 @@ export default {
 
             latestResult.value = { member: members.value.find((m: any) => m.id === stopped)?.name || stopped, prize: '' };
             // prepare prize draw (pre-fetch) so prize UI knows what animation to show
-            try { plannedPrizeRes.value = await DrawAdapter.executePrizeDraw({ memberId: stopped, requestCount: 8 }); } catch (e) { plannedPrizeRes.value = null; }
+            plannedPrizeRes.value = await safeTry(() => DrawAdapter.executePrizeDraw({ memberId: stopped, requestCount: 8 }), null);
             // clear plannedMemberRes now that stop target was consumed
             plannedMemberRes.value = null;
             // wait 1 second (spec: 1秒停止後に当選DLGを表示)
-            await new Promise(r => setTimeout(r, 1000));
+            await delay(1000);
             // show member winner modal after delay. phase transition will occur when modal is closed (watcher below)
-            showMemberWinnerModal.value = true;
+            modalState.value = 'memberWinner';
         };
 
         const prizeStart = async () => {
             if (!plannedPrizeRes.value) {
                 // fallback: fetch now
-                plannedPrizeRes.value = await DrawAdapter.executePrizeDraw({ memberId: latestResult.value?.member || null, requestCount: 8 });
+                plannedPrizeRes.value = await safeTry(() => DrawAdapter.executePrizeDraw({ memberId: latestResult.value?.member || null, requestCount: 8 }), null);
             }
             const prizeRes = plannedPrizeRes.value;
             if (prizeRes && prizeRes.isKakuhen && rouletteRef.value?.runAutoReroll) {
@@ -251,8 +222,8 @@ export default {
                     const prizeId = await rouletteRef.value.runAutoReroll({ dummyPrizeId: dummy, finalPrizeId: final, bgm1Url: null, bgm2Url: null });
                     latestResult.value.prize = prizeId || final || null;
                     // wait 1 second before showing prize modal
-                    await new Promise(r => setTimeout(r, 1000));
-                    showPrizeWinnerModal.value = true;
+                    await delay(1000);
+                    modalState.value = 'prizeWinner';
                 } catch (e) { /* ignore */ }
             } else {
                 // normal: instruct roulette to spin toward selectedPrize when stopping
@@ -274,29 +245,29 @@ export default {
             }
             latestResult.value.prize = prizeId || plannedPrizeRes.value?.winnerPrizeId || null;
             // wait 1 second then show prize modal; post-modal actions (remaining check and phase transition) are handled by watcher when modal closes
-            await new Promise(r => setTimeout(r, 1000));
-            showPrizeWinnerModal.value = true;
+            await delay(1000);
+            modalState.value = 'prizeWinner';
         };
 
         // Watchers: advance phases or run checks only after modals are closed by user
-        watch(showMemberWinnerModal, (now, prev) => {
-            if (prev === true && now === false) {
-                // member modal was closed -> move to prize phase
+        // Watch modalState changes to react when modals are closed
+        watch(modalState, async (now, prev) => {
+            // memberWinner closed -> go to prize phase
+            if (prev === 'memberWinner' && now === null) {
                 currentPhase.value = 'prize';
+                return;
             }
-        });
 
-        watch(showPrizeWinnerModal, async (now, prev) => {
-            if (prev === true && now === false) {
-                // prize modal was closed -> check remaining prizes and transition back to member or end
+            // prizeWinner closed -> possibly show half/end modal, then go back to member
+            if (prev === 'prizeWinner' && now === null) {
                 try {
                     const svc = container.resolve<any>('DrawService');
-                    const cnt = await svc.getLastPrizeCount();
+                    const cnt = await safeTry(() => svc.getLastPrizeCount(), { remaining: 0, total: 0 });
                     if (cnt.remaining <= 0) {
-                        showEndModal.value = true;
-                    } else if (!halfModalShown.value && totalPrizes.value && cnt.remaining <= Math.floor(totalPrizes.value / 2)) {
-                        showHalfModal.value = true;
-                        halfModalShown.value = true;
+                        modalState.value = 'end';
+                    } else if (!halfShown.value && totalPrizes.value && cnt.remaining <= Math.floor(totalPrizes.value / 2)) {
+                        modalState.value = 'half';
+                        halfShown.value = true;
                     }
                 } catch (e) { /* ignore */ }
 
@@ -311,7 +282,7 @@ export default {
 
         // legacy memberStart removed; new memberStart/prizeStart handlers above are event-driven
 
-        return { prizes, members, latestResult, start, memberAnimRef, rouletteRef, selectedPrize, showPrizeResult, showHalfModal, showEndModal, currentPhase, showMemberWinnerModal, showPrizeWinnerModal, memberStart, memberStop, prizeStart, prizeStop, plannedPrizeRes };
+        return { prizes, members, latestResult, start, memberAnimRef, rouletteRef, selectedPrize, showPrizeResult, modalState, halfShown, currentPhase, memberStart, memberStop, prizeStart, prizeStop, plannedPrizeRes };
     }
 };
 </script>
