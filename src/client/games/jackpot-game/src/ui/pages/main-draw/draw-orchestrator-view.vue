@@ -13,14 +13,11 @@
                 </div>
             </div>
 
-            <DrawResultDialog v-if="modalState === 'half'" title="残り半分です！"
-                :message="'残りの景品が半分になりました。続行するには Enter を押してください。'" @close="modalState = null" />
+            <DrawResultDialog v-if="showEndModal" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'"
+                @close="closeModal" />
 
-            <DrawResultDialog v-if="modalState === 'end'" title="抽選は終了しました"
-                :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
-
-            <DrawResultDialog v-if="modalState === 'prizeWinner'" title="景品当選"
-                :assetId="latestResult?.prize?.imageAssetId" primaryLabel="Enter で続行" @close="modalState = null">
+            <DrawResultDialog v-if="showPrizeWinnerModal" title="景品当選" :assetId="latestResult?.prize?.imageAssetId"
+                primaryLabel="Enter で続行" @close="closeModal">
                 当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
             </DrawResultDialog>
 
@@ -87,12 +84,12 @@ export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
     setup(_, { emit }) {
-        // 簡素化した状態
         const prizes = ref<PrizeDto[]>([]);
         const members = ref<MemberDto[]>([]);
         const latestResult = ref<DrawResultDto | null>(null);
         const currentPhase = ref<'member' | 'prize' | 'idle'>('member');
-        const modalState = ref<null | 'half' | 'end' | 'prizeWinner'>(null);
+        const showEndModal = ref(false);
+        const showPrizeWinnerModal = ref(false);
 
         // サービス
         const prizeRepo = container.resolve(PrizeRepository);
@@ -149,10 +146,7 @@ export default {
             const res = await drawService.executePrizeDraw({ memberId: latestResult.value!.member.id, requestCount: 8 });
             if (res) {
                 latestResult.value.prize = prizes.value.find((p: PrizeDto) => p.id === res.winnerPrizeId) || null;
-                modalState.value = 'prizeWinner';
-                // 残りチェック
-                const count = await drawService.getLastPrizeCount();
-                if (count.remaining <= 0) modalState.value = 'end';
+                showPrizeWinnerModal.value = true;
             }
         };
 
@@ -165,16 +159,30 @@ export default {
         // 景品停止
         const prizeStop = async () => {
             showPrizeResult.value = true;
-            modalState.value = null;
         };
 
-        // モーダルクローズ
-        const closeModal = () => {
-            modalState.value = null;
+        // 共通のリセット処理
+        const resetToMemberPhase = () => {
             currentPhase.value = 'member';
             currentEnterAction.value = () => { void memberStart(); };
             showPrizeResult.value = false;
             selectedPrize.value = null;
+        };
+
+        // モーダルクローズ
+        const closeModal = async () => {
+            if (showEndModal.value) {
+                emit('end-draw');
+                showEndModal.value = false;
+            } else if (showPrizeWinnerModal.value) {
+                const count = await drawService.getLastPrizeCount();
+                if (count.remaining <= 0) {
+                    showEndModal.value = true;
+                } else {
+                    showPrizeWinnerModal.value = false;
+                    resetToMemberPhase();
+                }
+            }
         };
 
         return {
@@ -182,7 +190,8 @@ export default {
             members,
             latestResult,
             currentPhase,
-            modalState,
+            showEndModal,
+            showPrizeWinnerModal,
             memberAnimRef,
             rouletteRef,
             selectedPrize,
