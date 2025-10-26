@@ -132,8 +132,8 @@ export default {
         };
 
         const cleanup = () => {
-            try { if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value); } catch (e) { /* ignore */ }
-            try { if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value); } catch (e) { /* ignore */ }
+            if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value);
+            if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value);
             tempMemberUrl.value = null;
             tempPrizeUrl.value = null;
         };
@@ -266,19 +266,15 @@ export default {
 
             state.plannedMemberRes = null;
             await delay(1000);
-            try {
-                const aid = state.latestResult?.member?.photoAssetId || null;
-                if (aid) {
-                    try { if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value); } catch (e) { /* ignore */ }
-                    tempMemberUrl.value = null;
-                    const url = await fetchObjectUrlOnce(aid);
-                    if (url) tempMemberUrl.value = url;
-                }
-            } catch (e) { /* ignore */ }
+            const aid = state.latestResult?.member?.photoAssetId || null;
+            if (aid) {
+                if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value);
+                tempMemberUrl.value = null;
+                const url = await fetchObjectUrlOnce(aid);
+                if (url) tempMemberUrl.value = url;
+            }
 
-            try {
-                emit('member-winner', { result: state.latestResult, memberImageUrl: tempMemberUrl.value });
-            } catch (e) { /* ignore emit errors */ }
+            emit('member-winner', { result: state.latestResult, memberImageUrl: tempMemberUrl.value });
             currentEnterAction.value = null;
         };
 
@@ -348,23 +344,19 @@ export default {
         };
 
         watch(() => state.modalState, async (now, prev) => {
-            try {
-                if (now === 'prizeWinner') {
-                    const pid = state.latestResult?.prize?.id;
-                    const p = state.prizes.find((x: PrizeDto) => x.id === pid);
-                    const aid = p?.imageAssetId || null;
-                    if (aid) {
-                        try { if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value); } catch (e) { /* ignore */ }
-                        tempPrizeUrl.value = null;
-                        void fetchObjectUrlOnce(aid).then((url) => { if (url) tempPrizeUrl.value = url; });
-                    }
+            if (now === 'prizeWinner') {
+                const pid = state.latestResult?.prize?.id;
+                const p = state.prizes.find((x: PrizeDto) => x.id === pid);
+                const aid = p?.imageAssetId || null;
+                if (aid) {
+                    if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value);
+                    tempPrizeUrl.value = null;
+                    void fetchObjectUrlOnce(aid).then((url) => { if (url) tempPrizeUrl.value = url; });
                 }
-            } catch (e) {
-                // ignore
             }
 
             if (prev === 'prizeWinner' && now === null) {
-                try { if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value); } catch (e) { /* ignore */ }
+                if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value);
                 tempPrizeUrl.value = null;
                 try {
                     const cnt = await safeTry(() => drawService.getLastPrizeCount(), { remaining: 0, total: 0 });
@@ -387,7 +379,7 @@ export default {
         });
 
         const continueAfterMemberModal = async () => {
-            try { if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value); } catch (e) { /* ignore */ }
+            if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value);
             tempMemberUrl.value = null;
             state.currentPhase = 'prize';
             currentEnterAction.value = () => { void prizeStart(); };
