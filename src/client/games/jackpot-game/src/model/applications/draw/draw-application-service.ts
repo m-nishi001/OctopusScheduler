@@ -71,14 +71,21 @@ export class DrawApplicationService {
     const prizes = await this.prizeRepo.getPrizes();
     const members = await this.memberRepo.getMembers();
     const member = members.find((m) => m.id === request.memberId);
-    const memberRank = member ? ((member as any).rank ?? 0) : 0;
+    const memberRank = member ? member.rank : 0;
 
     let state: PrizeDrawState | null =
       await this.prizeDrawStateRepository.getState();
     const availablePrizes = prizes.filter((p) => !p.isAssigned);
 
     if (!state) {
-      state = this.initializeState(availablePrizes);
+      state = this.drawService.initializePrizeDrawState(availablePrizes);
+      // Mark reserved prizes
+      await this.prizeRepo.updatePrizes(
+        state.reservedPrizeIds.map((id) => ({
+          id,
+          updateFn: (p) => ({ ...p, isReserved: true }),
+        }))
+      );
       await this.prizeDrawStateRepository.saveState(state!);
     }
 
@@ -88,167 +95,88 @@ export class DrawApplicationService {
     currentState.remaining = availablePrizes.length;
     await this.prizeDrawStateRepository.saveState(currentState);
 
-    if (currentState.kakuhenTimings.includes(currentState.drawCount)) {
-      return this.executeKakuhenDraw(request, prizes, memberRank, currentState);
-    } else {
-      return this.executeNormalDraw(request, prizes, memberRank, currentState);
-    }
-  }
-
-  private async executeKakuhenDraw(
-    request: DrawPrizeRequest,
-    prizes: any[],
-    memberRank: number,
-    currentState: PrizeDrawState
-  ): Promise<DrawPrizeResponse> {
-    // Kakuhen: assign reserved prize and return dummy ids
-    const prizeId = currentState.reservedPrizeIds.shift()!;
-    await this.prizeRepo.updatePrizes([
-      {
-        id: prizeId,
-        updateFn: (p) => ({ ...p, isAssigned: true, isReserved: false }),
-      },
-    ]);
-    this.associatePrizeWithMember(request.memberId, prizeId);
-
-    const trial = this.drawService.drawPrize({
+    const result = this.drawService.executePrizeDraw({
       prizes: prizes.map((p) => ({
         id: p.id,
         weight: p.probability,
         rank: p.rank,
+        isAssigned: p.isAssigned,
       })),
       memberRank,
       requestDummyCount: Math.max(0, request.requestCount - 1),
+      currentState,
     });
 
-    currentState.remaining = (await this.prizeRepo.getPrizes()).filter(
-      (p) => !p.isAssigned
-    ).length;
-    await this.prizeDrawStateRepository.saveState(currentState);
-
-    return {
-      drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      winnerPrizeId: prizeId,
-      dummyWinnerPrizeId: trial.dummyPrizeIds[0] || null,
-      dummyPrizeIds: trial.dummyPrizeIds,
-      isKakuhen: true,
-      reservedPrizeIds: currentState.reservedPrizeIds,
-    };
-  }
-
-  private async executeNormalDraw(
-    request: DrawPrizeRequest,
-    prizes: any[],
-    memberRank: number,
-    currentState: PrizeDrawState
-  ): Promise<DrawPrizeResponse> {
-    // Normal draw
-    const domainPrizes = prizes.map((p) => ({
-      id: p.id,
-      weight: p.probability,
-      rank: p.rank,
-      isAssigned: p.isAssigned,
-    }));
-    const pick = this.drawService.drawPrize({
-      prizes: domainPrizes,
-      memberRank,
-      requestDummyCount: Math.max(0, request.requestCount - 1),
-    });
-
-    if (!pick.winnerPrizeId) {
-      return {
-        drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        winnerPrizeId: null,
-        dummyWinnerPrizeId: pick.dummyPrizeIds[0] || null,
-        dummyPrizeIds: pick.dummyPrizeIds,
-      };
-    }
-
-    await this.prizeRepo.updatePrizes([
-      { id: pick.winnerPrizeId, updateFn: (p) => ({ ...p, isAssigned: true }) },
-    ]);
-
-    this.associatePrizeWithMember(request.memberId, pick.winnerPrizeId);
-
-    currentState.remaining = (await this.prizeRepo.getPrizes()).filter(
-      (p) => !p.isAssigned
-    ).length;
-    await this.prizeDrawStateRepository.saveState(currentState);
-
-    return {
-      drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      winnerPrizeId: pick.winnerPrizeId,
-      dummyWinnerPrizeId: pick.dummyPrizeIds[0] || null,
-      dummyPrizeIds: pick.dummyPrizeIds,
-    };
-  }
-
-  private initializeState(availablePrizes: any[]): any {
-    const total = availablePrizes.length;
-    const sortedByRank = [...availablePrizes].sort(
-      (a, b) => (b.rank ?? 0) - (a.rank ?? 0)
-    );
-    const high = sortedByRank.slice(0, 2).map((p) => p.id);
-    const low = [...sortedByRank]
-      .reverse()
-      .slice(0, 2)
-      .map((p) => p.id);
-    const reserved = Array.from(new Set([...high, ...low]));
-
-    // Mark reserved
-    this.prizeRepo.updatePrizes(
-      reserved.map((id) => ({
-        id,
-        updateFn: (p) => ({ ...p, isReserved: true }),
-      }))
-    );
-
-    // Kakuhen timings: one in first half, one in second half
-    const half = Math.floor(total / 2);
-    const firstHalfEnd = half;
-    const secondHalfStart = half + 1;
-    const t1 =
-      firstHalfEnd > 3
-        ? Math.floor(Math.random() * (firstHalfEnd - 3)) + 4
-        : null;
-    const t2 =
-      total > secondHalfStart
-        ? Math.floor(Math.random() * (total - secondHalfStart)) +
-          secondHalfStart
-        : null;
-    const timings = [t1, t2].filter(Boolean);
-
-    return {
-      total,
-      remaining: total,
-      drawCount: 0,
-      kakuhenTimings: timings,
-      reservedPrizeIds: reserved,
-      initializedAt: new Date().toISOString(),
-    };
-  }
-
-  private async associatePrizeWithMember(memberId: string, prizeId: string) {
-    const prizes = await this.prizeRepo.getPrizes();
-    const prize = prizes.find((p) => p.id === prizeId);
-    const results = await this.drawResultService.getDrawResults();
-    const pending = results
-      .reverse()
-      .find((r) => r.member && r.member.id === memberId && !r.prize);
-    if (pending) {
-      pending.prize = prize || null;
-      await this.drawResultService.updateDrawResult(pending);
-    } else {
-      const members = await this.memberRepo.getMembers();
-      const member = members.find((m) => m.id === memberId)!;
+    if (result.isKakuhen && result.winnerPrizeId) {
+      await this.prizeRepo.updatePrizes([
+        {
+          id: result.winnerPrizeId,
+          updateFn: (p) => ({ ...p, isAssigned: true, isReserved: false }),
+        },
+      ]);
+      const drawId = `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       await this.drawResultService.addDrawResult({
-        drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        member,
-        prize: prize || null,
+        drawId,
+        member: member!,
+        prize: (await this.prizeRepo.getPrizes()).find(
+          (p) => p.id === result.winnerPrizeId
+        ),
         rank: null,
         order: 1,
         isWinner: true,
       });
+
+      currentState.remaining = (await this.prizeRepo.getPrizes()).filter(
+        (p) => !p.isAssigned
+      ).length;
+      await this.prizeDrawStateRepository.saveState(currentState);
+
+      return {
+        drawId,
+        winnerPrizeId: result.winnerPrizeId,
+        dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
+        dummyPrizeIds: result.dummyPrizeIds,
+        isKakuhen: true,
+        reservedPrizeIds: result.reservedPrizeIds,
+      };
+    } else if (result.winnerPrizeId) {
+      await this.prizeRepo.updatePrizes([
+        {
+          id: result.winnerPrizeId,
+          updateFn: (p) => ({ ...p, isAssigned: true }),
+        },
+      ]);
+
+      const drawId = `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      await this.drawResultService.addDrawResult({
+        drawId,
+        member: member!,
+        prize: (await this.prizeRepo.getPrizes()).find(
+          (p) => p.id === result.winnerPrizeId
+        ),
+        rank: null,
+        order: 1,
+        isWinner: true,
+      });
+
+      currentState.remaining = (await this.prizeRepo.getPrizes()).filter(
+        (p) => !p.isAssigned
+      ).length;
+      await this.prizeDrawStateRepository.saveState(currentState);
+
+      return {
+        drawId,
+        winnerPrizeId: result.winnerPrizeId,
+        dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
+        dummyPrizeIds: result.dummyPrizeIds,
+      };
+    } else {
+      return {
+        drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        winnerPrizeId: null,
+        dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
+        dummyPrizeIds: result.dummyPrizeIds,
+      };
     }
   }
 
@@ -260,7 +188,7 @@ export class DrawApplicationService {
     };
   }
 
-  async executeKakuhenAssign(memberId: string): Promise<DrawPrizeResponse> {
+  async executeKakuhenAssign(): Promise<DrawPrizeResponse> {
     const state = await this.prizeDrawStateRepository.getState();
     if (!state || !state.reservedPrizeIds.length) {
       return {
@@ -273,25 +201,40 @@ export class DrawApplicationService {
       };
     }
 
-    const prizeId = state.reservedPrizeIds.shift()!;
-    await this.prizeRepo.updatePrizes([
-      {
-        id: prizeId,
-        updateFn: (p) => ({ ...p, isAssigned: true, isReserved: false }),
-      },
-    ]);
+    const result = this.drawService.executeKakuhenAssign({
+      reservedPrizeIds: state.reservedPrizeIds,
+    });
 
-    this.associatePrizeWithMember(memberId, prizeId);
+    if (result.winnerPrizeId) {
+      await this.prizeRepo.updatePrizes([
+        {
+          id: result.winnerPrizeId,
+          updateFn: (p) => ({ ...p, isAssigned: true, isReserved: false }),
+        },
+      ]);
 
-    await this.prizeDrawStateRepository.saveState(state);
+      const drawId = `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      await this.drawResultService.addDrawResult({
+        drawId,
+        member: null,
+        prize: (await this.prizeRepo.getPrizes()).find(
+          (p) => p.id === result.winnerPrizeId
+        ),
+        rank: null,
+        order: 1,
+        isWinner: true,
+      });
+
+      await this.prizeDrawStateRepository.saveState(state);
+    }
 
     return {
       drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      winnerPrizeId: prizeId,
+      winnerPrizeId: result.winnerPrizeId,
       dummyWinnerPrizeId: null,
       dummyPrizeIds: [],
       isKakuhen: true,
-      reservedPrizeIds: state.reservedPrizeIds,
+      reservedPrizeIds: result.reservedPrizeIds,
     };
   }
 }

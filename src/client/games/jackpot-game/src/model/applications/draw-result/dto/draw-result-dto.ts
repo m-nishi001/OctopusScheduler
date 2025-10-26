@@ -3,7 +3,7 @@ import type { PrizeDto } from "../../prize/dto/prize-dto";
 
 export interface DrawResultDto {
   drawId: string;
-  member: MemberDto;
+  member: MemberDto | null;
   prize?: PrizeDto | null;
   rank: number | null;
   order: number;
