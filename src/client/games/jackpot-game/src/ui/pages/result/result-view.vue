@@ -21,7 +21,7 @@
 
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
+import { DrawResultService } from '../../../model/applications/draw/draw-result-service';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
@@ -50,20 +50,22 @@ export default {
       resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
 
       for (const r of results) {
-        const aid = r.member.photoAssetId;
-        if (aid) {
-          const asset = await assetService.getAssetDataById(aid);
-          if (asset && asset.id && !objectUrlMap.has(asset.id)) {
-            try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
+        if (r.member) {
+          const aid = r.member.photoAssetId;
+          if (aid) {
+            const asset = await assetService.getAssetDataById(aid);
+            if (asset && asset.id && !objectUrlMap.has(asset.id)) {
+              try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
+            }
           }
         }
       }
-      winners.value = results.map(r => ({ ...r.member, prize: r.prize ? r.prize.name : '', id: r.member.id, photo: (r.member.photoAssetId ? objectUrlMap.get(r.member.photoAssetId) : undefined) || r.member.photoAssetId }));
-      const ranks = results.map(r => r.rank || 0);
+      winners.value = results.filter(r => r.member).map(r => ({ ...r.member!, prize: r.prize ? r.prize.name : '', id: r.member!.id, photo: (r.member!.photoAssetId ? objectUrlMap.get(r.member!.photoAssetId) : undefined) || r.member!.photoAssetId }));
+      const ranks = results.filter(r => r.member).map(r => r.rank || 0);
       const minRank = Math.min(...ranks);
       const maxRank = Math.max(...ranks);
-      specialWinner.value = results.find(r => r.rank === minRank)?.member;
-      lowestWinner.value = results.find(r => r.rank === maxRank)?.member;
+      specialWinner.value = results.find(r => r.member && r.rank === minRank)?.member;
+      lowestWinner.value = results.find(r => r.member && r.rank === maxRank)?.member;
     };
     onMounted(() => {
       fetchResults();

@@ -2,7 +2,7 @@ import { injectable, container } from "tsyringe";
 import { DrawService } from "../../domains/draw/draw-service";
 import { MemberRepository } from "../../infrastructures/member-repository";
 import { PrizeRepository } from "../../infrastructures/prize-repository";
-import { DrawResultService } from "../draw-result/draw-result-service";
+import { DrawResultService } from "./draw-result-service";
 import type { DrawMemberRequest } from "./dto/draw-member-request";
 import type { DrawMemberResponse } from "./dto/draw-member-response";
 import type { DrawPrizeRequest } from "./dto/draw-prize-request";

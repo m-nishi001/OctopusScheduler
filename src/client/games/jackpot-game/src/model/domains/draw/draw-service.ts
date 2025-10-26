@@ -3,7 +3,14 @@ import { MemberDrawService } from "./member-draw-service";
 import { PrizeDrawService } from "./prize-draw-service";
 import { DrawStateManager } from "./draw-state-manager";
 import { KakuhenService } from "./kakuhen-service";
+import { injectable } from "tsyringe";
+import { toMember } from "../../applications/member/dto/member-dto";
+import { toPrize } from "../../applications/prize/dto/prize-dto";
+import type { MemberDto } from "../../applications/member/dto/member-dto";
+import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
+import type { DrawResult } from "./draw-result";
 
+@injectable()
 export class DrawService {
   private weightedSelector: WeightedSelector;
   private memberDrawService: MemberDrawService;
@@ -113,5 +120,51 @@ export class DrawService {
     reservedPrizeIds: string[];
   } {
     return this.kakuhenService.executeKakuhenAssign(opts);
+  }
+
+  async executeDraw(opts: {
+    prizes: PrizeDto[];
+    members: MemberDto[];
+  }): Promise<DrawResult> {
+    const members = opts.members.map(toMember);
+    const prizes = opts.prizes.map(toPrize);
+
+    // Draw member
+    const memberOpts = {
+      members: members.map((m) => ({
+        id: m.id,
+        rank: m.rank,
+        isWinner: false,
+      })),
+      requestDummyCount: 0,
+    };
+    const { winnerId: winnerMemberId } = this.drawMember(memberOpts);
+    const winnerMember = members.find((m) => m.id === winnerMemberId)!;
+
+    // Draw prize
+    const prizeOpts = {
+      prizes: prizes.map((p) => ({
+        id: p.id,
+        weight: p.probability,
+        rank: p.rank,
+        isAssigned: p.isAssigned,
+      })),
+      requestDummyCount: 0,
+    };
+    const { winnerPrizeId } = this.drawPrize(prizeOpts);
+    const winnerPrize = prizes.find((p) => p.id === winnerPrizeId)!;
+
+    const drawId = crypto.randomUUID();
+
+    const drawResult: DrawResult = {
+      drawId,
+      member: winnerMember,
+      prize: winnerPrize,
+      rank: 1,
+      order: 1,
+      isWinner: true,
+    };
+
+    return drawResult;
   }
 }

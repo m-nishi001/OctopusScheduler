@@ -2,7 +2,7 @@ import type { Ref } from "vue";
 import { DrawApplicationService } from "../../../model/applications/draw/draw-application-service";
 import { AssetDataService } from "../../../model/applications/asset/asset-data-service";
 import type { PrizeDto } from "../../../model/applications/prize/dto/prize-dto";
-import type { DrawResultDto } from "../../../model/applications/draw-result/dto/draw-result-dto";
+import type { DrawResultDto } from "../../../model/applications/draw/dto/draw-result-dto";
 import { container } from "tsyringe";
 
 export function usePrizeDrawOrchestrator(
@@ -48,9 +48,7 @@ export function usePrizeDrawOrchestrator(
       });
     }
 
-    const assignRes = await drawService.executeKakuhenAssign(
-      latestResult.value!.member.id
-    );
+    const assignRes = await drawService.executeKakuhenAssign();
     if (assignRes.winnerPrizeId) {
       latestResult.value!.prize =
         prizes.value.find((p) => p.id === assignRes.winnerPrizeId) || null;
@@ -70,7 +68,7 @@ export function usePrizeDrawOrchestrator(
   };
 
   const prizeStart = async () => {
-    if (!latestResult.value) return;
+    if (!latestResult.value || !latestResult.value.member) return;
     const res = await drawService.executePrizeDraw({
       memberId: latestResult.value.member.id,
       requestCount: 8,

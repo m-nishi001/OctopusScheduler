@@ -8,11 +8,11 @@ import { DrawResultRepository } from "../../model/infrastructures/draw-result-re
 import { IAssetDataRepositoryToken } from "../../model/domains/drive-data/repository/i-asset-data-repository";
 import { IMemberRepositoryToken } from "../../model/domains/member/repository/i-member-repository";
 import { IPrizeRepositoryToken } from "../../model/domains/prize/repository/i-prize-repository";
-import { IDrawResultRepositoryToken } from "../../model/domains/draw-result/repository/i-draw-result-repository";
+import { IDrawResultRepositoryToken } from "../../model/domains/draw/repository/i-draw-result-repository";
 import { AssetDataService } from "../../model/applications/asset/asset-data-service";
 import { ScreenSettingsService } from "../../model/applications/screen-config/screen-settings-service";
 import { ScreenConfigService } from "../../model/applications/screen-config/screen-config-service";
-import { DrawResultService } from "../../model/applications/draw-result/draw-result-service";
+import { DrawResultService } from "../../model/applications/draw/draw-result-service";
 import { PrizeDrawStateRepository } from "../../model/infrastructures/prize-draw-state-repository";
 import { DrawService as DomainDrawService } from "../../model/domains/draw/draw-service";
 

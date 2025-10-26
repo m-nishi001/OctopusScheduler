@@ -42,7 +42,7 @@
                     <div class="result-panel col-span-1 md:col-span-1 bg-white/80 rounded p-4 shadow">
                         <h4 class="font-semibold mb-2">直近の当選</h4>
                         <div v-if="latestResult">
-                            <p class="text-sm">メンバー: <strong>{{ latestResult.member.name }}</strong></p>
+                            <p class="text-sm">メンバー: <strong>{{ latestResult.member?.name }}</strong></p>
                             <p class="text-sm">景品: <strong>{{ latestResult.prize?.name || '（未決定）' }}</strong></p>
                         </div>
                         <div v-else class="text-sm text-gray-500">まだ抽選が実行されていません。開始ボタン、または Enter を押してください。</div>
@@ -80,7 +80,7 @@ import { PrizeRepository } from '../../../model/infrastructures/prize-repository
 import { MemberRepository } from '../../../model/infrastructures/member-repository';
 import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
 import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
-import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
+import type { DrawResultDto } from '../../../model/applications/draw/dto/draw-result-dto';
 import { container } from 'tsyringe';
 import { usePrizeDrawOrchestrator } from './use-prize-draw-orchestrator';
 

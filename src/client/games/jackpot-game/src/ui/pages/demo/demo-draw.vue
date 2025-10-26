@@ -27,8 +27,9 @@ import { ScreenSettingsService } from '../../../model/applications/screen-config
 import { container } from 'tsyringe';
 import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/member-repository';
-import { DrawRepository } from '../../../model/infrastructures/draw-repository';
-import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
+import { DrawService } from '../../../model/domains/draw/draw-service';
+import { DrawResultService } from '../../../model/applications/draw/draw-result-service';
+import { toDrawResultDto } from '../../../model/applications/draw/dto/draw-result-dto';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { DemoScreenSetting } from '../../../model/domains/screen-config/demo-screen-setting';
 export default {
@@ -104,12 +105,12 @@ export default {
 
         await fetchPrizes();
         await fetchMembers();
-        const drawRepo = container.resolve(DrawRepository);
+        const drawService = container.resolve(DrawService);
         const drawResultService = container.resolve(DrawResultService);
-        const res = await drawRepo.executeDraw({ prizes: prizes.value, members: members.value });
-        const resultRes = await drawResultService.getDrawResultById(res.drawId);
-        const winner = resultRes;
-        if (winner) {
+        const drawResult = await drawService.executeDraw({ prizes: prizes.value, members: members.value });
+        await drawResultService.addDrawResult(toDrawResultDto(drawResult));
+        const winner = drawResult;
+        if (winner && winner.member) {
           const prizeText = winner.prize ? (winner.prize.name || winner.prize.id) : '';
           result.value = { member: winner.member.name || winner.member.id, prize: prizeText };
         }

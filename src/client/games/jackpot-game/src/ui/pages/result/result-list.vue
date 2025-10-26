@@ -6,8 +6,8 @@
 			<div v-if="loading">結果取得中...</div>
 			<div v-else class="result-list" style="max-height:300px;overflow-y:auto;">
 				<ul>
-					<li v-for="w in winners" :key="w.member.id" style="margin-bottom:1em;">
-						<span class="winner-name">{{ w.member.name }}</span>
+					<li v-for="w in winners" :key="w.member!.id" style="margin-bottom:1em;">
+						<span class="winner-name">{{ w.member!.name }}</span>
 					</li>
 				</ul>
 			</div>
@@ -18,8 +18,8 @@
 import MainLayout from '../common/main-layout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { DrawResultService } from '../../../model/applications/draw-result/draw-result-service';
-import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
+import { DrawResultService } from '../../../model/applications/draw/draw-result-service';
+import type { DrawResultDto } from '../../../model/applications/draw/dto/draw-result-dto';
 
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
@@ -38,7 +38,7 @@ export default {
 			screenConfig.value = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
 			try {
 				const results = await drawResultService.getDrawResults();
-				winners.value = results;
+				winners.value = results.filter(r => r.member);
 			} finally {
 				loading.value = false;
 			}

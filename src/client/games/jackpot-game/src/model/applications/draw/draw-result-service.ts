@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
-import type { IDrawResultRepository } from "../../domains/draw-result/repository/i-draw-result-repository";
-import { IDrawResultRepositoryToken } from "../../domains/draw-result/repository/i-draw-result-repository";
+import type { IDrawResultRepository } from "../../domains/draw/repository/i-draw-result-repository";
+import { IDrawResultRepositoryToken } from "../../domains/draw/repository/i-draw-result-repository";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 
 @injectable()
