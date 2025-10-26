@@ -184,8 +184,9 @@ export default {
             if (!pid) return undefined;
             const p = state.prizes.find((x: PrizeDto) => x.id === pid);
             if (!p) return undefined;
-            // If prize already contains inline data URL use it; otherwise prefer ephemeral URL fetched from AssetDataService.
-            if (p.imageDataUrl) return p.imageDataUrl;
+            // Prefer ephemeral object URL fetched from AssetDataService when imageAssetId is present.
+            // Prize DTO in this project stores asset data as blobs (via AssetDataService),
+            // so inline data URLs are not expected — use the ephemeral URL created from the blob.
             if (p.imageAssetId) return tempPrizeUrl.value ?? undefined;
             return undefined;
         });
