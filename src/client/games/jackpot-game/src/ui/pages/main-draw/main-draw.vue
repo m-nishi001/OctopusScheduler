@@ -39,6 +39,8 @@ import { container } from 'tsyringe';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation from './MemberDrawAnimation.vue';
 import RouletteAnimation from './RouletteAnimation.vue';
+import { MEMBER_DRAW_REQUEST_COUNT } from './MemberDrawAnimation.vue';
+import { PRIZE_DRAW_REQUEST_COUNT, PRIZE_KAKUHEN_DUMMY_DURATION_MS, PRIZE_KAKUHEN_FINAL_DURATION_MS } from './RouletteAnimation.vue';
 import { useRouter } from 'vue-router';
 import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
@@ -55,7 +57,7 @@ export default {
     const assetService = container.resolve(AssetDataService);
     onMounted(async () => {
       const config = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
-      mainConfig.value = (config as MainScreenSetting) ?? new MainScreenSetting([], 1);
+      mainConfig.value = (config as MainScreenSetting) ?? new MainScreenSetting();
       fetchPrizes();
       fetchMembers();
       setTimeout(playBGM, 1200);
@@ -115,7 +117,8 @@ export default {
       if (phase.value !== 'idle') return;
       if (prizes.value.length === 0 || members.value.length === 0) return;
       // ask application for member draw (returns winnerId and dummyIds)
-      const memberRes = await drawAppService.executeMemberDraw({ requestCount: 10 });
+      const memberReqCount = typeof MEMBER_DRAW_REQUEST_COUNT !== 'undefined' ? MEMBER_DRAW_REQUEST_COUNT : (mainConfig.value?.memberDrawRequestCount ?? 10);
+      const memberRes = await drawAppService.executeMemberDraw({ requestCount: memberReqCount });
       // start animation
       memberAnimRef.value?.start?.();
       // store planned winner id for stopping
@@ -154,7 +157,8 @@ export default {
         if (phase.value === 'memberStopped') {
           phase.value = 'prizeRunning';
           const memberId = (memberAnimRef.value as any).__plannedWinner || '';
-          const prizeRes = await drawAppService.executePrizeDraw({ memberId, requestCount: 8 });
+          const prizeReqCount = typeof PRIZE_DRAW_REQUEST_COUNT !== 'undefined' ? PRIZE_DRAW_REQUEST_COUNT : 8;
+          const prizeRes = await drawAppService.executePrizeDraw({ memberId, requestCount: prizeReqCount });
           if (prizeRes.isKakuhen) {
             // show kakuhen message
             result.value = { member: members.value.find((m) => m.id === memberId)?.name || memberId, prize: '確変発生！' };
@@ -167,8 +171,9 @@ export default {
             let rerollAudio2: HTMLAudioElement | null = null;
             let rerollUrl1: string | undefined;
             let rerollUrl2: string | undefined;
-            const dummyDuration = 2000;
-            const finalDuration = 2000;
+            // use per-animation hardcoded durations when available
+            const dummyDuration = typeof PRIZE_KAKUHEN_DUMMY_DURATION_MS !== 'undefined' ? PRIZE_KAKUHEN_DUMMY_DURATION_MS : 2000;
+            const finalDuration = typeof PRIZE_KAKUHEN_FINAL_DURATION_MS !== 'undefined' ? PRIZE_KAKUHEN_FINAL_DURATION_MS : 2000;
             try {
               // get bgm ids from prize data (if present)
               if (dummyId) {

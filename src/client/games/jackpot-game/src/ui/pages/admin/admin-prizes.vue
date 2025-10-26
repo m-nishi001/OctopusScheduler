@@ -67,6 +67,13 @@
             <input v-model.number="editRank" type="number" placeholder="順位" min="1" class="admin-input" />
           </div>
 
+          <div class="field-block left-col">
+            <label class="field-label">抽選アニメーション</label>
+            <select v-model="editAnimation" class="admin-input">
+              <option value="roulette">ルーレット</option>
+            </select>
+          </div>
+
           <div class="field-block">
             <label class="field-label">画像</label>
             <div class="image-mode">
@@ -131,7 +138,7 @@
         </div>
 
         <div class="add-side-column">
-          <div class="preview-box">
+          <div class="preview-box preview-box--small">
             <template v-if="editImagePreview">
               <img :src="editImagePreview" alt="preview" class="preview-img" />
             </template>
@@ -195,6 +202,15 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- Move animation selection below image so it appears in the left/form column
+               rather than overlapping the preview on the right. -->
+          <div class="field-block left-col">
+            <label class="field-label">抽選アニメーション</label>
+            <select v-model="newPrizeAnimation" class="admin-input">
+              <option value="roulette">ルーレット</option>
+            </select>
           </div>
 
           <div class="field-block span-2">
@@ -373,6 +389,7 @@ const syncMessage = ref("");
 const newPrizeName = ref('');
 const newPrizeProbability = ref(5);
 const newPrizeRank = ref<number | undefined>();
+const newPrizeAnimation = ref('roulette');
 const newImageMode = ref('upload');
 const newImageAssetId = ref('');
 const newImageAsset = ref<Asset | undefined>();
@@ -431,6 +448,7 @@ const addPrize = async () => {
     name: newPrizeName.value,
     probability: newPrizeProbability.value,
     rank: newPrizeRank.value,
+    animation: newPrizeAnimation.value || 'roulette',
     order: prizes.value.length + 1
   };
   if (newImageMode.value === 'select' && newImageAssetId.value) {
@@ -631,6 +649,7 @@ const editBgm1Mode = ref('select');
 const editBgm2Mode = ref('select');
 const editBgm1Filename = ref('');
 const editBgm2Filename = ref('');
+const editAnimation = ref('roulette');
 
 const editTempAsset = ref<Asset | null>(null);
 const editTempBgm1Asset = ref<Asset | null>(null);
@@ -672,6 +691,7 @@ const editPrize = async (prize: any) => {
   editName.value = prize.name;
   editProbability.value = prize.probability;
   editRank.value = prize.rank;
+  editAnimation.value = prize.animation || 'roulette';
 
   if (editImagePreviewUrl.value) {
     try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
@@ -795,6 +815,7 @@ const saveEdit = async () => {
     name: editName.value,
     probability: editProbability.value,
     rank: editRank.value,
+    animation: editAnimation.value,
     imageAssetId: assetId || editImageAssetId.value,
     bgm1AssetId: bgm1AssetId || editBgm1AssetId.value,
     bgm2AssetId: bgm2AssetId || editBgm2AssetId.value,
@@ -826,6 +847,8 @@ const saveEdit = async () => {
 onMounted(async () => {
   await fetchPrizes();
   await fetchAssets();
+  // default animation for new prizes
+  newPrizeAnimation.value = 'roulette';
 });
 
 const showSyncModeModal = ref(false);
@@ -1065,7 +1088,7 @@ onBeforeUnmount(() => {
 }
 
 .sync-icon {
-  
+
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
   color: #dbeeff;
@@ -1162,6 +1185,11 @@ onBeforeUnmount(() => {
   min-width: 220px;
 }
 
+/* helper to force a field into the left/main column of the grid */
+.left-col {
+  grid-column: 1 / 2;
+}
+
 .image-file-input-wrap {
   display: inline-flex;
   align-items: center;
@@ -1208,9 +1236,9 @@ onBeforeUnmount(() => {
 
 .modal-overlay {
   -ms-overflow-style: none;
-  
+
   scrollbar-width: none;
-  
+
 }
 
 .modal-overlay::-webkit-scrollbar {
@@ -1235,26 +1263,31 @@ onBeforeUnmount(() => {
   max-width: none;
   flex: 0 0 70vw;
   margin: 0 auto;
-  
-  height: 60vh;
+
+  /* allow the dialog to grow but never overflow the viewport
+     keep internal scrolling inside the grid area */
+  max-height: calc(100vh - 80px);
+  height: auto;
   display: flex;
   flex-direction: column;
 }
 
 .add-modal-grid {
   display: grid;
-  grid-template-columns: 1fr 260px;
+  /* make the preview column responsive: allow it to grow up to 320px
+    but stay at least 200px so the preview remains useful */
+  grid-template-columns: 1fr minmax(200px, 320px);
   gap: 14px;
   align-items: start;
   margin-top: 12px;
-  
+
   flex: 1 1 auto;
   min-height: 0;
-  
+
   overflow-y: auto;
   overflow-x: hidden;
-  
-  
+
+
   scrollbar-gutter: stable both-edges;
   --scrollbar-reserve: 16px;
   padding-right: var(--scrollbar-reserve);
@@ -1263,9 +1296,9 @@ onBeforeUnmount(() => {
 
 
 .add-modal-grid {
-  
+
   scrollbar-width: thin;
-  
+
   -ms-overflow-style: auto;
 }
 
@@ -1307,6 +1340,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 16px;
   align-items: center;
+  /* ensure the side column doesn't force the main column to overflow
+     and allow it to shrink when space is tight */
+  min-width: 0;
 }
 
 
@@ -1322,7 +1358,7 @@ onBeforeUnmount(() => {
 
 .two-col {
   display: contents;
-  
+
 }
 
 .buffer-column {
@@ -1333,14 +1369,18 @@ onBeforeUnmount(() => {
 }
 
 .preview-box {
-  width: 200px;
-  height: 200px;
+  width: 100%;
+  max-width: 320px;
+  /* keep square preview using aspect-ratio so it scales nicely */
+  aspect-ratio: 1 / 1;
   background: #2a3137;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  /* keep preview behind interactive form elements by default */
+  z-index: 1000;
 }
 
 .preview-box .preview-img {
@@ -1348,6 +1388,48 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* smaller preview variant used in the edit dialog to avoid overlap */
+.preview-box.preview-box--small {
+  max-width: 180px;
+  aspect-ratio: 1 / 1;
+}
+
+/* Prevent the preview box from intercepting clicks when it overlaps
+   form controls on narrow viewports. The preview is passive (no
+   interactions), so it's safe to let pointer events pass through. */
+.preview-box {
+  pointer-events: none;
+}
+
+/* Ensure form inputs and selects appear above the preview and can
+   receive pointer events / open native dropdowns. */
+.admin-input,
+select.admin-input {
+  position: relative;
+  z-index: 1101;
+  pointer-events: auto;
+}
+
+/* Responsive: stack preview under the form on smaller screens so it
+   never visually overlaps form controls. This makes the dialog behave
+   like the name/rank fields which occupy the main column. */
+@media (max-width: 980px) {
+  .add-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .add-side-column {
+    grid-column: 1 / -1;
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .preview-box {
+    max-width: 100%;
+    margin-top: 8px;
+  }
 }
 
 .preview-placeholder {
@@ -1361,7 +1443,8 @@ onBeforeUnmount(() => {
 }
 
 .modal-footer {
-  grid-column: 1 / -1;
+  /* footer is placed after the scrolling content; don't rely on grid
+     positioning here because the modal uses flex layout */
   display: flex;
   justify-content: space-between;
   align-items: center;
