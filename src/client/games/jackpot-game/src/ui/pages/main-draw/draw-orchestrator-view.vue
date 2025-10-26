@@ -11,28 +11,23 @@
                 </div>
             </div>
 
-            <!-- Half remaining modal -->
             <DrawResultDialog v-if="modalState === 'half'" title="残り半分です！"
                 :message="'残りの景品が半分になりました。続行するには Enter を押してください。'" @close="modalState = null" />
 
-            <!-- End modal -->
             <DrawResultDialog v-if="modalState === 'end'" title="抽選は終了しました"
                 :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
 
-            <!-- Member winner modal -->
             <DrawResultDialog v-if="modalState === 'memberWinner'" title="当選者発表" :imageUrl="memberImageUrl"
                 primaryLabel="Enter で続行" @close="modalState = null">
                 当選者: <strong>{{ latestResult?.member }}</strong>
             </DrawResultDialog>
 
-            <!-- Prize winner modal -->
             <DrawResultDialog v-if="modalState === 'prizeWinner'" title="景品当選" :imageUrl="prizeImageUrl"
                 primaryLabel="Enter で続行" @close="modalState = null">
                 当選景品: <strong>{{ latestResult?.prize }}</strong>
             </DrawResultDialog>
 
             <div class="rich-layout">
-                <!-- Members row -->
                 <section class="member-area mb-6" v-if="currentPhase === 'member'">
                     <div class="member-stage mx-auto">
                         <div class="stage-frame">
@@ -45,7 +40,6 @@
                     </div>
                 </section>
 
-                <!-- Result + Roulette centered -->
                 <section v-if="currentPhase === 'prize'"
                     class="center-area grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                     <div class="result-panel col-span-1 md:col-span-1 bg-white/80 rounded p-4 shadow">
@@ -94,7 +88,6 @@ export default {
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
     setup() {
         const { prizes, members, objectUrlMap, fetchPrizes, fetchMembers } = usePrizesAndMembers();
-        // Local helper functions (moved from separate file since they're only used in this component)
         const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
         async function safeTry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
@@ -110,12 +103,10 @@ export default {
         const selectedPrize = ref<any | null>(null);
         const showPrizeResult = ref(false);
         const isRunning = ref(false);
-        // unified modal state: null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'
         const modalState = ref<null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'>(null);
         const halfShown = ref(false);
         const totalPrizes = ref<number | null>(null);
         const currentPhase = ref<'member' | 'prize' | 'idle'>('member');
-        // (old booleans removed — use modalState)
         const plannedPrizeRes = ref<any | null>(null);
         const plannedMemberRes = ref<any | null>(null);
 
@@ -147,7 +138,6 @@ export default {
 
             const handler = (ev: KeyboardEvent) => {
                 if (ev.key !== 'Enter') return;
-                // Use microtask to call async handlers without blocking
                 if (currentPhase.value === 'member') {
                     if (!memberAnimating.value) {
                         void memberStart();
@@ -172,7 +162,6 @@ export default {
         });
 
         const start = async () => {
-            // Always use rich/orchestrated flow: initialize and show member phase only.
             isRunning.value = true;
             try {
                 try {
@@ -188,26 +177,20 @@ export default {
             }
         };
 
-        // When entering member phase, prefetch the member draw so parent can prepare images / stop target
         watch(currentPhase, async (now) => {
             if (now === 'member') {
                 plannedMemberRes.value = await safeTry(() => DrawAdapter.executeMemberDraw({ requestCount: MEMBER_DRAW_REQUEST_COUNT }), null);
-                // start visual animation loop if child supports it
                 try { if (memberAnimRef.value?.start) memberAnimRef.value.start(); } catch (e) { }
             }
         });
 
-        // Event-driven handlers (A: explicit start/stop API)
         const memberStart = async () => {
             if (!isRunning.value) await start();
-            // clear previously planned prize
             plannedPrizeRes.value = null;
-            // If we have a prepared plannedMemberRes, simply start the visual loop and avoid double-calling draw
             if (plannedMemberRes.value) {
                 if (memberAnimRef.value?.start) memberAnimRef.value.start();
                 return;
             }
-            // delegate member draw request and animation startup to child if available
             if (memberAnimRef.value?.startDraw) {
                 try { await memberAnimRef.value.startDraw(); } catch (e) { /* ignore */ }
             } else if (memberAnimRef.value?.start) {
@@ -216,7 +199,6 @@ export default {
         };
 
         const memberStop = async () => {
-            // stop animation (delegate to child) and determine winner id
             let stopped: string | null = null;
             if (plannedMemberRes.value && memberAnimRef.value?.stopAt) {
                 const targetId = plannedMemberRes.value?.winnerId || plannedMemberRes.value?.winner || null;
@@ -230,13 +212,10 @@ export default {
             }
 
             latestResult.value = { memberId: stopped, member: members.value.find((m: any) => m.id === stopped)?.name || stopped, prize: '', prizeId: null };
-            // prepare prize draw (pre-fetch) so prize UI knows what animation to show
             plannedPrizeRes.value = await safeTry(() => DrawAdapter.executePrizeDraw({ memberId: stopped, requestCount: 8 }), null);
-            // clear plannedMemberRes now that stop target was consumed
             plannedMemberRes.value = null;
             // wait 1 second (spec: 1秒停止後に当選DLGを表示)
             await delay(1000);
-            // show member winner modal after delay. phase transition will occur when modal is closed (watcher below)
             modalState.value = 'memberWinner';
         };
 
@@ -247,7 +226,6 @@ export default {
             }
             const prizeRes = plannedPrizeRes.value;
             if (prizeRes && prizeRes.isKakuhen && rouletteRef.value?.runAutoReroll) {
-                // kakuhen auto reroll visual
                 const dummy = prizeRes.dummyPrizeIds && prizeRes.dummyPrizeIds[0];
                 const final = prizeRes.reservedPrizeIds && prizeRes.reservedPrizeIds[0];
                 try {
@@ -267,7 +245,6 @@ export default {
         };
 
         const prizeStop = async () => {
-            // stop roulette and show prize winner
             let prizeId: string | null = null;
             if (rouletteRef.value?.stopSpin) {
                 const target = plannedPrizeRes.value?.winnerPrizeId || plannedPrizeRes.value?.prizeId || null;
@@ -283,16 +260,11 @@ export default {
             modalState.value = 'prizeWinner';
         };
 
-        // Watchers: advance phases or run checks only after modals are closed by user
-        // Watch modalState changes to react when modals are closed
         watch(modalState, async (now, prev) => {
-            // memberWinner closed -> go to prize phase
             if (prev === 'memberWinner' && now === null) {
                 currentPhase.value = 'prize';
                 return;
             }
-
-            // prizeWinner closed -> possibly show half/end modal, then go back to member
             if (prev === 'prizeWinner' && now === null) {
                 try {
                     const svc = container.resolve<any>('DrawService');
@@ -313,8 +285,6 @@ export default {
                 plannedPrizeRes.value = null;
             }
         });
-
-        // legacy memberStart removed; new memberStart/prizeStart handlers above are event-driven
 
         return { prizes, members, latestResult, start, memberAnimRef, rouletteRef, selectedPrize, showPrizeResult, modalState, halfShown, currentPhase, memberStart, memberStop, prizeStart, prizeStop, plannedPrizeRes, memberImageUrl, prizeImageUrl };
     }
