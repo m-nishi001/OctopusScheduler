@@ -18,6 +18,7 @@ import gsap from 'gsap';
 import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
+import DrawAdapter from '../../../model/adapters/draw-adapter';
 
 // Per-animation defaults (hardcoded here per your request)
 export const MEMBER_DRAW_REQUEST_COUNT = 10;
@@ -28,7 +29,7 @@ export default {
     props: {
         members: { type: Array as () => MemberDto[], default: () => [] },
         visibleCount: { type: Number, default: 10 },
-        autoStart: { type: Boolean, default: false }
+        autoStart: { type: Boolean, default: false },
     },
     setup(props: any, { emit }: any) {
         const viewport = ref<HTMLDivElement | null>(null);
@@ -67,6 +68,11 @@ export default {
         };
 
         const activeIndex = ref<number | null>(null);
+        // planned winner id returned from remote draw call
+        let plannedWinnerId: string | null = null;
+
+        // request-count default constant
+        const REQUEST_COUNT = MEMBER_DRAW_REQUEST_COUNT;
 
         const start = (speed = 200) => {
             if (!track.value || !viewport.value) return;
@@ -120,6 +126,28 @@ export default {
             });
         };
 
+        // High-level: start the draw by requesting a planned winner then animating
+        const startDraw = async (opts?: { requestCount?: number }) => {
+            try {
+                const res = await DrawAdapter.executeMemberDraw({ requestCount: opts?.requestCount || REQUEST_COUNT });
+                plannedWinnerId = res?.winnerId || res?.winner || null;
+            } catch (e) {
+                plannedWinnerId = null;
+            }
+            start();
+            return plannedWinnerId;
+        };
+
+        // High-level: stop animation and land on the planned winner (if any). Returns final id.
+        const stopDraw = async (): Promise<string | null> => {
+            const id = await stopAt(plannedWinnerId || null);
+            // emit event with chosen id
+            emit('member-selected', id);
+            // clear planned id after stop
+            plannedWinnerId = null;
+            return id;
+        };
+
         const runAutoReroll = async (opts: { dummyId?: string | null; finalId?: string | null; dummyMs?: number }): Promise<string | null> => {
             const { dummyId = null, finalId = null, dummyMs = 2000 } = opts || {};
             start();
@@ -138,33 +166,19 @@ export default {
             buildDisplay();
             await loadImages();
             if (props.autoStart) start();
-            window.addEventListener('keydown', onKey);
         });
 
         onUnmounted(() => {
             if (tweenRef.tween) tweenRef.tween.kill();
             for (const url of memberImageMap.values()) try { URL.revokeObjectURL(url); } catch (e) { }
-            window.removeEventListener('keydown', onKey);
         });
-
-        function onKey(e: KeyboardEvent) {
-            if (e.key === 'Enter') {
-                // toggle stop/start
-                if (tweenRef.tween) {
-                    // stop at random (parent should call stopAt with real id)
-                    tweenRef.tween.kill();
-                } else {
-                    start();
-                }
-            }
-        }
 
         watch(() => props.members, async () => {
             buildDisplay();
             await loadImages();
         });
 
-        return { viewport, track, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex };
+        return { viewport, track, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw };
     }
 };
 </script>

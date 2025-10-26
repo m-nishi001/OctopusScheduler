@@ -63,6 +63,8 @@ export default {
         bonusMode: { type: String, default: null }, // 'switch' or 'mirage'
         showResult: { type: Boolean, default: false },
         showBonus: { type: Boolean, default: false }
+        ,
+        // Note: Enter key handling is owned by parent orchestrator; no local key prop.
     },
     setup(props, { emit }) {
         const canvas = ref<HTMLCanvasElement | null>(null);
@@ -77,11 +79,7 @@ export default {
         let spinning = false;
         let bgmAudio: HTMLAudioElement | null = null;
 
-        onMounted(() => {
-            window.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') toggleSpin();
-            });
-        });
+        // Note: Enter key handling moved to parent orchestrator. This component no longer registers global key events.
 
         onMounted(() => {
             if (!canvas.value) return;
