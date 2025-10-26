@@ -12,20 +12,20 @@
             </div>
 
             <!-- Half remaining modal -->
-            <DrawModal v-if="modalState === 'half'" title="残り半分です！" :message="'残りの景品が半分になりました。続行するには Enter を押してください。'" @close="modalState = null" />
+            <DrawResultDialog v-if="modalState === 'half'" title="残り半分です！" :message="'残りの景品が半分になりました。続行するには Enter を押してください。'" @close="modalState = null" />
 
             <!-- End modal -->
-            <DrawModal v-if="modalState === 'end'" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
+            <DrawResultDialog v-if="modalState === 'end'" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
 
             <!-- Member winner modal -->
-            <DrawModal v-if="modalState === 'memberWinner'" title="当選者発表" :imageUrl="memberImageUrl" primaryLabel="Enter で続行" @close="modalState = null">
+            <DrawResultDialog v-if="modalState === 'memberWinner'" title="当選者発表" :imageUrl="memberImageUrl" primaryLabel="Enter で続行" @close="modalState = null">
                 当選者: <strong>{{ latestResult?.member }}</strong>
-            </DrawModal>
+            </DrawResultDialog>
 
             <!-- Prize winner modal -->
-            <DrawModal v-if="modalState === 'prizeWinner'" title="景品当選" :imageUrl="prizeImageUrl" primaryLabel="Enter で続行" @close="modalState = null">
+            <DrawResultDialog v-if="modalState === 'prizeWinner'" title="景品当選" :imageUrl="prizeImageUrl" primaryLabel="Enter で続行" @close="modalState = null">
                 当選景品: <strong>{{ latestResult?.prize }}</strong>
-            </DrawModal>
+            </DrawResultDialog>
 
             <div class="rich-layout">
                 <!-- Members row -->
@@ -80,7 +80,7 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT } from './member-draw-animation.vue';
 import RouletteAnimation from './roulette-animation.vue';
-import DrawModal from './draw-modal.vue';
+import DrawResultDialog from './draw-result-dialog.vue';
 import { delay, safeTry } from './draw-helpers';
 import { usePrizesAndMembers } from '../../composables/usePrizesAndMembers';
 import DrawAdapter from '../../../model/adapters/draw-adapter';
@@ -88,7 +88,7 @@ import { container } from 'tsyringe';
 
 export default {
     name: 'DrawOrchestratorPage',
-    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawModal },
+    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
     setup() {
     const { prizes, members, objectUrlMap, fetchPrizes, fetchMembers } = usePrizesAndMembers();
         const latestResult = ref<any | null>(null);
