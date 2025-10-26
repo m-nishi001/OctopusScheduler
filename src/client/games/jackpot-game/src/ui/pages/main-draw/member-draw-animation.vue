@@ -23,6 +23,16 @@ import { AssetDataService } from '../../../model/applications/asset/asset-data-s
 export const MEMBER_DRAW_REQUEST_COUNT = 10;
 export const MEMBER_DUMMY_DISPLAY_COUNT = 0;
 
+// Public ref interface for parent components that call methods on this component
+export type MemberAnimRef = {
+    startDraw?: (winnerId?: string | null) => void;
+    start?: (speed?: number) => void;
+    stopAt?: (id: string | null) => Promise<string | null>;
+    stopDraw?: () => Promise<string | null>;
+    runAutoReroll?: (opts?: { dummyId?: string | null; finalId?: string | null; dummyMs?: number }) => Promise<string | null>;
+    // activeIndex may be exposed as part of the public API in the future
+};
+
 export default {
     name: 'MemberDrawAnimation',
     props: {

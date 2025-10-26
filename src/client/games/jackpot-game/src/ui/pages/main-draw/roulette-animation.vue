@@ -54,6 +54,14 @@ export const PRIZE_DUMMY_DISPLAY_COUNT = 2;
 export const PRIZE_KAKUHEN_DUMMY_DURATION_MS = 2000;
 export const PRIZE_KAKUHEN_FINAL_DURATION_MS = 2000;
 
+// Public ref interface for parent components
+export type RouletteRef = {
+    runAutoReroll?: (opts?: { dummyPrizeId?: string | null; finalPrizeId?: string | null; dummyDuration?: number; finalDuration?: number; bgm1Url?: string | null; bgm2Url?: string | null }) => Promise<string | null>;
+    startSpin?: (bgmAssetUrl?: string | null) => void;
+    stopSpin?: (opts?: { targetIndex?: number | null; isFinal?: boolean }) => Promise<string | null>;
+    toggleSpin?: () => void;
+};
+
 export default {
     name: 'RouletteAnimation',
     props: {

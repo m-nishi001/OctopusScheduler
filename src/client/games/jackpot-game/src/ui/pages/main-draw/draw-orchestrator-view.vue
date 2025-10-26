@@ -78,8 +78,8 @@
 <script lang="ts">
 import { ref, reactive, toRefs, onMounted, onUnmounted, watch, computed } from 'vue';
 import MainLayout from '../common/main-layout.vue';
-import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT } from './member-draw-animation.vue';
-import RouletteAnimation from './roulette-animation.vue';
+import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT, type MemberAnimRef } from './member-draw-animation.vue';
+import RouletteAnimation, { type RouletteRef } from './roulette-animation.vue';
 import DrawResultDialog from './draw-result-dialog.vue';
 import { DrawService } from '../../../model/applications/draw/draw-service';
 import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
@@ -97,18 +97,6 @@ export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
     setup() {
-        interface MemberAnimRef {
-            startDraw?: (winnerId?: string | null) => void;
-            start?: () => void;
-            stopAt?: (id: string | null) => Promise<string | null>;
-            stopDraw?: () => Promise<string | null>;
-        }
-        interface RouletteRef {
-            runAutoReroll?: (opts: { dummyPrizeId?: string | null; finalPrizeId?: string | null; bgm1Url?: string | null; bgm2Url?: string | null }) => Promise<string | null>;
-            startSpin?: () => void;
-            stopSpin?: (opts: { targetIndex?: number | null; isFinal?: boolean }) => Promise<string | null>;
-        }
-
         // group most UI state into a single reactive object to reduce top-level refs
         const state = reactive({
             prizes: [] as PrizeDto[],
@@ -136,13 +124,7 @@ export default {
 
         const prizeRepo = container.resolve(PrizeRepository);
         const memberRepo = container.resolve(MemberRepository);
-        const assetService = (() => {
-            try {
-                return container.resolve(AssetDataService) as AssetDataService;
-            } catch (e) {
-                return null as AssetDataService | null;
-            }
-        })();
+        const assetService = container.resolve(AssetDataService);
 
         const fetchPrizes = async () => {
             state.prizes = await prizeRepo.getPrizes();
