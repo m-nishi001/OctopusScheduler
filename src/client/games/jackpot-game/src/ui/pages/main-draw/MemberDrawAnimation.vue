@@ -2,7 +2,8 @@
     <div class="member-draw">
         <div class="viewport" ref="viewport">
             <div class="track" ref="track">
-                <div v-for="(m, idx) in displayMembers" :key="m.id + '-' + idx" class="member-item">
+                <div v-for="(m, idx) in displayMembers" :key="m.id + '-' + idx"
+                    :class="['member-item', { active: idx === (activeIndex ?? -999), left1: idx === ((activeIndex ?? -999) - 1), right1: idx === ((activeIndex ?? -999) + 1) }]">
                     <img :src="memberImageMap.get(m.photoAssetId || '') || defaultAvatar" alt="member" />
                     <div class="name">{{ m.name }}</div>
                 </div>
@@ -65,6 +66,8 @@ export default {
             }
         };
 
+        const activeIndex = ref<number | null>(null);
+
         const start = (speed = 200) => {
             if (!track.value || !viewport.value) return;
             gsap.killTweensOf(track.value);
@@ -107,6 +110,8 @@ export default {
                     ease: 'power3.out',
                     onComplete: () => {
                         const id = displayMembers.value[idx]?.id ?? null;
+                        // mark active index (choose the same idx in the first half)
+                        activeIndex.value = idx;
                         // emit Vue event
                         emit('stopped', id);
                         resolve(id);
@@ -125,6 +130,7 @@ export default {
             start();
             await new Promise(r => setTimeout(r, 80));
             const final = await stopAt(finalId);
+            activeIndex.value = displayMembers.value.findIndex((m) => m.id === final);
             return final;
         };
 
@@ -158,7 +164,7 @@ export default {
             await loadImages();
         });
 
-        return { viewport, track, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll };
+        return { viewport, track, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex };
     }
 };
 </script>
@@ -184,19 +190,46 @@ export default {
     text-align: center;
     padding: 8px;
     box-sizing: border-box;
+    transition: transform 220ms ease, opacity 200ms ease;
+    opacity: 0.9;
 }
 
 .member-item img {
     width: 96px;
     height: 96px;
-    border-radius: 50%;
+    border-radius: 8px;
     object-fit: cover;
     display: block;
     margin: 0 auto 6px auto;
+    transition: transform 220ms ease, filter 220ms ease;
 }
 
 .member-item .name {
-    font-weight: bold;
-    color: #222;
+    font-weight: 700;
+    color: #fff;
+}
+
+/* Active center styling: larger center, medium neighbors */
+.member-item.active img {
+    transform: scale(1.8);
+}
+
+.member-item.left1 img,
+.member-item.right1 img {
+    transform: scale(1.08);
+}
+
+.member-item:not(.active):not(.left1):not(.right1) img {
+    transform: scale(0.8);
+    filter: saturate(0.6) brightness(0.9);
+}
+
+.member-item.active {
+    opacity: 1;
+}
+
+.member-item.left1,
+.member-item.right1 {
+    opacity: 0.95;
 }
 </style>
