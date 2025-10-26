@@ -16,6 +16,9 @@
             <DrawResultDialog v-if="showEndModal" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'"
                 @close="closeModal" />
 
+            <DrawResultDialog v-if="showHalfModal" title="残り半分です！" :message="'景品の残りが半分になりました。Enter を押すと続行します。'"
+                @close="closeModal" />
+
             <DrawResultDialog v-if="showPrizeWinnerModal" title="景品当選" :assetId="latestResult?.prize?.imageAssetId"
                 primaryLabel="Enter で続行" @close="closeModal">
                 当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
@@ -48,7 +51,7 @@
                     <div class="roulette-panel col-span-1 md:col-span-1 flex items-center justify-center"
                         v-if="currentPhase === 'prize'">
                         <RouletteAnimation ref="rouletteRef" :prizes="prizes" :selectedPrize="selectedPrize"
-                            :showResult="showPrizeResult" />
+                            :showResult="showPrizeResult" @stopped="onRouletteStopped" />
                     </div>
 
                     <div class="guide-panel col-span-1 md:col-span-1 bg-white/80 rounded p-4 shadow">
@@ -72,13 +75,14 @@ import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
 import RouletteAnimation, { type RouletteRef } from './roulette-animation.vue';
 import DrawResultDialog from './draw-result-dialog.vue';
-import { DrawService } from '../../../model/applications/draw/draw-service';
+import { DrawApplicationService } from '../../../model/applications/draw/draw-application-service';
 import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/member-repository';
 import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
 import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
 import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
 import { container } from 'tsyringe';
+import { usePrizeDrawOrchestrator } from './use-prize-draw-orchestrator';
 
 export default {
     name: 'DrawOrchestratorPage',
@@ -90,20 +94,24 @@ export default {
         const currentPhase = ref<'member' | 'prize' | 'idle'>('member');
         const showEndModal = ref(false);
         const showPrizeWinnerModal = ref(false);
+        const showHalfModal = ref(false);
 
         // サービス
         const prizeRepo = container.resolve(PrizeRepository);
         const memberRepo = container.resolve(MemberRepository);
-        const drawService = container.resolve(DrawService);
+        const drawService = container.resolve(DrawApplicationService);
 
         // アニメーション関連
         const memberAnimRef = ref<MemberAnimRef | null>(null);
         const rouletteRef = ref<RouletteRef | null>(null);
-        const selectedPrize = ref(null);
+        const selectedPrize = ref<PrizeDto | null>(null);
         const showPrizeResult = ref(false);
 
         // キーボードイベント
         const currentEnterAction = ref<(() => void) | null>(null);
+
+        // Composable
+        const { prizeStart } = usePrizeDrawOrchestrator(prizes, latestResult, rouletteRef, selectedPrize, showPrizeResult, showPrizeWinnerModal);
 
         // データ読み込み
         onMounted(async () => {
@@ -140,16 +148,6 @@ export default {
             }
         };
 
-        // 景品抽選開始
-        const prizeStart = async () => {
-            if (!latestResult.value) return;
-            const res = await drawService.executePrizeDraw({ memberId: latestResult.value!.member.id, requestCount: 8 });
-            if (res) {
-                latestResult.value.prize = prizes.value.find((p: PrizeDto) => p.id === res.winnerPrizeId) || null;
-                showPrizeWinnerModal.value = true;
-            }
-        };
-
         // メンバー停止（アニメーション制御）
         const memberStop = async () => {
             // 簡素化: アニメーションなしで即時完了
@@ -169,15 +167,28 @@ export default {
             selectedPrize.value = null;
         };
 
+        // ルーレット停止時
+        const onRouletteStopped = (prizeId: string | null) => {
+            if (prizeId && latestResult.value) {
+                latestResult.value.prize = prizes.value.find((p: PrizeDto) => p.id === prizeId) || null;
+                showPrizeWinnerModal.value = true;
+            }
+        };
+
         // モーダルクローズ
         const closeModal = async () => {
             if (showEndModal.value) {
                 emit('end-draw');
                 showEndModal.value = false;
+            } else if (showHalfModal.value) {
+                showHalfModal.value = false;
+                resetToMemberPhase();
             } else if (showPrizeWinnerModal.value) {
                 const count = await drawService.getLastPrizeCount();
                 if (count.remaining <= 0) {
                     showEndModal.value = true;
+                } else if (count.remaining <= count.total / 2 && !showHalfModal.value) {
+                    showHalfModal.value = true;
                 } else {
                     showPrizeWinnerModal.value = false;
                     resetToMemberPhase();
@@ -192,6 +203,7 @@ export default {
             currentPhase,
             showEndModal,
             showPrizeWinnerModal,
+            showHalfModal,
             memberAnimRef,
             rouletteRef,
             selectedPrize,
@@ -201,6 +213,7 @@ export default {
             prizeStart,
             prizeStop,
             closeModal,
+            onRouletteStopped,
         };
     }
 };
