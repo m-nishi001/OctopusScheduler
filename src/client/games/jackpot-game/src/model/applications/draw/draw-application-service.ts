@@ -89,25 +89,59 @@ export class DrawApplicationService {
     await this.prizeDrawStateRepository.saveState(currentState);
 
     if (currentState.kakuhenTimings.includes(currentState.drawCount)) {
-      // Kakuhen: return dummy ids for UI to perform re-draw
-      const trial = this.drawService.drawPrize({
-        prizes: prizes.map((p) => ({
-          id: p.id,
-          weight: p.probability,
-          rank: p.rank,
-        })),
-        memberRank,
-        requestDummyCount: Math.max(0, request.requestCount - 1),
-      });
-      return {
-        drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        winnerPrizeId: null,
-        dummyPrizeIds: trial.dummyPrizeIds,
-        isKakuhen: true,
-        reservedPrizeIds: currentState.reservedPrizeIds,
-      };
+      return this.executeKakuhenDraw(request, prizes, memberRank, currentState);
+    } else {
+      return this.executeNormalDraw(request, prizes, memberRank, currentState);
     }
+  }
 
+  private async executeKakuhenDraw(
+    request: DrawPrizeRequest,
+    prizes: any[],
+    memberRank: number,
+    currentState: PrizeDrawState
+  ): Promise<DrawPrizeResponse> {
+    // Kakuhen: assign reserved prize and return dummy ids
+    const prizeId = currentState.reservedPrizeIds.shift()!;
+    await this.prizeRepo.updatePrizes([
+      {
+        id: prizeId,
+        updateFn: (p) => ({ ...p, isAssigned: true, isReserved: false }),
+      },
+    ]);
+    this.associatePrizeWithMember(request.memberId, prizeId);
+
+    const trial = this.drawService.drawPrize({
+      prizes: prizes.map((p) => ({
+        id: p.id,
+        weight: p.probability,
+        rank: p.rank,
+      })),
+      memberRank,
+      requestDummyCount: Math.max(0, request.requestCount - 1),
+    });
+
+    currentState.remaining = (await this.prizeRepo.getPrizes()).filter(
+      (p) => !p.isAssigned
+    ).length;
+    await this.prizeDrawStateRepository.saveState(currentState);
+
+    return {
+      drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      winnerPrizeId: prizeId,
+      dummyWinnerPrizeId: trial.dummyPrizeIds[0] || null,
+      dummyPrizeIds: trial.dummyPrizeIds,
+      isKakuhen: true,
+      reservedPrizeIds: currentState.reservedPrizeIds,
+    };
+  }
+
+  private async executeNormalDraw(
+    request: DrawPrizeRequest,
+    prizes: any[],
+    memberRank: number,
+    currentState: PrizeDrawState
+  ): Promise<DrawPrizeResponse> {
     // Normal draw
     const domainPrizes = prizes.map((p) => ({
       id: p.id,
@@ -125,6 +159,7 @@ export class DrawApplicationService {
       return {
         drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         winnerPrizeId: null,
+        dummyWinnerPrizeId: pick.dummyPrizeIds[0] || null,
         dummyPrizeIds: pick.dummyPrizeIds,
       };
     }
@@ -143,6 +178,7 @@ export class DrawApplicationService {
     return {
       drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       winnerPrizeId: pick.winnerPrizeId,
+      dummyWinnerPrizeId: pick.dummyPrizeIds[0] || null,
       dummyPrizeIds: pick.dummyPrizeIds,
     };
   }
@@ -230,6 +266,7 @@ export class DrawApplicationService {
       return {
         drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         winnerPrizeId: null,
+        dummyWinnerPrizeId: null,
         dummyPrizeIds: [],
         isKakuhen: true,
         reservedPrizeIds: [],
@@ -251,6 +288,7 @@ export class DrawApplicationService {
     return {
       drawId: `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       winnerPrizeId: prizeId,
+      dummyWinnerPrizeId: null,
       dummyPrizeIds: [],
       isKakuhen: true,
       reservedPrizeIds: state.reservedPrizeIds,
