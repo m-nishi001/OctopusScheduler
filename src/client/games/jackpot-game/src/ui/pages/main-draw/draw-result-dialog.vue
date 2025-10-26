@@ -5,7 +5,9 @@
             <div v-if="imageUrl" class="mb-3">
                 <img :src="imageUrl" :alt="imageAlt || title" class="modal-image" />
             </div>
-            <p class="mb-4"><slot>{{ message }}</slot></p>
+            <p class="mb-4">
+                <slot>{{ message }}</slot>
+            </p>
             <div class="mt-2">
                 <button class="btn-primary" @click="close">{{ primaryLabel }}</button>
             </div>
@@ -40,6 +42,7 @@ export default defineComponent({
     padding: 8px 14px;
     border-radius: 6px;
 }
+
 .modal-image {
     max-width: 160px;
     max-height: 120px;

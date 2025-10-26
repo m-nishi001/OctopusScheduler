@@ -12,18 +12,22 @@
             </div>
 
             <!-- Half remaining modal -->
-            <DrawResultDialog v-if="modalState === 'half'" title="残り半分です！" :message="'残りの景品が半分になりました。続行するには Enter を押してください。'" @close="modalState = null" />
+            <DrawResultDialog v-if="modalState === 'half'" title="残り半分です！"
+                :message="'残りの景品が半分になりました。続行するには Enter を押してください。'" @close="modalState = null" />
 
             <!-- End modal -->
-            <DrawResultDialog v-if="modalState === 'end'" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
+            <DrawResultDialog v-if="modalState === 'end'" title="抽選は終了しました"
+                :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'" @close="modalState = null" />
 
             <!-- Member winner modal -->
-            <DrawResultDialog v-if="modalState === 'memberWinner'" title="当選者発表" :imageUrl="memberImageUrl" primaryLabel="Enter で続行" @close="modalState = null">
+            <DrawResultDialog v-if="modalState === 'memberWinner'" title="当選者発表" :imageUrl="memberImageUrl"
+                primaryLabel="Enter で続行" @close="modalState = null">
                 当選者: <strong>{{ latestResult?.member }}</strong>
             </DrawResultDialog>
 
             <!-- Prize winner modal -->
-            <DrawResultDialog v-if="modalState === 'prizeWinner'" title="景品当選" :imageUrl="prizeImageUrl" primaryLabel="Enter で続行" @close="modalState = null">
+            <DrawResultDialog v-if="modalState === 'prizeWinner'" title="景品当選" :imageUrl="prizeImageUrl"
+                primaryLabel="Enter で続行" @close="modalState = null">
                 当選景品: <strong>{{ latestResult?.prize }}</strong>
             </DrawResultDialog>
 
@@ -81,7 +85,6 @@ import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT } from './member-draw-animation.vue';
 import RouletteAnimation from './roulette-animation.vue';
 import DrawResultDialog from './draw-result-dialog.vue';
-import { delay, safeTry } from './draw-helpers';
 import { usePrizesAndMembers } from '../../composables/usePrizesAndMembers';
 import DrawAdapter from '../../../model/adapters/draw-adapter';
 import { container } from 'tsyringe';
@@ -90,19 +93,29 @@ export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
     setup() {
-    const { prizes, members, objectUrlMap, fetchPrizes, fetchMembers } = usePrizesAndMembers();
+        const { prizes, members, objectUrlMap, fetchPrizes, fetchMembers } = usePrizesAndMembers();
+        // Local helper functions (moved from separate file since they're only used in this component)
+        const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+        async function safeTry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+            try {
+                return await fn();
+            } catch (e) {
+                return fallback;
+            }
+        }
         const latestResult = ref<any | null>(null);
         const memberAnimRef = ref<any>(null);
         const rouletteRef = ref<any>(null);
         const selectedPrize = ref<any | null>(null);
-    const showPrizeResult = ref(false);
-    const isRunning = ref(false);
-    // unified modal state: null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'
-    const modalState = ref<null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'>(null);
-    const halfShown = ref(false);
+        const showPrizeResult = ref(false);
+        const isRunning = ref(false);
+        // unified modal state: null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'
+        const modalState = ref<null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'>(null);
+        const halfShown = ref(false);
         const totalPrizes = ref<number | null>(null);
         const currentPhase = ref<'member' | 'prize' | 'idle'>('member');
-    // (old booleans removed — use modalState)
+        // (old booleans removed — use modalState)
         const plannedPrizeRes = ref<any | null>(null);
         const plannedMemberRes = ref<any | null>(null);
 
