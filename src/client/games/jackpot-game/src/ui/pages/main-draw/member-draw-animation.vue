@@ -18,7 +18,6 @@ import gsap from 'gsap';
 import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import DrawAdapter from '../../../model/adapters/draw-adapter';
 
 // Per-animation defaults (hardcoded here per your request)
 export const MEMBER_DRAW_REQUEST_COUNT = 10;
@@ -71,8 +70,8 @@ export default {
         // planned winner id returned from remote draw call
         let plannedWinnerId: string | null = null;
 
-        // request-count default constant
-        const REQUEST_COUNT = MEMBER_DRAW_REQUEST_COUNT;
+        // (request-count constant removed — orchestration/draw requests should be
+        // handled outside this animation component)
 
         const start = (speed = 200) => {
             if (!track.value || !viewport.value) return;
@@ -127,13 +126,12 @@ export default {
         };
 
         // High-level: start the draw by requesting a planned winner then animating
-        const startDraw = async (opts?: { requestCount?: number }) => {
-            try {
-                const res = await DrawAdapter.executeMemberDraw({ requestCount: opts?.requestCount || REQUEST_COUNT });
-                plannedWinnerId = res?.winnerId || res?.winner || null;
-            } catch (e) {
-                plannedWinnerId = null;
-            }
+        // Start the animation with an externally-provided planned winner id.
+        // The actual draw logic (remote call / winner selection) must be done
+        // by an external orchestrator (e.g. draw-orchestrator-view.vue). This
+        // component only receives the planned id and performs the animation.
+        const startDraw = (winnerId?: string | null) => {
+            plannedWinnerId = winnerId ?? null;
             start();
             return plannedWinnerId;
         };

@@ -7,7 +7,10 @@
                     <p class="mt-1 text-sm text-gray-600">Enterで操作（開始 / 停止 / 続行）</p>
                 </div>
                 <div class="controls">
-                    <button @click="start" class="btn-primary">開始</button>
+                    <button @click="start" :disabled="!dataLoaded" class="btn-primary" :aria-disabled="!dataLoaded">
+                        <span v-if="!dataLoaded">読み込み中...</span>
+                        <span v-else>開始</span>
+                    </button>
                 </div>
             </div>
 
@@ -19,12 +22,12 @@
 
             <DrawResultDialog v-if="modalState === 'memberWinner'" title="当選者発表" :imageUrl="memberImageUrl"
                 primaryLabel="Enter で続行" @close="modalState = null">
-                当選者: <strong>{{ latestResult?.member }}</strong>
+                当選者: <strong>{{ latestResult?.member.name }}</strong>
             </DrawResultDialog>
 
             <DrawResultDialog v-if="modalState === 'prizeWinner'" title="景品当選" :imageUrl="prizeImageUrl"
                 primaryLabel="Enter で続行" @close="modalState = null">
-                当選景品: <strong>{{ latestResult?.prize }}</strong>
+                当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
             </DrawResultDialog>
 
             <div class="rich-layout">
@@ -45,8 +48,8 @@
                     <div class="result-panel col-span-1 md:col-span-1 bg-white/80 rounded p-4 shadow">
                         <h4 class="font-semibold mb-2">直近の当選</h4>
                         <div v-if="latestResult">
-                            <p class="text-sm">メンバー: <strong>{{ latestResult.member }}</strong></p>
-                            <p class="text-sm">景品: <strong>{{ latestResult.prize || '（未決定）' }}</strong></p>
+                            <p class="text-sm">メンバー: <strong>{{ latestResult.member.name }}</strong></p>
+                            <p class="text-sm">景品: <strong>{{ latestResult.prize?.name || '（未決定）' }}</strong></p>
                         </div>
                         <div v-else class="text-sm text-gray-500">まだ抽選が実行されていません。開始ボタン、または Enter を押してください。</div>
                     </div>
@@ -68,71 +71,107 @@
                 </section>
             </div>
 
-
         </div>
     </MainLayout>
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, reactive, toRefs, onMounted, onUnmounted, watch, computed } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { MEMBER_DRAW_REQUEST_COUNT } from './member-draw-animation.vue';
 import RouletteAnimation from './roulette-animation.vue';
 import DrawResultDialog from './draw-result-dialog.vue';
-import DrawAdapter from '../../../model/adapters/draw-adapter';
+import { DrawService } from '../../../model/applications/draw/draw-service';
 import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/member-repository';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
+import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
+import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
+import type { DrawMemberResponse } from '../../../model/applications/draw/dto/draw-member-response';
+import type { DrawPrizeResponse } from '../../../model/applications/draw/dto/draw-prize-response';
+import type { DrawResultDto } from '../../../model/applications/draw-result/dto/draw-result-dto';
+import type { Asset } from '../../../model/domains/drive-data/asset-data';
 import { container } from 'tsyringe';
 
 export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
     setup() {
-        const prizes = ref<any[]>([]);
-        const members = ref<any[]>([]);
-        const objectUrlMap = new Map<string, string>();
+        interface MemberAnimRef {
+            startDraw?: (winnerId?: string | null) => void;
+            start?: () => void;
+            stopAt?: (id: string | null) => Promise<string | null>;
+            stopDraw?: () => Promise<string | null>;
+        }
+        interface RouletteRef {
+            runAutoReroll?: (opts: { dummyPrizeId?: string | null; finalPrizeId?: string | null; bgm1Url?: string | null; bgm2Url?: string | null }) => Promise<string | null>;
+            startSpin?: () => void;
+            stopSpin?: (opts: { targetIndex?: number | null; isFinal?: boolean }) => Promise<string | null>;
+        }
+
+        // group most UI state into a single reactive object to reduce top-level refs
+        const state = reactive({
+            prizes: [] as PrizeDto[],
+            members: [] as MemberDto[],
+            // indicates whether initial data (prizes/members) has been loaded at least once
+            dataLoaded: false,
+            // latestResult uses the canonical DrawResultDto from model layer (or null when none)
+            latestResult: null as DrawResultDto | null,
+            selectedPrize: null as PrizeDto | null,
+            showPrizeResult: false,
+            isRunning: false,
+            modalState: null as null | 'half' | 'end' | 'memberWinner' | 'prizeWinner',
+            halfShown: false,
+            totalPrizes: null as number | null,
+            currentPhase: 'member' as 'member' | 'prize' | 'idle',
+            plannedPrizeRes: null as DrawPrizeResponse | null,
+            plannedMemberRes: null as DrawMemberResponse | null,
+            memberAnimating: false,
+            prizeAnimating: false,
+        });
+        // ephemeral object URLs for currently-open modals. We avoid global caching to
+        // reduce retained memory and state complexity.
+        const tempMemberUrl = ref<string | null>(null);
+        const tempPrizeUrl = ref<string | null>(null);
 
         const prizeRepo = container.resolve(PrizeRepository);
         const memberRepo = container.resolve(MemberRepository);
         const assetService = (() => {
             try {
-                return container.resolve(AssetDataService);
+                return container.resolve(AssetDataService) as AssetDataService;
             } catch (e) {
-                return null as any;
+                return null as AssetDataService | null;
             }
         })();
 
         const fetchPrizes = async () => {
-            prizes.value = await prizeRepo.getPrizes();
+            state.prizes = await prizeRepo.getPrizes();
         };
 
         const fetchMembers = async () => {
-            members.value = await memberRepo.getMembers();
-            if (!assetService) return;
-            for (const m of members.value) {
-                if (m.photoAssetId && !objectUrlMap.has(m.photoAssetId)) {
-                    try {
-                        const asset = await assetService.getAssetDataById(m.photoAssetId);
-                        if (asset && asset.blob) {
-                            objectUrlMap.set(m.photoAssetId, URL.createObjectURL(asset.blob));
-                        }
-                    } catch (e) {
-                        // ignore asset fetch errors
-                    }
+            state.members = await memberRepo.getMembers();
+        };
+
+        // Helper: fetch asset blob and create an ephemeral objectURL. Returns the
+        // created URL or null on failure. Caller is responsible for revoking when done.
+        const fetchObjectUrlOnce = async (assetId: string | null): Promise<string | null> => {
+            if (!assetService || !assetId) return null;
+            try {
+                const asset = await safeTry<Asset | null>(() => assetService.getAssetDataById(assetId), null);
+                if (asset && asset.blob) {
+                    return URL.createObjectURL(asset.blob);
                 }
+            } catch (e) {
+                // ignore asset fetch errors
             }
+            return null;
         };
 
         const cleanup = () => {
-            for (const url of objectUrlMap.values()) {
-                try {
-                    URL.revokeObjectURL(url);
-                } catch (e) {
-                    // ignore
-                }
-            }
-            objectUrlMap.clear();
+            try { if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value); } catch (e) { /* ignore */ }
+            try { if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value); } catch (e) { /* ignore */ }
+            tempMemberUrl.value = null;
+            tempPrizeUrl.value = null;
         };
 
         onUnmounted(() => cleanup());
@@ -145,62 +184,52 @@ export default {
                 return fallback;
             }
         }
-        const latestResult = ref<any | null>(null);
-        const memberAnimRef = ref<any>(null);
-        const rouletteRef = ref<any>(null);
-        const selectedPrize = ref<any | null>(null);
-        const showPrizeResult = ref(false);
-        const isRunning = ref(false);
-        const modalState = ref<null | 'half' | 'end' | 'memberWinner' | 'prizeWinner'>(null);
-        const halfShown = ref(false);
-        const totalPrizes = ref<number | null>(null);
-        const currentPhase = ref<'member' | 'prize' | 'idle'>('member');
-        const plannedPrizeRes = ref<any | null>(null);
-        const plannedMemberRes = ref<any | null>(null);
+        const memberAnimRef = ref<MemberAnimRef | null>(null);
+        const rouletteRef = ref<RouletteRef | null>(null);
 
-        const memberAnimating = ref(false);
-        const prizeAnimating = ref(false);
-
-        const memberImageUrl = computed(() => {
-            const id = latestResult.value?.memberId;
-            if (!id) return null;
-            const m = members.value.find((x: any) => x.id === id);
-            if (!m) return null;
-            if (m.photoAssetId) return objectUrlMap.get(m.photoAssetId) || null;
-            return m.photoUrl || m.imageDataUrl || null;
+        const memberImageUrl = computed<string | undefined>(() => {
+            const id = state.latestResult?.member?.id;
+            if (!id) return undefined;
+            const m = state.members.find((x: MemberDto) => x.id === id);
+            if (!m) return undefined;
+            // Prefer ephemeral object URL fetched from AssetDataService when photoAssetId is present.
+            if (m.photoAssetId) return tempMemberUrl.value ?? undefined;
+            return undefined;
         });
 
-        const prizeImageUrl = computed(() => {
-            const pid = latestResult.value?.prizeId;
-            if (!pid) return null;
-            const p = prizes.value.find((x: any) => x.id === pid);
-            if (!p) return null;
+        const prizeImageUrl = computed<string | undefined>(() => {
+            const pid = state.latestResult?.prize?.id;
+            if (!pid) return undefined;
+            const p = state.prizes.find((x: PrizeDto) => x.id === pid);
+            if (!p) return undefined;
+            // If prize already contains inline data URL use it; otherwise prefer ephemeral URL fetched from AssetDataService.
             if (p.imageDataUrl) return p.imageDataUrl;
-            if (p.imageAssetId) return objectUrlMap.get(p.imageAssetId) || null;
-            return p.imageUrl || null;
+            if (p.imageAssetId) return tempPrizeUrl.value ?? undefined;
+            return undefined;
         });
 
         onMounted(async () => {
-            await fetchPrizes();
-            await fetchMembers();
+            // attempt to fetch initial data; mark loaded when both attempts complete
+            await Promise.all([fetchPrizes(), fetchMembers()]);
+            state.dataLoaded = true;
 
             const handler = (ev: KeyboardEvent) => {
                 if (ev.key !== 'Enter') return;
-                if (currentPhase.value === 'member') {
-                    if (!memberAnimating.value) {
+                if (state.currentPhase === 'member') {
+                    if (!state.memberAnimating) {
                         void memberStart();
-                        memberAnimating.value = true;
+                        state.memberAnimating = true;
                     } else {
                         void memberStop();
-                        memberAnimating.value = false;
+                        state.memberAnimating = false;
                     }
-                } else if (currentPhase.value === 'prize') {
-                    if (!prizeAnimating.value) {
+                } else if (state.currentPhase === 'prize') {
+                    if (!state.prizeAnimating) {
                         void prizeStart();
-                        prizeAnimating.value = true;
+                        state.prizeAnimating = true;
                     } else {
                         void prizeStop();
-                        prizeAnimating.value = false;
+                        state.prizeAnimating = false;
                     }
                 }
             };
@@ -210,37 +239,70 @@ export default {
         });
 
         const start = async () => {
-            isRunning.value = true;
+            state.isRunning = true;
             try {
-                try {
-                    const svc = container.resolve<any>('DrawService');
-                    const count = await svc.getLastPrizeCount();
-                    totalPrizes.value = count.total;
-                } catch (e) {
-                    totalPrizes.value = prizes.value.length || null;
+                // ensure we have prizes and members before starting the draw; fetch on-demand if not present
+                if (!state.prizes || state.prizes.length === 0) {
+                    await fetchPrizes();
                 }
-                currentPhase.value = 'member';
+                if (!state.members || state.members.length === 0) {
+                    await fetchMembers();
+                }
+                state.dataLoaded = true;
+
+                try {
+                    const svc = container.resolve(DrawService) as DrawService;
+                    const count = await svc.getLastPrizeCount();
+                    state.totalPrizes = count.total;
+                } catch (e) {
+                    state.totalPrizes = state.prizes.length || null;
+                }
+                state.currentPhase = 'member';
             } catch (e) {
                 // ignore init errors
             }
         };
 
-        watch(currentPhase, async (now) => {
+        watch(() => state.currentPhase, async (now) => {
             if (now === 'member') {
-                plannedMemberRes.value = await safeTry(() => DrawAdapter.executeMemberDraw({ requestCount: MEMBER_DRAW_REQUEST_COUNT }), null);
-                try { if (memberAnimRef.value?.start) memberAnimRef.value.start(); } catch (e) { }
+                try {
+                    const svc = container.resolve(DrawService) as DrawService;
+                    state.plannedMemberRes = await svc.executeMemberDraw({ requestCount: MEMBER_DRAW_REQUEST_COUNT });
+                } catch (e) {
+                    state.plannedMemberRes = null;
+                }
+                // Start the member animation and pass the planned winner id to the
+                // animation component so it can animate toward that id. The
+                // animation component does not perform draw logic itself.
+                try {
+                    const winnerId = state.plannedMemberRes?.winnerId ?? null;
+                    if (memberAnimRef.value?.startDraw) {
+                        // startDraw accepts an optional winnerId
+                        memberAnimRef.value.startDraw(winnerId);
+                    } else if (memberAnimRef.value?.start) {
+                        memberAnimRef.value.start();
+                    }
+                } catch (e) { /* ignore animation errors */ }
             }
         });
 
         const memberStart = async () => {
-            if (!isRunning.value) await start();
-            plannedPrizeRes.value = null;
-            if (plannedMemberRes.value) {
-                if (memberAnimRef.value?.start) memberAnimRef.value.start();
-                return;
+            if (!state.isRunning) await start();
+            state.plannedPrizeRes = null;
+            // If we don't already have a planned member result, request it here
+            // (or rely on the watcher that may have already set plannedMemberRes).
+            if (!state.plannedMemberRes) {
+                try {
+                    const svc = container.resolve(DrawService) as DrawService;
+                    state.plannedMemberRes = await svc.executeMemberDraw({ requestCount: MEMBER_DRAW_REQUEST_COUNT });
+                } catch (e) {
+                    state.plannedMemberRes = null;
+                }
             }
+
+            const winnerId = state.plannedMemberRes?.winnerId ?? null;
             if (memberAnimRef.value?.startDraw) {
-                try { await memberAnimRef.value.startDraw(); } catch (e) { /* ignore */ }
+                try { memberAnimRef.value.startDraw(winnerId); } catch (e) { /* ignore */ }
             } else if (memberAnimRef.value?.start) {
                 memberAnimRef.value.start();
             }
@@ -248,8 +310,8 @@ export default {
 
         const memberStop = async () => {
             let stopped: string | null = null;
-            if (plannedMemberRes.value && memberAnimRef.value?.stopAt) {
-                const targetId = plannedMemberRes.value?.winnerId || plannedMemberRes.value?.winner || null;
+            if (state.plannedMemberRes && memberAnimRef.value?.stopAt) {
+                const targetId = state.plannedMemberRes?.winnerId ?? null;
                 try { stopped = await memberAnimRef.value.stopAt(targetId); } catch (e) { stopped = targetId; }
             } else if (memberAnimRef.value?.stopDraw) {
                 try { stopped = await memberAnimRef.value.stopDraw(); } catch (e) { stopped = null; }
@@ -259,35 +321,66 @@ export default {
                 stopped = null;
             }
 
-            latestResult.value = { memberId: stopped, member: members.value.find((m: any) => m.id === stopped)?.name || stopped, prize: '', prizeId: null };
-            plannedPrizeRes.value = await safeTry(() => DrawAdapter.executePrizeDraw({ memberId: stopped, requestCount: 8 }), null);
-            plannedMemberRes.value = null;
+            // create a DrawResultDto for the selected member (prize will be filled later)
+            const memberObj = state.members.find((m: MemberDto) => m.id === stopped) || { id: stopped || '', name: String(stopped || ''), photoAssetId: undefined, rank: 0 } as MemberDto;
+            state.latestResult = {
+                drawId: state.plannedMemberRes?.drawId || 'member-' + Date.now(),
+                member: memberObj,
+                prize: null,
+                rank: null,
+                order: 1,
+                isWinner: true,
+            };
+            try {
+                const svc = container.resolve(DrawService) as DrawService;
+                state.plannedPrizeRes = await svc.executePrizeDraw({ memberId: state.latestResult.member.id || '', requestCount: 8 });
+            } catch (e) {
+                state.plannedPrizeRes = null;
+            }
+            state.plannedMemberRes = null;
             // wait 1 second (spec: 1秒停止後に当選DLGを表示)
             await delay(1000);
-            modalState.value = 'memberWinner';
+            state.modalState = 'memberWinner';
         };
 
         const prizeStart = async () => {
-            if (!plannedPrizeRes.value) {
+            if (!state.plannedPrizeRes) {
                 // fallback: fetch now
-                plannedPrizeRes.value = await safeTry(() => DrawAdapter.executePrizeDraw({ memberId: latestResult.value?.member || null, requestCount: 8 }), null);
+                try {
+                    const svc = container.resolve(DrawService) as DrawService;
+                    state.plannedPrizeRes = await svc.executePrizeDraw({ memberId: state.latestResult?.member?.id || '', requestCount: 8 });
+                } catch (e) {
+                    state.plannedPrizeRes = null;
+                }
             }
-            const prizeRes = plannedPrizeRes.value;
+            const prizeRes = state.plannedPrizeRes;
             if (prizeRes && prizeRes.isKakuhen && rouletteRef.value?.runAutoReroll) {
                 const dummy = prizeRes.dummyPrizeIds && prizeRes.dummyPrizeIds[0];
                 const final = prizeRes.reservedPrizeIds && prizeRes.reservedPrizeIds[0];
                 try {
                     const prizeId = await rouletteRef.value.runAutoReroll({ dummyPrizeId: dummy, finalPrizeId: final, bgm1Url: null, bgm2Url: null });
-                    latestResult.value.prize = prizeId || final || null;
-                    latestResult.value.prizeId = prizeId || final || null;
+                    if (!state.latestResult) {
+                        const fallbackMember = state.members.find((m) => m.id === state.plannedMemberRes?.winnerId) || state.members[0] || ({ id: '', name: '', photoAssetId: undefined, rank: 0 } as MemberDto);
+                        state.latestResult = {
+                            drawId: state.plannedMemberRes?.drawId || 'prize-' + Date.now(),
+                            member: fallbackMember,
+                            prize: null,
+                            rank: null,
+                            order: 1,
+                            isWinner: true,
+                        };
+                    }
+                    // map prizeId -> PrizeDto
+                    const prizeObj = state.prizes.find((p) => p.id === (prizeId || final || '')) || null;
+                    state.latestResult.prize = prizeObj;
                     // wait 1 second before showing prize modal
                     await delay(1000);
-                    modalState.value = 'prizeWinner';
+                    state.modalState = 'prizeWinner';
                 } catch (e) { /* ignore */ }
             } else {
                 // normal: instruct roulette to spin toward selectedPrize when stopping
-                selectedPrize.value = prizes.value.find((p: any) => p.id === (prizeRes?.winnerPrizeId || prizeRes?.prizeId)) || null;
-                showPrizeResult.value = true;
+                state.selectedPrize = state.prizes.find((p: PrizeDto) => p.id === prizeRes?.winnerPrizeId) || null;
+                state.showPrizeResult = true;
                 if (rouletteRef.value?.startSpin) rouletteRef.value.startSpin();
             }
         };
@@ -295,46 +388,92 @@ export default {
         const prizeStop = async () => {
             let prizeId: string | null = null;
             if (rouletteRef.value?.stopSpin) {
-                const target = plannedPrizeRes.value?.winnerPrizeId || plannedPrizeRes.value?.prizeId || null;
-                const idx = target ? prizes.value.findIndex((p: any) => p.id === target) : null;
+                const target = state.plannedPrizeRes?.winnerPrizeId ?? null;
+                const idx = target ? state.prizes.findIndex((p: PrizeDto) => p.id === target) : null;
                 try { prizeId = await rouletteRef.value.stopSpin({ targetIndex: idx !== null && idx >= 0 ? idx : null, isFinal: true }); } catch (e) { prizeId = target; }
             } else {
-                prizeId = plannedPrizeRes.value?.winnerPrizeId || plannedPrizeRes.value?.prizeId || null;
+                prizeId = state.plannedPrizeRes?.winnerPrizeId ?? null;
             }
-            latestResult.value.prize = prizeId || plannedPrizeRes.value?.winnerPrizeId || null;
-            latestResult.value.prizeId = prizeId || plannedPrizeRes.value?.winnerPrizeId || null;
+            if (!state.latestResult) {
+                const fallbackMember = state.members.find((m) => m.id === state.plannedMemberRes?.winnerId) || state.members[0] || ({ id: '', name: '', photoAssetId: undefined, rank: 0 } as MemberDto);
+                state.latestResult = {
+                    drawId: state.plannedMemberRes?.drawId || 'prize-' + Date.now(),
+                    member: fallbackMember,
+                    prize: null,
+                    rank: null,
+                    order: 1,
+                    isWinner: true,
+                };
+            }
+            const prizeObj2 = state.prizes.find((p) => p.id === (prizeId || state.plannedPrizeRes?.winnerPrizeId || '')) || null;
+            state.latestResult.prize = prizeObj2;
             // wait 1 second then show prize modal; post-modal actions (remaining check and phase transition) are handled by watcher when modal closes
             await delay(1000);
-            modalState.value = 'prizeWinner';
+            state.modalState = 'prizeWinner';
         };
 
-        watch(modalState, async (now, prev) => {
+        watch(() => state.modalState, async (now, prev) => {
+            // On-demand: when a result modal opens, fetch the asset blob and create an objectURL
+            // so the image appears as soon as it's available. We don't await here to avoid
+            // blocking the modal show; image will appear once fetched.
+            try {
+                if (now === 'memberWinner') {
+                    const memberId = state.latestResult?.member?.id;
+                    const m = state.members.find((x: MemberDto) => x.id === memberId);
+                    const aid = m?.photoAssetId || null;
+                    if (aid) {
+                        // revoke previous ephemeral URL then fetch a new one
+                        try { if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value); } catch (e) { /* ignore */ }
+                        tempMemberUrl.value = null;
+                        void fetchObjectUrlOnce(aid).then((url) => { if (url) tempMemberUrl.value = url; });
+                    }
+                }
+                if (now === 'prizeWinner') {
+                    const pid = state.latestResult?.prize?.id;
+                    const p = state.prizes.find((x: PrizeDto) => x.id === pid);
+                    const aid = p?.imageAssetId || null;
+                    if (aid) {
+                        try { if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value); } catch (e) { /* ignore */ }
+                        tempPrizeUrl.value = null;
+                        void fetchObjectUrlOnce(aid).then((url) => { if (url) tempPrizeUrl.value = url; });
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+
             if (prev === 'memberWinner' && now === null) {
-                currentPhase.value = 'prize';
+                // revoke ephemeral member url when modal closes
+                try { if (tempMemberUrl.value) URL.revokeObjectURL(tempMemberUrl.value); } catch (e) { /* ignore */ }
+                tempMemberUrl.value = null;
+                state.currentPhase = 'prize';
                 return;
             }
             if (prev === 'prizeWinner' && now === null) {
+                // revoke ephemeral prize url when modal closes
+                try { if (tempPrizeUrl.value) URL.revokeObjectURL(tempPrizeUrl.value); } catch (e) { /* ignore */ }
+                tempPrizeUrl.value = null;
                 try {
-                    const svc = container.resolve<any>('DrawService');
+                    const svc = container.resolve(DrawService) as DrawService;
                     const cnt = await safeTry(() => svc.getLastPrizeCount(), { remaining: 0, total: 0 });
-                    if (cnt.remaining <= 0) {
-                        modalState.value = 'end';
-                    } else if (!halfShown.value && totalPrizes.value && cnt.remaining <= Math.floor(totalPrizes.value / 2)) {
-                        modalState.value = 'half';
-                        halfShown.value = true;
+                    if ((cnt.remaining ?? 0) <= 0) {
+                        state.modalState = 'end';
+                    } else if (!state.halfShown && state.totalPrizes && (cnt.remaining ?? 0) <= Math.floor(state.totalPrizes / 2)) {
+                        state.modalState = 'half';
+                        state.halfShown = true;
                     }
                 } catch (e) { /* ignore */ }
 
                 // after handling, go back to member phase
-                currentPhase.value = 'member';
+                state.currentPhase = 'member';
                 // clear visual selection
-                showPrizeResult.value = false;
-                selectedPrize.value = null;
-                plannedPrizeRes.value = null;
+                state.showPrizeResult = false;
+                state.selectedPrize = null;
+                state.plannedPrizeRes = null;
             }
         });
 
-        return { prizes, members, latestResult, start, memberAnimRef, rouletteRef, selectedPrize, showPrizeResult, modalState, halfShown, currentPhase, memberStart, memberStop, prizeStart, prizeStop, plannedPrizeRes, memberImageUrl, prizeImageUrl };
+        return { ...toRefs(state), memberAnimRef, rouletteRef, start, memberStart, memberStop, prizeStart, prizeStop, memberImageUrl, prizeImageUrl };
     }
 };
 </script>
