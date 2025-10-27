@@ -15,7 +15,8 @@
     "baseUrl": ".",
     "paths": {
       "@octopus/server-common": ["../../../server/common/src"],
-      "@octopus/server-common/*": ["../../../server/common/src/*"]
+      "@octopus/server-common/*": ["../../../server/common/src/*"],
+      "@shared-composables/*": ["../../packages/shared-composables/src/*"]
     }
   },
   "include": [

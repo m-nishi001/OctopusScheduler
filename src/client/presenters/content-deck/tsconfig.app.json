@@ -16,6 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "@common-lib/*": ["../packages/common-lib/src/*"],
+      "@shared-composables/*": ["../packages/shared-composables/src/*"],
       "common-lib": ["../packages/common-lib/src"],
       "common-lib/*": ["../packages/common-lib/src/*"],
       "@octopus/server-common": ["../../../server/common/src"],

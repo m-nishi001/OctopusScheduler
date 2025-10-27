@@ -18,6 +18,7 @@
       "ui/*": ["src/ui/*"],
       "core/*": ["src/core/*"],
       "@model/*": ["../games/jackpot-game/src/model/*"],
+      "@shared-composables/*": ["../packages/shared-composables/src/*"],
       "domains/*": ["../games/jackpot-game/src/model/domains/*"],
       "applications/*": ["../games/jackpot-game/src/model/applications/*"],
       "components/*": ["../games/jackpot-game/src/ui/components/*"],

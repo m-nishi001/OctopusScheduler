@@ -23,6 +23,10 @@ export default defineConfig({
     alias: {
       "@server": resolve(__dirname, "../server"),
       "@model": resolve(__dirname, "src/model"),
+      "@shared-composables": resolve(
+        __dirname,
+        "../../packages/shared-composables/src"
+      ),
       // allow imports like "pages/home/home.vue" to resolve to src/ui/pages
       pages: resolve(__dirname, "src/ui/pages"),
       components: resolve(__dirname, "src/ui/components"),

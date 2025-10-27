@@ -16,6 +16,7 @@
     "paths": {
       "@server": ["../../../../server"],
       "@model/*": ["src/model/*"],
+      "@shared-composables/*": ["../../packages/shared-composables/src/*"],
       "pages/*": ["src/ui/pages/*"],
       "pages": ["src/ui/pages"],
       "domains/*": ["src/model/domains/*"],

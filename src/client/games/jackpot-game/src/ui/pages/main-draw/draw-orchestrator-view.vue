@@ -88,7 +88,9 @@ import type { MemberDto } from '../../../model/applications/member/dto/member-dt
 import type { DrawResultDto } from '../../../model/applications/draw/dto/draw-result-dto';
 import { container } from 'tsyringe';
 import { usePrizeDrawOrchestrator } from './use-prize-draw-orchestrator';
-import { useBgm } from '../../composables/useBgm';
+import { useAudio } from '@shared-composables/use-audio';
+import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
+import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
 
 export default {
     name: 'DrawOrchestratorPage',
@@ -119,7 +121,13 @@ export default {
 
         // Composable
         const { prizeStart } = usePrizeDrawOrchestrator(prizes, latestResult, rouletteRef, selectedPrize, showPrizeResult, showPrizeWinnerModal);
-        const { playRandomMemberBgm, stopBgm } = useBgm();
+        const assetService = container.resolve(AssetDataService);
+        const screenSettingsService = container.resolve(ScreenSettingsService);
+        const { playRandomMemberBgm, stop: stopBgm } = useAudio({
+            bgmMode: "random-member",
+            assetService,
+            screenSettingsService,
+        });
 
         // データ読み込み
         onMounted(async () => {
