@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import type { DrawResultDto } from "../applications/draw/dto/draw-result-dto";
-import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
+import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
 import type { IDrawResultRepository } from "../domains/draw/repository/i-draw-result-repository";
 
 @injectable()

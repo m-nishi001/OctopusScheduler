@@ -23,15 +23,15 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
 import { container } from 'tsyringe';
-import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
-import { MemberRepository } from '../../../model/infrastructures/member-repository';
-import { DrawService } from '../../../model/domains/draw/draw-service';
-import { DrawResultService } from '../../../model/applications/draw/draw-result-service';
-import { toDrawResultDto } from '../../../model/applications/draw/dto/draw-result-dto';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { DemoScreenSetting } from '../../../model/domains/screen-config/demo-screen-setting';
+import { PrizeRepository } from '@model/infrastructures/prize-repository';
+import { MemberRepository } from '@model/infrastructures/member-repository';
+import { DrawService } from '@model/domains/draw/draw-service';
+import { DrawResultService } from '@model/applications/draw/draw-result-service';
+import { toDrawResultDto } from '@model/applications/draw/dto/draw-result-dto';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { DemoScreenSetting } from '@model/domains/screen-config/demo-screen-setting';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },

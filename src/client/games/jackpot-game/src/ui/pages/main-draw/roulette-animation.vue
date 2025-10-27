@@ -45,7 +45,7 @@
 import { ref, onMounted, watch } from 'vue';
 import * as THREE from 'three';
 import gsap from 'gsap';
-import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
+import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 
 // Per-animation defaults (hardcoded here per your request)
 export const PRIZE_DRAW_REQUEST_COUNT = 8;

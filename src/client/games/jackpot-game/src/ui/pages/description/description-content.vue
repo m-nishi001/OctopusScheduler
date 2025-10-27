@@ -55,10 +55,10 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import type { ScreenElement } from '../../../model/domains/screen-config/description-screen-setting';
-import { DescriptionScreenSetting } from '../../../model/domains/screen-config/description-screen-setting';
-import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
+import type { ScreenElement } from '@model/domains/screen-config/description-screen-setting';
+import { DescriptionScreenSetting } from '@model/domains/screen-config/description-screen-setting';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',

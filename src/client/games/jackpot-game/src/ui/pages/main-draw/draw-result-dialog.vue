@@ -18,7 +18,7 @@
 <script lang="ts">
 import { defineComponent, ref, watch, onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
 
 export default defineComponent({
     name: 'DrawResultDialog',

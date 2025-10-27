@@ -89,7 +89,7 @@
                 <div v-if="editImageMode === 'upload'" class="image-file-input-wrap">
                   <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
                   <span v-if="editImageFilename" class="file-name" style="margin-left:8px">{{ editImageFilename
-                    }}</span>
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -335,13 +335,13 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import type { Asset } from "../../../model/domains/drive-data/asset-data";
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { PrizeService } from '../../../model/applications/prize/prize-service';
-import type { IPrizeRepository } from '../../../model/domains/prize/repository/i-prize-repository';
+import type { Asset } from "@model/domains/drive-data/asset-data";
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { PrizeService } from '@model/applications/prize/prize-service';
+import type { IPrizeRepository } from '@model/domains/prize/repository/i-prize-repository';
 
 import { container } from 'tsyringe';
-import { IPrizeRepositoryToken } from '../../../model/domains/prize/repository/i-prize-repository';
+import { IPrizeRepositoryToken } from '@model/domains/prize/repository/i-prize-repository';
 const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
 const prizeService = container.resolve(PrizeService);
@@ -576,7 +576,7 @@ const savePrizesToLocalJson = async () => {
 const uploadPrizesJsonToDrive = async () => {
   try {
     const json = localStorage.getItem(PRIZE_STORAGE_KEY) || JSON.stringify(prizes.value || []);
-    const service = new (await import('/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service')).GasFunctionService('addJson');
+    const service = new (await import('packages/common-lib/google-apps-script/gas-script-service')).GasFunctionService('addJson');
     const driveJson = {
       metadata: {
         driveDataId: 'prizes-json-' + Date.now(),
@@ -608,7 +608,7 @@ const downloadPrizesJsonFromDrive = async () => {
       console.warn('No last uploaded prizes file id saved');
       return;
     }
-    const GasFn = (await import('/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service')).GasFunctionService;
+    const GasFn = (await import('packages/common-lib/google-apps-script/gas-script-service')).GasFunctionService;
     const service = new GasFn('getJson');
     const resp = await service.call<{ json: string } | null>(lastId);
     if (resp && resp.json) {

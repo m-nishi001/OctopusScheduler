@@ -46,8 +46,8 @@
                 </div>
 
                 <div class="config-item">
-                    <label>グローバル BGM ボリューム (0-1)</label>
-                    <input type="number" step="0.1" v-model.number="localConfig.globalBgmVolume" min="0" max="1"
+                    <label>グローバル BGM ボリューム (0-100)</label>
+                    <input type="number" step="1" v-model.number="localConfig.globalBgmVolume" min="0" max="100"
                         class="admin-input" />
                 </div>
 
@@ -97,10 +97,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
-import { ScreenConfigService } from '../../../../model/applications/screen-config/screen-config-service';
-import TestDialog from '../../../components/test-dialog.vue';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { ScreenConfigService } from '@model/applications/screen-config/screen-config-service';
+import TestDialog from 'components/test-dialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -142,7 +142,7 @@ const localConfig = ref({
     memberDrawRequestCount: 10,
     kakuhenMode: 'random' as 'random' | 'fixed',
     kakuhenFixedTimings: [] as number[],
-    globalBgmVolume: 1,
+    globalBgmVolume: 50,
 });
 
 const loadConfig = async () => {
@@ -153,7 +153,7 @@ const loadConfig = async () => {
             localConfig.value.memberDrawRequestCount = (cfg as any).memberDrawRequestCount || 10;
             localConfig.value.kakuhenMode = (cfg as any).kakuhenMode || 'random';
             localConfig.value.kakuhenFixedTimings = (cfg as any).kakuhenFixedTimings || [];
-            localConfig.value.globalBgmVolume = typeof (cfg as any).globalBgmVolume === 'number' ? (cfg as any).globalBgmVolume : 1;
+            localConfig.value.globalBgmVolume = typeof (cfg as any).globalBgmVolume === 'number' ? (cfg as any).globalBgmVolume : 50;
         }
     } catch (error) {
         console.error('Failed to load main config:', error);

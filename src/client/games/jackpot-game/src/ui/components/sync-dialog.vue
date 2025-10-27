@@ -59,7 +59,7 @@ async function syncMembers() {
             return;
         }
 
-        const mod = await import('/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts');
+        const mod = await import('packages/common-lib/google-apps-script/gas-script-service');
         const GasFn = mod.GasFunctionService;
         const service = new GasFn('getJson');
         const resp = await service.call<any>(lastId);
@@ -96,7 +96,7 @@ async function syncPrizes() {
             updateDomain(id, { message: 'Drive 上の景品ファイルが見つかりません', progress: 100 });
             return;
         }
-        const mod = await import('/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service');
+        const mod = await import('packages/common-lib/google-apps-script/gas-script-service');
         const GasFn = mod.GasFunctionService;
         const service = new GasFn('getJson');
         const resp = await service.call<any>(lastId);

@@ -24,9 +24,9 @@ import ThreeHero from '../../shared/graphics/three-hero.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
-import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { HomeScreenSetting } from '../../../model/domains/screen-config/home-screen-setting';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { HomeScreenSetting } from '@model/domains/screen-config/home-screen-setting';
 
 export default {
   name: 'Home',
@@ -146,7 +146,7 @@ export default {
         bgmAudio.value = null;
       }
       window.removeEventListener('keydown', handleKey);
-// set global fullscreen class so body/html have no margin and no scrollbars for this view
+      // set global fullscreen class so body/html have no margin and no scrollbars for this view
       document.documentElement.classList.add('jackpot-fullscreen');
       document.body.classList.add('jackpot-fullscreen');
 

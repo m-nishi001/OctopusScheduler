@@ -1,8 +1,8 @@
 import type { Ref } from "vue";
-import { DrawApplicationService } from "../../../model/applications/draw/draw-application-service";
-import { AssetDataService } from "../../../model/applications/asset/asset-data-service";
-import type { PrizeDto } from "../../../model/applications/prize/dto/prize-dto";
-import type { DrawResultDto } from "../../../model/applications/draw/dto/draw-result-dto";
+import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
+import { AssetDataService } from "@model/applications/asset/asset-data-service";
+import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
+import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
 import { container } from "tsyringe";
 
 export function usePrizeDrawOrchestrator(

@@ -21,8 +21,15 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@server": resolve(__dirname, "../../../../server"),
+      "@server": resolve(__dirname, "../server"),
       "@model": resolve(__dirname, "src/model"),
+      // allow imports like "pages/home/home.vue" to resolve to src/ui/pages
+      pages: resolve(__dirname, "src/ui/pages"),
+      components: resolve(__dirname, "src/ui/components"),
+      "packages/common-lib": resolve(
+        __dirname,
+        "../../packages/common-lib/src"
+      ),
     },
   },
 });

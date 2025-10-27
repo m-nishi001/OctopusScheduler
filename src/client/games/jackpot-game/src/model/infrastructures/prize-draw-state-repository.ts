@@ -1,4 +1,4 @@
-import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
+import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
 
 export interface PrizeDrawState {
   total: number;

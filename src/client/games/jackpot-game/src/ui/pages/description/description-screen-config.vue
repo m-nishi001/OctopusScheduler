@@ -13,9 +13,9 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { DescriptionScreenSetting } from '../../../model/domains/screen-config/description-screen-setting';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { DescriptionScreenSetting } from '@model/domains/screen-config/description-screen-setting';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',

@@ -106,9 +106,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
-import type { Asset } from "../../../../model/domains/drive-data/asset-data";
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import type { Asset } from "@model/domains/drive-data/asset-data";
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);

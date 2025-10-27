@@ -11,9 +11,9 @@ import MainLayout from '../common/main-layout.vue';
 import OpeningSequence from './opening-sequence.vue';
 import OpeningHtml from './opening-html.vue';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { OpeningScreenSetting } from '../../../model/domains/screen-config/opening-screen-setting';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { OpeningScreenSetting } from '@model/domains/screen-config/opening-screen-setting';
 
 export default {
   name: 'OpeningView',

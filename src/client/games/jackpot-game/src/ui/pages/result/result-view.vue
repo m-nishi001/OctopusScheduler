@@ -21,13 +21,13 @@
 
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { DrawResultService } from '../../../model/applications/draw/draw-result-service';
+import { DrawResultService } from '@model/applications/draw/draw-result-service';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { ResultScreenSetting } from '../../../model/domains/screen-config/result-screen-setting';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { ResultScreenSetting } from '@model/domains/screen-config/result-screen-setting';
 
 export default {
   name: 'ResultView',

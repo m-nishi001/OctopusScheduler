@@ -8,7 +8,7 @@ import DescriptionView from "../../ui/pages/description/description-view.vue";
 import DemoDraw from "../../ui/pages/demo/demo-draw.vue";
 // main-draw and draw-view were consolidated into DrawOrchestrator (draw-orchestrator-page.vue)
 // import alias kept as DrawOrchestrator and used for both routes below
-// import MainDraw from "../../ui/pages/main-draw/main-draw.vue";
+// import MainDraw from "pages/main-draw/main-draw.vue";
 import AdminLayout from "../../ui/pages/admin/frames/admin-view.vue";
 import AdminMembers from "../../ui/pages/admin/admin-members.vue";
 import AdminPrizes from "../../ui/pages/admin/admin-prizes.vue";

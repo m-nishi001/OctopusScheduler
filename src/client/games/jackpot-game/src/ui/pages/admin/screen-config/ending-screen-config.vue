@@ -16,7 +16,7 @@
         </div>
         <div class="config-item">
             <label>コンテンツ:</label>
-            
+
             <div class="toolbar">
                 <button class="admin-btn icon-only add-icon" @click="showAddDialog" title="追加">
                     <span class="emoji">➕</span>
@@ -52,7 +52,7 @@
                 </li>
             </ul>
 
-            
+
         </div>
     </div>
 
@@ -71,7 +71,7 @@
             <div class="spinner"></div>
         </div>
     </div>
-    
+
     <div v-if="dialogVisible" class="modal-overlay">
         <div class="modal-content dialog-modal">
             <h3>{{ editingIndex === -1 ? 'コンテンツを追加' : 'コンテンツを編集' }}</h3>
@@ -139,10 +139,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
-import type { OpeningContent } from '../../../../model/domains/screen-config/opening-screen-setting';
-import type { Asset } from "../../../../model/domains/drive-data/asset-data";
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import type { OpeningContent } from '@model/domains/screen-config/opening-screen-setting';
+import type { Asset } from "@model/domains/drive-data/asset-data";
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
         try {
             URL.revokeObjectURL(url);
         } catch (e) {
-            
+
         }
     }
     assetUrlMap.clear();
@@ -386,7 +386,6 @@ const handleSaveClick = async () => {
 </script>
 
 <style scoped>
-
 .screen-config {
     margin-bottom: 24px;
 }
@@ -649,13 +648,13 @@ const handleSaveClick = async () => {
 
 
 .modal-content.dialog-modal {
-    
+
     width: min(720px, 92%);
     max-width: 92%;
-    
+
     padding: 32px 28px;
     text-align: left;
-    
+
 }
 
 .dialog-modal label {

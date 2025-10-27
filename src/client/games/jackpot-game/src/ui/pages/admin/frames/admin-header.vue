@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import SyncDialog from '../../../components/sync-dialog.vue';
+import SyncDialog from 'components/sync-dialog.vue';
 
 const showSync = ref(false);
 

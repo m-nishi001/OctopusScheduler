@@ -1,13 +1,13 @@
 import { ref, computed, onMounted } from "vue";
-import { ScreenSettingsService } from "../../../../model/applications/screen-config/screen-settings-service";
-import type { Asset } from "../../../../model/domains/drive-data/asset-data";
-import { AssetDataService } from "../../../../model/applications/asset/asset-data-service";
 import { container } from "tsyringe";
 
-import type { IMemberRepository } from "../../../../model/domains/member/repository/i-member-repository";
-import { IMemberRepositoryToken } from "../../../../model/domains/member/repository/i-member-repository";
-import type { IPrizeRepository } from "../../../../model/domains/prize/repository/i-prize-repository";
-import { IPrizeRepositoryToken } from "../../../../model/domains/prize/repository/i-prize-repository";
+import { ScreenSettingsService } from "@model/applications/screen-config/screen-settings-service";
+import type { Asset } from "@model/domains/drive-data/asset-data";
+import { AssetDataService } from "@model/applications/asset/asset-data-service";
+import type { IMemberRepository } from "@model/domains/member/repository/i-member-repository";
+import { IMemberRepositoryToken } from "@model/domains/member/repository/i-member-repository";
+import type { IPrizeRepository } from "@model/domains/prize/repository/i-prize-repository";
+import { IPrizeRepositoryToken } from "@model/domains/prize/repository/i-prize-repository";
 
 export function useScreenSettingData() {
   const assetService = container.resolve(AssetDataService);

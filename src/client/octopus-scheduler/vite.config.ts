@@ -15,6 +15,9 @@ export default defineConfig({
       ui: resolve(__dirname, "src/ui"),
       core: resolve(__dirname, "src/core"),
       "@model": resolve(__dirname, "../games/jackpot-game/src/model"),
+      components: resolve(__dirname, "../games/jackpot-game/src/ui/components"),
+      pages: resolve(__dirname, "../games/jackpot-game/src/ui/pages"),
+      "packages/common-lib": resolve(__dirname, "../packages/common-lib/src"),
     },
   },
 });

@@ -18,6 +18,12 @@
       "ui/*": ["src/ui/*"],
       "core/*": ["src/core/*"],
       "@model/*": ["../games/jackpot-game/src/model/*"],
+      "domains/*": ["../games/jackpot-game/src/model/domains/*"],
+      "applications/*": ["../games/jackpot-game/src/model/applications/*"],
+      "components/*": ["../games/jackpot-game/src/ui/components/*"],
+      "components": ["../games/jackpot-game/src/ui/components"],
+      "packages/common-lib/*": ["../packages/common-lib/src/*"],
+      "server/*": ["../../server/*"],
       "@octopus/server-common": ["../../server/common/src"],
       "@octopus/server-common/*": ["../../server/common/src/*"]
     },

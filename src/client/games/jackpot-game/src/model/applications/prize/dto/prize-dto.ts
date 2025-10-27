@@ -1,4 +1,4 @@
-import type { Prize } from "../../../domains/prize/prize";
+import type { Prize } from "domains/prize/prize";
 
 export interface PrizeDto {
   id: string;

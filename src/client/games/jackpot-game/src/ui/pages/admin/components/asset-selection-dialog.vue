@@ -9,7 +9,7 @@
                 </label>
             </div>
             <div class="asset-actions">
-                
+
                 <input type="file" accept="audio/*" ref="fileInput" @change="onUpload" />
                 <div class="btn-row">
                     <button class="admin-btn" @click="chooseFromExplorer">エクスプローラーから選択</button>
@@ -25,8 +25,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
-import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
-import type { Asset } from '../../../../model/domains/drive-data/asset-data';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import type { Asset } from '@model/domains/drive-data/asset-data';
 
 defineProps<{ modelValue?: boolean }>();
 const emit = defineEmits(['close', 'selected']);

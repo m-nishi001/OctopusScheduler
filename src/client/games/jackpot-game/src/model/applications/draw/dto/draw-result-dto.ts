@@ -4,7 +4,7 @@ import { toMember } from "../../member/dto/member-dto";
 import { toPrize } from "../../prize/dto/prize-dto";
 import { fromMember } from "../../member/dto/member-dto";
 import { fromPrize } from "../../prize/dto/prize-dto";
-import type { DrawResult } from "../../../domains/draw/draw-result";
+import type { DrawResult } from "domains/draw/draw-result";
 
 export interface DrawResultDto {
   drawId: string;

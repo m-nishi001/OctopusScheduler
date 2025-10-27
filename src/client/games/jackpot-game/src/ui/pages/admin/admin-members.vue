@@ -58,7 +58,7 @@
 
         </div>
 
-        
+
         <div class="add-form-column">
           <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
           <p v-if="modalMode === 'add'">左のリストからメンバーを選択して内容を編集できます。新しいメンバーは＋で追加。</p>
@@ -244,16 +244,16 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
-import type { IMemberRepository } from '../../../model/domains/member/repository/i-member-repository';
-import type { Asset } from '../../../model/domains/drive-data/asset-data';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { MemberService } from '../../../model/applications/member/member-service';
-import type { MemberDto } from "../../../model/applications/member/dto/member-dto";
+import type { IMemberRepository } from '@model/domains/member/repository/i-member-repository';
+import type { Asset } from '@model/domains/drive-data/asset-data';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { MemberService } from '@model/applications/member/member-service';
+import type { MemberDto } from "@model/applications/member/dto/member-dto";
 
 import { container } from 'tsyringe';
-import { IMemberRepositoryToken } from '../../../model/domains/member/repository/i-member-repository';
+import { IMemberRepositoryToken } from '@model/domains/member/repository/i-member-repository';
 import AssetSelectionDialog from './components/asset-selection-dialog.vue';
-import { GasFunctionService } from '/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-script-service.ts';
+import { GasFunctionService } from 'packages/common-lib/google-apps-script/gas-script-service';
 const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
 const memberService = container.resolve(MemberService);
@@ -554,7 +554,7 @@ const addMember = async () => {
         if (asset && asset.blob) {
           try { objectUrlMap.set(newMember.photoAssetId, URL.createObjectURL(asset.blob)); } catch { }
         }
-      } catch (e) {  }
+      } catch (e) { }
     }
     members.value.push(addedMember);
     await saveMembersToLocalJson();
@@ -665,7 +665,7 @@ const bulkSaveMembers = async () => {
           if (asset && asset.blob) {
             try { objectUrlMap.set(photoId, URL.createObjectURL(asset.blob)); } catch { }
           }
-        } catch (e) {  }
+        } catch (e) { }
       }
       members.value.push(saved);
     }
@@ -1051,7 +1051,7 @@ watch(modalPhotoMode, () => {
 }
 
 .sync-icon {
-  
+
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
   color: #dbeeff;
@@ -1119,9 +1119,9 @@ watch(modalPhotoMode, () => {
 
 .modal-overlay {
   -ms-overflow-style: none;
-  
+
   scrollbar-width: none;
-  
+
 }
 
 .modal-overlay::-webkit-scrollbar {
@@ -1146,7 +1146,7 @@ watch(modalPhotoMode, () => {
   max-width: none;
   flex: 0 0 70vw;
   margin: 0 auto;
-  
+
   height: 60vh;
   display: flex;
   flex-direction: column;
@@ -1154,30 +1154,30 @@ watch(modalPhotoMode, () => {
 
 .add-modal-grid {
   display: grid;
-  
+
   grid-template-columns: 260px 1fr;
   gap: 18px;
   align-items: stretch;
-  
+
   margin-top: 12px;
   width: 100%;
-  
+
   flex: 1 1 auto;
   min-height: 0;
-  
+
 }
 
 
 .add-form-column {
-  
+
   overflow: auto;
   min-height: 0;
-  
+
   scrollbar-gutter: stable both-edges;
   --scrollbar-reserve: 16px;
   padding-right: var(--scrollbar-reserve);
   box-sizing: border-box;
-  
+
   scrollbar-width: thin;
   -ms-overflow-style: auto;
 }
@@ -1196,9 +1196,9 @@ watch(modalPhotoMode, () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  
+
   min-height: 0;
-  
+
   height: 100%;
 }
 
@@ -1211,25 +1211,25 @@ watch(modalPhotoMode, () => {
 }
 
 .buffer-list {
-  
+
   flex: 1 1 auto;
   min-height: 0;
 }
 
 .buffer-list {
-  
+
   flex: 1 1 auto;
 }
 
 .buffer-actions {
-  
+
   margin-top: auto;
   display: flex;
   gap: 8px;
 }
 
 .buffer-list {
-  
+
   flex: 1 1 auto;
 }
 
@@ -1317,9 +1317,9 @@ watch(modalPhotoMode, () => {
   display: flex;
   justify-content: flex-end;
   margin-top: 18px;
-  
+
   flex: 0 0 auto;
-  
+
   z-index: 2;
 }
 

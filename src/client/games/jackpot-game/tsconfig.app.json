@@ -15,7 +15,15 @@
     "baseUrl": ".",
     "paths": {
       "@server": ["../../../../server"],
-      "@model/*": ["src/model/*"]
+      "@model/*": ["src/model/*"],
+      "pages/*": ["src/ui/pages/*"],
+      "pages": ["src/ui/pages"],
+      "domains/*": ["src/model/domains/*"],
+      "applications/*": ["src/model/applications/*"],
+      "components/*": ["src/ui/components/*"],
+      "components": ["src/ui/components"],
+      "packages/common-lib/*": ["../../packages/common-lib/src/*"],
+      "server/*": ["../../../../server/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]

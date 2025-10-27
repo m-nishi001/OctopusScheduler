@@ -24,6 +24,11 @@
                 当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
             </DrawResultDialog>
 
+            <DrawResultDialog v-if="showMemberWinnerModal" title="メンバー当選" :assetId="latestResult?.member?.photoAssetId"
+                primaryLabel="Enter で続行" @close="closeModal">
+                当選メンバー: <strong>{{ latestResult?.member?.name }}</strong>
+            </DrawResultDialog>
+
             <div class="rich-layout">
                 <section class="member-area mb-6" v-if="currentPhase === 'member'">
                     <div class="member-stage mx-auto">
@@ -83,6 +88,7 @@ import type { MemberDto } from '../../../model/applications/member/dto/member-dt
 import type { DrawResultDto } from '../../../model/applications/draw/dto/draw-result-dto';
 import { container } from 'tsyringe';
 import { usePrizeDrawOrchestrator } from './use-prize-draw-orchestrator';
+import { useBgm } from '../../composables/useBgm';
 
 export default {
     name: 'DrawOrchestratorPage',
@@ -95,6 +101,7 @@ export default {
         const showEndModal = ref(false);
         const showPrizeWinnerModal = ref(false);
         const showHalfModal = ref(false);
+        const showMemberWinnerModal = ref(false);
 
         // サービス
         const prizeRepo = container.resolve(PrizeRepository);
@@ -112,6 +119,7 @@ export default {
 
         // Composable
         const { prizeStart } = usePrizeDrawOrchestrator(prizes, latestResult, rouletteRef, selectedPrize, showPrizeResult, showPrizeWinnerModal);
+        const { playRandomMemberBgm, stopBgm } = useBgm();
 
         // データ読み込み
         onMounted(async () => {
@@ -144,16 +152,19 @@ export default {
                     isWinner: true,
                     isKakuhen: false,
                 };
-                emit('member-winner', { result: latestResult.value });
-                currentPhase.value = 'prize';
-                currentEnterAction.value = () => { void prizeStart(); };
+                // start animation with winner
+                if (memberAnimRef.value?.startDraw) memberAnimRef.value.startDraw(res.winnerId);
+                playRandomMemberBgm();
+                currentEnterAction.value = memberStop;
             }
         };
 
         // メンバー停止（アニメーション制御）
         const memberStop = async () => {
-            // 簡素化: アニメーションなしで即時完了
-            currentEnterAction.value = () => { void prizeStart(); };
+            stopBgm();
+            if (memberAnimRef.value?.stopDraw) await memberAnimRef.value.stopDraw();
+            showMemberWinnerModal.value = true;
+            currentEnterAction.value = null; // wait for modal close
         };
 
         // 景品停止
@@ -185,6 +196,11 @@ export default {
             } else if (showHalfModal.value) {
                 showHalfModal.value = false;
                 resetToMemberPhase();
+            } else if (showMemberWinnerModal.value) {
+                showMemberWinnerModal.value = false;
+                emit('member-winner', { result: latestResult.value });
+                currentPhase.value = 'prize';
+                currentEnterAction.value = () => { void prizeStart(); };
             } else if (showPrizeWinnerModal.value) {
                 const count = await drawService.getLastPrizeCount();
                 if (count.remaining <= 0) {
@@ -206,6 +222,7 @@ export default {
             showEndModal,
             showPrizeWinnerModal,
             showHalfModal,
+            showMemberWinnerModal,
             memberAnimRef,
             rouletteRef,
             selectedPrize,

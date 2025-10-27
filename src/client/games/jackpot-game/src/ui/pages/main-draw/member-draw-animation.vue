@@ -15,9 +15,9 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import gsap from 'gsap';
-import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
+import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
-import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
 
 // Per-animation defaults (hardcoded here per your request)
 export const MEMBER_DRAW_REQUEST_COUNT = 10;

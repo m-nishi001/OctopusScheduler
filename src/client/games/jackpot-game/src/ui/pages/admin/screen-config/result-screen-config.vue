@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 
