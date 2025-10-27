@@ -1,17 +1,6 @@
 <template>
     <MainLayout>
         <div class="orchestrator container mx-auto p-6">
-            <div class="header flex items-start justify-between mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold">ジャックポッド抽選（本抽選）</h2>
-                    <p class="mt-1 text-sm text-gray-600">Enterで操作（開始 / 停止 / 続行）</p>
-                </div>
-                <div class="controls">
-                    <button disabled class="btn-primary" aria-disabled="true">
-                        開始
-                    </button>
-                </div>
-            </div>
 
             <DrawResultDialog v-if="showEndModal" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'"
                 @close="closeModal" />
@@ -30,15 +19,10 @@
             </DrawResultDialog>
 
             <div class="rich-layout">
-                <section class="member-area mb-6" v-if="currentPhase === 'member'">
-                    <div class="member-stage mx-auto">
-                        <div class="stage-frame">
-                            <MemberDrawAnimation ref="memberAnimRef" :members="members" />
-                        </div>
-
-                        <div class="start-box opacity-50 cursor-not-allowed" aria-disabled="true">
-                            <div class="start-label">START!!</div>
-                        </div>
+                <section class="member-area-fullscreen" v-if="currentPhase === 'member'">
+                    <div class="member-stage-fullscreen">
+                        <MemberDrawAnimation ref="memberAnimRef" :members="members"
+                            @start="() => { void memberStart(); }" />
                     </div>
                 </section>
 
@@ -259,49 +243,22 @@ export default {
 }
 
 /* Layout tweaks for draw screen */
-.rich-layout .member-area {
-    min-height: 140px;
-}
-
-.member-box {
-    overflow: hidden;
-}
-
-.member-stage {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 28px 20px 40px 20px;
-}
-
-.stage-frame {
+.rich-layout .member-area-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     background: #0b0b0b;
-    border: 2px solid rgba(255, 255, 255, 0.12);
-    padding: 36px 12px 26px 12px;
-    border-radius: 6px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    z-index: 50;
 }
 
-.stage-frame .member-draw {
-    max-width: 840px;
-    height: 260px;
-}
-
-.start-box {
-    width: 160px;
-    height: 44px;
-    margin: 18px auto 0 auto;
-    border: 2px solid rgba(255, 255, 255, 0.28);
+.member-stage-fullscreen {
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    background: transparent;
-}
-
-.start-box .start-label {
-    color: #fff;
-    font-weight: 700;
-    letter-spacing: 1.2px;
 }
 
 .center-area {

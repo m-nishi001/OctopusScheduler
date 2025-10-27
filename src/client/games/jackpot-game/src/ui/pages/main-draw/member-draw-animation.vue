@@ -9,11 +9,14 @@
                 </div>
             </div>
         </div>
+        <div class="start-button-container">
+            <button class="start-button" @click="handleStart">開始</button>
+        </div>
     </div>
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import gsap from 'gsap';
 import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
@@ -181,12 +184,11 @@ export default {
             for (const url of memberImageMap.values()) try { URL.revokeObjectURL(url); } catch (e) { }
         });
 
-        watch(() => props.members, async () => {
-            buildDisplay();
-            await loadImages();
-        });
+        const handleStart = () => {
+            emit('start');
+        };
 
-        return { viewport, track, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw };
+        return { viewport, track, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw, handleStart };
     }
 };
 </script>
@@ -194,6 +196,7 @@ export default {
 <style scoped>
 .member-draw {
     width: 100%;
+    position: relative;
 }
 
 .viewport {
@@ -253,5 +256,24 @@ export default {
 .member-item.left1,
 .member-item.right1 {
     opacity: 0.95;
+}
+
+.start-button-container {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.start-button {
+    background: linear-gradient(90deg, #6d28d9, #ec4899);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 </style>
