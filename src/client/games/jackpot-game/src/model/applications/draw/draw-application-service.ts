@@ -52,9 +52,11 @@ export class DrawApplicationService {
         drawId: `member-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         member,
         prize: null,
-        rank: null,
+        prizeRank: null,
+        memberRank: member.rank,
         order: 1,
         isWinner: true,
+        isKakuhen: false,
       });
     }
 
@@ -121,9 +123,14 @@ export class DrawApplicationService {
         prize: (await this.prizeRepo.getPrizes()).find(
           (p) => p.id === result.winnerPrizeId
         ),
-        rank: null,
+        prizeRank:
+          (await this.prizeRepo.getPrizes()).find(
+            (p) => p.id === result.winnerPrizeId
+          )?.rank || null,
+        memberRank: member!.rank,
         order: 1,
         isWinner: true,
+        isKakuhen: true,
       });
 
       currentState.remaining = (await this.prizeRepo.getPrizes()).filter(
@@ -154,9 +161,14 @@ export class DrawApplicationService {
         prize: (await this.prizeRepo.getPrizes()).find(
           (p) => p.id === result.winnerPrizeId
         ),
-        rank: null,
+        prizeRank:
+          (await this.prizeRepo.getPrizes()).find(
+            (p) => p.id === result.winnerPrizeId
+          )?.rank || null,
+        memberRank: member!.rank,
         order: 1,
         isWinner: true,
+        isKakuhen: false,
       });
 
       currentState.remaining = (await this.prizeRepo.getPrizes()).filter(
@@ -220,9 +232,14 @@ export class DrawApplicationService {
         prize: (await this.prizeRepo.getPrizes()).find(
           (p) => p.id === result.winnerPrizeId
         ),
-        rank: null,
+        prizeRank:
+          (await this.prizeRepo.getPrizes()).find(
+            (p) => p.id === result.winnerPrizeId
+          )?.rank || null,
+        memberRank: null,
         order: 1,
         isWinner: true,
+        isKakuhen: true,
       });
 
       await this.prizeDrawStateRepository.saveState(state);

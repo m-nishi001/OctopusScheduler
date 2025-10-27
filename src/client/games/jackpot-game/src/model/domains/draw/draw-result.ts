@@ -5,7 +5,9 @@ export interface DrawResult {
   drawId: string;
   member: Member;
   prize: Prize;
-  rank: number | null;
+  prizeRank: number | null;
+  memberRank: number | null;
   order: number;
   isWinner: boolean;
+  isKakuhen?: boolean;
 }

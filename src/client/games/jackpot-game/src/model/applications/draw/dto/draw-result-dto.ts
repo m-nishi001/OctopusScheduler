@@ -10,9 +10,11 @@ export interface DrawResultDto {
   drawId: string;
   member: MemberDto | null;
   prize?: PrizeDto | null;
-  rank: number | null;
+  prizeRank: number | null;
+  memberRank: number | null;
   order: number;
   isWinner: boolean;
+  isKakuhen?: boolean;
   // optional flags for reservation / animation metadata
   isReserved?: boolean;
   reservedFor?: string | null; // member id
@@ -25,9 +27,11 @@ export const toDrawResultDto = (drawResult: DrawResult): DrawResultDto => ({
   drawId: drawResult.drawId,
   member: toMember(drawResult.member),
   prize: toPrize(drawResult.prize),
-  rank: drawResult.rank,
+  prizeRank: drawResult.prizeRank,
+  memberRank: drawResult.memberRank,
   order: drawResult.order,
   isWinner: drawResult.isWinner,
+  isKakuhen: drawResult.isKakuhen,
 });
 
 export const fromDrawResultDto = (dto: DrawResultDto): DrawResult => {
@@ -38,8 +42,10 @@ export const fromDrawResultDto = (dto: DrawResultDto): DrawResult => {
     drawId: dto.drawId,
     member: fromMember(dto.member),
     prize: fromPrize(dto.prize),
-    rank: dto.rank,
+    prizeRank: dto.prizeRank,
+    memberRank: dto.memberRank,
     order: dto.order,
     isWinner: dto.isWinner,
+    isKakuhen: dto.isKakuhen,
   };
 };

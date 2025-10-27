@@ -61,11 +61,11 @@ export default {
         }
       }
       winners.value = results.filter(r => r.member).map(r => ({ ...r.member!, prize: r.prize ? r.prize.name : '', id: r.member!.id, photo: (r.member!.photoAssetId ? objectUrlMap.get(r.member!.photoAssetId) : undefined) || r.member!.photoAssetId }));
-      const ranks = results.filter(r => r.member).map(r => r.rank || 0);
+      const ranks = results.filter(r => r.member).map(r => r.memberRank || 0);
       const minRank = Math.min(...ranks);
       const maxRank = Math.max(...ranks);
-      specialWinner.value = results.find(r => r.member && r.rank === minRank)?.member;
-      lowestWinner.value = results.find(r => r.member && r.rank === maxRank)?.member;
+      specialWinner.value = results.find(r => r.member && r.memberRank === minRank)?.member;
+      lowestWinner.value = results.find(r => r.member && r.memberRank === maxRank)?.member;
     };
     onMounted(() => {
       fetchResults();

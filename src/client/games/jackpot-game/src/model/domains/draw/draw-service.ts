@@ -68,6 +68,7 @@ export class DrawService {
     drawCount: number;
     kakuhenTimings: number[];
     reservedPrizeIds: string[];
+    modeRank: number | null;
     initializedAt: string;
   } {
     return this.drawStateManager.initializePrizeDrawState(availablePrizes);
@@ -86,6 +87,7 @@ export class DrawService {
       drawCount: number;
       kakuhenTimings: number[];
       reservedPrizeIds: string[];
+      modeRank: number | null;
     };
   }): {
     winnerPrizeId: string | null;
@@ -160,9 +162,11 @@ export class DrawService {
       drawId,
       member: winnerMember,
       prize: winnerPrize,
-      rank: 1,
+      prizeRank: winnerPrize.rank ?? null,
+      memberRank: winnerMember.rank,
       order: 1,
       isWinner: true,
+      isKakuhen: false,
     };
 
     return drawResult;

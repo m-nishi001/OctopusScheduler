@@ -18,8 +18,15 @@ export class PrizeDrawService {
     requestDummyCount: number;
     preferModeRank?: number | null;
   }): { winnerPrizeId: string | null; dummyPrizeIds: string[] } {
-    const { prizes, memberRank, requestDummyCount } = opts;
-    const available = prizes.filter((p) => !p.isAssigned);
+    const { prizes, memberRank, requestDummyCount, preferModeRank } = opts;
+    let available = prizes.filter((p) => !p.isAssigned);
+    if (preferModeRank !== null && preferModeRank !== undefined) {
+      available = available.filter((p) => p.rank === preferModeRank);
+      if (available.length === 0) {
+        // Fallback to all available if no prizes match the mode rank
+        available = prizes.filter((p) => !p.isAssigned);
+      }
+    }
     if (available.length === 0) {
       return {
         winnerPrizeId: null,

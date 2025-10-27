@@ -69,9 +69,9 @@
                     :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
                 <button class="admin-btn mt-4" @click="handleSyncClick" :disabled="syncing"
                     :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
+                <button class="admin-btn mt-4" @click="openTestDialog">テスト</button>
                 <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
-
             <div v-if="loading" class="modal-overlay">
                 <div class="modal-content">
                     <h3>{{ loadingStatus || 'データを読み込み中...' }}</h3>
@@ -95,6 +95,8 @@
                     <div class="spinner"></div>
                 </div>
             </div>
+
+            <TestDialog :visible="testDialogVisible" @close="closeTestDialog" />
         </div>
     </div>
 </template>
@@ -105,7 +107,7 @@ import { container } from 'tsyringe';
 import { ScreenSettingsService } from '../../../../model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '../../../../model/applications/asset/asset-data-service';
 import { ScreenConfigService } from '../../../../model/applications/screen-config/screen-config-service';
-// Preview components removed; no imports needed
+import TestDialog from '../../../components/test-dialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -131,6 +133,16 @@ const syncing = ref(false);
 const syncStatus = ref("");
 
 // preview UI removed: previewVisible/previewType/previewPrize deprecated
+
+const testDialogVisible = ref(false);
+
+const openTestDialog = () => {
+    testDialogVisible.value = true;
+};
+
+const closeTestDialog = () => {
+    testDialogVisible.value = false;
+};
 
 const localConfig = ref({
     memberLotteryBgms: [] as string[],

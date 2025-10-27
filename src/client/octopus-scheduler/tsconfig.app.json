@@ -17,6 +17,7 @@
       "model/*": ["src/model/*"],
       "ui/*": ["src/ui/*"],
       "core/*": ["src/core/*"],
+      "@model/*": ["../games/jackpot-game/src/model/*"],
       "@octopus/server-common": ["../../server/common/src"],
       "@octopus/server-common/*": ["../../server/common/src/*"]
     },

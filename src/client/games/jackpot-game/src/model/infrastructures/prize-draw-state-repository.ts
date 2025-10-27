@@ -6,6 +6,7 @@ export interface PrizeDrawState {
   drawCount: number;
   kakuhenTimings: number[]; // indices when kakuhen should trigger (1-based)
   reservedPrizeIds: string[];
+  modeRank: number | null;
   initializedAt: string;
 }
 

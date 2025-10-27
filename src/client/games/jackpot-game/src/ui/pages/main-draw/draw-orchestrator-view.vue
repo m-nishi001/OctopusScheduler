@@ -138,9 +138,11 @@ export default {
                     drawId: res.drawId,
                     member: members.value.find((m: MemberDto) => m.id === res.winnerId) || { id: '', name: '', photoAssetId: undefined, rank: 0 },
                     prize: null,
-                    rank: null,
+                    prizeRank: null,
+                    memberRank: null,
                     order: 1,
                     isWinner: true,
+                    isKakuhen: false,
                 };
                 emit('member-winner', { result: latestResult.value });
                 currentPhase.value = 'prize';

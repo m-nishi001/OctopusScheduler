@@ -13,6 +13,23 @@ export class DrawStateManager {
     this.kakuhenService = kakuhenService;
   }
 
+  private getModeRank(prizes: { rank?: number }[]): number | null {
+    const rankCounts: { [key: number]: number } = {};
+    prizes.forEach((p) => {
+      const r = p.rank ?? 0;
+      rankCounts[r] = (rankCounts[r] || 0) + 1;
+    });
+    let maxCount = 0;
+    let mode: number | null = null;
+    for (const [r, c] of Object.entries(rankCounts)) {
+      if (c > maxCount) {
+        maxCount = c;
+        mode = parseInt(r);
+      }
+    }
+    return mode;
+  }
+
   getLastPrizeCount(prizes: { isAssigned?: boolean }[]): {
     total: number;
     remaining: number;
@@ -28,6 +45,7 @@ export class DrawStateManager {
     drawCount: number;
     kakuhenTimings: number[];
     reservedPrizeIds: string[];
+    modeRank: number | null;
     initializedAt: string;
   } {
     const total = availablePrizes.length;
@@ -56,12 +74,15 @@ export class DrawStateManager {
         : null;
     const timings = [t1, t2].filter(Boolean) as number[];
 
+    const modeRank = this.getModeRank(availablePrizes);
+
     return {
       total,
       remaining: total,
       drawCount: 0,
       kakuhenTimings: timings,
       reservedPrizeIds: reserved,
+      modeRank,
       initializedAt: new Date().toISOString(),
     };
   }
@@ -79,6 +100,7 @@ export class DrawStateManager {
       drawCount: number;
       kakuhenTimings: number[];
       reservedPrizeIds: string[];
+      modeRank: number | null;
     };
   }): {
     winnerPrizeId: string | null;
@@ -88,7 +110,10 @@ export class DrawStateManager {
   } {
     const { prizes, memberRank, requestDummyCount, currentState } = opts;
 
-    if (currentState.kakuhenTimings.includes(currentState.drawCount + 1)) {
+    const preferModeRank =
+      currentState.drawCount <= 3 ? currentState.modeRank : null;
+
+    if (currentState.kakuhenTimings.includes(currentState.drawCount)) {
       // Kakuhen draw
       const assignResult = this.kakuhenService.executeKakuhenAssign({
         reservedPrizeIds: currentState.reservedPrizeIds,
@@ -101,6 +126,7 @@ export class DrawStateManager {
         })),
         memberRank,
         requestDummyCount: Math.max(0, requestDummyCount - 1),
+        preferModeRank,
       });
 
       return {
@@ -120,6 +146,7 @@ export class DrawStateManager {
         })),
         memberRank,
         requestDummyCount: Math.max(0, requestDummyCount - 1),
+        preferModeRank,
       });
 
       return {
