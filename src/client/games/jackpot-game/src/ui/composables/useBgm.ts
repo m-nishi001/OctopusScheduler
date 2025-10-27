@@ -3,13 +3,13 @@ import { container } from "tsyringe";
 import { AssetDataService } from "@model/applications/asset/asset-data-service";
 import { ScreenSettingsService } from "@model/applications/screen-config/screen-settings-service";
 
-const assetService = container.resolve(AssetDataService);
-const screenSettingsService = container.resolve(ScreenSettingsService);
-
 const currentAudio = ref<HTMLAudioElement | null>(null);
 const globalVolume = ref(50); // default
 
 export const useBgm = () => {
+  const assetService = container.resolve(AssetDataService);
+  const screenSettingsService = container.resolve(ScreenSettingsService);
+
   const loadGlobalVolume = async () => {
     try {
       const cfg = await screenSettingsService.fetchScreenSetting(
