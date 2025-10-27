@@ -18,13 +18,10 @@ export function useAudio(options?: {
   const assetService = options?.assetService;
   const screenSettingsService = options?.screenSettingsService;
 
-  // Web Audio mode
   const audioService = mode === "web-audio" ? new AudioService() : null;
 
-  // HTML Audio mode
   const htmlAudio = ref<HTMLAudioElement | null>(null);
 
-  // 共通のリアクティブな状態
   const audioInstanceId = ref<string | null>(null);
   const isLoading = ref(false);
   const isPlaying = ref(false);
@@ -34,8 +31,77 @@ export function useAudio(options?: {
   const error = ref<Error | null>(null);
   const currentSrc = ref<string>("");
 
-  // HTML Audio specific
   const loop = ref(false);
+
+  let animationFrameId: number | null = null;
+
+  const getCurrentTime = (): number => {
+    if (mode === "web-audio" && audioService && audioInstanceId.value) {
+      return audioService.getCurrentTime(audioInstanceId.value);
+    } else if (mode === "html-audio" && htmlAudio.value) {
+      return htmlAudio.value.currentTime;
+    }
+    return 0;
+  };
+
+  const getDuration = (): number => {
+    if (mode === "web-audio" && audioService && audioInstanceId.value) {
+      return audioService.getDuration(audioInstanceId.value);
+    } else if (mode === "html-audio" && htmlAudio.value) {
+      return htmlAudio.value.duration || 0;
+    }
+    return 0;
+  };
+
+  const playAudio = async (fadeIn?: number, isRepeat?: boolean) => {
+    if (mode === "web-audio" && audioService && audioInstanceId.value) {
+      await audioService.play(audioInstanceId.value, fadeIn, isRepeat);
+    } else if (mode === "html-audio" && htmlAudio.value) {
+      htmlAudio.value.loop = isRepeat ?? false;
+      await htmlAudio.value.play();
+    }
+  };
+
+  const pauseAudio = () => {
+    if (mode === "web-audio" && audioService && audioInstanceId.value) {
+      audioService.pause(audioInstanceId.value);
+    } else if (mode === "html-audio" && htmlAudio.value) {
+      htmlAudio.value.pause();
+    }
+  };
+
+  const stopAudio = async (fadeOut: number = 0) => {
+    if (mode === "web-audio" && audioService && audioInstanceId.value) {
+      await audioService.stop(audioInstanceId.value, fadeOut);
+    } else if (mode === "html-audio" && htmlAudio.value) {
+      htmlAudio.value.pause();
+      htmlAudio.value.currentTime = 0;
+      if (currentSrc.value.startsWith("blob:")) {
+        URL.revokeObjectURL(currentSrc.value);
+      }
+    }
+  };
+
+  const setVolumeAudio = (newVolume: number) => {
+    if (mode === "web-audio" && audioService && audioInstanceId.value) {
+      audioService.setVolume(audioInstanceId.value, newVolume);
+    } else if (mode === "html-audio" && htmlAudio.value) {
+      htmlAudio.value.volume = newVolume;
+    }
+  };
+
+  const updateCurrentTime = () => {
+    if (!isPlaying.value) return;
+
+    currentTime.value = getCurrentTime();
+
+    if (currentTime.value >= duration.value) {
+      stop();
+      return;
+    }
+
+    animationFrameId = requestAnimationFrame(updateCurrentTime);
+  };
 
   /**
    * 再生位置を設定する (HTML Audio用)
@@ -64,9 +130,6 @@ export function useAudio(options?: {
     }
   };
 
-  // currentTimeを更新するためのタイマーID
-  let updateTimerId: ReturnType<typeof setInterval> | null = null;
-
   /**
    * URLまたはBlobからオーディオデータをロードする
    * @param source ロードするオーディオファイルのURLまたはBlob
@@ -79,20 +142,17 @@ export function useAudio(options?: {
 
     try {
       if (mode === "web-audio" && audioService) {
-        // 既存のインスタンスがあれば破棄する
         if (audioInstanceId.value) {
           audioService.disposeInstance(audioInstanceId.value);
         }
 
-        let id: string;
-        if (typeof source === "string") {
-          id = await audioService.loadFromUrl(source);
-        } else {
-          id = await audioService.loadFromBlob(source);
-        }
+        const id =
+          typeof source === "string"
+            ? await audioService.loadFromUrl(source)
+            : await audioService.loadFromBlob(source);
 
         audioInstanceId.value = id;
-        duration.value = audioService.getDuration(id);
+        duration.value = getDuration();
         volume.value = audioService.getVolume(id);
       } else if (mode === "html-audio") {
         if (htmlAudio.value) {
@@ -104,8 +164,8 @@ export function useAudio(options?: {
         );
         htmlAudio.value.volume = volume.value;
         currentSrc.value = typeof source === "string" ? source : "";
-        duration.value = htmlAudio.value.duration || 0;
-        audioInstanceId.value = "html-audio"; // dummy id
+        duration.value = getDuration();
+        audioInstanceId.value = "html-audio";
       }
     } catch (err) {
       error.value = err as Error;
@@ -125,46 +185,10 @@ export function useAudio(options?: {
     if (!audioInstanceId.value || isPlaying.value) return;
 
     try {
-      if (mode === "web-audio" && audioService && audioInstanceId.value) {
-        await audioService.play(
-          audioInstanceId.value,
-          options.fadeIn,
-          options.isRepeat
-        );
-        isPlaying.value = true;
-        // 再生開始時にcurrentTimeの更新を開始
-        if (updateTimerId === null) {
-          updateTimerId = setInterval(() => {
-            if (audioInstanceId.value && audioService) {
-              currentTime.value = audioService.getCurrentTime(
-                audioInstanceId.value
-              );
-              // 再生が終了したらタイマーを停止する
-              if (
-                currentTime.value >= duration.value &&
-                !audioService.getVolume(audioInstanceId.value)
-              ) {
-                stop();
-              }
-            }
-          }, 100); // 100msごとに更新
-        }
-      } else if (mode === "html-audio" && htmlAudio.value) {
-        htmlAudio.value.loop = options.isRepeat ?? false;
-        await htmlAudio.value.play();
-        isPlaying.value = true;
-        if (updateTimerId === null) {
-          updateTimerId = setInterval(() => {
-            if (htmlAudio.value) {
-              currentTime.value = htmlAudio.value.currentTime;
-              if (htmlAudio.value.ended) {
-                isPlaying.value = false;
-                clearInterval(updateTimerId!);
-                updateTimerId = null;
-              }
-            }
-          }, 100);
-        }
+      await playAudio(options.fadeIn, options.isRepeat);
+      isPlaying.value = true;
+      if (animationFrameId === null) {
+        updateCurrentTime();
       }
     } catch (err) {
       error.value = err as Error;
@@ -177,16 +201,11 @@ export function useAudio(options?: {
    */
   const pause = () => {
     if (!audioInstanceId.value || !isPlaying.value) return;
-    if (mode === "web-audio" && audioService && audioInstanceId.value) {
-      audioService.pause(audioInstanceId.value);
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      htmlAudio.value.pause();
-    }
+    pauseAudio();
     isPlaying.value = false;
-    // タイマーを停止
-    if (updateTimerId !== null) {
-      clearInterval(updateTimerId);
-      updateTimerId = null;
+    if (animationFrameId !== null) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
     }
   };
 
@@ -198,24 +217,12 @@ export function useAudio(options?: {
     if (!audioInstanceId.value) return;
 
     try {
-      if (mode === "web-audio" && audioService && audioInstanceId.value) {
-        await audioService.stop(audioInstanceId.value, fadeOut);
-      } else if (mode === "html-audio" && htmlAudio.value) {
-        htmlAudio.value.pause();
-        htmlAudio.value.currentTime = 0;
-        if (
-          typeof currentSrc.value === "string" &&
-          currentSrc.value.startsWith("blob:")
-        ) {
-          URL.revokeObjectURL(currentSrc.value);
-        }
-      }
+      await stopAudio(fadeOut);
       isPlaying.value = false;
       currentTime.value = 0;
-      // タイマーを停止
-      if (updateTimerId !== null) {
-        clearInterval(updateTimerId);
-        updateTimerId = null;
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
       }
     } catch (err) {
       error.value = err as Error;
@@ -229,11 +236,7 @@ export function useAudio(options?: {
    */
   const setVolume = (newVolume: number) => {
     volume.value = Math.max(0, Math.min(1, newVolume));
-    if (mode === "web-audio" && audioService && audioInstanceId.value) {
-      audioService.setVolume(audioInstanceId.value, volume.value);
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      htmlAudio.value.volume = volume.value;
-    }
+    setVolumeAudio(volume.value);
   };
 
   /**
@@ -253,7 +256,7 @@ export function useAudio(options?: {
         !cfg.memberLotteryBgms ||
         cfg.memberLotteryBgms.length === 0
       ) {
-        return; // no BGM set
+        return;
       }
       const bgmIds: string[] = cfg.memberLotteryBgms.filter(
         (id: string) => id && id.trim()
@@ -263,9 +266,9 @@ export function useAudio(options?: {
       const randomId = bgmIds[Math.floor(Math.random() * bgmIds.length)];
       const asset = await assetService.getAssetDataById(randomId);
       if (asset && asset.blob) {
-        await stop(); // stop any current
+        await stop();
         await load(asset.blob);
-        await play({ isRepeat: true }); // loop for draw duration
+        await play({ isRepeat: true });
       }
     } catch (e) {
       console.error("Failed to play member BGM:", e);
@@ -290,10 +293,9 @@ export function useAudio(options?: {
     }
   };
 
-  // コンポーネントがアンマウントされる際にリソースを解放する
   onUnmounted(() => {
-    if (updateTimerId !== null) {
-      clearInterval(updateTimerId);
+    if (animationFrameId !== null) {
+      cancelAnimationFrame(animationFrameId);
     }
     if (mode === "web-audio" && audioService) {
       audioService.disposeAll();
@@ -305,20 +307,17 @@ export function useAudio(options?: {
     }
   });
 
-  // 公開する状態とメソッド
   return {
-    // 状態
     audioInstanceId: readonly(audioInstanceId),
     isLoading: readonly(isLoading),
     isPlaying: readonly(isPlaying),
     currentTime: readonly(currentTime),
     duration: readonly(duration),
-    volume, // setVolumeがあるため、refを直接返す
+    volume: readonly(volume),
     error: readonly(error),
     currentSrc: readonly(currentSrc),
     loop: readonly(loop),
 
-    // メソッド
     load,
     play,
     pause,
