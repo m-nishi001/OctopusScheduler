@@ -16,7 +16,7 @@ import HomeScreenConfig from "../../ui/pages/admin/screen-config/home-screen-con
 import OpeningScreenConfig from "../../ui/pages/admin/screen-config/opening-screen-config.vue";
 import DescriptionScreenConfig from "../../ui/pages/admin/screen-config/description-screen-config.vue";
 import DemoScreenConfig from "../../ui/pages/admin/screen-config/demo-screen-config.vue";
-import MainScreenConfig from "../../ui/pages/admin/screen-config/draw-screen-config.vue";
+import MainScreenConfig from "../../ui/pages/admin/screen-config/draw-screen-config/draw-screen-config.vue";
 import ResultScreenConfig from "../../ui/pages/admin/screen-config/result-screen-config.vue";
 import EndingScreenConfig from "../../ui/pages/admin/screen-config/ending-screen-config.vue";
 import AdminAssets from "../../ui/pages/admin/admin-assets.vue";

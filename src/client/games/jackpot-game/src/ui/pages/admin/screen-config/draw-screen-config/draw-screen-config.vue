@@ -100,7 +100,9 @@ import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { ScreenConfigService } from '@model/applications/screen-config/screen-config-service';
-import TestDialog from 'components/test-dialog.vue';
+// test-dialog.vue lives as a sibling in the same folder, use a relative import so the
+// resolver finds it regardless of path alias config
+import TestDialog from './test-dialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
