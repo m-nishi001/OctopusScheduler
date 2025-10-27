@@ -46,13 +46,6 @@
                 </div>
 
                 <div class="config-item">
-                    <label>予約する賞品数 (kakuhenReservedCount)</label>
-                    <input type="number" v-model.number="localConfig.kakuhenReservedCount" min="0"
-                        class="admin-input" />
-                </div>
-
-
-                <div class="config-item">
                     <label>グローバル BGM ボリューム (0-1)</label>
                     <input type="number" step="0.1" v-model.number="localConfig.globalBgmVolume" min="0" max="1"
                         class="admin-input" />
@@ -149,7 +142,6 @@ const localConfig = ref({
     memberDrawRequestCount: 10,
     kakuhenMode: 'random' as 'random' | 'fixed',
     kakuhenFixedTimings: [] as number[],
-    kakuhenReservedCount: 4,
     globalBgmVolume: 1,
 });
 
@@ -161,7 +153,6 @@ const loadConfig = async () => {
             localConfig.value.memberDrawRequestCount = (cfg as any).memberDrawRequestCount || 10;
             localConfig.value.kakuhenMode = (cfg as any).kakuhenMode || 'random';
             localConfig.value.kakuhenFixedTimings = (cfg as any).kakuhenFixedTimings || [];
-            localConfig.value.kakuhenReservedCount = (cfg as any).kakuhenReservedCount || 4;
             localConfig.value.globalBgmVolume = typeof (cfg as any).globalBgmVolume === 'number' ? (cfg as any).globalBgmVolume : 1;
         }
     } catch (error) {
@@ -205,7 +196,6 @@ const handleSaveClick = async () => {
             memberDrawRequestCount: localConfig.value.memberDrawRequestCount,
             kakuhenMode: localConfig.value.kakuhenMode,
             kakuhenFixedTimings: localConfig.value.kakuhenFixedTimings,
-            kakuhenReservedCount: localConfig.value.kakuhenReservedCount,
             globalBgmVolume: localConfig.value.globalBgmVolume,
         };
         await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload);
