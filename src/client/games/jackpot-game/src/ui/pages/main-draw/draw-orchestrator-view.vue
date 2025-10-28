@@ -113,20 +113,24 @@ export default {
             screenSettingsService,
         });
 
-        // データ読み込み
+        // キーボードイベントハンドラー
+        const keydownDelegator = (ev: KeyboardEvent) => {
+            if (ev.key !== 'Enter') return;
+            currentEnterAction.value?.();
+        };
+
+        // ライフサイクルフック
         onMounted(async () => {
             const [prizesData, membersData] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
             prizes.value = prizesData;
             members.value = membersData;
 
-            const keydownDelegator = (ev: KeyboardEvent) => {
-                if (ev.key !== 'Enter') return;
-                currentEnterAction.value?.();
-            };
-
             window.addEventListener('keydown', keydownDelegator);
-            onUnmounted(() => window.removeEventListener('keydown', keydownDelegator));
             currentEnterAction.value = () => { void memberStart(); };
+        });
+
+        onUnmounted(() => {
+            window.removeEventListener('keydown', keydownDelegator);
         });
 
         // メンバー抽選開始
