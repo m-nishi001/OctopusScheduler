@@ -4,19 +4,22 @@
             <div class="track" ref="track">
                 <div v-for="(m, idx) in displayMembers" :key="m.id + '-' + idx"
                     :class="['member-item', { active: idx === (activeIndex ?? -999), left1: idx === ((activeIndex ?? -999) - 1), right1: idx === ((activeIndex ?? -999) + 1) }]">
-                    <img :src="memberImageMap.get(m.photoAssetId || '') || defaultAvatar" alt="member" />
-                    <div class="name">{{ m.name }}</div>
+                    <img :src="memberImageMap.get(m.photoAssetId || '') || defaultAvatar" alt="member" :style="{
+                        transform: `scale(${scales[idx] ?? 1})`,
+                        transition: isAnimating ? 'none' : 'transform 220ms ease, filter 220ms ease',
+                        willChange: 'transform'
+                    }" />
                 </div>
             </div>
         </div>
-        <div class="start-button-container">
+        <div class="start-button-container" ref="startButtonContainer">
             <button class="start-button" @click="handleStart">開始</button>
         </div>
     </div>
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import gsap from 'gsap';
 import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
@@ -46,52 +49,179 @@ export default {
     setup(props: any, { emit }: any) {
         const viewport = ref<HTMLDivElement | null>(null);
         const track = ref<HTMLDivElement | null>(null);
+        const startButtonContainer = ref<HTMLDivElement | null>(null);
         const tweenRef: { tween: gsap.core.Tween | null } = { tween: null };
         const memberImageMap = new Map<string, string>();
-        const defaultAvatar = '';
+        // inline SVG placeholder (dark rounded avatar) as fallback so images render even when asset loading fails
+        const defaultAvatar = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="100%" height="100%" fill="%23111111"/><circle cx="60" cy="44" r="30" fill="%23888"/><rect x="20" y="86" width="80" height="12" rx="6" fill="%23888"/></svg>';
 
         const assetService = container.resolve(AssetDataService);
 
-        // duplicate members to create a looping track
         const displayMembers = ref<MemberDto[]>([]);
 
         const buildDisplay = () => {
             const list = props.members.slice(0, Math.max(props.visibleCount, 1));
-            // ensure at least visibleCount items
             while (list.length < props.visibleCount) {
                 list.push({ id: 'empty-' + list.length, name: '---', photoAssetId: undefined, rank: 0 } as MemberDto);
             }
-            // duplicate twice for smooth loop
             displayMembers.value = [...list, ...list];
         };
 
         const loadImages = async () => {
-            for (const m of props.members) {
-                if (m.photoAssetId && !memberImageMap.has(m.photoAssetId)) {
-                    try {
-                        const asset = await assetService.getAssetDataById(m.photoAssetId);
-                        if (asset && asset.blob) {
-                            const url = URL.createObjectURL(asset.blob);
-                            memberImageMap.set(m.photoAssetId, url);
-                        }
-                    } catch (e) { }
+            const base = displayMembers.value.slice(0, Math.max(displayMembers.value.length / 2, 0));
+            for (const m of base) {
+                const aid = m?.photoAssetId;
+                if (!aid) continue;
+                if (memberImageMap.has(aid)) continue;
+                try {
+                    const asset = await assetService.getAssetDataById(aid);
+                    if (!asset) continue;
+                    // asset may contain blob, dataUrl, or url depending on implementation
+                    if ((asset as any).blob) {
+                        const url = URL.createObjectURL((asset as any).blob);
+                        memberImageMap.set(aid, url);
+                    } else if ((asset as any).dataUrl) {
+                        memberImageMap.set(aid, (asset as any).dataUrl);
+                    } else if ((asset as any).url) {
+                        memberImageMap.set(aid, (asset as any).url);
+                    }
+                } catch (e) {
+                    // ignore individual load failures; fallback image will be used
                 }
             }
         };
 
         const activeIndex = ref<number | null>(null);
-        // planned winner id returned from remote draw call
+        let rafId: number | null = null;
+        const isAnimating = ref(false);
+
+        const scales = ref<number[]>([]);
+
+        const updateActiveIndex = () => {
+            if (!viewport.value || !track.value) return;
+            const children = Array.from(track.value.children) as HTMLElement[];
+            if (!children.length) return;
+            const viewportRect = viewport.value.getBoundingClientRect();
+            const viewportCenter = viewportRect.left + viewportRect.width / 2;
+            let bestIdx = -1;
+            let bestDist = Infinity;
+
+            // prepare scales array
+            if (scales.value.length !== children.length) scales.value = new Array(children.length).fill(1);
+
+            // tuning constants
+            const maxScale = 1.8; // scale at exact center
+            const minScale = 0.8; // scale far from center
+            const influence = viewportRect.width / 2; // distance at which scale reaches min
+
+            for (let i = 0; i < children.length; i++) {
+                const c = children[i];
+                const r = c.getBoundingClientRect();
+                const center = r.left + r.width / 2;
+                const dist = Math.abs(center - viewportCenter);
+
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestIdx = i;
+                }
+
+                // continuous scale mapping: closer -> larger
+                const ratio = Math.min(1, dist / Math.max(1, influence));
+                const scale = minScale + (1 - ratio) * (maxScale - minScale);
+                scales.value[i] = Number(scale.toFixed(3));
+            }
+
+            if (bestIdx >= 0 && activeIndex.value !== bestIdx) {
+                activeIndex.value = bestIdx;
+            }
+        };
+
+        const centerTrackOnIndex = (childIdx: number, duration = 0) => {
+            if (!viewport.value || !track.value) return;
+            const children = Array.from(track.value.children) as HTMLElement[];
+            const item = children[childIdx];
+            if (!item) return;
+            const viewportRect = viewport.value.getBoundingClientRect();
+            const viewportCenter = viewportRect.left + viewportRect.width / 2;
+            const itemRect = item.getBoundingClientRect();
+            const itemCenter = itemRect.left + itemRect.width / 2;
+            const currentTransform = (gsap.getProperty(track.value, 'x') as number) || 0;
+            const delta = viewportCenter - itemCenter;
+            if (duration && duration > 0) {
+                gsap.to(track.value, { x: currentTransform + delta, duration, ease: 'power3.out' });
+            } else {
+                gsap.set(track.value, { x: currentTransform + delta });
+            }
+        };
+
+        const alignTrackToNearestChild = (duration = 0) => {
+            if (!viewport.value || !track.value) return;
+            const children = Array.from(track.value.children) as HTMLElement[];
+            if (!children.length) return;
+            const viewportRect = viewport.value.getBoundingClientRect();
+            const viewportCenter = viewportRect.left + viewportRect.width / 2;
+            let bestIdx = 0;
+            let bestDist = Infinity;
+            for (let i = 0; i < children.length; i++) {
+                const r = children[i].getBoundingClientRect();
+                const center = r.left + r.width / 2;
+                const d = Math.abs(center - viewportCenter);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestIdx = i;
+                }
+            }
+            centerTrackOnIndex(bestIdx, duration);
+            activeIndex.value = bestIdx;
+        };
+
+        const positionStartButton = () => {
+            if (!startButtonContainer.value || !viewport.value || !track.value) return;
+            const children = Array.from(track.value.children) as HTMLElement[];
+            const viewportRect = viewport.value.getBoundingClientRect();
+            let centerY = viewportRect.top + viewportRect.height / 2;
+            if (activeIndex.value != null && children[activeIndex.value]) {
+                const r = children[activeIndex.value].getBoundingClientRect();
+                centerY = r.top + r.height / 2;
+            }
+            const screenBottom = window.innerHeight;
+            const midpoint = (centerY + screenBottom) / 2;
+            const btn = startButtonContainer.value;
+            btn.style.position = 'absolute';
+            btn.style.left = '50%';
+            btn.style.top = `${midpoint}px`;
+            btn.style.transform = 'translate(-50%, -50%)';
+        };
+
+        const startActiveLoop = () => {
+            if (rafId != null) return;
+            const loop = () => {
+                updateActiveIndex();
+                // only reposition the start button when NOT animating so the button doesn't move during spin
+                try {
+                    if (!isAnimating.value) positionStartButton();
+                } catch (e) { }
+                rafId = requestAnimationFrame(loop);
+            };
+            rafId = requestAnimationFrame(loop);
+        };
+
+        const stopActiveLoop = () => {
+            if (rafId != null) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+        };
+
         let plannedWinnerId: string | null = null;
 
-        // (request-count constant removed — orchestration/draw requests should be
-        // handled outside this animation component)
-
-        const start = (speed = 200) => {
+        const start = (speed = 1200) => {
             if (!track.value || !viewport.value) return;
             gsap.killTweensOf(track.value);
             const trackWidth = track.value.scrollWidth / 2; // since duplicated
-            // animate left by trackWidth in px repeatedly
             tweenRef.tween = gsap.to(track.value, { x: `-=${trackWidth}px`, duration: trackWidth / speed, ease: 'none', repeat: -1 });
+            isAnimating.value = true;
+            startActiveLoop();
         };
 
         const stopAt = (memberId: string | null): Promise<string | null> => {
@@ -103,35 +233,79 @@ export default {
                 // stop continuous tween
                 if (tweenRef.tween) tweenRef.tween.kill();
 
-                // find index of memberId in the first half
-                const baseList = displayMembers.value.slice(0, displayMembers.value.length / 2);
-                let idx = -1;
-                if (memberId) idx = baseList.findIndex((m) => m.id === memberId);
-                if (idx < 0) idx = Math.floor(Math.random() * baseList.length);
+                const children = Array.from(track.value.children) as HTMLElement[];
+                if (!children.length) {
+                    resolve(null);
+                    return;
+                }
 
-                // compute target translateX so that the selected item is centered in viewport
-                const item = track.value.children[idx] as HTMLElement;
+                const viewportRect = viewport.value.getBoundingClientRect();
+                const viewportCenter = viewportRect.left + viewportRect.width / 2;
+
+                const childCenterDist = (i: number) => {
+                    const r = children[i].getBoundingClientRect();
+                    const center = r.left + r.width / 2;
+                    return Math.abs(center - viewportCenter);
+                };
+
+                let targetChildIdx = -1;
+                if (memberId) {
+                    const candidates: number[] = [];
+                    for (let i = 0; i < children.length; i++) {
+                        if ((displayMembers.value[i]?.id ?? null) === memberId) candidates.push(i);
+                    }
+                    if (candidates.length) {
+                        targetChildIdx = candidates.reduce((best, cur) => childCenterDist(cur) < childCenterDist(best) ? cur : best, candidates[0]);
+                    }
+                }
+
+                // fallback: if no memberId match or not found, pick a random member from the base set
+                if (targetChildIdx === -1) {
+                    const baseLen = Math.floor(displayMembers.value.length / 2) || displayMembers.value.length;
+                    const randomBaseIdx = Math.floor(Math.random() * baseLen);
+                    const candidates: number[] = [];
+                    for (let i = 0; i < children.length; i++) {
+                        if ((displayMembers.value[i]?.id ?? null) === displayMembers.value[randomBaseIdx]?.id) candidates.push(i);
+                    }
+                    if (candidates.length) {
+                        targetChildIdx = candidates.reduce((best, cur) => childCenterDist(cur) < childCenterDist(best) ? cur : best, candidates[0]);
+                    } else {
+                        // as ultimate fallback pick the visible child closest to center
+                        let bestIdx = 0;
+                        let bestDist = Infinity;
+                        for (let i = 0; i < children.length; i++) {
+                            const d = childCenterDist(i);
+                            if (d < bestDist) {
+                                bestDist = d;
+                                bestIdx = i;
+                            }
+                        }
+                        targetChildIdx = bestIdx;
+                    }
+                }
+
+                const item = children[targetChildIdx];
                 if (!item) {
                     resolve(null);
                     return;
                 }
-                const viewportRect = viewport.value.getBoundingClientRect();
+
                 const itemRect = item.getBoundingClientRect();
-                const currentTransform = gsap.getProperty(track.value, 'x') as number || 0;
+                const currentTransform = (gsap.getProperty(track.value, 'x') as number) || 0;
                 const itemCenter = itemRect.left + itemRect.width / 2;
-                const viewportCenter = viewportRect.left + viewportRect.width / 2;
                 const delta = viewportCenter - itemCenter;
-                // animate by delta amount (consider existing transform)
+
                 gsap.to(track.value, {
                     x: currentTransform + delta,
-                    duration: 1.6,
+                    duration: 0.9,
                     ease: 'power3.out',
                     onComplete: () => {
-                        const id = displayMembers.value[idx]?.id ?? null;
-                        // mark active index (choose the same idx in the first half)
-                        activeIndex.value = idx;
-                        // emit Vue event
+                        const id = displayMembers.value[targetChildIdx]?.id ?? null;
+                        activeIndex.value = targetChildIdx;
                         emit('stopped', id);
+                        stopActiveLoop();
+                        try { isAnimating.value = false; } catch (e) { }
+                        try { positionStartButton(); } catch (e) { }
                         resolve(id);
                     }
                 });
@@ -149,12 +323,9 @@ export default {
             return plannedWinnerId;
         };
 
-        // High-level: stop animation and land on the planned winner (if any). Returns final id.
         const stopDraw = async (): Promise<string | null> => {
             const id = await stopAt(plannedWinnerId || null);
-            // emit event with chosen id
             emit('member-selected', id);
-            // clear planned id after stop
             plannedWinnerId = null;
             return id;
         };
@@ -176,19 +347,38 @@ export default {
         onMounted(async () => {
             buildDisplay();
             await loadImages();
+            updateActiveIndex();
+            alignTrackToNearestChild(0);
+            positionStartButton();
+            window.addEventListener('resize', positionStartButton);
+            startActiveLoop();
             if (props.autoStart) start();
         });
 
         onUnmounted(() => {
             if (tweenRef.tween) tweenRef.tween.kill();
+            stopActiveLoop();
             for (const url of memberImageMap.values()) try { URL.revokeObjectURL(url); } catch (e) { }
+            window.removeEventListener('resize', positionStartButton);
+        });
+
+        watch(() => [props.members, props.visibleCount], async () => {
+            buildDisplay();
+            await loadImages();
+            updateActiveIndex();
+            alignTrackToNearestChild(0);
+            positionStartButton();
+        }, { deep: true });
+
+        watch(activeIndex, () => {
+            if (!isAnimating.value) positionStartButton();
         });
 
         const handleStart = () => {
             emit('start');
         };
 
-        return { viewport, track, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw, handleStart };
+        return { viewport, track, startButtonContainer, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating };
     }
 };
 </script>
@@ -197,21 +387,31 @@ export default {
 .member-draw {
     width: 100%;
     position: relative;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .viewport {
     width: 100%;
     overflow: hidden;
+    height: 560px;
+    /* give vertical space for large centered item */
+    display: flex;
+    align-items: center;
 }
 
 .track {
     display: flex;
     align-items: center;
+    justify-content: center;
+    /* center the duplicated track so the visible items are centered */
+    gap: 36px;
+    /* spacing between items */
 }
 
 .member-item {
-    width: 120px;
-    flex: 0 0 120px;
+    width: 240px;
+    flex: 0 0 240px;
     text-align: center;
     padding: 8px;
     box-sizing: border-box;
@@ -220,8 +420,8 @@ export default {
 }
 
 .member-item img {
-    width: 96px;
-    height: 96px;
+    width: 192px;
+    height: 192px;
     border-radius: 8px;
     object-fit: cover;
     display: block;
@@ -229,9 +429,9 @@ export default {
     transition: transform 220ms ease, filter 220ms ease;
 }
 
+/* Names are intentionally hidden in this layout */
 .member-item .name {
-    font-weight: 700;
-    color: #fff;
+    display: none;
 }
 
 /* Active center styling: larger center, medium neighbors */
@@ -260,20 +460,20 @@ export default {
 
 .start-button-container {
     position: absolute;
-    bottom: 20px;
     left: 50%;
-    transform: translateX(-50%);
+    /* top will be positioned by JS to sit vertically between the centered member and the bottom */
+    transform: translate(-50%, -50%);
 }
 
 .start-button {
     background: linear-gradient(90deg, #6d28d9, #ec4899);
     color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
+    padding: 36px 72px;
+    border-radius: 24px;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 48px;
     border: none;
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 </style>
