@@ -58,7 +58,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
 import RouletteAnimation, { type RouletteRef } from './roulette-animation.vue';
-import DrawResultDialog from './draw-result-dialog.vue';
+import DrawResultDialog from './prize-winning-dialog.vue';
 import { DrawApplicationService } from '../../../model/applications/draw/draw-application-service';
 import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
 import { MemberRepository } from '../../../model/infrastructures/member-repository';
