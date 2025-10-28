@@ -119,10 +119,12 @@ export default {
             const [prizesData, membersData] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
             prizes.value = prizesData;
             members.value = membersData;
-            currentPhase.value = 'member';
+            // TODO: 動作確認用に初期表示を roulette に変更
+            currentPhase.value = 'prize';
+            currentEnterAction.value = () => { void prizeStart(); };
+            // TODO: 動作確認用終了
 
             window.addEventListener('keydown', keydownDelegator);
-            currentEnterAction.value = () => { void memberStart(); };
         });
 
         onUnmounted(() => {
