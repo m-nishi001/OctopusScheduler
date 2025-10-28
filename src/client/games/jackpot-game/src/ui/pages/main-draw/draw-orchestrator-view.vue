@@ -151,10 +151,7 @@ export default {
             }
         };
 
-        // メンバーが選ばれて内部ダイアログが表示された時に Enter キーでダイアログを閉じられるようにする
-        const onMemberSelected = (id: string | null) => {
-            // 現在は memberStop() により currentEnterAction が null になっているため
-            // ダイアログ表示中は Enter を押すと親の closeModal を呼ぶように設定する
+        const onMemberSelected = () => {
             currentEnterAction.value = () => { void closeModal(); };
         };
 
