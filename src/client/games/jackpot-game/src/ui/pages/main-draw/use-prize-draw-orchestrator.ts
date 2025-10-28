@@ -10,8 +10,8 @@ export function usePrizeDrawOrchestrator(
   latestResult: Ref<DrawResultDto | null>,
   rouletteRef: Ref<any>,
   selectedPrize: Ref<PrizeDto | null>,
-  showPrizeResult: Ref<boolean>,
-  showPrizeWinnerModal: Ref<boolean>
+  showPrizeWinnerModal: Ref<boolean>,
+  onStartSpin?: () => void
 ) {
   const drawService = container.resolve(DrawApplicationService);
   const assetService = container.resolve(AssetDataService);
@@ -63,8 +63,9 @@ export function usePrizeDrawOrchestrator(
 
     if (rouletteRef.value?.startSpin) {
       rouletteRef.value.startSpin(bgmUrl);
+      onStartSpin?.();
     }
-    showPrizeResult.value = true;
+    // Do not set showPrizeResult here; wait for user to stop
   };
 
   const prizeStart = async () => {

@@ -23,29 +23,10 @@
                 </section>
 
                 <section v-if="currentPhase === 'prize'"
-                    class="center-area grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                    <div class="result-panel col-span-1 md:col-span-1 bg-white/80 rounded p-4 shadow">
-                        <h4 class="font-semibold mb-2">直近の当選</h4>
-                        <div v-if="latestResult">
-                            <p class="text-sm">メンバー: <strong>{{ latestResult.member?.name }}</strong></p>
-                            <p class="text-sm">景品: <strong>{{ latestResult.prize?.name || '（未決定）' }}</strong></p>
-                        </div>
-                        <div v-else class="text-sm text-gray-500">まだ抽選が実行されていません。開始ボタン、または Enter を押してください。</div>
-                    </div>
-
-                    <div class="roulette-panel col-span-1 md:col-span-1 flex items-center justify-center"
-                        v-if="currentPhase === 'prize'">
+                    class="center-area flex items-center justify-center min-h-screen">
+                    <div class="roulette-panel">
                         <RouletteAnimation ref="rouletteRef" :prizes="prizes" :selectedPrize="selectedPrize"
                             :showResult="showPrizeResult" @stopped="onRouletteStopped" />
-                    </div>
-
-                    <div class="guide-panel col-span-1 md:col-span-1 bg-white/80 rounded p-4 shadow">
-                        <h4 class="font-semibold mb-2">操作ガイド</h4>
-                        <ul class="text-sm list-disc pl-5 text-gray-700">
-                            <li>Enter: 抽選開始 / 停止 / 続行</li>
-                            <li>最初にメンバー抽選 → 次に景品抽選 の順。</li>
-                            <li>残り半分になると警告モーダルが表示されます。</li>
-                        </ul>
                     </div>
                 </section>
             </div>
@@ -99,7 +80,9 @@ export default {
         const currentEnterAction = ref<(() => void) | null>(null);
 
         // Composable
-        const { prizeStart } = usePrizeDrawOrchestrator(prizes, latestResult, rouletteRef, selectedPrize, showPrizeResult, showPrizeWinnerModal);
+        const { prizeStart } = usePrizeDrawOrchestrator(prizes, latestResult, rouletteRef, selectedPrize, showPrizeWinnerModal, () => {
+            currentEnterAction.value = prizeStop;
+        });
         const assetService = container.resolve(AssetDataService);
         const screenSettingsService = container.resolve(ScreenSettingsService);
         const { playRandomMemberBgm, stop: stopBgm } = useAudio({
@@ -166,6 +149,7 @@ export default {
 
         // 景品停止
         const prizeStop = async () => {
+            if (rouletteRef.value?.stopSpin) await rouletteRef.value.stopSpin();
             showPrizeResult.value = true;
         };
 

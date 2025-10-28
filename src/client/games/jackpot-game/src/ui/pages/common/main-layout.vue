@@ -18,16 +18,14 @@ export default {
 <style scoped>
 .main-layout {
   min-height: 100vh;
-  background: radial-gradient(circle at 10% 10%, #fff5f7 0%, transparent 30%),
-    radial-gradient(circle at 90% 90%, #f3f0ff 0%, transparent 30%),
-    linear-gradient(135deg, #fff0f6 0%, #f6f0ff 50%, #eef7ff 100%);
+  background: #000;
   display: flex;
   flex-direction: column;
 }
 
 main {
   flex: 1;
-  
+
   display: flex;
   flex-direction: column;
   align-items: center;
