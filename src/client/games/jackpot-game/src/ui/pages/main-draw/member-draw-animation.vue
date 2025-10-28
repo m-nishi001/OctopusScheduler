@@ -25,7 +25,7 @@
                         <img :src="winnerImageUrl" alt="winner" class="modal-image" />
                     </div>
                     <div class="dialog-actions">
-                        <button class="btn-primary" @click="closeWinnerDialog">次へ</button>
+                        <button ref="nextBtn" type="button" class="btn-primary" @click="closeWinnerDialog">次へ</button>
                     </div>
                 </div>
             </div>
@@ -34,7 +34,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import gsap from 'gsap';
 import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
@@ -71,6 +71,7 @@ export default {
         const viewport = ref<HTMLDivElement | null>(null);
         const track = ref<HTMLDivElement | null>(null);
         const startButtonContainer = ref<HTMLDivElement | null>(null);
+        const nextBtn = ref<HTMLButtonElement | null>(null);
         const tweenRef: { tween: gsap.core.Tween | null } = { tween: null };
         const memberImageMap = new Map<string, string>();
         // inline SVG placeholder (dark rounded avatar) as fallback so images render even when asset loading fails
@@ -451,9 +452,16 @@ export default {
             if (!isAnimating.value) positionStartButton();
         });
 
-        watch(showWinnerDialog, (newVal) => {
+        watch(showWinnerDialog, async (newVal) => {
             if (newVal) {
                 document.body.style.overflow = 'hidden';
+                // wait for DOM update then focus the primary action so Enter works reliably
+                try {
+                    await nextTick();
+                    nextBtn.value?.focus();
+                } catch (e) {
+                    // ignore focus errors
+                }
             } else {
                 document.body.style.overflow = '';
             }
@@ -469,7 +477,7 @@ export default {
             emit('start');
         };
 
-        return { viewport, track, startButtonContainer, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerAssetId, winnerName, winnerTitle, winnerImageUrl, closeWinnerDialog };
+        return { viewport, track, startButtonContainer, nextBtn, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerAssetId, winnerName, winnerTitle, winnerImageUrl, closeWinnerDialog };
     }
 };
 </script>

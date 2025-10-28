@@ -17,7 +17,8 @@
                 <section class="member-area-fullscreen" v-if="currentPhase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
-                            @start="() => { void memberStart(); }" @close-winner-dialog="closeModal" />
+                            @start="() => { void memberStart(); }" @close-winner-dialog="closeModal"
+                            @member-selected="onMemberSelected" />
                     </div>
                 </section>
 
@@ -150,6 +151,13 @@ export default {
             }
         };
 
+        // メンバーが選ばれて内部ダイアログが表示された時に Enter キーでダイアログを閉じられるようにする
+        const onMemberSelected = (id: string | null) => {
+            // 現在は memberStop() により currentEnterAction が null になっているため
+            // ダイアログ表示中は Enter を押すと親の closeModal を呼ぶように設定する
+            currentEnterAction.value = () => { void closeModal(); };
+        };
+
         // メンバー停止（アニメーション制御）
         const memberStop = async () => {
             stopBgm();
@@ -222,6 +230,7 @@ export default {
             prizeStop,
             closeModal,
             onRouletteStopped,
+            onMemberSelected,
         };
     }
 };
