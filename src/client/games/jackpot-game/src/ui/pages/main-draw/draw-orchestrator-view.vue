@@ -9,20 +9,15 @@
                 @close="closeModal" />
 
             <DrawResultDialog v-if="showPrizeWinnerModal" title="景品当選" :assetId="latestResult?.prize?.imageAssetId"
-                primaryLabel="Enter で続行" @close="closeModal">
+                primaryLabel="次へ" @close="closeModal">
                 当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
-            </DrawResultDialog>
-
-            <DrawResultDialog v-if="showMemberWinnerModal" title="メンバー当選" :assetId="latestResult?.member?.photoAssetId"
-                primaryLabel="Enter で続行" @close="closeModal">
-                当選メンバー: <strong>{{ latestResult?.member?.name }}</strong>
             </DrawResultDialog>
 
             <div class="rich-layout">
                 <section class="member-area-fullscreen" v-if="currentPhase === 'member'">
                     <div class="member-stage-fullscreen">
-                        <MemberDrawAnimation ref="memberAnimRef" :members="members"
-                            @start="() => { void memberStart(); }" />
+                        <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
+                            @start="() => { void memberStart(); }" @close-winner-dialog="closeModal" />
                     </div>
                 </section>
 
@@ -87,7 +82,6 @@ export default {
         const showEndModal = ref(false);
         const showPrizeWinnerModal = ref(false);
         const showHalfModal = ref(false);
-        const showMemberWinnerModal = ref(false);
 
         // サービス
         const prizeRepo = container.resolve(PrizeRepository);
@@ -160,7 +154,6 @@ export default {
         const memberStop = async () => {
             stopBgm();
             if (memberAnimRef.value?.stopDraw) await memberAnimRef.value.stopDraw();
-            showMemberWinnerModal.value = true;
             currentEnterAction.value = null; // wait for modal close
         };
 
@@ -193,11 +186,6 @@ export default {
             } else if (showHalfModal.value) {
                 showHalfModal.value = false;
                 resetToMemberPhase();
-            } else if (showMemberWinnerModal.value) {
-                showMemberWinnerModal.value = false;
-                emit('member-winner', { result: latestResult.value });
-                currentPhase.value = 'prize';
-                currentEnterAction.value = () => { void prizeStart(); };
             } else if (showPrizeWinnerModal.value) {
                 const count = await drawService.getLastPrizeCount();
                 if (count.remaining <= 0) {
@@ -208,6 +196,11 @@ export default {
                     showPrizeWinnerModal.value = false;
                     resetToMemberPhase();
                 }
+            } else {
+                // member winner modal closed
+                emit('member-winner', { result: latestResult.value });
+                currentPhase.value = 'prize';
+                currentEnterAction.value = () => { void prizeStart(); };
             }
         };
 
@@ -219,7 +212,6 @@ export default {
             showEndModal,
             showPrizeWinnerModal,
             showHalfModal,
-            showMemberWinnerModal,
             memberAnimRef,
             rouletteRef,
             selectedPrize,

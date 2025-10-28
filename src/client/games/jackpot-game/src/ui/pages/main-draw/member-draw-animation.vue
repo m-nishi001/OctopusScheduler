@@ -14,17 +14,33 @@
         </div>
         <div class="start-button-container" ref="startButtonContainer">
             <button class="start-button" :class="{ waiting: !isAnimating, animating: isAnimating }"
-                :disabled="isAnimating" @click="handleStart">{{ isAnimating ? 'STOP！' : 'START！' }}</button>
+                :disabled="isAnimating" @click="handleStart">{{ isAnimating ? 'STOP！' : 'START！' }} </button>
         </div>
+        <!-- Inline member winner dialog (defined here for readability/maintenance per request) -->
+        <teleport to="body">
+            <div v-if="showWinnerDialog" class="dialog-overlay" role="dialog" aria-modal="true">
+                <div class="dialog-content">
+                    <h3 class="dialog-title">{{ winnerTitle }}</h3>
+                    <div v-if="winnerImageUrl" class="dialog-image-wrap">
+                        <img :src="winnerImageUrl" alt="winner" class="modal-image" />
+                    </div>
+                    <div class="dialog-actions">
+                        <button class="btn-primary" @click="closeWinnerDialog">次へ</button>
+                    </div>
+                </div>
+            </div>
+        </teleport>
     </div>
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import gsap from 'gsap';
 import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
+// draw-result-dialog.vue was previously used for the modal. For readability
+// we define the member-specific winner dialog inline in this component.
 
 // Per-animation defaults (hardcoded here per your request)
 export const MEMBER_DRAW_REQUEST_COUNT = 10;
@@ -42,11 +58,15 @@ export type MemberAnimRef = {
 
 export default {
     name: 'MemberDrawAnimation',
+    components: {},
     props: {
         members: { type: Array as () => MemberDto[], default: () => [] },
         visibleCount: { type: Number, default: 10 },
         autoStart: { type: Boolean, default: false },
+        // if true, the parent component is responsible for showing the winner dialog
+        externalDialog: { type: Boolean, required: false, default: false },
     },
+    emits: ['start', 'stopped', 'member-selected', 'close-winner-dialog'],
     setup(props: any, { emit }: any) {
         const viewport = ref<HTMLDivElement | null>(null);
         const track = ref<HTMLDivElement | null>(null);
@@ -97,6 +117,21 @@ export default {
         const isAnimating = ref(false);
 
         const scales = ref<number[]>([]);
+
+        const showWinnerDialog = ref(false);
+        const winnerAssetId = ref('');
+        const winnerName = ref('');
+        const winnerTitle = computed(() => {
+            const name = (winnerName.value || '').toString().trim();
+            const display = name || (winnerAssetId.value ? winnerAssetId.value : '当選者');
+            // explicit newline so the title does not wrap automatically; the CSS will use `white-space: pre`.
+            return `${display} さん当選されました！\n前に出てきてください！`;
+        });
+
+        const winnerImageUrl = computed(() => {
+            const id = winnerAssetId.value || '';
+            return memberImageMap.get(id) || defaultAvatar;
+        });
 
         const updateActiveIndex = () => {
             if (!viewport.value || !track.value) return;
@@ -332,6 +367,19 @@ export default {
                         stopActiveLoop();
                         try { isAnimating.value = false; } catch (e) { }
                         try { positionStartButton(); } catch (e) { }
+                        // Set winner info and show dialog
+                        const winner = displayMembers.value[targetChildIdx];
+                        if (winner) {
+                            winnerAssetId.value = winner.photoAssetId || '';
+                            winnerName.value = winner.name;
+                            // only show the internal dialog when the parent is NOT handling the dialog
+                            try {
+                                if (!props.externalDialog) showWinnerDialog.value = true;
+                            } catch (e) {
+                                // defensive: if props aren't available for any reason, default to showing
+                                showWinnerDialog.value = true;
+                            }
+                        }
                         resolve(id);
                     }
                 });
@@ -403,11 +451,25 @@ export default {
             if (!isAnimating.value) positionStartButton();
         });
 
+        watch(showWinnerDialog, (newVal) => {
+            if (newVal) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        });
+
+        const closeWinnerDialog = () => {
+            showWinnerDialog.value = false;
+            // notify parent that the dialog was closed (keeps API consistent)
+            try { emit('close-winner-dialog'); } catch (e) { }
+        };
+
         const handleStart = () => {
             emit('start');
         };
 
-        return { viewport, track, startButtonContainer, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating };
+        return { viewport, track, startButtonContainer, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerAssetId, winnerName, winnerTitle, winnerImageUrl, closeWinnerDialog };
     }
 };
 </script>
@@ -547,5 +609,71 @@ export default {
 
 .start-button.animating {
     animation: animating 0.5s ease-in-out infinite;
+}
+</style>
+
+<style scoped>
+/* Inline dialog styles copied/adjusted from draw-result-dialog for the embedded modal */
+.dialog-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+}
+
+.dialog-content {
+    background: #000;
+    border-radius: 20px;
+    padding: 48px;
+    width: 760px;
+    box-sizing: border-box;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    border: 2px solid #ffd700;
+}
+
+.dialog-title {
+    font-size: 3rem;
+    font-weight: 900;
+    margin-bottom: 18px;
+    color: #ffffff !important;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+    /* preserve explicit newlines and prevent automatic wrapping */
+    white-space: pre;
+    word-break: normal;
+}
+
+.dialog-image-wrap {
+    margin-bottom: 12px;
+}
+
+.modal-image {
+    max-width: 460px;
+    max-height: 460px;
+    object-fit: cover;
+    display: block;
+    margin: 0 auto 20px auto;
+    border-radius: 12px;
+    border: 3px solid #ffd700;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.dialog-actions {
+    margin-top: 18px;
+}
+
+.btn-primary {
+    background: linear-gradient(90deg, #ffd700, #ff6b35);
+    color: black;
+    padding: 20px 56px;
+    border-radius: 24px;
+    border: none;
+    cursor: pointer;
+    font-weight: 900;
+    font-size: 1.8rem;
+    box-shadow: 0 10px 30px rgba(255, 215, 0, 0.6), 0 0 30px rgba(255, 107, 53, 0.25);
 }
 </style>
