@@ -13,7 +13,8 @@
             </div>
         </div>
         <div class="start-button-container" ref="startButtonContainer">
-            <button class="start-button" @click="handleStart">開始</button>
+            <button class="start-button" :class="{ waiting: !isAnimating, animating: isAnimating }"
+                :disabled="isAnimating" @click="handleStart">{{ isAnimating ? 'STOP！' : 'START！' }}</button>
         </div>
     </div>
 </template>
@@ -64,7 +65,7 @@ export default {
             while (list.length < props.visibleCount) {
                 list.push({ id: 'empty-' + list.length, name: '---', photoAssetId: undefined, rank: 0 } as MemberDto);
             }
-            displayMembers.value = [...list, ...list];
+            displayMembers.value = [...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list];
         };
 
         const loadImages = async () => {
@@ -215,11 +216,19 @@ export default {
 
         let plannedWinnerId: string | null = null;
 
-        const start = (speed = 1200) => {
+        const start = (speed = 2400) => {
             if (!track.value || !viewport.value) return;
             gsap.killTweensOf(track.value);
-            const trackWidth = track.value.scrollWidth / 2; // since duplicated
-            tweenRef.tween = gsap.to(track.value, { x: `-=${trackWidth}px`, duration: trackWidth / speed, ease: 'none', repeat: -1 });
+            const trackWidth = track.value.scrollWidth / 10;
+            tweenRef.tween = gsap.to({}, {
+                duration: 100000, ease: 'none', onUpdate: () => {
+                    gsap.set(track.value, { x: `-=${speed / 60}` });
+                    const currentX = gsap.getProperty(track.value, 'x') as number;
+                    if (currentX <= -9 * trackWidth) {
+                        gsap.set(track.value, { x: currentX + 9 * trackWidth });
+                    }
+                }
+            });
             isAnimating.value = true;
             startActiveLoop();
         };
@@ -230,6 +239,7 @@ export default {
                     resolve(null);
                     return;
                 }
+                gsap.killTweensOf(track.value);
                 // stop continuous tween
                 if (tweenRef.tween) tweenRef.tween.kill();
 
@@ -294,11 +304,27 @@ export default {
                 const currentTransform = (gsap.getProperty(track.value, 'x') as number) || 0;
                 const itemCenter = itemRect.left + itemRect.width / 2;
                 const delta = viewportCenter - itemCenter;
+                const finalX = currentTransform + delta;
 
-                gsap.to(track.value, {
-                    x: currentTransform + delta,
-                    duration: 0.9,
-                    ease: 'power3.out',
+                const patterns = [
+                    (tl: gsap.core.Timeline) => {
+                        tl.to(track.value, { x: finalX, duration: 3.0, ease: 'power2.out' });
+                    },
+                    (tl: gsap.core.Timeline) => {
+                        const overshoot = finalX - 150;
+                        tl.to(track.value, { x: overshoot, duration: 1.0, ease: 'power2.out' })
+                            .to(track.value, { x: finalX + 60, duration: 1.0, ease: 'power1.inOut' }, "+=0.2")
+                            .to(track.value, { x: finalX, duration: 1.0, ease: 'bounce.out' });
+                    },
+                    (tl: gsap.core.Timeline) => {
+                        tl.to(track.value, { x: finalX - 90, duration: 1.0, ease: 'power2.out' })
+                            .to(track.value, { x: finalX + 90, duration: 1.0, ease: 'power1.inOut' })
+                            .to(track.value, { x: finalX, duration: 1.5, ease: 'elastic.out(1, 0.3)' });
+                    }
+                ];
+
+                const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+                const tl = gsap.timeline({
                     onComplete: () => {
                         const id = displayMembers.value[targetChildIdx]?.id ?? null;
                         activeIndex.value = targetChildIdx;
@@ -309,6 +335,7 @@ export default {
                         resolve(id);
                     }
                 });
+                pattern(tl);
             });
         };
 
@@ -356,7 +383,9 @@ export default {
         });
 
         onUnmounted(() => {
+            isAnimating.value = false;
             if (tweenRef.tween) tweenRef.tween.kill();
+            gsap.killTweensOf(track.value);
             stopActiveLoop();
             for (const url of memberImageMap.values()) try { URL.revokeObjectURL(url); } catch (e) { }
             window.removeEventListener('resize', positionStartButton);
@@ -475,5 +504,48 @@ export default {
     border: none;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.start-button:disabled {
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+@keyframes waiting {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 10px rgba(255, 255, 255, 0.3);
+    }
+}
+
+@keyframes animating {
+    0% {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 40px rgba(255, 255, 255, 1), 0 0 60px rgba(108, 40, 217, 0.5);
+    }
+
+    100% {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+}
+
+.start-button.waiting {
+    animation: waiting 1s ease-in-out infinite;
+}
+
+.start-button.animating {
+    animation: animating 0.5s ease-in-out infinite;
 }
 </style>

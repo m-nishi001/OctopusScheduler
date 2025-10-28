@@ -83,7 +83,7 @@ export default {
         const prizes = ref<PrizeDto[]>([]);
         const members = ref<MemberDto[]>([]);
         const latestResult = ref<DrawResultDto | null>(null);
-        const currentPhase = ref<'member' | 'prize' | 'idle'>('member');
+        const currentPhase = ref<'member' | 'prize' | 'idle'>('idle');
         const showEndModal = ref(false);
         const showPrizeWinnerModal = ref(false);
         const showHalfModal = ref(false);
@@ -124,6 +124,7 @@ export default {
             const [prizesData, membersData] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
             prizes.value = prizesData;
             members.value = membersData;
+            currentPhase.value = 'member';
 
             window.addEventListener('keydown', keydownDelegator);
             currentEnterAction.value = () => { void memberStart(); };
