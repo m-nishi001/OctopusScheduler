@@ -2,19 +2,13 @@
     <MainLayout>
         <div class="orchestrator container mx-auto p-6">
 
-            <DrawResultDialog v-if="showEndModal" title="抽選は終了しました" :message="'全ての景品が配布されました。Enter を押すと結果画面へ移動します。'"
-                @close="closeModal" />
-
-            <DrawResultDialog v-if="showHalfModal" title="残り半分です！" :message="'景品の残りが半分になりました。Enter を押すと続行します。'"
-                @close="closeModal" />
-
-            <DrawResultDialog v-if="showPrizeWinnerModal" title="景品当選" :assetId="latestResult?.prize?.imageAssetId"
+            <DrawResultDialog v-if="drawState.resultShown" title="景品当選" :assetId="latestResult?.prize?.imageAssetId"
                 primaryLabel="次へ" @close="closeModal">
                 当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
             </DrawResultDialog>
 
             <div class="rich-layout">
-                <section class="member-area-fullscreen" v-if="currentPhase === 'member'">
+                <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
                             @start="() => { void memberStart(); }" @close-winner-dialog="closeModal"
@@ -22,11 +16,11 @@
                     </div>
                 </section>
 
-                <section v-if="currentPhase === 'prize'"
+                <section v-if="drawState.phase === 'prize'"
                     class="center-area flex items-center justify-center min-h-screen">
                     <div class="roulette-panel">
                         <RouletteAnimation ref="rouletteRef" :prizes="prizes" :selectedPrize="selectedPrize"
-                            :showResult="showPrizeResult" @stopped="onRouletteStopped" />
+                            :showResult="drawState.resultShown" @stopped="onRouletteStopped" />
                     </div>
                 </section>
             </div>
@@ -36,7 +30,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, reactive } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
 import RouletteAnimation, { type RouletteRef } from './roulette-animation.vue';
@@ -48,7 +42,6 @@ import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
 import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
 import type { DrawResultDto } from '../../../model/applications/draw/dto/draw-result-dto';
 import { container } from 'tsyringe';
-import { usePrizeDrawOrchestrator } from './use-prize-draw-orchestrator';
 import { useAudio } from '@shared-composables/use-audio';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
@@ -60,41 +53,105 @@ export default {
         const prizes = ref<PrizeDto[]>([]);
         const members = ref<MemberDto[]>([]);
         const latestResult = ref<DrawResultDto | null>(null);
-        const currentPhase = ref<'member' | 'prize' | 'idle'>('idle');
-        const showEndModal = ref(false);
-        const showPrizeWinnerModal = ref(false);
-        const showHalfModal = ref(false);
+        const drawState = reactive({
+            phase: 'idle',
+            resultShown: false,
+            currentAction: null as (() => void) | null,
+        });
 
         // サービス
         const prizeRepo = container.resolve(PrizeRepository);
         const memberRepo = container.resolve(MemberRepository);
         const drawService = container.resolve(DrawApplicationService);
+        const assetService = container.resolve(AssetDataService);
+        const screenSettingsService = container.resolve(ScreenSettingsService);
 
         // アニメーション関連
         const memberAnimRef = ref<MemberAnimRef | null>(null);
         const rouletteRef = ref<RouletteRef | null>(null);
         const selectedPrize = ref<PrizeDto | null>(null);
-        const showPrizeResult = ref(false);
-
-        // キーボードイベント
-        const currentEnterAction = ref<(() => void) | null>(null);
 
         // Composable
-        const { prizeStart } = usePrizeDrawOrchestrator(prizes, latestResult, rouletteRef, selectedPrize, showPrizeWinnerModal, () => {
-            currentEnterAction.value = prizeStop;
-        });
-        const assetService = container.resolve(AssetDataService);
-        const screenSettingsService = container.resolve(ScreenSettingsService);
         const { playRandomMemberBgm, stop: stopBgm } = useAudio({
             bgmMode: "random-member",
             assetService,
             screenSettingsService,
         });
 
+        // BGM URL ロード
+        const loadBgmUrl = async (assetId: string | null): Promise<string | null> => {
+            if (!assetId) return null;
+            try {
+                const asset = await assetService.getAssetDataById(assetId);
+                return asset?.blob ? URL.createObjectURL(asset.blob) : null;
+            } catch {
+                return null;
+            }
+        };
+
+        // かくへん抽選処理
+        const handleKakuhenDraw = async (res: any) => {
+            const dummyPrize = prizes.value.find((p) => p.id === res.dummyPrizeIds[0]);
+            const reservedPrize = prizes.value.find(
+                (p) => p.id === res.reservedPrizeIds?.[0]
+            );
+
+            const [bgm1Url, bgm2Url] = await Promise.all([
+                loadBgmUrl(dummyPrize?.bgm1AssetId || null),
+                loadBgmUrl(reservedPrize?.bgm2AssetId || null),
+            ]);
+
+            if (rouletteRef.value?.runAutoReroll) {
+                await rouletteRef.value.runAutoReroll({
+                    dummyPrizeId: res.dummyPrizeIds[0] || null,
+                    finalPrizeId: res.reservedPrizeIds?.[0] || null,
+                    dummyDuration: 2000,
+                    finalDuration: 2000,
+                    bgm1Url,
+                    bgm2Url,
+                });
+            }
+
+            const assignRes = await drawService.executeKakuhenAssign();
+            if (assignRes.winnerPrizeId) {
+                latestResult.value!.prize =
+                    prizes.value.find((p) => p.id === assignRes.winnerPrizeId) || null;
+                drawState.resultShown = true;
+            }
+        };
+
+        // 通常抽選処理
+        const handleNormalDraw = async (res: any) => {
+            selectedPrize.value =
+                prizes.value.find((p) => p.id === res.winnerPrizeId) || null;
+            const bgmUrl = await loadBgmUrl(selectedPrize.value?.bgm1AssetId || null);
+
+            if (rouletteRef.value?.startSpin) {
+                rouletteRef.value.startSpin(bgmUrl);
+                drawState.currentAction = prizeStop;
+            }
+        };
+
+        // 景品抽選開始
+        const prizeStart = async () => {
+            if (!latestResult.value || !latestResult.value.member) return;
+            const res = await drawService.executePrizeDraw({
+                memberId: latestResult.value.member.id,
+                requestCount: 8,
+            });
+            if (!res) return;
+
+            if (res.isKakuhen) {
+                await handleKakuhenDraw(res);
+            } else {
+                await handleNormalDraw(res);
+            }
+        };
+
         // キーボードイベントハンドラー
         const keydownDelegator = (ev: KeyboardEvent) => {
             if (ev.key !== 'Enter') return;
-            currentEnterAction.value?.();
+            drawState.currentAction?.();
         };
 
         // ライフサイクルフック
@@ -114,7 +171,7 @@ export default {
 
         // メンバー抽選開始
         const memberStart = async () => {
-            currentPhase.value = 'member';
+            drawState.phase = 'member';
             const res = await drawService.executeMemberDraw({ requestCount: 10 });
             if (res) {
                 latestResult.value = {
@@ -130,32 +187,34 @@ export default {
                 // start animation with winner
                 if (memberAnimRef.value?.startDraw) memberAnimRef.value.startDraw(res.winnerId);
                 playRandomMemberBgm();
-                currentEnterAction.value = memberStop;
+                drawState.currentAction = memberStop;
             }
         };
 
         const onMemberSelected = () => {
-            currentEnterAction.value = () => { void closeModal(); };
+            emit('member-winner', { result: latestResult.value });
+            drawState.phase = 'prize';
+            drawState.currentAction = () => { void prizeStart(); };
         };
 
         // メンバー停止（アニメーション制御）
         const memberStop = async () => {
             stopBgm();
             if (memberAnimRef.value?.stopDraw) await memberAnimRef.value.stopDraw();
-            currentEnterAction.value = null; // wait for modal close
+            drawState.currentAction = null; // wait for modal close
         };
 
         // 景品停止
         const prizeStop = async () => {
             if (rouletteRef.value?.stopSpin) await rouletteRef.value.stopSpin();
-            showPrizeResult.value = true;
+            drawState.resultShown = true;
         };
 
         // 共通のリセット処理
         const resetToMemberPhase = () => {
-            currentPhase.value = 'member';
-            currentEnterAction.value = () => { void memberStart(); };
-            showPrizeResult.value = false;
+            drawState.phase = 'member';
+            drawState.currentAction = () => { void memberStart(); };
+            drawState.resultShown = false;
             selectedPrize.value = null;
         };
 
@@ -163,33 +222,20 @@ export default {
         const onRouletteStopped = (prizeId: string | null) => {
             if (prizeId && latestResult.value) {
                 latestResult.value.prize = prizes.value.find((p: PrizeDto) => p.id === prizeId) || null;
-                showPrizeWinnerModal.value = true;
+                drawState.resultShown = true;
             }
         };
 
         // モーダルクローズ
         const closeModal = async () => {
-            if (showEndModal.value) {
+            const count = await drawService.getLastPrizeCount();
+            if (count.remaining <= 0) {
                 emit('end-draw');
-                showEndModal.value = false;
-            } else if (showHalfModal.value) {
-                showHalfModal.value = false;
+            } else if (count.remaining <= count.total / 2) {
                 resetToMemberPhase();
-            } else if (showPrizeWinnerModal.value) {
-                const count = await drawService.getLastPrizeCount();
-                if (count.remaining <= 0) {
-                    showEndModal.value = true;
-                } else if (count.remaining <= count.total / 2 && !showHalfModal.value) {
-                    showHalfModal.value = true;
-                } else {
-                    showPrizeWinnerModal.value = false;
-                    resetToMemberPhase();
-                }
             } else {
-                // member winner modal closed
-                emit('member-winner', { result: latestResult.value });
-                currentPhase.value = 'prize';
-                currentEnterAction.value = () => { void prizeStart(); };
+                drawState.resultShown = false;
+                resetToMemberPhase();
             }
         };
 
@@ -197,14 +243,10 @@ export default {
             prizes,
             members,
             latestResult,
-            currentPhase,
-            showEndModal,
-            showPrizeWinnerModal,
-            showHalfModal,
+            drawState,
             memberAnimRef,
             rouletteRef,
             selectedPrize,
-            showPrizeResult,
             memberStart,
             memberStop,
             prizeStart,

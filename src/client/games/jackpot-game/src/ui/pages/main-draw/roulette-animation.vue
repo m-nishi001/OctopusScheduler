@@ -13,6 +13,7 @@ import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 export type RouletteRef = {
     startSpin?: (bgmAssetUrl?: string | null) => void;
     stopSpin?: (opts?: { targetIndex?: number | null; isFinal?: boolean }) => Promise<string | null>;
+    runAutoReroll?: (opts: { dummyPrizeId: string | null; finalPrizeId: string | null; dummyDuration: number; finalDuration: number; bgm1Url: string | null; bgm2Url: string | null }) => Promise<void>;
 };
 
 export default {
