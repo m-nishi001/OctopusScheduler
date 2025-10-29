@@ -104,6 +104,17 @@ export default {
             members.value = membersData;
             // TODO: 動作確認用に初期表示を roulette に変更
             currentPhase.value = 'prize';
+            // ダミーのメンバー情報を設定してEnter押下でスピン可能にする
+            latestResult.value = {
+                drawId: 'dummy',
+                member: { id: 'dummy', name: 'Dummy Member', photoAssetId: undefined, rank: 0 },
+                prize: null,
+                prizeRank: null,
+                memberRank: null,
+                order: 1,
+                isWinner: true,
+                isKakuhen: false,
+            };
             currentEnterAction.value = () => { void prizeStart(); };
             // TODO: 動作確認用終了
 
