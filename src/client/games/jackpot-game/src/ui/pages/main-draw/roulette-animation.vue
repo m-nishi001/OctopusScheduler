@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 
 export type RouletteRef = {
@@ -44,22 +44,6 @@ export default {
             await loadImages();
             draw();
             animate();
-
-            // Add keydown event listener for Enter key
-            const handleKeyDown = (e: KeyboardEvent) => {
-                if (e.key === 'Enter') {
-                    if (!spinning) {
-                        startSpin();
-                    } else {
-                        stopSpin();
-                    }
-                }
-            };
-            document.addEventListener('keydown', handleKeyDown);
-
-            // Store the handler for cleanup
-            const cleanup = () => document.removeEventListener('keydown', handleKeyDown);
-            onUnmounted(cleanup);
         });
 
         const loadImages = async () => {
