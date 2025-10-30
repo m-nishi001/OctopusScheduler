@@ -11,8 +11,7 @@
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
-                            @start="() => { void memberStart(); }" @close-winner-dialog="closeModal"
-                            @member-selected="onMemberSelected" />
+                            @start="() => { void memberStart(); }" @member-selected="onMemberSelected" />
                     </div>
                 </section>
 
@@ -134,6 +133,7 @@ export default {
 
         // 景品抽選開始
         const prizeStart = async () => {
+            drawState.phase = 'prize';
             if (!latestResult.value || !latestResult.value.member) return;
             const res = await drawService.executePrizeDraw({
                 memberId: latestResult.value.member.id,
@@ -193,7 +193,6 @@ export default {
 
         const onMemberSelected = () => {
             emit('member-winner', { result: latestResult.value });
-            drawState.phase = 'prize';
             drawState.currentAction = () => { void prizeStart(); };
         };
 
@@ -201,7 +200,6 @@ export default {
         const memberStop = async () => {
             stopBgm();
             if (memberAnimRef.value?.stopDraw) await memberAnimRef.value.stopDraw();
-            drawState.currentAction = null; // wait for modal close
         };
 
         // 景品停止
