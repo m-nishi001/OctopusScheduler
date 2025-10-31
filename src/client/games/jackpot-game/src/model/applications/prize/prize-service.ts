@@ -36,4 +36,13 @@ export class PrizeService {
   async deletePrizes(ids: string[]): Promise<void> {
     await this.repo.deletePrizes(ids);
   }
+
+  async resetAllAssigned(): Promise<void> {
+    const prizes = await this.repo.getPrizes();
+    const updates = prizes.map((prize) => ({
+      id: prize.id,
+      updateFn: (p: Prize) => ({ ...p, isAssigned: false, isReserved: false }),
+    }));
+    await this.repo.updatePrizes(updates);
+  }
 }

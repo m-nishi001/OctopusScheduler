@@ -97,6 +97,12 @@ export class DrawApplicationService {
     currentState.remaining = availablePrizes.length;
     await this.prizeDrawStateRepository.saveState(currentState);
 
+    if (availablePrizes.length === 0) {
+      console.warn(
+        "No available prizes left for draw. All prizes are assigned."
+      );
+    }
+
     const result = this.drawService.executePrizeDraw({
       prizes: prizes.map((p) => ({
         id: p.id,

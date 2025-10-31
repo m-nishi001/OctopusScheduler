@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 
 export type RouletteRef = {
@@ -131,19 +131,6 @@ export default {
                 // Add some fluctuation for excitement
                 const fluctuation = Math.sin(Date.now() * 0.01) * 0.02;
                 rotation += speed + fluctuation;
-                speed *= 0.995;
-                if (speed < 0.001) {
-                    spinning = false;
-                    speed = 0;
-                    if (props.selectedPrize) {
-                        const targetIndex = props.prizes.findIndex(p => p.id === props.selectedPrize!.id);
-                        if (targetIndex >= 0) {
-                            const targetAngle = - (targetIndex * sectorAngle + sectorAngle / 2) + Math.PI / 2;
-                            rotation = targetAngle;
-                        }
-                    }
-                    emit('stopped', props.selectedPrize?.id || null);
-                }
             }
             draw();
             animationId = requestAnimationFrame(animate);
@@ -161,34 +148,106 @@ export default {
             if (!animationId) animate();
         };
 
-        const stopSpin = async () => {
-            spinning = false;
-            await new Promise(resolve => {
-                const checkStop = () => {
-                    if (!spinning) {
-                        resolve(null);
+        const stopSpin = async (_opts?: { decelerationFunction?: (elapsed: number, totalTime: number, initialSpeed: number) => number }) => {
+            return new Promise<string | null>((resolve) => {
+                // Calculate target rotation
+                let targetIndex = -1;
+                if (props.selectedPrize) {
+                    targetIndex = props.prizes.findIndex(p => p.id === props.selectedPrize!.id);
+                }
+                // Calculate target rotation with random offset within sector range (central area)
+                const sectorCenter = sectorAngle / 2;
+                const randomOffset = sectorCenter + (Math.random() - 0.5) * (sectorAngle / 2);  // Random within central half
+                const targetRotation = targetIndex >= 0 ? - (targetIndex * sectorAngle + randomOffset) + Math.PI / 2 : rotation;
+                // Initial speed: current speed, adjusted for direction
+                const initialSpeed = Math.abs(speed) || 0.2;  // Use current speed or default
+                const decelerationStartTime = Date.now();
+                // Cancel existing animation
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+                // Deceleration animation with smooth convergence
+                const decelerate = () => {
+                    const elapsed = Date.now() - decelerationStartTime;
+                    const progress = Math.min(elapsed / 3000, 1);
+                    // Cubic ease-out for smoother deceleration
+                    const easeProgress = 1 - Math.pow(1 - progress, 3);
+                    speed = initialSpeed * (1 - easeProgress);
+                    // Add some fluctuation for excitement (reduce during deceleration)
+                    const fluctuation = Math.sin(Date.now() * 0.01) * 0.01 * (1 - progress);
+                    // Stronger correction towards target for smooth convergence (only in rotation direction)
+                    const currentAngleDiff = ((targetRotation - (rotation + Math.PI / 2) + Math.PI) % (2 * Math.PI)) - Math.PI;
+                    const correction = currentAngleDiff > 0 ? currentAngleDiff * 0.05 : 0;  // Only correct if target is ahead
+                    rotation += speed + fluctuation + correction;
+                    draw();
+                    if (progress < 1) {
+                        requestAnimationFrame(decelerate);
                     } else {
-                        requestAnimationFrame(checkStop);
+                        spinning = false;
+                        rotation = targetRotation;
+                        // After additional 1 second, fully stop
+                        setTimeout(() => {
+                            if (bgmAudio) {
+                                bgmAudio.pause();
+                                bgmAudio = null;
+                            }
+                            const prizeId = props.selectedPrize?.id || null;
+                            emit('stopped', prizeId);
+                            resolve(prizeId);
+                        }, 1000);
                     }
                 };
-                checkStop();
+                decelerate();
             });
-            if (bgmAudio) {
-                bgmAudio.pause();
-                bgmAudio = null;
-            }
-            const prizeId = props.selectedPrize?.id || null;
-            emit('stopped', prizeId);
-            return prizeId;
         };
 
-        watch(() => props.showResult, () => {
-            if (props.showResult && props.selectedPrize) {
-                stopSpin();
+        const runAutoReroll = async (opts: { dummyPrizeId: string | null; finalPrizeId: string | null; dummyDuration: number; finalDuration: number; bgm1Url: string | null; bgm2Url: string | null }) => {
+            // Dummy spin
+            if (opts.bgm1Url) {
+                if (bgmAudio) bgmAudio.pause();
+                bgmAudio = new Audio(opts.bgm1Url);
+                bgmAudio.play().catch(() => { });
             }
-        });
+            spinning = true;
+            speed = 0.2;
+            await new Promise(resolve => setTimeout(resolve, opts.dummyDuration));
+            spinning = false;
+            // Set to dummy prize
+            if (opts.dummyPrizeId) {
+                const targetIndex = props.prizes.findIndex(p => p.id === opts.dummyPrizeId);
+                if (targetIndex >= 0) {
+                    const targetAngle = - (targetIndex * sectorAngle + sectorAngle / 2) + Math.PI / 2;
+                    rotation = targetAngle;
+                }
+            }
+            emit('stopped', opts.dummyPrizeId);  // 1回目: dummy
 
-        return { canvas, startSpin, stopSpin, spinning };
+            // Pause before final
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Final spin
+            if (opts.bgm2Url) {
+                if (bgmAudio) bgmAudio.pause();
+                bgmAudio = new Audio(opts.bgm2Url);
+                bgmAudio.play().catch(() => { });
+            }
+            spinning = true;
+            speed = 0.2;
+            await new Promise(resolve => setTimeout(resolve, opts.finalDuration));
+            spinning = false;
+            // Set to final prize
+            if (opts.finalPrizeId) {
+                const targetIndex = props.prizes.findIndex(p => p.id === opts.finalPrizeId);
+                if (targetIndex >= 0) {
+                    const targetAngle = - (targetIndex * sectorAngle + sectorAngle / 2) + Math.PI / 2;
+                    rotation = targetAngle;
+                }
+            }
+            emit('stopped', opts.finalPrizeId);  // 2回目: final
+        };
+
+        return { canvas, startSpin, stopSpin, runAutoReroll, spinning };
     }
 };
 </script>

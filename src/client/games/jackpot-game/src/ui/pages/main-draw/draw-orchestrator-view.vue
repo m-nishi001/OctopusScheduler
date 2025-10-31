@@ -58,6 +58,16 @@ export default {
             currentAction: null as (() => void) | null,
         });
 
+        // 事前抽選結果
+        const preDrawResults = reactive({
+            memberWinnerId: null as string | null,
+            prizeResult: null as any,
+        });
+
+        // コンポーネント分岐（拡張用）
+        const currentMemberComponent = ref('MemberDrawAnimation');
+        const currentPrizeComponent = ref('RouletteAnimation');
+
         // サービス
         const prizeRepo = container.resolve(PrizeRepository);
         const memberRepo = container.resolve(MemberRepository);
@@ -85,6 +95,48 @@ export default {
                 return asset?.blob ? URL.createObjectURL(asset.blob) : null;
             } catch {
                 return null;
+            }
+        };
+
+        // 事前抽選実行
+        const preDraw = async () => {
+            // メンバー抽選
+            const memberRes = await drawService.executeMemberDraw({ requestCount: 10 });
+            if (memberRes) {
+                preDrawResults.memberWinnerId = memberRes.winnerId;
+                latestResult.value = {
+                    drawId: memberRes.drawId,
+                    member: members.value.find((m: MemberDto) => m.id === memberRes.winnerId) || { id: '', name: '', photoAssetId: undefined, rank: 0 },
+                    prize: null,
+                    prizeRank: null,
+                    memberRank: null,
+                    order: 1,
+                    isWinner: true,
+                    isKakuhen: false,
+                };
+                // 分岐判定（例: 特定のメンバーなら特殊コンポーネント/BGM）
+                // ここではデフォルト
+                currentMemberComponent.value = 'MemberDrawAnimation';
+            }
+
+            // 景品抽選
+            if (latestResult.value?.member) {
+                const prizeRes = await drawService.executePrizeDraw({
+                    memberId: latestResult.value.member.id,
+                    requestCount: 8,
+                });
+                preDrawResults.prizeResult = prizeRes;
+                if (prizeRes?.winnerPrizeId) {
+                    selectedPrize.value = prizes.value.find((p) => p.id === prizeRes.winnerPrizeId) || null;
+                    if (!selectedPrize.value) {
+                        throw new Error('Prize not found for winnerPrizeId: ' + prizeRes.winnerPrizeId);
+                    }
+                    // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
+                    // ここではデフォルト
+                    currentPrizeComponent.value = 'RouletteAnimation';
+                } else {
+                    throw new Error('No winner prize id from draw service');
+                }
             }
         };
 
@@ -123,28 +175,34 @@ export default {
         const handleNormalDraw = async (res: any) => {
             selectedPrize.value =
                 prizes.value.find((p) => p.id === res.winnerPrizeId) || null;
+            if (!selectedPrize.value) {
+                throw new Error('Prize not found for winnerPrizeId: ' + res.winnerPrizeId);
+            }
             const bgmUrl = await loadBgmUrl(selectedPrize.value?.bgm1AssetId || null);
 
             if (rouletteRef.value?.startSpin) {
                 rouletteRef.value.startSpin(bgmUrl);
-                drawState.currentAction = prizeStop;
             }
         };
 
         // 景品抽選開始
         const prizeStart = async () => {
+            if (!preDrawResults.prizeResult) {
+                throw new Error('No prize result available');
+            }
             drawState.phase = 'prize';
-            if (!latestResult.value || !latestResult.value.member) return;
-            const res = await drawService.executePrizeDraw({
-                memberId: latestResult.value.member.id,
-                requestCount: 8,
-            });
-            if (!res) return;
+            // 事前結果を使ってアニメーション開始
+            await startRouletteAnimation(preDrawResults.prizeResult);
+        };
 
+        // 新規関数: アニメーション開始
+        const startRouletteAnimation = async (res: any) => {
             if (res.isKakuhen) {
                 await handleKakuhenDraw(res);
             } else {
                 await handleNormalDraw(res);
+                // アニメーション開始後、currentAction を停止関数に設定
+                drawState.currentAction = prizeStop;
             }
         };
 
@@ -160,7 +218,14 @@ export default {
             prizes.value = prizesData;
             members.value = membersData;
 
-            resetToMemberPhase();
+            try {
+                await preDraw();  // 事前抽選実行
+                drawState.phase = 'member';  // メンバー画面表示
+                resetToMemberPhase();  // currentAction 設定
+            } catch (e) {
+                console.error('Pre-draw failed:', e);
+                // 必要に応じてエラーハンドリング、例: emit('error', e);
+            }
 
             window.addEventListener('keydown', keydownDelegator);
         });
@@ -172,23 +237,12 @@ export default {
         // メンバー抽選開始
         const memberStart = async () => {
             drawState.phase = 'member';
-            const res = await drawService.executeMemberDraw({ requestCount: 10 });
-            if (res) {
-                latestResult.value = {
-                    drawId: res.drawId,
-                    member: members.value.find((m: MemberDto) => m.id === res.winnerId) || { id: '', name: '', photoAssetId: undefined, rank: 0 },
-                    prize: null,
-                    prizeRank: null,
-                    memberRank: null,
-                    order: 1,
-                    isWinner: true,
-                    isKakuhen: false,
-                };
-                // start animation with winner
-                if (memberAnimRef.value?.startDraw) memberAnimRef.value.startDraw(res.winnerId);
-                playRandomMemberBgm();
-                drawState.currentAction = memberStop;
+            // 事前結果を使ってアニメーション開始
+            if (memberAnimRef.value?.startDraw) {
+                memberAnimRef.value.startDraw(preDrawResults.memberWinnerId);
             }
+            playRandomMemberBgm();
+            drawState.currentAction = memberStop;
         };
 
         const onMemberSelected = () => {
@@ -218,9 +272,11 @@ export default {
 
         // ルーレット停止時
         const onRouletteStopped = (prizeId: string | null) => {
-            if (prizeId && latestResult.value) {
+            if (!prizeId) throw new Error('No prize selected');
+            if (latestResult.value) {
                 latestResult.value.prize = prizes.value.find((p: PrizeDto) => p.id === prizeId) || null;
                 drawState.resultShown = true;
+                drawState.currentAction = () => { void closeModal(); };
             }
         };
 
@@ -229,11 +285,15 @@ export default {
             const count = await drawService.getLastPrizeCount();
             if (count.remaining <= 0) {
                 emit('end-draw');
-            } else if (count.remaining <= count.total / 2) {
-                resetToMemberPhase();
             } else {
-                drawState.resultShown = false;
-                resetToMemberPhase();
+                // 次のサイクル: 新しい事前抽選実行
+                try {
+                    await preDraw();
+                    resetToMemberPhase();
+                } catch (e) {
+                    console.error('Pre-draw failed in next cycle:', e);
+                    // 必要に応じてエラーハンドリング
+                }
             }
         };
 
