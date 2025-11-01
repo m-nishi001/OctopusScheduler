@@ -2,10 +2,14 @@
     <MainLayout>
         <div class="orchestrator container mx-auto p-6">
 
-            <DrawResultDialog v-if="drawState.resultShown" title="景品当選" :assetId="latestResult?.prize?.imageAssetId"
+            <DrawResultDialog v-if="showPrizeWinningDialog" title="景品当選" :assetId="latestResult?.prize?.imageAssetId"
                 primaryLabel="次へ" @close="closeModal">
                 当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
             </DrawResultDialog>
+
+            <HalfRemainingDialog v-if="showHalfRemainingDialog" :visible="showHalfRemainingDialog"
+                @close="onHalfRemainingClosed" />
+            <EndDialog v-if="showEndDialog" :visible="showEndDialog" @close="onEndClosed" />
 
             <div class="rich-layout">
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
@@ -19,7 +23,7 @@
                     class="center-area flex items-center justify-center min-h-screen">
                     <div class="roulette-panel">
                         <component :is="currentPrizeComponent" ref="animationRef" :prizes="prizes"
-                            :selectedPrize="selectedPrize" :showResult="drawState.resultShown"
+                            :selectedPrize="selectedPrize" :showResult="showPrizeWinningDialog"
                             @stopped="onRouletteStopped" />
                     </div>
                 </section>
@@ -30,7 +34,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw, computed } from 'vue';
 import type { Component } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
@@ -48,18 +52,33 @@ import { container } from 'tsyringe';
 import { useAudio } from '@shared-composables/use-audio';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
 import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
+import HalfRemainingDialog from './half-remaining-dialog.vue';
+import EndDialog from './end-dialog.vue';
 
 export default {
     name: 'DrawOrchestratorPage',
-    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog },
+    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog },
     setup(_, { emit }) {
         const prizes = ref<PrizeDto[]>([]);
         const members = ref<MemberDto[]>([]);
         const latestResult = ref<DrawResultDto | null>(null);
         const drawState = reactive({
             phase: 'idle',
-            resultShown: false,
+            prizeAnimationStopped: false,
             currentAction: null as (() => void) | null,
+            currentPrizeCount: { total: 0, remaining: 0 },
+        });
+
+        const showPrizeWinningDialog = computed(() => {
+            return drawState.prizeAnimationStopped;
+        });
+
+        const showHalfRemainingDialog = computed(() => {
+            return drawState.currentPrizeCount.remaining > 0 && drawState.currentPrizeCount.remaining <= drawState.currentPrizeCount.total / 2;
+        });
+
+        const showEndDialog = computed(() => {
+            return drawState.currentPrizeCount.remaining <= 0;
         });
 
         // 事前抽選結果
@@ -237,14 +256,14 @@ export default {
         // 景品停止
         const prizeStop = async () => {
             if (animationRef.value?.stopSpin) await animationRef.value.stopSpin();
-            drawState.resultShown = true;
+            drawState.prizeAnimationStopped = true;
         };
 
         // 共通のリセット処理
         const resetToMemberPhase = () => {
             drawState.phase = 'member';
             drawState.currentAction = () => { void showMemberDraw(); };
-            drawState.resultShown = false;
+            drawState.prizeAnimationStopped = false;
             selectedPrize.value = null;
         };
 
@@ -253,7 +272,7 @@ export default {
             if (!prizeId) throw new Error('No prize selected');
             if (latestResult.value) {
                 latestResult.value.prize = prizes.value.find((p: PrizeDto) => p.id === prizeId) || null;
-                drawState.resultShown = true;
+                drawState.prizeAnimationStopped = true;
                 drawState.currentAction = () => { void closeModal(); };
             }
         };
@@ -261,8 +280,11 @@ export default {
         // モーダルクローズ
         const closeModal = async () => {
             const count = await drawService.getLastPrizeCount();
+            drawState.currentPrizeCount = count;
             if (count.remaining <= 0) {
-                emit('end-draw');
+                // 終了DLGは computed で表示
+            } else if (count.remaining <= count.total / 2) {
+                // あと半分DLGは computed で表示
             } else {
                 // 次のサイクル: 新しい事前抽選実行
                 try {
@@ -290,6 +312,38 @@ export default {
             }
         };
 
+        // ダイアログクローズハンドラー
+        const onHalfRemainingClosed = async () => {
+            drawState.currentPrizeCount = { total: 0, remaining: 0 };  // リセット
+            // 次のサイクル処理
+            try {
+                const res = await drawService.executeDraw({
+                    memberRequestCount: 10,
+                    prizeRequestCount: 8,
+                });
+                preDrawResults.memberWinnerId = res.memberWinnerId;
+                preDrawResults.prizeResult = { winnerPrizeId: res.prizeWinnerId, isKakuhen: res.isKakuhen };
+                latestResult.value = res.drawResult;
+                if (res.prizeWinnerId) {
+                    selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
+                    if (selectedPrize.value?.animation === 'slot') {
+                        currentPrizeComponent.value = markRaw(SlotAnimation);
+                    } else {
+                        currentPrizeComponent.value = markRaw(RouletteAnimation);
+                    }
+                }
+                currentMemberComponent.value = 'MemberDrawAnimation';
+                resetToMemberPhase();
+            } catch (e) {
+                console.error('Pre-draw failed in next cycle:', e);
+            }
+        };
+
+        const onEndClosed = () => {
+            drawState.currentPrizeCount = { total: 0, remaining: 0 };
+            emit('end-draw');
+        };
+
         return {
             prizes,
             members,
@@ -308,6 +362,11 @@ export default {
             closeModal,
             onRouletteStopped,
             onMemberSelected,
+            showPrizeWinningDialog,
+            showHalfRemainingDialog,
+            showEndDialog,
+            onHalfRemainingClosed,
+            onEndClosed,
         };
     }
 };

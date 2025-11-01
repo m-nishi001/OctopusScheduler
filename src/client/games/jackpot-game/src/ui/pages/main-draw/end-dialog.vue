@@ -1,7 +1,8 @@
 <template>
     <div class="modal-overlay">
         <div class="modal-content">
-            <h2 class="highlight">景品があと半分になりました</h2>
+            <h2 class="highlight">抽選終了</h2>
+            <p>すべての景品が当選しました。</p>
         </div>
     </div>
 </template>
@@ -10,7 +11,7 @@
 import { defineComponent, watch } from 'vue';
 
 export default defineComponent({
-    name: 'HalfRemainingDialog',
+    name: 'EndDialog',
     props: {
         visible: { type: Boolean, default: false },
     },
@@ -53,7 +54,6 @@ export default defineComponent({
     color: red;
     font-size: 1.5em;
     animation: blink 1s infinite;
-    /* 演出: 点滅アニメーション */
 }
 
 @keyframes blink {
