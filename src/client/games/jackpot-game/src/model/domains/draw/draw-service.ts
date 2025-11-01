@@ -1,8 +1,6 @@
 import { WeightedSelector } from "./weighted-selector";
 import { MemberDrawService } from "./member-draw-service";
 import { PrizeDrawService } from "./prize-draw-service";
-import { DrawStateManager } from "./draw-state-manager";
-import { KakuhenService } from "./kakuhen-service";
 import { injectable } from "tsyringe";
 import { toMember } from "../../applications/member/dto/member-dto";
 import { toPrize } from "../../applications/prize/dto/prize-dto";
@@ -16,21 +14,36 @@ export class DrawService {
   private weightedSelector: WeightedSelector;
   private memberDrawService: MemberDrawService;
   private prizeDrawService: PrizeDrawService;
-  private drawStateManager: DrawStateManager;
-  private kakuhenService: KakuhenService;
 
   constructor() {
     this.weightedSelector = new WeightedSelector();
     this.memberDrawService = new MemberDrawService(this.weightedSelector);
     this.prizeDrawService = new PrizeDrawService(this.weightedSelector);
-    this.kakuhenService = new KakuhenService();
-    this.drawStateManager = new DrawStateManager();
   }
 
   initializePrizeDrawState(availablePrizes: Prize[]): {
     kakuhenTimings: number[];
   } {
-    return this.drawStateManager.initializePrizeDrawState(availablePrizes);
+    const total = availablePrizes.length;
+
+    // Kakuhen timings: one in first half, one in second half
+    const half = Math.floor(total / 2);
+    const firstHalfEnd = half;
+    const secondHalfStart = half + 1;
+    const t1 =
+      firstHalfEnd > 3
+        ? Math.floor(Math.random() * (firstHalfEnd - 3)) + 4
+        : null;
+    const t2 =
+      total > secondHalfStart
+        ? Math.floor(Math.random() * (total - secondHalfStart)) +
+          secondHalfStart
+        : null;
+    const timings = [t1, t2].filter(Boolean) as number[];
+
+    return {
+      kakuhenTimings: timings,
+    };
   }
 
   executePrizeDraw(opts: {
@@ -71,7 +84,18 @@ export class DrawService {
     winnerPrizeId: string | null;
     reservedPrizeIds: string[];
   } {
-    return this.kakuhenService.executeKakuhenAssign(opts);
+    if (!opts.reservedPrizeIds.length) {
+      return {
+        winnerPrizeId: null,
+        reservedPrizeIds: [],
+      };
+    }
+
+    const prizeId = opts.reservedPrizeIds.shift()!;
+    return {
+      winnerPrizeId: prizeId,
+      reservedPrizeIds: opts.reservedPrizeIds,
+    };
   }
 
   async executeDraw(opts: {
