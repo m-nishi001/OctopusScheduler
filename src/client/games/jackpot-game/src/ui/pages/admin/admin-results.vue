@@ -55,8 +55,8 @@
                     <td>{{ stat.name }}</td>
                     <td>
                         <div class="member-preview">
-                            <img v-if="(stat as any).resolvedImageUrl" :src="(stat as any).resolvedImageUrl" alt="photo"
-                                class="preview-img" />
+                            <img v-if="stat.photoAssetId && imageUrls.get(stat.photoAssetId)"
+                                :src="imageUrls.get(stat.photoAssetId)!" alt="photo" class="preview-img" />
                             <span v-else>写真なし</span>
                         </div>
                     </td>
@@ -83,8 +83,8 @@
                     <td>{{ stat.name }}</td>
                     <td>
                         <div class="prize-preview">
-                            <img v-if="(stat as any).resolvedImageUrl" :src="(stat as any).resolvedImageUrl" alt="image"
-                                class="preview-img" />
+                            <img v-if="stat.imageAssetId && imageUrls.get(stat.imageAssetId)"
+                                :src="imageUrls.get(stat.imageAssetId)!" alt="image" class="preview-img" />
                             <span v-else>画像なし</span>
                         </div>
                     </td>
@@ -123,18 +123,20 @@ import { IMemberRepositoryToken } from '@model/domains/member/repository/i-membe
 import type { IPrizeRepository } from '@model/domains/prize/repository/i-prize-repository';
 import type { IMemberRepository } from '@model/domains/member/repository/i-member-repository';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { PrizeDrawStateRepository } from '@model/infrastructures/prize-draw-state-repository';
 
 const drawResultService = container.resolve(DrawResultService);
 const prizeService = container.resolve(PrizeService);
 const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
 const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
 const assetService = container.resolve(AssetDataService);
+const prizeDrawStateRepository = container.resolve(PrizeDrawStateRepository);
 
 const drawResults = ref<DrawResultDto[]>([]);
 const prizes = ref<PrizeDto[]>([]);
 const members = ref<MemberDto[]>([]);
 const showResetModal = ref(false);
-const objectUrlMap = new Map<string, string>();
+const imageUrls = ref(new Map<string, string>());
 
 const totalDraws = computed(() => drawResults.value.length);
 const winnersCount = computed(() => drawResults.value.filter(r => r.isWinner).length);
@@ -169,19 +171,30 @@ const prizeStats = computed(() => {
     return new Date(result.createdAt).toLocaleString();
 };
 
+const loadImage = async (assetId?: string) => {
+    if (!assetId || imageUrls.value.has(assetId)) return;
+    try {
+        const asset = await assetService.getAssetDataById(assetId);
+        if (asset?.blob) {
+            const objectUrl = URL.createObjectURL(asset.blob);
+            imageUrls.value.set(assetId, objectUrl);
+        }
+    } catch (error) {
+        console.error('Failed to load image:', error);
+    }
+};
+
 const openResetModal = () => {
     showResetModal.value = true;
 };
 
 const confirmReset = async () => {
     try {
-        // 抽選結果を削除
         for (const result of drawResults.value) {
             await drawResultService.deleteDrawResult(result.drawId);
         }
-        // 景品の当選フラグをリセット
         await prizeService.resetAllAssigned();
-        // データを再取得
+        await prizeDrawStateRepository.clearState();
         await fetchData();
         showResetModal.value = false;
     } catch (error) {
@@ -192,43 +205,8 @@ const confirmReset = async () => {
 const fetchData = async () => {
     try {
         drawResults.value = await drawResultService.getDrawResults();
-        const fetchedPrizes = await prizeRepo.getPrizes();
-        const fetchedMembers = await memberRepo.getMembers();
-
-        // Load images for members and set resolvedImageUrl
-        for (const member of fetchedMembers) {
-            if (member.photoAssetId && !objectUrlMap.has(member.photoAssetId)) {
-                try {
-                    const asset = await assetService.getAssetDataById(member.photoAssetId);
-                    if (asset && asset.blob) {
-                        const objectUrl = URL.createObjectURL(asset.blob);
-                        objectUrlMap.set(member.photoAssetId, objectUrl);
-                        (member as any).resolvedImageUrl = objectUrl;
-                    }
-                } catch (error) {
-                    console.error('Failed to load member image:', error);
-                }
-            }
-        }
-
-        // Load images for prizes and set resolvedImageUrl
-        for (const prize of fetchedPrizes) {
-            if (prize.imageAssetId && !objectUrlMap.has(prize.imageAssetId)) {
-                try {
-                    const asset = await assetService.getAssetDataById(prize.imageAssetId);
-                    if (asset && asset.blob) {
-                        const objectUrl = URL.createObjectURL(asset.blob);
-                        objectUrlMap.set(prize.imageAssetId, objectUrl);
-                        (prize as any).resolvedImageUrl = objectUrl;
-                    }
-                } catch (error) {
-                    console.error('Failed to load prize image:', error);
-                }
-            }
-        }
-
-        prizes.value = fetchedPrizes;
-        members.value = fetchedMembers;
+        prizes.value = await prizeRepo.getPrizes();
+        members.value = await memberRepo.getMembers();
     } catch (error) {
         console.error('Failed to fetch data:', error);
     }
@@ -236,18 +214,26 @@ const fetchData = async () => {
 
 onMounted(async () => {
     await fetchData();
+    const promises = [];
+    for (const member of members.value) {
+        if (member.photoAssetId) promises.push(loadImage(member.photoAssetId));
+    }
+    for (const prize of prizes.value) {
+        if (prize.imageAssetId) promises.push(loadImage(prize.imageAssetId));
+    }
+    await Promise.all(promises);
 });
 
 onUnmounted(() => {
     // Clean up object URLs to prevent memory leaks
-    for (const objectUrl of objectUrlMap.values()) {
+    for (const objectUrl of imageUrls.value.values()) {
         try {
             URL.revokeObjectURL(objectUrl);
         } catch (e) {
             // Ignore errors
         }
     }
-    objectUrlMap.clear();
+    imageUrls.value.clear();
 });
 </script>
 
