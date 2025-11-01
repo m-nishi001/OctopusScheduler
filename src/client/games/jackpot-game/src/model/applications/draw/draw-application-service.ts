@@ -72,7 +72,7 @@ export class DrawApplicationService {
     const drawCount = results.filter((r) => r.member !== null).length + 1;
 
     if (state.kakuhenTimings.includes(drawCount)) {
-      return this.executeKakuhenDraw(member, results);
+      return this.executeKakuhenDraw(member, results, prizes);
     } else {
       return this.executeNormalDraw(
         member,
@@ -135,14 +135,35 @@ export class DrawApplicationService {
 
   private async executeKakuhenDraw(
     member: MemberDto,
-    results: any[]
+    results: any[],
+    prizes: PrizeDto[]
   ): Promise<DrawPrizeResponse> {
+    const availablePrizes = prizes.filter(
+      (p) => !results.some((r) => r.prize?.id === p.id && r.member !== null)
+    );
+
     const reservedResults = results.filter((r) => r.member === null);
     if (reservedResults.length === 0) {
       throw new Error("No reserved prizes available");
     }
     const selectedReserved =
       reservedResults[Math.floor(Math.random() * reservedResults.length)];
+
+    // ダミーの当選景品をランダムに選ぶ
+    const dummyWinnerPrize =
+      availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+    const dummyWinnerPrizeId = dummyWinnerPrize?.id || null;
+
+    // ダミー景品を取得: 全景品から winnerPrizeId と dummyWinnerPrizeId を除いたものをランダムで取得
+    const excludedIds = new Set(
+      [selectedReserved.prize?.id, dummyWinnerPrizeId].filter(Boolean)
+    );
+    const dummyCandidates = prizes.filter((p) => !excludedIds.has(p.id));
+    const dummyPrizeIds = dummyCandidates
+      .sort(() => Math.random() - 0.5) // ランダムシャッフル
+      .slice(0, Math.max(0, 8 - 2)) // 例: ルーレット盤のサイズに応じて調整（ここでは8個の盤を想定し、2個を除く）
+      .map((p) => p.id);
+
     await this.drawResultService.updateDrawResult({
       ...selectedReserved,
       member,
@@ -152,8 +173,8 @@ export class DrawApplicationService {
     return {
       drawId: selectedReserved.drawId,
       winnerPrizeId: selectedReserved.prize?.id || null,
-      dummyWinnerPrizeId: null,
-      dummyPrizeIds: [],
+      dummyWinnerPrizeId, // かくへん用のダミー当選景品ID
+      dummyPrizeIds, // ルーレット盤を埋めるダミー景品ID
       isKakuhen: true,
     };
   }

@@ -125,9 +125,9 @@ export default {
 
         // かくへん抽選処理
         const handleKakuhenDraw = async (res: any) => {
-            const dummyPrize = prizes.value.find((p) => p.id === res.dummyPrizeIds[0]);
+            const dummyPrize = prizes.value.find((p) => p.id === res.dummyWinnerPrizeId);
             const reservedPrize = prizes.value.find(
-                (p) => p.id === res.reservedPrizeIds?.[0]
+                (p) => p.id === res.winnerPrizeId
             );
 
             const [bgm1Url, bgm2Url] = await Promise.all([
@@ -137,8 +137,8 @@ export default {
 
             if (animationRef.value?.runAutoReroll) {
                 await animationRef.value.runAutoReroll({
-                    dummyPrizeId: res.dummyPrizeIds[0] || null,
-                    finalPrizeId: res.reservedPrizeIds?.[0] || null,
+                    dummyPrizeId: res.dummyWinnerPrizeId || null,
+                    finalPrizeId: res.winnerPrizeId || null,
                     dummyDuration: 2000,
                     finalDuration: 2000,
                     bgm1Url,
