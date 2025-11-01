@@ -1,26 +1,50 @@
 export class WeightedSelector {
-  selectWeighted<T extends { weight: number }>(pool: T[]): T {
-    const total = pool.reduce((sum, item) => sum + Math.max(0, item.weight), 0);
-    if (total <= 0) {
-      const idx = Math.floor(Math.random() * pool.length);
-      return pool[idx];
+  selectWeighted<T extends { rank?: number }>(pool: T[]): T {
+    if (pool.length === 0) {
+      throw new Error("Pool is empty");
     }
-    let r = Math.random() * total;
-    for (const item of pool) {
-      const w = Math.max(0, item.weight);
-      r -= w;
-      if (r < 0) return item;
-    }
-    return pool[pool.length - 1];
+    // Find the minimum rank
+    const minRank = Math.min(...pool.map((p) => p.rank ?? Infinity));
+    // Filter prizes with the minimum rank
+    const candidates = pool.filter((p) => (p.rank ?? Infinity) === minRank);
+    // Randomly select from candidates
+    const idx = Math.floor(Math.random() * candidates.length);
+    return candidates[idx];
   }
 
-  shuffleWithWeights<T extends { weight: number }>(items: T[]): T[] {
+  shuffleWithWeights<T extends { rank?: number }>(items: T[]): T[] {
+    // Sort by rank ascending (lower rank first)
+    const sorted = [...items].sort(
+      (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity)
+    );
+    // Shuffle within same rank groups
     const result: T[] = [];
-    const pool = [...items];
-    while (pool.length > 0) {
-      const selected = this.selectWeighted(pool);
-      result.push(selected);
-      pool.splice(pool.indexOf(selected), 1);
+    let currentRank: number | undefined;
+    let group: T[] = [];
+    for (const item of sorted) {
+      const rank = item.rank ?? Infinity;
+      if (rank !== currentRank) {
+        if (group.length > 0) {
+          // Shuffle the previous group
+          for (let i = group.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [group[i], group[j]] = [group[j], group[i]];
+          }
+          result.push(...group);
+        }
+        group = [item];
+        currentRank = rank;
+      } else {
+        group.push(item);
+      }
+    }
+    if (group.length > 0) {
+      // Shuffle the last group
+      for (let i = group.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [group[i], group[j]] = [group[j], group[i]];
+      }
+      result.push(...group);
     }
     return result;
   }

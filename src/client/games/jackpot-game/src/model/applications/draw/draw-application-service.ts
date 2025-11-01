@@ -11,9 +11,10 @@ import {
   PrizeDrawStateRepository,
   type PrizeDrawState,
 } from "../../infrastructures/prize-draw-state-repository";
-import type { PrizeDto } from "../prize/dto/prize-dto";
+import type { Prize } from "../../domains/prize/prize";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 import type { MemberDto } from "../member/dto/member-dto";
+import { toMember } from "../member/dto/member-dto";
 
 @injectable()
 export class DrawApplicationService {
@@ -35,19 +36,14 @@ export class DrawApplicationService {
     request: DrawMemberRequest
   ): Promise<DrawMemberResponse> {
     const members = await this.memberRepo.getMembers();
+    const domainMembers = members.map(toMember);
     const results = await this.drawResultService.getDrawResults();
-    const wonSet = new Set(results.map((r) => r.wonMember?.id));
 
-    const domainMembers = members.map((m) => ({
-      id: m.id,
-      rank: m.rank,
-      isWinner: wonSet.has(m.id),
-    }));
-
-    const res = this.drawService.drawMember({
-      members: domainMembers,
-      requestDummyCount: request.requestCount - 1,
-    });
+    const res = this.drawService.drawMember(
+      domainMembers,
+      results,
+      request.requestCount - 1
+    );
 
     return {
       drawId: crypto.randomUUID(),
@@ -59,54 +55,48 @@ export class DrawApplicationService {
   async executePrizeDraw(
     request: DrawPrizeRequest
   ): Promise<DrawPrizeResponse> {
-    const prizes = await this.prizeRepo.getPrizes();
     const members = await this.memberRepo.getMembers();
     const member = members.find((m) => m.id === request.memberId);
-    if (!member) {
+    if (!member)
       throw new Error("Member not found for prize draw: " + request.memberId);
-    }
-    const memberRank = member.rank;
 
-    const state = await this.initializeStateIfNeeded(prizes);
+    const state = await this.getPrizeDrawState();
+    if (!state) throw new Error("Prize draw state not initialized");
+
     const results = await this.drawResultService.getDrawResults();
     const drawCount = results.filter((r) => r.wonMember !== null).length + 1;
+
+    const prizes = await this.prizeRepo.getPrizes();
 
     if (state.kakuhenTimings.includes(drawCount)) {
       return this.executeKakuhenDraw(member, results, prizes);
     } else {
-      return this.executeNormalDraw(
-        member,
-        memberRank,
-        prizes,
-        results,
-        state,
-        request
-      );
+      return this.executeNormalDraw(prizes, results, state, request);
     }
   }
 
-  private async initializeStateIfNeeded(
-    prizes: PrizeDto[]
-  ): Promise<PrizeDrawState> {
-    let state = await this.prizeDrawStateRepository.getState();
-    if (!state) {
-      state = this.drawService.initializePrizeDrawState(prizes);
-      await this.prizeDrawStateRepository.saveState(state);
-      await this.reservePrizes(state, prizes);
-    }
-    return state;
+  async initializeStateIfNeeded(prizes: Prize[]): Promise<void> {
+    if (await this.prizeDrawStateRepository.getState()) return;
+
+    const newState = this.drawService.initializePrizeDrawState(prizes);
+    await this.prizeDrawStateRepository.saveState(newState);
+    await this.reservePrizes(newState, prizes);
+  }
+
+  private async getPrizeDrawState(): Promise<PrizeDrawState | null> {
+    return await this.prizeDrawStateRepository.getState();
   }
 
   private async reservePrizes(
     state: PrizeDrawState,
-    prizes: PrizeDto[]
+    prizes: Prize[]
   ): Promise<void> {
     const reservedCount = state.kakuhenTimings.length;
     const sortedHigh = [...prizes].sort(
       (a, b) => (b.rank ?? 0) - (a.rank ?? 0)
     );
     const sortedLow = [...sortedHigh].reverse();
-    const reservedPrizes: PrizeDto[] = [];
+    const reservedPrizes: Prize[] = [];
     const isEven = reservedCount % 2 === 0;
     let useHigh = isEven ? true : Math.random() < 0.5;
     for (let i = 0; i < reservedCount; i++) {
@@ -132,8 +122,8 @@ export class DrawApplicationService {
 
   private async executeKakuhenDraw(
     member: MemberDto,
-    results: any[],
-    prizes: PrizeDto[]
+    results: DrawResultDto[],
+    prizes: Prize[]
   ): Promise<DrawPrizeResponse> {
     const availablePrizes = prizes.filter(
       (p) =>
@@ -177,10 +167,8 @@ export class DrawApplicationService {
   }
 
   private async executeNormalDraw(
-    _member: MemberDto,
-    memberRank: number,
-    prizes: PrizeDto[],
-    results: any[],
+    prizes: Prize[],
+    results: DrawResultDto[],
     state: PrizeDrawState,
     request: DrawPrizeRequest
   ): Promise<DrawPrizeResponse> {
@@ -200,10 +188,8 @@ export class DrawApplicationService {
     const result = this.drawService.executePrizeDraw({
       prizes: availablePrizes.map((p) => ({
         id: p.id,
-        weight: p.probability,
         rank: p.rank,
       })),
-      memberRank,
       requestDummyCount: Math.max(0, request.requestCount - 1),
       currentState: { kakuhenTimings: state.kakuhenTimings },
     });

@@ -9,6 +9,7 @@ import { toPrize } from "../../applications/prize/dto/prize-dto";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
 import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
 import type { DrawResult } from "./draw-result";
+import type { Member } from "../member/member";
 
 @injectable()
 export class DrawService {
@@ -29,21 +30,17 @@ export class DrawService {
     );
   }
 
-  drawMember(opts: {
-    members: {
-      id: string;
-      rank: number;
-      isWinner: boolean;
-    }[];
-    requestDummyCount: number;
-  }): { winnerId: string | null; dummyIds: string[] } {
-    return this.memberDrawService.drawMember(opts);
+  drawMember(
+    members: Member[],
+    drawResults: DrawResult[],
+    dummyCount: number
+  ): { winnerId: string | null; dummyIds: string[] } {
+    return this.memberDrawService.drawMember(members, drawResults, dummyCount);
   }
 
   drawPrize(opts: {
     prizes: {
       id: string;
-      weight: number;
       rank?: number;
       isAssigned?: boolean;
     }[];
@@ -70,11 +67,9 @@ export class DrawService {
   executePrizeDraw(opts: {
     prizes: {
       id: string;
-      weight: number;
       rank?: number;
       isAssigned?: boolean;
     }[];
-    memberRank: number;
     requestDummyCount: number;
     currentState: {
       kakuhenTimings: number[];
@@ -121,22 +116,13 @@ export class DrawService {
     const prizes = opts.prizes.map(toPrize);
 
     // Draw member
-    const memberOpts = {
-      members: members.map((m) => ({
-        id: m.id,
-        rank: m.rank,
-        isWinner: false,
-      })),
-      requestDummyCount: 0,
-    };
-    const { winnerId: winnerMemberId } = this.drawMember(memberOpts);
+    const { winnerId: winnerMemberId } = this.drawMember(members, [], 0);
     const winnerMember = members.find((m) => m.id === winnerMemberId)!;
 
     // Draw prize
     const prizeOpts = {
       prizes: prizes.map((p) => ({
         id: p.id,
-        weight: p.probability,
         rank: p.rank,
         // isAssigned removed from Prize
       })),

@@ -32,7 +32,7 @@
           <span v-else>{{ prize.name }}</span>
         </div>
         <div class="prize-info">
-          <span>{{ prize.name }} (確率: {{ prize.probability }}/10)</span>
+          <span>{{ prize.name }}</span>
         </div>
         <button class="admin-btn ml-2" @click="editPrize(prize)">詳細</button>
         <button class="admin-btn ml-2 delete-btn" @click="deletePrize(prize.id)">削除</button>
@@ -57,14 +57,8 @@
           </div>
 
           <div class="field-block">
-            <label class="field-label">確率</label>
-            <input v-model.number="editProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
-              class="admin-input" />
-          </div>
-
-          <div class="field-block">
-            <label class="field-label">順位</label>
-            <input v-model.number="editRank" type="number" placeholder="順位" min="1" class="admin-input" />
+            <label class="field-label">景品ランク</label>
+            <input v-model.number="editRank" type="number" placeholder="景品ランク" min="1" class="admin-input" />
           </div>
 
           <div class="field-block left-col">
@@ -90,7 +84,7 @@
                 <div v-if="editImageMode === 'upload'" class="image-file-input-wrap">
                   <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
                   <span v-if="editImageFilename" class="file-name" style="margin-left:8px">{{ editImageFilename
-                  }}</span>
+                    }}</span>
                 </div>
               </div>
             </div>
@@ -175,13 +169,8 @@
 
           <div class="two-col span-2">
             <div class="field-block">
-              <label class="field-label">確率</label>
-              <input v-model.number="newPrizeProbability" type="number" placeholder="確率 (1-10)" min="1" max="10"
-                class="admin-input" />
-            </div>
-            <div class="field-block">
-              <label class="field-label">順位</label>
-              <input v-model.number="newPrizeRank" type="number" placeholder="順位" min="1" class="admin-input" />
+              <label class="field-label">景品ランク</label>
+              <input v-model.number="newPrizeRank" type="number" placeholder="景品ランク" min="1" class="admin-input" />
             </div>
           </div>
 
@@ -272,8 +261,7 @@
       <div class="modal-footer">
         <div class="footer-left"></div>
         <div class="footer-right admin-modal-buttons">
-          <button class="admin-btn" @click="confirmAdd"
-            :disabled="!newPrizeName.trim() || !newPrizeProbability || adding">追加</button>
+          <button class="admin-btn" @click="confirmAdd" :disabled="!newPrizeName.trim() || adding">追加</button>
           <button class="admin-btn cancel-primary" @click="closeAddModal" :disabled="adding">キャンセル</button>
         </div>
       </div>
@@ -374,7 +362,7 @@ const isAllSelected = computed({
 
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
-const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeProbability.value = 5; newPrizeRank.value = undefined; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; newBgm1Mode.value = 'select'; newBgm2Mode.value = 'select'; newBgm1Filename.value = ''; newBgm2Filename.value = ''; tempBgm1Asset.value = null; tempBgm2Asset.value = null; };
+const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeRank.value = undefined; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; newBgm1Mode.value = 'select'; newBgm2Mode.value = 'select'; newBgm1Filename.value = ''; newBgm2Filename.value = ''; tempBgm1Asset.value = null; tempBgm2Asset.value = null; };
 const confirmAdd = async () => { await addPrize(); closeAddModal(); };
 
 const showDeleteModal = ref(false);
@@ -389,7 +377,6 @@ const syncing = ref(false);
 const syncMessage = ref("");
 
 const newPrizeName = ref('');
-const newPrizeProbability = ref(5);
 const newPrizeRank = ref<number | undefined>();
 const newPrizeAnimation = ref('roulette');
 const newImageMode = ref('upload');
@@ -443,12 +430,11 @@ const onNewBgm2Change = async (e: Event) => {
 };
 
 const addPrize = async () => {
-  if (!newPrizeName.value.trim() || !newPrizeProbability.value) return;
+  if (!newPrizeName.value.trim()) return;
   adding.value = true;
   const newPrize: any = {
     id: String(Date.now()),
     name: newPrizeName.value,
-    probability: newPrizeProbability.value,
     rank: newPrizeRank.value,
     animation: newPrizeAnimation.value || 'roulette',
     order: prizes.value.length + 1
@@ -639,7 +625,6 @@ const downloadPrizesJsonFromDrive = async () => {
 
 const editPrizeData = ref<any>(null);
 const editName = ref('');
-const editProbability = ref(5);
 const editRank = ref<number | undefined>();
 const editImageAssetId = ref('');
 const editImagePreview = ref('');
@@ -691,7 +676,6 @@ const onEditBgm2Change = async (e: Event) => {
 const editPrize = async (prize: any) => {
   editPrizeData.value = prize;
   editName.value = prize.name;
-  editProbability.value = prize.probability;
   editRank.value = prize.rank;
   editAnimation.value = prize.animation || 'roulette';
 
@@ -815,7 +799,6 @@ const saveEdit = async () => {
   const updatedPrize = {
     ...editPrizeData.value,
     name: editName.value,
-    probability: editProbability.value,
     rank: editRank.value,
     animation: editAnimation.value,
     imageAssetId: assetId || editImageAssetId.value,
@@ -827,7 +810,6 @@ const saveEdit = async () => {
     await fetchPrizes();
     editPrizeData.value = null;
     editName.value = '';
-    editProbability.value = 5;
     editRank.value = undefined;
     editImageAssetId.value = '';
     editImagePreview.value = '';

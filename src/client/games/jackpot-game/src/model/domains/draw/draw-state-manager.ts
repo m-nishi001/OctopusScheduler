@@ -48,11 +48,9 @@ export class DrawStateManager {
   executePrizeDraw(opts: {
     prizes: {
       id: string;
-      weight: number;
       rank?: number;
       isAssigned?: boolean;
     }[];
-    memberRank: number;
     requestDummyCount: number;
     currentState: {
       kakuhenTimings: number[];
@@ -62,7 +60,7 @@ export class DrawStateManager {
     dummyPrizeIds: string[];
     isKakuhen: boolean;
   } {
-    const { prizes, memberRank, requestDummyCount, currentState } = opts;
+    const { prizes, requestDummyCount, currentState } = opts;
 
     if (currentState.kakuhenTimings.includes(0)) {
       // Placeholder, actual check in app service
@@ -70,10 +68,8 @@ export class DrawStateManager {
       const trial = this.prizeDrawService.drawPrize({
         prizes: prizes.map((p) => ({
           id: p.id,
-          weight: p.weight,
           rank: p.rank,
         })),
-        memberRank,
         requestDummyCount: Math.max(0, requestDummyCount - 1),
       });
 
@@ -87,11 +83,9 @@ export class DrawStateManager {
       const pick = this.prizeDrawService.drawPrize({
         prizes: prizes.map((p) => ({
           id: p.id,
-          weight: p.weight,
           rank: p.rank,
           isAssigned: p.isAssigned,
         })),
-        memberRank,
         requestDummyCount: Math.max(0, requestDummyCount - 1),
       });
 

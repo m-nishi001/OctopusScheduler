@@ -3,7 +3,6 @@ import type { Prize } from "domains/prize/prize";
 export interface PrizeDto {
   id: string;
   name: string;
-  probability: number;
   rank?: number;
   imageAssetId?: string;
   bgm1AssetId?: string;
@@ -17,7 +16,6 @@ export interface PrizeDto {
 export const toPrize = (dto: PrizeDto): Prize => ({
   id: dto.id,
   name: dto.name,
-  probability: dto.probability,
   rank: dto.rank,
   imageAssetId: dto.imageAssetId,
   bgm1AssetId: dto.bgm1AssetId,
@@ -30,7 +28,6 @@ export const toPrize = (dto: PrizeDto): Prize => ({
 export const fromPrize = (prize: Prize): PrizeDto => ({
   id: prize.id,
   name: prize.name,
-  probability: prize.probability,
   rank: prize.rank,
   imageAssetId: prize.imageAssetId,
   bgm1AssetId: prize.bgm1AssetId,

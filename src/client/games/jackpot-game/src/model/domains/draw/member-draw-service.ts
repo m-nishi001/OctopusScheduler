@@ -1,4 +1,6 @@
 import { WeightedSelector } from "./weighted-selector";
+import type { DrawResult } from "./draw-result";
+import type { Member } from "../member/member";
 
 export class MemberDrawService {
   private weightedSelector: WeightedSelector;
@@ -7,34 +9,28 @@ export class MemberDrawService {
     this.weightedSelector = weightedSelector;
   }
 
-  drawMember(opts: {
-    members: {
-      id: string;
-      rank: number;
-      isWinner: boolean;
-    }[];
-    requestDummyCount: number;
-  }): { winnerId: string | null; dummyIds: string[] } {
-    const { members, requestDummyCount } = opts;
-    const candidates = members.filter((m) => !m.isWinner);
+  drawMember(
+    members: Member[],
+    drawResults: DrawResult[],
+    dummyCount: number
+  ): { winnerId: string | null; dummyIds: string[] } {
+    const candidates = members.filter(
+      (m) => !drawResults.some((dr) => dr.wonMember?.id === m.id)
+    );
     if (candidates.length === 0) {
       return {
         winnerId: null,
         dummyIds: this.getDummyMember(
           members.map((m) => m.id),
-          requestDummyCount
+          dummyCount
         ),
       };
     }
-    const weighted = candidates.map((m) => ({
-      id: m.id,
-      weight: 1,
-    }));
-    const winner = this.weightedSelector.selectWeighted(weighted);
+    const winner = this.weightedSelector.selectWeighted(candidates);
     const dummyPool = members.map((m) => m.id).filter((id) => id !== winner.id);
     return {
       winnerId: winner.id,
-      dummyIds: this.getDummyMember(dummyPool, requestDummyCount),
+      dummyIds: this.getDummyMember(dummyPool, dummyCount),
     };
   }
 

@@ -124,7 +124,7 @@ import { container } from 'tsyringe';
 import { DrawResultService } from '@model/applications/draw/draw-result-service';
 import { PrizeService } from '@model/applications/prize/prize-service';
 import type { DrawResultDto } from '@model/applications/draw/dto/draw-result-dto';
-import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
+import type { Prize } from '../../../model/domains/prize/prize';
 import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { IPrizeRepositoryToken } from '@model/domains/prize/repository/i-prize-repository';
 import { IMemberRepositoryToken } from '@model/domains/member/repository/i-member-repository';
@@ -141,7 +141,7 @@ const assetService = container.resolve(AssetDataService);
 const prizeDrawStateRepository = container.resolve(PrizeDrawStateRepository);
 
 const drawResults = ref<DrawResultDto[]>([]);
-const prizes = ref<PrizeDto[]>([]);
+const prizes = ref<Prize[]>([]);
 const members = ref<MemberDto[]>([]);
 const showResetModal = ref(false);
 const imageUrls = ref(new Map<string, string>());

@@ -181,6 +181,9 @@ export default {
             // 初期データロード
             [prizes.value, members.value] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
 
+            // 景品抽選状態の初期化
+            await drawService.initializeStateIfNeeded(prizes.value);
+
             // 事前抽選実行
             const res = await drawService.executeDraw({
                 memberRequestCount: 10,
@@ -278,7 +281,7 @@ export default {
         const onRouletteStopped = (prizeId: string | null) => {
             if (!prizeId) throw new Error('No prize selected');
             if (latestResult.value) {
-                latestResult.value.wonPrize = prizes.value.find((p: PrizeDto) => p.id === prizeId) || null;
+                latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId) || null;
                 drawState.prizeAnimationStopped = true;
                 drawState.currentAction = () => { void closeModal(); };
             }

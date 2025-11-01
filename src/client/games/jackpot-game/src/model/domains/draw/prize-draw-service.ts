@@ -10,15 +10,13 @@ export class PrizeDrawService {
   drawPrize(opts: {
     prizes: {
       id: string;
-      weight: number;
       rank?: number;
       isAssigned?: boolean;
     }[];
-    memberRank?: number;
     requestDummyCount: number;
     preferModeRank?: number | null;
   }): { winnerPrizeId: string | null; dummyPrizeIds: string[] } {
-    const { prizes, memberRank, requestDummyCount, preferModeRank } = opts;
+    const { prizes, requestDummyCount, preferModeRank } = opts;
     let available = prizes.filter((p) => !p.isAssigned);
     if (preferModeRank !== null && preferModeRank !== undefined) {
       available = available.filter((p) => p.rank === preferModeRank);
@@ -36,13 +34,7 @@ export class PrizeDrawService {
         ),
       };
     }
-    const weighted = available.map((p) => {
-      const base = p.weight;
-      const rankFactor =
-        memberRank && p.rank ? 1 + (memberRank - p.rank) * 0.1 : 1;
-      return { id: p.id, weight: Math.max(0, base * rankFactor) };
-    });
-    const picked = this.weightedSelector.selectWeighted(weighted);
+    const picked = this.weightedSelector.selectWeighted(available);
     const dummyPool = prizes.map((p) => p.id).filter((id) => id !== picked.id);
     return {
       winnerPrizeId: picked.id,
