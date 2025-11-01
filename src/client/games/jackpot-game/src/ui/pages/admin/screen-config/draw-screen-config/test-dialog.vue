@@ -15,21 +15,15 @@
                         <tr>
                             <th>Draw ID</th>
                             <th>Member</th>
-                            <th>Member Rank</th>
                             <th>Prize</th>
-                            <th>Prize Rank</th>
-                            <th>Winner</th>
                             <th>Kakuhen</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="result in results" :key="result.drawId">
                             <td>{{ result.drawId }}</td>
-                            <td>{{ result.member?.name || '' }}</td>
-                            <td>{{ result.memberRank || '' }}</td>
-                            <td>{{ result.prize?.name || '' }}</td>
-                            <td>{{ result.prizeRank || '' }}</td>
-                            <td>{{ result.isWinner ? 'Yes' : 'No' }}</td>
+                            <td>{{ result.wonMember?.name || '' }}</td>
+                            <td>{{ result.wonPrize?.name || '' }}</td>
                             <td>{{ result.isKakuhen ? 'Yes' : 'No' }}</td>
                         </tr>
                     </tbody>

@@ -50,8 +50,8 @@ export default {
       resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
 
       for (const r of results) {
-        if (r.member) {
-          const aid = r.member.photoAssetId;
+        if (r.wonMember) {
+          const aid = r.wonMember.photoAssetId;
           if (aid) {
             const asset = await assetService.getAssetDataById(aid);
             if (asset && asset.id && !objectUrlMap.has(asset.id)) {
@@ -60,12 +60,12 @@ export default {
           }
         }
       }
-      winners.value = results.filter(r => r.member).map(r => ({ ...r.member!, prize: r.prize ? r.prize.name : '', id: r.member!.id, photo: (r.member!.photoAssetId ? objectUrlMap.get(r.member!.photoAssetId) : undefined) || r.member!.photoAssetId }));
-      const ranks = results.filter(r => r.member).map(r => r.memberRank || 0);
+      winners.value = results.filter(r => r.wonMember).map(r => ({ ...r.wonMember!, prize: r.wonPrize ? r.wonPrize.name : '', id: r.wonMember!.id, photo: (r.wonMember!.photoAssetId ? objectUrlMap.get(r.wonMember!.photoAssetId) : undefined) || r.wonMember!.photoAssetId }));
+      const ranks = results.filter(r => r.wonMember).map(r => r.wonMember!.rank);
       const minRank = Math.min(...ranks);
       const maxRank = Math.max(...ranks);
-      specialWinner.value = results.find(r => r.member && r.memberRank === minRank)?.member;
-      lowestWinner.value = results.find(r => r.member && r.memberRank === maxRank)?.member;
+      specialWinner.value = results.find(r => r.wonMember && r.wonMember.rank === minRank)?.wonMember;
+      lowestWinner.value = results.find(r => r.wonMember && r.wonMember.rank === maxRank)?.wonMember;
     };
     onMounted(() => {
       fetchResults();

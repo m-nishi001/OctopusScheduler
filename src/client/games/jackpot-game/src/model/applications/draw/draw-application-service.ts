@@ -36,7 +36,7 @@ export class DrawApplicationService {
   ): Promise<DrawMemberResponse> {
     const members = await this.memberRepo.getMembers();
     const results = await this.drawResultService.getDrawResults();
-    const wonSet = new Set(results.map((r) => r.member?.id));
+    const wonSet = new Set(results.map((r) => r.wonMember?.id));
 
     const domainMembers = members.map((m) => ({
       id: m.id,
@@ -69,7 +69,7 @@ export class DrawApplicationService {
 
     const state = await this.initializeStateIfNeeded(prizes);
     const results = await this.drawResultService.getDrawResults();
-    const drawCount = results.filter((r) => r.member !== null).length + 1;
+    const drawCount = results.filter((r) => r.wonMember !== null).length + 1;
 
     if (state.kakuhenTimings.includes(drawCount)) {
       return this.executeKakuhenDraw(member, results, prizes);
@@ -122,11 +122,8 @@ export class DrawApplicationService {
     for (const prize of reservedPrizes) {
       await this.drawResultService.addDrawResult({
         drawId: `reserved-${prize.id}-${Date.now()}`,
-        member: null,
-        prize,
-        prizeRank: prize.rank ?? 0,
-        memberRank: null,
-        isWinner: false,
+        wonMember: null,
+        wonPrize: prize,
         isKakuhen: false,
         createdAt: Date.now(),
       });
@@ -139,10 +136,11 @@ export class DrawApplicationService {
     prizes: PrizeDto[]
   ): Promise<DrawPrizeResponse> {
     const availablePrizes = prizes.filter(
-      (p) => !results.some((r) => r.prize?.id === p.id && r.member !== null)
+      (p) =>
+        !results.some((r) => r.wonPrize?.id === p.id && r.wonMember !== null)
     );
 
-    const reservedResults = results.filter((r) => r.member === null);
+    const reservedResults = results.filter((r) => r.wonMember === null);
     if (reservedResults.length === 0) {
       throw new Error("No reserved prizes available");
     }
@@ -156,7 +154,7 @@ export class DrawApplicationService {
 
     // ダミー景品を取得: 全景品から winnerPrizeId と dummyWinnerPrizeId を除いたものをランダムで取得
     const excludedIds = new Set(
-      [selectedReserved.prize?.id, dummyWinnerPrizeId].filter(Boolean)
+      [selectedReserved.wonPrize?.id, dummyWinnerPrizeId].filter(Boolean)
     );
     const dummyCandidates = prizes.filter((p) => !excludedIds.has(p.id));
     const dummyPrizeIds = dummyCandidates
@@ -166,13 +164,12 @@ export class DrawApplicationService {
 
     await this.drawResultService.updateDrawResult({
       ...selectedReserved,
-      member,
-      isWinner: true,
+      wonMember: member,
       isKakuhen: true,
     });
     return {
       drawId: selectedReserved.drawId,
-      winnerPrizeId: selectedReserved.prize?.id || null,
+      winnerPrizeId: selectedReserved.wonPrize?.id || null,
       dummyWinnerPrizeId, // かくへん用のダミー当選景品ID
       dummyPrizeIds, // ルーレット盤を埋めるダミー景品ID
       isKakuhen: true,
@@ -188,7 +185,8 @@ export class DrawApplicationService {
     request: DrawPrizeRequest
   ): Promise<DrawPrizeResponse> {
     const availablePrizes = prizes.filter(
-      (p) => !results.some((r) => r.prize?.id === p.id && r.member !== null)
+      (p) =>
+        !results.some((r) => r.wonPrize?.id === p.id && r.wonMember !== null)
     );
     if (availablePrizes.length === 0) {
       console.warn("No available prizes left");
@@ -223,8 +221,8 @@ export class DrawApplicationService {
     const results = await this.drawResultService.getDrawResults();
     const assignedPrizeIds = new Set(
       results
-        .filter((r) => r.member !== null)
-        .map((r) => r.prize?.id)
+        .filter((r) => r.wonMember !== null)
+        .map((r) => r.wonPrize?.id)
         .filter(Boolean)
     );
     return {
@@ -264,11 +262,8 @@ export class DrawApplicationService {
       : null;
     const drawResult: DrawResultDto = {
       drawId: crypto.randomUUID(),
-      member: winnerMember,
-      prize: winnerPrize,
-      prizeRank: winnerPrize?.rank || null,
-      memberRank: winnerMember.rank,
-      isWinner: true,
+      wonMember: winnerMember,
+      wonPrize: winnerPrize,
       isKakuhen: prizeRes.isKakuhen ?? false,
       createdAt: Date.now(),
     };

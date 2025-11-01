@@ -34,12 +34,12 @@
             </thead>
             <tbody>
                 <tr v-for="result in drawResults" :key="result.drawId">
-                    <td>{{ result.member?.name || '不明' }}</td>
-                    <td>{{ result.prize?.name || '不明' }}</td>
+                    <td>{{ result.wonMember?.name || '不明' }}</td>
+                    <td>{{ result.wonPrize?.name || '不明' }}</td>
                     <td>
-                        <span v-if="result.isWinner" class="winner-badge">当選</span>
+                        <span v-if="result.wonMember !== null" class="winner-badge">当選</span>
                         <span v-if="result.isKakuhen" class="kakuhen-badge">確変</span>
-                        <span v-if="result.member === null" class="reserved-badge">予約</span>
+                        <span v-if="result.wonMember === null" class="reserved-badge">予約</span>
                     </td>
                     <td>{{ formatDate(result) }}</td>
                 </tr>
@@ -147,15 +147,15 @@ const showResetModal = ref(false);
 const imageUrls = ref(new Map<string, string>());
 
 const totalDraws = computed(() => drawResults.value.length);
-const winnersCount = computed(() => drawResults.value.filter(r => r.isWinner).length);
+const winnersCount = computed(() => drawResults.value.filter(r => r.wonMember !== null).length);
 const remainingPrizes = computed(() => {
-    const assignedPrizeIds = new Set(drawResults.value.filter(r => r.member !== null).map(r => r.prize?.id).filter(Boolean));
+    const assignedPrizeIds = new Set(drawResults.value.filter(r => r.wonMember !== null).map(r => r.wonPrize?.id).filter(Boolean));
     return prizes.value.length - assignedPrizeIds.size;
 });
 
 const memberStats = computed(() => {
     const stats = members.value.map(member => {
-        const wins = drawResults.value.filter(r => r.member?.id === member.id && r.isWinner).length;
+        const wins = drawResults.value.filter(r => r.wonMember?.id === member.id).length;
         return {
             ...member,
             wins
@@ -166,8 +166,8 @@ const memberStats = computed(() => {
 
 const prizeStats = computed(() => {
     const stats = prizes.value.map(prize => {
-        const wins = drawResults.value.filter(r => r.prize?.id === prize.id && r.isWinner).length;
-        const remaining = drawResults.value.some(r => r.prize?.id === prize.id && r.member !== null) ? 0 : 1;
+        const wins = drawResults.value.filter(r => r.wonPrize?.id === prize.id).length;
+        const remaining = drawResults.value.some(r => r.wonPrize?.id === prize.id && r.wonMember !== null) ? 0 : 1;
         return {
             ...prize,
             wins,

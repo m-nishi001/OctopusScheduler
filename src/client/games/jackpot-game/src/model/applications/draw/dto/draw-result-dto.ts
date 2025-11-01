@@ -8,22 +8,16 @@ import type { DrawResult } from "domains/draw/draw-result";
 
 export interface DrawResultDto {
   drawId: string;
-  member: MemberDto | null;
-  prize: PrizeDto | null;
-  prizeRank: number | null;
-  memberRank: number | null;
-  isWinner: boolean;
+  wonMember: MemberDto | null;
+  wonPrize: PrizeDto | null;
   isKakuhen: boolean;
   createdAt: number;
 }
 
 export const toDrawResultDto = (drawResult: DrawResult): DrawResultDto => ({
   drawId: drawResult.drawId,
-  member: drawResult.member ? toMember(drawResult.member) : null,
-  prize: drawResult.prize ? toPrize(drawResult.prize) : null,
-  prizeRank: drawResult.prizeRank,
-  memberRank: drawResult.memberRank,
-  isWinner: drawResult.isWinner,
+  wonMember: drawResult.wonMember ? toMember(drawResult.wonMember) : null,
+  wonPrize: drawResult.wonPrize ? toPrize(drawResult.wonPrize) : null,
   isKakuhen: drawResult.isKakuhen,
   createdAt: Date.now(),
 });
@@ -31,11 +25,8 @@ export const toDrawResultDto = (drawResult: DrawResult): DrawResultDto => ({
 export const fromDrawResultDto = (dto: DrawResultDto): DrawResult => {
   return {
     drawId: dto.drawId,
-    member: dto.member ? fromMember(dto.member) : null,
-    prize: dto.prize ? fromPrize(dto.prize) : null,
-    prizeRank: dto.prizeRank,
-    memberRank: dto.memberRank ?? 0,
-    isWinner: dto.isWinner,
+    wonMember: dto.wonMember ? fromMember(dto.wonMember) : null,
+    wonPrize: dto.wonPrize ? fromPrize(dto.wonPrize) : null,
     isKakuhen: dto.isKakuhen,
   };
 };

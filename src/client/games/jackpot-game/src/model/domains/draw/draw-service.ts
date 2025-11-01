@@ -91,7 +91,7 @@ export class DrawService {
     drawId: string;
     prizeId: string;
     prizes: { id: string; [key: string]: any }[];
-    results: { drawId: string; prize?: any }[];
+    results: { drawId: string; wonPrize?: any }[];
     updateFn: (result: any) => void;
   }): void {
     const { drawId, prizeId, prizes, results, updateFn } = opts;
@@ -99,7 +99,7 @@ export class DrawService {
     const existingResult = results.find((r) => r.drawId === drawId);
 
     if (existingResult) {
-      existingResult.prize = prize || null;
+      existingResult.wonPrize = prize || null;
       updateFn(existingResult);
     } else {
       throw new Error(`Draw result with drawId ${drawId} not found`);
@@ -149,11 +149,8 @@ export class DrawService {
 
     const drawResult: DrawResult = {
       drawId,
-      member: winnerMember,
-      prize: winnerPrize,
-      prizeRank: winnerPrize.rank ?? null,
-      memberRank: winnerMember.rank,
-      isWinner: true,
+      wonMember: winnerMember,
+      wonPrize: winnerPrize,
       isKakuhen: false,
     };
 

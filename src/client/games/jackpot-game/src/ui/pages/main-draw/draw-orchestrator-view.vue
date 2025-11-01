@@ -2,9 +2,9 @@
     <MainLayout>
         <div class="orchestrator container mx-auto p-6">
 
-            <DrawResultDialog v-if="showPrizeWinningDialog" title="景品当選" :assetId="latestResult?.prize?.imageAssetId"
+            <DrawResultDialog v-if="showPrizeWinningDialog" title="景品当選" :assetId="latestResult?.wonPrize?.imageAssetId"
                 primaryLabel="次へ" @close="closeModal">
-                当選景品: <strong>{{ latestResult?.prize?.name }}</strong>
+                当選景品: <strong>{{ latestResult?.wonPrize?.name }}</strong>
             </DrawResultDialog>
 
             <HalfRemainingDialog v-if="showHalfRemainingDialog" :visible="showHalfRemainingDialog"
@@ -176,20 +176,21 @@ export default {
             drawState.currentAction?.();
         };
 
-        // ライフサイクルフック
         onMounted(async () => {
-            const [prizesData, membersData] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
-            prizes.value = prizesData;
-            members.value = membersData;
+
+            // 初期データロード
+            [prizes.value, members.value] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
 
             // 事前抽選実行
             const res = await drawService.executeDraw({
                 memberRequestCount: 10,
                 prizeRequestCount: 8,
             });
+
             preDrawResults.memberWinnerId = res.memberWinnerId;
             preDrawResults.prizeResult = { winnerPrizeId: res.prizeWinnerId, isKakuhen: res.isKakuhen };
             latestResult.value = res.drawResult;
+
             if (res.prizeWinnerId) {
                 selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
                 // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
@@ -277,7 +278,7 @@ export default {
         const onRouletteStopped = (prizeId: string | null) => {
             if (!prizeId) throw new Error('No prize selected');
             if (latestResult.value) {
-                latestResult.value.prize = prizes.value.find((p: PrizeDto) => p.id === prizeId) || null;
+                latestResult.value.wonPrize = prizes.value.find((p: PrizeDto) => p.id === prizeId) || null;
                 drawState.prizeAnimationStopped = true;
                 drawState.currentAction = () => { void closeModal(); };
             }

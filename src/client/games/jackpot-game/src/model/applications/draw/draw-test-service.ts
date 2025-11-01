@@ -239,22 +239,11 @@ export class DrawTestService {
 
   // 結果をCSV形式で取得
   generateCsv(results: DrawResultDto[]): string {
-    const headers = [
-      "Draw ID",
-      "Member Name",
-      "Member Rank",
-      "Prize Name",
-      "Prize Rank",
-      "Is Winner",
-      "Is Kakuhen",
-    ];
+    const headers = ["Draw ID", "Member Name", "Prize Name", "Is Kakuhen"];
     const rows = results.map((result) => [
       result.drawId,
-      result.member?.name || "",
-      result.memberRank?.toString() || "",
-      result.prize?.name || "",
-      result.prizeRank?.toString() || "",
-      result.isWinner.toString(),
+      result.wonMember?.name || "",
+      result.wonPrize?.name || "",
       (result.isKakuhen || false).toString(),
     ]);
 

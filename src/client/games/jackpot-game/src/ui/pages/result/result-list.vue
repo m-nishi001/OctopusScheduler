@@ -6,8 +6,8 @@
 			<div v-if="loading">結果取得中...</div>
 			<div v-else class="result-list" style="max-height:300px;overflow-y:auto;">
 				<ul>
-					<li v-for="w in winners" :key="w.member!.id" style="margin-bottom:1em;">
-						<span class="winner-name">{{ w.member!.name }}</span>
+					<li v-for="w in winners" :key="w.wonMember!.id" style="margin-bottom:1em;">
+						<span class="winner-name">{{ w.wonMember!.name }}</span>
 					</li>
 				</ul>
 			</div>
@@ -38,7 +38,7 @@ export default {
 			screenConfig.value = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
 			try {
 				const results = await drawResultService.getDrawResults();
-				winners.value = results.filter(r => r.member);
+				winners.value = results.filter(r => r.wonMember);
 			} finally {
 				loading.value = false;
 			}

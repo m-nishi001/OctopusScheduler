@@ -110,9 +110,9 @@ export default {
         const drawResult = await drawService.executeDraw({ prizes: prizes.value, members: members.value });
         await drawResultService.addDrawResult(toDrawResultDto(drawResult));
         const winner = drawResult;
-        if (winner && winner.member) {
-          const prizeText = winner.prize ? (winner.prize.name || winner.prize.id) : '';
-          result.value = { member: winner.member.name || winner.member.id, prize: prizeText };
+        if (winner && winner.wonMember) {
+          const prizeText = winner.wonPrize ? (winner.wonPrize.name || winner.wonPrize.id) : '';
+          result.value = { member: winner.wonMember.name || winner.wonMember.id, prize: prizeText };
         }
       } finally {
 
