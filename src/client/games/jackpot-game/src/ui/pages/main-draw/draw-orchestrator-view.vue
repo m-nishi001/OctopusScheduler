@@ -30,7 +30,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw } from 'vue';
 import type { Component } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
@@ -70,7 +70,7 @@ export default {
 
         // コンポーネント分岐（拡張用）
         const currentMemberComponent = ref('MemberDrawAnimation');
-        const currentPrizeComponent = ref<Component>(RouletteAnimation);
+        const currentPrizeComponent = shallowRef<Component>(markRaw(RouletteAnimation));
 
         // サービス
         const prizeRepo = container.resolve(PrizeRepository);
@@ -173,9 +173,9 @@ export default {
                 selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
                 // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
                 if (selectedPrize.value?.animation === 'slot') {
-                    currentPrizeComponent.value = SlotAnimation;
+                    currentPrizeComponent.value = markRaw(SlotAnimation);
                 } else {
-                    currentPrizeComponent.value = RouletteAnimation;
+                    currentPrizeComponent.value = markRaw(RouletteAnimation);
                 }
             }
             // 分岐判定（例: 特定のメンバーなら特殊コンポーネント/BGM）
@@ -276,9 +276,9 @@ export default {
                     if (res.prizeWinnerId) {
                         selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
                         if (selectedPrize.value?.animation === 'slot') {
-                            currentPrizeComponent.value = SlotAnimation;
+                            currentPrizeComponent.value = markRaw(SlotAnimation);
                         } else {
-                            currentPrizeComponent.value = RouletteAnimation;
+                            currentPrizeComponent.value = markRaw(RouletteAnimation);
                         }
                     }
                     currentMemberComponent.value = 'MemberDrawAnimation';
