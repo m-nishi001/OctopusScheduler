@@ -120,13 +120,6 @@ export default {
                     bgm2Url,
                 });
             }
-
-            const assignRes = await drawService.executeKakuhenAssign();
-            if (assignRes.winnerPrizeId) {
-                latestResult.value!.prize =
-                    prizes.value.find((p) => p.id === assignRes.winnerPrizeId) || null;
-                drawState.resultShown = true;
-            }
         };
 
         // 通常抽選処理

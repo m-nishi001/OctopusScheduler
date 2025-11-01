@@ -13,6 +13,7 @@ import {
 } from "../../infrastructures/prize-draw-state-repository";
 import type { PrizeDto } from "../prize/dto/prize-dto";
 import type { DrawResultDto } from "./dto/draw-result-dto";
+import type { MemberDto } from "../member/dto/member-dto";
 
 @injectable()
 export class DrawApplicationService {
@@ -64,112 +65,136 @@ export class DrawApplicationService {
     if (!member) {
       throw new Error("Member not found for prize draw: " + request.memberId);
     }
-    const memberRank = member ? member.rank : 0;
+    const memberRank = member.rank;
 
-    let state: PrizeDrawState | null =
-      await this.prizeDrawStateRepository.getState();
-
-    if (!state) {
-      // Initialize state and add reserved prize records
-      state = this.drawService.initializePrizeDrawState(prizes);
-      await this.prizeDrawStateRepository.saveState(state);
-
-      // Reserve prizes based on kakuhenTimings length with alternating high/low ranks
-      const reservedCount = state.kakuhenTimings.length;
-      const sortedHigh = [...prizes].sort(
-        (a, b) => (b.rank ?? 0) - (a.rank ?? 0)
-      );
-      const sortedLow = [...sortedHigh].reverse();
-      const reservedPrizes: PrizeDto[] = [];
-      const isEven = reservedCount % 2 === 0;
-      let useHigh = isEven ? true : Math.random() < 0.5;
-      for (let i = 0; i < reservedCount; i++) {
-        const source = useHigh ? sortedHigh : sortedLow;
-        const candidate = source.find(
-          (p) => !reservedPrizes.some((rp) => rp.id === p.id)
-        );
-        reservedPrizes.push(
-          candidate || prizes[Math.floor(Math.random() * prizes.length)]
-        );
-        useHigh = !useHigh;
-      }
-
-      for (const prize of reservedPrizes) {
-        await this.drawResultService.addDrawResult({
-          drawId: `reserved-${prize.id}-${Date.now()}`,
-          member: null,
-          prize,
-          prizeRank: prize.rank ?? 0,
-          memberRank: null,
-          isWinner: false,
-          isKakuhen: false,
-          createdAt: Date.now(),
-        });
-      }
-    }
-
-    // Get draw count from DrawResult
+    const state = await this.initializeStateIfNeeded(prizes);
     const results = await this.drawResultService.getDrawResults();
     const drawCount = results.filter((r) => r.member !== null).length + 1;
 
     if (state.kakuhenTimings.includes(drawCount)) {
-      // Kakuhen draw: update reserved record
-      const reservedResults = results.filter((r) => r.member === null);
-      if (reservedResults.length === 0) {
-        throw new Error("No reserved prizes available");
-      }
-      const selectedReserved =
-        reservedResults[Math.floor(Math.random() * reservedResults.length)];
-
-      // Update the record
-      await this.drawResultService.updateDrawResult({
-        ...selectedReserved,
+      return this.executeKakuhenDraw(member, results);
+    } else {
+      return this.executeNormalDraw(
         member,
-        isWinner: true,
-        isKakuhen: true,
-      });
+        memberRank,
+        prizes,
+        results,
+        state,
+        request
+      );
+    }
+  }
 
+  private async initializeStateIfNeeded(
+    prizes: PrizeDto[]
+  ): Promise<PrizeDrawState> {
+    let state = await this.prizeDrawStateRepository.getState();
+    if (!state) {
+      state = this.drawService.initializePrizeDrawState(prizes);
+      await this.prizeDrawStateRepository.saveState(state);
+      await this.reservePrizes(state, prizes);
+    }
+    return state;
+  }
+
+  private async reservePrizes(
+    state: PrizeDrawState,
+    prizes: PrizeDto[]
+  ): Promise<void> {
+    const reservedCount = state.kakuhenTimings.length;
+    const sortedHigh = [...prizes].sort(
+      (a, b) => (b.rank ?? 0) - (a.rank ?? 0)
+    );
+    const sortedLow = [...sortedHigh].reverse();
+    const reservedPrizes: PrizeDto[] = [];
+    const isEven = reservedCount % 2 === 0;
+    let useHigh = isEven ? true : Math.random() < 0.5;
+    for (let i = 0; i < reservedCount; i++) {
+      const source = useHigh ? sortedHigh : sortedLow;
+      const candidate = source.find(
+        (p) => !reservedPrizes.some((rp) => rp.id === p.id)
+      );
+      reservedPrizes.push(
+        candidate || prizes[Math.floor(Math.random() * prizes.length)]
+      );
+      useHigh = !useHigh;
+    }
+    for (const prize of reservedPrizes) {
+      await this.drawResultService.addDrawResult({
+        drawId: `reserved-${prize.id}-${Date.now()}`,
+        member: null,
+        prize,
+        prizeRank: prize.rank ?? 0,
+        memberRank: null,
+        isWinner: false,
+        isKakuhen: false,
+        createdAt: Date.now(),
+      });
+    }
+  }
+
+  private async executeKakuhenDraw(
+    member: MemberDto,
+    results: any[]
+  ): Promise<DrawPrizeResponse> {
+    const reservedResults = results.filter((r) => r.member === null);
+    if (reservedResults.length === 0) {
+      throw new Error("No reserved prizes available");
+    }
+    const selectedReserved =
+      reservedResults[Math.floor(Math.random() * reservedResults.length)];
+    await this.drawResultService.updateDrawResult({
+      ...selectedReserved,
+      member,
+      isWinner: true,
+      isKakuhen: true,
+    });
+    return {
+      drawId: selectedReserved.drawId,
+      winnerPrizeId: selectedReserved.prize?.id || null,
+      dummyWinnerPrizeId: null,
+      dummyPrizeIds: [],
+      isKakuhen: true,
+    };
+  }
+
+  private async executeNormalDraw(
+    _member: MemberDto,
+    memberRank: number,
+    prizes: PrizeDto[],
+    results: any[],
+    state: PrizeDrawState,
+    request: DrawPrizeRequest
+  ): Promise<DrawPrizeResponse> {
+    const availablePrizes = prizes.filter(
+      (p) => !results.some((r) => r.prize?.id === p.id && r.member !== null)
+    );
+    if (availablePrizes.length === 0) {
+      console.warn("No available prizes left");
       return {
-        drawId: selectedReserved.drawId,
-        winnerPrizeId: selectedReserved.prize?.id || null,
+        drawId: `prize-${Date.now()}`,
+        winnerPrizeId: null,
         dummyWinnerPrizeId: null,
         dummyPrizeIds: [],
-        isKakuhen: true,
-      };
-    } else {
-      // Normal draw
-      const availablePrizes = prizes.filter(
-        (p) => !results.some((r) => r.prize?.id === p.id && r.member !== null)
-      );
-      if (availablePrizes.length === 0) {
-        console.warn("No available prizes left");
-        return {
-          drawId: `prize-${Date.now()}`,
-          winnerPrizeId: null,
-          dummyWinnerPrizeId: null,
-          dummyPrizeIds: [],
-        };
-      }
-
-      const result = this.drawService.executePrizeDraw({
-        prizes: availablePrizes.map((p) => ({
-          id: p.id,
-          weight: p.probability,
-          rank: p.rank,
-        })),
-        memberRank,
-        requestDummyCount: Math.max(0, request.requestCount - 1),
-        currentState: { kakuhenTimings: state.kakuhenTimings },
-      });
-
-      return {
-        drawId: crypto.randomUUID(),
-        winnerPrizeId: result.winnerPrizeId,
-        dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
-        dummyPrizeIds: result.dummyPrizeIds,
-        isKakuhen: false,
       };
     }
+    const result = this.drawService.executePrizeDraw({
+      prizes: availablePrizes.map((p) => ({
+        id: p.id,
+        weight: p.probability,
+        rank: p.rank,
+      })),
+      memberRank,
+      requestDummyCount: Math.max(0, request.requestCount - 1),
+      currentState: { kakuhenTimings: state.kakuhenTimings },
+    });
+    return {
+      drawId: crypto.randomUUID(),
+      winnerPrizeId: result.winnerPrizeId,
+      dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
+      dummyPrizeIds: result.dummyPrizeIds,
+      isKakuhen: false,
+    };
   }
 
   async getLastPrizeCount(): Promise<{ total: number; remaining: number }> {
@@ -184,17 +209,6 @@ export class DrawApplicationService {
     return {
       total: prizes.length,
       remaining: prizes.length - assignedPrizeIds.size,
-    };
-  }
-
-  async executeKakuhenAssign(): Promise<DrawPrizeResponse> {
-    // Kakuhen is handled in executePrizeDraw
-    return {
-      drawId: `kakuhen-${Date.now()}`,
-      winnerPrizeId: null,
-      dummyWinnerPrizeId: null,
-      dummyPrizeIds: [],
-      isKakuhen: true,
     };
   }
 
