@@ -28,7 +28,9 @@ export default {
     name: 'OpeningSequence',
     props: {
         screenConfig: { type: Object, required: true },
-        bgm: { type: null, required: false }
+        bgm: { type: null, required: false },
+        autoNavigate: { type: Boolean, default: true },
+        nextRoute: { type: String, default: '/jackpot-description' }
     },
     setup(props: any) {
         const router = useRouter();
@@ -173,8 +175,8 @@ export default {
                 }
             }
 
-            if (!cancelled) {
-                router.push('/jackpot-description');
+            if (!cancelled && props.autoNavigate) {
+                router.push(props.nextRoute);
             }
         };
 

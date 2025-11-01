@@ -36,6 +36,7 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw, computed } from 'vue';
 import type { Component } from 'vue';
+import { useRouter } from 'vue-router';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
 import RouletteAnimation from './roulette-animation.vue';
@@ -59,6 +60,7 @@ export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog },
     setup(_, { emit }) {
+        const router = useRouter();
         const prizes = ref<PrizeDto[]>([]);
         const members = ref<MemberDto[]>([]);
         const latestResult = ref<DrawResultDto | null>(null);
@@ -203,6 +205,10 @@ export default {
 
             showMemberDraw();
 
+            // 景品カウントの初期化
+            const count = await drawService.getLastPrizeCount();
+            drawState.currentPrizeCount = count;
+
             window.addEventListener('keydown', keydownDelegator);
         });
 
@@ -341,7 +347,7 @@ export default {
 
         const onEndClosed = () => {
             drawState.currentPrizeCount = { total: 0, remaining: 0 };
-            emit('end-draw');
+            router.push('/jackpot-ending');
         };
 
         return {

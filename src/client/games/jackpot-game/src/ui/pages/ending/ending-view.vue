@@ -1,7 +1,8 @@
 <template>
     <MainLayout :fullScreen="true">
-        
-        <OpeningSequence v-if="screenConfig" :screenConfig="convertedConfig" :bgm="bgm" />
+
+        <OpeningSequence v-if="screenConfig" :screenConfig="convertedConfig" :bgm="bgm" :autoNavigate="true"
+            :nextRoute="'/jackpot-home'" />
     </MainLayout>
 </template>
 
@@ -66,6 +67,4 @@ export default {
 };
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>
