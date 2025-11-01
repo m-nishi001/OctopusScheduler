@@ -98,48 +98,6 @@ export default {
             }
         };
 
-        // 事前抽選実行
-        const preDraw = async () => {
-            // メンバー抽選
-            const memberRes = await drawService.executeMemberDraw({ requestCount: 10 });
-            if (memberRes) {
-                preDrawResults.memberWinnerId = memberRes.winnerId;
-                latestResult.value = {
-                    drawId: memberRes.drawId,
-                    member: members.value.find((m: MemberDto) => m.id === memberRes.winnerId) || { id: '', name: '', photoAssetId: undefined, rank: 0 },
-                    prize: null,
-                    prizeRank: null,
-                    memberRank: null,
-                    order: 1,
-                    isWinner: true,
-                    isKakuhen: false,
-                };
-                // 分岐判定（例: 特定のメンバーなら特殊コンポーネント/BGM）
-                // ここではデフォルト
-                currentMemberComponent.value = 'MemberDrawAnimation';
-            }
-
-            // 景品抽選
-            if (latestResult.value?.member) {
-                const prizeRes = await drawService.executePrizeDraw({
-                    memberId: latestResult.value.member.id,
-                    requestCount: 8,
-                });
-                preDrawResults.prizeResult = prizeRes;
-                if (prizeRes?.winnerPrizeId) {
-                    selectedPrize.value = prizes.value.find((p) => p.id === prizeRes.winnerPrizeId) || null;
-                    if (!selectedPrize.value) {
-                        throw new Error('Prize not found for winnerPrizeId: ' + prizeRes.winnerPrizeId);
-                    }
-                    // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
-                    // ここではデフォルト
-                    currentPrizeComponent.value = 'RouletteAnimation';
-                } else {
-                    throw new Error('No winner prize id from draw service');
-                }
-            }
-        };
-
         // かくへん抽選処理
         const handleKakuhenDraw = async (res: any) => {
             const dummyPrize = prizes.value.find((p) => p.id === res.dummyPrizeIds[0]);
@@ -206,14 +164,25 @@ export default {
             prizes.value = prizesData;
             members.value = membersData;
 
-            try {
-                await preDraw();  // 事前抽選実行
-                drawState.phase = 'member';  // メンバー画面表示
-                resetToMemberPhase();  // currentAction 設定
-            } catch (e) {
-                console.error('Pre-draw failed:', e);
-                // 必要に応じてエラーハンドリング、例: emit('error', e);
+            // 事前抽選実行
+            const res = await drawService.executeDraw({
+                memberRequestCount: 10,
+                prizeRequestCount: 8,
+            });
+            preDrawResults.memberWinnerId = res.memberWinnerId;
+            preDrawResults.prizeResult = { winnerPrizeId: res.prizeWinnerId, isKakuhen: res.isKakuhen };
+            latestResult.value = res.drawResult;
+            if (res.prizeWinnerId) {
+                selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
+                // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
+                // ここではデフォルト
+                currentPrizeComponent.value = 'RouletteAnimation';
             }
+            // 分岐判定（例: 特定のメンバーなら特殊コンポーネント/BGM）
+            // ここではデフォルト
+            currentMemberComponent.value = 'MemberDrawAnimation';
+
+            showMemberDraw();
 
             window.addEventListener('keydown', keydownDelegator);
         });
@@ -297,7 +266,18 @@ export default {
             } else {
                 // 次のサイクル: 新しい事前抽選実行
                 try {
-                    await preDraw();
+                    const res = await drawService.executeDraw({
+                        memberRequestCount: 10,
+                        prizeRequestCount: 8,
+                    });
+                    preDrawResults.memberWinnerId = res.memberWinnerId;
+                    preDrawResults.prizeResult = { winnerPrizeId: res.prizeWinnerId, isKakuhen: res.isKakuhen };
+                    latestResult.value = res.drawResult;
+                    if (res.prizeWinnerId) {
+                        selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
+                        currentPrizeComponent.value = 'RouletteAnimation';
+                    }
+                    currentMemberComponent.value = 'MemberDrawAnimation';
                     resetToMemberPhase();
                 } catch (e) {
                     console.error('Pre-draw failed in next cycle:', e);

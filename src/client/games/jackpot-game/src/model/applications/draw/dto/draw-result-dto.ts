@@ -9,17 +9,12 @@ import type { DrawResult } from "domains/draw/draw-result";
 export interface DrawResultDto {
   drawId: string;
   member: MemberDto | null;
-  prize?: PrizeDto | null;
+  prize: PrizeDto | null;
   prizeRank: number | null;
   memberRank: number | null;
-  order: number;
   isWinner: boolean;
-  isKakuhen?: boolean;
-  isReserved?: boolean;
-  reservedFor?: string | null;
-  animationId?: string | null;
-  bgm1AssetId?: string | null;
-  bgm2AssetId?: string | null;
+  isKakuhen: boolean;
+  createdAt: number;
 }
 
 export const toDrawResultDto = (drawResult: DrawResult): DrawResultDto => ({
@@ -28,9 +23,9 @@ export const toDrawResultDto = (drawResult: DrawResult): DrawResultDto => ({
   prize: toPrize(drawResult.prize),
   prizeRank: drawResult.prizeRank,
   memberRank: drawResult.memberRank,
-  order: drawResult.order,
   isWinner: drawResult.isWinner,
-  isKakuhen: drawResult.isKakuhen,
+  isKakuhen: drawResult.isKakuhen ?? false,
+  createdAt: Date.now(),
 });
 
 export const fromDrawResultDto = (dto: DrawResultDto): DrawResult => {
@@ -43,7 +38,6 @@ export const fromDrawResultDto = (dto: DrawResultDto): DrawResult => {
     prize: fromPrize(dto.prize),
     prizeRank: dto.prizeRank,
     memberRank: dto.memberRank,
-    order: dto.order,
     isWinner: dto.isWinner,
     isKakuhen: dto.isKakuhen,
   };

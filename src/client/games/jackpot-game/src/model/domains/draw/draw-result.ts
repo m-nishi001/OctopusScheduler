@@ -7,7 +7,6 @@ export interface DrawResult {
   prize: Prize;
   prizeRank: number | null;
   memberRank: number | null;
-  order: number;
   isWinner: boolean;
   isKakuhen?: boolean;
 }

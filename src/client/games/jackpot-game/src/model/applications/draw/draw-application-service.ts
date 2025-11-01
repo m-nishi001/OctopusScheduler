@@ -11,6 +11,7 @@ import {
   PrizeDrawStateRepository,
   type PrizeDrawState,
 } from "../../infrastructures/prize-draw-state-repository";
+import type { DrawResultDto } from "./dto/draw-result-dto";
 
 @injectable()
 export class DrawApplicationService {
@@ -46,25 +47,8 @@ export class DrawApplicationService {
       requestDummyCount: request.requestCount - 1,
     });
 
-    if (res.winnerId) {
-      const member = members.find((m) => m.id === res.winnerId);
-      if (!member) {
-        throw new Error("Winner member not found: " + res.winnerId);
-      }
-      await this.drawResultService.addDrawResult({
-        drawId: `member-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        member,
-        prize: null,
-        prizeRank: null,
-        memberRank: member.rank,
-        order: 1,
-        isWinner: true,
-        isKakuhen: false,
-      });
-    }
-
     return {
-      drawId: `member-${Date.now()}`,
+      drawId: crypto.randomUUID(),
       winnerId: res.winnerId,
       dummyIds: res.dummyIds,
     };
@@ -105,8 +89,9 @@ export class DrawApplicationService {
           prize,
           prizeRank: prize.rank ?? null,
           memberRank: null,
-          order: 0,
           isWinner: false,
+          isKakuhen: false,
+          createdAt: Date.now(),
         });
       }
     }
@@ -166,31 +151,20 @@ export class DrawApplicationService {
       });
 
       if (result.winnerPrizeId) {
-        const drawId = `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const winnerPrize = prizes.find((p) => p.id === result.winnerPrizeId);
-        await this.drawResultService.addDrawResult({
-          drawId,
-          member,
-          prize: winnerPrize,
-          prizeRank: winnerPrize?.rank || null,
-          memberRank: member.rank,
-          order: 1,
-          isWinner: true,
-          isKakuhen: false,
-        });
-
         return {
-          drawId,
+          drawId: crypto.randomUUID(),
           winnerPrizeId: result.winnerPrizeId,
           dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
           dummyPrizeIds: result.dummyPrizeIds,
+          isKakuhen: false,
         };
       } else {
         return {
-          drawId: `prize-${Date.now()}`,
+          drawId: crypto.randomUUID(),
           winnerPrizeId: null,
           dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
           dummyPrizeIds: result.dummyPrizeIds,
+          isKakuhen: false,
         };
       }
     }
@@ -219,6 +193,55 @@ export class DrawApplicationService {
       dummyWinnerPrizeId: null,
       dummyPrizeIds: [],
       isKakuhen: true,
+    };
+  }
+
+  async executeDraw(request: {
+    memberRequestCount: number;
+    prizeRequestCount: number;
+  }): Promise<{
+    drawResult: DrawResultDto;
+    memberWinnerId: string;
+    prizeWinnerId: string | null;
+    isKakuhen: boolean;
+  }> {
+    // メンバー抽選
+    const memberRes = await this.executeMemberDraw({
+      requestCount: request.memberRequestCount,
+    });
+    if (!memberRes.winnerId) throw new Error("No member winner");
+    const members = await this.memberRepo.getMembers();
+    const winnerMember = members.find((m) => m.id === memberRes.winnerId);
+    if (!winnerMember) throw new Error("Winner member not found");
+
+    // 景品抽選
+    const prizeRes = await this.executePrizeDraw({
+      memberId: winnerMember.id,
+      requestCount: request.prizeRequestCount,
+    });
+
+    // 統合レコード保存
+    const prizes = await this.prizeRepo.getPrizes();
+    const winnerPrize = prizeRes.winnerPrizeId
+      ? prizes.find((p) => p.id === prizeRes.winnerPrizeId) || null
+      : null;
+    const drawResult: DrawResultDto = {
+      drawId: crypto.randomUUID(),
+      member: winnerMember,
+      prize: winnerPrize,
+      prizeRank: winnerPrize?.rank || null,
+      memberRank: winnerMember.rank,
+      isWinner: true,
+      isKakuhen: prizeRes.isKakuhen ?? false,
+      createdAt: Date.now(),
+    };
+    await this.drawResultService.addDrawResult(drawResult);
+
+    return {
+      drawResult,
+      memberWinnerId: memberRes.winnerId,
+      prizeWinnerId: prizeRes.winnerPrizeId,
+      isKakuhen: prizeRes.isKakuhen ?? false,
     };
   }
 }

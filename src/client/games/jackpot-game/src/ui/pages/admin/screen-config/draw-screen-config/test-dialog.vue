@@ -14,13 +14,12 @@
                     <thead>
                         <tr>
                             <th>Draw ID</th>
-                            <th>Member Name</th>
+                            <th>Member</th>
                             <th>Member Rank</th>
-                            <th>Prize Name</th>
+                            <th>Prize</th>
                             <th>Prize Rank</th>
-                            <th>Order</th>
-                            <th>Is Winner</th>
-                            <th>Is Kakuhen</th>
+                            <th>Winner</th>
+                            <th>Kakuhen</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -30,7 +29,6 @@
                             <td>{{ result.memberRank || '' }}</td>
                             <td>{{ result.prize?.name || '' }}</td>
                             <td>{{ result.prizeRank || '' }}</td>
-                            <td>{{ result.order }}</td>
                             <td>{{ result.isWinner ? 'Yes' : 'No' }}</td>
                             <td>{{ result.isKakuhen ? 'Yes' : 'No' }}</td>
                         </tr>

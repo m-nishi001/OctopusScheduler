@@ -26,7 +26,6 @@
         <ul v-if="drawResults.length" class="admin-list">
             <li v-for="result in drawResults" :key="result.drawId" class="admin-list-item">
                 <div class="result-info">
-                    <span class="order">#{{ result.order }}</span>
                     <span class="member">{{ result.member?.name || '不明' }}</span>
                     <span class="arrow">→</span>
                     <span class="prize">{{ result.prize?.name || '不明' }}</span>
@@ -34,7 +33,7 @@
                     <span v-if="result.isKakuhen" class="kakuhen-badge">確変</span>
                 </div>
                 <div class="result-meta">
-                    <small>{{ formatDate(result.drawId) }}</small>
+                    <small>{{ formatDate(result) }}</small>
                 </div>
             </li>
         </ul>
@@ -140,8 +139,8 @@ const objectUrlMap = new Map<string, string>();
 const totalDraws = computed(() => drawResults.value.length);
 const winnersCount = computed(() => drawResults.value.filter(r => r.isWinner).length);
 const remainingPrizes = computed(() => {
-  const assignedPrizeIds = new Set(drawResults.value.filter(r => r.member !== null).map(r => r.prize?.id).filter(Boolean));
-  return prizes.value.length - assignedPrizeIds.size;
+    const assignedPrizeIds = new Set(drawResults.value.filter(r => r.member !== null).map(r => r.prize?.id).filter(Boolean));
+    return prizes.value.length - assignedPrizeIds.size;
 });
 
 const memberStats = computed(() => {
@@ -166,9 +165,8 @@ const prizeStats = computed(() => {
         };
     });
     return stats;
-}); const formatDate = (drawId: string) => {
-    // drawId から日時を抽出（仮定）
-    return new Date(parseInt(drawId)).toLocaleString();
+}); const formatDate = (result: DrawResultDto) => {
+    return new Date(result.createdAt).toLocaleString();
 };
 
 const openResetModal = () => {
@@ -285,11 +283,6 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 10px;
-}
-
-.order {
-    font-weight: bold;
-    color: #4f8cff;
 }
 
 .member {

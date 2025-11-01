@@ -245,7 +245,6 @@ export class DrawTestService {
       "Member Rank",
       "Prize Name",
       "Prize Rank",
-      "Order",
       "Is Winner",
       "Is Kakuhen",
     ];
@@ -255,7 +254,6 @@ export class DrawTestService {
       result.memberRank?.toString() || "",
       result.prize?.name || "",
       result.prizeRank?.toString() || "",
-      result.order.toString(),
       result.isWinner.toString(),
       (result.isKakuhen || false).toString(),
     ]);

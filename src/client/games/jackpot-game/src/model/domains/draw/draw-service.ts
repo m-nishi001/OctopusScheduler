@@ -153,7 +153,6 @@ export class DrawService {
       prize: winnerPrize,
       prizeRank: winnerPrize.rank ?? null,
       memberRank: winnerMember.rank,
-      order: 1,
       isWinner: true,
       isKakuhen: false,
     };
