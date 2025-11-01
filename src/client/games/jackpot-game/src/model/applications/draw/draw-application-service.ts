@@ -186,11 +186,12 @@ export class DrawApplicationService {
       };
     }
     const result = this.drawService.executePrizeDraw({
-      prizes: availablePrizes.map((p) => ({
-        id: p.id,
-        rank: p.rank,
-      })),
-      requestDummyCount: Math.max(0, request.requestCount - 1),
+      prizes: availablePrizes,
+      assignedPrizeIds: results
+        .filter((r) => r.wonMember !== null)
+        .map((r) => r.wonPrize?.id)
+        .filter(Boolean) as string[],
+      dummyCount: Math.max(0, request.requestCount - 1),
       currentState: { kakuhenTimings: state.kakuhenTimings },
     });
     return {

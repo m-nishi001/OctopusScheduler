@@ -1,5 +1,6 @@
 import { PrizeDrawService } from "./prize-draw-service";
 import { KakuhenService } from "./kakuhen-service";
+import type { Prize } from "../prize/prize";
 
 export class DrawStateManager {
   private prizeDrawService: PrizeDrawService;
@@ -11,16 +12,21 @@ export class DrawStateManager {
     this.prizeDrawService = prizeDrawService;
   }
 
-  getLastPrizeCount(prizes: { isAssigned?: boolean }[]): {
+  getLastPrizeCount(
+    prizes: Prize[],
+    assignedPrizeIds: string[]
+  ): {
     total: number;
     remaining: number;
   } {
     const total = prizes.length;
-    const remaining = prizes.filter((p) => !p.isAssigned).length;
+    const remaining = prizes.filter(
+      (p) => !assignedPrizeIds.includes(p.id)
+    ).length;
     return { total, remaining };
   }
 
-  initializePrizeDrawState(availablePrizes: { id: string; rank?: number }[]): {
+  initializePrizeDrawState(availablePrizes: Prize[]): {
     kakuhenTimings: number[];
   } {
     const total = availablePrizes.length;
@@ -46,12 +52,9 @@ export class DrawStateManager {
   }
 
   executePrizeDraw(opts: {
-    prizes: {
-      id: string;
-      rank?: number;
-      isAssigned?: boolean;
-    }[];
-    requestDummyCount: number;
+    prizes: Prize[];
+    assignedPrizeIds: string[];
+    dummyCount: number;
     currentState: {
       kakuhenTimings: number[];
     };
@@ -60,18 +63,21 @@ export class DrawStateManager {
     dummyPrizeIds: string[];
     isKakuhen: boolean;
   } {
-    const { prizes, requestDummyCount, currentState } = opts;
+    const { prizes, assignedPrizeIds, dummyCount, currentState } = opts;
 
     if (currentState.kakuhenTimings.includes(0)) {
       // Placeholder, actual check in app service
       // Kakuhen draw - handled in app service
       const trial = this.prizeDrawService.drawPrize({
-        prizes: prizes.map((p) => ({
-          id: p.id,
-          rank: p.rank,
-        })),
-        requestDummyCount: Math.max(0, requestDummyCount - 1),
+        prizes: prizes,
+        assignedPrizeIds: assignedPrizeIds,
+        member: {} as any, // TODO: pass member
+        dummyCount: Math.max(0, dummyCount - 1),
       });
+
+      if (!trial) {
+        throw new Error("No prizes available for kakuhen draw");
+      }
 
       return {
         winnerPrizeId: null, // assigned in app service
@@ -81,13 +87,19 @@ export class DrawStateManager {
     } else {
       // Normal draw
       const pick = this.prizeDrawService.drawPrize({
-        prizes: prizes.map((p) => ({
-          id: p.id,
-          rank: p.rank,
-          isAssigned: p.isAssigned,
-        })),
-        requestDummyCount: Math.max(0, requestDummyCount - 1),
+        prizes: prizes,
+        assignedPrizeIds: assignedPrizeIds,
+        member: {} as any, // TODO: pass member
+        dummyCount: Math.max(0, dummyCount - 1),
       });
+
+      if (!pick) {
+        return {
+          winnerPrizeId: null,
+          dummyPrizeIds: [],
+          isKakuhen: false,
+        };
+      }
 
       return {
         winnerPrizeId: pick.winnerPrizeId,

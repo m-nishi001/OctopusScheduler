@@ -1,4 +1,6 @@
 import { WeightedSelector } from "./weighted-selector";
+import type { Prize } from "../prize/prize";
+import type { Member } from "../member/member";
 
 export class PrizeDrawService {
   private weightedSelector: WeightedSelector;
@@ -8,37 +10,21 @@ export class PrizeDrawService {
   }
 
   drawPrize(opts: {
-    prizes: {
-      id: string;
-      rank?: number;
-      isAssigned?: boolean;
-    }[];
-    requestDummyCount: number;
-    preferModeRank?: number | null;
-  }): { winnerPrizeId: string | null; dummyPrizeIds: string[] } {
-    const { prizes, requestDummyCount, preferModeRank } = opts;
-    let available = prizes.filter((p) => !p.isAssigned);
-    if (preferModeRank !== null && preferModeRank !== undefined) {
-      available = available.filter((p) => p.rank === preferModeRank);
-      if (available.length === 0) {
-        // Fallback to all available if no prizes match the mode rank
-        available = prizes.filter((p) => !p.isAssigned);
-      }
-    }
-    if (available.length === 0) {
-      return {
-        winnerPrizeId: null,
-        dummyPrizeIds: this.getDummyPrize(
-          prizes.map((p) => p.id),
-          requestDummyCount
-        ),
-      };
-    }
+    prizes: Prize[];
+    assignedPrizeIds: string[];
+    member: Member;
+    dummyCount: number;
+  }): { winnerPrizeId: string | null; dummyPrizeIds: string[] } | null {
+    const { prizes, assignedPrizeIds, dummyCount } = opts;
+
+    const available = prizes.filter((p) => !assignedPrizeIds.includes(p.id));
+    if (available.length === 0) return null;
+
     const picked = this.weightedSelector.selectWeighted(available);
     const dummyPool = prizes.map((p) => p.id).filter((id) => id !== picked.id);
     return {
       winnerPrizeId: picked.id,
-      dummyPrizeIds: this.getDummyPrize(dummyPool, requestDummyCount),
+      dummyPrizeIds: this.getDummyPrize(dummyPool, dummyCount),
     };
   }
 

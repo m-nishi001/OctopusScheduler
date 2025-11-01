@@ -8,6 +8,8 @@ import { toMember } from "../../applications/member/dto/member-dto";
 import { toPrize } from "../../applications/prize/dto/prize-dto";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
 import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
+import type { Member } from "../../domains/member/member";
+import type { Prize } from "../../domains/prize/prize";
 import type { DrawResult } from "./draw-result";
 
 @injectable()
@@ -30,38 +32,42 @@ export class DrawService {
   }
 
   drawPrize(opts: {
-    prizes: {
-      id: string;
-      rank?: number;
-      isAssigned?: boolean;
-    }[];
-    memberRank?: number;
-    requestDummyCount: number;
-    preferModeRank?: number | null;
-  }): { winnerPrizeId: string | null; dummyPrizeIds: string[] } {
+    prizes: Prize[];
+    assignedPrizeIds: string[];
+    member: Member;
+    dummyCount: number;
+  }): { winnerPrizeId: string | null; dummyPrizeIds: string[] } | null {
     return this.prizeDrawService.drawPrize(opts);
   }
 
-  getLastPrizeCount(prizes: { isAssigned?: boolean }[]): {
+  drawMember(
+    members: Member[],
+    drawResults: DrawResult[],
+    dummyCount: number
+  ): { winnerId: string | null; dummyIds: string[] } | null {
+    return this.memberDrawService.drawMember(members, drawResults, dummyCount);
+  }
+
+  getLastPrizeCount(
+    prizes: Prize[],
+    assignedPrizeIds: string[]
+  ): {
     total: number;
     remaining: number;
   } {
-    return this.drawStateManager.getLastPrizeCount(prizes);
+    return this.drawStateManager.getLastPrizeCount(prizes, assignedPrizeIds);
   }
 
-  initializePrizeDrawState(availablePrizes: { id: string; rank?: number }[]): {
+  initializePrizeDrawState(availablePrizes: Prize[]): {
     kakuhenTimings: number[];
   } {
     return this.drawStateManager.initializePrizeDrawState(availablePrizes);
   }
 
   executePrizeDraw(opts: {
-    prizes: {
-      id: string;
-      rank?: number;
-      isAssigned?: boolean;
-    }[];
-    requestDummyCount: number;
+    prizes: Prize[];
+    assignedPrizeIds: string[];
+    dummyCount: number;
     currentState: {
       kakuhenTimings: number[];
     };
@@ -113,15 +119,16 @@ export class DrawService {
 
     // Draw prize
     const prizeOpts = {
-      prizes: prizes.map((p) => ({
-        id: p.id,
-        rank: p.rank,
-        // isAssigned removed from Prize
-      })),
-      requestDummyCount: 0,
+      prizes: prizes,
+      assignedPrizeIds: [],
+      member: winnerMember,
+      dummyCount: 0,
     };
-    const { winnerPrizeId } = this.drawPrize(prizeOpts);
-    const winnerPrize = prizes.find((p) => p.id === winnerPrizeId)!;
+    const prizeResult = this.drawPrize(prizeOpts);
+    const winnerPrizeId = prizeResult ? prizeResult.winnerPrizeId : null;
+    const winnerPrize = winnerPrizeId
+      ? prizes.find((p) => p.id === winnerPrizeId)!
+      : null;
 
     const drawId = crypto.randomUUID();
 
