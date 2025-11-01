@@ -15,9 +15,8 @@ export interface DrawResultDto {
   order: number;
   isWinner: boolean;
   isKakuhen?: boolean;
-  // optional flags for reservation / animation metadata
   isReserved?: boolean;
-  reservedFor?: string | null; // member id
+  reservedFor?: string | null;
   animationId?: string | null;
   bgm1AssetId?: string | null;
   bgm2AssetId?: string | null;

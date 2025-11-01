@@ -13,9 +13,6 @@
         :disabled="!selectedPrizes.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
       </button>
-      <button class="admin-btn icon-only reset-icon" @click="resetAllAssigned" title="Reset all assigned flags">
-        <span class="emoji">↩️</span>
-      </button>
 
 
     </div>
@@ -92,7 +89,7 @@
                 <div v-if="editImageMode === 'upload'" class="image-file-input-wrap">
                   <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
                   <span v-if="editImageFilename" class="file-name" style="margin-left:8px">{{ editImageFilename
-                  }}</span>
+                    }}</span>
                 </div>
               </div>
             </div>
@@ -294,17 +291,6 @@
   </div>
 
 
-  <div v-if="showResetModal" class="modal-overlay">
-    <div class="modal-content">
-      <h3>リセット完了</h3>
-      <p>全ての景品の割り当てフラグがリセットされました。</p>
-      <div class="modal-actions">
-        <button class="admin-btn" @click="showResetModal = false">OK</button>
-      </div>
-    </div>
-  </div>
-
-
   <div v-if="deleting" class="modal-overlay">
     <div class="modal-content">
       <h3>削除中...</h3>
@@ -393,8 +379,6 @@ const showDeleteModal = ref(false);
 const openDeleteModal = () => { showDeleteModal.value = true; };
 const closeDeleteModal = () => { showDeleteModal.value = false; };
 const confirmDeleteSelected = async () => { await deleteSelectedPrizes(); closeDeleteModal(); };
-
-const showResetModal = ref(false);
 
 const adding = ref(false);
 const deleting = ref(false);
@@ -547,16 +531,6 @@ const deleteSelectedPrizes = async () => {
     console.error("Failed to delete prizes:", error);
   } finally {
     deleting.value = false;
-  }
-};
-
-const resetAllAssigned = async () => {
-  try {
-    await prizeService.resetAllAssigned();
-    await fetchPrizes();
-    showResetModal.value = true;
-  } catch (error) {
-    console.error("Failed to reset assigned flags:", error);
   }
 };
 
@@ -1121,16 +1095,6 @@ onBeforeUnmount(() => {
 }
 
 .sync-icon .emoji {
-  font-weight: 700;
-}
-
-.reset-icon {
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-  color: #dbeeff;
-}
-
-.reset-icon .emoji {
   font-weight: 700;
 }
 

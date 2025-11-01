@@ -47,7 +47,10 @@ export class DrawApplicationService {
     });
 
     if (res.winnerId) {
-      const member = members.find((m) => m.id === res.winnerId)!;
+      const member = members.find((m) => m.id === res.winnerId);
+      if (!member) {
+        throw new Error("Winner member not found: " + res.winnerId);
+      }
       await this.drawResultService.addDrawResult({
         drawId: `member-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         member,
@@ -73,6 +76,9 @@ export class DrawApplicationService {
     const prizes = await this.prizeRepo.getPrizes();
     const members = await this.memberRepo.getMembers();
     const member = members.find((m) => m.id === request.memberId);
+    if (!member) {
+      throw new Error("Member not found for prize draw: " + request.memberId);
+    }
     const memberRank = member ? member.rank : 0;
 
     let state: PrizeDrawState | null =
@@ -125,7 +131,7 @@ export class DrawApplicationService {
       const drawId = `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       await this.drawResultService.addDrawResult({
         drawId,
-        member: member!,
+        member: member,
         prize: (await this.prizeRepo.getPrizes()).find(
           (p) => p.id === result.winnerPrizeId
         ),
@@ -133,7 +139,7 @@ export class DrawApplicationService {
           (await this.prizeRepo.getPrizes()).find(
             (p) => p.id === result.winnerPrizeId
           )?.rank || null,
-        memberRank: member!.rank,
+        memberRank: member.rank,
         order: 1,
         isWinner: true,
         isKakuhen: true,
@@ -163,7 +169,7 @@ export class DrawApplicationService {
       const drawId = `prize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       await this.drawResultService.addDrawResult({
         drawId,
-        member: member!,
+        member: member,
         prize: (await this.prizeRepo.getPrizes()).find(
           (p) => p.id === result.winnerPrizeId
         ),
@@ -171,7 +177,7 @@ export class DrawApplicationService {
           (await this.prizeRepo.getPrizes()).find(
             (p) => p.id === result.winnerPrizeId
           )?.rank || null,
-        memberRank: member!.rank,
+        memberRank: member.rank,
         order: 1,
         isWinner: true,
         isKakuhen: false,

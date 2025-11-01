@@ -23,6 +23,13 @@
           </router-link>
         </li>
 
+        <li>
+          <router-link to="/jackpot-admin/results" class="menu-link">
+            <span class="icon">📊</span>
+            <span class="label">抽選結果管理</span>
+          </router-link>
+        </li>
+
         <li class="submenu">
           <div class="menu-link submenu-toggle" :class="{ 'parent-active': parentActive }" @click="toggleScreensSubmenu"
             role="button" tabindex="0" @keydown="onToggleKey">

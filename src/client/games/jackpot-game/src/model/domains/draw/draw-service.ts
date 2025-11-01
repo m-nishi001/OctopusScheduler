@@ -29,7 +29,6 @@ export class DrawService {
     );
   }
 
-  // UI-required APIs
   drawMember(opts: {
     members: {
       id: string;
