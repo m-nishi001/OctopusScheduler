@@ -13,18 +13,12 @@ export class MemberDrawService {
     members: Member[],
     drawResults: DrawResult[],
     dummyCount: number
-  ): { winnerId: string | null; dummyIds: string[] } {
+  ): { winnerId: string | null; dummyIds: string[] } | null {
     const candidates = members.filter(
       (m) => !drawResults.some((dr) => dr.wonMember?.id === m.id)
     );
     if (candidates.length === 0) {
-      return {
-        winnerId: null,
-        dummyIds: this.getDummyMember(
-          members.map((m) => m.id),
-          dummyCount
-        ),
-      };
+      return null;
     }
     const winner = this.weightedSelector.selectWeighted(candidates);
     const dummyPool = members.map((m) => m.id).filter((id) => id !== winner.id);

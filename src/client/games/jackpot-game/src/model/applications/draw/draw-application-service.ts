@@ -47,8 +47,8 @@ export class DrawApplicationService {
 
     return {
       drawId: crypto.randomUUID(),
-      winnerId: res.winnerId,
-      dummyIds: res.dummyIds,
+      winnerId: res?.winnerId ?? null,
+      dummyIds: res?.dummyIds ?? [],
     };
   }
 

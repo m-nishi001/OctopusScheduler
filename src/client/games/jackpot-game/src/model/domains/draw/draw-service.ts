@@ -9,7 +9,6 @@ import { toPrize } from "../../applications/prize/dto/prize-dto";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
 import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
 import type { DrawResult } from "./draw-result";
-import type { Member } from "../member/member";
 
 @injectable()
 export class DrawService {
@@ -28,14 +27,6 @@ export class DrawService {
       this.prizeDrawService,
       this.kakuhenService
     );
-  }
-
-  drawMember(
-    members: Member[],
-    drawResults: DrawResult[],
-    dummyCount: number
-  ): { winnerId: string | null; dummyIds: string[] } {
-    return this.memberDrawService.drawMember(members, drawResults, dummyCount);
   }
 
   drawPrize(opts: {
@@ -116,7 +107,8 @@ export class DrawService {
     const prizes = opts.prizes.map(toPrize);
 
     // Draw member
-    const { winnerId: winnerMemberId } = this.drawMember(members, [], 0);
+    const res = this.memberDrawService.drawMember(members, [], 0);
+    const winnerMemberId = res?.winnerId ?? null;
     const winnerMember = members.find((m) => m.id === winnerMemberId)!;
 
     // Draw prize
