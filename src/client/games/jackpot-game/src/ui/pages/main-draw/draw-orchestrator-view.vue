@@ -11,7 +11,7 @@
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
-                            @start="() => { void memberStart(); }" @member-selected="onMemberSelected" />
+                            @start="() => { void showMemberDraw(); }" @member-selected="onMemberSelected" />
                     </div>
                 </section>
 
@@ -185,24 +185,12 @@ export default {
             }
         };
 
-        // 景品抽選開始
-        const prizeStart = async () => {
-            if (!preDrawResults.prizeResult) {
-                throw new Error('No prize result available');
-            }
-            drawState.phase = 'prize';
-            // 事前結果を使ってアニメーション開始
-            await startRouletteAnimation(preDrawResults.prizeResult);
-        };
-
         // 新規関数: アニメーション開始
         const startRouletteAnimation = async (res: any) => {
             if (res.isKakuhen) {
                 await handleKakuhenDraw(res);
             } else {
                 await handleNormalDraw(res);
-                // アニメーション開始後、currentAction を停止関数に設定
-                drawState.currentAction = prizeStop;
             }
         };
 
@@ -234,9 +222,14 @@ export default {
             window.removeEventListener('keydown', keydownDelegator);
         });
 
-        // メンバー抽選開始
-        const memberStart = async () => {
+        // メンバー抽選表示
+        const showMemberDraw = () => {
             drawState.phase = 'member';
+            drawState.currentAction = () => { void startMemberDraw(); };
+        };
+
+        // メンバー抽選開始
+        const startMemberDraw = async () => {
             // 事前結果を使ってアニメーション開始
             if (memberAnimRef.value?.startDraw) {
                 memberAnimRef.value.startDraw(preDrawResults.memberWinnerId);
@@ -247,13 +240,29 @@ export default {
 
         const onMemberSelected = () => {
             emit('member-winner', { result: latestResult.value });
-            drawState.currentAction = () => { void prizeStart(); };
+            drawState.currentAction = () => { void showPrizeDraw(); };
         };
 
         // メンバー停止（アニメーション制御）
         const memberStop = async () => {
             stopBgm();
             if (memberAnimRef.value?.stopDraw) await memberAnimRef.value.stopDraw();
+        };
+
+        // 景品抽選表示
+        const showPrizeDraw = () => {
+            drawState.phase = 'prize';
+            drawState.currentAction = () => { void startPrizeDraw(); };
+        };
+
+        // 景品抽選開始
+        const startPrizeDraw = async () => {
+            if (!preDrawResults.prizeResult) {
+                throw new Error('No prize result available');
+            }
+            // 事前結果を使ってアニメーション開始
+            await startRouletteAnimation(preDrawResults.prizeResult);
+            drawState.currentAction = prizeStop;
         };
 
         // 景品停止
@@ -265,7 +274,7 @@ export default {
         // 共通のリセット処理
         const resetToMemberPhase = () => {
             drawState.phase = 'member';
-            drawState.currentAction = () => { void memberStart(); };
+            drawState.currentAction = () => { void showMemberDraw(); };
             drawState.resultShown = false;
             selectedPrize.value = null;
         };
@@ -305,9 +314,11 @@ export default {
             memberAnimRef,
             rouletteRef,
             selectedPrize,
-            memberStart,
+            showMemberDraw,
+            startMemberDraw,
             memberStop,
-            prizeStart,
+            showPrizeDraw,
+            startPrizeDraw,
             prizeStop,
             closeModal,
             onRouletteStopped,

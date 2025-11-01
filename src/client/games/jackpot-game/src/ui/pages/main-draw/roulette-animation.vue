@@ -1,5 +1,5 @@
 <template>
-    <div class="roulette-container" :class="{ spinning }">
+    <div class="roulette-container" :class="{ spinning }" tabindex="0" @keydown.enter="startSpin()">
         <canvas ref="canvas" width="500" height="500"></canvas>
         <div class="indicator">▼</div>
         <div v-if="showResult" class="result">{{ selectedPrize?.name }}</div>
