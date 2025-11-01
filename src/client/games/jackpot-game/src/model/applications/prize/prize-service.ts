@@ -25,8 +25,9 @@ export class PrizeService {
   }
 
   async updatePrize(id: string, prize: PrizeDto): Promise<void> {
-    const updateOps = [{ id, updateFn: (_: any) => toPrize(prize) }];
-    await this.repo.updatePrizes(updateOps);
+    // Update not supported, recreate
+    await this.deletePrize(id);
+    await this.addPrize(prize);
   }
 
   async deletePrize(id: string): Promise<void> {
@@ -38,11 +39,6 @@ export class PrizeService {
   }
 
   async resetAllAssigned(): Promise<void> {
-    const prizes = await this.repo.getPrizes();
-    const updates = prizes.map((prize) => ({
-      id: prize.id,
-      updateFn: (p: Prize) => ({ ...p, isAssigned: false, isReserved: false }),
-    }));
-    await this.repo.updatePrizes(updates);
+    // Reset not needed since assignment is in DrawResult
   }
 }

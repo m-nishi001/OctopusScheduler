@@ -821,7 +821,7 @@ const saveEdit = async () => {
     bgm2AssetId: bgm2AssetId || editBgm2AssetId.value,
   };
   try {
-    await prizeRepo.updatePrizes([{ id: updatedPrize.id, updateFn: () => updatedPrize }]);
+    await prizeService.updatePrize(updatedPrize.id, updatedPrize);
     await fetchPrizes();
     editPrizeData.value = null;
     editName.value = '';

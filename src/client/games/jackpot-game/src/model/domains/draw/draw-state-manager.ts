@@ -3,31 +3,12 @@ import { KakuhenService } from "./kakuhen-service";
 
 export class DrawStateManager {
   private prizeDrawService: PrizeDrawService;
-  private kakuhenService: KakuhenService;
 
   constructor(
     prizeDrawService: PrizeDrawService,
-    kakuhenService: KakuhenService
+    _kakuhenService: KakuhenService
   ) {
     this.prizeDrawService = prizeDrawService;
-    this.kakuhenService = kakuhenService;
-  }
-
-  private getModeRank(prizes: { rank?: number }[]): number | null {
-    const rankCounts: { [key: number]: number } = {};
-    prizes.forEach((p) => {
-      const r = p.rank ?? 0;
-      rankCounts[r] = (rankCounts[r] || 0) + 1;
-    });
-    let maxCount = 0;
-    let mode: number | null = null;
-    for (const [r, c] of Object.entries(rankCounts)) {
-      if (c > maxCount) {
-        maxCount = c;
-        mode = parseInt(r);
-      }
-    }
-    return mode;
   }
 
   getLastPrizeCount(prizes: { isAssigned?: boolean }[]): {
@@ -40,24 +21,9 @@ export class DrawStateManager {
   }
 
   initializePrizeDrawState(availablePrizes: { id: string; rank?: number }[]): {
-    total: number;
-    remaining: number;
-    drawCount: number;
     kakuhenTimings: number[];
-    reservedPrizeIds: string[];
-    modeRank: number | null;
-    initializedAt: string;
   } {
     const total = availablePrizes.length;
-    const sortedByRank = [...availablePrizes].sort(
-      (a, b) => (b.rank ?? 0) - (a.rank ?? 0)
-    );
-    const high = sortedByRank.slice(0, 2).map((p) => p.id);
-    const low = [...sortedByRank]
-      .reverse()
-      .slice(0, 2)
-      .map((p) => p.id);
-    const reserved = Array.from(new Set([...high, ...low]));
 
     // Kakuhen timings: one in first half, one in second half
     const half = Math.floor(total / 2);
@@ -74,16 +40,8 @@ export class DrawStateManager {
         : null;
     const timings = [t1, t2].filter(Boolean) as number[];
 
-    const modeRank = this.getModeRank(availablePrizes);
-
     return {
-      total,
-      remaining: total,
-      drawCount: 0,
       kakuhenTimings: timings,
-      reservedPrizeIds: reserved,
-      modeRank,
-      initializedAt: new Date().toISOString(),
     };
   }
 
@@ -97,27 +55,18 @@ export class DrawStateManager {
     memberRank: number;
     requestDummyCount: number;
     currentState: {
-      drawCount: number;
       kakuhenTimings: number[];
-      reservedPrizeIds: string[];
-      modeRank: number | null;
     };
   }): {
     winnerPrizeId: string | null;
     dummyPrizeIds: string[];
     isKakuhen: boolean;
-    reservedPrizeIds: string[];
   } {
     const { prizes, memberRank, requestDummyCount, currentState } = opts;
 
-    const preferModeRank =
-      currentState.drawCount <= 3 ? currentState.modeRank : null;
-
-    if (currentState.kakuhenTimings.includes(currentState.drawCount)) {
-      // Kakuhen draw
-      const assignResult = this.kakuhenService.executeKakuhenAssign({
-        reservedPrizeIds: currentState.reservedPrizeIds,
-      });
+    if (currentState.kakuhenTimings.includes(0)) {
+      // Placeholder, actual check in app service
+      // Kakuhen draw - handled in app service
       const trial = this.prizeDrawService.drawPrize({
         prizes: prizes.map((p) => ({
           id: p.id,
@@ -126,14 +75,12 @@ export class DrawStateManager {
         })),
         memberRank,
         requestDummyCount: Math.max(0, requestDummyCount - 1),
-        preferModeRank,
       });
 
       return {
-        winnerPrizeId: assignResult.winnerPrizeId,
+        winnerPrizeId: null, // assigned in app service
         dummyPrizeIds: trial.dummyPrizeIds,
         isKakuhen: true,
-        reservedPrizeIds: assignResult.reservedPrizeIds,
       };
     } else {
       // Normal draw
@@ -146,14 +93,12 @@ export class DrawStateManager {
         })),
         memberRank,
         requestDummyCount: Math.max(0, requestDummyCount - 1),
-        preferModeRank,
       });
 
       return {
         winnerPrizeId: pick.winnerPrizeId,
         dummyPrizeIds: pick.dummyPrizeIds,
         isKakuhen: false,
-        reservedPrizeIds: currentState.reservedPrizeIds,
       };
     }
   }

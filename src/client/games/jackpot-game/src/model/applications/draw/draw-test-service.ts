@@ -50,8 +50,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 1,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-2",
@@ -61,8 +59,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 2,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-3",
@@ -72,8 +68,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 3,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-4",
@@ -83,8 +77,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 4,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-5",
@@ -94,8 +86,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 5,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-6",
@@ -105,8 +95,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 6,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-7",
@@ -116,8 +104,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 7,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-8",
@@ -127,8 +113,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 8,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-9",
@@ -138,8 +122,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 9,
-        isAssigned: false,
-        isReserved: false,
       },
       {
         id: "prize-10",
@@ -149,8 +131,6 @@ export class DrawTestService {
         imageAssetId: "dummy",
         animation: "roulette",
         order: 10,
-        isAssigned: false,
-        isReserved: false,
       },
     ];
 

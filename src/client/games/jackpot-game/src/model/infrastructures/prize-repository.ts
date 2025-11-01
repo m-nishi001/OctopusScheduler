@@ -25,18 +25,6 @@ export class PrizeRepository implements IPrizeRepository {
     }
   }
 
-  async updatePrizes(
-    updates: { id: string; updateFn: (prize: Prize) => Prize }[]
-  ): Promise<void> {
-    for (const update of updates) {
-      const current = await this.localStorage.get<Prize>(update.id);
-      if (current) {
-        const updated = update.updateFn(current);
-        await this.localStorage.save(update.id, updated);
-      }
-    }
-  }
-
   async deletePrizes(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
   }

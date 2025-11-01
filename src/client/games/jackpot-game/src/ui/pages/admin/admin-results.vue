@@ -139,7 +139,10 @@ const objectUrlMap = new Map<string, string>();
 
 const totalDraws = computed(() => drawResults.value.length);
 const winnersCount = computed(() => drawResults.value.filter(r => r.isWinner).length);
-const remainingPrizes = computed(() => prizes.value.filter(p => !p.isAssigned).length);
+const remainingPrizes = computed(() => {
+  const assignedPrizeIds = new Set(drawResults.value.filter(r => r.member !== null).map(r => r.prize?.id).filter(Boolean));
+  return prizes.value.length - assignedPrizeIds.size;
+});
 
 const memberStats = computed(() => {
     const stats = members.value.map(member => {
@@ -155,7 +158,7 @@ const memberStats = computed(() => {
 const prizeStats = computed(() => {
     const stats = prizes.value.map(prize => {
         const wins = drawResults.value.filter(r => r.prize?.id === prize.id && r.isWinner).length;
-        const remaining = prize.isAssigned ? 0 : 1; // 仮定: isAssigned が true なら当選済み
+        const remaining = drawResults.value.some(r => r.prize?.id === prize.id && r.member !== null) ? 0 : 1;
         return {
             ...prize,
             wins,

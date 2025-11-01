@@ -62,13 +62,7 @@ export class DrawService {
   }
 
   initializePrizeDrawState(availablePrizes: { id: string; rank?: number }[]): {
-    total: number;
-    remaining: number;
-    drawCount: number;
     kakuhenTimings: number[];
-    reservedPrizeIds: string[];
-    modeRank: number | null;
-    initializedAt: string;
   } {
     return this.drawStateManager.initializePrizeDrawState(availablePrizes);
   }
@@ -83,16 +77,12 @@ export class DrawService {
     memberRank: number;
     requestDummyCount: number;
     currentState: {
-      drawCount: number;
       kakuhenTimings: number[];
-      reservedPrizeIds: string[];
-      modeRank: number | null;
     };
   }): {
     winnerPrizeId: string | null;
     dummyPrizeIds: string[];
     isKakuhen: boolean;
-    reservedPrizeIds: string[];
   } {
     return this.drawStateManager.executePrizeDraw(opts);
   }
@@ -148,7 +138,7 @@ export class DrawService {
         id: p.id,
         weight: p.probability,
         rank: p.rank,
-        isAssigned: p.isAssigned,
+        // isAssigned removed from Prize
       })),
       requestDummyCount: 0,
     };
