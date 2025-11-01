@@ -187,12 +187,12 @@ export default {
                 prizeRequestCount: 8,
             });
 
-            preDrawResults.memberWinnerId = res.memberWinnerId;
-            preDrawResults.prizeResult = { winnerPrizeId: res.prizeWinnerId, isKakuhen: res.isKakuhen };
-            latestResult.value = res.drawResult;
+            preDrawResults.memberWinnerId = res.wonMember?.id || null;
+            preDrawResults.prizeResult = { winnerPrizeId: res.wonPrize?.id || null, isKakuhen: res.isKakuhen };
+            latestResult.value = res;
 
-            if (res.prizeWinnerId) {
-                selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
+            if (res.wonPrize?.id) {
+                selectedPrize.value = prizes.value.find((p) => p.id === res.wonPrize?.id) || null;
                 // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
                 if (selectedPrize.value?.animation === 'slot') {
                     currentPrizeComponent.value = markRaw(SlotAnimation);
@@ -299,11 +299,11 @@ export default {
                         memberRequestCount: 10,
                         prizeRequestCount: 8,
                     });
-                    preDrawResults.memberWinnerId = res.memberWinnerId;
-                    preDrawResults.prizeResult = { winnerPrizeId: res.prizeWinnerId, isKakuhen: res.isKakuhen };
-                    latestResult.value = res.drawResult;
-                    if (res.prizeWinnerId) {
-                        selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
+                    preDrawResults.memberWinnerId = res.wonMember?.id || null;
+                    preDrawResults.prizeResult = { winnerPrizeId: res.wonPrize?.id || null, isKakuhen: res.isKakuhen };
+                    latestResult.value = res;
+                    if (res.wonPrize?.id) {
+                        selectedPrize.value = prizes.value.find((p) => p.id === res.wonPrize?.id) || null;
                         if (selectedPrize.value?.animation === 'slot') {
                             currentPrizeComponent.value = markRaw(SlotAnimation);
                         } else {
@@ -328,11 +328,11 @@ export default {
                     memberRequestCount: 10,
                     prizeRequestCount: 8,
                 });
-                preDrawResults.memberWinnerId = res.memberWinnerId;
-                preDrawResults.prizeResult = { winnerPrizeId: res.prizeWinnerId, isKakuhen: res.isKakuhen };
-                latestResult.value = res.drawResult;
-                if (res.prizeWinnerId) {
-                    selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
+                preDrawResults.memberWinnerId = res.wonMember?.id || null;
+                preDrawResults.prizeResult = { winnerPrizeId: res.wonPrize?.id || null, isKakuhen: res.isKakuhen };
+                latestResult.value = res;
+                if (res.wonPrize?.id) {
+                    selectedPrize.value = prizes.value.find((p) => p.id === res.wonPrize?.id) || null;
                     if (selectedPrize.value?.animation === 'slot') {
                         currentPrizeComponent.value = markRaw(SlotAnimation);
                     } else {

@@ -234,12 +234,7 @@ export class DrawApplicationService {
   async executeDraw(request: {
     memberRequestCount: number;
     prizeRequestCount: number;
-  }): Promise<{
-    drawResult: DrawResultDto;
-    memberWinnerId: string;
-    prizeWinnerId: string | null;
-    isKakuhen: boolean;
-  }> {
+  }): Promise<DrawResultDto> {
     // メンバー抽選
     const memberRes = await this.executeMemberDraw({
       requestCount: request.memberRequestCount,
@@ -269,11 +264,6 @@ export class DrawApplicationService {
     };
     await this.drawResultService.addDrawResult(drawResult);
 
-    return {
-      drawResult,
-      memberWinnerId: memberRes.winnerId,
-      prizeWinnerId: prizeRes.winnerPrizeId,
-      isKakuhen: prizeRes.isKakuhen ?? false,
-    };
+    return drawResult;
   }
 }
