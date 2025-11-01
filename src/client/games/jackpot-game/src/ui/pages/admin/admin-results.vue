@@ -23,20 +23,28 @@
         </div>
 
         <h3>抽選結果一覧</h3>
-        <ul v-if="drawResults.length" class="admin-list">
-            <li v-for="result in drawResults" :key="result.drawId" class="admin-list-item">
-                <div class="result-info">
-                    <span class="member">{{ result.member?.name || '不明' }}</span>
-                    <span class="arrow">→</span>
-                    <span class="prize">{{ result.prize?.name || '不明' }}</span>
-                    <span v-if="result.isWinner" class="winner-badge">当選</span>
-                    <span v-if="result.isKakuhen" class="kakuhen-badge">確変</span>
-                </div>
-                <div class="result-meta">
-                    <small>{{ formatDate(result) }}</small>
-                </div>
-            </li>
-        </ul>
+        <table v-if="drawResults.length" class="admin-table">
+            <thead>
+                <tr>
+                    <th>メンバー</th>
+                    <th>景品</th>
+                    <th>ステータス</th>
+                    <th>日時</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="result in drawResults" :key="result.drawId">
+                    <td>{{ result.member?.name || '不明' }}</td>
+                    <td>{{ result.prize?.name || '不明' }}</td>
+                    <td>
+                        <span v-if="result.isWinner" class="winner-badge">当選</span>
+                        <span v-if="result.isKakuhen" class="kakuhen-badge">確変</span>
+                        <span v-if="result.member === null" class="reserved-badge">予約</span>
+                    </td>
+                    <td>{{ formatDate(result) }}</td>
+                </tr>
+            </tbody>
+        </table>
         <div v-else class="empty-state">
             抽選結果はありません
         </div>
@@ -168,7 +176,14 @@ const prizeStats = computed(() => {
     });
     return stats;
 }); const formatDate = (result: DrawResultDto) => {
-    return new Date(result.createdAt).toLocaleString();
+    const date = new Date(result.createdAt);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
 };
 
 const loadImage = async (assetId?: string) => {
@@ -294,6 +309,14 @@ onUnmounted(() => {
 
 .kakuhen-badge {
     background: #ff6b6b;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.reserved-badge {
+    background: #28a745;
     color: white;
     padding: 2px 6px;
     border-radius: 4px;

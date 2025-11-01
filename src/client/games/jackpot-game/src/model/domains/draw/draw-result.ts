@@ -3,10 +3,9 @@ import type { Prize } from "../prize/prize";
 
 export interface DrawResult {
   drawId: string;
-  member: Member;
+  member: Member | null;
   prize: Prize;
-  prizeRank: number | null;
-  memberRank: number | null;
+  prizeRank: number;
   isWinner: boolean;
-  isKakuhen?: boolean;
+  isKakuhen: boolean;
 }
