@@ -28,6 +28,64 @@ export class PrizeDrawService {
     };
   }
 
+  executePrizeDraw(opts: {
+    prizes: Prize[];
+    assignedPrizeIds: string[];
+    dummyCount: number;
+    currentState: {
+      kakuhenTimings: number[];
+    };
+  }): {
+    winnerPrizeId: string | null;
+    dummyPrizeIds: string[];
+    isKakuhen: boolean;
+  } {
+    const { prizes, assignedPrizeIds, dummyCount, currentState } = opts;
+
+    if (currentState.kakuhenTimings.includes(0)) {
+      // Placeholder, actual check in app service
+      // Kakuhen draw - handled in app service
+      const trial = this.drawPrize({
+        prizes: prizes,
+        assignedPrizeIds: assignedPrizeIds,
+        member: {} as any, // TODO: pass member
+        dummyCount: Math.max(0, dummyCount - 1),
+      });
+
+      if (!trial) {
+        throw new Error("No prizes available for kakuhen draw");
+      }
+
+      return {
+        winnerPrizeId: null, // assigned in app service
+        dummyPrizeIds: trial.dummyPrizeIds,
+        isKakuhen: true,
+      };
+    } else {
+      // Normal draw
+      const pick = this.drawPrize({
+        prizes: prizes,
+        assignedPrizeIds: assignedPrizeIds,
+        member: {} as any, // TODO: pass member
+        dummyCount: Math.max(0, dummyCount - 1),
+      });
+
+      if (!pick) {
+        return {
+          winnerPrizeId: null,
+          dummyPrizeIds: [],
+          isKakuhen: false,
+        };
+      }
+
+      return {
+        winnerPrizeId: pick.winnerPrizeId,
+        dummyPrizeIds: pick.dummyPrizeIds,
+        isKakuhen: false,
+      };
+    }
+  }
+
   private getDummyPrize(poolIds: string[], count: number): string[] {
     const ids = [...poolIds];
     const res: string[] = [];

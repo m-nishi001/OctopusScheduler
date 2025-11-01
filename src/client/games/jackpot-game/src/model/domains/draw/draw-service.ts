@@ -8,7 +8,6 @@ import { toMember } from "../../applications/member/dto/member-dto";
 import { toPrize } from "../../applications/prize/dto/prize-dto";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
 import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
-import type { Member } from "../../domains/member/member";
 import type { Prize } from "../../domains/prize/prize";
 import type { DrawResult } from "./draw-result";
 
@@ -25,37 +24,7 @@ export class DrawService {
     this.memberDrawService = new MemberDrawService(this.weightedSelector);
     this.prizeDrawService = new PrizeDrawService(this.weightedSelector);
     this.kakuhenService = new KakuhenService();
-    this.drawStateManager = new DrawStateManager(
-      this.prizeDrawService,
-      this.kakuhenService
-    );
-  }
-
-  drawPrize(opts: {
-    prizes: Prize[];
-    assignedPrizeIds: string[];
-    member: Member;
-    dummyCount: number;
-  }): { winnerPrizeId: string | null; dummyPrizeIds: string[] } | null {
-    return this.prizeDrawService.drawPrize(opts);
-  }
-
-  drawMember(
-    members: Member[],
-    drawResults: DrawResult[],
-    dummyCount: number
-  ): { winnerId: string | null; dummyIds: string[] } | null {
-    return this.memberDrawService.drawMember(members, drawResults, dummyCount);
-  }
-
-  getLastPrizeCount(
-    prizes: Prize[],
-    assignedPrizeIds: string[]
-  ): {
-    total: number;
-    remaining: number;
-  } {
-    return this.drawStateManager.getLastPrizeCount(prizes, assignedPrizeIds);
+    this.drawStateManager = new DrawStateManager();
   }
 
   initializePrizeDrawState(availablePrizes: Prize[]): {
@@ -76,7 +45,7 @@ export class DrawService {
     dummyPrizeIds: string[];
     isKakuhen: boolean;
   } {
-    return this.drawStateManager.executePrizeDraw(opts);
+    return this.prizeDrawService.executePrizeDraw(opts);
   }
 
   updateDrawResult(opts: {
@@ -124,7 +93,7 @@ export class DrawService {
       member: winnerMember,
       dummyCount: 0,
     };
-    const prizeResult = this.drawPrize(prizeOpts);
+    const prizeResult = this.prizeDrawService.drawPrize(prizeOpts);
     const winnerPrizeId = prizeResult ? prizeResult.winnerPrizeId : null;
     const winnerPrize = winnerPrizeId
       ? prizes.find((p) => p.id === winnerPrizeId)!

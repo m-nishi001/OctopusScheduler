@@ -3,6 +3,7 @@ import { DrawService } from "../../domains/draw/draw-service";
 import { MemberRepository } from "../../infrastructures/member-repository";
 import { PrizeRepository } from "../../infrastructures/prize-repository";
 import { DrawResultService } from "./draw-result-service";
+import { MemberDrawService } from "../../domains/draw/member-draw-service";
 import type { DrawMemberRequest } from "./dto/draw-member-request";
 import type { DrawMemberResponse } from "./dto/draw-member-response";
 import type { DrawPrizeRequest } from "./dto/draw-prize-request";
@@ -23,6 +24,7 @@ export class DrawApplicationService {
   private drawResultService: DrawResultService;
   private prizeDrawStateRepository: PrizeDrawStateRepository;
   private drawService: DrawService;
+  private memberDrawService: MemberDrawService;
 
   constructor() {
     this.memberRepo = container.resolve(MemberRepository);
@@ -30,6 +32,7 @@ export class DrawApplicationService {
     this.drawResultService = container.resolve(DrawResultService);
     this.prizeDrawStateRepository = container.resolve(PrizeDrawStateRepository);
     this.drawService = container.resolve(DrawService);
+    this.memberDrawService = container.resolve(MemberDrawService);
   }
 
   async executeMemberDraw(
@@ -39,7 +42,7 @@ export class DrawApplicationService {
     const domainMembers = members.map(toMember);
     const results = await this.drawResultService.getDrawResults();
 
-    const res = this.drawService.drawMember(
+    const res = this.memberDrawService.drawMember(
       domainMembers,
       results,
       request.requestCount - 1
