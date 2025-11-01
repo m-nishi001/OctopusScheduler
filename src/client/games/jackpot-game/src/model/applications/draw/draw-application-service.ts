@@ -11,6 +11,7 @@ import {
   PrizeDrawStateRepository,
   type PrizeDrawState,
 } from "../../infrastructures/prize-draw-state-repository";
+import type { PrizeDto } from "../prize/dto/prize-dto";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 
 @injectable()
@@ -73,21 +74,32 @@ export class DrawApplicationService {
       state = this.drawService.initializePrizeDrawState(prizes);
       await this.prizeDrawStateRepository.saveState(state);
 
-      // Determine reserved prizes
-      const sortedByRank = [...prizes].sort(
+      // Reserve prizes based on kakuhenTimings length with alternating high/low ranks
+      const reservedCount = state.kakuhenTimings.length;
+      const sortedHigh = [...prizes].sort(
         (a, b) => (b.rank ?? 0) - (a.rank ?? 0)
       );
-      const high = sortedByRank.slice(0, 2);
-      const low = [...sortedByRank].reverse().slice(0, 2);
-      const reservedPrizes = Array.from(new Set([...high, ...low]));
+      const sortedLow = [...sortedHigh].reverse();
+      const reservedPrizes: PrizeDto[] = [];
+      const isEven = reservedCount % 2 === 0;
+      let useHigh = isEven ? true : Math.random() < 0.5;
+      for (let i = 0; i < reservedCount; i++) {
+        const source = useHigh ? sortedHigh : sortedLow;
+        const candidate = source.find(
+          (p) => !reservedPrizes.some((rp) => rp.id === p.id)
+        );
+        reservedPrizes.push(
+          candidate || prizes[Math.floor(Math.random() * prizes.length)]
+        );
+        useHigh = !useHigh;
+      }
 
-      // Add reserved records to DrawResult
       for (const prize of reservedPrizes) {
         await this.drawResultService.addDrawResult({
           drawId: `reserved-${prize.id}-${Date.now()}`,
           member: null,
           prize,
-          prizeRank: prize.rank ?? null,
+          prizeRank: prize.rank ?? 0,
           memberRank: null,
           isWinner: false,
           isKakuhen: false,
@@ -150,23 +162,13 @@ export class DrawApplicationService {
         currentState: { kakuhenTimings: state.kakuhenTimings },
       });
 
-      if (result.winnerPrizeId) {
-        return {
-          drawId: crypto.randomUUID(),
-          winnerPrizeId: result.winnerPrizeId,
-          dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
-          dummyPrizeIds: result.dummyPrizeIds,
-          isKakuhen: false,
-        };
-      } else {
-        return {
-          drawId: crypto.randomUUID(),
-          winnerPrizeId: null,
-          dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
-          dummyPrizeIds: result.dummyPrizeIds,
-          isKakuhen: false,
-        };
-      }
+      return {
+        drawId: crypto.randomUUID(),
+        winnerPrizeId: result.winnerPrizeId,
+        dummyWinnerPrizeId: result.dummyPrizeIds[0] || null,
+        dummyPrizeIds: result.dummyPrizeIds,
+        isKakuhen: false,
+      };
     }
   }
 
