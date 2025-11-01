@@ -9,12 +9,10 @@
 <script lang="ts">
 import { ref, onMounted } from 'vue';
 import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
+import { defineExpose } from 'vue';
+import type { AnimationRef } from './animation-types';
 
-export type RouletteRef = {
-    startSpin?: (bgmAssetUrl?: string | null) => void;
-    stopSpin?: (opts?: { targetIndex?: number | null; isFinal?: boolean }) => Promise<string | null>;
-    runAutoReroll?: (opts: { dummyPrizeId: string | null; finalPrizeId: string | null; dummyDuration: number; finalDuration: number; bgm1Url: string | null; bgm2Url: string | null }) => Promise<void>;
-};
+export type RouletteRef = AnimationRef;
 
 export default {
     name: 'RouletteAnimation',
@@ -248,6 +246,12 @@ export default {
         };
 
         return { canvas, startSpin, stopSpin, runAutoReroll, spinning };
+
+        defineExpose<AnimationRef>({
+            startSpin,
+            stopSpin,
+            runAutoReroll,
+        });
     }
 };
 </script>

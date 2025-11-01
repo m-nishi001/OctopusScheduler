@@ -18,8 +18,9 @@
                 <section v-if="drawState.phase === 'prize'"
                     class="center-area flex items-center justify-center min-h-screen">
                     <div class="roulette-panel">
-                        <RouletteAnimation ref="rouletteRef" :prizes="prizes" :selectedPrize="selectedPrize"
-                            :showResult="drawState.resultShown" @stopped="onRouletteStopped" />
+                        <component :is="currentPrizeComponent" ref="animationRef" :prizes="prizes"
+                            :selectedPrize="selectedPrize" :showResult="drawState.resultShown"
+                            @stopped="onRouletteStopped" />
                     </div>
                 </section>
             </div>
@@ -30,9 +31,12 @@
 
 <script lang="ts">
 import { ref, onMounted, onUnmounted, reactive } from 'vue';
+import type { Component } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
-import RouletteAnimation, { type RouletteRef } from './roulette-animation.vue';
+import RouletteAnimation from './roulette-animation.vue';
+import SlotAnimation from './slot-animation.vue';
+import type { AnimationRef } from './animation-types';
 import DrawResultDialog from './prize-winning-dialog.vue';
 import { DrawApplicationService } from '../../../model/applications/draw/draw-application-service';
 import { PrizeRepository } from '../../../model/infrastructures/prize-repository';
@@ -47,7 +51,7 @@ import { ScreenSettingsService } from '../../../model/applications/screen-config
 
 export default {
     name: 'DrawOrchestratorPage',
-    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, DrawResultDialog },
+    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog },
     setup(_, { emit }) {
         const prizes = ref<PrizeDto[]>([]);
         const members = ref<MemberDto[]>([]);
@@ -66,7 +70,7 @@ export default {
 
         // コンポーネント分岐（拡張用）
         const currentMemberComponent = ref('MemberDrawAnimation');
-        const currentPrizeComponent = ref('RouletteAnimation');
+        const currentPrizeComponent = ref<Component>(RouletteAnimation);
 
         // サービス
         const prizeRepo = container.resolve(PrizeRepository);
@@ -77,7 +81,7 @@ export default {
 
         // アニメーション関連
         const memberAnimRef = ref<MemberAnimRef | null>(null);
-        const rouletteRef = ref<RouletteRef | null>(null);
+        const animationRef = ref<AnimationRef | null>(null);
         const selectedPrize = ref<PrizeDto | null>(null);
 
         // Composable
@@ -110,8 +114,8 @@ export default {
                 loadBgmUrl(reservedPrize?.bgm2AssetId || null),
             ]);
 
-            if (rouletteRef.value?.runAutoReroll) {
-                await rouletteRef.value.runAutoReroll({
+            if (animationRef.value?.runAutoReroll) {
+                await animationRef.value.runAutoReroll({
                     dummyPrizeId: res.dummyPrizeIds[0] || null,
                     finalPrizeId: res.reservedPrizeIds?.[0] || null,
                     dummyDuration: 2000,
@@ -131,8 +135,8 @@ export default {
             }
             const bgmUrl = await loadBgmUrl(selectedPrize.value?.bgm1AssetId || null);
 
-            if (rouletteRef.value?.startSpin) {
-                rouletteRef.value.startSpin(bgmUrl);
+            if (animationRef.value?.startSpin) {
+                animationRef.value.startSpin(bgmUrl);
             }
         };
 
@@ -168,8 +172,11 @@ export default {
             if (res.prizeWinnerId) {
                 selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
                 // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
-                // ここではデフォルト
-                currentPrizeComponent.value = 'RouletteAnimation';
+                if (selectedPrize.value?.animation === 'slot') {
+                    currentPrizeComponent.value = SlotAnimation;
+                } else {
+                    currentPrizeComponent.value = RouletteAnimation;
+                }
             }
             // 分岐判定（例: 特定のメンバーなら特殊コンポーネント/BGM）
             // ここではデフォルト
@@ -229,7 +236,7 @@ export default {
 
         // 景品停止
         const prizeStop = async () => {
-            if (rouletteRef.value?.stopSpin) await rouletteRef.value.stopSpin();
+            if (animationRef.value?.stopSpin) await animationRef.value.stopSpin();
             drawState.resultShown = true;
         };
 
@@ -268,7 +275,11 @@ export default {
                     latestResult.value = res.drawResult;
                     if (res.prizeWinnerId) {
                         selectedPrize.value = prizes.value.find((p) => p.id === res.prizeWinnerId) || null;
-                        currentPrizeComponent.value = 'RouletteAnimation';
+                        if (selectedPrize.value?.animation === 'slot') {
+                            currentPrizeComponent.value = SlotAnimation;
+                        } else {
+                            currentPrizeComponent.value = RouletteAnimation;
+                        }
                     }
                     currentMemberComponent.value = 'MemberDrawAnimation';
                     resetToMemberPhase();
@@ -285,8 +296,9 @@ export default {
             latestResult,
             drawState,
             memberAnimRef,
-            rouletteRef,
+            animationRef,
             selectedPrize,
+            currentPrizeComponent,
             showMemberDraw,
             startMemberDraw,
             memberStop,

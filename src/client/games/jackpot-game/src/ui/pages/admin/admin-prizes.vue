@@ -71,6 +71,7 @@
             <label class="field-label">抽選アニメーション</label>
             <select v-model="editAnimation" class="admin-input">
               <option value="roulette">ルーレット</option>
+              <option value="slot">スロット</option>
             </select>
           </div>
 
@@ -89,7 +90,7 @@
                 <div v-if="editImageMode === 'upload'" class="image-file-input-wrap">
                   <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
                   <span v-if="editImageFilename" class="file-name" style="margin-left:8px">{{ editImageFilename
-                    }}</span>
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -210,6 +211,7 @@
             <label class="field-label">抽選アニメーション</label>
             <select v-model="newPrizeAnimation" class="admin-input">
               <option value="roulette">ルーレット</option>
+              <option value="slot">スロット</option>
             </select>
           </div>
 
