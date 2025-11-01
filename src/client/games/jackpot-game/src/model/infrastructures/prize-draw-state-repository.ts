@@ -1,8 +1,6 @@
 import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
 
-export interface PrizeDrawState {
-  kakuhenTimings: number[]; // indices when kakuhen should trigger (1-based)
-}
+export type PrizeDrawState = number[]; // indices when kakuhen should trigger (1-based)
 
 export class PrizeDrawStateRepository {
   private readonly localStorage = new LocalStorageService(

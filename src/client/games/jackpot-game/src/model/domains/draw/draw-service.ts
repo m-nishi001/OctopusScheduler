@@ -6,8 +6,8 @@ import { toMember } from "../../applications/member/dto/member-dto";
 import { toPrize } from "../../applications/prize/dto/prize-dto";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
 import type { PrizeDto } from "../../applications/prize/dto/prize-dto";
-import type { Prize } from "../../domains/prize/prize";
 import type { DrawResult } from "./draw-result";
+import type { Prize } from "../prize/prize";
 
 @injectable()
 export class DrawService {
@@ -21,13 +21,9 @@ export class DrawService {
     this.prizeDrawService = new PrizeDrawService(this.weightedSelector);
   }
 
-  initializePrizeDrawState(availablePrizes: Prize[]): {
-    kakuhenTimings: number[];
-  } {
-    const total = availablePrizes.length;
-
+  calculateKakuhenTimings(totalPrizes: number): number[] {
     // Kakuhen timings: one in first half, one in second half
-    const half = Math.floor(total / 2);
+    const half = Math.floor(totalPrizes / 2);
     const firstHalfEnd = half;
     const secondHalfStart = half + 1;
     const t1 =
@@ -35,49 +31,39 @@ export class DrawService {
         ? Math.floor(Math.random() * (firstHalfEnd - 3)) + 4
         : null;
     const t2 =
-      total > secondHalfStart
-        ? Math.floor(Math.random() * (total - secondHalfStart)) +
+      totalPrizes > secondHalfStart
+        ? Math.floor(Math.random() * (totalPrizes - secondHalfStart)) +
           secondHalfStart
         : null;
-    const timings = [t1, t2].filter(Boolean) as number[];
 
-    return {
-      kakuhenTimings: timings,
-    };
+    return [t1, t2].filter(Boolean) as number[];
   }
 
-  executePrizeDraw(opts: {
-    prizes: Prize[];
-    assignedPrizeIds: string[];
-    dummyCount: number;
-    currentState: {
-      kakuhenTimings: number[];
-    };
-  }): {
-    winnerPrizeId: string | null;
-    dummyPrizeIds: string[];
-    isKakuhen: boolean;
-  } {
-    return this.prizeDrawService.executePrizeDraw(opts);
-  }
-
-  updateDrawResult(opts: {
-    drawId: string;
-    prizeId: string;
-    prizes: { id: string; [key: string]: any }[];
-    results: { drawId: string; wonPrize?: any }[];
-    updateFn: (result: any) => void;
-  }): void {
-    const { drawId, prizeId, prizes, results, updateFn } = opts;
-    const prize = prizes.find((p) => p.id === prizeId);
-    const existingResult = results.find((r) => r.drawId === drawId);
-
-    if (existingResult) {
-      existingResult.wonPrize = prize || null;
-      updateFn(existingResult);
-    } else {
-      throw new Error(`Draw result with drawId ${drawId} not found`);
+  reservePrizes(state: number[], prizes: Prize[]): DrawResult[] {
+    const reservedCount = state.length;
+    const sortedHigh = [...prizes].sort(
+      (a, b) => (b.rank ?? 0) - (a.rank ?? 0)
+    );
+    const sortedLow = [...sortedHigh].reverse();
+    const reservedPrizes: Prize[] = [];
+    const isEven = reservedCount % 2 === 0;
+    let useHigh = isEven ? true : Math.random() < 0.5;
+    for (let i = 0; i < reservedCount; i++) {
+      const source = useHigh ? sortedHigh : sortedLow;
+      const candidate = source.find(
+        (p) => !reservedPrizes.some((rp) => rp.id === p.id)
+      );
+      reservedPrizes.push(
+        candidate || prizes[Math.floor(Math.random() * prizes.length)]
+      );
+      useHigh = !useHigh;
     }
+    return reservedPrizes.map((prize) => ({
+      drawId: `reserved-${prize.id}-${Date.now()}`,
+      wonMember: null,
+      wonPrize: prize,
+      isKakuhen: false,
+    }));
   }
 
   executeKakuhenAssign(opts: { reservedPrizeIds: string[] }): {
