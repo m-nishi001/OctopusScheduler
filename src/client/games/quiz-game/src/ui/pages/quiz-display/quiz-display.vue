@@ -34,11 +34,17 @@
                 <div v-for="(option, index) in quiz.options" :key="index" role="listitem">
                     <button class="option-button" :style="{ '--option-color': option.color }"
                         @click="selectOption(index)" :aria-label="option.text">
-                        <div class="option-content">
+                        <div class="image-wrapper">
+                            <!-- show image if provided; image fills the tile -->
+                            <img v-if="option.image" :src="option.image" :alt="option.text" class="option-image" />
+
+                            <!-- number badge (overlay) -->
                             <div class="option-index">{{ index + 1 }}</div>
-                            <!-- show image if provided -->
-                            <img v-if="option.image" :src="option.image" alt="" class="option-image" />
-                            <div class="option-text">{{ option.text }}</div>
+
+                            <!-- text ribbon at bottom -->
+                            <div class="text-ribbon" aria-hidden="false">
+                                <span class="option-text">{{ option.text }}</span>
+                            </div>
                         </div>
                     </button>
                 </div>
@@ -299,21 +305,21 @@ body::-webkit-scrollbar {
 .option-button {
     --bg: var(--option-color, #334155);
     width: 100%;
-    padding: 24px 18px;
+    padding: 0;
     height: 100%;
     /* fill grid cell */
     border-radius: 16px;
     border: none;
     cursor: pointer;
     color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.06)), var(--bg);
+    display: block;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.06));
     box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
     transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
     font-weight: 900;
     text-align: left;
+    overflow: hidden;
+    position: relative;
 }
 
 .option-button:active {
@@ -325,38 +331,71 @@ body::-webkit-scrollbar {
     filter: brightness(1.03);
 }
 
-.option-content {
-    display: flex;
-    gap: 24px;
-    align-items: center;
+.image-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 220px;
+    background: var(--bg);
+    display: block;
+    overflow: hidden;
 }
 
 .option-image {
-    /* size relative to the option cell so images scale with available space */
-    max-width: 40%;
-    max-height: 70%;
-    width: auto;
-    height: auto;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.5);
+    display: block;
+    border-radius: 16px;
+    transform-origin: center;
+    transition: transform 250ms ease;
+}
+
+.option-button:hover .option-image {
+    transform: scale(1.06);
 }
 
 .option-index {
-    /* scale badge size with viewport but clamp to sensible values */
-    min-width: clamp(56px, 7vw, 120px);
-    height: clamp(56px, 7vw, 120px);
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    min-width: 48px;
+    height: 48px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--option-color, rgba(255, 255, 255, 0.12));
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 900;
-    font-size: 1.05rem;
+    font-size: 1rem;
+    box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
+    z-index: 3;
+}
+
+.text-ribbon {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 12px 16px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
 }
 
 .option-text {
-    font-size: clamp(1.25rem, 3.2vw, 2rem);
+    font-size: 1rem;
+    color: #fff;
+    font-weight: 800;
+    text-align: center;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 56px);
 }
 
 .qr-inline {
