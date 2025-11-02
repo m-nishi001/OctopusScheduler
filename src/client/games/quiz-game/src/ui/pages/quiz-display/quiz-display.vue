@@ -10,15 +10,24 @@
 
         <!-- タイトル（QRを左に配置して上部領域を節約） -->
         <header class="quiz-header">
-            <div class="qr-inline" aria-hidden="false">
-                <img :src="qrCodeUrl" alt="QR Code" class="qr-image qr-inline-image" />
+            <!-- Two-column header: QR on the left, boxed title/content on the right -->
+            <div class="header-row">
+                <div class="qr-inline" aria-hidden="false">
+                    <img :src="qrCodeUrl" alt="QR Code" class="qr-image qr-inline-image" />
+                </div>
+                <div class="header-content">
+                    <div class="title-card" aria-hidden="false">
+                        <h1 class="quiz-title">{{ quiz.title }}</h1>
+                        <!-- (removed duplicate small title) -->
+                        <!-- show the full question text in the boxed header area -->
+                        <p class="quiz-content">{{ quiz.question }}</p>
+                    </div>
+                </div>
             </div>
-            <h1 class="quiz-title">{{ quiz.title }}</h1>
         </header>
 
-        <!-- 質問 -->
+        <!-- 質問エリア: 質問テキストはヘッダの boxed area に移動した -->
         <section class="question-area" aria-live="polite">
-            <p class="question-text">{{ quiz.question }}</p>
 
             <!-- 選択肢タイル -->
             <div class="options-grid" role="list">
@@ -156,8 +165,41 @@ body::-webkit-scrollbar {
 }
 
 .quiz-header {
+    margin-bottom: 12px;
+}
+
+.header-row {
+    display: flex;
+    align-items: stretch;
+    gap: 18px;
+}
+
+.header-content {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+}
+
+.title-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px 22px;
+    width: 100%;
+    box-shadow: 0 12px 30px rgba(2, 6, 23, 0.5);
     text-align: center;
-    margin-bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: center;
+}
+
+/* .quiz-subtitle removed — no longer used (duplicate of .quiz-title) */
+
+.quiz-preview {
+    margin: 0;
+    color: var(--muted);
+    opacity: 0.95;
+    font-size: 1rem;
 }
 
 .quiz-title {
@@ -227,6 +269,13 @@ body::-webkit-scrollbar {
     max-width: 900px;
     flex: 0 0 auto;
     /* keep the question block from stretching */
+}
+
+.quiz-content {
+    background: transparent;
+    margin: 0;
+    font-size: 1.375rem;
+    color: var(--muted);
 }
 
 .options-grid {
@@ -318,16 +367,16 @@ body::-webkit-scrollbar {
 
 .qr-inline-image {
     /* reduce QR size so header uses less vertical space on desktop */
-    width: 120px;
-    height: 120px;
+    width: 168px;
+    height: 168px;
     border-radius: 10px;
     box-shadow: 0 8px 24px rgba(2, 6, 23, 0.55);
 }
 
 .qr-image {
     /* keep class for legacy uses */
-    width: 120px;
-    height: 120px;
+    width: 168px;
+    height: 168px;
 }
 
 .modal-overlay {
@@ -342,20 +391,53 @@ body::-webkit-scrollbar {
 
 .modal-card {
     background: linear-gradient(90deg, #ef4444, #fb7185);
-    padding: 28px 36px;
-    border-radius: 14px;
+    /* make dialog larger and more prominent */
+    width: min(820px, 86%);
+    max-width: 920px;
+    /* increase vertical space: larger min-height and more vertical padding */
+    min-height: 260px;
+    padding: 56px 56px;
+    border-radius: 16px;
     color: white;
+    /* center content vertically and horizontally */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(2, 6, 23, 0.6);
+    box-shadow: 0 28px 80px rgba(2, 6, 23, 0.7);
+    transform: translateZ(0);
 }
 
 .modal-title {
-    font-size: 2rem;
-    margin: 0 0 8px 0;
+    font-size: 3.2rem;
+    line-height: 1;
+    margin: 0 0 18px 0;
 }
 
 .modal-body {
-    font-size: 1rem;
+    font-size: 1.25rem;
+    margin: 0;
+    opacity: 0.98;
+}
+
+/* Responsive: ensure modal fits smaller viewports */
+@media (max-width: 640px) {
+    .modal-card {
+        width: calc(100% - 40px);
+        /* smaller vertical size on mobile but still taller than before */
+        min-height: 200px;
+        padding: 28px 22px;
+        border-radius: 12px;
+    }
+
+    .modal-title {
+        font-size: 2.25rem;
+    }
+
+    .modal-body {
+        font-size: 1rem;
+    }
 }
 
 /* small screens */
@@ -383,8 +465,8 @@ body::-webkit-scrollbar {
     }
 
     .qr-inline-image {
-        width: 140px;
-        height: 140px;
+        width: 196px;
+        height: 196px;
     }
 
     .option-button {
@@ -406,8 +488,8 @@ body::-webkit-scrollbar {
     }
 
     .qr-inline-image {
-        width: 96px;
-        height: 96px;
+        width: 134px;
+        height: 134px;
     }
 
     .option-image {
