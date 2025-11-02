@@ -249,10 +249,6 @@ export function useAudio(options?: {
     setVolumeAudio(volume.value);
   };
 
-  // NOTE: BGM-mode specific behavior (previously provided here) has been removed
-  // to keep this composable generic. Callers should implement BGM selection
-  // and playback control at the call site using load()/play()/stop()/setVolume().
-
   onUnmounted(() => {
     if (animationFrameId !== null) {
       cancelAnimationFrame(animationFrameId);
@@ -265,11 +261,9 @@ export function useAudio(options?: {
         URL.revokeObjectURL(currentSrc.value);
       }
     }
-    // all blob URLs are revoked from currentSrc when appropriate; nothing extra to do here
   });
 
   return {
-    // public API (object-url helpers are internal and not exposed)
     audioInstanceId: readonly(audioInstanceId),
     isLoading: readonly(isLoading),
     isPlaying: readonly(isPlaying),
