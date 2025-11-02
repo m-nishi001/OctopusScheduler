@@ -51,9 +51,8 @@ import type { PrizeDto } from '../../../model/applications/prize/dto/prize-dto';
 import type { MemberDto } from '../../../model/applications/member/dto/member-dto';
 import type { DrawResultDto } from '../../../model/applications/draw/dto/draw-result-dto';
 import { container } from 'tsyringe';
-import { useAudio } from '@shared-composables/use-audio';
 import { AssetDataService } from '../../../model/applications/asset/asset-data-service';
-import { ScreenSettingsService } from '../../../model/applications/screen-config/screen-settings-service';
+
 import HalfRemainingDialog from './half-remaining-dialog.vue';
 import EndDialog from './end-dialog.vue';
 
@@ -131,19 +130,12 @@ export default {
         const memberRepo = container.resolve(MemberRepository);
         const drawService = container.resolve(DrawApplicationService);
         const assetService = container.resolve(AssetDataService);
-        const screenSettingsService = container.resolve(ScreenSettingsService);
 
         // アニメーション関連
         const memberAnimRef = ref<MemberAnimRef | null>(null);
         const animationRef = ref<AnimationRef | null>(null);
         const selectedPrize = ref<PrizeDto | null>(null);
 
-        // Composable
-        const { playRandomMemberBgm, stop: stopBgm } = useAudio({
-            bgmMode: "random-member",
-            assetService,
-            screenSettingsService,
-        });
 
         // BGM Blob ロード
         const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
@@ -315,7 +307,6 @@ export default {
             if (memberAnimRef.value?.startDraw) {
                 memberAnimRef.value.startDraw(preDrawResults.memberWinnerId);
             }
-            playRandomMemberBgm();
             drawState.currentAction = memberStop;
         };
 
@@ -347,7 +338,6 @@ export default {
 
         // メンバー停止（アニメーション制御）
         const memberStop = async () => {
-            stopBgm();
             if (memberAnimRef.value?.stopDraw) await memberAnimRef.value.stopDraw();
         };
 

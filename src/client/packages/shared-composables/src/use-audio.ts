@@ -14,9 +14,6 @@ export function useAudio(options?: {
   screenSettingsService?: any;
 }) {
   const mode = options?.mode ?? "web-audio";
-  const bgmMode = options?.bgmMode;
-  const assetService = options?.assetService;
-  const screenSettingsService = options?.screenSettingsService;
 
   const audioService = mode === "web-audio" ? new AudioService() : null;
 
@@ -252,59 +249,9 @@ export function useAudio(options?: {
     setVolumeAudio(volume.value);
   };
 
-  /**
-   * ランダムにメンバーのBGMを再生する (BGMモード用)
-   */
-  const playRandomMemberBgm = async () => {
-    if (!assetService || !screenSettingsService || bgmMode !== "random-member")
-      return;
-    try {
-      await loadGlobalVolume();
-      const cfg = await screenSettingsService.fetchScreenSetting(
-        "main",
-        "main-screen-settings"
-      );
-      if (
-        !cfg ||
-        !cfg.memberLotteryBgms ||
-        cfg.memberLotteryBgms.length === 0
-      ) {
-        return;
-      }
-      const bgmIds: string[] = cfg.memberLotteryBgms.filter(
-        (id: string) => id && id.trim()
-      );
-      if (bgmIds.length === 0) return;
-
-      const randomId = bgmIds[Math.floor(Math.random() * bgmIds.length)];
-      const asset = await assetService.getAssetDataById(randomId);
-      if (asset && asset.blob) {
-        await stop();
-        await load(asset.blob);
-        await play({ isRepeat: true });
-      }
-    } catch (e) {
-      console.error("Failed to play member BGM:", e);
-    }
-  };
-
-  /**
-   * グローバルボリュームをロードして設定する
-   */
-  const loadGlobalVolume = async () => {
-    if (!screenSettingsService) return;
-    try {
-      const cfg = await screenSettingsService.fetchScreenSetting(
-        "main",
-        "global-volume"
-      );
-      if (cfg && typeof cfg.volume === "number") {
-        setVolume(cfg.volume);
-      }
-    } catch (e) {
-      console.error("Failed to load global volume:", e);
-    }
-  };
+  // NOTE: BGM-mode specific behavior (previously provided here) has been removed
+  // to keep this composable generic. Callers should implement BGM selection
+  // and playback control at the call site using load()/play()/stop()/setVolume().
 
   onUnmounted(() => {
     if (animationFrameId !== null) {
@@ -340,6 +287,5 @@ export function useAudio(options?: {
     setVolume,
     seek,
     setLoop,
-    playRandomMemberBgm,
   };
 }

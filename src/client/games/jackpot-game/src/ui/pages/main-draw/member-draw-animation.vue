@@ -39,6 +39,8 @@ import gsap from 'gsap';
 import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { useAudio } from '@shared-composables/use-audio';
 // draw-result-dialog.vue was previously used for the modal. For readability
 // we define the member-specific winner dialog inline in this component.
 
@@ -78,6 +80,41 @@ export default {
         const defaultAvatar = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="100%" height="100%" fill="%23111111"/><circle cx="60" cy="44" r="30" fill="%23888"/><rect x="20" y="86" width="80" height="12" rx="6" fill="%23888"/></svg>';
 
         const assetService = container.resolve(AssetDataService);
+        const screenSettingsService = container.resolve(ScreenSettingsService);
+
+        // Generic audio composable — this component is responsible for member BGM playback
+        const { load, play, stop, setVolume } = useAudio({
+            assetService,
+            screenSettingsService,
+        });
+
+        const loadGlobalVolume = async () => {
+            try {
+                const cfg = await screenSettingsService.fetchScreenSetting('main', 'global-volume');
+                if (cfg && typeof cfg.volume === 'number') setVolume(cfg.volume);
+            } catch (e) {
+                console.error('Failed to load global volume:', e);
+            }
+        };
+
+        const playRandomMemberBgm = async () => {
+            try {
+                await loadGlobalVolume();
+                const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
+                if (!cfg || !cfg.memberLotteryBgms || cfg.memberLotteryBgms.length === 0) return;
+                const bgmIds: string[] = cfg.memberLotteryBgms.filter((id: string) => id && id.trim());
+                if (bgmIds.length === 0) return;
+                const randomId = bgmIds[Math.floor(Math.random() * bgmIds.length)];
+                const asset = await assetService.getAssetDataById(randomId);
+                if (asset && asset.blob) {
+                    await stop();
+                    await load(asset.blob);
+                    await play({ isRepeat: true });
+                }
+            } catch (e) {
+                console.error('Failed to play member BGM:', e);
+            }
+        };
 
         const displayMembers = ref<MemberDto[]>([]);
 
@@ -396,11 +433,13 @@ export default {
         const startDraw = (winnerId?: string | null) => {
             plannedWinnerId = winnerId ?? null;
             start();
+            void playRandomMemberBgm();
             return plannedWinnerId;
         };
 
         const stopDraw = async (): Promise<string | null> => {
             const id = await stopAt(plannedWinnerId || null);
+            try { await stop(); } catch (e) { /* ignore */ }
             emit('member-selected', id);
             plannedWinnerId = null;
             return id;
