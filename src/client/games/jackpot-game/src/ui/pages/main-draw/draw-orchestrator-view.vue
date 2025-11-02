@@ -69,6 +69,7 @@ export default {
             prizeAnimationStopped: false,
             currentAction: null as (() => void) | null,
             currentPrizeCount: { total: 0, remaining: 0 },
+            halfDialogShown: false,
         });
 
         const showPrizeWinningDialog = computed(() => {
@@ -108,7 +109,20 @@ export default {
         });
 
         const showHalfRemainingDialog = computed(() => {
-            return drawState.currentPrizeCount.remaining > 0 && drawState.currentPrizeCount.remaining <= drawState.currentPrizeCount.total / 2;
+            return (
+                !drawState.halfDialogShown &&
+                drawState.currentPrizeCount.remaining > 0 &&
+                drawState.currentPrizeCount.remaining <= drawState.currentPrizeCount.total / 2
+            );
+        });
+
+        // 半分残りダイアログ表示中は Enter を受け付けないようロックする
+        watch(() => showHalfRemainingDialog.value, (visible) => {
+            if (visible) {
+                dialogLocked = true;
+            } else {
+                dialogLocked = false;
+            }
         });
 
         const showEndDialog = computed(() => {
@@ -422,8 +436,7 @@ export default {
 
         // ダイアログクローズハンドラー
         const onHalfRemainingClosed = async () => {
-            drawState.currentPrizeCount = { total: 0, remaining: 0 };  // リセット
-            // 次のサイクル処理
+            drawState.halfDialogShown = true;
             try {
                 const res = await drawService.executeDraw({
                     memberRequestCount: 10,
@@ -441,10 +454,16 @@ export default {
                 }
                 currentMemberComponent.value = 'MemberDrawAnimation';
                 resetToMemberPhase();
+                // 更新された景品カウントを取得して反映する（これにより showHalfRemainingDialog が解除される）
+                try {
+                    const count = await drawService.getLastPrizeCount();
+                    drawState.currentPrizeCount = count;
+                } catch (e) {
+                    console.error('Failed to refresh prize count after half-remaining close:', e);
+                }
             } catch (e) {
                 console.error('Pre-draw failed in next cycle:', e);
             }
-            // Modal sequence finished; nothing to re-enable here because currentAction will be set by resetToMemberPhase()
         };
 
         const onEndClosed = () => {
