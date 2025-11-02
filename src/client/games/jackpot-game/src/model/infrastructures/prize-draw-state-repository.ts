@@ -1,7 +1,9 @@
 import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
+import { injectable } from "tsyringe";
 
 export type PrizeDrawState = number[]; // indices when kakuhen should trigger (1-based)
 
+@injectable()
 export class PrizeDrawStateRepository {
   private readonly localStorage = new LocalStorageService(
     "jackpot-game",

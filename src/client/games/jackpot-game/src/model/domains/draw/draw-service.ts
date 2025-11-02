@@ -1,7 +1,6 @@
-import { WeightedSelector } from "./weighted-selector";
 import { MemberDrawService } from "./member-draw-service";
 import { PrizeDrawService } from "./prize-draw-service";
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import { toMember } from "../../applications/member/dto/member-dto";
 import { toPrize } from "../../applications/prize/dto/prize-dto";
 import type { MemberDto } from "../../applications/member/dto/member-dto";
@@ -11,14 +10,15 @@ import type { Prize } from "../prize/prize";
 
 @injectable()
 export class DrawService {
-  private weightedSelector: WeightedSelector;
   private memberDrawService: MemberDrawService;
   private prizeDrawService: PrizeDrawService;
 
-  constructor() {
-    this.weightedSelector = new WeightedSelector();
-    this.memberDrawService = new MemberDrawService(this.weightedSelector);
-    this.prizeDrawService = new PrizeDrawService(this.weightedSelector);
+  constructor(
+    @inject(MemberDrawService) memberDrawService: MemberDrawService,
+    @inject(PrizeDrawService) prizeDrawService: PrizeDrawService
+  ) {
+    this.memberDrawService = memberDrawService;
+    this.prizeDrawService = prizeDrawService;
   }
 
   calculateKakuhenTimings(totalPrizes: number): number[] {

@@ -1,5 +1,5 @@
 import { WeightedSelector } from "./weighted-selector";
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import type { Prize } from "../prize/prize";
 import type { Member } from "../member/member";
 
@@ -7,7 +7,7 @@ import type { Member } from "../member/member";
 export class PrizeDrawService {
   private weightedSelector: WeightedSelector;
 
-  constructor(weightedSelector: WeightedSelector) {
+  constructor(@inject(WeightedSelector) weightedSelector: WeightedSelector) {
     this.weightedSelector = weightedSelector;
   }
 

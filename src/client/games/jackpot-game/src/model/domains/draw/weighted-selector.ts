@@ -1,3 +1,6 @@
+import { injectable } from "tsyringe";
+
+@injectable()
 export class WeightedSelector {
   selectWeighted<T extends { rank?: number }>(pool: T[]): T {
     if (pool.length === 0) {

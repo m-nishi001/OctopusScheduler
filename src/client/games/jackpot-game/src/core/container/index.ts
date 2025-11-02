@@ -15,6 +15,10 @@ import { ScreenConfigService } from "../../model/applications/screen-config/scre
 import { DrawResultService } from "../../model/applications/draw/draw-result-service";
 import { PrizeDrawStateRepository } from "../../model/infrastructures/prize-draw-state-repository";
 import { DrawService as DomainDrawService } from "../../model/domains/draw/draw-service";
+import { MemberDrawService } from "../../model/domains/draw/member-draw-service";
+import { PrizeDrawService } from "../../model/domains/draw/prize-draw-service";
+import { WeightedSelector } from "../../model/domains/draw/weighted-selector";
+import { DrawApplicationService } from "../../model/applications/draw/draw-application-service";
 
 export class Container {
   static register() {
@@ -42,5 +46,11 @@ export class Container {
       useClass: PrizeDrawStateRepository,
     });
     container.register(DomainDrawService, { useClass: DomainDrawService });
+    container.register(MemberDrawService, { useClass: MemberDrawService });
+    container.register(PrizeDrawService, { useClass: PrizeDrawService });
+    container.register(WeightedSelector, { useClass: WeightedSelector });
+    container.register(DrawApplicationService, {
+      useClass: DrawApplicationService,
+    });
   }
 }

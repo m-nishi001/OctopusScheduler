@@ -1,11 +1,13 @@
 import { WeightedSelector } from "./weighted-selector";
 import type { DrawResult } from "./draw-result";
 import type { Member } from "../member/member";
+import { injectable, inject } from "tsyringe";
 
+@injectable()
 export class MemberDrawService {
   private weightedSelector: WeightedSelector;
 
-  constructor(weightedSelector: WeightedSelector) {
+  constructor(@inject(WeightedSelector) weightedSelector: WeightedSelector) {
     this.weightedSelector = weightedSelector;
   }
 

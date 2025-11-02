@@ -1,7 +1,5 @@
-import { injectable, container } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import { DrawService } from "../../domains/draw/draw-service";
-import { MemberRepository } from "../../infrastructures/member-repository";
-import { PrizeRepository } from "../../infrastructures/prize-repository";
 import { DrawResultService } from "./draw-result-service";
 import { MemberDrawService } from "../../domains/draw/member-draw-service";
 import { PrizeDrawService } from "../../domains/draw/prize-draw-service";
@@ -17,26 +15,23 @@ import type { Prize } from "../../domains/prize/prize";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 import type { MemberDto } from "../member/dto/member-dto";
 import { toMember } from "../member/dto/member-dto";
+import { IMemberRepositoryToken } from "../../domains/member/repository/i-member-repository";
+import { IPrizeRepositoryToken } from "../../domains/prize/repository/i-prize-repository";
+import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
+import type { IPrizeRepository } from "../../domains/prize/repository/i-prize-repository";
 
 @injectable()
 export class DrawApplicationService {
-  private memberRepo: MemberRepository;
-  private prizeRepo: PrizeRepository;
-  private drawResultService: DrawResultService;
-  private prizeDrawStateRepository: PrizeDrawStateRepository;
-  private drawService: DrawService;
-  private memberDrawService: MemberDrawService;
-  private prizeDrawService: PrizeDrawService;
-
-  constructor() {
-    this.memberRepo = container.resolve(MemberRepository);
-    this.prizeRepo = container.resolve(PrizeRepository);
-    this.drawResultService = container.resolve(DrawResultService);
-    this.prizeDrawStateRepository = container.resolve(PrizeDrawStateRepository);
-    this.drawService = container.resolve(DrawService);
-    this.memberDrawService = container.resolve(MemberDrawService);
-    this.prizeDrawService = container.resolve(PrizeDrawService);
-  }
+  constructor(
+    @inject(IMemberRepositoryToken) private memberRepo: IMemberRepository,
+    @inject(IPrizeRepositoryToken) private prizeRepo: IPrizeRepository,
+    @inject(DrawResultService) private drawResultService: DrawResultService,
+    @inject(PrizeDrawStateRepository)
+    private prizeDrawStateRepository: PrizeDrawStateRepository,
+    @inject(DrawService) private drawService: DrawService,
+    @inject(MemberDrawService) private memberDrawService: MemberDrawService,
+    @inject(PrizeDrawService) private prizeDrawService: PrizeDrawService
+  ) {}
 
   async executeMemberDraw(
     request: DrawMemberRequest
