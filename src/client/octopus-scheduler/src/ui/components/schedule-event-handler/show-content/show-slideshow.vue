@@ -12,6 +12,7 @@ import { ref, onMounted, onUnmounted } from "vue";
 import { eventBus } from "../../../../core/event-bus";
 import { container } from "tsyringe";
 import type { IAssetRepository } from "../../../../model/domains/assets/repository/asset-repository";
+import { IAssetRepositoryToken } from "../../../../model/domains/assets/repository/asset-repository";
 
 interface SlideshowData {
     folderId: string;
@@ -25,7 +26,7 @@ const images = ref<{ id: string; url: string; name: string }[]>([]);
 const currentIndex = ref(0);
 const intervalId = ref<number | null>(null);
 const slideshowData = ref<SlideshowData | null>(null);
-const assetRepository = container.resolve<IAssetRepository>("IAssetRepository");
+const assetRepository = container.resolve<IAssetRepository>(IAssetRepositoryToken);
 
 const startSlideshow = async (data: SlideshowData) => {
     slideshowData.value = data;

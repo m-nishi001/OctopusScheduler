@@ -3,6 +3,7 @@ import { injectable } from "tsyringe";
 import { ScheduleEventService } from "./schedule-event/schedule-event-service";
 import type { IScheduleEvent } from "./schedule-event/../../domains/schedule-event/schedule-event";
 import type { IAssetRepository } from "../domains/assets/repository/asset-repository";
+import { IAssetRepositoryToken } from "../domains/assets/repository/asset-repository";
 
 @injectable()
 export class EventPollingService {
@@ -10,8 +11,9 @@ export class EventPollingService {
   private eventTimer: any = null;
   private assetSyncTimer: any = null;
   private scheduleEventService = container.resolve(ScheduleEventService);
-  private assetRepository =
-    container.resolve<IAssetRepository>("IAssetRepository");
+  private assetRepository = container.resolve<IAssetRepository>(
+    IAssetRepositoryToken
+  );
   private onEventsCallback?: (
     startEvents: IScheduleEvent[],
     endEvents: IScheduleEvent[]
