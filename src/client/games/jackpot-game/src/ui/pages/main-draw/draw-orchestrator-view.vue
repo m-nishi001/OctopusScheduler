@@ -115,11 +115,8 @@ export default {
             return drawState.currentPrizeCount.remaining <= 0;
         });
 
-        // 事前抽選結果
-        const preDrawResults = reactive({
-            memberWinnerId: null as string | null,
-            prizeResult: null as any,
-        });
+        // 事前抽選結果 (確定済みの DrawResultDto または null)
+        const preDrawResult = ref<DrawResultDto | null>(null);
 
         // コンポーネント分岐（拡張用）
         const currentMemberComponent = ref('MemberDrawAnimation');
@@ -149,21 +146,28 @@ export default {
         };
 
         // かくへん抽選処理
-        const handleKakuhenDraw = async (res: any) => {
-            const dummyPrize = prizes.value.find((p) => p.id === res.dummyWinnerPrizeId);
-            const reservedPrize = prizes.value.find(
-                (p) => p.id === res.winnerPrizeId
-            );
+        const handleKakuhenDraw = async (res: DrawResultDto) => {
+            // DrawResultDto contains the finalized wonPrize. For animation we
+            // choose a dummy prize (different from final) to show first and use
+            // the finalized prize as the final reveal.
+            const finalPrizeId = res.wonPrize?.id || null;
+            const finalPrize = prizes.value.find((p) => p.id === finalPrizeId) || null;
+
+            // pick a dummy prize different from finalPrize
+            const dummyCandidates = prizes.value.filter((p) => p.id !== finalPrizeId);
+            const dummyPrize = dummyCandidates.length
+                ? dummyCandidates[Math.floor(Math.random() * dummyCandidates.length)]
+                : null;
 
             const [bgm1Blob, bgm2Blob] = await Promise.all([
                 loadBgmBlob(dummyPrize?.bgm1AssetId || null),
-                loadBgmBlob(reservedPrize?.bgm2AssetId || null),
+                loadBgmBlob(finalPrize?.bgm2AssetId || null),
             ]);
 
             if (animationRef.value?.runAutoReroll) {
                 await animationRef.value.runAutoReroll({
-                    dummyPrizeId: res.dummyWinnerPrizeId || null,
-                    finalPrizeId: res.winnerPrizeId || null,
+                    dummyPrizeId: dummyPrize?.id || null,
+                    finalPrizeId: finalPrizeId || null,
                     dummyDuration: 2000,
                     finalDuration: 2000,
                     bgm1Url: bgm1Blob,
@@ -173,11 +177,11 @@ export default {
         };
 
         // 通常抽選処理
-        const handleNormalDraw = async (res: any) => {
-            selectedPrize.value =
-                prizes.value.find((p) => p.id === res.winnerPrizeId) || null;
+        const handleNormalDraw = async (res: DrawResultDto) => {
+            const winnerPrizeId = res.wonPrize?.id || null;
+            selectedPrize.value = prizes.value.find((p) => p.id === winnerPrizeId) || null;
             if (!selectedPrize.value) {
-                throw new Error('Prize not found for winnerPrizeId: ' + res.winnerPrizeId);
+                throw new Error('Prize not found for winnerPrizeId: ' + winnerPrizeId);
             }
 
             const bgmBlob = await loadBgmBlob(selectedPrize.value?.bgm1AssetId || null);
@@ -253,14 +257,13 @@ export default {
             // 景品抽選状態の初期化
             await drawService.initializeStateIfNeeded(prizes.value);
 
-            // 事前抽選実行
+            // 事前抽選実行（サーバーは確定済みの DrawResultDto を返す）
             const res = await drawService.executeDraw({
                 memberRequestCount: 10,
                 prizeRequestCount: 8,
             });
 
-            preDrawResults.memberWinnerId = res.wonMember?.id || null;
-            preDrawResults.prizeResult = { winnerPrizeId: res.wonPrize?.id || null, isKakuhen: res.isKakuhen };
+            preDrawResult.value = res;
             latestResult.value = res;
 
             if (res.wonPrize?.id) {
@@ -305,7 +308,7 @@ export default {
         const startMemberDraw = async () => {
             // 事前結果を使ってアニメーション開始
             if (memberAnimRef.value?.startDraw) {
-                memberAnimRef.value.startDraw(preDrawResults.memberWinnerId);
+                memberAnimRef.value.startDraw(preDrawResult.value?.wonMember?.id || null);
             }
             drawState.currentAction = memberStop;
         };
@@ -349,11 +352,11 @@ export default {
 
         // 景品抽選開始
         const startPrizeDraw = async () => {
-            if (!preDrawResults.prizeResult) {
+            if (!preDrawResult.value) {
                 throw new Error('No prize result available');
             }
-            // 事前結果を使ってアニメーション開始
-            await startRouletteAnimation(preDrawResults.prizeResult);
+            // 事前結果(確定済み)を使ってアニメーション開始
+            await startRouletteAnimation(preDrawResult.value);
             drawState.currentAction = prizeStop;
         };
 
@@ -398,8 +401,7 @@ export default {
                         memberRequestCount: 10,
                         prizeRequestCount: 8,
                     });
-                    preDrawResults.memberWinnerId = res.wonMember?.id || null;
-                    preDrawResults.prizeResult = { winnerPrizeId: res.wonPrize?.id || null, isKakuhen: res.isKakuhen };
+                    preDrawResult.value = res;
                     latestResult.value = res;
                     if (res.wonPrize?.id) {
                         selectedPrize.value = prizes.value.find((p) => p.id === res.wonPrize?.id) || null;
@@ -427,8 +429,7 @@ export default {
                     memberRequestCount: 10,
                     prizeRequestCount: 8,
                 });
-                preDrawResults.memberWinnerId = res.wonMember?.id || null;
-                preDrawResults.prizeResult = { winnerPrizeId: res.wonPrize?.id || null, isKakuhen: res.isKakuhen };
+                preDrawResult.value = res;
                 latestResult.value = res;
                 if (res.wonPrize?.id) {
                     selectedPrize.value = prizes.value.find((p) => p.id === res.wonPrize?.id) || null;

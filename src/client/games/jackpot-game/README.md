@@ -14,10 +14,10 @@ This project now exposes application-level draw APIs used by the UI:
 
 - `executePrizeDraw({ memberId: string, requestCount: number })`
   - Returns `{ drawId, winnerPrizeId, dummyPrizeIds, isKakuhen?, reservedPrizeIds? }`.
-  - If `isKakuhen` is true, the UI should run the kakuhen sequence (first auto-draw with dummy then after 2s call `executeKakuhenAssign`).
+  - Returns a finalized draw result. If `isKakuhen` is true the result is already a kakuhen (the server finalizes and returns the kakuhen flag). The UI should run the kakuhen animation based on the returned result.
 
 - `executeKakuhenAssign(memberId: string)`
-  - Assigns one of the reserved prizes to the member and returns the assigned prize id.
+  - (removed) The application previously exposed a separate kakuhen-assign API; kakuhen is now finalized by `executePrizeDraw` and this separate API is no longer used.
 
 - `getLastPrizeCount()`
   - Returns `{ total, remaining }`.
