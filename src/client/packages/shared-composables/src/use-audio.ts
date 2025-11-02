@@ -79,6 +79,7 @@ export function useAudio(options?: {
       if (currentSrc.value.startsWith("blob:")) {
         URL.revokeObjectURL(currentSrc.value);
       }
+      currentSrc.value = "";
     }
   };
 
@@ -155,15 +156,27 @@ export function useAudio(options?: {
         duration.value = getDuration();
         volume.value = audioService.getVolume(id);
       } else if (mode === "html-audio") {
+        // HTMLAudio の場合は Blob から作成した object URL を追跡して
+        // 再ロードやアンマウント時に revoke できるようにする
         if (htmlAudio.value) {
           htmlAudio.value.pause();
+          // 既に設定されている blob URL があれば解放
+          if (currentSrc.value && currentSrc.value.startsWith("blob:")) {
+            try {
+              URL.revokeObjectURL(currentSrc.value);
+            } catch {
+              /* ignore */
+            }
+          }
           htmlAudio.value.src = "";
         }
-        htmlAudio.value = new Audio(
-          typeof source === "string" ? source : URL.createObjectURL(source)
-        );
+
+        const url =
+          typeof source === "string" ? source : URL.createObjectURL(source);
+        htmlAudio.value = new Audio(url);
         htmlAudio.value.volume = volume.value;
-        currentSrc.value = typeof source === "string" ? source : "";
+        // currentSrc に実際に設定した URL を保持しておく
+        currentSrc.value = typeof source === "string" ? source : url;
         duration.value = getDuration();
         audioInstanceId.value = "html-audio";
       }
@@ -305,9 +318,11 @@ export function useAudio(options?: {
         URL.revokeObjectURL(currentSrc.value);
       }
     }
+    // all blob URLs are revoked from currentSrc when appropriate; nothing extra to do here
   });
 
   return {
+    // public API (object-url helpers are internal and not exposed)
     audioInstanceId: readonly(audioInstanceId),
     isLoading: readonly(isLoading),
     isPlaying: readonly(isPlaying),

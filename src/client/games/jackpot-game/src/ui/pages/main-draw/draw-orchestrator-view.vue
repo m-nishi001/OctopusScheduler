@@ -145,12 +145,12 @@ export default {
             screenSettingsService,
         });
 
-        // BGM URL ロード
-        const loadBgmUrl = async (assetId: string | null): Promise<string | null> => {
+        // BGM Blob ロード
+        const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
             if (!assetId) return null;
             try {
                 const asset = await assetService.getAssetDataById(assetId);
-                return asset?.blob ? URL.createObjectURL(asset.blob) : null;
+                return asset?.blob || null;
             } catch {
                 return null;
             }
@@ -163,9 +163,9 @@ export default {
                 (p) => p.id === res.winnerPrizeId
             );
 
-            const [bgm1Url, bgm2Url] = await Promise.all([
-                loadBgmUrl(dummyPrize?.bgm1AssetId || null),
-                loadBgmUrl(reservedPrize?.bgm2AssetId || null),
+            const [bgm1Blob, bgm2Blob] = await Promise.all([
+                loadBgmBlob(dummyPrize?.bgm1AssetId || null),
+                loadBgmBlob(reservedPrize?.bgm2AssetId || null),
             ]);
 
             if (animationRef.value?.runAutoReroll) {
@@ -174,8 +174,8 @@ export default {
                     finalPrizeId: res.winnerPrizeId || null,
                     dummyDuration: 2000,
                     finalDuration: 2000,
-                    bgm1Url,
-                    bgm2Url,
+                    bgm1Url: bgm1Blob,
+                    bgm2Url: bgm2Blob,
                 });
             }
         };
@@ -187,10 +187,11 @@ export default {
             if (!selectedPrize.value) {
                 throw new Error('Prize not found for winnerPrizeId: ' + res.winnerPrizeId);
             }
-            const bgmUrl = await loadBgmUrl(selectedPrize.value?.bgm1AssetId || null);
+
+            const bgmBlob = await loadBgmBlob(selectedPrize.value?.bgm1AssetId || null);
 
             if (animationRef.value?.startSpin) {
-                animationRef.value.startSpin(bgmUrl);
+                animationRef.value.startSpin(bgmBlob);
             }
         };
 

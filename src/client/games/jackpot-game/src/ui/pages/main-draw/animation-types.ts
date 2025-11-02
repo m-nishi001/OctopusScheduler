@@ -1,5 +1,5 @@
 export interface AnimationRef {
-  startSpin?: (bgmAssetUrl?: string | null) => void;
+  startSpin?: (bgm1Url?: Blob | null) => void;
   stopSpin?: (opts?: {
     decelerationFunction?: (
       elapsed: number,
@@ -12,7 +12,7 @@ export interface AnimationRef {
     finalPrizeId: string | null;
     dummyDuration: number;
     finalDuration: number;
-    bgm1Url: string | null;
-    bgm2Url: string | null;
+    bgm1Url: Blob | null;
+    bgm2Url: Blob | null;
   }) => Promise<void>;
 }

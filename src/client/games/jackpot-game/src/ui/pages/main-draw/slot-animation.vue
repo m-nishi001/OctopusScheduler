@@ -14,7 +14,8 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useAudio } from '@shared-composables/use-audio';
 import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 import { defineExpose } from 'vue';
 import type { AnimationRef } from './animation-types';
@@ -29,7 +30,8 @@ export default {
     emits: ['stopped'],
     setup(props, { emit }) {
         const spinning = ref(false);
-        let bgmAudio: HTMLAudioElement | null = null;
+        // useAudio を使って BGM を再生
+        const { load: loadBgm, play: playBgm, stop: stopBgm } = useAudio({ mode: 'html-audio' });
         const reels = ref([
             { offset: 0, speed: 0 },
             { offset: 0, speed: 0 },
@@ -46,12 +48,13 @@ export default {
 
         const itemHeight = 60;
 
-        const startSpin = (bgmAssetUrl?: string | null) => {
-            if (bgmAssetUrl) {
-                if (bgmAudio) bgmAudio.pause();
-                bgmAudio = new Audio(bgmAssetUrl);
-                bgmAudio.loop = true;
-                bgmAudio.play().catch(() => { });
+        const startSpin = async (bgm1Url?: Blob | null) => {
+            if (bgm1Url) {
+                try {
+                    await stopBgm();
+                    await loadBgm(bgm1Url);
+                    await playBgm({ isRepeat: true });
+                } catch { /* ignore */ }
             }
             spinning.value = true;
             reels.value.forEach((reel, index) => {
@@ -74,10 +77,7 @@ export default {
                         stoppedCount++;
                         if (stoppedCount === totalReels) {
                             spinning.value = false;
-                            if (bgmAudio) {
-                                bgmAudio.pause();
-                                bgmAudio = null;
-                            }
+                            stopBgm().catch(() => { });
                             setTimeout(() => {
                                 const prizeId = props.selectedPrize?.id || null;
                                 emit('stopped', prizeId);
@@ -92,12 +92,14 @@ export default {
             });
         };
 
-        const runAutoReroll = async (opts: { dummyPrizeId: string | null; finalPrizeId: string | null; dummyDuration: number; finalDuration: number; bgm1Url: string | null; bgm2Url: string | null }) => {
+    const runAutoReroll = async (opts: { dummyPrizeId: string | null; finalPrizeId: string | null; dummyDuration: number; finalDuration: number; bgm1Url: Blob | null; bgm2Url: Blob | null }) => {
             // シンプルに実装: ダミースピン後、最終停止
             if (opts.bgm1Url) {
-                if (bgmAudio) bgmAudio.pause();
-                bgmAudio = new Audio(opts.bgm1Url);
-                bgmAudio.play().catch(() => { });
+                try {
+                    await stopBgm();
+                    await loadBgm(opts.bgm1Url);
+                    await playBgm();
+                } catch { /* ignore */ }
             }
             spinning.value = true;
             reels.value.forEach(reel => reel.speed = 10);
@@ -113,9 +115,11 @@ export default {
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             if (opts.bgm2Url) {
-                if (bgmAudio) bgmAudio.pause();
-                bgmAudio = new Audio(opts.bgm2Url);
-                bgmAudio.play().catch(() => { });
+                try {
+                    await stopBgm();
+                    await loadBgm(opts.bgm2Url);
+                    await playBgm();
+                } catch { /* ignore */ }
             }
             spinning.value = true;
             reels.value.forEach(reel => reel.speed = 10);
@@ -143,6 +147,10 @@ export default {
 
         onMounted(() => {
             animate();
+        });
+
+        onUnmounted(() => {
+            stopBgm().catch(() => { });
         });
 
         defineExpose<AnimationRef>({
