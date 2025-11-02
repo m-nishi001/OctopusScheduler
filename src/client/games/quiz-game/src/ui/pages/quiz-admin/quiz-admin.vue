@@ -12,6 +12,14 @@
                     class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded mr-2">
                     編集
                 </button>
+                <button @click="previewQuiz(quiz.id)"
+                    class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-1 px-2 rounded mr-2">
+                    プレビュー
+                </button>
+                <button @click="viewResult(quiz.id)"
+                    class="bg-orange-500 hover:bg-orange-700 text-white font-bold py-1 px-2 rounded mr-2">
+                    結果
+                </button>
                 <button @click="deleteQuiz(index)"
                     class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded">
                     削除
@@ -59,6 +67,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 interface QuizOption {
     text: string;
@@ -140,5 +151,13 @@ const addOption = () => {
 
 const removeOption = (index: number) => {
     currentQuiz.value.options.splice(index, 1);
+};
+
+const previewQuiz = (id: number) => {
+    router.push(`/quiz/${id}`);
+};
+
+const viewResult = (id: number) => {
+    router.push(`/quiz-result/${id}`);
 };
 </script>
