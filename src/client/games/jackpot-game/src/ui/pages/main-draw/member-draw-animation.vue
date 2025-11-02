@@ -66,7 +66,7 @@ export default {
         // if true, the parent component is responsible for showing the winner dialog
         externalDialog: { type: Boolean, required: false, default: false },
     },
-    emits: ['start', 'stopped', 'member-selected', 'close-winner-dialog'],
+    emits: ['start', 'stopped', 'member-selected', 'close-winner-dialog', 'winner-dialog-shown', 'winner-dialog-closed'],
     setup(props: any, { emit }: any) {
         const viewport = ref<HTMLDivElement | null>(null);
         const track = ref<HTMLDivElement | null>(null);
@@ -458,12 +458,19 @@ export default {
                 // wait for DOM update then focus the primary action so Enter works reliably
                 try {
                     await nextTick();
-                    nextBtn.value?.focus();
+                    // notify parent immediately so it can lock input
+                    try { emit('winner-dialog-shown'); } catch (e) { }
+                    // delay focusing the button by 1s so that a held Enter doesn't immediately activate it
+                    setTimeout(() => {
+                        try { nextBtn.value?.focus(); } catch (e) { }
+                    }, 1000);
                 } catch (e) {
                     // ignore focus errors
                 }
             } else {
                 document.body.style.overflow = '';
+                // notify parent that the internal winner dialog was closed
+                try { emit('winner-dialog-closed'); } catch (e) { }
             }
         });
 

@@ -15,7 +15,8 @@
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
-                            @start="() => { void showMemberDraw(); }" @member-selected="onMemberSelected" />
+                            @start="() => { void showMemberDraw(); }" @member-selected="onMemberSelected"
+                            @winner-dialog-shown="onChildWinnerDialogShown" />
                     </div>
                 </section>
 
@@ -34,7 +35,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw, computed } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw, computed, watch } from 'vue';
 import type { Component } from 'vue';
 import { useRouter } from 'vue-router';
 import MainLayout from '../common/main-layout.vue';
@@ -73,6 +74,38 @@ export default {
 
         const showPrizeWinningDialog = computed(() => {
             return drawState.prizeAnimationStopped;
+        });
+
+        // DLG が表示されたら1秒間操作を無効化する（表示後1秒経過で Enter 操作を受け付ける）
+        // - 押しっぱなしの場合は1秒後に一度だけ実行される（DLGを閉じる）
+        let dialogLocked = false;
+        watch(showPrizeWinningDialog, (visible) => {
+            if (visible) {
+                // 繰り返しを止める
+                if (repeatTimer !== null) {
+                    clearInterval(repeatTimer);
+                    repeatTimer = null;
+                }
+
+                // ロック開始。表示から1秒間はハンドラを無視する
+                dialogLocked = true;
+                const wasPressed = enterPressed; // 表示時に押されていたか
+
+                // 1秒後に解除し、表示時に押されていた／まだ押されているなら一度だけ実行
+                setTimeout(() => {
+                    dialogLocked = false;
+                    // 押しっぱなしまたは表示直後に押していた場合は1回だけ実行
+                    if (wasPressed || enterPressed) {
+                        void executeCurrentAction();
+                        // もしまだ押されているなら繰り返しタイマーを再開して継続動作を許可
+                        if (enterPressed && repeatTimer === null) {
+                            repeatTimer = window.setInterval(() => {
+                                void executeCurrentAction();
+                            }, 1000);
+                        }
+                    }
+                }, 1000);
+            }
         });
 
         const showHalfRemainingDialog = computed(() => {
@@ -170,10 +203,53 @@ export default {
             }
         };
 
-        // キーボードイベントハンドラー
+        // キーボードイベントハンドラー（Enter長押し対応）
+        // 初回押下で即時実行、その後は最大1秒間隔で繰り返す
+        let enterPressed = false;
+        let repeatTimer: number | null = null;
+
+        // 再入禁止フラグ: アニメーションなどの長い処理が完了するまで同じ action を再実行しない
+        let actionRunning = false;
+
+        const executeCurrentAction = async () => {
+            const action = drawState.currentAction;
+            if (!action) return;
+            if (actionRunning) return; // 既に実行中なら無視
+            actionRunning = true;
+            try {
+                // 呼び出し結果が Promise でも非同期に対応するため Promise.resolve で待つ
+                await Promise.resolve(action());
+            } catch (e) {
+                console.error('Error executing currentAction', e);
+            } finally {
+                actionRunning = false;
+            }
+        };
+
         const keydownDelegator = (ev: KeyboardEvent) => {
             if (ev.key !== 'Enter') return;
-            drawState.currentAction?.();
+            // DLG ロック中は受け付けない
+            if (dialogLocked) return;
+            // ブラウザの自動リピートで複数回呼ばれるため、すでに押下中なら無視
+            if (enterPressed) return;
+            enterPressed = true;
+
+            // 即時実行（存在する場合）
+            void executeCurrentAction();
+
+            // 以降、最小1秒間隔で繰り返す
+            repeatTimer = window.setInterval(() => {
+                void executeCurrentAction();
+            }, 1000);
+        };
+
+        const keyupDelegator = (ev: KeyboardEvent) => {
+            if (ev.key !== 'Enter') return;
+            enterPressed = false;
+            if (repeatTimer !== null) {
+                clearInterval(repeatTimer);
+                repeatTimer = null;
+            }
         };
 
         onMounted(async () => {
@@ -214,10 +290,16 @@ export default {
             drawState.currentPrizeCount = count;
 
             window.addEventListener('keydown', keydownDelegator);
+            window.addEventListener('keyup', keyupDelegator);
         });
 
         onUnmounted(() => {
             window.removeEventListener('keydown', keydownDelegator);
+            window.removeEventListener('keyup', keyupDelegator);
+            if (repeatTimer !== null) {
+                clearInterval(repeatTimer);
+                repeatTimer = null;
+            }
         });
 
         // メンバー抽選表示
@@ -239,6 +321,27 @@ export default {
         const onMemberSelected = () => {
             emit('member-winner', { result: latestResult.value });
             drawState.currentAction = () => { void showPrizeDraw(); };
+        };
+
+        // ハンドラ: 子コンポーネントの内部メンバー当選ダイアログが表示されたときに呼ばれる
+        const onChildWinnerDialogShown = () => {
+            if (repeatTimer !== null) {
+                clearInterval(repeatTimer);
+                repeatTimer = null;
+            }
+            dialogLocked = true;
+            const wasPressed = enterPressed;
+            setTimeout(() => {
+                dialogLocked = false;
+                if (wasPressed || enterPressed) {
+                    void executeCurrentAction();
+                    if (enterPressed && repeatTimer === null) {
+                        repeatTimer = window.setInterval(() => {
+                            void executeCurrentAction();
+                        }, 1000);
+                    }
+                }
+            }, 1000);
         };
 
         // メンバー停止（アニメーション制御）
@@ -375,6 +478,7 @@ export default {
             closeModal,
             onRouletteStopped,
             onMemberSelected,
+            onChildWinnerDialogShown,
             showPrizeWinningDialog,
             showHalfRemainingDialog,
             showEndDialog,
