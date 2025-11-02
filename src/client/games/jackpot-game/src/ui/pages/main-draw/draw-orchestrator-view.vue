@@ -291,6 +291,8 @@ export default {
         const closeModal = async () => {
             const count = await drawService.getLastPrizeCount();
             drawState.currentPrizeCount = count;
+            drawState.prizeAnimationStopped = false;
+            drawState.currentAction = null;
             if (count.remaining <= 0) {
                 // 終了DLGは computed で表示
             } else if (count.remaining <= count.total / 2) {
@@ -347,6 +349,7 @@ export default {
             } catch (e) {
                 console.error('Pre-draw failed in next cycle:', e);
             }
+            // Modal sequence finished; nothing to re-enable here because currentAction will be set by resetToMemberPhase()
         };
 
         const onEndClosed = () => {

@@ -19,10 +19,10 @@ export default defineComponent({
         watch(() => props.visible, (newVal) => {
             if (newVal) {
                 setTimeout(() => {
-                    emit('close');  // 2秒後に自動クローズ
-                }, 2000);
+                    emit('close');  // 3秒後に自動クローズ
+                }, 3000);
             }
-        });
+        }, { immediate: true });
         return {};
     },
 });
@@ -53,7 +53,6 @@ export default defineComponent({
     color: red;
     font-size: 1.5em;
     animation: blink 1s infinite;
-    /* 演出: 点滅アニメーション */
 }
 
 @keyframes blink {
