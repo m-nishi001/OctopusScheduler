@@ -65,12 +65,28 @@ export class DrawApplicationService {
     if (!state) throw new Error("Prize draw state not initialized");
 
     const results = await this.drawResultService.getDrawResults();
-    const drawCount = results.filter((r) => r.wonMember !== null).length + 1;
+    const drawCount =
+      results.filter(
+        (r) => r.wonMember !== null && !r.drawId.startsWith("reserved-")
+      ).length + 1;
 
     const prizes = await this.prizeRepo.getPrizes();
 
     if (state.includes(drawCount)) {
-      return this.executeKakuhenDraw(member, results, prizes);
+      try {
+        return await this.executeKakuhenDraw(member, results, prizes);
+      } catch (e: any) {
+        // If reserved prizes are not available for kakuhen (possible when state
+        // was initialized but reserved entries were consumed or truncated during tests),
+        // fall back to a normal draw instead of throwing and aborting the whole flow.
+        if (e && e.message === "No reserved prizes available") {
+          console.warn(
+            "DrawApplicationService: No reserved prizes available for kakuhen; falling back to normal draw"
+          );
+          return this.executeNormalDraw(prizes, results, request, member);
+        }
+        throw e;
+      }
     } else {
       return this.executeNormalDraw(prizes, results, request, member);
     }
@@ -87,6 +103,20 @@ export class DrawApplicationService {
         ...result,
         createdAt: Date.now(),
       });
+    }
+    // Diagnostic log: record what was reserved during initialization
+    try {
+      const resAfter = await this.drawResultService.getDrawResults();
+      const reservedAfter = resAfter.filter((r) => r.wonMember === null);
+      console.info(
+        `DrawApplicationService: initializeStateIfNeeded -> kakuhen timings=${JSON.stringify(
+          newState
+        )}, reservedCount=${reservedAfter.length}, reservedDrawIds=${reservedAfter
+          .map((r) => r.drawId)
+          .join(",")}`
+      );
+    } catch (e) {
+      console.warn("DrawApplicationService: unable to log reserved results", e);
     }
   }
 
@@ -105,6 +135,13 @@ export class DrawApplicationService {
     );
 
     const reservedResults = results.filter((r) => r.wonMember === null);
+    // Diagnostic logging immediately before attempting kakuhen draw
+    console.debug(
+      `DrawApplicationService: executeKakuhenDraw -> totalResults=${results.length}, reservedResults=${reservedResults.length}, availablePrizes=${availablePrizes.length}`
+    );
+    console.debug(
+      `DrawApplicationService: reserved drawIds=${reservedResults.map((r) => r.drawId).join(",")}`
+    );
     if (reservedResults.length === 0) {
       throw new Error("No reserved prizes available");
     }
@@ -182,7 +219,9 @@ export class DrawApplicationService {
     const results = await this.drawResultService.getDrawResults();
     const assignedPrizeIds = new Set(
       results
-        .filter((r) => r.wonMember !== null)
+        .filter(
+          (r) => r.wonMember !== null && !r.drawId.startsWith("reserved-")
+        )
         .map((r) => r.wonPrize?.id)
         .filter(Boolean)
     );
@@ -200,7 +239,29 @@ export class DrawApplicationService {
     const memberRes = await this.executeMemberDraw({
       requestCount: request.memberRequestCount,
     });
-    if (!memberRes.winnerId) throw new Error("No member winner");
+    if (!memberRes.winnerId) {
+      // メンバーが尽きた場合、最後の景品を当選させる
+      const prizes = await this.prizeRepo.getPrizes();
+      const results = await this.drawResultService.getDrawResults();
+      const availablePrizes = prizes.filter(
+        (p) =>
+          !results.some((r) => r.wonPrize?.id === p.id && r.wonMember !== null)
+      );
+      if (availablePrizes.length === 1) {
+        // 最後の景品を当選
+        const lastPrize = availablePrizes[0];
+        const drawResult: DrawResultDto = {
+          drawId: crypto.randomUUID(),
+          wonMember: null, // メンバーなし
+          wonPrize: lastPrize,
+          isKakuhen: false,
+          createdAt: Date.now(),
+        };
+        await this.drawResultService.addDrawResult(drawResult);
+        return drawResult;
+      }
+      throw new Error("No member winner");
+    }
     const members = await this.memberRepo.getMembers();
     const winnerMember = members.find((m) => m.id === memberRes.winnerId);
     if (!winnerMember) throw new Error("Winner member not found");

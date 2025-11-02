@@ -16,6 +16,13 @@ export class DrawTestService {
   private drawResultService: DrawResultService;
   private prizeDrawStateRepository: PrizeDrawStateRepository;
 
+  // Backups for restore after test
+  private backupMembers: MemberDto[] | null = null;
+  private backupPrizes: PrizeDto[] | null = null;
+  private backupResults: DrawResultDto[] | null = null;
+  private backupState: number[] | null = null;
+  private readonly PERSIST_KEY = "jackpot-test-backup";
+
   constructor() {
     this.drawAppService = container.resolve(DrawApplicationService);
     this.memberRepo = container.resolve(MemberRepository);
@@ -24,252 +31,198 @@ export class DrawTestService {
     this.prizeDrawStateRepository = container.resolve(PrizeDrawStateRepository);
   }
 
-  // ダミーデータ生成
-  async generateDummyData(): Promise<void> {
-    // ダミーメンバー生成
-    const dummyMembers: MemberDto[] = [
-      { id: "member-1", name: "メンバー1", rank: 1, photoAssetId: "dummy" },
-      { id: "member-2", name: "メンバー2", rank: 2, photoAssetId: "dummy" },
-      { id: "member-3", name: "メンバー3", rank: 3, photoAssetId: "dummy" },
-      { id: "member-4", name: "メンバー4", rank: 1, photoAssetId: "dummy" },
-      { id: "member-5", name: "メンバー5", rank: 2, photoAssetId: "dummy" },
-      { id: "member-6", name: "メンバー6", rank: 3, photoAssetId: "dummy" },
-      { id: "member-7", name: "メンバー7", rank: 1, photoAssetId: "dummy" },
-      { id: "member-8", name: "メンバー8", rank: 2, photoAssetId: "dummy" },
-      { id: "member-9", name: "メンバー9", rank: 3, photoAssetId: "dummy" },
-      { id: "member-10", name: "メンバー10", rank: 1, photoAssetId: "dummy" },
-    ];
+  // Main simulation method
+  async runSimulation(
+    memberCount: number,
+    prizeCount: number
+  ): Promise<{ results: DrawResultDto[]; csv: string }> {
+    try {
+      // 1. バックアップを取得
+      await this.backupCurrentData();
 
-    // ダミー景品生成
-    const dummyPrizes: PrizeDto[] = [
-      {
-        id: "prize-1",
-        name: "景品1",
-        rank: 1,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 1,
-      },
-      {
-        id: "prize-2",
-        name: "景品2",
-        rank: 2,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 2,
-      },
-      {
-        id: "prize-3",
-        name: "景品3",
-        rank: 3,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 3,
-      },
-      {
-        id: "prize-4",
-        name: "景品4",
-        rank: 1,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 4,
-      },
-      {
-        id: "prize-5",
-        name: "景品5",
-        rank: 2,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 5,
-      },
-      {
-        id: "prize-6",
-        name: "景品6",
-        rank: 3,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 6,
-      },
-      {
-        id: "prize-7",
-        name: "景品7",
-        rank: 1,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 7,
-      },
-      {
-        id: "prize-8",
-        name: "景品8",
-        rank: 2,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 8,
-      },
-      {
-        id: "prize-9",
-        name: "景品9",
-        rank: 3,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 9,
-      },
-      {
-        id: "prize-10",
-        name: "景品10",
-        rank: 1,
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: 10,
-      },
-    ];
+      // 2. テストデータ投入
+      await this.setDummyData(memberCount, prizeCount);
 
-    // 既存データをクリア（テスト用）
-    await this.clearDummyData();
+      // 3. シミュレーション実行
+      const results = await this.runDrawSimulation();
 
-    // データを保存
-    await this.memberRepo.addMembers(dummyMembers);
-    await this.prizeRepo.addPrizes(dummyPrizes);
+      // 4. シミュレート結果を取得 (already collected in results)
+
+      // 5. バックアップを復元
+      await this.restoreBackup();
+
+      // 6. シミュレート結果を表示 (return results and CSV)
+      const csv = this.generateCsv(results);
+      return { results, csv };
+    } catch (error) {
+      console.error("Simulation failed:", error);
+      // Attempt to restore backup even on failure
+      try {
+        await this.restoreBackup();
+      } catch (restoreError) {
+        console.error("Failed to restore backup:", restoreError);
+      }
+      throw error;
+    }
   }
 
-  // 全抽選実行
-  async runFullDrawProcess(): Promise<DrawResultDto[]> {
-    const results: DrawResultDto[] = [];
-    let continueDraw = true;
+  private async backupCurrentData(): Promise<void> {
+    console.info("Backing up current data...");
+    this.backupMembers = (await this.memberRepo.getMembers()).map((m) => ({
+      ...m,
+    }));
+    this.backupPrizes = (await this.prizeRepo.getPrizes()).map((p) => ({
+      ...p,
+    }));
+    this.backupResults = (await this.drawResultService.getDrawResults()).map(
+      (r) => ({ ...r })
+    );
+    this.backupState = await this.prizeDrawStateRepository.getState();
 
-    while (continueDraw) {
-      // メンバー抽選
-      const memberResult = await this.drawAppService.executeMemberDraw({
-        requestCount: 10,
+    // Persist to localStorage
+    try {
+      const payload = JSON.stringify({
+        backupMembers: this.backupMembers,
+        backupPrizes: this.backupPrizes,
+        backupResults: this.backupResults,
+        backupState: this.backupState,
       });
-      if (memberResult.winnerId) {
-        // メンバー当選結果を追加済み
-        const memberDrawResult = await this.drawResultService.getDrawResultById(
-          memberResult.drawId
-        );
-        if (memberDrawResult) {
-          results.push(memberDrawResult);
-        }
+      window.localStorage.setItem(this.PERSIST_KEY, payload);
+    } catch (e) {
+      console.warn("Failed to persist backup:", e);
+    }
+    console.info("Backup complete");
+  }
 
-        // 景品抽選
-        const prizeResult = await this.drawAppService.executePrizeDraw({
-          memberId: memberResult.winnerId,
-          requestCount: 8,
-        });
-        if (prizeResult.winnerPrizeId) {
-          const prizeDrawResult =
-            await this.drawResultService.getDrawResultById(prizeResult.drawId);
-          if (prizeDrawResult) {
-            results.push(prizeDrawResult);
-          }
-        }
+  private async setDummyData(
+    memberCount: number,
+    prizeCount: number
+  ): Promise<void> {
+    console.info("Setting dummy data...");
 
-        // 景品残数チェック
-        const count = await this.drawAppService.getLastPrizeCount();
-        if (count.remaining === 0) {
-          continueDraw = false;
-        }
-      } else {
-        // 当選者なしで終了
-        continueDraw = false;
-      }
+    const dummyMembers: MemberDto[] = [];
+    for (let i = 1; i <= memberCount; i++) {
+      dummyMembers.push({
+        id: `member-${i}`,
+        name: `メンバー${i}`,
+        rank: ((i - 1) % 3) + 1, // 1,2,3 を繰り返す
+        photoAssetId: "dummy",
+      });
     }
 
-    return results;
+    const dummyPrizes: PrizeDto[] = [];
+    for (let i = 1; i <= prizeCount; i++) {
+      dummyPrizes.push({
+        id: `prize-${i}`,
+        name: `景品${i}`,
+        rank: ((i - 1) % 3) + 1, // 1,2,3 を繰り返す
+        imageAssetId: "dummy",
+        animation: "roulette",
+        order: i,
+      });
+    }
+
+    await this.memberRepo.replaceAllMembers(dummyMembers as any);
+    await this.prizeRepo.replaceAllPrizes(dummyPrizes as any);
+
+    // Clear existing results
+    const existingResults = await this.drawResultService.getDrawResults();
+    for (const r of existingResults) {
+      await this.drawResultService.deleteDrawResult(r.drawId);
+    }
+
+    // Clear state to ensure initialization
+    await this.prizeDrawStateRepository.clearState();
+
+    // Initialize state
+    const savedPrizes = await this.prizeRepo.getPrizes();
+    await this.drawAppService.initializeStateIfNeeded(savedPrizes as any);
+
+    console.info("Dummy data set");
   }
 
-  // 確変テスト実行
-  async runKakuhenTest(): Promise<DrawResultDto[]> {
+  private async runDrawSimulation(): Promise<DrawResultDto[]> {
+    console.info("Running draw simulation...");
     const results: DrawResultDto[] = [];
-    let kakuhenOccurred = false;
-
-    while (!kakuhenOccurred) {
-      // メンバー抽選
-      const memberResult = await this.drawAppService.executeMemberDraw({
-        requestCount: 10,
-      });
-      if (memberResult.winnerId) {
-        // メンバー当選結果を追加済み
-        const memberDrawResult = await this.drawResultService.getDrawResultById(
-          memberResult.drawId
-        );
-        if (memberDrawResult) {
-          results.push(memberDrawResult);
-        }
-
-        // 景品抽選
-        const prizeResult = await this.drawAppService.executePrizeDraw({
-          memberId: memberResult.winnerId,
-          requestCount: 8,
+    let continueDraw = true;
+    while (continueDraw) {
+      try {
+        const res = await this.drawAppService.executeDraw({
+          memberRequestCount: 10,
+          prizeRequestCount: 8,
         });
-        if (prizeResult.winnerPrizeId) {
-          const prizeDrawResult =
-            await this.drawResultService.getDrawResultById(prizeResult.drawId);
-          if (prizeDrawResult) {
-            results.push(prizeDrawResult);
-            if (prizeResult.isKakuhen) {
-              kakuhenOccurred = true;
-            }
-          }
-        }
+        results.push(res);
 
-        // 景品残数チェック
         const count = await this.drawAppService.getLastPrizeCount();
-        if (count.remaining === 0) {
-          break;
+        if (results.length >= count.total - 1) {
+          continueDraw = false;
         }
-      } else {
-        // 当選者なしで終了
+      } catch (e) {
+        console.error("Error in draw execution:", e);
         break;
       }
     }
 
+    console.info(`Simulation complete: ${results.length} draws`);
     return results;
+  }
+
+  // バックアップを復元
+  async restoreBackup(): Promise<void> {
+    console.info("Restoring backup...");
+    if (this.backupMembers) {
+      await this.memberRepo.replaceAllMembers(this.backupMembers as any);
+    }
+    if (this.backupPrizes) {
+      await this.prizeRepo.replaceAllPrizes(this.backupPrizes as any);
+    }
+
+    // Clear current results and restore
+    const currentResults = await this.drawResultService.getDrawResults();
+    for (const r of currentResults) {
+      await this.drawResultService.deleteDrawResult(r.drawId);
+    }
+    if (this.backupResults) {
+      for (const r of this.backupResults) {
+        await this.drawResultService.addDrawResult(r);
+      }
+    }
+
+    // Restore state
+    if (this.backupState) {
+      await this.prizeDrawStateRepository.saveState(this.backupState);
+    } else {
+      await this.prizeDrawStateRepository.clearState();
+    }
+
+    // Clear backups
+    this.backupMembers = null;
+    this.backupPrizes = null;
+    this.backupResults = null;
+    this.backupState = null;
+
+    console.info("Backup restored");
   }
 
   // 結果をCSV形式で取得
   generateCsv(results: DrawResultDto[]): string {
-    const headers = ["Draw ID", "Member Name", "Prize Name", "Is Kakuhen"];
+    const headers = [
+      "Draw ID",
+      "Member Name",
+      "Prize Name",
+      "Prize Rank",
+      "Is Kakuhen",
+    ];
     const rows = results.map((result) => [
       result.drawId,
       result.wonMember?.name || "",
       result.wonPrize?.name || "",
+      result.wonPrize?.rank || "",
       (result.isKakuhen || false).toString(),
     ]);
 
-    const csvContent = [headers, ...rows]
+    return [headers, ...rows]
       .map((row) => row.map((cell) => `"${cell}"`).join(","))
       .join("\n");
-    return csvContent;
-  }
-
-  // ダミーデータクリア
-  async clearDummyData(): Promise<void> {
-    // メンバークリア
-    const members = await this.memberRepo.getMembers();
-    const memberIdsToDelete = members
-      .filter((m) => m.id.startsWith("member-"))
-      .map((m) => m.id);
-    if (memberIdsToDelete.length > 0) {
-      await this.memberRepo.deleteMembers(memberIdsToDelete);
-    }
-
-    // 景品クリア
-    const prizes = await this.prizeRepo.getPrizes();
-    const prizeIdsToDelete = prizes
-      .filter((p) => p.id.startsWith("prize-"))
-      .map((p) => p.id);
-    if (prizeIdsToDelete.length > 0) {
-      await this.prizeRepo.deletePrizes(prizeIdsToDelete);
-    }
-
-    // 結果クリア
-    const results = await this.drawResultService.getDrawResults();
-    for (const result of results) {
-      await this.drawResultService.deleteDrawResult(result.drawId);
-    }
-
-    // 抽選状態クリア
-    await this.prizeDrawStateRepository.clearState();
   }
 }

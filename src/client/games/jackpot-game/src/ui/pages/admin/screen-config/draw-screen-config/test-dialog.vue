@@ -1,9 +1,17 @@
 <template>
-    <div v-if="visible" class="modal-overlay" @click="close">
+    <div v-if="visible" class="modal-overlay">
         <div class="modal-content" @click.stop>
             <h3>抽選テスト</h3>
             <div v-if="!results" class="test-section">
-                <button @click="runDrawTest" :disabled="running" class="test-btn">
+                <div class="input-group">
+                    <label for="memberCount">メンバー数:</label>
+                    <input id="memberCount" v-model.number="memberCount" type="number" min="1" max="100" />
+                </div>
+                <div class="input-group">
+                    <label for="prizeCount">景品数:</label>
+                    <input id="prizeCount" v-model.number="prizeCount" type="number" min="1" max="100" />
+                </div>
+                <button @click="runDrawTest" :disabled="running || memberCount < 1 || prizeCount < 1" class="test-btn">
                     {{ running ? '実行中...' : '抽選テスト実行' }}
                 </button>
                 <div v-if="running" class="spinner"></div>
@@ -16,6 +24,7 @@
                             <th>Draw ID</th>
                             <th>Member</th>
                             <th>Prize</th>
+                            <th>Prize Rank</th>
                             <th>Kakuhen</th>
                         </tr>
                     </thead>
@@ -24,6 +33,7 @@
                             <td>{{ result.drawId }}</td>
                             <td>{{ result.wonMember?.name || '' }}</td>
                             <td>{{ result.wonPrize?.name || '' }}</td>
+                            <td>{{ result.wonPrize?.rank || '' }}</td>
                             <td>{{ result.isKakuhen ? 'Yes' : 'No' }}</td>
                         </tr>
                     </tbody>
@@ -55,14 +65,15 @@ const emit = defineEmits<{
 const testService = container.resolve(DrawTestService) as DrawTestService;
 const running = ref(false);
 const results = ref<DrawResultDto[] | null>(null);
+const memberCount = ref(10);
+const prizeCount = ref(10);
 
 const runDrawTest = async () => {
     running.value = true;
     results.value = null;
     try {
-        await testService.generateDummyData();
-        const testResults = await testService.runFullDrawProcess();
-        results.value = testResults;
+        const { results: simResults } = await testService.runSimulation(memberCount.value, prizeCount.value);
+        results.value = simResults;
     } catch (error) {
         console.error('Test failed:', error);
         alert('テスト実行中にエラーが発生しました。');
@@ -83,10 +94,7 @@ const downloadCsv = () => {
     URL.revokeObjectURL(url);
 };
 
-const close = async () => {
-    if (results.value) {
-        await testService.clearDummyData();
-    }
+const close = () => {
     results.value = null;
     emit('close');
 };
@@ -118,6 +126,26 @@ const close = async () => {
 }
 
 .test-section {
+    text-align: center;
+}
+
+.input-group {
+    margin-bottom: 16px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: bold;
+}
+
+.input-group input {
+    width: 100px;
+    padding: 8px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
     text-align: center;
 }
 
