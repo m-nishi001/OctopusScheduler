@@ -61,7 +61,7 @@ export class DrawService {
     return reservedPrizes.map((prize) => ({
       drawId: `reserved-${prize.id}-${Date.now()}`,
       wonMember: null,
-      wonPrize: prize,
+      wonPrize: { ...prize },
       isKakuhen: false,
     }));
   }
@@ -114,7 +114,8 @@ export class DrawService {
     const drawResult: DrawResult = {
       drawId,
       wonMember: winnerMember,
-      wonPrize: winnerPrize,
+      // clone prize to ensure stored object is a plain POJO
+      wonPrize: winnerPrize ? { ...winnerPrize } : null,
       isKakuhen: false,
     };
 
