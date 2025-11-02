@@ -4,7 +4,7 @@
     "target": "ES2022" /* ターゲットとするECMAScriptバージョン。サポートしたいブラウザ環境によって調整。 */,
     "lib": ["ES2022"] /* ブラウザ環境で利用するAPIの型定義を含める。 */,
     "module": "ESNext" /* 生成するモジュールコードの形式。通常はバンドラーで処理されるためESNext。 */,
-    "moduleResolution": "node" /* モジュール解決戦略。Node.jsの解決方法に合わせる。 */,
+    "moduleResolution": "bundler" /* モジュール解決戦略。Use 'bundler' (or 'node16'/'nodenext') so ESM-style types (e.g. @vitejs/plugin-vue) resolve correctly in editor/bundler contexts. */,
     "rootDir": "src" /* ソースファイルのルートディレクトリ。 */,
     "outDir": "dist" /* コンパイル済みJavaScriptファイルの出力ディレクトリ。 */,
     "declaration": true /* 型定義ファイル (.d.ts) を生成する。ライブラリでは必須。 */,

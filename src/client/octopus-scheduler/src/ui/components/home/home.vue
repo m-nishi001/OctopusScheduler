@@ -11,6 +11,9 @@
         <button class="main-btn" @click="goToJackpotGame">
           <span class="btn-icon">🎰</span> Jackpot Game
         </button>
+        <button class="main-btn" @click="goToQuizGame">
+          <span class="btn-icon">🎯</span> Quiz Game
+        </button>
         <button class="main-btn" @click="goToCardGame">
           <span class="btn-icon">�</span> Card Game
         </button>
@@ -69,6 +72,7 @@ const localState = reactive({
 
 const goToSettings = () => router.push({ name: 'settings' });
 const goToJackpotGame = () => router.push('/jackpot-home');
+const goToQuizGame = () => router.push('/quiz-admin');
 const goToCardGame = () => router.push('/card-home');
 
 const onEvents = async (startEvents: IScheduleEvent[], endEvents: IScheduleEvent[]) => {

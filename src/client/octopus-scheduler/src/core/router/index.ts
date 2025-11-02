@@ -4,6 +4,7 @@ import { HistoryService } from "/root/google_apps_script/octopus-scheduler/src/c
 import octopusSchedulerRoutes from "/root/google_apps_script/octopus-scheduler/src/client/octopus-scheduler/src/ui/router/index.ts";
 import jackpotGameRoutes from "/root/google_apps_script/octopus-scheduler/src/client/games/jackpot-game/src/core/router/index.ts";
 import cardGameRoutes from "/root/google_apps_script/octopus-scheduler/src/client/games/card-game/src/router/index.ts";
+import quizGameRoutes from "/root/google_apps_script/octopus-scheduler/src/client/games/quiz-game/src/core/router/index.ts";
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -12,6 +13,7 @@ const router = createRouter({
     ...octopusSchedulerRoutes,
     ...jackpotGameRoutes,
     ...cardGameRoutes,
+    ...quizGameRoutes,
   ],
 });
 

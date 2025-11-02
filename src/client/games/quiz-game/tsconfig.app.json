@@ -1,0 +1,31 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@server": ["../../../../server"],
+      "@model/*": ["src/model/*"],
+      "@shared-composables/*": ["../../packages/shared-composables/src/*"],
+      "pages/*": ["src/ui/pages/*"],
+      "pages": ["src/ui/pages"],
+      "domains/*": ["src/model/domains/*"],
+      "applications/*": ["src/model/applications/*"],
+      "components/*": ["src/ui/components/*"],
+      "components": ["src/ui/components"],
+      "packages/common-lib/*": ["../../packages/common-lib/src/*"],
+      "server/*": ["../../../../server/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+}
