@@ -1,15 +1,24 @@
 import { injectable, inject } from "tsyringe";
 import type { ResultDto } from "../dtos/result-dto";
-import { StopQuizUseCase } from "./stop-quiz-use-case";
+import { ResultService } from "../../domains/services/result-service";
+import { FormRepository } from "../../domains/repositories/form-repository";
+import type { SheetRow } from "quiz-game-api";
 
 @injectable()
 export class GetResultsUseCase {
   constructor(
-    @inject(StopQuizUseCase) private stopQuizUseCase: StopQuizUseCase
+    @inject(FormRepository) private formRepository: FormRepository,
+    @inject(ResultService) private resultService: ResultService
   ) {}
 
   async execute(quizId: string): Promise<ResultDto[]> {
-    // 集計結果を取得（StopQuizUseCaseを再利用）
-    return await this.stopQuizUseCase.execute(quizId);
+    const data: SheetRow[] = await this.formRepository.getSheetData(quizId);
+    const results = this.resultService.processResults(data);
+    return results.map((result) => ({
+      id: result.id,
+      playerName: result.playerName,
+      time: result.time,
+      rank: result.rank,
+    }));
   }
 }

@@ -50,6 +50,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
+import { AnswerFormService } from '../../../model/domains/services/answer-form-service';
 
 const route = useRoute();
 const router = useRouter();
@@ -104,6 +105,8 @@ const startTimer = () => {
         if (timeLeft.value <= 0) {
             if (timer) clearInterval(timer);
             showModal.value = true;
+            const answerFormService = container.resolve(AnswerFormService);
+            answerFormService.stopForm(quizId);
         }
     }, 1000);
 };
