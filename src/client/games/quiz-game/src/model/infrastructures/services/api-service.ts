@@ -1,9 +1,5 @@
 import { GasFunctionService } from "packages/common-lib/google-apps-script/gas-script-service";
-
-interface SheetRow {
-  name: string;
-  time: number;
-}
+import type { SheetRow } from "packages/common-lib/quiz-types";
 
 export class ApiService {
   async stopForm(quizId: string): Promise<void> {

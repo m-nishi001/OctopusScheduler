@@ -1,7 +1,6 @@
 /**
  * Quiz game API types
  */
-export interface SheetRow {
-  name: string;
-  time: number;
-}
+import type { SheetRow } from "../../../../client/packages/common-lib/src/quiz-types";
+
+export type { SheetRow };

@@ -1,1 +1,1 @@
-{"root":["./src/gas-types.ts","./src/audio/audio-service.ts","./src/google-apps-script/gas-history-service.ts","./src/google-apps-script/gas-script-service.ts","./src/storage/local-storage-service.ts","./src/types/server-common.d.ts"],"version":"5.8.3"}
+{"root":["./src/gas-types.ts","./src/quiz-types.ts","./src/audio/audio-service.ts","./src/google-apps-script/gas-history-service.ts","./src/google-apps-script/gas-script-service.ts","./src/storage/local-storage-service.ts","./src/types/server-common.d.ts"],"version":"5.8.3"}
