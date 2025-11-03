@@ -24,6 +24,11 @@
                     <input v-model="currentQuiz.answerUrl" type="url" class="form-input" required />
                 </div>
                 <div class="form-group">
+                    <label class="form-label">BGM</label>
+                    <input type="file" accept="audio/*" @change="onBgmChange" class="form-input" />
+                    <audio v-if="bgmPreview" :src="bgmPreview" controls class="audio-preview"></audio>
+                </div>
+                <div class="form-group">
                     <label class="form-label">選択肢</label>
                     <table class="options-table">
                         <thead class="table-head">
@@ -68,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, onUnmounted } from 'vue';
+import { defineProps, defineEmits, ref, onUnmounted, onMounted } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
 import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
 
@@ -87,12 +92,13 @@ const showOptionModal = ref(false);
 const isEditingOption = ref(false);
 const editingOptionIndex = ref(-1);
 const currentOption = ref<{ no: number; text: string; image: Blob | string | null; color: string }>({ no: 0, text: '', image: null, color: 'red' });
+const bgmPreview = ref<string | null>(null);
 
 const imageSrc = (image: Blob | string | null) => {
     if (image instanceof Blob) {
         return URL.createObjectURL(image);
     }
-    return image;
+    return image || '';
 };
 
 const closeModal = () => {
@@ -101,6 +107,20 @@ const closeModal = () => {
 
 const saveQuiz = () => {
     emit('save', props.currentQuiz);
+};
+
+const onBgmChange = (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+        props.currentQuiz.bgm = file;
+        bgmPreview.value = URL.createObjectURL(file);
+    } else {
+        props.currentQuiz.bgm = null;
+        if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
+            URL.revokeObjectURL(bgmPreview.value);
+        }
+        bgmPreview.value = null;
+    }
 };
 
 const addOption = () => {
@@ -143,12 +163,21 @@ const removeOption = (index: number) => {
 };
 
 // コンポーネントのアンマウント時にBlob URLを解放
+onMounted(() => {
+    if (props.currentQuiz.bgm instanceof Blob) {
+        bgmPreview.value = URL.createObjectURL(props.currentQuiz.bgm);
+    }
+});
+
 onUnmounted(() => {
     props.currentQuiz.options.forEach(option => {
         if (option.image && typeof option.image === 'string' && option.image.startsWith('blob:')) {
             URL.revokeObjectURL(option.image);
         }
     });
+    if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
+        URL.revokeObjectURL(bgmPreview.value);
+    }
 });
 </script>
 
@@ -261,6 +290,12 @@ onUnmounted(() => {
 
 .form-textarea {
     resize: vertical;
+}
+
+.audio-preview {
+    margin-top: 0.5rem;
+    width: 100%;
+    max-width: 300px;
 }
 
 .option-item {

@@ -63,18 +63,25 @@ const timeLeft = ref(0);
 const showModal = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
 const objectUrls = ref<string[]>([]);
+const audioElement = ref<HTMLAudioElement | null>(null);
 
 const qrCodeUrl = computed(() => {
     if (!quiz.value) return '';
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(quiz.value.answerUrl)}`;
+    const q = quiz.value as QuizDto;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(q.answerUrl)}`;
 });
 
-const optionsWithImageUrls = computed(() => {
+const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
     if (!quiz.value) return [];
-    return quiz.value.options.map((option, index) => ({
-        ...option,
-        imageUrl: objectUrls.value[index] || option.image,
-    }));
+    return quiz.value.options.map((option, index) => {
+        const imageUrl = (objectUrls.value[index] || (option.image instanceof Blob ? URL.createObjectURL(option.image) : option.image || '')) as string;
+        return {
+            no: option.no,
+            text: option.text,
+            color: option.color,
+            imageUrl,
+        };
+    });
 });
 
 onMounted(async () => {
@@ -90,6 +97,18 @@ onMounted(async () => {
             }
             return (option.image as string) || '';
         });
+        // Play BGM if available
+        if (quiz.value.bgm) {
+            const audio = new Audio();
+            if (quiz.value.bgm instanceof Blob) {
+                audio.src = URL.createObjectURL(quiz.value.bgm);
+            } else {
+                audio.src = quiz.value.bgm as string;
+            }
+            audio.loop = true;
+            audio.play().catch(console.error); // 再生失敗を無視
+            audioElement.value = audio;
+        }
     }
     document.addEventListener('keydown', handleKeydown);
 });
@@ -103,6 +122,11 @@ onUnmounted(() => {
             URL.revokeObjectURL(url);
         }
     });
+    // Stop BGM
+    if (audioElement.value) {
+        audioElement.value.pause();
+        audioElement.value = null;
+    }
 });
 
 const startTimer = () => {
@@ -110,6 +134,11 @@ const startTimer = () => {
         timeLeft.value--;
         if (timeLeft.value <= 0) {
             if (timer) clearInterval(timer);
+            // Stop BGM
+            if (audioElement.value) {
+                audioElement.value.pause();
+                audioElement.value = null;
+            }
             showModal.value = true;
             const answerFormService = container.resolve(AnswerFormService);
             answerFormService.stopForm(quizId);
@@ -123,6 +152,11 @@ const selectOption = (index: number) => {
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
+        // Stop BGM
+        if (audioElement.value) {
+            audioElement.value.pause();
+            audioElement.value = null;
+        }
         router.push(`/quiz-result/${quizId}`);
     }
 };
