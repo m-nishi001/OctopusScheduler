@@ -2,7 +2,12 @@ export class Quiz {
   id: string;
   title: string;
   question: string;
-  options: { text: string; color: string; image: Blob | string | null }[];
+  options: {
+    no: number;
+    text: string;
+    color: string;
+    image: Blob | string | null;
+  }[];
   formUrl: string;
   timeLimit: number;
   bgm: Blob | string | null;

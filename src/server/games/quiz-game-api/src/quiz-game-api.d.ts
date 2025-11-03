@@ -11,7 +11,7 @@ export interface QuizWithDataUrl {
   id: string;
   title: string;
   question: string;
-  options: { text: string; color: string; image: string | null }[];
+  options: { no: number; text: string; color: string; image: string | null }[];
   formUrl: string;
   timeLimit: number;
   bgm: string | null;

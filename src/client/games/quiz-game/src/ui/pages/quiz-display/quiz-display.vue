@@ -62,6 +62,7 @@ const quiz = ref<QuizDto | null>(null);
 const timeLeft = ref(0);
 const showModal = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
+const objectUrls = ref<string[]>([]);
 
 const qrCodeUrl = computed(() => {
     if (!quiz.value) return '';
@@ -70,9 +71,9 @@ const qrCodeUrl = computed(() => {
 
 const optionsWithImageUrls = computed(() => {
     if (!quiz.value) return [];
-    return quiz.value.options.map(option => ({
+    return quiz.value.options.map((option, index) => ({
         ...option,
-        imageUrl: option.image,
+        imageUrl: objectUrls.value[index] || option.image,
     }));
 });
 
@@ -82,6 +83,13 @@ onMounted(async () => {
     if (quiz.value) {
         timeLeft.value = quiz.value.timeLimit;
         startTimer();
+        // Create object URLs for images
+        objectUrls.value = quiz.value.options.map(option => {
+            if (option.image instanceof Blob) {
+                return URL.createObjectURL(option.image);
+            }
+            return (option.image as string) || '';
+        });
     }
     document.addEventListener('keydown', handleKeydown);
 });
@@ -89,6 +97,12 @@ onMounted(async () => {
 onUnmounted(() => {
     if (timer) clearInterval(timer);
     document.removeEventListener('keydown', handleKeydown);
+    // Revoke object URLs to prevent memory leaks
+    objectUrls.value.forEach(url => {
+        if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+        }
+    });
 });
 
 const startTimer = () => {
@@ -138,11 +152,11 @@ body::-webkit-scrollbar {
 }
 
 .quiz-container {
-    width: 100vw;
+    width: 100%;
+    /* avoid 100vw + padding overflow */
     height: 100vh;
     box-sizing: border-box;
     padding: 28px 32px;
-    border-radius: 0;
     background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
     color: #fff;
     display: flex;
@@ -161,7 +175,7 @@ body::-webkit-scrollbar {
 }
 
 .header-content {
-    flex: 1 1 auto;
+    flex: 1;
     display: flex;
     align-items: center;
 }
@@ -179,19 +193,11 @@ body::-webkit-scrollbar {
     justify-content: center;
 }
 
-.quiz-preview {
-    margin: 0;
-    color: var(--muted);
-    opacity: 0.95;
-    font-size: 1rem;
-}
-
 .quiz-title {
     font-size: 2.25rem;
     font-weight: 800;
     color: #ffd54a;
     margin: 0;
-    letter-spacing: 0.02em;
 }
 
 .timer-pill {
@@ -210,7 +216,7 @@ body::-webkit-scrollbar {
     gap: 6px;
     font-weight: 800;
     box-shadow: 0 10px 26px rgba(2, 6, 23, 0.6);
-    transition: transform 0.18s ease, background-color 0.18s ease;
+    transition: transform .18s ease, background-color .18s ease;
 }
 
 .timer-pill.urgent {
@@ -225,8 +231,8 @@ body::-webkit-scrollbar {
 }
 
 .timer-pill .unit {
-    font-size: 0.75rem;
-    opacity: 0.85;
+    font-size: .75rem;
+    opacity: .85;
 }
 
 .question-area {
@@ -235,49 +241,41 @@ body::-webkit-scrollbar {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    flex: 1 1 auto;
-}
-
-.question-text {
-    background: var(--card-bg);
-    display: inline-block;
-    padding: 18px 22px;
-    border-radius: 12px;
-    font-size: 1.375rem;
-    margin-bottom: 12px;
-    max-width: 900px;
-    flex: 0 0 auto;
+    flex: 1;
 }
 
 .quiz-content {
-    background: transparent;
     margin: 0;
     font-size: 1.375rem;
     color: var(--muted);
 }
 
+/* Simplified, responsive grid: use auto-fit to avoid overflow */
 .options-grid {
-    flex: 1 1 auto;
-    min-height: 0;
     display: grid;
-    grid-template-columns: repeat(2, minmax(360px, 1fr));
-    grid-auto-rows: 1fr;
-    gap: clamp(8px, 1.2vw, 20px);
-    margin-top: 0px;
+    /* Force 2 columns for desktop/tablet to utilize space (2 x 2 layout).
+       Use minmax to keep columns at least 320px, but allow shrinking if viewport is smaller.
+       The grid is set to fill available height so two rows share space evenly. */
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+    gap: clamp(12px, 1.2vw, 24px);
     align-items: stretch;
     align-content: stretch;
+    justify-items: stretch;
+    /* Reduce vertical footprint so two rows fit without overflowing. */
+    /* Lower the min row size to make rows shorter when viewport is constrained. */
+    grid-auto-rows: minmax(140px, 1fr);
+    /* allow rows to be smaller when space is constrained */
+    height: 100%;
+    /* fill parent (.question-area) which is flex:1 */
 }
 
 .option-button {
-    --bg: var(--option-color, #334155);
     width: 100%;
     padding: 0;
-    height: 100%;
     border-radius: 16px;
     border: none;
     cursor: pointer;
     color: #fff;
-    display: block;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.06));
     box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
     transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
@@ -285,10 +283,12 @@ body::-webkit-scrollbar {
     text-align: left;
     overflow: hidden;
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .option-button:active {
-    transform: translateY(2px) scale(0.998);
+    transform: translateY(2px) scale(.998);
 }
 
 .option-button:hover {
@@ -299,33 +299,33 @@ body::-webkit-scrollbar {
 .image-wrapper {
     position: relative;
     width: 100%;
-    height: 100%;
-    min-height: 220px;
-    background: var(--bg);
     display: block;
     overflow: hidden;
+    border-radius: 16px;
+    aspect-ratio: 11/5;
+    background: var(--option-color, #334155);
 }
 
 .option-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
-    border-radius: 16px;
     transform-origin: center;
     transition: transform 250ms ease;
+    background-color: transparent;
 }
 
 .option-button:hover .option-image {
-    transform: scale(1.06);
+    transform: scale(1.02);
 }
 
 .option-index {
     position: absolute;
     top: 12px;
     left: 12px;
-    min-width: 48px;
-    height: 48px;
+    min-width: 56px;
+    height: 56px;
     border-radius: 999px;
     background: var(--option-color, rgba(255, 255, 255, 0.12));
     color: #fff;
@@ -333,7 +333,7 @@ body::-webkit-scrollbar {
     align-items: center;
     justify-content: center;
     font-weight: 900;
-    font-size: 1rem;
+    font-size: 1.05rem;
     box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
     z-index: 3;
 }
@@ -357,10 +357,11 @@ body::-webkit-scrollbar {
     font-weight: 800;
     text-align: center;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-    white-space: nowrap;
+    white-space: normal;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: calc(100% - 56px);
+    padding: 6px 8px;
 }
 
 .qr-inline {
@@ -369,16 +370,12 @@ body::-webkit-scrollbar {
     margin-right: 16px;
 }
 
-.qr-inline-image {
+.qr-inline-image,
+.qr-image {
     width: 168px;
     height: 168px;
     border-radius: 10px;
     box-shadow: 0 8px 24px rgba(2, 6, 23, 0.55);
-}
-
-.qr-image {
-    width: 168px;
-    height: 168px;
 }
 
 .modal-overlay {
@@ -396,7 +393,7 @@ body::-webkit-scrollbar {
     width: min(820px, 86%);
     max-width: 920px;
     min-height: 260px;
-    padding: 56px 56px;
+    padding: 56px;
     border-radius: 16px;
     color: white;
     display: flex;
@@ -417,7 +414,7 @@ body::-webkit-scrollbar {
 .modal-body {
     font-size: 1.25rem;
     margin: 0;
-    opacity: 0.98;
+    opacity: .98;
 }
 
 .loading {
@@ -428,91 +425,70 @@ body::-webkit-scrollbar {
     font-size: 1.5rem;
     color: #fff;
     background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+}
 
-    @media (max-width: 640px) {
-        .modal-card {
-            width: calc(100% - 40px);
-            min-height: 200px;
-            padding: 28px 22px;
-            border-radius: 12px;
-        }
+/* Responsive tweaks at root level (previously nested incorrectly) */
+@media (max-width:960px) {
 
-        .modal-title {
-            font-size: 2.25rem;
-        }
-
-        .modal-body {
-            font-size: 1rem;
-        }
+    /* On narrower screens switch to single column (stack) */
+    .options-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        grid-auto-rows: auto;
+        height: auto;
     }
 
-    @media (max-width: 960px) {
-        .options-grid {
-            grid-template-columns: 1fr;
-            grid-template-rows: repeat(4, 1fr);
-            gap: 8px;
-        }
-
-        .quiz-title {
-            font-size: 1.6rem;
-        }
-
-        .question-text {
-            font-size: 1.125rem;
-            padding: 14px;
-        }
-
-        .timer-pill {
-            right: 12px;
-            top: 10px;
-        }
-
-        .qr-inline-image {
-            width: 196px;
-            height: 196px;
-        }
-
-        .option-button {
-            padding: 22px 16px;
-        }
-
-        .option-image {
-            max-width: 36%;
-        }
+    .quiz-title {
+        font-size: 1.6rem;
     }
 
-    @media (max-width: 480px) {
-        .quiz-container {
-            height: calc(100vh - 80px);
-        }
-
-        .options-grid {
-            gap: 8px;
-        }
-
-        .qr-inline-image {
-            width: 134px;
-            height: 134px;
-        }
-
-        .option-image {
-            max-width: 34%;
-        }
-
-        .option-index {
-            min-width: 52px;
-            height: 52px;
-        }
+    .question-text {
+        font-size: 1.125rem;
+        padding: 14px;
     }
 
-    .loading {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        font-size: 1.5rem;
-        color: #fff;
-        background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+    .timer-pill {
+        right: 12px;
+        top: 10px;
+    }
+
+    .qr-inline-image,
+    .qr-image {
+        width: 196px;
+        height: 196px;
+    }
+
+    .option-button {
+        padding: 22px 16px;
+    }
+
+    .option-image {
+        max-width: 36%;
+    }
+}
+
+@media (max-width:480px) {
+    .quiz-container {
+        height: calc(100vh - 80px);
+    }
+
+    .options-grid {
+        gap: 8px;
+    }
+
+    .qr-inline-image,
+    .qr-image {
+        width: 134px;
+        height: 134px;
+    }
+
+    .option-image {
+        max-width: 34%;
+    }
+
+    .option-index {
+        min-width: 52px;
+        height: 52px;
     }
 }
 </style>

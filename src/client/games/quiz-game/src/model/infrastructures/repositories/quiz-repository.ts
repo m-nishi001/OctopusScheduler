@@ -55,6 +55,7 @@ export class QuizRepository {
             question: q.question,
             options: await Promise.all(
               q.options.map(async (o) => ({
+                no: o.no,
                 text: o.text,
                 color: o.color,
                 image: o.image ? await this.dataUrlToBlob(o.image) : null,
@@ -81,6 +82,7 @@ export class QuizRepository {
           question: q.question,
           options: await Promise.all(
             q.options.map(async (o) => ({
+              no: o.no,
               text: o.text,
               color: o.color,
               image:

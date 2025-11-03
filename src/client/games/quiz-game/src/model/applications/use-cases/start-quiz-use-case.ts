@@ -14,9 +14,9 @@ export class StartQuizUseCase {
       id: quiz.id,
       title: quiz.title,
       question: quiz.question,
-      options: quiz.options,
-      formUrl: quiz.formUrl,
+      answerUrl: quiz.formUrl,
       timeLimit: quiz.timeLimit,
+      options: quiz.options,
       bgm: quiz.bgm,
     };
   }
