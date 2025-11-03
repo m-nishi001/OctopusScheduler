@@ -1,16 +1,10 @@
 <template>
-    <!-- Simplified: use .quiz-container as the single root so content can take full viewport -->
     <div class="quiz-container">
-
-        <!-- 残り時間表示 -->
         <div class="timer-pill" :class="{ 'urgent': timeLeft <= 10 }" aria-hidden="false">
             <span class="time">{{ timeLeft }}</span>
             <span class="unit">秒</span>
         </div>
-
-        <!-- タイトル（QRを左に配置して上部領域を節約） -->
         <header class="quiz-header">
-            <!-- Two-column header: QR on the left, boxed title/content on the right -->
             <div class="header-row">
                 <div class="qr-inline" aria-hidden="false">
                     <img :src="qrCodeUrl" alt="QR Code" class="qr-image qr-inline-image" />
@@ -18,30 +12,19 @@
                 <div class="header-content">
                     <div class="title-card" aria-hidden="false">
                         <h1 class="quiz-title">{{ quiz.title }}</h1>
-                        <!-- (removed duplicate small title) -->
-                        <!-- show the full question text in the boxed header area -->
                         <p class="quiz-content">{{ quiz.question }}</p>
                     </div>
                 </div>
             </div>
         </header>
-
-        <!-- 質問エリア: 質問テキストはヘッダの boxed area に移動した -->
         <section class="question-area" aria-live="polite">
-
-            <!-- 選択肢タイル -->
             <div class="options-grid" role="list">
                 <div v-for="(option, index) in quiz.options" :key="index" role="listitem">
                     <button class="option-button" :style="{ '--option-color': option.color }"
                         @click="selectOption(index)" :aria-label="option.text">
                         <div class="image-wrapper">
-                            <!-- show image if provided; image fills the tile -->
                             <img v-if="option.image" :src="option.image" :alt="option.text" class="option-image" />
-
-                            <!-- number badge (overlay) -->
                             <div class="option-index">{{ index + 1 }}</div>
-
-                            <!-- text ribbon at bottom -->
                             <div class="text-ribbon" aria-hidden="false">
                                 <span class="option-text">{{ option.text }}</span>
                             </div>
@@ -50,8 +33,6 @@
                 </div>
             </div>
         </section>
-
-        <!-- Modal for time up -->
         <div v-if="showModal" class="modal-overlay" role="dialog" aria-modal="true">
             <div class="modal-card">
                 <h2 class="modal-title">終了！</h2>
@@ -70,7 +51,6 @@ const router = useRouter();
 
 const quizId = route.params.id as string;
 
-// Mock quiz data
 const quiz = ref({
     title: 'クイズ ' + quizId,
     question: 'これはサンプルの質問です？',
@@ -81,13 +61,11 @@ const quiz = ref({
         { text: 'どちらでも', color: '#ffff00', image: '' },
     ],
     answerUrl: 'https://example.com/answer',
-    timeLimit: 30, // seconds
+    timeLimit: 30,
 });
 
 const timeLeft = ref(quiz.value.timeLimit);
 const showModal = ref(false);
-// setInterval can return different types depending on DOM vs Node typings.
-// Use ReturnType<typeof setInterval> to be compatible across environments.
 let timer: ReturnType<typeof setInterval> | undefined;
 
 const qrCodeUrl = ref(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(quiz.value.answerUrl)}`);
@@ -125,22 +103,17 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 <!-- Global (non-scoped) rules: hide visible scrollbars but keep ability to scroll if needed -->
 <style>
-/* hide scrollbar across browsers while preserving scroll behaviour */
 html,
 body,
 #app {
     height: 100%;
 }
 
-/* Firefox */
 body {
     -ms-overflow-style: none;
-    /* IE and Edge */
     scrollbar-width: none;
-    /* Firefox */
 }
 
-/* WebKit */
 body::-webkit-scrollbar {
     width: 0;
     height: 0;
@@ -150,20 +123,16 @@ body::-webkit-scrollbar {
 <style scoped>
 :root {
     --card-bg: rgba(17, 24, 39, 0.65);
-    /* slate-900 65% */
     --muted: rgba(255, 255, 255, 0.85);
 }
 
 .quiz-container {
-    /* Full-bleed root container: take full viewport so content can be larger */
     width: 100vw;
     height: 100vh;
     box-sizing: border-box;
     padding: 28px 32px;
     border-radius: 0;
-    /* full-bleed, no outer rounded card */
     background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
-    /* moved background here */
     color: #fff;
     display: flex;
     flex-direction: column;
@@ -199,8 +168,6 @@ body::-webkit-scrollbar {
     justify-content: center;
 }
 
-/* .quiz-subtitle removed — no longer used (duplicate of .quiz-title) */
-
 .quiz-preview {
     margin: 0;
     color: var(--muted);
@@ -210,10 +177,8 @@ body::-webkit-scrollbar {
 
 .quiz-title {
     font-size: 2.25rem;
-    /* ~36px */
     font-weight: 800;
     color: #ffd54a;
-    /* soft yellow */
     margin: 0;
     letter-spacing: 0.02em;
 }
@@ -224,7 +189,6 @@ body::-webkit-scrollbar {
     right: 18px;
     background: rgba(255, 255, 255, 0.06);
     color: var(--muted);
-    /* larger pill to be more visible */
     padding: 14px 18px;
     min-width: 72px;
     min-height: 72px;
@@ -260,7 +224,6 @@ body::-webkit-scrollbar {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    /* let question-area grow so the options-grid inside can expand to fill the lower space */
     flex: 1 1 auto;
 }
 
@@ -270,11 +233,9 @@ body::-webkit-scrollbar {
     padding: 18px 22px;
     border-radius: 12px;
     font-size: 1.375rem;
-    /* 22px */
     margin-bottom: 12px;
     max-width: 900px;
     flex: 0 0 auto;
-    /* keep the question block from stretching */
 }
 
 .quiz-content {
@@ -285,16 +246,10 @@ body::-webkit-scrollbar {
 }
 
 .options-grid {
-    /* Make the grid content-driven and responsive: auto-fit columns, sensible min width,
-       and row heights that can grow but have a reasonable minimum. Align content to start
-       so leftover space is placed below the grid (avoids big bottom gaps). */
     flex: 1 1 auto;
     min-height: 0;
-    /* ensure flex children can shrink correctly */
     display: grid;
-    /* Force 2 columns on desktop/tablet to avoid 3-column layout on wide screens */
     grid-template-columns: repeat(2, minmax(360px, 1fr));
-    /* Let rows expand equally to fill available vertical space so options use the lower area */
     grid-auto-rows: 1fr;
     gap: clamp(8px, 1.2vw, 20px);
     margin-top: 0px;
@@ -307,7 +262,6 @@ body::-webkit-scrollbar {
     width: 100%;
     padding: 0;
     height: 100%;
-    /* fill grid cell */
     border-radius: 16px;
     border: none;
     cursor: pointer;
@@ -405,7 +359,6 @@ body::-webkit-scrollbar {
 }
 
 .qr-inline-image {
-    /* reduce QR size so header uses less vertical space on desktop */
     width: 168px;
     height: 168px;
     border-radius: 10px;
@@ -413,7 +366,6 @@ body::-webkit-scrollbar {
 }
 
 .qr-image {
-    /* keep class for legacy uses */
     width: 168px;
     height: 168px;
 }
@@ -430,15 +382,12 @@ body::-webkit-scrollbar {
 
 .modal-card {
     background: linear-gradient(90deg, #ef4444, #fb7185);
-    /* make dialog larger and more prominent */
     width: min(820px, 86%);
     max-width: 920px;
-    /* increase vertical space: larger min-height and more vertical padding */
     min-height: 260px;
     padding: 56px 56px;
     border-radius: 16px;
     color: white;
-    /* center content vertically and horizontally */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -460,11 +409,9 @@ body::-webkit-scrollbar {
     opacity: 0.98;
 }
 
-/* Responsive: ensure modal fits smaller viewports */
 @media (max-width: 640px) {
     .modal-card {
         width: calc(100% - 40px);
-        /* smaller vertical size on mobile but still taller than before */
         min-height: 200px;
         padding: 28px 22px;
         border-radius: 12px;
@@ -479,10 +426,7 @@ body::-webkit-scrollbar {
     }
 }
 
-/* small screens */
 @media (max-width: 960px) {
-
-    /* tablet and below: switch to single column for options to give them more width */
     .options-grid {
         grid-template-columns: 1fr;
         grid-template-rows: repeat(4, 1fr);
