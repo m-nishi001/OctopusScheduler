@@ -62,7 +62,10 @@ import { ref } from 'vue';
 import QuizModal from './components/quiz-modal.vue';
 
 interface QuizOption {
+    no: number;
     text: string;
+    image?: string;
+    themeColor: string;
 }
 
 interface Quiz {
@@ -82,8 +85,8 @@ const quizzes = ref<Quiz[]>([
         answerUrl: 'https://example.com/answer1',
         timeLimit: 30,
         options: [
-            { text: 'はい' },
-            { text: 'いいえ' },
+            { no: 1, text: 'はい', image: '', themeColor: 'red' },
+            { no: 2, text: 'いいえ', image: '', themeColor: 'blue' },
         ],
     },
 ]);
