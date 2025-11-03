@@ -7,8 +7,7 @@
             </div>
             <form class="form" @submit.prevent="saveOption">
                 <div class="form-group">
-                    <label class="form-label">No</label>
-                    <input v-model.number="currentOption.no" type="number" class="form-input" required />
+                    <label class="form-label" style="font-size: 1rem;">No: {{ currentOption.no }}</label>
                 </div>
                 <div class="form-group">
                     <label class="form-label">内容</label>
@@ -16,17 +15,19 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">画像</label>
-                    <input v-model="currentOption.image" type="text" class="form-input" />
+                    <input type="file" @change="handleImageUpload" accept="image/*" class="form-input" />
+                    <img v-if="currentOption.image" :src="currentOption.image" alt="プレビュー" class="image-preview" />
                 </div>
                 <div class="form-group">
                     <label class="form-label">テーマカラー</label>
-                    <select v-model="currentOption.themeColor" class="form-input">
-                        <option value="red">赤</option>
-                        <option value="blue">青</option>
-                        <option value="green">緑</option>
-                        <option value="yellow">黄</option>
-                        <option value="purple">紫</option>
-                    </select>
+                    <div class="color-palette">
+                        <div v-for="color in colors" :key="color.value" class="color-option"
+                            :class="{ selected: currentOption.themeColor === color.value }"
+                            @click="currentOption.themeColor = color.value">
+                            <div class="color-swatch" :style="{ backgroundColor: color.hex }"></div>
+                            <span>{{ color.label }}</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button class="btn-cancel" @click="closeModal">キャンセル</button>
@@ -38,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue';
+import { onUnmounted } from 'vue';
 
 interface QuizOption {
     no: number;
@@ -51,20 +52,53 @@ const props = defineProps<{
     showModal: boolean;
     isEditing: boolean;
     currentOption: QuizOption;
+    options: QuizOption[];
 }>();
+
+const colors = [
+    { value: 'red', hex: '#ef4444', label: '赤' },
+    { value: 'blue', hex: '#3b82f6', label: '青' },
+    { value: 'green', hex: '#10b981', label: '緑' },
+    { value: 'yellow', hex: '#f59e0b', label: '黄' },
+    { value: 'purple', hex: '#8b5cf6', label: '紫' },
+];
 
 const emit = defineEmits<{
     save: [option: QuizOption];
     close: [];
 }>();
 
+let currentObjectUrl: string | null = null;
+
 const closeModal = () => {
     emit('close');
 };
 
+const handleImageUpload = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file) {
+        if (currentObjectUrl) {
+            URL.revokeObjectURL(currentObjectUrl);
+        }
+        currentObjectUrl = URL.createObjectURL(file);
+        props.currentOption.image = currentObjectUrl;
+    }
+};
+
 const saveOption = () => {
+    if (!props.isEditing) {
+        // 追加時は自動的にnoを割り振る
+        props.currentOption.no = props.options.length + 1;
+    }
     emit('save', props.currentOption);
 };
+
+onUnmounted(() => {
+    if (currentObjectUrl) {
+        URL.revokeObjectURL(currentObjectUrl);
+    }
+});
 </script>
 
 <style scoped>
@@ -211,5 +245,50 @@ const saveOption = () => {
 .btn-close:hover {
     background-color: #4b5563;
     /* hover:bg-gray-600 */
+}
+
+.image-preview {
+    max-width: 100%;
+    max-height: 200px;
+    margin-top: 0.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid #4b5563;
+}
+
+.color-palette {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.color-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.color-option:hover {
+    border-color: #6b7280;
+}
+
+.color-option.selected {
+    border-color: #3b82f6;
+}
+
+.color-swatch {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.color-option span {
+    font-size: 0.75rem;
+    color: #d1d5db;
 }
 </style>

@@ -59,7 +59,7 @@
         </div>
     </div>
     <QuizOptionModal :showModal="showOptionModal" :isEditing="isEditingOption" :currentOption="currentOption"
-        @save="saveOption" @close="closeOptionModal" />
+        :options="currentQuiz.options" @save="saveOption" @close="closeOptionModal" />
 </template>
 
 <script setup lang="ts">
