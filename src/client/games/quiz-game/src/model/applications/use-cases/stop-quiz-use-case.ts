@@ -13,7 +13,7 @@ export class StopQuizUseCase {
     const results = await this.aggregationService.aggregateResults(quizId);
     return results.map((result) => ({
       id: result.id,
-      player: result.player,
+      playerName: result.playerName,
       time: result.time,
       rank: result.rank,
     }));

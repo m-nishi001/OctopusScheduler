@@ -1,10 +1,8 @@
-import type { Option } from "../../domains/value-objects/option";
-
 export interface QuizDto {
   id: string;
   title: string;
   question: string;
-  options: Option[];
+  options: { text: string; color: string; image: string }[];
   formUrl: string;
   spreadsheetUrl: string;
   timeLimit: number;
