@@ -6,18 +6,27 @@ import { QuizService } from "../../domains/services/quiz-service";
 export class StartQuizUseCase {
   constructor(@inject(QuizService) private quizService: QuizService) {}
 
-  execute(quizId: string): QuizDto | null {
+  async execute(quizId: string): Promise<QuizDto | null> {
     const quiz = this.quizService.getQuizById(quizId);
-    return quiz
-      ? {
-          id: quiz.id,
-          title: quiz.title,
-          question: quiz.question,
-          options: quiz.options,
-          formUrl: quiz.formUrl,
-          spreadsheetUrl: quiz.spreadsheetUrl,
-          timeLimit: quiz.timeLimit,
-        }
-      : null;
+    if (!quiz) return null;
+
+    const options = await Promise.all(
+      quiz.options.map(async (option) => ({
+        text: option.text,
+        color: option.color,
+        image: option.imageId
+          ? await this.quizService.getAsset(option.imageId)
+          : null,
+      }))
+    );
+
+    return {
+      id: quiz.id,
+      title: quiz.title,
+      question: quiz.question,
+      options,
+      formUrl: quiz.formUrl,
+      timeLimit: quiz.timeLimit,
+    };
   }
 }
