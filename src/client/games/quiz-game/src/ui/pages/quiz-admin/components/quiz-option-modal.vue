@@ -128,6 +128,7 @@ onUnmounted(() => {
     /* max-w-lg */
     border: 1px solid #4b5563;
     /* border-gray-600 */
+    z-index: 61;
 }
 
 .option-modal .modal-header {

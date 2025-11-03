@@ -48,13 +48,13 @@
                                     <div class="color-preview" :style="{ backgroundColor: option.color }"></div>
                                 </td>
                                 <td class="td-actions">
-                                    <button class="btn-edit" @click="editOption(index)">編集</button>
-                                    <button class="btn-delete" @click="removeOption(index)">削除</button>
+                                    <button type="button" class="btn-edit" @click="editOption(index)">編集</button>
+                                    <button type="button" class="btn-delete" @click="removeOption(index)">削除</button>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
-                    <button class="btn-add-option" @click="addOption">+</button>
+                    <button type="button" class="btn-add-option" @click="addOption">+</button>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-cancel" @click="closeModal">キャンセル</button>
@@ -180,6 +180,7 @@ onUnmounted(() => {
     /* max-w-2xl */
     border: 1px solid #4b5563;
     /* border-gray-600 */
+    z-index: 51;
 }
 
 .modal-header {
