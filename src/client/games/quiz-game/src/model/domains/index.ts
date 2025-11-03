@@ -1,5 +1,4 @@
 export * from "./entities/quiz";
-export * from "./entities/player";
 export * from "./entities/result";
 export * from "./services/quiz-service";
 export * from "./services/result-aggregation-service";
