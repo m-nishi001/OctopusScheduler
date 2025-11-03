@@ -1,4 +1,4 @@
-import type { Player } from "../../domains/entities/player";
+import type { Player } from "../../domains/entities/result";
 import type { Time } from "../../domains/value-objects/time";
 
 export interface ResultDto {

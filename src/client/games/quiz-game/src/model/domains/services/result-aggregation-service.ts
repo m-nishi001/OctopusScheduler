@@ -19,7 +19,7 @@ export class ResultAggregationService {
     // 集計: 名前と時間をResultに変換
     return data.map((row: SheetRow, index: number) => ({
       id: `result-${index}`,
-      name: row.name,
+      player: { id: `player-${index}`, name: row.name },
       time: { seconds: row.time },
       rank: index + 1,
     }));
