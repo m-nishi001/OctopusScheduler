@@ -1,6 +1,6 @@
-import { injectable } from "tsyringe";
-import { GasFunctionService } from "packages/common-lib/google-apps-script/gas-script-service";
+import { injectable, inject } from "tsyringe";
 import { Quiz } from "../entities/quiz";
+import { FormRepository } from "./form-repository";
 
 interface QuizWithDataUrl {
   id: string;
@@ -16,7 +16,7 @@ interface QuizWithDataUrl {
 export class QuizRepository {
   private readonly STORAGE_KEY = "quizzes";
 
-  constructor() {}
+  constructor(@inject(FormRepository) private formRepository: FormRepository) {}
 
   async getQuizById(id: string): Promise<Quiz | null> {
     const quizzes = this.getStoredQuizzes();
@@ -56,15 +56,14 @@ export class QuizRepository {
   }
 
   async syncQuizzes(direction: "gas-to-local" | "local-to-gas"): Promise<void> {
-    const service = new GasFunctionService("syncQuizzes");
+    const result = await this.formRepository.syncQuizzes({
+      direction,
+      quizzes:
+        direction === "local-to-gas" ? this.getStoredQuizzes() : undefined,
+    });
     if (direction === "gas-to-local") {
-      const quizzesData: QuizWithDataUrl[] = await service.call<
-        QuizWithDataUrl[]
-      >({ direction });
+      const quizzesData = result as QuizWithDataUrl[];
       this.saveQuizzes(quizzesData);
-    } else {
-      const quizzes = this.getStoredQuizzes();
-      await service.call<void>({ direction, quizzes });
     }
   }
 
