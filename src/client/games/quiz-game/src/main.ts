@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { createApp } from "vue";
 import "./style.css";
-import App from "./App.vue";
+import App from "./app.vue";
 import { Container } from "./core/container/index";
 import { createRouter, createWebHistory } from "vue-router";
 import quizGameRoutes from "./core/router/index";
