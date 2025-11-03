@@ -4,6 +4,5 @@ export interface Quiz {
   question: string;
   options: { text: string; color: string; image: string }[];
   formUrl: string;
-  spreadsheetUrl: string;
   timeLimit: number;
 }
