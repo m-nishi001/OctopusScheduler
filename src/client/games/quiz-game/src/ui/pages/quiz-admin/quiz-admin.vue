@@ -21,6 +21,7 @@
                         総クイズ数: {{ quizzes.length }}
                     </div>
                 </div>
+                <div v-if="copiedMessage" class="copied-message">{{ copiedMessage }}</div>
                 <table class="quiz-table">
                     <thead class="table-head">
                         <tr>
@@ -33,7 +34,8 @@
                     </thead>
                     <tbody>
                         <tr v-for="(quiz, index) in quizzes" :key="index" class="table-row">
-                            <td class="td-id">{{ quiz.id }}</td>
+                            <td class="td-id" @click="copyToClipboard(quiz.id)" title="クリックしてIDをコピー">{{
+                                quiz.id.substring(0, 8) }}</td>
                             <td class="td-content">
                                 <div class="quiz-title">{{ quiz.title }}</div>
                                 <div class="quiz-question">{{ quiz.question }}</div>
@@ -115,6 +117,7 @@ const showProgressDialog = ref(false);
 const syncDirection = ref<"gas-to-local" | "local-to-gas">();
 const syncProgress = ref<string[]>([]);
 const syncInProgress = ref(false);
+const copiedMessage = ref('');
 
 onMounted(async () => {
     try {
@@ -207,6 +210,16 @@ const sync = async () => {
         syncProgress.value.push(`エラー: ${(error as Error).message}`);
     } finally {
         syncInProgress.value = false;
+    }
+};
+
+const copyToClipboard = async (text: string) => {
+    try {
+        await navigator.clipboard.writeText(text);
+        copiedMessage.value = 'IDをコピーしました';
+        setTimeout(() => copiedMessage.value = '', 2000);
+    } catch (err) {
+        console.error('コピー失敗:', err);
     }
 };
 </script>
@@ -306,6 +319,16 @@ const sync = async () => {
 .count {
     color: #9ca3af;
     /* text-gray-400 */
+}
+
+.copied-message {
+    color: #10b981;
+    /* text-green-500 */
+    font-weight: 600;
+    /* font-semibold */
+    margin-bottom: 1rem;
+    /* mb-4 */
+    text-align: center;
 }
 
 .quiz-table {
@@ -411,6 +434,12 @@ const sync = async () => {
     vertical-align: middle;
     font-size: 1.125rem;
     /* text-lg */
+    cursor: pointer;
+}
+
+.td-id:hover {
+    color: #93c5fd;
+    /* hover:text-blue-300 */
 }
 
 .td-content,
