@@ -3,7 +3,6 @@
         <div class="option-modal">
             <div class="modal-header">
                 <h3 class="modal-title">{{ isEditing ? '選択肢編集' : '選択肢追加' }}</h3>
-                <button class="btn-close" @click="closeModal">✕</button>
             </div>
             <form class="form" @submit.prevent="saveOption">
                 <div class="form-group">
@@ -30,7 +29,7 @@
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button class="btn-cancel" @click="closeModal">キャンセル</button>
+                    <button type="button" class="btn-cancel" @click="closeModal">キャンセル</button>
                     <button type="submit" class="btn-save">保存</button>
                 </div>
             </form>
@@ -230,22 +229,7 @@ onUnmounted(() => {
     /* hover:bg-green-600 */
 }
 
-.btn-close {
-    background-color: #6b7280;
-    /* bg-gray-500 */
-    color: white;
-    padding: 0.25rem 0.75rem;
-    /* py-1 px-3 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-}
 
-.btn-close:hover {
-    background-color: #4b5563;
-    /* hover:bg-gray-600 */
-}
 
 .image-preview {
     max-width: 100%;
@@ -253,6 +237,7 @@ onUnmounted(() => {
     margin-top: 0.5rem;
     border-radius: 0.25rem;
     border: 1px solid #4b5563;
+    object-fit: contain;
 }
 
 .color-palette {

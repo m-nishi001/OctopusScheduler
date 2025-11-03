@@ -3,7 +3,6 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 class="modal-title">{{ isEditing ? 'クイズ編集' : 'クイズ追加' }}</h2>
-                <button class="btn-close" @click="closeModal">✕</button>
             </div>
             <form class="form" @submit.prevent="saveQuiz">
                 <div class="form-grid">
@@ -40,8 +39,13 @@
                             <tr v-for="(option, index) in currentQuiz.options" :key="index" class="table-row">
                                 <td class="td-no">{{ option.no }}</td>
                                 <td class="td-content">{{ option.text }}</td>
-                                <td class="td-image">{{ option.image }}</td>
-                                <td class="td-color">{{ option.themeColor }}</td>
+                                <td class="td-image">
+                                    <img v-if="option.image" :src="option.image" alt="プレビュー" class="preview-image" />
+                                    <span v-else>画像なし</span>
+                                </td>
+                                <td class="td-color">
+                                    <div class="color-preview" :style="{ backgroundColor: option.themeColor }"></div>
+                                </td>
                                 <td class="td-actions">
                                     <button class="btn-edit" @click="editOption(index)">編集</button>
                                     <button class="btn-delete" @click="removeOption(index)">削除</button>
@@ -52,7 +56,7 @@
                     <button class="btn-add-option" @click="addOption">+</button>
                 </div>
                 <div class="form-actions">
-                    <button class="btn-cancel" @click="closeModal">キャンセル</button>
+                    <button type="button" class="btn-cancel" @click="closeModal">キャンセル</button>
                     <button type="submit" class="btn-save">保存</button>
                 </div>
             </form>
@@ -63,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, ref } from 'vue';
+import { defineProps, defineEmits, ref, onUnmounted } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
 
 interface QuizOption {
@@ -122,6 +126,10 @@ const editOption = (index: number) => {
 
 const saveOption = () => {
     if (isEditingOption.value) {
+        const oldImage = props.currentQuiz.options[editingOptionIndex.value].image;
+        if (oldImage && oldImage !== currentOption.value.image && oldImage.startsWith('blob:')) {
+            URL.revokeObjectURL(oldImage);
+        }
         props.currentQuiz.options[editingOptionIndex.value] = { ...currentOption.value };
     } else {
         props.currentQuiz.options.push({ ...currentOption.value });
@@ -134,8 +142,21 @@ const closeOptionModal = () => {
 };
 
 const removeOption = (index: number) => {
+    const option = props.currentQuiz.options[index];
+    if (option.image && option.image.startsWith('blob:')) {
+        URL.revokeObjectURL(option.image);
+    }
     props.currentQuiz.options.splice(index, 1);
 };
+
+// コンポーネントのアンマウント時にBlob URLを解放
+onUnmounted(() => {
+    props.currentQuiz.options.forEach(option => {
+        if (option.image && option.image.startsWith('blob:')) {
+            URL.revokeObjectURL(option.image);
+        }
+    });
+});
 </script>
 
 <style scoped>
@@ -183,22 +204,7 @@ const removeOption = (index: number) => {
     color: white;
 }
 
-.btn-close {
-    background-color: #6b7280;
-    /* bg-gray-500 */
-    color: white;
-    padding: 0.25rem 0.75rem;
-    /* py-1 px-3 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-}
 
-.btn-close:hover {
-    background-color: #4b5563;
-    /* hover:bg-gray-600 */
-}
 
 .form {
     display: flex;
@@ -517,5 +523,19 @@ const removeOption = (index: number) => {
 .btn-add-option:hover {
     background-color: #2563eb;
     /* hover:bg-blue-600 */
+}
+
+.preview-image {
+    max-width: 80px;
+    max-height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.color-preview {
+    width: 40px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid #6b7280;
 }
 </style>
