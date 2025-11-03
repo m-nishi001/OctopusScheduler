@@ -14,6 +14,10 @@ export class QuizService {
     return await this.quizRepo.getQuizById(id);
   }
 
+  async getAllQuizzes(): Promise<Quiz[]> {
+    return await this.quizRepo.getAllQuizzes();
+  }
+
   async addQuiz(quiz: Omit<Quiz, "id">): Promise<string> {
     return await this.quizRepo.addQuiz(quiz);
   }
