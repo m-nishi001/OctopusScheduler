@@ -16,3 +16,7 @@ export interface AddQuizDto {
   timeLimit: number;
   bgm: Blob | null;
 }
+
+export interface DeleteQuizDto {
+  id: string;
+}

@@ -17,4 +17,8 @@ export class QuizService {
   async addQuiz(quiz: Omit<Quiz, "id">): Promise<string> {
     return await this.quizRepo.addQuiz(quiz);
   }
+
+  async deleteQuiz(id: string): Promise<void> {
+    return await this.quizRepo.deleteQuiz(id);
+  }
 }

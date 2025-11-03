@@ -47,9 +47,13 @@ export class QuizRepository {
   }
 
   async addQuiz(quiz: Omit<Quiz, "id">): Promise<string> {
-    // GAS関数を呼び出してクイズを追加
     const service = new GasFunctionService("addQuiz");
     return await service.call<string>(quiz);
+  }
+
+  async deleteQuiz(id: string): Promise<void> {
+    const service = new GasFunctionService("deleteQuiz");
+    await service.call<void>(id);
   }
 
   async stopForm(quizId: string): Promise<void> {
