@@ -3,7 +3,7 @@
         <div class="container">
             <header class="header">
                 <h1 class="title">
-                    クイズ管理システム
+                    クイズ設定
                 </h1>
             </header>
 
@@ -271,6 +271,7 @@ const removeOption = (index: number) => {
     overflow: hidden;
     border: 1px solid #4b5563;
     /* border-gray-600 */
+    table-layout: fixed;
 }
 
 .table-head {
@@ -278,11 +279,7 @@ const removeOption = (index: number) => {
     /* bg-gray-600 */
 }
 
-.th-id,
-.th-title,
-.th-options,
-.th-time,
-.th-actions {
+.th-id {
     padding: 0.75rem 1rem;
     /* py-3 px-4 */
     text-align: left;
@@ -292,10 +289,59 @@ const removeOption = (index: number) => {
     /* font-semibold */
     border: 1px solid #6b7280;
     /* border-gray-500 */
+    width: 10%;
+}
+
+.th-title {
+    padding: 0.75rem 1rem;
+    /* py-3 px-4 */
+    text-align: left;
+    color: #d1d5db;
+    /* text-gray-300 */
+    font-weight: 600;
+    /* font-semibold */
+    border: 1px solid #6b7280;
+    /* border-gray-500 */
+    width: 45%;
+}
+
+.th-options {
+    padding: 0.75rem 1rem;
+    /* py-3 px-4 */
+    text-align: left;
+    color: #d1d5db;
+    /* text-gray-300 */
+    font-weight: 600;
+    /* font-semibold */
+    border: 1px solid #6b7280;
+    /* border-gray-500 */
+    width: 15%;
+}
+
+.th-time {
+    padding: 0.75rem 1rem;
+    /* py-3 px-4 */
+    text-align: left;
+    color: #d1d5db;
+    /* text-gray-300 */
+    font-weight: 600;
+    /* font-semibold */
+    border: 1px solid #6b7280;
+    /* border-gray-500 */
+    width: 15%;
 }
 
 .th-actions {
+    padding: 0.75rem 1rem;
+    /* py-3 px-4 */
     text-align: center;
+    color: #d1d5db;
+    /* text-gray-300 */
+    font-weight: 600;
+    /* font-semibold */
+    border: 1px solid #6b7280;
+    /* border-gray-500 */
+    width: 15%;
 }
 
 .table-row {
@@ -313,6 +359,10 @@ const removeOption = (index: number) => {
     /* text-blue-400 */
     font-family: monospace;
     font-weight: 500;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 1.125rem;
+    /* text-lg */
 }
 
 .td-content,
@@ -353,6 +403,7 @@ const removeOption = (index: number) => {
 .action-buttons {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 0.5rem;
     /* space-x-2 */
 }
@@ -361,12 +412,17 @@ const removeOption = (index: number) => {
     background-color: #3b82f6;
     /* bg-blue-500 */
     color: white;
-    padding: 0.25rem 0.75rem;
-    /* py-1 px-3 */
+    padding: 0.5rem 0.75rem;
+    min-width: 3.6rem;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* py-2 px-4 */
     border-radius: 0.25rem;
     /* rounded */
-    font-size: 0.875rem;
-    /* text-sm */
+    font-size: 1rem;
+    /* text-base */
     border: none;
     cursor: pointer;
 }
@@ -380,12 +436,17 @@ const removeOption = (index: number) => {
     background-color: #ef4444;
     /* bg-red-500 */
     color: white;
-    padding: 0.25rem 0.75rem;
-    /* py-1 px-3 */
+    padding: 0.5rem 0.75rem;
+    min-width: 3.6rem;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* py-2 px-4 */
     border-radius: 0.25rem;
     /* rounded */
-    font-size: 0.875rem;
-    /* text-sm */
+    font-size: 1rem;
+    /* text-base */
     border: none;
     cursor: pointer;
 }
