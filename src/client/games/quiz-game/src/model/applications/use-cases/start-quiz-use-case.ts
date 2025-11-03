@@ -17,6 +17,7 @@ export class StartQuizUseCase {
       options: quiz.options,
       formUrl: quiz.formUrl,
       timeLimit: quiz.timeLimit,
+      bgm: quiz.bgm,
     };
   }
 }

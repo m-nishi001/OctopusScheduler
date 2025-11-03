@@ -5,4 +5,5 @@ export interface Quiz {
   options: { text: string; color: string; image: Blob | null }[];
   formUrl: string;
   timeLimit: number;
+  bgm: Blob | null;
 }

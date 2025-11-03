@@ -17,7 +17,7 @@
       "@model/*": ["src/model/*"],
       "@shared-composables/*": ["../../packages/shared-composables/src/*"],
       "@server/quiz-game-api": [
-        "../../../../src/server/games/quiz-game-api/src/quiz-game-api.d.ts"
+        "../../../server/games/quiz-game-api/dist/quiz-game-api.d.ts"
       ],
       "pages/*": ["src/ui/pages/*"],
       "pages": ["src/ui/pages"],

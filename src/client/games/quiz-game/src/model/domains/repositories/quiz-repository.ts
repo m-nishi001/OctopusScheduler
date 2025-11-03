@@ -40,9 +40,16 @@ export class QuizRepository {
         options: optionsWithBlobs,
         formUrl: "https://example.com/form",
         timeLimit: 30,
+        bgm: null,
       };
     }
     return null;
+  }
+
+  async addQuiz(quiz: Omit<Quiz, "id">): Promise<string> {
+    // GAS関数を呼び出してクイズを追加
+    const service = new GasFunctionService("addQuiz");
+    return await service.call<string>(quiz);
   }
 
   async stopForm(quizId: string): Promise<void> {

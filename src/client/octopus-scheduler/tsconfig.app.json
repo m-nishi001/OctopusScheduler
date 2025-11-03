@@ -26,7 +26,11 @@
       "packages/common-lib/*": ["../packages/common-lib/src/*"],
       "server/*": ["../../server/*"],
       "@octopus/server-common": ["../../server/common/src"],
-      "@octopus/server-common/*": ["../../server/common/src/*"]
+      "@octopus/server-common/*": ["../../server/common/src/*"],
+      "@server/quiz-game-api": [
+        "../../../server/games/quiz-game-api/dist/quiz-game-api.d.ts"
+      ],
+      "quiz-game/*": ["../games/quiz-game/src/*"]
     },
     "outDir": "dist"
   },

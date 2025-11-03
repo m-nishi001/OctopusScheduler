@@ -13,4 +13,8 @@ export class QuizService {
   async getQuizById(id: string): Promise<Quiz | null> {
     return await this.quizRepo.getQuizById(id);
   }
+
+  async addQuiz(quiz: Omit<Quiz, "id">): Promise<string> {
+    return await this.quizRepo.addQuiz(quiz);
+  }
 }
