@@ -72,7 +72,7 @@ const optionsWithImageUrls = computed(() => {
     if (!quiz.value) return [];
     return quiz.value.options.map(option => ({
         ...option,
-        imageUrl: option.image ? URL.createObjectURL(option.image) : null,
+        imageUrl: option.image,
     }));
 });
 
@@ -89,14 +89,6 @@ onMounted(async () => {
 onUnmounted(() => {
     if (timer) clearInterval(timer);
     document.removeEventListener('keydown', handleKeydown);
-    // Clean up object URLs
-    if (quiz.value) {
-        quiz.value.options.forEach(option => {
-            if (option.image) {
-                URL.revokeObjectURL(URL.createObjectURL(option.image));
-            }
-        });
-    }
 });
 
 const startTimer = () => {

@@ -9,14 +9,18 @@
 
             <div class="content">
                 <div class="actions">
-                    <button class="btn-add" @click="addQuiz">
-                        新規クイズ追加
-                    </button>
+                    <div class="action-buttons">
+                        <button class="btn-add" @click="addQuiz">
+                            新規クイズ追加
+                        </button>
+                        <button class="btn-sync" @click="showSyncDialog = true">
+                            同期
+                        </button>
+                    </div>
                     <div class="count">
                         総クイズ数: {{ quizzes.length }}
                     </div>
                 </div>
-
                 <table class="quiz-table">
                     <thead class="table-head">
                         <tr>
@@ -53,64 +57,83 @@
 
             <QuizModal :showModal="showModal" :isEditing="isEditing" :currentQuiz="currentQuiz" @save="handleSave"
                 @close="closeModal" />
+
+            <dialog :open="showSyncDialog" class="sync-dialog">
+                <h2>同期方向を選択</h2>
+                <div class="dialog-buttons">
+                    <button @click="selectDirection('gas-to-local')">GAS → ローカル</button>
+                    <button @click="selectDirection('local-to-gas')">ローカル → GAS</button>
+                    <button @click="showSyncDialog = false">キャンセル</button>
+                </div>
+            </dialog>
+
+            <dialog :open="showProgressDialog" class="progress-dialog">
+                <h2>同期中...</h2>
+                <div class="progress-messages">
+                    <div v-for="msg in syncProgress" :key="msg" class="progress-message">{{ msg }}</div>
+                </div>
+                <button v-if="!syncInProgress" @click="showProgressDialog = false">閉じる</button>
+            </dialog>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { container } from 'tsyringe';
 import QuizModal from './components/quiz-modal.vue';
+import { GetAllQuizzesUseCase } from '../../../model/applications/use-cases/get-all-quizzes-use-case';
+import { AddQuizUseCase } from '../../../model/applications/use-cases/add-quiz-use-case';
+import { UpdateQuizUseCase } from '../../../model/applications/use-cases/update-quiz-use-case';
+import { DeleteQuizUseCase } from '../../../model/applications/use-cases/delete-quiz-use-case';
+import { SyncQuizzesUseCase } from '../../../model/applications/use-cases/sync-quizzes-use-case';
+import type { QuizDto, AddQuizDto } from '../../../model/applications/dtos/quiz-dto';
 
-interface QuizOption {
-    no: number;
-    text: string;
-    image?: string;
-    themeColor: string;
-}
+const getAllQuizzesUseCase = container.resolve(GetAllQuizzesUseCase);
+const addQuizUseCase = container.resolve(AddQuizUseCase);
+const updateQuizUseCase = container.resolve(UpdateQuizUseCase);
+const deleteQuizUseCase = container.resolve(DeleteQuizUseCase);
+const syncQuizzesUseCase = container.resolve(SyncQuizzesUseCase);
 
-interface Quiz {
-    id: number;
-    title: string;
-    question: string;
-    answerUrl: string;
-    timeLimit: number;
-    options: QuizOption[];
-}
-
-const quizzes = ref<Quiz[]>([
-    {
-        id: 1,
-        title: 'サンプルクイズ1',
-        question: 'これはサンプルクイズです。',
-        answerUrl: 'https://example.com/answer1',
-        timeLimit: 30,
-        options: [
-            { no: 1, text: 'はい', image: '', themeColor: 'red' },
-            { no: 2, text: 'いいえ', image: '', themeColor: 'blue' },
-        ],
-    },
-]);
+const quizzes = ref<QuizDto[]>([]);
 
 const showModal = ref(false);
 const isEditing = ref(false);
 const editingIndex = ref(-1);
-const currentQuiz = ref<Quiz>({
-    id: 0,
+const currentQuiz = ref<QuizDto>({
+    id: '',
     title: '',
     question: '',
     answerUrl: '',
     timeLimit: 30,
     options: [],
+    bgm: null,
+});
+
+const showSyncDialog = ref(false);
+const showProgressDialog = ref(false);
+const syncDirection = ref<"gas-to-local" | "local-to-gas">();
+const syncProgress = ref<string[]>([]);
+const syncInProgress = ref(false);
+
+onMounted(async () => {
+    try {
+        const dtos = await getAllQuizzesUseCase.execute();
+        quizzes.value = dtos;
+    } catch (error) {
+        console.error('クイズ一覧取得エラー:', error);
+    }
 });
 
 const addQuiz = () => {
     currentQuiz.value = {
-        id: quizzes.value.length + 1,
+        id: crypto.randomUUID(),
         title: '',
         question: '',
         answerUrl: '',
         timeLimit: 30,
         options: [],
+        bgm: null,
     };
     isEditing.value = false;
     showModal.value = true;
@@ -123,21 +146,68 @@ const editQuiz = (index: number) => {
     showModal.value = true;
 };
 
-const deleteQuiz = (index: number) => {
-    quizzes.value.splice(index, 1);
+const deleteQuiz = async (index: number) => {
+    try {
+        const quiz = quizzes.value[index];
+        await deleteQuizUseCase.execute({ id: quiz.id });
+        quizzes.value.splice(index, 1);
+    } catch (error) {
+        console.error('削除エラー:', error);
+    }
 };
 
-const handleSave = (quiz: Quiz) => {
-    if (isEditing.value) {
-        quizzes.value[editingIndex.value] = { ...quiz };
-    } else {
-        quizzes.value.push({ ...quiz });
+const handleSave = async (quiz: QuizDto) => {
+    try {
+        if (isEditing.value) {
+            // 更新
+            await updateQuizUseCase.execute(quiz);
+            quizzes.value[editingIndex.value] = { ...quiz };
+        } else {
+            // 追加
+            const addDto: AddQuizDto = {
+                title: quiz.title,
+                question: quiz.question,
+                answerUrl: quiz.answerUrl,
+                timeLimit: quiz.timeLimit,
+                options: quiz.options,
+                bgm: quiz.bgm,
+            };
+            const id = await addQuizUseCase.execute(addDto);
+            const newQuiz = { ...quiz, id };
+            quizzes.value.push(newQuiz);
+        }
+        closeModal();
+    } catch (error) {
+        console.error('保存エラー:', error);
     }
-    closeModal();
 };
 
 const closeModal = () => {
     showModal.value = false;
+};
+
+const selectDirection = (direction: "gas-to-local" | "local-to-gas") => {
+    syncDirection.value = direction;
+    showSyncDialog.value = false;
+    showProgressDialog.value = true;
+    sync();
+};
+
+const sync = async () => {
+    syncInProgress.value = true;
+    syncProgress.value = [];
+    try {
+        await syncQuizzesUseCase.execute(syncDirection.value!, (message) => {
+            syncProgress.value.push(message);
+        });
+        const dtos = await getAllQuizzesUseCase.execute();
+        quizzes.value = dtos;
+        syncProgress.value.push("同期完了");
+    } catch (error) {
+        syncProgress.value.push(`エラー: ${(error as Error).message}`);
+    } finally {
+        syncInProgress.value = false;
+    }
 };
 </script>
 
@@ -189,6 +259,11 @@ const closeModal = () => {
     /* mb-6 */
 }
 
+.action-buttons {
+    display: flex;
+    align-items: center;
+}
+
 .btn-add {
     background-color: #10b981;
     /* bg-green-500 */
@@ -206,6 +281,26 @@ const closeModal = () => {
 .btn-add:hover {
     background-color: #059669;
     /* hover:bg-green-600 */
+}
+
+.btn-sync {
+    background-color: #3b82f6;
+    /* bg-blue-500 */
+    color: white;
+    font-weight: 600;
+    /* font-semibold */
+    padding: 0.5rem 1rem;
+    /* py-2 px-4 */
+    border-radius: 0.25rem;
+    /* rounded */
+    border: none;
+    cursor: pointer;
+    margin-left: 0.5rem;
+}
+
+.btn-sync:hover {
+    background-color: #2563eb;
+    /* hover:bg-blue-600 */
 }
 
 .count {
@@ -407,5 +502,65 @@ const closeModal = () => {
 .btn-delete:hover {
     background-color: #dc2626;
     /* hover:bg-red-600 */
+}
+
+.sync-dialog,
+.progress-dialog {
+    background-color: #1f2937;
+    /* bg-gray-800 */
+    color: white;
+    border: 1px solid #4b5563;
+    /* border-gray-600 */
+    border-radius: 0.5rem;
+    /* rounded-lg */
+    padding: 1.5rem;
+    /* p-6 */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.sync-dialog h2,
+.progress-dialog h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+    /* text-xl */
+    font-weight: bold;
+}
+
+.dialog-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.sync-dialog button,
+.progress-dialog button {
+    background-color: #3b82f6;
+    /* bg-blue-500 */
+    color: white;
+    padding: 0.5rem 1rem;
+    /* py-2 px-4 */
+    border-radius: 0.25rem;
+    /* rounded */
+    border: none;
+    cursor: pointer;
+}
+
+.sync-dialog button:hover,
+.progress-dialog button:hover {
+    background-color: #2563eb;
+    /* hover:bg-blue-600 */
+}
+
+.progress-messages {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.progress-message {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+    /* text-sm */
 }
 </style>

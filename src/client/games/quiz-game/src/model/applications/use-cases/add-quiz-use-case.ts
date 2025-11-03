@@ -1,19 +1,26 @@
 import { injectable, inject } from "tsyringe";
 import type { AddQuizDto } from "../dtos/quiz-dto";
+import type { Quiz } from "../../domains/entities/quiz";
 import { QuizService } from "../../domains/services/quiz-service";
-import { SyncQuizzesUseCase } from "./sync-quizzes-use-case";
 
 @injectable()
 export class AddQuizUseCase {
-  constructor(
-    @inject(QuizService) private quizService: QuizService,
-    @inject(SyncQuizzesUseCase) private syncQuizzesUseCase: SyncQuizzesUseCase
-  ) {}
+  constructor(@inject(QuizService) private quizService: QuizService) {}
 
   async execute(dto: AddQuizDto): Promise<string> {
-    const id = await this.quizService.addQuiz(dto);
-    // Sync to GAS
-    await this.syncQuizzesUseCase.execute("local-to-gas");
+    const quizData: Omit<Quiz, "id"> = {
+      title: dto.title,
+      question: dto.question,
+      formUrl: dto.answerUrl,
+      timeLimit: dto.timeLimit,
+      options: dto.options.map((o) => ({
+        text: o.text,
+        color: o.color,
+        image: o.image,
+      })),
+      bgm: dto.bgm,
+    };
+    const id = await this.quizService.addQuiz(quizData);
     return id;
   }
 }

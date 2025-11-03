@@ -23,7 +23,7 @@ export class QuizService {
   }
 
   async updateQuiz(quiz: Quiz): Promise<void> {
-    return await this.quizRepo.updateQuiz(quiz);
+    return await this.quizRepo.saveQuiz(quiz);
   }
 
   async deleteQuiz(id: string): Promise<void> {

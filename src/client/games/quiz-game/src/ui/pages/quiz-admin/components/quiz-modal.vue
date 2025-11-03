@@ -40,11 +40,12 @@
                                 <td class="td-no">{{ option.no }}</td>
                                 <td class="td-content">{{ option.text }}</td>
                                 <td class="td-image">
-                                    <img v-if="option.image" :src="option.image" alt="プレビュー" class="preview-image" />
+                                    <img v-if="option.image" :src="imageSrc(option.image)" alt="プレビュー"
+                                        class="preview-image" />
                                     <span v-else>画像なし</span>
                                 </td>
                                 <td class="td-color">
-                                    <div class="color-preview" :style="{ backgroundColor: option.themeColor }"></div>
+                                    <div class="color-preview" :style="{ backgroundColor: option.color }"></div>
                                 </td>
                                 <td class="td-actions">
                                     <button class="btn-edit" @click="editOption(index)">編集</button>
@@ -69,38 +70,30 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, ref, onUnmounted } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
-
-interface QuizOption {
-    no: number;
-    text: string;
-    image?: string;
-    themeColor: string;
-}
-
-interface Quiz {
-    id: number;
-    title: string;
-    question: string;
-    answerUrl: string;
-    timeLimit: number;
-    options: QuizOption[];
-}
+import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
 
 const props = defineProps<{
     showModal: boolean;
     isEditing: boolean;
-    currentQuiz: Quiz;
+    currentQuiz: QuizDto;
 }>();
 
 const emit = defineEmits<{
-    save: [quiz: Quiz];
+    save: [quiz: QuizDto];
     close: [];
 }>();
 
 const showOptionModal = ref(false);
 const isEditingOption = ref(false);
 const editingOptionIndex = ref(-1);
-const currentOption = ref<QuizOption>({ no: 0, text: '', image: '', themeColor: 'red' });
+const currentOption = ref<{ no: number; text: string; image: Blob | string | null; color: string }>({ no: 0, text: '', image: null, color: 'red' });
+
+const imageSrc = (image: Blob | string | null) => {
+    if (image instanceof Blob) {
+        return URL.createObjectURL(image);
+    }
+    return image;
+};
 
 const closeModal = () => {
     emit('close');
@@ -112,7 +105,7 @@ const saveQuiz = () => {
 
 const addOption = () => {
     const nextNo = props.currentQuiz.options.length + 1;
-    currentOption.value = { no: nextNo, text: '', image: '', themeColor: 'red' };
+    currentOption.value = { no: nextNo, text: '', image: null, color: 'red' };
     isEditingOption.value = false;
     showOptionModal.value = true;
 };
@@ -127,7 +120,7 @@ const editOption = (index: number) => {
 const saveOption = () => {
     if (isEditingOption.value) {
         const oldImage = props.currentQuiz.options[editingOptionIndex.value].image;
-        if (oldImage && oldImage !== currentOption.value.image && oldImage.startsWith('blob:')) {
+        if (oldImage && oldImage !== currentOption.value.image && typeof oldImage === 'string' && oldImage.startsWith('blob:')) {
             URL.revokeObjectURL(oldImage);
         }
         props.currentQuiz.options[editingOptionIndex.value] = { ...currentOption.value };
@@ -143,7 +136,7 @@ const closeOptionModal = () => {
 
 const removeOption = (index: number) => {
     const option = props.currentQuiz.options[index];
-    if (option.image && option.image.startsWith('blob:')) {
+    if (option.image && typeof option.image === 'string' && option.image.startsWith('blob:')) {
         URL.revokeObjectURL(option.image);
     }
     props.currentQuiz.options.splice(index, 1);
@@ -152,7 +145,7 @@ const removeOption = (index: number) => {
 // コンポーネントのアンマウント時にBlob URLを解放
 onUnmounted(() => {
     props.currentQuiz.options.forEach(option => {
-        if (option.image && option.image.startsWith('blob:')) {
+        if (option.image && typeof option.image === 'string' && option.image.startsWith('blob:')) {
             URL.revokeObjectURL(option.image);
         }
     });

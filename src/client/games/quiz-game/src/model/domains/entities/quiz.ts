@@ -2,10 +2,10 @@ export class Quiz {
   id: string;
   title: string;
   question: string;
-  options: { text: string; color: string; image: Blob | null }[];
+  options: { text: string; color: string; image: Blob | string | null }[];
   formUrl: string;
   timeLimit: number;
-  bgm: Blob | null;
+  bgm: Blob | string | null;
 
   constructor(quizData: Omit<Quiz, "id"> | Quiz) {
     this.id = "id" in quizData ? quizData.id : "";

@@ -15,14 +15,14 @@
                 <div class="form-group">
                     <label class="form-label">画像</label>
                     <input type="file" @change="handleImageUpload" accept="image/*" class="form-input" />
-                    <img v-if="currentOption.image" :src="currentOption.image" alt="プレビュー" class="image-preview" />
+                    <img v-if="currentOption.image" :src="imageSrc()" alt="プレビュー" class="image-preview" />
                 </div>
                 <div class="form-group">
                     <label class="form-label">テーマカラー</label>
                     <div class="color-palette">
                         <div v-for="color in colors" :key="color.value" class="color-option"
-                            :class="{ selected: currentOption.themeColor === color.value }"
-                            @click="currentOption.themeColor = color.value">
+                            :class="{ selected: currentOption.color === color.value }"
+                            @click="currentOption.color = color.value">
                             <div class="color-swatch" :style="{ backgroundColor: color.hex }"></div>
                             <span>{{ color.label }}</span>
                         </div>
@@ -40,18 +40,11 @@
 <script setup lang="ts">
 import { onUnmounted } from 'vue';
 
-interface QuizOption {
-    no: number;
-    text: string;
-    image?: string;
-    themeColor: string;
-}
-
 const props = defineProps<{
     showModal: boolean;
     isEditing: boolean;
-    currentOption: QuizOption;
-    options: QuizOption[];
+    currentOption: { no: number; text: string; image: Blob | string | null; color: string };
+    options: { no: number; text: string; image: Blob | string | null; color: string }[];
 }>();
 
 const colors = [
@@ -63,11 +56,18 @@ const colors = [
 ];
 
 const emit = defineEmits<{
-    save: [option: QuizOption];
+    save: [option: { no: number; text: string; image: Blob | string | null; color: string }];
     close: [];
 }>();
 
 let currentObjectUrl: string | null = null;
+
+const imageSrc = () => {
+    if (props.currentOption.image instanceof Blob) {
+        return URL.createObjectURL(props.currentOption.image);
+    }
+    return props.currentOption.image;
+};
 
 const closeModal = () => {
     emit('close');
@@ -81,7 +81,7 @@ const handleImageUpload = (event: Event) => {
             URL.revokeObjectURL(currentObjectUrl);
         }
         currentObjectUrl = URL.createObjectURL(file);
-        props.currentOption.image = currentObjectUrl;
+        props.currentOption.image = file; // Blobを直接セット
     }
 };
 
