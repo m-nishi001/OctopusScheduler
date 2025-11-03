@@ -1,5 +1,5 @@
 import { GasFunctionService } from "packages/common-lib/google-apps-script/gas-script-service";
-import type { SheetRow } from "packages/common-lib/quiz-types";
+import type { SheetRow } from "@server/quiz-game-api";
 
 export class ApiService {
   async stopForm(quizId: string): Promise<void> {

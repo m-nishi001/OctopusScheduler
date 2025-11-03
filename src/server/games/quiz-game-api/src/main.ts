@@ -1,7 +1,7 @@
 import { GasResponse } from "../../../common/src/gas-types";
 import { GoogleFormService } from "../../../common/src/google-form-service";
 import { SpreadsheetService } from "../../../common/src/google-spreadsheet-service";
-import type { SheetRow } from "../../../../client/packages/common-lib/src/quiz-types";
+import type { SheetRow } from "./quiz-game-api.d.ts";
 
 declare let _quizGame_stopForm: (quizId: string) => GasResponse<void>;
 declare let _quizGame_getSheetData: (quizId: string) => GasResponse<SheetRow[]>;

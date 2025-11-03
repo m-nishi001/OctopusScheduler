@@ -39,7 +39,10 @@
       "common-lib/*": ["./src/client/packages/common-lib/src/*"],
       "@server-common/gas-types": ["./src/server/common/src/gas-types.ts"],
       "@octopus/server-common": ["./src/server/common/src"],
-      "@octopus/server-common/*": ["./src/server/common/src/*"]
+      "@octopus/server-common/*": ["./src/server/common/src/*"],
+      "@server/quiz-game-api": [
+        "./src/server/games/quiz-game-api/src/quiz-game-api.d.ts"
+      ]
     }
   },
   "include": ["src/**/*" /* コンパイル対象のファイル。 */],
