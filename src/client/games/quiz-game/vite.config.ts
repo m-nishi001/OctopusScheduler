@@ -21,7 +21,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@server": resolve(__dirname, "../server"),
+      "@server": resolve(__dirname, "../../../../server"),
       "@model": resolve(__dirname, "src/model"),
       "@shared-composables": resolve(
         __dirname,

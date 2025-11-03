@@ -14,9 +14,11 @@
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "paths": {
-      "@server": ["../../../../server"],
       "@model/*": ["src/model/*"],
       "@shared-composables/*": ["../../packages/shared-composables/src/*"],
+      "@server/quiz-game-api": [
+        "../../../../src/server/games/quiz-game-api/src/quiz-game-api.d.ts"
+      ],
       "pages/*": ["src/ui/pages/*"],
       "pages": ["src/ui/pages"],
       "domains/*": ["src/model/domains/*"],

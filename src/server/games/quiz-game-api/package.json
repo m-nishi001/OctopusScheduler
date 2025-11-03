@@ -4,8 +4,9 @@
   "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
   "type": "module",
   "main": "dist/Code.js",
+  "types": "dist/quiz-game-api.d.ts",
   "scripts": {
-    "build": "node esbuild.config.js",
+    "build": "tsc && cp src/quiz-game-api.d.ts dist/ && node esbuild.config.js",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "deploy": "npm run build && clasp push --force"
