@@ -1,11 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import type { Result } from "../entities/result";
 import { QuizRepository } from "../repositories/quiz-repository";
-
-interface SheetRow {
-  name: string;
-  time: number;
-}
+import type { SheetRow } from "quiz-game-api";
 
 @injectable()
 export class ResultService {
