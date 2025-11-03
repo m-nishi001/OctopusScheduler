@@ -65,7 +65,7 @@ let timer: ReturnType<typeof setInterval> | undefined;
 
 const qrCodeUrl = computed(() => {
     if (!quiz.value) return '';
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(quiz.value.formUrl)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(quiz.value.answerUrl)}`;
 });
 
 const optionsWithImageUrls = computed(() => {
