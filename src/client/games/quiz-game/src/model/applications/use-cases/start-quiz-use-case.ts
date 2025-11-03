@@ -7,24 +7,14 @@ export class StartQuizUseCase {
   constructor(@inject(QuizService) private quizService: QuizService) {}
 
   async execute(quizId: string): Promise<QuizDto | null> {
-    const quiz = this.quizService.getQuizById(quizId);
+    const quiz = await this.quizService.getQuizById(quizId);
     if (!quiz) return null;
-
-    const options = await Promise.all(
-      quiz.options.map(async (option) => ({
-        text: option.text,
-        color: option.color,
-        image: option.imageId
-          ? await this.quizService.getAsset(option.imageId)
-          : null,
-      }))
-    );
 
     return {
       id: quiz.id,
       title: quiz.title,
       question: quiz.question,
-      options,
+      options: quiz.options,
       formUrl: quiz.formUrl,
       timeLimit: quiz.timeLimit,
     };

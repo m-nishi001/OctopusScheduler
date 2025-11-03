@@ -1,5 +1,5 @@
 <template>
-    <div class="quiz-container">
+    <div v-if="quiz" class="quiz-container">
         <div class="timer-pill" :class="{ 'urgent': timeLeft <= 10 }" aria-hidden="false">
             <span class="time">{{ timeLeft }}</span>
             <span class="unit">秒</span>
@@ -19,11 +19,12 @@
         </header>
         <section class="question-area" aria-live="polite">
             <div class="options-grid" role="list">
-                <div v-for="(option, index) in quiz.options" :key="index" role="listitem">
+                <div v-for="(option, index) in optionsWithImageUrls" :key="index" role="listitem">
                     <button class="option-button" :style="{ '--option-color': option.color }"
                         @click="selectOption(index)" :aria-label="option.text">
                         <div class="image-wrapper">
-                            <img v-if="option.image" :src="option.image" :alt="option.text" class="option-image" />
+                            <img v-if="option.imageUrl" :src="option.imageUrl" :alt="option.text"
+                                class="option-image" />
                             <div class="option-index">{{ index + 1 }}</div>
                             <div class="text-ribbon" aria-hidden="false">
                                 <span class="option-text">{{ option.text }}</span>
@@ -40,44 +41,61 @@
             </div>
         </div>
     </div>
+    <div v-else class="loading">Loading...</div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { container } from 'tsyringe';
+import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
+import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
 
 const route = useRoute();
 const router = useRouter();
 
 const quizId = route.params.id as string;
 
-const quiz = ref({
-    title: 'クイズ ' + quizId,
-    question: 'これはサンプルの質問です？',
-    options: [
-        { text: 'はい', color: '#ff0000', image: '' },
-        { text: 'いいえ', color: '#00ff00', image: '' },
-        { text: 'わからない', color: '#0000ff', image: '' },
-        { text: 'どちらでも', color: '#ffff00', image: '' },
-    ],
-    answerUrl: 'https://example.com/answer',
-    timeLimit: 30,
-});
+const quiz = ref<QuizDto | null>(null);
 
-const timeLeft = ref(quiz.value.timeLimit);
+const timeLeft = ref(0);
 const showModal = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
 
-const qrCodeUrl = ref(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(quiz.value.answerUrl)}`);
+const qrCodeUrl = computed(() => {
+    if (!quiz.value) return '';
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(quiz.value.formUrl)}`;
+});
 
-onMounted(() => {
-    startTimer();
+const optionsWithImageUrls = computed(() => {
+    if (!quiz.value) return [];
+    return quiz.value.options.map(option => ({
+        ...option,
+        imageUrl: option.image ? URL.createObjectURL(option.image) : null,
+    }));
+});
+
+onMounted(async () => {
+    const startQuizUseCase = container.resolve(StartQuizUseCase);
+    quiz.value = await startQuizUseCase.execute(quizId);
+    if (quiz.value) {
+        timeLeft.value = quiz.value.timeLimit;
+        startTimer();
+    }
     document.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
     if (timer) clearInterval(timer);
     document.removeEventListener('keydown', handleKeydown);
+    // Clean up object URLs
+    if (quiz.value) {
+        quiz.value.options.forEach(option => {
+            if (option.image) {
+                URL.revokeObjectURL(URL.createObjectURL(option.image));
+            }
+        });
+    }
 });
 
 const startTimer = () => {
@@ -99,9 +117,7 @@ const handleKeydown = (event: KeyboardEvent) => {
         router.push(`/quiz-result/${quizId}`);
     }
 };
-</script>
-
-<!-- Global (non-scoped) rules: hide visible scrollbars but keep ability to scroll if needed -->
+</script><!-- Global (non-scoped) rules: hide visible scrollbars but keep ability to scroll if needed -->
 <style>
 html,
 body,
@@ -409,79 +425,99 @@ body::-webkit-scrollbar {
     opacity: 0.98;
 }
 
-@media (max-width: 640px) {
-    .modal-card {
-        width: calc(100% - 40px);
-        min-height: 200px;
-        padding: 28px 22px;
-        border-radius: 12px;
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-size: 1.5rem;
+    color: #fff;
+    background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+
+    @media (max-width: 640px) {
+        .modal-card {
+            width: calc(100% - 40px);
+            min-height: 200px;
+            padding: 28px 22px;
+            border-radius: 12px;
+        }
+
+        .modal-title {
+            font-size: 2.25rem;
+        }
+
+        .modal-body {
+            font-size: 1rem;
+        }
     }
 
-    .modal-title {
-        font-size: 2.25rem;
+    @media (max-width: 960px) {
+        .options-grid {
+            grid-template-columns: 1fr;
+            grid-template-rows: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .quiz-title {
+            font-size: 1.6rem;
+        }
+
+        .question-text {
+            font-size: 1.125rem;
+            padding: 14px;
+        }
+
+        .timer-pill {
+            right: 12px;
+            top: 10px;
+        }
+
+        .qr-inline-image {
+            width: 196px;
+            height: 196px;
+        }
+
+        .option-button {
+            padding: 22px 16px;
+        }
+
+        .option-image {
+            max-width: 36%;
+        }
     }
 
-    .modal-body {
-        font-size: 1rem;
-    }
-}
+    @media (max-width: 480px) {
+        .quiz-container {
+            height: calc(100vh - 80px);
+        }
 
-@media (max-width: 960px) {
-    .options-grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: repeat(4, 1fr);
-        gap: 8px;
-    }
+        .options-grid {
+            gap: 8px;
+        }
 
-    .quiz-title {
-        font-size: 1.6rem;
-    }
+        .qr-inline-image {
+            width: 134px;
+            height: 134px;
+        }
 
-    .question-text {
-        font-size: 1.125rem;
-        padding: 14px;
-    }
+        .option-image {
+            max-width: 34%;
+        }
 
-    .timer-pill {
-        right: 12px;
-        top: 10px;
+        .option-index {
+            min-width: 52px;
+            height: 52px;
+        }
     }
 
-    .qr-inline-image {
-        width: 196px;
-        height: 196px;
-    }
-
-    .option-button {
-        padding: 22px 16px;
-    }
-
-    .option-image {
-        max-width: 36%;
-    }
-}
-
-@media (max-width: 480px) {
-    .quiz-container {
-        height: calc(100vh - 80px);
-    }
-
-    .options-grid {
-        gap: 8px;
-    }
-
-    .qr-inline-image {
-        width: 134px;
-        height: 134px;
-    }
-
-    .option-image {
-        max-width: 34%;
-    }
-
-    .option-index {
-        min-width: 52px;
-        height: 52px;
+    .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-size: 1.5rem;
+        color: #fff;
+        background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
     }
 }
 </style>
