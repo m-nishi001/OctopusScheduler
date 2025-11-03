@@ -1,12 +1,12 @@
 import { injectable, inject } from "tsyringe";
 import type { ResultDto } from "../dtos/result-dto";
-import { ResultAggregationService } from "../../domains/services/result-aggregation-service";
+import { ResultService } from "../../domains/services/result-service";
 
 @injectable()
 export class StopQuizUseCase {
   constructor(
-    @inject(ResultAggregationService)
-    private aggregationService: ResultAggregationService
+    @inject(ResultService)
+    private aggregationService: ResultService
   ) {}
 
   async execute(quizId: string): Promise<ResultDto[]> {

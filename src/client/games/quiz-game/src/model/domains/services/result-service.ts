@@ -8,7 +8,7 @@ interface SheetRow {
 }
 
 @injectable()
-export class ResultAggregationService {
+export class ResultService {
   constructor(@inject(QuizRepository) private quizRepository: QuizRepository) {}
 
   async aggregateResults(quizId: string): Promise<Result[]> {
