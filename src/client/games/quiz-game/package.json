@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "common-lib": "file:../../packages/common-lib",
-    "quiz-game-api": "file:../../../../server/games/quiz-game-api",
+    "quiz-game-api": "file:../../../../src/server/games/quiz-game-api",
     "gsap": "^3.13.0",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",

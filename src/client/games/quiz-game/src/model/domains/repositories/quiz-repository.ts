@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "packages/common-lib/google-apps-script/gas-script-service";
-import type { SheetRow } from "@server/quiz-game-api";
+import type { SheetRow } from "quiz-game-api";
 import type { Quiz } from "../entities/quiz";
 import { QuizAssetRepository } from "./quiz-asset-repository";
 

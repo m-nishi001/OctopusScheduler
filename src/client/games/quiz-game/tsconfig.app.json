@@ -16,9 +16,6 @@
     "paths": {
       "@model/*": ["src/model/*"],
       "@shared-composables/*": ["../../packages/shared-composables/src/*"],
-      "@server/quiz-game-api": [
-        "../../../server/games/quiz-game-api/dist/quiz-game-api.d.ts"
-      ],
       "pages/*": ["src/ui/pages/*"],
       "pages": ["src/ui/pages"],
       "domains/*": ["src/model/domains/*"],

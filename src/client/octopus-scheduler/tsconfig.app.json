@@ -28,7 +28,7 @@
       "@octopus/server-common": ["../../server/common/src"],
       "@octopus/server-common/*": ["../../server/common/src/*"],
       "@server/quiz-game-api": [
-        "../../../server/games/quiz-game-api/dist/quiz-game-api.d.ts"
+        "../../../src/server/games/quiz-game-api/dist/quiz-game-api.d.ts"
       ],
       "quiz-game/*": ["../games/quiz-game/src/*"]
     },
