@@ -1,12 +1,20 @@
 <template>
     <div class="form-group">
         <label>音声ID:</label>
-        <input v-model="formData.audioId" type="text" placeholder="audio-123" />
+        <select v-model="formData.audioId">
+            <option value="">選択してください</option>
+            <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">
+                {{ asset.name || asset.id }}
+            </option>
+        </select>
     </div>
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, ref, onMounted } from 'vue';
+import { container } from 'tsyringe';
+import { AssetService } from '../../../../../model/applications/assets/asset-service';
+import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 
 interface Props {
     initialData: { audioId?: string };
@@ -15,8 +23,20 @@ interface Props {
 const props = defineProps<Props>();
 const emit = defineEmits<{ save: [data: any] }>();
 
+const assetService = container.resolve(AssetService);
+const audioAssets = ref<Asset[]>([]);
+
 const formData = reactive({
     audioId: props.initialData.audioId || '',
+});
+
+onMounted(async () => {
+    try {
+        const assets = await assetService.getAssets();
+        audioAssets.value = assets.filter(asset => asset.blob.type.startsWith('audio/'));
+    } catch (error) {
+        console.error('Failed to load audio assets:', error);
+    }
 });
 
 const save = () => {
