@@ -1,3 +1,7 @@
+export interface KeyboardShortcutConfigData {
+  enabled: boolean;
+}
+
 export class KeyboardShortcutConfig {
   readonly enabled: boolean;
 
@@ -9,8 +13,12 @@ export class KeyboardShortcutConfig {
     return new KeyboardShortcutConfig(true);
   }
 
-  serialize(): string[] {
-    return [this.enabled.toString()];
+  serialize(): KeyboardShortcutConfigData {
+    return { enabled: this.enabled };
+  }
+
+  static fromData(data: KeyboardShortcutConfigData): KeyboardShortcutConfig {
+    return new KeyboardShortcutConfig(data.enabled);
   }
 
   static revive(raw: string[]): KeyboardShortcutConfig {

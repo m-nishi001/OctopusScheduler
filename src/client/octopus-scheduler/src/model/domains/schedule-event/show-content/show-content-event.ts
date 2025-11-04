@@ -185,19 +185,61 @@ export class ShowContentEvent implements IScheduleEvent {
     return [
       this.startTime.toISOString(),
       this.endTime.toISOString(),
-      this.contentType,
-      this.contentId ?? "",
-      this.htmlString ?? "",
-      this.fadeOutDuration?.toString() ?? "",
-      this.displayMode ?? "",
-      this.effect ?? "",
-      this.duration?.toString() ?? "",
-      this.fadeInTime?.toString() ?? "",
-      this.fadeOutTime?.toString() ?? "",
-      this.scrollDirection ?? "",
+      this.contentId || "",
       this.processedAt ? this.processedAt.toISOString() : "",
       this.registeredAt.toISOString(),
       this.updatedAt.toISOString(),
     ];
+  }
+
+  serializeAsObject(): Record<string, unknown> {
+    return {
+      contentType: this.contentType,
+      contentId: this.contentId,
+      htmlString: this.htmlString,
+      fadeOutDuration: this.fadeOutDuration,
+      displayMode: this.displayMode,
+      effect: this.effect,
+      duration: this.duration,
+      fadeInTime: this.fadeInTime,
+      fadeOutTime: this.fadeOutTime,
+      scrollDirection: this.scrollDirection,
+      processedAt: this.processedAt ? this.processedAt.toISOString() : null,
+      registeredAt: this.registeredAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
+    };
+  }
+
+  static fromData(data: Record<string, any>): ShowContentEvent {
+    const now = new Date();
+    return ShowContentEvent.fromParams({
+      id: data.id,
+      startTime: now,
+      endTime: new Date(now.getTime() + 1000),
+      contentType: data.contentType as "image" | "movie" | "html",
+      contentId: data.contentId as string | undefined,
+      htmlString: data.htmlString as string | undefined,
+      fadeOutDuration: data.fadeOutDuration as number | undefined,
+      displayMode: data.displayMode as
+        | "fade"
+        | "scroll-up"
+        | "scroll-down"
+        | undefined,
+      effect: data.effect as "fade" | "scroll" | "static" | undefined,
+      duration: data.duration as number | undefined,
+      fadeInTime: data.fadeInTime as number | undefined,
+      fadeOutTime: data.fadeOutTime as number | undefined,
+      scrollDirection: data.scrollDirection as
+        | "up"
+        | "down"
+        | "left"
+        | "right"
+        | undefined,
+      processedAt: data.processedAt
+        ? new Date(data.processedAt as string)
+        : null,
+      registeredAt: new Date(data.registeredAt as string),
+      updatedAt: new Date(data.updatedAt as string),
+    });
   }
 }

@@ -46,6 +46,14 @@ declare let _octopusScheduler_getSpreadsheetData: (
 declare let _octopusScheduler_removeSpreadsheetData: (
   sheetName: string
 ) => GasResponse<void>;
+declare let _octopusScheduler_getKeyboardShortcuts: () => GasResponse<{
+  shortcuts: any[];
+  config: any;
+}>;
+declare let _octopusScheduler_setKeyboardShortcuts: (payload: {
+  shortcuts: string[][];
+  config: any;
+}) => GasResponse<void>;
 
 // Instantiate services
 const driveService = new GoogleDriveService();
@@ -180,6 +188,42 @@ _octopusScheduler_removeSpreadsheetData = (
 ): GasResponse<void> => {
   try {
     spreadsheetService.removeSpreadsheetData(sheetName);
+    return { status: "success", data: undefined };
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+_octopusScheduler_getKeyboardShortcuts = (): GasResponse<{
+  shortcuts: string[][];
+  config: any;
+}> => {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    const shortcutsStr = properties.getProperty("keyboard-shortcuts");
+    const configStr = properties.getProperty("keyboard-shortcuts-config");
+    const shortcuts = shortcutsStr ? JSON.parse(shortcutsStr) : [];
+    const config = configStr ? JSON.parse(configStr) : { enabled: true };
+    return { status: "success", data: { shortcuts, config } };
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+_octopusScheduler_setKeyboardShortcuts = (payload: {
+  shortcuts: string[][];
+  config: any;
+}): GasResponse<void> => {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    properties.setProperty(
+      "keyboard-shortcuts",
+      JSON.stringify(payload.shortcuts)
+    );
+    properties.setProperty(
+      "keyboard-shortcuts-config",
+      JSON.stringify(payload.config)
+    );
     return { status: "success", data: undefined };
   } catch (error) {
     return { status: "error", message: (error as Error).message };

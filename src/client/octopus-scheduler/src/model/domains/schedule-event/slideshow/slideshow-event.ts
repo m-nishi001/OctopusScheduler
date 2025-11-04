@@ -153,13 +153,41 @@ export class SlideshowEvent implements IScheduleEvent {
       this.startTime.toISOString(),
       this.endTime.toISOString(),
       this.folderId,
-      this.displayDuration.toString(),
-      this.transitionType,
-      this.slideDirection ?? "",
-      this.bgmIds.join(","),
       this.processedAt ? this.processedAt.toISOString() : "",
       this.registeredAt.toISOString(),
       this.updatedAt.toISOString(),
     ];
+  }
+
+  serializeAsObject(): Record<string, unknown> {
+    return {
+      folderId: this.folderId,
+      displayDuration: this.displayDuration,
+      transitionType: this.transitionType,
+      slideDirection: this.slideDirection,
+      bgmIds: this.bgmIds,
+      processedAt: this.processedAt ? this.processedAt.toISOString() : null,
+      registeredAt: this.registeredAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
+    };
+  }
+
+  static fromData(data: Record<string, any>): SlideshowEvent {
+    const now = new Date();
+    return SlideshowEvent.fromParams({
+      id: data.id,
+      startTime: now,
+      endTime: new Date(now.getTime() + 1000),
+      folderId: data.folderId as string,
+      displayDuration: data.displayDuration as number,
+      transitionType: data.transitionType as "fade" | "slide",
+      slideDirection: data.slideDirection as "left" | "right" | "up" | "down",
+      bgmIds: data.bgmIds as string[],
+      processedAt: data.processedAt
+        ? new Date(data.processedAt as string)
+        : null,
+      registeredAt: new Date(data.registeredAt as string),
+      updatedAt: new Date(data.updatedAt as string),
+    });
   }
 }

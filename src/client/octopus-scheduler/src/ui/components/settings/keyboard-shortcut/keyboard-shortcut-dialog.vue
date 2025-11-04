@@ -24,7 +24,7 @@
                 </select>
             </div>
             <component :is="currentFormComponent" :initial-data="initialData" @save="handleFormSave"
-                class="form-content" />
+                class="form-content" ref="formRef" />
             <div class="dialog-buttons">
                 <button @click="saveShortcut" class="save-btn">保存</button>
                 <button @click="closeDialog" class="cancel-btn">キャンセル</button>
@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
 import { TransitionPageEvent } from '../../../../model/domains/schedule-event/transition/transition-page-event';
 import { PlayAudioEvent } from '../../../../model/domains/schedule-event/play-audio/play-audio-event';
@@ -63,6 +63,7 @@ const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCaptu
 
 const actionType = ref('TransitionPageEvent');
 const formData = ref<any>({});
+const formRef = ref();
 
 const currentFormComponent = computed(() => {
     switch (actionType.value) {
@@ -120,6 +121,9 @@ const saveShortcut = async () => {
         alert('キーを設定してください');
         return;
     }
+
+    formRef.value?.save();
+    await nextTick();
 
     const data = formData.value;
     if (!data || !data.actionType) {

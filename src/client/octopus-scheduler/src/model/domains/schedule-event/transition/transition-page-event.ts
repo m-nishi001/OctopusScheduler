@@ -121,4 +121,30 @@ export class TransitionPageEvent implements IScheduleEvent {
       this.updatedAt.toISOString(),
     ];
   }
+
+  serializeAsObject(): Record<string, unknown> {
+    return {
+      transitionUrl: this.transitionUrl,
+      fadeOutDuration: this.fadeOutDuration,
+      processedAt: this.processedAt ? this.processedAt.toISOString() : null,
+      registeredAt: this.registeredAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
+    };
+  }
+
+  static fromData(data: Record<string, any>): TransitionPageEvent {
+    const now = new Date();
+    return TransitionPageEvent.fromParams({
+      id: data.id,
+      startTime: now,
+      endTime: new Date(now.getTime() + 1000),
+      transitionUrl: data.transitionUrl as string,
+      fadeOutDuration: data.fadeOutDuration as number,
+      processedAt: data.processedAt
+        ? new Date(data.processedAt as string)
+        : null,
+      registeredAt: new Date(data.registeredAt as string),
+      updatedAt: new Date(data.updatedAt as string),
+    });
+  }
 }

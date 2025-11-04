@@ -1,9 +1,12 @@
 import { KeyboardShortcut } from "./keyboard-shortcut";
+import type { KeyboardShortcutData } from "./keyboard-shortcut";
 import { KeyboardShortcutConfig } from "./keyboard-shortcut-config";
+import type { KeyboardShortcutConfigData } from "./keyboard-shortcut-config";
 import { GasFunctionService } from "../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
+import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
 
 export interface IKeyboardShortcutRepository {
-  getKeyboardShortcutsRaw(): Promise<string[][]>;
+  getKeyboardShortcutsRaw(): Promise<KeyboardShortcutData[]>;
   saveKeyboardShortcuts(shortcuts: KeyboardShortcut[]): Promise<void>;
   getConfig(): Promise<KeyboardShortcutConfig>;
   saveConfig(config: KeyboardShortcutConfig): Promise<void>;
@@ -15,30 +18,38 @@ export const IKeyboardShortcutRepositoryToken = Symbol(
 );
 
 export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
-  private readonly shortcutsKey = "keyboard-shortcuts";
-  private readonly configKey = "keyboard-shortcuts-config";
+  private readonly localStorage: LocalStorageService;
 
-  async getKeyboardShortcutsRaw(): Promise<string[][]> {
-    const stored = localStorage.getItem(this.shortcutsKey);
-    if (!stored) return [];
-    return JSON.parse(stored);
+  constructor() {
+    this.localStorage = new LocalStorageService(
+      "octopus-scheduler",
+      "KeyboardShortcut"
+    );
+  }
+
+  async getKeyboardShortcutsRaw(): Promise<KeyboardShortcutData[]> {
+    const data =
+      await this.localStorage.get<KeyboardShortcutData[]>("shortcuts");
+    return data || [];
   }
 
   async saveKeyboardShortcuts(shortcuts: KeyboardShortcut[]): Promise<void> {
-    const raws = shortcuts.map((s) => s.serialize());
-    localStorage.setItem(this.shortcutsKey, JSON.stringify(raws));
+    const datas = shortcuts.map((s) => s.serialize());
+    await this.localStorage.save("shortcuts", datas);
   }
 
   async getConfig(): Promise<KeyboardShortcutConfig> {
-    const stored = localStorage.getItem(this.configKey);
-    if (!stored) return KeyboardShortcutConfig.createEmpty();
-    const raw = JSON.parse(stored);
-    return KeyboardShortcutConfig.revive(raw);
+    const data =
+      await this.localStorage.get<KeyboardShortcutConfigData>("config");
+    if (data) {
+      return KeyboardShortcutConfig.fromData(data);
+    }
+    return KeyboardShortcutConfig.createEmpty();
   }
 
   async saveConfig(config: KeyboardShortcutConfig): Promise<void> {
-    const raw = config.serialize();
-    localStorage.setItem(this.configKey, JSON.stringify(raw));
+    const data = config.serialize();
+    await this.localStorage.save("config", data);
   }
 
   async syncWithServer(
@@ -55,14 +66,9 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
           config: any;
         }>();
         if (remoteData) {
-          localStorage.setItem(
-            this.shortcutsKey,
-            JSON.stringify(remoteData.shortcuts)
-          );
-          localStorage.setItem(
-            this.configKey,
-            JSON.stringify(remoteData.config)
-          );
+          const datas = this.convertLegacyShortcuts(remoteData.shortcuts);
+          await this.localStorage.save("shortcuts", datas);
+          await this.localStorage.save("config", remoteData.config);
         }
       } catch (error) {
         throw new Error(`GASからの同期に失敗: ${(error as Error).message}`);
@@ -75,10 +81,107 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
         timeout: 30000,
       });
       try {
-        await setService.call({ shortcuts, config: config.serialize() });
+        // GAS 側は古い形式を期待しているので、string[][] に変換
+        const legacyShortcuts = shortcuts.map((data) => [
+          data.id,
+          JSON.stringify(data.keys),
+          data.action.type,
+          ...this.serializeActionToLegacy(data.action),
+        ]);
+        await setService.call({
+          shortcuts: legacyShortcuts,
+          config: config.serialize(),
+        });
       } catch (error) {
         throw new Error(`GASへの同期に失敗: ${(error as Error).message}`);
       }
     }
+  }
+
+  private convertLegacyShortcuts(raws: string[][]): KeyboardShortcutData[] {
+    return raws.map((raw) => {
+      const [id, keysStr, type, ...actionRaw] = raw;
+      const keys = JSON.parse(keysStr);
+      const action: any = { type };
+      // actionRaw の順序に基づいてプロパティを設定
+      switch (type) {
+        case "TransitionPageEvent":
+          action.transitionUrl = actionRaw[2];
+          action.fadeOutDuration = actionRaw[3]
+            ? Number(actionRaw[3])
+            : undefined;
+          action.processedAt = actionRaw[4]
+            ? new Date(actionRaw[4]).toISOString()
+            : null;
+          action.registeredAt = actionRaw[5]
+            ? new Date(actionRaw[5]).toISOString()
+            : new Date().toISOString();
+          action.updatedAt = actionRaw[6]
+            ? new Date(actionRaw[6]).toISOString()
+            : new Date().toISOString();
+          break;
+        case "PlayAudioEvent":
+          action.audioId = actionRaw[2];
+          action.fadeOutDuration = actionRaw[3]
+            ? Number(actionRaw[3])
+            : undefined;
+          action.processedAt = actionRaw[4]
+            ? new Date(actionRaw[4]).toISOString()
+            : null;
+          action.registeredAt = actionRaw[5]
+            ? new Date(actionRaw[5]).toISOString()
+            : new Date().toISOString();
+          action.updatedAt = actionRaw[6]
+            ? new Date(actionRaw[6]).toISOString()
+            : new Date().toISOString();
+          break;
+        case "SlideshowEvent":
+          action.folderId = actionRaw[2];
+          action.displayDuration = Number(actionRaw[3]);
+          action.transitionType = actionRaw[4];
+          action.slideDirection = actionRaw[5] || undefined;
+          action.bgmIds = actionRaw[6] ? actionRaw[6].split(",") : [];
+          action.processedAt = actionRaw[7]
+            ? new Date(actionRaw[7]).toISOString()
+            : null;
+          action.registeredAt = actionRaw[8]
+            ? new Date(actionRaw[8]).toISOString()
+            : new Date().toISOString();
+          action.updatedAt = actionRaw[9]
+            ? new Date(actionRaw[9]).toISOString()
+            : new Date().toISOString();
+          break;
+        case "ShowContentEvent":
+          action.contentType = actionRaw[2];
+          action.contentId = actionRaw[3] || undefined;
+          action.htmlString = actionRaw[4] || undefined;
+          action.fadeOutDuration = actionRaw[5]
+            ? Number(actionRaw[5])
+            : undefined;
+          action.displayMode = actionRaw[6] || undefined;
+          action.effect = actionRaw[7] || undefined;
+          action.duration = actionRaw[8] ? Number(actionRaw[8]) : undefined;
+          action.fadeInTime = actionRaw[9] ? Number(actionRaw[9]) : undefined;
+          action.fadeOutTime = actionRaw[10]
+            ? Number(actionRaw[10])
+            : undefined;
+          action.scrollDirection = actionRaw[11] || undefined;
+          action.processedAt = actionRaw[12]
+            ? new Date(actionRaw[12]).toISOString()
+            : null;
+          action.registeredAt = actionRaw[13]
+            ? new Date(actionRaw[13]).toISOString()
+            : new Date().toISOString();
+          action.updatedAt = actionRaw[14]
+            ? new Date(actionRaw[14]).toISOString()
+            : new Date().toISOString();
+          break;
+      }
+      return { id, keys, action };
+    });
+  }
+
+  private serializeActionToLegacy(action: any): string[] {
+    return action.serialize();
   }
 }

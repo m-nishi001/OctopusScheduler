@@ -8,4 +8,5 @@ export interface IScheduleEvent {
   readonly updatedAt: Date;
   execute(isStart: boolean): Promise<void>;
   serialize(): string[];
+  serializeAsObject(): Record<string, unknown>;
 }

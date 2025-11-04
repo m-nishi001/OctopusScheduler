@@ -1,4 +1,4 @@
-import { injectable, inject } from "tsyringe";
+import { injectable, inject, container } from "tsyringe";
 import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-shortcut";
 import { KeyboardShortcutConfig } from "../../domains/keyboard-shortcut/keyboard-shortcut-config";
 import type { IKeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
@@ -12,18 +12,14 @@ export class KeyboardShortcutService {
 
   constructor(
     @inject(IKeyboardShortcutRepositoryToken)
-    private repository: IKeyboardShortcutRepository,
-    @inject(IScheduleEventConverterToken)
-    converters: IScheduleEventConverter[]
+    private repository: IKeyboardShortcutRepository
   ) {
-    this.converters = converters;
+    this.converters = container.resolveAll(IScheduleEventConverterToken);
   }
 
   async getKeyboardShortcuts(): Promise<KeyboardShortcut[]> {
-    const raws = await this.repository.getKeyboardShortcutsRaw();
-    return raws
-      .map((raw) => this.reviveShortcut(raw))
-      .filter(Boolean) as KeyboardShortcut[];
+    const datas = await this.repository.getKeyboardShortcutsRaw();
+    return datas.map((data) => KeyboardShortcut.fromData(data));
   }
 
   async saveKeyboardShortcuts(shortcuts: KeyboardShortcut[]): Promise<void> {
@@ -58,11 +54,17 @@ export class KeyboardShortcutService {
   async syncWithServer(
     direction: "gas-to-local" | "local-to-gas"
   ): Promise<void> {
-    try {
-      await this.repository.syncWithServer(direction);
-    } catch (error) {
-      throw new Error(`同期に失敗しました: ${(error as Error).message}`);
+    await this.repository.syncWithServer(direction);
+    if (direction === "gas-to-local") {
+      // GASから取得したデータを新しい形式に変換して保存
+      await this.loadShortcuts();
     }
+  }
+
+  async loadShortcuts(): Promise<void> {
+    // GASから取得したデータをリロードして保存
+    const shortcuts = await this.getKeyboardShortcuts();
+    await this.saveKeyboardShortcuts(shortcuts);
   }
 
   async findShortcutByKeys(keys: string[]): Promise<KeyboardShortcut | null> {
@@ -75,16 +77,16 @@ export class KeyboardShortcutService {
     return shortcutKeys.every((key, index) => key === inputKeys[index]);
   }
 
-  // revive 実装
+  // revive 実装 (古い形式の string[][] から復元)
   reviveShortcut(raw: string[]): KeyboardShortcut | null {
     if (raw.length < 3) return null;
     const [id, keysStr, type, ...actionRaw] = raw;
     const keys = JSON.parse(keysStr);
-    const actionRawObj = { type, ...actionRaw }; // 仮のオブジェクト
+    const actionRawObj = { id, type, ...actionRaw };
     // コンバーターでactionをrevive
     const converter = this.converters.find((c) => c.getType() === type);
     if (!converter) return null;
-    const action = converter.revive(actionRawObj as any); // 型合わせ
+    const action = converter.revive(actionRawObj as any);
     return new KeyboardShortcut({ id, keys, action });
   }
 }
