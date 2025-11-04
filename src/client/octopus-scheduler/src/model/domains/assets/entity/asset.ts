@@ -7,4 +7,5 @@ export interface Asset {
   lastUpdated: string;
   size: number;
   directoryId?: string;
+  uploaded?: boolean; // Temporary flag for uploaded assets before save
 }
