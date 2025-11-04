@@ -6,11 +6,10 @@
                 <label>キー組み合わせ:</label>
                 <div class="key-input-section">
                     <input readonly class="captured-keys"
-                        :value="capturedKeys.length > 0 ? capturedKeys.join(' + ') : ''" placeholder="キーがここに表示されます" />
+                        :value="capturedKeys.length > 0 ? capturedKeys.join(' + ') : ''"
+                        placeholder="ここをクリックしてキーボードショートカットを入力してください" @focus="startKeyCapture" @blur="stopKeyCapture" />
 
                     <div class="button-group">
-                        <button @click="startKeyCapture" class="start-btn" :disabled="capturing">記録開始</button>
-                        <button @click="stopKeyCapture" class="stop-btn" :disabled="!capturing">記録停止</button>
                         <button @click="clearKeys" class="clear-btn">クリア</button>
                     </div>
                 </div>
@@ -24,7 +23,8 @@
                     <option value="ShowContentEvent">コンテンツ表示</option>
                 </select>
             </div>
-            <component :is="currentFormComponent" :initial-data="initialData" @save="handleFormSave" />
+            <component :is="currentFormComponent" :initial-data="initialData" @save="handleFormSave"
+                class="form-content" />
             <div class="dialog-buttons">
                 <button @click="saveShortcut" class="save-btn">保存</button>
                 <button @click="closeDialog" class="cancel-btn">キャンセル</button>
@@ -59,7 +59,7 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-const { capturedKeys, capturing, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCapture();
+const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCapture();
 
 const actionType = ref('TransitionPageEvent');
 const formData = ref<any>({});
@@ -235,8 +235,12 @@ const saveShortcut = async () => {
     color: #fff;
     padding: 20px;
     border-radius: 8px;
-    width: 400px;
+    width: 600px;
+    height: 400px;
     max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
 }
 
 .dialog h3 {
@@ -289,14 +293,20 @@ const saveShortcut = async () => {
 
 .key-input-section {
     display: flex;
-    flex-direction: column;
     gap: 10px;
+    align-items: center;
+}
+
+.captured-keys {
+    flex: 1;
 }
 
 .button-group {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
+    flex-shrink: 0;
+}
+
+.clear-btn {
+    width: auto;
 }
 
 .start-btn,
@@ -329,5 +339,9 @@ const saveShortcut = async () => {
 .clear-btn:disabled {
     background: #444;
     cursor: not-allowed;
+}
+
+.form-content {
+    flex-grow: 1;
 }
 </style>
