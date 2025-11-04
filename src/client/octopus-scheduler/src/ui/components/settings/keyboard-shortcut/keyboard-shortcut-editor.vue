@@ -22,8 +22,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import KeyboardShortcutList from './KeyboardShortcutList.vue';
-import KeyboardShortcutDialog from './KeyboardShortcutDialog.vue';
+import KeyboardShortcutList from './keyboard-shortcut-list.vue';
+import KeyboardShortcutDialog from './keyboard-shortcut-dialog.vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
 import { useKeyboardShortcut } from './composables/useKeyboardShortcut';
 

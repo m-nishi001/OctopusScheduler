@@ -41,10 +41,10 @@ import { PlayAudioEvent } from '../../../../model/domains/schedule-event/play-au
 import { SlideshowEvent } from '../../../../model/domains/schedule-event/slideshow/slideshow-event';
 import { ShowContentEvent } from '../../../../model/domains/schedule-event/show-content/show-content-event';
 import { useKeyCapture } from './composables/useKeyCapture';
-import TransitionPageForm from './forms/TransitionPageForm.vue';
-import PlayAudioForm from './forms/PlayAudioForm.vue';
-import SlideshowForm from './forms/SlideshowForm.vue';
-import ShowContentForm from './forms/ShowContentForm.vue';
+import TransitionPageForm from './forms/transition-page-form.vue';
+import PlayAudioForm from './forms/play-audio-form.vue';
+import SlideshowForm from './forms/slideshow-form.vue';
+import ShowContentForm from './forms/show-content-form.vue';
 
 interface Props {
     show: boolean;
