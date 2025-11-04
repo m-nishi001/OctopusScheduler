@@ -96,6 +96,9 @@ const onStopPolling = () => {
 
 onMounted(() => {
   eventPollingService.setOnEventsCallback(onEvents);
+  // 一時的にポーリングを停止するためコメントアウト
+  // eventPollingService.startPolling();
+  // localState.isPolling = true;
 });
 </script>
 

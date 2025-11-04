@@ -30,8 +30,8 @@ router.afterEach((route) => {
 });
 
 // Google apps scriptのHistoryChangeHandlerを設定する
-HistoryService.setChangeHandler((event) => {
-  router.push({ path: `/${event.location.hash}` });
-});
+// HistoryService.setChangeHandler((event) => {
+//   router.push({ path: `/${event.location.hash}` });
+// });
 
 export default router;
