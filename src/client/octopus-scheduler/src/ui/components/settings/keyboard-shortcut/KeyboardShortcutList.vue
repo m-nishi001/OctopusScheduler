@@ -34,7 +34,8 @@ interface Emits {
     delete: [id: string];
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
+
 const emit = defineEmits<Emits>();
 
 const onEdit = (shortcut: KeyboardShortcut) => {
