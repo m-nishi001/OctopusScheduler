@@ -145,6 +145,18 @@ export class GasFunctionService {
 
   private executeGasFunction<T>(args: any): Promise<GasResponse<T>> {
     return new Promise((resolve) => {
+      if (typeof google === "undefined") {
+        console.warn(
+          "google global object not found, this is expected in local environment"
+        );
+        resolve({
+          status: "error",
+          message:
+            "google global object not found, this is expected in local environment",
+        });
+        return;
+      }
+
       const runTarget =
         this.functionName && this.functionName.trim() !== ""
           ? this.functionName
