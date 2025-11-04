@@ -15,6 +15,12 @@
                     </button>
                 </li>
                 <li>
+                    <button class="menu-link" :class="{ active: props.currentTab === 'keyboard-shortcuts' }"
+                        @click="setTab('keyboard-shortcuts')">
+                        <span class="icon">⌨️</span> キーボードショートカット設定
+                    </button>
+                </li>
+                <li>
                     <button class="menu-link" @click="goHome">
                         <span class="icon">🏠</span> ホームへ
                     </button>

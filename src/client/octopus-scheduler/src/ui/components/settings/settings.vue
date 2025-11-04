@@ -5,7 +5,8 @@
       <AdminSidemenu :currentTab="currentTab" @tabChange="currentTab = $event" />
       <main class="admin-content">
         <EventEditor v-if="currentTab === 'events'" />
-        <AssetListEditor v-else />
+        <AssetListEditor v-else-if="currentTab === 'assets'" />
+        <KeyboardShortcutEditor v-else-if="currentTab === 'keyboard-shortcuts'" />
       </main>
     </div>
   </div>
@@ -17,6 +18,7 @@ import AdminHeader from './frames/admin-header.vue';
 import AdminSidemenu from './frames/admin-sidemenu.vue';
 import EventEditor from './event-list/event-list.vue';
 import AssetListEditor from './asset-list/asset-list-editor.vue';
+import KeyboardShortcutEditor from './keyboard-shortcut/keyboard-shortcut-editor.vue';
 
 const currentTab = ref('events');
 </script>

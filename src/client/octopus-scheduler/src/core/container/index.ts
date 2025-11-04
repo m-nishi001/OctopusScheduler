@@ -11,6 +11,11 @@ import { ShowContentEventConverter } from "../../model/domains/schedule-event/sh
 import { PlayAudioEventConverter } from "../../model/domains/schedule-event/play-audio/play-audio-event-converter";
 import { SlideshowEventConverter } from "../../model/domains/schedule-event/slideshow/slideshow-event-converter";
 import { TransitionPageEventConverter } from "../../model/domains/schedule-event/transition/transition-page-event-converter";
+import {
+  KeyboardShortcutRepository,
+  IKeyboardShortcutRepositoryToken,
+} from "../../model/domains/keyboard-shortcut/keyboard-shortcut-repository";
+import { KeyboardShortcutService } from "../../model/applications/keyboard-shortcut/keyboard-shortcut-service";
 
 export class Container {
   static Register() {
@@ -35,6 +40,12 @@ export class Container {
     });
     container.register(IScheduleEventConverterToken, {
       useClass: TransitionPageEventConverter,
+    });
+    container.register(IKeyboardShortcutRepositoryToken, {
+      useClass: KeyboardShortcutRepository,
+    });
+    container.register(KeyboardShortcutService, {
+      useClass: KeyboardShortcutService,
     });
   }
 }
