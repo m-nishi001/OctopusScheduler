@@ -55,6 +55,16 @@ export class KeyboardShortcutService {
     return config.enabled;
   }
 
+  async syncWithServer(
+    direction: "gas-to-local" | "local-to-gas"
+  ): Promise<void> {
+    try {
+      await this.repository.syncWithServer(direction);
+    } catch (error) {
+      throw new Error(`同期に失敗しました: ${(error as Error).message}`);
+    }
+  }
+
   async findShortcutByKeys(keys: string[]): Promise<KeyboardShortcut | null> {
     const shortcuts = await this.getKeyboardShortcuts();
     return shortcuts.find((s) => this.keysMatch(s.keys, keys)) || null;

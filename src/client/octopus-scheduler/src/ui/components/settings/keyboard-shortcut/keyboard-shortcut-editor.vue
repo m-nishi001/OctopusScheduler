@@ -13,10 +13,31 @@
             <button class="main-btn" @click="onAdd">
                 <span class="btn-icon">➕</span> 追加
             </button>
+            <button class="sync-btn" @click="openSyncDialog">
+                <span class="btn-icon">🔄</span> 同期
+            </button>
         </div>
         <KeyboardShortcutList :shortcuts="shortcuts" @edit="onEdit" @delete="onDelete" />
         <KeyboardShortcutDialog :show="showDialog" :editing-shortcut="editingShortcut" @close="closeDialog"
             @save="onSaveShortcut" />
+        <!-- 同期ダイアログ -->
+        <div v-if="showSyncDialog" class="sync-dialog-overlay">
+            <div class="sync-dialog">
+                <h3>同期方向を選択</h3>
+                <label>
+                    <input type="radio" v-model="syncDirection" value="gas-to-local" />
+                    GASからローカルへ上書き
+                </label>
+                <label>
+                    <input type="radio" v-model="syncDirection" value="local-to-gas" />
+                    ローカルからGASへ上書き
+                </label>
+                <div class="dialog-buttons">
+                    <button @click="executeSync" :disabled="!syncDirection">実行</button>
+                    <button @click="showSyncDialog = false">キャンセル</button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -27,11 +48,15 @@ import KeyboardShortcutDialog from './keyboard-shortcut-dialog.vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
 import { useKeyboardShortcut } from './composables/useKeyboardShortcut';
 
-const { shortcuts, isEnabled, loadShortcuts, loadConfig, onToggleEnabled, onDelete, saveShortcut } = useKeyboardShortcut();
+const { shortcuts, isEnabled, loadShortcuts, loadConfig, onToggleEnabled, onDelete, saveShortcut, syncWithServer } = useKeyboardShortcut();
 
 // ダイアログ関連
 const showDialog = ref(false);
 const editingShortcut = ref<KeyboardShortcut | null>(null);
+
+// 同期ダイアログ関連
+const showSyncDialog = ref(false);
+const syncDirection = ref<'gas-to-local' | 'local-to-gas' | ''>('');
 
 onMounted(async () => {
     await loadShortcuts();
@@ -57,6 +82,22 @@ const onSaveShortcut = async (shortcut: KeyboardShortcut) => {
         await onDelete(editingShortcut.value.id);
     }
     await saveShortcut(shortcut);
+};
+
+const openSyncDialog = () => {
+    syncDirection.value = '';
+    showSyncDialog.value = true;
+};
+
+const executeSync = async () => {
+    if (!syncDirection.value) return;
+    try {
+        await syncWithServer(syncDirection.value);
+        alert('同期が完了しました');
+    } catch (error) {
+        alert(`同期に失敗しました: ${(error as Error).message}`);
+    }
+    showSyncDialog.value = false;
 };
 </script>
 
@@ -93,5 +134,67 @@ const onSaveShortcut = async (shortcut: KeyboardShortcut) => {
     padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
+}
+
+.sync-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.sync-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sync-dialog {
+    background: #333;
+    color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    width: 300px;
+}
+
+.sync-dialog h3 {
+    margin-top: 0;
+}
+
+.sync-dialog label {
+    display: block;
+    margin: 10px 0;
+}
+
+.dialog-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.dialog-buttons button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.dialog-buttons button:first-child {
+    background: #007bff;
+    color: white;
+}
+
+.dialog-buttons button:last-child {
+    background: #6c757d;
+    color: white;
 }
 </style>
