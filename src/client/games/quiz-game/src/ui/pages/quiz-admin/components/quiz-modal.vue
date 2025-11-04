@@ -210,6 +210,8 @@ onUnmounted(() => {
     border: 1px solid #4b5563;
     /* border-gray-600 */
     z-index: 51;
+    max-height: 80vh;
+    overflow-y: auto;
 }
 
 .modal-header {
