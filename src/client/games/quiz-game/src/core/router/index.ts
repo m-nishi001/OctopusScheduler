@@ -3,6 +3,7 @@ import QuizResult from "../../ui/pages/quiz-result/quiz-result.vue";
 import QuizAdmin from "../../ui/pages/quiz-admin/quiz-admin.vue";
 
 const quizGameRoutes = [
+  { path: "/", component: QuizAdmin },
   { path: "/quiz/:id", component: QuizDisplay },
   { path: "/quiz-result/:id", component: QuizResult },
   { path: "/quiz-admin", component: QuizAdmin },
