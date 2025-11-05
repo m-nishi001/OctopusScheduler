@@ -81,11 +81,10 @@
                   <option value="">選択なし</option>
                   <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                 </select>
-                <div v-if="editImageMode === 'upload'" class="image-file-input-wrap">
-                  <input type="file" @change="onEditImageChange" accept="image/*" class="admin-input" />
-                  <span v-if="editImageFilename" class="file-name" style="margin-left:8px">{{ editImageFilename
-                    }}</span>
-                </div>
+                <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange" accept="image/*"
+                  class="admin-input" />
+                <span v-if="editImageMode === 'upload' && editImageFilename" class="file-name">{{ editImageFilename
+                  }}</span>
               </div>
             </div>
           </div>
@@ -102,10 +101,10 @@
                   <option value="">選択なし</option>
                   <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                 </select>
-                <div v-if="editBgm1Mode === 'upload'" class="bgm-file-input-wrap">
-                  <input type="file" @change="onEditBgm1Change" accept="audio/*" class="admin-input" />
-                  <span v-if="editBgm1Filename" class="file-name" style="margin-left:8px">{{ editBgm1Filename }}</span>
-                </div>
+                <input v-if="editBgm1Mode === 'upload'" type="file" @change="onEditBgm1Change" accept="audio/*"
+                  class="admin-input" />
+                <span v-if="editBgm1Mode === 'upload' && editBgm1Filename" class="file-name">{{ editBgm1Filename
+                  }}</span>
               </div>
             </div>
           </div>
@@ -122,10 +121,10 @@
                   <option value="">選択なし</option>
                   <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                 </select>
-                <div v-if="editBgm2Mode === 'upload'" class="bgm-file-input-wrap">
-                  <input type="file" @change="onEditBgm2Change" accept="audio/*" class="admin-input" />
-                  <span v-if="editBgm2Filename" class="file-name" style="margin-left:8px">{{ editBgm2Filename }}</span>
-                </div>
+                <input v-if="editBgm2Mode === 'upload'" type="file" @change="onEditBgm2Change" accept="audio/*"
+                  class="admin-input" />
+                <span v-if="editBgm2Mode === 'upload' && editBgm2Filename" class="file-name">{{ editBgm2Filename
+                  }}</span>
               </div>
             </div>
           </div>
@@ -160,17 +159,17 @@
     <div class="modal-content wide-modal">
       <div class="add-modal-grid">
         <div class="add-form-column">
-          <h3>景品を追加</h3>
-          <p>追加する景品の情報を入力してください。</p>
+          <h3>🎁 新しい景品を追加</h3>
           <div class="field-block span-2">
-            <label class="field-label">名前</label>
-            <input v-model="newPrizeName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
-          </div>
-
-          <div class="two-col span-2">
-            <div class="field-block">
-              <label class="field-label">景品ランク</label>
-              <input v-model.number="newPrizeRank" type="number" placeholder="景品ランク" min="1" class="admin-input" />
+            <div class="two-col">
+              <div class="field-block">
+                <label class="field-label">名前</label>
+                <input v-model="newPrizeName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
+              </div>
+              <div class="field-block">
+                <label class="field-label">景品ランク</label>
+                <input v-model.number="newPrizeRank" type="number" placeholder="景品ランク" min="1" class="admin-input" />
+              </div>
             </div>
           </div>
 
@@ -186,16 +185,14 @@
                   <option value="">選択なし</option>
                   <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                 </select>
-                <div v-if="newImageMode === 'upload'" class="image-file-input-wrap">
-                  <input type="file" @change="onNewImageChange" accept="image/*" class="admin-input" />
-                  <span v-if="newImageFilename" class="file-name" style="margin-left:8px">{{ newImageFilename }}</span>
-                </div>
+                <input v-if="newImageMode === 'upload'" type="file" @change="onNewImageChange" accept="image/*"
+                  class="admin-input" />
+                <span v-if="newImageMode === 'upload' && newImageFilename" class="file-name">{{ newImageFilename
+                  }}</span>
               </div>
             </div>
           </div>
 
-          <!-- Move animation selection below image so it appears in the left/form column
-               rather than overlapping the preview on the right. -->
           <div class="field-block left-col">
             <label class="field-label">抽選アニメーション</label>
             <select v-model="newPrizeAnimation" class="admin-input">
@@ -216,10 +213,9 @@
                   <option value="">選択なし</option>
                   <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                 </select>
-                <div v-if="newBgm1Mode === 'upload'" class="bgm-file-input-wrap">
-                  <input type="file" @change="onNewBgm1Change" accept="audio/*" class="admin-input" />
-                  <span v-if="newBgm1Filename" class="file-name" style="margin-left:8px">{{ newBgm1Filename }}</span>
-                </div>
+                <input v-if="newBgm1Mode === 'upload'" type="file" @change="onNewBgm1Change" accept="audio/*"
+                  class="admin-input" />
+                <span v-if="newBgm1Mode === 'upload' && newBgm1Filename" class="file-name">{{ newBgm1Filename }}</span>
               </div>
             </div>
           </div>
@@ -236,10 +232,9 @@
                   <option value="">選択なし</option>
                   <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
                 </select>
-                <div v-if="newBgm2Mode === 'upload'" class="bgm-file-input-wrap">
-                  <input type="file" @change="onNewBgm2Change" accept="audio/*" class="admin-input" />
-                  <span v-if="newBgm2Filename" class="file-name" style="margin-left:8px">{{ newBgm2Filename }}</span>
-                </div>
+                <input v-if="newBgm2Mode === 'upload'" type="file" @change="onNewBgm2Change" accept="audio/*"
+                  class="admin-input" />
+                <span v-if="newBgm2Mode === 'upload' && newBgm2Filename" class="file-name">{{ newBgm2Filename }}</span>
               </div>
             </div>
           </div>
@@ -324,7 +319,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import type { Asset } from "@model/domains/drive-data/asset-data";
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { PrizeService } from '@model/applications/prize/prize-service';
@@ -362,7 +357,7 @@ const isAllSelected = computed({
 
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
-const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeRank.value = undefined; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; newBgm1Mode.value = 'select'; newBgm2Mode.value = 'select'; newBgm1Filename.value = ''; newBgm2Filename.value = ''; tempBgm1Asset.value = null; tempBgm2Asset.value = null; };
+const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeRank.value = 5; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; newBgm1Mode.value = 'select'; newBgm2Mode.value = 'select'; newBgm1Filename.value = ''; newBgm2Filename.value = ''; tempBgm1Asset.value = null; tempBgm2Asset.value = null; };
 const confirmAdd = async () => { await addPrize(); closeAddModal(); };
 
 const showDeleteModal = ref(false);
@@ -377,7 +372,7 @@ const syncing = ref(false);
 const syncMessage = ref("");
 
 const newPrizeName = ref('');
-const newPrizeRank = ref<number | undefined>();
+const newPrizeRank = ref<number>(5);
 const newPrizeAnimation = ref('roulette');
 const newImageMode = ref('upload');
 const newImageAssetId = ref('');
@@ -441,6 +436,19 @@ const addPrize = async () => {
   };
   if (newImageMode.value === 'select' && newImageAssetId.value) {
     newPrize.imageAssetId = newImageAssetId.value;
+    // Set object URL for selected image
+    const selectedAsset = assets.value.find(a => a.id === newImageAssetId.value);
+    if (selectedAsset) {
+      try {
+        const url = URL.createObjectURL(selectedAsset.blob);
+        if (objectUrlMap.has(selectedAsset.id)) {
+          try { URL.revokeObjectURL(objectUrlMap.get(selectedAsset.id) as string); } catch { }
+        }
+        objectUrlMap.set(selectedAsset.id, url);
+      } catch (error) {
+        console.warn('Failed to create object URL for selected image:', error);
+      }
+    }
   }
   if (newBgm1Mode.value === 'select' && newBgm1AssetId.value) {
     newPrize.bgm1AssetId = newBgm1AssetId.value;
@@ -625,7 +633,7 @@ const downloadPrizesJsonFromDrive = async () => {
 
 const editPrizeData = ref<any>(null);
 const editName = ref('');
-const editRank = ref<number | undefined>();
+const editRank = ref<number>(5);
 const editImageAssetId = ref('');
 const editImagePreview = ref('');
 const editImageMode = ref('upload');
@@ -810,7 +818,7 @@ const saveEdit = async () => {
     await fetchPrizes();
     editPrizeData.value = null;
     editName.value = '';
-    editRank.value = undefined;
+    editRank.value = 5;
     editImageAssetId.value = '';
     editImagePreview.value = '';
     editImageFilename.value = '';
@@ -833,6 +841,48 @@ onMounted(async () => {
   await fetchAssets();
   // default animation for new prizes
   newPrizeAnimation.value = 'roulette';
+});
+
+// Watch for new image asset selection changes
+watch([newImageAssetId, () => newImageMode.value], async ([newId, mode]) => {
+  if (mode === 'select' && newId) {
+    const asset = assets.value.find(a => a.id === newId);
+    if (asset) {
+      // Clean up previous preview URL
+      if (newImagePreviewUrl.value) {
+        try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch { }
+        newImagePreviewUrl.value = null;
+      }
+      newImagePreviewUrl.value = URL.createObjectURL(asset.blob);
+      newImagePreview.value = newImagePreviewUrl.value;
+    }
+  } else if (mode === 'upload') {
+    // Clear preview when switching to upload mode (unless file is selected)
+    if (!newImageFilename.value) {
+      newImagePreview.value = '';
+    }
+  }
+});
+
+// Watch for edit image asset selection changes
+watch([editImageAssetId, () => editImageMode.value], async ([newId, mode]) => {
+  if (mode === 'select' && newId) {
+    const asset = assets.value.find(a => a.id === newId);
+    if (asset) {
+      // Clean up previous preview URL
+      if (editImagePreviewUrl.value) {
+        try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
+        editImagePreviewUrl.value = null;
+      }
+      editImagePreviewUrl.value = URL.createObjectURL(asset.blob);
+      editImagePreview.value = editImagePreviewUrl.value;
+    }
+  } else if (mode === 'upload') {
+    // Clear preview when switching to upload mode (unless file is selected)
+    if (!editImageFilename.value) {
+      editImagePreview.value = '';
+    }
+  }
 });
 
 const showSyncModeModal = ref(false);
@@ -999,35 +1049,41 @@ onBeforeUnmount(() => {
 }
 
 .admin-input {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: none;
-  background: #232b36;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
   color: #fff;
   font-size: 0.96rem;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
 }
 
 .admin-input:focus {
-  outline: 2px solid #4f8cff;
+  outline: none;
+  border-color: #4f8cff;
+  box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .admin-btn {
-  padding: 9px 18px;
-  border-radius: 10px;
+  padding: 12px 24px;
+  border-radius: 12px;
   border: none;
-  background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
+  background: linear-gradient(135deg, #4f8cff 0%, #aee1ff 100%);
   color: #232b36;
   font-weight: 700;
   cursor: pointer;
-  transition: box-shadow 0.18s, background 0.18s, transform 0.12s;
+  transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  box-shadow: 0 4px 12px rgba(79, 140, 255, 0.2);
 }
 
 .admin-btn:hover {
-  box-shadow: 0 6px 18px rgba(79, 140, 255, 0.16);
+  box-shadow: 0 8px 20px rgba(79, 140, 255, 0.3);
+  transform: translateY(-2px);
 }
 
 .admin-btn:disabled {
@@ -1102,7 +1158,8 @@ onBeforeUnmount(() => {
 
 .image-mode {
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .image-mode label {
@@ -1110,26 +1167,27 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   color: #fff;
+  cursor: pointer;
 }
 
 .bgm-mode {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .bgm-mode label {
   color: #fff;
-  font-weight: 700;
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .bgm-radio-group {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
 }
-
 
 .bgm-radio-group label {
   white-space: nowrap;
@@ -1138,35 +1196,17 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 
-
-.bgm-mode {
-  flex-wrap: nowrap;
-}
-
-.bgm-select-group {
-  min-width: 220px;
-}
-
-.bgm-file-input-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.bgm-file-input-wrap .admin-input[type="file"] {
-  padding: 6px 10px;
-  min-width: 140px;
-}
-
-
 .image-radio-group {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
 }
 
-.image-select-group {
-  min-width: 220px;
+.image-radio-group label {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* helper to force a field into the left/main column of the grid */
@@ -1225,26 +1265,27 @@ onBeforeUnmount(() => {
 }
 
 .modal-content {
-  background: #232b36;
+  background: linear-gradient(135deg, #232b36 0%, #2a3441 100%);
   color: #fff;
   padding: 28px;
-  border-radius: 10px;
+  border-radius: 16px;
   text-align: left;
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-  max-width: 620px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  max-width: 700px;
   width: 90%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 
 .modal-content.wide-modal {
-  width: 70vw;
+  width: 75vw;
   max-width: none;
-  flex: 0 0 70vw;
+  flex: 0 0 75vw;
   margin: 0 auto;
 
   /* allow the dialog to grow but never overflow the viewport
      keep internal scrolling inside the grid area */
-  max-height: calc(100vh - 80px);
+  max-height: calc(100vh - 100px);
   height: auto;
   display: flex;
   flex-direction: column;
@@ -1252,12 +1293,12 @@ onBeforeUnmount(() => {
 
 .add-modal-grid {
   display: grid;
-  /* make the preview column responsive: allow it to grow up to 320px
-    but stay at least 200px so the preview remains useful */
-  grid-template-columns: 1fr minmax(200px, 320px);
-  gap: 14px;
+  /* make the preview column responsive: allow it to grow up to 350px
+    but stay at least 250px so the preview remains useful */
+  grid-template-columns: 1fr minmax(230px, 320px);
+  gap: 20px;
   align-items: start;
-  margin-top: 12px;
+  margin-top: 16px;
 
   flex: 1 1 auto;
   min-height: 0;
@@ -1304,13 +1345,14 @@ onBeforeUnmount(() => {
 
 .add-form-column .field-label {
   display: block;
-  margin-bottom: 6px;
-  color: #cfe8ff;
+  margin-bottom: 8px;
+  color: #dbeeff;
   font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .field-block {
-  margin-top: 8px;
+  margin-top: 12px;
 }
 
 .add-side-column {
@@ -1351,14 +1393,16 @@ onBeforeUnmount(() => {
   max-width: 320px;
   /* keep square preview using aspect-ratio so it scales nicely */
   aspect-ratio: 1 / 1;
-  background: #2a3137;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #2a3137 0%, #343d4a 100%);
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   /* keep preview behind interactive form elements by default */
   z-index: 1000;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .preview-box .preview-img {
@@ -1370,7 +1414,7 @@ onBeforeUnmount(() => {
 
 /* smaller preview variant used in the edit dialog to avoid overlap */
 .preview-box.preview-box--small {
-  max-width: 180px;
+  max-width: 200px;
   aspect-ratio: 1 / 1;
 }
 
@@ -1381,13 +1425,28 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-/* Ensure form inputs and selects appear above the preview and can
-   receive pointer events / open native dropdowns. */
-.admin-input,
 select.admin-input {
-  position: relative;
-  z-index: 1101;
-  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+  min-width: 200px;
+}
+
+select.admin-input:focus {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+select.admin-input option {
+  background: #232b36;
+  color: #fff;
+  padding: 8px;
 }
 
 /* Responsive: stack preview under the form on smaller screens so it
@@ -1411,7 +1470,9 @@ select.admin-input {
 }
 
 .preview-placeholder {
-  color: #9fb8db
+  color: #9fb8db;
+  font-size: 1.1rem;
+  font-weight: 500;
 }
 
 .file-name {
@@ -1427,8 +1488,10 @@ select.admin-input {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 20px;
   flex: 0 0 auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .footer-left {
@@ -1452,8 +1515,14 @@ select.admin-input {
 }
 
 .cancel-primary {
-  background: #3b4650;
+  background: linear-gradient(135deg, #3b4650 0%, #4a5560 100%);
   color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.cancel-primary:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
 }
 
 .modal-actions {
@@ -1489,5 +1558,39 @@ select.admin-input {
   100% {
     transform: rotate(360deg);
   }
+}
+
+.bgm-select-group {
+  min-width: 240px;
+  width: 100%;
+}
+
+.bgm-file-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.bgm-file-input-wrap .admin-input[type="file"] {
+  padding: 8px 12px;
+  min-width: 200px;
+}
+
+.image-select-group {
+  min-width: 240px;
+  width: 100%;
+}
+
+.image-file-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.image-file-input-wrap .admin-input[type="file"] {
+  padding: 8px 12px;
+  min-width: 200px;
 }
 </style>
