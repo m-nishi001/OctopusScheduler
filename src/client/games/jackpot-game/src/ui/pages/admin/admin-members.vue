@@ -42,143 +42,56 @@
   </div>
 
   <div v-if="modalMode" class="modal-overlay">
-    <div class="modal-content wide-modal" @click.stop>
-      <div class="add-modal-grid" :style="addModalGridStyle">
+    <div class="modal-content" @click.stop>
+      <div class="add-form-column">
+        <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
 
-        <div class="buffer-column" v-if="modalMode === 'add'">
-          <h3>追加するメンバー</h3>
-          <div class="buffer-list">
-            <div v-for="(b, idx) in addBuffer" :key="idx" class="buffer-item"
-              :class="{ active: selectedBufferIndex === idx }" @click="selectedBufferIndex = idx">
-              <span class="buffer-name">{{ b.name || '新しいメンバー' }}</span>
-              <button class="admin-btn" @click.stop.prevent="removeBuffer(idx)">×</button>
-            </div>
-            <div v-if="addBuffer.length === 0" style="color:#cfe8ff;padding:8px">+ を押して新しいメンバーを追加してください</div>
+        <div class="two-col">
+          <div class="field-block">
+            <label class="field-label">名前</label>
+            <input v-model="modalName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
           </div>
-
+          <div class="field-block">
+            <label class="field-label">ランク</label>
+            <input v-model.number="modalRank" type="number" placeholder="ランク" min="1" :max="modalMaxRank" step="1"
+              class="admin-input" />
+          </div>
         </div>
 
-
-        <div class="add-form-column">
-          <h3>{{ modalMode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
-          <p v-if="modalMode === 'add'">左のリストからメンバーを選択して内容を編集できます。新しいメンバーは＋で追加。</p>
-
-
-          <template v-if="modalMode === 'add'">
-            <div v-if="addBuffer.length">
-              <div v-if="selectedBufferIndex !== null">
-                <div class="two-col">
-                  <div class="field-block">
-                    <label class="field-label">名前</label>
-                    <input v-model="addBuffer[selectedBufferIndex].name" type="text" placeholder="メンバー名"
-                      class="admin-input member-name-input" />
-                  </div>
-                  <div class="field-block">
-                    <label class="field-label">ランク</label>
-                    <input v-model.number="addBuffer[selectedBufferIndex].rank" type="number" placeholder="ランク" min="1"
-                      :max="modalMaxRank" step="1" class="admin-input" />
-                  </div>
-                </div>
-                <div class="field-block">
-                  <label class="field-label">写真</label>
-                  <div class="photo-mode">
-                    <label><input type="radio" v-model="addBuffer[selectedBufferIndex].photoMode" value="upload" />
-                      アップロード</label>
-                    <label><input type="radio" v-model="addBuffer[selectedBufferIndex].photoMode" value="select" />
-                      既存から選択</label>
-                  </div>
-                  <div style="margin-top:10px">
-                    <input v-if="addBuffer[selectedBufferIndex].photoMode === 'upload'" type="file"
-                      @change="onBufferFileChange($event, selectedBufferIndex)" accept="image/*" class="admin-input" />
-                    <select v-if="addBuffer[selectedBufferIndex].photoMode === 'select'"
-                      v-model="addBuffer[selectedBufferIndex].photoAssetId"
-                      @change="onBufferAssetSelect(selectedBufferIndex)" class="admin-input" style="margin-top:8px">
-                      <option value="">選択なし</option>
-                      <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div v-else style="color:#cfe8ff">編集するメンバーを左のリストから選択してください。</div>
-            </div>
-            <div v-else style="color:#cfe8ff">+ を押して新しいメンバーを追加してください</div>
-          </template>
-
-
-          <template v-if="modalMode === 'edit'">
-            <div class="two-col">
-              <div class="field-block">
-                <label class="field-label">名前</label>
-                <input v-model="modalName" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
-              </div>
-
-              <div class="field-block">
-                <label class="field-label">ランク</label>
-                <input v-model.number="modalRank" type="number" placeholder="ランク" min="1" :max="modalMaxRank" step="1"
-                  class="admin-input" />
-              </div>
-            </div>
-
-            <div class="field-block">
-              <label class="field-label">写真</label>
-              <div class="photo-mode">
-                <label><input type="radio" v-model="modalPhotoMode" value="upload" /> アップロード</label>
-                <label><input type="radio" v-model="modalPhotoMode" value="select" /> 既存から選択</label>
-              </div>
-              <div style="margin-top:10px">
-                <input v-if="modalPhotoMode === 'upload'" type="file" @change="onModalPhotoChange" accept="image/*"
-                  class="admin-input" />
-                <div v-if="modalPhotoMode === 'upload' && modalPhotoFilename" class="file-name">{{ modalPhotoFilename }}
-                </div>
-                <select v-if="modalPhotoMode === 'select'" v-model="photoAssetId" class="admin-input"
-                  style="margin-top:8px">
-                  <option value="">選択なし</option>
-                  <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
-                </select>
-              </div>
-            </div>
-          </template>
-
-
-          <div class="preview-in-form" style="margin-top:16px"
-            v-if="modalMode === 'edit' || (modalMode === 'add' && selectedBufferIndex !== null)">
-            <div class="preview-box">
-              <template v-if="modalMode === 'edit'">
-                <template v-if="modalPhotoPreview">
-                  <img :src="modalPhotoPreview" alt="preview" class="preview-img" />
-                </template>
-                <template v-else>
-                  <div class="preview-placeholder">プレビュー</div>
-                </template>
-              </template>
-              <template v-else>
-
-                <template v-if="selectedBufferIndex !== null && getBufferPreviewSrc(selectedBufferIndex)">
-                  <img :src="getBufferPreviewSrc(selectedBufferIndex)" alt="preview" class="preview-img" />
-                </template>
-                <template v-else>
-                  <div class="preview-placeholder">プレビュー</div>
-                </template>
-              </template>
-            </div>
+        <div class="field-block">
+          <label class="field-label">写真</label>
+          <div class="photo-mode">
+            <label><input type="radio" v-model="modalPhotoMode" value="upload" /> アップロード</label>
+            <label><input type="radio" v-model="modalPhotoMode" value="select" /> 既存から選択</label>
           </div>
+          <div style="margin-top:10px">
+            <input v-if="modalPhotoMode === 'upload'" type="file" @change="onModalPhotoChange" accept="image/*"
+              class="admin-input" />
+            <div v-if="modalPhotoMode === 'upload' && modalPhotoFilename" class="file-name">{{ modalPhotoFilename }}
+            </div>
+            <select v-if="modalPhotoMode === 'select'" v-model="photoAssetId" class="admin-input"
+              style="margin-top:8px">
+              <option value="">選択なし</option>
+              <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+            </select>
+          </div>
+        </div>
 
+        <div class="preview-in-form" style="margin-top:16px">
+          <div class="preview-box">
+            <template v-if="modalPhotoPreview">
+              <img :src="modalPhotoPreview" alt="preview" class="preview-img" />
+            </template>
+            <template v-else>
+              <div class="preview-placeholder">プレビュー</div>
+            </template>
+          </div>
         </div>
       </div>
 
-
-
       <div class="modal-footer">
-        <div class="footer-left">
-          <template v-if="modalMode === 'add'">
-            <button class="admin-btn" @click.prevent="addBufferRow">＋</button>
-            <button class="admin-btn" @click.prevent="bulkSaveMembers" :disabled="!addBuffer.length">保存</button>
-            <button class="admin-btn cancel-primary" @click.prevent="clearBuffer">クリア</button>
-          </template>
-        </div>
-
         <div class="footer-right admin-modal-buttons">
-          <button v-if="modalMode === 'edit'" class="admin-btn" @click="confirmModal"
+          <button class="admin-btn" @click="confirmModal"
             :disabled="!modalName.trim() || modalRank < 1 || adding">保存</button>
           <button class="admin-btn cancel-primary" @click="closeModal">キャンセル</button>
         </div>
@@ -294,72 +207,6 @@ const modalPhotoFilename = ref('');
 const photoAssetId = ref('');
 const tempAsset = ref<Asset | null>(null);
 
-const addBuffer = ref<Array<{ name: string; rank: number; photoAsset?: Asset | null; photoAssetId?: string; photoMode?: string }>>([]);
-
-const selectedBufferIndex = ref<number | null>(null);
-
-const bufferPreviewMap = ref<Record<number, string>>({});
-
-const onBufferFileChange = async (e: Event, idx: number) => {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  try {
-    const dto = await assetDataService.createDriveDataDtoFromFile(file);
-    const entry = addBuffer.value[idx];
-    if (entry) {
-      entry.photoAsset = dto;
-
-      const prev = bufferPreviewMap.value[idx];
-      if (prev) {
-        try { URL.revokeObjectURL(prev); } catch { }
-        delete bufferPreviewMap.value[idx];
-      }
-
-      try { const url = URL.createObjectURL(file); bufferPreviewMap.value[idx] = url; } catch { }
-    }
-  } catch (err) {
-    console.error('Failed to create buffer asset DTO', err);
-  }
-};
-
-const onBufferAssetSelect = async (idx: number | null) => {
-  if (idx === null) return;
-  const entry = addBuffer.value[idx];
-  if (!entry) return;
-  const assetId = entry.photoAssetId;
-
-  const prev = bufferPreviewMap.value[idx];
-  if (prev) {
-    try { URL.revokeObjectURL(prev); } catch { }
-    delete bufferPreviewMap.value[idx];
-  }
-  if (!assetId) {
-
-    entry.photoAsset = null;
-    return;
-  }
-
-  let asset: Asset | null = assets.value.find(a => a.id === assetId) || null;
-  if (!asset) {
-
-    try {
-      asset = await assetDataService.getAssetDataById(assetId);
-    } catch (e) {
-      console.error('Failed to fetch asset for buffer select', e);
-    }
-  }
-  if (asset) {
-    entry.photoAsset = asset as any;
-
-    const cached = objectUrlMap.get(assetId);
-    if (cached) {
-      bufferPreviewMap.value[idx] = cached;
-    } else {
-      try { const url = URL.createObjectURL(asset.blob); bufferPreviewMap.value[idx] = url; } catch { }
-    }
-  }
-};
-
 const openModal = (mode: 'add' | 'edit', data?: any) => {
   modalMode.value = mode;
   modalData.value = data || null;
@@ -373,7 +220,6 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
     modalPhotoFilename.value = '';
     photoAssetId.value = '';
     tempAsset.value = null;
-    addBuffer.value = [];
   } else if (mode === 'edit' && data) {
     modalName.value = data.name;
     modalRank.value = data.rank;
@@ -496,15 +342,6 @@ const onModalPhotoChange = async (e: Event) => {
   }
 };
 
-const getBufferPreviewSrc = (idx: number | null) => {
-  if (idx === null) return '';
-  const url = bufferPreviewMap.value[idx];
-  if (url) return url;
-  const assetId = addBuffer.value[idx]?.photoAssetId;
-  if (assetId) return objectUrlMap.get(assetId) || '';
-  return '';
-};
-
 onBeforeUnmount(() => {
   if (modalPhotoPreviewUrl) {
     try { URL.revokeObjectURL(modalPhotoPreviewUrl); } catch { };
@@ -516,11 +353,6 @@ onBeforeUnmount(() => {
       try { URL.revokeObjectURL(url); } catch { }
     }
     objectUrlMap.clear();
-
-    for (const url of Object.values(bufferPreviewMap.value)) {
-      try { URL.revokeObjectURL(url); } catch { }
-    }
-    bufferPreviewMap.value = {};
   } catch { }
 });
 
@@ -586,105 +418,6 @@ const deleteMember = async (id: string) => {
   } finally {
     deleting.value = false;
   }
-};
-
-const addBufferRow = () => {
-  addBuffer.value.push({ name: '', rank: members.value.length + addBuffer.value.length + 1, photoAsset: null, photoMode: 'upload', photoAssetId: '' });
-
-  selectedBufferIndex.value = addBuffer.value.length - 1;
-};
-
-const removeBuffer = (idx: number) => {
-  const url = bufferPreviewMap.value[idx];
-  if (url) {
-    try { URL.revokeObjectURL(url); } catch { }
-    delete bufferPreviewMap.value[idx];
-  }
-  addBuffer.value.splice(idx, 1);
-
-  const newObj: Record<number, string> = {};
-  for (let i = 0; i < addBuffer.value.length; i++) {
-    const existing = bufferPreviewMap.value[i >= idx ? i + 1 : i];
-    if (existing) newObj[i] = existing;
-  }
-  bufferPreviewMap.value = newObj;
-
-  if (selectedBufferIndex.value !== null) {
-    if (selectedBufferIndex.value === idx) {
-      selectedBufferIndex.value = null;
-    } else if (selectedBufferIndex.value > idx) {
-      selectedBufferIndex.value = selectedBufferIndex.value - 1;
-    }
-  }
-};
-
-const clearBuffer = () => {
-
-  for (const url of Object.values(bufferPreviewMap.value)) {
-    try { URL.revokeObjectURL(url); } catch { }
-  }
-  bufferPreviewMap.value = {};
-  addBuffer.value = [];
-  selectedBufferIndex.value = null;
-};
-
-const bulkSaveMembers = async () => {
-  if (!addBuffer.value.length) return;
-  adding.value = true;
-  try {
-    for (const b of addBuffer.value) {
-      let photoId: string | undefined = undefined;
-      if (b.photoAsset) {
-        try {
-          const uploaded = await assetDataService.addAssetData([b.photoAsset]);
-          if (uploaded && uploaded[0] && uploaded[0].id) photoId = uploaded[0].id;
-        } catch (e) {
-          console.error('Failed to upload buffered photo:', e);
-        }
-      } else if (b.photoAssetId) {
-        photoId = b.photoAssetId;
-      }
-      const dto = {
-        id: '',
-        name: b.name,
-        rank: b.rank,
-        photoAssetId: photoId,
-      } as any;
-      const saved = await memberService.saveMember(dto);
-
-      if (b.photoAsset && saved && photoId) {
-        try {
-          const url = URL.createObjectURL(b.photoAsset.blob);
-          try { objectUrlMap.set(photoId, url); } catch { }
-          (saved as any).photoDataUrl = url;
-        } catch { }
-      } else if (photoId && !objectUrlMap.has(photoId)) {
-
-        try {
-          const asset = await assetDataService.getAssetDataById(photoId);
-          if (asset && asset.blob) {
-            try { objectUrlMap.set(photoId, URL.createObjectURL(asset.blob)); } catch { }
-          }
-        } catch (e) { }
-      }
-      members.value.push(saved);
-    }
-
-    addBuffer.value = [];
-    selectedBufferIndex.value = null;
-    await saveMembersToLocalJson();
-
-    closeModal();
-  } catch (e) {
-    console.error('Failed to bulk save members', e);
-  } finally {
-    adding.value = false;
-  }
-
-  for (const url of Object.values(bufferPreviewMap.value)) {
-    try { URL.revokeObjectURL(url); } catch { }
-  }
-  bufferPreviewMap.value = {};
 };
 
 const showMemberSyncModal = ref(false);
@@ -855,10 +588,6 @@ const fetchAssets = async () => {
     assets.value = [];
   }
 };
-
-const addModalGridStyle = computed(() => {
-  return { gridTemplateColumns: modalMode.value === 'add' ? '260px 1fr' : '1fr' } as any;
-});
 
 onMounted(async () => {
   await fetchMembers();
@@ -1140,48 +869,16 @@ watch(modalPhotoMode, () => {
   width: 90%;
 }
 
-
-.modal-content.wide-modal {
-  width: 70vw;
-  max-width: none;
-  flex: 0 0 70vw;
-  margin: 0 auto;
-
-  height: 60vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.add-modal-grid {
-  display: grid;
-
-  grid-template-columns: 260px 1fr;
-  gap: 18px;
-  align-items: stretch;
-
-  margin-top: 12px;
-  width: 100%;
-
-  flex: 1 1 auto;
-  min-height: 0;
-
-}
-
-
 .add-form-column {
-
   overflow: auto;
   min-height: 0;
-
   scrollbar-gutter: stable both-edges;
   --scrollbar-reserve: 16px;
   padding-right: var(--scrollbar-reserve);
   box-sizing: border-box;
-
   scrollbar-width: thin;
   -ms-overflow-style: auto;
 }
-
 
 .add-form-column::-webkit-scrollbar {
   width: 10px;
@@ -1190,69 +887,6 @@ watch(modalPhotoMode, () => {
 .add-form-column::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.06);
   border-radius: 6px;
-}
-
-.buffer-column {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  min-height: 0;
-
-  height: 100%;
-}
-
-.buffer-list {
-  background: #1f262b;
-  border-radius: 6px;
-  padding: 8px;
-  overflow: auto;
-  border: 1px solid rgba(68, 68, 68, 0.8);
-}
-
-.buffer-list {
-
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.buffer-list {
-
-  flex: 1 1 auto;
-}
-
-.buffer-actions {
-
-  margin-top: auto;
-  display: flex;
-  gap: 8px;
-}
-
-.buffer-list {
-
-  flex: 1 1 auto;
-}
-
-.buffer-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px;
-  border-radius: 6px;
-  margin-bottom: 6px;
-  cursor: pointer;
-}
-
-.buffer-item.active {
-  background: linear-gradient(90deg, rgba(79, 140, 255, 0.12), rgba(174, 225, 255, 0.04));
-}
-
-.buffer-name {
-  color: #dfefff;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .add-form-column .field-label {
@@ -1313,21 +947,9 @@ watch(modalPhotoMode, () => {
 }
 
 .modal-footer {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
   margin-top: 18px;
-
-  flex: 0 0 auto;
-
-  z-index: 2;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
 }
 
 .footer-left {
