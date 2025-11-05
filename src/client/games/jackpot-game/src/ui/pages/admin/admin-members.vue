@@ -212,7 +212,7 @@ const openModal = (mode: 'add' | 'edit', data?: any) => {
   modalData.value = data || null;
   if (mode === 'add') {
     modalName.value = '';
-    modalRank.value = members.value.length + 1;
+    modalRank.value = 5;
     modalMaxRank.value = 10;
     modalPhotoMode.value = 'upload';
     modalPhotoAsset.value = undefined;
