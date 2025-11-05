@@ -151,8 +151,7 @@ const selectOption = (index: number) => {
 };
 
 const handleKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Enter') {
-        // Stop BGM
+    if (event.key === 'Enter' && showModal.value) {
         if (audioElement.value) {
             audioElement.value.pause();
             audioElement.value = null;
@@ -160,7 +159,7 @@ const handleKeydown = (event: KeyboardEvent) => {
         router.push(`/quiz-result/${quizId}`);
     }
 };
-</script><!-- Global (non-scoped) rules: hide visible scrollbars but keep ability to scroll if needed -->
+</script>
 <style>
 html,
 body,
