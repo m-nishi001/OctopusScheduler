@@ -26,11 +26,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 const router = useRouter();
+const route = useRoute();
 
 const showFullScreenParticles = ref(false);
+
+const isPreview = computed(() => route.query.preview === 'true');
 
 // サンプルデータ: 実際はAPI等から取得する
 const results = ref([
@@ -78,7 +81,11 @@ onUnmounted(() => {
 
 function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
-        router.push('/');
+        if (isPreview.value) {
+            router.push('/quiz-admin');
+        } else {
+            router.push('/');
+        }
     }
 }
 

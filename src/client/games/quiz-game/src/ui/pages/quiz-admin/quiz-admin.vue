@@ -50,6 +50,9 @@
                                     <button class="btn-delete" @click="deleteQuiz(index)">
                                         削除
                                     </button>
+                                    <button class="btn-preview" @click="previewQuiz(index)">
+                                        プレビュー
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -82,6 +85,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import QuizModal from './components/quiz-modal.vue';
 import { GetAllQuizzesUseCase } from '../../../model/applications/use-cases/get-all-quizzes-use-case';
@@ -90,6 +94,8 @@ import { UpdateQuizUseCase } from '../../../model/applications/use-cases/update-
 import { DeleteQuizUseCase } from '../../../model/applications/use-cases/delete-quiz-use-case';
 import { SyncQuizzesUseCase } from '../../../model/applications/use-cases/sync-quizzes-use-case';
 import type { QuizDto, AddQuizDto } from '../../../model/applications/dtos/quiz-dto';
+
+const router = useRouter();
 
 const getAllQuizzesUseCase = container.resolve(GetAllQuizzesUseCase);
 const addQuizUseCase = container.resolve(AddQuizUseCase);
@@ -221,6 +227,11 @@ const copyToClipboard = async (text: string) => {
     } catch (err) {
         console.error('コピー失敗:', err);
     }
+};
+
+const previewQuiz = (index: number) => {
+    const quiz = quizzes.value[index];
+    router.push(`/quiz/${quiz.id}?preview=true`);
 };
 </script>
 
@@ -373,7 +384,7 @@ const copyToClipboard = async (text: string) => {
     /* font-semibold */
     border: 1px solid #6b7280;
     /* border-gray-500 */
-    width: 45%;
+    width: 35%;
 }
 
 .th-options {
@@ -412,7 +423,7 @@ const copyToClipboard = async (text: string) => {
     /* font-semibold */
     border: 1px solid #6b7280;
     /* border-gray-500 */
-    width: 15%;
+    width: 25%;
 }
 
 .table-row {
@@ -531,6 +542,30 @@ const copyToClipboard = async (text: string) => {
 .btn-delete:hover {
     background-color: #dc2626;
     /* hover:bg-red-600 */
+}
+
+.btn-preview {
+    background-color: #10b981;
+    /* bg-green-500 */
+    color: white;
+    padding: 0.5rem 0.75rem;
+    min-width: 3.6rem;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* py-2 px-4 */
+    border-radius: 0.25rem;
+    /* rounded */
+    font-size: 1rem;
+    /* text-base */
+    border: none;
+    cursor: pointer;
+}
+
+.btn-preview:hover {
+    background-color: #059669;
+    /* hover:bg-green-600 */
 }
 
 .sync-dialog,

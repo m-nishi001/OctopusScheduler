@@ -71,6 +71,8 @@ const qrCodeUrl = computed(() => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(q.answerUrl)}`;
 });
 
+const isPreview = computed(() => route.query.preview === 'true');
+
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
     if (!quiz.value) return [];
     return quiz.value.options.map((option, index) => {
@@ -156,7 +158,7 @@ const handleKeydown = (event: KeyboardEvent) => {
             audioElement.value.pause();
             audioElement.value = null;
         }
-        router.push(`/quiz-result/${quizId}`);
+        router.push(`/quiz-result/${quizId}?preview=${isPreview.value}`);
     }
 };
 </script>
