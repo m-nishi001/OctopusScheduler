@@ -205,9 +205,7 @@ const openResetModal = () => {
 
 const confirmReset = async () => {
     try {
-        for (const result of drawResults.value) {
-            await drawResultService.deleteDrawResult(result.drawId);
-        }
+        await Promise.all(drawResults.value.map(result => drawResultService.deleteDrawResult(result.drawId)));
         await prizeService.resetAllAssigned();
         await prizeDrawStateRepository.clearState();
         await fetchData();
