@@ -84,7 +84,7 @@
                 <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange" accept="image/*"
                   class="admin-input" />
                 <span v-if="editImageMode === 'upload' && editImageFilename" class="file-name">{{ editImageFilename
-                  }}</span>
+                }}</span>
               </div>
             </div>
           </div>
@@ -104,7 +104,7 @@
                 <input v-if="editBgm1Mode === 'upload'" type="file" @change="onEditBgm1Change" accept="audio/*"
                   class="admin-input" />
                 <span v-if="editBgm1Mode === 'upload' && editBgm1Filename" class="file-name">{{ editBgm1Filename
-                  }}</span>
+                }}</span>
               </div>
             </div>
           </div>
@@ -124,7 +124,7 @@
                 <input v-if="editBgm2Mode === 'upload'" type="file" @change="onEditBgm2Change" accept="audio/*"
                   class="admin-input" />
                 <span v-if="editBgm2Mode === 'upload' && editBgm2Filename" class="file-name">{{ editBgm2Filename
-                  }}</span>
+                }}</span>
               </div>
             </div>
           </div>
@@ -188,7 +188,7 @@
                 <input v-if="newImageMode === 'upload'" type="file" @change="onNewImageChange" accept="image/*"
                   class="admin-input" />
                 <span v-if="newImageMode === 'upload' && newImageFilename" class="file-name">{{ newImageFilename
-                  }}</span>
+                }}</span>
               </div>
             </div>
           </div>
