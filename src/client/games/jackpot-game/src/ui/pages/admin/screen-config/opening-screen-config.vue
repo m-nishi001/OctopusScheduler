@@ -51,6 +51,12 @@
                 </li>
             </ul>
         </div>
+
+        <div style="display:flex;align-items:center;gap:12px;">
+            <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving"
+                :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
+            <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
+        </div>
     </div>
 
     <div v-if="saving" class="modal-overlay">
@@ -130,6 +136,8 @@
             </div>
         </div>
     </div>
+
+    <UnsavedChangesDialog :visible="showUnsavedDialog" @discard="discardChanges" @cancel="cancelNavigation" />
 </template>
 
 <script setup lang="ts">
@@ -139,6 +147,9 @@ import { ScreenSettingsService } from '@model/applications/screen-config/screen-
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import type { OpeningContent } from '@model/domains/screen-config/opening-screen-setting';
 import type { Asset } from "@model/domains/drive-data/asset-data";
+import { watch } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
+import UnsavedChangesDialog from './UnsavedChangesDialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -150,6 +161,10 @@ const saving = ref(false);
 const saveStatus = ref('');
 const syncing = ref(false);
 const syncStatus = ref("");
+
+const hasUnsavedChanges = ref(false);
+const showUnsavedDialog = ref(false);
+const pendingRoute = ref<(() => void) | null>(null);
 
 const localConfig = ref({
     bgmAssetId: "",
@@ -198,6 +213,19 @@ const loadConfig = async () => {
 
 onMounted(async () => {
     await Promise.all([loadConfig(), fetchAssets()]);
+});
+
+watch(localConfig, () => {
+    hasUnsavedChanges.value = true;
+}, { deep: true });
+
+onBeforeRouteLeave((_to, _from, next) => {
+    if (hasUnsavedChanges.value) {
+        showUnsavedDialog.value = true;
+        pendingRoute.value = next;
+    } else {
+        next();
+    }
 });
 
 const onBgmChange = async (e: Event) => {
@@ -261,7 +289,6 @@ const saveDialog = async () => {
         localConfig.value.contents.splice(editingIndex.value, 1, JSON.parse(JSON.stringify(dialogContent.value)));
     }
     closeDialog();
-    await handleSaveClick();
 };
 
 const onDialogImageChange = async (e: Event) => {
@@ -286,14 +313,12 @@ const moveUp = async (idx: number) => {
     if (idx <= 0) return;
     const arr = localConfig.value.contents;
     [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-    await handleSaveClick();
 };
 
 const moveDown = async (idx: number) => {
     const arr = localConfig.value.contents;
     if (idx >= arr.length - 1) return;
     [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-    await handleSaveClick();
 };
 
 const getContentTitle = (c: OpeningContent) => {
@@ -331,12 +356,10 @@ const deleteSelectedContents = async () => {
         localConfig.value.contents.splice(idx, 1);
     }
     selectedIndices.value = [];
-    await handleSaveClick();
 };
 
 const removeContent = async (idx: number) => {
     localConfig.value.contents.splice(idx, 1);
-    await handleSaveClick();
 };
 
 const handleSyncClick = async () => {
@@ -367,12 +390,27 @@ const handleSaveClick = async () => {
         await loadConfig();
         await fetchAssets();
         saveStatus.value = '保存しました';
+        hasUnsavedChanges.value = false;
     } catch (err) {
         console.error('Failed to save opening config', err);
         saveStatus.value = '保存に失敗しました';
     } finally {
         saving.value = false;
     }
+};
+
+const discardChanges = () => {
+    showUnsavedDialog.value = false;
+    tempAssets.length = 0; // アップロードアセットを破棄
+    hasUnsavedChanges.value = false;
+    if (pendingRoute.value) {
+        pendingRoute.value();
+    }
+};
+
+const cancelNavigation = () => {
+    showUnsavedDialog.value = false;
+    pendingRoute.value = null;
 };
 
 </script>

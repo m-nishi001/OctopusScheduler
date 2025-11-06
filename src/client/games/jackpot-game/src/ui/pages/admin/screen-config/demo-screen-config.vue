@@ -57,14 +57,19 @@
                     <div class="spinner"></div>
                 </div>
             </div>
+
+            <UnsavedChangesDialog :visible="showUnsavedDialog" @discard="handleDiscardChanges"
+                @cancel="handleCancelDiscard" />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import UnsavedChangesDialog from './UnsavedChangesDialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 
@@ -76,6 +81,10 @@ const saveStatus = ref('');
 
 const syncing = ref(false);
 const syncStatus = ref("");
+
+const hasUnsavedChanges = ref(false);
+const showUnsavedDialog = ref(false);
+const pendingRoute = ref<(() => void) | null>(null);
 
 const localConfig = ref({
     demoBgm: "",
@@ -98,6 +107,19 @@ const loadConfig = async () => {
 
 onMounted(async () => {
     await loadConfig();
+});
+
+watch(localConfig, () => {
+    hasUnsavedChanges.value = true;
+}, { deep: true });
+
+onBeforeRouteLeave((_to, _from, next) => {
+    if (hasUnsavedChanges.value) {
+        showUnsavedDialog.value = true;
+        pendingRoute.value = next;
+    } else {
+        next();
+    }
 });
 
 const handleSyncClick = async () => {
@@ -127,12 +149,26 @@ const handleSaveClick = async () => {
         await screenSettingsService.saveScreenSetting('demo', 'demo-screen-settings', payload);
         await loadConfig();
         saveStatus.value = '保存しました';
+        hasUnsavedChanges.value = false;
     } catch (err) {
         console.error('Failed to save demo config', err);
         saveStatus.value = '保存に失敗しました';
     } finally {
         saving.value = false;
     }
+};
+
+const handleDiscardChanges = () => {
+    showUnsavedDialog.value = false;
+    hasUnsavedChanges.value = false;
+    if (pendingRoute.value) {
+        pendingRoute.value();
+    }
+};
+
+const handleCancelDiscard = () => {
+    showUnsavedDialog.value = false;
+    pendingRoute.value = null;
 };
 </script>
 

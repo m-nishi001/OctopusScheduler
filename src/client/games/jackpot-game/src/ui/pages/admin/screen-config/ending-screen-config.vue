@@ -134,15 +134,25 @@
             </div>
         </div>
     </div>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-top:24px;">
+        <button class="admin-btn" @click="handleSaveClick" :disabled="saving">保存</button>
+        <button class="admin-btn" @click="handleSyncClick" :disabled="syncing">同期</button>
+        <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
+    </div>
+
+    <UnsavedChangesDialog :visible="showUnsavedDialog" @discard="discardChanges" @cancel="cancelNavigation" />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import type { OpeningContent } from '@model/domains/screen-config/opening-screen-setting';
 import type { Asset } from "@model/domains/drive-data/asset-data";
+import UnsavedChangesDialog from '../components/UnsavedChangesDialog.vue';
+import { onBeforeRouteLeave } from 'vue-router';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -155,6 +165,10 @@ const saving = ref(false);
 const saveStatus = ref('');
 const syncing = ref(false);
 const syncStatus = ref("");
+
+const hasUnsavedChanges = ref(false);
+const showUnsavedDialog = ref(false);
+const pendingRoute = ref(null as any);
 
 const localConfig = ref({
     bgmAssetId: "",
@@ -205,9 +219,34 @@ const loadConfig = async () => {
 
 onMounted(async () => {
     await Promise.all([loadConfig(), fetchAssets()]);
+    hasUnsavedChanges.value = false; // 初期ロード後リセット
 });
 
-const onBgmChange = async (e: Event) => {
+watch(localConfig, () => {
+    hasUnsavedChanges.value = true;
+}, { deep: true });
+
+onBeforeRouteLeave((_to, _from, next) => {
+    if (hasUnsavedChanges.value) {
+        showUnsavedDialog.value = true;
+        pendingRoute.value = next;
+    } else {
+        next();
+    }
+});
+
+const discardChanges = () => {
+    showUnsavedDialog.value = false;
+    tempAssets.length = 0; // アップロードアセットを破棄
+    if (pendingRoute.value) {
+        pendingRoute.value();
+    }
+};
+
+const cancelNavigation = () => {
+    showUnsavedDialog.value = false;
+    pendingRoute.value = null;
+}; const onBgmChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
@@ -268,11 +307,7 @@ const saveDialog = async () => {
         localConfig.value.contents.splice(editingIndex.value, 1, JSON.parse(JSON.stringify(dialogContent.value)));
     }
     closeDialog();
-
-    await handleSaveClick();
-};
-
-const onDialogImageChange = async (e: Event) => {
+}; const onDialogImageChange = async (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) {
         const dto = await assetService.createDriveDataDtoFromFile(file);
@@ -294,17 +329,13 @@ const moveUp = async (idx: number) => {
     if (idx <= 0) return;
     const arr = localConfig.value.contents;
     [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
-    await handleSaveClick();
 };
 
 const moveDown = async (idx: number) => {
     const arr = localConfig.value.contents;
     if (idx >= arr.length - 1) return;
     [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
-    await handleSaveClick();
-};
-
-const getContentTitle = (c: OpeningContent) => {
+}; const getContentTitle = (c: OpeningContent) => {
     if (!c) return '';
 
     if ((c as any).name) return (c as any).name;

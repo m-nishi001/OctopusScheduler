@@ -90,12 +90,16 @@
             </div>
 
             <TestDialog :visible="testDialogVisible" @close="closeTestDialog" />
+
+            <UnsavedChangesDialog :visible="showUnsavedDialog" @discard="handleDiscardChanges"
+                @cancel="handleCancelDiscard" />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
@@ -103,6 +107,7 @@ import { ScreenConfigService } from '@model/applications/screen-config/screen-co
 // test-dialog.vue lives as a sibling in the same folder, use a relative import so the
 // resolver finds it regardless of path alias config
 import TestDialog from './test-dialog.vue';
+import UnsavedChangesDialog from '../UnsavedChangesDialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -130,6 +135,10 @@ const syncStatus = ref("");
 // preview UI removed: previewVisible/previewType/previewPrize deprecated
 
 const testDialogVisible = ref(false);
+
+const hasUnsavedChanges = ref(false);
+const showUnsavedDialog = ref(false);
+const pendingRoute = ref<(() => void) | null>(null);
 
 const openTestDialog = () => {
     testDialogVisible.value = true;
@@ -164,6 +173,19 @@ const loadConfig = async () => {
 
 onMounted(async () => {
     await Promise.all([loadConfig(), fetchAssets()]);
+});
+
+watch(localConfig, () => {
+    hasUnsavedChanges.value = true;
+}, { deep: true });
+
+onBeforeRouteLeave((_to, _from, next) => {
+    if (hasUnsavedChanges.value) {
+        showUnsavedDialog.value = true;
+        pendingRoute.value = next;
+    } else {
+        next();
+    }
 });
 
 const handleSyncClick = async () => {
@@ -203,12 +225,27 @@ const handleSaveClick = async () => {
         await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload);
         await loadConfig();
         saveStatus.value = '保存しました';
+        hasUnsavedChanges.value = false;
     } catch (err) {
         console.error('Failed to save main config', err);
         saveStatus.value = '保存に失敗しました';
     } finally {
         saving.value = false;
     }
+};
+
+const handleDiscardChanges = () => {
+    showUnsavedDialog.value = false;
+    hasUnsavedChanges.value = false;
+    // Clear temp assets if any (though this screen doesn't seem to have uploads)
+    if (pendingRoute.value) {
+        pendingRoute.value();
+    }
+};
+
+const handleCancelDiscard = () => {
+    showUnsavedDialog.value = false;
+    pendingRoute.value = null;
 };
 
 const addMemberBgm = () => {

@@ -99,16 +99,21 @@
                     <div class="spinner"></div>
                 </div>
             </div>
+
+            <UnsavedChangesDialog :visible="showUnsavedDialog" @discard="handleDiscardChanges"
+                @cancel="handleCancelDiscard" />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import type { Asset } from "@model/domains/drive-data/asset-data";
+import UnsavedChangesDialog from './UnsavedChangesDialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -137,6 +142,10 @@ const tempAssets: Asset[] = [];
 
 const syncing = ref(false);
 const syncStatus = ref("");
+
+const hasUnsavedChanges = ref(false);
+const showUnsavedDialog = ref(false);
+const pendingRoute = ref<(() => void) | null>(null);
 
 const localConfig = ref({
     homeBgm: "",
@@ -324,6 +333,7 @@ const handleSaveClick = async () => {
         await loadConfig();
         await fetchAssets();
         saveStatus.value = '保存しました';
+        hasUnsavedChanges.value = false;
     } catch (err) {
         console.error('Failed to save home config', err);
         saveStatus.value = '保存に失敗しました';
@@ -362,6 +372,19 @@ onMounted(async () => {
     await Promise.all([loadConfig(), fetchAssets()]);
 });
 
+watch(localConfig, () => {
+    hasUnsavedChanges.value = true;
+}, { deep: true });
+
+onBeforeRouteLeave((_to, _from, next) => {
+    if (hasUnsavedChanges.value) {
+        showUnsavedDialog.value = true;
+        pendingRoute.value = next;
+    } else {
+        next();
+    }
+});
+
 onUnmounted(() => {
     stopPreview();
 });
@@ -379,6 +402,20 @@ const handleSyncClick = async () => {
     } finally {
         syncing.value = false;
     }
+};
+
+const handleDiscardChanges = () => {
+    showUnsavedDialog.value = false;
+    tempAssets.length = 0; // Clear uploaded assets
+    hasUnsavedChanges.value = false;
+    if (pendingRoute.value) {
+        pendingRoute.value();
+    }
+};
+
+const handleCancelDiscard = () => {
+    showUnsavedDialog.value = false;
+    pendingRoute.value = null;
 };
 </script>
 
