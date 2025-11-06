@@ -79,6 +79,9 @@ export default {
 		// track created object URLs so they can be revoked on unmount
 		const createdUrls: string[] = [];
 
+		// BGM audio instance
+		const bgmAudio = ref<HTMLAudioElement | null>(null);
+
 		onMounted(async () => {
 			// fetch raw config (may use differing key names depending on admin UI)
 			const cfg = await screenSettingsService.fetchScreenSetting('description', 'description-screen-settings');
@@ -125,10 +128,10 @@ export default {
 						try {
 							const bgmUrl = URL.createObjectURL(bgmAsset.blob);
 							createdUrls.push(bgmUrl);
-							const audio = new Audio(bgmUrl);
-							audio.loop = true;
+							bgmAudio.value = new Audio(bgmUrl);
+							bgmAudio.value.loop = true;
 							// best-effort play (may be blocked by browser autoplay policies)
-							void audio.play().catch(() => { });
+							void bgmAudio.value.play().catch(() => { });
 						} catch (e) {
 							// ignore bgm errors
 						}
@@ -149,6 +152,10 @@ export default {
 					currentSlide.value = null;
 				}
 			} else {
+				// Stop BGM before transitioning to draw screen
+				if (bgmAudio.value) {
+					bgmAudio.value.pause();
+				}
 				router.push('/jackpot-draw');
 			}
 		};
@@ -158,6 +165,11 @@ export default {
 		onMounted(() => window.addEventListener('keydown', handleKey));
 		onUnmounted(() => {
 			try { window.removeEventListener('keydown', handleKey); } catch { }
+
+			// Stop BGM if playing
+			if (bgmAudio.value) {
+				bgmAudio.value.pause();
+			}
 
 			try {
 				for (const el of elements.value) {
