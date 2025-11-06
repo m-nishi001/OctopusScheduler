@@ -12,6 +12,14 @@
         :disabled="!selectedMembers.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
       </button>
+      <button type="button" class="admin-btn icon-only export-icon" @click.prevent="exportFormatCsv"
+        title="Export format CSV">
+        <span class="emoji">📄</span>
+      </button>
+      <button type="button" class="admin-btn icon-only upload-icon" @click.prevent="openDataUploadDialog"
+        title="Upload data">
+        <span class="emoji">📤</span>
+      </button>
 
     </div>
     <div v-if="members.length" class="list-controls">
@@ -154,6 +162,8 @@
     </div>
   </div>
   <AssetSelectionDialog v-if="showAssetDialog" @close="showAssetDialog = false" @selected="onAssetsSelected" />
+  <DataUploadDialog v-if="showDataUploadDialog" :show="showDataUploadDialog" type="member"
+    @close="showDataUploadDialog = false" @refresh="fetchMembers" />
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
@@ -166,6 +176,7 @@ import type { MemberDto } from "@model/applications/member/dto/member-dto";
 import { container } from 'tsyringe';
 import { IMemberRepositoryToken } from '@model/domains/member/repository/i-member-repository';
 import AssetSelectionDialog from './components/asset-selection-dialog.vue';
+import DataUploadDialog from './components/data-upload-dialog.vue';
 import { GasFunctionService } from 'packages/common-lib/google-apps-script/gas-script-service';
 const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
@@ -603,6 +614,20 @@ watch(modalPhotoMode, () => {
     tempAsset.value = null;
   }
 });
+
+const exportFormatCsv = () => {
+  const csv = '名前,ランク,写真ファイル名\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'members_format.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const showDataUploadDialog = ref(false);
+const openDataUploadDialog = () => { showDataUploadDialog.value = true; };
 </script>
 
 <style scoped>

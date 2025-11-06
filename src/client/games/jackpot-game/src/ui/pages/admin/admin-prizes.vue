@@ -13,6 +13,14 @@
         :disabled="!selectedPrizes.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
       </button>
+      <button type="button" class="admin-btn icon-only export-icon" @click.prevent="exportFormatCsv"
+        title="Export format CSV">
+        <span class="emoji">📄</span>
+      </button>
+      <button type="button" class="admin-btn icon-only upload-icon" @click.prevent="openDataUploadDialog"
+        title="Upload data">
+        <span class="emoji">📤</span>
+      </button>
 
 
     </div>
@@ -317,6 +325,8 @@
       </div>
     </div>
   </div>
+  <DataUploadDialog v-if="showDataUploadDialog" :show="showDataUploadDialog" type="prize"
+    @close="showDataUploadDialog = false" @refresh="fetchPrizes" />
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
@@ -330,6 +340,7 @@ import { IPrizeRepositoryToken } from '@model/domains/prize/repository/i-prize-r
 const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
 const prizeService = container.resolve(PrizeService);
+import DataUploadDialog from './components/data-upload-dialog.vue';
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
 const assets = ref<any[]>([]);
@@ -959,6 +970,20 @@ onBeforeUnmount(() => {
     objectUrlMap.clear();
   } catch { }
 });
+
+const exportFormatCsv = () => {
+  const csv = '名前,ランク,アニメーション,画像ファイル名,BGM1ファイル名,BGM2ファイル名\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'prizes_format.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const showDataUploadDialog = ref(false);
+const openDataUploadDialog = () => { showDataUploadDialog.value = true; };
 </script>
 
 <style scoped>
