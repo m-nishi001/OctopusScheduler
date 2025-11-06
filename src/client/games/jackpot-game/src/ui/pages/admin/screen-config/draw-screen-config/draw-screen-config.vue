@@ -173,6 +173,7 @@ const loadConfig = async () => {
 
 onMounted(async () => {
     await Promise.all([loadConfig(), fetchAssets()]);
+    hasUnsavedChanges.value = false;
 });
 
 watch(localConfig, () => {

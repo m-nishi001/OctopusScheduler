@@ -107,6 +107,7 @@ const loadConfig = async () => {
 
 onMounted(async () => {
     await loadConfig();
+    hasUnsavedChanges.value = false;
 });
 
 watch(localConfig, () => {
