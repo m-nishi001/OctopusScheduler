@@ -12,6 +12,8 @@ import { useAudio } from '@shared-composables/use-audio';
 import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 import { defineExpose } from 'vue';
 import type { AnimationRef } from './animation-types';
+import { container } from 'tsyringe';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
 
 export type RouletteRef = AnimationRef;
 
@@ -33,6 +35,7 @@ export default {
         // useAudio を使って BGM を再生（object URL 管理は useAudio 側で行う）
         const { load: loadBgm, play: playBgm, stop: stopBgm } = useAudio({ mode: 'html-audio' });
         const images: (HTMLImageElement | null)[] = [];
+        const assetService = container.resolve(AssetDataService);
 
         const sectors = Math.max(8, props.prizes.length);
         const sectorAngle = (Math.PI * 2) / sectors;
@@ -49,21 +52,110 @@ export default {
 
         const loadImages = async () => {
             for (const prize of props.prizes) {
-                if (prize.imageAssetId) {
+                if (prize.imageDataUrl) {
                     const img = new Image();
                     img.crossOrigin = 'anonymous';
-                    img.src = prize.imageAssetId;
+                    img.src = prize.imageDataUrl;
                     const loadedImg = await new Promise<HTMLImageElement | null>((resolve) => {
-                        img.onload = () => resolve(img);
-                        img.onerror = () => resolve(null);
+                        img.onload = () => {
+                            console.log('Loaded image from imageDataUrl for prize:', prize.id);
+                            resolve(img);
+                        };
+                        img.onerror = () => {
+                            console.error('Failed to load image from imageDataUrl for prize:', prize.id);
+                            resolve(null);
+                        };
                     });
                     images.push(loadedImg);
+                } else if (prize.imageAssetId) {
+                    try {
+                        const asset = await assetService.getAssetDataById(prize.imageAssetId);
+                        if (asset && asset.blob) {
+                            const img = new Image();
+                            img.crossOrigin = 'anonymous';
+                            const objectUrl = URL.createObjectURL(asset.blob);
+                            img.src = objectUrl;
+                            const loadedImg = await new Promise<HTMLImageElement | null>((resolve) => {
+                                img.onload = () => {
+                                    console.log('Loaded image from asset for prize:', prize.id);
+                                    URL.revokeObjectURL(objectUrl); // Clean up after loading
+                                    resolve(img);
+                                };
+                                img.onerror = () => {
+                                    console.error('Failed to load image from asset for prize:', prize.id);
+                                    URL.revokeObjectURL(objectUrl);
+                                    resolve(null);
+                                };
+                            });
+                            images.push(loadedImg);
+                        } else {
+                            console.warn('Asset not found for prize:', prize.id, 'using default');
+                            // Use default image if asset not found
+                            const img = new Image();
+                            img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjY2NjIi8+CiAgPHRleHQgeD0iMzAiIHk9IjM1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiMwMDAiPlByaXplPC90ZXh0Pgo8L3N2Zz4=';
+                            const loadedImg = await new Promise<HTMLImageElement | null>((resolve) => {
+                                img.onload = () => {
+                                    console.log('Loaded default image for prize:', prize.id);
+                                    resolve(img);
+                                };
+                                img.onerror = () => {
+                                    console.error('Failed to load default image for prize:', prize.id);
+                                    resolve(null);
+                                };
+                            });
+                            images.push(loadedImg);
+                        }
+                    } catch (error) {
+                        console.error('Failed to load image for prize:', prize.id, error);
+                        // Use default image on error
+                        const img = new Image();
+                        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjY2NjIi8+CiAgPHRleHQgeD0iMzAiIHk9IjM1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiMwMDAiPlByaXplPC90ZXh0Pgo8L3N2Zz4=';
+                        const loadedImg = await new Promise<HTMLImageElement | null>((resolve) => {
+                            img.onload = () => {
+                                console.log('Loaded default image on error for prize:', prize.id);
+                                resolve(img);
+                            };
+                            img.onerror = () => {
+                                console.error('Failed to load default image on error for prize:', prize.id);
+                                resolve(null);
+                            };
+                        });
+                        images.push(loadedImg);
+                    }
                 } else {
-                    images.push(null);
+                    console.warn('No image for prize:', prize.id, 'using default');
+                    // Use default image if no image provided
+                    const img = new Image();
+                    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjY2NjIi8+CiAgPHRleHQgeD0iMzAiIHk9IjM1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiMwMDAiPlByaXplPC90ZXh0Pgo8L3N2Zz4=';
+                    const loadedImg = await new Promise<HTMLImageElement | null>((resolve) => {
+                        img.onload = () => {
+                            console.log('Loaded default image for no image prize:', prize.id);
+                            resolve(img);
+                        };
+                        img.onerror = () => {
+                            console.error('Failed to load default image for no image prize:', prize.id);
+                            resolve(null);
+                        };
+                    });
+                    images.push(loadedImg);
                 }
             }
             while (images.length < sectors) {
-                images.push(null);
+                console.log('Filling remaining sectors with default image');
+                // Fill remaining sectors with default image
+                const img = new Image();
+                img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjY2NjIi8+CiAgPHRleHQgeD0iMzAiIHk9IjM1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiMwMDAiPlByaXplPC90ZXh0Pgo8L3N2Zz4=';
+                const loadedImg = await new Promise<HTMLImageElement | null>((resolve) => {
+                    img.onload = () => {
+                        console.log('Loaded default image for remaining sector');
+                        resolve(img);
+                    };
+                    img.onerror = () => {
+                        console.error('Failed to load default image for remaining sector');
+                        resolve(null);
+                    };
+                });
+                images.push(loadedImg);
             }
         };
 
@@ -91,22 +183,58 @@ export default {
                 ctx.stroke();
 
                 const midAngle = startAngle + sectorAngle / 2;
-                const imgX = centerX + Math.cos(midAngle) * (radius * 0.6);
-                const imgY = centerY + Math.sin(midAngle) * (radius * 0.6);
-                const imgSize = 60;
+                // Place images closer to outer rim so they don't overlap the center
+                const desiredImgSize = 80;
 
                 const img = images[i];
                 if (img) {
+                    // Define an inner/outer radius for the image band so images sit in a ring
+                    // Fill sectors from near-center to almost outer rim so images cover whole wedge
+                    const innerRadius = Math.max(6, Math.floor(radius * 0.05));
+                    const outerRadius = Math.min(radius - 6, Math.floor(radius * 0.98));
+
+                    // Estimate angular half-width of the image at the current distance if needed
+
+                    // Clip to a sector-shaped path (ring wedge) so the image never spills into neighbors
                     ctx.save();
-                    ctx.translate(imgX, imgY);
+                    ctx.beginPath();
+                    // outer arc from start to end
+                    ctx.moveTo(centerX + Math.cos(startAngle) * innerRadius, centerY + Math.sin(startAngle) * innerRadius);
+                    ctx.arc(centerX, centerY, outerRadius, startAngle, endAngle);
+                    // line to inner arc end
+                    ctx.lineTo(centerX + Math.cos(endAngle) * innerRadius, centerY + Math.sin(endAngle) * innerRadius);
+                    // inner arc back (reverse)
+                    ctx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+                    ctx.closePath();
+                    ctx.clip();
+
+                    // Compute a radial band that the image should fill
+                    const radialCenter = (innerRadius + outerRadius) / 2;
+                    const halfSectorAngleLocal = sectorAngle / 2;
+
+                    // Compute available width at radialCenter for the sector (tangential span)
+                    const availableWidth = Math.max(4, 2 * radialCenter * Math.tan(halfSectorAngleLocal) * 0.98); // 98% margin
+                    const availableHeight = Math.max(4, outerRadius - innerRadius - 2); // small vertical padding
+
+                    // Preserve aspect ratio and perform 'cover' scaling so the image fills the wedge
+                    const imgNaturalW = img.naturalWidth || img.width || desiredImgSize;
+                    const imgNaturalH = img.naturalHeight || img.height || desiredImgSize;
+                    const scale = Math.max(availableWidth / imgNaturalW, availableHeight / imgNaturalH);
+                    const drawW = imgNaturalW * scale;
+                    const drawH = imgNaturalH * scale;
+
+                    // Draw centered at radialCenter along midAngle, rotated so width follows tangential direction
+                    const drawCenterX = centerX + Math.cos(midAngle) * radialCenter;
+                    const drawCenterY = centerY + Math.sin(midAngle) * radialCenter;
+
+                    ctx.save();
+                    // Clip already applied; now transform and draw
+                    ctx.translate(drawCenterX, drawCenterY);
                     ctx.rotate(midAngle + Math.PI / 2);
-                    ctx.drawImage(img, -imgSize / 2, -imgSize / 2, imgSize, imgSize);
+                    ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
                     ctx.restore();
-                } else {
-                    ctx.fillStyle = '#000';
-                    ctx.font = '16px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(props.prizes[i]?.name || `Prize ${i + 1}`, imgX, imgY);
+
+                    ctx.restore();
                 }
             }
 
@@ -118,12 +246,11 @@ export default {
             ctx.beginPath();
             ctx.arc(centerX, centerY, 30, 0, Math.PI * 2);
             ctx.fill();
+            // Center decoration left intentionally empty (no text)
             ctx.fillStyle = '#000';
             ctx.shadowColor = '#FFD700';
             ctx.shadowBlur = 10;
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('JACKPOT', centerX, centerY + 5);
+            // Text removed as requested
         };
 
         const animate = () => {
