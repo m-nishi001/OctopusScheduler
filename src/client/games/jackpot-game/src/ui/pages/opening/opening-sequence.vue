@@ -176,6 +176,8 @@ export default {
             }
 
             if (!cancelled && props.autoNavigate) {
+                // Hide all elements before navigating to prevent visual artifacts
+                elements.forEach(el => gsap.set(el, { opacity: 0 }));
                 router.push(props.nextRoute);
             }
         };
