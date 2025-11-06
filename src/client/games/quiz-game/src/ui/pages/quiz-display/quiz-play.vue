@@ -18,7 +18,7 @@
             </div>
         </header>
         <section class="question-area" aria-live="polite">
-            <div class="options-grid" role="list">
+            <div class="options-grid" :class="{ 'two-options': optionsCount === 2 }" role="list">
                 <div v-for="(option, index) in optionsWithImageUrls" :key="index" role="listitem">
                     <button class="option-button" :style="{ '--option-color': option.color }"
                         @click="selectOption(index)" :aria-label="option.text">
@@ -85,6 +85,8 @@ const optionsWithImageUrls = computed((): { no: number; text: string; color: str
         };
     });
 });
+
+const optionsCount = computed(() => optionsWithImageUrls.value.length);
 
 onMounted(async () => {
     const startQuizUseCase = container.resolve(StartQuizUseCase);
@@ -302,6 +304,40 @@ body::-webkit-scrollbar {
     /* allow rows to be smaller when space is constrained */
     height: 100%;
     /* fill parent (.question-area) which is flex:1 */
+}
+
+.options-grid.two-options {
+    grid-template-rows: 1fr;
+    grid-auto-rows: unset;
+}
+
+/* When exactly two options are present, make each grid cell and its button fill the
+   available height so the two options occupy the full area (no bottom gap). */
+.options-grid.two-options>div {
+    display: flex;
+    align-items: stretch;
+}
+
+.options-grid.two-options .option-button {
+    /* let the button stretch to full height of the grid cell */
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Remove the fixed aspect-ratio for image-wrapper in two-option layout so images
+   can expand vertically to fill the card. */
+.options-grid.two-options .image-wrapper {
+    aspect-ratio: auto;
+    height: 100%;
+    min-height: 0;
+    /* allow shrinking inside flex */
+}
+
+.options-grid.two-options .option-image {
+    object-fit: cover;
+    /* better visual fill when expanding */
+    height: 100%;
 }
 
 .option-button {
