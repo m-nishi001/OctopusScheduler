@@ -40,7 +40,7 @@ import type { Component } from 'vue';
 import { useRouter } from 'vue-router';
 import MainLayout from '../common/main-layout.vue';
 import MemberDrawAnimation, { type MemberAnimRef } from './member-draw-animation.vue';
-import RouletteAnimation from './roulette-animation.vue';
+import RouletteAnimation from './roulette/roulette-animation.vue';
 import SlotAnimation from './slot-animation.vue';
 import type { AnimationRef } from './animation-types';
 import DrawResultDialog from './prize-winning-dialog.vue';
