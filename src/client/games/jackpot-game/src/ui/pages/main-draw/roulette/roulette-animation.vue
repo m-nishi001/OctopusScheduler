@@ -1,5 +1,5 @@
 <template>
-    <div class="roulette-container" :class="{ spinning }" tabindex="0" @keydown.enter="startSpin()">
+    <div class="roulette-container" :class="{ spinning }" tabindex="0" @keydown.enter="enterHandler">
         <canvas ref="canvas" width="500" height="500"></canvas>
         <div class="indicator">▼</div>
         <div v-if="showResult" class="result">{{ selectedPrize?.name }}</div>
@@ -7,22 +7,107 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import { useRouletteAnimation } from './roulette-animation-logic.ts';
+import { defineComponent, ref, computed, onUnmounted, onMounted } from 'vue';
+import { useRouletteAnimation, type RenderPrize, type RouletteAnimationEmits, type RouletteAnimationProps } from './roulette-animation-logic';
+import { container } from 'tsyringe';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 
 export default defineComponent({
     name: 'RouletteAnimation',
     props: {
         prizes: { type: Array as () => PrizeDto[], default: () => [] },
-        selectedPrize: { type: Object as () => PrizeDto | null, default: null },
+        selectedPrize: { type: Object as () => PrizeDto, required: true },
         showResult: { type: Boolean, default: false },
     },
     emits: ['stopped'],
     setup(props, { emit }) {
-        const { canvas, startSpin, stopSpin, runAutoReroll, spinning, sectorRanges } = useRouletteAnimation(props, emit);
+        const assetService = container.resolve(AssetDataService);
 
-        return { canvas, startSpin, stopSpin, runAutoReroll, spinning, sectorRanges };
+        let preparedPrizes: RenderPrize[] = [];
+
+        const prepareRenderPrizes = async (): Promise<RenderPrize[]> => {
+            try {
+                const prepared: RenderPrize[] = await Promise.all(
+                    props.prizes.map(async (p) => {
+                        const copy = { ...p } as RenderPrize;
+                        if (copy.imageAssetId) {
+                            try {
+                                const asset = await assetService.getAssetDataById(copy.imageAssetId);
+                                if (asset && asset.blob) {
+                                    const objectUrl = URL.createObjectURL(asset.blob);
+                                    copy.imageSrc = objectUrl;
+                                }
+                            } catch (e) {
+                                console.warn('Failed to prepare asset for prize', copy.id, e);
+                            }
+                        }
+                        return copy;
+                    })
+                );
+
+                return prepared;
+            } catch (e) {
+                console.error('Error preparing prize images', e);
+                return [];
+            }
+        };
+
+        const rouletteProps: RouletteAnimationProps = {
+            prizes: props.prizes.map((p) => p as RenderPrize),
+            selectedPrize: props.selectedPrize as RenderPrize,
+            showResult: props.showResult,
+        };
+
+        const typedEmit: RouletteAnimationEmits = (event, prizeId) => {
+            emit(event, prizeId);
+        };
+
+        const { canvas, startSpin, stopSpin, spinning, updatePrizes } = useRouletteAnimation(
+            rouletteProps,
+            typedEmit,
+            { initialPrizes: rouletteProps.prizes }
+        );
+
+        const canStop = ref(false);
+
+        onUnmounted(() => {
+            for (const p of preparedPrizes) {
+                try {
+                    if (p.imageSrc) {
+                        URL.revokeObjectURL(p.imageSrc);
+                    }
+                } catch { }
+            }
+        });
+
+        onMounted(async () => {
+            preparedPrizes = await prepareRenderPrizes();
+            try {
+                await updatePrizes(preparedPrizes as unknown as PrizeDto[]);
+            } catch (e) {
+                console.warn('Failed to update prizes on roulette hook', e);
+            }
+        });
+
+        const handleStart = () => {
+            startSpin();
+            canStop.value = false;
+            setTimeout(() => {
+                canStop.value = true;
+            }, 1000);
+        };
+
+        const handleStop = () => {
+            if (canStop.value) {
+                stopSpin();
+                canStop.value = false;
+            }
+        };
+
+        const enterHandler = computed(() => (spinning.value ? handleStop : handleStart));
+
+        return { canvas, startSpin, stopSpin, spinning, enterHandler, preparedPrizes };
     }
 });
 </script>

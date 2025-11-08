@@ -7,5 +7,4 @@ export interface Prize {
   bgm2AssetId?: string;
   animation?: string;
   order: number;
-  imageDataUrl?: string;
 }

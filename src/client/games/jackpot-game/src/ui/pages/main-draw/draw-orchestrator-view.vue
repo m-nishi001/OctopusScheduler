@@ -178,15 +178,43 @@ export default {
                 loadBgmBlob(finalPrize?.bgm2AssetId || null),
             ]);
 
-            if (animationRef.value?.runAutoReroll) {
-                await animationRef.value.runAutoReroll({
-                    dummyPrizeId: dummyPrize?.id || null,
-                    finalPrizeId: finalPrizeId || null,
-                    dummyDuration: 2000,
-                    finalDuration: 2000,
-                    bgm1Url: bgm1Blob,
-                    bgm2Url: bgm2Blob,
-                });
+            // Use the base AnimationRef APIs (startSpin/stopSpin) to perform
+            // the dummy -> final reroll sequence instead of an explicit
+            // runAutoReroll method.
+            const dummyDurationMs = 2000;
+            const finalDurationMs = 2000;
+
+            try {
+                if (animationRef.value?.startSpin) {
+                    animationRef.value.startSpin(bgm1Blob);
+                }
+
+                if (animationRef.value?.stopSpin) {
+                    await animationRef.value.stopSpin(
+                        dummyDurationMs / 1000,
+                        dummyPrize?.id || null,
+                    );
+                }
+
+                // small gap between dummy and final
+                await new Promise((r) => setTimeout(r, 1000));
+
+                if (animationRef.value?.startSpin) {
+                    // start final BGM (if any)
+                    animationRef.value.startSpin(bgm2Blob);
+                }
+
+                if (animationRef.value?.stopSpin) {
+                    await animationRef.value.stopSpin(
+                        finalDurationMs / 1000,
+                        finalPrizeId
+                    );
+                }
+            } catch (e) {
+                // If the animation component does not fully support the
+                // sequence we attempt, fall back to no-op (caller will still
+                // handle finalization via events).
+                console.warn('Kakuhen reroll sequence failed:', e);
             }
         };
 

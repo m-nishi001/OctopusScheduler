@@ -54,7 +54,6 @@ export type MemberAnimRef = {
     start?: (speed?: number) => void;
     stopAt?: (id: string | null) => Promise<string | null>;
     stopDraw?: () => Promise<string | null>;
-    runAutoReroll?: (opts?: { dummyId?: string | null; finalId?: string | null; dummyMs?: number }) => Promise<string | null>;
     // activeIndex may be exposed as part of the public API in the future
 };
 
@@ -445,19 +444,7 @@ export default {
             return id;
         };
 
-        const runAutoReroll = async (opts: { dummyId?: string | null; finalId?: string | null; dummyMs?: number }): Promise<string | null> => {
-            const { dummyId = null, finalId = null, dummyMs = 2000 } = opts || {};
-            start();
-            await new Promise((r) => setTimeout(r, dummyMs));
-            await stopAt(dummyId);
-            // short pause
-            await new Promise(r => setTimeout(r, 600));
-            start();
-            await new Promise(r => setTimeout(r, 80));
-            const final = await stopAt(finalId);
-            activeIndex.value = displayMembers.value.findIndex((m) => m.id === final);
-            return final;
-        };
+        // runAutoReroll removed — orchestrator should use start/stop APIs instead
 
         onMounted(async () => {
             buildDisplay();
@@ -475,7 +462,7 @@ export default {
             if (tweenRef.tween) tweenRef.tween.kill();
             gsap.killTweensOf(track.value);
             stopActiveLoop();
-            for (const url of memberImageMap.values()) try { URL.revokeObjectURL(url); } catch (e) { }
+            for (const url of Array.from(memberImageMap.values())) try { URL.revokeObjectURL(url); } catch (e) { }
             window.removeEventListener('resize', positionStartButton);
         });
 
@@ -523,7 +510,7 @@ export default {
             emit('start');
         };
 
-        return { viewport, track, startButtonContainer, nextBtn, displayMembers, memberImageMap, defaultAvatar, start, stopAt, runAutoReroll, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerAssetId, winnerName, winnerTitle, winnerImageUrl, closeWinnerDialog };
+        return { viewport, track, startButtonContainer, nextBtn, displayMembers, memberImageMap, defaultAvatar, start, stopAt, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerAssetId, winnerName, winnerTitle, winnerImageUrl, closeWinnerDialog };
     }
 };
 </script>

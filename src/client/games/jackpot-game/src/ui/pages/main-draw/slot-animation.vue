@@ -92,45 +92,7 @@ export default {
             });
         };
 
-    const runAutoReroll = async (opts: { dummyPrizeId: string | null; finalPrizeId: string | null; dummyDuration: number; finalDuration: number; bgm1Url: Blob | null; bgm2Url: Blob | null }) => {
-            // シンプルに実装: ダミースピン後、最終停止
-            if (opts.bgm1Url) {
-                try {
-                    await stopBgm();
-                    await loadBgm(opts.bgm1Url);
-                    await playBgm();
-                } catch { /* ignore */ }
-            }
-            spinning.value = true;
-            reels.value.forEach(reel => reel.speed = 10);
-            await new Promise(resolve => setTimeout(resolve, opts.dummyDuration));
-            spinning.value = false;
-            // ダミー停止
-            if (opts.dummyPrizeId) {
-                const targetIndex = props.prizes.findIndex(p => p.id === opts.dummyPrizeId);
-                reels.value.forEach(reel => reel.offset = - (targetIndex * itemHeight));
-            }
-            emit('stopped', opts.dummyPrizeId);
-
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            if (opts.bgm2Url) {
-                try {
-                    await stopBgm();
-                    await loadBgm(opts.bgm2Url);
-                    await playBgm();
-                } catch { /* ignore */ }
-            }
-            spinning.value = true;
-            reels.value.forEach(reel => reel.speed = 10);
-            await new Promise(resolve => setTimeout(resolve, opts.finalDuration));
-            spinning.value = false;
-            if (opts.finalPrizeId) {
-                const targetIndex = props.prizes.findIndex(p => p.id === opts.finalPrizeId);
-                reels.value.forEach(reel => reel.offset = - (targetIndex * itemHeight));
-            }
-            emit('stopped', opts.finalPrizeId);
-        };
+        // runAutoReroll removed — use startSpin/stopSpin flow via parent orchestrator if needed
 
         // アニメーションループ
         const animate = () => {
@@ -156,7 +118,6 @@ export default {
         defineExpose<AnimationRef>({
             startSpin,
             stopSpin,
-            runAutoReroll,
         });
 
         return { spinning, reels, allPrizes };

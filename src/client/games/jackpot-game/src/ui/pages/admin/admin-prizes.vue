@@ -92,7 +92,7 @@
                 <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange" accept="image/*"
                   class="admin-input" />
                 <span v-if="editImageMode === 'upload' && editImageFilename" class="file-name">{{ editImageFilename
-                }}</span>
+                  }}</span>
               </div>
             </div>
           </div>
@@ -112,7 +112,7 @@
                 <input v-if="editBgm1Mode === 'upload'" type="file" @change="onEditBgm1Change" accept="audio/*"
                   class="admin-input" />
                 <span v-if="editBgm1Mode === 'upload' && editBgm1Filename" class="file-name">{{ editBgm1Filename
-                }}</span>
+                  }}</span>
               </div>
             </div>
           </div>
@@ -132,7 +132,7 @@
                 <input v-if="editBgm2Mode === 'upload'" type="file" @change="onEditBgm2Change" accept="audio/*"
                   class="admin-input" />
                 <span v-if="editBgm2Mode === 'upload' && editBgm2Filename" class="file-name">{{ editBgm2Filename
-                }}</span>
+                  }}</span>
               </div>
             </div>
           </div>
@@ -196,7 +196,7 @@
                 <input v-if="newImageMode === 'upload'" type="file" @change="onNewImageChange" accept="image/*"
                   class="admin-input" />
                 <span v-if="newImageMode === 'upload' && newImageFilename" class="file-name">{{ newImageFilename
-                }}</span>
+                  }}</span>
               </div>
             </div>
           </div>
@@ -330,7 +330,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
-import type { Asset } from "@model/domains/drive-data/asset-data";
+import { Asset } from "@model/domains/drive-data/asset-data";
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { PrizeService } from '@model/applications/prize/prize-service';
 import type { IPrizeRepository } from '@model/domains/prize/repository/i-prize-repository';
@@ -545,6 +545,7 @@ const fetchPrizes = async () => {
   try {
     const fetchedPrizes = await prizeRepo.getPrizes();
 
+    // Prepare object URLs for prizes that reference assets via imageAssetId.
     for (const prize of fetchedPrizes) {
       if (prize.imageAssetId) {
         const asset = await assetDataService.getAssetDataById(prize.imageAssetId);
@@ -718,33 +719,10 @@ const editPrize = async (prize: any) => {
 
       console.warn('Failed to fetch image asset for edit select:', e);
     }
-  } else if (prize.imageDataUrl) {
-
-    editImageMode.value = 'select';
-    editImageAssetId.value = '';
-    try {
-      const parts = prize.imageDataUrl.split(',');
-      const meta = parts[0] || '';
-      const isBase64 = meta.indexOf(';base64') !== -1;
-      const m = meta.match(/data:([^;]+)/);
-      const mime = m ? m[1] : 'application/octet-stream';
-      let raw = '';
-      if (isBase64) {
-        raw = atob(parts[1] || '');
-      } else {
-        raw = decodeURIComponent(parts[1] || '');
-      }
-      const u8 = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) u8[i] = raw.charCodeAt(i);
-      const b = new Blob([u8], { type: mime });
-      editImagePreviewUrl.value = URL.createObjectURL(b);
-      editImagePreview.value = editImagePreviewUrl.value;
-    } catch (e) {
-
-      console.warn('failed to convert prize.imageDataUrl to object URL', e);
-      editImagePreview.value = prize.imageDataUrl;
-    }
   } else {
+    // No asset for this prize; default to upload mode. Any legacy inline data
+    // URL should be handled by infrastructure migration; client does not
+    // process inline data URLs.
     editImageMode.value = 'upload';
   }
   editImageFilename.value = '';
@@ -815,6 +793,9 @@ const saveEdit = async () => {
     editTempBgm2Asset.value = updatedAssets[0];
     bgm2AssetId = editTempBgm2Asset.value.id;
   }
+
+  // No inline data URL migration here; migration should be handled by
+  // infrastructure so the client does not attempt to process inline data URLs on save.
   const updatedPrize = {
     ...editPrizeData.value,
     name: editName.value,
