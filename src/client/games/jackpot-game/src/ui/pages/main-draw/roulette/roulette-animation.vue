@@ -30,16 +30,15 @@ export default defineComponent({
                 const prepared: RouletteItem[] = await Promise.all(
                     props.prizes.map(async (p) => {
                         const copy: RouletteItem = {
-                            id: (p as any).id,
-                            name: (p as any).name ?? (p as any).title ?? "",
+                            id: p.id,
+                            name: p.name,
                             imageUrl: undefined,
                         };
-                        if ((p as any).imageAssetId) {
+                        if (p.imageAssetId) {
                             try {
-                                const asset = await assetService.getAssetDataById((p as any).imageAssetId);
+                                const asset = await assetService.getAssetDataById(p.imageAssetId);
                                 if (asset && asset.blob) {
-                                    const objectUrl = URL.createObjectURL(asset.blob);
-                                    copy.imageUrl = objectUrl;
+                                    copy.imageUrl = URL.createObjectURL(asset.blob);
                                 }
                             } catch (e) {
                                 console.warn('Failed to prepare asset for prize', copy.id, e);
@@ -58,8 +57,8 @@ export default defineComponent({
 
         const rouletteProps: RouletteAnimationProps = {
             // provide a safe initial shape for the hook; images will be updated
-            prizes: props.prizes.map((p) => ({ id: (p as any).id, name: (p as any).name ?? (p as any).title ?? '', imageUrl: undefined } as RouletteItem)),
-            selectedPrize: props.selectedPrize ? ({ id: (props.selectedPrize as any).id, name: (props.selectedPrize as any).name ?? (props.selectedPrize as any).title ?? '', imageUrl: undefined } as RouletteItem) : null,
+            prizes: props.prizes.map((p) => ({ id: p.id, name: p.name, imageUrl: undefined } as RouletteItem)),
+            selectedPrize: props.selectedPrize ? ({ id: props.selectedPrize.id, name: props.selectedPrize.name, imageUrl: undefined } as RouletteItem) : null,
             showResult: props.showResult,
         };
 
