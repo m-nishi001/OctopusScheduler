@@ -16,12 +16,13 @@ import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 
 export default defineComponent({
     name: 'RouletteAnimation',
+    emits: ['stopped'],
     props: {
         prizes: { type: Array as () => PrizeDto[], default: () => [] },
         selectedPrize: { type: Object as () => PrizeDto, required: true },
         showResult: { type: Boolean, default: false },
     },
-    setup(props) {
+    setup(props, { emit }) {
         const assetService = container.resolve(AssetDataService);
 
         const {
@@ -44,9 +45,15 @@ export default defineComponent({
             showResult: stateShowResult.value,
         };
 
-        const { canvas, startSpin, stopSpin, spinning, updatePrizes: logicUpdatePrizes } = useRouletteAnimation(
+        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes } = useRouletteAnimation(
             rouletteProps
         );
+
+        const stopSpin = async (durationSec?: number, targetPrizeId?: string | null) => {
+            const result = await logicStopSpin(durationSec, targetPrizeId);
+            emit('stopped', result);
+            return result;
+        };
 
         onMounted(async () => {
             try {
@@ -67,7 +74,7 @@ export default defineComponent({
 
         const handleStop = () => {
             if (stateCanStop.value) {
-                stopSpin(props.selectedPrize.id);
+                stopSpin(undefined, props.selectedPrize.id);
                 setCanStop(false);
             }
         };

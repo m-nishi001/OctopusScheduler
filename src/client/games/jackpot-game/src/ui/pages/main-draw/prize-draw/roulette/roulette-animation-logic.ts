@@ -51,21 +51,26 @@ export function useRouletteAnimation(
   };
 
   const stopSpin = async (
-    targetRouletteItemId: string,
-    duration: number = 3
-  ) => {
+    durationSec?: number,
+    targetPrizeId?: string | null
+  ): Promise<string | null> => {
+    const targetId = targetPrizeId || null;
+    if (!targetId) {
+      throw new Error("Target prize not specified");
+    }
     if (currentRouletteItems.length === 0) {
       throw new Error("Roulette items not initialized");
     }
     const sectorAngle =
       (Math.PI * 2) / Math.max(8, currentRouletteItems.length);
-    await animator.stopSpin(
-      targetRouletteItemId,
+    const result = await animator.stopSpin(
+      targetId,
       currentRouletteItems,
       sectorAngle,
-      duration
+      durationSec || 3
     );
     await stopBgmAudio();
+    return result;
   };
 
   onMounted(async () => {

@@ -47,11 +47,11 @@ import DrawResultDialog from './prize-winning-dialog.vue';
 import { DrawApplicationService } from '@model/applications/draw/draw-application-service';
 import { PrizeRepository } from '@model/infrastructures/prize-repository';
 import { MemberRepository } from '@model/infrastructures/member-repository';
-import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import type { DrawResultDto } from '@model/applications/draw/dto/draw-result-dto';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { usePrizeDrawState } from './prize-animation-state';
 
 import HalfRemainingDialog from './half-remaining-dialog.vue';
 import EndDialog from './end-dialog.vue';
@@ -61,7 +61,6 @@ export default {
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog },
     setup(_, { emit }) {
         const router = useRouter();
-        const prizes = ref<PrizeDto[]>([]);
         const members = ref<MemberDto[]>([]);
         const latestResult = ref<DrawResultDto | null>(null);
         const drawState = reactive({
@@ -72,8 +71,28 @@ export default {
             halfDialogShown: false,
         });
 
+        // サービス
+        const prizeRepo = container.resolve(PrizeRepository);
+        const memberRepo = container.resolve(MemberRepository);
+        const drawService = container.resolve(DrawApplicationService);
+        const assetService = container.resolve(AssetDataService);
+
+        // 景品抽選状態管理
+        const {
+            prizes,
+            selectedPrize,
+            showResult,
+            updatePrizes,
+            updateSelectedPrize,
+            updateShowResult,
+        } = usePrizeDrawState([], null, false, assetService);
+
+        // アニメーション関連
+        const memberAnimRef = ref<MemberAnimRef | null>(null);
+        const animationRef = ref<AnimationRef | null>(null);
+
         const showPrizeWinningDialog = computed(() => {
-            return drawState.prizeAnimationStopped;
+            return showResult.value;
         });
 
         // DLG が表示されたら1秒間操作を無効化する（表示後1秒経過で Enter 操作を受け付ける）
@@ -136,17 +155,6 @@ export default {
         const currentMemberComponent = ref('MemberDrawAnimation');
         const currentPrizeComponent = shallowRef<Component>(markRaw(RouletteAnimation));
 
-        // サービス
-        const prizeRepo = container.resolve(PrizeRepository);
-        const memberRepo = container.resolve(MemberRepository);
-        const drawService = container.resolve(DrawApplicationService);
-        const assetService = container.resolve(AssetDataService);
-
-        // アニメーション関連
-        const memberAnimRef = ref<MemberAnimRef | null>(null);
-        const animationRef = ref<AnimationRef | null>(null);
-        const selectedPrize = ref<PrizeDto | null>(null);
-
 
         // BGM Blob ロード
         const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
@@ -164,8 +172,8 @@ export default {
             // DrawResultDto contains the finalized wonPrize. For animation we
             // choose a dummy prize (different from final) to show first and use
             // the finalized prize as the final reveal.
-            const finalPrizeId = res.wonPrize?.id || null;
-            const finalPrize = prizes.value.find((p) => p.id === finalPrizeId) || null;
+            const finalPrizeId = res.wonPrize!.id;
+            const finalPrize = prizes.value.find((p) => p.id === finalPrizeId)!;
 
             // pick a dummy prize different from finalPrize
             const dummyCandidates = prizes.value.filter((p) => p.id !== finalPrizeId);
@@ -175,7 +183,7 @@ export default {
 
             const [bgm1Blob, bgm2Blob] = await Promise.all([
                 loadBgmBlob(dummyPrize?.bgm1AssetId || null),
-                loadBgmBlob(finalPrize?.bgm2AssetId || null),
+                loadBgmBlob(finalPrize.bgm2AssetId || null),
             ]);
 
             // Use the base AnimationRef APIs (startSpin/stopSpin) to perform
@@ -216,17 +224,17 @@ export default {
                 // handle finalization via events).
                 console.warn('Kakuhen reroll sequence failed:', e);
             }
+
+            // Update selectedPrize for the final prize
+            updateSelectedPrize(finalPrize);
         };
 
         // 通常抽選処理
         const handleNormalDraw = async (res: DrawResultDto) => {
-            const winnerPrizeId = res.wonPrize?.id || null;
-            selectedPrize.value = prizes.value.find((p) => p.id === winnerPrizeId) || null;
-            if (!selectedPrize.value) {
-                throw new Error('Prize not found for winnerPrizeId: ' + winnerPrizeId);
-            }
+            const winnerPrizeId = res.wonPrize!.id;
+            updateSelectedPrize(prizes.value.find((p) => p.id === winnerPrizeId)!);
 
-            const bgmBlob = await loadBgmBlob(selectedPrize.value?.bgm1AssetId || null);
+            const bgmBlob = await loadBgmBlob(selectedPrize.value!.bgm1AssetId || null);
 
             if (animationRef.value?.startSpin) {
                 animationRef.value.startSpin(bgmBlob);
@@ -294,7 +302,9 @@ export default {
         onMounted(async () => {
 
             // 初期データロード
-            [prizes.value, members.value] = await Promise.all([prizeRepo.getPrizes(), memberRepo.getMembers()]);
+            const loadedPrizes = await prizeRepo.getPrizes();
+            await updatePrizes(loadedPrizes);
+            members.value = await memberRepo.getMembers();
 
             // 景品抽選状態の初期化
             await drawService.initializeStateIfNeeded(prizes.value);
@@ -308,8 +318,8 @@ export default {
             preDrawResult.value = res;
             latestResult.value = res;
 
-            if (res.wonPrize?.id) {
-                selectedPrize.value = prizes.value.find((p) => p.id === res.wonPrize?.id) || null;
+            if (res !== null) {
+                updateSelectedPrize(prizes.value.find((p) => p.id === res.wonPrize!.id)!);
                 // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
                 if (selectedPrize.value?.animation === 'slot') {
                     currentPrizeComponent.value = markRaw(SlotAnimation);
@@ -395,7 +405,9 @@ export default {
         // 景品抽選開始
         const startPrizeDraw = async () => {
             if (!preDrawResult.value) {
-                throw new Error('No prize result available');
+                // 景品なしの場合、次のサイクルへ
+                resetToMemberPhase();
+                return;
             }
             // 事前結果(確定済み)を使ってアニメーション開始
             await startRouletteAnimation(preDrawResult.value);
@@ -404,24 +416,24 @@ export default {
 
         // 景品停止
         const prizeStop = async () => {
-            if (animationRef.value?.stopSpin) await animationRef.value.stopSpin();
-            drawState.prizeAnimationStopped = true;
+            if (animationRef.value?.stopSpin && selectedPrize.value) await animationRef.value.stopSpin(3, selectedPrize.value.id);
+            updateShowResult(true);
         };
 
         // 共通のリセット処理
         const resetToMemberPhase = () => {
             drawState.phase = 'member';
             drawState.currentAction = () => { void showMemberDraw(); };
-            drawState.prizeAnimationStopped = false;
-            selectedPrize.value = null;
+            updateShowResult(false);
+            updateSelectedPrize(null);
         };
 
         // ルーレット停止時
         const onRouletteStopped = (prizeId: string | null) => {
             if (!prizeId) throw new Error('No prize selected');
             if (latestResult.value) {
-                latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId) || null;
-                drawState.prizeAnimationStopped = true;
+                latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId)!;
+                updateShowResult(true);
                 drawState.currentAction = () => { void closeModal(); };
             }
         };
@@ -430,7 +442,7 @@ export default {
         const closeModal = async () => {
             const count = await drawService.getLastPrizeCount();
             drawState.currentPrizeCount = count;
-            drawState.prizeAnimationStopped = false;
+            updateShowResult(false);
             drawState.currentAction = null;
             if (count.remaining <= 0) {
                 // 終了DLGは computed で表示
@@ -445,8 +457,9 @@ export default {
                     });
                     preDrawResult.value = res;
                     latestResult.value = res;
-                    if (res.wonPrize?.id) {
-                        selectedPrize.value = prizes.value.find((p) => p.id === res.wonPrize?.id) || null;
+                    if (res !== null) {
+                        const result = res;
+                        updateSelectedPrize(prizes.value.find((p) => p.id === result.wonPrize!.id)!);
                         if (selectedPrize.value?.animation === 'slot') {
                             currentPrizeComponent.value = markRaw(SlotAnimation);
                         } else {
@@ -472,8 +485,9 @@ export default {
                 });
                 preDrawResult.value = res;
                 latestResult.value = res;
-                if (res.wonPrize?.id) {
-                    selectedPrize.value = prizes.value.find((p) => p.id === res.wonPrize?.id) || null;
+                if (res !== null) {
+                    const result = res;
+                    updateSelectedPrize(prizes.value.find((p) => p.id === result.wonPrize!.id)!);
                     if (selectedPrize.value?.animation === 'slot') {
                         currentPrizeComponent.value = markRaw(SlotAnimation);
                     } else {

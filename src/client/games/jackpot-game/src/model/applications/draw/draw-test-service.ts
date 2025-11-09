@@ -151,7 +151,9 @@ export class DrawTestService {
           memberRequestCount: 10,
           prizeRequestCount: 8,
         });
-        results.push(res);
+        if (res) {
+          results.push(res);
+        }
 
         const count = await this.drawAppService.getLastPrizeCount();
         if (results.length >= count.total - 1) {

@@ -234,7 +234,7 @@ export class DrawApplicationService {
   async executeDraw(request: {
     memberRequestCount: number;
     prizeRequestCount: number;
-  }): Promise<DrawResultDto> {
+  }): Promise<DrawResultDto | null> {
     // メンバー抽選
     const memberRes = await this.executeMemberDraw({
       requestCount: request.memberRequestCount,
@@ -272,11 +272,13 @@ export class DrawApplicationService {
       requestCount: request.prizeRequestCount,
     });
 
+    if (!prizeRes.winnerPrizeId) {
+      return null;
+    }
+
     // 統合レコード保存
     const prizes = await this.prizeRepo.getPrizes();
-    const winnerPrize = prizeRes.winnerPrizeId
-      ? prizes.find((p) => p.id === prizeRes.winnerPrizeId) || null
-      : null;
+    const winnerPrize = prizes.find((p) => p.id === prizeRes.winnerPrizeId)!;
     const drawResult: DrawResultDto = {
       drawId: crypto.randomUUID(),
       wonMember: winnerMember,

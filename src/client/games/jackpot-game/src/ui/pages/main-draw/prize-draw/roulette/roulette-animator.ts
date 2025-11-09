@@ -113,7 +113,7 @@ export function useRouletteAnimator(
     currentRouletteItems: InternalRouletteItem[],
     sectorAngle: number,
     duration: number = 3
-  ) => {
+  ): Promise<string | null> => {
     const finalPrize = currentRouletteItems.find(
       (p) => p.id === targetRouletteItemId
     );
@@ -167,6 +167,7 @@ export function useRouletteAnimator(
     });
 
     spinning.value = false;
+    return targetRouletteItemId;
   };
 
   return {

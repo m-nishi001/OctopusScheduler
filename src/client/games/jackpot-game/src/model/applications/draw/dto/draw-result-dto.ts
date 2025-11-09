@@ -12,15 +12,27 @@ export interface DrawResultDto {
   createdAt: number;
 }
 
-export const toDrawResultDto = (drawResult: DrawResult): DrawResultDto => ({
-  drawId: drawResult.drawId,
-  wonMember: drawResult.wonMember ? toMember(drawResult.wonMember) : null,
-  wonPrize: drawResult.wonPrize,
-  isKakuhen: drawResult.isKakuhen,
-  createdAt: Date.now(),
-});
+export const toDrawResultDto = (
+  drawResult: DrawResult
+): DrawResultDto | null => {
+  if (drawResult.wonPrize === null) {
+    return null;
+  }
+  return {
+    drawId: drawResult.drawId,
+    wonMember: drawResult.wonMember ? toMember(drawResult.wonMember) : null,
+    wonPrize: drawResult.wonPrize,
+    isKakuhen: drawResult.isKakuhen,
+    createdAt: Date.now(),
+  };
+};
 
-export const fromDrawResultDto = (dto: DrawResultDto): DrawResult => {
+export const fromDrawResultDto = (
+  dto: DrawResultDto | null
+): DrawResult | null => {
+  if (!dto) {
+    return null;
+  }
   return {
     drawId: dto.drawId,
     wonMember: dto.wonMember ? fromMember(dto.wonMember) : null,
