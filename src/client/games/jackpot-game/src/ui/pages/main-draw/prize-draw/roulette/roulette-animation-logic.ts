@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import type {
   RouletteItem,
   InternalRouletteItem,
@@ -75,6 +75,15 @@ export function useRouletteAnimation(
     const initialPrizes = (opts && opts.initialPrizes) ?? props.prizes;
     await updateRouletteItems(initialPrizes);
   });
+
+  watch(
+    () => props.prizes,
+    async (newPrizes) => {
+      if (newPrizes.length === 0) return;
+      await updateRouletteItems(newPrizes);
+    },
+    { immediate: false }
+  );
 
   onUnmounted(async () => {
     try {
