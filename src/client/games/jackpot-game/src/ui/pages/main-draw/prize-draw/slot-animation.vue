@@ -62,7 +62,7 @@ export default {
             });
         };
 
-        const stopSpin = async (_opts?: { decelerationFunction?: (elapsed: number, totalTime: number, initialSpeed: number) => number }) => {
+        const stopSpin = async (durationSec?: number, targetPrizeId?: string | null) => {
             return new Promise<string | null>((resolve) => {
                 let stoppedCount = 0;
                 const totalReels = reels.value.length;

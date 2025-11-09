@@ -1,12 +1,5 @@
 import { InternalRouletteItem } from "./roulette-image-loader";
-
-let sectors: number;
-let sectorAngle: number;
-
-export function setRouletteConfig(sectorsCount: number) {
-  sectors = Math.max(8, sectorsCount);
-  sectorAngle = (Math.PI * 2) / sectors;
-}
+import { calculateSectorAngle } from "./roulette-angle-utils";
 
 export function drawSector(
   i: number,
@@ -15,7 +8,8 @@ export function drawSector(
   radius: number,
   rotation: number,
   currentRouletteItems: InternalRouletteItem[],
-  ctx: CanvasRenderingContext2D
+  ctx: CanvasRenderingContext2D,
+  sectorAngle: number
 ) {
   const startAngle = i * sectorAngle - rotation;
   const endAngle = (i + 1) * sectorAngle - rotation;
@@ -102,6 +96,8 @@ export function drawWheel(
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
   const radius = 200;
+  const sectors = Math.max(8, currentRouletteItems.length);
+  const sectorAngle = calculateSectorAngle(currentRouletteItems.length);
 
   for (let i = 0; i < sectors; i++) {
     drawSector(
@@ -111,7 +107,8 @@ export function drawWheel(
       radius,
       rotation,
       currentRouletteItems,
-      ctx
+      ctx,
+      sectorAngle
     );
   }
 

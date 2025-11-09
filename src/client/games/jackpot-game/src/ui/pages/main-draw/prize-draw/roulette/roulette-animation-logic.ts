@@ -4,9 +4,10 @@ import type {
   InternalRouletteItem,
 } from "./roulette-image-loader";
 import { convertToInternal } from "./roulette-image-loader";
-import { setRouletteConfig, drawWheel } from "./roulette-drawer";
+import { drawWheel } from "./roulette-drawer";
 import { useRouletteAnimator, UseRouletteOptions } from "./roulette-animator";
 import { useRouletteAudio } from "./roulette-audio";
+import { calculateSectorAngle } from "./roulette-angle-utils";
 
 export type { RouletteItem } from "./roulette-image-loader";
 
@@ -37,7 +38,6 @@ export function useRouletteAnimation(
 
   async function updateRouletteItems(prizes: RouletteItem[]) {
     currentRouletteItems = await convertToInternal(prizes);
-    setRouletteConfig(currentRouletteItems.length);
     drawCallback(0); // initial draw
   }
 
@@ -61,14 +61,16 @@ export function useRouletteAnimation(
     if (currentRouletteItems.length === 0) {
       throw new Error("Roulette items not initialized");
     }
-    const sectorAngle =
-      (Math.PI * 2) / Math.max(8, currentRouletteItems.length);
+    const sectorAngle = calculateSectorAngle(currentRouletteItems.length);
     const result = await animator.stopSpin(
       targetId,
       currentRouletteItems,
       sectorAngle,
       durationSec || 3
     );
+
+    console.log("Stopping BGM audio");
+
     await stopBgmAudio();
     return result;
   };

@@ -417,7 +417,6 @@ export default {
         // 景品停止
         const prizeStop = async () => {
             if (animationRef.value?.stopSpin && selectedPrize.value) await animationRef.value.stopSpin(3, selectedPrize.value.id);
-            updateShowResult(true);
         };
 
         // 共通のリセット処理
