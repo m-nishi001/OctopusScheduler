@@ -1,5 +1,5 @@
 export interface AnimationRef {
-  startSpin?: (bgm1Url?: Blob | null) => void;
+  startSpin?: (bgmUrl?: Blob | null) => void;
   stopSpin?: {
     (
       durationSec?: number,

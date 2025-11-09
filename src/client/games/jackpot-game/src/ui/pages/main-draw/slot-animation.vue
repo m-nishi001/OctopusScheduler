@@ -48,11 +48,11 @@ export default {
 
         const itemHeight = 60;
 
-        const startSpin = async (bgm1Url?: Blob | null) => {
-            if (bgm1Url) {
+        const startSpin = async (bgmUrl?: Blob | null) => {
+            if (bgmUrl) {
                 try {
                     await stopBgm();
-                    await loadBgm(bgm1Url);
+                    await loadBgm(bgmUrl);
                     await playBgm({ isRepeat: true });
                 } catch { /* ignore */ }
             }

@@ -8,7 +8,7 @@
 
 <script lang="ts">
 import { defineComponent, ref, computed, onUnmounted, onMounted } from 'vue';
-import { useRouletteAnimation, type RenderPrize, type RouletteAnimationEmits, type RouletteAnimationProps } from './roulette-animation-logic';
+import { useRouletteAnimation, type RouletteItem, type RouletteAnimationProps } from './roulette-animation-logic';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
@@ -20,23 +20,26 @@ export default defineComponent({
         selectedPrize: { type: Object as () => PrizeDto, required: true },
         showResult: { type: Boolean, default: false },
     },
-    emits: ['stopped'],
-    setup(props, { emit }) {
+    setup(props) {
         const assetService = container.resolve(AssetDataService);
 
-        let preparedPrizes: RenderPrize[] = [];
+        let preparedPrizes: RouletteItem[] = [];
 
-        const prepareRenderPrizes = async (): Promise<RenderPrize[]> => {
+        const prepareRenderPrizes = async (): Promise<RouletteItem[]> => {
             try {
-                const prepared: RenderPrize[] = await Promise.all(
+                const prepared: RouletteItem[] = await Promise.all(
                     props.prizes.map(async (p) => {
-                        const copy = { ...p } as RenderPrize;
-                        if (copy.imageAssetId) {
+                        const copy: RouletteItem = {
+                            id: (p as any).id,
+                            name: (p as any).name ?? (p as any).title ?? "",
+                            imageUrl: undefined,
+                        };
+                        if ((p as any).imageAssetId) {
                             try {
-                                const asset = await assetService.getAssetDataById(copy.imageAssetId);
+                                const asset = await assetService.getAssetDataById((p as any).imageAssetId);
                                 if (asset && asset.blob) {
                                     const objectUrl = URL.createObjectURL(asset.blob);
-                                    copy.imageSrc = objectUrl;
+                                    copy.imageUrl = objectUrl;
                                 }
                             } catch (e) {
                                 console.warn('Failed to prepare asset for prize', copy.id, e);
@@ -54,37 +57,43 @@ export default defineComponent({
         };
 
         const rouletteProps: RouletteAnimationProps = {
-            prizes: props.prizes.map((p) => p as RenderPrize),
-            selectedPrize: props.selectedPrize as RenderPrize,
+            // provide a safe initial shape for the hook; images will be updated
+            prizes: props.prizes.map((p) => ({ id: (p as any).id, name: (p as any).name ?? (p as any).title ?? '', imageUrl: undefined } as RouletteItem)),
+            selectedPrize: props.selectedPrize ? ({ id: (props.selectedPrize as any).id, name: (props.selectedPrize as any).name ?? (props.selectedPrize as any).title ?? '', imageUrl: undefined } as RouletteItem) : null,
             showResult: props.showResult,
         };
 
-        const typedEmit: RouletteAnimationEmits = (event, prizeId) => {
-            emit(event, prizeId);
-        };
-
         const { canvas, startSpin, stopSpin, spinning, updatePrizes } = useRouletteAnimation(
-            rouletteProps,
-            typedEmit,
-            { initialPrizes: rouletteProps.prizes }
+            rouletteProps
         );
 
         const canStop = ref(false);
 
-        onUnmounted(() => {
+        const revokePreparedPrizes = () => {
             for (const p of preparedPrizes) {
                 try {
-                    if (p.imageSrc) {
-                        URL.revokeObjectURL(p.imageSrc);
+                    if (p.imageUrl) {
+                        URL.revokeObjectURL(p.imageUrl);
                     }
                 } catch { }
             }
+            preparedPrizes = [];
+        };
+
+        onUnmounted(() => {
+            revokePreparedPrizes();
         });
 
         onMounted(async () => {
-            preparedPrizes = await prepareRenderPrizes();
+            // Prepare images (create object URLs) in the parent component and
+            // then push them into the hook via updatePrizes. This ensures the
+            // hook never creates object URLs itself and prevents double-creation.
+            const newPrepared = await prepareRenderPrizes();
+            // Revoke any previous prepared URLs before replacing.
+            revokePreparedPrizes();
+            preparedPrizes = newPrepared;
             try {
-                await updatePrizes(preparedPrizes as unknown as PrizeDto[]);
+                await updatePrizes(preparedPrizes);
             } catch (e) {
                 console.warn('Failed to update prizes on roulette hook', e);
             }
@@ -100,7 +109,7 @@ export default defineComponent({
 
         const handleStop = () => {
             if (canStop.value) {
-                stopSpin();
+                stopSpin(props.selectedPrize.id);
                 canStop.value = false;
             }
         };
