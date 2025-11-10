@@ -43,8 +43,8 @@ export function useRouletteAnimation(
 
   const startSpin = async (
     bgmUrl?: Blob | null,
-    accelDuration: number = 2,
-    targetSpeed: number = 2
+    accelDuration: number = 1,
+    targetSpeed: number = 16
   ) => {
     await startBgm(bgmUrl);
     await animator.startSpin(accelDuration, targetSpeed);

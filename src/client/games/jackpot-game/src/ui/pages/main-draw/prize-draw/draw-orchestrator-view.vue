@@ -15,8 +15,7 @@
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
-                            @start="() => { void showMemberDraw(); }" @member-selected="onMemberSelected"
-                            @winner-dialog-shown="onChildWinnerDialogShown" />
+                            @start="handleMemberDrawStart" @member-selected="onMemberSelected" />
                     </div>
                 </section>
 
@@ -35,7 +34,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw } from 'vue';
 import type { Component } from 'vue';
 import { useRouter } from 'vue-router';
 import MainLayout from '../../common/main-layout.vue';
@@ -67,8 +66,6 @@ export default {
             phase: 'idle',
             prizeAnimationStopped: false,
             currentAction: null as (() => void) | null,
-            currentPrizeCount: { total: 0, remaining: 0 },
-            halfDialogShown: false,
         });
 
         // サービス
@@ -81,72 +78,17 @@ export default {
         const {
             prizes,
             selectedPrize,
-            showResult,
             updatePrizes,
             updateSelectedPrize,
-            updateShowResult,
         } = usePrizeDrawState([], null, false, assetService);
 
         // アニメーション関連
         const memberAnimRef = ref<MemberAnimRef | null>(null);
         const animationRef = ref<AnimationRef | null>(null);
 
-        const showPrizeWinningDialog = computed(() => {
-            return showResult.value;
-        });
-
-        // DLG が表示されたら1秒間操作を無効化する（表示後1秒経過で Enter 操作を受け付ける）
-        // - 押しっぱなしの場合は1秒後に一度だけ実行される（DLGを閉じる）
-        let dialogLocked = false;
-        watch(showPrizeWinningDialog, (visible) => {
-            if (visible) {
-                // 繰り返しを止める
-                if (repeatTimer !== null) {
-                    clearInterval(repeatTimer);
-                    repeatTimer = null;
-                }
-
-                // ロック開始。表示から1秒間はハンドラを無視する
-                dialogLocked = true;
-                const wasPressed = enterPressed; // 表示時に押されていたか
-
-                // 1秒後に解除し、表示時に押されていた／まだ押されているなら一度だけ実行
-                setTimeout(() => {
-                    dialogLocked = false;
-                    // 押しっぱなしまたは表示直後に押していた場合は1回だけ実行
-                    if (wasPressed || enterPressed) {
-                        void executeCurrentAction();
-                        // もしまだ押されているなら繰り返しタイマーを再開して継続動作を許可
-                        if (enterPressed && repeatTimer === null) {
-                            repeatTimer = window.setInterval(() => {
-                                void executeCurrentAction();
-                            }, 1000);
-                        }
-                    }
-                }, 1000);
-            }
-        });
-
-        const showHalfRemainingDialog = computed(() => {
-            return (
-                !drawState.halfDialogShown &&
-                drawState.currentPrizeCount.remaining > 0 &&
-                drawState.currentPrizeCount.remaining <= drawState.currentPrizeCount.total / 2
-            );
-        });
-
-        // 半分残りダイアログ表示中は Enter を受け付けないようロックする
-        watch(() => showHalfRemainingDialog.value, (visible) => {
-            if (visible) {
-                dialogLocked = true;
-            } else {
-                dialogLocked = false;
-            }
-        });
-
-        const showEndDialog = computed(() => {
-            return drawState.currentPrizeCount.remaining <= 0;
-        });
+        const showPrizeWinningDialog = ref(false);
+        const showHalfRemainingDialog = ref(false);
+        const showEndDialog = ref(false);
 
         // 事前抽選結果 (確定済みの DrawResultDto または null)
         const preDrawResult = ref<DrawResultDto | null>(null);
@@ -154,7 +96,6 @@ export default {
         // コンポーネント分岐（拡張用）
         const currentMemberComponent = ref('MemberDrawAnimation');
         const currentPrizeComponent = shallowRef<Component>(markRaw(RouletteAnimation));
-
 
         // BGM Blob ロード
         const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
@@ -250,18 +191,15 @@ export default {
             }
         };
 
-        // キーボードイベントハンドラー（Enter長押し対応）
-        // 初回押下で即時実行、その後は最大1秒間隔で繰り返す
-        let enterPressed = false;
-        let repeatTimer: number | null = null;
-
         // 再入禁止フラグ: アニメーションなどの長い処理が完了するまで同じ action を再実行しない
         let actionRunning = false;
-
         const executeCurrentAction = async () => {
             const action = drawState.currentAction;
             if (!action) return;
             if (actionRunning) return; // 既に実行中なら無視
+
+            // 実行開始時点で currentAction を無効化して二重実行を防ぐ
+            drawState.currentAction = null;
             actionRunning = true;
             try {
                 // 呼び出し結果が Promise でも非同期に対応するため Promise.resolve で待つ
@@ -275,28 +213,7 @@ export default {
 
         const keydownDelegator = (ev: KeyboardEvent) => {
             if (ev.key !== 'Enter') return;
-            // DLG ロック中は受け付けない
-            if (dialogLocked) return;
-            // ブラウザの自動リピートで複数回呼ばれるため、すでに押下中なら無視
-            if (enterPressed) return;
-            enterPressed = true;
-
-            // 即時実行（存在する場合）
             void executeCurrentAction();
-
-            // 以降、最小1秒間隔で繰り返す
-            repeatTimer = window.setInterval(() => {
-                void executeCurrentAction();
-            }, 1000);
-        };
-
-        const keyupDelegator = (ev: KeyboardEvent) => {
-            if (ev.key !== 'Enter') return;
-            enterPressed = false;
-            if (repeatTimer !== null) {
-                clearInterval(repeatTimer);
-                repeatTimer = null;
-            }
         };
 
         onMounted(async () => {
@@ -333,21 +250,11 @@ export default {
 
             showMemberDraw();
 
-            // 景品カウントの初期化
-            const count = await drawService.getLastPrizeCount();
-            drawState.currentPrizeCount = count;
-
             window.addEventListener('keydown', keydownDelegator);
-            window.addEventListener('keyup', keyupDelegator);
         });
 
         onUnmounted(() => {
             window.removeEventListener('keydown', keydownDelegator);
-            window.removeEventListener('keyup', keyupDelegator);
-            if (repeatTimer !== null) {
-                clearInterval(repeatTimer);
-                repeatTimer = null;
-            }
         });
 
         // メンバー抽選表示
@@ -356,10 +263,13 @@ export default {
             drawState.currentAction = () => { void startMemberDraw(); };
         };
 
+        const handleMemberDrawStart = () => {
+            void showMemberDraw();
+        };
+
         // メンバー抽選開始
         const startMemberDraw = async () => {
-            // 事前結果を使ってアニメーション開始
-            if (memberAnimRef.value?.startDraw) {
+            if (memberAnimRef.value) {
                 memberAnimRef.value.startDraw(preDrawResult.value?.wonMember?.id || null);
             }
             drawState.currentAction = memberStop;
@@ -370,30 +280,9 @@ export default {
             drawState.currentAction = () => { void showPrizeDraw(); };
         };
 
-        // ハンドラ: 子コンポーネントの内部メンバー当選ダイアログが表示されたときに呼ばれる
-        const onChildWinnerDialogShown = () => {
-            if (repeatTimer !== null) {
-                clearInterval(repeatTimer);
-                repeatTimer = null;
-            }
-            dialogLocked = true;
-            const wasPressed = enterPressed;
-            setTimeout(() => {
-                dialogLocked = false;
-                if (wasPressed || enterPressed) {
-                    void executeCurrentAction();
-                    if (enterPressed && repeatTimer === null) {
-                        repeatTimer = window.setInterval(() => {
-                            void executeCurrentAction();
-                        }, 1000);
-                    }
-                }
-            }, 1000);
-        };
-
         // メンバー停止（アニメーション制御）
         const memberStop = async () => {
-            if (memberAnimRef.value?.stopDraw) await memberAnimRef.value.stopDraw();
+            if (memberAnimRef.value) await memberAnimRef.value.stopDraw();
         };
 
         // 景品抽選表示
@@ -423,8 +312,13 @@ export default {
         const resetToMemberPhase = () => {
             drawState.phase = 'member';
             drawState.currentAction = () => { void showMemberDraw(); };
-            updateShowResult(false);
+            showPrizeWinningDialog.value = false;
             updateSelectedPrize(null);
+        };
+
+        // 明示的にあと半分ダイアログを開くための関数
+        const openHalfRemainingDialog = () => {
+            showHalfRemainingDialog.value = true;
         };
 
         // ルーレット停止時
@@ -432,7 +326,8 @@ export default {
             if (!prizeId) throw new Error('No prize selected');
             if (latestResult.value) {
                 latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId)!;
-                updateShowResult(true);
+                // 表示はローカルで制御
+                showPrizeWinningDialog.value = true;
                 drawState.currentAction = () => { void closeModal(); };
             }
         };
@@ -440,13 +335,14 @@ export default {
         // モーダルクローズ
         const closeModal = async () => {
             const count = await drawService.getLastPrizeCount();
-            drawState.currentPrizeCount = count;
-            updateShowResult(false);
+            showEndDialog.value = count.remaining <= 0;
+            showPrizeWinningDialog.value = false;
             drawState.currentAction = null;
             if (count.remaining <= 0) {
-                // 終了DLGは computed で表示
-            } else if (count.remaining <= count.total / 2) {
-                // あと半分DLGは computed で表示
+                // 終了DLGは showEndDialog フラグで表示
+            } else if (count.total > 0 && count.remaining > 0 && count.remaining * 2 === count.total) {
+                // 残りがちょうど半分のときはダイアログを直接開く
+                openHalfRemainingDialog();
             } else {
                 // 次のサイクル: 新しい事前抽選実行
                 try {
@@ -476,7 +372,8 @@ export default {
 
         // ダイアログクローズハンドラー
         const onHalfRemainingClosed = async () => {
-            drawState.halfDialogShown = true;
+            // ユーザーが閉じたら即座に非表示にする。
+            showHalfRemainingDialog.value = false;
             try {
                 const res = await drawService.executeDraw({
                     memberRequestCount: 10,
@@ -498,7 +395,8 @@ export default {
                 // 更新された景品カウントを取得して反映する（これにより showHalfRemainingDialog が解除される）
                 try {
                     const count = await drawService.getLastPrizeCount();
-                    drawState.currentPrizeCount = count;
+                    // ダイアログ閉了後はカウントを取得し、終了ダイアログ表示フラグを更新する
+                    showEndDialog.value = count.remaining <= 0;
                 } catch (e) {
                     console.error('Failed to refresh prize count after half-remaining close:', e);
                 }
@@ -508,7 +406,10 @@ export default {
         };
 
         const onEndClosed = () => {
-            drawState.currentPrizeCount = { total: 0, remaining: 0 };
+            // 終了時はカウントをクリアし、ダイアログを閉じる
+            // no persistent count to clear; just hide dialogs
+            showEndDialog.value = false;
+            showHalfRemainingDialog.value = false;
             router.push('/jackpot-ending');
         };
 
@@ -530,12 +431,12 @@ export default {
             closeModal,
             onRouletteStopped,
             onMemberSelected,
-            onChildWinnerDialogShown,
             showPrizeWinningDialog,
             showHalfRemainingDialog,
             showEndDialog,
             onHalfRemainingClosed,
             onEndClosed,
+            handleMemberDrawStart,
         };
     }
 };

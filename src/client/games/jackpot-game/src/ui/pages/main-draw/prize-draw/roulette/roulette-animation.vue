@@ -51,6 +51,7 @@ export default defineComponent({
 
         const stopSpin = async (durationSec?: number, targetPrizeId?: string | null) => {
             const result = await logicStopSpin(durationSec, targetPrizeId);
+            await new Promise<void>((resolve) => setTimeout(resolve, 1000));
             emit('stopped', result);
             return result;
         };

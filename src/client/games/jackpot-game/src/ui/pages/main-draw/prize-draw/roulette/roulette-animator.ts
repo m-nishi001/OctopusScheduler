@@ -19,9 +19,19 @@ export function useRouletteAnimator(
   opts?: UseRouletteOptions,
   drawCallback?: (rotation: number) => void
 ) {
+  // テスト用実装開始
+  // When multiple stopSpin calls happen, keep a reference to the
+  // pending stop resolver so a subsequent stopSpin can resolve the
+  // previous Promise immediately (the tests expect earlier promises
+  // to complete even if superseded).
+  let pendingStopResolve: ((value: string | null) => void) | null = null;
+  let pendingStopTargetId: string | null = null;
+  // テスト用実装終了
+
+  const spinning = ref(false);
+
   let animationId: number | null = null;
   let currentRotation = 0;
-  const spinning = ref(false);
   let currentSpeedValue = 0;
 
   const raf = opts?.raf ?? globalThis.requestAnimationFrame.bind(globalThis);
@@ -80,6 +90,16 @@ export function useRouletteAnimator(
 
     const targetAngle = calculateTargetRotation(finalPrize.index, sectorAngle);
 
+    // If there's a pending stop from a previous call, resolve it now
+    // because this new stop supersedes it.
+    if (pendingStopResolve) {
+      try {
+        pendingStopResolve(pendingStopTargetId);
+      } catch {}
+      pendingStopResolve = null;
+      pendingStopTargetId = null;
+    }
+
     if (animationId) {
       cancelRaf(animationId);
       animationId = null;
@@ -95,10 +115,28 @@ export function useRouletteAnimator(
       duration
     );
 
-    await new Promise<void>((resolve) => {
+    // Return a Promise that resolves with the target id when this
+    // deceleration completes. If another stopSpin is called while
+    // this is pending, that new call will immediately resolve this
+    // Promise (with its target id) and take over the animation.
+    return await new Promise<string | null>((resolve) => {
+      // If there's an earlier pending stop, resolve it now so it
+      // doesn't hang.
+      if (pendingStopResolve) {
+        try {
+          pendingStopResolve(pendingStopTargetId);
+        } catch {}
+        pendingStopResolve = null;
+        pendingStopTargetId = null;
+      }
+
+      // Register this stop's resolver and target id.
+      pendingStopResolve = resolve;
+      pendingStopTargetId = targetRouletteItemId;
+
       const animate = () => {
         const elapsed = nowFn() - decelStartTime;
-        const { rotation, speed } = calculateDeceleratedRotationCalc(
+        const { rotation } = calculateDeceleratedRotationCalc(
           totalRotation,
           duration,
           initialSpeed,
@@ -111,31 +149,42 @@ export function useRouletteAnimator(
 
         if (drawCallback) drawCallback(currentRotation);
 
-        if (Math.round(speed) > 0) {
+        // Continue animation until the requested duration elapses.
+        if (elapsed < duration * 1000) {
           animationId = raf(animate);
         } else {
-          cancelRaf(animationId!);
+          if (animationId) cancelRaf(animationId);
           animationId = null;
-          resolve();
+
+          // Resolve this stop (if still pending) and clear refs.
+          if (pendingStopResolve) {
+            const r = pendingStopResolve;
+            pendingStopResolve = null;
+            pendingStopTargetId = null;
+            try {
+              r(targetRouletteItemId);
+            } catch {}
+          }
+
+          spinning.value = false;
         }
       };
+
       animationId = raf(animate);
     });
-
-    spinning.value = false;
-    return targetRouletteItemId;
   };
 
   return {
     startSpin,
     stopSpin,
     spinning,
-    // テスト用に内部状態を公開
+    // テスト用実装開始
     get currentSpeed() {
       return currentSpeedValue;
     },
     get currentRotation() {
       return currentRotation;
     },
+    // テスト用実装終了
   };
 }

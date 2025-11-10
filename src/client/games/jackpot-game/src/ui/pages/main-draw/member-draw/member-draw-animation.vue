@@ -50,11 +50,10 @@ export const MEMBER_DUMMY_DISPLAY_COUNT = 0;
 
 // Public ref interface for parent components that call methods on this component
 export type MemberAnimRef = {
-    startDraw?: (winnerId?: string | null) => void;
-    start?: (speed?: number) => void;
-    stopAt?: (id: string | null) => Promise<string | null>;
-    stopDraw?: () => Promise<string | null>;
-    // activeIndex may be exposed as part of the public API in the future
+    startDraw: (winnerId?: string | null) => void;
+    start: (speed?: number) => void;
+    stopAt: (id: string | null) => Promise<string | null>;
+    stopDraw: () => Promise<string | null>;
 };
 
 export default {
