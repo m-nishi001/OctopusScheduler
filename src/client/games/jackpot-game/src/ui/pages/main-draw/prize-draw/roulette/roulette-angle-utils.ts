@@ -34,7 +34,8 @@ export function calculateTotalRotation(
 export function calculateAcceleratedRotation(
   elapsed: number,
   accelerationDuration: number,
-  targetSpeed: number
+  targetSpeed: number,
+  deltaTime: number
 ): { deltaRotation: number; acceleratedSpeed: number } {
   const remainingTime = accelerationDuration - elapsed;
   const acceleratedSpeed =
@@ -42,7 +43,7 @@ export function calculateAcceleratedRotation(
       ? (targetSpeed / accelerationDuration) * elapsed
       : targetSpeed;
   const fluctuation = Math.sin(elapsed * 0.01) * 0.02;
-  const deltaRotation = acceleratedSpeed + fluctuation;
+  const deltaRotation = acceleratedSpeed * deltaTime + fluctuation * deltaTime;
   return { deltaRotation, acceleratedSpeed };
 }
 

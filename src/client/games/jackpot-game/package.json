@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "common-lib": "file:../../packages/common-lib",
-    "jackpot-game-api": "file:../../../server/games/jackpod-game-api",
     "gsap": "^3.13.0",
+    "jackpot-game-api": "file:../../../server/games/jackpod-game-api",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
     "three": "^0.167.0",
@@ -22,13 +22,14 @@
   },
   "types": "dist/types",
   "devDependencies": {
+    "@testing-library/vue": "^8.1.0",
     "@types/three": "^0.167.0",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "core-js": "^3.44.0",
+    "jsdom": "^27.0.1",
     "reflect-metadata": "^0.2.2",
     "tsyringe": "^4.10.0",
-    "vitest": "^1.0.0",
-    "@testing-library/vue": "^8.1.0"
+    "vitest": "^1.0.0"
   }
 }

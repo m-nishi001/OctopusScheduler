@@ -22,7 +22,7 @@ export function useRouletteAnimator(
   let animationId: number | null = null;
   let currentRotation = 0;
   const spinning = ref(false);
-  let currentSpeed = 0;
+  let currentSpeedValue = 0;
 
   const raf = opts?.raf ?? globalThis.requestAnimationFrame.bind(globalThis);
   const cancelRaf =
@@ -34,21 +34,25 @@ export function useRouletteAnimator(
     targetSpeed: number = 2
   ) => {
     spinning.value = true;
-    currentSpeed = 0;
+    currentSpeedValue = 0;
 
     const accelerationDuration = accelDuration;
     const accelerationStartTime = nowFn();
+    let lastTime = accelerationStartTime;
     const animate = () => {
       const now = nowFn();
+      const deltaTime = (now - lastTime) / 1000;
+      lastTime = now;
       const elapsed = (now - accelerationStartTime) / 1000;
       const { deltaRotation, acceleratedSpeed } = calculateAcceleratedRotation(
         elapsed,
         accelerationDuration,
-        targetSpeed
+        targetSpeed,
+        deltaTime
       );
       currentRotation += deltaRotation;
       currentRotation %= Math.PI * 2;
-      currentSpeed = acceleratedSpeed;
+      currentSpeedValue = acceleratedSpeed;
       if (drawCallback) drawCallback(currentRotation);
       animationId = raf(animate);
     };
@@ -62,6 +66,10 @@ export function useRouletteAnimator(
     sectorAngle: number,
     duration: number = 3
   ): Promise<string | null> => {
+    if (duration <= 0) {
+      throw new Error("Duration must be positive");
+    }
+
     const finalPrize = currentRouletteItems.find(
       (p) => p.id === targetRouletteItemId
     );
@@ -79,7 +87,7 @@ export function useRouletteAnimator(
 
     const decelStartTime = nowFn();
     const startRotation = currentRotation;
-    const initialSpeed = currentSpeed;
+    const initialSpeed = currentSpeedValue;
     const totalRotation = calculateTotalRotation(
       startRotation,
       targetAngle,
@@ -122,5 +130,12 @@ export function useRouletteAnimator(
     startSpin,
     stopSpin,
     spinning,
+    // テスト用に内部状態を公開
+    get currentSpeed() {
+      return currentSpeedValue;
+    },
+    get currentRotation() {
+      return currentRotation;
+    },
   };
 }

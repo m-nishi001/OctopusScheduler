@@ -42,7 +42,7 @@ describe("calculateTotalRotation", () => {
 
 describe("calculateAcceleratedRotation", () => {
   it("should return accelerated speed and delta rotation", () => {
-    const result = calculateAcceleratedRotation(0.5, 1, 2);
+    const result = calculateAcceleratedRotation(0.5, 1, 2, 1);
     expect(result.acceleratedSpeed).toBe(1);
     expect(result.deltaRotation).toBeCloseTo(1.0001, 4);
   });
