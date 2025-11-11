@@ -313,7 +313,6 @@ export default {
             drawState.phase = 'member';
             drawState.currentAction = () => { void showMemberDraw(); };
             showPrizeWinningDialog.value = false;
-            updateSelectedPrize(null);
         };
 
         // 明示的にあと半分ダイアログを開くための関数
