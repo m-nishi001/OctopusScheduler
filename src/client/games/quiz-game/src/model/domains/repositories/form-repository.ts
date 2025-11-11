@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import { GasFunctionService } from "packages/common-lib/google-apps-script/gas-script-service";
+import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 import type { SheetRow, SyncRequest, QuizWithDataUrl } from "quiz-game-api";
 
 @injectable()

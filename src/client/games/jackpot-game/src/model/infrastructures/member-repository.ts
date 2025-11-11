@@ -1,4 +1,4 @@
-import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import { injectable } from "tsyringe";
 import type { Member } from "../domains/member/member";
 import type { IMemberRepository } from "../domains/member/repository/i-member-repository";

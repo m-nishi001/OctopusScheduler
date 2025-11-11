@@ -1,27 +1,57 @@
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
 import { viteSingleFile } from "vite-plugin-singlefile";
+import { sharedAliasArray, sharedPlugins } from "../../../vite.shared";
 import { resolve } from "path";
 
 export default defineConfig({
-  plugins: [vue(), viteSingleFile()],
+  plugins: [...sharedPlugins, viteSingleFile()],
   build: {
     target: "es2020",
     outDir: "dist",
   },
   resolve: {
-    alias: {
-      model: resolve(__dirname, "src/model"),
-      ui: resolve(__dirname, "src/ui"),
-      core: resolve(__dirname, "src/core"),
-      "@model": resolve(__dirname, "../games/jackpot-game/src/model"),
-      "@shared-composables": resolve(
-        __dirname,
-        "../packages/shared-composables/src"
-      ),
-      components: resolve(__dirname, "../games/jackpot-game/src/ui/components"),
-      pages: resolve(__dirname, "../games/jackpot-game/src/ui/pages"),
-      "packages/common-lib": resolve(__dirname, "../packages/common-lib/src"),
-    },
+    alias: [
+      ...sharedAliasArray(),
+      { find: "model", replacement: resolve(__dirname, "src/model") },
+      { find: "ui", replacement: resolve(__dirname, "src/ui") },
+      { find: "core", replacement: resolve(__dirname, "src/core") },
+      {
+        find: "@model",
+        replacement: resolve(__dirname, "../games/jackpot-game/src/model"),
+      },
+      {
+        find: "@shared-composables",
+        replacement: resolve(__dirname, "../packages/shared-composables/src"),
+      },
+      {
+        find: "components",
+        replacement: resolve(
+          __dirname,
+          "../games/jackpot-game/src/ui/components"
+        ),
+      },
+      {
+        find: "pages",
+        replacement: resolve(__dirname, "../games/jackpot-game/src/ui/pages"),
+      },
+      {
+        find: "presenters/content-deck",
+        replacement: resolve(__dirname, "../presenters/content-deck/src"),
+      },
+      { find: "presenters", replacement: resolve(__dirname, "../presenters") },
+      {
+        find: "games/jackpot-game",
+        replacement: resolve(__dirname, "../games/jackpot-game/src"),
+      },
+      {
+        find: "games/card-game",
+        replacement: resolve(__dirname, "../games/card-game/src"),
+      },
+      {
+        find: "games/quiz-game",
+        replacement: resolve(__dirname, "../games/quiz-game/src"),
+      },
+      { find: "games", replacement: resolve(__dirname, "../games") },
+    ],
   },
 });

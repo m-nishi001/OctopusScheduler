@@ -12,6 +12,7 @@
     "noUncheckedSideEffectImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "noEmitOnError": false,
     "baseUrl": ".",
     "paths": {
       "@model/*": ["src/model/*"],
@@ -22,9 +23,15 @@
       "applications/*": ["src/model/applications/*"],
       "components/*": ["src/ui/components/*"],
       "components": ["src/ui/components"],
-      "packages/common-lib/*": ["../../packages/common-lib/src/*"],
+      "@common-lib/*": ["../../packages/common-lib/src/*"],
+      "@common-lib": ["../../packages/common-lib/src"],
       "server/*": ["../../../../server/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [
+    { "path": "../../packages/common-lib" },
+    { "path": "../../packages/shared-composables" },
+    { "path": "../../../server/common" }
+  ]
 }

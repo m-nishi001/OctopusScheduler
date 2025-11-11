@@ -1,6 +1,7 @@
 {
   "extends": "../../../../tsconfig.json",
   "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
 
     /* Linting */
@@ -23,33 +24,16 @@
       "applications/*": ["src/model/applications/*"],
       "components/*": ["src/ui/components/*"],
       "components": ["src/ui/components"],
-      "packages/common-lib/*": ["../../packages/common-lib/src/*"],
+      "@common-lib/*": ["../../packages/common-lib/src/*"],
+      "@common-lib": ["../../packages/common-lib/src"],
       "server/*": ["../../../../server/*"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.vue",
-    "../../packages/shared-composables/src/**/*.ts",
-    "../../packages/shared-composables/src/**/*.d.ts",
-    "../../packages/common-lib/src/**/*.ts",
-    "../../packages/common-lib/src/**/*.d.ts",
-    "../../packages/**/src/**/*.ts",
-    "../../packages/**/src/**/*.d.ts",
-    "../../../../server/common/src/**/*.ts",
-    "../../../../server/common/src/**/*.d.ts",
-    "../../../../../server/common/src/**/*.ts",
-    "../../../../../server/common/src/**/*.d.ts",
-    "../../../../../../server/common/src/**/*.ts",
-    "../../../../../../server/common/src/**/*.d.ts",
-    "/root/google_apps_script/octopus-scheduler/src/server/common/src/**/*.ts",
-    "/root/google_apps_script/octopus-scheduler/src/server/common/src/**/*.d.ts"
+  "references": [
+    { "path": "../../packages/common-lib" },
+    { "path": "../../packages/shared-composables" },
+    { "path": "../../../server/common" }
   ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "src/**/*.test.ts",
-    "src/**/*.spec.ts"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "exclude": ["**/*.test.ts", "**/*.spec.ts"]
 }

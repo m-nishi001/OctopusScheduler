@@ -177,7 +177,7 @@ import { container } from 'tsyringe';
 import { IMemberRepositoryToken } from '@model/domains/member/repository/i-member-repository';
 import AssetSelectionDialog from './components/asset-selection-dialog.vue';
 import DataUploadDialog from './components/data-upload-dialog.vue';
-import { GasFunctionService } from 'packages/common-lib/google-apps-script/gas-script-service';
+import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
 const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
 const memberService = container.resolve(MemberService);

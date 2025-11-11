@@ -14,6 +14,7 @@ export class AddQuizUseCase {
       formUrl: dto.answerUrl,
       timeLimit: dto.timeLimit,
       options: dto.options.map((o) => ({
+        no: o.no,
         text: o.text,
         color: o.color,
         image: o.image,

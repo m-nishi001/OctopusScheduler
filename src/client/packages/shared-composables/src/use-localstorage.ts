@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { LocalStorageService } from "../../common-lib/src/storage/local-storage-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 
 /**
  * LocalStorageService を使用してローカルストレージ操作を行うための Composable 関数。

@@ -1,10 +1,10 @@
 import { createRouter, createWebHashHistory } from "vue-router";
-import { routes } from "/root/google_apps_script/octopus-scheduler/src/client/presenters/content-deck/src/router/index.ts";
-import { HistoryService } from "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src/google-apps-script/gas-history-service.ts";
-import octopusSchedulerRoutes from "/root/google_apps_script/octopus-scheduler/src/client/octopus-scheduler/src/ui/router/index.ts";
-import jackpotGameRoutes from "/root/google_apps_script/octopus-scheduler/src/client/games/jackpot-game/src/core/router/index.ts";
-import cardGameRoutes from "/root/google_apps_script/octopus-scheduler/src/client/games/card-game/src/router/index.ts";
-import quizGameRoutes from "/root/google_apps_script/octopus-scheduler/src/client/games/quiz-game/src/core/router/index.ts";
+import { routes } from "presenters/content-deck/router";
+import { HistoryService } from "@common-lib/google-apps-script/gas-history-service";
+import octopusSchedulerRoutes from "ui/router";
+import jackpotGameRoutes from "games/jackpot-game/core/router";
+import cardGameRoutes from "games/card-game/router";
+import quizGameRoutes from "games/quiz-game/core/router";
 
 const router = createRouter({
   history: createWebHashHistory(),

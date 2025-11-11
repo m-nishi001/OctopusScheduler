@@ -1,4 +1,5 @@
 {
+  "extends": "../../../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
@@ -14,10 +15,12 @@
       "@server-common/gas-types": ["../../../../server/common/src/gas-types.ts"]
     },
     "resolveJsonModule": true,
-    "declaration": false,
+    "declaration": true,
     "declarationMap": false,
+    "declarationDir": "dist/types",
     "outDir": "dist",
-    // "noEmit": true,
+    "noEmit": false,
+    "composite": true,
     "rootDir": "src",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true

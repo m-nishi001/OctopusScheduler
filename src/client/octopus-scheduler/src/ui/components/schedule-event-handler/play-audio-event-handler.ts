@@ -1,5 +1,5 @@
 import { eventBus } from "../../../core/event-bus";
-import { AudioService } from "../../../../../packages/common-lib/src/audio/audio-service";
+import { AudioService } from "@common-lib/audio/audio-service";
 import { container } from "tsyringe";
 import { AssetService } from "../../../model/applications/assets/asset-service";
 

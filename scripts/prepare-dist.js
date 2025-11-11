@@ -91,9 +91,6 @@ for (const proj of serverProjects) {
     }
     const fileName = relPath.split(/[\\/]/).pop();
     const destPath = join(distDir, fileName);
-    if (existsSync(destPath)) {
-      console.warn(`Warning: ${fileName} already exists in dist. Overwriting.`);
-    }
     copyFileSync(fullPath, destPath);
 
     // Also copy GAS-safe files into dist/gas (clasp rootDir)
@@ -118,7 +115,7 @@ if (existsSync(clientSrcDist)) {
     const fileName = relPath.split(/[\\/]/).pop();
     const destPath = join(distDir, fileName);
     if (existsSync(destPath)) {
-      console.warn(`Warning: ${fileName} already exists in dist. Overwriting.`);
+      // Intentionally overwrite without printing a warning to keep build output clean.
     }
     copyFileSync(fullPath, destPath);
 

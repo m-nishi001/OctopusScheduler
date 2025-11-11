@@ -1,5 +1,5 @@
 import type { Prize } from "../domains/prize/prize";
-import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import { injectable } from "tsyringe";
 import type { IPrizeRepository } from "../domains/prize/repository/i-prize-repository";
 

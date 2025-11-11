@@ -8,7 +8,7 @@
 
 <script lang="ts">
 import { defineComponent, ref } from 'vue';
-import { GasFunctionService } from '../../../../packages/common-lib/src/google-apps-script/gas-script-service';
+import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
 
 export default defineComponent({
     setup() {

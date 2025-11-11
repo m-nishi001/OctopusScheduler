@@ -1,33 +1,41 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import path from 'path';
+import { defineConfig } from "vite";
+import path from "path";
+import { sharedAliasArray, sharedPlugins } from "../../../vite.shared";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [...sharedPlugins],
   build: {
     target: "es2020",
     lib: {
-      entry: path.resolve(__dirname, 'src/index.ts'),
-      name: 'SharedComposables',
-      fileName: (format) => `shared-composables.${format}.js`
+      entry: path.resolve(__dirname, "src/index.ts"),
+      name: "SharedComposables",
+      fileName: (format) => `shared-composables.${format}.js`,
     },
     rollupOptions: {
-      // 外部依存としてvueとcommon-libを除外
-      external: ['vue', 'common-lib', /^common-lib\//],
+      // 外部依存として vue と common-lib / packages/common-lib を除外
+      external: [
+        "vue",
+        "@common-lib",
+        /^@common-lib\//,
+        "packages/common-lib",
+        /^packages\/common-lib\//,
+      ],
       output: {
         globals: {
-          vue: 'Vue',
-          'common-lib': 'common-lib'
-        }
-      }
-    }
+          vue: "Vue",
+          "@common-lib": "common-lib",
+        },
+      },
+    },
   },
   resolve: {
-    alias: {
-      '@common-lib': path.resolve(__dirname, '../../common-lib/src'),
-      'common-lib': path.resolve(__dirname, '../../common-lib/src'),
-      '@shared-composables': path.resolve(__dirname, './src')
-    },
-  }
-})
+    alias: [
+      ...sharedAliasArray(),
+      {
+        find: "@shared-composables",
+        replacement: path.resolve(__dirname, "./src"),
+      },
+    ],
+  },
+});

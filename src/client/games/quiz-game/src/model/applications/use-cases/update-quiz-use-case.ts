@@ -13,6 +13,7 @@ export class UpdateQuizUseCase {
       title: dto.title,
       question: dto.question,
       options: dto.options.map((o) => ({
+        no: o.no,
         text: o.text,
         color: o.color,
         image: o.image,

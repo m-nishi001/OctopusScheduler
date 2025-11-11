@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
-import { GasFunctionService } from "packages/common-lib/google-apps-script/gas-script-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
+import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 import type { IAssetDataRepository } from "../domains/drive-data/repository/i-asset-data-repository";
 import { Asset } from "../domains/drive-data/asset-data";
 import type {

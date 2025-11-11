@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import type { Result } from "../../domains/entities/result";
-import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 
 @injectable()
 export class ResultRepository {

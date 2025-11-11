@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import { Quiz } from "../../domains/entities/quiz";
-import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
-import { GasFunctionService } from "packages/common-lib/google-apps-script/gas-script-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
+import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 import type { QuizWithDataUrl } from "quiz-game-api";
 
 @injectable()

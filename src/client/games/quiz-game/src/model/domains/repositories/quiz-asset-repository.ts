@@ -1,4 +1,4 @@
-import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 
 export class QuizAssetRepository {
   private readonly localStorage: LocalStorageService;

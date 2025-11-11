@@ -1,4 +1,5 @@
 {
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2020", // Target environment (GAS V8 runtime supports modern JS)
     "module": "ESNext", // Use modern module system, ESBuild will handle bundling
@@ -10,8 +11,8 @@
     "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file.
     "moduleResolution": "bundler", // How modules get resolved (node is common for build tools)
     "resolveJsonModule": true, // Allow importing JSON files
-  "noEmit": true, // Do not emit output files (JS). Rely on ESBuild for bundling. Set true if using `tsc` only for type checking without `--noEmit` flag.
-  "outDir": "dist",
+    "noEmit": true, // Do not emit output files (JS). Rely on ESBuild for bundling. Set true if using `tsc` only for type checking without `--noEmit` flag.
+    "outDir": "dist",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
@@ -20,7 +21,11 @@
       "shared-packages": ["../../shared-packages/dist/types"]
     }
   },
-  "include": ["src/**/*", "../../shared-packages/src/**/*"],
+  "include": [
+    "src/**/*",
+    "../../shared-packages/src/**/*",
+    "../common/src/**/*"
+  ],
   "exclude": [
     "node_modules", // Exclude dependencies
     "dist" // Exclude build output directory

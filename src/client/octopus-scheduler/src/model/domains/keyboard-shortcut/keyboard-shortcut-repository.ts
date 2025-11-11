@@ -2,8 +2,8 @@ import { KeyboardShortcut } from "./keyboard-shortcut";
 import type { KeyboardShortcutData } from "./keyboard-shortcut";
 import { KeyboardShortcutConfig } from "./keyboard-shortcut-config";
 import type { KeyboardShortcutConfigData } from "./keyboard-shortcut-config";
-import { GasFunctionService } from "../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
-import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
+import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 
 export interface IKeyboardShortcutRepository {
   getKeyboardShortcutsRaw(): Promise<KeyboardShortcutData[]>;

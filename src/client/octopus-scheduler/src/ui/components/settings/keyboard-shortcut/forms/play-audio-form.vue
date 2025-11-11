@@ -23,7 +23,7 @@ import { reactive, ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
-import { useAudio } from '../../../../../../../packages/shared-composables/src/use-audio';
+import { useAudio } from '@shared-composables/use-audio';
 
 interface Props {
     initialData: { audioId?: string };

@@ -1,4 +1,4 @@
-import { LocalStorageService } from "../../../../../packages/common-lib/src/storage/local-storage-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
 import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
 import { injectable, injectAll } from "tsyringe";
@@ -7,7 +7,7 @@ import {
   type IScheduleEventConverter,
 } from "../../domains/schedule-event/i-schedule-event-converter";
 import type { ExecutionStatus } from "../../domains/schedule-event/execution-status";
-import { GasFunctionService } from "../../../../../packages/common-lib/src/google-apps-script/gas-script-service";
+import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 
 @injectable()
 export class ScheduleEventRepository implements IScheduleEventRepository {

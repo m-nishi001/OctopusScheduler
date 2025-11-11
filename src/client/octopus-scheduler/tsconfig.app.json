@@ -2,16 +2,15 @@
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+    "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "esModuleInterop": true,
     "baseUrl": ".",
     "paths": {
       "model/*": ["src/model/*"],
@@ -23,7 +22,26 @@
       "applications/*": ["../games/jackpot-game/src/model/applications/*"],
       "components/*": ["../games/jackpot-game/src/ui/components/*"],
       "components": ["../games/jackpot-game/src/ui/components"],
-      "packages/common-lib/*": ["../packages/common-lib/src/*"],
+      "@common-lib/*": ["../packages/common-lib/src/*"],
+      "@common-lib": ["../packages/common-lib/src"],
+      "presenters/content-deck/*": ["../presenters/content-deck/src/*"],
+      "presenters/content-deck": ["../presenters/content-deck/src"],
+      "games/card-game/*": ["../games/card-game/src/*"],
+      "games/card-game": ["../games/card-game/src"],
+      "games/quiz-game/*": ["../games/quiz-game/src/*"],
+      "games/quiz-game": ["../games/quiz-game/src"],
+      "games/jackpot-game/*": ["../games/jackpot-game/src/*"],
+      "games/jackpot-game": ["../games/jackpot-game/src"],
+      "presenters/content-deck/router": [
+        "../presenters/content-deck/src/router/index.ts"
+      ],
+      "games/jackpot-game/core/router": [
+        "../games/jackpot-game/src/core/router/index.ts"
+      ],
+      "games/card-game/router": ["../games/card-game/src/router/index.ts"],
+      "games/quiz-game/core/router": [
+        "../games/quiz-game/src/core/router/index.ts"
+      ],
       "server/*": ["../../server/*"],
       "@octopus/server-common": ["../../server/common/src"],
       "@octopus/server-common/*": ["../../server/common/src/*"],
@@ -35,5 +53,14 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "references": [{ "path": "../../server/common" }]
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../packages/common-lib" },
+    { "path": "../packages/shared-composables" },
+    { "path": "../games/card-game" },
+    { "path": "../games/quiz-game" },
+    { "path": "../games/jackpot-game" },
+    { "path": "../presenters/content-deck" },
+    { "path": "../../server/common" }
+  ]
 }

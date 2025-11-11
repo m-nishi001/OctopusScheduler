@@ -16,14 +16,15 @@
     "paths": {
       "@octopus/server-common": ["../../../server/common/src"],
       "@octopus/server-common/*": ["../../../server/common/src/*"],
-      "@shared-composables/*": ["../../packages/shared-composables/src/*"]
+      "@shared-composables/*": ["../../packages/shared-composables/src/*"],
+      "@common-lib/*": ["../../packages/common-lib/src/*"],
+      "@common-lib": ["../../packages/common-lib/src"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.vue",
-    "../../packages/common-lib/src/**/*.ts"
-  ],
-  "references": [{ "path": "../../../server/common" }]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [
+    { "path": "../../../server/common" },
+    { "path": "../../packages/common-lib" },
+    { "path": "../../packages/shared-composables" }
+  ]
 }

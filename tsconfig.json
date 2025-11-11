@@ -1,4 +1,5 @@
 {
+  "files": [],
   "compilerOptions": {
     /* プロジェクトオプション */
     "target": "ES2022" /* ターゲットとするECMAScriptバージョン。サポートしたいブラウザ環境によって調整。 */,
@@ -35,8 +36,23 @@
     "downlevelIteration": true /* ES5/ES3ターゲットでイテレータのダウンレベル化を許可する。 */,
     "importHelpers": true /* tslibからヘルパー関数をインポートする（バンドルサイズ削減） */,
     "paths": {
-      "common-lib": ["./src/client/packages/common-lib/src"],
-      "common-lib/*": ["./src/client/packages/common-lib/src/*"],
+      "@common-lib": ["./src/client/packages/common-lib/src"],
+      "@common-lib/*": ["./src/client/packages/common-lib/src/*"],
+      "@shared-composables": ["./src/client/packages/shared-composables/src"],
+      "@shared-composables/*": [
+        "./src/client/packages/shared-composables/src/*"
+      ],
+      "@presenters/content-deck": ["./src/client/presenters/content-deck/src"],
+      "@presenters/content-deck/*": [
+        "./src/client/presenters/content-deck/src/*"
+      ],
+      "@presenters": ["./src/client/presenters"],
+      "@games/card-game": ["./src/client/games/card-game/src"],
+      "@games/card-game/*": ["./src/client/games/card-game/src/*"],
+      "@games/jackpot-game": ["./src/client/games/jackpot-game/src"],
+      "@games/jackpot-game/*": ["./src/client/games/jackpot-game/src/*"],
+      "@games/quiz-game": ["./src/client/games/quiz-game/src"],
+      "@games/quiz-game/*": ["./src/client/games/quiz-game/src/*"],
       "@server-common/gas-types": ["./src/server/common/src/gas-types.ts"],
       "@octopus/server-common": ["./src/server/common/src"],
       "@octopus/server-common/*": ["./src/server/common/src/*"],
@@ -45,9 +61,14 @@
       ]
     }
   },
-  "include": ["src/**/*" /* コンパイル対象のファイル。 */],
-  "exclude": [
-    "node_modules" /* コンパイル対象から除外するディレクトリ。 */,
-    "dist" /* コンパイル対象から除外するディレクトリ。 */
+  "references": [
+    { "path": "./src/server/common" },
+    { "path": "./src/client/packages/common-lib" },
+    { "path": "./src/client/packages/shared-composables" },
+    { "path": "./src/client/games/jackpot-game" },
+    { "path": "./src/client/games/card-game" },
+    { "path": "./src/client/games/quiz-game" },
+    { "path": "./src/client/presenters/content-deck" },
+    { "path": "./src/client/octopus-scheduler" }
   ]
 }

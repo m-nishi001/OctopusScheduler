@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import type { IScreenSettingRepository } from "../domains/screen-config/repository/i-screen-setting-repository";
-import { LocalStorageService } from "packages/common-lib/storage/local-storage-service";
+import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import { ScreenSetting } from "../domains/screen-config/screen-setting";
 
 @injectable()
