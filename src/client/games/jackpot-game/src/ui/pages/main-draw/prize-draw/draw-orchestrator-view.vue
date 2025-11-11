@@ -97,19 +97,36 @@ export default {
         const currentMemberComponent = ref('MemberDrawAnimation');
         const currentPrizeComponent = shallowRef<Component>(markRaw(RouletteAnimation));
 
+        // Console のロギングをタイムスタンプ付きにする（デバッグ用）
+        // NOTE: store original functions to avoid recursion when overriding
+        const enableTimestampedLogs = () => {
+            const _origLog = console.log.bind(console);
+            const _origWarn = console.warn.bind(console);
+            const _origError = console.error.bind(console);
+
+            console.log = (...args: unknown[]) => _origLog(new Date().toISOString(), ...args);
+            console.warn = (...args: unknown[]) => _origWarn(new Date().toISOString(), ...args);
+            console.error = (...args: unknown[]) => _origError(new Date().toISOString(), ...args);
+        };
+        enableTimestampedLogs();
+
         // BGM Blob ロード
         const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
+            console.log('[DrawOrchestrator] loadBgmBlob called', { assetId });
             if (!assetId) return null;
             try {
                 const asset = await assetService.getAssetDataById(assetId);
+                console.log('[DrawOrchestrator] loadBgmBlob loaded asset', { assetId, hasBlob: !!asset?.blob });
                 return asset?.blob || null;
-            } catch {
+            } catch (e) {
+                console.log('[DrawOrchestrator] loadBgmBlob failed', e);
                 return null;
             }
         };
 
         // かくへん抽選処理
         const handleKakuhenDraw = async (res: DrawResultDto) => {
+            console.log('[DrawOrchestrator] handleKakuhenDraw called', { res });
             // DrawResultDto contains the finalized wonPrize. For animation we
             // choose a dummy prize (different from final) to show first and use
             // the finalized prize as the final reveal.
@@ -127,6 +144,8 @@ export default {
                 loadBgmBlob(finalPrize.bgm2AssetId || null),
             ]);
 
+            console.log('[DrawOrchestrator] handleKakuhenDraw bgm blobs loaded', { dummyPrizeId: dummyPrize?.id, finalPrizeId, hasBgm1: !!bgm1Blob, hasBgm2: !!bgm2Blob });
+
             // Use the base AnimationRef APIs (startSpin/stopSpin) to perform
             // the dummy -> final reroll sequence instead of an explicit
             // runAutoReroll method.
@@ -136,6 +155,7 @@ export default {
             try {
                 if (animationRef.value?.startSpin) {
                     animationRef.value.startSpin(bgm1Blob);
+                    console.log('[DrawOrchestrator] handleKakuhenDraw started dummy spin', { dummyPrizeId: dummyPrize?.id });
                 }
 
                 if (animationRef.value?.stopSpin) {
@@ -143,6 +163,7 @@ export default {
                         dummyDurationMs / 1000,
                         dummyPrize?.id || null,
                     );
+                    console.log('[DrawOrchestrator] handleKakuhenDraw stopped dummy spin');
                 }
 
                 // small gap between dummy and final
@@ -151,6 +172,7 @@ export default {
                 if (animationRef.value?.startSpin) {
                     // start final BGM (if any)
                     animationRef.value.startSpin(bgm2Blob);
+                    console.log('[DrawOrchestrator] handleKakuhenDraw started final spin', { finalPrizeId });
                 }
 
                 if (animationRef.value?.stopSpin) {
@@ -158,6 +180,7 @@ export default {
                         finalDurationMs / 1000,
                         finalPrizeId
                     );
+                    console.log('[DrawOrchestrator] handleKakuhenDraw stopped final spin', { finalPrizeId });
                 }
             } catch (e) {
                 // If the animation component does not fully support the
@@ -172,18 +195,22 @@ export default {
 
         // 通常抽選処理
         const handleNormalDraw = async (res: DrawResultDto) => {
+            console.log('[DrawOrchestrator] handleNormalDraw called', { res });
             const winnerPrizeId = res.wonPrize!.id;
             updateSelectedPrize(prizes.value.find((p) => p.id === winnerPrizeId)!);
 
             const bgmBlob = await loadBgmBlob(selectedPrize.value!.bgm1AssetId || null);
+            console.log('[DrawOrchestrator] handleNormalDraw bgm blob loaded', { winnerPrizeId, hasBgm: !!bgmBlob });
 
             if (animationRef.value?.startSpin) {
                 animationRef.value.startSpin(bgmBlob);
+                console.log('[DrawOrchestrator] handleNormalDraw started spin', { winnerPrizeId });
             }
         };
 
         // 新規関数: アニメーション開始
         const startRouletteAnimation = async (res: any) => {
+            console.log('[DrawOrchestrator] startRouletteAnimation', { res });
             if (res.isKakuhen) {
                 await handleKakuhenDraw(res);
             } else {
@@ -195,36 +222,51 @@ export default {
         let actionRunning = false;
         const executeCurrentAction = async () => {
             const action = drawState.currentAction;
-            if (!action) return;
-            if (actionRunning) return; // 既に実行中なら無視
+            console.log('[DrawOrchestrator] executeCurrentAction called', { hasAction: !!action, actionRunning });
+            if (!action) {
+                console.log('[DrawOrchestrator] executeCurrentAction no action to run');
+                return;
+            }
+            if (actionRunning) {
+                console.log('[DrawOrchestrator] executeCurrentAction already running, skipping');
+                return; // 既に実行中なら無視
+            }
 
             // 実行開始時点で currentAction を無効化して二重実行を防ぐ
             drawState.currentAction = null;
             actionRunning = true;
             try {
                 // 呼び出し結果が Promise でも非同期に対応するため Promise.resolve で待つ
+                console.log('[DrawOrchestrator] executeCurrentAction starting action');
                 await Promise.resolve(action());
+                console.log('[DrawOrchestrator] executeCurrentAction action finished');
             } catch (e) {
                 console.error('Error executing currentAction', e);
             } finally {
                 actionRunning = false;
+                console.log('[DrawOrchestrator] executeCurrentAction cleaned up');
             }
         };
 
         const keydownDelegator = (ev: KeyboardEvent) => {
             if (ev.key !== 'Enter') return;
+            console.log('[DrawOrchestrator] keydownDelegator Enter pressed');
             void executeCurrentAction();
         };
 
         onMounted(async () => {
+            console.log('[DrawOrchestrator] onMounted start');
 
             // 初期データロード
             const loadedPrizes = await prizeRepo.getPrizes();
+            console.log('[DrawOrchestrator] loaded prizes count', { count: loadedPrizes.length });
             await updatePrizes(loadedPrizes);
             members.value = await memberRepo.getMembers();
+            console.log('[DrawOrchestrator] loaded members count', { count: members.value.length });
 
             // 景品抽選状態の初期化
             await drawService.initializeStateIfNeeded(prizes.value);
+            console.log('[DrawOrchestrator] initialized draw state if needed');
 
             // 事前抽選実行（サーバーは確定済みの DrawResultDto を返す）
             const res = await drawService.executeDraw({
@@ -232,6 +274,7 @@ export default {
                 prizeRequestCount: 8,
             });
 
+            console.log('[DrawOrchestrator] pre-draw result received', { res });
             preDrawResult.value = res;
             latestResult.value = res;
 
@@ -240,8 +283,10 @@ export default {
                 // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
                 if (selectedPrize.value?.animation === 'slot') {
                     currentPrizeComponent.value = markRaw(SlotAnimation);
+                    console.log('[DrawOrchestrator] selected component: SlotAnimation');
                 } else {
                     currentPrizeComponent.value = markRaw(RouletteAnimation);
+                    console.log('[DrawOrchestrator] selected component: RouletteAnimation');
                 }
             }
             // 分岐判定（例: 特定のメンバーなら特殊コンポーネント/BGM）
@@ -251,6 +296,7 @@ export default {
             showMemberDraw();
 
             window.addEventListener('keydown', keydownDelegator);
+            console.log('[DrawOrchestrator] onMounted done, keydown listener attached');
         });
 
         onUnmounted(() => {
@@ -259,57 +305,75 @@ export default {
 
         // メンバー抽選表示
         const showMemberDraw = () => {
+            console.log('[DrawOrchestrator] showMemberDraw');
             drawState.phase = 'member';
             drawState.currentAction = () => { void startMemberDraw(); };
         };
 
         const handleMemberDrawStart = () => {
+            console.log('[DrawOrchestrator] handleMemberDrawStart');
             void showMemberDraw();
         };
 
         // メンバー抽選開始
         const startMemberDraw = async () => {
+            console.log('[DrawOrchestrator] startMemberDraw', { preDrawWinner: preDrawResult.value?.wonMember?.id });
             if (memberAnimRef.value) {
                 memberAnimRef.value.startDraw(preDrawResult.value?.wonMember?.id || null);
+                console.log('[DrawOrchestrator] memberAnimRef.startDraw called');
             }
             drawState.currentAction = memberStop;
         };
 
         const onMemberSelected = () => {
+            console.log('[DrawOrchestrator] onMemberSelected', { latestResult: latestResult.value });
             emit('member-winner', { result: latestResult.value });
             drawState.currentAction = () => { void showPrizeDraw(); };
         };
 
         // メンバー停止（アニメーション制御）
         const memberStop = async () => {
-            if (memberAnimRef.value) await memberAnimRef.value.stopDraw();
+            console.log('[DrawOrchestrator] memberStop');
+            if (memberAnimRef.value) {
+                await memberAnimRef.value.stopDraw();
+                console.log('[DrawOrchestrator] memberAnimRef.stopDraw completed');
+            }
         };
 
         // 景品抽選表示
         const showPrizeDraw = () => {
+            console.log('[DrawOrchestrator] showPrizeDraw');
             drawState.phase = 'prize';
             drawState.currentAction = () => { void startPrizeDraw(); };
         };
 
         // 景品抽選開始
         const startPrizeDraw = async () => {
+            console.log('[DrawOrchestrator] startPrizeDraw', { preDrawResult: preDrawResult.value });
             if (!preDrawResult.value) {
                 // 景品なしの場合、次のサイクルへ
+                console.log('[DrawOrchestrator] startPrizeDraw no preDrawResult, resetting to member phase');
                 resetToMemberPhase();
                 return;
             }
             // 事前結果(確定済み)を使ってアニメーション開始
             await startRouletteAnimation(preDrawResult.value);
+            console.log('[DrawOrchestrator] startPrizeDraw animation started');
             drawState.currentAction = prizeStop;
         };
 
         // 景品停止
         const prizeStop = async () => {
-            if (animationRef.value?.stopSpin && selectedPrize.value) await animationRef.value.stopSpin(3, selectedPrize.value.id);
+            console.log('[DrawOrchestrator] prizeStop', { selectedPrizeId: selectedPrize.value?.id });
+            if (animationRef.value?.stopSpin && selectedPrize.value) {
+                await animationRef.value.stopSpin(3, selectedPrize.value.id);
+                console.log('[DrawOrchestrator] prizeStop completed stopSpin');
+            }
         };
 
         // 共通のリセット処理
         const resetToMemberPhase = () => {
+            console.log('[DrawOrchestrator] resetToMemberPhase');
             drawState.phase = 'member';
             drawState.currentAction = () => { void showMemberDraw(); };
             showPrizeWinningDialog.value = false;
@@ -317,38 +381,47 @@ export default {
 
         // 明示的にあと半分ダイアログを開くための関数
         const openHalfRemainingDialog = () => {
+            console.log('[DrawOrchestrator] openHalfRemainingDialog');
             showHalfRemainingDialog.value = true;
         };
 
         // ルーレット停止時
         const onRouletteStopped = (prizeId: string | null) => {
+            console.log('[DrawOrchestrator] onRouletteStopped', { prizeId });
             if (!prizeId) throw new Error('No prize selected');
             if (latestResult.value) {
                 latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId)!;
                 // 表示はローカルで制御
                 showPrizeWinningDialog.value = true;
                 drawState.currentAction = () => { void closeModal(); };
+                console.log('[DrawOrchestrator] onRouletteStopped updated latestResult', { latestResult: latestResult.value });
             }
         };
 
         // モーダルクローズ
         const closeModal = async () => {
+            console.log('[DrawOrchestrator] closeModal start');
             const count = await drawService.getLastPrizeCount();
+            console.log('[DrawOrchestrator] closeModal prize count', { count });
             showEndDialog.value = count.remaining <= 0;
             showPrizeWinningDialog.value = false;
             drawState.currentAction = null;
             if (count.remaining <= 0) {
                 // 終了DLGは showEndDialog フラグで表示
+                console.log('[DrawOrchestrator] closeModal detected end condition, showEndDialog set');
             } else if (count.total > 0 && count.remaining > 0 && count.remaining * 2 === count.total) {
                 // 残りがちょうど半分のときはダイアログを直接開く
+                console.log('[DrawOrchestrator] closeModal half remaining condition met');
                 openHalfRemainingDialog();
             } else {
                 // 次のサイクル: 新しい事前抽選実行
+                console.log('[DrawOrchestrator] closeModal starting next pre-draw');
                 try {
                     const res = await drawService.executeDraw({
                         memberRequestCount: 10,
                         prizeRequestCount: 8,
                     });
+                    console.log('[DrawOrchestrator] closeModal pre-draw result', { res });
                     preDrawResult.value = res;
                     latestResult.value = res;
                     if (res !== null) {
@@ -371,6 +444,7 @@ export default {
 
         // ダイアログクローズハンドラー
         const onHalfRemainingClosed = async () => {
+            console.log('[DrawOrchestrator] onHalfRemainingClosed start');
             // ユーザーが閉じたら即座に非表示にする。
             showHalfRemainingDialog.value = false;
             try {
@@ -378,6 +452,7 @@ export default {
                     memberRequestCount: 10,
                     prizeRequestCount: 8,
                 });
+                console.log('[DrawOrchestrator] onHalfRemainingClosed pre-draw result', { res });
                 preDrawResult.value = res;
                 latestResult.value = res;
                 if (res !== null) {
@@ -394,6 +469,7 @@ export default {
                 // 更新された景品カウントを取得して反映する（これにより showHalfRemainingDialog が解除される）
                 try {
                     const count = await drawService.getLastPrizeCount();
+                    console.log('[DrawOrchestrator] onHalfRemainingClosed refreshed count', { count });
                     // ダイアログ閉了後はカウントを取得し、終了ダイアログ表示フラグを更新する
                     showEndDialog.value = count.remaining <= 0;
                 } catch (e) {
@@ -405,6 +481,7 @@ export default {
         };
 
         const onEndClosed = () => {
+            console.log('[DrawOrchestrator] onEndClosed');
             // 終了時はカウントをクリアし、ダイアログを閉じる
             // no persistent count to clear; just hide dialogs
             showEndDialog.value = false;
