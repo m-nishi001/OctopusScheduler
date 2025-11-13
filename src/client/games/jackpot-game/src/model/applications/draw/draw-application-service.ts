@@ -1,5 +1,4 @@
 import { injectable, inject } from "tsyringe";
-import { DrawService } from "../../domains/draw/draw-service";
 import { DrawResultService } from "./draw-result-service";
 import { MemberDrawService } from "../../domains/draw/member-draw-service";
 import { PrizeDrawService } from "../../domains/draw/prize-draw-service";
@@ -10,11 +9,22 @@ import type { DrawPrizeResponse } from "./dto/draw-prize-response";
 import {
   PrizeDrawStateRepository,
   type PrizeDrawState,
-} from "../../infrastructures/prize-draw-state-repository";
+} from "../../infrastructures/draw/prize-draw-state-repository";
 import type { Prize } from "../../domains/prize/prize";
 import type { DrawResultDto } from "./dto/draw-result-dto";
-import type { MemberDto } from "../member/dto/member-dto";
-import { toMember } from "../member/dto/member-dto";
+import type { Member } from "../../domains/member/member";
+import { IdGeneratorToken } from "../../domains/common/id-generator";
+import type { IdGenerator } from "../../domains/common/id-generator";
+import {
+  NotFoundError,
+  StateNotInitializedError,
+  NoAvailablePrizesError,
+} from "../../common/errors";
+import { DrawStateInitializer } from "./draw-state-initializer";
+import {
+  mapToDrawResult,
+  mapToUpdatedDrawResult,
+} from "./mappers/draw-result-mapper";
 import { IMemberRepositoryToken } from "../../domains/member/repository/i-member-repository";
 import { IPrizeRepositoryToken } from "../../domains/prize/repository/i-prize-repository";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
@@ -28,96 +38,68 @@ export class DrawApplicationService {
     @inject(DrawResultService) private drawResultService: DrawResultService,
     @inject(PrizeDrawStateRepository)
     private prizeDrawStateRepository: PrizeDrawStateRepository,
-    @inject(DrawService) private drawService: DrawService,
     @inject(MemberDrawService) private memberDrawService: MemberDrawService,
-    @inject(PrizeDrawService) private prizeDrawService: PrizeDrawService
+    @inject(PrizeDrawService) private prizeDrawService: PrizeDrawService,
+    @inject(IdGeneratorToken) private idGenerator: IdGenerator,
+    @inject(DrawStateInitializer)
+    private drawStateInitializer: DrawStateInitializer
   ) {}
 
-  async executeMemberDraw(
-    request: DrawMemberRequest
-  ): Promise<DrawMemberResponse> {
-    const members = await this.memberRepo.getMembers();
-    const domainMembers = members.map(toMember);
-    const results = await this.drawResultService.getDrawResults();
-
-    const res = this.memberDrawService.drawMember(
-      domainMembers,
-      results,
-      request.requestCount - 1
-    );
-
-    return {
-      drawId: crypto.randomUUID(),
-      winnerId: res?.winnerId ?? null,
-      dummyIds: res?.dummyIds ?? [],
-    };
+  async initializeStateIfNeeded(prizes: Prize[]): Promise<void> {
+    return this.drawStateInitializer.initialize(prizes);
   }
 
-  async executePrizeDraw(
-    request: DrawPrizeRequest
-  ): Promise<DrawPrizeResponse> {
-    const members = await this.memberRepo.getMembers();
-    const member = members.find((m) => m.id === request.memberId);
-    if (!member)
-      throw new Error("Member not found for prize draw: " + request.memberId);
-
-    const state = await this.getPrizeDrawState();
-    if (!state) throw new Error("Prize draw state not initialized");
-
+  async getRemainingPrizes(): Promise<Prize[]> {
+    const prizes = await this.prizeRepo.getPrizes();
     const results = await this.drawResultService.getDrawResults();
-    const drawCount =
-      results.filter(
-        (r) => r.wonMember !== null && !r.drawId.startsWith("reserved-")
-      ).length + 1;
+    return this.prizeDrawService.getRemainingPrizes(prizes, results);
+  }
+
+  async executeDraw(request: {
+    memberRequestCount: number;
+    prizeRequestCount: number;
+  }): Promise<DrawResultDto> {
+    const memberRes = await this.executeMemberDraw({
+      requestCount: request.memberRequestCount,
+    });
+    if (!memberRes.winnerId) {
+      throw new NotFoundError("No member winner");
+    }
+    const members = await this.memberRepo.getMembers();
+    const winnerMember = members.find((m) => m.id === memberRes.winnerId);
+    if (!winnerMember) throw new NotFoundError("Winner member not found");
 
     const prizes = await this.prizeRepo.getPrizes();
+    const results = await this.drawResultService.getDrawResults();
+    const state = await this.getPrizeDrawState();
+    if (!state)
+      throw new StateNotInitializedError("Prize draw state not initialized");
+    const isKakuhen = this.prizeDrawService.isKakuhenTurn(
+      prizes,
+      results,
+      state
+    );
 
-    if (state.includes(drawCount)) {
-      try {
-        return await this.executeKakuhenDraw(member, results, prizes);
-      } catch (e: any) {
-        // If reserved prizes are not available for kakuhen (possible when state
-        // was initialized but reserved entries were consumed or truncated during tests),
-        // fall back to a normal draw instead of throwing and aborting the whole flow.
-        if (e && e.message === "No reserved prizes available") {
-          console.warn(
-            "DrawApplicationService: No reserved prizes available for kakuhen; falling back to normal draw"
-          );
-          return this.executeNormalDraw(prizes, results, request, member);
-        }
-        throw e;
-      }
-    } else {
-      return this.executeNormalDraw(prizes, results, request, member);
-    }
-  }
+    const prizeRequest = {
+      memberId: winnerMember.id,
+      requestCount: request.prizeRequestCount,
+    };
 
-  async initializeStateIfNeeded(prizes: Prize[]): Promise<void> {
-    if (await this.prizeDrawStateRepository.getState()) return;
+    const prizeRes = await (isKakuhen
+      ? this.executeKakuhenDraw(winnerMember, results, prizes, prizeRequest)
+      : this.executeNormalDraw(prizes, results, prizeRequest, winnerMember));
 
-    const newState = this.drawService.calculateKakuhenTimings(prizes.length);
-    await this.prizeDrawStateRepository.saveState(newState);
-    const reservedResults = this.drawService.reservePrizes(newState, prizes);
-    for (const result of reservedResults) {
-      await this.drawResultService.addDrawResult({
-        ...result,
-        createdAt: Date.now(),
-      });
+    if (!prizeRes.winnerPrizeId) {
+      throw new NoAvailablePrizesError("No prize available");
     }
-    // Diagnostic log: record what was reserved during initialization
-    try {
-      const resAfter = await this.drawResultService.getDrawResults();
-      const reservedAfter = resAfter.filter((r) => r.wonMember === null);
-      console.info(
-        `DrawApplicationService: initializeStateIfNeeded -> kakuhen timings=${JSON.stringify(
-          newState
-        )}, reservedCount=${reservedAfter.length}, reservedDrawIds=${reservedAfter
-          .map((r) => r.drawId)
-          .join(",")}`
-      );
-    } catch (e) {
-      console.warn("DrawApplicationService: unable to log reserved results", e);
-    }
+
+    const winnerPrize = prizes.find((p) => p.id === prizeRes.winnerPrizeId)!;
+    return await this.saveDrawResult(
+      prizeRes,
+      winnerMember,
+      winnerPrize,
+      results
+    );
   }
 
   private async getPrizeDrawState(): Promise<PrizeDrawState | null> {
@@ -125,54 +107,46 @@ export class DrawApplicationService {
   }
 
   private async executeKakuhenDraw(
-    member: MemberDto,
+    member: Member,
     results: DrawResultDto[],
-    prizes: Prize[]
+    prizes: Prize[],
+    request: DrawPrizeRequest
   ): Promise<DrawPrizeResponse> {
-    const availablePrizes = prizes.filter(
-      (p) =>
-        !results.some((r) => r.wonPrize?.id === p.id && r.wonMember !== null)
+    const availablePrizes = this.prizeDrawService.getAvailablePrizes(
+      prizes,
+      results
     );
-
     const reservedResults = results.filter((r) => r.wonMember === null);
-    // Diagnostic logging immediately before attempting kakuhen draw
-    console.debug(
-      `DrawApplicationService: executeKakuhenDraw -> totalResults=${results.length}, reservedResults=${reservedResults.length}, availablePrizes=${availablePrizes.length}`
-    );
-    console.debug(
-      `DrawApplicationService: reserved drawIds=${reservedResults.map((r) => r.drawId).join(",")}`
-    );
-    if (reservedResults.length === 0) {
-      throw new Error("No reserved prizes available");
-    }
-    const selectedReserved =
-      reservedResults[Math.floor(Math.random() * reservedResults.length)];
 
-    // ダミーの当選景品をランダムに選ぶ
+    if (reservedResults.length === 0) {
+      console.warn(
+        "DrawApplicationService: No reserved prizes available for kakuhen; falling back to normal draw"
+      );
+      // フォールバックしておく
+      return this.executeNormalDraw(prizes, results, request, member);
+    }
+
+    const selectedReserved =
+      this.prizeDrawService.selectRandomReserved(reservedResults);
+
     const dummyWinnerPrize =
-      availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+      this.prizeDrawService.pickRandomPrizeFrom(availablePrizes);
     const dummyWinnerPrizeId = dummyWinnerPrize?.id || null;
 
-    // ダミー景品を取得: 全景品から winnerPrizeId と dummyWinnerPrizeId を除いたものをランダムで取得
     const excludedIds = new Set(
       [selectedReserved.wonPrize?.id, dummyWinnerPrizeId].filter(Boolean)
     );
-    const dummyCandidates = prizes.filter((p) => !excludedIds.has(p.id));
-    const dummyPrizeIds = dummyCandidates
-      .sort(() => Math.random() - 0.5) // ランダムシャッフル
-      .slice(0, Math.max(0, 8 - 2)) // 例: ルーレット盤のサイズに応じて調整（ここでは8個の盤を想定し、2個を除く）
-      .map((p) => p.id);
+    const dummyPrizeIds = this.prizeDrawService.buildDummyPrizeIds(
+      prizes,
+      excludedIds,
+      6
+    );
 
-    await this.drawResultService.updateDrawResult({
-      ...selectedReserved,
-      wonMember: member,
-      isKakuhen: true,
-    });
     return {
       drawId: selectedReserved.drawId,
       winnerPrizeId: selectedReserved.wonPrize?.id || null,
-      dummyWinnerPrizeId, // かくへん用のダミー当選景品ID
-      dummyPrizeIds, // ルーレット盤を埋めるダミー景品ID
+      dummyWinnerPrizeId,
+      dummyPrizeIds,
       isKakuhen: true,
     };
   }
@@ -181,16 +155,16 @@ export class DrawApplicationService {
     prizes: Prize[],
     results: DrawResultDto[],
     request: DrawPrizeRequest,
-    member: MemberDto
+    member: Member
   ): Promise<DrawPrizeResponse> {
-    const availablePrizes = prizes.filter(
-      (p) =>
-        !results.some((r) => r.wonPrize?.id === p.id && r.wonMember !== null)
+    const availablePrizes = this.prizeDrawService.getAvailablePrizes(
+      prizes,
+      results
     );
     if (availablePrizes.length === 0) {
       console.warn("No available prizes left");
       return {
-        drawId: `prize-${Date.now()}`,
+        drawId: this.idGenerator.nextId(),
         winnerPrizeId: null,
         dummyWinnerPrizeId: null,
         dummyPrizeIds: [],
@@ -202,11 +176,11 @@ export class DrawApplicationService {
         .filter((r) => r.wonMember !== null)
         .map((r) => r.wonPrize?.id)
         .filter(Boolean) as string[],
-      member: toMember(member),
+      member: member as Member,
       dummyCount: Math.max(0, request.requestCount - 1),
     });
     return {
-      drawId: crypto.randomUUID(),
+      drawId: this.idGenerator.nextId(),
       winnerPrizeId: result?.winnerPrizeId || null,
       dummyWinnerPrizeId: result?.dummyPrizeIds[0] || null,
       dummyPrizeIds: result?.dummyPrizeIds || [],
@@ -214,80 +188,48 @@ export class DrawApplicationService {
     };
   }
 
-  async getLastPrizeCount(): Promise<{ total: number; remaining: number }> {
-    const prizes = await this.prizeRepo.getPrizes();
+  private async executeMemberDraw(
+    request: DrawMemberRequest
+  ): Promise<DrawMemberResponse> {
+    const members = await this.memberRepo.getMembers();
     const results = await this.drawResultService.getDrawResults();
-    const assignedPrizeIds = new Set(
-      results
-        .filter(
-          (r) => r.wonMember !== null && !r.drawId.startsWith("reserved-")
-        )
-        .map((r) => r.wonPrize?.id)
-        .filter(Boolean)
+
+    const res = this.memberDrawService.drawMember(
+      members,
+      results,
+      request.requestCount - 1
     );
+
     return {
-      total: prizes.length,
-      remaining: prizes.length - assignedPrizeIds.size,
+      drawId: this.idGenerator.nextId(),
+      winnerId: res?.winnerId ?? null,
+      dummyIds: res?.dummyIds ?? [],
     };
   }
 
-  async executeDraw(request: {
-    memberRequestCount: number;
-    prizeRequestCount: number;
-  }): Promise<DrawResultDto | null> {
-    // メンバー抽選
-    const memberRes = await this.executeMemberDraw({
-      requestCount: request.memberRequestCount,
-    });
-    if (!memberRes.winnerId) {
-      // メンバーが尽きた場合、最後の景品を当選させる
-      const prizes = await this.prizeRepo.getPrizes();
-      const results = await this.drawResultService.getDrawResults();
-      const availablePrizes = prizes.filter(
-        (p) =>
-          !results.some((r) => r.wonPrize?.id === p.id && r.wonMember !== null)
-      );
-      if (availablePrizes.length === 1) {
-        // 最後の景品を当選
-        const lastPrize = availablePrizes[0];
-        const drawResult: DrawResultDto = {
-          drawId: crypto.randomUUID(),
-          wonMember: null, // メンバーなし
-          wonPrize: lastPrize,
-          isKakuhen: false,
-          createdAt: Date.now(),
-        };
-        await this.drawResultService.addDrawResult(drawResult);
-        return drawResult;
+  private async saveDrawResult(
+    prizeRes: DrawPrizeResponse,
+    winnerMember: Member,
+    winnerPrize: Prize,
+    results: DrawResultDto[]
+  ): Promise<DrawResultDto> {
+    if (prizeRes.isKakuhen) {
+      const existing = results.find((r) => r.drawId === prizeRes.drawId);
+      if (!existing) {
+        throw new NotFoundError("Reserved draw result not found");
       }
-      throw new Error("No member winner");
+      const updated = mapToUpdatedDrawResult(existing, winnerMember, true);
+      await this.drawResultService.updateDrawResult(updated);
+      return updated;
+    } else {
+      const drawResult = mapToDrawResult(
+        prizeRes.drawId,
+        winnerMember,
+        winnerPrize,
+        false
+      );
+      await this.drawResultService.addDrawResult(drawResult);
+      return drawResult;
     }
-    const members = await this.memberRepo.getMembers();
-    const winnerMember = members.find((m) => m.id === memberRes.winnerId);
-    if (!winnerMember) throw new Error("Winner member not found");
-
-    // 景品抽選
-    const prizeRes = await this.executePrizeDraw({
-      memberId: winnerMember.id,
-      requestCount: request.prizeRequestCount,
-    });
-
-    if (!prizeRes.winnerPrizeId) {
-      return null;
-    }
-
-    // 統合レコード保存
-    const prizes = await this.prizeRepo.getPrizes();
-    const winnerPrize = prizes.find((p) => p.id === prizeRes.winnerPrizeId)!;
-    const drawResult: DrawResultDto = {
-      drawId: crypto.randomUUID(),
-      wonMember: winnerMember,
-      wonPrize: winnerPrize,
-      isKakuhen: prizeRes.isKakuhen ?? false,
-      createdAt: Date.now(),
-    };
-    await this.drawResultService.addDrawResult(drawResult);
-
-    return drawResult;
   }
 }

@@ -3,18 +3,20 @@ import { DrawApplicationService } from "./draw-application-service";
 import { MemberRepository } from "../../infrastructures/member-repository";
 import { PrizeRepository } from "../../infrastructures/prize-repository";
 import { DrawResultService } from "./draw-result-service";
-import { PrizeDrawStateRepository } from "../../infrastructures/prize-draw-state-repository";
+import { PrizeDrawStateRepository } from "../../infrastructures/draw/prize-draw-state-repository";
+import { RandomProviderToken } from "../../domains/common/random-provider";
+import { FixedRandomProvider } from "../../infrastructures/random/fixed-random-provider";
 import type { MemberDto } from "../member/dto/member-dto";
 import type { PrizeDto } from "../prize/dto/prize-dto";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 
 @injectable()
-export class DrawTestService {
-  private drawAppService: DrawApplicationService;
-  private memberRepo: MemberRepository;
-  private prizeRepo: PrizeRepository;
-  private drawResultService: DrawResultService;
-  private prizeDrawStateRepository: PrizeDrawStateRepository;
+export class DrawSimulationService {
+  private drawAppService!: DrawApplicationService;
+  private memberRepo!: MemberRepository;
+  private prizeRepo!: PrizeRepository;
+  private drawResultService!: DrawResultService;
+  private prizeDrawStateRepository!: PrizeDrawStateRepository;
 
   // Backups for restore after test
   private backupMembers: MemberDto[] | null = null;
@@ -23,20 +25,38 @@ export class DrawTestService {
   private backupState: number[] | null = null;
   private readonly PERSIST_KEY = "jackpot-test-backup";
 
-  constructor() {
-    this.drawAppService = container.resolve(DrawApplicationService);
-    this.memberRepo = container.resolve(MemberRepository);
-    this.prizeRepo = container.resolve(PrizeRepository);
-    this.drawResultService = container.resolve(DrawResultService);
-    this.prizeDrawStateRepository = container.resolve(PrizeDrawStateRepository);
-  }
+  constructor() {}
 
   // Main simulation method
   async runSimulation(
     memberCount: number,
-    prizeCount: number
+    prizeCount: number,
+    randomValues?: number[]
   ): Promise<{ results: DrawResultDto[]; csv: string }> {
     try {
+      // If a deterministic random sequence is requested, override the RandomProvider
+      let originalRand: any = null;
+      if (randomValues && randomValues.length > 0) {
+        try {
+          originalRand = container.resolve(RandomProviderToken as any);
+        } catch (e) {
+          originalRand = null;
+        }
+        // register FixedRandomProvider instance for deterministic behavior
+        container.registerInstance(
+          RandomProviderToken as any,
+          new FixedRandomProvider(randomValues)
+        );
+      }
+
+      // Resolve services after possibly overriding RandomProvider
+      this.drawAppService = container.resolve(DrawApplicationService);
+      this.memberRepo = container.resolve(MemberRepository);
+      this.prizeRepo = container.resolve(PrizeRepository);
+      this.drawResultService = container.resolve(DrawResultService);
+      this.prizeDrawStateRepository =
+        container.resolve<PrizeDrawStateRepository>(PrizeDrawStateRepository);
+
       // 1. バックアップを取得
       await this.backupCurrentData();
 
@@ -50,6 +70,20 @@ export class DrawTestService {
 
       // 5. バックアップを復元
       await this.restoreBackup();
+
+      // restore original RandomProvider registration if we overrode it
+      if (randomValues && randomValues.length > 0) {
+        try {
+          if (originalRand) {
+            container.registerInstance(
+              RandomProviderToken as any,
+              originalRand
+            );
+          }
+        } catch (e) {
+          // ignore restore errors
+        }
+      }
 
       // 6. シミュレート結果を表示 (return results and CSV)
       const csv = this.generateCsv(results);
@@ -144,8 +178,9 @@ export class DrawTestService {
   private async runDrawSimulation(): Promise<DrawResultDto[]> {
     console.info("Running draw simulation...");
     const results: DrawResultDto[] = [];
-    let continueDraw = true;
-    while (continueDraw) {
+    const total = (await this.prizeRepo.getPrizes()).length;
+    let safetyCounter = 0;
+    while (true) {
       try {
         const res = await this.drawAppService.executeDraw({
           memberRequestCount: 10,
@@ -155,9 +190,15 @@ export class DrawTestService {
           results.push(res);
         }
 
-        const count = await this.drawAppService.getLastPrizeCount();
-        if (results.length >= count.total - 1) {
-          continueDraw = false;
+        const remainingPrizes = await this.drawAppService.getRemainingPrizes();
+        // Stop when there are no remaining prizes
+        if (remainingPrizes.length === 0) break;
+
+        // Safety: avoid infinite loops; if exceeded some threshold, break
+        safetyCounter++;
+        if (safetyCounter > Math.max(50, total * 3)) {
+          console.warn("Simulation reached safety limit, stopping early");
+          break;
         }
       } catch (e) {
         console.error("Error in draw execution:", e);

@@ -4,7 +4,7 @@ import { AssetDataRepository } from "../../model/infrastructures/asset-data-repo
 import { PrizeRepository } from "../../model/infrastructures/prize-repository";
 import { ScreenConfigRepository } from "../../model/infrastructures/screen-config-repository";
 import { IScreenSettingRepositoryToken } from "../../model/domains/screen-config/repository/i-screen-setting-repository";
-import { DrawResultRepository } from "../../model/infrastructures/draw-result-repository";
+import { DrawResultRepository } from "../../model/infrastructures/draw/draw-result-repository";
 import { IAssetDataRepositoryToken } from "../../model/domains/drive-data/repository/i-asset-data-repository";
 import { IMemberRepositoryToken } from "../../model/domains/member/repository/i-member-repository";
 import { IPrizeRepositoryToken } from "../../model/domains/prize/repository/i-prize-repository";
@@ -13,12 +13,16 @@ import { AssetDataService } from "../../model/applications/asset/asset-data-serv
 import { ScreenSettingsService } from "../../model/applications/screen-config/screen-settings-service";
 import { ScreenConfigService } from "../../model/applications/screen-config/screen-config-service";
 import { DrawResultService } from "../../model/applications/draw/draw-result-service";
-import { PrizeDrawStateRepository } from "../../model/infrastructures/prize-draw-state-repository";
-import { DrawService as DomainDrawService } from "../../model/domains/draw/draw-service";
+import { PrizeDrawStateRepository } from "../../model/infrastructures/draw/prize-draw-state-repository";
 import { MemberDrawService } from "../../model/domains/draw/member-draw-service";
 import { PrizeDrawService } from "../../model/domains/draw/prize-draw-service";
 import { WeightedSelector } from "../../model/domains/draw/weighted-selector";
 import { DrawApplicationService } from "../../model/applications/draw/draw-application-service";
+import { DrawStateInitializer } from "../../model/applications/draw/draw-state-initializer";
+import { RandomProviderToken } from "../../model/domains/common/random-provider";
+import { MathRandomProvider } from "../../model/infrastructures/random/math-random-provider";
+import { IdGeneratorToken } from "../../model/domains/common/id-generator";
+import { CryptoIdGenerator } from "../../model/infrastructures/id/crypto-id-generator";
 
 export class Container {
   static register() {
@@ -45,12 +49,16 @@ export class Container {
     container.register(PrizeDrawStateRepository, {
       useClass: PrizeDrawStateRepository,
     });
-    container.register(DomainDrawService, { useClass: DomainDrawService });
     container.register(MemberDrawService, { useClass: MemberDrawService });
     container.register(PrizeDrawService, { useClass: PrizeDrawService });
     container.register(WeightedSelector, { useClass: WeightedSelector });
+    container.register(DrawStateInitializer, {
+      useClass: DrawStateInitializer,
+    });
     container.register(DrawApplicationService, {
       useClass: DrawApplicationService,
     });
+    container.register(RandomProviderToken, { useClass: MathRandomProvider });
+    container.register(IdGeneratorToken, { useClass: CryptoIdGenerator });
   }
 }

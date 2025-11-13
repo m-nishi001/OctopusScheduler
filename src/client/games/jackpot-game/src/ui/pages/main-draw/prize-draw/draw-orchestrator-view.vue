@@ -15,7 +15,7 @@
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
-                            @start="handleMemberDrawStart" @member-selected="onMemberSelected" />
+                            @start="handleMemberDrawStart" @member-selected="onMemberRouletteStopped" />
                     </div>
                 </section>
 
@@ -24,7 +24,7 @@
                     <div class="roulette-panel">
                         <component :is="currentPrizeComponent" ref="animationRef" :prizes="prizes"
                             :selectedPrize="selectedPrize" :showResult="showPrizeWinningDialog"
-                            @stopped="onRouletteStopped" />
+                            @stopped="onPrizeRouletteStopped" />
                     </div>
                 </section>
             </div>
@@ -268,17 +268,17 @@ export default {
             await drawService.initializeStateIfNeeded(prizes.value);
             console.log('[DrawOrchestrator] initialized draw state if needed');
 
-            // 事前抽選実行（サーバーは確定済みの DrawResultDto を返す）
-            const res = await drawService.executeDraw({
-                memberRequestCount: 10,
-                prizeRequestCount: 8,
-            });
+            // 事前抽選実行（例外発生時は UI でアラート表示）
+            try {
+                const res = await drawService.executeDraw({
+                    memberRequestCount: 10,
+                    prizeRequestCount: 8,
+                });
+                console.log('[DrawOrchestrator] pre-draw result received', { res });
+                preDrawResult.value = res;
+                latestResult.value = res;
 
-            console.log('[DrawOrchestrator] pre-draw result received', { res });
-            preDrawResult.value = res;
-            latestResult.value = res;
-
-            if (res !== null) {
+                // 成功時は必ず DrawResultDto が返る想定
                 updateSelectedPrize(prizes.value.find((p) => p.id === res.wonPrize!.id)!);
                 // 分岐判定（例: 特定の景品なら特殊コンポーネント/BGM）
                 if (selectedPrize.value?.animation === 'slot') {
@@ -288,6 +288,12 @@ export default {
                     currentPrizeComponent.value = markRaw(RouletteAnimation);
                     console.log('[DrawOrchestrator] selected component: RouletteAnimation');
                 }
+            } catch (e: any) {
+                console.error('[DrawOrchestrator] pre-draw failed', e);
+                preDrawResult.value = null;
+                latestResult.value = null;
+                // ユーザーへの通知（要求どおりアラート）
+                try { window.alert(e?.message || String(e)); } catch (_) { /* noop */ }
             }
             // 分岐判定（例: 特定のメンバーなら特殊コンポーネント/BGM）
             // ここではデフォルト
@@ -325,10 +331,13 @@ export default {
             drawState.currentAction = memberStop;
         };
 
-        const onMemberSelected = () => {
-            console.log('[DrawOrchestrator] onMemberSelected', { latestResult: latestResult.value });
+        const onMemberRouletteStopped = () => {
+            console.log('[DrawOrchestrator] onMemberRouletteStopped', { latestResult: latestResult.value });
+            drawState.currentAction = null;
             emit('member-winner', { result: latestResult.value });
-            drawState.currentAction = () => { void showPrizeDraw(); };
+            setTimeout(() => {
+                drawState.currentAction = () => showPrizeDraw();
+            }, 1000);
         };
 
         // メンバー停止（アニメーション制御）
@@ -386,14 +395,17 @@ export default {
         };
 
         // ルーレット停止時
-        const onRouletteStopped = (prizeId: string | null) => {
+        const onPrizeRouletteStopped = (prizeId: string | null) => {
             console.log('[DrawOrchestrator] onRouletteStopped', { prizeId });
             if (!prizeId) throw new Error('No prize selected');
             if (latestResult.value) {
                 latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId)!;
-                // 表示はローカルで制御
                 showPrizeWinningDialog.value = true;
-                drawState.currentAction = () => { void closeModal(); };
+                drawState.currentAction = null;
+                setTimeout(() => {
+                    drawState.currentAction = () => { void closeModal(); };
+                    console.log('[DrawOrchestrator] prize dialog close action enabled after delay');
+                }, 1000);
                 console.log('[DrawOrchestrator] onRouletteStopped updated latestResult', { latestResult: latestResult.value });
             }
         };
@@ -401,6 +413,7 @@ export default {
         // モーダルクローズ
         const closeModal = async () => {
             console.log('[DrawOrchestrator] closeModal start');
+            // Note: no pending timer to clear (we use a single delayed setTimeout and dialog buttons are inert)
             const count = await drawService.getLastPrizeCount();
             console.log('[DrawOrchestrator] closeModal prize count', { count });
             showEndDialog.value = count.remaining <= 0;
@@ -424,20 +437,20 @@ export default {
                     console.log('[DrawOrchestrator] closeModal pre-draw result', { res });
                     preDrawResult.value = res;
                     latestResult.value = res;
-                    if (res !== null) {
-                        const result = res;
-                        updateSelectedPrize(prizes.value.find((p) => p.id === result.wonPrize!.id)!);
-                        if (selectedPrize.value?.animation === 'slot') {
-                            currentPrizeComponent.value = markRaw(SlotAnimation);
-                        } else {
-                            currentPrizeComponent.value = markRaw(RouletteAnimation);
-                        }
+                    const result = res;
+                    updateSelectedPrize(prizes.value.find((p) => p.id === result.wonPrize!.id)!);
+                    if (selectedPrize.value?.animation === 'slot') {
+                        currentPrizeComponent.value = markRaw(SlotAnimation);
+                    } else {
+                        currentPrizeComponent.value = markRaw(RouletteAnimation);
                     }
                     currentMemberComponent.value = 'MemberDrawAnimation';
                     resetToMemberPhase();
-                } catch (e) {
+                } catch (e: any) {
                     console.error('Pre-draw failed in next cycle:', e);
-                    // 必要に応じてエラーハンドリング
+                    preDrawResult.value = null;
+                    latestResult.value = null;
+                    try { window.alert(e?.message || String(e)); } catch (_) { /* noop */ }
                 }
             }
         };
@@ -445,7 +458,6 @@ export default {
         // ダイアログクローズハンドラー
         const onHalfRemainingClosed = async () => {
             console.log('[DrawOrchestrator] onHalfRemainingClosed start');
-            // ユーザーが閉じたら即座に非表示にする。
             showHalfRemainingDialog.value = false;
             try {
                 const res = await drawService.executeDraw({
@@ -455,14 +467,12 @@ export default {
                 console.log('[DrawOrchestrator] onHalfRemainingClosed pre-draw result', { res });
                 preDrawResult.value = res;
                 latestResult.value = res;
-                if (res !== null) {
-                    const result = res;
-                    updateSelectedPrize(prizes.value.find((p) => p.id === result.wonPrize!.id)!);
-                    if (selectedPrize.value?.animation === 'slot') {
-                        currentPrizeComponent.value = markRaw(SlotAnimation);
-                    } else {
-                        currentPrizeComponent.value = markRaw(RouletteAnimation);
-                    }
+                const result = res;
+                updateSelectedPrize(prizes.value.find((p) => p.id === result.wonPrize!.id)!);
+                if (selectedPrize.value?.animation === 'slot') {
+                    currentPrizeComponent.value = markRaw(SlotAnimation);
+                } else {
+                    currentPrizeComponent.value = markRaw(RouletteAnimation);
                 }
                 currentMemberComponent.value = 'MemberDrawAnimation';
                 resetToMemberPhase();
@@ -472,18 +482,20 @@ export default {
                     console.log('[DrawOrchestrator] onHalfRemainingClosed refreshed count', { count });
                     // ダイアログ閉了後はカウントを取得し、終了ダイアログ表示フラグを更新する
                     showEndDialog.value = count.remaining <= 0;
-                } catch (e) {
+                } catch (e: any) {
                     console.error('Failed to refresh prize count after half-remaining close:', e);
+                    try { window.alert(e?.message || String(e)); } catch (_) { /* noop */ }
                 }
-            } catch (e) {
+            } catch (e: any) {
                 console.error('Pre-draw failed in next cycle:', e);
+                preDrawResult.value = null;
+                latestResult.value = null;
+                try { window.alert(e?.message || String(e)); } catch (_) { /* noop */ }
             }
         };
 
         const onEndClosed = () => {
             console.log('[DrawOrchestrator] onEndClosed');
-            // 終了時はカウントをクリアし、ダイアログを閉じる
-            // no persistent count to clear; just hide dialogs
             showEndDialog.value = false;
             showHalfRemainingDialog.value = false;
             router.push('/jackpot-ending');
@@ -505,8 +517,8 @@ export default {
             startPrizeDraw,
             prizeStop,
             closeModal,
-            onRouletteStopped,
-            onMemberSelected,
+            onPrizeRouletteStopped,
+            onMemberRouletteStopped,
             showPrizeWinningDialog,
             showHalfRemainingDialog,
             showEndDialog,

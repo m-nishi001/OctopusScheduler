@@ -10,7 +10,8 @@
                     <slot>{{ message }}</slot>
                 </p>
                 <div class="dialog-actions">
-                    <button v-if="showPrimary" class="btn-primary" @click="close">{{ primaryLabel }}</button>
+                    <button v-if="showPrimary" class="btn-primary" type="button" @click.prevent.stop="() => { }">{{
+                        primaryLabel }}</button>
                 </div>
             </div>
         </div>

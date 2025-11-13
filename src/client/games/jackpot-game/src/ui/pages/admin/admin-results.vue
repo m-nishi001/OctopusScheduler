@@ -131,14 +131,14 @@ import { IMemberRepositoryToken } from '@model/domains/member/repository/i-membe
 import type { IPrizeRepository } from '@model/domains/prize/repository/i-prize-repository';
 import type { IMemberRepository } from '@model/domains/member/repository/i-member-repository';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { PrizeDrawStateRepository } from '@model/infrastructures/prize-draw-state-repository';
+import { PrizeDrawStateRepository } from '@model/infrastructures/draw/prize-draw-state-repository';
 
 const drawResultService = container.resolve(DrawResultService);
 const prizeService = container.resolve(PrizeService);
 const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
 const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
 const assetService = container.resolve(AssetDataService);
-const prizeDrawStateRepository = container.resolve(PrizeDrawStateRepository);
+const prizeDrawStateRepository = container.resolve<PrizeDrawStateRepository>(PrizeDrawStateRepository);
 
 const drawResults = ref<DrawResultDto[]>([]);
 const prizes = ref<Prize[]>([]);

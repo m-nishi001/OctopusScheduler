@@ -14,7 +14,9 @@
         </div>
         <div class="start-button-container" ref="startButtonContainer">
             <button class="start-button" :class="{ waiting: !isAnimating, animating: isAnimating }"
-                :disabled="isAnimating" @click="handleStart">{{ isAnimating ? 'STOP！' : 'START！' }} </button>
+                :disabled="isAnimating" type="button" @click.prevent.stop="() => { }">{{ isAnimating ? 'STOP！' :
+                    'START！'
+                }} </button>
         </div>
         <!-- Inline member winner dialog (defined here for readability/maintenance per request) -->
         <teleport to="body">
@@ -25,7 +27,9 @@
                         <img :src="winnerImageUrl" alt="winner" class="modal-image" />
                     </div>
                     <div class="dialog-actions">
-                        <button ref="nextBtn" type="button" class="btn-primary" @click="closeWinnerDialog">次へ</button>
+                        <!-- Inert: clicking does not close; parent orchestrator will handle flow via Enter/currentAction -->
+                        <button ref="nextBtn" type="button" class="btn-primary"
+                            @click.prevent.stop="() => { }">次へ</button>
                     </div>
                 </div>
             </div>

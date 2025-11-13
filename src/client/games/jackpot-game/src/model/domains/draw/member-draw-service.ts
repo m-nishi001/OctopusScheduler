@@ -2,13 +2,20 @@ import { WeightedSelector } from "./weighted-selector";
 import type { DrawResult } from "./draw-result";
 import type { Member } from "../member/member";
 import { injectable, inject } from "tsyringe";
+import type { RandomProvider } from "../common/random-provider";
+import { RandomProviderToken } from "../common/random-provider";
 
 @injectable()
 export class MemberDrawService {
   private weightedSelector: WeightedSelector;
+  private rand: RandomProvider;
 
-  constructor(@inject(WeightedSelector) weightedSelector: WeightedSelector) {
+  constructor(
+    @inject(WeightedSelector) weightedSelector: WeightedSelector,
+    @inject(RandomProviderToken) rand: RandomProvider
+  ) {
     this.weightedSelector = weightedSelector;
+    this.rand = rand;
   }
 
   drawMember(
@@ -33,13 +40,14 @@ export class MemberDrawService {
   private getDummyMember(poolIds: string[], count: number): string[] {
     const ids = [...poolIds];
     const res: string[] = [];
+    const rand = this.rand;
     while (res.length < count && ids.length > 0) {
-      const idx = Math.floor(Math.random() * ids.length);
+      const idx = rand.nextInt(ids.length);
       res.push(ids[idx]);
       ids.splice(idx, 1);
     }
     while (res.length < count && poolIds.length > 0) {
-      const idx = Math.floor(Math.random() * poolIds.length);
+      const idx = rand.nextInt(poolIds.length);
       res.push(poolIds[idx]);
     }
     return res;

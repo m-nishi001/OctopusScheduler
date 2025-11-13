@@ -25,7 +25,6 @@ export class PrizeService {
   }
 
   async updatePrize(id: string, prize: PrizeDto): Promise<void> {
-    // Update not supported, recreate
     await this.deletePrize(id);
     await this.addPrize(prize);
   }

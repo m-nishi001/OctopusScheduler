@@ -1,7 +1,17 @@
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
+import {
+  RandomProviderToken,
+  type RandomProvider,
+} from "../common/random-provider";
 
 @injectable()
 export class WeightedSelector {
+  private rand: RandomProvider;
+
+  constructor(@inject(RandomProviderToken) rand: RandomProvider) {
+    this.rand = rand;
+  }
+
   selectWeighted<T extends { rank?: number }>(pool: T[]): T {
     if (pool.length === 0) {
       throw new Error("Pool is empty");
@@ -10,8 +20,8 @@ export class WeightedSelector {
     const minRank = Math.min(...pool.map((p) => p.rank ?? Infinity));
     // Filter prizes with the minimum rank
     const candidates = pool.filter((p) => (p.rank ?? Infinity) === minRank);
-    // Randomly select from candidates
-    const idx = Math.floor(Math.random() * candidates.length);
+    // Randomly select from candidates using RandomProvider
+    const idx = this.rand.nextInt(candidates.length);
     return candidates[idx];
   }
 
@@ -28,9 +38,9 @@ export class WeightedSelector {
       const rank = item.rank ?? Infinity;
       if (rank !== currentRank) {
         if (group.length > 0) {
-          // Shuffle the previous group
+          // Shuffle the previous group using RandomProvider
           for (let i = group.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = this.rand.nextInt(i + 1);
             [group[i], group[j]] = [group[j], group[i]];
           }
           result.push(...group);
@@ -44,7 +54,7 @@ export class WeightedSelector {
     if (group.length > 0) {
       // Shuffle the last group
       for (let i = group.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = this.rand.nextInt(i + 1);
         [group[i], group[j]] = [group[j], group[i]];
       }
       result.push(...group);

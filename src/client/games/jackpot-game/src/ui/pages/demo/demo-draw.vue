@@ -27,9 +27,8 @@ import { ScreenSettingsService } from '@model/applications/screen-config/screen-
 import { container } from 'tsyringe';
 import { PrizeRepository } from '@model/infrastructures/prize-repository';
 import { MemberRepository } from '@model/infrastructures/member-repository';
-import { DrawService } from '@model/domains/draw/draw-service';
+import { DrawApplicationService } from '@model/applications/draw/draw-application-service';
 import { DrawResultService } from '@model/applications/draw/draw-result-service';
-import { toDrawResultDto } from '@model/applications/draw/dto/draw-result-dto';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { DemoScreenSetting } from '@model/domains/screen-config/demo-screen-setting';
 export default {
@@ -105,10 +104,10 @@ export default {
 
         await fetchPrizes();
         await fetchMembers();
-        const drawService = container.resolve(DrawService);
+        const drawService = container.resolve(DrawApplicationService);
         const drawResultService = container.resolve(DrawResultService);
-        const drawResult = await drawService.executeDraw({ prizes: prizes.value, members: members.value });
-        await drawResultService.addDrawResult(toDrawResultDto(drawResult));
+        const drawResult = await drawService.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+        await drawResultService.addDrawResult(drawResult);
         const winner = drawResult;
         if (winner && winner.wonMember) {
           const prizeText = winner.wonPrize ? (winner.wonPrize.name || winner.wonPrize.id) : '';
