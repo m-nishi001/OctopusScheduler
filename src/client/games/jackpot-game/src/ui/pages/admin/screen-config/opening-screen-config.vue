@@ -149,7 +149,7 @@ import type { OpeningContent } from '@model/domains/screen-config/opening-screen
 import type { Asset } from "@model/domains/drive-data/asset-data";
 import { watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
-import UnsavedChangesDialog from './UnsavedChangesDialog.vue';
+import UnsavedChangesDialog from './unsaved-changes-dialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
