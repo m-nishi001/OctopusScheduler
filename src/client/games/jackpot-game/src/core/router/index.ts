@@ -1,5 +1,5 @@
 import HomeView from "../../ui/pages/home/home.vue";
-import DrawOrchestrator from "../../ui/pages/main-draw/prize-draw/draw-orchestrator-view.vue";
+import DrawOrchestrator from "../../ui/pages/main-draw/draw-orchestrator-view.vue";
 import ResultView from "../../ui/pages/result/result-view.vue";
 import HistoryView from "../../ui/pages/result/history-view.vue";
 import OpeningView from "../../ui/pages/opening/opening-view.vue";

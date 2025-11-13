@@ -37,8 +37,8 @@
 import { ref, onMounted, onUnmounted, reactive, shallowRef, markRaw } from 'vue';
 import type { Component } from 'vue';
 import { useRouter } from 'vue-router';
-import MainLayout from '../../common/main-layout.vue';
-import MemberDrawAnimation, { type MemberAnimRef } from '../member-draw/member-draw-animation.vue';
+import MainLayout from '../common/main-layout.vue';
+import MemberDrawAnimation, { type MemberAnimRef } from './member-draw/member-draw-animation.vue';
 import RouletteAnimation from './roulette/roulette-animation.vue';
 import SlotAnimation from './slot-animation.vue';
 import type { AnimationRef } from './animation-types';
