@@ -111,21 +111,6 @@ export class BaseHandler {
   static async executeDraw(
     drawService: DrawApplicationService,
     preDrawResult: Ref<DrawResultDto | null>,
-    latestResult: Ref<DrawResultDto | null>
-  ) {
-    console.log("[DrawOrchestrator] executeDraw");
-    const res = await drawService.executeDraw({
-      memberRequestCount: 10,
-      prizeRequestCount: 8,
-    });
-    console.log("[DrawOrchestrator] executeDraw result", { res });
-    preDrawResult.value = res;
-    latestResult.value = res;
-  }
-
-  static async executePreDraw(
-    drawService: DrawApplicationService,
-    preDrawResult: Ref<DrawResultDto | null>,
     latestResult: Ref<DrawResultDto | null>,
     updateSelectedPrize: (prize: PrizeDto) => void,
     prizes: Ref<PrizeDto[]>,
@@ -135,13 +120,13 @@ export class BaseHandler {
     SlotAnimation: any,
     RouletteAnimation: any
   ) {
-    console.log("[DrawOrchestrator] executePreDraw");
+    console.log("[DrawOrchestrator] executeDraw");
     try {
       const res = await drawService.executeDraw({
         memberRequestCount: 10,
         prizeRequestCount: 8,
       });
-      console.log("[DrawOrchestrator] pre-draw result received", { res });
+      console.log("[DrawOrchestrator] draw result received", { res });
       preDrawResult.value = res;
       latestResult.value = res;
       updateSelectedPrize(
@@ -155,7 +140,7 @@ export class BaseHandler {
         console.log("[DrawOrchestrator] selected component: RouletteAnimation");
       }
     } catch (e: any) {
-      console.error("[DrawOrchestrator] pre-draw failed", e);
+      console.error("[DrawOrchestrator] draw failed", e);
       preDrawResult.value = null;
       latestResult.value = null;
       try {
@@ -245,63 +230,9 @@ export class BaseHandler {
     showEndDialog.value = false;
   }
 
-  static async enqueueNextCycle(
-    preDrawResult: Ref<DrawResultDto | null>,
-    queue: ActionQueue,
-    commonHandler: any,
-    kakuhenHandler: any
-  ) {
-    console.log("[DrawOrchestrator] enqueueNextCycle");
-    const result = preDrawResult.value!;
-    const isKakuhen = result.isKakuhen || false;
-    if (isKakuhen) {
-      queue.addCycle(kakuhenHandler.getActions(queue));
-    } else {
-      queue.addCycle(commonHandler.getActions(queue));
-    }
-  }
-
   static async closeModal(showPrizeWinningDialog: Ref<boolean>) {
     console.log("[DrawOrchestrator] closeModal");
     showPrizeWinningDialog.value = false;
-  }
-
-  static async prepareNextDraw(
-    preDrawResult: Ref<DrawResultDto | null>,
-    latestResult: Ref<DrawResultDto | null>,
-    updateSelectedPrize: (prize: PrizeDto) => void,
-    prizes: Ref<PrizeDto[]>,
-    selectedPrize: Ref<PrizeDto | null>,
-    currentPrizeComponent: Ref<Component>,
-    markRaw: <T extends object>(value: T) => Raw<T>,
-    SlotAnimation: any,
-    RouletteAnimation: any,
-    currentMemberComponent: Ref<string>,
-    resetToMemberPhase: () => void
-  ) {
-    console.log("[DrawOrchestrator] prepareNextDraw start");
-    try {
-      const result = preDrawResult.value!;
-      updateSelectedPrize(
-        prizes.value.find((p: PrizeDto) => p.id === result.wonPrize!.id)!
-      );
-      if (selectedPrize.value?.animation === "slot") {
-        currentPrizeComponent.value = markRaw(SlotAnimation as any);
-      } else {
-        currentPrizeComponent.value = markRaw(RouletteAnimation as any);
-      }
-      currentMemberComponent.value = "MemberDrawAnimation";
-      resetToMemberPhase();
-    } catch (e: any) {
-      console.error("Pre-draw failed in next cycle:", e);
-      preDrawResult.value = null;
-      latestResult.value = null;
-      try {
-        window.alert(e?.message || String(e));
-      } catch (_) {
-        /* noop */
-      }
-    }
   }
 
   static getActions(
@@ -320,8 +251,6 @@ export class BaseHandler {
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     showMemberWinnerDialog: Ref<boolean>,
     queue: ActionQueue,
-    commonHandler: any,
-    kakuhenHandler: any,
     currentPrizeComponent: Ref<Component>,
     markRaw: <T extends object>(value: T) => Raw<T>,
     SlotAnimation: any,
@@ -329,7 +258,7 @@ export class BaseHandler {
   ): (() => Promise<void>)[] {
     const baseActions = [
       () =>
-        BaseHandler.executePreDraw(
+        BaseHandler.executeDraw(
           drawService,
           preDrawResult,
           latestResult,
@@ -369,13 +298,6 @@ export class BaseHandler {
         ),
       () => BaseHandler.closeModal(showPrizeWinningDialog),
       () => BaseHandler.showEndDialogAction(showEndDialog, drawService, queue),
-      () =>
-        BaseHandler.enqueueNextCycle(
-          preDrawResult,
-          queue,
-          commonHandler,
-          kakuhenHandler
-        ),
     ];
     return baseActions.flatMap((action, index) => {
       if (index === baseActions.length - 1) return [action]; // 最後のアクションは delay なし

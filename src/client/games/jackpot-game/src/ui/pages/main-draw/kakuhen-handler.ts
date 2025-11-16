@@ -37,7 +37,7 @@ export class KakuhenHandler {
   ): (() => Promise<void>)[] {
     const baseActions = [
       () =>
-        BaseHandler.executePreDraw(
+        BaseHandler.executeDraw(
           drawService,
           preDrawResult,
           latestResult,

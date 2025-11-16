@@ -104,8 +104,6 @@ export function useDrawOrchestrator() {
         loadBgmBlob,
         showMemberWinnerDialog,
         queue,
-        commonHandler,
-        kakuhenHandler,
         currentPrizeComponent,
         markRaw,
         SlotAnimation,
