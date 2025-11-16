@@ -16,7 +16,8 @@
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
                             @start="handleMemberDrawStart" @member-selected="onMemberRouletteStopped"
-                            @winner-dialog-shown="onMemberWinnerDialogShown" @winner-dialog-closed="onMemberWinnerDialogClosed" />
+                            @winner-dialog-shown="onMemberWinnerDialogShown"
+                            @winner-dialog-closed="onMemberWinnerDialogClosed" />
                     </div>
                 </section>
 
@@ -31,6 +32,9 @@
             </div>
 
         </div>
+        <teleport to="body">
+            <div v-if="kakuhenOverlayVisible" class="kakuhen-overlay-global">だが</div>
+        </teleport>
     </MainLayout>
 </template>
 
@@ -92,6 +96,9 @@ export default {
         const showHalfRemainingDialog = ref(false);
         const showEndDialog = ref(false);
 
+        // 確変シーケンス制御フラグ
+        const kakuhenInProgress = ref(false);
+        const kakuhenOverlayVisible = ref(false);
         // 事前抽選結果 (確定済みの DrawResultDto または null)
         const preDrawResult = ref<DrawResultDto | null>(null);
 
@@ -152,47 +159,107 @@ export default {
             // the dummy -> final reroll sequence instead of an explicit
             // runAutoReroll method.
             const dummyDurationMs = 2000;
-            const finalDurationMs = 2000;
+            // make the final stop take 5 seconds (5000 ms)
+            const finalDurationMs = 5000;
 
+            // 確変シーケンスの開始: ここでは1回目の(dummy)スピンは Enter 押下で停止させる
+            // ため、最初は input をサスペンドせずに開始し、Enter が押された
+            // ときに停止→再抽選演出へ進むアクションを `drawState.currentAction`
+            // にセットする。
+            kakuhenInProgress.value = true;
+            // create a completion promise so this function doesn't return
+            // until the Enter-driven sequence finishes — this prevents
+            // the caller (`startPrizeDraw`) from overwriting
+            // `drawState.currentAction`.
+            let _kakuhenResolve: (() => void) | null = null;
+            const _kakuhenCompleted = new Promise<void>((resolve) => { _kakuhenResolve = resolve; });
             try {
-                if (animationRef.value?.startSpin) {
-                    animationRef.value.startSpin(bgm1Blob);
-                    console.log('[DrawOrchestrator] handleKakuhenDraw started dummy spin', { dummyPrizeId: dummyPrize?.id });
-                }
+                try {
+                    if (animationRef.value?.startSpin) {
+                        animationRef.value.startSpin(bgm1Blob);
+                        console.log('[DrawOrchestrator] handleKakuhenDraw started dummy spin', { dummyPrizeId: dummyPrize?.id });
+                    }
 
-                if (animationRef.value?.stopSpin) {
-                    await animationRef.value.stopSpin(
-                        dummyDurationMs / 1000,
-                        dummyPrize?.id || null,
-                    );
-                    console.log('[DrawOrchestrator] handleKakuhenDraw stopped dummy spin');
-                }
+                    // Set an action that will be executed when the user presses Enter.
+                    // That action stops the dummy spin and continues the kakuhen flow
+                    // (overlay -> close dummy dialog -> final spin -> stop final).
+                    drawState.currentAction = async () => {
+                        try {
+                            // while we run the stop sequence, prevent further Enter
+                            try { inputController.suspend(); } catch (e) { /* noop */ }
 
-                // small gap between dummy and final
-                await new Promise((r) => setTimeout(r, 1000));
+                            if (animationRef.value?.stopSpin) {
+                                await animationRef.value.stopSpin(
+                                    dummyDurationMs / 1000,
+                                    dummyPrize?.id || null
+                                );
+                                console.log('[DrawOrchestrator] handleKakuhenDraw stopped dummy spin (via Enter)');
+                            }
 
-                if (animationRef.value?.startSpin) {
-                    // start final BGM (if any)
-                    animationRef.value.startSpin(bgm2Blob);
-                    console.log('[DrawOrchestrator] handleKakuhenDraw started final spin', { finalPrizeId });
-                }
+                            // show dummy prize dialog (onPrizeRouletteStopped will set latestResult/showPrizeWinningDialog)
+                            // Wait 3s after the dummy spin stops, then show the kakuhen overlay
+                            await new Promise((r) => setTimeout(r, 3000));
+                            kakuhenOverlayVisible.value = true;
+                            console.log('[DrawOrchestrator] handleKakuhenDraw showed kakuhen overlay (global)');
+                            // Keep the overlay visible for 2s
+                            await new Promise((r) => setTimeout(r, 2000));
 
-                if (animationRef.value?.stopSpin) {
-                    await animationRef.value.stopSpin(
-                        finalDurationMs / 1000,
-                        finalPrizeId
-                    );
-                    console.log('[DrawOrchestrator] handleKakuhenDraw stopped final spin', { finalPrizeId });
+                            try {
+                                showPrizeWinningDialog.value = false;
+                                console.log('[DrawOrchestrator] handleKakuhenDraw closed dummy prize dialog');
+                            } catch (e) { /* noop */ }
+
+                            // Hide overlay and wait 1s before starting final spin
+                            kakuhenOverlayVisible.value = false;
+                            await new Promise((r) => setTimeout(r, 1000));
+
+                            // start final spin
+                            if (animationRef.value?.startSpin) {
+                                animationRef.value.startSpin(bgm2Blob);
+                                console.log('[DrawOrchestrator] handleKakuhenDraw started final spin', { finalPrizeId });
+                            }
+
+                            // Wait 3s after starting the final spin before initiating stop
+                            await new Promise((r) => setTimeout(r, 3000));
+
+                            if (animationRef.value?.stopSpin) {
+                                await animationRef.value.stopSpin(
+                                    finalDurationMs / 1000,
+                                    finalPrizeId
+                                );
+                                console.log('[DrawOrchestrator] handleKakuhenDraw stopped final spin', { finalPrizeId });
+                            }
+                        } catch (e) {
+                            console.warn('Kakuhen reroll sequence failed:', e);
+                        }
+
+                        // 最終当選を反映（onPrizeRouletteStopped により latestResult/showPrizeWinningDialog は設定されるはず）
+                        updateSelectedPrize(finalPrize);
+
+                        // 確変シーケンスがすべて終了したので、ダイアログ閉処理を有効化する
+                        await new Promise((r) => setTimeout(r, 1000));
+                        drawState.currentAction = () => { void closeModal(); };
+                        try { inputController.resume(); } catch (e) { /* noop */ }
+                        // mark kakuhen as finished and resolve outer wait
+                        kakuhenInProgress.value = false;
+                        try { _kakuhenResolve && _kakuhenResolve(); } catch (e) { /* noop */ }
+                        console.log('[DrawOrchestrator] handleKakuhenDraw completed and enabled close action');
+                    };
+
+                    // Note: wait here until the Enter-driven action resolves so
+                    // the outer flow remains paused and doesn't overwrite the
+                    // currentAction.
+                    console.log('[DrawOrchestrator] handleKakuhenDraw waiting for Enter to stop dummy spin');
+                    await _kakuhenCompleted;
+                } catch (e) {
+                    console.warn('Kakuhen setup failed:', e);
                 }
-            } catch (e) {
-                // If the animation component does not fully support the
-                // sequence we attempt, fall back to no-op (caller will still
-                // handle finalization via events).
-                console.warn('Kakuhen reroll sequence failed:', e);
+            } finally {
+                // ensure kakuhenInProgress is cleared if setup fails before Enter
+                if (kakuhenInProgress.value && !_kakuhenResolve) {
+                    kakuhenInProgress.value = false;
+                }
             }
-
-            // Update selectedPrize for the final prize
-            updateSelectedPrize(finalPrize);
         };
 
         // 通常抽選処理
@@ -409,19 +476,24 @@ export default {
             if (latestResult.value) {
                 latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId)!;
                 showPrizeWinningDialog.value = true;
-                // Do NOT enable the close action immediately: suspend input
-                // and enable the action after at least 1s so dialogs are
-                // guaranteed to be visible for minimum duration and a held
-                // Enter doesn't skip the dialog.
+                // Clear any pending action while dialog is shown
                 drawState.currentAction = null;
-                inputController.suspend();
-                const tid = window.setTimeout(() => {
-                    drawState.currentAction = () => { void closeModal(); };
-                    inputController.resume();
-                    console.log('[DrawOrchestrator] prize dialog close action enabled after delay');
-                }, 1000);
-                _dialogTimers.push(tid as unknown as number);
-                console.log('[DrawOrchestrator] onRouletteStopped updated latestResult', { latestResult: latestResult.value });
+
+                if (!kakuhenInProgress.value) {
+                    // Normal flow: suspend input and enable close after delay
+                    try { inputController.suspend(); } catch (e) { /* noop */ }
+                    const tid = window.setTimeout(() => {
+                        drawState.currentAction = () => { void closeModal(); };
+                        try { inputController.resume(); } catch (e) { /* noop */ }
+                        console.log('[DrawOrchestrator] prize dialog close action enabled after delay');
+                    }, 1000);
+                    _dialogTimers.push(tid as unknown as number);
+                    console.log('[DrawOrchestrator] onRouletteStopped updated latestResult', { latestResult: latestResult.value });
+                } else {
+                    // Kakuhen flow: do not enable close here. Entire kakuhen
+                    // sequence will control when to resume input and enable next action.
+                    console.log('[DrawOrchestrator] onRouletteStopped (kakuhen) updated latestResult', { latestResult: latestResult.value });
+                }
             }
         };
 
@@ -562,6 +634,8 @@ export default {
             handleMemberDrawStart,
             onMemberWinnerDialogShown,
             onMemberWinnerDialogClosed,
+            kakuhenInProgress,
+            kakuhenOverlayVisible,
         };
     }
 };
@@ -619,5 +693,36 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.kakuhen-overlay {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    font-size: 64px;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 20px 40px;
+    border-radius: 12px;
+    border: 3px solid #ff6b6b;
+    box-shadow: 0 0 30px rgba(255, 107, 107, 0.6);
+}
+
+.kakuhen-overlay-global {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20000;
+    /* above dialog which uses 10000 */
+    font-size: 64px;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 20px 40px;
+    border-radius: 12px;
+    border: 3px solid #ff6b6b;
+    box-shadow: 0 0 30px rgba(255, 107, 107, 0.6);
 }
 </style>

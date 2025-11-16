@@ -88,11 +88,12 @@ export class DrawApplicationService {
     const state = await this.getPrizeDrawState();
     if (!state)
       throw new StateNotInitializedError("Prize draw state not initialized");
-    const isKakuhen = this.prizeDrawService.isKakuhenTurn(
-      prizes,
-      results,
-      state
-    );
+    // const isKakuhen = this.prizeDrawService.isKakuhenTurn(
+    //   prizes,
+    //   results,
+    //   state
+    // );
+    const isKakuhen = true;
 
     const prizeRequest = {
       memberId: winnerMember.id,
