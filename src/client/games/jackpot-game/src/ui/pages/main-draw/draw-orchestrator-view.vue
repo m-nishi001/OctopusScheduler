@@ -21,8 +21,7 @@
                     class="center-area flex items-center justify-center min-h-screen">
                     <div class="roulette-panel">
                         <component :is="currentPrizeComponent" ref="animationRef" :prizes="prizes"
-                            :selectedPrize="selectedPrize" :showResult="showPrizeWinningDialog"
-                            @stopped="onPrizeRouletteStopped" />
+                            :selectedPrize="selectedPrize" :showResult="showPrizeWinningDialog" />
                     </div>
                 </section>
             </div>
