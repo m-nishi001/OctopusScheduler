@@ -16,7 +16,6 @@ import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 
 export default defineComponent({
     name: 'RouletteAnimation',
-    emits: ['stopped'],
     props: {
         prizes: { type: Array as () => PrizeDto[], default: () => [] },
         selectedPrize: { type: Object as () => PrizeDto, required: true },

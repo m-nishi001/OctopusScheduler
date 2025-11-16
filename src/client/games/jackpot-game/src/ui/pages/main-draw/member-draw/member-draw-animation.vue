@@ -70,7 +70,6 @@ export default {
         // if true, the parent component is responsible for showing the winner dialog
         externalDialog: { type: Boolean, required: false, default: false },
     },
-    emits: ['start', 'stopped', 'member-selected', 'close-winner-dialog', 'winner-dialog-shown', 'winner-dialog-closed'],
     setup(props: any, { emit }: any) {
         const viewport = ref<HTMLDivElement | null>(null);
         const track = ref<HTMLDivElement | null>(null);
