@@ -106,7 +106,8 @@ export class BaseHandler {
     currentPrizeComponent: Ref<Component>,
     markRaw: <T extends object>(value: T) => Raw<T>,
     SlotAnimation: any,
-    RouletteAnimation: any
+    RouletteAnimation: any,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] executeDraw");
     try {
@@ -139,6 +140,9 @@ export class BaseHandler {
       } catch (_) {
         /* noop */
       }
+    } finally {
+      console.log("[DrawOrchestrator] executeDraw completed");
+      emitter.emit("nextAction");
     }
   }
 
@@ -275,7 +279,6 @@ export class BaseHandler {
     drawState: any
   ): (() => Promise<void>)[] {
     const baseActions = [
-      () => BaseHandler.setMemberPhase(drawState, emitter),
       () =>
         BaseHandler.executeDraw(
           drawService,
@@ -287,8 +290,11 @@ export class BaseHandler {
           currentPrizeComponent,
           markRaw,
           SlotAnimation,
-          RouletteAnimation
+          RouletteAnimation,
+          emitter
         ),
+      () => BaseHandler.setMemberPhase(drawState, emitter),
+      () => BaseHandler.wait(1),
       () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter),
       () => BaseHandler.wait(1),
       () => BaseHandler.stopMemberDraw(memberAnimRef, emitter),
