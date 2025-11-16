@@ -38,7 +38,7 @@ export function useDrawOrchestrator() {
     phase: "idle" as string,
     prizeAnimationStopped: false,
     currentAction: null as (() => void) | null,
-    currentQueue: null as ActionQueue | null,
+    currentQueue: new ActionQueue(),
   });
 
   // services
@@ -149,40 +149,38 @@ export function useDrawOrchestrator() {
       ),
   };
 
-  let actionRunning = false;
   const executeCurrentAction = async () => {
-    if (!drawState.currentQueue || drawState.currentQueue.isEmpty()) {
-      return;
-    }
-    if (actionRunning) {
-      return;
+    // キューが空なら次のサイクルを追加
+    if (drawState.currentQueue.isEmpty()) {
+      try {
+        const count = await drawService.getLastPrizeCount();
+        if (count.remaining <= 0) {
+          return;
+        }
+        const isKakuhen = preDrawResult.value?.isKakuhen || false;
+        if (isKakuhen) {
+          drawState.currentQueue.addCycle(
+            kakuhenHandler.getActions(drawState.currentQueue)
+          );
+        } else {
+          drawState.currentQueue.addCycle(
+            commonHandler.getActions(drawState.currentQueue)
+          );
+        }
+      } catch (e) {
+        console.error("Failed to get prize count for cycle addition:", e);
+      }
     }
 
-    actionRunning = true;
     try {
       const action = drawState.currentQueue.dequeue();
-      if (action) {
-        await action();
-        // キューが空なら次のサイクルを追加
-        if (drawState.currentQueue.isEmpty()) {
-          const isKakuhen = preDrawResult.value?.isKakuhen || false;
-          if (isKakuhen) {
-            drawState.currentQueue.addCycle(
-              kakuhenHandler.getActions(drawState.currentQueue)
-            );
-          } else {
-            drawState.currentQueue.addCycle(
-              commonHandler.getActions(drawState.currentQueue)
-            );
-          }
-        }
-        // 次のアクションを実行
-        void executeCurrentAction();
+      if (!action) {
+        console.warn("No action to execute in the queue");
+        return;
       }
+      await action();
     } catch (e) {
       console.error("Error executing action from queue", e);
-    } finally {
-      actionRunning = false;
     }
   };
 
@@ -195,8 +193,6 @@ export function useDrawOrchestrator() {
 
     currentMemberComponent.value = "MemberDrawAnimation";
 
-    // Initialize queue
-    drawState.currentQueue = new ActionQueue();
     const isKakuhen = preDrawResult.value?.isKakuhen || false;
     if (isKakuhen) {
       drawState.currentQueue.addCycle(
@@ -322,10 +318,10 @@ export function useDrawOrchestrator() {
   };
 
   const closePrizeWinningDialog = () => {
-    drawState.currentQueue!.enqueue(() =>
+    drawState.currentQueue.enqueue(() =>
       BaseHandler.closeModal(showPrizeWinningDialog)
     );
-    drawState.currentQueue!.enqueue(() =>
+    drawState.currentQueue.enqueue(() =>
       BaseHandler.prepareNextDraw(
         preDrawResult,
         latestResult,
