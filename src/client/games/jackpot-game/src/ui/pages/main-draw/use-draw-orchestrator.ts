@@ -84,9 +84,10 @@ export function useDrawOrchestrator() {
   };
 
   const isQueueExecuting = ref(false);
+  const pendingAutoExecution = ref(false);
 
-  const executeCurrentAction = async (isAuto: boolean = false) => {
-    if (isQueueExecuting.value && !isAuto) {
+  const executeCurrentAction = async () => {
+    if (isQueueExecuting.value || pendingAutoExecution.value) {
       return;
     }
     isQueueExecuting.value = true;
@@ -173,6 +174,10 @@ export function useDrawOrchestrator() {
       console.error("Error executing action from queue", e);
     } finally {
       isQueueExecuting.value = false;
+      if (pendingAutoExecution.value) {
+        pendingAutoExecution.value = false;
+        void executeCurrentAction();
+      }
     }
   };
 
@@ -244,15 +249,17 @@ export function useDrawOrchestrator() {
 
     const handleKeyDown = (ev: KeyboardEvent) => {
       if (ev.key === "Enter") {
-        void executeCurrentAction(false);
+        void executeCurrentAction();
       }
     };
     keyDownHandler.value = handleKeyDown;
     window.addEventListener("keydown", handleKeyDown);
 
-    emitter.on("nextAction", () => executeCurrentAction(true));
+    emitter.on("nextAction", () => {
+      pendingAutoExecution.value = true;
+    });
 
-    void executeCurrentAction(false);
+    void executeCurrentAction();
   });
 
   onUnmounted(() => {
