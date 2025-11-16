@@ -125,7 +125,8 @@ export function useDrawOrchestrator() {
               markRaw,
               SlotAnimation,
               RouletteAnimation,
-              emitter
+              emitter,
+              drawState
             )
           );
         } else {
@@ -149,7 +150,8 @@ export function useDrawOrchestrator() {
               markRaw,
               SlotAnimation,
               RouletteAnimation,
-              emitter
+              emitter,
+              drawState
             )
           );
         }
@@ -209,7 +211,8 @@ export function useDrawOrchestrator() {
           markRaw,
           SlotAnimation,
           RouletteAnimation,
-          emitter
+          emitter,
+          drawState
         )
       );
     } else {
@@ -233,7 +236,8 @@ export function useDrawOrchestrator() {
           markRaw,
           SlotAnimation,
           RouletteAnimation,
-          emitter
+          emitter,
+          drawState
         )
       );
     }
@@ -265,9 +269,6 @@ export function useDrawOrchestrator() {
     animationRef,
     selectedPrize,
     currentPrizeComponent,
-    showMemberDraw: () => {
-      drawState.phase = "member";
-    },
     showPrizeWinningDialog,
     showHalfRemainingDialog,
     showEndDialog,

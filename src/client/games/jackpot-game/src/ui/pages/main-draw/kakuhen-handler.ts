@@ -31,9 +31,11 @@ export class KakuhenHandler {
     markRaw: <T extends object>(value: T) => Raw<T>,
     SlotAnimation: any,
     RouletteAnimation: any,
-    emitter: Emitter<any>
+    emitter: Emitter<any>,
+    drawState: any
   ): (() => Promise<void>)[] {
     const baseActions = [
+      () => BaseHandler.setMemberPhase(drawState),
       () =>
         BaseHandler.executeDraw(
           drawService,
@@ -53,6 +55,7 @@ export class KakuhenHandler {
       () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
       () => BaseHandler.wait(1),
       () => BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog),
+      () => BaseHandler.setPrizePhase(drawState),
       () =>
         KakuhenHandler.startKakuhenDummyDraw(
           preDrawResult,

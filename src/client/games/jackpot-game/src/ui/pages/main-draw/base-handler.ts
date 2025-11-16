@@ -230,6 +230,16 @@ export class BaseHandler {
     showEndDialog.value = false;
   }
 
+  static async setMemberPhase(drawState: any) {
+    console.log("[DrawOrchestrator] setMemberPhase");
+    drawState.phase = "member";
+  }
+
+  static async setPrizePhase(drawState: any) {
+    console.log("[DrawOrchestrator] setPrizePhase");
+    drawState.phase = "prize";
+  }
+
   static async closePrizeWinningDialog(
     showPrizeWinningDialog: Ref<boolean>,
     emitter: Emitter<any>
@@ -262,9 +272,11 @@ export class BaseHandler {
     markRaw: <T extends object>(value: T) => Raw<T>,
     SlotAnimation: any,
     RouletteAnimation: any,
-    emitter: Emitter<any>
+    emitter: Emitter<any>,
+    drawState: any
   ): (() => Promise<void>)[] {
     const baseActions = [
+      () => BaseHandler.setMemberPhase(drawState),
       () =>
         BaseHandler.executeDraw(
           drawService,
@@ -283,6 +295,7 @@ export class BaseHandler {
       () => BaseHandler.stopMemberDraw(memberAnimRef, emitter),
       () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
       () => BaseHandler.wait(1),
+      () => BaseHandler.setPrizePhase(drawState),
       () =>
         BaseHandler.startPrizeDraw(
           preDrawResult,
