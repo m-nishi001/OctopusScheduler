@@ -274,12 +274,6 @@ export class BaseHandler {
     showHalfRemainingDialog: Ref<boolean>,
     showEndDialog: Ref<boolean>,
     updateSelectedPrize: (prize: PrizeDto) => void,
-    currentPrizeComponent: Ref<Component>,
-    markRaw: <T extends object>(value: T) => Raw<T>,
-    SlotAnimation: any,
-    RouletteAnimation: any,
-    currentMemberComponent: Ref<string>,
-    resetToMemberPhase: () => void,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     showMemberWinnerDialog: Ref<boolean>,
     queue: ActionQueue,
@@ -316,20 +310,6 @@ export class BaseHandler {
         ),
       () => BaseHandler.closeModal(showPrizeWinningDialog),
       () => BaseHandler.showEndDialogAction(showEndDialog, drawService, queue),
-      () =>
-        BaseHandler.prepareNextDraw(
-          preDrawResult,
-          latestResult,
-          updateSelectedPrize,
-          prizes,
-          selectedPrize,
-          currentPrizeComponent,
-          markRaw,
-          SlotAnimation,
-          RouletteAnimation,
-          currentMemberComponent,
-          resetToMemberPhase
-        ),
       () =>
         BaseHandler.enqueueNextCycle(
           preDrawResult,

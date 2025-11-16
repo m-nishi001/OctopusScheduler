@@ -1,4 +1,4 @@
-import type { Component, Ref, Raw } from "vue";
+import type { Ref } from "vue";
 import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
@@ -11,7 +11,6 @@ type InputController = ReturnType<typeof createInputController>;
 export class KakuhenHandler {
   static getActions(
     preDrawResult: Ref<DrawResultDto | null>,
-    selectedPrize: Ref<PrizeDto | null>,
     memberAnimRef: Ref<any>,
     animationRef: Ref<any>,
     inputController: InputController,
@@ -22,12 +21,6 @@ export class KakuhenHandler {
     showHalfRemainingDialog: Ref<boolean>,
     showEndDialog: Ref<boolean>,
     updateSelectedPrize: (prize: PrizeDto) => void,
-    currentPrizeComponent: Ref<Component>,
-    markRaw: <T extends object>(value: T) => Raw<T>,
-    SlotAnimation: any,
-    RouletteAnimation: any,
-    currentMemberComponent: Ref<string>,
-    resetToMemberPhase: () => void,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     kakuhenDummyPrize: Ref<PrizeDto | null>,
     kakuhenFinalPrize: Ref<PrizeDto | null>,
@@ -89,20 +82,6 @@ export class KakuhenHandler {
       () => BaseHandler.closeHalfRemainingDialogAction(showHalfRemainingDialog),
       () => BaseHandler.showEndDialogAction(showEndDialog, drawService, queue),
       () => BaseHandler.closeEndDialogAction(showEndDialog),
-      () =>
-        BaseHandler.prepareNextDraw(
-          preDrawResult,
-          latestResult,
-          updateSelectedPrize,
-          prizes,
-          selectedPrize,
-          currentPrizeComponent,
-          markRaw,
-          SlotAnimation,
-          RouletteAnimation,
-          currentMemberComponent,
-          resetToMemberPhase
-        ),
     ];
 
     return baseActions.flatMap((action, index) => {
