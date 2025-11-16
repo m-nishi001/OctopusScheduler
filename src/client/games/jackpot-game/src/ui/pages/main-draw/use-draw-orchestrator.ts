@@ -214,16 +214,10 @@ export function useDrawOrchestrator() {
     inputController.detach();
   });
 
-  const showMemberDraw = () => {
-    drawState.phase = "member";
-  };
-
   const handleMemberDrawStart = () => {
-    void showMemberDraw();
-  };
-
-  const onMemberRouletteStopped = () => {
-    // Implementation if needed
+    void (() => {
+      drawState.phase = "member";
+    })();
   };
 
   const showPrizeDraw = () => {
@@ -297,26 +291,6 @@ export function useDrawOrchestrator() {
     router.push("/jackpot-ending");
   };
 
-  // Wrapper functions for return
-  const startMemberDraw = async () => {
-    await BaseHandler.startMemberDraw(preDrawResult, memberAnimRef);
-  };
-
-  const memberStop = async () => {
-    await BaseHandler.stopMemberDraw(memberAnimRef);
-  };
-
-  const prizeStop = async () => {
-    await BaseHandler.stopPrizeDraw(selectedPrize, animationRef);
-  };
-
-  const closeMemberWinnerDialog = () => {
-    showMemberWinnerDialog.value = false;
-    try {
-      inputController.resume();
-    } catch (e) {}
-  };
-
   const closePrizeWinningDialog = () => {
     drawState.currentQueue.enqueue(() =>
       BaseHandler.closeModal(showPrizeWinningDialog)
@@ -351,13 +325,11 @@ export function useDrawOrchestrator() {
     animationRef,
     selectedPrize,
     currentPrizeComponent,
-    showMemberDraw,
-    startMemberDraw,
-    memberStop,
+    showMemberDraw: () => {
+      drawState.phase = "member";
+    },
     showPrizeDraw,
-    prizeStop,
     closePrizeWinningDialog,
-    onMemberRouletteStopped,
     showPrizeWinningDialog,
     showHalfRemainingDialog,
     showEndDialog,
@@ -367,7 +339,6 @@ export function useDrawOrchestrator() {
     handleMemberDrawStart,
     onMemberWinnerDialogShown,
     onMemberWinnerDialogClosed,
-    closeMemberWinnerDialog,
     kakuhenInProgress,
     kakuhenOverlayVisible,
   } as const;

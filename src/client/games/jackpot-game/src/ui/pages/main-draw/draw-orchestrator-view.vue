@@ -3,7 +3,7 @@
         <div class="orchestrator container mx-auto p-6">
 
             <DrawResultDialog v-if="showPrizeWinningDialog" title="景品当選" :assetId="latestResult?.wonPrize?.imageAssetId"
-                primaryLabel="次へ" @close="closeModal">
+                primaryLabel="次へ" @close="closePrizeWinningDialog">
                 当選景品: <strong>{{ latestResult?.wonPrize?.name }}</strong>
             </DrawResultDialog>
 
@@ -15,8 +15,7 @@
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
-                            @start="handleMemberDrawStart" @member-selected="onMemberRouletteStopped"
-                            @winner-dialog-shown="onMemberWinnerDialogShown"
+                            @start="handleMemberDrawStart" @winner-dialog-shown="onMemberWinnerDialogShown"
                             @winner-dialog-closed="onMemberWinnerDialogClosed" />
                     </div>
                 </section>
