@@ -6,7 +6,7 @@ import {
   shallowRef,
   markRaw,
 } from "vue";
-import type { Component } from "vue";
+import type { Component, Ref, Raw } from "vue";
 import { useRouter } from "vue-router";
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import { PrizeRepository } from "@model/infrastructures/prize-repository";
@@ -20,6 +20,550 @@ import createInputController from "./input-controller";
 import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
 
+import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
+
+type InputController = ReturnType<typeof createInputController>;
+
+// ActionQueue class for managing action queues
+export class ActionQueue {
+  public actions: (() => Promise<void>)[] = [];
+
+  enqueue(action: () => Promise<void>) {
+    this.actions.push(action);
+  }
+
+  dequeue(): (() => Promise<void>) | undefined {
+    return this.actions.shift();
+  }
+
+  isEmpty(): boolean {
+    return this.actions.length === 0;
+  }
+
+  addCycle(actions: (() => Promise<void>)[]) {
+    this.actions.push(...actions);
+  }
+}
+
+// Base handler for common draw actions
+class BaseHandler {
+  static async startMemberDraw(
+    preDrawResult: Ref<DrawResultDto | null>,
+    memberAnimRef: Ref<any>
+  ) {
+    console.log("[DrawOrchestrator] startMemberDraw", {
+      preDrawWinner: preDrawResult.value?.wonMember?.id,
+    });
+    if (memberAnimRef.value) {
+      memberAnimRef.value.startDraw(preDrawResult.value?.wonMember?.id || null);
+      console.log("[DrawOrchestrator] memberAnimRef.startDraw called");
+    }
+  }
+
+  static async stopMemberDraw(memberAnimRef: Ref<any>) {
+    console.log("[DrawOrchestrator] stopMemberDraw");
+    if (memberAnimRef.value) {
+      await memberAnimRef.value.stopDraw();
+      console.log("[DrawOrchestrator] memberAnimRef.stopDraw completed");
+    }
+  }
+
+  static async showMemberWinnerDialog(showMemberWinnerDialog: Ref<boolean>) {
+    console.log("[DrawOrchestrator] showMemberWinnerDialog");
+    showMemberWinnerDialog.value = true;
+  }
+
+  static async delayInputResume(inputController: InputController) {
+    console.log("[DrawOrchestrator] delayInputResume");
+    inputController.suspend();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    inputController.resume();
+  }
+
+  static async stopPrizeDraw(
+    selectedPrize: Ref<PrizeDto | null>,
+    animationRef: Ref<any>
+  ) {
+    console.log("[DrawOrchestrator] stopPrizeDraw", {
+      selectedPrizeId: selectedPrize.value?.id,
+    });
+    if (animationRef.value?.stopSpin && selectedPrize.value) {
+      await animationRef.value.stopSpin(3, selectedPrize.value.id);
+      console.log("[DrawOrchestrator] stopPrizeDraw completed stopSpin");
+    }
+  }
+
+  static async updateWonPrize(
+    latestResult: Ref<DrawResultDto | null>,
+    prizes: Ref<PrizeDto[]>,
+    prizeId: string
+  ) {
+    console.log("[DrawOrchestrator] updateWonPrize", { prizeId });
+    if (latestResult.value) {
+      latestResult.value.wonPrize = prizes.value.find(
+        (p: PrizeDto) => p.id === prizeId
+      )!;
+      console.log("[DrawOrchestrator] updateWonPrize updated latestResult", {
+        latestResult: latestResult.value,
+      });
+    }
+  }
+
+  static async showPrizeWinningDialogAction(
+    showPrizeWinningDialog: Ref<boolean>
+  ) {
+    console.log("[DrawOrchestrator] showPrizeWinningDialogAction");
+    showPrizeWinningDialog.value = true;
+  }
+
+  static async showHalfRemainingDialogAction(
+    showPrizeWinningDialog: Ref<boolean>,
+    drawService: DrawApplicationService,
+    showHalfRemainingDialog: Ref<boolean>
+  ) {
+    console.log("[DrawOrchestrator] showHalfRemainingDialogAction");
+    const HALF_REMAINING_SHOW_DELAY_MS = 3000;
+    await new Promise((resolve) =>
+      setTimeout(resolve, HALF_REMAINING_SHOW_DELAY_MS)
+    );
+    if (!showPrizeWinningDialog.value) return;
+    try {
+      const count = await drawService.getLastPrizeCount();
+      if (
+        count.total > 0 &&
+        count.remaining > 0 &&
+        count.remaining * 2 === count.total
+      ) {
+        console.log(
+          "[DrawOrchestrator] half-remaining condition met after delay"
+        );
+        showHalfRemainingDialog.value = true;
+      } else {
+        console.log(
+          "[DrawOrchestrator] half-remaining condition not met after delay",
+          { count }
+        );
+      }
+    } catch (e) {
+      console.error(
+        "[DrawOrchestrator] failed to check prize count for half-remaining",
+        e
+      );
+    }
+  }
+
+  static async showEndDialogAction(
+    showEndDialog: Ref<boolean>,
+    drawService: DrawApplicationService
+  ) {
+    console.log("[DrawOrchestrator] showEndDialogAction checking prize count");
+    try {
+      const count = await drawService.getLastPrizeCount();
+      console.log("[DrawOrchestrator] showEndDialogAction prize count", {
+        count,
+      });
+      if (count.remaining <= 0) {
+        showEndDialog.value = true;
+        console.log(
+          "[DrawOrchestrator] showEndDialogAction showing end dialog"
+        );
+      } else {
+        console.log(
+          "[DrawOrchestrator] showEndDialogAction not showing, remaining > 0",
+          { remaining: count.remaining }
+        );
+      }
+    } catch (e) {
+      console.error(
+        "[DrawOrchestrator] showEndDialogAction failed to check prize count",
+        e
+      );
+    }
+  }
+
+  static async handleModalClose(
+    drawService: DrawApplicationService,
+    showEndDialog: Ref<boolean>,
+    showPrizeWinningDialog: Ref<boolean>,
+    showHalfRemainingDialog: Ref<boolean>,
+    preDrawResult: Ref<DrawResultDto | null>,
+    latestResult: Ref<DrawResultDto | null>,
+    updateSelectedPrize: (prize: PrizeDto) => void,
+    prizes: Ref<PrizeDto[]>,
+    selectedPrize: Ref<PrizeDto | null>,
+    currentPrizeComponent: Ref<Component>,
+    markRaw: <T extends object>(value: T) => Raw<T>,
+    SlotAnimation: any,
+    RouletteAnimation: any,
+    currentMemberComponent: Ref<string>,
+    resetToMemberPhase: () => void,
+    queue: ActionQueue,
+    commonHandler: any,
+    kakuhenHandler: any
+  ) {
+    console.log("[DrawOrchestrator] handleModalClose start");
+    const count = await drawService.getLastPrizeCount();
+    console.log("[DrawOrchestrator] handleModalClose prize count", { count });
+    showPrizeWinningDialog.value = false;
+    if (count.remaining <= 0) {
+      console.log(
+        "[DrawOrchestrator] handleModalClose detected end condition, queuing showEndDialogAction"
+      );
+      queue.enqueue(() =>
+        BaseHandler.showEndDialogAction(showEndDialog, drawService)
+      );
+    } else if (
+      count.total > 0 &&
+      count.remaining > 0 &&
+      count.remaining * 2 === count.total
+    ) {
+      console.log(
+        "[DrawOrchestrator] handleModalClose half remaining condition met, queuing showHalfRemainingDialogAction"
+      );
+      queue.enqueue(() =>
+        BaseHandler.showHalfRemainingDialogAction(
+          showPrizeWinningDialog,
+          drawService,
+          showHalfRemainingDialog
+        )
+      );
+    } else {
+      console.log("[DrawOrchestrator] handleModalClose starting next pre-draw");
+      try {
+        const res = await drawService.executeDraw({
+          memberRequestCount: 10,
+          prizeRequestCount: 8,
+        });
+        console.log("[DrawOrchestrator] handleModalClose pre-draw result", {
+          res,
+        });
+        preDrawResult.value = res;
+        latestResult.value = res;
+        const result = res;
+        updateSelectedPrize(
+          prizes.value.find((p: PrizeDto) => p.id === result.wonPrize!.id)!
+        );
+        if (selectedPrize.value?.animation === "slot") {
+          currentPrizeComponent.value = markRaw(SlotAnimation as any);
+        } else {
+          currentPrizeComponent.value = markRaw(RouletteAnimation as any);
+        }
+        currentMemberComponent.value = "MemberDrawAnimation";
+        resetToMemberPhase();
+        // Add next cycle
+        const isKakuhen = res.isKakuhen || false;
+        if (isKakuhen) {
+          queue.addCycle(kakuhenHandler.getActions(queue));
+        } else {
+          queue.addCycle(commonHandler.getActions(queue));
+        }
+      } catch (e: any) {
+        console.error("Pre-draw failed in next cycle:", e);
+        preDrawResult.value = null;
+        latestResult.value = null;
+        try {
+          window.alert(e?.message || String(e));
+        } catch (_) {
+          /* noop */
+        }
+      }
+    }
+  }
+
+  static getActions(
+    preDrawResult: Ref<DrawResultDto | null>,
+    selectedPrize: Ref<PrizeDto | null>,
+    memberAnimRef: Ref<any>,
+    animationRef: Ref<any>,
+    inputController: InputController,
+    latestResult: Ref<DrawResultDto | null>,
+    prizes: Ref<PrizeDto[]>,
+    showPrizeWinningDialog: Ref<boolean>,
+    drawService: DrawApplicationService,
+    showHalfRemainingDialog: Ref<boolean>,
+    showEndDialog: Ref<boolean>,
+    updateSelectedPrize: (prize: PrizeDto) => void,
+    currentPrizeComponent: Ref<Component>,
+    markRaw: <T extends object>(value: T) => Raw<T>,
+    SlotAnimation: any,
+    RouletteAnimation: any,
+    currentMemberComponent: Ref<string>,
+    resetToMemberPhase: () => void,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
+    showMemberWinnerDialog: Ref<boolean>,
+    queue: ActionQueue,
+    commonHandler: any,
+    kakuhenHandler: any
+  ): (() => Promise<void>)[] {
+    const baseActions = [
+      () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
+      () => BaseHandler.stopMemberDraw(memberAnimRef),
+      () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
+      () =>
+        BaseHandler.startNormalPrizeSpin(
+          preDrawResult,
+          updateSelectedPrize,
+          prizes,
+          loadBgmBlob,
+          selectedPrize,
+          animationRef
+        ),
+      () => BaseHandler.stopPrizeDraw(selectedPrize, animationRef),
+      () =>
+        BaseHandler.updateWonPrize(
+          latestResult,
+          prizes,
+          selectedPrize.value!.id
+        ),
+      () => BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog),
+      () =>
+        BaseHandler.showHalfRemainingDialogAction(
+          showPrizeWinningDialog,
+          drawService,
+          showHalfRemainingDialog
+        ),
+      () =>
+        BaseHandler.handleModalClose(
+          drawService,
+          showEndDialog,
+          showPrizeWinningDialog,
+          showHalfRemainingDialog,
+          preDrawResult,
+          latestResult,
+          updateSelectedPrize,
+          prizes,
+          selectedPrize,
+          currentPrizeComponent,
+          markRaw,
+          SlotAnimation,
+          RouletteAnimation,
+          currentMemberComponent,
+          resetToMemberPhase,
+          queue,
+          commonHandler,
+          kakuhenHandler
+        ),
+    ];
+
+    return baseActions.flatMap((action, index) => {
+      if (index === baseActions.length - 1) return [action]; // 最後のアクションは delay なし
+      return [action, () => BaseHandler.delayInputResume(inputController)];
+    });
+  }
+
+  static async startNormalPrizeSpin(
+    preDrawResult: Ref<DrawResultDto | null>,
+    updateSelectedPrize: (prize: PrizeDto) => void,
+    prizes: Ref<PrizeDto[]>,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
+    selectedPrize: Ref<PrizeDto | null>,
+    animationRef: Ref<any>
+  ) {
+    console.log("[DrawOrchestrator] startNormalPrizeSpin");
+    const winnerPrizeId = preDrawResult.value!.wonPrize!.id;
+    updateSelectedPrize(
+      prizes.value.find((p: PrizeDto) => p.id === winnerPrizeId)!
+    );
+    const bgmBlob = await loadBgmBlob(selectedPrize.value!.bgm1AssetId || null);
+    if (animationRef.value?.startSpin) {
+      animationRef.value.startSpin(bgmBlob);
+    }
+  }
+}
+
+// Handler for kakuhen (special reroll) draw cycle
+class KakuhenHandler {
+  static getActions(
+    preDrawResult: Ref<DrawResultDto | null>,
+    selectedPrize: Ref<PrizeDto | null>,
+    memberAnimRef: Ref<any>,
+    animationRef: Ref<any>,
+    inputController: InputController,
+    latestResult: Ref<DrawResultDto | null>,
+    prizes: Ref<PrizeDto[]>,
+    showPrizeWinningDialog: Ref<boolean>,
+    drawService: DrawApplicationService,
+    showHalfRemainingDialog: Ref<boolean>,
+    showEndDialog: Ref<boolean>,
+    updateSelectedPrize: (prize: PrizeDto) => void,
+    currentPrizeComponent: Ref<Component>,
+    markRaw: <T extends object>(value: T) => Raw<T>,
+    SlotAnimation: any,
+    RouletteAnimation: any,
+    currentMemberComponent: Ref<string>,
+    resetToMemberPhase: () => void,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
+    kakuhenDummyPrize: Ref<PrizeDto | null>,
+    kakuhenFinalPrize: Ref<PrizeDto | null>,
+    kakuhenInProgress: Ref<boolean>,
+    kakuhenOverlayVisible: Ref<boolean>,
+    showMemberWinnerDialog: Ref<boolean>,
+    queue: ActionQueue,
+    commonHandler: any,
+    kakuhenHandler: any
+  ): (() => Promise<void>)[] {
+    const baseActions = [
+      () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
+      () => BaseHandler.stopMemberDraw(memberAnimRef),
+      () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
+      () =>
+        KakuhenHandler.startKakuhenDummySpin(
+          preDrawResult,
+          prizes,
+          loadBgmBlob,
+          animationRef,
+          kakuhenInProgress,
+          kakuhenDummyPrize,
+          kakuhenFinalPrize
+        ),
+      () =>
+        KakuhenHandler.stopKakuhenDummySpin(
+          animationRef,
+          kakuhenDummyPrize,
+          showPrizeWinningDialog,
+          kakuhenOverlayVisible
+        ),
+      () =>
+        KakuhenHandler.startKakuhenFinalSpin(
+          kakuhenFinalPrize,
+          loadBgmBlob,
+          animationRef
+        ),
+      () =>
+        KakuhenHandler.stopKakuhenFinalSpin(
+          animationRef,
+          kakuhenFinalPrize,
+          updateSelectedPrize,
+          kakuhenInProgress
+        ),
+      () =>
+        BaseHandler.updateWonPrize(
+          latestResult,
+          prizes,
+          kakuhenFinalPrize.value!.id
+        ),
+      () => BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog),
+      () =>
+        BaseHandler.showHalfRemainingDialogAction(
+          showPrizeWinningDialog,
+          drawService,
+          showHalfRemainingDialog
+        ),
+      () =>
+        BaseHandler.handleModalClose(
+          drawService,
+          showEndDialog,
+          showPrizeWinningDialog,
+          showHalfRemainingDialog,
+          preDrawResult,
+          latestResult,
+          updateSelectedPrize,
+          prizes,
+          selectedPrize,
+          currentPrizeComponent,
+          markRaw,
+          SlotAnimation,
+          RouletteAnimation,
+          currentMemberComponent,
+          resetToMemberPhase,
+          queue,
+          commonHandler,
+          kakuhenHandler
+        ),
+    ];
+
+    return baseActions.flatMap((action, index) => {
+      if (index === baseActions.length - 1) return [action]; // 最後のアクションは delay なし
+      return [action, () => BaseHandler.delayInputResume(inputController)];
+    });
+  }
+
+  static async startKakuhenDummySpin(
+    preDrawResult: Ref<DrawResultDto | null>,
+    prizes: Ref<PrizeDto[]>,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
+    animationRef: Ref<any>,
+    kakuhenInProgress: Ref<boolean>,
+    kakuhenDummyPrize: Ref<PrizeDto | null>,
+    kakuhenFinalPrize: Ref<PrizeDto | null>
+  ) {
+    console.log("[DrawOrchestrator] startKakuhenDummySpin");
+    const res = preDrawResult.value!;
+    const finalPrizeId = res.wonPrize!.id;
+    kakuhenFinalPrize.value = prizes.value.find(
+      (p: PrizeDto) => p.id === finalPrizeId
+    )!;
+    const dummyCandidates = prizes.value.filter(
+      (p: PrizeDto) => p.id !== finalPrizeId
+    );
+    kakuhenDummyPrize.value = dummyCandidates.length
+      ? dummyCandidates[Math.floor(Math.random() * dummyCandidates.length)]
+      : null;
+    const bgm1Blob = await loadBgmBlob(
+      kakuhenDummyPrize.value?.bgm1AssetId || null
+    );
+    kakuhenInProgress.value = true;
+    if (animationRef.value?.startSpin) {
+      animationRef.value.startSpin(bgm1Blob);
+    }
+  }
+
+  static async stopKakuhenDummySpin(
+    animationRef: Ref<any>,
+    kakuhenDummyPrize: Ref<PrizeDto | null>,
+    showPrizeWinningDialog: Ref<boolean>,
+    kakuhenOverlayVisible: Ref<boolean>
+  ) {
+    console.log("[DrawOrchestrator] stopKakuhenDummySpin");
+    const dummyDurationMs = 2000;
+    if (animationRef.value?.stopSpin) {
+      await animationRef.value.stopSpin(
+        dummyDurationMs / 1000,
+        kakuhenDummyPrize.value?.id || null
+      );
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+    kakuhenOverlayVisible.value = true;
+    await new Promise((r) => setTimeout(r, 2000));
+    showPrizeWinningDialog.value = false;
+    kakuhenOverlayVisible.value = false;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+
+  static async startKakuhenFinalSpin(
+    kakuhenFinalPrize: Ref<PrizeDto | null>,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
+    animationRef: Ref<any>
+  ) {
+    console.log("[DrawOrchestrator] startKakuhenFinalSpin");
+    const bgm2Blob = await loadBgmBlob(
+      kakuhenFinalPrize.value?.bgm2AssetId || null
+    );
+    if (animationRef.value?.startSpin) {
+      animationRef.value.startSpin(bgm2Blob);
+    }
+  }
+
+  static async stopKakuhenFinalSpin(
+    animationRef: Ref<any>,
+    kakuhenFinalPrize: Ref<PrizeDto | null>,
+    updateSelectedPrize: (prize: PrizeDto) => void,
+    kakuhenInProgress: Ref<boolean>
+  ) {
+    console.log("[DrawOrchestrator] stopKakuhenFinalSpin");
+    const finalDurationMs = 5000;
+    if (animationRef.value?.stopSpin) {
+      await animationRef.value.stopSpin(
+        finalDurationMs / 1000,
+        kakuhenFinalPrize.value!.id
+      );
+    }
+    updateSelectedPrize(kakuhenFinalPrize.value!);
+    await new Promise((r) => setTimeout(r, 1000));
+    kakuhenInProgress.value = false;
+  }
+}
+
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.
 export function useDrawOrchestrator() {
@@ -30,6 +574,7 @@ export function useDrawOrchestrator() {
     phase: "idle" as string,
     prizeAnimationStopped: false,
     currentAction: null as (() => void) | null,
+    currentQueue: null as ActionQueue | null,
   });
 
   // services
@@ -49,6 +594,7 @@ export function useDrawOrchestrator() {
   const showPrizeWinningDialog = ref(false);
   const showHalfRemainingDialog = ref(false);
   const showEndDialog = ref(false);
+  const showMemberWinnerDialog = ref(false);
 
   const kakuhenInProgress = ref(false);
   const kakuhenOverlayVisible = ref(false);
@@ -58,6 +604,14 @@ export function useDrawOrchestrator() {
   const currentPrizeComponent = shallowRef<Component>(
     markRaw(RouletteAnimation)
   );
+
+  // Define action cycles
+  const kakuhenDummyPrize = ref<PrizeDto | null>(null);
+  const kakuhenFinalPrize = ref<PrizeDto | null>(null);
+
+  const inputController: InputController = createInputController({
+    minIntervalMs: 1000,
+  });
 
   // timestamped console for debug (kept local to composable)
   const enableTimestampedLogs = () => {
@@ -89,171 +643,82 @@ export function useDrawOrchestrator() {
     }
   };
 
+  const resetToMemberPhase = () => {
+    console.log("[DrawOrchestrator] resetToMemberPhase");
+    drawState.phase = "member";
+    showPrizeWinningDialog.value = false;
+  };
+
+  const commonHandler = {
+    getActions: (queue: ActionQueue) =>
+      BaseHandler.getActions(
+        preDrawResult,
+        selectedPrize,
+        memberAnimRef,
+        animationRef,
+        inputController,
+        latestResult,
+        prizes,
+        showPrizeWinningDialog,
+        drawService,
+        showHalfRemainingDialog,
+        showEndDialog,
+        updateSelectedPrize,
+        currentPrizeComponent,
+        markRaw,
+        SlotAnimation,
+        RouletteAnimation,
+        currentMemberComponent,
+        resetToMemberPhase,
+        loadBgmBlob,
+        showMemberWinnerDialog,
+        queue,
+        commonHandler,
+        kakuhenHandler
+      ),
+  };
+
+  const kakuhenHandler = {
+    getActions: (queue: ActionQueue) =>
+      KakuhenHandler.getActions(
+        preDrawResult,
+        selectedPrize,
+        memberAnimRef,
+        animationRef,
+        inputController,
+        latestResult,
+        prizes,
+        showPrizeWinningDialog,
+        drawService,
+        showHalfRemainingDialog,
+        showEndDialog,
+        updateSelectedPrize,
+        currentPrizeComponent,
+        markRaw,
+        SlotAnimation,
+        RouletteAnimation,
+        currentMemberComponent,
+        resetToMemberPhase,
+        loadBgmBlob,
+        kakuhenDummyPrize,
+        kakuhenFinalPrize,
+        kakuhenInProgress,
+        kakuhenOverlayVisible,
+        showMemberWinnerDialog,
+        queue,
+        commonHandler,
+        kakuhenHandler
+      ),
+  };
+
   // kakuhen (special reroll) flow
-  const handleKakuhenDraw = async (res: DrawResultDto) => {
-    console.log("[DrawOrchestrator] handleKakuhenDraw called", { res });
-    const finalPrizeId = res.wonPrize!.id;
-    const finalPrize = prizes.value.find((p) => p.id === finalPrizeId)!;
-
-    const dummyCandidates = prizes.value.filter((p) => p.id !== finalPrizeId);
-    const dummyPrize = dummyCandidates.length
-      ? dummyCandidates[Math.floor(Math.random() * dummyCandidates.length)]
-      : null;
-
-    const [bgm1Blob, bgm2Blob] = await Promise.all([
-      loadBgmBlob(dummyPrize?.bgm1AssetId || null),
-      loadBgmBlob(finalPrize.bgm2AssetId || null),
-    ]);
-
-    const dummyDurationMs = 2000;
-    const finalDurationMs = 5000;
-
-    kakuhenInProgress.value = true;
-    let _kakuhenResolve: (() => void) | null = null;
-    const _kakuhenCompleted = new Promise<void>((resolve) => {
-      _kakuhenResolve = resolve;
-    });
-    try {
-      try {
-        if (animationRef.value?.startSpin) {
-          animationRef.value.startSpin(bgm1Blob);
-          console.log(
-            "[DrawOrchestrator] handleKakuhenDraw started dummy spin",
-            { dummyPrizeId: dummyPrize?.id }
-          );
-        }
-
-        drawState.currentAction = async () => {
-          try {
-            try {
-              inputController.suspend();
-            } catch (e) {
-              /* noop */
-            }
-
-            if (animationRef.value?.stopSpin) {
-              await animationRef.value.stopSpin(
-                dummyDurationMs / 1000,
-                dummyPrize?.id || null
-              );
-              console.log(
-                "[DrawOrchestrator] handleKakuhenDraw stopped dummy spin (via Enter)"
-              );
-            }
-
-            await new Promise((r) => setTimeout(r, 3000));
-            kakuhenOverlayVisible.value = true;
-            console.log(
-              "[DrawOrchestrator] handleKakuhenDraw showed kakuhen overlay (global)"
-            );
-            await new Promise((r) => setTimeout(r, 2000));
-
-            try {
-              showPrizeWinningDialog.value = false;
-            } catch (e) {
-              /* noop */
-            }
-
-            kakuhenOverlayVisible.value = false;
-            await new Promise((r) => setTimeout(r, 1000));
-
-            if (animationRef.value?.startSpin) {
-              animationRef.value.startSpin(bgm2Blob);
-              console.log(
-                "[DrawOrchestrator] handleKakuhenDraw started final spin",
-                { finalPrizeId }
-              );
-            }
-
-            await new Promise((r) => setTimeout(r, 3000));
-
-            if (animationRef.value?.stopSpin) {
-              await animationRef.value.stopSpin(
-                finalDurationMs / 1000,
-                finalPrizeId
-              );
-              console.log(
-                "[DrawOrchestrator] handleKakuhenDraw stopped final spin",
-                { finalPrizeId }
-              );
-            }
-          } catch (e) {
-            console.warn("Kakuhen reroll sequence failed:", e);
-          }
-
-          updateSelectedPrize(finalPrize);
-
-          await new Promise((r) => setTimeout(r, 1000));
-          drawState.currentAction = () => {
-            void closeModal();
-          };
-          try {
-            inputController.resume();
-          } catch (e) {
-            /* noop */
-          }
-          kakuhenInProgress.value = false;
-          try {
-            _kakuhenResolve && _kakuhenResolve();
-          } catch (e) {
-            /* noop */
-          }
-          console.log(
-            "[DrawOrchestrator] handleKakuhenDraw completed and enabled close action"
-          );
-        };
-
-        console.log(
-          "[DrawOrchestrator] handleKakuhenDraw waiting for Enter to stop dummy spin"
-        );
-        await _kakuhenCompleted;
-      } catch (e) {
-        console.warn("Kakuhen setup failed:", e);
-      }
-    } finally {
-      if (kakuhenInProgress.value && !_kakuhenResolve) {
-        kakuhenInProgress.value = false;
-      }
-    }
-  };
-
-  const handleNormalDraw = async (res: DrawResultDto) => {
-    console.log("[DrawOrchestrator] handleNormalDraw called", { res });
-    const winnerPrizeId = res.wonPrize!.id;
-    updateSelectedPrize(prizes.value.find((p) => p.id === winnerPrizeId)!);
-
-    const bgmBlob = await loadBgmBlob(selectedPrize.value!.bgm1AssetId || null);
-    console.log("[DrawOrchestrator] handleNormalDraw bgm blob loaded", {
-      winnerPrizeId,
-      hasBgm: !!bgmBlob,
-    });
-
-    if (animationRef.value?.startSpin) {
-      animationRef.value.startSpin(bgmBlob);
-      console.log("[DrawOrchestrator] handleNormalDraw started spin", {
-        winnerPrizeId,
-      });
-    }
-  };
-
-  const startRouletteAnimation = async (res: any) => {
-    console.log("[DrawOrchestrator] startRouletteAnimation", { res });
-    if (res.isKakuhen) {
-      await handleKakuhenDraw(res);
-    } else {
-      await handleNormalDraw(res);
-    }
-  };
 
   let actionRunning = false;
   const executeCurrentAction = async () => {
-    const action = drawState.currentAction;
-    console.log("[DrawOrchestrator] executeCurrentAction called", {
-      hasAction: !!action,
-      actionRunning,
-    });
-    if (!action) {
-      console.log("[DrawOrchestrator] executeCurrentAction no action to run");
+    if (!drawState.currentQueue || drawState.currentQueue.isEmpty()) {
+      console.log(
+        "[DrawOrchestrator] executeCurrentAction no actions in queue"
+      );
       return;
     }
     if (actionRunning) {
@@ -263,21 +728,38 @@ export function useDrawOrchestrator() {
       return;
     }
 
-    drawState.currentAction = null;
     actionRunning = true;
     try {
-      console.log("[DrawOrchestrator] executeCurrentAction starting action");
-      await Promise.resolve(action());
-      console.log("[DrawOrchestrator] executeCurrentAction action finished");
+      const action = drawState.currentQueue.dequeue();
+      if (action) {
+        console.log("[DrawOrchestrator] executeCurrentAction executing action");
+        await action();
+        console.log("[DrawOrchestrator] executeCurrentAction action finished");
+        // キューが空なら次のサイクルを追加
+        if (drawState.currentQueue.isEmpty()) {
+          console.log(
+            "[DrawOrchestrator] executeCurrentAction queue empty, adding next cycle"
+          );
+          const isKakuhen = preDrawResult.value?.isKakuhen || false;
+          if (isKakuhen) {
+            drawState.currentQueue.addCycle(
+              kakuhenHandler.getActions(drawState.currentQueue)
+            );
+          } else {
+            drawState.currentQueue.addCycle(
+              commonHandler.getActions(drawState.currentQueue)
+            );
+          }
+        }
+        // 次のアクションを実行
+        void executeCurrentAction();
+      }
     } catch (e) {
-      console.error("Error executing currentAction", e);
+      console.error("Error executing action from queue", e);
     } finally {
       actionRunning = false;
-      console.log("[DrawOrchestrator] executeCurrentAction cleaned up");
     }
   };
-
-  const inputController = createInputController({ minIntervalMs: 1000 });
 
   onMounted(async () => {
     console.log("[DrawOrchestrator] onMounted start");
@@ -302,7 +784,9 @@ export function useDrawOrchestrator() {
       console.log("[DrawOrchestrator] pre-draw result received", { res });
       preDrawResult.value = res;
       latestResult.value = res;
-      updateSelectedPrize(prizes.value.find((p) => p.id === res.wonPrize!.id)!);
+      updateSelectedPrize(
+        prizes.value.find((p: PrizeDto) => p.id === res.wonPrize!.id)!
+      );
       if (selectedPrize.value?.animation === "slot") {
         currentPrizeComponent.value = markRaw(SlotAnimation as any);
         console.log("[DrawOrchestrator] selected component: SlotAnimation");
@@ -323,7 +807,18 @@ export function useDrawOrchestrator() {
 
     currentMemberComponent.value = "MemberDrawAnimation";
 
-    showMemberDraw();
+    // Initialize queue
+    drawState.currentQueue = new ActionQueue();
+    const isKakuhen = preDrawResult.value?.isKakuhen || false;
+    if (isKakuhen) {
+      drawState.currentQueue.addCycle(
+        kakuhenHandler.getActions(drawState.currentQueue)
+      );
+    } else {
+      drawState.currentQueue.addCycle(
+        commonHandler.getActions(drawState.currentQueue)
+      );
+    }
 
     inputController.setOnTrigger(() => {
       console.log("[DrawOrchestrator] inputController triggered Enter");
@@ -333,21 +828,13 @@ export function useDrawOrchestrator() {
     console.log("[DrawOrchestrator] onMounted done, input controller attached");
   });
 
-  const _dialogTimers: number[] = [];
   onUnmounted(() => {
     inputController.detach();
-    for (const t of _dialogTimers)
-      try {
-        clearTimeout(t);
-      } catch (e) {}
   });
 
   const showMemberDraw = () => {
     console.log("[DrawOrchestrator] showMemberDraw");
     drawState.phase = "member";
-    drawState.currentAction = () => {
-      void startMemberDraw();
-    };
   };
 
   const handleMemberDrawStart = () => {
@@ -355,221 +842,23 @@ export function useDrawOrchestrator() {
     void showMemberDraw();
   };
 
-  const startMemberDraw = async () => {
-    console.log("[DrawOrchestrator] startMemberDraw", {
-      preDrawWinner: preDrawResult.value?.wonMember?.id,
-    });
-    if (memberAnimRef.value) {
-      memberAnimRef.value.startDraw(preDrawResult.value?.wonMember?.id || null);
-      console.log("[DrawOrchestrator] memberAnimRef.startDraw called");
-    }
-    drawState.currentAction = memberStop;
-  };
-
   const onMemberRouletteStopped = () => {
     console.log("[DrawOrchestrator] onMemberRouletteStopped", {
       latestResult: latestResult.value,
     });
-    drawState.currentAction = null;
-  };
-
-  const memberStop = async () => {
-    console.log("[DrawOrchestrator] memberStop");
-    if (memberAnimRef.value) {
-      await memberAnimRef.value.stopDraw();
-      console.log("[DrawOrchestrator] memberAnimRef.stopDraw completed");
-    }
   };
 
   const showPrizeDraw = () => {
     console.log("[DrawOrchestrator] showPrizeDraw");
     drawState.phase = "prize";
-    drawState.currentAction = () => {
-      void startPrizeDraw();
-    };
-  };
-
-  const startPrizeDraw = async () => {
-    console.log("[DrawOrchestrator] startPrizeDraw", {
-      preDrawResult: preDrawResult.value,
-    });
-    if (!preDrawResult.value) {
-      console.log(
-        "[DrawOrchestrator] startPrizeDraw no preDrawResult, resetting to member phase"
-      );
-      resetToMemberPhase();
-      return;
-    }
-    await startRouletteAnimation(preDrawResult.value);
-    console.log("[DrawOrchestrator] startPrizeDraw animation started");
-    drawState.currentAction = prizeStop;
-  };
-
-  const prizeStop = async () => {
-    console.log("[DrawOrchestrator] prizeStop", {
-      selectedPrizeId: selectedPrize.value?.id,
-    });
-    if (animationRef.value?.stopSpin && selectedPrize.value) {
-      await animationRef.value.stopSpin(3, selectedPrize.value.id);
-      console.log("[DrawOrchestrator] prizeStop completed stopSpin");
-    }
-  };
-
-  const resetToMemberPhase = () => {
-    console.log("[DrawOrchestrator] resetToMemberPhase");
-    drawState.phase = "member";
-    drawState.currentAction = () => {
-      void showMemberDraw();
-    };
-    showPrizeWinningDialog.value = false;
-  };
-
-  const openHalfRemainingDialog = () => {
-    console.log("[DrawOrchestrator] openHalfRemainingDialog");
-    showHalfRemainingDialog.value = true;
-  };
-
-  const onPrizeRouletteStopped = (prizeId: string | null) => {
-    console.log("[DrawOrchestrator] onRouletteStopped", { prizeId });
-    if (!prizeId) throw new Error("No prize selected");
-    if (latestResult.value) {
-      latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId)!;
-      showPrizeWinningDialog.value = true;
-      drawState.currentAction = null;
-
-      if (!kakuhenInProgress.value) {
-        try {
-          inputController.suspend();
-        } catch (e) {
-          /* noop */
-        }
-        const tid = window.setTimeout(() => {
-          drawState.currentAction = () => {
-            void closeModal();
-          };
-          try {
-            inputController.resume();
-          } catch (e) {
-            /* noop */
-          }
-          console.log(
-            "[DrawOrchestrator] prize dialog close action enabled after delay"
-          );
-        }, 1000);
-        _dialogTimers.push(tid as unknown as number);
-        // schedule half-remaining check after prize dialog has been visible
-        const HALF_REMAINING_SHOW_DELAY_MS = 3000;
-        const halfCheckTid = window.setTimeout(async () => {
-          try {
-            if (!showPrizeWinningDialog.value) return;
-            const count = await drawService.getLastPrizeCount();
-            if (
-              count.total > 0 &&
-              count.remaining > 0 &&
-              count.remaining * 2 === count.total
-            ) {
-              console.log(
-                "[DrawOrchestrator] half-remaining condition met after delay, opening dialog"
-              );
-              openHalfRemainingDialog();
-            } else {
-              console.log(
-                "[DrawOrchestrator] half-remaining condition not met after delay",
-                { count }
-              );
-            }
-          } catch (e) {
-            console.error(
-              "[DrawOrchestrator] failed to check prize count for half-remaining",
-              e
-            );
-          }
-        }, HALF_REMAINING_SHOW_DELAY_MS);
-        _dialogTimers.push(halfCheckTid as unknown as number);
-        console.log(
-          "[DrawOrchestrator] onRouletteStopped updated latestResult",
-          { latestResult: latestResult.value }
-        );
-      } else {
-        console.log(
-          "[DrawOrchestrator] onRouletteStopped (kakuhen) updated latestResult",
-          { latestResult: latestResult.value }
-        );
-      }
-    }
-  };
-
-  const onMemberWinnerDialogShown = () => {
-    console.log("[DrawOrchestrator] onMemberWinnerDialogShown");
-    inputController.suspend();
-    drawState.currentAction = null;
-    const tid = window.setTimeout(() => {
-      drawState.currentAction = () => showPrizeDraw();
-      inputController.resume();
-      console.log(
-        "[DrawOrchestrator] member winner action enabled after delay"
-      );
-    }, 1000);
-    _dialogTimers.push(tid as unknown as number);
   };
 
   const onMemberWinnerDialogClosed = () => {
     console.log("[DrawOrchestrator] onMemberWinnerDialogClosed");
+    showMemberWinnerDialog.value = false;
     try {
       inputController.resume();
     } catch (e) {}
-  };
-
-  const closeModal = async () => {
-    console.log("[DrawOrchestrator] closeModal start");
-    const count = await drawService.getLastPrizeCount();
-    console.log("[DrawOrchestrator] closeModal prize count", { count });
-    showEndDialog.value = count.remaining <= 0;
-    showPrizeWinningDialog.value = false;
-    drawState.currentAction = null;
-    if (count.remaining <= 0) {
-      console.log(
-        "[DrawOrchestrator] closeModal detected end condition, showEndDialog set"
-      );
-    } else if (
-      count.total > 0 &&
-      count.remaining > 0 &&
-      count.remaining * 2 === count.total
-    ) {
-      console.log("[DrawOrchestrator] closeModal half remaining condition met");
-      openHalfRemainingDialog();
-    } else {
-      console.log("[DrawOrchestrator] closeModal starting next pre-draw");
-      try {
-        const res = await drawService.executeDraw({
-          memberRequestCount: 10,
-          prizeRequestCount: 8,
-        });
-        console.log("[DrawOrchestrator] closeModal pre-draw result", { res });
-        preDrawResult.value = res;
-        latestResult.value = res;
-        const result = res;
-        updateSelectedPrize(
-          prizes.value.find((p) => p.id === result.wonPrize!.id)!
-        );
-        if (selectedPrize.value?.animation === "slot") {
-          currentPrizeComponent.value = markRaw(SlotAnimation as any);
-        } else {
-          currentPrizeComponent.value = markRaw(RouletteAnimation as any);
-        }
-        currentMemberComponent.value = "MemberDrawAnimation";
-        resetToMemberPhase();
-      } catch (e: any) {
-        console.error("Pre-draw failed in next cycle:", e);
-        preDrawResult.value = null;
-        latestResult.value = null;
-        try {
-          window.alert(e?.message || String(e));
-        } catch (_) {
-          /* noop */
-        }
-      }
-    }
   };
 
   const onHalfRemainingClosed = async () => {
@@ -587,7 +876,7 @@ export function useDrawOrchestrator() {
       latestResult.value = res;
       const result = res;
       updateSelectedPrize(
-        prizes.value.find((p) => p.id === result.wonPrize!.id)!
+        prizes.value.find((p: PrizeDto) => p.id === result.wonPrize!.id)!
       );
       if (selectedPrize.value?.animation === "slot") {
         currentPrizeComponent.value = markRaw(SlotAnimation as any);
@@ -633,6 +922,46 @@ export function useDrawOrchestrator() {
     router.push("/jackpot-ending");
   };
 
+  // Wrapper functions for return
+  const startMemberDraw = async () => {
+    await BaseHandler.startMemberDraw(preDrawResult, memberAnimRef);
+  };
+
+  const memberStop = async () => {
+    await BaseHandler.stopMemberDraw(memberAnimRef);
+  };
+
+  const prizeStop = async () => {
+    await BaseHandler.stopPrizeDraw(selectedPrize, animationRef);
+  };
+
+  const closeModal = async () => {
+    await BaseHandler.handleModalClose(
+      drawService,
+      showEndDialog,
+      showPrizeWinningDialog,
+      showHalfRemainingDialog,
+      preDrawResult,
+      latestResult,
+      updateSelectedPrize,
+      prizes,
+      selectedPrize,
+      currentPrizeComponent,
+      markRaw,
+      SlotAnimation,
+      RouletteAnimation,
+      currentMemberComponent,
+      resetToMemberPhase,
+      drawState.currentQueue!,
+      commonHandler,
+      kakuhenHandler
+    );
+  };
+
+  const onMemberWinnerDialogShown = async () => {
+    await BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog);
+  };
+
   return {
     prizes,
     members,
@@ -646,14 +975,13 @@ export function useDrawOrchestrator() {
     startMemberDraw,
     memberStop,
     showPrizeDraw,
-    startPrizeDraw,
     prizeStop,
     closeModal,
-    onPrizeRouletteStopped,
     onMemberRouletteStopped,
     showPrizeWinningDialog,
     showHalfRemainingDialog,
     showEndDialog,
+    showMemberWinnerDialog,
     onHalfRemainingClosed,
     onEndClosed,
     handleMemberDrawStart,
