@@ -2,19 +2,9 @@ import type { Component, Ref, Raw } from "vue";
 import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
-import createInputController from "./input-controller";
 import { ActionQueue } from "./action-queue";
 
-type InputController = ReturnType<typeof createInputController>;
-
 export class BaseHandler {
-  static async delayInputResume(inputController: InputController) {
-    console.log("[DrawOrchestrator] delayInputResume");
-    inputController.suspend();
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    inputController.resume();
-  }
-
   static async startMemberDraw(
     preDrawResult: Ref<DrawResultDto | null>,
     memberAnimRef: Ref<any>
@@ -240,7 +230,6 @@ export class BaseHandler {
     selectedPrize: Ref<PrizeDto | null>,
     memberAnimRef: Ref<any>,
     animationRef: Ref<any>,
-    inputController: InputController,
     latestResult: Ref<DrawResultDto | null>,
     prizes: Ref<PrizeDto[]>,
     showPrizeWinningDialog: Ref<boolean>,
@@ -299,9 +288,6 @@ export class BaseHandler {
       () => BaseHandler.closeModal(showPrizeWinningDialog),
       () => BaseHandler.showEndDialogAction(showEndDialog, drawService, queue),
     ];
-    return baseActions.flatMap((action, index) => {
-      if (index === baseActions.length - 1) return [action]; // 最後のアクションは delay なし
-      return [action, () => BaseHandler.delayInputResume(inputController)];
-    });
+    return baseActions;
   }
 }

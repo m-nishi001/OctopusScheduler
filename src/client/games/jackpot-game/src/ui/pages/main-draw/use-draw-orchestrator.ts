@@ -15,7 +15,6 @@ import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto
 import { container } from "tsyringe";
 import { AssetDataService } from "@model/applications/asset/asset-data-service";
 import { usePrizeDrawState } from "./prize-animation-state";
-import createInputController from "./input-controller";
 import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
 
@@ -24,8 +23,6 @@ import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
 import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
 import { KakuhenHandler } from "./kakuhen-handler";
-
-type InputController = ReturnType<typeof createInputController>;
 
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.
@@ -71,9 +68,7 @@ export function useDrawOrchestrator() {
   const kakuhenDummyPrize = ref<PrizeDto | null>(null);
   const kakuhenFinalPrize = ref<PrizeDto | null>(null);
 
-  const inputController: InputController = createInputController({
-    minIntervalMs: 1000,
-  });
+  const keyDownHandler = ref<((ev: KeyboardEvent) => void) | null>(null);
 
   const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
     if (!assetId) return null;
@@ -93,7 +88,6 @@ export function useDrawOrchestrator() {
         selectedPrize,
         memberAnimRef,
         animationRef,
-        inputController,
         latestResult,
         prizes,
         showPrizeWinningDialog,
@@ -117,7 +111,6 @@ export function useDrawOrchestrator() {
         preDrawResult,
         memberAnimRef,
         animationRef,
-        inputController,
         latestResult,
         prizes,
         showPrizeWinningDialog,
@@ -140,12 +133,20 @@ export function useDrawOrchestrator() {
       ),
   };
 
+  const isQueueExecuting = ref(false);
+
   const executeCurrentAction = async () => {
+    if (isQueueExecuting.value) {
+      return;
+    }
+    isQueueExecuting.value = true;
+
     // キューが空なら次のサイクルを追加
     if (drawState.currentQueue.isEmpty()) {
       try {
         const count = await drawService.getLastPrizeCount();
         if (count.remaining <= 0) {
+          isQueueExecuting.value = false;
           return;
         }
         const isKakuhen = preDrawResult.value?.isKakuhen || false;
@@ -160,6 +161,8 @@ export function useDrawOrchestrator() {
         }
       } catch (e) {
         console.error("Failed to get prize count for cycle addition:", e);
+        isQueueExecuting.value = false;
+        return;
       }
     }
 
@@ -167,11 +170,14 @@ export function useDrawOrchestrator() {
       const action = drawState.currentQueue.dequeue();
       if (!action) {
         console.warn("No action to execute in the queue");
+        isQueueExecuting.value = false;
         return;
       }
       await action();
     } catch (e) {
       console.error("Error executing action from queue", e);
+    } finally {
+      isQueueExecuting.value = false;
     }
   };
 
@@ -195,14 +201,19 @@ export function useDrawOrchestrator() {
       );
     }
 
-    inputController.setOnTrigger(() => {
-      void executeCurrentAction();
-    });
-    inputController.attach();
+    const handleKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Enter") {
+        void executeCurrentAction();
+      }
+    };
+    keyDownHandler.value = handleKeyDown;
+    window.addEventListener("keydown", handleKeyDown);
   });
 
   onUnmounted(() => {
-    inputController.detach();
+    if (keyDownHandler.value) {
+      window.removeEventListener("keydown", keyDownHandler.value);
+    }
   });
 
   return {

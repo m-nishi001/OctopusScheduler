@@ -3,18 +3,14 @@ import type { Component, Raw } from "vue";
 import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
-import createInputController from "./input-controller";
 import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
-
-type InputController = ReturnType<typeof createInputController>;
 
 export class KakuhenHandler {
   static getActions(
     preDrawResult: Ref<DrawResultDto | null>,
     memberAnimRef: Ref<any>,
     animationRef: Ref<any>,
-    inputController: InputController,
     latestResult: Ref<DrawResultDto | null>,
     prizes: Ref<PrizeDto[]>,
     showPrizeWinningDialog: Ref<boolean>,
@@ -103,10 +99,7 @@ export class KakuhenHandler {
       () => BaseHandler.closeEndDialogAction(showEndDialog),
     ];
 
-    return baseActions.flatMap((action, index) => {
-      if (index === baseActions.length - 1) return [action]; // 最後のアクションは delay なし
-      return [action, () => BaseHandler.delayInputResume(inputController)];
-    });
+    return baseActions;
   }
 
   static async startKakuhenDummyDraw(
