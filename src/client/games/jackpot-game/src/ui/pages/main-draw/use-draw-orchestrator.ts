@@ -7,7 +7,6 @@ import {
   markRaw,
 } from "vue";
 import type { Component } from "vue";
-import { useRouter } from "vue-router";
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import { PrizeRepository } from "@model/infrastructures/prize-repository";
 import { MemberRepository } from "@model/infrastructures/member-repository";
@@ -31,7 +30,6 @@ type InputController = ReturnType<typeof createInputController>;
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.
 export function useDrawOrchestrator() {
-  const router = useRouter();
   const members = ref<MemberDto[]>([]);
   const latestResult = ref<DrawResultDto | null>(null);
   const drawState = reactive({
@@ -86,11 +84,6 @@ export function useDrawOrchestrator() {
       console.log("[DrawOrchestrator] loadBgmBlob failed", e);
       return null;
     }
-  };
-
-  const resetToMemberPhase = () => {
-    drawState.phase = "member";
-    showPrizeWinningDialog.value = false;
   };
 
   const commonHandler = {
@@ -214,108 +207,6 @@ export function useDrawOrchestrator() {
     inputController.detach();
   });
 
-  const handleMemberDrawStart = () => {
-    void (() => {
-      drawState.phase = "member";
-    })();
-  };
-
-  const showPrizeDraw = () => {
-    drawState.phase = "prize";
-  };
-
-  const onMemberWinnerDialogClosed = () => {
-    showMemberWinnerDialog.value = false;
-    try {
-      inputController.resume();
-    } catch (e) {}
-  };
-
-  const onHalfRemainingClosed = async () => {
-    console.log("[DrawOrchestrator] onHalfRemainingClosed start");
-    showHalfRemainingDialog.value = false;
-    try {
-      const res = await drawService.executeDraw({
-        memberRequestCount: 10,
-        prizeRequestCount: 8,
-      });
-      console.log("[DrawOrchestrator] onHalfRemainingClosed pre-draw result", {
-        res,
-      });
-      preDrawResult.value = res;
-      latestResult.value = res;
-      const result = res;
-      updateSelectedPrize(
-        prizes.value.find((p: PrizeDto) => p.id === result.wonPrize!.id)!
-      );
-      if (selectedPrize.value?.animation === "slot") {
-        currentPrizeComponent.value = markRaw(SlotAnimation as any);
-      } else {
-        currentPrizeComponent.value = markRaw(RouletteAnimation as any);
-      }
-      currentMemberComponent.value = "MemberDrawAnimation";
-      resetToMemberPhase();
-      try {
-        const count = await drawService.getLastPrizeCount();
-        console.log(
-          "[DrawOrchestrator] onHalfRemainingClosed refreshed count",
-          { count }
-        );
-        showEndDialog.value = count.remaining <= 0;
-      } catch (e: any) {
-        console.error(
-          "Failed to refresh prize count after half-remaining close:",
-          e
-        );
-        try {
-          window.alert(e?.message || String(e));
-        } catch (_) {
-          /* noop */
-        }
-      }
-    } catch (e: any) {
-      console.error("Pre-draw failed in next cycle:", e);
-      preDrawResult.value = null;
-      latestResult.value = null;
-      try {
-        window.alert(e?.message || String(e));
-      } catch (_) {
-        /* noop */
-      }
-    }
-  };
-
-  const onEndClosed = () => {
-    showEndDialog.value = false;
-    showHalfRemainingDialog.value = false;
-    router.push("/jackpot-ending");
-  };
-
-  const closePrizeWinningDialog = () => {
-    drawState.currentQueue.enqueue(() =>
-      BaseHandler.closeModal(showPrizeWinningDialog)
-    );
-    drawState.currentQueue.enqueue(() =>
-      BaseHandler.prepareNextDraw(
-        preDrawResult,
-        latestResult,
-        updateSelectedPrize,
-        prizes,
-        selectedPrize,
-        currentPrizeComponent,
-        markRaw,
-        SlotAnimation,
-        RouletteAnimation,
-        currentMemberComponent,
-        resetToMemberPhase
-      )
-    );
-  };
-
-  const onMemberWinnerDialogShown = async () => {
-    await BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog);
-  };
-
   return {
     prizes,
     members,
@@ -328,17 +219,10 @@ export function useDrawOrchestrator() {
     showMemberDraw: () => {
       drawState.phase = "member";
     },
-    showPrizeDraw,
-    closePrizeWinningDialog,
     showPrizeWinningDialog,
     showHalfRemainingDialog,
     showEndDialog,
     showMemberWinnerDialog,
-    onHalfRemainingClosed,
-    onEndClosed,
-    handleMemberDrawStart,
-    onMemberWinnerDialogShown,
-    onMemberWinnerDialogClosed,
     kakuhenInProgress,
     kakuhenOverlayVisible,
   } as const;
