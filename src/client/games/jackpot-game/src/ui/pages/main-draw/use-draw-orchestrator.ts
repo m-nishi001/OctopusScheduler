@@ -251,6 +251,8 @@ export function useDrawOrchestrator() {
     window.addEventListener("keydown", handleKeyDown);
 
     emitter.on("nextAction", () => executeCurrentAction(true));
+
+    void executeCurrentAction(false);
   });
 
   onUnmounted(() => {

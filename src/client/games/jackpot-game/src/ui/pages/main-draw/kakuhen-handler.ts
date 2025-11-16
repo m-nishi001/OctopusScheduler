@@ -35,7 +35,7 @@ export class KakuhenHandler {
     drawState: any
   ): (() => Promise<void>)[] {
     const baseActions = [
-      () => BaseHandler.setMemberPhase(drawState),
+      () => BaseHandler.setMemberPhase(drawState, emitter),
       () =>
         BaseHandler.executeDraw(
           drawService,
@@ -49,13 +49,13 @@ export class KakuhenHandler {
           SlotAnimation,
           RouletteAnimation
         ),
-      () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
+      () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter),
       () => BaseHandler.wait(1),
       () => BaseHandler.stopMemberDraw(memberAnimRef, emitter),
-      () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
+      () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter),
       () => BaseHandler.wait(1),
       () => BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog),
-      () => BaseHandler.setPrizePhase(drawState),
+      () => BaseHandler.setPrizePhase(drawState, emitter),
       () =>
         KakuhenHandler.startKakuhenDummyDraw(
           preDrawResult,
@@ -87,17 +87,19 @@ export class KakuhenHandler {
           updateSelectedPrize,
           kakuhenInProgress
         ),
+      async () => {
+        latestResult.value!.wonPrize = prizes.value.find(
+          (p: PrizeDto) => p.id === kakuhenFinalPrize.value!.id
+        )!;
+      },
       () =>
-        BaseHandler.updateWonPrize(
-          latestResult,
-          prizes,
-          kakuhenFinalPrize.value!.id
+        BaseHandler.showPrizeWinningDialogAction(
+          showPrizeWinningDialog,
+          emitter
         ),
-      () => BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog),
       () => BaseHandler.closePrizeWinningDialogAction(showPrizeWinningDialog),
       () =>
         BaseHandler.showHalfRemainingDialogAction(
-          showPrizeWinningDialog,
           drawService,
           showHalfRemainingDialog,
           emitter
@@ -114,7 +116,7 @@ export class KakuhenHandler {
           queue,
           emitter
         ),
-      () => BaseHandler.closeEndDialogAction(showEndDialog),
+      () => BaseHandler.closeEndDialogAction(showEndDialog, emitter),
     ];
 
     return baseActions;

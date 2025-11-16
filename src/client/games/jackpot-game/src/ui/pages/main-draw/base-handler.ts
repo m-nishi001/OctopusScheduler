@@ -8,7 +8,8 @@ import { type Emitter } from "mitt";
 export class BaseHandler {
   static async startMemberDraw(
     preDrawResult: Ref<DrawResultDto | null>,
-    memberAnimRef: Ref<any>
+    memberAnimRef: Ref<any>,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] startMemberDraw", {
       preDrawWinner: preDrawResult.value?.wonMember?.id,
@@ -17,6 +18,7 @@ export class BaseHandler {
       memberAnimRef.value.startDraw(preDrawResult.value?.wonMember?.id || null);
       console.log("[DrawOrchestrator] memberAnimRef.startDraw called");
     }
+    emitter.emit("nextAction");
   }
 
   static async stopMemberDraw(memberAnimRef: Ref<any>, emitter: Emitter<any>) {
@@ -28,9 +30,13 @@ export class BaseHandler {
     }
   }
 
-  static async showMemberWinnerDialog(showMemberWinnerDialog: Ref<boolean>) {
+  static async showMemberWinnerDialog(
+    showMemberWinnerDialog: Ref<boolean>,
+    emitter: Emitter<any>
+  ) {
     console.log("[DrawOrchestrator] showMemberWinnerDialog");
     showMemberWinnerDialog.value = true;
+    emitter.emit("nextAction");
   }
 
   static async closeMemberWinnerDialog(showMemberWinnerDialog: Ref<boolean>) {
@@ -44,7 +50,8 @@ export class BaseHandler {
     prizes: Ref<PrizeDto[]>,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     selectedPrize: Ref<PrizeDto | null>,
-    animationRef: Ref<any>
+    animationRef: Ref<any>,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] startPrizeDraw");
     const winnerPrizeId = preDrawResult.value!.wonPrize!.id;
@@ -55,6 +62,7 @@ export class BaseHandler {
     if (animationRef.value?.startSpin) {
       animationRef.value.startSpin(bgmBlob);
     }
+    emitter.emit("nextAction");
   }
 
   static async stopPrizeDraw(
@@ -73,10 +81,12 @@ export class BaseHandler {
   }
 
   static async showPrizeWinningDialogAction(
-    showPrizeWinningDialog: Ref<boolean>
+    showPrizeWinningDialog: Ref<boolean>,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] showPrizeWinningDialogAction");
     showPrizeWinningDialog.value = true;
+    emitter.emit("nextAction");
   }
 
   static async closePrizeWinningDialogAction(
@@ -84,22 +94,6 @@ export class BaseHandler {
   ) {
     console.log("[DrawOrchestrator] closePrizeWinningDialogAction");
     showPrizeWinningDialog.value = false;
-  }
-
-  static async updateWonPrize(
-    latestResult: Ref<DrawResultDto | null>,
-    prizes: Ref<PrizeDto[]>,
-    prizeId: string
-  ) {
-    console.log("[DrawOrchestrator] updateWonPrize", { prizeId });
-    if (latestResult.value) {
-      latestResult.value.wonPrize = prizes.value.find(
-        (p: PrizeDto) => p.id === prizeId
-      )!;
-      console.log("[DrawOrchestrator] updateWonPrize updated latestResult", {
-        latestResult: latestResult.value,
-      });
-    }
   }
 
   static async executeDraw(
@@ -123,6 +117,9 @@ export class BaseHandler {
       console.log("[DrawOrchestrator] draw result received", { res });
       preDrawResult.value = res;
       latestResult.value = res;
+      latestResult.value.wonPrize = prizes.value.find(
+        (p: PrizeDto) => p.id === res.wonPrize!.id
+      )!;
       updateSelectedPrize(
         prizes.value.find((p: PrizeDto) => p.id === res.wonPrize!.id)!
       );
@@ -146,17 +143,11 @@ export class BaseHandler {
   }
 
   static async showHalfRemainingDialogAction(
-    showPrizeWinningDialog: Ref<boolean>,
     drawService: DrawApplicationService,
     showHalfRemainingDialog: Ref<boolean>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] showHalfRemainingDialogAction");
-    const HALF_REMAINING_SHOW_DELAY_MS = 3000;
-    await new Promise((resolve) =>
-      setTimeout(resolve, HALF_REMAINING_SHOW_DELAY_MS)
-    );
-    if (!showPrizeWinningDialog.value) return;
     try {
       const count = await drawService.getLastPrizeCount();
       if (
@@ -210,7 +201,6 @@ export class BaseHandler {
           "[DrawOrchestrator] showEndDialogAction showing end dialog"
         );
         queue.clear();
-        emitter.emit("nextAction");
       } else {
         console.log(
           "[DrawOrchestrator] showEndDialogAction not showing, remaining > 0",
@@ -223,21 +213,28 @@ export class BaseHandler {
         e
       );
     }
+    emitter.emit("nextAction");
   }
 
-  static async closeEndDialogAction(showEndDialog: Ref<boolean>) {
+  static async closeEndDialogAction(
+    showEndDialog: Ref<boolean>,
+    emitter: Emitter<any>
+  ) {
     console.log("[DrawOrchestrator] closeEndDialogAction");
     showEndDialog.value = false;
+    emitter.emit("nextAction");
   }
 
-  static async setMemberPhase(drawState: any) {
+  static async setMemberPhase(drawState: any, emitter: Emitter<any>) {
     console.log("[DrawOrchestrator] setMemberPhase");
     drawState.phase = "member";
+    emitter.emit("nextAction");
   }
 
-  static async setPrizePhase(drawState: any) {
+  static async setPrizePhase(drawState: any, emitter: Emitter<any>) {
     console.log("[DrawOrchestrator] setPrizePhase");
     drawState.phase = "prize";
+    emitter.emit("nextAction");
   }
 
   static async closePrizeWinningDialog(
@@ -250,7 +247,9 @@ export class BaseHandler {
   }
 
   static async wait(seconds: number = 1): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+    return new Promise((resolve) => {
+      setTimeout(resolve, seconds * 1000);
+    });
   }
 
   static getActions(
@@ -276,7 +275,7 @@ export class BaseHandler {
     drawState: any
   ): (() => Promise<void>)[] {
     const baseActions = [
-      () => BaseHandler.setMemberPhase(drawState),
+      () => BaseHandler.setMemberPhase(drawState, emitter),
       () =>
         BaseHandler.executeDraw(
           drawService,
@@ -290,12 +289,13 @@ export class BaseHandler {
           SlotAnimation,
           RouletteAnimation
         ),
-      () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
+      () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter),
       () => BaseHandler.wait(1),
       () => BaseHandler.stopMemberDraw(memberAnimRef, emitter),
-      () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
+      () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter),
       () => BaseHandler.wait(1),
-      () => BaseHandler.setPrizePhase(drawState),
+      () => BaseHandler.setPrizePhase(drawState, emitter),
+      () => BaseHandler.wait(1),
       () =>
         BaseHandler.startPrizeDraw(
           preDrawResult,
@@ -303,23 +303,21 @@ export class BaseHandler {
           prizes,
           loadBgmBlob,
           selectedPrize,
-          animationRef
+          animationRef,
+          emitter
         ),
       () => BaseHandler.wait(1),
       () => BaseHandler.stopPrizeDraw(selectedPrize, animationRef, emitter),
       () =>
-        BaseHandler.updateWonPrize(
-          latestResult,
-          prizes,
-          selectedPrize.value!.id
+        BaseHandler.showPrizeWinningDialogAction(
+          showPrizeWinningDialog,
+          emitter
         ),
-      () => BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog),
       () => BaseHandler.wait(1),
       () =>
         BaseHandler.closePrizeWinningDialog(showPrizeWinningDialog, emitter),
       () =>
         BaseHandler.showHalfRemainingDialogAction(
-          showPrizeWinningDialog,
           drawService,
           showHalfRemainingDialog,
           emitter
@@ -336,7 +334,7 @@ export class BaseHandler {
           queue,
           emitter
         ),
-      () => BaseHandler.closeEndDialogAction(showEndDialog),
+      () => BaseHandler.closeEndDialogAction(showEndDialog, emitter),
     ];
     return baseActions;
   }
