@@ -5,6 +5,7 @@ import { DrawApplicationService } from "@model/applications/draw/draw-applicatio
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
 import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
+import { type Emitter } from "mitt";
 
 export class KakuhenHandler {
   static getActions(
@@ -29,7 +30,8 @@ export class KakuhenHandler {
     currentPrizeComponent: Ref<Component>,
     markRaw: <T extends object>(value: T) => Raw<T>,
     SlotAnimation: any,
-    RouletteAnimation: any
+    RouletteAnimation: any,
+    emitter: Emitter<any>
   ): (() => Promise<void>)[] {
     const baseActions = [
       () =>
@@ -46,8 +48,10 @@ export class KakuhenHandler {
           RouletteAnimation
         ),
       () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
-      () => BaseHandler.stopMemberDraw(memberAnimRef),
+      () => BaseHandler.wait(1),
+      () => BaseHandler.stopMemberDraw(memberAnimRef, emitter),
       () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
+      () => BaseHandler.wait(1),
       () => BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog),
       () =>
         KakuhenHandler.startKakuhenDummyDraw(
@@ -92,10 +96,21 @@ export class KakuhenHandler {
         BaseHandler.showHalfRemainingDialogAction(
           showPrizeWinningDialog,
           drawService,
-          showHalfRemainingDialog
+          showHalfRemainingDialog,
+          emitter
         ),
-      () => BaseHandler.closeHalfRemainingDialogAction(showHalfRemainingDialog),
-      () => BaseHandler.showEndDialogAction(showEndDialog, drawService, queue),
+      () =>
+        BaseHandler.closeHalfRemainingDialogAction(
+          showHalfRemainingDialog,
+          emitter
+        ),
+      () =>
+        BaseHandler.showEndDialogAction(
+          showEndDialog,
+          drawService,
+          queue,
+          emitter
+        ),
       () => BaseHandler.closeEndDialogAction(showEndDialog),
     ];
 

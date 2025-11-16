@@ -3,6 +3,7 @@ import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
 import { ActionQueue } from "./action-queue";
+import { type Emitter } from "mitt";
 
 export class BaseHandler {
   static async startMemberDraw(
@@ -18,10 +19,11 @@ export class BaseHandler {
     }
   }
 
-  static async stopMemberDraw(memberAnimRef: Ref<any>) {
+  static async stopMemberDraw(memberAnimRef: Ref<any>, emitter: Emitter<any>) {
     console.log("[DrawOrchestrator] stopMemberDraw");
     if (memberAnimRef.value) {
       await memberAnimRef.value.stopDraw();
+      emitter.emit("nextAction");
       console.log("[DrawOrchestrator] memberAnimRef.stopDraw completed");
     }
   }
@@ -57,13 +59,15 @@ export class BaseHandler {
 
   static async stopPrizeDraw(
     selectedPrize: Ref<PrizeDto | null>,
-    animationRef: Ref<any>
+    animationRef: Ref<any>,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopPrizeDraw", {
       selectedPrizeId: selectedPrize.value?.id,
     });
     if (animationRef.value?.stopSpin && selectedPrize.value) {
       await animationRef.value.stopSpin(3, selectedPrize.value.id);
+      emitter.emit("nextAction");
       console.log("[DrawOrchestrator] stopPrizeDraw completed stopSpin");
     }
   }
@@ -144,7 +148,8 @@ export class BaseHandler {
   static async showHalfRemainingDialogAction(
     showPrizeWinningDialog: Ref<boolean>,
     drawService: DrawApplicationService,
-    showHalfRemainingDialog: Ref<boolean>
+    showHalfRemainingDialog: Ref<boolean>,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] showHalfRemainingDialogAction");
     const HALF_REMAINING_SHOW_DELAY_MS = 3000;
@@ -169,6 +174,7 @@ export class BaseHandler {
           { count }
         );
       }
+      emitter.emit("nextAction");
     } catch (e) {
       console.error(
         "[DrawOrchestrator] failed to check prize count for half-remaining",
@@ -178,16 +184,19 @@ export class BaseHandler {
   }
 
   static async closeHalfRemainingDialogAction(
-    showHalfRemainingDialog: Ref<boolean>
+    showHalfRemainingDialog: Ref<boolean>,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] closeHalfRemainingDialogAction");
     showHalfRemainingDialog.value = false;
+    emitter.emit("nextAction");
   }
 
   static async showEndDialogAction(
     showEndDialog: Ref<boolean>,
     drawService: DrawApplicationService,
-    queue: ActionQueue
+    queue: ActionQueue,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] showEndDialogAction checking prize count");
     try {
@@ -201,6 +210,7 @@ export class BaseHandler {
           "[DrawOrchestrator] showEndDialogAction showing end dialog"
         );
         queue.clear();
+        emitter.emit("nextAction");
       } else {
         console.log(
           "[DrawOrchestrator] showEndDialogAction not showing, remaining > 0",
@@ -220,9 +230,17 @@ export class BaseHandler {
     showEndDialog.value = false;
   }
 
-  static async closeModal(showPrizeWinningDialog: Ref<boolean>) {
-    console.log("[DrawOrchestrator] closeModal");
+  static async closePrizeWinningDialog(
+    showPrizeWinningDialog: Ref<boolean>,
+    emitter: Emitter<any>
+  ) {
+    console.log("[DrawOrchestrator] closePrizeWinningDialog");
     showPrizeWinningDialog.value = false;
+    emitter.emit("nextAction");
+  }
+
+  static async wait(seconds: number = 1): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
   }
 
   static getActions(
@@ -243,7 +261,8 @@ export class BaseHandler {
     currentPrizeComponent: Ref<Component>,
     markRaw: <T extends object>(value: T) => Raw<T>,
     SlotAnimation: any,
-    RouletteAnimation: any
+    RouletteAnimation: any,
+    emitter: Emitter<any>
   ): (() => Promise<void>)[] {
     const baseActions = [
       () =>
@@ -260,8 +279,10 @@ export class BaseHandler {
           RouletteAnimation
         ),
       () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
-      () => BaseHandler.stopMemberDraw(memberAnimRef),
+      () => BaseHandler.wait(1),
+      () => BaseHandler.stopMemberDraw(memberAnimRef, emitter),
       () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
+      () => BaseHandler.wait(1),
       () =>
         BaseHandler.startPrizeDraw(
           preDrawResult,
@@ -271,7 +292,8 @@ export class BaseHandler {
           selectedPrize,
           animationRef
         ),
-      () => BaseHandler.stopPrizeDraw(selectedPrize, animationRef),
+      () => BaseHandler.wait(1),
+      () => BaseHandler.stopPrizeDraw(selectedPrize, animationRef, emitter),
       () =>
         BaseHandler.updateWonPrize(
           latestResult,
@@ -279,14 +301,29 @@ export class BaseHandler {
           selectedPrize.value!.id
         ),
       () => BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog),
+      () => BaseHandler.wait(1),
+      () =>
+        BaseHandler.closePrizeWinningDialog(showPrizeWinningDialog, emitter),
       () =>
         BaseHandler.showHalfRemainingDialogAction(
           showPrizeWinningDialog,
           drawService,
-          showHalfRemainingDialog
+          showHalfRemainingDialog,
+          emitter
         ),
-      () => BaseHandler.closeModal(showPrizeWinningDialog),
-      () => BaseHandler.showEndDialogAction(showEndDialog, drawService, queue),
+      () =>
+        BaseHandler.closeHalfRemainingDialogAction(
+          showHalfRemainingDialog,
+          emitter
+        ),
+      () =>
+        BaseHandler.showEndDialogAction(
+          showEndDialog,
+          drawService,
+          queue,
+          emitter
+        ),
+      () => BaseHandler.closeEndDialogAction(showEndDialog),
     ];
     return baseActions;
   }

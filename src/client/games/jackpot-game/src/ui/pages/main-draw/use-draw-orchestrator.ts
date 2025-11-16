@@ -23,12 +23,14 @@ import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
 import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
 import { KakuhenHandler } from "./kakuhen-handler";
+import mitt from "mitt";
 
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.
 export function useDrawOrchestrator() {
   const members = ref<MemberDto[]>([]);
   const latestResult = ref<DrawResultDto | null>(null);
+  const emitter = mitt<any>();
   const drawState = reactive({
     phase: "idle" as string,
     prizeAnimationStopped: false,
@@ -81,62 +83,10 @@ export function useDrawOrchestrator() {
     }
   };
 
-  const commonHandler = {
-    getActions: (queue: ActionQueue) =>
-      BaseHandler.getActions(
-        preDrawResult,
-        selectedPrize,
-        memberAnimRef,
-        animationRef,
-        latestResult,
-        prizes,
-        showPrizeWinningDialog,
-        drawService,
-        showHalfRemainingDialog,
-        showEndDialog,
-        updateSelectedPrize,
-        loadBgmBlob,
-        showMemberWinnerDialog,
-        queue,
-        currentPrizeComponent,
-        markRaw,
-        SlotAnimation,
-        RouletteAnimation
-      ),
-  };
-
-  const kakuhenHandler = {
-    getActions: (queue: ActionQueue) =>
-      KakuhenHandler.getActions(
-        preDrawResult,
-        memberAnimRef,
-        animationRef,
-        latestResult,
-        prizes,
-        showPrizeWinningDialog,
-        drawService,
-        showHalfRemainingDialog,
-        showEndDialog,
-        updateSelectedPrize,
-        loadBgmBlob,
-        kakuhenDummyPrize,
-        kakuhenFinalPrize,
-        kakuhenInProgress,
-        kakuhenOverlayVisible,
-        showMemberWinnerDialog,
-        queue,
-        selectedPrize,
-        currentPrizeComponent,
-        markRaw,
-        SlotAnimation,
-        RouletteAnimation
-      ),
-  };
-
   const isQueueExecuting = ref(false);
 
-  const executeCurrentAction = async () => {
-    if (isQueueExecuting.value) {
+  const executeCurrentAction = async (isAuto: boolean = false) => {
+    if (isQueueExecuting.value && !isAuto) {
       return;
     }
     isQueueExecuting.value = true;
@@ -152,11 +102,55 @@ export function useDrawOrchestrator() {
         const isKakuhen = preDrawResult.value?.isKakuhen || false;
         if (isKakuhen) {
           drawState.currentQueue.addCycle(
-            kakuhenHandler.getActions(drawState.currentQueue)
+            KakuhenHandler.getActions(
+              preDrawResult,
+              memberAnimRef,
+              animationRef,
+              latestResult,
+              prizes,
+              showPrizeWinningDialog,
+              drawService,
+              showHalfRemainingDialog,
+              showEndDialog,
+              updateSelectedPrize,
+              loadBgmBlob,
+              kakuhenDummyPrize,
+              kakuhenFinalPrize,
+              kakuhenInProgress,
+              kakuhenOverlayVisible,
+              showMemberWinnerDialog,
+              drawState.currentQueue,
+              selectedPrize,
+              currentPrizeComponent,
+              markRaw,
+              SlotAnimation,
+              RouletteAnimation,
+              emitter
+            )
           );
         } else {
           drawState.currentQueue.addCycle(
-            commonHandler.getActions(drawState.currentQueue)
+            BaseHandler.getActions(
+              preDrawResult,
+              selectedPrize,
+              memberAnimRef,
+              animationRef,
+              latestResult,
+              prizes,
+              showPrizeWinningDialog,
+              drawService,
+              showHalfRemainingDialog,
+              showEndDialog,
+              updateSelectedPrize,
+              loadBgmBlob,
+              showMemberWinnerDialog,
+              drawState.currentQueue,
+              currentPrizeComponent,
+              markRaw,
+              SlotAnimation,
+              RouletteAnimation,
+              emitter
+            )
           );
         }
       } catch (e) {
@@ -165,7 +159,6 @@ export function useDrawOrchestrator() {
         return;
       }
     }
-
     try {
       const action = drawState.currentQueue.dequeue();
       if (!action) {
@@ -193,27 +186,74 @@ export function useDrawOrchestrator() {
     const isKakuhen = preDrawResult.value?.isKakuhen || false;
     if (isKakuhen) {
       drawState.currentQueue.addCycle(
-        kakuhenHandler.getActions(drawState.currentQueue)
+        KakuhenHandler.getActions(
+          preDrawResult,
+          memberAnimRef,
+          animationRef,
+          latestResult,
+          prizes,
+          showPrizeWinningDialog,
+          drawService,
+          showHalfRemainingDialog,
+          showEndDialog,
+          updateSelectedPrize,
+          loadBgmBlob,
+          kakuhenDummyPrize,
+          kakuhenFinalPrize,
+          kakuhenInProgress,
+          kakuhenOverlayVisible,
+          showMemberWinnerDialog,
+          drawState.currentQueue,
+          selectedPrize,
+          currentPrizeComponent,
+          markRaw,
+          SlotAnimation,
+          RouletteAnimation,
+          emitter
+        )
       );
     } else {
       drawState.currentQueue.addCycle(
-        commonHandler.getActions(drawState.currentQueue)
+        BaseHandler.getActions(
+          preDrawResult,
+          selectedPrize,
+          memberAnimRef,
+          animationRef,
+          latestResult,
+          prizes,
+          showPrizeWinningDialog,
+          drawService,
+          showHalfRemainingDialog,
+          showEndDialog,
+          updateSelectedPrize,
+          loadBgmBlob,
+          showMemberWinnerDialog,
+          drawState.currentQueue,
+          currentPrizeComponent,
+          markRaw,
+          SlotAnimation,
+          RouletteAnimation,
+          emitter
+        )
       );
     }
 
     const handleKeyDown = (ev: KeyboardEvent) => {
       if (ev.key === "Enter") {
-        void executeCurrentAction();
+        void executeCurrentAction(false);
       }
     };
     keyDownHandler.value = handleKeyDown;
     window.addEventListener("keydown", handleKeyDown);
+
+    emitter.on("nextAction", () => executeCurrentAction(true));
   });
 
   onUnmounted(() => {
     if (keyDownHandler.value) {
       window.removeEventListener("keydown", keyDownHandler.value);
     }
+    emitter.off("nextAction");
   });
 
   return {
