@@ -123,6 +123,49 @@ export class BaseHandler {
     latestResult.value = res;
   }
 
+  static async executePreDraw(
+    drawService: DrawApplicationService,
+    preDrawResult: Ref<DrawResultDto | null>,
+    latestResult: Ref<DrawResultDto | null>,
+    updateSelectedPrize: (prize: PrizeDto) => void,
+    prizes: Ref<PrizeDto[]>,
+    selectedPrize: Ref<PrizeDto | null>,
+    currentPrizeComponent: Ref<Component>,
+    markRaw: <T extends object>(value: T) => Raw<T>,
+    SlotAnimation: any,
+    RouletteAnimation: any
+  ) {
+    console.log("[DrawOrchestrator] executePreDraw");
+    try {
+      const res = await drawService.executeDraw({
+        memberRequestCount: 10,
+        prizeRequestCount: 8,
+      });
+      console.log("[DrawOrchestrator] pre-draw result received", { res });
+      preDrawResult.value = res;
+      latestResult.value = res;
+      updateSelectedPrize(
+        prizes.value.find((p: PrizeDto) => p.id === res.wonPrize!.id)!
+      );
+      if (selectedPrize.value?.animation === "slot") {
+        currentPrizeComponent.value = markRaw(SlotAnimation as any);
+        console.log("[DrawOrchestrator] selected component: SlotAnimation");
+      } else {
+        currentPrizeComponent.value = markRaw(RouletteAnimation as any);
+        console.log("[DrawOrchestrator] selected component: RouletteAnimation");
+      }
+    } catch (e: any) {
+      console.error("[DrawOrchestrator] pre-draw failed", e);
+      preDrawResult.value = null;
+      latestResult.value = null;
+      try {
+        window.alert(e?.message || String(e));
+      } catch (_) {
+        /* noop */
+      }
+    }
+  }
+
   static async showHalfRemainingDialogAction(
     showPrizeWinningDialog: Ref<boolean>,
     drawService: DrawApplicationService,
@@ -278,10 +321,26 @@ export class BaseHandler {
     showMemberWinnerDialog: Ref<boolean>,
     queue: ActionQueue,
     commonHandler: any,
-    kakuhenHandler: any
+    kakuhenHandler: any,
+    currentPrizeComponent: Ref<Component>,
+    markRaw: <T extends object>(value: T) => Raw<T>,
+    SlotAnimation: any,
+    RouletteAnimation: any
   ): (() => Promise<void>)[] {
     const baseActions = [
-      () => BaseHandler.executeDraw(drawService, preDrawResult, latestResult),
+      () =>
+        BaseHandler.executePreDraw(
+          drawService,
+          preDrawResult,
+          latestResult,
+          updateSelectedPrize,
+          prizes,
+          selectedPrize,
+          currentPrizeComponent,
+          markRaw,
+          SlotAnimation,
+          RouletteAnimation
+        ),
       () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
       () => BaseHandler.stopMemberDraw(memberAnimRef),
       () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),

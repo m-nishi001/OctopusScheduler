@@ -112,7 +112,11 @@ export function useDrawOrchestrator() {
         showMemberWinnerDialog,
         queue,
         commonHandler,
-        kakuhenHandler
+        kakuhenHandler,
+        currentPrizeComponent,
+        markRaw,
+        SlotAnimation,
+        RouletteAnimation
       ),
   };
 
@@ -136,7 +140,12 @@ export function useDrawOrchestrator() {
         kakuhenInProgress,
         kakuhenOverlayVisible,
         showMemberWinnerDialog,
-        queue
+        queue,
+        selectedPrize,
+        currentPrizeComponent,
+        markRaw,
+        SlotAnimation,
+        RouletteAnimation
       ),
   };
 
@@ -178,48 +187,11 @@ export function useDrawOrchestrator() {
   };
 
   onMounted(async () => {
-    console.log("[DrawOrchestrator] onMounted start");
     const loadedPrizes = await prizeRepo.getPrizes();
-    console.log("[DrawOrchestrator] loaded prizes count", {
-      count: loadedPrizes.length,
-    });
     await updatePrizes(loadedPrizes);
     members.value = await memberRepo.getMembers();
-    console.log("[DrawOrchestrator] loaded members count", {
-      count: members.value.length,
-    });
 
     await drawService.initializeStateIfNeeded(prizes.value);
-    console.log("[DrawOrchestrator] initialized draw state if needed");
-
-    try {
-      const res = await drawService.executeDraw({
-        memberRequestCount: 10,
-        prizeRequestCount: 8,
-      });
-      console.log("[DrawOrchestrator] pre-draw result received", { res });
-      preDrawResult.value = res;
-      latestResult.value = res;
-      updateSelectedPrize(
-        prizes.value.find((p: PrizeDto) => p.id === res.wonPrize!.id)!
-      );
-      if (selectedPrize.value?.animation === "slot") {
-        currentPrizeComponent.value = markRaw(SlotAnimation as any);
-        console.log("[DrawOrchestrator] selected component: SlotAnimation");
-      } else {
-        currentPrizeComponent.value = markRaw(RouletteAnimation as any);
-        console.log("[DrawOrchestrator] selected component: RouletteAnimation");
-      }
-    } catch (e: any) {
-      console.error("[DrawOrchestrator] pre-draw failed", e);
-      preDrawResult.value = null;
-      latestResult.value = null;
-      try {
-        window.alert(e?.message || String(e));
-      } catch (_) {
-        /* noop */
-      }
-    }
 
     currentMemberComponent.value = "MemberDrawAnimation";
 
@@ -237,11 +209,9 @@ export function useDrawOrchestrator() {
     }
 
     inputController.setOnTrigger(() => {
-      console.log("[DrawOrchestrator] inputController triggered Enter");
       void executeCurrentAction();
     });
     inputController.attach();
-    console.log("[DrawOrchestrator] onMounted done, input controller attached");
   });
 
   onUnmounted(() => {

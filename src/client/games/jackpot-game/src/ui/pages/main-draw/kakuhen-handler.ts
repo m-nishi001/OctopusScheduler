@@ -1,4 +1,5 @@
 import type { Ref } from "vue";
+import type { Component, Raw } from "vue";
 import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
@@ -27,9 +28,27 @@ export class KakuhenHandler {
     kakuhenInProgress: Ref<boolean>,
     kakuhenMessageVisible: Ref<boolean>,
     showMemberWinnerDialog: Ref<boolean>,
-    queue: ActionQueue
+    queue: ActionQueue,
+    selectedPrize: Ref<PrizeDto | null>,
+    currentPrizeComponent: Ref<Component>,
+    markRaw: <T extends object>(value: T) => Raw<T>,
+    SlotAnimation: any,
+    RouletteAnimation: any
   ): (() => Promise<void>)[] {
     const baseActions = [
+      () =>
+        BaseHandler.executePreDraw(
+          drawService,
+          preDrawResult,
+          latestResult,
+          updateSelectedPrize,
+          prizes,
+          selectedPrize,
+          currentPrizeComponent,
+          markRaw,
+          SlotAnimation,
+          RouletteAnimation
+        ),
       () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
       () => BaseHandler.stopMemberDraw(memberAnimRef),
       () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
