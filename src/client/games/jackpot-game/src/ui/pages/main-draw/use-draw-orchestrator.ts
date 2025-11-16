@@ -17,7 +17,7 @@ import { container } from "tsyringe";
 import { AssetDataService } from "@model/applications/asset/asset-data-service";
 import { usePrizeDrawState } from "./prize-animation-state";
 import createInputController from "./input-controller";
-import SlotAnimation from "./slot-animation.vue";
+import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
 
 // This composable extracts the heavy orchestration logic from the Vue SFC
@@ -457,6 +457,35 @@ export function useDrawOrchestrator() {
           );
         }, 1000);
         _dialogTimers.push(tid as unknown as number);
+        // schedule half-remaining check after prize dialog has been visible
+        const HALF_REMAINING_SHOW_DELAY_MS = 3000;
+        const halfCheckTid = window.setTimeout(async () => {
+          try {
+            if (!showPrizeWinningDialog.value) return;
+            const count = await drawService.getLastPrizeCount();
+            if (
+              count.total > 0 &&
+              count.remaining > 0 &&
+              count.remaining * 2 === count.total
+            ) {
+              console.log(
+                "[DrawOrchestrator] half-remaining condition met after delay, opening dialog"
+              );
+              openHalfRemainingDialog();
+            } else {
+              console.log(
+                "[DrawOrchestrator] half-remaining condition not met after delay",
+                { count }
+              );
+            }
+          } catch (e) {
+            console.error(
+              "[DrawOrchestrator] failed to check prize count for half-remaining",
+              e
+            );
+          }
+        }, HALF_REMAINING_SHOW_DELAY_MS);
+        _dialogTimers.push(halfCheckTid as unknown as number);
         console.log(
           "[DrawOrchestrator] onRouletteStopped updated latestResult",
           { latestResult: latestResult.value }

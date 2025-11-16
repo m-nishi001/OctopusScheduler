@@ -1,9 +1,11 @@
 <template>
-    <div class="modal-overlay">
-        <div class="modal-content">
-            <h2 class="highlight">景品があと半分になりました</h2>
+    <teleport to="body">
+        <div class="modal-overlay">
+            <div class="modal-content">
+                <h2 class="highlight">景品があと半分になりました</h2>
+            </div>
         </div>
-    </div>
+    </teleport>
 </template>
 
 <script lang="ts">
@@ -39,7 +41,7 @@ export default defineComponent({
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: 20000;
 }
 
 .modal-content {

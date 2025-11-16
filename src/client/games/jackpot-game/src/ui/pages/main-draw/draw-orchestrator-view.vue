@@ -44,7 +44,7 @@ import MemberDrawAnimation from './member-draw/member-draw-animation.vue';
 import DrawResultDialog from './prize-winning-dialog.vue';
 import HalfRemainingDialog from './half-remaining-dialog.vue';
 import EndDialog from './end-dialog.vue';
-import SlotAnimation from './slot-animation.vue';
+import SlotAnimation from './slot/slot-animation.vue';
 import RouletteAnimation from './roulette/roulette-animation.vue';
 import { useDrawOrchestrator } from './use-draw-orchestrator';
 
