@@ -77,29 +77,10 @@ export function useDrawOrchestrator() {
     minIntervalMs: 1000,
   });
 
-  // timestamped console for debug (kept local to composable)
-  const enableTimestampedLogs = () => {
-    const _origLog = console.log.bind(console);
-    const _origWarn = console.warn.bind(console);
-    const _origError = console.error.bind(console);
-    console.log = (...args: unknown[]) =>
-      _origLog(new Date().toISOString(), ...args);
-    console.warn = (...args: unknown[]) =>
-      _origWarn(new Date().toISOString(), ...args);
-    console.error = (...args: unknown[]) =>
-      _origError(new Date().toISOString(), ...args);
-  };
-  enableTimestampedLogs();
-
   const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
-    console.log("[DrawOrchestrator] loadBgmBlob called", { assetId });
     if (!assetId) return null;
     try {
       const asset = await assetService.getAssetDataById(assetId);
-      console.log("[DrawOrchestrator] loadBgmBlob loaded asset", {
-        assetId,
-        hasBlob: !!asset?.blob,
-      });
       return asset?.blob || null;
     } catch (e) {
       console.log("[DrawOrchestrator] loadBgmBlob failed", e);
@@ -108,7 +89,6 @@ export function useDrawOrchestrator() {
   };
 
   const resetToMemberPhase = () => {
-    console.log("[DrawOrchestrator] resetToMemberPhase");
     drawState.phase = "member";
     showPrizeWinningDialog.value = false;
   };
@@ -160,20 +140,12 @@ export function useDrawOrchestrator() {
       ),
   };
 
-  // kakuhen (special reroll) flow
-
   let actionRunning = false;
   const executeCurrentAction = async () => {
     if (!drawState.currentQueue || drawState.currentQueue.isEmpty()) {
-      console.log(
-        "[DrawOrchestrator] executeCurrentAction no actions in queue"
-      );
       return;
     }
     if (actionRunning) {
-      console.log(
-        "[DrawOrchestrator] executeCurrentAction already running, skipping"
-      );
       return;
     }
 
@@ -181,14 +153,9 @@ export function useDrawOrchestrator() {
     try {
       const action = drawState.currentQueue.dequeue();
       if (action) {
-        console.log("[DrawOrchestrator] executeCurrentAction executing action");
         await action();
-        console.log("[DrawOrchestrator] executeCurrentAction action finished");
         // キューが空なら次のサイクルを追加
         if (drawState.currentQueue.isEmpty()) {
-          console.log(
-            "[DrawOrchestrator] executeCurrentAction queue empty, adding next cycle"
-          );
           const isKakuhen = preDrawResult.value?.isKakuhen || false;
           if (isKakuhen) {
             drawState.currentQueue.addCycle(
@@ -282,28 +249,22 @@ export function useDrawOrchestrator() {
   });
 
   const showMemberDraw = () => {
-    console.log("[DrawOrchestrator] showMemberDraw");
     drawState.phase = "member";
   };
 
   const handleMemberDrawStart = () => {
-    console.log("[DrawOrchestrator] handleMemberDrawStart");
     void showMemberDraw();
   };
 
   const onMemberRouletteStopped = () => {
-    console.log("[DrawOrchestrator] onMemberRouletteStopped", {
-      latestResult: latestResult.value,
-    });
+    // Implementation if needed
   };
 
   const showPrizeDraw = () => {
-    console.log("[DrawOrchestrator] showPrizeDraw");
     drawState.phase = "prize";
   };
 
   const onMemberWinnerDialogClosed = () => {
-    console.log("[DrawOrchestrator] onMemberWinnerDialogClosed");
     showMemberWinnerDialog.value = false;
     try {
       inputController.resume();
@@ -365,7 +326,6 @@ export function useDrawOrchestrator() {
   };
 
   const onEndClosed = () => {
-    console.log("[DrawOrchestrator] onEndClosed");
     showEndDialog.value = false;
     showHalfRemainingDialog.value = false;
     router.push("/jackpot-ending");
@@ -385,7 +345,6 @@ export function useDrawOrchestrator() {
   };
 
   const closeMemberWinnerDialog = () => {
-    console.log("[DrawOrchestrator] closeMemberWinnerDialog");
     showMemberWinnerDialog.value = false;
     try {
       inputController.resume();
