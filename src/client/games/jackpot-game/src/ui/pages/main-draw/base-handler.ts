@@ -7,8 +7,14 @@ import { ActionQueue } from "./action-queue";
 
 type InputController = ReturnType<typeof createInputController>;
 
-// Base handler for common draw actions
 export class BaseHandler {
+  static async delayInputResume(inputController: InputController) {
+    console.log("[DrawOrchestrator] delayInputResume");
+    inputController.suspend();
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    inputController.resume();
+  }
+
   static async startMemberDraw(
     preDrawResult: Ref<DrawResultDto | null>,
     memberAnimRef: Ref<any>
@@ -35,11 +41,28 @@ export class BaseHandler {
     showMemberWinnerDialog.value = true;
   }
 
-  static async delayInputResume(inputController: InputController) {
-    console.log("[DrawOrchestrator] delayInputResume");
-    inputController.suspend();
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    inputController.resume();
+  static async closeMemberWinnerDialog(showMemberWinnerDialog: Ref<boolean>) {
+    console.log("[DrawOrchestrator] closeMemberWinnerDialog");
+    showMemberWinnerDialog.value = false;
+  }
+
+  static async startPrizeDraw(
+    preDrawResult: Ref<DrawResultDto | null>,
+    updateSelectedPrize: (prize: PrizeDto) => void,
+    prizes: Ref<PrizeDto[]>,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
+    selectedPrize: Ref<PrizeDto | null>,
+    animationRef: Ref<any>
+  ) {
+    console.log("[DrawOrchestrator] startPrizeDraw");
+    const winnerPrizeId = preDrawResult.value!.wonPrize!.id;
+    updateSelectedPrize(
+      prizes.value.find((p: PrizeDto) => p.id === winnerPrizeId)!
+    );
+    const bgmBlob = await loadBgmBlob(selectedPrize.value!.bgm1AssetId || null);
+    if (animationRef.value?.startSpin) {
+      animationRef.value.startSpin(bgmBlob);
+    }
   }
 
   static async stopPrizeDraw(
@@ -53,6 +76,20 @@ export class BaseHandler {
       await animationRef.value.stopSpin(3, selectedPrize.value.id);
       console.log("[DrawOrchestrator] stopPrizeDraw completed stopSpin");
     }
+  }
+
+  static async showPrizeWinningDialogAction(
+    showPrizeWinningDialog: Ref<boolean>
+  ) {
+    console.log("[DrawOrchestrator] showPrizeWinningDialogAction");
+    showPrizeWinningDialog.value = true;
+  }
+
+  static async closePrizeWinningDialogAction(
+    showPrizeWinningDialog: Ref<boolean>
+  ) {
+    console.log("[DrawOrchestrator] closePrizeWinningDialogAction");
+    showPrizeWinningDialog.value = false;
   }
 
   static async updateWonPrize(
@@ -71,11 +108,19 @@ export class BaseHandler {
     }
   }
 
-  static async showPrizeWinningDialogAction(
-    showPrizeWinningDialog: Ref<boolean>
+  static async executeDraw(
+    drawService: DrawApplicationService,
+    preDrawResult: Ref<DrawResultDto | null>,
+    latestResult: Ref<DrawResultDto | null>
   ) {
-    console.log("[DrawOrchestrator] showPrizeWinningDialogAction");
-    showPrizeWinningDialog.value = true;
+    console.log("[DrawOrchestrator] executeDraw");
+    const res = await drawService.executeDraw({
+      memberRequestCount: 10,
+      prizeRequestCount: 8,
+    });
+    console.log("[DrawOrchestrator] executeDraw result", { res });
+    preDrawResult.value = res;
+    latestResult.value = res;
   }
 
   static async showHalfRemainingDialogAction(
@@ -114,9 +159,17 @@ export class BaseHandler {
     }
   }
 
+  static async closeHalfRemainingDialogAction(
+    showHalfRemainingDialog: Ref<boolean>
+  ) {
+    console.log("[DrawOrchestrator] closeHalfRemainingDialogAction");
+    showHalfRemainingDialog.value = false;
+  }
+
   static async showEndDialogAction(
     showEndDialog: Ref<boolean>,
-    drawService: DrawApplicationService
+    drawService: DrawApplicationService,
+    queue: ActionQueue
   ) {
     console.log("[DrawOrchestrator] showEndDialogAction checking prize count");
     try {
@@ -129,6 +182,7 @@ export class BaseHandler {
         console.log(
           "[DrawOrchestrator] showEndDialogAction showing end dialog"
         );
+        queue.clear();
       } else {
         console.log(
           "[DrawOrchestrator] showEndDialogAction not showing, remaining > 0",
@@ -143,16 +197,33 @@ export class BaseHandler {
     }
   }
 
+  static async closeEndDialogAction(showEndDialog: Ref<boolean>) {
+    console.log("[DrawOrchestrator] closeEndDialogAction");
+    showEndDialog.value = false;
+  }
+
+  static async enqueueNextCycle(
+    preDrawResult: Ref<DrawResultDto | null>,
+    queue: ActionQueue,
+    commonHandler: any,
+    kakuhenHandler: any
+  ) {
+    console.log("[DrawOrchestrator] enqueueNextCycle");
+    const result = preDrawResult.value!;
+    const isKakuhen = result.isKakuhen || false;
+    if (isKakuhen) {
+      queue.addCycle(kakuhenHandler.getActions(queue));
+    } else {
+      queue.addCycle(commonHandler.getActions(queue));
+    }
+  }
+
   static async closeModal(showPrizeWinningDialog: Ref<boolean>) {
     console.log("[DrawOrchestrator] closeModal");
     showPrizeWinningDialog.value = false;
   }
 
   static async prepareNextDraw(
-    drawService: DrawApplicationService,
-    showEndDialog: Ref<boolean>,
-    showPrizeWinningDialog: Ref<boolean>,
-    showHalfRemainingDialog: Ref<boolean>,
     preDrawResult: Ref<DrawResultDto | null>,
     latestResult: Ref<DrawResultDto | null>,
     updateSelectedPrize: (prize: PrizeDto) => void,
@@ -163,75 +234,29 @@ export class BaseHandler {
     SlotAnimation: any,
     RouletteAnimation: any,
     currentMemberComponent: Ref<string>,
-    resetToMemberPhase: () => void,
-    queue: ActionQueue,
-    commonHandler: any,
-    kakuhenHandler: any
+    resetToMemberPhase: () => void
   ) {
     console.log("[DrawOrchestrator] prepareNextDraw start");
-    const count = await drawService.getLastPrizeCount();
-    console.log("[DrawOrchestrator] prepareNextDraw prize count", { count });
-    if (count.remaining <= 0) {
-      console.log(
-        "[DrawOrchestrator] prepareNextDraw detected end condition, queuing showEndDialogAction"
+    try {
+      const result = preDrawResult.value!;
+      updateSelectedPrize(
+        prizes.value.find((p: PrizeDto) => p.id === result.wonPrize!.id)!
       );
-      queue.enqueue(() =>
-        BaseHandler.showEndDialogAction(showEndDialog, drawService)
-      );
-    } else if (
-      count.total > 0 &&
-      count.remaining > 0 &&
-      count.remaining * 2 === count.total
-    ) {
-      console.log(
-        "[DrawOrchestrator] prepareNextDraw half remaining condition met, queuing showHalfRemainingDialogAction"
-      );
-      queue.enqueue(() =>
-        BaseHandler.showHalfRemainingDialogAction(
-          showPrizeWinningDialog,
-          drawService,
-          showHalfRemainingDialog
-        )
-      );
-    } else {
-      console.log("[DrawOrchestrator] prepareNextDraw starting next pre-draw");
+      if (selectedPrize.value?.animation === "slot") {
+        currentPrizeComponent.value = markRaw(SlotAnimation as any);
+      } else {
+        currentPrizeComponent.value = markRaw(RouletteAnimation as any);
+      }
+      currentMemberComponent.value = "MemberDrawAnimation";
+      resetToMemberPhase();
+    } catch (e: any) {
+      console.error("Pre-draw failed in next cycle:", e);
+      preDrawResult.value = null;
+      latestResult.value = null;
       try {
-        const res = await drawService.executeDraw({
-          memberRequestCount: 10,
-          prizeRequestCount: 8,
-        });
-        console.log("[DrawOrchestrator] prepareNextDraw pre-draw result", {
-          res,
-        });
-        preDrawResult.value = res;
-        latestResult.value = res;
-        const result = res;
-        updateSelectedPrize(
-          prizes.value.find((p: PrizeDto) => p.id === result.wonPrize!.id)!
-        );
-        if (selectedPrize.value?.animation === "slot") {
-          currentPrizeComponent.value = markRaw(SlotAnimation as any);
-        } else {
-          currentPrizeComponent.value = markRaw(RouletteAnimation as any);
-        }
-        currentMemberComponent.value = "MemberDrawAnimation";
-        resetToMemberPhase();
-        // Add next cycle
-        const isKakuhen = res.isKakuhen || false;
-        if (isKakuhen) {
-          queue.addCycle(kakuhenHandler.getActions(queue));
-        } else {
-          queue.addCycle(commonHandler.getActions(queue));
-        }
-      } catch (e: any) {
-        console.error("Pre-draw failed in next cycle:", e);
-        preDrawResult.value = null;
-        latestResult.value = null;
-        try {
-          window.alert(e?.message || String(e));
-        } catch (_) {
-          /* noop */
-        }
+        window.alert(e?.message || String(e));
+      } catch (_) {
+        /* noop */
       }
     }
   }
@@ -262,11 +287,12 @@ export class BaseHandler {
     kakuhenHandler: any
   ): (() => Promise<void>)[] {
     const baseActions = [
+      () => BaseHandler.executeDraw(drawService, preDrawResult, latestResult),
       () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
       () => BaseHandler.stopMemberDraw(memberAnimRef),
       () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
       () =>
-        BaseHandler.startNormalPrizeSpin(
+        BaseHandler.startPrizeDraw(
           preDrawResult,
           updateSelectedPrize,
           prizes,
@@ -289,12 +315,9 @@ export class BaseHandler {
           showHalfRemainingDialog
         ),
       () => BaseHandler.closeModal(showPrizeWinningDialog),
+      () => BaseHandler.showEndDialogAction(showEndDialog, drawService, queue),
       () =>
         BaseHandler.prepareNextDraw(
-          drawService,
-          showEndDialog,
-          showPrizeWinningDialog,
-          showHalfRemainingDialog,
           preDrawResult,
           latestResult,
           updateSelectedPrize,
@@ -305,35 +328,19 @@ export class BaseHandler {
           SlotAnimation,
           RouletteAnimation,
           currentMemberComponent,
-          resetToMemberPhase,
+          resetToMemberPhase
+        ),
+      () =>
+        BaseHandler.enqueueNextCycle(
+          preDrawResult,
           queue,
           commonHandler,
           kakuhenHandler
         ),
     ];
-
     return baseActions.flatMap((action, index) => {
       if (index === baseActions.length - 1) return [action]; // 最後のアクションは delay なし
       return [action, () => BaseHandler.delayInputResume(inputController)];
     });
-  }
-
-  static async startNormalPrizeSpin(
-    preDrawResult: Ref<DrawResultDto | null>,
-    updateSelectedPrize: (prize: PrizeDto) => void,
-    prizes: Ref<PrizeDto[]>,
-    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
-    selectedPrize: Ref<PrizeDto | null>,
-    animationRef: Ref<any>
-  ) {
-    console.log("[DrawOrchestrator] startNormalPrizeSpin");
-    const winnerPrizeId = preDrawResult.value!.wonPrize!.id;
-    updateSelectedPrize(
-      prizes.value.find((p: PrizeDto) => p.id === winnerPrizeId)!
-    );
-    const bgmBlob = await loadBgmBlob(selectedPrize.value!.bgm1AssetId || null);
-    if (animationRef.value?.startSpin) {
-      animationRef.value.startSpin(bgmBlob);
-    }
   }
 }

@@ -8,7 +8,6 @@ import { BaseHandler } from "./base-handler";
 
 type InputController = ReturnType<typeof createInputController>;
 
-// Handler for kakuhen (special reroll) draw cycle
 export class KakuhenHandler {
   static getActions(
     preDrawResult: Ref<DrawResultDto | null>,
@@ -33,18 +32,17 @@ export class KakuhenHandler {
     kakuhenDummyPrize: Ref<PrizeDto | null>,
     kakuhenFinalPrize: Ref<PrizeDto | null>,
     kakuhenInProgress: Ref<boolean>,
-    kakuhenOverlayVisible: Ref<boolean>,
+    kakuhenMessageVisible: Ref<boolean>,
     showMemberWinnerDialog: Ref<boolean>,
-    queue: ActionQueue,
-    commonHandler: any,
-    kakuhenHandler: any
+    queue: ActionQueue
   ): (() => Promise<void>)[] {
     const baseActions = [
       () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef),
       () => BaseHandler.stopMemberDraw(memberAnimRef),
       () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog),
+      () => BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog),
       () =>
-        KakuhenHandler.startKakuhenDummySpin(
+        KakuhenHandler.startKakuhenDummyDraw(
           preDrawResult,
           prizes,
           loadBgmBlob,
@@ -54,20 +52,21 @@ export class KakuhenHandler {
           kakuhenFinalPrize
         ),
       () =>
-        KakuhenHandler.stopKakuhenDummySpin(
-          animationRef,
-          kakuhenDummyPrize,
-          showPrizeWinningDialog,
-          kakuhenOverlayVisible
-        ),
+        KakuhenHandler.stopKakuhenDummyDraw(animationRef, kakuhenDummyPrize),
+      () => KakuhenHandler.showKakuhenMessage(kakuhenMessageVisible),
       () =>
-        KakuhenHandler.startKakuhenFinalSpin(
+        KakuhenHandler.closePrizeWinningDialogForKakuhen(
+          showPrizeWinningDialog
+        ),
+      () => KakuhenHandler.hideKakuhenMessage(kakuhenMessageVisible),
+      () =>
+        KakuhenHandler.startKakuhenFinalDraw(
           kakuhenFinalPrize,
           loadBgmBlob,
           animationRef
         ),
       () =>
-        KakuhenHandler.stopKakuhenFinalSpin(
+        KakuhenHandler.stopKakuhenFinalDraw(
           animationRef,
           kakuhenFinalPrize,
           updateSelectedPrize,
@@ -80,19 +79,18 @@ export class KakuhenHandler {
           kakuhenFinalPrize.value!.id
         ),
       () => BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog),
+      () => BaseHandler.closePrizeWinningDialogAction(showPrizeWinningDialog),
       () =>
         BaseHandler.showHalfRemainingDialogAction(
           showPrizeWinningDialog,
           drawService,
           showHalfRemainingDialog
         ),
-      () => BaseHandler.closeModal(showPrizeWinningDialog),
+      () => BaseHandler.closeHalfRemainingDialogAction(showHalfRemainingDialog),
+      () => BaseHandler.showEndDialogAction(showEndDialog, drawService, queue),
+      () => BaseHandler.closeEndDialogAction(showEndDialog),
       () =>
         BaseHandler.prepareNextDraw(
-          drawService,
-          showEndDialog,
-          showPrizeWinningDialog,
-          showHalfRemainingDialog,
           preDrawResult,
           latestResult,
           updateSelectedPrize,
@@ -103,10 +101,7 @@ export class KakuhenHandler {
           SlotAnimation,
           RouletteAnimation,
           currentMemberComponent,
-          resetToMemberPhase,
-          queue,
-          commonHandler,
-          kakuhenHandler
+          resetToMemberPhase
         ),
     ];
 
@@ -116,7 +111,7 @@ export class KakuhenHandler {
     });
   }
 
-  static async startKakuhenDummySpin(
+  static async startKakuhenDummyDraw(
     preDrawResult: Ref<DrawResultDto | null>,
     prizes: Ref<PrizeDto[]>,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
@@ -125,7 +120,7 @@ export class KakuhenHandler {
     kakuhenDummyPrize: Ref<PrizeDto | null>,
     kakuhenFinalPrize: Ref<PrizeDto | null>
   ) {
-    console.log("[DrawOrchestrator] startKakuhenDummySpin");
+    console.log("[DrawOrchestrator] startKakuhenDummyDraw");
     const res = preDrawResult.value!;
     const finalPrizeId = res.wonPrize!.id;
     kakuhenFinalPrize.value = prizes.value.find(
@@ -146,13 +141,11 @@ export class KakuhenHandler {
     }
   }
 
-  static async stopKakuhenDummySpin(
+  static async stopKakuhenDummyDraw(
     animationRef: Ref<any>,
-    kakuhenDummyPrize: Ref<PrizeDto | null>,
-    showPrizeWinningDialog: Ref<boolean>,
-    kakuhenOverlayVisible: Ref<boolean>
+    kakuhenDummyPrize: Ref<PrizeDto | null>
   ) {
-    console.log("[DrawOrchestrator] stopKakuhenDummySpin");
+    console.log("[DrawOrchestrator] stopKakuhenDummyDraw");
     const dummyDurationMs = 2000;
     if (animationRef.value?.stopSpin) {
       await animationRef.value.stopSpin(
@@ -161,19 +154,33 @@ export class KakuhenHandler {
       );
     }
     await new Promise((r) => setTimeout(r, 3000));
-    kakuhenOverlayVisible.value = true;
+  }
+
+  static async showKakuhenMessage(kakuhenMessageVisible: Ref<boolean>) {
+    console.log("[DrawOrchestrator] showKakuhenMessage");
+    kakuhenMessageVisible.value = true;
     await new Promise((r) => setTimeout(r, 2000));
-    showPrizeWinningDialog.value = false;
-    kakuhenOverlayVisible.value = false;
+  }
+
+  static async hideKakuhenMessage(kakuhenMessageVisible: Ref<boolean>) {
+    console.log("[DrawOrchestrator] hideKakuhenMessage");
+    kakuhenMessageVisible.value = false;
     await new Promise((r) => setTimeout(r, 1000));
   }
 
-  static async startKakuhenFinalSpin(
+  static async closePrizeWinningDialogForKakuhen(
+    showPrizeWinningDialog: Ref<boolean>
+  ) {
+    console.log("[DrawOrchestrator] closePrizeWinningDialogForKakuhen");
+    showPrizeWinningDialog.value = false;
+  }
+
+  static async startKakuhenFinalDraw(
     kakuhenFinalPrize: Ref<PrizeDto | null>,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     animationRef: Ref<any>
   ) {
-    console.log("[DrawOrchestrator] startKakuhenFinalSpin");
+    console.log("[DrawOrchestrator] startKakuhenFinalDraw");
     const bgm2Blob = await loadBgmBlob(
       kakuhenFinalPrize.value?.bgm2AssetId || null
     );
@@ -182,13 +189,13 @@ export class KakuhenHandler {
     }
   }
 
-  static async stopKakuhenFinalSpin(
+  static async stopKakuhenFinalDraw(
     animationRef: Ref<any>,
     kakuhenFinalPrize: Ref<PrizeDto | null>,
     updateSelectedPrize: (prize: PrizeDto) => void,
     kakuhenInProgress: Ref<boolean>
   ) {
-    console.log("[DrawOrchestrator] stopKakuhenFinalSpin");
+    console.log("[DrawOrchestrator] stopKakuhenFinalDraw");
     const finalDurationMs = 5000;
     if (animationRef.value?.stopSpin) {
       await animationRef.value.stopSpin(

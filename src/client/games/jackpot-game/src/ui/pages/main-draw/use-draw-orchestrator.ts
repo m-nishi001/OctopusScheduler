@@ -169,9 +169,7 @@ export function useDrawOrchestrator() {
         kakuhenInProgress,
         kakuhenOverlayVisible,
         showMemberWinnerDialog,
-        queue,
-        commonHandler,
-        kakuhenHandler
+        queue
       ),
   };
 
@@ -413,10 +411,6 @@ export function useDrawOrchestrator() {
     );
     drawState.currentQueue!.enqueue(() =>
       BaseHandler.prepareNextDraw(
-        drawService,
-        showEndDialog,
-        showPrizeWinningDialog,
-        showHalfRemainingDialog,
         preDrawResult,
         latestResult,
         updateSelectedPrize,
@@ -427,10 +421,7 @@ export function useDrawOrchestrator() {
         SlotAnimation,
         RouletteAnimation,
         currentMemberComponent,
-        resetToMemberPhase,
-        drawState.currentQueue!,
-        commonHandler,
-        kakuhenHandler
+        resetToMemberPhase
       )
     );
   };

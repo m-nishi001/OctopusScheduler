@@ -16,4 +16,8 @@ export class ActionQueue {
   addCycle(actions: (() => Promise<void>)[]) {
     this.actions.push(...actions);
   }
+
+  clear() {
+    this.actions = [];
+  }
 }
