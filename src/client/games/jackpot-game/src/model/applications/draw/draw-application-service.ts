@@ -55,6 +55,20 @@ export class DrawApplicationService {
     return this.prizeDrawService.getRemainingPrizes(prizes, results);
   }
 
+  /**
+   * Return a simple summary of total prizes and remaining prizes.
+   * Used by UI code to decide whether to show half/ending dialogs.
+   */
+  async getLastPrizeCount(): Promise<{ total: number; remaining: number }> {
+    const prizes = await this.prizeRepo.getPrizes();
+    const results = await this.drawResultService.getDrawResults();
+    const remaining = this.prizeDrawService.getRemainingPrizes(
+      prizes,
+      results
+    ).length;
+    return { total: prizes.length, remaining };
+  }
+
   async executeDraw(request: {
     memberRequestCount: number;
     prizeRequestCount: number;

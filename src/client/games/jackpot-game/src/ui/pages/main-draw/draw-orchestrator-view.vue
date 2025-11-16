@@ -15,7 +15,8 @@
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
-                            @start="handleMemberDrawStart" @member-selected="onMemberRouletteStopped" />
+                            @start="handleMemberDrawStart" @member-selected="onMemberRouletteStopped"
+                            @winner-dialog-shown="onMemberWinnerDialogShown" @winner-dialog-closed="onMemberWinnerDialogClosed" />
                     </div>
                 </section>
 
@@ -54,6 +55,7 @@ import { usePrizeDrawState } from './prize-animation-state';
 
 import HalfRemainingDialog from './half-remaining-dialog.vue';
 import EndDialog from './end-dialog.vue';
+import createInputController from './input-controller';
 
 export default {
     name: 'DrawOrchestratorPage',
@@ -248,11 +250,8 @@ export default {
             }
         };
 
-        const keydownDelegator = (ev: KeyboardEvent) => {
-            if (ev.key !== 'Enter') return;
-            console.log('[DrawOrchestrator] keydownDelegator Enter pressed');
-            void executeCurrentAction();
-        };
+        // Input controller will attach to window and call executeCurrentAction
+        const inputController = createInputController({ minIntervalMs: 1000 });
 
         onMounted(async () => {
             console.log('[DrawOrchestrator] onMounted start');
@@ -301,12 +300,20 @@ export default {
 
             showMemberDraw();
 
-            window.addEventListener('keydown', keydownDelegator);
-            console.log('[DrawOrchestrator] onMounted done, keydown listener attached');
+            // wire input controller to orchestrator
+            inputController.setOnTrigger(() => {
+                console.log('[DrawOrchestrator] inputController triggered Enter');
+                void executeCurrentAction();
+            });
+            inputController.attach();
+            console.log('[DrawOrchestrator] onMounted done, input controller attached');
         });
 
+        const _dialogTimers: number[] = [];
+
         onUnmounted(() => {
-            window.removeEventListener('keydown', keydownDelegator);
+            inputController.detach();
+            for (const t of _dialogTimers) try { clearTimeout(t); } catch (e) { }
         });
 
         // メンバー抽選表示
@@ -333,11 +340,12 @@ export default {
 
         const onMemberRouletteStopped = () => {
             console.log('[DrawOrchestrator] onMemberRouletteStopped', { latestResult: latestResult.value });
-            drawState.currentAction = null;
+            // We defer enabling the next action until the member-winner
+            // dialog is visible and at least 1s has passed to satisfy the
+            // UI timing requirement. The member animation component will
+            // emit 'winner-dialog-shown' which we handle elsewhere.
             emit('member-winner', { result: latestResult.value });
-            setTimeout(() => {
-                drawState.currentAction = () => showPrizeDraw();
-            }, 1000);
+            drawState.currentAction = null;
         };
 
         // メンバー停止（アニメーション制御）
@@ -401,13 +409,40 @@ export default {
             if (latestResult.value) {
                 latestResult.value.wonPrize = prizes.value.find((p) => p.id === prizeId)!;
                 showPrizeWinningDialog.value = true;
+                // Do NOT enable the close action immediately: suspend input
+                // and enable the action after at least 1s so dialogs are
+                // guaranteed to be visible for minimum duration and a held
+                // Enter doesn't skip the dialog.
                 drawState.currentAction = null;
-                setTimeout(() => {
+                inputController.suspend();
+                const tid = window.setTimeout(() => {
                     drawState.currentAction = () => { void closeModal(); };
+                    inputController.resume();
                     console.log('[DrawOrchestrator] prize dialog close action enabled after delay');
                 }, 1000);
+                _dialogTimers.push(tid as unknown as number);
                 console.log('[DrawOrchestrator] onRouletteStopped updated latestResult', { latestResult: latestResult.value });
             }
+        };
+
+        const onMemberWinnerDialogShown = () => {
+            console.log('[DrawOrchestrator] onMemberWinnerDialogShown');
+            // prevent Enter processing while dialog is shown for at least 1s
+            inputController.suspend();
+            drawState.currentAction = null;
+            const tid = window.setTimeout(() => {
+                drawState.currentAction = () => showPrizeDraw();
+                inputController.resume();
+                console.log('[DrawOrchestrator] member winner action enabled after delay');
+            }, 1000);
+            _dialogTimers.push(tid as unknown as number);
+        };
+
+        const onMemberWinnerDialogClosed = () => {
+            console.log('[DrawOrchestrator] onMemberWinnerDialogClosed');
+            // when internal dialog closes nothing else required; ensure input
+            // controller is resumed in case closure happened before our timer
+            try { inputController.resume(); } catch (e) { }
         };
 
         // モーダルクローズ
@@ -525,6 +560,8 @@ export default {
             onHalfRemainingClosed,
             onEndClosed,
             handleMemberDrawStart,
+            onMemberWinnerDialogShown,
+            onMemberWinnerDialogClosed,
         };
     }
 };

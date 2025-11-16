@@ -21,6 +21,7 @@ export default defineComponent({
     emits: ['close'],
     setup(props, { emit }) {
         const overlay = ref<HTMLDivElement | null>(null);
+        let keydownTimer: number | null = null;
 
         const closeDialog = () => {
             emit('close');
@@ -38,8 +39,17 @@ export default defineComponent({
                 nextTick(() => {
                     overlay.value?.focus();
                 });
-                window.addEventListener('keydown', handleKeydown);
+                // delay attaching keydown handler to ensure dialog is shown
+                // for at least 1 second before Enter can close it
+                keydownTimer = window.setTimeout(() => {
+                    window.addEventListener('keydown', handleKeydown);
+                    keydownTimer = null;
+                }, 1000);
             } else {
+                if (keydownTimer != null) {
+                    clearTimeout(keydownTimer);
+                    keydownTimer = null;
+                }
                 window.removeEventListener('keydown', handleKeydown);
             }
         });
@@ -49,11 +59,19 @@ export default defineComponent({
                 nextTick(() => {
                     overlay.value?.focus();
                 });
-                window.addEventListener('keydown', handleKeydown);
+                // attach delayed as well on mount
+                keydownTimer = window.setTimeout(() => {
+                    window.addEventListener('keydown', handleKeydown);
+                    keydownTimer = null;
+                }, 1000);
             }
         });
 
         onUnmounted(() => {
+            if (keydownTimer != null) {
+                clearTimeout(keydownTimer);
+                keydownTimer = null;
+            }
             window.removeEventListener('keydown', handleKeydown);
         });
 
