@@ -34,10 +34,22 @@
     <ul v-if="prizes.length" class="admin-list">
       <li v-for="prize in prizes" :key="prize.id" class="admin-list-item">
         <input type="checkbox" v-model="selectedPrizes" :value="prize.id" />
-        <div class="prize-preview">
-          <img v-if="prize.imageAssetId" :src="objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId" alt="image"
-            class="preview-img" @error="onImageError" />
-          <span v-else>{{ prize.name }}</span>
+        <div class="prize-preview two-image">
+          <template v-if="prize.imageAssetId || prize.image2AssetId">
+            <div class="preview-half">
+              <img v-if="prize.imageAssetId" :src="objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId"
+                alt="image1" class="preview-img" @error="onImageError" />
+              <div v-else class="preview-placeholder small">画像1なし</div>
+            </div>
+            <div class="preview-half">
+              <img v-if="prize.image2AssetId" :src="objectUrlMap.get(prize.image2AssetId) || prize.image2AssetId"
+                alt="image2" class="preview-img" @error="onImageError" />
+              <div v-else class="preview-placeholder small">画像2なし</div>
+            </div>
+          </template>
+          <template v-else>
+            <span>{{ prize.name }}</span>
+          </template>
         </div>
         <div class="prize-info">
           <span>{{ prize.name }}</span>
@@ -78,7 +90,7 @@
           </div>
 
           <div class="field-block">
-            <label class="field-label">画像</label>
+            <label class="field-label">画像1</label>
             <div class="image-mode">
               <div class="image-radio-group">
                 <label><input type="radio" v-model="editImageMode" value="upload" /> アップロード</label>
@@ -92,6 +104,26 @@
                 <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange" accept="image/*"
                   class="admin-input" />
                 <span v-if="editImageMode === 'upload' && editImageFilename" class="file-name">{{ editImageFilename
+                  }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-block">
+            <label class="field-label">画像2</label>
+            <div class="image-mode">
+              <div class="image-radio-group">
+                <label><input type="radio" v-model="editImage2Mode" value="upload" /> アップロード</label>
+                <label><input type="radio" v-model="editImage2Mode" value="select" /> 既存から選択</label>
+              </div>
+              <div class="image-select-group">
+                <select v-if="editImage2Mode === 'select'" v-model="editImage2AssetId" class="admin-input">
+                  <option value="">選択なし</option>
+                  <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <input v-if="editImage2Mode === 'upload'" type="file" @change="onEditImage2Change" accept="image/*"
+                  class="admin-input" />
+                <span v-if="editImage2Mode === 'upload' && editImage2Filename" class="file-name">{{ editImage2Filename
                   }}</span>
               </div>
             </div>
@@ -140,9 +172,16 @@
         </div>
 
         <div class="add-side-column">
-          <div class="preview-box preview-box--small">
-            <template v-if="editImagePreview">
-              <img :src="editImagePreview" alt="preview" class="preview-img" />
+          <div class="preview-box preview-box--small two-image-preview">
+            <template v-if="editImagePreview || editImage2Preview">
+              <div class="preview-half">
+                <img v-if="editImagePreview" :src="editImagePreview" alt="preview1" class="preview-img" />
+                <div v-else class="preview-placeholder small">画像1なし</div>
+              </div>
+              <div class="preview-half">
+                <img v-if="editImage2Preview" :src="editImage2Preview" alt="preview2" class="preview-img" />
+                <div v-else class="preview-placeholder small">画像2なし</div>
+              </div>
             </template>
             <template v-else>
               <div class="preview-placeholder">プレビュー</div>
@@ -182,7 +221,7 @@
           </div>
 
           <div class="field-block span-2">
-            <label class="field-label">画像</label>
+            <label class="field-label">画像1</label>
             <div class="image-mode">
               <div class="image-radio-group">
                 <label><input type="radio" v-model="newImageMode" value="upload" /> アップロード</label>
@@ -196,6 +235,26 @@
                 <input v-if="newImageMode === 'upload'" type="file" @change="onNewImageChange" accept="image/*"
                   class="admin-input" />
                 <span v-if="newImageMode === 'upload' && newImageFilename" class="file-name">{{ newImageFilename
+                  }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-block span-2">
+            <label class="field-label">画像2</label>
+            <div class="image-mode">
+              <div class="image-radio-group">
+                <label><input type="radio" v-model="newImage2Mode" value="upload" /> アップロード</label>
+                <label><input type="radio" v-model="newImage2Mode" value="select" /> 既存から選択</label>
+              </div>
+              <div class="image-select-group">
+                <select v-if="newImage2Mode === 'select'" v-model="newImage2AssetId" class="admin-input">
+                  <option value="">選択なし</option>
+                  <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+                </select>
+                <input v-if="newImage2Mode === 'upload'" type="file" @change="onNewImage2Change" accept="image/*"
+                  class="admin-input" />
+                <span v-if="newImage2Mode === 'upload' && newImage2Filename" class="file-name">{{ newImage2Filename
                   }}</span>
               </div>
             </div>
@@ -249,9 +308,16 @@
         </div>
 
         <div class="add-side-column">
-          <div class="preview-box">
-            <template v-if="newImagePreview">
-              <img :src="newImagePreview" alt="preview" class="preview-img" />
+          <div class="preview-box two-image-preview">
+            <template v-if="newImagePreview || newImage2Preview">
+              <div class="preview-half">
+                <img v-if="newImagePreview" :src="newImagePreview" alt="preview1" class="preview-img" />
+                <div v-else class="preview-placeholder small">画像1なし</div>
+              </div>
+              <div class="preview-half">
+                <img v-if="newImage2Preview" :src="newImage2Preview" alt="preview2" class="preview-img" />
+                <div v-else class="preview-placeholder small">画像2なし</div>
+              </div>
             </template>
             <template v-else>
               <div class="preview-placeholder">プレビュー</div>
@@ -341,6 +407,7 @@ const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
 const prizeService = container.resolve(PrizeService);
 import DataUploadDialog from './components/data-upload-dialog.vue';
+import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
 const prizes = ref<any[]>([]);
 const selectedPrizes = ref<string[]>([]);
 const assets = ref<any[]>([]);
@@ -368,7 +435,7 @@ const isAllSelected = computed({
 
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
-const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeRank.value = 5; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; newBgm1Mode.value = 'select'; newBgm2Mode.value = 'select'; newBgm1Filename.value = ''; newBgm2Filename.value = ''; tempBgm1Asset.value = null; tempBgm2Asset.value = null; };
+const closeAddModal = () => { showAddModal.value = false; newPrizeName.value = ''; newPrizeRank.value = 5; newImageAsset.value = undefined; newImageAssetId.value = ''; newImageFilename.value = ''; newImagePreview.value = ''; newImage2AssetId.value = ''; newImage2Filename.value = ''; newImage2Preview.value = ''; newImage2Mode.value = 'upload'; tempAsset2.value = null; newBgm1AssetId.value = ''; newBgm2AssetId.value = ''; newBgm1Mode.value = 'select'; newBgm2Mode.value = 'select'; newBgm1Filename.value = ''; newBgm2Filename.value = ''; tempBgm1Asset.value = null; tempBgm2Asset.value = null; };
 const confirmAdd = async () => { await addPrize(); closeAddModal(); };
 
 const showDeleteModal = ref(false);
@@ -390,6 +457,10 @@ const newImageAssetId = ref('');
 const newImageAsset = ref<Asset | undefined>();
 const newImageFilename = ref('');
 const newImagePreview = ref('');
+const newImage2Mode = ref('upload');
+const newImage2AssetId = ref('');
+const newImage2Filename = ref('');
+const newImage2Preview = ref('');
 const newBgm1AssetId = ref('');
 const newBgm2AssetId = ref('');
 const newBgm1Mode = ref('select');
@@ -398,11 +469,14 @@ const newBgm1Filename = ref('');
 const newBgm2Filename = ref('');
 
 const tempAsset = ref<Asset | null>(null);
+const tempAsset2 = ref<Asset | null>(null);
 const tempBgm1Asset = ref<Asset | null>(null);
 const tempBgm2Asset = ref<Asset | null>(null);
 
 const newImagePreviewUrl = ref<string | null>(null);
+const newImage2PreviewUrl = ref<string | null>(null);
 const editImagePreviewUrl = ref<string | null>(null);
+const editImage2PreviewUrl = ref<string | null>(null);
 
 const onNewImageChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -416,6 +490,21 @@ const onNewImageChange = async (e: Event) => {
     }
     newImagePreviewUrl.value = URL.createObjectURL(file);
     newImagePreview.value = newImagePreviewUrl.value;
+  }
+};
+
+const onNewImage2Change = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const dto = await assetDataService.createDriveDataDtoFromFile(file);
+    tempAsset2.value = dto;
+    newImage2Filename.value = file.name;
+    if (newImage2PreviewUrl.value) {
+      try { URL.revokeObjectURL(newImage2PreviewUrl.value); } catch { }
+      newImage2PreviewUrl.value = null;
+    }
+    newImage2PreviewUrl.value = URL.createObjectURL(file);
+    newImage2Preview.value = newImage2PreviewUrl.value;
   }
 };
 
@@ -461,6 +550,22 @@ const addPrize = async () => {
       }
     }
   }
+  if (newImage2Mode.value === 'select' && newImage2AssetId.value) {
+    newPrize.image2AssetId = newImage2AssetId.value;
+    // Set object URL for selected image2
+    const selectedAsset2 = assets.value.find(a => a.id === newImage2AssetId.value);
+    if (selectedAsset2) {
+      try {
+        const url2 = URL.createObjectURL(selectedAsset2.blob);
+        if (objectUrlMap.has(selectedAsset2.id)) {
+          try { URL.revokeObjectURL(objectUrlMap.get(selectedAsset2.id) as string); } catch { }
+        }
+        objectUrlMap.set(selectedAsset2.id, url2);
+      } catch (error) {
+        console.warn('Failed to create object URL for selected image2:', error);
+      }
+    }
+  }
   if (newBgm1Mode.value === 'select' && newBgm1AssetId.value) {
     newPrize.bgm1AssetId = newBgm1AssetId.value;
   }
@@ -490,6 +595,19 @@ const addPrize = async () => {
       }
       tempAsset.value = null;
     }
+    if (tempAsset2.value) {
+      const updated2 = await assetDataService.addAssetData([tempAsset2.value]);
+      const updatedAsset2 = updated2[0];
+      newPrize.image2AssetId = updatedAsset2.id;
+      try {
+        const url2 = URL.createObjectURL(updatedAsset2.blob);
+        if (objectUrlMap.has(updatedAsset2.id)) {
+          try { URL.revokeObjectURL(objectUrlMap.get(updatedAsset2.id) as string); } catch { }
+        }
+        objectUrlMap.set(updatedAsset2.id, url2);
+      } catch { }
+      tempAsset2.value = null;
+    }
     if (tempBgm1Asset.value) {
       const updated = await assetDataService.addAssetData([tempBgm1Asset.value]);
       newPrize.bgm1AssetId = updated[0].id;
@@ -504,6 +622,8 @@ const addPrize = async () => {
     prizes.value.push(addedPrize);
     newImagePreview.value = '';
     newImageFilename.value = '';
+    newImage2Preview.value = '';
+    newImage2Filename.value = '';
     newBgm1Filename.value = '';
     newBgm2Filename.value = '';
   } catch (error) {
@@ -553,6 +673,12 @@ const fetchPrizes = async () => {
           try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
         }
       }
+      if (prize.image2AssetId) {
+        const asset2 = await assetDataService.getAssetDataById(prize.image2AssetId);
+        if (asset2 && asset2.id && !objectUrlMap.has(asset2.id)) {
+          try { objectUrlMap.set(asset2.id, URL.createObjectURL(asset2.blob)); } catch { }
+        }
+      }
     }
     prizes.value = fetchedPrizes;
   } catch (error) {
@@ -584,7 +710,7 @@ const savePrizesToLocalJson = async () => {
 const uploadPrizesJsonToDrive = async () => {
   try {
     const json = localStorage.getItem(PRIZE_STORAGE_KEY) || JSON.stringify(prizes.value || []);
-    const service = new (await import('packages/common-lib/google-apps-script/gas-script-service')).GasFunctionService('addJson');
+    const service = new GasFunctionService('addJson');
     const driveJson = {
       metadata: {
         driveDataId: 'prizes-json-' + Date.now(),
@@ -616,8 +742,7 @@ const downloadPrizesJsonFromDrive = async () => {
       console.warn('No last uploaded prizes file id saved');
       return;
     }
-    const GasFn = (await import('packages/common-lib/google-apps-script/gas-script-service')).GasFunctionService;
-    const service = new GasFn('getJson');
+    const service = new GasFunctionService('getJson');
     const resp = await service.call<{ json: string } | null>(lastId);
     if (resp && resp.json) {
       const json = resp.json;
@@ -650,6 +775,10 @@ const editImageAssetId = ref('');
 const editImagePreview = ref('');
 const editImageMode = ref('upload');
 const editImageFilename = ref('');
+const editImage2AssetId = ref('');
+const editImage2Mode = ref('upload');
+const editImage2Filename = ref('');
+const editImage2Preview = ref('');
 const editBgm1AssetId = ref('');
 const editBgm2AssetId = ref('');
 const editBgm1Mode = ref('select');
@@ -659,6 +788,7 @@ const editBgm2Filename = ref('');
 const editAnimation = ref('roulette');
 
 const editTempAsset = ref<Asset | null>(null);
+const editTempAsset2 = ref<Asset | null>(null);
 const editTempBgm1Asset = ref<Asset | null>(null);
 const editTempBgm2Asset = ref<Asset | null>(null);
 
@@ -674,6 +804,21 @@ const onEditImageChange = async (e: Event) => {
     }
     editImagePreviewUrl.value = URL.createObjectURL(file);
     editImagePreview.value = editImagePreviewUrl.value;
+  }
+};
+
+const onEditImage2Change = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const dto = await assetDataService.createDriveDataDtoFromFile(file);
+    editTempAsset2.value = dto;
+    editImage2Filename.value = file.name;
+    if (editImage2PreviewUrl.value) {
+      try { URL.revokeObjectURL(editImage2PreviewUrl.value); } catch { }
+      editImage2PreviewUrl.value = null;
+    }
+    editImage2PreviewUrl.value = URL.createObjectURL(file);
+    editImage2Preview.value = editImage2PreviewUrl.value;
   }
 };
 
@@ -727,6 +872,24 @@ const editPrize = async (prize: any) => {
   }
   editImageFilename.value = '';
   editTempAsset.value = null;
+  if (prize.image2AssetId) {
+    editImage2Mode.value = 'select';
+    editImage2AssetId.value = prize.image2AssetId;
+    editImage2Preview.value = objectUrlMap.get(prize.image2AssetId) || prize.image2AssetId;
+    try {
+      const exists2 = assets.value.find((a: any) => a.id === prize.image2AssetId);
+      if (!exists2) {
+        const fetched2 = await assetDataService.getAssetDataById(prize.image2AssetId);
+        if (fetched2) assets.value.push(fetched2);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch image2 asset for edit select:', e);
+    }
+  } else {
+    editImage2Mode.value = 'upload';
+  }
+  editImage2Filename.value = '';
+  editTempAsset2.value = null;
   if (prize.bgm1AssetId) {
     editBgm1Mode.value = 'select';
     editBgm1AssetId.value = prize.bgm1AssetId;
@@ -793,6 +956,19 @@ const saveEdit = async () => {
     editTempBgm2Asset.value = updatedAssets[0];
     bgm2AssetId = editTempBgm2Asset.value.id;
   }
+  let image2AssetId: string | undefined;
+  if (editTempAsset2.value) {
+    const updatedAssets2 = await assetDataService.addAssetData([editTempAsset2.value]);
+    editTempAsset2.value = updatedAssets2[0];
+    image2AssetId = editTempAsset2.value.id;
+    try {
+      const url2 = URL.createObjectURL(editTempAsset2.value.blob);
+      if (objectUrlMap.has(editTempAsset2.value.id)) {
+        try { URL.revokeObjectURL(objectUrlMap.get(editTempAsset2.value.id) as string); } catch { }
+      }
+      objectUrlMap.set(editTempAsset2.value.id, url2);
+    } catch { }
+  }
 
   // No inline data URL migration here; migration should be handled by
   // infrastructure so the client does not attempt to process inline data URLs on save.
@@ -802,6 +978,7 @@ const saveEdit = async () => {
     rank: editRank.value,
     animation: editAnimation.value,
     imageAssetId: assetId || editImageAssetId.value,
+    image2AssetId: image2AssetId || editImage2AssetId.value,
     bgm1AssetId: bgm1AssetId || editBgm1AssetId.value,
     bgm2AssetId: bgm2AssetId || editBgm2AssetId.value,
   };
@@ -815,6 +992,10 @@ const saveEdit = async () => {
     editImagePreview.value = '';
     editImageFilename.value = '';
     editTempAsset.value = null;
+    editImage2AssetId.value = '';
+    editImage2Preview.value = '';
+    editImage2Filename.value = '';
+    editTempAsset2.value = null;
     editBgm1AssetId.value = '';
     editBgm2AssetId.value = '';
     editBgm1Mode.value = 'select';
@@ -856,6 +1037,25 @@ watch([newImageAssetId, () => newImageMode.value], async ([newId, mode]) => {
   }
 });
 
+// Watch for new image2 asset selection changes
+watch([newImage2AssetId, () => newImage2Mode.value], async ([newId, mode]) => {
+  if (mode === 'select' && newId) {
+    const asset = assets.value.find(a => a.id === newId);
+    if (asset) {
+      if (newImage2PreviewUrl.value) {
+        try { URL.revokeObjectURL(newImage2PreviewUrl.value); } catch { }
+        newImage2PreviewUrl.value = null;
+      }
+      newImage2PreviewUrl.value = URL.createObjectURL(asset.blob);
+      newImage2Preview.value = newImage2PreviewUrl.value;
+    }
+  } else if (mode === 'upload') {
+    if (!newImage2Filename.value) {
+      newImage2Preview.value = '';
+    }
+  }
+});
+
 // Watch for edit image asset selection changes
 watch([editImageAssetId, () => editImageMode.value], async ([newId, mode]) => {
   if (mode === 'select' && newId) {
@@ -873,6 +1073,25 @@ watch([editImageAssetId, () => editImageMode.value], async ([newId, mode]) => {
     // Clear preview when switching to upload mode (unless file is selected)
     if (!editImageFilename.value) {
       editImagePreview.value = '';
+    }
+  }
+});
+
+// Watch for edit image2 asset selection changes
+watch([editImage2AssetId, () => editImage2Mode.value], async ([newId, mode]) => {
+  if (mode === 'select' && newId) {
+    const asset = assets.value.find(a => a.id === newId);
+    if (asset) {
+      if (editImage2PreviewUrl.value) {
+        try { URL.revokeObjectURL(editImage2PreviewUrl.value); } catch { }
+        editImage2PreviewUrl.value = null;
+      }
+      editImage2PreviewUrl.value = URL.createObjectURL(asset.blob);
+      editImage2Preview.value = editImage2PreviewUrl.value;
+    }
+  } else if (mode === 'upload') {
+    if (!editImage2Filename.value) {
+      editImage2Preview.value = '';
     }
   }
 });
@@ -940,8 +1159,14 @@ onBeforeUnmount(() => {
   if (newImagePreviewUrl.value) {
     try { URL.revokeObjectURL(newImagePreviewUrl.value); } catch { }
   }
+  if (newImage2PreviewUrl.value) {
+    try { URL.revokeObjectURL(newImage2PreviewUrl.value); } catch { }
+  }
   if (editImagePreviewUrl.value) {
     try { URL.revokeObjectURL(editImagePreviewUrl.value); } catch { }
+  }
+  if (editImage2PreviewUrl.value) {
+    try { URL.revokeObjectURL(editImage2PreviewUrl.value); } catch { }
   }
 
   try {
@@ -953,7 +1178,7 @@ onBeforeUnmount(() => {
 });
 
 const exportFormatCsv = () => {
-  const csv = '名前,ランク,アニメーション,画像ファイル名,BGM1ファイル名,BGM2ファイル名\n';
+  const csv = '名前,ランク,アニメーション,画像1ファイル名,画像2ファイル名,BGM1ファイル名,BGM2ファイル名\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1031,6 +1256,35 @@ const openDataUploadDialog = () => { showDataUploadDialog.value = true; };
   background: #2a3137;
   border-radius: 6px;
   overflow: hidden;
+}
+
+.prize-preview.two-image {
+  display: flex;
+  padding: 0;
+}
+
+.two-image .preview-half,
+.two-image-preview .preview-half {
+  width: 50%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: transparent;
+}
+
+.two-image .preview-half .preview-img,
+.two-image-preview .preview-half .preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-placeholder.small {
+  font-size: 0.82rem;
+  color: #9fb8db;
+  padding: 6px;
 }
 
 .preview-img {

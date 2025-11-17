@@ -5,6 +5,7 @@ export interface PrizeDto {
   name: string;
   rank?: number;
   imageAssetId?: string;
+  image2AssetId?: string;
   bgm1AssetId?: string;
   bgm2AssetId?: string;
   // animation to be used for this prize's draw presentation
@@ -17,6 +18,7 @@ export const toPrize = (dto: PrizeDto): Prize => ({
   name: dto.name,
   rank: dto.rank,
   imageAssetId: dto.imageAssetId,
+  image2AssetId: dto.image2AssetId,
   bgm1AssetId: dto.bgm1AssetId,
   bgm2AssetId: dto.bgm2AssetId,
   animation: dto.animation,
@@ -28,6 +30,7 @@ export const fromPrize = (prize: Prize): PrizeDto => ({
   name: prize.name,
   rank: prize.rank,
   imageAssetId: prize.imageAssetId,
+  image2AssetId: prize.image2AssetId,
   bgm1AssetId: prize.bgm1AssetId,
   bgm2AssetId: prize.bgm2AssetId,
   animation: prize.animation || "roulette",

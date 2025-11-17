@@ -3,6 +3,7 @@ export interface Prize {
   name: string;
   rank?: number;
   imageAssetId?: string;
+  image2AssetId?: string;
   bgm1AssetId?: string;
   bgm2AssetId?: string;
   animation?: string;
