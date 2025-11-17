@@ -36,13 +36,16 @@ export class BaseHandler {
   ) {
     console.log("[DrawOrchestrator] showMemberWinnerDialog");
     showMemberWinnerDialog.value = true;
-    await BaseHandler.wait(1);
     emitter.emit("nextAction");
   }
 
-  static async closeMemberWinnerDialog(showMemberWinnerDialog: Ref<boolean>) {
+  static async closeMemberWinnerDialog(
+    showMemberWinnerDialog: Ref<boolean>,
+    emitter: Emitter<any>
+  ) {
     console.log("[DrawOrchestrator] closeMemberWinnerDialog");
     showMemberWinnerDialog.value = false;
+    emitter.emit("nextAction");
   }
 
   static async startPrizeDraw(
@@ -182,9 +185,10 @@ export class BaseHandler {
     emitter.emit("nextAction");
   }
 
-  static async setMemberPhase(drawState: any) {
+  static async setMemberPhase(drawState: any, emitter: Emitter<any>) {
     console.log("[DrawOrchestrator] setMemberPhase");
     drawState.phase = "member";
+    emitter.emit("nextAction");
   }
 
   static async setPrizePhase(drawState: any, emitter: Emitter<any>) {
@@ -226,7 +230,7 @@ export class BaseHandler {
     drawState: any
   ): (() => Promise<void>)[] {
     const baseActions: (() => Promise<void>)[] = [];
-    baseActions.push(() => BaseHandler.setMemberPhase(drawState));
+    baseActions.push(() => BaseHandler.setMemberPhase(drawState, emitter));
     baseActions.push(() => BaseHandler.wait(1));
     baseActions.push(() =>
       BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter)
@@ -237,6 +241,9 @@ export class BaseHandler {
       BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter)
     );
     baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() =>
+      BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog, emitter)
+    );
     baseActions.push(() => BaseHandler.setPrizePhase(drawState, emitter));
     baseActions.push(() => BaseHandler.wait(1));
     baseActions.push(() =>

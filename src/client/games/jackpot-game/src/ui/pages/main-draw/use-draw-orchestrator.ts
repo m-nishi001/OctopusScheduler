@@ -122,6 +122,50 @@ export function useDrawOrchestrator() {
     }
   };
 
+  const getCycle = (isKakuhen: boolean) => {
+    if (isKakuhen) {
+      return KakuhenHandler.getActions(
+        preDrawResult,
+        memberAnimRef,
+        animationRef,
+        latestResult,
+        prizes,
+        showPrizeWinningDialog,
+        drawService,
+        showHalfRemainingDialog,
+        showEndDialog,
+        updateSelectedPrize,
+        loadBgmBlob,
+        kakuhenDummyPrize,
+        kakuhenFinalPrize,
+        kakuhenInProgress,
+        kakuhenOverlayVisible,
+        showMemberWinnerDialog,
+        drawState.currentQueue,
+        emitter,
+        drawState
+      );
+    } else {
+      return BaseHandler.getActions(
+        preDrawResult,
+        selectedPrize,
+        memberAnimRef,
+        animationRef,
+        prizes,
+        showPrizeWinningDialog,
+        drawService,
+        showHalfRemainingDialog,
+        showEndDialog,
+        updateSelectedPrize,
+        loadBgmBlob,
+        showMemberWinnerDialog,
+        drawState.currentQueue,
+        emitter,
+        drawState
+      );
+    }
+  };
+
   const isQueueExecuting = ref(false);
   const pendingAutoExecution = ref(false);
 
@@ -139,53 +183,9 @@ export function useDrawOrchestrator() {
           isQueueExecuting.value = false;
           return;
         }
-        const isKakuhen = preDrawResult.value?.isKakuhen || false;
         await executeDraw();
-        if (isKakuhen) {
-          drawState.currentQueue.addCycle(
-            KakuhenHandler.getActions(
-              preDrawResult,
-              memberAnimRef,
-              animationRef,
-              latestResult,
-              prizes,
-              showPrizeWinningDialog,
-              drawService,
-              showHalfRemainingDialog,
-              showEndDialog,
-              updateSelectedPrize,
-              loadBgmBlob,
-              kakuhenDummyPrize,
-              kakuhenFinalPrize,
-              kakuhenInProgress,
-              kakuhenOverlayVisible,
-              showMemberWinnerDialog,
-              drawState.currentQueue,
-              emitter,
-              drawState
-            )
-          );
-        } else {
-          drawState.currentQueue.addCycle(
-            BaseHandler.getActions(
-              preDrawResult,
-              selectedPrize,
-              memberAnimRef,
-              animationRef,
-              prizes,
-              showPrizeWinningDialog,
-              drawService,
-              showHalfRemainingDialog,
-              showEndDialog,
-              updateSelectedPrize,
-              loadBgmBlob,
-              showMemberWinnerDialog,
-              drawState.currentQueue,
-              emitter,
-              drawState
-            )
-          );
-        }
+        const isKakuhen = preDrawResult.value?.isKakuhen || false;
+        drawState.currentQueue.addCycle(getCycle(isKakuhen));
       } catch (e) {
         console.error("Failed to get prize count for cycle addition:", e);
         isQueueExecuting.value = false;
@@ -229,51 +229,7 @@ export function useDrawOrchestrator() {
     await executeDraw();
 
     const isKakuhen = preDrawResult.value?.isKakuhen || false;
-    if (isKakuhen) {
-      drawState.currentQueue.addCycle(
-        KakuhenHandler.getActions(
-          preDrawResult,
-          memberAnimRef,
-          animationRef,
-          latestResult,
-          prizes,
-          showPrizeWinningDialog,
-          drawService,
-          showHalfRemainingDialog,
-          showEndDialog,
-          updateSelectedPrize,
-          loadBgmBlob,
-          kakuhenDummyPrize,
-          kakuhenFinalPrize,
-          kakuhenInProgress,
-          kakuhenOverlayVisible,
-          showMemberWinnerDialog,
-          drawState.currentQueue,
-          emitter,
-          drawState
-        )
-      );
-    } else {
-      drawState.currentQueue.addCycle(
-        BaseHandler.getActions(
-          preDrawResult,
-          selectedPrize,
-          memberAnimRef,
-          animationRef,
-          prizes,
-          showPrizeWinningDialog,
-          drawService,
-          showHalfRemainingDialog,
-          showEndDialog,
-          updateSelectedPrize,
-          loadBgmBlob,
-          showMemberWinnerDialog,
-          drawState.currentQueue,
-          emitter,
-          drawState
-        )
-      );
-    }
+    drawState.currentQueue.addCycle(getCycle(isKakuhen));
 
     const handleKeyDown = (ev: KeyboardEvent) => {
       if (ev.key === "Enter") {

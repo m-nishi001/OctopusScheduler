@@ -29,7 +29,8 @@ export class KakuhenHandler {
     drawState: any
   ): (() => Promise<void>)[] {
     const baseActions: (() => Promise<void>)[] = [];
-    baseActions.push(() => BaseHandler.setMemberPhase(drawState));
+    baseActions.push(() => BaseHandler.setMemberPhase(drawState, emitter));
+    baseActions.push(() => BaseHandler.wait(1));
     baseActions.push(() =>
       BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter)
     );
@@ -38,8 +39,9 @@ export class KakuhenHandler {
     baseActions.push(() =>
       BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter)
     );
+    baseActions.push(() => BaseHandler.wait(1));
     baseActions.push(() =>
-      BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog)
+      BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog, emitter)
     );
     baseActions.push(() => BaseHandler.setPrizePhase(drawState, emitter));
     baseActions.push(() => BaseHandler.wait(1));
@@ -64,13 +66,16 @@ export class KakuhenHandler {
       )
     );
     baseActions.push(() =>
+      KakuhenHandler.showDummyPrizeDialogAction(showPrizeWinningDialog, emitter)
+    );
+    baseActions.push(() =>
       KakuhenHandler.showKakuhenMessage(kakuhenMessageVisible, emitter)
     );
     baseActions.push(() =>
       KakuhenHandler.hideKakuhenMessage(kakuhenMessageVisible, emitter)
     );
     baseActions.push(() =>
-      KakuhenHandler.closePrizeWinningDialogForKakuhen(
+      KakuhenHandler.closeDummyPrizeDialogAction(
         showPrizeWinningDialog,
         emitter
       )
@@ -174,7 +179,6 @@ export class KakuhenHandler {
         kakuhenDummyPrize.value?.id || null
       );
     }
-    await new Promise((r) => setTimeout(r, 3000));
     emitter.emit("nextAction");
   }
 
@@ -197,12 +201,22 @@ export class KakuhenHandler {
     emitter.emit("nextAction");
   }
 
-  static async closePrizeWinningDialogForKakuhen(
-    showPrizeWinningDialog: Ref<boolean>,
+  static async showDummyPrizeDialogAction(
+    showDummyPrizeDialog: Ref<boolean>,
     emitter: Emitter<any>
   ) {
-    console.log("[DrawOrchestrator] closePrizeWinningDialogForKakuhen");
-    showPrizeWinningDialog.value = false;
+    console.log("[DrawOrchestrator] showDummyPrizeDialogAction");
+    showDummyPrizeDialog.value = true;
+    await new Promise((r) => setTimeout(r, 3000));
+    emitter.emit("nextAction");
+  }
+
+  static async closeDummyPrizeDialogAction(
+    showDummyPrizeDialog: Ref<boolean>,
+    emitter: Emitter<any>
+  ) {
+    console.log("[DrawOrchestrator] closeDummyPrizeDialogAction");
+    showDummyPrizeDialog.value = false;
     emitter.emit("nextAction");
   }
 
@@ -219,7 +233,7 @@ export class KakuhenHandler {
     if (animationRef.value?.startSpin) {
       animationRef.value.startSpin(bgm2Blob);
     }
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 1500));
     emitter.emit("nextAction");
   }
 
