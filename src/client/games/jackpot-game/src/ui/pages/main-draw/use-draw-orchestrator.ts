@@ -83,6 +83,45 @@ export function useDrawOrchestrator() {
     }
   };
 
+  // executeDraw moved here from BaseHandler to use local refs/services
+  const executeDraw = async () => {
+    console.log("[DrawOrchestrator] executeDraw");
+    try {
+      const res = await drawService.executeDraw({
+        memberRequestCount: 10,
+        prizeRequestCount: 8,
+      });
+      console.log("[DrawOrchestrator] draw result received", { res });
+      preDrawResult.value = res;
+      latestResult.value = res;
+      latestResult.value.wonPrize = prizes.value.find(
+        (p: PrizeDto) => p.id === res.wonPrize!.id
+      )!;
+      updateSelectedPrize(
+        prizes.value.find((p: PrizeDto) => p.id === res.wonPrize!.id)!
+      );
+      if (selectedPrize.value?.animation === "slot") {
+        currentPrizeComponent.value = markRaw(SlotAnimation as any);
+        console.log("[DrawOrchestrator] selected component: SlotAnimation");
+      } else {
+        currentPrizeComponent.value = markRaw(RouletteAnimation as any);
+        console.log("[DrawOrchestrator] selected component: RouletteAnimation");
+      }
+    } catch (e: any) {
+      console.error("[DrawOrchestrator] draw failed", e);
+      preDrawResult.value = null;
+      latestResult.value = null;
+      try {
+        window.alert(e?.message || String(e));
+      } catch (_) {
+        /* noop */
+      }
+    } finally {
+      console.log("[DrawOrchestrator] executeDraw completed");
+      emitter.emit("nextAction");
+    }
+  };
+
   const isQueueExecuting = ref(false);
   const pendingAutoExecution = ref(false);
 
@@ -101,6 +140,7 @@ export function useDrawOrchestrator() {
           return;
         }
         const isKakuhen = preDrawResult.value?.isKakuhen || false;
+        await executeDraw();
         if (isKakuhen) {
           drawState.currentQueue.addCycle(
             KakuhenHandler.getActions(
@@ -121,11 +161,6 @@ export function useDrawOrchestrator() {
               kakuhenOverlayVisible,
               showMemberWinnerDialog,
               drawState.currentQueue,
-              selectedPrize,
-              currentPrizeComponent,
-              markRaw,
-              SlotAnimation,
-              RouletteAnimation,
               emitter,
               drawState
             )
@@ -137,7 +172,6 @@ export function useDrawOrchestrator() {
               selectedPrize,
               memberAnimRef,
               animationRef,
-              latestResult,
               prizes,
               showPrizeWinningDialog,
               drawService,
@@ -147,10 +181,6 @@ export function useDrawOrchestrator() {
               loadBgmBlob,
               showMemberWinnerDialog,
               drawState.currentQueue,
-              currentPrizeComponent,
-              markRaw,
-              SlotAnimation,
-              RouletteAnimation,
               emitter,
               drawState
             )
@@ -160,6 +190,10 @@ export function useDrawOrchestrator() {
         console.error("Failed to get prize count for cycle addition:", e);
         isQueueExecuting.value = false;
         return;
+      } finally {
+        // サイクルを追加した時は初期表示と同じ状態であるはず。
+        // つまり、自動実行フラグはリセットしておく必要がある。
+        pendingAutoExecution.value = false;
       }
     }
     try {
@@ -169,12 +203,14 @@ export function useDrawOrchestrator() {
         isQueueExecuting.value = false;
         return;
       }
+      console.log("[DrawOrchestrator] Executing action from queue");
       await action();
     } catch (e) {
       console.error("Error executing action from queue", e);
     } finally {
       isQueueExecuting.value = false;
       if (pendingAutoExecution.value) {
+        console.log("[DrawOrchestrator] Auto-executing next action");
         pendingAutoExecution.value = false;
         void executeCurrentAction();
       }
@@ -189,6 +225,8 @@ export function useDrawOrchestrator() {
     await drawService.initializeStateIfNeeded(prizes.value);
 
     currentMemberComponent.value = "MemberDrawAnimation";
+
+    await executeDraw();
 
     const isKakuhen = preDrawResult.value?.isKakuhen || false;
     if (isKakuhen) {
@@ -211,11 +249,6 @@ export function useDrawOrchestrator() {
           kakuhenOverlayVisible,
           showMemberWinnerDialog,
           drawState.currentQueue,
-          selectedPrize,
-          currentPrizeComponent,
-          markRaw,
-          SlotAnimation,
-          RouletteAnimation,
           emitter,
           drawState
         )
@@ -227,7 +260,6 @@ export function useDrawOrchestrator() {
           selectedPrize,
           memberAnimRef,
           animationRef,
-          latestResult,
           prizes,
           showPrizeWinningDialog,
           drawService,
@@ -237,10 +269,6 @@ export function useDrawOrchestrator() {
           loadBgmBlob,
           showMemberWinnerDialog,
           drawState.currentQueue,
-          currentPrizeComponent,
-          markRaw,
-          SlotAnimation,
-          RouletteAnimation,
           emitter,
           drawState
         )

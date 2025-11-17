@@ -1,5 +1,4 @@
 import type { Ref } from "vue";
-import type { Component, Raw } from "vue";
 import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
@@ -26,105 +25,106 @@ export class KakuhenHandler {
     kakuhenMessageVisible: Ref<boolean>,
     showMemberWinnerDialog: Ref<boolean>,
     queue: ActionQueue,
-    selectedPrize: Ref<PrizeDto | null>,
-    currentPrizeComponent: Ref<Component>,
-    markRaw: <T extends object>(value: T) => Raw<T>,
-    SlotAnimation: any,
-    RouletteAnimation: any,
     emitter: Emitter<any>,
     drawState: any
   ): (() => Promise<void>)[] {
-    const baseActions = [
-      () =>
-        BaseHandler.executeDraw(
-          drawService,
-          preDrawResult,
-          latestResult,
-          updateSelectedPrize,
-          prizes,
-          selectedPrize,
-          currentPrizeComponent,
-          markRaw,
-          SlotAnimation,
-          RouletteAnimation,
-          emitter
-        ),
-      () => BaseHandler.setMemberPhase(drawState, emitter),
-      () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter),
-      () => BaseHandler.wait(1),
-      () => BaseHandler.stopMemberDraw(memberAnimRef, emitter),
-      () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter),
-      () => BaseHandler.wait(1),
-      () => BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog),
-      () => BaseHandler.setPrizePhase(drawState, emitter),
-      () =>
-        KakuhenHandler.startKakuhenDummyDraw(
-          preDrawResult,
-          prizes,
-          loadBgmBlob,
-          animationRef,
-          kakuhenInProgress,
-          kakuhenDummyPrize,
-          kakuhenFinalPrize,
-          emitter
-        ),
-      () =>
-        KakuhenHandler.stopKakuhenDummyDraw(
-          animationRef,
-          kakuhenDummyPrize,
-          emitter
-        ),
-      () => KakuhenHandler.showKakuhenMessage(kakuhenMessageVisible, emitter),
-      () => KakuhenHandler.hideKakuhenMessage(kakuhenMessageVisible, emitter),
-      () =>
-        KakuhenHandler.closePrizeWinningDialogForKakuhen(
-          showPrizeWinningDialog,
-          emitter
-        ),
-      () =>
-        KakuhenHandler.startKakuhenFinalDraw(
-          kakuhenFinalPrize,
-          loadBgmBlob,
-          animationRef,
-          emitter
-        ),
-      () =>
-        KakuhenHandler.stopKakuhenFinalDraw(
-          animationRef,
-          kakuhenFinalPrize,
-          updateSelectedPrize,
-          kakuhenInProgress,
-          latestResult,
-          prizes,
-          emitter
-        ),
-      () => BaseHandler.wait(1),
-      () =>
-        BaseHandler.showPrizeWinningDialogAction(
-          showPrizeWinningDialog,
-          emitter
-        ),
-      () => BaseHandler.closePrizeWinningDialogAction(showPrizeWinningDialog),
-      () =>
-        BaseHandler.showHalfRemainingDialogAction(
-          drawService,
-          showHalfRemainingDialog,
-          emitter
-        ),
-      () =>
-        BaseHandler.closeHalfRemainingDialogAction(
-          showHalfRemainingDialog,
-          emitter
-        ),
-      () =>
-        BaseHandler.showEndDialogAction(
-          showEndDialog,
-          drawService,
-          queue,
-          emitter
-        ),
-      () => BaseHandler.closeEndDialogAction(showEndDialog, emitter),
-    ];
+    const baseActions: (() => Promise<void>)[] = [];
+    baseActions.push(() => BaseHandler.setMemberPhase(drawState));
+    baseActions.push(() =>
+      BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter)
+    );
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() => BaseHandler.stopMemberDraw(memberAnimRef, emitter));
+    baseActions.push(() =>
+      BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter)
+    );
+    baseActions.push(() =>
+      BaseHandler.closeMemberWinnerDialog(showMemberWinnerDialog)
+    );
+    baseActions.push(() => BaseHandler.setPrizePhase(drawState, emitter));
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() =>
+      KakuhenHandler.startKakuhenDummyDraw(
+        preDrawResult,
+        prizes,
+        loadBgmBlob,
+        animationRef,
+        kakuhenInProgress,
+        kakuhenDummyPrize,
+        kakuhenFinalPrize,
+        emitter
+      )
+    );
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() =>
+      KakuhenHandler.stopKakuhenDummyDraw(
+        animationRef,
+        kakuhenDummyPrize,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      KakuhenHandler.showKakuhenMessage(kakuhenMessageVisible, emitter)
+    );
+    baseActions.push(() =>
+      KakuhenHandler.hideKakuhenMessage(kakuhenMessageVisible, emitter)
+    );
+    baseActions.push(() =>
+      KakuhenHandler.closePrizeWinningDialogForKakuhen(
+        showPrizeWinningDialog,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      KakuhenHandler.startKakuhenFinalDraw(
+        kakuhenFinalPrize,
+        loadBgmBlob,
+        animationRef,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      KakuhenHandler.stopKakuhenFinalDraw(
+        animationRef,
+        kakuhenFinalPrize,
+        updateSelectedPrize,
+        kakuhenInProgress,
+        latestResult,
+        prizes,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog, emitter)
+    );
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() =>
+      BaseHandler.closePrizeWinningDialogAction(showPrizeWinningDialog, emitter)
+    );
+    baseActions.push(() =>
+      BaseHandler.showHalfRemainingDialogAction(
+        drawService,
+        showHalfRemainingDialog,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      BaseHandler.closeHalfRemainingDialogAction(
+        showHalfRemainingDialog,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      BaseHandler.showEndDialogAction(
+        showEndDialog,
+        drawService,
+        queue,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      BaseHandler.closeEndDialogAction(showEndDialog, emitter)
+    );
 
     return baseActions;
   }

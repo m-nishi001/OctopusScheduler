@@ -1,4 +1,4 @@
-import type { Component, Ref, Raw } from "vue";
+import type { Ref } from "vue";
 import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
 import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
@@ -36,6 +36,7 @@ export class BaseHandler {
   ) {
     console.log("[DrawOrchestrator] showMemberWinnerDialog");
     showMemberWinnerDialog.value = true;
+    await BaseHandler.wait(1);
     emitter.emit("nextAction");
   }
 
@@ -90,60 +91,12 @@ export class BaseHandler {
   }
 
   static async closePrizeWinningDialogAction(
-    showPrizeWinningDialog: Ref<boolean>
+    showPrizeWinningDialog: Ref<boolean>,
+    emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] closePrizeWinningDialogAction");
     showPrizeWinningDialog.value = false;
-  }
-
-  static async executeDraw(
-    drawService: DrawApplicationService,
-    preDrawResult: Ref<DrawResultDto | null>,
-    latestResult: Ref<DrawResultDto | null>,
-    updateSelectedPrize: (prize: PrizeDto) => void,
-    prizes: Ref<PrizeDto[]>,
-    selectedPrize: Ref<PrizeDto | null>,
-    currentPrizeComponent: Ref<Component>,
-    markRaw: <T extends object>(value: T) => Raw<T>,
-    SlotAnimation: any,
-    RouletteAnimation: any,
-    emitter: Emitter<any>
-  ) {
-    console.log("[DrawOrchestrator] executeDraw");
-    try {
-      const res = await drawService.executeDraw({
-        memberRequestCount: 10,
-        prizeRequestCount: 8,
-      });
-      console.log("[DrawOrchestrator] draw result received", { res });
-      preDrawResult.value = res;
-      latestResult.value = res;
-      latestResult.value.wonPrize = prizes.value.find(
-        (p: PrizeDto) => p.id === res.wonPrize!.id
-      )!;
-      updateSelectedPrize(
-        prizes.value.find((p: PrizeDto) => p.id === res.wonPrize!.id)!
-      );
-      if (selectedPrize.value?.animation === "slot") {
-        currentPrizeComponent.value = markRaw(SlotAnimation as any);
-        console.log("[DrawOrchestrator] selected component: SlotAnimation");
-      } else {
-        currentPrizeComponent.value = markRaw(RouletteAnimation as any);
-        console.log("[DrawOrchestrator] selected component: RouletteAnimation");
-      }
-    } catch (e: any) {
-      console.error("[DrawOrchestrator] draw failed", e);
-      preDrawResult.value = null;
-      latestResult.value = null;
-      try {
-        window.alert(e?.message || String(e));
-      } catch (_) {
-        /* noop */
-      }
-    } finally {
-      console.log("[DrawOrchestrator] executeDraw completed");
-      emitter.emit("nextAction");
-    }
+    emitter.emit("nextAction");
   }
 
   static async showHalfRemainingDialogAction(
@@ -229,10 +182,9 @@ export class BaseHandler {
     emitter.emit("nextAction");
   }
 
-  static async setMemberPhase(drawState: any, emitter: Emitter<any>) {
+  static async setMemberPhase(drawState: any) {
     console.log("[DrawOrchestrator] setMemberPhase");
     drawState.phase = "member";
-    emitter.emit("nextAction");
   }
 
   static async setPrizePhase(drawState: any, emitter: Emitter<any>) {
@@ -261,7 +213,6 @@ export class BaseHandler {
     selectedPrize: Ref<PrizeDto | null>,
     memberAnimRef: Ref<any>,
     animationRef: Ref<any>,
-    latestResult: Ref<DrawResultDto | null>,
     prizes: Ref<PrizeDto[]>,
     showPrizeWinningDialog: Ref<boolean>,
     drawService: DrawApplicationService,
@@ -271,77 +222,70 @@ export class BaseHandler {
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     showMemberWinnerDialog: Ref<boolean>,
     queue: ActionQueue,
-    currentPrizeComponent: Ref<Component>,
-    markRaw: <T extends object>(value: T) => Raw<T>,
-    SlotAnimation: any,
-    RouletteAnimation: any,
     emitter: Emitter<any>,
     drawState: any
   ): (() => Promise<void>)[] {
-    const baseActions = [
-      () =>
-        BaseHandler.executeDraw(
-          drawService,
-          preDrawResult,
-          latestResult,
-          updateSelectedPrize,
-          prizes,
-          selectedPrize,
-          currentPrizeComponent,
-          markRaw,
-          SlotAnimation,
-          RouletteAnimation,
-          emitter
-        ),
-      () => BaseHandler.setMemberPhase(drawState, emitter),
-      () => BaseHandler.wait(1),
-      () => BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter),
-      () => BaseHandler.wait(1),
-      () => BaseHandler.stopMemberDraw(memberAnimRef, emitter),
-      () => BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter),
-      () => BaseHandler.wait(1),
-      () => BaseHandler.setPrizePhase(drawState, emitter),
-      () => BaseHandler.wait(1),
-      () =>
-        BaseHandler.startPrizeDraw(
-          preDrawResult,
-          updateSelectedPrize,
-          prizes,
-          loadBgmBlob,
-          selectedPrize,
-          animationRef,
-          emitter
-        ),
-      () => BaseHandler.wait(1),
-      () => BaseHandler.stopPrizeDraw(selectedPrize, animationRef, emitter),
-      () =>
-        BaseHandler.showPrizeWinningDialogAction(
-          showPrizeWinningDialog,
-          emitter
-        ),
-      () => BaseHandler.wait(1),
-      () =>
-        BaseHandler.closePrizeWinningDialog(showPrizeWinningDialog, emitter),
-      () =>
-        BaseHandler.showHalfRemainingDialogAction(
-          drawService,
-          showHalfRemainingDialog,
-          emitter
-        ),
-      () =>
-        BaseHandler.closeHalfRemainingDialogAction(
-          showHalfRemainingDialog,
-          emitter
-        ),
-      () =>
-        BaseHandler.showEndDialogAction(
-          showEndDialog,
-          drawService,
-          queue,
-          emitter
-        ),
-      () => BaseHandler.closeEndDialogAction(showEndDialog, emitter),
-    ];
+    const baseActions: (() => Promise<void>)[] = [];
+    baseActions.push(() => BaseHandler.setMemberPhase(drawState));
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() =>
+      BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter)
+    );
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() => BaseHandler.stopMemberDraw(memberAnimRef, emitter));
+    baseActions.push(() =>
+      BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter)
+    );
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() => BaseHandler.setPrizePhase(drawState, emitter));
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() =>
+      BaseHandler.startPrizeDraw(
+        preDrawResult,
+        updateSelectedPrize,
+        prizes,
+        loadBgmBlob,
+        selectedPrize,
+        animationRef,
+        emitter
+      )
+    );
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() =>
+      BaseHandler.stopPrizeDraw(selectedPrize, animationRef, emitter)
+    );
+    baseActions.push(() =>
+      BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog, emitter)
+    );
+    baseActions.push(() => BaseHandler.wait(1));
+    baseActions.push(() =>
+      BaseHandler.closePrizeWinningDialog(showPrizeWinningDialog, emitter)
+    );
+    baseActions.push(() =>
+      BaseHandler.showHalfRemainingDialogAction(
+        drawService,
+        showHalfRemainingDialog,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      BaseHandler.closeHalfRemainingDialogAction(
+        showHalfRemainingDialog,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      BaseHandler.showEndDialogAction(
+        showEndDialog,
+        drawService,
+        queue,
+        emitter
+      )
+    );
+    baseActions.push(() =>
+      BaseHandler.closeEndDialogAction(showEndDialog, emitter)
+    );
+
     return baseActions;
   }
 }
