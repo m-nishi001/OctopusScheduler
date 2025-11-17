@@ -118,8 +118,8 @@ export class BaseHandler {
         console.log(
           "[DrawOrchestrator] half-remaining condition met after delay"
         );
-        await BaseHandler.wait(3);
         showHalfRemainingDialog.value = true;
+        await BaseHandler.wait(3);
       } else {
         console.log(
           "[DrawOrchestrator] half-remaining condition not met after delay",
@@ -272,12 +272,6 @@ export class BaseHandler {
     baseActions.push(() =>
       BaseHandler.showHalfRemainingDialogAction(
         drawService,
-        showHalfRemainingDialog,
-        emitter
-      )
-    );
-    baseActions.push(() =>
-      BaseHandler.closeHalfRemainingDialogAction(
         showHalfRemainingDialog,
         emitter
       )
