@@ -7,6 +7,7 @@ import { BaseHandler } from "./base-handler";
 import { type Emitter } from "mitt";
 
 export class KakuhenHandler {
+  private static _prevPrize: PrizeDto | null = null;
   static getActions(
     preDrawResult: Ref<DrawResultDto | null>,
     memberAnimRef: Ref<any>,
@@ -66,7 +67,12 @@ export class KakuhenHandler {
       )
     );
     baseActions.push(() =>
-      KakuhenHandler.showDummyPrizeDialogAction(showPrizeWinningDialog, emitter)
+      KakuhenHandler.showDummyPrizeDialogAction(
+        showPrizeWinningDialog,
+        latestResult,
+        kakuhenDummyPrize,
+        emitter
+      )
     );
     baseActions.push(() =>
       KakuhenHandler.showKakuhenMessage(kakuhenMessageVisible, emitter)
@@ -77,6 +83,7 @@ export class KakuhenHandler {
     baseActions.push(() =>
       KakuhenHandler.closeDummyPrizeDialogAction(
         showPrizeWinningDialog,
+        latestResult,
         emitter
       )
     );
@@ -203,9 +210,19 @@ export class KakuhenHandler {
 
   static async showDummyPrizeDialogAction(
     showDummyPrizeDialog: Ref<boolean>,
+    latestResult: Ref<DrawResultDto | null>,
+    kakuhenDummyPrize: Ref<PrizeDto | null>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] showDummyPrizeDialogAction");
+    // store previous prize so we can restore it later
+    KakuhenHandler._prevPrize = latestResult.value
+      ? latestResult.value.wonPrize
+      : null;
+    // set the dummy prize for display in the prize dialog
+    if (latestResult.value) {
+      latestResult.value.wonPrize = kakuhenDummyPrize.value || null;
+    }
     showDummyPrizeDialog.value = true;
     await new Promise((r) => setTimeout(r, 3000));
     emitter.emit("nextAction");
@@ -213,10 +230,16 @@ export class KakuhenHandler {
 
   static async closeDummyPrizeDialogAction(
     showDummyPrizeDialog: Ref<boolean>,
+    latestResult: Ref<DrawResultDto | null>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] closeDummyPrizeDialogAction");
     showDummyPrizeDialog.value = false;
+    // restore previously stored prize
+    if (latestResult.value) {
+      latestResult.value.wonPrize = KakuhenHandler._prevPrize || null;
+    }
+    KakuhenHandler._prevPrize = null;
     emitter.emit("nextAction");
   }
 
