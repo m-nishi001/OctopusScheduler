@@ -27,6 +27,7 @@ import { IMemberRepositoryToken } from '../../model/domains/member/repository/i-
 import { IPrizeRepositoryToken } from '../../model/domains/prize/repository/i-prize-repository';
 import type { IMemberRepository } from '../../model/domains/member/repository/i-member-repository';
 import type { IPrizeRepository } from '../../model/domains/prize/repository/i-prize-repository';
+import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
 
 const domains = reactive([
     { id: 'members', label: 'メンバー設定', progress: 0, message: '準備中...', running: false },
@@ -59,9 +60,7 @@ async function syncMembers() {
             return;
         }
 
-        const mod = await import('packages/common-lib/google-apps-script/gas-script-service');
-        const GasFn = mod.GasFunctionService;
-        const service = new GasFn('getJson');
+        const service = new GasFunctionService('getJson');
         const resp = await service.call<any>(lastId);
         if (resp && resp.json) {
             updateDomain(id, { message: 'ダウンロード完了、保存中...', progress: 80 });
@@ -96,9 +95,7 @@ async function syncPrizes() {
             updateDomain(id, { message: 'Drive 上の景品ファイルが見つかりません', progress: 100 });
             return;
         }
-        const mod = await import('packages/common-lib/google-apps-script/gas-script-service');
-        const GasFn = mod.GasFunctionService;
-        const service = new GasFn('getJson');
+        const service = new GasFunctionService('getJson');
         const resp = await service.call<any>(lastId);
         if (resp && resp.json) {
             updateDomain(id, { message: 'ダウンロード完了、保存中...', progress: 80 });
