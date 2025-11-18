@@ -1133,15 +1133,77 @@ const performReplaceFromDrive = async () => {
   pendingSyncMode.value = null;
   syncing.value = true;
   syncMessage.value = "";
-  try {
+    try {
+      // Before replacing local assets, build a map of existing asset signature -> id
+      // so we can attempt to restore prize references after replacement.
+      const oldAssets = await assetDataService.getAllAssetData();
+      const oldSignatureToId = new Map<string, string>();
+      for (const a of oldAssets) {
+        const sig = `${a.name}:${a.size}`;
+        oldSignatureToId.set(sig, a.id);
+      }
 
-    if (typeof (assetDataService as any).replaceLocalWithDrive === 'function') {
-      await (assetDataService as any).replaceLocalWithDrive((message: string) => { syncMessage.value = message; });
-    } else {
+      let idMap: { [oldId: string]: string } | undefined;
+      if (typeof (assetDataService as any).replaceLocalWithDrive === 'function') {
+        const res = await (assetDataService as any).replaceLocalWithDrive((message: string) => { syncMessage.value = message; });
+        idMap = res?.idMap;
+      } else {
+        await downloadPrizesJsonFromDrive();
+      }
 
-      await downloadPrizesJsonFromDrive();
-    }
-    await fetchPrizes();
+      // After replace, fetch new assets and build signature -> id map
+      await fetchAssets();
+      const newAssets = assets.value || [];
+      const newSignatureToId = new Map<string, string>();
+      for (const a of newAssets) {
+        const sig = `${a.name}:${a.size}`;
+        newSignatureToId.set(sig, a.id);
+      }
+
+      // If replaceLocalWithDrive returned an idMap of oldId->newId, use it
+      // directly for prize updates, otherwise use signature heuristics.
+      const existingPrizes = await prizeRepo.getPrizes();
+      const updatedPrizes: any[] = [];
+      for (const p of existingPrizes) {
+        let updated = false;
+        const updatedPrize = { ...p } as any;
+        const checkAndReplace = (field: string) => {
+          const currentId = (updatedPrize as any)[field];
+          if (!currentId) return;
+          if (idMap && idMap[currentId]) {
+            (updatedPrize as any)[field] = idMap[currentId];
+            updated = true;
+            return;
+          }
+          // fallback: try signature based mapping
+          const old = oldAssets.find((o: any) => o.id === currentId);
+          if (!old) return;
+          const sig = `${old.name}:${old.size}`;
+          const newId = newSignatureToId.get(sig);
+          if (newId && newId !== currentId) {
+            (updatedPrize as any)[field] = newId;
+            updated = true;
+          }
+        };
+        checkAndReplace('imageAssetId');
+        checkAndReplace('image2AssetId');
+        checkAndReplace('bgm1AssetId');
+        checkAndReplace('bgm2AssetId');
+        if (updated) {
+          // persist updated prize replacing previous
+          try {
+            await prizeService.updatePrize(updatedPrize.id, updatedPrize);
+            updatedPrizes.push(updatedPrize);
+          } catch (e) {
+            console.warn('performReplaceFromDrive: failed to update prize', updatedPrize.id, e);
+          }
+        }
+      }
+      if (updatedPrizes.length) {
+        console.log('performReplaceFromDrive: updated prizes to new asset ids', updatedPrizes.map(p => p.id));
+      }
+
+      await fetchPrizes();
   } catch (error) {
     console.error('同期エラー:', error);
   } finally {

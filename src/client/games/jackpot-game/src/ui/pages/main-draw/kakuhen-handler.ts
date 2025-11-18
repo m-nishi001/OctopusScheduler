@@ -215,8 +215,13 @@ export class KakuhenHandler {
     // wait a short moment for the animation component to update its internal items
     // (convertToInternal) so the stopSpin call below can find the duplicated sector occurrences
     await new Promise((r) => setTimeout(r, 60));
-    const bgm1Blob = await loadBgmBlob(
-      kakuhenFinalPrize.value?.bgm1AssetId || null
+    const bgm1AssetId = kakuhenFinalPrize.value?.bgm1AssetId || null;
+    const bgm1Blob = await loadBgmBlob(bgm1AssetId);
+    console.log(
+      "[KakuhenHandler] startKakuhenDummyDraw: bgm1AssetId=",
+      bgm1AssetId,
+      "loadedBGM=",
+      bgm1Blob ? { size: bgm1Blob.size, type: bgm1Blob.type } : null
     );
     kakuhenInProgress.value = true;
     if (animationRef.value?.startSpin) {
@@ -305,8 +310,13 @@ export class KakuhenHandler {
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] startKakuhenFinalDraw");
-    const bgm2Blob = await loadBgmBlob(
-      kakuhenFinalPrize.value?.bgm2AssetId || null
+    const bgm2AssetId = kakuhenFinalPrize.value?.bgm2AssetId || null;
+    const bgm2Blob = await loadBgmBlob(bgm2AssetId);
+    console.log(
+      "[KakuhenHandler] startKakuhenFinalDraw: bgm2AssetId=",
+      bgm2AssetId,
+      "loadedBGM=",
+      bgm2Blob ? { size: bgm2Blob.size, type: bgm2Blob.type } : null
     );
     if (animationRef.value?.startSpin) {
       animationRef.value.startSpin(bgm2Blob);

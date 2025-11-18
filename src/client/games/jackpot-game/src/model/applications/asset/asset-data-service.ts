@@ -44,12 +44,23 @@ export class AssetDataService {
 
   async replaceLocalWithDrive(
     onProgress?: (message: string) => void
-  ): Promise<{ replaced: number }> {
+  ): Promise<{ replaced: number; idMap?: { [oldId: string]: string } }> {
     return await this.repo.replaceLocalWithDrive(onProgress);
   }
 
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {
     const now = new Date().toISOString();
-    return new Asset("", file.type, file.name, now, now, file.size ?? 0, file);
+    const normalizedName = (file.name || "").normalize
+      ? (file.name || "").normalize("NFC")
+      : file.name || "";
+    return new Asset(
+      "",
+      file.type,
+      normalizedName,
+      now,
+      now,
+      file.size ?? 0,
+      file
+    );
   }
 }

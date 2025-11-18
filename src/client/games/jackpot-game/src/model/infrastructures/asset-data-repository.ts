@@ -21,7 +21,10 @@ export class AssetDataRepository implements IAssetDataRepository {
   async addAssetData(driveData: Asset[]): Promise<Asset[]> {
     const result: Asset[] = [];
     for (const dto of driveData) {
-      const id = crypto.randomUUID();
+      // Preserve incoming id when present (e.g. imported drive data), otherwise
+      // generate a random UUID for new uploads produced on the client.
+      const id =
+        dto.id && dto.id.trim().length > 0 ? dto.id : crypto.randomUUID();
       const uploadedAt = dto.uploadedAt ?? new Date().toISOString();
       const lastUpdated = dto.lastUpdated ?? new Date().toISOString();
 
@@ -299,16 +302,36 @@ export class AssetDataRepository implements IAssetDataRepository {
     const assets = await this.fetchDriveAssets(neededMetas, onProgress);
 
     try {
+      // Build a mapping from previous local asset IDs to new asset IDs based
+      // on a simple signature: name:size. This helps callers update references
+      // (e.g. prize asset ids) if necessary.
+      const idMap: { [oldId: string]: string } = {};
+      const localAssetsMap = await this.localStorage.getAll<Asset>();
+      const nameSizeToId = new Map<string, string>();
+      for (const [k, v] of localAssetsMap) {
+        nameSizeToId.set(
+          `${(v as Asset).name}:${(v as Asset).size}`,
+          String(k)
+        );
+      }
+
+      for (const a of assets) {
+        const sig = `${a.name}:${a.size}`;
+        const existingOldId = nameSizeToId.get(sig);
+        if (existingOldId && existingOldId !== a.id) {
+          idMap[existingOldId] = a.id;
+        }
+      }
+
       await this.localStorage.clear();
       for (const a of assets) {
         await this.localStorage.save(a.id, a);
       }
+      onProgress?.(`Replaced local assets: ${assets.length}`);
+      return { replaced: assets.length, idMap };
     } catch (e) {
       onProgress?.(`Failed to save local assets: ${(e as Error).message}`);
-      return { replaced: 0 };
+      return { replaced: 0, idMap: {} };
     }
-
-    onProgress?.(`Replaced local assets: ${assets.length}`);
-    return { replaced: assets.length };
   }
 }

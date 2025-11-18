@@ -80,8 +80,25 @@ export function useDrawOrchestrator() {
   const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
     if (!assetId) return null;
     try {
+      console.log(
+        "[DrawOrchestrator] loadBgmBlob: requesting assetId=",
+        assetId
+      );
       const asset = await assetService.getAssetDataById(assetId);
-      return asset?.blob || null;
+      if (!asset) {
+        console.warn(
+          "[DrawOrchestrator] loadBgmBlob: asset not found for id=",
+          assetId
+        );
+        return null;
+      }
+      console.log("[DrawOrchestrator] loadBgmBlob: found asset", {
+        id: asset.id,
+        name: asset.name,
+        mime: asset.type,
+        size: asset.size,
+      });
+      return asset.blob || null;
     } catch (e) {
       console.log("[DrawOrchestrator] loadBgmBlob failed", e);
       return null;

@@ -140,6 +140,8 @@ import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import type { Asset } from '@model/domains/drive-data/asset-data';
 import { container } from 'tsyringe';
+import { IPrizeRepositoryToken } from '@model/domains/prize/repository/i-prize-repository';
+import { PrizeService } from '@model/applications/prize/prize-service';
 
 function formatSize(size: number): string {
     if (size < 1024) return `${size} B`;
@@ -405,10 +407,41 @@ const performReplaceFromDrive = async () => {
     syncing.value = true;
     syncMessage.value = "";
     try {
-        await assetDataService.replaceLocalWithDrive((message) => {
+        const res = await assetDataService.replaceLocalWithDrive((message) => {
             syncMessage.value = message;
         });
         await fetchAssets();
+
+        // If replace returned an idMap, update prizes and member photo references
+        const idMap = (res as any)?.idMap as { [oldId: string]: string } | undefined;
+        if (idMap && Object.keys(idMap).length > 0) {
+            const prizeRepo = container.resolve<any>(IPrizeRepositoryToken as any);
+            // Update prizes
+            try {
+                const existingPrizes = await prizeRepo.getPrizes();
+                for (const p of existingPrizes) {
+                    let updated = false;
+                    const updatedP = { ...p } as any;
+                    ['imageAssetId', 'image2AssetId', 'bgm1AssetId', 'bgm2AssetId'].forEach(field => {
+                        const id = updatedP[field];
+                        if (id && idMap[id]) {
+                            updatedP[field] = idMap[id];
+                            updated = true;
+                        }
+                    });
+                    if (updated) {
+                        try {
+                            const prizeService = container.resolve(PrizeService);
+                            await prizeService.updatePrize(updatedP.id, updatedP as any);
+                        } catch (e) {
+                            console.warn('admin-assets: failed to update prize after asset replace', updatedP.id, e);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('admin-assets: failed to update prizes mapping after asset replace', e);
+            }
+        }
     } catch (error) {
         console.error('同期エラー:', error);
     } finally {

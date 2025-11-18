@@ -49,7 +49,17 @@ export function useRouletteAnimation(
     accelDuration: number = 1,
     targetSpeed: number = 16
   ) => {
-    await startBgm(bgmUrl);
+    try {
+      await startBgm(bgmUrl);
+      console.log(
+        "[RouletteAnimation] startSpin: bgm loaded",
+        bgmUrl ? { size: bgmUrl.size, type: bgmUrl.type } : null
+      );
+    } catch (e) {
+      console.warn("[RouletteAnimation] startSpin: failed to load bgm", e);
+      // rethrow to preserve original behavior where startSpin rejects when startBgm fails
+      throw e;
+    }
     await animator.startSpin(accelDuration, targetSpeed);
   };
 

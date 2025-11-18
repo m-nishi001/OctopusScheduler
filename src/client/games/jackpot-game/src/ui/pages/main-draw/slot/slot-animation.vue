@@ -49,6 +49,7 @@ export default {
         const itemHeight = 60;
 
         const startSpin = async (bgmUrl?: Blob | null) => {
+            console.log('[SlotAnimation] startSpin: bgmUrl=', bgmUrl ? { size: bgmUrl.size, type: bgmUrl.type } : null);
             if (bgmUrl) {
                 try {
                     await stopBgm();

@@ -63,6 +63,12 @@ export class BaseHandler {
       prizes.value.find((p: PrizeDto) => p.id === winnerPrizeId)!
     );
     const bgmBlob = await loadBgmBlob(selectedPrize.value!.bgm1AssetId || null);
+    console.log(
+      "[DrawOrchestrator] startPrizeDraw: selectedPrize.bgm1AssetId=",
+      selectedPrize.value!.bgm1AssetId,
+      "loadedBGM=",
+      bgmBlob ? { size: bgmBlob.size, type: bgmBlob.type } : null
+    );
     if (animationRef.value?.startSpin) {
       animationRef.value.startSpin(bgmBlob);
     }

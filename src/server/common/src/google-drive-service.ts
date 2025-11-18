@@ -182,7 +182,12 @@ export class GoogleDriveService {
   ) {
     const folder = DriveApp.getFolderById(folderId);
     const file = folder.createFile(blob);
-    file.setName(`${driveDataId}_${fileName}`);
+    // ensure fileName uses consistent Unicode normalization (NFC) to avoid mismatches
+    const nameToSet =
+      typeof (fileName as any).normalize === "function"
+        ? (fileName as string).normalize("NFC")
+        : fileName;
+    file.setName(`${driveDataId}_${nameToSet}`);
     return file;
   }
 
@@ -224,11 +229,19 @@ export class GoogleDriveService {
       file.setTrashed(true);
       if (parent) {
         const newFile = parent.createFile(blob);
-        newFile.setName(`${driveDataId}_${fileName}`);
+        const nameToSet =
+          typeof (fileName as any).normalize === "function"
+            ? (fileName as string).normalize("NFC")
+            : fileName;
+        newFile.setName(`${driveDataId}_${nameToSet}`);
       } else {
         // fallback: replace content
         file.setContent(blob.getDataAsString());
-        file.setName(`${driveDataId}_${fileName}`);
+        const nameToSet =
+          typeof (fileName as any).normalize === "function"
+            ? (fileName as string).normalize("NFC")
+            : fileName;
+        file.setName(`${driveDataId}_${nameToSet}`);
       }
     } catch (e) {
       // rethrow to caller

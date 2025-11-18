@@ -93,6 +93,13 @@ export function useRouletteAnimationState(
     return newPrepared;
   };
 
+  const preparePrizes = async (newPrizes: PrizeDto[]) => {
+    const newPrepared = await prepareRenderPrizes(newPrizes, assetService);
+    revokePreparedPrizes(preparedPrizes.value);
+    preparedPrizes.value = newPrepared;
+    return newPrepared;
+  };
+
   const updateSelectedPrize = (newSelected: PrizeDto) => {
     selectedPrize.value = newSelected;
   };
