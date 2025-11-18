@@ -5,7 +5,6 @@ import { IAssetRepositoryToken } from "../../model/domains/assets/repository/ass
 import { container } from "tsyringe";
 import { ScheduleEventService } from "../../model/applications/schedule-event/schedule-event-service";
 import { AssetService } from "../../model/applications/assets/asset-service";
-import { EventPollingService } from "../../model/applications/event-polling-service";
 import { IScheduleEventConverterToken } from "../../model/domains/schedule-event/i-schedule-event-converter";
 import { ShowContentEventConverter } from "../../model/domains/schedule-event/show-content/show-content-event-converter";
 import { PlayAudioEventConverter } from "../../model/domains/schedule-event/play-audio/play-audio-event-converter";
@@ -28,7 +27,6 @@ export class Container {
     container.register(ScheduleEventService, {
       useClass: ScheduleEventService,
     });
-    container.registerSingleton(EventPollingService, EventPollingService);
     container.register(IScheduleEventConverterToken, {
       useClass: ShowContentEventConverter,
     });
