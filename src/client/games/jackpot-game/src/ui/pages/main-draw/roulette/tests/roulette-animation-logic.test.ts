@@ -221,7 +221,8 @@ describe("useRouletteAnimation - full coverage", () => {
       "p1",
       expect.any(Array),
       expect.any(Number),
-      3
+      3,
+      1
     );
     expect(audio.stopBgmAudio).toHaveBeenCalled();
     expect(result).toBe("p1");

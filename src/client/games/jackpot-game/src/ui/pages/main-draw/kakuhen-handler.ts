@@ -6,8 +6,22 @@ import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
 import { type Emitter } from "mitt";
 
+/**
+ * KakuhenHandler orchestrates the two-step "確変" animation sequence.
+ *
+ * New behavior (2025-11-18):
+ * - The UI shows two roulette sectors for the same prize (same id), but
+ *   with different images: the first sector uses the prize's imageAssetId (画像1),
+ *   the second sector uses the prize's image2AssetId (画像2).
+ * - The two spins both target the same prize id, but the first targets occurrence=1
+ *   (the first duplicated sector) and the second targets occurrence=2.
+ * - No random dummy prize is selected; the dummy display is actually the same prize
+ *   presented with image1 to give a different visual impression.
+ */
 export class KakuhenHandler {
   private static _prevPrize: PrizeDto | null = null;
+  private static _prevPrizes: PrizeDto[] | null = null;
+  private static _kakuhenPrepared: any[] | null = null;
   static getActions(
     preDrawResult: Ref<DrawResultDto | null>,
     memberAnimRef: Ref<any>,
@@ -27,7 +41,8 @@ export class KakuhenHandler {
     showMemberWinnerDialog: Ref<boolean>,
     queue: ActionQueue,
     emitter: Emitter<any>,
-    drawState: any
+    drawState: any,
+    preparePrizes: (newPrizes: PrizeDto[]) => Promise<import("./roulette/roulette-image-loader").RouletteItem[]>
   ): (() => Promise<void>)[] {
     const baseActions: (() => Promise<void>)[] = [];
     baseActions.push(() => BaseHandler.setMemberPhase(drawState, emitter));
@@ -55,6 +70,7 @@ export class KakuhenHandler {
         kakuhenInProgress,
         kakuhenDummyPrize,
         kakuhenFinalPrize,
+        preparePrizes,
         emitter
       )
     );
@@ -102,7 +118,7 @@ export class KakuhenHandler {
         updateSelectedPrize,
         kakuhenInProgress,
         latestResult,
-        prizes,
+        updatePrizes,
         emitter
       )
     );
@@ -149,23 +165,46 @@ export class KakuhenHandler {
     kakuhenInProgress: Ref<boolean>,
     kakuhenDummyPrize: Ref<PrizeDto | null>,
     kakuhenFinalPrize: Ref<PrizeDto | null>,
+    preparePrizes: (newPrizes: PrizeDto[]) => Promise<import("./roulette/roulette-image-loader").RouletteItem[]>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] startKakuhenDummyDraw");
     const res = preDrawResult.value!;
     const finalPrizeId = res.wonPrize!.id;
-    kakuhenFinalPrize.value = prizes.value.find(
-      (p: PrizeDto) => p.id === finalPrizeId
-    )!;
-    const dummyCandidates = prizes.value.filter(
-      (p: PrizeDto) => p.id !== finalPrizeId
-    );
-    kakuhenDummyPrize.value = dummyCandidates.length
-      ? dummyCandidates[Math.floor(Math.random() * dummyCandidates.length)]
-      : null;
-    const bgm1Blob = await loadBgmBlob(
-      kakuhenDummyPrize.value?.bgm1AssetId || null
-    );
+    // note: kakuhenFinalPrize.value will be set to the second clone below
+    // store previous prizes so we can restore it later
+    KakuhenHandler._prevPrizes = prizes.value.slice();
+    // For kakuhen, duplicate the final prize entry so it appears twice on the wheel
+    // first occurrence will display imageAssetId (画像1)
+    // second occurrence will display image2AssetId (画像2)
+    const newPrizes: PrizeDto[] = [];
+    for (const p of prizes.value) {
+      if (p.id === finalPrizeId) {
+        // create distinct visual ids for the two duplicate sectors
+        const firstClone = { ...p, id: `${p.id}__k1`, imageAssetId: p.imageAssetId, originalPrizeId: p.id } as PrizeDto & { originalPrizeId: string };
+        const secondClone = { ...p, id: `${p.id}__k2`, imageAssetId: p.image2AssetId || p.imageAssetId, originalPrizeId: p.id } as PrizeDto & { originalPrizeId: string };
+        newPrizes.push(firstClone);
+        newPrizes.push(secondClone);
+        kakuhenDummyPrize.value = firstClone;
+        kakuhenFinalPrize.value = secondClone;
+      } else {
+        newPrizes.push(p);
+      }
+    }
+        const prepared = await preparePrizes(newPrizes);
+      KakuhenHandler._kakuhenPrepared = prepared as any;
+    // also ensure the animation internal items are updated if animationRef exposes updatePrizes
+    try {
+      if (animationRef.value?.updatePrizes && prepared) {
+        await animationRef.value.updatePrizes(prepared);
+      }
+    } catch (e) {
+      console.warn("Failed to update animationRef prepared items directly", e);
+    }
+    // wait a short moment for the animation component to update its internal items
+    // (convertToInternal) so the stopSpin call below can find the duplicated sector occurrences
+    await new Promise((r) => setTimeout(r, 60));
+    const bgm1Blob = await loadBgmBlob(kakuhenFinalPrize.value?.bgm1AssetId || null);
     kakuhenInProgress.value = true;
     if (animationRef.value?.startSpin) {
       animationRef.value.startSpin(bgm1Blob);
@@ -181,9 +220,11 @@ export class KakuhenHandler {
     console.log("[DrawOrchestrator] stopKakuhenDummyDraw");
     const dummyDurationMs = 2000;
     if (animationRef.value?.stopSpin) {
+      // stopSpin occurrence=1 => land on the first occurrence (画像1)
       await animationRef.value.stopSpin(
         dummyDurationMs / 1000,
-        kakuhenDummyPrize.value?.id || null
+        kakuhenDummyPrize.value?.id || null,
+        1
       );
     }
     emitter.emit("nextAction");
@@ -221,6 +262,7 @@ export class KakuhenHandler {
       : null;
     // set the dummy prize for display in the prize dialog
     if (latestResult.value) {
+      // show the clone (画像1) in the dialog by storing a copy
       latestResult.value.wonPrize = kakuhenDummyPrize.value || null;
     }
     showDummyPrizeDialog.value = true;
@@ -266,22 +308,91 @@ export class KakuhenHandler {
     updateSelectedPrize: (prize: PrizeDto) => void,
     kakuhenInProgress: Ref<boolean>,
     latestResult: Ref<DrawResultDto | null>,
-    prizes: Ref<PrizeDto[]>,
+    preparePrizes: (newPrizes: PrizeDto[]) => Promise<import("./roulette/roulette-image-loader").RouletteItem[]>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopKakuhenFinalDraw");
     const finalDurationMs = 5000;
     if (animationRef.value?.stopSpin) {
-      await animationRef.value.stopSpin(
-        finalDurationMs / 1000,
-        kakuhenFinalPrize.value!.id
-      );
+      try {
+        // Ensure animator internal items are in sync and log for diagnostics.
+        let internalItems: any[] | undefined;
+        // synchronize animator's internal items and capture them for candidate checks
+        try {
+          if (animationRef.value?.updatePrizes) {
+            if (KakuhenHandler._kakuhenPrepared) {
+              await animationRef.value.updatePrizes(KakuhenHandler._kakuhenPrepared);
+            } else if (KakuhenHandler._prevPrizes) {
+              const restoredPrepared = await preparePrizes(KakuhenHandler._prevPrizes || []);
+              await animationRef.value.updatePrizes(restoredPrepared);
+            }
+          }
+          if (animationRef.value?.getInternalItems) {
+            internalItems = animationRef.value.getInternalItems();
+          }
+        } catch (e) {
+          // Ignore; it's best-effort and we do not change flow
+        }
+
+        // If internalItems available, check whether there are matching entries
+        if (internalItems) {
+          const candidates = internalItems.filter(
+            (it) => it.id === kakuhenFinalPrize.value!.id
+          );
+          if (candidates.length === 0) {
+            console.warn(
+              "KakuhenHandler: no candidates for final prize id in internal items; falling back to last item",
+              internalItems.map((i) => ({ id: i.id, name: i.name }))
+            );
+            const fallback = internalItems[internalItems.length - 1];
+            await animationRef.value.stopSpin(finalDurationMs / 1000, fallback.id, 1);
+          } else {
+            await animationRef.value.stopSpin(
+              finalDurationMs / 1000,
+              kakuhenFinalPrize.value!.id,
+              2
+            );
+          }
+        } else {
+          // fallback: just try to stop with the id and occurrence=2 (original flow)
+          await animationRef.value.stopSpin(
+            finalDurationMs / 1000,
+            kakuhenFinalPrize.value!.id,
+            2
+          );
+        }
+      } catch (e) {
+        console.warn("KakuhenHandler: stopKakuhenFinalDraw stopSpin failed", e);
+        // rethrow to be handled by outer executor
+        throw e;
+      }
     }
-    updateSelectedPrize(kakuhenFinalPrize.value!);
     kakuhenInProgress.value = false;
-    latestResult.value!.wonPrize = prizes.value.find(
-      (p: PrizeDto) => p.id === kakuhenFinalPrize.value!.id
-    )!;
+    // restore original prizes (remove duplicate entries)
+    if (KakuhenHandler._prevPrizes) {
+      const restoredPrepared = await preparePrizes(KakuhenHandler._prevPrizes);
+      try {
+        if (animationRef.value?.updatePrizes && restoredPrepared) {
+          await animationRef.value.updatePrizes(restoredPrepared);
+        }
+      } catch (e) {
+        console.warn('Failed to update animationRef prepared items on restore', e);
+      }
+      // set selectedPrize based on restored prizes
+      const restored = KakuhenHandler._prevPrizes.find(
+        (p: PrizeDto) =>
+          p.id === ((kakuhenFinalPrize.value as any).originalPrizeId ||
+            kakuhenFinalPrize.value!.id)
+      )!;
+      updateSelectedPrize(restored);
+      // show final image (画像2) in the final prize dialog, but keep selectedPrize as original restored prize.
+      latestResult.value!.wonPrize = {
+        ...restored,
+        imageAssetId: restored.image2AssetId || restored.imageAssetId,
+      } as PrizeDto;
+        KakuhenHandler._prevPrizes = null;
+        KakuhenHandler._kakuhenPrepared = null;
+    }
     emitter.emit("nextAction");
   }
 }

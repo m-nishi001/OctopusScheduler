@@ -1,11 +1,13 @@
 export type RouletteItem = {
-  id: string;
+  id: string; // visual id for the rotation sector
+  prizeId?: string; // original prize id for backend match
   name: string;
   imageUrl?: string;
 };
 
 export interface InternalRouletteItem {
   id: string;
+  prizeId?: string;
   name: string;
   imageElement: HTMLImageElement;
   index: number;
@@ -36,6 +38,7 @@ export async function convertToInternal(
     const imageElement = await load(candidateSrc);
     return {
       id: prize.id,
+      prizeId: (prize as any).prizeId ?? prize.id,
       name: prize.name,
       imageElement,
       index,

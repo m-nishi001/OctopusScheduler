@@ -36,9 +36,10 @@ export function useRouletteAnimation(
 
   const animator = useRouletteAnimator(opts, drawCallback);
 
-  async function updateRouletteItems(prizes: RouletteItem[]) {
+  async function updateRouletteItems(prizes: RouletteItem[]): Promise<InternalRouletteItem[]> {
     currentRouletteItems = await convertToInternal(prizes);
     drawCallback(0); // initial draw
+    return currentRouletteItems;
   }
 
   const startSpin = async (
@@ -52,7 +53,8 @@ export function useRouletteAnimation(
 
   const stopSpin = async (
     durationSec?: number,
-    targetPrizeId?: string | null
+    targetPrizeId?: string | null,
+    occurrence: number = 1
   ): Promise<string | null> => {
     const targetId = targetPrizeId || null;
     if (!targetId) {
@@ -66,7 +68,8 @@ export function useRouletteAnimation(
       targetId,
       currentRouletteItems,
       sectorAngle,
-      durationSec || 3
+      durationSec || 3,
+      occurrence
     );
 
     console.log("Stopping BGM audio");
@@ -104,5 +107,6 @@ export function useRouletteAnimation(
     stopSpin,
     spinning: animator.spinning,
     updatePrizes: updateRouletteItems,
+    getInternalItems: () => currentRouletteItems.slice(),
   };
 }

@@ -74,18 +74,29 @@ export function useRouletteAnimator(
     targetRouletteItemId: string,
     currentRouletteItems: InternalRouletteItem[],
     sectorAngle: number,
-    duration: number = 3
+    duration: number = 3,
+    occurrence: number = 1
   ): Promise<string | null> => {
     if (duration <= 0) {
       throw new Error("Duration must be positive");
     }
 
-    const finalPrize = currentRouletteItems.find(
-      (p) => p.id === targetRouletteItemId
-    );
+    if (occurrence <= 0) {
+      throw new Error("occurrence must be >= 1");
+    }
 
-    if (!finalPrize) {
+    const candidates = currentRouletteItems.filter(
+      (item) => item.id === targetRouletteItemId || (item as any).prizeId === targetRouletteItemId
+    );
+    if (candidates.length === 0) {
       throw new Error("Target prize not found");
+    }
+    let finalPrize = candidates.at(occurrence - 1) as
+      | InternalRouletteItem
+      | undefined;
+    // If requested occurrence doesn't exist, fallback to the last occurrence
+    if (!finalPrize) {
+      finalPrize = candidates[candidates.length - 1];
     }
 
     const targetAngle = calculateTargetRotation(finalPrize.index, sectorAngle);

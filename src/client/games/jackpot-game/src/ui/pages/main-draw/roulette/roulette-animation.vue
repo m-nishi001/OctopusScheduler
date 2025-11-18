@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, onMounted } from 'vue';
+import { defineComponent, computed, onMounted, watch } from 'vue';
 import { useRouletteAnimation, type RouletteItem, type RouletteAnimationProps } from './roulette-animation-logic';
 import { useRouletteAnimationState } from '../prize-animation-state';
 import { container } from 'tsyringe';
@@ -29,7 +29,7 @@ export default defineComponent({
             showResult: stateShowResult,
             preparedPrizes: statePreparedPrizes,
             canStop: stateCanStop,
-            updatePrizes: stateUpdatePrizes,
+            preparePrizes: statePreparePrizes,
             setCanStop,
         } = useRouletteAnimationState(
             props.prizes,
@@ -44,23 +44,44 @@ export default defineComponent({
             showResult: stateShowResult.value,
         };
 
-        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes } = useRouletteAnimation(
+        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes, getInternalItems } = useRouletteAnimation(
             rouletteProps
         );
 
-        const stopSpin = async (durationSec?: number, targetPrizeId?: string | null) => {
-            const result = await logicStopSpin(durationSec, targetPrizeId);
+        const stopSpin = async (
+            durationSec?: number,
+            targetPrizeId?: string | null,
+            occurrence: number = 1
+        ) => {
+            const result = await logicStopSpin(durationSec, targetPrizeId, occurrence);
             await new Promise<void>((resolve) => setTimeout(resolve, 1000));
             emit('stopped', result);
             return result;
         };
 
         onMounted(async () => {
+                try {
+                    const prepared = await statePreparePrizes(props.prizes);
+                    // If logicUpdatePrizes is exposed, await it as a readiness signal
+                    if (prepared && typeof logicUpdatePrizes === 'function') {
+                        await logicUpdatePrizes(prepared);
+                    }
+                } catch (e) {
+                    console.warn('Failed to update prizes on roulette hook', e);
+                }
+        });
+
+        // Keep the animation internal items in sync whenever the prepared prizes change.
+        // This ensures that when the orchestrator calls updatePrizes (e.g. kakuhen duplication),
+        // the animator receives the new prepared list before we call stopSpin.
+        watch(() => statePreparedPrizes.value, async (newPrepared) => {
+            if (!newPrepared || newPrepared.length === 0) return;
             try {
-                await stateUpdatePrizes(props.prizes);
-                await logicUpdatePrizes(statePreparedPrizes.value);
+                if (typeof logicUpdatePrizes === 'function') {
+                    await logicUpdatePrizes(newPrepared);
+                }
             } catch (e) {
-                console.warn('Failed to update prizes on roulette hook', e);
+                console.warn('Failed to update prizes in roulette hook on prepared prizes change', e);
             }
         });
 
@@ -82,7 +103,7 @@ export default defineComponent({
         const enterHandler = computed(() => (spinning.value ? handleStop : handleStart));
 
         return {
-            canvas, startSpin, stopSpin, spinning, enterHandler, preparedPrizes: statePreparedPrizes
+            canvas, startSpin, stopSpin, spinning, enterHandler, preparedPrizes: statePreparedPrizes, updatePrizes: logicUpdatePrizes, getInternalItems
         };
     }
 });

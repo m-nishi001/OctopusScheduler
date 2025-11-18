@@ -27,11 +27,16 @@ export function usePrizeDrawState(
   const preparedPrizes = ref<RouletteItem[]>([]);
   const canStop = ref(false);
 
-  const updatePrizes = async (newPrizes: PrizeDto[]) => {
-    prizes.value = newPrizes;
-    const newPrepared = await prepareRenderPrizes(prizes.value, assetService);
+  const preparePrizes = async (newPrizes: PrizeDto[]) => {
+    const newPrepared = await prepareRenderPrizes(newPrizes, assetService);
     revokePreparedPrizes(preparedPrizes.value);
     preparedPrizes.value = newPrepared;
+    return newPrepared;
+  };
+
+  const updatePrizes = async (newPrizes: PrizeDto[]) => {
+    prizes.value = newPrizes;
+    await preparePrizes(newPrizes);
   };
 
   const updateSelectedPrize = (newSelected: PrizeDto | null) => {
@@ -53,6 +58,7 @@ export function usePrizeDrawState(
     preparedPrizes: computed(() => preparedPrizes.value),
     canStop: computed(() => canStop.value),
     updatePrizes,
+    preparePrizes,
     updateSelectedPrize,
     updateShowResult,
     setCanStop,
@@ -84,6 +90,7 @@ export function useRouletteAnimationState(
     const newPrepared = await prepareRenderPrizes(prizes.value, assetService);
     revokePreparedPrizes(preparedPrizes.value);
     preparedPrizes.value = newPrepared;
+    return newPrepared;
   };
 
   const updateSelectedPrize = (newSelected: PrizeDto) => {
@@ -105,6 +112,7 @@ export function useRouletteAnimationState(
     preparedPrizes: computed(() => preparedPrizes.value),
     canStop: computed(() => canStop.value),
     updatePrizes,
+    preparePrizes,
     updateSelectedPrize,
     updateShowResult,
     setCanStop,

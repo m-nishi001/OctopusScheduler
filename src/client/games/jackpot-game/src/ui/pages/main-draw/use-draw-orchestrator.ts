@@ -45,7 +45,7 @@ export function useDrawOrchestrator() {
   const assetService = container.resolve(AssetDataService);
 
   // prize draw state
-  const { prizes, selectedPrize, updatePrizes, updateSelectedPrize } =
+  const { prizes, selectedPrize, updatePrizes, preparePrizes, updateSelectedPrize } =
     usePrizeDrawState([], null, false, assetService);
 
   // animation refs
@@ -144,6 +144,8 @@ export function useDrawOrchestrator() {
         drawState.currentQueue,
         emitter,
         drawState
+        ,
+        preparePrizes
       );
     } else {
       return BaseHandler.getActions(
@@ -219,6 +221,8 @@ export function useDrawOrchestrator() {
 
   onMounted(async () => {
     const loadedPrizes = await prizeRepo.getPrizes();
+    // updatePrizes now returns prepared roulette items. We don't need them here, but
+    // await to ensure prize state is prepared before next cycle is enqueued.
     await updatePrizes(loadedPrizes);
     members.value = await memberRepo.getMembers();
 

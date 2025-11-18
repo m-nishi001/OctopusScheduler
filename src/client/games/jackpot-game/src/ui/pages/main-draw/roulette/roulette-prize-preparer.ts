@@ -14,6 +14,7 @@ export async function prepareRenderPrizes(
       prizes.map(async (p) => {
         const copy: RouletteItem = {
           id: p.id,
+          prizeId: (p as any).originalPrizeId ?? p.id,
           name: p.name,
           imageUrl: undefined,
         };

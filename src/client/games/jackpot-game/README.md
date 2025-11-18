@@ -25,3 +25,10 @@ This project now exposes application-level draw APIs used by the UI:
 Data structures: `DrawResultDto` was extended to support optional `prize` and reservation/animation metadata.
 
 Notes: The current implementation stores draw state in localStorage and reserves prizes as described in the spec. Animation timing and BGM playback are handled at the UI layer; the application layer provides necessary flags (isKakuhen/reservedPrizeIds) for the UI to orchestrate the visual sequence.
+
+Kakuhen UI behavior:
+
+- For kakuhen (確変) draws, the UI now duplicates the final prize on the roulette wheel so it appears twice but uses different images for the two entries:
+  - First appearance (occurrence=1) uses `imageAssetId` (画像1)
+  - Second appearance (occurrence=2) uses `image2AssetId` (画像2)
+- Both spins target the same prize id but use the occurrence parameter to stop on distinct duplicated sectors. This preserves system semantics while giving the user the visual impression of a two-step prize selection.
