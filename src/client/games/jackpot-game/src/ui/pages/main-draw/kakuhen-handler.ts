@@ -5,6 +5,7 @@ import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
 import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
 import { type Emitter } from "mitt";
+import type { RouletteItem } from "./roulette/roulette-image-loader";
 
 /**
  * KakuhenHandler orchestrates the two-step "確変" animation sequence.
@@ -42,7 +43,7 @@ export class KakuhenHandler {
     queue: ActionQueue,
     emitter: Emitter<any>,
     drawState: any,
-    preparePrizes: (newPrizes: PrizeDto[]) => Promise<import("./roulette/roulette-image-loader").RouletteItem[]>
+    preparePrizes: (newPrizes: PrizeDto[]) => Promise<RouletteItem[]>
   ): (() => Promise<void>)[] {
     const baseActions: (() => Promise<void>)[] = [];
     baseActions.push(() => BaseHandler.setMemberPhase(drawState, emitter));
@@ -118,7 +119,7 @@ export class KakuhenHandler {
         updateSelectedPrize,
         kakuhenInProgress,
         latestResult,
-        updatePrizes,
+        preparePrizes,
         emitter
       )
     );
@@ -165,7 +166,7 @@ export class KakuhenHandler {
     kakuhenInProgress: Ref<boolean>,
     kakuhenDummyPrize: Ref<PrizeDto | null>,
     kakuhenFinalPrize: Ref<PrizeDto | null>,
-    preparePrizes: (newPrizes: PrizeDto[]) => Promise<import("./roulette/roulette-image-loader").RouletteItem[]>,
+    preparePrizes: (newPrizes: PrizeDto[]) => Promise<RouletteItem[]>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] startKakuhenDummyDraw");
@@ -181,8 +182,18 @@ export class KakuhenHandler {
     for (const p of prizes.value) {
       if (p.id === finalPrizeId) {
         // create distinct visual ids for the two duplicate sectors
-        const firstClone = { ...p, id: `${p.id}__k1`, imageAssetId: p.imageAssetId, originalPrizeId: p.id } as PrizeDto & { originalPrizeId: string };
-        const secondClone = { ...p, id: `${p.id}__k2`, imageAssetId: p.image2AssetId || p.imageAssetId, originalPrizeId: p.id } as PrizeDto & { originalPrizeId: string };
+        const firstClone = {
+          ...p,
+          id: `${p.id}__k1`,
+          imageAssetId: p.imageAssetId,
+          originalPrizeId: p.id,
+        } as PrizeDto & { originalPrizeId: string };
+        const secondClone = {
+          ...p,
+          id: `${p.id}__k2`,
+          imageAssetId: p.image2AssetId || p.imageAssetId,
+          originalPrizeId: p.id,
+        } as PrizeDto & { originalPrizeId: string };
         newPrizes.push(firstClone);
         newPrizes.push(secondClone);
         kakuhenDummyPrize.value = firstClone;
@@ -191,8 +202,8 @@ export class KakuhenHandler {
         newPrizes.push(p);
       }
     }
-        const prepared = await preparePrizes(newPrizes);
-      KakuhenHandler._kakuhenPrepared = prepared as any;
+    const prepared = await preparePrizes(newPrizes);
+    KakuhenHandler._kakuhenPrepared = prepared as any;
     // also ensure the animation internal items are updated if animationRef exposes updatePrizes
     try {
       if (animationRef.value?.updatePrizes && prepared) {
@@ -204,7 +215,9 @@ export class KakuhenHandler {
     // wait a short moment for the animation component to update its internal items
     // (convertToInternal) so the stopSpin call below can find the duplicated sector occurrences
     await new Promise((r) => setTimeout(r, 60));
-    const bgm1Blob = await loadBgmBlob(kakuhenFinalPrize.value?.bgm1AssetId || null);
+    const bgm1Blob = await loadBgmBlob(
+      kakuhenFinalPrize.value?.bgm1AssetId || null
+    );
     kakuhenInProgress.value = true;
     if (animationRef.value?.startSpin) {
       animationRef.value.startSpin(bgm1Blob);
@@ -308,7 +321,7 @@ export class KakuhenHandler {
     updateSelectedPrize: (prize: PrizeDto) => void,
     kakuhenInProgress: Ref<boolean>,
     latestResult: Ref<DrawResultDto | null>,
-    preparePrizes: (newPrizes: PrizeDto[]) => Promise<import("./roulette/roulette-image-loader").RouletteItem[]>,
+    preparePrizes: (newPrizes: PrizeDto[]) => Promise<RouletteItem[]>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopKakuhenFinalDraw");
@@ -321,9 +334,13 @@ export class KakuhenHandler {
         try {
           if (animationRef.value?.updatePrizes) {
             if (KakuhenHandler._kakuhenPrepared) {
-              await animationRef.value.updatePrizes(KakuhenHandler._kakuhenPrepared);
+              await animationRef.value.updatePrizes(
+                KakuhenHandler._kakuhenPrepared
+              );
             } else if (KakuhenHandler._prevPrizes) {
-              const restoredPrepared = await preparePrizes(KakuhenHandler._prevPrizes || []);
+              const restoredPrepared = await preparePrizes(
+                KakuhenHandler._prevPrizes || []
+              );
               await animationRef.value.updatePrizes(restoredPrepared);
             }
           }
@@ -345,7 +362,11 @@ export class KakuhenHandler {
               internalItems.map((i) => ({ id: i.id, name: i.name }))
             );
             const fallback = internalItems[internalItems.length - 1];
-            await animationRef.value.stopSpin(finalDurationMs / 1000, fallback.id, 1);
+            await animationRef.value.stopSpin(
+              finalDurationMs / 1000,
+              fallback.id,
+              1
+            );
           } else {
             await animationRef.value.stopSpin(
               finalDurationMs / 1000,
@@ -376,12 +397,16 @@ export class KakuhenHandler {
           await animationRef.value.updatePrizes(restoredPrepared);
         }
       } catch (e) {
-        console.warn('Failed to update animationRef prepared items on restore', e);
+        console.warn(
+          "Failed to update animationRef prepared items on restore",
+          e
+        );
       }
       // set selectedPrize based on restored prizes
       const restored = KakuhenHandler._prevPrizes.find(
         (p: PrizeDto) =>
-          p.id === ((kakuhenFinalPrize.value as any).originalPrizeId ||
+          p.id ===
+          ((kakuhenFinalPrize.value as any).originalPrizeId ||
             kakuhenFinalPrize.value!.id)
       )!;
       updateSelectedPrize(restored);
@@ -390,8 +415,8 @@ export class KakuhenHandler {
         ...restored,
         imageAssetId: restored.image2AssetId || restored.imageAssetId,
       } as PrizeDto;
-        KakuhenHandler._prevPrizes = null;
-        KakuhenHandler._kakuhenPrepared = null;
+      KakuhenHandler._prevPrizes = null;
+      KakuhenHandler._kakuhenPrepared = null;
     }
     emitter.emit("nextAction");
   }
