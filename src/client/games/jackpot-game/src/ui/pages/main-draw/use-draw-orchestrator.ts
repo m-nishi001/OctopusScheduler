@@ -45,8 +45,13 @@ export function useDrawOrchestrator() {
   const assetService = container.resolve(AssetDataService);
 
   // prize draw state
-  const { prizes, selectedPrize, updatePrizes, preparePrizes, updateSelectedPrize } =
-    usePrizeDrawState([], null, false, assetService);
+  const {
+    prizes,
+    selectedPrize,
+    updatePrizes,
+    preparePrizes,
+    updateSelectedPrize,
+  } = usePrizeDrawState([], null, false, assetService);
 
   // animation refs
   const memberAnimRef = ref(null as any);
@@ -143,8 +148,7 @@ export function useDrawOrchestrator() {
         showMemberWinnerDialog,
         drawState.currentQueue,
         emitter,
-        drawState
-        ,
+        drawState,
         preparePrizes
       );
     } else {

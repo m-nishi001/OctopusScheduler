@@ -36,7 +36,9 @@ export function useRouletteAnimation(
 
   const animator = useRouletteAnimator(opts, drawCallback);
 
-  async function updateRouletteItems(prizes: RouletteItem[]): Promise<InternalRouletteItem[]> {
+  async function updateRouletteItems(
+    prizes: RouletteItem[]
+  ): Promise<InternalRouletteItem[]> {
     currentRouletteItems = await convertToInternal(prizes);
     drawCallback(0); // initial draw
     return currentRouletteItems;

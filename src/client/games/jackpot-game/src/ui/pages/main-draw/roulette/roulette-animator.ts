@@ -86,7 +86,9 @@ export function useRouletteAnimator(
     }
 
     const candidates = currentRouletteItems.filter(
-      (item) => item.id === targetRouletteItemId || (item as any).prizeId === targetRouletteItemId
+      (item) =>
+        item.id === targetRouletteItemId ||
+        (item as any).prizeId === targetRouletteItemId
     );
     if (candidates.length === 0) {
       throw new Error("Target prize not found");
