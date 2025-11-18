@@ -1,91 +1,94 @@
 <template>
-    <div class="form-group">
-        <label>コンテンツタイプ:</label>
-        <select v-model="formData.contentType">
-            <option value="image">画像</option>
-            <option value="movie">動画</option>
-            <option value="html">HTML</option>
-        </select>
-    </div>
-
-    <!-- Image Selection -->
-    <div v-if="formData.contentType === 'image'" class="form-group">
-        <label>画像:</label>
-        <div class="content-selection">
-            <select v-model="formData.contentId">
-                <option value="">選択してください</option>
-                <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">
-                    {{ asset.name || asset.id }}
-                </option>
+    <div v-bind="$attrs">
+        <div class="form-group">
+            <label>コンテンツタイプ:</label>
+            <select v-model="formData.contentType">
+                <option value="image">画像</option>
+                <option value="movie">動画</option>
+                <option value="html">HTML</option>
             </select>
-            <button type="button" @click="triggerFileUpload" class="upload-button">+</button>
-            <button type="button" @click="togglePreview" class="preview-button"
-                :disabled="!formData.contentId && !formData.contentFile">
-                ▶️
-            </button>
         </div>
-        <input type="file" accept="image/*" @change="handleFileUpload" ref="fileInput" style="display: none;">
-    </div>
 
-    <!-- Movie Selection -->
-    <div v-else-if="formData.contentType === 'movie'" class="form-group">
-        <label>動画:</label>
-        <div class="content-selection">
-            <select v-model="formData.contentId">
-                <option value="">選択してください</option>
-                <option v-for="asset in videoAssets" :key="asset.id" :value="asset.id">
-                    {{ asset.name || asset.id }}
-                </option>
-            </select>
-            <button type="button" @click="triggerFileUpload" class="upload-button">+</button>
-            <button type="button" @click="togglePreview" class="preview-button"
-                :disabled="!formData.contentId && !formData.contentFile">
-                ▶️
-            </button>
-        </div>
-        <input type="file" accept="video/*" @change="handleFileUpload" ref="fileInput" style="display: none;">
-    </div>
-
-    <!-- HTML Input -->
-    <div v-else-if="formData.contentType === 'html'" class="form-group">
-        <label>HTMLコンテンツ:</label>
-        <textarea v-model="formData.htmlContent" placeholder="HTMLを入力してください" rows="10"></textarea>
-        <div class="html-actions">
-            <select v-model="selectedImageForHtml">
-                <option value="">画像を選択</option>
-                <optgroup label="既存画像">
-                    <option v-for="asset in imageAssets" :key="'existing-' + asset.id" :value="'existing-' + asset.id">
+        <!-- Image Selection -->
+        <div v-if="formData.contentType === 'image'" class="form-group">
+            <label>画像:</label>
+            <div class="content-selection">
+                <select v-model="formData.contentId">
+                    <option value="">選択してください</option>
+                    <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">
                         {{ asset.name || asset.id }}
                     </option>
-                </optgroup>
-                <optgroup label="新規アップロード画像">
-                    <option v-for="(file, index) in uploadedImages" :key="'uploaded-' + index"
-                        :value="'uploaded-' + index">
-                        {{ file.name }}
-                    </option>
-                </optgroup>
-            </select>
-            <button type="button" @click="triggerImageUploadForHtml" class="upload-button">+</button>
-            <button type="button" @click="insertImageIntoHtml" :disabled="!selectedImageForHtml">画像挿入</button>
-            <button type="button" @click="togglePreview" class="preview-button">▶️</button>
+                </select>
+                <button type="button" @click="triggerFileUpload" class="upload-button">+</button>
+                <button type="button" @click="togglePreview" class="preview-button"
+                    :disabled="!formData.contentId && !formData.contentFile">
+                    ▶️
+                </button>
+            </div>
+            <input type="file" accept="image/*" @change="handleFileUpload" ref="fileInput" style="display: none;">
         </div>
-        <input type="file" accept="image/*" @change="handleImageUploadForHtml" ref="imageFileInput"
-            style="display: none;">
-    </div>
 
-    <!-- Preview Dialog -->
-    <div v-if="showPreviewDialog" class="modal-overlay" @click.self="closePreview">
-        <div class="modal-content">
-            <div v-if="previewType === 'image'">
-                <img :src="previewContent.url" alt="preview" style="max-width:80vw;max-height:70vh" />
+        <!-- Movie Selection -->
+        <div v-else-if="formData.contentType === 'movie'" class="form-group">
+            <label>動画:</label>
+            <div class="content-selection">
+                <select v-model="formData.contentId">
+                    <option value="">選択してください</option>
+                    <option v-for="asset in videoAssets" :key="asset.id" :value="asset.id">
+                        {{ asset.name || asset.id }}
+                    </option>
+                </select>
+                <button type="button" @click="triggerFileUpload" class="upload-button">+</button>
+                <button type="button" @click="togglePreview" class="preview-button"
+                    :disabled="!formData.contentId && !formData.contentFile">
+                    ▶️
+                </button>
             </div>
-            <div v-else-if="previewType === 'movie'">
-                <video :src="previewContent.url" controls style="max-width:80vw;max-height:70vh" />
+            <input type="file" accept="video/*" @change="handleFileUpload" ref="fileInput" style="display: none;">
+        </div>
+
+        <!-- HTML Input -->
+        <div v-else-if="formData.contentType === 'html'" class="form-group">
+            <label>HTMLコンテンツ:</label>
+            <textarea v-model="formData.htmlContent" placeholder="HTMLを入力してください" rows="10"></textarea>
+            <div class="html-actions">
+                <select v-model="selectedImageForHtml">
+                    <option value="">画像を選択</option>
+                    <optgroup label="既存画像">
+                        <option v-for="asset in imageAssets" :key="'existing-' + asset.id"
+                            :value="'existing-' + asset.id">
+                            {{ asset.name || asset.id }}
+                        </option>
+                    </optgroup>
+                    <optgroup label="新規アップロード画像">
+                        <option v-for="(file, index) in uploadedImages" :key="'uploaded-' + index"
+                            :value="'uploaded-' + index">
+                            {{ file.name }}
+                        </option>
+                    </optgroup>
+                </select>
+                <button type="button" @click="triggerImageUploadForHtml" class="upload-button">+</button>
+                <button type="button" @click="insertImageIntoHtml" :disabled="!selectedImageForHtml">画像挿入</button>
+                <button type="button" @click="togglePreview" class="preview-button">▶️</button>
             </div>
-            <div v-else-if="previewType === 'html'">
-                <div v-html="previewContent"></div>
+            <input type="file" accept="image/*" @change="handleImageUploadForHtml" ref="imageFileInput"
+                style="display: none;">
+        </div>
+
+        <!-- Preview Dialog -->
+        <div v-if="showPreviewDialog" class="modal-overlay" @click.self="closePreview">
+            <div class="modal-content">
+                <div v-if="previewType === 'image'">
+                    <img :src="previewContent.url" alt="preview" style="max-width:80vw;max-height:70vh" />
+                </div>
+                <div v-else-if="previewType === 'movie'">
+                    <video :src="previewContent.url" controls style="max-width:80vw;max-height:70vh" />
+                </div>
+                <div v-else-if="previewType === 'html'">
+                    <div v-html="previewContent"></div>
+                </div>
+                <button class="close-btn" @click="closePreview">閉じる</button>
             </div>
-            <button class="close-btn" @click="closePreview">閉じる</button>
         </div>
     </div>
 </template>

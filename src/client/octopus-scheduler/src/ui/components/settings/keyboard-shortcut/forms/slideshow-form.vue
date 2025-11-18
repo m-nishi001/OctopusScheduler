@@ -1,11 +1,13 @@
 <template>
-    <div class="form-group">
-        <label>フォルダID:</label>
-        <input v-model="formData.folderId" type="text" placeholder="folder-123" />
-    </div>
-    <div class="form-group">
-        <label>表示時間 (秒):</label>
-        <input v-model.number="formData.displayDuration" type="number" placeholder="10" />
+    <div v-bind="$attrs">
+        <div class="form-group">
+            <label>フォルダID:</label>
+            <input v-model="formData.folderId" type="text" placeholder="folder-123" />
+        </div>
+        <div class="form-group">
+            <label>表示時間 (秒):</label>
+            <input v-model.number="formData.displayDuration" type="number" placeholder="10" />
+        </div>
     </div>
 </template>
 

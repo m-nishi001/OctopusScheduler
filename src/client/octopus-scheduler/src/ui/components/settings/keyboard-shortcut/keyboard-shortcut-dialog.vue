@@ -23,8 +23,10 @@
                     <option value="ShowContentEvent">コンテンツ表示</option>
                 </select>
             </div>
-            <component :is="currentFormComponent" :initial-data="initialData" @save="handleFormSave"
-                class="form-content" ref="formRef" />
+            <div class="form-content">
+                <component :is="currentFormComponent" :initial-data="initialData" @save="handleFormSave" ref="formRef">
+                </component>
+            </div>
             <div class="dialog-buttons">
                 <button @click="saveShortcut" class="save-btn">保存</button>
                 <button @click="closeDialog" class="cancel-btn">キャンセル</button>
