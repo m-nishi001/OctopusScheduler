@@ -4,21 +4,24 @@
       <h1 class="home-title">
         <span class="octo-icon">🐙</span> Octopus Scheduler
       </h1>
-      <div class="btn-group">
-        <button class="main-btn" @click="goToSettings">
-          <span class="btn-icon">⚙️</span> 設定画面
+      <div class="btn-grid">
+        <button class="main-btn" @click="goToSettings" aria-label="設定画面">
+          <span class="btn-icon">⚙️</span>
+          <span class="btn-label">設定画面</span>
         </button>
-        <button class="main-btn" @click="goToJackpotGame">
-          <span class="btn-icon">🎰</span> Jackpot Game
+        <button class="main-btn" @click="goToJackpotGame" aria-label="Jackpot Game">
+          <span class="btn-icon">🎰</span>
+          <span class="btn-label">Jackpot Game</span>
         </button>
-        <button class="main-btn" @click="goToQuizGame">
-          <span class="btn-icon">🎯</span> Quiz Game
+        <button class="main-btn" @click="goToQuizGame" aria-label="Quiz Game">
+          <span class="btn-icon">🎯</span>
+          <span class="btn-label">Quiz Game</span>
         </button>
-        <button class="main-btn" @click="goToCardGame">
-          <span class="btn-icon">�</span> Card Game
+        <button class="main-btn" @click="goToCardGame" aria-label="Card Game">
+          <span class="btn-icon">🃏</span>
+          <span class="btn-label">Card Game</span>
         </button>
       </div>
-      <p class="desc">ここにロード画面や初期同期処理を追加予定。</p>
     </div>
   </div>
 </template>
@@ -73,18 +76,21 @@ onMounted(() => { });
   font-size: 1.3em;
 }
 
-.btn-group {
-  display: flex;
-  gap: 1.5em;
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
   margin-bottom: 2em;
   width: 100%;
-  justify-content: center;
+  align-items: stretch;
+  flex: 1 1 auto;
+  grid-auto-rows: 1fr;
 }
 
 .main-btn {
   font-size: 1.1em;
   font-weight: 600;
-  padding: 0.9em 2.2em;
+  padding: 1.25em 1.2em;
   background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);
   color: #fff;
   border: none;
@@ -95,12 +101,21 @@ onMounted(() => { });
   outline: none;
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.7em;
+  gap: 0.6em;
+  justify-content: center;
+  text-align: center;
+  min-height: 0;
+  height: 100%;
 }
 
 .main-btn .btn-icon {
-  font-size: 1.2em;
+  font-size: 2.2em;
+}
+
+.main-btn .btn-label {
+  display: inline-block;
 }
 
 .main-btn:hover,
@@ -114,8 +129,6 @@ onMounted(() => { });
   background: #1a1a1a;
   transform: scale(0.98);
 }
-
-/* Autonomous mode removed; styles related to polling and autonomous events removed to clean up code */
 
 .desc {
   color: #bbb;
@@ -137,9 +150,14 @@ onMounted(() => { });
 
   .main-btn {
     font-size: 1em;
-    padding: 0.7em 1.2em;
+    padding: 0.9em 1rem;
+    min-height: 120px;
   }
 
-  /* Removed event-block and polling-controls styles as autonomous features were removed */
+  .btn-grid {
+    grid-template-columns: 1fr;
+  }
+
+
 }
 </style>
