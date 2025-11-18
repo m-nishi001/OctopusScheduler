@@ -55,10 +55,13 @@ export function useKeyCapture() {
 
   const updateCapturedKeys = (event: KeyboardEvent) => {
     const keys: string[] = [];
-    if (event.ctrlKey && !capturedKeys.value.includes("Control")) keys.push("Control");
-    if (event.shiftKey && !capturedKeys.value.includes("Shift")) keys.push("Shift");
+    if (event.ctrlKey && !capturedKeys.value.includes("Control"))
+      keys.push("Control");
+    if (event.shiftKey && !capturedKeys.value.includes("Shift"))
+      keys.push("Shift");
     if (event.altKey && !capturedKeys.value.includes("Alt")) keys.push("Alt");
-    if (event.metaKey && !capturedKeys.value.includes("Meta")) keys.push("Meta");
+    if (event.metaKey && !capturedKeys.value.includes("Meta"))
+      keys.push("Meta");
     if (!["Control", "Shift", "Alt", "Meta"].includes(event.key)) {
       if (!capturedKeys.value.includes(event.key)) keys.push(event.key);
     }

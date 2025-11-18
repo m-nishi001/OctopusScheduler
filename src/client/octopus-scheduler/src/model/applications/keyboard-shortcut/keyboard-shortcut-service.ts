@@ -75,7 +75,9 @@ export class KeyboardShortcutService {
   async hasLongerShortcutWithPrefix(keys: string[]): Promise<boolean> {
     const shortcuts = await this.getKeyboardShortcuts();
     return shortcuts.some(
-      (s) => s.keys.length > keys.length && s.keys.slice(0, keys.length).every((k, i) => k === keys[i])
+      (s) =>
+        s.keys.length > keys.length &&
+        s.keys.slice(0, keys.length).every((k, i) => k === keys[i])
     );
   }
 

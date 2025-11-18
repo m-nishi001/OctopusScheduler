@@ -1,5 +1,5 @@
-import { container } from 'tsyringe';
-import { KeyboardShortcutService } from '../../../model/applications/keyboard-shortcut/keyboard-shortcut-service';
+import { container } from "tsyringe";
+import { KeyboardShortcutService } from "../../../model/applications/keyboard-shortcut/keyboard-shortcut-service";
 
 export function registerKeyboardShortcutListener(): () => void {
   const keyboardShortcutService = container.resolve(KeyboardShortcutService);
@@ -19,11 +19,13 @@ export function registerKeyboardShortcutListener(): () => void {
       return;
 
     const keysToAppend: string[] = [];
-    if (event.ctrlKey && !sequence.includes('Control')) keysToAppend.push('Control');
-    if (event.shiftKey && !sequence.includes('Shift')) keysToAppend.push('Shift');
-    if (event.altKey && !sequence.includes('Alt')) keysToAppend.push('Alt');
-    if (event.metaKey && !sequence.includes('Meta')) keysToAppend.push('Meta');
-    if (!['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) {
+    if (event.ctrlKey && !sequence.includes("Control"))
+      keysToAppend.push("Control");
+    if (event.shiftKey && !sequence.includes("Shift"))
+      keysToAppend.push("Shift");
+    if (event.altKey && !sequence.includes("Alt")) keysToAppend.push("Alt");
+    if (event.metaKey && !sequence.includes("Meta")) keysToAppend.push("Meta");
+    if (!["Control", "Shift", "Alt", "Meta"].includes(event.key)) {
       if (!sequence.includes(event.key)) keysToAppend.push(event.key);
     }
 
@@ -60,7 +62,8 @@ export function registerKeyboardShortcutListener(): () => void {
     const shortcut = await keyboardShortcutService.findShortcutByKeys(sequence);
     if (shortcut) {
       // If there is a longer shortcut that starts with the same sequence, wait a short time
-      const hasLonger = await keyboardShortcutService.hasLongerShortcutWithPrefix(sequence);
+      const hasLonger =
+        await keyboardShortcutService.hasLongerShortcutWithPrefix(sequence);
       if (hasLonger) {
         pendingExecutionTimer = window.setTimeout(async () => {
           try {
@@ -89,7 +92,13 @@ export function registerKeyboardShortcutListener(): () => void {
     }
 
     // If no exact match but some longer shortcuts start with this prefix, wait for more input
-    const hasLongerPrefix = (await keyboardShortcutService.getKeyboardShortcuts()).some((s) => s.keys.length > sequence.length && s.keys.slice(0, sequence.length).every((k, i) => k === sequence[i]));
+    const hasLongerPrefix = (
+      await keyboardShortcutService.getKeyboardShortcuts()
+    ).some(
+      (s) =>
+        s.keys.length > sequence.length &&
+        s.keys.slice(0, sequence.length).every((k, i) => k === sequence[i])
+    );
     if (hasLongerPrefix) {
       // wait for more input or timeout
       return;
@@ -103,11 +112,11 @@ export function registerKeyboardShortcutListener(): () => void {
     }
   };
 
-  window.addEventListener('keydown', handler);
+  window.addEventListener("keydown", handler);
 
   // return an unregister function
   return () => {
-    window.removeEventListener('keydown', handler);
+    window.removeEventListener("keydown", handler);
     if (sequenceTimer) clearTimeout(sequenceTimer);
     if (pendingExecutionTimer) clearTimeout(pendingExecutionTimer);
     sequence = [];
