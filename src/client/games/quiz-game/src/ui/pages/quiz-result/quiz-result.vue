@@ -26,14 +26,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
 
 const router = useRouter();
-const route = useRoute();
 
 const showFullScreenParticles = ref(false);
 
-const isPreview = computed(() => route.query.preview === 'true');
+// preview flag removed as it's no longer used; navigation now always pushes to '/quiz-admin'.
 
 // サンプルデータ: 実際はAPI等から取得する
 const results = ref([
@@ -81,11 +80,8 @@ onUnmounted(() => {
 
 function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
-        if (isPreview.value) {
-            router.push('/quiz-admin');
-        } else {
-            router.push('/');
-        }
+        // TODO: 遷移元に戻したい
+        router.push('/quiz-admin');
     }
 }
 

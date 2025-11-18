@@ -4,7 +4,7 @@ import QuizIntro from "../../ui/pages/quiz-display/quiz-intro.vue";
 import QuizQr from "../../ui/pages/quiz-display/quiz-qr.vue";
 import QuizPlay from "../../ui/pages/quiz-display/quiz-play.vue";
 const quizGameRoutes = [
-  { path: "/", component: QuizAdmin },
+  { path: "/quiz-home", component: QuizAdmin },
   {
     path: "/quiz/:id",
     // avoid a strict router type mismatch across different vue-router versions
