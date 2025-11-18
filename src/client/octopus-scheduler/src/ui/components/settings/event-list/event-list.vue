@@ -5,7 +5,7 @@
         </div>
         <!-- saving status handled inside dialogs -->
         <h2 class="editor-title">
-            <span class="editor-icon">📅</span> スケジュールイベント管理
+            <span class="editor-icon">📅</span> イベント管理
         </h2>
         <div class="admin-actions">
             <button type="button" class="admin-btn icon-only add-icon" @click.prevent="onAdd" :disabled="loading"
@@ -303,7 +303,7 @@ async function onExecute() {
     } finally {
         executing.value = false;
         document.removeEventListener('keydown', handleKeyDown);
-        // スケジュールイベント管理画面に戻る
+        // イベント管理画面に戻る
         router.push('/settings');
     }
 }
