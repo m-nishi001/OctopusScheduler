@@ -72,6 +72,13 @@ export class KeyboardShortcutService {
     return shortcuts.find((s) => this.keysMatch(s.keys, keys)) || null;
   }
 
+  async hasLongerShortcutWithPrefix(keys: string[]): Promise<boolean> {
+    const shortcuts = await this.getKeyboardShortcuts();
+    return shortcuts.some(
+      (s) => s.keys.length > keys.length && s.keys.slice(0, keys.length).every((k, i) => k === keys[i])
+    );
+  }
+
   private keysMatch(shortcutKeys: string[], inputKeys: string[]): boolean {
     if (shortcutKeys.length !== inputKeys.length) return false;
     return shortcutKeys.every((key, index) => key === inputKeys[index]);
