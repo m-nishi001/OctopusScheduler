@@ -5,7 +5,10 @@ export interface IAssetRepository {
   getAssets(): Promise<Asset[]>;
   getAssetById(id: string): Promise<Asset | null>;
   deleteAssets(ids: string[]): Promise<void>;
-  syncAssets(onProgress?: (message: string) => void): Promise<void>;
+  syncAssets(
+    mode?: "local" | "drive",
+    onProgress?: (message: string) => void
+  ): Promise<void>;
 }
 
 export const IAssetRepositoryToken = Symbol("IAssetRepository");

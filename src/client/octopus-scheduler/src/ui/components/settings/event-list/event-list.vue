@@ -1,68 +1,70 @@
 <template>
-    <div class="event-list-editor">
-        <div class="editor-content">
-            <div v-if="syncing" class="sync-status">
-                <span class="sync-icon">🔄</span> 同期中...
-            </div>
-            <!-- saving status handled inside dialogs -->
-            <h2 class="editor-title">
-                <span class="editor-icon">📅</span> スケジュールイベント管理
-            </h2>
-            <div class="controls">
-                <button class="main-btn" @click="onAdd" :disabled="loading">
-                    <span class="btn-icon">➕</span> 追加
-                </button>
-                <button class="main-btn" @click="onReload" :disabled="loading">
-                    <span class="btn-icon">🔄</span> 再読込
-                </button>
-                <button class="main-btn execute-btn" @click="onExecute" :disabled="!selectedEvents.length || executing">
-                    <span class="btn-icon">▶️</span> 実行
-                </button>
-                <button class="main-btn delete-btn" @click="onDeleteSelected"
-                    :disabled="!selectedEvents.length || deleting">
-                    <span class="btn-icon">🗑️</span> 選択削除
-                </button>
-            </div>
-            <div v-if="events.length" class="list-controls">
-                <label class="select-all-label">
-                    <input type="checkbox" v-model="isAllSelected" class="select-all-checkbox" />
-                    <span class="sr-only">全選択</span>
-                </label>
-            </div>
-            <div class="table-section">
-                <table class="event-table">
-                    <thead>
-                        <tr>
-                            <th>選択</th>
-                            <th>イベント名</th>
-                            <th>種別</th>
-                            <th>開始</th>
-                            <th>終了</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="ev in events" :key="ev.id">
-                            <td><input type="checkbox" v-model="selectedEvents" :value="ev.id" /></td>
-                            <td>{{ ev.type }}</td>
-                            <td>{{ getTypeLabel(ev.type) }}</td>
-                            <td>{{ formatDate(ev.startTime) }}</td>
-                            <td>{{ formatDate(ev.endTime) }}</td>
-                            <td>
-                                <button class="main-btn small" @click="onEdit(ev)" :disabled="loading"><span
-                                        class="btn-icon">✏️</span>
-                                    編集</button>
-                                <button class="main-btn small delete-btn" @click="onDelete(ev)"
-                                    :disabled="loading"><span class="btn-icon">🗑️</span>
-                                    削除</button>
-                            </td>
-                        </tr>
-                        <tr v-if="events.length === 0">
-                            <td colspan="6">イベントがありません。</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+    <div class="admin-section event-list-editor">
+        <div v-if="syncing" class="sync-status">
+            <span class="sync-icon">🔄</span> 同期中...
+        </div>
+        <!-- saving status handled inside dialogs -->
+        <h2 class="editor-title">
+            <span class="editor-icon">📅</span> スケジュールイベント管理
+        </h2>
+        <div class="admin-actions">
+            <button type="button" class="admin-btn icon-only add-icon" @click.prevent="onAdd" :disabled="loading"
+                title="追加">
+                <span class="emoji">➕</span>
+            </button>
+            <button class="admin-btn icon-only sync-icon" @click.prevent="openSyncDialog" :disabled="syncing || loading"
+                title="同期">
+                <span class="emoji">🔁</span>
+            </button>
+            <button class="admin-btn icon-only" @click.prevent="onReload" :disabled="loading" title="再読込">🔄</button>
+            <button class="admin-btn" @click.prevent="onExecute" :disabled="!selectedEvents.length || executing"
+                title="実行">
+                <span class="emoji">▶️</span>
+            </button>
+            <button class="admin-btn delete-btn" @click.prevent="onDeleteSelected"
+                :disabled="!selectedEvents.length || deleting" title="選択削除">
+                <span class="emoji">🗑️</span>
+            </button>
+        </div>
+        <div v-if="events.length" class="list-controls">
+            <label class="select-all-label">
+                <input type="checkbox" v-model="isAllSelected" class="select-all-checkbox" />
+                <span class="sr-only">全選択</span>
+            </label>
+        </div>
+        <div class="table-section">
+            <table class="event-table">
+                <thead>
+                    <tr>
+                        <th>選択</th>
+                        <th>イベント名</th>
+                        <th>種別</th>
+                        <th>開始</th>
+                        <th>終了</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="ev in events" :key="ev.id">
+                        <td><input type="checkbox" v-model="selectedEvents" :value="ev.id" /></td>
+                        <td>{{ ev.type }}</td>
+                        <td>{{ getTypeLabel(ev.type) }}</td>
+                        <td>{{ formatDate(ev.startTime) }}</td>
+                        <td>{{ formatDate(ev.endTime) }}</td>
+                        <td>
+                            <button class="main-btn small" @click="onEdit(ev)" :disabled="loading"><span
+                                    class="btn-icon">✏️</span>
+                                編集</button>
+                            <button class="main-btn small delete-btn" @click="onDelete(ev)" :disabled="loading"><span
+                                    class="btn-icon">🗑️</span>
+                                削除</button>
+                        </td>
+                    </tr>
+                    <tr v-if="events.length === 0">
+                        <td colspan="6">イベントがありません。</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <EventTypeSelectionDialog v-if="showTypeSelection" @select="onTypeSelected"
@@ -75,6 +77,24 @@
             @close="closeDialogs" />
         <SlideshowEventDialog v-if="showSlideshowDialog" :event="editingEvent as any" @saved="onDialogSaved"
             @close="closeDialogs" />
+        <!-- Sync direction selection dialog -->
+        <div v-if="showSyncDialog" class="sync-dialog-overlay">
+            <div class="sync-dialog">
+                <h3>同期方向を選択</h3>
+                <label>
+                    <input type="radio" v-model="syncDirection" value="gas-to-local" />
+                    GASからローカルへ上書き
+                </label>
+                <label>
+                    <input type="radio" v-model="syncDirection" value="local-to-gas" />
+                    ローカルからGASへ上書き
+                </label>
+                <div class="dialog-buttons">
+                    <button @click="executeSync" :disabled="!syncDirection">実行</button>
+                    <button @click="showSyncDialog = false">キャンセル</button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -95,6 +115,8 @@ const events = ref<IScheduleEvent[]>([]);
 const loading = ref(false);
 const selectedEvents = ref<string[]>([]);
 const syncing = ref(false);
+const showSyncDialog = ref(false);
+const syncDirection = ref<'gas-to-local' | 'local-to-gas' | ''>('');
 const deleting = ref(false);
 const executing = ref(false);
 const interruptFlag = ref(false);
@@ -230,15 +252,8 @@ async function onDialogSaved() {
 }
 
 async function onReload() {
-    syncing.value = true;
-    try {
-        await scheduleEventService.syncScheduleEvents();
-        await getAllScheduleEvents();
-    } catch (e) {
-        alert('同期に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-    } finally {
-        syncing.value = false;
-    }
+    // Reload local data only (no automatic GAS sync)
+    await getAllScheduleEvents();
 }
 
 async function onExecute() {
@@ -320,14 +335,36 @@ async function onDelete(ev: IScheduleEvent) {
 }
 
 onMounted(async () => {
-    syncing.value = true;
-    try {
-        await scheduleEventService.syncScheduleEvents();
-    } finally {
-        syncing.value = false;
-    }
+    // Only read from IndexedDB on mount — do not auto-sync with GAS
     await getAllScheduleEvents();
 });
+
+const openSyncDialog = () => {
+    syncDirection.value = '';
+    showSyncDialog.value = true;
+};
+
+const executeSync = async () => {
+    if (!syncDirection.value) return;
+    syncing.value = true;
+    try {
+        if (syncDirection.value === 'local-to-gas') {
+            await scheduleEventService.syncScheduleEvents('local');
+        } else {
+            if (!confirm('GAS のデータでローカルを上書きします。よろしいですか？')) {
+                return;
+            }
+            await scheduleEventService.syncScheduleEvents('gas');
+        }
+        await getAllScheduleEvents();
+        alert('同期が完了しました');
+    } catch (e) {
+        alert('同期に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+        syncing.value = false;
+        showSyncDialog.value = false;
+    }
+};
 </script>
 
 <style scoped>
@@ -339,14 +376,17 @@ onMounted(async () => {
     flex-direction: column;
 }
 
-.editor-content {
+.admin-section {
     width: 100%;
     height: 100%;
-    padding: 2em;
+    padding: 0.5em 0.8em;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
     position: relative;
+    max-width: 1100px;
+    /* center and constrain width to match other admin sections */
+    margin: 0 auto;
 }
 
 .nav-group {
@@ -372,15 +412,11 @@ onMounted(async () => {
 }
 
 .editor-title {
-    font-size: 2em;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    margin-bottom: 2em;
+    /* match keyboard-shortcut editor title style: smaller, inline icon */
     display: flex;
     align-items: center;
-    gap: 0.5em;
-    color: #fff;
-    text-shadow: 0 2px 12px #000a;
+    gap: 8px;
+    margin-bottom: 20px;
 }
 
 .editor-icon {
@@ -402,7 +438,7 @@ onMounted(async () => {
     z-index: 10;
 }
 
-.sync-icon {
+.sync-status .sync-icon {
     animation: spin 1s linear infinite;
 }
 
@@ -417,16 +453,60 @@ onMounted(async () => {
 }
 
 .controls {
+    display: none;
+    /* replaced by admin-actions for consistency */
+}
+
+.admin-actions {
+    margin-bottom: 18px;
     display: flex;
-    gap: 1.2em;
+    gap: 12px;
     align-items: center;
-    margin-bottom: 1.5em;
-    width: 100%;
-    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.admin-btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
+    color: #232b36;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.admin-btn.icon-only {
+    padding: 8px;
+    border-radius: 8px;
+    background: transparent;
+    color: #cfe8ff;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.admin-btn.add-icon {
+    padding: 10px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #b6d8ff 0%, #8aaeff 100%);
+    color: #232b36;
+    border: none;
+}
+
+.admin-btn.delete-btn {
+    background: linear-gradient(90deg, #ff6b6b 0%, #ffb3b3 100%);
+}
+
+.admin-btn:disabled,
+.admin-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .main-btn {
-    font-size: 1.05em;
+    /* keep button font-size consistent with other settings (inherit) */
+    font-size: inherit;
     font-weight: 600;
     padding: 0.8em 2em;
     background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);
@@ -460,7 +540,8 @@ onMounted(async () => {
 }
 
 .main-btn.small {
-    font-size: 0.95em;
+    /* use inherited size for small variant */
+    font-size: inherit;
     padding: 0.5em 1.2em;
     margin-right: 0.5em;
 }
@@ -476,6 +557,48 @@ onMounted(async () => {
 .table-section {
     width: 100%;
     margin-bottom: 1.5em;
+}
+
+.sync-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sync-dialog {
+    background: #333;
+    color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    width: 320px;
+}
+
+.sync-dialog h3 {
+    margin-top: 0;
+}
+
+.sync-dialog label {
+    display: block;
+    margin: 10px 0;
+}
+
+.dialog-buttons {
+    margin-top: 16px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.dialog-buttons button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
 .event-table {
@@ -592,7 +715,8 @@ onMounted(async () => {
     border-radius: 10px;
     padding: 1em;
     cursor: pointer;
-    font-size: 1.1em;
+    font-size: 1em;
+    /* normalize to admin base font size */
     font-weight: 600;
     transition: box-shadow 0.18s, transform 0.12s;
 }
@@ -648,7 +772,7 @@ onMounted(async () => {
 }
 
 @media (max-width: 600px) {
-    .editor-content {
+    .admin-section {
         width: 100vw;
         height: 100vh;
         padding: 0.5em;

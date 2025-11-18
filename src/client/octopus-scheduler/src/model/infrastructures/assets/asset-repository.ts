@@ -81,7 +81,10 @@ export class AssetRepository implements IAssetRepository {
     await this.localStorage.removeMultiple(ids);
   }
 
-  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
+  async syncAssets(
+    mode: "local" | "drive" = "local",
+    onProgress?: (message: string) => void
+  ): Promise<void> {
     // default options
     const concurrency = 6;
     const folderId = "";
@@ -113,6 +116,65 @@ export class AssetRepository implements IAssetRepository {
       } else {
         localAssets.push(v as Asset);
       }
+    }
+
+    // handle drive -> local (fetch all remote drive data and save locally)
+    if (mode === "drive") {
+      onProgress?.("Fetching remote assets");
+      // fetch remote metadata
+      const metaService = new GasFunctionService("getDriveMetaData");
+      let remoteMetas: Array<any> = [];
+      try {
+        remoteMetas = (await metaService.call("")) || [];
+      } catch (e) {
+        onProgress?.(
+          `Failed to fetch remote metadata: ${(e as Error).message}`
+        );
+        return;
+      }
+
+      // fetch drive data for each metadata
+      const getService = new GasFunctionService("getDriveData");
+      const fetchedAssets: Asset[] = [];
+      for (const m of remoteMetas) {
+        if (!m || !m.fileId) continue;
+        try {
+          const res = await getService.call(m.fileId);
+          if (!res) continue;
+          const blobResponse = await fetch(res.fileDataUrl);
+          const blob = await blobResponse.blob();
+          const id = res.metadata?.driveDataId || crypto.randomUUID();
+          const newAsset: Asset = {
+            id,
+            blob,
+            name: res.fileName || "",
+            uploadedAt: res.uploadDate
+              ? String(res.uploadDate)
+              : new Date().toISOString(),
+            lastUpdated: res.metadata?.lastUpdate
+              ? String(res.metadata.lastUpdate)
+              : new Date().toISOString(),
+            size: res.metadata?.size || 0,
+            directoryId: res.metadata?.parentFolderId || undefined,
+          };
+          fetchedAssets.push(newAsset);
+        } catch (e) {
+          onProgress?.(
+            `Failed to fetch file ${m.fileId}: ${(e as Error).message}`
+          );
+        }
+      }
+
+      // replace local storage entirely for drive->local
+      // WARNING: This deletes local-only assets. Called only when UI confirms.
+      onProgress?.(`Replacing local assets (${fetchedAssets.length})`);
+      await this.localStorage.clear();
+      for (const asset of fetchedAssets) {
+        await this.localStorage.save(asset.id, asset);
+      }
+
+      onProgress?.("Asset sync finished (drive -> local)");
+      return;
     }
 
     // prepare upload / update lists based on lastUpdated

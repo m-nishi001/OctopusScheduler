@@ -116,7 +116,7 @@ export class ScheduleEventService {
     }
   }
 
-  async syncScheduleEvents(): Promise<void> {
-    await this.scheduleEventRepository.syncScheduleEvents();
+  async syncScheduleEvents(mode: "local" | "gas" = "local"): Promise<void> {
+    await this.scheduleEventRepository.syncScheduleEvents(mode);
   }
 }

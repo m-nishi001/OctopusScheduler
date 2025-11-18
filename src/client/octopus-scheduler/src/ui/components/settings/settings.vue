@@ -42,6 +42,8 @@ const currentTab = ref('events');
   padding: 20px 4vw;
   background: transparent;
   color: #fff;
+  font-size: 16px;
+  /* base for admin content so child components use consistent font sizing */
   min-width: 0;
   overflow: auto;
   min-height: 0;

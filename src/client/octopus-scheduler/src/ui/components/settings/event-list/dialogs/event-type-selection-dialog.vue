@@ -78,7 +78,7 @@ function onClose() {
     border-radius: 10px;
     padding: 1em;
     cursor: pointer;
-    font-size: 1.1em;
+    font-size: inherit;
     font-weight: 600;
     transition: box-shadow 0.18s, transform 0.12s;
 }
@@ -96,7 +96,7 @@ function onClose() {
 }
 
 .main-btn {
-    font-size: 1.05em;
+    font-size: inherit;
     font-weight: 600;
     padding: 0.8em 2em;
     background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);

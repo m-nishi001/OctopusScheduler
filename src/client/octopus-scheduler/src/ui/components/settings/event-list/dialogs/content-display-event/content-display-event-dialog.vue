@@ -48,7 +48,7 @@
                             @change="onFileChange" accept=".jpg,.jpeg,.png,.gif,.mp4,.webm,.ogg" />
                         <button type="button" class="file-btn" @click.prevent="openFilePicker">Choose File</button>
                         <span class="file-name">{{ mainUploadEntry ? mainUploadEntry.file.name : 'No file chosen'
-                            }}</span>
+                        }}</span>
                         <button v-if="mainUploadEntry" type="button" class="clear-btn"
                             @click.prevent="clearFile">×</button>
                     </div>
@@ -485,7 +485,7 @@ function insertAtCursor(text: string) {
 }
 
 .main-btn {
-    font-size: 1.05em;
+    font-size: inherit;
     font-weight: 600;
     padding: 0.8em 2em;
     background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);

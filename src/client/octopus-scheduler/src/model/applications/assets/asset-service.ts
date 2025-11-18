@@ -25,7 +25,11 @@ export class AssetService {
     await this.assetRepository.deleteAssets(ids);
   }
 
-  async syncAssets(onProgress?: (message: string) => void): Promise<void> {
-    await this.assetRepository.syncAssets(onProgress);
+  async syncAssets(
+    mode: "local" | "drive" = "local",
+    onProgress?: (message: string) => void
+  ): Promise<void> {
+    // mode: 'local' = local->drive, 'drive' = drive->local
+    await this.assetRepository.syncAssets(mode, onProgress);
   }
 }

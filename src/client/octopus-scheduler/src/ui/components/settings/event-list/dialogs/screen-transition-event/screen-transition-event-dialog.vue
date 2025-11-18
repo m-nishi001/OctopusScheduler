@@ -96,7 +96,7 @@ const { form, isEdit, onSubmit, onClose } = useScreenTransitionEvent(props, emit
 }
 
 .main-btn {
-    font-size: 1.05em;
+    font-size: inherit;
     font-weight: 600;
     padding: 0.8em 2em;
     background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);

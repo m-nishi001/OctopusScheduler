@@ -1,11 +1,11 @@
 <template>
     <div class="admin-section">
-        <h2>アセット管理</h2>
+        <h2 class="editor-title"><span class="editor-icon">🗂️</span> アセット管理</h2>
 
         <div class="admin-actions">
             <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal"
                 title="Add assets">➕</button>
-            <button class="admin-btn icon-only sync-icon" @click="syncAssets" :disabled="syncing"
+            <button class="admin-btn icon-only sync-icon" @click="openSyncDialog" :disabled="syncing"
                 title="Sync with Google Drive">🔄</button>
             <button class="admin-btn icon-only delete-icon" @click="deleteSelectedAssets"
                 :disabled="!selectedAssets.length || syncing" title="Delete selected">🗑️</button>
@@ -68,6 +68,31 @@
             </div>
         </div>
 
+        <!-- Sync direction modal -->
+        <div v-if="showSyncDialog" class="modal-overlay">
+            <div class="modal-content">
+                <h3>同期方向を選択</h3>
+                <p>同期時にどちらを正としますか？</p>
+                <div class="modal-actions">
+                    <button class="admin-btn" @click.prevent="executeSync">ローカル優先 (Local → Drive)</button>
+                    <button class="admin-btn sync-btn" @click.prevent="selectDriveToLocal">Drive優先 (Drive →
+                        Local)</button>
+                    <button class="admin-btn delete-btn" @click.prevent="showSyncDialog = false">キャンセル</button>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showReplaceWarningModal" class="modal-overlay">
+            <div class="modal-content">
+                <h3>注意: ローカルデータを置換します</h3>
+                <p>Drive のコンテンツに合わせてローカルのアセットを置換します。既存のローカルデータは削除されます。続行しますか？</p>
+                <div class="modal-actions">
+                    <button class="admin-btn delete-btn" @click.prevent="performReplaceFromDrive">置換して同期する</button>
+                    <button class="admin-btn" @click.prevent="showReplaceWarningModal = false">キャンセル</button>
+                </div>
+            </div>
+        </div>
+
         <div v-if="previewAsset" class="modal-overlay" @click.self="closePreview">
             <div class="modal-content">
                 <div v-if="previewAssetType === 'image'">
@@ -112,6 +137,9 @@ const confirmAdd = async () => { await addAssets(); closeAddModal(); };
 
 const uploading = ref(false);
 const syncing = ref(false);
+const showSyncDialog = ref(false);
+const syncDirection = ref<'local' | 'drive' | ''>('');
+const showReplaceWarningModal = ref(false);
 
 const previewAsset = ref<any>(null);
 const previewAssetType = ref<string | null>(null);
@@ -192,7 +220,39 @@ const deleteSelectedAssets = async () => {
     selectedAssets.value = [];
 };
 
-const syncAssets = async () => { syncing.value = true; try { await assetService.syncAssets(); await fetchAssets(); } finally { syncing.value = false; } };
+const openSyncDialog = () => { syncDirection.value = ''; showSyncDialog.value = true; };
+
+const executeSync = async () => {
+    if (!syncDirection.value) return;
+    if (syncDirection.value === 'drive') {
+        // show replace warning
+        showReplaceWarningModal.value = true;
+        return;
+    }
+    // local -> drive
+    syncing.value = true;
+    try {
+        await assetService.syncAssets('local');
+        await fetchAssets();
+    } finally {
+        syncing.value = false;
+        showSyncDialog.value = false;
+    }
+};
+
+const performReplaceFromDrive = async () => {
+    showReplaceWarningModal.value = false;
+    syncing.value = true;
+    try {
+        await assetService.syncAssets('drive');
+        await fetchAssets();
+    } finally {
+        syncing.value = false;
+        showSyncDialog.value = false;
+    }
+};
+
+const selectDriveToLocal = () => { syncDirection.value = 'drive'; showReplaceWarningModal.value = true; };
 
 const onPreview = (asset: any) => { previewAsset.value = asset; previewAssetType.value = deriveAssetKind(asset); };
 const closePreview = () => { previewAsset.value = null; previewAssetType.value = null; };
@@ -231,6 +291,17 @@ function deriveAssetKind(asset: any): string {
 .admin-btn {
     padding: 8px 12px;
     border-radius: 8px;
+}
+
+.editor-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.editor-icon {
+    font-size: 1.3em;
 }
 
 .admin-list {

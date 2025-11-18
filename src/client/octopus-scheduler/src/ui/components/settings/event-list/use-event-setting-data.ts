@@ -20,9 +20,12 @@ export function useEventSettingData() {
     }
   };
 
-  const syncWithDrive = async (onMessage?: (msg: string) => void) => {
+  const syncWithDrive = async (
+    mode: "local" | "drive" = "local",
+    onMessage?: (msg: string) => void
+  ) => {
     try {
-      await assetService.syncAssets((message: string) => {
+      await assetService.syncAssets(mode, (message: string) => {
         if (onMessage) onMessage(message);
       });
     } catch (e) {
@@ -58,9 +61,7 @@ export function useEventSettingData() {
     loading.value = true;
     loadingStatus.value = "データを読み込み中...";
     try {
-      await syncWithDrive((message: string) => {
-        loadingStatus.value = message;
-      });
+      // Only fetch local assets on mount — no automatic GAS sync
       await fetchAssets();
     } finally {
       loading.value = false;
