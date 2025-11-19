@@ -1,8 +1,5 @@
 import type { IScheduleEvent } from "../schedule-event/schedule-event";
-import { TransitionPageEvent } from "../schedule-event/transition/transition-page-event";
-import { PlayAudioEvent } from "../schedule-event/play-audio/play-audio-event";
-import { SlideshowEvent } from "../schedule-event/slideshow/slideshow-event";
-import { ShowContentEvent } from "../schedule-event/show-content/show-content-event";
+import { getEventFromData } from "../schedule-event/event-registry";
 
 export interface KeyboardShortcutData {
   id: string;
@@ -45,23 +42,7 @@ export class KeyboardShortcut {
   static fromData(data: KeyboardShortcutData): KeyboardShortcut {
     const { id, keys, action: actionData } = data;
     const { type, ...params } = actionData;
-    let event: IScheduleEvent;
-    switch (type) {
-      case "TransitionPageEvent":
-        event = TransitionPageEvent.fromData({ id, ...params });
-        break;
-      case "PlayAudioEvent":
-        event = PlayAudioEvent.fromData({ id, ...params });
-        break;
-      case "SlideshowEvent":
-        event = SlideshowEvent.fromData({ id, ...params });
-        break;
-      case "ShowContentEvent":
-        event = ShowContentEvent.fromData({ id, ...params });
-        break;
-      default:
-        throw new Error(`Unknown event type: ${type}`);
-    }
+    const event = getEventFromData(type, { id, ...params });
     return new KeyboardShortcut({ id, keys, action: event });
   }
 

@@ -17,10 +17,7 @@
             <div class="form-group">
                 <label>アクションタイプ:</label>
                 <select v-model="actionType">
-                    <option value="TransitionPageEvent">画面遷移</option>
-                    <option value="PlayAudioEvent">音声再生</option>
-                    <option value="SlideshowEvent">スライドショー</option>
-                    <option value="ShowContentEvent">コンテンツ表示</option>
+                    <option v-for="(entry, key) in actionOptions" :key="key" :value="key">{{ entry.label }}</option>
                 </select>
             </div>
             <div class="form-content">
@@ -38,15 +35,8 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
-import { TransitionPageEvent } from '../../../../model/domains/schedule-event/transition/transition-page-event';
-import { PlayAudioEvent } from '../../../../model/domains/schedule-event/play-audio/play-audio-event';
-import { SlideshowEvent } from '../../../../model/domains/schedule-event/slideshow/slideshow-event';
-import { ShowContentEvent } from '../../../../model/domains/schedule-event/show-content/show-content-event';
 import { useKeyCapture } from './composables/useKeyCapture';
-import TransitionPageForm from './forms/transition-page-form.vue';
-import PlayAudioForm from './forms/play-audio-form.vue';
-import SlideshowForm from './forms/slideshow-form.vue';
-import ShowContentForm from './forms/show-content-form.vue';
+import { getUIActionRegistry } from './action-registry';
 
 interface Props {
     show: boolean;
@@ -67,25 +57,21 @@ const actionType = ref('TransitionPageEvent');
 const formData = ref<any>({});
 const formRef = ref();
 
+const ACTION_REGISTRY = getUIActionRegistry();
+
 const currentFormComponent = computed(() => {
-    switch (actionType.value) {
-        case 'TransitionPageEvent': return TransitionPageForm;
-        case 'PlayAudioEvent': return PlayAudioForm;
-        case 'SlideshowEvent': return SlideshowForm;
-        case 'ShowContentEvent': return ShowContentForm;
-        default: return null;
-    }
+    const e = ACTION_REGISTRY[actionType.value];
+    return e ? e.component : null;
 });
+
+const actionOptions = computed(() => ACTION_REGISTRY);
 
 const initialData = computed(() => {
     if (props.editingShortcut) {
-        const action = props.editingShortcut.action;
-        switch (action.type) {
-            case 'TransitionPageEvent': return { transitionUrl: (action as any).transitionUrl };
-            case 'PlayAudioEvent': return { audioId: (action as any).audioId };
-            case 'SlideshowEvent': return { folderId: (action as any).folderId, displayDuration: (action as any).displayDuration };
-            case 'ShowContentEvent': return { contentType: (action as any).contentType, contentId: (action as any).contentId };
-            default: return {};
+        const action: any = props.editingShortcut.action;
+        const registryEntry = ACTION_REGISTRY[action.type];
+        if (registryEntry?.getInitial) {
+            return registryEntry.getInitial(action);
         }
     }
     return {};
@@ -128,87 +114,32 @@ const saveShortcut = async () => {
     await nextTick();
 
     const data = formData.value;
-    if (!data || !data.actionType) {
+    if (!data) {
         alert('フォームデータを入力してください');
         return;
     }
-
     let event: any;
+    const atype = data.actionType || actionType.value;
+    const registryEntry = ACTION_REGISTRY[atype];
+    if (!registryEntry) {
+        alert('未対応のアクションタイプです');
+        return;
+    }
     const now = new Date();
     const id = props.editingShortcut?.id || `shortcut-${Date.now()}`;
 
-    if (data.actionType === 'TransitionPageEvent') {
-        if (!data.transitionUrl) {
-            alert('URLを入力してください');
-            return;
-        }
-        event = TransitionPageEvent.fromParams({
-            id,
-            startTime: now,
-            endTime: new Date(now.getTime() + 1000),
-            transitionUrl: data.transitionUrl,
-            fadeOutDuration: 0,
-            processedAt: null,
-            registeredAt: now,
-            updatedAt: now,
-        });
-    } else if (data.actionType === 'PlayAudioEvent') {
-        if (!data.audioId) {
-            alert('音声IDを入力してください');
-            return;
-        }
-        event = PlayAudioEvent.fromParams({
-            id,
-            startTime: now,
-            endTime: new Date(now.getTime() + 1000),
-            audioId: data.audioId,
-            fadeOutDuration: 0,
-            processedAt: null,
-            registeredAt: now,
-            updatedAt: now,
-        });
-    } else if (data.actionType === 'SlideshowEvent') {
-        if (!data.folderId || !data.displayDuration) {
-            alert('フォルダIDと表示時間を入力してください');
-            return;
-        }
-        event = SlideshowEvent.fromParams({
-            id,
-            startTime: now,
-            endTime: new Date(now.getTime() + 1000),
-            folderId: data.folderId,
-            displayDuration: data.displayDuration,
-            transitionType: 'fade',
-            slideDirection: undefined,
-            bgmIds: [],
-            processedAt: null,
-            registeredAt: now,
-            updatedAt: now,
-        });
-    } else if (data.actionType === 'ShowContentEvent') {
-        if (!data.contentId) {
-            alert('コンテンツIDを入力してください');
-            return;
-        }
-        event = ShowContentEvent.fromParams({
-            id,
-            startTime: now,
-            endTime: new Date(now.getTime() + 1000),
-            contentType: data.contentType as 'image' | 'movie' | 'html',
-            contentId: data.contentId,
-            htmlString: undefined,
-            displayMode: 'fade',
-            effect: 'fade',
-            duration: 10,
-            fadeInTime: 1,
-            fadeOutTime: 1,
-            scrollDirection: undefined,
-            processedAt: null,
-            registeredAt: now,
-            updatedAt: now,
-        });
-    } else {
-        alert('未対応のアクションタイプです');
+    // perform simple validation if the registry provides a validator
+    const validate = registryEntry.validate;
+    if (validate && !validate(data)) {
+        return; // validate should show alert
+    }
+
+    // build event through registry
+    try {
+        event = registryEntry.buildEvent(id, now, data);
+    } catch (err) {
+        console.error(err);
+        alert('アクションの作成に失敗しました');
         return;
     }
 
