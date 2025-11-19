@@ -44,7 +44,7 @@ export default defineComponent({
             showResult: stateShowResult.value,
         };
 
-        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes, getInternalItems } = useRouletteAnimation(
+        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes, getInternalItems, bgmAutoplayBlocked, tryResumeBgm } = useRouletteAnimation(
             rouletteProps
         );
 
@@ -86,6 +86,10 @@ export default defineComponent({
         });
 
         const handleStart = () => {
+            // If autoplay was blocked previously, and tryResumeBgm available, try resuming on this user gesture.
+            if ((bgmAutoplayBlocked as any)?.value && typeof tryResumeBgm === "function") {
+                void tryResumeBgm();
+            }
             startSpin();
             setCanStop(false);
             setTimeout(() => {

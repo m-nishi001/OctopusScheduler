@@ -19,6 +19,9 @@ export function useAudio(options?: {
 
   const htmlAudio = ref<HTMLAudioElement | null>(null);
 
+  const _instanceId = Math.random().toString(36).slice(2);
+  const instanceId = ref<string>(_instanceId);
+
   const audioInstanceId = ref<string | null>(null);
   const isLoading = ref(false);
   const isPlaying = ref(false);
@@ -29,6 +32,23 @@ export function useAudio(options?: {
   const currentSrc = ref<string>("");
 
   const loop = ref(false);
+  const autoplayBlocked = ref(false);
+  const tryResume = async () => {
+    if (mode === "html-audio" && htmlAudio.value && autoplayBlocked.value) {
+      try {
+        console.log("[useAudio] tryResume: attempting to resume after user gesture");
+        await htmlAudio.value.play();
+        autoplayBlocked.value = false;
+        isPlaying.value = true;
+        console.log("[useAudio] tryResume: resumed playback");
+        return true;
+      } catch (err) {
+        console.warn("[useAudio] tryResume: failed to resume", err);
+        return false;
+      }
+    }
+    return false;
+  };
 
   let animationFrameId: number | null = null;
 
@@ -128,6 +148,20 @@ export function useAudio(options?: {
     }
   };
 
+  const getHtmlAudioState = () => {
+    try {
+      return {
+        muted: htmlAudio.value?.muted ?? null,
+        volume: htmlAudio.value?.volume ?? null,
+        paused: htmlAudio.value?.paused ?? null,
+        readyState: htmlAudio.value?.readyState ?? null,
+        src: currentSrc.value ?? null,
+      };
+    } catch (e) {
+      return null;
+    }
+  };
+
   /**
    * URLまたはBlobからオーディオデータをロードする
    * @param source ロードするオーディオファイルのURLまたはBlob
@@ -171,6 +205,48 @@ export function useAudio(options?: {
         const url =
           typeof source === "string" ? source : URL.createObjectURL(source);
         htmlAudio.value = new Audio(url);
+        // Attach event listeners for debugging and state updates
+        const safeAddEvent = (name: string, handler: any) => {
+          try {
+            htmlAudio.value?.addEventListener(name, handler as EventListenerOrEventListenerObject);
+          } catch (e) {
+            /* noop */
+          }
+        };
+        safeAddEvent("play", () => console.log("[useAudio] html-audio event: play", { src: currentSrc.value }));
+        safeAddEvent("playing", () => {
+          console.log("[useAudio] html-audio event: playing", { src: currentSrc.value, paused: htmlAudio.value?.paused });
+          // Ensure playback is actually audible
+          try {
+            if (htmlAudio.value) {
+              htmlAudio.value.muted = false;
+              htmlAudio.value.volume = volume.value ?? 1;
+            }
+          } catch (e) {
+            /* noop */
+          }
+          isPlaying.value = true;
+          autoplayBlocked.value = false;
+        });
+        safeAddEvent("pause", () => {
+          console.log("[useAudio] html-audio event: pause", { src: currentSrc.value });
+          isPlaying.value = false;
+        });
+        safeAddEvent("ended", () => {
+          console.log("[useAudio] html-audio event: ended", { src: currentSrc.value });
+          isPlaying.value = false;
+        });
+        safeAddEvent("error", (ev: Event) => {
+          console.error("[useAudio] html-audio event: error", { src: currentSrc.value, ev });
+          isPlaying.value = false;
+        });
+        // ensure audio is not muted and playable inline
+        try {
+          htmlAudio.value.muted = false;
+          // enable playsInline for mobile browsers
+          // @ts-ignore
+          htmlAudio.value.playsInline = true;
+        } catch {}
         htmlAudio.value.volume = volume.value;
         // currentSrc に実際に設定した URL を保持しておく
         currentSrc.value = typeof source === "string" ? source : url;
@@ -195,14 +271,33 @@ export function useAudio(options?: {
     if (!audioInstanceId.value || isPlaying.value) return;
 
     try {
+      console.log("[useAudio] play: attempting to play", { instance: _instanceId, audioInstanceId: audioInstanceId.value, src: currentSrc.value });
       await playAudio(options.fadeIn, options.isRepeat);
+      console.log("[useAudio] play: play succeeded", { instance: _instanceId, audioInstanceId: audioInstanceId.value, src: currentSrc.value });
       isPlaying.value = true;
+      autoplayBlocked.value = false;
       if (animationFrameId === null) {
         updateCurrentTime();
       }
     } catch (err) {
       error.value = err as Error;
       console.error("Failed to play audio:", err);
+      // If autoplay appears to be blocked, attempt muted-play fallback for html-audio.
+      if (mode === "html-audio" && htmlAudio.value) {
+        try {
+          console.warn("[useAudio] autoplay blocked; attempting muted-play fallback");
+          const wasMuted = htmlAudio.value.muted;
+          htmlAudio.value.muted = true;
+          await htmlAudio.value.play();
+          isPlaying.value = true;
+          autoplayBlocked.value = true;
+          // restore muted state (we leave it unmuted to ensure silence until user interacts to unmute)
+          htmlAudio.value.muted = wasMuted;
+          console.warn("[useAudio] muted-play fallback succeeded; audio remains muted until unmuted by user action");
+        } catch (fallbackErr) {
+          console.error("[useAudio] muted-play fallback also failed", fallbackErr);
+        }
+      }
     }
   };
 
@@ -264,6 +359,7 @@ export function useAudio(options?: {
   });
 
   return {
+      instanceId: readonly(instanceId),
     audioInstanceId: readonly(audioInstanceId),
     isLoading: readonly(isLoading),
     isPlaying: readonly(isPlaying),
@@ -273,6 +369,7 @@ export function useAudio(options?: {
     error: readonly(error),
     currentSrc: readonly(currentSrc),
     loop: readonly(loop),
+    autoplayBlocked: readonly(autoplayBlocked),
 
     load,
     play,
@@ -281,5 +378,7 @@ export function useAudio(options?: {
     setVolume,
     seek,
     setLoop,
+    tryResume,
+    getHtmlAudioState,
   };
 }

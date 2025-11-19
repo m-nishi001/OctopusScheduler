@@ -8,7 +8,7 @@ import DescriptionView from "../../ui/pages/description/description-view.vue";
 import DemoDraw from "../../ui/pages/demo/demo-draw.vue";
 import AdminLayout from "../../ui/pages/admin/frames/admin-view.vue";
 import AdminMembers from "../../ui/pages/admin/admin-members.vue";
-import AdminPrizes from "../../ui/pages/admin/admin-prizes.vue";
+import AdminPrizes from "../../ui/pages/admin/prizes/admin-prizes.vue";
 import HomeScreenConfig from "../../ui/pages/admin/screen-config/home-screen-config.vue";
 import OpeningScreenConfig from "../../ui/pages/admin/screen-config/opening-screen-config.vue";
 import DescriptionScreenConfig from "../../ui/pages/admin/screen-config/description-screen-config.vue";

@@ -12,6 +12,10 @@ vi.mock("../roulette-audio", () => {
   const audioMock = {
     startBgm: vi.fn(() => Promise.resolve()),
     stopBgmAudio: vi.fn(() => Promise.resolve()),
+    bgmAutoplayBlocked: { value: false },
+    tryResumeBgm: vi.fn(() => Promise.resolve()),
+    isBgmPlaying: { value: false },
+    currentBgmSrc: { value: "" },
   };
   return {
     useRouletteAudio: () => audioMock,
@@ -158,6 +162,18 @@ describe("useRouletteAnimation - full coverage", () => {
 
     expect(audio.startBgm).toHaveBeenCalled();
     expect(animator.startSpin).toHaveBeenCalledWith(2, 2);
+  });
+
+  it("startSpin attempts tryResumeBgm when autoplay was blocked", async () => {
+    const props = reactive({ prizes: [] });
+    const api = useRouletteAnimation(props as any);
+
+    const audio = useRouletteAudio();
+    (audio as any).bgmAutoplayBlocked.value = true;
+    const audioSpy = (audio as any).tryResumeBgm;
+    await api.startSpin(new Blob(), 2, 2);
+
+    expect(audioSpy).toHaveBeenCalled();
   });
 
   it("startSpin rejects when startBgm fails", async () => {

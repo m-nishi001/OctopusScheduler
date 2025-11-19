@@ -16,6 +16,7 @@ export default defineConfig({
         __dirname,
         "../../packages/shared-composables/src"
       ),
+      "@common-lib": resolve(__dirname, "../../packages/common-lib/src"),
       pages: resolve(__dirname, "src/ui/pages"),
       components: resolve(__dirname, "src/ui/components"),
       "packages/common-lib": resolve(

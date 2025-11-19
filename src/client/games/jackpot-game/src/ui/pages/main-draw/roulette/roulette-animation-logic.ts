@@ -24,7 +24,7 @@ export function useRouletteAnimation(
   const canvas = ref<HTMLCanvasElement | null>(null);
   let ctx: CanvasRenderingContext2D | null = null;
 
-  const { startBgm, stopBgmAudio } = useRouletteAudio();
+  const { startBgm, stopBgmAudio, bgmAutoplayBlocked, tryResumeBgm, isBgmPlaying, currentBgmSrc } = useRouletteAudio();
 
   let currentRouletteItems: InternalRouletteItem[] = [];
 
@@ -50,11 +50,29 @@ export function useRouletteAnimation(
     targetSpeed: number = 16
   ) => {
     try {
+      // If autoplay was previously blocked, try to resume playback on user gesture
+      try {
+        if ((bgmAutoplayBlocked as any)?.value && typeof tryResumeBgm === "function") {
+          await tryResumeBgm();
+        }
+      } catch {}
       await startBgm(bgmUrl);
       console.log(
         "[RouletteAnimation] startSpin: bgm loaded",
         bgmUrl ? { size: bgmUrl.size, type: bgmUrl.type } : null
       );
+      try {
+        console.log(
+          "[RouletteAnimation] startSpin: audio state after startBgm => isPlaying:",
+          (isBgmPlaying as any).value,
+          "currentSrc:",
+          (currentBgmSrc as any).value,
+          "autoplayBlocked:",
+          (bgmAutoplayBlocked as any).value
+        );
+      } catch (e) {
+        /* noop */
+      }
     } catch (e) {
       console.warn("[RouletteAnimation] startSpin: failed to load bgm", e);
       // rethrow to preserve original behavior where startSpin rejects when startBgm fails
@@ -120,5 +138,8 @@ export function useRouletteAnimation(
     spinning: animator.spinning,
     updatePrizes: updateRouletteItems,
     getInternalItems: () => currentRouletteItems.slice(),
+    // expose autoplay control so the consumer can act on user gesture
+    bgmAutoplayBlocked,
+    tryResumeBgm,
   };
 }
