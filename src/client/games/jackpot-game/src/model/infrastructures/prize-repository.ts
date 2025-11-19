@@ -78,9 +78,6 @@ export class PrizeRepository implements IPrizeRepository {
         parentFolderId: "",
       };
       await service.call<DriveMetadata>(driveJson as DriveJsonData);
-      // Intentionally do not persist the Drive-assigned fileId in localStorage.
-      // This fileId is not used elsewhere in the application; the server-side
-      // `getJson` handler fetches the appropriate file without needing it.
     } catch (e) {
       console.error("PrizeRepository.exportAllPrizesToDrive failed:", e);
       return;
