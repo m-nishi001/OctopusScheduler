@@ -23,6 +23,7 @@ const duration = ref(parseFloat(route.query.duration as string) || 3);
 const fadeInTime = ref(parseFloat(route.query.fadeInTime as string) || 1);
 const fadeOutTime = ref(parseFloat(route.query.fadeOutTime as string) || 1);
 const scrollDirection = ref(route.query.scrollDirection as string || 'up');
+const manual = ref((route.query.manual as string) === 'true');
 
 const displayModeClass = computed(() => {
     if (effect.value === 'fade') {
@@ -59,10 +60,14 @@ function startAnimation() {
     gsap.set(el, { opacity: 0 });
 
     if (effect.value === 'fade') {
-        gsap.timeline()
-            .to(el, { opacity: 1, duration: fadeInTime.value })
-            .to({}, { duration: Math.max(0, duration.value - fadeInTime.value - fadeOutTime.value) })
-            .to(el, { opacity: 0, duration: fadeOutTime.value });
+        if (!manual.value) {
+            gsap.timeline()
+                .to(el, { opacity: 1, duration: fadeInTime.value })
+                .to({}, { duration: Math.max(0, duration.value - fadeInTime.value - fadeOutTime.value) })
+                .to(el, { opacity: 0, duration: fadeOutTime.value });
+        } else {
+            gsap.timeline().to(el, { opacity: 1, duration: fadeInTime.value });
+        }
     } else if (effect.value === 'scroll') {
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
@@ -97,13 +102,18 @@ function startAnimation() {
             endX = travelX;
         }
 
-        gsap.set(el, { x: startX, y: startY, opacity: 1 });
-        gsap.to(el, {
-            x: endX,
-            y: endY,
-            duration: duration.value,
-            ease: 'linear'
-        });
+        if (manual.value) {
+            // For manual display, don't scroll the element; just show it statically
+            gsap.set(el, { x: 0, y: 0, opacity: 1 });
+        } else {
+            gsap.set(el, { x: startX, y: startY, opacity: 1 });
+            gsap.to(el, {
+                x: endX,
+                y: endY,
+                duration: duration.value,
+                ease: 'linear'
+            });
+        }
     } else if (effect.value === 'static') {
         gsap.set(el, { opacity: 1 });
     }

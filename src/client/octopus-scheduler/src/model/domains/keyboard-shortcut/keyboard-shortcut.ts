@@ -1,5 +1,6 @@
 import type { IScheduleEvent } from "../schedule-event/schedule-event";
 import { getEventFromData } from "../schedule-event/event-registry";
+// NOTE: event bus is not required here since we use polymorphic execute
 
 export interface KeyboardShortcutData {
   id: string;
@@ -23,7 +24,14 @@ export class KeyboardShortcut {
 
   // キーボードトリガーで実行
   async execute(): Promise<void> {
-    await this.action.execute(true);
+    // Use polymorphism: call event.execute(isStart = true, manual = true)
+    // so that each event can decide how to behave for manual triggers.
+    try {
+      await this.action.execute(true, true);
+    } catch (e) {
+      // Fallback to old behavior — schedule start without manual flag
+      await this.action.execute(true);
+    }
   }
 
   // シリアライズ（保存用）

@@ -61,7 +61,7 @@ async function syncMembers() {
         }
 
         const service = new GasFunctionService('getJson');
-        const resp = await service.call<any>(lastId);
+        const resp = await service.call<{ json: string }>(lastId);
         if (resp && resp.json) {
             updateDomain(id, { message: 'ダウンロード完了、保存中...', progress: 80 });
             try {
@@ -89,33 +89,12 @@ async function syncPrizes() {
     const id = 'prizes';
     updateDomain(id, { running: true, message: 'ファイルダウンロード中...' });
     try {
-        const lastId = localStorage.getItem('jackpot-prizes-last-file-id');
-        if (!lastId) {
-
-            updateDomain(id, { message: 'Drive 上の景品ファイルが見つかりません', progress: 100 });
-            return;
-        }
-        const service = new GasFunctionService('getJson');
-        const resp = await service.call<any>(lastId);
-        if (resp && resp.json) {
-            updateDomain(id, { message: 'ダウンロード完了、保存中...', progress: 80 });
-            try {
-                const parsed = JSON.parse(resp.json || '[]');
-                if (Array.isArray(parsed)) {
-                    await prizeRepo.replaceAllPrizes(parsed as any);
-                    updateDomain(id, { message: '同期完了', progress: 100 });
-                } else {
-                    updateDomain(id, { message: 'ダウンロードした JSON が配列ではありません', progress: 100 });
-                }
-            } catch (e) {
-                updateDomain(id, { message: '保存に失敗しました', progress: 100 });
-            }
-        } else {
-            updateDomain(id, { message: 'Drive からの取得に失敗しました', progress: 100 });
-        }
+        await prizeRepo.importAllPrizesFromDrive();
+        updateDomain(id, { message: 'ダウンロード完了、保存中...', progress: 80 });
+        updateDomain(id, { message: '同期完了', progress: 100 });
     } catch (e) {
         console.error('prizes sync error', e);
-        updateDomain(id, { message: '同期に失敗しました', progress: 100 });
+        updateDomain(id, { message: 'Drive 上の景品ファイルが見つからないか取得に失敗しました', progress: 100 });
     }
 }
 

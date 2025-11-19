@@ -29,6 +29,18 @@ export class KeyboardShortcutService {
   async addKeyboardShortcut(shortcut: KeyboardShortcut): Promise<void> {
     const shortcuts = await this.getKeyboardShortcuts();
     shortcuts.push(shortcut);
+    try {
+      console.debug(
+        "[KeyboardShortcutService.addKeyboardShortcut] adding shortcut",
+        {
+          id: shortcut.id,
+          keys: shortcut.keys,
+          actionType: shortcut.action.type,
+        }
+      );
+    } catch (e) {
+      /* ignore */
+    }
     await this.saveKeyboardShortcuts(shortcuts);
   }
 

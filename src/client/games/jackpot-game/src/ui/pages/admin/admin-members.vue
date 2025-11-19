@@ -178,6 +178,21 @@ import { IMemberRepositoryToken } from '@model/domains/member/repository/i-membe
 import AssetSelectionDialog from './components/asset-selection-dialog.vue';
 import DataUploadDialog from './components/data-upload-dialog.vue';
 import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
+// Local type aliases for GAS Drive types (avoid importing server package from SFC)
+type DriveMetadata = {
+  driveDataId: string;
+  fileId: string;
+  parentFolderId: string;
+  lastUpdate: string;
+  size?: number;
+};
+type DriveJsonData = {
+  metadata: DriveMetadata;
+  fileName: string;
+  jsonText: string;
+  uploadDate: string;
+  parentFolderId: string;
+};
 const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
 const memberService = container.resolve(MemberService);
@@ -511,23 +526,18 @@ const uploadMembersJsonToDrive = async () => {
   try {
     const json = localStorage.getItem(STORAGE_KEY) || JSON.stringify(members.value || []);
     const service = new GasFunctionService('addJson');
+    const appFileId = String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8);
     const driveJson = {
-      metadata: {
-        driveDataId: 'members-json-' + Date.now(),
-        fileId: '',
-        parentFolderId: '',
-        lastUpdate: new Date().toISOString(),
-        size: json.length,
-      },
+      appFileId: appFileId,
+      metadata: {},
       fileName: 'members.json',
       jsonText: json,
       uploadDate: new Date().toISOString(),
       parentFolderId: '',
     };
 
-    const res = await service.call<any>(driveJson);
-
-    const fileId = res?.fileId || res?.data?.fileId || res?.fileId || res?.fileId;
+    const res = await service.call<DriveMetadata>(driveJson as DriveJsonData);
+    const fileId = res?.fileId;
     if (fileId) {
       localStorage.setItem('jackpot-members-last-file-id', fileId);
       console.log('Uploaded members.json fileId=', fileId);
@@ -545,7 +555,7 @@ const downloadMembersJsonFromDrive = async () => {
       return;
     }
     const service = new GasFunctionService('getJson');
-    const resp = await service.call<{ json: string } | null>(lastId);
+    const resp = await service.call<{ json: string }>(lastId);
     if (resp && resp.json) {
       const json = resp.json;
       localStorage.setItem(STORAGE_KEY, json);

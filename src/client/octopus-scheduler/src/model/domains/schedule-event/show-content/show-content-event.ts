@@ -163,7 +163,7 @@ export class ShowContentEvent implements IScheduleEvent {
     return new ShowContentEvent(params);
   }
 
-  async execute(isStart: boolean): Promise<void> {
+  async execute(isStart: boolean, manual?: boolean): Promise<void> {
     if (isStart) {
       eventBus.emit("showContent", {
         contentType: this.contentType,
@@ -175,6 +175,7 @@ export class ShowContentEvent implements IScheduleEvent {
         fadeInTime: this.fadeInTime,
         fadeOutTime: this.fadeOutTime,
         scrollDirection: this.scrollDirection,
+        manual: !!manual,
       });
     } else {
       eventBus.emit("hideContent", { contentType: this.contentType });

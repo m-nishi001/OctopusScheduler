@@ -35,7 +35,20 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
 
   async saveKeyboardShortcuts(shortcuts: KeyboardShortcut[]): Promise<void> {
     const datas = shortcuts.map((s) => s.serialize());
-    await this.localStorage.save("shortcuts", datas);
+    // Ensure we pass plain JSON-serializable objects to LocalStorageService
+    // This strips classes, methods and prototypes that may cause structured clone errors.
+    const serializableDatas = JSON.parse(JSON.stringify(datas));
+    try {
+      console.debug(
+        `[KeyboardShortcutRepository.saveKeyboardShortcuts] saving ${datas.length} shortcuts`,
+        {
+          sample: datas[0],
+        }
+      );
+    } catch (e) {
+      // ignore logging errors
+    }
+    await this.localStorage.save("shortcuts", serializableDatas as any);
   }
 
   async getConfig(): Promise<KeyboardShortcutConfig> {
@@ -67,7 +80,8 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
         }>();
         if (remoteData) {
           const datas = this.convertLegacyShortcuts(remoteData.shortcuts);
-          await this.localStorage.save("shortcuts", datas);
+          const serializableDatas = JSON.parse(JSON.stringify(datas));
+          await this.localStorage.save("shortcuts", serializableDatas as any);
           await this.localStorage.save("config", remoteData.config);
         }
       } catch (error) {

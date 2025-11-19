@@ -22,7 +22,17 @@ export interface OperationResult<T = void> {
 }
 
 export interface DriveJsonData {
-  metadata: DriveMetadata;
+  // App-managed file id is application-scoped identity used by the client.
+  // This is not part of the Drive metadata — GAS will initialize Drive
+  // metadata (driveDataId, fileId, etc.) server-side. The client may
+  // supply an `appFileId` for application-level purposes which GAS will
+  // use as the filename prefix but it's not part of Drive metadata.
+  appFileId?: string;
+
+  // Drive metadata is optional on input; server initializes it and returns
+  // fully-populated metadata in responses. Avoid sending client-managed
+  // data inside metadata.
+  metadata?: DriveMetadata;
   fileName: string;
   jsonText: string;
   uploadDate: string;

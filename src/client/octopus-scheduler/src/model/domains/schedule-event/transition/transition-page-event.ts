@@ -104,9 +104,9 @@ export class TransitionPageEvent implements IScheduleEvent {
     return new TransitionPageEvent(params);
   }
 
-  async execute(isStart: boolean): Promise<void> {
+  async execute(isStart: boolean, manual?: boolean): Promise<void> {
     if (isStart) {
-      eventBus.emit("transitionPage", { transitionUrl: this.transitionUrl });
+      eventBus.emit("transitionPage", { transitionUrl: this.transitionUrl, manual: !!manual } as any);
     }
   }
 

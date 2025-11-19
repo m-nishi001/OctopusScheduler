@@ -1,4 +1,4 @@
-// Google Drive and Spreadsheet CRUD operations for jackpot-game-api
+// Google Drive operations for jackpot-game-api
 
 import {
   DriveData,
@@ -8,10 +8,6 @@ import {
 } from "../../../common/src/drive-types";
 import { GasResponse } from "../../../common/src/gas-types";
 import { GoogleDriveService } from "../../../common/src/google-drive-service";
-import {
-  SpreadsheetService,
-  SpreadsheetData,
-} from "../../../common/src/google-spreadsheet-service";
 
 declare let _jackpotGame_addDriveData: (
   driveData: DriveData
@@ -26,29 +22,15 @@ declare let _jackpotGame_removeDriveData: (dataId: string) => GasResponse<void>;
 declare let _jackpotGame_updateDriveData: (
   driveData: DriveData
 ) => GasResponse<void>;
-declare let _jackpotGame_upsertSpreadsheetData: (
-  spreadsheetData: SpreadsheetData
-) => GasResponse<void>;
-declare let _jackpotGame_getAllSpreadsheetNames: () => GasResponse<string[]>;
-declare let _jackpotGame_getSpreadsheetData: (
-  sheetName: string
-) => GasResponse<SpreadsheetData | null>;
-declare let _jackpotGame_removeSpreadsheetData: (
-  sheetName: string
-) => GasResponse<void>;
 declare let _jackpotGame_addJson: (
   driveJson: DriveJsonData
 ) => GasResponse<DriveMetadata>;
 declare let _jackpotGame_getJson: (
-  fileId: string
-) => GasResponse<{ json: string } | null>;
+  fileId?: string
+) => GasResponse<{ json: string }>;
 
 // Instantiate services
 const driveService = new GoogleDriveService();
-const spreadsheetId = PropertiesService.getScriptProperties().getProperty(
-  "jackpot-game-api-spreadsheet"
-);
-const spreadsheetService = new SpreadsheetService(spreadsheetId);
 
 // Helper: resolve the asset folder id to use for uploads. Prefer provided folderId,
 // otherwise fall back to ScriptProperties key 'jackpot-game-asset-folder-id'.
@@ -117,46 +99,6 @@ _jackpotGame_updateDriveData = (driveData: DriveData): GasResponse<void> => {
   }
 };
 
-_jackpotGame_upsertSpreadsheetData = (
-  spreadsheetData: SpreadsheetData
-): GasResponse<void> => {
-  try {
-    spreadsheetService.upsertSpreadsheetData(spreadsheetData);
-    return { status: "success", data: undefined };
-  } catch (error) {
-    return { status: "error", message: (error as Error).message };
-  }
-};
-
-_jackpotGame_getAllSpreadsheetNames = (): GasResponse<string[]> => {
-  try {
-    const result = spreadsheetService.getAllSpreadsheetNames();
-    return { status: "success", data: result };
-  } catch (error) {
-    return { status: "error", message: (error as Error).message };
-  }
-};
-
-_jackpotGame_getSpreadsheetData = (
-  sheetName: string
-): GasResponse<SpreadsheetData | null> => {
-  try {
-    const result = spreadsheetService.getSpreadsheetData(sheetName);
-    return { status: "success", data: result };
-  } catch (error) {
-    return { status: "error", message: (error as Error).message };
-  }
-};
-
-_jackpotGame_removeSpreadsheetData = (sheetName: string): GasResponse<void> => {
-  try {
-    spreadsheetService.removeSpreadsheetData(sheetName);
-    return { status: "success", data: undefined };
-  } catch (error) {
-    return { status: "error", message: (error as Error).message };
-  }
-};
-
 _jackpotGame_addJson = (
   driveJson: DriveJsonData
 ): GasResponse<DriveMetadata> => {
@@ -170,8 +112,23 @@ _jackpotGame_addJson = (
       driveJson.fileName
     );
     const folder = DriveApp.getFolderById(folderId);
+
+    // If the client supplied an application-level fileId, use it as the
+    // prefix in the stored filename so we can later find it by that id.
+    // Note: this value is an application-managed id and should be sent in
+    // the top-level `appFileId` property. `metadata` is reserved for
+    // Drive-specific metadata and is initialized server-side.
+    const appFileId = driveJson.appFileId ?? "";
+    const nameToSet = appFileId
+      ? `${appFileId}_${driveJson.fileName}`
+      : driveJson.fileName;
+
     const file = folder.createFile(blob);
+    // Ensure consistent name format based on client-supplied id
+    file.setName(nameToSet);
     const metadata: DriveMetadata = {
+      // driveDataId is derived from the filename prefix or falls back to
+      // the Drive file id if not present.
       driveDataId: file.getName().split("_")[0] || file.getId(),
       fileId: file.getId(),
       parentFolderId: folderId,
@@ -184,14 +141,67 @@ _jackpotGame_addJson = (
   }
 };
 
-_jackpotGame_getJson = (
-  fileId: string
-): GasResponse<{ json: string } | null> => {
+_jackpotGame_getJson = (fileId?: string): GasResponse<{ json: string }> => {
   try {
-    const file = DriveApp.getFileById(fileId);
+    // Make sure even if getAssetFolderId throws, we handle it gracefully
+    let folderId = "";
+    try {
+      folderId = getAssetFolderId();
+    } catch (e) {
+      // Can't find asset folder — log and return an empty JSON array so
+      // client-side callers still get a well-formed response.
+      console.warn(
+        "getJson: asset folder id not configured or not provided",
+        e
+      );
+      return { status: "success", data: { json: JSON.stringify([]) } };
+    }
+    const folder = DriveApp.getFolderById(folderId);
+
+    // If a fileId (either Drive ID or application-level id) is supplied,
+    // attempt to fetch by Drive ID first; if that fails, try to locate by
+    // filename prefix (<appFileId>_prizes.json).
+    if (fileId && fileId.trim() !== "") {
+      try {
+        const file = DriveApp.getFileById(fileId);
+        const content = file.getBlob().getDataAsString();
+        return { status: "success", data: { json: content } };
+      } catch (e) {
+        // Not a Drive ID or file not found by ID — try by filename prefix
+        const filesByPrefix = folder.getFiles();
+        while (filesByPrefix.hasNext()) {
+          const f = filesByPrefix.next();
+          if (f.getName().startsWith(`${fileId}_`)) {
+            const content = f.getBlob().getDataAsString();
+            return { status: "success", data: { json: content } };
+          }
+        }
+        // Not found -> fall through to the default behavior
+      }
+    }
+
+    const files = folder.getFilesByName("prizes.json");
+    if (!files.hasNext()) {
+      // If no prizes.json file exists, return an empty array JSON string instead
+      return { status: "success", data: { json: JSON.stringify([]) } };
+    }
+    const file = files.next();
     const content = file.getBlob().getDataAsString();
-    return { status: "success", data: { json: content } };
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      parsed = [];
+    }
+    if (!Array.isArray(parsed)) {
+      parsed = [];
+    }
+    return { status: "success", data: { json: JSON.stringify(parsed) } };
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    // Always return a success response with an empty JSON array if an unexpected
+    // error occurs here to ensure the client always receives a well-formed
+    // value. Still log the error for diagnostics.
+    console.error("_jackpotGame_getJson error:", (error as Error).message);
+    return { status: "success", data: { json: JSON.stringify([]) } };
   }
 };

@@ -1,4 +1,6 @@
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
+import { IdGeneratorToken } from "../domains/common/id-generator";
+import type { IdGenerator } from "../domains/common/id-generator";
 import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 import type { IAssetDataRepository } from "../domains/drive-data/repository/i-asset-data-repository";
@@ -14,7 +16,7 @@ export class AssetDataRepository implements IAssetDataRepository {
 
   private readonly concurrency = 20;
 
-  constructor() {
+  constructor(@inject(IdGeneratorToken) private idGenerator: IdGenerator) {
     this.localStorage = new LocalStorageService("jackpot-game", "AssetData");
   }
 
@@ -24,7 +26,7 @@ export class AssetDataRepository implements IAssetDataRepository {
       // Preserve incoming id when present (e.g. imported drive data), otherwise
       // generate a random UUID for new uploads produced on the client.
       const id =
-        dto.id && dto.id.trim().length > 0 ? dto.id : crypto.randomUUID();
+        dto.id && dto.id.trim().length > 0 ? dto.id : this.idGenerator.nextId();
       const uploadedAt = dto.uploadedAt ?? new Date().toISOString();
       const lastUpdated = dto.lastUpdated ?? new Date().toISOString();
 
@@ -251,7 +253,7 @@ export class AssetDataRepository implements IAssetDataRepository {
         );
 
         const asset = new Asset(
-          driveData.metadata?.driveDataId || crypto.randomUUID(),
+          driveData.metadata?.driveDataId || this.idGenerator.nextId(),
           driveData.fileKind || "application/octet-stream",
           driveData.fileName || "",
           driveData.uploadDate

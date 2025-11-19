@@ -4,7 +4,6 @@ import { AssetDataService } from "@model/applications/asset/asset-data-service";
 import { PrizeService } from "@model/applications/prize/prize-service";
 import type { IPrizeRepository } from "@model/domains/prize/repository/i-prize-repository";
 import { IPrizeRepositoryToken } from "@model/domains/prize/repository/i-prize-repository";
-import { downloadPrizesJsonFromDrive } from "./prizes-upload";
 
 export function usePrizeSync(
   prizeRepoArg?: IPrizeRepository,
@@ -76,7 +75,7 @@ export function usePrizeSync(
         );
         idMap = res?.idMap;
       } else {
-        await downloadPrizesJsonFromDrive(prizeRepo);
+        await prizeRepo.importAllPrizesFromDrive();
       }
 
       if (fetchAssets) await fetchAssets();

@@ -137,4 +137,39 @@ describe("KeyboardShortcutService", () => {
     ).toBeNull();
     expect(await service.findShortcutByKeys(["Control", "1"])).toBeNull();
   });
+
+  it("executes ShowContentEvent via keyboard and emits showContent with manual flag", async () => {
+    const event = (await import("../../../domains/schedule-event/show-content/show-content-event")).ShowContentEvent.fromData({
+      id: "e4",
+      contentType: "image",
+      contentId: "img-1",
+      processedAt: null,
+      registeredAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
+
+    const shortcut = new KeyboardShortcut({
+      id: "s4",
+      keys: ["Control", "2"],
+      action: event,
+    });
+    await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
+
+    const spy = vi.fn();
+    eventBus.on("showContent", spy);
+
+    const found = await service.findShortcutByKeys(["Control", "2"]);
+    expect(found).not.toBeNull();
+
+    await found!.execute();
+
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        contentType: "image",
+        contentId: "img-1",
+        manual: true,
+      })
+    );
+  });
 });

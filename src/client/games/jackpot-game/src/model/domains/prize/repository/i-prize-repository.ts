@@ -1,6 +1,6 @@
 import type { Prize } from "../prize";
+// no DriveMetadata import needed for the interface
 
-// Runtime DI token for IPrizeRepository
 export const IPrizeRepositoryToken = Symbol("IPrizeRepository");
 
 export interface IPrizeRepository {
@@ -9,4 +9,9 @@ export interface IPrizeRepository {
   addPrizes(prizes: Prize[]): Promise<void>;
   deletePrizes(ids: string[]): Promise<void>;
   replaceAllPrizes(prizes: Prize[]): Promise<{ replaced: number }>;
+  exportAllPrizesToDrive(): Promise<void>;
+  // Import prizes from Drive into local storage. Assumes Drive -> local
+  // (GAS returns JSON which is saved locally). The method performs side
+  // effects and returns void.
+  importAllPrizesFromDrive(): Promise<void>;
 }

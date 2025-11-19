@@ -134,7 +134,7 @@ export class SlideshowEvent implements IScheduleEvent {
     return new SlideshowEvent(params);
   }
 
-  async execute(isStart: boolean): Promise<void> {
+  async execute(isStart: boolean, manual?: boolean): Promise<void> {
     if (isStart) {
       eventBus.emit("startSlideshow", {
         folderId: this.folderId,
@@ -142,7 +142,8 @@ export class SlideshowEvent implements IScheduleEvent {
         transitionType: this.transitionType,
         slideDirection: this.slideDirection,
         bgmIds: this.bgmIds,
-      });
+        manual: !!manual,
+      } as any);
     } else {
       eventBus.emit("stopSlideshow");
     }

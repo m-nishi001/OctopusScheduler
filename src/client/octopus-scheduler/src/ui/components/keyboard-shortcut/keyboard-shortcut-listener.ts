@@ -1,8 +1,19 @@
 import { container } from "tsyringe";
+import { eventBus } from "../../../core/event-bus";
 import { KeyboardShortcutService } from "../../../model/applications/keyboard-shortcut/keyboard-shortcut-service";
 
 export function registerKeyboardShortcutListener(): () => void {
   const keyboardShortcutService = container.resolve(KeyboardShortcutService);
+  let manualContentVisible = false;
+  // update manual content visibility flag based on showContent/hideContent events
+  const onShowContent = (data: any) => {
+    manualContentVisible = !!data?.manual;
+  };
+  const onHideContent = () => {
+    manualContentVisible = false;
+  };
+  eventBus.on("showContent", onShowContent);
+  eventBus.on("hideContent", onHideContent);
   let sequence: string[] = [];
   let sequenceTimer: number | null = null;
   let pendingExecutionTimer: number | null = null;
@@ -17,6 +28,27 @@ export function registerKeyboardShortcutListener(): () => void {
       event.target instanceof HTMLTextAreaElement
     )
       return;
+
+    // ESC押下で表示されたコンテンツを閉じる（手動表示モード）
+    if (event.key === "Escape") {
+      try {
+        event.preventDefault();
+      } catch {
+        /* ignore */
+      }
+      eventBus.emit("hideContent");
+      // clear any pending sequences/timers
+      sequence = [];
+      if (sequenceTimer) {
+        clearTimeout(sequenceTimer);
+        sequenceTimer = null;
+      }
+      if (pendingExecutionTimer) {
+        clearTimeout(pendingExecutionTimer);
+        pendingExecutionTimer = null;
+      }
+      return;
+    }
 
     const keysToAppend: string[] = [];
     if (event.ctrlKey && !sequence.includes("Control"))
@@ -60,7 +92,7 @@ export function registerKeyboardShortcutListener(): () => void {
 
     // Check for exact match
     const shortcut = await keyboardShortcutService.findShortcutByKeys(sequence);
-    if (shortcut) {
+      if (shortcut) {
       // If there is a longer shortcut that starts with the same sequence, wait a short time
       const hasLonger =
         await keyboardShortcutService.hasLongerShortcutWithPrefix(sequence);
@@ -78,8 +110,16 @@ export function registerKeyboardShortcutListener(): () => void {
             }
           }
         }, PENDING_TIMEOUT_MS);
-      } else {
+        } else {
         event.preventDefault();
+          // If a manual content is visible and this is not itself a ShowContentEvent,
+          // close it before executing a new shortcut.
+          if (
+            manualContentVisible &&
+            shortcut.action.type !== "ShowContentEvent"
+          ) {
+            eventBus.emit("hideContent");
+          }
         await shortcut.execute();
         // clear sequence
         sequence = [];
@@ -90,6 +130,8 @@ export function registerKeyboardShortcutListener(): () => void {
       }
       return;
     }
+
+    
 
     // If no exact match but some longer shortcuts start with this prefix, wait for more input
     const hasLongerPrefix = (
@@ -120,6 +162,8 @@ export function registerKeyboardShortcutListener(): () => void {
     if (sequenceTimer) clearTimeout(sequenceTimer);
     if (pendingExecutionTimer) clearTimeout(pendingExecutionTimer);
     sequence = [];
+    eventBus.off("showContent", onShowContent);
+    eventBus.off("hideContent", onHideContent);
   };
 }
 

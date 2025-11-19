@@ -102,9 +102,9 @@ export class PlayAudioEvent implements IScheduleEvent {
     return new PlayAudioEvent(params);
   }
 
-  async execute(isStart: boolean): Promise<void> {
+  async execute(isStart: boolean, manual?: boolean): Promise<void> {
     if (isStart) {
-      eventBus.emit("playAudio", { audioId: this.audioId });
+      eventBus.emit("playAudio", { audioId: this.audioId, manual: !!manual } as any);
     } else {
       eventBus.emit("stopAudio");
     }

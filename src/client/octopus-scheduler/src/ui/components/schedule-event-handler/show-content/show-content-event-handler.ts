@@ -9,6 +9,7 @@ export class ShowContentEventHandler {
         contentType: "image" | "movie" | "html";
         contentId?: string;
         htmlString?: string;
+        manual?: boolean;
       }) => this.handleShowContent(data, router)
     );
     eventBus.on("hideContent", () => this.handleHideContent(router));
@@ -25,6 +26,7 @@ export class ShowContentEventHandler {
       fadeInTime?: number;
       fadeOutTime?: number;
       scrollDirection?: "up" | "down" | "left" | "right";
+      manual?: boolean;
     },
     router: Router
   ) {
@@ -33,13 +35,14 @@ export class ShowContentEventHandler {
         router.push({
           name: "show-image",
           params: { id: data.contentId },
-          query: {
+            query: {
             displayMode: data.displayMode || "fade",
             effect: data.effect || "fade",
             duration: data.duration?.toString() || "3",
             fadeInTime: data.fadeInTime?.toString() || "1",
             fadeOutTime: data.fadeOutTime?.toString() || "1",
             scrollDirection: data.scrollDirection || "up",
+              ...(data.manual ? { manual: "true" } : {}),
           },
         });
       }
@@ -48,10 +51,11 @@ export class ShowContentEventHandler {
         router.push({
           name: "show-video",
           params: { id: data.contentId },
-          query: {
+            query: {
             displayMode: data.displayMode || "fade",
             effect: data.effect || "fade",
             fadeInTime: data.fadeInTime?.toString() || "1",
+              ...(data.manual ? { manual: "true" } : {}),
           },
         });
       }
@@ -61,7 +65,7 @@ export class ShowContentEventHandler {
         router.push({
           name: "show-html",
           params: { content: encoded },
-          query: { displayMode: data.displayMode || "fade" },
+          query: { displayMode: data.displayMode || "fade", ...(data.manual ? { manual: "true" } : {}) },
         });
       }
     }

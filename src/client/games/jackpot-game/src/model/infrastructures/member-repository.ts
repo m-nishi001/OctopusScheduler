@@ -1,5 +1,7 @@
 import { LocalStorageService } from "@common-lib/storage/local-storage-service";
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
+import { IdGeneratorToken } from "../domains/common/id-generator";
+import type { IdGenerator } from "../domains/common/id-generator";
 import type { Member } from "../domains/member/member";
 import type { IMemberRepository } from "../domains/member/repository/i-member-repository";
 
@@ -9,6 +11,8 @@ export class MemberRepository implements IMemberRepository {
     "jackpot-game",
     "MemberData"
   );
+
+  constructor(@inject(IdGeneratorToken) private idGenerator: IdGenerator) {}
 
   async getMembers(): Promise<Member[]> {
     const allMembers = await this.localStorage.getAll<Member>();
@@ -22,7 +26,7 @@ export class MemberRepository implements IMemberRepository {
   async addMembers(members: Member[]): Promise<Member[]> {
     const addedMembers = members.map((member) => ({
       ...member,
-      id: crypto.randomUUID(),
+      id: this.idGenerator.nextId(),
     }));
 
     for (const addedMember of addedMembers) {
@@ -52,7 +56,7 @@ export class MemberRepository implements IMemberRepository {
     // clear existing store and save provided members using their ids
     await this.localStorage.clear();
     for (const m of members) {
-      const id = m.id || crypto.randomUUID();
+      const id = m.id || this.idGenerator.nextId();
       await this.localStorage.save(id, { ...m, id });
     }
     return { replaced: members.length };

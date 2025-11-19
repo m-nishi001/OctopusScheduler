@@ -216,8 +216,8 @@ export default {
   height: 100vh;
   overflow: hidden;
 }
+
 /* .bg-hero rules removed as `ThreeHero` component was deleted */
-}
 
 .home-overlay {
   position: relative;

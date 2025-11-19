@@ -40,6 +40,71 @@ export class LocalStorageService {
       data: data,
       updatedAt: Date.now(),
     };
+    // Validate data cloneability in the browser's structured clone algorithm.
+    // This helps detect non-serializable objects (functions, DOM nodes, circular refs)
+    // which otherwise raise a cryptic DataCloneError in IndexedDB.
+    try {
+      // Prefer the native structuredClone if available
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - structuredClone is a global in modern browsers / Node 17+
+      if (typeof (globalThis as any).structuredClone === "function") {
+        // Try to clone to validate.
+        // Some environments may not have structuredClone available; we'll fallback.
+        (globalThis as any).structuredClone(storedData);
+      } else {
+        // Fallback: try JSON.stringify - this won't detect all issues but will catch circular refs.
+        JSON.stringify(storedData);
+      }
+    } catch (err) {
+      // build a helpful debug message
+      console.error(
+        `[LocalStorageService.save] Data for id=${id} is not cloneable. This will cause IDB put to fail.`,
+        { id, sampleData: storedData }
+      );
+      // add some heuristics: try find offending property types
+      try {
+        const nonSerializable: string[] = [];
+        const visited = new Set<any>();
+        const find = (obj: any, path = "root") => {
+          if (obj === null || obj === undefined) return;
+          if (visited.has(obj)) return;
+          visited.add(obj);
+          const t = typeof obj;
+          if (t === "function") {
+            nonSerializable.push(path + " (function)");
+            return;
+          }
+          if (t === "symbol") {
+            nonSerializable.push(path + " (symbol)");
+            return;
+          }
+          if (obj instanceof Node) {
+            nonSerializable.push(path + " (DOM Node)");
+            return;
+          }
+          if (Array.isArray(obj)) {
+            obj.forEach((v, i) => find(v, `${path}[${i}]`));
+            return;
+          }
+          if (t === "object") {
+            for (const k of Object.keys(obj)) {
+              find(obj[k], `${path}.${k}`);
+            }
+          }
+        };
+        find(storedData.data, "data");
+        if (nonSerializable.length) {
+          console.error(
+            "Likely non-serializable properties:",
+            nonSerializable.slice(0, 10)
+          );
+        }
+      } catch (e) {
+        // ignore diagnostics errors
+      }
+      throw err;
+    }
+
     await this.lfInstance.setItem(id, storedData);
   }
 
@@ -99,6 +164,23 @@ export class LocalStorageService {
         data: value,
         updatedAt: Date.now(),
       };
+      // validate like save()
+      try {
+        if (typeof (globalThis as any).structuredClone === "function") {
+          (globalThis as any).structuredClone(storedData);
+        } else {
+          JSON.stringify(storedData);
+        }
+      } catch (err) {
+        console.error(
+          `[LocalStorageService.saveMultiple] Data for id=${id} is not cloneable.`,
+          {
+            id,
+            sampleData: storedData,
+          }
+        );
+        throw err;
+      }
       promises.push(this.lfInstance.setItem(id, storedData));
     });
     await Promise.all(promises);
