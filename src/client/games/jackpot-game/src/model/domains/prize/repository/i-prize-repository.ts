@@ -10,8 +10,5 @@ export interface IPrizeRepository {
   deletePrizes(ids: string[]): Promise<void>;
   replaceAllPrizes(prizes: Prize[]): Promise<{ replaced: number }>;
   exportAllPrizesToDrive(): Promise<void>;
-  // Import prizes from Drive into local storage. Assumes Drive -> local
-  // (GAS returns JSON which is saved locally). The method performs side
-  // effects and returns void.
   importAllPrizesFromDrive(): Promise<void>;
 }
