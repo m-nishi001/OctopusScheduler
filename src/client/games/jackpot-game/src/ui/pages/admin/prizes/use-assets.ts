@@ -1,20 +1,25 @@
-import { ref, computed, onBeforeUnmount } from 'vue';
-import { container } from 'tsyringe';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { ref, computed, onBeforeUnmount } from "vue";
+import { container } from "tsyringe";
+import { AssetDataService } from "@model/applications/asset/asset-data-service";
 
 export function useAssets(assetDataServiceArg?: AssetDataService) {
-  const assetDataService = assetDataServiceArg || container.resolve(AssetDataService);
+  const assetDataService =
+    assetDataServiceArg || container.resolve(AssetDataService);
   const assets = ref<any[]>([]);
   const objectUrlMap = new Map<string, string>();
 
-  const imageAssets = computed(() => assets.value.filter(a => a.blob?.type?.startsWith('image')));
-  const audioAssets = computed(() => assets.value.filter(a => a.blob?.type?.startsWith('audio')));
+  const imageAssets = computed(() =>
+    assets.value.filter((a) => a.blob?.type?.startsWith("image"))
+  );
+  const audioAssets = computed(() =>
+    assets.value.filter((a) => a.blob?.type?.startsWith("audio"))
+  );
 
   const fetchAssets = async () => {
     try {
       assets.value = await assetDataService.getAllAssetData();
     } catch (e) {
-      console.error('Failed to fetch assets', e);
+      console.error("Failed to fetch assets", e);
       assets.value = [];
     }
   };
@@ -24,11 +29,13 @@ export function useAssets(assetDataServiceArg?: AssetDataService) {
     try {
       const url = URL.createObjectURL(asset.blob);
       if (objectUrlMap.has(asset.id)) {
-        try { URL.revokeObjectURL(objectUrlMap.get(asset.id) as string); } catch {}
+        try {
+          URL.revokeObjectURL(objectUrlMap.get(asset.id) as string);
+        } catch {}
       }
       objectUrlMap.set(asset.id, url);
     } catch (e) {
-      console.warn('Failed to create object URL', e);
+      console.warn("Failed to create object URL", e);
     }
   };
 
@@ -38,18 +45,31 @@ export function useAssets(assetDataServiceArg?: AssetDataService) {
       const a = await assetDataService.getAssetDataById(assetId);
       if (a) createObjectUrl(a);
     } catch (e) {
-      console.warn('Failed to fetch asset for object url:', e);
+      console.warn("Failed to fetch asset for object url:", e);
     }
   };
 
-  const getObjectUrl = (id?: string) => id ? objectUrlMap.get(id) : undefined;
+  const getObjectUrl = (id?: string) => (id ? objectUrlMap.get(id) : undefined);
 
   onBeforeUnmount(() => {
     try {
-      objectUrlMap.forEach((url) => { try { URL.revokeObjectURL(url); } catch {} });
+      objectUrlMap.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {}
+      });
       objectUrlMap.clear();
     } catch {}
   });
 
-  return { assets, imageAssets, audioAssets, fetchAssets, objectUrlMap, createObjectUrl, createObjectUrlById, getObjectUrl };
+  return {
+    assets,
+    imageAssets,
+    audioAssets,
+    fetchAssets,
+    objectUrlMap,
+    createObjectUrl,
+    createObjectUrlById,
+    getObjectUrl,
+  };
 }

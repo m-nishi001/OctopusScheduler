@@ -28,6 +28,22 @@ export class AssetDataRepository implements IAssetDataRepository {
       const uploadedAt = dto.uploadedAt ?? new Date().toISOString();
       const lastUpdated = dto.lastUpdated ?? new Date().toISOString();
 
+      // Normalize blob: sometimes dto.blob may be a string (data URL / remote URL) when
+      // the data comes from a serialized source. If so, fetch the resource and convert
+      // to an actual Blob to ensure downstream consumers can load/URL.createObjectURL
+      // and play it as audio.
+      let blobToStore: Blob | null = (dto as any).blob ?? null;
+      if (blobToStore && typeof (blobToStore as any) === "string") {
+        // String could be data: URL or HTTP(S) URL. Attempt to fetch.
+        try {
+          const resp = await fetch(blobToStore as unknown as string);
+          if (resp.ok) blobToStore = await resp.blob();
+        } catch (e) {
+          // If it fails, fall back to noop and store null blob (constructed Blob below)
+          blobToStore = null;
+        }
+      }
+
       const updated: Asset = new Asset(
         id,
         dto.type,
@@ -35,7 +51,7 @@ export class AssetDataRepository implements IAssetDataRepository {
         uploadedAt,
         lastUpdated,
         dto.size ?? 0,
-        dto.blob
+        (blobToStore as Blob) || dto.blob
       );
       await this.localStorage.save(id, updated);
       result.push(updated);

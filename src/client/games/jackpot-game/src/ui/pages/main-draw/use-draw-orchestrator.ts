@@ -98,7 +98,58 @@ export function useDrawOrchestrator() {
         mime: asset.type,
         size: asset.size,
       });
-      return asset.blob || null;
+      // asset.blob may be a Blob, a File, or even a string URL (data URL or http blob URL).
+      const candidate = (asset as any).blob;
+      if (!candidate) return null;
+      // If it's already a Blob (including File), return it directly
+      if (candidate instanceof Blob) return candidate as Blob;
+
+      // If the stored value is a string (URL or data URL), attempt to fetch it
+      if (typeof candidate === "string") {
+        try {
+          console.log(
+            "[DrawOrchestrator] loadBgmBlob: asset.blob is a string, fetching URL to produce Blob",
+            candidate
+          );
+          const resp = await fetch(candidate);
+          if (!resp.ok) {
+            console.warn(
+              "[DrawOrchestrator] loadBgmBlob: fetch for asset string failed",
+              resp.status
+            );
+            return null;
+          }
+          const blob = await resp.blob();
+          return blob;
+        } catch (e) {
+          console.warn(
+            "[DrawOrchestrator] loadBgmBlob: failed to fetch asset blob from string",
+            e
+          );
+          return null;
+        }
+      }
+
+      // As a last resort, try to coerce plain objects into a Blob by checking for
+      // arrayBuffer/constructor forms (e.g., serialized Blob), otherwise return null.
+      try {
+        if (
+          candidate &&
+          typeof candidate === "object" &&
+          (candidate as any).type !== undefined &&
+          (candidate as any).size !== undefined
+        ) {
+          // Create a new Blob from candidate if we can
+          const constructed = new Blob([candidate as any], {
+            type: (candidate as any).type || "application/octet-stream",
+          });
+          return constructed;
+        }
+      } catch (e) {
+        /* noop */
+      }
+
+      return null;
     } catch (e) {
       console.log("[DrawOrchestrator] loadBgmBlob failed", e);
       return null;
