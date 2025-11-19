@@ -1,11 +1,11 @@
 import { eventBus } from "../../../../core/event-bus";
-import type { IScheduleEvent } from "../schedule-event";
+import type { IAppEvent } from "../app-event";
 
-export class PlayAudioEventParams {
+export class TransitionPageEventParams {
   id: string;
   startTime: Date;
   endTime: Date;
-  audioId: string;
+  transitionUrl: string;
   fadeOutDuration?: number;
   processedAt: Date | null;
   registeredAt: Date;
@@ -15,7 +15,7 @@ export class PlayAudioEventParams {
     id: string;
     startTime: Date;
     endTime: Date;
-    audioId: string;
+    transitionUrl: string;
     fadeOutDuration?: number;
     processedAt: Date | null;
     registeredAt: Date;
@@ -24,7 +24,7 @@ export class PlayAudioEventParams {
     this.id = data.id;
     this.startTime = data.startTime;
     this.endTime = data.endTime;
-    this.audioId = data.audioId;
+    this.transitionUrl = data.transitionUrl;
     this.fadeOutDuration = data.fadeOutDuration;
     this.processedAt = data.processedAt;
     this.registeredAt = data.registeredAt;
@@ -32,81 +32,81 @@ export class PlayAudioEventParams {
   }
 }
 
-export class PlayAudioEvent implements IScheduleEvent {
+export class TransitionPageEvent implements IAppEvent {
   public readonly id: string;
-  public readonly type: string = "PlayAudioEvent";
+  public readonly type: string = "TransitionPageEvent";
   public readonly startTime: Date;
   public readonly endTime: Date;
-  public readonly audioId: string;
+  public readonly transitionUrl: string;
   public readonly fadeOutDuration?: number;
   public readonly processedAt: Date | null;
   public readonly registeredAt: Date;
   public readonly updatedAt: Date;
 
-  private constructor(params: PlayAudioEventParams) {
+  private constructor(params: TransitionPageEventParams) {
     this.id = params.id;
     this.startTime = params.startTime;
     this.endTime = params.endTime;
-    this.audioId = params.audioId;
+    this.transitionUrl = params.transitionUrl;
     this.fadeOutDuration = params.fadeOutDuration;
     this.processedAt = params.processedAt;
     this.registeredAt = params.registeredAt;
     this.updatedAt = params.updatedAt;
   }
 
-  static fromParams(params: PlayAudioEventParams): PlayAudioEvent {
-    return new PlayAudioEvent(params);
+  static fromParams(params: TransitionPageEventParams): TransitionPageEvent {
+    return new TransitionPageEvent(params);
   }
 
-  static createEmpty(): PlayAudioEvent {
+  static createEmpty(): TransitionPageEvent {
     const now = new Date();
-    const params = new PlayAudioEventParams({
+    const params = new TransitionPageEventParams({
       id: "",
       startTime: now,
       endTime: new Date(now.getTime() + 60000),
-      audioId: "",
+      transitionUrl: "",
       fadeOutDuration: 0,
       processedAt: null,
       registeredAt: now,
       updatedAt: now,
     });
-    return new PlayAudioEvent(params);
+    return new TransitionPageEvent(params);
   }
 
-  static revive(raw: IScheduleEvent): PlayAudioEvent {
+  static revive(raw: IAppEvent): TransitionPageEvent {
     const r = raw as unknown as Record<string, unknown>;
     const startTime = new Date(r.startTime as string | Date);
     const endTime = new Date(r.endTime as string | Date);
     const registeredAt = new Date(r.registeredAt as string | Date);
     const updatedAt = new Date(r.updatedAt as string | Date);
+
     const fadeOutDuration = Number(
       r.fadeOutDuration as string | number | undefined
     );
+
     const processedAtRaw = r.processedAt as string | null | undefined;
     const processedAt =
       processedAtRaw == null || processedAtRaw === ""
         ? null
         : new Date(processedAtRaw);
 
-    const params = new PlayAudioEventParams({
+    const params = new TransitionPageEventParams({
       id: String(r.id),
       startTime,
       endTime,
-      audioId: String(r.audioId),
+      transitionUrl: String(r.transitionUrl),
       fadeOutDuration,
       processedAt,
       registeredAt,
       updatedAt,
     });
 
-    return new PlayAudioEvent(params);
+    return new TransitionPageEvent(params);
   }
 
   async execute(isStart: boolean, manual?: boolean): Promise<void> {
     if (isStart) {
-      eventBus.emit("playAudio", { audioId: this.audioId, manual: !!manual } as any);
-    } else {
-      eventBus.emit("stopAudio");
+      eventBus.emit("transitionPage", { transitionUrl: this.transitionUrl, manual: !!manual } as any);
     }
   }
 
@@ -114,7 +114,7 @@ export class PlayAudioEvent implements IScheduleEvent {
     return [
       this.startTime.toISOString(),
       this.endTime.toISOString(),
-      this.audioId,
+      this.transitionUrl,
       this.fadeOutDuration?.toString() ?? "",
       this.processedAt ? this.processedAt.toISOString() : "",
       this.registeredAt.toISOString(),
@@ -124,7 +124,7 @@ export class PlayAudioEvent implements IScheduleEvent {
 
   serializeAsObject(): Record<string, unknown> {
     return {
-      audioId: this.audioId,
+      transitionUrl: this.transitionUrl,
       fadeOutDuration: this.fadeOutDuration,
       processedAt: this.processedAt ? this.processedAt.toISOString() : null,
       registeredAt: this.registeredAt.toISOString(),
@@ -132,13 +132,13 @@ export class PlayAudioEvent implements IScheduleEvent {
     };
   }
 
-  static fromData(data: Record<string, any>): PlayAudioEvent {
+  static fromData(data: Record<string, any>): TransitionPageEvent {
     const now = new Date();
-    return PlayAudioEvent.fromParams({
+    return TransitionPageEvent.fromParams({
       id: data.id,
       startTime: now,
       endTime: new Date(now.getTime() + 1000),
-      audioId: data.audioId as string,
+      transitionUrl: data.transitionUrl as string,
       fadeOutDuration: data.fadeOutDuration as number,
       processedAt: data.processedAt
         ? new Date(data.processedAt as string)

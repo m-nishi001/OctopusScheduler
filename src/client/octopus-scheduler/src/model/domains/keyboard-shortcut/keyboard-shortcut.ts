@@ -1,5 +1,5 @@
-import type { IScheduleEvent } from "../schedule-event/schedule-event";
-import { getEventFromData } from "../schedule-event/event-registry";
+import type { IAppEvent } from "../app-event/app-event";
+import { getEventFromData } from "../app-event/event-registry";
 // NOTE: event bus is not required here since we use polymorphic execute
 
 export interface KeyboardShortcutData {
@@ -14,9 +14,9 @@ export interface KeyboardShortcutData {
 export class KeyboardShortcut {
   readonly id: string;
   readonly keys: string[]; // 例: ["Control", "1"] （押下順）
-  readonly action: IScheduleEvent; // 実行するスケジュールイベント（例: TransitionPageEvent）
+  readonly action: IAppEvent; // 実行するスケジュールイベント（例: TransitionPageEvent）
 
-  constructor(params: { id: string; keys: string[]; action: IScheduleEvent }) {
+  constructor(params: { id: string; keys: string[]; action: IAppEvent }) {
     this.id = params.id;
     this.keys = params.keys;
     this.action = params.action;

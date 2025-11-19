@@ -1,11 +1,11 @@
-import type { IScheduleEvent } from "./schedule-event";
+import type { IAppEvent } from "./app-event";
 import type { ExecutionStatus } from "./execution-status";
 
-export interface IScheduleEventRepository {
-  getScheduleEvents(): Promise<IScheduleEvent[]>;
-  updateScheduleEvents(events: IScheduleEvent[]): Promise<void>;
+export interface IAppEventRepository {
+  getScheduleEvents(): Promise<IAppEvent[]>;
+  updateScheduleEvents(events: IAppEvent[]): Promise<void>;
   deleteScheduleEvents(ids: string[]): Promise<void>;
-  addScheduleEvents(events: IScheduleEvent[]): Promise<string>;
+  addScheduleEvents(events: IAppEvent[]): Promise<string>;
   syncScheduleEvents(mode?: "local" | "gas"): Promise<void>;
   getExecutionStatus(eventId: string): Promise<ExecutionStatus | null>;
   updateExecutionStatus(
@@ -15,4 +15,4 @@ export interface IScheduleEventRepository {
   getAllExecutionStatuses(): Promise<{ [eventId: string]: ExecutionStatus }>;
 }
 
-export const IScheduleEventRepositoryToken = Symbol("IScheduleEventRepository");
+export const IAppEventRepositoryToken = Symbol("IAppEventRepository");

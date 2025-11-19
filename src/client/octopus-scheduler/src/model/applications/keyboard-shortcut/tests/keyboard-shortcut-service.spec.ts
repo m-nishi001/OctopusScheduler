@@ -3,8 +3,8 @@ import "reflect-metadata";
 import { KeyboardShortcutService } from "../keyboard-shortcut-service";
 import { Container } from "../../../../core/container/index";
 import { KeyboardShortcut } from "../../../domains/keyboard-shortcut/keyboard-shortcut";
-import { PlayAudioEvent } from "../../../domains/schedule-event/play-audio/play-audio-event";
-import { TransitionPageEvent } from "../../../domains/schedule-event/transition/transition-page-event";
+import { PlayAudioEvent } from "../../../domains/app-event/play-audio/play-audio-event";
+import { TransitionPageEvent } from "../../../domains/app-event/transition/transition-page-event";
 import { KeyboardShortcutConfig } from "../../../domains/keyboard-shortcut/keyboard-shortcut-config";
 import { eventBus } from "../../../../core/event-bus";
 
@@ -139,7 +139,7 @@ describe("KeyboardShortcutService", () => {
   });
 
   it("executes ShowContentEvent via keyboard and emits showContent with manual flag", async () => {
-    const event = (await import("../../../domains/schedule-event/show-content/show-content-event")).ShowContentEvent.fromData({
+    const event = (await import("../../../domains/app-event/show-content/show-content-event")).ShowContentEvent.fromData({
       id: "e4",
       contentType: "image",
       contentId: "img-1",

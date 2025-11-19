@@ -1,29 +1,29 @@
-import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
-import { IScheduleEventRepositoryToken } from "../../domains/schedule-event/schedule-event-repository";
-import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
+import type { IAppEventRepository } from "../../domains/app-event/app-event-repository";
+import { IAppEventRepositoryToken } from "../../domains/app-event/app-event-repository";
+import type { IAppEvent } from "../../domains/app-event/app-event";
 import { injectable, injectAll, inject } from "tsyringe";
 import {
-  IScheduleEventConverterToken,
-  type IScheduleEventConverter,
-} from "../../domains/schedule-event/i-schedule-event-converter";
-import type { ExecutionStatus } from "model/domains/schedule-event/execution-status";
+  IAppEventConverterToken,
+  type IAppEventConverter,
+} from "../../domains/app-event/i-app-event-converter";
+import type { ExecutionStatus } from "model/domains/app-event/execution-status";
 
 @injectable()
-export class ScheduleEventService {
-  private readonly converters: IScheduleEventConverter[];
+export class AppEventService {
+  private readonly converters: IAppEventConverter[];
 
   constructor(
-    @inject(IScheduleEventRepositoryToken)
-    private scheduleEventRepository: IScheduleEventRepository,
-    @injectAll(IScheduleEventConverterToken)
-    converters: IScheduleEventConverter[]
+    @inject(IAppEventRepositoryToken)
+    private scheduleEventRepository: IAppEventRepository,
+    @injectAll(IAppEventConverterToken)
+    converters: IAppEventConverter[]
   ) {
     this.converters = converters;
   }
 
-  async getScheduleEvents(): Promise<IScheduleEvent[]> {
+  async getScheduleEvents(): Promise<IAppEvent[]> {
     const raws = await this.scheduleEventRepository.getScheduleEvents();
-    const results: IScheduleEvent[] = [];
+    const results: IAppEvent[] = [];
     for (const raw of raws) {
       try {
         const converter = this.converters.find((c) => c.canRevive(raw))!;
@@ -36,7 +36,7 @@ export class ScheduleEventService {
     return results;
   }
 
-  async updateScheduleEvents(events: IScheduleEvent[]): Promise<void> {
+  async updateScheduleEvents(events: IAppEvent[]): Promise<void> {
     await this.scheduleEventRepository.updateScheduleEvents(events);
   }
 
@@ -44,21 +44,21 @@ export class ScheduleEventService {
     await this.scheduleEventRepository.deleteScheduleEvents(ids);
   }
 
-  async addScheduleEvents(events: IScheduleEvent[]): Promise<string> {
+  async addScheduleEvents(events: IAppEvent[]): Promise<string> {
     const id = await this.scheduleEventRepository.addScheduleEvents(events);
     return id;
   }
 
   async getCurrentScheduleEvent(): Promise<{
-    startEvents: IScheduleEvent[];
-    endEvents: IScheduleEvent[];
+    startEvents: IAppEvent[];
+    endEvents: IAppEvent[];
   }> {
     const events = await this.getScheduleEvents();
     const executionStatuses =
       await this.scheduleEventRepository.getAllExecutionStatuses();
     const now = new Date();
-    const startEvents: IScheduleEvent[] = [];
-    const endEvents: IScheduleEvent[] = [];
+    const startEvents: IAppEvent[] = [];
+    const endEvents: IAppEvent[] = [];
 
     for (const event of events) {
       const status =

@@ -1,10 +1,10 @@
 import type { Asset } from "../../../../../../model/domains/assets/entity/asset";
 import { AssetService } from "../../../../../../model/applications/assets/asset-service";
-import { ScheduleEventService } from "../../../../../../model/applications/schedule-event/schedule-event-service";
+import { AppEventService } from "../../../../../../model/applications/app-event/app-event-service";
 import {
   ShowContentEvent,
   ShowContentEventParams,
-} from "../../../../../../model/domains/schedule-event/show-content/show-content-event";
+} from "../../../../../../model/domains/app-event/show-content/show-content-event";
 
 export interface RegisterInput {
   startTime: Date;
@@ -26,7 +26,7 @@ export interface RegisterInput {
 export class ContentDisplayEventRegister {
   constructor(
     private assetService: AssetService,
-    private scheduleEventService: ScheduleEventService
+    private scheduleEventService: AppEventService
   ) {}
 
   private generateTempToRealMap(

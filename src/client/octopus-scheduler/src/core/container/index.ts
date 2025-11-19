@@ -1,15 +1,15 @@
-import { ScheduleEventRepository } from "../../model/infrastructures/schedule-event/schedule-event-repository";
+import { AppEventRepository } from "../../model/infrastructures/app-event/app-event-repository";
 import { AssetRepository } from "../../model/infrastructures/assets/asset-repository";
-import { IScheduleEventRepositoryToken } from "../../model/domains/schedule-event/schedule-event-repository";
+import { IAppEventRepositoryToken } from "../../model/domains/app-event/app-event-repository";
 import { IAssetRepositoryToken } from "../../model/domains/assets/repository/asset-repository";
 import { container } from "tsyringe";
-import { ScheduleEventService } from "../../model/applications/schedule-event/schedule-event-service";
+import { AppEventService } from "../../model/applications/app-event/app-event-service";
 import { AssetService } from "../../model/applications/assets/asset-service";
-import { IScheduleEventConverterToken } from "../../model/domains/schedule-event/i-schedule-event-converter";
-import { ShowContentEventConverter } from "../../model/domains/schedule-event/show-content/show-content-event-converter";
-import { PlayAudioEventConverter } from "../../model/domains/schedule-event/play-audio/play-audio-event-converter";
-import { SlideshowEventConverter } from "../../model/domains/schedule-event/slideshow/slideshow-event-converter";
-import { TransitionPageEventConverter } from "../../model/domains/schedule-event/transition/transition-page-event-converter";
+import { IAppEventConverterToken } from "../../model/domains/app-event/i-app-event-converter";
+import { ShowContentEventConverter } from "../../model/domains/app-event/show-content/show-content-event-converter";
+import { PlayAudioEventConverter } from "../../model/domains/app-event/play-audio/play-audio-event-converter";
+import { SlideshowEventConverter } from "../../model/domains/app-event/slideshow/slideshow-event-converter";
+import { TransitionPageEventConverter } from "../../model/domains/app-event/transition/transition-page-event-converter";
 import {
   KeyboardShortcutRepository,
   IKeyboardShortcutRepositoryToken,
@@ -19,24 +19,24 @@ import { KeyboardShortcutService } from "../../model/applications/keyboard-short
 export class Container {
   static Register() {
     container.register(IAssetRepositoryToken, { useClass: AssetRepository });
-    container.register(IScheduleEventRepositoryToken, {
-      useClass: ScheduleEventRepository,
+    container.register(IAppEventRepositoryToken, {
+      useClass: AppEventRepository,
     });
 
     container.register(AssetService, { useClass: AssetService });
-    container.register(ScheduleEventService, {
-      useClass: ScheduleEventService,
+    container.register(AppEventService, {
+      useClass: AppEventService,
     });
-    container.register(IScheduleEventConverterToken, {
+    container.register(IAppEventConverterToken, {
       useClass: ShowContentEventConverter,
     });
-    container.register(IScheduleEventConverterToken, {
+    container.register(IAppEventConverterToken, {
       useClass: PlayAudioEventConverter,
     });
-    container.register(IScheduleEventConverterToken, {
+    container.register(IAppEventConverterToken, {
       useClass: SlideshowEventConverter,
     });
-    container.register(IScheduleEventConverterToken, {
+    container.register(IAppEventConverterToken, {
       useClass: TransitionPageEventConverter,
     });
     container.register(IKeyboardShortcutRepositoryToken, {

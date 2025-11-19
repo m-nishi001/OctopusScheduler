@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KeyboardShortcutService } from "./keyboard-shortcut-service";
-import { PlayAudioEvent } from "../../domains/schedule-event/play-audio/play-audio-event";
+import { PlayAudioEvent } from "../../domains/app-event/play-audio/play-audio-event";
 import { KeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-shortcut";
-import { IScheduleEventConverterToken } from "../../domains/schedule-event/i-schedule-event-converter";
+import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
 import { container } from "tsyringe";
 import { IKeyboardShortcutRepositoryToken } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 
@@ -38,7 +38,7 @@ describe("KeyboardShortcutService", () => {
       useClass: InMemoryRepository,
     });
     // register a dummy schedule event converter to avoid DI error
-    container.register(IScheduleEventConverterToken, {
+    container.register(IAppEventConverterToken, {
       useValue: {
         getType: () => "Dummy",
         revive: (data: any) => ({

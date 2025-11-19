@@ -3,19 +3,19 @@ import PlayAudioForm from "./forms/play-audio-form.vue";
 import SlideshowForm from "./forms/slideshow-form.vue";
 import ShowContentForm from "./forms/show-content-form.vue";
 
-import { TransitionPageEvent } from "../../../../model/domains/schedule-event/transition/transition-page-event";
-import { PlayAudioEvent } from "../../../../model/domains/schedule-event/play-audio/play-audio-event";
-import { SlideshowEvent } from "../../../../model/domains/schedule-event/slideshow/slideshow-event";
-import { ShowContentEvent } from "../../../../model/domains/schedule-event/show-content/show-content-event";
+import { TransitionPageEvent } from "../../../../model/domains/app-event/transition/transition-page-event";
+import { PlayAudioEvent } from "../../../../model/domains/app-event/play-audio/play-audio-event";
+import { SlideshowEvent } from "../../../../model/domains/app-event/slideshow/slideshow-event";
+import { ShowContentEvent } from "../../../../model/domains/app-event/show-content/show-content-event";
 
-import type { IScheduleEvent } from "../../../../model/domains/schedule-event/schedule-event";
+import type { IAppEvent } from "../../../../model/domains/app-event/app-event";
 
 export interface UIActionEntry {
   label: string;
   component: any; // Vue component
   getInitial?: (action: any) => any;
   validate?: (data: any) => boolean;
-  buildEvent: (id: string, now: Date, data: any) => IScheduleEvent;
+  buildEvent: (id: string, now: Date, data: any) => IAppEvent;
 }
 
 const ACTION_REGISTRY: Record<string, UIActionEntry> = {

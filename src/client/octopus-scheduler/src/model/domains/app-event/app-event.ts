@@ -1,4 +1,4 @@
-export interface IScheduleEvent {
+export interface IAppEvent {
   readonly id: string;
   readonly type: string;
   readonly startTime: Date;

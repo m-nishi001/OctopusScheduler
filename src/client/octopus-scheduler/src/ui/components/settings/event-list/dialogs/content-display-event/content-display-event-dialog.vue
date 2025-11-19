@@ -143,8 +143,8 @@ import { ref, watch, computed, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../../model/domains/assets/entity/asset';
-import { ScheduleEventService } from '../../../../../../model/applications/schedule-event/schedule-event-service';
-import { ShowContentEvent } from '../../../../../../model/domains/schedule-event/show-content/show-content-event';
+import { AppEventService } from '../../../../../../model/applications/app-event/app-event-service';
+import { ShowContentEvent } from '../../../../../../model/domains/app-event/show-content/show-content-event';
 import { ContentDisplayEventRegister } from './content-display-event-register';
 
 interface Props {
@@ -283,7 +283,7 @@ async function onSubmit() {
         return;
     }
 
-    const register = new ContentDisplayEventRegister(assetService, container.resolve(ScheduleEventService));
+    const register = new ContentDisplayEventRegister(assetService, container.resolve(AppEventService));
     try {
         await register.register({
             startTime,

@@ -1,5 +1,5 @@
 import { eventBus } from "../../../../core/event-bus";
-import type { IScheduleEvent } from "../schedule-event";
+import type { IAppEvent } from "../app-event";
 
 export class SlideshowEventParams {
   id: string;
@@ -41,7 +41,7 @@ export class SlideshowEventParams {
   }
 }
 
-export class SlideshowEvent implements IScheduleEvent {
+export class SlideshowEvent implements IAppEvent {
   public readonly id: string;
   public readonly type: string = "SlideshowEvent";
   public readonly startTime: Date;
@@ -91,7 +91,7 @@ export class SlideshowEvent implements IScheduleEvent {
     return new SlideshowEvent(params);
   }
 
-  static revive(raw: IScheduleEvent): SlideshowEvent {
+  static revive(raw: IAppEvent): SlideshowEvent {
     const r = raw as unknown as Record<string, unknown>;
     const startTime = new Date(r.startTime as string | Date);
     const endTime = new Date(r.endTime as string | Date);

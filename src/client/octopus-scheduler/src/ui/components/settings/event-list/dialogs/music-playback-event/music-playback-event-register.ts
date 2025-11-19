@@ -1,11 +1,11 @@
 import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
 import { AssetService } from "../../../../../../model/applications/assets/asset-service";
-import { ScheduleEventService } from "../../../../../../model/applications/schedule-event/schedule-event-service";
+import { AppEventService } from "../../../../../../model/applications/app-event/app-event-service";
 import {
   PlayAudioEvent,
   PlayAudioEventParams,
-} from "../../../../../../model/domains/schedule-event/play-audio/play-audio-event";
+} from "../../../../../../model/domains/app-event/play-audio/play-audio-event";
 import type { Asset } from "../../../../../../model/domains/assets/entity/asset";
 
 export function useMusicPlaybackEvent(props: any, emit: any) {
@@ -70,7 +70,7 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
 
     let audioId = form.value.audioId;
 
-    const scheduleEventService = container.resolve(ScheduleEventService);
+    const scheduleEventService = container.resolve(AppEventService);
 
     if (form.value.assetSource === "existing") {
       audioId = form.value.selectedAssetId;

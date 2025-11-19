@@ -1,4 +1,4 @@
-import type { IScheduleEvent } from "./schedule-event";
+import type { IAppEvent } from "./app-event";
 import { TransitionPageEvent } from "./transition/transition-page-event";
 import { PlayAudioEvent } from "./play-audio/play-audio-event";
 import { SlideshowEvent } from "./slideshow/slideshow-event";
@@ -11,7 +11,7 @@ export type EventTypeKey =
   | "ShowContentEvent";
 
 export interface EventFactory {
-  fromData: (data: Record<string, any>) => IScheduleEvent;
+  fromData: (data: Record<string, any>) => IAppEvent;
 }
 
 const registry: Map<string, EventFactory> = new Map();
@@ -25,7 +25,7 @@ registry.set("ShowContentEvent", { fromData: ShowContentEvent.fromData });
 export function getEventFromData(
   type: string,
   data: Record<string, any>
-): IScheduleEvent {
+): IAppEvent {
   const factory = registry.get(type);
   if (!factory) {
     throw new Error(`Unknown event type: ${type}`);

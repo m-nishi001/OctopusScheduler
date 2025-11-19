@@ -1,23 +1,23 @@
 import { LocalStorageService } from "@common-lib/storage/local-storage-service";
-import type { IScheduleEventRepository } from "../../domains/schedule-event/schedule-event-repository";
-import type { IScheduleEvent } from "../../domains/schedule-event/schedule-event";
+import type { IAppEventRepository } from "../../domains/app-event/app-event-repository";
+import type { IAppEvent } from "../../domains/app-event/app-event";
 import { injectable, injectAll } from "tsyringe";
 import {
-  IScheduleEventConverterToken,
-  type IScheduleEventConverter,
-} from "../../domains/schedule-event/i-schedule-event-converter";
-import type { ExecutionStatus } from "../../domains/schedule-event/execution-status";
+  IAppEventConverterToken,
+  type IAppEventConverter,
+} from "../../domains/app-event/i-app-event-converter";
+import type { ExecutionStatus } from "../../domains/app-event/execution-status";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 
 @injectable()
-export class ScheduleEventRepository implements IScheduleEventRepository {
+export class AppEventRepository implements IAppEventRepository {
   private readonly localStorage: LocalStorageService;
   private readonly executionStatusStorage: LocalStorageService;
-  private readonly converters: IScheduleEventConverter[];
+  private readonly converters: IAppEventConverter[];
 
   constructor(
-    @injectAll(IScheduleEventConverterToken)
-    converters: IScheduleEventConverter[]
+    @injectAll(IAppEventConverterToken)
+    converters: IAppEventConverter[]
   ) {
     this.localStorage = new LocalStorageService(
       "octopus-scheduler",
@@ -30,12 +30,12 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     this.converters = converters;
   }
 
-  async getScheduleEvents(): Promise<IScheduleEvent[]> {
-    const all = await this.localStorage.getAll<IScheduleEvent>();
+  async getScheduleEvents(): Promise<IAppEvent[]> {
+    const all = await this.localStorage.getAll<IAppEvent>();
     return Array.from(all.values());
   }
 
-  async updateScheduleEvents(events: IScheduleEvent[]): Promise<void> {
+  async updateScheduleEvents(events: IAppEvent[]): Promise<void> {
     for (const event of events) {
       await this.localStorage.save(event.id, event);
     }
@@ -46,7 +46,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     await this.localStorage.removeMultiple(ids);
   }
 
-  async addScheduleEvents(events: IScheduleEvent[]): Promise<string> {
+  async addScheduleEvents(events: IAppEvent[]): Promise<string> {
     const id = crypto.randomUUID();
     const promises: Promise<void>[] = [];
     for (const ev of events) {
@@ -59,7 +59,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
 
   async syncScheduleEvents(mode: "local" | "gas" = "local"): Promise<void> {
     // Default: local -> spreadsheet (record-level)
-    const sheetName = "ScheduleEvents";
+    const sheetName = "AppEvents";
 
     // master header: id, type, then known fields (union of all event serialize fields)
     const MASTER_HEADER = [
@@ -101,7 +101,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
       if (!remoteData || !remoteData.data) return;
 
       const rows = remoteData.data;
-      const revived: IScheduleEvent[] = [];
+      const revived: IAppEvent[] = [];
 
       // detect header row
       let header: string[] | null = null;
@@ -144,7 +144,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
 
         try {
           // use converters exclusively
-          const asEvent = raw as unknown as IScheduleEvent;
+          const asEvent = raw as unknown as IAppEvent;
           const converter = this.converters.find((c) => c.canRevive(asEvent));
           if (converter) {
             const revivedEv = converter.revive(asEvent);
@@ -169,7 +169,7 @@ export class ScheduleEventRepository implements IScheduleEventRepository {
     // local -> gas (existing implementation)
     // get local events
     const all = await this.localStorage.getAll<any>();
-    const localEvents: IScheduleEvent[] = Array.from(all.values());
+    const localEvents: IAppEvent[] = Array.from(all.values());
 
     // fetch remote sheet data
     const getService = new GasFunctionService("getSpreadsheetData");

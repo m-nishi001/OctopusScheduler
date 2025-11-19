@@ -3,18 +3,18 @@ import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-short
 import { KeyboardShortcutConfig } from "../../domains/keyboard-shortcut/keyboard-shortcut-config";
 import type { IKeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { IKeyboardShortcutRepositoryToken } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
-import type { IScheduleEventConverter } from "../../domains/schedule-event/i-schedule-event-converter";
-import { IScheduleEventConverterToken } from "../../domains/schedule-event/i-schedule-event-converter";
+import type { IAppEventConverter } from "../../domains/app-event/i-app-event-converter";
+import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
 
 @injectable()
 export class KeyboardShortcutService {
-  private readonly converters: IScheduleEventConverter[];
+  private readonly converters: IAppEventConverter[];
 
   constructor(
     @inject(IKeyboardShortcutRepositoryToken)
     private repository: IKeyboardShortcutRepository
   ) {
-    this.converters = container.resolveAll(IScheduleEventConverterToken);
+    this.converters = container.resolveAll(IAppEventConverterToken);
   }
 
   async getKeyboardShortcuts(): Promise<KeyboardShortcut[]> {

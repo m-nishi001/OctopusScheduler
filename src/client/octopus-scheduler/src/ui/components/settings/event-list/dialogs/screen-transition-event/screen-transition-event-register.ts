@@ -1,10 +1,10 @@
 import { ref, watch } from "vue";
 import { container } from "tsyringe";
-import { ScheduleEventService } from "../../../../../../model/applications/schedule-event/schedule-event-service";
+import { AppEventService } from "../../../../../../model/applications/app-event/app-event-service";
 import {
   TransitionPageEvent,
   TransitionPageEventParams,
-} from "../../../../../../model/domains/schedule-event/transition/transition-page-event";
+} from "../../../../../../model/domains/app-event/transition/transition-page-event";
 
 export function useScreenTransitionEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);
@@ -41,7 +41,7 @@ export function useScreenTransitionEvent(props: any, emit: any) {
       alert("開始時間が終了時間より後です。");
       return;
     }
-    const scheduleEventService = container.resolve(ScheduleEventService);
+    const scheduleEventService = container.resolve(AppEventService);
     try {
       const baseParams = {
         startTime,
