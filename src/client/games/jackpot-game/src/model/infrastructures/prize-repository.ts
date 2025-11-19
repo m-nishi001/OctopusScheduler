@@ -78,16 +78,12 @@ export class PrizeRepository implements IPrizeRepository {
         parentFolderId: "",
       };
       const res = await service.call<DriveMetadata>(driveJson as DriveJsonData);
-      // The server returns Drive-assigned metadata; we could persist the
-      // Drive-assigned fileId if needed for Drive-level operations. For
-      // application-level imports/exports we still use `appFileId`.
+      // Intentionally do not persist the Drive-assigned fileId in localStorage.
+      // This fileId is not used elsewhere in the application; the server-side
+      // `getJson` handler fetches the appropriate file without needing it.
       if (res?.fileId) {
-        // Optionally store the Drive file id as an additional hint
-        localStorage.setItem("jackpot-prizes-last-drive-file-id", res.fileId);
+        // Optional: could log or store for debugging, but not persisted.
       }
-      // We don't persist the app-managed file id in localStorage. The server
-      // `getJson` handler doesn't require an argument; it will fetch the
-      // appropriate `prizes.json` file from the configured asset folder.
     } catch (e) {
       console.error("PrizeRepository.exportAllPrizesToDrive failed:", e);
       return;
@@ -97,15 +93,7 @@ export class PrizeRepository implements IPrizeRepository {
   async importAllPrizesFromDrive(): Promise<void> {
     try {
       const service = new GasFunctionService("getJson");
-      // Prefer an app-managed fileId stored in localStorage. We don't pass
-      // this value to GAS because the server `getJson` handler doesn't accept
-      // any parameters.
-      // Call the server without passing any file id; `getJson` will return
-      // the configured prizes.json (or an empty array JSON if none exists).
       const resp = await service.call<{ json: string }>();
-      // Intentionally do not persist the raw JSON to localStorage here.
-      // We persist prize objects using LocalStorageService; writing the
-      // entire JSON would duplicate storage and is unnecessary.
       try {
         const parsed = JSON.parse(resp.json) as Prize[];
         if (!Array.isArray(parsed)) {
