@@ -1,7 +1,7 @@
 <template>
   <MainLayout>
     <div class="home-root">
-      <ThreeHero class="bg-hero" />
+      <!-- Background hero component removed -->
 
       <div class="home-overlay">
         <h1 class="home-title">{{ homeConfig?.title }}</h1>
@@ -20,7 +20,6 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
-import ThreeHero from '../../shared/graphics/three-hero.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { Container } from '../../../core/container';
@@ -30,7 +29,7 @@ import { HomeScreenSetting } from '@model/domains/screen-config/home-screen-sett
 
 export default {
   name: 'Home',
-  components: { MainLayout, ThreeHero },
+  components: { MainLayout },
   setup() {
     Container.register();
 
@@ -217,13 +216,7 @@ export default {
   height: 100vh;
   overflow: hidden;
 }
-
-.bg-hero {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
+/* .bg-hero rules removed as `ThreeHero` component was deleted */
 }
 
 .home-overlay {
