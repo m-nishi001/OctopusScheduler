@@ -91,12 +91,13 @@ export function useAudio(options?: {
     if (mode === "web-audio" && audioService && audioInstanceId.value) {
       await audioService.stop(audioInstanceId.value, fadeOut);
     } else if (mode === "html-audio" && htmlAudio.value) {
+      // Pause and reset playback position but DO NOT revoke the object URL here.
+      // Revocation is performed when loading a new source or on unmount to avoid
+      // races where an external stop call clears the tracked src while another
+      // actor expects to read it immediately after play.
+      console.log("[useAudio] stopAudio: pausing (defer revoke) currentSrc =>", currentSrc.value);
       htmlAudio.value.pause();
       htmlAudio.value.currentTime = 0;
-      if (currentSrc.value.startsWith("blob:")) {
-        URL.revokeObjectURL(currentSrc.value);
-      }
-      currentSrc.value = "";
     }
   };
 
@@ -155,7 +156,10 @@ export function useAudio(options?: {
         volume: htmlAudio.value?.volume ?? null,
         paused: htmlAudio.value?.paused ?? null,
         readyState: htmlAudio.value?.readyState ?? null,
+        // tracked src (object URL or provided string)
         src: currentSrc.value ?? null,
+        // actual HTMLAudio element src for cross-checking races
+        elementSrc: htmlAudio.value?.src ?? null,
       };
     } catch (e) {
       return null;
@@ -194,9 +198,10 @@ export function useAudio(options?: {
           // 既に設定されている blob URL があれば解放
           if (currentSrc.value && currentSrc.value.startsWith("blob:")) {
             try {
+              console.log("[useAudio] load: revoking previous blob URL:", currentSrc.value);
               URL.revokeObjectURL(currentSrc.value);
-            } catch {
-              /* ignore */
+            } catch (e) {
+              console.warn("[useAudio] load: revoke failed", e);
             }
           }
           htmlAudio.value.src = "";
@@ -250,6 +255,7 @@ export function useAudio(options?: {
         htmlAudio.value.volume = volume.value;
         // currentSrc に実際に設定した URL を保持しておく
         currentSrc.value = typeof source === "string" ? source : url;
+        console.log("[useAudio] load: set currentSrc =>", currentSrc.value);
         duration.value = getDuration();
         audioInstanceId.value = "html-audio";
       }

@@ -1,4 +1,4 @@
-import { ref, computed, onBeforeUnmount } from "vue";
+import { ref, computed, onBeforeUnmount, reactive } from "vue";
 import { container } from "tsyringe";
 import { AssetDataService } from "@model/applications/asset/asset-data-service";
 
@@ -6,7 +6,9 @@ export function useAssets(assetDataServiceArg?: AssetDataService) {
   const assetDataService =
     assetDataServiceArg || container.resolve(AssetDataService);
   const assets = ref<any[]>([]);
-  const objectUrlMap = new Map<string, string>();
+  // make the map reactive so template bindings like `objectUrlMap.get(id)` update
+  // when entries are added/removed. Vue's `reactive` supports Map proxies.
+  const objectUrlMap = reactive(new Map<string, string>());
 
   const imageAssets = computed(() =>
     assets.value.filter((a) => a.blob?.type?.startsWith("image"))

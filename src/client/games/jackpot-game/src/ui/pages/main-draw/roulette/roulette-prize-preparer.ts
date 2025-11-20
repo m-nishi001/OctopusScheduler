@@ -1,12 +1,16 @@
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
 import type { RouletteItem } from "./roulette-image-loader";
 
+export interface RoulettePrizeDto extends PrizeDto {
+  originalPrizeId?: string;
+}
+
 export interface AssetService {
   getAssetDataById(assetId: string): Promise<{ blob: Blob } | null>;
 }
 
 export async function prepareRenderPrizes(
-  prizes: PrizeDto[],
+  prizes: RoulettePrizeDto[],
   assetService: AssetService
 ): Promise<RouletteItem[]> {
   try {
@@ -14,7 +18,7 @@ export async function prepareRenderPrizes(
       prizes.map(async (p) => {
         const copy: RouletteItem = {
           id: p.id,
-          prizeId: (p as any).originalPrizeId ?? p.id,
+          prizeId: p.originalPrizeId ?? p.id,
           name: p.name,
           imageUrl: undefined,
         };

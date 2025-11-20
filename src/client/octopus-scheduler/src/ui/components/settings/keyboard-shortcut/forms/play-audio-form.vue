@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
@@ -43,13 +43,37 @@ const formData = reactive({
     audioFile: null as File | null,
 });
 
-onMounted(async () => {
+const refreshAssets = async () => {
     try {
         const assets = await assetService.getAssets();
         audioAssets.value = assets.filter(asset => asset.blob.type.startsWith('audio/'));
     } catch (error) {
         console.error('Failed to load audio assets:', error);
     }
+};
+
+onMounted(async () => {
+    await refreshAssets();
+
+    const handler = (ev: Event) => {
+        const ce = ev as CustomEvent;
+        setTimeout(async () => {
+            await refreshAssets();
+            const added: string[] | undefined = ce?.detail?.added;
+            if (Array.isArray(added) && added.length > 0) {
+                // auto-select first added audio if none selected
+                for (const id of added) {
+                    const found = audioAssets.value.find(a => a.id === id);
+                    if (found) {
+                        if (!formData.audioId) formData.audioId = id;
+                        break;
+                    }
+                }
+            }
+        }, 0);
+    };
+    window.addEventListener('assets:updated', handler as EventListener);
+    onBeforeUnmount(() => window.removeEventListener('assets:updated', handler as EventListener));
 });
 
 const handleFileUpload = async (event: Event) => {

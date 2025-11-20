@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
@@ -125,7 +125,7 @@ const showPreviewDialog = ref(false);
 const previewContent = ref<any>(null);
 const previewType = ref('');
 
-onMounted(async () => {
+const refreshAssets = async () => {
     try {
         const assets = await assetService.getAssets();
         imageAssets.value = assets.filter(asset => asset.blob.type.startsWith('image/'));
@@ -133,6 +133,39 @@ onMounted(async () => {
     } catch (error) {
         console.error('Failed to load assets:', error);
     }
+};
+
+onMounted(async () => {
+    await refreshAssets();
+
+    // listen for global asset updates and refresh lists
+    const handler = (ev: Event) => {
+        const ce = ev as CustomEvent;
+        // schedule async refresh
+        setTimeout(async () => {
+            await refreshAssets();
+            // if new assets were added and current form has no selection, auto-select a matching one
+            const added: string[] | undefined = ce?.detail?.added;
+            if (Array.isArray(added) && added.length > 0) {
+                // try to pick the first added id that matches current contentType
+                for (const id of added) {
+                    const found = (formData.contentType === 'image' ? imageAssets.value : videoAssets.value)
+                        .find(a => a.id === id);
+                    if (found) {
+                        // only auto-select if user hasn't already chosen something
+                        if (!formData.contentId) formData.contentId = id;
+                        break;
+                    }
+                }
+            }
+        }, 0);
+    };
+    window.addEventListener('assets:updated', handler as EventListener);
+
+    // remove listener on unmount
+    onBeforeUnmount(() => {
+        window.removeEventListener('assets:updated', handler as EventListener);
+    });
 });
 
 const handleFileUpload = async (event: Event) => {

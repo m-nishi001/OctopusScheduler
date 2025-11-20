@@ -6,6 +6,7 @@ import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
 import { type Emitter } from "mitt";
 import type { RouletteItem } from "./roulette/roulette-image-loader";
+import type { RoulettePrizeDto } from "./roulette/roulette-prize-preparer";
 
 /**
  * KakuhenHandler orchestrates the two-step "確変" animation sequence.
@@ -21,7 +22,7 @@ import type { RouletteItem } from "./roulette/roulette-image-loader";
  */
 export class KakuhenHandler {
   private static _prevPrize: PrizeDto | null = null;
-  private static _prevPrizes: PrizeDto[] | null = null;
+  private static _prevPrizes: RoulettePrizeDto[] | null = null;
   private static _kakuhenPrepared: any[] | null = null;
   static getActions(
     preDrawResult: Ref<DrawResultDto | null>,
@@ -43,7 +44,7 @@ export class KakuhenHandler {
     queue: ActionQueue,
     emitter: Emitter<any>,
     drawState: any,
-    preparePrizes: (newPrizes: PrizeDto[]) => Promise<RouletteItem[]>
+    preparePrizes: (newPrizes: RoulettePrizeDto[]) => Promise<RouletteItem[]>
   ): (() => Promise<void>)[] {
     const baseActions: (() => Promise<void>)[] = [];
     baseActions.push(() => BaseHandler.setMemberPhase(drawState, emitter));
@@ -160,13 +161,13 @@ export class KakuhenHandler {
 
   static async startKakuhenDummyDraw(
     preDrawResult: Ref<DrawResultDto | null>,
-    prizes: Ref<PrizeDto[]>,
+    prizes: Ref<RoulettePrizeDto[]>,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     animationRef: Ref<any>,
     kakuhenInProgress: Ref<boolean>,
-    kakuhenDummyPrize: Ref<PrizeDto | null>,
-    kakuhenFinalPrize: Ref<PrizeDto | null>,
-    preparePrizes: (newPrizes: PrizeDto[]) => Promise<RouletteItem[]>,
+    kakuhenDummyPrize: Ref<RoulettePrizeDto | null>,
+    kakuhenFinalPrize: Ref<RoulettePrizeDto | null>,
+    preparePrizes: (newPrizes: RoulettePrizeDto[]) => Promise<RouletteItem[]>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] startKakuhenDummyDraw");
@@ -178,22 +179,22 @@ export class KakuhenHandler {
     // For kakuhen, duplicate the final prize entry so it appears twice on the wheel
     // first occurrence will display imageAssetId (画像1)
     // second occurrence will display image2AssetId (画像2)
-    const newPrizes: PrizeDto[] = [];
+    const newPrizes: RoulettePrizeDto[] = [];
     for (const p of prizes.value) {
       if (p.id === finalPrizeId) {
         // create distinct visual ids for the two duplicate sectors
-        const firstClone = {
+        const firstClone: RoulettePrizeDto = {
           ...p,
           id: `${p.id}__k1`,
           imageAssetId: p.imageAssetId,
           originalPrizeId: p.id,
-        } as PrizeDto & { originalPrizeId: string };
-        const secondClone = {
+        };
+        const secondClone: RoulettePrizeDto = {
           ...p,
           id: `${p.id}__k2`,
-          imageAssetId: p.image2AssetId || p.imageAssetId,
+          imageAssetId: p.image2AssetId,
           originalPrizeId: p.id,
-        } as PrizeDto & { originalPrizeId: string };
+        };
         newPrizes.push(firstClone);
         newPrizes.push(secondClone);
         kakuhenDummyPrize.value = firstClone;
@@ -232,7 +233,7 @@ export class KakuhenHandler {
 
   static async stopKakuhenDummyDraw(
     animationRef: Ref<any>,
-    kakuhenDummyPrize: Ref<PrizeDto | null>,
+    kakuhenDummyPrize: Ref<RoulettePrizeDto | null>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopKakuhenDummyDraw");
@@ -270,7 +271,7 @@ export class KakuhenHandler {
   static async showDummyPrizeDialogAction(
     showDummyPrizeDialog: Ref<boolean>,
     latestResult: Ref<DrawResultDto | null>,
-    kakuhenDummyPrize: Ref<PrizeDto | null>,
+    kakuhenDummyPrize: Ref<RoulettePrizeDto | null>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] showDummyPrizeDialogAction");
@@ -304,7 +305,7 @@ export class KakuhenHandler {
   }
 
   static async startKakuhenFinalDraw(
-    kakuhenFinalPrize: Ref<PrizeDto | null>,
+    kakuhenFinalPrize: Ref<RoulettePrizeDto | null>,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     animationRef: Ref<any>,
     emitter: Emitter<any>
@@ -327,11 +328,11 @@ export class KakuhenHandler {
 
   static async stopKakuhenFinalDraw(
     animationRef: Ref<any>,
-    kakuhenFinalPrize: Ref<PrizeDto | null>,
-    updateSelectedPrize: (prize: PrizeDto) => void,
+    kakuhenFinalPrize: Ref<RoulettePrizeDto | null>,
+    updateSelectedPrize: (prize: RoulettePrizeDto) => void,
     kakuhenInProgress: Ref<boolean>,
     latestResult: Ref<DrawResultDto | null>,
-    preparePrizes: (newPrizes: PrizeDto[]) => Promise<RouletteItem[]>,
+    preparePrizes: (newPrizes: RoulettePrizeDto[]) => Promise<RouletteItem[]>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopKakuhenFinalDraw");
@@ -414,9 +415,9 @@ export class KakuhenHandler {
       }
       // set selectedPrize based on restored prizes
       const restored = KakuhenHandler._prevPrizes.find(
-        (p: PrizeDto) =>
+        (p: RoulettePrizeDto) =>
           p.id ===
-          ((kakuhenFinalPrize.value as any).originalPrizeId ||
+          (kakuhenFinalPrize.value!.originalPrizeId ||
             kakuhenFinalPrize.value!.id)
       )!;
       updateSelectedPrize(restored);

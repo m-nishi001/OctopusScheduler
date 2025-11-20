@@ -4,7 +4,6 @@
 
             <DrawResultDialog v-if="showPrizeWinningDialog" title="景品当選" :assetId="latestResult?.wonPrize?.imageAssetId"
                 primaryLabel="次へ">
-                当選景品: <strong>{{ latestResult?.wonPrize?.name }}</strong>
             </DrawResultDialog>
 
             <HalfRemainingDialog v-if="showHalfRemainingDialog" :visible="showHalfRemainingDialog" />

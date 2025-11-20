@@ -10,7 +10,18 @@ export class AssetService {
   ) {}
 
   async addAssets(assets: Asset[]): Promise<string[]> {
-    return await this.assetRepository.addAssets(assets);
+    const ids = await this.assetRepository.addAssets(assets);
+    try {
+      // notify other interested components that assets changed
+      if (typeof window !== "undefined" && (window as any).dispatchEvent) {
+        window.dispatchEvent(
+          new CustomEvent("assets:updated", { detail: { added: ids } })
+        );
+      }
+    } catch (e) {
+      // ignore
+    }
+    return ids;
   }
 
   async getAssets(): Promise<Asset[]> {
@@ -23,6 +34,15 @@ export class AssetService {
 
   async deleteAssets(ids: string[]): Promise<void> {
     await this.assetRepository.deleteAssets(ids);
+    try {
+      if (typeof window !== "undefined" && (window as any).dispatchEvent) {
+        window.dispatchEvent(
+          new CustomEvent("assets:updated", { detail: { deleted: ids } })
+        );
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   async syncAssets(

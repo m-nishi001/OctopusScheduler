@@ -290,11 +290,11 @@ export class AssetDataRepository implements IAssetDataRepository {
 
   async replaceLocalWithDrive(
     onProgress?: (message: string) => void
-  ): Promise<{ replaced: number }> {
+  ): Promise<{ replaced: number; idMap: { [oldId: string]: string } }> {
     onProgress?.("Start replacing local assets from Google Drive");
 
     const remoteMetas = await this.fetchRemoteMetas(onProgress);
-    if (!remoteMetas) return { replaced: 0 };
+    if (!remoteMetas) return { replaced: 0, idMap: {} };
 
     const allLocal = await this.localStorage.getAll<Asset>();
     const localMap = new Map<string, Asset>();

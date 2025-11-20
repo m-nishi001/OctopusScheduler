@@ -1,136 +1,44 @@
+.rank-block input[type="number"] {
+text-align: left !important;
+justify-content: flex-start !important;
+}
 <template>
     <div class="modal-overlay">
-        <div class="modal-content wide-modal" @click.stop>
-            <div class="add-modal-grid">
-                <div class="add-form-column">
-                    <h3>景品詳細</h3>
-                    <p>景品の情報を編集してください。</p>
+        <div class="modal-content wide-modal prize-edit-dialog" @click.stop>
+            <div class="dialog-grid">
+                <div class="dialog-main">
+                    <h3 class="dialog-title">景品詳細</h3>
 
-                    <div class="field-block">
-                        <label class="field-label">名前</label>
-                        <input v-model="editName" type="text" placeholder="景品名" class="admin-input prize-name-input" />
+                    <div class="field-grid">
+                        <FieldText class="name-block" v-model="editName" label="名前" placeholder="景品名" />
+
+                        <FieldNumberStepper class="rank-block" v-model="editRank" :min="1" label="景品ランク" />
+
+                        <FieldSelect class="animation-block" v-model="editAnimation"
+                            :options="[{ value: 'roulette', label: 'ルーレット' }, { value: 'slot', label: 'スロット' }]"
+                            label="抽選アニメーション" />
                     </div>
 
-                    <div class="field-block">
-                        <label class="field-label">景品ランク</label>
-                        <input v-model.number="editRank" type="number" placeholder="景品ランク" min="1"
-                            class="admin-input" />
+                    <div class="image-row">
+                        <ImageField label="画像1" v-model:mode="editImageMode" v-model:assetId="editImageAssetId"
+                            :filename="editImageFilename" :preview="editImagePreview" :assets="imageAssets"
+                            @file-change="onEditImageChange" />
+
+                        <ImageField label="画像2" v-model:mode="editImage2Mode" v-model:assetId="editImage2AssetId"
+                            :filename="editImage2Filename" :preview="editImage2Preview" :assets="imageAssets"
+                            @file-change="onEditImage2Change" />
                     </div>
 
-                    <div class="field-block left-col">
-                        <label class="field-label">抽選アニメーション</label>
-                        <select v-model="editAnimation" class="admin-input">
-                            <option value="roulette">ルーレット</option>
-                            <option value="slot">スロット</option>
-                        </select>
-                    </div>
+                    <div class="bgm-row">
+                        <BgmField label="BGM1" v-model:mode="editBgm1Mode" v-model:assetId="editBgm1AssetId"
+                            :filename="editBgm1Filename" :assets="audioAssets" @file-change="onEditBgm1Change" />
 
-                    <div class="field-block">
-                        <label class="field-label">画像1</label>
-                        <div class="image-mode">
-                            <div class="image-radio-group">
-                                <label><input type="radio" v-model="editImageMode" value="upload" /> アップロード</label>
-                                <label><input type="radio" v-model="editImageMode" value="select" /> 既存から選択</label>
-                            </div>
-                            <div class="image-select-group">
-                                <select v-if="editImageMode === 'select'" v-model="editImageAssetId"
-                                    class="admin-input">
-                                    <option value="">選択なし</option>
-                                    <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
-                                </select>
-                                <input v-if="editImageMode === 'upload'" type="file" @change="onEditImageChange"
-                                    accept="image/*" class="admin-input" />
-                                <span v-if="editImageMode === 'upload' && editImageFilename" class="file-name">{{
-                                    editImageFilename }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="field-block">
-                        <label class="field-label">画像2</label>
-                        <div class="image-mode">
-                            <div class="image-radio-group">
-                                <label><input type="radio" v-model="editImage2Mode" value="upload" /> アップロード</label>
-                                <label><input type="radio" v-model="editImage2Mode" value="select" /> 既存から選択</label>
-                            </div>
-                            <div class="image-select-group">
-                                <select v-if="editImage2Mode === 'select'" v-model="editImage2AssetId"
-                                    class="admin-input">
-                                    <option value="">選択なし</option>
-                                    <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
-                                </select>
-                                <input v-if="editImage2Mode === 'upload'" type="file" @change="onEditImage2Change"
-                                    accept="image/*" class="admin-input" />
-                                <span v-if="editImage2Mode === 'upload' && editImage2Filename" class="file-name">{{
-                                    editImage2Filename }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="field-block span-2">
-                        <label class="field-label">BGM1</label>
-                        <div class="bgm-mode">
-                            <div class="bgm-radio-group">
-                                <label><input type="radio" v-model="editBgm1Mode" value="upload" /> アップロード</label>
-                                <label><input type="radio" v-model="editBgm1Mode" value="select" /> 既存から選択</label>
-                            </div>
-                            <div class="bgm-select-group">
-                                <select v-if="editBgm1Mode === 'select'" v-model="editBgm1AssetId" class="admin-input">
-                                    <option value="">選択なし</option>
-                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
-                                </select>
-                                <input v-if="editBgm1Mode === 'upload'" type="file" @change="onEditBgm1Change"
-                                    accept="audio/*" class="admin-input" />
-                                <span v-if="editBgm1Mode === 'upload' && editBgm1Filename" class="file-name">{{
-                                    editBgm1Filename }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="field-block span-2">
-                        <label class="field-label">BGM2</label>
-                        <div class="bgm-mode">
-                            <div class="bgm-radio-group">
-                                <label><input type="radio" v-model="editBgm2Mode" value="upload" /> アップロード</label>
-                                <label><input type="radio" v-model="editBgm2Mode" value="select" /> 既存から選択</label>
-                            </div>
-                            <div class="bgm-select-group">
-                                <select v-if="editBgm2Mode === 'select'" v-model="editBgm2AssetId" class="admin-input">
-                                    <option value="">選択なし</option>
-                                    <option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name
-                                        }}</option>
-                                </select>
-                                <input v-if="editBgm2Mode === 'upload'" type="file" @change="onEditBgm2Change"
-                                    accept="audio/*" class="admin-input" />
-                                <span v-if="editBgm2Mode === 'upload' && editBgm2Filename" class="file-name">{{
-                                    editBgm2Filename }}</span>
-                            </div>
-                        </div>
+                        <BgmField label="BGM2" v-model:mode="editBgm2Mode" v-model:assetId="editBgm2AssetId"
+                            :filename="editBgm2Filename" :assets="audioAssets" @file-change="onEditBgm2Change" />
                     </div>
                 </div>
 
-                <div class="add-side-column">
-                    <div class="preview-box preview-box--small two-image-preview">
-                        <template v-if="editImagePreview || editImage2Preview">
-                            <div class="preview-half">
-                                <img v-if="editImagePreview" :src="editImagePreview" alt="preview1"
-                                    class="preview-img" />
-                                <div v-else class="preview-placeholder small">画像1なし</div>
-                            </div>
-                            <div class="preview-half">
-                                <img v-if="editImage2Preview" :src="editImage2Preview" alt="preview2"
-                                    class="preview-img" />
-                                <div v-else class="preview-placeholder small">画像2なし</div>
-                            </div>
-                        </template>
-                        <template v-else>
-                            <div class="preview-placeholder">プレビュー</div>
-                        </template>
-                    </div>
-                </div>
+                <!-- preview removed as requested -->
 
             </div>
 
@@ -147,6 +55,11 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
+import FieldText from './components/field-text.vue';
+import FieldNumberStepper from './components/field-number-stepper.vue';
+import FieldSelect from './components/field-select.vue';
+import ImageField from './components/image-field.vue';
+import BgmField from './components/bgm-field.vue';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { PrizeService } from '@model/applications/prize/prize-service';
 import { container } from 'tsyringe';
@@ -197,6 +110,22 @@ onMounted(() => {
 
 watch(() => props.prize, (val) => {
     if (val) loadPrize(val);
+});
+
+watch(() => editImageAssetId.value, (newId) => {
+    if (newId) {
+        editImagePreview.value = props.objectUrlMap.get(newId) || newId;
+    } else {
+        editImagePreview.value = '';
+    }
+});
+
+watch(() => editImage2AssetId.value, (newId) => {
+    if (newId) {
+        editImage2Preview.value = props.objectUrlMap.get(newId) || newId;
+    } else {
+        editImage2Preview.value = '';
+    }
 });
 
 const loadPrize = async (prize: any) => {
@@ -339,8 +268,399 @@ const saveEdit = async () => {
     }
 };
 
+const increaseRank = () => { editRank.value = (Number(editRank.value) || 0) + 1; };
+const decreaseRank = () => { editRank.value = Math.max(1, (Number(editRank.value) || 1) - 1); };
+
 </script>
 
 <style scoped>
-/* styling is inherited from parent; keep it minimal here */
+/* Modal appearance for the edit dialog — copied/adjusted so this component
+   renders as a proper dialog (not transparent). Scoped so it doesn't affect
+   other admin components. */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    /* outer safe margin */
+    z-index: 1100;
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #232b36 0%, #2a3441 100%);
+    color: #fff;
+    padding: 28px;
+    border-radius: 16px;
+    text-align: left;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    max-width: 880px;
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-sizing: border-box;
+}
+
+.modal-content.wide-modal {
+    width: min(86vw, 1100px);
+    margin: 0 auto;
+    max-width: 1100px;
+    max-height: calc(100vh - 96px);
+    /* keep vertical margin from viewport */
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    flex: 0 0 auto;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Keep styling focused on the preview so large images can't expand the dialog.
+   The global admin CSS defines general preview rules; here we enforce a fixed
+   preview size for the edit dialog and make images contain inside the box. */
+.preview-box.preview-box--small {
+    width: 260px;
+    height: 260px;
+    max-width: 280px;
+    min-width: 0;
+    flex: 0 0 auto;
+    aspect-ratio: unset;
+}
+
+.preview-box.preview-box--small .preview-half {
+    width: 50%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: transparent;
+}
+
+.preview-box.preview-box--small .preview-img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.preview-box.preview-box--small .preview-placeholder {
+    padding: 8px;
+    text-align: center;
+}
+
+/* New grid-based layout: main form + optional preview aside. */
+.dialog-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    align-items: start;
+    margin-top: 8px;
+    min-height: 0;
+}
+
+.dialog-main {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    /* allow children to shrink */
+}
+
+.field-grid {
+    display: grid;
+    /* three equal columns for name / rank / animation */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 56px;
+
+    /* Prevent overlap: ensure minimum width for name/rank fields */
+    .name-block {
+        min-width: 180px;
+    }
+
+    .rank-block {
+        min-width: 120px;
+    }
+
+    align-items: start;
+}
+
+/* Ensure grid children don't overflow their cells and participate correctly
+       in flex/shrink behavior. This prevents inputs or controls from visually
+       overlapping neighbor columns. */
+.field-grid>* {
+    min-width: 0;
+}
+
+.field-grid .field-block {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.rank-animation-block {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: center;
+}
+
+.rank-animation-block>* {
+    min-width: 0;
+}
+
+.rank-animation-block .field-block:first-child {
+    width: 100px;
+}
+
+.field-block {
+    display: block;
+    min-width: 0;
+    overflow: visible;
+}
+
+.field-block .field-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 15px;
+}
+
+/* Make animation select visually similar to the name input and fill the available column */
+.animation-select {
+    width: 100%;
+    min-width: 160px;
+}
+
+.animation-block .admin-input {
+    width: 100%;
+}
+
+/* preview removed */
+
+/* Layout for image row: two columns */
+.image-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+}
+
+/* Ensure select dropdown renders above preview cards and stays visually contained */
+select.admin-input {
+    position: relative;
+    z-index: 60;
+}
+
+/* Style native option fallback for better contrast (may not apply in all browsers) */
+select.admin-input option {
+    background: #232b36;
+    color: #fff;
+}
+
+/* Limit select dropdown's virtual height where possible (platform dependent) */
+select.admin-input {
+    max-height: 40px;
+}
+
+/* BGM row styling: two columns for BGM1 and BGM2 */
+.bgm-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: start;
+}
+
+/* Limit width of native file input (Choose File) so it doesn't touch previews */
+.image-select-group input[type="file"],
+.bgm-select-group input[type="file"] {
+    max-width: 170px;
+    width: auto;
+    display: inline-block;
+}
+
+.image-select-group .file-name,
+.bgm-select-group .file-name {
+    max-width: calc(100% - 180px);
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* truncate long file names so they don't break layout */
+.file-name {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Larger, lifted title */
+.dialog-title {
+    font-size: 22px;
+    margin: 0 0 10px 0;
+    transform: translateY(-6px);
+    font-weight: 600;
+}
+
+/* Scale up inputs and buttons a bit to make the dialog feel larger */
+.modal-content {
+    font-size: 16px;
+}
+
+.admin-input {
+    padding: 10px 14px;
+    font-size: 15px;
+}
+
+.prize-name-input {
+    width: 100%;
+}
+
+.admin-btn {
+    padding: 10px 16px;
+    font-size: 15px;
+}
+
+/* Visual polish */
+.modal-content {
+    background: linear-gradient(180deg, #222b33 0%, #2a333b 100%);
+    border-radius: 14px;
+    padding: 30px 34px;
+}
+
+.field-block {
+    margin-top: 14px;
+}
+
+.field-label {
+    color: #dbeeff;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.admin-input {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+.admin-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) inset, 0 0 0 3px rgba(88, 156, 255, 0.06);
+}
+
+/* Apply same admin-input appearance to child components' inputs/selects
+   Using deep selector so scoped styles propagate into nested components. */
+::v-deep .admin-input {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 15px;
+    color: #fff;
+    transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+::v-deep .admin-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) inset, 0 0 0 3px rgba(88, 156, 255, 0.06);
+}
+
+.image-preview,
+.preview-box.preview-box--small {
+    background: linear-gradient(180deg, #2f3a41, #293238);
+    border-radius: 8px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.image-preview img,
+.preview-img {
+    border-radius: 6px;
+}
+
+
+/* BGM/Image rows responsive behaviour */
+@media (max-width: 980px) {
+    .dialog-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .field-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .image-row,
+    .bgm-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Footer buttons aligned right and styled */
+.admin-modal-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: flex-end;
+}
+
+.admin-btn {
+    background: linear-gradient(180deg, #0f1720, #1b2328);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+}
+
+.admin-btn.cancel-primary {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Scrollbar subtle but visible when content overflows */
+.dialog-main::-webkit-scrollbar {
+    width: 10px;
+}
+
+.dialog-main::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.dialog-main::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+/* Radio/select groups: prevent clipping and allow wrapping */
+
+/* Make preview halves a bit larger */
+.preview-box.preview-box--small .preview-half {
+    padding: 6px;
+}
+
+/* Button spacing */
+.admin-modal-buttons {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+/* footer padding to avoid buttons hugging the edge */
+.modal-footer {
+    padding-right: 20px;
+}
+
+/* No !important overrides here: layout controlled by container grid and responsive rules. */
 </style>

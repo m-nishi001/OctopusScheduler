@@ -30,7 +30,7 @@ export default defineComponent({
         message: { type: String, required: false, default: '' },
         primaryLabel: { type: String, required: false, default: '次へ' },
         // whether to show the primary action button. Allows callers to display a passive dialog without actions.
-        showPrimary: { type: Boolean, required: false, default: true },
+        showPrimary: { type: Boolean, required: false, default: false },
         assetId: { type: String, required: false, default: '' }
     },
     emits: ['close'],
@@ -73,9 +73,10 @@ export default defineComponent({
 .dialog-overlay {
     position: fixed;
     inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    /* Use grid to reliably center content both vertically and horizontally */
+    display: grid;
+    place-items: center;
+    padding: 24px;
     background: rgba(0, 0, 0, 0.6);
     z-index: 10000;
 }
@@ -83,26 +84,47 @@ export default defineComponent({
 .dialog-content {
     background: #000;
     border-radius: 20px;
-    padding: 48px;
+    /* reduce top padding so title sits higher */
+    padding: 16px 40px;
     width: 760px;
+    max-width: 90vw;
+    max-height: calc(100vh - 48px);
     /* larger size */
     box-sizing: border-box;
     text-align: center;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-    border: 2px solid #ffd700;
+    /* outer gold frame removed as requested */
     /* gold border for jackpot feel */
+    /* Do not show scrollbars; size image/title to fit within viewport */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .dialog-title {
     font-size: 3rem;
     font-weight: 900;
-    margin-bottom: 18px;
+    margin: 0 0 12px 0;
     color: #ffffff !important;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
 }
 
 .dialog-image-wrap {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+    /* Enlarge the image more while keeping viewport constraints */
+    width: min(720px, calc(100vw - 96px));
+    height: min(640px, calc(90vh - 120px));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px auto;
+    border-radius: 12px;
+    border: 3px solid #ffd700;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    flex: 0 0 auto;
+    max-width: 100%;
 }
 
 .dialog-message {
@@ -128,13 +150,12 @@ export default defineComponent({
 }
 
 .modal-image {
-    max-width: 460px;
-    max-height: 460px;
-    object-fit: cover;
+    width: auto;
+    height: auto;
+    /* allow the image to take up most of the wrapper */
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
     display: block;
-    margin: 0 auto 20px auto;
-    border-radius: 12px;
-    border: 3px solid #ffd700;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
 }
 </style>

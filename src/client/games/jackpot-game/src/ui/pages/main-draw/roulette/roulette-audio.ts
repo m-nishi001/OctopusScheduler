@@ -27,10 +27,12 @@ export function useRouletteAudio() {
     try {
       console.log("[RouletteAudio] startBgm: requested, bgmUrl:", bgmUrl, "useAudio.instanceId:", (bgmInstanceId as any)?.value ?? null);
       try {
-        // If useAudio exposes an instance id, show it for debugging
-        const ii = (getHtmlAudioState as any) ? null : null;
-        // The useAudio instance includes logs with instance id in them.
-      } catch (e) {}
+        // Log html-audio internal state before stop/load/play to detect races
+        const beforeState = (getHtmlAudioState as any) ? (getHtmlAudioState as any)() : null;
+        console.log("[RouletteAudio] startBgm: state before stop/load/play =>", beforeState);
+      } catch (e) {
+        console.warn("[RouletteAudio] startBgm: failed to read before state", e);
+      }
       await stopBgm();
       await loadBgm(bgmUrl);
       // Ensure we are not muted and set default volume if unset.
@@ -44,6 +46,13 @@ export function useRouletteAudio() {
         /* noop */
       }
       await playBgm({ isRepeat: true });
+      // state snapshot after play() completes
+      try {
+        const afterState = (getHtmlAudioState as any) ? (getHtmlAudioState as any)() : null;
+        console.log("[RouletteAudio] startBgm: state after play =>", afterState);
+      } catch (e) {
+        console.warn("[RouletteAudio] startBgm: failed to read after state", e);
+      }
       // Log element state snapshot for diagnostics
       try {
         const state = (getHtmlAudioState as any) ? (getHtmlAudioState as any)() : null;
