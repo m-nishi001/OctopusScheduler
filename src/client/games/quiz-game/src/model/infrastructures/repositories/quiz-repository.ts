@@ -92,7 +92,7 @@ export class QuizRepository {
                   : (o.image as string | null),
             }))
           ),
-              correctNo: (q as any).correctNo ?? 1,
+          correctNo: (q as any).correctNo ?? 1,
           formUrl: q.formUrl,
           timeLimit: q.timeLimit,
           bgm:
