@@ -116,7 +116,7 @@ export function registerKeyboardShortcutListener(): () => void {
           // close it before executing a new shortcut.
           if (
             manualContentVisible &&
-            shortcut.action.type !== "ShowContentEvent"
+            !shortcut.actions.some((a) => a.type === "ShowContentEvent")
           ) {
             eventBus.emit("hideContent");
           }

@@ -1,5 +1,5 @@
 <template>
-    <div class="option-card" role="listitem">
+    <div :class="['option-card', variantClass]" role="listitem">
         <button class="option-button" :style="styleVars" @click="onSelect" :aria-label="ariaLabel">
             <div class="image-wrapper">
                 <img v-if="imageUrl" :src="imageUrl" :alt="option.text" class="option-image" />
@@ -27,6 +27,7 @@ const props = defineProps<{
     option: OptionType;
     index: number;
     ariaLabel?: string;
+    variant?: string;
 }>();
 
 const emit = defineEmits<(e: 'select', payload: number | undefined) => void>();
@@ -34,6 +35,8 @@ const emit = defineEmits<(e: 'select', payload: number | undefined) => void>();
 const blobUrl = ref<string | null>(null);
 
 const ariaLabel = computed(() => props.ariaLabel || props.option.text || `option-${props.index + 1}`);
+
+const variantClass = computed(() => (props.variant ? `option-card--${props.variant}` : ''));
 
 const imageUrl = computed(() => {
     if (props.option.imageUrl) return props.option.imageUrl;
@@ -152,5 +155,41 @@ const onSelect = () => {
     text-overflow: ellipsis;
     max-width: calc(100% - 56px);
     padding: 6px 8px;
+}
+</style>
+
+<style scoped>
+@media (min-width: 1024px) {
+    .image-wrapper {
+        /* slightly less extreme horizontal aspect to improve vertical filling */
+        aspect-ratio: 16/9;
+    }
+
+    .option-image {
+        /* fill the card area on desktop - may crop edges but reduces blank space */
+        object-fit: cover;
+    }
+}
+</style>
+
+<style scoped>
+/* Styles for OptionCard variants (e.g. large view used on answer screen) */
+.option-card--large {
+    margin: 0 auto;
+    max-width: 1100px;
+}
+
+@media (min-width: 1024px) {
+    .option-card--large .image-wrapper {
+        aspect-ratio: 16/9;
+        /* leave room for header/title/padding (approx) */
+        max-height: calc(100vh - 220px);
+    }
+
+    .option-card--large .option-image {
+        object-fit: cover;
+        height: 100%;
+        width: 100%;
+    }
 }
 </style>

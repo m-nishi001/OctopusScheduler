@@ -51,30 +51,30 @@ const refreshAssets = async () => {
         console.error('Failed to load audio assets:', error);
     }
 };
+const assetsUpdatedHandler = (ev: Event) => {
+    const ce = ev as CustomEvent;
+    setTimeout(async () => {
+        await refreshAssets();
+        const added: string[] | undefined = ce?.detail?.added;
+        if (Array.isArray(added) && added.length > 0) {
+            // auto-select first added audio if none selected
+            for (const id of added) {
+                const found = audioAssets.value.find(a => a.id === id);
+                if (found) {
+                    if (!formData.audioId) formData.audioId = id;
+                    break;
+                }
+            }
+        }
+    }, 0);
+};
 
 onMounted(async () => {
     await refreshAssets();
-
-    const handler = (ev: Event) => {
-        const ce = ev as CustomEvent;
-        setTimeout(async () => {
-            await refreshAssets();
-            const added: string[] | undefined = ce?.detail?.added;
-            if (Array.isArray(added) && added.length > 0) {
-                // auto-select first added audio if none selected
-                for (const id of added) {
-                    const found = audioAssets.value.find(a => a.id === id);
-                    if (found) {
-                        if (!formData.audioId) formData.audioId = id;
-                        break;
-                    }
-                }
-            }
-        }, 0);
-    };
-    window.addEventListener('assets:updated', handler as EventListener);
-    onBeforeUnmount(() => window.removeEventListener('assets:updated', handler as EventListener));
+    window.addEventListener('assets:updated', assetsUpdatedHandler as EventListener);
 });
+
+onBeforeUnmount(() => window.removeEventListener('assets:updated', assetsUpdatedHandler as EventListener));
 
 const handleFileUpload = async (event: Event) => {
     const target = event.target as HTMLInputElement;

@@ -15,15 +15,33 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>アクションタイプ:</label>
-                <select v-model="actionType">
-                    <option v-for="(entry, key) in actionOptions" :key="key" :value="key">{{ entry.label }}</option>
-                </select>
+                <label>アクション一覧:</label>
+                <div class="actions-list">
+                    <action-item-summary
+                        v-for="(action, idx) in actions"
+                        :key="idx"
+                        :action="action"
+                        :index="idx"
+                        :length="actions.length"
+                        @edit="openActionManager"
+                        @move-up="moveUp"
+                        @move-down="moveDown"
+                        @remove="removeAction"
+                    />
+                </div>
+                <div class="add-action">
+                    <button @click="addAction">アクションを追加</button>
+                </div>
             </div>
-            <div class="form-content">
-                <component :is="currentFormComponent" :initial-data="initialData" @save="handleFormSave" ref="formRef">
-                </component>
-            </div>
+
+            <action-manager-dialog
+                :show="showActionManager"
+                :actionType="editingActionType"
+                :initialData="editingActionData"
+                :editingIndex="editingActionIndex"
+                @close="closeActionManager"
+                @save="handleActionManagerSave"
+            />
             <div class="dialog-buttons">
                 <button @click="saveShortcut" class="save-btn">保存</button>
                 <button @click="closeDialog" class="cancel-btn">キャンセル</button>
@@ -37,6 +55,9 @@ import { ref, watch, computed, nextTick } from 'vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
 import { useKeyCapture } from './composables/useKeyCapture';
 import { getUIActionRegistry } from './action-registry';
+import ActionItemSummary from './action-item-summary.vue';
+import ActionManagerDialog from './action-manager-dialog.vue';
+import type { EventFormData } from './types';
 
 interface Props {
     show: boolean;
@@ -53,52 +74,56 @@ const emit = defineEmits<Emits>();
 
 const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCapture();
 
-const actionType = ref('TransitionPageEvent');
-const formData = ref<any>({});
-const formRef = ref();
+const actions = ref<Array<EventFormData>>([]);
+const formRefs: Record<number, any> = {};
+const showActionManager = ref(false);
+const editingActionIndex = ref<number | null>(null);
+const editingActionData = ref<EventFormData | null>(null);
+const editingActionType = ref<string | null>(null);
 
 const ACTION_REGISTRY = getUIActionRegistry();
 
-const currentFormComponent = computed(() => {
-    const e = ACTION_REGISTRY[actionType.value];
+const getFormComponent = (atype: string) => {
+    const e = ACTION_REGISTRY[atype];
     return e ? e.component : null;
-});
+};
 
 const actionOptions = computed(() => ACTION_REGISTRY);
 
 const initialData = computed(() => {
-    if (props.editingShortcut) {
-        const action: any = props.editingShortcut.action;
-        const registryEntry = ACTION_REGISTRY[action.type];
-        if (registryEntry?.getInitial) {
-            return registryEntry.getInitial(action);
-        }
-    }
+    // kept for compatibility; not used directly when multiple actions exist
     return {};
 });
 
-const handleFormSave = (data: any) => {
-    formData.value = data;
+const handleActionSave = (idx: number, data: any) => {
+    actions.value[idx].data = data;
+};
+
+const setFormRef = (idx: number) => (el: any) => {
+    formRefs[idx] = el;
 };
 
 watch(() => props.show, (newShow) => {
     if (newShow) {
         if (props.editingShortcut) {
             capturedKeys.value = [...props.editingShortcut.keys];
-            actionType.value = props.editingShortcut.action.type;
+            // populate actions from editingShortcut
+            actions.value = props.editingShortcut.actions.map((a: any) => {
+                const registryEntry = ACTION_REGISTRY[a.type];
+                const data = registryEntry?.getInitial ? registryEntry.getInitial(a) : {};
+                return { actionType: a.type, ...data } as EventFormData;
+            });
         } else {
             capturedKeys.value = [];
-            actionType.value = 'TransitionPageEvent';
-            formData.value = {};
+            actions.value = [{ actionType: 'TransitionPageEvent', transitionUrl: '' } as EventFormData];
         }
     } else {
         stopKeyCapture();
     }
 });
 
-watch(() => actionType.value, () => {
-    formData.value = {};
-});
+// when action types change, their forms manage initial data; nothing global to do
+
 
 const closeDialog = () => {
     emit('close');
@@ -109,49 +134,83 @@ const saveShortcut = async () => {
         alert('キーを設定してください');
         return;
     }
-
-    formRef.value?.save();
+    // ask each child form to save into actions.value
+    for (const idxStr of Object.keys(formRefs)) {
+        const idx = Number(idxStr);
+        formRefs[idx]?.save?.();
+    }
     await nextTick();
 
-    const data = formData.value;
-    if (!data) {
-        alert('フォームデータを入力してください');
-        return;
-    }
-    let event: any;
-    const atype = data.actionType || actionType.value;
-    const registryEntry = ACTION_REGISTRY[atype];
-    if (!registryEntry) {
-        alert('未対応のアクションタイプです');
-        return;
-    }
+    // validate and build events
     const now = new Date();
     const id = props.editingShortcut?.id || `shortcut-${Date.now()}`;
-
-    // perform simple validation if the registry provides a validator
-    const validate = registryEntry.validate;
-    if (validate && !validate(data)) {
-        return; // validate should show alert
+    const events: any[] = [];
+    for (let i = 0; i < actions.value.length; i++) {
+        const a = actions.value[i];
+        const atype = a.actionType;
+        const registryEntry = ACTION_REGISTRY[atype];
+        if (!registryEntry) {
+            alert(`未対応のアクションタイプ: ${atype}`);
+            return;
+        }
+        const validate = registryEntry.validate;
+        if (validate && !validate(a.data)) return;
+        try {
+            const ev = registryEntry.buildEvent(id, now, a.data);
+            events.push(ev);
+        } catch (err) {
+            console.error(err);
+            alert('アクションの作成に失敗しました');
+            return;
+        }
     }
 
-    // build event through registry
-    try {
-        event = registryEntry.buildEvent(id, now, data);
-    } catch (err) {
-        console.error(err);
-        alert('アクションの作成に失敗しました');
-        return;
-    }
-
-    const shortcut = new KeyboardShortcut({
-        id,
-        keys: capturedKeys.value,
-        action: event,
-    });
-
+    const shortcut = new KeyboardShortcut({ id, keys: capturedKeys.value, actions: events });
     emit('save', shortcut);
     closeDialog();
 };
+
+const addAction = () => {
+    actions.value.push({ actionType: 'TransitionPageEvent', transitionUrl: '' } as EventFormData);
+};
+
+const removeAction = (idx: number) => {
+    actions.value.splice(idx, 1);
+};
+
+const moveUp = (idx: number) => {
+    if (idx <= 0) return;
+    const a = actions.value.splice(idx, 1)[0];
+    actions.value.splice(idx - 1, 0, a);
+};
+
+const moveDown = (idx: number) => {
+    if (idx >= actions.value.length - 1) return;
+    const a = actions.value.splice(idx, 1)[0];
+    actions.value.splice(idx + 1, 0, a);
+};
+
+function openActionManager(index: number) {
+    editingActionIndex.value = index;
+    editingActionData.value = { ...(actions.value[index] as EventFormData) };
+    editingActionType.value = actions.value[index]?.actionType || null;
+    showActionManager.value = true;
+}
+
+function closeActionManager() {
+    showActionManager.value = false;
+    editingActionIndex.value = null;
+    editingActionData.value = null;
+    editingActionType.value = null;
+}
+
+function handleActionManagerSave(data: EventFormData, index: number | null) {
+    if (index === null) {
+        actions.value.push(data);
+    } else {
+        actions.value.splice(index, 1, data);
+    }
+}
 </script>
 
 <style scoped>

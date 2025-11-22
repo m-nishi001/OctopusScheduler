@@ -552,3 +552,22 @@ body::-webkit-scrollbar {
     }
 }
 </style>
+
+<!-- Desktop-only overrides to increase option card height and adjust images -->
+<style scoped>
+@media (min-width: 1024px) {
+    .options-grid {
+        /* Increase the minimum row height on desktop for larger cards */
+        grid-auto-rows: minmax(180px, 1fr);
+    }
+
+    /* When two options are present, ensure each option has a reasonable minimum height */
+    .options-grid.two-options > div {
+        min-height: 360px;
+    }
+
+    .options-grid.two-options .option-button {
+        min-height: 320px;
+    }
+}
+</style>

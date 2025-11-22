@@ -67,7 +67,7 @@ describe("KeyboardShortcutService", () => {
     const shortcut = new KeyboardShortcut({
       id: "s1",
       keys: ["Control", "s", "1"],
-      action: event,
+      actions: [event],
     });
     await service.saveKeyboardShortcuts([shortcut]);
 
@@ -100,12 +100,12 @@ describe("KeyboardShortcutService", () => {
     const shortCut = new KeyboardShortcut({
       id: "s1",
       keys: ["Control", "s"],
-      action: eventA,
+      actions: [eventA],
     });
     const longCut = new KeyboardShortcut({
       id: "s2",
       keys: ["Control", "s", "1"],
-      action: eventB,
+      actions: [eventB],
     });
     await service.saveKeyboardShortcuts([shortCut, longCut]);
 

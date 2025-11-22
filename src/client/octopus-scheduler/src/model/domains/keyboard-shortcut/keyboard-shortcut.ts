@@ -5,32 +5,41 @@ import { getEventFromData } from "../app-event/event-registry";
 export interface KeyboardShortcutData {
   id: string;
   keys: string[];
-  action: {
+  actions: Array<{
     type: string;
     [key: string]: any;
-  };
+  }>;
 }
 
 export class KeyboardShortcut {
   readonly id: string;
   readonly keys: string[]; // 例: ["Control", "1"] （押下順）
-  readonly action: IAppEvent; // 実行するスケジュールイベント（例: TransitionPageEvent）
+  readonly actions: IAppEvent[]; // 実行するスケジュールイベント群（順序を保持）
 
-  constructor(params: { id: string; keys: string[]; action: IAppEvent }) {
+  constructor(params: { id: string; keys: string[]; actions: IAppEvent[] }) {
     this.id = params.id;
     this.keys = params.keys;
-    this.action = params.action;
+    this.actions = params.actions;
   }
 
   // キーボードトリガーで実行
   async execute(): Promise<void> {
-    // Use polymorphism: call event.execute(isStart = true, manual = true)
-    // so that each event can decide how to behave for manual triggers.
-    try {
-      await this.action.execute(true, true);
-    } catch (e) {
-      // Fallback to old behavior — schedule start without manual flag
-      await this.action.execute(true);
+    // Option A semantics: start each action in order but do not await
+    // completion of each action (fire-and-forget ordering). This lets
+    // actions such as audio playback and content show start nearly
+    // simultaneously while preserving start order.
+    for (const act of this.actions) {
+      try {
+        const p = act.execute(true, true);
+        if (p && typeof (p as any).catch === "function") {
+          (p as Promise<any>).catch(() => {
+            // swallow to avoid unhandled rejection; individual events
+            // should log their own errors if needed
+          });
+        }
+      } catch (e) {
+        // synchronous error while invoking execute; ignore to continue
+      }
     }
   }
 
@@ -39,19 +48,18 @@ export class KeyboardShortcut {
     return {
       id: this.id,
       keys: this.keys,
-      action: {
-        type: this.action.type,
-        ...this.action.serializeAsObject(),
-      },
+      actions: this.actions.map((a) => ({ type: a.type, ...a.serializeAsObject() })),
     };
   }
 
   // デシリアライズ（復元用）
   static fromData(data: KeyboardShortcutData): KeyboardShortcut {
-    const { id, keys, action: actionData } = data;
-    const { type, ...params } = actionData;
-    const event = getEventFromData(type, { id, ...params });
-    return new KeyboardShortcut({ id, keys, action: event });
+    const { id, keys, actions: actionsData } = data;
+    const events = (actionsData || []).map((actionData) => {
+      const { type, ...params } = actionData;
+      return getEventFromData(type, { id, ...params });
+    });
+    return new KeyboardShortcut({ id, keys, actions: events });
   }
 
   // デシリアライズ（復元用） - サービス層で実装

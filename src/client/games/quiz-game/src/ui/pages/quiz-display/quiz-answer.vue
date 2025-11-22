@@ -59,7 +59,8 @@ const handleKeydown = (ev: KeyboardEvent) => {
 
 <style scoped>
 .answer-container {
-  min-height: 100vh;
+  height: 100vh;
+  box-sizing: border-box;
   background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
   color: white;
   display: flex;
@@ -90,5 +91,64 @@ const handleKeydown = (ev: KeyboardEvent) => {
   color: #f97316;
   text-align: center;
   font-weight: 700;
+}
+</style>
+
+<style scoped>
+@media (min-width: 1024px) {
+  .answer-title {
+    font-size: 2.75rem;
+  }
+
+  .answer-container {
+    /* reduce bottom padding slightly to give more room for the card area */
+    padding-bottom: 20px;
+  }
+}
+</style>
+
+<style scoped>
+@media (min-width: 1024px) {
+  /* Make main area layout adjustments for large screens */
+  .answer-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .answer-card {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    /* do not force full-height growth on large screens */
+    flex: 0 1 auto;
+  }
+
+  /* Adjust child component internals to use natural height */
+  .answer-card ::v-deep(.option-card) {
+    height: auto !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .answer-card ::v-deep(.option-button) {
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  .answer-card ::v-deep(.image-wrapper) {
+    height: auto !important;
+    aspect-ratio: auto !important;
+  }
+
+  .answer-card ::v-deep(.option-image) {
+    height: auto !important;
+    width: 100% !important;
+    object-fit: cover !important;
+  }
 }
 </style>

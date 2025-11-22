@@ -261,7 +261,10 @@ export class KakuhenHandler {
       let settled = false;
       const cleanup = () => {
         try {
-          window.removeEventListener("kakuhen.finished", onFinished as EventListener);
+          window.removeEventListener(
+            "kakuhen.finished",
+            onFinished as EventListener
+          );
         } catch (e) {
           /* noop */
         }
@@ -285,7 +288,10 @@ export class KakuhenHandler {
       }, 2000);
 
       try {
-        window.addEventListener("kakuhen.finished", onFinished as EventListener);
+        window.addEventListener(
+          "kakuhen.finished",
+          onFinished as EventListener
+        );
       } catch (e) {
         // addEventListener failed; fallback timer will be used
       }

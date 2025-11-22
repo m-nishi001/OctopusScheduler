@@ -35,7 +35,7 @@ export class KeyboardShortcutService {
         {
           id: shortcut.id,
           keys: shortcut.keys,
-          actionType: shortcut.action.type,
+          actionTypes: shortcut.actions.map((a) => a.type),
         }
       );
     } catch (e) {
@@ -108,6 +108,8 @@ export class KeyboardShortcutService {
     const converter = this.converters.find((c) => c.getType() === type);
     if (!converter) return null;
     const action = converter.revive(actionRawObj as any);
-    return new KeyboardShortcut({ id, keys, action });
+    if (!action) return null;
+    // Wrap single revived action into actions array for new model
+    return new KeyboardShortcut({ id, keys, actions: [action] });
   }
 }
