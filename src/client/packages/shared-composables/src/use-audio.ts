@@ -2,6 +2,16 @@
 import { ref, readonly, onUnmounted } from "vue";
 import { AudioService } from "@common-lib/audio/audio-service";
 
+// Debug flag: enable by setting window.__DBG_AUDIO__ = true or localStorage.setItem('__DBG_AUDIO__','1')
+const __DBG_AUDIO__ = !!(
+  typeof window !== "undefined" &&
+  ((window as any).__DBG_AUDIO__ ||
+    (typeof localStorage !== "undefined" &&
+      localStorage.getItem("__DBG_AUDIO__") === "1"))
+);
+let __dbgAudioCounter = 0;
+const __makeDbgId = () => `audio#${++__dbgAudioCounter}`;
+
 /**
  * AudioServiceの機能をラップし、Vueのリアクティブな状態と統合するComposable関数
  * @param options オプション設定
@@ -36,7 +46,9 @@ export function useAudio(options?: {
   const tryResume = async () => {
     if (mode === "html-audio" && htmlAudio.value && autoplayBlocked.value) {
       try {
-        console.log("[useAudio] tryResume: attempting to resume after user gesture");
+        console.log(
+          "[useAudio] tryResume: attempting to resume after user gesture"
+        );
         await htmlAudio.value.play();
         autoplayBlocked.value = false;
         isPlaying.value = true;
@@ -95,7 +107,24 @@ export function useAudio(options?: {
       // Revocation is performed when loading a new source or on unmount to avoid
       // races where an external stop call clears the tracked src while another
       // actor expects to read it immediately after play.
-      console.log("[useAudio] stopAudio: pausing (defer revoke) currentSrc =>", currentSrc.value);
+      console.log(
+        "[useAudio] stopAudio: pausing (defer revoke) currentSrc =>",
+        currentSrc.value
+      );
+      // 無条件で trace を出力して必ずスタックを取得
+      try {
+        console.trace();
+      } catch (e) {
+        /* noop */
+      }
+      if (__DBG_AUDIO__) {
+        console.log(
+          "[DBG][useAudio] stopAudio PRE dbgId=%s currentSrc=%s time=%d",
+          (htmlAudio.value as any)?.__dbgId ?? "nil",
+          currentSrc.value,
+          Date.now()
+        );
+      }
       htmlAudio.value.pause();
       htmlAudio.value.currentTime = 0;
     }
@@ -114,8 +143,11 @@ export function useAudio(options?: {
 
     currentTime.value = getCurrentTime();
 
-    if (currentTime.value >= duration.value) {
-      stop();
+    // Only stop when we have a valid duration (> 0). When audio metadata
+    // hasn't loaded yet duration may be 0 which would falsely trigger stop()
+    // immediately after play resolves. Use void to ignore returned Promise.
+    if (duration.value > 0 && currentTime.value >= duration.value) {
+      void stop();
       return;
     }
 
@@ -198,7 +230,25 @@ export function useAudio(options?: {
           // 既に設定されている blob URL があれば解放
           if (currentSrc.value && currentSrc.value.startsWith("blob:")) {
             try {
-              console.log("[useAudio] load: revoking previous blob URL:", currentSrc.value);
+              if (__DBG_AUDIO__) {
+                console.log(
+                  "[DBG][useAudio] load: revoke PRE dbgId=%s blob=%s time=%d",
+                  (htmlAudio.value as any).__dbgId ?? "nil",
+                  currentSrc.value,
+                  Date.now()
+                );
+                console.trace();
+              }
+              // 無条件で trace を出力して必ずスタックを取得
+              try {
+                console.trace();
+              } catch (e) {
+                /* noop */
+              }
+              console.log(
+                "[useAudio] load: revoking previous blob URL:",
+                currentSrc.value
+              );
               URL.revokeObjectURL(currentSrc.value);
             } catch (e) {
               console.warn("[useAudio] load: revoke failed", e);
@@ -210,17 +260,61 @@ export function useAudio(options?: {
         const url =
           typeof source === "string" ? source : URL.createObjectURL(source);
         htmlAudio.value = new Audio(url);
+        if (__DBG_AUDIO__) {
+          try {
+            const dbgId = __makeDbgId();
+            (htmlAudio.value as any).__dbgId = dbgId;
+            console.log(
+              "[DBG][useAudio] NEW audio dbgId=%s created src=%s time=%d",
+              dbgId,
+              url,
+              Date.now()
+            );
+          } catch (e) {
+            /* noop */
+          }
+        }
         // Attach event listeners for debugging and state updates
         const safeAddEvent = (name: string, handler: any) => {
           try {
-            htmlAudio.value?.addEventListener(name, handler as EventListenerOrEventListenerObject);
+            htmlAudio.value?.addEventListener(
+              name,
+              handler as EventListenerOrEventListenerObject
+            );
           } catch (e) {
             /* noop */
           }
         };
-        safeAddEvent("play", () => console.log("[useAudio] html-audio event: play", { src: currentSrc.value }));
+        safeAddEvent("play", () => {
+          if (__DBG_AUDIO__)
+            console.log(
+              "[EVT][useAudio] play dbgId=%s src=%s paused=%s readyState=%d time=%d",
+              (htmlAudio.value as any).__dbgId ?? "nil",
+              htmlAudio.value?.src,
+              htmlAudio.value?.paused,
+              htmlAudio.value?.readyState,
+              Date.now()
+            );
+          else
+            console.log("[useAudio] html-audio event: play", {
+              src: currentSrc.value,
+            });
+        });
         safeAddEvent("playing", () => {
-          console.log("[useAudio] html-audio event: playing", { src: currentSrc.value, paused: htmlAudio.value?.paused });
+          if (__DBG_AUDIO__)
+            console.log(
+              "[EVT][useAudio] playing dbgId=%s src=%s paused=%s readyState=%d time=%d",
+              (htmlAudio.value as any).__dbgId ?? "nil",
+              htmlAudio.value?.src,
+              htmlAudio.value?.paused,
+              htmlAudio.value?.readyState,
+              Date.now()
+            );
+          else
+            console.log("[useAudio] html-audio event: playing", {
+              src: currentSrc.value,
+              paused: htmlAudio.value?.paused,
+            });
           // Ensure playback is actually audible
           try {
             if (htmlAudio.value) {
@@ -233,16 +327,64 @@ export function useAudio(options?: {
           isPlaying.value = true;
           autoplayBlocked.value = false;
         });
+        // Ensure duration is captured when metadata becomes available
+        safeAddEvent("loadedmetadata", () => {
+          try {
+            duration.value = getDuration();
+            if (__DBG_AUDIO__)
+              console.log(
+                "[useAudio] loadedmetadata dbgId=%s duration=%d",
+                (htmlAudio.value as any).__dbgId ?? "nil",
+                duration.value
+              );
+          } catch (e) {
+            /* noop */
+          }
+        });
         safeAddEvent("pause", () => {
-          console.log("[useAudio] html-audio event: pause", { src: currentSrc.value });
+          if (__DBG_AUDIO__)
+            console.log(
+              "[EVT][useAudio] pause dbgId=%s src=%s paused=%s readyState=%d time=%d",
+              (htmlAudio.value as any).__dbgId ?? "nil",
+              htmlAudio.value?.src,
+              htmlAudio.value?.paused,
+              htmlAudio.value?.readyState,
+              Date.now()
+            );
+          else
+            console.log("[useAudio] html-audio event: pause", {
+              src: currentSrc.value,
+            });
           isPlaying.value = false;
         });
         safeAddEvent("ended", () => {
-          console.log("[useAudio] html-audio event: ended", { src: currentSrc.value });
+          if (__DBG_AUDIO__)
+            console.log(
+              "[EVT][useAudio] ended dbgId=%s src=%s time=%d",
+              (htmlAudio.value as any).__dbgId ?? "nil",
+              htmlAudio.value?.src,
+              Date.now()
+            );
+          else
+            console.log("[useAudio] html-audio event: ended", {
+              src: currentSrc.value,
+            });
           isPlaying.value = false;
         });
         safeAddEvent("error", (ev: Event) => {
-          console.error("[useAudio] html-audio event: error", { src: currentSrc.value, ev });
+          if (__DBG_AUDIO__)
+            console.error(
+              "[EVT][useAudio] error dbgId=%s src=%s ev=%o time=%d",
+              (htmlAudio.value as any).__dbgId ?? "nil",
+              htmlAudio.value?.src,
+              ev,
+              Date.now()
+            );
+          else
+            console.error("[useAudio] html-audio event: error", {
+              src: currentSrc.value,
+              ev,
+            });
           isPlaying.value = false;
         });
         // ensure audio is not muted and playable inline
@@ -255,6 +397,13 @@ export function useAudio(options?: {
         htmlAudio.value.volume = volume.value;
         // currentSrc に実際に設定した URL を保持しておく
         currentSrc.value = typeof source === "string" ? source : url;
+        if (__DBG_AUDIO__)
+          console.log(
+            "[DBG][useAudio] load: set currentSrc dbgId=%s newSrc=%s time=%d",
+            (htmlAudio.value as any).__dbgId ?? "nil",
+            currentSrc.value,
+            Date.now()
+          );
         console.log("[useAudio] load: set currentSrc =>", currentSrc.value);
         duration.value = getDuration();
         audioInstanceId.value = "html-audio";
@@ -277,9 +426,33 @@ export function useAudio(options?: {
     if (!audioInstanceId.value || isPlaying.value) return;
 
     try {
-      console.log("[useAudio] play: attempting to play", { instance: _instanceId, audioInstanceId: audioInstanceId.value, src: currentSrc.value });
+      console.log("[useAudio] play: attempting to play", {
+        instance: _instanceId,
+        audioInstanceId: audioInstanceId.value,
+        src: currentSrc.value,
+      });
       await playAudio(options.fadeIn, options.isRepeat);
-      console.log("[useAudio] play: play succeeded", { instance: _instanceId, audioInstanceId: audioInstanceId.value, src: currentSrc.value });
+      console.log("[useAudio] play: play succeeded", {
+        instance: _instanceId,
+        audioInstanceId: audioInstanceId.value,
+        src: currentSrc.value,
+      });
+      if (__DBG_AUDIO__ && mode === "html-audio" && htmlAudio.value) {
+        try {
+          console.log(
+            "[DBG][useAudio] play RESOLVED dbgId=%s paused=%s readyState=%d muted=%s volume=%s elementSrc=%s time=%d",
+            (htmlAudio.value as any).__dbgId ?? "nil",
+            htmlAudio.value.paused,
+            htmlAudio.value.readyState,
+            htmlAudio.value.muted,
+            htmlAudio.value.volume,
+            htmlAudio.value.src,
+            Date.now()
+          );
+        } catch (e) {
+          /* noop */
+        }
+      }
       isPlaying.value = true;
       autoplayBlocked.value = false;
       if (animationFrameId === null) {
@@ -291,7 +464,9 @@ export function useAudio(options?: {
       // If autoplay appears to be blocked, attempt muted-play fallback for html-audio.
       if (mode === "html-audio" && htmlAudio.value) {
         try {
-          console.warn("[useAudio] autoplay blocked; attempting muted-play fallback");
+          console.warn(
+            "[useAudio] autoplay blocked; attempting muted-play fallback"
+          );
           const wasMuted = htmlAudio.value.muted;
           htmlAudio.value.muted = true;
           await htmlAudio.value.play();
@@ -299,9 +474,14 @@ export function useAudio(options?: {
           autoplayBlocked.value = true;
           // restore muted state (we leave it unmuted to ensure silence until user interacts to unmute)
           htmlAudio.value.muted = wasMuted;
-          console.warn("[useAudio] muted-play fallback succeeded; audio remains muted until unmuted by user action");
+          console.warn(
+            "[useAudio] muted-play fallback succeeded; audio remains muted until unmuted by user action"
+          );
         } catch (fallbackErr) {
-          console.error("[useAudio] muted-play fallback also failed", fallbackErr);
+          console.error(
+            "[useAudio] muted-play fallback also failed",
+            fallbackErr
+          );
         }
       }
     }
@@ -365,7 +545,7 @@ export function useAudio(options?: {
   });
 
   return {
-      instanceId: readonly(instanceId),
+    instanceId: readonly(instanceId),
     audioInstanceId: readonly(audioInstanceId),
     isLoading: readonly(isLoading),
     isPlaying: readonly(isPlaying),
