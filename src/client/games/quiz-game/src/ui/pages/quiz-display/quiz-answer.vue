@@ -108,6 +108,56 @@ const handleKeydown = (ev: KeyboardEvent) => {
 </style>
 
 <style scoped>
+@media (max-width: 1023px) {
+  /* Make main area fill available vertical space on small screens
+     so the OptionCard (variant="large") can expand and be centered. */
+  .answer-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .answer-card {
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    box-sizing: border-box;
+    /* keep a conservative max height to avoid pushing past the viewport */
+    max-height: calc(100vh - 140px);
+  }
+
+  /* Allow the child OptionCard (large variant) to fill the parent area. */
+  .answer-card ::v-deep(.option-card) {
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .answer-card ::v-deep(.option-button) {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  .answer-card ::v-deep(.image-wrapper) {
+    height: 100% !important;
+    aspect-ratio: auto !important;
+    max-height: calc(100vh - 220px) !important;
+  }
+
+  .answer-card ::v-deep(.option-image) {
+    height: 100% !important;
+    width: 100% !important;
+    object-fit: cover !important;
+  }
+}
+</style>
+
+<style scoped>
 @media (min-width: 1024px) {
   /* Make main area layout adjustments for large screens */
   .answer-main {
