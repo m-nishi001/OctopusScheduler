@@ -20,17 +20,18 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
+import type { PlayAudioFormData, EditPlayAudioFormData } from '../types';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 import { useAudio } from '@shared-composables/use-audio';
 
-interface Props {
-    initialData: { audioId?: string };
+type Props = {
+    initialData?: PlayAudioFormData | EditPlayAudioFormData;
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [data: any] }>();
+const emit = defineEmits<{ save: [PlayAudioFormData | EditPlayAudioFormData] }>();
 
 const assetService = container.resolve(AssetService);
 const audioAssets = ref<Asset[]>([]);
@@ -39,7 +40,7 @@ const fileInput = ref<HTMLInputElement>();
 const { load, play, pause, isPlaying } = useAudio({ mode: 'html-audio' });
 
 const formData = reactive({
-    audioId: props.initialData.audioId || '',
+    audioId: props.initialData?.audioId ?? '',
     audioFile: null as File | null,
 });
 
@@ -134,7 +135,13 @@ const save = async () => {
         }
     }
 
-    emit('save', { actionType: 'PlayAudioEvent', audioId: formData.audioId });
+    const base: PlayAudioFormData = { actionType: 'PlayAudioEvent', audioId: formData.audioId };
+    if (props.initialData && 'eventId' in props.initialData) {
+        const out: EditPlayAudioFormData = { ...(base as any), eventId: (props.initialData as EditPlayAudioFormData).eventId };
+        emit('save', out);
+    } else {
+        emit('save', base);
+    }
 };
 
 defineExpose({ save });

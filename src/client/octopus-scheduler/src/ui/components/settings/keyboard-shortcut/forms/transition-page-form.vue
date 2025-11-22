@@ -7,20 +7,28 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue';
+import type { TransitionPageFormData, EditTransitionPageFormData } from '../types';
 
-interface Props {
-    initialData: { transitionUrl?: string };
-}
+type Props = {
+    initialData?: TransitionPageFormData | EditTransitionPageFormData;
+};
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [data: any] }>();
+const emit = defineEmits<{ save: [TransitionPageFormData | EditTransitionPageFormData] }>();
 
 const formData = reactive({
-    transitionUrl: props.initialData.transitionUrl || '',
+    transitionUrl: props.initialData?.transitionUrl ?? '',
 });
 
 const save = () => {
-    emit('save', { actionType: 'TransitionPageEvent', ...formData });
+    const base: TransitionPageFormData = { actionType: 'TransitionPageEvent', transitionUrl: formData.transitionUrl };
+    if (props.initialData && 'eventId' in props.initialData) {
+        // emit edit variant including eventId
+        const out: EditTransitionPageFormData = { ...(base as any), eventId: (props.initialData as EditTransitionPageFormData).eventId };
+        emit('save', out);
+    } else {
+        emit('save', base);
+    }
 };
 
 defineExpose({ save });

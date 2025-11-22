@@ -95,16 +95,17 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
+import type { ShowContentFormData, EditShowContentFormData } from '../types';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 
-interface Props {
-    initialData: { contentType?: string; contentId?: string; htmlContent?: string };
+type Props = {
+    initialData?: ShowContentFormData | EditShowContentFormData;
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [data: any] }>();
+const emit = defineEmits<{ save: [ShowContentFormData | EditShowContentFormData] }>();
 
 const assetService = container.resolve(AssetService);
 const imageAssets = ref<Asset[]>([]);
@@ -113,9 +114,9 @@ const fileInput = ref<HTMLInputElement>();
 const imageFileInput = ref<HTMLInputElement>();
 
 const formData = reactive({
-    contentType: props.initialData.contentType || 'image',
-    contentId: props.initialData.contentId || '',
-    htmlContent: props.initialData.htmlContent || '',
+    contentType: props.initialData?.contentType ?? 'image',
+    contentId: props.initialData?.contentId ?? '',
+    htmlContent: props.initialData?.htmlContent ?? '',
     contentFile: null as File | null,
 });
 
@@ -314,13 +315,20 @@ const insertImageIntoHtml = () => {
 const save = async () => {
     // Mark uploaded assets as permanent (remove uploaded flag)
     // But since we can't modify existing assets easily, just emit the data
-    const data: any = { actionType: 'ShowContentEvent', contentType: formData.contentType };
+    const base: ShowContentFormData = { actionType: 'ShowContentEvent', contentType: formData.contentType, contentId: formData.contentType === 'html' ? '' : formData.contentId, htmlContent: formData.contentType === 'html' ? formData.htmlContent : undefined } as ShowContentFormData;
+    // normalize base for html vs others
+    let outBase: ShowContentFormData;
     if (formData.contentType === 'html') {
-        data.htmlContent = formData.htmlContent;
+        outBase = { actionType: 'ShowContentEvent', contentType: 'html', contentId: '', htmlContent: formData.htmlContent };
     } else {
-        data.contentId = formData.contentId;
+        outBase = { actionType: 'ShowContentEvent', contentType: formData.contentType as 'image' | 'movie', contentId: formData.contentId, htmlContent: undefined };
     }
-    emit('save', data);
+    if (props.initialData && 'eventId' in props.initialData) {
+        const out: EditShowContentFormData = { ...(outBase as any), eventId: (props.initialData as EditShowContentFormData).eventId };
+        emit('save', out);
+    } else {
+        emit('save', outBase);
+    }
 };
 
 defineExpose({ save });

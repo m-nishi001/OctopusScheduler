@@ -13,21 +13,28 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue';
+import type { SlideshowFormData, EditSlideshowFormData } from '../types';
 
-interface Props {
-    initialData: { folderId?: string; displayDuration?: number };
+type Props = {
+    initialData?: SlideshowFormData | EditSlideshowFormData;
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [data: any] }>();
+const emit = defineEmits<{ save: [SlideshowFormData | EditSlideshowFormData] }>();
 
 const formData = reactive({
-    folderId: props.initialData.folderId || '',
-    displayDuration: props.initialData.displayDuration || 10,
+    folderId: props.initialData?.folderId ?? '',
+    displayDuration: props.initialData?.displayDuration ?? 10,
 });
 
 const save = () => {
-    emit('save', { actionType: 'SlideshowEvent', ...formData });
+    const base: SlideshowFormData = { actionType: 'SlideshowEvent', folderId: formData.folderId, displayDuration: formData.displayDuration };
+    if (props.initialData && 'eventId' in props.initialData) {
+        const out: EditSlideshowFormData = { ...(base as any), eventId: (props.initialData as EditSlideshowFormData).eventId };
+        emit('save', out);
+    } else {
+        emit('save', base);
+    }
 };
 
 defineExpose({ save });
