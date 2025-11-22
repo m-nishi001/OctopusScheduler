@@ -13,10 +13,11 @@ export class GetAllQuizzesUseCase {
       title: quiz.title,
       question: quiz.question,
       answerUrl: quiz.formUrl,
+      correctNo: (quiz as any).correctNo ?? 1,
       timeLimit: quiz.timeLimit,
       bgm: quiz.bgm,
-      options: quiz.options.map((o, index) => ({
-        no: index + 1,
+      options: quiz.options.map((o) => ({
+        no: o.no,
         text: o.text,
         color: o.color,
         image: o.image,

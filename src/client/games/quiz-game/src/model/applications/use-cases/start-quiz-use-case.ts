@@ -15,6 +15,7 @@ export class StartQuizUseCase {
       title: quiz.title,
       question: quiz.question,
       answerUrl: quiz.formUrl,
+      correctNo: (quiz as any).correctNo ?? 1,
       timeLimit: quiz.timeLimit,
       options: quiz.options,
       bgm: quiz.bgm,

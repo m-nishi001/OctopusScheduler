@@ -19,8 +19,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import OptionCard from '../../components/option-card.vue';
 import { onUnmounted } from 'vue';
-import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
-import { StartQuizUseCase } from '../../../../model/applications/use-cases/start-quiz-use-case';
+import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
+import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
 
 const route = useRoute();
 const router = useRouter();
@@ -67,21 +67,25 @@ const handleKeydown = (ev: KeyboardEvent) => {
   align-items: center;
   padding: 32px;
 }
+
 .answer-title {
   font-size: 2rem;
   font-weight: 800;
   color: #ffd54a;
   margin: 16px 0 24px 0;
 }
+
 .answer-main {
   width: 100%;
   max-width: 960px;
   display: flex;
   justify-content: center;
 }
+
 .answer-card {
   width: 100%;
 }
+
 .no-answer {
   color: #f97316;
   text-align: center;

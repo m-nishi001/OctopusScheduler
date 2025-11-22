@@ -130,7 +130,8 @@ const onBgmChange = (event: Event) => {
 };
 
 const addOption = () => {
-    const nextNo = props.currentQuiz.options.length + 1;
+    const maxNo = props.currentQuiz.options.reduce((m, o) => Math.max(m, o.no || 0), 0);
+    const nextNo = maxNo + 1;
     currentOption.value = { no: nextNo, text: '', image: null, color: 'red' };
     isEditingOption.value = false;
     showOptionModal.value = true;
@@ -191,9 +192,11 @@ onUnmounted(() => {
 });
 
 // Watch option count and fallback correctNo to 1 when out of range
-watch(() => props.currentQuiz.options.length, (len) => {
+// Watch option numbers (join of nos) to detect add/remove/reorder and fallback correctNo
+watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
     const cq: any = props.currentQuiz;
     if (!cq) return;
+    const len = props.currentQuiz.options.length;
     if (typeof cq.correctNo !== 'number' || cq.correctNo < 1 || cq.correctNo > Math.max(1, len)) {
         cq.correctNo = 1;
     }

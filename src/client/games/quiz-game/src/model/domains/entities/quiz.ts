@@ -8,6 +8,7 @@ export class Quiz {
     color: string;
     image: Blob | string | null;
   }[];
+  correctNo: number;
   formUrl: string;
   timeLimit: number;
   bgm: Blob | string | null;
@@ -17,6 +18,7 @@ export class Quiz {
     this.title = quizData.title;
     this.question = quizData.question;
     this.options = quizData.options;
+    this.correctNo = (quizData as any).correctNo ?? 1;
     this.formUrl = quizData.formUrl;
     this.timeLimit = quizData.timeLimit;
     this.bgm = quizData.bgm;

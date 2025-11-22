@@ -87,8 +87,9 @@ const handleImageUpload = (event: Event) => {
 
 const saveOption = () => {
     if (!props.isEditing) {
-        // 追加時は自動的にnoを割り振る
-        props.currentOption.no = props.options.length + 1;
+        // 追加時は既存の最大 no の +1 を割り振る
+        const maxNo = props.options.reduce((m, o) => Math.max(m, o.no || 0), 0);
+        props.currentOption.no = maxNo + 1;
     }
     emit('save', props.currentOption);
 };
