@@ -41,7 +41,7 @@ import EndDialog from './end-dialog.vue';
 import SlotAnimation from './slot/slot-animation.vue';
 import RouletteAnimation from './roulette/roulette-animation.vue';
 import { useDrawOrchestrator } from './use-draw-orchestrator';
-import KakuhenOverlay from '../../components/KakuhenOverlay.vue';
+import KakuhenOverlay from './kakuhen-overlay.vue';
 
 export default {
     name: 'DrawOrchestratorPage',
