@@ -3,6 +3,7 @@ import QuizAdmin from "../../ui/pages/quiz-admin/quiz-admin.vue";
 import QuizIntro from "../../ui/pages/quiz-display/quiz-intro.vue";
 import QuizQr from "../../ui/pages/quiz-display/quiz-qr.vue";
 import QuizPlay from "../../ui/pages/quiz-display/quiz-play.vue";
+import QuizAnswer from "../../ui/pages/quiz-display/quiz-answer.vue";
 const quizGameRoutes = [
   { path: "/quiz-home", component: QuizAdmin },
   {
@@ -13,6 +14,7 @@ const quizGameRoutes = [
   { path: "/quiz/:id/intro", component: QuizIntro },
   { path: "/quiz/:id/qr", component: QuizQr },
   { path: "/quiz/:id/play", component: QuizPlay },
+  { path: "/quiz/:id/answer", component: QuizAnswer },
   { path: "/quiz-result/:id", component: QuizResult },
   { path: "/quiz-admin", component: QuizAdmin },
 ];

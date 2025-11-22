@@ -27,7 +27,7 @@
 
         </div>
         <teleport to="body">
-            <div v-if="kakuhenOverlayVisible" class="kakuhen-overlay-global">だが</div>
+            <KakuhenOverlay :visible="kakuhenOverlayVisible" />
         </teleport>
     </MainLayout>
 </template>
@@ -41,10 +41,11 @@ import EndDialog from './end-dialog.vue';
 import SlotAnimation from './slot/slot-animation.vue';
 import RouletteAnimation from './roulette/roulette-animation.vue';
 import { useDrawOrchestrator } from './use-draw-orchestrator';
+import KakuhenOverlay from '../../components/KakuhenOverlay.vue';
 
 export default {
     name: 'DrawOrchestratorPage',
-    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog },
+    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog, KakuhenOverlay },
     setup() {
         // use composable that contains the orchestration logic
         const s = useDrawOrchestrator();

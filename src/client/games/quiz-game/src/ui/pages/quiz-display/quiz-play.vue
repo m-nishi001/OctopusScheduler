@@ -19,19 +19,8 @@
         </header>
         <section class="question-area" aria-live="polite">
             <div class="options-grid" :class="{ 'two-options': optionsCount === 2 }" role="list">
-                <div v-for="(option, index) in optionsWithImageUrls" :key="index" role="listitem">
-                    <button class="option-button" :style="{ '--option-color': option.color }"
-                        @click="selectOption(index)" :aria-label="option.text">
-                        <div class="image-wrapper">
-                            <img v-if="option.imageUrl" :src="option.imageUrl" :alt="option.text"
-                                class="option-image" />
-                            <div class="option-index">{{ index + 1 }}</div>
-                            <div class="text-ribbon" aria-hidden="false">
-                                <span class="option-text">{{ option.text }}</span>
-                            </div>
-                        </div>
-                    </button>
-                </div>
+                <OptionCard v-for="(option, index) in optionsWithImageUrls" :key="index" :option="option"
+                  :index="index" @select="selectOption" :style="{ '--option-color': option.color }" />
             </div>
         </section>
         <div v-if="showModal" class="modal-overlay" role="dialog" aria-modal="true">
@@ -51,6 +40,7 @@ import { container } from 'tsyringe';
 import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
 import { AnswerFormService } from '../../../model/domains/services/answer-form-service';
+import OptionCard from '../../components/option-card.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -160,7 +150,7 @@ const handleKeydown = (event: KeyboardEvent) => {
             audioElement.value.pause();
             audioElement.value = null;
         }
-        router.push(`/quiz-result/${quizId}?preview=${isPreview.value}`);
+        router.push(`/quiz/${quizId}/answer?preview=${isPreview.value}`);
     }
 };
 </script>
