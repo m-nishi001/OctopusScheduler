@@ -34,7 +34,7 @@
                 </div>
             </div>
 
-            <action-manager-dialog
+            <event-selection-dialog
                 :show="showActionManager"
                 :actionType="editingActionType"
                 :initialData="editingActionData"
@@ -56,7 +56,7 @@ import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/ke
 import { useKeyCapture } from './composables/useKeyCapture';
 import { getUIActionRegistry } from './action-registry';
 import ActionItemSummary from './action-item-summary.vue';
-import ActionManagerDialog from './action-manager-dialog.vue';
+import EventSelectionDialog from './event-selection-dialog.vue';
 import type { EventFormData } from './types';
 
 interface Props {
@@ -115,7 +115,8 @@ watch(() => props.show, (newShow) => {
             });
         } else {
             capturedKeys.value = [];
-            actions.value = [{ actionType: 'TransitionPageEvent', transitionUrl: '' } as EventFormData];
+            // start with no actions for a new shortcut; user must explicitly add one
+            actions.value = [];
         }
     } else {
         stopKeyCapture();
@@ -171,7 +172,11 @@ const saveShortcut = async () => {
 };
 
 const addAction = () => {
-    actions.value.push({ actionType: 'TransitionPageEvent', transitionUrl: '' } as EventFormData);
+    // Open the event selection / editor dialog instead of auto-pushing a default action
+    editingActionIndex.value = null;
+    editingActionData.value = null;
+    editingActionType.value = null;
+    showActionManager.value = true;
 };
 
 const removeAction = (idx: number) => {
