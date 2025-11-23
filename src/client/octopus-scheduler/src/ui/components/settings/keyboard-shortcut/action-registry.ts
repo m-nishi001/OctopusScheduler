@@ -1,7 +1,7 @@
-import TransitionPageForm from "./forms/transition-page-form.vue";
-import PlayAudioForm from "./forms/play-audio-form.vue";
-import SlideshowForm from "./forms/slideshow-form.vue";
-import ShowContentForm from "./forms/show-content-form.vue";
+import TransitionPageForm from "../app-events/forms/transition-page-form.vue";
+import PlayAudioForm from "../app-events/forms/play-audio-form.vue";
+import SlideshowForm from "../app-events/forms/slideshow-form.vue";
+import ShowContentForm from "../app-events/forms/show-content-form.vue";
 
 import { TransitionPageEvent } from "../../../../model/domains/app-event/transition/transition-page-event";
 import { PlayAudioEvent } from "../../../../model/domains/app-event/play-audio/play-audio-event";

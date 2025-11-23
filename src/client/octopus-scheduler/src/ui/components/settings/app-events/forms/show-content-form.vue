@@ -169,6 +169,13 @@ onMounted(async () => {
     });
 });
 
+// Ensure any preview resources are cleaned up if component is unmounted while preview open
+onBeforeUnmount(() => {
+    if (showPreviewDialog.value) {
+        try { closePreview(); } catch (e) { /* ignore */ }
+    }
+});
+
 const handleFileUpload = async (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];

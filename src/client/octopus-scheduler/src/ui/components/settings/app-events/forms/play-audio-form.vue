@@ -75,7 +75,11 @@ onMounted(async () => {
     window.addEventListener('assets:updated', assetsUpdatedHandler as EventListener);
 });
 
-onBeforeUnmount(() => window.removeEventListener('assets:updated', assetsUpdatedHandler as EventListener));
+onBeforeUnmount(() => {
+    window.removeEventListener('assets:updated', assetsUpdatedHandler as EventListener);
+    // ensure audio is stopped when the form is unmounted
+    try { pause(); } catch (e) { /* ignore */ }
+});
 
 const handleFileUpload = async (event: Event) => {
     const target = event.target as HTMLInputElement;

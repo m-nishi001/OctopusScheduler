@@ -48,7 +48,10 @@ export class KeyboardShortcut {
     return {
       id: this.id,
       keys: this.keys,
-      actions: this.actions.map((a) => ({ type: a.type, ...a.serializeAsObject() })),
+      actions: this.actions.map((a) => ({
+        type: a.type,
+        ...a.serializeAsObject(),
+      })),
     };
   }
 

@@ -103,7 +103,10 @@ describe("KeyboardShortcutService", () => {
     await found!.execute();
 
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toEqual({ transitionUrl: "/test/path", manual: true });
+    expect(spy.mock.calls[0][0]).toEqual({
+      transitionUrl: "/test/path",
+      manual: true,
+    });
   });
 
   it("isEnabled() reflects repository config", async () => {
@@ -139,7 +142,9 @@ describe("KeyboardShortcutService", () => {
   });
 
   it("executes ShowContentEvent via keyboard and emits showContent with manual flag", async () => {
-    const event = (await import("../../../domains/app-event/show-content/show-content-event")).ShowContentEvent.fromData({
+    const event = (
+      await import("../../../domains/app-event/show-content/show-content-event")
+    ).ShowContentEvent.fromData({
       id: "e4",
       contentType: "image",
       contentId: "img-1",

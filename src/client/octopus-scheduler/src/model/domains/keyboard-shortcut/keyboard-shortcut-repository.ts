@@ -97,7 +97,8 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
       try {
         // GAS 側は古い形式を期待しているので、string[][] に変換
         const legacyShortcuts = shortcuts.map((data) => {
-          const first = data.actions && data.actions[0] ? data.actions[0] : null;
+          const first =
+            data.actions && data.actions[0] ? data.actions[0] : null;
           const type = first ? first.type : "";
           const actionLegacy = first ? this.serializeActionToLegacy(first) : [];
           return [data.id, JSON.stringify(data.keys), type, ...actionLegacy];

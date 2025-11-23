@@ -92,7 +92,7 @@ export function registerKeyboardShortcutListener(): () => void {
 
     // Check for exact match
     const shortcut = await keyboardShortcutService.findShortcutByKeys(sequence);
-      if (shortcut) {
+    if (shortcut) {
       // If there is a longer shortcut that starts with the same sequence, wait a short time
       const hasLonger =
         await keyboardShortcutService.hasLongerShortcutWithPrefix(sequence);
@@ -110,16 +110,16 @@ export function registerKeyboardShortcutListener(): () => void {
             }
           }
         }, PENDING_TIMEOUT_MS);
-        } else {
+      } else {
         event.preventDefault();
-          // If a manual content is visible and this is not itself a ShowContentEvent,
-          // close it before executing a new shortcut.
-          if (
-            manualContentVisible &&
-            !shortcut.actions.some((a) => a.type === "ShowContentEvent")
-          ) {
-            eventBus.emit("hideContent");
-          }
+        // If a manual content is visible and this is not itself a ShowContentEvent,
+        // close it before executing a new shortcut.
+        if (
+          manualContentVisible &&
+          !shortcut.actions.some((a) => a.type === "ShowContentEvent")
+        ) {
+          eventBus.emit("hideContent");
+        }
         await shortcut.execute();
         // clear sequence
         sequence = [];
@@ -130,8 +130,6 @@ export function registerKeyboardShortcutListener(): () => void {
       }
       return;
     }
-
-    
 
     // If no exact match but some longer shortcuts start with this prefix, wait for more input
     const hasLongerPrefix = (

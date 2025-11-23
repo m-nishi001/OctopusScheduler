@@ -17,31 +17,23 @@
             <div class="form-group">
                 <label>アクション一覧:</label>
                 <div class="actions-list">
-                    <action-item-summary
-                        v-for="(action, idx) in actions"
-                        :key="idx"
-                        :action="action"
-                        :index="idx"
-                        :length="actions.length"
-                        @edit="openActionManager"
-                        @move-up="moveUp"
-                        @move-down="moveDown"
-                        @remove="removeAction"
-                    />
+                    <action-item-summary v-for="(action, idx) in actions" :key="idx" :action="action" :index="idx"
+                        :length="actions.length" @edit="openActionManager" @move-up="moveUp" @move-down="moveDown"
+                        @remove="removeAction" />
                 </div>
                 <div class="add-action">
                     <button @click="addAction">アクションを追加</button>
                 </div>
             </div>
 
-            <event-selection-dialog
-                :show="showActionManager"
-                :actionType="editingActionType"
-                :initialData="editingActionData"
-                :editingIndex="editingActionIndex"
-                @close="closeActionManager"
-                @save="handleActionManagerSave"
-            />
+            <!-- Dialog area: mounted only when dialogOpen is true -->
+            <div v-if="dialogOpen" class="dialog-content">
+                <event-selection-dialog v-if="!dialogInitialData" :show="true" @select-type="onTypeSelected"
+                    @cancel="onDialogCancel" />
+
+                <component v-else :is="getFormComponent(dialogInitialData.actionType)" :initialData="dialogInitialData"
+                    :key="dialogKey" @save="onEditorSave" @cancel="onDialogCancel" ref="currentEditor" />
+            </div>
             <div class="dialog-buttons">
                 <button @click="saveShortcut" class="save-btn">保存</button>
                 <button @click="closeDialog" class="cancel-btn">キャンセル</button>
@@ -76,31 +68,16 @@ const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCaptu
 
 const actions = ref<Array<EventFormData>>([]);
 const formRefs: Record<number, any> = {};
-const showActionManager = ref(false);
-const editingActionIndex = ref<number | null>(null);
-const editingActionData = ref<EventFormData | null>(null);
-const editingActionType = ref<string | null>(null);
+// Minimal dialog state: parent holds only an open flag and a short-lived initial DTO
+const dialogOpen = ref(false);
+const dialogInitialData = ref<EventFormData | null>(null);
+const dialogKey = ref(0);
 
 const ACTION_REGISTRY = getUIActionRegistry();
 
 const getFormComponent = (atype: string) => {
     const e = ACTION_REGISTRY[atype];
     return e ? e.component : null;
-};
-
-const actionOptions = computed(() => ACTION_REGISTRY);
-
-const initialData = computed(() => {
-    // kept for compatibility; not used directly when multiple actions exist
-    return {};
-});
-
-const handleActionSave = (idx: number, data: any) => {
-    actions.value[idx].data = data;
-};
-
-const setFormRef = (idx: number) => (el: any) => {
-    formRefs[idx] = el;
 };
 
 watch(() => props.show, (newShow) => {
@@ -168,15 +145,14 @@ const saveShortcut = async () => {
 
     const shortcut = new KeyboardShortcut({ id, keys: capturedKeys.value, actions: events });
     emit('save', shortcut);
-    closeDialog();
+    closeActionDialog();
 };
 
 const addAction = () => {
-    // Open the event selection / editor dialog instead of auto-pushing a default action
-    editingActionIndex.value = null;
-    editingActionData.value = null;
-    editingActionType.value = null;
-    showActionManager.value = true;
+    // Open the selection dialog for adding a new action
+    dialogInitialData.value = null;
+    dialogKey.value++;
+    dialogOpen.value = true;
 };
 
 const removeAction = (idx: number) => {
@@ -196,25 +172,52 @@ const moveDown = (idx: number) => {
 };
 
 function openActionManager(index: number) {
-    editingActionIndex.value = index;
-    editingActionData.value = { ...(actions.value[index] as EventFormData) };
-    editingActionType.value = actions.value[index]?.actionType || null;
-    showActionManager.value = true;
+    // Open editor for existing action at index. Compute initial data from actions.
+    const initial = { ...(actions.value[index] as EventFormData) };
+    dialogInitialData.value = initial;
+    dialogKey.value++;
+    dialogOpen.value = true;
 }
 
-function closeActionManager() {
-    showActionManager.value = false;
-    editingActionIndex.value = null;
-    editingActionData.value = null;
-    editingActionType.value = null;
+function onTypeSelected(payload: { type: string }) {
+    const t = payload.type;
+    const entry = ACTION_REGISTRY[t];
+    const initial = entry && entry.getInitial ? entry.getInitial({}) : ({ actionType: t } as EventFormData);
+    dialogInitialData.value = initial as EventFormData;
+    dialogKey.value++;
 }
 
-function handleActionManagerSave(data: EventFormData, index: number | null) {
-    if (index === null) {
-        actions.value.push(data);
-    } else {
-        actions.value.splice(index, 1, data);
+function onEditorSave(dto: EventFormData & { eventId?: string }) {
+    // Try to replace existing by eventId if present
+    let replaced = false;
+    if ((dto as any).eventId) {
+        const idx = actions.value.findIndex(a => (a as any).eventId === (dto as any).eventId);
+        if (idx >= 0) {
+            actions.value.splice(idx, 1, dto as EventFormData);
+            replaced = true;
+        }
     }
+    if (!replaced) {
+        // fallback: replace by object identity if possible
+        const idx = actions.value.findIndex(a => a === dialogInitialData.value);
+        if (idx >= 0) {
+            actions.value.splice(idx, 1, dto as EventFormData);
+            replaced = true;
+        }
+    }
+    if (!replaced) {
+        actions.value.push(dto as EventFormData);
+    }
+    closeActionDialog();
+}
+
+function onDialogCancel() {
+    closeActionDialog();
+}
+
+function closeActionDialog() {
+    dialogInitialData.value = null;
+    dialogOpen.value = false;
 }
 </script>
 
