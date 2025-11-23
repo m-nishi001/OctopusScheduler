@@ -3,7 +3,17 @@
     <div class="modal" @click.stop>
       <h4>{{ editingIndex === null ? 'アクションを追加' : 'アクションを編集' }}</h4>
       <div class="form-area">
-        <component :is="formComponent" :initialData="editingData" @save="onSave" />
+        <div v-if="!selectedType">
+          <p>追加するアクションの種類を選択してください:</p>
+          <ul class="action-type-list">
+            <li v-for="(entry, key) in registry" :key="key">
+              <button @click="selectType(key)">{{ entry.label }}</button>
+            </li>
+          </ul>
+        </div>
+        <div v-else>
+          <component :is="formComponent" :initialData="editingData" @save="onSave" />
+        </div>
       </div>
       <div class="buttons">
         <button @click="confirmSave" class="save">保存して閉じる</button>
@@ -31,11 +41,35 @@ const emit = defineEmits<{
 }>();
 
 const editingData = ref<EventFormData | null>(props.initialData || null);
+const selectedType = ref<string | null>(props.actionType || (editingData.value ? editingData.value.actionType : null));
+
+const registry = ACTION_REGISTRY;
 
 const formComponent = computed(() => {
-  const t = props.actionType || (editingData.value ? editingData.value.actionType : null);
+  const t = selectedType.value || props.actionType || (editingData.value ? editingData.value.actionType : null);
   return t ? ACTION_REGISTRY[t]?.component : null;
 });
+
+function selectType(type: string) {
+  selectedType.value = type;
+  // initialize editingData for the selected type with sensible defaults
+  switch (type) {
+    case 'TransitionPageEvent':
+      editingData.value = { actionType: 'TransitionPageEvent', transitionUrl: '' } as any;
+      break;
+    case 'PlayAudioEvent':
+      editingData.value = { actionType: 'PlayAudioEvent', audioId: '' } as any;
+      break;
+    case 'SlideshowEvent':
+      editingData.value = { actionType: 'SlideshowEvent', folderId: '', displayDuration: 5 } as any;
+      break;
+    case 'ShowContentEvent':
+      editingData.value = { actionType: 'ShowContentEvent', contentType: 'image', contentId: '' } as any;
+      break;
+    default:
+      editingData.value = { actionType: type } as any;
+  }
+}
 
 function onSave(data: any) {
   // child form emits save with raw data; this wrapper will emit typed EventFormData
