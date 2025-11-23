@@ -16,4 +16,24 @@ export class PlayAudioEventConverter implements IAppEventConverter {
   revive(raw: IAppEvent): IAppEvent {
     return PlayAudioEvent.revive(raw);
   }
+
+  toEntityFromForm?(form: Record<string, any>): IAppEvent {
+    return PlayAudioEvent.fromData(form as Record<string, any>);
+  }
+
+  getInitial?(action?: any) {
+    return { audioId: action?.audioId ?? "" };
+  }
+
+  validate?(data: Record<string, any>) {
+    if (!data || !data.audioId) {
+      alert("音声IDを入力してください");
+      return false;
+    }
+    return true;
+  }
+
+  getFormComponent?() {
+    return null;
+  }
 }

@@ -2,6 +2,7 @@
 import ACTION_REGISTRY from "../../keyboard-shortcut/action-registry";
 import type { ActionEntry } from "./action-entry";
 import type { EventDto, ActionType } from "../types";
+import { getConverterForType } from "../../../../core/event-converter/registry";
 
 // Build a minimal adapter around existing entries so callers can use
 // getDefault / toDto / toEntity shape without breaking existing code.
@@ -14,13 +15,28 @@ Object.keys(ACTION_REGISTRY).forEach((k) => {
     label: entry.label,
     component: entry.component,
     // New default uses existing getInitial with an empty object fallback
-    getDefault: () => (entry.getInitial ? entry.getInitial({}) : {}),
-    // toDto: when given a model event, call getInitial to extract dto-like data
-    toDto: (ev: any) => (entry.getInitial ? entry.getInitial(ev) : {}),
-    // toEntity: reuse buildEvent
-    toEntity: (id: string, now: Date, data: any) =>
-      entry.buildEvent(id, now, data),
-    validate: entry.validate,
+    getDefault: () => {
+      const conv = getConverterForType(k);
+      if (conv && conv.getInitial) return conv.getInitial({});
+      return entry.getInitial ? entry.getInitial({}) : {};
+    },
+    // toDto: when given a model event, call converter.getInitial if available
+    toDto: (ev: any) => {
+      const conv = getConverterForType(k);
+      if (conv && conv.getInitial) return conv.getInitial(ev);
+      return entry.getInitial ? entry.getInitial(ev) : {};
+    },
+    // toEntity: prefer converter.toEntityFromForm
+    toEntity: (id: string, now: Date, data: any) => {
+      const conv = getConverterForType(k);
+      if (conv && conv.toEntityFromForm) return conv.toEntityFromForm(data, { id, now });
+      return entry.buildEvent(id, now, data);
+    },
+    validate: (data: any) => {
+      const conv = getConverterForType(k);
+      if (conv && conv.validate) return conv.validate(data);
+      return entry.validate ? entry.validate(data) : true;
+    },
   };
 });
 

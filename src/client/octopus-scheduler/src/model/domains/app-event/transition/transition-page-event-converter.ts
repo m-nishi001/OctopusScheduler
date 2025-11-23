@@ -16,4 +16,25 @@ export class TransitionPageEventConverter implements IAppEventConverter {
   revive(raw: IAppEvent): IAppEvent {
     return TransitionPageEvent.revive(raw);
   }
+
+  toEntityFromForm?(form: Record<string, any>): IAppEvent {
+    // use fromData which expects serialized-like object
+    return TransitionPageEvent.fromData(form as Record<string, any>);
+  }
+
+  getInitial?(action?: any) {
+    return { transitionUrl: action?.transitionUrl ?? "" };
+  }
+
+  validate?(data: Record<string, any>) {
+    if (!data || !data.transitionUrl) {
+      alert("URLを入力してください");
+      return false;
+    }
+    return true;
+  }
+
+  getFormComponent?() {
+    return null;
+  }
 }

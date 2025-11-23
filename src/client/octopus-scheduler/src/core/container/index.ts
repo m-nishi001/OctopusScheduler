@@ -39,6 +39,7 @@ export class Container {
     container.register(IAppEventConverterToken, {
       useClass: TransitionPageEventConverter,
     });
+    // event factories removed; converters handle entity creation
     container.register(IKeyboardShortcutRepositoryToken, {
       useClass: KeyboardShortcutRepository,
     });

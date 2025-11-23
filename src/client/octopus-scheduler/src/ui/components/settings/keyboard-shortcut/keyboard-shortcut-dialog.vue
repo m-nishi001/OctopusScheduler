@@ -43,13 +43,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
 import { useKeyCapture } from './composables/useKeyCapture';
 import { getUIActionRegistry } from './action-registry';
 import ActionItemSummary from './action-item-summary.vue';
 import EventSelectionDialog from './event-selection-dialog.vue';
 import type { EventFormData } from './types';
+import { getConverterForType } from '../../../../core/event-converter/registry';
 
 interface Props {
     show: boolean;
@@ -75,6 +76,14 @@ const dialogKey = ref(0);
 
 const ACTION_REGISTRY = getUIActionRegistry();
 
+const resolveActionData = (a: any) => {
+    if (!a) return {};
+    if ('data' in a && a.data != null) return a.data;
+    // build data from top-level fields excluding actionType and eventId
+    const { actionType, eventId, ...rest } = a as Record<string, any>;
+    return rest || {};
+};
+
 const getFormComponent = (atype: string) => {
     const e = ACTION_REGISTRY[atype];
     return e ? e.component : null;
@@ -86,8 +95,8 @@ watch(() => props.show, (newShow) => {
             capturedKeys.value = [...props.editingShortcut.keys];
             // populate actions from editingShortcut
             actions.value = props.editingShortcut.actions.map((a: any) => {
-                const registryEntry = ACTION_REGISTRY[a.type];
-                const data = registryEntry?.getInitial ? registryEntry.getInitial(a) : {};
+                const converter = getConverterForType(a.type);
+                const data = (converter && typeof (converter as any).getInitial === 'function') ? (converter as any).getInitial(a) : ((ACTION_REGISTRY[a.type] && typeof (ACTION_REGISTRY[a.type] as any).getInitial === 'function') ? (ACTION_REGISTRY[a.type] as any).getInitial(a) : {});
                 return { actionType: a.type, ...data } as EventFormData;
             });
         } else {
@@ -131,15 +140,32 @@ const saveShortcut = async () => {
             alert(`未対応のアクションタイプ: ${atype}`);
             return;
         }
-        const validate = registryEntry.validate;
-        if (validate && !validate(a.data)) return;
-        try {
-            const ev = registryEntry.buildEvent(id, now, a.data);
-            events.push(ev);
-        } catch (err) {
-            console.error(err);
-            alert('アクションの作成に失敗しました');
-            return;
+        const data = resolveActionData(a);
+        // prefer DI-resolved converter
+        const converter = getConverterForType(atype);
+        if (converter && converter.toEntityFromForm) {
+            const validate = converter.validate;
+            if (validate && !validate(data)) return;
+            try {
+                const ev = converter.toEntityFromForm(data, { id, now });
+                events.push(ev);
+            } catch (err) {
+                console.error(err);
+                alert('アクションの作成に失敗しました');
+                return;
+            }
+        } else {
+            // fallback to legacy registry entry
+            const validate = registryEntry.validate;
+            if (validate && !validate(data)) return;
+            try {
+                const ev = registryEntry.buildEvent(id, now, data);
+                events.push(ev);
+            } catch (err) {
+                console.error(err);
+                alert('アクションの作成に失敗しました');
+                return;
+            }
         }
     }
 
@@ -181,8 +207,9 @@ function openActionManager(index: number) {
 
 function onTypeSelected(payload: { type: string }) {
     const t = payload.type;
+    const conv = getConverterForType(t);
     const entry = ACTION_REGISTRY[t];
-    const initial = entry && entry.getInitial ? entry.getInitial({}) : ({ actionType: t } as EventFormData);
+    const initial = (conv && typeof (conv as any).getInitial === 'function') ? (conv as any).getInitial({}) : ((entry && typeof (entry as any).getInitial === 'function') ? (entry as any).getInitial({}) : ({ actionType: t } as EventFormData));
     dialogInitialData.value = initial as EventFormData;
     dialogKey.value++;
 }

@@ -16,4 +16,24 @@ export class ShowContentEventConverter implements IAppEventConverter {
   revive(raw: IAppEvent): IAppEvent {
     return ShowContentEvent.revive(raw);
   }
+
+  toEntityFromForm?(form: Record<string, any>): IAppEvent {
+    return ShowContentEvent.fromData(form as Record<string, any>);
+  }
+
+  getInitial?(action?: any) {
+    return { contentType: action?.contentType ?? "", contentId: action?.contentId ?? "" };
+  }
+
+  validate?(data: Record<string, any>) {
+    if (!data || !data.contentId) {
+      alert("コンテンツIDを入力してください");
+      return false;
+    }
+    return true;
+  }
+
+  getFormComponent?() {
+    return null;
+  }
 }
