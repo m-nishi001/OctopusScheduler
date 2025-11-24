@@ -3,11 +3,14 @@ import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-short
 import { KeyboardShortcutConfig } from "../../domains/keyboard-shortcut/keyboard-shortcut-config";
 import type { IKeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { IKeyboardShortcutRepositoryToken } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
-import type { IAppEventConverter } from "../../domains/app-event/i-app-event-converter";
-import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
+import type { IAppEventConverter } from "../../applications/app-event/i-app-event-converter";
+import { IAppEventConverterToken } from "../../applications/app-event/i-app-event-converter";
+import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";
+import type { IEventSerializer } from "../../domains/app-event/i-event-serializer";
 
 @injectable()
 export class KeyboardShortcutService {
+  private readonly serializers: IEventSerializer[];
   private readonly converters: IAppEventConverter[];
 
   constructor(
@@ -15,6 +18,7 @@ export class KeyboardShortcutService {
     private repository: IKeyboardShortcutRepository
   ) {
     this.converters = container.resolveAll(IAppEventConverterToken);
+    this.serializers = container.resolveAll(IEventSerializerToken);
   }
 
   async getKeyboardShortcuts(): Promise<KeyboardShortcut[]> {
@@ -105,9 +109,11 @@ export class KeyboardShortcutService {
     const keys = JSON.parse(keysStr);
     const actionRawObj = { id, type, ...actionRaw };
     // コンバーターでactionをrevive
-    const converter = this.converters.find((c) => c.getType() === type);
-    if (!converter) return null;
-    const action = converter.revive(actionRawObj as any);
+    const serializer = this.serializers.find((s) =>
+      s.canRevive(actionRawObj as any)
+    );
+    if (!serializer) return null;
+    const action = serializer.revive(actionRawObj as any);
     if (!action) return null;
     // Wrap single revived action into actions array for new model
     return new KeyboardShortcut({ id, keys, actions: [action] });

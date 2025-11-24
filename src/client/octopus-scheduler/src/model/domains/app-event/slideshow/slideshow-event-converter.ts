@@ -17,12 +17,16 @@ export class SlideshowEventConverter implements IAppEventConverter {
     return SlideshowEvent.revive(raw);
   }
 
-  toEntityFromForm?(form: Record<string, any>): IAppEvent {
-    return SlideshowEvent.fromData(form as Record<string, any>);
+  toEntity?(dto: Record<string, any>): IAppEvent {
+    return SlideshowEvent.fromData(dto as Record<string, any>);
   }
 
-  getInitial?(action?: any) {
-    return { folderId: action?.folderId ?? "", displayDuration: action?.displayDuration ?? 5 };
+  toDto?(entity: IAppEvent): Record<string, any> {
+    // @ts-ignore
+    const obj = (entity as any).serializeAsObject
+      ? (entity as any).serializeAsObject()
+      : {};
+    return { actionType: (entity as any).type, ...obj };
   }
 
   validate?(data: Record<string, any>) {

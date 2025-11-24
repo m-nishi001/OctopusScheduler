@@ -2,23 +2,23 @@ import type { IAppEventRepository } from "../../domains/app-event/app-event-repo
 import { IAppEventRepositoryToken } from "../../domains/app-event/app-event-repository";
 import type { IAppEvent } from "../../domains/app-event/app-event";
 import { injectable, injectAll, inject } from "tsyringe";
-import {
-  IAppEventConverterToken,
-  type IAppEventConverter,
-} from "../../domains/app-event/i-app-event-converter";
+import { resolve as resolveEventConverter } from "../../../core/event-converter/event-converter-resolver";
+import { getUIActionRegistry } from "../../../ui/components/settings/keyboard-shortcut/action-registry";
+import type { IAppEventDto } from "./i-app-event-dto";
 import type { ExecutionStatus } from "model/domains/app-event/execution-status";
+import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";
+import type { IEventSerializer } from "../../domains/app-event/i-event-serializer";
 
 @injectable()
 export class AppEventService {
-  private readonly converters: IAppEventConverter[];
+  private readonly serializers: IEventSerializer[];
 
   constructor(
     @inject(IAppEventRepositoryToken)
     private scheduleEventRepository: IAppEventRepository,
-    @injectAll(IAppEventConverterToken)
-    converters: IAppEventConverter[]
+    @injectAll(IEventSerializerToken) serializers: IEventSerializer[]
   ) {
-    this.converters = converters;
+    this.serializers = serializers;
   }
 
   async getScheduleEvents(): Promise<IAppEvent[]> {
@@ -26,14 +26,52 @@ export class AppEventService {
     const results: IAppEvent[] = [];
     for (const raw of raws) {
       try {
-        const converter = this.converters.find((c) => c.canRevive(raw))!;
-        const ev = converter.revive(raw);
+        const serializer = this.serializers.find((s) => s.canRevive(raw));
+        if (!serializer) continue;
+        const ev = serializer.revive(raw);
         if (ev) results.push(ev);
       } catch (e) {
         console.error("Failed to revive schedule event", e);
       }
     }
     return results;
+  }
+
+  /**
+   * Return an initial DTO for the given event type.
+   * If an existing action object is provided, prefer converter.toDto(action).
+   * Lookup order:
+   *  - converter.toDto(action) if available
+   *  - UI action registry `defaultData` if available
+   *  - fallback to minimal DTO `{ actionType }`
+   */
+  getDefault(eventType: string, action?: any): IAppEventDto {
+    // Prefer converter.toDto for existing domain entities passed in as `action`.
+    try {
+      const conv = resolveEventConverter(eventType);
+      if (conv && action && typeof (conv as any).toDto === "function") {
+        try {
+          return (conv as any).toDto(action) as IAppEventDto;
+        } catch (e) {
+          // if conversion fails, fall through to registry/default
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Next, use UI registry defaultData if available
+    try {
+      const ACTION_REGISTRY = getUIActionRegistry();
+      const entry = ACTION_REGISTRY[eventType];
+      if (entry && typeof (entry as any).defaultData === "function") {
+        return (entry as any).defaultData(action ?? {}) as IAppEventDto;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return { actionType: eventType } as IAppEventDto;
   }
 
   async updateScheduleEvents(events: IAppEvent[]): Promise<void> {

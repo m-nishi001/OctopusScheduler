@@ -9,11 +9,11 @@ export interface IAppEventConverter {
   canRevive(raw: IAppEvent): boolean;
   revive(raw: IAppEvent): IAppEvent;
 
-  // optional: create entity from editor/form DTO
-  toEntityFromForm?(form: Record<string, any>, context?: Record<string, any>): IAppEvent;
+  // Optional: convert editor/app DTO -> domain entity
+  toEntity?(dto: Record<string, any>, context?: Record<string, any>): IAppEvent;
 
-  // optional: provide an initial DTO for editor when editing an existing action
-  getInitial?(action?: any): Record<string, any>;
+  // Optional: convert domain entity -> DTO for UI
+  toDto?(entity: IAppEvent): Record<string, any>;
 
   // optional: validate editor DTO
   validate?(data: Record<string, any>): boolean;

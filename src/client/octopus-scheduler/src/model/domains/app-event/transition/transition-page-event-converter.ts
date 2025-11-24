@@ -17,13 +17,16 @@ export class TransitionPageEventConverter implements IAppEventConverter {
     return TransitionPageEvent.revive(raw);
   }
 
-  toEntityFromForm?(form: Record<string, any>): IAppEvent {
-    // use fromData which expects serialized-like object
-    return TransitionPageEvent.fromData(form as Record<string, any>);
+  toEntity?(dto: Record<string, any>): IAppEvent {
+    return TransitionPageEvent.fromData(dto as Record<string, any>);
   }
 
-  getInitial?(action?: any) {
-    return { transitionUrl: action?.transitionUrl ?? "" };
+  toDto?(entity: IAppEvent): Record<string, any> {
+    // @ts-ignore
+    const obj = (entity as any).serializeAsObject
+      ? (entity as any).serializeAsObject()
+      : {};
+    return { actionType: (entity as any).type, ...obj };
   }
 
   validate?(data: Record<string, any>) {

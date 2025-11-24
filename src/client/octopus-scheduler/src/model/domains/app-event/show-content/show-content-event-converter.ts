@@ -17,12 +17,16 @@ export class ShowContentEventConverter implements IAppEventConverter {
     return ShowContentEvent.revive(raw);
   }
 
-  toEntityFromForm?(form: Record<string, any>): IAppEvent {
-    return ShowContentEvent.fromData(form as Record<string, any>);
+  toEntity?(dto: Record<string, any>): IAppEvent {
+    return ShowContentEvent.fromData(dto as Record<string, any>);
   }
 
-  getInitial?(action?: any) {
-    return { contentType: action?.contentType ?? "", contentId: action?.contentId ?? "" };
+  toDto?(entity: IAppEvent): Record<string, any> {
+    // @ts-ignore
+    const obj = (entity as any).serializeAsObject
+      ? (entity as any).serializeAsObject()
+      : {};
+    return { actionType: (entity as any).type, ...obj };
   }
 
   validate?(data: Record<string, any>) {

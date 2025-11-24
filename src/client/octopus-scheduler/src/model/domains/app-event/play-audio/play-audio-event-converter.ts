@@ -17,12 +17,17 @@ export class PlayAudioEventConverter implements IAppEventConverter {
     return PlayAudioEvent.revive(raw);
   }
 
-  toEntityFromForm?(form: Record<string, any>): IAppEvent {
-    return PlayAudioEvent.fromData(form as Record<string, any>);
+  toEntity?(dto: Record<string, any>): IAppEvent {
+    return PlayAudioEvent.fromData(dto as Record<string, any>);
   }
 
-  getInitial?(action?: any) {
-    return { audioId: action?.audioId ?? "" };
+  toDto?(entity: IAppEvent): Record<string, any> {
+    // include actionType for UI and serialized object
+    // @ts-ignore - entity may implement serializeAsObject
+    const obj = (entity as any).serializeAsObject
+      ? (entity as any).serializeAsObject()
+      : {};
+    return { actionType: (entity as any).type, ...obj };
   }
 
   validate?(data: Record<string, any>) {

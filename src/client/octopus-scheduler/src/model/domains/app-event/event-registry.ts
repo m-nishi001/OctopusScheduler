@@ -3,7 +3,6 @@ import { TransitionPageEvent } from "./transition/transition-page-event";
 import { PlayAudioEvent } from "./play-audio/play-audio-event";
 import { SlideshowEvent } from "./slideshow/slideshow-event";
 import { ShowContentEvent } from "./show-content/show-content-event";
-import { getConverterForType } from "../../../core/event-converter/registry";
 
 export type EventTypeKey =
   | "TransitionPageEvent"
@@ -27,13 +26,7 @@ export function getEventFromData(
   type: string,
   data: Record<string, any>
 ): IAppEvent {
-  // prefer converter-based revive
-  const conv = getConverterForType(type);
-  const raw = { id: data.id, type, ...data } as unknown as IAppEvent;
-  if (conv && conv.revive) {
-    return conv.revive(raw);
-  }
-
+  // Use domain factory to construct event from raw data.
   const factory = registry.get(type);
   if (!factory) {
     throw new Error(`Unknown event type: ${type}`);
