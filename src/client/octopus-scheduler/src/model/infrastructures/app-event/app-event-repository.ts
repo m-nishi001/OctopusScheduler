@@ -5,7 +5,7 @@ import { injectable, injectAll } from "tsyringe";
 import {
   IAppEventConverterToken,
   type IAppEventConverter,
-} from "../../applications/app-event/i-app-event-converter";
+} from "../../domains/app-event/i-app-event-converter";
 import {
   IEventSerializerToken,
   type IEventSerializer,

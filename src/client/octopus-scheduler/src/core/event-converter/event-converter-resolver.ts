@@ -1,6 +1,6 @@
 import { container } from "tsyringe";
-import { IAppEventConverterToken } from "../../model/applications/app-event/i-app-event-converter";
-import type { IAppEventConverter } from "../../model/applications/app-event/i-app-event-converter";
+import { IAppEventConverterToken } from "../../model/domains/app-event/i-app-event-converter";
+import type { IAppEventConverter } from "../../model/domains/app-event/i-app-event-converter";
 
 /**
  * Stateless resolver for app event converters.

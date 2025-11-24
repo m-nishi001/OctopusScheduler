@@ -5,7 +5,7 @@ import { IAssetRepositoryToken } from "../../model/domains/assets/repository/ass
 import { container } from "tsyringe";
 import { AppEventService } from "../../model/applications/app-event/app-event-service";
 import { AssetService } from "../../model/applications/assets/asset-service";
-import { IAppEventConverterToken } from "../../model/applications/app-event/i-app-event-converter";
+import { IAppEventConverterToken } from "../../model/domains/app-event/i-app-event-converter";
 import { IEventSerializerToken } from "../../model/domains/app-event/i-event-serializer";
 import { ShowContentEventConverter } from "../../model/applications/app-event/event-converter/show-content-event-converter";
 import { PlayAudioEventConverter } from "../../model/applications/app-event/event-converter/play-audio-event-converter";

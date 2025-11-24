@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import type { IAppEventConverter } from "../i-app-event-converter";
+import type { IAppEventConverter } from "../../../domains/app-event/i-app-event-converter";
 import type { IAppEvent } from "../../../domains/app-event/app-event";
 import { PlayAudioEvent } from "../../../domains/app-event/play-audio/play-audio-event";
 import type { IAppEventDto } from "../i-app-event-dto";

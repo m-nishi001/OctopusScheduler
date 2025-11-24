@@ -3,8 +3,8 @@ import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-short
 import { KeyboardShortcutConfig } from "../../domains/keyboard-shortcut/keyboard-shortcut-config";
 import type { IKeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { IKeyboardShortcutRepositoryToken } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
-import type { IAppEventConverter } from "../../applications/app-event/i-app-event-converter";
-import { IAppEventConverterToken } from "../../applications/app-event/i-app-event-converter";
+import type { IAppEventConverter } from "../../domains/app-event/i-app-event-converter";
+import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
 import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";
 import type { IEventSerializer } from "../../domains/app-event/i-event-serializer";
 
