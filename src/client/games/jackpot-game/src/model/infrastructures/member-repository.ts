@@ -53,7 +53,6 @@ export class MemberRepository implements IMemberRepository {
   }
 
   async replaceAllMembers(members: Member[]): Promise<{ replaced: number }> {
-    // clear existing store and save provided members using their ids
     await this.localStorage.clear();
     for (const m of members) {
       const id = m.id || this.idGenerator.nextId();

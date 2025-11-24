@@ -32,7 +32,6 @@ export class DrawResultRepository implements IDrawResultRepository {
   }
 
   async syncDrawResults(): Promise<{ synced: number }> {
-    // GAS sync removed
     return { synced: 0 };
   }
 }

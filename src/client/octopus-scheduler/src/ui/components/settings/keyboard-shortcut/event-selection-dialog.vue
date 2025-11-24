@@ -18,7 +18,8 @@
 </template>
 
 <script setup lang="ts">
-import ACTION_REGISTRY from './action-registry';
+import { container } from 'tsyringe';
+import { UIActionEntryToken } from '../../../../core/container';
 
 defineProps<{ show: boolean }>();
 
@@ -27,7 +28,17 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
 }>();
 
-const registry = ACTION_REGISTRY;
+// resolve registry entries from DI
+const registry: Record<string, any> = (() => {
+  try {
+    const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
+    const m: Record<string, any> = {};
+    for (const e of entries) if (e && e.actionType) m[e.actionType] = e;
+    return m;
+  } catch (err) {
+    return {};
+  }
+})();
 
 function selectType(type: string) {
   emit('select-type', { type });

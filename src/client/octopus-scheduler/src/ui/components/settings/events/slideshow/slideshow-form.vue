@@ -13,19 +13,14 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue';
-import type { SlideshowFormData, EditSlideshowFormData } from '../types';
+import type { SlideshowFormData, EditSlideshowFormData } from '../../app-events/types';
 
-type Props = {
-    initialData?: SlideshowFormData | EditSlideshowFormData;
-}
+type Props = { initialData?: SlideshowFormData | EditSlideshowFormData }
 
 const props = defineProps<Props>();
 const emit = defineEmits<{ save: [SlideshowFormData | EditSlideshowFormData] }>();
 
-const formData = reactive({
-    folderId: props.initialData?.folderId ?? '',
-    displayDuration: props.initialData?.displayDuration ?? 10,
-});
+const formData = reactive({ folderId: props.initialData?.folderId ?? '', displayDuration: props.initialData?.displayDuration ?? 10 });
 
 const save = () => {
     const base: SlideshowFormData = { actionType: 'SlideshowEvent', folderId: formData.folderId, displayDuration: formData.displayDuration };
@@ -41,22 +36,7 @@ defineExpose({ save });
 </script>
 
 <style scoped>
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #555;
-    border-radius: 4px;
-    background: #444;
-    color: #fff;
-}
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; }
+.form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #555; border-radius: 4px; background: #444; color: #fff; }
 </style>

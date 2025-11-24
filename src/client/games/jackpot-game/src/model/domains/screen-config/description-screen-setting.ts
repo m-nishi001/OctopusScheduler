@@ -1,5 +1,3 @@
-// DescriptionScreenSetting is a concrete data class for the description screen.
-
 export type ScreenElementType =
   | "text"
   | "image"
@@ -17,7 +15,7 @@ export interface ScreenElement {
   content?: string;
   assetId?: string;
   assetUrl?: string;
-  value?: string; // ScreenContentのvalueを統合
+  value?: string;
   style?: string;
   animation?: AnimationSettings;
 }

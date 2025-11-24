@@ -35,7 +35,6 @@ describe("PrizeDrawService", () => {
 
   /**
    * getRemainingPrizesメソッドが割り当てられた賞品（予約されていない）を無視し、予約されたものを保持することをテストする。
-   * 期待値: p1は割り当てられているので削除、p2は予約されているので保持、p3は保持、結果は["p2", "p3"]。
    */
   it("getRemainingPrizes ignores assigned prizes (non-reserved) and keeps reserved ones", () => {
     const rand = new MockRandom([0]);

@@ -16,7 +16,19 @@
 
 <script setup lang="ts">
 import type { EventFormData } from './types';
-import ACTION_REGISTRY from './action-registry';
+import { container } from 'tsyringe';
+import { UIActionEntryToken } from '../../../../core/container';
+
+const ACTION_REGISTRY: Record<string, any> = (() => {
+    try {
+        const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
+        const m: Record<string, any> = {};
+        for (const e of entries) if (e && e.actionType) m[e.actionType] = e;
+        return m;
+    } catch (err) {
+        return {};
+    }
+})();
 
 const props = defineProps<{
     action: EventFormData;

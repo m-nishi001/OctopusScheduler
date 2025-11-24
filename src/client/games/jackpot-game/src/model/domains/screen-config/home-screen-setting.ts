@@ -1,4 +1,3 @@
-// HomeScreenSetting is a concrete data class for the home screen.
 export class HomeScreenSetting {
   readonly type: "home" = "home";
   homeBgm: string;

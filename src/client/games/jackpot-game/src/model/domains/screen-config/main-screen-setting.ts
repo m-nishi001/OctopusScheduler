@@ -1,26 +1,13 @@
-// MainScreenSetting is a concrete data class for the main screen.
 export class MainScreenSetting {
   readonly type: "main" = "main";
-  // BGM ids for member lottery
   memberLotteryBgms: string[];
 
-  // how many candidate items the member draw request will ask for (UI default)
   memberDrawRequestCount: number;
-  // how many candidate items the prize draw request will ask for (UI default)
-  // NOTE: prize-draw specific settings (prizeDrawRequestCount, dummyCount, kakuhen durations)
-  // are now handled per-animation and removed from this global screen setting.
 
-  // kakuhen (確変) mode: 'random' or 'fixed'
   kakuhenMode: "random" | "fixed";
-  // when kakuhenMode === 'fixed', use these draw indices (1-based) to trigger kakuhen
   kakuhenFixedTimings: number[];
-  // how many reserved prizes to keep (application previously used up to 4: 2 high + 2 low)
   kakuhenReservedCount: number;
 
-  // durations used by UI during kakuhen reroll (ms)
-  // (removed) kakuhen durations are handled by the prize animation component
-
-  // global BGM volume 0..1
   globalBgmVolume: number;
 
   constructor(

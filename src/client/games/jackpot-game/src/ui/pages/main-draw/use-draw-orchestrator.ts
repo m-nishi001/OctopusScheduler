@@ -249,7 +249,6 @@ export function useDrawOrchestrator() {
     }
     isQueueExecuting.value = true;
 
-    // キューが空なら次のサイクルを追加
     if (drawState.currentQueue.isEmpty()) {
       try {
         const count = await drawService.getLastPrizeCount();
@@ -265,8 +264,6 @@ export function useDrawOrchestrator() {
         isQueueExecuting.value = false;
         return;
       } finally {
-        // サイクルを追加した時は初期表示と同じ状態であるはず。
-        // つまり、自動実行フラグはリセットしておく必要がある。
         pendingAutoExecution.value = false;
       }
     }

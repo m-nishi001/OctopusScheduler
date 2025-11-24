@@ -46,13 +46,13 @@
 import { ref, watch, nextTick } from 'vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
 import { useKeyCapture } from './composables/useKeyCapture';
-import { getUIActionRegistry } from './action-registry';
 import ActionItemSummary from './action-item-summary.vue';
 import EventSelectionDialog from './event-selection-dialog.vue';
 import type { EventFormData } from './types';
-import { resolve as resolveEventConverter } from '../../../../core/event-converter/event-converter-resolver';
+import { IAppEventConverterToken } from '../../../../model/domains/app-event/i-app-event-converter';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../model/applications/app-event/app-event-service';
+import { UIActionEntryToken } from '../../../../core/container';
 
 interface Props {
     show: boolean;
@@ -76,7 +76,19 @@ const dialogOpen = ref(false);
 const dialogInitialData = ref<EventFormData | null>(null);
 const dialogKey = ref(0);
 
-const ACTION_REGISTRY = getUIActionRegistry();
+// build a local registry map from DI-resolved UI action entries
+const ACTION_REGISTRY: Record<string, any> = (() => {
+    try {
+        const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
+        const map: Record<string, any> = {};
+        for (const e of entries) {
+            if (e && e.actionType) map[e.actionType] = e;
+        }
+        return map;
+    } catch (err) {
+        return {};
+    }
+})();
 const appEventService = container.resolve(AppEventService);
 
 const resolveActionData = (a: any) => {
@@ -98,8 +110,40 @@ watch(() => props.show, (newShow) => {
             capturedKeys.value = [...props.editingShortcut.keys];
             // populate actions from editingShortcut using centralized service
             actions.value = props.editingShortcut.actions.map((a: any) => {
-                const data = appEventService.getDefault(a.type, a) as any;
-                return { actionType: a.type, ...data } as EventFormData;
+                const atype = a.type;
+                let data: any = {};
+                try {
+                    // resolve converters from DI and find matching converter by getType
+                    const converters = container.resolveAll<any>(IAppEventConverterToken as any) as any[];
+                    const conv = converters.find((c) => c && typeof c.getType === 'function' && (() => { try { return c.getType() === atype; } catch { return false; } })());
+                    if (conv && typeof conv.toDto === 'function') {
+                        try {
+                            data = conv.toDto(a);
+                        } catch (err) {
+                            const entry = ACTION_REGISTRY[atype];
+                            if (entry && typeof entry.defaultData === 'function') {
+                                data = entry.defaultData(a);
+                            } else {
+                                data = appEventService.getDefault(atype) as any;
+                            }
+                        }
+                    } else {
+                        const entry = ACTION_REGISTRY[atype];
+                        if (entry && typeof entry.defaultData === 'function') {
+                            data = entry.defaultData(a);
+                        } else {
+                            data = appEventService.getDefault(atype) as any;
+                        }
+                    }
+                } catch (e) {
+                    const entry = ACTION_REGISTRY[atype];
+                    if (entry && typeof entry.defaultData === 'function') {
+                        data = entry.defaultData(a);
+                    } else {
+                        data = appEventService.getDefault(atype) as any;
+                    }
+                }
+                return { actionType: atype, ...data } as EventFormData;
             });
         } else {
             capturedKeys.value = [];
@@ -137,7 +181,8 @@ const saveShortcut = async () => {
         const a = actions.value[i];
         const atype = a.actionType;
         const data = resolveActionData(a);
-        const converter = resolveEventConverter(atype);
+        const converters = container.resolveAll<any>(IAppEventConverterToken as any) as any[];
+        const converter = converters.find((c) => c && typeof c.getType === 'function' && (() => { try { return c.getType() === atype; } catch { return false; } })());
         if (!converter) {
             alert(`未対応のアクションタイプ: ${atype}`);
             return;

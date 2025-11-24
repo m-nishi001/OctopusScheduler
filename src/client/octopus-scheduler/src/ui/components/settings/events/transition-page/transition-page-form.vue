@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue';
-import type { TransitionPageFormData, EditTransitionPageFormData } from '../types';
+import type { TransitionPageFormData, EditTransitionPageFormData } from '../../app-events/types';
 
 type Props = {
     initialData?: TransitionPageFormData | EditTransitionPageFormData;
@@ -23,7 +23,6 @@ const formData = reactive({
 const save = () => {
     const base: TransitionPageFormData = { actionType: 'TransitionPageEvent', transitionUrl: formData.transitionUrl };
     if (props.initialData && 'eventId' in props.initialData) {
-        // emit edit variant including eventId
         const out: EditTransitionPageFormData = { ...(base as any), eventId: (props.initialData as EditTransitionPageFormData).eventId };
         emit('save', out);
     } else {

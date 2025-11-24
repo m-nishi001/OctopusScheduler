@@ -1,5 +1,3 @@
-// OpeningScreenSetting is a concrete data class for the opening screen.
-
 export interface OpeningContent {
   type: "text" | "image" | "html";
   text?: string;

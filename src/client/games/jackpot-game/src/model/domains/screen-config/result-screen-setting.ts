@@ -1,4 +1,3 @@
-// ResultScreenSetting is a concrete data class for the result screen.
 export class ResultScreenSetting {
   readonly type: "result" = "result";
   resultBgm: string;

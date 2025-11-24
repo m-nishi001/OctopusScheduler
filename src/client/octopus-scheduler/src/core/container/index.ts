@@ -20,6 +20,12 @@ import {
   IKeyboardShortcutRepositoryToken,
 } from "../../model/domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcutService } from "../../model/applications/keyboard-shortcut/keyboard-shortcut-service";
+// Inline UIActionEntryToken so core doesn't need a separate token module
+export const UIActionEntryToken = Symbol('UIActionEntry');
+import { TransitionPageAction } from "../../ui/components/settings/events/transition-page/entry";
+import { PlayAudioAction } from "../../ui/components/settings/events/play-audio/entry";
+import { SlideshowAction } from "../../ui/components/settings/events/slideshow/entry";
+import { ShowContentAction } from "../../ui/components/settings/events/show-content/entry";
 
 export class Container {
   static Register() {
@@ -64,5 +70,10 @@ export class Container {
     container.register(KeyboardShortcutService, {
       useClass: KeyboardShortcutService,
     });
+    // register UI action entries so UI can resolve all available actions
+    container.register(UIActionEntryToken, { useValue: TransitionPageAction });
+    container.register(UIActionEntryToken, { useValue: PlayAudioAction });
+    container.register(UIActionEntryToken, { useValue: SlideshowAction });
+    container.register(UIActionEntryToken, { useValue: ShowContentAction });
   }
 }

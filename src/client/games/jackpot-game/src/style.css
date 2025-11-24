@@ -3,11 +3,10 @@
   line-height: 1.5;
   font-weight: 400;
 
-  /* prefer dark admin-style default so local env matches GAS admin look */
   color-scheme: dark light;
-  --text-color: #cfe8ff; /* light-ish text for dark backgrounds */
+  --text-color: #cfe8ff;
   color: var(--text-color);
-  background-color: #23252b; /* default admin-like background */
+  background-color: #23252b;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -26,7 +25,6 @@ a:hover {
 
 body {
   margin: 0;
-  /* do not center app horizontally/vertically in local dev — allow admin layout to span full viewport */
   min-width: 320px;
   min-height: 100vh;
   color: var(--text-color);
@@ -61,7 +59,6 @@ button:focus-visible {
 }
 
 #app {
-  /* ensure the app fills the viewport so admin layout/full-width styles render same as GAS */
   box-sizing: border-box;
   width: 100%;
   min-height: 100vh;

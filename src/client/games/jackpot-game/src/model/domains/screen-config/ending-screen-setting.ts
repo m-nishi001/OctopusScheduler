@@ -1,4 +1,3 @@
-// EndingScreenSetting is a concrete data class for the ending screen.
 export class EndingScreenSetting {
   readonly type: "ending" = "ending";
   endingBgm: string;

@@ -1,4 +1,3 @@
-// DemoScreenSetting is a concrete data class for the demo screen.
 export class DemoScreenSetting {
   readonly type: "demo" = "demo";
   demoBgm: string;

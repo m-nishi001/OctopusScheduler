@@ -1,14 +1,14 @@
 <template>
 	<MainLayout>
 		<div class="description-screen">
-			<!-- show initial full-screen description hint when slideIndex is -1 -->
+
 			<transition name="initial-to-slide" mode="out-in">
 				<div v-if="slideIndex === -1" class="description-content">
 					<h2 class="description-title">説明画面</h2>
 					<p class="description-text">ここにゲームの説明を記載します。</p>
 					<p class="description-text">Enterキーを押して次へ進んでください。</p>
 				</div>
-				<!-- otherwise show framed slide area -->
+
 				<div v-else class="content-frame">
 					<div class="inner-border">
 						<div class="inner-frame">
@@ -38,7 +38,7 @@
 					</div>
 				</div>
 			</transition>
-			<!-- only show navigation controls (dots) when slides are active -->
+
 			<div v-if="slideIndex !== -1">
 				<div class="navigation-hint">
 					<div class="progress-dots">
@@ -68,7 +68,7 @@ export default {
 
 		const screenConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenSettingsService = container.resolve(ScreenSettingsService);
-		// start at -1 so initial screen shows hint; first Enter will advance to index 0
+
 		const slideIndex = ref(-1);
 		const currentSlide = ref<ScreenElement | null>(null);
 
@@ -76,19 +76,19 @@ export default {
 
 		const assetService = container.resolve(AssetDataService);
 
-		// track created object URLs so they can be revoked on unmount
+
 		const createdUrls: string[] = [];
 
-		// BGM audio instance
+
 		const bgmAudio = ref<HTMLAudioElement | null>(null);
 
 		onMounted(async () => {
-			// fetch raw config (may use differing key names depending on admin UI)
+
 			const cfg = await screenSettingsService.fetchScreenSetting('description', 'description-screen-settings');
 
-			// normalize to DescriptionScreenSetting shape so component can work with both legacy and current payloads
+
 			if (cfg) {
-				// cfg may use descriptionBgm / screenElements OR bgmAssetId / contents
+
 				const bgmId = (cfg as any).descriptionBgm || (cfg as any).bgmAssetId || '';
 				const elems = (cfg as any).screenElements || (cfg as any).contents || [];
 				screenConfig.value = new DescriptionScreenSetting(bgmId, elems as ScreenElement[]);
@@ -98,7 +98,7 @@ export default {
 
 			elements.value = screenConfig.value?.screenElements || [];
 
-			// create object URLs for element assets (images etc.)
+
 			for (const element of elements.value) {
 				if (element.assetId) {
 					const asset = await assetService.getAssetDataById(element.assetId);
@@ -116,10 +116,9 @@ export default {
 				}
 			}
 
-			// do not show slides immediately; wait for user to press Enter
-			// currentSlide will be set when slideIndex changes via nextSlide()
 
-			// load and play BGM if configured (BGM stored as an asset id)
+
+
 			try {
 				const bgmId = screenConfig.value?.descriptionBgm || '';
 				if (bgmId) {
@@ -130,29 +129,29 @@ export default {
 							createdUrls.push(bgmUrl);
 							bgmAudio.value = new Audio(bgmUrl);
 							bgmAudio.value.loop = true;
-							// best-effort play (may be blocked by browser autoplay policies)
+
 							void bgmAudio.value.play().catch(() => { });
 						} catch (e) {
-							// ignore bgm errors
+
 						}
 					}
 				}
 			} catch (e) {
-				// ignore
+
 			}
 		});
 
 		const nextSlide = () => {
 			if (slideIndex.value < elements.value.length - 1) {
 				slideIndex.value++;
-				// only update currentSlide when slideIndex is within range
+
 				if (slideIndex.value >= 0 && slideIndex.value < elements.value.length) {
 					currentSlide.value = elements.value[slideIndex.value];
 				} else {
 					currentSlide.value = null;
 				}
 			} else {
-				// Stop BGM before transitioning to draw screen
+
 				if (bgmAudio.value) {
 					bgmAudio.value.pause();
 				}
@@ -166,7 +165,7 @@ export default {
 		onUnmounted(() => {
 			try { window.removeEventListener('keydown', handleKey); } catch { }
 
-			// Stop BGM if playing
+
 			if (bgmAudio.value) {
 				bgmAudio.value.pause();
 			}
@@ -191,7 +190,7 @@ export default {
 		const getContent = (el: any) => {
 			if (!el) return '';
 			if (el.content && typeof el.content === 'string') return el.content;
-			// legacy admin UI used `text` property for plain text entries
+
 			return (el.text && typeof el.text === 'string') ? el.text : '';
 		};
 
@@ -204,7 +203,6 @@ export default {
 .description-screen {
 	width: 100vw;
 	height: 100vh;
-	/* purple-ish gradient like attachment 2 */
 	background: linear-gradient(135deg, #2b1438 0%, #5a2b6f 50%, #2a1632 100%);
 	display: flex;
 	flex-direction: column;
@@ -234,7 +232,6 @@ export default {
 	justify-content: center;
 	align-items: center;
 	color: #ffffff;
-	/* ensure white text */
 	text-align: center;
 	z-index: 1;
 }
@@ -258,7 +255,6 @@ export default {
 	width: 86%;
 	height: 72%;
 	background: #0b0b0b;
-	/* deep black content area */
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -272,9 +268,7 @@ export default {
 	height: 100%;
 	padding: 1.2rem;
 	box-sizing: border-box;
-	/* remove the inner white border (unwanted decorative brackets) */
 	border: none;
-	/* outer thin white border */
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -284,7 +278,6 @@ export default {
 	width: 100%;
 	height: 100%;
 	background: #0b0b0b;
-	/* same black, acts like inner canvas */
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -358,11 +351,7 @@ export default {
 	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-/* navigation hint sits near the very bottom of the screen when slides are active
-	   we will not show the small 'Press ENTER' hint inside the framed area, so keep
-	   this container for dots only */
 .navigation-hint {
-	/* place dots in normal flow below the frame so they are never clipped on small screens */
 	position: relative;
 	margin: 12px auto 4px auto;
 	left: 0;
@@ -428,7 +417,6 @@ export default {
 	transform: translateY(-30px);
 }
 
-/* transition between the initial full-screen hint and the framed slide area */
 .initial-to-slide-enter-active,
 .initial-to-slide-leave-active {
 	transition: opacity 0.5s ease, transform 0.5s ease;

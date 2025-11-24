@@ -1,9 +1,8 @@
 import type { IAppEventRepository } from "../../domains/app-event/app-event-repository";
 import { IAppEventRepositoryToken } from "../../domains/app-event/app-event-repository";
 import type { IAppEvent } from "../../domains/app-event/app-event";
-import { injectable, injectAll, inject } from "tsyringe";
-import { resolve as resolveEventConverter } from "../../../core/event-converter/event-converter-resolver";
-import { getUIActionRegistry } from "../../../ui/components/settings/keyboard-shortcut/action-registry";
+import { injectable, injectAll, inject, container } from "tsyringe";
+import { UIActionEntryToken } from "../../../core/container";
 import type { IAppEventDto } from "./i-app-event-dto";
 import type { ExecutionStatus } from "model/domains/app-event/execution-status";
 import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";
@@ -39,33 +38,18 @@ export class AppEventService {
 
   /**
    * Return an initial DTO for the given event type.
-   * If an existing action object is provided, prefer converter.toDto(action).
+   * This returns default initialization data based solely on `eventType`.
    * Lookup order:
-   *  - converter.toDto(action) if available
-   *  - UI action registry `defaultData` if available
+   *  - UI action registry `defaultData` if available (called with empty object)
    *  - fallback to minimal DTO `{ actionType }`
    */
-  getDefault(eventType: string, action?: any): IAppEventDto {
-    // Prefer converter.toDto for existing domain entities passed in as `action`.
+  getDefault(eventType: string): IAppEventDto {
+    // Use UI registry defaultData if available; do not attempt to convert domain entities here.
     try {
-      const conv = resolveEventConverter(eventType);
-      if (conv && action && typeof (conv as any).toDto === "function") {
-        try {
-          return (conv as any).toDto(action) as IAppEventDto;
-        } catch (e) {
-          // if conversion fails, fall through to registry/default
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    // Next, use UI registry defaultData if available
-    try {
-      const ACTION_REGISTRY = getUIActionRegistry();
-      const entry = ACTION_REGISTRY[eventType];
-      if (entry && typeof (entry as any).defaultData === "function") {
-        return (entry as any).defaultData(action ?? {}) as IAppEventDto;
+      const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
+      const entry = entries.find((e) => e && e.actionType === eventType);
+      if (entry && typeof entry.defaultData === "function") {
+        return entry.defaultData({}) as IAppEventDto;
       }
     } catch (e) {
       // ignore

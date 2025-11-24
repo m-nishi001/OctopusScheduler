@@ -20,10 +20,10 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
-import type { PlayAudioFormData, EditPlayAudioFormData } from '../types';
+import type { PlayAudioFormData, EditPlayAudioFormData } from '../../app-events/types';
 import { container } from 'tsyringe';
-import { AssetService } from '../../../../../model/applications/assets/asset-service';
-import type { Asset } from '../../../../../model/domains/assets/entity/asset';
+import { AssetService } from '../../../../model/applications/assets/asset-service';
+import type { Asset } from '../../../../model/domains/assets/entity/asset';
 import { useAudio } from '@shared-composables/use-audio';
 
 type Props = {
@@ -58,7 +58,6 @@ const assetsUpdatedHandler = (ev: Event) => {
         await refreshAssets();
         const added: string[] | undefined = ce?.detail?.added;
         if (Array.isArray(added) && added.length > 0) {
-            // auto-select first added audio if none selected
             for (const id of added) {
                 const found = audioAssets.value.find(a => a.id === id);
                 if (found) {
@@ -77,8 +76,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     window.removeEventListener('assets:updated', assetsUpdatedHandler as EventListener);
-    // ensure audio is stopped when the form is unmounted
-    try { pause(); } catch (e) { /* ignore */ }
+    try { pause(); } catch (e) { }
 });
 
 const handleFileUpload = async (event: Event) => {
@@ -87,12 +85,9 @@ const handleFileUpload = async (event: Event) => {
     if (!file) return;
 
     formData.audioFile = file;
-    // Do not save immediately, wait for save button
 };
 
-const triggerFileUpload = () => {
-    fileInput.value?.click();
-};
+const triggerFileUpload = () => { fileInput.value?.click(); };
 
 const togglePreview = async () => {
     if (isPlaying.value) {
@@ -103,9 +98,7 @@ const togglePreview = async () => {
             source = formData.audioFile;
         } else if (formData.audioId) {
             const asset = audioAssets.value.find(a => a.id === formData.audioId);
-            if (asset) {
-                source = asset.blob;
-            }
+            if (asset) source = asset.blob;
         }
         if (source) {
             await load(source);
@@ -118,7 +111,7 @@ const save = async () => {
     if (formData.audioFile) {
         try {
             const asset: Asset = {
-                id: '', // Will be set by repository
+                id: '',
                 blob: formData.audioFile,
                 name: formData.audioFile.name,
                 uploadedAt: new Date().toISOString(),
@@ -129,13 +122,12 @@ const save = async () => {
             const addedIds = await assetService.addAssets([asset]);
             if (addedIds.length > 0) {
                 formData.audioId = addedIds[0];
-                // Refresh the list
                 const assets = await assetService.getAssets();
                 audioAssets.value = assets.filter(asset => asset.blob.type.startsWith('audio/'));
             }
         } catch (error) {
             console.error('Failed to upload audio:', error);
-            return; // Do not emit if upload failed
+            return;
         }
     }
 
@@ -152,76 +144,13 @@ defineExpose({ save });
 </script>
 
 <style scoped>
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-.form-group input,
-.form-group select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #555;
-    border-radius: 4px;
-    background: #444;
-    color: #fff;
-}
-
-.audio-selection {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.audio-selection select {
-    flex: 1;
-}
-
-.upload-button {
-    padding: 8px 12px;
-    border: 1px solid #555;
-    border-radius: 4px;
-    background: #666;
-    color: #fff;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: bold;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.upload-button:hover {
-    background: #777;
-}
-
-.preview-button {
-    padding: 8px 12px;
-    border: 1px solid #555;
-    border-radius: 4px;
-    background: #666;
-    color: #fff;
-    cursor: pointer;
-    font-size: 16px;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.preview-button:hover:not(:disabled) {
-    background: #777;
-}
-
-.preview-button:disabled {
-    background: #444;
-    cursor: not-allowed;
-}
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; }
+.form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #555; border-radius: 4px; background: #444; color: #fff; }
+.audio-selection { display: flex; gap: 10px; align-items: center; }
+.audio-selection select { flex: 1; }
+.upload-button { padding: 8px 12px; border: 1px solid #555; border-radius: 4px; background: #666; color: #fff; cursor: pointer; font-size: 16px; font-weight: bold; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.preview-button { padding: 8px 12px; border: 1px solid #555; border-radius: 4px; background: #666; color: #fff; cursor: pointer; font-size: 16px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+.upload-button:hover, .preview-button:hover:not(:disabled) { background: #777; }
+.preview-button:disabled { background: #444; cursor: not-allowed; }
 </style>
