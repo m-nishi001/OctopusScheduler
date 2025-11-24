@@ -20,9 +20,7 @@
 <script setup lang="ts">
 import ACTION_REGISTRY from './action-registry';
 
-const props = defineProps<{
-  show: boolean;
-}>();
+defineProps<{ show: boolean }>();
 
 const emit = defineEmits<{
   (e: 'select-type', payload: { type: string }): void;

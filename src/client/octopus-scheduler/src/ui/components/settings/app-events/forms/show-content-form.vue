@@ -322,7 +322,6 @@ const insertImageIntoHtml = () => {
 const save = async () => {
     // Mark uploaded assets as permanent (remove uploaded flag)
     // But since we can't modify existing assets easily, just emit the data
-    const base: ShowContentFormData = { actionType: 'ShowContentEvent', contentType: formData.contentType, contentId: formData.contentType === 'html' ? '' : formData.contentId, htmlContent: formData.contentType === 'html' ? formData.htmlContent : undefined } as ShowContentFormData;
     // normalize base for html vs others
     let outBase: ShowContentFormData;
     if (formData.contentType === 'html') {

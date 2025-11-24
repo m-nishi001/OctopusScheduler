@@ -2,10 +2,7 @@ import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import type { IAppEventRepository } from "../../domains/app-event/app-event-repository";
 import type { IAppEvent } from "../../domains/app-event/app-event";
 import { injectable, injectAll } from "tsyringe";
-import {
-  IAppEventConverterToken,
-  type IAppEventConverter,
-} from "../../domains/app-event/i-app-event-converter";
+// IAppEventConverter imports removed: converters were unused in this repository implementation.
 import {
   IEventSerializerToken,
   type IEventSerializer,
@@ -17,12 +14,10 @@ import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-se
 export class AppEventRepository implements IAppEventRepository {
   private readonly localStorage: LocalStorageService;
   private readonly executionStatusStorage: LocalStorageService;
-  private readonly converters: IAppEventConverter[];
   private readonly serializers: IEventSerializer[];
 
   constructor(
-    @injectAll(IAppEventConverterToken)
-    converters: IAppEventConverter[],
+    // converters removed from constructor (unused)
     @injectAll(IEventSerializerToken)
     serializers: IEventSerializer[]
   ) {
@@ -34,7 +29,6 @@ export class AppEventRepository implements IAppEventRepository {
       "octopus-scheduler",
       "ScheduleEventExecutionStatus"
     );
-    this.converters = converters;
     this.serializers = serializers;
   }
 

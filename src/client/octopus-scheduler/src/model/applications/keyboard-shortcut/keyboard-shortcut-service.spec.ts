@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { KeyboardShortcutService } from "./keyboard-shortcut-service";
 import { PlayAudioEvent } from "../../domains/app-event/play-audio/play-audio-event";
 import { KeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
@@ -20,7 +20,9 @@ class InMemoryRepository extends KeyboardShortcutRepository {
     );
   }
   async getConfig() {
-    const { KeyboardShortcutConfig } = await import("../../domains/keyboard-shortcut/keyboard-shortcut-config");
+    const { KeyboardShortcutConfig } = await import(
+      "../../domains/keyboard-shortcut/keyboard-shortcut-config"
+    );
     return KeyboardShortcutConfig.createEmpty();
   }
   async saveConfig() {
@@ -54,7 +56,11 @@ describe("KeyboardShortcutService", () => {
     container.register(IEventSerializerToken, {
       useValue: {
         canRevive: () => true,
-        revive: (raw: any) => ({ id: raw.id, type: raw.type, serialize: () => [] }),
+        revive: (raw: any) => ({
+          id: raw.id,
+          type: raw.type,
+          serialize: () => [],
+        }),
       },
     });
     service = container.resolve(KeyboardShortcutService);

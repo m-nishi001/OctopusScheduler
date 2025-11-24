@@ -1,5 +1,3 @@
-import type { EventDto } from "../types";
-
 export interface ActionEntry<TData = any, TEvent = any> {
   actionType: string;
   label?: string;

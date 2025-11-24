@@ -1,4 +1,4 @@
-import type { IAppEvent } from "../../../domains/app-event/app-event";
+import type { IAppEvent } from "../../domains/app-event/app-event";
 import type { IAppEventDto } from "./i-app-event-dto";
 
 export const IAppEventConverterToken = Symbol("IAppEventConverter");

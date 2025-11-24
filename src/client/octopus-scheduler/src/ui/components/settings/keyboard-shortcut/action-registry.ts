@@ -3,12 +3,7 @@ import PlayAudioForm from "../app-events/forms/play-audio-form.vue";
 import SlideshowForm from "../app-events/forms/slideshow-form.vue";
 import ShowContentForm from "../app-events/forms/show-content-form.vue";
 
-import { TransitionPageEvent } from "../../../../model/domains/app-event/transition/transition-page-event";
-import { PlayAudioEvent } from "../../../../model/domains/app-event/play-audio/play-audio-event";
-import { SlideshowEvent } from "../../../../model/domains/app-event/slideshow/slideshow-event";
-import { ShowContentEvent } from "../../../../model/domains/app-event/show-content/show-content-event";
-
-import type { IAppEvent } from "../../../../model/domains/app-event/app-event";
+// Domain event classes/types are intentionally not referenced here (UI-only registry).
 
 export interface UIActionEntry {
   label: string;
