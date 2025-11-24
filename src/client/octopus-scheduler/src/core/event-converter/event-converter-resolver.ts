@@ -9,12 +9,13 @@ import type { IAppEventConverter } from "../../model/domains/app-event/i-app-eve
  */
 export function resolve(type: string): IAppEventConverter | null {
   try {
-    const converters = container.resolveAll<any>(
-      IAppEventConverterToken as any
-    ) as IAppEventConverter[];
+    const converters = container.resolveAll<any>(IAppEventConverterToken as any) as IAppEventConverter[];
     for (const c of converters) {
+      if (!c) continue;
+      // ensure getType exists and is callable
+      if (typeof (c as any).getType !== "function") continue;
       try {
-        const t = c.getType();
+        const t = (c as any).getType();
         if (t === type) return c;
       } catch (e) {
         // ignore converters that fail to report type

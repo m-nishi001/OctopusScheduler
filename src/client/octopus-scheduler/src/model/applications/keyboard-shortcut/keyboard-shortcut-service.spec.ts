@@ -5,6 +5,7 @@ import { KeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyb
 import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-shortcut";
 import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
 import { container } from "tsyringe";
+import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";
 import { IKeyboardShortcutRepositoryToken } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 
 // We don't need to exercise GAS service; mock repository
@@ -19,7 +20,8 @@ class InMemoryRepository extends KeyboardShortcutRepository {
     );
   }
   async getConfig() {
-    return { enabled: true };
+    const { KeyboardShortcutConfig } = await import("../../domains/keyboard-shortcut/keyboard-shortcut-config");
+    return KeyboardShortcutConfig.createEmpty();
   }
   async saveConfig() {
     return;
@@ -46,6 +48,13 @@ describe("KeyboardShortcutService", () => {
           type: data.type,
           serialize: () => [],
         }),
+      },
+    });
+    // register a dummy serializer so KeyboardShortcutService can find serializers
+    container.register(IEventSerializerToken, {
+      useValue: {
+        canRevive: () => true,
+        revive: (raw: any) => ({ id: raw.id, type: raw.type, serialize: () => [] }),
       },
     });
     service = container.resolve(KeyboardShortcutService);
