@@ -20,6 +20,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
+import { watch } from 'vue';
 import type { PlayAudioFormData, EditPlayAudioFormData } from '../../app-events/types';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../model/applications/assets/asset-service';
@@ -140,7 +141,16 @@ const save = async () => {
     }
 };
 
-defineExpose({ save });
+const reset = () => {
+    formData.audioId = props.initialData?.audioId ?? '';
+    formData.audioFile = null;
+};
+
+watch(() => props.initialData, () => {
+    reset();
+});
+
+defineExpose({ save, reset });
 </script>
 
 <style scoped>

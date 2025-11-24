@@ -17,9 +17,9 @@
             <div class="form-group">
                 <label>アクション一覧:</label>
                 <div class="actions-list">
-                    <action-item-summary v-for="(action, idx) in actions" :key="idx" :action="action" :index="idx"
-                        :length="actions.length" @edit="openActionManager" @move-up="moveUp" @move-down="moveDown"
-                        @remove="removeAction" />
+                    <action-item-summary v-for="(action, idx) in actions" :key="keyFor(action, idx)" :action="action"
+                        :index="idx" :length="actions.length" @edit="openActionManager" @move-up="moveUp"
+                        @move-down="moveDown" @remove="removeAction" />
                 </div>
                 <div class="add-action">
                     <button @click="addAction">アクションを追加</button>
@@ -28,12 +28,19 @@
 
             <!-- Dialog area: mounted only when dialogOpen is true -->
             <div v-if="dialogOpen" class="dialog-content">
-                <event-selection-dialog v-if="!dialogInitialData" :show="true" @select-type="onTypeSelected"
+                <!-- Selection UI inside parent dialog -->
+                <event-selection-dialog v-if="selectionOpen" :show="true" @select-type="onTypeSelected"
                     @cancel="onDialogCancel" />
 
-                <component v-else :is="getFormComponent(dialogInitialData.actionType)" :initialData="dialogInitialData"
-                    :key="dialogKey" @save="onEditorSave" @cancel="onDialogCancel" ref="currentEditor" />
+                <!-- Legacy inline form (kept for compatibility) -->
+                <component v-if="!selectionOpen && dialogInitialData && !editorDialogOpen"
+                    :is="getFormComponent(dialogInitialData.actionType)" :initialData="dialogInitialData"
+                    @save="onEditorSave" @cancel="onDialogCancel" ref="currentEditor" />
             </div>
+
+            <!-- Editor modal (separate overlay) -->
+            <action-editor-dialog ref="actionEditorRef" v-if="editorDialogOpen" :show="editorDialogOpen"
+                :initialData="editorInitialData" @save="onEditorSave" @cancel="closeEditorDialog" />
             <div class="dialog-buttons">
                 <button @click="saveShortcut" class="save-btn">保存</button>
                 <button @click="closeDialog" class="cancel-btn">キャンセル</button>
@@ -48,6 +55,7 @@ import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/ke
 import { useKeyCapture } from './composables/useKeyCapture';
 import ActionItemSummary from './action-item-summary.vue';
 import EventSelectionDialog from './event-selection-dialog.vue';
+import ActionEditorDialog from './action-editor-dialog.vue';
 import type { EventFormData } from './types';
 import { IAppEventConverterToken } from '../../../../model/domains/app-event/i-app-event-converter';
 import { container } from 'tsyringe';
@@ -74,7 +82,17 @@ const formRefs: Record<number, any> = {};
 // Minimal dialog state: parent holds only an open flag and a short-lived initial DTO
 const dialogOpen = ref(false);
 const dialogInitialData = ref<EventFormData | null>(null);
-const dialogKey = ref(0);
+
+// selection vs editor modal separation
+const selectionOpen = ref(false);
+const editorDialogOpen = ref(false);
+const editorInitialData = ref<EventFormData | null>(null);
+
+// editing target index in actions list (-1 = new)
+const editingIndex = ref<number>(-1);
+
+// ref to action editor component
+const actionEditorRef = ref<any | null>(null);
 
 // build a local registry map from DI-resolved UI action entries
 const ACTION_REGISTRY: Record<string, any> = (() => {
@@ -212,7 +230,10 @@ const saveShortcut = async () => {
 const addAction = () => {
     // Open the selection dialog for adding a new action
     dialogInitialData.value = null;
-    dialogKey.value++;
+    // mark editing index as new
+    editingIndex.value = -1;
+    // open selection UI inside parent dialog
+    selectionOpen.value = true;
     dialogOpen.value = true;
 };
 
@@ -232,53 +253,87 @@ const moveDown = (idx: number) => {
     actions.value.splice(idx + 1, 0, a);
 };
 
-function openActionManager(index: number) {
+async function openActionManager(index: number) {
     // Open editor for existing action at index. Compute initial data from actions.
     const initial = { ...(actions.value[index] as EventFormData) };
-    dialogInitialData.value = initial;
-    dialogKey.value++;
-    dialogOpen.value = true;
+    // set editing target and open editor modal with initial data
+    editingIndex.value = index;
+    editorInitialData.value = initial;
+    editorDialogOpen.value = true;
+    // ensure selection UI is closed
+    selectionOpen.value = false;
+    // wait mount and reset child form (await nextTick and retry a few ticks if needed)
+    await nextTick();
+    for (let i = 0; i < 3 && !actionEditorRef.value?.reset; i++) {
+        await nextTick();
+    }
+    actionEditorRef.value?.reset?.();
 }
 
-function onTypeSelected(payload: { type: string }) {
+async function onTypeSelected(payload: { type: string }) {
     const t = payload.type;
+    // close selection and open editor modal with initial DTO
+    selectionOpen.value = false;
     const initial = appEventService.getDefault(t) as EventFormData;
-    dialogInitialData.value = initial;
-    dialogKey.value++;
+    editorInitialData.value = initial;
+    // indicate this is a new item
+    editingIndex.value = -1;
+    editorDialogOpen.value = true;
+    // wait and ensure child is mounted/exposed before calling reset
+    await nextTick();
+    for (let i = 0; i < 3 && !actionEditorRef.value?.reset; i++) {
+        await nextTick();
+    }
+    actionEditorRef.value?.reset?.();
 }
 
 function onEditorSave(dto: EventFormData & { eventId?: string }) {
-    // Try to replace existing by eventId if present
-    let replaced = false;
+    // Replace by eventId if present
     if ((dto as any).eventId) {
         const idx = actions.value.findIndex(a => (a as any).eventId === (dto as any).eventId);
         if (idx >= 0) {
             actions.value.splice(idx, 1, dto as EventFormData);
-            replaced = true;
+            editingIndex.value = -1;
+            closeEditorDialog();
+            return;
         }
     }
-    if (!replaced) {
-        // fallback: replace by object identity if possible
-        const idx = actions.value.findIndex(a => a === dialogInitialData.value);
-        if (idx >= 0) {
-            actions.value.splice(idx, 1, dto as EventFormData);
-            replaced = true;
-        }
+    // If editingIndex set, replace at that index
+    if (editingIndex.value >= 0) {
+        actions.value.splice(editingIndex.value, 1, dto as EventFormData);
+        editingIndex.value = -1;
+        closeEditorDialog();
+        return;
     }
-    if (!replaced) {
-        actions.value.push(dto as EventFormData);
-    }
-    closeActionDialog();
+    // otherwise add new
+    actions.value.push(dto as EventFormData);
+    // close editor modal (not the parent dialog)
+    closeEditorDialog();
 }
 
 function onDialogCancel() {
-    closeActionDialog();
+    // cancel from selection dialog or editor
+    if (selectionOpen.value) selectionOpen.value = false;
+    if (editorDialogOpen.value) closeEditorDialog();
 }
 
 function closeActionDialog() {
     dialogInitialData.value = null;
     dialogOpen.value = false;
+    selectionOpen.value = false;
+    editorDialogOpen.value = false;
 }
+
+function closeEditorDialog() {
+    editorInitialData.value = null;
+    editorDialogOpen.value = false;
+    editingIndex.value = -1;
+}
+
+// Provide a stable key for v-for rendering. Prefer existing eventId/actionId if present.
+const keyFor = (a: any, idx: number) => {
+    return a?.eventId ?? a?.actionId ?? `local-${idx}-${a?.actionType ?? 'act'}`;
+};
 </script>
 
 <style scoped>

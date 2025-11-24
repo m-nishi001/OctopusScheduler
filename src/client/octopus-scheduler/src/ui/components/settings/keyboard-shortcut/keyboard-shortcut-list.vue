@@ -13,7 +13,7 @@
                     <td>{{ shortcut.keys.join(' + ') }}</td>
                     <td>
                         <ul class="action-list">
-                            <li v-for="(a, i) in shortcut.actions" :key="i">{{ a.type }}</li>
+                            <li v-for="(a, i) in shortcut.actions" :key="actionKey(a, i)">{{ a.type }}</li>
                         </ul>
                     </td>
                     <td>
@@ -48,6 +48,11 @@ const onEdit = (shortcut: KeyboardShortcut) => {
 
 const onDelete = (id: string) => {
     emit('delete', id);
+};
+
+// compute stable key for action entries in the saved shortcut list
+const actionKey = (a: any, i: number) => {
+    return a?.eventId ?? a?.id ?? `act-${i}-${a?.type ?? 'x'}`;
 };
 </script>
 

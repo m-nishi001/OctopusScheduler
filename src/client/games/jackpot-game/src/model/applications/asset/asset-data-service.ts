@@ -43,9 +43,10 @@ export class AssetDataService {
   }
 
   async replaceLocalWithDrive(
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
+    remoteMetas?: any[]
   ): Promise<{ replaced: number; idMap?: { [oldId: string]: string } }> {
-    return await this.repo.replaceLocalWithDrive(onProgress);
+    return await this.repo.replaceLocalWithDrive(onProgress, remoteMetas);
   }
 
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {

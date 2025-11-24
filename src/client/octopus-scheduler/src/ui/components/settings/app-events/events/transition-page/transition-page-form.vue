@@ -6,7 +6,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, watch } from 'vue';
 import type { TransitionPageFormData, EditTransitionPageFormData } from '../../app-events/types';
 
 type Props = {
@@ -30,7 +30,16 @@ const save = () => {
     }
 };
 
-defineExpose({ save });
+const reset = () => {
+    formData.transitionUrl = props.initialData?.transitionUrl ?? '';
+};
+
+// auto-reset when initialData changes
+watch(() => props.initialData, () => {
+    reset();
+});
+
+defineExpose({ save, reset });
 </script>
 
 <style scoped>

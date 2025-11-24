@@ -565,7 +565,7 @@ select.admin-input {
 
 /* Apply same admin-input appearance to child components' inputs/selects
    Using deep selector so scoped styles propagate into nested components. */
-::v-deep .admin-input {
+:deep(.admin-input) {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
@@ -575,7 +575,7 @@ select.admin-input {
     transition: box-shadow .15s ease, border-color .15s ease;
 }
 
-::v-deep .admin-input:focus {
+:deep(.admin-input:focus) {
     outline: none;
     border-color: rgba(255, 255, 255, 0.16);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) inset, 0 0 0 3px rgba(88, 156, 255, 0.06);

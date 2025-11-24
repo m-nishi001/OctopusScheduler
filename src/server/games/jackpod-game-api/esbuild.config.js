@@ -31,11 +31,10 @@ const internalNames = [
   "updateDriveData",
   "addJson",
   "getJson",
-  "addSpreadsheetData",
-  "getAllSpreadsheetNames",
-  "getSpreadsheetData",
-  "removeSpreadsheetData",
-  "updateSpreadsheetData",
+  "addJsonData",
+  "getJsonData",
+  "listJsonMetaData",
+  "updateJsonData",
 ];
 
 const bannerVars = internalNames.map((n) => `_${prefix}_${n}`).join(", ");

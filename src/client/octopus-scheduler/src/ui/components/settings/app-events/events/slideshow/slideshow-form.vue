@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, watch } from 'vue';
 import type { SlideshowFormData, EditSlideshowFormData } from '../../app-events/types';
 
 type Props = { initialData?: SlideshowFormData | EditSlideshowFormData }
@@ -32,11 +32,35 @@ const save = () => {
     }
 };
 
-defineExpose({ save });
+const reset = () => {
+    formData.folderId = props.initialData?.folderId ?? '';
+    formData.displayDuration = props.initialData?.displayDuration ?? 10;
+};
+
+watch(() => props.initialData, () => {
+    reset();
+});
+
+defineExpose({ save, reset });
 </script>
 
 <style scoped>
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; }
-.form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #555; border-radius: 4px; background: #444; color: #fff; }
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #444;
+    color: #fff;
+}
 </style>

@@ -15,6 +15,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { EventFormData } from './types';
 import { container } from 'tsyringe';
 import { UIActionEntryToken } from '../../../../core/container';
@@ -43,10 +44,10 @@ const emit = defineEmits<{
     (e: 'remove', index: number): void;
 }>();
 
-const label = (() => {
+const label = computed(() => {
     const entry = ACTION_REGISTRY[props.action.actionType];
     return entry ? entry.label : props.action.actionType;
-})();
+});
 
 function summarize(a: EventFormData): string {
     switch (a.actionType) {
@@ -63,7 +64,7 @@ function summarize(a: EventFormData): string {
     }
 }
 
-const summary = summarize(props.action);
+const summary = computed(() => summarize(props.action));
 </script>
 
 <style scoped>

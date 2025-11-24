@@ -56,15 +56,17 @@ export class AssetRepository implements IAssetRepository {
 
   async getAssets(): Promise<Asset[]> {
     const all = await this.localStorage.getAll<any>();
-    const results: Asset[] = [];
-    for (const v of Array.from(all.values())) {
-      // migrate older DriveData shape if necessary
-      if (v && v.fileDataUrl && v.metadata) {
-        results.push(await this.driveDataToAsset(v as DriveData));
-      } else {
-        results.push(v as Asset);
-      }
-    }
+    const values = Array.from(all.values());
+    // parallelize drive-data->asset migration without concurrency cap
+    const migrated = await Promise.all(
+      values.map(async (v) => {
+        if (v && v.fileDataUrl && v.metadata) {
+          return await this.driveDataToAsset(v as DriveData);
+        }
+        return v as Asset;
+      })
+    );
+    const results: Asset[] = migrated as Asset[];
     return results;
   }
 
@@ -121,57 +123,52 @@ export class AssetRepository implements IAssetRepository {
     // handle drive -> local (fetch all remote drive data and save locally)
     if (mode === "drive") {
       onProgress?.("Fetching remote assets");
-      // fetch remote metadata
-      const metaService = new GasFunctionService("getDriveMetaData");
-      let remoteMetas: Array<any> = [];
-      try {
-        remoteMetas = (await metaService.call("")) || [];
-      } catch (e) {
-        onProgress?.(
-          `Failed to fetch remote metadata: ${(e as Error).message}`
-        );
-        return;
-      }
 
-      // fetch drive data for each metadata
+      // fetch drive data for each metadata in unlimited parallel
       const getService = new GasFunctionService("getDriveData");
-      const fetchedAssets: Asset[] = [];
-      for (const m of remoteMetas) {
-        if (!m || !m.fileId) continue;
-        try {
-          const res = await getService.call(m.fileId);
-          if (!res) continue;
-          const blobResponse = await fetch(res.fileDataUrl);
-          const blob = await blobResponse.blob();
-          const id = res.metadata?.driveDataId || crypto.randomUUID();
-          const newAsset: Asset = {
-            id,
-            blob,
-            name: res.fileName || "",
-            uploadedAt: res.uploadDate
-              ? String(res.uploadDate)
-              : new Date().toISOString(),
-            lastUpdated: res.metadata?.lastUpdate
-              ? String(res.metadata.lastUpdate)
-              : new Date().toISOString(),
-            size: res.metadata?.size || 0,
-            directoryId: res.metadata?.parentFolderId || undefined,
-          };
-          fetchedAssets.push(newAsset);
-        } catch (e) {
-          onProgress?.(
-            `Failed to fetch file ${m.fileId}: ${(e as Error).message}`
-          );
-        }
-      }
+      const fetchPromises = remoteMetas
+        .filter((m: any) => m && m.fileId)
+        .map(async (m: any) => {
+          try {
+            const res = await getService.call(m.fileId);
+            if (!res) return null;
+            const blobResponse = await fetch(res.fileDataUrl);
+            const blob = await blobResponse.blob();
+            const id = res.metadata?.driveDataId || crypto.randomUUID();
+            const newAsset: Asset = {
+              id,
+              blob,
+              name: res.fileName || "",
+              uploadedAt: res.uploadDate
+                ? String(res.uploadDate)
+                : new Date().toISOString(),
+              lastUpdated: res.metadata?.lastUpdate
+                ? String(res.metadata.lastUpdate)
+                : new Date().toISOString(),
+              size: res.metadata?.size || 0,
+              directoryId: res.metadata?.parentFolderId || undefined,
+            };
+            return newAsset;
+          } catch (e) {
+            onProgress?.(
+              `Failed to fetch file ${m.fileId}: ${(e as Error).message}`
+            );
+            return null;
+          }
+        });
+
+      const fetchedAssets = (await Promise.all(fetchPromises)).filter(
+        (a): a is Asset => a !== null
+      );
 
       // replace local storage entirely for drive->local
       // WARNING: This deletes local-only assets. Called only when UI confirms.
       onProgress?.(`Replacing local assets (${fetchedAssets.length})`);
       await this.localStorage.clear();
-      for (const asset of fetchedAssets) {
-        await this.localStorage.save(asset.id, asset);
-      }
+      const savePromises = fetchedAssets.map((asset) =>
+        this.localStorage.save(asset.id, asset)
+      );
+      await Promise.all(savePromises);
 
       onProgress?.("Asset sync finished (drive -> local)");
       return;

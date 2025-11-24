@@ -30,17 +30,62 @@ const assetRepository = container.resolve<IAssetRepository>(IAssetRepositoryToke
 
 const startSlideshow = async (data: SlideshowData) => {
     slideshowData.value = data;
-    const allAssets = await assetRepository.getAssets();
-    const assetMetadata = allAssets.filter(
-        (meta: any) => meta.directoryId === data.folderId && meta.type === "image"
-    );
-    images.value = assetMetadata.map((meta: any) => ({ id: meta.id, url: "", name: meta.name }));
+    // 1) fetch metadata only
+    const metaService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("getDriveMetaData");
+    let metas: any[] = [];
+    try {
+        metas = (await metaService.call(data.folderId)) || [];
+    } catch (err) {
+        console.error('Failed to fetch drive metadata', err);
+    }
+
+    // filter image metas and initialize images list with empty urls
+    const imageMetas = metas.filter((m: any) => (m?.fileName || '').match(/\.(jpg|jpeg|png|gif|webp)$/i));
+    images.value = imageMetas.map((m: any) => ({ id: m.fileId || m.driveDataId || String(Math.random()), url: "", name: m.fileName || "" }));
     currentIndex.value = 0;
-    await loadCurrentImage();
+
+    if (images.value.length === 0) return;
+
+    // 2) fetch first image immediately (parallel if multiple firsts desired)
+    const first = images.value[0];
+    try {
+        const getService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("getDriveData");
+        const res = await getService.call(first.id);
+        if (res && res.fileDataUrl) {
+            const blob = await (await fetch(res.fileDataUrl)).blob();
+            first.url = URL.createObjectURL(blob);
+        }
+    } catch (e) {
+        console.error('failed to fetch first slideshow image', e);
+    }
+
+    // 3) start interval after first image available
     intervalId.value = setInterval(async () => {
+        if (images.value.length === 0) return;
         currentIndex.value = (currentIndex.value + 1) % images.value.length;
         await loadCurrentImage();
     }, data.displayDuration * 1000);
+
+    // 4) bulk-prefetch remaining images without concurrency cap
+    (async () => {
+        try {
+            const getService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("getDriveData");
+            const fetchPromises = images.value.map(async (img) => {
+                if (img.url) return; // already loaded
+                try {
+                    const res = await getService.call(img.id);
+                    if (!res) return;
+                    const blob = await (await fetch(res.fileDataUrl)).blob();
+                    img.url = URL.createObjectURL(blob);
+                } catch (e) {
+                    console.error('prefetch failed for', img.id, e);
+                }
+            });
+            await Promise.all(fetchPromises);
+        } catch (e) {
+            console.error('bulk prefetch failed', e);
+        }
+    })();
     // TODO: Play BGM
 };
 

@@ -61,10 +61,8 @@
             <div style="display:flex;align-items:center;gap:12px;">
                 <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving || uploading"
                     :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
-                <button class="admin-btn mt-4" @click="handleClearClick" :disabled="saving || uploading || syncing"
-                    :style="{ opacity: (saving || uploading || syncing) ? 0.6 : 1 }">クリア</button>
-                <button class="admin-btn mt-4" @click="handleSyncClick" :disabled="syncing"
-                    :style="{ opacity: syncing ? 0.6 : 1 }">同期</button>
+                <button class="admin-btn mt-4" @click="handleClearClick" :disabled="saving || uploading"
+                    :style="{ opacity: (saving || uploading) ? 0.6 : 1 }">クリア</button>
                 <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
 
@@ -92,13 +90,7 @@
                 </div>
             </div>
 
-            <div v-if="syncing" class="modal-overlay">
-                <div class="modal-content">
-                    <h3>同期中...</h3>
-                    <p>{{ syncStatus }}</p>
-                    <div class="spinner"></div>
-                </div>
-            </div>
+
 
             <UnsavedChangesDialog :visible="showUnsavedDialog" @discard="handleDiscardChanges"
                 @cancel="handleCancelDiscard" />
@@ -140,8 +132,7 @@ const fetchAssets = async () => {
 
 const tempAssets: Asset[] = [];
 
-const syncing = ref(false);
-const syncStatus = ref("");
+// per-screen sync removed; use global bulk sync dialog instead
 
 const hasUnsavedChanges = ref(false);
 const showUnsavedDialog = ref(false);
@@ -390,20 +381,7 @@ onUnmounted(() => {
     stopPreview();
 });
 
-const handleSyncClick = async () => {
-    syncing.value = true;
-    syncStatus.value = "サーバーと同期中...";
-    try {
-        await screenSettingsService.syncToDrive();
-        await loadConfig();
-        syncStatus.value = "同期完了";
-    } catch (error) {
-        console.error("Failed to sync screen configs:", error);
-        syncStatus.value = "同期に失敗しました";
-    } finally {
-        syncing.value = false;
-    }
-};
+// per-screen sync removed; handled via header "一括同期"
 
 const handleDiscardChanges = () => {
     showUnsavedDialog.value = false;

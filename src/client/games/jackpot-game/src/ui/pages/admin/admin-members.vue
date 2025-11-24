@@ -5,9 +5,6 @@
       <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openModal('add')" title="Add members">
         <span class="emoji">➕</span>
       </button>
-      <button class="admin-btn icon-only sync-icon" @click.prevent="openMemberSyncModal" title="Sync members">
-        <span class="emoji">🔄</span>
-      </button>
       <button class="admin-btn icon-only delete-icon" @click="openDeleteModal"
         :disabled="!selectedMembers.length || deleting" title="Delete selected">
         <span class="emoji">🗑️</span>
@@ -108,29 +105,8 @@
   </div>
 
 
-  <div v-if="showMemberSyncModal" class="modal-overlay">
-    <div class="modal-content">
-      <h3>メンバー同期モードを選択</h3>
-      <p>ローカルとDriveのどちらを優先しますか？</p>
-      <div class="modal-actions">
-        <button class="admin-btn" @click.prevent="confirmMemberSyncMode('local')">ローカル優先 (Local wins)</button>
-        <button class="admin-btn sync-btn" @click.prevent="confirmMemberSyncMode('drive')">Drive優先 (Drive wins)</button>
-        <button class="admin-btn delete-btn" @click.prevent="showMemberSyncModal = false">キャンセル</button>
-      </div>
-    </div>
-  </div>
 
 
-  <div v-if="showReplaceWarningModal" class="modal-overlay">
-    <div class="modal-content">
-      <h3>注意: ローカルデータを置換します</h3>
-      <p>Drive のコンテンツに合わせてローカルのメンバーを置換します。既存のローカルデータは削除されます。続行しますか？</p>
-      <div class="modal-actions">
-        <button class="admin-btn delete-btn" @click.prevent="showReplaceWarningModal = false">キャンセル</button>
-        <button class="admin-btn sync-btn" @click.prevent="performReplaceFromDrive">置換して同期する</button>
-      </div>
-    </div>
-  </div>
 
 
   <div v-if="showDeleteModal" class="modal-overlay">
@@ -154,13 +130,6 @@
   </div>
 
 
-  <div v-if="syncing" class="modal-overlay">
-    <div class="modal-content">
-      <h3>サーバーと同期中...</h3>
-      <p>{{ syncMessage || "メンバーを同期しています。しばらくお待ちください。" }}</p>
-      <div class="spinner"></div>
-    </div>
-  </div>
   <AssetSelectionDialog v-if="showAssetDialog" @close="showAssetDialog = false" @selected="onAssetsSelected" />
   <DataUploadDialog v-if="showDataUploadDialog" :show="showDataUploadDialog" type="member"
     @close="showDataUploadDialog = false" @refresh="fetchMembers" />
@@ -326,8 +295,6 @@ const confirmDeleteSelected = async () => { await deleteSelectedMembers(); close
 const adding = ref(false);
 const deleting = ref(false);
 const deleteMessage = ref("");
-const syncing = ref(false);
-const syncMessage = ref("");
 
 const updateModalPhotoPreview = async () => {
 
@@ -446,53 +413,6 @@ const deleteMember = async (id: string) => {
   }
 };
 
-const showMemberSyncModal = ref(false);
-const showReplaceWarningModal = ref(false);
-const pendingSyncMode = ref<'local' | 'drive' | null>(null);
-
-const openMemberSyncModal = () => {
-  showMemberSyncModal.value = true;
-};
-
-const confirmMemberSyncMode = async (mode: 'local' | 'drive') => {
-
-  showMemberSyncModal.value = false;
-  if (mode === 'local') {
-
-    syncing.value = true;
-    syncMessage.value = '';
-    try {
-      await uploadMembersJsonToDrive();
-    } catch (e) {
-      console.error('Member sync (local->drive) failed', e);
-    } finally {
-      syncing.value = false;
-      syncMessage.value = '';
-    }
-  } else {
-
-    pendingSyncMode.value = 'drive';
-    showReplaceWarningModal.value = true;
-  }
-};
-
-const performReplaceFromDrive = async () => {
-
-  showReplaceWarningModal.value = false;
-  if (pendingSyncMode.value !== 'drive') return;
-  pendingSyncMode.value = null;
-  syncing.value = true;
-  syncMessage.value = '';
-  try {
-    await downloadMembersJsonFromDrive();
-    await fetchMembers();
-  } catch (e) {
-    console.error('Failed to replace members from Drive', e);
-  } finally {
-    syncing.value = false;
-    syncMessage.value = '';
-  }
-};
 
 const deleteSelectedMembers = async () => {
   if (!selectedMembers.value.length) return;
@@ -518,67 +438,6 @@ const saveMembersToLocalJson = async () => {
     localStorage.setItem(STORAGE_KEY, payload);
   } catch (e) {
     console.error('Failed to save members JSON to localStorage', e);
-  }
-};
-
-
-const uploadMembersJsonToDrive = async () => {
-  try {
-    const json = localStorage.getItem(STORAGE_KEY) || JSON.stringify(members.value || []);
-    const service = new GasFunctionService('addJson');
-    const appFileId = String(Date.now()) + '-' + Math.random().toString(36).slice(2, 8);
-    const driveJson = {
-      appFileId: appFileId,
-      metadata: {},
-      fileName: 'members.json',
-      jsonText: json,
-      uploadDate: new Date().toISOString(),
-      parentFolderId: '',
-    };
-
-    const res = await service.call<DriveMetadata>(driveJson as DriveJsonData);
-    const fileId = res?.fileId;
-    if (fileId) {
-      localStorage.setItem('jackpot-members-last-file-id', fileId);
-      console.log('Uploaded members.json fileId=', fileId);
-    }
-  } catch (e) {
-    console.error('Failed to upload members JSON via GAS', e);
-  }
-};
-
-const downloadMembersJsonFromDrive = async () => {
-  try {
-    const lastId = localStorage.getItem('jackpot-members-last-file-id');
-    if (!lastId) {
-      console.warn('No last uploaded file id saved');
-      return;
-    }
-    const service = new GasFunctionService('getJson');
-    const resp = await service.call<{ json: string }>(lastId);
-    if (resp && resp.json) {
-      const json = resp.json;
-      localStorage.setItem(STORAGE_KEY, json);
-      try {
-        const parsed = JSON.parse(json || '[]');
-        if (Array.isArray(parsed)) {
-
-          try {
-            await memberRepo.replaceAllMembers(parsed as any);
-          } catch (e) {
-            console.error('Failed to persist members into local repo:', e);
-          }
-
-          await fetchMembers();
-        } else {
-          console.warn('Downloaded members JSON is not an array');
-        }
-      } catch (e) {
-        console.error('Failed to parse downloaded members JSON', e);
-      }
-    }
-  } catch (e) {
-    console.error('Failed to download members JSON via GAS', e);
   }
 };
 
@@ -814,16 +673,7 @@ const openDataUploadDialog = () => { showDataUploadDialog.value = true; };
   transform: translateY(-2px);
 }
 
-.sync-icon {
-
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-  color: #dbeeff;
-}
-
-.sync-icon .emoji {
-  font-weight: 700;
-}
+/* removed legacy sync-icon styles (per-screen sync was removed) */
 
 .icon-only .emoji,
 .add-icon .emoji {

@@ -13,7 +13,7 @@ declare let _jackpotGame_addDriveData: (
   driveData: DriveData
 ) => GasResponse<DriveMetadata>;
 declare let _jackpotGame_getDriveMetaData: (
-  folderId: string
+  folderId?: string
 ) => GasResponse<DriveMetadata[]>;
 declare let _jackpotGame_getDriveData: (
   dataId: string
@@ -28,22 +28,51 @@ declare let _jackpotGame_addJson: (
 declare let _jackpotGame_getJson: (
   fileId?: string
 ) => GasResponse<{ json: string }>;
+declare let _jackpotGame_addJsonData: (
+  driveJson: DriveJsonData
+) => GasResponse<DriveMetadata>;
+declare let _jackpotGame_getJsonData: (
+  fileId?: string
+) => GasResponse<{ json: string }>;
+declare let _jackpotGame_listJsonMetaData: (
+  folderId?: string
+) => GasResponse<DriveMetadata[]>;
+declare let _jackpotGame_updateJsonData: (
+  driveJson: DriveJsonData
+) => GasResponse<void>;
 
 // Instantiate services
 const driveService = new GoogleDriveService();
 
+// Hard-coded ScriptProperty keys (project-specific)
+const JSON_FOLDER_PROPERTY = "jackpot-game-json-folder";
+const ASSET_FOLDER_PROPERTY = "jackpot-game-asset-folder";
+
 // Helper: resolve the asset folder id to use for uploads. Prefer provided folderId,
-// otherwise fall back to ScriptProperties key 'jackpot-game-asset-folder-id'.
+// otherwise fall back to ScriptProperties key defined above.
 function getAssetFolderId(providedFolderId?: string): string {
   const folderId =
     providedFolderId ||
-    PropertiesService.getScriptProperties().getProperty(
-      "jackpot-game-asset-folder-id"
-    ) ||
+    PropertiesService.getScriptProperties().getProperty(ASSET_FOLDER_PROPERTY) ||
     "";
   if (!folderId) {
     throw new Error(
-      "ScriptProperties 'jackpot-game-asset-folder-id' is not configured and no parentFolderId was provided."
+      `ScriptProperties '${ASSET_FOLDER_PROPERTY}' is not configured and no parentFolderId was provided.`
+    );
+  }
+  return folderId;
+}
+
+// Helper: resolve the json folder id to use for JSON files. Prefer provided folderId,
+// otherwise fall back to JSON_FOLDER_PROPERTY.
+function getJsonFolderId(providedFolderId?: string): string {
+  const folderId =
+    providedFolderId ||
+    PropertiesService.getScriptProperties().getProperty(JSON_FOLDER_PROPERTY) ||
+    "";
+  if (!folderId) {
+    throw new Error(
+      `ScriptProperties '${JSON_FOLDER_PROPERTY}' is not configured and no parentFolderId was provided.`
     );
   }
   return folderId;
@@ -62,10 +91,11 @@ _jackpotGame_addDriveData = (
 };
 
 _jackpotGame_getDriveMetaData = (
-  folderId: string
+  folderId?: string
 ): GasResponse<DriveMetadata[]> => {
   try {
-    const result = driveService.getDriveMetaData(folderId);
+    const resolved = folderId || getAssetFolderId();
+    const result = driveService.getDriveMetaData(resolved);
     return { status: "success", data: result };
   } catch (error) {
     return { status: "error", message: (error as Error).message };
@@ -103,7 +133,7 @@ _jackpotGame_addJson = (
   driveJson: DriveJsonData
 ): GasResponse<DriveMetadata> => {
   try {
-    const folderId = getAssetFolderId(driveJson.parentFolderId);
+    const folderId = getJsonFolderId(driveJson.parentFolderId);
 
     // jsonText is required; create an application/json blob from it.
     const blob = Utilities.newBlob(
@@ -143,15 +173,15 @@ _jackpotGame_addJson = (
 
 _jackpotGame_getJson = (fileId?: string): GasResponse<{ json: string }> => {
   try {
-    // Make sure even if getAssetFolderId throws, we handle it gracefully
+    // Make sure even if getJsonFolderId throws, we handle it gracefully
     let folderId = "";
     try {
-      folderId = getAssetFolderId();
+      folderId = getJsonFolderId();
     } catch (e) {
-      // Can't find asset folder — log and return an empty JSON array so
+      // Can't find json folder — log and return an empty JSON array so
       // client-side callers still get a well-formed response.
       console.warn(
-        "getJson: asset folder id not configured or not provided",
+        "getJson: json folder id not configured or not provided",
         e
       );
       return { status: "success", data: { json: JSON.stringify([]) } };
@@ -203,5 +233,50 @@ _jackpotGame_getJson = (fileId?: string): GasResponse<{ json: string }> => {
     // value. Still log the error for diagnostics.
     console.error("_jackpotGame_getJson error:", (error as Error).message);
     return { status: "success", data: { json: JSON.stringify([]) } };
+  }
+};
+
+// Aliases (octopus-compatible names)
+_jackpotGame_addJsonData = (driveJson: DriveJsonData): GasResponse<DriveMetadata> => {
+  try {
+    // Delegate to existing implementation
+    return _jackpotGame_addJson(driveJson);
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+_jackpotGame_getJsonData = (fileId?: string): GasResponse<{ json: string }> => {
+  try {
+    return _jackpotGame_getJson(fileId);
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+_jackpotGame_listJsonMetaData = (folderId?: string): GasResponse<DriveMetadata[]> => {
+  try {
+    const resolved = folderId || getJsonFolderId();
+    const result = driveService.getDriveMetaData(resolved);
+    return { status: "success", data: result };
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+_jackpotGame_updateJsonData = (driveJson: DriveJsonData): GasResponse<void> => {
+  try {
+    const fileId = driveJson.metadata?.fileId;
+    if (!fileId) {
+      return { status: "error", message: "metadata.fileId is required for update" };
+    }
+    const file = DriveApp.getFileById(fileId);
+    file.setContent(driveJson.jsonText);
+    if (driveJson.fileName && driveJson.fileName !== file.getName()) {
+      file.setName(driveJson.fileName);
+    }
+    return { status: "success", data: undefined };
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
   }
 };

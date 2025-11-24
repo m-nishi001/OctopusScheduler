@@ -23,7 +23,22 @@ function derivePrefix() {
 
 const prefix = derivePrefix();
 
-const internalNames = ["stopForm", "getSheetData"];
+const internalNames = [
+  "stopForm",
+  "getSheetData",
+  "addDriveData",
+  "getDriveMetaData",
+  "getDriveData",
+  "removeDriveData",
+  "updateDriveData",
+  "addJson",
+  "getJson",
+  "addJsonData",
+  "getJsonData",
+  "listJsonMetaData",
+  "updateJsonData",
+  "trashFolderContents",
+];
 
 const bannerVars = internalNames.map((n) => `_${prefix}_${n}`).join(", ");
 const footerFns = internalNames

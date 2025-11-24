@@ -281,18 +281,22 @@ export class AssetDataRepository implements IAssetDataRepository {
   }
 
   async replaceLocalWithDrive(
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
+    remoteMetas?: any[]
   ): Promise<{ replaced: number; idMap: { [oldId: string]: string } }> {
     onProgress?.("Start replacing local assets from Google Drive");
 
-    const remoteMetas = await this.fetchRemoteMetas(onProgress);
-    if (!remoteMetas) return { replaced: 0, idMap: {} };
+    let metas = remoteMetas;
+    if (!metas) {
+      metas = await this.fetchRemoteMetas(onProgress);
+    }
+    if (!metas) return { replaced: 0, idMap: {} };
 
     const allLocal = await this.localStorage.getAll<Asset>();
     const localMap = new Map<string, Asset>();
     for (const [k, v] of allLocal) localMap.set(String(k), v as Asset);
 
-    const neededMetas = remoteMetas.filter((m) => {
+    const neededMetas = metas.filter((m) => {
       const id = String(m.driveDataId);
       const local = localMap.get(id);
       if (!local) return true;
@@ -306,7 +310,7 @@ export class AssetDataRepository implements IAssetDataRepository {
     });
 
     onProgress?.(
-      `Need to fetch ${neededMetas.length}/${remoteMetas.length} remote files`
+      `Need to fetch ${neededMetas.length}/${metas.length} remote files`
     );
 
     const assets = await this.fetchDriveAssets(neededMetas, onProgress);

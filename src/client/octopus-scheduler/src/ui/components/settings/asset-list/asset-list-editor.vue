@@ -5,10 +5,8 @@
         <div class="admin-actions">
             <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal"
                 title="Add assets">➕</button>
-            <button class="admin-btn icon-only sync-icon" @click="openSyncDialog" :disabled="syncing"
-                title="Sync with Google Drive">🔄</button>
             <button class="admin-btn icon-only delete-icon" @click="deleteSelectedAssets"
-                :disabled="!selectedAssets.length || syncing" title="Delete selected">🗑️</button>
+                :disabled="!selectedAssets.length" title="Delete selected">🗑️</button>
         </div>
 
 
@@ -83,30 +81,9 @@
             </div>
         </div>
 
-        <!-- Sync direction modal -->
-        <div v-if="showSyncDialog" class="modal-overlay">
-            <div class="modal-content">
-                <h3>同期方向を選択</h3>
-                <p>同期時にどちらを正としますか？</p>
-                <div class="modal-actions">
-                    <button class="admin-btn" @click.prevent="executeSync">ローカル優先 (Local → Drive)</button>
-                    <button class="admin-btn sync-btn" @click.prevent="selectDriveToLocal">Drive優先 (Drive →
-                        Local)</button>
-                    <button class="admin-btn delete-btn" @click.prevent="showSyncDialog = false">キャンセル</button>
-                </div>
-            </div>
-        </div>
+        <!-- per-screen sync removed: use 一括同期 (Bulk Sync) in header -->
 
-        <div v-if="showReplaceWarningModal" class="modal-overlay">
-            <div class="modal-content">
-                <h3>注意: ローカルデータを置換します</h3>
-                <p>Drive のコンテンツに合わせてローカルのアセットを置換します。既存のローカルデータは削除されます。続行しますか？</p>
-                <div class="modal-actions">
-                    <button class="admin-btn delete-btn" @click.prevent="performReplaceFromDrive">置換して同期する</button>
-                    <button class="admin-btn" @click.prevent="showReplaceWarningModal = false">キャンセル</button>
-                </div>
-            </div>
-        </div>
+        <!-- Drive->Local replace flow removed (use Bulk Sync which handles backups and confirmations) -->
 
         <div v-if="previewAsset" class="modal-overlay" @click.self="closePreview">
             <div class="modal-content">
@@ -151,10 +128,7 @@ const closeAddModal = () => { showAddModal.value = false; selectedFiles.value = 
 const confirmAdd = async () => { await addAssets(); closeAddModal(); };
 
 const uploading = ref(false);
-const syncing = ref(false);
-const showSyncDialog = ref(false);
-const syncDirection = ref<'local' | 'drive' | ''>('');
-const showReplaceWarningModal = ref(false);
+// per-screen syncing removed; bulk sync is used from header dialog
 
 const previewAsset = ref<any>(null);
 const previewAssetType = ref<string | null>(null);
@@ -235,39 +209,7 @@ const deleteSelectedAssets = async () => {
     selectedAssets.value = [];
 };
 
-const openSyncDialog = () => { syncDirection.value = ''; showSyncDialog.value = true; };
-
-const executeSync = async () => {
-    if (!syncDirection.value) return;
-    if (syncDirection.value === 'drive') {
-        // show replace warning
-        showReplaceWarningModal.value = true;
-        return;
-    }
-    // local -> drive
-    syncing.value = true;
-    try {
-        await assetService.syncAssets('local');
-        await fetchAssets();
-    } finally {
-        syncing.value = false;
-        showSyncDialog.value = false;
-    }
-};
-
-const performReplaceFromDrive = async () => {
-    showReplaceWarningModal.value = false;
-    syncing.value = true;
-    try {
-        await assetService.syncAssets('drive');
-        await fetchAssets();
-    } finally {
-        syncing.value = false;
-        showSyncDialog.value = false;
-    }
-};
-
-const selectDriveToLocal = () => { syncDirection.value = 'drive'; showReplaceWarningModal.value = true; };
+// per-screen sync functions removed; assetService.syncAssets remains for bulk orchestration
 
 const onPreview = (asset: any) => { previewAsset.value = asset; previewAssetType.value = deriveAssetKind(asset); };
 const closePreview = () => { previewAsset.value = null; previewAssetType.value = null; };

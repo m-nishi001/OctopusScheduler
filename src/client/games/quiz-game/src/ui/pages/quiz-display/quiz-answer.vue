@@ -109,6 +109,7 @@ const handleKeydown = (ev: KeyboardEvent) => {
 
 <style scoped>
 @media (max-width: 1023px) {
+
   /* Make main area fill available vertical space on small screens
      so the OptionCard (variant="large") can expand and be centered. */
   .answer-main {
@@ -129,13 +130,13 @@ const handleKeydown = (ev: KeyboardEvent) => {
   }
 
   /* Allow the child OptionCard (large variant) to fill the parent area. */
-  .answer-card ::v-deep(.option-card) {
+  .answer-card :deep(.option-card) {
     height: 100% !important;
     display: flex;
     flex-direction: column;
   }
 
-  .answer-card ::v-deep(.option-button) {
+  .answer-card :deep(.option-button) {
     height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
@@ -143,13 +144,13 @@ const handleKeydown = (ev: KeyboardEvent) => {
     justify-content: stretch !important;
   }
 
-  .answer-card ::v-deep(.image-wrapper) {
+  .answer-card :deep(.image-wrapper) {
     height: 100% !important;
     aspect-ratio: auto !important;
     max-height: calc(100vh - 220px) !important;
   }
 
-  .answer-card ::v-deep(.option-image) {
+  .answer-card :deep(.option-image) {
     height: 100% !important;
     width: 100% !important;
     object-fit: cover !important;
@@ -159,6 +160,7 @@ const handleKeydown = (ev: KeyboardEvent) => {
 
 <style scoped>
 @media (min-width: 1024px) {
+
   /* Make main area layout adjustments for large screens */
   .answer-main {
     flex: 1;
@@ -176,13 +178,13 @@ const handleKeydown = (ev: KeyboardEvent) => {
   }
 
   /* Adjust child component internals to use natural height */
-  .answer-card ::v-deep(.option-card) {
+  .answer-card :deep(.option-card) {
     height: auto !important;
     display: flex;
     flex-direction: column;
   }
 
-  .answer-card ::v-deep(.option-button) {
+  .answer-card :deep(.option-button) {
     height: auto !important;
     display: flex !important;
     flex-direction: column !important;
@@ -190,12 +192,12 @@ const handleKeydown = (ev: KeyboardEvent) => {
     justify-content: stretch !important;
   }
 
-  .answer-card ::v-deep(.image-wrapper) {
+  .answer-card :deep(.image-wrapper) {
     height: auto !important;
     aspect-ratio: auto !important;
   }
 
-  .answer-card ::v-deep(.option-image) {
+  .answer-card :deep(.option-image) {
     height: auto !important;
     width: 100% !important;
     object-fit: cover !important;

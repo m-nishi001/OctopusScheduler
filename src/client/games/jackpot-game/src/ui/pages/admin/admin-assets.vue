@@ -8,12 +8,9 @@
                 title="Add assets">
                 <span class="emoji">➕</span>
             </button>
-            <button class="admin-btn icon-only sync-icon" @click="syncAssets" :disabled="syncing"
-                :title="'Sync with Google Drive'">
-                <span class="emoji">🔄</span>
-            </button>
+            <!-- Per-screen asset sync removed; use 一括同期 (Bulk Sync) from header -->
             <button class="admin-btn icon-only delete-icon" @click="deleteSelectedAssets"
-                :disabled="!selectedAssets.length || syncing" title="Delete selected">
+                :disabled="!selectedAssets.length" title="Delete selected">
                 <span class="emoji">🗑️</span>
             </button>
         </div>
@@ -67,36 +64,7 @@
         </div>
     </div>
 
-    <div v-if="showSyncModeModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3>同期モードを選択</h3>
-            <p>同期時にどちらを正としますか？</p>
-            <div class="modal-actions">
-                <button class="admin-btn" @click.prevent="confirmSyncMode('local')">ローカル優先 (Local wins)</button>
-                <button class="admin-btn sync-btn" @click.prevent="confirmSyncMode('drive')">Drive優先 (Drive
-                    wins)</button>
-                <button class="admin-btn delete-btn" @click.prevent="showSyncModeModal = false">キャンセル</button>
-            </div>
-        </div>
-    </div>
-
-    <div v-if="syncing" class="modal-overlay">
-        <div class="modal-content">
-            <h3>Google Driveと同期中...</h3>
-            <p>{{ syncMessage || "アセットを同期しています。しばらくお待ちください。" }}</p>
-            <div class="spinner"></div>
-        </div>
-    </div>
-    <div v-if="showReplaceWarningModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3>注意: ローカルデータを置換します</h3>
-            <p>Drive のコンテンツに合わせてローカルのアセットを置換します。既存のローカルアセットは削除されます。続行しますか？</p>
-            <div class="modal-actions">
-                <button class="admin-btn delete-btn" @click.prevent="showReplaceWarningModal = false">キャンセル</button>
-                <button class="admin-btn sync-btn" @click.prevent="performReplaceFromDrive">置換して同期する</button>
-            </div>
-        </div>
-    </div>
+    <!-- Per-screen asset sync UI removed. Use global 一括同期. -->
     <div v-if="deleteAllDeleting" class="modal-overlay">
         <div class="modal-content">
             <h3>全件削除中...</h3>
@@ -139,9 +107,7 @@
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import type { Asset } from '@model/domains/drive-data/asset-data';
-import { container } from 'tsyringe';
-import { IPrizeRepositoryToken } from '@model/domains/prize/repository/i-prize-repository';
-import { PrizeService } from '@model/applications/prize/prize-service';
+// No longer require prize repo/service in this view (bulk sync handles mapping)
 
 function formatSize(size: number): string {
     if (size < 1024) return `${size} B`;
@@ -181,11 +147,7 @@ type UploadStatus = {
 
 const uploadStatuses = ref<UploadStatus[]>([]);
 const uploading = ref(false);
-const syncing = ref(false);
-const syncMessage = ref("");
-const showSyncModeModal = ref(false);
-const showReplaceWarningModal = ref(false);
-const pendingSyncMode = ref<"drive" | "local" | null>(null);
+// Per-screen asset sync removed; use bulk sync dialog in header instead
 const deleteAllDeleting = ref(false);
 const deleteAllMessage = ref("");
 
@@ -373,82 +335,7 @@ const deleteSelectedAssets = async () => {
 
 selectedAssets.value = [];
 
-const syncAssets = async () => {
-    showSyncModeModal.value = true;
-};
-
-const confirmSyncMode = async (mode: "drive" | "local") => {
-    showSyncModeModal.value = false;
-    if (mode === 'drive') {
-        pendingSyncMode.value = 'drive';
-        showReplaceWarningModal.value = true;
-        return;
-    }
-
-    syncing.value = true;
-    syncMessage.value = "";
-    try {
-        await assetDataService.syncAssetData((message) => {
-            syncMessage.value = message;
-        });
-        await fetchAssets();
-    } catch (error) {
-        console.error('同期エラー:', error);
-    } finally {
-        syncing.value = false;
-        syncMessage.value = "";
-    }
-};
-
-const performReplaceFromDrive = async () => {
-    showReplaceWarningModal.value = false;
-    if (pendingSyncMode.value !== 'drive') return;
-    pendingSyncMode.value = null;
-    syncing.value = true;
-    syncMessage.value = "";
-    try {
-        const res = await assetDataService.replaceLocalWithDrive((message) => {
-            syncMessage.value = message;
-        });
-        await fetchAssets();
-
-        // If replace returned an idMap, update prizes and member photo references
-        const idMap = (res as any)?.idMap as { [oldId: string]: string } | undefined;
-        if (idMap && Object.keys(idMap).length > 0) {
-            const prizeRepo = container.resolve<any>(IPrizeRepositoryToken as any);
-            // Update prizes
-            try {
-                const existingPrizes = await prizeRepo.getPrizes();
-                for (const p of existingPrizes) {
-                    let updated = false;
-                    const updatedP = { ...p } as any;
-                    ['imageAssetId', 'image2AssetId', 'bgm1AssetId', 'bgm2AssetId'].forEach(field => {
-                        const id = updatedP[field];
-                        if (id && idMap[id]) {
-                            updatedP[field] = idMap[id];
-                            updated = true;
-                        }
-                    });
-                    if (updated) {
-                        try {
-                            const prizeService = container.resolve(PrizeService);
-                            await prizeService.updatePrize(updatedP.id, updatedP as any);
-                        } catch (e) {
-                            console.warn('admin-assets: failed to update prize after asset replace', updatedP.id, e);
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn('admin-assets: failed to update prizes mapping after asset replace', e);
-            }
-        }
-    } catch (error) {
-        console.error('同期エラー:', error);
-    } finally {
-        syncing.value = false;
-        syncMessage.value = "";
-    }
-};
+// Asset sync is handled by global bulk sync; per-screen sync removed.
 
 
 onMounted(async () => {
@@ -548,11 +435,11 @@ function prettyAssetType(mime: string | undefined): string {
     height: 20px;
     margin: 0;
     vertical-align: middle;
-    
+
 }
 
 .select-all-label {
-    
+
     margin-left: 10px;
 }
 
@@ -799,7 +686,7 @@ function prettyAssetType(mime: string | undefined): string {
 }
 
 .select-all-icon {
-    
+
     border-radius: 8px;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
     color: #dbeeff;

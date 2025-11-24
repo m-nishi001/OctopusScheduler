@@ -30,11 +30,15 @@ const internalNames = [
   "getDriveData",
   "removeDriveData",
   "updateDriveData",
-  "addSpreadsheetRecords",
-  "updateSpreadsheetRecords",
-  "getAllSpreadsheetNames",
-  "getSpreadsheetData",
-  "removeSpreadsheetData",
+  // JSON management endpoints
+  "addJsonData",
+  "getJsonData",
+  "listJsonMetaData",
+  "updateJsonData",
+  // Keyboard shortcuts endpoints
+  "getKeyboardShortcuts",
+  "setKeyboardShortcuts",
+  // spreadsheet functions removed during staged cleanup
 ];
 
 const bannerVars = internalNames.map((n) => `_${prefix}_${n}`).join(", ");

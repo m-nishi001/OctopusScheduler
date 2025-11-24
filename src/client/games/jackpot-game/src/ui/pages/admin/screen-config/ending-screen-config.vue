@@ -21,8 +21,7 @@
                 <button class="admin-btn icon-only add-icon" @click="showAddDialog" title="追加">
                     <span class="emoji">➕</span>
                 </button>
-                <button class="admin-btn icon-only sync-icon" @click="handleSyncClick" :disabled="syncing"
-                    title="同期">🔄</button>
+
                 <button class="admin-btn icon-only delete-icon" @click="deleteSelectedContents"
                     :disabled="!selectedIndices.length" title="選択削除">🗑️</button>
             </div>
@@ -64,13 +63,7 @@
         </div>
     </div>
 
-    <div v-if="syncing" class="modal-overlay">
-        <div class="modal-content">
-            <h3>同期中...</h3>
-            <p>{{ syncStatus }}</p>
-            <div class="spinner"></div>
-        </div>
-    </div>
+
 
     <div v-if="dialogVisible" class="modal-overlay">
         <div class="modal-content dialog-modal">
@@ -137,7 +130,6 @@
 
     <div style="display:flex;align-items:center;gap:12px;margin-top:24px;">
         <button class="admin-btn" @click="handleSaveClick" :disabled="saving">保存</button>
-        <button class="admin-btn" @click="handleSyncClick" :disabled="syncing">同期</button>
         <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
     </div>
 
@@ -163,8 +155,7 @@ const imageAssets = ref<any[]>([]);
 const assetUrlMap = new Map<string, string>();
 const saving = ref(false);
 const saveStatus = ref('');
-const syncing = ref(false);
-const syncStatus = ref("");
+// per-screen sync removed; use global bulk sync dialog instead
 
 const hasUnsavedChanges = ref(false);
 const showUnsavedDialog = ref(false);
@@ -378,20 +369,7 @@ const removeContent = async (idx: number) => {
     await handleSaveClick();
 };
 
-const handleSyncClick = async () => {
-    syncing.value = true;
-    syncStatus.value = "サーバーと同期中...";
-    try {
-        await screenSettingsService.syncToDrive();
-        await loadConfig();
-        syncStatus.value = "同期完了";
-    } catch (error) {
-        console.error("Failed to sync screen configs:", error);
-        syncStatus.value = "同期に失敗しました";
-    } finally {
-        syncing.value = false;
-    }
-};
+// per-screen sync removed; handled via header "一括同期"
 
 const handleSaveClick = async () => {
     saving.value = true;
@@ -545,7 +523,6 @@ const handleSaveClick = async () => {
     line-height: 1;
 }
 
-.admin-btn.icon-only.sync-icon,
 .admin-btn.icon-only.delete-icon {
     padding: 8px;
     border-radius: 8px;

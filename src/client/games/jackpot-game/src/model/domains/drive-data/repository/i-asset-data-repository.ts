@@ -15,6 +15,7 @@ export interface IAssetDataRepository {
     ) => void
   ): Promise<{ updated: number; deleted: number }>;
   replaceLocalWithDrive(
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
+    remoteMetas?: any[]
   ): Promise<{ replaced: number; idMap?: { [oldId: string]: string } }>;
 }

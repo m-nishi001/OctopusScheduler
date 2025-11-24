@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
+import { reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import type { ShowContentFormData, EditShowContentFormData } from '../../app-events/types';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../model/applications/assets/asset-service';
@@ -133,11 +133,13 @@ const refreshAssets = async () => {
         console.error('Failed to load assets:', error);
     }
 };
+let assetsUpdatedHandler: ((ev: Event) => void) | null = null;
 
 onMounted(async () => {
     await refreshAssets();
 
-    const handler = (ev: Event) => {
+    // assign handler defined in outer scope and register it
+    assetsUpdatedHandler = (ev: Event) => {
         const ce = ev as CustomEvent;
         setTimeout(async () => {
             await refreshAssets();
@@ -154,11 +156,18 @@ onMounted(async () => {
             }
         }, 0);
     };
-    window.addEventListener('assets:updated', handler as EventListener);
-    onBeforeUnmount(() => { window.removeEventListener('assets:updated', handler as EventListener); });
+    window.addEventListener('assets:updated', assetsUpdatedHandler as EventListener);
 });
 
 onBeforeUnmount(() => { if (showPreviewDialog.value) { try { closePreview(); } catch { } } });
+
+// Ensure event listener is removed when component unmounts (registered during setup)
+onBeforeUnmount(() => {
+    if (assetsUpdatedHandler) {
+        try { window.removeEventListener('assets:updated', assetsUpdatedHandler as EventListener); } catch { }
+        assetsUpdatedHandler = null;
+    }
+});
 
 const handleFileUpload = async (event: Event) => {
     const target = event.target as HTMLInputElement;
@@ -229,7 +238,20 @@ const save = async () => {
     if (props.initialData && 'eventId' in props.initialData) { const out: EditShowContentFormData = { ...(outBase as any), eventId: (props.initialData as EditShowContentFormData).eventId }; emit('save', out); } else { emit('save', outBase); }
 };
 
-defineExpose({ save });
+const reset = () => {
+    formData.contentType = props.initialData?.contentType ?? 'image';
+    formData.contentId = props.initialData?.contentId ?? '';
+    formData.htmlContent = props.initialData?.htmlContent ?? '';
+    formData.contentFile = null;
+    selectedImageForHtml.value = '';
+    uploadedImages.value = [];
+};
+
+watch(() => props.initialData, () => {
+    reset();
+});
+
+defineExpose({ save, reset });
 </script>
 
 <style scoped>

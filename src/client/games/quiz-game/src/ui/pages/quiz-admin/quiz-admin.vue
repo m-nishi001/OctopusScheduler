@@ -14,7 +14,7 @@
                             新規クイズ追加
                         </button>
                         <button class="btn-sync" @click="showSyncDialog = true">
-                            同期
+                            一括同期
                         </button>
                     </div>
                     <div class="count">
@@ -64,11 +64,23 @@
                 @close="closeModal" />
 
             <dialog :open="showSyncDialog" class="sync-dialog">
-                <h2>同期方向を選択</h2>
+                <h2>同期方向を選択（全体）</h2>
                 <div class="dialog-buttons">
-                    <button @click="selectDirection('gas-to-local')">GAS → ローカル</button>
-                    <button @click="selectDirection('local-to-gas')">ローカル → GAS</button>
+                    <button @click="selectDirection('gas-to-local')">GAS → ローカル（上書き）</button>
+                    <button @click="selectDirection('local-to-gas')">ローカル → GAS（Driveを完全に上書き）</button>
                     <button @click="showSyncDialog = false">キャンセル</button>
+                </div>
+            </dialog>
+
+            <dialog :open="showConfirmDialog" class="sync-dialog">
+                <h2>完全上書きの確認</h2>
+                <p>「ローカル → GAS」を選択すると、ターゲットのDriveフォルダ内の既存ファイルは削除され、ローカルの内容で置き換えられます。よろしいですか？</p>
+                <div style="margin-top:1rem;">
+                    <label><input type="checkbox" v-model="confirmOverwrite" /> 理解しました（全て上書き）</label>
+                </div>
+                <div class="dialog-buttons" style="margin-top:1rem;">
+                    <button :disabled="!confirmOverwrite" @click="confirmAndSync">上書きして同期</button>
+                    <button @click="cancelConfirm">キャンセル</button>
                 </div>
             </dialog>
 
@@ -124,6 +136,8 @@ const syncDirection = ref<"gas-to-local" | "local-to-gas">();
 const syncProgress = ref<string[]>([]);
 const syncInProgress = ref(false);
 const copiedMessage = ref('');
+const showConfirmDialog = ref(false);
+const confirmOverwrite = ref(false);
 
 onMounted(async () => {
     try {
@@ -198,20 +212,46 @@ const closeModal = () => {
 const selectDirection = (direction: "gas-to-local" | "local-to-gas") => {
     syncDirection.value = direction;
     showSyncDialog.value = false;
+    if (direction === 'local-to-gas') {
+        // require explicit confirmation for destructive action
+        confirmOverwrite.value = false;
+        showConfirmDialog.value = true;
+        return;
+    }
     showProgressDialog.value = true;
     sync();
+};
+
+const confirmAndSync = () => {
+    showConfirmDialog.value = false;
+    showProgressDialog.value = true;
+    sync();
+};
+
+const cancelConfirm = () => {
+    showConfirmDialog.value = false;
+    syncDirection.value = undefined;
 };
 
 const sync = async () => {
     syncInProgress.value = true;
     syncProgress.value = [];
     try {
-        await syncQuizzesUseCase.execute(syncDirection.value!, (message) => {
+        const summary = await syncQuizzesUseCase.execute(syncDirection.value!, (message) => {
             syncProgress.value.push(message);
         });
         const dtos = await getAllQuizzesUseCase.execute();
         quizzes.value = dtos;
-        syncProgress.value.push("同期完了");
+        // display concise failure summary
+        if (summary) {
+            syncProgress.value.push(`同期完了 — 成功: ${summary.successCount}件, 失敗: ${summary.failedCount}件`);
+            if (summary.failedCount > 0) {
+                const names = summary.failedFiles.slice(0, 10).join(', ');
+                syncProgress.value.push(`失敗ファイル: ${names}${summary.failedCount > 10 ? ' ...' : ''}`);
+            }
+        } else {
+            syncProgress.value.push("同期完了");
+        }
     } catch (error) {
         syncProgress.value.push(`エラー: ${(error as Error).message}`);
     } finally {

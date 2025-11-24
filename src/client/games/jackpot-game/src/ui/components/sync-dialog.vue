@@ -1,33 +1,47 @@
 <template>
     <div class="modal-overlay sync-modal">
         <div class="modal-box">
-            <h2 class="modal-title">同期中・・・</h2>
+            <h2 class="modal-title">一括同期</h2>
 
-            <div class="sync-item" v-for="d in domains" :key="d.id">
-                <div class="label">{{ d.label }}</div>
-                <div class="progress-bar-outer">
-                    <div class="progress-bar-inner" :style="{ width: d.progress + '%' }"></div>
+            <div class="sync-options" v-if="!running">
+                <div style="margin-bottom:12px;">
+                    <label><input type="radio" v-model="direction" value="download" /> Drive → ローカル (ダウンロード)</label>
+                    <label style="margin-left:12px;"><input type="radio" v-model="direction" value="upload" /> ローカル →
+                        Drive (アップロード)</label>
                 </div>
-                <div class="status">{{ d.message }}</div>
+                <div style="margin-bottom:12px;">
+                    <label><input type="checkbox" v-model="createBackup" /> 同期前にバックアップを作成してダウンロード</label>
+                </div>
+                <div class="modal-actions">
+                    <button class="admin-btn cancel-primary" @click="$emit('close')">閉じる</button>
+                    <button class="admin-btn" @click="start" :disabled="running">同期開始</button>
+                </div>
             </div>
 
-            <div class="modal-actions">
-                <button class="admin-btn cancel-primary" v-if="!finished" @click="cancel">キャンセル</button>
-                <button class="admin-btn" v-if="finished" @click="$emit('close')">閉じる</button>
+            <div v-else>
+                <h3 class="modal-subtitle">同期中・・・</h3>
+                <div class="sync-item" v-for="d in domains" :key="d.id">
+                    <div class="label">{{ d.label }}</div>
+                    <div class="progress-bar-outer">
+                        <div class="progress-bar-inner" :style="{ width: d.progress + '%' }"></div>
+                    </div>
+                    <div class="status">{{ d.message }}</div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="admin-btn cancel-primary" v-if="!finished" @click="cancel">キャンセル</button>
+                    <button class="admin-btn" v-if="finished" @click="$emit('close')">閉じる</button>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive } from 'vue';
 import { container } from 'tsyringe';
-import { AssetDataService } from '../../model/applications/asset/asset-data-service';
-import { IMemberRepositoryToken } from '../../model/domains/member/repository/i-member-repository';
-import { IPrizeRepositoryToken } from '../../model/domains/prize/repository/i-prize-repository';
-import type { IMemberRepository } from '../../model/domains/member/repository/i-member-repository';
-import type { IPrizeRepository } from '../../model/domains/prize/repository/i-prize-repository';
-import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
+import BulkSyncService from '../../model/applications/bulk-sync/bulk-sync-service';
+import { exportLocalBackup } from '../../model/applications/bulk-sync/backup-util';
 
 const domains = reactive([
     { id: 'members', label: 'メンバー設定', progress: 0, message: '準備中...', running: false },
@@ -38,10 +52,11 @@ const domains = reactive([
 
 const finished = ref(false);
 const cancelled = ref(false);
+const running = ref(false);
+const direction = ref<'download' | 'upload'>('download');
+const createBackup = ref(true);
 
-const assetDataService = container.resolve(AssetDataService);
-const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken as any);
-const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken as any);
+const bulkSync = container.resolve(BulkSyncService as any);
 
 function updateDomain(id: string, patch: Partial<any>) {
     const d = domains.find((x: any) => x.id === id) as any;
@@ -143,30 +158,53 @@ async function syncScreens() {
 function startAll() {
     finished.value = false;
     cancelled.value = false;
+    // kept for compatibility
+    start();
+}
 
-    Promise.allSettled([syncMembers(), syncPrizes(), syncAssets(), syncScreens()]).then(() => {
-        finished.value = true;
-
-        for (const d of domains) {
-            if (d.progress < 100) d.progress = 100;
-            if (!d.message || d.message === '準備中...') d.message = '同期完了';
+async function start() {
+    finished.value = false;
+    cancelled.value = false;
+    running.value = true;
+    // optional backup before upload
+    try {
+        if (direction.value === 'upload' && createBackup.value) {
+            await exportLocalBackup(true);
         }
-    });
+    } catch (e) {
+        console.error('Backup failed', e);
+    }
+
+    bulkSync
+        .syncDirection(direction.value, (domainId: string, message: string, progress?: number) => {
+            const p = progress ?? (message === '同期完了' || message === 'アップロード完了' ? 100 : 50);
+            updateDomain(domainId, { message, progress: p });
+        })
+        .then(() => {
+            finished.value = true;
+            running.value = false;
+            for (const d of domains) {
+                if (d.progress < 100) d.progress = 100;
+                if (!d.message || d.message === '準備中...') d.message = '同期完了';
+            }
+        })
+        .catch((e: any) => {
+            console.error('Bulk sync failed', e);
+            finished.value = true;
+            running.value = false;
+        });
 }
 
 function cancel() {
-    cancelled.value = true;
-
+    bulkSync.requestCancel();
     for (const d of domains) {
         if (d.progress < 100) d.message = 'キャンセルされました';
     }
     finished.value = true;
+    running.value = false;
 }
 
-onMounted(() => {
-
-    startAll();
-});
+// start is triggered by user action
 </script>
 
 <style scoped>

@@ -1,8 +1,6 @@
 <template>
     <div class="admin-section event-list-editor">
-        <div v-if="syncing" class="sync-status">
-            <span class="sync-icon">🔄</span> 同期中...
-        </div>
+        <!-- per-screen sync status removed; use 一括同期 (Bulk Sync) in header -->
         <!-- saving status handled inside dialogs -->
         <h2 class="editor-title">
             <span class="editor-icon">📅</span> イベント管理
@@ -12,10 +10,7 @@
                 title="追加">
                 <span class="emoji">➕</span>
             </button>
-            <button class="admin-btn icon-only sync-icon" @click.prevent="openSyncDialog" :disabled="syncing || loading"
-                title="同期">
-                <span class="emoji">🔁</span>
-            </button>
+            <!-- per-screen sync removed -->
             <button class="admin-btn icon-only" @click.prevent="onReload" :disabled="loading" title="再読込">🔄</button>
             <button class="admin-btn" @click.prevent="onExecute" :disabled="!selectedEvents.length || executing"
                 title="実行">
@@ -77,24 +72,7 @@
             @close="closeDialogs" />
         <SlideshowEventDialog v-if="showSlideshowDialog" :event="editingEvent as any" @saved="onDialogSaved"
             @close="closeDialogs" />
-        <!-- Sync direction selection dialog -->
-        <div v-if="showSyncDialog" class="sync-dialog-overlay">
-            <div class="sync-dialog">
-                <h3>同期方向を選択</h3>
-                <label>
-                    <input type="radio" v-model="syncDirection" value="gas-to-local" />
-                    GASからローカルへ上書き
-                </label>
-                <label>
-                    <input type="radio" v-model="syncDirection" value="local-to-gas" />
-                    ローカルからGASへ上書き
-                </label>
-                <div class="dialog-buttons">
-                    <button @click="executeSync" :disabled="!syncDirection">実行</button>
-                    <button @click="showSyncDialog = false">キャンセル</button>
-                </div>
-            </div>
-        </div>
+        <!-- per-screen sync removed: use BulkSyncDialog from header -->
     </div>
 </template>
 
@@ -114,9 +92,6 @@ import SlideshowEventDialog from './dialogs/slideshow-event/slideshow-event-dial
 const events = ref<IAppEvent[]>([]);
 const loading = ref(false);
 const selectedEvents = ref<string[]>([]);
-const syncing = ref(false);
-const showSyncDialog = ref(false);
-const syncDirection = ref<'gas-to-local' | 'local-to-gas' | ''>('');
 const deleting = ref(false);
 const executing = ref(false);
 const interruptFlag = ref(false);
@@ -339,32 +314,7 @@ onMounted(async () => {
     await getAllScheduleEvents();
 });
 
-const openSyncDialog = () => {
-    syncDirection.value = '';
-    showSyncDialog.value = true;
-};
-
-const executeSync = async () => {
-    if (!syncDirection.value) return;
-    syncing.value = true;
-    try {
-        if (syncDirection.value === 'local-to-gas') {
-            await scheduleEventService.syncScheduleEvents('local');
-        } else {
-            if (!confirm('GAS のデータでローカルを上書きします。よろしいですか？')) {
-                return;
-            }
-            await scheduleEventService.syncScheduleEvents('gas');
-        }
-        await getAllScheduleEvents();
-        alert('同期が完了しました');
-    } catch (e) {
-        alert('同期に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
-    } finally {
-        syncing.value = false;
-        showSyncDialog.value = false;
-    }
-};
+// per-screen sync removed: use BulkSyncDialog from header for synchronization actions
 </script>
 
 <style scoped>

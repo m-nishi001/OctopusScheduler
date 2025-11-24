@@ -13,31 +13,11 @@
             <button class="main-btn" @click="onAdd">
                 <span class="btn-icon">➕</span> 追加
             </button>
-            <button class="sync-btn" @click="openSyncDialog">
-                <span class="btn-icon">🔄</span> 同期
-            </button>
         </div>
         <KeyboardShortcutList :shortcuts="shortcuts" @edit="onEdit" @delete="onDelete" />
         <KeyboardShortcutDialog :show="showDialog" :editing-shortcut="editingShortcut" @close="closeDialog"
             @save="onSaveShortcut" />
-        <!-- 同期ダイアログ -->
-        <div v-if="showSyncDialog" class="sync-dialog-overlay">
-            <div class="sync-dialog">
-                <h3>同期方向を選択</h3>
-                <label>
-                    <input type="radio" v-model="syncDirection" value="gas-to-local" />
-                    GASからローカルへ上書き
-                </label>
-                <label>
-                    <input type="radio" v-model="syncDirection" value="local-to-gas" />
-                    ローカルからGASへ上書き
-                </label>
-                <div class="dialog-buttons">
-                    <button @click="executeSync" :disabled="!syncDirection">実行</button>
-                    <button @click="showSyncDialog = false">キャンセル</button>
-                </div>
-            </div>
-        </div>
+        <!-- per-screen sync removed: use 一括同期 (Bulk Sync) in header -->
     </div>
 </template>
 
@@ -54,9 +34,7 @@ const { shortcuts, isEnabled, loadShortcuts, loadConfig, onToggleEnabled, onDele
 const showDialog = ref(false);
 const editingShortcut = ref<KeyboardShortcut | null>(null);
 
-// 同期ダイアログ関連
-const showSyncDialog = ref(false);
-const syncDirection = ref<'gas-to-local' | 'local-to-gas' | ''>('');
+// per-screen sync removed: use BulkSyncDialog from header
 
 onMounted(async () => {
     await loadShortcuts();
@@ -84,21 +62,7 @@ const onSaveShortcut = async (shortcut: KeyboardShortcut) => {
     await saveShortcut(shortcut);
 };
 
-const openSyncDialog = () => {
-    syncDirection.value = '';
-    showSyncDialog.value = true;
-};
-
-const executeSync = async () => {
-    if (!syncDirection.value) return;
-    try {
-        await syncWithServer(syncDirection.value);
-        alert('同期が完了しました');
-    } catch (error) {
-        alert(`同期に失敗しました: ${(error as Error).message}`);
-    }
-    showSyncDialog.value = false;
-};
+// per-screen sync removed: syncWithServer remains available for bulk orchestration if needed
 </script>
 
 <style scoped>

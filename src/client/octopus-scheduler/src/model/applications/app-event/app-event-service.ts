@@ -51,7 +51,7 @@ export class AppEventService {
       ) as any[];
       const entry = entries.find((e) => e && e.actionType === eventType);
       if (entry && typeof entry.defaultData === "function") {
-        return entry.defaultData({}) as IAppEventDto;
+        return entry.defaultData({});
       }
     } catch (e) {
       // ignore

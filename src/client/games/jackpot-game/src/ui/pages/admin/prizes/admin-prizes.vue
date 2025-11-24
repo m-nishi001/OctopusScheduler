@@ -5,10 +5,7 @@
             <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal" title="Add prizes">
                 <span class="emoji">➕</span>
             </button>
-            <button class="admin-btn icon-only sync-icon" @click.prevent="openPrizesSyncModal" title="Sync prizes"
-                :disabled="syncing">
-                <span class="emoji">🔄</span>
-            </button>
+            <!-- per-screen prize sync removed; use global 一括同期 -->
             <button class="admin-btn icon-only delete-icon" @click="openDeleteModal"
                 :disabled="!selectedPrizes.length || deleting" title="Delete selected">
                 <span class="emoji">🗑️</span>
@@ -88,38 +85,7 @@
             </div>
         </div>
 
-        <div v-if="syncing" class="modal-overlay">
-            <div class="modal-content">
-                <h3>サーバーと同期中...</h3>
-                <p>{{ syncMessage || "景品を同期しています。しばらくお待ちください。" }}</p>
-                <div class="spinner"></div>
-            </div>
-        </div>
 
-        <div v-if="showSyncModeModal" class="modal-overlay">
-            <div class="modal-content">
-                <h3>同期モードを選択</h3>
-                <p>同期時にどちらを正としますか？</p>
-                <div class="modal-actions">
-                    <button class="admin-btn" @click.prevent="confirmPrizesSyncMode('local')">ローカル優先 (Local
-                        wins)</button>
-                    <button class="admin-btn sync-btn" @click.prevent="confirmPrizesSyncMode('drive')">Drive優先 (Drive
-                        wins)</button>
-                    <button class="admin-btn delete-btn" @click.prevent="showSyncModeModal = false">キャンセル</button>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="showReplaceWarningModal" class="modal-overlay">
-            <div class="modal-content">
-                <h3>注意: ローカルデータを置換します</h3>
-                <p>Drive のコンテンツに合わせてローカルの景品を置換します。既存のローカルデータは削除されます。続行しますか？</p>
-                <div class="modal-actions">
-                    <button class="admin-btn delete-btn" @click.prevent="showReplaceWarningModal = false">キャンセル</button>
-                    <button class="admin-btn sync-btn" @click.prevent="performReplaceFromDrive">置換して同期する</button>
-                </div>
-            </div>
-        </div>
 
         <DataUploadDialog v-if="showDataUploadDialog" :show="showDataUploadDialog" type="prize"
             @close="showDataUploadDialog = false" @refresh="fetchPrizes" />
@@ -130,7 +96,6 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { usePrizes } from './use-prizes';
 import { useAssets } from './use-assets';
-import { usePrizeSync } from './use-prize-sync';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { PrizeService } from '@model/applications/prize/prize-service';
 import type { IPrizeRepository } from '@model/domains/prize/repository/i-prize-repository';
@@ -143,7 +108,6 @@ const prizeService = container.resolve(PrizeService);
 // initialize composables
 const { prizes, selectedPrizes, isAllSelected, fetchPrizes: fetchPrizesInner, deletePrize: deletePrizeAction, deletePrizes: deletePrizesAction } = usePrizes(prizeRepo, prizeService);
 const { imageAssets, audioAssets, fetchAssets: fetchAssetsAction, objectUrlMap, createObjectUrlById } = useAssets(assetDataService);
-const { syncing: syncingState, syncMessage: syncMessageState, showSyncModeModal: showSyncModeModalState, showReplaceWarningModal: showReplaceWarningModalState, confirmPrizesSyncMode: confirmPrizesSyncModeAction, performReplaceFromDrive: performReplaceFromDriveAction } = usePrizeSync(prizeRepo, assetDataService, prizeService);
 
 import PrizeAddDialog from './prize-add-dialog.vue';
 import PrizeEditDialog from './prize-edit-dialog.vue';
@@ -169,8 +133,6 @@ const closeDeleteModal = () => { showDeleteModal.value = false; };
 // adding state is managed in Add/Edit dialogs; keep a var for potential top-level operations
 const deleting = ref(false);
 const deleteMessage = ref("");
-const syncing = syncingState;
-const syncMessage = syncMessageState;
 
 const fetchPrizes = async () => {
     await fetchPrizesInner();
@@ -213,9 +175,7 @@ const deleteSelectedPrizes = async () => {
 
 const confirmDeleteSelected = async () => { await deleteSelectedPrizes(); closeDeleteModal(); };
 
-const openPrizesSyncModal = () => {
-    showSyncModeModal.value = true;
-};
+// per-screen prize sync removed; openPrizesSyncModal no longer used
 
 // downloadPrizesJsonFromDrive is provided by usePrizeSync/use-prize-sync if needed.
 
@@ -238,19 +198,7 @@ const editPrize = async (prize: any) => {
     editPrizeData.value = prize;
 };
 
-const showSyncModeModal = showSyncModeModalState;
-const showReplaceWarningModal = showReplaceWarningModalState;
-
-const confirmPrizesSyncMode = async (mode: "drive" | "local") => {
-    await confirmPrizesSyncModeAction(mode, async () => {
-        await fetchAssets();
-        await fetchPrizes();
-    });
-};
-
-const performReplaceFromDrive = async () => {
-    await performReplaceFromDriveAction(fetchAssets, fetchPrizes);
-};
+// per-screen sync flags removed; use global bulk sync dialog
 
 onMounted(async () => {
     await fetchPrizes();
@@ -465,16 +413,7 @@ onBeforeUnmount(() => {
     transform: translateY(-2px);
 }
 
-.sync-icon {
-
-    border-radius: 8px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-    color: #dbeeff;
-}
-
-.sync-icon .emoji {
-    font-weight: 700;
-}
+/* removed legacy sync-icon styles (per-screen sync was removed) */
 
 .icon-only .emoji,
 .add-icon .emoji {

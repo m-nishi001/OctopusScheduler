@@ -15,7 +15,21 @@ export class FormRepository {
   }
 
   async syncQuizzes(request: SyncRequest): Promise<QuizWithDataUrl[] | void> {
-    const service = new GasFunctionService("_quizGame_syncQuizzes");
-    return await service.call<QuizWithDataUrl[] | void>(request);
+    if (request.direction === "gas-to-local") {
+      const jsonService = new GasFunctionService("_quizGame_getJson");
+      const jsonResp = await jsonService.call<{ json: string }>({});
+      const jsonText = jsonResp?.json ?? JSON.stringify([]);
+      try {
+        return JSON.parse(jsonText) as QuizWithDataUrl[];
+      } catch {
+        return [];
+      }
+    } else if (request.direction === "local-to-gas") {
+      const addJson = new GasFunctionService("_quizGame_addJson");
+      const text = JSON.stringify(request.quizzes ?? []);
+      await addJson.call<any>({ fileName: "quizzes.json", jsonText: text });
+      return;
+    }
+    return;
   }
 }
