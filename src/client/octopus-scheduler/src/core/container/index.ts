@@ -5,11 +5,16 @@ import { IAssetRepositoryToken } from "../../model/domains/assets/repository/ass
 import { container } from "tsyringe";
 import { AppEventService } from "../../model/applications/app-event/app-event-service";
 import { AssetService } from "../../model/applications/assets/asset-service";
-import { IAppEventConverterToken } from "../../model/domains/app-event/i-app-event-converter";
-import { ShowContentEventConverter } from "../../model/domains/app-event/show-content/show-content-event-converter";
-import { PlayAudioEventConverter } from "../../model/domains/app-event/play-audio/play-audio-event-converter";
-import { SlideshowEventConverter } from "../../model/domains/app-event/slideshow/slideshow-event-converter";
-import { TransitionPageEventConverter } from "../../model/domains/app-event/transition/transition-page-event-converter";
+import { IAppEventConverterToken } from "../../model/applications/app-event/i-app-event-converter";
+import { IEventSerializerToken } from "../../model/domains/app-event/i-event-serializer";
+import { ShowContentEventConverter } from "../../model/applications/app-event/event-converter/show-content-event-converter";
+import { PlayAudioEventConverter } from "../../model/applications/app-event/event-converter/play-audio-event-converter";
+import { SlideshowEventConverter } from "../../model/applications/app-event/event-converter/slideshow-event-converter";
+import { TransitionPageEventConverter } from "../../model/applications/app-event/event-converter/transition-page-event-converter";
+import { ShowContentEventSerializer } from "../../model/infrastructures/app-event/serializers/show-content-event-serializer";
+import { PlayAudioEventSerializer } from "../../model/infrastructures/app-event/serializers/play-audio-event-serializer";
+import { SlideshowEventSerializer } from "../../model/infrastructures/app-event/serializers/slideshow-event-serializer";
+import { TransitionPageEventSerializer } from "../../model/infrastructures/app-event/serializers/transition-page-event-serializer";
 import {
   KeyboardShortcutRepository,
   IKeyboardShortcutRepositoryToken,
@@ -39,6 +44,20 @@ export class Container {
     container.register(IAppEventConverterToken, {
       useClass: TransitionPageEventConverter,
     });
+    // register dedicated serializers for persistence revive path
+    container.register(IEventSerializerToken, {
+      useClass: ShowContentEventSerializer,
+    });
+    container.register(IEventSerializerToken, {
+      useClass: PlayAudioEventSerializer,
+    });
+    container.register(IEventSerializerToken, {
+      useClass: SlideshowEventSerializer,
+    });
+    container.register(IEventSerializerToken, {
+      useClass: TransitionPageEventSerializer,
+    });
+    // event factories removed; converters handle entity creation
     container.register(IKeyboardShortcutRepositoryToken, {
       useClass: KeyboardShortcutRepository,
     });

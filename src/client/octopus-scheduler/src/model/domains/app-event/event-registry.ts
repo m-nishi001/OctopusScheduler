@@ -26,6 +26,7 @@ export function getEventFromData(
   type: string,
   data: Record<string, any>
 ): IAppEvent {
+  // Use domain factory to construct event from raw data.
   const factory = registry.get(type);
   if (!factory) {
     throw new Error(`Unknown event type: ${type}`);

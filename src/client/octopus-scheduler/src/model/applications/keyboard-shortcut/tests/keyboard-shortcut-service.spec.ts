@@ -60,7 +60,7 @@ describe("KeyboardShortcutService", () => {
     const shortcut = new KeyboardShortcut({
       id: "s1",
       keys: ["Control", "1"],
-      action: playEvent,
+      actions: [playEvent],
     });
 
     await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
@@ -74,7 +74,7 @@ describe("KeyboardShortcutService", () => {
     await found!.execute();
 
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toEqual({ audioId: "audio-1" });
+    expect(spy.mock.calls[0][0]).toEqual({ audioId: "audio-1", manual: true });
   });
 
   it("finds a shortcut for TransitionPageEvent and emits transitionPage", async () => {
@@ -89,7 +89,7 @@ describe("KeyboardShortcutService", () => {
     const shortcut = new KeyboardShortcut({
       id: "s2",
       keys: ["1"],
-      action: event,
+      actions: [event],
     });
 
     await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
@@ -103,7 +103,10 @@ describe("KeyboardShortcutService", () => {
     await found!.execute();
 
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toEqual({ transitionUrl: "/test/path" });
+    expect(spy.mock.calls[0][0]).toEqual({
+      transitionUrl: "/test/path",
+      manual: true,
+    });
   });
 
   it("isEnabled() reflects repository config", async () => {
@@ -125,7 +128,7 @@ describe("KeyboardShortcutService", () => {
     const shortcut = new KeyboardShortcut({
       id: "s3",
       keys: ["Control", "Shift", "1"],
-      action: event,
+      actions: [event],
     });
     await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
 
@@ -139,7 +142,9 @@ describe("KeyboardShortcutService", () => {
   });
 
   it("executes ShowContentEvent via keyboard and emits showContent with manual flag", async () => {
-    const event = (await import("../../../domains/app-event/show-content/show-content-event")).ShowContentEvent.fromData({
+    const event = (
+      await import("../../../domains/app-event/show-content/show-content-event")
+    ).ShowContentEvent.fromData({
       id: "e4",
       contentType: "image",
       contentId: "img-1",
@@ -151,7 +156,7 @@ describe("KeyboardShortcutService", () => {
     const shortcut = new KeyboardShortcut({
       id: "s4",
       keys: ["Control", "2"],
-      action: event,
+      actions: [event],
     });
     await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
 

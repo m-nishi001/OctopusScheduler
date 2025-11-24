@@ -3,7 +3,7 @@ import { KeyboardShortcutService } from "./keyboard-shortcut-service";
 import { PlayAudioEvent } from "../../domains/app-event/play-audio/play-audio-event";
 import { KeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-shortcut";
-import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
+import { IAppEventConverterToken } from "../../applications/app-event/i-app-event-converter";
 import { container } from "tsyringe";
 import { IKeyboardShortcutRepositoryToken } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 
@@ -67,7 +67,7 @@ describe("KeyboardShortcutService", () => {
     const shortcut = new KeyboardShortcut({
       id: "s1",
       keys: ["Control", "s", "1"],
-      action: event,
+      actions: [event],
     });
     await service.saveKeyboardShortcuts([shortcut]);
 
@@ -100,12 +100,12 @@ describe("KeyboardShortcutService", () => {
     const shortCut = new KeyboardShortcut({
       id: "s1",
       keys: ["Control", "s"],
-      action: eventA,
+      actions: [eventA],
     });
     const longCut = new KeyboardShortcut({
       id: "s2",
       keys: ["Control", "s", "1"],
-      action: eventB,
+      actions: [eventB],
     });
     await service.saveKeyboardShortcuts([shortCut, longCut]);
 

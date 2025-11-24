@@ -19,10 +19,16 @@
                     <label class="form-label">クイズ内容</label>
                     <textarea v-model="currentQuiz.question" class="form-textarea" rows="3" required></textarea>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">回答URL</label>
-                    <input v-model="currentQuiz.answerUrl" type="url" class="form-input" required />
-                </div>
+                                <div class="form-group">
+                                    <label class="form-label">回答URL</label>
+                                    <input v-model="currentQuiz.answerUrl" type="url" class="form-input" required />
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">回答（正解）</label>
+                                    <select v-model.number="currentQuiz.correctNo" class="form-input" :disabled="currentQuiz.options.length === 0">
+                                        <option v-for="(opt, i) in currentQuiz.options" :key="i" :value="i+1">{{ i+1 }}: {{ opt.text }}</option>
+                                    </select>
+                                </div>
                 <div class="form-group">
                     <label class="form-label">BGM</label>
                     <input type="file" accept="audio/*" @change="onBgmChange" class="form-input" />
@@ -73,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, onUnmounted, onMounted } from 'vue';
+import { defineProps, defineEmits, ref, onUnmounted, onMounted, watch } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
 import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
 
@@ -124,7 +130,8 @@ const onBgmChange = (event: Event) => {
 };
 
 const addOption = () => {
-    const nextNo = props.currentQuiz.options.length + 1;
+    const maxNo = props.currentQuiz.options.reduce((m, o) => Math.max(m, o.no || 0), 0);
+    const nextNo = maxNo + 1;
     currentOption.value = { no: nextNo, text: '', image: null, color: 'red' };
     isEditingOption.value = false;
     showOptionModal.value = true;
@@ -167,6 +174,10 @@ onMounted(() => {
     if (props.currentQuiz.bgm instanceof Blob) {
         bgmPreview.value = URL.createObjectURL(props.currentQuiz.bgm);
     }
+    // ensure correctNo exists on the quiz object for UI usage
+    if ((props.currentQuiz as any).correctNo == null) {
+        (props.currentQuiz as any).correctNo = 1;
+    }
 });
 
 onUnmounted(() => {
@@ -177,6 +188,17 @@ onUnmounted(() => {
     });
     if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
         URL.revokeObjectURL(bgmPreview.value);
+    }
+});
+
+// Watch option count and fallback correctNo to 1 when out of range
+// Watch option numbers (join of nos) to detect add/remove/reorder and fallback correctNo
+watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
+    const cq: any = props.currentQuiz;
+    if (!cq) return;
+    const len = props.currentQuiz.options.length;
+    if (typeof cq.correctNo !== 'number' || cq.correctNo < 1 || cq.correctNo > Math.max(1, len)) {
+        cq.correctNo = 1;
     }
 });
 </script>

@@ -11,7 +11,11 @@
             <tbody>
                 <tr v-for="shortcut in shortcuts" :key="shortcut.id">
                     <td>{{ shortcut.keys.join(' + ') }}</td>
-                    <td>{{ shortcut.action.type }}</td>
+                    <td>
+                        <ul class="action-list">
+                            <li v-for="(a, i) in shortcut.actions" :key="i">{{ a.type }}</li>
+                        </ul>
+                    </td>
                     <td>
                         <button class="edit-btn" @click="onEdit(shortcut)">編集</button>
                         <button class="delete-btn" @click="onDelete(shortcut.id)">削除</button>

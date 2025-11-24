@@ -5,7 +5,11 @@ import { injectable, injectAll } from "tsyringe";
 import {
   IAppEventConverterToken,
   type IAppEventConverter,
-} from "../../domains/app-event/i-app-event-converter";
+} from "../../applications/app-event/i-app-event-converter";
+import {
+  IEventSerializerToken,
+  type IEventSerializer,
+} from "../../domains/app-event/i-event-serializer";
 import type { ExecutionStatus } from "../../domains/app-event/execution-status";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 
@@ -14,10 +18,13 @@ export class AppEventRepository implements IAppEventRepository {
   private readonly localStorage: LocalStorageService;
   private readonly executionStatusStorage: LocalStorageService;
   private readonly converters: IAppEventConverter[];
+  private readonly serializers: IEventSerializer[];
 
   constructor(
     @injectAll(IAppEventConverterToken)
-    converters: IAppEventConverter[]
+    converters: IAppEventConverter[],
+    @injectAll(IEventSerializerToken)
+    serializers: IEventSerializer[]
   ) {
     this.localStorage = new LocalStorageService(
       "octopus-scheduler",
@@ -28,6 +35,7 @@ export class AppEventRepository implements IAppEventRepository {
       "ScheduleEventExecutionStatus"
     );
     this.converters = converters;
+    this.serializers = serializers;
   }
 
   async getScheduleEvents(): Promise<IAppEvent[]> {
@@ -145,15 +153,15 @@ export class AppEventRepository implements IAppEventRepository {
         try {
           // use converters exclusively
           const asEvent = raw as unknown as IAppEvent;
-          const converter = this.converters.find((c) => c.canRevive(asEvent));
-          if (converter) {
-            const revivedEv = converter.revive(asEvent);
+          const reviver = this.serializers.find((r) => r.canRevive(asEvent));
+          if (reviver) {
+            const revivedEv = reviver.revive(asEvent);
             if (revivedEv) {
               await this.localStorage.save(revivedEv.id, revivedEv as any);
               revived.push(revivedEv);
             }
           } else {
-            console.warn(`No converter for type=${type} id=${id}`);
+            console.warn(`No reviver for type=${type} id=${id}`);
           }
         } catch (e) {
           console.error(

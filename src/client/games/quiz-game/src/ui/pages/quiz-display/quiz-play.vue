@@ -19,19 +19,8 @@
         </header>
         <section class="question-area" aria-live="polite">
             <div class="options-grid" :class="{ 'two-options': optionsCount === 2 }" role="list">
-                <div v-for="(option, index) in optionsWithImageUrls" :key="index" role="listitem">
-                    <button class="option-button" :style="{ '--option-color': option.color }"
-                        @click="selectOption(index)" :aria-label="option.text">
-                        <div class="image-wrapper">
-                            <img v-if="option.imageUrl" :src="option.imageUrl" :alt="option.text"
-                                class="option-image" />
-                            <div class="option-index">{{ index + 1 }}</div>
-                            <div class="text-ribbon" aria-hidden="false">
-                                <span class="option-text">{{ option.text }}</span>
-                            </div>
-                        </div>
-                    </button>
-                </div>
+                <OptionCard v-for="(option, index) in optionsWithImageUrls" :key="index" :option="option" :index="index"
+                    @select="selectOption" :style="{ '--option-color': option.color }" />
             </div>
         </section>
         <div v-if="showModal" class="modal-overlay" role="dialog" aria-modal="true">
@@ -51,6 +40,7 @@ import { container } from 'tsyringe';
 import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
 import { AnswerFormService } from '../../../model/domains/services/answer-form-service';
+import OptionCard from '../../components/option-card.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -160,7 +150,7 @@ const handleKeydown = (event: KeyboardEvent) => {
             audioElement.value.pause();
             audioElement.value = null;
         }
-        router.push(`/quiz-result/${quizId}?preview=${isPreview.value}`);
+        router.push(`/quiz/${quizId}/answer?preview=${isPreview.value}`);
     }
 };
 </script>
@@ -287,23 +277,25 @@ body::-webkit-scrollbar {
     color: var(--muted);
 }
 
-/* Simplified, responsive grid: use auto-fit to avoid overflow */
+/* Grid: always 2 columns (2 x N rows). Narrow screens keep 2 columns as requested. */
 .options-grid {
-    display: grid;
-    /* Force 2 columns for desktop/tablet to utilize space (2 x 2 layout).
-       Use minmax to keep columns at least 320px, but allow shrinking if viewport is smaller.
-       The grid is set to fill available height so two rows share space evenly. */
-    grid-template-columns: repeat(2, minmax(320px, 1fr));
+     display: grid;
+     /* Always use 2 columns to keep the layout consistent (2 columns x N rows).
+         Columns share available space equally. */
+     grid-template-columns: repeat(2, 1fr);
     gap: clamp(12px, 1.2vw, 24px);
     align-items: stretch;
     align-content: stretch;
     justify-items: stretch;
     /* Reduce vertical footprint so two rows fit without overflowing. */
-    /* Lower the min row size to make rows shorter when viewport is constrained. */
-    grid-auto-rows: minmax(140px, 1fr);
+    /* Ensure rows expand to fill available area but avoid becoming too small. */
+    grid-auto-rows: minmax(120px, 1fr);
     /* allow rows to be smaller when space is constrained */
     height: 100%;
     /* fill parent (.question-area) which is flex:1 */
+    /* Use flex growth so this grid reliably fills the remaining vertical space
+       even if header size changes. */
+    flex: 1 1 auto;
 }
 
 .options-grid.two-options {
@@ -501,10 +493,11 @@ body::-webkit-scrollbar {
 /* Responsive tweaks at root level (previously nested incorrectly) */
 @media (max-width:960px) {
 
-    /* On narrower screens switch to single column (stack) */
+    /* Keep two-column layout even on narrower screens; only adjust spacing and sizes. */
     .options-grid {
-        grid-template-columns: 1fr;
+        /* keep grid-template-columns as 2 columns */
         gap: 8px;
+        /* allow rows to size based on content on narrow viewports */
         grid-auto-rows: auto;
         height: auto;
     }
@@ -533,9 +526,7 @@ body::-webkit-scrollbar {
         padding: 22px 16px;
     }
 
-    .option-image {
-        max-width: 36%;
-    }
+    /* keep full-width images inside option cards on narrow screens */
 }
 
 @media (max-width:480px) {
@@ -553,13 +544,30 @@ body::-webkit-scrollbar {
         height: 134px;
     }
 
-    .option-image {
-        max-width: 34%;
-    }
+    /* keep full-width images inside option cards on very small screens */
 
     .option-index {
         min-width: 52px;
         height: 52px;
+    }
+}
+</style>
+
+<!-- Desktop-only overrides to increase option card height and adjust images -->
+<style scoped>
+@media (min-width: 1024px) {
+    .options-grid {
+        /* Increase the minimum row height on desktop for larger cards */
+        grid-auto-rows: minmax(180px, 1fr);
+    }
+
+    /* When two options are present, ensure each option has a reasonable minimum height */
+    .options-grid.two-options > div {
+        min-height: 360px;
+    }
+
+    .options-grid.two-options .option-button {
+        min-height: 320px;
     }
 }
 </style>

@@ -61,6 +61,7 @@ export class QuizRepository {
                 image: o.image ? await this.dataUrlToBlob(o.image) : null,
               }))
             ),
+            correctNo: q.correctNo ?? 1,
             formUrl: q.formUrl,
             timeLimit: q.timeLimit,
             bgm: q.bgm ? await this.dataUrlToBlob(q.bgm) : null,
@@ -91,6 +92,7 @@ export class QuizRepository {
                   : (o.image as string | null),
             }))
           ),
+          correctNo: (q as any).correctNo ?? 1,
           formUrl: q.formUrl,
           timeLimit: q.timeLimit,
           bgm:

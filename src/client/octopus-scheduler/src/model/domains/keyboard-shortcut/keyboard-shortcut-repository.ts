@@ -96,12 +96,13 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
       });
       try {
         // GAS 側は古い形式を期待しているので、string[][] に変換
-        const legacyShortcuts = shortcuts.map((data) => [
-          data.id,
-          JSON.stringify(data.keys),
-          data.action.type,
-          ...this.serializeActionToLegacy(data.action),
-        ]);
+        const legacyShortcuts = shortcuts.map((data) => {
+          const first =
+            data.actions && data.actions[0] ? data.actions[0] : null;
+          const type = first ? first.type : "";
+          const actionLegacy = first ? this.serializeActionToLegacy(first) : [];
+          return [data.id, JSON.stringify(data.keys), type, ...actionLegacy];
+        });
         await setService.call({
           shortcuts: legacyShortcuts,
           config: config.serialize(),
@@ -191,11 +192,21 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
             : new Date().toISOString();
           break;
       }
-      return { id, keys, action };
+      // Wrap legacy single action into actions array for new format
+      return { id, keys, actions: [action] } as any;
     });
   }
 
   private serializeActionToLegacy(action: any): string[] {
-    return action.serialize();
+    if (!action) return [];
+    if (typeof action.serialize === "function") {
+      try {
+        return action.serialize();
+      } catch (e) {
+        return [];
+      }
+    }
+    // If action is a plain object (legacy raw), attempt to return empty array
+    return [];
   }
 }

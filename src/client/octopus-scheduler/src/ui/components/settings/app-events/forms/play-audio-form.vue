@@ -20,17 +20,18 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
+import type { PlayAudioFormData, EditPlayAudioFormData } from '../types';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../../model/domains/assets/entity/asset';
 import { useAudio } from '@shared-composables/use-audio';
 
-interface Props {
-    initialData: { audioId?: string };
+type Props = {
+    initialData?: PlayAudioFormData | EditPlayAudioFormData;
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [data: any] }>();
+const emit = defineEmits<{ save: [PlayAudioFormData | EditPlayAudioFormData] }>();
 
 const assetService = container.resolve(AssetService);
 const audioAssets = ref<Asset[]>([]);
@@ -39,7 +40,7 @@ const fileInput = ref<HTMLInputElement>();
 const { load, play, pause, isPlaying } = useAudio({ mode: 'html-audio' });
 
 const formData = reactive({
-    audioId: props.initialData.audioId || '',
+    audioId: props.initialData?.audioId ?? '',
     audioFile: null as File | null,
 });
 
@@ -51,29 +52,33 @@ const refreshAssets = async () => {
         console.error('Failed to load audio assets:', error);
     }
 };
+const assetsUpdatedHandler = (ev: Event) => {
+    const ce = ev as CustomEvent;
+    setTimeout(async () => {
+        await refreshAssets();
+        const added: string[] | undefined = ce?.detail?.added;
+        if (Array.isArray(added) && added.length > 0) {
+            // auto-select first added audio if none selected
+            for (const id of added) {
+                const found = audioAssets.value.find(a => a.id === id);
+                if (found) {
+                    if (!formData.audioId) formData.audioId = id;
+                    break;
+                }
+            }
+        }
+    }, 0);
+};
 
 onMounted(async () => {
     await refreshAssets();
+    window.addEventListener('assets:updated', assetsUpdatedHandler as EventListener);
+});
 
-    const handler = (ev: Event) => {
-        const ce = ev as CustomEvent;
-        setTimeout(async () => {
-            await refreshAssets();
-            const added: string[] | undefined = ce?.detail?.added;
-            if (Array.isArray(added) && added.length > 0) {
-                // auto-select first added audio if none selected
-                for (const id of added) {
-                    const found = audioAssets.value.find(a => a.id === id);
-                    if (found) {
-                        if (!formData.audioId) formData.audioId = id;
-                        break;
-                    }
-                }
-            }
-        }, 0);
-    };
-    window.addEventListener('assets:updated', handler as EventListener);
-    onBeforeUnmount(() => window.removeEventListener('assets:updated', handler as EventListener));
+onBeforeUnmount(() => {
+    window.removeEventListener('assets:updated', assetsUpdatedHandler as EventListener);
+    // ensure audio is stopped when the form is unmounted
+    try { pause(); } catch (e) { /* ignore */ }
 });
 
 const handleFileUpload = async (event: Event) => {
@@ -134,7 +139,13 @@ const save = async () => {
         }
     }
 
-    emit('save', { actionType: 'PlayAudioEvent', audioId: formData.audioId });
+    const base: PlayAudioFormData = { actionType: 'PlayAudioEvent', audioId: formData.audioId };
+    if (props.initialData && 'eventId' in props.initialData) {
+        const out: EditPlayAudioFormData = { ...(base as any), eventId: (props.initialData as EditPlayAudioFormData).eventId };
+        emit('save', out);
+    } else {
+        emit('save', base);
+    }
 };
 
 defineExpose({ save });

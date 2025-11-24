@@ -254,8 +254,54 @@ export class KakuhenHandler {
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] showKakuhenMessage");
-    kakuhenMessageVisible.value = true;
-    await new Promise((r) => setTimeout(r, 2000));
+    // Register the finished listener before making the overlay visible to avoid
+    // a race where the overlay dispatches the event before the handler is
+    // listening.
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const cleanup = () => {
+        try {
+          window.removeEventListener(
+            "kakuhen.finished",
+            onFinished as EventListener
+          );
+        } catch (e) {
+          /* noop */
+        }
+        if (timer) {
+          clearTimeout(timer);
+        }
+      };
+
+      const onFinished = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve();
+      };
+
+      const timer = window.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve();
+      }, 2000);
+
+      try {
+        window.addEventListener(
+          "kakuhen.finished",
+          onFinished as EventListener
+        );
+      } catch (e) {
+        // addEventListener failed; fallback timer will be used
+      }
+
+      // Now that the listener is registered, show the overlay.
+      kakuhenMessageVisible.value = true;
+    });
+
+    // After animation completes, hold visible for 1 second before proceeding.
+    await new Promise((r) => setTimeout(r, 1000));
     emitter.emit("nextAction");
   }
 
@@ -265,6 +311,45 @@ export class KakuhenHandler {
   ) {
     console.log("[DrawOrchestrator] hideKakuhenMessage");
     kakuhenMessageVisible.value = false;
+    // Wait for the overlay fade transition to complete. The overlay dispatches
+    // a window CustomEvent 'kakuhen.dismissed' in its after-leave hook. Use a
+    // fallback timeout (1.5s) to avoid stalling the queue.
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const cleanup = () => {
+        try {
+          window.removeEventListener("kakuhen.dismissed", onDismissed);
+        } catch (e) {
+          /* noop */
+        }
+        if (timer) {
+          clearTimeout(timer);
+        }
+      };
+
+      const onDismissed = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve();
+      };
+
+      const timer = window.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve();
+      }, 1500);
+
+      try {
+        window.addEventListener("kakuhen.dismissed", onDismissed);
+      } catch (e) {
+        // fallback
+      }
+    });
+
+    // After dismissed, wait an additional 0.5s then proceed to nextAction.
+    await new Promise((r) => setTimeout(r, 500));
     emitter.emit("nextAction");
   }
 

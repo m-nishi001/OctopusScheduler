@@ -15,14 +15,24 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>アクションタイプ:</label>
-                <select v-model="actionType">
-                    <option v-for="(entry, key) in actionOptions" :key="key" :value="key">{{ entry.label }}</option>
-                </select>
+                <label>アクション一覧:</label>
+                <div class="actions-list">
+                    <action-item-summary v-for="(action, idx) in actions" :key="idx" :action="action" :index="idx"
+                        :length="actions.length" @edit="openActionManager" @move-up="moveUp" @move-down="moveDown"
+                        @remove="removeAction" />
+                </div>
+                <div class="add-action">
+                    <button @click="addAction">アクションを追加</button>
+                </div>
             </div>
-            <div class="form-content">
-                <component :is="currentFormComponent" :initial-data="initialData" @save="handleFormSave" ref="formRef">
-                </component>
+
+            <!-- Dialog area: mounted only when dialogOpen is true -->
+            <div v-if="dialogOpen" class="dialog-content">
+                <event-selection-dialog v-if="!dialogInitialData" :show="true" @select-type="onTypeSelected"
+                    @cancel="onDialogCancel" />
+
+                <component v-else :is="getFormComponent(dialogInitialData.actionType)" :initialData="dialogInitialData"
+                    :key="dialogKey" @save="onEditorSave" @cancel="onDialogCancel" ref="currentEditor" />
             </div>
             <div class="dialog-buttons">
                 <button @click="saveShortcut" class="save-btn">保存</button>
@@ -33,10 +43,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
 import { useKeyCapture } from './composables/useKeyCapture';
 import { getUIActionRegistry } from './action-registry';
+import ActionItemSummary from './action-item-summary.vue';
+import EventSelectionDialog from './event-selection-dialog.vue';
+import type { EventFormData } from './types';
+import { resolve as resolveEventConverter } from '../../../../core/event-converter/event-converter-resolver';
+import { container } from 'tsyringe';
+import { AppEventService } from '../../../../model/applications/app-event/app-event-service';
 
 interface Props {
     show: boolean;
@@ -53,52 +69,50 @@ const emit = defineEmits<Emits>();
 
 const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCapture();
 
-const actionType = ref('TransitionPageEvent');
-const formData = ref<any>({});
-const formRef = ref();
+const actions = ref<Array<EventFormData>>([]);
+const formRefs: Record<number, any> = {};
+// Minimal dialog state: parent holds only an open flag and a short-lived initial DTO
+const dialogOpen = ref(false);
+const dialogInitialData = ref<EventFormData | null>(null);
+const dialogKey = ref(0);
 
 const ACTION_REGISTRY = getUIActionRegistry();
+const appEventService = container.resolve(AppEventService);
 
-const currentFormComponent = computed(() => {
-    const e = ACTION_REGISTRY[actionType.value];
+const resolveActionData = (a: any) => {
+    if (!a) return {};
+    if ('data' in a && a.data != null) return a.data;
+    // build data from top-level fields excluding actionType and eventId
+    const { actionType, eventId, ...rest } = a as Record<string, any>;
+    return rest || {};
+};
+
+const getFormComponent = (atype: string) => {
+    const e = ACTION_REGISTRY[atype];
     return e ? e.component : null;
-});
-
-const actionOptions = computed(() => ACTION_REGISTRY);
-
-const initialData = computed(() => {
-    if (props.editingShortcut) {
-        const action: any = props.editingShortcut.action;
-        const registryEntry = ACTION_REGISTRY[action.type];
-        if (registryEntry?.getInitial) {
-            return registryEntry.getInitial(action);
-        }
-    }
-    return {};
-});
-
-const handleFormSave = (data: any) => {
-    formData.value = data;
 };
 
 watch(() => props.show, (newShow) => {
     if (newShow) {
         if (props.editingShortcut) {
             capturedKeys.value = [...props.editingShortcut.keys];
-            actionType.value = props.editingShortcut.action.type;
+            // populate actions from editingShortcut using centralized service
+            actions.value = props.editingShortcut.actions.map((a: any) => {
+                const data = appEventService.getDefault(a.type, a) as any;
+                return { actionType: a.type, ...data } as EventFormData;
+            });
         } else {
             capturedKeys.value = [];
-            actionType.value = 'TransitionPageEvent';
-            formData.value = {};
+            // start with no actions for a new shortcut; user must explicitly add one
+            actions.value = [];
         }
     } else {
         stopKeyCapture();
     }
 });
 
-watch(() => actionType.value, () => {
-    formData.value = {};
-});
+// when action types change, their forms manage initial data; nothing global to do
+
 
 const closeDialog = () => {
     emit('close');
@@ -109,49 +123,117 @@ const saveShortcut = async () => {
         alert('キーを設定してください');
         return;
     }
-
-    formRef.value?.save();
+    // ask each child form to save into actions.value
+    for (const idxStr of Object.keys(formRefs)) {
+        const idx = Number(idxStr);
+        formRefs[idx]?.save?.();
+    }
     await nextTick();
 
-    const data = formData.value;
-    if (!data) {
-        alert('フォームデータを入力してください');
-        return;
-    }
-    let event: any;
-    const atype = data.actionType || actionType.value;
-    const registryEntry = ACTION_REGISTRY[atype];
-    if (!registryEntry) {
-        alert('未対応のアクションタイプです');
-        return;
-    }
-    const now = new Date();
+    // validate and build events
     const id = props.editingShortcut?.id || `shortcut-${Date.now()}`;
-
-    // perform simple validation if the registry provides a validator
-    const validate = registryEntry.validate;
-    if (validate && !validate(data)) {
-        return; // validate should show alert
+    const events: any[] = [];
+    for (let i = 0; i < actions.value.length; i++) {
+        const a = actions.value[i];
+        const atype = a.actionType;
+        const data = resolveActionData(a);
+        const converter = resolveEventConverter(atype);
+        if (!converter) {
+            alert(`未対応のアクションタイプ: ${atype}`);
+            return;
+        }
+        const validate = (converter as any).validate;
+        if (validate && !validate(data)) return;
+        try {
+            let ev: any;
+            if (typeof (converter as any).toEntity === 'function') {
+                ev = (converter as any).toEntity(data);
+            } else {
+                alert(`未対応のアクションタイプ: ${atype}`);
+                return;
+            }
+            events.push(ev);
+        } catch (err) {
+            console.error(err);
+            alert('アクションの作成に失敗しました');
+            return;
+        }
     }
-
-    // build event through registry
-    try {
-        event = registryEntry.buildEvent(id, now, data);
-    } catch (err) {
-        console.error(err);
-        alert('アクションの作成に失敗しました');
-        return;
-    }
-
-    const shortcut = new KeyboardShortcut({
-        id,
-        keys: capturedKeys.value,
-        action: event,
-    });
-
+    const shortcut = new KeyboardShortcut({ id, keys: capturedKeys.value, actions: events });
     emit('save', shortcut);
-    closeDialog();
+    closeActionDialog();
 };
+
+const addAction = () => {
+    // Open the selection dialog for adding a new action
+    dialogInitialData.value = null;
+    dialogKey.value++;
+    dialogOpen.value = true;
+};
+
+const removeAction = (idx: number) => {
+    actions.value.splice(idx, 1);
+};
+
+const moveUp = (idx: number) => {
+    if (idx <= 0) return;
+    const a = actions.value.splice(idx, 1)[0];
+    actions.value.splice(idx - 1, 0, a);
+};
+
+const moveDown = (idx: number) => {
+    if (idx >= actions.value.length - 1) return;
+    const a = actions.value.splice(idx, 1)[0];
+    actions.value.splice(idx + 1, 0, a);
+};
+
+function openActionManager(index: number) {
+    // Open editor for existing action at index. Compute initial data from actions.
+    const initial = { ...(actions.value[index] as EventFormData) };
+    dialogInitialData.value = initial;
+    dialogKey.value++;
+    dialogOpen.value = true;
+}
+
+function onTypeSelected(payload: { type: string }) {
+    const t = payload.type;
+    const initial = appEventService.getDefault(t) as EventFormData;
+    dialogInitialData.value = initial;
+    dialogKey.value++;
+}
+
+function onEditorSave(dto: EventFormData & { eventId?: string }) {
+    // Try to replace existing by eventId if present
+    let replaced = false;
+    if ((dto as any).eventId) {
+        const idx = actions.value.findIndex(a => (a as any).eventId === (dto as any).eventId);
+        if (idx >= 0) {
+            actions.value.splice(idx, 1, dto as EventFormData);
+            replaced = true;
+        }
+    }
+    if (!replaced) {
+        // fallback: replace by object identity if possible
+        const idx = actions.value.findIndex(a => a === dialogInitialData.value);
+        if (idx >= 0) {
+            actions.value.splice(idx, 1, dto as EventFormData);
+            replaced = true;
+        }
+    }
+    if (!replaced) {
+        actions.value.push(dto as EventFormData);
+    }
+    closeActionDialog();
+}
+
+function onDialogCancel() {
+    closeActionDialog();
+}
+
+function closeActionDialog() {
+    dialogInitialData.value = null;
+    dialogOpen.value = false;
+}
 </script>
 
 <style scoped>
