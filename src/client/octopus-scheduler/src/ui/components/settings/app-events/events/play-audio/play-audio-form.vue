@@ -22,7 +22,7 @@
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import type { PlayAudioFormData, EditPlayAudioFormData } from '../../app-events/types';
 import { container } from 'tsyringe';
-import { AssetService } from '../../../../model/applications/assets/asset-service';
+import { AssetService } from '../../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../model/domains/assets/entity/asset';
 import { useAudio } from '@shared-composables/use-audio';
 
@@ -144,13 +144,73 @@ defineExpose({ save });
 </script>
 
 <style scoped>
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; }
-.form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #555; border-radius: 4px; background: #444; color: #fff; }
-.audio-selection { display: flex; gap: 10px; align-items: center; }
-.audio-selection select { flex: 1; }
-.upload-button { padding: 8px 12px; border: 1px solid #555; border-radius: 4px; background: #666; color: #fff; cursor: pointer; font-size: 16px; font-weight: bold; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-.preview-button { padding: 8px 12px; border: 1px solid #555; border-radius: 4px; background: #666; color: #fff; cursor: pointer; font-size: 16px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-.upload-button:hover, .preview-button:hover:not(:disabled) { background: #777; }
-.preview-button:disabled { background: #444; cursor: not-allowed; }
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #444;
+    color: #fff;
+}
+
+.audio-selection {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.audio-selection select {
+    flex: 1;
+}
+
+.upload-button {
+    padding: 8px 12px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #666;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-button {
+    padding: 8px 12px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #666;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.upload-button:hover,
+.preview-button:hover:not(:disabled) {
+    background: #777;
+}
+
+.preview-button:disabled {
+    background: #444;
+    cursor: not-allowed;
+}
 </style>

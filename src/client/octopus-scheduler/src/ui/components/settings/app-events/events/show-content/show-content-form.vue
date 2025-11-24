@@ -97,7 +97,7 @@
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import type { ShowContentFormData, EditShowContentFormData } from '../../app-events/types';
 import { container } from 'tsyringe';
-import { AssetService } from '../../../../model/applications/assets/asset-service';
+import { AssetService } from '../../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../model/domains/assets/entity/asset';
 
 type Props = { initialData?: ShowContentFormData | EditShowContentFormData }
@@ -233,13 +233,93 @@ defineExpose({ save });
 </script>
 
 <style scoped>
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; }
-.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #555; border-radius: 4px; background: #444; color: #fff; }
-.content-selection { display: flex; gap: 10px; align-items: center; }
-.upload-button { padding: 8px 12px; border: 1px solid #555; border-radius: 4px; background: #666; color: #fff; cursor: pointer; font-size: 16px; font-weight: bold; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-.preview-button { padding: 8px 12px; border: 1px solid #555; border-radius: 4px; background: #666; color: #fff; cursor: pointer; font-size: 16px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal-content { background: #232b36; color: #fff; padding: 20px; border-radius: 8px; max-width: 80vw; max-height: 80vh; overflow: auto; position: relative; }
-.close-btn { position: absolute; top: 10px; right: 10px; background: #666; color: #fff; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #444;
+    color: #fff;
+}
+
+.content-selection {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.upload-button {
+    padding: 8px 12px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #666;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-button {
+    padding: 8px 12px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #666;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #232b36;
+    color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 80vw;
+    max-height: 80vh;
+    overflow: auto;
+    position: relative;
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #666;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+}
 </style>

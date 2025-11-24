@@ -21,11 +21,11 @@ import {
 } from "../../model/domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcutService } from "../../model/applications/keyboard-shortcut/keyboard-shortcut-service";
 // Inline UIActionEntryToken so core doesn't need a separate token module
-export const UIActionEntryToken = Symbol('UIActionEntry');
-import { TransitionPageAction } from "../../ui/components/settings/events/transition-page/entry";
-import { PlayAudioAction } from "../../ui/components/settings/events/play-audio/entry";
-import { SlideshowAction } from "../../ui/components/settings/events/slideshow/entry";
-import { ShowContentAction } from "../../ui/components/settings/events/show-content/entry";
+export const UIActionEntryToken = Symbol("UIActionEntry");
+import { TransitionPageAction } from "../../ui/components/settings/app-events/events/transition-page/entry";
+import { PlayAudioAction } from "../../ui/components/settings/app-events/events/play-audio/entry";
+import { SlideshowAction } from "../../ui/components/settings/app-events/events/slideshow/entry";
+import { ShowContentAction } from "../../ui/components/settings/app-events/events/show-content/entry";
 
 export class Container {
   static Register() {

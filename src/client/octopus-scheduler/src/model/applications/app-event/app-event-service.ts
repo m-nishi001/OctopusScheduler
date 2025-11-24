@@ -46,7 +46,9 @@ export class AppEventService {
   getDefault(eventType: string): IAppEventDto {
     // Use UI registry defaultData if available; do not attempt to convert domain entities here.
     try {
-      const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
+      const entries = container.resolveAll<any>(
+        UIActionEntryToken as any
+      ) as any[];
       const entry = entries.find((e) => e && e.actionType === eventType);
       if (entry && typeof entry.defaultData === "function") {
         return entry.defaultData({}) as IAppEventDto;
