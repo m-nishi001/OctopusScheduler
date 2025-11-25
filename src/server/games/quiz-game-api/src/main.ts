@@ -314,23 +314,9 @@ _quizGame_updateJsonData = (driveJson: DriveJsonData): GasResponse<void> => {
   }
 };
 
-// Helper to convert dataUrl->Blob (server side)
-function dataUrlToBlob(dataUrl: string): GoogleAppsScript.Base.Blob {
-  const arr = dataUrl.split(",");
-  const mime = arr[0].match(/:(.*?);/)![1];
-  const bstr = Utilities.base64Decode(arr[1]);
-  return Utilities.newBlob(bstr, mime);
-}
-
-// Helper to convert Drive file id -> dataUrl
-function fileIdToDataUrl(fileId: string): string {
-  const file = DriveApp.getFileById(fileId);
-  const blob = file.getBlob();
-  const bytes = blob.getBytes();
-  const base64 = Utilities.base64Encode(bytes);
-  const mime = blob.getContentType();
-  return `data:${mime};base64,${base64}`;
-}
+// NOTE: dataUrl <-> Blob conversion is handled by `GoogleDriveService` helpers
+// (createBlobFromDataUrlOrBase64 / blobToDataUrl). The server-local copies
+// were removed to avoid duplication.
 
 // Main: unified bulk sync
 // Trash all files in a folder (idempotent). Clients may call this to perform

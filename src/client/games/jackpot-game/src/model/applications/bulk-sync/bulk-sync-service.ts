@@ -238,8 +238,38 @@ export class BulkSyncService {
       20
     );
     try {
-      // Placeholder: implement screen upload if/when needed
-      onProgress?.("screens", "同期完了", 100);
+      const screenRepo = container.resolve(
+        (await import("../../infrastructures/screen-config-repository"))
+          .ScreenConfigRepository
+      );
+
+      if (direction === "download") {
+        // Assume assets were already synced above and assetService.replaceLocalWithDrive
+        // produced an idMap if available. Try to obtain idMap via assetService if present.
+        let idMap: { [k: string]: string } = {};
+        try {
+          if (
+            typeof (this.assetService as any).replaceLocalWithDrive ===
+            "function"
+          ) {
+            const r = await (this.assetService as any).replaceLocalWithDrive();
+            if (r && r.idMap) idMap = r.idMap;
+          }
+        } catch (e) {
+          console.warn("Failed to obtain idMap for screens import:", e);
+        }
+
+        await (screenRepo as any).importScreenConfigsFromDrive(
+          undefined,
+          idMap
+        );
+        onProgress?.("screens", "同期完了", 100);
+      } else {
+        // upload: export screens to Drive
+        const exported = await (screenRepo as any).exportScreenConfigsToDrive();
+        if (exported) onProgress?.("screens", "アップロード完了", 100);
+        else onProgress?.("screens", "アップロードに失敗しました", 100);
+      }
     } catch (e) {
       console.error("screen sync error", e);
       onProgress?.("screens", "同期に失敗しました", 100);
