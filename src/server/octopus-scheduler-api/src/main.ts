@@ -70,8 +70,9 @@ function getJsonFolderId(providedFolderId?: string): string {
 // client-provided folder id and always use the configured asset folder.
 function getAssetFolderId(_providedFolderId?: string): string {
   const folderId =
-    PropertiesService.getScriptProperties().getProperty(ASSET_FOLDER_PROPERTY) ||
-    "";
+    PropertiesService.getScriptProperties().getProperty(
+      ASSET_FOLDER_PROPERTY
+    ) || "";
   if (!folderId) {
     throw new Error(
       `ScriptProperties '${ASSET_FOLDER_PROPERTY}' is not configured and no parentFolderId was provided.`
@@ -100,7 +101,9 @@ _octopusScheduler_getDriveMetaData = (
 ): GasResponse<DriveMetadata[]> => {
   try {
     const resolved =
-      folderId && folderId.trim() !== "" ? folderId : getAssetFolderId(folderId);
+      folderId && folderId.trim() !== ""
+        ? folderId
+        : getAssetFolderId(folderId);
     const result = driveService.getDriveMetaData(resolved);
     // Ensure metadata items have parentFolderId set so clients can identify origin
     result.forEach((m) => {
