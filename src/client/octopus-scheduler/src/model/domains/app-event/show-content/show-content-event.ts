@@ -1,5 +1,10 @@
 import { eventBus } from "../../../../core/event-bus";
 import type { IAppEvent } from "../app-event";
+import {
+  toDateOrNow,
+  toDateOrNull,
+  toISOStringSafe,
+} from "@common-lib/date-utils/date-utils";
 
 export class ShowContentEventParams {
   id: string;
@@ -123,10 +128,10 @@ export class ShowContentEvent implements IAppEvent {
 
   static revive(raw: IAppEvent): ShowContentEvent {
     const r = raw as unknown as Record<string, unknown>;
-    const startTime = new Date(r.startTime as string | Date);
-    const endTime = new Date(r.endTime as string | Date);
-    const registeredAt = new Date(r.registeredAt as string | Date);
-    const updatedAt = new Date(r.updatedAt as string | Date);
+    const startTime = toDateOrNow(r.startTime);
+    const endTime = toDateOrNow(r.endTime);
+    const registeredAt = toDateOrNow(r.registeredAt);
+    const updatedAt = toDateOrNow(r.updatedAt);
 
     const fadeOutDuration = Number(
       r.fadeOutDuration as string | number | undefined
@@ -135,11 +140,7 @@ export class ShowContentEvent implements IAppEvent {
     const fadeInTime = Number(r.fadeInTime as string | number | undefined);
     const fadeOutTime = Number(r.fadeOutTime as string | number | undefined);
 
-    const processedAtRaw = r.processedAt as string | null | undefined;
-    const processedAt =
-      processedAtRaw == null || processedAtRaw === ""
-        ? null
-        : new Date(processedAtRaw);
+    const processedAt = toDateOrNull(r.processedAt);
 
     const params = new ShowContentEventParams({
       id: String(r.id),
@@ -188,8 +189,8 @@ export class ShowContentEvent implements IAppEvent {
       this.endTime.toISOString(),
       this.contentId || "",
       this.processedAt ? this.processedAt.toISOString() : "",
-      this.registeredAt.toISOString(),
-      this.updatedAt.toISOString(),
+      toISOStringSafe(this.registeredAt, true) ?? new Date().toISOString(),
+      toISOStringSafe(this.updatedAt, true) ?? new Date().toISOString(),
     ];
   }
 
@@ -206,13 +207,16 @@ export class ShowContentEvent implements IAppEvent {
       fadeOutTime: this.fadeOutTime,
       scrollDirection: this.scrollDirection,
       processedAt: this.processedAt ? this.processedAt.toISOString() : null,
-      registeredAt: this.registeredAt.toISOString(),
-      updatedAt: this.updatedAt.toISOString(),
+      registeredAt: toISOStringSafe(this.registeredAt, true),
+      updatedAt: toISOStringSafe(this.updatedAt, true),
     };
   }
 
   static fromData(data: Record<string, any>): ShowContentEvent {
     const now = new Date();
+    const registeredAt = toDateOrNow(data.registeredAt);
+    const updatedAt = toDateOrNow(data.updatedAt);
+
     return ShowContentEvent.fromParams({
       id: data.id,
       startTime: now,
@@ -236,11 +240,9 @@ export class ShowContentEvent implements IAppEvent {
         | "left"
         | "right"
         | undefined,
-      processedAt: data.processedAt
-        ? new Date(data.processedAt as string)
-        : null,
-      registeredAt: new Date(data.registeredAt as string),
-      updatedAt: new Date(data.updatedAt as string),
+      processedAt: toDateOrNull(data.processedAt),
+      registeredAt,
+      updatedAt,
     });
   }
 }

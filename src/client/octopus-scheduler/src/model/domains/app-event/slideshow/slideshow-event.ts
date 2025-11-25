@@ -1,5 +1,10 @@
 import { eventBus } from "../../../../core/event-bus";
 import type { IAppEvent } from "../app-event";
+import {
+  toDateOrNow,
+  toDateOrNull,
+  toISOStringSafe,
+} from "@common-lib/date-utils/date-utils";
 
 export class SlideshowEventParams {
   id: string;
@@ -95,8 +100,8 @@ export class SlideshowEvent implements IAppEvent {
     const r = raw as unknown as Record<string, unknown>;
     const startTime = new Date(r.startTime as string | Date);
     const endTime = new Date(r.endTime as string | Date);
-    const registeredAt = new Date(r.registeredAt as string | Date);
-    const updatedAt = new Date(r.updatedAt as string | Date);
+    const registeredAt = toDateOrNow(r.registeredAt);
+    const updatedAt = toDateOrNow(r.updatedAt);
 
     const displayDuration = Number(
       r.displayDuration as string | number | undefined
@@ -111,11 +116,7 @@ export class SlideshowEvent implements IAppEvent {
           : (r.bgmIds as string).split(",").map((s: string) => s.trim());
     else bgmIds = [];
 
-    const processedAtRaw = r.processedAt as string | null | undefined;
-    const processedAt =
-      processedAtRaw == null || processedAtRaw === ""
-        ? null
-        : new Date(processedAtRaw);
+    const processedAt = toDateOrNull(r.processedAt);
 
     const params = new SlideshowEventParams({
       id: String(r.id),
@@ -155,8 +156,8 @@ export class SlideshowEvent implements IAppEvent {
       this.endTime.toISOString(),
       this.folderId,
       this.processedAt ? this.processedAt.toISOString() : "",
-      this.registeredAt.toISOString(),
-      this.updatedAt.toISOString(),
+      toISOStringSafe(this.registeredAt, true) ?? new Date().toISOString(),
+      toISOStringSafe(this.updatedAt, true) ?? new Date().toISOString(),
     ];
   }
 
@@ -168,13 +169,15 @@ export class SlideshowEvent implements IAppEvent {
       slideDirection: this.slideDirection,
       bgmIds: this.bgmIds,
       processedAt: this.processedAt ? this.processedAt.toISOString() : null,
-      registeredAt: this.registeredAt.toISOString(),
-      updatedAt: this.updatedAt.toISOString(),
+      registeredAt: toISOStringSafe(this.registeredAt, true),
+      updatedAt: toISOStringSafe(this.updatedAt, true),
     };
   }
 
   static fromData(data: Record<string, any>): SlideshowEvent {
     const now = new Date();
+    const registeredAt = toDateOrNow(data.registeredAt);
+    const updatedAt = toDateOrNow(data.updatedAt);
     return SlideshowEvent.fromParams({
       id: data.id,
       startTime: now,
@@ -184,11 +187,9 @@ export class SlideshowEvent implements IAppEvent {
       transitionType: data.transitionType as "fade" | "slide",
       slideDirection: data.slideDirection as "left" | "right" | "up" | "down",
       bgmIds: data.bgmIds as string[],
-      processedAt: data.processedAt
-        ? new Date(data.processedAt as string)
-        : null,
-      registeredAt: new Date(data.registeredAt as string),
-      updatedAt: new Date(data.updatedAt as string),
+      processedAt: toDateOrNull(data.processedAt),
+      registeredAt,
+      updatedAt,
     });
   }
 }

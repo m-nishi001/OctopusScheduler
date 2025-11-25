@@ -1,5 +1,11 @@
 import { eventBus } from "../../../../core/event-bus";
 import type { IAppEvent } from "../app-event";
+import {
+  toDateOrNow,
+  toDateOrNull,
+  toISOStringOrEmpty,
+  toISOStringSafe,
+} from "@common-lib/date-utils/date-utils";
 
 export class PlayAudioEventParams {
   id: string;
@@ -77,16 +83,12 @@ export class PlayAudioEvent implements IAppEvent {
     const r = raw as unknown as Record<string, unknown>;
     const startTime = new Date(r.startTime as string | Date);
     const endTime = new Date(r.endTime as string | Date);
-    const registeredAt = new Date(r.registeredAt as string | Date);
-    const updatedAt = new Date(r.updatedAt as string | Date);
+    const registeredAt = toDateOrNow(r.registeredAt);
+    const updatedAt = toDateOrNow(r.updatedAt);
     const fadeOutDuration = Number(
       r.fadeOutDuration as string | number | undefined
     );
-    const processedAtRaw = r.processedAt as string | null | undefined;
-    const processedAt =
-      processedAtRaw == null || processedAtRaw === ""
-        ? null
-        : new Date(processedAtRaw);
+    const processedAt = toDateOrNull(r.processedAt);
 
     const params = new PlayAudioEventParams({
       id: String(r.id),
@@ -104,7 +106,10 @@ export class PlayAudioEvent implements IAppEvent {
 
   async execute(isStart: boolean, manual?: boolean): Promise<void> {
     if (isStart) {
-      eventBus.emit("playAudio", { audioId: this.audioId, manual: !!manual } as any);
+      eventBus.emit("playAudio", {
+        audioId: this.audioId,
+        manual: !!manual,
+      } as any);
     } else {
       eventBus.emit("stopAudio");
     }
@@ -117,8 +122,8 @@ export class PlayAudioEvent implements IAppEvent {
       this.audioId,
       this.fadeOutDuration?.toString() ?? "",
       this.processedAt ? this.processedAt.toISOString() : "",
-      this.registeredAt.toISOString(),
-      this.updatedAt.toISOString(),
+      toISOStringSafe(this.registeredAt, true) ?? new Date().toISOString(),
+      toISOStringSafe(this.updatedAt, true) ?? new Date().toISOString(),
     ];
   }
 
@@ -127,24 +132,24 @@ export class PlayAudioEvent implements IAppEvent {
       audioId: this.audioId,
       fadeOutDuration: this.fadeOutDuration,
       processedAt: this.processedAt ? this.processedAt.toISOString() : null,
-      registeredAt: this.registeredAt.toISOString(),
-      updatedAt: this.updatedAt.toISOString(),
+      registeredAt: toISOStringSafe(this.registeredAt, true),
+      updatedAt: toISOStringSafe(this.updatedAt, true),
     };
   }
 
   static fromData(data: Record<string, any>): PlayAudioEvent {
     const now = new Date();
+    const registeredAt = toDateOrNow(data.registeredAt);
+    const updatedAt = toDateOrNow(data.updatedAt);
     return PlayAudioEvent.fromParams({
       id: data.id,
       startTime: now,
       endTime: new Date(now.getTime() + 1000),
       audioId: data.audioId as string,
       fadeOutDuration: data.fadeOutDuration as number,
-      processedAt: data.processedAt
-        ? new Date(data.processedAt as string)
-        : null,
-      registeredAt: new Date(data.registeredAt as string),
-      updatedAt: new Date(data.updatedAt as string),
+      processedAt: toDateOrNull(data.processedAt),
+      registeredAt,
+      updatedAt,
     });
   }
 }
