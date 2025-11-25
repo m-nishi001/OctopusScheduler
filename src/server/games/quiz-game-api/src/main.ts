@@ -90,6 +90,16 @@ declare let _quizGame_updateJsonData: (
 declare let _quizGame_stopForm: (quizId: string) => GasResponse<void>;
 declare let _quizGame_getSheetData: (quizId: string) => GasResponse<SheetRow[]>;
 
+// Email->Name mapping cache key and ScriptProperty key for spreadsheet id
+const EMAIL_NAME_MAP_CACHE_KEY = 'QUIZ_EMAIL_NAME_MAP';
+const EMAIL_NAME_SPREADSHEET_PROPERTY = 'EMAIL_NAME_SPREADSHEET_ID';
+
+// Declarations for new functions
+declare let _quizGame_loadEmailNameMap: () => GasResponse<void>;
+declare let _quizGame_getMappedResponses: (
+  formId: string
+) => GasResponse<any[]>;
+
 _quizGame_stopForm = (quizId: string): GasResponse<void> => {
   try {
     const form = FormApp.openById(quizId);
