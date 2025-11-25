@@ -14,7 +14,7 @@ declare let _octopusScheduler_addDriveData: (
   driveData: DriveData
 ) => GasResponse<DriveMetadata>;
 declare let _octopusScheduler_getDriveMetaData: (
-  folderId: string
+  folderId?: string
 ) => GasResponse<DriveMetadata[]>;
 declare let _octopusScheduler_getDriveData: (
   dataId: string
@@ -66,11 +66,28 @@ function getJsonFolderId(providedFolderId?: string): string {
   return folderId;
 }
 
+// Resolve asset folder id from ScriptProperties. We intentionally ignore any
+// client-provided folder id and always use the configured asset folder.
+function getAssetFolderId(_providedFolderId?: string): string {
+  const folderId =
+    PropertiesService.getScriptProperties().getProperty(ASSET_FOLDER_PROPERTY) ||
+    "";
+  if (!folderId) {
+    throw new Error(
+      `ScriptProperties '${ASSET_FOLDER_PROPERTY}' is not configured and no parentFolderId was provided.`
+    );
+  }
+  return folderId;
+}
+
 // Assign global functions
 _octopusScheduler_addDriveData = (
   driveData: DriveData
 ): GasResponse<DriveMetadata> => {
   try {
+    // Always resolve the asset folder from ScriptProperties (ignore client-provided)
+    const resolvedFolder = getAssetFolderId(driveData.parentFolderId);
+    driveData.parentFolderId = resolvedFolder;
     const result = driveService.addDriveData(driveData);
     return { status: "success", data: result.data! };
   } catch (error) {
@@ -79,10 +96,16 @@ _octopusScheduler_addDriveData = (
 };
 
 _octopusScheduler_getDriveMetaData = (
-  folderId: string
+  folderId?: string
 ): GasResponse<DriveMetadata[]> => {
   try {
-    const result = driveService.getDriveMetaData(folderId);
+    const resolved =
+      folderId && folderId.trim() !== "" ? folderId : getAssetFolderId(folderId);
+    const result = driveService.getDriveMetaData(resolved);
+    // Ensure metadata items have parentFolderId set so clients can identify origin
+    result.forEach((m) => {
+      if (!m.parentFolderId) m.parentFolderId = resolved;
+    });
     return { status: "success", data: result };
   } catch (error) {
     return { status: "error", message: (error as Error).message };

@@ -111,7 +111,9 @@ export class AssetDataRepository implements IAssetDataRepository {
       timeout: 180000,
     });
     try {
-      const metas = (await metaService.call<DriveMetadata[]>()) || [];
+      // Explicitly pass undefined so the server will resolve the configured
+      // asset folder via ScriptProperties when no folder is provided.
+      const metas = (await metaService.call<DriveMetadata[]>(undefined)) || [];
       return metas as DriveMetadata[];
     } catch (e) {
       onProgress?.(`Failed to fetch remote metadata: ${(e as Error).message}`);

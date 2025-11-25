@@ -89,7 +89,6 @@ export class AssetRepository implements IAssetRepository {
   ): Promise<void> {
     // default options
     const concurrency = 6;
-    const folderId = "";
 
     onProgress?.("Starting asset sync (diff-based)");
 
@@ -97,7 +96,9 @@ export class AssetRepository implements IAssetRepository {
     const metaService = new GasFunctionService("getDriveMetaData");
     let remoteMetas: Array<any> = [];
     try {
-      remoteMetas = (await metaService.call(folderId)) || [];
+      // Do not send an empty string for folderId. Send an explicit undefined
+      // so the server resolves the configured asset folder via ScriptProperties.
+      remoteMetas = (await metaService.call(undefined)) || [];
     } catch (e) {
       onProgress?.(`Failed to fetch remote metadata: ${(e as Error).message}`);
       return;
@@ -250,7 +251,7 @@ export class AssetRepository implements IAssetRepository {
         fileKind: asset.blob?.type || "application/octet-stream",
         fileDataUrl: dataUrl,
         uploadDate: new Date().toISOString(),
-        parentFolderId: asset.directoryId || "",
+        parentFolderId: asset.directoryId || undefined,
       } as any;
 
       const res = await addService.call(driveData);
@@ -278,7 +279,7 @@ export class AssetRepository implements IAssetRepository {
         fileKind: asset.blob?.type || "application/octet-stream",
         fileDataUrl: dataUrl,
         uploadDate: new Date().toISOString(),
-        parentFolderId: asset.directoryId || "",
+        parentFolderId: asset.directoryId || undefined,
       } as any;
 
       await updateService.call(driveData);

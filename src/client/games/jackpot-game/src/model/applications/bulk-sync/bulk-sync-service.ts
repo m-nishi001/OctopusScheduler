@@ -164,7 +164,9 @@ export class BulkSyncService {
           const metaService = new GasFunctionService("getDriveMetaData");
           let remoteMetas: any[] = [];
           try {
-            remoteMetas = (await metaService.call("")) || [];
+            // Explicitly pass undefined so the server-side resolver uses the
+            // configured ScriptProperty folder instead of an empty string.
+            remoteMetas = (await metaService.call(undefined)) || [];
           } catch (e) {
             onProgress?.(
               "assets",
