@@ -1,10 +1,10 @@
 <template>
-    <div v-if="quiz" class="quiz-container">
+    <div v-if="quiz" ref="containerRef" class="quiz-container" :style="containerStyle">
         <div class="timer-pill" :class="{ 'urgent': timeLeft <= 10 }" aria-hidden="false">
             <span class="time">{{ timeLeft }}</span>
             <span class="unit">秒</span>
         </div>
-        <header class="quiz-header">
+        <header ref="headerRef" class="quiz-header">
             <div class="header-row">
                 <div class="qr-inline" aria-hidden="false">
                     <img :src="qrCodeUrl" alt="QR Code" class="qr-image qr-inline-image" />
@@ -17,7 +17,7 @@
                 </div>
             </div>
         </header>
-        <section class="question-area" aria-live="polite">
+        <section ref="questionAreaRef" class="question-area" aria-live="polite">
             <div class="options-grid" :class="{ 'two-options': optionsCount === 2 }" role="list">
                 <OptionCard v-for="(option, index) in optionsWithImageUrls" :key="index" :option="option" :index="index"
                     @select="selectOption" :style="{ '--option-color': option.color }" />
@@ -34,13 +34,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
 import { AnswerFormService } from '../../../model/domains/services/answer-form-service';
 import OptionCard from '../../components/option-card.vue';
+import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
+import { quizState } from '../../../services/quizState';
 
 const route = useRoute();
 const router = useRouter();
@@ -78,11 +80,154 @@ const optionsWithImageUrls = computed((): { no: number; text: string; color: str
 
 const optionsCount = computed(() => optionsWithImageUrls.value.length);
 
+// Layout: compute card height so the grid (2 columns) never overflows the viewport.
+const containerRef = ref<HTMLElement | null>(null);
+const headerRef = ref<HTMLElement | null>(null);
+const questionAreaRef = ref<HTMLElement | null>(null);
+const cardHeight = ref<number>(180);
+
+const containerStyle = computed(() => {
+    // when cardHeight is 0 (or falsy) we don't set the variable so CSS can take over (responsive "auto" case)
+    if (!cardHeight.value) return {} as Record<string, string>;
+    return { '--card-height': cardHeight.value + 'px' } as Record<string, string>;
+});
+
+// Small debounce helper to avoid thrashing on resize/image loads
+function debounce<T extends (...args: any[]) => void>(fn: T, wait = 50) {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    return (...args: Parameters<T>) => {
+        if (t) clearTimeout(t);
+        t = setTimeout(() => {
+            t = null;
+            fn(...args);
+        }, wait);
+    };
+}
+
+let ro: ResizeObserver | null = null;
+let optionsGridEl: HTMLElement | null = null;
+let imgLoadHandler: ((e: Event) => void) | null = null;
+
+const calcCardHeight = async () => {
+    await nextTick();
+    const containerEl = containerRef.value;
+    const headerEl = headerRef.value;
+    const questionEl = questionAreaRef.value;
+    if (!containerEl || !headerEl || !questionEl) {
+        cardHeight.value = 0;
+        return;
+    }
+
+    // If narrow viewport (media query matches CSS override), let CSS size rows automatically
+    const isNarrow = window.matchMedia('(max-width:960px)').matches;
+    if (isNarrow) {
+        cardHeight.value = 0;
+        return;
+    }
+
+    const optionsEl = containerEl.querySelector('.options-grid') as HTMLElement | null;
+    optionsGridEl = optionsEl;
+    if (!optionsEl) {
+        cardHeight.value = 0;
+        return;
+    }
+
+    const winH = window.innerHeight;
+    const headerRect = headerEl.getBoundingClientRect();
+
+    const containerStyleComputed = getComputedStyle(containerEl);
+    const paddingBottom = parseFloat(containerStyleComputed.paddingBottom || '0');
+
+    const headerStyle = getComputedStyle(headerEl);
+    const headerMarginBottom = parseFloat(headerStyle.marginBottom || '0');
+
+    // base available space from bottom of header to bottom of viewport, minus container padding
+    const safetyOffset = 8; // small safety margin for rounding
+    let availableForRows = Math.max(0, winH - headerRect.bottom - paddingBottom - headerMarginBottom - safetyOffset);
+
+    const rows = Math.max(1, Math.ceil(optionsCount.value / 2));
+
+    const gridStyle = getComputedStyle(optionsEl);
+    const rowGapPx = parseFloat(gridStyle.rowGap || gridStyle.gap || '0');
+    const totalGaps = Math.max(0, rows - 1) * (isNaN(rowGapPx) ? 0 : rowGapPx);
+
+    let h = Math.floor((availableForRows - totalGaps) / rows) - 4;
+
+    const MIN_HEIGHT = 120; // recommended minimum for readability and tap targets
+    if (h < MIN_HEIGHT) h = MIN_HEIGHT;
+
+    cardHeight.value = h;
+};
+
+const updateCardHeight = debounce(() => {
+    void calcCardHeight();
+}, 48);
+
+onMounted(() => {
+    // initial calc and bind resize
+    updateCardHeight();
+    window.addEventListener('resize', updateCardHeight);
+
+    // ResizeObserver to catch layout changes (images, fonts, grid changes)
+    try {
+        ro = new ResizeObserver(updateCardHeight);
+        if (containerRef.value) ro.observe(containerRef.value);
+        if (headerRef.value) ro.observe(headerRef.value);
+        const opts = containerRef.value?.querySelector('.options-grid') as HTMLElement | null;
+        if (opts) {
+            ro.observe(opts);
+            optionsGridEl = opts;
+        }
+    } catch (e) {
+        // ResizeObserver may not be available in some test envs — fall back to window resize
+        console.warn('ResizeObserver unavailable', e);
+    }
+
+    // Listen for image load events inside the options grid — when images finish loading heights can change
+    imgLoadHandler = () => updateCardHeight();
+    if (optionsGridEl) optionsGridEl.addEventListener('load', imgLoadHandler, true);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', updateCardHeight);
+    if (ro) {
+        try {
+            ro.disconnect();
+        } catch (e) {
+            /* ignore */
+        }
+        ro = null;
+    }
+    if (optionsGridEl && imgLoadHandler) {
+        optionsGridEl.removeEventListener('load', imgLoadHandler, true);
+        optionsGridEl = null;
+        imgLoadHandler = null;
+    }
+});
+
+watch([optionsCount, () => quiz.value?.question], () => updateCardHeight());
+
 onMounted(async () => {
     const startQuizUseCase = container.resolve(StartQuizUseCase);
     quiz.value = await startQuizUseCase.execute(quizId);
     if (quiz.value) {
         timeLeft.value = quiz.value.timeLimit;
+        // record quiz start time for result processing
+        try {
+            quizState.setStartTime();
+        } catch (e) {
+            console.warn('quizState.setStartTime failed', e);
+        }
+
+        // try to preload email->name map into GAS Script Cache
+        try {
+            const loadSvc = new GasFunctionService('_quizGame_loadEmailNameMap');
+            // call without args
+            await loadSvc.call();
+        } catch (e) {
+            console.warn('Failed to load email->name map into GAS cache', e);
+        }
+
         startTimer();
         // Create object URLs for images
         objectUrls.value = quiz.value.options.map(option => {
@@ -150,7 +295,10 @@ const handleKeydown = (event: KeyboardEvent) => {
             audioElement.value.pause();
             audioElement.value = null;
         }
-        router.push(`/quiz/${quizId}/answer?preview=${isPreview.value}`);
+        // preserve preview query if present so result page can use dummy data
+        const query: Record<string, any> = {};
+        if (route.query.preview) query.preview = String(route.query.preview);
+        router.push({ path: `/quiz/${quizId}/answer`, query: Object.keys(query).length ? query : undefined });
     }
 };
 </script>
@@ -279,17 +427,17 @@ body::-webkit-scrollbar {
 
 /* Grid: always 2 columns (2 x N rows). Narrow screens keep 2 columns as requested. */
 .options-grid {
-     display: grid;
-     /* Always use 2 columns to keep the layout consistent (2 columns x N rows).
+    display: grid;
+    /* Always use 2 columns to keep the layout consistent (2 columns x N rows).
          Columns share available space equally. */
-     grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: clamp(12px, 1.2vw, 24px);
     align-items: stretch;
     align-content: stretch;
     justify-items: stretch;
-    /* Reduce vertical footprint so two rows fit without overflowing. */
-    /* Ensure rows expand to fill available area but avoid becoming too small. */
-    grid-auto-rows: minmax(120px, 1fr);
+    /* Row height is driven by JS-calculated CSS variable so the grid never overflows. */
+    /* `--card-height` is set on the container (px). */
+    grid-auto-rows: var(--card-height);
     /* allow rows to be smaller when space is constrained */
     height: 100%;
     /* fill parent (.question-area) which is flex:1 */
@@ -387,16 +535,20 @@ body::-webkit-scrollbar {
     position: absolute;
     top: 12px;
     left: 12px;
-    min-width: 56px;
-    height: 56px;
+    min-width: 44px;
+    height: 44px;
     border-radius: 999px;
     background: var(--option-color, rgba(255, 255, 255, 0.12));
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 900;
-    font-size: 1.05rem;
+    font-weight: 800;
+    font-size: 0.85rem;
+    padding: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
     z-index: 3;
 }
@@ -549,6 +701,8 @@ body::-webkit-scrollbar {
     .option-index {
         min-width: 52px;
         height: 52px;
+        font-size: 0.78rem;
+        padding: 0 8px;
     }
 }
 </style>
@@ -557,12 +711,12 @@ body::-webkit-scrollbar {
 <style scoped>
 @media (min-width: 1024px) {
     .options-grid {
-        /* Increase the minimum row height on desktop for larger cards */
-        grid-auto-rows: minmax(180px, 1fr);
+        /* Desktop still uses the computed card height (may be larger). */
+        grid-auto-rows: var(--card-height);
     }
 
     /* When two options are present, ensure each option has a reasonable minimum height */
-    .options-grid.two-options > div {
+    .options-grid.two-options>div {
         min-height: 360px;
     }
 
