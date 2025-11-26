@@ -23,3 +23,27 @@ export function normalizeEmail(email?: string | null): string | null {
     return null;
   }
 }
+
+/**
+ * Normalize an answer/value for robust comparison.
+ * - trims whitespace
+ * - applies Unicode NFKC normalization if available
+ * - strips a leading numbering like "1: " or "1．"
+ * - lowercases ASCII letters for case-insensitive comparison
+ */
+export function normalizeAnswer(value?: string | null): string {
+  if (value === undefined || value === null) return "";
+  try {
+    let s = String(value).trim();
+    if ((s as any).normalize) {
+      s = (s as any).normalize("NFKC");
+    }
+    // remove leading numbering like "1: " or "1．" or "1. "
+    s = s.replace(/^\s*\d+\s*[:．\.\-]\s*/, "");
+    // lowercase (ASCII letters) to make comparisons case-insensitive for Latin
+    s = s.toLowerCase();
+    return s;
+  } catch (e) {
+    return String(value ?? "");
+  }
+}

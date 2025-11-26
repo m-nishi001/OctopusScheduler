@@ -271,7 +271,8 @@ const copyToClipboard = async (text: string) => {
 
 const previewQuiz = (index: number) => {
     const quiz = quizzes.value[index];
-    router.push(`/quiz/${quiz.id}?preview=true`);
+    // navigate to intro route with preview flag in params (avoid query string)
+    router.push({ name: 'quiz-intro', params: { id: quiz.id, preview: true } });
 };
 </script>
 

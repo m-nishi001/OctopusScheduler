@@ -18,7 +18,14 @@ const quizId = route.params.id as string;
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
-        router.push(`/quiz/${quizId}/qr`);
+        // Prefer preview flag from route params (set by router pushes). Do not use query.
+        const paramPreview = (route.params as any).preview;
+        const preview = paramPreview !== undefined ? paramPreview : undefined;
+        if (preview !== undefined) {
+            router.push({ name: 'quiz-qr', params: { id: quizId, preview } });
+        } else {
+            router.push({ name: 'quiz-qr', params: { id: quizId } });
+        }
     }
 };
 

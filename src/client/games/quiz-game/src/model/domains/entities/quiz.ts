@@ -23,4 +23,23 @@ export class Quiz {
     this.timeLimit = quizData.timeLimit;
     this.bgm = quizData.bgm;
   }
+
+  /**
+   * Extract formId from the stored formUrl.
+   * Supports patterns like `/d/e/{id}/`, `/d/{id}/` and `?id={id}`.
+   */
+  getFormId(): string | null {
+    if (!this.formUrl) return null;
+    try {
+      const m1 = (this.formUrl as string).match(/\/d\/e\/([a-zA-Z0-9_-]+)/);
+      if (m1 && m1[1]) return m1[1];
+      const m2 = (this.formUrl as string).match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (m2 && m2[1]) return m2[1];
+      const qm = (this.formUrl as string).match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (qm && qm[1]) return qm[1];
+    } catch (e) {
+      // swallow and return null for invalid URLs
+    }
+    return null;
+  }
 }

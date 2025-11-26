@@ -3,7 +3,6 @@
         <button class="option-button" :style="styleVars" @click="onSelect" :aria-label="ariaLabel">
             <div class="image-wrapper">
                 <img v-if="imageUrl" :src="imageUrl" :alt="option.text" class="option-image" />
-                <div class="option-index">{{ index + 1 }}</div>
                 <div class="text-ribbon">
                     <span class="option-text">{{ option.text }}</span>
                 </div>
@@ -34,7 +33,15 @@ const emit = defineEmits<(e: 'select', payload: number | undefined) => void>();
 
 const blobUrl = ref<string | null>(null);
 
-const ariaLabel = computed(() => props.ariaLabel || props.option.text || `option-${props.index + 1}`);
+const optionText = computed(() => (props.option && (props.option.text ?? (props.option.no != null ? String(props.option.no) : ''))) || '');
+
+const displayText = computed(() => {
+    if (optionText.value && optionText.value.length > 0) return optionText.value;
+    if (props.option && props.option.no != null) return String(props.option.no);
+    return String(props.index + 1);
+});
+
+const ariaLabel = computed(() => props.ariaLabel || optionText.value || `option-${props.index + 1}`);
 
 const variantClass = computed(() => (props.variant ? `option-card--${props.variant}` : ''));
 
@@ -73,10 +80,12 @@ const onSelect = () => {
 <style scoped>
 .option-card {
     width: 100%;
+    height: 100%;
 }
 
 .option-button {
     width: 100%;
+    height: 100%;
     padding: 0;
     border-radius: 16px;
     border: none;
@@ -99,14 +108,17 @@ const onSelect = () => {
     display: block;
     overflow: hidden;
     border-radius: 16px;
-    aspect-ratio: 11/5;
+    /* allow the wrapper to flex to the card height computed by parent */
+    flex: 1 1 auto;
+    min-height: 0;
+    aspect-ratio: auto;
     background: var(--option-color, #334155);
 }
 
 .option-image {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     display: block;
     transform-origin: center;
     transition: transform 250ms ease;
@@ -117,16 +129,20 @@ const onSelect = () => {
     position: absolute;
     top: 12px;
     left: 12px;
-    min-width: 56px;
-    height: 56px;
+    min-width: 44px;
+    height: 44px;
     border-radius: 999px;
     background: var(--option-color, rgba(255, 255, 255, 0.12));
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 900;
-    font-size: 1.05rem;
+    font-weight: 800;
+    font-size: 0.85rem;
+    padding: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     box-shadow: 0 8px 18px rgba(2, 6, 23, 0.5);
     z-index: 3;
 }
@@ -136,7 +152,7 @@ const onSelect = () => {
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 12px 16px;
+    padding: 10px 12px;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.6));
     display: flex;
     align-items: center;
@@ -145,16 +161,27 @@ const onSelect = () => {
 }
 
 .option-text {
-    font-size: 1rem;
+    font-size: 1.5rem;
     color: #fff;
     font-weight: 800;
     text-align: center;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-    white-space: normal;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: calc(100% - 56px);
+    max-width: calc(100% - 16px);
     padding: 6px 8px;
+}
+
+@media (max-width: 480px) {
+    .text-ribbon {
+        padding: 10px 12px;
+    }
+
+    .option-text {
+        font-size: 1.05rem;
+        padding: 4px 6px;
+    }
 }
 </style>
 

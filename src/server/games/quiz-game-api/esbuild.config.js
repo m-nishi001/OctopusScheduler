@@ -26,6 +26,8 @@ const prefix = derivePrefix();
 const internalNames = [
   "stopForm",
   "getSheetData",
+  "loadEmailNameMap",
+  "getMappedResponses",
   "addDriveData",
   "getDriveMetaData",
   "getDriveData",

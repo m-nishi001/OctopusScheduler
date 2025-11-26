@@ -3,6 +3,8 @@ export interface QuizDto {
   title: string;
   question: string;
   answerUrl: string;
+  /** optional parsed form id extracted from answerUrl */
+  answerFormId?: string;
   correctNo?: number;
   timeLimit: number;
   options: {

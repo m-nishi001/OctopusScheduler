@@ -12,7 +12,7 @@
                     :class="{ 'top3': getRank(record) <= 3, 'first-place': getRank(record) === 1 }">
                     <div class="rank-number">{{ getRank(record) }}</div>
                     <div class="player-name">{{ record.name }}</div>
-                    <div class="player-time">{{ formatTime(record.time) }}</div>
+                    <div class="player-time">{{ formatTime(record.timeSeconds) }}</div>
                     <div v-if="getRank(record) === 1" class="cracker-particles">
                         <div class="particle" v-for="i in 50" :key="i"
                             :style="{ '--delay': i * 0.02 + 's', '--angle': Math.random() * 360 + 'deg', '--color': ['#ffd700', '#ff4500', '#00ff00', '#0000ff', '#ff00ff', '#ffff00', '#ff1493', '#00ffff'][i % 8] }">
@@ -25,53 +25,68 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { container } from 'tsyringe';
+import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
+import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
+import { computeTopResponders } from '../../../services/resultProcessor';
+import { quizState } from '../../../services/quizState';
+import { normalizeAnswer } from '../../../types/quiz';
 
 const router = useRouter();
+const route = useRoute();
+
+// preview flag: prefer route params or named route
+const isPreview = computed(() => {
+    const paramPreview = (route.params as any)?.preview;
+    if (paramPreview !== undefined) {
+        if (typeof paramPreview === 'boolean') return paramPreview;
+        return String(paramPreview) === 'true' || String(paramPreview) === '1';
+    }
+    if ((route.name as string) === 'quiz-result-preview') return true;
+    return false;
+});
 
 const showFullScreenParticles = ref(false);
 
 // preview flag removed as it's no longer used; navigation now always pushes to '/quiz-admin'.
 
-// サンプルデータ: 実際はAPI等から取得する
-const results = ref([
-    { name: '田中 仁', time: new Date(0, 0, 0, 0, 0, 30) },
-    { name: '鈴木 太郎', time: new Date(0, 0, 0, 0, 0, 40) },
-    { name: '佐藤 花子', time: new Date(0, 0, 0, 0, 1, 0) },
-    { name: '大山 隆', time: new Date(0, 0, 0, 0, 1, 20) },
-    { name: '高橋 次郎', time: new Date(0, 0, 0, 0, 1, 30) },
-    { name: '渡辺 三郎', time: new Date(0, 0, 0, 0, 2, 0) },
-    { name: '杉野 正明', time: new Date(0, 0, 0, 0, 2, 20) },
-    { name: '山田 次郎', time: new Date(0, 0, 0, 0, 2, 30) },
-    { name: '小林 五郎', time: new Date(0, 0, 0, 0, 3, 0) },
-    { name: '加藤 六郎', time: new Date(0, 0, 0, 0, 3, 40) },
-]);
+// displayedResults will be populated from GAS responses processed by computeTopResponders
+// Use seconds (number) for the time-to-answer to avoid ambiguous Date conversions.
+const finalResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
+const displayedResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
 
-// 順位はtimeの昇順で決定
-const sortedResults = computed(() => {
-    return [...results.value].sort((a, b) => a.time.getTime() - b.time.getTime());
-});
-
-const displayedResults = ref<{ name: string; time: Date }[]>([]);
-
-function formatTime(date: Date): string {
-    const min = date.getMinutes();
-    const sec = date.getSeconds();
-    if (min > 0) {
-        return `${min}分${sec}秒`;
-    } else {
-        return `${sec}秒`;
-    }
+// Helper: rank is determined by the finalResults order (ascending time)
+function getRank(record: { name: string; timeSeconds: number | null }): number {
+    const idx = finalResults.value.findIndex((r) => {
+        if (r.name !== record.name) return false;
+        const ta = r.timeSeconds;
+        const tb = record.timeSeconds;
+        // null-safe equality for numeric seconds
+        return (ta === null && tb === null) || (typeof ta === 'number' && typeof tb === 'number' && Math.abs(ta - tb) < 1e-6);
+    });
+    return idx >= 0 ? idx + 1 : finalResults.value.length;
 }
 
-function getRank(record: { name: string; time: Date }): number {
-    return sortedResults.value.findIndex(r => r.name === record.name) + 1;
+// (keep variable above) avoid duplicate declaration
+
+function formatTime(seconds: number | null): string {
+    if (seconds === null || typeof seconds !== 'number' || Number.isNaN(seconds)) return '-';
+    if (seconds < 0) return '-';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds - mins * 60;
+    const secsStr = secs.toFixed(3).replace(/\.000$/, '');
+    if (mins > 0) {
+        return `${mins}分${secsStr}秒`;
+    }
+    return `${secsStr}秒`;
 }
 
 onMounted(() => {
     document.addEventListener('keydown', handleKeydown);
-    startRankingAnimation();
+    // fetch mapped responses and prepare finalResults, then animate
+    fetchAndPrepare();
 });
 
 onUnmounted(() => {
@@ -86,21 +101,142 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 async function startRankingAnimation() {
-    const sorted = sortedResults.value;
-    // 最下位から順に上に積み上がるように表示
+    const sorted = finalResults.value || [];
+    // 最下位から順に上に積み上がるように表示（存在チェックを行う）
     for (let i = sorted.length - 1; i >= 3; i--) {
-        displayedResults.value.unshift(sorted[i]);
-        await new Promise(resolve => setTimeout(resolve, 500)); // 0.5秒間隔
+        const item = sorted[i];
+        if (item) {
+            displayedResults.value.unshift(item);
+            await new Promise(resolve => setTimeout(resolve, 500)); // 0.5秒間隔
+        }
     }
-    // 上位3位は特別
+    // 上位3位は特別（存在する分だけ順に出す）
     await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待つ
-    displayedResults.value.unshift(sorted[2]); // 3位
-    await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待つ
-    displayedResults.value.unshift(sorted[1]); // 2位
-    await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待つ
-    displayedResults.value.unshift(sorted[0]); // 1位、バン！演出
-    showFullScreenParticles.value = true;
-    setTimeout(() => showFullScreenParticles.value = false, 3000);
+    const topCount = Math.min(3, sorted.length);
+    for (let j = topCount - 1; j >= 0; j--) {
+        const item = sorted[j];
+        if (item) {
+            displayedResults.value.unshift(item);
+            // small pause between each top placement
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            // if this is the top (first place), play full screen particles
+            if (j === 0) {
+                showFullScreenParticles.value = true;
+                setTimeout(() => showFullScreenParticles.value = false, 3000);
+            }
+        }
+    }
+}
+
+function parseFormIdFromUrl(url: string | undefined | null): string | null {
+    if (!url) return null;
+    try {
+        // try patterns like /d/e/{id}/ or /d/{id}/
+        const m1 = url.match(/\/d\/e\/([a-zA-Z0-9_-]+)/);
+        if (m1 && m1[1]) return m1[1];
+        const m2 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (m2 && m2[1]) return m2[1];
+        // fallback: look for id= query param
+        const qm = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (qm && qm[1]) return qm[1];
+    } catch (e) {
+        console.warn('parseFormIdFromUrl failed', e);
+    }
+    return null;
+}
+
+async function fetchAndPrepare() {
+    // reset
+    finalResults.value = [];
+    displayedResults.value = [];
+
+    try {
+        const startQuizUseCase = container.resolve(StartQuizUseCase);
+        const quiz = await startQuizUseCase.execute(route.params.id as string);
+        const formId = parseFormIdFromUrl(quiz?.answerUrl ?? '');
+
+        // determine quiz start time early, used by both real fetch and dummy data
+        const quizStartMs = quizState.getStartTime() ?? Date.now();
+        if (!quizState.getStartTime()) quizState.setStartTime(quizStartMs);
+
+        if (!formId) {
+            console.warn('Could not determine formId from quiz.answerUrl');
+            return startRankingAnimation();
+        }
+
+        // obtain mapped responses: use dummy data in preview mode, otherwise call GAS
+        let mapped: any[] = [];
+        if (isPreview.value) {
+            // build a small set of realistic dummy rows
+            const optionText = quiz?.options?.find((o: any) => o.no === quiz?.correctNo)?.text ?? String(quiz?.correctNo ?? '');
+            mapped = [
+                { '回答': optionText, 'メールアドレス': 'tanaka@example.com', __timestampMs: quizStartMs + 5000, __rowIndex: 2, __raw: [], name: '田中 仁' },
+                { '回答': optionText, 'メールアドレス': 'suzuki@example.com', __timestampMs: quizStartMs + 12000, __rowIndex: 3, __raw: [], name: '鈴木 太郎' },
+                { '回答': optionText, 'メールアドレス': 'sato@example.com', __timestampMs: quizStartMs + 18000, __rowIndex: 4, __raw: [], name: '佐藤 花子' },
+                { '回答': '不正解', 'メールアドレス': 'other@example.com', __timestampMs: quizStartMs + 25000, __rowIndex: 5, __raw: [], name: 'その他' },
+            ];
+        } else {
+            const svc = new GasFunctionService('_quizGame_getMappedResponses');
+            mapped = await svc.call<any[]>(formId);
+        }
+
+        // decide answerKey and correctValue heuristically
+        let answerKey = '';
+        let correctValue = String(quiz?.correctNo ?? '');
+        const optionText = quiz?.options?.find(o => o.no === quiz?.correctNo)?.text;
+
+        if (Array.isArray(mapped) && mapped.length > 0) {
+            const sample = mapped[0];
+            const candidateHeaders = Object.keys(sample).filter(h => !h.startsWith('__') && !/タイムスタンプ|timestamp|メール|email/i.test(h));
+            let bestHeader = candidateHeaders[0] || Object.keys(sample)[0];
+            let bestScore = -1;
+            for (const h of candidateHeaders) {
+                let score = 0;
+                for (const r of mapped) {
+                    const v = (r[h] ?? '') + '';
+                    if (optionText && String(v) === String(optionText)) score++;
+                    if (quiz?.correctNo !== undefined && String(v) === String(quiz.correctNo)) score++;
+                }
+                if (score > bestScore) { bestScore = score; bestHeader = h; }
+            }
+            answerKey = bestHeader;
+            if (bestScore > 0) {
+                correctValue = optionText ? String(optionText) : String(quiz?.correctNo ?? '');
+            } else {
+                answerKey = candidateHeaders[0] || Object.keys(sample).find(k => !k.startsWith('__')) || Object.keys(sample)[0];
+                correctValue = optionText ? String(optionText) : String(quiz?.correctNo ?? '');
+            }
+        } else {
+            // no mapped responses
+            finalResults.value = [];
+            return startRankingAnimation();
+        }
+
+        // normalize correctValue for robust comparison (strip numbering, NFKC, trim, casefold)
+        const normalizedCorrect = normalizeAnswer(correctValue);
+
+        const top = computeTopResponders(mapped, {
+            answerKey,
+            correctValue: normalizedCorrect,
+            limit: 10,
+            uniqueByEmail: true,
+            excludeMissingEmail: true,
+            quizStartTimeMs: quizStartMs,
+        });
+
+        finalResults.value = top.map(item => {
+            const secs = (item as any).__timeToAnswerSec;
+            const timeSeconds = typeof secs === 'number' && !Number.isNaN(secs) ? secs : null;
+            return { name: item.name ?? '正答者なし ---', timeSeconds };
+        });
+
+        // start animation once finalResults prepared
+        await startRankingAnimation();
+    } catch (e) {
+        console.error('Failed to fetch/process mapped responses', e);
+        // still run animation with whatever is present
+        await startRankingAnimation();
+    }
 }
 </script>
 

@@ -8,13 +8,26 @@ const quizGameRoutes = [
   { path: "/quiz-home", component: QuizAdmin },
   {
     path: "/quiz/:id",
-    // avoid a strict router type mismatch across different vue-router versions
-    redirect: (to: any) => `/quiz/${to.params.id}/intro`,
+    // redirect to named intro route, preserving params and query
+    redirect: (to: any) => ({
+      name: "quiz-intro",
+      params: to.params,
+      query: to.query,
+    }),
   },
-  { path: "/quiz/:id/intro", component: QuizIntro },
-  { path: "/quiz/:id/qr", component: QuizQr },
-  { path: "/quiz/:id/play", component: QuizPlay },
-  { path: "/quiz/:id/answer", component: QuizAnswer },
+  { path: "/quiz/:id/intro", name: "quiz-intro", component: QuizIntro },
+  { path: "/quiz/:id/qr", name: "quiz-qr", component: QuizQr },
+  { path: "/quiz/:id/play", name: "quiz-play", component: QuizPlay },
+  { path: "/quiz/:id/answer", name: "quiz-answer", component: QuizAnswer },
+  // result routes: production and preview
+  { path: "/quiz/:id/result", name: "quiz-result", component: QuizResult },
+  {
+    path: "/quiz/:id/result/preview",
+    name: "quiz-result-preview",
+    component: QuizResult,
+    props: (route: any) => ({ ...route.params, preview: true }),
+  },
+  // legacy path kept for compatibility
   { path: "/quiz-result/:id", component: QuizResult },
   { path: "/quiz-admin", component: QuizAdmin },
 ];

@@ -1,5 +1,5 @@
-import type { AnswerData, RawRow } from '../types/quiz';
-import { normalizeEmail } from '../types/quiz';
+import type { AnswerData, RawRow } from "../types/quiz";
+import { normalizeEmail, normalizeAnswer } from "../types/quiz";
 
 export type ComputeOptions = {
   answerKey: string; // ヘッダー名そのまま
@@ -11,11 +11,15 @@ export type ComputeOptions = {
 };
 
 export function toSecondsString(seconds: number | null): string | null {
-  if (seconds === null || typeof seconds !== 'number' || Number.isNaN(seconds)) return null;
-  return seconds.toFixed(3) + '秒';
+  if (seconds === null || typeof seconds !== "number" || Number.isNaN(seconds))
+    return null;
+  return seconds.toFixed(3) + "秒";
 }
 
-export function computeTopResponders(answers: AnswerData[], options: ComputeOptions): AnswerData[] {
+export function computeTopResponders(
+  answers: AnswerData[],
+  options: ComputeOptions
+): AnswerData[] {
   const {
     answerKey,
     correctValue,
@@ -27,24 +31,28 @@ export function computeTopResponders(answers: AnswerData[], options: ComputeOpti
 
   if (!Array.isArray(answers)) return [];
 
-  // 1) 正答フィルタ（文字列一致）かつ有効なタイムスタンプ
+  // 1) 正答フィルタ（正規化した文字列の一致）かつ有効なタイムスタンプ
+  const normCorrect = normalizeAnswer(correctValue);
   const filtered = answers.filter((r) => {
     if (!r) return false;
     const val = r[answerKey];
     if (val === undefined || val === null) return false;
-    if (String(val) !== correctValue) return false;
+    const normVal = normalizeAnswer(String(val));
+    if (normVal !== normCorrect) return false;
     const t = r.__timestampMs;
     if (t === undefined || t === null || Number.isNaN(Number(t))) return false;
     return true;
   });
 
   // 2) uniqueByEmail の場合は email ごとに最後（最大の __timestampMs）を採用
-  const emailKeyNames = Object.keys(filtered[0] || {}).filter((k) => /メール|mail|email|Email/i.test(k));
+  const emailKeyNames = Object.keys(filtered[0] || {}).filter((k) =>
+    /メール|mail|email|Email/i.test(k)
+  );
   // 優先: 明示的に 'メールアドレス' があるならそれを使う
   let emailHeader: string | null = null;
   if (emailKeyNames.length > 0) {
     // prefer header exactly matches common Japanese header
-    const exact = emailKeyNames.find((h) => h === 'メールアドレス');
+    const exact = emailKeyNames.find((h) => h === "メールアドレス");
     emailHeader = exact || emailKeyNames[0];
   }
 
@@ -56,7 +64,7 @@ export function computeTopResponders(answers: AnswerData[], options: ComputeOpti
     // determine email key
     let normalizedEmail: string | null = null;
     if (emailHeader) {
-      normalizedEmail = normalizeEmail(String(row[emailHeader] ?? ''));
+      normalizedEmail = normalizeEmail(String(row[emailHeader] ?? ""));
     } else {
       // if no email header found, leave normalizedEmail null
       normalizedEmail = null;
@@ -112,7 +120,8 @@ export function computeTopResponders(answers: AnswerData[], options: ComputeOpti
     const copy: AnswerData = { ...item };
     // attach display-friendly field
     (copy as any).__timeToAnswerSec = timeToAnswerSec;
-    (copy as any).__timeToAnswer = timeToAnswerSec === null ? null : toSecondsString(timeToAnswerSec);
+    (copy as any).__timeToAnswer =
+      timeToAnswerSec === null ? null : toSecondsString(timeToAnswerSec);
     return copy;
   });
 
@@ -121,7 +130,7 @@ export function computeTopResponders(answers: AnswerData[], options: ComputeOpti
     const placeholder: AnswerData = {
       __rowIndex: -1,
       __raw: [] as RawRow,
-      name: '正答者なし ---',
+      name: "正答者なし ---",
       __timestampMs: null,
       __isPlaceholder: true,
       __timeToAnswerSec: null,

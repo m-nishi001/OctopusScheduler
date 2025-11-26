@@ -91,8 +91,8 @@ declare let _quizGame_stopForm: (quizId: string) => GasResponse<void>;
 declare let _quizGame_getSheetData: (quizId: string) => GasResponse<SheetRow[]>;
 
 // Email->Name mapping cache key and ScriptProperty key for spreadsheet id
-const EMAIL_NAME_MAP_CACHE_KEY = 'QUIZ_EMAIL_NAME_MAP';
-const EMAIL_NAME_SPREADSHEET_PROPERTY = 'EMAIL_NAME_SPREADSHEET_ID';
+const EMAIL_NAME_MAP_CACHE_KEY = "QUIZ_EMAIL_NAME_MAP";
+const EMAIL_NAME_SPREADSHEET_PROPERTY = "EMAIL_NAME_SPREADSHEET_ID";
 
 // Declarations for new functions
 declare let _quizGame_loadEmailNameMap: () => GasResponse<void>;
@@ -137,6 +137,160 @@ _quizGame_getSheetData = (quizId: string): GasResponse<SheetRow[]> => {
       }));
 
     return { status: "success", data: rows };
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+// Helper: load email->name map from spreadsheet (A: name, B: email) and cache it
+function loadEmailNameMapImpl(): Record<string, string> {
+  const propId = PropertiesService.getScriptProperties().getProperty(
+    EMAIL_NAME_SPREADSHEET_PROPERTY
+  );
+  if (!propId || propId.trim() === "") {
+    throw new Error(
+      `ScriptProperty '${EMAIL_NAME_SPREADSHEET_PROPERTY}' is not set.`
+    );
+  }
+
+  const ss = SpreadsheetApp.openById(propId);
+  const sheets = ss.getSheets();
+  if (!sheets || sheets.length === 0) {
+    throw new Error("Email->Name spreadsheet has no sheets");
+  }
+  const sheet = sheets[0];
+  const values = sheet.getDataRange().getValues();
+  // Expect header in first row; data starts at 2
+  const map: Record<string, string> = {};
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const nameCell = row[0];
+    const emailCell = row[1];
+    if (!emailCell) continue;
+    const email = String(emailCell).toLowerCase().trim();
+    if (!email) continue;
+    map[email] = nameCell ? String(nameCell) : "";
+  }
+
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.put(EMAIL_NAME_MAP_CACHE_KEY, JSON.stringify(map), 3600);
+  } catch (e) {
+    // Cache failure should not break functionality; continue returning map
+    console.warn(
+      "Failed to put email-name map into cache:",
+      (e as Error).message
+    );
+  }
+
+  return map;
+}
+
+// Public: load email->name mapping into Script Cache
+_quizGame_loadEmailNameMap = (): GasResponse<void> => {
+  try {
+    loadEmailNameMapImpl();
+    return { status: "success", data: undefined };
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+// Public: get mapped responses from the Form-linked spreadsheet.
+// Returns array of objects where keys are header strings and meta fields prefixed with __ are included.
+_quizGame_getMappedResponses = (formId: string): GasResponse<any[]> => {
+  try {
+    const googleFormService = new GoogleFormService();
+    const spreadsheetId = googleFormService.getDestinationSpreadsheetId(formId);
+    if (!spreadsheetId)
+      throw new Error("No destination spreadsheet linked to the form");
+
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheets = ss.getSheets();
+    if (!sheets || sheets.length === 0)
+      throw new Error("No sheets found in the destination spreadsheet");
+    const sheet = sheets[0];
+    const values = sheet.getDataRange().getValues();
+    if (!values || values.length < 2) {
+      return { status: "success", data: [] };
+    }
+
+    const headers = values[0].map((h) =>
+      h === null || h === undefined ? "" : String(h)
+    );
+
+    // detect timestamp and email column indices
+    let timestampIndex = headers.findIndex((h) =>
+      /タイムスタンプ|timestamp/i.test(h)
+    );
+    if (timestampIndex < 0) timestampIndex = 0;
+    let emailIndex = headers.findIndex((h) => /メール|mail|email/i.test(h));
+    if (emailIndex < 0) emailIndex = -1;
+
+    // load cache or build map
+    let mapJson = CacheService.getScriptCache().get(EMAIL_NAME_MAP_CACHE_KEY);
+    let emailNameMap: Record<string, string> | null = null;
+    if (mapJson) {
+      try {
+        emailNameMap = JSON.parse(mapJson);
+      } catch {
+        emailNameMap = null;
+      }
+    }
+    if (!emailNameMap) {
+      // attempt to load from spreadsheet property
+      try {
+        emailNameMap = loadEmailNameMapImpl();
+      } catch (e) {
+        emailNameMap = {};
+      }
+    }
+
+    const out: any[] = [];
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      const obj: Record<string, any> = {};
+      for (let j = 0; j < headers.length; j++) {
+        const key = headers[j] || `col_${j}`;
+        const v = row[j];
+        obj[key] = v === undefined || v === null ? "" : String(v);
+      }
+      // meta
+      obj.__rowIndex = i + 1; // sheet row index (1-based)
+      obj.__raw = row;
+
+      // timestamp
+      const tsCell = row[timestampIndex];
+      let tsMs: number | null = null;
+      if (tsCell !== undefined && tsCell !== null && tsCell !== "") {
+        const d = new Date(tsCell);
+        const t = d.getTime();
+        if (!Number.isNaN(t)) tsMs = t;
+      }
+      obj.__timestampMs = tsMs;
+
+      // email -> name mapping
+      let normalizedEmail: string | null = null;
+      if (emailIndex >= 0) {
+        const emailCell = row[emailIndex];
+        if (
+          emailCell !== undefined &&
+          emailCell !== null &&
+          String(emailCell).trim() !== ""
+        ) {
+          normalizedEmail = String(emailCell).toLowerCase().trim();
+        }
+      }
+      if (normalizedEmail && emailNameMap && emailNameMap[normalizedEmail]) {
+        obj.name = emailNameMap[normalizedEmail];
+      } else {
+        obj.name = null;
+      }
+
+      out.push(obj);
+    }
+
+    return { status: "success", data: out };
   } catch (error) {
     return { status: "error", message: (error as Error).message };
   }

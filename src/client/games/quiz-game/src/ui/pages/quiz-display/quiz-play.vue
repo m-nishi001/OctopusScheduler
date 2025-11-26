@@ -63,7 +63,15 @@ const qrCodeUrl = computed(() => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(q.answerUrl)}`;
 });
 
-const isPreview = computed(() => route.query.preview === 'true');
+const isPreview = computed(() => {
+    const paramPreview = (route.params as any)?.preview;
+    if (paramPreview !== undefined) {
+        if (typeof paramPreview === 'boolean') return paramPreview;
+        return String(paramPreview) === 'true' || String(paramPreview) === '1';
+    }
+    if ((route.name as string) === 'quiz-result-preview') return true;
+    return false;
+});
 
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
     if (!quiz.value) return [];
@@ -219,11 +227,15 @@ onMounted(async () => {
             console.warn('quizState.setStartTime failed', e);
         }
 
-        // try to preload email->name map into GAS Script Cache
+        // try to preload email->name map into GAS Script Cache (skip in preview)
         try {
-            const loadSvc = new GasFunctionService('_quizGame_loadEmailNameMap');
-            // call without args
-            await loadSvc.call();
+            if (isPreview.value) {
+                console.info('Preview mode: skipping GAS preload of email->name map');
+            } else {
+                const loadSvc = new GasFunctionService('_quizGame_loadEmailNameMap');
+                // call without args
+                await loadSvc.call();
+            }
         } catch (e) {
             console.warn('Failed to load email->name map into GAS cache', e);
         }
@@ -268,6 +280,8 @@ onUnmounted(() => {
     }
 });
 
+// Prefer the parsed form id provided by the domain via DTO (answerFormId).
+
 const startTimer = () => {
     timer = setInterval(() => {
         timeLeft.value--;
@@ -278,9 +292,31 @@ const startTimer = () => {
                 audioElement.value.pause();
                 audioElement.value = null;
             }
+            // Immediately show modal so UI reflects 0s instantly
             showModal.value = true;
-            const answerFormService = container.resolve(AnswerFormService);
-            answerFormService.stopForm(quizId);
+
+            // Prefer parsed form id from DTO; do not parse in the component if possible.
+            const formId = (quiz.value as any)?.answerFormId ?? null;
+
+            if (!formId) {
+                console.warn('[stopForm] no answerFormId available on DTO; skipping stopForm.');
+            } else {
+                const answerFormService = container.resolve(AnswerFormService);
+                if (isPreview.value) {
+                    console.info('[stopForm] preview mode: skipping stop for formId=', formId);
+                } else {
+                    // Fire-and-forget: don't await so modal appears immediately.
+                    // Log success/failure to console as requested.
+                    answerFormService
+                        .stopForm(formId)
+                        .then(() => {
+                            console.log('[stopForm] succeeded for formId=', formId);
+                        })
+                        .catch((err) => {
+                            console.error('[stopForm] failed for formId=', formId, 'error=', err?.message ?? err);
+                        });
+                }
+            }
         }
     }, 1000);
 };
@@ -295,10 +331,16 @@ const handleKeydown = (event: KeyboardEvent) => {
             audioElement.value.pause();
             audioElement.value = null;
         }
-        // preserve preview query if present so result page can use dummy data
-        const query: Record<string, any> = {};
-        if (route.query.preview) query.preview = String(route.query.preview);
-        router.push({ path: `/quiz/${quizId}/answer`, query: Object.keys(query).length ? query : undefined });
+        // determine preview flag: prefer route.params, then named-route, then fallback to query
+        const paramPreview = (route.params as any)?.preview;
+        let preview: any = undefined;
+        if (paramPreview !== undefined) preview = paramPreview;
+        else if ((route.name as string) === 'quiz-result-preview') preview = true;
+        // do not use query-based preview; rely on route params or named preview route
+
+        const params: Record<string, any> = { id: quizId };
+        if (preview !== undefined) params.preview = preview;
+        router.push({ name: 'quiz-answer', params });
     }
 };
 </script>

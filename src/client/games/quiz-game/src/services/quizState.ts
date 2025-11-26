@@ -2,7 +2,7 @@ let quizStartTimeMs: number | null = null;
 
 export const quizState = {
   setStartTime(nowMs?: number) {
-    quizStartTimeMs = typeof nowMs === 'number' ? nowMs : Date.now();
+    quizStartTimeMs = typeof nowMs === "number" ? nowMs : Date.now();
   },
   getStartTime(): number | null {
     return quizStartTimeMs;

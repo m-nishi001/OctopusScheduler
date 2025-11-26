@@ -15,6 +15,10 @@ export class StartQuizUseCase {
       title: quiz.title,
       question: quiz.question,
       answerUrl: quiz.formUrl,
+      answerFormId:
+        typeof (quiz as any).getFormId === "function"
+          ? (quiz as any).getFormId()
+          : null,
       correctNo: (quiz as any).correctNo ?? 1,
       timeLimit: quiz.timeLimit,
       options: quiz.options,
