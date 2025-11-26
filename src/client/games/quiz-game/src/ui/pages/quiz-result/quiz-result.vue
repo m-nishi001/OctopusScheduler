@@ -44,7 +44,7 @@ const isPreview = computed(() => {
         if (typeof paramPreview === 'boolean') return paramPreview;
         return String(paramPreview) === 'true' || String(paramPreview) === '1';
     }
-    if ((route.name as string) === 'quiz-result-preview') return true;
+    if (String(route.name)?.endsWith('-preview')) return true;
     return false;
 });
 
@@ -145,6 +145,24 @@ function parseFormIdFromUrl(url: string | undefined | null): string | null {
     return null;
 }
 
+function buildPreviewMappedResponses(quiz: any, quizStartMs: number) {
+    const optionText = quiz?.options?.find((o: any) => o.no === quiz?.correctNo)?.text ?? String(quiz?.correctNo ?? '');
+    const base = Number(quizStartMs ?? Date.now());
+    // top-3 kept as before, then fill ranks 4..9 with unique dummy correct responders.
+    // computeTopResponders will append a placeholder for the 10th rank when less than 10 correct responders exist.
+    return [
+        { '回答': optionText, 'メールアドレス': 'tanaka@example.com', __timestampMs: base + 5000, __rowIndex: 2, __raw: [], name: '田中 仁' },
+        { '回答': optionText, 'メールアドレス': 'suzuki@example.com', __timestampMs: base + 12000, __rowIndex: 3, __raw: [], name: '鈴木 太郎' },
+        { '回答': optionText, 'メールアドレス': 'sato@example.com', __timestampMs: base + 18000, __rowIndex: 4, __raw: [], name: '佐藤 花子' },
+        { '回答': optionText, 'メールアドレス': 'takahashi@example.com', __timestampMs: base + 22000, __rowIndex: 5, __raw: [], name: '高橋 一郎' },
+        { '回答': optionText, 'メールアドレス': 'inoue@example.com', __timestampMs: base + 26000, __rowIndex: 6, __raw: [], name: '井上 美咲' },
+        { '回答': optionText, 'メールアドレス': 'yamamoto@example.com', __timestampMs: base + 30000, __rowIndex: 7, __raw: [], name: '山本 秀樹' },
+        { '回答': optionText, 'メールアドレス': 'nakamura@example.com', __timestampMs: base + 34000, __rowIndex: 8, __raw: [], name: '中村 翼' },
+        { '回答': optionText, 'メールアドレス': 'kobayashi@example.com', __timestampMs: base + 38000, __rowIndex: 9, __raw: [], name: '小林 真理' },
+        { '回答': optionText, 'メールアドレス': 'kimura@example.com', __timestampMs: base + 42000, __rowIndex: 10, __raw: [], name: '木村 健' },
+    ];
+}
+
 async function fetchAndPrepare() {
     // reset
     finalResults.value = [];
@@ -153,29 +171,22 @@ async function fetchAndPrepare() {
     try {
         const startQuizUseCase = container.resolve(StartQuizUseCase);
         const quiz = await startQuizUseCase.execute(route.params.id as string);
-        const formId = parseFormIdFromUrl(quiz?.answerUrl ?? '');
 
         // determine quiz start time early, used by both real fetch and dummy data
         const quizStartMs = quizState.getStartTime() ?? Date.now();
         if (!quizState.getStartTime()) quizState.setStartTime(quizStartMs);
 
-        if (!formId) {
-            console.warn('Could not determine formId from quiz.answerUrl');
-            return startRankingAnimation();
-        }
-
-        // obtain mapped responses: use dummy data in preview mode, otherwise call GAS
+        // obtain mapped responses: if preview mode, always use local dummy responses and skip parsing/GAS
         let mapped: any[] = [];
         if (isPreview.value) {
-            // build a small set of realistic dummy rows
-            const optionText = quiz?.options?.find((o: any) => o.no === quiz?.correctNo)?.text ?? String(quiz?.correctNo ?? '');
-            mapped = [
-                { '回答': optionText, 'メールアドレス': 'tanaka@example.com', __timestampMs: quizStartMs + 5000, __rowIndex: 2, __raw: [], name: '田中 仁' },
-                { '回答': optionText, 'メールアドレス': 'suzuki@example.com', __timestampMs: quizStartMs + 12000, __rowIndex: 3, __raw: [], name: '鈴木 太郎' },
-                { '回答': optionText, 'メールアドレス': 'sato@example.com', __timestampMs: quizStartMs + 18000, __rowIndex: 4, __raw: [], name: '佐藤 花子' },
-                { '回答': '不正解', 'メールアドレス': 'other@example.com', __timestampMs: quizStartMs + 25000, __rowIndex: 5, __raw: [], name: 'その他' },
-            ];
+            console.info('Preview mode: using local dummy responses');
+            mapped = buildPreviewMappedResponses(quiz, quizStartMs);
         } else {
+            const formId = parseFormIdFromUrl(quiz?.answerUrl ?? '');
+            if (!formId) {
+                console.warn('Could not determine formId from quiz.answerUrl');
+                return startRankingAnimation();
+            }
             const svc = new GasFunctionService('_quizGame_getMappedResponses');
             mapped = await svc.call<any[]>(formId);
         }

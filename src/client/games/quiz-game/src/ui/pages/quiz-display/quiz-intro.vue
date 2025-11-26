@@ -18,14 +18,10 @@ const quizId = route.params.id as string;
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
-        // Prefer preview flag from route params (set by router pushes). Do not use query.
-        const paramPreview = (route.params as any).preview;
-        const preview = paramPreview !== undefined ? paramPreview : undefined;
-        if (preview !== undefined) {
-            router.push({ name: 'quiz-qr', params: { id: quizId, preview } });
-        } else {
-            router.push({ name: 'quiz-qr', params: { id: quizId } });
-        }
+        // If this route is a preview route, navigate to the next preview route.
+        const isPreviewRoute = String(route.name)?.endsWith('-preview');
+        const routeName = isPreviewRoute ? 'quiz-qr-preview' : 'quiz-qr';
+        router.push({ name: routeName, params: { id: quizId } });
     }
 };
 

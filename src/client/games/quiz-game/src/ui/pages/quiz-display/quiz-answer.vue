@@ -52,18 +52,10 @@ onUnmounted(() => {
 
 const handleKeydown = (ev: KeyboardEvent) => {
   if (ev.key === 'Enter') {
-    // determine preview flag: prefer route.params, then named-route, then fallback to query
-    const paramPreview = (route.params as any)?.preview;
-    let preview: any = undefined;
-    if (paramPreview !== undefined) preview = paramPreview;
-    else if ((route.name as string) === 'quiz-result-preview') preview = true;
-    // do not use query-based preview; prefer route params or named preview route
-
-    const params: Record<string, any> = { id: quizId };
-    if (preview !== undefined) params.preview = preview;
-
-    const routeName = preview ? 'quiz-result-preview' : 'quiz-result';
-    router.push({ name: routeName, params });
+    // Navigate to the preview variant if this route is a preview route.
+    const isPreviewRoute = String(route.name)?.endsWith('-preview');
+    const routeName = isPreviewRoute ? 'quiz-result-preview' : 'quiz-result';
+    router.push({ name: routeName, params: { id: quizId } });
   }
 };
 </script>

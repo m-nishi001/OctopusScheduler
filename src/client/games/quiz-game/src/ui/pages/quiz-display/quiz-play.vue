@@ -69,7 +69,7 @@ const isPreview = computed(() => {
         if (typeof paramPreview === 'boolean') return paramPreview;
         return String(paramPreview) === 'true' || String(paramPreview) === '1';
     }
-    if ((route.name as string) === 'quiz-result-preview') return true;
+    if (String(route.name)?.endsWith('-preview')) return true;
     return false;
 });
 
@@ -331,16 +331,10 @@ const handleKeydown = (event: KeyboardEvent) => {
             audioElement.value.pause();
             audioElement.value = null;
         }
-        // determine preview flag: prefer route.params, then named-route, then fallback to query
-        const paramPreview = (route.params as any)?.preview;
-        let preview: any = undefined;
-        if (paramPreview !== undefined) preview = paramPreview;
-        else if ((route.name as string) === 'quiz-result-preview') preview = true;
-        // do not use query-based preview; rely on route params or named preview route
-
-        const params: Record<string, any> = { id: quizId };
-        if (preview !== undefined) params.preview = preview;
-        router.push({ name: 'quiz-answer', params });
+        // If this page is part of a preview flow, navigate to the preview answer route.
+        const isPreviewRoute = String(route.name)?.endsWith('-preview');
+        const routeName = isPreviewRoute ? 'quiz-answer-preview' : 'quiz-answer';
+        router.push({ name: routeName, params: { id: quizId } });
     }
 };
 </script>

@@ -29,14 +29,10 @@ const qrCodeUrl = computed(() => {
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
-        // Prefer preview flag from route params (set by router pushes). Do not use query.
-        const paramPreview = (route.params as any).preview;
-        const preview = paramPreview !== undefined ? paramPreview : undefined;
-        if (preview !== undefined) {
-            router.push({ name: 'quiz-play', params: { id: quizId, preview } });
-        } else {
-            router.push({ name: 'quiz-play', params: { id: quizId } });
-        }
+        // Navigate to the preview variant if this route is a preview route.
+        const isPreviewRoute = String(route.name)?.endsWith('-preview');
+        const routeName = isPreviewRoute ? 'quiz-play-preview' : 'quiz-play';
+        router.push({ name: routeName, params: { id: quizId } });
     }
 };
 
