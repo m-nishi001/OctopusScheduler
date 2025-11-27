@@ -24,6 +24,13 @@ export default defineConfig({
         replacement: resolve(__dirname, "../packages/shared-composables/src"),
       },
       {
+        find: "@composables",
+        replacement: resolve(
+          __dirname,
+          "../games/jackpot-game/src/composables"
+        ),
+      },
+      {
         find: "components",
         replacement: resolve(
           __dirname,

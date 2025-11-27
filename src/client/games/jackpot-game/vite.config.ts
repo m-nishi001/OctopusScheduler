@@ -31,6 +31,7 @@ export default defineConfig({
           "../../packages/shared-composables/src"
         ),
       },
+      { find: "@composables", replacement: resolve(__dirname, "src/composables") },
       // allow imports like "pages/home/home.vue" to resolve to src/ui/pages
       { find: "pages", replacement: resolve(__dirname, "src/ui/pages") },
       {

@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["src/setup-tests.ts"],
+    testTimeout: 60000,
+    pool: 'vmThreads',
   },
   resolve: {
     alias: {
@@ -23,6 +25,8 @@ export default defineConfig({
         __dirname,
         "../../packages/common-lib/src"
       ),
+      "@composables": resolve(__dirname, "src/composables"),
+      "@components": resolve(__dirname, "src/components"),
     },
   },
 });

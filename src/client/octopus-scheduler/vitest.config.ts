@@ -15,6 +15,10 @@ export default defineConfig({
       { find: 'model', replacement: resolve(__dirname, 'src/model') },
       { find: 'ui', replacement: resolve(__dirname, 'src/ui') },
       { find: 'core', replacement: resolve(__dirname, 'src/core') },
+      {
+        find: '@composables',
+        replacement: resolve(__dirname, '../games/jackpot-game/src/composables'),
+      },
     ],
   },
 });

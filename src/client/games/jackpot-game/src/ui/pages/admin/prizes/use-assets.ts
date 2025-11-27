@@ -1,14 +1,14 @@
 import { ref, computed, onBeforeUnmount, reactive } from "vue";
 import { container } from "tsyringe";
 import { AssetDataService } from "@model/applications/asset/asset-data-service";
+import { useObjectUrlStore } from "@composables/prizes/use-object-url-store";
 
 export function useAssets(assetDataServiceArg?: AssetDataService) {
   const assetDataService =
     assetDataServiceArg || container.resolve(AssetDataService);
   const assets = ref<any[]>([]);
-  // make the map reactive so template bindings like `objectUrlMap.get(id)` update
-  // when entries are added/removed. Vue's `reactive` supports Map proxies.
-  const objectUrlMap = reactive(new Map<string, string>());
+  // Use the centralized object URL store
+  const { objectUrlMap, createObjectUrl: createUrl, revokeAll } = useObjectUrlStore();
 
   const imageAssets = computed(() =>
     assets.value.filter((a) => a.blob?.type?.startsWith("image"))
@@ -29,13 +29,7 @@ export function useAssets(assetDataServiceArg?: AssetDataService) {
   const createObjectUrl = (asset: any) => {
     if (!asset || !asset.id || !asset.blob) return;
     try {
-      const url = URL.createObjectURL(asset.blob);
-      if (objectUrlMap.has(asset.id)) {
-        try {
-          URL.revokeObjectURL(objectUrlMap.get(asset.id) as string);
-        } catch {}
-      }
-      objectUrlMap.set(asset.id, url);
+      createUrl(asset.blob, asset.id);
     } catch (e) {
       console.warn("Failed to create object URL", e);
     }
@@ -54,14 +48,7 @@ export function useAssets(assetDataServiceArg?: AssetDataService) {
   const getObjectUrl = (id?: string) => (id ? objectUrlMap.get(id) : undefined);
 
   onBeforeUnmount(() => {
-    try {
-      objectUrlMap.forEach((url) => {
-        try {
-          URL.revokeObjectURL(url);
-        } catch {}
-      });
-      objectUrlMap.clear();
-    } catch {}
+    revokeAll();
   });
 
   return {

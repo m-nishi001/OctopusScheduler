@@ -1,12 +1,23 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AssetDataRepository } from "../asset-data-repository";
 import { Asset } from "../../domains/drive-data/asset-data";
+import { container } from "tsyringe";
+import { IdGeneratorToken } from "../../domains/common/id-generator";
 
 describe("AssetDataRepository", () => {
   let repo: AssetDataRepository;
 
   beforeEach(() => {
-    repo = new AssetDataRepository();
+    // Reset container to avoid interference
+    container.reset();
+
+    // Mock IdGenerator
+    const mockIdGenerator = {
+      nextId: vi.fn(() => 'generated-id'),
+    };
+    container.register(IdGeneratorToken, { useValue: mockIdGenerator });
+
+    repo = container.resolve(AssetDataRepository);
   });
 
   it("should preserve dto.id when provided", async () => {
