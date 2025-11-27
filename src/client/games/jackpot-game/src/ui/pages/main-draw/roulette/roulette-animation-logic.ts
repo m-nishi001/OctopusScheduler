@@ -23,10 +23,29 @@ export function useRouletteAnimation(
 ) {
   const canvas = ref<HTMLCanvasElement | null>(null);
   let ctx: CanvasRenderingContext2D | null = null;
+  let resizeObserver: ResizeObserver | null = null;
 
-  const { startBgm, stopBgmAudio, bgmAutoplayBlocked, tryResumeBgm, isBgmPlaying, currentBgmSrc } = useRouletteAudio();
+  const {
+    startBgm,
+    stopBgmAudio,
+    bgmAutoplayBlocked,
+    tryResumeBgm,
+    isBgmPlaying,
+    currentBgmSrc,
+  } = useRouletteAudio();
 
   let currentRouletteItems: InternalRouletteItem[] = [];
+
+  const resizeCanvas = () => {
+    if (!canvas.value || !ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.value.getBoundingClientRect();
+    const logicalWidth = rect.width;
+    const logicalHeight = rect.height;
+    canvas.value.width = Math.round(logicalWidth * dpr);
+    canvas.value.height = Math.round(logicalHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
 
   const drawCallback = (rotation: number) => {
     if (ctx && canvas.value && currentRouletteItems.length > 0) {
@@ -52,7 +71,10 @@ export function useRouletteAnimation(
     try {
       // If autoplay was previously blocked, try to resume playback on user gesture
       try {
-        if ((bgmAutoplayBlocked as any)?.value && typeof tryResumeBgm === "function") {
+        if (
+          (bgmAutoplayBlocked as any)?.value &&
+          typeof tryResumeBgm === "function"
+        ) {
           await tryResumeBgm();
         }
       } catch {}
@@ -112,6 +134,12 @@ export function useRouletteAnimation(
     if (!canvas.value) return;
     ctx = canvas.value.getContext("2d");
     if (!ctx) return;
+    resizeCanvas();
+    resizeObserver = new ResizeObserver(() => {
+      resizeCanvas();
+      drawCallback(0); // redraw on resize
+    });
+    resizeObserver.observe(canvas.value);
     const initialPrizes = (opts && opts.initialPrizes) ?? props.prizes;
     await updateRouletteItems(initialPrizes);
   });
@@ -126,6 +154,10 @@ export function useRouletteAnimation(
   );
 
   onUnmounted(async () => {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
     try {
       await stopBgmAudio();
     } catch {}

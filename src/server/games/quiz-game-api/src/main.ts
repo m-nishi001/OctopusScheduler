@@ -11,7 +11,7 @@ import { GoogleDriveService } from "../../../common/src/google-drive-service";
 import type {
   SheetRow,
   QuizWithDataUrl,
-  SyncRequest,
+  ProcessedResultDto,
 } from "./quiz-game-api.d.ts";
 
 // Instantiate services
@@ -99,6 +99,12 @@ declare let _quizGame_loadEmailNameMap: () => GasResponse<void>;
 declare let _quizGame_getMappedResponses: (
   formId: string
 ) => GasResponse<any[]>;
+declare let _quizGame_stopAndGetProcessedResults: (
+  quizId: string,
+  quizStartTimeMs: number,
+  answerKey: string,
+  correctValue: string
+) => GasResponse<ProcessedResultDto[]>;
 
 _quizGame_stopForm = (quizId: string): GasResponse<void> => {
   try {
@@ -291,6 +297,54 @@ _quizGame_getMappedResponses = (formId: string): GasResponse<any[]> => {
     }
 
     return { status: "success", data: out };
+  } catch (error) {
+    return { status: "error", message: (error as Error).message };
+  }
+};
+
+// New function: stop form and get processed results (correct answers sorted by fastest)
+_quizGame_stopAndGetProcessedResults = (
+  quizId: string,
+  quizStartTimeMs: number,
+  answerKey: string,
+  correctValue: string
+): GasResponse<ProcessedResultDto[]> => {
+  try {
+    // Step 1: Stop the form
+    const form = FormApp.openById(quizId);
+    form.setAcceptingResponses(false);
+
+    // Step 2: Get mapped responses
+    const mappedResponse = _quizGame_getMappedResponses(quizId);
+    if (mappedResponse.status !== "success") {
+      throw new Error("Failed to get mapped responses");
+    }
+    const answers = mappedResponse.data;
+
+    // Step 3: Filter correct answers and valid timestamps
+    const filtered = answers.filter((r) => {
+      const normVal = String(r[answerKey] || "").trim();
+      if (normVal !== correctValue) return false;
+      const t = r.__timestampMs;
+      if (t === undefined || t === null || Number.isNaN(Number(t))) return false;
+      return true;
+    });
+
+    // Step 4: Sort by timestamp ascending (fastest first)
+    filtered.sort((a, b) => Number(a.__timestampMs ?? 0) - Number(b.__timestampMs ?? 0));
+
+    // Step 5: Build ProcessedResultDto array with rank
+    const results: ProcessedResultDto[] = filtered.map((r, index) => ({
+      playerId: null, // Not available
+      playerName: r.name || null,
+      isCorrect: true, // All filtered are correct
+      timeToAnswerMs: Number(r.__timestampMs ?? 0) - quizStartTimeMs,
+      timestampMs: Number(r.__timestampMs ?? 0),
+      rank: index + 1,
+      rawRow: r.__raw,
+    }));
+
+    return { status: "success", data: results };
   } catch (error) {
     return { status: "error", message: (error as Error).message };
   }

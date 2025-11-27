@@ -12,15 +12,41 @@
 
       <!-- Right Top: Basic Fields -->
       <div class="basic-fields">
-        <FieldText v-model="formData.name" label="名前" placeholder="景品名" />
-        <FieldNumberStepper v-model="formData.rank" :min="1" label="景品ランク" />
-        <FieldSelect v-model="formData.animation" :options="animationOptions" label="抽選アニメーション" />
+        <div class="name-field">
+          <FieldText v-model="formData.name" label="名前" placeholder="景品名" />
+        </div>
+        <div class="rank-field">
+          <FieldNumberStepper v-model="formData.rank" :min="1" label="景品ランク" />
+        </div>
+        <div class="animation-field">
+          <FieldSelect v-model="formData.animation" :options="animationOptions" label="抽選アニメーション" />
+        </div>
       </div>
 
       <!-- Left Bottom: Image2 -->
       <div class="image2-section">
         <ImageField label="画像2" v-model:mode="image2Mode" v-model:assetId="formData.image2AssetId"
           :filename="image2Filename" :preview="image2Preview" :assets="imageAssets" @file-change="onImage2Change" />
+      </div>
+
+      <!-- Winning Image1 -->
+      <div class="winning-image1-section">
+        <label class="field-label">当選景品画像1</label>
+        <div class="preview-box">
+          <img v-if="winningImage1Preview" :src="winningImage1Preview" alt="当選景品画像1" />
+          <div v-else class="placeholder">画像を選択してください</div>
+        </div>
+        <input type="file" accept="image/*" @change="onWinningImage1Change" />
+      </div>
+
+      <!-- Winning Image2 -->
+      <div class="winning-image2-section">
+        <label class="field-label">当選景品画像2</label>
+        <div class="preview-box">
+          <img v-if="winningImage2Preview" :src="winningImage2Preview" alt="当選景品画像2" />
+          <div v-else class="placeholder">画像を選択してください</div>
+        </div>
+        <input type="file" accept="image/*" @change="onWinningImage2Change" />
       </div>
 
       <!-- Right Bottom: BGM and Actions -->
@@ -77,10 +103,10 @@ const formData = ref({
   image2AssetId: '',
   bgm1AssetId: '',
   bgm2AssetId: '',
+  winningImage1AssetId: '',
+  winningImage2AssetId: '',
 });
 
-const image1Mode = ref('upload');
-const image1Filename = ref('');
 const image2Mode = ref('upload');
 const image2Filename = ref('');
 const bgm1Mode = ref('select');
@@ -92,9 +118,13 @@ const tempAsset1 = ref<Asset | null>(null);
 const tempAsset2 = ref<Asset | null>(null);
 const tempBgm1Asset = ref<Asset | null>(null);
 const tempBgm2Asset = ref<Asset | null>(null);
+const tempWinningAsset1 = ref<Asset | null>(null);
+const tempWinningAsset2 = ref<Asset | null>(null);
 
 const image1Preview = computed(() => objectUrlMap.get('temp-image1') || formData.value.imageAssetId);
 const image2Preview = computed(() => objectUrlMap.get('temp-image2') || formData.value.image2AssetId);
+const winningImage1Preview = computed(() => objectUrlMap.get('temp-winning-image1') || formData.value.winningImage1AssetId);
+const winningImage2Preview = computed(() => objectUrlMap.get('temp-winning-image2') || formData.value.winningImage2AssetId);
 
 const isValid = computed(() => formData.value.name.trim());
 
@@ -113,23 +143,13 @@ function loadPrize(prize: any) {
     image2AssetId: prize.image2AssetId || '',
     bgm1AssetId: prize.bgm1AssetId || '',
     bgm2AssetId: prize.bgm2AssetId || '',
+    winningImage1AssetId: prize.winningImage1AssetId || '',
+    winningImage2AssetId: prize.winningImage2AssetId || '',
   };
   // Modes based on existence
-  image1Mode.value = prize.imageAssetId ? 'select' : 'upload';
   image2Mode.value = prize.image2AssetId ? 'select' : 'upload';
   bgm1Mode.value = prize.bgm1AssetId ? 'select' : 'upload';
   bgm2Mode.value = prize.bgm2AssetId ? 'select' : 'upload';
-}
-
-async function onImage1Change(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    const dto = await createAssetDto(file);
-    tempAsset1.value = dto;
-    image1Filename.value = file.name;
-    revoke('temp-image1');
-    createObjectUrl(file, 'temp-image1');
-  }
 }
 
 async function onImage2Change(e: Event) {
@@ -159,6 +179,26 @@ async function onBgm2Change(e: Event) {
   }
 }
 
+async function onWinningImage1Change(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const dto = await createAssetDto(file);
+    tempWinningAsset1.value = dto;
+    revoke('temp-winning-image1');
+    createObjectUrl(file, 'temp-winning-image1');
+  }
+}
+
+async function onWinningImage2Change(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const dto = await createAssetDto(file);
+    tempWinningAsset2.value = dto;
+    revoke('temp-winning-image2');
+    createObjectUrl(file, 'temp-winning-image2');
+  }
+}
+
 async function createAssetDto(file: File): Promise<Asset> {
   return await assetDataService.createDriveDataDtoFromFile(file);
 }
@@ -172,10 +212,12 @@ async function submit() {
     const uploadPromises = [];
     console.log('tempAsset1.value:', tempAsset1.value);
     console.log('tempAsset2.value:', tempAsset2.value);
-    if (tempAsset1.value) uploadPromises.push(uploadAsset(tempAsset1.value).then(result => ({ type: 'image1', result })));
-    if (tempAsset2.value) uploadPromises.push(uploadAsset(tempAsset2.value).then(result => ({ type: 'image2', result })));
-    if (tempBgm1Asset.value) uploadPromises.push(uploadAsset(tempBgm1Asset.value).then(result => ({ type: 'bgm1', result })));
-    if (tempBgm2Asset.value) uploadPromises.push(uploadAsset(tempBgm2Asset.value).then(result => ({ type: 'bgm2', result })));
+    if (tempAsset1.value) uploadPromises.push(uploadAsset(tempAsset1.value).then((result: any) => ({ type: 'image1', result })));
+    if (tempAsset2.value) uploadPromises.push(uploadAsset(tempAsset2.value).then((result: any) => ({ type: 'image2', result })));
+    if (tempBgm1Asset.value) uploadPromises.push(uploadAsset(tempBgm1Asset.value).then((result: any) => ({ type: 'bgm1', result })));
+    if (tempBgm2Asset.value) uploadPromises.push(uploadAsset(tempBgm2Asset.value).then((result: any) => ({ type: 'bgm2', result })));
+    if (tempWinningAsset1.value) uploadPromises.push(uploadAsset(tempWinningAsset1.value).then((result: any) => ({ type: 'winningImage1', result })));
+    if (tempWinningAsset2.value) uploadPromises.push(uploadAsset(tempWinningAsset2.value).then((result: any) => ({ type: 'winningImage2', result })));
 
     console.log('uploadPromises length:', uploadPromises.length);
     const results = await Promise.all(uploadPromises);
@@ -190,16 +232,24 @@ async function submit() {
         formData.value.bgm1AssetId = result.assetId;
       } else if (type === 'bgm2') {
         formData.value.bgm2AssetId = result.assetId;
+      } else if (type === 'winningImage1') {
+        formData.value.winningImage1AssetId = result.assetId;
+      } else if (type === 'winningImage2') {
+        formData.value.winningImage2AssetId = result.assetId;
       }
     }
 
     // Clean up temporary object URLs and refs
     revoke('temp-image1');
     revoke('temp-image2');
+    revoke('temp-winning-image1');
+    revoke('temp-winning-image2');
     tempAsset1.value = null;
     tempAsset2.value = null;
     tempBgm1Asset.value = null;
     tempBgm2Asset.value = null;
+    tempWinningAsset1.value = null;
+    tempWinningAsset2.value = null;
 
     emit('submit', formData.value);
   } catch (error) {
@@ -220,43 +270,51 @@ function cancel() {
   max-height: 100vh;
 }
 
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
+  /* 5 rows: basic-fields / animation (handled inside basic) / images / winning images / bgm */
+  grid-template-rows: auto auto auto auto auto;
   gap: 20px;
   padding: 20px;
+  min-width: 0;
+  min-height: 0;
 }
 
-.image1-preview {
-  grid-column: 1;
-  grid-row: 1;
+/* ensure grid can shrink and children don't force overflow */
+.basic-fields,
+.image1-preview,
+.image2-section,
+.winning-image1-section,
+.winning-image2-section,
+.bgm-actions {
+  min-width: 0;
 }
 
 .basic-fields {
-  grid-column: 2;
+  grid-column: 1 / -1;
   grid-row: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  gap: 12px;
+  align-items: center;
 }
 
-.image2-section {
-  grid-column: 1;
-  grid-row: 2;
-}
+.basic-fields > .name-field { grid-column: 1; }
+.basic-fields > .rank-field { grid-column: 2; }
+.basic-fields > .animation-field { grid-column: 1 / -1; margin-top: 8px; }
 
-.bgm-actions {
-  grid-column: 2;
-  grid-row: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+.image1-preview { grid-column: 1; grid-row: 3; }
+.image2-section { grid-column: 2; grid-row: 3; }
+.winning-image1-section { grid-column: 1; grid-row: 4; }
+.winning-image2-section { grid-column: 2; grid-row: 4; }
+.bgm-actions { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 .preview-box {
-  width: 200px;
-  height: 200px;
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1 / 1;
   border: 1px solid #ccc;
   display: flex;
   align-items: center;
@@ -266,6 +324,7 @@ function cancel() {
 .preview-box img {
   max-width: 100%;
   max-height: 100%;
+  object-fit: contain;
 }
 
 .placeholder {
@@ -276,5 +335,15 @@ function cancel() {
   display: flex;
   gap: 10px;
   margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(5, auto);
+  }
+  .basic-fields { grid-template-columns: 1fr; }
+  .bgm-actions { grid-template-columns: 1fr; }
+  .preview-box { max-width: 100%; }
 }
 </style>

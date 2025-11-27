@@ -1,3 +1,10 @@
+export interface QuizSettings {
+  correctBgmDataUrl: string | null;
+  prizeImageDataUrl: string | null;
+  prizeName: string;
+  prizeBgmDataUrl: string | null;
+}
+
 export class Quiz {
   id: string;
   title: string;
@@ -12,8 +19,9 @@ export class Quiz {
   formUrl: string;
   timeLimit: number;
   bgm: Blob | string | null;
+  settings?: QuizSettings;
 
-  constructor(quizData: Omit<Quiz, "id"> | Quiz) {
+  constructor(quizData: Omit<Quiz, "id" | "getFormId"> | Quiz) {
     this.id = "id" in quizData ? quizData.id : "";
     this.title = quizData.title;
     this.question = quizData.question;
@@ -22,6 +30,7 @@ export class Quiz {
     this.formUrl = quizData.formUrl;
     this.timeLimit = quizData.timeLimit;
     this.bgm = quizData.bgm;
+    this.settings = quizData.settings;
   }
 
   /**

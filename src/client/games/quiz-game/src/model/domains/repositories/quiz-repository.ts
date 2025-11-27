@@ -3,6 +3,7 @@ import { Quiz } from "../../domains/entities/quiz";
 import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 import type { QuizWithDataUrl } from "quiz-game-api";
+import { dataUrlToBlob } from "../../../utils/blob-utils";
 
 @injectable()
 export class QuizRepository {
@@ -115,7 +116,7 @@ export class QuizRepository {
         }
 
         q.options = q.options.map((o: any) => ({ ...o }));
-        q.options.forEach((o: any, idx: number) => {
+        q.options.forEach((o: any) => {
           if (
             o.image &&
             typeof o.image === "string" &&
@@ -152,13 +153,21 @@ export class QuizRepository {
               no: o.no,
               text: o.text,
               color: o.color,
-              image: o.image ? await this.dataUrlToBlob(o.image) : null,
+              image: o.image ? await dataUrlToBlob(o.image) : null,
             }))
           ),
           correctNo: q.correctNo ?? 1,
           formUrl: q.formUrl,
           timeLimit: q.timeLimit,
-          bgm: q.bgm ? await this.dataUrlToBlob(q.bgm) : null,
+          bgm: q.bgm ? await dataUrlToBlob(q.bgm) : null,
+          settings: q.settings
+            ? {
+                correctBgmDataUrl: q.settings.correctBgmDataUrl,
+                prizeImageDataUrl: q.settings.prizeImageDataUrl,
+                prizeName: q.settings.prizeName,
+                prizeBgmDataUrl: q.settings.prizeBgmDataUrl,
+              }
+            : undefined,
         });
         await this.saveQuiz(quiz);
       }
@@ -185,12 +194,14 @@ export class QuizRepository {
                   : (o.image as string | null),
             }))
           ),
+          correctNo: q.correctNo,
           formUrl: q.formUrl,
           timeLimit: q.timeLimit,
           bgm:
             q.bgm && typeof q.bgm !== "string"
               ? await this.blobToDataUrl(q.bgm)
               : (q.bgm as string | null),
+          settings: q.settings,
         }))
       );
 
@@ -198,7 +209,7 @@ export class QuizRepository {
 
       type AssetTask = {
         quizId: string;
-        type: "bgm" | "option";
+        type: "bgm" | "option" | "prizeImage" | "prizeBgm";
         idx?: number;
         dataUrl: string;
         fileName: string;
@@ -230,6 +241,32 @@ export class QuizRepository {
             });
           }
         });
+        if (q.settings) {
+          if (
+            q.settings.prizeImageDataUrl &&
+            q.settings.prizeImageDataUrl.startsWith("data:")
+          ) {
+            assets.push({
+              quizId: q.id,
+              type: "prizeImage" as any,
+              idx: 0,
+              dataUrl: q.settings.prizeImageDataUrl,
+              fileName: `${q.id}_prize_image`,
+            });
+          }
+          if (
+            q.settings.prizeBgmDataUrl &&
+            q.settings.prizeBgmDataUrl.startsWith("data:")
+          ) {
+            assets.push({
+              quizId: q.id,
+              type: "prizeBgm" as any,
+              idx: 0,
+              dataUrl: q.settings.prizeBgmDataUrl,
+              fileName: `${q.id}_prize_bgm`,
+            });
+          }
+        }
       }
 
       const uploadService = new GasFunctionService("_quizGame_addDriveData");
@@ -282,9 +319,19 @@ export class QuizRepository {
         if (type === "bgm") {
           quiz.bgm = `drive:${r.fileId}`;
           successCount++;
-        } else {
+        } else if (type === "option") {
           if (typeof idx === "number" && quiz.options[idx]) {
             quiz.options[idx].image = `drive:${r.fileId}`;
+            successCount++;
+          }
+        } else if (type === "prizeImage") {
+          if (quiz.settings) {
+            quiz.settings.prizeImageDataUrl = `drive:${r.fileId}`;
+            successCount++;
+          }
+        } else if (type === "prizeBgm") {
+          if (quiz.settings) {
+            quiz.settings.prizeBgmDataUrl = `drive:${r.fileId}`;
             successCount++;
           }
         }
@@ -343,16 +390,5 @@ export class QuizRepository {
       reader.onerror = (e) => reject(e);
       reader.readAsDataURL(blob);
     });
-  }
-
-  private async dataUrlToBlob(dataUrl: string): Promise<Blob> {
-    if (!dataUrl) return new Blob();
-    try {
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      return blob;
-    } catch (e) {
-      return new Blob();
-    }
   }
 }

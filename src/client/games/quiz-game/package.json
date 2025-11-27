@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "common-lib": "file:../../packages/common-lib",
+    "shared-composables": "file:../../packages/shared-composables",
     "quiz-game-api": "file:../../../../src/server/games/quiz-game-api",
     "gsap": "^3.13.0",
     "localforage": "^1.10.0",

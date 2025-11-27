@@ -220,13 +220,13 @@ describe("DataUploadDialog", () => {
     expect(bgmIds[0]).toEqual(bgmIds[1]);
   });
 
-  it("uploads assets with special unicode characters in filename", async () => {
+  it("uploads prizes with winning images and order from extended CSV", async () => {
     const csvText =
-      "name,rank,animation,imageFile,bgm1File,bgm2File\n" +
-      `PrizeX,1,roulette,,${"【効果音】歓声、声援 Sound effect - ニャンアシ.mp3"},\n`;
+      "name,rank,animation,imageFile,image2File,bgm1File,bgm2File,winningImage1File,winningImage2File,order\n" +
+      "PrizeC,3,slot,image1.png,image2.png,bgm1.mp3,bgm2.mp3,win1.jpg,win2.jpg,5\n";
 
     const csvFile = {
-      name: "prizes-special.csv",
+      name: "prizes-extended.csv",
       type: "text/csv",
       size: csvText.length,
       async text() {
@@ -234,13 +234,12 @@ describe("DataUploadDialog", () => {
       },
     } as any;
 
-    const specialFile = {
-      name: "【効果音】歓声、声援 Sound effect - ニャンアシ.mp3",
-      type: "audio/mpeg",
-      size: 2048,
-      webkitRelativePath:
-        "audio/【効果音】歓声、声援 Sound effect - ニャンアシ.mp3",
-    } as any;
+    const image1File = { name: "image1.png", type: "image/png", size: 512, webkitRelativePath: "images/image1.png" } as any;
+    const image2File = { name: "image2.png", type: "image/png", size: 512, webkitRelativePath: "images/image2.png" } as any;
+    const bgm1File = { name: "bgm1.mp3", type: "audio/mpeg", size: 1024, webkitRelativePath: "audio/bgm1.mp3" } as any;
+    const bgm2File = { name: "bgm2.mp3", type: "audio/mpeg", size: 1024, webkitRelativePath: "audio/bgm2.mp3" } as any;
+    const win1File = { name: "win1.jpg", type: "image/jpeg", size: 256, webkitRelativePath: "images/win1.jpg" } as any;
+    const win2File = { name: "win2.jpg", type: "image/jpeg", size: 256, webkitRelativePath: "images/win2.jpg" } as any;
 
     const wrapper = mount(DataUploadDialog as any, {
       props: { show: true, type: "prize" },
@@ -269,7 +268,7 @@ describe("DataUploadDialog", () => {
 
     const folderInput = wrapper.find("input[webkitdirectory]");
     Object.defineProperty(folderInput.element, "files", {
-      value: makeFileList([specialFile]),
+      value: makeFileList([image1File, image2File, bgm1File, bgm2File, win1File, win2File]),
     });
     await folderInput.trigger("change");
 
@@ -278,9 +277,86 @@ describe("DataUploadDialog", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Check that prizeService saved the prize and the bgm id is mapped
-    expect(prizeSvc.saved.length).toBeGreaterThanOrEqual(1);
-    const bgmId = prizeSvc.saved[0].bgm1AssetId;
-    expect(bgmId).toBeDefined();
+    expect(prizeSvc.saved.length).toBe(1);
+    const prize = prizeSvc.saved[0];
+    expect(prize.name).toBe("PrizeC");
+    expect(prize.rank).toBe(3);
+    expect(prize.animation).toBe("slot");
+    expect(prize.imageAssetId).toBeDefined();
+    expect(prize.image2AssetId).toBeDefined();
+    expect(prize.bgm1AssetId).toBeDefined();
+    expect(prize.bgm2AssetId).toBeDefined();
+    expect(prize.winningImage1AssetId).toBeDefined();
+    expect(prize.winningImage2AssetId).toBeDefined();
+    expect(prize.order).toBe(5);
+  });
+
+  it("maintains backward compatibility with old 7-column CSV", async () => {
+    const csvText =
+      "name,rank,animation,imageFile,image2File,bgm1File,bgm2File\n" +
+      "PrizeD,4,roulette,image1.png,image2.png,bgm1.mp3,bgm2.mp3\n";
+
+    const csvFile = {
+      name: "prizes-old.csv",
+      type: "text/csv",
+      size: csvText.length,
+      async text() {
+        return csvText;
+      },
+    } as any;
+
+    const image1File = { name: "image1.png", type: "image/png", size: 512, webkitRelativePath: "images/image1.png" } as any;
+    const image2File = { name: "image2.png", type: "image/png", size: 512, webkitRelativePath: "images/image2.png" } as any;
+    const bgm1File = { name: "bgm1.mp3", type: "audio/mpeg", size: 1024, webkitRelativePath: "audio/bgm1.mp3" } as any;
+    const bgm2File = { name: "bgm2.mp3", type: "audio/mpeg", size: 1024, webkitRelativePath: "audio/bgm2.mp3" } as any;
+
+    const wrapper = mount(DataUploadDialog as any, {
+      props: { show: true, type: "prize" },
+    });
+
+    const csvInput = wrapper.find('input[type="file"][accept=".csv"]');
+    function makeFileList(files: File[]) {
+      if (typeof DataTransfer !== "undefined") {
+        const dt = new DataTransfer();
+        files.forEach((f) => dt.items.add(f));
+        return dt.files;
+      }
+      const fileListLike = files.reduce((obj: any, f, i) => {
+        obj[i] = f;
+        return obj;
+      }, {} as any);
+      (fileListLike as any).length = files.length;
+      (fileListLike as any).item = (i: number) => files[i];
+      return fileListLike as unknown as FileList;
+    }
+
+    Object.defineProperty(csvInput.element, "files", {
+      value: makeFileList([csvFile]),
+    });
+    await csvInput.trigger("change");
+
+    const folderInput = wrapper.find("input[webkitdirectory]");
+    Object.defineProperty(folderInput.element, "files", {
+      value: makeFileList([image1File, image2File, bgm1File, bgm2File]),
+    });
+    await folderInput.trigger("change");
+
+    const uploadBtn = wrapper.find("button.admin-btn");
+    await uploadBtn.trigger("click");
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    expect(prizeSvc.saved.length).toBe(1);
+    const prize = prizeSvc.saved[0];
+    expect(prize.name).toBe("PrizeD");
+    expect(prize.rank).toBe(4);
+    expect(prize.animation).toBe("roulette");
+    expect(prize.imageAssetId).toBeDefined();
+    expect(prize.image2AssetId).toBeDefined();
+    expect(prize.bgm1AssetId).toBeDefined();
+    expect(prize.bgm2AssetId).toBeDefined();
+    expect(prize.winningImage1AssetId).toBeUndefined();
+    expect(prize.winningImage2AssetId).toBeUndefined();
+    expect(prize.order).toBe(0);
   });
 });

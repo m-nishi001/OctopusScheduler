@@ -13,7 +13,7 @@ describe("AssetDataRepository", () => {
 
     // Mock IdGenerator
     const mockIdGenerator = {
-      nextId: vi.fn(() => 'generated-id'),
+      nextId: vi.fn(() => "generated-id"),
     };
     container.register(IdGeneratorToken, { useValue: mockIdGenerator });
 

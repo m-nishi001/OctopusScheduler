@@ -8,7 +8,11 @@ export function useAssets(assetDataServiceArg?: AssetDataService) {
     assetDataServiceArg || container.resolve(AssetDataService);
   const assets = ref<any[]>([]);
   // Use the centralized object URL store
-  const { objectUrlMap, createObjectUrl: createUrl, revokeAll } = useObjectUrlStore();
+  const {
+    objectUrlMap,
+    createObjectUrl: createUrl,
+    revokeAll,
+  } = useObjectUrlStore();
 
   const imageAssets = computed(() =>
     assets.value.filter((a) => a.blob?.type?.startsWith("image"))

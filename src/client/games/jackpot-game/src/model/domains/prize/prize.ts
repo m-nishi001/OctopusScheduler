@@ -8,4 +8,6 @@ export interface Prize {
   bgm2AssetId?: string;
   animation?: string;
   order: number;
+  winningImage1AssetId?: string;
+  winningImage2AssetId?: string;
 }

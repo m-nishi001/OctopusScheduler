@@ -26,9 +26,26 @@
         <div v-if="showModal" class="modal-overlay" role="dialog" aria-modal="true">
             <div class="modal-card">
                 <h2 class="modal-title">終了！</h2>
-                <p class="modal-body">回答時間が終了しました。</p>
+                <p class="modal-body" v-if="isLoading">回答を取得中…</p>
+                <p class="modal-body" v-else-if="errorMessage">{{ errorMessage }}</p>
+                <p class="modal-body" v-else-if="enterStage === 0">集計完了。Enterで正解表示</p>
+                <div v-else-if="enterStage === 1">
+                    <p class="modal-body">正解: {{ quiz?.options.find(opt => opt.no === quiz?.correctNo)?.text }}</p>
+                    <p class="modal-body">Enterで結果表示</p>
+                </div>
+                <div v-else-if="enterStage === 2">
+                    <p class="modal-body">結果:</p>
+                    <ul>
+                        <li v-for="result in sortedResults.slice(0, 10)" :key="result.rank">
+                            {{ result.rank }}位: {{ result.playerName || '匿名' }} - {{ Math.round(result.timeToAnswerMs / 1000) }}秒
+                        </li>
+                    </ul>
+                    <p class="modal-body">Enterで景品へ</p>
+                </div>
             </div>
         </div>
+        <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="quiz?.settings?.prizeName" :prize-image-url="quiz?.settings?.prizeImageDataUrl"
+            @close="hidePrizeDialog" />
     </div>
     <div v-else class="loading">Loading...</div>
 </template>
@@ -39,10 +56,13 @@ import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
+import { StopQuizUseCase } from '../../../model/applications/use-cases/stop-quiz-use-case';
 import { AnswerFormService } from '../../../model/domains/services/answer-form-service';
 import OptionCard from '../../components/option-card.vue';
 import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
 import { quizState } from '../../../services/quizState';
+import PrizeDialog from '../../../components/prize-dialog.vue';
+import { usePrizeOrchestrator } from '../../../composables/use-prize-orchestrator';
 
 const route = useRoute();
 const router = useRouter();
@@ -57,20 +77,22 @@ let timer: ReturnType<typeof setInterval> | undefined;
 const objectUrls = ref<string[]>([]);
 const audioElement = ref<HTMLAudioElement | null>(null);
 
+// Modal states
+const isLoading = ref(false);
+const canProceed = ref(false);
+const enterStage = ref(0); // 0: initial, 1: correct shown, 2: results shown
+const sortedResults = ref<any[]>([]);
+const errorMessage = ref<string | null>(null);
+
 const qrCodeUrl = computed(() => {
     if (!quiz.value) return '';
     const q = quiz.value as QuizDto;
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(q.answerUrl)}`;
 });
 
-const isPreview = computed(() => {
-    const paramPreview = (route.params as any)?.preview;
-    if (paramPreview !== undefined) {
-        if (typeof paramPreview === 'boolean') return paramPreview;
-        return String(paramPreview) === 'true' || String(paramPreview) === '1';
-    }
-    if (String(route.name)?.endsWith('-preview')) return true;
-    return false;
+const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
+    getSettings: () => quiz.value?.settings,
+    onNavigateHome: () => router.push({ name: 'home' }),
 });
 
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
@@ -294,26 +316,40 @@ const startTimer = () => {
             }
             // Immediately show modal so UI reflects 0s instantly
             showModal.value = true;
+            isLoading.value = true;
+            canProceed.value = false;
+            enterStage.value = 0;
+            sortedResults.value = [];
+            errorMessage.value = null;
 
             // Prefer parsed form id from DTO; do not parse in the component if possible.
             const formId = (quiz.value as any)?.answerFormId ?? null;
 
             if (!formId) {
-                console.warn('[stopForm] no answerFormId available on DTO; skipping stopForm.');
+                console.warn('[stopAndGetProcessedResults] no answerFormId available on DTO; skipping.');
             } else {
-                const answerFormService = container.resolve(AnswerFormService);
+                const stopQuizUseCase = container.resolve(StopQuizUseCase);
                 if (isPreview.value) {
-                    console.info('[stopForm] preview mode: skipping stop for formId=', formId);
+                    console.info('[stopAndGetProcessedResults] preview mode: skipping for formId=', formId);
                 } else {
                     // Fire-and-forget: don't await so modal appears immediately.
-                    // Log success/failure to console as requested.
-                    answerFormService
-                        .stopForm(formId)
-                        .then(() => {
-                            console.log('[stopForm] succeeded for formId=', formId);
+                    const quizStartTimeMs = quizState.getStartTime() ?? Date.now();
+                    const answerKey = '回答'; // Assuming the column is '回答'
+                    const correctOption = quiz.value?.options.find(opt => opt.no === quiz.value?.correctNo);
+                    const correctValue = correctOption?.text || '';
+                    stopQuizUseCase
+                        .execute(formId, quizStartTimeMs, answerKey, correctValue)
+                        .then((results) => {
+                            console.log('[stopAndGetProcessedResults] succeeded for formId=', formId, 'results count=', results.length);
+                            sortedResults.value = results;
+                            isLoading.value = false;
+                            canProceed.value = true;
                         })
                         .catch((err) => {
-                            console.error('[stopForm] failed for formId=', formId, 'error=', err?.message ?? err);
+                            console.error('[stopAndGetProcessedResults] failed for formId=', formId, 'error=', err?.message ?? err);
+                            errorMessage.value = '集計に失敗しました。';
+                            isLoading.value = false;
+                            canProceed.value = true; // Allow retry or proceed
                         });
                 }
             }
@@ -326,15 +362,21 @@ const selectOption = (index: number) => {
 };
 
 const handleKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Enter' && showModal.value) {
+    if (event.key === 'Enter' && showModal.value && canProceed.value) {
         if (audioElement.value) {
             audioElement.value.pause();
             audioElement.value = null;
         }
-        // If this page is part of a preview flow, navigate to the preview answer route.
-        const isPreviewRoute = String(route.name)?.endsWith('-preview');
-        const routeName = isPreviewRoute ? 'quiz-answer-preview' : 'quiz-answer';
-        router.push({ name: routeName, params: { id: quizId } });
+        if (enterStage.value === 0) {
+            // Show correct answer
+            enterStage.value = 1;
+        } else if (enterStage.value === 1) {
+            // Show results
+            enterStage.value = 2;
+        } else if (enterStage.value === 2) {
+            // Show prize dialog
+            showPrizeDialog();
+        }
     }
 };
 </script>

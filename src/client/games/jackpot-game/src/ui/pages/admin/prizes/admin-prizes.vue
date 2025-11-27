@@ -30,8 +30,8 @@
         <ul v-if="prizes.length" class="admin-list">
             <li v-for="prize in prizes" :key="prize.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedPrizes" :value="prize.id" />
-                <div class="prize-preview two-image">
-                    <template v-if="prize.imageAssetId || prize.image2AssetId">
+                <div class="prize-preview four-image">
+                    <template v-if="prize.imageAssetId || prize.image2AssetId || prize.winningImage1AssetId || prize.winningImage2AssetId">
                         <div class="preview-half">
                             <img v-if="prize.imageAssetId"
                                 :src="objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId" alt="image1"
@@ -43,6 +43,18 @@
                                 :src="objectUrlMap.get(prize.image2AssetId) || prize.image2AssetId" alt="image2"
                                 class="preview-img" @error="onImageError" />
                             <div v-else class="preview-placeholder small">画像2なし</div>
+                        </div>
+                        <div class="preview-half">
+                            <img v-if="prize.winningImage1AssetId"
+                                :src="objectUrlMap.get(prize.winningImage1AssetId) || prize.winningImage1AssetId" alt="winning1"
+                                class="preview-img" @error="onImageError" />
+                            <div v-else class="preview-placeholder small">当選1なし</div>
+                        </div>
+                        <div class="preview-half">
+                            <img v-if="prize.winningImage2AssetId"
+                                :src="objectUrlMap.get(prize.winningImage2AssetId) || prize.winningImage2AssetId" alt="winning2"
+                                class="preview-img" @error="onImageError" />
+                            <div v-else class="preview-placeholder small">当選2なし</div>
                         </div>
                     </template>
                     <template v-else>
@@ -140,6 +152,8 @@ const fetchPrizes = async () => {
     for (const prize of prizes.value) {
         if (prize.imageAssetId) await createObjectUrlById(prize.imageAssetId);
         if (prize.image2AssetId) await createObjectUrlById(prize.image2AssetId);
+        if (prize.winningImage1AssetId) await createObjectUrlById(prize.winningImage1AssetId);
+        if (prize.winningImage2AssetId) await createObjectUrlById(prize.winningImage2AssetId);
     }
 };
 
@@ -180,7 +194,7 @@ const confirmDeleteSelected = async () => { await deleteSelectedPrizes(); closeD
 // downloadPrizesJsonFromDrive is provided by usePrizeSync/use-prize-sync if needed.
 
 const exportFormatCsv = () => {
-    const csv = '名前,ランク,アニメーション,画像1ファイル名,画像2ファイル名,BGM1ファイル名,BGM2ファイル名\n';
+    const csv = '名前,ランク,アニメーション,画像1ファイル名,画像2ファイル名,BGM1ファイル名,BGM2ファイル名,当選景品画像1ファイル名,当選景品画像2ファイル名,表示順\n';
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -302,6 +316,27 @@ onBeforeUnmount(() => {
 
 .two-image .preview-half .preview-img,
 .two-image-preview .preview-half .preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.prize-preview.four-image {
+    display: flex;
+    padding: 0;
+}
+
+.four-image .preview-half {
+    width: 25%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: transparent;
+}
+
+.four-image .preview-half .preview-img {
     width: 100%;
     height: 100%;
     object-fit: cover;

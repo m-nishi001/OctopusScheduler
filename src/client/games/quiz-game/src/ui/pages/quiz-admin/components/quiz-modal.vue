@@ -19,20 +19,41 @@
                     <label class="form-label">クイズ内容</label>
                     <textarea v-model="currentQuiz.question" class="form-textarea" rows="3" required></textarea>
                 </div>
-                                <div class="form-group">
-                                    <label class="form-label">回答URL</label>
-                                    <input v-model="currentQuiz.answerUrl" type="url" class="form-input" required />
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">回答（正解）</label>
-                                    <select v-model.number="currentQuiz.correctNo" class="form-input" :disabled="currentQuiz.options.length === 0">
-                                        <option v-for="(opt, i) in currentQuiz.options" :key="i" :value="i+1">{{ i+1 }}: {{ opt.text }}</option>
-                                    </select>
-                                </div>
+                <div class="form-group">
+                    <label class="form-label">回答URL</label>
+                    <input v-model="currentQuiz.answerUrl" type="url" class="form-input" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">回答（正解）</label>
+                    <select v-model.number="currentQuiz.correctNo" class="form-input"
+                        :disabled="currentQuiz.options.length === 0">
+                        <option v-for="(opt, i) in currentQuiz.options" :key="i" :value="i + 1">{{ i + 1 }}: {{ opt.text }}
+                        </option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label class="form-label">BGM</label>
                     <input type="file" accept="audio/*" @change="onBgmChange" class="form-input" />
                     <audio v-if="bgmPreview" :src="bgmPreview" controls class="audio-preview"></audio>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">正解表示BGM</label>
+                    <input type="file" accept="audio/*" @change="onCorrectBgmChange" class="form-input" />
+                    <audio v-if="correctBgmPreview" :src="correctBgmPreview" controls class="audio-preview"></audio>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">当選景品名</label>
+                    <input v-model="prizeName" type="text" class="form-input" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">当選景品画像</label>
+                    <input type="file" accept="image/*" @change="onPrizeImageChange" class="form-input" />
+                    <img v-if="prizeImagePreview" :src="prizeImagePreview" alt="景品画像プレビュー" class="image-preview" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">当選景品BGM</label>
+                    <input type="file" accept="audio/*" @change="onPrizeBgmChange" class="form-input" />
+                    <audio v-if="prizeBgmPreview" :src="prizeBgmPreview" controls class="audio-preview"></audio>
                 </div>
                 <div class="form-group">
                     <label class="form-label">選択肢</label>
@@ -79,9 +100,10 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, onUnmounted, onMounted, watch } from 'vue';
+import { defineProps, defineEmits, ref, onUnmounted, onMounted, watch, computed } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
 import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
+import { fileToDataUrl } from '../../../../utils/blob-utils';
 
 const props = defineProps<{
     showModal: boolean;
@@ -99,6 +121,18 @@ const isEditingOption = ref(false);
 const editingOptionIndex = ref(-1);
 const currentOption = ref<{ no: number; text: string; image: Blob | string | null; color: string }>({ no: 0, text: '', image: null, color: 'red' });
 const bgmPreview = ref<string | null>(null);
+const correctBgmPreview = ref<string | null>(null);
+const prizeImagePreview = ref<string | null>(null);
+const prizeBgmPreview = ref<string | null>(null);
+
+const prizeName = computed({
+    get: () => props.currentQuiz.settings?.prizeName || '',
+    set: (value: string) => {
+        if (props.currentQuiz.settings) {
+            props.currentQuiz.settings.prizeName = value;
+        }
+    }
+});
 
 const imageSrc = (image: Blob | string | null) => {
     if (image instanceof Blob) {
@@ -126,6 +160,54 @@ const onBgmChange = (event: Event) => {
             URL.revokeObjectURL(bgmPreview.value);
         }
         bgmPreview.value = null;
+    }
+};
+
+const onCorrectBgmChange = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+        try {
+            const dataUrl = await fileToDataUrl(file);
+            props.currentQuiz.settings!.correctBgmDataUrl = dataUrl;
+            correctBgmPreview.value = dataUrl;
+        } catch (error) {
+            console.error('Failed to convert correct BGM to data URL:', error);
+        }
+    } else {
+        props.currentQuiz.settings!.correctBgmDataUrl = null;
+        correctBgmPreview.value = null;
+    }
+};
+
+const onPrizeImageChange = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+        try {
+            const dataUrl = await fileToDataUrl(file);
+            props.currentQuiz.settings!.prizeImageDataUrl = dataUrl;
+            prizeImagePreview.value = dataUrl;
+        } catch (error) {
+            console.error('Failed to convert prize image to data URL:', error);
+        }
+    } else {
+        props.currentQuiz.settings!.prizeImageDataUrl = null;
+        prizeImagePreview.value = null;
+    }
+};
+
+const onPrizeBgmChange = async (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+        try {
+            const dataUrl = await fileToDataUrl(file);
+            props.currentQuiz.settings!.prizeBgmDataUrl = dataUrl;
+            prizeBgmPreview.value = dataUrl;
+        } catch (error) {
+            console.error('Failed to convert prize BGM to data URL:', error);
+        }
+    } else {
+        props.currentQuiz.settings!.prizeBgmDataUrl = null;
+        prizeBgmPreview.value = null;
     }
 };
 
@@ -177,6 +259,25 @@ onMounted(() => {
     // ensure correctNo exists on the quiz object for UI usage
     if ((props.currentQuiz as any).correctNo == null) {
         (props.currentQuiz as any).correctNo = 1;
+    }
+    // Initialize settings if not present
+    if (!props.currentQuiz.settings) {
+        props.currentQuiz.settings = {
+            correctBgmDataUrl: null,
+            prizeImageDataUrl: null,
+            prizeName: null,
+            prizeBgmDataUrl: null,
+        };
+    }
+    // Set previews from existing data URLs
+    if (props.currentQuiz.settings.correctBgmDataUrl) {
+        correctBgmPreview.value = props.currentQuiz.settings.correctBgmDataUrl;
+    }
+    if (props.currentQuiz.settings.prizeImageDataUrl) {
+        prizeImagePreview.value = props.currentQuiz.settings.prizeImageDataUrl;
+    }
+    if (props.currentQuiz.settings.prizeBgmDataUrl) {
+        prizeBgmPreview.value = props.currentQuiz.settings.prizeBgmDataUrl;
     }
 });
 

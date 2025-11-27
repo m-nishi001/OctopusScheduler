@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
-import type { SheetRow, SyncRequest, QuizWithDataUrl } from "quiz-game-api";
+import type { SheetRow, SyncRequest, QuizWithDataUrl, ProcessedResultDto } from "quiz-game-api";
 
 @injectable()
 export class FormRepository {
@@ -12,6 +12,16 @@ export class FormRepository {
   async getSheetData(quizId: string): Promise<SheetRow[]> {
     const service = new GasFunctionService("_quizGame_getSheetData");
     return await service.call<SheetRow[]>(quizId);
+  }
+
+  async stopAndGetProcessedResults(
+    quizId: string,
+    quizStartTimeMs: number,
+    answerKey: string,
+    correctValue: string
+  ): Promise<ProcessedResultDto[]> {
+    const service = new GasFunctionService("_quizGame_stopAndGetProcessedResults");
+    return await service.call<ProcessedResultDto[]>(quizId, quizStartTimeMs, answerKey, correctValue);
   }
 
   async syncQuizzes(request: SyncRequest): Promise<QuizWithDataUrl[] | void> {

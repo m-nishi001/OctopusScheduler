@@ -32,7 +32,7 @@ export function drawSector(
   ctx.fill();
 
   ctx.strokeStyle = "#000";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = Math.max(1, radius * 0.01);
   ctx.stroke();
 
   const midAngle = startAngle + sectorAngle / 2;
@@ -65,7 +65,7 @@ export function drawSector(
   );
   const availableHeight = Math.max(4, outerRadius - innerRadius - 2);
 
-  const desiredImgSize = 80;
+  const desiredImgSize = radius * 0.4;
   const imgNaturalW = img.naturalWidth || img.width || desiredImgSize;
   const imgNaturalH = img.naturalHeight || img.height || desiredImgSize;
   const scale = Math.max(
@@ -92,10 +92,19 @@ export function drawWheel(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement
 ) {
+  const dpr = window.devicePixelRatio || 1;
+  const logicalWidth = canvas.width / dpr;
+  const logicalHeight = canvas.height / dpr;
+  const centerX = Math.round(logicalWidth / 2);
+  const centerY = Math.round(logicalHeight / 2);
+  const radius = (Math.min(logicalWidth, logicalHeight) / 2) * 0.88;
+
+  // Safe clearRect: reset transform to clear the entire buffer
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  const radius = 200;
+  ctx.restore();
+
   const sectors = Math.max(8, currentRouletteItems.length);
   const sectorAngle = calculateSectorAngle(currentRouletteItems.length);
 
@@ -113,19 +122,20 @@ export function drawWheel(
   }
 
   ctx.fillStyle = "#FFD700";
+  const knobRadius = radius * 0.15;
   const gradient = ctx.createRadialGradient(
     centerX,
     centerY,
     0,
     centerX,
     centerY,
-    30
+    knobRadius
   );
   gradient.addColorStop(0, "#FFD700");
   gradient.addColorStop(1, "#FFA500");
   ctx.fillStyle = gradient;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 30, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, knobRadius, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#000";
   ctx.shadowColor = "#FFD700";

@@ -21,11 +21,14 @@ import OptionCard from '../../components/option-card.vue';
 import { onUnmounted } from 'vue';
 import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
+import { useAudio } from 'shared-composables';
+import { dataUrlToBlob } from '../../../utils/blob-utils';
 
 const route = useRoute();
 const router = useRouter();
 const quizId = route.params.id as string;
 const quiz = ref<QuizDto | null>(null);
+const { load, play, stop } = useAudio({ mode: 'html-audio' });
 
 const correctNo = computed(() => {
   if (!quiz.value) return 1;
@@ -44,10 +47,22 @@ onMounted(async () => {
   const startQuizUseCase = container.resolve(StartQuizUseCase);
   quiz.value = await startQuizUseCase.execute(quizId);
   document.addEventListener('keydown', handleKeydown);
+
+  // Play correct BGM if set
+  if (quiz.value?.settings?.correctBgmDataUrl) {
+    try {
+      const blob = dataUrlToBlob(quiz.value.settings.correctBgmDataUrl);
+      await load(blob);
+      await play();
+    } catch (error) {
+      console.error('Failed to play correct BGM:', error);
+    }
+  }
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown);
+  stop();
 });
 
 const handleKeydown = (ev: KeyboardEvent) => {

@@ -128,6 +128,12 @@ const currentQuiz = ref<QuizDto>({
     timeLimit: 30,
     options: [],
     bgm: null,
+    settings: {
+        correctBgmDataUrl: null,
+        prizeImageDataUrl: null,
+        prizeName: null,
+        prizeBgmDataUrl: null,
+    },
 });
 
 const showSyncDialog = ref(false);
@@ -157,6 +163,12 @@ const addQuiz = () => {
         timeLimit: 30,
         options: [],
         bgm: null,
+        settings: {
+            correctBgmDataUrl: null,
+            prizeImageDataUrl: null,
+            prizeName: null,
+            prizeBgmDataUrl: null,
+        },
     };
     isEditing.value = false;
     showModal.value = true;
@@ -194,6 +206,7 @@ const handleSave = async (quiz: QuizDto) => {
                 timeLimit: quiz.timeLimit,
                 options: quiz.options,
                 bgm: quiz.bgm,
+                settings: quiz.settings,
             };
             const id = await addQuizUseCase.execute(addDto);
             const newQuiz = { ...quiz, id };

@@ -1,9 +1,15 @@
+export interface QuizSettings {
+  correctBgmDataUrl: string | null;
+  prizeImageDataUrl: string | null;
+  prizeName: string | null;
+  prizeBgmDataUrl: string | null;
+}
+
 export interface QuizDto {
   id: string;
   title: string;
   question: string;
   answerUrl: string;
-  /** optional parsed form id extracted from answerUrl */
   answerFormId?: string;
   correctNo?: number;
   timeLimit: number;
@@ -14,6 +20,7 @@ export interface QuizDto {
     image: Blob | string | null;
   }[];
   bgm: Blob | string | null;
+  settings?: QuizSettings;
 }
 
 export interface AddQuizDto {
@@ -29,6 +36,7 @@ export interface AddQuizDto {
     image: Blob | string | null;
   }[];
   bgm: Blob | string | null;
+  settings?: QuizSettings;
 }
 
 export interface UpdateQuizDto {
@@ -45,6 +53,7 @@ export interface UpdateQuizDto {
     image: Blob | string | null;
   }[];
   bgm: Blob | string | null;
+  settings?: QuizSettings;
 }
 
 export interface DeleteQuizDto {

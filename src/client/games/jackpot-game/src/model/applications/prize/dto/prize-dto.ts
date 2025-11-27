@@ -8,9 +8,10 @@ export interface PrizeDto {
   image2AssetId?: string;
   bgm1AssetId?: string;
   bgm2AssetId?: string;
-  // animation to be used for this prize's draw presentation
   animation?: string;
   order: number;
+  winningImage1AssetId?: string;
+  winningImage2AssetId?: string;
 }
 
 export const toPrize = (dto: PrizeDto): Prize => ({
@@ -23,6 +24,8 @@ export const toPrize = (dto: PrizeDto): Prize => ({
   bgm2AssetId: dto.bgm2AssetId,
   animation: dto.animation,
   order: dto.order,
+  winningImage1AssetId: dto.winningImage1AssetId,
+  winningImage2AssetId: dto.winningImage2AssetId,
 });
 
 export const fromPrize = (prize: Prize): PrizeDto => ({
@@ -35,4 +38,6 @@ export const fromPrize = (prize: Prize): PrizeDto => ({
   bgm2AssetId: prize.bgm2AssetId,
   animation: prize.animation || "roulette",
   order: prize.order,
+  winningImage1AssetId: prize.winningImage1AssetId,
+  winningImage2AssetId: prize.winningImage2AssetId,
 });

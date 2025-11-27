@@ -21,6 +21,8 @@
                 </div>
             </transition-group>
         </div>
+        <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="prizeName" :prize-image-url="prizeImageUrl"
+            @close="hidePrizeDialog" />
     </div>
 </template>
 
@@ -33,6 +35,8 @@ import { StartQuizUseCase } from '../../../model/applications/use-cases/start-qu
 import { computeTopResponders } from '../../../services/resultProcessor';
 import { quizState } from '../../../services/quizState';
 import { normalizeAnswer } from '../../../types/quiz';
+import PrizeDialog from '../../../components/prize-dialog.vue';
+import { usePrizeOrchestrator } from '../../../composables/use-prize-orchestrator';
 
 const router = useRouter();
 const route = useRoute();
@@ -56,6 +60,15 @@ const showFullScreenParticles = ref(false);
 // Use seconds (number) for the time-to-answer to avoid ambiguous Date conversions.
 const finalResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
 const displayedResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
+const currentQuiz = ref<any>(null);
+
+const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
+    getSettings: () => currentQuiz.value?.settings,
+    onNavigateHome: () => router.push({ name: 'home' }),
+});
+
+const prizeName = computed(() => currentQuiz.value?.settings?.prizeName || null);
+const prizeImageUrl = computed(() => currentQuiz.value?.settings?.prizeImageDataUrl || null);
 
 // Helper: rank is determined by the finalResults order (ascending time)
 function getRank(record: { name: string; timeSeconds: number | null }): number {
@@ -95,6 +108,10 @@ onUnmounted(() => {
 
 function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
+        if (isPrizeDialogVisible.value) {
+            // Let orchestrator handle it
+            return;
+        }
         // TODO: 遷移元に戻したい
         router.push('/quiz-admin');
     }
@@ -123,6 +140,10 @@ async function startRankingAnimation() {
             if (j === 0) {
                 showFullScreenParticles.value = true;
                 setTimeout(() => showFullScreenParticles.value = false, 3000);
+                // After 2 seconds, show prize dialog
+                setTimeout(() => {
+                    showPrizeDialog();
+                }, 2000);
             }
         }
     }
@@ -171,6 +192,7 @@ async function fetchAndPrepare() {
     try {
         const startQuizUseCase = container.resolve(StartQuizUseCase);
         const quiz = await startQuizUseCase.execute(route.params.id as string);
+        currentQuiz.value = quiz;
 
         // determine quiz start time early, used by both real fetch and dummy data
         const quizStartMs = quizState.getStartTime() ?? Date.now();

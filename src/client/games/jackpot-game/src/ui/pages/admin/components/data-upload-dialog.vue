@@ -123,47 +123,24 @@ const upload = async () => {
         } else {
             for (const line of dataLines) {
                 const cols = parseCsvLine(line).map((c) => c.trim());
-                if (cols.length >= 6) {
-                    if (cols[3]) {
-                        const raw = cols[3];
+                if (cols.length >= 4) {
+                    const addReferenced = (raw: string) => {
                         const rawN = norm(raw);
                         referencedFilenames.add(rawN);
                         referencedFilenames.add(rawN.toLowerCase());
-                        try { referencedFilenames.add(rawN.split(/\\|\//).join('/')); } catch { /* ignore */ }
-                        referencedFilenames.add(rawN.split(/\\|\//).join('/').toLowerCase());
-                        // also store path-normalized variant so that relative paths like "audio/.." match
-                        try { referencedFilenames.add(rawN.split(/\\|\//).join('/')); } catch { /* ignore */ }
-                        referencedFilenames.add(rawN.split(/\\|\//).join('/').toLowerCase());
-                        // also add base name in case CSV contains a relative path
-                        const base = raw.split(/\\|\//).pop() || raw;
-                        const baseN = norm(base);
-                        referencedFilenames.add(baseN);
-                        referencedFilenames.add(baseN.toLowerCase());
-                        // path normalized for base name if the CSV may contain a path
-                        try { referencedFilenames.add((rawN.split(/\\|\//).pop() || rawN)); } catch { }
-                    }
-                    if (cols[4]) {
-                        const raw = cols[4];
-                        const rawN = norm(raw);
-                        referencedFilenames.add(rawN);
-                        referencedFilenames.add(rawN.toLowerCase());
-                        try { referencedFilenames.add(rawN.split(/\\|\//).join('/')); } catch { /* ignore */ }
+                        try { referencedFilenames.add(rawN.split(/\\|\//).join('/')); } catch { }
                         referencedFilenames.add(rawN.split(/\\|\//).join('/').toLowerCase());
                         const base = raw.split(/\\|\//).pop() || raw;
                         const baseN = norm(base);
                         referencedFilenames.add(baseN);
                         referencedFilenames.add(baseN.toLowerCase());
-                    }
-                    if (cols[5]) {
-                        const raw = cols[5];
-                        const rawN = norm(raw);
-                        referencedFilenames.add(rawN);
-                        referencedFilenames.add(rawN.toLowerCase());
-                        const base = raw.split(/\\|\//).pop() || raw;
-                        const baseN = norm(base);
-                        referencedFilenames.add(baseN);
-                        referencedFilenames.add(baseN.toLowerCase());
-                    }
+                    };
+                    if (cols[3]) addReferenced(cols[3]); // image1
+                    if (cols.length >= 5 && cols[4]) addReferenced(cols[4]); // image2
+                    if (cols.length >= 6 && cols[5]) addReferenced(cols[5]); // bgm1
+                    if (cols.length >= 7 && cols[6]) addReferenced(cols[6]); // bgm2
+                    if (cols.length >= 9 && cols[7]) addReferenced(cols[7]); // winning1
+                    if (cols.length >= 10 && cols[8]) addReferenced(cols[8]); // winning2
                 }
             }
         }
@@ -263,25 +240,51 @@ const uploadPrizes = async (dataLines: string[], assetMap: Map<string, string>) 
     for (let i = 0; i < dataLines.length; i++) {
         const line = dataLines[i];
         const cols = parseCsvLine(line).map((c) => c.trim());
-        if (cols.length < 6) continue;
+        if (cols.length < 4) continue;
         const name = cols[0];
-        const rank = parseInt(cols[1]);
-        const animation = cols[2];
+        const rank = parseInt(cols[1]) || 0;
+        const animation = cols[2] || 'roulette';
         const imageFilename = cols[3];
-        const bgm1Filename = cols[4];
-        const bgm2Filename = cols[5];
+        let image2Filename = '';
+        let bgm1Filename = '';
+        let bgm2Filename = '';
+        let winningImage1Filename = '';
+        let winningImage2Filename = '';
+        let orderValue = '0';
+        if (cols.length >= 5) {
+            if (cols.length === 6) {
+                // Special case: assume no image2File, bgm1File and bgm2File at cols[4], [5]
+                bgm1Filename = cols[4];
+                bgm2Filename = cols[5];
+            } else {
+                // Normal case: image2File at cols[4], then bgm1, bgm2, etc.
+                image2Filename = cols[4];
+                if (cols.length >= 6) bgm1Filename = cols[5];
+                if (cols.length >= 7) bgm2Filename = cols[6];
+                if (cols.length >= 8) winningImage1Filename = cols[7];
+                if (cols.length >= 9) winningImage2Filename = cols[8];
+                if (cols.length >= 10) orderValue = cols[9];
+            }
+        }
+        const order = parseInt(orderValue) || 0;
         const imageAssetId = imageFilename ? assetMap.get(norm(imageFilename)) || assetMap.get(norm(imageFilename).toLowerCase()) : undefined;
+        const image2AssetId = image2Filename ? assetMap.get(norm(image2Filename)) || assetMap.get(norm(image2Filename).toLowerCase()) : undefined;
         const bgm1AssetId = bgm1Filename ? assetMap.get(norm(bgm1Filename)) || assetMap.get(norm(bgm1Filename).toLowerCase()) : undefined;
         const bgm2AssetId = bgm2Filename ? assetMap.get(norm(bgm2Filename)) || assetMap.get(norm(bgm2Filename).toLowerCase()) : undefined;
+        const winningImage1AssetId = winningImage1Filename ? assetMap.get(norm(winningImage1Filename)) || assetMap.get(norm(winningImage1Filename).toLowerCase()) : undefined;
+        const winningImage2AssetId = winningImage2Filename ? assetMap.get(norm(winningImage2Filename)) || assetMap.get(norm(winningImage2Filename).toLowerCase()) : undefined;
         const prize = {
             id: `upload_prize_${Date.now()}_${i}`,
             name,
             rank,
             animation,
             imageAssetId,
+            image2AssetId,
             bgm1AssetId,
             bgm2AssetId,
-            order: 0 // will be set later
+            winningImage1AssetId,
+            winningImage2AssetId,
+            order
         };
         await prizeService.savePrize(prize);
     }

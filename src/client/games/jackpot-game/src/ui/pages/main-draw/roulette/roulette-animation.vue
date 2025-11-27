@@ -1,6 +1,6 @@
 <template>
     <div class="roulette-container" :class="{ spinning }" tabindex="0" @keydown.enter="enterHandler">
-        <canvas ref="canvas" width="500" height="500"></canvas>
+        <canvas ref="canvas"></canvas>
         <div class="indicator">▼</div>
         <div v-if="showResult" class="result">{{ selectedPrize?.name }}</div>
     </div>
@@ -117,11 +117,16 @@ export default defineComponent({
 .roulette-container {
     position: relative;
     display: inline-block;
+    box-sizing: border-box;
     background: radial-gradient(circle, #000 0%, #800000 50%, #FFD700 100%);
-    padding: 30px;
+    padding: clamp(12px, 3vmin, 24px);
     border-radius: 20px;
     box-shadow: 0 0 50px rgba(255, 215, 0, 0.8), inset 0 0 50px rgba(0, 0, 0, 0.5);
     border: 5px solid #FFD700;
+    width: min(90vmin, 760px);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    max-width: 100%;
 }
 
 canvas {
@@ -130,6 +135,8 @@ canvas {
     box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 0, 0, 0.5), 0 0 90px rgba(0, 0, 255, 0.3);
     animation: pulse 1s infinite;
     transition: box-shadow 0.3s ease;
+    width: 100%;
+    height: 100%;
 }
 
 .spinning canvas {

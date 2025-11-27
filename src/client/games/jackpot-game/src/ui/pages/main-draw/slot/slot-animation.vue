@@ -1,5 +1,5 @@
 <template>
-    <div class="slot-container" :class="{ spinning }">
+    <div class="slot-container" ref="container" :class="{ spinning }">
         <div class="slot-reels">
             <div class="reel" v-for="(reel, index) in reels" :key="index">
                 <div class="reel-content" :style="{ transform: `translateY(${reel.offset}px)` }">
@@ -30,6 +30,9 @@ export default {
     emits: ['stopped'],
     setup(props, { emit }) {
         const spinning = ref(false);
+        const container = ref<HTMLElement | null>(null);
+        let resizeObserver: ResizeObserver | null = null;
+        let animationId: number | null = null;
         // useAudio を使って BGM を再生
         const { load: loadBgm, play: playBgm, stop: stopBgm } = useAudio({ mode: 'html-audio' });
         const reels = ref([
@@ -46,7 +49,18 @@ export default {
             return extended.slice(0, 10);
         });
 
-        const itemHeight = 60;
+        const itemHeight = ref(60);
+
+        const updateItemHeight = () => {
+            if (container.value) {
+                const style = getComputedStyle(container.value);
+                const h = style.getPropertyValue('--slot-item-h').trim();
+                const parsed = parseFloat(h);
+                if (!isNaN(parsed)) {
+                    itemHeight.value = parsed;
+                }
+            }
+        };
 
         const startSpin = async (bgmUrl?: Blob | null) => {
             console.log('[SlotAnimation] startSpin: bgmUrl=', bgmUrl ? { size: bgmUrl.size, type: bgmUrl.type } : null);
@@ -73,7 +87,7 @@ export default {
                     setTimeout(() => {
                         reels.value[index].speed = 0;
                         const targetIndex = props.selectedPrize ? props.prizes.findIndex(p => p.id === props.selectedPrize!.id) : Math.floor(Math.random() * props.prizes.length);
-                        const targetOffset = - (targetIndex * itemHeight);
+                        const targetOffset = - (targetIndex * itemHeight.value);
                         reels.value[index].offset = targetOffset;
                         stoppedCount++;
                         if (stoppedCount === totalReels) {
@@ -100,19 +114,34 @@ export default {
             reels.value.forEach(reel => {
                 if (reel.speed > 0) {
                     reel.offset -= reel.speed;
-                    if (reel.offset <= - (allPrizes.value.length * itemHeight)) {
+                    if (reel.offset <= - (allPrizes.value.length * itemHeight.value)) {
                         reel.offset = 0;
                     }
                 }
             });
-            requestAnimationFrame(animate);
+            animationId = requestAnimationFrame(animate);
         };
 
         onMounted(() => {
+            updateItemHeight();
+            resizeObserver = new ResizeObserver(() => {
+                updateItemHeight();
+            });
+            if (container.value) {
+                resizeObserver.observe(container.value);
+            }
             animate();
         });
 
         onUnmounted(() => {
+            if (resizeObserver) {
+                resizeObserver.disconnect();
+                resizeObserver = null;
+            }
+            if (animationId !== null) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
             stopBgm().catch(() => { });
         });
 
@@ -146,8 +175,8 @@ export default {
 }
 
 .reel {
-    width: 120px;
-    height: 180px;
+    width: var(--slot-reel-w, 120px);
+    height: var(--slot-reel-h, 180px);
     background: #000;
     border: 3px solid #FFD700;
     border-radius: 10px;
@@ -164,7 +193,7 @@ export default {
 }
 
 .prize-item {
-    height: 60px;
+    height: var(--slot-item-h, 60px);
     display: flex;
     align-items: center;
     justify-content: center;

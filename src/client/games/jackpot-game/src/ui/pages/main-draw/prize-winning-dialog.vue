@@ -3,8 +3,9 @@
         <div class="dialog-overlay" role="dialog" aria-modal="true">
             <div class="dialog-content">
                 <h3 class="dialog-title">{{ title }}</h3>
-                <div v-if="imageUrl" class="dialog-image-wrap">
-                    <img :src="imageUrl" :alt="title" class="modal-image" />
+                <div v-if="imageUrl1 || imageUrl2" class="dialog-images-wrap">
+                    <img v-if="imageUrl1" :src="imageUrl1" :alt="title + ' 画像1'" class="modal-image" />
+                    <img v-if="imageUrl2" :src="imageUrl2" :alt="title + ' 画像2'" class="modal-image" />
                 </div>
                 <p class="dialog-message">
                     <slot>{{ message }}</slot>
@@ -31,40 +32,63 @@ export default defineComponent({
         primaryLabel: { type: String, required: false, default: '次へ' },
         // whether to show the primary action button. Allows callers to display a passive dialog without actions.
         showPrimary: { type: Boolean, required: false, default: false },
-        assetId: { type: String, required: false, default: '' }
+        prize: { type: Object, required: true }
     },
     emits: ['close'],
     setup(props, { emit }) {
         const assetService = container.resolve(AssetDataService);
-        const imageUrl = ref<string>('');
+        const imageUrl1 = ref<string>('');
+        const imageUrl2 = ref<string>('');
 
-        const loadImage = async () => {
-            if (props.assetId) {
+        const loadWinningImages = async () => {
+            if (props.prize.winningImage1AssetId) {
                 try {
-                    const asset = await assetService.getAssetDataById(props.assetId);
+                    const asset = await assetService.getAssetDataById(props.prize.winningImage1AssetId);
                     if (asset && asset.blob) {
-                        imageUrl.value = URL.createObjectURL(asset.blob);
+                        imageUrl1.value = URL.createObjectURL(asset.blob);
                     }
                 } catch (e) {
-                    console.error('Failed to load asset:', e);
+                    console.error('Failed to load winning image 1:', e);
                 }
-            } else {
-                imageUrl.value = '';
+            } else if (props.prize.imageAssetId) {
+                // fallback to roulette image
+                try {
+                    const asset = await assetService.getAssetDataById(props.prize.imageAssetId);
+                    if (asset && asset.blob) {
+                        imageUrl1.value = URL.createObjectURL(asset.blob);
+                    }
+                } catch (e) {
+                    console.error('Failed to load fallback image:', e);
+                }
+            }
+
+            if (props.prize.winningImage2AssetId) {
+                try {
+                    const asset = await assetService.getAssetDataById(props.prize.winningImage2AssetId);
+                    if (asset && asset.blob) {
+                        imageUrl2.value = URL.createObjectURL(asset.blob);
+                    }
+                } catch (e) {
+                    console.error('Failed to load winning image 2:', e);
+                }
             }
         };
 
-        watch(() => props.assetId, loadImage);
+        watch(() => props.prize, loadWinningImages, { immediate: true });
 
-        onMounted(loadImage);
+        onMounted(loadWinningImages);
 
         onUnmounted(() => {
-            if (imageUrl.value) {
-                URL.revokeObjectURL(imageUrl.value);
+            if (imageUrl1.value) {
+                URL.revokeObjectURL(imageUrl1.value);
+            }
+            if (imageUrl2.value) {
+                URL.revokeObjectURL(imageUrl2.value);
             }
         });
 
         const close = () => emit('close');
-        return { close, imageUrl };
+        return { close, imageUrl1, imageUrl2 };
     }
 });
 </script>
@@ -110,14 +134,15 @@ export default defineComponent({
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
 }
 
-.dialog-image-wrap {
+.dialog-images-wrap {
     margin-bottom: 8px;
-    /* Enlarge the image more while keeping viewport constraints */
+    /* Adjust for multiple images */
     width: min(720px, calc(100vw - 96px));
-    height: min(640px, calc(90vh - 120px));
+    height: min(320px, calc(45vh - 60px));
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 10px;
     margin: 0 auto 8px auto;
     border-radius: 12px;
     border: 3px solid #ffd700;
@@ -153,7 +178,7 @@ export default defineComponent({
     width: auto;
     height: auto;
     /* allow the image to take up most of the wrapper */
-    max-width: 100%;
+    max-width: 50%;
     max-height: 100%;
     object-fit: contain;
     display: block;
