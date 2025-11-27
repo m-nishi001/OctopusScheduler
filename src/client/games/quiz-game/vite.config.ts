@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import tsconfigPaths from "vite-tsconfig-paths";
+import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
 
 export default defineConfig({
@@ -22,19 +22,16 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@server": resolve(__dirname, "../../../../server"),
-      "@model": resolve(__dirname, "src/model"),
+      "@common-lib": resolve(__dirname, "../../packages/common-lib/src"),
       "@shared-composables": resolve(
         __dirname,
         "../../packages/shared-composables/src"
       ),
+      "@server": resolve(__dirname, "../../../../server"),
+      "@model": resolve(__dirname, "src/model"),
       // allow imports like "pages/home/home.vue" to resolve to src/ui/pages
       pages: resolve(__dirname, "src/ui/pages"),
       components: resolve(__dirname, "src/ui/components"),
-      "packages/common-lib": resolve(
-        __dirname,
-        "../../packages/common-lib/src"
-      ),
     },
   },
 });
