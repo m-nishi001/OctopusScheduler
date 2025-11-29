@@ -1,21 +1,15 @@
 <template>
     <div class="execute-screen">
-        <div v-if="currentEvent.type === 'SHOW_IMAGE'" class="image-display">
-            <img :src="currentEvent.payload.url" alt="Displayed Image" />
-        </div>
-        <!-- 他のイベントタイプも追加可能 -->
+        <!-- execute tab now only responds to IAppEventDto messages (actionType/eventId) -->
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { AppEventService } from '../model/applications/app-event/app-event-service';
+import { eventBus } from '../core/event-bus';
 
-const router = useRouter();
-
-const currentEvent = ref<{ type: string; payload?: any }>({ type: '' });
 
 const channel = new BroadcastChannel('octopus-control');
 
@@ -23,22 +17,17 @@ const handleMessage = async (event: MessageEvent) => {
     const data = event.data || {};
     console.debug('[execute-view] received BroadcastChannel message', data);
 
-    // NAVIGATE events (legacy) cause the execute tab to navigate to the target game
-    if (data.type === 'NAVIGATE' && data.payload && data.payload.target) {
-        console.debug('[execute-view] NAVIGATE payload received', data.payload);
-        const target = data.payload.target;
-        if (target === 'jackpot') {
-            router.push('/jackpot-home').catch(() => { });
-        } else if (target === 'quiz') {
-            router.push('/quiz-admin').catch(() => { });
-        } else if (target === 'card') {
-            router.push('/card-home').catch(() => { });
-        }
-        return;
-    }
-
     // If message follows IAppEventDto shape: { actionType, eventId }
     if (data && typeof data.actionType === 'string') {
+        // Global stopAll command from other tabs/windows -> stop local audio
+        if (data.actionType === 'stopAll') {
+            try {
+                eventBus.emit('stopAudio');
+            } catch {
+                // ignore
+            }
+            return;
+        }
         const actionType = data.actionType;
         const eventId = data.eventId || (data.payload && data.payload.eventId);
         console.debug('[execute-view] detected IAppEventDto', { actionType, eventId });
@@ -65,9 +54,7 @@ const handleMessage = async (event: MessageEvent) => {
             console.debug('[execute-view] IAppEventDto missing eventId');
         }
     }
-
-    // otherwise treat as display event (e.g. legacy SHOW_IMAGE)
-    currentEvent.value = data;
+    // ignore other legacy message shapes
 };
 
 onMounted(() => {
@@ -89,10 +76,5 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     color: #fff;
-}
-
-.image-display img {
-    max-width: 100%;
-    max-height: 100%;
 }
 </style>

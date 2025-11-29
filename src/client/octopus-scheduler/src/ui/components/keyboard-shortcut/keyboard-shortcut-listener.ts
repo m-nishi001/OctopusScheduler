@@ -1,7 +1,8 @@
 import { container } from "tsyringe";
 import { eventBus } from "../../../core/event-bus";
 import { KeyboardShortcutService } from "../../../model/applications/keyboard-shortcut/keyboard-shortcut-service";
-import { AppEventService } from "../../../model/applications/app-event/app-event-service";
+// AppEventService not required here
+import { sendShortcutViaChannel } from "./send-shortcut-via-channel";
 
 export function registerKeyboardShortcutListener(): () => void {
   const keyboardShortcutService = container.resolve(KeyboardShortcutService);
@@ -38,6 +39,25 @@ export function registerKeyboardShortcutListener(): () => void {
         /* ignore */
       }
       eventBus.emit("hideContent");
+      // Emit stopAudio locally and broadcast stopAll to other tabs/windows
+      try {
+        eventBus.emit("stopAudio");
+      } catch {
+        // ignore
+      }
+      try {
+        const ch = new BroadcastChannel("octopus-control");
+        try {
+          ch.postMessage({ actionType: "stopAll" });
+        } catch {
+          /* swallow */
+        }
+        try {
+          ch.close();
+        } catch {}
+      } catch {
+        // BroadcastChannel not available or failed -- ignore
+      }
       // clear any pending sequences/timers
       sequence = [];
       if (sequenceTimer) {
@@ -99,51 +119,13 @@ export function registerKeyboardShortcutListener(): () => void {
         await keyboardShortcutService.hasLongerShortcutWithPrefix(sequence);
       // Instead of executing actions locally, send IAppEventDto messages
       // over BroadcastChannel so the execute tab will perform the actions.
-      const channel = new BroadcastChannel("octopus-control");
-
       const sendShortcut = async () => {
         try {
-          console.debug("[keyboard-shortcut] sendShortcut: matched shortcut", {
-            shortcutId: shortcut.id,
-            keys: shortcut.keys,
-            eventIds: (shortcut as any).eventIds || [],
+          await sendShortcutViaChannel((shortcut as any).eventIds || [], {
+            manualContentVisible,
           });
-
-          const ids: string[] = (shortcut as any).eventIds || [];
-          // determine if any referenced event is a ShowContentEvent so we can hide manual content if needed
-          let containsShow = false;
-          try {
-            const appEventService = container.resolve(AppEventService) as any;
-            for (const eid of ids) {
-              try {
-                const ev = await appEventService.getEventById(eid);
-                if (ev && (ev as any).type === "ShowContentEvent") {
-                  containsShow = true;
-                  break;
-                }
-              } catch {}
-            }
-          } catch (e) {
-            // ignore
-          }
-
-          if (manualContentVisible && !containsShow) {
-            eventBus.emit("hideContent");
-          }
-
-          for (const eid of ids) {
-            try {
-              console.debug(
-                "[keyboard-shortcut] posting eventId via BroadcastChannel",
-                { eventId: eid }
-              );
-            } catch {}
-            channel.postMessage({ actionType: "start", eventId: eid });
-          }
-        } finally {
-          try {
-            channel.close();
-          } catch {}
+        } catch (e) {
+          // swallow errors to keep original behavior
         }
       };
 

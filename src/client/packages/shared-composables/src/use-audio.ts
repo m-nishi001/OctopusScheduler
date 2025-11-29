@@ -1,6 +1,7 @@
 /// <reference lib="dom" />
 import { ref, readonly, onUnmounted } from "vue";
 import { AudioService } from "@common-lib/audio/audio-service";
+import { eventBus } from "../../../octopus-scheduler/src/core/event-bus";
 
 // Debug flag: enable by setting window.__DBG_AUDIO__ = true or localStorage.setItem('__DBG_AUDIO__','1')
 const __DBG_AUDIO__ = !!(
@@ -521,6 +522,16 @@ export function useAudio(options?: {
     }
   };
 
+  // subscribe to global stopAudio so external stopAll/stopAudio commands stop this instance
+  const onStopAudio = async () => {
+    try {
+      // immediate stop, ignore fade
+      await stop(0);
+    } catch {
+      // ignore
+    }
+  };
+
   /**
    * オーディオの音量を設定する
    * @param newVolume 新しい音量 (0.0 から 1.0 の範囲)
@@ -542,8 +553,19 @@ export function useAudio(options?: {
         URL.revokeObjectURL(currentSrc.value);
       }
     }
+    // remove global stopAudio listener
+    try {
+      eventBus.off("stopAudio", onStopAudio as any);
+    } catch {
+      /* ignore */
+    }
   });
 
+  try {
+    eventBus.on("stopAudio", onStopAudio as any);
+  } catch {
+    // ignore if eventBus not available
+  }
   return {
     instanceId: readonly(instanceId),
     audioInstanceId: readonly(audioInstanceId),

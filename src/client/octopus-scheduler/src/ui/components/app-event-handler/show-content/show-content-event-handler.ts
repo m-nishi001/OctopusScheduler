@@ -35,14 +35,14 @@ export class ShowContentEventHandler {
         router.push({
           name: "show-image",
           params: { id: data.contentId },
-            query: {
+          query: {
             displayMode: data.displayMode || "fade",
             effect: data.effect || "fade",
             duration: data.duration?.toString() || "3",
             fadeInTime: data.fadeInTime?.toString() || "1",
             fadeOutTime: data.fadeOutTime?.toString() || "1",
             scrollDirection: data.scrollDirection || "up",
-              ...(data.manual ? { manual: "true" } : {}),
+            ...(data.manual ? { manual: "true" } : {}),
           },
         });
       }
@@ -51,11 +51,11 @@ export class ShowContentEventHandler {
         router.push({
           name: "show-video",
           params: { id: data.contentId },
-            query: {
+          query: {
             displayMode: data.displayMode || "fade",
             effect: data.effect || "fade",
             fadeInTime: data.fadeInTime?.toString() || "1",
-              ...(data.manual ? { manual: "true" } : {}),
+            ...(data.manual ? { manual: "true" } : {}),
           },
         });
       }
@@ -65,14 +65,33 @@ export class ShowContentEventHandler {
         router.push({
           name: "show-html",
           params: { content: encoded },
-          query: { displayMode: data.displayMode || "fade", ...(data.manual ? { manual: "true" } : {}) },
+          query: {
+            displayMode: data.displayMode || "fade",
+            ...(data.manual ? { manual: "true" } : {}),
+          },
         });
       }
     }
   }
 
   private static async handleHideContent(router: Router) {
-    // コンテンツを隠すために、前のページに戻る
-    router.back();
+    try {
+      console.debug(
+        "[ShowContentEventHandler] hideContent received — navigating to /execute"
+      );
+      // Always navigate to the execute screen to ensure any shown content is hidden.
+      // Use named route when possible; fallback to path replace.
+      try {
+        await router.replace({ name: "execute" as any });
+      } catch (e) {
+        try {
+          await router.replace({ path: "/execute" });
+        } catch (err) {
+          // swallow errors to avoid crashing when router is unavailable
+        }
+      }
+    } catch {
+      /* noop */
+    }
   }
 }

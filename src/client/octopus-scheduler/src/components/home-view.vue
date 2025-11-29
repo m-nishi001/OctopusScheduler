@@ -41,23 +41,24 @@ const channel = new BroadcastChannel('octopus-control');
 const goToSettings = () => router.push({ name: 'settings' });
 const goToExecute = () => window.open('/#/execute', '_blank');
 const goToJackpotGame = () => {
-    console.debug('[home-view] game button pressed: NAVIGATE -> jackpot');
-    channel.postMessage({ type: 'NAVIGATE', payload: { target: 'jackpot' } });
+    // Open the jackpot page directly instead of using legacy NAVIGATE via BroadcastChannel
+    window.open('/#/jackpot-home', '_blank');
 };
 const goToQuizGame = () => {
-    console.debug('[home-view] game button pressed: NAVIGATE -> quiz');
-    channel.postMessage({ type: 'NAVIGATE', payload: { target: 'quiz' } });
+    // Open the quiz admin page directly instead of using legacy NAVIGATE
+    window.open('/#/quiz-admin', '_blank');
 };
 const goToCardGame = () => {
-    console.debug('[home-view] game button pressed: NAVIGATE -> card');
-    channel.postMessage({ type: 'NAVIGATE', payload: { target: 'card' } });
+    // Open the card game page directly instead of using legacy NAVIGATE
+    window.open('/#/card-home', '_blank');
 };
 
 const handleKeydown = (event: KeyboardEvent) => {
     // ショートカットキーの例: Ctrl+1 でイベント送信
+    // Replace legacy SHOW_IMAGE with new IAppEventDto ({ actionType, eventId })
     if (event.ctrlKey && event.key === '1') {
-        console.debug('[home-view] shortcut detected: sending legacy SHOW_IMAGE', { id: 'sample' });
-        channel.postMessage({ type: 'SHOW_IMAGE', payload: { id: 'sample' } });
+        console.debug('[home-view] shortcut detected: sending IAppEventDto start for sample', { id: 'sample' });
+        channel.postMessage({ actionType: 'start', eventId: 'sample' });
     }
     // 他のショートカットも追加可能
 };

@@ -78,7 +78,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../model/applications/app-event/app-event-service';
 import type { IAppEvent } from '../../../../model/domains/app-event/app-event';
@@ -103,8 +102,6 @@ const showSlideshowDialog = ref(false);
 const editingEvent = ref<IAppEvent | null>(null);
 
 const scheduleEventService = container.resolve(AppEventService);
-
-const router = useRouter();
 
 const isAllSelected = computed({
     get: () => {
@@ -278,8 +275,6 @@ async function onExecute() {
     } finally {
         executing.value = false;
         document.removeEventListener('keydown', handleKeyDown);
-        // イベント管理画面に戻る
-        router.push('/settings');
     }
 }
 

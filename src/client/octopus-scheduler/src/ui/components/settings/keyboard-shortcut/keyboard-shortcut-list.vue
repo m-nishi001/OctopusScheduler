@@ -41,6 +41,7 @@ import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/ke
 import { AppEventService } from '../../../../model/applications/app-event/app-event-service';
 import { IAppEventConverterToken } from '../../../../model/domains/app-event/i-app-event-converter';
 import { UIActionEntryToken } from '../../../../core/container';
+import { sendShortcutViaChannel } from '../../keyboard-shortcut/send-shortcut-via-channel';
 
 interface Props {
     shortcuts: KeyboardShortcut[];
@@ -70,8 +71,8 @@ const onRun = async (shortcut: KeyboardShortcut) => {
     if (isRunningById.value[shortcut.id]) return;
     try {
         isRunningById.value = { ...isRunningById.value, [shortcut.id]: true };
-        // execute the shortcut directly (manual trigger)
-        await shortcut.execute();
+        // Send the shortcut to the execute tab (same behavior as keyboard listener)
+        await sendShortcutViaChannel((shortcut as any).eventIds || []);
     } catch (e) {
         // intentionally swallow errors; no toast required
     } finally {
