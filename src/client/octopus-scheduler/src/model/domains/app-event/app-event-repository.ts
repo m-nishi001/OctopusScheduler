@@ -7,6 +7,7 @@ export interface IAppEventRepository {
   deleteScheduleEvents(ids: string[]): Promise<void>;
   addScheduleEvents(events: IAppEvent[]): Promise<string>;
   syncScheduleEvents(mode?: "local" | "gas"): Promise<void>;
+  getEventById(id: string): Promise<IAppEvent | null>;
   getExecutionStatus(eventId: string): Promise<ExecutionStatus | null>;
   updateExecutionStatus(
     eventId: string,

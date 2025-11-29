@@ -6,7 +6,7 @@
                     <h3>景品詳細</h3>
                     <div class="form-scroll">
                         <PrizeForm ref="formRef" mode="edit" :prize="prize" :image-assets="imageAssets"
-                            :audio-assets="audioAssets" @submit="onSubmit" @cancel="closeModal" />
+                            :audio-assets="audioAssets" :object-url-map="objectUrlMap" @submit="onSubmit" @cancel="closeModal" />
                     </div>
                 </div>
                 <div class="modal-footer">

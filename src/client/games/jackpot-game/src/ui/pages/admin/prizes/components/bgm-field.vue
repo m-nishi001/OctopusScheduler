@@ -1,21 +1,25 @@
 <template>
     <div class="bgm-field">
         <div class="bgm-controls">
-            <label class="field-label">{{ label }}</label>
+            <label class="field-label">{{ props.label }}</label>
             <div class="bgm-mode">
                 <div class="bgm-radio-group">
-                    <label><input type="radio" :name="label + '-mode'" :checked="mode === 'upload'" value="upload"
-                            @change="onModeChange" /> アップロード</label>
-                    <label><input type="radio" :name="label + '-mode'" :checked="mode === 'select'" value="select"
-                            @change="onModeChange" /> 既存から選択</label>
+                    <label><input type="radio" :name="props.label + '-mode'" :checked="props.mode === 'upload'"
+                            value="upload" @change="onModeChange" /> アップロード</label>
+                    <label><input type="radio" :name="props.label + '-mode'" :checked="props.mode === 'select'"
+                            value="select" @change="onModeChange" /> 既存から選択</label>
                 </div>
                 <div class="bgm-select-group">
-                    <CustomSelect v-if="mode === 'select'" :modelValue="assetId"
-                        :options="assets.map(a => ({ value: a.id, label: a.name }))" :allowEmpty="true"
+                    <CustomSelect v-if="props.mode === 'select'" :modelValue="props.assetId"
+                        :options="props.assets.map(a => ({ value: a.id, label: a.name }))" :allowEmpty="true"
                         @update:modelValue="$emit('update:assetId', $event)" />
-                    <input v-if="mode === 'upload'" type="file" @change="onFileChange" accept="audio/*"
+                    <input v-if="props.mode === 'upload'" type="file" @change="onFileChange" accept="audio/*"
                         class="admin-input" />
-                    <span v-if="mode === 'upload' && filename" class="file-name">{{ filename }}</span>
+                    <span v-if="props.mode === 'upload' && props.filename" class="file-name">{{ props.filename }}</span>
+                    <button type="button" class="play-icon" @click="onTogglePlay" :aria-pressed="isPlaying">
+                        <span v-if="isPlaying">⏸</span>
+                        <span v-else>▶</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -23,10 +27,14 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import CustomSelect from './custom-select.vue';
 import type { Asset } from '@model/domains/drive-data/asset-data';
+import { container } from 'tsyringe';
+import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { useAudio } from '@shared-composables/use-audio';
 
-defineProps<{
+const props = defineProps<{
     label: string;
     mode: string;
     assetId: string;
@@ -40,13 +48,73 @@ const emit = defineEmits<{
     'file-change': [event: Event];
 }>();
 
+// Services
+const assetService = container.resolve(AssetDataService);
+
+// Local state for upload-mode file so we can preview/play it before upload
+const uploadedFile = ref<File | null>(null);
+
+// useAudio instance (local to this field) for playback in admin UI
+const audio = useAudio({ mode: 'html-audio' });
+const { load, play, stop, isPlaying, isLoading } = audio as any;
+
 const onFileChange = (event: Event) => {
+    const file = (event.target as HTMLInputElement).files?.[0] || null;
+    if (file) uploadedFile.value = file;
     emit('file-change', event);
 };
 
 const onModeChange = (event: Event) => {
     const v = (event.target as HTMLInputElement | null)?.value;
     if (v !== undefined) emit('update:mode', v);
+};
+
+const onTogglePlay = async () => {
+    try {
+        if ((isPlaying as any).value) {
+            await stop();
+            return;
+        }
+
+        let source: string | Blob | null = null;
+
+        if (props.mode === 'upload') {
+            if (!uploadedFile.value) return; // nothing to play
+            source = uploadedFile.value;
+        } else {
+            // select mode: try to find asset blob in provided assets first
+            const id = props.assetId;
+            if (!id) return;
+            const local = props.assets?.find((a: any) => a.id === id);
+            if (local && local.blob) {
+                source = local.blob;
+            } else {
+                // fetch via AssetDataService as fallback
+                try {
+                    const fetched = await assetService.getAssetDataById(id);
+                    if (fetched && fetched.blob) source = fetched.blob;
+                    else {
+                        // last resort: if assetId is a URL string, try it
+                        if (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('data:'))) {
+                            source = id;
+                        } else {
+                            console.warn('[BgmField] No blob found for asset id:', id);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[BgmField] failed to fetch asset blob:', e);
+                    return;
+                }
+            }
+        }
+
+        await stop();
+        await load(source as any);
+        await play();
+    } catch (e) {
+        console.error('[BgmField] play failed', e);
+    }
 };
 </script>
 
@@ -128,5 +196,24 @@ const onModeChange = (event: Event) => {
     text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: middle;
+}
+
+.play-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.play-icon:active {
+    transform: translateY(1px);
 }
 </style>

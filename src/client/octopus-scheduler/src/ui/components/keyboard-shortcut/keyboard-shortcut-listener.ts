@@ -1,6 +1,7 @@
 import { container } from "tsyringe";
 import { eventBus } from "../../../core/event-bus";
 import { KeyboardShortcutService } from "../../../model/applications/keyboard-shortcut/keyboard-shortcut-service";
+import { AppEventService } from "../../../model/applications/app-event/app-event-service";
 
 export function registerKeyboardShortcutListener(): () => void {
   const keyboardShortcutService = container.resolve(KeyboardShortcutService);
@@ -96,11 +97,61 @@ export function registerKeyboardShortcutListener(): () => void {
       // If there is a longer shortcut that starts with the same sequence, wait a short time
       const hasLonger =
         await keyboardShortcutService.hasLongerShortcutWithPrefix(sequence);
+      // Instead of executing actions locally, send IAppEventDto messages
+      // over BroadcastChannel so the execute tab will perform the actions.
+      const channel = new BroadcastChannel("octopus-control");
+
+      const sendShortcut = async () => {
+        try {
+          console.debug("[keyboard-shortcut] sendShortcut: matched shortcut", {
+            shortcutId: shortcut.id,
+            keys: shortcut.keys,
+            eventIds: (shortcut as any).eventIds || [],
+          });
+
+          const ids: string[] = (shortcut as any).eventIds || [];
+          // determine if any referenced event is a ShowContentEvent so we can hide manual content if needed
+          let containsShow = false;
+          try {
+            const appEventService = container.resolve(AppEventService) as any;
+            for (const eid of ids) {
+              try {
+                const ev = await appEventService.getEventById(eid);
+                if (ev && (ev as any).type === "ShowContentEvent") {
+                  containsShow = true;
+                  break;
+                }
+              } catch {}
+            }
+          } catch (e) {
+            // ignore
+          }
+
+          if (manualContentVisible && !containsShow) {
+            eventBus.emit("hideContent");
+          }
+
+          for (const eid of ids) {
+            try {
+              console.debug(
+                "[keyboard-shortcut] posting eventId via BroadcastChannel",
+                { eventId: eid }
+              );
+            } catch {}
+            channel.postMessage({ actionType: "start", eventId: eid });
+          }
+        } finally {
+          try {
+            channel.close();
+          } catch {}
+        }
+      };
+
       if (hasLonger) {
-        pendingExecutionTimer = window.setTimeout(async () => {
+        pendingExecutionTimer = window.setTimeout(() => {
           try {
             event.preventDefault();
-            await shortcut.execute();
+            sendShortcut();
           } finally {
             sequence = [];
             pendingExecutionTimer = null;
@@ -112,15 +163,7 @@ export function registerKeyboardShortcutListener(): () => void {
         }, PENDING_TIMEOUT_MS);
       } else {
         event.preventDefault();
-        // If a manual content is visible and this is not itself a ShowContentEvent,
-        // close it before executing a new shortcut.
-        if (
-          manualContentVisible &&
-          !shortcut.actions.some((a) => a.type === "ShowContentEvent")
-        ) {
-          eventBus.emit("hideContent");
-        }
-        await shortcut.execute();
+        sendShortcut();
         // clear sequence
         sequence = [];
         if (sequenceTimer) {

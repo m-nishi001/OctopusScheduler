@@ -20,10 +20,11 @@ import { computed, ref, watch } from 'vue';
 import { container } from 'tsyringe';
 import { UIActionEntryToken } from '../../../../core/container';
 import type { EventFormData } from './types';
+import type { IAppEventDto } from '../../../../model/applications/app-event/i-app-event-dto';
 
 interface Props {
     show: boolean;
-    initialData: EventFormData | null;
+    initialData: EventFormData | IAppEventDto | null;
 }
 
 const props = defineProps<Props>();

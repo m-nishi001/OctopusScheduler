@@ -57,10 +57,24 @@ describe("KeyboardShortcutService", () => {
       updatedAt: new Date().toISOString(),
     } as any);
 
+    // Persist the event so AppEventService.getEventById can resolve it
+    try {
+      const evService = (await import("tsyringe")).container.resolve(
+        (
+          await import(
+            "../../../../model/applications/app-event/app-event-service"
+          )
+        ).AppEventService
+      );
+      await evService.updateScheduleEvents([playEvent as any]);
+    } catch (e) {
+      // fallback: ignore if DI not configured in this test environment
+    }
+
     const shortcut = new KeyboardShortcut({
       id: "s1",
       keys: ["Control", "1"],
-      actions: [playEvent],
+      eventIds: [playEvent.id],
     });
 
     await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
@@ -86,10 +100,23 @@ describe("KeyboardShortcutService", () => {
       updatedAt: new Date().toISOString(),
     } as any);
 
+    try {
+      const evService = (await import("tsyringe")).container.resolve(
+        (
+          await import(
+            "../../../../model/applications/app-event/app-event-service"
+          )
+        ).AppEventService
+      );
+      await evService.updateScheduleEvents([event as any]);
+    } catch (e) {
+      // ignore
+    }
+
     const shortcut = new KeyboardShortcut({
       id: "s2",
       keys: ["1"],
-      actions: [event],
+      eventIds: [event.id],
     });
 
     await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
@@ -125,10 +152,23 @@ describe("KeyboardShortcutService", () => {
       updatedAt: new Date().toISOString(),
     } as any);
 
+    try {
+      const evService = (await import("tsyringe")).container.resolve(
+        (
+          await import(
+            "../../../../model/applications/app-event/app-event-service"
+          )
+        ).AppEventService
+      );
+      await evService.updateScheduleEvents([event as any]);
+    } catch (e) {
+      // ignore
+    }
+
     const shortcut = new KeyboardShortcut({
       id: "s3",
       keys: ["Control", "Shift", "1"],
-      actions: [event],
+      eventIds: [event.id],
     });
     await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
 
@@ -153,10 +193,23 @@ describe("KeyboardShortcutService", () => {
       updatedAt: new Date().toISOString(),
     } as any);
 
+    try {
+      const evService = (await import("tsyringe")).container.resolve(
+        (
+          await import(
+            "../../../../model/applications/app-event/app-event-service"
+          )
+        ).AppEventService
+      );
+      await evService.updateScheduleEvents([event as any]);
+    } catch (e) {
+      // ignore
+    }
+
     const shortcut = new KeyboardShortcut({
       id: "s4",
       keys: ["Control", "2"],
-      actions: [event],
+      eventIds: [event.id],
     });
     await mockRepo.saveKeyboardShortcuts([shortcut.serialize()]);
 

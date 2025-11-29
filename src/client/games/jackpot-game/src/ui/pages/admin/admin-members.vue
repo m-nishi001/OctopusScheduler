@@ -104,11 +104,6 @@
     </div>
   </div>
 
-
-
-
-
-
   <div v-if="showDeleteModal" class="modal-overlay">
     <div class="modal-content">
       <h3>メンバーを削除</h3>
@@ -119,7 +114,6 @@
       </div>
     </div>
   </div>
-
 
   <div v-if="deleting" class="modal-overlay">
     <div class="modal-content">
@@ -146,22 +140,6 @@ import { container } from 'tsyringe';
 import { IMemberRepositoryToken } from '@model/domains/member/repository/i-member-repository';
 import AssetSelectionDialog from './components/asset-selection-dialog.vue';
 import DataUploadDialog from './components/data-upload-dialog.vue';
-import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
-// Local type aliases for GAS Drive types (avoid importing server package from SFC)
-type DriveMetadata = {
-  driveDataId: string;
-  fileId: string;
-  parentFolderId: string;
-  lastUpdate: string;
-  size?: number;
-};
-type DriveJsonData = {
-  metadata: DriveMetadata;
-  fileName: string;
-  jsonText: string;
-  uploadDate: string;
-  parentFolderId: string;
-};
 const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
 const assetDataService = container.resolve(AssetDataService);
 const memberService = container.resolve(MemberService);

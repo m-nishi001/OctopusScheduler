@@ -37,6 +37,64 @@ export class AppEventService {
   }
 
   /**
+   * Get a single schedule event by id. Returns null if not found.
+   */
+  async getEventById(id: string): Promise<IAppEvent | null> {
+    if (!id) return null;
+    console.debug("[AppEventService] getEventById", id);
+    try {
+      const raw = await this.scheduleEventRepository.getEventById(String(id));
+      console.debug("[AppEventService] getEventById result", {
+        id,
+        found: !!raw,
+      });
+
+      if (!raw) return null;
+
+      // If the returned object already has executable behavior, return as-is
+      if (typeof (raw as IAppEvent).execute === "function") {
+        console.debug("[AppEventService] getEventById: already an instance", {
+          id,
+        });
+        return raw as IAppEvent;
+      }
+
+      // Attempt to revive the raw object into a domain instance using registered serializers
+      const serializer = this.serializers.find((s) => {
+        try {
+          return s.canRevive(raw as IAppEvent);
+        } catch {
+          return false;
+        }
+      });
+
+      if (serializer) {
+        try {
+          const ev = serializer.revive(raw as IAppEvent);
+          if (ev) {
+            console.debug("[AppEventService] getEventById: revived instance", {
+              id,
+            });
+            return ev;
+          }
+        } catch (e) {
+          console.error("[AppEventService] revive failed", e);
+        }
+      }
+
+      // Could not revive to an executable instance
+      console.warn(
+        "[AppEventService] getEventById: no serializer could revive the raw event",
+        { id }
+      );
+      return null;
+    } catch (e) {
+      console.error("getEventById failed", e);
+      return null;
+    }
+  }
+
+  /**
    * Return an initial DTO for the given event type.
    * This returns default initialization data based solely on `eventType`.
    * Lookup order:

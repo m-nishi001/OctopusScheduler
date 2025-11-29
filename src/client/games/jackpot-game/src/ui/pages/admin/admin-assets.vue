@@ -105,6 +105,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
+import { container } from 'tsyringe';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import type { Asset } from '@model/domains/drive-data/asset-data';
 // No longer require prize repo/service in this view (bulk sync handles mapping)

@@ -69,11 +69,39 @@ const props = defineProps({
   prize: { type: Object, default: null },
   imageAssets: { type: Array as () => Asset[], required: true },
   audioAssets: { type: Array as () => Asset[], required: true },
+  objectUrlMap: { type: Object as () => Map<string, string> | undefined, required: false },
 });
 
 const emit = defineEmits(['submit', 'cancel']);
 
-const { objectUrlMap, createObjectUrl, revoke } = useObjectUrlStore();
+// Use a local object-url store, but prefer a passed-in `objectUrlMap` prop when available.
+const localStore = useObjectUrlStore();
+const internalObjectUrlMap = localStore.objectUrlMap;
+const createUrlInternal = localStore.createObjectUrl;
+const revokeInternal = localStore.revoke;
+
+function createObjUrl(file: File | Blob, id: string): string {
+  if (props.objectUrlMap) {
+    const url = URL.createObjectURL(file);
+    try {
+      props.objectUrlMap.set(id, url);
+    } catch { }
+    return url;
+  }
+  return createUrlInternal(file, id);
+}
+
+function revokeObj(id: string): void {
+  if (props.objectUrlMap) {
+    const url = props.objectUrlMap.get(id);
+    if (url) {
+      try { URL.revokeObjectURL(url); } catch { }
+      try { props.objectUrlMap.delete(id); } catch { }
+    }
+    return;
+  }
+  revokeInternal(id);
+}
 const { uploadAsset } = useAssetUpload();
 const assetDataService = container.resolve(AssetDataService);
 
@@ -114,10 +142,44 @@ const tempBgm2Asset = ref<Asset | null>(null);
 const tempWinningAsset1 = ref<Asset | null>(null);
 const tempWinningAsset2 = ref<Asset | null>(null);
 
-const image1Preview = computed(() => objectUrlMap.get('temp-image1') || formData.value.imageAssetId);
-const image2Preview = computed(() => objectUrlMap.get('temp-image2') || formData.value.image2AssetId);
-const winningImage1Preview = computed(() => objectUrlMap.get('temp-winning-image1') || formData.value.winningImage1AssetId);
-const winningImage2Preview = computed(() => objectUrlMap.get('temp-winning-image2') || formData.value.winningImage2AssetId);
+// Resolve preview URL by: temporary object URL -> objectUrlMap lookup for selected assetId -> fallback to raw assetId
+const getMap = () => props.objectUrlMap ?? internalObjectUrlMap;
+
+const image1Preview = computed(() => {
+  const map = getMap();
+  return (
+    map.get('temp-image1') ||
+    (formData.value.imageAssetId ? map.get(formData.value.imageAssetId) : undefined) ||
+    formData.value.imageAssetId
+  );
+});
+
+const image2Preview = computed(() => {
+  const map = getMap();
+  return (
+    map.get('temp-image2') ||
+    (formData.value.image2AssetId ? map.get(formData.value.image2AssetId) : undefined) ||
+    formData.value.image2AssetId
+  );
+});
+
+const winningImage1Preview = computed(() => {
+  const map = getMap();
+  return (
+    map.get('temp-winning-image1') ||
+    (formData.value.winningImage1AssetId ? map.get(formData.value.winningImage1AssetId) : undefined) ||
+    formData.value.winningImage1AssetId
+  );
+});
+
+const winningImage2Preview = computed(() => {
+  const map = getMap();
+  return (
+    map.get('temp-winning-image2') ||
+    (formData.value.winningImage2AssetId ? map.get(formData.value.winningImage2AssetId) : undefined) ||
+    formData.value.winningImage2AssetId
+  );
+});
 
 const isValid = computed(() => formData.value.name.trim());
 
@@ -157,8 +219,8 @@ async function onImage2Change(e: Event) {
     const dto = await createAssetDto(file);
     tempAsset2.value = dto;
     image2Filename.value = file.name;
-    revoke('temp-image2');
-    createObjectUrl(file, 'temp-image2');
+    revokeObj('temp-image2');
+    createObjUrl(file, 'temp-image2');
   }
 }
 
@@ -168,8 +230,8 @@ async function onImage1Change(e: Event) {
     const dto = await createAssetDto(file);
     tempAsset1.value = dto;
     image1Filename.value = file.name;
-    revoke('temp-image1');
-    createObjectUrl(file, 'temp-image1');
+    revokeObj('temp-image1');
+    createObjUrl(file, 'temp-image1');
   }
 }
 
@@ -194,8 +256,8 @@ async function onWinningImage1Change(e: Event) {
   if (file) {
     const dto = await createAssetDto(file);
     tempWinningAsset1.value = dto;
-    revoke('temp-winning-image1');
-    createObjectUrl(file, 'temp-winning-image1');
+    revokeObj('temp-winning-image1');
+    createObjUrl(file, 'temp-winning-image1');
   }
 }
 
@@ -204,8 +266,8 @@ async function onWinningImage2Change(e: Event) {
   if (file) {
     const dto = await createAssetDto(file);
     tempWinningAsset2.value = dto;
-    revoke('temp-winning-image2');
-    createObjectUrl(file, 'temp-winning-image2');
+    revokeObj('temp-winning-image2');
+    createObjUrl(file, 'temp-winning-image2');
   }
 }
 
@@ -250,10 +312,10 @@ async function submit() {
     }
 
     // Clean up temporary object URLs and refs
-    revoke('temp-image1');
-    revoke('temp-image2');
-    revoke('temp-winning-image1');
-    revoke('temp-winning-image2');
+    revokeObj('temp-image1');
+    revokeObj('temp-image2');
+    revokeObj('temp-winning-image1');
+    revokeObj('temp-winning-image2');
     tempAsset1.value = null;
     tempAsset2.value = null;
     tempBgm1Asset.value = null;

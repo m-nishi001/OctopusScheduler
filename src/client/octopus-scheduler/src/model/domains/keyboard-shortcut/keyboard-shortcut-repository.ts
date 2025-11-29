@@ -192,8 +192,12 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
             : new Date().toISOString();
           break;
       }
-      // Wrap legacy single action into actions array for new format
-      return { id, keys, actions: [action] } as any;
+      // Wrap legacy single action into actions array for new format.
+      // Also include empty `eventIds` so newer code that expects the
+      // eventIds property can still read the record. A separate
+      // migration step will convert legacy `actions` into persisted
+      // events and populate `eventIds`.
+      return { id, keys, actions: [action], eventIds: [] } as any;
     });
   }
 

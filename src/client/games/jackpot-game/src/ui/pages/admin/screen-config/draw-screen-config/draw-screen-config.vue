@@ -96,13 +96,11 @@ import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { ScreenConfigService } from '@model/applications/screen-config/screen-config-service';
 import SimulationDialog from './simulation-dialog.vue';
 import UnsavedChangesDialog from '../unsaved-changes-dialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
-const screenConfigService = container.resolve(ScreenConfigService);
 
 const audioAssets = ref<any[]>([]);
 const loading = ref(false);

@@ -16,19 +16,37 @@ export class WeightedSelector {
     if (pool.length === 0) {
       throw new Error("Pool is empty");
     }
-    // Find the minimum rank
-    const minRank = Math.min(...pool.map((p) => p.rank ?? Infinity));
-    // Filter prizes with the minimum rank
-    const candidates = pool.filter((p) => (p.rank ?? Infinity) === minRank);
-    // Randomly select from candidates using RandomProvider
-    const idx = this.rand.nextInt(candidates.length);
-    return candidates[idx];
+    // Treat rank as weight: higher rank -> higher chance.
+    // Normalize ranks into [1..10] and use cumulative-sum selection.
+    const weights = pool.map((p) => {
+      let r = p.rank ?? 1;
+      if (Number.isNaN(r) || !isFinite(r)) r = 1;
+      // clamp to [1,10]
+      if (r < 1) r = 1;
+      if (r > 10) r = 10;
+      return Math.floor(r);
+    });
+    const total = weights.reduce((s, w) => s + w, 0);
+    if (total <= 0) {
+      // fallback to uniform random if something unexpected happens
+      const idx = this.rand.nextInt(pool.length);
+      return pool[idx];
+    }
+    // get a float in [0, total)
+    const r = this.rand.next() * total;
+    let acc = 0;
+    for (let i = 0; i < pool.length; i++) {
+      acc += weights[i];
+      if (r < acc) return pool[i];
+    }
+    // numerical edge: return last
+    return pool[pool.length - 1];
   }
 
   shuffleWithWeights<T extends { rank?: number }>(items: T[]): T[] {
-    // Sort by rank ascending (lower rank first)
+    // Sort by rank descending (higher rank first)
     const sorted = [...items].sort(
-      (a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity)
+      (a, b) => (b.rank ?? -Infinity) - (a.rank ?? -Infinity)
     );
     // Shuffle within same rank groups
     const result: T[] = [];

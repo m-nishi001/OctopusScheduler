@@ -13,12 +13,15 @@
                     <td>{{ shortcut.keys.join(' + ') }}</td>
                     <td>
                         <ul class="action-list">
-                            <li v-for="(a, i) in shortcut.actions" :key="actionKey(a, i)">{{ a.type }}</li>
+                            <li v-for="(action, i) in resolvedActionsByShortcutId[shortcut.id] || []"
+                                :key="actionKey(action, i)">{{ actionLabel(action) }}</li>
                         </ul>
                     </td>
                     <td>
-                        <button class="run-btn" :disabled="isRunningById[shortcut.id]" @click="onRun(shortcut)" aria-label="ショートカットを実行">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <button class="run-btn" :disabled="isRunningById[shortcut.id]" @click="onRun(shortcut)"
+                            aria-label="ショートカットを実行">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                 <path d="M8 5v14l11-7L8 5z" fill="currentColor" />
                             </svg>
                         </button>
@@ -32,8 +35,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { container } from 'tsyringe';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
+import { AppEventService } from '../../../../model/applications/app-event/app-event-service';
+import { IAppEventConverterToken } from '../../../../model/domains/app-event/i-app-event-converter';
+import { UIActionEntryToken } from '../../../../core/container';
 
 interface Props {
     shortcuts: KeyboardShortcut[];
@@ -44,8 +51,7 @@ interface Emits {
     delete: [id: string];
 }
 
-defineProps<Props>();
-
+const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const onEdit = (shortcut: KeyboardShortcut) => {
@@ -68,7 +74,6 @@ const onRun = async (shortcut: KeyboardShortcut) => {
         await shortcut.execute();
     } catch (e) {
         // intentionally swallow errors; no toast required
-        // console.error('[Shortcut run] error', e);
     } finally {
         isRunningById.value = { ...isRunningById.value, [shortcut.id]: false };
     }
@@ -78,6 +83,61 @@ const onRun = async (shortcut: KeyboardShortcut) => {
 const actionKey = (a: any, i: number) => {
     return a?.eventId ?? a?.id ?? `act-${i}-${a?.type ?? 'x'}`;
 };
+
+const actionLabel = (a: any) => {
+    if (!a) return '';
+    // prefer explicit label from UI registry when available
+    const entry = ACTION_REGISTRY[a.actionType || a.type];
+    if (entry && entry.label) return entry.label;
+    // fallback to actionType or other recognizable field
+    return a.actionType || a.type || (a.eventId ? `未登録(${a.eventId})` : '不明');
+};
+
+// Registry for action entries (label lookup)
+const ACTION_REGISTRY: Record<string, any> = (() => {
+    try {
+        const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
+        const map: Record<string, any> = {};
+        for (const e of entries) {
+            if (e && e.actionType) map[e.actionType] = e;
+        }
+        return map;
+    } catch (err) {
+        return {};
+    }
+})();
+
+const appEventService = container.resolve(AppEventService);
+
+// resolved actions per shortcut id: map shortcut.id -> IAppEventDto[]
+const resolvedActionsByShortcutId = ref<Record<string, any[]>>({});
+
+async function loadResolvedActions() {
+    const converters = container.resolveAll<any>(IAppEventConverterToken as any) as any[];
+    const result: Record<string, any[]> = {};
+    for (const s of props.shortcuts || []) {
+        const ids = (s as any).eventIds || [];
+        const evDtos: any[] = [];
+        const evs = await Promise.all(ids.map((id: string) => appEventService.getEventById(String(id))));
+        for (const ev of evs) {
+            if (!ev) {
+                evDtos.push({ actionType: 'Unknown', eventId: null });
+                continue;
+            }
+            const conv = converters.find((c) => c && typeof c.getType === 'function' && (() => { try { return c.getType() === ev.type; } catch { return false; } })());
+            if (conv && typeof conv.toDto === 'function') {
+                evDtos.push(conv.toDto(ev));
+            } else {
+                evDtos.push({ actionType: ev.type, eventId: ev.id });
+            }
+        }
+        result[s.id] = evDtos;
+    }
+    resolvedActionsByShortcutId.value = result;
+}
+
+onMounted(loadResolvedActions);
+watch(() => props.shortcuts, loadResolvedActions, { deep: true });
 </script>
 
 <style scoped>
@@ -136,7 +196,7 @@ const actionKey = (a: any, i: number) => {
 
 .run-btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(40,167,69,0.16);
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.16);
     border-radius: 4px;
 }
 

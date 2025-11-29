@@ -37,6 +37,11 @@ export function useKeyboardShortcut() {
     await loadShortcuts();
   };
 
+  const updateShortcut = async (shortcut: KeyboardShortcut) => {
+    await service.updateKeyboardShortcut(shortcut);
+    await loadShortcuts();
+  };
+
   const deleteShortcut = async (id: string) => {
     await service.deleteKeyboardShortcut(id);
     await loadShortcuts();
@@ -56,6 +61,7 @@ export function useKeyboardShortcut() {
     onToggleEnabled,
     onDelete,
     saveShortcut,
+    updateShortcut,
     deleteShortcut,
     syncWithServer,
   };

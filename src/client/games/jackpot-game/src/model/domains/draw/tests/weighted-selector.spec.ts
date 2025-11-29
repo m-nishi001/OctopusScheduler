@@ -8,16 +8,25 @@ describe("WeightedSelector", () => {
    * 期待値: 最小ランクは1で、ランダム0で最初の候補（b）を選択。
    */
   it("selects item with minimum rank and uses random provider to break ties", () => {
-    const rand = new MockRandom([0.0]); // always pick index 0 in ties
-    const sel = new WeightedSelector(rand as any);
-    const pool = [
-      { id: "a", rank: 2 },
+    // Now rank is treated as weight (higher rank -> higher chance).
+    // Example: ranks [1,1,8] total=10. Provide deterministic random to select each.
+    // next() returns float in [0,1), selectWeighted multiplies by total.
+    const sel1 = new WeightedSelector(new MockRandom([0.05]) as any);
+    const pool1: { id: string; rank: number }[] = [
+      { id: "a", rank: 1 },
       { id: "b", rank: 1 },
-      { id: "c", rank: 1 },
+      { id: "c", rank: 8 },
     ];
-    const picked = sel.selectWeighted(pool as any) as any;
-    // min rank is 1 — with rand 0, should pick first candidate with rank 1 (b)
-    expect(picked.id).toBe("b");
+    // r = 0.05*10 = 0.5 -> falls into first item's weight (a)
+    expect(sel1.selectWeighted(pool1).id).toBe("a");
+
+    const sel2 = new WeightedSelector(new MockRandom([0.15]) as any);
+    // r = 0.15*10 = 1.5 -> falls into second item's weight (b)
+    expect(sel2.selectWeighted(pool1).id).toBe("b");
+
+    const sel3 = new WeightedSelector(new MockRandom([0.5]) as any);
+    // r = 0.5*10 = 5 -> falls into third item's weight (c)
+    expect(sel3.selectWeighted(pool1).id).toBe("c");
   });
 
   /**
@@ -28,14 +37,14 @@ describe("WeightedSelector", () => {
     // provide deterministic random sequence to force swaps
     const rand = new MockRandom([0.5, 0.0, 0.25, 0.75]);
     const sel = new WeightedSelector(rand as any);
-    const items = [
+    const items: { id: string; rank: number }[] = [
       { id: "a", rank: 1 },
       { id: "b", rank: 1 },
       { id: "c", rank: 2 },
       { id: "d", rank: 2 },
     ];
-    const shuffled = sel.shuffleWithWeights(items as any) as any[];
-    // groups: [a,b] then [c,d] — shuffling should still produce length and same ids
+    const shuffled = sel.shuffleWithWeights(items) as any[];
+    // groups: rank 2 group should come first (higher rank first) then rank 1
     expect(shuffled.map((s) => s.id).sort()).toEqual(["a", "b", "c", "d"]);
     expect(shuffled.length).toBe(4);
   });

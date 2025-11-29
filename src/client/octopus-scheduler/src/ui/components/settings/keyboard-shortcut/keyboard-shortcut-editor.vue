@@ -17,7 +17,6 @@
         <KeyboardShortcutList :shortcuts="shortcuts" @edit="onEdit" @delete="onDelete" />
         <KeyboardShortcutDialog :show="showDialog" :editing-shortcut="editingShortcut" @close="closeDialog"
             @save="onSaveShortcut" />
-        <!-- per-screen sync removed: use 一括同期 (Bulk Sync) in header -->
     </div>
 </template>
 
@@ -28,7 +27,7 @@ import KeyboardShortcutDialog from './keyboard-shortcut-dialog.vue';
 import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
 import { useKeyboardShortcut } from './composables/useKeyboardShortcut';
 
-const { shortcuts, isEnabled, loadShortcuts, loadConfig, onToggleEnabled, onDelete, saveShortcut, syncWithServer } = useKeyboardShortcut();
+const { shortcuts, isEnabled, loadShortcuts, loadConfig, onToggleEnabled, onDelete, saveShortcut, updateShortcut } = useKeyboardShortcut();
 
 // ダイアログ関連
 const showDialog = ref(false);
@@ -57,9 +56,12 @@ const closeDialog = () => {
 
 const onSaveShortcut = async (shortcut: KeyboardShortcut) => {
     if (editingShortcut.value) {
-        await onDelete(editingShortcut.value.id);
+        // update in-place without showing delete confirmation
+        await updateShortcut(shortcut);
+    } else {
+        await saveShortcut(shortcut);
     }
-    await saveShortcut(shortcut);
+    closeDialog();
 };
 
 // per-screen sync removed: syncWithServer remains available for bulk orchestration if needed

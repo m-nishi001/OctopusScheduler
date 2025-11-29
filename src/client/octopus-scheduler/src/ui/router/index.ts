@@ -1,5 +1,6 @@
-import Home from "../components/home/home.vue";
-import Settings from "../components/settings/settings.vue";
+import Home from "../../components/home-view.vue";
+import Settings from "../../components/settings-view.vue";
+import Execute from "../../components/execute-view.vue";
 import AssetListEditor from "../components/settings/asset-list/asset-list-editor.vue";
 import EventEditor from "../components/settings/event-list/event-list.vue";
 import ShowImage from "../components/app-event-handler/show-content/show-image.vue";
@@ -9,7 +10,7 @@ import ShowSlideshow from "../components/app-event-handler/show-content/show-sli
 
 const octopusSchedulerRoutes = [
   {
-    path: "/",
+    path: "/home",
     name: "home",
     component: Home,
   },
@@ -17,6 +18,15 @@ const octopusSchedulerRoutes = [
     path: "/settings",
     name: "settings",
     component: Settings,
+  },
+  {
+    path: "/execute",
+    name: "execute",
+    component: Execute,
+  },
+  {
+    path: "/",
+    redirect: "/home",
   },
   {
     path: "/assets",
