@@ -326,12 +326,15 @@ _quizGame_stopAndGetProcessedResults = (
       const normVal = String(r[answerKey] || "").trim();
       if (normVal !== correctValue) return false;
       const t = r.__timestampMs;
-      if (t === undefined || t === null || Number.isNaN(Number(t))) return false;
+      if (t === undefined || t === null || Number.isNaN(Number(t)))
+        return false;
       return true;
     });
 
     // Step 4: Sort by timestamp ascending (fastest first)
-    filtered.sort((a, b) => Number(a.__timestampMs ?? 0) - Number(b.__timestampMs ?? 0));
+    filtered.sort(
+      (a, b) => Number(a.__timestampMs ?? 0) - Number(b.__timestampMs ?? 0)
+    );
 
     // Step 5: Build ProcessedResultDto array with rank
     const results: ProcessedResultDto[] = filtered.map((r, index) => ({

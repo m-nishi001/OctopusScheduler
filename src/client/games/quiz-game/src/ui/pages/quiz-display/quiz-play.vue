@@ -30,22 +30,23 @@
                 <p class="modal-body" v-else-if="errorMessage">{{ errorMessage }}</p>
                 <p class="modal-body" v-else-if="enterStage === 0">集計完了。Enterで正解表示</p>
                 <div v-else-if="enterStage === 1">
-                    <p class="modal-body">正解: {{ quiz?.options.find(opt => opt.no === quiz?.correctNo)?.text }}</p>
+                    <p class="modal-body">正解: {{quiz?.options.find(opt => opt.no === quiz?.correctNo)?.text}}</p>
                     <p class="modal-body">Enterで結果表示</p>
                 </div>
                 <div v-else-if="enterStage === 2">
                     <p class="modal-body">結果:</p>
                     <ul>
                         <li v-for="result in sortedResults.slice(0, 10)" :key="result.rank">
-                            {{ result.rank }}位: {{ result.playerName || '匿名' }} - {{ Math.round(result.timeToAnswerMs / 1000) }}秒
+                            {{ result.rank }}位: {{ result.playerName || '匿名' }} - {{ Math.round(result.timeToAnswerMs /
+                            1000) }}秒
                         </li>
                     </ul>
                     <p class="modal-body">Enterで景品へ</p>
                 </div>
             </div>
         </div>
-        <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="quiz?.settings?.prizeName" :prize-image-url="quiz?.settings?.prizeImageDataUrl"
-            @close="hidePrizeDialog" />
+        <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="quiz?.settings?.prizeName"
+            :prize-image-url="quiz?.settings?.prizeImageDataUrl" @close="hidePrizeDialog" />
     </div>
     <div v-else class="loading">Loading...</div>
 </template>
