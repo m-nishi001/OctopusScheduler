@@ -31,7 +31,8 @@
             <li v-for="prize in prizes" :key="prize.id" class="admin-list-item">
                 <input type="checkbox" v-model="selectedPrizes" :value="prize.id" />
                 <div class="prize-preview four-image">
-                    <template v-if="prize.imageAssetId || prize.image2AssetId || prize.winningImage1AssetId || prize.winningImage2AssetId">
+                    <template
+                        v-if="prize.imageAssetId || prize.image2AssetId || prize.winningImage1AssetId || prize.winningImage2AssetId">
                         <div class="preview-half">
                             <img v-if="prize.imageAssetId"
                                 :src="objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId" alt="image1"
@@ -46,14 +47,14 @@
                         </div>
                         <div class="preview-half">
                             <img v-if="prize.winningImage1AssetId"
-                                :src="objectUrlMap.get(prize.winningImage1AssetId) || prize.winningImage1AssetId" alt="winning1"
-                                class="preview-img" @error="onImageError" />
+                                :src="objectUrlMap.get(prize.winningImage1AssetId) || prize.winningImage1AssetId"
+                                alt="winning1" class="preview-img" @error="onImageError" />
                             <div v-else class="preview-placeholder small">当選1なし</div>
                         </div>
                         <div class="preview-half">
                             <img v-if="prize.winningImage2AssetId"
-                                :src="objectUrlMap.get(prize.winningImage2AssetId) || prize.winningImage2AssetId" alt="winning2"
-                                class="preview-img" @error="onImageError" />
+                                :src="objectUrlMap.get(prize.winningImage2AssetId) || prize.winningImage2AssetId"
+                                alt="winning2" class="preview-img" @error="onImageError" />
                             <div v-else class="preview-placeholder small">当選2なし</div>
                         </div>
                     </template>
@@ -74,7 +75,7 @@
 
         <PrizeAddDialog v-if="showAddModal" :show="showAddModal" :image-assets="imageAssets" :audio-assets="audioAssets"
             @close="showAddModal = false" @refresh="fetchPrizes" />
-        <PrizeEditDialog v-if="editPrizeData" :prize="editPrizeData" :image-assets="imageAssets"
+        <PrizeEditDialog v-if="editPrizeData" :show="!!editPrizeData" :prize="editPrizeData" :image-assets="imageAssets"
             :audio-assets="audioAssets" :object-url-map="objectUrlMap" @close="editPrizeData = null"
             @refresh="fetchPrizes" />
 
@@ -221,9 +222,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     try {
-        objectUrlMap.forEach((url) => {
+        // Ensure we revoke actual object URLs; iterate with explicit tuple typing
+        for (const [, url] of objectUrlMap) {
             try { URL.revokeObjectURL(url); } catch { }
-        });
+        }
         objectUrlMap.clear();
     } catch { }
 });

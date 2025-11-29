@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
-import { ref } from "vue";
 import PrizeForm from "../../ui/components/prizes/prize-form.vue";
 import { container } from "tsyringe";
 import { IdGeneratorToken } from "../../model/domains/common/id-generator";
@@ -11,9 +10,12 @@ vi.mock("@composables/prizes/use-object-url-store");
 vi.mock("@composables/prizes/use-asset-upload");
 
 const mockUseObjectUrlStore = vi.fn(() => ({
-  objectUrlMap: new Map(),
+  objectUrlMap: new Map<string, string>(),
   createObjectUrl: vi.fn(),
+  setUrl: vi.fn(),
+  getUrl: vi.fn(),
   revoke: vi.fn(),
+  revokeAll: vi.fn(),
 }));
 
 const mockUseAssetUpload = vi.fn(() => ({
@@ -40,7 +42,7 @@ describe("PrizeForm", () => {
     container.register(IdGeneratorToken, { useValue: mockIdGenerator });
 
     // Mock AssetDataService
-    container.register(AssetDataService, { useValue: mockAssetDataService });
+    container.registerInstance(AssetDataService, mockAssetDataService as any);
   });
   it("renders correctly", () => {
     const wrapper = mount(PrizeForm, {
@@ -63,7 +65,7 @@ describe("PrizeForm", () => {
     });
 
     // Check that form renders new fields
-    expect(wrapper.text()).toContain("当選景品画像1");
-    expect(wrapper.text()).toContain("当選景品画像2");
+    expect(wrapper.text()).toContain("当選画像1");
+    expect(wrapper.text()).toContain("当選画像2");
   });
 });

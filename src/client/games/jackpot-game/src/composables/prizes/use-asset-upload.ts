@@ -17,9 +17,9 @@ export function useAssetUpload() {
       const url = createObjectUrl(asset.blob, updatedAsset.id);
       return { assetId: updatedAsset.id, url };
     } else {
-      // For server URLs, set directly
-      setUrl(updatedAsset.id, updatedAsset.url || "");
-      return { assetId: updatedAsset.id, url: updatedAsset.url || "" };
+      // For server-side assets we don't have a Blob; ensure store has an entry (empty for now)
+      setUrl(updatedAsset.id, "");
+      return { assetId: updatedAsset.id, url: "" };
     }
   }
 

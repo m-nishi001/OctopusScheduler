@@ -7,8 +7,8 @@
         </button>
 
         <teleport to="body">
-            <ul v-if="open" :style="dropdownStyle" class="custom-select-list" role="listbox"
-                :aria-activedescendant="activeId || undefined" @keydown.esc="close">
+            <ul v-if="open" ref="list" :style="dropdownStyle" class="custom-select-list" role="listbox"
+                :aria-activedescendant="activeId || undefined" @keydown.esc="close" @wheel.stop>
                 <li v-if="allowEmpty" :key="''" class="custom-select-option" role="option" @click="select('')">
                     選択なし
                 </li>
@@ -37,6 +37,7 @@ const trigger = ref<HTMLElement | null>(null);
 const root = ref<HTMLElement | null>(null);
 
 const dropdownStyle = ref<Record<string, string>>({ position: 'absolute' });
+const list = ref<HTMLElement | null>(null);
 
 const modelValue = computed(() => props.modelValue);
 const selectedLabel = computed(() => {
@@ -100,12 +101,19 @@ let onDocumentClick = (ev: MouseEvent) => {
 const addGlobalListeners = () => {
     document.addEventListener('click', onDocumentClick);
     window.addEventListener('resize', close);
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', onDocumentScroll, true);
 };
+const onDocumentScroll = (ev: Event) => {
+    // if scrolling target is inside the dropdown list, do not close
+    const target = ev.target as Node | null;
+    if (list.value && target && list.value.contains(target)) return;
+    close();
+};
+
 const removeGlobalListeners = () => {
     document.removeEventListener('click', onDocumentClick);
     window.removeEventListener('resize', close);
-    window.removeEventListener('scroll', close, true);
+    window.removeEventListener('scroll', onDocumentScroll, true);
 };
 
 onBeforeUnmount(() => {
@@ -133,6 +141,17 @@ const getOptionId = (value: string | number) => `custom-select-option-${String(v
     gap: 8px;
     justify-content: space-between;
     min-width: 160px;
+}
+
+/* when parent passes .admin-input to the component, make trigger expand */
+.admin-input.custom-select {
+    display: block;
+    width: 100%;
+}
+
+.admin-input.custom-select .custom-select-trigger {
+    width: 100%;
+    min-width: 0;
 }
 
 .custom-select-list {

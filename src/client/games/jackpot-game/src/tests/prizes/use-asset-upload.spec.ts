@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { useAssetUpload } from "@composables/prizes/use-asset-upload";
 
 // Mock the dependencies
@@ -21,8 +21,24 @@ vi.mock("@composables/prizes/use-object-url-store", () => ({
 
 describe("useAssetUpload", () => {
   it("should upload asset and return assetId and url", async () => {
-    const mockAsset = { id: "asset1", blob: new Blob(["test"]) };
-    const mockUpdatedAsset = { id: "asset1", url: "http://example.com/asset1" };
+    const mockAsset = {
+      id: "asset1",
+      type: "image/png",
+      name: "asset1.png",
+      uploadedAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      size: 4,
+      blob: new Blob(["test"]),
+    };
+    const mockUpdatedAsset = {
+      id: "asset1",
+      type: "image/png",
+      name: "asset1.png",
+      uploadedAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      size: 4,
+      blob: null,
+    } as any;
 
     const mockAssetDataService = {
       addAssetData: vi.fn().mockResolvedValue([mockUpdatedAsset]),

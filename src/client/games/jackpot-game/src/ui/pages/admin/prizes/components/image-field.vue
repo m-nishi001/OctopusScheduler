@@ -5,9 +5,9 @@
             <div class="image-mode">
                 <div class="image-radio-group">
                     <label><input type="radio" :name="label + '-mode'" :checked="mode === 'upload'" value="upload"
-                            @change="$emit('update:mode', $event.target.value)" /> アップロード</label>
+                            @change="onModeChange" /> アップロード</label>
                     <label><input type="radio" :name="label + '-mode'" :checked="mode === 'select'" value="select"
-                            @change="$emit('update:mode', $event.target.value)" /> 既存から選択</label>
+                            @change="onModeChange" /> 既存から選択</label>
                 </div>
                 <div class="image-select-group">
                     <CustomSelect v-if="mode === 'select'" :modelValue="assetId"
@@ -47,6 +47,11 @@ const emit = defineEmits<{
 
 const onFileChange = (event: Event) => {
     emit('file-change', event);
+};
+
+const onModeChange = (event: Event) => {
+    const v = (event.target as HTMLInputElement | null)?.value;
+    if (v !== undefined) emit('update:mode', v);
 };
 </script>
 

@@ -51,9 +51,13 @@ export class AssetDataService {
 
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {
     const now = new Date().toISOString();
-    const normalizedName = (file.name || "").normalize
-      ? (file.name || "").normalize("NFC")
-      : file.name || "";
+    let normalizedName = file.name || "";
+    try {
+      normalizedName = normalizedName.normalize("NFC");
+    } catch {
+      // normalize may not be available in some environments; fallback to raw name
+      normalizedName = file.name || "";
+    }
     return new Asset(
       "",
       file.type,

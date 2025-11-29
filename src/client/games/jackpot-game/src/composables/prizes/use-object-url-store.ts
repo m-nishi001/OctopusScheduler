@@ -1,7 +1,7 @@
 import { reactive } from "vue";
 
 export function useObjectUrlStore() {
-  const objectUrlMap = reactive(new Map<string, string>());
+  const objectUrlMap: Map<string, string> = reactive(new Map<string, string>());
 
   function createObjectUrl(file: File | Blob, id: string): string {
     const url = URL.createObjectURL(file);
@@ -26,7 +26,7 @@ export function useObjectUrlStore() {
   }
 
   function revokeAll(): void {
-    for (const [id, url] of objectUrlMap) {
+    for (const url of objectUrlMap.values()) {
       URL.revokeObjectURL(url);
     }
     objectUrlMap.clear();

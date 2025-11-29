@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "@testing-library/vue";
-import { ref, reactive, nextTick } from "vue";
+import { reactive, nextTick } from "vue";
 
 // Provide a simple canvas getContext polyfill so jsdom tests don't fail
 (HTMLCanvasElement.prototype as any).getContext = function () {
@@ -272,7 +272,7 @@ describe("useRouletteAnimation - full coverage", () => {
       },
     };
 
-    const { rerender } = render(TestComp);
+    render(TestComp);
     await nextTick();
     await Promise.resolve();
 

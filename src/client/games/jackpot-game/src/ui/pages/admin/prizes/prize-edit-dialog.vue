@@ -4,8 +4,16 @@
             <div class="dialog-grid">
                 <div class="dialog-main">
                     <h3>景品詳細</h3>
-                    <PrizeForm mode="edit" :prize="prize" :image-assets="imageAssets" :audio-assets="audioAssets"
-                        @submit="onSubmit" @cancel="closeModal" />
+                    <div class="form-scroll">
+                        <PrizeForm ref="formRef" mode="edit" :prize="prize" :image-assets="imageAssets"
+                            :audio-assets="audioAssets" @submit="onSubmit" @cancel="closeModal" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="footer-right">
+                        <button class="save-btn" @click="onFormSubmit">保存</button>
+                        <button class="cancel-btn" @click="closeModal">キャンセル</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -17,6 +25,7 @@ import PrizeForm from '../../../components/prizes/prize-form.vue';
 import type { Asset } from '@model/domains/drive-data/asset-data';
 import { PrizeService } from '@model/applications/prize/prize-service';
 import { container } from 'tsyringe';
+import { ref } from 'vue';
 
 const props = defineProps({
     show: { type: Boolean, required: false },
@@ -30,6 +39,14 @@ const emit = defineEmits(['close', 'refresh']);
 
 const closeModal = () => {
     emit('close');
+};
+
+const formRef = ref(null as any);
+
+const onFormSubmit = async () => {
+    if (formRef && formRef.value && typeof formRef.value.submit === 'function') {
+        await formRef.value.submit();
+    }
 };
 
 const onSubmit = async (formData: any) => {
@@ -78,16 +95,18 @@ const onSubmit = async (formData: any) => {
     max-height: calc(100vh - 96px);
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    /* let inner form handle scrolling to avoid double scrollbars */
+    overflow: hidden;
 }
 
 .dialog-grid {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 20px;
     align-items: start;
     margin-top: 8px;
     min-height: 0;
+    flex: 1 1 auto;
 }
 
 .dialog-main {
@@ -95,5 +114,40 @@ const onSubmit = async (formData: any) => {
     flex-direction: column;
     gap: 12px;
     min-width: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.form-scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    /* allow flex children to shrink in Firefox/Chrome */
+    /* provide extra space so prize-form's sticky actions are not obscured by the modal footer */
+    padding-bottom: 96px;
+    /* breathing room for footer */
+    /* keep a consistent margin to the right of the vertical scrollbar */
+    padding-right: 12px;
+    /* reserve gutter for scrollbars to avoid layout jumps / variable gap */
+    scrollbar-gutter: stable both-edges;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.modal-footer .save-btn,
+.modal-footer .cancel-btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #1f2a31, #27313a);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    cursor: pointer;
 }
 </style>

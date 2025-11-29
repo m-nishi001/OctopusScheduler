@@ -49,13 +49,22 @@ const decrease = () => emit('update:modelValue', clampMin((Number(props.modelVal
 }
 
 .admin-input {
-  /* rely on parent dialog's admin-input styling for consistent appearance */
+  /* Add visual styles to match FieldText (.admin-input) for consistent appearance */
   flex: 1 1 auto;
   min-width: 0;
   text-align: left;
-  padding-left: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  color: #fff;
+  font-size: 0.98rem;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+.admin-input:focus {
+  outline: 2px solid rgba(79, 140, 255, 0.2);
 }
 
 .button-group {

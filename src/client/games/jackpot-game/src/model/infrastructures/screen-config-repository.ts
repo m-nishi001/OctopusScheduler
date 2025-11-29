@@ -4,7 +4,6 @@ import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import { ScreenSetting } from "../domains/screen-config/screen-setting";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 import { AssetDataService } from "../applications/asset/asset-data-service";
-import type { Asset } from "../domains/drive-data/asset-data";
 import type {
   DriveJsonData,
   DriveMetadata,
@@ -125,7 +124,7 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
           try {
             const obj = JSON.parse(s.settingValue || "null");
             const replaced = this.replaceAssetIdsInObject(obj, idMap);
-            s.settingValue = JSON.stringify(replaced);
+            (s as any).settingValue = JSON.stringify(replaced);
           } catch (e) {
             console.warn(
               "Failed to parse/replace asset ids for screen setting",

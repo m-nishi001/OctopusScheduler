@@ -30,6 +30,7 @@ if (typeof (File.prototype as any).text !== "function") {
 vi.mock("@model/applications/asset/asset-data-service", async () => {
   class FakeAssetDataService {
     private assets: any[] = [];
+    private _assetCounter = 0;
     async getAllAssetData() {
       return this.assets;
     }
@@ -46,11 +47,14 @@ vi.mock("@model/applications/asset/asset-data-service", async () => {
       };
     }
     async addAssetData(dtos: any[]) {
-      const added = dtos.map((d, idx) => ({
-        ...d,
-        id: `asset-${Date.now()}-${idx}`,
-        blob: d.blob,
-      }));
+      const added = dtos.map((d) => {
+        const id = `asset-${Date.now()}-${++this._assetCounter}`;
+        return {
+          ...d,
+          id,
+          blob: d.blob,
+        };
+      });
       this.assets.push(...added);
       return added;
     }
@@ -80,10 +84,13 @@ vi.mock("@model/applications/member/member-service", async () => {
 });
 
 import DataUploadDialog from "../data-upload-dialog.vue";
+import type { IPrizeRepository } from "@model/domains/prize/repository/i-prize-repository";
+import type { IMemberRepository } from "@model/domains/member/repository/i-member-repository";
 
 // Create simple fakes and register them into tsyringe container (instances)
 class FakeAssetServiceInstance {
   private assets: any[] = [];
+  private _assetCounter = 0;
   async getAllAssetData() {
     return this.assets;
   }
@@ -100,23 +107,66 @@ class FakeAssetServiceInstance {
     };
   }
   async addAssetData(dtos: any[]) {
-    const added = dtos.map((d, idx) => ({
-      ...d,
-      id: `asset-${Date.now()}-${idx}`,
-      blob: d.blob,
-    }));
+    const added = dtos.map((d) => {
+      const id = `asset-${Date.now()}-${++this._assetCounter}`;
+      return {
+        ...d,
+        id,
+        blob: d.blob,
+      };
+    });
     this.assets.push(...added);
     return added;
   }
 }
 
-class FakePrizeService {
-  public saved: any[] = [];
-  async savePrize(prize: any) {
-    this.saved.push(prize);
-    return prize;
-  }
-}
+// Minimal in-test dummy repository implementations to satisfy real service constructors
+const dummyPrizeRepo: IPrizeRepository = {
+  async getPrizes() {
+    return [] as any;
+  },
+  async getPrizeById(_id: string) {
+    return null;
+  },
+  async addPrizes(_prizes: any[]) {
+    return undefined as any;
+  },
+  async deletePrizes(_ids: string[]) {
+    return undefined as any;
+  },
+  async replaceAllPrizes(_prizes: any[]) {
+    return { replaced: 0 };
+  },
+  async exportAllPrizesToDrive() {
+    return undefined as any;
+  },
+  async importAllPrizesFromDrive() {
+    return undefined as any;
+  },
+};
+
+const dummyMemberRepo: IMemberRepository = {
+  async getMembers() {
+    return [] as any;
+  },
+  async getMemberById(_id: string) {
+    return null;
+  },
+  async addMembers(members: any[]) {
+    return members as any;
+  },
+  async updateMembers(
+    _updates: { id: string; updateFn: (member: any) => any }[]
+  ) {
+    return undefined as any;
+  },
+  async deleteMembers(_ids: string[]) {
+    return undefined as any;
+  },
+  async replaceAllMembers(_members: any[]) {
+    return { replaced: 0 };
+  },
+};
 
 describe("DataUploadDialog", () => {
   let assetSvc: any;
@@ -124,7 +174,7 @@ describe("DataUploadDialog", () => {
   beforeEach(async () => {
     assetSvc = new FakeAssetServiceInstance();
     const prizeModule = await import("@model/applications/prize/prize-service");
-    prizeSvc = new prizeModule.PrizeService();
+    prizeSvc = new prizeModule.PrizeService(dummyPrizeRepo);
     // register into container for DI usage in component
     const assetModule = await import(
       "@model/applications/asset/asset-data-service"
@@ -134,7 +184,7 @@ describe("DataUploadDialog", () => {
     const memberModule = await import(
       "@model/applications/member/member-service"
     );
-    const memberSvc = new memberModule.MemberService();
+    const memberSvc = new memberModule.MemberService(dummyMemberRepo);
     container.registerInstance(memberModule.MemberService, memberSvc as any);
     container.registerInstance(prizeModule.PrizeService, prizeSvc as any);
   });
@@ -145,11 +195,6 @@ describe("DataUploadDialog", () => {
       "PrizeA,1,roulette,,bgm01.mp3,\n" +
       "PrizeB,2,roulette,,bgm01.mp3,\n";
 
-    // Use window.File if available (jsdom) to ensure file API compatibility
-    const FileClass: any =
-      typeof window !== "undefined" && (window as any).File
-        ? (window as any).File
-        : File;
     // Create fake file objects with the properties used by the upload logic
     const csvFile = {
       name: "prizes.csv",
@@ -234,12 +279,42 @@ describe("DataUploadDialog", () => {
       },
     } as any;
 
-    const image1File = { name: "image1.png", type: "image/png", size: 512, webkitRelativePath: "images/image1.png" } as any;
-    const image2File = { name: "image2.png", type: "image/png", size: 512, webkitRelativePath: "images/image2.png" } as any;
-    const bgm1File = { name: "bgm1.mp3", type: "audio/mpeg", size: 1024, webkitRelativePath: "audio/bgm1.mp3" } as any;
-    const bgm2File = { name: "bgm2.mp3", type: "audio/mpeg", size: 1024, webkitRelativePath: "audio/bgm2.mp3" } as any;
-    const win1File = { name: "win1.jpg", type: "image/jpeg", size: 256, webkitRelativePath: "images/win1.jpg" } as any;
-    const win2File = { name: "win2.jpg", type: "image/jpeg", size: 256, webkitRelativePath: "images/win2.jpg" } as any;
+    const image1File = {
+      name: "image1.png",
+      type: "image/png",
+      size: 512,
+      webkitRelativePath: "images/image1.png",
+    } as any;
+    const image2File = {
+      name: "image2.png",
+      type: "image/png",
+      size: 512,
+      webkitRelativePath: "images/image2.png",
+    } as any;
+    const bgm1File = {
+      name: "bgm1.mp3",
+      type: "audio/mpeg",
+      size: 1024,
+      webkitRelativePath: "audio/bgm1.mp3",
+    } as any;
+    const bgm2File = {
+      name: "bgm2.mp3",
+      type: "audio/mpeg",
+      size: 1024,
+      webkitRelativePath: "audio/bgm2.mp3",
+    } as any;
+    const win1File = {
+      name: "win1.jpg",
+      type: "image/jpeg",
+      size: 256,
+      webkitRelativePath: "images/win1.jpg",
+    } as any;
+    const win2File = {
+      name: "win2.jpg",
+      type: "image/jpeg",
+      size: 256,
+      webkitRelativePath: "images/win2.jpg",
+    } as any;
 
     const wrapper = mount(DataUploadDialog as any, {
       props: { show: true, type: "prize" },
@@ -268,7 +343,14 @@ describe("DataUploadDialog", () => {
 
     const folderInput = wrapper.find("input[webkitdirectory]");
     Object.defineProperty(folderInput.element, "files", {
-      value: makeFileList([image1File, image2File, bgm1File, bgm2File, win1File, win2File]),
+      value: makeFileList([
+        image1File,
+        image2File,
+        bgm1File,
+        bgm2File,
+        win1File,
+        win2File,
+      ]),
     });
     await folderInput.trigger("change");
 
@@ -305,10 +387,30 @@ describe("DataUploadDialog", () => {
       },
     } as any;
 
-    const image1File = { name: "image1.png", type: "image/png", size: 512, webkitRelativePath: "images/image1.png" } as any;
-    const image2File = { name: "image2.png", type: "image/png", size: 512, webkitRelativePath: "images/image2.png" } as any;
-    const bgm1File = { name: "bgm1.mp3", type: "audio/mpeg", size: 1024, webkitRelativePath: "audio/bgm1.mp3" } as any;
-    const bgm2File = { name: "bgm2.mp3", type: "audio/mpeg", size: 1024, webkitRelativePath: "audio/bgm2.mp3" } as any;
+    const image1File = {
+      name: "image1.png",
+      type: "image/png",
+      size: 512,
+      webkitRelativePath: "images/image1.png",
+    } as any;
+    const image2File = {
+      name: "image2.png",
+      type: "image/png",
+      size: 512,
+      webkitRelativePath: "images/image2.png",
+    } as any;
+    const bgm1File = {
+      name: "bgm1.mp3",
+      type: "audio/mpeg",
+      size: 1024,
+      webkitRelativePath: "audio/bgm1.mp3",
+    } as any;
+    const bgm2File = {
+      name: "bgm2.mp3",
+      type: "audio/mpeg",
+      size: 1024,
+      webkitRelativePath: "audio/bgm2.mp3",
+    } as any;
 
     const wrapper = mount(DataUploadDialog as any, {
       props: { show: true, type: "prize" },

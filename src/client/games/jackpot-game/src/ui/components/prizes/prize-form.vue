@@ -1,13 +1,10 @@
 <template>
   <div class="prize-form">
     <div class="form-grid">
-      <!-- Left Top: Image1 Preview -->
+      <!-- Left Top: Image1 -->
       <div class="image1-preview">
-        <label class="field-label">景品当選画像</label>
-        <div class="preview-box">
-          <img v-if="image1Preview" :src="image1Preview" alt="景品画像1" />
-          <div v-else class="placeholder">画像を選択してください</div>
-        </div>
+        <ImageField label="画像1" v-model:mode="image1Mode" v-model:assetId="formData.imageAssetId"
+          :filename="image1Filename" :preview="image1Preview" :assets="imageAssets" @file-change="onImage1Change" />
       </div>
 
       <!-- Right Top: Basic Fields -->
@@ -31,22 +28,16 @@
 
       <!-- Winning Image1 -->
       <div class="winning-image1-section">
-        <label class="field-label">当選景品画像1</label>
-        <div class="preview-box">
-          <img v-if="winningImage1Preview" :src="winningImage1Preview" alt="当選景品画像1" />
-          <div v-else class="placeholder">画像を選択してください</div>
-        </div>
-        <input type="file" accept="image/*" @change="onWinningImage1Change" />
+        <ImageField label="当選画像1" v-model:mode="winningImage1Mode" v-model:assetId="formData.winningImage1AssetId"
+          :filename="winningImage1Filename" :preview="winningImage1Preview" :assets="imageAssets"
+          @file-change="onWinningImage1Change" />
       </div>
 
       <!-- Winning Image2 -->
       <div class="winning-image2-section">
-        <label class="field-label">当選景品画像2</label>
-        <div class="preview-box">
-          <img v-if="winningImage2Preview" :src="winningImage2Preview" alt="当選景品画像2" />
-          <div v-else class="placeholder">画像を選択してください</div>
-        </div>
-        <input type="file" accept="image/*" @change="onWinningImage2Change" />
+        <ImageField label="当選画像2" v-model:mode="winningImage2Mode" v-model:assetId="formData.winningImage2AssetId"
+          :filename="winningImage2Filename" :preview="winningImage2Preview" :assets="imageAssets"
+          @file-change="onWinningImage2Change" />
       </div>
 
       <!-- Right Bottom: BGM and Actions -->
@@ -55,10 +46,6 @@
           :assets="audioAssets" @file-change="onBgm1Change" />
         <BgmField label="BGM2" v-model:mode="bgm2Mode" v-model:assetId="formData.bgm2AssetId" :filename="bgm2Filename"
           :assets="audioAssets" @file-change="onBgm2Change" />
-        <div class="actions">
-          <button @click="submit" :disabled="!isValid">保存</button>
-          <button @click="cancel">キャンセル</button>
-        </div>
       </div>
     </div>
   </div>
@@ -107,8 +94,14 @@ const formData = ref({
   winningImage2AssetId: '',
 });
 
+const image1Mode = ref('upload');
+const image1Filename = ref('');
 const image2Mode = ref('upload');
 const image2Filename = ref('');
+const winningImage1Mode = ref('upload');
+const winningImage1Filename = ref('');
+const winningImage2Mode = ref('upload');
+const winningImage2Filename = ref('');
 const bgm1Mode = ref('select');
 const bgm1Filename = ref('');
 const bgm2Mode = ref('select');
@@ -127,6 +120,9 @@ const winningImage1Preview = computed(() => objectUrlMap.get('temp-winning-image
 const winningImage2Preview = computed(() => objectUrlMap.get('temp-winning-image2') || formData.value.winningImage2AssetId);
 
 const isValid = computed(() => formData.value.name.trim());
+
+// expose submit and cancel so parent dialog can call them from footer buttons
+defineExpose({ submit, cancel });
 
 watch(() => props.prize, (val) => {
   if (val && props.mode === 'edit') {
@@ -147,7 +143,10 @@ function loadPrize(prize: any) {
     winningImage2AssetId: prize.winningImage2AssetId || '',
   };
   // Modes based on existence
+  image1Mode.value = prize.imageAssetId ? 'select' : 'upload';
   image2Mode.value = prize.image2AssetId ? 'select' : 'upload';
+  winningImage1Mode.value = prize.winningImage1AssetId ? 'select' : 'upload';
+  winningImage2Mode.value = prize.winningImage2AssetId ? 'select' : 'upload';
   bgm1Mode.value = prize.bgm1AssetId ? 'select' : 'upload';
   bgm2Mode.value = prize.bgm2AssetId ? 'select' : 'upload';
 }
@@ -160,6 +159,17 @@ async function onImage2Change(e: Event) {
     image2Filename.value = file.name;
     revoke('temp-image2');
     createObjectUrl(file, 'temp-image2');
+  }
+}
+
+async function onImage1Change(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (file) {
+    const dto = await createAssetDto(file);
+    tempAsset1.value = dto;
+    image1Filename.value = file.name;
+    revoke('temp-image1');
+    createObjectUrl(file, 'temp-image1');
   }
 }
 
@@ -266,8 +276,10 @@ function cancel() {
 <style scoped>
 .prize-form {
   overflow-x: hidden;
-  overflow-y: auto;
-  max-height: 100vh;
+  /* Let the dialog's scrolling container handle vertical scrolling to avoid nested scrollbars */
+  overflow-y: visible;
+  box-sizing: border-box;
+  padding-bottom: 40px;
 }
 
 
@@ -296,20 +308,51 @@ function cancel() {
   grid-column: 1 / -1;
   grid-row: 1;
   display: grid;
-  grid-template-columns: 1fr 140px;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  align-items: center;
+  align-items: start;
 }
 
-.basic-fields > .name-field { grid-column: 1; }
-.basic-fields > .rank-field { grid-column: 2; }
-.basic-fields > .animation-field { grid-column: 1 / -1; margin-top: 8px; }
+.basic-fields>.name-field {
+  grid-column: 1;
+}
 
-.image1-preview { grid-column: 1; grid-row: 3; }
-.image2-section { grid-column: 2; grid-row: 3; }
-.winning-image1-section { grid-column: 1; grid-row: 4; }
-.winning-image2-section { grid-column: 2; grid-row: 4; }
-.bgm-actions { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.basic-fields>.rank-field {
+  grid-column: 2;
+}
+
+.basic-fields>.animation-field {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+.image1-preview {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.image2-section {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.winning-image1-section {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.winning-image2-section {
+  grid-column: 2;
+  grid-row: 4;
+}
+
+.bgm-actions {
+  grid-column: 1 / -1;
+  grid-row: 5;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 
 .preview-box {
   width: 100%;
@@ -337,13 +380,35 @@ function cancel() {
   margin-top: 20px;
 }
 
+.bgm-actions>.actions {
+  grid-column: 1 / -1;
+}
+
+/* sticky footer within the scrolling form */
+.actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0));
+  padding-top: 12px;
+}
+
 @media (max-width: 768px) {
   .form-grid {
     grid-template-columns: 1fr;
     grid-template-rows: repeat(5, auto);
   }
-  .basic-fields { grid-template-columns: 1fr; }
-  .bgm-actions { grid-template-columns: 1fr; }
-  .preview-box { max-width: 100%; }
+
+  .basic-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .bgm-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-box {
+    max-width: 100%;
+  }
 }
 </style>

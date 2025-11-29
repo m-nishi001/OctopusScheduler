@@ -1,4 +1,4 @@
-import { ref, computed, onBeforeUnmount, reactive } from "vue";
+import { ref, computed, onBeforeUnmount } from "vue";
 import { container } from "tsyringe";
 import { AssetDataService } from "@model/applications/asset/asset-data-service";
 import { useObjectUrlStore } from "@composables/prizes/use-object-url-store";

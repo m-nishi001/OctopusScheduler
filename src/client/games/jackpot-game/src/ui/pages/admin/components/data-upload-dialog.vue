@@ -91,7 +91,13 @@ const parseCsvLine = (ln: string) => {
     return cols;
 };
 
-const norm = (s: string) => (s || '').normalize ? (s || '').normalize('NFC') : s || '';
+const norm = (s: string) => {
+    try {
+        return (s || '').normalize('NFC');
+    } catch {
+        return s || '';
+    }
+};
 
 const upload = async () => {
     if (!csvFile.value || !assetFiles.value.length) return;
@@ -195,6 +201,13 @@ const upload = async () => {
             const nameN = norm(asset.name);
             assetMap.set(nameN, asset.id);
             assetMap.set(nameN.toLowerCase(), asset.id);
+            // also map by basename (in case CSV references paths like images/foo.png)
+            try {
+                const base = (asset.name || '').split(/\\|\//).pop() || asset.name;
+                const baseN = norm(base);
+                assetMap.set(baseN, asset.id);
+                assetMap.set(baseN.toLowerCase(), asset.id);
+            } catch { /* ignore */ }
         });
         console.log('[DataUploadDialog] assetMap', Array.from(assetMap.entries()));
 
@@ -286,6 +299,24 @@ const uploadPrizes = async (dataLines: string[], assetMap: Map<string, string>) 
             winningImage2AssetId,
             order
         };
+        // Debug log: show mapping from CSV filenames -> resolved asset IDs
+        console.log('[DataUploadDialog] prize asset mapping', {
+            row: i,
+            name,
+            imageFilename,
+            imageAssetId,
+            image2Filename,
+            image2AssetId,
+            bgm1Filename,
+            bgm1AssetId,
+            bgm2Filename,
+            bgm2AssetId,
+            winningImage1Filename,
+            winningImage1AssetId,
+            winningImage2Filename,
+            winningImage2AssetId,
+            order,
+        });
         await prizeService.savePrize(prize);
     }
 };

@@ -288,7 +288,9 @@ export class AssetDataRepository implements IAssetDataRepository {
   ): Promise<{ replaced: number; idMap: { [oldId: string]: string } }> {
     onProgress?.("Start replacing local assets from Google Drive");
 
-    let metas = remoteMetas;
+    let metas: DriveMetadata[] | null | undefined = remoteMetas as
+      | DriveMetadata[]
+      | undefined;
     if (!metas) {
       metas = await this.fetchRemoteMetas(onProgress);
     }
