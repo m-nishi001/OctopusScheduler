@@ -107,10 +107,23 @@ export class TransitionPageEvent implements IAppEvent {
 
   async execute(isStart: boolean, manual?: boolean): Promise<void> {
     if (isStart) {
-      eventBus.emit("transitionPage", {
-        transitionUrl: this.transitionUrl,
-        manual: !!manual,
-      } as any);
+      console.debug(
+        `[TransitionPageEvent] emit transitionPage id=${this.id} url=${this.transitionUrl} manual=${!!manual} ts=${Date.now()}`
+      );
+      try {
+        eventBus.emit("transitionPage", {
+          transitionUrl: this.transitionUrl,
+          manual: !!manual,
+        } as any);
+        console.debug(
+          `[TransitionPageEvent] emitted transitionPage id=${this.id} ts=${Date.now()}`
+        );
+      } catch (err) {
+        console.error(
+          `[TransitionPageEvent] failed to emit transitionPage id=${this.id} err=`,
+          err
+        );
+      }
     }
   }
 

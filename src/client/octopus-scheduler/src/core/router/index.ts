@@ -10,16 +10,48 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     ...routes,
-    ...octopusSchedulerRoutes,
-    ...jackpotGameRoutes,
-    ...cardGameRoutes,
-    ...quizGameRoutes,
+    // Redirect top-level game absolute paths to /execute/... so links resolve
+    // (e.g. /jackpot-admin/... -> /execute/jackpot-admin/...). This prevents
+    // "No match found for location" warnings when rendering links inside
+    // the execute screen which uses game absolute paths.
+    {
+      path: "/:game(jackpot|card|quiz)-:subpath(.*)",
+      redirect: (to) => ({ path: `/execute${to.path}` }),
+    },
+    ...octopusSchedulerRoutes.filter((r) => r.path !== "/execute"),
+    {
+      path: "/execute",
+      component: octopusSchedulerRoutes.find((r) => r.path === "/execute")
+        ?.component,
+      children: [
+        ...jackpotGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
+        ...cardGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
+        ...quizGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
+      ],
+    },
   ],
 });
 
 // ブラウザのURLの変更はHash値の変更であるため、これを定義済ルートとマッピングする
 router.beforeEach((to, from, next) => {
-  console.log(`[router.beforeEach] to: ${to.fullPath} from: ${from.fullPath}`);
+  // If we're navigating from inside /execute and the target is a game absolute path
+  // (e.g. `/jackpot-admin`, `/card-admin`, `/quiz-admin`), rewrite to be
+  // under `/execute` so execute-view remains mounted.
+  const isFromExecute = String(from.path || "").startsWith("/execute");
+  const isTargetExecuteAlready = String(to.path || "").startsWith("/execute");
+  // Match game-prefixed absolute paths. Adjust patterns here if other game prefixes exist.
+  const gameAbsPathRE = /^\/(jackpot|card|quiz)(?:-|\/|$)/;
+
+  if (
+    isFromExecute &&
+    !isTargetExecuteAlready &&
+    gameAbsPathRE.test(String(to.path || ""))
+  ) {
+    const newPath = `/execute${to.path}`;
+    next({ path: newPath });
+    return;
+  }
+
   next();
 });
 

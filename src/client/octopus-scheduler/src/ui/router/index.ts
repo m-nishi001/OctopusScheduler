@@ -23,6 +23,32 @@ const octopusSchedulerRoutes = [
     path: "/execute",
     name: "execute",
     component: Execute,
+    children: [
+      {
+        path: "show-image/:id",
+        name: "show-image",
+        component: ShowImage,
+        props: true,
+      },
+      {
+        path: "show-video/:id",
+        name: "show-video",
+        component: ShowVideo,
+        props: true,
+      },
+      {
+        path: "show-html/:content",
+        name: "show-html",
+        component: ShowHtml,
+        props: true,
+      },
+      {
+        path: "show-slideshow/:data",
+        name: "show-slideshow",
+        component: ShowSlideshow,
+        props: true,
+      },
+    ],
   },
   {
     path: "/",
@@ -40,27 +66,31 @@ const octopusSchedulerRoutes = [
   },
   {
     path: "/show-image/:id",
-    name: "show-image",
-    component: ShowImage,
-    props: true,
+    redirect: (to: any) => ({
+      name: "show-image",
+      params: { id: to.params.id },
+    }),
   },
   {
     path: "/show-video/:id",
-    name: "show-video",
-    component: ShowVideo,
-    props: true,
+    redirect: (to: any) => ({
+      name: "show-video",
+      params: { id: to.params.id },
+    }),
   },
   {
     path: "/show-html/:content",
-    name: "show-html",
-    component: ShowHtml,
-    props: true,
+    redirect: (to: any) => ({
+      name: "show-html",
+      params: { content: to.params.content },
+    }),
   },
   {
     path: "/show-slideshow/:data",
-    name: "show-slideshow",
-    component: ShowSlideshow,
-    props: true,
+    redirect: (to: any) => ({
+      name: "show-slideshow",
+      params: { data: to.params.data },
+    }),
   },
 ];
 

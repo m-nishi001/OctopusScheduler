@@ -39,18 +39,18 @@ const router = useRouter();
 const channel = new BroadcastChannel('octopus-control');
 
 const goToSettings = () => router.push({ name: 'settings' });
-const goToExecute = () => window.open('/#/execute', '_blank');
+const goToExecute = () => router.push('/execute');
 const goToJackpotGame = () => {
-    // Open the jackpot page directly instead of using legacy NAVIGATE via BroadcastChannel
-    window.open('/#/jackpot-home', '_blank');
+    // Navigate to the jackpot page within the same tab
+    router.push('/jackpot-home');
 };
 const goToQuizGame = () => {
-    // Open the quiz admin page directly instead of using legacy NAVIGATE
-    window.open('/#/quiz-admin', '_blank');
+    // Navigate to the quiz admin page within the same tab
+    router.push('/quiz-admin');
 };
 const goToCardGame = () => {
-    // Open the card game page directly instead of using legacy NAVIGATE
-    window.open('/#/card-home', '_blank');
+    // Navigate to the card game page within the same tab
+    router.push('/card-home');
 };
 
 const handleKeydown = (event: KeyboardEvent) => {

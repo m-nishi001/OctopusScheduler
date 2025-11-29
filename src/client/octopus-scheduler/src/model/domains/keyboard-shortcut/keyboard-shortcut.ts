@@ -28,23 +28,44 @@ export class KeyboardShortcut {
 
   // キーボードトリガーで実行
   async execute(): Promise<void> {
-    // Option A semantics: start each action in order but do not await
-    // completion of each action (fire-and-forget ordering). This lets
-    // actions such as audio playback and content show start nearly
-    // simultaneously while preserving start order.
-    // Resolve events by id via AppEventService and execute them.
     if (this.eventIds && this.eventIds.length > 0) {
       try {
         const appEventService = container.resolve(AppEventService);
+        console.debug(
+          "[KeyboardShortcut] Executing events for shortcut",
+          this.id,
+          this.eventIds
+        );
         for (const id of this.eventIds) {
           try {
+            console.debug(
+              `[KeyboardShortcut] dispatch start eventId=${id} ts=${Date.now()}`
+            );
             const ev = await appEventService.getEventById(id);
+            console.debug(
+              `[KeyboardShortcut] dispatch resolved eventId=${id} found=${!!ev} ts=${Date.now()}`
+            );
             if (!ev) continue;
+            console.debug(
+              `[KeyboardShortcut] invoking execute eventId=${id} type=${(ev as any).type ?? "unknown"} ts=${Date.now()}`
+            );
             const p = ev.execute(true, true);
             if (p && typeof (p as any).catch === "function") {
-              (p as Promise<any>).catch(() => {});
+              (p as Promise<any>).catch((err) => {
+                console.error(
+                  `[KeyboardShortcut] execute promise rejected eventId=${id} err=`,
+                  err
+                );
+              });
             }
-          } catch (_) {
+            console.debug(
+              `[KeyboardShortcut] invoke returned eventId=${id} ts=${Date.now()}`
+            );
+          } catch (err) {
+            console.error(
+              `[KeyboardShortcut] failed to execute eventId=${id} err=`,
+              err
+            );
             // ignore individual event execution errors
           }
         }

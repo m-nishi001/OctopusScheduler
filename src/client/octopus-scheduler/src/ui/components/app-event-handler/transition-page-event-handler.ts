@@ -12,6 +12,20 @@ export class TransitionPageEventHandler {
     data: { transitionUrl: string },
     router: Router
   ) {
-    await router.push({ path: data.transitionUrl });
+    console.debug(
+      `[TransitionPageEventHandler] start handling transition to=${data.transitionUrl} ts=${Date.now()}`,
+      router.currentRoute
+    );
+    try {
+      await router.push({ path: data.transitionUrl });
+      console.debug(
+        `[TransitionPageEventHandler] after push to=${data.transitionUrl} ts=${Date.now()} current=${router.currentRoute.value.fullPath}`
+      );
+    } catch (err) {
+      console.error(
+        `[TransitionPageEventHandler] router.push failed to=${data.transitionUrl} err=`,
+        err
+      );
+    }
   }
 }
