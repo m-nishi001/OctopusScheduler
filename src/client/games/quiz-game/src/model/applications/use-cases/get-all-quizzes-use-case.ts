@@ -22,6 +22,15 @@ export class GetAllQuizzesUseCase {
         color: o.color,
         image: o.image,
       })),
+      settings: quiz.settings
+        ? {
+            // Assert to `Blob | null` since client-side expects Blob instances.
+            correctBgm: quiz.settings.correctBgm,
+            prizeImage: quiz.settings.prizeImage,
+            prizeName: quiz.settings.prizeName ?? null,
+            prizeBgm: quiz.settings.prizeBgm,
+          }
+        : undefined,
     }));
   }
 }

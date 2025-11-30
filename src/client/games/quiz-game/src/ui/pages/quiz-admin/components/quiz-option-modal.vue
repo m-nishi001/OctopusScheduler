@@ -42,8 +42,8 @@ import { onUnmounted } from 'vue';
 
 const props = defineProps<{
     isEditing: boolean;
-    currentOption: { no: number; text: string; image: Blob | string | null; color: string };
-    options: { no: number; text: string; image: Blob | string | null; color: string }[];
+    currentOption: { no: number; text: string; image: Blob | null; color: string };
+    options: { no: number; text: string; image: Blob | null; color: string }[];
 }>();
 
 const colors = [
@@ -55,7 +55,7 @@ const colors = [
 ];
 
 const emit = defineEmits<{
-    save: [option: { no: number; text: string; image: Blob | string | null; color: string }];
+    save: [option: { no: number; text: string; image: Blob | null; color: string }];
     close: [];
 }>();
 
@@ -67,7 +67,7 @@ const imageSrc = () => {
         currentObjectUrl = URL.createObjectURL(props.currentOption.image);
         return currentObjectUrl;
     }
-    return typeof props.currentOption.image === 'string' ? props.currentOption.image : undefined;
+    return undefined;
 };
 
 const closeModal = () => {

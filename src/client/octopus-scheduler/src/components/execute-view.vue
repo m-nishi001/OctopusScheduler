@@ -94,7 +94,7 @@ onUnmounted(() => {
 }
 
 /* Ensure the routed component (root element rendered by <router-view>) fills the container */
-::v-deep .execute-content>* {
+:deep(.execute-content > *) {
     display: block;
     width: 100%;
     height: 100%;

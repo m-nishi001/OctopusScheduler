@@ -10,12 +10,12 @@ import type {
 @injectable()
 export class FormRepository {
   async stopForm(quizId: string): Promise<void> {
-    const service = new GasFunctionService("_quizGame_stopForm");
+    const service = new GasFunctionService("quizGame_stopForm");
     await service.call<void>(quizId);
   }
 
   async getSheetData(quizId: string): Promise<SheetRow[]> {
-    const service = new GasFunctionService("_quizGame_getSheetData");
+    const service = new GasFunctionService("quizGame_getSheetData");
     return await service.call<SheetRow[]>(quizId);
   }
 
@@ -26,14 +26,37 @@ export class FormRepository {
     correctValue: string
   ): Promise<ProcessedResultDto[]> {
     const service = new GasFunctionService(
-      "_quizGame_stopAndGetProcessedResults"
+      "quizGame_stopAndGetProcessedResults"
     );
-    return await service.call<ProcessedResultDto[]>(
-      quizId,
-      quizStartTimeMs,
-      answerKey,
-      correctValue
-    );
+    try {
+      console.info(
+        "[FormRepository] calling _quizGame_stopAndGetProcessedResults",
+        {
+          quizId,
+          quizStartTimeMs,
+          answerKey,
+          correctValue,
+        }
+      );
+      const resp = await service.call<ProcessedResultDto[]>(
+        quizId,
+        quizStartTimeMs,
+        answerKey,
+        correctValue
+      );
+      console.info(
+        "[FormRepository] _quizGame_stopAndGetProcessedResults response length=",
+        Array.isArray(resp) ? resp.length : "unknown",
+        resp
+      );
+      return resp;
+    } catch (e) {
+      console.error(
+        "[FormRepository] _quizGame_stopAndGetProcessedResults failed",
+        e
+      );
+      throw e;
+    }
   }
 
   async syncQuizzes(request: SyncRequest): Promise<QuizWithDataUrl[] | void> {

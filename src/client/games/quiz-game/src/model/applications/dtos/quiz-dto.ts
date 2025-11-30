@@ -17,9 +17,9 @@ export interface QuizDto {
     no: number;
     text: string;
     color: string;
-    image: Blob | string | null;
+    image: Blob | null;
   }[];
-  bgm: Blob | string | null;
+  bgm: Blob | null;
   settings?: QuizSettings;
 }
 
@@ -33,9 +33,9 @@ export interface AddQuizDto {
     no: number;
     text: string;
     color: string;
-    image: Blob | string | null;
+    image: Blob | null;
   }[];
-  bgm: Blob | string | null;
+  bgm: Blob | null;
   settings?: QuizSettings;
 }
 
@@ -50,9 +50,9 @@ export interface UpdateQuizDto {
     no: number;
     text: string;
     color: string;
-    image: Blob | string | null;
+    image: Blob | null;
   }[];
-  bgm: Blob | string | null;
+  bgm: Blob | null;
   settings?: QuizSettings;
 }
 

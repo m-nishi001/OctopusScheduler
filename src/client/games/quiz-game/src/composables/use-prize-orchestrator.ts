@@ -1,12 +1,11 @@
 import { ref, readonly, onUnmounted } from "vue";
 import { useAudio } from "shared-composables";
-import { dataUrlToBlob } from "../utils/blob-utils";
 
 export function usePrizeOrchestrator(options: {
   getSettings: () =>
     | {
-        prizeBgm: Blob | string | null;
-        prizeImage: Blob | string | null;
+        prizeBgm: Blob | null;
+        prizeImage: Blob | null;
         prizeName: string | null;
       }
     | undefined;
@@ -20,14 +19,8 @@ export function usePrizeOrchestrator(options: {
     const settings = options.getSettings();
     if (settings?.prizeBgm) {
       try {
-        let blob: Blob | null = null;
-        if (settings.prizeBgm instanceof Blob) blob = settings.prizeBgm;
-        else if (typeof settings.prizeBgm === "string")
-          blob = dataUrlToBlob(settings.prizeBgm);
-        if (blob) {
-          await audio.load(blob);
-          await audio.play();
-        }
+        await audio.load(settings.prizeBgm);
+        await audio.play();
       } catch (error) {
         console.error("Failed to load prize BGM:", error);
       }

@@ -45,7 +45,7 @@
                 </div>
             </div>
         </div>
-        <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="quiz?.settings?.prizeName"
+        <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="quiz?.settings?.prizeName ?? null"
             :prize-image-url="prizeImageUrl" @close="hidePrizeDialog" />
     </div>
     <div v-else class="loading">Loading...</div>
@@ -58,7 +58,6 @@ import { container } from 'tsyringe';
 import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
 import { StopQuizUseCase } from '../../../model/applications/use-cases/stop-quiz-use-case';
-import { AnswerFormService } from '../../../model/domains/services/answer-form-service';
 import OptionCard from '../../components/option-card.vue';
 import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
 import { quizState } from '../../../services/quizState';
@@ -69,6 +68,17 @@ const route = useRoute();
 const router = useRouter();
 
 const quizId = route.params.id as string;
+
+// preview flag: determine from route params or route name (kept consistent with quiz-result.vue)
+const isPreview = computed(() => {
+    const paramPreview = (route.params as any)?.preview;
+    if (paramPreview !== undefined) {
+        if (typeof paramPreview === 'boolean') return paramPreview;
+        return String(paramPreview) === 'true' || String(paramPreview) === '1';
+    }
+    if (String(route.name)?.endsWith('-preview')) return true;
+    return false;
+});
 
 const quiz = ref<QuizDto | null>(null);
 
@@ -99,7 +109,10 @@ const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrche
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
     if (!quiz.value) return [];
     return quiz.value.options.map((option, index) => {
-        const imageUrl = (objectUrls.value[index] || (option.image instanceof Blob ? URL.createObjectURL(option.image) : option.image || '')) as string;
+        // Prefer already-created object URL from `objectUrls`; if absent, create from Blob
+        // or use the string value. Use nullish coalescing to avoid `undefined` leaking
+        // into `ref<string | null>` which is not allowed under `strictNullChecks`.
+        const imageUrl = (objectUrls.value[index] ?? (option.image instanceof Blob ? URL.createObjectURL(option.image) : (option.image ?? ''))) as string;
         return {
             no: option.no,
             text: option.text,
@@ -324,11 +337,33 @@ const startTimer = () => {
             errorMessage.value = null;
 
             // Prefer parsed form id from DTO; do not parse in the component if possible.
+            // Debug logs to trace why answerFormId may be missing.
+            try {
+                console.info('[stopAndGetProcessedResults] debug - quiz DTO:', quiz.value);
+                console.info(
+                    '[stopAndGetProcessedResults] debug - formUrl (answerUrl/formUrl):',
+                    (quiz.value as any)?.answerUrl ?? (quiz.value as any)?.formUrl
+                );
+                console.info(
+                    '[stopAndGetProcessedResults] debug - answerFormId:',
+                    (quiz.value as any)?.answerFormId
+                );
+                console.info(
+                    '[stopAndGetProcessedResults] debug - getFormId result:',
+                    typeof (quiz.value as any)?.getFormId === 'function'
+                        ? (quiz.value as any).getFormId()
+                        : 'no-getFormId'
+                );
+            } catch (e) {
+                console.warn('[stopAndGetProcessedResults] debug logging failed', e);
+            }
+
             const formId = (quiz.value as any)?.answerFormId ?? null;
 
             if (!formId) {
                 console.warn('[stopAndGetProcessedResults] no answerFormId available on DTO; skipping.');
             } else {
+                console.info('[stopAndGetProcessedResults] about to call stopQuizUseCase for formId=', formId);
                 const stopQuizUseCase = container.resolve(StopQuizUseCase);
                 if (isPreview.value) {
                     console.info('[stopAndGetProcessedResults] preview mode: skipping for formId=', formId);
@@ -358,9 +393,38 @@ const startTimer = () => {
     }, 1000);
 };
 
-const selectOption = (index: number) => {
-    console.log('Selected option:', index);
+const selectOption = (index?: number) => {
+    const idx = typeof index === 'number' ? index : -1;
+    if (idx < 0) return;
+    console.log('Selected option:', idx);
 };
+
+// prize image URL handling: create an object URL for Blob and revoke when changed/unmounted
+const prizeObjectUrl = ref<string | null>(null);
+const prizeImageUrl = computed((): string | null => prizeObjectUrl.value);
+
+watch(
+    () => quiz.value?.settings?.prizeImage,
+    (v, _old) => {
+        if (prizeObjectUrl.value && prizeObjectUrl.value.startsWith('blob:')) {
+            try {
+                URL.revokeObjectURL(prizeObjectUrl.value);
+            } catch { }
+        }
+        if (v instanceof Blob) {
+            try {
+                prizeObjectUrl.value = URL.createObjectURL(v);
+            } catch {
+                prizeObjectUrl.value = null;
+            }
+        } else if (typeof v === 'string') {
+            prizeObjectUrl.value = v;
+        } else {
+            prizeObjectUrl.value = null;
+        }
+    },
+    { immediate: true }
+);
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && showModal.value && canProceed.value) {

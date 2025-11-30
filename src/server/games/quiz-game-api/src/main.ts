@@ -153,6 +153,10 @@ function loadEmailNameMapImpl(): Record<string, string> {
   const propId = PropertiesService.getScriptProperties().getProperty(
     EMAIL_NAME_SPREADSHEET_PROPERTY
   );
+  Logger.log(
+    "[_quizGame] loadEmailNameMapImpl: EMAIL_NAME_SPREADSHEET_PROPERTY=%s",
+    EMAIL_NAME_SPREADSHEET_PROPERTY
+  );
   if (!propId || propId.trim() === "") {
     throw new Error(
       `ScriptProperty '${EMAIL_NAME_SPREADSHEET_PROPERTY}' is not set.`
@@ -189,6 +193,11 @@ function loadEmailNameMapImpl(): Record<string, string> {
     );
   }
 
+  Logger.log(
+    "[_quizGame] loadEmailNameMapImpl: loaded map entries=%s",
+    Object.keys(map).length
+  );
+
   return map;
 }
 
@@ -196,8 +205,13 @@ function loadEmailNameMapImpl(): Record<string, string> {
 _quizGame_loadEmailNameMap = (): GasResponse<void> => {
   try {
     loadEmailNameMapImpl();
+    Logger.log("[_quizGame] _quizGame_loadEmailNameMap: success");
     return { status: "success", data: undefined };
   } catch (error) {
+    Logger.log(
+      "[_quizGame] _quizGame_loadEmailNameMap: failed %s",
+      (error as Error).message
+    );
     return { status: "error", message: (error as Error).message };
   }
 };
@@ -206,10 +220,19 @@ _quizGame_loadEmailNameMap = (): GasResponse<void> => {
 // Returns array of objects where keys are header strings and meta fields prefixed with __ are included.
 _quizGame_getMappedResponses = (formId: string): GasResponse<any[]> => {
   try {
+    Logger.log(
+      "[_quizGame] _quizGame_getMappedResponses called for formId=%s",
+      formId
+    );
     const googleFormService = new GoogleFormService();
     const spreadsheetId = googleFormService.getDestinationSpreadsheetId(formId);
     if (!spreadsheetId)
       throw new Error("No destination spreadsheet linked to the form");
+
+    Logger.log(
+      "[_quizGame] _quizGame_getMappedResponses: spreadsheetId=%s",
+      spreadsheetId
+    );
 
     const ss = SpreadsheetApp.openById(spreadsheetId);
     const sheets = ss.getSheets();
@@ -217,6 +240,11 @@ _quizGame_getMappedResponses = (formId: string): GasResponse<any[]> => {
       throw new Error("No sheets found in the destination spreadsheet");
     const sheet = sheets[0];
     const values = sheet.getDataRange().getValues();
+    Logger.log(
+      "[_quizGame] _quizGame_getMappedResponses: rows=%s cols=%s",
+      values ? values.length : 0,
+      values && values[0] ? values[0].length : 0
+    );
     if (!values || values.length < 2) {
       return { status: "success", data: [] };
     }
@@ -296,8 +324,17 @@ _quizGame_getMappedResponses = (formId: string): GasResponse<any[]> => {
       out.push(obj);
     }
 
+    Logger.log(
+      "[_quizGame] _quizGame_getMappedResponses: returning %s mapped rows",
+      out.length
+    );
+
     return { status: "success", data: out };
   } catch (error) {
+    Logger.log(
+      "[_quizGame] _quizGame_getMappedResponses failed: %s",
+      (error as Error).message
+    );
     return { status: "error", message: (error as Error).message };
   }
 };
@@ -310,9 +347,20 @@ _quizGame_stopAndGetProcessedResults = (
   correctValue: string
 ): GasResponse<ProcessedResultDto[]> => {
   try {
+    Logger.log(
+      "[_quizGame] _quizGame_stopAndGetProcessedResults called: quizId=%s, quizStartTimeMs=%s, answerKey=%s, correctValue=%s",
+      quizId,
+      quizStartTimeMs,
+      answerKey,
+      correctValue
+    );
     // Step 1: Stop the form
     const form = FormApp.openById(quizId);
     form.setAcceptingResponses(false);
+    Logger.log(
+      "[_quizGame] _quizGame_stopAndGetProcessedResults: form stopped for quizId=%s",
+      quizId
+    );
 
     // Step 2: Get mapped responses
     const mappedResponse = _quizGame_getMappedResponses(quizId);
@@ -320,6 +368,10 @@ _quizGame_stopAndGetProcessedResults = (
       throw new Error("Failed to get mapped responses");
     }
     const answers = mappedResponse.data;
+    Logger.log(
+      "[_quizGame] _quizGame_stopAndGetProcessedResults: mapped responses count=%s",
+      Array.isArray(answers) ? answers.length : 0
+    );
 
     // Step 3: Filter correct answers and valid timestamps
     const filtered = answers.filter((r) => {
@@ -347,8 +399,17 @@ _quizGame_stopAndGetProcessedResults = (
       rawRow: r.__raw,
     }));
 
+    Logger.log(
+      "[_quizGame] _quizGame_stopAndGetProcessedResults: processed results count=%s",
+      results.length
+    );
+
     return { status: "success", data: results };
   } catch (error) {
+    Logger.log(
+      "[_quizGame] _quizGame_stopAndGetProcessedResults failed: %s",
+      (error as Error).message
+    );
     return { status: "error", message: (error as Error).message };
   }
 };

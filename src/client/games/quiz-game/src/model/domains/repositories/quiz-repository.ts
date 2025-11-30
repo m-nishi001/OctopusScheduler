@@ -13,12 +13,31 @@ export class QuizRepository {
   );
 
   async getQuizById(id: string): Promise<Quiz | null> {
-    return (await this.localStorage.get<Quiz>(id)) || null;
+    const raw = await this.localStorage.get<any>(id);
+    if (!raw) return null;
+    try {
+      return Quiz.fromDto(raw);
+    } catch (e) {
+      console.warn("[QuizRepository] failed to rehydrate quiz for id=", id, e);
+      return null;
+    }
   }
 
   async getAllQuizzes(): Promise<Quiz[]> {
-    const allQuizzes = await this.localStorage.getAll<Quiz>();
-    return Array.from(allQuizzes.values());
+    const allQuizzes = await this.localStorage.getAll<any>();
+    const out: Quiz[] = [];
+    for (const v of Array.from(allQuizzes.values())) {
+      try {
+        if (!v) continue;
+        out.push(Quiz.fromDto(v));
+      } catch (e) {
+        console.warn(
+          "[QuizRepository] getAllQuizzes: failed to rehydrate item",
+          e
+        );
+      }
+    }
+    return out;
   }
 
   async saveQuiz(quiz: Quiz): Promise<void> {
@@ -49,7 +68,7 @@ export class QuizRepository {
 
     if (direction === "gas-to-local") {
       onProgress?.("GASからクイズを取得中...");
-      const jsonService = new GasFunctionService("_quizGame_getJson");
+      const jsonService = new GasFunctionService("quizGame_getJson");
       const jsonResp = await jsonService.call<{ json: string }>({});
       const jsonText = jsonResp?.json ?? JSON.stringify([]);
       let quizzes: QuizWithDataUrl[] = [];
@@ -88,7 +107,7 @@ export class QuizRepository {
       };
 
       const getDriveDataService = new GasFunctionService(
-        "_quizGame_getDriveData"
+        "quizGame_getDriveData"
       );
 
       for (const q of quizzes) {
@@ -168,7 +187,7 @@ export class QuizRepository {
                 prizeImage: q.settings.prizeImageDataUrl
                   ? await dataUrlToBlob(q.settings.prizeImageDataUrl)
                   : null,
-                prizeName: q.settings.prizeName ?? null,
+                prizeName: q.settings.prizeName ?? "",
                 prizeBgm: q.settings.prizeBgmDataUrl
                   ? await dataUrlToBlob(q.settings.prizeBgmDataUrl)
                   : null,
@@ -220,7 +239,7 @@ export class QuizRepository {
                   typeof q.settings.prizeImage !== "string"
                     ? await this.blobToDataUrl(q.settings.prizeImage)
                     : (q.settings.prizeImage as string | null),
-                prizeName: q.settings.prizeName ?? null,
+                prizeName: q.settings.prizeName ?? "",
                 prizeBgmDataUrl:
                   q.settings.prizeBgm && typeof q.settings.prizeBgm !== "string"
                     ? await this.blobToDataUrl(q.settings.prizeBgm)
@@ -294,7 +313,7 @@ export class QuizRepository {
         }
       }
 
-      const uploadService = new GasFunctionService("_quizGame_addDriveData");
+      const uploadService = new GasFunctionService("quizGame_addDriveData");
       const concurrency = 5;
       const uploadResults: Array<{
         task: AssetTask;
@@ -373,10 +392,10 @@ export class QuizRepository {
 
       // best-effort cleanup: remove existing json/assets then add new json
       try {
-        const listJson = new GasFunctionService("_quizGame_listJsonMetaData");
+        const listJson = new GasFunctionService("quizGame_listJsonMetaData");
         const jsonMeta = await listJson.call<any>({});
         if (Array.isArray(jsonMeta)) {
-          const remover = new GasFunctionService("_quizGame_removeDriveData");
+          const remover = new GasFunctionService("quizGame_removeDriveData");
           await Promise.all(
             jsonMeta.map((m: any) => remover.call<void>(m.fileId))
           );
@@ -384,10 +403,10 @@ export class QuizRepository {
       } catch (_) {}
 
       try {
-        const listAssets = new GasFunctionService("_quizGame_getDriveMetaData");
+        const listAssets = new GasFunctionService("quizGame_getDriveMetaData");
         const assetMeta = await listAssets.call<any>({});
         if (Array.isArray(assetMeta)) {
-          const remover = new GasFunctionService("_quizGame_removeDriveData");
+          const remover = new GasFunctionService("quizGame_removeDriveData");
           await Promise.all(
             assetMeta.map((m: any) => remover.call<void>(m.fileId))
           );
@@ -395,7 +414,7 @@ export class QuizRepository {
       } catch (_) {}
 
       try {
-        const addJson = new GasFunctionService("_quizGame_addJson");
+        const addJson = new GasFunctionService("quizGame_addJson");
         const jsonText = JSON.stringify(quizzesWithDataUrl);
         await addJson.call<any>({ fileName: "quizzes.json", jsonText });
       } catch (e) {

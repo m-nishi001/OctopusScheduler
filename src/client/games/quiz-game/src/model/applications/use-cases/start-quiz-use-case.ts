@@ -9,20 +9,39 @@ export class StartQuizUseCase {
   async execute(quizId: string): Promise<QuizDto | null> {
     const quiz = await this.quizService.getQuizById(quizId);
     if (!quiz) return null;
-
-    return {
-      id: quiz.id,
-      title: quiz.title,
-      question: quiz.question,
-      answerUrl: quiz.formUrl,
-      answerFormId:
-        typeof (quiz as any).getFormId === "function"
-          ? (quiz as any).getFormId()
-          : null,
-      correctNo: (quiz as any).correctNo ?? 1,
-      timeLimit: quiz.timeLimit,
-      options: quiz.options,
-      bgm: quiz.bgm,
-    };
+    try {
+      console.debug("[StartQuizUseCase] quiz entity fetched:", quiz);
+      const extractedFormId = quiz.getFormId() ?? undefined;
+      console.debug(
+        "[StartQuizUseCase] formUrl:",
+        quiz.formUrl,
+        "extractedFormId:",
+        extractedFormId
+      );
+      return {
+        id: quiz.id,
+        title: quiz.title,
+        question: quiz.question,
+        answerUrl: quiz.formUrl,
+        answerFormId: extractedFormId,
+        correctNo: quiz.correctNo ?? 1,
+        timeLimit: quiz.timeLimit,
+        options: quiz.options,
+        bgm: quiz.bgm,
+      };
+    } catch (e) {
+      console.warn("[StartQuizUseCase] debug logging error", e);
+      return {
+        id: quiz.id,
+        title: quiz.title,
+        question: quiz.question,
+        answerUrl: quiz.formUrl,
+        answerFormId: quiz.getFormId() ?? undefined,
+        correctNo: quiz.correctNo ?? 1,
+        timeLimit: quiz.timeLimit,
+        options: quiz.options,
+        bgm: quiz.bgm,
+      };
+    }
   }
 }

@@ -28,7 +28,7 @@
                     <select v-model.number="currentQuiz.correctNo" class="form-input"
                         :disabled="currentQuiz.options.length === 0">
                         <option v-for="(opt, i) in currentQuiz.options" :key="i" :value="i + 1">{{ i + 1 }}: {{ opt.text
-                            }}
+                        }}
                         </option>
                     </select>
                 </div>
@@ -118,7 +118,7 @@ const emit = defineEmits<{
 const showOptionModal = ref(false);
 const isEditingOption = ref(false);
 const editingOptionIndex = ref(-1);
-const currentOption = ref<{ no: number; text: string; image: Blob | string | null; color: string }>({ no: 0, text: '', image: null, color: 'red' });
+const currentOption = ref<{ no: number; text: string; image: Blob | null; color: string }>({ no: 0, text: '', image: null, color: 'red' });
 const bgmPreview = ref<string | null>(null);
 const correctBgmPreview = ref<string | null>(null);
 const prizeImagePreview = ref<string | null>(null);
@@ -155,7 +155,7 @@ const prizeName = computed({
     }
 });
 
-const imageSrc = (option: { no?: number; text?: string; image: Blob | string | null }) => {
+const imageSrc = (option: { no?: number; text?: string; image: Blob | null }) => {
     const image = option?.image;
     if (image instanceof Blob) {
         // reuse existing preview URL for this option if present
@@ -171,7 +171,7 @@ const imageSrc = (option: { no?: number; text?: string; image: Blob | string | n
             return '';
         }
     }
-    return (image as string) || '';
+    return '';
 };
 
 const closeModal = () => {

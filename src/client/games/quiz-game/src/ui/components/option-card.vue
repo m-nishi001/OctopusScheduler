@@ -18,7 +18,7 @@ type OptionType = {
     no: number;
     text: string;
     color?: string;
-    image?: Blob | string | null;
+    image?: Blob | null;
     imageUrl?: string | null;
 };
 
@@ -49,7 +49,6 @@ const imageUrl = computed(() => {
     if (props.option.imageUrl) return props.option.imageUrl;
     const img = props.option.image;
     if (!img) return '';
-    if (typeof img === 'string') return img;
     // Blob -> createObjectURL (cache in blobUrl)
     if (blobUrl.value) {
         URL.revokeObjectURL(blobUrl.value);
