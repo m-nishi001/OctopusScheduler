@@ -46,7 +46,7 @@ const bannerVars = internalNames.map((n) => `_${prefix}_${n}`).join(", ");
 const footerFns = internalNames
   .map((n) =>
     n === "doGet"
-      ? `function ${prefix}_doGet(e){ return _${prefix}_doGet(e); }`
+      ? `function doGet(e){ return _${prefix}_doGet(e); }`
       : `function ${prefix}_${n}(...args) { return _${prefix}_${n}.apply(this, args); }`
   )
   .join("\n");
