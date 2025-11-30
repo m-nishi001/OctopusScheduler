@@ -48,7 +48,7 @@ export class BulkSyncService {
         if (lastId) {
           const resp = await new (
             await import("@common-lib/google-apps-script/gas-script-service")
-          ).GasFunctionService("getJson").call(lastId);
+          ).GasFunctionService("jackpotGame_getJson").call(lastId);
           if (resp && resp.json) {
             onProgress?.("members", "ダウンロード完了、保存中...", 70);
             const parsed = JSON.parse(resp.json || "[]");
@@ -89,7 +89,7 @@ export class BulkSyncService {
           onProgress?.("members", "アップロード中...", 50);
           const resp = await new (
             await import("@common-lib/google-apps-script/gas-script-service")
-          ).GasFunctionService("addJson").call(payload);
+          ).GasFunctionService("jackpotGame_addJson").call(payload);
           if (resp && (resp as any).fileId) {
             localStorage.setItem(
               "jackpot-members-last-file-id",
@@ -161,7 +161,9 @@ export class BulkSyncService {
           typeof (this.assetService as any).replaceLocalWithDrive === "function"
         ) {
           // Fetch all metadata once and pass to assetService to avoid duplicated metadata calls
-          const metaService = new GasFunctionService("getDriveMetaData");
+          const metaService = new GasFunctionService(
+            "jackpotGame_getDriveMetaData"
+          );
           let remoteMetas: any[] = [];
           try {
             // Explicitly pass undefined so the server-side resolver uses the

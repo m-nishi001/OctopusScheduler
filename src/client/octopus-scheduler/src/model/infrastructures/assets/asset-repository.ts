@@ -93,7 +93,9 @@ export class AssetRepository implements IAssetRepository {
     onProgress?.("Starting asset sync (diff-based)");
 
     // fetch remote metadata
-    const metaService = new GasFunctionService("getDriveMetaData");
+    const metaService = new GasFunctionService(
+      "octopusScheduler_getDriveMetaData"
+    );
     let remoteMetas: Array<any> = [];
     try {
       // Do not send an empty string for folderId. Send an explicit undefined
@@ -126,7 +128,9 @@ export class AssetRepository implements IAssetRepository {
       onProgress?.("Fetching remote assets");
 
       // fetch drive data for each metadata in unlimited parallel
-      const getService = new GasFunctionService("getDriveData");
+      const getService = new GasFunctionService(
+        "octopusScheduler_getDriveData"
+      );
       const fetchPromises = remoteMetas
         .filter((m: any) => m && m.fileId)
         .map(async (m: any) => {
@@ -235,8 +239,10 @@ export class AssetRepository implements IAssetRepository {
     };
 
     // uploader
-    const addService = new GasFunctionService("addDriveData");
-    const updateService = new GasFunctionService("updateDriveData");
+    const addService = new GasFunctionService("octopusScheduler_addDriveData");
+    const updateService = new GasFunctionService(
+      "octopusScheduler_updateDriveData"
+    );
 
     const uploadHandler = async (asset: Asset) => {
       const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";

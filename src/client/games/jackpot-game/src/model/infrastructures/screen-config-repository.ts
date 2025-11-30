@@ -70,7 +70,7 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
       const entries: ScreenSetting[] = Array.from(all.values());
       const json = JSON.stringify(entries || []);
 
-      const service = new GasFunctionService("addJson");
+      const service = new GasFunctionService("jackpotGame_addJson");
       const appFileId = String(Date.now()) + "-screens";
       const driveJson: DriveJsonData = {
         appFileId,
@@ -103,7 +103,7 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
     idMap?: { [oldId: string]: string }
   ): Promise<{ replaced: number }> {
     try {
-      const service = new GasFunctionService("getJson");
+      const service = new GasFunctionService("jackpotGame_getJson");
       const resp = await service.call<{ json: string }>(
         fileId || localStorage.getItem("jackpot-screens-last-file-id") || ""
       );

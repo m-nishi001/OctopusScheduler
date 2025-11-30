@@ -108,7 +108,9 @@ export class AppEventRepository implements IAppEventRepository {
     ];
 
     if (mode === "gas") {
-      const getService = new GasFunctionService("getSpreadsheetData");
+      const getService = new GasFunctionService(
+        "octopusScheduler_getSpreadsheetData"
+      );
       let remoteData: { sheetName: string; data: any[][] } | null = null;
       try {
         remoteData = await getService.call(sheetName);
@@ -190,7 +192,9 @@ export class AppEventRepository implements IAppEventRepository {
     const localEvents: IAppEvent[] = Array.from(all.values());
 
     // fetch remote sheet data
-    const getService = new GasFunctionService("getSpreadsheetData");
+    const getService = new GasFunctionService(
+      "octopusScheduler_getSpreadsheetData"
+    );
     let remoteData: { sheetName: string; data: any[][] } | null = null;
     try {
       remoteData = await getService.call(sheetName);
@@ -242,8 +246,12 @@ export class AppEventRepository implements IAppEventRepository {
     }
 
     // call GAS functions
-    const addService = new GasFunctionService("addSpreadsheetRecords");
-    const updateService = new GasFunctionService("updateSpreadsheetRecords");
+    const addService = new GasFunctionService(
+      "octopusScheduler_addSpreadsheetRecords"
+    );
+    const updateService = new GasFunctionService(
+      "octopusScheduler_updateSpreadsheetRecords"
+    );
 
     try {
       if (addList.length > 0) {

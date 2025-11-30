@@ -70,9 +70,12 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
   ): Promise<void> {
     if (direction === "gas-to-local") {
       // GASからデータを取得し、ローカルを完全上書き
-      const getService = new GasFunctionService("getKeyboardShortcuts", {
-        timeout: 30000,
-      });
+      const getService = new GasFunctionService(
+        "octopusScheduler_getKeyboardShortcuts",
+        {
+          timeout: 30000,
+        }
+      );
       try {
         const remoteData = await getService.call<{
           shortcuts: string[][];
@@ -91,9 +94,12 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
       // ローカルデータを取得し、GASに送信して上書き
       const shortcuts = await this.getKeyboardShortcutsRaw();
       const config = await this.getConfig();
-      const setService = new GasFunctionService("setKeyboardShortcuts", {
-        timeout: 30000,
-      });
+      const setService = new GasFunctionService(
+        "octopusScheduler_setKeyboardShortcuts",
+        {
+          timeout: 30000,
+        }
+      );
       try {
         // GAS 側は古い形式を期待しているので、string[][] に変換
         const legacyShortcuts = shortcuts.map((data) => {

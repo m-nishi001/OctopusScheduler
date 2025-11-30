@@ -75,7 +75,7 @@ async function syncMembers() {
             return;
         }
 
-        const service = new GasFunctionService('getJson');
+        const service = new GasFunctionService('jackpotGame_getJson');
         const resp = await service.call<{ json: string }>(lastId);
         if (resp && resp.json) {
             updateDomain(id, { message: 'ダウンロード完了、保存中...', progress: 80 });

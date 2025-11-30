@@ -31,7 +31,7 @@ const assetRepository = container.resolve<IAssetRepository>(IAssetRepositoryToke
 const startSlideshow = async (data: SlideshowData) => {
     slideshowData.value = data;
     // 1) fetch metadata only
-    const metaService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("getDriveMetaData");
+    const metaService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("octopusScheduler_getDriveMetaData");
     let metas: any[] = [];
     try {
         metas = (await metaService.call(data.folderId)) || [];
@@ -49,7 +49,7 @@ const startSlideshow = async (data: SlideshowData) => {
     // 2) fetch first image immediately (parallel if multiple firsts desired)
     const first = images.value[0];
     try {
-        const getService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("getDriveData");
+        const getService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("octopusScheduler_getDriveData");
         const res = await getService.call(first.id);
         if (res && res.fileDataUrl) {
             const blob = await (await fetch(res.fileDataUrl)).blob();
@@ -69,7 +69,7 @@ const startSlideshow = async (data: SlideshowData) => {
     // 4) bulk-prefetch remaining images without concurrency cap
     (async () => {
         try {
-            const getService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("getDriveData");
+            const getService = new (await import("@common-lib/google-apps-script/gas-script-service")).GasFunctionService("octopusScheduler_getDriveData");
             const fetchPromises = images.value.map(async (img) => {
                 if (img.url) return; // already loaded
                 try {

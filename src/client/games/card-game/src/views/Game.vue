@@ -13,7 +13,7 @@ import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-se
 export default defineComponent({
     setup() {
         const name = ref<string>('');
-        const service = new GasFunctionService('callCardGameApi');
+        const service = new GasFunctionService('cardGame_callCardGameApi');
 
         async function callService() {
             if (!service) return;

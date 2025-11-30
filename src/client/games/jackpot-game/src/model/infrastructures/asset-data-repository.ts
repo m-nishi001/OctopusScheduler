@@ -107,7 +107,7 @@ export class AssetDataRepository implements IAssetDataRepository {
   private async fetchRemoteMetas(
     onProgress?: (message: string) => void
   ): Promise<DriveMetadata[] | null> {
-    const metaService = new GasFunctionService("getDriveMetaData", {
+    const metaService = new GasFunctionService("jackpotGame_getDriveMetaData", {
       timeout: 180000,
     });
     try {
@@ -181,7 +181,7 @@ export class AssetDataRepository implements IAssetDataRepository {
       progress?: { current: number; total: number }
     ) => void
   ): Promise<number> {
-    const addService = new GasFunctionService("addDriveData", {
+    const addService = new GasFunctionService("jackpotGame_addDriveData", {
       timeout: 180000,
     });
     let uploaded = 0;
@@ -230,7 +230,7 @@ export class AssetDataRepository implements IAssetDataRepository {
     remoteMetas: DriveMetadata[],
     onProgress?: (message: string) => void
   ): Promise<Asset[]> {
-    const getService = new GasFunctionService("getDriveData", {
+    const getService = new GasFunctionService("jackpotGame_getDriveData", {
       timeout: 180000,
     });
     const assets: Asset[] = [];

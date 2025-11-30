@@ -41,7 +41,7 @@ const bannerVars = internalNames.map((n) => `_${prefix}_${n}`).join(", ");
 const footerFns = internalNames
   .map(
     (n) =>
-      `function ${n}(...args) { return _${prefix}_${n}.apply(this, args); }`
+      `function ${prefix}_${n}(...args) { return _${prefix}_${n}.apply(this, args); }`
   )
   .join("\n");
 

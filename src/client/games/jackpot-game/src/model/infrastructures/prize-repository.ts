@@ -56,7 +56,7 @@ export class PrizeRepository implements IPrizeRepository {
     try {
       const prizesToExport = await this.getPrizes();
       const json = JSON.stringify(prizesToExport || []);
-      const service = new GasFunctionService("addJson");
+      const service = new GasFunctionService("jackpotGame_addJson");
       // NOTE: driveDataId is assigned by the GAS side (Drive metadata) when
       // uploading JSON files. The app should manage an application-scoped file
       // identifier (fileId) so we can later re-download the same file.
@@ -84,7 +84,7 @@ export class PrizeRepository implements IPrizeRepository {
 
   async importAllPrizesFromDrive(): Promise<void> {
     try {
-      const service = new GasFunctionService("getJson");
+      const service = new GasFunctionService("jackpotGame_getJson");
       const resp = await service.call<{ json: string }>();
       try {
         const parsed = JSON.parse(resp.json) as Prize[];
