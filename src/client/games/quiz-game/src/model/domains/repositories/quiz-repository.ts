@@ -2,7 +2,16 @@ import { injectable } from "tsyringe";
 import { Quiz } from "../../domains/entities/quiz";
 import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
-import type { QuizWithDataUrl } from "quiz-game-api";
+import type {
+  QuizWithDataUrl,
+  GetJsonArgs,
+  GetDriveDataArgs,
+  AddDriveDataArgs,
+  ListJsonMetaDataArgs,
+  RemoveDriveDataArgs,
+  GetDriveMetaDataArgs,
+  AddJsonArgs,
+} from "quiz-game-api";
 import { dataUrlToBlob } from "../../../utils/blob-utils";
 
 @injectable()
@@ -69,7 +78,8 @@ export class QuizRepository {
     if (direction === "gas-to-local") {
       onProgress?.("GASからクイズを取得中...");
       const jsonService = new GasFunctionService("quizGame_getJson");
-      const jsonResp = await jsonService.call<{ json: string }>({});
+      const args: GetJsonArgs = {};
+      const jsonResp = await jsonService.call<{ json: string }>(args);
       const jsonText = jsonResp?.json ?? JSON.stringify([]);
       let quizzes: QuizWithDataUrl[] = [];
       try {
@@ -119,7 +129,8 @@ export class QuizRepository {
           const fid = q.bgm.replace(/^drive:/, "");
           assetTasks.push(async () => {
             try {
-              const data = await getDriveDataService.call<any>(fid);
+              const args: GetDriveDataArgs = { dataId: fid };
+              const data = await getDriveDataService.call<any>(args);
               if (data && data.fileDataUrl) {
                 q.bgm = data.fileDataUrl;
                 successCount++;
@@ -144,7 +155,8 @@ export class QuizRepository {
             const fid = o.image.replace(/^drive:/, "");
             assetTasks.push(async () => {
               try {
-                const data = await getDriveDataService.call<any>(fid);
+                const args: GetDriveDataArgs = { dataId: fid };
+                const data = await getDriveDataService.call<any>(args);
                 if (data && data.fileDataUrl) {
                   o.image = data.fileDataUrl;
                   successCount++;
@@ -177,6 +189,7 @@ export class QuizRepository {
           ),
           correctNo: q.correctNo ?? 1,
           formUrl: q.formUrl,
+          answerFormId: q.answerFormId,
           timeLimit: q.timeLimit,
           bgm: q.bgm ? await dataUrlToBlob(q.bgm) : null,
           settings: q.settings
@@ -221,6 +234,7 @@ export class QuizRepository {
           ),
           correctNo: q.correctNo,
           formUrl: q.formUrl,
+          answerFormId: q.answerFormId,
           timeLimit: q.timeLimit,
           bgm:
             q.bgm && typeof q.bgm !== "string"
@@ -335,7 +349,8 @@ export class QuizRepository {
             fileDataUrl: task.dataUrl,
             uploadDate: new Date().toISOString(),
           };
-          const meta = await uploadService.call<any>(payload);
+          const args: AddDriveDataArgs = { driveData: payload };
+          const meta = await uploadService.call<any>(args);
           uploadResults.push({ task, success: true, fileId: meta?.fileId });
         } catch (e: any) {
           uploadResults.push({
@@ -393,22 +408,30 @@ export class QuizRepository {
       // best-effort cleanup: remove existing json/assets then add new json
       try {
         const listJson = new GasFunctionService("quizGame_listJsonMetaData");
-        const jsonMeta = await listJson.call<any>({});
+        const args: ListJsonMetaDataArgs = {};
+        const jsonMeta = await listJson.call<any>(args);
         if (Array.isArray(jsonMeta)) {
           const remover = new GasFunctionService("quizGame_removeDriveData");
           await Promise.all(
-            jsonMeta.map((m: any) => remover.call<void>(m.fileId))
+            jsonMeta.map((m: any) => {
+              const args: RemoveDriveDataArgs = { dataId: m.fileId };
+              return remover.call<void>(args);
+            })
           );
         }
       } catch (_) {}
 
       try {
         const listAssets = new GasFunctionService("quizGame_getDriveMetaData");
-        const assetMeta = await listAssets.call<any>({});
+        const args: GetDriveMetaDataArgs = {};
+        const assetMeta = await listAssets.call<any>(args);
         if (Array.isArray(assetMeta)) {
           const remover = new GasFunctionService("quizGame_removeDriveData");
           await Promise.all(
-            assetMeta.map((m: any) => remover.call<void>(m.fileId))
+            assetMeta.map((m: any) => {
+              const args: RemoveDriveDataArgs = { dataId: m.fileId };
+              return remover.call<void>(args);
+            })
           );
         }
       } catch (_) {}
@@ -416,7 +439,15 @@ export class QuizRepository {
       try {
         const addJson = new GasFunctionService("quizGame_addJson");
         const jsonText = JSON.stringify(quizzesWithDataUrl);
-        await addJson.call<any>({ fileName: "quizzes.json", jsonText });
+        const args: AddJsonArgs = {
+          driveJson: {
+            fileName: "quizzes.json",
+            jsonText,
+            uploadDate: new Date().toISOString(),
+            parentFolderId: "",
+          },
+        };
+        await addJson.call<any>(args);
       } catch (e) {
         // ignore json write errors for best-effort; record as failure
         failedFiles.push("quizzes.json");

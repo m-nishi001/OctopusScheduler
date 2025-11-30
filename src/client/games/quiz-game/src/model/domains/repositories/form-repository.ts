@@ -4,6 +4,11 @@ import type {
   SheetRow,
   QuizWithDataUrl,
   ProcessedResultDto,
+  StopFormArgs,
+  GetSheetDataArgs,
+  StopAndGetProcessedResultsArgs,
+  GetJsonArgs,
+  AddJsonArgs,
 } from "quiz-game-api";
 import type { SyncRequestDto } from "../../applications/dto/sync-request-dto";
 
@@ -11,12 +16,14 @@ import type { SyncRequestDto } from "../../applications/dto/sync-request-dto";
 export class FormRepository {
   async stopForm(quizId: string): Promise<void> {
     const service = new GasFunctionService("quizGame_stopForm");
-    await service.call<void>(quizId);
+    const args: StopFormArgs = { quizId };
+    await service.call<void>(args);
   }
 
   async getSheetData(quizId: string): Promise<SheetRow[]> {
     const service = new GasFunctionService("quizGame_getSheetData");
-    return await service.call<SheetRow[]>(quizId);
+    const args: GetSheetDataArgs = { quizId };
+    return await service.call<SheetRow[]>(args);
   }
 
   async stopAndGetProcessedResults(
@@ -38,12 +45,13 @@ export class FormRepository {
           correctValue,
         }
       );
-      const resp = await service.call<ProcessedResultDto[]>({
+      const args: StopAndGetProcessedResultsArgs = {
         quizId,
         quizStartTimeMs,
         answerKey,
         correctValue,
-      });
+      };
+      const resp = await service.call<ProcessedResultDto[]>(args);
       console.info(
         "[FormRepository] _quizGame_stopAndGetProcessedResults response length=",
         Array.isArray(resp) ? resp.length : "unknown",
@@ -64,7 +72,8 @@ export class FormRepository {
   ): Promise<QuizWithDataUrl[] | void> {
     if (request.direction === "gas-to-local") {
       const jsonService = new GasFunctionService("_quizGame_getJson");
-      const jsonResp = await jsonService.call<{ json: string }>({});
+      const args: GetJsonArgs = {};
+      const jsonResp = await jsonService.call<{ json: string }>(args);
       const jsonText = jsonResp?.json ?? JSON.stringify([]);
       try {
         return JSON.parse(jsonText) as QuizWithDataUrl[];
@@ -74,7 +83,15 @@ export class FormRepository {
     } else if (request.direction === "local-to-gas") {
       const addJson = new GasFunctionService("_quizGame_addJson");
       const text = JSON.stringify(request.quizzes ?? []);
-      await addJson.call<any>({ fileName: "quizzes.json", jsonText: text });
+      const args: AddJsonArgs = {
+        driveJson: {
+          fileName: "quizzes.json",
+          jsonText: text,
+          uploadDate: new Date().toISOString(),
+          parentFolderId: "",
+        },
+      };
+      await addJson.call<any>(args);
       return;
     }
     return;

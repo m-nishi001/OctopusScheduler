@@ -13,6 +13,7 @@ export class GetAllQuizzesUseCase {
       title: quiz.title,
       question: quiz.question,
       answerUrl: quiz.formUrl,
+      answerFormId: quiz.answerFormId,
       correctNo: (quiz as any).correctNo ?? 1,
       timeLimit: quiz.timeLimit,
       bgm: quiz.bgm,
@@ -24,7 +25,6 @@ export class GetAllQuizzesUseCase {
       })),
       settings: quiz.settings
         ? {
-            // Assert to `Blob | null` since client-side expects Blob instances.
             correctBgm: quiz.settings.correctBgm,
             prizeImage: quiz.settings.prizeImage,
             prizeName: quiz.settings.prizeName ?? null,

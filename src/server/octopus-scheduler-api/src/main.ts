@@ -3,48 +3,29 @@ import {
   DriveMetadata,
   DriveJsonData,
 } from "../../common/src/drive-types";
-import { GasResponse } from "../../common/src/gas-types";
+// Responses returned as JSON strings for client-side parsing
 import { GoogleDriveService } from "../../common/src/google-drive-service";
 
 declare let _octopusScheduler_doGet: (
   e: GoogleAppsScript.Events.DoGet
 ) => GoogleAppsScript.HTML.HtmlOutput;
 
-declare let _octopusScheduler_addDriveData: (
-  driveData: DriveData
-) => GasResponse<DriveMetadata>;
-declare let _octopusScheduler_getDriveMetaData: (
-  folderId?: string
-) => GasResponse<DriveMetadata[]>;
-declare let _octopusScheduler_getDriveData: (
-  dataId: string
-) => GasResponse<DriveData | null>;
-declare let _octopusScheduler_removeDriveData: (
-  dataId: string
-) => GasResponse<void>;
-declare let _octopusScheduler_updateDriveData: (
-  driveData: DriveData
-) => GasResponse<void>;
-declare let _octopusScheduler_addJsonData: (
-  driveJson: DriveJsonData
-) => GasResponse<DriveMetadata>;
-declare let _octopusScheduler_getJsonData: (
-  fileId?: string
-) => GasResponse<{ json: string }>;
-declare let _octopusScheduler_listJsonMetaData: (
-  folderId?: string
-) => GasResponse<DriveMetadata[]>;
+declare let _octopusScheduler_addDriveData: (driveData: DriveData) => string;
+declare let _octopusScheduler_getDriveMetaData: (folderId?: string) => string;
+declare let _octopusScheduler_getDriveData: (dataId: string) => string;
+declare let _octopusScheduler_removeDriveData: (dataId: string) => string;
+declare let _octopusScheduler_updateDriveData: (driveData: DriveData) => string;
+declare let _octopusScheduler_addJsonData: (driveJson: DriveJsonData) => string;
+declare let _octopusScheduler_getJsonData: (fileId?: string) => string;
+declare let _octopusScheduler_listJsonMetaData: (folderId?: string) => string;
 declare let _octopusScheduler_updateJsonData: (
   driveJson: DriveJsonData
-) => GasResponse<void>;
-declare let _octopusScheduler_getKeyboardShortcuts: () => GasResponse<{
-  shortcuts: any[];
-  config: any;
-}>;
+) => string;
+declare let _octopusScheduler_getKeyboardShortcuts: () => string;
 declare let _octopusScheduler_setKeyboardShortcuts: (payload: {
   shortcuts: string[][];
   config: any;
-}) => GasResponse<void>;
+}) => string;
 
 // Instantiate services
 const driveService = new GoogleDriveService();
@@ -82,79 +63,82 @@ function getAssetFolderId(_providedFolderId?: string): string {
 }
 
 // Assign global functions
-_octopusScheduler_addDriveData = (
-  driveData: DriveData
-): GasResponse<DriveMetadata> => {
+_octopusScheduler_addDriveData = (driveData: DriveData): string => {
   try {
-    // Always resolve the asset folder from ScriptProperties (ignore client-provided)
     const resolvedFolder = getAssetFolderId(driveData.parentFolderId);
     driveData.parentFolderId = resolvedFolder;
     const result = driveService.addDriveData(driveData);
-    return { status: "success", data: result.data! };
+    return JSON.stringify({ status: "success", data: result.data! });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_octopusScheduler_getDriveMetaData = (
-  folderId?: string
-): GasResponse<DriveMetadata[]> => {
+_octopusScheduler_getDriveMetaData = (folderId?: string): string => {
   try {
     const resolved =
       folderId && folderId.trim() !== ""
         ? folderId
         : getAssetFolderId(folderId);
     const result = driveService.getDriveMetaData(resolved);
-    // Ensure metadata items have parentFolderId set so clients can identify origin
     result.forEach((m) => {
       if (!m.parentFolderId) m.parentFolderId = resolved;
     });
-    return { status: "success", data: result };
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_octopusScheduler_getDriveData = (
-  dataId: string
-): GasResponse<DriveData | null> => {
+_octopusScheduler_getDriveData = (dataId: string): string => {
   try {
     const result = driveService.getDriveData(dataId);
-    return { status: "success", data: result };
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_octopusScheduler_removeDriveData = (dataId: string): GasResponse<void> => {
+_octopusScheduler_removeDriveData = (dataId: string): string => {
   try {
     driveService.removeDriveData(dataId);
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_octopusScheduler_updateDriveData = (
-  driveData: DriveData
-): GasResponse<void> => {
+_octopusScheduler_updateDriveData = (driveData: DriveData): string => {
   try {
     const result = driveService.updateDriveData(driveData);
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
 // JSON endpoints for settings and structured JSON files
-_octopusScheduler_addJsonData = (
-  driveJson: DriveJsonData
-): GasResponse<DriveMetadata> => {
+_octopusScheduler_addJsonData = (driveJson: DriveJsonData): string => {
   try {
     const folderId = getJsonFolderId(driveJson.parentFolderId);
 
     if (!driveJson.jsonText || !driveJson.fileName) {
-      return { status: "error", message: "invalid parameters" };
+      return JSON.stringify({ status: "error", message: "invalid parameters" });
     }
 
     const blob = Utilities.newBlob(
@@ -172,91 +156,98 @@ _octopusScheduler_addJsonData = (
       lastUpdate: new Date(file.getLastUpdated().getTime()).toISOString(),
       size: file.getSize(),
     };
-    return { status: "success", data: metadata };
+    return JSON.stringify({ status: "success", data: metadata });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_octopusScheduler_getJsonData = (
-  fileId?: string
-): GasResponse<{ json: string }> => {
+_octopusScheduler_getJsonData = (fileId?: string): string => {
   try {
     if (fileId && fileId.trim() !== "") {
       try {
         const file = DriveApp.getFileById(fileId);
         const content = file.getBlob().getDataAsString();
-        return { status: "success", data: { json: content } };
+        return JSON.stringify({ status: "success", data: { json: content } });
       } catch (e) {
         // Not a Drive ID or not found — fallthrough to attempt folder-based lookup
       }
     }
 
     // If no fileId provided or lookup by id failed, attempt to return an empty object
-    return { status: "success", data: { json: JSON.stringify({}) } };
+    return JSON.stringify({
+      status: "success",
+      data: { json: JSON.stringify({}) },
+    });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_octopusScheduler_listJsonMetaData = (
-  folderId?: string
-): GasResponse<DriveMetadata[]> => {
+_octopusScheduler_listJsonMetaData = (folderId?: string): string => {
   try {
     const resolved = folderId || getJsonFolderId();
     const result = driveService.getDriveMetaData(resolved);
-    return { status: "success", data: result };
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_octopusScheduler_updateJsonData = (
-  driveJson: DriveJsonData
-): GasResponse<void> => {
+_octopusScheduler_updateJsonData = (driveJson: DriveJsonData): string => {
   try {
-    // Prefer metadata.fileId if provided, else fail (file ID policy: Drive fileId is canonical)
     const fileId = driveJson.metadata?.fileId;
     if (!fileId) {
-      return {
+      return JSON.stringify({
         status: "error",
         message: "metadata.fileId is required for update",
-      };
+      });
     }
     const file = DriveApp.getFileById(fileId);
     file.setContent(driveJson.jsonText);
-    // Optionally update filename
     if (driveJson.fileName && driveJson.fileName !== file.getName()) {
       file.setName(driveJson.fileName);
     }
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
 // Spreadsheet functions removed as part of staged cleanup.
 
-_octopusScheduler_getKeyboardShortcuts = (): GasResponse<{
-  shortcuts: string[][];
-  config: any;
-}> => {
+_octopusScheduler_getKeyboardShortcuts = (): string => {
   try {
     const properties = PropertiesService.getScriptProperties();
     const shortcutsStr = properties.getProperty("keyboard-shortcuts");
     const configStr = properties.getProperty("keyboard-shortcuts-config");
     const shortcuts = shortcutsStr ? JSON.parse(shortcutsStr) : [];
     const config = configStr ? JSON.parse(configStr) : { enabled: true };
-    return { status: "success", data: { shortcuts, config } };
+    return JSON.stringify({ status: "success", data: { shortcuts, config } });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
 _octopusScheduler_setKeyboardShortcuts = (payload: {
   shortcuts: string[][];
   config: any;
-}): GasResponse<void> => {
+}): string => {
   try {
     const properties = PropertiesService.getScriptProperties();
     properties.setProperty(
@@ -267,9 +258,12 @@ _octopusScheduler_setKeyboardShortcuts = (payload: {
       "keyboard-shortcuts-config",
       JSON.stringify(payload.config)
     );
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 

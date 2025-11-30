@@ -4,7 +4,7 @@ import {
   DriveMetadata,
   DriveJsonData,
 } from "../../../common/src/drive-types";
-import { GasResponse } from "../../../common/src/gas-types";
+
 import { GoogleFormService } from "../../../common/src/google-form-service";
 import { SpreadsheetService } from "../../../common/src/google-spreadsheet-service";
 import { GoogleDriveService } from "../../../common/src/google-drive-service";
@@ -12,6 +12,23 @@ import type {
   SheetRow,
   QuizWithDataUrl,
   ProcessedResultDto,
+  StopFormArgs,
+  GetSheetDataArgs,
+  StopAndGetProcessedResultsArgs,
+  LoadEmailNameMapArgs,
+  GetMappedResponsesArgs,
+  AddDriveDataArgs,
+  GetDriveMetaDataArgs,
+  GetDriveDataArgs,
+  RemoveDriveDataArgs,
+  UpdateDriveDataArgs,
+  AddJsonArgs,
+  GetJsonArgs,
+  AddJsonDataArgs,
+  GetJsonDataArgs,
+  ListJsonMetaDataArgs,
+  UpdateJsonDataArgs,
+  TrashFolderContentsArgs,
 } from "./quiz-game-api.d.ts";
 
 // Instantiate services
@@ -54,69 +71,51 @@ function getJsonFolderId(providedFolderId?: string): string {
 }
 
 // Drive / JSON helper functions (similar to jackpot-game-api)
-declare let _quizGame_addDriveData: (
-  driveData: DriveData
-) => GasResponse<DriveMetadata>;
-declare let _quizGame_getDriveMetaData: (
-  folderId?: string
-) => GasResponse<DriveMetadata[]>;
-declare let _quizGame_getDriveData: (
-  dataId: string
-) => GasResponse<DriveData | null>;
-declare let _quizGame_removeDriveData: (dataId: string) => GasResponse<void>;
-declare let _quizGame_updateDriveData: (
-  driveData: DriveData
-) => GasResponse<void>;
-declare let _quizGame_addJson: (
-  driveJson: DriveJsonData
-) => GasResponse<DriveMetadata>;
-declare let _quizGame_getJson: (
-  fileId?: string
-) => GasResponse<{ json: string }>;
-declare let _quizGame_addJsonData: (
-  driveJson: DriveJsonData
-) => GasResponse<DriveMetadata>;
-declare let _quizGame_getJsonData: (
-  fileId?: string
-) => GasResponse<{ json: string }>;
-declare let _quizGame_listJsonMetaData: (
-  folderId?: string
-) => GasResponse<DriveMetadata[]>;
-declare let _quizGame_updateJsonData: (
-  driveJson: DriveJsonData
-) => GasResponse<void>;
+declare let _quizGame_addDriveData: (args: AddDriveDataArgs) => string;
+declare let _quizGame_getDriveMetaData: (args: GetDriveMetaDataArgs) => string;
+declare let _quizGame_getDriveData: (args: GetDriveDataArgs) => string;
+declare let _quizGame_removeDriveData: (args: RemoveDriveDataArgs) => string;
+declare let _quizGame_updateDriveData: (args: UpdateDriveDataArgs) => string;
+declare let _quizGame_addJson: (args: AddJsonArgs) => string;
+declare let _quizGame_getJson: (args: GetJsonArgs) => string;
+declare let _quizGame_addJsonData: (args: AddJsonDataArgs) => string;
+declare let _quizGame_getJsonData: (args: GetJsonDataArgs) => string;
+declare let _quizGame_listJsonMetaData: (args: ListJsonMetaDataArgs) => string;
+declare let _quizGame_updateJsonData: (args: UpdateJsonDataArgs) => string;
 
 // Basic existing functions: stop form / get sheet data
-declare let _quizGame_stopForm: (quizId: string) => GasResponse<void>;
-declare let _quizGame_getSheetData: (quizId: string) => GasResponse<SheetRow[]>;
+declare let _quizGame_stopForm: (args: StopFormArgs) => string;
+declare let _quizGame_getSheetData: (args: GetSheetDataArgs) => string;
 
 // Email->Name mapping cache key and ScriptProperty key for spreadsheet id
 const EMAIL_NAME_MAP_CACHE_KEY = "quiz-email-name-map";
 const EMAIL_NAME_SPREADSHEET_PROPERTY = "email-name-spreadsheet-id";
 
 // Declarations for new functions
-declare let _quizGame_loadEmailNameMap: () => GasResponse<void>;
+declare let _quizGame_loadEmailNameMap: (args: LoadEmailNameMapArgs) => string;
 declare let _quizGame_getMappedResponses: (
-  formId: string
-) => GasResponse<any[]>;
+  args: GetMappedResponsesArgs
+) => string;
 declare let _quizGame_stopAndGetProcessedResults: (
-  quizId: string,
-  quizStartTimeMs: number,
-  answerKey: string,
-  correctValue: string
-) => GasResponse<ProcessedResultDto[]>;
+  args: StopAndGetProcessedResultsArgs
+) => string;
 
-_quizGame_stopForm = (quizId: string): GasResponse<void> => {
+_quizGame_stopForm = (args: StopFormArgs): string => {
+  const { quizId } = args;
   try {
     const form = FormApp.openById(quizId);
     form.setAcceptingResponses(false);
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_getSheetData = (quizId: string): GasResponse<SheetRow[]> => {
+_quizGame_getSheetData = (args: GetSheetDataArgs): string => {
+  const { quizId } = args;
   try {
     const googleFormService = new GoogleFormService();
     const spreadsheetId = googleFormService.getDestinationSpreadsheetId(quizId);
@@ -142,9 +141,12 @@ _quizGame_getSheetData = (quizId: string): GasResponse<SheetRow[]> => {
         time: parseInt(row[1], 10),
       }));
 
-    return { status: "success", data: rows };
+    return JSON.stringify({ status: "success", data: rows });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
@@ -202,23 +204,27 @@ function loadEmailNameMapImpl(): Record<string, string> {
 }
 
 // Public: load email->name mapping into Script Cache
-_quizGame_loadEmailNameMap = (): GasResponse<void> => {
+_quizGame_loadEmailNameMap = (args: LoadEmailNameMapArgs): string => {
   try {
     loadEmailNameMapImpl();
     Logger.log("[_quizGame] _quizGame_loadEmailNameMap: success");
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     Logger.log(
       "[_quizGame] _quizGame_loadEmailNameMap: failed %s",
       (error as Error).message
     );
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
 // Public: get mapped responses from the Form-linked spreadsheet.
 // Returns array of objects where keys are header strings and meta fields prefixed with __ are included.
-_quizGame_getMappedResponses = (formId: string): GasResponse<any[]> => {
+_quizGame_getMappedResponses = (args: GetMappedResponsesArgs): string => {
+  const { formId } = args;
   try {
     Logger.log(
       "[_quizGame] _quizGame_getMappedResponses called for formId=%s",
@@ -246,7 +252,7 @@ _quizGame_getMappedResponses = (formId: string): GasResponse<any[]> => {
       values && values[0] ? values[0].length : 0
     );
     if (!values || values.length < 2) {
-      return { status: "success", data: [] };
+      return JSON.stringify({ status: "success", data: [] });
     }
 
     const headers = values[0].map((h) =>
@@ -329,23 +335,24 @@ _quizGame_getMappedResponses = (formId: string): GasResponse<any[]> => {
       out.length
     );
 
-    return { status: "success", data: out };
+    return JSON.stringify({ status: "success", data: out });
   } catch (error) {
     Logger.log(
       "[_quizGame] _quizGame_getMappedResponses failed: %s",
       (error as Error).message
     );
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
 // New function: stop form and get processed results (correct answers sorted by fastest)
 _quizGame_stopAndGetProcessedResults = (
-  quizId: string,
-  quizStartTimeMs: number,
-  answerKey: string,
-  correctValue: string
-): GasResponse<ProcessedResultDto[]> => {
+  args: StopAndGetProcessedResultsArgs
+): string => {
+  const { quizId, quizStartTimeMs, answerKey, correctValue } = args;
   try {
     Logger.log(
       "[_quizGame] _quizGame_stopAndGetProcessedResults called: quizId=%s, quizStartTimeMs=%s, answerKey=%s, correctValue=%s",
@@ -362,19 +369,25 @@ _quizGame_stopAndGetProcessedResults = (
       quizId
     );
 
-    // Step 2: Get mapped responses
-    const mappedResponse = _quizGame_getMappedResponses(quizId);
-    if (mappedResponse.status !== "success") {
+    // Step 2: Get mapped responses (mappedResponse is JSON string)
+    const mappedResponseRaw = _quizGame_getMappedResponses({ formId: quizId });
+    let mappedResponseObj: any;
+    try {
+      mappedResponseObj = JSON.parse(mappedResponseRaw);
+    } catch (_e) {
+      throw new Error("Failed to parse mapped responses");
+    }
+    if (mappedResponseObj.status !== "success") {
       throw new Error("Failed to get mapped responses");
     }
-    const answers = mappedResponse.data;
+    const answers = mappedResponseObj.data;
     Logger.log(
       "[_quizGame] _quizGame_stopAndGetProcessedResults: mapped responses count=%s",
       Array.isArray(answers) ? answers.length : 0
     );
 
     // Step 3: Filter correct answers and valid timestamps
-    const filtered = answers.filter((r) => {
+    const filtered = answers.filter((r: any) => {
       const normVal = String(r[answerKey] || "").trim();
       if (normVal !== correctValue) return false;
       const t = r.__timestampMs;
@@ -385,89 +398,114 @@ _quizGame_stopAndGetProcessedResults = (
 
     // Step 4: Sort by timestamp ascending (fastest first)
     filtered.sort(
-      (a, b) => Number(a.__timestampMs ?? 0) - Number(b.__timestampMs ?? 0)
+      (a: any, b: any) =>
+        Number(a.__timestampMs ?? 0) - Number(b.__timestampMs ?? 0)
     );
 
     // Step 5: Build ProcessedResultDto array with rank
-    const results: ProcessedResultDto[] = filtered.map((r, index) => ({
-      playerId: null, // Not available
-      playerName: r.name || null,
-      isCorrect: true, // All filtered are correct
-      timeToAnswerMs: Number(r.__timestampMs ?? 0) - quizStartTimeMs,
-      timestampMs: Number(r.__timestampMs ?? 0),
-      rank: index + 1,
-      rawRow: r.__raw,
-    }));
+    const results: ProcessedResultDto[] = filtered.map(
+      (r: any, index: number) => ({
+        playerId: null, // Not available
+        playerName: r.name || null,
+        isCorrect: true, // All filtered are correct
+        timeToAnswerMs: Number(r.__timestampMs ?? 0) - quizStartTimeMs,
+        timestampMs: Number(r.__timestampMs ?? 0),
+        rank: index + 1,
+        rawRow: r.__raw,
+      })
+    );
 
     Logger.log(
       "[_quizGame] _quizGame_stopAndGetProcessedResults: processed results count=%s",
       results.length
     );
 
-    return { status: "success", data: results };
+    return JSON.stringify({ status: "success", data: results });
   } catch (error) {
     Logger.log(
       "[_quizGame] _quizGame_stopAndGetProcessedResults failed: %s",
       (error as Error).message
     );
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
 // Drive helper implementations
-_quizGame_addDriveData = (driveData: DriveData): GasResponse<DriveMetadata> => {
+_quizGame_addDriveData = (args: AddDriveDataArgs): string => {
+  const { driveData } = args;
   try {
     // Resolve parent folder id if not provided so clients can omit it.
     const parent = driveData.parentFolderId || getAssetFolderId();
     const payload: DriveData = { ...driveData, parentFolderId: parent };
     const result = driveService.addDriveData(payload);
-    return { status: "success", data: result.data! };
+    return JSON.stringify({ status: "success", data: result.data! });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_getDriveMetaData = (
-  folderId?: string
-): GasResponse<DriveMetadata[]> => {
+_quizGame_getDriveMetaData = (args: GetDriveMetaDataArgs): string => {
+  const { folderId } = args;
   try {
     const resolved = folderId || getAssetFolderId();
     const result = driveService.getDriveMetaData(resolved);
-    return { status: "success", data: result };
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_getDriveData = (dataId: string): GasResponse<DriveData | null> => {
+_quizGame_getDriveData = (args: GetDriveDataArgs): string => {
+  const { dataId } = args;
   try {
     const result = driveService.getDriveData(dataId);
-    return { status: "success", data: result };
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_removeDriveData = (dataId: string): GasResponse<void> => {
+_quizGame_removeDriveData = (args: RemoveDriveDataArgs): string => {
+  const { dataId } = args;
   try {
     driveService.removeDriveData(dataId);
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_updateDriveData = (driveData: DriveData): GasResponse<void> => {
+_quizGame_updateDriveData = (args: UpdateDriveDataArgs): string => {
+  const { driveData } = args;
   try {
     driveService.updateDriveData(driveData);
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
 // JSON file helpers
-_quizGame_addJson = (driveJson: DriveJsonData): GasResponse<DriveMetadata> => {
+_quizGame_addJson = (args: AddJsonArgs): string => {
+  const { driveJson } = args;
   try {
     const folderId = getJsonFolderId(driveJson.parentFolderId);
 
@@ -492,20 +530,27 @@ _quizGame_addJson = (driveJson: DriveJsonData): GasResponse<DriveMetadata> => {
       lastUpdate: new Date(file.getLastUpdated().getTime()).toISOString(),
       size: file.getSize(),
     };
-    return { status: "success", data: metadata };
+    return JSON.stringify({ status: "success", data: metadata });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_getJson = (fileId?: string): GasResponse<{ json: string }> => {
+_quizGame_getJson = (args: GetJsonArgs): string => {
+  const { fileId } = args;
   try {
     let folderId = "";
     try {
       folderId = getJsonFolderId();
     } catch (e) {
       console.warn("getJson: json folder id not configured or not provided", e);
-      return { status: "success", data: { json: JSON.stringify([]) } };
+      return JSON.stringify({
+        status: "success",
+        data: { json: JSON.stringify([]) },
+      });
     }
     const folder = DriveApp.getFolderById(folderId);
 
@@ -513,14 +558,17 @@ _quizGame_getJson = (fileId?: string): GasResponse<{ json: string }> => {
       try {
         const file = DriveApp.getFileById(fileId);
         const content = file.getBlob().getDataAsString();
-        return { status: "success", data: { json: content } };
+        return JSON.stringify({ status: "success", data: { json: content } });
       } catch (e) {
         const filesByPrefix = folder.getFiles();
         while (filesByPrefix.hasNext()) {
           const f = filesByPrefix.next();
           if (f.getName().startsWith(`${fileId}_`)) {
             const content = f.getBlob().getDataAsString();
-            return { status: "success", data: { json: content } };
+            return JSON.stringify({
+              status: "success",
+              data: { json: content },
+            });
           }
         }
       }
@@ -528,7 +576,10 @@ _quizGame_getJson = (fileId?: string): GasResponse<{ json: string }> => {
 
     const files = folder.getFilesByName("quizzes.json");
     if (!files.hasNext()) {
-      return { status: "success", data: { json: JSON.stringify([]) } };
+      return JSON.stringify({
+        status: "success",
+        data: { json: JSON.stringify([]) },
+      });
     }
     const file = files.next();
     const content = file.getBlob().getDataAsString();
@@ -539,60 +590,78 @@ _quizGame_getJson = (fileId?: string): GasResponse<{ json: string }> => {
       parsed = [];
     }
     if (!Array.isArray(parsed)) parsed = [];
-    return { status: "success", data: { json: JSON.stringify(parsed) } };
+    return JSON.stringify({
+      status: "success",
+      data: { json: JSON.stringify(parsed) },
+    });
   } catch (error) {
     console.error("_quizGame_getJson error:", (error as Error).message);
-    return { status: "success", data: { json: JSON.stringify([]) } };
+    return JSON.stringify({
+      status: "success",
+      data: { json: JSON.stringify([]) },
+    });
   }
 };
 
-_quizGame_addJsonData = (
-  driveJson: DriveJsonData
-): GasResponse<DriveMetadata> => {
+_quizGame_addJsonData = (args: AddJsonDataArgs): string => {
+  const { driveJson } = args;
   try {
-    return _quizGame_addJson(driveJson);
+    return _quizGame_addJson({ driveJson });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_getJsonData = (fileId?: string): GasResponse<{ json: string }> => {
+_quizGame_getJsonData = (args: GetJsonDataArgs): string => {
+  const { fileId } = args;
   try {
-    return _quizGame_getJson(fileId);
+    return _quizGame_getJson({ fileId });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_listJsonMetaData = (
-  folderId?: string
-): GasResponse<DriveMetadata[]> => {
+_quizGame_listJsonMetaData = (args: ListJsonMetaDataArgs): string => {
+  const { folderId } = args;
   try {
     const resolved = folderId || getJsonFolderId();
     const result = driveService.getDriveMetaData(resolved);
-    return { status: "success", data: result };
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
-_quizGame_updateJsonData = (driveJson: DriveJsonData): GasResponse<void> => {
+_quizGame_updateJsonData = (args: UpdateJsonDataArgs): string => {
+  const { driveJson } = args;
   try {
     const fileId = driveJson.metadata?.fileId;
     if (!fileId) {
-      return {
+      return JSON.stringify({
         status: "error",
         message: "metadata.fileId is required for update",
-      };
+      });
     }
     const file = DriveApp.getFileById(fileId);
     file.setContent(driveJson.jsonText);
     if (driveJson.fileName && driveJson.fileName !== file.getName()) {
       file.setName(driveJson.fileName);
     }
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };
 
@@ -604,13 +673,17 @@ _quizGame_updateJsonData = (driveJson: DriveJsonData): GasResponse<void> => {
 // Trash all files in a folder (idempotent). Clients may call this to perform
 // destructive cleanup before writing new JSON or assets.
 declare let _quizGame_trashFolderContents: (
-  folderId?: string
-) => GasResponse<void>;
+  args: TrashFolderContentsArgs
+) => string;
 
-_quizGame_trashFolderContents = (folderId?: string): GasResponse<void> => {
+_quizGame_trashFolderContents = (args: TrashFolderContentsArgs): string => {
+  const { folderId } = args;
   try {
     if (!folderId || folderId.trim() === "") {
-      return { status: "error", message: "folderId is required" };
+      return JSON.stringify({
+        status: "error",
+        message: "folderId is required",
+      });
     }
     const folder = DriveApp.getFolderById(folderId);
     const files = folder.getFiles();
@@ -624,8 +697,11 @@ _quizGame_trashFolderContents = (folderId?: string): GasResponse<void> => {
       const f2 = sf.getFiles();
       while (f2.hasNext()) f2.next().setTrashed(true);
     }
-    return { status: "success", data: undefined };
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return { status: "error", message: (error as Error).message };
+    return JSON.stringify({
+      status: "error",
+      message: (error as Error).message,
+    });
   }
 };

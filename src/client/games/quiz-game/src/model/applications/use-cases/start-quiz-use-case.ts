@@ -11,7 +11,7 @@ export class StartQuizUseCase {
     if (!quiz) return null;
     try {
       console.debug("[StartQuizUseCase] quiz entity fetched:", quiz);
-      const extractedFormId = quiz.getFormId() ?? undefined;
+      const extractedFormId = quiz.answerFormId;
       console.debug(
         "[StartQuizUseCase] formUrl:",
         quiz.formUrl,
@@ -36,7 +36,7 @@ export class StartQuizUseCase {
         title: quiz.title,
         question: quiz.question,
         answerUrl: quiz.formUrl,
-        answerFormId: quiz.getFormId() ?? undefined,
+        answerFormId: quiz.answerFormId,
         correctNo: quiz.correctNo ?? 1,
         timeLimit: quiz.timeLimit,
         options: quiz.options,

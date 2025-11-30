@@ -10,7 +10,7 @@ export interface QuizDto {
   title: string;
   question: string;
   answerUrl: string;
-  answerFormId?: string;
+  answerFormId: string;
   correctNo?: number;
   timeLimit: number;
   options: {
@@ -27,6 +27,7 @@ export interface AddQuizDto {
   title: string;
   question: string;
   answerUrl: string;
+  answerFormId: string;
   correctNo?: number;
   timeLimit: number;
   options: {
@@ -44,6 +45,7 @@ export interface UpdateQuizDto {
   title: string;
   question: string;
   answerUrl: string;
+  answerFormId: string;
   correctNo?: number;
   timeLimit: number;
   options: {

@@ -87,6 +87,7 @@ const showModal = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
 const objectUrls = ref<string[]>([]);
 const audioElement = ref<HTMLAudioElement | null>(null);
+const bgmObjectUrl = ref<string | null>(null);
 
 // Modal states
 const isLoading = ref(false);
@@ -112,7 +113,7 @@ const optionsWithImageUrls = computed((): { no: number; text: string; color: str
         // Prefer already-created object URL from `objectUrls`; if absent, create from Blob
         // or use the string value. Use nullish coalescing to avoid `undefined` leaking
         // into `ref<string | null>` which is not allowed under `strictNullChecks`.
-        const imageUrl = (objectUrls.value[index] ?? (option.image instanceof Blob ? URL.createObjectURL(option.image) : (option.image ?? ''))) as string;
+        const imageUrl = objectUrls.value[index] || (option.image ? URL.createObjectURL(option.image) : '');
         return {
             no: option.no,
             text: option.text,
@@ -279,19 +280,13 @@ onMounted(async () => {
         startTimer();
         // Create object URLs for images
         objectUrls.value = quiz.value.options.map(option => {
-            if (option.image instanceof Blob) {
-                return URL.createObjectURL(option.image);
-            }
-            return (option.image as string) || '';
+            return option.image ? URL.createObjectURL(option.image) : '';
         });
         // Play BGM if available
         if (quiz.value.bgm) {
+            bgmObjectUrl.value = URL.createObjectURL(quiz.value.bgm);
             const audio = new Audio();
-            if (quiz.value.bgm instanceof Blob) {
-                audio.src = URL.createObjectURL(quiz.value.bgm);
-            } else {
-                audio.src = quiz.value.bgm as string;
-            }
+            audio.src = bgmObjectUrl.value;
             audio.loop = true;
             audio.play().catch(console.error); // 再生失敗を無視
             audioElement.value = audio;
@@ -309,6 +304,9 @@ onUnmounted(() => {
             URL.revokeObjectURL(url);
         }
     });
+    if (bgmObjectUrl.value && bgmObjectUrl.value.startsWith('blob:')) {
+        URL.revokeObjectURL(bgmObjectUrl.value);
+    }
     // Stop BGM
     if (audioElement.value) {
         audioElement.value.pause();
@@ -327,6 +325,10 @@ const startTimer = () => {
             if (audioElement.value) {
                 audioElement.value.pause();
                 audioElement.value = null;
+            }
+            if (bgmObjectUrl.value && bgmObjectUrl.value.startsWith('blob:')) {
+                URL.revokeObjectURL(bgmObjectUrl.value);
+                bgmObjectUrl.value = null;
             }
             // Immediately show modal so UI reflects 0s instantly
             showModal.value = true;
@@ -362,11 +364,15 @@ const startTimer = () => {
 
             if (!formId) {
                 console.warn('[stopAndGetProcessedResults] no answerFormId available on DTO; skipping.');
+                isLoading.value = false;
+                canProceed.value = true;
             } else {
                 console.info('[stopAndGetProcessedResults] about to call stopQuizUseCase for formId=', formId);
                 const stopQuizUseCase = container.resolve(StopQuizUseCase);
                 if (isPreview.value) {
                     console.info('[stopAndGetProcessedResults] preview mode: skipping for formId=', formId);
+                    isLoading.value = false;
+                    canProceed.value = true;
                 } else {
                     // Fire-and-forget: don't await so modal appears immediately.
                     const quizStartTimeMs = quizState.getStartTime() ?? Date.now();
@@ -431,6 +437,10 @@ const handleKeydown = (event: KeyboardEvent) => {
         if (audioElement.value) {
             audioElement.value.pause();
             audioElement.value = null;
+        }
+        if (bgmObjectUrl.value && bgmObjectUrl.value.startsWith('blob:')) {
+            URL.revokeObjectURL(bgmObjectUrl.value);
+            bgmObjectUrl.value = null;
         }
         if (enterStage.value === 0) {
             // Show correct answer
