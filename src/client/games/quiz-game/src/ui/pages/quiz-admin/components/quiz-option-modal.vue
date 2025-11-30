@@ -1,5 +1,5 @@
 <template>
-    <div v-if="showModal" class="option-modal-overlay">
+    <div class="option-modal-overlay">
         <div class="option-modal">
             <div class="modal-header">
                 <h3 class="modal-title">{{ isEditing ? '選択肢編集' : '選択肢追加' }}</h3>
@@ -41,7 +41,6 @@
 import { onUnmounted } from 'vue';
 
 const props = defineProps<{
-    showModal: boolean;
     isEditing: boolean;
     currentOption: { no: number; text: string; image: Blob | string | null; color: string };
     options: { no: number; text: string; image: Blob | string | null; color: string }[];
@@ -60,13 +59,15 @@ const emit = defineEmits<{
     close: [];
 }>();
 
-let currentObjectUrl: string | null = null;
+let currentObjectUrl: string | undefined;
 
 const imageSrc = () => {
     if (props.currentOption.image instanceof Blob) {
-        return URL.createObjectURL(props.currentOption.image);
+        if (currentObjectUrl) return currentObjectUrl;
+        currentObjectUrl = URL.createObjectURL(props.currentOption.image);
+        return currentObjectUrl;
     }
-    return props.currentOption.image;
+    return typeof props.currentOption.image === 'string' ? props.currentOption.image : undefined;
 };
 
 const closeModal = () => {

@@ -162,10 +162,16 @@ export class QuizRepository {
           bgm: q.bgm ? await dataUrlToBlob(q.bgm) : null,
           settings: q.settings
             ? {
-                correctBgmDataUrl: q.settings.correctBgmDataUrl,
-                prizeImageDataUrl: q.settings.prizeImageDataUrl,
-                prizeName: q.settings.prizeName,
-                prizeBgmDataUrl: q.settings.prizeBgmDataUrl,
+                correctBgm: q.settings.correctBgmDataUrl
+                  ? await dataUrlToBlob(q.settings.correctBgmDataUrl)
+                  : null,
+                prizeImage: q.settings.prizeImageDataUrl
+                  ? await dataUrlToBlob(q.settings.prizeImageDataUrl)
+                  : null,
+                prizeName: q.settings.prizeName ?? null,
+                prizeBgm: q.settings.prizeBgmDataUrl
+                  ? await dataUrlToBlob(q.settings.prizeBgmDataUrl)
+                  : null,
               }
             : undefined,
         });
@@ -201,7 +207,26 @@ export class QuizRepository {
             q.bgm && typeof q.bgm !== "string"
               ? await this.blobToDataUrl(q.bgm)
               : (q.bgm as string | null),
-          settings: q.settings,
+          settings: q.settings
+            ? {
+                // convert Blob fields to data URLs for GAS payload (legacy names expected)
+                correctBgmDataUrl:
+                  q.settings.correctBgm &&
+                  typeof q.settings.correctBgm !== "string"
+                    ? await this.blobToDataUrl(q.settings.correctBgm)
+                    : (q.settings.correctBgm as string | null),
+                prizeImageDataUrl:
+                  q.settings.prizeImage &&
+                  typeof q.settings.prizeImage !== "string"
+                    ? await this.blobToDataUrl(q.settings.prizeImage)
+                    : (q.settings.prizeImage as string | null),
+                prizeName: q.settings.prizeName ?? null,
+                prizeBgmDataUrl:
+                  q.settings.prizeBgm && typeof q.settings.prizeBgm !== "string"
+                    ? await this.blobToDataUrl(q.settings.prizeBgm)
+                    : (q.settings.prizeBgm as string | null),
+              }
+            : undefined,
         }))
       );
 

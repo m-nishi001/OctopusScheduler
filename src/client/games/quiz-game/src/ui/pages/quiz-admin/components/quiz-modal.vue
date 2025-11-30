@@ -1,5 +1,5 @@
 <template>
-    <div v-if="showModal" class="modal-overlay">
+    <div class="modal-overlay">
         <div class="modal">
             <div class="modal-header">
                 <h2 class="modal-title">{{ isEditing ? 'クイズ編集' : 'クイズ追加' }}</h2>
@@ -27,7 +27,8 @@
                     <label class="form-label">回答（正解）</label>
                     <select v-model.number="currentQuiz.correctNo" class="form-input"
                         :disabled="currentQuiz.options.length === 0">
-                        <option v-for="(opt, i) in currentQuiz.options" :key="i" :value="i + 1">{{ i + 1 }}: {{ opt.text }}
+                        <option v-for="(opt, i) in currentQuiz.options" :key="i" :value="i + 1">{{ i + 1 }}: {{ opt.text
+                            }}
                         </option>
                     </select>
                 </div>
@@ -72,7 +73,7 @@
                                 <td class="td-no">{{ option.no }}</td>
                                 <td class="td-content">{{ option.text }}</td>
                                 <td class="td-image">
-                                    <img v-if="option.image" :src="imageSrc(option.image)" alt="プレビュー"
+                                    <img v-if="option.image" :src="imageSrc(option)" alt="プレビュー"
                                         class="preview-image" />
                                     <span v-else>画像なし</span>
                                 </td>
@@ -95,7 +96,7 @@
             </form>
         </div>
     </div>
-    <QuizOptionModal :showModal="showOptionModal" :isEditing="isEditingOption" :currentOption="currentOption"
+    <QuizOptionModal v-if="showOptionModal" :isEditing="isEditingOption" :currentOption="currentOption"
         :options="currentQuiz.options" @save="saveOption" @close="closeOptionModal" />
 </template>
 
@@ -103,10 +104,8 @@
 import { defineProps, defineEmits, ref, onUnmounted, onMounted, watch, computed } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
 import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
-import { fileToDataUrl } from '../../../../utils/blob-utils';
 
 const props = defineProps<{
-    showModal: boolean;
     isEditing: boolean;
     currentQuiz: QuizDto;
 }>();
@@ -125,6 +124,28 @@ const correctBgmPreview = ref<string | null>(null);
 const prizeImagePreview = ref<string | null>(null);
 const prizeBgmPreview = ref<string | null>(null);
 
+// track created object URLs so we can revoke them reliably
+const createdObjectUrls = new Set<string>();
+
+const addObjectUrl = (url: string | null) => {
+    if (!url) return;
+    if (url.startsWith('blob:')) createdObjectUrls.add(url);
+};
+
+const revokeAllObjectUrls = () => {
+    for (const u of Array.from(createdObjectUrls)) {
+        try {
+            URL.revokeObjectURL(u);
+        } catch (e) {
+            // ignore
+        }
+        createdObjectUrls.delete(u);
+    }
+};
+
+// map option object -> preview URL so we reuse the same preview per option
+const optionPreviewMap = new Map<any, string>();
+
 const prizeName = computed({
     get: () => props.currentQuiz.settings?.prizeName || '',
     set: (value: string) => {
@@ -134,11 +155,23 @@ const prizeName = computed({
     }
 });
 
-const imageSrc = (image: Blob | string | null) => {
+const imageSrc = (option: { no?: number; text?: string; image: Blob | string | null }) => {
+    const image = option?.image;
     if (image instanceof Blob) {
-        return URL.createObjectURL(image);
+        // reuse existing preview URL for this option if present
+        const existing = optionPreviewMap.get(option);
+        if (existing) return existing;
+        try {
+            const u = URL.createObjectURL(image);
+            optionPreviewMap.set(option, u);
+            addObjectUrl(u);
+            return u;
+        } catch (e) {
+            console.error('Failed to create preview URL for option image', e);
+            return '';
+        }
     }
-    return image || '';
+    return (image as string) || '';
 };
 
 const closeModal = () => {
@@ -152,61 +185,72 @@ const saveQuiz = () => {
 const onBgmChange = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
+        // revoke previous preview if any
+        if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
+            try { URL.revokeObjectURL(bgmPreview.value); } catch { }
+            createdObjectUrls.delete(bgmPreview.value);
+        }
         props.currentQuiz.bgm = file;
-        bgmPreview.value = URL.createObjectURL(file);
+        const u = URL.createObjectURL(file);
+        bgmPreview.value = u;
+        addObjectUrl(u);
     } else {
         props.currentQuiz.bgm = null;
         if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
-            URL.revokeObjectURL(bgmPreview.value);
+            try { URL.revokeObjectURL(bgmPreview.value); } catch { }
+            createdObjectUrls.delete(bgmPreview.value);
         }
         bgmPreview.value = null;
     }
 };
 
-const onCorrectBgmChange = async (event: Event) => {
+const onCorrectBgmChange = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
+    if (correctBgmPreview.value && correctBgmPreview.value.startsWith('blob:')) {
+        try { URL.revokeObjectURL(correctBgmPreview.value); } catch { }
+        createdObjectUrls.delete(correctBgmPreview.value);
+    }
     if (file) {
-        try {
-            const dataUrl = await fileToDataUrl(file);
-            props.currentQuiz.settings!.correctBgmDataUrl = dataUrl;
-            correctBgmPreview.value = dataUrl;
-        } catch (error) {
-            console.error('Failed to convert correct BGM to data URL:', error);
-        }
+        props.currentQuiz.settings!.correctBgm = file;
+        const u = URL.createObjectURL(file);
+        correctBgmPreview.value = u;
+        addObjectUrl(u);
     } else {
-        props.currentQuiz.settings!.correctBgmDataUrl = null;
+        props.currentQuiz.settings!.correctBgm = null;
         correctBgmPreview.value = null;
     }
 };
 
-const onPrizeImageChange = async (event: Event) => {
+const onPrizeImageChange = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
+    if (prizeImagePreview.value && prizeImagePreview.value.startsWith('blob:')) {
+        try { URL.revokeObjectURL(prizeImagePreview.value); } catch { }
+        createdObjectUrls.delete(prizeImagePreview.value);
+    }
     if (file) {
-        try {
-            const dataUrl = await fileToDataUrl(file);
-            props.currentQuiz.settings!.prizeImageDataUrl = dataUrl;
-            prizeImagePreview.value = dataUrl;
-        } catch (error) {
-            console.error('Failed to convert prize image to data URL:', error);
-        }
+        props.currentQuiz.settings!.prizeImage = file;
+        const u = URL.createObjectURL(file);
+        prizeImagePreview.value = u;
+        addObjectUrl(u);
     } else {
-        props.currentQuiz.settings!.prizeImageDataUrl = null;
+        props.currentQuiz.settings!.prizeImage = null;
         prizeImagePreview.value = null;
     }
 };
 
-const onPrizeBgmChange = async (event: Event) => {
+const onPrizeBgmChange = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0];
+    if (prizeBgmPreview.value && prizeBgmPreview.value.startsWith('blob:')) {
+        try { URL.revokeObjectURL(prizeBgmPreview.value); } catch { }
+        createdObjectUrls.delete(prizeBgmPreview.value);
+    }
     if (file) {
-        try {
-            const dataUrl = await fileToDataUrl(file);
-            props.currentQuiz.settings!.prizeBgmDataUrl = dataUrl;
-            prizeBgmPreview.value = dataUrl;
-        } catch (error) {
-            console.error('Failed to convert prize BGM to data URL:', error);
-        }
+        props.currentQuiz.settings!.prizeBgm = file;
+        const u = URL.createObjectURL(file);
+        prizeBgmPreview.value = u;
+        addObjectUrl(u);
     } else {
-        props.currentQuiz.settings!.prizeBgmDataUrl = null;
+        props.currentQuiz.settings!.prizeBgm = null;
         prizeBgmPreview.value = null;
     }
 };
@@ -228,9 +272,13 @@ const editOption = (index: number) => {
 
 const saveOption = () => {
     if (isEditingOption.value) {
-        const oldImage = props.currentQuiz.options[editingOptionIndex.value].image;
-        if (oldImage && oldImage !== currentOption.value.image && typeof oldImage === 'string' && oldImage.startsWith('blob:')) {
-            URL.revokeObjectURL(oldImage);
+        // Revoke any preview URL associated with the option being edited
+        const targetOption = props.currentQuiz.options[editingOptionIndex.value];
+        const prevUrl = optionPreviewMap.get(targetOption);
+        if (prevUrl) {
+            try { URL.revokeObjectURL(prevUrl); } catch { }
+            optionPreviewMap.delete(targetOption);
+            createdObjectUrls.delete(prevUrl);
         }
         props.currentQuiz.options[editingOptionIndex.value] = { ...currentOption.value };
     } else {
@@ -245,51 +293,84 @@ const closeOptionModal = () => {
 
 const removeOption = (index: number) => {
     const option = props.currentQuiz.options[index];
-    if (option.image && typeof option.image === 'string' && option.image.startsWith('blob:')) {
-        URL.revokeObjectURL(option.image);
+    // revoke cached preview url for this option if any
+    const prev = optionPreviewMap.get(option);
+    if (prev) {
+        try { URL.revokeObjectURL(prev); } catch { }
+        optionPreviewMap.delete(option);
+        createdObjectUrls.delete(prev);
     }
     props.currentQuiz.options.splice(index, 1);
 };
 
 // コンポーネントのアンマウント時にBlob URLを解放
 onMounted(() => {
-    if (props.currentQuiz.bgm instanceof Blob) {
-        bgmPreview.value = URL.createObjectURL(props.currentQuiz.bgm);
+    // Initialize settings if not present
+    if (!props.currentQuiz.settings) {
+        props.currentQuiz.settings = {
+            correctBgm: null,
+            prizeImage: null,
+            prizeName: null,
+            prizeBgm: null,
+        };
     }
+
     // ensure correctNo exists on the quiz object for UI usage
     if ((props.currentQuiz as any).correctNo == null) {
         (props.currentQuiz as any).correctNo = 1;
     }
-    // Initialize settings if not present
-    if (!props.currentQuiz.settings) {
-        props.currentQuiz.settings = {
-            correctBgmDataUrl: null,
-            prizeImageDataUrl: null,
-            prizeName: null,
-            prizeBgmDataUrl: null,
-        };
+
+    // Setup bgm preview if blob
+    if (props.currentQuiz.bgm instanceof Blob) {
+        const u = URL.createObjectURL(props.currentQuiz.bgm);
+        bgmPreview.value = u;
+        addObjectUrl(u);
     }
-    // Set previews from existing data URLs
-    if (props.currentQuiz.settings.correctBgmDataUrl) {
-        correctBgmPreview.value = props.currentQuiz.settings.correctBgmDataUrl;
+
+    // Set previews from existing Blobs
+    if (props.currentQuiz.settings.correctBgm instanceof Blob) {
+        const u = URL.createObjectURL(props.currentQuiz.settings.correctBgm);
+        correctBgmPreview.value = u;
+        addObjectUrl(u);
     }
-    if (props.currentQuiz.settings.prizeImageDataUrl) {
-        prizeImagePreview.value = props.currentQuiz.settings.prizeImageDataUrl;
+    if (props.currentQuiz.settings.prizeImage instanceof Blob) {
+        const u = URL.createObjectURL(props.currentQuiz.settings.prizeImage);
+        prizeImagePreview.value = u;
+        addObjectUrl(u);
     }
-    if (props.currentQuiz.settings.prizeBgmDataUrl) {
-        prizeBgmPreview.value = props.currentQuiz.settings.prizeBgmDataUrl;
+    if (props.currentQuiz.settings.prizeBgm instanceof Blob) {
+        const u = URL.createObjectURL(props.currentQuiz.settings.prizeBgm);
+        prizeBgmPreview.value = u;
+        addObjectUrl(u);
     }
+
+    // Do not replace option.image (keep as Blob). previews are generated on-demand by imageSrc.
 });
 
 onUnmounted(() => {
-    props.currentQuiz.options.forEach(option => {
-        if (option.image && typeof option.image === 'string' && option.image.startsWith('blob:')) {
-            URL.revokeObjectURL(option.image);
-        }
-    });
-    if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
-        URL.revokeObjectURL(bgmPreview.value);
+    // Revoke any object URLs created during mount/use
+    // Options
+    // Revoke any preview URLs created for options
+    for (const [opt, url] of Array.from(optionPreviewMap.entries())) {
+        try { URL.revokeObjectURL(url); } catch { }
+        optionPreviewMap.delete(opt);
     }
+    // Other previews
+    if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
+        try { URL.revokeObjectURL(bgmPreview.value); } catch { }
+    }
+    if (correctBgmPreview.value && correctBgmPreview.value.startsWith('blob:')) {
+        try { URL.revokeObjectURL(correctBgmPreview.value); } catch { }
+    }
+    if (prizeImagePreview.value && prizeImagePreview.value.startsWith('blob:')) {
+        try { URL.revokeObjectURL(prizeImagePreview.value); } catch { }
+    }
+    if (prizeBgmPreview.value && prizeBgmPreview.value.startsWith('blob:')) {
+        try { URL.revokeObjectURL(prizeBgmPreview.value); } catch { }
+    }
+
+    // Revoke any other tracked object URLs
+    revokeAllObjectUrls();
 });
 
 // Watch option count and fallback correctNo to 1 when out of range

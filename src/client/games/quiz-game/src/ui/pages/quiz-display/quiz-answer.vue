@@ -48,12 +48,21 @@ onMounted(async () => {
   quiz.value = await startQuizUseCase.execute(quizId);
   document.addEventListener('keydown', handleKeydown);
 
-  // Play correct BGM if set
-  if (quiz.value?.settings?.correctBgmDataUrl) {
+  // Play correct BGM if set (supports new Blob form or legacy data URL string)
+  const maybeCorrect = quiz.value?.settings?.correctBgm;
+  if (maybeCorrect) {
     try {
-      const blob = dataUrlToBlob(quiz.value.settings.correctBgmDataUrl);
-      await load(blob);
-      await play();
+      let blobToPlay: Blob | null = null;
+      if (maybeCorrect instanceof Blob) {
+        blobToPlay = maybeCorrect;
+      } else if (typeof maybeCorrect === 'string') {
+        // legacy stored data URL; convert to Blob
+        blobToPlay = dataUrlToBlob(maybeCorrect);
+      }
+      if (blobToPlay) {
+        await load(blobToPlay);
+        await play();
+      }
     } catch (error) {
       console.error('Failed to play correct BGM:', error);
     }

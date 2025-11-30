@@ -349,8 +349,7 @@ const addMember = async () => {
       try {
         const url = URL.createObjectURL(previewBlob);
         objectUrlMap.set(newMember.photoAssetId, url);
-        (addedMember as any).photoDataUrl = url;
-      } catch { (addedMember as any).photoDataUrl = ''; }
+      } catch { /* ignore preview URL creation failures */ }
     } else if (newMember.photoAssetId && !objectUrlMap.has(newMember.photoAssetId)) {
       try {
         const asset = await assetDataService.getAssetDataById(newMember.photoAssetId);
@@ -412,7 +411,20 @@ const STORAGE_KEY = 'jackpot-game-members-json';
 
 const saveMembersToLocalJson = async () => {
   try {
-    const payload = JSON.stringify(members.value || []);
+    // sanitize members before saving to avoid persisting preview object URLs
+    const clean = (members.value || []).map(m => {
+      const copy: any = { ...m };
+      if (copy.photoDataUrl) delete copy.photoDataUrl;
+      // clear any accidental blob: URLs on string fields
+      for (const k of Object.keys(copy)) {
+        const v = copy[k];
+        if (typeof v === 'string' && v.startsWith && v.startsWith('blob:')) {
+          copy[k] = '';
+        }
+      }
+      return copy;
+    });
+    const payload = JSON.stringify(clean);
     localStorage.setItem(STORAGE_KEY, payload);
   } catch (e) {
     console.error('Failed to save members JSON to localStorage', e);

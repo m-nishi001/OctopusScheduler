@@ -5,8 +5,8 @@ import { dataUrlToBlob } from "../utils/blob-utils";
 export function usePrizeOrchestrator(options: {
   getSettings: () =>
     | {
-        prizeBgmDataUrl: string | null;
-        prizeImageDataUrl: string | null;
+        prizeBgm: Blob | string | null;
+        prizeImage: Blob | string | null;
         prizeName: string | null;
       }
     | undefined;
@@ -18,11 +18,16 @@ export function usePrizeOrchestrator(options: {
 
   const showPrizeDialog = async () => {
     const settings = options.getSettings();
-    if (settings?.prizeBgmDataUrl) {
+    if (settings?.prizeBgm) {
       try {
-        const blob = dataUrlToBlob(settings.prizeBgmDataUrl);
-        await audio.load(blob);
-        await audio.play();
+        let blob: Blob | null = null;
+        if (settings.prizeBgm instanceof Blob) blob = settings.prizeBgm;
+        else if (typeof settings.prizeBgm === "string")
+          blob = dataUrlToBlob(settings.prizeBgm);
+        if (blob) {
+          await audio.load(blob);
+          await audio.play();
+        }
       } catch (error) {
         console.error("Failed to load prize BGM:", error);
       }

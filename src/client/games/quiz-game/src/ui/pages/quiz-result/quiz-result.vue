@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
@@ -68,7 +68,30 @@ const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrche
 });
 
 const prizeName = computed(() => currentQuiz.value?.settings?.prizeName || null);
-const prizeImageUrl = computed(() => currentQuiz.value?.settings?.prizeImageDataUrl || null);
+const prizeImageUrl = ref<string | null>(null);
+
+// update prizeImageUrl whenever currentQuiz changes
+watch(currentQuiz, (q, oldQ) => {
+    try {
+        if (prizeImageUrl.value && prizeImageUrl.value.startsWith('blob:')) {
+            URL.revokeObjectURL(prizeImageUrl.value);
+        }
+    } catch (e) {
+        // ignore
+    }
+    const p = q?.settings?.prizeImage;
+    if (p instanceof Blob) {
+        try {
+            prizeImageUrl.value = URL.createObjectURL(p);
+        } catch (e) {
+            prizeImageUrl.value = null;
+        }
+    } else if (typeof p === 'string') {
+        prizeImageUrl.value = p;
+    } else {
+        prizeImageUrl.value = null;
+    }
+});
 
 // Helper: rank is determined by the finalResults order (ascending time)
 function getRank(record: { name: string; timeSeconds: number | null }): number {
@@ -104,6 +127,13 @@ onMounted(() => {
 
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
+    try {
+        if (prizeImageUrl.value && prizeImageUrl.value.startsWith('blob:')) {
+            URL.revokeObjectURL(prizeImageUrl.value);
+        }
+    } catch (e) {
+        // ignore
+    }
 });
 
 function handleKeydown(event: KeyboardEvent) {

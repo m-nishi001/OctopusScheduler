@@ -1,8 +1,8 @@
 export interface QuizSettings {
-  correctBgmDataUrl: string | null;
-  prizeImageDataUrl: string | null;
-  prizeName: string;
-  prizeBgmDataUrl: string | null;
+  correctBgm: Blob | string | null;
+  prizeImage: Blob | string | null;
+  prizeName: string | null;
+  prizeBgm: Blob | string | null;
 }
 
 export class Quiz {

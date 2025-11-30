@@ -60,7 +60,7 @@
                 </table>
             </div>
 
-            <QuizModal :showModal="showModal" :isEditing="isEditing" :currentQuiz="currentQuiz" @save="handleSave"
+            <QuizModal v-if="showModal" :isEditing="isEditing" :currentQuiz="currentQuiz" @save="handleSave"
                 @close="closeModal" />
 
             <dialog :open="showSyncDialog" class="sync-dialog">
@@ -129,10 +129,10 @@ const currentQuiz = ref<QuizDto>({
     options: [],
     bgm: null,
     settings: {
-        correctBgmDataUrl: null,
-        prizeImageDataUrl: null,
+        correctBgm: null,
+        prizeImage: null,
         prizeName: null,
-        prizeBgmDataUrl: null,
+        prizeBgm: null,
     },
 });
 
@@ -164,10 +164,10 @@ const addQuiz = () => {
         options: [],
         bgm: null,
         settings: {
-            correctBgmDataUrl: null,
-            prizeImageDataUrl: null,
+            correctBgm: null,
+            prizeImage: null,
             prizeName: null,
-            prizeBgmDataUrl: null,
+            prizeBgm: null,
         },
     };
     isEditing.value = false;
