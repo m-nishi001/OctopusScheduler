@@ -2,10 +2,10 @@ import { injectable } from "tsyringe";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 import type {
   SheetRow,
-  SyncRequest,
   QuizWithDataUrl,
   ProcessedResultDto,
 } from "quiz-game-api";
+import type { SyncRequestDto } from "../../applications/dto/sync-request-dto";
 
 @injectable()
 export class FormRepository {
@@ -38,12 +38,12 @@ export class FormRepository {
           correctValue,
         }
       );
-      const resp = await service.call<ProcessedResultDto[]>(
+      const resp = await service.call<ProcessedResultDto[]>({
         quizId,
         quizStartTimeMs,
         answerKey,
-        correctValue
-      );
+        correctValue,
+      });
       console.info(
         "[FormRepository] _quizGame_stopAndGetProcessedResults response length=",
         Array.isArray(resp) ? resp.length : "unknown",
@@ -59,7 +59,9 @@ export class FormRepository {
     }
   }
 
-  async syncQuizzes(request: SyncRequest): Promise<QuizWithDataUrl[] | void> {
+  async syncQuizzes(
+    request: SyncRequestDto
+  ): Promise<QuizWithDataUrl[] | void> {
     if (request.direction === "gas-to-local") {
       const jsonService = new GasFunctionService("_quizGame_getJson");
       const jsonResp = await jsonService.call<{ json: string }>({});
