@@ -2,7 +2,7 @@ import QuizResult from "../../ui/pages/quiz-result/quiz-result.vue";
 import QuizAdmin from "../../ui/pages/quiz-admin/quiz-admin.vue";
 import QuizIntro from "../../ui/pages/quiz-display/quiz-intro.vue";
 import QuizQr from "../../ui/pages/quiz-display/quiz-qr.vue";
-import QuizPlay from "../../ui/pages/quiz-display/quiz-play.vue";
+import QuizPlay from "../../ui/pages/quiz-display/pages/quiz-play.vue";
 import QuizAnswer from "../../ui/pages/quiz-display/quiz-answer.vue";
 const quizGameRoutes = [
   { path: "/quiz-home", component: QuizAdmin },

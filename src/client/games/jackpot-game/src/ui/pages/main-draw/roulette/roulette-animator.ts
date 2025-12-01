@@ -85,12 +85,49 @@ export function useRouletteAnimator(
       throw new Error("occurrence must be >= 1");
     }
 
-    const candidates = currentRouletteItems.filter(
-      (item) =>
-        item.id === targetRouletteItemId ||
-        (item as any).prizeId === targetRouletteItemId
+    try {
+      console.log("[RouletteAnimator] stopSpin called", {
+        targetRouletteItemId,
+        occurrence,
+        duration,
+      });
+      console.log(
+        "[RouletteAnimator] currentRouletteItems:",
+        currentRouletteItems.map((it) => ({
+          id: it.id,
+          prizeId: (it as any).prizeId,
+          index: it.index,
+          idType: typeof it.id,
+          prizeIdType: typeof (it as any).prizeId,
+        }))
+      );
+    } catch (e) {
+      console.warn(
+        "[RouletteAnimator] failed to stringify currentRouletteItems",
+        e
+      );
+    }
+
+    const candidates = currentRouletteItems.filter((item) => {
+      const idsToCheck = [String(item.id), String((item as any).prizeId ?? "")];
+      const targetStr = String(targetRouletteItemId);
+      const match = idsToCheck.some((x) => x === targetStr);
+      if (!match) {
+        // check for simple suffix / duplication forms (e.g., original id match)
+        const original = String((item as any).originalPrizeId ?? "");
+        if (original && original === targetStr) return true;
+      }
+      return match;
+    });
+    console.log(
+      "[RouletteAnimator] candidates found:",
+      candidates.map((c) => ({ id: c.id, prizeId: (c as any).prizeId }))
     );
     if (candidates.length === 0) {
+      console.error(
+        "[RouletteAnimator] Target prize not found. target=",
+        targetRouletteItemId
+      );
       throw new Error("Target prize not found");
     }
     let finalPrize = candidates.at(occurrence - 1) as

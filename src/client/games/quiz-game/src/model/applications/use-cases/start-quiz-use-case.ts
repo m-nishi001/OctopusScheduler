@@ -28,6 +28,7 @@ export class StartQuizUseCase {
         timeLimit: quiz.timeLimit,
         options: quiz.options,
         bgm: quiz.bgm,
+        settings: quiz.settings,
       };
     } catch (e) {
       console.warn("[StartQuizUseCase] debug logging error", e);
@@ -41,6 +42,7 @@ export class StartQuizUseCase {
         timeLimit: quiz.timeLimit,
         options: quiz.options,
         bgm: quiz.bgm,
+        settings: quiz.settings,
       };
     }
   }

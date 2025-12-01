@@ -37,7 +37,7 @@ const octopusSchedulerRoutes = [
         props: true,
       },
       {
-        path: "show-html/:content",
+        path: "show-html/:id",
         name: "show-html",
         component: ShowHtml,
         props: true,
@@ -82,7 +82,15 @@ const octopusSchedulerRoutes = [
     path: "/show-html/:content",
     redirect: (to: any) => ({
       name: "show-html",
+      // preserve legacy links: map content -> id if already looks like an id, else keep as content
       params: { content: to.params.content },
+    }),
+  },
+  {
+    path: "/show-html/:id",
+    redirect: (to: any) => ({
+      name: "show-html",
+      params: { id: to.params.id },
     }),
   },
   {

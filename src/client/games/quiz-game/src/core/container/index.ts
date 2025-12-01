@@ -9,6 +9,7 @@ import { AddQuizUseCase } from "../../model/applications/use-cases/add-quiz-use-
 import { UpdateQuizUseCase } from "../../model/applications/use-cases/update-quiz-use-case";
 import { GetAllQuizzesUseCase } from "../../model/applications/use-cases/get-all-quizzes-use-case";
 import { DeleteQuizUseCase } from "../../model/applications/use-cases/delete-quiz-use-case";
+import { UiQuizService } from "../../ui/pages/quiz-display/services/quiz-service";
 
 export class Container {
   static register() {
@@ -26,5 +27,7 @@ export class Container {
       useClass: GetAllQuizzesUseCase,
     });
     container.register(DeleteQuizUseCase, { useClass: DeleteQuizUseCase });
+    // UI-level quiz service for pages
+    container.register(UiQuizService, { useClass: UiQuizService });
   }
 }

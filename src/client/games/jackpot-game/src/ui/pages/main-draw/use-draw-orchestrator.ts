@@ -167,12 +167,69 @@ export function useDrawOrchestrator() {
       console.log("[DrawOrchestrator] draw result received", { res });
       preDrawResult.value = res;
       latestResult.value = res;
-      latestResult.value.wonPrize = prizes.value.find(
-        (p: PrizeDto) => p.id === res.wonPrize!.id
-      )!;
-      updateSelectedPrize(
-        prizes.value.find((p: PrizeDto) => p.id === res.wonPrize!.id)!
-      );
+      // Safely resolve the full PrizeDto for the winner. If it's missing from
+      // the current `prizes` list, try to fetch it from the repository and
+      // inject it so preparePrizes can include it for rendering.
+      const winnerId = res.wonPrize?.id ?? null;
+      let winnerPrizeObj: PrizeDto | null = null;
+      if (winnerId) {
+        winnerPrizeObj =
+          prizes.value.find(
+            (p: PrizeDto) =>
+              p.id === winnerId || (p as any).originalPrizeId === winnerId
+          ) || null;
+        if (!winnerPrizeObj) {
+          try {
+            const fetched = await prizeRepo.getPrizeById(winnerId);
+            if (fetched) {
+              console.log(
+                "[DrawOrchestrator] fetched missing winner prize from repo",
+                winnerId
+              );
+              // Inject fetched prize into reactive prizes list (append).
+              prizes.value = [...prizes.value, fetched];
+              winnerPrizeObj = fetched;
+            } else {
+              console.warn(
+                "[DrawOrchestrator] winner prize not found in repo for id",
+                winnerId
+              );
+            }
+          } catch (e) {
+            console.warn(
+              "[DrawOrchestrator] getPrizeById failed for",
+              winnerId,
+              e
+            );
+          }
+        }
+      }
+
+      if (winnerPrizeObj) {
+        latestResult.value.wonPrize = winnerPrizeObj;
+        updateSelectedPrize(winnerPrizeObj);
+      } else {
+        // Fallback: keep the lightweight wonPrize from the draw result and
+        // set selectedPrize to null if we cannot resolve a full PrizeDto.
+        latestResult.value.wonPrize = res.wonPrize || null;
+        updateSelectedPrize(
+          prizes.value.find((p: PrizeDto) => p.id === winnerId) || null
+        );
+      }
+
+      // Ensure the prepared/prerendered roulette items include the winner (if known)
+      try {
+        if (winnerId) {
+          await preparePrizes(prizes.value, [winnerId]);
+        } else {
+          await preparePrizes(prizes.value);
+        }
+      } catch (e) {
+        console.warn(
+          "[DrawOrchestrator] preparePrizes (force-include) failed",
+          e
+        );
+      }
       if (selectedPrize.value?.animation === "slot") {
         currentPrizeComponent.value = markRaw(SlotAnimation as any);
         console.log("[DrawOrchestrator] selected component: SlotAnimation");

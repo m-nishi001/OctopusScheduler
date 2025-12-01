@@ -27,16 +27,26 @@ export function usePrizeDrawState(
   const preparedPrizes = ref<RouletteItem[]>([]);
   const canStop = ref(false);
 
-  const preparePrizes = async (newPrizes: PrizeDto[]) => {
-    const newPrepared = await prepareRenderPrizes(newPrizes, assetService);
+  const preparePrizes = async (
+    newPrizes: PrizeDto[],
+    forcedIncludeIds: string[] = []
+  ) => {
+    const newPrepared = await prepareRenderPrizes(
+      newPrizes,
+      assetService,
+      forcedIncludeIds
+    );
     revokePreparedPrizes(preparedPrizes.value);
     preparedPrizes.value = newPrepared;
     return newPrepared;
   };
 
-  const updatePrizes = async (newPrizes: PrizeDto[]) => {
+  const updatePrizes = async (
+    newPrizes: PrizeDto[],
+    forcedIncludeIds: string[] = []
+  ) => {
     prizes.value = newPrizes;
-    await preparePrizes(newPrizes);
+    await preparePrizes(newPrizes, forcedIncludeIds);
   };
 
   const updateSelectedPrize = (newSelected: PrizeDto | null) => {

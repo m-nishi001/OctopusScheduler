@@ -121,6 +121,25 @@ export function useRouletteAnimation(
     if (currentRouletteItems.length === 0) {
       throw new Error("Roulette items not initialized");
     }
+    try {
+      console.log("[RouletteAnimation] stopSpin requested", {
+        targetId,
+        occurrence,
+        durationSec,
+      });
+      console.log(
+        "[RouletteAnimation] currentRouletteItems:",
+        currentRouletteItems.map((it) => ({
+          id: it.id,
+          prizeId: it.prizeId,
+          index: it.index,
+          idType: typeof it.id,
+          prizeIdType: typeof it.prizeId,
+        }))
+      );
+    } catch (e) {
+      console.warn("[RouletteAnimation] failed to log currentRouletteItems", e);
+    }
     const sectorAngle = calculateSectorAngle(currentRouletteItems.length);
     const result = await animator.stopSpin(
       targetId,

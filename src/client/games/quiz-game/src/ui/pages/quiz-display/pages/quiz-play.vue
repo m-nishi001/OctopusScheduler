@@ -28,25 +28,9 @@
                 <h2 class="modal-title">終了！</h2>
                 <p class="modal-body" v-if="isLoading">回答を取得中…</p>
                 <p class="modal-body" v-else-if="errorMessage">{{ errorMessage }}</p>
-                <p class="modal-body" v-else-if="enterStage === 0">集計完了。Enterで正解表示</p>
-                <div v-else-if="enterStage === 1">
-                    <p class="modal-body">正解: {{quiz?.options.find(opt => opt.no === quiz?.correctNo)?.text}}</p>
-                    <p class="modal-body">Enterで結果表示</p>
-                </div>
-                <div v-else-if="enterStage === 2">
-                    <p class="modal-body">結果:</p>
-                    <ul>
-                        <li v-for="result in sortedResults.slice(0, 10)" :key="result.rank">
-                            {{ result.rank }}位: {{ result.playerName || '匿名' }} - {{ Math.round(result.timeToAnswerMs /
-                                1000) }}秒
-                        </li>
-                    </ul>
-                    <p class="modal-body">Enterで景品へ</p>
-                </div>
+                <p class="modal-body" v-else>集計完了。Enterで正解表示</p>
             </div>
         </div>
-        <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="quiz?.settings?.prizeName ?? null"
-            :prize-image-url="prizeImageUrl" @close="hidePrizeDialog" />
     </div>
     <div v-else class="loading">Loading...</div>
 </template>
@@ -55,14 +39,12 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
-import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
-import { StopQuizUseCase } from '../../../model/applications/use-cases/stop-quiz-use-case';
-import OptionCard from '../../components/option-card.vue';
+import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
+import { StartQuizUseCase } from '../../../../model/applications/use-cases/start-quiz-use-case';
+import { StopQuizUseCase } from '../../../../model/applications/use-cases/stop-quiz-use-case';
+import OptionCard from '../components/option-card.vue';
 import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
-import { quizState } from '../../../services/quizState';
-import PrizeDialog from '../../../components/prize-dialog.vue';
-import { usePrizeOrchestrator } from '../../../composables/use-prize-orchestrator';
+import { quizState } from '../../../../services/quizState';
 
 const route = useRoute();
 const router = useRouter();
@@ -92,8 +74,6 @@ const bgmObjectUrl = ref<string | null>(null);
 // Modal states
 const isLoading = ref(false);
 const canProceed = ref(false);
-const enterStage = ref(0); // 0: initial, 1: correct shown, 2: results shown
-const sortedResults = ref<any[]>([]);
 const errorMessage = ref<string | null>(null);
 
 const qrCodeUrl = computed(() => {
@@ -102,14 +82,9 @@ const qrCodeUrl = computed(() => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(q.answerUrl)}`;
 });
 
-const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
-    getSettings: () => quiz.value?.settings,
-    onNavigateHome: () => router.push({ name: 'home' }),
-});
-
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
     if (!quiz.value) return [];
-    return quiz.value.options.map((option, index) => {
+    return quiz.value.options.map((option: any, index: number) => {
         // Prefer already-created object URL from `objectUrls`; if absent, create from Blob
         // or use the string value. Use nullish coalescing to avoid `undefined` leaking
         // into `ref<string | null>` which is not allowed under `strictNullChecks`.
@@ -208,7 +183,7 @@ const updateCardHeight = debounce(() => {
     void calcCardHeight();
 }, 48);
 
-onMounted(() => {
+onMounted(async () => {
     // initial calc and bind resize
     updateCardHeight();
     window.addEventListener('resize', updateCardHeight);
@@ -231,28 +206,8 @@ onMounted(() => {
     // Listen for image load events inside the options grid — when images finish loading heights can change
     imgLoadHandler = () => updateCardHeight();
     if (optionsGridEl) optionsGridEl.addEventListener('load', imgLoadHandler, true);
-});
 
-onUnmounted(() => {
-    window.removeEventListener('resize', updateCardHeight);
-    if (ro) {
-        try {
-            ro.disconnect();
-        } catch (e) {
-            /* ignore */
-        }
-        ro = null;
-    }
-    if (optionsGridEl && imgLoadHandler) {
-        optionsGridEl.removeEventListener('load', imgLoadHandler, true);
-        optionsGridEl = null;
-        imgLoadHandler = null;
-    }
-});
-
-watch([optionsCount, () => quiz.value?.question], () => updateCardHeight());
-
-onMounted(async () => {
+    // Load quiz data
     const startQuizUseCase = container.resolve(StartQuizUseCase);
     quiz.value = await startQuizUseCase.execute(quizId);
     if (quiz.value) {
@@ -269,7 +224,7 @@ onMounted(async () => {
             if (isPreview.value) {
                 console.info('Preview mode: skipping GAS preload of email->name map');
             } else {
-                const loadSvc = new GasFunctionService('_quizGame_loadEmailNameMap');
+                const loadSvc = new GasFunctionService('quizGame_loadEmailNameMap');
                 // call without args
                 await loadSvc.call();
             }
@@ -279,7 +234,7 @@ onMounted(async () => {
 
         startTimer();
         // Create object URLs for images
-        objectUrls.value = quiz.value.options.map(option => {
+        objectUrls.value = quiz.value.options.map((option: any) => {
             return option.image ? URL.createObjectURL(option.image) : '';
         });
         // Play BGM if available
@@ -295,7 +250,24 @@ onMounted(async () => {
     document.addEventListener('keydown', handleKeydown);
 });
 
+watch([optionsCount, () => quiz.value?.question], () => updateCardHeight());
+
 onUnmounted(() => {
+    window.removeEventListener('resize', updateCardHeight);
+    if (ro) {
+        try {
+            ro.disconnect();
+        } catch (e) {
+            /* ignore */
+        }
+        ro = null;
+    }
+    if (optionsGridEl && imgLoadHandler) {
+        optionsGridEl.removeEventListener('load', imgLoadHandler, true);
+        optionsGridEl = null;
+        imgLoadHandler = null;
+    }
+
     if (timer) clearInterval(timer);
     document.removeEventListener('keydown', handleKeydown);
     // Revoke object URLs to prevent memory leaks
@@ -317,7 +289,8 @@ onUnmounted(() => {
 // Prefer the parsed form id provided by the domain via DTO (answerFormId).
 
 const startTimer = () => {
-    timer = setInterval(() => {
+    // make the interval callback async so we can await the stop/process step
+    timer = setInterval(async () => {
         timeLeft.value--;
         if (timeLeft.value <= 0) {
             if (timer) clearInterval(timer);
@@ -334,8 +307,6 @@ const startTimer = () => {
             showModal.value = true;
             isLoading.value = true;
             canProceed.value = false;
-            enterStage.value = 0;
-            sortedResults.value = [];
             errorMessage.value = null;
 
             // Prefer parsed form id from DTO; do not parse in the component if possible.
@@ -374,25 +345,43 @@ const startTimer = () => {
                     isLoading.value = false;
                     canProceed.value = true;
                 } else {
-                    // Fire-and-forget: don't await so modal appears immediately.
+                    // await the stop/process so we only enable Enter after work completes
                     const quizStartTimeMs = quizState.getStartTime() ?? Date.now();
                     const answerKey = '回答'; // Assuming the column is '回答'
-                    const correctOption = quiz.value?.options.find(opt => opt.no === quiz.value?.correctNo);
+                    const correctOption = quiz.value?.options.find((opt: any) => opt.no === quiz.value?.correctNo);
                     const correctValue = correctOption?.text || '';
-                    stopQuizUseCase
-                        .execute(formId, quizStartTimeMs, answerKey, correctValue)
-                        .then((results) => {
-                            console.log('[stopAndGetProcessedResults] succeeded for formId=', formId, 'results count=', results.length);
-                            sortedResults.value = results;
-                            isLoading.value = false;
-                            canProceed.value = true;
-                        })
-                        .catch((err) => {
-                            console.error('[stopAndGetProcessedResults] failed for formId=', formId, 'error=', err?.message ?? err);
-                            errorMessage.value = '集計に失敗しました。';
-                            isLoading.value = false;
-                            canProceed.value = true; // Allow retry or proceed
-                        });
+                    try {
+                        const results = await stopQuizUseCase.execute(formId, quizStartTimeMs, answerKey, correctValue);
+                        console.log('[stopAndGetProcessedResults] succeeded for formId=', formId, 'results count=', Array.isArray(results) ? results.length : 'unknown');
+                        try {
+                            // Normalize cached results into ResultDto[] shape expected by results page
+                            const normalized = (Array.isArray(results) ? results : []).map((r: any, idx: number) => {
+                                const id = String(r.playerId ?? r.id ?? r.responseId ?? r.__responseId ?? (idx + 1));
+                                const playerName = r.playerName ?? r.name ?? r.displayName ?? r.email ?? '匿名';
+                                // time in ms: prefer timeToAnswerMs, then timestampMs-quizStartTimeMs, then time (may be seconds)
+                                let timeMs: number | null = null;
+                                if (typeof r.timeToAnswerMs === 'number') timeMs = Number(r.timeToAnswerMs);
+                                else if (typeof r.timestampMs === 'number') timeMs = Number(r.timestampMs) - Number(quizStartTimeMs || Date.now());
+                                else if (typeof r.time === 'number') {
+                                    // if `time` looks like seconds (small), convert to ms heuristically
+                                    timeMs = r.time > 1000 ? Number(r.time) : Number(r.time) * 1000;
+                                }
+                                const rank = typeof r.rank === 'number' ? r.rank : idx + 1;
+                                return { id, playerName: String(playerName), time: timeMs ?? 0, rank };
+                            });
+                            quizState.setResults(normalized as any[]);
+                        } catch (e) {
+                            console.warn('Failed to normalize/cache results in quizState', e);
+                            try { quizState.setResults(results as any[]); } catch (_) { /* ignore */ }
+                        }
+                        isLoading.value = false;
+                        canProceed.value = true;
+                    } catch (err) {
+                        console.error('[stopAndGetProcessedResults] failed for formId=', formId, 'error=', err?.message ?? err);
+                        errorMessage.value = '集計に失敗しました。';
+                        isLoading.value = false;
+                        canProceed.value = true; // Allow retry or proceed
+                    }
                 }
             }
         }
@@ -405,32 +394,7 @@ const selectOption = (index?: number) => {
     console.log('Selected option:', idx);
 };
 
-// prize image URL handling: create an object URL for Blob and revoke when changed/unmounted
-const prizeObjectUrl = ref<string | null>(null);
-const prizeImageUrl = computed((): string | null => prizeObjectUrl.value);
-
-watch(
-    () => quiz.value?.settings?.prizeImage,
-    (v, _old) => {
-        if (prizeObjectUrl.value && prizeObjectUrl.value.startsWith('blob:')) {
-            try {
-                URL.revokeObjectURL(prizeObjectUrl.value);
-            } catch { }
-        }
-        if (v instanceof Blob) {
-            try {
-                prizeObjectUrl.value = URL.createObjectURL(v);
-            } catch {
-                prizeObjectUrl.value = null;
-            }
-        } else if (typeof v === 'string') {
-            prizeObjectUrl.value = v;
-        } else {
-            prizeObjectUrl.value = null;
-        }
-    },
-    { immediate: true }
-);
+// prize image URL handling: handled in usePrizeOrchestrator
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && showModal.value && canProceed.value) {
@@ -442,16 +406,10 @@ const handleKeydown = (event: KeyboardEvent) => {
             URL.revokeObjectURL(bgmObjectUrl.value);
             bgmObjectUrl.value = null;
         }
-        if (enterStage.value === 0) {
-            // Show correct answer
-            enterStage.value = 1;
-        } else if (enterStage.value === 1) {
-            // Show results
-            enterStage.value = 2;
-        } else if (enterStage.value === 2) {
-            // Show prize dialog
-            showPrizeDialog();
-        }
+        // Navigate to answer display page. Use the preview-specific route name when in preview mode
+        // so downstream components that check the route name (`endsWith('-preview')`) keep
+        // behaving in preview mode.
+        router.push({ name: isPreview.value ? 'quiz-answer-preview' : 'quiz-answer', params: { id: quizId } });
     }
 };
 </script>

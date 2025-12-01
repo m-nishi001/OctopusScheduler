@@ -82,11 +82,45 @@ export class BaseHandler {
   ) {
     console.log("[DrawOrchestrator] stopPrizeDraw", {
       selectedPrizeId: selectedPrize.value?.id,
+      selectedPrizeType: typeof selectedPrize.value?.id,
     });
+
+    // Diagnostic: dump animator internal items if available so we can see why
+    // the target prize might not be found.
+    try {
+      if (animationRef.value?.getInternalItems) {
+        const internal = animationRef.value.getInternalItems();
+        console.log(
+          "[DrawOrchestrator] animationRef.getInternalItems:",
+          internal.map((it: any) => ({
+            id: it.id,
+            prizeId: it.prizeId,
+            index: it.index,
+            idType: typeof it.id,
+            prizeIdType: typeof it.prizeId,
+          }))
+        );
+      } else {
+        console.log(
+          "[DrawOrchestrator] animationRef.getInternalItems not available"
+        );
+      }
+    } catch (e) {
+      console.warn(
+        "[DrawOrchestrator] failed to read animationRef internal items",
+        e
+      );
+    }
+
     if (animationRef.value?.stopSpin && selectedPrize.value) {
-      await animationRef.value.stopSpin(3, selectedPrize.value.id);
-      emitter.emit("nextAction");
-      console.log("[DrawOrchestrator] stopPrizeDraw completed stopSpin");
+      try {
+        await animationRef.value.stopSpin(3, selectedPrize.value.id);
+        emitter.emit("nextAction");
+        console.log("[DrawOrchestrator] stopPrizeDraw completed stopSpin");
+      } catch (e) {
+        console.error("[DrawOrchestrator] stopPrizeDraw: stopSpin threw", e);
+        throw e;
+      }
     }
   }
 

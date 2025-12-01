@@ -11,7 +11,9 @@ import { container } from 'tsyringe';
 import { AssetService } from 'model/applications/assets/asset-service';
 
 interface Props {
-    content: string;
+    // support legacy `content` (encoded html) or new `id` (localStorage key suffix)
+    content?: string;
+    id?: string;
 }
 
 const props = defineProps<Props>();
@@ -29,7 +31,23 @@ const displayModeClass = computed(() => {
 const createdUrls: string[] = [];
 
 onMounted(async () => {
-    let html = decodeURIComponent(props.content || '');
+    let html = '';
+    // prefer legacy encoded content if provided
+    if (props.content) {
+        try {
+            html = decodeURIComponent(props.content);
+        } catch (e) {
+            html = props.content as string;
+        }
+    } else if ((props as any).id) {
+        const id = (props as any).id as string;
+        try {
+            html = localStorage.getItem(`octopus:html:${id}`) || '';
+        } catch (e) {
+            console.error('Failed to read html content from localStorage', e);
+            html = '';
+        }
+    }
     const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
     const assetIds = [];
     let match;

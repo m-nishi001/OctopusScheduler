@@ -30,18 +30,14 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
-import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
-import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
-import { computeTopResponders } from '../../../services/resultProcessor';
-import { quizState } from '../../../services/quizState';
-import { normalizeAnswer } from '../../../types/quiz';
+import { PrepareQuizResultsUseCase } from '../../../model/applications/use-cases/prepare-quiz-results-use-case';
+import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import PrizeDialog from '../../../components/prize-dialog.vue';
 import { usePrizeOrchestrator } from '../../../composables/use-prize-orchestrator';
 
 const router = useRouter();
 const route = useRoute();
 
-// preview flag: prefer route params or named route
 const isPreview = computed(() => {
     const paramPreview = (route.params as any)?.preview;
     if (paramPreview !== undefined) {
@@ -54,13 +50,9 @@ const isPreview = computed(() => {
 
 const showFullScreenParticles = ref(false);
 
-// preview flag removed as it's no longer used; navigation now always pushes to '/quiz-admin'.
-
-// displayedResults will be populated from GAS responses processed by computeTopResponders
-// Use seconds (number) for the time-to-answer to avoid ambiguous Date conversions.
 const finalResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
 const displayedResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
-const currentQuiz = ref<any>(null);
+const currentQuiz = ref<QuizDto | null>(null);
 
 const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
     getSettings: () => currentQuiz.value?.settings,
@@ -71,7 +63,7 @@ const prizeName = computed(() => currentQuiz.value?.settings?.prizeName || null)
 const prizeImageUrl = ref<string | null>(null);
 
 // update prizeImageUrl whenever currentQuiz changes
-watch(currentQuiz, (q, oldQ) => {
+watch(currentQuiz, (q: QuizDto | null) => {
     try {
         if (prizeImageUrl.value && prizeImageUrl.value.startsWith('blob:')) {
             URL.revokeObjectURL(prizeImageUrl.value);
@@ -95,7 +87,7 @@ watch(currentQuiz, (q, oldQ) => {
 
 // Helper: rank is determined by the finalResults order (ascending time)
 function getRank(record: { name: string; timeSeconds: number | null }): number {
-    const idx = finalResults.value.findIndex((r) => {
+    const idx = finalResults.value.findIndex((r: { name: string; timeSeconds: number | null }) => {
         if (r.name !== record.name) return false;
         const ta = r.timeSeconds;
         const tb = record.timeSeconds;
@@ -104,8 +96,6 @@ function getRank(record: { name: string; timeSeconds: number | null }): number {
     });
     return idx >= 0 ? idx + 1 : finalResults.value.length;
 }
-
-// (keep variable above) avoid duplicate declaration
 
 function formatTime(seconds: number | null): string {
     if (seconds === null || typeof seconds !== 'number' || Number.isNaN(seconds)) return '-';
@@ -121,8 +111,24 @@ function formatTime(seconds: number | null): string {
 
 onMounted(() => {
     document.addEventListener('keydown', handleKeydown);
-    // fetch mapped responses and prepare finalResults, then animate
-    fetchAndPrepare();
+    (async () => {
+        try {
+            const uc = container.resolve(PrepareQuizResultsUseCase);
+            const res = await uc.execute(route.params.id as string, isPreview.value);
+            if (!res || res.error) {
+                console.error('Failed to prepare quiz results', res?.error);
+                currentQuiz.value = null;
+                finalResults.value = [];
+            } else {
+                currentQuiz.value = res.quiz;
+                finalResults.value = res.results || [];
+            }
+            await startRankingAnimation();
+        } catch (e) {
+            console.error('Unexpected error in mounted preparation', e);
+            await startRankingAnimation();
+        }
+    })();
 });
 
 onUnmounted(() => {
@@ -179,128 +185,6 @@ async function startRankingAnimation() {
     }
 }
 
-function parseFormIdFromUrl(url: string | undefined | null): string | null {
-    if (!url) return null;
-    try {
-        // try patterns like /d/e/{id}/ or /d/{id}/
-        const m1 = url.match(/\/d\/e\/([a-zA-Z0-9_-]+)/);
-        if (m1 && m1[1]) return m1[1];
-        const m2 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (m2 && m2[1]) return m2[1];
-        // fallback: look for id= query param
-        const qm = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-        if (qm && qm[1]) return qm[1];
-    } catch (e) {
-        console.warn('parseFormIdFromUrl failed', e);
-    }
-    return null;
-}
-
-function buildPreviewMappedResponses(quiz: any, quizStartMs: number) {
-    const optionText = quiz?.options?.find((o: any) => o.no === quiz?.correctNo)?.text ?? String(quiz?.correctNo ?? '');
-    const base = Number(quizStartMs ?? Date.now());
-    // top-3 kept as before, then fill ranks 4..9 with unique dummy correct responders.
-    // computeTopResponders will append a placeholder for the 10th rank when less than 10 correct responders exist.
-    return [
-        { '回答': optionText, 'メールアドレス': 'tanaka@example.com', __timestampMs: base + 5000, __rowIndex: 2, __raw: [], name: '田中 仁' },
-        { '回答': optionText, 'メールアドレス': 'suzuki@example.com', __timestampMs: base + 12000, __rowIndex: 3, __raw: [], name: '鈴木 太郎' },
-        { '回答': optionText, 'メールアドレス': 'sato@example.com', __timestampMs: base + 18000, __rowIndex: 4, __raw: [], name: '佐藤 花子' },
-        { '回答': optionText, 'メールアドレス': 'takahashi@example.com', __timestampMs: base + 22000, __rowIndex: 5, __raw: [], name: '高橋 一郎' },
-        { '回答': optionText, 'メールアドレス': 'inoue@example.com', __timestampMs: base + 26000, __rowIndex: 6, __raw: [], name: '井上 美咲' },
-        { '回答': optionText, 'メールアドレス': 'yamamoto@example.com', __timestampMs: base + 30000, __rowIndex: 7, __raw: [], name: '山本 秀樹' },
-        { '回答': optionText, 'メールアドレス': 'nakamura@example.com', __timestampMs: base + 34000, __rowIndex: 8, __raw: [], name: '中村 翼' },
-        { '回答': optionText, 'メールアドレス': 'kobayashi@example.com', __timestampMs: base + 38000, __rowIndex: 9, __raw: [], name: '小林 真理' },
-        { '回答': optionText, 'メールアドレス': 'kimura@example.com', __timestampMs: base + 42000, __rowIndex: 10, __raw: [], name: '木村 健' },
-    ];
-}
-
-async function fetchAndPrepare() {
-    // reset
-    finalResults.value = [];
-    displayedResults.value = [];
-
-    try {
-        const startQuizUseCase = container.resolve(StartQuizUseCase);
-        const quiz = await startQuizUseCase.execute(route.params.id as string);
-        currentQuiz.value = quiz;
-
-        // determine quiz start time early, used by both real fetch and dummy data
-        const quizStartMs = quizState.getStartTime() ?? Date.now();
-        if (!quizState.getStartTime()) quizState.setStartTime(quizStartMs);
-
-        // obtain mapped responses: if preview mode, always use local dummy responses and skip parsing/GAS
-        let mapped: any[] = [];
-        if (isPreview.value) {
-            console.info('Preview mode: using local dummy responses');
-            mapped = buildPreviewMappedResponses(quiz, quizStartMs);
-        } else {
-            const formId = parseFormIdFromUrl(quiz?.answerUrl ?? '');
-            if (!formId) {
-                console.warn('Could not determine formId from quiz.answerUrl');
-                return startRankingAnimation();
-            }
-            const svc = new GasFunctionService('_quizGame_getMappedResponses');
-            mapped = await svc.call<any[]>(formId);
-        }
-
-        // decide answerKey and correctValue heuristically
-        let answerKey = '';
-        let correctValue = String(quiz?.correctNo ?? '');
-        const optionText = quiz?.options?.find(o => o.no === quiz?.correctNo)?.text;
-
-        if (Array.isArray(mapped) && mapped.length > 0) {
-            const sample = mapped[0];
-            const candidateHeaders = Object.keys(sample).filter(h => !h.startsWith('__') && !/タイムスタンプ|timestamp|メール|email/i.test(h));
-            let bestHeader = candidateHeaders[0] || Object.keys(sample)[0];
-            let bestScore = -1;
-            for (const h of candidateHeaders) {
-                let score = 0;
-                for (const r of mapped) {
-                    const v = (r[h] ?? '') + '';
-                    if (optionText && String(v) === String(optionText)) score++;
-                    if (quiz?.correctNo !== undefined && String(v) === String(quiz.correctNo)) score++;
-                }
-                if (score > bestScore) { bestScore = score; bestHeader = h; }
-            }
-            answerKey = bestHeader;
-            if (bestScore > 0) {
-                correctValue = optionText ? String(optionText) : String(quiz?.correctNo ?? '');
-            } else {
-                answerKey = candidateHeaders[0] || Object.keys(sample).find(k => !k.startsWith('__')) || Object.keys(sample)[0];
-                correctValue = optionText ? String(optionText) : String(quiz?.correctNo ?? '');
-            }
-        } else {
-            // no mapped responses
-            finalResults.value = [];
-            return startRankingAnimation();
-        }
-
-        // normalize correctValue for robust comparison (strip numbering, NFKC, trim, casefold)
-        const normalizedCorrect = normalizeAnswer(correctValue);
-
-        const top = computeTopResponders(mapped, {
-            answerKey,
-            correctValue: normalizedCorrect,
-            limit: 10,
-            uniqueByEmail: true,
-            excludeMissingEmail: true,
-            quizStartTimeMs: quizStartMs,
-        });
-
-        finalResults.value = top.map(item => {
-            const secs = (item as any).__timeToAnswerSec;
-            const timeSeconds = typeof secs === 'number' && !Number.isNaN(secs) ? secs : null;
-            return { name: item.name ?? '正答者なし ---', timeSeconds };
-        });
-
-        // start animation once finalResults prepared
-        await startRankingAnimation();
-    } catch (e) {
-        console.error('Failed to fetch/process mapped responses', e);
-        // still run animation with whatever is present
-        await startRankingAnimation();
-    }
-}
 </script>
 
 <style scoped>

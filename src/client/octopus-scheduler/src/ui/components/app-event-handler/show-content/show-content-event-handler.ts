@@ -61,10 +61,31 @@ export class ShowContentEventHandler {
       }
     } else if (data.contentType === "html") {
       if (data.htmlString) {
-        const encoded = encodeURIComponent(data.htmlString);
+        // Store the HTML in localStorage under a short id and route by id instead
+        const id =
+          "html_" +
+          Date.now().toString(36) +
+          "_" +
+          Math.random().toString(36).slice(2, 8);
+        try {
+          localStorage.setItem(`octopus:html:${id}`, data.htmlString);
+        } catch (e) {
+          // localStorage may not be available; fall back to routing with encoded content
+          const encoded = encodeURIComponent(data.htmlString);
+          router.push({
+            name: "show-html",
+            params: { content: encoded },
+            query: {
+              displayMode: data.displayMode || "fade",
+              ...(data.manual ? { manual: "true" } : {}),
+            },
+          });
+          return;
+        }
+
         router.push({
           name: "show-html",
-          params: { content: encoded },
+          params: { id },
           query: {
             displayMode: data.displayMode || "fade",
             ...(data.manual ? { manual: "true" } : {}),
