@@ -26,10 +26,27 @@ export class PrizeDrawService {
     prizes: Prize[],
     results: { wonPrize?: Prize | null; wonMember?: any }[]
   ): Prize[] {
-    return prizes.filter(
-      (p) =>
-        !results.some((r) => r.wonPrize?.id === p.id && r.wonMember !== null)
+    console.log(
+      "[PrizeDrawService] getAvailablePrizes: results sample:",
+      results.map((r) => ({
+        drawId: r.drawId,
+        wonMember: r.wonMember,
+        wonPrizeId: r.wonPrize?.id,
+        isKakuhen: r.isKakuhen,
+      }))
     );
+    // Exclude prizes that are assigned to winners (not reserved)
+    const assignedPrizeIds = results.reduce((set, r) => {
+      const hasWinner = !!r.wonMember;
+      const isNotReserved = !(r.drawId && r.drawId.startsWith("reserved-"));
+      const hasPrizeId = !!r.wonPrize?.id;
+      const isAssigned = hasWinner && isNotReserved && hasPrizeId;
+      if (isAssigned) {
+        set.add(r.wonPrize!.id);
+      }
+      return set;
+    }, new Set<string>());
+    return prizes.filter((p) => !assignedPrizeIds.has(p.id));
   }
 
   selectRandomReserved<T extends { drawId: string }>(reservedResults: T[]): T {

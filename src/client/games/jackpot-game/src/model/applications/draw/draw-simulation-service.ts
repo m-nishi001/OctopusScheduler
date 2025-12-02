@@ -182,12 +182,12 @@ export class DrawSimulationService {
     let safetyCounter = 0;
     while (true) {
       try {
-        const res = await this.drawAppService.executeDraw({
+        const { result } = await this.drawAppService.executeDraw({
           memberRequestCount: 10,
           prizeRequestCount: 8,
         });
-        if (res) {
-          results.push(res);
+        if (result) {
+          results.push(result);
         }
 
         const remainingPrizes = await this.drawAppService.getRemainingPrizes();

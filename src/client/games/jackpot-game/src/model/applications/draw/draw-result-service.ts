@@ -18,10 +18,12 @@ export class DrawResultService {
   }
 
   async addDrawResult(result: DrawResultDto): Promise<void> {
+    console.log("[DrawResultService] addDrawResult:", result);
     await this.repo.addDrawResult(result);
   }
 
   async updateDrawResult(result: DrawResultDto): Promise<void> {
+    console.log("[DrawResultService] updateDrawResult:", result);
     await this.repo.updateDrawResult(result);
   }
 

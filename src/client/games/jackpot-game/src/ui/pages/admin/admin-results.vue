@@ -220,6 +220,8 @@ const fetchData = async () => {
         drawResults.value = await drawResultService.getDrawResults();
         prizes.value = await prizeRepo.getPrizes();
         members.value = await memberRepo.getMembers();
+        console.log("[AdminResults] fetchData: drawResults", drawResults.value.length, "prizes", prizes.value.length, "members", members.value.length);
+        console.log("[AdminResults] drawResults sample:", drawResults.value.slice(0, 5).map(r => ({ drawId: r.drawId, wonMember: r.wonMember, wonPrizeId: r.wonPrize?.id, isKakuhen: r.isKakuhen })));
     } catch (error) {
         console.error('Failed to fetch data:', error);
     }
@@ -235,6 +237,11 @@ onMounted(async () => {
         if (prize.imageAssetId) promises.push(loadImage(prize.imageAssetId));
     }
     await Promise.all(promises);
+    // Add storage event listener for debugging
+    window.addEventListener('storage', (event) => {
+        console.log("[AdminResults] storage event detected:", event.key, event.newValue);
+        fetchData();
+    });
 });
 
 onUnmounted(() => {

@@ -39,13 +39,17 @@ export class FormRepository {
       const stopService = new GasFunctionService("quizGame_stopForm");
       const mapService = new GasFunctionService("quizGame_getMappedResponses");
 
-      const stopPromise = stopService.call<void>({ quizId }).catch((e) => ({ __error: e }));
-      const mapPromise = mapService.call<any[]>({ formId: quizId }).catch((e) => ({ __error: e }));
+      const stopPromise = stopService
+        .call<void>({ quizId })
+        .catch((e) => ({ __error: e }));
+      const mapPromise = mapService
+        .call<any[]>({ formId: quizId })
+        .catch((e) => ({ __error: e }));
 
       const [stopResp, mapResp] = await Promise.all([stopPromise, mapPromise]);
 
       // If mapped responses succeeded, perform client-side aggregation
-      if (mapResp && !((mapResp as any).__error) && Array.isArray(mapResp)) {
+      if (mapResp && !(mapResp as any).__error && Array.isArray(mapResp)) {
         const answers = mapResp as any[];
 
         // Determine answerKey/correctValue are provided by caller; pass through
@@ -58,22 +62,29 @@ export class FormRepository {
           quizStartTimeMs,
         });
 
-        const processed: ProcessedResultDto[] = top.map((r: any, idx: number) => ({
-          playerId: null,
-          playerName: r.name || null,
-          isCorrect: true,
-          timeToAnswerMs: Number(r.__timestampMs ?? 0) - quizStartTimeMs,
-          timestampMs: Number(r.__timestampMs ?? 0),
-          rank: idx + 1,
-          rawRow: r.__raw,
-        }));
+        const processed: ProcessedResultDto[] = top.map(
+          (r: any, idx: number) => ({
+            playerId: null,
+            playerName: r.name || null,
+            isCorrect: true,
+            timeToAnswerMs: Number(r.__timestampMs ?? 0) - quizStartTimeMs,
+            timestampMs: Number(r.__timestampMs ?? 0),
+            rank: idx + 1,
+            rawRow: r.__raw,
+          })
+        );
 
-        console.info("[FormRepository] stopAndGetProcessedResults: returning client-processed results count=", processed.length);
+        console.info(
+          "[FormRepository] stopAndGetProcessedResults: returning client-processed results count=",
+          processed.length
+        );
         return processed;
       }
 
       // Fallback: call the server-side combined function
-      const service = new GasFunctionService("quizGame_stopAndGetProcessedResults");
+      const service = new GasFunctionService(
+        "quizGame_stopAndGetProcessedResults"
+      );
       const args: StopAndGetProcessedResultsArgs = {
         quizId,
         quizStartTimeMs,

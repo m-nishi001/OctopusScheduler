@@ -18,6 +18,7 @@ export default defineComponent({
     name: 'RouletteAnimation',
     props: {
         prizes: { type: Array as () => PrizeDto[], default: () => [] },
+        preparedPrizes: { type: Array as () => any[], default: () => [] },
         selectedPrize: { type: Object as () => PrizeDto, required: true },
         showResult: { type: Boolean, default: false },
     },
@@ -29,7 +30,7 @@ export default defineComponent({
             showResult: stateShowResult,
             preparedPrizes: statePreparedPrizes,
             canStop: stateCanStop,
-            preparePrizes: statePreparePrizes,
+            setPreparedPrizes,
             setCanStop,
         } = useRouletteAnimationState(
             props.prizes,
@@ -44,7 +45,7 @@ export default defineComponent({
             showResult: stateShowResult.value,
         };
 
-        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes, getInternalItems, bgmAutoplayBlocked, tryResumeBgm } = useRouletteAnimation(
+        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes, getInternalItems, tryResumeBgm } = useRouletteAnimation(
             rouletteProps
         );
 
@@ -60,36 +61,27 @@ export default defineComponent({
         };
 
         onMounted(async () => {
-                try {
-                    const prepared = await statePreparePrizes(props.prizes);
-                    // If logicUpdatePrizes is exposed, await it as a readiness signal
-                    if (prepared && typeof logicUpdatePrizes === 'function') {
-                        await logicUpdatePrizes(prepared);
-                    }
-                } catch (e) {
-                    console.warn('Failed to update prizes on roulette hook', e);
-                }
+            try {
+                setPreparedPrizes(props.preparedPrizes);
+                await logicUpdatePrizes(props.preparedPrizes);
+            } catch (e) {
+                console.warn('Failed to update prizes on roulette hook', e);
+            }
         });
 
-        // Keep the animation internal items in sync whenever the prepared prizes change.
-        // This ensures that when the orchestrator calls updatePrizes (e.g. kakuhen duplication),
-        // the animator receives the new prepared list before we call stopSpin.
-        watch(() => statePreparedPrizes.value, async (newPrepared) => {
+        // If parent passes preparedPrizes prop after mount, apply them.
+        watch(() => props.preparedPrizes, async (newPrepared) => {
             if (!newPrepared || newPrepared.length === 0) return;
             try {
-                if (typeof logicUpdatePrizes === 'function') {
-                    await logicUpdatePrizes(newPrepared);
-                }
+                setPreparedPrizes(newPrepared);
+                await logicUpdatePrizes(newPrepared);
             } catch (e) {
-                console.warn('Failed to update prizes in roulette hook on prepared prizes change', e);
+                console.warn('Failed to apply preparedPrizes prop to roulette', e);
             }
         });
 
         const handleStart = () => {
-            // If autoplay was blocked previously, and tryResumeBgm available, try resuming on this user gesture.
-            if ((bgmAutoplayBlocked as any)?.value && typeof tryResumeBgm === "function") {
-                void tryResumeBgm();
-            }
+            void tryResumeBgm();
             startSpin();
             setCanStop(false);
             setTimeout(() => {

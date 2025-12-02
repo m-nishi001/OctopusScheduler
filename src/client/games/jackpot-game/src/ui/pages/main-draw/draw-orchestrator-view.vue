@@ -2,9 +2,8 @@
     <MainLayout>
         <div class="orchestrator container mx-auto p-6">
 
-            <DrawResultDialog v-if="showPrizeWinningDialog" title="景品当選" :assetId="latestResult?.wonPrize?.imageAssetId"
-                primaryLabel="次へ">
-            </DrawResultDialog>
+            <DrawResultDialog v-if="showPrizeWinningDialog && selectedPrize" title="景品当選" :prize="selectedPrize"
+                primaryLabel="次へ" />
 
             <HalfRemainingDialog v-if="showHalfRemainingDialog" :visible="showHalfRemainingDialog" />
             <EndDialog v-if="showEndDialog" :visible="showEndDialog" />
@@ -20,7 +19,8 @@
                     class="center-area flex items-center justify-center min-h-screen">
                     <div class="roulette-panel">
                         <component :is="currentPrizeComponent" ref="animationRef" :prizes="prizes"
-                            :selectedPrize="selectedPrize" :showResult="showPrizeWinningDialog" />
+                            :preparedPrizes="preparedPrizes" :selectedPrize="selectedPrize"
+                            :showResult="showPrizeWinningDialog" />
                     </div>
                 </section>
             </div>
@@ -47,9 +47,7 @@ export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog, KakuhenOverlay },
     setup() {
-        // use composable that contains the orchestration logic
         const s = useDrawOrchestrator();
-        // spread returned properties so the template type-checker sees them
         return { ...s } as any;
     }
 };

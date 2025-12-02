@@ -10,6 +10,7 @@ export const eventBus = mitt<{
     manual?: boolean;
     contentId?: string;
     htmlString?: string;
+    eventId?: string;
     displayMode?: "fade" | "scroll-up" | "scroll-down";
     effect?: "fade" | "scroll" | "static";
     duration?: number;

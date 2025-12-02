@@ -59,16 +59,25 @@ export class PrepareQuizResultsUseCase {
       let waited = 0;
       let cached: any[] | null = null;
       try {
-        cached = typeof quizState.getResults === 'function' ? quizState.getResults() : null;
+        cached =
+          typeof quizState.getResults === "function"
+            ? quizState.getResults()
+            : null;
       } catch (e) {
         cached = null;
       }
 
-      while ((!cached || !Array.isArray(cached) || cached.length === 0) && waited < MAX_WAIT_MS) {
+      while (
+        (!cached || !Array.isArray(cached) || cached.length === 0) &&
+        waited < MAX_WAIT_MS
+      ) {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
         waited += POLL_INTERVAL_MS;
         try {
-          cached = typeof quizState.getResults === 'function' ? quizState.getResults() : null;
+          cached =
+            typeof quizState.getResults === "function"
+              ? quizState.getResults()
+              : null;
         } catch (e) {
           cached = null;
         }
@@ -78,25 +87,46 @@ export class PrepareQuizResultsUseCase {
         // Normalize cached items into { name, timeSeconds }
         const normalized = (cached as any[]).map((r: any, idx: number) => {
           // If already in expected shape
-          if (r && typeof r.name === 'string' && (r.timeSeconds === null || typeof r.timeSeconds === 'number')) {
+          if (
+            r &&
+            typeof r.name === "string" &&
+            (r.timeSeconds === null || typeof r.timeSeconds === "number")
+          ) {
             return { name: r.name, timeSeconds: r.timeSeconds };
           }
           // If it's a ResultDto-like { playerName, time } where time is ms
-          if (r && (r.playerName || r.player) && typeof r.time === 'number') {
-            return { name: r.playerName ?? r.player ?? '匿名', timeSeconds: Number(r.time) / 1000 };
+          if (r && (r.playerName || r.player) && typeof r.time === "number") {
+            return {
+              name: r.playerName ?? r.player ?? "匿名",
+              timeSeconds: Number(r.time) / 1000,
+            };
           }
           // If processed result with timeToAnswerMs or timestampMs
-          if (r && (typeof r.timeToAnswerMs === 'number' || typeof r.timestampMs === 'number')) {
-            const tms = typeof r.timeToAnswerMs === 'number' ? Number(r.timeToAnswerMs) : (Number(r.timestampMs) - Number(quizStartMs || Date.now()));
-            return { name: r.playerName ?? r.name ?? '匿名', timeSeconds: Number.isFinite(tms) ? tms / 1000 : null };
+          if (
+            r &&
+            (typeof r.timeToAnswerMs === "number" ||
+              typeof r.timestampMs === "number")
+          ) {
+            const tms =
+              typeof r.timeToAnswerMs === "number"
+                ? Number(r.timeToAnswerMs)
+                : Number(r.timestampMs) - Number(quizStartMs || Date.now());
+            return {
+              name: r.playerName ?? r.name ?? "匿名",
+              timeSeconds: Number.isFinite(tms) ? tms / 1000 : null,
+            };
           }
           // Last resort: map name heuristics
-          return { name: r.playerName ?? r.name ?? r.displayName ?? '匿名', timeSeconds: null };
+          return {
+            name: r.playerName ?? r.name ?? r.displayName ?? "匿名",
+            timeSeconds: null,
+          };
         });
 
         // Clear cache after consumption to avoid reuse
         try {
-          if (typeof quizState.clearResults === 'function') quizState.clearResults();
+          if (typeof quizState.clearResults === "function")
+            quizState.clearResults();
         } catch (_) {}
 
         return {

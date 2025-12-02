@@ -75,21 +75,23 @@
                 style="display: none;">
         </div>
 
-        <!-- Preview Dialog -->
-        <div v-if="showPreviewDialog" class="modal-overlay" @click.self="closePreview">
-            <div class="modal-content">
-                <div v-if="previewType === 'image'">
-                    <img :src="previewContent.url" alt="preview" style="max-width:80vw;max-height:70vh" />
+        <!-- Preview Dialog (teleported to body to avoid stacking/context issues) -->
+        <teleport to="body">
+            <div v-if="showPreviewDialog" class="modal-overlay" @click.self="closePreview">
+                <div class="modal-content">
+                    <div v-if="previewType === 'image'">
+                        <img :src="previewContent.url" alt="preview" style="max-width:80vw;max-height:70vh" />
+                    </div>
+                    <div v-else-if="previewType === 'movie'">
+                        <video :src="previewContent.url" controls style="max-width:80vw;max-height:70vh" />
+                    </div>
+                    <div v-else-if="previewType === 'html'">
+                        <div v-html="previewContent"></div>
+                    </div>
+                    <button class="close-btn" @click="closePreview">閉じる</button>
                 </div>
-                <div v-else-if="previewType === 'movie'">
-                    <video :src="previewContent.url" controls style="max-width:80vw;max-height:70vh" />
-                </div>
-                <div v-else-if="previewType === 'html'">
-                    <div v-html="previewContent"></div>
-                </div>
-                <button class="close-btn" @click="closePreview">閉じる</button>
             </div>
-        </div>
+        </teleport>
     </div>
 </template>
 
@@ -319,7 +321,7 @@ defineExpose({ save, reset });
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 3000;
 }
 
 .modal-content {

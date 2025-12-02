@@ -13,6 +13,7 @@ export interface PrizeDrawState {
   showResult: boolean;
   preparedPrizes: RouletteItem[];
   canStop: boolean;
+  setPreparedPrizes?: (newPrepared: RouletteItem[]) => void;
 }
 
 export function usePrizeDrawState(
@@ -27,26 +28,21 @@ export function usePrizeDrawState(
   const preparedPrizes = ref<RouletteItem[]>([]);
   const canStop = ref(false);
 
-  const preparePrizes = async (
-    newPrizes: PrizeDto[],
-    forcedIncludeIds: string[] = []
-  ) => {
-    const newPrepared = await prepareRenderPrizes(
-      newPrizes,
-      assetService,
-      forcedIncludeIds
-    );
+  const preparePrizes = async (newPrizes: PrizeDto[]) => {
+    const newPrepared = await prepareRenderPrizes(newPrizes, assetService);
     revokePreparedPrizes(preparedPrizes.value);
     preparedPrizes.value = newPrepared;
     return newPrepared;
   };
 
-  const updatePrizes = async (
-    newPrizes: PrizeDto[],
-    forcedIncludeIds: string[] = []
-  ) => {
+  const setPreparedPrizes = (newPrepared: RouletteItem[]) => {
+    revokePreparedPrizes(preparedPrizes.value);
+    preparedPrizes.value = newPrepared;
+  };
+
+  const updatePrizes = async (newPrizes: PrizeDto[]) => {
     prizes.value = newPrizes;
-    await preparePrizes(newPrizes, forcedIncludeIds);
+    await preparePrizes(newPrizes);
   };
 
   const updateSelectedPrize = (newSelected: PrizeDto | null) => {
@@ -69,6 +65,7 @@ export function usePrizeDrawState(
     canStop: computed(() => canStop.value),
     updatePrizes,
     preparePrizes,
+    setPreparedPrizes,
     updateSelectedPrize,
     updateShowResult,
     setCanStop,
@@ -81,6 +78,7 @@ export interface RouletteAnimationState {
   showResult: boolean;
   preparedPrizes: RouletteItem[];
   canStop: boolean;
+  setPreparedPrizes?: (newPrepared: RouletteItem[]) => void;
 }
 
 export function useRouletteAnimationState(
@@ -110,6 +108,11 @@ export function useRouletteAnimationState(
     return newPrepared;
   };
 
+  const setPreparedPrizes = (newPrepared: RouletteItem[]) => {
+    revokePreparedPrizes(preparedPrizes.value);
+    preparedPrizes.value = newPrepared;
+  };
+
   const updateSelectedPrize = (newSelected: PrizeDto) => {
     selectedPrize.value = newSelected;
   };
@@ -130,6 +133,7 @@ export function useRouletteAnimationState(
     canStop: computed(() => canStop.value),
     updatePrizes,
     preparePrizes,
+    setPreparedPrizes,
     updateSelectedPrize,
     updateShowResult,
     setCanStop,

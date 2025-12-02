@@ -102,6 +102,11 @@ export class LocalStorageService {
       } catch (e) {
         // ignore diagnostics errors
       }
+      console.error(
+        `[LocalStorageService.save] Data for id=${id} is not cloneable. URL:`,
+        location.href,
+        { id, storedData }
+      );
       throw err;
     }
 

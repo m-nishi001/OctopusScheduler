@@ -106,9 +106,9 @@ export default {
         await fetchMembers();
         const drawService = container.resolve(DrawApplicationService);
         const drawResultService = container.resolve(DrawResultService);
-        const drawResult = await drawService.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
-        await drawResultService.addDrawResult(drawResult);
-        const winner = drawResult;
+        const { result } = await drawService.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+        await drawResultService.addDrawResult(result);
+        const winner = result;
         if (winner && winner.wonMember) {
           const prizeText = winner.wonPrize ? (winner.wonPrize.name || winner.wonPrize.id) : '';
           result.value = { member: winner.wonMember.name || winner.wonMember.id, prize: prizeText };

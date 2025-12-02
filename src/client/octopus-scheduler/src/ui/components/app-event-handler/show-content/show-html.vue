@@ -9,6 +9,7 @@ import { onMounted, ref, computed, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { AssetService } from 'model/applications/assets/asset-service';
+import { AppEventService } from 'model/applications/app-event/app-event-service';
 
 interface Props {
     // support legacy `content` (encoded html) or new `id` (localStorage key suffix)
@@ -41,11 +42,37 @@ onMounted(async () => {
         }
     } else if ((props as any).id) {
         const id = (props as any).id as string;
-        try {
-            html = localStorage.getItem(`octopus:html:${id}`) || '';
-        } catch (e) {
-            console.error('Failed to read html content from localStorage', e);
-            html = '';
+        const isTemp = (route.query && route.query._temp === '1');
+        if (isTemp) {
+            try {
+                html = sessionStorage.getItem(`octopus:html:${id}`) || '';
+            } catch (e) {
+                console.error('Failed to read html content from sessionStorage', e);
+                html = '';
+            }
+        } else {
+            // Try to load the event by id and read htmlString
+            try {
+                const appEventService = container.resolve(AppEventService);
+                const ev = await appEventService.getEventById(id);
+                if (ev && (ev as any).htmlString) {
+                    html = (ev as any).htmlString as string;
+                } else {
+                    // fallback to legacy localStorage
+                    try {
+                        html = localStorage.getItem(`octopus:html:${id}`) || '';
+                    } catch (e) {
+                        html = '';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load event by id', e);
+                try {
+                    html = localStorage.getItem(`octopus:html:${id}`) || '';
+                } catch (err) {
+                    html = '';
+                }
+            }
         }
     }
     const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;

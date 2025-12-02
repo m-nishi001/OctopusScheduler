@@ -3,7 +3,8 @@
         <div class="dialog-overlay" role="dialog" aria-modal="true">
             <div class="dialog-content">
                 <h3 class="dialog-title">{{ title }}</h3>
-                <div v-if="imageUrl1 || imageUrl2" class="dialog-images-wrap">
+                <div v-if="imageUrl1 || imageUrl2"
+                    :class="['dialog-images-wrap', { 'single-image': imageUrl1 && !imageUrl2 }]">
                     <img v-if="imageUrl1" :src="imageUrl1" :alt="title + ' 画像1'" class="modal-image" />
                     <img v-if="imageUrl2" :src="imageUrl2" :alt="title + ' 画像2'" class="modal-image" />
                 </div>
@@ -41,6 +42,9 @@ export default defineComponent({
         const imageUrl2 = ref<string>('');
 
         const loadWinningImages = async () => {
+            if (!props.prize) {
+                return;
+            }
             if (props.prize.winningImage1AssetId) {
                 try {
                     const asset = await assetService.getAssetDataById(props.prize.winningImage1AssetId);
@@ -74,9 +78,25 @@ export default defineComponent({
             }
         };
 
-        watch(() => props.prize, loadWinningImages, { immediate: true });
+        watch(
+            () => props.prize,
+            (p) => {
+                if (p) {
+                    void loadWinningImages();
+                } else {
+                    // clear images when prize becomes unset
+                    imageUrl1.value = '';
+                    imageUrl2.value = '';
+                }
+            },
+            { immediate: true }
+        );
 
-        onMounted(loadWinningImages);
+        onMounted(() => {
+            if (props.prize) {
+                void loadWinningImages();
+            }
+        });
 
         onUnmounted(() => {
             if (imageUrl1.value) {
@@ -107,23 +127,21 @@ export default defineComponent({
 
 .dialog-content {
     background: #000;
-    border-radius: 20px;
-    /* reduce top padding so title sits higher */
-    padding: 16px 40px;
-    width: 760px;
-    max-width: 90vw;
-    max-height: calc(100vh - 48px);
-    /* larger size */
+    border-radius: 12px;
+    /* keep ~100px margin around viewport */
+    width: calc(100vw - 200px);
+    height: calc(100vh - 200px);
+    max-width: 1200px;
+    max-height: 900px;
+    padding: 20px;
     box-sizing: border-box;
     text-align: center;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-    /* outer gold frame removed as requested */
-    /* gold border for jackpot feel */
-    /* Do not show scrollbars; size image/title to fit within viewport */
+    /* hide native scrollbars for the modal itself */
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
 }
 
 .dialog-title {
@@ -135,21 +153,18 @@ export default defineComponent({
 }
 
 .dialog-images-wrap {
-    margin-bottom: 8px;
-    /* Adjust for multiple images */
-    width: min(720px, calc(100vw - 96px));
-    height: min(320px, calc(45vh - 60px));
+    margin: 0 0 12px 0;
+    width: 100%;
+    /* take remaining vertical space inside dialog so image can be large */
+    flex: 1 1 auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    margin: 0 auto 8px auto;
+    gap: 12px;
     border-radius: 12px;
     border: 3px solid #ffd700;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
     overflow: hidden;
-    flex: 0 0 auto;
-    max-width: 100%;
 }
 
 .dialog-message {
@@ -177,10 +192,52 @@ export default defineComponent({
 .modal-image {
     width: auto;
     height: auto;
-    /* allow the image to take up most of the wrapper */
-    max-width: 50%;
+    max-width: 100%;
     max-height: 100%;
     object-fit: contain;
     display: block;
+    flex: 1 1 auto;
+}
+
+.dialog-images-wrap.single-image .modal-image {
+    /* single image should take full available width */
+    flex: 1 1 100%;
+    max-width: 100%;
+}
+
+@media (max-width: 480px) {
+
+    /* small screens: reduce margins so dialog fits nicely */
+    .dialog-content {
+        width: calc(100vw - 40px);
+        height: calc(100vh - 80px);
+        padding: 12px;
+    }
+
+    .dialog-images-wrap {
+        gap: 8px;
+    }
+
+    .dialog-title {
+        font-size: 2rem;
+    }
+
+    .btn-primary {
+        padding: 14px 36px;
+        font-size: 1.2rem;
+    }
+}
+
+/* Ensure title/message/actions do not overflow the dialog; image area uses remaining space */
+.dialog-title {
+    flex: 0 0 auto;
+}
+
+.dialog-message {
+    flex: 0 0 auto;
+}
+
+.dialog-actions {
+    flex: 0 0 auto;
 }
 </style>

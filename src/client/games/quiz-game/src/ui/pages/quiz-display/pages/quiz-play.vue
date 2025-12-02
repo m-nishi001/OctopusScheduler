@@ -43,7 +43,6 @@ import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../../model/applications/use-cases/start-quiz-use-case';
 import { StopQuizUseCase } from '../../../../model/applications/use-cases/stop-quiz-use-case';
 import OptionCard from '../components/option-card.vue';
-import { GasFunctionService } from '@common-lib/google-apps-script/gas-script-service';
 import { quizState } from '../../../../services/quizState';
 
 const route = useRoute();
@@ -219,18 +218,6 @@ onMounted(async () => {
             console.warn('quizState.setStartTime failed', e);
         }
 
-        // try to preload email->name map into GAS Script Cache (skip in preview)
-        try {
-            if (isPreview.value) {
-                console.info('Preview mode: skipping GAS preload of email->name map');
-            } else {
-                const loadSvc = new GasFunctionService('quizGame_loadEmailNameMap');
-                // call without args
-                await loadSvc.call();
-            }
-        } catch (e) {
-            console.warn('Failed to load email->name map into GAS cache', e);
-        }
 
         startTimer();
         // Create object URLs for images
@@ -377,7 +364,8 @@ const startTimer = () => {
                         isLoading.value = false;
                         canProceed.value = true;
                     } catch (err) {
-                        console.error('[stopAndGetProcessedResults] failed for formId=', formId, 'error=', err?.message ?? err);
+                        const msg = err instanceof Error ? err.message : String(err);
+                        console.error('[stopAndGetProcessedResults] failed for formId=', formId, 'error=', msg);
                         errorMessage.value = '集計に失敗しました。';
                         isLoading.value = false;
                         canProceed.value = true; // Allow retry or proceed

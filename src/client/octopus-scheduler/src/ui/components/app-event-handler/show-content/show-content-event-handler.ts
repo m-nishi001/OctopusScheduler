@@ -9,6 +9,7 @@ export class ShowContentEventHandler {
         contentType: "image" | "movie" | "html";
         contentId?: string;
         htmlString?: string;
+        eventId?: string;
         manual?: boolean;
       }) => this.handleShowContent(data, router)
     );
@@ -60,17 +61,42 @@ export class ShowContentEventHandler {
         });
       }
     } else if (data.contentType === "html") {
+      // Prefer routing by event id so the show-html component can fetch htmlString
+      if (data.eventId) {
+        router.push({
+          name: "show-html",
+          params: { id: data.eventId },
+          query: {
+            displayMode: data.displayMode || "fade",
+            ...(data.manual ? { manual: "true" } : {}),
+          },
+        });
+        return;
+      }
+
+      // Fallback: if no eventId but htmlString provided, route to show-html and
+      // allow the component to use legacy mechanisms (localStorage/encoded content).
       if (data.htmlString) {
-        // Store the HTML in localStorage under a short id and route by id instead
-        const id =
-          "html_" +
-          Date.now().toString(36) +
-          "_" +
-          Math.random().toString(36).slice(2, 8);
         try {
-          localStorage.setItem(`octopus:html:${id}`, data.htmlString);
+          // store temporarily in sessionStorage (less persistent than localStorage)
+          const sid =
+            "html_temp_" +
+            Date.now().toString(36) +
+            "_" +
+            Math.random().toString(36).slice(2, 8);
+          sessionStorage.setItem(`octopus:html:${sid}`, data.htmlString);
+          router.push({
+            name: "show-html",
+            params: { id: sid },
+            query: {
+              displayMode: data.displayMode || "fade",
+              ...(data.manual ? { manual: "true" } : {}),
+              _temp: "1",
+            },
+          });
+          return;
         } catch (e) {
-          // localStorage may not be available; fall back to routing with encoded content
+          // If sessionStorage unavailable, fall back to encoded content in URL
           const encoded = encodeURIComponent(data.htmlString);
           router.push({
             name: "show-html",
@@ -82,15 +108,6 @@ export class ShowContentEventHandler {
           });
           return;
         }
-
-        router.push({
-          name: "show-html",
-          params: { id },
-          query: {
-            displayMode: data.displayMode || "fade",
-            ...(data.manual ? { manual: "true" } : {}),
-          },
-        });
       }
     }
   }

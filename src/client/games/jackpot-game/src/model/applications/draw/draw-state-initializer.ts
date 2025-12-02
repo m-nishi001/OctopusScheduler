@@ -32,6 +32,7 @@ export class DrawStateInitializer {
     );
     for (const prize of reservedPrizes) {
       const dto = mapToReservedDrawResult(this.idGenerator.nextId(), prize);
+      console.log("[DrawStateInitializer] reserved dto:", dto);
       await this.drawResultService.addDrawResult(dto);
     }
   }

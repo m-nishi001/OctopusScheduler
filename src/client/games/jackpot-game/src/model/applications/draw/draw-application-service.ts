@@ -72,7 +72,7 @@ export class DrawApplicationService {
   async executeDraw(request: {
     memberRequestCount: number;
     prizeRequestCount: number;
-  }): Promise<DrawResultDto> {
+  }): Promise<{ result: DrawResultDto; prizeRes: DrawPrizeResponse }> {
     const memberRes = await this.executeMemberDraw({
       requestCount: request.memberRequestCount,
     });
@@ -93,6 +93,18 @@ export class DrawApplicationService {
       results,
       state
     );
+    console.log(
+      "[DrawApplicationService] executeDraw: isKakuhen",
+      isKakuhen,
+      "total prizes",
+      prizes.length,
+      "remaining",
+      this.prizeDrawService.getRemainingPrizes(prizes, results).length,
+      "state",
+      state,
+      "result count",
+      results.length
+    );
     // const isKakuhen = true;
 
     const prizeRequest = {
@@ -109,12 +121,13 @@ export class DrawApplicationService {
     }
 
     const winnerPrize = prizes.find((p) => p.id === prizeRes.winnerPrizeId)!;
-    return await this.saveDrawResult(
+    const saved = await this.saveDrawResult(
       prizeRes,
       winnerMember,
       winnerPrize,
       results
     );
+    return { result: saved, prizeRes };
   }
 
   private async getPrizeDrawState(): Promise<PrizeDrawState | null> {
@@ -176,6 +189,10 @@ export class DrawApplicationService {
       prizes,
       results
     );
+    console.log(
+      "[DrawApplicationService] executeNormalDraw: availablePrizes",
+      availablePrizes
+    );
     if (availablePrizes.length === 0) {
       console.warn("No available prizes left");
       return {
@@ -194,6 +211,10 @@ export class DrawApplicationService {
       member: member as Member,
       dummyCount: Math.max(0, request.requestCount - 1),
     });
+    console.log(
+      "[DrawApplicationService] executeNormalDraw: draw result",
+      result
+    );
     return {
       drawId: this.idGenerator.nextId(),
       winnerPrizeId: result?.winnerPrizeId || null,
@@ -234,6 +255,10 @@ export class DrawApplicationService {
         throw new NotFoundError("Reserved draw result not found");
       }
       const updated = mapToUpdatedDrawResult(existing, winnerMember, true);
+      console.log(
+        "[DrawApplicationService] saveDrawResult: updating reserved",
+        updated
+      );
       await this.drawResultService.updateDrawResult(updated);
       return updated;
     } else {
@@ -242,6 +267,10 @@ export class DrawApplicationService {
         winnerMember,
         winnerPrize,
         false
+      );
+      console.log(
+        "[DrawApplicationService] saveDrawResult: adding new",
+        drawResult
       );
       await this.drawResultService.addDrawResult(drawResult);
       return drawResult;

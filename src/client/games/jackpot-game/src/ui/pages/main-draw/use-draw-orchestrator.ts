@@ -48,6 +48,7 @@ export function useDrawOrchestrator() {
   const {
     prizes,
     selectedPrize,
+    preparedPrizes,
     updatePrizes,
     preparePrizes,
     updateSelectedPrize,
@@ -159,77 +160,36 @@ export function useDrawOrchestrator() {
   // executeDraw moved here from BaseHandler to use local refs/services
   const executeDraw = async () => {
     console.log("[DrawOrchestrator] executeDraw");
+
     try {
-      const res = await drawService.executeDraw({
+      const { result: drawResult, prizeRes } = await drawService.executeDraw({
         memberRequestCount: 10,
         prizeRequestCount: 8,
       });
-      console.log("[DrawOrchestrator] draw result received", { res });
-      preDrawResult.value = res;
-      latestResult.value = res;
-      // Safely resolve the full PrizeDto for the winner. If it's missing from
-      // the current `prizes` list, try to fetch it from the repository and
-      // inject it so preparePrizes can include it for rendering.
-      const winnerId = res.wonPrize?.id ?? null;
-      let winnerPrizeObj: PrizeDto | null = null;
-      if (winnerId) {
-        winnerPrizeObj =
-          prizes.value.find(
-            (p: PrizeDto) =>
-              p.id === winnerId || (p as any).originalPrizeId === winnerId
-          ) || null;
-        if (!winnerPrizeObj) {
-          try {
-            const fetched = await prizeRepo.getPrizeById(winnerId);
-            if (fetched) {
-              console.log(
-                "[DrawOrchestrator] fetched missing winner prize from repo",
-                winnerId
-              );
-              // Inject fetched prize into reactive prizes list (append).
-              prizes.value = [...prizes.value, fetched];
-              winnerPrizeObj = fetched;
-            } else {
-              console.warn(
-                "[DrawOrchestrator] winner prize not found in repo for id",
-                winnerId
-              );
-            }
-          } catch (e) {
-            console.warn(
-              "[DrawOrchestrator] getPrizeById failed for",
-              winnerId,
-              e
-            );
-          }
-        }
-      }
 
-      if (winnerPrizeObj) {
-        latestResult.value.wonPrize = winnerPrizeObj;
-        updateSelectedPrize(winnerPrizeObj);
-      } else {
-        // Fallback: keep the lightweight wonPrize from the draw result and
-        // set selectedPrize to null if we cannot resolve a full PrizeDto.
-        latestResult.value.wonPrize = res.wonPrize || null;
-        updateSelectedPrize(
-          prizes.value.find((p: PrizeDto) => p.id === winnerId) || null
-        );
-      }
+      console.log("[DrawOrchestrator] draw result received", {
+        result: drawResult,
+        prizeRes,
+      });
+
+      preDrawResult.value = drawResult;
+      latestResult.value = drawResult;
+
+      const winnerId = drawResult.wonPrize!.id;
+      const winnerPrizeObj = prizes.value.find((p) => p.id === winnerId)!;
+
+      latestResult.value.wonPrize = winnerPrizeObj;
+      updateSelectedPrize(winnerPrizeObj);
 
       // Ensure the prepared/prerendered roulette items include the winner (if known)
-      try {
-        if (winnerId) {
-          await preparePrizes(prizes.value, [winnerId]);
-        } else {
-          await preparePrizes(prizes.value);
-        }
-      } catch (e) {
-        console.warn(
-          "[DrawOrchestrator] preparePrizes (force-include) failed",
-          e
-        );
-      }
+      const prizesToPrepare = prizes.value.filter(
+        (p) =>
+          prizeRes.dummyPrizeIds.includes(p.id) ||
+          p.id === prizeRes.winnerPrizeId ||
+          p.id === prizeRes.dummyWinnerPrizeId
+      );
+      await preparePrizes(prizesToPrepare);
+
       if (selectedPrize.value?.animation === "slot") {
         currentPrizeComponent.value = markRaw(SlotAnimation as any);
         console.log("[DrawOrchestrator] selected component: SlotAnimation");
@@ -385,6 +345,7 @@ export function useDrawOrchestrator() {
 
   return {
     prizes,
+    preparedPrizes,
     members,
     latestResult,
     drawState,
