@@ -11,7 +11,8 @@
             <div class="rich-layout">
                 <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
                     <div class="member-stage-fullscreen">
-                        <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false" />
+                        <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
+                            :memberRes="currentMemberRes" />
                     </div>
                 </section>
 

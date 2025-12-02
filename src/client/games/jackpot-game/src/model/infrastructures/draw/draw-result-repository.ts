@@ -12,22 +12,54 @@ export class DrawResultRepository implements IDrawResultRepository {
 
   async getDrawResults(): Promise<DrawResultDto[]> {
     const allResults = await this.localStorage.getAll<DrawResultDto>();
-    return Array.from(allResults.values());
+    const arr = Array.from(allResults.values());
+    try {
+      console.log(
+        "[DrawResultRepository] getDrawResults: count=",
+        arr.length,
+        "ids=",
+        arr.map((r) => r.drawId)
+      );
+    } catch (e) {
+      /* ignore logging errors */
+    }
+    return arr;
   }
 
   async getDrawResultById(drawId: string): Promise<DrawResultDto | null> {
-    return (await this.localStorage.get<DrawResultDto>(drawId)) || null;
+    const res = (await this.localStorage.get<DrawResultDto>(drawId)) || null;
+    try {
+      console.log("[DrawResultRepository] getDrawResultById:", drawId, res);
+    } catch (e) {}
+    return res;
   }
 
   async addDrawResult(result: DrawResultDto): Promise<void> {
+    try {
+      console.log(
+        "[DrawResultRepository] addDrawResult:",
+        result.drawId,
+        result
+      );
+    } catch (e) {}
     await this.localStorage.save(result.drawId, result);
   }
 
   async updateDrawResult(result: DrawResultDto): Promise<void> {
+    try {
+      console.log(
+        "[DrawResultRepository] updateDrawResult:",
+        result.drawId,
+        result
+      );
+    } catch (e) {}
     await this.localStorage.save(result.drawId, result);
   }
 
   async deleteDrawResult(resultId: string): Promise<void> {
+    try {
+      console.log("[DrawResultRepository] deleteDrawResult:", resultId);
+    } catch (e) {}
     await this.localStorage.delete(resultId);
   }
 

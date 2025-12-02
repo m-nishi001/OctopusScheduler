@@ -24,6 +24,8 @@ import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
 import { KakuhenHandler } from "./kakuhen-handler";
 import mitt from "mitt";
+import type { DrawMemberResponse } from "@model/applications/draw/dto/draw-member-response";
+import type { DrawPrizeResponse } from "@model/applications/draw/dto/draw-prize-response";
 
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.
@@ -66,6 +68,8 @@ export function useDrawOrchestrator() {
   const kakuhenInProgress = ref(false);
   const kakuhenOverlayVisible = ref(false);
   const preDrawResult = ref<DrawResultDto | null>(null);
+  const currentPrizeRes = ref<DrawPrizeResponse | null>(null);
+  const currentMemberRes = ref<DrawMemberResponse | null>(null);
 
   const currentMemberComponent = ref("MemberDrawAnimation");
   const currentPrizeComponent = shallowRef<Component>(
@@ -162,7 +166,11 @@ export function useDrawOrchestrator() {
     console.log("[DrawOrchestrator] executeDraw");
 
     try {
-      const { result: drawResult, prizeRes } = await drawService.executeDraw({
+      const {
+        result: drawResult,
+        prizeRes,
+        memberRes,
+      } = await drawService.executeDraw({
         memberRequestCount: 10,
         prizeRequestCount: 8,
       });
@@ -173,7 +181,17 @@ export function useDrawOrchestrator() {
       });
 
       preDrawResult.value = drawResult;
+      currentPrizeRes.value = prizeRes;
+      currentMemberRes.value = memberRes;
       latestResult.value = drawResult;
+      console.log(
+        "[DrawOrchestrator] executeDraw: assigned preDrawResult/currentPrizeRes/latestResult",
+        {
+          preDrawWinnerId: preDrawResult.value?.wonMember?.id,
+          preDrawPrizeId: preDrawResult.value?.wonPrize?.id,
+          prizeRes,
+        }
+      );
 
       const winnerId = drawResult.wonPrize!.id;
       const winnerPrizeObj = prizes.value.find((p) => p.id === winnerId)!;
@@ -234,7 +252,8 @@ export function useDrawOrchestrator() {
         drawState.currentQueue,
         emitter,
         drawState,
-        preparePrizes
+        preparePrizes,
+        currentPrizeRes.value
       );
     } else {
       return BaseHandler.getActions(
@@ -359,5 +378,6 @@ export function useDrawOrchestrator() {
     showMemberWinnerDialog,
     kakuhenInProgress,
     kakuhenOverlayVisible,
+    currentMemberRes,
   } as const;
 }

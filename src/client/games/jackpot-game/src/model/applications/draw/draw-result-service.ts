@@ -10,11 +10,19 @@ export class DrawResultService {
   ) {}
 
   async getDrawResults(): Promise<DrawResultDto[]> {
-    return await this.repo.getDrawResults();
+    const res = await this.repo.getDrawResults();
+    try {
+      console.log("[DrawResultService] getDrawResults: count=", res.length);
+    } catch (e) {}
+    return res;
   }
 
   async getDrawResultById(drawId: string): Promise<DrawResultDto | null> {
-    return await this.repo.getDrawResultById(drawId);
+    const res = await this.repo.getDrawResultById(drawId);
+    try {
+      console.log("[DrawResultService] getDrawResultById:", drawId, res);
+    } catch (e) {}
+    return res;
   }
 
   async addDrawResult(result: DrawResultDto): Promise<void> {

@@ -45,6 +45,7 @@ import { container } from 'tsyringe';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
 import { useAudio } from '@shared-composables/use-audio';
+import type { DrawMemberResponse } from '@model/applications/draw/dto/draw-member-response';
 // draw-result-dialog.vue was previously used for the modal. For readability
 // we define the member-specific winner dialog inline in this component.
 
@@ -69,6 +70,7 @@ export default {
         autoStart: { type: Boolean, default: false },
         // if true, the parent component is responsible for showing the winner dialog
         externalDialog: { type: Boolean, required: false, default: false },
+        memberRes: { type: Object as () => DrawMemberResponse | null, default: null },
     },
     setup(props: any, { emit }: any) {
         const viewport = ref<HTMLDivElement | null>(null);
@@ -120,11 +122,79 @@ export default {
         const displayMembers = ref<MemberDto[]>([]);
 
         const buildDisplay = () => {
-            const list = props.members.slice(0, Math.max(props.visibleCount, 1));
+            console.log('★ [MemberDrawAnimation] buildDisplay called with memberRes:', props.memberRes);
+            const allMembers = props.members.slice();
+            let list: MemberDto[] = [];
+
+            if (props.memberRes && props.memberRes.winnerId) {
+                // 当選者を最後に配置
+                const winner = allMembers.find((m: MemberDto) => m.id === props.memberRes!.winnerId);
+                if (winner) {
+                    // ダミーIDを先に配置
+                    const dummies = props.memberRes.dummyIds.map((id: string) => allMembers.find((m: MemberDto) => m.id === id)).filter(Boolean) as MemberDto[];
+                    list = [...dummies, winner];
+                } else {
+                    list = allMembers.slice(0, props.visibleCount);
+                }
+            } else {
+                list = allMembers.slice(0, props.visibleCount);
+            }
+
             while (list.length < props.visibleCount) {
                 list.push({ id: 'empty-' + list.length, name: '---', photoAssetId: undefined, rank: 0 } as MemberDto);
             }
             displayMembers.value = [...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list];
+        };
+
+        // Ensure the planned winner (if provided) is included in the visible display list.
+        // Called from startDraw so stopAt can locate the planned winner among duplicated items.
+        const ensureWinnerInDisplay = async (winnerId: string | null) => {
+            const visible = Math.max(props.visibleCount ?? 1, 1);
+            if (!winnerId) {
+                buildDisplay();
+                return;
+            }
+
+            const all = props.members.slice();
+            const winner = all.find((m: MemberDto) => m.id === winnerId) || null;
+
+            let list: MemberDto[] = [];
+            if (winner) {
+                const withoutWinner = all.filter((m: MemberDto) => m.id !== winnerId);
+                list = withoutWinner.slice(0, Math.max(visible - 1, 0));
+                list = [...list, winner];
+            } else {
+                list = all.slice(0, visible);
+            }
+
+            while (list.length < visible) {
+                list.push({ id: 'empty-' + list.length, name: '---', photoAssetId: undefined, rank: 0 } as MemberDto);
+            }
+
+            const seen = new Set<string>();
+            const unique: MemberDto[] = [];
+            for (const m of list) {
+                if (!seen.has(m.id)) {
+                    seen.add(m.id);
+                    unique.push(m);
+                }
+            }
+
+            displayMembers.value = [...unique, ...unique, ...unique, ...unique, ...unique, ...unique, ...unique, ...unique, ...unique, ...unique];
+
+            try {
+                await loadImages();
+            } catch (e) {
+                console.warn('[MemberDrawAnimation] ensureWinnerInDisplay: image preload failed', e);
+            }
+            await nextTick();
+            try {
+                updateActiveIndex();
+                alignTrackToNearestChild(0);
+                positionStartButton();
+            } catch (e) {
+                // ignore layout errors
+            }
         };
 
         const loadImages = async () => {
@@ -313,6 +383,7 @@ export default {
                     resolve(null);
                     return;
                 }
+                console.log('[MemberDrawAnimation] stopAt called', { memberId, displayMembersCount: displayMembers.value.length });
                 gsap.killTweensOf(track.value);
                 // stop continuous tween
                 if (tweenRef.tween) tweenRef.tween.kill();
@@ -338,6 +409,7 @@ export default {
                     for (let i = 0; i < children.length; i++) {
                         if ((displayMembers.value[i]?.id ?? null) === memberId) candidates.push(i);
                     }
+                    console.log('[MemberDrawAnimation] stopAt: candidateIndexes', candidates);
                     if (candidates.length) {
                         targetChildIdx = candidates.reduce((best, cur) => childCenterDist(cur) < childCenterDist(best) ? cur : best, candidates[0]);
                     }
@@ -402,6 +474,11 @@ export default {
                     onComplete: () => {
                         const id = displayMembers.value[targetChildIdx]?.id ?? null;
                         activeIndex.value = targetChildIdx;
+                        console.log('[MemberDrawAnimation] stopAt: chosen', {
+                            targetChildIdx,
+                            chosenId: id,
+                            chosenName: displayMembers.value[targetChildIdx]?.name,
+                        });
                         emit('stopped', id);
                         stopActiveLoop();
                         try { isAnimating.value = false; } catch (e) { }
@@ -411,6 +488,12 @@ export default {
                         if (winner) {
                             winnerAssetId.value = winner.photoAssetId || '';
                             winnerName.value = winner.name;
+                            console.log('[MemberDrawAnimation] stopAt: winner info set', {
+                                winnerId: winner.id,
+                                winnerName: winner.name,
+                                winnerAssetId: winner.photoAssetId,
+                                externalDialog: props.externalDialog,
+                            });
                             // only show the internal dialog when the parent is NOT handling the dialog
                             try {
                                 if (!props.externalDialog) showWinnerDialog.value = true;
@@ -418,6 +501,7 @@ export default {
                                 // defensive: if props aren't available for any reason, default to showing
                                 showWinnerDialog.value = true;
                             }
+                            console.log('[MemberDrawAnimation] stopAt: showWinnerDialog=', showWinnerDialog.value);
                         }
                         resolve(id);
                     }
@@ -433,8 +517,17 @@ export default {
         // component only receives the planned id and performs the animation.
         const startDraw = (winnerId?: string | null) => {
             plannedWinnerId = winnerId ?? null;
-            start();
-            void playRandomMemberBgm();
+            console.log('[MemberDrawAnimation] startDraw plannedWinnerId=', plannedWinnerId);
+            // Ensure winner is part of the displayed set before starting animation
+            void (async () => {
+                try {
+                    await ensureWinnerInDisplay(plannedWinnerId);
+                } catch (e) {
+                    console.warn('[MemberDrawAnimation] startDraw: ensureWinnerInDisplay failed', e);
+                }
+                start();
+                void playRandomMemberBgm();
+            })();
             return plannedWinnerId;
         };
 

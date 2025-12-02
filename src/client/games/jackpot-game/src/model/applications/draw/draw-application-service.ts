@@ -72,15 +72,27 @@ export class DrawApplicationService {
   async executeDraw(request: {
     memberRequestCount: number;
     prizeRequestCount: number;
-  }): Promise<{ result: DrawResultDto; prizeRes: DrawPrizeResponse }> {
+  }): Promise<{
+    result: DrawResultDto;
+    prizeRes: DrawPrizeResponse;
+    memberRes: DrawMemberResponse;
+  }> {
     const memberRes = await this.executeMemberDraw({
       requestCount: request.memberRequestCount,
     });
+    console.log(
+      "[DrawApplicationService] executeDraw: member draw response",
+      memberRes
+    );
     if (!memberRes.winnerId) {
       throw new NotFoundError("No member winner");
     }
     const members = await this.memberRepo.getMembers();
     const winnerMember = members.find((m) => m.id === memberRes.winnerId);
+    console.log(
+      "[DrawApplicationService] executeDraw: resolved winner member",
+      { winnerId: memberRes.winnerId, winnerMember }
+    );
     if (!winnerMember) throw new NotFoundError("Winner member not found");
 
     const prizes = await this.prizeRepo.getPrizes();
@@ -88,24 +100,23 @@ export class DrawApplicationService {
     const state = await this.getPrizeDrawState();
     if (!state)
       throw new StateNotInitializedError("Prize draw state not initialized");
+    // NOTE: kakuhen selection is forced true in some builds for demo; log decision
+    // and related state for diagnostics.
     const isKakuhen = this.prizeDrawService.isKakuhenTurn(
       prizes,
       results,
       state
     );
-    console.log(
-      "[DrawApplicationService] executeDraw: isKakuhen",
-      isKakuhen,
-      "total prizes",
-      prizes.length,
-      "remaining",
-      this.prizeDrawService.getRemainingPrizes(prizes, results).length,
-      "state",
-      state,
-      "result count",
-      results.length
-    );
+    console.log("[DrawApplicationService] executeDraw: isKakuhen", isKakuhen);
     // const isKakuhen = true;
+    console.log("[DrawApplicationService] executeDraw: kakuhen forced", {
+      isKakuhen,
+      totalPrizes: prizes.length,
+      remainingPrizes: this.prizeDrawService.getRemainingPrizes(prizes, results)
+        .length,
+      state,
+      resultCount: results.length,
+    });
 
     const prizeRequest = {
       memberId: winnerMember.id,
@@ -115,6 +126,10 @@ export class DrawApplicationService {
     const prizeRes = await (isKakuhen
       ? this.executeKakuhenDraw(winnerMember, results, prizes, prizeRequest)
       : this.executeNormalDraw(prizes, results, prizeRequest, winnerMember));
+    console.log(
+      "[DrawApplicationService] executeDraw: prize response",
+      prizeRes
+    );
 
     if (!prizeRes.winnerPrizeId) {
       throw new NoAvailablePrizesError("No prize available");
@@ -127,7 +142,7 @@ export class DrawApplicationService {
       winnerPrize,
       results
     );
-    return { result: saved, prizeRes };
+    return { result: saved, prizeRes, memberRes };
   }
 
   private async getPrizeDrawState(): Promise<PrizeDrawState | null> {
@@ -146,6 +161,13 @@ export class DrawApplicationService {
     );
     const reservedResults = results.filter((r) => r.wonMember === null);
 
+    console.log("[DrawApplicationService] executeKakuhenDraw: diagnostics", {
+      availableCount: availablePrizes.length,
+      reservedCount: reservedResults.length,
+      request,
+      memberId: member.id,
+    });
+
     if (reservedResults.length === 0) {
       console.warn(
         "DrawApplicationService: No reserved prizes available for kakuhen; falling back to normal draw"
@@ -156,10 +178,21 @@ export class DrawApplicationService {
 
     const selectedReserved =
       this.prizeDrawService.selectRandomReserved(reservedResults);
+    console.log(
+      "[DrawApplicationService] executeKakuhenDraw: selectedReserved",
+      selectedReserved
+    );
 
     const dummyWinnerPrize =
       this.prizeDrawService.pickRandomPrizeFrom(availablePrizes);
     const dummyWinnerPrizeId = dummyWinnerPrize?.id || null;
+
+    console.log(
+      "[DrawApplicationService] executeKakuhenDraw: dummyWinnerPrizeId",
+      {
+        dummyWinnerPrizeId,
+      }
+    );
 
     const excludedIds = new Set(
       [selectedReserved.wonPrize?.id, dummyWinnerPrizeId].filter(Boolean)
@@ -168,6 +201,10 @@ export class DrawApplicationService {
       prizes,
       excludedIds,
       6
+    );
+    console.log(
+      "[DrawApplicationService] executeKakuhenDraw: dummyPrizeIds",
+      dummyPrizeIds
     );
 
     return {
@@ -213,7 +250,11 @@ export class DrawApplicationService {
     });
     console.log(
       "[DrawApplicationService] executeNormalDraw: draw result",
-      result
+      result,
+      {
+        memberId: member.id,
+        requestCount: request.requestCount,
+      }
     );
     return {
       drawId: this.idGenerator.nextId(),
@@ -236,11 +277,17 @@ export class DrawApplicationService {
       request.requestCount - 1
     );
 
-    return {
+    const response = {
       drawId: this.idGenerator.nextId(),
       winnerId: res?.winnerId ?? null,
       dummyIds: res?.dummyIds ?? [],
     };
+    console.log(
+      "[DrawApplicationService] executeMemberDraw: response",
+      response,
+      { membersCount: members.length, existingResultsCount: results.length }
+    );
+    return response;
   }
 
   private async saveDrawResult(
