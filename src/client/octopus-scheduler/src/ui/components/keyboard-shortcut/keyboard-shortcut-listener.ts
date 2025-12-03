@@ -31,14 +31,13 @@ export function registerKeyboardShortcutListener(): () => void {
     )
       return;
 
-    // ESC押下で表示されたコンテンツを閉じる（手動表示モード）
+    // ESC押下では画面遷移は行わず、再生停止のみ行う
     if (event.key === "Escape") {
       try {
         event.preventDefault();
       } catch {
         /* ignore */
       }
-      eventBus.emit("hideContent");
       // Emit stopAudio locally and broadcast stopAll to other tabs/windows
       try {
         eventBus.emit("stopAudio");
