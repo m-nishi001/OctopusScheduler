@@ -49,6 +49,7 @@ const isPreview = computed(() => {
 });
 
 const showFullScreenParticles = ref(false);
+const rankingFinished = ref(false);
 
 const finalResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
 const displayedResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
@@ -99,14 +100,18 @@ function getRank(record: { name: string; timeSeconds: number | null }): number {
 
 function formatTime(seconds: number | null): string {
     if (seconds === null || typeof seconds !== 'number' || Number.isNaN(seconds)) return '-';
-    if (seconds < 0) return '-';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds - mins * 60;
-    const secsStr = secs.toFixed(3).replace(/\.000$/, '');
+    const negative = seconds < 0;
+    const abs = Math.abs(seconds);
+    const mins = Math.floor(abs / 60);
+    const secs = abs - mins * 60;
+    // Always show milliseconds precision up to 3 decimal places
+    const secsStr = secs.toFixed(3);
     if (mins > 0) {
-        return `${mins}分${secsStr}秒`;
+        const body = `${mins}分${secsStr}秒`;
+        return negative ? `-${body}` : body;
     }
-    return `${secsStr}秒`;
+    const body = `${secsStr}秒`;
+    return negative ? `-${body}` : body;
 }
 
 onMounted(() => {
@@ -148,8 +153,15 @@ function handleKeydown(event: KeyboardEvent) {
             // Let orchestrator handle it
             return;
         }
+        // If ranking animation finished, Enter shows prize dialog
+        if (rankingFinished.value) {
+            if (!isPrizeDialogVisible.value) {
+                showPrizeDialog();
+            }
+            return;
+        }
         // TODO: 遷移元に戻したい
-        router.push('/quiz-admin');
+        router.push('/execute');
     }
 }
 
@@ -166,6 +178,7 @@ async function startRankingAnimation() {
     // 上位3位は特別（存在する分だけ順に出す）
     await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待つ
     const topCount = Math.min(3, sorted.length);
+    let particleShown = false;
     for (let j = topCount - 1; j >= 0; j--) {
         const item = sorted[j];
         if (item) {
@@ -176,13 +189,17 @@ async function startRankingAnimation() {
             if (j === 0) {
                 showFullScreenParticles.value = true;
                 setTimeout(() => showFullScreenParticles.value = false, 3000);
-                // After 2 seconds, show prize dialog
-                setTimeout(() => {
-                    showPrizeDialog();
-                }, 2000);
+                // mark that we showed particles (we will enable Enter after animations finish)
+                particleShown = true;
             }
         }
     }
+
+    // Wait for particle animation to finish (if any) before enabling Enter -> prize
+    if (particleShown) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+    rankingFinished.value = true;
 }
 
 </script>
