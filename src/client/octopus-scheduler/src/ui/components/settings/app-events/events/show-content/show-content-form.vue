@@ -50,7 +50,7 @@
         <!-- HTML Input -->
         <div v-else-if="formData.contentType === 'html'" class="form-group">
             <label>HTMLコンテンツ:</label>
-            <textarea v-model="formData.htmlContent" placeholder="HTMLを入力してください" rows="10"></textarea>
+            <textarea v-model="formData.htmlString" placeholder="HTMLを入力してください" rows="10"></textarea>
             <div class="html-actions">
                 <select v-model="selectedImageForHtml">
                     <option value="">画像を選択</option>
@@ -116,7 +116,7 @@ const imageFileInput = ref<HTMLInputElement>();
 const formData = reactive({
     contentType: props.initialData?.contentType ?? 'image',
     contentId: props.initialData?.contentId ?? '',
-    htmlContent: props.initialData?.htmlContent ?? '',
+    htmlString: props.initialData?.htmlString ?? '',
     contentFile: null as File | null,
 });
 
@@ -199,7 +199,7 @@ const handleFileUpload = async (event: Event) => {
 const triggerFileUpload = () => { fileInput.value?.click(); };
 
 const togglePreview = () => {
-    if (formData.contentType === 'html') { previewContent.value = formData.htmlContent; previewType.value = 'html'; }
+    if (formData.contentType === 'html') { previewContent.value = formData.htmlString; previewType.value = 'html'; }
     else {
         if (formData.contentFile) { const url = URL.createObjectURL(formData.contentFile); previewContent.value = { url }; previewType.value = formData.contentType; }
         else if (formData.contentId) {
@@ -230,20 +230,20 @@ const insertImageIntoHtml = () => {
         const index = parseInt(selectedImageForHtml.value.replace('uploaded-', ''));
         const file = uploadedImages.value[index]; if (file) { url = URL.createObjectURL(file); alt = file.name; }
     }
-    if (url) { const imgTag = `<img src="${url}" alt="${alt}" />`; formData.htmlContent += imgTag; selectedImageForHtml.value = ''; }
+    if (url) { const imgTag = `<img src="${url}" alt="${alt}" />`; formData.htmlString += imgTag; selectedImageForHtml.value = ''; }
 };
 
 const save = async () => {
     let outBase: ShowContentFormData;
-    if (formData.contentType === 'html') outBase = { actionType: 'ShowContentEvent', contentType: 'html', contentId: '', htmlContent: formData.htmlContent };
-    else outBase = { actionType: 'ShowContentEvent', contentType: formData.contentType as 'image' | 'movie', contentId: formData.contentId, htmlContent: undefined };
+    if (formData.contentType === 'html') outBase = { actionType: 'ShowContentEvent', contentType: 'html', contentId: '', htmlString: formData.htmlString };
+    else outBase = { actionType: 'ShowContentEvent', contentType: formData.contentType as 'image' | 'movie', contentId: formData.contentId, htmlString: undefined };
     if (props.initialData && 'eventId' in props.initialData) { const out: EditShowContentFormData = { ...(outBase as any), eventId: (props.initialData as EditShowContentFormData).eventId }; emit('save', out); } else { emit('save', outBase); }
 };
 
 const reset = () => {
     formData.contentType = props.initialData?.contentType ?? 'image';
     formData.contentId = props.initialData?.contentId ?? '';
-    formData.htmlContent = props.initialData?.htmlContent ?? '';
+    formData.htmlString = props.initialData?.htmlString ?? '';
     formData.contentFile = null;
     selectedImageForHtml.value = '';
     uploadedImages.value = [];

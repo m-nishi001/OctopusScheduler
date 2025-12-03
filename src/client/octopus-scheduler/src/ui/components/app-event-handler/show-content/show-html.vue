@@ -30,8 +30,20 @@ const displayModeClass = computed(() => {
     return displayMode.value === 'fade' ? 'fade-in' : displayMode.value;
 });
 const createdUrls: string[] = [];
+let prevHtmlOverflow: string | null = null;
+let prevBodyOverflow: string | null = null;
 
 onMounted(async () => {
+    // Prevent page from showing browser scrollbars while fullscreen html is displayed
+    try {
+        prevHtmlOverflow = document.documentElement.style.overflow || null;
+        prevBodyOverflow = document.body.style.overflow || null;
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+    } catch (e) {
+        // ignore (SSR or restricted env)
+    }
+
     let html = '';
     // prefer legacy encoded content if provided
     if (props.content) {
@@ -117,29 +129,52 @@ onUnmounted(() => {
     createdUrls.forEach((u: string) => {
         try { URL.revokeObjectURL(u); } catch (e) { }
     });
+    // Restore previous overflow styles
+    try {
+        if (prevHtmlOverflow !== null) document.documentElement.style.overflow = prevHtmlOverflow;
+        else document.documentElement.style.removeProperty('overflow');
+        if (prevBodyOverflow !== null) document.body.style.overflow = prevBodyOverflow;
+        else document.body.style.removeProperty('overflow');
+    } catch (e) {
+        // ignore
+    }
 });
 </script>
 
 <style scoped>
 .fullscreen-html {
     position: fixed;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100vw;
     height: 100vh;
     background: rgba(0, 0, 0, 0.9);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     z-index: 9999;
     color: white;
+    overflow: hidden;
 }
 
 .html-content {
-    max-width: 90vw;
-    max-height: 80vh;
+    width: 100vw;
+    height: 100vh;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
     overflow: auto;
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.html-content::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari */
+}
+
+/* Reset common default margins inside injected HTML so content sits flush */
+.html-content * {
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 .fade-in {

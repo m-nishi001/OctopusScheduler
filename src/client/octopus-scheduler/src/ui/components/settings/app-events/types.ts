@@ -41,7 +41,7 @@ export interface ShowContentDto extends IEventDtoBase {
   data: {
     contentType: "image" | "movie" | "html";
     contentId: string;
-    htmlContent?: string;
+    htmlString?: string;
   };
 }
 

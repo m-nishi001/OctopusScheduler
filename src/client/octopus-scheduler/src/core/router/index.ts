@@ -23,11 +23,21 @@ const router = createRouter({
       path: "/execute",
       component: octopusSchedulerRoutes.find((r) => r.path === "/execute")
         ?.component,
-      children: [
-        ...jackpotGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
-        ...cardGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
-        ...quizGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
-      ],
+      children: (function () {
+        // include any children that the octopusSchedulerRoutes defined for /execute
+        const appExecuteRoute = octopusSchedulerRoutes.find(
+          (r) => r.path === "/execute"
+        );
+        const appExecuteChildren =
+          (appExecuteRoute && (appExecuteRoute as any).children) || [];
+        return [
+          // include app-defined children first (e.g. show-html, show-image, ...)
+          ...appExecuteChildren.map((c: any) => ({ ...c })),
+          ...jackpotGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
+          ...cardGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
+          ...quizGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
+        ];
+      })(),
     },
   ],
 });

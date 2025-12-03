@@ -63,14 +63,31 @@ export class ShowContentEventHandler {
     } else if (data.contentType === "html") {
       // Prefer routing by event id so the show-html component can fetch htmlString
       if (data.eventId) {
-        router.push({
-          name: "show-html",
-          params: { id: data.eventId },
-          query: {
-            displayMode: data.displayMode || "fade",
-            ...(data.manual ? { manual: "true" } : {}),
-          },
-        });
+        try {
+          // Ensure we are under /execute so child route `show-html/:id` can be resolved
+          const cur = router.currentRoute && (router.currentRoute as any).value;
+          if (!cur || !String(cur.path).startsWith("/execute")) {
+            try {
+              await router.push({ name: "execute" as any });
+            } catch (e) {
+              // ignore navigation errors, we'll still attempt to push child route
+            }
+          }
+
+          await router.push({
+            name: "show-html",
+            params: { id: data.eventId },
+            query: {
+              displayMode: data.displayMode || "fade",
+              ...(data.manual ? { manual: "true" } : {}),
+            },
+          });
+        } catch (e) {
+          console.error(
+            "[ShowContentEventHandler] failed to navigate to show-html",
+            e
+          );
+        }
         return;
       }
 

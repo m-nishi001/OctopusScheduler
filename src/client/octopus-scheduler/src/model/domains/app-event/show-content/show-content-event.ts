@@ -167,6 +167,7 @@ export class ShowContentEvent implements IAppEvent {
   async execute(isStart: boolean, manual?: boolean): Promise<void> {
     if (isStart) {
       eventBus.emit("showContent", {
+        eventId: this.id,
         contentType: this.contentType,
         contentId: this.contentId,
         htmlString: this.htmlString,
