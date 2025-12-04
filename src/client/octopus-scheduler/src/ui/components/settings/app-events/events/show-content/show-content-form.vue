@@ -122,6 +122,7 @@ const formData = reactive({
 
 const selectedImageForHtml = ref('');
 const uploadedImages = ref<File[]>([]);
+const createdPreviewUrls: string[] = [];
 const showPreviewDialog = ref(false);
 const previewContent = ref<any>(null);
 const previewType = ref('');
@@ -198,39 +199,107 @@ const handleFileUpload = async (event: Event) => {
 
 const triggerFileUpload = () => { fileInput.value?.click(); };
 
-const togglePreview = () => {
-    if (formData.contentType === 'html') { previewContent.value = formData.htmlString; previewType.value = 'html'; }
-    else {
-        if (formData.contentFile) { const url = URL.createObjectURL(formData.contentFile); previewContent.value = { url }; previewType.value = formData.contentType; }
+const togglePreview = async () => {
+    if (formData.contentType === 'html') {
+        // Replace any {{asset:type:id}} placeholders with object URLs for preview
+        let html = formData.htmlString || '';
+        const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
+        const assetIds: string[] = [];
+        let match: RegExpExecArray | null = null;
+        while ((match = assetRegex.exec(html)) !== null) {
+            assetIds.push(match[2]);
+        }
+        const assetMap = new Map<string, string>();
+        for (const id of assetIds) {
+            try {
+                const asset = await assetService.getAssetById(id);
+                if (asset && (asset as any).blob) {
+                    try {
+                        const url = URL.createObjectURL((asset as any).blob);
+                        createdPreviewUrls.push(url);
+                        assetMap.set(id, url);
+                    } catch (err) {
+                        console.error('Failed to create object URL for preview asset', err);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load asset for preview:', id, e);
+            }
+        }
+        html = html.replace(assetRegex, (m: string, type: string, assetId: string) => {
+            const dataUrl = assetMap.get(assetId);
+            if (!dataUrl) return m;
+            if (type === 'image') return `<img src="${dataUrl}" alt="asset" />`;
+            if (type === 'video') return `<video src="${dataUrl}" controls></video>`;
+            return m;
+        });
+        previewContent.value = html;
+        previewType.value = 'html';
+    } else {
+        if (formData.contentFile) { const url = URL.createObjectURL(formData.contentFile); createdPreviewUrls.push(url); previewContent.value = { url }; previewType.value = formData.contentType; }
         else if (formData.contentId) {
             const asset = (formData.contentType === 'image' ? imageAssets.value : videoAssets.value).find(a => a.id === formData.contentId);
-            if (asset) { const url = URL.createObjectURL(asset.blob); previewContent.value = { url }; previewType.value = formData.contentType; }
+            if (asset) { const url = URL.createObjectURL(asset.blob); createdPreviewUrls.push(url); previewContent.value = { url }; previewType.value = formData.contentType; }
         }
     }
     showPreviewDialog.value = true;
 };
 
-const closePreview = () => { showPreviewDialog.value = false; if (previewContent.value?.url && previewContent.value.url.startsWith('blob:')) URL.revokeObjectURL(previewContent.value.url); previewContent.value = null; previewType.value = ''; };
+const closePreview = () => {
+    showPreviewDialog.value = false;
+    try {
+        createdPreviewUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch { } });
+        createdPreviewUrls.length = 0;
+    } catch (e) { }
+    previewContent.value = null;
+    previewType.value = '';
+};
 
 const triggerImageUploadForHtml = () => { imageFileInput.value?.click(); };
 
 const handleImageUploadForHtml = async (event: Event) => {
     const target = event.target as HTMLInputElement; const file = target.files?.[0]; if (!file) return;
-    try { const asset: Asset = { id: '', blob: file, name: file.name, uploadedAt: new Date().toISOString(), lastUpdated: new Date().toISOString(), size: file.size, uploaded: true }; const addedIds = await assetService.addAssets([asset]); if (addedIds.length > 0) { uploadedImages.value.push(file); selectedImageForHtml.value = 'uploaded-' + (uploadedImages.value.length - 1); const assets = await assetService.getAssets(); imageAssets.value = assets.filter(asset => asset.blob.type.startsWith('image/')); } } catch (error) { console.error('Failed to upload image for HTML:', error); }
+    try {
+        const asset: Asset = { id: '', blob: file, name: file.name, uploadedAt: new Date().toISOString(), lastUpdated: new Date().toISOString(), size: file.size, uploaded: true };
+        const addedIds = await assetService.addAssets([asset]);
+        if (addedIds.length > 0) {
+            // Immediately select the newly added asset (use existing-<id> semantics)
+            selectedImageForHtml.value = 'existing-' + addedIds[0];
+            // keep uploadedImages for backward compatibility in UI if needed
+            uploadedImages.value.push(file);
+            const assets = await assetService.getAssets();
+            imageAssets.value = assets.filter(asset => asset.blob.type.startsWith('image/'));
+        }
+    } catch (error) {
+        console.error('Failed to upload image for HTML:', error);
+    }
 };
 
 const insertImageIntoHtml = () => {
     if (!selectedImageForHtml.value) return;
-    let url = ''; let alt = '';
     if (selectedImageForHtml.value.startsWith('existing-')) {
         const assetId = selectedImageForHtml.value.replace('existing-', '');
-        const asset = imageAssets.value.find(a => a.id === assetId);
-        if (asset) { url = URL.createObjectURL(asset.blob); alt = asset.name || asset.id; }
+        // Insert placeholder instead of object URL
+        const placeholder = `{{asset:image:${assetId}}}`;
+        formData.htmlString += placeholder;
     } else if (selectedImageForHtml.value.startsWith('uploaded-')) {
+        // Fallback: try to map uploaded index to an asset if possible
         const index = parseInt(selectedImageForHtml.value.replace('uploaded-', ''));
-        const file = uploadedImages.value[index]; if (file) { url = URL.createObjectURL(file); alt = file.name; }
+        const file = uploadedImages.value[index];
+        if (file) {
+            // Attempt to find matching asset by name/size in imageAssets
+            const found = imageAssets.value.find(a => a.name === file.name && a.size === file.size);
+            if (found) {
+                formData.htmlString += `{{asset:image:${found.id}}}`;
+            } else {
+                // as a last resort insert an object URL (temporary) so user sees something
+                const url = URL.createObjectURL(file);
+                createdPreviewUrls.push(url);
+                formData.htmlString += `<img src="${url}" alt="${file.name}" />`;
+            }
+        }
     }
-    if (url) { const imgTag = `<img src="${url}" alt="${alt}" />`; formData.htmlString += imgTag; selectedImageForHtml.value = ''; }
+    selectedImageForHtml.value = '';
 };
 
 const save = async () => {
