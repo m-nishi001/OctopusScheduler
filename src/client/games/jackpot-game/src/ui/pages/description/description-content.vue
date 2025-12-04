@@ -260,7 +260,7 @@ export default {
 	align-items: center;
 	padding: 2.4rem;
 	position: relative;
-	overflow: visible;
+	overflow: hidden;
 }
 
 .inner-border {
@@ -299,7 +299,12 @@ export default {
 .slide-content {
 	width: 100%;
 	max-width: 80%;
-	text-align: center;
+	text-align: left;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: flex-start;
 }
 
 .slide-text {
@@ -318,6 +323,30 @@ export default {
 	line-height: 1.6;
 	margin-bottom: 2rem;
 	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+	max-width: 100%;
+	max-height: 100%;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	overflow: hidden;
+}
+
+/* Force embedded HTML to respect container bounds */
+.slide-html,
+.slide-html * {
+	max-width: 100% !important;
+	box-sizing: border-box !important;
+}
+
+/* Make media scale down to fit the container */
+.slide-html img,
+.slide-html video,
+.slide-html iframe {
+	max-width: 100% !important;
+	height: auto !important;
+	display: block;
 }
 
 .slide-html h1,

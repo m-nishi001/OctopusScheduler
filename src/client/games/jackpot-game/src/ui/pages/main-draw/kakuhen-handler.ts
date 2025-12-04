@@ -5,6 +5,7 @@ import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
 import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
 import { type Emitter } from "mitt";
+import { RouletteBgmManager } from "./roulette/roulette-bgm-manager";
 import type { RouletteItem } from "./roulette/roulette-image-loader";
 import type { RoulettePrizeDto } from "./roulette/roulette-prize-preparer";
 import type { DrawPrizeResponse } from "@model/applications/draw/dto/draw-prize-response";
@@ -83,6 +84,7 @@ export class KakuhenHandler {
       KakuhenHandler.stopKakuhenDummyDraw(
         animationRef,
         kakuhenDummyPrize,
+        loadBgmBlob,
         emitter
       )
     );
@@ -113,7 +115,6 @@ export class KakuhenHandler {
       KakuhenHandler.startKakuhenFinalDraw(
         kakuhenFinalPrize,
         loadBgmBlob,
-        animationRef,
         emitter
       )
     );
@@ -125,6 +126,7 @@ export class KakuhenHandler {
         kakuhenInProgress,
         latestResult,
         preparePrizes,
+        loadBgmBlob,
         emitter
       )
     );
@@ -226,30 +228,39 @@ export class KakuhenHandler {
     // wait a short moment for the animation component to update its internal items
     // (convertToInternal) so the stopSpin call below can find the duplicated sector occurrences
     await new Promise((r) => setTimeout(r, 60));
-    const bgm1AssetId = kakuhenFinalPrize.value?.bgm1AssetId || null;
-    const bgm1Blob = await loadBgmBlob(bgm1AssetId);
-    console.log(
-      "[KakuhenHandler] startKakuhenDummyDraw: bgm1AssetId=",
-      bgm1AssetId,
-      "loadedBGM=",
-      bgm1Blob ? { size: bgm1Blob.size, type: bgm1Blob.type } : null
-    );
-    kakuhenInProgress.value = true;
-    if (animationRef.value?.startSpin) {
-      animationRef.value.startSpin(bgm1Blob);
+    // Preload BGM1 for dummy draw (play on stop)
+    try {
+      const bgm1AssetId = kakuhenDummyPrize.value?.bgm1AssetId || null;
+      const bgm1Blob = await RouletteBgmManager.load(bgm1AssetId, loadBgmBlob);
+      console.log(
+        "[KakuhenHandler] startKakuhenDummyDraw: preloaded bgm1AssetId=",
+        bgm1AssetId,
+        "loadedBGM=",
+        bgm1Blob ? { size: bgm1Blob.size, type: bgm1Blob.type } : null
+      );
+    } catch (e) {
+      console.warn("[KakuhenHandler] failed to preload bgm1", e);
     }
+    kakuhenInProgress.value = true;
     emitter.emit("nextAction");
   }
 
   static async stopKakuhenDummyDraw(
     animationRef: Ref<any>,
     kakuhenDummyPrize: Ref<RoulettePrizeDto | null>,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopKakuhenDummyDraw");
     const dummyDurationMs = 2000;
     if (animationRef.value?.stopSpin) {
-      // stopSpin occurrence=1 => land on the first occurrence (画像1)
+      // Play preloaded bgm1 (if any) then stopSpin occurrence=1 => land on first occurrence (画像1)
+      try {
+        const bgm1AssetId = kakuhenDummyPrize.value?.bgm1AssetId || null;
+        await RouletteBgmManager.playAsset(bgm1AssetId, loadBgmBlob);
+      } catch (e) {
+        console.warn("KakuhenHandler: failed to play bgm for dummy draw", e);
+      }
       await animationRef.value.stopSpin(
         dummyDurationMs / 1000,
         kakuhenDummyPrize.value?.id || null,
@@ -391,6 +402,15 @@ export class KakuhenHandler {
         );
       }
     }
+    // Stop any playing BGM when the dummy prize dialog is shown
+    try {
+      await RouletteBgmManager.stop();
+    } catch (e) {
+      console.warn(
+        "[KakuhenHandler] failed to stop bgm before showing dummy dialog",
+        e
+      );
+    }
     showDummyPrizeDialog.value = true;
     await new Promise((r) => setTimeout(r, 3000));
     emitter.emit("nextAction");
@@ -426,20 +446,20 @@ export class KakuhenHandler {
   static async startKakuhenFinalDraw(
     kakuhenFinalPrize: Ref<RoulettePrizeDto | null>,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
-    animationRef: Ref<any>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] startKakuhenFinalDraw");
     const bgm2AssetId = kakuhenFinalPrize.value?.bgm2AssetId || null;
-    const bgm2Blob = await loadBgmBlob(bgm2AssetId);
-    console.log(
-      "[KakuhenHandler] startKakuhenFinalDraw: bgm2AssetId=",
-      bgm2AssetId,
-      "loadedBGM=",
-      bgm2Blob ? { size: bgm2Blob.size, type: bgm2Blob.type } : null
-    );
-    if (animationRef.value?.startSpin) {
-      animationRef.value.startSpin(bgm2Blob);
+    try {
+      const bgm2Blob = await RouletteBgmManager.load(bgm2AssetId, loadBgmBlob);
+      console.log(
+        "[KakuhenHandler] startKakuhenFinalDraw: preloaded bgm2AssetId=",
+        bgm2AssetId,
+        "loadedBGM=",
+        bgm2Blob ? { size: bgm2Blob.size, type: bgm2Blob.type } : null
+      );
+    } catch (e) {
+      console.warn("[KakuhenHandler] failed to preload bgm2", e);
     }
     await new Promise((r) => setTimeout(r, 1500));
     emitter.emit("nextAction");
@@ -452,10 +472,21 @@ export class KakuhenHandler {
     kakuhenInProgress: Ref<boolean>,
     latestResult: Ref<DrawResultDto | null>,
     preparePrizes: (newPrizes: RoulettePrizeDto[]) => Promise<RouletteItem[]>,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopKakuhenFinalDraw");
     const finalDurationMs = 5000;
+    // Play preloaded bgm2 before final stopSpin
+    try {
+      const bgm2AssetId = kakuhenFinalPrize.value?.bgm2AssetId || null;
+      await RouletteBgmManager.playAsset(bgm2AssetId, loadBgmBlob);
+    } catch (e) {
+      console.warn(
+        "[DrawOrchestrator] stopKakuhenFinalDraw: failed to play bgm",
+        e
+      );
+    }
     if (animationRef.value?.stopSpin) {
       try {
         // Ensure animator internal items are in sync and log for diagnostics.

@@ -50,13 +50,14 @@ const handleClose = () => {
     padding: 2rem;
     border-radius: 1rem;
     text-align: center;
-    max-width: 400px;
-    width: 90%;
+    max-width: 700px;
+    width: min(90%, 700px);
 }
 
 .prize-image img {
     max-width: 100%;
-    max-height: 200px;
+    max-height: 60vh;
+    height: auto;
     object-fit: contain;
     margin: 1rem 0;
 }
@@ -81,3 +82,14 @@ const handleClose = () => {
     background-color: #059669;
 }
 </style>
+
+@media (max-width: 480px) {
+.prize-dialog {
+padding: 1.25rem;
+max-width: 92%;
+}
+
+.prize-image img {
+max-height: 40vh;
+}
+}

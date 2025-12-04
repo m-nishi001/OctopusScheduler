@@ -4,6 +4,7 @@ import { DrawApplicationService } from "@model/applications/draw/draw-applicatio
 import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
 import { ActionQueue } from "./action-queue";
 import { type Emitter } from "mitt";
+import { RouletteBgmManager } from "./roulette/roulette-bgm-manager";
 
 export class BaseHandler {
   static async startMemberDraw(
@@ -62,15 +63,17 @@ export class BaseHandler {
     updateSelectedPrize(
       prizes.value.find((p: PrizeDto) => p.id === winnerPrizeId)!
     );
-    const bgmBlob = await loadBgmBlob(selectedPrize.value!.bgm1AssetId || null);
+    // Preload BGM for later playback on stopSpin
+    const bgm1Id = selectedPrize.value!.bgm1AssetId || null;
+    const bgmBlob = await RouletteBgmManager.load(bgm1Id, loadBgmBlob);
     console.log(
-      "[DrawOrchestrator] startPrizeDraw: selectedPrize.bgm1AssetId=",
-      selectedPrize.value!.bgm1AssetId,
+      "[DrawOrchestrator] startPrizeDraw: preloaded bgm1AssetId=",
+      bgm1Id,
       "loadedBGM=",
       bgmBlob ? { size: bgmBlob.size, type: bgmBlob.type } : null
     );
     if (animationRef.value?.startSpin) {
-      animationRef.value.startSpin(bgmBlob);
+      animationRef.value.startSpin();
     }
     emitter.emit("nextAction");
   }
@@ -78,12 +81,21 @@ export class BaseHandler {
   static async stopPrizeDraw(
     selectedPrize: Ref<PrizeDto | null>,
     animationRef: Ref<any>,
+    loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopPrizeDraw", {
       selectedPrizeId: selectedPrize.value?.id,
       selectedPrizeType: typeof selectedPrize.value?.id,
     });
+
+    // Ensure BGM is played before stopping the spin
+    const bgm1Id = selectedPrize.value!.bgm1AssetId || null;
+    try {
+      await RouletteBgmManager.playAsset(bgm1Id, loadBgmBlob);
+    } catch (e) {
+      console.warn("[DrawOrchestrator] stopPrizeDraw: failed to play bgm", e);
+    }
 
     // Diagnostic: dump animator internal items if available so we can see why
     // the target prize might not be found.
@@ -114,7 +126,7 @@ export class BaseHandler {
 
     if (animationRef.value?.stopSpin && selectedPrize.value) {
       try {
-        await animationRef.value.stopSpin(3, selectedPrize.value.id);
+        await animationRef.value.stopSpin(3, selectedPrize.value.id, 1);
         emitter.emit("nextAction");
         console.log("[DrawOrchestrator] stopPrizeDraw completed stopSpin");
       } catch (e) {
@@ -129,6 +141,15 @@ export class BaseHandler {
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] showPrizeWinningDialogAction");
+    // Stop background music when the prize dialog is shown
+    try {
+      await RouletteBgmManager.stop();
+    } catch (e) {
+      console.warn(
+        "[DrawOrchestrator] failed to stop bgm before showing dialog",
+        e
+      );
+    }
     showPrizeWinningDialog.value = true;
     emitter.emit("nextAction");
   }
@@ -300,7 +321,12 @@ export class BaseHandler {
     );
     baseActions.push(() => BaseHandler.wait(1));
     baseActions.push(() =>
-      BaseHandler.stopPrizeDraw(selectedPrize, animationRef, emitter)
+      BaseHandler.stopPrizeDraw(
+        selectedPrize,
+        animationRef,
+        loadBgmBlob,
+        emitter
+      )
     );
     baseActions.push(() =>
       BaseHandler.showPrizeWinningDialogAction(showPrizeWinningDialog, emitter)

@@ -151,41 +151,22 @@ describe("useRouletteAnimation - full coverage", () => {
     expect(drawWheel).toHaveBeenCalledTimes(0);
   });
 
-  it("startSpin calls startBgm then animator.startSpin (normal)", async () => {
+  it("startSpin skips bgm and calls animator.startSpin (normal)", async () => {
     const props = reactive({ prizes: [] });
     const api = useRouletteAnimation(props as any);
-
-    const audio = useRouletteAudio();
     const animator = useRouletteAnimator();
 
-    await api.startSpin(new Blob(), 2, 2);
+    await api.startSpin(2, 2);
 
-    expect(audio.startBgm).toHaveBeenCalled();
     expect(animator.startSpin).toHaveBeenCalledWith(2, 2);
   });
 
-  it("startSpin attempts tryResumeBgm when autoplay was blocked", async () => {
+  it("startSpin does not reject when bgm is not started", async () => {
     const props = reactive({ prizes: [] });
     const api = useRouletteAnimation(props as any);
 
-    const audio = useRouletteAudio();
-    (audio as any).bgmAutoplayBlocked.value = true;
-    const audioSpy = (audio as any).tryResumeBgm;
-    await api.startSpin(new Blob(), 2, 2);
-
-    expect(audioSpy).toHaveBeenCalled();
-  });
-
-  it("startSpin rejects when startBgm fails", async () => {
-    const props = reactive({ prizes: [] });
-    const api = useRouletteAnimation(props as any);
-
-    const audio = useRouletteAudio();
-    (audio.startBgm as any).mockImplementationOnce(() =>
-      Promise.reject(new Error("bgm failed"))
-    );
-
-    await expect(api.startSpin(null)).rejects.toThrow("bgm failed");
+    // Should resolve without issues since bgm is skipped
+    await expect(api.startSpin()).resolves.toBeUndefined();
   });
 
   it("stopSpin throws if targetPrizeId is missing", async () => {
@@ -206,7 +187,7 @@ describe("useRouletteAnimation - full coverage", () => {
     );
   });
 
-  it("stopSpin normal flow calls calculateSectorAngle, animator.stopSpin and stopBgmAudio and returns result", async () => {
+  it("stopSpin normal flow calls calculateSectorAngle, animator.stopSpin and startBgm and returns result", async () => {
     const props = reactive({ prizes: [{ id: "p1" }] });
     const TestComp = {
       template: `<canvas ref="canvas"></canvas>`,
@@ -225,7 +206,6 @@ describe("useRouletteAnimation - full coverage", () => {
     await api.updatePrizes([{ id: "p1", name: "P1" }]);
 
     const animator = useRouletteAnimator();
-    const audio = useRouletteAudio();
 
     (animator.stopSpin as any).mockImplementationOnce(() =>
       Promise.resolve("p1")
@@ -240,27 +220,23 @@ describe("useRouletteAnimation - full coverage", () => {
       3,
       1
     );
-    expect(audio.stopBgmAudio).toHaveBeenCalled();
     expect(result).toBe("p1");
 
     unmount();
   });
 
-  it("stopSpin propagates animator.stopSpin rejection and does not call stopBgmAudio", async () => {
+  it("stopSpin propagates animator.stopSpin rejection and does not call startBgm", async () => {
     const props = reactive({ prizes: [{ id: "p1" }] });
     const api = useRouletteAnimation(props as any);
 
     await api.updatePrizes([{ id: "p1", name: "P1" }]);
 
     const animator = useRouletteAnimator();
-    const audio = useRouletteAudio();
     (animator.stopSpin as any).mockImplementationOnce(() =>
       Promise.reject(new Error("anim fail"))
     );
 
     await expect(api.stopSpin(undefined, "p1")).rejects.toThrow("anim fail");
-    // current implementation calls stopBgmAudio after successful animator.stopSpin, so it should not have been called
-    expect(audio.stopBgmAudio).not.toHaveBeenCalled();
   });
 
   it("watch on props.prizes calls updateRouletteItems for non-empty and ignores empty", async () => {
@@ -293,12 +269,6 @@ describe("useRouletteAnimation - full coverage", () => {
 
   it("onUnmounted calls stopBgmAudio and swallows errors", async () => {
     const props = reactive({ prizes: [] });
-    const audio = useRouletteAudio();
-    // make stopBgmAudio reject once to ensure error swallowed
-    (audio.stopBgmAudio as any).mockImplementationOnce(() =>
-      Promise.reject(new Error("stop fail"))
-    );
-
     const TestComp = {
       template: `<canvas ref="canvas"></canvas>`,
       setup() {

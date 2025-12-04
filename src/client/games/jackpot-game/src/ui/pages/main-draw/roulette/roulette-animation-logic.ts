@@ -6,7 +6,6 @@ import type {
 import { convertToInternal } from "./roulette-image-loader";
 import { drawWheel } from "./roulette-drawer";
 import { useRouletteAnimator, UseRouletteOptions } from "./roulette-animator";
-import { useRouletteAudio } from "./roulette-audio";
 import { calculateSectorAngle } from "./roulette-angle-utils";
 
 export type { RouletteItem } from "./roulette-image-loader";
@@ -25,14 +24,7 @@ export function useRouletteAnimation(
   let ctx: CanvasRenderingContext2D | null = null;
   let resizeObserver: ResizeObserver | null = null;
 
-  const {
-    startBgm,
-    stopBgmAudio,
-    bgmAutoplayBlocked,
-    tryResumeBgm,
-    isBgmPlaying,
-    currentBgmSrc,
-  } = useRouletteAudio();
+  // Audio responsibilities moved to handlers; roulette animation only handles visuals.
 
   let currentRouletteItems: InternalRouletteItem[] = [];
 
@@ -70,42 +62,9 @@ export function useRouletteAnimation(
   }
 
   const startSpin = async (
-    bgmUrl?: Blob | null,
     accelDuration: number = 1,
     targetSpeed: number = 16
   ) => {
-    try {
-      // If autoplay was previously blocked, try to resume playback on user gesture
-      try {
-        if (
-          (bgmAutoplayBlocked as any)?.value &&
-          typeof tryResumeBgm === "function"
-        ) {
-          await tryResumeBgm();
-        }
-      } catch {}
-      await startBgm(bgmUrl);
-      console.log(
-        "[RouletteAnimation] startSpin: bgm loaded",
-        bgmUrl ? { size: bgmUrl.size, type: bgmUrl.type } : null
-      );
-      try {
-        console.log(
-          "[RouletteAnimation] startSpin: audio state after startBgm => isPlaying:",
-          (isBgmPlaying as any).value,
-          "currentSrc:",
-          (currentBgmSrc as any).value,
-          "autoplayBlocked:",
-          (bgmAutoplayBlocked as any).value
-        );
-      } catch (e) {
-        /* noop */
-      }
-    } catch (e) {
-      console.warn("[RouletteAnimation] startSpin: failed to load bgm", e);
-      // rethrow to preserve original behavior where startSpin rejects when startBgm fails
-      throw e;
-    }
     await animator.startSpin(accelDuration, targetSpeed);
   };
 
@@ -148,10 +107,6 @@ export function useRouletteAnimation(
       durationSec || 3,
       occurrence
     );
-
-    console.log("Stopping BGM audio");
-
-    await stopBgmAudio();
     return result;
   };
 
@@ -183,9 +138,7 @@ export function useRouletteAnimation(
       resizeObserver.disconnect();
       resizeObserver = null;
     }
-    try {
-      await stopBgmAudio();
-    } catch {}
+    // audio stop handled by handlers
   });
 
   return {
@@ -195,8 +148,6 @@ export function useRouletteAnimation(
     spinning: animator.spinning,
     updatePrizes: updateRouletteItems,
     getInternalItems: () => currentRouletteItems.slice(),
-    // expose autoplay control so the consumer can act on user gesture
-    bgmAutoplayBlocked,
-    tryResumeBgm,
+    // audio handled by handlers
   };
 }
