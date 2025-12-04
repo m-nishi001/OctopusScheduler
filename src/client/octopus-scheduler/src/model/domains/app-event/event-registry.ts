@@ -1,12 +1,14 @@
 import type { IAppEvent } from "./app-event";
 import { TransitionPageEvent } from "./transition/transition-page-event";
 import { PlayAudioEvent } from "./play-audio/play-audio-event";
+import { StopAudioEvent } from "./stop-audio/stop-audio-event";
 import { SlideshowEvent } from "./slideshow/slideshow-event";
 import { ShowContentEvent } from "./show-content/show-content-event";
 
 export type EventTypeKey =
   | "TransitionPageEvent"
   | "PlayAudioEvent"
+  | "StopAudioEvent"
   | "SlideshowEvent"
   | "ShowContentEvent";
 
@@ -19,6 +21,7 @@ const registry: Map<string, EventFactory> = new Map();
 // Register built-in event types
 registry.set("TransitionPageEvent", { fromData: TransitionPageEvent.fromData });
 registry.set("PlayAudioEvent", { fromData: PlayAudioEvent.fromData });
+registry.set("StopAudioEvent", { fromData: StopAudioEvent.fromData });
 registry.set("SlideshowEvent", { fromData: SlideshowEvent.fromData });
 registry.set("ShowContentEvent", { fromData: ShowContentEvent.fromData });
 

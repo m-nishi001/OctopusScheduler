@@ -12,7 +12,11 @@ export class PlayAudioEventHandler {
     eventBus.on("playAudio", (data: { audioId?: string }) =>
       this.handlePlayAudio(data, assetService)
     );
-    eventBus.on("stopAudio", () => this.handleStopAudio());
+    eventBus.on(
+      "stopAudio",
+      (data?: { audioId?: string; fadeOutDuration?: number }) =>
+        this.handleStopAudio(data)
+    );
   }
 
   private static async handlePlayAudio(
@@ -53,10 +57,30 @@ export class PlayAudioEventHandler {
     }
   }
 
-  private static async handleStopAudio() {
+  private static async handleStopAudio(data?: {
+    audioId?: string;
+    fadeOutDuration?: number;
+  }) {
+    const fadeMs = data?.fadeOutDuration
+      ? Math.round((data.fadeOutDuration as number) * 1000)
+      : 0;
+    if (data?.audioId) {
+      const instance = this.playingInstances.get(data.audioId);
+      if (instance) {
+        try {
+          await this.audioService.stop(instance, fadeMs);
+          this.audioService.disposeInstance(instance);
+        } catch (error) {
+          console.error("Failed to stop audio:", error);
+        }
+        this.playingInstances.delete(data.audioId);
+      }
+      return;
+    }
+
     for (const instanceId of this.playingInstances.values()) {
       try {
-        await this.audioService.stop(instanceId);
+        await this.audioService.stop(instanceId, fadeMs);
         this.audioService.disposeInstance(instanceId);
       } catch (error) {
         console.error("Failed to stop audio:", error);

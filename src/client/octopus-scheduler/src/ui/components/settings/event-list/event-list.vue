@@ -68,6 +68,8 @@
             @close="closeDialogs" />
         <MusicPlaybackEventDialog v-if="showMusicDialog" :event="editingEvent as any" @saved="onDialogSaved"
             @close="closeDialogs" />
+        <StopAudioEventDialog v-if="showStopAudioDialog" :event="editingEvent as any" @saved="onDialogSaved"
+            @close="closeDialogs" />
         <ScreenTransitionEventDialog v-if="showTransitionDialog" :event="editingEvent as any" @saved="onDialogSaved"
             @close="closeDialogs" />
         <SlideshowEventDialog v-if="showSlideshowDialog" :event="editingEvent as any" @saved="onDialogSaved"
@@ -84,6 +86,7 @@ import type { IAppEvent } from '../../../../model/domains/app-event/app-event';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
 import ContentDisplayEventDialog from './dialogs/content-display-event/content-display-event-dialog.vue';
 import MusicPlaybackEventDialog from './dialogs/music-playback-event/music-playback-event-dialog.vue';
+import StopAudioEventDialog from './dialogs/stop-audio-event/stop-audio-event-dialog.vue';
 import ScreenTransitionEventDialog from './dialogs/screen-transition-event/screen-transition-event-dialog.vue';
 import SlideshowEventDialog from './dialogs/slideshow-event/slideshow-event-dialog.vue';
 // persistence moved into dialog components
@@ -99,6 +102,7 @@ const showContentDialog = ref(false);
 const showMusicDialog = ref(false);
 const showTransitionDialog = ref(false);
 const showSlideshowDialog = ref(false);
+const showStopAudioDialog = ref(false);
 const editingEvent = ref<IAppEvent | null>(null);
 
 const scheduleEventService = container.resolve(AppEventService);
@@ -120,6 +124,7 @@ function getTypeLabel(type: string): string {
     switch (type) {
         case 'ShowContentEvent': return 'コンテンツ表示';
         case 'PlayAudioEvent': return '音楽再生';
+        case 'StopAudioEvent': return '音楽停止';
         case 'TransitionPageEvent': return '画面遷移';
         case 'SlideshowEvent': return 'スライドショー';
         default: return type;
@@ -135,6 +140,9 @@ function calculateWaitTime(event: IAppEvent): number {
         case 'PlayAudioEvent':
             const audioEvent = event as any;
             return baseTime + (audioEvent.fadeOutDuration || 0);
+        case 'StopAudioEvent':
+            const stopEvent = event as any;
+            return baseTime + (stopEvent.fadeOutDuration || 0);
         case 'TransitionPageEvent':
             const transitionEvent = event as any;
             return baseTime + (transitionEvent.fadeOutDuration || 0);
@@ -181,6 +189,9 @@ function onTypeSelected(type: string) {
         case 'PlayAudioEvent':
             showMusicDialog.value = true;
             break;
+        case 'StopAudioEvent':
+            showStopAudioDialog.value = true;
+            break;
         case 'TransitionPageEvent':
             showTransitionDialog.value = true;
             break;
@@ -199,6 +210,9 @@ function onEdit(ev: IAppEvent) {
         case 'PlayAudioEvent':
             showMusicDialog.value = true;
             break;
+        case 'StopAudioEvent':
+            showStopAudioDialog.value = true;
+            break;
         case 'TransitionPageEvent':
             showTransitionDialog.value = true;
             break;
@@ -213,6 +227,7 @@ function closeDialogs() {
     showMusicDialog.value = false;
     showTransitionDialog.value = false;
     showSlideshowDialog.value = false;
+    showStopAudioDialog.value = false;
     editingEvent.value = null;
 }
 

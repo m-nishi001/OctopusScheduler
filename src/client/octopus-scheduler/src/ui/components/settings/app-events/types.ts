@@ -13,6 +13,7 @@ export type EventOption = {
 export type ActionType =
   | "TransitionPageEvent"
   | "PlayAudioEvent"
+  | "StopAudioEvent"
   | "SlideshowEvent"
   | "ShowContentEvent";
 
@@ -29,6 +30,11 @@ export interface TransitionPageDto extends IEventDtoBase {
 export interface PlayAudioDto extends IEventDtoBase {
   actionType: "PlayAudioEvent";
   data: { audioId: string; audioFile?: File | null };
+}
+
+export interface StopAudioDto extends IEventDtoBase {
+  actionType: "StopAudioEvent";
+  data: { audioId?: string; fadeOutDuration?: number };
 }
 
 export interface SlideshowDto extends IEventDtoBase {
@@ -48,6 +54,7 @@ export interface ShowContentDto extends IEventDtoBase {
 export type EventDto =
   | TransitionPageDto
   | PlayAudioDto
+  | StopAudioDto
   | SlideshowDto
   | ShowContentDto;
 
@@ -58,6 +65,11 @@ export type PlayAudioFormData = {
   actionType: "PlayAudioEvent";
 } & PlayAudioDto["data"];
 export type EditPlayAudioFormData = PlayAudioFormData & { eventId: string };
+
+export type StopAudioFormData = {
+  actionType: "StopAudioEvent";
+} & StopAudioDto["data"];
+export type EditStopAudioFormData = StopAudioFormData & { eventId: string };
 
 export type ShowContentFormData = {
   actionType: "ShowContentEvent";
