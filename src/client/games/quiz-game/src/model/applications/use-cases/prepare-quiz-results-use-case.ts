@@ -107,13 +107,25 @@ export class PrepareQuizResultsUseCase {
             (typeof r.timeToAnswerMs === "number" ||
               typeof r.timestampMs === "number")
           ) {
-            const tms =
-              typeof r.timeToAnswerMs === "number"
-                ? Number(r.timeToAnswerMs)
-                : Number(r.timestampMs) - Number(quizStartMs || Date.now());
+            let tms: number | null = null;
+            if (
+              typeof r.timeToAnswerMs === "number" &&
+              Number.isFinite(Number(r.timeToAnswerMs))
+            ) {
+              tms = Number(r.timeToAnswerMs);
+            } else if (
+              typeof r.timestampMs === "number" &&
+              Number.isFinite(Number(r.timestampMs))
+            ) {
+              tms = Number(r.timestampMs) - Number(quizStartMs || Date.now());
+            } else {
+              tms = null;
+            }
             return {
               name: r.playerName ?? r.name ?? "匿名",
-              timeSeconds: Number.isFinite(tms) ? tms / 1000 : null,
+              timeSeconds: Number.isFinite(tms as number)
+                ? (tms as number) / 1000
+                : null,
             };
           }
           // Last resort: map name heuristics

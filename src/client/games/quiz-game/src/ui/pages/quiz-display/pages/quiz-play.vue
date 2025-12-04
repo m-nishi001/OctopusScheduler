@@ -354,7 +354,7 @@ const startTimer = () => {
                                     timeMs = r.time > 1000 ? Number(r.time) : Number(r.time) * 1000;
                                 }
                                 const rank = typeof r.rank === 'number' ? r.rank : idx + 1;
-                                return { id, playerName: String(playerName), time: timeMs ?? 0, rank };
+                                return { id, playerName: String(playerName), time: Number.isFinite(timeMs) ? timeMs : null, rank };
                             });
                             quizState.setResults(normalized as any[]);
                         } catch (e) {

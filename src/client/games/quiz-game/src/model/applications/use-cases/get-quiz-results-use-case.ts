@@ -166,11 +166,17 @@ export class GetQuizResultsUseCase {
       quizStartTimeMs: quizStart,
     });
 
-    const final = top.map((item) => {
+    const final = top.map((item, idx) => {
       const secs = (item as any).__timeToAnswerSec;
       const timeSeconds =
         typeof secs === "number" && !Number.isNaN(secs) ? secs : null;
-      return { name: item.name ?? "正答者なし ---", timeSeconds };
+      // Prefer using original row index if available for stable ids, otherwise fall back to sequence-based placeholder id
+      const rowIndex = (item as any).__rowIndex;
+      const id =
+        typeof rowIndex === "number" && rowIndex >= 0
+          ? `result-${rowIndex}`
+          : `result-placeholder-${idx}`;
+      return { id, name: item.name ?? "正答者なし ---", timeSeconds };
     });
 
     return final;

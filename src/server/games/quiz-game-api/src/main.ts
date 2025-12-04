@@ -404,15 +404,22 @@ _quizGame_stopAndGetProcessedResults = (
 
     // Step 5: Build ProcessedResultDto array with rank
     const results: ProcessedResultDto[] = filtered.map(
-      (r: any, index: number) => ({
-        playerId: null, // Not available
-        playerName: r.name || null,
-        isCorrect: true, // All filtered are correct
-        timeToAnswerMs: Number(r.__timestampMs ?? 0) - quizStartTimeMs,
-        timestampMs: Number(r.__timestampMs ?? 0),
-        rank: index + 1,
-        rawRow: r.__raw,
-      })
+      (r: any, index: number) => {
+        const rawTs = Number(r.__timestampMs);
+        const timestampMs = Number.isFinite(rawTs) ? rawTs : NaN;
+        const timeToAnswerMs = Number.isFinite(timestampMs)
+          ? timestampMs - quizStartTimeMs
+          : NaN;
+        return {
+          playerId: null, // Not available
+          playerName: r.name || null,
+          isCorrect: true, // All filtered are correct
+          timeToAnswerMs,
+          timestampMs,
+          rank: index + 1,
+          rawRow: r.__raw,
+        } as ProcessedResultDto;
+      }
     );
 
     Logger.log(

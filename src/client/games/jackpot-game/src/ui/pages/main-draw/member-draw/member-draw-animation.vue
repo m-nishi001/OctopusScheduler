@@ -127,12 +127,15 @@ export default {
             let list: MemberDto[] = [];
 
             if (props.memberRes && props.memberRes.winnerId) {
-                // 当選者を最後に配置
                 const winner = allMembers.find((m: MemberDto) => m.id === props.memberRes!.winnerId);
                 if (winner) {
                     // ダミーIDを先に配置
                     const dummies = props.memberRes.dummyIds.map((id: string) => allMembers.find((m: MemberDto) => m.id === id)).filter(Boolean) as MemberDto[];
-                    list = [...dummies, winner];
+                    list = [...dummies];
+                    // 当選者をランダムな位置に挿入
+                    const randomIndex = Math.floor(Math.random() * (list.length + 1));
+                    list.splice(randomIndex, 0, winner);
+                    console.log('★ [MemberDrawAnimation] Winner placed at random index:', randomIndex);
                 } else {
                     list = allMembers.slice(0, props.visibleCount);
                 }
@@ -162,7 +165,10 @@ export default {
             if (winner) {
                 const withoutWinner = all.filter((m: MemberDto) => m.id !== winnerId);
                 list = withoutWinner.slice(0, Math.max(visible - 1, 0));
-                list = [...list, winner];
+                // 当選者をランダムな位置に挿入
+                const randomIndex = Math.floor(Math.random() * (list.length + 1));
+                list.splice(randomIndex, 0, winner);
+                console.log('[MemberDrawAnimation] ensureWinnerInDisplay: Winner placed at random index:', randomIndex);
             } else {
                 list = all.slice(0, visible);
             }

@@ -63,15 +63,22 @@ export class FormRepository {
         });
 
         const processed: ProcessedResultDto[] = top.map(
-          (r: any, idx: number) => ({
-            playerId: null,
-            playerName: r.name || null,
-            isCorrect: true,
-            timeToAnswerMs: Number(r.__timestampMs ?? 0) - quizStartTimeMs,
-            timestampMs: Number(r.__timestampMs ?? 0),
-            rank: idx + 1,
-            rawRow: r.__raw,
-          })
+          (r: any, idx: number) => {
+            const rawTs = Number(r.__timestampMs);
+            const timestampMs = Number.isFinite(rawTs) ? rawTs : NaN;
+            const timeToAnswerMs = Number.isFinite(timestampMs)
+              ? timestampMs - quizStartTimeMs
+              : NaN;
+            return {
+              playerId: null,
+              playerName: r.name || null,
+              isCorrect: true,
+              timeToAnswerMs,
+              timestampMs,
+              rank: idx + 1,
+              rawRow: r.__raw,
+            } as ProcessedResultDto;
+          }
         );
 
         console.info(

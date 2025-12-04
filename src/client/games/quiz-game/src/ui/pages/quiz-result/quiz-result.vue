@@ -8,7 +8,8 @@
         <div class="result-table-container">
             <h1 class="title text-3xl font-bold text-center mb-6">結果表示！</h1>
             <transition-group name="ranking" tag="div" class="ranking-list">
-                <div v-for="record in displayedResults" :key="record.name" class="ranking-item"
+                <div v-for="(record, idx) in displayedResults" :key="record.id || (record.name + '-' + idx)"
+                    class="ranking-item"
                     :class="{ 'top3': getRank(record) <= 3, 'first-place': getRank(record) === 1 }">
                     <div class="rank-number">{{ getRank(record) }}</div>
                     <div class="player-name">{{ record.name }}</div>
@@ -51,8 +52,8 @@ const isPreview = computed(() => {
 const showFullScreenParticles = ref(false);
 const rankingFinished = ref(false);
 
-const finalResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
-const displayedResults = ref<{ name: string; timeSeconds: number | null }[]>([]);
+const finalResults = ref<{ id: string; name: string; timeSeconds: number | null }[]>([]);
+const displayedResults = ref<{ id: string; name: string; timeSeconds: number | null }[]>([]);
 const currentQuiz = ref<QuizDto | null>(null);
 
 const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
@@ -87,8 +88,13 @@ watch(currentQuiz, (q: QuizDto | null) => {
 });
 
 // Helper: rank is determined by the finalResults order (ascending time)
-function getRank(record: { name: string; timeSeconds: number | null }): number {
-    const idx = finalResults.value.findIndex((r: { name: string; timeSeconds: number | null }) => {
+function getRank(record: { id?: string; name: string; timeSeconds: number | null }): number {
+    // Prefer id-based lookup when available
+    if (record.id) {
+        const idxById = finalResults.value.findIndex((r) => r.id === record.id);
+        if (idxById >= 0) return idxById + 1;
+    }
+    const idx = finalResults.value.findIndex((r: { id?: string; name: string; timeSeconds: number | null }) => {
         if (r.name !== record.name) return false;
         const ta = r.timeSeconds;
         const tb = record.timeSeconds;
@@ -126,7 +132,14 @@ onMounted(() => {
                 finalResults.value = [];
             } else {
                 currentQuiz.value = res.quiz;
-                finalResults.value = res.results || [];
+                // Ensure every result has a stable `id` (some sources may not provide it)
+                const raw = Array.isArray(res.results) ? res.results : [];
+                finalResults.value = raw.map((r: any, idx: number) => {
+                    if (r && typeof r.id === 'string' && r.id.length > 0) return r;
+                    const rowIndex = typeof r === 'object' && r !== null ? (r.__rowIndex ?? r.rowIndex ?? null) : null;
+                    const id = typeof rowIndex === 'number' && rowIndex >= 0 ? `result-${rowIndex}` : `result-fallback-${idx}`;
+                    return { id, name: (r && r.name) || '正答者なし ---', timeSeconds: (r && (typeof r.timeSeconds === 'number' ? r.timeSeconds : (typeof r.time === 'number' ? r.time / 1000 : null))) ?? null };
+                });
             }
             await startRankingAnimation();
         } catch (e) {

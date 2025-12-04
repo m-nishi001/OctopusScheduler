@@ -60,7 +60,9 @@ export function computeTopResponders(
   const byRowIndex = new Map<number, AnswerData>();
 
   for (const row of filtered) {
-    const timestampMs = Number(row.__timestampMs);
+    const timestampMs = Number.isFinite(Number(row.__timestampMs))
+      ? Number(row.__timestampMs)
+      : NaN;
     // determine email key
     let normalizedEmail: string | null = null;
     if (emailHeader) {
@@ -79,8 +81,11 @@ export function computeTopResponders(
       if (!prev) {
         byEmail.set(normalizedEmail, row);
       } else {
-        const prevTs = Number(prev.__timestampMs ?? 0);
-        if (timestampMs >= prevTs) {
+        const prevTs = Number.isFinite(Number(prev.__timestampMs))
+          ? Number(prev.__timestampMs)
+          : -Infinity;
+        const curTs = Number.isFinite(timestampMs) ? timestampMs : -Infinity;
+        if (curTs >= prevTs) {
           // "最後の回答時間が結果" のポリシーに基づき上書き
           byEmail.set(normalizedEmail, row);
         }
@@ -101,8 +106,12 @@ export function computeTopResponders(
 
   // Sort by __timestampMs ascending (早い順)
   list.sort((a, b) => {
-    const ta = Number(a.__timestampMs ?? 0);
-    const tb = Number(b.__timestampMs ?? 0);
+    const ta = Number.isFinite(Number(a.__timestampMs))
+      ? Number(a.__timestampMs)
+      : Number.POSITIVE_INFINITY;
+    const tb = Number.isFinite(Number(b.__timestampMs))
+      ? Number(b.__timestampMs)
+      : Number.POSITIVE_INFINITY;
     if (ta < tb) return -1;
     if (ta > tb) return 1;
     return 0;
@@ -113,8 +122,9 @@ export function computeTopResponders(
 
   // Add timeToAnswerSec (seconds from quizStartTimeMs) and display-friendly field
   top = top.map((item) => {
-    const ts = Number(item.__timestampMs ?? 0);
-    const deltaMs = ts - quizStartTimeMs;
+    const rawTs = item.__timestampMs;
+    const ts = Number.isFinite(Number(rawTs)) ? Number(rawTs) : NaN;
+    const deltaMs = Number.isFinite(ts) ? ts - quizStartTimeMs : NaN;
     const secs = Number.isFinite(deltaMs) ? deltaMs / 1000 : NaN;
     const timeToAnswerSec = Number.isFinite(secs) ? Number(secs) : null;
     const copy: AnswerData = { ...item };
