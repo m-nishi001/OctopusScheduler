@@ -57,7 +57,7 @@ const currentQuiz = ref<QuizDto | null>(null);
 
 const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
     getSettings: () => currentQuiz.value?.settings,
-    onNavigateHome: () => router.push({ name: 'home' }),
+    onNavigateHome: () => router.push('/execute'),
 });
 
 const prizeName = computed(() => currentQuiz.value?.settings?.prizeName || null);
@@ -160,8 +160,6 @@ function handleKeydown(event: KeyboardEvent) {
             }
             return;
         }
-        // TODO: 遷移元に戻したい
-        router.push('/execute');
     }
 }
 
