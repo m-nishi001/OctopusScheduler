@@ -338,10 +338,27 @@ export default {
             const screenBottom = window.innerHeight;
             const midpoint = (centerY + screenBottom) / 2;
             const btn = startButtonContainer.value;
-            btn.style.position = 'absolute';
-            btn.style.left = '50%';
-            btn.style.top = `${midpoint}px`;
-            btn.style.transform = 'translate(-50%, -50%)';
+            // use viewport-fixed positioning so the button is always relative to the window
+            btn.style.position = 'fixed';
+            // Compute clamped top so the button center never goes outside the viewport
+            try {
+                const btnHeight = btn.offsetHeight || parseInt(getComputedStyle(btn).height || '0') || 0;
+                const padding = 12; // minimum distance from viewport edge in px
+                const minCenter = btnHeight / 2 + padding;
+                const maxCenter = window.innerHeight - (btnHeight / 2) - padding;
+                // clamp midpoint between minCenter and maxCenter
+                const clamped = Math.max(minCenter, Math.min(midpoint, maxCenter));
+                // set vertical center using translateY; horizontal centering is handled by CSS flex
+                // apply a small downward bias so the button sits a bit lower visually
+                const verticalOffset = 40; // pixels to nudge the button down
+                const biased = Math.min(clamped + verticalOffset, maxCenter);
+                btn.style.top = `${biased}px`;
+                btn.style.transform = 'translateY(-50%)';
+            } catch (e) {
+                // fallback to original midpoint if any measurement fails
+                btn.style.top = `${midpoint}px`;
+                btn.style.transform = 'translateY(-50%)';
+            }
         };
 
         const startActiveLoop = () => {
@@ -692,22 +709,38 @@ export default {
 }
 
 .start-button-container {
-    position: absolute;
-    left: 50%;
-    /* top will be positioned by JS to sit vertically between the centered member and the bottom */
-    transform: translate(-50%, -50%);
+    /* Full-width fixed container; horizontally center children with flex.
+       JS will update `top` to position vertically. Container itself is non-interactive so clicks fall through
+       to the button which is interactive. */
+    position: fixed;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.start-button-container .start-button {
+    /* allow the button itself to be interactive despite the container being inert */
+    pointer-events: auto;
+    display: inline-block;
 }
 
 .start-button {
     background: linear-gradient(90deg, #6d28d9, #ec4899);
     color: white;
-    padding: 36px 72px;
+    padding: 28px 56px;
     border-radius: 24px;
     font-weight: 700;
-    font-size: 48px;
+    font-size: clamp(28px, 4.5vw, 48px);
     border: none;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    max-width: 90vw;
+    box-sizing: border-box;
 }
 
 .start-button:disabled {

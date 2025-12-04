@@ -27,13 +27,49 @@ export async function convertToInternal(
     const candidateSrc = rawCandidate;
     const load = (src: string) =>
       new Promise<HTMLImageElement>((resolve) => {
+        // Diagnostic logging for image loading issues
+        // Inspect `candidateSrc`, prize id and index in console when debugging.
+        try {
+          console.debug("[roulette-image-loader] start load", {
+            src: src,
+            prizeId: prize.id,
+            index,
+          });
+        } catch (e) {
+          // swallow logging errors so they don't break loading
+        }
+
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.src = src;
-        img.onload = () => resolve(img);
-        img.onerror = () => {
+        img.onload = () => {
+          try {
+            console.debug("[roulette-image-loader] load success", {
+              src: img.src,
+              prizeId: prize.id,
+              index,
+            });
+          } catch (e) {}
+          resolve(img);
+        };
+        img.onerror = (ev) => {
+          try {
+            console.error("[roulette-image-loader] load error", {
+              src: src,
+              prizeId: prize.id,
+              index,
+              event: ev,
+            });
+          } catch (e) {}
           const fallback = new Image();
           fallback.src = DEFAULT_SVG_DATAURL;
+          try {
+            console.debug("[roulette-image-loader] using fallback image", {
+              fallbackSrc: fallback.src,
+              prizeId: prize.id,
+              index,
+            });
+          } catch (e) {}
           resolve(fallback);
         };
       });
