@@ -200,12 +200,48 @@ export function useDrawOrchestrator() {
       updateSelectedPrize(winnerPrizeObj);
 
       // Ensure the prepared/prerendered roulette items include the winner (if known)
-      const prizesToPrepare = prizes.value.filter(
-        (p) =>
-          prizeRes.dummyPrizeIds.includes(p.id) ||
-          p.id === prizeRes.winnerPrizeId ||
-          p.id === prizeRes.dummyWinnerPrizeId
-      );
+      // The server may return duplicate IDs in `dummyPrizeIds` when unique
+      // candidates are insufficient. The UI needs one visual entry per
+      // dummy slot, so map `dummyPrizeIds` to cloned prize DTOs with unique
+      // visual IDs while keeping the original prize reference in
+      // `originalPrizeId` (kakuhen uses a similar approach).
+      const prizesToPrepare: any[] = [];
+
+      // include the winner prize object (single entry)
+      if (prizeRes.winnerPrizeId) {
+        const winnerObj = prizes.value.find(
+          (p) => p.id === prizeRes.winnerPrizeId
+        );
+        if (winnerObj) {
+          prizesToPrepare.push(winnerObj);
+        }
+      }
+
+      // include dummyWinnerPrizeId explicitly if present and not the same as winner
+      if (prizeRes.dummyWinnerPrizeId) {
+        const dw = prizes.value.find(
+          (p) => p.id === prizeRes.dummyWinnerPrizeId
+        );
+        if (dw && dw.id !== prizeRes.winnerPrizeId) {
+          // clone with unique visual id
+          const clone: any = { ...(dw as any) };
+          clone.id = `${dw.id}#dummy-winner`;
+          clone.originalPrizeId = dw.id;
+          prizesToPrepare.push(clone);
+        }
+      }
+
+      // map each dummyPrizeId occurrence to a visual slot (clone to preserve duplicates)
+      prizeRes.dummyPrizeIds.forEach((id, idx) => {
+        const p = prizes.value.find((pp) => pp.id === id);
+        if (!p) return;
+        const clone: any = { ...(p as any) };
+        // create a unique visual id to avoid client-side id collisions
+        clone.id = `${p.id}#dup-${idx}`;
+        clone.originalPrizeId = p.id;
+        prizesToPrepare.push(clone);
+      });
+
       await preparePrizes(prizesToPrepare);
 
       if (selectedPrize.value?.animation === "slot") {

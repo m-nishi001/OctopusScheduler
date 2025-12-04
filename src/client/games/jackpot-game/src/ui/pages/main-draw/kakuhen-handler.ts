@@ -113,6 +113,7 @@ export class KakuhenHandler {
     );
     baseActions.push(() =>
       KakuhenHandler.startKakuhenFinalDraw(
+        animationRef,
         kakuhenFinalPrize,
         loadBgmBlob,
         emitter
@@ -228,6 +229,18 @@ export class KakuhenHandler {
     // wait a short moment for the animation component to update its internal items
     // (convertToInternal) so the stopSpin call below can find the duplicated sector occurrences
     await new Promise((r) => setTimeout(r, 60));
+
+    // Ensure the roulette actually starts spinning for the dummy draw
+    try {
+      if (animationRef.value?.startSpin) {
+        animationRef.value.startSpin();
+      }
+    } catch (e) {
+      console.warn(
+        "KakuhenHandler: failed to start roulette spin for dummy draw",
+        e
+      );
+    }
     // Preload BGM1 for dummy draw (play on stop)
     try {
       const bgm1AssetId = kakuhenDummyPrize.value?.bgm1AssetId || null;
@@ -444,6 +457,7 @@ export class KakuhenHandler {
   }
 
   static async startKakuhenFinalDraw(
+    animationRef: Ref<any>,
     kakuhenFinalPrize: Ref<RoulettePrizeDto | null>,
     loadBgmBlob: (assetId: string | null) => Promise<Blob | null>,
     emitter: Emitter<any>
@@ -461,7 +475,20 @@ export class KakuhenHandler {
     } catch (e) {
       console.warn("[KakuhenHandler] failed to preload bgm2", e);
     }
+    // Allow a short moment for UI updates, then start spin for the final phase
     await new Promise((r) => setTimeout(r, 1500));
+
+    try {
+      if (animationRef.value?.startSpin) {
+        await animationRef.value.startSpin();
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    } catch (e) {
+      console.warn(
+        "KakuhenHandler: failed to start roulette spin for final draw",
+        e
+      );
+    }
     emitter.emit("nextAction");
   }
 

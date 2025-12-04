@@ -259,7 +259,7 @@ export class DrawApplicationService {
     return {
       drawId: this.idGenerator.nextId(),
       winnerPrizeId: result?.winnerPrizeId || null,
-      dummyWinnerPrizeId: result?.dummyPrizeIds[0] || null,
+      dummyWinnerPrizeId: null,
       dummyPrizeIds: result?.dummyPrizeIds || [],
       isKakuhen: false,
     };
