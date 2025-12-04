@@ -32,12 +32,25 @@ function updateVideoUrl() {
 
 watch(() => videoUrl.value, updateVideoUrl, { immediate: true });
 
-onMounted(async () => {
+async function initDisplay() {
+    // cleanup previous
+    if (objectUrl) {
+        try {
+            URL.revokeObjectURL(objectUrl);
+        } catch { }
+        objectUrl = null;
+    }
+    videoUrl.value = '';
+    // refresh reactive settings
+    effect.value = route.query.effect as string || 'fade';
+    manual.value = (route.query.manual as string) === 'true';
+    fadeInTime.value = parseFloat(route.query.fadeInTime as string) || 1;
+
     const id = route.params.id as string;
     if (id) {
-        const asset = await assetService.getAssetById(id);
-        if (asset) {
-            if ((asset as any).blob) {
+        try {
+            const asset = await assetService.getAssetById(id);
+            if (asset && (asset as any).blob) {
                 try {
                     objectUrl = URL.createObjectURL((asset as any).blob);
                     videoUrl.value = objectUrl;
@@ -45,10 +58,22 @@ onMounted(async () => {
                     console.error('Failed to create object URL for video', err);
                 }
             }
+        } catch (e) {
+            console.error('Failed to load video asset', e);
         }
     }
     await nextTick();
+    try {
+        if (videoEl.value) gsap.killTweensOf(videoEl.value);
+    } catch (e) { }
     startAnimation();
+}
+
+onMounted(() => {
+    void initDisplay();
+    watch(() => route.fullPath, () => {
+        void initDisplay();
+    });
 });
 
 function startAnimation() {

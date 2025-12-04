@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, onUnmounted, computed, nextTick } from 'vue';
+import { onMounted, ref, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../model/applications/assets/asset-service';
@@ -35,12 +35,29 @@ const displayModeClass = computed(() => {
     }
 });
 
-onMounted(async () => {
+async function initDisplay() {
+    // cleanup previous
+    if (objectUrl) {
+        try {
+            URL.revokeObjectURL(objectUrl);
+        } catch { }
+        objectUrl = null;
+    }
+    imageUrl.value = '';
+    // refresh reactive settings from route
+    effect.value = route.query.effect as string || 'fade';
+    duration.value = parseFloat(route.query.duration as string) || 3;
+    fadeInTime.value = parseFloat(route.query.fadeInTime as string) || 1;
+    fadeOutTime.value = parseFloat(route.query.fadeOutTime as string) || 1;
+    scrollDirection.value = route.query.scrollDirection as string || 'up';
+    manual.value = (route.query.manual as string) === 'true';
+
+    // load asset
     const id = route.params.id as string;
     if (id) {
-        const asset = await assetService.getAssetById(id);
-        if (asset) {
-            if ((asset as any).blob) {
+        try {
+            const asset = await assetService.getAssetById(id);
+            if (asset && (asset as any).blob) {
                 try {
                     objectUrl = URL.createObjectURL((asset as any).blob);
                     imageUrl.value = objectUrl;
@@ -48,10 +65,27 @@ onMounted(async () => {
                     console.error('Failed to create object URL for image', err);
                 }
             }
+        } catch (e) {
+            console.error('Failed to load image asset', e);
         }
     }
     await nextTick();
+    // kill previous gsap tweens if any
+    try {
+        if (imgEl.value) {
+            gsap.killTweensOf(imgEl.value);
+        }
+    } catch (e) { }
     startAnimation();
+}
+
+onMounted(() => {
+    // initial run
+    void initDisplay();
+    // watch for route changes (including query) and re-init when they occur
+    watch(() => route.fullPath, () => {
+        void initDisplay();
+    });
 });
 
 function startAnimation() {

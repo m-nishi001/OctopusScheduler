@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed, onUnmounted } from 'vue';
+import { onMounted, ref, computed, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { AssetService } from 'model/applications/assets/asset-service';
@@ -33,7 +33,23 @@ const createdUrls: string[] = [];
 let prevHtmlOverflow: string | null = null;
 let prevBodyOverflow: string | null = null;
 
-onMounted(async () => {
+async function loadHtmlContent() {
+    // cleanup previous created urls and restore overflow before loading new content
+    try {
+        createdUrls.forEach((u: string) => {
+            try { URL.revokeObjectURL(u); } catch (e) { }
+        });
+        createdUrls.length = 0;
+        if (prevHtmlOverflow !== null) {
+            try { document.documentElement.style.overflow = prevHtmlOverflow; } catch { }
+        }
+        if (prevBodyOverflow !== null) {
+            try { document.body.style.overflow = prevBodyOverflow; } catch { }
+        }
+    } catch (e) {
+        // ignore
+    }
+
     // Prevent page from showing browser scrollbars while fullscreen html is displayed
     try {
         prevHtmlOverflow = document.documentElement.style.overflow || null;
@@ -123,6 +139,15 @@ onMounted(async () => {
         return match;
     });
     htmlContent.value = html;
+}
+
+onMounted(() => {
+    // initial load
+    void loadHtmlContent();
+    // reload whenever route changes (e.g. same route/params re-pushed)
+    watch(() => route.fullPath, () => {
+        void loadHtmlContent();
+    });
 });
 
 onUnmounted(() => {

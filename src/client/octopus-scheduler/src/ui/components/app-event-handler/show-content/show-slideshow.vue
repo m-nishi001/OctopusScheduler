@@ -8,7 +8,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
+import { useRoute } from 'vue-router';
 import { eventBus } from "../../../../core/event-bus";
 import { container } from "tsyringe";
 import type { IAssetRepository } from "../../../../model/domains/assets/repository/asset-repository";
@@ -27,6 +28,8 @@ const currentIndex = ref(0);
 const intervalId = ref<number | null>(null);
 const slideshowData = ref<SlideshowData | null>(null);
 const assetRepository = container.resolve<IAssetRepository>(IAssetRepositoryToken);
+
+const route = useRoute();
 
 const startSlideshow = async (data: SlideshowData) => {
     slideshowData.value = data;
@@ -167,6 +170,22 @@ const getSlideStyle = (index: number) => {
 onMounted(() => {
     eventBus.on("startSlideshow", startSlideshow);
     eventBus.on("stopSlideshow", stopSlideshow);
+    // Watch route changes to support re-triggering slideshow when same route is pushed
+    watch(() => route.fullPath, () => {
+        // Reset slideshow state
+        stopSlideshow();
+        try {
+            const raw = route.params.data as any;
+            if (raw) {
+                const parsed = JSON.parse(String(raw));
+                if (parsed && parsed.folderId) {
+                    void startSlideshow(parsed as SlideshowData);
+                }
+            }
+        } catch (e) {
+            // ignore parse errors
+        }
+    });
 });
 
 onUnmounted(() => {
