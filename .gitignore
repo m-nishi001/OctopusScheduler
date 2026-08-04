@@ -7,3 +7,49 @@ build.log
 .**/.turbo/
 # Also ignore any .turbo directories anywhere (older Git versions may need this)
 **/.turbo
+
+# ========================
+# Environment & Secrets
+# ========================
+# Environment variable files (do not commit actual secrets)
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Secret files and credentials
+*.pem
+*.key
+*.crt
+*.cer
+*.keystore
+*.jks
+secrets/
+private/
+credentials/
+
+# IDE and OS specific files with potential secrets
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Backup and temporary files
+*.backup
+*.bak
+*.tmp
+*.temp
+
+# Firebase and other cloud configuration files
+google-services.json
+firebase-debug.log
+.firebaserc
+
+# API keys and tokens in logs
+*.log
+logs/
