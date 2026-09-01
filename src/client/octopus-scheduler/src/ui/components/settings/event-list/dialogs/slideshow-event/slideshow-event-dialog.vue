@@ -1,0 +1,276 @@
+<template>
+    <div class="modal-overlay">
+        <div class="modal-content" @click.stop>
+            <h3>{{ isEdit ? 'スライドショーイベント編集' : 'スライドショーイベント追加' }}</h3>
+            <form @submit.prevent="onSubmit">
+                <div class="form-group">
+                    <label for="startTime">開始時間</label>
+                    <input id="startTime" type="datetime-local" v-model="form.startTime" required />
+                </div>
+                <div class="form-group">
+                    <label for="endTime">終了時間</label>
+                    <input id="endTime" type="datetime-local" v-model="form.endTime" required />
+                </div>
+                <div class="form-group">
+                    <label for="folderId">Google DriveフォルダID</label>
+                    <input id="folderId" type="text" v-model="form.folderId" required />
+                </div>
+                <div class="form-group">
+                    <label for="displayDuration">表示時間 (秒)</label>
+                    <input id="displayDuration" type="number" v-model.number="form.displayDuration" min="1" required />
+                </div>
+                <div class="form-group">
+                    <label for="transitionType">切替アクション</label>
+                    <select id="transitionType" v-model="form.transitionType" required>
+                        <option value="fade">フェード</option>
+                        <option value="slide">スライド</option>
+                    </select>
+                </div>
+                <div class="form-group" v-if="form.transitionType === 'slide'">
+                    <label for="slideDirection">スライド方向</label>
+                    <select id="slideDirection" v-model="form.slideDirection" required>
+                        <option value="left">左</option>
+                        <option value="right">右</option>
+                        <option value="up">上</option>
+                        <option value="down">下</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>BGM アセット</label>
+                    <div class="bgm-list">
+                        <div v-for="(bgm, index) in form.bgmList" :key="index" class="bgm-item">
+                            <span>{{ bgm.name || bgm.id }}</span>
+                            <button type="button" @click="removeBgm(index)" class="remove-btn">×</button>
+                        </div>
+                        <div class="add-bgm">
+                            <label>アセットソース</label>
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" value="existing" v-model="newBgmSource" />
+                                    既存アセットを選択
+                                </label>
+                                <label>
+                                    <input type="radio" value="upload" v-model="newBgmSource" />
+                                    新規アップロード
+                                </label>
+                            </div>
+                            <div v-if="newBgmSource === 'existing'">
+                                <select v-model="selectedBgmId">
+                                    <option value="">選択してください</option>
+                                    <option v-for="asset in filteredAudioAssets" :key="asset.id" :value="asset.id">{{
+                                        asset.name }}</option>
+                                </select>
+                                <button type="button" @click="addExistingBgm" class="add-btn">追加</button>
+                            </div>
+                            <div v-if="newBgmSource === 'upload'">
+                                <div class="file-picker">
+                                    <input ref="bgmFileInput" class="hidden-file-input" type="file"
+                                        @change="onBgmFileChange" accept=".mp3,.wav,.ogg,.m4a" />
+                                    <button type="button" class="file-btn" @click.prevent="openBgmFilePicker">Choose
+                                        File</button>
+                                    <span class="file-name">{{ newBgmFile ? newBgmFile.name : 'No file chosen' }}</span>
+                                    <button v-if="newBgmFile" type="button" class="clear-btn"
+                                        @click.prevent="clearBgmFile">×</button>
+                                </div>
+                                <button type="button" @click="addUploadBgm" class="add-btn">追加</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="main-btn" @click="onClose">キャンセル</button>
+                    <button type="submit" class="main-btn">{{ isEdit ? '更新' : '追加' }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { useSlideshowEvent } from './slideshow-event-register';
+interface Props { event?: any }
+const props = defineProps<Props>();
+const emit = defineEmits<{ saved: []; close: [] }>();
+
+const { form, isEdit, newBgmSource, selectedBgmId, newBgmFile, filteredAudioAssets, removeBgm, addExistingBgm, onBgmFileChange, bgmFileInput, openBgmFilePicker, clearBgmFile, addUploadBgm, onSubmit, onClose } = useSlideshowEvent(props, emit);
+</script>
+
+<style scoped>
+/* Styles copied from original slideshow dialog to maintain appearance */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #232323;
+    color: #fff;
+    padding: 2em;
+    border-radius: 10px;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-content h3 {
+    margin-bottom: 1em;
+    color: #8fd3ff;
+}
+
+.form-group {
+    margin-bottom: 1em;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5em;
+    color: #fff;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.5em;
+    background: #333;
+    color: #fff;
+    border: 1px solid #666;
+    border-radius: 6px;
+}
+
+.form-group textarea {
+    min-height: 100px;
+}
+
+.form-actions {
+    margin-top: 1em;
+    display: flex;
+    gap: 1.2em;
+    justify-content: flex-end;
+}
+
+.main-btn {
+    font-size: inherit;
+    font-weight: 600;
+    padding: 0.8em 2em;
+    background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
+    outline: none;
+}
+
+.main-btn:hover,
+.main-btn:focus {
+    background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+    transform: translateY(-2px) scale(1.04);
+}
+
+.bgm-list {
+    border: 1px solid #666;
+    border-radius: 6px;
+    padding: 0.5em;
+    background: #333;
+}
+
+.bgm-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5em;
+    background: #444;
+    margin-bottom: 0.5em;
+    border-radius: 4px;
+}
+
+.remove-btn {
+    background: #ff6b6b;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.2em 0.5em;
+    cursor: pointer;
+}
+
+.add-bgm {
+    margin-top: 1em;
+    padding-top: 1em;
+    border-top: 1px solid #666;
+}
+
+.radio-group {
+    display: flex;
+    gap: 1em;
+    margin-bottom: 0.5em;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    color: #fff;
+}
+
+.add-btn {
+    background: #4f8cff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5em 1em;
+    cursor: pointer;
+    margin-top: 0.5em;
+}
+
+.file-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    margin-bottom: 0.5em;
+}
+
+.hidden-file-input {
+    display: none;
+}
+
+.file-btn {
+    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
+    color: #232b36;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5em 0.9em;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.file-name {
+    color: #ddd;
+    font-size: 0.95em;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.clear-btn {
+    background: transparent;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 0 0.5em;
+    cursor: pointer;
+}
+</style>

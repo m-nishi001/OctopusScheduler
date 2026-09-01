@@ -1,0 +1,469 @@
+<template>
+    <div v-if="show" class="dialog-overlay" @click="closeDialog">
+        <div class="dialog" @click.stop>
+            <h3>{{ editingShortcut ? '編集' : '追加' }} キーボードショートカット</h3>
+            <div class="form-group">
+                <label>キー組み合わせ:</label>
+                <div class="key-input-section">
+                    <input readonly class="captured-keys"
+                        :value="capturedKeys.length > 0 ? capturedKeys.join(' + ') : ''"
+                        placeholder="ここをクリックしてキーボードショートカットを入力してください" @focus="startKeyCapture" @blur="stopKeyCapture" />
+
+                    <div class="button-group">
+                        <button @click="clearKeys" class="clear-btn">クリア</button>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>アクション一覧:</label>
+                <div class="actions-list">
+                    <action-item-summary v-for="(action, idx) in actions" :key="keyFor(action, idx)" :action="action"
+                        :index="idx" :length="actions.length" @edit="openActionManager" @move-up="moveUp"
+                        @move-down="moveDown" @remove="removeAction" />
+                </div>
+                <div class="add-action">
+                    <button @click="addAction">アクションを追加</button>
+                </div>
+            </div>
+
+            <!-- Dialog area: mounted only when dialogOpen is true -->
+            <div v-if="dialogOpen" class="dialog-content">
+                <!-- Selection UI inside parent dialog -->
+                <event-selection-dialog v-if="selectionOpen" :show="true" @select-type="onTypeSelected"
+                    @cancel="onDialogCancel" />
+
+                <!-- Legacy inline form (kept for compatibility) -->
+                <component v-if="!selectionOpen && dialogInitialData && !editorDialogOpen"
+                    :is="getFormComponent(dialogInitialData.actionType)" :initialData="dialogInitialData"
+                    @save="onEditorSave" @cancel="onDialogCancel" ref="currentEditor" />
+            </div>
+
+            <!-- Editor modal (separate overlay) -->
+            <action-editor-dialog ref="actionEditorRef" v-if="editorDialogOpen" :show="editorDialogOpen"
+                :initialData="editorInitialData" @save="onEditorSave" @cancel="closeEditorDialog" />
+            <div class="dialog-buttons">
+                <button @click="saveShortcut" class="save-btn">保存</button>
+                <button @click="closeDialog" class="cancel-btn">キャンセル</button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, nextTick } from 'vue';
+import { KeyboardShortcut } from '../../../../model/domains/keyboard-shortcut/keyboard-shortcut';
+import { useKeyCapture } from './composables/useKeyCapture';
+import ActionItemSummary from './action-item-summary.vue';
+import EventSelectionDialog from './event-selection-dialog.vue';
+import ActionEditorDialog from './action-editor-dialog.vue';
+import type { EventFormData } from './types';
+import type { IAppEventDto } from '../../../../model/applications/app-event/i-app-event-dto';
+import { IAppEventConverterToken } from '../../../../model/domains/app-event/i-app-event-converter';
+import { container } from 'tsyringe';
+import { AppEventService } from '../../../../model/applications/app-event/app-event-service';
+import { UIActionEntryToken } from '../../../../core/container';
+
+interface Props {
+    show: boolean;
+    editingShortcut: KeyboardShortcut | null;
+}
+
+interface Emits {
+    close: [];
+    save: [shortcut: KeyboardShortcut];
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
+
+const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCapture();
+
+const actions = ref<Array<EventFormData | IAppEventDto>>([]);
+const formRefs: Record<number, any> = {};
+// Minimal dialog state: parent holds only an open flag and a short-lived initial DTO
+const dialogOpen = ref(false);
+const dialogInitialData = ref<EventFormData | IAppEventDto | null>(null);
+
+// selection vs editor modal separation
+const selectionOpen = ref(false);
+const editorDialogOpen = ref(false);
+const editorInitialData = ref<EventFormData | IAppEventDto | null>(null);
+
+// editing target index in actions list (-1 = new)
+const editingIndex = ref<number>(-1);
+
+// ref to action editor component
+const actionEditorRef = ref<any | null>(null);
+
+// build a local registry map from DI-resolved UI action entries
+const ACTION_REGISTRY: Record<string, any> = (() => {
+    try {
+        const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
+        const map: Record<string, any> = {};
+        for (const e of entries) {
+            if (e && e.actionType) map[e.actionType] = e;
+        }
+        return map;
+    } catch (err) {
+        return {};
+    }
+})();
+const appEventService = container.resolve(AppEventService);
+
+const resolveActionData = (a: any) => {
+    if (!a) return {};
+    if ('data' in a && a.data != null) return a.data;
+    // build data from top-level fields excluding actionType and eventId
+    const { actionType, eventId, ...rest } = a as Record<string, any>;
+    return rest || {};
+};
+
+const getFormComponent = (atype: string) => {
+    const e = ACTION_REGISTRY[atype];
+    return e ? e.component : null;
+};
+
+watch(() => props.show, (newShow) => {
+    if (newShow) {
+        if (props.editingShortcut) {
+            capturedKeys.value = [...props.editingShortcut.keys];
+            // Try to populate actions from editingShortcut.eventIds
+            (async () => {
+                const converters = container.resolveAll<any>(IAppEventConverterToken as any) as any[];
+                const ids = (props.editingShortcut as any).eventIds || [];
+                const evs = await Promise.all(ids.map((id: string) => appEventService.getEventById(String(id))));
+                const dtoList: Array<EventFormData | IAppEventDto> = [];
+                for (const ev of evs) {
+                    if (!ev) {
+                        dtoList.push({ actionType: 'Unknown' } as IAppEventDto);
+                        continue;
+                    }
+                    const conv = converters.find((c) => c && typeof c.getType === 'function' && (() => { try { return c.getType() === ev.type; } catch { return false; } })());
+                    if (conv && typeof conv.toDto === 'function') {
+                        try {
+                            dtoList.push((conv.toDto(ev) as IAppEventDto));
+                        } catch (e) {
+                            dtoList.push({ actionType: ev.type } as IAppEventDto);
+                        }
+                    } else {
+                        dtoList.push({ actionType: ev.type } as IAppEventDto);
+                    }
+                }
+                actions.value = dtoList;
+            })();
+
+        } else {
+            capturedKeys.value = [];
+            // start with no actions for a new shortcut; user must explicitly add one
+            actions.value = [];
+        }
+    } else {
+        stopKeyCapture();
+    }
+});
+
+const closeDialog = () => {
+    emit('close');
+};
+
+const saveShortcut = async () => {
+    if (capturedKeys.value.length === 0) {
+        alert('キーを設定してください');
+        return;
+    }
+    // ask each child form to save into actions.value
+    for (const idxStr of Object.keys(formRefs)) {
+        const idx = Number(idxStr);
+        formRefs[idx]?.save?.();
+    }
+    await nextTick();
+
+    // validate and build events
+    const id = props.editingShortcut?.id || `shortcut-${Date.now()}`;
+    const events: any[] = [];
+    for (let i = 0; i < actions.value.length; i++) {
+        const a = actions.value[i];
+        const atype = a.actionType;
+        const data = resolveActionData(a);
+        const converters = container.resolveAll<any>(IAppEventConverterToken as any) as any[];
+        const converter = converters.find((c) => c && typeof c.getType === 'function' && (() => { try { return c.getType() === atype; } catch { return false; } })());
+        if (!converter) {
+            alert(`未対応のアクションタイプ: ${atype}`);
+            return;
+        }
+        const validate = (converter as any).validate;
+        if (validate && !validate(data)) return;
+        try {
+            let ev: any;
+            if (typeof (converter as any).toEntity === 'function') {
+                ev = (converter as any).toEntity(data);
+            } else {
+                alert(`未対応のアクションタイプ: ${atype}`);
+                return;
+            }
+            // ensure event has id
+            if (!ev.id) {
+                try { ev.id = crypto.randomUUID(); } catch { ev.id = String(Date.now()) + Math.random().toString(36).slice(2); }
+            }
+            events.push(ev);
+        } catch (err) {
+            console.error(err);
+            alert('アクションの作成に失敗しました');
+            return;
+        }
+    }
+
+    // persist events to AppEventRepository via AppEventService
+    try {
+        if (events.length > 0) await appEventService.updateScheduleEvents(events as any);
+    } catch (e) {
+        console.error('failed to persist shortcut events', e);
+    }
+
+    const eventIds = events.map(e => e.id).filter(Boolean);
+    const shortcut = new KeyboardShortcut({ id, keys: capturedKeys.value, eventIds });
+    emit('save', shortcut);
+    closeActionDialog();
+    // notify parent to close the dialog
+    closeDialog();
+};
+
+const addAction = () => {
+    // Open the selection dialog for adding a new action
+    dialogInitialData.value = null;
+    // mark editing index as new
+    editingIndex.value = -1;
+    // open selection UI inside parent dialog
+    selectionOpen.value = true;
+    dialogOpen.value = true;
+};
+
+const removeAction = (idx: number) => {
+    actions.value.splice(idx, 1);
+};
+
+const moveUp = (idx: number) => {
+    if (idx <= 0) return;
+    const a = actions.value.splice(idx, 1)[0];
+    actions.value.splice(idx - 1, 0, a);
+};
+
+const moveDown = (idx: number) => {
+    if (idx >= actions.value.length - 1) return;
+    const a = actions.value.splice(idx, 1)[0];
+    actions.value.splice(idx + 1, 0, a);
+};
+
+async function openActionManager(index: number) {
+    // Open editor for existing action at index. Compute initial data from actions.
+    const initial = { ...(actions.value[index] as EventFormData | IAppEventDto) };
+    // set editing target and open editor modal with initial data
+    editingIndex.value = index;
+    editorInitialData.value = initial;
+    editorDialogOpen.value = true;
+    // ensure selection UI is closed
+    selectionOpen.value = false;
+    // wait mount and reset child form (await nextTick and retry a few ticks if needed)
+    await nextTick();
+    for (let i = 0; i < 3 && !actionEditorRef.value?.reset; i++) {
+        await nextTick();
+    }
+    actionEditorRef.value?.reset?.();
+}
+
+async function onTypeSelected(payload: { type: string }) {
+    const t = payload.type;
+    // close selection and open editor modal with initial DTO
+    selectionOpen.value = false;
+    const initial = appEventService.getDefault(t) as IAppEventDto;
+    editorInitialData.value = initial;
+    // indicate this is a new item
+    editingIndex.value = -1;
+    editorDialogOpen.value = true;
+    // wait and ensure child is mounted/exposed before calling reset
+    await nextTick();
+    for (let i = 0; i < 3 && !actionEditorRef.value?.reset; i++) {
+        await nextTick();
+    }
+    actionEditorRef.value?.reset?.();
+}
+
+function onEditorSave(dto: EventFormData & { eventId?: string }) {
+    // Replace by eventId if present
+    if (dto.eventId) {
+        const idx = actions.value.findIndex(a => ('eventId' in a) && a.eventId === dto.eventId);
+        if (idx >= 0) {
+            actions.value.splice(idx, 1, dto);
+            editingIndex.value = -1;
+            closeEditorDialog();
+            return;
+        }
+    }
+    // If editingIndex set, replace at that index
+    if (editingIndex.value >= 0) {
+        actions.value.splice(editingIndex.value, 1, dto);
+        editingIndex.value = -1;
+        closeEditorDialog();
+        return;
+    }
+    // otherwise add new
+    actions.value.push(dto);
+    // close editor modal (not the parent dialog)
+    closeEditorDialog();
+}
+
+function onDialogCancel() {
+    // cancel from selection dialog or editor
+    if (selectionOpen.value) selectionOpen.value = false;
+    if (editorDialogOpen.value) closeEditorDialog();
+}
+
+function closeActionDialog() {
+    dialogInitialData.value = null;
+    dialogOpen.value = false;
+    selectionOpen.value = false;
+    editorDialogOpen.value = false;
+}
+
+function closeEditorDialog() {
+    editorInitialData.value = null;
+    editorDialogOpen.value = false;
+    editingIndex.value = -1;
+}
+
+// Provide a stable key for v-for rendering. Prefer existing eventId/actionId if present.
+const keyFor = (a: EventFormData | IAppEventDto | null | undefined, idx: number) => {
+    if (!a) return `local-${idx}-act`;
+    if ('eventId' in a && a.eventId) return a.eventId;
+    return `local-${idx}-${a.actionType ?? 'act'}`;
+};
+</script>
+
+<style scoped>
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dialog {
+    background: #333;
+    color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    width: 600px;
+    height: 400px;
+    max-width: 90%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.dialog h3 {
+    margin-top: 0;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group button {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #444;
+    color: #fff;
+}
+
+.dialog-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.save-btn,
+.cancel-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.save-btn {
+    background: #28a745;
+    color: white;
+}
+
+.cancel-btn {
+    background: #6c757d;
+    color: white;
+}
+
+.key-input-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.captured-keys {
+    flex: 1;
+}
+
+.button-group {
+    flex-shrink: 0;
+}
+
+.clear-btn {
+    width: auto;
+}
+
+.start-btn,
+.stop-btn,
+.clear-btn {
+    padding: 8px 16px;
+    border: 1px solid #666;
+    border-radius: 4px;
+    background: #fff;
+    color: #222;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.start-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.stop-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.clear-btn {
+    background: #6c757d;
+    color: white;
+}
+
+.clear-btn:disabled {
+    background: #444;
+    cursor: not-allowed;
+}
+
+.form-content {
+    flex-grow: 1;
+}
+</style>

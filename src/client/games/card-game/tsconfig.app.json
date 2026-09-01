@@ -1,0 +1,30 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@octopus/server-common": ["../../../server/common/src"],
+      "@octopus/server-common/*": ["../../../server/common/src/*"],
+      "@shared-composables/*": ["../../packages/shared-composables/src/*"],
+      "@common-lib/*": ["../../packages/common-lib/src/*"],
+      "@common-lib": ["../../packages/common-lib/src"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [
+    { "path": "../../../server/common" },
+    { "path": "../../packages/common-lib" },
+    { "path": "../../packages/shared-composables" }
+  ]
+}
