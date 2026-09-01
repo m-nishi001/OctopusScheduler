@@ -1,0 +1,23 @@
+{
+  "name": "shared-composables",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint --ext .ts,.vue src",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "vue": "^3.5.18"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/tsconfig": "^0.7.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.1.0",
+    "vue-tsc": "^3.0.5"
+  }
+}

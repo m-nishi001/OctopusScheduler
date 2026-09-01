@@ -1,0 +1,34 @@
+{
+  "extends": "../../../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "useDefineForClassFields": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@server-common/gas-types": ["../../../../server/common/src/gas-types.ts"]
+    },
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": false,
+    "declarationDir": "dist/types",
+    "outDir": "dist",
+    "noEmit": false,
+    "composite": true,
+    "rootDir": "src",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+    // "composite": true
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules", // Exclude dependencies
+    "dist" // Exclude build output directory
+  ]
+}

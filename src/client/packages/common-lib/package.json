@@ -1,0 +1,23 @@
+{
+  "name": "common-lib",
+  "version": "1.0.0",
+  "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
+  "main": "dist/Code.js",
+  "scripts": {
+    "build": "tsc -b",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/google-apps-script": "^1.0.83",
+    "@types/node": "^20.12.12",
+    "core-js": "^3.44.0",
+    "localforage": "^1.10.0",
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0"
+  },
+  "dependencies": {
+    "glob": "^11.0.3",
+    "@octopus/server-common": "file:../../../server/common"
+  }
+}
