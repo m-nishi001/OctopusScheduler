@@ -1,14 +1,18 @@
 {
-  "name": "jackpot-game-api",
+  "name": "quiz-game-api",
   "version": "1.0.0",
   "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
   "type": "module",
   "main": "dist/Code.js",
+  "types": "dist/quiz-game-api.d.ts",
   "scripts": {
-    "build": "tsc -b && node esbuild.config.js",
+    "build": "tsc -b && cp src/quiz-game-api.d.ts dist/ && node esbuild.config.js",
     "lint": "eslint src",
     "typecheck": "tsc -b",
     "deploy": "npm run build && clasp push --force"
+  },
+  "dependencies": {
+    "@octopus/server-common": "file:../common"
   },
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",
