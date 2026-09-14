@@ -11,17 +11,16 @@
     "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file.
     "moduleResolution": "bundler", // How modules get resolved (node is common for build tools)
     "resolveJsonModule": true, // Allow importing JSON files
-    "noEmit": true, // Do not emit output files (JS). Rely on ESBuild for bundling. Set true if using `tsc` only for type checking without `--noEmit` flag.
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "declarationDir": "dist/types",
     "outDir": "dist",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": ".",
-    "rootDirs": ["src", "../../../../shared-packages/src"],
-    "paths": {
-      "shared-packages": ["../../../../shared-packages/dist/types"]
-    }
+    "baseUrl": "."
   },
-  "include": ["src/**/*", "../../../../shared-packages/src/**/*"],
+  "include": ["src/**/*"],
   "references": [{ "path": "../../common" }],
   "exclude": [
     "node_modules", // Exclude dependencies

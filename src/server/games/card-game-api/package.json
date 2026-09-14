@@ -5,9 +5,9 @@
   "type": "module",
   "main": "dist/Code.js",
   "scripts": {
-    "build": "node esbuild.config.js",
-    "lint": "eslint src/**/*.ts",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc -b && node esbuild.config.js",
+    "lint": "eslint src",
+    "typecheck": "tsc -b",
     "deploy": "npm run build && clasp push --force"
   },
   "devDependencies": {
