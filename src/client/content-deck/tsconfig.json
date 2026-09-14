@@ -1,5 +1,5 @@
 {
-  "extends": "../../../../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "files": [],
   "compilerOptions": {
     "composite": true,
@@ -11,11 +11,11 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" },
-    { "path": "../../packages/common-lib" },
-    { "path": "../../packages/shared-composables" },
-    { "path": "../../games/jackpot-game" },
-    { "path": "../../games/card-game" },
-    { "path": "../../games/quiz-game" },
-    { "path": "../../../server/common" }
+    { "path": "../common-lib" },
+    { "path": "../shared-composables" },
+    { "path": "../jackpot-game" },
+    { "path": "../card-game" },
+    { "path": "../quiz-game" },
+    { "path": "../../server/common" }
   ]
 }

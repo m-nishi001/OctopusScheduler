@@ -1,5 +1,5 @@
 {
-  "extends": "../../../../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
 
@@ -16,22 +16,22 @@
     "baseUrl": ".",
     "paths": {
       "@model/*": ["src/model/*"],
-      "@shared-composables/*": ["../../packages/shared-composables/src/*"],
+      "@shared-composables/*": ["../shared-composables/src/*"],
       "pages/*": ["src/ui/pages/*"],
       "pages": ["src/ui/pages"],
       "domains/*": ["src/model/domains/*"],
       "applications/*": ["src/model/applications/*"],
       "components/*": ["src/ui/components/*"],
       "components": ["src/ui/components"],
-      "@common-lib/*": ["../../packages/common-lib/src/*"],
-      "@common-lib": ["../../packages/common-lib/src"],
-      "server/*": ["../../../../server/*"]
+      "@common-lib/*": ["../common-lib/src/*"],
+      "@common-lib": ["../common-lib/src"],
+      "server/*": ["../../../server/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [
-    { "path": "../../packages/common-lib" },
-    { "path": "../../packages/shared-composables" },
-    { "path": "../../../server/common" }
+    { "path": "../common-lib" },
+    { "path": "../shared-composables" },
+    { "path": "../../server/common" }
   ]
 }

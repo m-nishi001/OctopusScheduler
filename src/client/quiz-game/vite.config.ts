@@ -22,10 +22,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@common-lib": resolve(__dirname, "../../packages/common-lib/src"),
+      "@common-lib": resolve(__dirname, "../common-lib/src"),
       "@shared-composables": resolve(
         __dirname,
-        "../../packages/shared-composables/src"
+        "../shared-composables/src"
       ),
       "@server": resolve(__dirname, "../../../../server"),
       "@model": resolve(__dirname, "src/model"),

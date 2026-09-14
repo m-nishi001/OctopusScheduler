@@ -16,14 +16,14 @@ export default defineConfig({
       "@model": resolve(__dirname, "src/model"),
       "@shared-composables": resolve(
         __dirname,
-        "../../packages/shared-composables/src"
+        "../shared-composables/src"
       ),
-      "@common-lib": resolve(__dirname, "../../packages/common-lib/src"),
+      "@common-lib": resolve(__dirname, "../common-lib/src"),
       pages: resolve(__dirname, "src/ui/pages"),
       components: resolve(__dirname, "src/ui/components"),
       "packages/common-lib": resolve(
         __dirname,
-        "../../packages/common-lib/src"
+        "../common-lib/src"
       ),
       "@composables": resolve(__dirname, "src/composables"),
       "@components": resolve(__dirname, "src/components"),

@@ -1,5 +1,5 @@
 {
-  "extends": "../../../../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "files": [],
   "compilerOptions": {
     "composite": true,
@@ -11,8 +11,8 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" },
-    { "path": "../../packages/common-lib" },
-    { "path": "../../packages/shared-composables" },
-    { "path": "../../../server/common" }
+    { "path": "../common-lib" },
+    { "path": "../shared-composables" },
+    { "path": "../../server/common" }
   ]
 }

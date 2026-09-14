@@ -28,7 +28,7 @@ export default defineConfig({
         find: "@shared-composables",
         replacement: resolve(
           __dirname,
-          "../../packages/shared-composables/src"
+          "../shared-composables/src"
         ),
       },
       {

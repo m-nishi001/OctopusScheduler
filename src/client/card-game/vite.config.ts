@@ -14,7 +14,7 @@ export default defineConfig({
         find: "@common/gas",
         replacement: path.resolve(
           __dirname,
-          "../../packages/common-lib/src/google-apps-script/gas-script-service"
+          "../common-lib/src/google-apps-script/gas-script-service"
         ),
       },
     ],

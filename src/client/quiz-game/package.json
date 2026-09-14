@@ -9,9 +9,9 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "common-lib": "file:../../packages/common-lib",
-    "shared-composables": "file:../../packages/shared-composables",
-    "quiz-game-api": "file:../../../../src/server/games/quiz-game-api",
+    "common-lib": "file:../common-lib",
+    "shared-composables": "file:../shared-composables",
+    "quiz-game-api": "file:../../../../src/server/quiz-game-api",
     "gsap": "^3.13.0",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",

@@ -11,12 +11,12 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" },
-    { "path": "../packages/common-lib" },
-    { "path": "../packages/shared-composables" },
-    { "path": "../games/card-game" },
-    { "path": "../games/quiz-game" },
-    { "path": "../games/jackpot-game" },
-    { "path": "../presenters/content-deck" },
+    { "path": "../common-lib" },
+    { "path": "../shared-composables" },
+    { "path": "../card-game" },
+    { "path": "../quiz-game" },
+    { "path": "../jackpot-game" },
+    { "path": "../content-deck" },
     { "path": "../../server/common" }
   ]
 }

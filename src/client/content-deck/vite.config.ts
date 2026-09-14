@@ -14,7 +14,7 @@ export default defineConfig({
     alias: {
       "@common-lib": path.resolve(
         __dirname,
-        "../../packages/common-lib/src"
+        "../common-lib/src"
       ),
     },
   },

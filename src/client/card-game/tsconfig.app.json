@@ -14,17 +14,17 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "@octopus/server-common": ["../../../server/common/src"],
-      "@octopus/server-common/*": ["../../../server/common/src/*"],
-      "@shared-composables/*": ["../../packages/shared-composables/src/*"],
-      "@common-lib/*": ["../../packages/common-lib/src/*"],
-      "@common-lib": ["../../packages/common-lib/src"]
+      "@octopus/server-common": ["../../server/common/src"],
+      "@octopus/server-common/*": ["../../server/common/src/*"],
+      "@shared-composables/*": ["../shared-composables/src/*"],
+      "@common-lib/*": ["../common-lib/src/*"],
+      "@common-lib": ["../common-lib/src"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [
-    { "path": "../../../server/common" },
-    { "path": "../../packages/common-lib" },
-    { "path": "../../packages/shared-composables" }
+    { "path": "../../server/common" },
+    { "path": "../common-lib" },
+    { "path": "../shared-composables" }
   ]
 }

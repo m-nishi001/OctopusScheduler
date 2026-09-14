@@ -11,10 +11,10 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@octopus/core": "file:../../../core",
-    "common-lib": "file:../../packages/common-lib",
+    "@octopus/core": "file:../../core",
+    "common-lib": "file:../common-lib",
     "gsap": "^3.13.0",
-    "jackpot-game-api": "file:../../../server/games/jackpod-game-api",
+    "jackpot-game-api": "file:../../server/jackpot-game-api",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
     "three": "^0.167.0",

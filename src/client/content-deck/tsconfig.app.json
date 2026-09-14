@@ -15,11 +15,11 @@
     "lib": ["ESNext", "DOM"],
     "baseUrl": ".",
     "paths": {
-      "@common-lib/*": ["../packages/common-lib/src/*"],
-      "@common-lib": ["../packages/common-lib/src"],
-      "@shared-composables/*": ["../packages/shared-composables/src/*"],
-      "@octopus/server-common": ["../../../server/common/src"],
-      "@octopus/server-common/*": ["../../../server/common/src/*"]
+      "@common-lib/*": ["../common-lib/src/*"],
+      "@common-lib": ["../common-lib/src"],
+      "@shared-composables/*": ["../shared-composables/src/*"],
+      "@octopus/server-common": ["../../server/common/src"],
+      "@octopus/server-common/*": ["../../server/common/src/*"]
     },
     "outDir": "dist"
   },

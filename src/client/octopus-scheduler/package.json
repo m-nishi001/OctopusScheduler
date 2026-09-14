@@ -16,8 +16,8 @@
     "mitt": "^3.0.1",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1",
-    "quiz-game-api": "file:../../server/games/quiz-game-api",
-    "quiz-game": "file:../games/quiz-game"
+    "quiz-game-api": "file:../../server/quiz-game-api",
+    "quiz-game": "file:../quiz-game"
   },
   "types": "dist/types",
   "devDependencies": {

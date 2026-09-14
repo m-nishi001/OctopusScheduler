@@ -12,7 +12,7 @@
   "dependencies": {
     "vue": "^3.5.17",
     "vue-router": "^4.5.1",
-    "common-lib": "file:../../packages/common-lib"
+    "common-lib": "file:../common-lib"
   },
   "types": "dist/types",
   "devDependencies": {
