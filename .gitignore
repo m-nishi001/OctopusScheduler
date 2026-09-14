@@ -7,3 +7,6 @@ build.log
 .**/.turbo/
 # Also ignore any .turbo directories anywhere (older Git versions may need this)
 **/.turbo
+
+# TypeScript incremental build artifacts
+*.tsbuildinfo
