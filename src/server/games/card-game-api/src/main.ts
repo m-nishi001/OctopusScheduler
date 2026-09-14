@@ -4,13 +4,13 @@ import {
   DriveData,
   OperationResult,
   DriveMetadata,
-} from "../../../common/src/drive-types";
+} from "@octopus/server-common/drive-types";
 // Responses returned as JSON strings for client-side parsing
-import { GoogleDriveService } from "../../../common/src/google-drive-service";
+import { GoogleDriveService } from "@octopus/server-common/google-drive-service";
 import {
   SpreadsheetService,
   SpreadsheetData,
-} from "../../../common/src/google-spreadsheet-service";
+} from "@octopus/server-common/google-spreadsheet-service";
 
 declare let _cardGame_addDriveData: (driveData: DriveData) => string;
 declare let _cardGame_getDriveMetaData: (folderId: string) => string;

@@ -1,9 +1,18 @@
 {
   "name": "@octopus/server-common",
   "version": "1.0.0",
-  "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
+  "description": "Shared Google Apps Script server contracts and adapters for the monorepo.",
   "type": "module",
-  "main": "dist/Code.js",
+  "main": "./src/common-index.ts",
+  "types": "./src/common-index.ts",
+  "exports": {
+    ".": "./src/common-index.ts",
+    "./drive-types": "./src/drive-types.ts",
+    "./google-drive-service": "./src/google-drive-service.ts",
+    "./google-form-service": "./src/google-form-service.ts",
+    "./google-spreadsheet-service": "./src/google-spreadsheet-service.ts",
+    "./gas-types": "./src/gas-types.ts"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json && node esbuild.config.js",
     "lint": "eslint src/**/*.ts",

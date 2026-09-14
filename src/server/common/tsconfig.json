@@ -13,7 +13,9 @@
     "resolveJsonModule": true, // Allow importing JSON files
     "noEmit": false, // Emit declaration files so this package can act as a types package
     "declaration": true,
+    "emitDeclarationOnly": true,
     "declarationDir": "dist/types",
+    "declarationMap": false,
     "outDir": "dist",
     "composite": true,
     "rootDir": "src", // Specifies the root directory of input files

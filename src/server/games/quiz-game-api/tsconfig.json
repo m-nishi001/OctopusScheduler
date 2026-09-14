@@ -11,19 +11,22 @@
     "forceConsistentCasingInFileNames": true, // Disallow inconsistently-cased references to the same file.
     "moduleResolution": "bundler", // How modules get resolved (node is common for build tools)
     "resolveJsonModule": true, // Allow importing JSON files
-    "noEmit": false, // Do not emit output files (JS). Rely on ESBuild for bundling. Set true if using `tsc` only for type checking without `--noEmit` flag.
     "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "dist/types",
+    "declarationMap": false,
     "outDir": "dist",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "rootDirs": ["src", "../../../../shared-packages/src"],
     "paths": {
-      "shared-packages": ["../../../../shared-packages/dist/types"]
+      "shared-packages": ["../../../../shared-packages/dist/types"],
+      "@octopus/server-common": ["../../common/src"],
+      "@octopus/server-common/*": ["../../common/src/*"]
     }
   },
-  "include": ["src/**/*", "../../../../shared-packages/src/**/*"],
-  "references": [{ "path": "../../common" }],
+  "include": ["src/**/*", "../../common/src/**/*", "../../../../shared-packages/src/**/*"],
   "exclude": [
     "node_modules", // Exclude dependencies
     "dist" // Exclude build output directory

@@ -13,7 +13,7 @@
   "dependencies": {
     "common-lib": "file:../../packages/common-lib",
     "gsap": "^3.13.0",
-    "jackpot-game-api": "file:../../../server/games/jackpod-game-api",
+    "jackpot-game-api": "file:../../../server/games/jackpot-game-api",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
     "three": "^0.167.0",

@@ -3,11 +3,11 @@ import {
   OperationResult,
   DriveMetadata,
   DriveJsonData,
-} from "../../../common/src/drive-types";
+} from "@octopus/server-common/drive-types";
 
-import { GoogleFormService } from "../../../common/src/google-form-service";
-import { SpreadsheetService } from "../../../common/src/google-spreadsheet-service";
-import { GoogleDriveService } from "../../../common/src/google-drive-service";
+import { GoogleFormService } from "@octopus/server-common/google-form-service";
+import { SpreadsheetService } from "@octopus/server-common/google-spreadsheet-service";
+import { GoogleDriveService } from "@octopus/server-common/google-drive-service";
 import type {
   SheetRow,
   QuizWithDataUrl,

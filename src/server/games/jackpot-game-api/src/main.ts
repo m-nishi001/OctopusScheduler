@@ -5,9 +5,9 @@ import {
   OperationResult,
   DriveMetadata,
   DriveJsonData,
-} from "../../../common/src/drive-types";
+} from "@octopus/server-common/drive-types";
 // Responses returned as JSON strings for client-side parsing
-import { GoogleDriveService } from "../../../common/src/google-drive-service";
+import { GoogleDriveService } from "@octopus/server-common/google-drive-service";
 
 declare let _jackpotGame_addDriveData: (driveData: DriveData) => string;
 declare let _jackpotGame_getDriveMetaData: (folderId?: string) => string;

@@ -11,7 +11,7 @@ export default defineConfig({
     },
     resolve: {
         alias: {
-            "@common-lib": path.resolve(__dirname, "/root/google_apps_script/octopus-scheduler/src/client/packages/common-lib/src"),
+            "@common-lib": path.resolve(__dirname, "../../packages/common-lib/src"),
         },
     },
 });

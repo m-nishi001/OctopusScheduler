@@ -36,6 +36,8 @@
     "downlevelIteration": true /* ES5/ES3ターゲットでイテレータのダウンレベル化を許可する。 */,
     "importHelpers": true /* tslibからヘルパー関数をインポートする（バンドルサイズ削減） */,
     "paths": {
+      "@core": ["./src/core/src"],
+      "@core/*": ["./src/core/src/*"],
       "@common-lib": ["./src/client/packages/common-lib/src"],
       "@common-lib/*": ["./src/client/packages/common-lib/src/*"],
       "@shared-composables": ["./src/client/packages/shared-composables/src"],
@@ -62,6 +64,7 @@
     }
   },
   "references": [
+    { "path": "./src/core" },
     { "path": "./src/server/common" },
     { "path": "./src/client/packages/common-lib" },
     { "path": "./src/client/packages/shared-composables" },

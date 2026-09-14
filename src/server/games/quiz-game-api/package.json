@@ -6,9 +6,9 @@
   "main": "dist/Code.js",
   "types": "dist/quiz-game-api.d.ts",
   "scripts": {
-    "build": "tsc && cp src/quiz-game-api.d.ts dist/ && node esbuild.config.js",
+    "build": "tsc -b && cp src/quiz-game-api.d.ts dist/ && node esbuild.config.js",
     "lint": "eslint src/**/*.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b --pretty false",
     "deploy": "npm run build && clasp push --force"
   },
   "devDependencies": {
