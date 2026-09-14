@@ -5,6 +5,7 @@
   "private": true,
   "description": "Monorepo for Google Apps Script web app (client/server) projects.",
   "workspaces": [
+    "src/core",
     "src/client/*",
     "src/client/games/*",
     "src/client/presenters/*",
