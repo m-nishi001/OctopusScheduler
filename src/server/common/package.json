@@ -10,6 +10,9 @@
     "typecheck": "tsc -b",
     "deploy": "npm run build && clasp push --force"
   },
+  "dependencies": {
+    "@octopus/core": "file:../../core"
+  },
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",
     "@types/node": "^20.12.12"
