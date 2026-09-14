@@ -1,5 +1,5 @@
 import type { Router } from "vue-router";
-import { eventBus } from "../../../../core/event-bus";
+import { eventBus } from "@common-lib/events/event-bus";
 
 export class ShowContentEventHandler {
   static register(router: Router) {

@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from 'vue-router';
-import { eventBus } from "../../../../core/event-bus";
+import { eventBus } from "@common-lib/events/event-bus";
 import { container } from "tsyringe";
 import type { IAssetRepository } from "../../../../model/domains/assets/repository/asset-repository";
 import { IAssetRepositoryToken } from "../../../../model/domains/assets/repository/asset-repository";
