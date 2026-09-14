@@ -11,7 +11,7 @@ export interface OpeningContent {
 }
 
 export class OpeningScreenSetting {
-  readonly type: "opening" = "opening";
+  readonly type = "opening" as const;
   bgmMode: "select" | "upload";
   bgmAssetId: string;
   contents: OpeningContent[];

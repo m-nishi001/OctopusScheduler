@@ -1,4 +1,4 @@
-import { eventBus } from "../../../core/event-bus";
+import { eventBus } from "@common-lib/events/event-bus";
 import { AudioService } from "@common-lib/audio/audio-service";
 import { container } from "tsyringe";
 import { AssetService } from "../../../model/applications/assets/asset-service";

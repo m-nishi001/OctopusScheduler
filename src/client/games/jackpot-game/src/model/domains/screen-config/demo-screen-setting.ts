@@ -1,5 +1,5 @@
 export class DemoScreenSetting {
-  readonly type: "demo" = "demo";
+  readonly type = "demo" as const;
   demoBgm: string;
   demoSe1: string;
   demoSe2: string;

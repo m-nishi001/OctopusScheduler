@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 import { ref, readonly, onUnmounted } from "vue";
 import { AudioService } from "@common-lib/audio/audio-service";
-import { eventBus } from "../../../octopus-scheduler/src/core/event-bus";
+import { eventBus } from "@common-lib/events/event-bus";
 
 // Debug flag: enable by setting window.__DBG_AUDIO__ = true or localStorage.setItem('__DBG_AUDIO__','1')
 const __DBG_AUDIO__ = !!(

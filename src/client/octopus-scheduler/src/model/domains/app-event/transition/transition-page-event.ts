@@ -1,4 +1,4 @@
-import { eventBus } from "../../../../core/event-bus";
+import { eventBus } from "@common-lib/events/event-bus";
 import type { IAppEvent } from "../app-event";
 import {
   toDateOrNow,

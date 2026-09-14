@@ -6,7 +6,7 @@ import { KeyboardShortcut } from "../../../domains/keyboard-shortcut/keyboard-sh
 import { PlayAudioEvent } from "../../../domains/app-event/play-audio/play-audio-event";
 import { TransitionPageEvent } from "../../../domains/app-event/transition/transition-page-event";
 import { KeyboardShortcutConfig } from "../../../domains/keyboard-shortcut/keyboard-shortcut-config";
-import { eventBus } from "../../../../core/event-bus";
+import { eventBus } from "@common-lib/events/event-bus";
 
 class MockRepository {
   private shortcutsData: any[] = [];

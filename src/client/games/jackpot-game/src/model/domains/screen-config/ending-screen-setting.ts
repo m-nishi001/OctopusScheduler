@@ -1,5 +1,5 @@
 export class EndingScreenSetting {
-  readonly type: "ending" = "ending";
+  readonly type = "ending" as const;
   endingBgm: string;
   endingSe1: string;
   endingSe2: string;

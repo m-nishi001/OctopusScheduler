@@ -1,5 +1,5 @@
 export class MainScreenSetting {
-  readonly type: "main" = "main";
+  readonly type = "main" as const;
   memberLotteryBgms: string[];
 
   memberDrawRequestCount: number;
