@@ -29,7 +29,7 @@ export interface AnimationSettings {
 }
 
 export class DescriptionScreenSetting {
-  readonly type: "description" = "description";
+  readonly type = "description" as const;
   descriptionBgm: string;
   screenElements: ScreenElement[];
 

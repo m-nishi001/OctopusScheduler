@@ -1,5 +1,5 @@
 export class ResultScreenSetting {
-  readonly type: "result" = "result";
+  readonly type = "result" as const;
   resultBgm: string;
   resultSe1: string;
   resultSe2: string;

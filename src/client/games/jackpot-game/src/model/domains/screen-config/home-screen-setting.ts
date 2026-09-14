@@ -1,5 +1,5 @@
 export class HomeScreenSetting {
-  readonly type: "home" = "home";
+  readonly type = "home" as const;
   homeBgm: string;
   buttonClikingSE: string;
   onCompletedLoadingSE: string;

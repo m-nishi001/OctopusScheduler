@@ -39,7 +39,7 @@ export function normalizeAnswer(value?: string | null): string {
       s = (s as any).normalize("NFKC");
     }
     // remove leading numbering like "1: " or "1．" or "1. "
-    s = s.replace(/^\s*\d+\s*[:．\.\-]\s*/, "");
+    s = s.replace(/^\s*\d+\s*[:．.-]\s*/, "");
     // lowercase (ASCII letters) to make comparisons case-insensitive for Latin
     s = s.toLowerCase();
     return s;

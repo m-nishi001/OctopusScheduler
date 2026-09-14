@@ -221,31 +221,26 @@ export class GoogleDriveService {
   ) {
     // Replace the file content by setting content from blob. Use getDataAsString which may be appropriate for text;
     // For binary-safe replacement, delete and recreate the file in the same folder (preserve name format and parents).
-    try {
-      const parent = file.getParents().hasNext()
-        ? file.getParents().next()
-        : null;
-      // Trash the old file and create a new one with same name (prefixed)
-      file.setTrashed(true);
-      if (parent) {
-        const newFile = parent.createFile(blob);
-        const nameToSet =
-          typeof (fileName as any).normalize === "function"
-            ? (fileName as string).normalize("NFC")
-            : fileName;
-        newFile.setName(`${driveDataId}_${nameToSet}`);
-      } else {
-        // fallback: replace content
-        file.setContent(blob.getDataAsString());
-        const nameToSet =
-          typeof (fileName as any).normalize === "function"
-            ? (fileName as string).normalize("NFC")
-            : fileName;
-        file.setName(`${driveDataId}_${nameToSet}`);
-      }
-    } catch (e) {
-      // rethrow to caller
-      throw e;
+    const parent = file.getParents().hasNext()
+      ? file.getParents().next()
+      : null;
+    // Trash the old file and create a new one with same name (prefixed)
+    file.setTrashed(true);
+    if (parent) {
+      const newFile = parent.createFile(blob);
+      const nameToSet =
+        typeof (fileName as any).normalize === "function"
+          ? (fileName as string).normalize("NFC")
+          : fileName;
+      newFile.setName(`${driveDataId}_${nameToSet}`);
+    } else {
+      // fallback: replace content
+      file.setContent(blob.getDataAsString());
+      const nameToSet =
+        typeof (fileName as any).normalize === "function"
+          ? (fileName as string).normalize("NFC")
+          : fileName;
+      file.setName(`${driveDataId}_${nameToSet}`);
     }
   }
 }
