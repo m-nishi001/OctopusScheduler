@@ -12,7 +12,7 @@
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
-      "@server-common/gas-types": ["../../../../server/common/src/gas-types.ts"]
+      "@octopus/core": ["../../../core/src"]
     },
     "resolveJsonModule": true,
     "declaration": true,
@@ -27,6 +27,7 @@
     // "composite": true
   },
   "include": ["src/**/*"],
+  "references": [{ "path": "../../../core" }],
   "exclude": [
     "node_modules", // Exclude dependencies
     "dist" // Exclude build output directory

@@ -2,7 +2,7 @@ import type { Prize } from "../domains/prize/prize";
 import type {
   DriveMetadata,
   DriveJsonData,
-} from "../../../../../../server/common/src/drive-types";
+} from "@octopus/core";
 import { LocalStorageService } from "@common-lib/storage/local-storage-service";
 import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
 import { injectable, inject } from "tsyringe";

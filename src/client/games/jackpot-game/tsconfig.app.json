@@ -27,12 +27,14 @@
       "components": ["src/ui/components"],
       "@common-lib/*": ["../../packages/common-lib/src/*"],
       "@common-lib": ["../../packages/common-lib/src"],
+      "@octopus/core": ["../../../core/src"],
       "@composables": ["src/composables"],
       "@composables/*": ["src/composables/*"],
       "server/*": ["../../../../server/*"]
     }
   },
   "references": [
+    { "path": "../../../core" },
     { "path": "../../packages/common-lib" },
     { "path": "../../packages/shared-composables" },
     { "path": "../../../server/common" }

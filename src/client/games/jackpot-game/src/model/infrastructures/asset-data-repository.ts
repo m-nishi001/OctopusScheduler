@@ -8,7 +8,7 @@ import { Asset } from "../domains/drive-data/asset-data";
 import type {
   DriveData,
   DriveMetadata,
-} from "../../../../../../server/common/src/drive-types";
+} from "@octopus/core";
 
 @injectable()
 export class AssetDataRepository implements IAssetDataRepository {
