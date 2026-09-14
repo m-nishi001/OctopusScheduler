@@ -1,5 +1,6 @@
 node_modules
 dist
+*.tsbuildinfo
 
 # Ignore per-project build logs created during the workspace build
 **/build.log
