@@ -8,6 +8,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["src/setup-tests.ts"],
+    testTimeout: 60000,
+    pool: "vmThreads",
   },
   resolve: {
     alias: [

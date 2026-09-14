@@ -33,12 +33,12 @@ export class PrizeDrawService {
         wonPrizeId: r.wonPrize?.id,
       }))
     );
-    // Exclude prizes that are assigned to winners (not reserved)
+    // Exclude only prizes that are actually assigned to a winner.
+    // Reserved entries keep the prize available until a member is attached.
     const assignedPrizeIds = results.reduce((set, r) => {
       const hasWinner = !!r.wonMember;
-      const reserved = r.wonMember === null;
       const hasPrizeId = !!r.wonPrize?.id;
-      const isAssigned = (hasWinner && hasPrizeId) || reserved;
+      const isAssigned = hasWinner && hasPrizeId;
       if (isAssigned) {
         set.add(r.wonPrize!.id);
       }
