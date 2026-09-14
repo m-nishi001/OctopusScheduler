@@ -1,5 +1,5 @@
 {
-  "extends": "../../../../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2020", // Target environment (GAS V8 runtime supports modern JS)
     "module": "ESNext", // Use modern module system, ESBuild will handle bundling
@@ -21,7 +21,7 @@
     "baseUrl": "."
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../../common" }],
+  "references": [{ "path": "../common" }],
   "exclude": [
     "node_modules", // Exclude dependencies
     "dist" // Exclude build output directory

@@ -2,7 +2,7 @@
  * Quiz game API types
  */
 
-import type { DriveData, DriveJsonData } from "../../../common/src/drive-types";
+import type { DriveData, DriveJsonData } from "../../common/src/drive-types";
 
 export interface SheetRow {
   name: string;
