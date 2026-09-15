@@ -1,6 +1,5 @@
 import { injectable } from "tsyringe";
 import { AssetRepository } from "../../infrastructures/assets/asset-repository";
-import { AppEventRepository } from "../../infrastructures/app-event/app-event-repository";
 import { KeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { exportLocalBackup } from "./backup-util";
 
@@ -25,7 +24,6 @@ export class BulkSyncService {
   private cancelRequested = false;
   constructor(
     private assetRepo: AssetRepository,
-    private appEventRepo: AppEventRepository,
     private kbRepo: KeyboardShortcutRepository
   ) {}
 
@@ -94,19 +92,16 @@ export class BulkSyncService {
       return;
     }
 
-    // Sync events (spreadsheet)
-    onProgress?.("events", "started", "Syncing schedule events", 25);
-    try {
-      if (direction === "local-to-gas") {
-        await this.appEventRepo.syncScheduleEvents("drive");
-      } else {
-        await this.appEventRepo.syncScheduleEvents("local");
-      }
-      onProgress?.("events", "done", "Events synced", 50);
-    } catch (e: any) {
-      onProgress?.("events", "error", String(e));
-      throw e;
-    }
+    // Sync events: spreadsheet based sync is not available because the
+    // server-side endpoints (getSpreadsheetData / addSpreadsheetRecords /
+    // updateSpreadsheetRecords) were removed during a staged cleanup.
+    // Keep the stage for UI progress consistency and report it as skipped.
+    onProgress?.(
+      "events",
+      "done",
+      "Events sync skipped (server endpoints required)",
+      50
+    );
 
     if (this.cancelRequested) {
       onProgress?.("cancel", "aborted", "User cancelled");

@@ -197,8 +197,4 @@ export class AppEventService {
       await this.scheduleEventRepository.updateExecutionStatus(id, "completed");
     }
   }
-
-  async syncScheduleEvents(mode: "local" | "gas" = "local"): Promise<void> {
-    await this.scheduleEventRepository.syncScheduleEvents(mode);
-  }
 }
