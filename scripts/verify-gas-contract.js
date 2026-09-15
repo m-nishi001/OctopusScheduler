@@ -150,7 +150,7 @@ const sourceFiles = [
   ...listSourceFiles(join(ROOT, "src")),
 ].filter((f) => /\.(ts|tsx|vue|mts|js)$/.test(f));
 
-const CALL_RE = /GasFunctionService\(\s*["']([A-Za-z0-9_$]+)["']/g;
+const CALL_RE = /GasFunctionService\(\s*["']([^"']+)["']/g;
 const called = new Map(); // name -> [files]
 
 for (const file of sourceFiles) {

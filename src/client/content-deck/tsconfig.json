@@ -10,7 +10,6 @@
   },
   "references": [
     { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" },
     { "path": "../common-lib" },
     { "path": "../shared-composables" },
     { "path": "../jackpot-game" },
