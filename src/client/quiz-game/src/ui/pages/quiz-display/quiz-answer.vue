@@ -21,7 +21,7 @@ import OptionCard from '../../components/option-card.vue';
 import { onUnmounted } from 'vue';
 import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
 import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
-import { useAudio } from 'shared-composables';
+import { useAudio } from '@octopus/composables';
 import { dataUrlToBlob } from '../../../utils/blob-utils';
 
 const route = useRoute();

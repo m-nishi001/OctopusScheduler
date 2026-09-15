@@ -12,7 +12,7 @@
     "deploy": "npm run build && clasp push --force"
   },
   "dependencies": {
-    "@octopus/server-common": "file:../common"
+    "@octopus/server-common": "*"
   },
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",
