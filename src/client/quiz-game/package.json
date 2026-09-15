@@ -19,7 +19,15 @@
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"
   },
-  "types": "dist/types",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
   "devDependencies": {
     "@types/three": "^0.167.0",
     "@vitejs/plugin-vue": "^6.0.0",
