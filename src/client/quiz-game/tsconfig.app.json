@@ -1,0 +1,37 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noEmitOnError": false,
+    "baseUrl": ".",
+    "paths": {
+      "@model/*": ["src/model/*"],
+      "@shared-composables/*": ["../shared-composables/src/*"],
+      "pages/*": ["src/ui/pages/*"],
+      "pages": ["src/ui/pages"],
+      "domains/*": ["src/model/domains/*"],
+      "applications/*": ["src/model/applications/*"],
+      "components/*": ["src/ui/components/*"],
+      "components": ["src/ui/components"],
+      "@common-lib/*": ["../common-lib/src/*"],
+      "@common-lib": ["../common-lib/src"],
+      "server/*": ["../../../server/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [
+    { "path": "../common-lib" },
+    { "path": "../shared-composables" },
+    { "path": "../../server/common" }
+  ]
+}

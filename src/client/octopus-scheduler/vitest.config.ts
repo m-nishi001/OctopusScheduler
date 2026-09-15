@@ -21,7 +21,7 @@ export default defineConfig({
         find: "@composables",
         replacement: resolve(
           __dirname,
-          "../games/jackpot-game/src/composables"
+          "../jackpot-game/src/composables"
         ),
       },
     ],

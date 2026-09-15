@@ -7,12 +7,7 @@
   "workspaces": [
     "src/core",
     "src/client/*",
-    "src/client/games/*",
-    "src/client/presenters/*",
-    "src/client/packages/*",
-    "src/server/*",
-    "src/server/games/*",
-    "src/server/presenters/*"
+    "src/server/*"
   ],
   "scripts": {
     "build": "turbo run build && node scripts/prepare-dist.js",

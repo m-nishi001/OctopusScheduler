@@ -6,30 +6,30 @@ import type { Alias } from "vite";
 // Shared resolve.alias mappings for the monorepo.
 export const sharedAliases: Record<string, string> = {
   "@octopus/core": path.resolve(__dirname, "src/core/src"),
-  "@common-lib": path.resolve(__dirname, "src/client/packages/common-lib/src"),
+  "@common-lib": path.resolve(__dirname, "src/client/common-lib/src"),
   "@shared-composables": path.resolve(
     __dirname,
-    "src/client/packages/shared-composables/src"
+    "src/client/shared-composables/src"
   ),
   "@presenters/content-deck": path.resolve(
     __dirname,
-    "src/client/presenters/content-deck/src"
+    "src/client/content-deck/src"
   ),
+  // Virtual namespaces kept for host-side routing imports. Folders are flat.
   "presenters/content-deck": path.resolve(
     __dirname,
-    "src/client/presenters/content-deck/src"
+    "src/client/content-deck/src"
   ),
-  presenters: path.resolve(__dirname, "src/client/presenters"),
   "packages/common-lib": path.resolve(
     __dirname,
-    "src/client/packages/common-lib/src"
+    "src/client/common-lib/src"
   ),
   "games/jackpot-game": path.resolve(
     __dirname,
-    "src/client/games/jackpot-game/src"
+    "src/client/jackpot-game/src"
   ),
-  "games/card-game": path.resolve(__dirname, "src/client/games/card-game/src"),
-  "games/quiz-game": path.resolve(__dirname, "src/client/games/quiz-game/src"),
+  "games/card-game": path.resolve(__dirname, "src/client/card-game/src"),
+  "games/quiz-game": path.resolve(__dirname, "src/client/quiz-game/src"),
 };
 
 // Expose as Alias[] for Vite config
