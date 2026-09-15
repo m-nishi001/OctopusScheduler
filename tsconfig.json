@@ -38,40 +38,34 @@
     "paths": {
       "@octopus/core": ["./src/core/src"],
       "@octopus/core/*": ["./src/core/src/*"],
-      "@common-lib": ["./src/client/packages/common-lib/src"],
-      "@common-lib/*": ["./src/client/packages/common-lib/src/*"],
-      "@shared-composables": ["./src/client/packages/shared-composables/src"],
-      "@shared-composables/*": [
-        "./src/client/packages/shared-composables/src/*"
-      ],
-      "@presenters/content-deck": ["./src/client/presenters/content-deck/src"],
-      "@presenters/content-deck/*": [
-        "./src/client/presenters/content-deck/src/*"
-      ],
-      "@presenters": ["./src/client/presenters"],
-      "@games/card-game": ["./src/client/games/card-game/src"],
-      "@games/card-game/*": ["./src/client/games/card-game/src/*"],
-      "@games/jackpot-game": ["./src/client/games/jackpot-game/src"],
-      "@games/jackpot-game/*": ["./src/client/games/jackpot-game/src/*"],
-      "@games/quiz-game": ["./src/client/games/quiz-game/src"],
-      "@games/quiz-game/*": ["./src/client/games/quiz-game/src/*"],
-      "@server-common/gas-types": ["./src/server/common/src/gas-types.ts"],
+      "@common-lib": ["./src/client/common-lib/src"],
+      "@common-lib/*": ["./src/client/common-lib/src/*"],
+      "@shared-composables": ["./src/client/shared-composables/src"],
+      "@shared-composables/*": ["./src/client/shared-composables/src/*"],
+      "@presenters/content-deck": ["./src/client/content-deck/src"],
+      "@presenters/content-deck/*": ["./src/client/content-deck/src/*"],
+      "@games/card-game": ["./src/client/card-game/src"],
+      "@games/card-game/*": ["./src/client/card-game/src/*"],
+      "@games/jackpot-game": ["./src/client/jackpot-game/src"],
+      "@games/jackpot-game/*": ["./src/client/jackpot-game/src/*"],
+      "@games/quiz-game": ["./src/client/quiz-game/src"],
+      "@games/quiz-game/*": ["./src/client/quiz-game/src/*"],
       "@octopus/server-common": ["./src/server/common/src"],
       "@octopus/server-common/*": ["./src/server/common/src/*"],
       "@server/quiz-game-api": [
-        "./src/server/games/quiz-game-api/src/quiz-game-api.d.ts"
+        "./src/server/quiz-game-api/src/quiz-game-api.d.ts"
       ]
     }
   },
   "references": [
     { "path": "./src/core" },
     { "path": "./src/server/common" },
-    { "path": "./src/client/packages/common-lib" },
-    { "path": "./src/client/packages/shared-composables" },
-    { "path": "./src/client/games/jackpot-game" },
-    { "path": "./src/client/games/card-game" },
-    { "path": "./src/client/games/quiz-game" },
-    { "path": "./src/client/presenters/content-deck" },
+    { "path": "./src/client/common-lib" },
+    { "path": "./src/client/shared-composables" },
+    { "path": "./src/client/jackpot-game" },
+    { "path": "./src/client/card-game" },
+    { "path": "./src/client/quiz-game" },
+    { "path": "./src/client/content-deck" },
     { "path": "./src/client/octopus-scheduler" }
   ]
 }

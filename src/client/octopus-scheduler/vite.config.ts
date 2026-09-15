@@ -17,48 +17,46 @@ export default defineConfig({
       { find: "core", replacement: resolve(__dirname, "src/core") },
       {
         find: "@model",
-        replacement: resolve(__dirname, "../games/jackpot-game/src/model"),
+        replacement: resolve(__dirname, "../jackpot-game/src/model"),
       },
       {
         find: "@shared-composables",
-        replacement: resolve(__dirname, "../packages/shared-composables/src"),
+        replacement: resolve(__dirname, "../shared-composables/src"),
       },
       {
         find: "@composables",
         replacement: resolve(
           __dirname,
-          "../games/jackpot-game/src/composables"
+          "../jackpot-game/src/composables"
         ),
       },
       {
         find: "components",
         replacement: resolve(
           __dirname,
-          "../games/jackpot-game/src/ui/components"
+          "../jackpot-game/src/ui/components"
         ),
       },
       {
         find: "pages",
-        replacement: resolve(__dirname, "../games/jackpot-game/src/ui/pages"),
+        replacement: resolve(__dirname, "../jackpot-game/src/ui/pages"),
       },
       {
         find: "presenters/content-deck",
-        replacement: resolve(__dirname, "../presenters/content-deck/src"),
+        replacement: resolve(__dirname, "../content-deck/src"),
       },
-      { find: "presenters", replacement: resolve(__dirname, "../presenters") },
       {
         find: "games/jackpot-game",
-        replacement: resolve(__dirname, "../games/jackpot-game/src"),
+        replacement: resolve(__dirname, "../jackpot-game/src"),
       },
       {
         find: "games/card-game",
-        replacement: resolve(__dirname, "../games/card-game/src"),
+        replacement: resolve(__dirname, "../card-game/src"),
       },
       {
         find: "games/quiz-game",
-        replacement: resolve(__dirname, "../games/quiz-game/src"),
+        replacement: resolve(__dirname, "../quiz-game/src"),
       },
-      { find: "games", replacement: resolve(__dirname, "../games") },
     ],
   },
 });
