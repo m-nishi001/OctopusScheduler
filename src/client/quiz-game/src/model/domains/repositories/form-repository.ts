@@ -10,8 +10,8 @@ import type {
   GetJsonArgs,
   AddJsonArgs,
 } from "quiz-game-api";
-import type { SyncRequestDto } from "../../applications/dto/sync-request-dto";
-import { computeTopResponders } from "../../../services/resultProcessor";
+import type { SyncRequestDto } from "../../applications/dtos/sync-request-dto";
+import { computeTopResponders } from "../../services/resultProcessor";
 
 @injectable()
 export class FormRepository {

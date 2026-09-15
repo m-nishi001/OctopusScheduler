@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import type { QuizWithDataUrl } from "quiz-game-api";
 import { QuizResultService } from "../../services/quiz-result-service";
-import { computeTopResponders } from "../../../services/resultProcessor";
+import { computeTopResponders } from "../../services/resultProcessor";
 import { normalizeAnswer } from "../../../types/quiz";
 
 @injectable()

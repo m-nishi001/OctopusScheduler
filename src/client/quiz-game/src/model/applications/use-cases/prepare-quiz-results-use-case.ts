@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { StartQuizUseCase } from "./start-quiz-use-case";
 import { GetQuizResultsUseCase } from "./get-quiz-results-use-case";
-import { quizState } from "../../../services/quizState";
+import { quizState } from "../../services/quizState";
 import type { QuizDto } from "../dtos/quiz-dto";
 import type { QuizWithDataUrl } from "quiz-game-api";
 

@@ -39,11 +39,11 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import type { QuizDto } from '../../../../model/applications/dtos/quiz-dto';
-import { StartQuizUseCase } from '../../../../model/applications/use-cases/start-quiz-use-case';
-import { StopQuizUseCase } from '../../../../model/applications/use-cases/stop-quiz-use-case';
-import OptionCard from '../components/option-card.vue';
-import { quizState } from '../../../../services/quizState';
+import type { QuizDto } from '../../../model/applications/dtos/quiz-dto';
+import { StartQuizUseCase } from '../../../model/applications/use-cases/start-quiz-use-case';
+import { StopQuizUseCase } from '../../../model/applications/use-cases/stop-quiz-use-case';
+import OptionCard from '../../components/option-card.vue';
+import { quizState } from '../../../model/services/quizState';
 
 const route = useRoute();
 const router = useRouter();
