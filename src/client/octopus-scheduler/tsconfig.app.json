@@ -16,38 +16,19 @@
       "model/*": ["src/model/*"],
       "ui/*": ["src/ui/*"],
       "core/*": ["src/core/*"],
+      "@common-lib/*": ["../common-lib/src/*"],
+      "@common-lib": ["../common-lib/src"],
+      "@octopus/core": ["../../core/src"],
+      // ホストがバンドルする jackpot-game ソースが使用する内部エイリアス。
+      // （パッケージ単位の名前空間化は今後の課題）
       "@model/*": ["../jackpot-game/src/model/*"],
       "@shared-composables/*": ["../shared-composables/src/*"],
       "domains/*": ["../jackpot-game/src/model/domains/*"],
       "applications/*": ["../jackpot-game/src/model/applications/*"],
       "components/*": ["../jackpot-game/src/ui/components/*"],
       "components": ["../jackpot-game/src/ui/components"],
-      "@common-lib/*": ["../common-lib/src/*"],
-      "@common-lib": ["../common-lib/src"],
-      "@octopus/core": ["../../core/src"],
-      "presenters/content-deck/*": ["../content-deck/src/*"],
-      "presenters/content-deck": ["../content-deck/src"],
-      "games/card-game/*": ["../card-game/src/*"],
-      "games/card-game": ["../card-game/src"],
-      "games/quiz-game/*": ["../quiz-game/src/*"],
-      "games/quiz-game": ["../quiz-game/src"],
-      "games/jackpot-game/*": ["../jackpot-game/src/*"],
-      "games/jackpot-game": ["../jackpot-game/src"],
-      "presenters/content-deck/router": [
-        "../content-deck/src/router/index.ts"
-      ],
-      "games/jackpot-game/core/router": [
-        "../jackpot-game/src/core/router/index.ts"
-      ],
-      "games/card-game/router": ["../card-game/src/router/index.ts"],
-      "games/quiz-game/core/router": [
-        "../quiz-game/src/core/router/index.ts"
-      ],
-      "server/*": ["../../server/*"],
-      "@server/quiz-game-api": [
-        "../../../src/server/quiz-game-api/dist/quiz-game-api.d.ts"
-      ],
-      "quiz-game/*": ["../quiz-game/src/*"]
+      "pages/*": ["../jackpot-game/src/ui/pages/*"],
+      "pages": ["../jackpot-game/src/ui/pages"]
     },
     "outDir": "dist"
   },

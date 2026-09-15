@@ -1,5 +1,5 @@
 {
-  "name": "common-lib",
+  "name": "@octopus/client-common",
   "version": "1.0.0",
   "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
   "main": "dist/Code.js",
@@ -19,7 +19,7 @@
   "dependencies": {
     "glob": "^11.0.3",
     "mitt": "^3.0.1",
-    "@octopus/core": "file:../../core",
-    "@octopus/server-common": "file:../../server/common"
+    "@octopus/core": "*",
+    "@octopus/server-common": "*"
   }
 }

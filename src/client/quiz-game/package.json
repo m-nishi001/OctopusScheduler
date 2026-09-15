@@ -1,5 +1,5 @@
 {
-  "name": "quiz-game",
+  "name": "@octopus/game-quiz",
   "private": true,
   "version": "0.1.0",
   "scripts": {
@@ -9,9 +9,9 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "common-lib": "file:../common-lib",
-    "shared-composables": "file:../shared-composables",
-    "quiz-game-api": "file:../../../../src/server/quiz-game-api",
+    "@octopus/client-common": "*",
+    "@octopus/composables": "*",
+    "quiz-game-api": "*",
     "gsap": "^3.13.0",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",

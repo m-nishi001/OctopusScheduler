@@ -23,9 +23,28 @@ Octopus Scheduler は、社内イベント（忘年会等）の現場で、モ�
 ## Architecture Highlights
 
 - Monorepo でクライアント、共有パッケージ、API を分離
+- **フォルダ構成がそのままモジュール構成**（`src/<layer>/<package>`）
+- `@octopus/core` にクライアント/サーバ共通の契約（型）を集約
 - レイヤード構成（core / model / ui）で責務を明確化
+- 各パッケージは `src/index.ts` を公開 API とし、他パッケージは内部パスに依存しない
 - 複数ゲーム系フロントエンドとスケジューラ機能を統合
 - GAS 連携を前提にした運用設計とデータ同期戦略を実装
+
+## Module Structure
+
+```text
+src/
+├─ core/                     @octopus/core（依存ゼロの共有契約）
+├─ client/                   @octopus/client-common / @octopus/composables /
+│                            @octopus/app-scheduler（ホスト）/
+│                            @octopus/game-jackpot / @octopus/game-quiz /
+│                            @octopus/game-card / @octopus/presenter-content-deck
+└─ server/                   @octopus/server-common / *-api（GAS グローバル互換のため API 名は保持）
+```
+
+- モジュール境界は `package.json`（workspaces）であり、`tsconfig.json` はコンパイラ設定に徹する
+- 依存方向は `core ← client / server` の一方向
+- ゲーム系パッケージは「単体 Vite アプリ」と「ホストに合成される機能モジュール」の二役を公開 API で分離
 
 ## Key Decisions and Rationale
 

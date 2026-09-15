@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build", "quiz-game#build"]
+      "dependsOn": ["^build", "@octopus/game-quiz#build"]
     }
   }
 }

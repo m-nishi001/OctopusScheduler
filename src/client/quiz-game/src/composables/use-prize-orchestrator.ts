@@ -1,5 +1,5 @@
 import { ref, readonly, onUnmounted } from "vue";
-import { useAudio } from "shared-composables";
+import { useAudio } from "@octopus/composables";
 
 export function usePrizeOrchestrator(options: {
   getSettings: () =>
