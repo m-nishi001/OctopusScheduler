@@ -5,6 +5,7 @@ import type { Alias } from "vite";
 
 // Shared resolve.alias mappings for the monorepo.
 export const sharedAliases: Record<string, string> = {
+  "@octopus/core": path.resolve(__dirname, "src/core/src"),
   "@common-lib": path.resolve(__dirname, "src/client/packages/common-lib/src"),
   "@shared-composables": path.resolve(
     __dirname,

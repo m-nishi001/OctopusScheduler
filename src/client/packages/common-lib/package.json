@@ -19,6 +19,7 @@
   "dependencies": {
     "glob": "^11.0.3",
     "mitt": "^3.0.1",
+    "@octopus/core": "file:../../../core",
     "@octopus/server-common": "file:../../../server/common"
   }
 }

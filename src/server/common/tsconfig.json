@@ -23,6 +23,7 @@
     "emitDecoratorMetadata": true
   },
   "include": ["src/**/*"],
+  "references": [{ "path": "../../core" }],
   "exclude": [
     "node_modules", // Exclude dependencies
     "dist" // Exclude build output directory

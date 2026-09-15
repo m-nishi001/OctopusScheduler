@@ -7,7 +7,7 @@ import { AssetDataService } from "../applications/asset/asset-data-service";
 import type {
   DriveJsonData,
   DriveMetadata,
-} from "../../../../../../server/common/src/drive-types";
+} from "@octopus/core";
 
 @injectable()
 export class ScreenConfigRepository implements IScreenSettingRepository {
