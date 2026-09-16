@@ -47,13 +47,9 @@ export function useAudio(options?: {
   const tryResume = async () => {
     if (mode === "html-audio" && htmlAudio.value && autoplayBlocked.value) {
       try {
-        console.log(
-          "[useAudio] tryResume: attempting to resume after user gesture"
-        );
         await htmlAudio.value.play();
         autoplayBlocked.value = false;
         isPlaying.value = true;
-        console.log("[useAudio] tryResume: resumed playback");
         return true;
       } catch (err) {
         console.warn("[useAudio] tryResume: failed to resume", err);
@@ -108,16 +104,6 @@ export function useAudio(options?: {
       // Revocation is performed when loading a new source or on unmount to avoid
       // races where an external stop call clears the tracked src while another
       // actor expects to read it immediately after play.
-      console.log(
-        "[useAudio] stopAudio: pausing (defer revoke) currentSrc =>",
-        currentSrc.value
-      );
-      // 無条件で trace を出力して必ずスタックを取得
-      try {
-        console.trace();
-      } catch (e) {
-        /* noop */
-      }
       if (__DBG_AUDIO__) {
         console.log(
           "[DBG][useAudio] stopAudio PRE dbgId=%s currentSrc=%s time=%d",
@@ -246,10 +232,6 @@ export function useAudio(options?: {
               } catch (e) {
                 /* noop */
               }
-              console.log(
-                "[useAudio] load: revoking previous blob URL:",
-                currentSrc.value
-              );
               URL.revokeObjectURL(currentSrc.value);
             } catch (e) {
               console.warn("[useAudio] load: revoke failed", e);
@@ -405,7 +387,6 @@ export function useAudio(options?: {
             currentSrc.value,
             Date.now()
           );
-        console.log("[useAudio] load: set currentSrc =>", currentSrc.value);
         duration.value = getDuration();
         audioInstanceId.value = "html-audio";
       }
@@ -427,17 +408,7 @@ export function useAudio(options?: {
     if (!audioInstanceId.value || isPlaying.value) return;
 
     try {
-      console.log("[useAudio] play: attempting to play", {
-        instance: _instanceId,
-        audioInstanceId: audioInstanceId.value,
-        src: currentSrc.value,
-      });
       await playAudio(options.fadeIn, options.isRepeat);
-      console.log("[useAudio] play: play succeeded", {
-        instance: _instanceId,
-        audioInstanceId: audioInstanceId.value,
-        src: currentSrc.value,
-      });
       if (__DBG_AUDIO__ && mode === "html-audio" && htmlAudio.value) {
         try {
           console.log(

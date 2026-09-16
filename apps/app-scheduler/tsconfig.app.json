@@ -11,10 +11,11 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "baseUrl": ".",
     "paths": {
-      "model/*": ["src/model/*"],
-      "ui/*": ["src/ui/*"],
-      "core/*": ["src/core/*"]
+      "model/*": ["./src/model/*"],
+      "ui/*": ["./src/ui/*"],
+      "core/*": ["./src/core/*"]
     },
     "outDir": "dist"
   },
