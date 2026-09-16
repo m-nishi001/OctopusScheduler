@@ -27,13 +27,8 @@ export class AppEventRepository implements IAppEventRepository {
 
   async getEventById(id: string): Promise<IAppEvent | null> {
     if (!id) return null;
-    console.debug("[AppEventRepository] getEventById", id);
     try {
       const item = await this.localStorage.get<IAppEvent>(id);
-      console.debug("[AppEventRepository] getEventById result", {
-        id,
-        found: !!item,
-      });
       return (item as IAppEvent) || null;
     } catch (e) {
       console.error("Failed to get event by id", e);

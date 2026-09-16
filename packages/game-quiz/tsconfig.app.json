@@ -13,14 +13,15 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "noEmitOnError": false,
+    "baseUrl": ".",
     "paths": {
-      "@model/*": ["src/model/*"],
-      "pages/*": ["src/ui/pages/*"],
-      "pages": ["src/ui/pages"],
-      "domains/*": ["src/model/domains/*"],
-      "applications/*": ["src/model/applications/*"],
-      "components/*": ["src/ui/components/*"],
-      "components": ["src/ui/components"]
+      "@model/*": ["./src/model/*"],
+      "pages/*": ["./src/ui/pages/*"],
+      "pages": ["./src/ui/pages"],
+      "domains/*": ["./src/model/domains/*"],
+      "applications/*": ["./src/model/applications/*"],
+      "components/*": ["./src/ui/components/*"],
+      "components": ["./src/ui/components"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],

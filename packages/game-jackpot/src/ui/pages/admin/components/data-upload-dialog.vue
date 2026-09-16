@@ -209,7 +209,6 @@ const upload = async () => {
                 assetMap.set(baseN.toLowerCase(), asset.id);
             } catch { /* ignore */ }
         });
-        console.log('[DataUploadDialog] assetMap', Array.from(assetMap.entries()));
 
         if (props.type === 'member') {
             await uploadMembers(dataLines, assetMap);
@@ -299,24 +298,6 @@ const uploadPrizes = async (dataLines: string[], assetMap: Map<string, string>) 
             winningImage2AssetId,
             order
         };
-        // Debug log: show mapping from CSV filenames -> resolved asset IDs
-        console.log('[DataUploadDialog] prize asset mapping', {
-            row: i,
-            name,
-            imageFilename,
-            imageAssetId,
-            image2Filename,
-            image2AssetId,
-            bgm1Filename,
-            bgm1AssetId,
-            bgm2Filename,
-            bgm2AssetId,
-            winningImage1Filename,
-            winningImage1AssetId,
-            winningImage2Filename,
-            winningImage2AssetId,
-            order,
-        });
         await prizeService.savePrize(prize);
     }
 };

@@ -18,7 +18,6 @@ const channel = new BroadcastChannel('octopus-control');
 
 const handleMessage = async (event: MessageEvent) => {
     const data = event.data || {};
-    console.debug('[execute-view] received BroadcastChannel message', data, 'ts=', Date.now());
 
     // If message follows IAppEventDto shape: { actionType, eventId }
     if (data && typeof data.actionType === 'string') {
@@ -33,32 +32,22 @@ const handleMessage = async (event: MessageEvent) => {
         }
         const actionType = data.actionType;
         const eventId = data.eventId || (data.payload && data.payload.eventId);
-        console.debug('[execute-view] detected IAppEventDto', { actionType, eventId, ts: Date.now() });
 
         if (eventId) {
             try {
                 const service = container.resolve(AppEventService);
-                console.debug('[execute-view] resolving event by id', eventId, 'ts=', Date.now());
                 const ev = await service.getEventById(String(eventId));
-                console.debug('[execute-view] lookup result for eventId', eventId, !!ev, 'ts=', Date.now());
                 if (ev) {
-                    console.debug('[execute-view] executing event', { id: ev.id, type: ev.type, actionType, ts: Date.now() });
                     if (actionType === 'start' || actionType === 'trigger') {
-                        console.debug('[execute-view] about to ev.execute start', ev.id, 'ts=', Date.now());
                         await ev.execute(true, true);
-                        console.debug('[execute-view] ev.execute start returned', ev.id, 'ts=', Date.now());
                     } else if (actionType === 'stop') {
-                        console.debug('[execute-view] about to ev.execute stop', ev.id, 'ts=', Date.now());
                         await ev.execute(false, true);
-                        console.debug('[execute-view] ev.execute stop returned', ev.id, 'ts=', Date.now());
                     }
                     return;
                 }
             } catch (e) {
                 console.error('Failed to resolve or execute app event', e);
             }
-        } else {
-            console.debug('[execute-view] IAppEventDto missing eventId');
         }
     }
     // ignore other legacy message shapes

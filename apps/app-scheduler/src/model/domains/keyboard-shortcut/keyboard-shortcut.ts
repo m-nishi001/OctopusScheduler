@@ -31,24 +31,10 @@ export class KeyboardShortcut {
     if (this.eventIds && this.eventIds.length > 0) {
       try {
         const appEventService = container.resolve(AppEventService);
-        console.debug(
-          "[KeyboardShortcut] Executing events for shortcut",
-          this.id,
-          this.eventIds
-        );
         for (const id of this.eventIds) {
           try {
-            console.debug(
-              `[KeyboardShortcut] dispatch start eventId=${id} ts=${Date.now()}`
-            );
             const ev = await appEventService.getEventById(id);
-            console.debug(
-              `[KeyboardShortcut] dispatch resolved eventId=${id} found=${!!ev} ts=${Date.now()}`
-            );
             if (!ev) continue;
-            console.debug(
-              `[KeyboardShortcut] invoking execute eventId=${id} type=${(ev as any).type ?? "unknown"} ts=${Date.now()}`
-            );
             const p = ev.execute(true, true);
             if (p && typeof (p as any).catch === "function") {
               (p as Promise<any>).catch((err) => {
@@ -58,9 +44,6 @@ export class KeyboardShortcut {
                 );
               });
             }
-            console.debug(
-              `[KeyboardShortcut] invoke returned eventId=${id} ts=${Date.now()}`
-            );
           } catch (err) {
             console.error(
               `[KeyboardShortcut] failed to execute eventId=${id} err=`,

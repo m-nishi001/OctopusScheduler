@@ -13,17 +13,18 @@
     "noUncheckedSideEffectImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "baseUrl": ".",
     "paths": {
-      "@model/*": ["src/model/*"],
-      "pages/*": ["src/ui/pages/*"],
-      "pages": ["src/ui/pages"],
-      "domains/*": ["src/model/domains/*"],
-      "applications/*": ["src/model/applications/*"],
-      "components/*": ["src/ui/components/*"],
-      "components": ["src/ui/components"],
-      "@composables": ["src/composables"],
-      "@composables/*": ["src/composables/*"],
-      "server/*": ["../../../server/*"]
+      "@model/*": ["./src/model/*"],
+      "pages/*": ["./src/ui/pages/*"],
+      "pages": ["./src/ui/pages"],
+      "domains/*": ["./src/model/domains/*"],
+      "applications/*": ["./src/model/applications/*"],
+      "components/*": ["./src/ui/components/*"],
+      "components": ["./src/ui/components"],
+      "@composables": ["./src/composables"],
+      "@composables/*": ["./src/composables/*"],
+      "server/*": ["./../../../server/*"]
     }
   },
   "references": [

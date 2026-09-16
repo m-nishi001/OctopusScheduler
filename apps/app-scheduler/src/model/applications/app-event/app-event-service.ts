@@ -41,21 +41,13 @@ export class AppEventService {
    */
   async getEventById(id: string): Promise<IAppEvent | null> {
     if (!id) return null;
-    console.debug("[AppEventService] getEventById", id);
     try {
       const raw = await this.scheduleEventRepository.getEventById(String(id));
-      console.debug("[AppEventService] getEventById result", {
-        id,
-        found: !!raw,
-      });
 
       if (!raw) return null;
 
       // If the returned object already has executable behavior, return as-is
       if (typeof (raw as IAppEvent).execute === "function") {
-        console.debug("[AppEventService] getEventById: already an instance", {
-          id,
-        });
         return raw as IAppEvent;
       }
 
@@ -72,9 +64,6 @@ export class AppEventService {
         try {
           const ev = serializer.revive(raw as IAppEvent);
           if (ev) {
-            console.debug("[AppEventService] getEventById: revived instance", {
-              id,
-            });
             return ev;
           }
         } catch (e) {

@@ -298,7 +298,6 @@ async function onDeleteSelected() {
     if (!confirm(`${selectedEvents.value.length} 件のイベントを削除しますか？`)) return;
     deleting.value = true;
     try {
-        console.log('Deleting events:', selectedEvents.value);
         await scheduleEventService.deleteScheduleEvents(selectedEvents.value);
         selectedEvents.value = [];
         await getAllScheduleEvents();

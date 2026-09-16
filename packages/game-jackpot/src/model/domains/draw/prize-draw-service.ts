@@ -26,13 +26,6 @@ export class PrizeDrawService {
     prizes: Prize[],
     results: { wonPrize?: Prize | null; wonMember?: any }[]
   ): Prize[] {
-    console.log(
-      "[PrizeDrawService] getAvailablePrizes: results sample:",
-      results.map((r) => ({
-        wonMember: r.wonMember,
-        wonPrizeId: r.wonPrize?.id,
-      }))
-    );
     // Exclude only prizes that are actually assigned to a winner.
     // Reserved entries keep the prize available until a member is attached.
     const assignedPrizeIds = results.reduce((set, r) => {
@@ -46,10 +39,6 @@ export class PrizeDrawService {
     }, new Set<string>());
     const getAvailablePrizes = prizes.filter(
       (p) => !assignedPrizeIds.has(p.id)
-    );
-    console.log(
-      "[PrizeDrawService] getAvailablePrizes: available prizes:",
-      getAvailablePrizes
     );
     return getAvailablePrizes;
   }
