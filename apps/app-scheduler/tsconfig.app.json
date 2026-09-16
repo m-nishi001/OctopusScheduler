@@ -1,0 +1,33 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "model/*": ["src/model/*"],
+      "ui/*": ["src/ui/*"],
+      "core/*": ["src/core/*"]
+    },
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../../packages/core" },
+    { "path": "../../packages/client-common" },
+    { "path": "../../packages/composables" },
+    { "path": "../../packages/game-card" },
+    { "path": "../../packages/game-quiz" },
+    { "path": "../../packages/game-jackpot" },
+    { "path": "../../packages/presenter-content-deck" },
+    { "path": "../../packages/server" }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "composite": true,
+    "declaration": true,
+    "declarationDir": "dist",
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "../client-common" },
+    { "path": "../composables" },
+    { "path": "../server" }
+  ]
+}

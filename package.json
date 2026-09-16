@@ -5,16 +5,20 @@
   "private": true,
   "description": "Monorepo for Google Apps Script web app (client/server) projects.",
   "workspaces": [
-    "src/core",
-    "src/client/*",
-    "src/server/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "build": "turbo run build && node scripts/prepare-dist.js",
-    "clean:src-generated": "rimraf \"src/**/src/**/*.js\" \"src/**/src/**/*.d.ts\"",
+    "clean:src-generated": "rimraf \"packages/**/src/**/*.js\" \"packages/**/src/**/*.d.ts\"",
     "build:force": "npm run clean:src-generated && turbo run build --force && node scripts/prepare-dist.js",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "test": "turbo run test -- --run",
+    "verify:gas": "node scripts/verify-gas-contract.js",
+    "verify:dist": "node scripts/verify-dist.js",
+    "verify": "npm run verify:gas && npm run verify:dist",
+    "deploy": "npm run build && clasp push --force",
     "clean": "rimraf dist",
     "dev": "turbo run dev",
     "prepare-dist": "node scripts/prepare-dist.js",

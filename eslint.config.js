@@ -62,6 +62,7 @@ export default [
       parser: tsParser,
       parserOptions: {
         sourceType: "module",
+        warnOnUnsupportedTypeScriptVersion: false,
       },
     },
     plugins: {
@@ -90,7 +91,7 @@ export default [
     },
   },
   {
-    files: ["src/server/**/*.ts"],
+    files: ["packages/server/**/*.ts"],
     languageOptions: {
       globals: gasGlobals,
     },
@@ -108,6 +109,7 @@ export default [
         parser: tsParser,
         extraFileExtensions: [".vue"],
         sourceType: "module",
+        warnOnUnsupportedTypeScriptVersion: false,
       },
     },
     rules: {

@@ -1,17 +1,8 @@
-import path from "path";
 import tsconfigPaths from "vite-tsconfig-paths";
 import vue from "@vitejs/plugin-vue";
 import type { Alias } from "vite";
 
-// Shared resolve.alias mappings for the monorepo.
-export const sharedAliases: Record<string, string> = {
-  "@octopus/core": path.resolve(__dirname, "src/core/src"),
-  "@common-lib": path.resolve(__dirname, "src/client/common-lib/src"),
-  "@shared-composables": path.resolve(
-    __dirname,
-    "src/client/shared-composables/src"
-  ),
-};
+export const sharedAliases: Record<string, string> = {};
 
 // Expose as Alias[] for Vite config
 export function sharedAliasArray(): Alias[] {
@@ -21,8 +12,22 @@ export function sharedAliasArray(): Alias[] {
   }));
 }
 
-// Shared plugins we want in all client builds (ensure tsconfigPaths is first)
-export const sharedPlugins = [tsconfigPaths(), vue()];
+// Shared plugins we want in all client builds.
+// Crawl both solution tsconfig files and per-package tsconfig.app.json files so
+// package-local path aliases resolve without copying them into the host config.
+export const sharedPlugins = [
+  tsconfigPaths({
+    root: __dirname,
+    configNames: [
+      "tsconfig.json",
+      "tsconfig.app.json",
+      "tsconfig.node.json",
+      "jsconfig.json",
+    ],
+    loose: true,
+  }),
+  vue(),
+];
 
 export default {
   sharedAliases,

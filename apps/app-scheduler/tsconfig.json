@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationDir": "dist/types",
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "../../packages/client-common" },
+    { "path": "../../packages/composables" },
+    { "path": "../../packages/game-card" },
+    { "path": "../../packages/game-quiz" },
+    { "path": "../../packages/game-jackpot" },
+    { "path": "../../packages/presenter-content-deck" },
+    { "path": "../../packages/server" }
+  ]
+}
