@@ -11,6 +11,8 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@octopus/client-common": "*",
+    "@octopus/composables": "*",
     "@octopus/core": "*",
     "@octopus/game-card": "*",
     "@octopus/presenter-content-deck": "*",
@@ -19,7 +21,6 @@
     "mitt": "^3.0.1",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1",
-    "quiz-game-api": "*",
     "@octopus/game-quiz": "*"
   },
   "types": "dist/types",

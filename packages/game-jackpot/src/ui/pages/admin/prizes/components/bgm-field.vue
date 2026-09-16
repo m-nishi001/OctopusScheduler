@@ -32,7 +32,7 @@ import CustomSelect from './custom-select.vue';
 import type { Asset } from '@model/domains/drive-data/asset-data';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { useAudio } from '@shared-composables/use-audio';
+import { useAudio } from '@octopus/composables/use-audio';
 
 const props = defineProps<{
     label: string;

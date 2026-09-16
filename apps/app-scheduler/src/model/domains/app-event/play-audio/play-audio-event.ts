@@ -1,11 +1,11 @@
-import { eventBus } from "@common-lib/events/event-bus";
+import { eventBus } from "@octopus/client-common/events/event-bus";
 import type { IAppEvent } from "../app-event";
 import {
   toDateOrNow,
   toDateOrNull,
   toISOStringOrEmpty,
   toISOStringSafe,
-} from "@common-lib/date-utils/date-utils";
+} from "@octopus/client-common/date-utils/date-utils";
 
 export class PlayAudioEventParams {
   id: string;

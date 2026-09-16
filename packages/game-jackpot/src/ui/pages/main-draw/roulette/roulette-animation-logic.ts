@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { getCurrentInstance, onMounted, onUnmounted, ref, watch } from "vue";
 import type {
   RouletteItem,
   InternalRouletteItem,
@@ -110,19 +110,19 @@ export function useRouletteAnimation(
     return result;
   };
 
-  onMounted(async () => {
+  const mountEffect = async () => {
     if (!canvas.value) return;
     ctx = canvas.value.getContext("2d");
     if (!ctx) return;
     resizeCanvas();
     resizeObserver = new ResizeObserver(() => {
       resizeCanvas();
-      drawCallback(0); // redraw on resize
+      drawCallback(0);
     });
     resizeObserver.observe(canvas.value);
     const initialPrizes = (opts && opts.initialPrizes) ?? props.prizes;
     await updateRouletteItems(initialPrizes);
-  });
+  };
 
   watch(
     () => props.prizes,
@@ -133,13 +133,17 @@ export function useRouletteAnimation(
     { immediate: false }
   );
 
-  onUnmounted(async () => {
+  const unmountEffect = async () => {
     if (resizeObserver) {
       resizeObserver.disconnect();
       resizeObserver = null;
     }
-    // audio stop handled by handlers
-  });
+  };
+
+  if (getCurrentInstance()) {
+    onMounted(mountEffect);
+    onUnmounted(unmountEffect);
+  }
 
   return {
     canvas,

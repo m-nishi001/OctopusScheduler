@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import type { Result } from "../entities/result";
-import type { SheetRow } from "quiz-game-api";
+import type { SheetRow } from "@octopus/core";
 
 @injectable()
 export class ResultService {

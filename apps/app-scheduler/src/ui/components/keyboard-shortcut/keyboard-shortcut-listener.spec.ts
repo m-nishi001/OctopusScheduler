@@ -4,7 +4,7 @@ import { Container } from "../../../core/container/index";
 import { container } from "tsyringe";
 import { KeyboardShortcutService } from "../../../model/applications/keyboard-shortcut/keyboard-shortcut-service";
 import { KeyboardShortcutConfig } from "../../../model/domains/keyboard-shortcut/keyboard-shortcut-config";
-import { eventBus } from "@common-lib/events/event-bus";
+import { eventBus } from "@octopus/client-common/events/event-bus";
 
 describe("keyboard-shortcut-listener", () => {
   let unregister: () => void;

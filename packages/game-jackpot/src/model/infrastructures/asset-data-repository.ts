@@ -1,8 +1,8 @@
 import { injectable, inject } from "tsyringe";
 import { IdGeneratorToken } from "../domains/common/id-generator";
 import type { IdGenerator } from "../domains/common/id-generator";
-import { LocalStorageService } from "@common-lib/storage/local-storage-service";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
 import type { IAssetDataRepository } from "../domains/drive-data/repository/i-asset-data-repository";
 import { Asset } from "../domains/drive-data/asset-data";
 import type {

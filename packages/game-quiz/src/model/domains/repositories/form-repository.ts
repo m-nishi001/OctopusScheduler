@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
 import type {
   SheetRow,
   QuizWithDataUrl,
@@ -9,7 +9,7 @@ import type {
   StopAndGetProcessedResultsArgs,
   GetJsonArgs,
   AddJsonArgs,
-} from "quiz-game-api";
+} from "@octopus/core";
 import type { SyncRequestDto } from "../../applications/dtos/sync-request-dto";
 import { computeTopResponders } from "../../services/resultProcessor";
 

@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
 
 @injectable()
 export class QuizResultService {

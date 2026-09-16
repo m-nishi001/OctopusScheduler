@@ -11,20 +11,8 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
-    "composite": true,
-    "baseUrl": ".",
-    "paths": {
-      "@octopus/server-common": ["../../server/common/src"],
-      "@octopus/server-common/*": ["../../server/common/src/*"],
-      "@shared-composables/*": ["../shared-composables/src/*"],
-      "@common-lib/*": ["../common-lib/src/*"],
-      "@common-lib": ["../common-lib/src"]
-    }
+    "composite": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "references": [
-    { "path": "../../server/common" },
-    { "path": "../common-lib" },
-    { "path": "../shared-composables" }
-  ]
+  "references": []
 }

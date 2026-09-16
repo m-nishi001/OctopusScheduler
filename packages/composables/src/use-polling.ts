@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue';
+import { getCurrentInstance, onUnmounted, ref } from 'vue';
 
 /**
  * 任意の非同期関数を指定間隔でポーリング実行するcomposable
@@ -35,7 +35,9 @@ export function usePolling(
         timer = null;
     };
 
-    onUnmounted(stop);
+    if (getCurrentInstance()) {
+        onUnmounted(stop);
+    }
 
     return { start, stop, isActive };
 }

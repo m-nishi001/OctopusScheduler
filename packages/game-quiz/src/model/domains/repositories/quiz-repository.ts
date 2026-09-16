@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import { Quiz } from "../../domains/entities/quiz";
-import { LocalStorageService } from "@common-lib/storage/local-storage-service";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
 import type {
   QuizWithDataUrl,
   GetJsonArgs,
@@ -11,7 +11,7 @@ import type {
   RemoveDriveDataArgs,
   GetDriveMetaDataArgs,
   AddJsonArgs,
-} from "quiz-game-api";
+} from "@octopus/core";
 import { dataUrlToBlob } from "../../../utils/blob-utils";
 
 @injectable()

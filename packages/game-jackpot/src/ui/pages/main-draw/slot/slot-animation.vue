@@ -15,7 +15,7 @@
 
 <script lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useAudio } from '@shared-composables/use-audio';
+import { useAudio } from '@octopus/composables/use-audio';
 import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
 import { defineExpose } from 'vue';
 import type { AnimationRef } from './animation-types';

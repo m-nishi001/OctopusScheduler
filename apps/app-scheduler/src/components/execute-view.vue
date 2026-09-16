@@ -11,7 +11,7 @@
 import { onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { AppEventService } from '../model/applications/app-event/app-event-service';
-import { eventBus } from '@common-lib/events/event-bus';
+import { eventBus } from '@octopus/client-common/events/event-bus';
 
 
 const channel = new BroadcastChannel('octopus-control');

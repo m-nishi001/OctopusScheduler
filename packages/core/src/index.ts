@@ -2,3 +2,4 @@
 export * from "./gas/response";
 export * from "./gas/api-contract";
 export * from "./drive/types";
+export * from "./quiz/contract";

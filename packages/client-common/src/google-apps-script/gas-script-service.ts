@@ -9,7 +9,7 @@
  * - リトライ機構を備える
  */
 
-import type { GasResponse } from "@octopus/core";
+import type { GasFunctionName, GasResponse } from "@octopus/core";
 
 declare namespace google {
   namespace script {
@@ -35,16 +35,13 @@ export class GasFunctionService {
   private static readonly DEFAULT_RETRIES = 3;
   private static readonly DEFAULT_RETRY_DELAY_MS = 1000;
 
-  private functionName?: string;
+  private readonly functionName: GasFunctionName;
   private options: Required<GasFunctionOptions>;
   private instanceSuccessHandler: ((value: any) => void) | null = null;
   private instanceFailureHandler: ((err: string) => void) | null = null;
 
-  constructor(functionName?: string, options: GasFunctionOptions = {}) {
-    if (functionName && String(functionName).trim() !== "") {
-      this.functionName = String(functionName).trim();
-    }
-
+  constructor(functionName: GasFunctionName, options: GasFunctionOptions = {}) {
+    this.functionName = functionName;
     this.options = {
       timeout: options.timeout ?? GasFunctionService.DEFAULT_TIMEOUT_MS,
       retries: options.retries ?? GasFunctionService.DEFAULT_RETRIES,
@@ -63,7 +60,7 @@ export class GasFunctionService {
     return this;
   }
 
-  public async call<T = any>(args: any = {}): Promise<T> {
+  public async call<T = any>(args?: unknown): Promise<T> {
     const resp = await this.runWithRetry<T>(args);
 
     if (resp.status === "success") {
@@ -88,7 +85,7 @@ export class GasFunctionService {
     throw new Error(resp.message);
   }
 
-  private async runWithRetry<T>(args: any): Promise<GasResponse<T>> {
+  private async runWithRetry<T>(args?: unknown): Promise<GasResponse<T>> {
     let attempts = 0;
     let parallelErrorAttempts = 0;
     const MAX_PARALLEL_ERROR_RETRY = 100;
@@ -99,7 +96,7 @@ export class GasFunctionService {
       try {
         const result = await Promise.race([
           this.executeGasFunction<T>(args),
-          this.createTimeoutPromise(this.functionName ?? "anonymous"),
+          this.createTimeoutPromise(this.functionName),
         ]);
 
         if (result.status === "success") return result;
@@ -143,7 +140,7 @@ export class GasFunctionService {
     }
   }
 
-  private executeGasFunction<T>(args: any): Promise<GasResponse<T>> {
+  private executeGasFunction<T>(args?: unknown): Promise<GasResponse<T>> {
     return new Promise((resolve) => {
       if (typeof google === "undefined") {
         console.warn(
@@ -156,11 +153,6 @@ export class GasFunctionService {
         });
         return;
       }
-
-      const runTarget =
-        this.functionName && this.functionName.trim() !== ""
-          ? this.functionName
-          : undefined;
 
       const successHandler = (response: string) => {
         try {
@@ -185,14 +177,7 @@ export class GasFunctionService {
         .withSuccessHandler(successHandler)
         .withFailureHandler(failureHandler);
 
-      if (runTarget) {
-        (callWith as any)[runTarget](args);
-      } else {
-        resolve({
-          status: "error",
-          message: "呼び出すGAS関数名が指定されていません。",
-        });
-      }
+      (callWith as any)[this.functionName](args);
     });
   }
 

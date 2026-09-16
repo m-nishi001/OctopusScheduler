@@ -1,5 +1,5 @@
-import { eventBus } from "@common-lib/events/event-bus";
-import { AudioService } from "@common-lib/audio/audio-service";
+import { eventBus } from "@octopus/client-common/events/event-bus";
+import { AudioService } from "@octopus/client-common/audio/audio-service";
 import { container } from "tsyringe";
 import { AssetService } from "../../../model/applications/assets/asset-service";
 

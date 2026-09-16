@@ -1,4 +1,4 @@
-import type { DriveData, DriveMetadata, OperationResult } from "./drive-types";
+import type { DriveData, DriveMetadata, OperationResult } from "../types/drive-types";
 
 export class GoogleDriveService {
   private cache: GoogleAppsScript.Cache.Cache;

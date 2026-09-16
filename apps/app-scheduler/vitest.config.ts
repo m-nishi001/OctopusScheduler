@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
-import { sharedAliasArray } from "../../../vite.shared";
+import { sharedAliasArray } from "../../vite.shared";
 
 export default defineConfig({
   plugins: [vue()],

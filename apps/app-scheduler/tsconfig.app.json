@@ -11,37 +11,23 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": ".",
     "paths": {
       "model/*": ["src/model/*"],
       "ui/*": ["src/ui/*"],
-      "core/*": ["src/core/*"],
-      "@common-lib/*": ["../common-lib/src/*"],
-      "@common-lib": ["../common-lib/src"],
-      "@octopus/core": ["../../core/src"],
-      // ホストがバンドルする jackpot-game ソースが使用する内部エイリアス。
-      // （パッケージ単位の名前空間化は今後の課題）
-      "@model/*": ["../jackpot-game/src/model/*"],
-      "@shared-composables/*": ["../shared-composables/src/*"],
-      "domains/*": ["../jackpot-game/src/model/domains/*"],
-      "applications/*": ["../jackpot-game/src/model/applications/*"],
-      "components/*": ["../jackpot-game/src/ui/components/*"],
-      "components": ["../jackpot-game/src/ui/components"],
-      "pages/*": ["../jackpot-game/src/ui/pages/*"],
-      "pages": ["../jackpot-game/src/ui/pages"]
+      "core/*": ["src/core/*"]
     },
     "outDir": "dist"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
   "exclude": ["node_modules", "dist"],
   "references": [
-    { "path": "../../core" },
-    { "path": "../common-lib" },
-    { "path": "../shared-composables" },
-    { "path": "../card-game" },
-    { "path": "../quiz-game" },
-    { "path": "../jackpot-game" },
-    { "path": "../content-deck" },
-    { "path": "../../server/common" }
+    { "path": "../../packages/core" },
+    { "path": "../../packages/client-common" },
+    { "path": "../../packages/composables" },
+    { "path": "../../packages/game-card" },
+    { "path": "../../packages/game-quiz" },
+    { "path": "../../packages/game-jackpot" },
+    { "path": "../../packages/presenter-content-deck" },
+    { "path": "../../packages/server" }
   ]
 }

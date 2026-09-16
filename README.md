@@ -33,13 +33,18 @@ Octopus Scheduler は、社内イベント（忘年会等）の現場で、モ�
 ## Module Structure
 
 ```text
-src/
+apps/
+└─ app-scheduler/            @octopus/app-scheduler（唯一のホスト Web アプリ）
+
+packages/
 ├─ core/                     @octopus/core（依存ゼロの共有契約）
-├─ client/                   @octopus/client-common / @octopus/composables /
-│                            @octopus/app-scheduler（ホスト）/
-│                            @octopus/game-jackpot / @octopus/game-quiz /
-│                            @octopus/game-card / @octopus/presenter-content-deck
-└─ server/                   @octopus/server-common / *-api（GAS グローバル互換のため API 名は保持）
+├─ client-common/            @octopus/client-common
+├─ composables/              @octopus/composables
+├─ game-jackpot/             @octopus/game-jackpot
+├─ game-quiz/                @octopus/game-quiz
+├─ game-card/                @octopus/game-card
+├─ presenter-content-deck/   @octopus/presenter-content-deck
+└─ server/                   @octopus/server（単一 GAS バンドル）
 ```
 
 - モジュール境界は `package.json`（workspaces）であり、`tsconfig.json` はコンパイラ設定に徹する

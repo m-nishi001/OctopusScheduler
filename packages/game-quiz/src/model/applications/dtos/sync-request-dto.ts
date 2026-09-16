@@ -1,4 +1,4 @@
-import type { QuizWithDataUrl } from "quiz-game-api";
+import type { QuizWithDataUrl } from "@octopus/core";
 
 export interface SyncRequestDto {
   direction: "gas-to-local" | "local-to-gas";

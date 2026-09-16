@@ -13,14 +13,6 @@
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "lib": ["ESNext", "DOM"],
-    "baseUrl": ".",
-    "paths": {
-      "@common-lib/*": ["../common-lib/src/*"],
-      "@common-lib": ["../common-lib/src"],
-      "@shared-composables/*": ["../shared-composables/src/*"],
-      "@octopus/server-common": ["../../server/common/src"],
-      "@octopus/server-common/*": ["../../server/common/src/*"]
-    },
     "outDir": "dist"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]

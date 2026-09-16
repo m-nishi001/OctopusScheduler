@@ -2,7 +2,7 @@ import { injectable, inject } from "tsyringe";
 import type { ResultDto } from "../dtos/result-dto";
 import { ResultService } from "../../domains/services/result-service";
 import { FormRepository } from "../../domains/repositories/form-repository";
-import type { SheetRow } from "quiz-game-api";
+import type { SheetRow } from "@octopus/core";
 
 @injectable()
 export class GetResultsUseCase {

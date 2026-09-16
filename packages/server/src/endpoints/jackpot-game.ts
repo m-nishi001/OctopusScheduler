@@ -2,24 +2,17 @@
 
 import {
   DriveData,
-  OperationResult,
   DriveMetadata,
   DriveJsonData,
-} from "../../common/src/drive-types";
+} from "../types/drive-types";
 // Responses returned as JSON strings for client-side parsing
-import { GoogleDriveService } from "../../common/src/google-drive-service";
+import { GoogleDriveService } from "../drive/google-drive-service";
 
 declare let _jackpotGame_addDriveData: (driveData: DriveData) => string;
 declare let _jackpotGame_getDriveMetaData: (folderId?: string) => string;
 declare let _jackpotGame_getDriveData: (dataId: string) => string;
-declare let _jackpotGame_removeDriveData: (dataId: string) => string;
-declare let _jackpotGame_updateDriveData: (driveData: DriveData) => string;
 declare let _jackpotGame_addJson: (driveJson: DriveJsonData) => string;
 declare let _jackpotGame_getJson: (fileId?: string) => string;
-declare let _jackpotGame_addJsonData: (driveJson: DriveJsonData) => string;
-declare let _jackpotGame_getJsonData: (fileId?: string) => string;
-declare let _jackpotGame_listJsonMetaData: (folderId?: string) => string;
-declare let _jackpotGame_updateJsonData: (driveJson: DriveJsonData) => string;
 
 // Instantiate services
 const driveService = new GoogleDriveService();
@@ -90,30 +83,6 @@ _jackpotGame_getDriveData = (dataId: string): string => {
   try {
     const result = driveService.getDriveData(dataId);
     return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
-_jackpotGame_removeDriveData = (dataId: string): string => {
-  try {
-    driveService.removeDriveData(dataId);
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
-_jackpotGame_updateDriveData = (driveData: DriveData): string => {
-  try {
-    const result = driveService.updateDriveData(driveData);
-    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return JSON.stringify({
       status: "error",
@@ -234,62 +203,3 @@ _jackpotGame_getJson = (fileId?: string): string => {
   }
 };
 
-// Aliases (octopus-compatible names)
-_jackpotGame_addJsonData = (driveJson: DriveJsonData): string => {
-  try {
-    // Delegate to existing implementation
-    return _jackpotGame_addJson(driveJson);
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
-_jackpotGame_getJsonData = (fileId?: string): string => {
-  try {
-    return _jackpotGame_getJson(fileId);
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
-_jackpotGame_listJsonMetaData = (folderId?: string): string => {
-  try {
-    const resolved = folderId || getJsonFolderId();
-    const result = driveService.getDriveMetaData(resolved);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
-_jackpotGame_updateJsonData = (driveJson: DriveJsonData): string => {
-  try {
-    const fileId = driveJson.metadata?.fileId;
-    if (!fileId) {
-      return JSON.stringify({
-        status: "error",
-        message: "metadata.fileId is required for update",
-      });
-    }
-    const file = DriveApp.getFileById(fileId);
-    file.setContent(driveJson.jsonText);
-    if (driveJson.fileName && driveJson.fileName !== file.getName()) {
-      file.setName(driveJson.fileName);
-    }
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};

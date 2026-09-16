@@ -3,11 +3,11 @@ import {
   OperationResult,
   DriveMetadata,
   DriveJsonData,
-} from "../../common/src/drive-types";
+} from "../types/drive-types";
 
-import { GoogleFormService } from "../../common/src/google-form-service";
-import { SpreadsheetService } from "../../common/src/google-spreadsheet-service";
-import { GoogleDriveService } from "../../common/src/google-drive-service";
+import { GoogleFormService } from "../form/google-form-service";
+import { SpreadsheetService } from "../spreadsheet/google-spreadsheet-service";
+import { GoogleDriveService } from "../drive/google-drive-service";
 import type {
   SheetRow,
   QuizWithDataUrl,
@@ -21,15 +21,10 @@ import type {
   GetDriveMetaDataArgs,
   GetDriveDataArgs,
   RemoveDriveDataArgs,
-  UpdateDriveDataArgs,
   AddJsonArgs,
   GetJsonArgs,
-  AddJsonDataArgs,
-  GetJsonDataArgs,
   ListJsonMetaDataArgs,
-  UpdateJsonDataArgs,
-  TrashFolderContentsArgs,
-} from "./quiz-game-api.d.ts";
+} from "@octopus/core";
 
 // Instantiate services
 const driveService = new GoogleDriveService();
@@ -75,13 +70,9 @@ declare let _quizGame_addDriveData: (args: AddDriveDataArgs) => string;
 declare let _quizGame_getDriveMetaData: (args: GetDriveMetaDataArgs) => string;
 declare let _quizGame_getDriveData: (args: GetDriveDataArgs) => string;
 declare let _quizGame_removeDriveData: (args: RemoveDriveDataArgs) => string;
-declare let _quizGame_updateDriveData: (args: UpdateDriveDataArgs) => string;
 declare let _quizGame_addJson: (args: AddJsonArgs) => string;
 declare let _quizGame_getJson: (args: GetJsonArgs) => string;
-declare let _quizGame_addJsonData: (args: AddJsonDataArgs) => string;
-declare let _quizGame_getJsonData: (args: GetJsonDataArgs) => string;
 declare let _quizGame_listJsonMetaData: (args: ListJsonMetaDataArgs) => string;
-declare let _quizGame_updateJsonData: (args: UpdateJsonDataArgs) => string;
 
 // Basic existing functions: stop form / get sheet data
 declare let _quizGame_stopForm: (args: StopFormArgs) => string;
@@ -497,19 +488,6 @@ _quizGame_removeDriveData = (args: RemoveDriveDataArgs): string => {
   }
 };
 
-_quizGame_updateDriveData = (args: UpdateDriveDataArgs): string => {
-  const { driveData } = args;
-  try {
-    driveService.updateDriveData(driveData);
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
 // JSON file helpers
 _quizGame_addJson = (args: AddJsonArgs): string => {
   const { driveJson } = args;
@@ -610,30 +588,6 @@ _quizGame_getJson = (args: GetJsonArgs): string => {
   }
 };
 
-_quizGame_addJsonData = (args: AddJsonDataArgs): string => {
-  const { driveJson } = args;
-  try {
-    return _quizGame_addJson({ driveJson });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
-_quizGame_getJsonData = (args: GetJsonDataArgs): string => {
-  const { fileId } = args;
-  try {
-    return _quizGame_getJson({ fileId });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
 _quizGame_listJsonMetaData = (args: ListJsonMetaDataArgs): string => {
   const { folderId } = args;
   try {
@@ -648,67 +602,7 @@ _quizGame_listJsonMetaData = (args: ListJsonMetaDataArgs): string => {
   }
 };
 
-_quizGame_updateJsonData = (args: UpdateJsonDataArgs): string => {
-  const { driveJson } = args;
-  try {
-    const fileId = driveJson.metadata?.fileId;
-    if (!fileId) {
-      return JSON.stringify({
-        status: "error",
-        message: "metadata.fileId is required for update",
-      });
-    }
-    const file = DriveApp.getFileById(fileId);
-    file.setContent(driveJson.jsonText);
-    if (driveJson.fileName && driveJson.fileName !== file.getName()) {
-      file.setName(driveJson.fileName);
-    }
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};
-
 // NOTE: dataUrl <-> Blob conversion is handled by `GoogleDriveService` helpers
 // (createBlobFromDataUrlOrBase64 / blobToDataUrl). The server-local copies
 // were removed to avoid duplication.
 
-// Main: unified bulk sync
-// Trash all files in a folder (idempotent). Clients may call this to perform
-// destructive cleanup before writing new JSON or assets.
-declare let _quizGame_trashFolderContents: (
-  args: TrashFolderContentsArgs
-) => string;
-
-_quizGame_trashFolderContents = (args: TrashFolderContentsArgs): string => {
-  const { folderId } = args;
-  try {
-    if (!folderId || folderId.trim() === "") {
-      return JSON.stringify({
-        status: "error",
-        message: "folderId is required",
-      });
-    }
-    const folder = DriveApp.getFolderById(folderId);
-    const files = folder.getFiles();
-    while (files.hasNext()) {
-      files.next().setTrashed(true);
-    }
-    // also remove files in subfolders recursively
-    const subFolders = folder.getFolders();
-    while (subFolders.hasNext()) {
-      const sf = subFolders.next();
-      const f2 = sf.getFiles();
-      while (f2.hasNext()) f2.next().setTrashed(true);
-    }
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return JSON.stringify({
-      status: "error",
-      message: (error as Error).message,
-    });
-  }
-};

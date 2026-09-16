@@ -2,7 +2,7 @@
  * Quiz game API types
  */
 
-import type { DriveData, DriveJsonData } from "../../common/src/drive-types";
+import type { DriveData, DriveJsonData } from "../drive/types";
 
 export interface SheetRow {
   name: string;
@@ -75,10 +75,6 @@ export interface RemoveDriveDataArgs {
   dataId: string;
 }
 
-export interface UpdateDriveDataArgs {
-  driveData: DriveData;
-}
-
 export interface AddJsonArgs {
   driveJson: DriveJsonData;
 }
@@ -87,22 +83,6 @@ export interface GetJsonArgs {
   fileId?: string;
 }
 
-export interface AddJsonDataArgs {
-  driveJson: DriveJsonData;
-}
-
-export interface GetJsonDataArgs {
-  fileId?: string;
-}
-
 export interface ListJsonMetaDataArgs {
-  folderId?: string;
-}
-
-export interface UpdateJsonDataArgs {
-  driveJson: DriveJsonData;
-}
-
-export interface TrashFolderContentsArgs {
   folderId?: string;
 }

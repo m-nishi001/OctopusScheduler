@@ -1,4 +1,4 @@
-import { LocalStorageService } from "@common-lib/storage/local-storage-service";
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import type { IAppEventRepository } from "../../domains/app-event/app-event-repository";
 import type { IAppEvent } from "../../domains/app-event/app-event";
 import { injectable } from "tsyringe";

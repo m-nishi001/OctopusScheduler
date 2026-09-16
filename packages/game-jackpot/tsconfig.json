@@ -1,5 +1,5 @@
 {
-  "extends": "../../../tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "files": [],
   "compilerOptions": {
     "experimentalDecorators": true,
@@ -11,8 +11,8 @@
   },
   "references": [
     { "path": "./tsconfig.app.json" },
-    { "path": "../common-lib" },
-    { "path": "../shared-composables" },
-    { "path": "../../server/common" }
+    { "path": "../client-common" },
+    { "path": "../composables" },
+    { "path": "../server" }
   ]
 }

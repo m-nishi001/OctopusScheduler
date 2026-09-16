@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
-import { ref, readonly, onUnmounted } from "vue";
-import { AudioService } from "@common-lib/audio/audio-service";
-import { eventBus } from "@common-lib/events/event-bus";
+import { getCurrentInstance, onUnmounted, readonly, ref } from "vue";
+import { AudioService } from "@octopus/client-common/audio/audio-service";
+import { eventBus } from "@octopus/client-common/events/event-bus";
 
 // Debug flag: enable by setting window.__DBG_AUDIO__ = true or localStorage.setItem('__DBG_AUDIO__','1')
 const __DBG_AUDIO__ = !!(
@@ -541,7 +541,7 @@ export function useAudio(options?: {
     setVolumeAudio(volume.value);
   };
 
-  onUnmounted(() => {
+  const cleanup = () => {
     if (animationFrameId !== null) {
       cancelAnimationFrame(animationFrameId);
     }
@@ -553,13 +553,16 @@ export function useAudio(options?: {
         URL.revokeObjectURL(currentSrc.value);
       }
     }
-    // remove global stopAudio listener
     try {
       eventBus.off("stopAudio", onStopAudio as any);
     } catch {
       /* ignore */
     }
-  });
+  };
+
+  if (getCurrentInstance()) {
+    onUnmounted(cleanup);
+  }
 
   try {
     eventBus.on("stopAudio", onStopAudio as any);

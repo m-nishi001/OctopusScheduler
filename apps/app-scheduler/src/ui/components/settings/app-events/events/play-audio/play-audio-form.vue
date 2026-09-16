@@ -25,7 +25,7 @@ import type { PlayAudioFormData, EditPlayAudioFormData } from '../../app-events/
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../model/applications/assets/asset-service';
 import type { Asset } from '../../../../model/domains/assets/entity/asset';
-import { useAudio } from '@shared-composables/use-audio';
+import { useAudio } from '@octopus/composables/use-audio';
 
 type Props = {
     initialData?: PlayAudioFormData | EditPlayAudioFormData;

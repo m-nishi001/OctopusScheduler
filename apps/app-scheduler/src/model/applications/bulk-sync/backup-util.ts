@@ -1,4 +1,4 @@
-import { LocalStorageService } from "@common-lib/storage/local-storage-service";
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
 export async function exportLocalBackup(options?: { includeAssets?: boolean }) {
   const includeAssets = options?.includeAssets ?? true;

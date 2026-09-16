@@ -44,7 +44,7 @@ import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@model/applications/asset/asset-data-service';
 import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
-import { useAudio } from '@shared-composables/use-audio';
+import { useAudio } from '@octopus/composables/use-audio';
 import type { DrawMemberResponse } from '@model/applications/draw/dto/draw-member-response';
 // draw-result-dialog.vue was previously used for the modal. For readability
 // we define the member-specific winner dialog inline in this component.

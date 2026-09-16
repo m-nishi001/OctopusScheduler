@@ -1,4 +1,4 @@
-import { useAudio } from "@shared-composables/use-audio";
+import { useAudio } from "@octopus/composables/use-audio";
 
 // Ensure a single shared audio instance across multiple consumers so that
 // playback state and events are consistent even if multiple components call

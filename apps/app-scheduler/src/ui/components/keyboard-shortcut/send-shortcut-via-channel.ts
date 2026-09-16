@@ -1,5 +1,5 @@
 import { container } from "tsyringe";
-import { eventBus } from "@common-lib/events/event-bus";
+import { eventBus } from "@octopus/client-common/events/event-bus";
 import { AppEventService } from "../../../model/applications/app-event/app-event-service";
 
 /**

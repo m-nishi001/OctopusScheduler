@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import { LocalStorageService } from "@common-lib/storage/local-storage-service";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
 import type { IAssetRepository } from "../../domains/assets/repository/asset-repository";
 import type { Asset } from "../../domains/assets/entity/asset";
 import type { DriveData } from "@octopus/core";

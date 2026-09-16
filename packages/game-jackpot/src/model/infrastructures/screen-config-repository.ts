@@ -1,8 +1,8 @@
 import { injectable, container } from "tsyringe";
 import type { IScreenSettingRepository } from "../domains/screen-config/repository/i-screen-setting-repository";
-import { LocalStorageService } from "@common-lib/storage/local-storage-service";
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { ScreenSetting } from "../domains/screen-config/screen-setting";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
 import { AssetDataService } from "../applications/asset/asset-data-service";
 import type {
   DriveJsonData,

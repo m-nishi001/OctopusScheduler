@@ -1,6 +1,6 @@
 import { container, injectable } from "tsyringe";
 import { AssetDataService } from "../../applications/asset/asset-data-service";
-import { GasFunctionService } from "@common-lib/google-apps-script/gas-script-service";
+import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
 import { IMemberRepositoryToken } from "../../domains/member/repository/i-member-repository";
 import { IPrizeRepositoryToken } from "../../domains/prize/repository/i-prize-repository";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
@@ -47,7 +47,7 @@ export class BulkSyncService {
         const lastId = localStorage.getItem("jackpot-members-last-file-id");
         if (lastId) {
           const resp = await new (
-            await import("@common-lib/google-apps-script/gas-script-service")
+            await import("@octopus/client-common/google-apps-script/gas-script-service")
           ).GasFunctionService("jackpotGame_getJson").call(lastId);
           if (resp && resp.json) {
             onProgress?.("members", "ダウンロード完了、保存中...", 70);
@@ -88,7 +88,7 @@ export class BulkSyncService {
           } as any;
           onProgress?.("members", "アップロード中...", 50);
           const resp = await new (
-            await import("@common-lib/google-apps-script/gas-script-service")
+            await import("@octopus/client-common/google-apps-script/gas-script-service")
           ).GasFunctionService("jackpotGame_addJson").call(payload);
           if (resp && (resp as any).fileId) {
             localStorage.setItem(

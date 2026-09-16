@@ -1,14 +1,14 @@
 {
-  "name": "@octopus/server-common",
+  "name": "@octopus/server",
   "version": "1.0.0",
-  "description": "A web application built with Google Apps Script, TypeScript, and ESBuild",
+  "description": "GAS サーバ側のエンドポイント。単一の Google Apps Script プロジェクトとしてデプロイする。",
+  "private": true,
   "type": "module",
-  "main": "dist/Code.js",
+  "main": "dist/server.js",
   "scripts": {
-    "build": "tsc -b && node esbuild.config.js",
+    "build": "rimraf dist && tsc -b && node esbuild.config.js",
     "lint": "eslint src",
-    "typecheck": "tsc -b",
-    "deploy": "npm run build && clasp push --force"
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@octopus/core": "*"
