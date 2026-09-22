@@ -3,6 +3,7 @@ import { AssetDataRepository } from "../asset-data-repository";
 import { Asset } from "../../domains/drive-data/asset-data";
 import { container } from "tsyringe";
 import { IdGeneratorToken } from "../../domains/common/id-generator";
+import { IApiClientToken } from "@octopus/infrastructures/interfaces";
 
 describe("AssetDataRepository", () => {
   let repo: AssetDataRepository;
@@ -16,6 +17,11 @@ describe("AssetDataRepository", () => {
       nextId: vi.fn(() => "generated-id"),
     };
     container.register(IdGeneratorToken, { useValue: mockIdGenerator });
+
+    // Mock IApiClient: these tests only exercise local-storage-backed methods,
+    // but the constructor still needs a resolvable token.
+    const mockApiClient = { call: vi.fn() };
+    container.register(IApiClientToken, { useValue: mockApiClient });
 
     repo = container.resolve(AssetDataRepository);
   });

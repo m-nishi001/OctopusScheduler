@@ -2,9 +2,11 @@ import type { Prize } from "../domains/prize/prize";
 import type {
   DriveMetadata,
   DriveJsonData,
-} from "@octopus/core";
+} from "@octopus/infrastructures/interfaces";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
+import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import type { IApiClient } from "@octopus/infrastructures/interfaces";
+import { callJackpotGame } from "./jackpot-api-client";
 import { injectable, inject } from "tsyringe";
 import { IdGeneratorToken } from "../domains/common/id-generator";
 import type { IdGenerator } from "../domains/common/id-generator";
@@ -17,7 +19,10 @@ export class PrizeRepository implements IPrizeRepository {
     "PrizeData"
   );
 
-  constructor(@inject(IdGeneratorToken) private idGenerator: IdGenerator) {}
+  constructor(
+    @inject(IdGeneratorToken) private idGenerator: IdGenerator,
+    @inject(IApiClientToken) private readonly apiClient: IApiClient
+  ) {}
 
   async getPrizes(): Promise<Prize[]> {
     const allPrizes = await this.localStorage.getAll<Prize>();
@@ -56,7 +61,6 @@ export class PrizeRepository implements IPrizeRepository {
     try {
       const prizesToExport = await this.getPrizes();
       const json = JSON.stringify(prizesToExport || []);
-      const service = new GasFunctionService("jackpotGame_addJson");
       // NOTE: driveDataId is assigned by the GAS side (Drive metadata) when
       // uploading JSON files. The app should manage an application-scoped file
       // identifier (fileId) so we can later re-download the same file.
@@ -75,7 +79,11 @@ export class PrizeRepository implements IPrizeRepository {
         uploadDate: new Date().toISOString(),
         parentFolderId: "",
       };
-      await service.call<DriveMetadata>(driveJson as DriveJsonData);
+      await callJackpotGame<DriveMetadata>(
+        this.apiClient,
+        "addJson",
+        driveJson as DriveJsonData
+      );
     } catch (e) {
       console.error("PrizeRepository.exportAllPrizesToDrive failed:", e);
       return;
@@ -84,8 +92,10 @@ export class PrizeRepository implements IPrizeRepository {
 
   async importAllPrizesFromDrive(): Promise<void> {
     try {
-      const service = new GasFunctionService("jackpotGame_getJson");
-      const resp = await service.call<{ json: string }>();
+      const resp = await callJackpotGame<{ json: string }>(
+        this.apiClient,
+        "getJson"
+      );
       try {
         const parsed = JSON.parse(resp.json) as Prize[];
         if (!Array.isArray(parsed)) {

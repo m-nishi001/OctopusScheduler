@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import PrizeForm from "../../ui/components/prizes/prize-form.vue";
 import { container } from "tsyringe";
-import { IdGeneratorToken } from "../../model/domains/common/id-generator";
+import { IdGeneratorToken } from "../../domains/common/id-generator";
 import { AssetDataService } from "@model/applications/asset/asset-data-service";
 
 // Mock dependencies

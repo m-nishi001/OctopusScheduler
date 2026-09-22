@@ -1,13 +1,15 @@
-import { injectable, container } from "tsyringe";
+import { injectable, inject, container } from "tsyringe";
 import type { IScreenSettingRepository } from "../domains/screen-config/repository/i-screen-setting-repository";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { ScreenSetting } from "../domains/screen-config/screen-setting";
-import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
+import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import type { IApiClient } from "@octopus/infrastructures/interfaces";
+import { callJackpotGame } from "./jackpot-api-client";
 import { AssetDataService } from "../applications/asset/asset-data-service";
 import type {
   DriveJsonData,
   DriveMetadata,
-} from "@octopus/core";
+} from "@octopus/infrastructures/interfaces";
 
 @injectable()
 export class ScreenConfigRepository implements IScreenSettingRepository {
@@ -17,6 +19,10 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
   );
 
   private readonly assetService = container.resolve(AssetDataService);
+
+  constructor(
+    @inject(IApiClientToken) private readonly apiClient: IApiClient
+  ) {}
 
   async getScreenSettings(): Promise<ScreenSetting[]> {
     const allSettings = await this.localStorage.getAll<ScreenSetting>();
@@ -70,7 +76,6 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
       const entries: ScreenSetting[] = Array.from(all.values());
       const json = JSON.stringify(entries || []);
 
-      const service = new GasFunctionService("jackpotGame_addJson");
       const appFileId = String(Date.now()) + "-screens";
       const driveJson: DriveJsonData = {
         appFileId,
@@ -81,7 +86,11 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
         parentFolderId: "",
       } as any;
 
-      const resp = await service.call<DriveMetadata>(driveJson as any);
+      const resp = await callJackpotGame<DriveMetadata>(
+        this.apiClient,
+        "addJson",
+        driveJson as any
+      );
       // store fileId if returned
       const fileId =
         (resp && (resp as any).fileId) ||
@@ -103,8 +112,9 @@ export class ScreenConfigRepository implements IScreenSettingRepository {
     idMap?: { [oldId: string]: string }
   ): Promise<{ replaced: number }> {
     try {
-      const service = new GasFunctionService("jackpotGame_getJson");
-      const resp = await service.call<{ json: string }>(
+      const resp = await callJackpotGame<{ json: string }>(
+        this.apiClient,
+        "getJson",
         fileId || localStorage.getItem("jackpot-screens-last-file-id") || ""
       );
       const payloadJson =

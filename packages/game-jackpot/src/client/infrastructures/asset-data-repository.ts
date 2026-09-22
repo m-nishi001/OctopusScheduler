@@ -2,13 +2,15 @@ import { injectable, inject } from "tsyringe";
 import { IdGeneratorToken } from "../domains/common/id-generator";
 import type { IdGenerator } from "../domains/common/id-generator";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
+import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import type { IApiClient } from "@octopus/infrastructures/interfaces";
+import { callJackpotGame } from "./jackpot-api-client";
 import type { IAssetDataRepository } from "../domains/drive-data/repository/i-asset-data-repository";
 import { Asset } from "../domains/drive-data/asset-data";
 import type {
   DriveData,
   DriveMetadata,
-} from "@octopus/core";
+} from "@octopus/infrastructures/interfaces";
 
 @injectable()
 export class AssetDataRepository implements IAssetDataRepository {
@@ -16,7 +18,10 @@ export class AssetDataRepository implements IAssetDataRepository {
 
   private readonly concurrency = 20;
 
-  constructor(@inject(IdGeneratorToken) private idGenerator: IdGenerator) {
+  constructor(
+    @inject(IdGeneratorToken) private idGenerator: IdGenerator,
+    @inject(IApiClientToken) private readonly apiClient: IApiClient
+  ) {
     this.localStorage = new LocalStorageService("jackpot-game", "AssetData");
   }
 
@@ -107,13 +112,16 @@ export class AssetDataRepository implements IAssetDataRepository {
   private async fetchRemoteMetas(
     onProgress?: (message: string) => void
   ): Promise<DriveMetadata[] | null> {
-    const metaService = new GasFunctionService("jackpotGame_getDriveMetaData", {
-      timeout: 180000,
-    });
     try {
       // Explicitly pass undefined so the server will resolve the configured
       // asset folder via ScriptProperties when no folder is provided.
-      const metas = (await metaService.call<DriveMetadata[]>(undefined)) || [];
+      const metas =
+        (await callJackpotGame<DriveMetadata[]>(
+          this.apiClient,
+          "getDriveMetaData",
+          undefined,
+          { timeout: 180000 }
+        )) || [];
       return metas as DriveMetadata[];
     } catch (e) {
       onProgress?.(`Failed to fetch remote metadata: ${(e as Error).message}`);
@@ -181,9 +189,6 @@ export class AssetDataRepository implements IAssetDataRepository {
       progress?: { current: number; total: number }
     ) => void
   ): Promise<number> {
-    const addService = new GasFunctionService("jackpotGame_addDriveData", {
-      timeout: 180000,
-    });
     let uploaded = 0;
 
     const worker = async (asset: Asset) => {
@@ -204,7 +209,12 @@ export class AssetDataRepository implements IAssetDataRepository {
           parentFolderId: "",
         };
 
-        const res = await addService.call(driveData);
+        const res = await callJackpotGame(
+          this.apiClient,
+          "addDriveData",
+          driveData,
+          { timeout: 180000 }
+        );
         if (res) {
           await this.localStorage.save(asset.id, {
             ...asset,
@@ -230,15 +240,17 @@ export class AssetDataRepository implements IAssetDataRepository {
     remoteMetas: DriveMetadata[],
     onProgress?: (message: string) => void
   ): Promise<Asset[]> {
-    const getService = new GasFunctionService("jackpotGame_getDriveData", {
-      timeout: 180000,
-    });
     const assets: Asset[] = [];
     let fetched = 0;
 
     const worker = async (m: DriveMetadata) => {
       try {
-        const driveData = await getService.call<DriveData>(m.fileId);
+        const driveData = await callJackpotGame<DriveData>(
+          this.apiClient,
+          "getDriveData",
+          m.fileId,
+          { timeout: 180000 }
+        );
         if (!driveData) return null;
 
         const blob = await this.dataUrlToBlob(
