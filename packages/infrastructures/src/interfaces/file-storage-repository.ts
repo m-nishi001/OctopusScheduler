@@ -30,6 +30,18 @@ export interface IFileStorageRepository {
     contentBase64: string;
   }): StoredFileMeta;
 
+  /**
+   * プレーンテキスト(JSON等)のファイルを作る。base64を経由しないのは、
+   * バイナリセーフなbase64エンコード手段(GASでは Utilities.base64Encode)が
+   * どのランタイムでも同じ形で使えるとは限らないため。
+   */
+  createTextFile(params: {
+    folderId: string;
+    fileName: string;
+    mimeType: string;
+    content: string;
+  }): StoredFileMeta;
+
   getFileById(fileId: string): StoredFileContent | null;
 
   /** テキスト/JSONファイルの内容を文字列として取得する。 */
