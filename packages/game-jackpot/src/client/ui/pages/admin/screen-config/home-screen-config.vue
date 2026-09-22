@@ -102,9 +102,9 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import type { Asset } from "@model/domains/drive-data/asset-data";
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import type { Asset } from "@model/asset/asset-data";
 import UnsavedChangesDialog from './unsaved-changes-dialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);

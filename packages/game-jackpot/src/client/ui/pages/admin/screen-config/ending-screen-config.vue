@@ -139,10 +139,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import type { OpeningContent } from '@model/domains/screen-config/opening-screen-setting';
-import type { Asset } from "@model/domains/drive-data/asset-data";
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import type { OpeningContent } from '@model/screen-config/opening-screen-setting';
+import type { Asset } from "@model/asset/asset-data";
 import UnsavedChangesDialog from '../components/UnsavedChangesDialog.vue';
 import { onBeforeRouteLeave } from 'vue-router';
 

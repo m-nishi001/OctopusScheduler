@@ -40,12 +40,12 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import gsap from 'gsap';
-import type { MemberDto } from '@model/applications/member/dto/member-dto';
+import type { MemberDto } from '@control/member/dto/member-dto';
 import { container } from 'tsyringe';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { useAudio } from '@octopus/composables/use-audio';
-import type { DrawMemberResponse } from '@model/applications/draw/dto/draw-member-response';
+import type { DrawMemberResponse } from '@control/draw/dto/draw-member-response';
 // draw-result-dialog.vue was previously used for the modal. For readability
 // we define the member-specific winner dialog inline in this component.
 

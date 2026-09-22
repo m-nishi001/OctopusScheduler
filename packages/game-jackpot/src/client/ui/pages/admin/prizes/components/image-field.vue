@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import CustomSelect from './custom-select.vue';
-import type { Asset } from '@model/domains/drive-data/asset-data';
+import type { Asset } from '@model/asset/asset-data';
 
 defineProps<{
     label: string;

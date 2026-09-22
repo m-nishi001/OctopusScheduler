@@ -94,8 +94,8 @@
 import { ref, onMounted, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
 import SimulationDialog from './simulation-dialog.vue';
 import UnsavedChangesDialog from '../unsaved-changes-dialog.vue';
 

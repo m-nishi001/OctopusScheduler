@@ -1,7 +1,7 @@
 import type { Ref } from "vue";
-import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
-import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
-import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
+import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
+import { DrawApplicationService } from "@control/draw/draw-application-service";
+import type { PrizeDto } from "@control/prize/dto/prize-dto";
 import { ActionQueue } from "./action-queue";
 import { type Emitter } from "mitt";
 import { RouletteBgmManager } from "./roulette/roulette-bgm-manager";

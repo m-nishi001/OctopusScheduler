@@ -22,8 +22,8 @@
 
 <script setup lang="ts">
 import PrizeForm from '../../../components/prizes/prize-form.vue';
-import type { Asset } from '@model/domains/drive-data/asset-data';
-import { PrizeService } from '@model/applications/prize/prize-service';
+import type { Asset } from '@model/asset/asset-data';
+import { PrizeService } from '@control/prize/prize-service';
 import { container } from 'tsyringe';
 import { ref } from 'vue';
 

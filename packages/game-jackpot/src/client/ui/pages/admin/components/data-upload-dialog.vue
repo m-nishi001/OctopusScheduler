@@ -25,9 +25,9 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { MemberService } from '@model/applications/member/member-service';
-import { PrizeService } from '@model/applications/prize/prize-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import { MemberService } from '@control/member/member-service';
+import { PrizeService } from '@control/prize/prize-service';
 import { container } from 'tsyringe';
 
 const props = defineProps<{
