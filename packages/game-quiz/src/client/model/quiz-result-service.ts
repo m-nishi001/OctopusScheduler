@@ -1,7 +1,7 @@
 import { inject, injectable } from "tsyringe";
 import { IApiClientToken } from "@octopus/infrastructures/interfaces";
 import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callQuizGame } from "../infrastructures/quiz-api-client";
+import { callQuizGame } from "./quiz-api-client";
 
 @injectable()
 export class QuizResultService {

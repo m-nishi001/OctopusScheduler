@@ -1,14 +1,13 @@
 import { injectable, inject } from "tsyringe";
-import type { ResultDto } from "../dtos/result-dto";
-import { ResultService } from "../../domains/services/result-service";
-import { IFormRepositoryToken } from "../../domains/repositories/i-form-repository";
-import type { IFormRepository } from "../../domains/repositories/i-form-repository";
+import type { ResultDto } from "../dto/result-dto";
+import { ResultService } from "../../model/result-service";
+import { FormRepository } from "../../model/form-repository";
 import type { SheetRow, ProcessedResultDto } from "../../../server/quiz-api-contract";
 
 @injectable()
 export class StopQuizUseCase {
   constructor(
-    @inject(IFormRepositoryToken) private formRepository: IFormRepository,
+    private readonly formRepository: FormRepository,
     @inject(ResultService) private resultService: ResultService
   ) {}
 

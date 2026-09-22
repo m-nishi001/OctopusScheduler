@@ -1,7 +1,7 @@
 import { injectable, inject } from "tsyringe";
-import type { AddQuizDto } from "../dtos/quiz-dto";
-import { Quiz } from "../../domains/entities/quiz";
-import { QuizService } from "../../domains/services/quiz-service";
+import type { AddQuizDto } from "../dto/quiz-dto";
+import { Quiz } from "../../model/quiz";
+import { QuizService } from "../../model/quiz-service";
 
 @injectable()
 export class AddQuizUseCase {

@@ -18,9 +18,9 @@
 import { onMounted, onUnmounted, computed, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
-import type { QuizDto } from '../../../applications/dtos/quiz-dto';
-import { StartQuizUseCase } from '../../../applications/use-cases/start-quiz-use-case';
-import { QuizResultService } from '../../../services/quiz-result-service';
+import type { QuizDto } from '../../../control/dto/quiz-dto';
+import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
+import { QuizResultService } from '../../../model/quiz-result-service';
 
 const router = useRouter();
 const route = useRoute();

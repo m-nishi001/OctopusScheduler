@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
-import type { DeleteQuizDto } from "../dtos/quiz-dto";
-import { QuizService } from "../../domains/services/quiz-service";
+import type { DeleteQuizDto } from "../dto/quiz-dto";
+import { QuizService } from "../../model/quiz-service";
 
 @injectable()
 export class DeleteQuizUseCase {
