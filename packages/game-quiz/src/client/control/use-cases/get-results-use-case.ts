@@ -7,7 +7,7 @@ import type { SheetRow } from "../../../server/quiz-api-contract";
 @injectable()
 export class GetResultsUseCase {
   constructor(
-    private readonly formRepository: FormRepository,
+    @inject(FormRepository) private readonly formRepository: FormRepository,
     @inject(ResultService) private resultService: ResultService
   ) {}
 

@@ -7,7 +7,7 @@ import type { SheetRow, ProcessedResultDto } from "../../../server/quiz-api-cont
 @injectable()
 export class StopQuizUseCase {
   constructor(
-    private readonly formRepository: FormRepository,
+    @inject(FormRepository) private readonly formRepository: FormRepository,
     @inject(ResultService) private resultService: ResultService
   ) {}
 

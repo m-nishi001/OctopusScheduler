@@ -1,4 +1,4 @@
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import { QuizRepository } from "../../model/quiz-repository";
 
 export type SyncSummary = {
@@ -9,7 +9,9 @@ export type SyncSummary = {
 
 @injectable()
 export class SyncQuizzesUseCase {
-  constructor(private readonly quizRepository: QuizRepository) {}
+  constructor(
+    @inject(QuizRepository) private readonly quizRepository: QuizRepository
+  ) {}
 
   async execute(
     direction: "gas-to-local" | "local-to-gas",
