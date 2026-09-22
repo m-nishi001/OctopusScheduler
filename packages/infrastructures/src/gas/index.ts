@@ -15,6 +15,6 @@ import { registerGasInfrastructures } from "./container";
 registerGasInfrastructures();
 
 import "@octopus/game-quiz/server";
-// TODO(migration): game-jackpot と app-scheduler の /server 移行が完了したら復活させる。
-// import "@octopus/game-jackpot/server";
+import "@octopus/game-jackpot/server";
+// TODO(migration): app-scheduler の /server 移行が完了したら復活させる。
 // import "@octopus/app-scheduler/server";

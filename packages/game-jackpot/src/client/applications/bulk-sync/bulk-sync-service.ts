@@ -1,6 +1,8 @@
-import { container, injectable } from "tsyringe";
+import { container, inject, injectable } from "tsyringe";
 import { AssetDataService } from "../../applications/asset/asset-data-service";
-import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
+import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import type { IApiClient } from "@octopus/infrastructures/interfaces";
+import { callJackpotGame } from "../../infrastructures/jackpot-api-client";
 import { IMemberRepositoryToken } from "../../domains/member/repository/i-member-repository";
 import { IPrizeRepositoryToken } from "../../domains/prize/repository/i-prize-repository";
 import type { IMemberRepository } from "../../domains/member/repository/i-member-repository";
@@ -22,6 +24,10 @@ export class BulkSyncService {
     IPrizeRepositoryToken as any
   );
   private cancelling = false;
+
+  constructor(
+    @inject(IApiClientToken) private readonly apiClient: IApiClient
+  ) {}
 
   requestCancel() {
     this.cancelling = true;
@@ -46,9 +52,11 @@ export class BulkSyncService {
       if (direction === "download") {
         const lastId = localStorage.getItem("jackpot-members-last-file-id");
         if (lastId) {
-          const resp = await new (
-            await import("@octopus/client-common/google-apps-script/gas-script-service")
-          ).GasFunctionService("jackpotGame_getJson").call(lastId);
+          const resp = await callJackpotGame<any>(
+            this.apiClient,
+            "getJson",
+            lastId
+          );
           if (resp && resp.json) {
             onProgress?.("members", "ダウンロード完了、保存中...", 70);
             const parsed = JSON.parse(resp.json || "[]");
@@ -87,9 +95,11 @@ export class BulkSyncService {
             parentFolderId: "",
           } as any;
           onProgress?.("members", "アップロード中...", 50);
-          const resp = await new (
-            await import("@octopus/client-common/google-apps-script/gas-script-service")
-          ).GasFunctionService("jackpotGame_addJson").call(payload);
+          const resp = await callJackpotGame<any>(
+            this.apiClient,
+            "addJson",
+            payload
+          );
           if (resp && (resp as any).fileId) {
             localStorage.setItem(
               "jackpot-members-last-file-id",
@@ -161,14 +171,16 @@ export class BulkSyncService {
           typeof (this.assetService as any).replaceLocalWithDrive === "function"
         ) {
           // Fetch all metadata once and pass to assetService to avoid duplicated metadata calls
-          const metaService = new GasFunctionService(
-            "jackpotGame_getDriveMetaData"
-          );
           let remoteMetas: any[] = [];
           try {
             // Explicitly pass undefined so the server-side resolver uses the
             // configured ScriptProperty folder instead of an empty string.
-            remoteMetas = (await metaService.call(undefined)) || [];
+            remoteMetas =
+              (await callJackpotGame<any[]>(
+                this.apiClient,
+                "getDriveMetaData",
+                undefined
+              )) || [];
           } catch (e) {
             onProgress?.(
               "assets",
