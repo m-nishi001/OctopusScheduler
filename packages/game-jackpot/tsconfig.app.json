@@ -13,7 +13,6 @@
     "noUncheckedSideEffectImports": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": ".",
     "paths": {
       "@model/*": ["./src/client/*"],
       "pages/*": ["./src/client/ui/pages/*"],

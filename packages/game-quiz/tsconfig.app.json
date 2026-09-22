@@ -13,7 +13,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "noEmitOnError": false,
-    "baseUrl": ".",
     "paths": {
       "@model/*": ["./src/client/*"],
       "pages/*": ["./src/client/ui/pages/*"],
