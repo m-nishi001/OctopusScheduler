@@ -27,7 +27,7 @@
     "build": "rimraf dist && tsc -b && node esbuild.config.js",
     "lint": "eslint src",
     "typecheck": "tsc -b",
-    "test": "vitest --run"
+    "test": "vitest"
   },
   "dependencies": {
     "@octopus/client-common": "*",

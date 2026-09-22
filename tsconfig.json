@@ -1,8 +1,7 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/server" },
+    { "path": "./packages/infrastructures" },
     { "path": "./packages/client-common" },
     { "path": "./packages/composables" },
     { "path": "./packages/game-jackpot" },
