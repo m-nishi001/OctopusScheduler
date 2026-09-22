@@ -14,13 +14,9 @@
     "emitDecoratorMetadata": true,
     "noEmitOnError": false,
     "paths": {
-      "@model/*": ["./src/client/*"],
-      "pages/*": ["./src/client/ui/pages/*"],
-      "pages": ["./src/client/ui/pages"],
-      "domains/*": ["./src/client/domains/*"],
-      "applications/*": ["./src/client/applications/*"],
-      "components/*": ["./src/client/ui/components/*"],
-      "components": ["./src/client/ui/components"]
+      "@model/*": ["./src/client/model/*"],
+      "@control/*": ["./src/client/control/*"],
+      "@ui/*": ["./src/client/ui/*"]
     }
   },
   "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.vue"],

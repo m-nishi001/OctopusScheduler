@@ -19,10 +19,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import OptionCard from '../../components/option-card.vue';
 import { onUnmounted } from 'vue';
-import type { QuizDto } from '../../../applications/dtos/quiz-dto';
-import { StartQuizUseCase } from '../../../applications/use-cases/start-quiz-use-case';
+import type { QuizDto } from '../../../control/dto/quiz-dto';
+import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
 import { useAudio } from '@octopus/composables';
-import { dataUrlToBlob } from '../../../utils/blob-utils';
+import { dataUrlToBlob } from '../../../model/blob-utils';
 
 const route = useRoute();
 const router = useRouter();

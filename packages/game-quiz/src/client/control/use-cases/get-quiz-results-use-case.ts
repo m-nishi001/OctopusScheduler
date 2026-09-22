@@ -1,8 +1,8 @@
 import { injectable, inject } from "tsyringe";
 import type { QuizWithDataUrl } from "../../../server/quiz-api-contract";
-import { QuizResultService } from "../../services/quiz-result-service";
-import { computeTopResponders } from "../../services/resultProcessor";
-import { normalizeAnswer } from "../../types/quiz";
+import { QuizResultService } from "../../model/quiz-result-service";
+import { computeTopResponders } from "../../model/result-processor";
+import { normalizeAnswer } from "../../model/quiz-types";
 
 @injectable()
 export class GetQuizResultsUseCase {

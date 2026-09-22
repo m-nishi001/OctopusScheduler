@@ -1,15 +1,10 @@
-import { injectable, inject } from "tsyringe";
-import type { Quiz } from "../entities/quiz";
-import { IQuizRepositoryToken } from "../repositories/i-quiz-repository";
-import type { IQuizRepository } from "../repositories/i-quiz-repository";
+import { injectable } from "tsyringe";
+import type { Quiz } from "./quiz";
+import { QuizRepository } from "./quiz-repository";
 
 @injectable()
 export class QuizService {
-  private quizRepo: IQuizRepository;
-
-  constructor(@inject(IQuizRepositoryToken) quizRepo: IQuizRepository) {
-    this.quizRepo = quizRepo;
-  }
+  constructor(private readonly quizRepo: QuizRepository) {}
 
   async getQuizById(id: string): Promise<Quiz | null> {
     return await this.quizRepo.getQuizById(id);

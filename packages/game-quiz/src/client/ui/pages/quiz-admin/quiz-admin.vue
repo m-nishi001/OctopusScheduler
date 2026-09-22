@@ -100,12 +100,12 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import QuizModal from './components/quiz-modal.vue';
-import { GetAllQuizzesUseCase } from '../../../applications/use-cases/get-all-quizzes-use-case';
-import { AddQuizUseCase } from '../../../applications/use-cases/add-quiz-use-case';
-import { UpdateQuizUseCase } from '../../../applications/use-cases/update-quiz-use-case';
-import { DeleteQuizUseCase } from '../../../applications/use-cases/delete-quiz-use-case';
-import { SyncQuizzesUseCase } from '../../../applications/use-cases/sync-quizzes-use-case';
-import type { QuizDto, AddQuizDto } from '../../../applications/dtos/quiz-dto';
+import { GetAllQuizzesUseCase } from '../../../control/use-cases/get-all-quizzes-use-case';
+import { AddQuizUseCase } from '../../../control/use-cases/add-quiz-use-case';
+import { UpdateQuizUseCase } from '../../../control/use-cases/update-quiz-use-case';
+import { DeleteQuizUseCase } from '../../../control/use-cases/delete-quiz-use-case';
+import { SyncQuizzesUseCase } from '../../../control/use-cases/sync-quizzes-use-case';
+import type { QuizDto, AddQuizDto } from '../../../control/dto/quiz-dto';
 
 const router = useRouter();
 

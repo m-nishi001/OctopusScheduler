@@ -107,7 +107,7 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, ref, onUnmounted, onMounted, watch, computed } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
-import type { QuizDto } from '../../../../applications/dtos/quiz-dto';
+import type { QuizDto } from '../../../../control/dto/quiz-dto';
 
 const props = defineProps<{
     isEditing: boolean;

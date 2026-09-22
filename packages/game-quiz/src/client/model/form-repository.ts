@@ -11,13 +11,12 @@ import type {
   GetJsonArgs,
   AddJsonArgs,
 } from "../../server/quiz-api-contract";
-import type { SyncRequestDto } from "../applications/dtos/sync-request-dto";
-import { computeTopResponders } from "../services/resultProcessor";
-import type { IFormRepository } from "../domains/repositories/i-form-repository";
+import type { SyncRequestDto } from "../control/dto/sync-request-dto";
+import { computeTopResponders } from "./result-processor";
 import { callQuizGame } from "./quiz-api-client";
 
 @injectable()
-export class FormRepository implements IFormRepository {
+export class FormRepository {
   constructor(
     @inject(IApiClientToken) private readonly apiClient: IApiClient
   ) {}

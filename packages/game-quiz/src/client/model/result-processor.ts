@@ -1,5 +1,5 @@
-import type { AnswerData, RawRow } from "../types/quiz";
-import { normalizeEmail, normalizeAnswer } from "../types/quiz";
+import type { AnswerData, RawRow } from "./quiz-types";
+import { normalizeEmail, normalizeAnswer } from "./quiz-types";
 
 export type ComputeOptions = {
   answerKey: string; // ヘッダー名そのまま

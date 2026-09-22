@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
-import type { Result } from "../entities/result";
-import type { SheetRow } from "../../../server/quiz-api-contract";
+import type { Result } from "./result";
+import type { SheetRow } from "../../server/quiz-api-contract";
 
 @injectable()
 export class ResultService {

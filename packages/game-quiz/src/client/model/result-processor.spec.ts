@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { computeTopResponders } from "../resultProcessor";
-import type { AnswerData } from "../../types/quiz";
+import { computeTopResponders } from "./result-processor";
+import type { AnswerData } from "./quiz-types";
 
 const baseStart = 1_700_000_000_000;
 

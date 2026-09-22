@@ -1,7 +1,7 @@
 import { inject, injectable } from "tsyringe";
 import { IApiClientToken } from "@octopus/infrastructures/interfaces";
 import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { Quiz } from "../domains/entities/quiz";
+import { Quiz } from "./quiz";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import type {
   QuizWithDataUrl,
@@ -13,12 +13,11 @@ import type {
   GetDriveMetaDataArgs,
   AddJsonArgs,
 } from "../../server/quiz-api-contract";
-import { dataUrlToBlob } from "../utils/blob-utils";
-import type { IQuizRepository } from "../domains/repositories/i-quiz-repository";
+import { dataUrlToBlob } from "./blob-utils";
 import { callQuizGame } from "./quiz-api-client";
 
 @injectable()
-export class QuizRepository implements IQuizRepository {
+export class QuizRepository {
   private readonly localStorage = new LocalStorageService(
     "quiz-game",
     "QuizData"
