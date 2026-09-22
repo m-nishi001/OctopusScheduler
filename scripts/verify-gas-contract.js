@@ -3,13 +3,15 @@
  * GAS エンドポイント契約の整合性検証スクリプト。
  *
  * 検証する 2 点:
- *   A. クライアントが呼ぶ名前 ⊆ `@octopus/core` の契約（`GAS_ENDPOINTS`）
+ *   A. クライアントが呼ぶ名前 ⊆ 各機能パッケージが公開する契約(scripts/gas-contract.js)
  *      → タイポや「サーバに存在しない関数の呼び出し」を検出する
  *   B. ビルド成果物 `dist/gas` に契約どおりのトップレベル関数が存在する（成果物がある場合のみ）
  *      → 「宣言はあるが実装がない」を検出する
  *
  * 背景: GAS の `google.script.run` はトップレベル関数しか呼べず型を持たないため、
- * 呼び出し名のズレが tsc では検出できなかった。このスクリプトがその代わりを担う。
+ * 呼び出し名のズレが tsc では検出できなかった。このスクリプトがその代わりを担う
+ * (もっとも、各機能の callXxxGame() ヘルパー経由の呼び出しはエンドポイント名が
+ * `XxxEndpointName` ユニオン型で制約されており、その分は tsc 自体が検出できる)。
  */
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname, relative } from "path";
@@ -63,10 +65,10 @@ try {
   process.exit(1);
 }
 
-const { contractPath, endpoints: endpointMap } = contract;
+const { contractPaths, endpoints: endpointMap } = contract;
 const expected = new Set(contract.allNames);
 
-info.push(`契約: ${rel(contractPath)}`);
+info.push(`契約: ${contractPaths.map(rel).join(", ")}`);
 info.push(
   `契約エンドポイント: ${expected.size} 件（${Object.keys(endpointMap).length} 接頭辞）`
 );
@@ -79,23 +81,45 @@ const sourceFiles = [
   ...listSourceFiles(join(ROOT, "packages")),
 ].filter((f) => /\.(ts|tsx|vue|mts|js)$/.test(f));
 
-const CALL_RE = /GasFunctionService\(\s*["']([^"']+)["']/g;
+// 旧: new GasFunctionService("prefix_name") の直接呼び出し(未移行箇所があれば検出する)。
+const LEGACY_CALL_RE = /GasFunctionService\(\s*["']([^"']+)["']/g;
+// 新: callQuizGame(apiClient, "name", ...) 等の型付きヘルパー呼び出し。
+const HELPER_PREFIX_MAP = {
+  callQuizGame: "quizGame",
+  callJackpotGame: "jackpotGame",
+  callOctopusScheduler: "octopusScheduler",
+};
+const HELPER_CALL_RE =
+  /\b(callQuizGame|callJackpotGame|callOctopusScheduler)\(\s*[^,]+,\s*["']([^"']+)["']/g;
+
 const called = new Map(); // name -> [files]
 
 for (const file of sourceFiles) {
-  if (file === contractPath) continue;
+  if (contractPaths.includes(file)) continue;
   let src;
   try {
     src = readFileSync(file, "utf8");
   } catch {
     continue;
   }
-  if (!src.includes("GasFunctionService")) continue;
 
-  for (const m of src.matchAll(CALL_RE)) {
-    const name = m[1];
-    if (!called.has(name)) called.set(name, []);
-    called.get(name).push(rel(file));
+  if (src.includes("GasFunctionService")) {
+    for (const m of src.matchAll(LEGACY_CALL_RE)) {
+      const name = m[1];
+      if (!called.has(name)) called.set(name, []);
+      called.get(name).push(rel(file));
+    }
+  }
+
+  for (const helperName of Object.keys(HELPER_PREFIX_MAP)) {
+    if (!src.includes(helperName)) continue;
+    for (const m of src.matchAll(HELPER_CALL_RE)) {
+      const prefix = HELPER_PREFIX_MAP[m[1]];
+      const name = `${prefix}_${m[2]}`;
+      if (!called.has(name)) called.set(name, []);
+      called.get(name).push(rel(file));
+    }
+    break;
   }
 }
 
