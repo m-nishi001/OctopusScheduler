@@ -11,8 +11,13 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
-    "composite": true
+    "composite": true,
+    "paths": {
+      "@model/*": ["./src/client/model/*"],
+      "@control/*": ["./src/client/control/*"],
+      "@ui/*": ["./src/client/ui/*"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.vue"],
   "references": []
 }
