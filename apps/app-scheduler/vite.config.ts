@@ -12,9 +12,9 @@ export default defineConfig({
   resolve: {
     alias: [
       ...sharedAliasArray(),
-      { find: "model", replacement: resolve(__dirname, "src/model") },
-      { find: "ui", replacement: resolve(__dirname, "src/ui") },
-      { find: "core", replacement: resolve(__dirname, "src/core") },
+      { find: "model", replacement: resolve(__dirname, "src/client") },
+      { find: "ui", replacement: resolve(__dirname, "src/client/ui") },
+      { find: "core", replacement: resolve(__dirname, "src/client/core") },
     ],
   },
 });
