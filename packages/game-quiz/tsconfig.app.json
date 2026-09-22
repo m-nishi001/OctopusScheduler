@@ -15,19 +15,19 @@
     "noEmitOnError": false,
     "baseUrl": ".",
     "paths": {
-      "@model/*": ["./src/model/*"],
-      "pages/*": ["./src/ui/pages/*"],
-      "pages": ["./src/ui/pages"],
-      "domains/*": ["./src/model/domains/*"],
-      "applications/*": ["./src/model/applications/*"],
-      "components/*": ["./src/ui/components/*"],
-      "components": ["./src/ui/components"]
+      "@model/*": ["./src/client/*"],
+      "pages/*": ["./src/client/ui/pages/*"],
+      "pages": ["./src/client/ui/pages"],
+      "domains/*": ["./src/client/domains/*"],
+      "applications/*": ["./src/client/applications/*"],
+      "components/*": ["./src/client/ui/components/*"],
+      "components": ["./src/client/ui/components"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.vue"],
   "references": [
     { "path": "../client-common" },
     { "path": "../composables" },
-    { "path": "../server" }
+    { "path": "../infrastructures" }
   ]
 }
