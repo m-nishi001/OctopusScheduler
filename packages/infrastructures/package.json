@@ -1,0 +1,45 @@
+{
+  "name": "@octopus/infrastructures",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GAS / Cloudflare 等のインフラ実装を差し替え可能にするポート&アダプター層。契約は interfaces/、GAS実装は gas/ に置く。",
+  "main": "./src/interfaces/index.ts",
+  "types": "./src/interfaces/index.ts",
+  "exports": {
+    "./interfaces": {
+      "types": "./src/interfaces/index.ts",
+      "import": "./src/interfaces/index.ts",
+      "default": "./src/interfaces/index.ts"
+    },
+    "./gas": {
+      "types": "./src/gas/index.ts",
+      "import": "./src/gas/index.ts",
+      "default": "./src/gas/index.ts"
+    },
+    "./gas/*": {
+      "types": "./src/gas/*.ts",
+      "import": "./src/gas/*.ts",
+      "default": "./src/gas/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc -b && node esbuild.config.js",
+    "lint": "eslint src",
+    "typecheck": "tsc -b",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@octopus/client-common": "*",
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0"
+  },
+  "devDependencies": {
+    "@types/google-apps-script": "^1.0.83",
+    "@types/node": "^20.12.12",
+    "esbuild": "^0.25.6",
+    "rimraf": "^6.1.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
+  }
+}
