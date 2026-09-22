@@ -5,7 +5,7 @@
   "scripts": {
     "lint": "eslint src",
     "typecheck": "vue-tsc --noEmit && tsc -b tsconfig.server.json",
-    "test": "vitest --config vitest.config.ts --run && vitest --config vitest.server.config.ts --run"
+    "test": "vitest --config vitest.config.ts && vitest --config vitest.server.config.ts"
   },
   "dependencies": {
     "@octopus/client-common": "*",
