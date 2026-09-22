@@ -1,10 +1,10 @@
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import type { Quiz } from "./quiz";
 import { QuizRepository } from "./quiz-repository";
 
 @injectable()
 export class QuizService {
-  constructor(private readonly quizRepo: QuizRepository) {}
+  constructor(@inject(QuizRepository) private readonly quizRepo: QuizRepository) {}
 
   async getQuizById(id: string): Promise<Quiz | null> {
     return await this.quizRepo.getQuizById(id);
