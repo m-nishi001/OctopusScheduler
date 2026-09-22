@@ -38,6 +38,19 @@ export class GasFileStorageRepository implements IFileStorageRepository {
     return toMeta(file, params.folderId);
   }
 
+  createTextFile(params: {
+    folderId: string;
+    fileName: string;
+    mimeType: string;
+    content: string;
+  }): StoredFileMeta {
+    const blob = Utilities.newBlob(params.content, params.mimeType, params.fileName);
+    const folder = DriveApp.getFolderById(params.folderId);
+    const file = folder.createFile(blob);
+    file.setName(params.fileName);
+    return toMeta(file, params.folderId);
+  }
+
   getFileById(fileId: string): StoredFileContent | null {
     try {
       const file = DriveApp.getFileById(fileId);
