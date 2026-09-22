@@ -17,7 +17,6 @@
     { "path": "../../packages/game-card" },
     { "path": "../../packages/game-quiz" },
     { "path": "../../packages/game-jackpot" },
-    { "path": "../../packages/presenter-content-deck" },
     { "path": "../../packages/infrastructures" }
   ]
 }
