@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["src/client/**/*.spec.ts"],
+    watch: false,
   },
   resolve: {
     alias: {
