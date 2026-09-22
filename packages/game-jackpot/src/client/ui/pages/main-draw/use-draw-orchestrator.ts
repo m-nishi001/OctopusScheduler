@@ -7,25 +7,25 @@ import {
   markRaw,
 } from "vue";
 import type { Component } from "vue";
-import { DrawApplicationService } from "@model/applications/draw/draw-application-service";
-import { PrizeRepository } from "@model/infrastructures/prize-repository";
-import { MemberRepository } from "@model/infrastructures/member-repository";
-import type { MemberDto } from "@model/applications/member/dto/member-dto";
-import type { DrawResultDto } from "@model/applications/draw/dto/draw-result-dto";
+import { DrawApplicationService } from "@control/draw/draw-application-service";
+import { PrizeRepository } from "@model/prize/prize-repository";
+import { MemberRepository } from "@model/member/member-repository";
+import type { MemberDto } from "@control/member/dto/member-dto";
+import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import { container } from "tsyringe";
-import { AssetDataService } from "@model/applications/asset/asset-data-service";
+import { AssetDataService } from "@control/asset/asset-data-service";
 import { usePrizeDrawState } from "./prize-animation-state";
 import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
 
-import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
+import type { PrizeDto } from "@control/prize/dto/prize-dto";
 
 import { ActionQueue } from "./action-queue";
 import { BaseHandler } from "./base-handler";
 import { KakuhenHandler } from "./kakuhen-handler";
 import mitt from "mitt";
-import type { DrawMemberResponse } from "@model/applications/draw/dto/draw-member-response";
-import type { DrawPrizeResponse } from "@model/applications/draw/dto/draw-prize-response";
+import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
+import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.

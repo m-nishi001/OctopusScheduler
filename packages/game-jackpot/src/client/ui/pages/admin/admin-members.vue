@@ -130,17 +130,16 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onBeforeUnmount } from 'vue';
-import type { IMemberRepository } from '@model/domains/member/repository/i-member-repository';
-import type { Asset } from '@model/domains/drive-data/asset-data';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { MemberService } from '@model/applications/member/member-service';
-import type { MemberDto } from "@model/applications/member/dto/member-dto";
+import { MemberRepository } from '@model/member/member-repository';
+import type { Asset } from '@model/asset/asset-data';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import { MemberService } from '@control/member/member-service';
+import type { MemberDto } from "@control/member/dto/member-dto";
 
 import { container } from 'tsyringe';
-import { IMemberRepositoryToken } from '@model/domains/member/repository/i-member-repository';
 import AssetSelectionDialog from './components/asset-selection-dialog.vue';
 import DataUploadDialog from './components/data-upload-dialog.vue';
-const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
+const memberRepo = container.resolve(MemberRepository);
 const assetDataService = container.resolve(AssetDataService);
 const memberService = container.resolve(MemberService);
 const members = ref<any[]>([]);

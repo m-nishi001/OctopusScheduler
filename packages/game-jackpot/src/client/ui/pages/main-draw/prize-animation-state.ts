@@ -1,5 +1,5 @@
 import { ref, computed } from "vue";
-import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
+import type { PrizeDto } from "@control/prize/dto/prize-dto";
 import type { RouletteItem } from "./roulette/roulette-image-loader";
 import {
   prepareRenderPrizes,

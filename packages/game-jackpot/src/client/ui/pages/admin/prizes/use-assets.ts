@@ -1,7 +1,7 @@
 import { ref, computed, onBeforeUnmount } from "vue";
 import { container } from "tsyringe";
-import { AssetDataService } from "@model/applications/asset/asset-data-service";
-import { useObjectUrlStore } from "@composables/prizes/use-object-url-store";
+import { AssetDataService } from "@control/asset/asset-data-service";
+import { useObjectUrlStore } from "@ui/composables/use-object-url-store";
 
 export function useAssets(assetDataServiceArg?: AssetDataService) {
   const assetDataService =

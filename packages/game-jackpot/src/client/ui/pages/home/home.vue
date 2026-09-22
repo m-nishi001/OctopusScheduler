@@ -22,10 +22,10 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import { Container } from '../../../core/container';
-import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { HomeScreenSetting } from '@model/domains/screen-config/home-screen-setting';
+import { Container } from '../../../control/container';
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import { HomeScreenSetting } from '@model/screen-config/home-screen-setting';
 
 export default {
   name: 'Home',

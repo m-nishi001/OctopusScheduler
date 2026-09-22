@@ -40,8 +40,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { container } from 'tsyringe';
-import BulkSyncService from '../../applications/bulk-sync/bulk-sync-service';
-import { exportLocalBackup } from '../../applications/bulk-sync/backup-util';
+import BulkSyncService from '../../control/bulk-sync/bulk-sync-service';
+import { exportLocalBackup } from '../../control/bulk-sync/backup-util';
 
 const domains = reactive([
     { id: 'members', label: 'メンバー設定', progress: 0, message: '準備中...', running: false },

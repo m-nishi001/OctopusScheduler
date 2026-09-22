@@ -61,7 +61,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import UnsavedChangesDialog from './unsaved-changes-dialog.vue';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);

@@ -1,15 +1,13 @@
 import { ref, computed } from "vue";
 import { container } from "tsyringe";
-import type { IPrizeRepository } from "@model/domains/prize/repository/i-prize-repository";
-import { IPrizeRepositoryToken } from "@model/domains/prize/repository/i-prize-repository";
-import { PrizeService } from "@model/applications/prize/prize-service";
+import { PrizeRepository } from "@model/prize/prize-repository";
+import { PrizeService } from "@control/prize/prize-service";
 
 export function usePrizes(
-  prizeRepoArg?: IPrizeRepository,
+  prizeRepoArg?: PrizeRepository,
   prizeServiceArg?: PrizeService
 ) {
-  const prizeRepo =
-    prizeRepoArg || container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
+  const prizeRepo = prizeRepoArg || container.resolve(PrizeRepository);
   const prizeService = prizeServiceArg || container.resolve(PrizeService);
 
   const prizes = ref<any[]>([]);

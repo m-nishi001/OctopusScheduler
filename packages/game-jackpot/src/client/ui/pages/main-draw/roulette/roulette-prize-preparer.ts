@@ -1,13 +1,12 @@
-import type { PrizeDto } from "@model/applications/prize/dto/prize-dto";
+import type { PrizeDto } from "@control/prize/dto/prize-dto";
 import type { RouletteItem } from "./roulette-image-loader";
+import type { AssetDataService } from "@control/asset/asset-data-service";
 
 export interface RoulettePrizeDto extends PrizeDto {
   originalPrizeId?: string;
 }
 
-export interface AssetService {
-  getAssetDataById(assetId: string): Promise<{ blob: Blob } | null>;
-}
+export type AssetService = Pick<AssetDataService, "getAssetDataById">;
 
 export async function prepareRenderPrizes(
   prizes: RoulettePrizeDto[],

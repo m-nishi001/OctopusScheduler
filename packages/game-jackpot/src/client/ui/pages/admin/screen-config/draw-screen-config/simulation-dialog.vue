@@ -50,8 +50,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { container } from 'tsyringe';
-import { DrawSimulationService } from '@model/applications/draw/draw-simulation-service';
-import type { DrawResultDto } from '@model/applications/draw/dto/draw-result-dto';
+import { DrawSimulationService } from '@control/draw/draw-simulation-service';
+import type { DrawResultDto } from '@control/draw/dto/draw-result-dto';
 
 interface Props {
     visible: boolean;
