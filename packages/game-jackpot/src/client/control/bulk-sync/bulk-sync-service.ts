@@ -1,8 +1,7 @@
 import { container, inject, injectable } from "tsyringe";
 import { AssetDataService } from "../asset/asset-data-service";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callJackpotGame } from "../../model/jackpot-api-client";
+import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
+import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { MemberRepository } from "../../model/member/member-repository";
 import { PrizeRepository } from "../../model/prize/prize-repository";
 
@@ -20,7 +19,7 @@ export class BulkSyncService {
   private cancelling = false;
 
   constructor(
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {}
 
   requestCancel() {
@@ -46,11 +45,7 @@ export class BulkSyncService {
       if (direction === "download") {
         const lastId = localStorage.getItem("jackpot-members-last-file-id");
         if (lastId) {
-          const resp = await callJackpotGame<any>(
-            this.apiClient,
-            "getJson",
-            lastId
-          );
+          const resp = await this.jackpotApi.getJson(lastId);
           if (resp && resp.json) {
             onProgress?.("members", "ダウンロード完了、保存中...", 70);
             const parsed = JSON.parse(resp.json || "[]");
@@ -89,11 +84,7 @@ export class BulkSyncService {
             parentFolderId: "",
           } as any;
           onProgress?.("members", "アップロード中...", 50);
-          const resp = await callJackpotGame<any>(
-            this.apiClient,
-            "addJson",
-            payload
-          );
+          const resp = await this.jackpotApi.addJson(payload);
           if (resp && (resp as any).fileId) {
             localStorage.setItem(
               "jackpot-members-last-file-id",
@@ -170,11 +161,7 @@ export class BulkSyncService {
             // Explicitly pass undefined so the server-side resolver uses the
             // configured ScriptProperty folder instead of an empty string.
             remoteMetas =
-              (await callJackpotGame<any[]>(
-                this.apiClient,
-                "getDriveMetaData",
-                undefined
-              )) || [];
+              (await this.jackpotApi.getDriveMetaData(undefined)) || [];
           } catch (e) {
             onProgress?.(
               "assets",

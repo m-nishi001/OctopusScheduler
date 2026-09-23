@@ -1,12 +1,8 @@
 import type { Prize } from "./prize";
-import type {
-  DriveMetadata,
-  DriveJsonData,
-} from "@octopus/infrastructures/interfaces";
+import type { DriveJsonData } from "@octopus/infrastructures/interfaces";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callJackpotGame } from "../jackpot-api-client";
+import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
+import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { injectable, inject } from "tsyringe";
 import { CryptoIdGenerator } from "../common/crypto-id-generator";
 
@@ -19,7 +15,7 @@ export class PrizeRepository {
 
   constructor(
     @inject(CryptoIdGenerator) private readonly idGenerator: CryptoIdGenerator,
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {}
 
   async getPrizes(): Promise<Prize[]> {
@@ -77,11 +73,7 @@ export class PrizeRepository {
         uploadDate: new Date().toISOString(),
         parentFolderId: "",
       };
-      await callJackpotGame<DriveMetadata>(
-        this.apiClient,
-        "addJson",
-        driveJson as DriveJsonData
-      );
+      await this.jackpotApi.addJson(driveJson as DriveJsonData);
     } catch (e) {
       console.error("PrizeRepository.exportAllPrizesToDrive failed:", e);
       return;
@@ -90,10 +82,7 @@ export class PrizeRepository {
 
   async importAllPrizesFromDrive(): Promise<void> {
     try {
-      const resp = await callJackpotGame<{ json: string }>(
-        this.apiClient,
-        "getJson"
-      );
+      const resp = await this.jackpotApi.getJson();
       try {
         const parsed = JSON.parse(resp.json) as Prize[];
         if (!Array.isArray(parsed)) {
