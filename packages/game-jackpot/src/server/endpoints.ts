@@ -6,16 +6,14 @@
  */
 import { container } from "tsyringe";
 import {
-  ICacheRepositoryToken,
-  IFileStorageRepositoryToken,
-  IKeyValueRepositoryToken,
+  ICacheToken,
+  IKeyValueStorageToken,
 } from "@octopus/infrastructures/interfaces";
 import type {
-  ICacheRepository,
-  IFileStorageRepository,
-  IKeyValueRepository,
+  ICache,
+  IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
-import type { DriveData, DriveJsonData } from "@octopus/infrastructures/interfaces";
+import type { DriveData, DriveJsonData } from "@octopus/infrastructures/compositions";
 
 import {
   addJackpotDriveData,
@@ -27,11 +25,8 @@ import { getJsonBlob } from "./get-json-blob-use-case";
 
 function resolveDeps() {
   return {
-    fileStorage: container.resolve<IFileStorageRepository>(
-      IFileStorageRepositoryToken
-    ),
-    kv: container.resolve<IKeyValueRepository>(IKeyValueRepositoryToken),
-    cache: container.resolve<ICacheRepository>(ICacheRepositoryToken),
+    storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
+    cache: container.resolve<ICache>(ICacheToken),
   };
 }
 

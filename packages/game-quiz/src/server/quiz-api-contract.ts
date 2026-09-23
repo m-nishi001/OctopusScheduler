@@ -5,12 +5,12 @@
  * 両方がここから型を参照する。エンドポイント名一覧は infrastructures/gas の
  * esbuild banner/footer コード生成、および scripts/gas-contract.js の集約対象になる。
  */
+import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
 import type {
-  ApiCallOptions,
   DriveData,
   DriveJsonData,
   DriveMetadata,
-} from "@octopus/infrastructures/interfaces";
+} from "@octopus/infrastructures/compositions";
 
 export const QUIZ_GAME_PREFIX = "quizGame" as const;
 

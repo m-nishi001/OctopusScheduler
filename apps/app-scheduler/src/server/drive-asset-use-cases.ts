@@ -9,11 +9,8 @@
 import type {
   DriveData,
   DriveMetadata,
-  ICacheRepository,
-  IFileStorageRepository,
-  IKeyValueRepository,
   OperationResult,
-} from "@octopus/infrastructures/interfaces";
+} from "@octopus/infrastructures/compositions";
 import {
   addDriveData as addDriveDataGeneric,
   getDriveData as getDriveDataGeneric,
@@ -21,12 +18,12 @@ import {
   updateDriveData as updateDriveDataGeneric,
   resolveFolderIdIgnoringProvided,
   resolveFolderIdPreferringProvided,
-} from "@octopus/infrastructures/interfaces";
+} from "@octopus/infrastructures/compositions";
+import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
 
 export interface DriveAssetUseCaseDeps {
-  fileStorage: IFileStorageRepository;
-  cache: ICacheRepository;
-  kv: IKeyValueRepository;
+  storage: IKeyValueStorage;
+  cache: ICache;
 }
 
 const ASSET_FOLDER_PROPERTY = "octopus-scheduler-asset-folder";
@@ -36,7 +33,7 @@ export function addSchedulerDriveData(
   driveData: DriveData
 ): OperationResult<DriveMetadata> {
   const parentFolderId = resolveFolderIdIgnoringProvided(
-    { kv: deps.kv },
+    { kv: deps.storage },
     ASSET_FOLDER_PROPERTY
   );
   return addDriveDataGeneric(deps, { ...driveData, parentFolderId });
@@ -47,7 +44,7 @@ export function getSchedulerDriveMetadata(
   folderId?: string
 ): DriveMetadata[] {
   const resolved = resolveFolderIdPreferringProvided(
-    { kv: deps.kv },
+    { kv: deps.storage },
     ASSET_FOLDER_PROPERTY,
     folderId
   );

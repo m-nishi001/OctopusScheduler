@@ -1,12 +1,12 @@
 /**
  * jackpot-game の GAS エンドポイント契約(唯一の正準定義)。
  */
+import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
 import type {
-  ApiCallOptions,
   DriveData,
   DriveJsonData,
   DriveMetadata,
-} from "@octopus/infrastructures/interfaces";
+} from "@octopus/infrastructures/compositions";
 
 export const JACKPOT_GAME_PREFIX = "jackpotGame" as const;
 

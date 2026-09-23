@@ -6,35 +6,17 @@
  */
 import "reflect-metadata";
 import { container } from "tsyringe";
-import {
-  IApiClientToken,
-  IFileStorageRepositoryToken,
-  IKeyValueRepositoryToken,
-  ICacheRepositoryToken,
-  ILockRepositoryToken,
-  IFormRepositoryToken,
-  RecordStoreRepositoryFactoryToken,
-} from "../interfaces";
+import { IApiClientToken, IKeyValueStorageToken, ICacheToken, DataBaseFactoryToken } from "../interfaces";
 import { GasApiClient } from "./gas-api-client";
-import { GasFileStorageRepository } from "./gas-file-storage-repository";
-import { GasKeyValueRepository } from "./gas-key-value-repository";
-import { GasCacheRepository } from "./gas-cache-repository";
-import { GasLockRepository } from "./gas-lock-repository";
+import { GasKeyValueStorage } from "./gas-key-value-storage";
+import { GasCache } from "./gas-cache";
 import { GasFormRepository } from "./gas-form-repository";
-import { createGasRecordStoreRepository } from "./gas-record-store-repository";
+import { createGasDataBase } from "./gas-database";
 
 export function registerGasInfrastructures(): void {
   container.register(IApiClientToken, { useClass: GasApiClient });
-  container.register(IFileStorageRepositoryToken, {
-    useClass: GasFileStorageRepository,
-  });
-  container.register(IKeyValueRepositoryToken, {
-    useClass: GasKeyValueRepository,
-  });
-  container.register(ICacheRepositoryToken, { useClass: GasCacheRepository });
-  container.register(ILockRepositoryToken, { useClass: GasLockRepository });
-  container.register(IFormRepositoryToken, { useClass: GasFormRepository });
-  container.register(RecordStoreRepositoryFactoryToken, {
-    useValue: createGasRecordStoreRepository,
-  });
+  container.register(IKeyValueStorageToken, { useClass: GasKeyValueStorage });
+  container.register(ICacheToken, { useClass: GasCache });
+  container.register(DataBaseFactoryToken, { useValue: createGasDataBase });
+  container.registerSingleton(GasFormRepository);
 }

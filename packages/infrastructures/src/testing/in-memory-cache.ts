@@ -1,6 +1,6 @@
-import type { ICacheRepository } from "@octopus/infrastructures/interfaces";
+import type { ICache } from "../interfaces/cache";
 
-export class InMemoryCacheRepository implements ICacheRepository {
+export class InMemoryCache implements ICache {
   private readonly store = new Map<string, string>();
 
   get(key: string): string | null {

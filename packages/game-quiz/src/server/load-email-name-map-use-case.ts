@@ -1,7 +1,7 @@
 import type {
-  ICacheRepository,
-  IKeyValueRepository,
-  RecordStoreRepositoryFactory,
+  ICache,
+  IKeyValueStorage,
+  DataBaseFactory,
 } from "@octopus/infrastructures/interfaces";
 
 export const EMAIL_NAME_MAP_CACHE_KEY = "quiz-email-name-map";
@@ -9,9 +9,9 @@ export const EMAIL_NAME_SPREADSHEET_PROPERTY = "email-name-spreadsheet-id";
 const EMAIL_NAME_MAP_TTL_SECONDS = 3600;
 
 export interface LoadEmailNameMapDeps {
-  kv: IKeyValueRepository;
-  cache: ICacheRepository;
-  recordStoreFactory: RecordStoreRepositoryFactory;
+  storage: IKeyValueStorage;
+  cache: ICache;
+  dataBaseFactory: DataBaseFactory;
 }
 
 /**
@@ -21,19 +21,19 @@ export interface LoadEmailNameMapDeps {
 export function loadEmailNameMap(
   deps: LoadEmailNameMapDeps
 ): Record<string, string> {
-  const propId = deps.kv.get(EMAIL_NAME_SPREADSHEET_PROPERTY);
+  const propId = deps.storage.get(EMAIL_NAME_SPREADSHEET_PROPERTY);
   if (!propId || propId.trim() === "") {
     throw new Error(
       `ScriptProperty '${EMAIL_NAME_SPREADSHEET_PROPERTY}' is not set.`
     );
   }
 
-  const recordStore = deps.recordStoreFactory(propId);
-  const sheetNames = recordStore.listCollections();
+  const dataBase = deps.dataBaseFactory(propId);
+  const sheetNames = dataBase.listCollections();
   if (!sheetNames || sheetNames.length === 0) {
     throw new Error("Email->Name spreadsheet has no sheets");
   }
-  const collection = recordStore.getCollection(sheetNames[0]);
+  const collection = dataBase.getCollection(sheetNames[0]);
   const values = collection?.rows ?? [];
 
   const map: Record<string, string> = {};

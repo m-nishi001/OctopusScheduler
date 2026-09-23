@@ -1,11 +1,8 @@
 /**
  * octopus-scheduler(ホスト本体)の GAS エンドポイント契約(唯一の正準定義)。
  */
-import type {
-  ApiCallOptions,
-  DriveData,
-  DriveMetadata,
-} from "@octopus/infrastructures/interfaces";
+import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
+import type { DriveData, DriveMetadata } from "@octopus/infrastructures/compositions";
 
 export const OCTOPUS_SCHEDULER_PREFIX = "octopusScheduler" as const;
 

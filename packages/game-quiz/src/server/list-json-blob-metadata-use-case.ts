@@ -1,16 +1,12 @@
-import type {
-  DriveMetadata,
-  IFileStorageRepository,
-  IKeyValueRepository,
-} from "@octopus/infrastructures/interfaces";
+import type { DriveMetadata } from "@octopus/infrastructures/compositions";
 import {
   getDriveMetadata,
   resolveFolderIdPreferringProvided,
-} from "@octopus/infrastructures/interfaces";
+} from "@octopus/infrastructures/compositions";
+import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 
 export interface ListJsonBlobMetadataDeps {
-  fileStorage: IFileStorageRepository;
-  kv: IKeyValueRepository;
+  storage: IKeyValueStorage;
 }
 
 const JSON_FOLDER_PROPERTY = "quiz-game-json-folder";
@@ -24,9 +20,9 @@ export function listJsonBlobMetadata(
   folderId?: string
 ): DriveMetadata[] {
   const resolved = resolveFolderIdPreferringProvided(
-    { kv: deps.kv },
+    { kv: deps.storage },
     JSON_FOLDER_PROPERTY,
     folderId
   );
-  return getDriveMetadata({ fileStorage: deps.fileStorage }, resolved);
+  return getDriveMetadata({ storage: deps.storage }, resolved);
 }

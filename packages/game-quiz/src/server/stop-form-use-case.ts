@@ -1,5 +1,7 @@
-import type { IFormRepository } from "@octopus/infrastructures/interfaces";
+export interface StopFormDeps {
+  form: { stopAcceptingResponses(formId: string): void };
+}
 
-export function stopForm(deps: { form: IFormRepository }, quizId: string): void {
+export function stopForm(deps: StopFormDeps, quizId: string): void {
   deps.form.stopAcceptingResponses(quizId);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { InMemoryKeyValueRepository } from "./fakes/in-memory-key-value-repository";
+import { InMemoryKeyValueStorage } from "../../testing/in-memory-key-value-storage";
 import {
   resolveFolderIdIgnoringProvided,
   resolveFolderIdPreferringProvided,
@@ -7,7 +7,7 @@ import {
 
 describe("resolveFolderIdIgnoringProvided", () => {
   it("always uses the configured property, ignoring the provided id", () => {
-    const kv = new InMemoryKeyValueRepository();
+    const kv = new InMemoryKeyValueStorage();
     kv.set("asset-folder", "configured-folder");
 
     expect(
@@ -16,7 +16,7 @@ describe("resolveFolderIdIgnoringProvided", () => {
   });
 
   it("throws when the property is not configured", () => {
-    const kv = new InMemoryKeyValueRepository();
+    const kv = new InMemoryKeyValueStorage();
     expect(() => resolveFolderIdIgnoringProvided({ kv }, "asset-folder")).toThrow(
       /asset-folder/
     );
@@ -25,7 +25,7 @@ describe("resolveFolderIdIgnoringProvided", () => {
 
 describe("resolveFolderIdPreferringProvided", () => {
   it("prefers the provided id over the configured property", () => {
-    const kv = new InMemoryKeyValueRepository();
+    const kv = new InMemoryKeyValueStorage();
     kv.set("asset-folder", "configured-folder");
 
     expect(
@@ -34,7 +34,7 @@ describe("resolveFolderIdPreferringProvided", () => {
   });
 
   it("falls back to the configured property when none is provided", () => {
-    const kv = new InMemoryKeyValueRepository();
+    const kv = new InMemoryKeyValueStorage();
     kv.set("asset-folder", "configured-folder");
 
     expect(
@@ -43,7 +43,7 @@ describe("resolveFolderIdPreferringProvided", () => {
   });
 
   it("throws when neither is available", () => {
-    const kv = new InMemoryKeyValueRepository();
+    const kv = new InMemoryKeyValueStorage();
     expect(() =>
       resolveFolderIdPreferringProvided({ kv }, "asset-folder")
     ).toThrow(/asset-folder/);

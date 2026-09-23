@@ -1,12 +1,8 @@
-import type {
-  IFileStorageRepository,
-  IKeyValueRepository,
-} from "@octopus/infrastructures/interfaces";
-import { resolveFolderIdPreferringProvided } from "@octopus/infrastructures/interfaces";
+import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
+import { resolveFolderIdPreferringProvided } from "@octopus/infrastructures/compositions";
 
 export interface GetJsonBlobDeps {
-  fileStorage: IFileStorageRepository;
-  kv: IKeyValueRepository;
+  storage: IKeyValueStorage;
 }
 
 const JSON_FOLDER_PROPERTY = "jackpot-game-json-folder";
@@ -21,10 +17,10 @@ export function getJsonBlob(
   fileId?: string
 ): { json: string } {
   try {
-    let folderId: string;
+    let namespace: string;
     try {
-      folderId = resolveFolderIdPreferringProvided(
-        { kv: deps.kv },
+      namespace = resolveFolderIdPreferringProvided(
+        { kv: deps.storage },
         JSON_FOLDER_PROPERTY
       );
     } catch {
@@ -32,28 +28,22 @@ export function getJsonBlob(
     }
 
     if (fileId && fileId.trim() !== "") {
-      const direct = deps.fileStorage.getFileContentAsText(fileId);
+      const direct = deps.storage.getContentAsText(fileId);
       if (direct !== null) {
         return { json: direct };
       }
-      const byPrefix = deps.fileStorage.findFileByNamePrefix(
-        folderId,
-        `${fileId}_`
-      );
+      const byPrefix = deps.storage.listByPrefix(`${namespace}/${fileId}_`)[0];
       if (byPrefix) {
-        const content = deps.fileStorage.getFileContentAsText(byPrefix.fileId);
+        const content = deps.storage.getContentAsText(byPrefix.key);
         if (content !== null) return { json: content };
       }
       // 見つからない場合は既定ファイルへフォールバックする(既存挙動)。
     }
 
-    const defaultFile = deps.fileStorage.findFileByExactName(
-      folderId,
-      DEFAULT_FILE_NAME
-    );
+    const defaultFile = deps.storage.stat(`${namespace}/${DEFAULT_FILE_NAME}`);
     if (!defaultFile) return { json: JSON.stringify([]) };
 
-    const content = deps.fileStorage.getFileContentAsText(defaultFile.fileId);
+    const content = deps.storage.getContentAsText(defaultFile.key);
     if (content === null) return { json: JSON.stringify([]) };
 
     let parsed: unknown;

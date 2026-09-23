@@ -2,15 +2,15 @@
  * addDriveData / updateDriveData のキャッシュベースの重複排除・排他制御。
  *
  * どのインフラ(GAS/Cloudflare)でも同じ挙動になるべき純粋なビジネスルールであり、
- * ICacheRepository 契約にしか依存しない。
+ * ICache 契約にしか依存しない。
  */
-import type { ICacheRepository } from "../cache-repository";
-import type { OperationResult } from "../file-storage-repository";
+import type { ICache } from "../interfaces/cache";
+import type { OperationResult } from "./types";
 
 const TTL_SECONDS = 3600;
 
 export interface DedupeGuardDeps {
-  cache: ICacheRepository;
+  cache: ICache;
 }
 
 export type DedupeCheckResult =
