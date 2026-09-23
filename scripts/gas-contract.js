@@ -31,16 +31,15 @@ const CONTRACT_SOURCES = [
     prefixConst: "OCTOPUS_SCHEDULER_PREFIX",
     endpointsConst: "OCTOPUS_SCHEDULER_ENDPOINTS",
     unprefixedConst: "OCTOPUS_SCHEDULER_UNPREFIXED_ENDPOINTS",
+    // DIトークン名を指定すると、呼び出し検出ロジックが
+    // `@inject(<apiTokenConst>)` からフィールド名を特定し、
+    // `this.<field>.<method>(...)` 呼び出しを拾う(型付きAPIクライアント経由)。
+    apiTokenConst: "IOctopusSchedulerApiToken",
   },
   {
     path: "packages/game-jackpot/src/server/jackpot-api-contract.ts",
     prefixConst: "JACKPOT_GAME_PREFIX",
     endpointsConst: "JACKPOT_GAME_ENDPOINTS",
-    // 型付きAPIクライアント(createTypedApiClient)への移行済みモジュールは、
-    // DIトークン名を指定する。呼び出し検出ロジックが `@inject(<apiTokenConst>)`
-    // からフィールド名を特定し、`this.<field>.<method>(...)` 呼び出しを拾う。
-    // 未移行のモジュール(scheduler)は、まだ callOctopusScheduler() ヘルパー経由
-    // なので指定しない(HELPER_CALL_RE が引き続き検出する)。
     apiTokenConst: "IJackpotGameApiToken",
   },
   {
