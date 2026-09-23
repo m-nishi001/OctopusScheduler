@@ -1,13 +1,10 @@
-import type { Asset } from "../../domains/assets/entity/asset";
-import type { IAssetRepository } from "../../domains/assets/repository/asset-repository";
-import { injectable, inject } from "tsyringe";
-import { IAssetRepositoryToken } from "../../domains/assets/repository/asset-repository";
+import { injectable } from "tsyringe";
+import type { Asset } from "../../model/asset/asset";
+import { AssetRepository } from "../../model/asset/asset-repository";
 
 @injectable()
 export class AssetService {
-  constructor(
-    @inject(IAssetRepositoryToken) private assetRepository: IAssetRepository
-  ) {}
+  constructor(private assetRepository: AssetRepository) {}
 
   async addAssets(assets: Asset[]): Promise<string[]> {
     const ids = await this.assetRepository.addAssets(assets);

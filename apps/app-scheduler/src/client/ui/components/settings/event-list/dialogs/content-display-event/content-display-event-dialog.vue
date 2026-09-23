@@ -141,8 +141,8 @@
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
-import { AssetService } from '../../../../../../applications/assets/asset-service';
-import type { Asset } from '../../../../../../domains/assets/entity/asset';
+import { AssetService } from '../../../../../../control/asset/asset-service';
+import type { Asset } from '../../../../../../model/asset/asset';
 import { AppEventService } from '../../../../../../applications/app-event/app-event-service';
 import { ShowContentEvent } from '../../../../../../domains/app-event/show-content/show-content-event';
 import { ContentDisplayEventRegister } from './content-display-event-register';

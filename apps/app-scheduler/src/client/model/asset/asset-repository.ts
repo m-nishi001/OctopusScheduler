@@ -2,12 +2,11 @@ import { injectable, inject } from "tsyringe";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { IOctopusSchedulerApiToken } from "../../../server/scheduler-api-contract";
 import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
-import type { IAssetRepository } from "../../domains/assets/repository/asset-repository";
-import type { Asset } from "../../domains/assets/entity/asset";
+import type { Asset } from "./asset";
 import type { DriveData } from "@octopus/infrastructures/compositions";
 
 @injectable()
-export class AssetRepository implements IAssetRepository {
+export class AssetRepository {
   private readonly localStorage: LocalStorageService;
 
   constructor(

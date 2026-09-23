@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import { AssetRepository } from "../../infrastructures/assets/asset-repository";
+import { AssetRepository } from "../../model/asset/asset-repository";
 import { KeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
 import { exportLocalBackup } from "./backup-util";
 

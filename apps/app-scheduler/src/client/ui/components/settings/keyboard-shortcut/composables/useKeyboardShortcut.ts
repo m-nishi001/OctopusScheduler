@@ -1,8 +1,8 @@
 import { ref } from "vue";
 import { container } from "tsyringe";
-import { KeyboardShortcutService } from "model/applications/keyboard-shortcut/keyboard-shortcut-service";
-import { KeyboardShortcut } from "model/domains/keyboard-shortcut/keyboard-shortcut";
-import { KeyboardShortcutConfig } from "model/domains/keyboard-shortcut/keyboard-shortcut-config";
+import { KeyboardShortcutService } from "../../../../../applications/keyboard-shortcut/keyboard-shortcut-service";
+import { KeyboardShortcut } from "../../../../../domains/keyboard-shortcut/keyboard-shortcut";
+import { KeyboardShortcutConfig } from "../../../../../domains/keyboard-shortcut/keyboard-shortcut-config";
 
 export function useKeyboardShortcut() {
   const shortcuts = ref<KeyboardShortcut[]>([]);

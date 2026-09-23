@@ -12,8 +12,7 @@ import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRoute } from 'vue-router';
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { container } from "tsyringe";
-import type { IAssetRepository } from "../../../../domains/assets/repository/asset-repository";
-import { IAssetRepositoryToken } from "../../../../domains/assets/repository/asset-repository";
+import { AssetRepository } from "../../../../model/asset/asset-repository";
 import { IOctopusSchedulerApiToken } from "../../../../../server/scheduler-api-contract";
 import type { OctopusSchedulerApi } from "../../../../../server/scheduler-api-contract";
 
@@ -29,7 +28,7 @@ const images = ref<{ id: string; url: string; name: string }[]>([]);
 const currentIndex = ref(0);
 const intervalId = ref<number | null>(null);
 const slideshowData = ref<SlideshowData | null>(null);
-const assetRepository = container.resolve<IAssetRepository>(IAssetRepositoryToken);
+const assetRepository = container.resolve(AssetRepository);
 const schedulerApi = container.resolve<OctopusSchedulerApi>(IOctopusSchedulerApiToken);
 
 const route = useRoute();

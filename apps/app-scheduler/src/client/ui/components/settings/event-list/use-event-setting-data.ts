@@ -1,5 +1,5 @@
 import { ref, computed, onMounted } from "vue";
-import { AssetService } from "../../../../applications/assets/asset-service";
+import { AssetService } from "../../../../control/asset/asset-service";
 import { container } from "tsyringe";
 
 export function useEventSettingData() {

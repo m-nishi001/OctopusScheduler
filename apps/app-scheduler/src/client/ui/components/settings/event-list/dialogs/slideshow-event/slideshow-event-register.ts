@@ -1,7 +1,7 @@
 import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
-import { AssetService } from "../../../../../../applications/assets/asset-service";
-import type { Asset } from "../../../../../../domains/assets/entity/asset";
+import { AssetService } from "../../../../../../control/asset/asset-service";
+import type { Asset } from "../../../../../../model/asset/asset";
 import { AppEventService } from "../../../../../../applications/app-event/app-event-service";
 import {
   SlideshowEvent,
