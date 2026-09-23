@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import BulkSyncDialog from '../bulk-sync/BulkSyncDialog.vue';
+import BulkSyncDialog from '../../../pages/settings/bulk-sync/bulk-sync-dialog.vue';
 
 const showDialog = ref(false);
 </script>

@@ -3,11 +3,23 @@ import { AssetRepository } from "@model/asset/asset-repository";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import { exportLocalBackup } from "./backup-util";
 
-type Direction = "local-to-gas" | "gas-to-local";
+type Direction = Parameters<KeyboardShortcutRepository["syncWithServer"]>[0];
+
+type Stage =
+  | "init"
+  | "backup"
+  | "json"
+  | "events"
+  | "assets"
+  | "shortcuts"
+  | "complete"
+  | "cancel";
+
+type Status = "started" | "creating" | "done" | "error" | "aborted" | "finished";
 
 export type ProgressCallback = (
-  stage: string,
-  status: string,
+  stage: Stage,
+  status: Status,
   detail?: string,
   percent?: number
 ) => void;
@@ -108,13 +120,14 @@ export class BulkSyncService {
       return;
     }
 
-    // Sync assets
+    // Sync assets. AssetRepository.syncAssets: "local" = local->drive (diff-based
+    // upload), "drive" = drive->local (fetch remote and overwrite local).
     onProgress?.("assets", "started", "Syncing assets", 55);
     try {
       if (direction === "local-to-gas") {
-        await this.assetRepo.syncAssets("drive");
-      } else {
         await this.assetRepo.syncAssets("local");
+      } else {
+        await this.assetRepo.syncAssets("drive");
       }
       onProgress?.("assets", "done", "Assets synced", 95);
     } catch (e: any) {
@@ -125,11 +138,7 @@ export class BulkSyncService {
     // Sync keyboard shortcuts
     onProgress?.("shortcuts", "started", "Syncing keyboard shortcuts", 96);
     try {
-      if (direction === "local-to-gas") {
-        await this.kbRepo.syncWithServer("server");
-      } else {
-        await this.kbRepo.syncWithServer("local");
-      }
+      await this.kbRepo.syncWithServer(direction);
       onProgress?.("shortcuts", "done", "Keyboard shortcuts synced", 100);
     } catch (e: any) {
       onProgress?.("shortcuts", "error", String(e));
