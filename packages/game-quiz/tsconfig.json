@@ -12,8 +12,9 @@
   },
   "references": [
     { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.server.json" },
     { "path": "../client-common" },
     { "path": "../composables" },
-    { "path": "../server" }
+    { "path": "../infrastructures" }
   ]
 }
