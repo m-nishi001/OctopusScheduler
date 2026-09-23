@@ -1,5 +1,4 @@
 import { createRouter, createWebHashHistory } from "vue-router";
-import { contentDeckRoutes } from "@octopus/presenter-content-deck";
 import { HistoryService } from "@octopus/client-common/google-apps-script/gas-history-service";
 import octopusSchedulerRoutes from "ui/router";
 import { jackpotGameRoutes } from "@octopus/game-jackpot";
@@ -9,7 +8,6 @@ import { quizGameRoutes } from "@octopus/game-quiz";
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    ...contentDeckRoutes,
     // Redirect top-level game absolute paths to /execute/... so links resolve
     // (e.g. /jackpot-admin/... -> /execute/jackpot-admin/...). This prevents
     // "No match found for location" warnings when rendering links inside

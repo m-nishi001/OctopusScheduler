@@ -15,7 +15,6 @@
     "@octopus/composables": "*",
     "@octopus/infrastructures": "*",
     "@octopus/game-card": "*",
-    "@octopus/presenter-content-deck": "*",
     "@octopus/game-jackpot": "*",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",

@@ -6,7 +6,7 @@
     "declaration": true,
     "declarationDir": "dist",
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src/client"
   },
   "references": [{ "path": "./tsconfig.app.json" }]
 }

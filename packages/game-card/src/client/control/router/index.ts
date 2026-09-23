@@ -1,5 +1,5 @@
-import Home from "../views/Home.vue";
-import Game from "../views/Game.vue";
+import Home from "../../ui/pages/Home.vue";
+import Game from "../../ui/pages/Game.vue";
 
 const cardGameRoutes = [
   { path: "/card-home", component: Home },

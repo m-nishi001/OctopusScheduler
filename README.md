@@ -43,7 +43,6 @@ packages/
 ├─ game-jackpot/             @octopus/game-jackpot
 ├─ game-quiz/                @octopus/game-quiz
 ├─ game-card/                @octopus/game-card
-├─ presenter-content-deck/   @octopus/presenter-content-deck
 └─ server/                   @octopus/server（単一 GAS バンドル）
 ```
 
