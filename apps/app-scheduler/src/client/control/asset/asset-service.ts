@@ -1,10 +1,10 @@
-import { injectable } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import type { Asset } from "../../model/asset/asset";
 import { AssetRepository } from "../../model/asset/asset-repository";
 
 @injectable()
 export class AssetService {
-  constructor(private assetRepository: AssetRepository) {}
+  constructor(@inject(AssetRepository) private assetRepository: AssetRepository) {}
 
   async addAssets(assets: Asset[]): Promise<string[]> {
     const ids = await this.assetRepository.addAssets(assets);

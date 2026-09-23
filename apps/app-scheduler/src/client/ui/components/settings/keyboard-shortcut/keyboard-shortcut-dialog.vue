@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
-import { KeyboardShortcut } from '../../../../domains/keyboard-shortcut/keyboard-shortcut';
+import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { useKeyCapture } from './composables/useKeyCapture';
 import ActionItemSummary from './action-item-summary.vue';
 import EventSelectionDialog from './event-selection-dialog.vue';
@@ -61,7 +61,7 @@ import type { IAppEventDto } from '../../../../applications/app-event/i-app-even
 import { IAppEventConverterToken } from '../../../../domains/app-event/i-app-event-converter';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../applications/app-event/app-event-service';
-import { UIActionEntryToken } from '../../../../core/container';
+import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
 
 interface Props {
     show: boolean;

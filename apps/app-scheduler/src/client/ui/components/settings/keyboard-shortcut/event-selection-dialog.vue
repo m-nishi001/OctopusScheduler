@@ -19,7 +19,7 @@
 
 <script setup lang="ts">
 import { container } from 'tsyringe';
-import { UIActionEntryToken } from '../../../../core/container';
+import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
 
 defineProps<{ show: boolean }>();
 

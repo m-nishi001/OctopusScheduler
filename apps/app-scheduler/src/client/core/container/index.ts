@@ -25,13 +25,9 @@ import { PlayAudioEventSerializer } from "../../infrastructures/app-event/serial
 import { StopAudioEventSerializer } from "../../infrastructures/app-event/serializers/stop-audio-event-serializer";
 import { SlideshowEventSerializer } from "../../infrastructures/app-event/serializers/slideshow-event-serializer";
 import { TransitionPageEventSerializer } from "../../infrastructures/app-event/serializers/transition-page-event-serializer";
-import {
-  KeyboardShortcutRepository,
-  IKeyboardShortcutRepositoryToken,
-} from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
+import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcutService } from "../../applications/keyboard-shortcut/keyboard-shortcut-service";
-// Inline UIActionEntryToken so core doesn't need a separate token module
-export const UIActionEntryToken = Symbol("UIActionEntry");
+import { UIActionEntryToken } from "../../domains/app-event/ui-action-entry-token";
 import { TransitionPageAction } from "../../ui/components/settings/app-events/events/transition-page/entry";
 import { PlayAudioAction } from "../../ui/components/settings/app-events/events/play-audio/entry";
 import { StopAudioAction } from "../../ui/components/settings/app-events/events/stop-audio/entry";
@@ -97,7 +93,7 @@ export class Container {
       useClass: TransitionPageEventSerializer,
     });
     // event factories removed; converters handle entity creation
-    container.register(IKeyboardShortcutRepositoryToken, {
+    container.register(KeyboardShortcutRepository, {
       useClass: KeyboardShortcutRepository,
     });
     container.register(KeyboardShortcutService, {

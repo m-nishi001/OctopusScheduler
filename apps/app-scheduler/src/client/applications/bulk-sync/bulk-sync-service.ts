@@ -1,6 +1,6 @@
-import { injectable } from "tsyringe";
-import { AssetRepository } from "../../model/asset/asset-repository";
-import { KeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
+import { injectable, inject } from "tsyringe";
+import { AssetRepository } from "@model/asset/asset-repository";
+import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import { exportLocalBackup } from "./backup-util";
 
 type Direction = "local-to-gas" | "gas-to-local";
@@ -23,8 +23,8 @@ export const DEFAULT_TIMEOUTS = {
 export class BulkSyncService {
   private cancelRequested = false;
   constructor(
-    private assetRepo: AssetRepository,
-    private kbRepo: KeyboardShortcutRepository
+    @inject(AssetRepository) private assetRepo: AssetRepository,
+    @inject(KeyboardShortcutRepository) private kbRepo: KeyboardShortcutRepository
   ) {}
 
   requestCancel() {

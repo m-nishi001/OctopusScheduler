@@ -1,16 +1,14 @@
-import { injectable, inject, container } from "tsyringe";
-import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-shortcut";
-import { KeyboardShortcutConfig } from "../../domains/keyboard-shortcut/keyboard-shortcut-config";
-import type { IKeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
-import { IKeyboardShortcutRepositoryToken } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
-// event serializer tokens removed (not used by this service anymore)
+import { injectable, inject } from "tsyringe";
+import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
+import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
+import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import { AppEventService } from "../app-event/app-event-service";
 
 @injectable()
 export class KeyboardShortcutService {
   constructor(
-    @inject(IKeyboardShortcutRepositoryToken)
-    private repository: IKeyboardShortcutRepository
+    @inject(KeyboardShortcutRepository) private repository: KeyboardShortcutRepository,
+    @inject(AppEventService) private appEventService: AppEventService
   ) {}
 
   async getKeyboardShortcuts(): Promise<KeyboardShortcut[]> {
@@ -18,31 +16,23 @@ export class KeyboardShortcutService {
     // Migrate legacy `actions` (embedded action objects) into persisted
     // schedule events and populate `eventIds`. This ensures shortcuts
     // fetched from older GAS exports still work with the new model.
-    try {
-      const appEventService = container.resolve(AppEventService);
-      for (const data of datas) {
-        if ((data as any).eventIds && (data as any).eventIds.length > 0)
-          continue;
-        const legacyActions = (data as any).actions || [];
-        if (!legacyActions || legacyActions.length === 0) continue;
-        // Assign ids for each legacy action if missing
-        const toSave: any[] = legacyActions.map((a: any) => ({
-          ...a,
-          id: a.id || crypto.randomUUID(),
-        }));
-        try {
-          await appEventService.updateScheduleEvents(toSave as any);
-          // populate eventIds so subsequent code can resolve them
-          (data as any).eventIds = toSave.map((t) => t.id);
-        } catch (e) {
-          console.error(
-            "Failed migrating legacy shortcut actions to events",
-            e
-          );
-        }
+    for (const data of datas) {
+      if ((data as any).eventIds && (data as any).eventIds.length > 0)
+        continue;
+      const legacyActions = (data as any).actions || [];
+      if (!legacyActions || legacyActions.length === 0) continue;
+      // Assign ids for each legacy action if missing
+      const toSave: any[] = legacyActions.map((a: any) => ({
+        ...a,
+        id: a.id || crypto.randomUUID(),
+      }));
+      try {
+        await this.appEventService.updateScheduleEvents(toSave as any);
+        // populate eventIds so subsequent code can resolve them
+        (data as any).eventIds = toSave.map((t) => t.id);
+      } catch (e) {
+        console.error("Failed migrating legacy shortcut actions to events", e);
       }
-    } catch (e) {
-      // If AppEventService not available, skip migration silently
     }
 
     return datas.map((data) => KeyboardShortcut.fromData(data));
@@ -55,18 +45,6 @@ export class KeyboardShortcutService {
   async addKeyboardShortcut(shortcut: KeyboardShortcut): Promise<void> {
     const shortcuts = await this.getKeyboardShortcuts();
     shortcuts.push(shortcut);
-    try {
-      console.debug(
-        "[KeyboardShortcutService.addKeyboardShortcut] adding shortcut",
-        {
-          id: shortcut.id,
-          keys: shortcut.keys,
-          eventIds: (shortcut as any).eventIds || [],
-        }
-      );
-    } catch (e) {
-      /* ignore */
-    }
     await this.saveKeyboardShortcuts(shortcuts);
   }
 
@@ -88,22 +66,15 @@ export class KeyboardShortcutService {
     await this.saveKeyboardShortcuts(filtered);
 
     // remove associated events if eventIds available
-    try {
-      if (
-        removed &&
-        (removed as any).eventIds &&
-        (removed as any).eventIds.length > 0
-      ) {
-        const appEventService = container.resolve(AppEventService);
-        const ids = (removed as any).eventIds.filter(Boolean);
-        if (ids.length > 0)
-          await appEventService.deleteScheduleEvents(ids as any);
+    if (removed && removed.eventIds.length > 0) {
+      try {
+        await this.appEventService.deleteScheduleEvents(removed.eventIds);
+      } catch (e) {
+        console.error(
+          "[KeyboardShortcutService] failed to remove shortcut-related events",
+          e
+        );
       }
-    } catch (e) {
-      console.error(
-        "[KeyboardShortcutService] failed to remove shortcut-related events",
-        e
-      );
     }
   }
 
@@ -155,12 +126,25 @@ export class KeyboardShortcutService {
     return shortcutKeys.every((key, index) => key === inputKeys[index]);
   }
 
-  // revive 実装 (古い形式の string[][] から復元)
-  reviveShortcut(raw: string[]): KeyboardShortcut | null {
-    if (raw.length < 3) return null;
-    const [id, keysStr] = raw;
-    const keys = JSON.parse(keysStr);
-    // Legacy revive: return a shortcut with no eventIds; migration should convert legacy actions to events.
-    return new KeyboardShortcut({ id, keys, eventIds: [] });
+  // ショートカットが参照するイベントを順に実行する(旧 KeyboardShortcut.execute() から移動)
+  async executeShortcut(shortcut: KeyboardShortcut): Promise<void> {
+    for (const id of shortcut.eventIds) {
+      try {
+        const ev = await this.appEventService.getEventById(id);
+        if (!ev) continue;
+        ev.execute(true, true).catch((err) => {
+          console.error(
+            `[KeyboardShortcutService] execute promise rejected eventId=${id} err=`,
+            err
+          );
+        });
+      } catch (err) {
+        console.error(
+          `[KeyboardShortcutService] failed to execute eventId=${id} err=`,
+          err
+        );
+        // ignore individual event execution errors
+      }
+    }
   }
 }

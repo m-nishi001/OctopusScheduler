@@ -24,7 +24,7 @@
 import { ref, onMounted } from 'vue';
 import KeyboardShortcutList from './keyboard-shortcut-list.vue';
 import KeyboardShortcutDialog from './keyboard-shortcut-dialog.vue';
-import { KeyboardShortcut } from '../../../../domains/keyboard-shortcut/keyboard-shortcut';
+import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { useKeyboardShortcut } from './composables/useKeyboardShortcut';
 
 const { shortcuts, isEnabled, loadShortcuts, loadConfig, onToggleEnabled, onDelete, saveShortcut, updateShortcut } = useKeyboardShortcut();

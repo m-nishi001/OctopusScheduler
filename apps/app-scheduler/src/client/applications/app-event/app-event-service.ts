@@ -2,7 +2,7 @@ import type { IAppEventRepository } from "../../domains/app-event/app-event-repo
 import { IAppEventRepositoryToken } from "../../domains/app-event/app-event-repository";
 import type { IAppEvent } from "../../domains/app-event/app-event";
 import { injectable, injectAll, inject, container } from "tsyringe";
-import { UIActionEntryToken } from "../../core/container";
+import { UIActionEntryToken } from "../../domains/app-event/ui-action-entry-token";
 import type { IAppEventDto } from "./i-app-event-dto";
 import type { ExecutionStatus } from "../../domains/app-event/execution-status";
 import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";

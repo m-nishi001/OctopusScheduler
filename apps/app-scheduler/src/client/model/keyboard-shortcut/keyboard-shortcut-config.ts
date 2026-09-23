@@ -20,9 +20,4 @@ export class KeyboardShortcutConfig {
   static fromData(data: KeyboardShortcutConfigData): KeyboardShortcutConfig {
     return new KeyboardShortcutConfig(data.enabled);
   }
-
-  static revive(raw: string[]): KeyboardShortcutConfig {
-    const enabled = raw[0] === "true";
-    return new KeyboardShortcutConfig(enabled);
-  }
 }

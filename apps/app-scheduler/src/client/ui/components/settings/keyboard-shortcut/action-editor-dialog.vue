@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { container } from 'tsyringe';
-import { UIActionEntryToken } from '../../../../core/container';
+import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
 import type { EventFormData } from './types';
 import type { IAppEventDto } from '../../../../applications/app-event/i-app-event-dto';
 

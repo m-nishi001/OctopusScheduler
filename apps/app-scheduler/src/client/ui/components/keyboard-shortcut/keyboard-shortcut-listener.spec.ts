@@ -3,7 +3,7 @@ import { registerKeyboardShortcutListener } from "./keyboard-shortcut-listener";
 import { Container } from "../../../core/container/index";
 import { container } from "tsyringe";
 import { KeyboardShortcutService } from "../../../applications/keyboard-shortcut/keyboard-shortcut-service";
-import { KeyboardShortcutConfig } from "../../../domains/keyboard-shortcut/keyboard-shortcut-config";
+import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 
 describe("keyboard-shortcut-listener", () => {

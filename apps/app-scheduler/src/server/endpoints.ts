@@ -16,6 +16,7 @@ import type {
   IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
 import type { DriveData } from "@octopus/infrastructures/compositions";
+import type { KeyboardShortcutWireItem } from "./scheduler-api-contract";
 
 import {
   addSchedulerDriveData,
@@ -44,7 +45,7 @@ declare let _octopusScheduler_getDriveData: (dataId: string) => string;
 declare let _octopusScheduler_updateDriveData: (driveData: DriveData) => string;
 declare let _octopusScheduler_getKeyboardShortcuts: () => string;
 declare let _octopusScheduler_setKeyboardShortcuts: (payload: {
-  shortcuts: string[][];
+  shortcuts: KeyboardShortcutWireItem[];
   config: unknown;
 }) => string;
 
@@ -96,7 +97,7 @@ _octopusScheduler_getKeyboardShortcuts = (): string => {
 };
 
 _octopusScheduler_setKeyboardShortcuts = (payload: {
-  shortcuts: string[][];
+  shortcuts: KeyboardShortcutWireItem[];
   config: unknown;
 }): string => {
   try {
