@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ESNext"],
+    "moduleResolution": "bundler",
+    "useDefineForClassFields": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.infrastructures.tsbuildinfo",
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "declarationDir": "dist/types",
+    "outDir": "dist",
+    "composite": true,
+    "rootDir": "src"
+  },
+  "include": ["src/**/*"],
+  "references": [{ "path": "../client-common" }],
+  "exclude": ["node_modules", "dist"]
+}
