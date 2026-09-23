@@ -1,10 +1,17 @@
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import { IApiClientToken, createTypedApiClient } from "@octopus/infrastructures/interfaces";
 import { GasApiClient } from "@octopus/infrastructures/gas/gas-api-client";
+import {
+  OCTOPUS_SCHEDULER_PREFIX,
+  OCTOPUS_SCHEDULER_ENDPOINTS,
+  OCTOPUS_SCHEDULER_UNPREFIXED_ENDPOINTS,
+  IOctopusSchedulerApiToken,
+} from "../../../server/scheduler-api-contract";
+import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 import { AppEventRepository } from "../../infrastructures/app-event/app-event-repository";
 import { AssetRepository } from "../../infrastructures/assets/asset-repository";
 import { IAppEventRepositoryToken } from "../../domains/app-event/app-event-repository";
 import { IAssetRepositoryToken } from "../../domains/assets/repository/asset-repository";
-import { container } from "tsyringe";
+import { container, instanceCachingFactory } from "tsyringe";
 import { AppEventService } from "../../applications/app-event/app-event-service";
 import { AssetService } from "../../applications/assets/asset-service";
 import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
@@ -37,6 +44,18 @@ export class Container {
     // GAS 用のインフラを登録する。将来 Cloudflare 等に切り替える場合は
     // ここを設定に応じて別実装に差し替えるだけでよい。
     container.register(IApiClientToken, { useClass: GasApiClient });
+    container.register<OctopusSchedulerApi>(IOctopusSchedulerApiToken, {
+      useFactory: instanceCachingFactory((c) =>
+        createTypedApiClient<OctopusSchedulerApi>(
+          c.resolve(IApiClientToken),
+          OCTOPUS_SCHEDULER_PREFIX,
+          OCTOPUS_SCHEDULER_ENDPOINTS.filter(
+            (name): name is keyof OctopusSchedulerApi & string =>
+              !(OCTOPUS_SCHEDULER_UNPREFIXED_ENDPOINTS as readonly string[]).includes(name)
+          )
+        )
+      ),
+    });
 
     container.register(IAssetRepositoryToken, { useClass: AssetRepository });
     container.register(IAppEventRepositoryToken, {

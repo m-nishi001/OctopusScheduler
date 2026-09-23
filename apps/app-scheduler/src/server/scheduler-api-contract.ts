@@ -1,6 +1,12 @@
 /**
  * octopus-scheduler(ホスト本体)の GAS エンドポイント契約(唯一の正準定義)。
  */
+import type {
+  ApiCallOptions,
+  DriveData,
+  DriveMetadata,
+} from "@octopus/infrastructures/interfaces";
+
 export const OCTOPUS_SCHEDULER_PREFIX = "octopusScheduler" as const;
 
 export const OCTOPUS_SCHEDULER_ENDPOINTS = [
@@ -25,3 +31,28 @@ export type OctopusSchedulerEndpointName =
 
 export type OctopusSchedulerFunctionName =
   `${typeof OCTOPUS_SCHEDULER_PREFIX}_${OctopusSchedulerEndpointName}`;
+
+/**
+ * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
+ * Proxyの型として使う。`doGet` は GAS Web アプリのエントリポイントであり、
+ * クライアントJSから `google.script.run` 経由で呼ばれることは無いため、
+ * ここには含めない(コード生成・契約検証のための `OCTOPUS_SCHEDULER_ENDPOINTS`/
+ * `OCTOPUS_SCHEDULER_UNPREFIXED_ENDPOINTS` には引き続き含める)。
+ */
+export interface OctopusSchedulerApi {
+  addDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<DriveMetadata>;
+  getDriveMetaData(folderId?: string, options?: ApiCallOptions): Promise<DriveMetadata[]>;
+  getDriveData(dataId: string, options?: ApiCallOptions): Promise<DriveData>;
+  updateDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<void>;
+  getKeyboardShortcuts(
+    args?: undefined,
+    options?: ApiCallOptions
+  ): Promise<{ shortcuts: string[][]; config: unknown }>;
+  setKeyboardShortcuts(
+    payload: { shortcuts: string[][]; config: unknown },
+    options?: ApiCallOptions
+  ): Promise<void>;
+}
+
+/** `OctopusSchedulerApi` をDI解決するためのトークン。 */
+export const IOctopusSchedulerApiToken = Symbol("IOctopusSchedulerApi");
