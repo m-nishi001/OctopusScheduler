@@ -10,7 +10,6 @@
   "dependencies": {
     "@octopus/client-common": "*",
     "@octopus/composables": "*",
-    "@octopus/core": "*",
     "@octopus/infrastructures": "*",
     "gsap": "^3.13.0",
     "localforage": "^1.10.0",

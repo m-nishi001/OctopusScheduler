@@ -11,24 +11,22 @@
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": ".",
     "paths": {
-      "model/*": ["./src/model/*"],
-      "ui/*": ["./src/ui/*"],
-      "core/*": ["./src/core/*"]
+      "model/*": ["./src/client/*"],
+      "ui/*": ["./src/client/ui/*"],
+      "core/*": ["./src/client/core/*"]
     },
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.vue"],
   "exclude": ["node_modules", "dist"],
   "references": [
-    { "path": "../../packages/core" },
+    { "path": "../../packages/infrastructures" },
     { "path": "../../packages/client-common" },
     { "path": "../../packages/composables" },
     { "path": "../../packages/game-card" },
     { "path": "../../packages/game-quiz" },
     { "path": "../../packages/game-jackpot" },
-    { "path": "../../packages/presenter-content-deck" },
-    { "path": "../../packages/server" }
+    { "path": "../../packages/presenter-content-deck" }
   ]
 }

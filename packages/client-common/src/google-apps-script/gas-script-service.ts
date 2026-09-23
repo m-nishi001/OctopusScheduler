@@ -9,7 +9,14 @@
  * - リトライ機構を備える
  */
 
-import type { GasFunctionName, GasResponse } from "@octopus/core";
+/**
+ * RPC呼び出しの共通レスポンス。@octopus/infrastructures の ApiResponse<T> と
+ * 構造的に同じ形(このファイルは infrastructures より下位に位置するため、
+ * 循環依存を避けてここでも同じ形を独立定義している)。
+ */
+export type ApiResponse<T> =
+  | { status: "success"; data: T }
+  | { status: "error"; message: string };
 
 declare namespace google {
   namespace script {
@@ -35,12 +42,12 @@ export class GasFunctionService {
   private static readonly DEFAULT_RETRIES = 3;
   private static readonly DEFAULT_RETRY_DELAY_MS = 1000;
 
-  private readonly functionName: GasFunctionName;
+  private readonly functionName: string;
   private options: Required<GasFunctionOptions>;
   private instanceSuccessHandler: ((value: any) => void) | null = null;
   private instanceFailureHandler: ((err: string) => void) | null = null;
 
-  constructor(functionName: GasFunctionName, options: GasFunctionOptions = {}) {
+  constructor(functionName: string, options: GasFunctionOptions = {}) {
     this.functionName = functionName;
     this.options = {
       timeout: options.timeout ?? GasFunctionService.DEFAULT_TIMEOUT_MS,
@@ -85,7 +92,7 @@ export class GasFunctionService {
     throw new Error(resp.message);
   }
 
-  private async runWithRetry<T>(args?: unknown): Promise<GasResponse<T>> {
+  private async runWithRetry<T>(args?: unknown): Promise<ApiResponse<T>> {
     let attempts = 0;
     let parallelErrorAttempts = 0;
     const MAX_PARALLEL_ERROR_RETRY = 100;
@@ -140,7 +147,7 @@ export class GasFunctionService {
     }
   }
 
-  private executeGasFunction<T>(args?: unknown): Promise<GasResponse<T>> {
+  private executeGasFunction<T>(args?: unknown): Promise<ApiResponse<T>> {
     return new Promise((resolve) => {
       if (typeof google === "undefined") {
         console.warn(
@@ -156,7 +163,7 @@ export class GasFunctionService {
 
       const successHandler = (response: string) => {
         try {
-          const parsed: GasResponse<T> = JSON.parse(response);
+          const parsed: ApiResponse<T> = JSON.parse(response);
           resolve(parsed);
         } catch (e: any) {
           resolve({

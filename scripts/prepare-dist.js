@@ -1,5 +1,5 @@
 // distディレクトリ集約用スクリプト
-// サーバ（packages/server）の dist と、クライアント（apps/app-scheduler）の dist を
+// サーバ（packages/infrastructures、GASバンドル）の dist と、クライアント（apps/app-scheduler）の dist を
 // dist/ 直下へフラットに集約し、clasp の rootDir である dist/gas/ にも配置する。
 // appsscript.json も dist 直下と dist/gas/ にコピーする。
 //
@@ -28,7 +28,7 @@ const distDir = join(rootDir, "dist");
 const gasDistDir = join(distDir, "gas");
 
 /** サーバのビルド成果物（単一バンドル） */
-const SERVER_DIST = join(rootDir, "packages", "server", "dist");
+const SERVER_DIST = join(rootDir, "packages", "infrastructures", "dist");
 /** デプロイ対象のクライアント（唯一の GAS Web アプリ） */
 const CLIENT_DIST = join(rootDir, "apps", "app-scheduler", "dist");
 

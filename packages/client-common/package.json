@@ -31,7 +31,6 @@
     "tsyringe": "^4.10.0"
   },
   "dependencies": {
-    "@octopus/core": "*",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1"
   }
