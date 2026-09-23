@@ -7,7 +7,7 @@ import { JackpotContainer } from "@octopus/game-jackpot";
 import { QuizContainer } from "@octopus/game-quiz";
 import router from "./core/router";
 import { registerEventHandlers } from "./ui/components/app-event-handler/register-event-handlers";
-import { registerKeyboardShortcutListener } from "./ui/components/keyboard-shortcut/keyboard-shortcut-listener";
+import { registerKeyboardShortcutListener } from "./ui/composables/keyboard-shortcut-listener";
 
 // Register app-specific DI
 Container.Register();

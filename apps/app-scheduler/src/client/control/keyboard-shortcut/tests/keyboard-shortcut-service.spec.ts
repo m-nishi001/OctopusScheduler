@@ -7,7 +7,7 @@ import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
 import { PlayAudioEvent } from "../../../domains/app-event/play-audio/play-audio-event";
 import { TransitionPageEvent } from "../../../domains/app-event/transition/transition-page-event";
 import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
-import { AppEventService } from "../../app-event/app-event-service";
+import { AppEventService } from "../../../applications/app-event/app-event-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 
 class MockRepository {

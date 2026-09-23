@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { container } from "tsyringe";
-import { KeyboardShortcutService } from "../../../../../applications/keyboard-shortcut/keyboard-shortcut-service";
+import { KeyboardShortcutService } from "../../../../../control/keyboard-shortcut/keyboard-shortcut-service";
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
 import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
 

@@ -2,7 +2,7 @@ import { injectable, inject } from "tsyringe";
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
 import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
-import { AppEventService } from "../app-event/app-event-service";
+import { AppEventService } from "../../applications/app-event/app-event-service";
 
 @injectable()
 export class KeyboardShortcutService {

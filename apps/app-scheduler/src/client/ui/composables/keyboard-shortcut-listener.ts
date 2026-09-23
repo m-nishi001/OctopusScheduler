@@ -1,6 +1,6 @@
 import { container } from "tsyringe";
 import { eventBus } from "@octopus/client-common/events/event-bus";
-import { KeyboardShortcutService } from "../../../applications/keyboard-shortcut/keyboard-shortcut-service";
+import { KeyboardShortcutService } from "../../control/keyboard-shortcut/keyboard-shortcut-service";
 // AppEventService not required here
 import { sendShortcutViaChannel } from "./send-shortcut-via-channel";
 

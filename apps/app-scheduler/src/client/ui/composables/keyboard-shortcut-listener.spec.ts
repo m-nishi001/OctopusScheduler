@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { registerKeyboardShortcutListener } from "./keyboard-shortcut-listener";
-import { Container } from "../../../core/container/index";
+import { Container } from "../../core/container/index";
 import { container } from "tsyringe";
-import { KeyboardShortcutService } from "../../../applications/keyboard-shortcut/keyboard-shortcut-service";
+import { KeyboardShortcutService } from "../../control/keyboard-shortcut/keyboard-shortcut-service";
 import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 

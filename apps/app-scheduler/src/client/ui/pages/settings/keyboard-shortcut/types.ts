@@ -1,4 +1,4 @@
-// src/ui/components/settings/keyboard-shortcut/types.ts
+// src/client/ui/pages/settings/keyboard-shortcut/types.ts
 export type TransitionPageFormData = {
   actionType: "TransitionPageEvent";
   transitionUrl: string;
