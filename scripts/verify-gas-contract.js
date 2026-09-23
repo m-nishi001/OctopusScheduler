@@ -11,8 +11,8 @@
  * 背景: GAS の `google.script.run` はトップレベル関数しか呼べず型を持たないため、
  * 呼び出し名のズレが tsc では検出できなかった。このスクリプトがその代わりを担う
  * (もっとも、型付きAPIクライアント(`createTypedApiClient()` が返す `xxxApi.method()`)
- * や、移行前の各機能の callXxxGame() ヘルパー経由の呼び出しはエンドポイント名が
- * 契約側の型で制約されており、その分は tsc 自体が検出できる)。
+ * 経由の呼び出しはエンドポイント名が契約側の型で制約されており、その分は
+ * tsc 自体が検出できる)。
  */
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname, relative } from "path";
@@ -82,16 +82,9 @@ const sourceFiles = [
   ...listSourceFiles(join(ROOT, "packages")),
 ].filter((f) => /\.(ts|tsx|vue|mts|js)$/.test(f));
 
-// 旧: new GasFunctionService("prefix_name") の直接呼び出し(未移行箇所があれば検出する)。
+// 旧: new GasFunctionService("prefix_name") の直接呼び出し(型付きAPIクライアントを
+// 経由しない、より低レベルな迂回があれば検出する)。
 const LEGACY_CALL_RE = /GasFunctionService\(\s*["']([^"']+)["']/g;
-// 新: callQuizGame(apiClient, "name", ...) 等の型付きヘルパー呼び出し。
-const HELPER_PREFIX_MAP = {
-  callQuizGame: "quizGame",
-  callJackpotGame: "jackpotGame",
-  callOctopusScheduler: "octopusScheduler",
-};
-const HELPER_CALL_RE =
-  /\b(callQuizGame|callJackpotGame|callOctopusScheduler)\(\s*[^,]+,\s*["']([^"']+)["']/g;
 
 const called = new Map(); // name -> [files]
 
@@ -112,18 +105,7 @@ for (const file of sourceFiles) {
     }
   }
 
-  for (const helperName of Object.keys(HELPER_PREFIX_MAP)) {
-    if (!src.includes(helperName)) continue;
-    for (const m of src.matchAll(HELPER_CALL_RE)) {
-      const prefix = HELPER_PREFIX_MAP[m[1]];
-      const name = `${prefix}_${m[2]}`;
-      if (!called.has(name)) called.set(name, []);
-      called.get(name).push(rel(file));
-    }
-    break;
-  }
-
-  // 新: `@inject(IXxxGameApiToken) private readonly foo: XxxGameApi` で受け取った
+  // `@inject(IXxxGameApiToken) private readonly foo: XxxGameApi` で受け取った
   // フィールド経由の `this.foo.method(...)` 呼び出し(型付きAPIクライアント)。
   for (const [tokenName, prefix] of Object.entries(apiTokenToPrefix)) {
     if (!src.includes(tokenName)) continue;
