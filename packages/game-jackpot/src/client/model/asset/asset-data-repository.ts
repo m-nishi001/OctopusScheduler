@@ -1,9 +1,8 @@
 import { injectable, inject } from "tsyringe";
 import { CryptoIdGenerator } from "../common/crypto-id-generator";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callJackpotGame } from "../jackpot-api-client";
+import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
+import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { Asset } from "./asset-data";
 import type {
   DriveData,
@@ -18,7 +17,7 @@ export class AssetDataRepository {
 
   constructor(
     @inject(CryptoIdGenerator) private readonly idGenerator: CryptoIdGenerator,
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {
     this.localStorage = new LocalStorageService("jackpot-game", "AssetData");
   }
@@ -114,12 +113,9 @@ export class AssetDataRepository {
       // Explicitly pass undefined so the server will resolve the configured
       // asset folder via ScriptProperties when no folder is provided.
       const metas =
-        (await callJackpotGame<DriveMetadata[]>(
-          this.apiClient,
-          "getDriveMetaData",
-          undefined,
-          { timeout: 180000 }
-        )) || [];
+        (await this.jackpotApi.getDriveMetaData(undefined, {
+          timeout: 180000,
+        })) || [];
       return metas as DriveMetadata[];
     } catch (e) {
       onProgress?.(`Failed to fetch remote metadata: ${(e as Error).message}`);
@@ -207,12 +203,9 @@ export class AssetDataRepository {
           parentFolderId: "",
         };
 
-        const res = await callJackpotGame(
-          this.apiClient,
-          "addDriveData",
-          driveData,
-          { timeout: 180000 }
-        );
+        const res = await this.jackpotApi.addDriveData(driveData, {
+          timeout: 180000,
+        });
         if (res) {
           await this.localStorage.save(asset.id, {
             ...asset,
@@ -243,12 +236,9 @@ export class AssetDataRepository {
 
     const worker = async (m: DriveMetadata) => {
       try {
-        const driveData = await callJackpotGame<DriveData>(
-          this.apiClient,
-          "getDriveData",
-          m.fileId,
-          { timeout: 180000 }
-        );
+        const driveData = await this.jackpotApi.getDriveData(m.fileId, {
+          timeout: 180000,
+        });
         if (!driveData) return null;
 
         const blob = await this.dataUrlToBlob(

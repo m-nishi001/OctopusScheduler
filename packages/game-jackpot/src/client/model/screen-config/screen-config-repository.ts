@@ -1,9 +1,8 @@
 import { injectable, inject, container } from "tsyringe";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { ScreenSetting } from "./screen-setting";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callJackpotGame } from "../jackpot-api-client";
+import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
+import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { AssetDataService } from "../../control/asset/asset-data-service";
 import type {
   DriveJsonData,
@@ -20,7 +19,7 @@ export class ScreenConfigRepository {
   private readonly assetService = container.resolve(AssetDataService);
 
   constructor(
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {}
 
   async getScreenSettings(): Promise<ScreenSetting[]> {
@@ -85,11 +84,7 @@ export class ScreenConfigRepository {
         parentFolderId: "",
       } as any;
 
-      const resp = await callJackpotGame<DriveMetadata>(
-        this.apiClient,
-        "addJson",
-        driveJson as any
-      );
+      const resp = await this.jackpotApi.addJson(driveJson);
       // store fileId if returned
       const fileId =
         (resp && (resp as any).fileId) ||
@@ -111,9 +106,7 @@ export class ScreenConfigRepository {
     idMap?: { [oldId: string]: string }
   ): Promise<{ replaced: number }> {
     try {
-      const resp = await callJackpotGame<{ json: string }>(
-        this.apiClient,
-        "getJson",
+      const resp = await this.jackpotApi.getJson(
         fileId || localStorage.getItem("jackpot-screens-last-file-id") || ""
       );
       const payloadJson =
