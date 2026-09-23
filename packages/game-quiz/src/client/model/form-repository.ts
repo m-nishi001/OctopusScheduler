@@ -1,34 +1,27 @@
 import { inject, injectable } from "tsyringe";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
+import { IQuizGameApiToken } from "../../server/quiz-api-contract";
 import type {
+  QuizGameApi,
   SheetRow,
   QuizWithDataUrl,
   ProcessedResultDto,
-  StopFormArgs,
-  GetSheetDataArgs,
   StopAndGetProcessedResultsArgs,
-  GetJsonArgs,
-  AddJsonArgs,
 } from "../../server/quiz-api-contract";
 import type { SyncRequestDto } from "../control/dto/sync-request-dto";
 import { computeTopResponders } from "./result-processor";
-import { callQuizGame } from "./quiz-api-client";
 
 @injectable()
 export class FormRepository {
   constructor(
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi
   ) {}
 
   async stopForm(quizId: string): Promise<void> {
-    const args: StopFormArgs = { quizId };
-    await callQuizGame<void>(this.apiClient, "stopForm", args);
+    await this.quizApi.stopForm({ quizId });
   }
 
   async getSheetData(quizId: string): Promise<SheetRow[]> {
-    const args: GetSheetDataArgs = { quizId };
-    return await callQuizGame<SheetRow[]>(this.apiClient, "getSheetData", args);
+    return await this.quizApi.getSheetData({ quizId });
   }
 
   async stopAndGetProcessedResults(
@@ -40,14 +33,12 @@ export class FormRepository {
     // Try a parallel approach: stop form and get mapped responses in parallel,
     // then compute top responders on the client for faster perceived latency.
     try {
-      const stopPromise = callQuizGame<void>(this.apiClient, "stopForm", {
-        quizId,
-      }).catch((e) => ({ __error: e }));
-      const mapPromise = callQuizGame<any[]>(
-        this.apiClient,
-        "getMappedResponses",
-        { formId: quizId }
-      ).catch((e) => ({ __error: e }));
+      const stopPromise = this.quizApi
+        .stopForm({ quizId })
+        .catch((e) => ({ __error: e }));
+      const mapPromise = this.quizApi
+        .getMappedResponses({ formId: quizId })
+        .catch((e) => ({ __error: e }));
 
       const [stopResp, mapResp] = await Promise.all([stopPromise, mapPromise]);
 
@@ -98,9 +89,7 @@ export class FormRepository {
         answerKey,
         correctValue,
       };
-      const resp = await callQuizGame<ProcessedResultDto[]>(this.apiClient, "stopAndGetProcessedResults",
-        args
-      );
+      const resp = await this.quizApi.stopAndGetProcessedResults(args);
       return resp;
     } catch (e) {
       console.error("[FormRepository] stopAndGetProcessedResults failed", e);
@@ -112,10 +101,7 @@ export class FormRepository {
     request: SyncRequestDto
   ): Promise<QuizWithDataUrl[] | void> {
     if (request.direction === "gas-to-local") {
-      const args: GetJsonArgs = {};
-      const jsonResp = await callQuizGame<{ json: string }>(this.apiClient, "getJson",
-        args
-      );
+      const jsonResp = await this.quizApi.getJson({});
       const jsonText = jsonResp?.json ?? JSON.stringify([]);
       try {
         return JSON.parse(jsonText) as QuizWithDataUrl[];
@@ -124,15 +110,14 @@ export class FormRepository {
       }
     } else if (request.direction === "local-to-gas") {
       const text = JSON.stringify(request.quizzes ?? []);
-      const args: AddJsonArgs = {
+      await this.quizApi.addJson({
         driveJson: {
           fileName: "quizzes.json",
           jsonText: text,
           uploadDate: new Date().toISOString(),
           parentFolderId: "",
         },
-      };
-      await callQuizGame<any>(this.apiClient, "addJson", args);
+      });
       return;
     }
     return;

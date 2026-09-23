@@ -39,7 +39,7 @@ const CONTRACT_SOURCES = [
     // 型付きAPIクライアント(createTypedApiClient)への移行済みモジュールは、
     // DIトークン名を指定する。呼び出し検出ロジックが `@inject(<apiTokenConst>)`
     // からフィールド名を特定し、`this.<field>.<method>(...)` 呼び出しを拾う。
-    // 未移行のモジュール(quiz, scheduler)は、まだ callXxxGame() ヘルパー経由
+    // 未移行のモジュール(scheduler)は、まだ callOctopusScheduler() ヘルパー経由
     // なので指定しない(HELPER_CALL_RE が引き続き検出する)。
     apiTokenConst: "IJackpotGameApiToken",
   },
@@ -47,6 +47,7 @@ const CONTRACT_SOURCES = [
     path: "packages/game-quiz/src/server/quiz-api-contract.ts",
     prefixConst: "QUIZ_GAME_PREFIX",
     endpointsConst: "QUIZ_GAME_ENDPOINTS",
+    apiTokenConst: "IQuizGameApiToken",
   },
 ];
 
