@@ -8,7 +8,7 @@
 import { onMounted, ref, watch, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
-import { AssetService } from '../../../../applications/assets/asset-service';
+import { AssetService } from '../../../../control/asset/asset-service';
 import gsap from 'gsap';
 
 const route = useRoute();

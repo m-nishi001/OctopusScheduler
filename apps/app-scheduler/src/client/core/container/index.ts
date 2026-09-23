@@ -8,12 +8,11 @@ import {
 } from "../../../server/scheduler-api-contract";
 import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 import { AppEventRepository } from "../../infrastructures/app-event/app-event-repository";
-import { AssetRepository } from "../../infrastructures/assets/asset-repository";
+import { AssetRepository } from "../../model/asset/asset-repository";
 import { IAppEventRepositoryToken } from "../../domains/app-event/app-event-repository";
-import { IAssetRepositoryToken } from "../../domains/assets/repository/asset-repository";
 import { container, instanceCachingFactory } from "tsyringe";
 import { AppEventService } from "../../applications/app-event/app-event-service";
-import { AssetService } from "../../applications/assets/asset-service";
+import { AssetService } from "../../control/asset/asset-service";
 import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
 import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";
 import { ShowContentEventConverter } from "../../applications/app-event/event-converter/show-content-event-converter";
@@ -57,7 +56,7 @@ export class Container {
       ),
     });
 
-    container.register(IAssetRepositoryToken, { useClass: AssetRepository });
+    container.register(AssetRepository, { useClass: AssetRepository });
     container.register(IAppEventRepositoryToken, {
       useClass: AppEventRepository,
     });

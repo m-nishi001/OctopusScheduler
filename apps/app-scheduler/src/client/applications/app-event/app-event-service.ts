@@ -4,7 +4,7 @@ import type { IAppEvent } from "../../domains/app-event/app-event";
 import { injectable, injectAll, inject, container } from "tsyringe";
 import { UIActionEntryToken } from "../../core/container";
 import type { IAppEventDto } from "./i-app-event-dto";
-import type { ExecutionStatus } from "model/domains/app-event/execution-status";
+import type { ExecutionStatus } from "../../domains/app-event/execution-status";
 import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";
 import type { IEventSerializer } from "../../domains/app-event/i-event-serializer";
 

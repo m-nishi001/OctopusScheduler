@@ -12,9 +12,9 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {
-      "model/*": ["./src/client/*"],
-      "ui/*": ["./src/client/ui/*"],
-      "core/*": ["./src/client/core/*"]
+      "@model/*": ["./src/client/model/*"],
+      "@control/*": ["./src/client/control/*"],
+      "@ui/*": ["./src/client/ui/*"]
     },
     "outDir": "dist"
   },

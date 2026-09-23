@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import { HistoryService } from "@octopus/client-common/google-apps-script/gas-history-service";
-import octopusSchedulerRoutes from "ui/router";
+import octopusSchedulerRoutes from "../../ui/router";
 import { jackpotGameRoutes } from "@octopus/game-jackpot";
 import { cardGameRoutes } from "@octopus/game-card";
 import { quizGameRoutes } from "@octopus/game-quiz";

@@ -1,12 +1,12 @@
 import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
-import { AssetService } from "../../../../../../applications/assets/asset-service";
+import { AssetService } from "../../../../../../control/asset/asset-service";
 import { AppEventService } from "../../../../../../applications/app-event/app-event-service";
 import {
   PlayAudioEvent,
   PlayAudioEventParams,
 } from "../../../../../../domains/app-event/play-audio/play-audio-event";
-import type { Asset } from "../../../../../../domains/assets/entity/asset";
+import type { Asset } from "../../../../../../model/asset/asset";
 
 export function useMusicPlaybackEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);

@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
-import { AssetService } from '../../../../applications/assets/asset-service';
+import { AssetService } from '../../../../control/asset/asset-service';
 
 const assetService = container.resolve(AssetService);
 
