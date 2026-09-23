@@ -1,4 +1,5 @@
 export * from "./api-client";
+export * from "./typed-api-client";
 export * from "./file-storage-repository";
 export * from "./key-value-repository";
 export * from "./cache-repository";
