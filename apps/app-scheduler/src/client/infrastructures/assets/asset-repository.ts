@@ -1,8 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callOctopusScheduler } from "../octopus-scheduler-api-client";
+import { IOctopusSchedulerApiToken } from "../../../server/scheduler-api-contract";
+import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 import type { IAssetRepository } from "../../domains/assets/repository/asset-repository";
 import type { Asset } from "../../domains/assets/entity/asset";
 import type { DriveData } from "@octopus/infrastructures/interfaces";
@@ -12,7 +11,8 @@ export class AssetRepository implements IAssetRepository {
   private readonly localStorage: LocalStorageService;
 
   constructor(
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IOctopusSchedulerApiToken)
+    private readonly schedulerApi: OctopusSchedulerApi
   ) {
     this.localStorage = new LocalStorageService("octopus-scheduler", "Asset");
   }
@@ -101,12 +101,7 @@ export class AssetRepository implements IAssetRepository {
     try {
       // Do not send an empty string for folderId. Send an explicit undefined
       // so the server resolves the configured asset folder via ScriptProperties.
-      remoteMetas =
-        (await callOctopusScheduler(
-          this.apiClient,
-          "getDriveMetaData",
-          undefined
-        )) || [];
+      remoteMetas = (await this.schedulerApi.getDriveMetaData(undefined)) || [];
     } catch (e) {
       onProgress?.(`Failed to fetch remote metadata: ${(e as Error).message}`);
       return;
@@ -138,11 +133,7 @@ export class AssetRepository implements IAssetRepository {
         .filter((m: any) => m && m.fileId)
         .map(async (m: any) => {
           try {
-            const res = await callOctopusScheduler<any>(
-              this.apiClient,
-              "getDriveData",
-              m.fileId
-            );
+            const res = await this.schedulerApi.getDriveData(m.fileId);
             if (!res) return null;
             const blobResponse = await fetch(res.fileDataUrl);
             const blob = await blobResponse.blob();
@@ -261,11 +252,7 @@ export class AssetRepository implements IAssetRepository {
         parentFolderId: asset.directoryId || undefined,
       } as any;
 
-      const res = await callOctopusScheduler<any>(
-        this.apiClient,
-        "addDriveData",
-        driveData
-      );
+      const res = await this.schedulerApi.addDriveData(driveData);
       // expect DriveMetadata in response
       if (res) {
         const meta = res as any;
@@ -293,7 +280,7 @@ export class AssetRepository implements IAssetRepository {
         parentFolderId: asset.directoryId || undefined,
       } as any;
 
-      await callOctopusScheduler(this.apiClient, "updateDriveData", driveData);
+      await this.schedulerApi.updateDriveData(driveData);
       await this.localStorage.save(asset.id, {
         ...asset,
         lastUpdated: new Date().toISOString(),

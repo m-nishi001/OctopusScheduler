@@ -14,9 +14,8 @@ import { eventBus } from "@octopus/client-common/events/event-bus";
 import { container } from "tsyringe";
 import type { IAssetRepository } from "../../../../domains/assets/repository/asset-repository";
 import { IAssetRepositoryToken } from "../../../../domains/assets/repository/asset-repository";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callOctopusScheduler } from "../../../../infrastructures/octopus-scheduler-api-client";
+import { IOctopusSchedulerApiToken } from "../../../../../server/scheduler-api-contract";
+import type { OctopusSchedulerApi } from "../../../../../server/scheduler-api-contract";
 
 interface SlideshowData {
     folderId: string;
@@ -31,7 +30,7 @@ const currentIndex = ref(0);
 const intervalId = ref<number | null>(null);
 const slideshowData = ref<SlideshowData | null>(null);
 const assetRepository = container.resolve<IAssetRepository>(IAssetRepositoryToken);
-const apiClient = container.resolve<IApiClient>(IApiClientToken);
+const schedulerApi = container.resolve<OctopusSchedulerApi>(IOctopusSchedulerApiToken);
 
 const route = useRoute();
 
@@ -40,7 +39,7 @@ const startSlideshow = async (data: SlideshowData) => {
     // 1) fetch metadata only
     let metas: any[] = [];
     try {
-        metas = (await callOctopusScheduler<any[]>(apiClient, "getDriveMetaData", data.folderId)) || [];
+        metas = (await schedulerApi.getDriveMetaData(data.folderId)) || [];
     } catch (err) {
         console.error('Failed to fetch drive metadata', err);
     }
@@ -55,7 +54,7 @@ const startSlideshow = async (data: SlideshowData) => {
     // 2) fetch first image immediately (parallel if multiple firsts desired)
     const first = images.value[0];
     try {
-        const res = await callOctopusScheduler<any>(apiClient, "getDriveData", first.id);
+        const res = await schedulerApi.getDriveData(first.id);
         if (res && res.fileDataUrl) {
             const blob = await (await fetch(res.fileDataUrl)).blob();
             first.url = URL.createObjectURL(blob);
@@ -77,7 +76,7 @@ const startSlideshow = async (data: SlideshowData) => {
             const fetchPromises = images.value.map(async (img) => {
                 if (img.url) return; // already loaded
                 try {
-                    const res = await callOctopusScheduler<any>(apiClient, "getDriveData", img.id);
+                    const res = await schedulerApi.getDriveData(img.id);
                     if (!res) return;
                     const blob = await (await fetch(res.fileDataUrl)).blob();
                     img.url = URL.createObjectURL(blob);

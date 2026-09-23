@@ -4,9 +4,8 @@ import type { KeyboardShortcutData } from "./keyboard-shortcut";
 import { KeyboardShortcutConfig } from "./keyboard-shortcut-config";
 import type { KeyboardShortcutConfigData } from "./keyboard-shortcut-config";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callOctopusScheduler } from "../../infrastructures/octopus-scheduler-api-client";
+import { IOctopusSchedulerApiToken } from "../../../server/scheduler-api-contract";
+import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 
 export interface IKeyboardShortcutRepository {
   getKeyboardShortcutsRaw(): Promise<KeyboardShortcutData[]>;
@@ -25,7 +24,8 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
   private readonly localStorage: LocalStorageService;
 
   constructor(
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IOctopusSchedulerApiToken)
+    private readonly schedulerApi: OctopusSchedulerApi
   ) {
     this.localStorage = new LocalStorageService(
       "octopus-scheduler",
@@ -77,12 +77,10 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
     if (direction === "gas-to-local") {
       // GASからデータを取得し、ローカルを完全上書き
       try {
-        const remoteData = await callOctopusScheduler<{
-          shortcuts: string[][];
-          config: any;
-        }>(this.apiClient, "getKeyboardShortcuts", undefined, {
-          timeout: 30000,
-        });
+        const remoteData = await this.schedulerApi.getKeyboardShortcuts(
+          undefined,
+          { timeout: 30000 }
+        );
         if (remoteData) {
           const datas = this.convertLegacyShortcuts(remoteData.shortcuts);
           const serializableDatas = JSON.parse(JSON.stringify(datas));
@@ -105,9 +103,7 @@ export class KeyboardShortcutRepository implements IKeyboardShortcutRepository {
           const actionLegacy = first ? this.serializeActionToLegacy(first) : [];
           return [data.id, JSON.stringify(data.keys), type, ...actionLegacy];
         });
-        await callOctopusScheduler(
-          this.apiClient,
-          "setKeyboardShortcuts",
+        await this.schedulerApi.setKeyboardShortcuts(
           {
             shortcuts: legacyShortcuts,
             config: config.serialize(),
