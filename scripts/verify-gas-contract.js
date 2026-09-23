@@ -10,8 +10,9 @@
  *
  * 背景: GAS の `google.script.run` はトップレベル関数しか呼べず型を持たないため、
  * 呼び出し名のズレが tsc では検出できなかった。このスクリプトがその代わりを担う
- * (もっとも、各機能の callXxxGame() ヘルパー経由の呼び出しはエンドポイント名が
- * `XxxEndpointName` ユニオン型で制約されており、その分は tsc 自体が検出できる)。
+ * (もっとも、型付きAPIクライアント(`createTypedApiClient()` が返す `xxxApi.method()`)
+ * や、移行前の各機能の callXxxGame() ヘルパー経由の呼び出しはエンドポイント名が
+ * 契約側の型で制約されており、その分は tsc 自体が検出できる)。
  */
 import { readFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname, relative } from "path";
@@ -65,7 +66,7 @@ try {
   process.exit(1);
 }
 
-const { contractPaths, endpoints: endpointMap } = contract;
+const { contractPaths, endpoints: endpointMap, apiTokenToPrefix } = contract;
 const expected = new Set(contract.allNames);
 
 info.push(`契約: ${contractPaths.map(rel).join(", ")}`);
@@ -120,6 +121,25 @@ for (const file of sourceFiles) {
       called.get(name).push(rel(file));
     }
     break;
+  }
+
+  // 新: `@inject(IXxxGameApiToken) private readonly foo: XxxGameApi` で受け取った
+  // フィールド経由の `this.foo.method(...)` 呼び出し(型付きAPIクライアント)。
+  for (const [tokenName, prefix] of Object.entries(apiTokenToPrefix)) {
+    if (!src.includes(tokenName)) continue;
+    const injectRe = new RegExp(
+      `@inject\\(${tokenName}\\)\\s*(?:private\\s+)?(?:readonly\\s+)?(\\w+)`,
+      "g"
+    );
+    for (const injectMatch of src.matchAll(injectRe)) {
+      const field = injectMatch[1];
+      const callRe = new RegExp(`\\bthis\\.${field}\\.(\\w+)\\s*\\(`, "g");
+      for (const callMatch of src.matchAll(callRe)) {
+        const name = `${prefix}_${callMatch[1]}`;
+        if (!called.has(name)) called.set(name, []);
+        called.get(name).push(rel(file));
+      }
+    }
   }
 }
 
