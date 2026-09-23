@@ -124,7 +124,7 @@ import { container } from 'tsyringe';
 import { DrawResultService } from '@model/applications/draw/draw-result-service';
 import { PrizeService } from '@model/applications/prize/prize-service';
 import type { DrawResultDto } from '@model/applications/draw/dto/draw-result-dto';
-import type { Prize } from '../../../model/domains/prize/prize';
+import type { Prize } from '../../../domains/prize/prize';
 import type { MemberDto } from '@model/applications/member/dto/member-dto';
 import { IPrizeRepositoryToken } from '@model/domains/prize/repository/i-prize-repository';
 import { IMemberRepositoryToken } from '@model/domains/member/repository/i-member-repository';

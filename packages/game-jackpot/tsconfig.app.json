@@ -15,23 +15,21 @@
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "paths": {
-      "@model/*": ["./src/model/*"],
-      "pages/*": ["./src/ui/pages/*"],
-      "pages": ["./src/ui/pages"],
-      "domains/*": ["./src/model/domains/*"],
-      "applications/*": ["./src/model/applications/*"],
-      "components/*": ["./src/ui/components/*"],
-      "components": ["./src/ui/components"],
-      "@composables": ["./src/composables"],
-      "@composables/*": ["./src/composables/*"],
-      "server/*": ["./../../../server/*"]
+      "@model/*": ["./src/client/*"],
+      "pages/*": ["./src/client/ui/pages/*"],
+      "pages": ["./src/client/ui/pages"],
+      "domains/*": ["./src/client/domains/*"],
+      "applications/*": ["./src/client/applications/*"],
+      "components/*": ["./src/client/ui/components/*"],
+      "components": ["./src/client/ui/components"],
+      "@composables": ["./src/client/composables"],
+      "@composables/*": ["./src/client/composables/*"]
     }
   },
   "references": [
-    { "path": "../core" },
+    { "path": "../infrastructures" },
     { "path": "../client-common" },
-    { "path": "../composables" },
-    { "path": "../server" }
+    { "path": "../composables" }
   ],
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.vue"]
 }
