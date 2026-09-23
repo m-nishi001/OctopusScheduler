@@ -8,10 +8,10 @@ import type {
 /**
  * IKeyValueStorage の GAS 実装。
  *
- * 単純な文字列値(get/set)は PropertiesService、内容付きの値(put*/getContent*/
- * stat/listByPrefix/delete)は DriveApp に委譲する。内容付きの値のキーは
- * 呼び出し側の規約により常に `"<folderId>/<localName>"` の形をしており、
- * folderId 部分を Drive フォルダIDとして解釈する。
+ * 単純な文字列値(get/set)は PropertiesService、内容付きの値(putText, putBinary,
+ * getContent, getContentAsText, stat, listByPrefix, delete)は DriveApp に委譲する。
+ * 内容付きの値のキーは呼び出し側の規約により常に `"<folderId>/<localName>"` の
+ * 形をしており、folderId 部分を Drive フォルダIDとして解釈する。
  */
 @injectable()
 export class GasKeyValueStorage implements IKeyValueStorage {

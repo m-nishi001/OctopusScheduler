@@ -1,23 +1,25 @@
 import type {
-  ICacheRepository,
-  IFormRepository,
-  IKeyValueRepository,
-  RecordStoreRepositoryFactory,
+  ICache,
+  IKeyValueStorage,
+  DataBaseFactory,
 } from "@octopus/infrastructures/interfaces";
 import { getMappedResponses } from "./get-mapped-responses-use-case";
 import type { ProcessedResultDto, StopAndGetProcessedResultsArgs } from "./quiz-api-contract";
 
 export interface StopAndGetProcessedResultsDeps {
-  form: IFormRepository;
-  recordStoreFactory: RecordStoreRepositoryFactory;
-  cache: ICacheRepository;
-  kv: IKeyValueRepository;
+  form: {
+    stopAcceptingResponses(formId: string): void;
+    getDestinationRecordStoreId(formId: string): string | null;
+  };
+  dataBaseFactory: DataBaseFactory;
+  cache: ICache;
+  storage: IKeyValueStorage;
 }
 
 /**
  * quizGame_stopAndGetProcessedResults。フォーム停止 -> 回答取得 -> 正答/有効タイムスタンプで
  * フィルタ -> 昇順ソート -> 順位付け、という流れ。フォーム停止は quizGame_stopForm と
- * 同じ IFormRepository 呼び出しに統合している(挙動は同一)。回答取得も JSON文字列の
+ * 同じ Form 呼び出しに統合している(挙動は同一)。回答取得も JSON文字列の
  * ラウンドトリップを廃し、通常の関数呼び出しにしている。
  */
 export function stopAndGetProcessedResults(

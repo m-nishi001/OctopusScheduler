@@ -1,5 +1,5 @@
 import type { Prize } from "./prize";
-import type { DriveJsonData } from "@octopus/infrastructures/interfaces";
+import type { DriveJsonData } from "@octopus/infrastructures/compositions";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";

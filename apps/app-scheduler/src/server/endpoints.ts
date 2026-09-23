@@ -8,18 +8,14 @@
  */
 import { container } from "tsyringe";
 import {
-  ICacheRepositoryToken,
-  IFileStorageRepositoryToken,
-  IKeyValueRepositoryToken,
-  ILockRepositoryToken,
+  ICacheToken,
+  IKeyValueStorageToken,
 } from "@octopus/infrastructures/interfaces";
 import type {
-  ICacheRepository,
-  IFileStorageRepository,
-  IKeyValueRepository,
-  ILockRepository,
+  ICache,
+  IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
-import type { DriveData } from "@octopus/infrastructures/interfaces";
+import type { DriveData } from "@octopus/infrastructures/compositions";
 
 import {
   addSchedulerDriveData,
@@ -34,11 +30,8 @@ import {
 
 function resolveDeps() {
   return {
-    fileStorage: container.resolve<IFileStorageRepository>(
-      IFileStorageRepositoryToken
-    ),
-    kv: container.resolve<IKeyValueRepository>(IKeyValueRepositoryToken),
-    cache: container.resolve<ICacheRepository>(ICacheRepositoryToken),
+    storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
+    cache: container.resolve<ICache>(ICacheToken),
   };
 }
 
@@ -94,7 +87,7 @@ _octopusScheduler_updateDriveData = (driveData: DriveData): string => {
 
 _octopusScheduler_getKeyboardShortcuts = (): string => {
   try {
-    const kv = container.resolve<IKeyValueRepository>(IKeyValueRepositoryToken);
+    const kv = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
     const result = getKeyboardShortcuts({ kv });
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
@@ -107,7 +100,7 @@ _octopusScheduler_setKeyboardShortcuts = (payload: {
   config: unknown;
 }): string => {
   try {
-    const kv = container.resolve<IKeyValueRepository>(IKeyValueRepositoryToken);
+    const kv = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
     setKeyboardShortcuts({ kv }, payload);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
@@ -120,8 +113,9 @@ _octopusScheduler_doGet = (
 ): GoogleAppsScript.HTML.HtmlOutput => {
   try {
     try {
-      const lock = container.resolve<ILockRepository>(ILockRepositoryToken);
-      lock.tryReleaseScriptLock();
+      // GAS固有のクリーンアップ: 保持しているスクリプトロックがあれば念のため解放する。
+      // ドメインの排他制御とは無関係のため、ポート化せずここで直接呼ぶ。
+      LockService.getScriptLock().releaseLock();
     } catch {
       // 既存挙動を保持: ロック解放の失敗は無視する。
     }

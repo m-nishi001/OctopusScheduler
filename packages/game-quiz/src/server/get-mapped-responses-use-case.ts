@@ -1,16 +1,15 @@
 import type {
-  ICacheRepository,
-  IFormRepository,
-  IKeyValueRepository,
-  RecordStoreRepositoryFactory,
+  ICache,
+  IKeyValueStorage,
+  DataBaseFactory,
 } from "@octopus/infrastructures/interfaces";
 import { EMAIL_NAME_MAP_CACHE_KEY, loadEmailNameMap } from "./load-email-name-map-use-case";
 
 export interface GetMappedResponsesDeps {
-  form: IFormRepository;
-  recordStoreFactory: RecordStoreRepositoryFactory;
-  cache: ICacheRepository;
-  kv: IKeyValueRepository;
+  form: { getDestinationRecordStoreId(formId: string): string | null };
+  dataBaseFactory: DataBaseFactory;
+  cache: ICache;
+  storage: IKeyValueStorage;
 }
 
 /**
@@ -27,12 +26,12 @@ export function getMappedResponses(
     throw new Error("No destination spreadsheet linked to the form");
   }
 
-  const recordStore = deps.recordStoreFactory(spreadsheetId);
-  const sheetNames = recordStore.listCollections();
+  const dataBase = deps.dataBaseFactory(spreadsheetId);
+  const sheetNames = dataBase.listCollections();
   if (!sheetNames || sheetNames.length === 0) {
     throw new Error("No sheets found in the destination spreadsheet");
   }
-  const collection = recordStore.getCollection(sheetNames[0]);
+  const collection = dataBase.getCollection(sheetNames[0]);
   const values = (collection?.rows ?? []) as unknown[][];
   if (!values || values.length < 2) return [];
 
@@ -57,9 +56,9 @@ export function getMappedResponses(
   if (!emailNameMap) {
     try {
       emailNameMap = loadEmailNameMap({
-        kv: deps.kv,
+        storage: deps.storage,
         cache: deps.cache,
-        recordStoreFactory: deps.recordStoreFactory,
+        dataBaseFactory: deps.dataBaseFactory,
       });
     } catch {
       emailNameMap = {};

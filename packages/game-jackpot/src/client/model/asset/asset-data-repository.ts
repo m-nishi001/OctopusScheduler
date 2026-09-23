@@ -7,7 +7,7 @@ import { Asset } from "./asset-data";
 import type {
   DriveData,
   DriveMetadata,
-} from "@octopus/infrastructures/interfaces";
+} from "@octopus/infrastructures/compositions";
 
 @injectable()
 export class AssetDataRepository {

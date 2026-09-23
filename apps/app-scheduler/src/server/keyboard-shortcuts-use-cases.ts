@@ -1,7 +1,7 @@
-import type { IKeyValueRepository } from "@octopus/infrastructures/interfaces";
+import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 
 export interface KeyboardShortcutsUseCaseDeps {
-  kv: IKeyValueRepository;
+  kv: IKeyValueStorage;
 }
 
 const SHORTCUTS_KEY = "keyboard-shortcuts";

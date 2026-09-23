@@ -8,19 +8,16 @@
  */
 import { container } from "tsyringe";
 import {
-  ICacheRepositoryToken,
-  IFileStorageRepositoryToken,
-  IFormRepositoryToken,
-  IKeyValueRepositoryToken,
-  RecordStoreRepositoryFactoryToken,
+  ICacheToken,
+  IKeyValueStorageToken,
+  DataBaseFactoryToken,
 } from "@octopus/infrastructures/interfaces";
 import type {
-  ICacheRepository,
-  IFileStorageRepository,
-  IFormRepository,
-  IKeyValueRepository,
-  RecordStoreRepositoryFactory,
+  ICache,
+  IKeyValueStorage,
+  DataBaseFactory,
 } from "@octopus/infrastructures/interfaces";
+import { GasFormRepository } from "@octopus/infrastructures/gas/gas-form-repository";
 import type {
   AddDriveDataArgs,
   AddJsonArgs,
@@ -53,15 +50,10 @@ import { listJsonBlobMetadata } from "./list-json-blob-metadata-use-case";
 
 function resolveDeps() {
   return {
-    fileStorage: container.resolve<IFileStorageRepository>(
-      IFileStorageRepositoryToken
-    ),
-    kv: container.resolve<IKeyValueRepository>(IKeyValueRepositoryToken),
-    cache: container.resolve<ICacheRepository>(ICacheRepositoryToken),
-    form: container.resolve<IFormRepository>(IFormRepositoryToken),
-    recordStoreFactory: container.resolve<RecordStoreRepositoryFactory>(
-      RecordStoreRepositoryFactoryToken
-    ),
+    storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
+    cache: container.resolve<ICache>(ICacheToken),
+    form: container.resolve(GasFormRepository),
+    dataBaseFactory: container.resolve<DataBaseFactory>(DataBaseFactoryToken),
   };
 }
 

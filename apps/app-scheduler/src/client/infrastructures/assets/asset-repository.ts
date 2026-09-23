@@ -4,7 +4,7 @@ import { IOctopusSchedulerApiToken } from "../../../server/scheduler-api-contrac
 import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 import type { IAssetRepository } from "../../domains/assets/repository/asset-repository";
 import type { Asset } from "../../domains/assets/entity/asset";
-import type { DriveData } from "@octopus/infrastructures/interfaces";
+import type { DriveData } from "@octopus/infrastructures/compositions";
 
 @injectable()
 export class AssetRepository implements IAssetRepository {

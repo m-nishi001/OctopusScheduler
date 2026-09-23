@@ -1,70 +1,53 @@
 import { describe, it, expect } from "vitest";
-import { InMemoryFileStorageRepository } from "./fakes/in-memory-file-storage-repository";
-import { InMemoryKeyValueRepository } from "./fakes/in-memory-key-value-repository";
+import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { getJsonBlob } from "../get-json-blob-use-case";
 
 const JSON_FOLDER_PROPERTY = "quiz-game-json-folder";
 
 describe("getJsonBlob", () => {
   it("returns an empty array (still success) when the folder property is not configured", () => {
-    const fileStorage = new InMemoryFileStorageRepository();
-    const kv = new InMemoryKeyValueRepository();
+    const storage = new InMemoryKeyValueStorage();
 
-    const result = getJsonBlob({ fileStorage, kv });
+    const result = getJsonBlob({ storage });
     expect(result).toEqual({ json: "[]" });
   });
 
   it("reads the default quizzes.json file when no fileId is given", () => {
-    const fileStorage = new InMemoryFileStorageRepository();
-    const kv = new InMemoryKeyValueRepository();
-    kv.set(JSON_FOLDER_PROPERTY, "folder-1");
-    fileStorage.createTextFile({
-      folderId: "folder-1",
-      fileName: "quizzes.json",
-      mimeType: "application/json",
-      content: JSON.stringify([{ id: "q1" }]),
-    });
+    const storage = new InMemoryKeyValueStorage();
+    storage.set(JSON_FOLDER_PROPERTY, "folder-1");
+    storage.putText("folder-1/quizzes.json", JSON.stringify([{ id: "q1" }]), "application/json");
 
-    const result = getJsonBlob({ fileStorage, kv });
+    const result = getJsonBlob({ storage });
     expect(JSON.parse(result.json)).toEqual([{ id: "q1" }]);
   });
 
   it("returns an empty array (still success) when the default file is missing", () => {
-    const fileStorage = new InMemoryFileStorageRepository();
-    const kv = new InMemoryKeyValueRepository();
-    kv.set(JSON_FOLDER_PROPERTY, "folder-1");
+    const storage = new InMemoryKeyValueStorage();
+    storage.set(JSON_FOLDER_PROPERTY, "folder-1");
 
-    const result = getJsonBlob({ fileStorage, kv });
+    const result = getJsonBlob({ storage });
     expect(result).toEqual({ json: "[]" });
   });
 
   it("returns an empty array (still success) when the stored content is malformed JSON", () => {
-    const fileStorage = new InMemoryFileStorageRepository();
-    const kv = new InMemoryKeyValueRepository();
-    kv.set(JSON_FOLDER_PROPERTY, "folder-1");
-    fileStorage.createTextFile({
-      folderId: "folder-1",
-      fileName: "quizzes.json",
-      mimeType: "application/json",
-      content: "{not valid json",
-    });
+    const storage = new InMemoryKeyValueStorage();
+    storage.set(JSON_FOLDER_PROPERTY, "folder-1");
+    storage.putText("folder-1/quizzes.json", "{not valid json", "application/json");
 
-    const result = getJsonBlob({ fileStorage, kv });
+    const result = getJsonBlob({ storage });
     expect(result).toEqual({ json: "[]" });
   });
 
-  it("falls back to a filename-prefix match when the given fileId is not a real Drive id", () => {
-    const fileStorage = new InMemoryFileStorageRepository();
-    const kv = new InMemoryKeyValueRepository();
-    kv.set(JSON_FOLDER_PROPERTY, "folder-1");
-    fileStorage.createTextFile({
-      folderId: "folder-1",
-      fileName: "app-123_quizzes.json",
-      mimeType: "application/json",
-      content: JSON.stringify([{ id: "q2" }]),
-    });
+  it("falls back to a filename-prefix match when the given fileId is not a real key", () => {
+    const storage = new InMemoryKeyValueStorage();
+    storage.set(JSON_FOLDER_PROPERTY, "folder-1");
+    storage.putText(
+      "folder-1/app-123_quizzes.json",
+      JSON.stringify([{ id: "q2" }]),
+      "application/json"
+    );
 
-    const result = getJsonBlob({ fileStorage, kv }, "app-123");
+    const result = getJsonBlob({ storage }, "app-123");
     expect(JSON.parse(result.json)).toEqual([{ id: "q2" }]);
   });
 });

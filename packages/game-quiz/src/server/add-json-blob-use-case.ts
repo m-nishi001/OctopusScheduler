@@ -1,14 +1,9 @@
-import type {
-  DriveJsonData,
-  DriveMetadata,
-  IFileStorageRepository,
-  IKeyValueRepository,
-} from "@octopus/infrastructures/interfaces";
-import { resolveFolderIdPreferringProvided } from "@octopus/infrastructures/interfaces";
+import type { DriveJsonData, DriveMetadata } from "@octopus/infrastructures/compositions";
+import { resolveFolderIdPreferringProvided } from "@octopus/infrastructures/compositions";
+import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 
 export interface AddJsonBlobDeps {
-  fileStorage: IFileStorageRepository;
-  kv: IKeyValueRepository;
+  storage: IKeyValueStorage;
 }
 
 const JSON_FOLDER_PROPERTY = "quiz-game-json-folder";
@@ -21,27 +16,23 @@ export function addJsonBlob(
   deps: AddJsonBlobDeps,
   driveJson: DriveJsonData
 ): DriveMetadata {
-  const folderId = resolveFolderIdPreferringProvided(
-    { kv: deps.kv },
+  const namespace = resolveFolderIdPreferringProvided(
+    { kv: deps.storage },
     JSON_FOLDER_PROPERTY,
     driveJson.parentFolderId
   );
 
   const appFileId = driveJson.appFileId ?? "";
-  const fileName = appFileId ? `${appFileId}_${driveJson.fileName}` : driveJson.fileName;
+  const localName = appFileId ? `${appFileId}_${driveJson.fileName}` : driveJson.fileName;
+  const key = `${namespace}/${localName}`;
 
-  const meta = deps.fileStorage.createTextFile({
-    folderId,
-    fileName,
-    mimeType: "application/json",
-    content: driveJson.jsonText,
-  });
+  const meta = deps.storage.putText(key, driveJson.jsonText, "application/json");
 
   return {
-    driveDataId: meta.fileName.split("_")[0] || meta.fileId,
-    fileId: meta.fileId,
-    parentFolderId: folderId,
-    lastUpdate: meta.lastUpdate,
+    driveDataId: appFileId || meta.key,
+    fileId: meta.key,
+    parentFolderId: namespace,
+    lastUpdate: meta.updatedAt,
     size: meta.size,
   };
 }
