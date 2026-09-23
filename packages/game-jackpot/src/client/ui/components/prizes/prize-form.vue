@@ -58,11 +58,11 @@ import FieldNumberStepper from '../../../ui/pages/admin/prizes/components/field-
 import FieldSelect from '../../../ui/pages/admin/prizes/components/field-select.vue';
 import ImageField from '../../../ui/pages/admin/prizes/components/image-field.vue';
 import BgmField from '../../../ui/pages/admin/prizes/components/bgm-field.vue';
-import { useObjectUrlStore } from '@composables/prizes/use-object-url-store';
-import { useAssetUpload } from '@composables/prizes/use-asset-upload';
+import { useObjectUrlStore } from '@ui/composables/use-object-url-store';
+import { useAssetUpload } from '@ui/composables/use-asset-upload';
 import { container } from 'tsyringe';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import type { Asset } from '@model/domains/drive-data/asset-data';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import type { Asset } from '@model/asset/asset-data';
 
 const props = defineProps({
   mode: { type: String as () => 'add' | 'edit', required: true },

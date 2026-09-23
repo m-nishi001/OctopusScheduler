@@ -29,9 +29,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import CustomSelect from './custom-select.vue';
-import type { Asset } from '@model/domains/drive-data/asset-data';
+import type { Asset } from '@model/asset/asset-data';
 import { container } from 'tsyringe';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
 import { useAudio } from '@octopus/composables/use-audio';
 
 const props = defineProps<{

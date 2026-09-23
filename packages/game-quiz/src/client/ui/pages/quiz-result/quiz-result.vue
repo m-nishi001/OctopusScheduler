@@ -31,10 +31,10 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
-import { PrepareQuizResultsUseCase } from '../../../applications/use-cases/prepare-quiz-results-use-case';
-import type { QuizDto } from '../../../applications/dtos/quiz-dto';
-import PrizeDialog from '../../../components/prize-dialog.vue';
-import { usePrizeOrchestrator } from '../../../composables/use-prize-orchestrator';
+import { PrepareQuizResultsUseCase } from '../../../control/use-cases/prepare-quiz-results-use-case';
+import type { QuizDto } from '../../../control/dto/quiz-dto';
+import PrizeDialog from '../../components/prize-dialog.vue';
+import { usePrizeOrchestrator } from '../../composables/use-prize-orchestrator';
 
 const router = useRouter();
 const route = useRoute();

@@ -23,14 +23,14 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
-import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { container } from 'tsyringe';
-import { PrizeRepository } from '@model/infrastructures/prize-repository';
-import { MemberRepository } from '@model/infrastructures/member-repository';
-import { DrawApplicationService } from '@model/applications/draw/draw-application-service';
-import { DrawResultService } from '@model/applications/draw/draw-result-service';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { DemoScreenSetting } from '@model/domains/screen-config/demo-screen-setting';
+import { PrizeRepository } from '@model/prize/prize-repository';
+import { MemberRepository } from '@model/member/member-repository';
+import { DrawApplicationService } from '@control/draw/draw-application-service';
+import { DrawResultService } from '@control/draw/draw-result-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import { DemoScreenSetting } from '@model/screen-config/demo-screen-setting';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },

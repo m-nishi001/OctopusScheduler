@@ -12,20 +12,18 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@model": resolve(__dirname, "src/client"),
+      "@model": resolve(__dirname, "src/client/model"),
+      "@control": resolve(__dirname, "src/client/control"),
+      "@ui": resolve(__dirname, "src/client/ui"),
       "@octopus/composables": resolve(
         __dirname,
         "../composables/src"
       ),
       "@octopus/client-common": resolve(__dirname, "../client-common/src"),
-      pages: resolve(__dirname, "src/client/ui/pages"),
-      components: resolve(__dirname, "src/client/ui/components"),
       "packages/common-lib": resolve(
         __dirname,
         "../client-common/src"
       ),
-      "@composables": resolve(__dirname, "src/client/composables"),
-      "@components": resolve(__dirname, "src/client/components"),
     },
   },
 });

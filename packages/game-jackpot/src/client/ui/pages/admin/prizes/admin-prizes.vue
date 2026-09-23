@@ -109,13 +109,12 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { usePrizes } from './use-prizes';
 import { useAssets } from './use-assets';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { PrizeService } from '@model/applications/prize/prize-service';
-import type { IPrizeRepository } from '@model/domains/prize/repository/i-prize-repository';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import { PrizeService } from '@control/prize/prize-service';
+import { PrizeRepository } from '@model/prize/prize-repository';
 
 import { container } from 'tsyringe';
-import { IPrizeRepositoryToken } from '@model/domains/prize/repository/i-prize-repository';
-const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
+const prizeRepo = container.resolve(PrizeRepository);
 const assetDataService = container.resolve(AssetDataService);
 const prizeService = container.resolve(PrizeService);
 // initialize composables

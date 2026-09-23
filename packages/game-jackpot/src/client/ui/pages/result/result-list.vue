@@ -18,11 +18,11 @@
 import MainLayout from '../common/main-layout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { DrawResultService } from '@model/applications/draw/draw-result-service';
-import type { DrawResultDto } from '@model/applications/draw/dto/draw-result-dto';
+import { DrawResultService } from '@control/draw/draw-result-service';
+import type { DrawResultDto } from '@control/draw/dto/draw-result-dto';
 
 import { container } from 'tsyringe';
-import { ScreenSettingsService } from '@model/applications/screen-config/screen-settings-service';
+import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 
 export default {
 	name: 'Result',

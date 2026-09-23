@@ -5,7 +5,7 @@
   "scripts": {
     "lint": "eslint src",
     "typecheck": "vue-tsc --noEmit && tsc -b tsconfig.server.json",
-    "test": "vitest --config vitest.server.config.ts"
+    "test": "vitest --config vitest.config.ts && vitest --config vitest.server.config.ts"
   },
   "dependencies": {
     "@octopus/client-common": "*",
@@ -38,7 +38,9 @@
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "core-js": "^3.44.0",
+    "jsdom": "^27.0.1",
     "reflect-metadata": "^0.2.2",
-    "tsyringe": "^4.10.0"
+    "tsyringe": "^4.10.0",
+    "vitest": "^4.0.8"
   }
 }

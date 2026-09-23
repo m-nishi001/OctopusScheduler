@@ -1,13 +1,11 @@
 import { ref, computed, onMounted } from "vue";
 import { container } from "tsyringe";
 
-import { ScreenSettingsService } from "@model/applications/screen-config/screen-settings-service";
-import type { Asset } from "@model/domains/drive-data/asset-data";
-import { AssetDataService } from "@model/applications/asset/asset-data-service";
-import type { IMemberRepository } from "@model/domains/member/repository/i-member-repository";
-import { IMemberRepositoryToken } from "@model/domains/member/repository/i-member-repository";
-import type { IPrizeRepository } from "@model/domains/prize/repository/i-prize-repository";
-import { IPrizeRepositoryToken } from "@model/domains/prize/repository/i-prize-repository";
+import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
+import type { Asset } from "@model/asset/asset-data";
+import { AssetDataService } from "@control/asset/asset-data-service";
+import { MemberRepository } from "@model/member/member-repository";
+import { PrizeRepository } from "@model/prize/prize-repository";
 
 export function useScreenSettingData() {
   const assetService = container.resolve(AssetDataService);
@@ -23,10 +21,8 @@ export function useScreenSettingData() {
   const uploading = ref(false);
   const tempAssets = ref<Asset[]>([]);
 
-  const memberRepo = container.resolve<IMemberRepository>(
-    IMemberRepositoryToken
-  );
-  const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
+  const memberRepo = container.resolve(MemberRepository);
+  const prizeRepo = container.resolve(PrizeRepository);
 
   const fetchAssets = async () => {
     try {

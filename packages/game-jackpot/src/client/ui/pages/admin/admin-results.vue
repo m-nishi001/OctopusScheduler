@@ -121,22 +121,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { container } from 'tsyringe';
-import { DrawResultService } from '@model/applications/draw/draw-result-service';
-import { PrizeService } from '@model/applications/prize/prize-service';
-import type { DrawResultDto } from '@model/applications/draw/dto/draw-result-dto';
-import type { Prize } from '../../../domains/prize/prize';
-import type { MemberDto } from '@model/applications/member/dto/member-dto';
-import { IPrizeRepositoryToken } from '@model/domains/prize/repository/i-prize-repository';
-import { IMemberRepositoryToken } from '@model/domains/member/repository/i-member-repository';
-import type { IPrizeRepository } from '@model/domains/prize/repository/i-prize-repository';
-import type { IMemberRepository } from '@model/domains/member/repository/i-member-repository';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import { PrizeDrawStateRepository } from '@model/infrastructures/draw/prize-draw-state-repository';
+import { DrawResultService } from '@control/draw/draw-result-service';
+import { PrizeService } from '@control/prize/prize-service';
+import type { DrawResultDto } from '@control/draw/dto/draw-result-dto';
+import type { Prize } from '../../../model/prize/prize';
+import type { MemberDto } from '@control/member/dto/member-dto';
+import { MemberRepository } from '@model/member/member-repository';
+import { PrizeRepository } from '@model/prize/prize-repository';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import { PrizeDrawStateRepository } from '@model/draw/prize-draw-state-repository';
 
 const drawResultService = container.resolve(DrawResultService);
 const prizeService = container.resolve(PrizeService);
-const memberRepo = container.resolve<IMemberRepository>(IMemberRepositoryToken);
-const prizeRepo = container.resolve<IPrizeRepository>(IPrizeRepositoryToken);
+const memberRepo = container.resolve(MemberRepository);
+const prizeRepo = container.resolve(PrizeRepository);
 const assetService = container.resolve(AssetDataService);
 const prizeDrawStateRepository = container.resolve<PrizeDrawStateRepository>(PrizeDrawStateRepository);
 

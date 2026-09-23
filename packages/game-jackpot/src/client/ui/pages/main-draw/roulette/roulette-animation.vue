@@ -11,8 +11,8 @@ import { defineComponent, computed, onMounted, watch } from 'vue';
 import { useRouletteAnimation, type RouletteItem, type RouletteAnimationProps } from './roulette-animation-logic';
 import { useRouletteAnimationState } from '../prize-animation-state';
 import { container } from 'tsyringe';
-import { AssetDataService } from '@model/applications/asset/asset-data-service';
-import type { PrizeDto } from '@model/applications/prize/dto/prize-dto';
+import { AssetDataService } from '@control/asset/asset-data-service';
+import type { PrizeDto } from '@control/prize/dto/prize-dto';
 
 export default defineComponent({
     name: 'RouletteAnimation',
