@@ -1,20 +1,9 @@
 import { inject, injectable } from "tsyringe";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
 import { Quiz } from "./quiz";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import type {
-  QuizWithDataUrl,
-  GetJsonArgs,
-  GetDriveDataArgs,
-  AddDriveDataArgs,
-  ListJsonMetaDataArgs,
-  RemoveDriveDataArgs,
-  GetDriveMetaDataArgs,
-  AddJsonArgs,
-} from "../../server/quiz-api-contract";
+import { IQuizGameApiToken } from "../../server/quiz-api-contract";
+import type { QuizGameApi, QuizWithDataUrl } from "../../server/quiz-api-contract";
 import { dataUrlToBlob } from "./blob-utils";
-import { callQuizGame } from "./quiz-api-client";
 
 @injectable()
 export class QuizRepository {
@@ -24,7 +13,7 @@ export class QuizRepository {
   );
 
   constructor(
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi
   ) {}
 
   async getQuizById(id: string): Promise<Quiz | null> {
@@ -83,10 +72,7 @@ export class QuizRepository {
 
     if (direction === "gas-to-local") {
       onProgress?.("GASからクイズを取得中...");
-      const jsonArgs: GetJsonArgs = {};
-      const jsonResp = await callQuizGame<{ json: string }>(this.apiClient, "getJson",
-        jsonArgs
-      );
+      const jsonResp = await this.quizApi.getJson({});
       const jsonText = jsonResp?.json ?? JSON.stringify([]);
       let quizzes: QuizWithDataUrl[] = [];
       try {
@@ -132,10 +118,7 @@ export class QuizRepository {
           const fid = q.bgm.replace(/^drive:/, "");
           assetTasks.push(async () => {
             try {
-              const args: GetDriveDataArgs = { dataId: fid };
-              const data = await callQuizGame<any>(this.apiClient, "getDriveData",
-                args
-              );
+              const data = await this.quizApi.getDriveData({ dataId: fid });
               if (data && data.fileDataUrl) {
                 q.bgm = data.fileDataUrl;
                 successCount++;
@@ -160,10 +143,7 @@ export class QuizRepository {
             const fid = o.image.replace(/^drive:/, "");
             assetTasks.push(async () => {
               try {
-                const args: GetDriveDataArgs = { dataId: fid };
-                const data = await callQuizGame<any>(this.apiClient, "getDriveData",
-                  args
-                );
+                const data = await this.quizApi.getDriveData({ dataId: fid });
                 if (data && data.fileDataUrl) {
                   o.image = data.fileDataUrl;
                   successCount++;
@@ -355,10 +335,7 @@ export class QuizRepository {
             fileDataUrl: task.dataUrl,
             uploadDate: new Date().toISOString(),
           };
-          const args: AddDriveDataArgs = { driveData: payload };
-          const meta = await callQuizGame<any>(this.apiClient, "addDriveData",
-            args
-          );
+          const meta = await this.quizApi.addDriveData({ driveData: payload });
           uploadResults.push({ task, success: true, fileId: meta?.fileId });
         } catch (e: any) {
           uploadResults.push({
@@ -415,46 +392,33 @@ export class QuizRepository {
 
       // best-effort cleanup: remove existing json/assets then add new json
       try {
-        const listJsonArgs: ListJsonMetaDataArgs = {};
-        const jsonMeta = await callQuizGame<any>(this.apiClient, "listJsonMetaData",
-          listJsonArgs
-        );
+        const jsonMeta = await this.quizApi.listJsonMetaData({});
         if (Array.isArray(jsonMeta)) {
           await Promise.all(
-            jsonMeta.map((m: any) => {
-              const args: RemoveDriveDataArgs = { dataId: m.fileId };
-              return callQuizGame<void>(this.apiClient, "removeDriveData", args);
-            })
+            jsonMeta.map((m) => this.quizApi.removeDriveData({ dataId: m.fileId }))
           );
         }
       } catch (_) {}
 
       try {
-        const listAssetsArgs: GetDriveMetaDataArgs = {};
-        const assetMeta = await callQuizGame<any>(this.apiClient, "getDriveMetaData",
-          listAssetsArgs
-        );
+        const assetMeta = await this.quizApi.getDriveMetaData({});
         if (Array.isArray(assetMeta)) {
           await Promise.all(
-            assetMeta.map((m: any) => {
-              const args: RemoveDriveDataArgs = { dataId: m.fileId };
-              return callQuizGame<void>(this.apiClient, "removeDriveData", args);
-            })
+            assetMeta.map((m) => this.quizApi.removeDriveData({ dataId: m.fileId }))
           );
         }
       } catch (_) {}
 
       try {
         const jsonText = JSON.stringify(quizzesWithDataUrl);
-        const args: AddJsonArgs = {
+        await this.quizApi.addJson({
           driveJson: {
             fileName: "quizzes.json",
             jsonText,
             uploadDate: new Date().toISOString(),
             parentFolderId: "",
           },
-        };
-        await callQuizGame<any>(this.apiClient, "addJson", args);
+        });
       } catch (e) {
         // ignore json write errors for best-effort; record as failure
         failedFiles.push("quizzes.json");

@@ -5,7 +5,12 @@
  * 両方がここから型を参照する。エンドポイント名一覧は infrastructures/gas の
  * esbuild banner/footer コード生成、および scripts/gas-contract.js の集約対象になる。
  */
-import type { DriveData, DriveJsonData } from "@octopus/infrastructures/interfaces";
+import type {
+  ApiCallOptions,
+  DriveData,
+  DriveJsonData,
+  DriveMetadata,
+} from "@octopus/infrastructures/interfaces";
 
 export const QUIZ_GAME_PREFIX = "quizGame" as const;
 
@@ -111,3 +116,38 @@ export interface GetJsonArgs {
 export interface ListJsonMetaDataArgs {
   folderId?: string;
 }
+
+/**
+ * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
+ * Proxyの型として使う。各メソッドの引数・戻り値は `server/endpoints.ts` と
+ * その先の use-case 実装の実際のシグネチャに合わせている。
+ */
+export interface QuizGameApi {
+  stopForm(args: StopFormArgs, options?: ApiCallOptions): Promise<void>;
+  getSheetData(args: GetSheetDataArgs, options?: ApiCallOptions): Promise<SheetRow[]>;
+  stopAndGetProcessedResults(
+    args: StopAndGetProcessedResultsArgs,
+    options?: ApiCallOptions
+  ): Promise<ProcessedResultDto[]>;
+  loadEmailNameMap(args: LoadEmailNameMapArgs, options?: ApiCallOptions): Promise<void>;
+  getMappedResponses(
+    args: GetMappedResponsesArgs,
+    options?: ApiCallOptions
+  ): Promise<Record<string, unknown>[]>;
+  addDriveData(args: AddDriveDataArgs, options?: ApiCallOptions): Promise<DriveMetadata>;
+  getDriveMetaData(
+    args: GetDriveMetaDataArgs,
+    options?: ApiCallOptions
+  ): Promise<DriveMetadata[]>;
+  getDriveData(args: GetDriveDataArgs, options?: ApiCallOptions): Promise<DriveData>;
+  removeDriveData(args: RemoveDriveDataArgs, options?: ApiCallOptions): Promise<void>;
+  addJson(args: AddJsonArgs, options?: ApiCallOptions): Promise<DriveMetadata>;
+  getJson(args: GetJsonArgs, options?: ApiCallOptions): Promise<{ json: string }>;
+  listJsonMetaData(
+    args: ListJsonMetaDataArgs,
+    options?: ApiCallOptions
+  ): Promise<DriveMetadata[]>;
+}
+
+/** `QuizGameApi` をDI解決するためのトークン。 */
+export const IQuizGameApiToken = Symbol("IQuizGameApi");

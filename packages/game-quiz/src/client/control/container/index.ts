@@ -1,6 +1,12 @@
-import { container } from "tsyringe";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import { container, Lifecycle } from "tsyringe";
+import { IApiClientToken, createTypedApiClient } from "@octopus/infrastructures/interfaces";
 import { GasApiClient } from "@octopus/infrastructures/gas/gas-api-client";
+import {
+  QUIZ_GAME_PREFIX,
+  QUIZ_GAME_ENDPOINTS,
+  IQuizGameApiToken,
+} from "../../../server/quiz-api-contract";
+import type { QuizGameApi } from "../../../server/quiz-api-contract";
 import { QuizRepository } from "../../model/quiz-repository";
 import { FormRepository } from "../../model/form-repository";
 import { QuizService } from "../../model/quiz-service";
@@ -18,6 +24,18 @@ export class Container {
     // GAS 用のインフラを登録する。将来 Cloudflare 等に切り替える場合は
     // ここを設定に応じて別実装(CloudflareApiClient 等)に差し替えるだけでよい。
     container.register(IApiClientToken, { useClass: GasApiClient });
+    container.register<QuizGameApi>(
+      IQuizGameApiToken,
+      {
+        useFactory: (c) =>
+          createTypedApiClient<QuizGameApi>(
+            c.resolve(IApiClientToken),
+            QUIZ_GAME_PREFIX,
+            QUIZ_GAME_ENDPOINTS
+          ),
+      },
+      { lifecycle: Lifecycle.Singleton }
+    );
 
     container.register(QuizRepository, { useClass: QuizRepository });
     container.register(FormRepository, { useClass: FormRepository });
