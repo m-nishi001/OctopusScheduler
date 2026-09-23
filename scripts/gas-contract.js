@@ -36,6 +36,12 @@ const CONTRACT_SOURCES = [
     path: "packages/game-jackpot/src/server/jackpot-api-contract.ts",
     prefixConst: "JACKPOT_GAME_PREFIX",
     endpointsConst: "JACKPOT_GAME_ENDPOINTS",
+    // 型付きAPIクライアント(createTypedApiClient)への移行済みモジュールは、
+    // DIトークン名を指定する。呼び出し検出ロジックが `@inject(<apiTokenConst>)`
+    // からフィールド名を特定し、`this.<field>.<method>(...)` 呼び出しを拾う。
+    // 未移行のモジュール(quiz, scheduler)は、まだ callXxxGame() ヘルパー経由
+    // なので指定しない(HELPER_CALL_RE が引き続き検出する)。
+    apiTokenConst: "IJackpotGameApiToken",
   },
   {
     path: "packages/game-quiz/src/server/quiz-api-contract.ts",
@@ -75,6 +81,11 @@ function parseStringArray(src, constName) {
   return [...body.matchAll(/["']([^"']+)["']/g)].map((m) => m[1]);
 }
 
+/** `export const NAME = ...;` の形の宣言が存在するかどうかを調べる。 */
+function hasExportConst(src, constName) {
+  return new RegExp(`export const ${constName}\\b`).test(src);
+}
+
 /**
  * 契約を読み込み、コード生成・検証に必要な形へ展開する。
  *
@@ -86,12 +97,14 @@ function parseStringArray(src, constName) {
  *   allNames: string[],
  *   internalNames: string[],
  *   ownerOf: (name: string) => string,
+ *   apiTokenToPrefix: Record<string, string>,
  * }}
  */
 export function loadGasContract() {
   const endpoints = {};
   const unprefixed = [];
   const contractPaths = [];
+  const apiTokenToPrefix = {};
 
   for (const source of CONTRACT_SOURCES) {
     const fullPath = join(REPO_ROOT, source.path);
@@ -117,6 +130,16 @@ export function loadGasContract() {
     if (source.unprefixedConst) {
       const unprefixedNames = parseStringArray(src, source.unprefixedConst);
       if (unprefixedNames) unprefixed.push(...unprefixedNames);
+    }
+
+    if (source.apiTokenConst) {
+      if (!hasExportConst(src, source.apiTokenConst)) {
+        throw new Error(
+          `契約を解析できませんでした: ${source.path}\n` +
+            `\`${source.apiTokenConst}\` が見つかりません(型付きAPIクライアントのDIトークンのexportを確認してください)。`
+        );
+      }
+      apiTokenToPrefix[source.apiTokenConst] = prefix;
     }
   }
 
@@ -145,5 +168,7 @@ export function loadGasContract() {
     /** esbuild の banner で宣言する内部変数名（`_<prefix>_<name>`）。 */
     internalNames: prefixedNames.map((n) => `_${n}`),
     ownerOf,
+    /** DIトークン識別子名(例: "IJackpotGameApiToken") -> そのモジュールのprefix。 */
+    apiTokenToPrefix,
   };
 }
