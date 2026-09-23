@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { InMemoryCacheRepository } from "./fakes/in-memory-cache-repository";
+import { InMemoryCache } from "../../testing/in-memory-cache";
 import {
   beginSave,
   commitSave,
@@ -12,7 +12,7 @@ import {
 
 describe("dedupe-guard", () => {
   it("allows the first save and blocks a duplicate once saved", () => {
-    const cache = new InMemoryCacheRepository();
+    const cache = new InMemoryCache();
     const deps = { cache };
 
     const first = beginSave(deps, "item-1");
@@ -27,7 +27,7 @@ describe("dedupe-guard", () => {
   });
 
   it("rejects a save that is already in progress", () => {
-    const cache = new InMemoryCacheRepository();
+    const cache = new InMemoryCache();
     const deps = { cache };
 
     beginSave(deps, "item-1");
@@ -39,7 +39,7 @@ describe("dedupe-guard", () => {
   });
 
   it("clears state on abortSave, allowing a retry", () => {
-    const cache = new InMemoryCacheRepository();
+    const cache = new InMemoryCache();
     const deps = { cache };
 
     beginSave(deps, "item-1");
@@ -50,7 +50,7 @@ describe("dedupe-guard", () => {
   });
 
   it("requires an item to be saved before it can be updated", () => {
-    const cache = new InMemoryCacheRepository();
+    const cache = new InMemoryCache();
     const deps = { cache };
 
     const notSaved = beginUpdate(deps, "item-1");
@@ -67,7 +67,7 @@ describe("dedupe-guard", () => {
   });
 
   it("clears state on abortUpdate and via clearDedupeState", () => {
-    const cache = new InMemoryCacheRepository();
+    const cache = new InMemoryCache();
     const deps = { cache };
 
     beginSave(deps, "item-1");

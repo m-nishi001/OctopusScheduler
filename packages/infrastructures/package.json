@@ -12,6 +12,16 @@
       "import": "./src/interfaces/index.ts",
       "default": "./src/interfaces/index.ts"
     },
+    "./compositions": {
+      "types": "./src/compositions/index.ts",
+      "import": "./src/compositions/index.ts",
+      "default": "./src/compositions/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/index.ts",
+      "import": "./src/testing/index.ts",
+      "default": "./src/testing/index.ts"
+    },
     "./gas": {
       "types": "./src/gas/index.ts",
       "import": "./src/gas/index.ts",

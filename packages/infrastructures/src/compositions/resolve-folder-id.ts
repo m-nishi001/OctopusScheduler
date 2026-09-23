@@ -1,14 +1,14 @@
 /**
- * アセット/JSON保存フォルダIDの解決ロジック。
+ * アセット/JSON保存先の名前空間(旧 folderId)解決ロジック。
  *
- * `octopus-scheduler` はクライアント指定の folderId を無視して常にプロパティを使うのに対し、
+ * `octopus-scheduler` はクライアント指定の値を無視して常にプロパティを使うのに対し、
  * `jackpot-game`/`quiz-game` はクライアント指定を優先する、という非対称なポリシーが既存挙動として
  * あるため、2つの関数として分けて残す(1つに統合しない)。
  */
-import type { IKeyValueRepository } from "../key-value-repository";
+import type { IKeyValueStorage } from "../interfaces/key-value-storage";
 
 export interface FolderResolverDeps {
-  kv: IKeyValueRepository;
+  kv: IKeyValueStorage;
 }
 
 function resolve(
@@ -25,7 +25,7 @@ function resolve(
   return folderId;
 }
 
-/** クライアント指定の folderId を無視し、常にプロパティから解決する。 */
+/** クライアント指定の値を無視し、常にプロパティから解決する。 */
 export function resolveFolderIdIgnoringProvided(
   deps: FolderResolverDeps,
   propertyKey: string
@@ -33,7 +33,7 @@ export function resolveFolderIdIgnoringProvided(
   return resolve(deps, propertyKey, undefined);
 }
 
-/** クライアント指定の folderId があれば優先し、無ければプロパティから解決する。 */
+/** クライアント指定の値があれば優先し、無ければプロパティから解決する。 */
 export function resolveFolderIdPreferringProvided(
   deps: FolderResolverDeps,
   propertyKey: string,

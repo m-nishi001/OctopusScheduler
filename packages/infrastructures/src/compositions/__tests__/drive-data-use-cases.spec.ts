@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { InMemoryCacheRepository } from "./fakes/in-memory-cache-repository";
-import { InMemoryFileStorageRepository } from "./fakes/in-memory-file-storage-repository";
-import { addDriveData } from "../add-drive-data-use-case";
-import { getDriveData } from "../get-drive-data-use-case";
-import { getDriveMetadata } from "../get-drive-metadata-use-case";
-import { updateDriveData } from "../update-drive-data-use-case";
-import { removeDriveData } from "../remove-drive-data-use-case";
-import type { DriveData } from "../../file-storage-repository";
+import { InMemoryCache } from "../../testing/in-memory-cache";
+import { InMemoryKeyValueStorage } from "../../testing/in-memory-key-value-storage";
+import { addDriveData } from "../add-item-use-case";
+import { getDriveData } from "../get-item-use-case";
+import { getDriveMetadata } from "../get-item-metadata-use-case";
+import { updateDriveData } from "../update-item-use-case";
+import { removeDriveData } from "../remove-item-use-case";
+import type { DriveData } from "../types";
 
 function makeDriveData(overrides: Partial<DriveData> = {}): DriveData {
   return {
@@ -27,9 +27,9 @@ function makeDriveData(overrides: Partial<DriveData> = {}): DriveData {
 
 describe("drive-data use-cases", () => {
   it("adds a new drive data item, then rejects a duplicate add", () => {
-    const cache = new InMemoryCacheRepository();
-    const fileStorage = new InMemoryFileStorageRepository();
-    const deps = { cache, fileStorage };
+    const cache = new InMemoryCache();
+    const storage = new InMemoryKeyValueStorage();
+    const deps = { cache, storage };
 
     const first = addDriveData(deps, makeDriveData());
     expect(first.status).toBe("success");
@@ -40,14 +40,14 @@ describe("drive-data use-cases", () => {
   });
 
   it("round-trips content through getDriveData", () => {
-    const cache = new InMemoryCacheRepository();
-    const fileStorage = new InMemoryFileStorageRepository();
-    const deps = { cache, fileStorage };
+    const cache = new InMemoryCache();
+    const storage = new InMemoryKeyValueStorage();
+    const deps = { cache, storage };
 
     const added = addDriveData(deps, makeDriveData());
     const fileId = added.data!.fileId;
 
-    const fetched = getDriveData({ fileStorage }, fileId);
+    const fetched = getDriveData({ storage }, fileId);
     expect(fetched).not.toBeNull();
     expect(fetched!.fileName).toBe("photo.png");
     expect(fetched!.metadata.driveDataId).toBe("item-1");
@@ -55,21 +55,21 @@ describe("drive-data use-cases", () => {
   });
 
   it("lists metadata for a folder", () => {
-    const cache = new InMemoryCacheRepository();
-    const fileStorage = new InMemoryFileStorageRepository();
-    const deps = { cache, fileStorage };
+    const cache = new InMemoryCache();
+    const storage = new InMemoryKeyValueStorage();
+    const deps = { cache, storage };
 
     addDriveData(deps, makeDriveData());
     addDriveData(deps, makeDriveData({ metadata: { driveDataId: "item-2", fileId: "", parentFolderId: "folder-1", lastUpdate: "" } }));
 
-    const list = getDriveMetadata({ fileStorage }, "folder-1");
+    const list = getDriveMetadata({ storage }, "folder-1");
     expect(list.map((m) => m.driveDataId).sort()).toEqual(["item-1", "item-2"]);
   });
 
   it("requires an existing saved item before update succeeds", () => {
-    const cache = new InMemoryCacheRepository();
-    const fileStorage = new InMemoryFileStorageRepository();
-    const deps = { cache, fileStorage };
+    const cache = new InMemoryCache();
+    const storage = new InMemoryKeyValueStorage();
+    const deps = { cache, storage };
 
     const notSaved = updateDriveData(deps, makeDriveData());
     expect(notSaved.status).toBe("error");
@@ -82,10 +82,10 @@ describe("drive-data use-cases", () => {
     expect(updated.status).toBe("success");
   });
 
-  it("clears dedupe cache state keyed by the item id parsed from the file name on remove", () => {
-    const cache = new InMemoryCacheRepository();
-    const fileStorage = new InMemoryFileStorageRepository();
-    const deps = { cache, fileStorage };
+  it("clears dedupe cache state keyed by the item id parsed from the key on remove", () => {
+    const cache = new InMemoryCache();
+    const storage = new InMemoryKeyValueStorage();
+    const deps = { cache, storage };
 
     const added = addDriveData(deps, makeDriveData());
     expect(cache.get("item-1")).toBe("saved");

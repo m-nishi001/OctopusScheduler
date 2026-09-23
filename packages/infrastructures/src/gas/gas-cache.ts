@@ -1,8 +1,8 @@
 import { injectable } from "tsyringe";
-import type { ICacheRepository } from "../interfaces/cache-repository";
+import type { ICache } from "../interfaces/cache";
 
 @injectable()
-export class GasCacheRepository implements ICacheRepository {
+export class GasCache implements ICache {
   private readonly cache = CacheService.getScriptCache();
 
   get(key: string): string | null {
