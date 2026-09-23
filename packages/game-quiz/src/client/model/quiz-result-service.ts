@@ -1,21 +1,18 @@
 import { inject, injectable } from "tsyringe";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
-import type { IApiClient } from "@octopus/infrastructures/interfaces";
-import { callQuizGame } from "./quiz-api-client";
+import { IQuizGameApiToken } from "../../server/quiz-api-contract";
+import type { QuizGameApi } from "../../server/quiz-api-contract";
 
 @injectable()
 export class QuizResultService {
   constructor(
-    @inject(IApiClientToken) private readonly apiClient: IApiClient
+    @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi
   ) {}
 
-  async getMappedResponses(formId: string): Promise<any[]> {
-    return await callQuizGame<any[]>(this.apiClient, "getMappedResponses", {
-      formId,
-    });
+  async getMappedResponses(formId: string): Promise<Record<string, unknown>[]> {
+    return await this.quizApi.getMappedResponses({ formId });
   }
 
   async loadEmailNameMap(): Promise<void> {
-    await callQuizGame(this.apiClient, "loadEmailNameMap", {});
+    await this.quizApi.loadEmailNameMap({});
   }
 }

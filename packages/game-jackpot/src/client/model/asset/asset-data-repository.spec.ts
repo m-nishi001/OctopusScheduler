@@ -3,7 +3,7 @@ import { AssetDataRepository } from "./asset-data-repository";
 import { Asset } from "./asset-data";
 import { container } from "tsyringe";
 import { CryptoIdGenerator } from "../common/crypto-id-generator";
-import { IApiClientToken } from "@octopus/infrastructures/interfaces";
+import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 
 describe("AssetDataRepository", () => {
   let repo: AssetDataRepository;
@@ -18,10 +18,16 @@ describe("AssetDataRepository", () => {
     };
     container.register(CryptoIdGenerator, { useValue: mockIdGenerator });
 
-    // Mock IApiClient: these tests only exercise local-storage-backed methods,
-    // but the constructor still needs a resolvable token.
-    const mockApiClient = { call: vi.fn() };
-    container.register(IApiClientToken, { useValue: mockApiClient });
+    // Mock JackpotGameApi: these tests only exercise local-storage-backed
+    // methods, but the constructor still needs a resolvable token.
+    const mockJackpotApi = {
+      addDriveData: vi.fn(),
+      getDriveMetaData: vi.fn(),
+      getDriveData: vi.fn(),
+      addJson: vi.fn(),
+      getJson: vi.fn(),
+    };
+    container.register(IJackpotGameApiToken, { useValue: mockJackpotApi });
 
     repo = container.resolve(AssetDataRepository);
   });
