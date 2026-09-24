@@ -199,7 +199,10 @@ const loadConfig = async () => {
     try {
         const cfg = await screenSettingsService.fetchScreenSetting('ending', 'ending-screen-settings');
         if (cfg) {
-            localConfig.value.bgmAssetId = (cfg as any).endingBgm || '';
+            // 保存側(handleSaveClick)はbgmAssetIdというキーで書き込むため、
+            // 読み込み側も同じキーを見る必要がある(旧endingBgmは
+            // 一切書き込まれないキーで、常に空扱いになるバグだった)。
+            localConfig.value.bgmAssetId = (cfg as any).bgmAssetId || '';
             localConfig.value.bgmMode = 'select';
             localConfig.value.contents = (cfg as any).contents || (cfg as any).screenElements || [];
         }
