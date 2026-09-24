@@ -11,6 +11,33 @@ import type { RoulettePrizeDto } from "./roulette/roulette-prize-preparer";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 
 /**
+ * 確変(kakuhen)演出シーケンス内の各待機時間(ms)。実際の見せ方のペース配分は
+ * 変えず、散在していたマジックナンバーを一箇所にまとめて名前を付けただけの整理。
+ */
+export const KAKUHEN_TIMINGS = {
+  /** ダミー抽選開始直後、アニメーション側の内部アイテム同期(convertToInternal)を待つ時間。 */
+  ANIMATION_ITEM_SYNC_WAIT_MS: 60,
+  /** ダミー抽選のスピンダウン所要時間。 */
+  DUMMY_SPIN_DOWN_DURATION_MS: 2000,
+  /** 確変メッセージ表示時、"kakuhen.finished" イベント待ちのフォールバック時間。 */
+  MESSAGE_FINISHED_FALLBACK_MS: 2000,
+  /** 確変メッセージ演出完了後、表示を保持する時間。 */
+  MESSAGE_HOLD_MS: 1000,
+  /** 確変メッセージ非表示時、"kakuhen.dismissed" イベント待ちのフォールバック時間。 */
+  MESSAGE_DISMISSED_FALLBACK_MS: 1500,
+  /** メッセージ非表示後の追加バッファ。 */
+  POST_DISMISS_BUFFER_MS: 500,
+  /** ダミー景品ダイアログの表示時間。 */
+  DUMMY_PRIZE_DIALOG_DISPLAY_MS: 3000,
+  /** 本抽選スピン開始前のバッファ。 */
+  FINAL_DRAW_PRE_SPIN_BUFFER_MS: 1500,
+  /** 本抽選スピン開始直後のバッファ。 */
+  FINAL_DRAW_POST_SPIN_START_BUFFER_MS: 1000,
+  /** 本抽選のスピンダウン所要時間。 */
+  FINAL_SPIN_DOWN_DURATION_MS: 5000,
+} as const;
+
+/**
  * KakuhenHandler orchestrates the two-step "確変" animation sequence.
  *
  * New behavior (2025-11-18):
@@ -228,7 +255,9 @@ export class KakuhenHandler {
     }
     // wait a short moment for the animation component to update its internal items
     // (convertToInternal) so the stopSpin call below can find the duplicated sector occurrences
-    await new Promise((r) => setTimeout(r, 60));
+    await new Promise((r) =>
+      setTimeout(r, KAKUHEN_TIMINGS.ANIMATION_ITEM_SYNC_WAIT_MS)
+    );
 
     // Ensure the roulette actually starts spinning for the dummy draw
     try {
@@ -265,7 +294,7 @@ export class KakuhenHandler {
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopKakuhenDummyDraw");
-    const dummyDurationMs = 2000;
+    const dummyDurationMs = KAKUHEN_TIMINGS.DUMMY_SPIN_DOWN_DURATION_MS;
     if (animationRef.value?.stopSpin) {
       // Play preloaded bgm1 (if any) then stopSpin occurrence=1 => land on first occurrence (画像1)
       try {
@@ -319,7 +348,7 @@ export class KakuhenHandler {
         settled = true;
         cleanup();
         resolve();
-      }, 2000);
+      }, KAKUHEN_TIMINGS.MESSAGE_FINISHED_FALLBACK_MS);
 
       try {
         window.addEventListener(
@@ -334,8 +363,8 @@ export class KakuhenHandler {
       kakuhenMessageVisible.value = true;
     });
 
-    // After animation completes, hold visible for 1 second before proceeding.
-    await new Promise((r) => setTimeout(r, 1000));
+    // After animation completes, hold visible for a moment before proceeding.
+    await new Promise((r) => setTimeout(r, KAKUHEN_TIMINGS.MESSAGE_HOLD_MS));
     emitter.emit("nextAction");
   }
 
@@ -373,7 +402,7 @@ export class KakuhenHandler {
         settled = true;
         cleanup();
         resolve();
-      }, 1500);
+      }, KAKUHEN_TIMINGS.MESSAGE_DISMISSED_FALLBACK_MS);
 
       try {
         window.addEventListener("kakuhen.dismissed", onDismissed);
@@ -382,8 +411,10 @@ export class KakuhenHandler {
       }
     });
 
-    // After dismissed, wait an additional 0.5s then proceed to nextAction.
-    await new Promise((r) => setTimeout(r, 500));
+    // After dismissed, wait an additional buffer then proceed to nextAction.
+    await new Promise((r) =>
+      setTimeout(r, KAKUHEN_TIMINGS.POST_DISMISS_BUFFER_MS)
+    );
     emitter.emit("nextAction");
   }
 
@@ -425,7 +456,9 @@ export class KakuhenHandler {
       );
     }
     showDummyPrizeDialog.value = true;
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) =>
+      setTimeout(r, KAKUHEN_TIMINGS.DUMMY_PRIZE_DIALOG_DISPLAY_MS)
+    );
     emitter.emit("nextAction");
   }
 
@@ -476,12 +509,16 @@ export class KakuhenHandler {
       console.warn("[KakuhenHandler] failed to preload bgm2", e);
     }
     // Allow a short moment for UI updates, then start spin for the final phase
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) =>
+      setTimeout(r, KAKUHEN_TIMINGS.FINAL_DRAW_PRE_SPIN_BUFFER_MS)
+    );
 
     try {
       if (animationRef.value?.startSpin) {
         await animationRef.value.startSpin();
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) =>
+          setTimeout(r, KAKUHEN_TIMINGS.FINAL_DRAW_POST_SPIN_START_BUFFER_MS)
+        );
       }
     } catch (e) {
       console.warn(
@@ -503,7 +540,7 @@ export class KakuhenHandler {
     emitter: Emitter<any>
   ) {
     console.log("[DrawOrchestrator] stopKakuhenFinalDraw");
-    const finalDurationMs = 5000;
+    const finalDurationMs = KAKUHEN_TIMINGS.FINAL_SPIN_DOWN_DURATION_MS;
     // Play preloaded bgm2 before final stopSpin
     try {
       const bgm2AssetId = kakuhenFinalPrize.value?.bgm2AssetId || null;
