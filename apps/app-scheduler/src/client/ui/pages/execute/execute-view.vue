@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
-import { AppEventService } from '../applications/app-event/app-event-service';
+import { AppEventService } from '../../../applications/app-event/app-event-service';
 import { eventBus } from '@octopus/client-common/events/event-bus';
 
 
