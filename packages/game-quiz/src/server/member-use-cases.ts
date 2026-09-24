@@ -26,6 +26,14 @@ export function listMembers(deps: MemberUseCaseDeps): Member[] {
   return readMembers(deps.storage);
 }
 
+export function findMemberByUserId(
+  deps: MemberUseCaseDeps,
+  userId: string
+): Member | null {
+  const members = readMembers(deps.storage);
+  return members.find((m) => m.userId === userId) ?? null;
+}
+
 export function addMember(deps: MemberUseCaseDeps, member: Member): Member {
   const userId = member.userId.trim();
   if (!userId) throw new Error("userId is required");
