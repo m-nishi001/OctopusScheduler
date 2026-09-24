@@ -14,12 +14,6 @@ import { AppEventService } from "../../control/app-event/app-event-service";
 import { AssetService } from "../../control/asset/asset-service";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcutService } from "../../control/keyboard-shortcut/keyboard-shortcut-service";
-import { UIActionEntryToken } from "../../domains/app-event/ui-action-entry-token";
-import { TransitionPageAction } from "../../ui/components/settings/app-events/events/transition-page/entry";
-import { PlayAudioAction } from "../../ui/components/settings/app-events/events/play-audio/entry";
-import { StopAudioAction } from "../../ui/components/settings/app-events/events/stop-audio/entry";
-import { SlideshowAction } from "../../ui/components/settings/app-events/events/slideshow/entry";
-import { ShowContentAction } from "../../ui/components/settings/app-events/events/show-content/entry";
 
 export class Container {
   static Register() {
@@ -50,11 +44,5 @@ export class Container {
     container.register(KeyboardShortcutService, {
       useClass: KeyboardShortcutService,
     });
-    // register UI action entries so UI can resolve all available actions
-    container.register(UIActionEntryToken, { useValue: TransitionPageAction });
-    container.register(UIActionEntryToken, { useValue: PlayAudioAction });
-    container.register(UIActionEntryToken, { useValue: StopAudioAction });
-    container.register(UIActionEntryToken, { useValue: SlideshowAction });
-    container.register(UIActionEntryToken, { useValue: ShowContentAction });
   }
 }

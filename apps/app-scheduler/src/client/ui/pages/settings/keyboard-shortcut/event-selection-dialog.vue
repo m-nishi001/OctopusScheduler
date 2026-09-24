@@ -18,8 +18,8 @@
 </template>
 
 <script setup lang="ts">
-import { container } from 'tsyringe';
-import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
+import { uiActionEntries } from '../app-events/registry';
+import type { UIActionEntry } from '../app-events/ui-action-entry';
 
 defineProps<{ show: boolean }>();
 
@@ -28,17 +28,9 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
 }>();
 
-// resolve registry entries from DI
-const registry: Record<string, any> = (() => {
-  try {
-    const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
-    const m: Record<string, any> = {};
-    for (const e of entries) if (e && e.actionType) m[e.actionType] = e;
-    return m;
-  } catch (err) {
-    return {};
-  }
-})();
+const registry: Record<string, UIActionEntry> = Object.fromEntries(
+  uiActionEntries.map((e) => [e.actionType, e])
+);
 
 function selectType(type: string) {
   emit('select-type', { type });

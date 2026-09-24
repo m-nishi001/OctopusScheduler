@@ -17,33 +17,23 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { container } from 'tsyringe';
-import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
-import type { EventFormData } from './types';
+import { uiActionEntries } from '../app-events/registry';
+import type { EventFormHandle } from '../app-events/ui-action-entry';
 import type { AppEventDto } from '../../../../control/app-event/dto/app-event-dto';
 
 interface Props {
     show: boolean;
-    initialData: EventFormData | AppEventDto | null;
+    initialData: AppEventDto | null;
 }
 
 const props = defineProps<Props>();
 const emit = defineEmits(['save', 'cancel']);
 
-const editorRef = ref<any | null>(null);
+const editorRef = ref<EventFormHandle | null>(null);
 
-const ACTION_REGISTRY: Record<string, any> = (() => {
-    try {
-        const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
-        const map: Record<string, any> = {};
-        for (const e of entries) {
-            if (e && e.actionType) map[e.actionType] = e;
-        }
-        return map;
-    } catch (err) {
-        return {};
-    }
-})();
+const ACTION_REGISTRY = Object.fromEntries(
+    uiActionEntries.map((e) => [e.actionType, e])
+);
 
 const formComponent = computed(() => {
     if (!props.initialData) return null;
@@ -72,11 +62,7 @@ function onOverlayClick() {
 
 async function onOk() {
     try {
-        const saveFn = editorRef.value?.save;
-        if (typeof saveFn === 'function') {
-            const res = saveFn.call(editorRef.value);
-            if (res && typeof res.then === 'function') await res;
-        }
+        await editorRef.value?.save();
     } catch (err) {
         // ignore
     }

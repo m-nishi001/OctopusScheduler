@@ -21,18 +21,18 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import { watch } from 'vue';
-import type { PlayAudioFormData, EditPlayAudioFormData } from '../../app-events/types';
+import type { PlayAudioEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../control/asset/asset-service';
 import type { Asset } from '../../../../../../model/asset/asset';
 import { useAudio } from '@octopus/composables/use-audio';
 
 type Props = {
-    initialData?: PlayAudioFormData | EditPlayAudioFormData;
+    initialData?: PlayAudioEventDto;
 }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [PlayAudioFormData | EditPlayAudioFormData] }>();
+const emit = defineEmits<{ save: [PlayAudioEventDto] }>();
 
 const assetService = container.resolve(AssetService);
 const audioAssets = ref<Asset[]>([]);
@@ -132,10 +132,9 @@ const save = async () => {
         }
     }
 
-    const base: PlayAudioFormData = { actionType: 'PlayAudioEvent', audioId: formData.audioId };
-    if (props.initialData && 'eventId' in props.initialData) {
-        const out: EditPlayAudioFormData = { ...(base as any), eventId: (props.initialData as EditPlayAudioFormData).eventId };
-        emit('save', out);
+    const base: PlayAudioEventDto = { actionType: 'PlayAudioEvent', audioId: formData.audioId };
+    if (props.initialData?.id) {
+        emit('save', { ...base, id: props.initialData.id });
     } else {
         emit('save', base);
     }

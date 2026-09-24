@@ -1,6 +1,6 @@
 import type { Router } from "vue-router";
 import { PlayAudioEventHandler } from "./play-audio-event-handler";
-import { ShowContentEventHandler } from "./show-content/show-content-event-handler";
+import { ShowContentEventHandler } from "../pages/execute/show-content/show-content-event-handler";
 import { SlideshowEventHandler } from "./slideshow-event-handler";
 import { TransitionPageEventHandler } from "./transition-page-event-handler";
 

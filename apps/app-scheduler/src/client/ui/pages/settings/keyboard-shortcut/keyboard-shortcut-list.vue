@@ -39,7 +39,7 @@ import { ref, onMounted, watch } from 'vue';
 import { container } from 'tsyringe';
 import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
-import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
+import { uiActionEntries } from '../app-events/registry';
 import { sendShortcutViaChannel } from '../../../composables/send-shortcut-via-channel';
 
 interface Props {
@@ -94,18 +94,9 @@ const actionLabel = (a: any) => {
 };
 
 // Registry for action entries (label lookup)
-const ACTION_REGISTRY: Record<string, any> = (() => {
-    try {
-        const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
-        const map: Record<string, any> = {};
-        for (const e of entries) {
-            if (e && e.actionType) map[e.actionType] = e;
-        }
-        return map;
-    } catch (err) {
-        return {};
-    }
-})();
+const ACTION_REGISTRY = Object.fromEntries(
+    uiActionEntries.map((e) => [e.actionType, e])
+);
 
 const appEventService = container.resolve(AppEventService);
 

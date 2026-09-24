@@ -97,15 +97,15 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue';
-import type { ShowContentFormData, EditShowContentFormData } from '../../app-events/types';
+import type { ShowContentEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../control/asset/asset-service';
 import type { Asset } from '../../../../../../model/asset/asset';
 
-type Props = { initialData?: ShowContentFormData | EditShowContentFormData }
+type Props = { initialData?: ShowContentEventDto }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [ShowContentFormData | EditShowContentFormData] }>();
+const emit = defineEmits<{ save: [ShowContentEventDto] }>();
 
 const assetService = container.resolve(AssetService);
 const imageAssets = ref<Asset[]>([]);
@@ -303,10 +303,14 @@ const insertImageIntoHtml = () => {
 };
 
 const save = async () => {
-    let outBase: ShowContentFormData;
+    let outBase: ShowContentEventDto;
     if (formData.contentType === 'html') outBase = { actionType: 'ShowContentEvent', contentType: 'html', contentId: '', htmlString: formData.htmlString };
     else outBase = { actionType: 'ShowContentEvent', contentType: formData.contentType as 'image' | 'movie', contentId: formData.contentId, htmlString: undefined };
-    if (props.initialData && 'eventId' in props.initialData) { const out: EditShowContentFormData = { ...(outBase as any), eventId: (props.initialData as EditShowContentFormData).eventId }; emit('save', out); } else { emit('save', outBase); }
+    if (props.initialData?.id) {
+        emit('save', { ...outBase, id: props.initialData.id });
+    } else {
+        emit('save', outBase);
+    }
 };
 
 const reset = () => {

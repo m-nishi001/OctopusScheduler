@@ -7,12 +7,12 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import type { StopAudioFormData } from "../../app-events/types";
+import type { StopAudioEventDto } from "../../../../../../control/app-event/dto/app-event-dto";
 
-const props = defineProps<{ initialData?: StopAudioFormData }>();
-const emit = defineEmits<{ save: [StopAudioFormData] }>();
+const props = defineProps<{ initialData?: StopAudioEventDto }>();
+const emit = defineEmits<{ save: [StopAudioEventDto] }>();
 
-const local = ref<StopAudioFormData>({
+const local = ref<StopAudioEventDto>({
     actionType: "StopAudioEvent",
     fadeOutDuration: 0,
 });
@@ -20,7 +20,7 @@ const local = ref<StopAudioFormData>({
 watch(
     () => props.initialData,
     (v) => {
-        if (v) local.value = { ...local.value, ...v } as StopAudioFormData;
+        if (v) local.value = { ...local.value, ...v };
     },
     { immediate: true }
 );
@@ -30,9 +30,9 @@ function save() {
 }
 
 function reset() {
-    local.value = ({ actionType: "StopAudioEvent", fadeOutDuration: 0 } as StopAudioFormData);
+    local.value = { actionType: "StopAudioEvent", fadeOutDuration: 0 };
     if (props.initialData) {
-        local.value = { ...local.value, ...props.initialData } as StopAudioFormData;
+        local.value = { ...local.value, ...props.initialData };
     }
 }
 
