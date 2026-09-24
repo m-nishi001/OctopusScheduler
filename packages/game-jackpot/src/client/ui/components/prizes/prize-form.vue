@@ -14,6 +14,7 @@
         </div>
         <div class="weight-field">
           <FieldNumberStepper v-model="formData.weight" :min="1" :max="100" label="当選確率の重み" />
+          <p class="odds-preview">このプールでの当選確率: 約{{ oddsPreviewPercent }}%</p>
         </div>
         <div class="animation-field">
           <FieldSelect v-model="formData.animation" :options="animationOptions" label="抽選アニメーション" />
@@ -63,7 +64,8 @@ import { useAssetUpload } from '@ui/composables/use-asset-upload';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
-import { DEFAULT_PRIZE_WEIGHT } from '@model/draw/weighted-selector';
+import type { Prize } from '@model/prize/prize';
+import { DEFAULT_PRIZE_WEIGHT, resolvePrizeWeight } from '@model/draw/weighted-selector';
 
 const props = defineProps({
   mode: { type: String as () => 'add' | 'edit', required: true },
@@ -71,6 +73,8 @@ const props = defineProps({
   imageAssets: { type: Array as () => Asset[], required: true },
   audioAssets: { type: Array as () => Asset[], required: true },
   objectUrlMap: { type: Object as () => Map<string, string> | undefined, required: false },
+  /** 当選確率プレビュー計算のための、このプール内の他の景品(編集中の景品自身は除く)。 */
+  otherPrizes: { type: Array as () => Prize[], default: () => [] },
 });
 
 const emit = defineEmits(['submit', 'cancel']);
@@ -183,6 +187,18 @@ const winningImage2Preview = computed(() => {
 });
 
 const isValid = computed(() => formData.value.name.trim());
+
+// このプール内の他の景品(編集中の景品自身を除く)に対する当選確率のプレビュー。
+const oddsPreviewPercent = computed(() => {
+  const currentId = props.mode === 'edit' && props.prize ? props.prize.id : undefined;
+  const othersTotalWeight = props.otherPrizes
+    .filter((p) => p.id !== currentId)
+    .reduce((sum, p) => sum + resolvePrizeWeight(p.weight), 0);
+  const currentWeight = resolvePrizeWeight(formData.value.weight);
+  const totalWeight = othersTotalWeight + currentWeight;
+  if (totalWeight <= 0) return '0.0';
+  return ((currentWeight / totalWeight) * 100).toFixed(1);
+});
 
 // expose submit and cancel so parent dialog can call them from footer buttons
 defineExpose({ submit, cancel });
@@ -382,6 +398,12 @@ function cancel() {
 
 .basic-fields>.weight-field {
   grid-column: 2;
+}
+
+.odds-preview {
+  margin: 4px 0 0;
+  font-size: 0.85em;
+  color: #666;
 }
 
 .basic-fields>.animation-field {

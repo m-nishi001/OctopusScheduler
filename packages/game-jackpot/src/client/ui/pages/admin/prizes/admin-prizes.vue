@@ -74,10 +74,10 @@
         </div>
 
         <PrizeAddDialog v-if="showAddModal" :show="showAddModal" :image-assets="imageAssets" :audio-assets="audioAssets"
-            @close="showAddModal = false" @refresh="fetchPrizes" />
+            :other-prizes="prizes" @close="showAddModal = false" @refresh="fetchPrizes" />
         <PrizeEditDialog v-if="editPrizeData" :show="!!editPrizeData" :prize="editPrizeData" :image-assets="imageAssets"
-            :audio-assets="audioAssets" :object-url-map="objectUrlMap" @close="editPrizeData = null"
-            @refresh="fetchPrizes" />
+            :audio-assets="audioAssets" :object-url-map="objectUrlMap" :other-prizes="prizes"
+            @close="editPrizeData = null" @refresh="fetchPrizes" />
 
         <div v-if="showDeleteModal" class="modal-overlay">
             <div class="modal-content">

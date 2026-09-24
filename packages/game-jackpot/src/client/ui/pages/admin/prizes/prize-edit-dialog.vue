@@ -6,7 +6,8 @@
                     <h3>景品詳細</h3>
                     <div class="form-scroll">
                         <PrizeForm ref="formRef" mode="edit" :prize="prize" :image-assets="imageAssets"
-                            :audio-assets="audioAssets" :object-url-map="objectUrlMap" @submit="onSubmit" @cancel="closeModal" />
+                            :audio-assets="audioAssets" :object-url-map="objectUrlMap" :other-prizes="otherPrizes"
+                            @submit="onSubmit" @cancel="closeModal" />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -23,6 +24,7 @@
 <script setup lang="ts">
 import PrizeForm from '../../../components/prizes/prize-form.vue';
 import type { Asset } from '@model/asset/asset-data';
+import type { Prize } from '@model/prize/prize';
 import { PrizeService } from '@control/prize/prize-service';
 import { container } from 'tsyringe';
 import { ref } from 'vue';
@@ -33,6 +35,7 @@ const props = defineProps({
     imageAssets: { type: Array as () => Asset[], required: true },
     audioAssets: { type: Array as () => Asset[], required: true },
     objectUrlMap: { type: Object, required: true },
+    otherPrizes: { type: Array as () => Prize[], default: () => [] },
 });
 
 const emit = defineEmits(['close', 'refresh']);
