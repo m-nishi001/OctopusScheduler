@@ -279,4 +279,19 @@ onUnmounted(() => {
     font-size: 0.75rem;
     color: #d1d5db;
 }
+
+@media (max-width: 480px) {
+    .option-modal {
+        width: 100%;
+        padding: 1rem;
+    }
+
+    .option-modal .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .option-modal .form-actions button {
+        width: 100%;
+    }
+}
 </style>
