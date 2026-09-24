@@ -60,10 +60,12 @@ import { DescriptionScreenSetting } from '@model/screen-config/description-scree
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { container } from 'tsyringe';
+import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 export default {
 	name: 'Description',
 	components: { MainLayout },
 	setup() {
+		useRemoteScreenSync();
 		const router = useRouter();
 
 		const screenConfig = ref<DescriptionScreenSetting | null>(null);

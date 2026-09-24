@@ -26,6 +26,7 @@ import { KakuhenHandler } from "./kakuhen-handler";
 import mitt from "mitt";
 import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
+import { useRemoteActionListener } from "../../composables/use-remote-action-listener";
 
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.
@@ -359,6 +360,13 @@ export function useDrawOrchestrator() {
       }
     }
   };
+
+  // 管理画面の「リモート操作」の「次へ」ボタンをEnterキー押下と同じ扱いにする。
+  // usePolling内部がonUnmountedを自動登録するため、必ずonMountedの外
+  // (setup()の同期実行中)で呼び出す。
+  useRemoteActionListener(() => {
+    void executeCurrentAction();
+  });
 
   onMounted(async () => {
     const loadedPrizes = await prizeRepo.getPrizes();
