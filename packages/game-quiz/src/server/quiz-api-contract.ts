@@ -27,6 +27,10 @@ export const QUIZ_GAME_ENDPOINTS = [
   "addJson",
   "getJson",
   "listJsonMetaData",
+  "listMembers",
+  "addMember",
+  "updateMember",
+  "deleteMember",
 ] as const;
 
 export type QuizGameEndpointName = (typeof QUIZ_GAME_ENDPOINTS)[number];
@@ -118,6 +122,31 @@ export interface ListJsonMetaDataArgs {
 }
 
 /**
+ * クイズ参加者として事前登録される会員。userId は参加者がログイン時に
+ * 入力する識別子(表示名とは独立)で、管理画面の「メンバー管理」で登録する。
+ */
+export interface Member {
+  userId: string;
+  displayName: string;
+}
+
+export type ListMembersArgs = Record<string, never>;
+
+export interface AddMemberArgs {
+  userId: string;
+  displayName: string;
+}
+
+export interface UpdateMemberArgs {
+  userId: string;
+  displayName: string;
+}
+
+export interface DeleteMemberArgs {
+  userId: string;
+}
+
+/**
  * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
  * Proxyの型として使う。各メソッドの引数・戻り値は `server/endpoints.ts` と
  * その先の use-case 実装の実際のシグネチャに合わせている。
@@ -147,6 +176,10 @@ export interface QuizGameApi {
     args: ListJsonMetaDataArgs,
     options?: ApiCallOptions
   ): Promise<DriveMetadata[]>;
+  listMembers(args: ListMembersArgs, options?: ApiCallOptions): Promise<Member[]>;
+  addMember(args: AddMemberArgs, options?: ApiCallOptions): Promise<Member>;
+  updateMember(args: UpdateMemberArgs, options?: ApiCallOptions): Promise<Member>;
+  deleteMember(args: DeleteMemberArgs, options?: ApiCallOptions): Promise<void>;
 }
 
 /** `QuizGameApi` をDI解決するためのトークン。 */
