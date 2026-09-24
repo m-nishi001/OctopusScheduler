@@ -23,12 +23,20 @@
                     @select="selectOption" :style="{ '--option-color': option.color }" />
             </div>
         </section>
+        <button
+            v-if="!showModal"
+            type="button"
+            class="emergency-stop-button"
+            @click="handleEmergencyStop"
+        >
+            今すぐ受付停止
+        </button>
         <div v-if="showModal" class="modal-overlay" role="dialog" aria-modal="true">
             <div class="modal-card">
                 <h2 class="modal-title">終了！</h2>
-                <p class="modal-body" v-if="isLoading">回答を取得中…</p>
+                <p class="modal-body" v-if="isLoading">受付を締め切っています…</p>
                 <p class="modal-body" v-else-if="errorMessage">{{ errorMessage }}</p>
-                <p class="modal-body" v-else>集計完了。Enterで正解表示</p>
+                <p class="modal-body" v-else>受付終了。Enterで正解表示</p>
             </div>
         </div>
     </div>
@@ -41,9 +49,10 @@ import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
-import { StopQuizUseCase } from '../../../control/use-cases/stop-quiz-use-case';
+import { StartAcceptingAnswersUseCase } from '../../../control/use-cases/start-accepting-answers-use-case';
+import { StopAcceptingAnswersUseCase } from '../../../control/use-cases/stop-accepting-answers-use-case';
 import OptionCard from '../../components/option-card.vue';
-import { quizState } from '../../../control/quiz-state';
+import { buildParticipantJoinUrl } from '../../../model/participant-url';
 
 const route = useRoute();
 const router = useRouter();
@@ -76,9 +85,8 @@ const canProceed = ref(false);
 const errorMessage = ref<string | null>(null);
 
 const qrCodeUrl = computed(() => {
-    if (!quiz.value) return '';
-    const q = quiz.value as QuizDto;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(q.answerUrl)}`;
+    const joinUrl = buildParticipantJoinUrl(quizId);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 });
 
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
@@ -211,13 +219,25 @@ onMounted(async () => {
     quiz.value = await startQuizUseCase.execute(quizId);
     if (quiz.value) {
         timeLeft.value = quiz.value.timeLimit;
-        // record quiz start time for result processing
-        try {
-            quizState.setStartTime();
-        } catch (e) {
-            console.warn('quizState.setStartTime failed', e);
-        }
 
+        // Open the answer-acceptance window on the server before starting the
+        // visible countdown. Previously the Google Form was always "open", which
+        // let participants answer while the QR/intro screens were still showing;
+        // now acceptance only opens here, at the moment the question is displayed.
+        // Preview runs must not touch the live quiz's acceptance state.
+        if (!isPreview.value) {
+            try {
+                const startAcceptingAnswersUseCase = container.resolve(StartAcceptingAnswersUseCase);
+                const options = quiz.value.options.map((option: any) => ({
+                    no: option.no,
+                    text: option.text,
+                    color: option.color,
+                }));
+                await startAcceptingAnswersUseCase.execute(quizId, options);
+            } catch (e) {
+                console.error('Failed to start accepting answers', e);
+            }
+        }
 
         startTimer();
         // Create object URLs for images
@@ -276,104 +296,61 @@ onUnmounted(() => {
 // Prefer the parsed form id provided by the domain via DTO (answerFormId).
 
 const startTimer = () => {
-    // make the interval callback async so we can await the stop/process step
-    timer = setInterval(async () => {
+    timer = setInterval(() => {
         timeLeft.value--;
         if (timeLeft.value <= 0) {
-            if (timer) clearInterval(timer);
-            // Stop BGM
-            if (audioElement.value) {
-                audioElement.value.pause();
-                audioElement.value = null;
-            }
-            if (bgmObjectUrl.value && bgmObjectUrl.value.startsWith('blob:')) {
-                URL.revokeObjectURL(bgmObjectUrl.value);
-                bgmObjectUrl.value = null;
-            }
-            // Immediately show modal so UI reflects 0s instantly
-            showModal.value = true;
-            isLoading.value = true;
-            canProceed.value = false;
-            errorMessage.value = null;
-
-            // Prefer parsed form id from DTO; do not parse in the component if possible.
-            // Debug logs to trace why answerFormId may be missing.
-            try {
-                console.info('[stopAndGetProcessedResults] debug - quiz DTO:', quiz.value);
-                console.info(
-                    '[stopAndGetProcessedResults] debug - formUrl (answerUrl/formUrl):',
-                    (quiz.value as any)?.answerUrl ?? (quiz.value as any)?.formUrl
-                );
-                console.info(
-                    '[stopAndGetProcessedResults] debug - answerFormId:',
-                    (quiz.value as any)?.answerFormId
-                );
-                console.info(
-                    '[stopAndGetProcessedResults] debug - getFormId result:',
-                    typeof (quiz.value as any)?.getFormId === 'function'
-                        ? (quiz.value as any).getFormId()
-                        : 'no-getFormId'
-                );
-            } catch (e) {
-                console.warn('[stopAndGetProcessedResults] debug logging failed', e);
-            }
-
-            const formId = (quiz.value as any)?.answerFormId ?? null;
-
-            if (!formId) {
-                console.warn('[stopAndGetProcessedResults] no answerFormId available on DTO; skipping.');
-                isLoading.value = false;
-                canProceed.value = true;
-            } else {
-                console.info('[stopAndGetProcessedResults] about to call stopQuizUseCase for formId=', formId);
-                const stopQuizUseCase = container.resolve(StopQuizUseCase);
-                if (isPreview.value) {
-                    console.info('[stopAndGetProcessedResults] preview mode: skipping for formId=', formId);
-                    isLoading.value = false;
-                    canProceed.value = true;
-                } else {
-                    // await the stop/process so we only enable Enter after work completes
-                    const quizStartTimeMs = quizState.getStartTime() ?? Date.now();
-                    const answerKey = '回答'; // Assuming the column is '回答'
-                    const correctOption = quiz.value?.options.find((opt: any) => opt.no === quiz.value?.correctNo);
-                    const correctValue = correctOption?.text || '';
-                    try {
-                        const results = await stopQuizUseCase.execute(formId, quizStartTimeMs, answerKey, correctValue);
-                        console.log('[stopAndGetProcessedResults] succeeded for formId=', formId, 'results count=', Array.isArray(results) ? results.length : 'unknown');
-                        try {
-                            // Normalize cached results into ResultDto[] shape expected by results page
-                            const normalized = (Array.isArray(results) ? results : []).map((r: any, idx: number) => {
-                                const id = String(r.playerId ?? r.id ?? r.responseId ?? r.__responseId ?? (idx + 1));
-                                const playerName = r.playerName ?? r.name ?? r.displayName ?? r.email ?? '匿名';
-                                // time in ms: prefer timeToAnswerMs, then timestampMs-quizStartTimeMs, then time (may be seconds)
-                                let timeMs: number | null = null;
-                                if (typeof r.timeToAnswerMs === 'number') timeMs = Number(r.timeToAnswerMs);
-                                else if (typeof r.timestampMs === 'number') timeMs = Number(r.timestampMs) - Number(quizStartTimeMs || Date.now());
-                                else if (typeof r.time === 'number') {
-                                    // if `time` looks like seconds (small), convert to ms heuristically
-                                    timeMs = r.time > 1000 ? Number(r.time) : Number(r.time) * 1000;
-                                }
-                                const rank = typeof r.rank === 'number' ? r.rank : idx + 1;
-                                return { id, playerName: String(playerName), time: Number.isFinite(timeMs) ? timeMs : null, rank };
-                            });
-                            quizState.setResults(normalized as any[]);
-                        } catch (e) {
-                            console.warn('Failed to normalize/cache results in quizState', e);
-                            try { quizState.setResults(results as any[]); } catch (_) { /* ignore */ }
-                        }
-                        isLoading.value = false;
-                        canProceed.value = true;
-                    } catch (err) {
-                        const msg = err instanceof Error ? err.message : String(err);
-                        console.error('[stopAndGetProcessedResults] failed for formId=', formId, 'error=', msg);
-                        errorMessage.value = '集計に失敗しました。';
-                        isLoading.value = false;
-                        canProceed.value = true; // Allow retry or proceed
-                    }
-                }
-            }
+            void finishAcceptingAnswers();
         }
     }, 1000);
+};
+
+/**
+ * 回答受付を締め切る。タイマー終了時の自動呼び出しと、管理者の「今すぐ受付停止」
+ * ボタンからの手動呼び出しの両方から使う共通処理。
+ */
+async function finishAcceptingAnswers() {
+    if (timer) {
+        clearInterval(timer);
+        timer = undefined;
+    }
+    // Stop BGM
+    if (audioElement.value) {
+        audioElement.value.pause();
+        audioElement.value = null;
+    }
+    if (bgmObjectUrl.value && bgmObjectUrl.value.startsWith('blob:')) {
+        URL.revokeObjectURL(bgmObjectUrl.value);
+        bgmObjectUrl.value = null;
+    }
+
+    // Immediately show modal so UI reflects the stop instantly
+    showModal.value = true;
+    isLoading.value = true;
+    canProceed.value = false;
+    errorMessage.value = null;
+
+    if (isPreview.value) {
+        isLoading.value = false;
+        canProceed.value = true;
+        return;
+    }
+
+    try {
+        const stopAcceptingAnswersUseCase = container.resolve(StopAcceptingAnswersUseCase);
+        await stopAcceptingAnswersUseCase.execute(quizId);
+        isLoading.value = false;
+        canProceed.value = true;
+    } catch (err) {
+        console.error('Failed to stop accepting answers', err);
+        errorMessage.value = '受付終了処理に失敗しました。';
+        isLoading.value = false;
+        canProceed.value = true; // Allow retry or proceed
+    }
+}
+
+const handleEmergencyStop = () => {
+    if (showModal.value) return; // already stopping/stopped
+    void finishAcceptingAnswers();
 };
 
 const selectOption = (index?: number) => {
@@ -690,6 +667,26 @@ body::-webkit-scrollbar {
     height: 168px;
     border-radius: 10px;
     box-shadow: 0 8px 24px rgba(2, 6, 23, 0.55);
+}
+
+.emergency-stop-button {
+    position: absolute;
+    bottom: 18px;
+    right: 18px;
+    z-index: 50;
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(239, 68, 68, 0.85);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(2, 6, 23, 0.5);
+}
+
+.emergency-stop-button:hover {
+    background: rgba(239, 68, 68, 1);
 }
 
 .modal-overlay {
