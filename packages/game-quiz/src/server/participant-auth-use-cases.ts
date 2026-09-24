@@ -10,6 +10,11 @@ export interface ParticipantAuthDeps {
 
 const DEVICE_TOKEN_PREFIX = "quiz-game-device-token/";
 
+/** 保存済みトークンから userId のみを解決する(回答送信など軽量な用途向け)。 */
+export function findUserIdByToken(storage: IKeyValueStorage, token: string): string | null {
+  return storage.get(`${DEVICE_TOKEN_PREFIX}${token}`);
+}
+
 /**
  * ユーザーIDでログインし、端末に保存する用のトークンを発行する。
  * 発行済みトークンは端末側の localStorage に保存され、以降は
@@ -33,7 +38,7 @@ export function resolveDeviceToken(
   deps: ParticipantAuthDeps,
   args: { token: string }
 ): ParticipantSession {
-  const userId = deps.storage.get(`${DEVICE_TOKEN_PREFIX}${args.token}`);
+  const userId = findUserIdByToken(deps.storage, args.token);
   if (!userId) {
     throw new Error("Invalid or expired device token");
   }
