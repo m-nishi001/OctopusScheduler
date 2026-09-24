@@ -15,11 +15,6 @@ import type {
 export const QUIZ_GAME_PREFIX = "quizGame" as const;
 
 export const QUIZ_GAME_ENDPOINTS = [
-  "stopForm",
-  "getSheetData",
-  "stopAndGetProcessedResults",
-  "loadEmailNameMap",
-  "getMappedResponses",
   "addDriveData",
   "getDriveMetaData",
   "getDriveData",
@@ -45,19 +40,12 @@ export type QuizGameEndpointName = (typeof QUIZ_GAME_ENDPOINTS)[number];
 export type QuizGameFunctionName =
   `${typeof QUIZ_GAME_PREFIX}_${QuizGameEndpointName}`;
 
-export interface SheetRow {
-  name: string;
-  time: number;
-}
-
 export interface QuizWithDataUrl {
   id: string;
   title: string;
   question: string;
   options: { no: number; text: string; color: string; image: string | null }[];
   correctNo: number;
-  formUrl: string;
-  answerFormId: string;
   timeLimit: number;
   bgm: string | null;
   settings?: {
@@ -68,38 +56,7 @@ export interface QuizWithDataUrl {
   };
 }
 
-export interface ProcessedResultDto {
-  playerId?: string | null;
-  playerName?: string | null;
-  isCorrect: boolean;
-  timeToAnswerMs: number;
-  timestampMs: number;
-  rank?: number | null;
-  rawRow?: unknown[];
-}
-
 // GAS function argument types
-export interface StopFormArgs {
-  quizId: string;
-}
-
-export interface GetSheetDataArgs {
-  quizId: string;
-}
-
-export interface StopAndGetProcessedResultsArgs {
-  quizId: string;
-  quizStartTimeMs: number;
-  answerKey: string;
-  correctValue: string;
-}
-
-export type LoadEmailNameMapArgs = Record<string, never>;
-
-export interface GetMappedResponsesArgs {
-  formId: string;
-}
-
 export interface AddDriveDataArgs {
   driveData: DriveData;
 }
@@ -231,17 +188,6 @@ export interface GetAnswersArgs {
  * その先の use-case 実装の実際のシグネチャに合わせている。
  */
 export interface QuizGameApi {
-  stopForm(args: StopFormArgs, options?: ApiCallOptions): Promise<void>;
-  getSheetData(args: GetSheetDataArgs, options?: ApiCallOptions): Promise<SheetRow[]>;
-  stopAndGetProcessedResults(
-    args: StopAndGetProcessedResultsArgs,
-    options?: ApiCallOptions
-  ): Promise<ProcessedResultDto[]>;
-  loadEmailNameMap(args: LoadEmailNameMapArgs, options?: ApiCallOptions): Promise<void>;
-  getMappedResponses(
-    args: GetMappedResponsesArgs,
-    options?: ApiCallOptions
-  ): Promise<Record<string, unknown>[]>;
   addDriveData(args: AddDriveDataArgs, options?: ApiCallOptions): Promise<DriveMetadata>;
   getDriveMetaData(
     args: GetDriveMetaDataArgs,

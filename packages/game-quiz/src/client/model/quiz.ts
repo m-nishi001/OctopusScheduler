@@ -16,20 +16,16 @@ export class Quiz {
     image: Blob | null;
   }[];
   correctNo: number;
-  formUrl: string;
-  answerFormId: string;
   timeLimit: number;
   bgm: Blob | null;
   settings?: QuizSettings;
 
-  constructor(quizData: Omit<Quiz, "id" | "getFormId"> | Quiz) {
+  constructor(quizData: Omit<Quiz, "id"> | Quiz) {
     this.id = "id" in quizData ? quizData.id : "";
     this.title = quizData.title;
     this.question = quizData.question;
     this.options = quizData.options;
     this.correctNo = (quizData as any).correctNo ?? 1;
-    this.formUrl = quizData.formUrl;
-    this.answerFormId = quizData.answerFormId ?? "";
     this.timeLimit = quizData.timeLimit;
     this.bgm = quizData.bgm;
     this.settings = quizData.settings;
@@ -38,7 +34,7 @@ export class Quiz {
   /**
    * Create a Quiz instance from a plain DTO (deserialized object).
    * This rehydrates objects read from local storage so instance methods
-   * such as `getFormId()` are available.
+   * are available.
    */
   static fromDto(dto: any): Quiz {
     if (!dto) throw new Error("Invalid quiz dto");
@@ -58,8 +54,6 @@ export class Quiz {
       question: dto.question ?? "",
       options,
       correctNo: dto.correctNo ?? 1,
-      formUrl: dto.formUrl ?? dto.answerUrl ?? "",
-      answerFormId: dto.answerFormId,
       timeLimit: dto.timeLimit ?? 0,
       bgm: dto.bgm ?? null,
       settings: dto.settings,

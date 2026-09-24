@@ -10,14 +10,11 @@ import { container } from "tsyringe";
 import {
   ICacheToken,
   IKeyValueStorageToken,
-  DataBaseFactoryToken,
 } from "@octopus/infrastructures/interfaces";
 import type {
   ICache,
   IKeyValueStorage,
-  DataBaseFactory,
 } from "@octopus/infrastructures/interfaces";
-import { GasFormRepository } from "@octopus/infrastructures/gas/gas-form-repository";
 import type {
   AddDriveDataArgs,
   AddJsonArgs,
@@ -28,27 +25,17 @@ import type {
   GetDriveDataArgs,
   GetDriveMetaDataArgs,
   GetJsonArgs,
-  GetMappedResponsesArgs,
-  GetSheetDataArgs,
   ListJsonMetaDataArgs,
   ListMembersArgs,
-  LoadEmailNameMapArgs,
   LoginParticipantArgs,
   RemoveDriveDataArgs,
   ResolveDeviceTokenArgs,
   StartAcceptingAnswersArgs,
   StopAcceptingAnswersArgs,
-  StopAndGetProcessedResultsArgs,
-  StopFormArgs,
   SubmitAnswerArgs,
   UpdateMemberArgs,
 } from "./quiz-api-contract";
 
-import { stopForm } from "./stop-form-use-case";
-import { getSheetData } from "./get-sheet-data-use-case";
-import { loadEmailNameMap } from "./load-email-name-map-use-case";
-import { getMappedResponses } from "./get-mapped-responses-use-case";
-import { stopAndGetProcessedResults } from "./stop-and-get-processed-results-use-case";
 import {
   addQuizDriveData,
   getQuizDriveData,
@@ -76,8 +63,6 @@ function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
     cache: container.resolve<ICache>(ICacheToken),
-    form: container.resolve(GasFormRepository),
-    dataBaseFactory: container.resolve<DataBaseFactory>(DataBaseFactoryToken),
     // GAS本番のUUID生成。node環境のテストではこの関数はGASグローバルに
     // 触れないよう、各use-caseのテストで別途スタブを注入する。
     generateToken: (): string => Utilities.getUuid(),
@@ -85,15 +70,6 @@ function resolveDeps() {
   };
 }
 
-declare let _quizGame_stopForm: (args: StopFormArgs) => string;
-declare let _quizGame_getSheetData: (args: GetSheetDataArgs) => string;
-declare let _quizGame_stopAndGetProcessedResults: (
-  args: StopAndGetProcessedResultsArgs
-) => string;
-declare let _quizGame_loadEmailNameMap: (args: LoadEmailNameMapArgs) => string;
-declare let _quizGame_getMappedResponses: (
-  args: GetMappedResponsesArgs
-) => string;
 declare let _quizGame_addDriveData: (args: AddDriveDataArgs) => string;
 declare let _quizGame_getDriveMetaData: (args: GetDriveMetaDataArgs) => string;
 declare let _quizGame_getDriveData: (args: GetDriveDataArgs) => string;
@@ -112,53 +88,6 @@ declare let _quizGame_stopAcceptingAnswers: (args: StopAcceptingAnswersArgs) => 
 declare let _quizGame_getAcceptanceState: (args: GetAcceptanceStateArgs) => string;
 declare let _quizGame_submitAnswer: (args: SubmitAnswerArgs) => string;
 declare let _quizGame_getAnswers: (args: GetAnswersArgs) => string;
-
-_quizGame_stopForm = (args: StopFormArgs): string => {
-  try {
-    stopForm(resolveDeps(), args.quizId);
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
-
-_quizGame_getSheetData = (args: GetSheetDataArgs): string => {
-  try {
-    const rows = getSheetData(resolveDeps(), args.quizId);
-    return JSON.stringify({ status: "success", data: rows });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
-
-_quizGame_loadEmailNameMap = (_args: LoadEmailNameMapArgs): string => {
-  try {
-    loadEmailNameMap(resolveDeps());
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
-
-_quizGame_getMappedResponses = (args: GetMappedResponsesArgs): string => {
-  try {
-    const out = getMappedResponses(resolveDeps(), args.formId);
-    return JSON.stringify({ status: "success", data: out });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
-
-_quizGame_stopAndGetProcessedResults = (
-  args: StopAndGetProcessedResultsArgs
-): string => {
-  try {
-    const results = stopAndGetProcessedResults(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: results });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
 
 _quizGame_addDriveData = (args: AddDriveDataArgs): string => {
   try {

@@ -18,8 +18,6 @@ export class UpdateQuizUseCase {
         color: o.color,
         image: o.image,
       })),
-      formUrl: dto.answerUrl,
-      answerFormId: dto.answerFormId,
       timeLimit: dto.timeLimit,
       bgm: dto.bgm,
       correctNo: dto.correctNo ?? 1,

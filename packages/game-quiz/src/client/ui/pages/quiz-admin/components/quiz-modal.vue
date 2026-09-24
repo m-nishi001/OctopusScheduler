@@ -20,14 +20,6 @@
                     <textarea v-model="currentQuiz.question" class="form-textarea" rows="3" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">回答URL</label>
-                    <input v-model="currentQuiz.answerUrl" type="url" class="form-input" required />
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Google Form ID</label>
-                    <input v-model="currentQuiz.answerFormId" type="text" class="form-input" required />
-                </div>
-                <div class="form-group">
                     <label class="form-label">回答（正解）</label>
                     <select v-model.number="currentQuiz.correctNo" class="form-input"
                         :disabled="currentQuiz.options.length === 0">
