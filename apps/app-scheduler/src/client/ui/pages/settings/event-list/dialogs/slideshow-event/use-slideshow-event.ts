@@ -3,10 +3,7 @@ import { container } from "tsyringe";
 import { AssetService } from "../../../../../../control/asset/asset-service";
 import type { Asset } from "../../../../../../model/asset/asset";
 import { AppEventService } from "../../../../../../control/app-event/app-event-service";
-import {
-  SlideshowEvent,
-  SlideshowEventParams,
-} from "../../../../../../control/app-event/slideshow/slideshow-event";
+import { SlideshowEvent } from "../../../../../../control/app-event/slideshow/slideshow-event";
 
 export function useSlideshowEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);
@@ -32,6 +29,7 @@ export function useSlideshowEvent(props: any, emit: any) {
   const newBgmFile = ref<File | null>(null);
   const assets = ref<Asset[]>([]);
   const assetService = container.resolve(AssetService);
+  const appEventService = container.resolve(AppEventService);
 
   watch(
     () => props.event,
@@ -127,51 +125,20 @@ export function useSlideshowEvent(props: any, emit: any) {
       alert("開始時間が終了時間より後です。");
       return;
     }
-    const scheduleEventService = container.resolve(AppEventService);
     try {
-      const baseParams = {
-        startTime,
-        endTime,
-        folderId: form.value.folderId,
-        displayDuration: form.value.displayDuration,
-        transitionType: form.value.transitionType,
-        slideDirection: form.value.slideDirection,
-        bgmIds: form.value.bgmList.map((b: any) => b.id),
-      } as const;
-
-      if (props.event) {
-        const params = new SlideshowEventParams({
-          id: props.event.id,
-          startTime: baseParams.startTime,
-          endTime: baseParams.endTime,
-          folderId: baseParams.folderId,
-          displayDuration: baseParams.displayDuration,
-          transitionType: baseParams.transitionType as any,
-          slideDirection: baseParams.slideDirection as any,
-          bgmIds: baseParams.bgmIds,
-          processedAt: props.event.processedAt,
-          registeredAt: props.event.registeredAt,
-          updatedAt: new Date(),
-        });
-        const updated = SlideshowEvent.fromParams(params);
-        await scheduleEventService.updateScheduleEvents([updated]);
-      } else {
-        const params = new SlideshowEventParams({
-          id: "",
-          startTime: baseParams.startTime,
-          endTime: baseParams.endTime,
-          folderId: baseParams.folderId,
-          displayDuration: baseParams.displayDuration,
-          transitionType: baseParams.transitionType as any,
-          slideDirection: baseParams.slideDirection as any,
-          bgmIds: baseParams.bgmIds,
-          processedAt: null,
-          registeredAt: new Date(),
-          updatedAt: new Date(),
-        });
-        const tempEvent = SlideshowEvent.fromParams(params);
-        await scheduleEventService.addScheduleEvents([tempEvent]);
-      }
+      await appEventService.saveScheduledEvent(
+        {
+          actionType: "SlideshowEvent",
+          folderId: form.value.folderId,
+          displayDuration: form.value.displayDuration,
+          transitionType: form.value.transitionType as any,
+          slideDirection: form.value.slideDirection as any,
+          bgmIds: form.value.bgmList.map((b: any) => b.id),
+          startTime,
+          endTime,
+        },
+        props.event
+      );
       emit("saved");
       emit("close");
     } catch (e) {

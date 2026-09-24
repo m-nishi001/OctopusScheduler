@@ -2,7 +2,7 @@ import Home from "../pages/home/home-view.vue";
 import Settings from "../pages/settings/settings-view.vue";
 import Execute from "../pages/execute/execute-view.vue";
 import AssetListEditor from "../pages/settings/asset-list/asset-list-editor.vue";
-import EventEditor from "../components/settings/event-list/event-list.vue";
+import EventEditor from "../pages/settings/event-list/event-list.vue";
 import ShowImage from "../components/app-event-handler/show-content/show-image.vue";
 import ShowVideo from "../components/app-event-handler/show-content/show-video.vue";
 import ShowHtml from "../components/app-event-handler/show-content/show-html.vue";

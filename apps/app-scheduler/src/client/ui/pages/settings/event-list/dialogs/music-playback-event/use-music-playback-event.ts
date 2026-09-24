@@ -2,10 +2,7 @@ import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
 import { AssetService } from "../../../../../../control/asset/asset-service";
 import { AppEventService } from "../../../../../../control/app-event/app-event-service";
-import {
-  PlayAudioEvent,
-  PlayAudioEventParams,
-} from "../../../../../../control/app-event/play-audio/play-audio-event";
+import { PlayAudioEvent } from "../../../../../../control/app-event/play-audio/play-audio-event";
 import type { Asset } from "../../../../../../model/asset/asset";
 
 export function useMusicPlaybackEvent(props: any, emit: any) {
@@ -28,6 +25,7 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
 
   const assets = ref<Asset[]>([]);
   const assetService = container.resolve(AssetService);
+  const appEventService = container.resolve(AppEventService);
 
   watch(
     () => props.event,
@@ -70,8 +68,6 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
 
     let audioId = form.value.audioId;
 
-    const scheduleEventService = container.resolve(AppEventService);
-
     if (form.value.assetSource === "existing") {
       audioId = form.value.selectedAssetId;
     } else if (form.value.assetSource === "upload" && form.value.uploadFile) {
@@ -96,40 +92,16 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
     }
 
     try {
-      const baseParams = {
-        startTime,
-        endTime,
-        audioId,
-        fadeOutDuration: form.value.fadeOutDuration,
-      } as const;
-
-      if (isEdit.value && props.event) {
-        const params = new PlayAudioEventParams({
-          id: props.event.id,
-          startTime: baseParams.startTime,
-          endTime: baseParams.endTime,
-          audioId: baseParams.audioId,
-          fadeOutDuration: baseParams.fadeOutDuration,
-          processedAt: props.event.processedAt,
-          registeredAt: props.event.registeredAt,
-          updatedAt: new Date(),
-        });
-        const updated = PlayAudioEvent.fromParams(params);
-        await scheduleEventService.updateScheduleEvents([updated]);
-      } else {
-        const params = new PlayAudioEventParams({
-          id: "",
-          startTime: baseParams.startTime,
-          endTime: baseParams.endTime,
-          audioId: baseParams.audioId,
-          fadeOutDuration: baseParams.fadeOutDuration,
-          processedAt: null,
-          registeredAt: new Date(),
-          updatedAt: new Date(),
-        });
-        const tempEvent = PlayAudioEvent.fromParams(params);
-        await scheduleEventService.addScheduleEvents([tempEvent]);
-      }
+      await appEventService.saveScheduledEvent(
+        {
+          actionType: "PlayAudioEvent",
+          audioId,
+          fadeOutDuration: form.value.fadeOutDuration,
+          startTime,
+          endTime,
+        },
+        props.event
+      );
       emit("saved");
       emit("close");
     } catch (e) {

@@ -59,7 +59,7 @@
 </template>
 
 <script setup lang="ts">
-import { useMusicPlaybackEvent } from './music-playback-event-register';
+import { useMusicPlaybackEvent } from './use-music-playback-event';
 
 interface Props { event?: any }
 const props = defineProps<Props>();

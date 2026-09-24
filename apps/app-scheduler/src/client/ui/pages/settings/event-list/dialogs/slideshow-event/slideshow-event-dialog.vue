@@ -87,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { useSlideshowEvent } from './slideshow-event-register';
+import { useSlideshowEvent } from './use-slideshow-event';
 interface Props { event?: any }
 const props = defineProps<Props>();
 const emit = defineEmits<{ saved: []; close: [] }>();

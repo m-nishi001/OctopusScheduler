@@ -1,10 +1,7 @@
 import { ref, onMounted } from "vue";
 import { container } from "tsyringe";
 import { AppEventService } from "../../../../../../control/app-event/app-event-service";
-import {
-  StopAudioEvent,
-  StopAudioEventParams,
-} from "../../../../../../control/app-event/stop-audio/stop-audio-event";
+import { StopAudioEvent } from "../../../../../../control/app-event/stop-audio/stop-audio-event";
 
 export function useStopAudioEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);
@@ -19,6 +16,7 @@ export function useStopAudioEvent(props: any, emit: any) {
 
   const initialEntity = props.event ?? StopAudioEvent.createEmpty();
   const form = ref(entityToForm(initialEntity));
+  const appEventService = container.resolve(AppEventService);
 
   onMounted(() => {});
 
@@ -34,36 +32,16 @@ export function useStopAudioEvent(props: any, emit: any) {
       return;
     }
 
-    const scheduleEventService = container.resolve(AppEventService);
-
     try {
-      if (isEdit.value && props.event) {
-        const params = new StopAudioEventParams({
-          id: props.event.id,
+      await appEventService.saveScheduledEvent(
+        {
+          actionType: "StopAudioEvent",
+          fadeOutDuration: form.value.fadeOutDuration,
           startTime,
           endTime,
-          audioId: undefined,
-          fadeOutDuration: form.value.fadeOutDuration,
-          processedAt: props.event.processedAt,
-          registeredAt: props.event.registeredAt,
-          updatedAt: new Date(),
-        });
-        const updated = StopAudioEvent.fromParams(params);
-        await scheduleEventService.updateScheduleEvents([updated]);
-      } else {
-        const params = new StopAudioEventParams({
-          id: "",
-          startTime,
-          endTime,
-          audioId: undefined,
-          fadeOutDuration: form.value.fadeOutDuration,
-          processedAt: null,
-          registeredAt: new Date(),
-          updatedAt: new Date(),
-        });
-        const tempEvent = StopAudioEvent.fromParams(params);
-        await scheduleEventService.addScheduleEvents([tempEvent]);
-      }
+        },
+        props.event
+      );
       emit("saved");
       emit("close");
     } catch (e) {

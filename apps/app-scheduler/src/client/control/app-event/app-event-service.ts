@@ -3,13 +3,23 @@ import { AppEventRepository } from "@model/app-event/app-event-repository";
 import type { AppEventData } from "@model/app-event/app-event-data";
 import type { ExecutionStatus } from "@model/app-event/execution-status";
 import { UIActionEntryToken } from "../../domains/app-event/ui-action-entry-token";
+import { AssetService } from "../asset/asset-service";
 import type { AppEvent } from "./app-event";
 import type { AppEventDto } from "./dto/app-event-dto";
-import { PlayAudioEvent } from "./play-audio/play-audio-event";
-import { ShowContentEvent } from "./show-content/show-content-event";
-import { SlideshowEvent } from "./slideshow/slideshow-event";
-import { StopAudioEvent } from "./stop-audio/stop-audio-event";
-import { TransitionPageEvent } from "./transition/transition-page-event";
+import { PlayAudioEvent, PlayAudioEventParams } from "./play-audio/play-audio-event";
+import { ShowContentEvent, ShowContentEventParams } from "./show-content/show-content-event";
+import { SlideshowEvent, SlideshowEventParams } from "./slideshow/slideshow-event";
+import { StopAudioEvent, StopAudioEventParams } from "./stop-audio/stop-audio-event";
+import { TransitionPageEvent, TransitionPageEventParams } from "./transition/transition-page-event";
+
+interface ScheduledEventTiming {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+  processedAt: Date | null;
+  registeredAt: Date;
+  updatedAt: Date;
+}
 
 // The concrete union of every event kind. `AppEventService` is the only
 // place that ever constructs these, so it is also the only place that needs
@@ -29,7 +39,8 @@ function assertNever(x: never): never {
 @injectable()
 export class AppEventService {
   constructor(
-    @inject(AppEventRepository) private repository: AppEventRepository
+    @inject(AppEventRepository) private repository: AppEventRepository,
+    @inject(AssetService) private assetService: AssetService
   ) {}
 
   // The single place plain storage data is turned into a behavioral event
@@ -247,5 +258,141 @@ export class AppEventService {
     for (const id of scheduleEventIds) {
       await this.repository.updateExecutionStatus(id, "completed");
     }
+  }
+
+  // Replaces the duplicated construct-then-persist ceremony that used to be
+  // hand-rolled in each event-list dialog's onSubmit(): build the right
+  // event kind from explicit schedule fields, preserving processedAt/
+  // registeredAt when editing an existing event, and save it.
+  async saveScheduledEvent(
+    input: AppEventDto & { startTime: Date; endTime: Date },
+    existing?: AppEvent
+  ): Promise<void> {
+    const now = new Date();
+    const timing: ScheduledEventTiming = {
+      id: existing?.id ?? "",
+      startTime: input.startTime,
+      endTime: input.endTime,
+      processedAt: existing?.processedAt ?? null,
+      registeredAt: existing?.registeredAt ?? now,
+      updatedAt: now,
+    };
+    const ev = this.buildScheduledEvent(input, timing);
+    if (existing) {
+      await this.updateScheduleEvents([ev]);
+    } else {
+      await this.addScheduleEvents([ev]);
+    }
+  }
+
+  private buildScheduledEvent(
+    input: AppEventDto,
+    timing: ScheduledEventTiming
+  ): AnyAppEvent {
+    switch (input.actionType) {
+      case "PlayAudioEvent":
+        return PlayAudioEvent.fromParams(
+          new PlayAudioEventParams({
+            ...timing,
+            audioId: input.audioId,
+            fadeOutDuration: input.fadeOutDuration,
+          })
+        );
+      case "ShowContentEvent":
+        return ShowContentEvent.fromParams(
+          new ShowContentEventParams({
+            ...timing,
+            contentType: input.contentType,
+            contentId: input.contentId,
+            htmlString: input.htmlString,
+            fadeOutDuration: input.fadeOutDuration,
+            displayMode: input.displayMode,
+            effect: input.effect,
+            duration: input.duration,
+            fadeInTime: input.fadeInTime,
+            fadeOutTime: input.fadeOutTime,
+            scrollDirection: input.scrollDirection,
+          })
+        );
+      case "SlideshowEvent":
+        return SlideshowEvent.fromParams(
+          new SlideshowEventParams({
+            ...timing,
+            folderId: input.folderId,
+            displayDuration: input.displayDuration,
+            transitionType: input.transitionType ?? "fade",
+            slideDirection: input.slideDirection,
+            bgmIds: input.bgmIds ?? [],
+          })
+        );
+      case "StopAudioEvent":
+        return StopAudioEvent.fromParams(
+          new StopAudioEventParams({
+            ...timing,
+            audioId: input.audioId,
+            fadeOutDuration: input.fadeOutDuration,
+          })
+        );
+      case "TransitionPageEvent":
+        return TransitionPageEvent.fromParams(
+          new TransitionPageEventParams({
+            ...timing,
+            transitionUrl: input.transitionUrl,
+            fadeOutDuration: input.fadeOutDuration,
+          })
+        );
+      default:
+        return assertNever(input);
+    }
+  }
+
+  // Uploads any queued files for a ShowContentEvent's html body / contentId,
+  // rewriting `{{asset:image|video:<tempId>}}` placeholders to the resulting
+  // real asset ids. Replaces the old ContentDisplayEventRegister class.
+  async resolveShowContentUploads(
+    currentContentId: string | undefined,
+    currentHtml: string | undefined,
+    uploadFiles: Array<{ tempId: string; file: File }> | undefined
+  ): Promise<{ contentId: string; htmlString: string }> {
+    const queued = uploadFiles || [];
+    if (!queued.length) {
+      return { contentId: currentContentId ?? "", htmlString: currentHtml ?? "" };
+    }
+
+    const tempOrder: string[] = [];
+    const assetsToAdd: Array<Record<string, unknown>> = [];
+    for (const entry of queued) {
+      tempOrder.push(entry.tempId);
+      const f = entry.file;
+      assetsToAdd.push({
+        id: "",
+        name: f.name,
+        uploadedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        size: f.size,
+        blob: f,
+      });
+    }
+    if (!assetsToAdd.length) {
+      return { contentId: currentContentId ?? "", htmlString: currentHtml ?? "" };
+    }
+
+    const ids = await this.assetService.addAssets(assetsToAdd as any);
+    const tempToReal: Record<string, string> = {};
+    for (let i = 0; i < tempOrder.length; i++) tempToReal[tempOrder[i]] = ids[i];
+
+    let html = currentHtml ?? "";
+    for (const tempId of tempOrder) {
+      const realId = tempToReal[tempId];
+      const regex = new RegExp(`\\{\\{asset:(image|video):${tempId}\\}\\}`, "g");
+      html = html.replace(regex, (_match: string, type: string) => `{{asset:${type}:${realId}}}`);
+    }
+
+    let newContentId = currentContentId ?? "";
+    if (currentContentId && tempToReal[currentContentId]) {
+      newContentId = tempToReal[currentContentId];
+    }
+
+    return { contentId: newContentId, htmlString: html };
   }
 }
