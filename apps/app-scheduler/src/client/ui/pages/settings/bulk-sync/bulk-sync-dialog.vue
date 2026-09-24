@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { container } from 'tsyringe';
-import { BulkSyncService } from '../../../../applications/bulk-sync/bulk-sync-service';
+import { BulkSyncService } from '../../../../control/bulk-sync/bulk-sync-service';
 
 const props = defineProps<{ visible: boolean }>();
 const emit = defineEmits(['close']);
