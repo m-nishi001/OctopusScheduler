@@ -1,6 +1,6 @@
 import { container } from "tsyringe";
 import { eventBus } from "@octopus/client-common/events/event-bus";
-import { AppEventService } from "../../../applications/app-event/app-event-service";
+import { AppEventService } from "../../applications/app-event/app-event-service";
 
 /**
  * Send shortcut eventIds to the execute tab via BroadcastChannel.

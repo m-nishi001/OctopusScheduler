@@ -41,7 +41,7 @@ import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { AppEventService } from '../../../../applications/app-event/app-event-service';
 import { IAppEventConverterToken } from '../../../../domains/app-event/i-app-event-converter';
 import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
-import { sendShortcutViaChannel } from '../../keyboard-shortcut/send-shortcut-via-channel';
+import { sendShortcutViaChannel } from '../../../composables/send-shortcut-via-channel';
 
 interface Props {
     shortcuts: KeyboardShortcut[];

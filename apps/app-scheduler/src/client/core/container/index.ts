@@ -26,7 +26,7 @@ import { StopAudioEventSerializer } from "../../infrastructures/app-event/serial
 import { SlideshowEventSerializer } from "../../infrastructures/app-event/serializers/slideshow-event-serializer";
 import { TransitionPageEventSerializer } from "../../infrastructures/app-event/serializers/transition-page-event-serializer";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
-import { KeyboardShortcutService } from "../../applications/keyboard-shortcut/keyboard-shortcut-service";
+import { KeyboardShortcutService } from "../../control/keyboard-shortcut/keyboard-shortcut-service";
 import { UIActionEntryToken } from "../../domains/app-event/ui-action-entry-token";
 import { TransitionPageAction } from "../../ui/components/settings/app-events/events/transition-page/entry";
 import { PlayAudioAction } from "../../ui/components/settings/app-events/events/play-audio/entry";
