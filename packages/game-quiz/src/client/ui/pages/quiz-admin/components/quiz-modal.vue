@@ -97,9 +97,10 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, onUnmounted, onMounted, watch, computed } from 'vue';
+import { defineProps, defineEmits, ref, onMounted, watch, computed } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
 import type { QuizDto } from '../../../../control/dto/quiz-dto';
+import { useObjectUrlStore } from '../../../composables/use-object-url-store';
 
 const props = defineProps<{
     isEditing: boolean;
@@ -115,32 +116,21 @@ const showOptionModal = ref(false);
 const isEditingOption = ref(false);
 const editingOptionIndex = ref(-1);
 const currentOption = ref<{ no: number; text: string; image: Blob | null; color: string }>({ no: 0, text: '', image: null, color: 'red' });
-const bgmPreview = ref<string | null>(null);
-const correctBgmPreview = ref<string | null>(null);
-const prizeImagePreview = ref<string | null>(null);
-const prizeBgmPreview = ref<string | null>(null);
 
-// track created object URLs so we can revoke them reliably
-const createdObjectUrls = new Set<string>();
+// BGM/画像プレビュー用のobject URLを、キーごとに使い回して管理する。
+// unmount時のURL失効も内部で自動的に行われる。
+const objectUrlStore = useObjectUrlStore();
 
-const addObjectUrl = (url: string | null) => {
-    if (!url) return;
-    if (url.startsWith('blob:')) createdObjectUrls.add(url);
-};
-
-const revokeAllObjectUrls = () => {
-    for (const u of Array.from(createdObjectUrls)) {
-        try {
-            URL.revokeObjectURL(u);
-        } catch (e) {
-            // ignore
-        }
-        createdObjectUrls.delete(u);
-    }
-};
-
-// map option object -> preview URL so we reuse the same preview per option
-const optionPreviewMap = new Map<any, string>();
+const bgmPreview = computed(() => objectUrlStore.ensure('bgm', props.currentQuiz.bgm));
+const correctBgmPreview = computed(() =>
+    objectUrlStore.ensure('correctBgm', props.currentQuiz.settings?.correctBgm)
+);
+const prizeImagePreview = computed(() =>
+    objectUrlStore.ensure('prizeImage', props.currentQuiz.settings?.prizeImage)
+);
+const prizeBgmPreview = computed(() =>
+    objectUrlStore.ensure('prizeBgm', props.currentQuiz.settings?.prizeBgm)
+);
 
 const prizeName = computed({
     get: () => props.currentQuiz.settings?.prizeName || '',
@@ -151,23 +141,8 @@ const prizeName = computed({
     }
 });
 
-const imageSrc = (option: { no?: number; text?: string; image: Blob | null }) => {
-    const image = option?.image;
-    if (image instanceof Blob) {
-        // reuse existing preview URL for this option if present
-        const existing = optionPreviewMap.get(option);
-        if (existing) return existing;
-        try {
-            const u = URL.createObjectURL(image);
-            optionPreviewMap.set(option, u);
-            addObjectUrl(u);
-            return u;
-        } catch (e) {
-            console.error('Failed to create preview URL for option image', e);
-            return '';
-        }
-    }
-    return '';
+const imageSrc = (option: { no: number; text?: string; image: Blob | null }) => {
+    return objectUrlStore.ensure(`option-${option.no}`, option.image) ?? '';
 };
 
 const closeModal = () => {
@@ -179,76 +154,19 @@ const saveQuiz = () => {
 };
 
 const onBgmChange = (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (file) {
-        // revoke previous preview if any
-        if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
-            try { URL.revokeObjectURL(bgmPreview.value); } catch { }
-            createdObjectUrls.delete(bgmPreview.value);
-        }
-        props.currentQuiz.bgm = file;
-        const u = URL.createObjectURL(file);
-        bgmPreview.value = u;
-        addObjectUrl(u);
-    } else {
-        props.currentQuiz.bgm = null;
-        if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
-            try { URL.revokeObjectURL(bgmPreview.value); } catch { }
-            createdObjectUrls.delete(bgmPreview.value);
-        }
-        bgmPreview.value = null;
-    }
+    props.currentQuiz.bgm = (event.target as HTMLInputElement).files?.[0] ?? null;
 };
 
 const onCorrectBgmChange = (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (correctBgmPreview.value && correctBgmPreview.value.startsWith('blob:')) {
-        try { URL.revokeObjectURL(correctBgmPreview.value); } catch { }
-        createdObjectUrls.delete(correctBgmPreview.value);
-    }
-    if (file) {
-        props.currentQuiz.settings!.correctBgm = file;
-        const u = URL.createObjectURL(file);
-        correctBgmPreview.value = u;
-        addObjectUrl(u);
-    } else {
-        props.currentQuiz.settings!.correctBgm = null;
-        correctBgmPreview.value = null;
-    }
+    props.currentQuiz.settings!.correctBgm = (event.target as HTMLInputElement).files?.[0] ?? null;
 };
 
 const onPrizeImageChange = (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (prizeImagePreview.value && prizeImagePreview.value.startsWith('blob:')) {
-        try { URL.revokeObjectURL(prizeImagePreview.value); } catch { }
-        createdObjectUrls.delete(prizeImagePreview.value);
-    }
-    if (file) {
-        props.currentQuiz.settings!.prizeImage = file;
-        const u = URL.createObjectURL(file);
-        prizeImagePreview.value = u;
-        addObjectUrl(u);
-    } else {
-        props.currentQuiz.settings!.prizeImage = null;
-        prizeImagePreview.value = null;
-    }
+    props.currentQuiz.settings!.prizeImage = (event.target as HTMLInputElement).files?.[0] ?? null;
 };
 
 const onPrizeBgmChange = (event: Event) => {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (prizeBgmPreview.value && prizeBgmPreview.value.startsWith('blob:')) {
-        try { URL.revokeObjectURL(prizeBgmPreview.value); } catch { }
-        createdObjectUrls.delete(prizeBgmPreview.value);
-    }
-    if (file) {
-        props.currentQuiz.settings!.prizeBgm = file;
-        const u = URL.createObjectURL(file);
-        prizeBgmPreview.value = u;
-        addObjectUrl(u);
-    } else {
-        props.currentQuiz.settings!.prizeBgm = null;
-        prizeBgmPreview.value = null;
-    }
+    props.currentQuiz.settings!.prizeBgm = (event.target as HTMLInputElement).files?.[0] ?? null;
 };
 
 const addOption = () => {
@@ -268,14 +186,8 @@ const editOption = (index: number) => {
 
 const saveOption = () => {
     if (isEditingOption.value) {
-        // Revoke any preview URL associated with the option being edited
-        const targetOption = props.currentQuiz.options[editingOptionIndex.value];
-        const prevUrl = optionPreviewMap.get(targetOption);
-        if (prevUrl) {
-            try { URL.revokeObjectURL(prevUrl); } catch { }
-            optionPreviewMap.delete(targetOption);
-            createdObjectUrls.delete(prevUrl);
-        }
+        // 画像Blobが変わっていればimageSrc()呼び出し時にobjectUrlStoreが
+        // 自動的に古いプレビューURLを失効させる(noが変わらない前提)。
         props.currentQuiz.options[editingOptionIndex.value] = { ...currentOption.value };
     } else {
         props.currentQuiz.options.push({ ...currentOption.value });
@@ -289,17 +201,10 @@ const closeOptionModal = () => {
 
 const removeOption = (index: number) => {
     const option = props.currentQuiz.options[index];
-    // revoke cached preview url for this option if any
-    const prev = optionPreviewMap.get(option);
-    if (prev) {
-        try { URL.revokeObjectURL(prev); } catch { }
-        optionPreviewMap.delete(option);
-        createdObjectUrls.delete(prev);
-    }
+    objectUrlStore.revoke(`option-${option.no}`);
     props.currentQuiz.options.splice(index, 1);
 };
 
-// コンポーネントのアンマウント時にBlob URLを解放
 onMounted(() => {
     // Initialize settings if not present
     if (!props.currentQuiz.settings) {
@@ -316,57 +221,8 @@ onMounted(() => {
         (props.currentQuiz as any).correctNo = 1;
     }
 
-    // Setup bgm preview if blob
-    if (props.currentQuiz.bgm instanceof Blob) {
-        const u = URL.createObjectURL(props.currentQuiz.bgm);
-        bgmPreview.value = u;
-        addObjectUrl(u);
-    }
-
-    // Set previews from existing Blobs
-    if (props.currentQuiz.settings.correctBgm instanceof Blob) {
-        const u = URL.createObjectURL(props.currentQuiz.settings.correctBgm);
-        correctBgmPreview.value = u;
-        addObjectUrl(u);
-    }
-    if (props.currentQuiz.settings.prizeImage instanceof Blob) {
-        const u = URL.createObjectURL(props.currentQuiz.settings.prizeImage);
-        prizeImagePreview.value = u;
-        addObjectUrl(u);
-    }
-    if (props.currentQuiz.settings.prizeBgm instanceof Blob) {
-        const u = URL.createObjectURL(props.currentQuiz.settings.prizeBgm);
-        prizeBgmPreview.value = u;
-        addObjectUrl(u);
-    }
-
-    // Do not replace option.image (keep as Blob). previews are generated on-demand by imageSrc.
-});
-
-onUnmounted(() => {
-    // Revoke any object URLs created during mount/use
-    // Options
-    // Revoke any preview URLs created for options
-    for (const [opt, url] of Array.from(optionPreviewMap.entries())) {
-        try { URL.revokeObjectURL(url); } catch { }
-        optionPreviewMap.delete(opt);
-    }
-    // Other previews
-    if (bgmPreview.value && bgmPreview.value.startsWith('blob:')) {
-        try { URL.revokeObjectURL(bgmPreview.value); } catch { }
-    }
-    if (correctBgmPreview.value && correctBgmPreview.value.startsWith('blob:')) {
-        try { URL.revokeObjectURL(correctBgmPreview.value); } catch { }
-    }
-    if (prizeImagePreview.value && prizeImagePreview.value.startsWith('blob:')) {
-        try { URL.revokeObjectURL(prizeImagePreview.value); } catch { }
-    }
-    if (prizeBgmPreview.value && prizeBgmPreview.value.startsWith('blob:')) {
-        try { URL.revokeObjectURL(prizeBgmPreview.value); } catch { }
-    }
-
-    // Revoke any other tracked object URLs
-    revokeAllObjectUrls();
+    // BGM/画像プレビューはbgmPreview等のcomputedがobjectUrlStore経由で
+    // 遅延生成するため、ここでの明示的な初期化は不要。
 });
 
 // Watch option count and fallback correctNo to 1 when out of range
