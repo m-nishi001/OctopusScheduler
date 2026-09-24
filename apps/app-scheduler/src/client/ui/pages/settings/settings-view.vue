@@ -14,11 +14,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import AdminHeader from '../ui/components/settings/frames/admin-header.vue';
-import AdminSidemenu from '../ui/components/settings/frames/admin-sidemenu.vue';
-import EventEditor from '../ui/components/settings/event-list/event-list.vue';
-import AssetListEditor from '../ui/components/settings/asset-list/asset-list-editor.vue';
-import KeyboardShortcutEditor from '../ui/pages/settings/keyboard-shortcut/keyboard-shortcut-editor.vue';
+import AdminHeader from './frames/admin-header.vue';
+import AdminSidemenu from './frames/admin-sidemenu.vue';
+import EventEditor from '../../components/settings/event-list/event-list.vue';
+import AssetListEditor from './asset-list/asset-list-editor.vue';
+import KeyboardShortcutEditor from './keyboard-shortcut/keyboard-shortcut-editor.vue';
 
 const currentTab = ref('events');
 
