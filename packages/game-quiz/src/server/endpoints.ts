@@ -21,16 +21,20 @@ import { GasFormRepository } from "@octopus/infrastructures/gas/gas-form-reposit
 import type {
   AddDriveDataArgs,
   AddJsonArgs,
+  AddMemberArgs,
+  DeleteMemberArgs,
   GetDriveDataArgs,
   GetDriveMetaDataArgs,
   GetJsonArgs,
   GetMappedResponsesArgs,
   GetSheetDataArgs,
   ListJsonMetaDataArgs,
+  ListMembersArgs,
   LoadEmailNameMapArgs,
   RemoveDriveDataArgs,
   StopAndGetProcessedResultsArgs,
   StopFormArgs,
+  UpdateMemberArgs,
 } from "./quiz-api-contract";
 
 import { stopForm } from "./stop-form-use-case";
@@ -47,6 +51,12 @@ import {
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
 import { listJsonBlobMetadata } from "./list-json-blob-metadata-use-case";
+import {
+  addMember,
+  deleteMember,
+  listMembers,
+  updateMember,
+} from "./member-use-cases";
 
 function resolveDeps() {
   return {
@@ -73,6 +83,10 @@ declare let _quizGame_removeDriveData: (args: RemoveDriveDataArgs) => string;
 declare let _quizGame_addJson: (args: AddJsonArgs) => string;
 declare let _quizGame_getJson: (args: GetJsonArgs) => string;
 declare let _quizGame_listJsonMetaData: (args: ListJsonMetaDataArgs) => string;
+declare let _quizGame_listMembers: (args: ListMembersArgs) => string;
+declare let _quizGame_addMember: (args: AddMemberArgs) => string;
+declare let _quizGame_updateMember: (args: UpdateMemberArgs) => string;
+declare let _quizGame_deleteMember: (args: DeleteMemberArgs) => string;
 
 _quizGame_stopForm = (args: StopFormArgs): string => {
   try {
@@ -185,6 +199,42 @@ _quizGame_listJsonMetaData = (args: ListJsonMetaDataArgs): string => {
   try {
     const result = listJsonBlobMetadata(resolveDeps(), args.folderId);
     return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_listMembers = (_args: ListMembersArgs): string => {
+  try {
+    const result = listMembers(resolveDeps());
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_addMember = (args: AddMemberArgs): string => {
+  try {
+    const result = addMember(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_updateMember = (args: UpdateMemberArgs): string => {
+  try {
+    const result = updateMember(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_deleteMember = (args: DeleteMemberArgs): string => {
+  try {
+    deleteMember(resolveDeps(), args.userId);
+    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
