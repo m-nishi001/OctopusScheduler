@@ -124,7 +124,9 @@ export default defineComponent({
 canvas {
     border: 8px solid #FFD700;
     border-radius: 50%;
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 0, 0, 0.5), 0 0 90px rgba(0, 0, 255, 0.3);
+    /* ゴールド+コーラルの2トーンglow(home.vue等の演出画面と同じ暖色系に統一。
+       以前は青みが混ざっており、暖色パレットと不整合だった)。 */
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 122, 122, 0.5), 0 0 90px rgba(255, 122, 160, 0.3);
     animation: pulse 1s infinite;
     transition: box-shadow 0.3s ease;
     width: 100%;
@@ -139,11 +141,11 @@ canvas {
 
     0%,
     100% {
-        box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 0, 0, 0.5), 0 0 90px rgba(0, 0, 255, 0.3);
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 122, 122, 0.5), 0 0 90px rgba(255, 122, 160, 0.3);
     }
 
     50% {
-        box-shadow: 0 0 50px rgba(255, 215, 0, 1), 0 0 80px rgba(255, 0, 0, 0.8), 0 0 120px rgba(0, 0, 255, 0.5);
+        box-shadow: 0 0 50px rgba(255, 215, 0, 1), 0 0 80px rgba(255, 122, 122, 0.8), 0 0 120px rgba(255, 122, 160, 0.5);
     }
 }
 
@@ -151,12 +153,12 @@ canvas {
 
     0%,
     100% {
-        box-shadow: 0 0 50px rgba(255, 215, 0, 1), 0 0 80px rgba(255, 0, 0, 0.8), 0 0 120px rgba(0, 0, 255, 0.5);
+        box-shadow: 0 0 50px rgba(255, 215, 0, 1), 0 0 80px rgba(255, 122, 122, 0.8), 0 0 120px rgba(255, 122, 160, 0.5);
         transform: scale(1);
     }
 
     50% {
-        box-shadow: 0 0 70px rgba(255, 215, 0, 1.2), 0 0 100px rgba(255, 0, 0, 1), 0 0 150px rgba(0, 0, 255, 0.7);
+        box-shadow: 0 0 70px rgba(255, 215, 0, 1.2), 0 0 100px rgba(255, 122, 122, 1), 0 0 150px rgba(255, 122, 160, 0.7);
         transform: scale(1.02);
     }
 }
@@ -168,7 +170,7 @@ canvas {
     transform: translateX(-50%);
     font-size: 40px;
     color: #FFD700;
-    text-shadow: 0 0 20px #FFD700, 0 0 40px #FF4500, 0 0 60px #FFD700;
+    text-shadow: 0 0 20px #FFD700, 0 0 40px #ff7a7a, 0 0 60px #FFD700;
     animation: indicatorGlow 1.5s infinite;
 }
 
@@ -176,11 +178,11 @@ canvas {
 
     0%,
     100% {
-        text-shadow: 0 0 20px #FFD700, 0 0 40px #FF4500, 0 0 60px #FFD700;
+        text-shadow: 0 0 20px #FFD700, 0 0 40px #ff7a7a, 0 0 60px #FFD700;
     }
 
     50% {
-        text-shadow: 0 0 30px #FFD700, 0 0 60px #FF4500, 0 0 90px #FFD700;
+        text-shadow: 0 0 30px #FFD700, 0 0 60px #ff7a7a, 0 0 90px #FFD700;
     }
 }
 
@@ -192,7 +194,7 @@ canvas {
     font-size: 28px;
     color: #FFD700;
     font-weight: bold;
-    text-shadow: 0 0 15px #FFD700, 0 0 30px #FF4500;
+    text-shadow: 0 0 15px #FFD700, 0 0 30px #ff7a7a;
     background: rgba(0, 0, 0, 0.8);
     padding: 10px 20px;
     border-radius: 10px;

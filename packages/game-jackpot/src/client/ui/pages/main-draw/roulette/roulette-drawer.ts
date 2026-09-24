@@ -14,15 +14,17 @@ export function drawSector(
   const startAngle = i * sectorAngle - rotation;
   const endAngle = (i + 1) * sectorAngle - rotation;
 
+  // ジャックポットのゴールド/コーラル系テーマに合わせた暖色パレット
+  // (home.vue等の演出画面と統一)。汎用のレインボー配色から変更。
   const colors = [
-    "#FFD700",
-    "#FF4500",
-    "#00FF00",
-    "#0080FF",
-    "#800080",
-    "#FF8C00",
-    "#FF0000",
-    "#00FFFF",
+    "#ffd36f",
+    "#ff7aa0",
+    "#e8b04b",
+    "#c9536b",
+    "#ffb347",
+    "#8a3b5a",
+    "#ff9466",
+    "#a8672f",
   ];
   ctx.fillStyle = colors[i % colors.length];
   ctx.beginPath();
@@ -31,7 +33,7 @@ export function drawSector(
   ctx.closePath();
   ctx.fill();
 
-  ctx.strokeStyle = "#000";
+  ctx.strokeStyle = "#2a120a";
   ctx.lineWidth = Math.max(1, radius * 0.01);
   ctx.stroke();
 
