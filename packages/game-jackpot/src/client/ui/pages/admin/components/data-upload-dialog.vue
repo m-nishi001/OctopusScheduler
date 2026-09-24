@@ -254,7 +254,7 @@ const uploadPrizes = async (dataLines: string[], assetMap: Map<string, string>) 
         const cols = parseCsvLine(line).map((c) => c.trim());
         if (cols.length < 4) continue;
         const name = cols[0];
-        const rank = parseInt(cols[1]) || 0;
+        const weight = parseInt(cols[1]) || 0;
         const animation = cols[2] || 'roulette';
         const imageFilename = cols[3];
         let image2Filename = '';
@@ -288,7 +288,7 @@ const uploadPrizes = async (dataLines: string[], assetMap: Map<string, string>) 
         const prize = {
             id: `upload_prize_${Date.now()}_${i}`,
             name,
-            rank,
+            weight,
             animation,
             imageAssetId,
             image2AssetId,

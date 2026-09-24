@@ -2,7 +2,7 @@
   <div class="field-block">
     <label class="field-label">{{ label }}</label>
     <div class="rank-control">
-      <input class="admin-input" :value="modelValue" @input="onInput" type="number" :min="min" />
+      <input class="admin-input" :value="modelValue" @input="onInput" type="number" :min="min" :max="max" />
       <div class="button-group">
         <button type="button" class="rank-btn up" @click="increase">▲</button>
         <button type="button" class="rank-btn down" @click="decrease">▼</button>
@@ -15,19 +15,24 @@
 const props = defineProps({
   label: { type: String, required: true },
   modelValue: { type: [String, Number], default: 0 },
-  min: { type: Number, default: 1 }
+  min: { type: Number, default: 1 },
+  max: { type: Number, default: undefined }
 });
 const emit = defineEmits(['update:modelValue']);
 
-const clampMin = (v: number) => Math.max(props.min, v);
+const clamp = (v: number) => {
+  let r = Math.max(props.min, v);
+  if (props.max !== undefined) r = Math.min(props.max, r);
+  return r;
+};
 
 const onInput = (e: Event) => {
   const val = Number((e.target as HTMLInputElement).value || 0);
-  emit('update:modelValue', clampMin(val));
+  emit('update:modelValue', clamp(val));
 };
 
-const increase = () => emit('update:modelValue', (Number(props.modelValue) || 0) + 1);
-const decrease = () => emit('update:modelValue', clampMin((Number(props.modelValue) || 1) - 1));
+const increase = () => emit('update:modelValue', clamp((Number(props.modelValue) || 0) + 1));
+const decrease = () => emit('update:modelValue', clamp((Number(props.modelValue) || 1) - 1));
 </script>
 
 <style scoped>

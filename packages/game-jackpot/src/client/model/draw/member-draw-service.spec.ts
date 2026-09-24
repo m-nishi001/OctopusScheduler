@@ -10,7 +10,7 @@ describe("MemberDrawService", () => {
   it("drawMember returns null when no candidates", () => {
     const rand = new MockRandom([0]);
     const svc = new MemberDrawService(
-      { selectWeighted: (p: any) => p[0] } as any,
+      { selectUniformRandom: (p: any) => p[0] } as any,
       rand as any
     );
     const members = [{ id: "m1" }];
@@ -26,7 +26,7 @@ describe("MemberDrawService", () => {
   it("drawMember returns a winner and dummy ids", () => {
     const rand = new MockRandom([0, 0.5, 0.2]);
     const svc = new MemberDrawService(
-      { selectWeighted: (p: any) => p[0] } as any,
+      { selectUniformRandom: (p: any) => p[0] } as any,
       rand as any
     );
     const members = [{ id: "m1" }, { id: "m2" }, { id: "m3" }];
@@ -36,5 +36,24 @@ describe("MemberDrawService", () => {
     expect(out.winnerId).toBeDefined();
     expect(out.dummyIds.length).toBe(2);
     expect(out.dummyIds).not.toContain(out.winnerId);
+  });
+
+  /**
+   * drawMemberはメンバーのrank(表示用ラベル)を一切参照せず、
+   * WeightedSelector.selectUniformRandomにのみ委譲することをテストする。
+   */
+  it("delegates winner selection to selectUniformRandom regardless of member rank", () => {
+    const rand = new MockRandom([0]);
+    const selectUniformRandom = (p: any) => p[p.length - 1];
+    const svc = new MemberDrawService(
+      { selectUniformRandom } as any,
+      rand as any
+    );
+    const members = [
+      { id: "m1", rank: 1 },
+      { id: "m2", rank: 10 },
+    ];
+    const out = svc.drawMember(members as any, [] as any, 0) as any;
+    expect(out.winnerId).toBe("m2");
   });
 });

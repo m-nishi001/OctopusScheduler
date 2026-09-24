@@ -68,4 +68,34 @@ describe("PrizeForm", () => {
     expect(wrapper.text()).toContain("当選画像1");
     expect(wrapper.text()).toContain("当選画像2");
   });
+
+  it("exposes a weight field (not the removed rank field) defaulted for a new prize", () => {
+    const wrapper = mount(PrizeForm, {
+      props: {
+        mode: "add",
+        imageAssets: [],
+        audioAssets: [],
+      },
+    });
+
+    expect(wrapper.text()).toContain("当選確率の重み");
+    expect(wrapper.text()).not.toContain("景品ランク");
+    const input = wrapper.find('input[type="number"]');
+    expect(input.exists()).toBe(true);
+    expect((input.element as HTMLInputElement).value).toBe("10");
+  });
+
+  it("loads an existing prize's weight when editing", () => {
+    const wrapper = mount(PrizeForm, {
+      props: {
+        mode: "edit",
+        prize: { name: "Grand Prize", weight: 80 },
+        imageAssets: [],
+        audioAssets: [],
+      },
+    });
+
+    const input = wrapper.find('input[type="number"]');
+    expect((input.element as HTMLInputElement).value).toBe("80");
+  });
 });

@@ -1,6 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import type { Prize } from "../prize/prize";
 import { MathRandomProvider } from "../common/math-random-provider";
+import { resolvePrizeWeight } from "./weighted-selector";
 
 @injectable()
 export class PrizeReservationService {
@@ -25,9 +26,9 @@ export class PrizeReservationService {
   }
 
   private createPool(reservedCount: number, prizes: Prize[]) {
-    // sort by rank descending
+    // sort by weight descending
     const sortedHigh = [...prizes].sort(
-      (a, b) => (b.rank ?? 0) - (a.rank ?? 0)
+      (a, b) => resolvePrizeWeight(b.weight) - resolvePrizeWeight(a.weight)
     );
 
     // number to take from each side
@@ -69,9 +70,11 @@ export class PrizeReservationService {
       const candidates = arr.filter((p) => !exclude.has(p.id));
       if (candidates.length === 0) return null;
       if (pref === 0) return candidates[this.rand.nextInt(candidates.length)];
-      const ranks = candidates.map((p) => p.rank ?? 0);
-      const target = pref > 0 ? Math.max(...ranks) : Math.min(...ranks);
-      const filtered = candidates.filter((p) => (p.rank ?? 0) === target);
+      const weights = candidates.map((p) => resolvePrizeWeight(p.weight));
+      const target = pref > 0 ? Math.max(...weights) : Math.min(...weights);
+      const filtered = candidates.filter(
+        (p) => resolvePrizeWeight(p.weight) === target
+      );
       return filtered[this.rand.nextInt(filtered.length)];
     };
 

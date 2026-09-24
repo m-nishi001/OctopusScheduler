@@ -24,7 +24,7 @@
                             <th>Draw ID</th>
                             <th>Member</th>
                             <th>Prize</th>
-                            <th>Prize Rank</th>
+                            <th>Prize Weight</th>
                             <th>Kakuhen</th>
                         </tr>
                     </thead>
@@ -33,7 +33,7 @@
                             <td>{{ result.drawId }}</td>
                             <td>{{ result.wonMember?.name || '' }}</td>
                             <td>{{ result.wonPrize?.name || '' }}</td>
-                            <td>{{ result.wonPrize?.rank || '' }}</td>
+                            <td>{{ result.wonPrize?.weight || '' }}</td>
                             <td>{{ result.isKakuhen ? 'Yes' : 'No' }}</td>
                         </tr>
                     </tbody>

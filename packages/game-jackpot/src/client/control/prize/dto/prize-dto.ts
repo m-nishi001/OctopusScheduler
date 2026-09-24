@@ -3,7 +3,7 @@ import type { Prize } from "../../../model/prize/prize";
 export interface PrizeDto {
   id: string;
   name: string;
-  rank?: number;
+  weight?: number;
   imageAssetId?: string;
   image2AssetId?: string;
   bgm1AssetId?: string;
@@ -17,7 +17,7 @@ export interface PrizeDto {
 export const toPrize = (dto: PrizeDto): Prize => ({
   id: dto.id,
   name: dto.name,
-  rank: dto.rank,
+  weight: dto.weight,
   imageAssetId: dto.imageAssetId,
   image2AssetId: dto.image2AssetId,
   bgm1AssetId: dto.bgm1AssetId,
@@ -31,7 +31,7 @@ export const toPrize = (dto: PrizeDto): Prize => ({
 export const fromPrize = (prize: Prize): PrizeDto => ({
   id: prize.id,
   name: prize.name,
-  rank: prize.rank,
+  weight: prize.weight,
   imageAssetId: prize.imageAssetId,
   image2AssetId: prize.image2AssetId,
   bgm1AssetId: prize.bgm1AssetId,

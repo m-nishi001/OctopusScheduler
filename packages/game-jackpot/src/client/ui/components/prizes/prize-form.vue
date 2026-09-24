@@ -12,8 +12,8 @@
         <div class="name-field">
           <FieldText v-model="formData.name" label="名前" placeholder="景品名" />
         </div>
-        <div class="rank-field">
-          <FieldNumberStepper v-model="formData.rank" :min="1" label="景品ランク" />
+        <div class="weight-field">
+          <FieldNumberStepper v-model="formData.weight" :min="1" :max="100" label="当選確率の重み" />
         </div>
         <div class="animation-field">
           <FieldSelect v-model="formData.animation" :options="animationOptions" label="抽選アニメーション" />
@@ -63,6 +63,7 @@ import { useAssetUpload } from '@ui/composables/use-asset-upload';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
+import { DEFAULT_PRIZE_WEIGHT } from '@model/draw/weighted-selector';
 
 const props = defineProps({
   mode: { type: String as () => 'add' | 'edit', required: true },
@@ -112,7 +113,7 @@ const animationOptions = [
 
 const formData = ref({
   name: '',
-  rank: 5,
+  weight: DEFAULT_PRIZE_WEIGHT,
   animation: 'roulette',
   imageAssetId: '',
   image2AssetId: '',
@@ -195,7 +196,7 @@ watch(() => props.prize, (val) => {
 function loadPrize(prize: any) {
   formData.value = {
     name: prize.name,
-    rank: prize.rank,
+    weight: prize.weight ?? DEFAULT_PRIZE_WEIGHT,
     animation: prize.animation || 'roulette',
     imageAssetId: prize.imageAssetId || '',
     image2AssetId: prize.image2AssetId || '',
@@ -379,7 +380,7 @@ function cancel() {
   grid-column: 1;
 }
 
-.basic-fields>.rank-field {
+.basic-fields>.weight-field {
   grid-column: 2;
 }
 
