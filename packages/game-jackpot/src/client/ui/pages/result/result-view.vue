@@ -1,6 +1,7 @@
 <template>
   <MainLayout>
-    <div v-if="!fadeOut" class="result-content">
+    <Loader v-if="isLoading" label="読み込み中..." />
+    <div v-if="!isLoading && !fadeOut" class="result-content">
       <h2 class="jp-title">抽選結果</h2>
       <ul class="jp-winner-list">
         <li v-for="winner in winners" :key="winner.id" :class="winnerClass(winner)">
@@ -23,6 +24,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { DrawResultService } from '@control/draw/draw-result-service';
 import MainLayout from '../common/main-layout.vue';
+import Loader from '../common/loader.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
@@ -32,10 +34,11 @@ import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
   name: 'ResultView',
-  components: { MainLayout },
+  components: { MainLayout, Loader },
   setup() {
     useRemoteScreenSync();
     const router = useRouter();
+    const isLoading = ref(true);
     const winners = ref<any[]>([]);
     const specialWinner = ref<any | undefined>(undefined);
     const lowestWinner = ref<any | undefined>(undefined);
@@ -47,27 +50,31 @@ export default {
     const assetService = container.resolve(AssetDataService);
     const drawResultService = container.resolve(DrawResultService);
     const fetchResults = async () => {
-      const results = await drawResultService.getDrawResults();
-      const config = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
-      resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
+      try {
+        const results = await drawResultService.getDrawResults();
+        const config = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
+        resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
 
-      for (const r of results) {
-        if (r.wonMember) {
-          const aid = r.wonMember.photoAssetId;
-          if (aid) {
-            const asset = await assetService.getAssetDataById(aid);
-            if (asset && asset.id && !objectUrlMap.has(asset.id)) {
-              try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
+        for (const r of results) {
+          if (r.wonMember) {
+            const aid = r.wonMember.photoAssetId;
+            if (aid) {
+              const asset = await assetService.getAssetDataById(aid);
+              if (asset && asset.id && !objectUrlMap.has(asset.id)) {
+                try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
+              }
             }
           }
         }
+        winners.value = results.filter(r => r.wonMember).map(r => ({ ...r.wonMember!, prize: r.wonPrize ? r.wonPrize.name : '', id: r.wonMember!.id, photo: (r.wonMember!.photoAssetId ? objectUrlMap.get(r.wonMember!.photoAssetId) : undefined) || r.wonMember!.photoAssetId }));
+        const ranks = results.filter(r => r.wonMember).map(r => r.wonMember!.rank);
+        const minRank = Math.min(...ranks);
+        const maxRank = Math.max(...ranks);
+        specialWinner.value = results.find(r => r.wonMember && r.wonMember.rank === minRank)?.wonMember;
+        lowestWinner.value = results.find(r => r.wonMember && r.wonMember.rank === maxRank)?.wonMember;
+      } finally {
+        isLoading.value = false;
       }
-      winners.value = results.filter(r => r.wonMember).map(r => ({ ...r.wonMember!, prize: r.wonPrize ? r.wonPrize.name : '', id: r.wonMember!.id, photo: (r.wonMember!.photoAssetId ? objectUrlMap.get(r.wonMember!.photoAssetId) : undefined) || r.wonMember!.photoAssetId }));
-      const ranks = results.filter(r => r.wonMember).map(r => r.wonMember!.rank);
-      const minRank = Math.min(...ranks);
-      const maxRank = Math.max(...ranks);
-      specialWinner.value = results.find(r => r.wonMember && r.wonMember.rank === minRank)?.wonMember;
-      lowestWinner.value = results.find(r => r.wonMember && r.wonMember.rank === maxRank)?.wonMember;
     };
     onMounted(() => {
       fetchResults();
@@ -125,7 +132,7 @@ export default {
       return 'jp-winner-item';
     };
 
-    return { winners, specialWinner, lowestWinner, fadeOut, winnerClass };
+    return { isLoading, winners, specialWinner, lowestWinner, fadeOut, winnerClass };
   },
 };
 </script>

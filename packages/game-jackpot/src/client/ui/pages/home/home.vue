@@ -1,5 +1,6 @@
 <template>
   <MainLayout>
+    <Loader v-if="!homeConfig" label="読み込み中..." />
     <div class="home-root">
       <!-- Background hero component removed -->
 
@@ -20,6 +21,7 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import MainLayout from '../common/main-layout.vue';
+import Loader from '../common/loader.vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { Container } from '../../../control/container';
@@ -30,7 +32,7 @@ import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
   name: 'Home',
-  components: { MainLayout },
+  components: { MainLayout, Loader },
   setup() {
     Container.register();
     useRemoteScreenSync();

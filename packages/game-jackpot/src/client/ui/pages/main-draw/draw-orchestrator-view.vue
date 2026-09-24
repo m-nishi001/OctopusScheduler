@@ -1,5 +1,6 @@
 <template>
     <MainLayout>
+        <Loader v-if="drawState.phase === 'idle'" label="準備中..." />
         <div class="orchestrator container mx-auto p-6">
 
             <DrawResultDialog v-if="showPrizeWinningDialog && selectedPrize" title="景品当選" :prize="selectedPrize"
@@ -35,6 +36,7 @@
 
 <script lang="ts">
 import MainLayout from '../common/main-layout.vue';
+import Loader from '../common/loader.vue';
 import MemberDrawAnimation from './member-draw/member-draw-animation.vue';
 import DrawResultDialog from './prize-winning-dialog.vue';
 import HalfRemainingDialog from './half-remaining-dialog.vue';
@@ -47,7 +49,7 @@ import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
     name: 'DrawOrchestratorPage',
-    components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog, KakuhenOverlay },
+    components: { MainLayout, Loader, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog, KakuhenOverlay },
     setup() {
         useRemoteScreenSync();
         const s = useDrawOrchestrator();
