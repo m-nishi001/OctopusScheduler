@@ -37,10 +37,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import { container } from 'tsyringe';
-import { KeyboardShortcut } from '../../../../domains/keyboard-shortcut/keyboard-shortcut';
+import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { AppEventService } from '../../../../applications/app-event/app-event-service';
 import { IAppEventConverterToken } from '../../../../domains/app-event/i-app-event-converter';
-import { UIActionEntryToken } from '../../../../core/container';
+import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
 import { sendShortcutViaChannel } from '../../keyboard-shortcut/send-shortcut-via-channel';
 
 interface Props {

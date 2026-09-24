@@ -30,6 +30,17 @@ export type OctopusSchedulerFunctionName =
   `${typeof OCTOPUS_SCHEDULER_PREFIX}_${OctopusSchedulerEndpointName}`;
 
 /**
+ * キーボードショートカット1件のワイヤー形式。GAS側はこの中身を解釈せず
+ * JSON文字列として保存・返却するだけの不透明なKVストアであるため、
+ * クライアントのローカル正準モデル(`KeyboardShortcutData`)とそのまま揃えている。
+ */
+export interface KeyboardShortcutWireItem {
+  id: string;
+  keys: string[];
+  eventIds: string[];
+}
+
+/**
  * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
  * Proxyの型として使う。`doGet` は GAS Web アプリのエントリポイントであり、
  * クライアントJSから `google.script.run` 経由で呼ばれることは無いため、
@@ -44,9 +55,9 @@ export interface OctopusSchedulerApi {
   getKeyboardShortcuts(
     args?: undefined,
     options?: ApiCallOptions
-  ): Promise<{ shortcuts: string[][]; config: unknown }>;
+  ): Promise<{ shortcuts: KeyboardShortcutWireItem[]; config: unknown }>;
   setKeyboardShortcuts(
-    payload: { shortcuts: string[][]; config: unknown },
+    payload: { shortcuts: KeyboardShortcutWireItem[]; config: unknown },
     options?: ApiCallOptions
   ): Promise<void>;
 }

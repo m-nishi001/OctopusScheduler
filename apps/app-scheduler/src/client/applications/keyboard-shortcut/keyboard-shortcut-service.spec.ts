@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { KeyboardShortcutService } from "./keyboard-shortcut-service";
 import { PlayAudioEvent } from "../../domains/app-event/play-audio/play-audio-event";
-import { KeyboardShortcutRepository } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
-import { KeyboardShortcut } from "../../domains/keyboard-shortcut/keyboard-shortcut";
-import { IAppEventConverterToken } from "../../domains/app-event/i-app-event-converter";
-import { container } from "tsyringe";
-import { IEventSerializerToken } from "../../domains/app-event/i-event-serializer";
-import { IKeyboardShortcutRepositoryToken } from "../../domains/keyboard-shortcut/keyboard-shortcut-repository";
+import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
+import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
+import type { AppEventService } from "../app-event/app-event-service";
 
 // We don't need to exercise GAS service; mock repository
 class InMemoryRepository extends KeyboardShortcutRepository {
   private storage: any = {};
+  constructor() {
+    super({} as any);
+  }
   async getKeyboardShortcutsRaw() {
     return this.storage.shortcuts || [];
   }
@@ -21,7 +21,7 @@ class InMemoryRepository extends KeyboardShortcutRepository {
   }
   async getConfig() {
     const { KeyboardShortcutConfig } = await import(
-      "../../domains/keyboard-shortcut/keyboard-shortcut-config"
+      "@model/keyboard-shortcut/keyboard-shortcut-config"
     );
     return KeyboardShortcutConfig.createEmpty();
   }
@@ -36,34 +36,14 @@ class InMemoryRepository extends KeyboardShortcutRepository {
 describe("KeyboardShortcutService", () => {
   let service: KeyboardShortcutService;
   beforeEach(() => {
-    // Use the real repo class but with override
-    container.clearInstances();
-    container.register(IKeyboardShortcutRepositoryToken, {
-      useClass: InMemoryRepository,
-    });
-    // register a dummy schedule event converter to avoid DI error
-    container.register(IAppEventConverterToken, {
-      useValue: {
-        getType: () => "Dummy",
-        revive: (data: any) => ({
-          id: data.id,
-          type: data.type,
-          serialize: () => [],
-        }),
-      },
-    });
-    // register a dummy serializer so KeyboardShortcutService can find serializers
-    container.register(IEventSerializerToken, {
-      useValue: {
-        canRevive: () => true,
-        revive: (raw: any) => ({
-          id: raw.id,
-          type: raw.type,
-          serialize: () => [],
-        }),
-      },
-    });
-    service = container.resolve(KeyboardShortcutService);
+    // These tests only exercise shortcut matching, which never reaches the
+    // legacy-actions migration path, so a stub AppEventService (never called)
+    // is sufficient and avoids pulling in the DI container.
+    const appEventService = {} as AppEventService;
+    service = new KeyboardShortcutService(
+      new InMemoryRepository(),
+      appEventService
+    );
   });
 
   it("matches 3-key sequence", async () => {

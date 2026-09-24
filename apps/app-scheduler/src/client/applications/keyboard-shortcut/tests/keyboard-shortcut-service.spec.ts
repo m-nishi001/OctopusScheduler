@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import "reflect-metadata";
+import { container } from "tsyringe";
 import { KeyboardShortcutService } from "../keyboard-shortcut-service";
 import { Container } from "../../../core/container/index";
-import { KeyboardShortcut } from "../../../domains/keyboard-shortcut/keyboard-shortcut";
+import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
 import { PlayAudioEvent } from "../../../domains/app-event/play-audio/play-audio-event";
 import { TransitionPageEvent } from "../../../domains/app-event/transition/transition-page-event";
-import { KeyboardShortcutConfig } from "../../../domains/keyboard-shortcut/keyboard-shortcut-config";
+import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
+import { AppEventService } from "../../app-event/app-event-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 
 class MockRepository {
@@ -38,7 +40,10 @@ beforeEach(() => {
   mockRepo.shortcutsData = [];
   mockRepo.config = KeyboardShortcutConfig.createEmpty();
   Container.Register();
-  service = new KeyboardShortcutService(mockRepo);
+  service = new KeyboardShortcutService(
+    mockRepo,
+    container.resolve(AppEventService)
+  );
 });
 
 afterEach(() => {
@@ -85,7 +90,7 @@ describe("KeyboardShortcutService", () => {
     const found = await service.findShortcutByKeys(["Control", "1"]);
     expect(found).not.toBeNull();
 
-    await found!.execute();
+    await service.executeShortcut(found!);
 
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0][0]).toEqual({ audioId: "audio-1", manual: true });
@@ -127,7 +132,7 @@ describe("KeyboardShortcutService", () => {
     const found = await service.findShortcutByKeys(["1"]);
     expect(found).not.toBeNull();
 
-    await found!.execute();
+    await service.executeShortcut(found!);
 
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0][0]).toEqual({
@@ -219,7 +224,7 @@ describe("KeyboardShortcutService", () => {
     const found = await service.findShortcutByKeys(["Control", "2"]);
     expect(found).not.toBeNull();
 
-    await found!.execute();
+    await service.executeShortcut(found!);
 
     expect(spy).toHaveBeenCalledOnce();
     expect(spy.mock.calls[0][0]).toEqual(

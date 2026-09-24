@@ -1,4 +1,5 @@
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
+import type { KeyboardShortcutWireItem } from "./scheduler-api-contract";
 
 export interface KeyboardShortcutsUseCaseDeps {
   kv: IKeyValueStorage;
@@ -8,7 +9,7 @@ const SHORTCUTS_KEY = "keyboard-shortcuts";
 const SHORTCUTS_CONFIG_KEY = "keyboard-shortcuts-config";
 
 export function getKeyboardShortcuts(deps: KeyboardShortcutsUseCaseDeps): {
-  shortcuts: string[][];
+  shortcuts: KeyboardShortcutWireItem[];
   config: unknown;
 } {
   const shortcutsStr = deps.kv.get(SHORTCUTS_KEY);
@@ -20,7 +21,7 @@ export function getKeyboardShortcuts(deps: KeyboardShortcutsUseCaseDeps): {
 
 export function setKeyboardShortcuts(
   deps: KeyboardShortcutsUseCaseDeps,
-  payload: { shortcuts: string[][]; config: unknown }
+  payload: { shortcuts: KeyboardShortcutWireItem[]; config: unknown }
 ): void {
   deps.kv.set(SHORTCUTS_KEY, JSON.stringify(payload.shortcuts));
   deps.kv.set(SHORTCUTS_CONFIG_KEY, JSON.stringify(payload.config));

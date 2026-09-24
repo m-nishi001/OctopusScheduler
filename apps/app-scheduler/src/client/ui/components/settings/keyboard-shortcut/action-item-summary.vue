@@ -19,7 +19,7 @@ import { computed } from 'vue';
 import type { EventFormData } from './types';
 import type { IAppEventDto } from '../../../../applications/app-event/i-app-event-dto';
 import { container } from 'tsyringe';
-import { UIActionEntryToken } from '../../../../core/container';
+import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
 
 const ACTION_REGISTRY: Record<string, any> = (() => {
     try {
