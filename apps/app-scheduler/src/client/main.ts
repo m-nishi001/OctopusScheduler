@@ -2,15 +2,15 @@ import "reflect-metadata";
 import { createApp } from "vue";
 import "./style.css";
 import App from "./App.vue";
-import { Container } from "./core/container/index";
+import { Container } from "./control/container/index";
 import { JackpotContainer } from "@octopus/game-jackpot";
 import { QuizContainer } from "@octopus/game-quiz";
-import router from "./core/router";
+import router from "./control/router";
 import { registerEventHandlers } from "./ui/composables/register-event-handlers";
 import { registerKeyboardShortcutListener } from "./ui/composables/keyboard-shortcut-listener";
 
 // Register app-specific DI
-Container.Register();
+Container.register();
 // Also register DI for embedded jackpot/quiz game components
 JackpotContainer.register();
 QuizContainer.register();

@@ -10,13 +10,13 @@ import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract
 import { AppEventRepository } from "@model/app-event/app-event-repository";
 import { AssetRepository } from "../../model/asset/asset-repository";
 import { container, instanceCachingFactory } from "tsyringe";
-import { AppEventService } from "../../control/app-event/app-event-service";
-import { AssetService } from "../../control/asset/asset-service";
+import { AppEventService } from "../app-event/app-event-service";
+import { AssetService } from "../asset/asset-service";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
-import { KeyboardShortcutService } from "../../control/keyboard-shortcut/keyboard-shortcut-service";
+import { KeyboardShortcutService } from "../keyboard-shortcut/keyboard-shortcut-service";
 
 export class Container {
-  static Register() {
+  static register() {
     // GAS 用のインフラを登録する。将来 Cloudflare 等に切り替える場合は
     // ここを設定に応じて別実装に差し替えるだけでよい。
     container.register(IApiClientToken, { useClass: GasApiClient });

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import "reflect-metadata";
 import { container } from "tsyringe";
 import { KeyboardShortcutService } from "../keyboard-shortcut-service";
-import { Container } from "../../../core/container/index";
+import { Container } from "../../container/index";
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
 import { PlayAudioEvent } from "../../app-event/play-audio/play-audio-event";
 import { TransitionPageEvent } from "../../app-event/transition/transition-page-event";
@@ -39,7 +39,7 @@ beforeEach(() => {
   // reset repo and create service
   mockRepo.shortcutsData = [];
   mockRepo.config = KeyboardShortcutConfig.createEmpty();
-  Container.Register();
+  Container.register();
   service = new KeyboardShortcutService(
     mockRepo,
     container.resolve(AppEventService)
