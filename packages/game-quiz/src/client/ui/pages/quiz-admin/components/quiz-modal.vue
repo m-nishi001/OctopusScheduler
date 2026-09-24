@@ -5,88 +5,9 @@
                 <h2 class="modal-title">{{ isEditing ? 'クイズ編集' : 'クイズ追加' }}</h2>
             </div>
             <form class="form" @submit.prevent="saveQuiz">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">クイズ名</label>
-                        <input v-model="currentQuiz.title" type="text" class="form-input" required />
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">回答時間 (秒)</label>
-                        <input v-model.number="currentQuiz.timeLimit" type="number" class="form-input" required />
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">クイズ内容</label>
-                    <textarea v-model="currentQuiz.question" class="form-textarea" rows="3" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">回答（正解）</label>
-                    <select v-model.number="currentQuiz.correctNo" class="form-input"
-                        :disabled="currentQuiz.options.length === 0">
-                        <option v-for="(opt, i) in currentQuiz.options" :key="i" :value="i + 1">{{ i + 1 }}: {{ opt.text
-                            }}
-                        </option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">BGM</label>
-                    <input type="file" accept="audio/*" @change="onBgmChange" class="form-input" />
-                    <audio v-if="bgmPreview" :src="bgmPreview" controls class="audio-preview"></audio>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">正解表示BGM</label>
-                    <input type="file" accept="audio/*" @change="onCorrectBgmChange" class="form-input" />
-                    <audio v-if="correctBgmPreview" :src="correctBgmPreview" controls class="audio-preview"></audio>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">当選景品名</label>
-                    <input v-model="prizeName" type="text" class="form-input" />
-                </div>
-                <div class="form-group">
-                    <label class="form-label">当選景品画像</label>
-                    <input type="file" accept="image/*" @change="onPrizeImageChange" class="form-input" />
-                    <img v-if="prizeImagePreview" :src="prizeImagePreview" alt="景品画像プレビュー" class="image-preview" />
-                </div>
-                <div class="form-group">
-                    <label class="form-label">当選景品BGM</label>
-                    <input type="file" accept="audio/*" @change="onPrizeBgmChange" class="form-input" />
-                    <audio v-if="prizeBgmPreview" :src="prizeBgmPreview" controls class="audio-preview"></audio>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">選択肢</label>
-                    <div class="options-table-scroll">
-                        <table class="options-table">
-                            <thead class="table-head">
-                                <tr>
-                                    <th class="th-no">No</th>
-                                    <th class="th-content">内容</th>
-                                    <th class="th-image">画像</th>
-                                    <th class="th-color">テーマカラー</th>
-                                    <th class="th-actions">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="(option, index) in currentQuiz.options" :key="index" class="table-row">
-                                    <td class="td-no">{{ option.no }}</td>
-                                    <td class="td-content">{{ option.text }}</td>
-                                    <td class="td-image">
-                                        <img v-if="option.image" :src="imageSrc(option)" alt="プレビュー"
-                                            class="preview-image" />
-                                        <span v-else>画像なし</span>
-                                    </td>
-                                    <td class="td-color">
-                                        <div class="color-preview" :style="{ backgroundColor: option.color }"></div>
-                                    </td>
-                                    <td class="td-actions">
-                                        <button type="button" class="btn-edit" @click="editOption(index)">編集</button>
-                                        <button type="button" class="btn-delete" @click="removeOption(index)">削除</button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <button type="button" class="btn-add-option" @click="addOption">+</button>
-                </div>
+                <QuizBasicFields :current-quiz="currentQuiz" />
+                <QuizMediaFields :current-quiz="currentQuiz" />
+                <QuizOptionsTable :options="currentQuiz.options" @add="addOption" @edit="editOption" />
                 <div class="form-actions">
                     <button type="button" class="btn-cancel" @click="closeModal">キャンセル</button>
                     <button type="submit" class="btn-save">保存</button>
@@ -99,10 +20,12 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
+import QuizBasicFields from './quiz-basic-fields.vue';
+import QuizMediaFields from './quiz-media-fields.vue';
+import QuizOptionsTable from './quiz-options-table.vue';
 import type { QuizDto } from '../../../../control/dto/quiz-dto';
-import { useObjectUrlStore } from '../../../composables/use-object-url-store';
 
 const props = defineProps<{
     isEditing: boolean;
@@ -119,56 +42,12 @@ const isEditingOption = ref(false);
 const editingOptionIndex = ref(-1);
 const currentOption = ref<{ no: number; text: string; image: Blob | null; color: string }>({ no: 0, text: '', image: null, color: 'red' });
 
-// BGM/画像プレビュー用のobject URLを、キーごとに使い回して管理する。
-// unmount時のURL失効も内部で自動的に行われる。
-const objectUrlStore = useObjectUrlStore();
-
-const bgmPreview = computed(() => objectUrlStore.ensure('bgm', props.currentQuiz.bgm));
-const correctBgmPreview = computed(() =>
-    objectUrlStore.ensure('correctBgm', props.currentQuiz.settings?.correctBgm)
-);
-const prizeImagePreview = computed(() =>
-    objectUrlStore.ensure('prizeImage', props.currentQuiz.settings?.prizeImage)
-);
-const prizeBgmPreview = computed(() =>
-    objectUrlStore.ensure('prizeBgm', props.currentQuiz.settings?.prizeBgm)
-);
-
-const prizeName = computed({
-    get: () => props.currentQuiz.settings?.prizeName || '',
-    set: (value: string) => {
-        if (props.currentQuiz.settings) {
-            props.currentQuiz.settings.prizeName = value;
-        }
-    }
-});
-
-const imageSrc = (option: { no: number; text?: string; image: Blob | null }) => {
-    return objectUrlStore.ensure(`option-${option.no}`, option.image) ?? '';
-};
-
 const closeModal = () => {
     emit('close');
 };
 
 const saveQuiz = () => {
     emit('save', props.currentQuiz);
-};
-
-const onBgmChange = (event: Event) => {
-    props.currentQuiz.bgm = (event.target as HTMLInputElement).files?.[0] ?? null;
-};
-
-const onCorrectBgmChange = (event: Event) => {
-    props.currentQuiz.settings!.correctBgm = (event.target as HTMLInputElement).files?.[0] ?? null;
-};
-
-const onPrizeImageChange = (event: Event) => {
-    props.currentQuiz.settings!.prizeImage = (event.target as HTMLInputElement).files?.[0] ?? null;
-};
-
-const onPrizeBgmChange = (event: Event) => {
-    props.currentQuiz.settings!.prizeBgm = (event.target as HTMLInputElement).files?.[0] ?? null;
 };
 
 const addOption = () => {
@@ -188,8 +67,8 @@ const editOption = (index: number) => {
 
 const saveOption = () => {
     if (isEditingOption.value) {
-        // 画像Blobが変わっていればimageSrc()呼び出し時にobjectUrlStoreが
-        // 自動的に古いプレビューURLを失効させる(noが変わらない前提)。
+        // 画像Blobが変わっていればimageSrc()呼び出し時にquiz-options-table.vue側の
+        // objectUrlStoreが自動的に古いプレビューURLを失効させる(noが変わらない前提)。
         props.currentQuiz.options[editingOptionIndex.value] = { ...currentOption.value };
     } else {
         props.currentQuiz.options.push({ ...currentOption.value });
@@ -199,12 +78,6 @@ const saveOption = () => {
 
 const closeOptionModal = () => {
     showOptionModal.value = false;
-};
-
-const removeOption = (index: number) => {
-    const option = props.currentQuiz.options[index];
-    objectUrlStore.revoke(`option-${option.no}`);
-    props.currentQuiz.options.splice(index, 1);
 };
 
 onMounted(() => {
@@ -222,9 +95,6 @@ onMounted(() => {
     if ((props.currentQuiz as any).correctNo == null) {
         (props.currentQuiz as any).correctNo = 1;
     }
-
-    // BGM/画像プレビューはbgmPreview等のcomputedがobjectUrlStore経由で
-    // 遅延生成するため、ここでの明示的な初期化は不要。
 });
 
 // Watch option count and fallback correctNo to 1 when out of range
@@ -287,137 +157,11 @@ watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
     color: white;
 }
 
-
-
 .form {
     display: flex;
     flex-direction: column;
     gap: 1rem;
     /* space-y-4 */
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 2.75rem;
-    /* gap-11 approx */
-}
-
-@media (min-width: 768px) {
-    .form-grid {
-        grid-template-columns: 1fr 1fr;
-        /* md:grid-cols-2 */
-    }
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.form-label {
-    display: block;
-    font-size: 0.875rem;
-    /* text-sm */
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-    /* mb-2 */
-    color: #d1d5db;
-    /* text-gray-300 */
-}
-
-.form-input,
-.form-textarea {
-    width: 100%;
-    padding: 0.5rem;
-    /* p-2 */
-    border: 1px solid #4b5563;
-    /* border-gray-600 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-family: inherit;
-    background-color: #374151;
-    /* bg-gray-700 */
-    color: white;
-}
-
-.form-input:focus,
-.form-textarea:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px #3b82f6;
-    /* focus:ring-2 focus:ring-blue-500 */
-}
-
-.form-textarea {
-    resize: vertical;
-}
-
-.audio-preview {
-    margin-top: 0.5rem;
-    width: 100%;
-    max-width: 300px;
-}
-
-.option-item {
-    border: 1px solid #4b5563;
-    /* border-gray-600 */
-    border-radius: 0.25rem;
-    /* rounded */
-    padding: 0.75rem;
-    /* p-3 */
-    margin-bottom: 0.5rem;
-    /* mb-2 */
-    background-color: #374151;
-    /* bg-gray-700 */
-}
-
-.option-input-group {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    /* space-x-2 */
-}
-
-.option-input {
-    flex: 1;
-}
-
-.btn-remove-option {
-    background-color: #ef4444;
-    /* bg-red-500 */
-    color: white;
-    padding: 0.25rem 0.5rem;
-    /* py-1 px-2 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-size: 0.875rem;
-    /* text-sm */
-    border: none;
-    cursor: pointer;
-}
-
-.btn-remove-option:hover {
-    background-color: #dc2626;
-    /* hover:bg-red-600 */
-}
-
-.btn-add-option {
-    background-color: #3b82f6;
-    /* bg-blue-500 */
-    color: white;
-    padding: 0.25rem 0.75rem;
-    /* py-1 px-3 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-size: 0.875rem;
-    /* text-sm */
-    border: none;
-    cursor: pointer;
-}
-
-.btn-add-option:hover {
-    background-color: #2563eb;
-    /* hover:bg-blue-600 */
 }
 
 .form-actions {
@@ -459,179 +203,6 @@ watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
 .btn-save:hover {
     background-color: #059669;
     /* hover:bg-green-600 */
-}
-
-.options-table-scroll {
-    overflow-x: auto;
-    margin-bottom: 1rem;
-    border-radius: 0.5rem;
-}
-
-.options-table {
-    width: 100%;
-    min-width: 480px;
-    border-collapse: collapse;
-    background-color: #374151;
-    /* bg-gray-700 */
-    border-radius: 0.5rem;
-    /* rounded-lg */
-    overflow: hidden;
-    border: 1px solid #4b5563;
-    /* border-gray-600 */
-}
-
-.table-head {
-    background-color: #4b5563;
-    /* bg-gray-600 */
-}
-
-.th-no,
-.th-content,
-.th-image,
-.th-color,
-.th-actions {
-    padding: 0.75rem 1rem;
-    /* py-3 px-4 */
-    text-align: left;
-    color: #d1d5db;
-    /* text-gray-300 */
-    font-weight: 600;
-    /* font-semibold */
-    border: 1px solid #6b7280;
-    /* border-gray-500 */
-}
-
-.th-no {
-    width: 10%;
-}
-
-.th-content {
-    width: 30%;
-}
-
-.th-image {
-    width: 20%;
-}
-
-.th-color {
-    width: 20%;
-}
-
-.th-actions {
-    width: 20%;
-}
-
-.table-row {
-    border-bottom: 1px solid #4b5563;
-    /* border-gray-600 */
-}
-
-.table-row:hover {
-    background-color: #4b5563;
-    /* hover:bg-gray-650 approx */
-}
-
-.td-no,
-.td-content,
-.td-image,
-.td-color,
-.td-actions {
-    padding: 1rem;
-    /* py-4 px-4 */
-    border: 1px solid #6b7280;
-    /* border-gray-500 */
-}
-
-.td-no {
-    color: #60a5fa;
-    /* text-blue-400 */
-    font-family: monospace;
-    font-weight: 500;
-    text-align: center;
-    vertical-align: middle;
-    font-size: 1.125rem;
-    /* text-lg */
-}
-
-.td-content,
-.td-image,
-.td-color {
-    color: #d1d5db;
-    /* text-gray-300 */
-}
-
-.btn-edit {
-    background-color: #3b82f6;
-    /* bg-blue-500 */
-    color: white;
-    padding: 0.25rem 0.5rem;
-    /* py-1 px-2 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-size: 0.875rem;
-    /* text-sm */
-    border: none;
-    cursor: pointer;
-}
-
-.btn-edit:hover {
-    background-color: #2563eb;
-    /* hover:bg-blue-600 */
-}
-
-.btn-delete {
-    background-color: #ef4444;
-    /* bg-red-500 */
-    color: white;
-    padding: 0.25rem 0.5rem;
-    /* py-1 px-2 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-size: 0.875rem;
-    /* text-sm */
-    border: none;
-    cursor: pointer;
-}
-
-.btn-delete:hover {
-    background-color: #dc2626;
-    /* hover:bg-red-600 */
-}
-
-.btn-add-option {
-    background-color: #3b82f6;
-    /* bg-blue-500 */
-    color: white;
-    padding: 0.5rem;
-    border-radius: 50%;
-    font-size: 1.5rem;
-    /* text-2xl */
-    border: none;
-    cursor: pointer;
-    width: 3rem;
-    height: 3rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-add-option:hover {
-    background-color: #2563eb;
-    /* hover:bg-blue-600 */
-}
-
-.preview-image {
-    max-width: 80px;
-    max-height: 80px;
-    object-fit: cover;
-    border-radius: 4px;
-}
-
-.color-preview {
-    width: 40px;
-    height: 20px;
-    border-radius: 4px;
-    border: 1px solid #6b7280;
 }
 
 @media (max-width: 480px) {
