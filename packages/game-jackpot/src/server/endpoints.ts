@@ -14,6 +14,7 @@ import type {
   IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
 import type { DriveData, DriveJsonData } from "@octopus/infrastructures/compositions";
+import type { JackpotRemoteScreen } from "./jackpot-api-contract";
 
 import {
   addJackpotDriveData,
@@ -22,11 +23,17 @@ import {
 } from "./drive-asset-use-cases";
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
+import {
+  advanceRemoteAction,
+  getRemoteControlState,
+  setRemoteScreen,
+} from "./remote-control-use-cases";
 
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
     cache: container.resolve<ICache>(ICacheToken),
+    now: (): number => Date.now(),
   };
 }
 
@@ -35,6 +42,9 @@ declare let _jackpotGame_getDriveMetaData: (folderId?: string) => string;
 declare let _jackpotGame_getDriveData: (dataId: string) => string;
 declare let _jackpotGame_addJson: (driveJson: DriveJsonData) => string;
 declare let _jackpotGame_getJson: (fileId?: string) => string;
+declare let _jackpotGame_setRemoteScreen: (screen: JackpotRemoteScreen) => string;
+declare let _jackpotGame_advanceRemoteAction: () => string;
+declare let _jackpotGame_getRemoteControlState: () => string;
 
 _jackpotGame_addDriveData = (driveData: DriveData): string => {
   try {
@@ -84,5 +94,32 @@ _jackpotGame_getJson = (fileId?: string): string => {
       status: "success",
       data: { json: JSON.stringify([]) },
     });
+  }
+};
+
+_jackpotGame_setRemoteScreen = (screen: JackpotRemoteScreen): string => {
+  try {
+    const result = setRemoteScreen(resolveDeps(), { screen });
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_jackpotGame_advanceRemoteAction = (): string => {
+  try {
+    const result = advanceRemoteAction(resolveDeps());
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_jackpotGame_getRemoteControlState = (): string => {
+  try {
+    const result = getRemoteControlState(resolveDeps());
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
