@@ -1,20 +1,28 @@
 <template>
   <MainLayout>
-    <Loader v-if="!demoConfig" label="読み込み中..." />
-    <div v-else class="w-full max-w-xl mx-auto text-center bg-white/80 rounded-xl shadow-lg p-8">
-      <h2 class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">デモ抽選画面</h2>
-      <div v-if="!drawn">
-        <button @click="runDemoDraw"
-          class="bg-gradient-to-r from-pink-400 to-yellow-300 text-white font-semibold px-6 py-3 rounded-lg shadow hover:scale-105 transition">抽選開始</button>
-        <p class="mt-4 text-gray-700">抽選ボタンを押すと1回だけデモ抽選を実施します</p>
-        <p v-if="errorMessage" class="mt-4 text-red-600 font-bold">{{ errorMessage }}</p>
-      </div>
-      <div v-else>
-        <transition name="fade">
-          <div class="result-box" v-if="result">
-            <h3 class="text-xl font-bold text-pink-600 mb-2">当選者: {{ result.member }}</h3>
-            <p class="text-lg text-indigo-700">賞品: {{ result.prize }}</p>
-            <p class="mt-4 text-green-700 font-bold">では本番です！！（Enterキーで本抽選へ）</p>
+    <div class="demo-root">
+      <Loader v-if="!demoConfig" label="読み込み中..." />
+      <div v-else class="demo-card">
+        <h2 class="demo-title">デモ抽選画面</h2>
+
+        <div v-if="!drawn" class="demo-start">
+          <button type="button" class="demo-start-button" @click="runDemoDraw">抽選開始</button>
+          <p class="demo-hint">抽選ボタンを押すと1回だけデモ抽選を実施します</p>
+          <p v-if="errorMessage" class="demo-error">{{ errorMessage }}</p>
+        </div>
+
+        <div v-else-if="!result" class="demo-drawing">
+          <span class="demo-drawing-spinner"></span>
+          <p>抽選中...</p>
+        </div>
+
+        <transition name="demo-fade">
+          <div v-if="drawn && result" class="demo-result">
+            <p class="demo-result-label">当選者</p>
+            <h3 class="demo-result-member">{{ result.member }}</h3>
+            <p class="demo-result-label">賞品</p>
+            <p class="demo-result-prize">{{ result.prize }}</p>
+            <p class="demo-next-hint">では本番です！！（Enterキーで本抽選へ）</p>
           </div>
         </transition>
       </div>
@@ -147,3 +155,131 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.demo-root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  background: radial-gradient(circle at 50% 30%, #1b0b05 0%, #0b0503 35%, #040203 100%);
+}
+
+.demo-card {
+  width: min(520px, 92vw);
+  text-align: center;
+  padding: 40px 32px;
+  border-radius: 20px;
+  background: rgba(20, 12, 8, 0.72);
+  border: 1px solid rgba(255, 211, 111, 0.25);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 122, 160, 0.08);
+}
+
+.demo-title {
+  margin: 0 0 28px;
+  font-size: clamp(22px, 4vw, 30px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff0d9;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
+.demo-start-button {
+  padding: 14px 36px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(90deg, #ffd26f, #ff7a7a);
+  color: #221208;
+  font-weight: 800;
+  font-size: 1.05rem;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(255, 122, 122, 0.22);
+  transition: transform 160ms ease;
+}
+
+.demo-start-button:hover {
+  transform: scale(1.04);
+}
+
+.demo-hint {
+  margin-top: 16px;
+  color: rgba(255, 240, 217, 0.75);
+  font-size: 0.95rem;
+}
+
+.demo-error {
+  margin-top: 16px;
+  color: #ff8a8a;
+  font-weight: 700;
+}
+
+.demo-drawing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: rgba(255, 240, 217, 0.85);
+  font-weight: 700;
+}
+
+.demo-drawing-spinner {
+  width: 36px;
+  height: 36px;
+  border: 4px solid rgba(255, 240, 217, 0.2);
+  border-top: 4px solid #ffd36f;
+  border-radius: 50%;
+  animation: demo-drawing-spin 0.9s linear infinite;
+}
+
+@keyframes demo-drawing-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.demo-result-label {
+  margin: 0;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 220, 190, 0.7);
+}
+
+.demo-result-member {
+  margin: 4px 0 18px;
+  font-size: clamp(24px, 5vw, 34px);
+  font-weight: 800;
+  background: linear-gradient(90deg, #ffd36f, #ff7aa0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.demo-result-prize {
+  margin: 4px 0 20px;
+  font-size: 1.15rem;
+  color: #fff0d9;
+  font-weight: 600;
+}
+
+.demo-next-hint {
+  margin-top: 12px;
+  color: #9dffb0;
+  font-weight: 700;
+}
+
+.demo-fade-enter-active {
+  transition: opacity 320ms ease, transform 320ms ease;
+}
+
+.demo-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+</style>
