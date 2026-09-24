@@ -6,7 +6,7 @@
                     <h3>🎁 新しい景品を追加</h3>
                     <div class="form-scroll">
                         <PrizeForm ref="formRef" mode="add" :image-assets="imageAssets" :audio-assets="audioAssets"
-                            @submit="onSubmit" @cancel="closeModal" />
+                            :other-prizes="otherPrizes" @submit="onSubmit" @cancel="closeModal" />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import PrizeForm from '../../../components/prizes/prize-form.vue';
 import type { Asset } from '@model/asset/asset-data';
+import type { Prize } from '@model/prize/prize';
 import { PrizeService } from '@control/prize/prize-service';
 import { container } from 'tsyringe';
 
@@ -30,6 +31,7 @@ const props = defineProps({
     show: { type: Boolean, required: false },
     imageAssets: { type: Array as () => Asset[], required: true },
     audioAssets: { type: Array as () => Asset[], required: true },
+    otherPrizes: { type: Array as () => Prize[], default: () => [] },
 });
 
 const emit = defineEmits(['close', 'refresh']);

@@ -98,4 +98,40 @@ describe("PrizeForm", () => {
     const input = wrapper.find('input[type="number"]');
     expect((input.element as HTMLInputElement).value).toBe("80");
   });
+
+  describe("odds preview", () => {
+    it("computes the win probability against the other prizes in the pool", () => {
+      const wrapper = mount(PrizeForm, {
+        props: {
+          mode: "add",
+          imageAssets: [],
+          audioAssets: [],
+          otherPrizes: [
+            { id: "p1", name: "A", weight: 90, order: 1 },
+          ],
+        },
+      });
+
+      // new prize defaults to weight 10 -> total = 90 + 10 = 100 -> 10.0%
+      expect(wrapper.text()).toContain("約10.0%");
+    });
+
+    it("excludes the prize being edited from its own odds calculation", () => {
+      const wrapper = mount(PrizeForm, {
+        props: {
+          mode: "edit",
+          prize: { id: "p1", name: "Grand Prize", weight: 50 },
+          imageAssets: [],
+          audioAssets: [],
+          otherPrizes: [
+            { id: "p1", name: "Grand Prize", weight: 50, order: 1 },
+            { id: "p2", name: "B", weight: 50, order: 2 },
+          ],
+        },
+      });
+
+      // p1 (self, excluded from "others") weight 50 vs p2 weight 50 -> total 100 -> 50.0%
+      expect(wrapper.text()).toContain("約50.0%");
+    });
+  });
 });
