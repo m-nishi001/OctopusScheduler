@@ -27,8 +27,8 @@ const channel = new BroadcastChannel('octopus-control');
 const handleKeydown = (event: KeyboardEvent) => {
     // ショートカットキーの例: Ctrl+1 でイベント送信
     if (event.ctrlKey && event.key === '1') {
-        // Use IAppEventDto shape: { actionType, eventId }
-        console.debug('[settings-view] shortcut detected: sending IAppEventDto', {
+        // Use AppEventDto shape: { actionType, eventId }
+        console.debug('[settings-view] shortcut detected: sending AppEventDto', {
             actionType: 'start',
             eventId: 'sample',
         });

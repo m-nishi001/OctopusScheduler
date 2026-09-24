@@ -1,10 +1,10 @@
 import type { Asset } from "../../../../../../model/asset/asset";
 import { AssetService } from "../../../../../../control/asset/asset-service";
-import { AppEventService } from "../../../../../../applications/app-event/app-event-service";
+import { AppEventService } from "../../../../../../control/app-event/app-event-service";
 import {
   ShowContentEvent,
   ShowContentEventParams,
-} from "../../../../../../domains/app-event/show-content/show-content-event";
+} from "../../../../../../control/app-event/show-content/show-content-event";
 
 export interface RegisterInput {
   startTime: Date;

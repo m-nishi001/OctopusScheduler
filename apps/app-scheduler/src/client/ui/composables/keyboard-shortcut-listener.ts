@@ -116,7 +116,7 @@ export function registerKeyboardShortcutListener(): () => void {
       // If there is a longer shortcut that starts with the same sequence, wait a short time
       const hasLonger =
         await keyboardShortcutService.hasLongerShortcutWithPrefix(sequence);
-      // Instead of executing actions locally, send IAppEventDto messages
+      // Instead of executing actions locally, send AppEventDto messages
       // over BroadcastChannel so the execute tab will perform the actions.
       const sendShortcut = async () => {
         try {

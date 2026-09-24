@@ -2,11 +2,11 @@ import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
 import { AssetService } from "../../../../../../control/asset/asset-service";
 import type { Asset } from "../../../../../../model/asset/asset";
-import { AppEventService } from "../../../../../../applications/app-event/app-event-service";
+import { AppEventService } from "../../../../../../control/app-event/app-event-service";
 import {
   SlideshowEvent,
   SlideshowEventParams,
-} from "../../../../../../domains/app-event/slideshow/slideshow-event";
+} from "../../../../../../control/app-event/slideshow/slideshow-event";
 
 export function useSlideshowEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);

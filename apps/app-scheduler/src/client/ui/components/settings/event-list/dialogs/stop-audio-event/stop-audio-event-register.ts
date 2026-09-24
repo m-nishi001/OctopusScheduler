@@ -1,10 +1,10 @@
 import { ref, onMounted } from "vue";
 import { container } from "tsyringe";
-import { AppEventService } from "../../../../../../applications/app-event/app-event-service";
+import { AppEventService } from "../../../../../../control/app-event/app-event-service";
 import {
   StopAudioEvent,
   StopAudioEventParams,
-} from "../../../../../../domains/app-event/stop-audio/stop-audio-event";
+} from "../../../../../../control/app-event/stop-audio/stop-audio-event";
 
 export function useStopAudioEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);

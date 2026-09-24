@@ -1,6 +1,6 @@
 <template>
     <div class="execute-screen">
-        <!-- execute tab now only responds to IAppEventDto messages (actionType/eventId) -->
+        <!-- execute tab now only responds to AppEventDto messages (actionType/eventId) -->
         <div class="execute-content">
             <router-view />
         </div>
@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
-import { AppEventService } from '../../../applications/app-event/app-event-service';
+import { AppEventService } from '../../../control/app-event/app-event-service';
 import { eventBus } from '@octopus/client-common/events/event-bus';
 
 
@@ -19,7 +19,7 @@ const channel = new BroadcastChannel('octopus-control');
 const handleMessage = async (event: MessageEvent) => {
     const data = event.data || {};
 
-    // If message follows IAppEventDto shape: { actionType, eventId }
+    // If message follows AppEventDto shape: { actionType, eventId }
     if (data && typeof data.actionType === 'string') {
         // Global stopAll command from other tabs/windows -> stop local audio
         if (data.actionType === 'stopAll') {

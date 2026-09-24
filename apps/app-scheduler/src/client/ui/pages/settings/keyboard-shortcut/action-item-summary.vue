@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { EventFormData } from './types';
-import type { IAppEventDto } from '../../../../applications/app-event/i-app-event-dto';
+import type { AppEventDto } from '../../../../control/app-event/dto/app-event-dto';
 import { container } from 'tsyringe';
 import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
 
@@ -33,7 +33,7 @@ const ACTION_REGISTRY: Record<string, any> = (() => {
 })();
 
 const props = defineProps<{
-    action: EventFormData | IAppEventDto;
+    action: EventFormData | AppEventDto;
     index: number;
     length: number;
 }>();
@@ -50,20 +50,18 @@ const label = computed(() => {
     return entry ? entry.label : props.action.actionType;
 });
 
-function summarize(a: EventFormData | IAppEventDto): string {
+function summarize(a: EventFormData | AppEventDto): string {
     switch (a.actionType) {
         case 'PlayAudioEvent':
-            if ('audioId' in a) return `audio: ${a.audioId || '（未選択）'}`;
-            return `audio: （未選択）`;
+            return `audio: ${a.audioId || '（未選択）'}`;
         case 'SlideshowEvent':
-            if ('folderId' in a) return `folder: ${a.folderId || '（未設定）'} / ${a.displayDuration ?? '-'}s`;
-            return `folder: （未設定）`;
+            return `folder: ${a.folderId || '（未設定）'} / ${a.displayDuration ?? '-'}s`;
         case 'TransitionPageEvent':
-            if ('transitionUrl' in a) return `url: ${a.transitionUrl || '（未設定）'}`;
-            return `url: （未設定）`;
+            return `url: ${a.transitionUrl || '（未設定）'}`;
         case 'ShowContentEvent':
-            if ('contentType' in a) return `${a.contentType}: ${a.contentId || '（未選択）'}`;
-            return 'content: （未選択）';
+            return `${a.contentType}: ${a.contentId || '（未選択）'}`;
+        case 'StopAudioEvent':
+            return `audio: ${a.audioId || '（未選択）'}`;
         default:
             return '';
     }
