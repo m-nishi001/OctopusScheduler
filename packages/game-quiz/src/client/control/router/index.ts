@@ -4,6 +4,7 @@ import QuizIntro from "../../ui/pages/quiz-display/quiz-intro.vue";
 import QuizQr from "../../ui/pages/quiz-display/quiz-qr.vue";
 import QuizPlay from "../../ui/pages/quiz-display/quiz-play.vue";
 import QuizAnswer from "../../ui/pages/quiz-display/quiz-answer.vue";
+import QuizParticipant from "../../ui/pages/quiz-participant/quiz-participant.vue";
 const quizGameRoutes = [
   { path: "/quiz-home", component: QuizAdmin },
   {
@@ -54,6 +55,8 @@ const quizGameRoutes = [
   // legacy path kept for compatibility
   { path: "/quiz-result/:id", component: QuizResult },
   { path: "/quiz-admin", component: QuizAdmin },
+  // 参加者がQRコードから開く回答画面(スマホ想定、管理者側のローカルキャッシュには依存しない)
+  { path: "/quiz/:id/join", name: "quiz-join", component: QuizParticipant },
 ];
 
 export default quizGameRoutes;
