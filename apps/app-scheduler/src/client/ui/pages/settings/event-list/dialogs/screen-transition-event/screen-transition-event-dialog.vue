@@ -1,7 +1,7 @@
 <template>
     <div class="modal-overlay">
         <div class="modal-content" @click.stop>
-            <h3>{{ isEdit ? '音楽停止イベント編集' : '音楽停止イベント追加' }}</h3>
+            <h3>{{ isEdit ? '画面遷移イベント編集' : '画面遷移イベント追加' }}</h3>
             <form @submit.prevent="onSubmit">
                 <div class="form-group">
                     <label for="startTime">開始時間</label>
@@ -10,6 +10,10 @@
                 <div class="form-group">
                     <label for="endTime">終了時間</label>
                     <input id="endTime" type="datetime-local" v-model="form.endTime" required />
+                </div>
+                <div class="form-group">
+                    <label for="transitionUrl">遷移URL</label>
+                    <input id="transitionUrl" type="url" v-model="form.transitionUrl" required />
                 </div>
                 <div class="form-group">
                     <label for="fadeOutDuration">フェードアウト時間 (秒)</label>
@@ -26,17 +30,15 @@
 </template>
 
 <script setup lang="ts">
-import { useStopAudioEvent } from './stop-audio-event-register';
-
+import { useScreenTransitionEvent } from './use-screen-transition-event';
 interface Props { event?: any }
 const props = defineProps<Props>();
 const emit = defineEmits<{ saved: []; close: [] }>();
-
-const { form, isEdit, onSubmit, onClose } = useStopAudioEvent(props, emit);
+const { form, isEdit, onSubmit, onClose } = useScreenTransitionEvent(props, emit);
 </script>
 
 <style scoped>
-/* Reuse styles from other dialogs (kept minimal here) */
+/* Styles copied from original to maintain consistency */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -47,7 +49,7 @@ const { form, isEdit, onSubmit, onClose } = useStopAudioEvent(props, emit);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000
+    z-index: 1000;
 }
 
 .modal-content {
@@ -55,22 +57,62 @@ const { form, isEdit, onSubmit, onClose } = useStopAudioEvent(props, emit);
     color: #fff;
     padding: 2em;
     border-radius: 10px;
+    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
     max-width: 600px;
-    width: 90%
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-content h3 {
+    margin-bottom: 1em;
+    color: #8fd3ff;
 }
 
 .form-group {
-    margin-bottom: 1em
+    margin-bottom: 1em;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 0.5em
+    margin-bottom: 0.5em;
+    color: #fff;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.5em;
+    background: #333;
+    color: #fff;
+    border: 1px solid #666;
+    border-radius: 6px;
 }
 
 .form-actions {
+    margin-top: 1em;
     display: flex;
-    gap: 1em;
-    justify-content: flex-end
+    gap: 1.2em;
+    justify-content: flex-end;
+}
+
+.main-btn {
+    font-size: inherit;
+    font-weight: 600;
+    padding: 0.8em 2em;
+    background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
+    outline: none;
+}
+
+.main-btn:hover,
+.main-btn:focus {
+    background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+    transform: translateY(-2px) scale(1.04);
 }
 </style>

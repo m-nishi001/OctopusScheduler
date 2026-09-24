@@ -145,7 +145,6 @@ import { AssetService } from '../../../../../../control/asset/asset-service';
 import type { Asset } from '../../../../../../model/asset/asset';
 import { AppEventService } from '../../../../../../control/app-event/app-event-service';
 import { ShowContentEvent } from '../../../../../../control/app-event/show-content/show-content-event';
-import { ContentDisplayEventRegister } from './content-display-event-register';
 
 interface Props {
     event?: ShowContentEvent;
@@ -188,6 +187,7 @@ const form = ref(entityToForm(initialEntity));
 
 const assets = ref<Asset[]>([]);
 const assetService = container.resolve(AssetService);
+const appEventService = container.resolve(AppEventService);
 
 const assetMap = ref<Map<string, string>>(new Map());
 const createdUrls: string[] = [];
@@ -283,24 +283,30 @@ async function onSubmit() {
         return;
     }
 
-    const register = new ContentDisplayEventRegister(assetService, container.resolve(AppEventService));
     try {
-        await register.register({
-            startTime,
-            endTime,
-            contentType: form.value.contentType,
-            contentId: form.value.contentId,
-            htmlString: form.value.htmlString,
-            fadeOutDuration: form.value.fadeOutDuration,
-            displayMode: form.value.displayMode,
-            effect: form.value.effect,
-            duration: form.value.duration,
-            fadeInTime: form.value.fadeInTime,
-            fadeOutTime: form.value.fadeOutTime,
-            scrollDirection: form.value.scrollDirection,
-            uploadFiles: form.value.uploadFiles,
-            existingEvent: props.event,
-        });
+        const uploaded = await appEventService.resolveShowContentUploads(
+            form.value.contentId,
+            form.value.htmlString,
+            form.value.uploadFiles
+        );
+        await appEventService.saveScheduledEvent(
+            {
+                actionType: 'ShowContentEvent',
+                contentType: form.value.contentType,
+                contentId: uploaded.contentId,
+                htmlString: uploaded.htmlString,
+                fadeOutDuration: form.value.fadeOutDuration,
+                displayMode: form.value.displayMode,
+                effect: form.value.effect,
+                duration: form.value.duration,
+                fadeInTime: form.value.fadeInTime,
+                fadeOutTime: form.value.fadeOutTime,
+                scrollDirection: form.value.scrollDirection,
+                startTime,
+                endTime,
+            },
+            props.event
+        );
 
         emit('saved');
         emit('close');

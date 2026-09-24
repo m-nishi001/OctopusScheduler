@@ -16,7 +16,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import AdminHeader from './frames/admin-header.vue';
 import AdminSidemenu from './frames/admin-sidemenu.vue';
-import EventEditor from '../../components/settings/event-list/event-list.vue';
+import EventEditor from './event-list/event-list.vue';
 import AssetListEditor from './asset-list/asset-list-editor.vue';
 import KeyboardShortcutEditor from './keyboard-shortcut/keyboard-shortcut-editor.vue';
 
