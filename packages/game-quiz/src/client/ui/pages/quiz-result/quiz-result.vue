@@ -10,10 +10,12 @@
             <transition-group name="ranking" tag="div" class="ranking-list">
                 <div v-for="(record, idx) in displayedResults" :key="record.userId || (record.displayName + '-' + idx)"
                     class="ranking-item"
-                    :class="{ 'top3': record.rank <= 3, 'first-place': record.rank === 1 }">
-                    <div class="rank-number">{{ record.rank }}</div>
-                    <div class="player-name">{{ record.displayName }}</div>
-                    <div class="player-time">{{ formatTime(record.timeToAnswerSec) }}</div>
+                    :class="[{ 'first-place': record.rank === 1 }, `rank-${Math.min(record.rank, 4)}`]">
+                    <div class="rank-badge">{{ record.rank }}</div>
+                    <div class="player-info">
+                        <div class="player-name">{{ record.displayName }}</div>
+                        <div class="player-time">{{ formatTime(record.timeToAnswerSec) }}</div>
+                    </div>
                     <div v-if="record.rank === 1" class="cracker-particles">
                         <div class="particle" v-for="i in 50" :key="i"
                             :style="{ '--delay': i * 0.02 + 's', '--angle': Math.random() * 360 + 'deg', '--color': ['#ffd700', '#ff4500', '#00ff00', '#0000ff', '#ff00ff', '#ffff00', '#ff1493', '#00ffff'][i % 8] }">
@@ -39,18 +41,22 @@ import type { RankedResult } from '../../../model/ranking';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import PrizeDialog from '../../components/prize-dialog.vue';
 import { usePrizeOrchestrator } from '../../composables/use-prize-orchestrator';
+import { useRankingReveal } from '../../composables/use-ranking-reveal';
 
 const router = useRouter();
 const route = useRoute();
 
 type DisplayResult = RankedResult & { rank: number };
 
-const showFullScreenParticles = ref(false);
-const rankingFinished = ref(false);
-
 const finalResults = ref<DisplayResult[]>([]);
-const displayedResults = ref<DisplayResult[]>([]);
 const currentQuiz = ref<QuizDto | null>(null);
+
+const {
+    displayedResults,
+    showCelebration: showFullScreenParticles,
+    isFinished: rankingFinished,
+    reveal: revealRanking,
+} = useRankingReveal<DisplayResult>();
 
 const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
     getSettings: () => currentQuiz.value?.settings,
@@ -125,7 +131,7 @@ onMounted(() => {
             currentQuiz.value = null;
             finalResults.value = [];
         }
-        await startRankingAnimation();
+        await revealRanking(finalResults.value);
     })();
 });
 
@@ -154,43 +160,6 @@ function handleKeydown(event: KeyboardEvent) {
             return;
         }
     }
-}
-
-async function startRankingAnimation() {
-    const sorted = finalResults.value || [];
-    // 最下位から順に上に積み上がるように表示（存在チェックを行う）
-    for (let i = sorted.length - 1; i >= 3; i--) {
-        const item = sorted[i];
-        if (item) {
-            displayedResults.value.unshift(item);
-            await new Promise(resolve => setTimeout(resolve, 500)); // 0.5秒間隔
-        }
-    }
-    // 上位3位は特別（存在する分だけ順に出す）
-    await new Promise(resolve => setTimeout(resolve, 1000)); // 1秒待つ
-    const topCount = Math.min(3, sorted.length);
-    let particleShown = false;
-    for (let j = topCount - 1; j >= 0; j--) {
-        const item = sorted[j];
-        if (item) {
-            displayedResults.value.unshift(item);
-            // small pause between each top placement
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            // if this is the top (first place), play full screen particles
-            if (j === 0) {
-                showFullScreenParticles.value = true;
-                setTimeout(() => showFullScreenParticles.value = false, 3000);
-                // mark that we showed particles (we will enable Enter after animations finish)
-                particleShown = true;
-            }
-        }
-    }
-
-    // Wait for particle animation to finish (if any) before enabling Enter -> prize
-    if (particleShown) {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
-    rankingFinished.value = true;
 }
 
 </script>
@@ -227,7 +196,7 @@ async function startRankingAnimation() {
 .ranking-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     width: 100%;
     max-width: 600px;
 }
@@ -235,10 +204,12 @@ async function startRankingAnimation() {
 .ranking-item {
     display: flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 14px 18px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
     transform: translateX(0);
     opacity: 1;
 }
@@ -252,27 +223,31 @@ async function startRankingAnimation() {
     transition: all 0.5s ease;
 }
 
-.ranking-item.top3 {
-    background: linear-gradient(90deg, #ffd700, #ffed4e);
-    color: #000;
-    font-weight: bold;
+.ranking-item.rank-3 {
+    border-color: rgba(205, 127, 50, 0.5);
+}
+
+.ranking-item.rank-2 {
+    border-color: rgba(200, 200, 200, 0.6);
+}
+
+.ranking-item.rank-1 {
+    border-color: rgba(255, 215, 0, 0.7);
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.16), rgba(255, 215, 0, 0.04));
 }
 
 .ranking-item.first-place {
-    background: linear-gradient(45deg, #ffd700, #ffed4e, #ffd700);
-    color: #000;
-    font-weight: bold;
-    animation: firstPlaceGlow 2s ease-in-out infinite alternate, bang 1s ease forwards;
     position: relative;
+    animation: firstPlaceGlow 1.6s ease-in-out infinite alternate;
 }
 
 @keyframes firstPlaceGlow {
     0% {
-        box-shadow: 0 0 20px #ffd700;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), 0 0 10px rgba(255, 215, 0, 0.25);
     }
 
     100% {
-        box-shadow: 0 0 40px #ffd700, 0 0 60px #ffd700;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), 0 0 28px rgba(255, 215, 0, 0.55);
     }
 }
 
@@ -349,21 +324,89 @@ async function startRankingAnimation() {
     }
 }
 
-.rank-number {
-    font-size: 1.5rem;
-    font-weight: bold;
-    margin-right: 20px;
-    min-width: 50px;
-    text-align: center;
+.rank-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+    flex-shrink: 0;
+}
+
+.rank-1 .rank-badge {
+    background: linear-gradient(145deg, #ffe27a, #d4a017);
+    color: #3a2900;
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.6);
+}
+
+.rank-2 .rank-badge {
+    background: linear-gradient(145deg, #e8e8e8, #a8a8a8);
+    color: #2b2b2b;
+}
+
+.rank-3 .rank-badge {
+    background: linear-gradient(145deg, #e3ac72, #ad6a2e);
+    color: #2b1400;
+}
+
+.player-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
 }
 
 .player-name {
-    flex: 1;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .player-time {
-    font-size: 1.2rem;
-    margin-left: 20px;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.65);
+    font-variant-numeric: tabular-nums;
+}
+
+.rank-1 .player-name {
+    color: #fff8e1;
+}
+
+@media (max-width: 600px) {
+    .result-table-container {
+        padding: 20px 16px;
+    }
+
+    .title {
+        font-size: 1.5rem;
+    }
+
+    .ranking-item {
+        padding: 12px 14px;
+        gap: 12px;
+    }
+
+    .rank-badge {
+        min-width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    .player-name {
+        font-size: 1rem;
+    }
+
+    .player-time {
+        font-size: 0.8rem;
+    }
 }
 </style>
