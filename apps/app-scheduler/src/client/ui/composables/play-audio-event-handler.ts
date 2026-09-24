@@ -1,7 +1,7 @@
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { AudioService } from "@octopus/client-common/audio/audio-service";
 import { container } from "tsyringe";
-import { AssetService } from "../../../control/asset/asset-service";
+import { AssetService } from "../../control/asset/asset-service";
 
 export class PlayAudioEventHandler {
   private static audioService = new AudioService();

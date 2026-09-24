@@ -7,24 +7,23 @@
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
-import type { TransitionPageFormData, EditTransitionPageFormData } from '../../app-events/types';
+import type { TransitionPageEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
 
 type Props = {
-    initialData?: TransitionPageFormData | EditTransitionPageFormData;
+    initialData?: TransitionPageEventDto;
 };
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [TransitionPageFormData | EditTransitionPageFormData] }>();
+const emit = defineEmits<{ save: [TransitionPageEventDto] }>();
 
 const formData = reactive({
     transitionUrl: props.initialData?.transitionUrl ?? '',
 });
 
 const save = () => {
-    const base: TransitionPageFormData = { actionType: 'TransitionPageEvent', transitionUrl: formData.transitionUrl };
-    if (props.initialData && 'eventId' in props.initialData) {
-        const out: EditTransitionPageFormData = { ...(base as any), eventId: (props.initialData as EditTransitionPageFormData).eventId };
-        emit('save', out);
+    const base: TransitionPageEventDto = { actionType: 'TransitionPageEvent', transitionUrl: formData.transitionUrl };
+    if (props.initialData?.id) {
+        emit('save', { ...base, id: props.initialData.id });
     } else {
         emit('save', base);
     }

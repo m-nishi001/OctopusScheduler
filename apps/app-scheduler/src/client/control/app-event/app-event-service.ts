@@ -1,8 +1,7 @@
-import { injectable, inject, container } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import { AppEventRepository } from "@model/app-event/app-event-repository";
 import type { AppEventData } from "@model/app-event/app-event-data";
 import type { ExecutionStatus } from "@model/app-event/execution-status";
-import { UIActionEntryToken } from "../../domains/app-event/ui-action-entry-token";
 import { AssetService } from "../asset/asset-service";
 import type { AppEvent } from "./app-event";
 import type { AppEventDto } from "./dto/app-event-dto";
@@ -167,22 +166,11 @@ export class AppEventService {
   }
 
   /**
-   * Return an initial DTO for the given event type, sourced from the UI
-   * action registry's `defaultData` when available.
+   * Return a minimal DTO for the given event type. Control has no knowledge
+   * of UI-only form defaults (`ui/pages/settings/app-events/registry`); the
+   * caller merges those in when a richer default is wanted.
    */
   getDefault(eventType: string): AppEventDto {
-    try {
-      const entries = container.resolveAll<any>(
-        UIActionEntryToken as any
-      ) as any[];
-      const entry = entries.find((e) => e && e.actionType === eventType);
-      if (entry && typeof entry.defaultData === "function") {
-        return entry.defaultData({});
-      }
-    } catch (e) {
-      // ignore
-    }
-
     return { actionType: eventType } as AppEventDto;
   }
 

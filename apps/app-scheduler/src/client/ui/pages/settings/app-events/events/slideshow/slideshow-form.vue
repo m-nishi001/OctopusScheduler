@@ -13,20 +13,19 @@
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
-import type { SlideshowFormData, EditSlideshowFormData } from '../../app-events/types';
+import type { SlideshowEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
 
-type Props = { initialData?: SlideshowFormData | EditSlideshowFormData }
+type Props = { initialData?: SlideshowEventDto }
 
 const props = defineProps<Props>();
-const emit = defineEmits<{ save: [SlideshowFormData | EditSlideshowFormData] }>();
+const emit = defineEmits<{ save: [SlideshowEventDto] }>();
 
 const formData = reactive({ folderId: props.initialData?.folderId ?? '', displayDuration: props.initialData?.displayDuration ?? 10 });
 
 const save = () => {
-    const base: SlideshowFormData = { actionType: 'SlideshowEvent', folderId: formData.folderId, displayDuration: formData.displayDuration };
-    if (props.initialData && 'eventId' in props.initialData) {
-        const out: EditSlideshowFormData = { ...(base as any), eventId: (props.initialData as EditSlideshowFormData).eventId };
-        emit('save', out);
+    const base: SlideshowEventDto = { actionType: 'SlideshowEvent', folderId: formData.folderId, displayDuration: formData.displayDuration };
+    if (props.initialData?.id) {
+        emit('save', { ...base, id: props.initialData.id });
     } else {
         emit('save', base);
     }

@@ -56,11 +56,11 @@ import { useKeyCapture } from './composables/useKeyCapture';
 import ActionItemSummary from './action-item-summary.vue';
 import EventSelectionDialog from './event-selection-dialog.vue';
 import ActionEditorDialog from './action-editor-dialog.vue';
-import type { EventFormData } from './types';
 import type { AppEventDto } from '../../../../control/app-event/dto/app-event-dto';
+import type { AppEvent } from '../../../../control/app-event/app-event';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
-import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
+import { uiActionEntries } from '../app-events/registry';
 
 interface Props {
     show: boolean;
@@ -77,16 +77,16 @@ const emit = defineEmits<Emits>();
 
 const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCapture();
 
-const actions = ref<Array<EventFormData | AppEventDto>>([]);
+const actions = ref<Array<AppEventDto>>([]);
 const formRefs: Record<number, any> = {};
 // Minimal dialog state: parent holds only an open flag and a short-lived initial DTO
 const dialogOpen = ref(false);
-const dialogInitialData = ref<EventFormData | AppEventDto | null>(null);
+const dialogInitialData = ref<AppEventDto | null>(null);
 
 // selection vs editor modal separation
 const selectionOpen = ref(false);
 const editorDialogOpen = ref(false);
-const editorInitialData = ref<EventFormData | AppEventDto | null>(null);
+const editorInitialData = ref<AppEventDto | null>(null);
 
 // editing target index in actions list (-1 = new)
 const editingIndex = ref<number>(-1);
@@ -94,19 +94,9 @@ const editingIndex = ref<number>(-1);
 // ref to action editor component
 const actionEditorRef = ref<any | null>(null);
 
-// build a local registry map from DI-resolved UI action entries
-const ACTION_REGISTRY: Record<string, any> = (() => {
-    try {
-        const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
-        const map: Record<string, any> = {};
-        for (const e of entries) {
-            if (e && e.actionType) map[e.actionType] = e;
-        }
-        return map;
-    } catch (err) {
-        return {};
-    }
-})();
+const ACTION_REGISTRY = Object.fromEntries(
+    uiActionEntries.map((e) => [e.actionType, e])
+);
 const appEventService = container.resolve(AppEventService);
 
 const getFormComponent = (atype: string) => {
@@ -122,7 +112,7 @@ watch(() => props.show, (newShow) => {
             (async () => {
                 const ids = props.editingShortcut?.eventIds || [];
                 const evs = await Promise.all(ids.map((id: string) => appEventService.getEventById(String(id))));
-                const dtoList: Array<EventFormData | AppEventDto> = [];
+                const dtoList: Array<AppEventDto> = [];
                 for (const ev of evs) {
                     if (!ev) {
                         dtoList.push({ actionType: 'Unknown' } as AppEventDto);
@@ -165,15 +155,12 @@ const saveShortcut = async () => {
 
     // validate and build events
     const id = props.editingShortcut?.id || `shortcut-${Date.now()}`;
-    const events: any[] = [];
+    const events: AppEvent[] = [];
     for (let i = 0; i < actions.value.length; i++) {
         const a = actions.value[i];
+        if (!a.id) a.id = crypto.randomUUID();
         try {
-            const ev = appEventService.buildEventFromDto(a as AppEventDto);
-            if (!ev.id) {
-                try { (ev as any).id = crypto.randomUUID(); } catch { (ev as any).id = String(Date.now()) + Math.random().toString(36).slice(2); }
-            }
-            events.push(ev);
+            events.push(appEventService.buildEventFromDto(a));
         } catch (err) {
             console.error(err);
             alert(`アクションの作成に失敗しました: ${a.actionType}`);
@@ -183,7 +170,7 @@ const saveShortcut = async () => {
 
     // persist events to AppEventRepository via AppEventService
     try {
-        if (events.length > 0) await appEventService.updateScheduleEvents(events as any);
+        if (events.length > 0) await appEventService.updateScheduleEvents(events);
     } catch (e) {
         console.error('failed to persist shortcut events', e);
     }
@@ -224,7 +211,7 @@ const moveDown = (idx: number) => {
 
 async function openActionManager(index: number) {
     // Open editor for existing action at index. Compute initial data from actions.
-    const initial = { ...(actions.value[index] as EventFormData | AppEventDto) };
+    const initial = { ...(actions.value[index] as AppEventDto) };
     // set editing target and open editor modal with initial data
     editingIndex.value = index;
     editorInitialData.value = initial;
@@ -243,7 +230,10 @@ async function onTypeSelected(payload: { type: string }) {
     const t = payload.type;
     // close selection and open editor modal with initial DTO
     selectionOpen.value = false;
-    const initial = appEventService.getDefault(t) as AppEventDto;
+    // Prefer the UI registry's own default (richer, form-specific) over the
+    // control layer's minimal fallback.
+    const entry = ACTION_REGISTRY[t];
+    const initial = entry ? entry.defaultData({}) : appEventService.getDefault(t);
     editorInitialData.value = initial;
     // indicate this is a new item
     editingIndex.value = -1;
@@ -256,10 +246,10 @@ async function onTypeSelected(payload: { type: string }) {
     actionEditorRef.value?.reset?.();
 }
 
-function onEditorSave(dto: EventFormData & { eventId?: string }) {
-    // Replace by eventId if present
-    if (dto.eventId) {
-        const idx = actions.value.findIndex(a => ('eventId' in a) && a.eventId === dto.eventId);
+function onEditorSave(dto: AppEventDto) {
+    // Replace by id if present
+    if (dto.id) {
+        const idx = actions.value.findIndex(a => a.id === dto.id);
         if (idx >= 0) {
             actions.value.splice(idx, 1, dto);
             editingIndex.value = -1;
@@ -299,10 +289,10 @@ function closeEditorDialog() {
     editingIndex.value = -1;
 }
 
-// Provide a stable key for v-for rendering. Prefer existing eventId/actionId if present.
-const keyFor = (a: EventFormData | AppEventDto | null | undefined, idx: number) => {
+// Provide a stable key for v-for rendering. Prefer the persisted event id if present.
+const keyFor = (a: AppEventDto | null | undefined, idx: number) => {
     if (!a) return `local-${idx}-act`;
-    if ('eventId' in a && a.eventId) return a.eventId;
+    if (a.id) return a.id;
     return `local-${idx}-${a.actionType ?? 'act'}`;
 };
 </script>

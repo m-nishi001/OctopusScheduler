@@ -6,7 +6,7 @@ import { Container } from "./core/container/index";
 import { JackpotContainer } from "@octopus/game-jackpot";
 import { QuizContainer } from "@octopus/game-quiz";
 import router from "./core/router";
-import { registerEventHandlers } from "./ui/components/app-event-handler/register-event-handlers";
+import { registerEventHandlers } from "./ui/composables/register-event-handlers";
 import { registerKeyboardShortcutListener } from "./ui/composables/keyboard-shortcut-listener";
 
 // Register app-specific DI

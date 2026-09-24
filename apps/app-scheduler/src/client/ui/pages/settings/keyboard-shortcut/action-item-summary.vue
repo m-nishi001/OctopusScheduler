@@ -16,24 +16,15 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { EventFormData } from './types';
 import type { AppEventDto } from '../../../../control/app-event/dto/app-event-dto';
-import { container } from 'tsyringe';
-import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
+import { uiActionEntries } from '../app-events/registry';
 
-const ACTION_REGISTRY: Record<string, any> = (() => {
-    try {
-        const entries = container.resolveAll<any>(UIActionEntryToken as any) as any[];
-        const m: Record<string, any> = {};
-        for (const e of entries) if (e && e.actionType) m[e.actionType] = e;
-        return m;
-    } catch (err) {
-        return {};
-    }
-})();
+const ACTION_REGISTRY = Object.fromEntries(
+    uiActionEntries.map((e) => [e.actionType, e])
+);
 
 const props = defineProps<{
-    action: EventFormData | AppEventDto;
+    action: AppEventDto;
     index: number;
     length: number;
 }>();
@@ -50,7 +41,7 @@ const label = computed(() => {
     return entry ? entry.label : props.action.actionType;
 });
 
-function summarize(a: EventFormData | AppEventDto): string {
+function summarize(a: AppEventDto): string {
     switch (a.actionType) {
         case 'PlayAudioEvent':
             return `audio: ${a.audioId || '（未選択）'}`;

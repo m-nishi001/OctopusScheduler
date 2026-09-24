@@ -3,10 +3,10 @@ import Settings from "../pages/settings/settings-view.vue";
 import Execute from "../pages/execute/execute-view.vue";
 import AssetListEditor from "../pages/settings/asset-list/asset-list-editor.vue";
 import EventEditor from "../pages/settings/event-list/event-list.vue";
-import ShowImage from "../components/app-event-handler/show-content/show-image.vue";
-import ShowVideo from "../components/app-event-handler/show-content/show-video.vue";
-import ShowHtml from "../components/app-event-handler/show-content/show-html.vue";
-import ShowSlideshow from "../components/app-event-handler/show-content/show-slideshow.vue";
+import ShowImage from "../pages/execute/show-content/show-image.vue";
+import ShowVideo from "../pages/execute/show-content/show-video.vue";
+import ShowHtml from "../pages/execute/show-content/show-html.vue";
+import ShowSlideshow from "../pages/execute/show-content/show-slideshow.vue";
 
 const octopusSchedulerRoutes = [
   {
