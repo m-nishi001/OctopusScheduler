@@ -10,6 +10,8 @@ import type { QuizGameApi } from "../../../server/quiz-api-contract";
 import { QuizRepository } from "../../model/quiz-repository";
 import { FormRepository } from "../../model/form-repository";
 import { MemberRepository } from "../../model/member-repository";
+import { ParticipantAuthRepository } from "../../model/participant-auth-repository";
+import { AnswerSessionRepository } from "../../model/answer-session-repository";
 import { QuizService } from "../../model/quiz-service";
 import { ResultService } from "../../model/result-service";
 import { StopQuizUseCase } from "../use-cases/stop-quiz-use-case";
@@ -23,6 +25,13 @@ import { ListMembersUseCase } from "../use-cases/list-members-use-case";
 import { AddMemberUseCase } from "../use-cases/add-member-use-case";
 import { UpdateMemberUseCase } from "../use-cases/update-member-use-case";
 import { DeleteMemberUseCase } from "../use-cases/delete-member-use-case";
+import { LoginParticipantUseCase } from "../use-cases/login-participant-use-case";
+import { ResolveDeviceTokenUseCase } from "../use-cases/resolve-device-token-use-case";
+import { StartAcceptingAnswersUseCase } from "../use-cases/start-accepting-answers-use-case";
+import { StopAcceptingAnswersUseCase } from "../use-cases/stop-accepting-answers-use-case";
+import { GetAcceptanceStateUseCase } from "../use-cases/get-acceptance-state-use-case";
+import { SubmitAnswerUseCase } from "../use-cases/submit-answer-use-case";
+import { GetSubmittedAnswersUseCase } from "../use-cases/get-submitted-answers-use-case";
 
 export class Container {
   static register() {
@@ -42,6 +51,8 @@ export class Container {
     container.register(QuizRepository, { useClass: QuizRepository });
     container.register(FormRepository, { useClass: FormRepository });
     container.register(MemberRepository, { useClass: MemberRepository });
+    container.register(ParticipantAuthRepository, { useClass: ParticipantAuthRepository });
+    container.register(AnswerSessionRepository, { useClass: AnswerSessionRepository });
 
     container.register(QuizService, { useClass: QuizService });
     container.register(ResultService, {
@@ -60,5 +71,14 @@ export class Container {
     container.register(AddMemberUseCase, { useClass: AddMemberUseCase });
     container.register(UpdateMemberUseCase, { useClass: UpdateMemberUseCase });
     container.register(DeleteMemberUseCase, { useClass: DeleteMemberUseCase });
+    container.register(LoginParticipantUseCase, { useClass: LoginParticipantUseCase });
+    container.register(ResolveDeviceTokenUseCase, { useClass: ResolveDeviceTokenUseCase });
+    container.register(StartAcceptingAnswersUseCase, {
+      useClass: StartAcceptingAnswersUseCase,
+    });
+    container.register(StopAcceptingAnswersUseCase, { useClass: StopAcceptingAnswersUseCase });
+    container.register(GetAcceptanceStateUseCase, { useClass: GetAcceptanceStateUseCase });
+    container.register(SubmitAnswerUseCase, { useClass: SubmitAnswerUseCase });
+    container.register(GetSubmittedAnswersUseCase, { useClass: GetSubmittedAnswersUseCase });
   }
 }
