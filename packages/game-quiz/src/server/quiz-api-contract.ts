@@ -33,6 +33,9 @@ export const QUIZ_GAME_ENDPOINTS = [
   "deleteMember",
   "loginParticipant",
   "resolveDeviceToken",
+  "startAcceptingAnswers",
+  "stopAcceptingAnswers",
+  "getAcceptanceState",
 ] as const;
 
 export type QuizGameEndpointName = (typeof QUIZ_GAME_ENDPOINTS)[number];
@@ -167,6 +170,28 @@ export interface ResolveDeviceTokenArgs {
 }
 
 /**
+ * クイズ1問分の回答受付状態。acceptStartedAtMs は「出題前に回答できてしまう」
+ * バグの修正のため、集計時にこの時刻未満のタイムスタンプを除外する基準として使う。
+ */
+export interface AcceptanceState {
+  quizId: string;
+  isAccepting: boolean;
+  acceptStartedAtMs: number | null;
+}
+
+export interface StartAcceptingAnswersArgs {
+  quizId: string;
+}
+
+export interface StopAcceptingAnswersArgs {
+  quizId: string;
+}
+
+export interface GetAcceptanceStateArgs {
+  quizId: string;
+}
+
+/**
  * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
  * Proxyの型として使う。各メソッドの引数・戻り値は `server/endpoints.ts` と
  * その先の use-case 実装の実際のシグネチャに合わせている。
@@ -208,6 +233,18 @@ export interface QuizGameApi {
     args: ResolveDeviceTokenArgs,
     options?: ApiCallOptions
   ): Promise<ParticipantSession>;
+  startAcceptingAnswers(
+    args: StartAcceptingAnswersArgs,
+    options?: ApiCallOptions
+  ): Promise<AcceptanceState>;
+  stopAcceptingAnswers(
+    args: StopAcceptingAnswersArgs,
+    options?: ApiCallOptions
+  ): Promise<AcceptanceState>;
+  getAcceptanceState(
+    args: GetAcceptanceStateArgs,
+    options?: ApiCallOptions
+  ): Promise<AcceptanceState>;
 }
 
 /** `QuizGameApi` をDI解決するためのトークン。 */

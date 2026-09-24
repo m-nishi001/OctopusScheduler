@@ -23,6 +23,7 @@ import type {
   AddJsonArgs,
   AddMemberArgs,
   DeleteMemberArgs,
+  GetAcceptanceStateArgs,
   GetDriveDataArgs,
   GetDriveMetaDataArgs,
   GetJsonArgs,
@@ -34,6 +35,8 @@ import type {
   LoginParticipantArgs,
   RemoveDriveDataArgs,
   ResolveDeviceTokenArgs,
+  StartAcceptingAnswersArgs,
+  StopAcceptingAnswersArgs,
   StopAndGetProcessedResultsArgs,
   StopFormArgs,
   UpdateMemberArgs,
@@ -60,6 +63,11 @@ import {
   updateMember,
 } from "./member-use-cases";
 import { loginParticipant, resolveDeviceToken } from "./participant-auth-use-cases";
+import {
+  getAcceptanceState,
+  startAcceptingAnswers,
+  stopAcceptingAnswers,
+} from "./answer-session-use-cases";
 
 function resolveDeps() {
   return {
@@ -70,6 +78,7 @@ function resolveDeps() {
     // GAS本番のUUID生成。node環境のテストではこの関数はGASグローバルに
     // 触れないよう、各use-caseのテストで別途スタブを注入する。
     generateToken: (): string => Utilities.getUuid(),
+    now: (): number => Date.now(),
   };
 }
 
@@ -95,6 +104,9 @@ declare let _quizGame_updateMember: (args: UpdateMemberArgs) => string;
 declare let _quizGame_deleteMember: (args: DeleteMemberArgs) => string;
 declare let _quizGame_loginParticipant: (args: LoginParticipantArgs) => string;
 declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => string;
+declare let _quizGame_startAcceptingAnswers: (args: StartAcceptingAnswersArgs) => string;
+declare let _quizGame_stopAcceptingAnswers: (args: StopAcceptingAnswersArgs) => string;
+declare let _quizGame_getAcceptanceState: (args: GetAcceptanceStateArgs) => string;
 
 _quizGame_stopForm = (args: StopFormArgs): string => {
   try {
@@ -260,6 +272,33 @@ _quizGame_loginParticipant = (args: LoginParticipantArgs): string => {
 _quizGame_resolveDeviceToken = (args: ResolveDeviceTokenArgs): string => {
   try {
     const result = resolveDeviceToken(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_startAcceptingAnswers = (args: StartAcceptingAnswersArgs): string => {
+  try {
+    const result = startAcceptingAnswers(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_stopAcceptingAnswers = (args: StopAcceptingAnswersArgs): string => {
+  try {
+    const result = stopAcceptingAnswers(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_getAcceptanceState = (args: GetAcceptanceStateArgs): string => {
+  try {
+    const result = getAcceptanceState(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
