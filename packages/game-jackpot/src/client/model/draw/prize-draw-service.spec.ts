@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { PrizeDrawService } from "./prize-draw-service";
+import { WeightedSelector } from "./weighted-selector";
 import { MockRandom } from "./test-utils";
 
 describe("PrizeDrawService", () => {
@@ -74,5 +75,47 @@ describe("PrizeDrawService", () => {
     const d = svc.buildDummyPrizeIds(prizes as any, excluded, 2);
     expect(d.length).toBe(2);
     expect(d).not.toContain("p1");
+  });
+
+  describe("drawPrize", () => {
+    /**
+     * drawPrizeがWeightedSelector.selectWeightedPrizeに委譲し、
+     * 当選景品を除いたダミーIDを返すことをテストする。
+     */
+    it("delegates to WeightedSelector.selectWeightedPrize and excludes the winner from dummies", () => {
+      // r=0.05*total(10)=0.5 -> falls into the first prize's weight slice (p1).
+      const rand = new MockRandom([0.05, 0.1, 0.2, 0.3]);
+      const selector = new WeightedSelector(rand as any);
+      const svc = new PrizeDrawService(selector, rand as any);
+      const prizes = [
+        { id: "p1", weight: 1 },
+        { id: "p2", weight: 1 },
+        { id: "p3", weight: 8 },
+      ];
+      const res = svc.drawPrize({
+        prizes: prizes as any,
+        assignedPrizeIds: [],
+        member: { id: "m1" } as any,
+        dummyCount: 2,
+      });
+      expect(res).not.toBeNull();
+      expect(res!.winnerPrizeId).toBe("p1");
+      expect(res!.dummyPrizeIds.length).toBe(2);
+      expect(res!.dummyPrizeIds).not.toContain("p1");
+    });
+
+    it("returns null when no prizes are available after excluding assigned ones", () => {
+      const rand = new MockRandom([0]);
+      const selector = new WeightedSelector(rand as any);
+      const svc = new PrizeDrawService(selector, rand as any);
+      const prizes = [{ id: "p1", weight: 5 }];
+      const res = svc.drawPrize({
+        prizes: prizes as any,
+        assignedPrizeIds: ["p1"],
+        member: { id: "m1" } as any,
+        dummyCount: 1,
+      });
+      expect(res).toBeNull();
+    });
   });
 });

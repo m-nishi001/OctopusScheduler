@@ -23,10 +23,10 @@ describe("PrizeReservationService", () => {
     const rand = new MockRandom([0.0, 0.4, 0.6, 0.2]);
     const svc = new PrizeReservationService(rand as any);
     const prizes = [
-      { id: "p1", rank: 10 },
-      { id: "p2", rank: 5 },
-      { id: "p3", rank: 1 },
-      { id: "p4", rank: 2 },
+      { id: "p1", weight: 10 },
+      { id: "p2", weight: 5 },
+      { id: "p3", weight: 1 },
+      { id: "p4", weight: 2 },
     ];
     const res = svc.reservePrizes(2, prizes as any);
     expect(res.length).toBe(2);
@@ -34,5 +34,21 @@ describe("PrizeReservationService", () => {
     expect(new Set(res.map((r) => r.id)).size).toBe(2);
 
     expect(() => svc.reservePrizes(4, prizes as any)).toThrow();
+  });
+
+  /**
+   * weight未設定(legacy相当)の景品が混在していてもデフォルト値扱いで
+   * 例外なく予約できることをテストする。
+   */
+  it("reservePrizes tolerates prizes with an unset weight", () => {
+    const rand = new MockRandom([0.1, 0.3]);
+    const svc = new PrizeReservationService(rand as any);
+    const prizes = [
+      { id: "p1", weight: 50 },
+      { id: "p2" },
+      { id: "p3", weight: 3 },
+    ];
+    const res = svc.reservePrizes(1, prizes as any);
+    expect(res.length).toBe(1);
   });
 });

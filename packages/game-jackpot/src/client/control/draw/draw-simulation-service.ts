@@ -142,11 +142,12 @@ export class DrawSimulationService {
     }
 
     const dummyPrizes: PrizeDto[] = [];
+    const dummyWeights = [1, 10, 80]; // レア度の異なる景品が混在することを示すサンプル重み
     for (let i = 1; i <= prizeCount; i++) {
       dummyPrizes.push({
         id: `prize-${i}`,
         name: `景品${i}`,
-        rank: ((i - 1) % 3) + 1, // 1,2,3 を繰り返す
+        weight: dummyWeights[(i - 1) % dummyWeights.length],
         imageAssetId: "dummy",
         animation: "roulette",
         order: i,
@@ -250,14 +251,14 @@ export class DrawSimulationService {
       "Draw ID",
       "Member Name",
       "Prize Name",
-      "Prize Rank",
+      "Prize Weight",
       "Is Kakuhen",
     ];
     const rows = results.map((result) => [
       result.drawId,
       result.wonMember?.name || "",
       result.wonPrize?.name || "",
-      result.wonPrize?.rank || "",
+      result.wonPrize?.weight || "",
       (result.isKakuhen || false).toString(),
     ]);
 

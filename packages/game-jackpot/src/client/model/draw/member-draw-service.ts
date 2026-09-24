@@ -28,7 +28,7 @@ export class MemberDrawService {
     if (candidates.length === 0) {
       return null;
     }
-    const winner = this.weightedSelector.selectWeighted(candidates);
+    const winner = this.weightedSelector.selectUniformRandom(candidates);
     const dummyPool = members.map((m) => m.id).filter((id) => id !== winner.id);
     return {
       winnerId: winner.id,

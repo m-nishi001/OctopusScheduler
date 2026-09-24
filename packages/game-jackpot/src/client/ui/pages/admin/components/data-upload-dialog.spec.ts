@@ -208,7 +208,7 @@ describe("DataUploadDialog", () => {
 
   it("uploads assets and binds BGM1/BGM2 properly for prizes", async () => {
     const csvText =
-      "name,rank,animation,imageFile,bgm1File,bgm2File\n" +
+      "name,weight,animation,imageFile,bgm1File,bgm2File\n" +
       "PrizeA,1,roulette,,bgm01.mp3,\n" +
       "PrizeB,2,roulette,,bgm01.mp3,\n";
 
@@ -284,7 +284,7 @@ describe("DataUploadDialog", () => {
 
   it("uploads prizes with winning images and order from extended CSV", async () => {
     const csvText =
-      "name,rank,animation,imageFile,image2File,bgm1File,bgm2File,winningImage1File,winningImage2File,order\n" +
+      "name,weight,animation,imageFile,image2File,bgm1File,bgm2File,winningImage1File,winningImage2File,order\n" +
       "PrizeC,3,slot,image1.png,image2.png,bgm1.mp3,bgm2.mp3,win1.jpg,win2.jpg,5\n";
 
     const csvFile = {
@@ -379,7 +379,7 @@ describe("DataUploadDialog", () => {
     expect(prizeSvc.saved.length).toBe(1);
     const prize = prizeSvc.saved[0];
     expect(prize.name).toBe("PrizeC");
-    expect(prize.rank).toBe(3);
+    expect(prize.weight).toBe(3);
     expect(prize.animation).toBe("slot");
     expect(prize.imageAssetId).toBeDefined();
     expect(prize.image2AssetId).toBeDefined();
@@ -392,7 +392,7 @@ describe("DataUploadDialog", () => {
 
   it("maintains backward compatibility with old 7-column CSV", async () => {
     const csvText =
-      "name,rank,animation,imageFile,image2File,bgm1File,bgm2File\n" +
+      "name,weight,animation,imageFile,image2File,bgm1File,bgm2File\n" +
       "PrizeD,4,roulette,image1.png,image2.png,bgm1.mp3,bgm2.mp3\n";
 
     const csvFile = {
@@ -468,7 +468,7 @@ describe("DataUploadDialog", () => {
     expect(prizeSvc.saved.length).toBe(1);
     const prize = prizeSvc.saved[0];
     expect(prize.name).toBe("PrizeD");
-    expect(prize.rank).toBe(4);
+    expect(prize.weight).toBe(4);
     expect(prize.animation).toBe("roulette");
     expect(prize.imageAssetId).toBeDefined();
     expect(prize.image2AssetId).toBeDefined();

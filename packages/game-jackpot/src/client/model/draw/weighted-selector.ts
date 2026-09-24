@@ -1,6 +1,23 @@
 import { injectable, inject } from "tsyringe";
 import { MathRandomProvider } from "../common/math-random-provider";
 
+/** 景品の重み未設定時に使うデフォルト値。 */
+export const DEFAULT_PRIZE_WEIGHT = 10;
+export const MIN_PRIZE_WEIGHT = 1;
+export const MAX_PRIZE_WEIGHT = 100;
+
+/**
+ * 景品の当選確率の重みを正規化する。範囲外・不正値はクランプ/デフォルト値で補う。
+ * `prize-reservation-service.ts` や `draw-simulation-service.ts` からも同じ正規化規則を使う。
+ */
+export function resolvePrizeWeight(weight: number | undefined): number {
+  let w = weight ?? DEFAULT_PRIZE_WEIGHT;
+  if (Number.isNaN(w) || !isFinite(w)) w = DEFAULT_PRIZE_WEIGHT;
+  if (w < MIN_PRIZE_WEIGHT) w = MIN_PRIZE_WEIGHT;
+  if (w > MAX_PRIZE_WEIGHT) w = MAX_PRIZE_WEIGHT;
+  return Math.floor(w);
+}
+
 @injectable()
 export class WeightedSelector {
   private rand: MathRandomProvider;
@@ -9,20 +26,14 @@ export class WeightedSelector {
     this.rand = rand;
   }
 
-  selectWeighted<T extends { rank?: number }>(pool: T[]): T {
+  /**
+   * 景品の `weight` を重みとした累積和選択。重みが大きいほど当選しやすい。
+   */
+  selectWeightedPrize<T extends { weight?: number }>(pool: T[]): T {
     if (pool.length === 0) {
       throw new Error("Pool is empty");
     }
-    // Treat rank as weight: higher rank -> higher chance.
-    // Normalize ranks into [1..10] and use cumulative-sum selection.
-    const weights = pool.map((p) => {
-      let r = p.rank ?? 1;
-      if (Number.isNaN(r) || !isFinite(r)) r = 1;
-      // clamp to [1,10]
-      if (r < 1) r = 1;
-      if (r > 10) r = 10;
-      return Math.floor(r);
-    });
+    const weights = pool.map((p) => resolvePrizeWeight(p.weight));
     const total = weights.reduce((s, w) => s + w, 0);
     if (total <= 0) {
       // fallback to uniform random if something unexpected happens
@@ -40,40 +51,14 @@ export class WeightedSelector {
     return pool[pool.length - 1];
   }
 
-  shuffleWithWeights<T extends { rank?: number }>(items: T[]): T[] {
-    // Sort by rank descending (higher rank first)
-    const sorted = [...items].sort(
-      (a, b) => (b.rank ?? -Infinity) - (a.rank ?? -Infinity)
-    );
-    // Shuffle within same rank groups
-    const result: T[] = [];
-    let currentRank: number | undefined;
-    let group: T[] = [];
-    for (const item of sorted) {
-      const rank = item.rank ?? Infinity;
-      if (rank !== currentRank) {
-        if (group.length > 0) {
-          // Shuffle the previous group using RandomProvider
-          for (let i = group.length - 1; i > 0; i--) {
-            const j = this.rand.nextInt(i + 1);
-            [group[i], group[j]] = [group[j], group[i]];
-          }
-          result.push(...group);
-        }
-        group = [item];
-        currentRank = rank;
-      } else {
-        group.push(item);
-      }
+  /**
+   * 重みを一切考慮しない完全な均等ランダム選択。
+   */
+  selectUniformRandom<T>(pool: T[]): T {
+    if (pool.length === 0) {
+      throw new Error("Pool is empty");
     }
-    if (group.length > 0) {
-      // Shuffle the last group
-      for (let i = group.length - 1; i > 0; i--) {
-        const j = this.rand.nextInt(i + 1);
-        [group[i], group[j]] = [group[j], group[i]];
-      }
-      result.push(...group);
-    }
-    return result;
+    const idx = this.rand.nextInt(pool.length);
+    return pool[idx];
   }
 }
