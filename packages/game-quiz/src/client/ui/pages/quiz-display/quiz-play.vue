@@ -44,15 +44,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
+import { useAudio } from '@octopus/composables';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
-import { StartAcceptingAnswersUseCase } from '../../../control/use-cases/start-accepting-answers-use-case';
-import { StopAcceptingAnswersUseCase } from '../../../control/use-cases/stop-accepting-answers-use-case';
 import OptionCard from '../../components/option-card.vue';
 import { buildParticipantJoinUrl } from '../../../model/participant-url';
+import { useAnswerWindow } from '../../composables/use-answer-window';
+import { useCardGridLayout } from '../../composables/use-card-grid-layout';
 
 const route = useRoute();
 const router = useRouter();
@@ -71,18 +72,7 @@ const isPreview = computed(() => {
 });
 
 const quiz = ref<QuizDto | null>(null);
-
-const timeLeft = ref(0);
-const showModal = ref(false);
-let timer: ReturnType<typeof setInterval> | undefined;
 const objectUrls = ref<string[]>([]);
-const audioElement = ref<HTMLAudioElement | null>(null);
-const bgmObjectUrl = ref<string | null>(null);
-
-// Modal states
-const isLoading = ref(false);
-const canProceed = ref(false);
-const errorMessage = ref<string | null>(null);
 
 const qrCodeUrl = computed(() => {
     const joinUrl = buildParticipantJoinUrl(quizId);
@@ -107,175 +97,52 @@ const optionsWithImageUrls = computed((): { no: number; text: string; color: str
 
 const optionsCount = computed(() => optionsWithImageUrls.value.length);
 
-// Layout: compute card height so the grid (2 columns) never overflows the viewport.
-const containerRef = ref<HTMLElement | null>(null);
-const headerRef = ref<HTMLElement | null>(null);
-const questionAreaRef = ref<HTMLElement | null>(null);
-const cardHeight = ref<number>(180);
+const { containerRef, headerRef, questionAreaRef, containerStyle } = useCardGridLayout(
+    optionsCount,
+    () => quiz.value?.question
+);
 
-const containerStyle = computed(() => {
-    // when cardHeight is 0 (or falsy) we don't set the variable so CSS can take over (responsive "auto" case)
-    if (!cardHeight.value) return {} as Record<string, string>;
-    return { '--card-height': cardHeight.value + 'px' } as Record<string, string>;
-});
+// クイズ再生中のBGM。ロード/再生/停止/unmount時のobject URL失効は
+// composable内部で自動的に処理される。
+const bgmAudio = useAudio({ mode: 'html-audio' });
 
-// Small debounce helper to avoid thrashing on resize/image loads
-function debounce<T extends (...args: any[]) => void>(fn: T, wait = 50) {
-    let t: ReturnType<typeof setTimeout> | null = null;
-    return (...args: Parameters<T>) => {
-        if (t) clearTimeout(t);
-        t = setTimeout(() => {
-            t = null;
-            fn(...args);
-        }, wait);
-    };
-}
-
-let ro: ResizeObserver | null = null;
-let optionsGridEl: HTMLElement | null = null;
-let imgLoadHandler: ((e: Event) => void) | null = null;
-
-const calcCardHeight = async () => {
-    await nextTick();
-    const containerEl = containerRef.value;
-    const headerEl = headerRef.value;
-    const questionEl = questionAreaRef.value;
-    if (!containerEl || !headerEl || !questionEl) {
-        cardHeight.value = 0;
-        return;
-    }
-
-    // If narrow viewport (media query matches CSS override), let CSS size rows automatically
-    const isNarrow = window.matchMedia('(max-width:960px)').matches;
-    if (isNarrow) {
-        cardHeight.value = 0;
-        return;
-    }
-
-    const optionsEl = containerEl.querySelector('.options-grid') as HTMLElement | null;
-    optionsGridEl = optionsEl;
-    if (!optionsEl) {
-        cardHeight.value = 0;
-        return;
-    }
-
-    const winH = window.innerHeight;
-    const headerRect = headerEl.getBoundingClientRect();
-
-    const containerStyleComputed = getComputedStyle(containerEl);
-    const paddingBottom = parseFloat(containerStyleComputed.paddingBottom || '0');
-
-    const headerStyle = getComputedStyle(headerEl);
-    const headerMarginBottom = parseFloat(headerStyle.marginBottom || '0');
-
-    // base available space from bottom of header to bottom of viewport, minus container padding
-    const safetyOffset = 8; // small safety margin for rounding
-    let availableForRows = Math.max(0, winH - headerRect.bottom - paddingBottom - headerMarginBottom - safetyOffset);
-
-    const rows = Math.max(1, Math.ceil(optionsCount.value / 2));
-
-    const gridStyle = getComputedStyle(optionsEl);
-    const rowGapPx = parseFloat(gridStyle.rowGap || gridStyle.gap || '0');
-    const totalGaps = Math.max(0, rows - 1) * (isNaN(rowGapPx) ? 0 : rowGapPx);
-
-    let h = Math.floor((availableForRows - totalGaps) / rows) - 4;
-
-    const MIN_HEIGHT = 120; // recommended minimum for readability and tap targets
-    if (h < MIN_HEIGHT) h = MIN_HEIGHT;
-
-    cardHeight.value = h;
-};
-
-const updateCardHeight = debounce(() => {
-    void calcCardHeight();
-}, 48);
+const { timeLeft, showModal, isLoading, canProceed, errorMessage, start, emergencyStop } =
+    useAnswerWindow();
 
 onMounted(async () => {
-    // initial calc and bind resize
-    updateCardHeight();
-    window.addEventListener('resize', updateCardHeight);
-
-    // ResizeObserver to catch layout changes (images, fonts, grid changes)
-    try {
-        ro = new ResizeObserver(updateCardHeight);
-        if (containerRef.value) ro.observe(containerRef.value);
-        if (headerRef.value) ro.observe(headerRef.value);
-        const opts = containerRef.value?.querySelector('.options-grid') as HTMLElement | null;
-        if (opts) {
-            ro.observe(opts);
-            optionsGridEl = opts;
-        }
-    } catch (e) {
-        // ResizeObserver may not be available in some test envs — fall back to window resize
-        console.warn('ResizeObserver unavailable', e);
-    }
-
-    // Listen for image load events inside the options grid — when images finish loading heights can change
-    imgLoadHandler = () => updateCardHeight();
-    if (optionsGridEl) optionsGridEl.addEventListener('load', imgLoadHandler, true);
-
     // Load quiz data
     const startQuizUseCase = container.resolve(StartQuizUseCase);
     quiz.value = await startQuizUseCase.execute(quizId);
     if (quiz.value) {
-        timeLeft.value = quiz.value.timeLimit;
+        const options = quiz.value.options.map((option: any) => ({
+            no: option.no,
+            text: option.text,
+            color: option.color,
+        }));
+        await start({
+            quizId,
+            timeLimit: quiz.value.timeLimit,
+            options,
+            isPreview: isPreview.value,
+            onFinish: () => {
+                void bgmAudio.stop();
+            },
+        });
 
-        // Open the answer-acceptance window on the server before starting the
-        // visible countdown. Previously the Google Form was always "open", which
-        // let participants answer while the QR/intro screens were still showing;
-        // now acceptance only opens here, at the moment the question is displayed.
-        // Preview runs must not touch the live quiz's acceptance state.
-        if (!isPreview.value) {
-            try {
-                const startAcceptingAnswersUseCase = container.resolve(StartAcceptingAnswersUseCase);
-                const options = quiz.value.options.map((option: any) => ({
-                    no: option.no,
-                    text: option.text,
-                    color: option.color,
-                }));
-                await startAcceptingAnswersUseCase.execute(quizId, options);
-            } catch (e) {
-                console.error('Failed to start accepting answers', e);
-            }
-        }
-
-        startTimer();
         // Create object URLs for images
         objectUrls.value = quiz.value.options.map((option: any) => {
             return option.image ? URL.createObjectURL(option.image) : '';
         });
         // Play BGM if available
         if (quiz.value.bgm) {
-            bgmObjectUrl.value = URL.createObjectURL(quiz.value.bgm);
-            const audio = new Audio();
-            audio.src = bgmObjectUrl.value;
-            audio.loop = true;
-            audio.play().catch(console.error); // 再生失敗を無視
-            audioElement.value = audio;
+            await bgmAudio.load(quiz.value.bgm);
+            await bgmAudio.play({ isRepeat: true });
         }
     }
     document.addEventListener('keydown', handleKeydown);
 });
 
-watch([optionsCount, () => quiz.value?.question], () => updateCardHeight());
-
 onUnmounted(() => {
-    window.removeEventListener('resize', updateCardHeight);
-    if (ro) {
-        try {
-            ro.disconnect();
-        } catch (e) {
-            /* ignore */
-        }
-        ro = null;
-    }
-    if (optionsGridEl && imgLoadHandler) {
-        optionsGridEl.removeEventListener('load', imgLoadHandler, true);
-        optionsGridEl = null;
-        imgLoadHandler = null;
-    }
-
-    if (timer) clearInterval(timer);
     document.removeEventListener('keydown', handleKeydown);
     // Revoke object URLs to prevent memory leaks
     objectUrls.value.forEach(url => {
@@ -283,73 +150,7 @@ onUnmounted(() => {
             URL.revokeObjectURL(url);
         }
     });
-    if (bgmObjectUrl.value && bgmObjectUrl.value.startsWith('blob:')) {
-        URL.revokeObjectURL(bgmObjectUrl.value);
-    }
-    // Stop BGM
-    if (audioElement.value) {
-        audioElement.value.pause();
-        audioElement.value = null;
-    }
 });
-
-const startTimer = () => {
-    timer = setInterval(() => {
-        timeLeft.value--;
-        if (timeLeft.value <= 0) {
-            void finishAcceptingAnswers();
-        }
-    }, 1000);
-};
-
-/**
- * 回答受付を締め切る。タイマー終了時の自動呼び出しと、管理者の「今すぐ受付停止」
- * ボタンからの手動呼び出しの両方から使う共通処理。
- */
-async function finishAcceptingAnswers() {
-    if (timer) {
-        clearInterval(timer);
-        timer = undefined;
-    }
-    // Stop BGM
-    if (audioElement.value) {
-        audioElement.value.pause();
-        audioElement.value = null;
-    }
-    if (bgmObjectUrl.value && bgmObjectUrl.value.startsWith('blob:')) {
-        URL.revokeObjectURL(bgmObjectUrl.value);
-        bgmObjectUrl.value = null;
-    }
-
-    // Immediately show modal so UI reflects the stop instantly
-    showModal.value = true;
-    isLoading.value = true;
-    canProceed.value = false;
-    errorMessage.value = null;
-
-    if (isPreview.value) {
-        isLoading.value = false;
-        canProceed.value = true;
-        return;
-    }
-
-    try {
-        const stopAcceptingAnswersUseCase = container.resolve(StopAcceptingAnswersUseCase);
-        await stopAcceptingAnswersUseCase.execute(quizId);
-        isLoading.value = false;
-        canProceed.value = true;
-    } catch (err) {
-        console.error('Failed to stop accepting answers', err);
-        errorMessage.value = '受付終了処理に失敗しました。';
-        isLoading.value = false;
-        canProceed.value = true; // Allow retry or proceed
-    }
-}
-
-const handleEmergencyStop = () => {
-    if (showModal.value) return; // already stopping/stopped
-    void finishAcceptingAnswers();
-};
 
 const selectOption = (index?: number) => {
     const idx = typeof index === 'number' ? index : -1;
@@ -357,18 +158,13 @@ const selectOption = (index?: number) => {
     console.log('Selected option:', idx);
 };
 
-// prize image URL handling: handled in usePrizeOrchestrator
+const handleEmergencyStop = () => {
+    emergencyStop();
+};
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && showModal.value && canProceed.value) {
-        if (audioElement.value) {
-            audioElement.value.pause();
-            audioElement.value = null;
-        }
-        if (bgmObjectUrl.value && bgmObjectUrl.value.startsWith('blob:')) {
-            URL.revokeObjectURL(bgmObjectUrl.value);
-            bgmObjectUrl.value = null;
-        }
+        void bgmAudio.stop();
         // Navigate to answer display page. Use the preview-specific route name when in preview mode
         // so downstream components that check the route name (`endsWith('-preview')`) keep
         // behaving in preview mode.
