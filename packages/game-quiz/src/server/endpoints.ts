@@ -31,7 +31,9 @@ import type {
   ListJsonMetaDataArgs,
   ListMembersArgs,
   LoadEmailNameMapArgs,
+  LoginParticipantArgs,
   RemoveDriveDataArgs,
+  ResolveDeviceTokenArgs,
   StopAndGetProcessedResultsArgs,
   StopFormArgs,
   UpdateMemberArgs,
@@ -57,6 +59,7 @@ import {
   listMembers,
   updateMember,
 } from "./member-use-cases";
+import { loginParticipant, resolveDeviceToken } from "./participant-auth-use-cases";
 
 function resolveDeps() {
   return {
@@ -64,6 +67,9 @@ function resolveDeps() {
     cache: container.resolve<ICache>(ICacheToken),
     form: container.resolve(GasFormRepository),
     dataBaseFactory: container.resolve<DataBaseFactory>(DataBaseFactoryToken),
+    // GAS本番のUUID生成。node環境のテストではこの関数はGASグローバルに
+    // 触れないよう、各use-caseのテストで別途スタブを注入する。
+    generateToken: (): string => Utilities.getUuid(),
   };
 }
 
@@ -87,6 +93,8 @@ declare let _quizGame_listMembers: (args: ListMembersArgs) => string;
 declare let _quizGame_addMember: (args: AddMemberArgs) => string;
 declare let _quizGame_updateMember: (args: UpdateMemberArgs) => string;
 declare let _quizGame_deleteMember: (args: DeleteMemberArgs) => string;
+declare let _quizGame_loginParticipant: (args: LoginParticipantArgs) => string;
+declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => string;
 
 _quizGame_stopForm = (args: StopFormArgs): string => {
   try {
@@ -235,6 +243,24 @@ _quizGame_deleteMember = (args: DeleteMemberArgs): string => {
   try {
     deleteMember(resolveDeps(), args.userId);
     return JSON.stringify({ status: "success", data: undefined });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_loginParticipant = (args: LoginParticipantArgs): string => {
+  try {
+    const result = loginParticipant(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_resolveDeviceToken = (args: ResolveDeviceTokenArgs): string => {
+  try {
+    const result = resolveDeviceToken(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }

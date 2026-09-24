@@ -31,6 +31,8 @@ export const QUIZ_GAME_ENDPOINTS = [
   "addMember",
   "updateMember",
   "deleteMember",
+  "loginParticipant",
+  "resolveDeviceToken",
 ] as const;
 
 export type QuizGameEndpointName = (typeof QUIZ_GAME_ENDPOINTS)[number];
@@ -147,6 +149,24 @@ export interface DeleteMemberArgs {
 }
 
 /**
+ * 参加者の端末ログインセッション。token は端末の localStorage に保存し、
+ * 以降のリクエストで userId 入力を省略するために使う。
+ */
+export interface ParticipantSession {
+  token: string;
+  userId: string;
+  displayName: string;
+}
+
+export interface LoginParticipantArgs {
+  userId: string;
+}
+
+export interface ResolveDeviceTokenArgs {
+  token: string;
+}
+
+/**
  * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
  * Proxyの型として使う。各メソッドの引数・戻り値は `server/endpoints.ts` と
  * その先の use-case 実装の実際のシグネチャに合わせている。
@@ -180,6 +200,14 @@ export interface QuizGameApi {
   addMember(args: AddMemberArgs, options?: ApiCallOptions): Promise<Member>;
   updateMember(args: UpdateMemberArgs, options?: ApiCallOptions): Promise<Member>;
   deleteMember(args: DeleteMemberArgs, options?: ApiCallOptions): Promise<void>;
+  loginParticipant(
+    args: LoginParticipantArgs,
+    options?: ApiCallOptions
+  ): Promise<ParticipantSession>;
+  resolveDeviceToken(
+    args: ResolveDeviceTokenArgs,
+    options?: ApiCallOptions
+  ): Promise<ParticipantSession>;
 }
 
 /** `QuizGameApi` をDI解決するためのトークン。 */
