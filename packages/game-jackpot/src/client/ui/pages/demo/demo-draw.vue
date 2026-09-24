@@ -6,6 +6,7 @@
         <button @click="runDemoDraw"
           class="bg-gradient-to-r from-pink-400 to-yellow-300 text-white font-semibold px-6 py-3 rounded-lg shadow hover:scale-105 transition">抽選開始</button>
         <p class="mt-4 text-gray-700">抽選ボタンを押すと1回だけデモ抽選を実施します</p>
+        <p v-if="errorMessage" class="mt-4 text-red-600 font-bold">{{ errorMessage }}</p>
       </div>
       <div v-else>
         <transition name="fade">
@@ -28,7 +29,6 @@ import { container } from 'tsyringe';
 import { PrizeRepository } from '@model/prize/prize-repository';
 import { MemberRepository } from '@model/member/member-repository';
 import { DrawApplicationService } from '@control/draw/draw-application-service';
-import { DrawResultService } from '@control/draw/draw-result-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { DemoScreenSetting } from '@model/screen-config/demo-screen-setting';
 export default {
@@ -95,26 +95,29 @@ export default {
 
     const drawn = ref(false);
     const result = ref<{ member: string; prize: string } | null>(null);
+    const errorMessage = ref<string | null>(null);
     const runDemoDraw = async () => {
       if (drawn.value) return;
       playSE('draw');
       drawn.value = true;
+      errorMessage.value = null;
 
       try {
-
         await fetchPrizes();
         await fetchMembers();
         const drawService = container.resolve(DrawApplicationService);
-        const drawResultService = container.resolve(DrawResultService);
-        const { result } = await drawService.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
-        await drawResultService.addDrawResult(result);
-        const winner = result;
-        if (winner && winner.wonMember) {
-          const prizeText = winner.wonPrize ? (winner.wonPrize.name || winner.wonPrize.id) : '';
-          result.value = { member: winner.wonMember.name || winner.wonMember.id, prize: prizeText };
+        // previewDrawは景品在庫・メンバー・抽選結果・抽選状態を一切永続化しないため、
+        // デモを何度実行しても本番の抽選データは汚染されない。
+        await drawService.initializeStateIfNeeded(prizes.value);
+        const { result: drawResult } = await drawService.previewDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+        if (drawResult && drawResult.wonMember) {
+          const prizeText = drawResult.wonPrize ? (drawResult.wonPrize.name || drawResult.wonPrize.id) : '';
+          result.value = { member: drawResult.wonMember.name || drawResult.wonMember.id, prize: prizeText };
         }
-      } finally {
-
+      } catch (err) {
+        console.error('Demo draw failed:', err);
+        drawn.value = false;
+        errorMessage.value = 'デモ抽選に失敗しました。もう一度お試しください。';
       }
     };
 
@@ -136,7 +139,7 @@ export default {
       }
     });
 
-    return { demoConfig, runDemoDraw, drawn, result };
+    return { demoConfig, runDemoDraw, drawn, result, errorMessage };
   },
 };
 </script>
