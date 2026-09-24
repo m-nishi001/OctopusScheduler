@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     environment: "jsdom",
+    include: ["src/client/**/*.spec.ts", "src/client/**/*.test.ts"],
     setupFiles: ["src/client/setup-tests.ts"],
     testTimeout: 60000,
     pool: "vmThreads",

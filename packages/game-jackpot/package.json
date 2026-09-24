@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "lint": "eslint src",
-    "test": "vitest",
+    "test": "vitest --config vitest.config.ts && vitest --config vitest.server.config.ts",
     "typecheck": "vue-tsc --noEmit && tsc -b tsconfig.server.json"
   },
   "dependencies": {
