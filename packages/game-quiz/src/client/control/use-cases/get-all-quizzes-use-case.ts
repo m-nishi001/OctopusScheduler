@@ -12,8 +12,6 @@ export class GetAllQuizzesUseCase {
       id: quiz.id,
       title: quiz.title,
       question: quiz.question,
-      answerUrl: quiz.formUrl,
-      answerFormId: quiz.answerFormId,
       correctNo: (quiz as any).correctNo ?? 1,
       timeLimit: quiz.timeLimit,
       bgm: quiz.bgm,

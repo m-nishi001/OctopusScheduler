@@ -293,8 +293,6 @@ onUnmounted(() => {
     }
 });
 
-// Prefer the parsed form id provided by the domain via DTO (answerFormId).
-
 const startTimer = () => {
     timer = setInterval(() => {
         timeLeft.value--;

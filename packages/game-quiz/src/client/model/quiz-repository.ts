@@ -175,8 +175,6 @@ export class QuizRepository {
             }))
           ),
           correctNo: q.correctNo ?? 1,
-          formUrl: q.formUrl,
-          answerFormId: q.answerFormId,
           timeLimit: q.timeLimit,
           bgm: q.bgm ? await dataUrlToBlob(q.bgm) : null,
           settings: q.settings
@@ -220,8 +218,6 @@ export class QuizRepository {
             }))
           ),
           correctNo: q.correctNo,
-          formUrl: q.formUrl,
-          answerFormId: q.answerFormId,
           timeLimit: q.timeLimit,
           bgm:
             q.bgm && typeof q.bgm !== "string"

@@ -11,8 +11,6 @@ export class AddQuizUseCase {
     const quizData = {
       title: dto.title,
       question: dto.question,
-      formUrl: dto.answerUrl,
-      answerFormId: dto.answerFormId,
       timeLimit: dto.timeLimit,
       options: dto.options.map((o) => ({
         no: o.no,
