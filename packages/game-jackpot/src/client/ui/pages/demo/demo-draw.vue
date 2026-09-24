@@ -31,10 +31,12 @@ import { MemberRepository } from '@model/member/member-repository';
 import { DrawApplicationService } from '@control/draw/draw-application-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { DemoScreenSetting } from '@model/screen-config/demo-screen-setting';
+import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 export default {
   name: 'DemoDraw',
   components: { MainLayout },
   setup() {
+    useRemoteScreenSync();
     const router = useRouter();
 
     const demoConfig = ref<DemoScreenSetting | null>(null);

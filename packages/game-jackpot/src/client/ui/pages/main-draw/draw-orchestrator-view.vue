@@ -43,11 +43,13 @@ import SlotAnimation from './slot/slot-animation.vue';
 import RouletteAnimation from './roulette/roulette-animation.vue';
 import { useDrawOrchestrator } from './use-draw-orchestrator';
 import KakuhenOverlay from './kakuhen-overlay.vue';
+import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
     name: 'DrawOrchestratorPage',
     components: { MainLayout, MemberDrawAnimation, RouletteAnimation, SlotAnimation, DrawResultDialog, HalfRemainingDialog, EndDialog, KakuhenOverlay },
     setup() {
+        useRemoteScreenSync();
         const s = useDrawOrchestrator();
         return { ...s } as any;
     }

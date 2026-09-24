@@ -26,12 +26,14 @@ import { Container } from '../../../control/container';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { HomeScreenSetting } from '@model/screen-config/home-screen-setting';
+import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
   name: 'Home',
   components: { MainLayout },
   setup() {
     Container.register();
+    useRemoteScreenSync();
 
     const router = useRouter();
     const goOpening = async () => {

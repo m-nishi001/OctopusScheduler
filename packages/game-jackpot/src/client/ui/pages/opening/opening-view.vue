@@ -14,11 +14,13 @@ import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { OpeningScreenSetting } from '@model/screen-config/opening-screen-setting';
+import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
   name: 'OpeningView',
   components: { MainLayout, OpeningSequence, OpeningHtml },
   setup() {
+    useRemoteScreenSync();
     const screenSettingsService = container.resolve(ScreenSettingsService);
     const openingConfig = ref<OpeningScreenSetting | null>(null);
     const bgm = ref<HTMLAudioElement | null>(null);

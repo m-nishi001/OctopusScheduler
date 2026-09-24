@@ -14,11 +14,13 @@ import OpeningHtml from '../opening/opening-html.vue';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { EndingScreenSetting } from '@model/screen-config/ending-screen-setting';
+import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
     name: 'EndingView',
     components: { MainLayout, OpeningSequence, OpeningHtml },
     setup() {
+        useRemoteScreenSync();
         const screenSettingsService = container.resolve(ScreenSettingsService);
         const screenConfig = ref<any | null>(null);
         const bgm = ref<HTMLAudioElement | null>(null);
