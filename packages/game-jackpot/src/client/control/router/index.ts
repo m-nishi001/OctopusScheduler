@@ -18,6 +18,7 @@ import ResultScreenConfig from "../../ui/pages/admin/screen-config/result-screen
 import EndingScreenConfig from "../../ui/pages/admin/screen-config/ending-screen-config.vue";
 import AdminAssets from "../../ui/pages/admin/admin-assets.vue";
 import AdminResults from "../../ui/pages/admin/admin-results.vue";
+import AdminRemoteControl from "../../ui/pages/admin/remote-control/admin-remote-control.vue";
 
 const jackpotGameRoutes = [
   { path: "/jackpot-home", component: HomeView },
@@ -45,6 +46,7 @@ const jackpotGameRoutes = [
       { path: "screens/ending", component: EndingScreenConfig },
       { path: "assets", component: AdminAssets },
       { path: "results", component: AdminResults },
+      { path: "remote-control", component: AdminRemoteControl },
     ],
   },
 ];

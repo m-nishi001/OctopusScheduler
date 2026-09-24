@@ -24,6 +24,7 @@ import { DrawApplicationService } from "../draw/draw-application-service";
 import { DrawStateInitializer } from "../draw/draw-state-initializer";
 import { MathRandomProvider } from "../../model/common/math-random-provider";
 import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
+import { RemoteControlRepository } from "../../model/remote-control/remote-control-repository";
 
 export class Container {
   static register() {
@@ -71,5 +72,8 @@ export class Container {
     });
     container.register(MathRandomProvider, { useClass: MathRandomProvider });
     container.register(CryptoIdGenerator, { useClass: CryptoIdGenerator });
+    container.register(RemoteControlRepository, {
+      useClass: RemoteControlRepository,
+    });
   }
 }

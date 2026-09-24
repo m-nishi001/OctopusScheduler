@@ -30,6 +30,13 @@
           </router-link>
         </li>
 
+        <li>
+          <router-link to="/jackpot-admin/remote-control" class="menu-link">
+            <span class="icon">🎮</span>
+            <span class="label">リモート操作</span>
+          </router-link>
+        </li>
+
         <li class="submenu">
           <div class="menu-link submenu-toggle" :class="{ 'parent-active': parentActive }" @click="toggleScreensSubmenu"
             role="button" tabindex="0" @keydown="onToggleKey">
