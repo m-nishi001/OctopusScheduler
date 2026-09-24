@@ -24,6 +24,7 @@ import type {
   AddMemberArgs,
   DeleteMemberArgs,
   GetAcceptanceStateArgs,
+  GetAnswersArgs,
   GetDriveDataArgs,
   GetDriveMetaDataArgs,
   GetJsonArgs,
@@ -39,6 +40,7 @@ import type {
   StopAcceptingAnswersArgs,
   StopAndGetProcessedResultsArgs,
   StopFormArgs,
+  SubmitAnswerArgs,
   UpdateMemberArgs,
 } from "./quiz-api-contract";
 
@@ -68,6 +70,7 @@ import {
   startAcceptingAnswers,
   stopAcceptingAnswers,
 } from "./answer-session-use-cases";
+import { getAnswers, submitAnswer } from "./answer-submission-use-cases";
 
 function resolveDeps() {
   return {
@@ -107,6 +110,8 @@ declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => stri
 declare let _quizGame_startAcceptingAnswers: (args: StartAcceptingAnswersArgs) => string;
 declare let _quizGame_stopAcceptingAnswers: (args: StopAcceptingAnswersArgs) => string;
 declare let _quizGame_getAcceptanceState: (args: GetAcceptanceStateArgs) => string;
+declare let _quizGame_submitAnswer: (args: SubmitAnswerArgs) => string;
+declare let _quizGame_getAnswers: (args: GetAnswersArgs) => string;
 
 _quizGame_stopForm = (args: StopFormArgs): string => {
   try {
@@ -299,6 +304,37 @@ _quizGame_stopAcceptingAnswers = (args: StopAcceptingAnswersArgs): string => {
 _quizGame_getAcceptanceState = (args: GetAcceptanceStateArgs): string => {
   try {
     const result = getAcceptanceState(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_submitAnswer = (args: SubmitAnswerArgs): string => {
+  // 複数参加者からの同時送信でread-modify-writeが競合しないようスクリプトロックで保護する。
+  // ドメインの排他制御とは無関係のGAS固有の関心事のため、use-case層には持ち込まずここで直接扱う。
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(5000);
+  } catch {
+    return JSON.stringify({
+      status: "error",
+      message: "Server is busy, please try again.",
+    });
+  }
+  try {
+    const result = submitAnswer(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  } finally {
+    lock.releaseLock();
+  }
+};
+
+_quizGame_getAnswers = (args: GetAnswersArgs): string => {
+  try {
+    const result = getAnswers(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });

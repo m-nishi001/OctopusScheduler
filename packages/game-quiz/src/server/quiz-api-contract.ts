@@ -36,6 +36,8 @@ export const QUIZ_GAME_ENDPOINTS = [
   "startAcceptingAnswers",
   "stopAcceptingAnswers",
   "getAcceptanceState",
+  "submitAnswer",
+  "getAnswers",
 ] as const;
 
 export type QuizGameEndpointName = (typeof QUIZ_GAME_ENDPOINTS)[number];
@@ -191,6 +193,24 @@ export interface GetAcceptanceStateArgs {
   quizId: string;
 }
 
+/** 参加者から実際に届いた1件の回答。タイムスタンプはサーバー受信時刻。 */
+export interface SubmittedAnswer {
+  userId: string;
+  displayName: string;
+  optionNo: number;
+  serverTimestampMs: number;
+}
+
+export interface SubmitAnswerArgs {
+  quizId: string;
+  token: string;
+  optionNo: number;
+}
+
+export interface GetAnswersArgs {
+  quizId: string;
+}
+
 /**
  * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
  * Proxyの型として使う。各メソッドの引数・戻り値は `server/endpoints.ts` と
@@ -245,6 +265,8 @@ export interface QuizGameApi {
     args: GetAcceptanceStateArgs,
     options?: ApiCallOptions
   ): Promise<AcceptanceState>;
+  submitAnswer(args: SubmitAnswerArgs, options?: ApiCallOptions): Promise<SubmittedAnswer>;
+  getAnswers(args: GetAnswersArgs, options?: ApiCallOptions): Promise<SubmittedAnswer[]>;
 }
 
 /** `QuizGameApi` をDI解決するためのトークン。 */
