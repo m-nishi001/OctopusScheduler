@@ -29,12 +29,13 @@ function readState(storage: IKeyValueStorage, quizId: string): AcceptanceState |
  */
 export function startAcceptingAnswers(
   deps: AnswerSessionDeps,
-  args: { quizId: string }
+  args: { quizId: string; options: AcceptanceState["options"] }
 ): AcceptanceState {
   const state: AcceptanceState = {
     quizId: args.quizId,
     isAccepting: true,
     acceptStartedAtMs: deps.now(),
+    options: args.options,
   };
   deps.storage.set(acceptanceKey(args.quizId), JSON.stringify(state));
   return state;
@@ -53,6 +54,7 @@ export function stopAcceptingAnswers(
     quizId: args.quizId,
     isAccepting: false,
     acceptStartedAtMs: current?.acceptStartedAtMs ?? null,
+    options: current?.options ?? [],
   };
   deps.storage.set(acceptanceKey(args.quizId), JSON.stringify(state));
   return state;
@@ -68,6 +70,7 @@ export function getAcceptanceState(
       quizId: args.quizId,
       isAccepting: false,
       acceptStartedAtMs: null,
+      options: [],
     }
   );
 }

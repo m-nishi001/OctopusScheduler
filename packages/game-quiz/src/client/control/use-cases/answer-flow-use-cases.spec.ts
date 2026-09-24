@@ -50,15 +50,16 @@ describe("answer flow use-cases", () => {
   });
 
   it("StartAcceptingAnswersUseCase delegates to the repository", async () => {
-    const state = { quizId: "q1", isAccepting: true, acceptStartedAtMs: 1000 };
+    const options = [{ no: 1, text: "赤", color: "#ef4444" }];
+    const state = { quizId: "q1", isAccepting: true, acceptStartedAtMs: 1000, options };
     const repository = createFakeAnswerSessionRepository({
       start: vi.fn().mockResolvedValue(state),
     });
 
-    await expect(new StartAcceptingAnswersUseCase(repository).execute("q1")).resolves.toEqual(
-      state
-    );
-    expect(repository.start).toHaveBeenCalledWith("q1");
+    await expect(
+      new StartAcceptingAnswersUseCase(repository).execute("q1", options)
+    ).resolves.toEqual(state);
+    expect(repository.start).toHaveBeenCalledWith("q1", options);
   });
 
   it("StopAcceptingAnswersUseCase delegates to the repository", async () => {

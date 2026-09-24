@@ -172,17 +172,31 @@ export interface ResolveDeviceTokenArgs {
 }
 
 /**
+ * 参加者の回答画面に表示する選択肢メタデータ。参加者の端末には正解情報を
+ * 一切渡さないため、画像やcorrectNoは含めない(テキスト+色のボタンのみ表示する)。
+ */
+export interface AcceptanceOption {
+  no: number;
+  text: string;
+  color: string;
+}
+
+/**
  * クイズ1問分の回答受付状態。acceptStartedAtMs は「出題前に回答できてしまう」
  * バグの修正のため、集計時にこの時刻未満のタイムスタンプを除外する基準として使う。
+ * options は回答受付開始時に呼び出し側(quiz-play.vue)から渡され、参加者端末は
+ * ポーリングで取得したこの options だけを頼りにボタンを描画する。
  */
 export interface AcceptanceState {
   quizId: string;
   isAccepting: boolean;
   acceptStartedAtMs: number | null;
+  options: AcceptanceOption[];
 }
 
 export interface StartAcceptingAnswersArgs {
   quizId: string;
+  options: AcceptanceOption[];
 }
 
 export interface StopAcceptingAnswersArgs {

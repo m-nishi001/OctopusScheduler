@@ -14,13 +14,14 @@ function createFakeApi(overrides: Partial<QuizGameApi> = {}): QuizGameApi {
 }
 
 describe("AnswerSessionRepository", () => {
-  it("starts accepting answers via the API", async () => {
-    const state = { quizId: "q1", isAccepting: true, acceptStartedAtMs: 1000 };
+  it("starts accepting answers with option metadata via the API", async () => {
+    const options = [{ no: 1, text: "赤", color: "#ef4444" }];
+    const state = { quizId: "q1", isAccepting: true, acceptStartedAtMs: 1000, options };
     const api = createFakeApi({ startAcceptingAnswers: vi.fn().mockResolvedValue(state) });
     const repo = new AnswerSessionRepository(api);
 
-    await expect(repo.start("q1")).resolves.toEqual(state);
-    expect(api.startAcceptingAnswers).toHaveBeenCalledWith({ quizId: "q1" });
+    await expect(repo.start("q1", options)).resolves.toEqual(state);
+    expect(api.startAcceptingAnswers).toHaveBeenCalledWith({ quizId: "q1", options });
   });
 
   it("stops accepting answers via the API", async () => {

@@ -1,6 +1,7 @@
 import { inject, injectable } from "tsyringe";
 import { IQuizGameApiToken } from "../../server/quiz-api-contract";
 import type {
+  AcceptanceOption,
   AcceptanceState,
   QuizGameApi,
   SubmittedAnswer,
@@ -10,8 +11,8 @@ import type {
 export class AnswerSessionRepository {
   constructor(@inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi) {}
 
-  async start(quizId: string): Promise<AcceptanceState> {
-    return this.quizApi.startAcceptingAnswers({ quizId });
+  async start(quizId: string, options: AcceptanceOption[]): Promise<AcceptanceState> {
+    return this.quizApi.startAcceptingAnswers({ quizId, options });
   }
 
   async stop(quizId: string): Promise<AcceptanceState> {
