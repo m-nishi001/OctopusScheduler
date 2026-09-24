@@ -1,6 +1,7 @@
 <template>
   <MainLayout>
-    <div class="w-full max-w-xl mx-auto text-center bg-white/80 rounded-xl shadow-lg p-8">
+    <Loader v-if="!demoConfig" label="読み込み中..." />
+    <div v-else class="w-full max-w-xl mx-auto text-center bg-white/80 rounded-xl shadow-lg p-8">
       <h2 class="text-2xl font-bold text-indigo-700 mb-6 drop-shadow">デモ抽選画面</h2>
       <div v-if="!drawn">
         <button @click="runDemoDraw"
@@ -23,6 +24,7 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
+import Loader from '../common/loader.vue';
 import { useRouter } from 'vue-router';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { container } from 'tsyringe';
@@ -34,7 +36,7 @@ import { DemoScreenSetting } from '@model/screen-config/demo-screen-setting';
 import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 export default {
   name: 'DemoDraw',
-  components: { MainLayout },
+  components: { MainLayout, Loader },
   setup() {
     useRemoteScreenSync();
     const router = useRouter();

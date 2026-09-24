@@ -1,6 +1,6 @@
 <template>
     <MainLayout :fullScreen="true">
-
+        <Loader v-if="!screenConfig" label="読み込み中..." />
         <OpeningSequence v-if="screenConfig" :screenConfig="convertedConfig" :bgm="bgm" :autoNavigate="true"
             :nextRoute="'/jackpot-home'" />
     </MainLayout>
@@ -9,6 +9,7 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
+import Loader from '../common/loader.vue';
 import OpeningSequence from '../opening/opening-sequence.vue';
 import OpeningHtml from '../opening/opening-html.vue';
 import { container } from 'tsyringe';
@@ -18,7 +19,7 @@ import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
     name: 'EndingView',
-    components: { MainLayout, OpeningSequence, OpeningHtml },
+    components: { MainLayout, Loader, OpeningSequence, OpeningHtml },
     setup() {
         useRemoteScreenSync();
         const screenSettingsService = container.resolve(ScreenSettingsService);
