@@ -81,8 +81,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
-import { AppEventService } from '../../../../applications/app-event/app-event-service';
-import type { IAppEvent } from '../../../../domains/app-event/app-event';
+import { AppEventService } from '../../../../control/app-event/app-event-service';
+import type { AppEvent } from '../../../../control/app-event/app-event';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
 import ContentDisplayEventDialog from './dialogs/content-display-event/content-display-event-dialog.vue';
 import MusicPlaybackEventDialog from './dialogs/music-playback-event/music-playback-event-dialog.vue';
@@ -91,7 +91,7 @@ import ScreenTransitionEventDialog from './dialogs/screen-transition-event/scree
 import SlideshowEventDialog from './dialogs/slideshow-event/slideshow-event-dialog.vue';
 // persistence moved into dialog components
 
-const events = ref<IAppEvent[]>([]);
+const events = ref<AppEvent[]>([]);
 const loading = ref(false);
 const selectedEvents = ref<string[]>([]);
 const deleting = ref(false);
@@ -103,7 +103,7 @@ const showMusicDialog = ref(false);
 const showTransitionDialog = ref(false);
 const showSlideshowDialog = ref(false);
 const showStopAudioDialog = ref(false);
-const editingEvent = ref<IAppEvent | null>(null);
+const editingEvent = ref<AppEvent | null>(null);
 
 const scheduleEventService = container.resolve(AppEventService);
 
@@ -131,7 +131,7 @@ function getTypeLabel(type: string): string {
     }
 }
 
-function calculateWaitTime(event: IAppEvent): number {
+function calculateWaitTime(event: AppEvent): number {
     const baseTime = 5000; // 5秒
     switch (event.type) {
         case 'ShowContentEvent':
@@ -201,7 +201,7 @@ function onTypeSelected(type: string) {
     }
 }
 
-function onEdit(ev: IAppEvent) {
+function onEdit(ev: AppEvent) {
     editingEvent.value = ev;
     switch (ev.type) {
         case 'ShowContentEvent':
@@ -308,7 +308,7 @@ async function onDeleteSelected() {
     }
 }
 
-async function onDelete(ev: IAppEvent) {
+async function onDelete(ev: AppEvent) {
     if (!confirm(`${ev.type} を削除しますか？`)) return;
     try {
         await scheduleEventService.deleteScheduleEvents([ev.id]);

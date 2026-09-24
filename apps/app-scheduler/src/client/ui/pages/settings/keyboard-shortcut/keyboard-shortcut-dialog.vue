@@ -57,10 +57,9 @@ import ActionItemSummary from './action-item-summary.vue';
 import EventSelectionDialog from './event-selection-dialog.vue';
 import ActionEditorDialog from './action-editor-dialog.vue';
 import type { EventFormData } from './types';
-import type { IAppEventDto } from '../../../../applications/app-event/i-app-event-dto';
-import { IAppEventConverterToken } from '../../../../domains/app-event/i-app-event-converter';
+import type { AppEventDto } from '../../../../control/app-event/dto/app-event-dto';
 import { container } from 'tsyringe';
-import { AppEventService } from '../../../../applications/app-event/app-event-service';
+import { AppEventService } from '../../../../control/app-event/app-event-service';
 import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
 
 interface Props {
@@ -78,16 +77,16 @@ const emit = defineEmits<Emits>();
 
 const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCapture();
 
-const actions = ref<Array<EventFormData | IAppEventDto>>([]);
+const actions = ref<Array<EventFormData | AppEventDto>>([]);
 const formRefs: Record<number, any> = {};
 // Minimal dialog state: parent holds only an open flag and a short-lived initial DTO
 const dialogOpen = ref(false);
-const dialogInitialData = ref<EventFormData | IAppEventDto | null>(null);
+const dialogInitialData = ref<EventFormData | AppEventDto | null>(null);
 
 // selection vs editor modal separation
 const selectionOpen = ref(false);
 const editorDialogOpen = ref(false);
-const editorInitialData = ref<EventFormData | IAppEventDto | null>(null);
+const editorInitialData = ref<EventFormData | AppEventDto | null>(null);
 
 // editing target index in actions list (-1 = new)
 const editingIndex = ref<number>(-1);
@@ -110,14 +109,6 @@ const ACTION_REGISTRY: Record<string, any> = (() => {
 })();
 const appEventService = container.resolve(AppEventService);
 
-const resolveActionData = (a: any) => {
-    if (!a) return {};
-    if ('data' in a && a.data != null) return a.data;
-    // build data from top-level fields excluding actionType and eventId
-    const { actionType, eventId, ...rest } = a as Record<string, any>;
-    return rest || {};
-};
-
 const getFormComponent = (atype: string) => {
     const e = ACTION_REGISTRY[atype];
     return e ? e.component : null;
@@ -129,24 +120,18 @@ watch(() => props.show, (newShow) => {
             capturedKeys.value = [...props.editingShortcut.keys];
             // Try to populate actions from editingShortcut.eventIds
             (async () => {
-                const converters = container.resolveAll<any>(IAppEventConverterToken as any) as any[];
-                const ids = (props.editingShortcut as any).eventIds || [];
+                const ids = props.editingShortcut?.eventIds || [];
                 const evs = await Promise.all(ids.map((id: string) => appEventService.getEventById(String(id))));
-                const dtoList: Array<EventFormData | IAppEventDto> = [];
+                const dtoList: Array<EventFormData | AppEventDto> = [];
                 for (const ev of evs) {
                     if (!ev) {
-                        dtoList.push({ actionType: 'Unknown' } as IAppEventDto);
+                        dtoList.push({ actionType: 'Unknown' } as AppEventDto);
                         continue;
                     }
-                    const conv = converters.find((c) => c && typeof c.getType === 'function' && (() => { try { return c.getType() === ev.type; } catch { return false; } })());
-                    if (conv && typeof conv.toDto === 'function') {
-                        try {
-                            dtoList.push((conv.toDto(ev) as IAppEventDto));
-                        } catch (e) {
-                            dtoList.push({ actionType: ev.type } as IAppEventDto);
-                        }
-                    } else {
-                        dtoList.push({ actionType: ev.type } as IAppEventDto);
+                    try {
+                        dtoList.push(appEventService.toDto(ev));
+                    } catch (e) {
+                        dtoList.push({ actionType: ev.type } as AppEventDto);
                     }
                 }
                 actions.value = dtoList;
@@ -183,32 +168,15 @@ const saveShortcut = async () => {
     const events: any[] = [];
     for (let i = 0; i < actions.value.length; i++) {
         const a = actions.value[i];
-        const atype = a.actionType;
-        const data = resolveActionData(a);
-        const converters = container.resolveAll<any>(IAppEventConverterToken as any) as any[];
-        const converter = converters.find((c) => c && typeof c.getType === 'function' && (() => { try { return c.getType() === atype; } catch { return false; } })());
-        if (!converter) {
-            alert(`未対応のアクションタイプ: ${atype}`);
-            return;
-        }
-        const validate = (converter as any).validate;
-        if (validate && !validate(data)) return;
         try {
-            let ev: any;
-            if (typeof (converter as any).toEntity === 'function') {
-                ev = (converter as any).toEntity(data);
-            } else {
-                alert(`未対応のアクションタイプ: ${atype}`);
-                return;
-            }
-            // ensure event has id
+            const ev = appEventService.buildEventFromDto(a as AppEventDto);
             if (!ev.id) {
-                try { ev.id = crypto.randomUUID(); } catch { ev.id = String(Date.now()) + Math.random().toString(36).slice(2); }
+                try { (ev as any).id = crypto.randomUUID(); } catch { (ev as any).id = String(Date.now()) + Math.random().toString(36).slice(2); }
             }
             events.push(ev);
         } catch (err) {
             console.error(err);
-            alert('アクションの作成に失敗しました');
+            alert(`アクションの作成に失敗しました: ${a.actionType}`);
             return;
         }
     }
@@ -256,7 +224,7 @@ const moveDown = (idx: number) => {
 
 async function openActionManager(index: number) {
     // Open editor for existing action at index. Compute initial data from actions.
-    const initial = { ...(actions.value[index] as EventFormData | IAppEventDto) };
+    const initial = { ...(actions.value[index] as EventFormData | AppEventDto) };
     // set editing target and open editor modal with initial data
     editingIndex.value = index;
     editorInitialData.value = initial;
@@ -275,7 +243,7 @@ async function onTypeSelected(payload: { type: string }) {
     const t = payload.type;
     // close selection and open editor modal with initial DTO
     selectionOpen.value = false;
-    const initial = appEventService.getDefault(t) as IAppEventDto;
+    const initial = appEventService.getDefault(t) as AppEventDto;
     editorInitialData.value = initial;
     // indicate this is a new item
     editingIndex.value = -1;
@@ -332,7 +300,7 @@ function closeEditorDialog() {
 }
 
 // Provide a stable key for v-for rendering. Prefer existing eventId/actionId if present.
-const keyFor = (a: EventFormData | IAppEventDto | null | undefined, idx: number) => {
+const keyFor = (a: EventFormData | AppEventDto | null | undefined, idx: number) => {
     if (!a) return `local-${idx}-act`;
     if ('eventId' in a && a.eventId) return a.eventId;
     return `local-${idx}-${a.actionType ?? 'act'}`;

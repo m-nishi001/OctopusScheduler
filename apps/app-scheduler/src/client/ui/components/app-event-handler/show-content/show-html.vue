@@ -9,7 +9,7 @@ import { onMounted, ref, computed, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../control/asset/asset-service';
-import { AppEventService } from '../../../../applications/app-event/app-event-service';
+import { AppEventService } from '../../../../control/app-event/app-event-service';
 
 interface Props {
     // support legacy `content` (encoded html) or new `id` (localStorage key suffix)

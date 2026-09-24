@@ -4,10 +4,10 @@ import { container } from "tsyringe";
 import { KeyboardShortcutService } from "../keyboard-shortcut-service";
 import { Container } from "../../../core/container/index";
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
-import { PlayAudioEvent } from "../../../domains/app-event/play-audio/play-audio-event";
-import { TransitionPageEvent } from "../../../domains/app-event/transition/transition-page-event";
+import { PlayAudioEvent } from "../../app-event/play-audio/play-audio-event";
+import { TransitionPageEvent } from "../../app-event/transition/transition-page-event";
 import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
-import { AppEventService } from "../../../applications/app-event/app-event-service";
+import { AppEventService } from "../../app-event/app-event-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 
 class MockRepository {
@@ -67,7 +67,7 @@ describe("KeyboardShortcutService", () => {
       const evService = (await import("tsyringe")).container.resolve(
         (
           await import(
-            "../../../../client/applications/app-event/app-event-service"
+            "../../../../client/control/app-event/app-event-service"
           )
         ).AppEventService
       );
@@ -109,7 +109,7 @@ describe("KeyboardShortcutService", () => {
       const evService = (await import("tsyringe")).container.resolve(
         (
           await import(
-            "../../../../client/applications/app-event/app-event-service"
+            "../../../../client/control/app-event/app-event-service"
           )
         ).AppEventService
       );
@@ -161,7 +161,7 @@ describe("KeyboardShortcutService", () => {
       const evService = (await import("tsyringe")).container.resolve(
         (
           await import(
-            "../../../../client/applications/app-event/app-event-service"
+            "../../../../client/control/app-event/app-event-service"
           )
         ).AppEventService
       );
@@ -188,7 +188,7 @@ describe("KeyboardShortcutService", () => {
 
   it("executes ShowContentEvent via keyboard and emits showContent with manual flag", async () => {
     const event = (
-      await import("../../../domains/app-event/show-content/show-content-event")
+      await import("../../app-event/show-content/show-content-event")
     ).ShowContentEvent.fromData({
       id: "e4",
       contentType: "image",
@@ -202,7 +202,7 @@ describe("KeyboardShortcutService", () => {
       const evService = (await import("tsyringe")).container.resolve(
         (
           await import(
-            "../../../../client/applications/app-event/app-event-service"
+            "../../../../client/control/app-event/app-event-service"
           )
         ).AppEventService
       );

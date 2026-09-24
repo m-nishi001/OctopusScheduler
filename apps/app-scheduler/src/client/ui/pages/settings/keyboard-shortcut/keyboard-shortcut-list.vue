@@ -38,8 +38,7 @@
 import { ref, onMounted, watch } from 'vue';
 import { container } from 'tsyringe';
 import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
-import { AppEventService } from '../../../../applications/app-event/app-event-service';
-import { IAppEventConverterToken } from '../../../../domains/app-event/i-app-event-converter';
+import { AppEventService } from '../../../../control/app-event/app-event-service';
 import { UIActionEntryToken } from '../../../../domains/app-event/ui-action-entry-token';
 import { sendShortcutViaChannel } from '../../../composables/send-shortcut-via-channel';
 
@@ -110,11 +109,10 @@ const ACTION_REGISTRY: Record<string, any> = (() => {
 
 const appEventService = container.resolve(AppEventService);
 
-// resolved actions per shortcut id: map shortcut.id -> IAppEventDto[]
+// resolved actions per shortcut id: map shortcut.id -> AppEventDto[]
 const resolvedActionsByShortcutId = ref<Record<string, any[]>>({});
 
 async function loadResolvedActions() {
-    const converters = container.resolveAll<any>(IAppEventConverterToken as any) as any[];
     const result: Record<string, any[]> = {};
     for (const s of props.shortcuts || []) {
         const ids = (s as any).eventIds || [];
@@ -125,10 +123,9 @@ async function loadResolvedActions() {
                 evDtos.push({ actionType: 'Unknown', eventId: null });
                 continue;
             }
-            const conv = converters.find((c) => c && typeof c.getType === 'function' && (() => { try { return c.getType() === ev.type; } catch { return false; } })());
-            if (conv && typeof conv.toDto === 'function') {
-                evDtos.push(conv.toDto(ev));
-            } else {
+            try {
+                evDtos.push(appEventService.toDto(ev));
+            } catch (e) {
                 evDtos.push({ actionType: ev.type, eventId: ev.id });
             }
         }

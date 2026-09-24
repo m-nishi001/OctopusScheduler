@@ -55,9 +55,9 @@ const goToCardGame = () => {
 
 const handleKeydown = (event: KeyboardEvent) => {
     // ショートカットキーの例: Ctrl+1 でイベント送信
-    // Replace legacy SHOW_IMAGE with new IAppEventDto ({ actionType, eventId })
+    // Replace legacy SHOW_IMAGE with new AppEventDto ({ actionType, eventId })
     if (event.ctrlKey && event.key === '1') {
-        console.debug('[home-view] shortcut detected: sending IAppEventDto start for sample', { id: 'sample' });
+        console.debug('[home-view] shortcut detected: sending AppEventDto start for sample', { id: 'sample' });
         channel.postMessage({ actionType: 'start', eventId: 'sample' });
     }
     // 他のショートカットも追加可能

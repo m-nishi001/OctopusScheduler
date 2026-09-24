@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { KeyboardShortcutService } from "./keyboard-shortcut-service";
-import { PlayAudioEvent } from "../../domains/app-event/play-audio/play-audio-event";
+import { PlayAudioEvent } from "../app-event/play-audio/play-audio-event";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
-import type { AppEventService } from "../../applications/app-event/app-event-service";
+import type { AppEventService } from "../app-event/app-event-service";
 
 // We don't need to exercise GAS service; mock repository
 class InMemoryRepository extends KeyboardShortcutRepository {

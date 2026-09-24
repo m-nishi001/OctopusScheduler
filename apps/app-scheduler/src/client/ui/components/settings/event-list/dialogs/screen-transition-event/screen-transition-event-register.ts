@@ -1,10 +1,10 @@
 import { ref, watch } from "vue";
 import { container } from "tsyringe";
-import { AppEventService } from "../../../../../../applications/app-event/app-event-service";
+import { AppEventService } from "../../../../../../control/app-event/app-event-service";
 import {
   TransitionPageEvent,
   TransitionPageEventParams,
-} from "../../../../../../domains/app-event/transition/transition-page-event";
+} from "../../../../../../control/app-event/transition/transition-page-event";
 
 export function useScreenTransitionEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);
