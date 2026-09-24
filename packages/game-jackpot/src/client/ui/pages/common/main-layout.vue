@@ -31,6 +31,28 @@ main {
   align-items: center;
   justify-content: center;
   color: #3b2f3f;
+  /* MainLayoutは画面(ルート)ごとに新しいインスタンスとしてmountされるため、
+     このCSSアニメーションだけで「画面遷移のたびにふわっと表示される」
+     フェードインが実現できる(Vue<Transition>のような単一ルート制約も不要)。 */
+  animation: jp-screen-fade-in 320ms ease-out;
+}
+
+@keyframes jp-screen-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main {
+    animation: none;
+  }
 }
 
 
