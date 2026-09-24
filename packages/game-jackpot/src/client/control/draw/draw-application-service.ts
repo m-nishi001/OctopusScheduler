@@ -66,6 +66,9 @@ export class DrawApplicationService {
     return { total: prizes.length, remaining };
   }
 
+  /**
+   * 本番の抽選を実行し、結果を永続化する。
+   */
   async executeDraw(request: {
     memberRequestCount: number;
     prizeRequestCount: number;
@@ -74,11 +77,62 @@ export class DrawApplicationService {
     prizeRes: DrawPrizeResponse;
     memberRes: DrawMemberResponse;
   }> {
+    const computed = await this.computeDrawResult(request);
+    const saved = await this.saveDrawResult(
+      computed.prizeRes,
+      computed.winnerMember,
+      computed.winnerPrize,
+      computed.results
+    );
+    return {
+      result: saved,
+      prizeRes: computed.prizeRes,
+      memberRes: computed.memberRes,
+    };
+  }
+
+  /**
+   * 本番と同じ抽選計算を行うが、結果を一切永続化しない(景品在庫・メンバー・抽選結果・
+   * 抽選状態を汚染しない)プレビュー用抽選。デモ画面のリハーサルなど、本番データを
+   * 消費せずに「実際の抽選と同じ見た目の結果」を確認したい用途に使う。
+   */
+  async previewDraw(request: {
+    memberRequestCount: number;
+    prizeRequestCount: number;
+  }): Promise<{
+    result: DrawResultDto;
+    prizeRes: DrawPrizeResponse;
+    memberRes: DrawMemberResponse;
+  }> {
+    const computed = await this.computeDrawResult(request);
+    const result = this.buildDrawResult(
+      computed.prizeRes,
+      computed.winnerMember,
+      computed.winnerPrize,
+      computed.results
+    );
+    return { result, prizeRes: computed.prizeRes, memberRes: computed.memberRes };
+  }
+
+  /**
+   * メンバー抽選〜確変判定〜景品抽選までの計算を行う(永続化は一切行わない)。
+   * `executeDraw`(永続化あり)と `previewDraw`(永続化なし)の共通ロジック。
+   */
+  private async computeDrawResult(request: {
+    memberRequestCount: number;
+    prizeRequestCount: number;
+  }): Promise<{
+    prizeRes: DrawPrizeResponse;
+    memberRes: DrawMemberResponse;
+    winnerMember: Member;
+    winnerPrize: Prize;
+    results: DrawResultDto[];
+  }> {
     const memberRes = await this.executeMemberDraw({
       requestCount: request.memberRequestCount,
     });
     console.log(
-      "[DrawApplicationService] executeDraw: member draw response",
+      "[DrawApplicationService] computeDrawResult: member draw response",
       memberRes
     );
     if (!memberRes.winnerId) {
@@ -87,7 +141,7 @@ export class DrawApplicationService {
     const members = await this.memberRepo.getMembers();
     const winnerMember = members.find((m) => m.id === memberRes.winnerId);
     console.log(
-      "[DrawApplicationService] executeDraw: resolved winner member",
+      "[DrawApplicationService] computeDrawResult: resolved winner member",
       { winnerId: memberRes.winnerId, winnerMember }
     );
     if (!winnerMember) throw new NotFoundError("Winner member not found");
@@ -97,23 +151,24 @@ export class DrawApplicationService {
     const state = await this.getPrizeDrawState();
     if (!state)
       throw new StateNotInitializedError("Prize draw state not initialized");
-    // NOTE: kakuhen selection is forced true in some builds for demo; log decision
-    // and related state for diagnostics.
     const isKakuhen = this.prizeDrawService.isKakuhenTurn(
       prizes,
       results,
       state
     );
-    console.log("[DrawApplicationService] executeDraw: isKakuhen", isKakuhen);
-    // const isKakuhen = true;
-    console.log("[DrawApplicationService] executeDraw: kakuhen forced", {
+    console.log(
+      "[DrawApplicationService] computeDrawResult: isKakuhen",
       isKakuhen,
-      totalPrizes: prizes.length,
-      remainingPrizes: this.prizeDrawService.getRemainingPrizes(prizes, results)
-        .length,
-      state,
-      resultCount: results.length,
-    });
+      {
+        totalPrizes: prizes.length,
+        remainingPrizes: this.prizeDrawService.getRemainingPrizes(
+          prizes,
+          results
+        ).length,
+        state,
+        resultCount: results.length,
+      }
+    );
 
     const prizeRequest = {
       memberId: winnerMember.id,
@@ -124,7 +179,7 @@ export class DrawApplicationService {
       ? this.executeKakuhenDraw(winnerMember, results, prizes, prizeRequest)
       : this.executeNormalDraw(prizes, results, prizeRequest, winnerMember));
     console.log(
-      "[DrawApplicationService] executeDraw: prize response",
+      "[DrawApplicationService] computeDrawResult: prize response",
       prizeRes
     );
 
@@ -133,13 +188,8 @@ export class DrawApplicationService {
     }
 
     const winnerPrize = prizes.find((p) => p.id === prizeRes.winnerPrizeId)!;
-    const saved = await this.saveDrawResult(
-      prizeRes,
-      winnerMember,
-      winnerPrize,
-      results
-    );
-    return { result: saved, prizeRes, memberRes };
+
+    return { prizeRes, memberRes, winnerMember, winnerPrize, results };
   }
 
   private async getPrizeDrawState(): Promise<PrizeDrawState | null> {
@@ -287,37 +337,50 @@ export class DrawApplicationService {
     return response;
   }
 
+  /**
+   * 抽選結果DTOを組み立てる(永続化はしない)。
+   */
+  private buildDrawResult(
+    prizeRes: DrawPrizeResponse,
+    winnerMember: Member,
+    winnerPrize: Prize,
+    results: DrawResultDto[]
+  ): DrawResultDto {
+    if (prizeRes.isKakuhen) {
+      const existing = results.find((r) => r.drawId === prizeRes.drawId);
+      if (!existing) {
+        throw new NotFoundError("Reserved draw result not found");
+      }
+      return mapToUpdatedDrawResult(existing, winnerMember, true);
+    }
+    return mapToDrawResult(prizeRes.drawId, winnerMember, winnerPrize, false);
+  }
+
   private async saveDrawResult(
     prizeRes: DrawPrizeResponse,
     winnerMember: Member,
     winnerPrize: Prize,
     results: DrawResultDto[]
   ): Promise<DrawResultDto> {
+    const drawResult = this.buildDrawResult(
+      prizeRes,
+      winnerMember,
+      winnerPrize,
+      results
+    );
     if (prizeRes.isKakuhen) {
-      const existing = results.find((r) => r.drawId === prizeRes.drawId);
-      if (!existing) {
-        throw new NotFoundError("Reserved draw result not found");
-      }
-      const updated = mapToUpdatedDrawResult(existing, winnerMember, true);
       console.log(
         "[DrawApplicationService] saveDrawResult: updating reserved",
-        updated
+        drawResult
       );
-      await this.drawResultService.updateDrawResult(updated);
-      return updated;
+      await this.drawResultService.updateDrawResult(drawResult);
     } else {
-      const drawResult = mapToDrawResult(
-        prizeRes.drawId,
-        winnerMember,
-        winnerPrize,
-        false
-      );
       console.log(
         "[DrawApplicationService] saveDrawResult: adding new",
         drawResult
       );
       await this.drawResultService.addDrawResult(drawResult);
-      return drawResult;
     }
+    return drawResult;
   }
 }
