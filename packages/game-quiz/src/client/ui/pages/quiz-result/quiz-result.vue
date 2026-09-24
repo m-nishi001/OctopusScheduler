@@ -8,13 +8,13 @@
         <div class="result-table-container">
             <h1 class="title text-3xl font-bold text-center mb-6">結果表示！</h1>
             <transition-group name="ranking" tag="div" class="ranking-list">
-                <div v-for="(record, idx) in displayedResults" :key="record.id || (record.name + '-' + idx)"
+                <div v-for="(record, idx) in displayedResults" :key="record.userId || (record.displayName + '-' + idx)"
                     class="ranking-item"
-                    :class="{ 'top3': getRank(record) <= 3, 'first-place': getRank(record) === 1 }">
-                    <div class="rank-number">{{ getRank(record) }}</div>
-                    <div class="player-name">{{ record.name }}</div>
-                    <div class="player-time">{{ formatTime(record.timeSeconds) }}</div>
-                    <div v-if="getRank(record) === 1" class="cracker-particles">
+                    :class="{ 'top3': record.rank <= 3, 'first-place': record.rank === 1 }">
+                    <div class="rank-number">{{ record.rank }}</div>
+                    <div class="player-name">{{ record.displayName }}</div>
+                    <div class="player-time">{{ formatTime(record.timeToAnswerSec) }}</div>
+                    <div v-if="record.rank === 1" class="cracker-particles">
                         <div class="particle" v-for="i in 50" :key="i"
                             :style="{ '--delay': i * 0.02 + 's', '--angle': Math.random() * 360 + 'deg', '--color': ['#ffd700', '#ff4500', '#00ff00', '#0000ff', '#ff00ff', '#ffff00', '#ff1493', '#00ffff'][i % 8] }">
                         </div>
@@ -31,7 +31,11 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
-import { PrepareQuizResultsUseCase } from '../../../control/use-cases/prepare-quiz-results-use-case';
+import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
+import { GetAcceptanceStateUseCase } from '../../../control/use-cases/get-acceptance-state-use-case';
+import { GetSubmittedAnswersUseCase } from '../../../control/use-cases/get-submitted-answers-use-case';
+import { computeRanking } from '../../../model/ranking';
+import type { RankedResult } from '../../../model/ranking';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import PrizeDialog from '../../components/prize-dialog.vue';
 import { usePrizeOrchestrator } from '../../composables/use-prize-orchestrator';
@@ -39,26 +43,18 @@ import { usePrizeOrchestrator } from '../../composables/use-prize-orchestrator';
 const router = useRouter();
 const route = useRoute();
 
-const isPreview = computed(() => {
-    const paramPreview = (route.params as any)?.preview;
-    if (paramPreview !== undefined) {
-        if (typeof paramPreview === 'boolean') return paramPreview;
-        return String(paramPreview) === 'true' || String(paramPreview) === '1';
-    }
-    if (String(route.name)?.endsWith('-preview')) return true;
-    return false;
-});
+type DisplayResult = RankedResult & { rank: number };
 
 const showFullScreenParticles = ref(false);
 const rankingFinished = ref(false);
 
-const finalResults = ref<{ id: string; name: string; timeSeconds: number | null }[]>([]);
-const displayedResults = ref<{ id: string; name: string; timeSeconds: number | null }[]>([]);
+const finalResults = ref<DisplayResult[]>([]);
+const displayedResults = ref<DisplayResult[]>([]);
 const currentQuiz = ref<QuizDto | null>(null);
 
 const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
     getSettings: () => currentQuiz.value?.settings,
-    onNavigateHome: () => router.push('/execute'),
+    onNavigateHome: () => router.push({ path: '/quiz-home' }),
 });
 
 const prizeName = computed(() => currentQuiz.value?.settings?.prizeName || null);
@@ -87,23 +83,6 @@ watch(currentQuiz, (q: QuizDto | null) => {
     }
 });
 
-// Helper: rank is determined by the finalResults order (ascending time)
-function getRank(record: { id?: string; name: string; timeSeconds: number | null }): number {
-    // Prefer id-based lookup when available
-    if (record.id) {
-        const idxById = finalResults.value.findIndex((r) => r.id === record.id);
-        if (idxById >= 0) return idxById + 1;
-    }
-    const idx = finalResults.value.findIndex((r: { id?: string; name: string; timeSeconds: number | null }) => {
-        if (r.name !== record.name) return false;
-        const ta = r.timeSeconds;
-        const tb = record.timeSeconds;
-        // null-safe equality for numeric seconds
-        return (ta === null && tb === null) || (typeof ta === 'number' && typeof tb === 'number' && Math.abs(ta - tb) < 1e-6);
-    });
-    return idx >= 0 ? idx + 1 : finalResults.value.length;
-}
-
 function formatTime(seconds: number | null): string {
     if (seconds === null || typeof seconds !== 'number' || Number.isNaN(seconds)) return '-';
     const negative = seconds < 0;
@@ -123,29 +102,30 @@ function formatTime(seconds: number | null): string {
 onMounted(() => {
     document.addEventListener('keydown', handleKeydown);
     (async () => {
+        const quizId = route.params.id as string;
         try {
-            const uc = container.resolve(PrepareQuizResultsUseCase);
-            const res = await uc.execute(route.params.id as string, isPreview.value);
-            if (!res || res.error) {
-                console.error('Failed to prepare quiz results', res?.error);
-                currentQuiz.value = null;
-                finalResults.value = [];
-            } else {
-                currentQuiz.value = res.quiz;
-                // Ensure every result has a stable `id` (some sources may not provide it)
-                const raw = Array.isArray(res.results) ? res.results : [];
-                finalResults.value = raw.map((r: any, idx: number) => {
-                    if (r && typeof r.id === 'string' && r.id.length > 0) return r;
-                    const rowIndex = typeof r === 'object' && r !== null ? (r.__rowIndex ?? r.rowIndex ?? null) : null;
-                    const id = typeof rowIndex === 'number' && rowIndex >= 0 ? `result-${rowIndex}` : `result-fallback-${idx}`;
-                    return { id, name: (r && r.name) || '正答者なし ---', timeSeconds: (r && (typeof r.timeSeconds === 'number' ? r.timeSeconds : (typeof r.time === 'number' ? r.time / 1000 : null))) ?? null };
-                });
-            }
-            await startRankingAnimation();
+            const startQuizUseCase = container.resolve(StartQuizUseCase);
+            const getAcceptanceStateUseCase = container.resolve(GetAcceptanceStateUseCase);
+            const getSubmittedAnswersUseCase = container.resolve(GetSubmittedAnswersUseCase);
+
+            const [quiz, acceptanceState, answers] = await Promise.all([
+                startQuizUseCase.execute(quizId),
+                getAcceptanceStateUseCase.execute(quizId),
+                getSubmittedAnswersUseCase.execute(quizId),
+            ]);
+
+            currentQuiz.value = quiz;
+            const ranked = computeRanking(answers, {
+                correctNo: quiz?.correctNo ?? 1,
+                acceptStartedAtMs: acceptanceState.acceptStartedAtMs,
+            });
+            finalResults.value = ranked.map((result, idx) => ({ ...result, rank: idx + 1 }));
         } catch (e) {
-            console.error('Unexpected error in mounted preparation', e);
-            await startRankingAnimation();
+            console.error('Failed to prepare quiz results', e);
+            currentQuiz.value = null;
+            finalResults.value = [];
         }
+        await startRankingAnimation();
     })();
 });
 
