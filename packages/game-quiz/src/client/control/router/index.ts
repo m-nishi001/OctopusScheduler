@@ -1,12 +1,14 @@
 import QuizResult from "../../ui/pages/quiz-result/quiz-result.vue";
-import QuizAdmin from "../../ui/pages/quiz-admin/quiz-admin.vue";
+import AdminLayout from "../../ui/pages/quiz-admin/frames/admin-view.vue";
+import QuizList from "../../ui/pages/quiz-admin/components/quiz-list.vue";
+import MemberManagement from "../../ui/pages/quiz-admin/components/member-management.vue";
 import QuizIntro from "../../ui/pages/quiz-display/quiz-intro.vue";
 import QuizQr from "../../ui/pages/quiz-display/quiz-qr.vue";
 import QuizPlay from "../../ui/pages/quiz-display/quiz-play.vue";
 import QuizAnswer from "../../ui/pages/quiz-display/quiz-answer.vue";
 import QuizParticipant from "../../ui/pages/quiz-participant/quiz-participant.vue";
 const quizGameRoutes = [
-  { path: "/quiz-home", component: QuizAdmin },
+  { path: "/quiz-home", redirect: "/quiz-admin" },
   {
     path: "/quiz/:id",
     // redirect to named intro route, preserving params and query
@@ -54,7 +56,17 @@ const quizGameRoutes = [
   },
   // legacy path kept for compatibility
   { path: "/quiz-result/:id", component: QuizResult },
-  { path: "/quiz-admin", component: QuizAdmin },
+  {
+    path: "/quiz-admin",
+    component: AdminLayout,
+    children: [
+      // redirect by name, not a relative string: vue-router resolves a plain
+      // string redirect as an absolute path, not relative to this parent.
+      { path: "", redirect: { name: "quiz-admin-quizzes" } },
+      { path: "quizzes", name: "quiz-admin-quizzes", component: QuizList },
+      { path: "members", name: "quiz-admin-members", component: MemberManagement },
+    ],
+  },
   // 参加者がQRコードから開く回答画面(スマホ想定、管理者側のローカルキャッシュには依存しない)
   { path: "/quiz/:id/join", name: "quiz-join", component: QuizParticipant },
 ];
