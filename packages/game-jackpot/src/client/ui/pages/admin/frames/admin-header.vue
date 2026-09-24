@@ -1,5 +1,7 @@
 <template>
   <header class="admin-header">
+    <button type="button" class="sidebar-toggle" aria-label="メニューを開閉"
+      @click="$emit('toggle-sidebar')">☰</button>
     <h1 class="admin-title">管理画面</h1>
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
       <button class="sync-all-button" @click="showSync = true" title="一括同期">同期</button>
@@ -12,6 +14,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import SyncDialog from '@ui/components/sync-dialog.vue';
+
+defineEmits(['toggle-sidebar']);
 
 const showSync = ref(false);
 
@@ -35,6 +39,30 @@ const closeSync = () => {
   font-size: 1.3rem;
   font-weight: bold;
   margin: 0;
+}
+
+.sidebar-toggle {
+  display: none;
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 860px) {
+  .sidebar-toggle {
+    display: block;
+  }
+
+  .admin-title {
+    font-size: 1.1rem;
+  }
 }
 
 .home-button {

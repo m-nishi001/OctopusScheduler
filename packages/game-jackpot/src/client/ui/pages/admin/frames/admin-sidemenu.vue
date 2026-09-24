@@ -1,5 +1,5 @@
 <template>
-  <aside class="admin-sidebar">
+  <aside class="admin-sidebar" :class="{ open }">
     <nav>
       <ul>
         <li>
@@ -85,6 +85,11 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
+defineProps({
+  /** スマホ幅で、ドロワーとして開いているかどうか(デスクトップ幅では無視される)。 */
+  open: { type: Boolean, default: false },
+});
+
 const screensSubmenuOpen = ref(false);
 const route = useRoute();
 
@@ -105,10 +110,34 @@ const isRouteActive = (path: string) => {
 <style scoped>
 .admin-sidebar {
   width: 240px;
+  flex-shrink: 0;
   background: #0f1112;
   color: #fff;
   padding: 18px 12px;
   box-sizing: border-box;
+  overflow-y: auto;
+}
+
+/* スマホ幅では固定サイドバーではなく、左からスライドインするドロワーにする
+   (旧実装はこのブレークポイント自体が無く、狭い画面ではコンテンツ領域を
+   常時240px分圧迫していた)。 */
+@media (max-width: 860px) {
+  .admin-sidebar {
+    position: fixed;
+    top: 48px;
+    /* AdminHeaderの高さ分オフセット */
+    left: 0;
+    bottom: 0;
+    width: min(280px, 82vw);
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+    z-index: 400;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
 }
 
 nav ul {
