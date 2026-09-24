@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KeyboardShortcutService } from "./keyboard-shortcut-service";
 import { PlayAudioEvent } from "../app-event/play-audio/play-audio-event";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
@@ -109,5 +109,60 @@ describe("KeyboardShortcutService", () => {
       "s",
     ]);
     expect(hasLonger).toBe(true);
+  });
+});
+
+describe("KeyboardShortcutService legacy `actions` migration", () => {
+  // This path parses untrusted data carried over from older GAS-stored
+  // shortcuts, so unlike the compiler-checked switches in AppEventService,
+  // its safety is guaranteed by these unit tests rather than by tsc.
+  it("migrates a known-type legacy action into eventIds via AppEventService", async () => {
+    const updateScheduleEvents = vi.fn(async () => {});
+    const appEventService = {
+      updateScheduleEvents,
+    } as unknown as AppEventService;
+    const repo = new InMemoryRepository();
+    const service = new KeyboardShortcutService(repo, appEventService);
+
+    await repo.saveKeyboardShortcuts([
+      {
+        id: "legacy-1",
+        keys: ["Control", "9"],
+        actions: [{ type: "PlayAudioEvent", audioId: "a1", fadeOutDuration: 0 }],
+      } as any,
+    ]);
+
+    const shortcuts = await service.getKeyboardShortcuts();
+
+    expect(updateScheduleEvents).toHaveBeenCalledOnce();
+    expect(shortcuts).toHaveLength(1);
+    expect(shortcuts[0].eventIds).toHaveLength(1);
+  });
+
+  it("skips an unknown-type legacy action with a warning instead of persisting it", async () => {
+    const updateScheduleEvents = vi.fn(async () => {});
+    const appEventService = {
+      updateScheduleEvents,
+    } as unknown as AppEventService;
+    const repo = new InMemoryRepository();
+    const service = new KeyboardShortcutService(repo, appEventService);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await repo.saveKeyboardShortcuts([
+      {
+        id: "legacy-2",
+        keys: ["Control", "8"],
+        actions: [{ type: "SomeRemovedEventType", foo: "bar" }],
+      } as any,
+    ]);
+
+    const shortcuts = await service.getKeyboardShortcuts();
+
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(updateScheduleEvents).not.toHaveBeenCalled();
+    expect(shortcuts).toHaveLength(1);
+    expect(shortcuts[0].eventIds).toHaveLength(0);
+
+    warnSpy.mockRestore();
   });
 });
