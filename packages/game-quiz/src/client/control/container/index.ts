@@ -9,6 +9,7 @@ import {
 import type { QuizGameApi } from "../../../server/quiz-api-contract";
 import { QuizRepository } from "../../model/quiz-repository";
 import { FormRepository } from "../../model/form-repository";
+import { MemberRepository } from "../../model/member-repository";
 import { QuizService } from "../../model/quiz-service";
 import { ResultService } from "../../model/result-service";
 import { StopQuizUseCase } from "../use-cases/stop-quiz-use-case";
@@ -18,6 +19,10 @@ import { AddQuizUseCase } from "../use-cases/add-quiz-use-case";
 import { UpdateQuizUseCase } from "../use-cases/update-quiz-use-case";
 import { GetAllQuizzesUseCase } from "../use-cases/get-all-quizzes-use-case";
 import { DeleteQuizUseCase } from "../use-cases/delete-quiz-use-case";
+import { ListMembersUseCase } from "../use-cases/list-members-use-case";
+import { AddMemberUseCase } from "../use-cases/add-member-use-case";
+import { UpdateMemberUseCase } from "../use-cases/update-member-use-case";
+import { DeleteMemberUseCase } from "../use-cases/delete-member-use-case";
 
 export class Container {
   static register() {
@@ -36,6 +41,7 @@ export class Container {
 
     container.register(QuizRepository, { useClass: QuizRepository });
     container.register(FormRepository, { useClass: FormRepository });
+    container.register(MemberRepository, { useClass: MemberRepository });
 
     container.register(QuizService, { useClass: QuizService });
     container.register(ResultService, {
@@ -50,5 +56,9 @@ export class Container {
       useClass: GetAllQuizzesUseCase,
     });
     container.register(DeleteQuizUseCase, { useClass: DeleteQuizUseCase });
+    container.register(ListMembersUseCase, { useClass: ListMembersUseCase });
+    container.register(AddMemberUseCase, { useClass: AddMemberUseCase });
+    container.register(UpdateMemberUseCase, { useClass: UpdateMemberUseCase });
+    container.register(DeleteMemberUseCase, { useClass: DeleteMemberUseCase });
   }
 }
