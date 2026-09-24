@@ -54,35 +54,37 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">選択肢</label>
-                    <table class="options-table">
-                        <thead class="table-head">
-                            <tr>
-                                <th class="th-no">No</th>
-                                <th class="th-content">内容</th>
-                                <th class="th-image">画像</th>
-                                <th class="th-color">テーマカラー</th>
-                                <th class="th-actions">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(option, index) in currentQuiz.options" :key="index" class="table-row">
-                                <td class="td-no">{{ option.no }}</td>
-                                <td class="td-content">{{ option.text }}</td>
-                                <td class="td-image">
-                                    <img v-if="option.image" :src="imageSrc(option)" alt="プレビュー"
-                                        class="preview-image" />
-                                    <span v-else>画像なし</span>
-                                </td>
-                                <td class="td-color">
-                                    <div class="color-preview" :style="{ backgroundColor: option.color }"></div>
-                                </td>
-                                <td class="td-actions">
-                                    <button type="button" class="btn-edit" @click="editOption(index)">編集</button>
-                                    <button type="button" class="btn-delete" @click="removeOption(index)">削除</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="options-table-scroll">
+                        <table class="options-table">
+                            <thead class="table-head">
+                                <tr>
+                                    <th class="th-no">No</th>
+                                    <th class="th-content">内容</th>
+                                    <th class="th-image">画像</th>
+                                    <th class="th-color">テーマカラー</th>
+                                    <th class="th-actions">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(option, index) in currentQuiz.options" :key="index" class="table-row">
+                                    <td class="td-no">{{ option.no }}</td>
+                                    <td class="td-content">{{ option.text }}</td>
+                                    <td class="td-image">
+                                        <img v-if="option.image" :src="imageSrc(option)" alt="プレビュー"
+                                            class="preview-image" />
+                                        <span v-else>画像なし</span>
+                                    </td>
+                                    <td class="td-color">
+                                        <div class="color-preview" :style="{ backgroundColor: option.color }"></div>
+                                    </td>
+                                    <td class="td-actions">
+                                        <button type="button" class="btn-edit" @click="editOption(index)">編集</button>
+                                        <button type="button" class="btn-delete" @click="removeOption(index)">削除</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                     <button type="button" class="btn-add-option" @click="addOption">+</button>
                 </div>
                 <div class="form-actions">
@@ -459,8 +461,15 @@ watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
     /* hover:bg-green-600 */
 }
 
+.options-table-scroll {
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    border-radius: 0.5rem;
+}
+
 .options-table {
     width: 100%;
+    min-width: 480px;
     border-collapse: collapse;
     background-color: #374151;
     /* bg-gray-700 */
@@ -469,7 +478,6 @@ watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
     overflow: hidden;
     border: 1px solid #4b5563;
     /* border-gray-600 */
-    margin-bottom: 1rem;
 }
 
 .table-head {
@@ -624,5 +632,22 @@ watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
     height: 20px;
     border-radius: 4px;
     border: 1px solid #6b7280;
+}
+
+@media (max-width: 480px) {
+    .modal {
+        width: 100%;
+        max-height: 90vh;
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .form-actions button {
+        width: 100%;
+    }
 }
 </style>

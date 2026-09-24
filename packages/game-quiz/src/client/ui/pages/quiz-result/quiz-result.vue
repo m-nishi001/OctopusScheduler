@@ -7,7 +7,11 @@
         </div>
         <div class="result-table-container">
             <h1 class="title text-3xl font-bold text-center mb-6">結果表示！</h1>
-            <transition-group name="ranking" tag="div" class="ranking-list">
+            <div v-if="isLoadingResults" class="loading-state" aria-live="polite">
+                <div class="spinner" aria-hidden="true"></div>
+                <p>集計中...</p>
+            </div>
+            <transition-group v-else name="ranking" tag="div" class="ranking-list">
                 <div v-for="(record, idx) in displayedResults" :key="record.userId || (record.displayName + '-' + idx)"
                     class="ranking-item"
                     :class="[{ 'first-place': record.rank === 1 }, `rank-${Math.min(record.rank, 4)}`]">
@@ -50,6 +54,7 @@ type DisplayResult = RankedResult & { rank: number };
 
 const finalResults = ref<DisplayResult[]>([]);
 const currentQuiz = ref<QuizDto | null>(null);
+const isLoadingResults = ref(true);
 
 const {
     displayedResults,
@@ -131,6 +136,7 @@ onMounted(() => {
             currentQuiz.value = null;
             finalResults.value = [];
         }
+        isLoadingResults.value = false;
         await revealRanking(finalResults.value);
     })();
 });
@@ -191,6 +197,30 @@ function handleKeydown(event: KeyboardEvent) {
     left: 50%;
     transform: translateX(-50%);
     margin: 0;
+}
+
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.1rem;
+}
+
+.spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid rgba(255, 255, 255, 0.15);
+    border-top-color: #ffd700;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .ranking-list {
