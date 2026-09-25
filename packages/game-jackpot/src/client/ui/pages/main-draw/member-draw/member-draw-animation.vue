@@ -18,22 +18,8 @@
                     'START！'
                 }} </button>
         </div>
-        <!-- Inline member winner dialog (defined here for readability/maintenance per request) -->
-        <teleport to="body">
-            <div v-if="showWinnerDialog" class="dialog-overlay" role="dialog" aria-modal="true">
-                <div class="dialog-content">
-                    <h3 class="dialog-title">{{ winnerTitle }}</h3>
-                    <div v-if="winnerImageUrl" class="dialog-image-wrap">
-                        <img :src="winnerImageUrl" alt="winner" class="modal-image" />
-                    </div>
-                    <div class="dialog-actions">
-                        <!-- Inert: clicking does not close; parent orchestrator will handle flow via Enter/currentAction -->
-                        <button ref="nextBtn" type="button" class="btn-primary"
-                            @click.prevent.stop="() => { }">次へ</button>
-                    </div>
-                </div>
-            </div>
-        </teleport>
+        <MemberWinnerDialog :visible="showWinnerDialog" :title="winnerTitle" :image-url="winnerImageUrl"
+            @shown="onWinnerDialogShown" @closed="onWinnerDialogClosed" />
     </div>
 </template>
 
@@ -43,11 +29,9 @@ import gsap from 'gsap';
 import type { MemberDto } from '@control/member/dto/member-dto';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
-import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
-import { useAudio } from '@octopus/composables/use-audio';
 import type { DrawMemberResponse } from '@control/draw/dto/draw-member-response';
-// draw-result-dialog.vue was previously used for the modal. For readability
-// we define the member-specific winner dialog inline in this component.
+import MemberWinnerDialog from './member-winner-dialog.vue';
+import { useMemberDrawBgm } from './use-member-draw-bgm';
 
 // Per-animation defaults (hardcoded here per your request)
 export const MEMBER_DRAW_REQUEST_COUNT = 10;
@@ -63,7 +47,7 @@ export type MemberAnimRef = {
 
 export default {
     name: 'MemberDrawAnimation',
-    components: {},
+    components: { MemberWinnerDialog },
     props: {
         members: { type: Array as () => MemberDto[], default: () => [] },
         visibleCount: { type: Number, default: 10 },
@@ -76,48 +60,16 @@ export default {
         const viewport = ref<HTMLDivElement | null>(null);
         const track = ref<HTMLDivElement | null>(null);
         const startButtonContainer = ref<HTMLDivElement | null>(null);
-        const nextBtn = ref<HTMLButtonElement | null>(null);
         const tweenRef: { tween: gsap.core.Tween | null } = { tween: null };
         const memberImageMap = new Map<string, string>();
         // inline SVG placeholder (dark rounded avatar) as fallback so images render even when asset loading fails
         const defaultAvatar = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="100%" height="100%" fill="%23111111"/><circle cx="60" cy="44" r="30" fill="%23888"/><rect x="20" y="86" width="80" height="12" rx="6" fill="%23888"/></svg>';
 
         const assetService = container.resolve(AssetDataService);
-        const screenSettingsService = container.resolve(ScreenSettingsService);
 
-        // Generic audio composable — this component is responsible for member BGM playback
-        const { load, play, stop, setVolume } = useAudio({
-            assetService,
-            screenSettingsService,
-        });
-
-        const loadGlobalVolume = async () => {
-            try {
-                const cfg = await screenSettingsService.fetchScreenSetting('main', 'global-volume');
-                if (cfg && typeof cfg.volume === 'number') setVolume(cfg.volume);
-            } catch (e) {
-                console.error('Failed to load global volume:', e);
-            }
-        };
-
-        const playRandomMemberBgm = async () => {
-            try {
-                await loadGlobalVolume();
-                const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
-                if (!cfg || !cfg.memberLotteryBgms || cfg.memberLotteryBgms.length === 0) return;
-                const bgmIds: string[] = cfg.memberLotteryBgms.filter((id: string) => id && id.trim());
-                if (bgmIds.length === 0) return;
-                const randomId = bgmIds[Math.floor(Math.random() * bgmIds.length)];
-                const asset = await assetService.getAssetDataById(randomId);
-                if (asset && asset.blob) {
-                    await stop();
-                    await load(asset.blob);
-                    await play({ isRepeat: true });
-                }
-            } catch (e) {
-                console.error('Failed to play member BGM:', e);
-            }
-        };
+        // メンバー抽選中のBGM再生はアニメーション本体と独立した関心事のため
+        // composableに分離している。
+        const { playRandomMemberBgm, stopBgm } = useMemberDrawBgm();
 
         const displayMembers = ref<MemberDto[]>([]);
 
@@ -556,7 +508,7 @@ export default {
 
         const stopDraw = async (): Promise<string | null> => {
             const id = await stopAt(plannedWinnerId || null);
-            try { await stop(); } catch (e) { /* ignore */ }
+            try { await stopBgm(); } catch (e) { /* ignore */ }
             emit('member-selected', id);
             plannedWinnerId = null;
             return id;
@@ -596,39 +548,20 @@ export default {
             if (!isAnimating.value) positionStartButton();
         });
 
-        watch(showWinnerDialog, async (newVal) => {
-            if (newVal) {
-                document.body.style.overflow = 'hidden';
-                // wait for DOM update then focus the primary action so Enter works reliably
-                try {
-                    await nextTick();
-                    // notify parent immediately so it can lock input
-                    try { emit('winner-dialog-shown'); } catch (e) { }
-                    // delay focusing the button by 1s so that a held Enter doesn't immediately activate it
-                    setTimeout(() => {
-                        try { nextBtn.value?.focus(); } catch (e) { }
-                    }, 1000);
-                } catch (e) {
-                    // ignore focus errors
-                }
-            } else {
-                document.body.style.overflow = '';
-                // notify parent that the internal winner dialog was closed
-                try { emit('winner-dialog-closed'); } catch (e) { }
-            }
-        });
-
-        const closeWinnerDialog = () => {
-            showWinnerDialog.value = false;
-            // notify parent that the dialog was closed (keeps API consistent)
-            try { emit('close-winner-dialog'); } catch (e) { }
+        // フォーカス管理・overflow制御はMemberWinnerDialog側に移した。ここでは
+        // 外部向けの既存イベント契約(winner-dialog-shown/closed)だけを維持する。
+        const onWinnerDialogShown = () => {
+            try { emit('winner-dialog-shown'); } catch (e) { /* ignore */ }
+        };
+        const onWinnerDialogClosed = () => {
+            try { emit('winner-dialog-closed'); } catch (e) { /* ignore */ }
         };
 
         const handleStart = () => {
             emit('start');
         };
 
-        return { viewport, track, startButtonContainer, nextBtn, displayMembers, memberImageMap, defaultAvatar, start, stopAt, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerAssetId, winnerName, winnerTitle, winnerImageUrl, closeWinnerDialog };
+        return { viewport, track, startButtonContainer, displayMembers, memberImageMap, defaultAvatar, start, stopAt, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerAssetId, winnerName, winnerTitle, winnerImageUrl, onWinnerDialogShown, onWinnerDialogClosed };
     }
 };
 </script>
@@ -784,71 +717,5 @@ export default {
 
 .start-button.animating {
     animation: animating 0.5s ease-in-out infinite;
-}
-</style>
-
-<style scoped>
-/* Inline dialog styles copied/adjusted from draw-result-dialog for the embedded modal */
-.dialog-overlay {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 10000;
-}
-
-.dialog-content {
-    background: #000;
-    border-radius: 20px;
-    padding: 48px;
-    width: 760px;
-    box-sizing: border-box;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-    border: 2px solid #ffd700;
-}
-
-.dialog-title {
-    font-size: 3rem;
-    font-weight: 900;
-    margin-bottom: 18px;
-    color: #ffffff !important;
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
-    /* preserve explicit newlines and prevent automatic wrapping */
-    white-space: pre;
-    word-break: normal;
-}
-
-.dialog-image-wrap {
-    margin-bottom: 12px;
-}
-
-.modal-image {
-    max-width: 460px;
-    max-height: 460px;
-    object-fit: cover;
-    display: block;
-    margin: 0 auto 20px auto;
-    border-radius: 12px;
-    border: 3px solid #ffd700;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-}
-
-.dialog-actions {
-    margin-top: 18px;
-}
-
-.btn-primary {
-    background: linear-gradient(90deg, #ffd700, #ff6b35);
-    color: black;
-    padding: 20px 56px;
-    border-radius: 24px;
-    border: none;
-    cursor: pointer;
-    font-weight: 900;
-    font-size: 1.8rem;
-    box-shadow: 0 10px 30px rgba(255, 215, 0, 0.6), 0 0 30px rgba(255, 107, 53, 0.25);
 }
 </style>
