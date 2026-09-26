@@ -10,10 +10,14 @@ import { container } from "tsyringe";
 import {
   ICacheToken,
   IKeyValueStorageToken,
+  IUuidGeneratorToken,
+  ILockToken,
 } from "@octopus/infrastructures/interfaces";
 import type {
   ICache,
   IKeyValueStorage,
+  IUuidGenerator,
+  ILock,
 } from "@octopus/infrastructures/interfaces";
 import type {
   AddDriveDataArgs,
@@ -28,6 +32,7 @@ import type {
   ListJsonMetaDataArgs,
   ListMembersArgs,
   LoginParticipantArgs,
+  QuizGameEndpointName,
   RemoveDriveDataArgs,
   ResolveDeviceTokenArgs,
   StartAcceptingAnswersArgs,
@@ -35,6 +40,7 @@ import type {
   SubmitAnswerArgs,
   UpdateMemberArgs,
 } from "./quiz-api-contract";
+import { QUIZ_GAME_PREFIX } from "./quiz-api-contract";
 
 import {
   addQuizDriveData,
@@ -63,9 +69,9 @@ function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
     cache: container.resolve<ICache>(ICacheToken),
-    // GAS本番のUUID生成。node環境のテストではこの関数はGASグローバルに
-    // 触れないよう、各use-caseのテストで別途スタブを注入する。
-    generateToken: (): string => Utilities.getUuid(),
+    // node環境のテストではこの関数はDIコンテナに触れないよう、
+    // 各use-caseのテストで別途スタブを注入する。
+    generateToken: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
     now: (): number => Date.now(),
   };
 }
@@ -240,24 +246,16 @@ _quizGame_getAcceptanceState = async (args: GetAcceptanceStateArgs): Promise<str
 };
 
 _quizGame_submitAnswer = async (args: SubmitAnswerArgs): Promise<string> => {
-  // 複数参加者からの同時送信でread-modify-writeが競合しないようスクリプトロックで保護する。
-  // ドメインの排他制御とは無関係のGAS固有の関心事のため、use-case層には持ち込まずここで直接扱う。
-  const lock = LockService.getScriptLock();
+  // 複数参加者からの同時送信でread-modify-writeが競合しないよう排他制御で保護する。
+  // ドメインの排他制御とは無関係のインフラ固有の関心事のため、use-case層には持ち込まずここで直接扱う。
+  const lock = container.resolve<ILock>(ILockToken);
   try {
-    lock.waitLock(5000);
-  } catch {
-    return JSON.stringify({
-      status: "error",
-      message: "Server is busy, please try again.",
+    return await lock.withLock("quizGame:submitAnswer", 5000, async () => {
+      const result = await submitAnswer(resolveDeps(), args);
+      return JSON.stringify({ status: "success", data: result });
     });
-  }
-  try {
-    const result = await submitAnswer(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
-  } finally {
-    lock.releaseLock();
   }
 };
 
@@ -269,3 +267,27 @@ _quizGame_getAnswers = async (args: GetAnswersArgs): Promise<string> => {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
+
+/** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
+export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Promise<string>> = {
+  addDriveData: _quizGame_addDriveData,
+  getDriveMetaData: _quizGame_getDriveMetaData,
+  getDriveData: _quizGame_getDriveData,
+  removeDriveData: _quizGame_removeDriveData,
+  addJson: _quizGame_addJson,
+  getJson: _quizGame_getJson,
+  listJsonMetaData: _quizGame_listJsonMetaData,
+  listMembers: _quizGame_listMembers,
+  addMember: _quizGame_addMember,
+  updateMember: _quizGame_updateMember,
+  deleteMember: _quizGame_deleteMember,
+  loginParticipant: _quizGame_loginParticipant,
+  resolveDeviceToken: _quizGame_resolveDeviceToken,
+  startAcceptingAnswers: _quizGame_startAcceptingAnswers,
+  stopAcceptingAnswers: _quizGame_stopAcceptingAnswers,
+  getAcceptanceState: _quizGame_getAcceptanceState,
+  submitAnswer: _quizGame_submitAnswer,
+  getAnswers: _quizGame_getAnswers,
+};
+
+export { QUIZ_GAME_PREFIX };

@@ -6,15 +6,17 @@
  * から共有される単一の名簿として IKeyValueStorage に保存する。
  */
 import { container } from "tsyringe";
-import { IKeyValueStorageToken } from "@octopus/infrastructures/interfaces";
-import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
+import { IKeyValueStorageToken, IUuidGeneratorToken } from "@octopus/infrastructures/interfaces";
+import type { IKeyValueStorage, IUuidGenerator } from "@octopus/infrastructures/interfaces";
 import type {
   AddMemberArgs,
   DeleteMemberArgs,
   ListMembersArgs,
+  MemberDirectoryEndpointName,
   ReplaceAllMembersArgs,
   UpdateMemberArgs,
 } from "./member-directory-api-contract";
+import { MEMBER_DIRECTORY_PREFIX } from "./member-directory-api-contract";
 import {
   addMember,
   deleteMember,
@@ -26,7 +28,7 @@ import {
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
-    generateId: (): string => Utilities.getUuid(),
+    generateId: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
   };
 }
 
@@ -80,3 +82,14 @@ _memberDirectory_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promis
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
+
+/** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
+export const MEMBER_DIRECTORY_HANDLERS: Record<MemberDirectoryEndpointName, (args: any) => Promise<string>> = {
+  listMembers: _memberDirectory_listMembers,
+  addMember: _memberDirectory_addMember,
+  updateMember: _memberDirectory_updateMember,
+  deleteMember: _memberDirectory_deleteMember,
+  replaceAllMembers: _memberDirectory_replaceAllMembers,
+};
+
+export { MEMBER_DIRECTORY_PREFIX };
