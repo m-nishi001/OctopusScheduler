@@ -15,6 +15,12 @@
                     </button>
                 </li>
                 <li>
+                    <button class="menu-link" :class="{ active: props.currentTab === 'members' }"
+                        @click="setTab('members')">
+                        <span class="icon">👥</span> メンバーマスタ管理
+                    </button>
+                </li>
+                <li>
                     <button class="menu-link" :class="{ active: props.currentTab === 'keyboard-shortcuts' }"
                         @click="setTab('keyboard-shortcuts')">
                         <span class="icon">⌨️</span> キーボードショートカット設定
