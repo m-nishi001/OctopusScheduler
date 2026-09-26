@@ -1,0 +1,21 @@
+# wrangler.toml のテンプレート。`.clasp.example.json` と同じ位置付けで、
+# 実際に使う際はこのファイルを `wrangler.toml` としてコピーし、
+# 各 REPLACE_WITH_* を実際のリソースIDに置き換える(`wrangler.toml` はgitignore対象)。
+name = "octopus-scheduler"
+main = "dist/cloudflare/worker.js"
+compatibility_date = "2024-09-23"
+# AsyncLocalStorage(packages/infrastructures/src/cloudflare/request-context.ts)に必要。
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "dist/cloudflare/assets"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "octopus-scheduler-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "REPLACE_WITH_YOUR_R2_BUCKET_NAME"
