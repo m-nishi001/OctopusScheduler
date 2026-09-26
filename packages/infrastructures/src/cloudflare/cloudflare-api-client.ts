@@ -84,3 +84,10 @@ export class CloudflareApiClient implements IApiClient {
     }
   }
 }
+
+/**
+ * `@octopus/infrastructures/platform-api-client` 経由で解決される際の中立な名前。
+ * GAS実装(gas-api-client.ts)も同名でexportし、呼び出し側はビルド対象
+ * (GAS/Cloudflare)を意識せず同じ識別子で参照できるようにする。
+ */
+export { CloudflareApiClient as PlatformApiClient };
