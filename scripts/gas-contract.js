@@ -6,6 +6,7 @@
  *   - apps/app-scheduler/src/server/scheduler-api-contract.ts (octopusScheduler, doGet含む)
  *   - packages/game-jackpot/src/server/jackpot-api-contract.ts (jackpotGame)
  *   - packages/game-quiz/src/server/quiz-api-contract.ts (quizGame)
+ *   - packages/member-directory/src/server/member-directory-api-contract.ts (memberDirectory)
  *
  * 以下の両方から使うため、ここに集約する:
  *   - `packages/infrastructures/esbuild.config.js`（banner/footer のコード生成）
@@ -47,6 +48,12 @@ const CONTRACT_SOURCES = [
     prefixConst: "QUIZ_GAME_PREFIX",
     endpointsConst: "QUIZ_GAME_ENDPOINTS",
     apiTokenConst: "IQuizGameApiToken",
+  },
+  {
+    path: "packages/member-directory/src/server/member-directory-api-contract.ts",
+    prefixConst: "MEMBER_DIRECTORY_PREFIX",
+    endpointsConst: "MEMBER_DIRECTORY_ENDPOINTS",
+    apiTokenConst: "IMemberDirectoryApiToken",
   },
 ];
 

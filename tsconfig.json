@@ -7,6 +7,7 @@
     { "path": "./packages/game-jackpot" },
     { "path": "./packages/game-card" },
     { "path": "./packages/game-quiz" },
+    { "path": "./packages/member-directory" },
     { "path": "./apps/app-scheduler" }
   ]
 }
