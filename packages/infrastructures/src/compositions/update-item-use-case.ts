@@ -9,12 +9,12 @@ export interface UpdateItemUseCaseDeps {
   cache: ICache;
 }
 
-export function updateDriveData(
+export async function updateDriveData(
   deps: UpdateItemUseCaseDeps,
   driveData: DriveData
-): OperationResult<void> {
+): Promise<OperationResult<void>> {
   const itemId = driveData.metadata.driveDataId;
-  const guard = beginUpdate({ cache: deps.cache }, itemId);
+  const guard = await beginUpdate({ cache: deps.cache }, itemId);
   if (!guard.proceed) return guard.result;
 
   try {
@@ -26,14 +26,14 @@ export function updateDriveData(
     // 旧キーと新キーが異なる(=表示名が変わった)場合は、まず旧キーを削除する。
     // 以前は Drive 側の trash-and-recreate がこれを暗黙に行っていた。
     if (newKey !== oldKey) {
-      deps.storage.delete(oldKey);
+      await deps.storage.delete(oldKey);
     }
-    deps.storage.putBinary(newKey, contentBase64, driveData.fileKind);
+    await deps.storage.putBinary(newKey, contentBase64, driveData.fileKind);
 
-    commitUpdate({ cache: deps.cache }, itemId);
+    await commitUpdate({ cache: deps.cache }, itemId);
     return { status: "success" };
   } catch (error) {
-    abortUpdate({ cache: deps.cache }, itemId);
+    await abortUpdate({ cache: deps.cache }, itemId);
     return { status: "error", message: (error as Error).message };
   }
 }

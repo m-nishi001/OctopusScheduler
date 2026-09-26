@@ -12,14 +12,14 @@ const DEFAULT_FILE_NAME = "quizzes.json";
  * quizGame_getJson。既存挙動を保持: 設定不備・ファイル未存在・JSON解析失敗など
  * 想定される失敗のほぼ全てで、エラーにせず空配列で success を返す。
  */
-export function getJsonBlob(
+export async function getJsonBlob(
   deps: GetJsonBlobDeps,
   fileId?: string
-): { json: string } {
+): Promise<{ json: string }> {
   try {
     let namespace: string;
     try {
-      namespace = resolveFolderIdPreferringProvided(
+      namespace = await resolveFolderIdPreferringProvided(
         { kv: deps.storage },
         JSON_FOLDER_PROPERTY
       );
@@ -28,22 +28,22 @@ export function getJsonBlob(
     }
 
     if (fileId && fileId.trim() !== "") {
-      const direct = deps.storage.getContentAsText(fileId);
+      const direct = await deps.storage.getContentAsText(fileId);
       if (direct !== null) {
         return { json: direct };
       }
-      const byPrefix = deps.storage.listByPrefix(`${namespace}/${fileId}_`)[0];
+      const byPrefix = (await deps.storage.listByPrefix(`${namespace}/${fileId}_`))[0];
       if (byPrefix) {
-        const content = deps.storage.getContentAsText(byPrefix.key);
+        const content = await deps.storage.getContentAsText(byPrefix.key);
         if (content !== null) return { json: content };
       }
       // 見つからない場合は既定ファイルへフォールバックする(既存挙動)。
     }
 
-    const defaultFile = deps.storage.stat(`${namespace}/${DEFAULT_FILE_NAME}`);
+    const defaultFile = await deps.storage.stat(`${namespace}/${DEFAULT_FILE_NAME}`);
     if (!defaultFile) return { json: JSON.stringify([]) };
 
-    const content = deps.storage.getContentAsText(defaultFile.key);
+    const content = await deps.storage.getContentAsText(defaultFile.key);
     if (content === null) return { json: JSON.stringify([]) };
 
     let parsed: unknown;

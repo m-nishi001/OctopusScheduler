@@ -18,8 +18,8 @@ const INITIAL_STATE: RemoteControlState = {
   updatedAtMs: 0,
 };
 
-function readState(storage: IKeyValueStorage): RemoteControlState {
-  const raw = storage.get(REMOTE_CONTROL_KEY);
+async function readState(storage: IKeyValueStorage): Promise<RemoteControlState> {
+  const raw = await storage.get(REMOTE_CONTROL_KEY);
   if (!raw) return INITIAL_STATE;
   try {
     return JSON.parse(raw) as RemoteControlState;
@@ -28,28 +28,28 @@ function readState(storage: IKeyValueStorage): RemoteControlState {
   }
 }
 
-function writeState(
+async function writeState(
   storage: IKeyValueStorage,
   state: RemoteControlState
-): void {
-  storage.set(REMOTE_CONTROL_KEY, JSON.stringify(state));
+): Promise<void> {
+  await storage.set(REMOTE_CONTROL_KEY, JSON.stringify(state));
 }
 
 /**
  * 演出画面が今表示すべき画面を設定する。演出画面側はポーリングでこの値の
  * 変化を検知し、自ら router.push で遷移する。
  */
-export function setRemoteScreen(
+export async function setRemoteScreen(
   deps: RemoteControlDeps,
   args: { screen: JackpotRemoteScreen }
-): RemoteControlState {
-  const current = readState(deps.storage);
+): Promise<RemoteControlState> {
+  const current = await readState(deps.storage);
   const state: RemoteControlState = {
     ...current,
     screen: args.screen,
     updatedAtMs: deps.now(),
   };
-  writeState(deps.storage, state);
+  await writeState(deps.storage, state);
   return state;
 }
 
@@ -57,22 +57,22 @@ export function setRemoteScreen(
  * 「次へ」(本番画面でのEnterキー相当の進行操作)を1件発行する。actionSeqを
  * 1つ進めるだけで、進行先の具体的な意味は演出画面側のロジックに委ねる。
  */
-export function advanceRemoteAction(
+export async function advanceRemoteAction(
   deps: RemoteControlDeps
-): RemoteControlState {
-  const current = readState(deps.storage);
+): Promise<RemoteControlState> {
+  const current = await readState(deps.storage);
   const state: RemoteControlState = {
     ...current,
     actionSeq: current.actionSeq + 1,
     updatedAtMs: deps.now(),
   };
-  writeState(deps.storage, state);
+  await writeState(deps.storage, state);
   return state;
 }
 
 /** 演出画面・管理画面のポーリング用の軽量参照。 */
-export function getRemoteControlState(
+export async function getRemoteControlState(
   deps: RemoteControlDeps
-): RemoteControlState {
+): Promise<RemoteControlState> {
   return readState(deps.storage);
 }

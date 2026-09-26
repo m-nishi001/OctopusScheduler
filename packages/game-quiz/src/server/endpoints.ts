@@ -70,28 +70,28 @@ function resolveDeps() {
   };
 }
 
-declare let _quizGame_addDriveData: (args: AddDriveDataArgs) => string;
-declare let _quizGame_getDriveMetaData: (args: GetDriveMetaDataArgs) => string;
-declare let _quizGame_getDriveData: (args: GetDriveDataArgs) => string;
-declare let _quizGame_removeDriveData: (args: RemoveDriveDataArgs) => string;
-declare let _quizGame_addJson: (args: AddJsonArgs) => string;
-declare let _quizGame_getJson: (args: GetJsonArgs) => string;
-declare let _quizGame_listJsonMetaData: (args: ListJsonMetaDataArgs) => string;
-declare let _quizGame_listMembers: (args: ListMembersArgs) => string;
-declare let _quizGame_addMember: (args: AddMemberArgs) => string;
-declare let _quizGame_updateMember: (args: UpdateMemberArgs) => string;
-declare let _quizGame_deleteMember: (args: DeleteMemberArgs) => string;
-declare let _quizGame_loginParticipant: (args: LoginParticipantArgs) => string;
-declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => string;
-declare let _quizGame_startAcceptingAnswers: (args: StartAcceptingAnswersArgs) => string;
-declare let _quizGame_stopAcceptingAnswers: (args: StopAcceptingAnswersArgs) => string;
-declare let _quizGame_getAcceptanceState: (args: GetAcceptanceStateArgs) => string;
-declare let _quizGame_submitAnswer: (args: SubmitAnswerArgs) => string;
-declare let _quizGame_getAnswers: (args: GetAnswersArgs) => string;
+declare let _quizGame_addDriveData: (args: AddDriveDataArgs) => Promise<string>;
+declare let _quizGame_getDriveMetaData: (args: GetDriveMetaDataArgs) => Promise<string>;
+declare let _quizGame_getDriveData: (args: GetDriveDataArgs) => Promise<string>;
+declare let _quizGame_removeDriveData: (args: RemoveDriveDataArgs) => Promise<string>;
+declare let _quizGame_addJson: (args: AddJsonArgs) => Promise<string>;
+declare let _quizGame_getJson: (args: GetJsonArgs) => Promise<string>;
+declare let _quizGame_listJsonMetaData: (args: ListJsonMetaDataArgs) => Promise<string>;
+declare let _quizGame_listMembers: (args: ListMembersArgs) => Promise<string>;
+declare let _quizGame_addMember: (args: AddMemberArgs) => Promise<string>;
+declare let _quizGame_updateMember: (args: UpdateMemberArgs) => Promise<string>;
+declare let _quizGame_deleteMember: (args: DeleteMemberArgs) => Promise<string>;
+declare let _quizGame_loginParticipant: (args: LoginParticipantArgs) => Promise<string>;
+declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => Promise<string>;
+declare let _quizGame_startAcceptingAnswers: (args: StartAcceptingAnswersArgs) => Promise<string>;
+declare let _quizGame_stopAcceptingAnswers: (args: StopAcceptingAnswersArgs) => Promise<string>;
+declare let _quizGame_getAcceptanceState: (args: GetAcceptanceStateArgs) => Promise<string>;
+declare let _quizGame_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
+declare let _quizGame_getAnswers: (args: GetAnswersArgs) => Promise<string>;
 
-_quizGame_addDriveData = (args: AddDriveDataArgs): string => {
+_quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
   try {
-    const result = addQuizDriveData(resolveDeps(), args.driveData);
+    const result = await addQuizDriveData(resolveDeps(), args.driveData);
     // 既存挙動を保持: duplicate/error でも常に status:"success" として返す。
     return JSON.stringify({ status: "success", data: result.data! });
   } catch (error) {
@@ -99,45 +99,45 @@ _quizGame_addDriveData = (args: AddDriveDataArgs): string => {
   }
 };
 
-_quizGame_getDriveMetaData = (args: GetDriveMetaDataArgs): string => {
+_quizGame_getDriveMetaData = async (args: GetDriveMetaDataArgs): Promise<string> => {
   try {
-    const result = getQuizDriveMetadata(resolveDeps(), args.folderId);
+    const result = await getQuizDriveMetadata(resolveDeps(), args.folderId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_getDriveData = (args: GetDriveDataArgs): string => {
+_quizGame_getDriveData = async (args: GetDriveDataArgs): Promise<string> => {
   try {
-    const result = getQuizDriveData(resolveDeps(), args.dataId);
+    const result = await getQuizDriveData(resolveDeps(), args.dataId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_removeDriveData = (args: RemoveDriveDataArgs): string => {
+_quizGame_removeDriveData = async (args: RemoveDriveDataArgs): Promise<string> => {
   try {
-    removeQuizDriveData(resolveDeps(), args.dataId);
+    await removeQuizDriveData(resolveDeps(), args.dataId);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_addJson = (args: AddJsonArgs): string => {
+_quizGame_addJson = async (args: AddJsonArgs): Promise<string> => {
   try {
-    const result = addJsonBlob(resolveDeps(), args.driveJson);
+    const result = await addJsonBlob(resolveDeps(), args.driveJson);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_getJson = (args: GetJsonArgs): string => {
+_quizGame_getJson = async (args: GetJsonArgs): Promise<string> => {
   try {
-    const result = getJsonBlob(resolveDeps(), args.fileId);
+    const result = await getJsonBlob(resolveDeps(), args.fileId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     // 既存挙動を保持: 想定外のエラーでも空配列で成功を返す。
@@ -149,97 +149,97 @@ _quizGame_getJson = (args: GetJsonArgs): string => {
   }
 };
 
-_quizGame_listJsonMetaData = (args: ListJsonMetaDataArgs): string => {
+_quizGame_listJsonMetaData = async (args: ListJsonMetaDataArgs): Promise<string> => {
   try {
-    const result = listJsonBlobMetadata(resolveDeps(), args.folderId);
+    const result = await listJsonBlobMetadata(resolveDeps(), args.folderId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_listMembers = (_args: ListMembersArgs): string => {
+_quizGame_listMembers = async (_args: ListMembersArgs): Promise<string> => {
   try {
-    const result = listMembers(resolveDeps());
+    const result = await listMembers(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_addMember = (args: AddMemberArgs): string => {
+_quizGame_addMember = async (args: AddMemberArgs): Promise<string> => {
   try {
-    const result = addMember(resolveDeps(), args);
+    const result = await addMember(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_updateMember = (args: UpdateMemberArgs): string => {
+_quizGame_updateMember = async (args: UpdateMemberArgs): Promise<string> => {
   try {
-    const result = updateMember(resolveDeps(), args);
+    const result = await updateMember(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_deleteMember = (args: DeleteMemberArgs): string => {
+_quizGame_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
   try {
-    deleteMember(resolveDeps(), args.userId);
+    await deleteMember(resolveDeps(), args.userId);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_loginParticipant = (args: LoginParticipantArgs): string => {
+_quizGame_loginParticipant = async (args: LoginParticipantArgs): Promise<string> => {
   try {
-    const result = loginParticipant(resolveDeps(), args);
+    const result = await loginParticipant(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_resolveDeviceToken = (args: ResolveDeviceTokenArgs): string => {
+_quizGame_resolveDeviceToken = async (args: ResolveDeviceTokenArgs): Promise<string> => {
   try {
-    const result = resolveDeviceToken(resolveDeps(), args);
+    const result = await resolveDeviceToken(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_startAcceptingAnswers = (args: StartAcceptingAnswersArgs): string => {
+_quizGame_startAcceptingAnswers = async (args: StartAcceptingAnswersArgs): Promise<string> => {
   try {
-    const result = startAcceptingAnswers(resolveDeps(), args);
+    const result = await startAcceptingAnswers(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_stopAcceptingAnswers = (args: StopAcceptingAnswersArgs): string => {
+_quizGame_stopAcceptingAnswers = async (args: StopAcceptingAnswersArgs): Promise<string> => {
   try {
-    const result = stopAcceptingAnswers(resolveDeps(), args);
+    const result = await stopAcceptingAnswers(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_getAcceptanceState = (args: GetAcceptanceStateArgs): string => {
+_quizGame_getAcceptanceState = async (args: GetAcceptanceStateArgs): Promise<string> => {
   try {
-    const result = getAcceptanceState(resolveDeps(), args);
+    const result = await getAcceptanceState(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_quizGame_submitAnswer = (args: SubmitAnswerArgs): string => {
+_quizGame_submitAnswer = async (args: SubmitAnswerArgs): Promise<string> => {
   // 複数参加者からの同時送信でread-modify-writeが競合しないようスクリプトロックで保護する。
   // ドメインの排他制御とは無関係のGAS固有の関心事のため、use-case層には持ち込まずここで直接扱う。
   const lock = LockService.getScriptLock();
@@ -252,7 +252,7 @@ _quizGame_submitAnswer = (args: SubmitAnswerArgs): string => {
     });
   }
   try {
-    const result = submitAnswer(resolveDeps(), args);
+    const result = await submitAnswer(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
@@ -261,9 +261,9 @@ _quizGame_submitAnswer = (args: SubmitAnswerArgs): string => {
   }
 };
 
-_quizGame_getAnswers = (args: GetAnswersArgs): string => {
+_quizGame_getAnswers = async (args: GetAnswersArgs): Promise<string> => {
   try {
-    const result = getAnswers(resolveDeps(), args);
+    const result = await getAnswers(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });

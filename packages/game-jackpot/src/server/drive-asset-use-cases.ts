@@ -28,18 +28,18 @@ export interface DriveAssetUseCaseDeps {
 
 const ASSET_FOLDER_PROPERTY = "jackpot-game-asset-folder";
 
-export function addJackpotDriveData(
+export async function addJackpotDriveData(
   deps: DriveAssetUseCaseDeps,
   driveData: DriveData
-): OperationResult<DriveMetadata> {
+): Promise<OperationResult<DriveMetadata>> {
   return addDriveDataGeneric(deps, driveData);
 }
 
-export function getJackpotDriveMetadata(
+export async function getJackpotDriveMetadata(
   deps: DriveAssetUseCaseDeps,
   folderId?: string
-): DriveMetadata[] {
-  const resolved = resolveFolderIdPreferringProvided(
+): Promise<DriveMetadata[]> {
+  const resolved = await resolveFolderIdPreferringProvided(
     { kv: deps.storage },
     ASSET_FOLDER_PROPERTY,
     folderId
@@ -47,9 +47,9 @@ export function getJackpotDriveMetadata(
   return getDriveMetadataGeneric(deps, resolved);
 }
 
-export function getJackpotDriveData(
+export async function getJackpotDriveData(
   deps: DriveAssetUseCaseDeps,
   dataId: string
-): DriveData | null {
+): Promise<DriveData | null> {
   return getDriveDataGeneric(deps, dataId);
 }

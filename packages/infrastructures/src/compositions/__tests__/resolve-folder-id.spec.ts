@@ -6,46 +6,46 @@ import {
 } from "../resolve-folder-id";
 
 describe("resolveFolderIdIgnoringProvided", () => {
-  it("always uses the configured property, ignoring the provided id", () => {
+  it("always uses the configured property, ignoring the provided id", async () => {
     const kv = new InMemoryKeyValueStorage();
-    kv.set("asset-folder", "configured-folder");
+    await kv.set("asset-folder", "configured-folder");
 
     expect(
-      resolveFolderIdIgnoringProvided({ kv }, "asset-folder")
+      await resolveFolderIdIgnoringProvided({ kv }, "asset-folder")
     ).toBe("configured-folder");
   });
 
-  it("throws when the property is not configured", () => {
+  it("throws when the property is not configured", async () => {
     const kv = new InMemoryKeyValueStorage();
-    expect(() => resolveFolderIdIgnoringProvided({ kv }, "asset-folder")).toThrow(
+    await expect(resolveFolderIdIgnoringProvided({ kv }, "asset-folder")).rejects.toThrow(
       /asset-folder/
     );
   });
 });
 
 describe("resolveFolderIdPreferringProvided", () => {
-  it("prefers the provided id over the configured property", () => {
+  it("prefers the provided id over the configured property", async () => {
     const kv = new InMemoryKeyValueStorage();
-    kv.set("asset-folder", "configured-folder");
+    await kv.set("asset-folder", "configured-folder");
 
     expect(
-      resolveFolderIdPreferringProvided({ kv }, "asset-folder", "provided-folder")
+      await resolveFolderIdPreferringProvided({ kv }, "asset-folder", "provided-folder")
     ).toBe("provided-folder");
   });
 
-  it("falls back to the configured property when none is provided", () => {
+  it("falls back to the configured property when none is provided", async () => {
     const kv = new InMemoryKeyValueStorage();
-    kv.set("asset-folder", "configured-folder");
+    await kv.set("asset-folder", "configured-folder");
 
     expect(
-      resolveFolderIdPreferringProvided({ kv }, "asset-folder")
+      await resolveFolderIdPreferringProvided({ kv }, "asset-folder")
     ).toBe("configured-folder");
   });
 
-  it("throws when neither is available", () => {
+  it("throws when neither is available", async () => {
     const kv = new InMemoryKeyValueStorage();
-    expect(() =>
+    await expect(
       resolveFolderIdPreferringProvided({ kv }, "asset-folder")
-    ).toThrow(/asset-folder/);
+    ).rejects.toThrow(/asset-folder/);
   });
 });

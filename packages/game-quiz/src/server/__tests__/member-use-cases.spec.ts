@@ -8,54 +8,54 @@ import {
 } from "../member-use-cases";
 
 describe("member-use-cases", () => {
-  it("returns an empty list when no members are registered", () => {
+  it("returns an empty list when no members are registered", async () => {
     const storage = new InMemoryKeyValueStorage();
-    expect(listMembers({ storage })).toEqual([]);
+    expect(await listMembers({ storage })).toEqual([]);
   });
 
-  it("adds a member and lists it back", () => {
+  it("adds a member and lists it back", async () => {
     const storage = new InMemoryKeyValueStorage();
-    const created = addMember({ storage }, { userId: "u1", displayName: "太郎" });
+    const created = await addMember({ storage }, { userId: "u1", displayName: "太郎" });
     expect(created).toEqual({ userId: "u1", displayName: "太郎" });
-    expect(listMembers({ storage })).toEqual([{ userId: "u1", displayName: "太郎" }]);
+    expect(await listMembers({ storage })).toEqual([{ userId: "u1", displayName: "太郎" }]);
   });
 
-  it("rejects adding a member with a duplicate userId", () => {
+  it("rejects adding a member with a duplicate userId", async () => {
     const storage = new InMemoryKeyValueStorage();
-    addMember({ storage }, { userId: "u1", displayName: "太郎" });
-    expect(() => addMember({ storage }, { userId: "u1", displayName: "次郎" })).toThrow();
+    await addMember({ storage }, { userId: "u1", displayName: "太郎" });
+    await expect(addMember({ storage }, { userId: "u1", displayName: "次郎" })).rejects.toThrow();
   });
 
-  it("rejects an empty userId", () => {
+  it("rejects an empty userId", async () => {
     const storage = new InMemoryKeyValueStorage();
-    expect(() => addMember({ storage }, { userId: "  ", displayName: "太郎" })).toThrow();
+    await expect(addMember({ storage }, { userId: "  ", displayName: "太郎" })).rejects.toThrow();
   });
 
-  it("updates an existing member's displayName", () => {
+  it("updates an existing member's displayName", async () => {
     const storage = new InMemoryKeyValueStorage();
-    addMember({ storage }, { userId: "u1", displayName: "太郎" });
-    const updated = updateMember({ storage }, { userId: "u1", displayName: "太郎(改)" });
+    await addMember({ storage }, { userId: "u1", displayName: "太郎" });
+    const updated = await updateMember({ storage }, { userId: "u1", displayName: "太郎(改)" });
     expect(updated).toEqual({ userId: "u1", displayName: "太郎(改)" });
-    expect(listMembers({ storage })).toEqual([{ userId: "u1", displayName: "太郎(改)" }]);
+    expect(await listMembers({ storage })).toEqual([{ userId: "u1", displayName: "太郎(改)" }]);
   });
 
-  it("throws when updating a member that does not exist", () => {
+  it("throws when updating a member that does not exist", async () => {
     const storage = new InMemoryKeyValueStorage();
-    expect(() =>
+    await expect(
       updateMember({ storage }, { userId: "missing", displayName: "x" })
-    ).toThrow();
+    ).rejects.toThrow();
   });
 
-  it("deletes a member", () => {
+  it("deletes a member", async () => {
     const storage = new InMemoryKeyValueStorage();
-    addMember({ storage }, { userId: "u1", displayName: "太郎" });
-    addMember({ storage }, { userId: "u2", displayName: "次郎" });
-    deleteMember({ storage }, "u1");
-    expect(listMembers({ storage })).toEqual([{ userId: "u2", displayName: "次郎" }]);
+    await addMember({ storage }, { userId: "u1", displayName: "太郎" });
+    await addMember({ storage }, { userId: "u2", displayName: "次郎" });
+    await deleteMember({ storage }, "u1");
+    expect(await listMembers({ storage })).toEqual([{ userId: "u2", displayName: "次郎" }]);
   });
 
-  it("does not throw when deleting a member that does not exist", () => {
+  it("does not throw when deleting a member that does not exist", async () => {
     const storage = new InMemoryKeyValueStorage();
-    expect(() => deleteMember({ storage }, "missing")).not.toThrow();
+    await expect(deleteMember({ storage }, "missing")).resolves.not.toThrow();
   });
 });

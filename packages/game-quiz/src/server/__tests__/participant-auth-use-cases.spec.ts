@@ -9,70 +9,70 @@ function stubTokenGenerator(tokens: string[]) {
 }
 
 describe("participant-auth-use-cases", () => {
-  it("logs in a registered member and issues a device token", () => {
+  it("logs in a registered member and issues a device token", async () => {
     const storage = new InMemoryKeyValueStorage();
-    addMember({ storage }, { userId: "u1", displayName: "太郎" });
+    await addMember({ storage }, { userId: "u1", displayName: "太郎" });
     const generateToken = stubTokenGenerator(["tok-1"]);
 
-    const session = loginParticipant({ storage, generateToken }, { userId: "u1" });
+    const session = await loginParticipant({ storage, generateToken }, { userId: "u1" });
 
     expect(session).toEqual({ token: "tok-1", userId: "u1", displayName: "太郎" });
   });
 
-  it("rejects login for an unregistered userId", () => {
+  it("rejects login for an unregistered userId", async () => {
     const storage = new InMemoryKeyValueStorage();
     const generateToken = stubTokenGenerator(["tok-1"]);
 
-    expect(() =>
+    await expect(
       loginParticipant({ storage, generateToken }, { userId: "unknown" })
-    ).toThrow();
+    ).rejects.toThrow();
   });
 
-  it("resolves a previously issued device token back to the participant", () => {
+  it("resolves a previously issued device token back to the participant", async () => {
     const storage = new InMemoryKeyValueStorage();
-    addMember({ storage }, { userId: "u1", displayName: "太郎" });
+    await addMember({ storage }, { userId: "u1", displayName: "太郎" });
     const generateToken = stubTokenGenerator(["tok-1"]);
-    loginParticipant({ storage, generateToken }, { userId: "u1" });
+    await loginParticipant({ storage, generateToken }, { userId: "u1" });
 
-    const session = resolveDeviceToken({ storage, generateToken }, { token: "tok-1" });
+    const session = await resolveDeviceToken({ storage, generateToken }, { token: "tok-1" });
 
     expect(session).toEqual({ token: "tok-1", userId: "u1", displayName: "太郎" });
   });
 
-  it("rejects an unknown or expired device token", () => {
+  it("rejects an unknown or expired device token", async () => {
     const storage = new InMemoryKeyValueStorage();
     const generateToken = stubTokenGenerator([]);
 
-    expect(() =>
+    await expect(
       resolveDeviceToken({ storage, generateToken }, { token: "does-not-exist" })
-    ).toThrow();
+    ).rejects.toThrow();
   });
 
-  it("rejects a device token whose member was since deleted", () => {
+  it("rejects a device token whose member was since deleted", async () => {
     const storage = new InMemoryKeyValueStorage();
-    addMember({ storage }, { userId: "u1", displayName: "太郎" });
+    await addMember({ storage }, { userId: "u1", displayName: "太郎" });
     const generateToken = stubTokenGenerator(["tok-1"]);
-    loginParticipant({ storage, generateToken }, { userId: "u1" });
-    storage.set("quiz-game-members", JSON.stringify([]));
+    await loginParticipant({ storage, generateToken }, { userId: "u1" });
+    await storage.set("quiz-game-members", JSON.stringify([]));
 
-    expect(() =>
+    await expect(
       resolveDeviceToken({ storage, generateToken }, { token: "tok-1" })
-    ).toThrow();
+    ).rejects.toThrow();
   });
 
-  it("issues distinct tokens for repeated logins of the same member", () => {
+  it("issues distinct tokens for repeated logins of the same member", async () => {
     const storage = new InMemoryKeyValueStorage();
-    addMember({ storage }, { userId: "u1", displayName: "太郎" });
+    await addMember({ storage }, { userId: "u1", displayName: "太郎" });
     const generateToken = stubTokenGenerator(["tok-1", "tok-2"]);
 
-    const first = loginParticipant({ storage, generateToken }, { userId: "u1" });
-    const second = loginParticipant({ storage, generateToken }, { userId: "u1" });
+    const first = await loginParticipant({ storage, generateToken }, { userId: "u1" });
+    const second = await loginParticipant({ storage, generateToken }, { userId: "u1" });
 
     expect(first.token).not.toEqual(second.token);
-    expect(resolveDeviceToken({ storage, generateToken }, { token: first.token }).userId).toBe(
+    expect((await resolveDeviceToken({ storage, generateToken }, { token: first.token })).userId).toBe(
       "u1"
     );
-    expect(resolveDeviceToken({ storage, generateToken }, { token: second.token }).userId).toBe(
+    expect((await resolveDeviceToken({ storage, generateToken }, { token: second.token })).userId).toBe(
       "u1"
     );
   });

@@ -9,22 +9,22 @@ export interface AddItemUseCaseDeps {
   cache: ICache;
 }
 
-export function addDriveData(
+export async function addDriveData(
   deps: AddItemUseCaseDeps,
   driveData: DriveData
-): OperationResult<DriveMetadata> {
+): Promise<OperationResult<DriveMetadata>> {
   const itemId = driveData.metadata.driveDataId;
-  const guard = beginSave({ cache: deps.cache }, itemId);
+  const guard = await beginSave({ cache: deps.cache }, itemId);
   if (!guard.proceed) return guard.result;
 
   try {
     const contentBase64 = extractBase64FromDataUrl(driveData.fileDataUrl || "");
     const key = makeKey(driveData.parentFolderId, encodeLocalName(itemId, driveData.fileName));
-    const meta = deps.storage.putBinary(key, contentBase64, driveData.fileKind);
-    commitSave({ cache: deps.cache }, itemId);
+    const meta = await deps.storage.putBinary(key, contentBase64, driveData.fileKind);
+    await commitSave({ cache: deps.cache }, itemId);
     return { status: "success", data: toDriveMetadata(meta, itemId) };
   } catch (error) {
-    abortSave({ cache: deps.cache }, itemId);
+    await abortSave({ cache: deps.cache }, itemId);
     return { status: "error", message: (error as Error).message };
   }
 }

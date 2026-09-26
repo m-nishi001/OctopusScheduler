@@ -15,11 +15,11 @@ const JSON_FOLDER_PROPERTY = "quiz-game-json-folder";
  * quizGame_listJsonMetaData。JSONファイルに限定したものではなく、
  * 解決したフォルダの汎用メタデータ一覧(getDriveMetadata と同じ処理)を返す(既存挙動)。
  */
-export function listJsonBlobMetadata(
+export async function listJsonBlobMetadata(
   deps: ListJsonBlobMetadataDeps,
   folderId?: string
-): DriveMetadata[] {
-  const resolved = resolveFolderIdPreferringProvided(
+): Promise<DriveMetadata[]> {
+  const resolved = await resolveFolderIdPreferringProvided(
     { kv: deps.storage },
     JSON_FOLDER_PROPERTY,
     folderId

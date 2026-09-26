@@ -30,51 +30,51 @@ function resolveDeps() {
   };
 }
 
-declare let _memberDirectory_listMembers: (args: ListMembersArgs) => string;
-declare let _memberDirectory_addMember: (args: AddMemberArgs) => string;
-declare let _memberDirectory_updateMember: (args: UpdateMemberArgs) => string;
-declare let _memberDirectory_deleteMember: (args: DeleteMemberArgs) => string;
-declare let _memberDirectory_replaceAllMembers: (args: ReplaceAllMembersArgs) => string;
+declare let _memberDirectory_listMembers: (args: ListMembersArgs) => Promise<string>;
+declare let _memberDirectory_addMember: (args: AddMemberArgs) => Promise<string>;
+declare let _memberDirectory_updateMember: (args: UpdateMemberArgs) => Promise<string>;
+declare let _memberDirectory_deleteMember: (args: DeleteMemberArgs) => Promise<string>;
+declare let _memberDirectory_replaceAllMembers: (args: ReplaceAllMembersArgs) => Promise<string>;
 
-_memberDirectory_listMembers = (_args: ListMembersArgs): string => {
+_memberDirectory_listMembers = async (_args: ListMembersArgs): Promise<string> => {
   try {
-    const result = listMembers(resolveDeps());
+    const result = await listMembers(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_memberDirectory_addMember = (args: AddMemberArgs): string => {
+_memberDirectory_addMember = async (args: AddMemberArgs): Promise<string> => {
   try {
-    const result = addMember(resolveDeps(), args);
+    const result = await addMember(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_memberDirectory_updateMember = (args: UpdateMemberArgs): string => {
+_memberDirectory_updateMember = async (args: UpdateMemberArgs): Promise<string> => {
   try {
-    const result = updateMember(resolveDeps(), args);
+    const result = await updateMember(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_memberDirectory_deleteMember = (args: DeleteMemberArgs): string => {
+_memberDirectory_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
   try {
-    deleteMember(resolveDeps(), args.id);
+    await deleteMember(resolveDeps(), args.id);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_memberDirectory_replaceAllMembers = (args: ReplaceAllMembersArgs): string => {
+_memberDirectory_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promise<string> => {
   try {
-    const result = replaceAllMembers(resolveDeps(), args.members);
+    const result = await replaceAllMembers(resolveDeps(), args.members);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });

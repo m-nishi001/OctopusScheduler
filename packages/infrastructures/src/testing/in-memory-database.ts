@@ -10,12 +10,12 @@ export class InMemoryDataBase implements IDataBase {
     this.collections.set(name, rows);
   }
 
-  listCollections(): string[] {
+  async listCollections(): Promise<string[]> {
     if (!this.dataBaseId) return [];
     return Array.from(this.collections.keys());
   }
 
-  getCollection(name: string): DataCollection | null {
+  async getCollection(name: string): Promise<DataCollection | null> {
     const rows = this.collections.get(name);
     if (!rows) return null;
     return { name, rows };

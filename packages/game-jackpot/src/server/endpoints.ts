@@ -37,18 +37,18 @@ function resolveDeps() {
   };
 }
 
-declare let _jackpotGame_addDriveData: (driveData: DriveData) => string;
-declare let _jackpotGame_getDriveMetaData: (folderId?: string) => string;
-declare let _jackpotGame_getDriveData: (dataId: string) => string;
-declare let _jackpotGame_addJson: (driveJson: DriveJsonData) => string;
-declare let _jackpotGame_getJson: (fileId?: string) => string;
-declare let _jackpotGame_setRemoteScreen: (screen: JackpotRemoteScreen) => string;
-declare let _jackpotGame_advanceRemoteAction: () => string;
-declare let _jackpotGame_getRemoteControlState: () => string;
+declare let _jackpotGame_addDriveData: (driveData: DriveData) => Promise<string>;
+declare let _jackpotGame_getDriveMetaData: (folderId?: string) => Promise<string>;
+declare let _jackpotGame_getDriveData: (dataId: string) => Promise<string>;
+declare let _jackpotGame_addJson: (driveJson: DriveJsonData) => Promise<string>;
+declare let _jackpotGame_getJson: (fileId?: string) => Promise<string>;
+declare let _jackpotGame_setRemoteScreen: (screen: JackpotRemoteScreen) => Promise<string>;
+declare let _jackpotGame_advanceRemoteAction: () => Promise<string>;
+declare let _jackpotGame_getRemoteControlState: () => Promise<string>;
 
-_jackpotGame_addDriveData = (driveData: DriveData): string => {
+_jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
   try {
-    const result = addJackpotDriveData(resolveDeps(), driveData);
+    const result = await addJackpotDriveData(resolveDeps(), driveData);
     // 既存挙動を保持: duplicate/error でも常に status:"success" として返す。
     return JSON.stringify({ status: "success", data: result.data! });
   } catch (error) {
@@ -56,36 +56,36 @@ _jackpotGame_addDriveData = (driveData: DriveData): string => {
   }
 };
 
-_jackpotGame_getDriveMetaData = (folderId?: string): string => {
+_jackpotGame_getDriveMetaData = async (folderId?: string): Promise<string> => {
   try {
-    const result = getJackpotDriveMetadata(resolveDeps(), folderId);
+    const result = await getJackpotDriveMetadata(resolveDeps(), folderId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_jackpotGame_getDriveData = (dataId: string): string => {
+_jackpotGame_getDriveData = async (dataId: string): Promise<string> => {
   try {
-    const result = getJackpotDriveData(resolveDeps(), dataId);
+    const result = await getJackpotDriveData(resolveDeps(), dataId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_jackpotGame_addJson = (driveJson: DriveJsonData): string => {
+_jackpotGame_addJson = async (driveJson: DriveJsonData): Promise<string> => {
   try {
-    const result = addJsonBlob(resolveDeps(), driveJson);
+    const result = await addJsonBlob(resolveDeps(), driveJson);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_jackpotGame_getJson = (fileId?: string): string => {
+_jackpotGame_getJson = async (fileId?: string): Promise<string> => {
   try {
-    const result = getJsonBlob(resolveDeps(), fileId);
+    const result = await getJsonBlob(resolveDeps(), fileId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     // 既存挙動を保持: 想定外のエラーでも空配列で成功を返す。
@@ -97,27 +97,27 @@ _jackpotGame_getJson = (fileId?: string): string => {
   }
 };
 
-_jackpotGame_setRemoteScreen = (screen: JackpotRemoteScreen): string => {
+_jackpotGame_setRemoteScreen = async (screen: JackpotRemoteScreen): Promise<string> => {
   try {
-    const result = setRemoteScreen(resolveDeps(), { screen });
+    const result = await setRemoteScreen(resolveDeps(), { screen });
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_jackpotGame_advanceRemoteAction = (): string => {
+_jackpotGame_advanceRemoteAction = async (): Promise<string> => {
   try {
-    const result = advanceRemoteAction(resolveDeps());
+    const result = await advanceRemoteAction(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
-_jackpotGame_getRemoteControlState = (): string => {
+_jackpotGame_getRemoteControlState = async (): Promise<string> => {
   try {
-    const result = getRemoteControlState(resolveDeps());
+    const result = await getRemoteControlState(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
