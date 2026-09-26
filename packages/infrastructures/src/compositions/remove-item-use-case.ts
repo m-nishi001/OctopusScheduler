@@ -8,16 +8,16 @@ export interface RemoveItemUseCaseDeps {
   cache: ICache;
 }
 
-export function removeDriveData(
+export async function removeDriveData(
   deps: RemoveItemUseCaseDeps,
   storageRef: string
-): void {
+): Promise<void> {
   try {
-    const deleted = deps.storage.delete(storageRef);
+    const deleted = await deps.storage.delete(storageRef);
     if (deleted) {
       // キーから復元した itemId でキャッシュをクリアする(渡された storageRef ではない)。
       const { localName } = splitKey(deleted.key);
-      clearDedupeState({ cache: deps.cache }, decodeItemId(localName));
+      await clearDedupeState({ cache: deps.cache }, decodeItemId(localName));
     }
   } catch {
     // ファイルが見つからない場合は無視する(既存挙動)。

@@ -12,12 +12,12 @@ export interface GetItemUseCaseDeps {
   storage: IKeyValueStorage;
 }
 
-export function getDriveData(
+export async function getDriveData(
   deps: GetItemUseCaseDeps,
   storageRef: string
-): DriveData | null {
+): Promise<DriveData | null> {
   try {
-    const content = deps.storage.getContent(storageRef);
+    const content = await deps.storage.getContent(storageRef);
     if (!content) return null;
 
     const { namespace, localName } = splitKey(content.meta.key);

@@ -6,9 +6,10 @@ export interface GetItemMetadataUseCaseDeps {
   storage: IKeyValueStorage;
 }
 
-export function getDriveMetadata(
+export async function getDriveMetadata(
   deps: GetItemMetadataUseCaseDeps,
   namespace: string
-): DriveMetadata[] {
-  return deps.storage.listByPrefix(`${namespace}/`).map((meta) => toDriveMetadata(meta));
+): Promise<DriveMetadata[]> {
+  const items = await deps.storage.listByPrefix(`${namespace}/`);
+  return items.map((meta) => toDriveMetadata(meta));
 }

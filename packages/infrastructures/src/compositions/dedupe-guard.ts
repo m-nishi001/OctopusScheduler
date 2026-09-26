@@ -17,11 +17,11 @@ export type DedupeCheckResult =
   | { proceed: true }
   | { proceed: false; result: OperationResult<never> };
 
-export function beginSave(
+export async function beginSave(
   deps: DedupeGuardDeps,
   itemId: string
-): DedupeCheckResult {
-  const currentStatus = deps.cache.get(itemId);
+): Promise<DedupeCheckResult> {
+  const currentStatus = await deps.cache.get(itemId);
   if (currentStatus === "saved") {
     return {
       proceed: false,
@@ -40,23 +40,23 @@ export function beginSave(
       },
     };
   }
-  deps.cache.put(itemId, "saving", TTL_SECONDS);
+  await deps.cache.put(itemId, "saving", TTL_SECONDS);
   return { proceed: true };
 }
 
-export function commitSave(deps: DedupeGuardDeps, itemId: string): void {
-  deps.cache.put(itemId, "saved", TTL_SECONDS);
+export async function commitSave(deps: DedupeGuardDeps, itemId: string): Promise<void> {
+  await deps.cache.put(itemId, "saved", TTL_SECONDS);
 }
 
-export function abortSave(deps: DedupeGuardDeps, itemId: string): void {
-  deps.cache.remove(itemId);
+export async function abortSave(deps: DedupeGuardDeps, itemId: string): Promise<void> {
+  await deps.cache.remove(itemId);
 }
 
-export function beginUpdate(
+export async function beginUpdate(
   deps: DedupeGuardDeps,
   itemId: string
-): DedupeCheckResult {
-  const currentStatus = deps.cache.get(itemId);
+): Promise<DedupeCheckResult> {
+  const currentStatus = await deps.cache.get(itemId);
   if (currentStatus !== "saved") {
     return {
       proceed: false,
@@ -66,19 +66,19 @@ export function beginUpdate(
       },
     };
   }
-  deps.cache.put(itemId, "updating", TTL_SECONDS);
+  await deps.cache.put(itemId, "updating", TTL_SECONDS);
   return { proceed: true };
 }
 
-export function commitUpdate(deps: DedupeGuardDeps, itemId: string): void {
-  deps.cache.put(itemId, "saved", TTL_SECONDS);
+export async function commitUpdate(deps: DedupeGuardDeps, itemId: string): Promise<void> {
+  await deps.cache.put(itemId, "saved", TTL_SECONDS);
 }
 
-export function abortUpdate(deps: DedupeGuardDeps, itemId: string): void {
-  deps.cache.remove(itemId);
+export async function abortUpdate(deps: DedupeGuardDeps, itemId: string): Promise<void> {
+  await deps.cache.remove(itemId);
 }
 
 /** removeDriveData から呼ぶ。保存状態を無条件でクリアする。 */
-export function clearDedupeState(deps: DedupeGuardDeps, itemId: string): void {
-  deps.cache.remove(itemId);
+export async function clearDedupeState(deps: DedupeGuardDeps, itemId: string): Promise<void> {
+  await deps.cache.remove(itemId);
 }

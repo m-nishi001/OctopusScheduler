@@ -11,12 +11,12 @@ export interface FolderResolverDeps {
   kv: IKeyValueStorage;
 }
 
-function resolve(
+async function resolve(
   deps: FolderResolverDeps,
   propertyKey: string,
   providedFolderId: string | undefined
-): string {
-  const folderId = providedFolderId || deps.kv.get(propertyKey) || "";
+): Promise<string> {
+  const folderId = providedFolderId || (await deps.kv.get(propertyKey)) || "";
   if (!folderId) {
     throw new Error(
       `ScriptProperties '${propertyKey}' is not configured and no parentFolderId was provided.`
@@ -26,18 +26,18 @@ function resolve(
 }
 
 /** クライアント指定の値を無視し、常にプロパティから解決する。 */
-export function resolveFolderIdIgnoringProvided(
+export async function resolveFolderIdIgnoringProvided(
   deps: FolderResolverDeps,
   propertyKey: string
-): string {
+): Promise<string> {
   return resolve(deps, propertyKey, undefined);
 }
 
 /** クライアント指定の値があれば優先し、無ければプロパティから解決する。 */
-export function resolveFolderIdPreferringProvided(
+export async function resolveFolderIdPreferringProvided(
   deps: FolderResolverDeps,
   propertyKey: string,
   providedFolderId?: string
-): string {
+): Promise<string> {
   return resolve(deps, propertyKey, providedFolderId);
 }
