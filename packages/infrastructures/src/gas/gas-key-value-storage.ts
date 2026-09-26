@@ -15,11 +15,11 @@ import type {
  */
 @injectable()
 export class GasKeyValueStorage implements IKeyValueStorage {
-  get(key: string): string | null {
+  async get(key: string): Promise<string | null> {
     return PropertiesService.getScriptProperties().getProperty(key);
   }
 
-  set(key: string, value: string): void {
+  async set(key: string, value: string): Promise<void> {
     PropertiesService.getScriptProperties().setProperty(key, value);
   }
 
@@ -60,18 +60,18 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     return this.toMeta(file, namespace, localName);
   }
 
-  putText(key: string, content: string, mimeType: string): StoredItemMeta {
+  async putText(key: string, content: string, mimeType: string): Promise<StoredItemMeta> {
     const { localName } = this.splitKey(key);
     return this.upsert(key, Utilities.newBlob(content, mimeType, localName));
   }
 
-  putBinary(key: string, contentBase64: string, mimeType: string): StoredItemMeta {
+  async putBinary(key: string, contentBase64: string, mimeType: string): Promise<StoredItemMeta> {
     const { localName } = this.splitKey(key);
     const bytes = Utilities.base64Decode(contentBase64);
     return this.upsert(key, Utilities.newBlob(bytes, mimeType, localName));
   }
 
-  getContent(key: string): StoredItemContent | null {
+  async getContent(key: string): Promise<StoredItemContent | null> {
     try {
       const { namespace, localName } = this.splitKey(key);
       const files = DriveApp.getFolderById(namespace).getFilesByName(localName);
@@ -86,7 +86,7 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     }
   }
 
-  getContentAsText(key: string): string | null {
+  async getContentAsText(key: string): Promise<string | null> {
     try {
       const { namespace, localName } = this.splitKey(key);
       const files = DriveApp.getFolderById(namespace).getFilesByName(localName);
@@ -97,7 +97,7 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     }
   }
 
-  stat(key: string): StoredItemMeta | null {
+  async stat(key: string): Promise<StoredItemMeta | null> {
     try {
       const { namespace, localName } = this.splitKey(key);
       const files = DriveApp.getFolderById(namespace).getFilesByName(localName);
@@ -108,7 +108,7 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     }
   }
 
-  listByPrefix(prefix: string): StoredItemMeta[] {
+  async listByPrefix(prefix: string): Promise<StoredItemMeta[]> {
     const idx = prefix.indexOf("/");
     const namespace = idx === -1 ? prefix : prefix.slice(0, idx);
     const localPrefix = idx === -1 ? "" : prefix.slice(idx + 1);
@@ -138,7 +138,7 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     return out;
   }
 
-  delete(key: string): StoredItemMeta | null {
+  async delete(key: string): Promise<StoredItemMeta | null> {
     try {
       const { namespace, localName } = this.splitKey(key);
       const files = DriveApp.getFolderById(namespace).getFilesByName(localName);

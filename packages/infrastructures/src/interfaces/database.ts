@@ -15,8 +15,8 @@ export interface DataCollection {
 }
 
 export interface IDataBase {
-  listCollections(): string[];
-  getCollection(name: string): DataCollection | null;
+  listCollections(): Promise<string[]>;
+  getCollection(name: string): Promise<DataCollection | null>;
 }
 
 /** 保存先ID(GASではスプレッドシートID)から IDataBase を作るファクトリ。 */

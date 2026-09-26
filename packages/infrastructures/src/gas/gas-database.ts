@@ -10,13 +10,13 @@ import type { DataBaseFactory, DataCollection, IDataBase } from "../interfaces/d
 export class GasDataBase implements IDataBase {
   constructor(private readonly dataBaseId: string | null) {}
 
-  listCollections(): string[] {
+  async listCollections(): Promise<string[]> {
     if (!this.dataBaseId) return [];
     const ss = SpreadsheetApp.openById(this.dataBaseId);
     return ss.getSheets().map((sheet) => sheet.getName());
   }
 
-  getCollection(name: string): DataCollection | null {
+  async getCollection(name: string): Promise<DataCollection | null> {
     if (!this.dataBaseId) return null;
     const spreadsheet = SpreadsheetApp.openById(this.dataBaseId);
     const sheet = spreadsheet.getSheetByName(name);

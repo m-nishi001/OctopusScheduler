@@ -5,15 +5,15 @@ import type { ICache } from "../interfaces/cache";
 export class GasCache implements ICache {
   private readonly cache = CacheService.getScriptCache();
 
-  get(key: string): string | null {
+  async get(key: string): Promise<string | null> {
     return this.cache.get(key);
   }
 
-  put(key: string, value: string, ttlSeconds: number): void {
+  async put(key: string, value: string, ttlSeconds: number): Promise<void> {
     this.cache.put(key, value, ttlSeconds);
   }
 
-  remove(key: string): void {
+  async remove(key: string): Promise<void> {
     this.cache.remove(key);
   }
 }

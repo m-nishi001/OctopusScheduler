@@ -16,11 +16,11 @@ export class InMemoryKeyValueStorage implements IKeyValueStorage {
   private readonly scalars = new Map<string, string>();
   private readonly items = new Map<string, StoredItem>();
 
-  get(key: string): string | null {
+  async get(key: string): Promise<string | null> {
     return this.scalars.has(key) ? this.scalars.get(key)! : null;
   }
 
-  set(key: string, value: string): void {
+  async set(key: string, value: string): Promise<void> {
     this.scalars.set(key, value);
   }
 
@@ -48,38 +48,38 @@ export class InMemoryKeyValueStorage implements IKeyValueStorage {
     return this.toMeta(item);
   }
 
-  putText(key: string, content: string, mimeType: string): StoredItemMeta {
+  async putText(key: string, content: string, mimeType: string): Promise<StoredItemMeta> {
     return this.upsert(key, Buffer.from(content, "utf8").toString("base64"), mimeType);
   }
 
-  putBinary(key: string, contentBase64: string, mimeType: string): StoredItemMeta {
+  async putBinary(key: string, contentBase64: string, mimeType: string): Promise<StoredItemMeta> {
     return this.upsert(key, contentBase64, mimeType);
   }
 
-  getContent(key: string): StoredItemContent | null {
+  async getContent(key: string): Promise<StoredItemContent | null> {
     const item = this.items.get(key);
     if (!item) return null;
     return { meta: this.toMeta(item), contentBase64: item.contentBase64 };
   }
 
-  getContentAsText(key: string): string | null {
+  async getContentAsText(key: string): Promise<string | null> {
     const item = this.items.get(key);
     if (!item) return null;
     return Buffer.from(item.contentBase64, "base64").toString("utf8");
   }
 
-  stat(key: string): StoredItemMeta | null {
+  async stat(key: string): Promise<StoredItemMeta | null> {
     const item = this.items.get(key);
     return item ? this.toMeta(item) : null;
   }
 
-  listByPrefix(prefix: string): StoredItemMeta[] {
+  async listByPrefix(prefix: string): Promise<StoredItemMeta[]> {
     return Array.from(this.items.values())
       .filter((item) => item.key.startsWith(prefix))
       .map((item) => this.toMeta(item));
   }
 
-  delete(key: string): StoredItemMeta | null {
+  async delete(key: string): Promise<StoredItemMeta | null> {
     const item = this.items.get(key);
     if (!item) return null;
     this.items.delete(key);
