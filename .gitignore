@@ -1,6 +1,11 @@
 node_modules
 dist
 
+# Cloudflare: D1データベースID・R2バケット名など環境固有のリソースIDを含むため、
+# .clasp.json と同様にコミットしない(テンプレートは wrangler.example.toml)。
+wrangler.toml
+.wrangler/
+
 # Ignore per-project build logs created during the workspace build
 **/build.log
 build.log

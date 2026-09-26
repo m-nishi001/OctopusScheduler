@@ -1,11 +1,20 @@
 // distディレクトリ集約用スクリプト
-// サーバ（packages/infrastructures、GASバンドル）の dist と、クライアント（apps/app-scheduler）の dist を
-// dist/ 直下へフラットに集約し、clasp の rootDir である dist/gas/ にも配置する。
-// appsscript.json も dist 直下と dist/gas/ にコピーする。
+//
+// GAS向け: サーバ（packages/infrastructures、GASバンドル）の dist と、
+// クライアント（apps/app-scheduler、dist/gas）の dist を dist/ 直下へフラットに
+// 集約し、clasp の rootDir である dist/gas/ にも配置する。appsscript.json も
+// dist 直下と dist/gas/ にコピーする。
 //
 // 注意: GAS プロジェクトには実行に必要なファイルだけを置きたいので、
 // 拡張子ホワイトリスト方式でコピーする。以前は全ファイルをコピーしていたため、
 // TypeScript のビルドキャッシュ（*.tsbuildinfo, 103KB）が本番へ混入していた。
+//
+// Cloudflare向け: packages/infrastructures/dist/cloudflare/worker.js を
+// dist/cloudflare/worker.js へ、apps/app-scheduler の dist/cloudflare を
+// dist/cloudflare/assets へ、それぞれディレクトリ構造を保ったままコピーする。
+// GASと異なりESモジュールがそのまま実行対象になるため、ESM検出によるスキップは
+// 行わない。wrangler.toml はリポジトリルートに置く運用のため、ここではコピーしない
+// (wrangler は `main`/`[assets] directory` でこの dist/cloudflare を参照する)。
 
 import {
   existsSync,
@@ -26,13 +35,14 @@ const rootDir = resolve(__dirname, "..");
 const distDir = join(rootDir, "dist");
 // GAS specific output directory (for clasp rootDir)
 const gasDistDir = join(distDir, "gas");
+const cloudflareDistDir = join(distDir, "cloudflare");
 
-/** サーバのビルド成果物（単一バンドル） */
-const SERVER_DIST = join(rootDir, "packages", "infrastructures", "dist");
-/** デプロイ対象のクライアント（唯一の GAS Web アプリ） */
-const CLIENT_DIST = join(rootDir, "apps", "app-scheduler", "dist");
+/** サーバのビルド成果物のルート(GAS用の server.js、Cloudflare用の cloudflare/worker.js を含む) */
+const INFRA_DIST = join(rootDir, "packages", "infrastructures", "dist");
+/** クライアント(app-scheduler)のビルド成果物のルート(gas/・cloudflare/ を含む) */
+const CLIENT_DIST_ROOT = join(rootDir, "apps", "app-scheduler", "dist");
 
-/** dist に置いてよい拡張子（ホワイトリスト） */
+/** dist に置いてよい拡張子（ホワイトリスト、GAS向け） */
 const ALLOWED_EXTENSIONS = new Set([".js", ".html", ".json", ".css"]);
 
 /** GAS では実行できない ES モジュール出力かどうかを判定する。 */
@@ -50,6 +60,7 @@ function isMaybeEsm(fullPath, relPath) {
 }
 
 function walkFiles(dir, callback, baseDir = dir) {
+  if (!existsSync(dir)) return;
   for (const entry of readdirSync(dir)) {
     const fullPath = join(dir, entry);
     if (lstatSync(fullPath).isDirectory()) {
@@ -60,8 +71,8 @@ function walkFiles(dir, callback, baseDir = dir) {
   }
 }
 
-/** 1 ディレクトリの dist を dist/ と dist/gas/ へフラットコピーする。 */
-function collectDist(srcDistDir, label) {
+/** 1 ディレクトリの dist を dist/ と dist/gas/ へフラットコピーする(GAS向け)。 */
+function collectGasDist(srcDistDir, label) {
   if (!existsSync(srcDistDir)) {
     console.warn(`Warning: ${label} の dist が存在しません: ${srcDistDir}`);
     return 0;
@@ -76,7 +87,7 @@ function collectDist(srcDistDir, label) {
       console.log(`Skipping (not whitelisted): ${label}/${relPath}`);
       return;
     }
-    // Apps Script が解釈できない ES モジュール出力は配布しない
+    // Apps Script が解釈できない ES モジュール出力(Cloudflare向けバンドル等)は配布しない
     if (isMaybeEsm(fullPath, relPath)) {
       console.log(`Skipping ESM file: ${label}/${relPath}`);
       return;
@@ -86,9 +97,26 @@ function collectDist(srcDistDir, label) {
     copyFileSync(fullPath, join(distDir, fileName));
     copyFileSync(fullPath, join(gasDistDir, fileName));
     copied++;
-    console.log(
-      `  ${label}: ${fileName} (${statSync(fullPath).size} bytes)`
-    );
+    console.log(`  ${label}: ${fileName} (${statSync(fullPath).size} bytes)`);
+  });
+  return copied;
+}
+
+/** ディレクトリ構造を保ったまま dist/cloudflare 配下へコピーする(Cloudflare向け)。 */
+function collectCloudflareDist(srcDistDir, destSubDir, label) {
+  if (!existsSync(srcDistDir)) {
+    console.warn(`Warning: ${label} の dist が存在しません: ${srcDistDir}`);
+    return 0;
+  }
+
+  let copied = 0;
+  walkFiles(srcDistDir, (fullPath, relPath) => {
+    if (/\.d\.ts$|\.map$/i.test(relPath)) return;
+    const destPath = join(cloudflareDistDir, destSubDir, relPath);
+    mkdirSync(dirname(destPath), { recursive: true });
+    copyFileSync(fullPath, destPath);
+    copied++;
+    console.log(`  ${label}: ${relPath} (${statSync(fullPath).size} bytes)`);
   });
   return copied;
 }
@@ -98,9 +126,11 @@ if (existsSync(distDir)) {
   rmSync(distDir, { recursive: true, force: true });
 }
 mkdirSync(gasDistDir, { recursive: true });
+mkdirSync(cloudflareDistDir, { recursive: true });
 
-const serverCount = collectDist(SERVER_DIST, "server");
-const clientCount = collectDist(CLIENT_DIST, "app-scheduler");
+// --- GAS ---
+const gasServerCount = collectGasDist(INFRA_DIST, "server");
+const gasClientCount = collectGasDist(join(CLIENT_DIST_ROOT, "gas"), "app-scheduler");
 
 // appsscript.jsonをdist直下とdist/gasにコピー
 const appsscriptJson = join(rootDir, "appsscript.json");
@@ -110,5 +140,17 @@ if (existsSync(appsscriptJson)) {
 }
 
 console.log(
-  `dist直下へフラットに成果物を集約しました。 (server: ${serverCount} files, client: ${clientCount} files)`
+  `dist直下へフラットに成果物を集約しました。 (server: ${gasServerCount} files, client: ${gasClientCount} files)`
+);
+
+// --- Cloudflare ---
+const cloudflareWorkerCount = collectCloudflareDist(join(INFRA_DIST, "cloudflare"), ".", "worker");
+const cloudflareAssetsCount = collectCloudflareDist(
+  join(CLIENT_DIST_ROOT, "cloudflare"),
+  "assets",
+  "app-scheduler"
+);
+
+console.log(
+  `dist/cloudflare に成果物を集約しました。 (worker: ${cloudflareWorkerCount} files, assets: ${cloudflareAssetsCount} files)`
 );

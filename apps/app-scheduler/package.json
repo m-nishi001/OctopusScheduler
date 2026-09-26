@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build",
+    "build": "vite build --mode gas && vite build --mode cloudflare",
     "test": "vitest",
     "lint": "eslint src",
     "typecheck": "vue-tsc --noEmit && tsc -b tsconfig.server.json"

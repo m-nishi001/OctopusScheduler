@@ -1,6 +1,6 @@
 import { container, instanceCachingFactory } from "tsyringe";
 import { IApiClientToken, createTypedApiClient } from "@octopus/infrastructures/interfaces";
-import { GasApiClient } from "@octopus/infrastructures/gas/gas-api-client";
+import { PlatformApiClient } from "@octopus/infrastructures/platform-api-client";
 import {
   MEMBER_DIRECTORY_PREFIX,
   MEMBER_DIRECTORY_ENDPOINTS,
@@ -11,9 +11,9 @@ import { MemberDirectoryRepository } from "../../model/member-directory-reposito
 
 export class Container {
   static register() {
-    // GAS 用のインフラを登録する。将来 Cloudflare 等に切り替える場合は
-    // ここを設定に応じて別実装(CloudflareApiClient 等)に差し替えるだけでよい。
-    container.register(IApiClientToken, { useClass: GasApiClient });
+    // ビルド対象(GAS/Cloudflare)ごとに @octopus/infrastructures/platform-api-client が
+    // 解決する実装(Viteのresolve.conditions)を登録する。
+    container.register(IApiClientToken, { useClass: PlatformApiClient });
     container.register<MemberDirectoryApi>(IMemberDirectoryApiToken, {
       useFactory: instanceCachingFactory((c) =>
         createTypedApiClient<MemberDirectoryApi>(
