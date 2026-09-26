@@ -8,7 +8,6 @@ import {
 } from "../../../server/quiz-api-contract";
 import type { QuizGameApi } from "../../../server/quiz-api-contract";
 import { QuizRepository } from "../../model/quiz-repository";
-import { MemberRepository } from "../../model/member-repository";
 import { ParticipantAuthRepository } from "../../model/participant-auth-repository";
 import { AnswerSessionRepository } from "../../model/answer-session-repository";
 import { QuizService } from "../../model/quiz-service";
@@ -17,10 +16,6 @@ import { AddQuizUseCase } from "../use-cases/add-quiz-use-case";
 import { UpdateQuizUseCase } from "../use-cases/update-quiz-use-case";
 import { GetAllQuizzesUseCase } from "../use-cases/get-all-quizzes-use-case";
 import { DeleteQuizUseCase } from "../use-cases/delete-quiz-use-case";
-import { ListMembersUseCase } from "../use-cases/list-members-use-case";
-import { AddMemberUseCase } from "../use-cases/add-member-use-case";
-import { UpdateMemberUseCase } from "../use-cases/update-member-use-case";
-import { DeleteMemberUseCase } from "../use-cases/delete-member-use-case";
 import { LoginParticipantUseCase } from "../use-cases/login-participant-use-case";
 import { ResolveDeviceTokenUseCase } from "../use-cases/resolve-device-token-use-case";
 import { StartAcceptingAnswersUseCase } from "../use-cases/start-accepting-answers-use-case";
@@ -45,7 +40,6 @@ export class Container {
     });
 
     container.register(QuizRepository, { useClass: QuizRepository });
-    container.register(MemberRepository, { useClass: MemberRepository });
     container.register(ParticipantAuthRepository, { useClass: ParticipantAuthRepository });
     container.register(AnswerSessionRepository, { useClass: AnswerSessionRepository });
 
@@ -57,10 +51,6 @@ export class Container {
       useClass: GetAllQuizzesUseCase,
     });
     container.register(DeleteQuizUseCase, { useClass: DeleteQuizUseCase });
-    container.register(ListMembersUseCase, { useClass: ListMembersUseCase });
-    container.register(AddMemberUseCase, { useClass: AddMemberUseCase });
-    container.register(UpdateMemberUseCase, { useClass: UpdateMemberUseCase });
-    container.register(DeleteMemberUseCase, { useClass: DeleteMemberUseCase });
     container.register(LoginParticipantUseCase, { useClass: LoginParticipantUseCase });
     container.register(ResolveDeviceTokenUseCase, { useClass: ResolveDeviceTokenUseCase });
     container.register(StartAcceptingAnswersUseCase, {

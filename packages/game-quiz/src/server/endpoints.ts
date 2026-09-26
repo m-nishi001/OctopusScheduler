@@ -22,15 +22,12 @@ import type {
 import type {
   AddDriveDataArgs,
   AddJsonArgs,
-  AddMemberArgs,
-  DeleteMemberArgs,
   GetAcceptanceStateArgs,
   GetAnswersArgs,
   GetDriveDataArgs,
   GetDriveMetaDataArgs,
   GetJsonArgs,
   ListJsonMetaDataArgs,
-  ListMembersArgs,
   LoginParticipantArgs,
   QuizGameEndpointName,
   RemoveDriveDataArgs,
@@ -38,7 +35,6 @@ import type {
   StartAcceptingAnswersArgs,
   StopAcceptingAnswersArgs,
   SubmitAnswerArgs,
-  UpdateMemberArgs,
 } from "./quiz-api-contract";
 import { QUIZ_GAME_PREFIX } from "./quiz-api-contract";
 
@@ -51,12 +47,6 @@ import {
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
 import { listJsonBlobMetadata } from "./list-json-blob-metadata-use-case";
-import {
-  addMember,
-  deleteMember,
-  listMembers,
-  updateMember,
-} from "./member-use-cases";
 import { loginParticipant, resolveDeviceToken } from "./participant-auth-use-cases";
 import {
   getAcceptanceState,
@@ -69,9 +59,12 @@ function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
     cache: container.resolve<ICache>(ICacheToken),
-    // node環境のテストではこの関数はDIコンテナに触れないよう、
+    // node環境のテストではこれらの関数はDIコンテナに触れないよう、
     // 各use-caseのテストで別途スタブを注入する。
     generateToken: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
+    // findMemberById(@octopus/member-directory)呼び出しのために必要
+    // (このuse-case経由では新規メンバー作成は行わないため実際には使われない)。
+    generateId: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
     now: (): number => Date.now(),
   };
 }
@@ -83,10 +76,6 @@ declare let _quizGame_removeDriveData: (args: RemoveDriveDataArgs) => Promise<st
 declare let _quizGame_addJson: (args: AddJsonArgs) => Promise<string>;
 declare let _quizGame_getJson: (args: GetJsonArgs) => Promise<string>;
 declare let _quizGame_listJsonMetaData: (args: ListJsonMetaDataArgs) => Promise<string>;
-declare let _quizGame_listMembers: (args: ListMembersArgs) => Promise<string>;
-declare let _quizGame_addMember: (args: AddMemberArgs) => Promise<string>;
-declare let _quizGame_updateMember: (args: UpdateMemberArgs) => Promise<string>;
-declare let _quizGame_deleteMember: (args: DeleteMemberArgs) => Promise<string>;
 declare let _quizGame_loginParticipant: (args: LoginParticipantArgs) => Promise<string>;
 declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => Promise<string>;
 declare let _quizGame_startAcceptingAnswers: (args: StartAcceptingAnswersArgs) => Promise<string>;
@@ -159,42 +148,6 @@ _quizGame_listJsonMetaData = async (args: ListJsonMetaDataArgs): Promise<string>
   try {
     const result = await listJsonBlobMetadata(resolveDeps(), args.folderId);
     return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
-
-_quizGame_listMembers = async (_args: ListMembersArgs): Promise<string> => {
-  try {
-    const result = await listMembers(resolveDeps());
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
-
-_quizGame_addMember = async (args: AddMemberArgs): Promise<string> => {
-  try {
-    const result = await addMember(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
-
-_quizGame_updateMember = async (args: UpdateMemberArgs): Promise<string> => {
-  try {
-    const result = await updateMember(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
-  }
-};
-
-_quizGame_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
-  try {
-    await deleteMember(resolveDeps(), args.userId);
-    return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
@@ -277,10 +230,6 @@ export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Pro
   addJson: _quizGame_addJson,
   getJson: _quizGame_getJson,
   listJsonMetaData: _quizGame_listJsonMetaData,
-  listMembers: _quizGame_listMembers,
-  addMember: _quizGame_addMember,
-  updateMember: _quizGame_updateMember,
-  deleteMember: _quizGame_deleteMember,
   loginParticipant: _quizGame_loginParticipant,
   resolveDeviceToken: _quizGame_resolveDeviceToken,
   startAcceptingAnswers: _quizGame_startAcceptingAnswers,

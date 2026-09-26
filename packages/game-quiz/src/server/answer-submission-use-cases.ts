@@ -1,9 +1,10 @@
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
+import { findMemberById } from "@octopus/member-directory/server-use-cases";
+import type { MemberDirectoryUseCaseDeps } from "@octopus/member-directory/server-use-cases";
 import type { SubmittedAnswer } from "./quiz-api-contract";
-import { findMemberByUserId } from "./member-use-cases";
 import { findUserIdByToken } from "./participant-auth-use-cases";
 
-export interface AnswerSubmissionDeps {
+export interface AnswerSubmissionDeps extends MemberDirectoryUseCaseDeps {
   storage: IKeyValueStorage;
   /** サーバー側の受信時刻(ms)。GAS本番では Date.now() を注入する。 */
   now: () => number;
@@ -46,7 +47,7 @@ export async function submitAnswer(
   if (!userId) {
     throw new Error("Invalid or expired device token");
   }
-  const member = await findMemberByUserId(deps, userId);
+  const member = await findMemberById(deps, userId);
   if (!member) {
     throw new Error(`Member with userId "${userId}" no longer exists`);
   }
@@ -59,7 +60,7 @@ export async function submitAnswer(
 
   const answer: SubmittedAnswer = {
     userId,
-    displayName: member.displayName,
+    displayName: member.name,
     optionNo: args.optionNo,
     serverTimestampMs: deps.now(),
   };

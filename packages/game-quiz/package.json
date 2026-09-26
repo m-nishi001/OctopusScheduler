@@ -11,6 +11,7 @@
     "@octopus/client-common": "*",
     "@octopus/composables": "*",
     "@octopus/infrastructures": "*",
+    "@octopus/member-directory": "*",
     "localforage": "^1.10.0",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"

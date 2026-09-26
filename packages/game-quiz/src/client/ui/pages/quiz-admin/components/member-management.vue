@@ -60,18 +60,26 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
-import { ListMembersUseCase } from '../../../../control/use-cases/list-members-use-case';
-import { AddMemberUseCase } from '../../../../control/use-cases/add-member-use-case';
-import { UpdateMemberUseCase } from '../../../../control/use-cases/update-member-use-case';
-import { DeleteMemberUseCase } from '../../../../control/use-cases/delete-member-use-case';
-import type { Member } from '../../../../server/quiz-api-contract';
+import { MemberDirectoryRepository } from '@octopus/member-directory';
+import type { Member as DirectoryMember } from '@octopus/member-directory';
 
-const listMembersUseCase = container.resolve(ListMembersUseCase);
-const addMemberUseCase = container.resolve(AddMemberUseCase);
-const updateMemberUseCase = container.resolve(UpdateMemberUseCase);
-const deleteMemberUseCase = container.resolve(DeleteMemberUseCase);
+/**
+ * クイズの「メンバー」は共有マスタそのもの(userId = マスタのid、
+ * displayName = マスタのname)。userIdは参加者ログイン時に入力する
+ * 識別子であり、マスタの id をそのまま人間可読なログインコードとして使う。
+ */
+interface QuizMemberRow {
+    userId: string;
+    displayName: string;
+}
 
-const members = ref<Member[]>([]);
+function toRow(member: DirectoryMember): QuizMemberRow {
+    return { userId: member.id, displayName: member.name };
+}
+
+const memberDirectoryRepo = container.resolve(MemberDirectoryRepository);
+
+const members = ref<QuizMemberRow[]>([]);
 const errorMessage = ref('');
 
 const showModal = ref(false);
@@ -83,7 +91,8 @@ const formError = ref('');
 
 async function loadMembers() {
     try {
-        members.value = await listMembersUseCase.execute();
+        const directoryMembers = await memberDirectoryRepo.listMembers();
+        members.value = directoryMembers.map(toRow);
     } catch (e) {
         errorMessage.value = 'メンバー一覧の取得に失敗しました。';
     }
@@ -99,7 +108,7 @@ function openAddModal() {
     showModal.value = true;
 }
 
-function openEditModal(member: Member) {
+function openEditModal(member: QuizMemberRow) {
     isEditing.value = true;
     formUserId.value = member.userId;
     formDisplayName.value = member.displayName;
@@ -120,9 +129,9 @@ async function handleSave() {
     formError.value = '';
     try {
         if (isEditing.value) {
-            await updateMemberUseCase.execute({ userId, displayName });
+            await memberDirectoryRepo.updateMember({ id: userId, name: displayName });
         } else {
-            await addMemberUseCase.execute({ userId, displayName });
+            await memberDirectoryRepo.addMember({ id: userId, name: displayName });
         }
         await loadMembers();
         closeModal();
@@ -135,7 +144,7 @@ async function handleSave() {
 
 async function handleDelete(userId: string) {
     try {
-        await deleteMemberUseCase.execute(userId);
+        await memberDirectoryRepo.deleteMember(userId);
         await loadMembers();
     } catch (e) {
         errorMessage.value = '削除に失敗しました。';
