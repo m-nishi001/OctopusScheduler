@@ -20,7 +20,7 @@
           <span>{{ member.name }}</span>
         </div>
         <button class="admin-btn ml-2" @click="$emit('edit', member)">詳細</button>
-        <button class="admin-btn ml-2 delete-btn" @click="$emit('delete', member.id)">削除</button>
+        <button class="admin-btn ml-2 delete-btn" @click="$emit('delete', member.id)" title="このゲームから外す">外す</button>
       </li>
     </ul>
     <div v-else class="empty-state">

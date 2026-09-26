@@ -3,12 +3,16 @@ import { container } from "tsyringe";
 import { MemberRepository } from "@model/member/member-repository";
 import { AssetDataService } from "@control/asset/asset-data-service";
 import { MemberService } from "@control/member/member-service";
+import { MemberDirectoryRepository } from "@octopus/member-directory";
+import type { Member as DirectoryMember } from "@octopus/member-directory";
 import type { MemberDto } from "@control/member/dto/member-dto";
 import type { Asset } from "@model/asset/asset-data";
 
 const STORAGE_KEY = "jackpot-game-members-json";
 
 export interface MemberFormInput {
+  /** 既存の共有マスタメンバーに紐付ける場合に指定する。新規作成時は省略する。 */
+  id?: string;
   name: string;
   rank: number;
   photoAssetId?: string;
@@ -19,14 +23,19 @@ export interface MemberFormInput {
 export function useMembers(
   memberRepoArg?: MemberRepository,
   assetDataServiceArg?: AssetDataService,
-  memberServiceArg?: MemberService
+  memberServiceArg?: MemberService,
+  directoryRepoArg?: MemberDirectoryRepository
 ) {
   const memberRepo = memberRepoArg || container.resolve(MemberRepository);
   const assetDataService =
     assetDataServiceArg || container.resolve(AssetDataService);
   const memberService = memberServiceArg || container.resolve(MemberService);
+  const directoryRepo =
+    directoryRepoArg || container.resolve(MemberDirectoryRepository);
 
   const members = ref<any[]>([]);
+  /** 共有マスタに登録済みだが、まだこのゲームに紐付けていないメンバー。 */
+  const availableDirectoryMembers = ref<DirectoryMember[]>([]);
   const selectedMembers = ref<string[]>([]);
   const deleting = ref(false);
   const deleteMessage = ref("");
@@ -65,6 +74,19 @@ export function useMembers(
     }
   };
 
+  const fetchAvailableDirectoryMembers = async () => {
+    try {
+      const allDirectoryMembers = await directoryRepo.listMembers();
+      const attachedIds = new Set(members.value.map((m) => m.id));
+      availableDirectoryMembers.value = allDirectoryMembers.filter(
+        (m) => !attachedIds.has(m.id)
+      );
+    } catch (error) {
+      console.error("Failed to fetch available directory members:", error);
+      availableDirectoryMembers.value = [];
+    }
+  };
+
   const fetchMembers = async () => {
     try {
       const fetchedMembers = await memberRepo.getMembers();
@@ -84,6 +106,7 @@ export function useMembers(
       }
       members.value = fetchedMembers;
       await saveMembersToLocalJson();
+      await fetchAvailableDirectoryMembers();
     } catch (error) {
       console.error("Failed to fetch members:", error);
       members.value = [];
@@ -92,7 +115,7 @@ export function useMembers(
 
   const addMember = async (input: MemberFormInput): Promise<MemberDto> => {
     const newMember: MemberDto = {
-      id: "",
+      id: input.id || "",
       name: input.name,
       rank: input.rank,
       photoAssetId: input.photoAssetId || undefined,
@@ -152,7 +175,7 @@ export function useMembers(
 
   const deleteMember = async (id: string) => {
     deleting.value = true;
-    deleteMessage.value = "メンバーを削除しています...";
+    deleteMessage.value = "メンバーをこのゲームから外しています...";
     try {
       await memberService.deleteMember(id);
       await fetchMembers();
@@ -167,7 +190,7 @@ export function useMembers(
   const deleteSelectedMembers = async () => {
     if (!selectedMembers.value.length) return;
     deleting.value = true;
-    deleteMessage.value = "メンバーを削除しています...";
+    deleteMessage.value = "メンバーをこのゲームから外しています...";
     try {
       await memberService.deleteMembers(selectedMembers.value);
       await fetchMembers();
@@ -208,6 +231,7 @@ export function useMembers(
 
   return {
     members,
+    availableDirectoryMembers,
     selectedMembers,
     isAllSelected,
     deleting,
