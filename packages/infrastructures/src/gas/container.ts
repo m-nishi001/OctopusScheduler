@@ -6,17 +6,28 @@
  */
 import "reflect-metadata";
 import { container } from "tsyringe";
-import { IApiClientToken, IKeyValueStorageToken, ICacheToken, DataBaseFactoryToken } from "../interfaces";
+import {
+  IApiClientToken,
+  IKeyValueStorageToken,
+  ICacheToken,
+  DataBaseFactoryToken,
+  IUuidGeneratorToken,
+  ILockToken,
+} from "../interfaces";
 import { GasApiClient } from "./gas-api-client";
 import { GasKeyValueStorage } from "./gas-key-value-storage";
 import { GasCache } from "./gas-cache";
 import { GasFormRepository } from "./gas-form-repository";
 import { createGasDataBase } from "./gas-database";
+import { GasUuidGenerator } from "./gas-uuid-generator";
+import { GasLock } from "./gas-lock";
 
 export function registerGasInfrastructures(): void {
   container.register(IApiClientToken, { useClass: GasApiClient });
   container.register(IKeyValueStorageToken, { useClass: GasKeyValueStorage });
   container.register(ICacheToken, { useClass: GasCache });
   container.register(DataBaseFactoryToken, { useValue: createGasDataBase });
+  container.register(IUuidGeneratorToken, { useClass: GasUuidGenerator });
+  container.register(ILockToken, { useClass: GasLock });
   container.registerSingleton(GasFormRepository);
 }
