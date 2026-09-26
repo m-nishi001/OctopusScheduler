@@ -31,10 +31,25 @@
       "types": "./src/gas/*.ts",
       "import": "./src/gas/*.ts",
       "default": "./src/gas/*.ts"
+    },
+    "./cloudflare": {
+      "types": "./src/cloudflare/index.ts",
+      "import": "./src/cloudflare/index.ts",
+      "default": "./src/cloudflare/index.ts"
+    },
+    "./cloudflare/*": {
+      "types": "./src/cloudflare/*.ts",
+      "import": "./src/cloudflare/*.ts",
+      "default": "./src/cloudflare/*.ts"
+    },
+    "./platform-api-client": {
+      "types": "./src/gas/gas-api-client.ts",
+      "cloudflare": "./src/cloudflare/cloudflare-api-client.ts",
+      "default": "./src/gas/gas-api-client.ts"
     }
   },
   "scripts": {
-    "build": "rimraf dist && tsc -b && node esbuild.config.js",
+    "build": "rimraf dist && tsc -b && node esbuild.config.js && node esbuild.cloudflare.config.js",
     "lint": "eslint src",
     "typecheck": "tsc -b",
     "test": "vitest"
@@ -45,6 +60,7 @@
     "tsyringe": "^4.10.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250109.0",
     "@types/google-apps-script": "^1.0.83",
     "@types/node": "^20.12.12",
     "esbuild": "^0.25.6",
