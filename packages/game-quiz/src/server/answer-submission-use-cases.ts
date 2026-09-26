@@ -13,8 +13,8 @@ function answersKey(quizId: string): string {
   return `quiz-game-answers/${quizId}`;
 }
 
-function readAnswers(storage: IKeyValueStorage, quizId: string): SubmittedAnswer[] {
-  const raw = storage.get(answersKey(quizId));
+async function readAnswers(storage: IKeyValueStorage, quizId: string): Promise<SubmittedAnswer[]> {
+  const raw = await storage.get(answersKey(quizId));
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -24,12 +24,12 @@ function readAnswers(storage: IKeyValueStorage, quizId: string): SubmittedAnswer
   }
 }
 
-function writeAnswers(
+async function writeAnswers(
   storage: IKeyValueStorage,
   quizId: string,
   answers: SubmittedAnswer[]
-): void {
-  storage.set(answersKey(quizId), JSON.stringify(answers));
+): Promise<void> {
+  await storage.set(answersKey(quizId), JSON.stringify(answers));
 }
 
 /**
@@ -38,20 +38,20 @@ function writeAnswers(
  * 送信は無視し、最初に届いた回答を正とする(呼び出し側での同時書き込みの
  * 競合はGASの LockService 相当のロックで守る想定 — endpoints.ts 側の責務)。
  */
-export function submitAnswer(
+export async function submitAnswer(
   deps: AnswerSubmissionDeps,
   args: { quizId: string; token: string; optionNo: number }
-): SubmittedAnswer {
-  const userId = findUserIdByToken(deps.storage, args.token);
+): Promise<SubmittedAnswer> {
+  const userId = await findUserIdByToken(deps.storage, args.token);
   if (!userId) {
     throw new Error("Invalid or expired device token");
   }
-  const member = findMemberByUserId(deps, userId);
+  const member = await findMemberByUserId(deps, userId);
   if (!member) {
     throw new Error(`Member with userId "${userId}" no longer exists`);
   }
 
-  const answers = readAnswers(deps.storage, args.quizId);
+  const answers = await readAnswers(deps.storage, args.quizId);
   const existing = answers.find((a) => a.userId === userId);
   if (existing) {
     return existing;
@@ -63,13 +63,13 @@ export function submitAnswer(
     optionNo: args.optionNo,
     serverTimestampMs: deps.now(),
   };
-  writeAnswers(deps.storage, args.quizId, [...answers, answer]);
+  await writeAnswers(deps.storage, args.quizId, [...answers, answer]);
   return answer;
 }
 
-export function getAnswers(
+export async function getAnswers(
   deps: AnswerSubmissionDeps,
   args: { quizId: string }
-): SubmittedAnswer[] {
+): Promise<SubmittedAnswer[]> {
   return readAnswers(deps.storage, args.quizId);
 }

@@ -12,11 +12,11 @@ const JSON_FOLDER_PROPERTY = "quiz-game-json-folder";
  * quizGame_addJson。addDriveData とは別の命名規約(id の埋め込みは任意)であり、
  * dedupe キャッシュも使わない(既存挙動を保持)。
  */
-export function addJsonBlob(
+export async function addJsonBlob(
   deps: AddJsonBlobDeps,
   driveJson: DriveJsonData
-): DriveMetadata {
-  const namespace = resolveFolderIdPreferringProvided(
+): Promise<DriveMetadata> {
+  const namespace = await resolveFolderIdPreferringProvided(
     { kv: deps.storage },
     JSON_FOLDER_PROPERTY,
     driveJson.parentFolderId
@@ -26,7 +26,7 @@ export function addJsonBlob(
   const localName = appFileId ? `${appFileId}_${driveJson.fileName}` : driveJson.fileName;
   const key = `${namespace}/${localName}`;
 
-  const meta = deps.storage.putText(key, driveJson.jsonText, "application/json");
+  const meta = await deps.storage.putText(key, driveJson.jsonText, "application/json");
 
   return {
     driveDataId: appFileId || meta.key,

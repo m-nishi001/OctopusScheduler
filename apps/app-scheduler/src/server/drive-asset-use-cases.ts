@@ -28,22 +28,22 @@ export interface DriveAssetUseCaseDeps {
 
 const ASSET_FOLDER_PROPERTY = "octopus-scheduler-asset-folder";
 
-export function addSchedulerDriveData(
+export async function addSchedulerDriveData(
   deps: DriveAssetUseCaseDeps,
   driveData: DriveData
-): OperationResult<DriveMetadata> {
-  const parentFolderId = resolveFolderIdIgnoringProvided(
+): Promise<OperationResult<DriveMetadata>> {
+  const parentFolderId = await resolveFolderIdIgnoringProvided(
     { kv: deps.storage },
     ASSET_FOLDER_PROPERTY
   );
   return addDriveDataGeneric(deps, { ...driveData, parentFolderId });
 }
 
-export function getSchedulerDriveMetadata(
+export async function getSchedulerDriveMetadata(
   deps: DriveAssetUseCaseDeps,
   folderId?: string
-): DriveMetadata[] {
-  const resolved = resolveFolderIdPreferringProvided(
+): Promise<DriveMetadata[]> {
+  const resolved = await resolveFolderIdPreferringProvided(
     { kv: deps.storage },
     ASSET_FOLDER_PROPERTY,
     folderId
@@ -51,16 +51,16 @@ export function getSchedulerDriveMetadata(
   return getDriveMetadataGeneric(deps, resolved);
 }
 
-export function getSchedulerDriveData(
+export async function getSchedulerDriveData(
   deps: DriveAssetUseCaseDeps,
   dataId: string
-): DriveData | null {
+): Promise<DriveData | null> {
   return getDriveDataGeneric(deps, dataId);
 }
 
-export function updateSchedulerDriveData(
+export async function updateSchedulerDriveData(
   deps: DriveAssetUseCaseDeps,
   driveData: DriveData
-): OperationResult<void> {
+): Promise<OperationResult<void>> {
   return updateDriveDataGeneric(deps, driveData);
 }

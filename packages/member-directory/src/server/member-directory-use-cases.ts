@@ -9,8 +9,8 @@ export interface MemberDirectoryUseCaseDeps {
 
 const MEMBERS_KEY = "member-directory-members";
 
-function readMembers(storage: IKeyValueStorage): Member[] {
-  const raw = storage.get(MEMBERS_KEY);
+async function readMembers(storage: IKeyValueStorage): Promise<Member[]> {
+  const raw = await storage.get(MEMBERS_KEY);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -20,37 +20,37 @@ function readMembers(storage: IKeyValueStorage): Member[] {
   }
 }
 
-function writeMembers(storage: IKeyValueStorage, members: Member[]): void {
-  storage.set(MEMBERS_KEY, JSON.stringify(members));
+async function writeMembers(storage: IKeyValueStorage, members: Member[]): Promise<void> {
+  await storage.set(MEMBERS_KEY, JSON.stringify(members));
 }
 
-export function listMembers(deps: MemberDirectoryUseCaseDeps): Member[] {
+export async function listMembers(deps: MemberDirectoryUseCaseDeps): Promise<Member[]> {
   return readMembers(deps.storage);
 }
 
-export function findMemberById(deps: MemberDirectoryUseCaseDeps, id: string): Member | null {
-  const members = readMembers(deps.storage);
+export async function findMemberById(deps: MemberDirectoryUseCaseDeps, id: string): Promise<Member | null> {
+  const members = await readMembers(deps.storage);
   return members.find((m) => m.id === id) ?? null;
 }
 
-export function addMember(
+export async function addMember(
   deps: MemberDirectoryUseCaseDeps,
   args: { id?: string; name: string }
-): Member {
+): Promise<Member> {
   const name = args.name.trim();
   if (!name) throw new Error("name is required");
-  const members = readMembers(deps.storage);
+  const members = await readMembers(deps.storage);
   const id = args.id?.trim() || deps.generateId();
   if (members.some((m) => m.id === id)) {
     throw new Error(`Member with id "${id}" already exists`);
   }
   const created: Member = { id, name };
-  writeMembers(deps.storage, [...members, created]);
+  await writeMembers(deps.storage, [...members, created]);
   return created;
 }
 
-export function updateMember(deps: MemberDirectoryUseCaseDeps, member: Member): Member {
-  const members = readMembers(deps.storage);
+export async function updateMember(deps: MemberDirectoryUseCaseDeps, member: Member): Promise<Member> {
+  const members = await readMembers(deps.storage);
   const index = members.findIndex((m) => m.id === member.id);
   if (index === -1) {
     throw new Error(`Member with id "${member.id}" not found`);
@@ -58,13 +58,13 @@ export function updateMember(deps: MemberDirectoryUseCaseDeps, member: Member): 
   const updated: Member = { id: member.id, name: member.name };
   const next = [...members];
   next[index] = updated;
-  writeMembers(deps.storage, next);
+  await writeMembers(deps.storage, next);
   return updated;
 }
 
-export function deleteMember(deps: MemberDirectoryUseCaseDeps, id: string): void {
-  const members = readMembers(deps.storage);
-  writeMembers(
+export async function deleteMember(deps: MemberDirectoryUseCaseDeps, id: string): Promise<void> {
+  const members = await readMembers(deps.storage);
+  await writeMembers(
     deps.storage,
     members.filter((m) => m.id !== id)
   );
@@ -75,16 +75,16 @@ export function deleteMember(deps: MemberDirectoryUseCaseDeps, id: string): void
  * 既存メンバーのうち入力に含まれないものは削除しない
  * (マスタは他モジュールとも共有されているため、一括置換で消してはいけない)。
  */
-export function replaceAllMembers(
+export async function replaceAllMembers(
   deps: MemberDirectoryUseCaseDeps,
   members: Member[]
-): { replaced: number } {
-  const current = readMembers(deps.storage);
+): Promise<{ replaced: number }> {
+  const current = await readMembers(deps.storage);
   const byId = new Map(current.map((m) => [m.id, m] as const));
   for (const member of members) {
     const id = member.id?.trim() || deps.generateId();
     byId.set(id, { id, name: member.name });
   }
-  writeMembers(deps.storage, Array.from(byId.values()));
+  await writeMembers(deps.storage, Array.from(byId.values()));
   return { replaced: members.length };
 }

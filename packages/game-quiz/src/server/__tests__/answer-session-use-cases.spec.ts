@@ -17,9 +17,9 @@ const OPTIONS = [
 ];
 
 describe("answer-session-use-cases", () => {
-  it("reports not accepting before any session has started", () => {
+  it("reports not accepting before any session has started", async () => {
     const storage = new InMemoryKeyValueStorage();
-    const state = getAcceptanceState({ storage, now: stubClock([]) }, { quizId: "q1" });
+    const state = await getAcceptanceState({ storage, now: stubClock([]) }, { quizId: "q1" });
     expect(state).toEqual({
       quizId: "q1",
       isAccepting: false,
@@ -28,11 +28,11 @@ describe("answer-session-use-cases", () => {
     });
   });
 
-  it("starts accepting answers, records the start time, and stores the option metadata", () => {
+  it("starts accepting answers, records the start time, and stores the option metadata", async () => {
     const storage = new InMemoryKeyValueStorage();
     const now = stubClock([1000]);
 
-    const started = startAcceptingAnswers(
+    const started = await startAcceptingAnswers(
       { storage, now },
       { quizId: "q1", options: OPTIONS }
     );
@@ -43,15 +43,15 @@ describe("answer-session-use-cases", () => {
       acceptStartedAtMs: 1000,
       options: OPTIONS,
     });
-    expect(getAcceptanceState({ storage, now }, { quizId: "q1" })).toEqual(started);
+    expect(await getAcceptanceState({ storage, now }, { quizId: "q1" })).toEqual(started);
   });
 
-  it("stops accepting answers but keeps the original start time and options", () => {
+  it("stops accepting answers but keeps the original start time and options", async () => {
     const storage = new InMemoryKeyValueStorage();
     const now = stubClock([1000, 5000]);
-    startAcceptingAnswers({ storage, now }, { quizId: "q1", options: OPTIONS });
+    await startAcceptingAnswers({ storage, now }, { quizId: "q1", options: OPTIONS });
 
-    const stopped = stopAcceptingAnswers({ storage, now }, { quizId: "q1" });
+    const stopped = await stopAcceptingAnswers({ storage, now }, { quizId: "q1" });
 
     expect(stopped).toEqual({
       quizId: "q1",
@@ -61,9 +61,9 @@ describe("answer-session-use-cases", () => {
     });
   });
 
-  it("stopping a session that never started leaves acceptStartedAtMs null and options empty", () => {
+  it("stopping a session that never started leaves acceptStartedAtMs null and options empty", async () => {
     const storage = new InMemoryKeyValueStorage();
-    const stopped = stopAcceptingAnswers(
+    const stopped = await stopAcceptingAnswers(
       { storage, now: stubClock([]) },
       { quizId: "q1" }
     );
@@ -75,24 +75,24 @@ describe("answer-session-use-cases", () => {
     });
   });
 
-  it("keeps separate acceptance state per quizId", () => {
+  it("keeps separate acceptance state per quizId", async () => {
     const storage = new InMemoryKeyValueStorage();
     const now = stubClock([1000, 2000]);
-    startAcceptingAnswers({ storage, now }, { quizId: "q1", options: OPTIONS });
-    startAcceptingAnswers({ storage, now }, { quizId: "q2", options: [] });
+    await startAcceptingAnswers({ storage, now }, { quizId: "q1", options: OPTIONS });
+    await startAcceptingAnswers({ storage, now }, { quizId: "q2", options: [] });
 
-    expect(getAcceptanceState({ storage, now }, { quizId: "q1" }).acceptStartedAtMs).toBe(1000);
-    expect(getAcceptanceState({ storage, now }, { quizId: "q2" }).acceptStartedAtMs).toBe(2000);
+    expect((await getAcceptanceState({ storage, now }, { quizId: "q1" })).acceptStartedAtMs).toBe(1000);
+    expect((await getAcceptanceState({ storage, now }, { quizId: "q2" })).acceptStartedAtMs).toBe(2000);
   });
 
-  it("restarting a session overwrites the previous start time and options", () => {
+  it("restarting a session overwrites the previous start time and options", async () => {
     const storage = new InMemoryKeyValueStorage();
     const now = stubClock([1000, 9000]);
-    startAcceptingAnswers({ storage, now }, { quizId: "q1", options: OPTIONS });
-    stopAcceptingAnswers({ storage, now: stubClock([]) }, { quizId: "q1" });
+    await startAcceptingAnswers({ storage, now }, { quizId: "q1", options: OPTIONS });
+    await stopAcceptingAnswers({ storage, now: stubClock([]) }, { quizId: "q1" });
 
     const newOptions = [{ no: 1, text: "はい", color: "#22c55e" }];
-    const restarted = startAcceptingAnswers(
+    const restarted = await startAcceptingAnswers(
       { storage, now },
       { quizId: "q1", options: newOptions }
     );

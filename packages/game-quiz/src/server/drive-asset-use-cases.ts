@@ -25,11 +25,11 @@ export interface DriveAssetUseCaseDeps {
 
 const ASSET_FOLDER_PROPERTY = "quiz-game-asset-folder";
 
-export function addQuizDriveData(
+export async function addQuizDriveData(
   deps: DriveAssetUseCaseDeps,
   driveData: DriveData
-): OperationResult<DriveMetadata> {
-  const parentFolderId = resolveFolderIdPreferringProvided(
+): Promise<OperationResult<DriveMetadata>> {
+  const parentFolderId = await resolveFolderIdPreferringProvided(
     { kv: deps.storage },
     ASSET_FOLDER_PROPERTY,
     driveData.parentFolderId
@@ -37,11 +37,11 @@ export function addQuizDriveData(
   return addDriveDataGeneric(deps, { ...driveData, parentFolderId });
 }
 
-export function getQuizDriveMetadata(
+export async function getQuizDriveMetadata(
   deps: DriveAssetUseCaseDeps,
   folderId?: string
-): DriveMetadata[] {
-  const resolved = resolveFolderIdPreferringProvided(
+): Promise<DriveMetadata[]> {
+  const resolved = await resolveFolderIdPreferringProvided(
     { kv: deps.storage },
     ASSET_FOLDER_PROPERTY,
     folderId
@@ -49,16 +49,16 @@ export function getQuizDriveMetadata(
   return getDriveMetadataGeneric(deps, resolved);
 }
 
-export function getQuizDriveData(
+export async function getQuizDriveData(
   deps: DriveAssetUseCaseDeps,
   dataId: string
-): DriveData | null {
+): Promise<DriveData | null> {
   return getDriveDataGeneric(deps, dataId);
 }
 
-export function removeQuizDriveData(
+export async function removeQuizDriveData(
   deps: DriveAssetUseCaseDeps,
   dataId: string
-): void {
-  removeDriveDataGeneric(deps, dataId);
+): Promise<void> {
+  await removeDriveDataGeneric(deps, dataId);
 }

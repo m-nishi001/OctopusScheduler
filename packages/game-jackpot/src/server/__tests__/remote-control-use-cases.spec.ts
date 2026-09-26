@@ -12,33 +12,33 @@ function stubClock(times: number[]) {
 }
 
 describe("remote-control-use-cases", () => {
-  it("reports a null screen and zero actionSeq before any command is issued", () => {
+  it("reports a null screen and zero actionSeq before any command is issued", async () => {
     const storage = new InMemoryKeyValueStorage();
-    const state = getRemoteControlState({ storage, now: stubClock([]) });
+    const state = await getRemoteControlState({ storage, now: stubClock([]) });
     expect(state).toEqual({ screen: null, actionSeq: 0, updatedAtMs: 0 });
   });
 
-  it("sets the target screen and records the update time", () => {
+  it("sets the target screen and records the update time", async () => {
     const storage = new InMemoryKeyValueStorage();
     const now = stubClock([1000]);
 
-    const state = setRemoteScreen({ storage, now }, { screen: "opening" });
+    const state = await setRemoteScreen({ storage, now }, { screen: "opening" });
 
     expect(state).toEqual({
       screen: "opening",
       actionSeq: 0,
       updatedAtMs: 1000,
     });
-    expect(getRemoteControlState({ storage, now })).toEqual(state);
+    expect(await getRemoteControlState({ storage, now })).toEqual(state);
   });
 
-  it("advances actionSeq by 1 each call without touching the screen", () => {
+  it("advances actionSeq by 1 each call without touching the screen", async () => {
     const storage = new InMemoryKeyValueStorage();
     const now = stubClock([1000, 2000, 3000]);
-    setRemoteScreen({ storage, now }, { screen: "main-draw" });
+    await setRemoteScreen({ storage, now }, { screen: "main-draw" });
 
-    const first = advanceRemoteAction({ storage, now });
-    const second = advanceRemoteAction({ storage, now });
+    const first = await advanceRemoteAction({ storage, now });
+    const second = await advanceRemoteAction({ storage, now });
 
     expect(first).toEqual({
       screen: "main-draw",
@@ -52,13 +52,13 @@ describe("remote-control-use-cases", () => {
     });
   });
 
-  it("switching screens preserves the current actionSeq", () => {
+  it("switching screens preserves the current actionSeq", async () => {
     const storage = new InMemoryKeyValueStorage();
     const now = stubClock([1000, 2000, 3000]);
-    setRemoteScreen({ storage, now }, { screen: "home" });
-    advanceRemoteAction({ storage, now });
+    await setRemoteScreen({ storage, now }, { screen: "home" });
+    await advanceRemoteAction({ storage, now });
 
-    const state = setRemoteScreen({ storage, now }, { screen: "opening" });
+    const state = await setRemoteScreen({ storage, now }, { screen: "opening" });
 
     expect(state).toEqual({
       screen: "opening",
