@@ -1,0 +1,42 @@
+{
+  "name": "@octopus/member-directory",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "app-scheduler本体と各ゲームパッケージが共有するメンバーマスタ(id/name)を提供するモジュール。モジュール固有のメンバー設定(rank/写真など)は各パッケージ側で保持する。",
+  "main": "./src/client/index.ts",
+  "types": "./src/client/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/client/index.ts",
+      "import": "./src/client/index.ts",
+      "default": "./src/client/index.ts"
+    },
+    "./server": {
+      "types": "./src/server/endpoints.ts",
+      "import": "./src/server/endpoints.ts",
+      "default": "./src/server/endpoints.ts"
+    },
+    "./server-use-cases": {
+      "types": "./src/server/member-directory-use-cases.ts",
+      "import": "./src/server/member-directory-use-cases.ts",
+      "default": "./src/server/member-directory-use-cases.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint src",
+    "typecheck": "tsc -b",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@octopus/infrastructures": "*",
+    "reflect-metadata": "^0.2.2",
+    "tsyringe": "^4.10.0"
+  },
+  "devDependencies": {
+    "@types/google-apps-script": "^1.0.83",
+    "@types/node": "^20.12.12",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.8"
+  }
+}
