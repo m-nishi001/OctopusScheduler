@@ -1,10 +1,10 @@
 <template>
   <div v-if="!deleting" class="modal-overlay">
     <div class="modal-content">
-      <h3>メンバーを削除</h3>
-      <p>選択したメンバーを削除しますか？</p>
+      <h3>メンバーをこのゲームから外す</h3>
+      <p>選択したメンバーをジャックポットから外しますか？共有マスタからは削除されないため、他のゲームの名簿には影響しません。</p>
       <div class="modal-actions">
-        <button class="admin-btn delete-btn" @click="$emit('confirm')">削除</button>
+        <button class="admin-btn delete-btn" @click="$emit('confirm')">外す</button>
         <button class="admin-btn" @click="$emit('cancel')">キャンセル</button>
       </div>
     </div>

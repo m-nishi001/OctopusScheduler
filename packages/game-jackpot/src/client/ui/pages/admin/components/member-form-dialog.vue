@@ -4,10 +4,30 @@
       <div class="add-form-column">
         <h3>{{ mode === 'edit' ? 'メンバー詳細' : 'メンバーを追加' }}</h3>
 
+        <div v-if="mode === 'add'" class="field-block">
+          <label class="field-label">登録方法</label>
+          <div class="photo-mode">
+            <label><input type="radio" v-model="attachMode" value="new" /> 新規作成</label>
+            <label>
+              <input type="radio" v-model="attachMode" value="existing"
+                :disabled="!existingDirectoryMembers.length" /> 共有マスタから選択
+            </label>
+          </div>
+        </div>
+
+        <div v-if="mode === 'add' && attachMode === 'existing'" class="field-block">
+          <label class="field-label">メンバー</label>
+          <select v-model="selectedExistingId" class="admin-input">
+            <option value="">選択してください</option>
+            <option v-for="m in existingDirectoryMembers" :key="m.id" :value="m.id">{{ m.name }}</option>
+          </select>
+        </div>
+
         <div class="two-col">
           <div class="field-block">
             <label class="field-label">名前</label>
-            <input v-model="name" type="text" placeholder="メンバー名" class="admin-input member-name-input" />
+            <input v-model="name" type="text" placeholder="メンバー名" class="admin-input member-name-input"
+              :disabled="mode === 'add' && attachMode === 'existing'" />
           </div>
           <div class="field-block">
             <label class="field-label">ランク</label>
@@ -47,7 +67,7 @@
 
       <div class="modal-footer">
         <div class="footer-right admin-modal-buttons">
-          <button class="admin-btn" @click="submit" :disabled="!name.trim() || rank < 1 || saving">保存</button>
+          <button class="admin-btn" @click="submit" :disabled="!canSubmit">保存</button>
           <button class="admin-btn cancel-primary" @click="$emit('cancel')">キャンセル</button>
         </div>
       </div>
@@ -56,16 +76,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
+import type { Member as DirectoryMember } from '@octopus/member-directory';
 import type { MemberFormInput } from '../use-members';
 
 const props = defineProps({
   mode: { type: String as () => 'add' | 'edit', required: true },
   member: { type: Object, default: null },
   imageAssets: { type: Array as () => Asset[], required: true },
+  existingDirectoryMembers: { type: Array as () => DirectoryMember[], default: () => [] },
 });
 
 const emit = defineEmits<{
@@ -85,7 +107,29 @@ const photoFilename = ref('');
 const photoAssetId = ref('');
 const tempAsset = ref<Asset | null>(null);
 const saving = ref(false);
+const attachMode = ref<'new' | 'existing'>('new');
+const selectedExistingId = ref('');
 let photoPreviewUrl: string | undefined;
+
+watch(attachMode, (value) => {
+  if (value === 'new') {
+    selectedExistingId.value = '';
+    name.value = '';
+  }
+});
+
+watch(selectedExistingId, (id) => {
+  const found = props.existingDirectoryMembers.find((m) => m.id === id);
+  name.value = found ? found.name : '';
+});
+
+const canSubmit = computed(() => {
+  if (rank.value < 1 || saving.value) return false;
+  if (props.mode === 'add' && attachMode.value === 'existing') {
+    return !!selectedExistingId.value;
+  }
+  return !!name.value.trim();
+});
 
 const revokePreviewUrl = () => {
   if (photoPreviewUrl) {
@@ -158,10 +202,11 @@ const onPhotoChange = async (e: Event) => {
 };
 
 const submit = async () => {
-  if (!name.value.trim() || rank.value < 1 || saving.value) return;
+  if (!canSubmit.value) return;
   saving.value = true;
   try {
     emit('submit', {
+      id: props.mode === 'add' && attachMode.value === 'existing' ? selectedExistingId.value : undefined,
       name: name.value,
       rank: rank.value,
       photoAssetId: photoMode.value === 'select' ? photoAssetId.value || undefined : undefined,

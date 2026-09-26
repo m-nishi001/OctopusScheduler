@@ -1,6 +1,6 @@
 <template>
   <div class="admin-section">
-    <h2>メンバー設定</h2>
+    <h2>メンバー詳細設定(ランク・写真)</h2>
     <div class="admin-actions">
       <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openModal('add')" title="Add members">
         <span class="emoji">➕</span>
@@ -24,7 +24,7 @@
   </div>
 
   <MemberFormDialog v-if="modalMode" :mode="modalMode" :member="modalData" :image-assets="imageAssets"
-    @submit="onFormSubmit" @cancel="closeModal" />
+    :existing-directory-members="availableDirectoryMembers" @submit="onFormSubmit" @cancel="closeModal" />
 
   <MemberDeleteDialog v-if="showDeleteModal || deleting" :deleting="deleting" :delete-message="deleteMessage"
     @confirm="onConfirmDelete" @cancel="showDeleteModal = false" />
@@ -49,6 +49,7 @@ const assetDataService = container.resolve(AssetDataService);
 
 const {
   members,
+  availableDirectoryMembers,
   selectedMembers,
   isAllSelected,
   deleting,
