@@ -6,6 +6,7 @@
             <main class="admin-content">
                 <EventEditor v-if="currentTab === 'events'" />
                 <AssetListEditor v-else-if="currentTab === 'assets'" />
+                <MemberDirectoryEditor v-else-if="currentTab === 'members'" />
                 <KeyboardShortcutEditor v-else-if="currentTab === 'keyboard-shortcuts'" />
             </main>
         </div>
@@ -18,6 +19,7 @@ import AdminHeader from './frames/admin-header.vue';
 import AdminSidemenu from './frames/admin-sidemenu.vue';
 import EventEditor from './event-list/event-list.vue';
 import AssetListEditor from './asset-list/asset-list-editor.vue';
+import MemberDirectoryEditor from './member-directory/member-directory-editor.vue';
 import KeyboardShortcutEditor from './keyboard-shortcut/keyboard-shortcut-editor.vue';
 
 const currentTab = ref('events');

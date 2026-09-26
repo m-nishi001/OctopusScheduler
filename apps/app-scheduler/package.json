@@ -16,6 +16,7 @@
     "@octopus/infrastructures": "*",
     "@octopus/game-card": "*",
     "@octopus/game-jackpot": "*",
+    "@octopus/member-directory": "*",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
     "vue": "^3.5.17",

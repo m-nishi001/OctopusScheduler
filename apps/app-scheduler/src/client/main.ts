@@ -5,6 +5,7 @@ import App from "./App.vue";
 import { Container } from "./control/container/index";
 import { JackpotContainer } from "@octopus/game-jackpot";
 import { QuizContainer } from "@octopus/game-quiz";
+import { MemberDirectoryContainer } from "@octopus/member-directory";
 import router from "./control/router";
 import { registerEventHandlers } from "./ui/composables/register-event-handlers";
 import { registerKeyboardShortcutListener } from "./ui/composables/keyboard-shortcut-listener";
@@ -14,6 +15,7 @@ Container.register();
 // Also register DI for embedded jackpot/quiz game components
 JackpotContainer.register();
 QuizContainer.register();
+MemberDirectoryContainer.register();
 
 const app = createApp(App);
 app.use(router).mount("#app");
