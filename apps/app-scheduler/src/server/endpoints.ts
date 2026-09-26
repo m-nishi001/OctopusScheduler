@@ -16,7 +16,11 @@ import type {
   IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
 import type { DriveData } from "@octopus/infrastructures/compositions";
-import type { KeyboardShortcutWireItem } from "./scheduler-api-contract";
+import type {
+  KeyboardShortcutWireItem,
+  OctopusSchedulerEndpointName,
+} from "./scheduler-api-contract";
+import { OCTOPUS_SCHEDULER_PREFIX } from "./scheduler-api-contract";
 
 import {
   addSchedulerDriveData,
@@ -133,3 +137,22 @@ _octopusScheduler_doGet = (
     );
   }
 };
+
+/**
+ * Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。
+ * doGet は GAS の HtmlService エントリポイント固有の関心事であり、Cloudflare側は
+ * 静的アセット配信で代替するため、ここには含めない。
+ */
+export const OCTOPUS_SCHEDULER_HANDLERS: Record<
+  Exclude<OctopusSchedulerEndpointName, "doGet">,
+  (args: any) => Promise<string>
+> = {
+  addDriveData: _octopusScheduler_addDriveData,
+  getDriveMetaData: _octopusScheduler_getDriveMetaData,
+  getDriveData: _octopusScheduler_getDriveData,
+  updateDriveData: _octopusScheduler_updateDriveData,
+  getKeyboardShortcuts: _octopusScheduler_getKeyboardShortcuts,
+  setKeyboardShortcuts: _octopusScheduler_setKeyboardShortcuts,
+};
+
+export { OCTOPUS_SCHEDULER_PREFIX };

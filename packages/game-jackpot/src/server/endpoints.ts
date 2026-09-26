@@ -14,7 +14,8 @@ import type {
   IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
 import type { DriveData, DriveJsonData } from "@octopus/infrastructures/compositions";
-import type { JackpotRemoteScreen } from "./jackpot-api-contract";
+import type { JackpotGameEndpointName, JackpotRemoteScreen } from "./jackpot-api-contract";
+import { JACKPOT_GAME_PREFIX } from "./jackpot-api-contract";
 
 import {
   addJackpotDriveData,
@@ -123,3 +124,17 @@ _jackpotGame_getRemoteControlState = async (): Promise<string> => {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
+
+/** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
+export const JACKPOT_GAME_HANDLERS: Record<JackpotGameEndpointName, (args: any) => Promise<string>> = {
+  addDriveData: _jackpotGame_addDriveData,
+  getDriveMetaData: _jackpotGame_getDriveMetaData,
+  getDriveData: _jackpotGame_getDriveData,
+  addJson: _jackpotGame_addJson,
+  getJson: _jackpotGame_getJson,
+  setRemoteScreen: _jackpotGame_setRemoteScreen,
+  advanceRemoteAction: _jackpotGame_advanceRemoteAction,
+  getRemoteControlState: _jackpotGame_getRemoteControlState,
+};
+
+export { JACKPOT_GAME_PREFIX };
