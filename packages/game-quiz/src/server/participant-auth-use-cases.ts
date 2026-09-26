@@ -1,8 +1,9 @@
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
+import { findMemberById } from "@octopus/member-directory/server-use-cases";
+import type { MemberDirectoryUseCaseDeps } from "@octopus/member-directory/server-use-cases";
 import type { ParticipantSession } from "./quiz-api-contract";
-import { findMemberByUserId } from "./member-use-cases";
 
-export interface ParticipantAuthDeps {
+export interface ParticipantAuthDeps extends MemberDirectoryUseCaseDeps {
   storage: IKeyValueStorage;
   /** トークン生成関数。GAS本番では Utilities.getUuid() を注入する。 */
   generateToken: () => string;
@@ -24,13 +25,13 @@ export async function loginParticipant(
   deps: ParticipantAuthDeps,
   args: { userId: string }
 ): Promise<ParticipantSession> {
-  const member = await findMemberByUserId(deps, args.userId);
+  const member = await findMemberById(deps, args.userId);
   if (!member) {
     throw new Error(`Member with userId "${args.userId}" not found`);
   }
   const token = deps.generateToken();
-  await deps.storage.set(`${DEVICE_TOKEN_PREFIX}${token}`, member.userId);
-  return { token, userId: member.userId, displayName: member.displayName };
+  await deps.storage.set(`${DEVICE_TOKEN_PREFIX}${token}`, member.id);
+  return { token, userId: member.id, displayName: member.name };
 }
 
 /** 端末に保存済みのトークンから参加者情報を復元する。 */
@@ -42,9 +43,9 @@ export async function resolveDeviceToken(
   if (!userId) {
     throw new Error("Invalid or expired device token");
   }
-  const member = await findMemberByUserId(deps, userId);
+  const member = await findMemberById(deps, userId);
   if (!member) {
     throw new Error(`Member with userId "${userId}" no longer exists`);
   }
-  return { token: args.token, userId: member.userId, displayName: member.displayName };
+  return { token: args.token, userId: member.id, displayName: member.name };
 }

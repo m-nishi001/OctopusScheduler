@@ -17,6 +17,6 @@
     "rootDir": "src/server"
   },
   "include": ["src/server/**/*"],
-  "references": [{ "path": "../infrastructures" }],
+  "references": [{ "path": "../infrastructures" }, { "path": "../member-directory" }],
   "exclude": ["node_modules", "dist"]
 }
