@@ -154,7 +154,9 @@ export class DrawSimulationService {
       });
     }
 
-    await this.memberRepo.replaceAllMembers(dummyMembers as any);
+    // ダミーメンバーは共有マスタに一切書き込まない一時的なローカル上書き
+    // (game-quiz等の名簿を汚さないため、replaceAllMembersは使わない)。
+    await this.memberRepo.setRosterOverride(dummyMembers as any);
     await this.prizeRepo.replaceAllPrizes(dummyPrizes as any);
 
     // Clear existing results
@@ -211,9 +213,8 @@ export class DrawSimulationService {
   // バックアップを復元
   async restoreBackup(): Promise<void> {
     console.info("Restoring backup...");
-    if (this.backupMembers) {
-      await this.memberRepo.replaceAllMembers(this.backupMembers as any);
-    }
+    // ダミーメンバーは共有マスタに書き込んでいないため、上書きを解除するだけでよい。
+    await this.memberRepo.clearRosterOverride();
     if (this.backupPrizes) {
       await this.prizeRepo.replaceAllPrizes(this.backupPrizes as any);
     }
