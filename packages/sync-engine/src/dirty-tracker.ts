@@ -16,11 +16,14 @@ export class DirtyTracker {
     this.storage = new LocalStorageService(namespace, "SyncDirtyTracker");
   }
 
-  /** 指定した kind を「今変更された」として記録し、その更新日時を返す。 */
-  async touch(kind: string): Promise<number> {
-    const updatedAt = Date.now();
-    await this.storage.save(kind, updatedAt);
-    return updatedAt;
+  /**
+   * 指定した kind の更新日時を記録する。
+   * @param at 明示的な更新日時(ミリ秒)。省略時は現在時刻。pull後にリモート側の
+   *   updatedAtへ揃えることで、次回以降の差分比較を一致させる用途にも使う。
+   */
+  async touch(kind: string, at: number = Date.now()): Promise<number> {
+    await this.storage.save(kind, at);
+    return at;
   }
 
   /** 指定した kind の最終変更日時。一度も touch されていなければ null。 */
