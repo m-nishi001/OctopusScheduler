@@ -22,7 +22,8 @@
   "references": [
     { "path": "../infrastructures" },
     { "path": "../client-common" },
-    { "path": "../composables" }
+    { "path": "../composables" },
+    { "path": "../sync-engine" }
   ],
   "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.vue"]
 }

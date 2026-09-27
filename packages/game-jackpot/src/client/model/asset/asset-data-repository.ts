@@ -1,6 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { CryptoIdGenerator } from "../common/crypto-id-generator";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import type { SyncTarget } from "@octopus/sync-engine";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { Asset } from "./asset-data";
@@ -12,8 +13,6 @@ import type {
 @injectable()
 export class AssetDataRepository {
   private readonly localStorage: LocalStorageService;
-
-  private readonly concurrency = 20;
 
   constructor(
     @inject(CryptoIdGenerator) private readonly idGenerator: CryptoIdGenerator,
@@ -68,61 +67,6 @@ export class AssetDataRepository {
     await this.localStorage.removeMultiple(ids);
   }
 
-  async syncAssetData(
-    onProgress?: (
-      message: string,
-      progress?: { current: number; total: number }
-    ) => void
-  ): Promise<{ updated: number; deleted: number }> {
-    onProgress?.("Start asset sync (jackpot-game)");
-
-    const remoteMetas = await this.fetchRemoteMetas(onProgress);
-    if (!remoteMetas) return { updated: 0, deleted: 0 };
-
-    const all = await this.localStorage.getAll<Asset>();
-    const localAssets: Asset[] = Array.from(all.values());
-
-    const remoteMap = new Map<string, DriveMetadata>();
-    for (const m of remoteMetas)
-      if (m && m.driveDataId) remoteMap.set(String(m.driveDataId), m);
-
-    const toUpload = localAssets.filter((a) => {
-      const remote = remoteMap.get(a.id);
-      const localUpdated = a.lastUpdated
-        ? new Date(a.lastUpdated)
-        : new Date(0);
-      const remoteUpdated =
-        remote && remote.lastUpdate
-          ? new Date(String(remote.lastUpdate))
-          : new Date(0);
-      return !remote || localUpdated > remoteUpdated;
-    });
-
-    onProgress?.(`Assets to upload: ${toUpload.length}`);
-
-    const uploaded = await this.uploadAssets(toUpload, onProgress);
-
-    onProgress?.("Asset sync finished");
-    return { updated: uploaded, deleted: 0 };
-  }
-
-  private async fetchRemoteMetas(
-    onProgress?: (message: string) => void
-  ): Promise<DriveMetadata[] | null> {
-    try {
-      // Explicitly pass undefined so the server will resolve the configured
-      // asset folder via ScriptProperties when no folder is provided.
-      const metas =
-        (await this.jackpotApi.getDriveMetaData(undefined, {
-          timeout: 180000,
-        })) || [];
-      return metas as DriveMetadata[];
-    } catch (e) {
-      onProgress?.(`Failed to fetch remote metadata: ${(e as Error).message}`);
-      return null;
-    }
-  }
-
   private blobToDataUrl(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -150,50 +94,73 @@ export class AssetDataRepository {
     }
   }
 
-  private async runInBatches<T, R>(
-    items: T[],
-    worker: (item: T) => Promise<R | null>,
-    concurrency = this.concurrency
-  ): Promise<Array<R | null>> {
-    const results: Array<R | null> = new Array(items.length).fill(null);
-    let idx = 0;
-    const runners: Promise<void>[] = [];
-    const next = async () => {
-      while (true) {
-        const i = idx++;
-        if (i >= items.length) return;
-        try {
-          const r = await worker(items[i]);
-          results[i] = r;
-        } catch (e) {
-          results[i] = null;
-        }
-      }
-    };
-    for (let i = 0; i < Math.min(concurrency, items.length); i++)
-      runners.push(next());
-    await Promise.all(runners);
-    return results;
+  /**
+   * バックグラウンド同期エンジン向けに、アセット1件ごとのSyncTargetを列挙する。
+   * ローカル/リモートいずれかにのみ存在するIDも含めることで、新規アップロード
+   * と新規ダウンロードの両方を1つの差分判定(Last-Write-Wins)で扱う。
+   *
+   * アセットのidはアップロード時に driveDataId としてそのまま使われ、
+   * ダウンロード時もそのidの元で保存するため、同期のたびにidが変わることはない
+   * (画面設定(ScreenConfigRepository)が埋め込みで参照するアセットidが
+   * 同期後にずれる心配がない)。
+   */
+  async listSyncTargets(): Promise<SyncTarget<Asset, DriveMetadata>[]> {
+    let remoteMetas: DriveMetadata[] = [];
+    try {
+      // 空文字列ではなく明示的にundefinedを送る。サーバー側が
+      // ScriptPropertiesで設定済みのアセットフォルダを解決するため。
+      remoteMetas =
+        (await this.jackpotApi.getDriveMetaData(undefined, {
+          timeout: 180000,
+        })) || [];
+    } catch (e) {
+      console.error(
+        "[AssetDataRepository] Failed to fetch remote asset metadata for sync",
+        e
+      );
+      return [];
+    }
+
+    const remoteMap = new Map<string, DriveMetadata>();
+    for (const m of remoteMetas) {
+      if (m?.driveDataId) remoteMap.set(String(m.driveDataId), m);
+    }
+
+    const localRaw = await this.localStorage.getAll<Asset>();
+    const allIds = new Set<string>([
+      ...Array.from(localRaw.keys()),
+      ...remoteMap.keys(),
+    ]);
+
+    return Array.from(allIds).map((id) => this.buildAssetSyncTarget(id, remoteMap));
   }
 
-  private async uploadAssets(
-    assets: Asset[],
-    onProgress?: (
-      message: string,
-      progress?: { current: number; total: number }
-    ) => void
-  ): Promise<number> {
-    let uploaded = 0;
-
-    const worker = async (asset: Asset) => {
-      try {
+  private buildAssetSyncTarget(
+    id: string,
+    remoteMap: Map<string, DriveMetadata>
+  ): SyncTarget<Asset, DriveMetadata> {
+    return {
+      id,
+      kind: "asset",
+      getLocal: async () => {
+        const asset = await this.getAssetDataById(id);
+        if (!asset) return null;
+        return { data: asset, updatedAt: new Date(asset.lastUpdated).getTime() };
+      },
+      getRemote: async () => {
+        const meta = remoteMap.get(id);
+        if (!meta) return null;
+        return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
+      },
+      push: async (asset) => {
         const dataUrl = asset.blob ? await this.blobToDataUrl(asset.blob) : "";
+        const clientNow = new Date().toISOString();
         const driveData: DriveData = {
           metadata: {
-            driveDataId: asset.id,
+            driveDataId: id,
             fileId: "",
             parentFolderId: "",
-            lastUpdate: asset.lastUpdated || new Date().toISOString(),
+            lastUpdate: clientNow,
             size: asset.size || 0,
           },
           fileName: asset.name,
@@ -203,153 +170,38 @@ export class AssetDataRepository {
           parentFolderId: "",
         };
 
-        const res = await this.jackpotApi.addDriveData(driveData, {
-          timeout: 180000,
-        });
-        if (res) {
-          await this.localStorage.save(asset.id, {
-            ...asset,
-            lastUpdated: new Date().toISOString(),
-          });
-          uploaded++;
-          onProgress?.(`Uploaded: ${uploaded}/${assets.length}`, {
-            current: uploaded,
-            total: assets.length,
-          });
+        if (remoteMap.has(id)) {
+          await this.jackpotApi.updateDriveData(driveData, { timeout: 180000 });
+        } else {
+          await this.jackpotApi.addDriveData(driveData, { timeout: 180000 });
         }
-      } catch (e) {
-        onProgress?.(`upload error: ${(e as Error).message}`);
-      }
-      return null;
-    };
 
-    await this.runInBatches(assets, worker, this.concurrency);
-    return uploaded;
-  }
-
-  private async fetchDriveAssets(
-    remoteMetas: DriveMetadata[],
-    onProgress?: (message: string) => void
-  ): Promise<Asset[]> {
-    const assets: Asset[] = [];
-    let fetched = 0;
-
-    const worker = async (m: DriveMetadata) => {
-      try {
-        const driveData = await this.jackpotApi.getDriveData(m.fileId, {
+        await this.localStorage.save(id, { ...asset, lastUpdated: clientNow });
+        return { updatedAt: new Date(clientNow).getTime() };
+      },
+      pull: async (meta) => {
+        const driveData = await this.jackpotApi.getDriveData(meta.fileId, {
           timeout: 180000,
         });
-        if (!driveData) return null;
-
         const blob = await this.dataUrlToBlob(
           driveData.fileDataUrl ?? "",
           driveData.fileKind
         );
-
+        const lastUpdated = driveData.metadata?.lastUpdate
+          ? String(driveData.metadata.lastUpdate)
+          : new Date().toISOString();
         const asset = new Asset(
-          driveData.metadata?.driveDataId || this.idGenerator.nextId(),
+          id,
           driveData.fileKind || "application/octet-stream",
           driveData.fileName || "",
-          driveData.uploadDate
-            ? typeof driveData.uploadDate === "string"
-              ? driveData.uploadDate
-              : new Date(String(driveData.uploadDate)).toISOString()
-            : new Date().toISOString(),
-          driveData.metadata?.lastUpdate
-            ? typeof driveData.metadata.lastUpdate === "string"
-              ? driveData.metadata.lastUpdate
-              : new Date(String(driveData.metadata.lastUpdate)).toISOString()
-            : new Date().toISOString(),
+          driveData.uploadDate ? String(driveData.uploadDate) : new Date().toISOString(),
+          lastUpdated,
           driveData.metadata?.size || 0,
           blob
         );
-
-        fetched++;
-        onProgress?.(`Fetched ${fetched}/${remoteMetas.length}`);
-        return asset;
-      } catch (e) {
-        onProgress?.(`error fetching drive data: ${(e as Error).message}`);
-        return null;
-      }
+        await this.localStorage.save(id, asset);
+        return { updatedAt: new Date(lastUpdated).getTime() };
+      },
     };
-
-    const results = await this.runInBatches(
-      remoteMetas,
-      worker,
-      this.concurrency
-    );
-    for (const r of results) if (r) assets.push(r as Asset);
-    return assets;
-  }
-
-  async replaceLocalWithDrive(
-    onProgress?: (message: string) => void,
-    remoteMetas?: any[]
-  ): Promise<{ replaced: number; idMap: { [oldId: string]: string } }> {
-    onProgress?.("Start replacing local assets from Google Drive");
-
-    let metas: DriveMetadata[] | null | undefined = remoteMetas as
-      | DriveMetadata[]
-      | undefined;
-    if (!metas) {
-      metas = await this.fetchRemoteMetas(onProgress);
-    }
-    if (!metas) return { replaced: 0, idMap: {} };
-
-    const allLocal = await this.localStorage.getAll<Asset>();
-    const localMap = new Map<string, Asset>();
-    for (const [k, v] of allLocal) localMap.set(String(k), v as Asset);
-
-    const neededMetas = metas.filter((m) => {
-      const id = String(m.driveDataId);
-      const local = localMap.get(id);
-      if (!local) return true;
-      const localUpdated = local.lastUpdated
-        ? new Date(local.lastUpdated)
-        : new Date(0);
-      const remoteUpdated = m.lastUpdate
-        ? new Date(String(m.lastUpdate))
-        : new Date(0);
-      return remoteUpdated > localUpdated;
-    });
-
-    onProgress?.(
-      `Need to fetch ${neededMetas.length}/${metas.length} remote files`
-    );
-
-    const assets = await this.fetchDriveAssets(neededMetas, onProgress);
-
-    try {
-      // Build a mapping from previous local asset IDs to new asset IDs based
-      // on a simple signature: name:size. This helps callers update references
-      // (e.g. prize asset ids) if necessary.
-      const idMap: { [oldId: string]: string } = {};
-      const localAssetsMap = await this.localStorage.getAll<Asset>();
-      const nameSizeToId = new Map<string, string>();
-      for (const [k, v] of localAssetsMap) {
-        nameSizeToId.set(
-          `${(v as Asset).name}:${(v as Asset).size}`,
-          String(k)
-        );
-      }
-
-      for (const a of assets) {
-        const sig = `${a.name}:${a.size}`;
-        const existingOldId = nameSizeToId.get(sig);
-        if (existingOldId && existingOldId !== a.id) {
-          idMap[existingOldId] = a.id;
-        }
-      }
-
-      await this.localStorage.clear();
-      for (const a of assets) {
-        await this.localStorage.save(a.id, a);
-      }
-      onProgress?.(`Replaced local assets: ${assets.length}`);
-      return { replaced: assets.length, idMap };
-    } catch (e) {
-      onProgress?.(`Failed to save local assets: ${(e as Error).message}`);
-      return { replaced: 0, idMap: {} };
-    }
   }
 }

@@ -4,6 +4,7 @@ import { Asset } from "./asset-data";
 import { container } from "tsyringe";
 import { CryptoIdGenerator } from "../common/crypto-id-generator";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
 describe("AssetDataRepository", () => {
   let repo: AssetDataRepository;
@@ -22,8 +23,9 @@ describe("AssetDataRepository", () => {
     // methods, but the constructor still needs a resolvable token.
     const mockJackpotApi = {
       addDriveData: vi.fn(),
-      getDriveMetaData: vi.fn(),
+      getDriveMetaData: vi.fn(async () => []),
       getDriveData: vi.fn(),
+      updateDriveData: vi.fn(),
       addJson: vi.fn(),
       getJson: vi.fn(),
     };
@@ -68,5 +70,101 @@ describe("AssetDataRepository", () => {
     const fetched = await repo.getAssetDataById(updated[0].id);
     expect(fetched).not.toBeNull();
     expect(fetched!.id).toBe(updated[0].id);
+  });
+});
+
+describe("AssetDataRepository.listSyncTargets", () => {
+  let mockJackpotApi: {
+    addDriveData: ReturnType<typeof vi.fn>;
+    getDriveMetaData: ReturnType<typeof vi.fn>;
+    getDriveData: ReturnType<typeof vi.fn>;
+    updateDriveData: ReturnType<typeof vi.fn>;
+  };
+  let repo: AssetDataRepository;
+
+  beforeEach(async () => {
+    container.reset();
+    await new LocalStorageService("jackpot-game", "AssetData").clear();
+
+    container.register(CryptoIdGenerator, { useValue: { nextId: () => "generated-id" } });
+    mockJackpotApi = {
+      addDriveData: vi.fn(async (d: any) => ({ ...d.metadata, fileId: "file-1" })),
+      getDriveMetaData: vi.fn(async () => []),
+      getDriveData: vi.fn(),
+      updateDriveData: vi.fn(async () => undefined),
+    };
+    container.register(IJackpotGameApiToken, { useValue: mockJackpotApi });
+    repo = container.resolve(AssetDataRepository);
+  });
+
+  it("returns one target per local-only asset, resolving to push via addDriveData", async () => {
+    await repo.addAssetData([
+      new Asset(
+        "a1",
+        "audio/mpeg",
+        "a1.mp3",
+        new Date().toISOString(),
+        new Date().toISOString(),
+        4,
+        undefined as unknown as Blob
+      ),
+    ]);
+
+    const targets = await repo.listSyncTargets();
+    expect(targets).toHaveLength(1);
+    expect(targets[0].id).toBe("a1");
+    expect(targets[0].kind).toBe("asset");
+
+    const local = await targets[0].getLocal();
+    expect(await targets[0].getRemote()).toBeNull();
+    await targets[0].push(local!.data);
+
+    expect(mockJackpotApi.addDriveData).toHaveBeenCalledOnce();
+  });
+
+  it("includes remote-only assets so they can be pulled down", async () => {
+    mockJackpotApi.getDriveMetaData.mockResolvedValue([
+      {
+        driveDataId: "remote-1",
+        fileId: "file-remote-1",
+        parentFolderId: "",
+        lastUpdate: new Date().toISOString(),
+      },
+    ]);
+
+    const targets = await repo.listSyncTargets();
+    expect(targets).toHaveLength(1);
+    expect(targets[0].id).toBe("remote-1");
+    expect(await targets[0].getLocal()).toBeNull();
+    expect(await targets[0].getRemote()).not.toBeNull();
+  });
+
+  it("calls updateDriveData (not addDriveData) when a remote counterpart already exists", async () => {
+    mockJackpotApi.getDriveMetaData.mockResolvedValue([
+      {
+        driveDataId: "a1",
+        fileId: "file-1",
+        parentFolderId: "",
+        lastUpdate: new Date(0).toISOString(),
+      },
+    ]);
+    await repo.addAssetData([
+      new Asset(
+        "a1",
+        "audio/mpeg",
+        "a1.mp3",
+        new Date().toISOString(),
+        new Date().toISOString(),
+        4,
+        undefined as unknown as Blob
+      ),
+    ]);
+
+    const [target] = await repo.listSyncTargets();
+    const local = await target.getLocal();
+    await target.push(local!.data);
+
+    expect(mockJackpotApi.updateDriveData).toHaveBeenCalledOnce();
+    expect(mockJackpotApi.addDriveData).not.toHaveBeenCalled();
   });
 });
