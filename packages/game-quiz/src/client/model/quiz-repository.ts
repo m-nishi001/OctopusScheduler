@@ -1,9 +1,19 @@
 import { inject, injectable } from "tsyringe";
 import { Quiz } from "./quiz";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { eventBus } from "@octopus/client-common/events/event-bus";
+import { DirtyTracker } from "@octopus/sync-engine";
+import type { SyncTarget } from "@octopus/sync-engine";
 import { IQuizGameApiToken } from "../../server/quiz-api-contract";
 import type { QuizGameApi, QuizWithDataUrl } from "../../server/quiz-api-contract";
 import { dataUrlToBlob } from "./blob-utils";
+import type { DriveJsonData, DriveMetadata } from "@octopus/infrastructures/compositions";
+
+const METADATA_SYNC_KIND = "quizzes-meta";
+const METADATA_FILE_NAME = "quizzes.json";
+const ASSET_SYNC_KIND = "quiz-asset";
+
+type AssetSlotType = "bgm" | "option" | "prizeImage" | "prizeBgm";
 
 @injectable()
 export class QuizRepository {
@@ -11,6 +21,7 @@ export class QuizRepository {
     "quiz-game",
     "QuizData"
   );
+  private readonly dirtyTracker = new DirtyTracker("quiz-game");
 
   constructor(
     @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi
@@ -46,383 +57,23 @@ export class QuizRepository {
 
   async saveQuiz(quiz: Quiz): Promise<void> {
     await this.localStorage.save(quiz.id, quiz);
+    await this.dirtyTracker.touch(METADATA_SYNC_KIND);
+    eventBus.emit("syncDirty");
   }
 
   async addQuiz(quiz: Omit<Quiz, "id">): Promise<string> {
     const id = crypto.randomUUID();
     const newQuiz: Quiz = { ...quiz, id };
     await this.localStorage.save(id, newQuiz);
+    await this.dirtyTracker.touch(METADATA_SYNC_KIND);
+    eventBus.emit("syncDirty");
     return id;
   }
 
   async deleteQuiz(id: string): Promise<void> {
     await this.localStorage.delete(id);
-  }
-
-  async syncQuizzes(
-    direction: "gas-to-local" | "local-to-gas",
-    onProgress?: (message: string) => void
-  ): Promise<{
-    successCount: number;
-    failedCount: number;
-    failedFiles: string[];
-  }> {
-    const failedFiles: string[] = [];
-    let successCount = 0;
-
-    if (direction === "gas-to-local") {
-      onProgress?.("GASからクイズを取得中...");
-      const jsonResp = await this.quizApi.getJson({});
-      const jsonText = jsonResp?.json ?? JSON.stringify([]);
-      let quizzes: QuizWithDataUrl[] = [];
-      try {
-        quizzes = JSON.parse(jsonText) as QuizWithDataUrl[];
-      } catch {
-        quizzes = [];
-      }
-
-      if (quizzes.length === 0) {
-        onProgress?.("GASにクイズが見つかりませんでした。");
-        return { successCount: 0, failedCount: 0, failedFiles: [] };
-      }
-
-      onProgress?.(
-        `${quizzes.length}件のクイズが見つかりました。保存を開始します。`
-      );
-
-      // helper: bounded concurrency map
-      const mapWithConcurrency = async <T, R>(
-        items: T[],
-        fn: (t: T) => Promise<R>,
-        concurrency = 5
-      ) => {
-        const results: R[] = [];
-        let idx = 0;
-        const workers = new Array(concurrency).fill(null).map(async () => {
-          while (idx < items.length) {
-            const i = idx++;
-            // eslint-disable-next-line no-await-in-loop
-            results[i] = await fn(items[i]);
-          }
-        });
-        await Promise.all(workers);
-        return results;
-      };
-
-      for (const q of quizzes) {
-        onProgress?.(`クイズを保存中: ${q.title}`);
-
-        const assetTasks: Array<() => Promise<void>> = [];
-
-        if (q.bgm && typeof q.bgm === "string" && q.bgm.startsWith("drive:")) {
-          const fid = q.bgm.replace(/^drive:/, "");
-          assetTasks.push(async () => {
-            try {
-              const data = await this.quizApi.getDriveData({ dataId: fid });
-              if (data && data.fileDataUrl) {
-                q.bgm = data.fileDataUrl;
-                successCount++;
-              } else {
-                failedFiles.push(fid);
-                q.bgm = null;
-              }
-            } catch (e) {
-              failedFiles.push(fid);
-              q.bgm = null;
-            }
-          });
-        }
-
-        q.options = q.options.map((o: any) => ({ ...o }));
-        q.options.forEach((o: any) => {
-          if (
-            o.image &&
-            typeof o.image === "string" &&
-            o.image.startsWith("drive:")
-          ) {
-            const fid = o.image.replace(/^drive:/, "");
-            assetTasks.push(async () => {
-              try {
-                const data = await this.quizApi.getDriveData({ dataId: fid });
-                if (data && data.fileDataUrl) {
-                  o.image = data.fileDataUrl;
-                  successCount++;
-                } else {
-                  failedFiles.push(fid);
-                  o.image = null;
-                }
-              } catch (e) {
-                failedFiles.push(fid);
-                o.image = null;
-              }
-            });
-          }
-        });
-
-        await mapWithConcurrency(assetTasks, (t) => t(), 5);
-
-        // convert dataUrls to Blobs and save locally
-        const quiz = new Quiz({
-          id: q.id,
-          title: q.title,
-          question: q.question,
-          options: await Promise.all(
-            q.options.map(async (o) => ({
-              no: o.no,
-              text: o.text,
-              color: o.color,
-              image: o.image ? await dataUrlToBlob(o.image) : null,
-            }))
-          ),
-          correctNo: q.correctNo ?? 1,
-          timeLimit: q.timeLimit,
-          bgm: q.bgm ? await dataUrlToBlob(q.bgm) : null,
-          settings: q.settings
-            ? {
-                correctBgm: q.settings.correctBgmDataUrl
-                  ? await dataUrlToBlob(q.settings.correctBgmDataUrl)
-                  : null,
-                prizeImage: q.settings.prizeImageDataUrl
-                  ? await dataUrlToBlob(q.settings.prizeImageDataUrl)
-                  : null,
-                prizeName: q.settings.prizeName ?? "",
-                prizeBgm: q.settings.prizeBgmDataUrl
-                  ? await dataUrlToBlob(q.settings.prizeBgmDataUrl)
-                  : null,
-              }
-            : undefined,
-        });
-        await this.saveQuiz(quiz);
-      }
-
-      onProgress?.("GASからローカルへの同期が完了しました。");
-      return { successCount, failedCount: failedFiles.length, failedFiles };
-    } else {
-      onProgress?.("ローカルクイズを取得中...");
-      const quizzes = await this.getAllQuizzes();
-      onProgress?.(`${quizzes.length}件のクイズを変換中...`);
-      const quizzesWithDataUrl: QuizWithDataUrl[] = await Promise.all(
-        quizzes.map(async (q) => ({
-          id: q.id,
-          title: q.title,
-          question: q.question,
-          options: await Promise.all(
-            q.options.map(async (o) => ({
-              no: o.no,
-              text: o.text,
-              color: o.color,
-              image:
-                o.image && typeof o.image !== "string"
-                  ? await this.blobToDataUrl(o.image)
-                  : (o.image as string | null),
-            }))
-          ),
-          correctNo: q.correctNo,
-          timeLimit: q.timeLimit,
-          bgm:
-            q.bgm && typeof q.bgm !== "string"
-              ? await this.blobToDataUrl(q.bgm)
-              : (q.bgm as string | null),
-          settings: q.settings
-            ? {
-                // convert Blob fields to data URLs for GAS payload (legacy names expected)
-                correctBgmDataUrl:
-                  q.settings.correctBgm &&
-                  typeof q.settings.correctBgm !== "string"
-                    ? await this.blobToDataUrl(q.settings.correctBgm)
-                    : (q.settings.correctBgm as string | null),
-                prizeImageDataUrl:
-                  q.settings.prizeImage &&
-                  typeof q.settings.prizeImage !== "string"
-                    ? await this.blobToDataUrl(q.settings.prizeImage)
-                    : (q.settings.prizeImage as string | null),
-                prizeName: q.settings.prizeName ?? "",
-                prizeBgmDataUrl:
-                  q.settings.prizeBgm && typeof q.settings.prizeBgm !== "string"
-                    ? await this.blobToDataUrl(q.settings.prizeBgm)
-                    : (q.settings.prizeBgm as string | null),
-              }
-            : undefined,
-        }))
-      );
-
-      onProgress?.("アセットをアップロード中...");
-
-      type AssetTask = {
-        quizId: string;
-        type: "bgm" | "option" | "prizeImage" | "prizeBgm";
-        idx?: number;
-        dataUrl: string;
-        fileName: string;
-      };
-
-      const assets: AssetTask[] = [];
-      for (const q of quizzesWithDataUrl) {
-        if (q.bgm && typeof q.bgm === "string" && q.bgm.startsWith("data:")) {
-          assets.push({
-            quizId: q.id,
-            type: "bgm",
-            idx: 0,
-            dataUrl: q.bgm,
-            fileName: `${q.id}_bgm`,
-          });
-        }
-        q.options.forEach((o: any, idx: number) => {
-          if (
-            o.image &&
-            typeof o.image === "string" &&
-            o.image.startsWith("data:")
-          ) {
-            assets.push({
-              quizId: q.id,
-              type: "option",
-              idx,
-              dataUrl: o.image,
-              fileName: `${q.id}_option_${idx}`,
-            });
-          }
-        });
-        if (q.settings) {
-          if (
-            q.settings.prizeImageDataUrl &&
-            q.settings.prizeImageDataUrl.startsWith("data:")
-          ) {
-            assets.push({
-              quizId: q.id,
-              type: "prizeImage" as any,
-              idx: 0,
-              dataUrl: q.settings.prizeImageDataUrl,
-              fileName: `${q.id}_prize_image`,
-            });
-          }
-          if (
-            q.settings.prizeBgmDataUrl &&
-            q.settings.prizeBgmDataUrl.startsWith("data:")
-          ) {
-            assets.push({
-              quizId: q.id,
-              type: "prizeBgm" as any,
-              idx: 0,
-              dataUrl: q.settings.prizeBgmDataUrl,
-              fileName: `${q.id}_prize_bgm`,
-            });
-          }
-        }
-      }
-
-      const concurrency = 5;
-      const uploadResults: Array<{
-        task: AssetTask;
-        success: boolean;
-        fileId?: string;
-        error?: string;
-      }> = [];
-
-      const uploader = async (task: AssetTask) => {
-        try {
-          const driveDataId = `${task.quizId}_${task.type}_${task.idx ?? 0}_${crypto.randomUUID()}`;
-          const mime =
-            (task.dataUrl.match(/data:([^;]+);/) || [])[1] ||
-            "application/octet-stream";
-          const payload: any = {
-            metadata: { driveDataId },
-            fileName: task.fileName,
-            fileKind: mime,
-            fileDataUrl: task.dataUrl,
-            uploadDate: new Date().toISOString(),
-          };
-          const meta = await this.quizApi.addDriveData({ driveData: payload });
-          uploadResults.push({ task, success: true, fileId: meta?.fileId });
-        } catch (e: any) {
-          uploadResults.push({
-            task,
-            success: false,
-            error: e?.message ?? String(e),
-          });
-        }
-      };
-
-      for (let i = 0; i < assets.length; i += concurrency) {
-        const batch = assets.slice(i, i + concurrency);
-        await Promise.all(batch.map((a) => uploader(a)));
-        onProgress?.(
-          `アップロード中: ${Math.min(i + concurrency, assets.length)}/${assets.length}`
-        );
-      }
-
-      // apply results back to quizzesWithDataUrl (best-effort)
-      for (const r of uploadResults) {
-        if (!r.success || !r.fileId) continue;
-        const { quizId, type, idx } = r.task;
-        const quiz = quizzesWithDataUrl.find((q) => q.id === quizId);
-        if (!quiz) continue;
-        if (type === "bgm") {
-          quiz.bgm = `drive:${r.fileId}`;
-          successCount++;
-        } else if (type === "option") {
-          if (typeof idx === "number" && quiz.options[idx]) {
-            quiz.options[idx].image = `drive:${r.fileId}`;
-            successCount++;
-          }
-        } else if (type === "prizeImage") {
-          if (quiz.settings) {
-            quiz.settings.prizeImageDataUrl = `drive:${r.fileId}`;
-            successCount++;
-          }
-        } else if (type === "prizeBgm") {
-          if (quiz.settings) {
-            quiz.settings.prizeBgmDataUrl = `drive:${r.fileId}`;
-            successCount++;
-          }
-        }
-      }
-
-      // record failures
-      for (const r of uploadResults) {
-        if (!r.success) {
-          failedFiles.push(
-            r.task.fileName || `${r.task.quizId}_${r.task.type}_${r.task.idx}`
-          );
-        }
-      }
-
-      // best-effort cleanup: remove existing json/assets then add new json
-      try {
-        const jsonMeta = await this.quizApi.listJsonMetaData({});
-        if (Array.isArray(jsonMeta)) {
-          await Promise.all(
-            jsonMeta.map((m) => this.quizApi.removeDriveData({ dataId: m.fileId }))
-          );
-        }
-      } catch (_) {}
-
-      try {
-        const assetMeta = await this.quizApi.getDriveMetaData({});
-        if (Array.isArray(assetMeta)) {
-          await Promise.all(
-            assetMeta.map((m) => this.quizApi.removeDriveData({ dataId: m.fileId }))
-          );
-        }
-      } catch (_) {}
-
-      try {
-        const jsonText = JSON.stringify(quizzesWithDataUrl);
-        await this.quizApi.addJson({
-          driveJson: {
-            fileName: "quizzes.json",
-            jsonText,
-            uploadDate: new Date().toISOString(),
-            parentFolderId: "",
-          },
-        });
-      } catch (e) {
-        // ignore json write errors for best-effort; record as failure
-        failedFiles.push("quizzes.json");
-      }
-
-      onProgress?.("ローカルからGASへの同期が完了しました。");
-      return { successCount, failedCount: failedFiles.length, failedFiles };
-    }
+    await this.dirtyTracker.touch(METADATA_SYNC_KIND);
+    eventBus.emit("syncDirty");
   }
 
   private blobToDataUrl(blob: Blob): Promise<string> {
@@ -432,5 +83,294 @@ export class QuizRepository {
       reader.onerror = (e) => reject(e);
       reader.readAsDataURL(blob);
     });
+  }
+
+  // --- 同期対象のid規約 ---
+  // アセットは quiz-game の JSON blob(quizzes.json)には実体を含めず、
+  // `drive:<slotId>` という参照文字列だけを埋め込む。slotIdは
+  // 「クイズid + スロット種別(+ 選択肢番号)」から機械的に組み立てる安定した
+  // idなので、旧実装のようにアップロードのたびに新しいdriveDataIdを生成して
+  // 別ファイルとして積み上がっていく(かつ毎回全消去してからやり直す)ことがない。
+  private slotId(quizId: string, type: AssetSlotType, idx?: number): string {
+    return type === "option" ? `${quizId}::option::${idx}` : `${quizId}::${type}`;
+  }
+
+  /**
+   * バックグラウンド同期エンジン向けに、クイズ一覧のメタデータ(1つのJSON blob)と
+   * 各クイズのアセット(bgm/選択肢画像/賞品画像/賞品bgm、ファイル単位)を
+   * SyncTargetとして列挙する。
+   */
+  async listSyncTargets(): Promise<SyncTarget[]> {
+    let remoteQuizzes: QuizWithDataUrl[] = [];
+    let remoteMetaUpdatedAt = 0;
+    try {
+      const resp = await this.quizApi.getJson({});
+      remoteMetaUpdatedAt = resp.updatedAt ? new Date(resp.updatedAt).getTime() : 0;
+      const parsed = JSON.parse(resp.json || "[]");
+      if (Array.isArray(parsed)) remoteQuizzes = parsed;
+    } catch (e) {
+      console.error(
+        "[QuizRepository] Failed to fetch remote quizzes metadata for sync",
+        e
+      );
+    }
+
+    let remoteAssetMetas: DriveMetadata[] = [];
+    try {
+      remoteAssetMetas = (await this.quizApi.getDriveMetaData({})) || [];
+    } catch (e) {
+      console.error(
+        "[QuizRepository] Failed to fetch remote quiz asset metadata for sync",
+        e
+      );
+    }
+    const remoteAssetMap = new Map<string, DriveMetadata>();
+    for (const m of remoteAssetMetas) {
+      if (m?.driveDataId) remoteAssetMap.set(String(m.driveDataId), m);
+    }
+
+    const targets: SyncTarget[] = [
+      this.buildQuizzesMetaTarget(remoteQuizzes, remoteMetaUpdatedAt),
+      ...(await this.buildAssetTargets(remoteAssetMap)),
+    ];
+    return targets;
+  }
+
+  private buildQuizzesMetaTarget(
+    remoteQuizzes: QuizWithDataUrl[],
+    remoteUpdatedAt: number
+  ): SyncTarget<QuizWithDataUrl[], QuizWithDataUrl[]> {
+    return {
+      id: METADATA_SYNC_KIND,
+      kind: METADATA_SYNC_KIND,
+      getLocal: async () => {
+        const quizzes = await this.getAllQuizzes();
+        if (quizzes.length === 0) return null;
+        const trackedAt = await this.dirtyTracker.getUpdatedAt(METADATA_SYNC_KIND);
+        return {
+          data: quizzes.map((q) => this.toWireEntry(q)),
+          updatedAt: trackedAt ?? Date.now(),
+        };
+      },
+      getRemote: async () => {
+        if (remoteQuizzes.length === 0) return null;
+        return { data: remoteQuizzes, updatedAt: remoteUpdatedAt };
+      },
+      push: async (entries) => {
+        const driveJson: DriveJsonData = {
+          metadata: {} as any,
+          fileName: METADATA_FILE_NAME,
+          jsonText: JSON.stringify(entries),
+          uploadDate: new Date().toISOString(),
+          parentFolderId: "",
+        };
+        const meta = await this.quizApi.addJson({ driveJson });
+        const updatedAt = meta?.lastUpdate
+          ? new Date(meta.lastUpdate).getTime()
+          : Date.now();
+        await this.dirtyTracker.touch(METADATA_SYNC_KIND, updatedAt);
+        return { updatedAt };
+      },
+      pull: async (entries) => {
+        for (const entry of entries) {
+          await this.upsertQuizMetadata(entry);
+        }
+        const updatedAt = Date.now();
+        await this.dirtyTracker.touch(METADATA_SYNC_KIND, updatedAt);
+        return { updatedAt };
+      },
+    };
+  }
+
+  /** ローカルのQuizを、アセット実体を含まないワイヤー形式(drive:参照のみ)に変換する。 */
+  private toWireEntry(q: Quiz): QuizWithDataUrl {
+    return {
+      id: q.id,
+      title: q.title,
+      question: q.question,
+      options: q.options.map((o, idx) => ({
+        no: o.no,
+        text: o.text,
+        color: o.color,
+        image: o.image ? `drive:${this.slotId(q.id, "option", idx)}` : null,
+      })),
+      correctNo: q.correctNo,
+      timeLimit: q.timeLimit,
+      bgm: q.bgm ? `drive:${this.slotId(q.id, "bgm")}` : null,
+      settings: q.settings
+        ? {
+            // correctBgmは旧実装でもDriveへアップロードされておらず、この
+            // 同期対象には含めない(既存の未解決の欠落を踏襲する)。
+            correctBgmDataUrl: null,
+            prizeImageDataUrl: q.settings.prizeImage
+              ? `drive:${this.slotId(q.id, "prizeImage")}`
+              : null,
+            prizeName: q.settings.prizeName ?? "",
+            prizeBgmDataUrl: q.settings.prizeBgm
+              ? `drive:${this.slotId(q.id, "prizeBgm")}`
+              : null,
+          }
+        : undefined,
+    };
+  }
+
+  /**
+   * リモートのメタデータをローカルへ反映する。テキスト系フィールドのみを
+   * 上書きし、アセット(Blob)フィールドは既存のローカル値を保持する
+   * (アセット自体の同期は各SyncTarget(kind: quiz-asset)が独立して担う)。
+   */
+  private async upsertQuizMetadata(entry: QuizWithDataUrl): Promise<void> {
+    const existingRaw = await this.localStorage.get<any>(entry.id);
+    const existing = existingRaw ? Quiz.fromDto(existingRaw) : null;
+    const quiz = new Quiz({
+      id: entry.id,
+      title: entry.title,
+      question: entry.question,
+      options: entry.options.map((o, idx) => ({
+        no: o.no,
+        text: o.text,
+        color: o.color,
+        image: existing?.options[idx]?.image ?? null,
+      })),
+      correctNo: entry.correctNo ?? 1,
+      timeLimit: entry.timeLimit,
+      bgm: existing?.bgm ?? null,
+      settings: entry.settings
+        ? {
+            correctBgm: existing?.settings?.correctBgm ?? null,
+            prizeImage: existing?.settings?.prizeImage ?? null,
+            prizeName: entry.settings.prizeName ?? "",
+            prizeBgm: existing?.settings?.prizeBgm ?? null,
+          }
+        : undefined,
+    });
+    await this.localStorage.save(entry.id, quiz);
+  }
+
+  private async buildAssetTargets(
+    remoteAssetMap: Map<string, DriveMetadata>
+  ): Promise<SyncTarget<Blob, DriveMetadata>[]> {
+    const localQuizzes = await this.getAllQuizzes();
+    const localSlotBlob = new Map<string, Blob>();
+
+    for (const q of localQuizzes) {
+      if (q.bgm) localSlotBlob.set(this.slotId(q.id, "bgm"), q.bgm);
+      q.options.forEach((o, idx) => {
+        if (o.image) localSlotBlob.set(this.slotId(q.id, "option", idx), o.image);
+      });
+      if (q.settings?.prizeImage) {
+        localSlotBlob.set(this.slotId(q.id, "prizeImage"), q.settings.prizeImage);
+      }
+      if (q.settings?.prizeBgm) {
+        localSlotBlob.set(this.slotId(q.id, "prizeBgm"), q.settings.prizeBgm);
+      }
+    }
+
+    const slotIds = new Set<string>([
+      ...localSlotBlob.keys(),
+      ...remoteAssetMap.keys(),
+    ]);
+
+    return Array.from(slotIds).map((id) =>
+      this.buildAssetSyncTarget(id, localSlotBlob, remoteAssetMap)
+    );
+  }
+
+  private buildAssetSyncTarget(
+    id: string,
+    localSlotBlob: Map<string, Blob>,
+    remoteAssetMap: Map<string, DriveMetadata>
+  ): SyncTarget<Blob, DriveMetadata> {
+    const quizId = id.split("::")[0];
+    return {
+      id,
+      kind: ASSET_SYNC_KIND,
+      getLocal: async () => {
+        const blob = localSlotBlob.get(id);
+        if (!blob) return null;
+        const stored = await this.localStorage.getWithMeta<any>(quizId);
+        return { data: blob, updatedAt: stored?.updatedAt ?? Date.now() };
+      },
+      getRemote: async () => {
+        const meta = remoteAssetMap.get(id);
+        if (!meta) return null;
+        return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
+      },
+      push: async (blob) => {
+        const dataUrl = await this.blobToDataUrl(blob);
+        const clientNow = new Date().toISOString();
+        const driveData: any = {
+          metadata: {
+            driveDataId: id,
+            fileId: "",
+            parentFolderId: "",
+            lastUpdate: clientNow,
+            size: blob.size || 0,
+          },
+          fileName: id,
+          fileKind: blob.type || "application/octet-stream",
+          fileDataUrl: dataUrl,
+          uploadDate: new Date().toISOString(),
+          parentFolderId: "",
+        };
+        if (remoteAssetMap.has(id)) {
+          await this.quizApi.updateDriveData({ driveData });
+        } else {
+          await this.quizApi.addDriveData({ driveData });
+        }
+        return { updatedAt: new Date(clientNow).getTime() };
+      },
+      pull: async (meta) => {
+        const data = await this.quizApi.getDriveData({ dataId: meta.fileId });
+        const blob = data?.fileDataUrl ? dataUrlToBlob(data.fileDataUrl) : new Blob();
+        await this.writeSlotBlob(quizId, id, blob);
+        return { updatedAt: new Date(meta.lastUpdate).getTime() };
+      },
+    };
+  }
+
+  /** リモートから取得したアセットBlobを、対応するクイズのローカルレコードへ書き戻す。 */
+  private async writeSlotBlob(
+    quizId: string,
+    slotId: string,
+    blob: Blob
+  ): Promise<void> {
+    const raw = await this.localStorage.get<any>(quizId);
+    const existing = raw ? Quiz.fromDto(raw) : null;
+    const parts = slotId.split("::");
+    const type = parts[1] as AssetSlotType;
+
+    const quiz =
+      existing ??
+      new Quiz({
+        id: quizId,
+        title: "",
+        question: "",
+        options: [],
+        correctNo: 1,
+        timeLimit: 0,
+        bgm: null,
+      });
+
+    if (type === "bgm") {
+      quiz.bgm = blob;
+    } else if (type === "option") {
+      const idx = Number(parts[2]);
+      while (quiz.options.length <= idx) {
+        quiz.options.push({ no: quiz.options.length + 1, text: "", color: "", image: null });
+      }
+      quiz.options[idx].image = blob;
+    } else if (type === "prizeImage" || type === "prizeBgm") {
+      quiz.settings = quiz.settings ?? {
+        correctBgm: null,
+        prizeImage: null,
+        prizeName: "",
+        prizeBgm: null,
+      };
+      if (type === "prizeImage") quiz.settings.prizeImage = blob;
+      else quiz.settings.prizeBgm = blob;
+    }
+
+    await this.localStorage.save(quizId, quiz);
   }
 }

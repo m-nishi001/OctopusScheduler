@@ -11,11 +11,14 @@ const DEFAULT_FILE_NAME = "quizzes.json";
 /**
  * quizGame_getJson。既存挙動を保持: 設定不備・ファイル未存在・JSON解析失敗など
  * 想定される失敗のほぼ全てで、エラーにせず空配列で success を返す。
+ *
+ * updatedAt: バックグラウンド同期のLast-Write-Winsに使うため、実際に内容を
+ * 読み取ったキーのメタデータ(updatedAt)も併せて返す。
  */
 export async function getJsonBlob(
   deps: GetJsonBlobDeps,
   fileId?: string
-): Promise<{ json: string }> {
+): Promise<{ json: string; updatedAt: string | null }> {
   try {
     let namespace: string;
     try {
@@ -24,27 +27,30 @@ export async function getJsonBlob(
         JSON_FOLDER_PROPERTY
       );
     } catch {
-      return { json: JSON.stringify([]) };
+      return { json: JSON.stringify([]), updatedAt: null };
     }
 
     if (fileId && fileId.trim() !== "") {
       const direct = await deps.storage.getContentAsText(fileId);
       if (direct !== null) {
-        return { json: direct };
+        const meta = await deps.storage.stat(fileId);
+        return { json: direct, updatedAt: meta?.updatedAt ?? null };
       }
       const byPrefix = (await deps.storage.listByPrefix(`${namespace}/${fileId}_`))[0];
       if (byPrefix) {
         const content = await deps.storage.getContentAsText(byPrefix.key);
-        if (content !== null) return { json: content };
+        if (content !== null) {
+          return { json: content, updatedAt: byPrefix.updatedAt };
+        }
       }
       // 見つからない場合は既定ファイルへフォールバックする(既存挙動)。
     }
 
     const defaultFile = await deps.storage.stat(`${namespace}/${DEFAULT_FILE_NAME}`);
-    if (!defaultFile) return { json: JSON.stringify([]) };
+    if (!defaultFile) return { json: JSON.stringify([]), updatedAt: null };
 
     const content = await deps.storage.getContentAsText(defaultFile.key);
-    if (content === null) return { json: JSON.stringify([]) };
+    if (content === null) return { json: JSON.stringify([]), updatedAt: null };
 
     let parsed: unknown;
     try {
@@ -53,8 +59,8 @@ export async function getJsonBlob(
       parsed = [];
     }
     if (!Array.isArray(parsed)) parsed = [];
-    return { json: JSON.stringify(parsed) };
+    return { json: JSON.stringify(parsed), updatedAt: defaultFile.updatedAt };
   } catch {
-    return { json: JSON.stringify([]) };
+    return { json: JSON.stringify([]), updatedAt: null };
   }
 }

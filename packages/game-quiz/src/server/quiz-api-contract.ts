@@ -18,10 +18,9 @@ export const QUIZ_GAME_ENDPOINTS = [
   "addDriveData",
   "getDriveMetaData",
   "getDriveData",
-  "removeDriveData",
+  "updateDriveData",
   "addJson",
   "getJson",
-  "listJsonMetaData",
   "loginParticipant",
   "resolveDeviceToken",
   "startAcceptingAnswers",
@@ -65,8 +64,8 @@ export interface GetDriveDataArgs {
   dataId: string;
 }
 
-export interface RemoveDriveDataArgs {
-  dataId: string;
+export interface UpdateDriveDataArgs {
+  driveData: DriveData;
 }
 
 export interface AddJsonArgs {
@@ -75,10 +74,6 @@ export interface AddJsonArgs {
 
 export interface GetJsonArgs {
   fileId?: string;
-}
-
-export interface ListJsonMetaDataArgs {
-  folderId?: string;
 }
 
 /**
@@ -165,13 +160,16 @@ export interface QuizGameApi {
     options?: ApiCallOptions
   ): Promise<DriveMetadata[]>;
   getDriveData(args: GetDriveDataArgs, options?: ApiCallOptions): Promise<DriveData>;
-  removeDriveData(args: RemoveDriveDataArgs, options?: ApiCallOptions): Promise<void>;
+  updateDriveData(args: UpdateDriveDataArgs, options?: ApiCallOptions): Promise<void>;
   addJson(args: AddJsonArgs, options?: ApiCallOptions): Promise<DriveMetadata>;
-  getJson(args: GetJsonArgs, options?: ApiCallOptions): Promise<{ json: string }>;
-  listJsonMetaData(
-    args: ListJsonMetaDataArgs,
+  /**
+   * updatedAt: 解決されたファイルの最終更新日時(ISO文字列)。バックグラウンド
+   * 同期のLast-Write-Winsに使う。ファイルが見つからない場合はnull。
+   */
+  getJson(
+    args: GetJsonArgs,
     options?: ApiCallOptions
-  ): Promise<DriveMetadata[]>;
+  ): Promise<{ json: string; updatedAt: string | null }>;
   loginParticipant(
     args: LoginParticipantArgs,
     options?: ApiCallOptions

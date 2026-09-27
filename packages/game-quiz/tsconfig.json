@@ -15,6 +15,7 @@
     { "path": "./tsconfig.server.json" },
     { "path": "../client-common" },
     { "path": "../composables" },
-    { "path": "../infrastructures" }
+    { "path": "../infrastructures" },
+    { "path": "../sync-engine" }
   ]
 }

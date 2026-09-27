@@ -27,10 +27,9 @@ import type {
   GetDriveDataArgs,
   GetDriveMetaDataArgs,
   GetJsonArgs,
-  ListJsonMetaDataArgs,
   LoginParticipantArgs,
   QuizGameEndpointName,
-  RemoveDriveDataArgs,
+  UpdateDriveDataArgs,
   ResolveDeviceTokenArgs,
   StartAcceptingAnswersArgs,
   StopAcceptingAnswersArgs,
@@ -42,11 +41,10 @@ import {
   addQuizDriveData,
   getQuizDriveData,
   getQuizDriveMetadata,
-  removeQuizDriveData,
+  updateQuizDriveData,
 } from "./drive-asset-use-cases";
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
-import { listJsonBlobMetadata } from "./list-json-blob-metadata-use-case";
 import { loginParticipant, resolveDeviceToken } from "./participant-auth-use-cases";
 import {
   getAcceptanceState,
@@ -72,10 +70,9 @@ function resolveDeps() {
 declare let _quizGame_addDriveData: (args: AddDriveDataArgs) => Promise<string>;
 declare let _quizGame_getDriveMetaData: (args: GetDriveMetaDataArgs) => Promise<string>;
 declare let _quizGame_getDriveData: (args: GetDriveDataArgs) => Promise<string>;
-declare let _quizGame_removeDriveData: (args: RemoveDriveDataArgs) => Promise<string>;
+declare let _quizGame_updateDriveData: (args: UpdateDriveDataArgs) => Promise<string>;
 declare let _quizGame_addJson: (args: AddJsonArgs) => Promise<string>;
 declare let _quizGame_getJson: (args: GetJsonArgs) => Promise<string>;
-declare let _quizGame_listJsonMetaData: (args: ListJsonMetaDataArgs) => Promise<string>;
 declare let _quizGame_loginParticipant: (args: LoginParticipantArgs) => Promise<string>;
 declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => Promise<string>;
 declare let _quizGame_startAcceptingAnswers: (args: StartAcceptingAnswersArgs) => Promise<string>;
@@ -112,9 +109,9 @@ _quizGame_getDriveData = async (args: GetDriveDataArgs): Promise<string> => {
   }
 };
 
-_quizGame_removeDriveData = async (args: RemoveDriveDataArgs): Promise<string> => {
+_quizGame_updateDriveData = async (args: UpdateDriveDataArgs): Promise<string> => {
   try {
-    await removeQuizDriveData(resolveDeps(), args.dataId);
+    await updateQuizDriveData(resolveDeps(), args.driveData);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
@@ -139,17 +136,8 @@ _quizGame_getJson = async (args: GetJsonArgs): Promise<string> => {
     console.error("_quizGame_getJson error:", (error as Error).message);
     return JSON.stringify({
       status: "success",
-      data: { json: JSON.stringify([]) },
+      data: { json: JSON.stringify([]), updatedAt: null },
     });
-  }
-};
-
-_quizGame_listJsonMetaData = async (args: ListJsonMetaDataArgs): Promise<string> => {
-  try {
-    const result = await listJsonBlobMetadata(resolveDeps(), args.folderId);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
 
@@ -226,10 +214,9 @@ export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Pro
   addDriveData: _quizGame_addDriveData,
   getDriveMetaData: _quizGame_getDriveMetaData,
   getDriveData: _quizGame_getDriveData,
-  removeDriveData: _quizGame_removeDriveData,
+  updateDriveData: _quizGame_updateDriveData,
   addJson: _quizGame_addJson,
   getJson: _quizGame_getJson,
-  listJsonMetaData: _quizGame_listJsonMetaData,
   loginParticipant: _quizGame_loginParticipant,
   resolveDeviceToken: _quizGame_resolveDeviceToken,
   startAcceptingAnswers: _quizGame_startAcceptingAnswers,

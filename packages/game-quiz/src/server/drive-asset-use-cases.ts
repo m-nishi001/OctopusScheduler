@@ -13,7 +13,7 @@ import {
   addDriveData as addDriveDataGeneric,
   getDriveData as getDriveDataGeneric,
   getDriveMetadata as getDriveMetadataGeneric,
-  removeDriveData as removeDriveDataGeneric,
+  updateDriveData as updateDriveDataGeneric,
   resolveFolderIdPreferringProvided,
 } from "@octopus/infrastructures/compositions";
 import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
@@ -56,9 +56,9 @@ export async function getQuizDriveData(
   return getDriveDataGeneric(deps, dataId);
 }
 
-export async function removeQuizDriveData(
+export async function updateQuizDriveData(
   deps: DriveAssetUseCaseDeps,
-  dataId: string
-): Promise<void> {
-  await removeDriveDataGeneric(deps, dataId);
+  driveData: DriveData
+): Promise<OperationResult<void>> {
+  return updateDriveDataGeneric(deps, driveData);
 }
