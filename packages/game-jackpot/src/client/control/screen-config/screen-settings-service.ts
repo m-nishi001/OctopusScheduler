@@ -85,13 +85,4 @@ export class ScreenSettingsService {
     }
     return obj;
   }
-
-  // For now delegate sync to repo/service layers (no-op here); kept for parity
-  async syncToDrive(
-    onProgress?: (message: string) => void
-  ): Promise<{ synced: number }> {
-    // no-op; repo-level sync used elsewhere (ScreenConfigRepository currently no-op)
-    onProgress?.("Sync not implemented on client service.");
-    return { synced: 0 };
-  }
 }

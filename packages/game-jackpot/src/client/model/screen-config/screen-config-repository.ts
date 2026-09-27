@@ -1,13 +1,19 @@
-import { injectable, inject, container } from "tsyringe";
+import { injectable, inject } from "tsyringe";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { eventBus } from "@octopus/client-common/events/event-bus";
+import { DirtyTracker } from "@octopus/sync-engine";
+import type { SyncTarget } from "@octopus/sync-engine";
 import { ScreenSetting } from "./screen-setting";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
-import { AssetDataService } from "../../control/asset/asset-data-service";
-import type {
-  DriveJsonData,
-  DriveMetadata,
-} from "@octopus/infrastructures/compositions";
+import type { DriveJsonData } from "@octopus/infrastructures/compositions";
+
+const SYNC_KIND = "screens";
+const DRIVE_FILE_NAME = "screens.json";
+// getJsonBlobの「fileId省略時は既定ファイル(prizes.json)」というフォールバックは
+// このファイル名には効かないため、pushで得たfileId(フルキー)をこのブラウザに
+// 保存しておき、次回以降はそれを明示的に渡す。
+const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-screens-last-file-id";
 
 @injectable()
 export class ScreenConfigRepository {
@@ -15,8 +21,7 @@ export class ScreenConfigRepository {
     "jackpot-game",
     "ScreenConfigData"
   );
-
-  private readonly assetService = container.resolve(AssetDataService);
+  private readonly dirtyTracker = new DirtyTracker("jackpot-game");
 
   constructor(
     @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
@@ -33,147 +38,92 @@ export class ScreenConfigRepository {
   }
 
   async updateScreenSettings(settings: ScreenSetting[]): Promise<void> {
-    settings.forEach((setting) =>
-      this.localStorage.save(
+    for (const setting of settings) {
+      await this.localStorage.save(
         setting.screenName + "_" + setting.settingName,
         setting
-      )
-    );
-  }
-
-  async syncScreenConfigs(): Promise<{ synced: number }> {
-    // Default sync behavior: perform download if a last-file-id is present,
-    // otherwise return zero. BulkSync will orchestrate assets before calling
-    // this when necessary.
-    const lastId = localStorage.getItem("jackpot-screens-last-file-id");
-    if (!lastId) return { synced: 0 };
-
-    // First, ensure assets are synchronized and obtain idMap mapping old->new
-    let idMap: { [oldId: string]: string } = {};
-    try {
-      const res = await (this.assetService as any).replaceLocalWithDrive();
-      if (res && res.idMap) idMap = res.idMap as { [k: string]: string };
-    } catch (e) {
-      // proceed without idMap but warn
-      console.warn("Asset sync for screen configs failed:", e);
-    }
-
-    try {
-      const imported = await this.importScreenConfigsFromDrive(lastId, idMap);
-      return { synced: imported.replaced };
-    } catch (e) {
-      console.error("Failed to import screen configs:", e);
-      return { synced: 0 };
-    }
-  }
-
-  // Export all screen settings as a single JSON file (screens.json) to Drive.
-  async exportScreenConfigsToDrive(): Promise<DriveMetadata | null> {
-    try {
-      const all = await this.localStorage.getAll<ScreenSetting>();
-      const entries: ScreenSetting[] = Array.from(all.values());
-      const json = JSON.stringify(entries || []);
-
-      const appFileId = String(Date.now()) + "-screens";
-      const driveJson: DriveJsonData = {
-        appFileId,
-        metadata: {},
-        fileName: "screens.json",
-        jsonText: json,
-        uploadDate: new Date().toISOString(),
-        parentFolderId: "",
-      } as any;
-
-      const resp = await this.jackpotApi.addJson(driveJson);
-      // store fileId if returned
-      const fileId =
-        (resp && (resp as any).fileId) ||
-        (resp && (resp as any).data && (resp as any).data.fileId) ||
-        null;
-      if (fileId)
-        localStorage.setItem("jackpot-screens-last-file-id", String(fileId));
-      return resp || null;
-    } catch (e) {
-      console.error("exportScreenConfigsToDrive failed:", e);
-      return null;
-    }
-  }
-
-  // Import screen settings from Drive (single file). If idMap is provided,
-  // replace referenced asset IDs in the JSON before persisting locally.
-  async importScreenConfigsFromDrive(
-    fileId?: string,
-    idMap?: { [oldId: string]: string }
-  ): Promise<{ replaced: number }> {
-    try {
-      const resp = await this.jackpotApi.getJson(
-        fileId || localStorage.getItem("jackpot-screens-last-file-id") || ""
       );
-      const payloadJson =
-        (resp && (resp as any).json) ||
-        (resp && (resp as any).data && (resp as any).data.json) ||
-        null;
-      if (!payloadJson)
-        throw new Error("No json payload returned from getJson");
+    }
+    await this.dirtyTracker.touch(SYNC_KIND);
+    eventBus.emit("syncDirty");
+  }
 
-      const parsed = JSON.parse(payloadJson) as ScreenSetting[];
-      if (!Array.isArray(parsed))
-        throw new Error("Downloaded screens JSON is not an array");
-
-      // Apply idMap replacements if provided
-      if (idMap && Object.keys(idMap).length > 0) {
-        for (const s of parsed) {
-          try {
-            const obj = JSON.parse(s.settingValue || "null");
-            const replaced = this.replaceAssetIdsInObject(obj, idMap);
-            (s as any).settingValue = JSON.stringify(replaced);
-          } catch (e) {
-            console.warn(
-              "Failed to parse/replace asset ids for screen setting",
-              s.settingName,
-              e
-            );
-          }
-        }
-      }
-
-      // Replace local storage atomically
-      const all = await this.localStorage.getAll();
-      const keys = Array.from(all.keys());
-      if (keys.length) await this.localStorage.removeMultiple(keys);
-      for (const s of parsed) {
-        const key = s.screenName + "_" + s.settingName;
-        await this.localStorage.save(key, s);
-      }
-
-      return { replaced: parsed.length };
-    } catch (e) {
-      console.error("importScreenConfigsFromDrive failed:", e);
-      throw e;
+  private async replaceAllScreenSettings(settings: ScreenSetting[]): Promise<void> {
+    const all = await this.localStorage.getAll();
+    const keys = Array.from(all.keys());
+    if (keys.length) await this.localStorage.removeMultiple(keys);
+    for (const s of settings) {
+      await this.localStorage.save(s.screenName + "_" + s.settingName, s);
     }
   }
 
-  // Recursively replace any string values that match old asset ids with new ones.
-  // This is conservative: only replaces exact matches of id strings.
-  private replaceAssetIdsInObject(
-    obj: any,
-    idMap: { [oldId: string]: string }
-  ): any {
-    if (obj == null) return obj;
-    if (Array.isArray(obj))
-      return obj.map((v) => this.replaceAssetIdsInObject(v, idMap));
-    if (typeof obj === "object") {
-      const out: any = {};
-      for (const k of Object.keys(obj)) {
-        out[k] = this.replaceAssetIdsInObject(obj[k], idMap);
-      }
-      return out;
-    }
-    if (typeof obj === "string") {
-      // simple direct replacement if the string equals an old id
-      if (idMap[obj]) return idMap[obj];
-      return obj;
-    }
-    return obj;
+  /**
+   * バックグラウンド同期エンジン向けに、画面設定一覧全体を1つのSyncTargetとして
+   * 返す(GAS側はJSON blobとしてしか保存しないため)。
+   *
+   * 画面設定はアセットidを内容に埋め込むことがあるが、AssetDataRepositoryの
+   * SyncTargetはpush/pullのいずれでもアセット自身のidを変えない(常に同じ
+   * driveDataIdの元でローカル/リモートを行き来する)ため、旧実装にあった
+   * 「先にアセットを同期してidマッピングを作る」処理は不要になった。
+   */
+  async listSyncTargets(): Promise<SyncTarget<ScreenSetting[], ScreenSetting[]>[]> {
+    const target: SyncTarget<ScreenSetting[], ScreenSetting[]> = {
+      id: SYNC_KIND,
+      kind: SYNC_KIND,
+      getLocal: async () => {
+        const settings = await this.getScreenSettings();
+        if (settings.length === 0) return null;
+        const trackedAt = await this.dirtyTracker.getUpdatedAt(SYNC_KIND);
+        return { data: settings, updatedAt: trackedAt ?? Date.now() };
+      },
+      getRemote: async () => {
+        const storedFileId = localStorage.getItem(DRIVE_FILE_ID_STORAGE_KEY) || undefined;
+        if (!storedFileId) return null;
+        let resp;
+        try {
+          resp = await this.jackpotApi.getJson(storedFileId);
+        } catch (e) {
+          console.error(
+            "[ScreenConfigRepository] Failed to fetch remote screen configs for sync",
+            e
+          );
+          return null;
+        }
+        let parsed: ScreenSetting[];
+        try {
+          parsed = JSON.parse(resp.json) as ScreenSetting[];
+        } catch {
+          return null;
+        }
+        if (!Array.isArray(parsed) || parsed.length === 0) return null;
+        const updatedAt = resp.updatedAt ? new Date(resp.updatedAt).getTime() : 0;
+        return { data: parsed, updatedAt };
+      },
+      push: async (settings) => {
+        const driveJson: DriveJsonData = {
+          metadata: {} as any,
+          fileName: DRIVE_FILE_NAME,
+          jsonText: JSON.stringify(settings),
+          uploadDate: new Date().toISOString(),
+          parentFolderId: "",
+        };
+        const meta = await this.jackpotApi.addJson(driveJson);
+        if (meta?.fileId) {
+          localStorage.setItem(DRIVE_FILE_ID_STORAGE_KEY, meta.fileId);
+        }
+        const updatedAt = meta?.lastUpdate
+          ? new Date(meta.lastUpdate).getTime()
+          : Date.now();
+        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
+        return { updatedAt };
+      },
+      pull: async (settings) => {
+        await this.replaceAllScreenSettings(settings);
+        const updatedAt = Date.now();
+        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
+        return { updatedAt };
+      },
+    };
+    return [target];
   }
 }
