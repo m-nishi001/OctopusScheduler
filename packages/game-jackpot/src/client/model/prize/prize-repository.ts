@@ -1,10 +1,17 @@
 import type { Prize } from "./prize";
 import type { DriveJsonData } from "@octopus/infrastructures/compositions";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { eventBus } from "@octopus/client-common/events/event-bus";
+import { DirtyTracker } from "@octopus/sync-engine";
+import type { SyncTarget } from "@octopus/sync-engine";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { injectable, inject } from "tsyringe";
-import { CryptoIdGenerator } from "../common/crypto-id-generator";
+
+const SYNC_KIND = "prizes";
+// getJsonBlobのフォールバック実装が既定ファイルとして解決できるよう、
+// appFileIdは付けず常にこのファイル名そのものを使う(prizes.json)。
+const DRIVE_FILE_NAME = "prizes.json";
 
 @injectable()
 export class PrizeRepository {
@@ -12,9 +19,9 @@ export class PrizeRepository {
     "jackpot-game",
     "PrizeData"
   );
+  private readonly dirtyTracker = new DirtyTracker("jackpot-game");
 
   constructor(
-    @inject(CryptoIdGenerator) private readonly idGenerator: CryptoIdGenerator,
     @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {}
 
@@ -31,10 +38,14 @@ export class PrizeRepository {
     for (const prize of prizes) {
       await this.localStorage.save(prize.id, prize);
     }
+    await this.dirtyTracker.touch(SYNC_KIND);
+    eventBus.emit("syncDirty");
   }
 
   async deletePrizes(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
+    await this.dirtyTracker.touch(SYNC_KIND);
+    eventBus.emit("syncDirty");
   }
 
   async replaceAllPrizes(prizes: Prize[]): Promise<{ replaced: number }> {
@@ -51,53 +62,64 @@ export class PrizeRepository {
     return { replaced: prizes.length };
   }
 
-  async exportAllPrizesToDrive(): Promise<void> {
-    try {
-      const prizesToExport = await this.getPrizes();
-      const json = JSON.stringify(prizesToExport || []);
-      // NOTE: driveDataId is assigned by the GAS side (Drive metadata) when
-      // uploading JSON files. The app should manage an application-scoped file
-      // identifier (fileId) so we can later re-download the same file.
-      const appFileId = this.idGenerator.nextId();
-
-      const driveJson = {
-        // Provide an application-scoped id (appFileId) at the top-level
-        // so the GAS side can use it as a filename prefix. Do not place
-        // application-scoped IDs inside `metadata` — that's Drive-managed.
-        appFileId: appFileId,
-        // Keep metadata empty: GAS will set/return Drive-specific metadata
-        // when it saves the file.
-        metadata: {},
-        fileName: "prizes.json",
-        jsonText: json,
-        uploadDate: new Date().toISOString(),
-        parentFolderId: "",
-      };
-      await this.jackpotApi.addJson(driveJson as DriveJsonData);
-    } catch (e) {
-      console.error("PrizeRepository.exportAllPrizesToDrive failed:", e);
-      return;
-    }
-  }
-
-  async importAllPrizesFromDrive(): Promise<void> {
-    try {
-      const resp = await this.jackpotApi.getJson();
-      try {
-        const parsed = JSON.parse(resp.json) as Prize[];
-        if (!Array.isArray(parsed)) {
-          console.warn("Downloaded prizes JSON is not an array");
-          throw new Error("Downloaded prizes JSON is not an array");
+  /**
+   * バックグラウンド同期エンジン向けに、景品一覧全体を1つのSyncTargetとして
+   * 返す(GAS側はJSON blobとしてしか保存しないため、景品単位ではなく
+   * ドメイン全体を1つの対象として扱う)。
+   */
+  async listSyncTargets(): Promise<SyncTarget<Prize[], Prize[]>[]> {
+    const target: SyncTarget<Prize[], Prize[]> = {
+      id: SYNC_KIND,
+      kind: SYNC_KIND,
+      getLocal: async () => {
+        const prizes = await this.getPrizes();
+        if (prizes.length === 0) return null;
+        const trackedAt = await this.dirtyTracker.getUpdatedAt(SYNC_KIND);
+        return { data: prizes, updatedAt: trackedAt ?? Date.now() };
+      },
+      getRemote: async () => {
+        let resp;
+        try {
+          resp = await this.jackpotApi.getJson();
+        } catch (e) {
+          console.error(
+            "[PrizeRepository] Failed to fetch remote prizes for sync",
+            e
+          );
+          return null;
         }
-        await this.replaceAllPrizes(parsed);
-        return;
-      } catch (e) {
-        console.error("Failed to parse downloaded prizes JSON", e);
-        throw e;
-      }
-    } catch (e) {
-      console.error("PrizeRepository.importAllPrizesFromDrive failed:", e);
-      throw e;
-    }
+        let parsed: Prize[];
+        try {
+          parsed = JSON.parse(resp.json) as Prize[];
+        } catch {
+          return null;
+        }
+        if (!Array.isArray(parsed) || parsed.length === 0) return null;
+        const updatedAt = resp.updatedAt ? new Date(resp.updatedAt).getTime() : 0;
+        return { data: parsed, updatedAt };
+      },
+      push: async (prizes) => {
+        const driveJson: DriveJsonData = {
+          metadata: {} as any,
+          fileName: DRIVE_FILE_NAME,
+          jsonText: JSON.stringify(prizes),
+          uploadDate: new Date().toISOString(),
+          parentFolderId: "",
+        };
+        const meta = await this.jackpotApi.addJson(driveJson);
+        const updatedAt = meta?.lastUpdate
+          ? new Date(meta.lastUpdate).getTime()
+          : Date.now();
+        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
+        return { updatedAt };
+      },
+      pull: async (prizes) => {
+        await this.replaceAllPrizes(prizes);
+        const updatedAt = Date.now();
+        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
+        return { updatedAt };
+      },
+    };
+    return [target];
   }
 }
