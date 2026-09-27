@@ -5,3 +5,4 @@ export * from "./database";
 export * from "./cache";
 export * from "./uuid";
 export * from "./lock";
+export * from "./concurrency-policy";
