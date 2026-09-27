@@ -12,6 +12,7 @@
     "@octopus/client-common": "*",
     "@octopus/composables": "*",
     "@octopus/infrastructures": "*",
+    "@octopus/sync-engine": "*",
     "@octopus/member-directory": "*",
     "gsap": "^3.13.0",
     "localforage": "^1.10.0",

@@ -1,6 +1,12 @@
 import { container, instanceCachingFactory } from "tsyringe";
-import { IApiClientToken, createTypedApiClient } from "@octopus/infrastructures/interfaces";
+import {
+  IApiClientToken,
+  IConcurrencyPolicyToken,
+  createTypedApiClient,
+} from "@octopus/infrastructures/interfaces";
 import { PlatformApiClient } from "@octopus/infrastructures/platform-api-client";
+import { PlatformConcurrencyPolicy } from "@octopus/infrastructures/platform-concurrency-policy";
+import { SyncRunner } from "@octopus/sync-engine";
 import {
   JACKPOT_GAME_PREFIX,
   JACKPOT_GAME_ENDPOINTS,
@@ -25,12 +31,17 @@ import { DrawStateInitializer } from "../draw/draw-state-initializer";
 import { MathRandomProvider } from "../../model/common/math-random-provider";
 import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
 import { RemoteControlRepository } from "../../model/remote-control/remote-control-repository";
+import { SyncService } from "../sync/sync-service";
 
 export class Container {
   static register() {
     // ビルド対象(GAS/Cloudflare)ごとに @octopus/infrastructures/platform-api-client が
     // 解決する実装(Viteのresolve.conditions)を登録する。
     container.register(IApiClientToken, { useClass: PlatformApiClient });
+    // 同期エンジンの並列度も同じ仕組みで環境ごとに切り替える。
+    container.register(IConcurrencyPolicyToken, {
+      useClass: PlatformConcurrencyPolicy,
+    });
     container.register<JackpotGameApi>(IJackpotGameApiToken, {
       useFactory: instanceCachingFactory((c) =>
         createTypedApiClient<JackpotGameApi>(
@@ -75,5 +86,7 @@ export class Container {
     container.register(RemoteControlRepository, {
       useClass: RemoteControlRepository,
     });
+    container.register(SyncRunner, { useClass: SyncRunner });
+    container.register(SyncService, { useClass: SyncService });
   }
 }

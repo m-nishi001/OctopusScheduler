@@ -17,6 +17,7 @@ import {
   addDriveData as addDriveDataGeneric,
   getDriveData as getDriveDataGeneric,
   getDriveMetadata as getDriveMetadataGeneric,
+  updateDriveData as updateDriveDataGeneric,
   resolveFolderIdPreferringProvided,
 } from "@octopus/infrastructures/compositions";
 import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
@@ -52,4 +53,11 @@ export async function getJackpotDriveData(
   dataId: string
 ): Promise<DriveData | null> {
   return getDriveDataGeneric(deps, dataId);
+}
+
+export async function updateJackpotDriveData(
+  deps: DriveAssetUseCaseDeps,
+  driveData: DriveData
+): Promise<OperationResult<void>> {
+  return updateDriveDataGeneric(deps, driveData);
 }

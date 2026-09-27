@@ -1,4 +1,5 @@
 import { injectable, container } from "tsyringe";
+import type { SyncTarget } from "@octopus/sync-engine";
 import { AssetDataRepository } from "../../model/asset/asset-data-repository";
 import { Asset } from "../../model/asset/asset-data";
 
@@ -32,20 +33,8 @@ export class AssetDataService {
     ids.forEach((id) => onProgress?.({ id, success: true }));
   }
 
-  async syncAssetData(
-    onProgress?: (
-      message: string,
-      progress?: { current: number; total: number }
-    ) => void
-  ): Promise<{ updated: number; deleted: number }> {
-    return await this.repo.syncAssetData(onProgress);
-  }
-
-  async replaceLocalWithDrive(
-    onProgress?: (message: string) => void,
-    remoteMetas?: any[]
-  ): Promise<{ replaced: number; idMap?: { [oldId: string]: string } }> {
-    return await this.repo.replaceLocalWithDrive(onProgress, remoteMetas);
+  async listSyncTargets(): Promise<SyncTarget[]> {
+    return await this.repo.listSyncTargets();
   }
 
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {
