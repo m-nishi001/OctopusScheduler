@@ -21,6 +21,7 @@ import {
   addJackpotDriveData,
   getJackpotDriveData,
   getJackpotDriveMetadata,
+  updateJackpotDriveData,
 } from "./drive-asset-use-cases";
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
@@ -41,6 +42,7 @@ function resolveDeps() {
 declare let _jackpotGame_addDriveData: (driveData: DriveData) => Promise<string>;
 declare let _jackpotGame_getDriveMetaData: (folderId?: string) => Promise<string>;
 declare let _jackpotGame_getDriveData: (dataId: string) => Promise<string>;
+declare let _jackpotGame_updateDriveData: (driveData: DriveData) => Promise<string>;
 declare let _jackpotGame_addJson: (driveJson: DriveJsonData) => Promise<string>;
 declare let _jackpotGame_getJson: (fileId?: string) => Promise<string>;
 declare let _jackpotGame_setRemoteScreen: (screen: JackpotRemoteScreen) => Promise<string>;
@@ -75,6 +77,15 @@ _jackpotGame_getDriveData = async (dataId: string): Promise<string> => {
   }
 };
 
+_jackpotGame_updateDriveData = async (driveData: DriveData): Promise<string> => {
+  try {
+    await updateJackpotDriveData(resolveDeps(), driveData);
+    return JSON.stringify({ status: "success", data: undefined });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
 _jackpotGame_addJson = async (driveJson: DriveJsonData): Promise<string> => {
   try {
     const result = await addJsonBlob(resolveDeps(), driveJson);
@@ -93,7 +104,7 @@ _jackpotGame_getJson = async (fileId?: string): Promise<string> => {
     console.error("_jackpotGame_getJson error:", (error as Error).message);
     return JSON.stringify({
       status: "success",
-      data: { json: JSON.stringify([]) },
+      data: { json: JSON.stringify([]), updatedAt: null },
     });
   }
 };
@@ -130,6 +141,7 @@ export const JACKPOT_GAME_HANDLERS: Record<JackpotGameEndpointName, (args: any) 
   addDriveData: _jackpotGame_addDriveData,
   getDriveMetaData: _jackpotGame_getDriveMetaData,
   getDriveData: _jackpotGame_getDriveData,
+  updateDriveData: _jackpotGame_updateDriveData,
   addJson: _jackpotGame_addJson,
   getJson: _jackpotGame_getJson,
   setRemoteScreen: _jackpotGame_setRemoteScreen,

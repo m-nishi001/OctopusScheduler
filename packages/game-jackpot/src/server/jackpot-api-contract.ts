@@ -14,6 +14,7 @@ export const JACKPOT_GAME_ENDPOINTS = [
   "addDriveData",
   "getDriveMetaData",
   "getDriveData",
+  "updateDriveData",
   "addJson",
   "getJson",
   "setRemoteScreen",
@@ -67,8 +68,16 @@ export interface JackpotGameApi {
   addDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<DriveMetadata>;
   getDriveMetaData(folderId?: string, options?: ApiCallOptions): Promise<DriveMetadata[]>;
   getDriveData(dataId: string, options?: ApiCallOptions): Promise<DriveData>;
+  updateDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<void>;
   addJson(driveJson: DriveJsonData, options?: ApiCallOptions): Promise<DriveMetadata>;
-  getJson(fileId?: string, options?: ApiCallOptions): Promise<{ json: string }>;
+  /**
+   * updatedAt: 解決されたファイルの最終更新日時(ISO文字列)。バックグラウンド
+   * 同期のLast-Write-Winsに使う。ファイルが見つからない場合はnull。
+   */
+  getJson(
+    fileId?: string,
+    options?: ApiCallOptions
+  ): Promise<{ json: string; updatedAt: string | null }>;
   setRemoteScreen(
     screen: JackpotRemoteScreen,
     options?: ApiCallOptions
