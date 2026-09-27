@@ -1,9 +1,10 @@
 import { injectable, inject } from "tsyringe";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import type { SyncTarget } from "@octopus/sync-engine";
 import { IOctopusSchedulerApiToken } from "../../../server/scheduler-api-contract";
 import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 import type { Asset } from "./asset";
-import type { DriveData } from "@octopus/infrastructures/compositions";
+import type { DriveData, DriveMetadata } from "@octopus/infrastructures/compositions";
 
 @injectable()
 export class AssetRepository {
@@ -41,6 +42,15 @@ export class AssetRepository {
     }
 
     return asset;
+  }
+
+  private blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result));
+      reader.onerror = (e) => reject(e);
+      reader.readAsDataURL(blob);
+    });
   }
 
   async addAssets(assets: Asset[]): Promise<string[]> {
@@ -86,209 +96,91 @@ export class AssetRepository {
     await this.localStorage.removeMultiple(ids);
   }
 
-  async syncAssets(
-    mode: "local" | "drive" = "local",
-    onProgress?: (message: string) => void
-  ): Promise<void> {
-    // default options
-    const concurrency = 6;
-
-    onProgress?.("Starting asset sync (diff-based)");
-
-    // fetch remote metadata
-    let remoteMetas: Array<any> = [];
+  /**
+   * バックグラウンド同期エンジン(SyncRunner)向けに、アセット1件ごとの
+   * SyncTargetを列挙する。ローカル/リモートいずれかにのみ存在するIDも
+   * 含めることで、新規アップロードと新規ダウンロードの両方を1つの差分判定
+   * (Last-Write-Wins)で扱えるようにする。
+   */
+  async listSyncTargets(): Promise<SyncTarget<Asset, DriveMetadata>[]> {
+    let remoteMetas: DriveMetadata[] = [];
     try {
-      // Do not send an empty string for folderId. Send an explicit undefined
-      // so the server resolves the configured asset folder via ScriptProperties.
+      // 空文字列ではなく明示的にundefinedを送る。サーバー側が
+      // ScriptPropertiesで設定済みのアセットフォルダを解決するため。
       remoteMetas = (await this.schedulerApi.getDriveMetaData(undefined)) || [];
     } catch (e) {
-      onProgress?.(`Failed to fetch remote metadata: ${(e as Error).message}`);
-      return;
+      console.error(
+        "[AssetRepository] Failed to fetch remote asset metadata for sync",
+        e
+      );
+      return [];
     }
 
-    const remoteMap = new Map<string, any>();
+    const remoteMap = new Map<string, DriveMetadata>();
     for (const m of remoteMetas) {
-      if (m && m.driveDataId) remoteMap.set(String(m.driveDataId), m);
+      if (m?.driveDataId) remoteMap.set(String(m.driveDataId), m);
     }
 
-    // get local assets
-    const all = await this.localStorage.getAll<any>();
-    const localAssets: Asset[] = [];
-    for (const v of Array.from(all.values())) {
-      // migrate older DriveData shape if necessary
-      if (v && v.fileDataUrl && v.metadata) {
-        localAssets.push(await this.driveDataToAsset(v as any));
-      } else {
-        localAssets.push(v as Asset);
-      }
-    }
+    const localRaw = await this.localStorage.getAll<any>();
+    const allIds = new Set<string>([
+      ...Array.from(localRaw.keys()),
+      ...remoteMap.keys(),
+    ]);
 
-    // handle drive -> local (fetch all remote drive data and save locally)
-    if (mode === "drive") {
-      onProgress?.("Fetching remote assets");
+    return Array.from(allIds).map((id) => this.buildAssetSyncTarget(id, remoteMap));
+  }
 
-      // fetch drive data for each metadata in unlimited parallel
-      const fetchPromises = remoteMetas
-        .filter((m: any) => m && m.fileId)
-        .map(async (m: any) => {
-          try {
-            const res = await this.schedulerApi.getDriveData(m.fileId);
-            if (!res) return null;
-            const blobResponse = await fetch(res.fileDataUrl);
-            const blob = await blobResponse.blob();
-            const id = res.metadata?.driveDataId || crypto.randomUUID();
-            const newAsset: Asset = {
-              id,
-              blob,
-              name: res.fileName || "",
-              uploadedAt: res.uploadDate
-                ? String(res.uploadDate)
-                : new Date().toISOString(),
-              lastUpdated: res.metadata?.lastUpdate
-                ? String(res.metadata.lastUpdate)
-                : new Date().toISOString(),
-              size: res.metadata?.size || 0,
-              directoryId: res.metadata?.parentFolderId || undefined,
-            };
-            return newAsset;
-          } catch (e) {
-            onProgress?.(
-              `Failed to fetch file ${m.fileId}: ${(e as Error).message}`
-            );
-            return null;
-          }
-        });
+  private buildAssetSyncTarget(
+    id: string,
+    remoteMap: Map<string, DriveMetadata>
+  ): SyncTarget<Asset, DriveMetadata> {
+    return {
+      id,
+      kind: "asset",
+      getLocal: async () => {
+        const asset = await this.getAssetById(id);
+        if (!asset) return null;
+        return { data: asset, updatedAt: new Date(asset.lastUpdated).getTime() };
+      },
+      getRemote: async () => {
+        const meta = remoteMap.get(id);
+        if (!meta) return null;
+        return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
+      },
+      push: async (asset) => {
+        const dataUrl = asset.blob ? await this.blobToDataUrl(asset.blob) : "";
+        const clientNow = new Date().toISOString();
+        const driveData = {
+          metadata: {
+            driveDataId: id,
+            parentFolderId: asset.directoryId || undefined,
+            lastUpdate: clientNow,
+            size: asset.size || 0,
+          },
+          fileName: asset.name,
+          fileKind: asset.blob?.type || "application/octet-stream",
+          fileDataUrl: dataUrl,
+          uploadDate: new Date().toISOString(),
+          parentFolderId: asset.directoryId || undefined,
+        } as any;
 
-      const fetchedAssets = (await Promise.all(fetchPromises)).filter(
-        (a): a is Asset => a !== null
-      );
-
-      // replace local storage entirely for drive->local
-      // WARNING: This deletes local-only assets. Called only when UI confirms.
-      onProgress?.(`Replacing local assets (${fetchedAssets.length})`);
-      await this.localStorage.clear();
-      const savePromises = fetchedAssets.map((asset) =>
-        this.localStorage.save(asset.id, asset)
-      );
-      await Promise.all(savePromises);
-
-      onProgress?.("Asset sync finished (drive -> local)");
-      return;
-    }
-
-    // prepare upload / update lists based on lastUpdated
-    const toUpload: Asset[] = [];
-    const toUpdate: Asset[] = [];
-
-    for (const a of localAssets) {
-      const id = a.id;
-      const remote = remoteMap.get(id);
-      const localUpdated = a.lastUpdated
-        ? new Date(a.lastUpdated)
-        : new Date(0);
-      const remoteUpdated =
-        remote && remote.lastUpdate ? new Date(remote.lastUpdate) : new Date(0);
-
-      if (!remote) {
-        toUpload.push(a);
-      } else if (localUpdated > remoteUpdated) {
-        toUpdate.push(a);
-      }
-    }
-
-    onProgress?.(
-      `Assets to upload: ${toUpload.length}, to update: ${toUpdate.length}`
-    );
-
-    // helper: blob -> dataUrl
-    const blobToDataUrl = (blob: Blob): Promise<string> =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(String(reader.result));
-        reader.onerror = (e) => reject(e);
-        reader.readAsDataURL(blob);
-      });
-
-    // concurrency runner
-    const runInBatches = async <T, R>(
-      items: T[],
-      handler: (t: T) => Promise<R>
-    ) => {
-      const results: R[] = [];
-      let i = 0;
-      const workers: Promise<void>[] = [];
-      const next = async () => {
-        while (i < items.length) {
-          const idx = i++;
-          try {
-            const r = await handler(items[idx]);
-            // @ts-ignore
-            results.push(r);
-          } catch (e) {
-            // ignore per-item errors, report via onProgress
-            onProgress?.(`item error: ${(e as Error).message}`);
-          }
+        let updatedAtIso = clientNow;
+        if (remoteMap.has(id)) {
+          await this.schedulerApi.updateDriveData(driveData);
+        } else {
+          const meta = await this.schedulerApi.addDriveData(driveData);
+          updatedAtIso = meta?.lastUpdate ?? clientNow;
         }
-      };
-      for (let w = 0; w < concurrency; w++) workers.push(next());
-      await Promise.all(workers);
-      return results;
+
+        await this.localStorage.save(id, { ...asset, lastUpdated: updatedAtIso });
+        return { updatedAt: new Date(updatedAtIso).getTime() };
+      },
+      pull: async (meta) => {
+        const res = await this.schedulerApi.getDriveData(meta.fileId);
+        const asset = await this.driveDataToAsset(res);
+        await this.localStorage.save(id, asset);
+        return { updatedAt: new Date(asset.lastUpdated).getTime() };
+      },
     };
-
-    const uploadHandler = async (asset: Asset) => {
-      const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";
-      const driveData = {
-        metadata: {
-          driveDataId: asset.id,
-          parentFolderId: asset.directoryId || undefined,
-          lastUpdate: new Date().toISOString(),
-          size: asset.size || 0,
-        },
-        fileName: asset.name,
-        fileKind: asset.blob?.type || "application/octet-stream",
-        fileDataUrl: dataUrl,
-        uploadDate: new Date().toISOString(),
-        parentFolderId: asset.directoryId || undefined,
-      } as any;
-
-      const res = await this.schedulerApi.addDriveData(driveData);
-      // expect DriveMetadata in response
-      if (res) {
-        const meta = res as any;
-        const newAsset = {
-          ...asset,
-          lastUpdated: meta.lastUpdate ?? new Date().toISOString(),
-        };
-        await this.localStorage.save(asset.id, newAsset);
-      }
-    };
-
-    const updateHandler = async (asset: Asset) => {
-      const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";
-      const driveData = {
-        metadata: {
-          driveDataId: asset.id,
-          parentFolderId: asset.directoryId || undefined,
-          lastUpdate: new Date().toISOString(),
-          size: asset.size || 0,
-        },
-        fileName: asset.name,
-        fileKind: asset.blob?.type || "application/octet-stream",
-        fileDataUrl: dataUrl,
-        uploadDate: new Date().toISOString(),
-        parentFolderId: asset.directoryId || undefined,
-      } as any;
-
-      await this.schedulerApi.updateDriveData(driveData);
-      await this.localStorage.save(asset.id, {
-        ...asset,
-        lastUpdated: new Date().toISOString(),
-      });
-    };
-
-    await runInBatches(toUpload, uploadHandler);
-    await runInBatches(toUpdate, updateHandler);
-
-    onProgress?.("Asset sync finished");
   }
 }
