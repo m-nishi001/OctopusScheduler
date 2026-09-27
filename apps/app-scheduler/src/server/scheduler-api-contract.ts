@@ -55,9 +55,20 @@ export interface OctopusSchedulerApi {
   getKeyboardShortcuts(
     args?: undefined,
     options?: ApiCallOptions
-  ): Promise<{ shortcuts: KeyboardShortcutWireItem[]; config: unknown }>;
+  ): Promise<{
+    shortcuts: KeyboardShortcutWireItem[];
+    config: unknown;
+    /** 最終更新日時(ISO文字列)。バックグラウンド同期のLast-Write-Winsに使う。
+     * 一度もpushされたことがない旧形式のデータの場合はnull。 */
+    updatedAt: string | null;
+  }>;
   setKeyboardShortcuts(
-    payload: { shortcuts: KeyboardShortcutWireItem[]; config: unknown },
+    payload: {
+      shortcuts: KeyboardShortcutWireItem[];
+      config: unknown;
+      /** クライアントがpush時に刻む更新日時(ISO文字列)。 */
+      updatedAt: string;
+    },
     options?: ApiCallOptions
   ): Promise<void>;
 }

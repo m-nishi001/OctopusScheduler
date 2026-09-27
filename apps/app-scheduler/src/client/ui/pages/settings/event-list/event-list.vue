@@ -1,6 +1,6 @@
 <template>
     <div class="admin-section event-list-editor">
-        <!-- per-screen sync status removed; use 一括同期 (Bulk Sync) in header -->
+        <!-- per-screen sync status removed; background sync runs automatically -->
         <!-- saving status handled inside dialogs -->
         <h2 class="editor-title">
             <span class="editor-icon">📅</span> イベント管理
@@ -74,7 +74,7 @@
             @close="closeDialogs" />
         <SlideshowEventDialog v-if="showSlideshowDialog" :event="editingEvent as any" @saved="onDialogSaved"
             @close="closeDialogs" />
-        <!-- per-screen sync removed: use BulkSyncDialog from header -->
+        <!-- per-screen sync removed: background sync runs automatically -->
     </div>
 </template>
 
@@ -323,7 +323,7 @@ onMounted(async () => {
     await getAllScheduleEvents();
 });
 
-// per-screen sync removed: use BulkSyncDialog from header for synchronization actions
+// per-screen sync removed: background sync runs automatically
 </script>
 
 <style scoped>

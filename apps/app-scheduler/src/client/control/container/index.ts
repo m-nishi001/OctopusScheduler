@@ -1,5 +1,11 @@
-import { IApiClientToken, createTypedApiClient } from "@octopus/infrastructures/interfaces";
+import {
+  IApiClientToken,
+  IConcurrencyPolicyToken,
+  createTypedApiClient,
+} from "@octopus/infrastructures/interfaces";
 import { PlatformApiClient } from "@octopus/infrastructures/platform-api-client";
+import { PlatformConcurrencyPolicy } from "@octopus/infrastructures/platform-concurrency-policy";
+import { SyncRunner } from "@octopus/sync-engine";
 import {
   OCTOPUS_SCHEDULER_PREFIX,
   OCTOPUS_SCHEDULER_ENDPOINTS,
@@ -14,12 +20,17 @@ import { AppEventService } from "../app-event/app-event-service";
 import { AssetService } from "../asset/asset-service";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcutService } from "../keyboard-shortcut/keyboard-shortcut-service";
+import { SyncService } from "../sync/sync-service";
 
 export class Container {
   static register() {
     // ビルド対象(GAS/Cloudflare)ごとに @octopus/infrastructures/platform-api-client が
     // 解決する実装(Viteのresolve.conditions)を登録する。
     container.register(IApiClientToken, { useClass: PlatformApiClient });
+    // 同期エンジンの並列度も同じ仕組みで環境ごとに切り替える。
+    container.register(IConcurrencyPolicyToken, {
+      useClass: PlatformConcurrencyPolicy,
+    });
     container.register<OctopusSchedulerApi>(IOctopusSchedulerApiToken, {
       useFactory: instanceCachingFactory((c) =>
         createTypedApiClient<OctopusSchedulerApi>(
@@ -44,5 +55,7 @@ export class Container {
     container.register(KeyboardShortcutService, {
       useClass: KeyboardShortcutService,
     });
+    container.register(SyncRunner, { useClass: SyncRunner });
+    container.register(SyncService, { useClass: SyncService });
   }
 }

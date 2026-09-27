@@ -81,7 +81,7 @@
             </div>
         </div>
 
-        <!-- per-screen sync removed: use 一括同期 (Bulk Sync) in header -->
+        <!-- per-screen sync removed: background sync (useBackgroundSync) runs automatically -->
 
         <!-- Drive->Local replace flow removed (use Bulk Sync which handles backups and confirmations) -->
 
@@ -128,7 +128,7 @@ const closeAddModal = () => { showAddModal.value = false; selectedFiles.value = 
 const confirmAdd = async () => { await addAssets(); closeAddModal(); };
 
 const uploading = ref(false);
-// per-screen syncing removed; bulk sync is used from header dialog
+// per-screen syncing removed; assets sync automatically in the background
 
 const previewAsset = ref<any>(null);
 const previewAssetType = ref<string | null>(null);
@@ -209,7 +209,7 @@ const deleteSelectedAssets = async () => {
     selectedAssets.value = [];
 };
 
-// per-screen sync functions removed; assetService.syncAssets remains for bulk orchestration
+// per-screen sync functions removed; syncing is handled by the background sync engine
 
 const onPreview = (asset: any) => { previewAsset.value = asset; previewAssetType.value = deriveAssetKind(asset); };
 const closePreview = () => { previewAsset.value = null; previewAssetType.value = null; };

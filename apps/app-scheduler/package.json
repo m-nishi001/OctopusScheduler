@@ -14,6 +14,7 @@
     "@octopus/client-common": "*",
     "@octopus/composables": "*",
     "@octopus/infrastructures": "*",
+    "@octopus/sync-engine": "*",
     "@octopus/game-card": "*",
     "@octopus/game-jackpot": "*",
     "@octopus/member-directory": "*",

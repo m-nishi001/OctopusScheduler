@@ -30,4 +30,8 @@ export const eventBus = mitt<{
     bgmIds: string[];
   };
   stopSlideshow: void;
+  // ローカルデータが変更され、バックグラウンド同期のプッシュを早めるべき
+  // ことを通知する。どのkindが変わったかは問わない(SyncRunnerは常に全対象を
+  // 差分判定するため、シグナルは「そろそろ確認して」という合図でしかない)。
+  syncDirty: void;
 }>();

@@ -47,12 +47,6 @@ export function useKeyboardShortcut() {
     await loadShortcuts();
   };
 
-  const syncWithServer = async (direction: "gas-to-local" | "local-to-gas") => {
-    await service.syncWithServer(direction);
-    await loadShortcuts();
-    await loadConfig();
-  };
-
   return {
     shortcuts,
     isEnabled,
@@ -63,6 +57,5 @@ export function useKeyboardShortcut() {
     saveShortcut,
     updateShortcut,
     deleteShortcut,
-    syncWithServer,
   };
 }

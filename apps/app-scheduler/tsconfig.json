@@ -14,6 +14,7 @@
     { "path": "./tsconfig.server.json" },
     { "path": "../../packages/client-common" },
     { "path": "../../packages/composables" },
+    { "path": "../../packages/sync-engine" },
     { "path": "../../packages/game-card" },
     { "path": "../../packages/game-quiz" },
     { "path": "../../packages/game-jackpot" },

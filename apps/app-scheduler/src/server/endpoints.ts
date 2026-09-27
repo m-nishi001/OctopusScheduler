@@ -51,6 +51,7 @@ declare let _octopusScheduler_getKeyboardShortcuts: () => Promise<string>;
 declare let _octopusScheduler_setKeyboardShortcuts: (payload: {
   shortcuts: KeyboardShortcutWireItem[];
   config: unknown;
+  updatedAt: string;
 }) => Promise<string>;
 
 _octopusScheduler_addDriveData = async (driveData: DriveData): Promise<string> => {
@@ -103,6 +104,7 @@ _octopusScheduler_getKeyboardShortcuts = async (): Promise<string> => {
 _octopusScheduler_setKeyboardShortcuts = async (payload: {
   shortcuts: KeyboardShortcutWireItem[];
   config: unknown;
+  updatedAt: string;
 }): Promise<string> => {
   try {
     const kv = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
