@@ -3,25 +3,38 @@
     <button type="button" class="sidebar-toggle" aria-label="メニューを開閉"
       @click="$emit('toggle-sidebar')">☰</button>
     <h1 class="admin-title">管理画面</h1>
-    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
-      <button class="sync-all-button" @click="showSync = true" title="一括同期">同期</button>
+    <div style="margin-left:auto;display:flex;gap:12px;align-items:center;">
+      <SyncStatusIndicator :status="status" :last-error="lastError" />
+      <button class="backup-btn" @click="onDownloadBackup" :disabled="downloadingBackup">
+        バックアップをダウンロード
+      </button>
       <router-link to="/jackpot-home" class="home-button" aria-label="ホームへ戻る">ホーム</router-link>
     </div>
-    <SyncDialog v-if="showSync" @close="closeSync" />
   </header>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import SyncDialog from '@ui/components/sync-dialog.vue';
+import SyncStatusIndicator from '@ui/components/sync-status-indicator.vue';
+import { useBackgroundSync } from '../../../composables/use-background-sync';
+import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
 defineEmits(['toggle-sidebar']);
 
-const showSync = ref(false);
+const { status, lastError } = useBackgroundSync();
 
-const closeSync = () => {
-  showSync.value = false;
-};
+const downloadingBackup = ref(false);
+
+async function onDownloadBackup() {
+  downloadingBackup.value = true;
+  try {
+    await exportLocalBackup(true);
+  } catch (e) {
+    console.error('Failed to export local backup', e);
+  } finally {
+    downloadingBackup.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -66,8 +79,6 @@ const closeSync = () => {
 }
 
 .home-button {
-  margin-left: auto;
-  
   background: #ffffff;
   color: #2b3036;
   padding: 6px 12px;
@@ -81,7 +92,7 @@ const closeSync = () => {
   opacity: 0.9;
 }
 
-.sync-all-button {
+.backup-btn {
   background: transparent;
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -91,7 +102,12 @@ const closeSync = () => {
   cursor: pointer;
 }
 
-.sync-all-button:hover {
+.backup-btn:hover {
   opacity: 0.95;
+}
+
+.backup-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 </style>
