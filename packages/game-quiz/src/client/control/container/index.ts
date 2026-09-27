@@ -1,6 +1,12 @@
 import { container, instanceCachingFactory } from "tsyringe";
-import { IApiClientToken, createTypedApiClient } from "@octopus/infrastructures/interfaces";
+import {
+  IApiClientToken,
+  IConcurrencyPolicyToken,
+  createTypedApiClient,
+} from "@octopus/infrastructures/interfaces";
 import { PlatformApiClient } from "@octopus/infrastructures/platform-api-client";
+import { PlatformConcurrencyPolicy } from "@octopus/infrastructures/platform-concurrency-policy";
+import { SyncRunner } from "@octopus/sync-engine";
 import {
   QUIZ_GAME_PREFIX,
   QUIZ_GAME_ENDPOINTS,
@@ -23,12 +29,17 @@ import { StopAcceptingAnswersUseCase } from "../use-cases/stop-accepting-answers
 import { GetAcceptanceStateUseCase } from "../use-cases/get-acceptance-state-use-case";
 import { SubmitAnswerUseCase } from "../use-cases/submit-answer-use-case";
 import { GetSubmittedAnswersUseCase } from "../use-cases/get-submitted-answers-use-case";
+import { SyncService } from "../sync/sync-service";
 
 export class Container {
   static register() {
     // ビルド対象(GAS/Cloudflare)ごとに @octopus/infrastructures/platform-api-client が
     // 解決する実装(Viteのresolve.conditions)を登録する。
     container.register(IApiClientToken, { useClass: PlatformApiClient });
+    // 同期エンジンの並列度も同じ仕組みで環境ごとに切り替える。
+    container.register(IConcurrencyPolicyToken, {
+      useClass: PlatformConcurrencyPolicy,
+    });
     container.register<QuizGameApi>(IQuizGameApiToken, {
       useFactory: instanceCachingFactory((c) =>
         createTypedApiClient<QuizGameApi>(
@@ -60,5 +71,7 @@ export class Container {
     container.register(GetAcceptanceStateUseCase, { useClass: GetAcceptanceStateUseCase });
     container.register(SubmitAnswerUseCase, { useClass: SubmitAnswerUseCase });
     container.register(GetSubmittedAnswersUseCase, { useClass: GetSubmittedAnswersUseCase });
+    container.register(SyncRunner, { useClass: SyncRunner });
+    container.register(SyncService, { useClass: SyncService });
   }
 }

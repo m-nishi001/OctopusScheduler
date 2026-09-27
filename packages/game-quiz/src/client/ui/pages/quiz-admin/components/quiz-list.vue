@@ -6,9 +6,6 @@
                     <button class="btn-add" @click="addQuiz">
                         新規クイズ追加
                     </button>
-                    <button class="btn-sync" @click="showSyncDialog = true">
-                        一括同期
-                    </button>
                 </div>
                 <div class="count">
                     総クイズ数: {{ quizzes.length }}
@@ -55,35 +52,6 @@
 
         <QuizModal v-if="showModal" :isEditing="isEditing" :currentQuiz="currentQuiz" @save="handleSave"
             @close="closeModal" />
-
-        <dialog :open="showSyncDialog" class="sync-dialog">
-            <h2>同期方向を選択（全体）</h2>
-            <div class="dialog-buttons">
-                <button @click="selectDirection('gas-to-local')">GAS → ローカル（上書き）</button>
-                <button @click="selectDirection('local-to-gas')">ローカル → GAS（Driveを完全に上書き）</button>
-                <button @click="showSyncDialog = false">キャンセル</button>
-            </div>
-        </dialog>
-
-        <dialog :open="showConfirmDialog" class="sync-dialog">
-            <h2>完全上書きの確認</h2>
-            <p>「ローカル → GAS」を選択すると、ターゲットのDriveフォルダ内の既存ファイルは削除され、ローカルの内容で置き換えられます。よろしいですか？</p>
-            <div style="margin-top:1rem;">
-                <label><input type="checkbox" v-model="confirmOverwrite" /> 理解しました（全て上書き）</label>
-            </div>
-            <div class="dialog-buttons" style="margin-top:1rem;">
-                <button :disabled="!confirmOverwrite" @click="confirmAndSync">上書きして同期</button>
-                <button @click="cancelConfirm">キャンセル</button>
-            </div>
-        </dialog>
-
-        <dialog :open="showProgressDialog" class="progress-dialog">
-            <h2>同期中...</h2>
-            <div class="progress-messages">
-                <div v-for="msg in syncProgress" :key="msg" class="progress-message">{{ msg }}</div>
-            </div>
-            <button v-if="!syncInProgress" @click="showProgressDialog = false">閉じる</button>
-        </dialog>
     </div>
 </template>
 
@@ -96,7 +64,6 @@ import { GetAllQuizzesUseCase } from '../../../../control/use-cases/get-all-quiz
 import { AddQuizUseCase } from '../../../../control/use-cases/add-quiz-use-case';
 import { UpdateQuizUseCase } from '../../../../control/use-cases/update-quiz-use-case';
 import { DeleteQuizUseCase } from '../../../../control/use-cases/delete-quiz-use-case';
-import { SyncQuizzesUseCase } from '../../../../control/use-cases/sync-quizzes-use-case';
 import type { QuizDto, AddQuizDto } from '../../../../control/dto/quiz-dto';
 
 const router = useRouter();
@@ -105,7 +72,6 @@ const getAllQuizzesUseCase = container.resolve(GetAllQuizzesUseCase);
 const addQuizUseCase = container.resolve(AddQuizUseCase);
 const updateQuizUseCase = container.resolve(UpdateQuizUseCase);
 const deleteQuizUseCase = container.resolve(DeleteQuizUseCase);
-const syncQuizzesUseCase = container.resolve(SyncQuizzesUseCase);
 
 const quizzes = ref<QuizDto[]>([]);
 
@@ -127,14 +93,7 @@ const currentQuiz = ref<QuizDto>({
     },
 });
 
-const showSyncDialog = ref(false);
-const showProgressDialog = ref(false);
-const syncDirection = ref<"gas-to-local" | "local-to-gas">();
-const syncProgress = ref<string[]>([]);
-const syncInProgress = ref(false);
 const copiedMessage = ref('');
-const showConfirmDialog = ref(false);
-const confirmOverwrite = ref(false);
 
 onMounted(async () => {
     try {
@@ -211,56 +170,6 @@ const closeModal = () => {
     showModal.value = false;
 };
 
-const selectDirection = (direction: "gas-to-local" | "local-to-gas") => {
-    syncDirection.value = direction;
-    showSyncDialog.value = false;
-    if (direction === 'local-to-gas') {
-        // require explicit confirmation for destructive action
-        confirmOverwrite.value = false;
-        showConfirmDialog.value = true;
-        return;
-    }
-    showProgressDialog.value = true;
-    sync();
-};
-
-const confirmAndSync = () => {
-    showConfirmDialog.value = false;
-    showProgressDialog.value = true;
-    sync();
-};
-
-const cancelConfirm = () => {
-    showConfirmDialog.value = false;
-    syncDirection.value = undefined;
-};
-
-const sync = async () => {
-    syncInProgress.value = true;
-    syncProgress.value = [];
-    try {
-        const summary = await syncQuizzesUseCase.execute(syncDirection.value!, (message) => {
-            syncProgress.value.push(message);
-        });
-        const dtos = await getAllQuizzesUseCase.execute();
-        quizzes.value = dtos;
-        // display concise failure summary
-        if (summary) {
-            syncProgress.value.push(`同期完了 — 成功: ${summary.successCount}件, 失敗: ${summary.failedCount}件`);
-            if (summary.failedCount > 0) {
-                const names = summary.failedFiles.slice(0, 10).join(', ');
-                syncProgress.value.push(`失敗ファイル: ${names}${summary.failedCount > 10 ? ' ...' : ''}`);
-            }
-        } else {
-            syncProgress.value.push("同期完了");
-        }
-    } catch (error) {
-        syncProgress.value.push(`エラー: ${(error as Error).message}`);
-    } finally {
-        syncInProgress.value = false;
-    }
-};
-
 const copyToClipboard = async (text: string) => {
     try {
         await navigator.clipboard.writeText(text);
@@ -320,26 +229,6 @@ const previewQuiz = (index: number) => {
 .btn-add:hover {
     background-color: #059669;
     /* hover:bg-green-600 */
-}
-
-.btn-sync {
-    background-color: #3b82f6;
-    /* bg-blue-500 */
-    color: white;
-    font-weight: 600;
-    /* font-semibold */
-    padding: 0.5rem 1rem;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-    margin-left: 0.5rem;
-}
-
-.btn-sync:hover {
-    background-color: #2563eb;
-    /* hover:bg-blue-600 */
 }
 
 .count {
@@ -581,66 +470,6 @@ const previewQuiz = (index: number) => {
 .btn-preview:hover {
     background-color: #059669;
     /* hover:bg-green-600 */
-}
-
-.sync-dialog,
-.progress-dialog {
-    background-color: #1f2937;
-    /* bg-gray-800 */
-    color: white;
-    border: 1px solid #4b5563;
-    /* border-gray-600 */
-    border-radius: 0.5rem;
-    /* rounded-lg */
-    padding: 1.5rem;
-    /* p-6 */
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-.sync-dialog h2,
-.progress-dialog h2 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    font-size: 1.25rem;
-    /* text-xl */
-    font-weight: bold;
-}
-
-.dialog-buttons {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-}
-
-.sync-dialog button,
-.progress-dialog button {
-    background-color: #3b82f6;
-    /* bg-blue-500 */
-    color: white;
-    padding: 0.5rem 1rem;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-}
-
-.sync-dialog button:hover,
-.progress-dialog button:hover {
-    background-color: #2563eb;
-    /* hover:bg-blue-600 */
-}
-
-.progress-messages {
-    max-height: 200px;
-    overflow-y: auto;
-    margin-bottom: 1rem;
-}
-
-.progress-message {
-    margin-bottom: 0.25rem;
-    font-size: 0.875rem;
-    /* text-sm */
 }
 
 @media (max-width: 768px) {
