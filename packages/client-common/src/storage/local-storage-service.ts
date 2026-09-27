@@ -125,6 +125,17 @@ export class LocalStorageService {
   }
 
   /**
+   * 指定されたIDのデータを、保存時のメタデータ(updatedAt)付きで取得します。
+   * 同期処理でローカル側の更新日時が必要な場合に利用します。
+   *
+   * @param id データの識別子 (キー)。
+   * @returns 取得したデータとメタデータ。見つからない場合はnull。
+   */
+  async getWithMeta<T>(id: string): Promise<StoredData<T> | null> {
+    return await this.lfInstance.getItem<StoredData<T>>(id);
+  }
+
+  /**
    * 指定されたIDのデータを削除します。
    *
    * @param id データの識別子 (キー)。

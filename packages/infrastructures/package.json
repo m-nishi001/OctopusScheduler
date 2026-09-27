@@ -46,6 +46,11 @@
       "types": "./src/gas/gas-api-client.ts",
       "cloudflare": "./src/cloudflare/cloudflare-api-client.ts",
       "default": "./src/gas/gas-api-client.ts"
+    },
+    "./platform-concurrency-policy": {
+      "types": "./src/gas/gas-concurrency-policy.ts",
+      "cloudflare": "./src/cloudflare/cloudflare-concurrency-policy.ts",
+      "default": "./src/gas/gas-concurrency-policy.ts"
     }
   },
   "scripts": {
