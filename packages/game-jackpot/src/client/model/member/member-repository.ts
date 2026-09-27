@@ -1,19 +1,35 @@
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { eventBus } from "@octopus/client-common/events/event-bus";
+import { DirtyTracker } from "@octopus/sync-engine";
+import type { SyncTarget } from "@octopus/sync-engine";
 import { injectable, inject } from "tsyringe";
 import { MemberDirectoryRepository } from "@octopus/member-directory";
 import type { Member as DirectoryMember } from "@octopus/member-directory";
 import type { Member } from "./member";
 import type { JackpotMemberExtra } from "./jackpot-member-extra";
+import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
+import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
+import type { DriveJsonData } from "@octopus/infrastructures/compositions";
 
 const DEFAULT_RANK = 5;
 const ROSTER_OVERRIDE_KEY = "override";
+const SYNC_KIND = "member-extras";
+const DRIVE_FILE_NAME = "member-extras.json";
+// getJsonBlobの「fileId省略時は既定ファイル(prizes.json)」というフォールバックは
+// このファイル名には効かないため、pushで得たfileId(フルキー)をこのブラウザに
+// 保存しておき、次回以降はそれを明示的に渡す。screens(ScreenConfigRepository)
+// と同じ制約: このfileIdをまだ知らない別デバイスからは、他デバイスが既に
+// アップロード済みのmember-extrasを初回pullで見つけられない。
+const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-member-extras-file-id";
 
 /**
  * jackpot固有のメンバーリポジトリ。
  *
  * メンバーのid/nameは `@octopus/member-directory` が持つ共有マスタから取得し、
  * rank/写真といったjackpot固有の設定は `MemberExtraData`(id => JackpotMemberExtra)
- * としてローカルに保持してマージする。
+ * としてローカルに保持してマージする。id/nameは共有マスタへの書き込みで
+ * 即座に他デバイスへ反映されるため、バックグラウンド同期の対象はjackpot固有の
+ * 拡張設定(rank/写真)のみでよい。
  *
  * `MemberRosterOverride` は動作確認用シミュレーション(draw-simulation-service.ts)が
  * 一時的にダミーメンバーへ差し替えるための、共有マスタに一切影響しないローカル専用の
@@ -26,9 +42,11 @@ export class MemberRepository {
     "jackpot-game",
     "MemberRosterOverride"
   );
+  private readonly dirtyTracker = new DirtyTracker("jackpot-game");
 
   constructor(
-    @inject(MemberDirectoryRepository) private readonly directory: MemberDirectoryRepository
+    @inject(MemberDirectoryRepository) private readonly directory: MemberDirectoryRepository,
+    @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {}
 
   private toMember(directoryMember: DirectoryMember, extra?: JackpotMemberExtra): Member {
@@ -87,6 +105,8 @@ export class MemberRepository {
       await this.extraStorage.save(directoryMember.id, extra);
       added.push(this.toMember(directoryMember, extra));
     }
+    await this.dirtyTracker.touch(SYNC_KIND);
+    eventBus.emit("syncDirty");
     return added;
   }
 
@@ -108,36 +128,15 @@ export class MemberRepository {
       };
       await this.extraStorage.save(update.id, extra);
     }
+    await this.dirtyTracker.touch(SYNC_KIND);
+    eventBus.emit("syncDirty");
   }
 
   /** jackpotのロースターからメンバーを外す(共有マスタからは削除しない)。 */
   async deleteMembers(ids: string[]): Promise<void> {
     await this.extraStorage.removeMultiple(ids);
-  }
-
-  /**
-   * bulk-sync(Driveバックアップの復元)用。共有マスタへ id ベースでupsertし、
-   * ローカル拡張(rank/写真)を渡された内容で置き換える。
-   */
-  async replaceAllMembers(members: Member[]): Promise<{ replaced: number }> {
-    const existingIds = new Set((await this.directory.listMembers()).map((m) => m.id));
-    await this.extraStorage.clear();
-    for (const member of members) {
-      const directoryMember =
-        member.id && existingIds.has(member.id)
-          ? await this.directory.updateMember({ id: member.id, name: member.name })
-          : await this.directory.addMember({ id: member.id || undefined, name: member.name });
-      existingIds.add(directoryMember.id);
-
-      const extra: JackpotMemberExtra = {
-        memberId: directoryMember.id,
-        rank: member.rank,
-        photoAssetId: member.photoAssetId,
-        photoDataUrl: member.photoDataUrl,
-      };
-      await this.extraStorage.save(directoryMember.id, extra);
-    }
-    return { replaced: members.length };
+    await this.dirtyTracker.touch(SYNC_KIND);
+    eventBus.emit("syncDirty");
   }
 
   /**
@@ -152,5 +151,75 @@ export class MemberRepository {
   /** シミュレーション用の一時的な上書きを解除し、共有マスタ由来の内容に戻す。 */
   async clearRosterOverride(): Promise<void> {
     await this.overrideStorage.delete(ROSTER_OVERRIDE_KEY);
+  }
+
+  /**
+   * バックグラウンド同期エンジン向けに、jackpot固有のメンバー拡張設定
+   * (rank/写真)一覧を1つのSyncTargetとして返す。id/nameは共有マスタ経由で
+   * 既に常に最新のため、ここでの同期対象には含めない。
+   */
+  async listSyncTargets(): Promise<SyncTarget<JackpotMemberExtra[], JackpotMemberExtra[]>[]> {
+    const target: SyncTarget<JackpotMemberExtra[], JackpotMemberExtra[]> = {
+      id: SYNC_KIND,
+      kind: SYNC_KIND,
+      getLocal: async () => {
+        const extras = Array.from((await this.extraStorage.getAll<JackpotMemberExtra>()).values());
+        if (extras.length === 0) return null;
+        const trackedAt = await this.dirtyTracker.getUpdatedAt(SYNC_KIND);
+        return { data: extras, updatedAt: trackedAt ?? Date.now() };
+      },
+      getRemote: async () => {
+        const storedFileId = localStorage.getItem(DRIVE_FILE_ID_STORAGE_KEY) || undefined;
+        if (!storedFileId) return null;
+        let resp;
+        try {
+          resp = await this.jackpotApi.getJson(storedFileId);
+        } catch (e) {
+          console.error(
+            "[MemberRepository] Failed to fetch remote member extras for sync",
+            e
+          );
+          return null;
+        }
+        let parsed: JackpotMemberExtra[];
+        try {
+          parsed = JSON.parse(resp.json) as JackpotMemberExtra[];
+        } catch {
+          return null;
+        }
+        if (!Array.isArray(parsed) || parsed.length === 0) return null;
+        const updatedAt = resp.updatedAt ? new Date(resp.updatedAt).getTime() : 0;
+        return { data: parsed, updatedAt };
+      },
+      push: async (extras) => {
+        const driveJson: DriveJsonData = {
+          metadata: {} as any,
+          fileName: DRIVE_FILE_NAME,
+          jsonText: JSON.stringify(extras),
+          uploadDate: new Date().toISOString(),
+          parentFolderId: "",
+        };
+        const meta = await this.jackpotApi.addJson(driveJson);
+        if (meta?.fileId) {
+          localStorage.setItem(DRIVE_FILE_ID_STORAGE_KEY, meta.fileId);
+        }
+        const updatedAt = meta?.lastUpdate
+          ? new Date(meta.lastUpdate).getTime()
+          : Date.now();
+        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
+        return { updatedAt };
+      },
+      pull: async (extras) => {
+        const keys = Array.from((await this.extraStorage.getAll()).keys());
+        if (keys.length) await this.extraStorage.removeMultiple(keys);
+        for (const extra of extras) {
+          await this.extraStorage.save(extra.memberId, extra);
+        }
+        const updatedAt = Date.now();
+        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
+        return { updatedAt };
+      },
+    };
+    return [target];
   }
 }
