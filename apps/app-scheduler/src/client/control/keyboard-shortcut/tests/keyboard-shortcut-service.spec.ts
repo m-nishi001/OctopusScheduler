@@ -26,9 +26,6 @@ class MockRepository {
   async saveConfig(config: any) {
     this.config = config;
   }
-  async syncWithServer(direction: "gas-to-local" | "local-to-gas") {
-    // noop
-  }
 }
 
 const mockRepo = new MockRepository() as any;

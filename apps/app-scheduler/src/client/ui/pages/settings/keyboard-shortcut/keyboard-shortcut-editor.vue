@@ -64,7 +64,7 @@ const onSaveShortcut = async (shortcut: KeyboardShortcut) => {
     closeDialog();
 };
 
-// per-screen sync removed: syncWithServer remains available for bulk orchestration if needed
+// 手動同期は廃止。バックグラウンド自動同期(useBackgroundSync)に統一された。
 </script>
 
 <style scoped>

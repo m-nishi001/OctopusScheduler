@@ -120,16 +120,6 @@ export class KeyboardShortcutService {
     return config.enabled;
   }
 
-  async syncWithServer(
-    direction: "gas-to-local" | "local-to-gas"
-  ): Promise<void> {
-    await this.repository.syncWithServer(direction);
-    if (direction === "gas-to-local") {
-      // GASから取得したデータを新しい形式に変換して保存
-      await this.loadShortcuts();
-    }
-  }
-
   async loadShortcuts(): Promise<void> {
     // GASから取得したデータをリロードして保存
     const shortcuts = await this.getKeyboardShortcuts();

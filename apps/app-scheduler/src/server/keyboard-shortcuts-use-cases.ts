@@ -5,24 +5,61 @@ export interface KeyboardShortcutsUseCaseDeps {
   kv: IKeyValueStorage;
 }
 
-const SHORTCUTS_KEY = "keyboard-shortcuts";
-const SHORTCUTS_CONFIG_KEY = "keyboard-shortcuts-config";
+// 1キーにshortcuts+config+updatedAtをまとめて保存する(バックグラウンド同期の
+// Last-Write-Winsに使うタイムスタンプはクライアントがpush時に刻む)。
+const STATE_KEY = "keyboard-shortcuts-state";
 
-export async function getKeyboardShortcuts(deps: KeyboardShortcutsUseCaseDeps): Promise<{
+// 旧形式(タイムスタンプを持たない2キー)からのフォールバック読み取り用。
+// STATE_KEYが一度も書かれていない既存インストールのために残す。
+const LEGACY_SHORTCUTS_KEY = "keyboard-shortcuts";
+const LEGACY_SHORTCUTS_CONFIG_KEY = "keyboard-shortcuts-config";
+
+interface KeyboardShortcutsState {
   shortcuts: KeyboardShortcutWireItem[];
   config: unknown;
+  updatedAt: string;
+}
+
+export async function getKeyboardShortcuts(
+  deps: KeyboardShortcutsUseCaseDeps
+): Promise<{
+  shortcuts: KeyboardShortcutWireItem[];
+  config: unknown;
+  updatedAt: string | null;
 }> {
-  const shortcutsStr = await deps.kv.get(SHORTCUTS_KEY);
-  const configStr = await deps.kv.get(SHORTCUTS_CONFIG_KEY);
-  const shortcuts = shortcutsStr ? JSON.parse(shortcutsStr) : [];
-  const config = configStr ? JSON.parse(configStr) : { enabled: true };
-  return { shortcuts, config };
+  const stateStr = await deps.kv.get(STATE_KEY);
+  if (stateStr) {
+    const state = JSON.parse(stateStr) as KeyboardShortcutsState;
+    return {
+      shortcuts: state.shortcuts,
+      config: state.config,
+      updatedAt: state.updatedAt,
+    };
+  }
+
+  const [shortcutsStr, configStr] = await Promise.all([
+    deps.kv.get(LEGACY_SHORTCUTS_KEY),
+    deps.kv.get(LEGACY_SHORTCUTS_CONFIG_KEY),
+  ]);
+  return {
+    shortcuts: shortcutsStr ? JSON.parse(shortcutsStr) : [],
+    config: configStr ? JSON.parse(configStr) : { enabled: true },
+    updatedAt: null,
+  };
 }
 
 export async function setKeyboardShortcuts(
   deps: KeyboardShortcutsUseCaseDeps,
-  payload: { shortcuts: KeyboardShortcutWireItem[]; config: unknown }
+  payload: {
+    shortcuts: KeyboardShortcutWireItem[];
+    config: unknown;
+    updatedAt: string;
+  }
 ): Promise<void> {
-  await deps.kv.set(SHORTCUTS_KEY, JSON.stringify(payload.shortcuts));
-  await deps.kv.set(SHORTCUTS_CONFIG_KEY, JSON.stringify(payload.config));
+  const state: KeyboardShortcutsState = {
+    shortcuts: payload.shortcuts,
+    config: payload.config,
+    updatedAt: payload.updatedAt,
+  };
+  await deps.kv.set(STATE_KEY, JSON.stringify(state));
 }

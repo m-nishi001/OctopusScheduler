@@ -28,9 +28,6 @@ class InMemoryRepository extends KeyboardShortcutRepository {
   async saveConfig() {
     return;
   }
-  async syncWithServer() {
-    return;
-  }
 }
 
 describe("KeyboardShortcutService", () => {
