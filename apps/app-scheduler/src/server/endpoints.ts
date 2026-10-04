@@ -44,7 +44,7 @@ declare let _octopusScheduler_doGet: (
   e: GoogleAppsScript.Events.DoGet
 ) => GoogleAppsScript.HTML.HtmlOutput;
 declare let _octopusScheduler_addDriveData: (driveData: DriveData) => Promise<string>;
-declare let _octopusScheduler_getDriveMetaData: (folderId?: string) => Promise<string>;
+declare let _octopusScheduler_getDriveMetaData: (folderName?: string) => Promise<string>;
 declare let _octopusScheduler_getDriveData: (dataId: string) => Promise<string>;
 declare let _octopusScheduler_updateDriveData: (driveData: DriveData) => Promise<string>;
 declare let _octopusScheduler_getKeyboardShortcuts: () => Promise<string>;
@@ -64,9 +64,9 @@ _octopusScheduler_addDriveData = async (driveData: DriveData): Promise<string> =
   }
 };
 
-_octopusScheduler_getDriveMetaData = async (folderId?: string): Promise<string> => {
+_octopusScheduler_getDriveMetaData = async (folderName?: string): Promise<string> => {
   try {
-    const result = await getSchedulerDriveMetadata(resolveDeps());
+    const result = await getSchedulerDriveMetadata(resolveDeps(), folderName);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });

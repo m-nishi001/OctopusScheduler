@@ -12,7 +12,7 @@
                     <input id="endTime" type="datetime-local" v-model="form.endTime" required />
                 </div>
                 <div class="form-group">
-                    <label for="folderId">Google DriveフォルダID</label>
+                    <label for="folderId">フォルダ名 (assets 配下)</label>
                     <input id="folderId" type="text" v-model="form.folderId" required />
                 </div>
                 <div class="form-group">

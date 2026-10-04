@@ -1,8 +1,9 @@
 /**
  * octopusScheduler(ホスト本体)の Drive アセット系エンドポイント。
  *
- * 保存先は `storage-paths` の `<module>/assets` に固定する。クライアントが
- * parentFolderId / folderId を渡しても無視する。
+ * 保存先は `storage-paths` の `octopus-scheduler/assets` 配下に固定する。
+ * 追加・更新ではクライアントの parentFolderId を無視する。一覧取得では
+ * フォルダ名(1階層)を `assets` 直下のサブフォルダとして受け付ける。
  */
 import type {
   DriveData,
@@ -17,6 +18,7 @@ import {
   StorageKind,
   StorageModule,
   storageNamespace,
+  storagePath,
 } from "@octopus/infrastructures/compositions";
 import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
 
@@ -34,10 +36,16 @@ export async function addSchedulerDriveData(
   return addDriveDataGeneric(deps, { ...driveData, parentFolderId: ASSET_NAMESPACE });
 }
 
+/** folderName 省略時は assets 直下、指定時は assets/<folderName> を一覧する。 */
 export async function getSchedulerDriveMetadata(
-  deps: DriveAssetUseCaseDeps
+  deps: DriveAssetUseCaseDeps,
+  folderName?: string
 ): Promise<DriveMetadata[]> {
-  return getDriveMetadataGeneric(deps, ASSET_NAMESPACE);
+  const name = folderName?.trim();
+  const namespace = name
+    ? storagePath(StorageModule.Scheduler, StorageKind.Assets, name)
+    : ASSET_NAMESPACE;
+  return getDriveMetadataGeneric(deps, namespace);
 }
 
 export async function getSchedulerDriveData(

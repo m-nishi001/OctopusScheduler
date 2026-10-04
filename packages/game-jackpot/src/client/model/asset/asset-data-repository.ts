@@ -108,7 +108,7 @@ export class AssetDataRepository {
     let remoteMetas: DriveMetadata[] = [];
     try {
       // 空文字列ではなく明示的にundefinedを送る。サーバー側が
-      // ScriptPropertiesで設定済みのアセットフォルダを解決するため。
+      // 固定のアセット保存先(storage-paths)を解決するため。
       remoteMetas =
         (await this.jackpotApi.getDriveMetaData(undefined, {
           timeout: 180000,
