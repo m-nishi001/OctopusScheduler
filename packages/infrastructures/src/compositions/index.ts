@@ -2,7 +2,6 @@ export * from "./types";
 export * from "./item-key-naming";
 export * from "./dedupe-guard";
 export * from "./storage-paths";
-export * from "./resolve-folder-id";
 export * from "./add-item-use-case";
 export * from "./get-item-metadata-use-case";
 export * from "./get-item-use-case";

@@ -1,4 +1,4 @@
-import type { IKeyValueStorage } from "../interfaces/key-value-storage";
+import { StorageNotConfiguredError, type IKeyValueStorage } from "../interfaces/key-value-storage";
 import type { DriveData } from "./types";
 import {
   decodeDisplayName,
@@ -36,7 +36,8 @@ export async function getDriveData(
       uploadDate: content.meta.createdAt,
       parentFolderId: namespace,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof StorageNotConfiguredError) throw error;
     return null;
   }
 }

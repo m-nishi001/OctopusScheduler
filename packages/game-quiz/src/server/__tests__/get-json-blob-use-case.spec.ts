@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
+import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
 import { getJsonBlob } from "../get-json-blob-use-case";
 
-const JSON_FOLDER_PROPERTY = "quiz-game-json-folder";
+const DEFAULT_KEY = storagePath(StorageModule.Quiz, StorageKind.Json, "quizzes.json");
 
 describe("getJsonBlob", () => {
-  it("returns an empty array with a null updatedAt when the folder property is not configured", async () => {
+  it("returns an empty array with a null updatedAt when nothing has ever been written", async () => {
     const storage = new InMemoryKeyValueStorage();
 
     const result = await getJsonBlob({ storage });
@@ -14,8 +15,7 @@ describe("getJsonBlob", () => {
 
   it("reads the default quizzes.json file and returns its updatedAt when no fileId is given", async () => {
     const storage = new InMemoryKeyValueStorage();
-    await storage.set(JSON_FOLDER_PROPERTY, "folder-1");
-    await storage.putText("folder-1/quizzes.json", JSON.stringify([{ id: "q1" }]), "application/json");
+    await storage.putText(DEFAULT_KEY, JSON.stringify([{ id: "q1" }]), "application/json");
 
     const result = await getJsonBlob({ storage });
     expect(JSON.parse(result.json)).toEqual([{ id: "q1" }]);
@@ -24,7 +24,6 @@ describe("getJsonBlob", () => {
 
   it("returns an empty array with a null updatedAt when the default file is missing", async () => {
     const storage = new InMemoryKeyValueStorage();
-    await storage.set(JSON_FOLDER_PROPERTY, "folder-1");
 
     const result = await getJsonBlob({ storage });
     expect(result).toEqual({ json: "[]", updatedAt: null });
@@ -32,8 +31,7 @@ describe("getJsonBlob", () => {
 
   it("returns an empty array (still success) when the stored content is malformed JSON", async () => {
     const storage = new InMemoryKeyValueStorage();
-    await storage.set(JSON_FOLDER_PROPERTY, "folder-1");
-    await storage.putText("folder-1/quizzes.json", "{not valid json", "application/json");
+    await storage.putText(DEFAULT_KEY, "{not valid json", "application/json");
 
     const result = await getJsonBlob({ storage });
     expect(JSON.parse(result.json)).toEqual([]);
@@ -42,9 +40,8 @@ describe("getJsonBlob", () => {
 
   it("falls back to a filename-prefix match and returns that file's updatedAt when the given fileId is not a real key", async () => {
     const storage = new InMemoryKeyValueStorage();
-    await storage.set(JSON_FOLDER_PROPERTY, "folder-1");
     await storage.putText(
-      "folder-1/app-123_quizzes.json",
+      storagePath(StorageModule.Quiz, StorageKind.Json, "app-123_quizzes.json"),
       JSON.stringify([{ id: "q2" }]),
       "application/json"
     );
