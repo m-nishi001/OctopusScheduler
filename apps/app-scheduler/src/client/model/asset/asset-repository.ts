@@ -106,7 +106,7 @@ export class AssetRepository {
     let remoteMetas: DriveMetadata[] = [];
     try {
       // 空文字列ではなく明示的にundefinedを送る。サーバー側が
-      // ScriptPropertiesで設定済みのアセットフォルダを解決するため。
+      // 固定のアセット保存先(storage-paths)を解決するため。
       remoteMetas = (await this.schedulerApi.getDriveMetaData(undefined)) || [];
     } catch (e) {
       console.error(
