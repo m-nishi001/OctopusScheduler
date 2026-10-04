@@ -66,7 +66,7 @@ _octopusScheduler_addDriveData = async (driveData: DriveData): Promise<string> =
 
 _octopusScheduler_getDriveMetaData = async (folderId?: string): Promise<string> => {
   try {
-    const result = await getSchedulerDriveMetadata(resolveDeps(), folderId);
+    const result = await getSchedulerDriveMetadata(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });

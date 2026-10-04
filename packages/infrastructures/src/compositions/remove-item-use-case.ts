@@ -1,4 +1,4 @@
-import type { IKeyValueStorage } from "../interfaces/key-value-storage";
+import { StorageNotConfiguredError, type IKeyValueStorage } from "../interfaces/key-value-storage";
 import type { ICache } from "../interfaces/cache";
 import { clearDedupeState } from "./dedupe-guard";
 import { decodeItemId, splitKey } from "./item-key-naming";
@@ -19,7 +19,8 @@ export async function removeDriveData(
       const { localName } = splitKey(deleted.key);
       await clearDedupeState({ cache: deps.cache }, decodeItemId(localName));
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof StorageNotConfiguredError) throw error;
     // ファイルが見つからない場合は無視する(既存挙動)。
   }
 }

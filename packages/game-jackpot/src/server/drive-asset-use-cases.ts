@@ -2,11 +2,8 @@
  * jackpotGame の Drive アセット系エンドポイント。
  *
  * ロジック本体は @octopus/infrastructures/compositions の汎用 use-case にあり、
- * ここでは jackpot-game 用のアセットフォルダ解決だけをラップする薄い層。
- *
- * 既存挙動を保持: addDriveData はフォルダ解決を行わず、クライアントが渡した
- * parentFolderId をそのまま使う(quiz-game とは異なる)。getDriveMetaData のみ
- * folderId 省略時にプロパティから解決する。
+ * ここでは保存先(`storage-paths` の `jackpot-game/assets`)を固定するだけの薄い層。
+ * クライアントが parentFolderId / folderId を渡しても無視する。
  */
 import type {
   DriveData,
@@ -18,7 +15,9 @@ import {
   getDriveData as getDriveDataGeneric,
   getDriveMetadata as getDriveMetadataGeneric,
   updateDriveData as updateDriveDataGeneric,
-  resolveFolderIdPreferringProvided,
+  StorageKind,
+  StorageModule,
+  storageNamespace,
 } from "@octopus/infrastructures/compositions";
 import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
 
@@ -27,25 +26,19 @@ export interface DriveAssetUseCaseDeps {
   cache: ICache;
 }
 
-const ASSET_FOLDER_PROPERTY = "jackpot-game-asset-folder";
+const ASSET_NAMESPACE = storageNamespace(StorageModule.Jackpot, StorageKind.Assets);
 
 export async function addJackpotDriveData(
   deps: DriveAssetUseCaseDeps,
   driveData: DriveData
 ): Promise<OperationResult<DriveMetadata>> {
-  return addDriveDataGeneric(deps, driveData);
+  return addDriveDataGeneric(deps, { ...driveData, parentFolderId: ASSET_NAMESPACE });
 }
 
 export async function getJackpotDriveMetadata(
-  deps: DriveAssetUseCaseDeps,
-  folderId?: string
+  deps: DriveAssetUseCaseDeps
 ): Promise<DriveMetadata[]> {
-  const resolved = await resolveFolderIdPreferringProvided(
-    { kv: deps.storage },
-    ASSET_FOLDER_PROPERTY,
-    folderId
-  );
-  return getDriveMetadataGeneric(deps, resolved);
+  return getDriveMetadataGeneric(deps, ASSET_NAMESPACE);
 }
 
 export async function getJackpotDriveData(

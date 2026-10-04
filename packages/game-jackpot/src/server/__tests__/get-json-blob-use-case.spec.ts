@@ -4,10 +4,7 @@ import { addJsonBlob } from "../add-json-blob-use-case";
 import { getJsonBlob } from "../get-json-blob-use-case";
 
 async function makeConfiguredStorage(): Promise<InMemoryKeyValueStorage> {
-  const storage = new InMemoryKeyValueStorage();
-  // 本番ではGASのScriptPropertiesで設定される、JSON blobの保存先フォルダ。
-  await storage.set("jackpot-game-json-folder", "folder1");
-  return storage;
+  return new InMemoryKeyValueStorage();
 }
 
 describe("getJsonBlob", () => {

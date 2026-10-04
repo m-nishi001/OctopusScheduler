@@ -61,7 +61,7 @@ _jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
 
 _jackpotGame_getDriveMetaData = async (folderId?: string): Promise<string> => {
   try {
-    const result = await getJackpotDriveMetadata(resolveDeps(), folderId);
+    const result = await getJackpotDriveMetadata(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });

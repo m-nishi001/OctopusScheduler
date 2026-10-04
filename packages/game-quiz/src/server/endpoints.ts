@@ -93,7 +93,7 @@ _quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
 
 _quizGame_getDriveMetaData = async (args: GetDriveMetaDataArgs): Promise<string> => {
   try {
-    const result = await getQuizDriveMetadata(resolveDeps(), args.folderId);
+    const result = await getQuizDriveMetadata(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });

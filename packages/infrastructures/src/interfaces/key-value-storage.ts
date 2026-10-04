@@ -50,3 +50,14 @@ export interface IKeyValueStorage {
 }
 
 export const IKeyValueStorageToken = Symbol("IKeyValueStorage");
+
+/**
+ * ストレージの保存先ルートが未設定(GAS の ScriptProperty 未登録など)であることを示す。
+ * 利用側で握りつぶさず、呼び出し元へ通知するための専用エラー。
+ */
+export class StorageNotConfiguredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StorageNotConfiguredError";
+  }
+}
