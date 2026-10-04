@@ -50,6 +50,40 @@ packages/
 - 依存方向は `core ← client / server` の一方向
 - ゲーム系パッケージは「単体 Vite アプリ」と「ホストに合成される機能モジュール」の二役を公開 API で分離
 
+## Setup and Deployment
+
+アセットや JSON は、環境を問わず `<module>/<kind>/<name>`（例: `octopus-scheduler/assets/1_a.png`, `quiz-game/json/quizzes.json`）というルート相対パスで保存されます。パスの組み立ては `packages/infrastructures/src/compositions/storage-paths.ts` に集約されており、各環境のアダプタが実体に対応付けます。
+
+### Google Apps Script
+
+1. Google Drive に保存先用のフォルダを1つ作成し、そのフォルダ ID（URL の `folders/` 以降）を控える
+2. `.clasp.example.json` を `.clasp.json` にコピーし、`scriptId` を設定する
+3. Apps Script の「プロジェクトの設定 → スクリプト プロパティ」に次を登録する
+
+   | キー | 値 |
+   | --- | --- |
+   | `OCTOPUS_ROOT_FOLDER_ID` | 手順1のフォルダ ID |
+
+4. `npm run deploy:gas`
+
+- `OCTOPUS_ROOT_FOLDER_ID` が未設定、またはアクセスできないフォルダの場合は `StorageNotConfiguredError` で通知されます。
+- 各モジュールのサブフォルダ（`octopus-scheduler/assets` など）は初回書き込み時に自動作成されます。
+- スライドショーイベントの「フォルダ名」は `octopus-scheduler/assets/<フォルダ名>` を指します。画像はそのフォルダに配置してください。
+
+### Cloudflare
+
+1. `wrangler login`、または環境変数 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` で認証する
+2. `npm run deploy:cloudflare`
+
+このコマンドは次を順に実行します（すべて冪等）。
+
+1. ビルド
+2. `scripts/setup-cloudflare.js`: D1 データベースと R2 バケットが無ければ作成し、`wrangler.example.toml` から `wrangler.toml` を生成
+3. `wrangler d1 migrations apply DB --remote`: `packages/infrastructures/migrations` を適用
+4. `wrangler deploy`
+
+リソース名は既定で `octopus-scheduler-db` / `octopus-scheduler-assets` です。変更する場合は `CLOUDFLARE_D1_NAME` / `CLOUDFLARE_R2_BUCKET` を設定してください。Cloudflare ではルートフォルダの設定は不要です（R2 のキー接頭辞としてそのまま使われます）。
+
 ## Key Decisions and Rationale
 
 ### 1. Why GAS First
