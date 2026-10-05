@@ -1,21 +1,19 @@
 <template>
-    <header class="admin-header">
-        <h1 class="admin-title">設定画面</h1>
-        <div class="admin-actions">
-            <SyncStatusIndicator :status="status" :last-error="lastError" />
-            <button class="backup-btn" @click="onDownloadBackup" :disabled="downloadingBackup">
-                バックアップをダウンロード
-            </button>
-        </div>
-    </header>
+    <SyncStatusIndicator :status="status" :last-error="lastError" />
+    <button type="button" class="header-btn" :disabled="downloadingBackup" @click="onDownloadBackup">
+        バックアップ
+    </button>
+    <button type="button" class="header-btn" @click="router.push({ name: 'home' })">ホームへ</button>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import SyncStatusIndicator from '../../../components/sync-status-indicator.vue';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
+const router = useRouter();
 const { status, lastError } = useBackgroundSync();
 
 const downloadingBackup = ref(false);
@@ -33,44 +31,22 @@ async function onDownloadBackup() {
 </script>
 
 <style scoped>
-.admin-header {
-    background: #2b3036;
-    color: #ffffff;
-    padding: 8px 28px;
-    height: 48px;
-    display: flex;
-    align-items: center;
-    box-shadow: none;
-}
-
-.admin-title {
-    font-size: 1.3rem;
-    font-weight: bold;
-    margin: 0;
-}
-
-.admin-actions {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.backup-btn {
+.header-btn {
     background: transparent;
     color: #cfd6dd;
     border: 1px solid #4a5158;
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 4px;
-    cursor: pointer;
+    font-size: 0.9rem;
     font-weight: 600;
+    cursor: pointer;
 }
 
-.backup-btn:hover {
+.header-btn:hover {
     opacity: 0.9;
 }
 
-.backup-btn:disabled {
+.header-btn:disabled {
     opacity: 0.5;
     cursor: default;
 }

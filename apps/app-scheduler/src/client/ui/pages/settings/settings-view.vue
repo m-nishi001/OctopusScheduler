@@ -1,27 +1,28 @@
 <template>
-    <div class="admin-layout">
-        <AdminHeader />
-        <div class="admin-body">
-            <AdminSidemenu :currentTab="currentTab" @tabChange="currentTab = $event" />
-            <main class="admin-content">
-                <EventEditor v-if="currentTab === 'events'" />
-                <AssetListEditor v-else-if="currentTab === 'assets'" />
-                <MemberDirectoryEditor v-else-if="currentTab === 'members'" />
-                <KeyboardShortcutEditor v-else-if="currentTab === 'keyboard-shortcuts'" />
-            </main>
-        </div>
-    </div>
+    <PageShell title="設定画面" :tabs="tabs" :active-key="currentTab" @select="currentTab = $event">
+        <template #actions><SettingsHeaderActions /></template>
+        <EventEditor v-if="currentTab === 'events'" />
+        <AssetListEditor v-else-if="currentTab === 'assets'" />
+        <MemberDirectoryEditor v-else-if="currentTab === 'members'" />
+        <KeyboardShortcutEditor v-else-if="currentTab === 'keyboard-shortcuts'" />
+    </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import AdminHeader from './frames/admin-header.vue';
-import AdminSidemenu from './frames/admin-sidemenu.vue';
+import { PageShell } from '@octopus/ui-kit';
+import SettingsHeaderActions from './frames/settings-header-actions.vue';
 import EventEditor from './event-list/event-list.vue';
 import AssetListEditor from './asset-list/asset-list-editor.vue';
 import MemberDirectoryEditor from './member-directory/member-directory-editor.vue';
 import KeyboardShortcutEditor from './keyboard-shortcut/keyboard-shortcut-editor.vue';
 
+const tabs = [
+    { key: 'events', label: 'イベント' },
+    { key: 'assets', label: 'アセット' },
+    { key: 'members', label: 'メンバー' },
+    { key: 'keyboard-shortcuts', label: 'ショートカット' },
+];
 const currentTab = ref('events');
 
 const channel = new BroadcastChannel('octopus-control');
@@ -48,36 +49,3 @@ onUnmounted(() => {
     channel.close();
 });
 </script>
-
-<style scoped>
-.admin-layout {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    background: #23252b;
-}
-
-.admin-body {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-}
-
-.admin-content {
-    flex: 1;
-    padding: 20px 4vw;
-    background: transparent;
-    color: #fff;
-    font-size: 16px;
-    /* base for admin content so child components use consistent font sizing */
-    min-width: 0;
-    overflow: auto;
-    min-height: 0;
-}
-
-@media (max-width: 900px) {
-    .admin-content {
-        padding: 16px 2vw;
-    }
-}
-</style>
