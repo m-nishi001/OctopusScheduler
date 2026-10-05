@@ -81,14 +81,13 @@ const removeOption = (index: number) => {
 }
 
 .options-table-scroll {
-    overflow-x: auto;
+    overflow-x: hidden;
     margin-bottom: 1rem;
     border-radius: 0.5rem;
 }
 
 .options-table {
     width: 100%;
-    min-width: 480px;
     border-collapse: collapse;
     background-color: #374151;
     /* bg-gray-700 */
@@ -96,6 +95,8 @@ const removeOption = (index: number) => {
     /* rounded-lg */
     overflow: hidden;
     border: 1px solid #4b5563;
+    table-layout: auto;
+    overflow-wrap: anywhere;
     /* border-gray-600 */
 }
 

@@ -36,7 +36,7 @@ defineProps<{
 .form-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 2.75rem;
+    gap: 1rem;
     /* gap-11 approx */
 }
 

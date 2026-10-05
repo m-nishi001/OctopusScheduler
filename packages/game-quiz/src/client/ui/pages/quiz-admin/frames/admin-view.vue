@@ -1,47 +1,43 @@
 <template>
-    <div class="admin-layout">
-        <AdminHeader />
-        <div class="admin-body">
-            <AdminSidemenu />
-            <main class="admin-content">
-                <router-view />
-            </main>
-        </div>
-    </div>
+    <PageShell title="クイズ管理" :tabs="tabs" :active-key="activeKey" @select="router.push({ name: $event })">
+        <template #actions>
+            <SyncStatusIndicator :status="status" :last-error="lastError" />
+            <router-link to="/home" class="home-button" aria-label="ホームへ戻る">ホーム</router-link>
+        </template>
+        <router-view />
+    </PageShell>
 </template>
 
 <script setup lang="ts">
-import AdminHeader from './admin-header.vue';
-import AdminSidemenu from './admin-sidemenu.vue';
+import { computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { PageShell } from '@octopus/ui-kit';
+import SyncStatusIndicator from '../../../components/sync-status-indicator.vue';
+import { useBackgroundSync } from '../../../composables/use-background-sync';
+
+const router = useRouter();
+const route = useRoute();
+const { status, lastError } = useBackgroundSync();
+
+const tabs = [
+    { key: 'quiz-admin-quizzes', label: 'クイズ一覧' },
+    { key: 'quiz-admin-members', label: 'メンバー管理' },
+];
+const activeKey = computed(() => String(route.name ?? ''));
 </script>
 
 <style scoped>
-.admin-layout {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    background: #23252b;
+.home-button {
+    background: #ffffff;
+    color: #2b3036;
+    padding: 4px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
 }
 
-.admin-body {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-}
-
-.admin-content {
-    flex: 1;
-    padding: 20px 4vw;
-    background: transparent;
-    color: #fff;
-    min-width: 0;
-    overflow: auto;
-    min-height: 0;
-}
-
-@media (max-width: 900px) {
-    .admin-content {
-        padding: 16px 2vw;
-    }
+.home-button:hover {
+    opacity: 0.9;
 }
 </style>

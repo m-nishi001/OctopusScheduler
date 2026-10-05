@@ -12,6 +12,7 @@
     "@octopus/composables": "*",
     "@octopus/infrastructures": "*",
     "@octopus/sync-engine": "*",
+    "@octopus/ui-kit": "*",
     "@octopus/member-directory": "*",
     "localforage": "^1.10.0",
     "vue": "^3.5.17",
