@@ -3,7 +3,6 @@
         <h2>{{ title }}</h2>
         <div class="tab-content">
             <div class="screen-config">
-                <h3>{{ title }}</h3>
                 <div v-for="field in fields" :key="field.key" class="config-item">
                     <label>{{ field.label }}:</label>
                     <select v-model="localConfig[field.key]" class="admin-input">
@@ -151,13 +150,16 @@ const handleCancelDiscard = () => {
 }
 
 .tab-content {
-    padding: 24px;
+    padding: 8px 0;
     background: transparent;
     border-radius: 0;
 }
 
 .screen-config {
-    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    column-gap: 24px;
+    margin-bottom: 12px;
 }
 
 .screen-config h3 {

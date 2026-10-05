@@ -3,7 +3,6 @@
         <h2>本抽選画面設定</h2>
         <div class="tab-content">
             <div class="screen-config">
-                <h3>本抽選画面設定</h3>
 
 
                 <div class="config-item">
@@ -249,7 +248,10 @@ onMounted(async () => {
 
 <style scoped>
 .screen-config {
-    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    column-gap: 24px;
+    margin-bottom: 12px;
 }
 
 .screen-config h3 {
@@ -258,7 +260,7 @@ onMounted(async () => {
 }
 
 .config-item {
-    margin-bottom: 24px;
+    margin-bottom: 12px;
 }
 
 .config-item label {

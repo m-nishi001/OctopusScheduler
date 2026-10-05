@@ -403,7 +403,8 @@ const handleSaveClick = async () => {
 
 <style scoped>
 .screen-config {
-	margin-bottom: 24px;
+	margin-bottom: 12px;
+	min-width: 0;
 }
 
 .screen-config h3 {
@@ -412,7 +413,7 @@ const handleSaveClick = async () => {
 }
 
 .config-item {
-	margin-bottom: 24px;
+	margin-bottom: 12px;
 }
 
 .config-item label {
