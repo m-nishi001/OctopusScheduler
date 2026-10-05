@@ -6,10 +6,10 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-for="(row, i) in rows" :key="rowKey ? String(row[rowKey]) : i">
+            <tr v-for="(row, i) in rows" :key="rowKey ? String(cell(row, rowKey)) : i">
                 <td v-for="col in columns" :key="col.key" :data-label="col.label" :class="col.class">
-                    <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
-                        {{ row[col.key] }}
+                    <slot :name="`cell-${col.key}`" :row="row" :index="i" :value="cell(row, col.key)">
+                        {{ cell(row, col.key) }}
                     </slot>
                 </td>
             </tr>
@@ -26,9 +26,12 @@ export interface DataTableColumn {
 
 defineProps<{
     columns: DataTableColumn[];
-    rows: Record<string, unknown>[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    rows: any[];
     rowKey?: string;
 }>();
+
+const cell = (row: Record<string, unknown>, key: string) => row[key];
 </script>
 
 <style scoped>

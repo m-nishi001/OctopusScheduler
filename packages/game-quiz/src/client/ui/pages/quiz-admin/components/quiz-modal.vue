@@ -138,7 +138,7 @@ watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
     border: 1px solid #4b5563;
     /* border-gray-600 */
     z-index: 51;
-    max-height: 80vh;
+    max-height: 90dvh;
     overflow-y: auto;
 }
 
@@ -208,7 +208,7 @@ watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
 @media (max-width: 480px) {
     .modal {
         width: 100%;
-        max-height: 90vh;
+        max-height: 95dvh;
         padding: 1rem;
         border-radius: 0.5rem;
     }

@@ -12,42 +12,25 @@
                 </div>
             </div>
             <div v-if="copiedMessage" class="copied-message">{{ copiedMessage }}</div>
-            <table class="quiz-table">
-                <thead class="table-head">
-                    <tr>
-                        <th class="th-id">ID</th>
-                        <th class="th-title">クイズ名</th>
-                        <th class="th-options">選択肢数</th>
-                        <th class="th-time">回答時間</th>
-                        <th class="th-actions">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="(quiz, index) in quizzes" :key="index" class="table-row">
-                        <td class="td-id" @click="copyToClipboard(quiz.id)" title="クリックしてIDをコピー">{{
-                            quiz.id.substring(0, 8) }}</td>
-                        <td class="td-content">
-                            <div class="quiz-title">{{ quiz.title }}</div>
-                            <div class="quiz-question">{{ quiz.question }}</div>
-                        </td>
-                        <td class="td-options">{{ quiz.options.length }}</td>
-                        <td class="td-time">{{ quiz.timeLimit }}秒</td>
-                        <td class="td-actions">
-                            <div class="action-buttons">
-                                <button class="btn-edit" @click="editQuiz(index)">
-                                    編集
-                                </button>
-                                <button class="btn-delete" @click="deleteQuiz(index)">
-                                    削除
-                                </button>
-                                <button class="btn-preview" @click="previewQuiz(index)">
-                                    プレビュー
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <DataTable :columns="columns" :rows="quizzes">
+                <template #cell-id="{ row }">
+                    <span class="quiz-id" title="クリックしてIDをコピー" @click="copyToClipboard(row.id)">{{
+                        row.id.substring(0, 8) }}</span>
+                </template>
+                <template #cell-title="{ row }">
+                    <div class="quiz-title">{{ row.title }}</div>
+                    <div class="quiz-question">{{ row.question }}</div>
+                </template>
+                <template #cell-optionCount="{ row }">{{ row.options.length }}</template>
+                <template #cell-timeLimit="{ row }">{{ row.timeLimit }}秒</template>
+                <template #cell-actions="{ index }">
+                    <div class="action-buttons">
+                        <button class="btn-edit" @click="editQuiz(index)">編集</button>
+                        <button class="btn-delete" @click="deleteQuiz(index)">削除</button>
+                        <button class="btn-preview" @click="previewQuiz(index)">プレビュー</button>
+                    </div>
+                </template>
+            </DataTable>
         </div>
 
         <QuizModal v-if="showModal" :isEditing="isEditing" :currentQuiz="currentQuiz" @save="handleSave"
@@ -59,6 +42,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
+import { DataTable, type DataTableColumn } from '@octopus/ui-kit';
 import QuizModal from './quiz-modal.vue';
 import { GetAllQuizzesUseCase } from '../../../../control/use-cases/get-all-quizzes-use-case';
 import { AddQuizUseCase } from '../../../../control/use-cases/add-quiz-use-case';
@@ -72,6 +56,14 @@ const getAllQuizzesUseCase = container.resolve(GetAllQuizzesUseCase);
 const addQuizUseCase = container.resolve(AddQuizUseCase);
 const updateQuizUseCase = container.resolve(UpdateQuizUseCase);
 const deleteQuizUseCase = container.resolve(DeleteQuizUseCase);
+
+const columns: DataTableColumn[] = [
+    { key: 'id', label: 'ID' },
+    { key: 'title', label: 'クイズ名' },
+    { key: 'optionCount', label: '選択肢数' },
+    { key: 'timeLimit', label: '回答時間' },
+    { key: 'actions', label: '操作' },
+];
 
 const quizzes = ref<QuizDto[]>([]);
 
@@ -190,298 +182,93 @@ const previewQuiz = (index: number) => {
 <style scoped>
 .content {
     background-color: #1f2937;
-    /* bg-gray-800 */
     border-radius: 0.5rem;
-    /* rounded-lg */
-    padding: 1.5rem;
-    /* p-6 */
-    margin-bottom: 1.5rem;
-    /* mb-6 */
+    padding: 1rem;
 }
 
 .actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
-    /* mb-6 */
-}
-
-.action-buttons {
-    display: flex;
-    align-items: center;
-}
-
-.btn-add {
-    background-color: #10b981;
-    /* bg-green-500 */
-    color: white;
-    font-weight: 600;
-    /* font-semibold */
-    padding: 0.5rem 1rem;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-}
-
-.btn-add:hover {
-    background-color: #059669;
-    /* hover:bg-green-600 */
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
 .count {
     color: #9ca3af;
-    /* text-gray-400 */
 }
 
 .copied-message {
     color: #10b981;
-    /* text-green-500 */
     font-weight: 600;
-    /* font-semibold */
-    margin-bottom: 1rem;
-    /* mb-4 */
+    margin-bottom: 0.5rem;
     text-align: center;
 }
 
-.quiz-table {
-    width: 90vw;
-    margin: 0 auto;
-    border-collapse: collapse;
-    background-color: #374151;
-    /* bg-gray-700 */
-    border-radius: 0.5rem;
-    /* rounded-lg */
-    overflow: hidden;
-    border: 1px solid #4b5563;
-    /* border-gray-600 */
-    table-layout: fixed;
-}
-
-.table-head {
-    background-color: #4b5563;
-    /* bg-gray-600 */
-}
-
-.th-id {
-    padding: 0.75rem 1rem;
-    /* py-3 px-4 */
-    text-align: left;
-    color: #d1d5db;
-    /* text-gray-300 */
-    font-weight: 600;
-    /* font-semibold */
-    border: 1px solid #6b7280;
-    /* border-gray-500 */
-    width: 10%;
-}
-
-.th-title {
-    padding: 0.75rem 1rem;
-    /* py-3 px-4 */
-    text-align: left;
-    color: #d1d5db;
-    /* text-gray-300 */
-    font-weight: 600;
-    /* font-semibold */
-    border: 1px solid #6b7280;
-    /* border-gray-500 */
-    width: 35%;
-}
-
-.th-options {
-    padding: 0.75rem 1rem;
-    /* py-3 px-4 */
-    text-align: left;
-    color: #d1d5db;
-    /* text-gray-300 */
-    font-weight: 600;
-    /* font-semibold */
-    border: 1px solid #6b7280;
-    /* border-gray-500 */
-    width: 15%;
-}
-
-.th-time {
-    padding: 0.75rem 1rem;
-    /* py-3 px-4 */
-    text-align: left;
-    color: #d1d5db;
-    /* text-gray-300 */
-    font-weight: 600;
-    /* font-semibold */
-    border: 1px solid #6b7280;
-    /* border-gray-500 */
-    width: 15%;
-}
-
-.th-actions {
-    padding: 0.75rem 1rem;
-    /* py-3 px-4 */
-    text-align: center;
-    color: #d1d5db;
-    /* text-gray-300 */
-    font-weight: 600;
-    /* font-semibold */
-    border: 1px solid #6b7280;
-    /* border-gray-500 */
-    width: 25%;
-}
-
-.table-row {
-    border-bottom: 1px solid #4b5563;
-    /* border-gray-600 */
-}
-
-.table-row:hover {
-    background-color: #4b5563;
-    /* hover:bg-gray-650 approx */
-}
-
-.td-id {
+.quiz-id {
     color: #60a5fa;
-    /* text-blue-400 */
     font-family: monospace;
-    font-weight: 500;
-    text-align: center;
-    vertical-align: middle;
-    font-size: 1.125rem;
-    /* text-lg */
     cursor: pointer;
 }
 
-.td-id:hover {
+.quiz-id:hover {
     color: #93c5fd;
-    /* hover:text-blue-300 */
-}
-
-.td-content,
-.td-options,
-.td-time,
-.td-actions {
-    padding: 1rem;
-    /* py-4 px-4 */
-    border: 1px solid #6b7280;
-    /* border-gray-500 */
 }
 
 .quiz-title {
     font-weight: 600;
-    /* font-semibold */
     color: white;
-    margin-bottom: 0.25rem;
 }
 
 .quiz-question {
     color: #9ca3af;
-    /* text-gray-400 */
     font-size: 0.875rem;
-    /* text-sm */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 20rem;
-    /* max-w-xs */
+    overflow-wrap: anywhere;
 }
 
-.td-options,
-.td-time {
-    color: #d1d5db;
-    /* text-gray-300 */
+.btn-add,
+.btn-edit,
+.btn-delete,
+.btn-preview {
+    color: white;
+    font-weight: 600;
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.25rem;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
 }
 
-.action-buttons {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.5rem;
-    /* space-x-2 */
+.btn-add,
+.btn-preview {
+    background-color: #10b981;
+}
+
+.btn-add:hover,
+.btn-preview:hover {
+    background-color: #059669;
 }
 
 .btn-edit {
     background-color: #3b82f6;
-    /* bg-blue-500 */
-    color: white;
-    padding: 0.5rem 0.75rem;
-    min-width: 3.6rem;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-size: 1rem;
-    /* text-base */
-    border: none;
-    cursor: pointer;
 }
 
 .btn-edit:hover {
     background-color: #2563eb;
-    /* hover:bg-blue-600 */
 }
 
 .btn-delete {
     background-color: #ef4444;
-    /* bg-red-500 */
-    color: white;
-    padding: 0.5rem 0.75rem;
-    min-width: 3.6rem;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-size: 1rem;
-    /* text-base */
-    border: none;
-    cursor: pointer;
 }
 
 .btn-delete:hover {
     background-color: #dc2626;
-    /* hover:bg-red-600 */
 }
 
-.btn-preview {
-    background-color: #10b981;
-    /* bg-green-500 */
-    color: white;
-    padding: 0.5rem 0.75rem;
-    min-width: 3.6rem;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-size: 1rem;
-    /* text-base */
-    border: none;
-    cursor: pointer;
-}
-
-.btn-preview:hover {
-    background-color: #059669;
-    /* hover:bg-green-600 */
-}
-
-@media (max-width: 768px) {
-    .quiz-table {
-        width: 100%;
-        table-layout: auto;
-    }
-
-    .actions {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.75rem;
-    }
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 </style>

@@ -10,30 +10,16 @@
                 </div>
             </div>
             <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-            <table class="member-table">
-                <thead class="table-head">
-                    <tr>
-                        <th class="th-user-id">ユーザーID</th>
-                        <th class="th-display-name">表示名</th>
-                        <th class="th-actions">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="member in members" :key="member.userId" class="table-row">
-                        <td class="td-user-id">{{ member.userId }}</td>
-                        <td class="td-display-name">{{ member.displayName }}</td>
-                        <td class="td-actions">
-                            <div class="action-buttons">
-                                <button class="btn-edit" @click="openEditModal(member)">編集</button>
-                                <button class="btn-delete" @click="handleDelete(member.userId)">削除</button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr v-if="members.length === 0">
-                        <td colspan="3" class="empty-row">まだメンバーが登録されていません</td>
-                    </tr>
-                </tbody>
-            </table>
+            <DataTable :columns="columns" :rows="members" row-key="userId">
+                <template #cell-userId="{ value }"><span class="user-id">{{ value }}</span></template>
+                <template #cell-actions="{ row }">
+                    <div class="action-buttons">
+                        <button class="btn-edit" @click="openEditModal(row)">編集</button>
+                        <button class="btn-delete" @click="handleDelete(row.userId)">削除</button>
+                    </div>
+                </template>
+            </DataTable>
+            <p v-if="members.length === 0" class="empty-row">まだメンバーが登録されていません</p>
         </div>
 
         <dialog :open="showModal" class="member-dialog">
@@ -58,6 +44,7 @@
 </template>
 
 <script setup lang="ts">
+import { DataTable, type DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
 import { MemberDirectoryRepository } from '@octopus/member-directory';
@@ -78,6 +65,12 @@ function toRow(member: DirectoryMember): QuizMemberRow {
 }
 
 const memberDirectoryRepo = container.resolve(MemberDirectoryRepository);
+
+const columns: DataTableColumn[] = [
+    { key: 'userId', label: 'ユーザーID' },
+    { key: 'displayName', label: '表示名' },
+    { key: 'actions', label: '操作' },
+];
 
 const members = ref<QuizMemberRow[]>([]);
 const errorMessage = ref('');
@@ -156,8 +149,7 @@ async function handleDelete(userId: string) {
 .content {
     background-color: #1f2937;
     border-radius: 0.5rem;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 1rem;
 }
 
 .actions {
@@ -192,87 +184,34 @@ async function handleDelete(userId: string) {
     text-align: center;
 }
 
-.member-table {
-    width: 90vw;
-    max-width: 720px;
-    margin: 0 auto;
-    border-collapse: collapse;
-    background-color: #374151;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    border: 1px solid #4b5563;
-    table-layout: fixed;
-}
-
-.table-head {
-    background-color: #4b5563;
-}
-
-.th-user-id,
-.th-display-name,
-.th-actions {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    color: #d1d5db;
-    font-weight: 600;
-    border: 1px solid #6b7280;
-}
-
-.th-user-id {
-    width: 35%;
-}
-
-.th-display-name {
-    width: 35%;
-}
-
-.th-actions {
-    text-align: center;
-    width: 30%;
-}
-
-.table-row {
-    border-bottom: 1px solid #4b5563;
-}
-
-.table-row:hover {
-    background-color: #4b5563;
-}
-
-.td-user-id,
-.td-display-name,
-.td-actions {
-    padding: 1rem;
-    border: 1px solid #6b7280;
-    color: #d1d5db;
-}
-
-.td-user-id {
+.user-id {
     font-family: monospace;
 }
 
 .empty-row {
-    padding: 1.5rem;
+    padding: 1rem;
     text-align: center;
     color: #9ca3af;
 }
 
 .action-buttons {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+.btn-edit,
+.btn-delete {
+    color: white;
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
 }
 
 .btn-edit {
     background-color: #3b82f6;
-    color: white;
-    padding: 0.5rem 0.75rem;
-    min-width: 3.6rem;
-    border-radius: 0.25rem;
-    font-size: 1rem;
-    border: none;
-    cursor: pointer;
 }
 
 .btn-edit:hover {
@@ -281,13 +220,6 @@ async function handleDelete(userId: string) {
 
 .btn-delete {
     background-color: #ef4444;
-    color: white;
-    padding: 0.5rem 0.75rem;
-    min-width: 3.6rem;
-    border-radius: 0.25rem;
-    font-size: 1rem;
-    border: none;
-    cursor: pointer;
 }
 
 .btn-delete:hover {
@@ -374,11 +306,6 @@ async function handleDelete(userId: string) {
 }
 
 @media (max-width: 768px) {
-    .member-table {
-        width: 100%;
-        table-layout: auto;
-    }
-
     .actions {
         flex-direction: column;
         align-items: flex-start;
