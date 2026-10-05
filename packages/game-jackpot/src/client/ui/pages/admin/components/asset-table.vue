@@ -11,11 +11,11 @@
       <table class="asset-table">
         <thead>
           <tr>
-            <th style="width:40px"><input type="checkbox" :checked="isAllSelected" @change="onToggleAll" /></th>
-            <th style="width:110px">プレビュー</th>
+            <th class="col-check"><input type="checkbox" :checked="isAllSelected" @change="onToggleAll" /></th>
+            <th class="col-thumb">プレビュー</th>
             <th>ファイル名</th>
             <th>アセット種別</th>
-            <th style="width:120px">サイズ</th>
+            <th class="col-size">サイズ</th>
           </tr>
         </thead>
         <tbody>
@@ -132,8 +132,7 @@ const onToggleOne = (id: string) => {
 }
 
 .table-wrap {
-  max-height: 360px;
-  overflow: auto;
+  overflow-x: hidden;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 6px;
 }
@@ -142,7 +141,34 @@ const onToggleOne = (id: string) => {
   width: 100%;
   border-collapse: collapse;
   color: #fff;
-  min-width: 640px;
+}
+
+.col-check {
+  width: 2.5rem;
+}
+
+.col-thumb {
+  width: 7rem;
+}
+
+.col-size {
+  width: 6rem;
+}
+
+.td-name {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .asset-table td:nth-child(4),
+  .asset-table th:nth-child(4) {
+    display: none;
+  }
+
+  .thumb-wrap {
+    width: 56px;
+    height: 40px;
+  }
 }
 
 .asset-table thead th {
