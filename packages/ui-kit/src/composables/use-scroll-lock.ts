@@ -1,0 +1,19 @@
+let lockCount = 0;
+let previousOverflow = '';
+
+/** ダイアログ表示中の背面スクロールを止める。複数ダイアログでも参照カウントで解除する。 */
+export function lockScroll(): () => void {
+    if (typeof document === 'undefined') return () => {};
+    if (lockCount === 0) {
+        previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+    }
+    lockCount += 1;
+    let released = false;
+    return () => {
+        if (released) return;
+        released = true;
+        lockCount -= 1;
+        if (lockCount === 0) document.body.style.overflow = previousOverflow;
+    };
+}
