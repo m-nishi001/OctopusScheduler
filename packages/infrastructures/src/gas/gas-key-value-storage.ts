@@ -9,6 +9,9 @@ import {
 /** 保存先ルートとなる Drive フォルダIDを登録する ScriptProperty のキー。 */
 export const ROOT_FOLDER_PROPERTY_KEY = "OCTOPUS_ROOT_FOLDER_ID";
 
+/** フォルダ作成時のスクリプトロック待機上限(ms)。 */
+const FOLDER_LOCK_TIMEOUT_MS = 10000;
+
 /**
  * IKeyValueStorage の GAS 実装。
  *
@@ -56,6 +59,49 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     return { dir: key.slice(0, idx), localName: key.slice(idx + 1) };
   }
 
+  /**
+   * parent 直下の name フォルダを返す。同名が複数ある場合(過去の競合で重複した場合)は
+   * 作成日時が最古のものを常に採用し、読み書き先がぶれないようにする。無ければ null。
+   */
+  private findChildFolder(
+    parent: GoogleAppsScript.Drive.Folder,
+    name: string
+  ): GoogleAppsScript.Drive.Folder | null {
+    const children = parent.getFoldersByName(name);
+    let canonical: GoogleAppsScript.Drive.Folder | null = null;
+    while (children.hasNext()) {
+      const candidate = children.next();
+      if (
+        !canonical ||
+        candidate.getDateCreated().getTime() < canonical.getDateCreated().getTime()
+      ) {
+        canonical = candidate;
+      }
+    }
+    return canonical;
+  }
+
+  /**
+   * 無ければ作成して返す。getFoldersByName→createFolder は非アトミックで、並行する初回書き込みが
+   * 同名フォルダを重複作成するため、作成が必要な時だけスクリプトロックを取り、ロック内で再確認する。
+   */
+  private createChildFolderOnce(
+    parent: GoogleAppsScript.Drive.Folder,
+    name: string
+  ): GoogleAppsScript.Drive.Folder {
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(FOLDER_LOCK_TIMEOUT_MS);
+    } catch {
+      throw new Error("Server is busy, please try again.");
+    }
+    try {
+      return this.findChildFolder(parent, name) ?? parent.createFolder(name);
+    } finally {
+      lock.releaseLock();
+    }
+  }
+
   /** root から dir を辿る。create=false で存在しない場合は null。 */
   private resolveDir(
     dir: string,
@@ -63,11 +109,11 @@ export class GasKeyValueStorage implements IKeyValueStorage {
   ): GoogleAppsScript.Drive.Folder | null {
     let folder = this.rootFolder();
     for (const name of dir.split("/")) {
-      const children = folder.getFoldersByName(name);
-      if (children.hasNext()) {
-        folder = children.next();
+      const child = this.findChildFolder(folder, name);
+      if (child) {
+        folder = child;
       } else if (create) {
-        folder = folder.createFolder(name);
+        folder = this.createChildFolderOnce(folder, name);
       } else {
         return null;
       }
