@@ -16,7 +16,7 @@
                     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
                         <UiButton @click.prevent="previewHomeBgm" :disabled="previewing">プレビュー</UiButton>
                         <UiButton @click.prevent="stopPreview" :disabled="!previewing">停止</UiButton>
-                        <div style="color:#fff;font-size:0.9rem;">{{ previewStatus }}</div>
+                        <div class="status-text">{{ previewStatus }}</div>
                     </div>
                     <select v-if="localConfig.homeBgmMode === 'select'" v-model="localConfig.homeBgm"
                         class="admin-input">
@@ -60,7 +60,7 @@
             <div style="display:flex;align-items:center;gap:12px;">
                 <UiButton @click="handleSaveClick" :disabled="saving || uploading">保存</UiButton>
                 <UiButton @click="handleClearClick" :disabled="saving || uploading">クリア</UiButton>
-                <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
+                <div class="status-text">{{ saveStatus }}</div>
             </div>
 
             <UiBusyOverlay :visible="loading" :title="loadingStatus || 'データを読み込み中...'" message="アセットを読み込んでいます。しばらくお待ちください。" />
@@ -379,6 +379,11 @@ const handleCancelDiscard = () => {
 </script>
 
 <style scoped>
+.status-text {
+    font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-text-muted, #cfd6dd);
+}
+
 .admin-section {
     margin-bottom: 32px;
 }

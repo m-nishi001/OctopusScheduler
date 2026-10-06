@@ -60,7 +60,7 @@
                 <UiButton @click="handleSaveClick" :disabled="saving">保存</UiButton>
 
                 <UiButton @click="openTestDialog">テスト</UiButton>
-                <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
+                <div class="status-text">{{ saveStatus }}</div>
             </div>
             <UiBusyOverlay :visible="loading" :title="loadingStatus || 'データを読み込み中...'" message="アセットを読み込んでいます。しばらくお待ちください。" />
 
@@ -235,6 +235,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.status-text {
+    font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-text-muted, #cfd6dd);
+}
+
 .screen-config {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));

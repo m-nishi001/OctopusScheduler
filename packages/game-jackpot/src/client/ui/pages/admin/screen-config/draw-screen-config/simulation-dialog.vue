@@ -46,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { UiButton, UiDialog } from '@octopus/ui-kit';
+import { UiButton, UiDialog, toast } from '@octopus/ui-kit';
 import { ref } from 'vue';
 import { container } from 'tsyringe';
 import { DrawSimulationService } from '@control/draw/draw-simulation-service';
@@ -75,7 +75,7 @@ const runDrawTest = async () => {
         results.value = simResults;
     } catch (error) {
         console.error('Test failed:', error);
-        alert('テスト実行中にエラーが発生しました。');
+        toast.error('テスト実行中にエラーが発生しました。');
     } finally {
         running.value = false;
     }

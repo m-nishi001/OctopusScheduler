@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #111315;
+  background: var(--ui-bg, #23252b);
   border-radius: 8px;
   padding: 12px;
   min-height: 220px;
@@ -128,11 +128,11 @@ onBeforeUnmount(() => {
 .preview-info {
   flex: 0 0 320px;
   padding: 8px 12px;
-  background: #1f262b;
+  background: var(--ui-surface-alt, #222731);
   border-radius: 8px;
 }
 
 .preview-empty {
-  color: #c9d7e6;
+  color: var(--ui-text-muted, #cfd6dd);
 }
 </style>

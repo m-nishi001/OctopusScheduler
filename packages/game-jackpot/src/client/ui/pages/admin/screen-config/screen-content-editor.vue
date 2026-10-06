@@ -107,7 +107,7 @@
 
 		<div style="display:flex;align-items:center;gap:12px;margin-top:24px;">
 			<UiButton @click="handleSaveClick" :disabled="saving">保存</UiButton>
-			<div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
+			<div class="status-text">{{ saveStatus }}</div>
 		</div>
 
 		<UnsavedChangesDialog :visible="showUnsavedDialog" @discard="discardChanges" @cancel="cancelNavigation" />
@@ -382,6 +382,11 @@ const handleSaveClick = async () => {
 </script>
 
 <style scoped>
+.status-text {
+    font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-text-muted, #cfd6dd);
+}
+
 .screen-config {
 	margin-bottom: 12px;
 	min-width: 0;

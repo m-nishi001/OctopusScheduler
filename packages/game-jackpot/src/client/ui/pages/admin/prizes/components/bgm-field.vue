@@ -131,7 +131,7 @@ const onTogglePlay = async () => {
 }
 
 .field-label {
-    color: #dbeeff;
+    color: var(--ui-text, #fff);
     font-weight: 600;
     font-size: var(--ui-font-sm, 0.875rem);
 }
