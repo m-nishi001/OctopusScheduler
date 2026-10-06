@@ -43,7 +43,8 @@ const emit = defineEmits<{ select: [key: string] }>();
     box-sizing: border-box;
     background: var(--ui-bg, #23252b);
     color: var(--ui-text, #fff);
-    font-size: 16px;
+    font-family: var(--ui-font-family, system-ui, sans-serif);
+    font-size: var(--ui-font-md, 1rem);
     overflow-x: hidden;
 }
 
@@ -58,7 +59,7 @@ const emit = defineEmits<{ select: [key: string] }>();
 
 .ui-page-shell__title {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: var(--ui-font-lg, 1.2rem);
     font-weight: 700;
     line-height: 1.4;
 }
@@ -94,7 +95,7 @@ const emit = defineEmits<{ select: [key: string] }>();
     border-radius: 0;
     color: var(--ui-text-muted, #cfd6dd);
     padding: 8px 14px;
-    font-size: 0.95rem;
+    font-size: var(--ui-font-sm, 0.875rem);
     font-weight: 600;
     cursor: pointer;
 }
