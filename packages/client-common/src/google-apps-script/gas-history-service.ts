@@ -70,4 +70,13 @@ export class HistoryService {
     }
     google.script.history.setChangeHandler(handler);
   }
+
+  /**
+   * GASのiframe内ではURLのハッシュがwindow.locationから見えないため、
+   * google.script.locationから初期ハッシュ(先頭の#なし)を取得する。
+   */
+  static getInitialHash(): string {
+    if (typeof google === "undefined") return "";
+    return google.script.location?.hash ?? "";
+  }
 }
