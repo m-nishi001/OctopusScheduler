@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref } from 'vue';
 import { PageShell } from '@octopus/ui-kit';
 import SettingsHeaderActions from './frames/settings-header-actions.vue';
 import EventEditor from './event-list/event-list.vue';
@@ -24,28 +24,4 @@ const tabs = [
     { key: 'keyboard-shortcuts', label: 'ショートカット' },
 ];
 const currentTab = ref('events');
-
-const channel = new BroadcastChannel('octopus-control');
-
-const handleKeydown = (event: KeyboardEvent) => {
-    // ショートカットキーの例: Ctrl+1 でイベント送信
-    if (event.ctrlKey && event.key === '1') {
-        // Use AppEventDto shape: { actionType, eventId }
-        console.debug('[settings-view] shortcut detected: sending AppEventDto', {
-            actionType: 'start',
-            eventId: 'sample',
-        });
-        channel.postMessage({ actionType: 'start', eventId: 'sample' });
-    }
-    // 他のショートカットも追加可能
-};
-
-onMounted(() => {
-    window.addEventListener('keydown', handleKeydown);
-});
-
-onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeydown);
-    channel.close();
-});
 </script>
