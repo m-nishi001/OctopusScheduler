@@ -39,7 +39,8 @@ apps/
 packages/
 ├─ core/                     @octopus/core（依存ゼロの共有契約）
 ├─ client-common/            @octopus/client-common
-├─ composables/              @octopus/composables
+├─ composables/              @octopus/composables（useCachedResource など共通 composable）
+├─ ui-kit/                   @octopus/ui-kit（設定画面の共通UI部品・デザイントークン）
 ├─ game-jackpot/             @octopus/game-jackpot
 ├─ game-quiz/                @octopus/game-quiz
 ├─ game-card/                @octopus/game-card
@@ -48,6 +49,8 @@ packages/
 
 - モジュール境界は `package.json`（workspaces）であり、`tsconfig.json` はコンパイラ設定に徹する
 - 依存方向は `core ← client / server` の一方向
+- 設定画面は `@octopus/ui-kit` の部品(PageShell / DataTable / UiDialog / UiButton / UiIcon / FormGrid など)だけで組む。独自の overlay・色・フォントサイズ・絵文字アイコンは作らない(規約は `packages/ui-kit/README.md`)
+- データ取得は `useCachedResource` / `useCachedCollection` で「IndexedDB 即表示 → 背景更新、書き込みは楽観的更新」とし、通信待ちを画面に出さない
 - ゲーム系パッケージは「単体 Vite アプリ」と「ホストに合成される機能モジュール」の二役を公開 API で分離
 
 ## Setup and Deployment

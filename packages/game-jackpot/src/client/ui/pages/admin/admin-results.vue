@@ -286,16 +286,16 @@ onUnmounted(() => {
 }
 
 .arrow {
-    color: #666;
+    color: var(--ui-text-muted, #cfd6dd);
 }
 
 .prize {
     font-weight: bold;
-    color: #ff6b6b;
+    color: var(--ui-danger, #e5484d);
 }
 
 .winner-badge {
-    background: #4f8cff;
+    background: var(--ui-accent, #aee1ff);
     color: white;
     padding: 2px 6px;
     border-radius: 4px;
@@ -303,7 +303,7 @@ onUnmounted(() => {
 }
 
 .kakuhen-badge {
-    background: #ff6b6b;
+    background: var(--ui-danger, #e5484d);
     color: white;
     padding: 2px 6px;
     border-radius: 4px;
@@ -311,7 +311,7 @@ onUnmounted(() => {
 }
 
 .reserved-badge {
-    background: #28a745;
+    background: var(--ui-success, #3fb27f);
     color: white;
     padding: 2px 6px;
     border-radius: 4px;
@@ -320,7 +320,7 @@ onUnmounted(() => {
 
 .result-meta {
     text-align: right;
-    color: #999;
+    color: var(--ui-text-muted, #cfd6dd);
 }
 
 .stat-info {
@@ -354,7 +354,7 @@ onUnmounted(() => {
 .admin-table td {
     padding: 12px;
     text-align: left;
-    border-bottom: 1px solid #2a3137;
+    border-bottom: 1px solid var(--ui-border, #3a4048);
 }
 
 .admin-table th {

@@ -87,7 +87,7 @@ const onModeChange = (event: Event) => {
 }
 
 .field-label {
-    color: #dbeeff;
+    color: var(--ui-text, #fff);
     font-weight: 600;
     font-size: var(--ui-font-sm, 0.875rem);
 }
@@ -155,7 +155,7 @@ const onModeChange = (event: Event) => {
 }
 
 .image-preview {
-    background: linear-gradient(180deg, #2f3a41, #293238);
+    background: var(--ui-surface, #2b3036);
     border-radius: 8px;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
     border: 1px solid var(--ui-border, #3a4048);

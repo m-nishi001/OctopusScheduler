@@ -42,7 +42,7 @@ const emit = defineEmits(['update:modelValue']);
 }
 
 .admin-input:focus {
-  outline: 2px solid #4f8cff;
+  outline: 2px solid var(--ui-accent, #aee1ff);
 }
 
 /* Make <option> list darker on supporting browsers (Firefox, modern browsers) */

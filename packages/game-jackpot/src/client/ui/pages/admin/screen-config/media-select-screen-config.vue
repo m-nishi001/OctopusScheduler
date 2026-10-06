@@ -14,7 +14,7 @@
             <div style="display:flex;align-items:center;gap:12px;">
                 <UiButton @click="handleSaveClick" :disabled="saving">保存</UiButton>
 
-                <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
+                <div class="status-text">{{ saveStatus }}</div>
             </div>
 
             <UiBusyOverlay :visible="saving" title="保存中..." :message="saveStatus" />
@@ -139,6 +139,11 @@ const handleCancelDiscard = () => {
 </script>
 
 <style scoped>
+.status-text {
+    font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-text-muted, #cfd6dd);
+}
+
 .admin-section {
     margin-bottom: 32px;
 }

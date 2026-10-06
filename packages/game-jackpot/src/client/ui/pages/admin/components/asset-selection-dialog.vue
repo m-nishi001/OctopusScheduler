@@ -87,6 +87,6 @@ const chooseFromExplorer = () => {
 }
 
 .delete-btn {
-    background: linear-gradient(90deg, #ff6b6b 0%, #ffb3b3 100%)
+    background: var(--ui-danger, #e5484d)
 }
 </style>

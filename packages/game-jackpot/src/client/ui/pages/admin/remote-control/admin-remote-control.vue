@@ -1,6 +1,5 @@
 <template>
   <div class="admin-section remote-control-page">
-    <h2>🎮 リモート操作</h2>
     <p class="hint">
       このページから、会場の本番スクリーン(演出画面)の画面遷移・進行操作を遠隔で行えます。
       演出画面側は数秒以内に操作を反映します。
@@ -201,7 +200,7 @@ const advance = async () => {
   font-weight: 600;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
 .screen-btn {
     flex: 1 1 100%;
   }

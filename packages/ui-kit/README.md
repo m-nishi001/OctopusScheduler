@@ -27,3 +27,7 @@
 ## ダイアログ規約
 - 独自の overlay/modal を作らず `UiDialog` を使う。ネストは `nested`。
 - 削除確認は `confirmDelete`、未保存の破棄確認は `confirmDiscard`、エラー通知は `toast.error`。
+
+## データ取得(サクサク操作)
+設定画面のデータは `@octopus/composables` の `useCachedResource` / `useCachedCollection` を使う。
+IndexedDB のキャッシュを即表示 → 背景で最新化し、更新/削除は楽観的に反映(失敗時は自動で戻す)。通信中はスケルトン(`DataTable` の `loading`)で待たせない。
