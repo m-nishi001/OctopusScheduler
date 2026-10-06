@@ -17,3 +17,4 @@ export type { ConfirmOptions, ToastKind } from './composables/use-feedback';
 export { default as MemberEditor } from './components/member-editor/member-editor.vue';
 export type { MemberRow } from './components/member-editor/member-editor.vue';
 export { default as UiToolbar } from './components/ui-toolbar/ui-toolbar.vue';
+export { default as UiBusyOverlay } from './components/ui-busy-overlay/ui-busy-overlay.vue';
