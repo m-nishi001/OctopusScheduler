@@ -78,7 +78,8 @@ packages/
 4. `npm run deploy:gas`
 
 - `OCTOPUS_ROOT_FOLDER_ID` が未設定、またはアクセスできないフォルダの場合は `StorageNotConfiguredError` で通知されます。
-- 各モジュールのサブフォルダ（`octopus-scheduler/assets` など）は初回書き込み時に自動作成されます。
+- 各モジュールのサブフォルダ（`octopus-scheduler/assets` など）は初回書き込み時に自動作成されます。作成時はスクリプトロックで直列化し、同名フォルダの重複生成を防ぎます。
+- 過去の競合などで同名フォルダが既に複数ある場合は、作成日時が最古のフォルダを使用します。他のフォルダに入っているファイルは、Drive 上で最古のフォルダへ手動で移動し、空になった重複フォルダを削除してください。
 - スライドショーイベントの「フォルダ名」は `octopus-scheduler/assets/<フォルダ名>` を指します。画像はそのフォルダに配置してください。
 
 ### Cloudflare

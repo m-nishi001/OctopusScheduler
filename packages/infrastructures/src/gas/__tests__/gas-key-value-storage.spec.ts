@@ -36,10 +36,24 @@ const iter = <T>(items: T[]) => {
 };
 
 class FakeFolder {
+  created = new Date(0);
   folders = new Map<string, FakeFolder>();
+  /** 同名の重複フォルダ(過去の競合で生じたもの)。 */
+  duplicates = new Map<string, FakeFolder[]>();
+  /** createFolder の直前に走らせるフック(ロック待ち中の競合を模擬)。 */
+  beforeCreate: (() => void) | null = null;
+  getDateCreated() { return this.created; }
   files: FakeFile[] = [];
-  getFoldersByName(n: string) { return iter(this.folders.has(n) ? [this.folders.get(n)!] : []); }
-  createFolder(n: string) { const f = new FakeFolder(); this.folders.set(n, f); return f; }
+  getFoldersByName(n: string) {
+    const all = [...(this.folders.has(n) ? [this.folders.get(n)!] : []), ...(this.duplicates.get(n) ?? [])];
+    return iter(all);
+  }
+  createFolder(n: string) {
+    createFolderCalls++;
+    const f = new FakeFolder();
+    this.folders.set(n, f);
+    return f;
+  }
   getFilesByName(n: string) { return iter(this.files.filter((f) => !f.trashed && f.getName() === n)); }
   getFiles() { return iter(this.files.filter((f) => !f.trashed)); }
   createFile(blob: { name: string; content: string; mime: string }) {
@@ -52,10 +66,25 @@ class FakeFolder {
 const g = globalThis as Record<string, unknown>;
 let props: Record<string, string>;
 let root: FakeFolder;
+let createFolderCalls: number;
+let lockEvents: string[];
+let lockFails: boolean;
 
 beforeEach(() => {
   props = {};
   root = new FakeFolder();
+  createFolderCalls = 0;
+  lockEvents = [];
+  lockFails = false;
+  g.LockService = {
+    getScriptLock: () => ({
+      waitLock: () => {
+        if (lockFails) throw new Error("timeout");
+        lockEvents.push("lock");
+      },
+      releaseLock: () => { lockEvents.push("release"); },
+    }),
+  };
   g.PropertiesService = {
     getScriptProperties: () => ({
       getProperty: (k: string) => props[k] ?? null,
@@ -77,6 +106,7 @@ afterEach(() => {
   delete g.PropertiesService;
   delete g.DriveApp;
   delete g.Utilities;
+  delete g.LockService;
 });
 
 describe("GasKeyValueStorage (root-relative paths)", () => {
@@ -134,5 +164,58 @@ describe("GasKeyValueStorage (root-relative paths)", () => {
 
     expect((await kv.delete("m/json/a.json"))?.key).toBe("m/json/a.json");
     expect(await kv.stat("m/json/a.json")).toBeNull();
+  });
+
+  it("takes the script lock only when a folder must be created", async () => {
+    props[ROOT_FOLDER_PROPERTY_KEY] = "root-id";
+    const kv = new GasKeyValueStorage();
+    await kv.putText("quiz-game/assets/1_a.png", "a", "image/png");
+    expect(lockEvents).toEqual(["lock", "release", "lock", "release"]); // quiz-game, assets
+    lockEvents.length = 0;
+    await kv.putText("quiz-game/assets/2_b.png", "b", "image/png");
+    expect(lockEvents).toEqual([]);
+  });
+
+  it("re-checks inside the lock and does not create a duplicate folder", async () => {
+    props[ROOT_FOLDER_PROPERTY_KEY] = "root-id";
+    // ロック待ちの間に別実行が quiz-game を作った状況を模擬する。
+    const concurrent = new FakeFolder();
+    g.LockService = {
+      getScriptLock: () => ({
+        waitLock: () => { root.folders.set("quiz-game", concurrent); },
+        releaseLock: () => {},
+      }),
+    };
+    await new GasKeyValueStorage().putText("quiz-game/json/a.json", "{}", "application/json");
+    expect(root.folders.get("quiz-game")).toBe(concurrent);
+    expect(concurrent.folders.has("json")).toBe(true);
+    // quiz-game は再確認で見つかったので作成していない(json のみ作成)。
+    expect(createFolderCalls).toBe(1);
+  });
+
+  it("throws a busy error when the lock cannot be acquired", async () => {
+    props[ROOT_FOLDER_PROPERTY_KEY] = "root-id";
+    lockFails = true;
+    await expect(
+      new GasKeyValueStorage().putText("quiz-game/json/a.json", "{}", "application/json")
+    ).rejects.toThrow("Server is busy");
+    expect(createFolderCalls).toBe(0);
+  });
+
+  it("uses the oldest folder when duplicates with the same name exist", async () => {
+    props[ROOT_FOLDER_PROPERTY_KEY] = "root-id";
+    const oldest = new FakeFolder();
+    oldest.created = new Date(1000);
+    const newer = new FakeFolder();
+    newer.created = new Date(2000);
+    root.folders.set("quiz-game", newer);
+    root.duplicates.set("quiz-game", [oldest]);
+    const kv = new GasKeyValueStorage();
+
+    await kv.putText("quiz-game/json/a.json", "{}", "application/json");
+    expect(oldest.folders.has("json")).toBe(true);
+    expect(newer.folders.has("json")).toBe(false);
+    expect(await kv.getContentAsText("quiz-game/json/a.json")).toBe("{}");
+    expect(createFolderCalls).toBe(1);
   });
 });
