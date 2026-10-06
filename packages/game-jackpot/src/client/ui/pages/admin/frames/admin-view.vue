@@ -1,10 +1,8 @@
 <template>
   <PageShell title="管理画面" :tabs="tabs" :active-key="activeKey" @select="router.push(`${BASE}/${$event}`)">
     <template #actions>
-      <HeaderActions show-backup :backup-busy="downloadingBackup" @backup="onDownloadBackup"
-        @home="router.push('/jackpot-home')">
-        <SyncStatusIndicator :status="status" :last-error="lastError" />
-      </HeaderActions>
+      <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError"
+        @backup="onDownloadBackup" @home="router.push('/jackpot-home')" />
     </template>
     <template v-if="activeKey === 'screens'" #subtabs>
       <router-link v-for="s in screenTabs" :key="s.path" :to="`${BASE}/screens/${s.path}`" class="sub-link"
@@ -18,7 +16,6 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { HeaderActions, PageShell } from '@octopus/ui-kit';
-import SyncStatusIndicator from '@ui/components/sync-status-indicator.vue';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 

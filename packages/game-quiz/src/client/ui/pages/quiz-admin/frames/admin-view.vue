@@ -1,9 +1,7 @@
 <template>
     <PageShell title="クイズ管理" :tabs="tabs" :active-key="activeKey" @select="router.push({ name: $event })">
         <template #actions>
-            <HeaderActions @home="router.push('/home')">
-                <SyncStatusIndicator :status="status" :last-error="lastError" />
-            </HeaderActions>
+            <HeaderActions :sync-status="status" :sync-error="lastError" @home="router.push('/home')" />
         </template>
         <router-view />
     </PageShell>
@@ -13,7 +11,6 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { HeaderActions, PageShell } from '@octopus/ui-kit';
-import SyncStatusIndicator from '../../../components/sync-status-indicator.vue';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
 
 const router = useRouter();

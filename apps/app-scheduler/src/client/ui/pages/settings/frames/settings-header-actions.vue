@@ -1,14 +1,12 @@
 <template>
-    <HeaderActions show-backup :backup-busy="downloadingBackup" @backup="onDownloadBackup" @home="router.push({ name: 'home' })">
-        <SyncStatusIndicator :status="status" :last-error="lastError" />
-    </HeaderActions>
+    <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError"
+        @backup="onDownloadBackup" @home="router.push({ name: 'home' })" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
 import { HeaderActions } from '@octopus/ui-kit';
 import { useRouter } from 'vue-router';
-import SyncStatusIndicator from '../../../components/sync-status-indicator.vue';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
