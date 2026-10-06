@@ -230,6 +230,7 @@ describe("DataUploadDialog", () => {
 
     const wrapper = mount(DataUploadDialog as any, {
       props: { show: true, type: "prize" },
+      global: { stubs: { teleport: true } },
     });
 
     // set the csvFile and assetFiles via element mutation of input
@@ -268,7 +269,7 @@ describe("DataUploadDialog", () => {
     expect((wrapper.vm as any).assetFiles.length).toBe(1);
 
     // click upload
-    const uploadBtn = wrapper.find("button.admin-btn");
+    const uploadBtn = wrapper.find("button.upload-btn");
     expect(uploadBtn.attributes("disabled")).toBeUndefined();
     await uploadBtn.trigger("click");
 
@@ -335,6 +336,7 @@ describe("DataUploadDialog", () => {
 
     const wrapper = mount(DataUploadDialog as any, {
       props: { show: true, type: "prize" },
+      global: { stubs: { teleport: true } },
     });
 
     const csvInput = wrapper.find('input[type="file"][accept=".csv"]');
@@ -371,7 +373,7 @@ describe("DataUploadDialog", () => {
     });
     await folderInput.trigger("change");
 
-    const uploadBtn = wrapper.find("button.admin-btn");
+    const uploadBtn = wrapper.find("button.upload-btn");
     await uploadBtn.trigger("click");
 
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -431,6 +433,7 @@ describe("DataUploadDialog", () => {
 
     const wrapper = mount(DataUploadDialog as any, {
       props: { show: true, type: "prize" },
+      global: { stubs: { teleport: true } },
     });
 
     const csvInput = wrapper.find('input[type="file"][accept=".csv"]');
@@ -460,7 +463,7 @@ describe("DataUploadDialog", () => {
     });
     await folderInput.trigger("change");
 
-    const uploadBtn = wrapper.find("button.admin-btn");
+    const uploadBtn = wrapper.find("button.upload-btn");
     await uploadBtn.trigger("click");
 
     await new Promise((resolve) => setTimeout(resolve, 500));

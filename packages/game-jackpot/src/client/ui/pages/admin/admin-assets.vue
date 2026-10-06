@@ -18,19 +18,14 @@
             :object-url-map="objectUrlMap" @preview="openPreview" />
     </div>
 
-    <div v-if="deleteAllDeleting" class="modal-overlay">
-        <div class="modal-content">
-            <h3>全件削除中...</h3>
-            <pre>{{ deleteAllMessage }}</pre>
-            <div class="spinner"></div>
-        </div>
-    </div>
+    <UiBusyOverlay :visible="deleteAllDeleting" title="全件削除中..." :message="deleteAllMessage" />
 
     <AssetPreviewDialog v-if="previewAsset" :asset="previewAsset" :object-url-map="objectUrlMap"
         @close="previewAsset = null" />
 </template>
 
 <script setup lang="ts">
+import { UiBusyOverlay } from '@octopus/ui-kit';
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -223,49 +218,5 @@ onBeforeUnmount(() => {
 .add-icon .emoji {
     font-size: 20px;
     line-height: 1;
-}
-
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: #232b36;
-    color: #fff;
-    padding: 28px;
-    border-radius: 10px;
-    text-align: left;
-    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-    max-width: 720px;
-    width: 90%;
-}
-
-.spinner {
-    margin: 16px auto;
-    width: 40px;
-    height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #4f8cff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
 }
 </style>

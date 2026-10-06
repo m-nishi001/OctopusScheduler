@@ -1,29 +1,27 @@
 <template>
-    <div v-if="show" class="modal-overlay">
-        <div class="modal-content">
-            <h3>データアップロード</h3>
-            <p>CSVファイルとアセットフォルダを選択してください。</p>
-            <div class="field-block">
-                <label class="field-label">CSVファイル</label>
-                <input type="file" @change="onCsvChange" accept=".csv" class="admin-input" />
-                <span v-if="csvFile" class="file-name">{{ csvFile.name }}</span>
-            </div>
-            <div class="field-block">
-                <label class="field-label">アセットフォルダ</label>
-                <input type="file" @change="onFolderChange" webkitdirectory multiple class="admin-input" />
-                <span v-if="assetFiles.length" class="file-name">{{ assetFiles.length }} ファイル選択</span>
-            </div>
-            <div class="modal-actions">
-                <button class="admin-btn" @click="upload"
-                    :disabled="!csvFile || !assetFiles.length || uploading">アップロード</button>
-                <button class="admin-btn cancel-primary" @click="$emit('close')">キャンセル</button>
-            </div>
-            <div v-if="uploading" class="spinner"></div>
-            <p v-if="message">{{ message }}</p>
+    <UiDialog :model-value="show" title="データアップロード" size="md" :persistent="uploading" :close-on-overlay="false"
+        @close="$emit('close')">
+        <p class="lead">CSVファイルとアセットフォルダを選択してください。</p>
+        <div class="form-group">
+            <label>CSVファイル</label>
+            <input type="file" @change="onCsvChange" accept=".csv" />
+            <span v-if="csvFile" class="file-name">{{ csvFile.name }}</span>
         </div>
-    </div>
+        <div class="form-group">
+            <label>アセットフォルダ</label>
+            <input type="file" @change="onFolderChange" webkitdirectory multiple />
+            <span v-if="assetFiles.length" class="file-name">{{ assetFiles.length }} ファイル選択</span>
+        </div>
+        <p v-if="message" class="message">{{ message }}</p>
+        <template #footer>
+            <UiButton :disabled="uploading" @click="$emit('close')">キャンセル</UiButton>
+            <UiButton variant="primary" class="upload-btn" :loading="uploading"
+                :disabled="!csvFile || !assetFiles.length" @click="upload">アップロード</UiButton>
+        </template>
+    </UiDialog>
 </template>
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { ref } from 'vue';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { MemberService } from '@control/member/member-service';
@@ -303,113 +301,9 @@ const uploadPrizes = async (dataLines: string[], assetMap: Map<string, string>) 
 };
 </script>
 <style scoped>
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: #232b36;
-    color: #fff;
-    padding: 28px;
-    border-radius: 10px;
-    text-align: left;
-    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-    max-width: 500px;
-    width: 90%;
-}
-
-.field-label {
-    display: block;
-    margin-bottom: 8px;
-    color: #cfe8ff;
-    font-weight: 600;
-}
-
-.field-block {
-    margin-top: 12px;
-}
-
-.admin-input {
-    padding: 10px 14px;
-    border-radius: 8px;
-    border: none;
-    background: #232b36;
-    color: #fff;
-    font-size: 0.98rem;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-
-.admin-input:focus {
-    outline: 2px solid #4f8cff;
-}
-
-.admin-btn {
-    padding: 9px 18px;
-    border-radius: 10px;
-    border: none;
-    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-    color: #232b36;
-    font-weight: 700;
-    cursor: pointer;
-    transition: box-shadow 0.18s, background 0.18s, transform 0.12s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.admin-btn:hover {
-    box-shadow: 0 6px 18px rgba(79, 140, 255, 0.16);
-}
-
-.admin-btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
-.cancel-primary {
-    background: #3b4650;
-    color: #fff;
-}
-
-.modal-actions {
-    margin-top: 16px;
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-}
-
 .file-name {
     margin-top: 8px;
-    color: #cfe8ff;
-    font-size: 0.92rem;
-}
-
-.spinner {
-    margin: 16px auto;
-    width: 40px;
-    height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #4f8cff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
+    color: var(--ui-text-muted, #cfd6dd);
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 </style>

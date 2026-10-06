@@ -1,28 +1,23 @@
 <template>
-    <div class="asset-dialog-overlay">
-        <div class="asset-dialog" @click.stop>
-            <h3>音楽を選択してください</h3>
-            <div class="asset-list">
-                <label class="asset-row" v-for="asset in assets" :key="asset.id">
-                    <input type="checkbox" :value="asset.id" v-model="selected" />
-                    <span class="asset-name">{{ asset.name }}</span>
-                </label>
-            </div>
-            <div class="asset-actions">
-
-                <input type="file" accept="audio/*" ref="fileInput" @change="onUpload" />
-                <div class="btn-row">
-                    <button class="admin-btn" @click="chooseFromExplorer">エクスプローラーから選択</button>
-                    <button class="admin-btn" @click="confirmSelection">選択</button>
-                    <button class="admin-btn delete-btn" @click="deleteSelected">削除</button>
-                    <button class="admin-btn cancel-primary" @click="$emit('close')">閉じる</button>
-                </div>
-            </div>
+    <UiDialog :model-value="true" title="音楽を選択してください" size="md" nested :close-on-overlay="false" @close="$emit('close')">
+        <div class="asset-list">
+            <label class="asset-row" v-for="asset in assets" :key="asset.id">
+                <input type="checkbox" :value="asset.id" v-model="selected" />
+                <span class="asset-name">{{ asset.name }}</span>
+            </label>
         </div>
-    </div>
+        <input type="file" accept="audio/*" ref="fileInput" @change="onUpload" />
+        <template #footer>
+            <UiButton variant="danger" @click="deleteSelected">削除</UiButton>
+            <UiButton @click="chooseFromExplorer">エクスプローラーから選択</UiButton>
+            <UiButton @click="$emit('close')">閉じる</UiButton>
+            <UiButton variant="primary" @click="confirmSelection">選択</UiButton>
+        </template>
+    </UiDialog>
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { ref, onMounted } from 'vue';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -71,28 +66,10 @@ const chooseFromExplorer = () => {
 </script>
 
 <style scoped>
-.asset-dialog-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1200
-}
-
-.asset-dialog {
-    background: #232b36;
-    color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    width: 420px
-}
-
 .asset-list {
     max-height: 240px;
     overflow: auto;
-    border: 1px solid #444;
+    border: 1px solid var(--ui-border, #3a4048);
     padding: 8px;
     margin: 12px 0
 }
@@ -102,30 +79,14 @@ const chooseFromExplorer = () => {
     align-items: center;
     gap: 12px;
     padding: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03)
+    border-bottom: 1px solid var(--ui-border, #3a4048)
 }
 
 .asset-name {
     flex: 1
 }
 
-.btn-row {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 8px
-}
-
-.admin-btn {
-    padding: 6px 10px;
-    border-radius: 6px
-}
-
 .delete-btn {
     background: linear-gradient(90deg, #ff6b6b 0%, #ffb3b3 100%)
-}
-
-.cancel-primary {
-    background: #3b4650
 }
 </style>

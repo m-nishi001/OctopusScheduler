@@ -1,19 +1,17 @@
 <template>
-    <div v-if="visible" class="modal-overlay">
-        <div class="modal-content">
-            <h3>未保存の変更があります</h3>
-            <p>変更を保存せずに移動すると、変更内容とアップロードされたアセットが破棄されます。</p>
-            <p>変更を保存しますか？</p>
-            <div class="modal-buttons">
-                <button class="admin-btn cancel-btn" @click="handleCancel">キャンセル</button>
-                <button class="admin-btn discard-btn" @click="handleDiscard">破棄して移動</button>
-            </div>
-        </div>
-    </div>
+    <UiDialog :model-value="visible" title="未保存の変更があります" size="sm" nested :close-on-overlay="false"
+        @close="handleCancel">
+        <p class="message">変更を保存せずに移動すると、変更内容とアップロードされたアセットが破棄されます。</p>
+        <p class="message">変更を保存しますか？</p>
+        <template #footer>
+            <UiButton @click="handleCancel">キャンセル</UiButton>
+            <UiButton variant="danger" @click="handleDiscard">破棄して移動</UiButton>
+        </template>
+    </UiDialog>
 </template>
 
 <script setup lang="ts">
-import { defineEmits } from 'vue';
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 
 const emit = defineEmits<{
     discard: [];
@@ -34,45 +32,7 @@ const handleCancel = () => {
 </script>
 
 <style scoped>
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: #232b36;
-    color: #fff;
-    padding: 28px;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-    max-width: 400px;
-}
-
-.modal-buttons {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-    margin-top: 24px;
-}
-
-.cancel-btn {
-    background: #6c757d !important;
-}
-
-.discard-btn {
-    background: #dc3545 !important;
-}
-
-.discard-btn:hover {
-    background: #c82333 !important;
+.message {
+    margin: 0 0 var(--ui-space-2, 8px);
 }
 </style>

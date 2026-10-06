@@ -106,19 +106,14 @@
         </div>
     </div>
 
-    <div v-if="showResetModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3>抽選結果をリセット</h3>
-            <p>全ての抽選結果を削除し、景品の当選フラグをリセットします。この操作は取り消せません。続行しますか？</p>
-            <div class="modal-actions">
-                <button class="admin-btn delete-btn" @click="confirmReset">リセット</button>
-                <button class="admin-btn" @click="showResetModal = false">キャンセル</button>
-            </div>
-        </div>
-    </div>
+    <UiDialog :model-value="showResetModal" title="抽選結果をリセット" size="sm" danger confirm-label="リセット"
+        @confirm="confirmReset" @close="showResetModal = false">
+        <p class="message">全ての抽選結果を削除し、景品の当選フラグをリセットします。この操作は取り消せません。続行しますか？</p>
+    </UiDialog>
 </template>
 
 <script setup lang="ts">
+import { UiDialog } from '@octopus/ui-kit';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { DrawResultService } from '@control/draw/draw-result-service';
@@ -346,42 +341,6 @@ onUnmounted(() => {
     max-width: 50px;
     max-height: 50px;
     border-radius: 4px;
-}
-
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-}
-
-.modal-overlay::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-}
-
-.modal-content {
-    background: #232b36;
-    color: #fff;
-    padding: 28px;
-    border-radius: 10px;
-    text-align: left;
-    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-    max-width: 620px;
-    width: 90%;
-}
-
-.modal-actions {
-    margin-top: 16px;
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
 }
 
 .admin-table {
