@@ -40,6 +40,15 @@ describe('UiDialog', () => {
         expect(w.emitted('close')).toHaveLength(1);
     });
 
+    it('closeOnOverlay=false ではオーバーレイクリックで閉じず、Escape では閉じる', () => {
+        const w = open({ closeOnOverlay: false });
+        overlay().dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        overlay().dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        expect(w.emitted('close')).toBeUndefined();
+        overlay().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        expect(w.emitted('close')).toHaveLength(1);
+    });
+
     it('標準フッターはキャンセル左・主操作右で、confirm を emit する', () => {
         const w = open({ confirmLabel: '保存' });
         const buttons = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.ui-dialog__footer button'));

@@ -36,6 +36,10 @@ const props = withDefaults(
         size?: UiDialogSize;
         /** true の間は Escape / オーバーレイクリック / ×ボタンで閉じない(保存中・未保存変更など) */
         persistent?: boolean;
+        /** false でオーバーレイクリックでは閉じない(入力フォーム用。Escape/×では閉じる) */
+        closeOnOverlay?: boolean;
+        /** false で Escape では閉じない(キー入力の取得中など) */
+        closeOnEscape?: boolean;
         nested?: boolean;
         /** 指定すると標準フッター(キャンセル左 / 主操作右)を表示する */
         confirmLabel?: string;
@@ -44,7 +48,7 @@ const props = withDefaults(
         loading?: boolean;
         confirmDisabled?: boolean;
     }>(),
-    { size: 'md', cancelLabel: 'キャンセル' },
+    { size: 'md', cancelLabel: 'キャンセル', closeOnOverlay: true, closeOnEscape: true },
 );
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean]; close: []; confirm: []; cancel: [] }>();
@@ -73,14 +77,14 @@ function onOverlayMouseDown() {
     pressedOnOverlay = true;
 }
 function onOverlayMouseUp() {
-    if (pressedOnOverlay) close();
+    if (pressedOnOverlay && props.closeOnOverlay) close();
     pressedOnOverlay = false;
 }
 
 function onKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
         e.stopPropagation();
-        close();
+        if (props.closeOnEscape) close();
         return;
     }
     if (e.key !== 'Tab' || !panel.value) return;
@@ -192,6 +196,33 @@ onBeforeUnmount(() => releaseScroll?.());
     gap: var(--ui-space-2, 8px);
     padding: var(--ui-space-3, 12px) var(--ui-space-4, 16px);
     border-top: 1px solid var(--ui-border, #3a4048);
+}
+
+/* ダイアログ内の標準フォーム(.form-group > label + input/select/textarea)。既存フォームの見た目を統一する */
+.ui-dialog__body :deep(.form-group) {
+    margin-bottom: var(--ui-space-3, 12px);
+}
+
+.ui-dialog__body :deep(.form-group > label) {
+    display: block;
+    margin-bottom: var(--ui-space-1, 4px);
+    font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-text-muted, #cfd6dd);
+}
+
+.ui-dialog__body :deep(.form-group input:not([type='checkbox']):not([type='radio']):not([type='file'])),
+.ui-dialog__body :deep(.form-group select),
+.ui-dialog__body :deep(.form-group textarea) {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: var(--ui-control-height, 36px);
+    padding: var(--ui-space-1, 4px) var(--ui-space-3, 12px);
+    border: 1px solid var(--ui-border, #3a4048);
+    border-radius: var(--ui-radius, 6px);
+    background: var(--ui-bg, #23252b);
+    color: var(--ui-text, #fff);
+    font: inherit;
+    font-size: var(--ui-font-md, 1rem);
 }
 
 @media (max-width: 640px) {
