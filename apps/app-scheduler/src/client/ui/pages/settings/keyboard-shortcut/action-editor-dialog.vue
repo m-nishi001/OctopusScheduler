@@ -1,22 +1,19 @@
 <template>
-    <div v-if="show" class="editor-overlay" @click="onOverlayClick">
-        <div class="editor-dialog" @click.stop>
-            <h4>アクション編集</h4>
-            <div class="editor-content">
-                <component v-if="formComponent && initialData" ref="editorRef" :is="formComponent"
-                    :initialData="initialData" @save="onSave" @cancel="onCancel" />
-                <div v-else class="no-form">フォームが見つかりません</div>
-            </div>
-            <div class="editor-buttons">
-                <button @click="onOk">OK</button>
-                <button @click="onCancel">キャンセル</button>
-            </div>
-        </div>
-    </div>
+    <UiDialog :model-value="show" title="アクション編集" size="md" nested :close-on-overlay="false"
+        @close="onCancel">
+        <component v-if="formComponent && initialData" ref="editorRef" :is="formComponent"
+            :initialData="initialData" @save="onSave" @cancel="onCancel" />
+        <div v-else class="no-form">フォームが見つかりません</div>
+        <template #footer>
+            <UiButton @click="onCancel">キャンセル</UiButton>
+            <UiButton variant="primary" @click="onOk">OK</UiButton>
+        </template>
+    </UiDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { uiActionEntries } from '../app-events/registry';
 import type { EventFormHandle } from '../app-events/ui-action-entry';
 import type { AppEventDto } from '../../../../control/app-event/dto/app-event-dto';
@@ -56,9 +53,6 @@ function onSave(dto: any) {
 function onCancel() {
     emit('cancel');
 }
-function onOverlayClick() {
-    emit('cancel');
-}
 
 async function onOk() {
     try {
@@ -76,40 +70,7 @@ defineExpose({ reset });
 </script>
 
 <style scoped>
-.editor-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-}
-
-.editor-dialog {
-    background: #222;
-    color: #fff;
-    padding: 18px;
-    border-radius: 8px;
-    width: 560px;
-    max-width: 90%;
-}
-
-.editor-content {
-    margin-top: 8px;
-}
-
-.editor-buttons {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 12px;
-    gap: 8px;
-}
-
 .no-form {
-    color: #ccc;
+    color: var(--ui-text-muted, #cfd6dd);
 }
 </style>

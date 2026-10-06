@@ -75,27 +75,19 @@
                 style="display: none;">
         </div>
 
-        <!-- Preview Dialog (teleported to body to avoid stacking/context issues) -->
-        <teleport to="body">
-            <div v-if="showPreviewDialog" class="modal-overlay" @click.self="closePreview">
-                <div class="modal-content">
-                    <div v-if="previewType === 'image'">
-                        <img :src="previewContent.url" alt="preview" style="max-width:80vw;max-height:70vh" />
-                    </div>
-                    <div v-else-if="previewType === 'movie'">
-                        <video :src="previewContent.url" controls style="max-width:80vw;max-height:70vh" />
-                    </div>
-                    <div v-else-if="previewType === 'html'">
-                        <div v-html="previewContent"></div>
-                    </div>
-                    <button class="close-btn" @click="closePreview">閉じる</button>
-                </div>
-            </div>
-        </teleport>
+        <UiDialog :model-value="showPreviewDialog" title="プレビュー" size="lg" nested @close="closePreview">
+            <img v-if="previewType === 'image'" :src="previewContent.url" alt="preview" class="preview-media" />
+            <video v-else-if="previewType === 'movie'" :src="previewContent.url" controls class="preview-media" />
+            <div v-else-if="previewType === 'html'" v-html="previewContent"></div>
+            <template #footer>
+                <UiButton @click="closePreview">閉じる</UiButton>
+            </template>
+        </UiDialog>
     </div>
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import type { ShowContentEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
 import { container } from 'tsyringe';
@@ -387,36 +379,10 @@ defineExpose({ save, reset });
     justify-content: center;
 }
 
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 3000;
-}
-
-.modal-content {
-    background: #232b36;
-    color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    max-width: 80vw;
-    max-height: 80vh;
-    overflow: auto;
-    position: relative;
-}
-
-.close-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: #666;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 5px 10px;
-    cursor: pointer;
+.preview-media {
+    display: block;
+    max-width: 100%;
+    max-height: 70dvh;
+    margin: 0 auto;
 }
 </style>
