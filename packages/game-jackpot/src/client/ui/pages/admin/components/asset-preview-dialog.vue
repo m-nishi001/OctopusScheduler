@@ -1,9 +1,7 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content preview-modal">
-      <h3>アセットプレビュー</h3>
-      <div class="preview-body">
-        <div class="preview-media">
+  <UiDialog :model-value="true" title="アセットプレビュー" size="lg" nested @close="$emit('close')">
+    <div class="preview-body">
+      <div class="preview-media">
           <img v-if="resolvedAsset?.blob && resolvedAsset.blob.type && resolvedAsset.blob.type.startsWith('image') && previewUrl"
             :src="previewUrl" alt="preview image" class="preview-img" />
 
@@ -17,20 +15,20 @@
 
           <div v-else class="preview-empty">プレビューできません</div>
         </div>
-        <div class="preview-info">
+      <div class="preview-info">
           <p><strong>ファイル名:</strong> {{ resolvedAsset?.name }}</p>
           <p><strong>サイズ:</strong> {{ resolvedAsset ? formatSize(resolvedAsset.size) : '-' }}</p>
           <p><strong>種別:</strong> {{ prettyAssetType(resolvedAsset?.blob?.type) }}</p>
-          <div style="margin-top:12px; text-align:right;">
-            <button class="admin-btn" @click.prevent="$emit('close')">閉じる</button>
-          </div>
         </div>
-      </div>
     </div>
-  </div>
+    <template #footer>
+      <UiButton @click.prevent="$emit('close')">閉じる</UiButton>
+    </template>
+  </UiDialog>
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -102,45 +100,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: #232b36;
-  color: #fff;
-  padding: 28px;
-  border-radius: 10px;
-  text-align: left;
-  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-  max-width: 720px;
-  width: 90%;
-}
-
-.admin-btn {
-  padding: 9px 18px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-  color: #232b36;
-  font-weight: 700;
-  cursor: pointer;
-  transition: box-shadow 0.18s, background 0.18s, transform 0.12s;
-}
-
-.admin-btn:hover {
-  box-shadow: 0 6px 18px rgba(79, 140, 255, 0.16);
-}
-
 .preview-modal .preview-body {
   display: flex;
   gap: 18px;

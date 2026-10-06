@@ -1,9 +1,10 @@
 <template>
   <PageShell title="管理画面" :tabs="tabs" :active-key="activeKey" @select="router.push(`${BASE}/${$event}`)">
     <template #actions>
-      <SyncStatusIndicator :status="status" :last-error="lastError" />
-      <button class="header-btn" :disabled="downloadingBackup" @click="onDownloadBackup">バックアップ</button>
-      <router-link to="/jackpot-home" class="home-button" aria-label="ホームへ戻る">ホーム</router-link>
+      <HeaderActions show-backup :backup-busy="downloadingBackup" @backup="onDownloadBackup"
+        @home="router.push('/jackpot-home')">
+        <SyncStatusIndicator :status="status" :last-error="lastError" />
+      </HeaderActions>
     </template>
     <template v-if="activeKey === 'screens'" #subtabs>
       <router-link v-for="s in screenTabs" :key="s.path" :to="`${BASE}/screens/${s.path}`" class="sub-link"
@@ -16,7 +17,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { PageShell } from '@octopus/ui-kit';
+import { HeaderActions, PageShell } from '@octopus/ui-kit';
 import SyncStatusIndicator from '@ui/components/sync-status-indicator.vue';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
@@ -66,45 +67,19 @@ async function onDownloadBackup() {
 </script>
 
 <style scoped>
-.home-button {
-  background: #ffffff;
-  color: #2b3036;
-  padding: 4px 12px;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.header-btn {
-  background: transparent;
-  color: #cfd6dd;
-  border: 1px solid #4a5158;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.header-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .sub-link {
-  color: #cfd6dd;
+  color: var(--ui-text-muted, #cfd6dd);
   text-decoration: none;
   padding: 4px 12px;
   border-radius: 999px;
-  font-size: 0.9rem;
-  border: 1px solid #3a4048;
+  font-size: var(--ui-font-sm, 0.875rem);
+  border: 1px solid var(--ui-border, #3a4048);
 }
 
 .sub-link.active-sub {
-  color: #23252b;
-  background: #aee1ff;
-  border-color: #aee1ff;
+  color: var(--ui-accent-contrast, #12263a);
+  background: var(--ui-accent, #aee1ff);
+  border-color: var(--ui-accent, #aee1ff);
   font-weight: 700;
 }
 </style>

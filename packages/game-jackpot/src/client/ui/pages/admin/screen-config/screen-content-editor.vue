@@ -51,33 +51,23 @@
 			</ul>
 		</div>
 
-		<div v-if="saving" class="modal-overlay">
-			<div class="modal-content">
-				<h3>保存中...</h3>
-				<p>{{ saveStatus }}</p>
-				<div class="spinner"></div>
-			</div>
-		</div>
+		<UiBusyOverlay :visible="saving" title="保存中..." :message="saveStatus" />
 
-		<div v-if="dialogVisible" class="modal-overlay">
-			<div class="modal-content dialog-modal">
-				<h3>{{ editingIndex === -1 ? 'コンテンツを追加' : 'コンテンツを編集' }}</h3>
+		<UiDialog :model-value="dialogVisible" :title="editingIndex === -1 ? 'コンテンツを追加' : 'コンテンツを編集'" size="md"
+			nested :close-on-overlay="false" confirm-label="保存" @confirm="saveDialog" @close="closeDialog">
+				<div class="content-controls form-group">
+					<label>コンテンツ名</label>
+					<input v-model="(dialogContent as any).name" placeholder="コンテンツ名" />
 
-				<div class="content-controls">
-					<label>コンテンツ名:</label>
-					<input v-model="(dialogContent as any).name" placeholder="コンテンツ名" class="admin-input" />
-
-					<select v-model="dialogContent.type" class="admin-input">
+					<select v-model="dialogContent.type">
 						<option value="text">テキスト</option>
 						<option value="image">画像</option>
 						<option value="html">HTML</option>
 					</select>
 
-					<input v-if="dialogContent.type === 'text'" v-model="dialogContent.text" placeholder="テキスト内容"
-						class="admin-input" />
+					<input v-if="dialogContent.type === 'text'" v-model="dialogContent.text" placeholder="テキスト内容" />
 
-					<textarea v-if="dialogContent.type === 'html'" v-model="dialogContent.content" placeholder="HTMLを入力"
-						class="admin-input" rows="6"></textarea>
+					<textarea v-if="dialogContent.type === 'html'" v-model="dialogContent.content" placeholder="HTMLを入力" rows="6"></textarea>
 
 					<div v-if="dialogContent.type === 'image'">
 						<div class="asset-mode">
@@ -86,45 +76,37 @@
 							<label><input type="radio" v-model="dialogContent.imageMode" value="upload" />
 								アップロード</label>
 						</div>
-						<select v-if="dialogContent.imageMode === 'select'" v-model="dialogContent.assetId"
-							class="admin-input">
+						<select v-if="dialogContent.imageMode === 'select'" v-model="dialogContent.assetId">
 							<option value="">選択なし</option>
 							<option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">{{ asset.name }}
 							</option>
 						</select>
 						<input v-if="dialogContent.imageMode === 'upload'" type="file" @change="onDialogImageChange"
-							accept="image/*" class="admin-input" />
+							accept="image/*" />
 					</div>
 
 					<div class="content-row">
-						<select v-model="dialogContent.effect" class="admin-input">
+						<select v-model="dialogContent.effect">
 							<option value="scroll">スクロール</option>
 							<option value="fade">フェード</option>
 							<option value="static">静止</option>
 						</select>
-						<input v-model.number="dialogContent.duration" type="number" placeholder="表示時間(ms)"
-							class="admin-input" />
+						<input v-model.number="dialogContent.duration" type="number" placeholder="表示時間(ms)" />
 					</div>
 
 					<div class="asset-mode">
 						<label><input type="radio" v-model="dialogContent.seMode" value="select" /> SE選択</label>
 						<label><input type="radio" v-model="dialogContent.seMode" value="upload" /> SEアップロード</label>
 					</div>
-					<select v-if="dialogContent.seMode === 'select'" v-model="dialogContent.seAssetId"
-						class="admin-input">
+					<select v-if="dialogContent.seMode === 'select'" v-model="dialogContent.seAssetId">
 						<option value="">選択なし</option>
 						<option v-for="asset in audioAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
 					</select>
 					<input v-if="dialogContent.seMode === 'upload'" type="file" @change="onDialogSeChange"
-						accept="audio/*" class="admin-input" />
+						accept="audio/*" />
 				</div>
 
-				<div class="button-row">
-					<button class="admin-btn" @click="saveDialog">保存</button>
-					<button class="admin-btn" @click="closeDialog">キャンセル</button>
-				</div>
-			</div>
-		</div>
+		</UiDialog>
 
 		<div style="display:flex;align-items:center;gap:12px;margin-top:24px;">
 			<button class="admin-btn" @click="handleSaveClick" :disabled="saving">保存</button>
@@ -136,6 +118,7 @@
 </template>
 
 <script setup lang="ts">
+import { UiBusyOverlay, UiDialog } from '@octopus/ui-kit';
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
@@ -582,62 +565,5 @@ const handleSaveClick = async () => {
 
 .config-item {
 	min-width: 0;
-}
-
-.modal-overlay {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	background: rgba(0, 0, 0, 0.5);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 1000;
-}
-
-.modal-content {
-	background: #232b36;
-	color: #fff;
-	padding: 28px;
-	border-radius: 10px;
-	text-align: center;
-	box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-}
-
-.modal-content.dialog-modal {
-	width: min(720px, 92%);
-	max-width: 92%;
-	padding: 32px 28px;
-	text-align: left;
-}
-
-.dialog-modal label {
-	display: block;
-	text-align: left;
-	margin-bottom: 8px;
-	font-weight: bold;
-	color: #fff;
-}
-
-.spinner {
-	margin: 16px auto;
-	width: 40px;
-	height: 40px;
-	border: 4px solid #f3f3f3;
-	border-top: 4px solid #4f8cff;
-	border-radius: 50%;
-	animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-	0% {
-		transform: rotate(0deg);
-	}
-
-	100% {
-		transform: rotate(360deg);
-	}
 }
 </style>

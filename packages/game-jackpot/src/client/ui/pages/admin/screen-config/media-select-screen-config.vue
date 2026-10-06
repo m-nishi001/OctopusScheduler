@@ -18,13 +18,7 @@
                 <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
 
-            <div v-if="saving" class="modal-overlay">
-                <div class="modal-content">
-                    <h3>保存中...</h3>
-                    <p>{{ saveStatus }}</p>
-                    <div class="spinner"></div>
-                </div>
-            </div>
+            <UiBusyOverlay :visible="saving" title="保存中..." :message="saveStatus" />
 
             <UnsavedChangesDialog :visible="showUnsavedDialog" @discard="handleDiscardChanges"
                 @cancel="handleCancelDiscard" />
@@ -33,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+import { UiBusyOverlay } from '@octopus/ui-kit';
 import { ref, onMounted, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
@@ -211,47 +206,5 @@ const handleCancelDiscard = () => {
 
 .admin-btn:hover {
     background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
-}
-
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: #232b36;
-    color: #fff;
-    padding: 28px;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-}
-
-.spinner {
-    margin: 16px auto;
-    width: 40px;
-    height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #4f8cff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
 }
 </style>
