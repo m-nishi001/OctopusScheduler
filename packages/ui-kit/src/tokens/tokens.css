@@ -1,0 +1,40 @@
+/* ui-kit design tokens. 部品はここで定義した CSS 変数のみを参照する。
+   ブレークポイントは 640px に統一(CSS 変数は @media で使えないため数値を直書きする)。 */
+:root {
+    /* color */
+    --ui-bg: #23252b;
+    --ui-surface: #2b3036;
+    --ui-surface-alt: #222731;
+    --ui-border: #3a4048;
+    --ui-text: #fff;
+    --ui-text-muted: #cfd6dd;
+    --ui-accent: #aee1ff;
+    --ui-accent-contrast: #12263a;
+    --ui-danger: #e5484d;
+    --ui-danger-contrast: #fff;
+    --ui-overlay: rgba(0, 0, 0, 0.5);
+
+    /* typography */
+    --ui-font-family: system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+    --ui-font-xs: 0.75rem;
+    --ui-font-sm: 0.875rem;
+    --ui-font-md: 1rem;
+    --ui-font-lg: 1.2rem;
+    --ui-font-xl: 1.5rem;
+
+    /* spacing / shape */
+    --ui-space-1: 4px;
+    --ui-space-2: 8px;
+    --ui-space-3: 12px;
+    --ui-space-4: 16px;
+    --ui-space-5: 24px;
+    --ui-radius: 6px;
+    --ui-control-height: 36px;
+    --ui-icon-size: 18px;
+
+    /* z-index layers */
+    --ui-z-header: 10;
+    --ui-z-dialog: 1000;
+    --ui-z-dialog-nested: 1100;
+    --ui-z-toast: 1200;
+}

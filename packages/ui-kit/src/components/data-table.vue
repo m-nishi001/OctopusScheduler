@@ -26,7 +26,6 @@ export interface DataTableColumn {
 
 defineProps<{
     columns: DataTableColumn[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rows: any[];
     rowKey?: string;
 }>();
