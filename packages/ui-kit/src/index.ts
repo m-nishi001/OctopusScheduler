@@ -10,3 +10,7 @@ export { default as UiButton } from './components/ui-button/ui-button.vue';
 export { default as FormGrid } from './components/form-grid/form-grid.vue';
 export { default as UiField } from './components/form-grid/ui-field.vue';
 export { default as HeaderActions } from './components/header-actions/header-actions.vue';
+export { default as UiDialog } from './components/ui-dialog/ui-dialog.vue';
+export type { UiDialogSize } from './components/ui-dialog/ui-dialog.vue';
+export { useConfirm, useToast, confirmDialog, toast } from './composables/use-feedback';
+export type { ConfirmOptions, ToastKind } from './composables/use-feedback';

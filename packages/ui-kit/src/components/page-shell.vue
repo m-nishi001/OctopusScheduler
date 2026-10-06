@@ -16,10 +16,13 @@
         </nav>
         <main class="ui-page-shell__main"><slot /></main>
         <footer v-if="$slots.footer" class="ui-page-shell__footer"><slot name="footer" /></footer>
+        <FeedbackHost />
     </div>
 </template>
 
 <script setup lang="ts">
+import FeedbackHost from './feedback/feedback-host.vue';
+
 export interface PageShellTab {
     key: string;
     label: string;
