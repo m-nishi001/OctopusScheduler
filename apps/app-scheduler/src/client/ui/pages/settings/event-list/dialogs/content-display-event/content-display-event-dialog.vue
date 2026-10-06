@@ -1,144 +1,142 @@
 <template>
-    <div class="modal-overlay">
-        <div class="modal-content" @click.stop>
-            <h3>{{ isEdit ? 'コンテンツ表示イベント編集' : 'コンテンツ表示イベント追加' }}</h3>
-            <form @submit.prevent="onSubmit">
-                <div class="form-group">
-                    <label for="startTime">開始時間</label>
-                    <input id="startTime" type="datetime-local" v-model="form.startTime" required />
+    <UiDialog :model-value="true" :title="isEdit ? 'コンテンツ表示イベント編集' : 'コンテンツ表示イベント追加'" size="md" :close-on-overlay="false" @close="onClose">
+        <form id="content-display-form" @submit.prevent="onSubmit">
+            <div class="form-group">
+                <label for="startTime">開始時間</label>
+                <input id="startTime" type="datetime-local" v-model="form.startTime" required />
+            </div>
+            <div class="form-group">
+                <label for="endTime">終了時間</label>
+                <input id="endTime" type="datetime-local" v-model="form.endTime" required />
+            </div>
+            <div class="form-group">
+                <label for="contentType">コンテンツ種別</label>
+                <select id="contentType" v-model="form.contentType" required>
+                    <option value="image">画像</option>
+                    <option value="movie">動画</option>
+                    <option value="html">HTML</option>
+                </select>
+            </div>
+            <div class="form-group" v-if="form.contentType !== 'html'">
+                <label>アセットソース</label>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" value="existing" v-model="form.assetSource" />
+                        既存アセットを選択
+                    </label>
+                    <label>
+                        <input type="radio" value="upload" v-model="form.assetSource" />
+                        新規アップロード
+                    </label>
                 </div>
-                <div class="form-group">
-                    <label for="endTime">終了時間</label>
-                    <input id="endTime" type="datetime-local" v-model="form.endTime" required />
+            </div>
+            <div class="form-group" v-if="form.contentType !== 'html' && form.assetSource === 'existing'">
+                <label for="selectedAsset">既存アセット</label>
+                <select id="selectedAsset" v-model="form.selectedAssetId" required>
+                    <option value="">選択してください</option>
+                    <option v-for="asset in filteredAssets" :key="asset.id" :value="asset.id">
+                        {{ asset.name }}
+                    </option>
+                </select>
+            </div>
+            <div class="form-group" v-if="form.contentType !== 'html' && form.assetSource === 'upload'">
+                <label for="uploadFile">アップロードファイル</label>
+                <div class="file-picker">
+                    <input id="uploadFile" ref="fileInput" class="hidden-file-input" type="file"
+                        @change="onFileChange" accept=".jpg,.jpeg,.png,.gif,.mp4,.webm,.ogg" />
+                    <button type="button" class="file-btn" @click.prevent="openFilePicker">Choose File</button>
+                    <span class="file-name">{{ mainUploadEntry ? mainUploadEntry.file.name : 'No file chosen'
+                    }}</span>
+                    <button v-if="mainUploadEntry" type="button" class="clear-btn"
+                        @click.prevent="clearFile">×</button>
                 </div>
-                <div class="form-group">
-                    <label for="contentType">コンテンツ種別</label>
-                    <select id="contentType" v-model="form.contentType" required>
-                        <option value="image">画像</option>
-                        <option value="movie">動画</option>
-                        <option value="html">HTML</option>
-                    </select>
-                </div>
-                <div class="form-group" v-if="form.contentType !== 'html'">
-                    <label>アセットソース</label>
+            </div>
+            <div class="form-group" v-if="form.contentType === 'html'">
+                <label for="htmlString">HTML文字列</label>
+                <textarea id="htmlString" ref="htmlTextarea" v-model="form.htmlString" required></textarea>
+                <div class="asset-insert-section">
+                    <label>アセット挿入</label>
                     <div class="radio-group">
                         <label>
-                            <input type="radio" value="existing" v-model="form.assetSource" />
+                            <input type="radio" value="existing" v-model="form.assetInsertSource" />
                             既存アセットを選択
                         </label>
                         <label>
-                            <input type="radio" value="upload" v-model="form.assetSource" />
+                            <input type="radio" value="upload" v-model="form.assetInsertSource" />
                             新規アップロード
                         </label>
                     </div>
-                </div>
-                <div class="form-group" v-if="form.contentType !== 'html' && form.assetSource === 'existing'">
-                    <label for="selectedAsset">既存アセット</label>
-                    <select id="selectedAsset" v-model="form.selectedAssetId" required>
-                        <option value="">選択してください</option>
-                        <option v-for="asset in filteredAssets" :key="asset.id" :value="asset.id">
-                            {{ asset.name }}
-                        </option>
-                    </select>
-                </div>
-                <div class="form-group" v-if="form.contentType !== 'html' && form.assetSource === 'upload'">
-                    <label for="uploadFile">アップロードファイル</label>
-                    <div class="file-picker">
-                        <input id="uploadFile" ref="fileInput" class="hidden-file-input" type="file"
-                            @change="onFileChange" accept=".jpg,.jpeg,.png,.gif,.mp4,.webm,.ogg" />
-                        <button type="button" class="file-btn" @click.prevent="openFilePicker">Choose File</button>
-                        <span class="file-name">{{ mainUploadEntry ? mainUploadEntry.file.name : 'No file chosen'
-                        }}</span>
-                        <button v-if="mainUploadEntry" type="button" class="clear-btn"
-                            @click.prevent="clearFile">×</button>
+                    <div v-if="form.assetInsertSource === 'existing'" class="asset-insert-controls">
+                        <select v-model="form.insertAssetType">
+                            <option value="image">画像</option>
+                            <option value="video">動画</option>
+                        </select>
+                        <select v-model="form.insertAssetId">
+                            <option value="">選択してください</option>
+                            <option v-for="asset in filteredInsertAssets" :key="asset.id" :value="asset.id">
+                                {{ asset.name }}
+                            </option>
+                        </select>
+                        <button type="button" @click="insertAsset" :disabled="!form.insertAssetId">挿入</button>
                     </div>
-                </div>
-                <div class="form-group" v-if="form.contentType === 'html'">
-                    <label for="htmlString">HTML文字列</label>
-                    <textarea id="htmlString" ref="htmlTextarea" v-model="form.htmlString" required></textarea>
-                    <div class="asset-insert-section">
-                        <label>アセット挿入</label>
-                        <div class="radio-group">
-                            <label>
-                                <input type="radio" value="existing" v-model="form.assetInsertSource" />
-                                既存アセットを選択
-                            </label>
-                            <label>
-                                <input type="radio" value="upload" v-model="form.assetInsertSource" />
-                                新規アップロード
-                            </label>
-                        </div>
-                        <div v-if="form.assetInsertSource === 'existing'" class="asset-insert-controls">
-                            <select v-model="form.insertAssetType">
-                                <option value="image">画像</option>
-                                <option value="video">動画</option>
-                            </select>
-                            <select v-model="form.insertAssetId">
-                                <option value="">選択してください</option>
-                                <option v-for="asset in filteredInsertAssets" :key="asset.id" :value="asset.id">
-                                    {{ asset.name }}
-                                </option>
-                            </select>
-                            <button type="button" @click="insertAsset" :disabled="!form.insertAssetId">挿入</button>
-                        </div>
-                        <div v-if="form.assetInsertSource === 'upload'" class="asset-insert-controls">
-                            <select v-model="form.insertAssetType">
-                                <option value="image">画像</option>
-                                <option value="video">動画</option>
-                            </select>
-                            <div class="file-picker">
-                                <input ref="insertFileInput" class="hidden-file-input" type="file"
-                                    @change="onInsertFileChange"
-                                    :accept="form.insertAssetType === 'image' ? 'image/*' : 'video/*'" />
-                                <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
-                                    File</button>
-                            </div>
+                    <div v-if="form.assetInsertSource === 'upload'" class="asset-insert-controls">
+                        <select v-model="form.insertAssetType">
+                            <option value="image">画像</option>
+                            <option value="video">動画</option>
+                        </select>
+                        <div class="file-picker">
+                            <input ref="insertFileInput" class="hidden-file-input" type="file"
+                                @change="onInsertFileChange"
+                                :accept="form.insertAssetType === 'image' ? 'image/*' : 'video/*'" />
+                            <button type="button" class="file-btn" @click.prevent="openInsertFilePicker">Choose
+                                File</button>
                         </div>
                     </div>
                 </div>
-                <div v-if="form.contentType === 'html'" class="form-group">
-                    <label>プレビュー</label>
-                    <div class="html-preview" v-html="processedHtml"></div>
-                </div>
-                <div class="form-group">
-                    <label for="displayMode">表示方法</label>
-                    <select id="displayMode" v-model="form.effect">
-                        <option value="fade">フェード</option>
-                        <option value="scroll">スクロール</option>
-                        <option value="static">静的表示</option>
-                    </select>
-                </div>
-                <div v-if="form.effect === 'fade'" class="form-group">
-                    <label for="fadeInTime">フェードイン時間 (秒)</label>
-                    <input id="fadeInTime" type="number" step="0.1" v-model.number="form.fadeInTime" min="0" />
-                </div>
-                <div v-if="form.effect === 'fade'" class="form-group">
-                    <label for="fadeOutTime">フェードアウト時間 (秒)</label>
-                    <input id="fadeOutTime" type="number" step="0.1" v-model.number="form.fadeOutTime" min="0" />
-                </div>
-                <div v-if="form.effect === 'scroll'" class="form-group">
-                    <label for="scrollDirection">スクロール方向</label>
-                    <select id="scrollDirection" v-model="form.scrollDirection">
-                        <option value="up">上</option>
-                        <option value="down">下</option>
-                        <option value="left">左</option>
-                        <option value="right">右</option>
-                    </select>
-                </div>
-                <div v-if="form.effect === 'scroll' || form.effect === 'static'" class="form-group">
-                    <label for="duration">表示時間 (秒)</label>
-                    <input id="duration" type="number" step="0.1" v-model.number="form.duration" min="0" />
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="main-btn" @click="onClose">キャンセル</button>
-                    <button type="submit" class="main-btn">{{ isEdit ? '更新' : '追加' }}</button>
-                </div>
-            </form>
-        </div>
-    </div>
+            </div>
+            <div v-if="form.contentType === 'html'" class="form-group">
+                <label>プレビュー</label>
+                <div class="html-preview" v-html="processedHtml"></div>
+            </div>
+            <div class="form-group">
+                <label for="displayMode">表示方法</label>
+                <select id="displayMode" v-model="form.effect">
+                    <option value="fade">フェード</option>
+                    <option value="scroll">スクロール</option>
+                    <option value="static">静的表示</option>
+                </select>
+            </div>
+            <div v-if="form.effect === 'fade'" class="form-group">
+                <label for="fadeInTime">フェードイン時間 (秒)</label>
+                <input id="fadeInTime" type="number" step="0.1" v-model.number="form.fadeInTime" min="0" />
+            </div>
+            <div v-if="form.effect === 'fade'" class="form-group">
+                <label for="fadeOutTime">フェードアウト時間 (秒)</label>
+                <input id="fadeOutTime" type="number" step="0.1" v-model.number="form.fadeOutTime" min="0" />
+            </div>
+            <div v-if="form.effect === 'scroll'" class="form-group">
+                <label for="scrollDirection">スクロール方向</label>
+                <select id="scrollDirection" v-model="form.scrollDirection">
+                    <option value="up">上</option>
+                    <option value="down">下</option>
+                    <option value="left">左</option>
+                    <option value="right">右</option>
+                </select>
+            </div>
+            <div v-if="form.effect === 'scroll' || form.effect === 'static'" class="form-group">
+                <label for="duration">表示時間 (秒)</label>
+                <input id="duration" type="number" step="0.1" v-model.number="form.duration" min="0" />
+            </div>
+        </form>
+        <template #footer>
+            <UiButton @click="onClose">キャンセル</UiButton>
+            <UiButton type="submit" variant="primary" form="content-display-form">{{ isEdit ? '更新' : '追加' }}</UiButton>
+        </template>
+    </UiDialog>
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { toast } from '@octopus/ui-kit';
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
@@ -429,80 +427,8 @@ function insertAtCursor(text: string) {
 </script>
 
 <style scoped>
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: #232323;
-    color: #fff;
-    padding: 2em;
-    border-radius: 10px;
-    box-shadow: 0 6px 28px rgba(0, 0, 0, 0.36);
-    max-width: 600px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-}
-
-.modal-content h3 {
-    margin-bottom: 1em;
-    color: #8fd3ff;
-}
-
-.form-group {
-    margin-bottom: 1em;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5em;
-    color: #fff;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-    width: 100%;
-    padding: 0.5em;
-    background: #333;
-    color: #fff;
-    border: 1px solid #666;
-    border-radius: 6px;
-}
-
 .form-group textarea {
     min-height: 100px;
-}
-
-.form-actions {
-    margin-top: 1em;
-    display: flex;
-    gap: 1.2em;
-    justify-content: flex-end;
-}
-
-.main-btn {
-    font-size: inherit;
-    font-weight: 600;
-    padding: 0.8em 2em;
-    background: linear-gradient(90deg, #222 0%, #2a2a2a 100%);
-    color: #fff;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
-    transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
-    outline: none;
 }
 
 .radio-group {

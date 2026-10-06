@@ -1,23 +1,19 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="onCancel">
-    <div class="modal" @click.stop>
-      <h4>アクションを選択</h4>
-      <div class="form-area">
-        <p>追加するアクションの種類を選択してください:</p>
-        <ul class="action-type-list">
-          <li v-for="(entry, key) in registry" :key="key">
-            <button @click="selectType(key)">{{ entry.label }}</button>
-          </li>
-        </ul>
-      </div>
-      <div class="buttons">
-        <button @click="onCancel" class="cancel">閉じる</button>
-      </div>
-    </div>
-  </div>
+  <UiDialog :model-value="show" title="アクションを選択" size="sm" nested @close="onCancel">
+    <p class="form-area">追加するアクションの種類を選択してください:</p>
+    <ul class="action-type-list">
+      <li v-for="(entry, key) in registry" :key="key">
+        <UiButton class="action-type-btn" @click="selectType(key)">{{ entry.label }}</UiButton>
+      </li>
+    </ul>
+    <template #footer>
+      <UiButton @click="onCancel">閉じる</UiButton>
+    </template>
+  </UiDialog>
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { uiActionEntries } from '../app-events/registry';
 import type { UIActionEntry } from '../app-events/ui-action-entry';
 
@@ -42,30 +38,20 @@ function onCancel() {
 </script>
 
 <style scoped>
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.modal {
-  background: #222;
-  color: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  width: 520px;
-}
-
 .form-area {
-  margin: 10px 0;
+  margin: 0 0 var(--ui-space-3, 12px);
 }
 
-.buttons {
+.action-type-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: var(--ui-space-2, 8px);
+}
+
+.action-type-btn {
+  width: 100%;
 }
 </style>

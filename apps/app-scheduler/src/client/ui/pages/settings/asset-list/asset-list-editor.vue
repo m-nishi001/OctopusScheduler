@@ -53,57 +53,47 @@
 
         <div v-else class="empty-state">アセットはありません</div>
 
-        <div v-if="showAddModal" class="modal-overlay">
-            <div class="modal-content">
-                <h3>アセットを追加</h3>
-                <p>追加するファイルを選択してください。</p>
-                <input ref="fileInput" type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
-                    class="admin-input" :disabled="uploading" />
+        <UiDialog :model-value="showAddModal" title="アセットを追加" size="md" :persistent="uploading"
+            confirm-label="追加" :loading="uploading" :confirm-disabled="!selectedFiles.length"
+            @confirm="confirmAdd" @cancel="closeAddModal" @close="closeAddModal">
+            <p class="modal-lead">追加するファイルを選択してください。</p>
+            <input ref="fileInput" type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
+                class="admin-input" :disabled="uploading" />
 
-                <div class="selected-files" v-if="selectedFiles.length">
-                    <strong>選択中（{{ selectedFiles.length }}）:</strong>
-                    <ul>
-                        <li v-for="(f, idx) in selectedFiles" :key="f.name + '-' + idx">
-                            <div class="modal-file-row">
-                                <span class="file-name">{{ f.name }}</span>
-                                <span class="file-size">({{ f.size }} bytes)</span>
-                                <span class="file-status" v-if="uploading">(保存中...)</span>
-                            </div>
-                        </li>
-                    </ul>
-                </div>
-
-                <div class="modal-actions">
-                    <button class="admin-btn" @click="confirmAdd"
-                        :disabled="!selectedFiles.length || uploading">追加</button>
-                    <button class="admin-btn" @click="closeAddModal" :disabled="uploading">キャンセル</button>
-                </div>
+            <div class="selected-files" v-if="selectedFiles.length">
+                <strong>選択中（{{ selectedFiles.length }}）:</strong>
+                <ul>
+                    <li v-for="(f, idx) in selectedFiles" :key="f.name + '-' + idx">
+                        <div class="modal-file-row">
+                            <span class="file-name">{{ f.name }}</span>
+                            <span class="file-size">({{ f.size }} bytes)</span>
+                            <span class="file-status" v-if="uploading">(保存中...)</span>
+                        </div>
+                    </li>
+                </ul>
             </div>
-        </div>
+        </UiDialog>
 
         <!-- per-screen sync removed: background sync (useBackgroundSync) runs automatically -->
 
         <!-- Drive->Local replace flow removed (use Bulk Sync which handles backups and confirmations) -->
 
-        <div v-if="previewAsset" class="modal-overlay" @click.self="closePreview">
-            <div class="modal-content">
-                <div v-if="previewAssetType === 'image'">
-                    <img :src="previewAsset.url" alt="preview" style="max-width:80vw;max-height:70vh" />
-                </div>
-                <div v-else-if="previewAssetType === 'audio'">
-                    <audio :src="previewAsset.url" controls />
-                </div>
-                <div v-else-if="previewAssetType === 'video'">
-                    <video :src="previewAsset.url" controls style="max-width:80vw;max-height:70vh" />
-                </div>
-                <button class="close-btn" @click="closePreview">閉じる</button>
-            </div>
-        </div>
+        <UiDialog :model-value="!!previewAsset" title="プレビュー" size="lg" @close="closePreview">
+            <template v-if="previewAsset">
+                <img v-if="previewAssetType === 'image'" :src="previewAsset.url" alt="preview" class="preview-media" />
+                <audio v-else-if="previewAssetType === 'audio'" :src="previewAsset.url" controls />
+                <video v-else-if="previewAssetType === 'video'" :src="previewAsset.url" controls class="preview-media" />
+            </template>
+            <template #footer>
+                <UiButton @click="closePreview">閉じる</UiButton>
+            </template>
+        </UiDialog>
 
     </div>
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../control/asset/asset-service';
@@ -591,88 +581,15 @@ function deriveAssetKind(asset: any): string {
     vertical-align: middle;
 }
 
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.modal-lead {
+    margin: 0 0 var(--ui-space-3, 12px);
+    color: var(--ui-text-muted, #cfd6dd);
 }
 
-.modal-content {
-    background: #232b36;
-    color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    max-width: 720px;
-    width: 90%;
-}
-
-/* Improved modal layout for sync direction dialog */
-.modal-content h3 {
-    margin: 0 0 8px 0;
-    font-size: 1.25rem;
-    font-weight: 800;
-}
-
-.modal-content p {
-    margin: 0 0 16px 0;
-    color: rgba(255, 255, 255, 0.85);
-    line-height: 1.45;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 10px;
-}
-
-.modal-actions .admin-btn {
-    padding: 10px 18px;
-    border-radius: 999px;
-    min-width: 160px;
-    font-weight: 700;
-    font-size: 0.98rem;
-    letter-spacing: 0.02em;
-    /* unified secondary color for all buttons */
-    background: linear-gradient(180deg, rgba(110, 120, 140, 0.10), rgba(80, 90, 110, 0.04));
-    border: 1px solid rgba(110, 120, 140, 0.14);
-    color: #e9eef8;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
-    transition: transform .12s ease, box-shadow .12s ease;
-}
-
-.modal-actions .admin-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.62);
-}
-
-.modal-actions .admin-btn.sync-btn,
-.modal-actions .admin-btn.delete-btn {
-    /* same secondary appearance (no separate primary style) */
-    background: linear-gradient(180deg, rgba(110, 120, 140, 0.10), rgba(80, 90, 110, 0.04));
-    border: 1px solid rgba(110, 120, 140, 0.14);
-    color: #e9eef8;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
-}
-
-/* Responsive: stack actions on narrow viewports */
-@media (max-width: 480px) {
-    .modal-content {
-        padding: 18px;
-    }
-
-    .modal-actions {
-        flex-direction: column;
-    }
-
-    .modal-actions .admin-btn {
-        width: 100%;
-        min-width: unset;
-    }
+.preview-media {
+    display: block;
+    max-width: 100%;
+    max-height: 70dvh;
+    margin: 0 auto;
 }
 </style>

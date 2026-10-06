@@ -1,56 +1,51 @@
 <template>
-    <div v-if="show" class="dialog-overlay" @click="closeDialog">
-        <div class="dialog" @click.stop>
-            <h3>{{ editingShortcut ? '編集' : '追加' }} キーボードショートカット</h3>
-            <div class="form-group">
-                <label>キー組み合わせ:</label>
-                <div class="key-input-section">
-                    <input readonly class="captured-keys"
-                        :value="capturedKeys.length > 0 ? capturedKeys.join(' + ') : ''"
-                        placeholder="ここをクリックしてキーボードショートカットを入力してください" @focus="startKeyCapture" @blur="stopKeyCapture" />
-
-                    <div class="button-group">
-                        <button @click="clearKeys" class="clear-btn">クリア</button>
-                    </div>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>アクション一覧:</label>
-                <div class="actions-list">
-                    <action-item-summary v-for="(action, idx) in actions" :key="keyFor(action, idx)" :action="action"
-                        :index="idx" :length="actions.length" @edit="openActionManager" @move-up="moveUp"
-                        @move-down="moveDown" @remove="removeAction" />
-                </div>
-                <div class="add-action">
-                    <button @click="addAction">アクションを追加</button>
-                </div>
-            </div>
-
-            <!-- Dialog area: mounted only when dialogOpen is true -->
-            <div v-if="dialogOpen" class="dialog-content">
-                <!-- Selection UI inside parent dialog -->
-                <event-selection-dialog v-if="selectionOpen" :show="true" @select-type="onTypeSelected"
-                    @cancel="onDialogCancel" />
-
-                <!-- Legacy inline form (kept for compatibility) -->
-                <component v-if="!selectionOpen && dialogInitialData && !editorDialogOpen"
-                    :is="getFormComponent(dialogInitialData.actionType)" :initialData="dialogInitialData"
-                    @save="onEditorSave" @cancel="onDialogCancel" ref="currentEditor" />
-            </div>
-
-            <!-- Editor modal (separate overlay) -->
-            <action-editor-dialog ref="actionEditorRef" v-if="editorDialogOpen" :show="editorDialogOpen"
-                :initialData="editorInitialData" @save="onEditorSave" @cancel="closeEditorDialog" />
-            <div class="dialog-buttons">
-                <button @click="saveShortcut" class="save-btn">保存</button>
-                <button @click="closeDialog" class="cancel-btn">キャンセル</button>
+    <UiDialog :model-value="show" :title="`${editingShortcut ? '編集' : '追加'} キーボードショートカット`" size="lg"
+        :close-on-overlay="false" :close-on-escape="!capturing" @close="closeDialog">
+        <div class="form-group">
+            <label>キー組み合わせ:</label>
+            <div class="key-input-section">
+                <input readonly class="captured-keys" :value="capturedKeys.length > 0 ? capturedKeys.join(' + ') : ''"
+                    placeholder="ここをクリックしてキーボードショートカットを入力してください" @focus="onCaptureFocus"
+                    @blur="onCaptureBlur" />
+                <UiButton size="sm" @click="clearKeys">クリア</UiButton>
             </div>
         </div>
-    </div>
+        <div class="form-group">
+            <label>アクション一覧:</label>
+            <div class="actions-list">
+                <action-item-summary v-for="(action, idx) in actions" :key="keyFor(action, idx)" :action="action"
+                    :index="idx" :length="actions.length" @edit="openActionManager" @move-up="moveUp"
+                    @move-down="moveDown" @remove="removeAction" />
+            </div>
+            <div class="add-action">
+                <UiButton icon="add" @click="addAction">アクションを追加</UiButton>
+            </div>
+        </div>
+
+        <!-- Dialog area: mounted only when dialogOpen is true -->
+        <div v-if="dialogOpen" class="dialog-content">
+            <!-- Selection UI inside parent dialog -->
+            <event-selection-dialog v-if="selectionOpen" :show="true" @select-type="onTypeSelected"
+                @cancel="onDialogCancel" />
+
+            <!-- Legacy inline form (kept for compatibility) -->
+            <component v-if="!selectionOpen && dialogInitialData && !editorDialogOpen"
+                :is="getFormComponent(dialogInitialData.actionType)" :initialData="dialogInitialData"
+                @save="onEditorSave" @cancel="onDialogCancel" ref="currentEditor" />
+        </div>
+
+        <!-- Editor modal (nested dialog) -->
+        <action-editor-dialog ref="actionEditorRef" v-if="editorDialogOpen" :show="editorDialogOpen"
+            :initialData="editorInitialData" @save="onEditorSave" @cancel="closeEditorDialog" />
+        <template #footer>
+            <UiButton @click="closeDialog">キャンセル</UiButton>
+            <UiButton variant="primary" @click="saveShortcut">保存</UiButton>
+        </template>
+    </UiDialog>
 </template>
 
 <script setup lang="ts">
-import { toast } from '@octopus/ui-kit';
+import { toast, UiButton, UiDialog } from '@octopus/ui-kit';
 import { ref, watch, nextTick } from 'vue';
 import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { useKeyCapture } from './composables/useKeyCapture';
@@ -77,6 +72,17 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 const { capturedKeys, startKeyCapture, stopKeyCapture, clearKeys } = useKeyCapture();
+
+// キー取得中は Escape をショートカットとして取り込むため、ダイアログを閉じない
+const capturing = ref(false);
+const onCaptureFocus = () => {
+    capturing.value = true;
+    startKeyCapture();
+};
+const onCaptureBlur = () => {
+    capturing.value = false;
+    stopKeyCapture();
+};
 
 const actions = ref<Array<AppEventDto>>([]);
 const formRefs: Record<number, any> = {};
@@ -299,82 +305,9 @@ const keyFor = (a: AppEventDto | null | undefined, idx: number) => {
 </script>
 
 <style scoped>
-.dialog-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.dialog {
-    background: #333;
-    color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    width: 600px;
-    height: 400px;
-    max-width: 90%;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-}
-
-.dialog h3 {
-    margin-top: 0;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-.form-group input,
-.form-group select,
-.form-group button {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #555;
-    border-radius: 4px;
-    background: #444;
-    color: #fff;
-}
-
-.dialog-buttons {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-}
-
-.save-btn,
-.cancel-btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.save-btn {
-    background: #28a745;
-    color: white;
-}
-
-.cancel-btn {
-    background: #6c757d;
-    color: white;
-}
-
 .key-input-section {
     display: flex;
-    gap: 10px;
+    gap: var(--ui-space-2, 8px);
     align-items: center;
 }
 
@@ -382,47 +315,7 @@ const keyFor = (a: AppEventDto | null | undefined, idx: number) => {
     flex: 1;
 }
 
-.button-group {
-    flex-shrink: 0;
-}
-
-.clear-btn {
-    width: auto;
-}
-
-.start-btn,
-.stop-btn,
-.clear-btn {
-    padding: 8px 16px;
-    border: 1px solid #666;
-    border-radius: 4px;
-    background: #fff;
-    color: #222;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.start-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-.stop-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-.clear-btn {
-    background: #6c757d;
-    color: white;
-}
-
-.clear-btn:disabled {
-    background: #444;
-    cursor: not-allowed;
-}
-
-.form-content {
-    flex-grow: 1;
+.add-action {
+    margin-top: var(--ui-space-2, 8px);
 }
 </style>
