@@ -31,12 +31,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
-
-const channel = new BroadcastChannel('octopus-control');
 
 const goToSettings = () => router.push({ name: 'settings' });
 const goToExecute = () => router.push('/execute');
@@ -52,25 +49,6 @@ const goToCardGame = () => {
     // Navigate to the card game page within the same tab
     router.push('/card-home');
 };
-
-const handleKeydown = (event: KeyboardEvent) => {
-    // ショートカットキーの例: Ctrl+1 でイベント送信
-    // Replace legacy SHOW_IMAGE with new AppEventDto ({ actionType, eventId })
-    if (event.ctrlKey && event.key === '1') {
-        console.debug('[home-view] shortcut detected: sending AppEventDto start for sample', { id: 'sample' });
-        channel.postMessage({ actionType: 'start', eventId: 'sample' });
-    }
-    // 他のショートカットも追加可能
-};
-
-onMounted(() => {
-    window.addEventListener('keydown', handleKeydown);
-});
-
-onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeydown);
-    channel.close();
-});
 </script>
 
 <style scoped>

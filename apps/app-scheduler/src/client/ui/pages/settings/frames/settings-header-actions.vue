@@ -1,17 +1,29 @@
 <template>
     <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError"
-        @backup="onDownloadBackup" @home="router.push({ name: 'home' })" />
+        @backup="onDownloadBackup" @home="router.push({ name: 'home' })">
+        <UiButton icon="external" size="sm" title="投影用の実行画面を新しいタブで開きます。ショートカットの結果はここに表示されます" @click="openExecute">実行画面を開く</UiButton>
+        <UiButton icon="help" size="sm" @click="helpOpen = true">ヘルプ</UiButton>
+    </HeaderActions>
+    <SettingsHelpDialog v-model="helpOpen" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { HeaderActions } from '@octopus/ui-kit';
+import { HeaderActions, UiButton } from '@octopus/ui-kit';
+import SettingsHelpDialog from '../help/settings-help-dialog.vue';
 import { useRouter } from 'vue-router';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
 const router = useRouter();
 const { status, lastError } = useBackgroundSync();
+
+const helpOpen = ref(false);
+
+function openExecute() {
+    // hash history のため、href は #/execute 形式になる
+    window.open(router.resolve('/execute').href, '_blank');
+}
 
 const downloadingBackup = ref(false);
 

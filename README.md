@@ -53,6 +53,14 @@ packages/
 - データ取得は `useCachedResource` / `useCachedCollection` で「IndexedDB 即表示 → 背景更新、書き込みは楽観的更新」とし、通信待ちを画面に出さない
 - ゲーム系パッケージは「単体 Vite アプリ」と「ホストに合成される機能モジュール」の二役を公開 API で分離
 
+## 使い方(設定画面 → 実行画面)
+
+1. 設定画面で **アセット** を登録し、**イベント**(何を流すか)を作り、**ショートカット** でキーに割り当てる
+2. ホームの「実行画面へ」または設定画面ヘッダーの「実行画面を開く」で、投影用の `/execute` を別タブ/別ウィンドウで開いておく(キー操作は BroadcastChannel で実行画面へ送られるため、開いていないと何も表示されない)
+3. 設定画面やクイズ画面でキーを押すと実行画面に反映される
+
+ショートカットの仕様: 最大3キー(押した順を区別)/ 1.5秒入力が途絶えるとリセット / 長いショートカットと前方一致する場合は0.4秒待って確定 / `Esc` は予約で全音声停止 / 文字入力欄にフォーカス中は無効。クイズ進行は各画面で `Enter` が次画面へ。画面ごとの案内は設定画面右上の「ヘルプ」(`settings/help/help-content.ts`)。
+
 ## Setup and Deployment
 
 アセットや JSON は、環境を問わず `<module>/<kind>/<name>`（例: `octopus-scheduler/assets/1_a.png`, `quiz-game/json/quizzes.json`）というルート相対パスで保存されます。パスの組み立ては `packages/infrastructures/src/compositions/storage-paths.ts` に集約されており、各環境のアダプタが実体に対応付けます。

@@ -19,8 +19,12 @@ export function registerKeyboardShortcutListener(): () => void {
   let sequence: string[] = [];
   let sequenceTimer: number | null = null;
   let pendingExecutionTimer: number | null = null;
+  // 設定画面のキー入力(useKeyCapture)と同じ値を使うこと。ユーザー向け説明は settings/help/help-content.ts
   const MAX_KEYS = 3;
+  // この時間キー入力が途絶えたら途中までの入力を破棄する
   const SEQUENCE_TIMEOUT_MS = 1500;
+  // 「Ctrl→1」と「Ctrl→1→2」のように前方一致する長いショートカットがある場合、
+  // 短い方を即実行せず、続きの入力が来ないかこの時間だけ待つ
   const PENDING_TIMEOUT_MS = 400;
 
   const handler = async (event: KeyboardEvent) => {
@@ -31,6 +35,7 @@ export function registerKeyboardShortcutListener(): () => void {
     )
       return;
 
+    // ESCは予約キー(有効/無効設定に関わらず常に全停止)。ショートカットには割り当てられない。
     // ESC押下では画面遷移は行わず、再生停止のみ行う
     if (event.key === "Escape") {
       try {

@@ -1,12 +1,17 @@
 <template>
     <div class="form-group">
         <label>遷移URL:</label>
-        <input v-model="formData.transitionUrl" type="text" placeholder="/jackpot-game" />
+        <input v-model="formData.transitionUrl" type="text" list="transition-url-presets" placeholder="/quiz-admin" />
+        <datalist id="transition-url-presets">
+            <option v-for="p in TRANSITION_URL_PRESETS" :key="p.value" :value="p.value">{{ p.label }}</option>
+        </datalist>
+        <small>実行画面を切り替える先のパスです。クイズは /quiz/クイズID/intro の形式です。</small>
     </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
+import { TRANSITION_URL_PRESETS } from '../../../help/help-content';
 import type { TransitionPageEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
 
 type Props = {
