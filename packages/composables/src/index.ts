@@ -3,3 +3,6 @@ export * from './use-audio';
 export * from './use-localstorage';
 export * from './use-polling';
 export * from './use-debounce';
+export * from './use-cached-resource';
+export * from './use-cached-collection';
+export * from './use-background-sync-core';
