@@ -1,37 +1,29 @@
 <template>
     <div class="quiz-list">
-        <div class="content">
-            <div class="actions">
-                <div class="action-buttons">
-                    <button class="btn-add" @click="addQuiz">
-                        新規クイズ追加
-                    </button>
+        <UiToolbar>
+            <UiButton variant="primary" icon="add" @click="addQuiz">新規クイズ追加</UiButton>
+            <span class="ui-toolbar__spacer count">総クイズ数: {{ quizzes.length }}</span>
+        </UiToolbar>
+        <DataTable :columns="columns" :rows="quizzes" row-key="id" :loading="loading" empty-text="クイズがありません">
+            <template #cell-id="{ row }">
+                <button type="button" class="quiz-id" title="クリックしてIDをコピー" @click="copyToClipboard(row.id)">{{
+                    row.id.substring(0, 8) }}</button>
+            </template>
+            <template #cell-title="{ row }">
+                <div class="quiz-title">{{ row.title }}</div>
+                <div class="quiz-question">{{ row.question }}</div>
+            </template>
+            <template #cell-optionCount="{ row }">{{ row.options.length }}</template>
+            <template #cell-timeLimit="{ row }">{{ row.timeLimit }}秒</template>
+            <template #cell-actions="{ row }">
+                <div class="row-actions">
+                    <UiButton size="sm" icon="edit" icon-only aria-label="編集" @click="editQuiz(indexOf(row))" />
+                    <UiButton size="sm" icon="play" icon-only aria-label="プレビュー" @click="previewQuiz(indexOf(row))" />
+                    <UiButton size="sm" variant="danger" icon="delete" icon-only aria-label="削除"
+                        @click="deleteQuiz(indexOf(row))" />
                 </div>
-                <div class="count">
-                    総クイズ数: {{ quizzes.length }}
-                </div>
-            </div>
-            <div v-if="copiedMessage" class="copied-message">{{ copiedMessage }}</div>
-            <DataTable :columns="columns" :rows="quizzes">
-                <template #cell-id="{ row }">
-                    <span class="quiz-id" title="クリックしてIDをコピー" @click="copyToClipboard(row.id)">{{
-                        row.id.substring(0, 8) }}</span>
-                </template>
-                <template #cell-title="{ row }">
-                    <div class="quiz-title">{{ row.title }}</div>
-                    <div class="quiz-question">{{ row.question }}</div>
-                </template>
-                <template #cell-optionCount="{ row }">{{ row.options.length }}</template>
-                <template #cell-timeLimit="{ row }">{{ row.timeLimit }}秒</template>
-                <template #cell-actions="{ index }">
-                    <div class="action-buttons">
-                        <button class="btn-edit" @click="editQuiz(index)">編集</button>
-                        <button class="btn-delete" @click="deleteQuiz(index)">削除</button>
-                        <button class="btn-preview" @click="previewQuiz(index)">プレビュー</button>
-                    </div>
-                </template>
-            </DataTable>
-        </div>
+            </template>
+        </DataTable>
 
         <QuizModal v-if="showModal" :isEditing="isEditing" :currentQuiz="currentQuiz" @save="handleSave"
             @close="closeModal" />
@@ -42,7 +34,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
-import { DataTable, type DataTableColumn } from '@octopus/ui-kit';
+import { DataTable, UiButton, UiToolbar, toast, useConfirm, type DataTableColumn } from '@octopus/ui-kit';
 import QuizModal from './quiz-modal.vue';
 import { GetAllQuizzesUseCase } from '../../../../control/use-cases/get-all-quizzes-use-case';
 import { AddQuizUseCase } from '../../../../control/use-cases/add-quiz-use-case';
@@ -66,6 +58,9 @@ const columns: DataTableColumn[] = [
 ];
 
 const quizzes = ref<QuizDto[]>([]);
+const loading = ref(true);
+const { confirmDelete } = useConfirm();
+const indexOf = (row: QuizDto) => quizzes.value.findIndex((q) => q.id === row.id);
 
 const showModal = ref(false);
 const isEditing = ref(false);
@@ -85,14 +80,15 @@ const currentQuiz = ref<QuizDto>({
     },
 });
 
-const copiedMessage = ref('');
-
 onMounted(async () => {
     try {
         const dtos = await getAllQuizzesUseCase.execute();
         quizzes.value = dtos;
     } catch (error) {
         console.error('クイズ一覧取得エラー:', error);
+        toast.error('クイズ一覧の取得に失敗しました');
+    } finally {
+        loading.value = false;
     }
 });
 
@@ -123,12 +119,14 @@ const editQuiz = (index: number) => {
 };
 
 const deleteQuiz = async (index: number) => {
+    const quiz = quizzes.value[index];
+    if (!(await confirmDelete(`「${quiz.title || quiz.id.substring(0, 8)}」を削除しますか?`))) return;
     try {
-        const quiz = quizzes.value[index];
         await deleteQuizUseCase.execute({ id: quiz.id });
         quizzes.value.splice(index, 1);
     } catch (error) {
         console.error('削除エラー:', error);
+        toast.error('削除に失敗しました');
     }
 };
 
@@ -155,6 +153,7 @@ const handleSave = async (quiz: QuizDto) => {
         closeModal();
     } catch (error) {
         console.error('保存エラー:', error);
+        toast.error('保存に失敗しました');
     }
 };
 
@@ -165,10 +164,10 @@ const closeModal = () => {
 const copyToClipboard = async (text: string) => {
     try {
         await navigator.clipboard.writeText(text);
-        copiedMessage.value = 'IDをコピーしました';
-        setTimeout(() => copiedMessage.value = '', 2000);
+        toast.success('IDをコピーしました');
     } catch (err) {
         console.error('コピー失敗:', err);
+        toast.error('コピーに失敗しました');
     }
 };
 
@@ -180,95 +179,33 @@ const previewQuiz = (index: number) => {
 </script>
 
 <style scoped>
-.content {
-    background-color: #1f2937;
-    border-radius: 0.5rem;
-    padding: 1rem;
-}
-
-.actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
 .count {
-    color: #9ca3af;
-}
-
-.copied-message {
-    color: #10b981;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    text-align: center;
+    color: var(--ui-text-muted, #cfd6dd);
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .quiz-id {
-    color: #60a5fa;
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ui-accent, #aee1ff);
     font-family: monospace;
+    font-size: var(--ui-font-sm, 0.875rem);
     cursor: pointer;
-}
-
-.quiz-id:hover {
-    color: #93c5fd;
 }
 
 .quiz-title {
-    font-weight: 600;
-    color: white;
+    font-weight: 700;
 }
 
 .quiz-question {
-    color: #9ca3af;
-    font-size: 0.875rem;
-    overflow-wrap: anywhere;
+    color: var(--ui-text-muted, #cfd6dd);
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
-.btn-add,
-.btn-edit,
-.btn-delete,
-.btn-preview {
-    color: white;
-    font-weight: 600;
-    padding: 0.35rem 0.75rem;
-    border-radius: 0.25rem;
-    border: none;
-    cursor: pointer;
-    font-size: 0.9rem;
-}
-
-.btn-add,
-.btn-preview {
-    background-color: #10b981;
-}
-
-.btn-add:hover,
-.btn-preview:hover {
-    background-color: #059669;
-}
-
-.btn-edit {
-    background-color: #3b82f6;
-}
-
-.btn-edit:hover {
-    background-color: #2563eb;
-}
-
-.btn-delete {
-    background-color: #ef4444;
-}
-
-.btn-delete:hover {
-    background-color: #dc2626;
-}
-
-.action-buttons {
+.row-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--ui-space-2, 8px);
 }
 </style>
