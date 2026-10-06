@@ -28,6 +28,7 @@ export const QUIZ_GAME_ENDPOINTS = [
   "getAcceptanceState",
   "submitAnswer",
   "getAnswers",
+  "getWebAppUrl",
 ] as const;
 
 export type QuizGameEndpointName = (typeof QUIZ_GAME_ENDPOINTS)[number];
@@ -192,6 +193,12 @@ export interface QuizGameApi {
   ): Promise<AcceptanceState>;
   submitAnswer(args: SubmitAnswerArgs, options?: ApiCallOptions): Promise<SubmittedAnswer>;
   getAnswers(args: GetAnswersArgs, options?: ApiCallOptions): Promise<SubmittedAnswer[]>;
+  /**
+   * 参加者がスマホで開けるWebアプリの公開URL。GASのiframe内ではwindow.locationが
+   * 内側のサンドボックスURL(userCodeAppPanel)になり単独では開けないため、サーバーから取得する。
+   * 取得できない環境(Cloudflare等)ではnullを返し、クライアントはwindow.locationで代替する。
+   */
+  getWebAppUrl(args?: undefined, options?: ApiCallOptions): Promise<{ url: string | null }>;
 }
 
 /** `QuizGameApi` をDI解決するためのトークン。 */

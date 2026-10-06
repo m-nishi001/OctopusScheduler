@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { buildParticipantJoinUrl } from "./participant-url";
+import { buildParticipantJoinUrl, buildParticipantJoinUrlFromBase } from "./participant-url";
+
+describe("buildParticipantJoinUrlFromBase", () => {
+  it("uses the public web app URL instead of the GAS sandbox iframe URL", () => {
+    const url = buildParticipantJoinUrlFromBase("q1", "https://script.google.com/macros/s/abc/exec");
+    expect(url).toBe("https://script.google.com/macros/s/abc/exec#/quiz/q1/join");
+  });
+
+  it("drops any existing hash from the base URL", () => {
+    const url = buildParticipantJoinUrlFromBase("q1", "https://example.com/app#/home");
+    expect(url).toBe("https://example.com/app#/quiz/q1/join");
+  });
+
+  it("falls back to window.location when no base URL is available", () => {
+    expect(buildParticipantJoinUrlFromBase("q1", null)).toBe(buildParticipantJoinUrl("q1"));
+  });
+});
 
 describe("buildParticipantJoinUrl", () => {
   it("builds a hash-route URL under the current deployment path", () => {
