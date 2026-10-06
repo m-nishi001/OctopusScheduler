@@ -14,8 +14,8 @@
                     <div v-if="localConfig.homeBgmMode === 'upload' && localConfig.homeBgmFilename" class="file-name">{{
                         localConfig.homeBgmFilename }}</div>
                     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
-                        <button class="admin-btn" @click.prevent="previewHomeBgm" :disabled="previewing">プレビュー</button>
-                        <button class="admin-btn" @click.prevent="stopPreview" :disabled="!previewing">停止</button>
+                        <UiButton @click.prevent="previewHomeBgm" :disabled="previewing">プレビュー</UiButton>
+                        <UiButton @click.prevent="stopPreview" :disabled="!previewing">停止</UiButton>
                         <div style="color:#fff;font-size:0.9rem;">{{ previewStatus }}</div>
                     </div>
                     <select v-if="localConfig.homeBgmMode === 'select'" v-model="localConfig.homeBgm"
@@ -37,8 +37,8 @@
                     <div v-if="localConfig.buttonClikingSEMode === 'upload' && localConfig.buttonClikingSEFilename"
                         class="file-name">{{ localConfig.buttonClikingSEFilename }}</div>
                     <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
-                        <button class="admin-btn" @click.prevent="previewButtonSE" :disabled="previewing">プレビュー</button>
-                        <button class="admin-btn" @click.prevent="stopPreview" :disabled="!previewing">停止</button>
+                        <UiButton @click.prevent="previewButtonSE" :disabled="previewing">プレビュー</UiButton>
+                        <UiButton @click.prevent="stopPreview" :disabled="!previewing">停止</UiButton>
                     </div>
                     <select v-if="localConfig.buttonClikingSEMode === 'select'" v-model="localConfig.buttonClikingSE"
                         class="admin-input">
@@ -58,10 +58,8 @@
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
-                <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving || uploading"
-                    :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
-                <button class="admin-btn mt-4" @click="handleClearClick" :disabled="saving || uploading"
-                    :style="{ opacity: (saving || uploading) ? 0.6 : 1 }">クリア</button>
+                <UiButton @click="handleSaveClick" :disabled="saving || uploading">保存</UiButton>
+                <UiButton @click="handleClearClick" :disabled="saving || uploading">クリア</UiButton>
                 <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
 
@@ -80,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { UiBusyOverlay } from '@octopus/ui-kit';
+import { UiBusyOverlay, UiButton } from '@octopus/ui-kit';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
@@ -400,7 +398,7 @@ const handleCancelDiscard = () => {
 
 .screen-config h3 {
     margin-bottom: 16px;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .config-item {
@@ -411,25 +409,25 @@ const handleCancelDiscard = () => {
     display: block;
     margin-bottom: 8px;
     font-weight: bold;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .content-item,
 .slide-item {
-    border: 1px solid #555;
+    border: 1px solid var(--ui-border, #3a4048);
     padding: 16px;
     margin-bottom: 16px;
     border-radius: 8px;
-    background: #333;
+    background: var(--ui-surface, #2b3036);
 }
 
 .admin-input {
     padding: 10px 16px;
     border-radius: 8px;
     border: none;
-    background: #232b36;
-    color: #fff;
-    font-size: 1rem;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text, #fff);
+    font-size: var(--ui-font-md, 1rem);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     margin-bottom: 8px;
     width: 100%;
@@ -437,21 +435,6 @@ const handleCancelDiscard = () => {
 
 .admin-input:focus {
     outline: 2px solid #4f8cff;
-}
-
-.admin-btn {
-    padding: 10px 24px;
-    border-radius: 8px;
-    border: none;
-    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-    color: #232b36;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.admin-btn:hover {
-    background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
 }
 
 .asset-mode {
@@ -464,7 +447,7 @@ const handleCancelDiscard = () => {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 textarea.admin-input {

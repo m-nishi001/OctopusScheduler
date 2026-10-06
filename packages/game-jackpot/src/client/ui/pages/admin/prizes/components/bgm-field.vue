@@ -133,22 +133,22 @@ const onTogglePlay = async () => {
 .field-label {
     color: #dbeeff;
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .admin-input {
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--ui-border, #3a4048);
     border-radius: 8px;
     padding: 10px 14px;
-    font-size: 15px;
-    color: #fff;
+    font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-text, #fff);
     transition: box-shadow .15s ease, border-color .15s ease;
 }
 
 .admin-input:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.16);
+    border-color: var(--ui-border, #3a4048);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) inset, 0 0 0 3px rgba(88, 156, 255, 0.06);
 }
 
@@ -207,10 +207,10 @@ const onTogglePlay = async () => {
     height: 36px;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--ui-text, #fff);
+    border: 1px solid var(--ui-border, #3a4048);
     cursor: pointer;
-    font-size: 16px;
+    font-size: var(--ui-font-md, 1rem);
 }
 
 .play-icon:active {

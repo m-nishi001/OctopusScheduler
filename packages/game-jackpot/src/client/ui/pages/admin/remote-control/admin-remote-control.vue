@@ -116,20 +116,20 @@ const advance = async () => {
 
 <style scoped>
 .remote-control-page {
-  color: #fff;
+  color: var(--ui-text, #fff);
   padding: 16px;
   box-sizing: border-box;
   max-width: 640px;
 }
 
 .hint {
-  color: #cfe8ff;
-  font-size: 0.9rem;
+  color: var(--ui-text-muted, #cfd6dd);
+  font-size: var(--ui-font-sm, 0.875rem);
   line-height: 1.5;
 }
 
 .current-status {
-  background: #2a3137;
+  background: var(--ui-surface, #2b3036);
   border-radius: 8px;
   padding: 12px 16px;
   margin: 16px 0;
@@ -140,13 +140,13 @@ const advance = async () => {
 }
 
 .status-label {
-  color: #cfe8ff;
-  font-size: 0.9rem;
+  color: var(--ui-text-muted, #cfd6dd);
+  font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .status-value {
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: var(--ui-font-md, 1rem);
   color: #4ea1ff;
 }
 
@@ -163,10 +163,10 @@ const advance = async () => {
   min-height: 56px;
   padding: 12px 16px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #232b36;
-  color: #fff;
-  font-size: 1rem;
+  border: 1px solid var(--ui-border, #3a4048);
+  background: var(--ui-surface, #2b3036);
+  color: var(--ui-text, #fff);
+  font-size: var(--ui-font-md, 1rem);
   font-weight: 600;
   cursor: pointer;
 }
@@ -189,8 +189,8 @@ const advance = async () => {
   border-radius: 12px;
   border: none;
   background: linear-gradient(90deg, #6d28d9, #ec4899);
-  color: #fff;
-  font-size: 1.2rem;
+  color: var(--ui-text, #fff);
+  font-size: var(--ui-font-lg, 1.2rem);
   font-weight: 800;
   cursor: pointer;
 }
@@ -202,7 +202,7 @@ const advance = async () => {
 }
 
 @media (max-width: 480px) {
-  .screen-btn {
+.screen-btn {
     flex: 1 1 100%;
   }
 }

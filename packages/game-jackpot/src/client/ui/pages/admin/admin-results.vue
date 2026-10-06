@@ -1,11 +1,8 @@
 <template>
     <div class="admin-section">
-        <h2>抽選結果管理</h2>
-        <div class="admin-actions">
-            <button class="admin-btn icon-only reset-icon" @click="openResetModal" title="Reset all draw results">
-                <span class="emoji">♻️</span>
-            </button>
-        </div>
+        <UiToolbar>
+            <UiButton variant="danger" icon="restore" @click="openResetModal">結果をリセット</UiButton>
+        </UiToolbar>
 
         <div class="results-summary">
             <div class="summary-item">
@@ -113,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { UiDialog } from '@octopus/ui-kit';
+import { UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { DrawResultService } from '@control/draw/draw-result-service';
@@ -258,7 +255,7 @@ onUnmounted(() => {
 }
 
 .summary-item {
-    background: #2a3137;
+    background: var(--ui-surface, #2b3036);
     padding: 15px;
     border-radius: 8px;
     text-align: center;
@@ -267,15 +264,15 @@ onUnmounted(() => {
 
 .summary-item h3 {
     margin: 0 0 10px 0;
-    color: #cfe8ff;
-    font-size: 0.9rem;
+    color: var(--ui-text-muted, #cfd6dd);
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .summary-item p {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: var(--ui-font-xl, 1.5rem);
     font-weight: bold;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .result-info {
@@ -302,7 +299,7 @@ onUnmounted(() => {
     color: white;
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 0.8rem;
+    font-size: var(--ui-font-xs, 0.75rem);
 }
 
 .kakuhen-badge {
@@ -310,7 +307,7 @@ onUnmounted(() => {
     color: white;
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 0.8rem;
+    font-size: var(--ui-font-xs, 0.75rem);
 }
 
 .reserved-badge {
@@ -318,7 +315,7 @@ onUnmounted(() => {
     color: white;
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 0.8rem;
+    font-size: var(--ui-font-xs, 0.75rem);
 }
 
 .result-meta {
@@ -333,8 +330,8 @@ onUnmounted(() => {
 }
 
 .stat-count {
-    color: #cfe8ff;
-    font-size: 0.9rem;
+    color: var(--ui-text-muted, #cfd6dd);
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .preview-img {
@@ -346,8 +343,8 @@ onUnmounted(() => {
 .admin-table {
     width: 100%;
     border-collapse: collapse;
-    background: #232b36;
-    color: #fff;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text, #fff);
     border-radius: 8px;
     overflow: hidden;
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
@@ -361,8 +358,8 @@ onUnmounted(() => {
 }
 
 .admin-table th {
-    background: #2a3137;
-    color: #cfe8ff;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text-muted, #cfd6dd);
     font-weight: 600;
 }
 
@@ -376,7 +373,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #2a3137;
+    background: var(--ui-surface, #2b3036);
     border-radius: 6px;
     overflow: hidden;
 }
@@ -387,7 +384,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #2a3137;
+    background: var(--ui-surface, #2b3036);
     border-radius: 6px;
     overflow: hidden;
 }

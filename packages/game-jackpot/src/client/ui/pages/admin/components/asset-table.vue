@@ -1,71 +1,45 @@
 <template>
-  <div>
-    <div v-if="assets.length" class="list-controls">
-      <label class="select-all-label">
-        <input type="checkbox" :checked="isAllSelected" @change="onToggleAll" class="select-all-checkbox" />
-        <span class="sr-only">全選択</span>
-      </label>
-    </div>
-
-    <div v-if="assets.length" class="table-wrap">
-      <table class="asset-table">
-        <thead>
-          <tr>
-            <th class="col-check"><input type="checkbox" :checked="isAllSelected" @change="onToggleAll" /></th>
-            <th class="col-thumb">プレビュー</th>
-            <th>ファイル名</th>
-            <th>アセット種別</th>
-            <th class="col-size">サイズ</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="asset in assets" :key="asset.id">
-            <td><input type="checkbox" :value="asset.id" :checked="selected.includes(asset.id)"
-                @change="onToggleOne(asset.id)" /></td>
-            <td class="thumb-cell">
-              <div class="thumb-wrap" @click.stop="$emit('preview', asset)" title="プレビュー">
-                <img v-if="(asset.blob && asset.blob.type && asset.blob.type.startsWith('image')) && objectUrlMap.get(asset.id)"
-                  :src="objectUrlMap.get(asset.id)" alt="thumb" class="thumb-img" />
-
-                <video
-                  v-else-if="(asset.blob && asset.blob.type && asset.blob.type.startsWith('video')) && objectUrlMap.get(asset.id)"
-                  :src="objectUrlMap.get(asset.id)" class="thumb-video" muted playsinline></video>
-
-                <div v-else-if="(asset.blob && asset.blob.type && asset.blob.type.startsWith('audio'))"
-                  class="thumb-audio">
-                  <span>♪</span>
-                </div>
-
-                <div v-else class="thumb-empty">-</div>
-              </div>
-            </td>
-            <td class="td-name">{{ asset.name }}</td>
-            <td>{{ prettyAssetType(asset.blob?.type) }}</td>
-            <td class="td-size">{{ formatSize(asset.size) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div v-else class="empty-state">
-      アセットはありません
-    </div>
-  </div>
+  <DataTable :columns="columns" :rows="assets" row-key="id" selectable :selected="selected"
+    empty-text="アセットはありません" @update:selected="$emit('update:selected', $event)">
+    <template #cell-thumb="{ row: asset }">
+      <div class="thumb-wrap" title="プレビュー" @click.stop="$emit('preview', asset)">
+        <img v-if="(asset.blob && asset.blob.type && asset.blob.type.startsWith('image')) && objectUrlMap.get(asset.id)"
+          :src="objectUrlMap.get(asset.id)" alt="thumb" class="thumb-img" />
+        <video
+          v-else-if="(asset.blob && asset.blob.type && asset.blob.type.startsWith('video')) && objectUrlMap.get(asset.id)"
+          :src="objectUrlMap.get(asset.id)" class="thumb-video" muted playsinline></video>
+        <div v-else-if="(asset.blob && asset.blob.type && asset.blob.type.startsWith('audio'))" class="thumb-audio">
+          <UiIcon name="play" />
+        </div>
+        <div v-else class="thumb-empty">-</div>
+      </div>
+    </template>
+    <template #cell-type="{ row }">{{ prettyAssetType(row.blob?.type) }}</template>
+    <template #cell-size="{ row }">{{ formatSize(row.size) }}</template>
+  </DataTable>
 </template>
 
 <script setup lang="ts">
+import { DataTable, UiIcon } from '@octopus/ui-kit';
+import type { DataTableColumn } from '@octopus/ui-kit';
 import type { Asset } from '@model/asset/asset-data';
 
-const props = defineProps({
+const columns: DataTableColumn[] = [
+  { key: 'thumb', label: 'プレビュー' },
+  { key: 'name', label: 'ファイル名', sortable: true },
+  { key: 'type', label: 'アセット種別' },
+  { key: 'size', label: 'サイズ' },
+];
+
+defineProps({
   assets: { type: Array as () => Asset[], required: true },
   selected: { type: Array as () => string[], required: true },
-  isAllSelected: { type: Boolean, required: true },
   objectUrlMap: { type: Object as () => Map<string, string>, required: true },
 });
 
-const emit = defineEmits<{
+defineEmits<{
   preview: [asset: Asset];
   'update:selected': [ids: string[]];
-  'update:isAllSelected': [value: boolean];
 }>();
 
 function formatSize(size: number): string {
@@ -81,162 +55,30 @@ function prettyAssetType(mime: string | undefined): string {
   if (mime.startsWith('audio')) return '音楽';
   return mime;
 }
-
-const onToggleAll = (e: Event) => {
-  emit('update:isAllSelected', (e.target as HTMLInputElement).checked);
-};
-
-const onToggleOne = (id: string) => {
-  const next = props.selected.includes(id)
-    ? props.selected.filter((sid) => sid !== id)
-    : [...props.selected, id];
-  emit('update:selected', next);
-};
 </script>
 
 <style scoped>
-.list-controls {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.select-all-checkbox {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-  vertical-align: middle;
-}
-
-.select-all-label {
-  margin-left: 10px;
-}
-
-.empty-state {
-  text-align: center;
-  color: #c9d7e6;
-  font-size: 1.1rem;
-  padding: 40px;
-}
-
-.sr-only {
-  position: absolute !important;
-  height: 1px;
-  width: 1px;
-  overflow: hidden;
-  clip: rect(1px, 1px, 1px, 1px);
-  white-space: nowrap;
-  border: 0;
-  padding: 0;
-  margin: -1px;
-}
-
-.table-wrap {
-  overflow-x: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-}
-
-.asset-table {
-  width: 100%;
-  border-collapse: collapse;
-  color: #fff;
-}
-
-.col-check {
-  width: 2.5rem;
-}
-
-.col-thumb {
-  width: 7rem;
-}
-
-.col-size {
-  width: 6rem;
-}
-
-.td-name {
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 640px) {
-  .asset-table td:nth-child(4),
-  .asset-table th:nth-child(4) {
-    display: none;
-  }
-
-  .thumb-wrap {
-    width: 56px;
-    height: 40px;
-  }
-}
-
-.asset-table thead th {
-  background: #111315;
-  padding: 12px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  text-align: left;
-  font-weight: 700;
-  color: #dbeeff;
-}
-
-.asset-table tbody td {
-  padding: 10px 12px;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.03);
-  vertical-align: middle;
-}
-
-.td-name {
-  font-weight: 700;
-  color: #fff;
-}
-
-.td-size {
-  text-align: right;
-  color: #c9d7e6;
-}
-
-.asset-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.thumb-cell {
-  padding: 6px 8px;
-}
-
 .thumb-wrap {
   width: 96px;
   height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1f262b;
-  border-radius: 4px;
+  background: var(--ui-bg, #23252b);
+  border-radius: var(--ui-radius, 6px);
   overflow: hidden;
   cursor: pointer;
 }
 
-.thumb-img {
-  max-width: 100%;
-  max-height: 100%;
-  display: block;
-}
-
+.thumb-img,
 .thumb-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.thumb-audio {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #cfe8ff;
-  font-weight: 700;
-}
-
+.thumb-audio,
 .thumb-empty {
-  color: #9fb7d6;
+  color: var(--ui-text-muted, #cfd6dd);
 }
 </style>

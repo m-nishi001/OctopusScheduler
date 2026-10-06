@@ -43,7 +43,7 @@ const decrease = () => emit('update:modelValue', clamp((Number(props.modelValue)
 .field-label {
   display: block;
   margin-bottom: 8px;
-  font-size: 15px;
+  font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .rank-control {
@@ -60,10 +60,10 @@ const decrease = () => emit('update:modelValue', clamp((Number(props.modelValue)
   text-align: left;
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--ui-border, #3a4048);
   background: rgba(255, 255, 255, 0.02);
-  color: #fff;
-  font-size: 0.98rem;
+  color: var(--ui-text, #fff);
+  font-size: var(--ui-font-md, 1rem);
   max-width: 100%;
   box-sizing: border-box;
 }
@@ -86,12 +86,12 @@ const decrease = () => emit('update:modelValue', clamp((Number(props.modelValue)
   border-radius: 6px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
   color: #ffffffcc;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--ui-border, #3a4048);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--ui-font-xs, 0.75rem);
   padding: 0 6px;
 }
 

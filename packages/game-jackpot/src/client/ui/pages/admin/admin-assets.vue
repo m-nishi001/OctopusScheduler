@@ -1,21 +1,15 @@
 <template>
     <div class="admin-section">
-        <h2>アセット管理</h2>
-        <div class="admin-actions">
-            <input ref="fileInput" type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
-                style="display:none" />
-            <button type="button" class="admin-btn icon-only add-icon" @click.prevent="triggerFilePicker"
-                title="Add assets">
-                <span class="emoji">➕</span>
-            </button>
-            <button class="admin-btn icon-only delete-icon" @click="deleteSelectedAssets"
-                :disabled="!selectedAssets.length" title="Delete selected">
-                <span class="emoji">🗑️</span>
-            </button>
-        </div>
+        <input ref="fileInput" type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
+            hidden />
+        <UiToolbar>
+            <UiButton variant="primary" icon="add" @click.prevent="triggerFilePicker">追加</UiButton>
+            <UiButton variant="danger" icon="delete" :disabled="!selectedAssets.length"
+                @click="deleteSelectedAssets">選択削除</UiButton>
+        </UiToolbar>
 
-        <AssetTable :assets="assets" v-model:selected="selectedAssets" v-model:is-all-selected="isAllSelected"
-            :object-url-map="objectUrlMap" @preview="openPreview" />
+        <AssetTable :assets="assets" v-model:selected="selectedAssets" :object-url-map="objectUrlMap"
+            @preview="openPreview" />
     </div>
 
     <UiBusyOverlay :visible="deleteAllDeleting" title="全件削除中..." :message="deleteAllMessage" />
@@ -25,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { UiBusyOverlay } from '@octopus/ui-kit';
+import { UiBusyOverlay, UiButton, UiToolbar } from '@octopus/ui-kit';
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -39,7 +33,6 @@ const assetDataService = container.resolve(AssetDataService);
 const {
     assets,
     selectedAssets,
-    isAllSelected,
     deleteAllDeleting,
     deleteAllMessage,
     objectUrlMap,
@@ -153,70 +146,3 @@ onBeforeUnmount(() => {
     disposeObjectUrls();
 });
 </script>
-
-<style scoped>
-.admin-actions {
-    margin-bottom: 18px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.admin-btn {
-    padding: 9px 18px;
-    border-radius: 10px;
-    border: none;
-    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-    color: #232b36;
-    font-weight: 700;
-    cursor: pointer;
-    transition: box-shadow 0.18s, background 0.18s, transform 0.12s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.admin-btn:hover {
-    box-shadow: 0 6px 18px rgba(79, 140, 255, 0.16);
-}
-
-.admin-btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
-.icon-only {
-    padding: 8px;
-    border-radius: 8px;
-    background: transparent;
-    color: #cfe8ff;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.icon-only:hover {
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.add-icon {
-    padding: 10px;
-    border-radius: 12px;
-    background: linear-gradient(180deg, #b6d8ff 0%, #8aaeff 100%);
-    color: #232b36;
-    border: none;
-    box-shadow: 0 6px 18px rgba(79, 140, 255, 0.12);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.add-icon:hover {
-    transform: translateY(-2px);
-}
-
-.icon-only .emoji,
-.add-icon .emoji {
-    font-size: 20px;
-    line-height: 1;
-}
-</style>
