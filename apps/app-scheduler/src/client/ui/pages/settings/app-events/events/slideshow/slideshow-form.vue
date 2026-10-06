@@ -57,9 +57,9 @@ defineExpose({ save, reset });
 .form-group select {
     width: 100%;
     padding: 8px;
-    border: 1px solid #555;
+    border: 1px solid var(--ui-border, #3a4048);
     border-radius: 4px;
-    background: #444;
-    color: #fff;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text, #fff);
 }
 </style>

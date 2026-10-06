@@ -336,10 +336,10 @@ defineExpose({ save, reset });
 .form-group textarea {
     width: 100%;
     padding: 8px;
-    border: 1px solid #555;
+    border: 1px solid var(--ui-border, #3a4048);
     border-radius: 4px;
-    background: #444;
-    color: #fff;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text, #fff);
 }
 
 .content-selection {
@@ -350,12 +350,12 @@ defineExpose({ save, reset });
 
 .upload-button {
     padding: 8px 12px;
-    border: 1px solid #555;
+    border: 1px solid var(--ui-border, #3a4048);
     border-radius: 4px;
-    background: #666;
-    color: #fff;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text, #fff);
     cursor: pointer;
-    font-size: 16px;
+    font-size: var(--ui-font-md, 1rem);
     font-weight: bold;
     width: 40px;
     height: 40px;
@@ -366,12 +366,12 @@ defineExpose({ save, reset });
 
 .preview-button {
     padding: 8px 12px;
-    border: 1px solid #555;
+    border: 1px solid var(--ui-border, #3a4048);
     border-radius: 4px;
-    background: #666;
-    color: #fff;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text, #fff);
     cursor: pointer;
-    font-size: 16px;
+    font-size: var(--ui-font-md, 1rem);
     width: 40px;
     height: 40px;
     display: flex;

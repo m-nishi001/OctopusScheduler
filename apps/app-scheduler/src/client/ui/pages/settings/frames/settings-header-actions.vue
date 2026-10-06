@@ -1,13 +1,12 @@
 <template>
-    <SyncStatusIndicator :status="status" :last-error="lastError" />
-    <button type="button" class="header-btn" :disabled="downloadingBackup" @click="onDownloadBackup">
-        バックアップ
-    </button>
-    <button type="button" class="header-btn" @click="router.push({ name: 'home' })">ホームへ</button>
+    <HeaderActions show-backup :backup-busy="downloadingBackup" @backup="onDownloadBackup" @home="router.push({ name: 'home' })">
+        <SyncStatusIndicator :status="status" :last-error="lastError" />
+    </HeaderActions>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { HeaderActions } from '@octopus/ui-kit';
 import { useRouter } from 'vue-router';
 import SyncStatusIndicator from '../../../components/sync-status-indicator.vue';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
@@ -29,25 +28,3 @@ async function onDownloadBackup() {
     }
 }
 </script>
-
-<style scoped>
-.header-btn {
-    background: transparent;
-    color: #cfd6dd;
-    border: 1px solid #4a5158;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.header-btn:hover {
-    opacity: 0.9;
-}
-
-.header-btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-</style>

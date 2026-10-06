@@ -43,15 +43,15 @@ defineExpose({ save, reset });
 label {
     display: block;
     margin-bottom: 6px;
-    color: #fff
+    color: var(--ui-text, #fff)
 }
 
 input {
     width: 100%;
     padding: 6px;
     border-radius: 6px;
-    border: 1px solid #666;
-    background: #333;
-    color: #fff
+    border: 1px solid var(--ui-border, #3a4048);
+    background: var(--ui-bg, #23252b);
+    color: var(--ui-text, #fff)
 }
 </style>

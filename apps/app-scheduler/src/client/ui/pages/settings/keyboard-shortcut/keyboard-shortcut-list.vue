@@ -1,41 +1,29 @@
 <template>
-    <div class="table-section">
-        <table class="shortcut-table">
-            <thead>
-                <tr>
-                    <th>キー組み合わせ</th>
-                    <th>アクション</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="shortcut in shortcuts" :key="shortcut.id">
-                    <td>{{ shortcut.keys.join(' + ') }}</td>
-                    <td>
-                        <ul class="action-list">
-                            <li v-for="(action, i) in resolvedActionsByShortcutId[shortcut.id] || []"
-                                :key="actionKey(action, i)">{{ actionLabel(action) }}</li>
-                        </ul>
-                    </td>
-                    <td>
-                        <button class="run-btn" :disabled="isRunningById[shortcut.id]" @click="onRun(shortcut)"
-                            aria-label="ショートカットを実行">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                <path d="M8 5v14l11-7L8 5z" fill="currentColor" />
-                            </svg>
-                        </button>
-                        <button class="edit-btn" @click="onEdit(shortcut)">編集</button>
-                        <button class="delete-btn" @click="onDelete(shortcut.id)">削除</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+    <DataTable :columns="columns" :rows="shortcuts" row-key="id" empty-text="ショートカットがありません">
+        <template #cell-keys="{ row }">{{ row.keys.join(' + ') }}</template>
+        <template #cell-actions-list="{ row }">
+            <ul class="action-list">
+                <li v-for="(action, i) in resolvedActionsByShortcutId[row.id] || []" :key="actionKey(action, i)">
+                    {{ actionLabel(action) }}
+                </li>
+            </ul>
+        </template>
+        <template #cell-operations="{ row }">
+            <div class="row-actions">
+                <UiButton size="sm" icon="play" icon-only aria-label="ショートカットを実行"
+                    :disabled="isRunningById[row.id]" @click="onRun(row)" />
+                <UiButton size="sm" icon="edit" icon-only aria-label="編集" @click="onEdit(row)" />
+                <UiButton size="sm" variant="danger" icon="delete" icon-only aria-label="削除"
+                    @click="onDelete(row.id)" />
+            </div>
+        </template>
+    </DataTable>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import { DataTable, UiButton } from '@octopus/ui-kit';
+import type { DataTableColumn } from '@octopus/ui-kit';
 import { container } from 'tsyringe';
 import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
@@ -53,6 +41,12 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+
+const columns: DataTableColumn[] = [
+    { key: 'keys', label: 'キー組み合わせ' },
+    { key: 'actions-list', label: 'アクション' },
+    { key: 'operations', label: '操作' },
+];
 
 const onEdit = (shortcut: KeyboardShortcut) => {
     emit('edit', shortcut);
@@ -130,78 +124,13 @@ watch(() => props.shortcuts, loadResolvedActions, { deep: true });
 </script>
 
 <style scoped>
-.table-section {
-    overflow-x: auto;
+.action-list {
+    margin: 0;
+    padding-left: 1.2em;
 }
 
-.shortcut-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.shortcut-table th,
-.shortcut-table td {
-    border: 1px solid #444;
-    padding: 8px;
-}
-
-.edit-btn,
-.delete-btn {
-    margin: 0 4px;
-    padding: 4px 8px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.run-btn {
-    margin: 0 6px 0 0;
-    padding: 6px 8px;
-    border: none;
-    border-radius: 4px;
-    background: #28a745;
-    color: #fff;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color .12s ease, transform .06s ease, box-shadow .12s ease;
-}
-
-.run-btn svg,
-.run-btn svg path {
-    fill: currentColor;
-}
-
-.run-btn:hover:not(:disabled) {
-    background: #218838;
-    transform: translateY(-1px);
-}
-
-.run-btn:active:not(:disabled) {
-    background: #1e7e34;
-    transform: translateY(0);
-}
-
-.run-btn:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.16);
-    border-radius: 4px;
-}
-
-.run-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    filter: grayscale(20%);
-}
-
-.edit-btn {
-    background: #28a745;
-    color: white;
-}
-
-.delete-btn {
-    background: #dc3545;
-    color: white;
+.row-actions {
+    display: flex;
+    gap: var(--ui-space-2, 8px);
 }
 </style>
