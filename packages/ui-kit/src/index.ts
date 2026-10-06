@@ -14,3 +14,5 @@ export { default as UiDialog } from './components/ui-dialog/ui-dialog.vue';
 export type { UiDialogSize } from './components/ui-dialog/ui-dialog.vue';
 export { useConfirm, useToast, confirmDialog, toast } from './composables/use-feedback';
 export type { ConfirmOptions, ToastKind } from './composables/use-feedback';
+export { default as MemberEditor } from './components/member-editor/member-editor.vue';
+export type { MemberRow } from './components/member-editor/member-editor.vue';
