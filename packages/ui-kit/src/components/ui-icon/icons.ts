@@ -11,6 +11,8 @@ export const UI_ICON_PATHS = {
     close: ['M6 6l12 12', 'M18 6L6 18'],
     check: ['M5 12l5 5 9-10'],
     play: ['M7 4l13 8-13 8Z'],
+    help: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z', 'M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1 1-1.1 1.8', 'M12 17h.01'],
+    external: ['M14 4h6v6', 'M20 4l-9 9', 'M18 14v6H4V6h6'],
     file: ['M14 3H6v18h12V7Z', 'M14 3v4h4'],
 } as const;
 

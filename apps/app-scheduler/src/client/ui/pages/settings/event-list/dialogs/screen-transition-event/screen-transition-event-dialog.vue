@@ -11,7 +11,11 @@
             </div>
             <div class="form-group">
                 <label for="transitionUrl">遷移URL</label>
-                <input id="transitionUrl" type="url" v-model="form.transitionUrl" required />
+                <input id="transitionUrl" type="text" list="transition-url-presets" placeholder="/quiz-admin" v-model="form.transitionUrl" required />
+                <datalist id="transition-url-presets">
+                    <option v-for="p in TRANSITION_URL_PRESETS" :key="p.value" :value="p.value">{{ p.label }}</option>
+                </datalist>
+                <small>実行画面を切り替える先のパスです。クイズは /quiz/クイズID/intro の形式です。</small>
             </div>
             <div class="form-group">
                 <label for="fadeOutDuration">フェードアウト時間 (秒)</label>
@@ -28,6 +32,7 @@
 
 <script setup lang="ts">
 import { UiButton, UiDialog } from '@octopus/ui-kit';
+import { TRANSITION_URL_PRESETS } from '../../../help/help-content';
 import { useScreenTransitionEvent } from './use-screen-transition-event';
 interface Props { event?: any }
 const props = defineProps<Props>();
