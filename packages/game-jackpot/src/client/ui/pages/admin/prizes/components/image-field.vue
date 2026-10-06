@@ -89,22 +89,22 @@ const onModeChange = (event: Event) => {
 .field-label {
     color: #dbeeff;
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .admin-input {
     background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--ui-border, #3a4048);
     border-radius: 8px;
     padding: 10px 14px;
-    font-size: 15px;
-    color: #fff;
+    font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-text, #fff);
     transition: box-shadow .15s ease, border-color .15s ease;
 }
 
 .admin-input:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.16);
+    border-color: var(--ui-border, #3a4048);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45) inset, 0 0 0 3px rgba(88, 156, 255, 0.06);
 }
 
@@ -158,7 +158,7 @@ const onModeChange = (event: Event) => {
     background: linear-gradient(180deg, #2f3a41, #293238);
     border-radius: 8px;
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--ui-border, #3a4048);
 }
 
 .image-preview img {

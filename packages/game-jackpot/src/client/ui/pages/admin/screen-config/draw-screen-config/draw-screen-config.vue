@@ -57,10 +57,9 @@
                 <!-- animation preview removed -->
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
-                <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving"
-                    :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
+                <UiButton @click="handleSaveClick" :disabled="saving">保存</UiButton>
 
-                <button class="admin-btn mt-4" @click="openTestDialog">テスト</button>
+                <UiButton @click="openTestDialog">テスト</UiButton>
                 <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
             <UiBusyOverlay :visible="loading" :title="loadingStatus || 'データを読み込み中...'" message="アセットを読み込んでいます。しばらくお待ちください。" />
@@ -78,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { UiBusyOverlay } from '@octopus/ui-kit';
+import { UiBusyOverlay, UiButton } from '@octopus/ui-kit';
 import { ref, onMounted, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
@@ -245,7 +244,7 @@ onMounted(async () => {
 
 .screen-config h3 {
     margin-bottom: 16px;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .config-item {
@@ -256,16 +255,16 @@ onMounted(async () => {
     display: block;
     margin-bottom: 8px;
     font-weight: bold;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .admin-input {
     padding: 10px 16px;
     border-radius: 8px;
     border: none;
-    background: #232b36;
-    color: #fff;
-    font-size: 1rem;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text, #fff);
+    font-size: var(--ui-font-md, 1rem);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     margin-bottom: 8px;
     width: 100%;
@@ -285,7 +284,7 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .admin-input {
@@ -313,7 +312,7 @@ onMounted(async () => {
 .add-btn {
     padding: 6px 12px;
     background: #4f8cff;
-    color: #fff;
+    color: var(--ui-text, #fff);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -335,7 +334,7 @@ onMounted(async () => {
 .prize-name {
     font-weight: bold;
     margin-bottom: 8px;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .music-selects,
@@ -351,7 +350,7 @@ onMounted(async () => {
 .preview-btn {
     padding: 6px 12px;
     background: #28a745;
-    color: #fff;
+    color: var(--ui-text, #fff);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -371,7 +370,7 @@ onMounted(async () => {
 }
 
 .animation-preview h4 {
-    color: #fff;
+    color: var(--ui-text, #fff);
     margin-bottom: 16px;
 }
 
@@ -379,7 +378,7 @@ onMounted(async () => {
     margin-top: 16px;
     padding: 8px 16px;
     background: #dc3545;
-    color: #fff;
+    color: var(--ui-text, #fff);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -390,8 +389,8 @@ onMounted(async () => {
 }
 
 .hint {
-    font-size: 0.8rem;
-    color: #ccc;
+    font-size: var(--ui-font-xs, 0.75rem);
+    color: var(--ui-text-muted, #cfd6dd);
     margin-top: 4px;
 }
 </style>

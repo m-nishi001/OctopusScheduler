@@ -1,26 +1,15 @@
 <template>
   <div class="admin-section">
-    <h2>メンバー詳細設定(ランク・写真)</h2>
-    <div class="admin-actions">
-      <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openModal('add')" title="Add members">
-        <span class="emoji">➕</span>
-      </button>
-      <button class="admin-btn icon-only delete-icon" @click="showDeleteModal = true"
-        :disabled="!selectedMembers.length || deleting" title="Delete selected">
-        <span class="emoji">🗑️</span>
-      </button>
-      <button type="button" class="admin-btn icon-only export-icon" @click.prevent="exportFormatCsv"
-        title="Export format CSV">
-        <span class="emoji">📄</span>
-      </button>
-      <button type="button" class="admin-btn icon-only upload-icon" @click.prevent="showDataUploadDialog = true"
-        title="Upload data">
-        <span class="emoji">📤</span>
-      </button>
-    </div>
+    <UiToolbar>
+      <UiButton variant="primary" icon="add" @click.prevent="openModal('add')">追加</UiButton>
+      <UiButton variant="danger" icon="delete" :disabled="!selectedMembers.length || deleting"
+        @click="showDeleteModal = true">選択を外す</UiButton>
+      <UiButton icon="file" @click.prevent="exportFormatCsv">書式CSV</UiButton>
+      <UiButton icon="upload" @click.prevent="showDataUploadDialog = true">データ取込</UiButton>
+    </UiToolbar>
 
-    <MemberList :members="members" v-model:selected="selectedMembers" v-model:is-all-selected="isAllSelected"
-      :get-member-image-src="getMemberImageSrc" @edit="(member) => openModal('edit', member)" @delete="deleteMember" />
+    <MemberList :members="members" v-model:selected="selectedMembers" :get-member-image-src="getMemberImageSrc"
+      @edit="(member) => openModal('edit', member)" @delete="deleteMember" />
   </div>
 
   <MemberFormDialog v-if="modalMode" :mode="modalMode" :member="modalData" :image-assets="imageAssets"
@@ -34,6 +23,7 @@
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiToolbar } from '@octopus/ui-kit';
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
@@ -51,7 +41,6 @@ const {
   members,
   availableDirectoryMembers,
   selectedMembers,
-  isAllSelected,
   deleting,
   deleteMessage,
   getMemberImageSrc,
@@ -112,74 +101,3 @@ onBeforeUnmount(() => {
   disposeObjectUrls();
 });
 </script>
-
-<style scoped>
-.admin-section {
-  margin-bottom: 32px;
-}
-
-.admin-actions {
-  margin-bottom: 18px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.admin-btn {
-  padding: 9px 18px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-  color: #232b36;
-  font-weight: 700;
-  cursor: pointer;
-  transition: box-shadow 0.18s, background 0.18s, transform 0.12s;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.admin-btn:hover {
-  box-shadow: 0 6px 18px rgba(79, 140, 255, 0.16);
-}
-
-.admin-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.icon-only {
-  padding: 8px;
-  border-radius: 8px;
-  background: transparent;
-  color: #cfe8ff;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.icon-only:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.add-icon {
-  padding: 10px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #b6d8ff 0%, #8aaeff 100%);
-  color: #232b36;
-  border: none;
-  box-shadow: 0 6px 18px rgba(79, 140, 255, 0.12);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.add-icon:hover {
-  transform: translateY(-2px);
-}
-
-.icon-only .emoji,
-.add-icon .emoji {
-  font-size: 20px;
-  line-height: 1;
-}
-</style>

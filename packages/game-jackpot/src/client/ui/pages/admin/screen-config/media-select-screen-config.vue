@@ -12,8 +12,7 @@
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:12px;">
-                <button class="admin-btn mt-4" @click="handleSaveClick" :disabled="saving"
-                    :style="{ opacity: saving ? 0.6 : 1 }">保存</button>
+                <UiButton @click="handleSaveClick" :disabled="saving">保存</UiButton>
 
                 <div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
             </div>
@@ -27,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { UiBusyOverlay } from '@octopus/ui-kit';
+import { UiBusyOverlay, UiButton } from '@octopus/ui-kit';
 import { ref, onMounted, watch } from 'vue';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
@@ -159,7 +158,7 @@ const handleCancelDiscard = () => {
 
 .screen-config h3 {
     margin-bottom: 16px;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .config-item {
@@ -171,16 +170,16 @@ const handleCancelDiscard = () => {
     display: block;
     margin-bottom: 8px;
     font-weight: bold;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .admin-input {
     padding: 10px 16px;
     border-radius: 8px;
     border: none;
-    background: #232b36;
-    color: #fff;
-    font-size: 1rem;
+    background: var(--ui-surface, #2b3036);
+    color: var(--ui-text, #fff);
+    font-size: var(--ui-font-md, 1rem);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     margin-bottom: 8px;
     width: 100%;
@@ -191,20 +190,5 @@ const handleCancelDiscard = () => {
 
 .admin-input:focus {
     outline: 2px solid #4f8cff;
-}
-
-.admin-btn {
-    padding: 10px 24px;
-    border-radius: 8px;
-    border: none;
-    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-    color: #232b36;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.admin-btn:hover {
-    background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
 }
 </style>

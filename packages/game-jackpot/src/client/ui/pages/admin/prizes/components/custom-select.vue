@@ -155,10 +155,10 @@ const getOptionId = (value: string | number) => `custom-select-option-${String(v
 }
 
 .custom-select-list {
-    background: linear-gradient(180deg, #232b36 0%, #2a3441 100%);
+    background: var(--ui-surface, #2b3036);
     border-radius: 8px;
     padding: 8px 0;
-    color: #fff;
+    color: var(--ui-text, #fff);
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
     list-style: none;
     margin: 0;
@@ -175,7 +175,7 @@ const getOptionId = (value: string | number) => `custom-select-option-${String(v
 }
 
 .custom-select-option+.custom-select-option {
-    border-top: 1px solid rgba(255, 255, 255, 0.02);
+    border-top: 1px solid var(--ui-border, #3a4048);
 }
 
 .arrow {

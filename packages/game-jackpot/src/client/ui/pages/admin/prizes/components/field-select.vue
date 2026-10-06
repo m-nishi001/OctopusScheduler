@@ -27,7 +27,7 @@ const emit = defineEmits(['update:modelValue']);
 .field-label {
   display: block;
   margin-bottom: 8px;
-  font-size: 15px;
+  font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .admin-input {
@@ -35,10 +35,10 @@ const emit = defineEmits(['update:modelValue']);
   padding: 10px 14px;
   border-radius: 8px;
   border: none;
-  background: #232b36;
+  background: var(--ui-surface, #2b3036);
   /* match modal background */
-  color: #fff;
-  font-size: 0.98rem;
+  color: var(--ui-text, #fff);
+  font-size: var(--ui-font-md, 1rem);
 }
 
 .admin-input:focus {
@@ -47,8 +47,8 @@ const emit = defineEmits(['update:modelValue']);
 
 /* Make <option> list darker on supporting browsers (Firefox, modern browsers) */
 .admin-input option {
-  background: #232b36;
-  color: #fff;
+  background: var(--ui-surface, #2b3036);
+  color: var(--ui-text, #fff);
 }
 
 /* Improve dropdown layering inside modal */

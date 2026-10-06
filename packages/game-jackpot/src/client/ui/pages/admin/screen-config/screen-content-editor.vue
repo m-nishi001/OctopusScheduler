@@ -17,13 +17,11 @@
 
 		<div class="config-item">
 			<label>コンテンツ:</label>
-			<div class="toolbar">
-				<button class="admin-btn icon-only add-icon" @click="showAddDialog" title="追加"><span
-						class="emoji">➕</span></button>
-
-				<button class="admin-btn icon-only delete-icon" @click="deleteSelectedContents"
-					:disabled="!selectedIndices.length" title="選択削除">🗑️</button>
-			</div>
+			<UiToolbar>
+				<UiButton variant="primary" icon="add" @click="showAddDialog">追加</UiButton>
+				<UiButton variant="danger" icon="delete" :disabled="!selectedIndices.length"
+					@click="deleteSelectedContents">選択削除</UiButton>
+			</UiToolbar>
 
 			<div class="select-all-row">
 				<input type="checkbox" class="select-checkbox" v-model="isAllSelected" />
@@ -41,11 +39,10 @@
 						<span class="content-title">{{ getContentTitle(content) }}</span>
 					</div>
 					<div class="content-list-actions">
-						<button class="admin-btn" @click="showEditDialog(idx)">詳細</button>
-						<button class="admin-btn danger" @click="removeContent(idx)">削除</button>
-						<button class="admin-btn" @click="moveUp(idx)" :disabled="idx === 0">↑</button>
-						<button class="admin-btn" @click="moveDown(idx)"
-							:disabled="idx === localConfig.contents.length - 1">↓</button>
+						<UiButton @click="showEditDialog(idx)">詳細</UiButton>
+						<UiButton variant="danger" @click="removeContent(idx)">削除</UiButton>
+						<UiButton @click="moveUp(idx)" :disabled="idx === 0">↑</UiButton>
+						<UiButton @click="moveDown(idx)" :disabled="idx === localConfig.contents.length - 1">↓</UiButton>
 					</div>
 				</li>
 			</ul>
@@ -109,7 +106,7 @@
 		</UiDialog>
 
 		<div style="display:flex;align-items:center;gap:12px;margin-top:24px;">
-			<button class="admin-btn" @click="handleSaveClick" :disabled="saving">保存</button>
+			<UiButton @click="handleSaveClick" :disabled="saving">保存</UiButton>
 			<div style="color:#fff;font-size:0.9rem;">{{ saveStatus }}</div>
 		</div>
 
@@ -118,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { UiBusyOverlay, UiDialog } from '@octopus/ui-kit';
+import { UiBusyOverlay, UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
@@ -392,7 +389,7 @@ const handleSaveClick = async () => {
 
 .screen-config h3 {
 	margin-bottom: 16px;
-	color: #fff;
+	color: var(--ui-text, #fff);
 }
 
 .config-item {
@@ -403,16 +400,16 @@ const handleSaveClick = async () => {
 	display: block;
 	margin-bottom: 8px;
 	font-weight: bold;
-	color: #fff;
+	color: var(--ui-text, #fff);
 }
 
 .admin-input {
 	padding: 10px 16px;
 	border-radius: 8px;
 	border: none;
-	background: #232b36;
-	color: #fff;
-	font-size: 1rem;
+	background: var(--ui-surface, #2b3036);
+	color: var(--ui-text, #fff);
+	font-size: var(--ui-font-md, 1rem);
 	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 	margin-bottom: 12px;
 	width: 100%;
@@ -423,21 +420,6 @@ const handleSaveClick = async () => {
 
 .admin-input:focus {
 	outline: 2px solid #4f8cff;
-}
-
-.admin-btn {
-	padding: 10px 24px;
-	border-radius: 8px;
-	border: none;
-	background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-	color: #232b36;
-	font-weight: bold;
-	cursor: pointer;
-	transition: background 0.2s;
-}
-
-.admin-btn:hover {
-	background: linear-gradient(90deg, #aee1ff 0%, #4f8cff 100%);
 }
 
 .asset-mode {
@@ -451,7 +433,7 @@ const handleSaveClick = async () => {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	color: #fff;
+	color: var(--ui-text, #fff);
 }
 
 .content-list {
@@ -461,41 +443,6 @@ const handleSaveClick = async () => {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-}
-
-.toolbar {
-	display: flex;
-	gap: 12px;
-	align-items: center;
-	margin-bottom: 18px;
-}
-
-.admin-btn.icon-only {
-	padding: 8px;
-	border-radius: 8px;
-	background: transparent;
-	color: #cfe8ff;
-	border: 1px solid rgba(255, 255, 255, 0.04);
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.admin-btn.icon-only.add-icon {
-	padding: 10px;
-	border-radius: 12px;
-	background: linear-gradient(180deg, #b6d8ff 0%, #8aaeff 100%);
-	color: #232b36;
-	border: none;
-	box-shadow: 0 6px 18px rgba(79, 140, 255, 0.12);
-}
-
-.admin-btn.icon-only.delete-icon {
-	padding: 8px;
-	border-radius: 8px;
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-	color: #dbeeff;
-	border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .select-all-row {
@@ -525,7 +472,7 @@ const handleSaveClick = async () => {
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	color: #fff;
+	color: var(--ui-text, #fff);
 }
 
 .content-list-actions {
@@ -552,14 +499,9 @@ const handleSaveClick = async () => {
 	gap: 12px;
 }
 
-.admin-btn.danger {
-	background: linear-gradient(90deg, #ff7a7a 0%, #ffb3b3 100%);
-	color: #3a1f1f;
-}
-
 .empty-note {
 	color: #cbd5e1;
-	font-size: 0.95rem;
+	font-size: var(--ui-font-sm, 0.875rem);
 	margin-bottom: 8px;
 }
 

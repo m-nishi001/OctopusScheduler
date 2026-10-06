@@ -26,17 +26,17 @@ const onInput = (event: Event) => {
 .field-label {
   display: block;
   margin-bottom: 8px;
-  font-size: 15px;
+  font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .admin-input {
   width: 100%;
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--ui-border, #3a4048);
   background: rgba(255, 255, 255, 0.02);
-  color: #fff;
-  font-size: 0.98rem;
+  color: var(--ui-text, #fff);
+  font-size: var(--ui-font-md, 1rem);
   box-sizing: border-box;
 }
 

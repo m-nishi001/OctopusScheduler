@@ -1,26 +1,15 @@
 <template>
     <div class="admin-section">
-        <h2>景品設定</h2>
-        <div class="admin-actions">
-            <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal" title="Add prizes">
-                <span class="emoji">➕</span>
-            </button>
-            <button class="admin-btn icon-only delete-icon" @click="openDeleteModal"
-                :disabled="!selectedPrizes.length || deleting" title="Delete selected">
-                <span class="emoji">🗑️</span>
-            </button>
-            <button type="button" class="admin-btn icon-only export-icon" @click.prevent="exportFormatCsv"
-                title="Export format CSV">
-                <span class="emoji">📄</span>
-            </button>
-            <button type="button" class="admin-btn icon-only upload-icon" @click.prevent="openDataUploadDialog"
-                title="Upload data">
-                <span class="emoji">📤</span>
-            </button>
-        </div>
+        <UiToolbar>
+            <UiButton variant="primary" icon="add" @click.prevent="openAddModal">追加</UiButton>
+            <UiButton variant="danger" icon="delete" :disabled="!selectedPrizes.length || deleting"
+                @click="openDeleteModal">選択削除</UiButton>
+            <UiButton icon="file" @click.prevent="exportFormatCsv">書式CSV</UiButton>
+            <UiButton icon="upload" @click.prevent="openDataUploadDialog">データ取込</UiButton>
+        </UiToolbar>
 
-        <PrizeList :prizes="prizes" v-model:selected="selectedPrizes" v-model:is-all-selected="isAllSelected"
-            :object-url-map="objectUrlMap" @edit="editPrize" @delete="deletePrize" />
+        <PrizeList :prizes="prizes" v-model:selected="selectedPrizes" :object-url-map="objectUrlMap"
+            @edit="editPrize" @delete="deletePrize" />
 
         <PrizeAddDialog v-if="showAddModal" :show="showAddModal" :image-assets="imageAssets" :audio-assets="audioAssets"
             :other-prizes="prizes" @close="showAddModal = false" @refresh="fetchPrizes" />
@@ -37,6 +26,7 @@
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiToolbar } from '@octopus/ui-kit';
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { usePrizes } from './use-prizes';
 import { useAssets } from './use-assets';
@@ -49,7 +39,7 @@ const prizeRepo = container.resolve(PrizeRepository);
 const assetDataService = container.resolve(AssetDataService);
 const prizeService = container.resolve(PrizeService);
 // initialize composables
-const { prizes, selectedPrizes, isAllSelected, fetchPrizes: fetchPrizesInner, deletePrize: deletePrizeAction, deletePrizes: deletePrizesAction } = usePrizes(prizeRepo, prizeService);
+const { prizes, selectedPrizes, fetchPrizes: fetchPrizesInner, deletePrize: deletePrizeAction, deletePrizes: deletePrizesAction } = usePrizes(prizeRepo, prizeService);
 const { imageAssets, audioAssets, fetchAssets: fetchAssetsAction, objectUrlMap, createObjectUrlById } = useAssets(assetDataService);
 
 import PrizeAddDialog from './prize-add-dialog.vue';
@@ -145,76 +135,3 @@ onBeforeUnmount(() => {
 });
 
 </script>
-
-<style scoped>
-.admin-section {
-    margin-bottom: 28px;
-}
-
-.admin-actions {
-    margin-bottom: 18px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.admin-btn {
-    padding: 12px 24px;
-    border-radius: 12px;
-    border: none;
-    background: linear-gradient(135deg, #4f8cff 0%, #aee1ff 100%);
-    color: #232b36;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 12px rgba(79, 140, 255, 0.2);
-}
-
-.admin-btn:hover {
-    box-shadow: 0 8px 20px rgba(79, 140, 255, 0.3);
-    transform: translateY(-2px);
-}
-
-.admin-btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
-.icon-only {
-    padding: 8px;
-    border-radius: 8px;
-    background: transparent;
-    color: #cfe8ff;
-    border: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.icon-only:hover {
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.add-icon {
-    padding: 10px;
-    border-radius: 12px;
-    background: linear-gradient(180deg, #b6d8ff 0%, #8aaeff 100%);
-    color: #232b36;
-    border: none;
-    box-shadow: 0 6px 18px rgba(79, 140, 255, 0.12);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.add-icon:hover {
-    transform: translateY(-2px);
-}
-
-.icon-only .emoji,
-.add-icon .emoji {
-    font-size: 20px;
-    line-height: 1;
-}
-</style>
