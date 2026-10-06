@@ -1,25 +1,22 @@
 <template>
-    <div class="modal-overlay">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="modal-title">{{ isEditing ? 'クイズ編集' : 'クイズ追加' }}</h2>
-            </div>
-            <form class="form" @submit.prevent="saveQuiz">
-                <QuizBasicFields :current-quiz="currentQuiz" />
-                <QuizMediaFields :current-quiz="currentQuiz" />
-                <QuizOptionsTable :options="currentQuiz.options" @add="addOption" @edit="editOption" />
-                <div class="form-actions">
-                    <button type="button" class="btn-cancel" @click="closeModal">キャンセル</button>
-                    <button type="submit" class="btn-save">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <UiDialog :model-value="true" :title="isEditing ? 'クイズ編集' : 'クイズ追加'" size="lg" :close-on-overlay="false"
+        @close="closeModal">
+        <form id="quiz-form" class="form" @submit.prevent="saveQuiz">
+            <QuizBasicFields :current-quiz="currentQuiz" />
+            <QuizMediaFields :current-quiz="currentQuiz" />
+            <QuizOptionsTable :options="currentQuiz.options" @add="addOption" @edit="editOption" />
+        </form>
+        <template #footer>
+            <UiButton @click="closeModal">キャンセル</UiButton>
+            <UiButton type="submit" variant="primary" form="quiz-form">保存</UiButton>
+        </template>
+    </UiDialog>
     <QuizOptionModal v-if="showOptionModal" :isEditing="isEditingOption" :currentOption="currentOption"
         :options="currentQuiz.options" @save="saveOption" @close="closeOptionModal" />
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { ref, onMounted, watch } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
 import QuizBasicFields from './quiz-basic-fields.vue';
@@ -110,115 +107,9 @@ watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
 </script>
 
 <style scoped>
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    /* bg-black bg-opacity-50 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-}
-
-.modal {
-    background-color: #1f2937;
-    /* bg-gray-800 */
-    color: white;
-    padding: 1.5rem;
-    /* p-6 */
-    border-radius: 0.5rem;
-    /* rounded-lg */
-    width: 90%;
-    max-width: 42rem;
-    /* max-w-2xl */
-    border: 1px solid #4b5563;
-    /* border-gray-600 */
-    z-index: 51;
-    max-height: 90dvh;
-    overflow-y: auto;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    /* mb-6 */
-}
-
-.modal-title {
-    font-size: 1.25rem;
-    /* text-xl */
-    font-weight: bold;
-    color: white;
-}
-
 .form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    /* space-y-4 */
-}
-
-.form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    /* space-x-4 */
-}
-
-.btn-cancel {
-    background-color: #6b7280;
-    /* bg-gray-500 */
-    color: white;
-    padding: 0.5rem 1rem;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-}
-
-.btn-cancel:hover {
-    background-color: #4b5563;
-    /* hover:bg-gray-600 */
-}
-
-.btn-save {
-    background-color: #10b981;
-    /* bg-green-500 */
-    color: white;
-    padding: 0.5rem 1rem;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-}
-
-.btn-save:hover {
-    background-color: #059669;
-    /* hover:bg-green-600 */
-}
-
-@media (max-width: 480px) {
-    .modal {
-        width: 100%;
-        max-height: 95dvh;
-        padding: 1rem;
-        border-radius: 0.5rem;
-    }
-
-    .form-actions {
-        flex-direction: column-reverse;
-    }
-
-    .form-actions button {
-        width: 100%;
-    }
+    gap: var(--ui-space-3, 12px);
 }
 </style>

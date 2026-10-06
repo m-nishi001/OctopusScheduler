@@ -1,43 +1,38 @@
 <template>
-    <div class="option-modal-overlay">
-        <div class="option-modal">
-            <div class="modal-header">
-                <h3 class="modal-title">{{ isEditing ? '選択肢編集' : '選択肢追加' }}</h3>
+    <UiDialog :model-value="true" :title="isEditing ? '選択肢編集' : '選択肢追加'" size="sm" nested
+        :close-on-overlay="false" @close="closeModal">
+        <form id="quiz-option-form" @submit.prevent="saveOption">
+            <p class="option-no">No: {{ currentOption.no }}</p>
+            <div class="form-group">
+                <label>内容</label>
+                <input v-model="currentOption.text" type="text" required />
             </div>
-            <form class="form" @submit.prevent="saveOption">
-                <div class="form-group">
-                    <label class="form-label" style="font-size: 1rem;">No: {{ currentOption.no }}</label>
+            <div class="form-group">
+                <label>画像</label>
+                <input type="file" @change="handleImageUpload" accept="image/*" />
+                <img v-if="currentOption.image" :src="imageSrc()" alt="プレビュー" class="image-preview" />
+            </div>
+            <div class="form-group">
+                <label>テーマカラー</label>
+                <div class="color-palette">
+                    <button v-for="color in colors" :key="color.value" type="button" class="color-option"
+                        :class="{ selected: currentOption.color === color.value }"
+                        @click="currentOption.color = color.value">
+                        <span class="color-swatch" :style="{ backgroundColor: color.hex }"></span>
+                        <span>{{ color.label }}</span>
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">内容</label>
-                    <input v-model="currentOption.text" type="text" class="form-input" required />
-                </div>
-                <div class="form-group">
-                    <label class="form-label">画像</label>
-                    <input type="file" @change="handleImageUpload" accept="image/*" class="form-input" />
-                    <img v-if="currentOption.image" :src="imageSrc()" alt="プレビュー" class="image-preview" />
-                </div>
-                <div class="form-group">
-                    <label class="form-label">テーマカラー</label>
-                    <div class="color-palette">
-                        <div v-for="color in colors" :key="color.value" class="color-option"
-                            :class="{ selected: currentOption.color === color.value }"
-                            @click="currentOption.color = color.value">
-                            <div class="color-swatch" :style="{ backgroundColor: color.hex }"></div>
-                            <span>{{ color.label }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-cancel" @click="closeModal">キャンセル</button>
-                    <button type="submit" class="btn-save">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
+            </div>
+        </form>
+        <template #footer>
+            <UiButton @click="closeModal">キャンセル</UiButton>
+            <UiButton type="submit" variant="primary" form="quiz-option-form">保存</UiButton>
+        </template>
+    </UiDialog>
 </template>
 
 <script setup lang="ts">
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { onUnmounted } from 'vue';
 
 const props = defineProps<{
@@ -103,195 +98,49 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.option-modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    /* bg-black bg-opacity-50 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 60;
+.option-no {
+    margin: 0 0 var(--ui-space-3, 12px);
+    color: var(--ui-text-muted, #cfd6dd);
 }
-
-.option-modal {
-    background-color: #1f2937;
-    /* bg-gray-800 */
-    color: white;
-    padding: 1.5rem;
-    /* p-6 */
-    border-radius: 0.5rem;
-    /* rounded-lg */
-    width: 90%;
-    max-width: 32rem;
-    /* max-w-lg */
-    border: 1px solid #4b5563;
-    /* border-gray-600 */
-    z-index: 61;
-}
-
-.option-modal .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    /* mb-6 */
-}
-
-.option-modal .modal-title {
-    font-size: 1.125rem;
-    /* text-lg */
-    font-weight: bold;
-    color: white;
-}
-
-.option-modal .form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    /* space-y-4 */
-}
-
-.option-modal .form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.option-modal .form-label {
-    display: block;
-    font-size: 0.875rem;
-    /* text-sm */
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-    /* mb-2 */
-    color: #d1d5db;
-    /* text-gray-300 */
-}
-
-.option-modal .form-input {
-    width: 100%;
-    padding: 0.5rem;
-    /* p-2 */
-    border: 1px solid #4b5563;
-    /* border-gray-600 */
-    border-radius: 0.25rem;
-    /* rounded */
-    font-family: inherit;
-    background-color: #374151;
-    /* bg-gray-700 */
-    color: white;
-}
-
-.option-modal .form-input:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px #3b82f6;
-    /* focus:ring-2 focus:ring-blue-500 */
-}
-
-.option-modal .form-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    /* space-x-4 */
-}
-
-.option-modal .btn-cancel {
-    background-color: #6b7280;
-    /* bg-gray-500 */
-    color: white;
-    padding: 0.5rem 1rem;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-}
-
-.option-modal .btn-cancel:hover {
-    background-color: #4b5563;
-    /* hover:bg-gray-600 */
-}
-
-.option-modal .btn-save {
-    background-color: #10b981;
-    /* bg-green-500 */
-    color: white;
-    padding: 0.5rem 1rem;
-    /* py-2 px-4 */
-    border-radius: 0.25rem;
-    /* rounded */
-    border: none;
-    cursor: pointer;
-}
-
-.option-modal .btn-save:hover {
-    background-color: #059669;
-    /* hover:bg-green-600 */
-}
-
-
 
 .image-preview {
-    max-width: 100%;
+    display: block;
+    margin-top: var(--ui-space-2, 8px);
+    max-width: 200px;
     max-height: 200px;
-    margin-top: 0.5rem;
-    border-radius: 0.25rem;
-    border: 1px solid #4b5563;
     object-fit: contain;
+    border-radius: var(--ui-radius, 6px);
+    border: 1px solid var(--ui-border, #3a4048);
 }
 
 .color-palette {
     display: flex;
-    gap: 0.5rem;
     flex-wrap: wrap;
+    gap: var(--ui-space-2, 8px);
 }
 
 .color-option {
-    display: flex;
-    flex-direction: column;
+    display: inline-flex;
     align-items: center;
+    gap: var(--ui-space-2, 8px);
+    padding: var(--ui-space-1, 4px) var(--ui-space-3, 12px);
+    border: 1px solid var(--ui-border, #3a4048);
+    border-radius: var(--ui-radius, 6px);
+    background: transparent;
+    color: var(--ui-text, #fff);
+    font: inherit;
+    font-size: var(--ui-font-sm, 0.875rem);
     cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 0.25rem;
-    border: 2px solid transparent;
-    transition: border-color 0.2s;
-}
-
-.color-option:hover {
-    border-color: #6b7280;
 }
 
 .color-option.selected {
-    border-color: #3b82f6;
+    border-color: var(--ui-accent, #aee1ff);
+    box-shadow: 0 0 0 1px var(--ui-accent, #aee1ff);
 }
 
 .color-swatch {
-    width: 2rem;
-    height: 2rem;
-    border-radius: 0.25rem;
-    margin-bottom: 0.25rem;
-}
-
-.color-option span {
-    font-size: 0.75rem;
-    color: #d1d5db;
-}
-
-@media (max-width: 480px) {
-    .option-modal {
-        width: 100%;
-        padding: 1rem;
-    }
-
-    .option-modal .form-actions {
-        flex-direction: column-reverse;
-    }
-
-    .option-modal .form-actions button {
-        width: 100%;
-    }
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
 }
 </style>
