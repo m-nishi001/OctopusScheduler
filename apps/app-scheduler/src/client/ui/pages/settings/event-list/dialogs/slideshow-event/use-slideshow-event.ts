@@ -1,3 +1,4 @@
+import { toast } from '@octopus/ui-kit';
 import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
 import { AssetService } from "../../../../../../control/asset/asset-service";
@@ -96,7 +97,7 @@ export function useSlideshowEvent(props: any, emit: any) {
         form.value.bgmList.push({ id: ids[0], name: asset.name });
         newBgmFile.value = null;
       } catch (e) {
-        alert(
+        toast.error(
           "アセットアップロードに失敗しました: " +
             (e instanceof Error ? e.message : String(e))
         );
@@ -122,7 +123,7 @@ export function useSlideshowEvent(props: any, emit: any) {
     const startTime = new Date(form.value.startTime);
     const endTime = new Date(form.value.endTime);
     if (startTime >= endTime) {
-      alert("開始時間が終了時間より後です。");
+      toast.error("開始時間が終了時間より後です。");
       return;
     }
     try {
@@ -142,7 +143,7 @@ export function useSlideshowEvent(props: any, emit: any) {
       emit("saved");
       emit("close");
     } catch (e) {
-      alert(
+      toast.error(
         "保存に失敗しました: " + (e instanceof Error ? e.message : String(e))
       );
     }

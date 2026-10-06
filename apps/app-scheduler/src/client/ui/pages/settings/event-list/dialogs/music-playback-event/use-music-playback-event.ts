@@ -1,3 +1,4 @@
+import { toast } from '@octopus/ui-kit';
 import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
 import { AssetService } from "../../../../../../control/asset/asset-service";
@@ -62,7 +63,7 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
     const startTime = new Date(form.value.startTime);
     const endTime = new Date(form.value.endTime);
     if (startTime >= endTime) {
-      alert("開始時間が終了時間より後です。");
+      toast.error("開始時間が終了時間より後です。");
       return;
     }
 
@@ -83,7 +84,7 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
         const ids = await assetService.addAssets([asset]);
         audioId = ids[0];
       } catch (e) {
-        alert(
+        toast.error(
           "アセットアップロードに失敗しました: " +
             (e instanceof Error ? e.message : String(e))
         );
@@ -105,7 +106,7 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
       emit("saved");
       emit("close");
     } catch (e) {
-      alert(
+      toast.error(
         "保存に失敗しました: " + (e instanceof Error ? e.message : String(e))
       );
     }

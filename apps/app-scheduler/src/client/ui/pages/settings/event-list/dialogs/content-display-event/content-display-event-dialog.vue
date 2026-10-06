@@ -139,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import { toast } from '@octopus/ui-kit';
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../control/asset/asset-service';
@@ -279,7 +280,7 @@ async function onSubmit() {
     const startTime = new Date(form.value.startTime);
     const endTime = new Date(form.value.endTime);
     if (startTime >= endTime) {
-        alert('開始時間が終了時間より後です。');
+        toast.error('開始時間が終了時間より後です。');
         return;
     }
 
@@ -312,7 +313,7 @@ async function onSubmit() {
         emit('close');
         return;
     } catch (e) {
-        alert('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+        toast.error('保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
         return;
     }
 }
