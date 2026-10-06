@@ -99,10 +99,10 @@ const { form, isEdit, newBgmSource, selectedBgmId, newBgmFile, filteredAudioAsse
 }
 
 .bgm-list {
-    border: 1px solid #666;
+    border: 1px solid var(--ui-border, #3a4048);
     border-radius: 6px;
     padding: 0.5em;
-    background: #333;
+    background: var(--ui-bg, #23252b);
 }
 
 .bgm-item {
@@ -110,14 +110,14 @@ const { form, isEdit, newBgmSource, selectedBgmId, newBgmFile, filteredAudioAsse
     justify-content: space-between;
     align-items: center;
     padding: 0.5em;
-    background: #444;
+    background: var(--ui-surface, #2b3036);
     margin-bottom: 0.5em;
     border-radius: 4px;
 }
 
 .remove-btn {
-    background: #ff6b6b;
-    color: #fff;
+    background: var(--ui-danger, #e5484d);
+    color: var(--ui-text, #fff);
     border: none;
     border-radius: 4px;
     padding: 0.2em 0.5em;
@@ -127,7 +127,7 @@ const { form, isEdit, newBgmSource, selectedBgmId, newBgmFile, filteredAudioAsse
 .add-bgm {
     margin-top: 1em;
     padding-top: 1em;
-    border-top: 1px solid #666;
+    border-top: 1px solid var(--ui-border, #3a4048);
 }
 
 .radio-group {
@@ -140,12 +140,12 @@ const { form, isEdit, newBgmSource, selectedBgmId, newBgmFile, filteredAudioAsse
     display: flex;
     align-items: center;
     gap: 0.5em;
-    color: #fff;
+    color: var(--ui-text, #fff);
 }
 
 .add-btn {
-    background: #4f8cff;
-    color: #fff;
+    background: var(--ui-accent, #aee1ff);
+    color: var(--ui-text, #fff);
     border: none;
     border-radius: 6px;
     padding: 0.5em 1em;
@@ -165,8 +165,8 @@ const { form, isEdit, newBgmSource, selectedBgmId, newBgmFile, filteredAudioAsse
 }
 
 .file-btn {
-    background: linear-gradient(90deg, #4f8cff 0%, #aee1ff 100%);
-    color: #232b36;
+    background: var(--ui-accent, #aee1ff);
+    color: var(--ui-accent-contrast, #12263a);
     border: none;
     border-radius: 8px;
     padding: 0.5em 0.9em;
@@ -175,8 +175,8 @@ const { form, isEdit, newBgmSource, selectedBgmId, newBgmFile, filteredAudioAsse
 }
 
 .file-name {
-    color: #ddd;
-    font-size: 0.95em;
+    color: var(--ui-text-muted, #cfd6dd);
+    font-size: var(--ui-font-sm, 0.875rem);
     max-width: 220px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -185,8 +185,8 @@ const { form, isEdit, newBgmSource, selectedBgmId, newBgmFile, filteredAudioAsse
 
 .clear-btn {
     background: transparent;
-    color: #fff;
-    border: 1px solid #444;
+    color: var(--ui-text, #fff);
+    border: 1px solid var(--ui-border, #3a4048);
     border-radius: 6px;
     padding: 0 0.5em;
     cursor: pointer;

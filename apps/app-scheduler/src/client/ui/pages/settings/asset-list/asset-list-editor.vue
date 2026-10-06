@@ -1,64 +1,37 @@
 <template>
-    <div class="admin-section">
-        <h2 class="editor-title"><span class="editor-icon">🗂️</span> アセット管理</h2>
+    <div class="asset-list-editor">
+        <UiToolbar>
+            <UiButton variant="primary" icon="add" @click.prevent="openAddModal">追加</UiButton>
+            <UiButton variant="danger" icon="delete" :disabled="!selectedAssets.length"
+                @click="deleteSelectedAssets">選択削除</UiButton>
+        </UiToolbar>
 
-        <div class="admin-actions">
-            <button type="button" class="admin-btn icon-only add-icon" @click.prevent="openAddModal"
-                title="Add assets">➕</button>
-            <button class="admin-btn icon-only delete-icon" @click="deleteSelectedAssets"
-                :disabled="!selectedAssets.length" title="Delete selected">🗑️</button>
-        </div>
-
-
-
-        <ul v-if="assets.length" class="admin-list">
-            <li class="admin-list-header" aria-hidden="true">
-                <div class="header-checkbox">
-                    <input type="checkbox" v-model="isAllSelected" class="select-all-checkbox" />
+        <DataTable :columns="columns" :rows="rows" row-key="id" selectable v-model:selected="selectedAssets"
+            empty-text="アセットはありません">
+            <template #cell-preview="{ row }">
+                <img v-if="row.kind === 'image' && row.asset.url" :src="row.asset.url" alt="preview"
+                    class="preview-thumb" />
+                <video v-else-if="row.kind === 'video' && row.asset.url" :src="row.asset.url" controls
+                    class="preview-thumb"></video>
+                <audio v-else-if="row.kind === 'audio' && row.asset.url" :src="row.asset.url" controls
+                    class="preview-audio"></audio>
+                <span v-else>{{ row.name }}</span>
+            </template>
+            <template #cell-actions="{ row }">
+                <div class="row-actions">
+                    <UiButton size="sm" icon="play" icon-only aria-label="プレビュー" @click="onPreview(row.asset)" />
+                    <UiButton size="sm" variant="danger" icon="delete" icon-only aria-label="削除"
+                        @click="deleteAsset(row.id)" />
                 </div>
-                <div class="header-preview">プレビュー</div>
-                <div class="header-name">アセット名</div>
-                <div class="header-kind">種別</div>
-                <div class="header-size">サイズ</div>
-                <div class="header-actions">操作</div>
-            </li>
-            <li v-for="asset in assets" :key="asset.id" class="admin-list-item">
-                <div class="row-checkbox">
-                    <input type="checkbox" v-model="selectedAssets" :value="asset.id" />
-                </div>
-                <div class="asset-preview">
-                    <img v-if="deriveAssetKind(asset) === 'image' && asset.url" :src="asset.url" alt="preview"
-                        class="preview-img" />
-                    <video v-else-if="deriveAssetKind(asset) === 'video' && asset.url" :src="asset.url" controls
-                        class="preview-video"></video>
-                    <audio v-else-if="deriveAssetKind(asset) === 'audio' && asset.url" :src="asset.url" controls
-                        class="preview-audio"></audio>
-                    <span v-else>{{ asset.name }}</span>
-                </div>
-                <div class="asset-info">
-                    <div class="asset-name">{{ asset.name }}</div>
-                </div>
-                <div class="asset-kind-col">
-                    <span class="asset-kind">{{ deriveAssetKind(asset) }}</span>
-                </div>
-                <div class="asset-size-col">
-                    <span class="asset-size">{{ (asset.size / 1024 / 1024).toFixed(2) }} MB</span>
-                </div>
-                <div class="asset-actions">
-                    <button class="admin-btn" @click="onPreview(asset)">プレビュー</button>
-                    <button class="admin-btn delete-btn" @click="deleteAsset(asset.id)">削除</button>
-                </div>
-            </li>
-        </ul>
-
-        <div v-else class="empty-state">アセットはありません</div>
+            </template>
+        </DataTable>
 
         <UiDialog :model-value="showAddModal" title="アセットを追加" size="md" :persistent="uploading"
             confirm-label="追加" :loading="uploading" :confirm-disabled="!selectedFiles.length"
             @confirm="confirmAdd" @cancel="closeAddModal" @close="closeAddModal">
             <p class="modal-lead">追加するファイルを選択してください。</p>
             <input ref="fileInput" type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
-                class="admin-input" :disabled="uploading" />
+                class="file-input" :disabled="uploading" />
 
             <div class="selected-files" v-if="selectedFiles.length">
                 <strong>選択中（{{ selectedFiles.length }}）:</strong>
@@ -93,7 +66,8 @@
 </template>
 
 <script setup lang="ts">
-import { UiButton, UiDialog } from '@octopus/ui-kit';
+import { DataTable, UiButton, UiDialog, UiToolbar, useConfirm } from '@octopus/ui-kit';
+import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, computed, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetService } from '../../../../control/asset/asset-service';
@@ -106,10 +80,25 @@ const objectUrlMap = new Map<string, string>();
 const selectedFiles = ref<File[]>([]);
 const selectedAssets = ref<string[]>([]);
 
-const isAllSelected = computed({
-    get: () => assets.value.length > 0 && selectedAssets.value.length === assets.value.length,
-    set: (val: boolean) => { selectedAssets.value = val ? assets.value.map(a => a.id) : []; }
-});
+const columns: DataTableColumn[] = [
+    { key: 'preview', label: 'プレビュー' },
+    { key: 'name', label: 'アセット名', sortable: true },
+    { key: 'kind', label: '種別', sortable: true },
+    { key: 'sizeLabel', label: 'サイズ' },
+    { key: 'actions', label: '操作' },
+];
+
+const rows = computed(() =>
+    assets.value.map((asset) => ({
+        id: asset.id,
+        name: asset.name,
+        kind: deriveAssetKind(asset),
+        sizeLabel: `${(asset.size / 1024 / 1024).toFixed(2)} MB`,
+        asset,
+    }))
+);
+
+const { confirmDelete } = useConfirm();
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const showAddModal = ref(false);
@@ -175,6 +164,7 @@ const addAssets = async () => {
 };
 
 const deleteAsset = async (id: string) => {
+    if (!(await confirmDelete('このアセットを削除しますか?'))) return;
     await assetService.deleteAssets([id]);
     // revoke object URL if we created one
     const url = objectUrlMap.get(id);
@@ -186,6 +176,7 @@ const deleteAsset = async (id: string) => {
 };
 const deleteSelectedAssets = async () => {
     if (!selectedAssets.value.length) return;
+    if (!(await confirmDelete(`選択した${selectedAssets.value.length}件のアセットを削除しますか?`))) return;
     await assetService.deleteAssets(selectedAssets.value);
     // revoke urls
     for (const id of selectedAssets.value) {
@@ -227,358 +218,26 @@ function deriveAssetKind(asset: any): string {
 </script>
 
 <style scoped>
-.admin-input {
-    padding: 10px 14px;
-    border-radius: 8px;
-    border: none;
-    background: #232b36;
-    color: #fff;
-}
-
-.admin-btn {
-    padding: 8px 12px;
-    border-radius: 8px;
-}
-
-/* larger icon-only buttons used in the admin actions (top-left) */
-.admin-actions .admin-btn.icon-only {
-    width: 48px;
-    height: 48px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.4rem;
-    border-radius: 12px;
-}
-
-.admin-actions {
+.row-actions {
     display: flex;
-    gap: 8px;
-    align-items: center;
+    gap: var(--ui-space-2, 8px);
 }
 
-.editor-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 36px;
-}
-
-.editor-icon {
-    font-size: 1.3em;
-}
-
-.admin-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-/* Table-like container to give a clear outer border */
-.admin-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    /* use table layout so cell borders can collapse and draw continuous vertical lines */
-    display: table;
-    width: 100%;
-    border-collapse: collapse;
-    border-spacing: 0;
-    /* card-like table: subtle background, outer border and drop shadow for lift */
-    background: rgba(255, 255, 255, 0.01);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.65), 0 1px 0 rgba(0, 0, 0, 0.6) inset;
-    border-radius: 14px;
-    overflow: hidden;
-    /* stronger inner padding so content has breathing room */
-    padding: 28px 28px;
-    margin-top: 8px;
-}
-
-.admin-list-item {
-    /* table-row so that cells align and borders collapse */
-    display: table-row;
-}
-
-.asset-preview {
-    width: 120px;
-    height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: transparent;
-    padding: 0;
-}
-
-.asset-preview img.preview-img,
-.asset-preview video.preview-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+.preview-thumb {
     display: block;
-    border-radius: 8px;
+    max-width: 120px;
+    max-height: 80px;
+    object-fit: contain;
 }
 
-.asset-preview audio.preview-audio {
-    width: 100%;
-}
-
-/* Improve overall row alignment and button layout */
-.admin-list-item {
-    min-height: 140px;
-}
-
-.admin-list-item input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
-    vertical-align: middle;
-}
-
-/* Make header checkbox match row checkboxes */
-.admin-list-header .select-all-checkbox {
-    width: 22px;
-    height: 22px;
-    vertical-align: middle;
-}
-
-.asset-info {
-    vertical-align: middle;
-}
-
-/* Keep action buttons on the same grid cell, prevent wrapping */
-.admin-list-item>.admin-btn {
-    white-space: nowrap;
-    vertical-align: middle;
-    padding: 12px 16px;
-    font-size: 1.08rem;
-}
-
-.admin-list-item>.admin-btn+.admin-btn {
-    margin-left: 8px;
-}
-
-/* New: actions container on the right, keep buttons inline */
-.asset-actions {
-    display: flex;
-    gap: 22px;
-    align-items: center;
-    justify-content: center;
-    /* center the buttons horizontally */
-    flex-wrap: nowrap;
-    /* keep them on one row */
-}
-
-/* Tasteful action buttons: pill-shaped, subtle gradient, hover lift, and clearer spacing */
-.asset-actions .admin-btn {
-    padding: 10px 18px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
-    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
-    font-weight: 700;
-    font-size: 1.02rem;
-    letter-spacing: 0.02em;
-    display: inline-flex;
-    /* ensure buttons don't expand to full width */
-    align-items: center;
-    justify-content: center;
-    min-width: 96px;
-}
-
-.asset-actions .admin-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.65);
-}
-
-.asset-actions .admin-btn:active {
-    transform: translateY(0);
-}
-
-/* Delete gets a subtle red accent, but keep same pill shape */
-.asset-actions .admin-btn.delete-btn {
-    background: linear-gradient(180deg, rgba(255, 60, 60, 0.04), rgba(255, 60, 60, 0.02));
-    border: 1px solid rgba(255, 60, 60, 0.10);
-    color: #ffb4b4;
-}
-
-/* Ensure gap-driven spacing is authoritative (override any earlier small margin rules) */
-.asset-actions .admin-btn {
-    margin-left: 0 !important;
-}
-
-.asset-name {
-    display: inline-block;
+.preview-audio {
     max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 1.2rem;
-    font-weight: 600;
 }
 
-/* subtle row separator and hover
-   To keep vertical separators continuous we avoid per-row outer borders
-   and rounded corners that previously caused visual gaps. Rows are
-   visually separated using a single horizontal top-border between items. */
-.admin-list-item {
-    /* keep spacing and layout but do not draw an outer border */
-    border-radius: 0;
-    border: none;
-    background: transparent;
-}
-
-.admin-list-item+.admin-list-item {
-    /* make the separator between data rows more visible */
-    border-top: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.admin-list-item:hover {
-    background: rgba(255, 255, 255, 0.01);
-}
-
-.asset-meta {
-    margin-top: 6px;
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 1.02rem;
-}
-
-.asset-kind {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.03);
-    color: #fff;
-    font-weight: 600;
-    font-size: 1rem;
-}
-
-.asset-size {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 1.05rem;
-}
-
-/* Header styles to align with columns */
-.admin-list-header {
-    display: table-row;
-    color: rgba(255, 255, 255, 0.95);
-    font-weight: 700;
-    font-size: 1.12rem;
-    background: rgba(255, 255, 255, 0.003);
-}
-
-.admin-list-header>div {
-    display: table-cell;
-    vertical-align: middle;
-    padding: 28px 36px;
-    text-align: center;
-}
-
-/* draw a single horizontal separator under the header so vertical borders continue */
-.admin-list-header>div {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.20);
-}
-
-/* make each direct child of a row behave like a table-cell so borders align */
-.admin-list-item>* {
-    display: table-cell;
-    vertical-align: middle;
-    padding: 28px 36px;
-}
-
-/* column widths to match previous grid layout */
-.admin-list-header>div:nth-child(1),
-.admin-list-item>*:nth-child(1) {
-    width: 36px;
-}
-
-.admin-list-header>div:nth-child(2),
-.admin-list-item>*:nth-child(2) {
-    width: 120px;
-}
-
-.admin-list-header>div:nth-child(3),
-.admin-list-item>*:nth-child(3) {
-    width: auto;
-}
-
-.admin-list-header>div:nth-child(4),
-.admin-list-item>*:nth-child(4) {
-    width: 120px;
-}
-
-.admin-list-header>div:nth-child(5),
-.admin-list-item>*:nth-child(5) {
-    width: 100px;
-}
-
-.admin-list-header>div:nth-child(6),
-.admin-list-item>*:nth-child(6) {
-    width: 160px;
-}
-
-.header-actions {
-    text-align: right;
-}
-
-.header-preview,
-.header-name,
-.header-kind,
-.header-size {
-    padding-left: 4px;
-}
-
-/* vertical separators between columns for both header and rows */
-/* Apply vertical separators only to the textual/data columns so lines align cleanly */
-.admin-list-header>div:nth-child(2),
-.admin-list-item>*:nth-child(2),
-.admin-list-header>div:nth-child(3),
-.admin-list-item>*:nth-child(3),
-.admin-list-header>div:nth-child(4),
-.admin-list-item>*:nth-child(4),
-.admin-list-header>div:nth-child(5),
-.admin-list-item>*:nth-child(5),
-.admin-list-header>div:nth-child(6),
-.admin-list-item>*:nth-child(6) {
-    border-left: 1px solid rgba(255, 255, 255, 0.26);
-    padding-left: 12px;
-    /* header cells centered but keep data left-aligned for readability */
-}
-
-/* ensure the first column (checkbox) has small left padding and no left border */
-.admin-list-header>div:nth-child(1),
-.admin-list-item>*:nth-child(1) {
-    padding-left: 12px;
-}
-
-/* center the checkbox column content */
-.admin-list-header>div:nth-child(1),
-.admin-list-item>*:nth-child(1) {
-    text-align: center;
-}
-
-/* make checkbox cells horizontally and vertically centered */
-.admin-list-header>div:nth-child(1),
-.admin-list-item>*:nth-child(1) {
-    /* ensure this column behaves as a table-cell and centers its content */
-    display: table-cell;
-    text-align: center;
-    vertical-align: middle;
-    padding: 10px 8px;
-}
-
-.admin-list-item input[type="checkbox"],
-.admin-list-header .select-all-checkbox {
-    /* make the checkbox a block-level element and center it within the table-cell */
-    display: block;
-    margin: 0 auto;
-    vertical-align: middle;
+.selected-files ul {
+    margin: var(--ui-space-1, 4px) 0 0;
+    padding-left: 1.2em;
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .modal-lead {

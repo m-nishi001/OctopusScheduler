@@ -67,7 +67,7 @@ const summary = computed(() => summarize(props.action));
     justify-content: space-between;
     align-items: center;
     padding: 8px;
-    border-bottom: 1px solid #444;
+    border-bottom: 1px solid var(--ui-border, #3a4048);
 }
 
 .meta {
@@ -75,8 +75,8 @@ const summary = computed(() => summarize(props.action));
 }
 
 .summary {
-    color: #bbb;
-    font-size: 12px;
+    color: var(--ui-text-muted, #cfd6dd);
+    font-size: var(--ui-font-xs, 0.75rem);
 }
 
 .controls {

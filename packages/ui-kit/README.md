@@ -18,6 +18,7 @@
 | UiIcon | 自前SVGアイコン(`components/ui-icon/icons.ts` に追加) |
 | FormGrid / UiField | 2カラム自動折返しのフォーム |
 | HeaderActions | ヘッダー右側の標準操作(バックアップ/ホーム) |
+| UiToolbar | 一覧上部の操作ボタン行(折返し対応) |
 | UiDialog | 統一ダイアログ。size(sm/md/lg/xl/full)、モバイルはボトムシート、Escape/オーバーレイ/×で閉じる(`persistent`で抑止)、フォーカストラップ、標準フッター(キャンセル左/主操作右) |
 | useConfirm / useToast | native `confirm()`/`alert()` の置き換え(`confirm` `confirmDelete` `confirmDiscard`、`toast.error/success/info`)。PageShell 内の FeedbackHost が描画するため、PageShell 配下なら追加設定不要 |
 
