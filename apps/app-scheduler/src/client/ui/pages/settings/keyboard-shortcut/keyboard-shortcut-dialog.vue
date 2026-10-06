@@ -50,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import { toast } from '@octopus/ui-kit';
 import { ref, watch, nextTick } from 'vue';
 import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { useKeyCapture } from './composables/useKeyCapture';
@@ -143,7 +144,7 @@ const closeDialog = () => {
 
 const saveShortcut = async () => {
     if (capturedKeys.value.length === 0) {
-        alert('キーを設定してください');
+        toast.error('キーを設定してください');
         return;
     }
     // ask each child form to save into actions.value
@@ -163,7 +164,7 @@ const saveShortcut = async () => {
             events.push(appEventService.buildEventFromDto(a));
         } catch (err) {
             console.error(err);
-            alert(`アクションの作成に失敗しました: ${a.actionType}`);
+            toast.error(`アクションの作成に失敗しました: ${a.actionType}`);
             return;
         }
     }

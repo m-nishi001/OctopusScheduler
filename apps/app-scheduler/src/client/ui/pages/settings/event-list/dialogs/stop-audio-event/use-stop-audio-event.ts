@@ -1,3 +1,4 @@
+import { toast } from '@octopus/ui-kit';
 import { ref, onMounted } from "vue";
 import { container } from "tsyringe";
 import { AppEventService } from "../../../../../../control/app-event/app-event-service";
@@ -28,7 +29,7 @@ export function useStopAudioEvent(props: any, emit: any) {
     const startTime = new Date(form.value.startTime);
     const endTime = new Date(form.value.endTime);
     if (startTime >= endTime) {
-      alert("開始時間が終了時間より後です。");
+      toast.error("開始時間が終了時間より後です。");
       return;
     }
 
@@ -45,7 +46,7 @@ export function useStopAudioEvent(props: any, emit: any) {
       emit("saved");
       emit("close");
     } catch (e) {
-      alert(
+      toast.error(
         "保存に失敗しました: " + (e instanceof Error ? e.message : String(e))
       );
     }

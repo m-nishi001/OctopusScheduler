@@ -79,6 +79,7 @@
 </template>
 
 <script setup lang="ts">
+import { toast, useConfirm } from '@octopus/ui-kit';
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
@@ -89,6 +90,8 @@ import MusicPlaybackEventDialog from './dialogs/music-playback-event/music-playb
 import StopAudioEventDialog from './dialogs/stop-audio-event/stop-audio-event-dialog.vue';
 import ScreenTransitionEventDialog from './dialogs/screen-transition-event/screen-transition-event-dialog.vue';
 import SlideshowEventDialog from './dialogs/slideshow-event/slideshow-event-dialog.vue';
+
+const { confirmDelete } = useConfirm();
 // persistence moved into dialog components
 
 const events = ref<AppEvent[]>([]);
@@ -169,7 +172,7 @@ async function getAllScheduleEvents() {
         const list = await scheduleEventService.getScheduleEvents();
         events.value = list ?? [];
     } catch (e) {
-        alert('イベント取得に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+        toast.error('イベント取得に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
         loading.value = false;
     }
@@ -286,7 +289,7 @@ async function onExecute() {
             await event.execute(false);
         }
     } catch (e) {
-        alert('実行中にエラーが発生しました: ' + (e instanceof Error ? e.message : String(e)));
+        toast.error('実行中にエラーが発生しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
         executing.value = false;
         document.removeEventListener('keydown', handleKeyDown);
@@ -295,26 +298,26 @@ async function onExecute() {
 
 async function onDeleteSelected() {
     if (!selectedEvents.value.length) return;
-    if (!confirm(`${selectedEvents.value.length} 件のイベントを削除しますか？`)) return;
+    if (!(await confirmDelete(`${selectedEvents.value.length} 件のイベントを削除しますか？`))) return;
     deleting.value = true;
     try {
         await scheduleEventService.deleteScheduleEvents(selectedEvents.value);
         selectedEvents.value = [];
         await getAllScheduleEvents();
     } catch (e) {
-        alert('削除に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+        toast.error('削除に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
         deleting.value = false;
     }
 }
 
 async function onDelete(ev: AppEvent) {
-    if (!confirm(`${ev.type} を削除しますか？`)) return;
+    if (!(await confirmDelete(`${ev.type} を削除しますか？`))) return;
     try {
         await scheduleEventService.deleteScheduleEvents([ev.id]);
         await getAllScheduleEvents();
     } catch (e) {
-        alert('削除に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
+        toast.error('削除に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     }
 }
 

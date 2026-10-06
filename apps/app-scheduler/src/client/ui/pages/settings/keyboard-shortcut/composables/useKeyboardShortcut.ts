@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import { useConfirm } from "@octopus/ui-kit";
 import { container } from "tsyringe";
 import { KeyboardShortcutService } from "../../../../../control/keyboard-shortcut/keyboard-shortcut-service";
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
@@ -6,6 +7,7 @@ import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortc
 
 export function useKeyboardShortcut() {
   const shortcuts = ref<KeyboardShortcut[]>([]);
+  const { confirmDelete } = useConfirm();
   const isEnabled = ref(true);
   const service: KeyboardShortcutService = container.resolve(
     KeyboardShortcutService
@@ -26,7 +28,7 @@ export function useKeyboardShortcut() {
   };
 
   const onDelete = async (id: string) => {
-    if (confirm("削除しますか？")) {
+    if (await confirmDelete("このショートカットを削除しますか？")) {
       await service.deleteKeyboardShortcut(id);
       await loadShortcuts();
     }
