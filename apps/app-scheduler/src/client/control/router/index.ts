@@ -59,7 +59,10 @@ router.beforeEach(async (_to, from) => {
   if (initialHashHandled || from !== START_LOCATION) return;
   initialHashHandled = true;
   const path = hashToPath(await HistoryService.getInitialHash());
-  if (path) return { path, replace: true };
+  if (!path) return;
+  // path オブジェクトに "?demo=1" を埋め込むとクエリが捨てられるため、resolve でパースして渡す。
+  const { path: resolvedPath, query } = router.resolve(path);
+  return { path: resolvedPath, query, replace: true };
 });
 
 // 本番モードでは管理画面に管理者ログインを要求する(開発モードは素通し)。
