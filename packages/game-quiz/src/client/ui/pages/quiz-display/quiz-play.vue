@@ -51,7 +51,7 @@ import { useAudio } from '@octopus/composables';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
 import OptionCard from '../../components/option-card.vue';
-import { buildParticipantJoinUrl } from '../../../model/participant-url';
+import { useParticipantJoinUrl } from '../../composables/use-participant-join-url';
 import { useAnswerWindow } from '../../composables/use-answer-window';
 import { useCardGridLayout } from '../../composables/use-card-grid-layout';
 
@@ -74,9 +74,10 @@ const isPreview = computed(() => {
 const quiz = ref<QuizDto | null>(null);
 const objectUrls = ref<string[]>([]);
 
+const { joinUrl } = useParticipantJoinUrl(quizId);
+
 const qrCodeUrl = computed(() => {
-    const joinUrl = buildParticipantJoinUrl(quizId);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl.value)}`;
 });
 
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {

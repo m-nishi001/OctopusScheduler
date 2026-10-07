@@ -30,4 +30,9 @@ export class AnswerSessionRepository {
   async getAnswers(quizId: string): Promise<SubmittedAnswer[]> {
     return this.quizApi.getAnswers({ quizId });
   }
+
+  async getWebAppUrl(): Promise<string | null> {
+    const { url } = await this.quizApi.getWebAppUrl();
+    return url;
+  }
 }

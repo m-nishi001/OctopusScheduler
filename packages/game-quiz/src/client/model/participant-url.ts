@@ -10,3 +10,17 @@ export function buildParticipantJoinUrl(
 ): string {
   return `${location.origin}${location.pathname}#/quiz/${encodeURIComponent(quizId)}/join`;
 }
+
+/**
+ * サーバーから取得したWebアプリの公開URLを基点に、参加者用URLを組み立てる。
+ * 基点URLが取得できなければwindow.location基準にフォールバックする。
+ * (GASではwindow.locationが内側のiframe URLになるため、可能な限り公開URLを使う)
+ */
+export function buildParticipantJoinUrlFromBase(
+  quizId: string,
+  baseUrl: string | null
+): string {
+  if (!baseUrl) return buildParticipantJoinUrl(quizId);
+  const base = baseUrl.split("#")[0];
+  return `${base}#/quiz/${encodeURIComponent(quizId)}/join`;
+}

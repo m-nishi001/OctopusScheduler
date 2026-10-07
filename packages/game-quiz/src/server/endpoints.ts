@@ -80,6 +80,7 @@ declare let _quizGame_stopAcceptingAnswers: (args: StopAcceptingAnswersArgs) => 
 declare let _quizGame_getAcceptanceState: (args: GetAcceptanceStateArgs) => Promise<string>;
 declare let _quizGame_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
 declare let _quizGame_getAnswers: (args: GetAnswersArgs) => Promise<string>;
+declare let _quizGame_getWebAppUrl: () => Promise<string>;
 
 _quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
   try {
@@ -209,6 +210,16 @@ _quizGame_getAnswers = async (args: GetAnswersArgs): Promise<string> => {
   }
 };
 
+_quizGame_getWebAppUrl = async (): Promise<string> => {
+  try {
+    // GAS固有(ScriptApp)のためポート化せずここで直接呼ぶ。GAS以外ではnullを返す。
+    const url = typeof ScriptApp !== "undefined" ? ScriptApp.getService().getUrl() : null;
+    return JSON.stringify({ status: "success", data: { url: url || null } });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Promise<string>> = {
   addDriveData: _quizGame_addDriveData,
@@ -224,6 +235,7 @@ export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Pro
   getAcceptanceState: _quizGame_getAcceptanceState,
   submitAnswer: _quizGame_submitAnswer,
   getAnswers: _quizGame_getAnswers,
+  getWebAppUrl: _quizGame_getWebAppUrl,
 };
 
 export { QUIZ_GAME_PREFIX };

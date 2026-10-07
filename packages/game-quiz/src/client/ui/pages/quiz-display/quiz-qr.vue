@@ -11,16 +11,17 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { buildParticipantJoinUrl } from '../../../model/participant-url';
+import { useParticipantJoinUrl } from '../../composables/use-participant-join-url';
 
 const router = useRouter();
 const route = useRoute();
 
 const quizId = route.params.id as string;
 
+const { joinUrl } = useParticipantJoinUrl(quizId);
+
 const qrCodeUrl = computed(() => {
-    const joinUrl = buildParticipantJoinUrl(quizId);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl.value)}`;
 });
 
 const handleKeydown = (event: KeyboardEvent) => {
