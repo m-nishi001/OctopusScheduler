@@ -9,6 +9,7 @@ import { jackpotGameRoutes } from "@octopus/game-jackpot";
 import { cardGameRoutes } from "@octopus/game-card";
 import { quizGameRoutes } from "@octopus/game-quiz";
 import { createStandaloneQuizJoinRoutes } from "./quiz-join-route";
+import { hashToPath } from "./initial-hash";
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -47,17 +48,18 @@ const router = createRouter({
 });
 
 // ブラウザのURLの変更はHash値の変更であるため、これを定義済ルートとマッピングする
-router.beforeEach((to, from, next) => {
-  // GASではiframe内のURLにハッシュが現れないため、QRコード等で開かれた初回遷移のみ
-  // google.script.locationの初期ハッシュからルートを復元する。
-  if (from === START_LOCATION && to.fullPath === "/") {
-    const initialHash = HistoryService.getInitialHash();
-    if (initialHash) {
-      next({ path: `/${initialHash.replace(/^#?\/?/, "")}`, replace: true });
-      return;
-    }
-  }
+// GASではiframe内のURLにハッシュが現れないため、最初の遷移に限り、公式APIで取得した
+// 外側URLの初期ハッシュ(QRコードのURL等)からルートを復元する。
+// "/" は "/home" にリダイレクトされた後にガードへ届くため、遷移先の中身では判定しない。
+let initialHashHandled = false;
+router.beforeEach(async (_to, from) => {
+  if (initialHashHandled || from !== START_LOCATION) return;
+  initialHashHandled = true;
+  const path = hashToPath(await HistoryService.getInitialHash());
+  if (path) return { path, replace: true };
+});
 
+router.beforeEach((to, from, next) => {
   // If we're navigating from inside /execute and the target is a game absolute path
   // (e.g. `/jackpot-admin`, `/card-admin`, `/quiz-admin`), rewrite to be
   // under `/execute` so execute-view remains mounted.
