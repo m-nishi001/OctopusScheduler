@@ -99,6 +99,12 @@ export interface ResolveDeviceTokenArgs {
  * 参加者の回答画面に表示する選択肢メタデータ。参加者の端末には正解情報を
  * 一切渡さないため、画像やcorrectNoは含めない(テキスト+色のボタンのみ表示する)。
  */
+/**
+ * クイズの1回の実施を隔離する単位。本番(live)とデモ(demo)で受付状態・回答のKVキーが
+ * 分かれるため、プレビュー実行が本番データに影響しない。
+ */
+export type QuizSessionScope = "live" | "demo";
+
 export interface AcceptanceOption {
   no: number;
   text: string;
@@ -120,15 +126,18 @@ export interface AcceptanceState {
 
 export interface StartAcceptingAnswersArgs {
   quizId: string;
+  scope: QuizSessionScope;
   options: AcceptanceOption[];
 }
 
 export interface StopAcceptingAnswersArgs {
   quizId: string;
+  scope: QuizSessionScope;
 }
 
 export interface GetAcceptanceStateArgs {
   quizId: string;
+  scope: QuizSessionScope;
 }
 
 /** 参加者から実際に届いた1件の回答。タイムスタンプはサーバー受信時刻。 */
@@ -141,12 +150,14 @@ export interface SubmittedAnswer {
 
 export interface SubmitAnswerArgs {
   quizId: string;
+  scope: QuizSessionScope;
   token: string;
   optionNo: number;
 }
 
 export interface GetAnswersArgs {
   quizId: string;
+  scope: QuizSessionScope;
 }
 
 /**
