@@ -20,8 +20,8 @@ describe("AnswerSessionRepository", () => {
     const api = createFakeApi({ startAcceptingAnswers: vi.fn().mockResolvedValue(state) });
     const repo = new AnswerSessionRepository(api);
 
-    await expect(repo.start("q1", options)).resolves.toEqual(state);
-    expect(api.startAcceptingAnswers).toHaveBeenCalledWith({ quizId: "q1", options });
+    await expect(repo.start("q1", "demo", options)).resolves.toEqual(state);
+    expect(api.startAcceptingAnswers).toHaveBeenCalledWith({ quizId: "q1", scope: "demo", options });
   });
 
   it("stops accepting answers via the API", async () => {
@@ -29,8 +29,8 @@ describe("AnswerSessionRepository", () => {
     const api = createFakeApi({ stopAcceptingAnswers: vi.fn().mockResolvedValue(state) });
     const repo = new AnswerSessionRepository(api);
 
-    await expect(repo.stop("q1")).resolves.toEqual(state);
-    expect(api.stopAcceptingAnswers).toHaveBeenCalledWith({ quizId: "q1" });
+    await expect(repo.stop("q1", "demo")).resolves.toEqual(state);
+    expect(api.stopAcceptingAnswers).toHaveBeenCalledWith({ quizId: "q1", scope: "demo" });
   });
 
   it("gets the acceptance state via the API", async () => {
@@ -38,8 +38,8 @@ describe("AnswerSessionRepository", () => {
     const api = createFakeApi({ getAcceptanceState: vi.fn().mockResolvedValue(state) });
     const repo = new AnswerSessionRepository(api);
 
-    await expect(repo.getState("q1")).resolves.toEqual(state);
-    expect(api.getAcceptanceState).toHaveBeenCalledWith({ quizId: "q1" });
+    await expect(repo.getState("q1", "demo")).resolves.toEqual(state);
+    expect(api.getAcceptanceState).toHaveBeenCalledWith({ quizId: "q1", scope: "demo" });
   });
 
   it("submits an answer via the API", async () => {
@@ -47,8 +47,8 @@ describe("AnswerSessionRepository", () => {
     const api = createFakeApi({ submitAnswer: vi.fn().mockResolvedValue(answer) });
     const repo = new AnswerSessionRepository(api);
 
-    await expect(repo.submit("q1", "tok-1", 2)).resolves.toEqual(answer);
-    expect(api.submitAnswer).toHaveBeenCalledWith({ quizId: "q1", token: "tok-1", optionNo: 2 });
+    await expect(repo.submit("q1", "demo", "tok-1", 2)).resolves.toEqual(answer);
+    expect(api.submitAnswer).toHaveBeenCalledWith({ quizId: "q1", scope: "demo", token: "tok-1", optionNo: 2 });
   });
 
   it("gets submitted answers via the API", async () => {
@@ -56,7 +56,7 @@ describe("AnswerSessionRepository", () => {
     const api = createFakeApi({ getAnswers: vi.fn().mockResolvedValue(answers) });
     const repo = new AnswerSessionRepository(api);
 
-    await expect(repo.getAnswers("q1")).resolves.toEqual(answers);
-    expect(api.getAnswers).toHaveBeenCalledWith({ quizId: "q1" });
+    await expect(repo.getAnswers("q1", "demo")).resolves.toEqual(answers);
+    expect(api.getAnswers).toHaveBeenCalledWith({ quizId: "q1", scope: "demo" });
   });
 });

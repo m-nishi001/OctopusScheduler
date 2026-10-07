@@ -57,19 +57,19 @@ describe("answer flow use-cases", () => {
     });
 
     await expect(
-      new StartAcceptingAnswersUseCase(repository).execute("q1", options)
+      new StartAcceptingAnswersUseCase(repository).execute("q1", "demo", options)
     ).resolves.toEqual(state);
-    expect(repository.start).toHaveBeenCalledWith("q1", options);
+    expect(repository.start).toHaveBeenCalledWith("q1", "demo", options);
   });
 
   it("StopAcceptingAnswersUseCase delegates to the repository", async () => {
     const state = { quizId: "q1", isAccepting: false, acceptStartedAtMs: 1000 };
     const repository = createFakeAnswerSessionRepository({ stop: vi.fn().mockResolvedValue(state) });
 
-    await expect(new StopAcceptingAnswersUseCase(repository).execute("q1")).resolves.toEqual(
+    await expect(new StopAcceptingAnswersUseCase(repository).execute("q1", "demo")).resolves.toEqual(
       state
     );
-    expect(repository.stop).toHaveBeenCalledWith("q1");
+    expect(repository.stop).toHaveBeenCalledWith("q1", "demo");
   });
 
   it("GetAcceptanceStateUseCase delegates to the repository", async () => {
@@ -78,8 +78,8 @@ describe("answer flow use-cases", () => {
       getState: vi.fn().mockResolvedValue(state),
     });
 
-    await expect(new GetAcceptanceStateUseCase(repository).execute("q1")).resolves.toEqual(state);
-    expect(repository.getState).toHaveBeenCalledWith("q1");
+    await expect(new GetAcceptanceStateUseCase(repository).execute("q1", "demo")).resolves.toEqual(state);
+    expect(repository.getState).toHaveBeenCalledWith("q1", "demo");
   });
 
   it("SubmitAnswerUseCase delegates to the repository", async () => {
@@ -89,9 +89,9 @@ describe("answer flow use-cases", () => {
     });
 
     await expect(
-      new SubmitAnswerUseCase(repository).execute("q1", "tok-1", 2)
+      new SubmitAnswerUseCase(repository).execute("q1", "demo", "tok-1", 2)
     ).resolves.toEqual(answer);
-    expect(repository.submit).toHaveBeenCalledWith("q1", "tok-1", 2);
+    expect(repository.submit).toHaveBeenCalledWith("q1", "demo", "tok-1", 2);
   });
 
   it("GetSubmittedAnswersUseCase delegates to the repository", async () => {
@@ -100,9 +100,9 @@ describe("answer flow use-cases", () => {
       getAnswers: vi.fn().mockResolvedValue(answers),
     });
 
-    await expect(new GetSubmittedAnswersUseCase(repository).execute("q1")).resolves.toEqual(
+    await expect(new GetSubmittedAnswersUseCase(repository).execute("q1", "demo")).resolves.toEqual(
       answers
     );
-    expect(repository.getAnswers).toHaveBeenCalledWith("q1");
+    expect(repository.getAnswers).toHaveBeenCalledWith("q1", "demo");
   });
 });

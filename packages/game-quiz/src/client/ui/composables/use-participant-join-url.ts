@@ -5,6 +5,7 @@ import {
   buildParticipantJoinUrl,
   buildParticipantJoinUrlFromBase,
 } from "../../model/participant-url";
+import type { QuizSession } from "../../model/quiz-session";
 
 /**
  * QRコードに埋め込む参加者用URL。まずwindow.location基準で即座に表示し、
@@ -12,14 +13,15 @@ import {
  */
 export function useParticipantJoinUrl(
   quizId: string,
+  session: Pick<QuizSession, "joinUrlQuery">,
   deps?: { useCase?: Pick<GetWebAppUrlUseCase, "execute"> }
 ) {
-  const joinUrl = ref(buildParticipantJoinUrl(quizId));
+  const joinUrl = ref(buildParticipantJoinUrl(quizId, session.joinUrlQuery));
 
   onMounted(async () => {
     const useCase = deps?.useCase ?? container.resolve(GetWebAppUrlUseCase);
     const baseUrl = await useCase.execute();
-    joinUrl.value = buildParticipantJoinUrlFromBase(quizId, baseUrl);
+    joinUrl.value = buildParticipantJoinUrlFromBase(quizId, session.joinUrlQuery, baseUrl);
   });
 
   return { joinUrl };

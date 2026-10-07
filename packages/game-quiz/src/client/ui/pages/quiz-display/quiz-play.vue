@@ -52,6 +52,7 @@ import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
 import OptionCard from '../../components/option-card.vue';
 import { useParticipantJoinUrl } from '../../composables/use-participant-join-url';
+import { useQuizSession } from '../../composables/use-quiz-session';
 import { useAnswerWindow } from '../../composables/use-answer-window';
 import { useCardGridLayout } from '../../composables/use-card-grid-layout';
 
@@ -60,21 +61,12 @@ const router = useRouter();
 
 const quizId = route.params.id as string;
 
-// preview flag: determine from route params or route name (kept consistent with quiz-result.vue)
-const isPreview = computed(() => {
-    const paramPreview = (route.params as any)?.preview;
-    if (paramPreview !== undefined) {
-        if (typeof paramPreview === 'boolean') return paramPreview;
-        return String(paramPreview) === 'true' || String(paramPreview) === '1';
-    }
-    if (String(route.name)?.endsWith('-preview')) return true;
-    return false;
-});
+const session = useQuizSession();
 
 const quiz = ref<QuizDto | null>(null);
 const objectUrls = ref<string[]>([]);
 
-const { joinUrl } = useParticipantJoinUrl(quizId);
+const { joinUrl } = useParticipantJoinUrl(quizId, session);
 
 const qrCodeUrl = computed(() => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl.value)}`;
@@ -124,7 +116,7 @@ onMounted(async () => {
             quizId,
             timeLimit: quiz.value.timeLimit,
             options,
-            isPreview: isPreview.value,
+            scope: session.scope,
             onFinish: () => {
                 void bgmAudio.stop();
             },
@@ -166,10 +158,7 @@ const handleEmergencyStop = () => {
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && showModal.value && canProceed.value) {
         void bgmAudio.stop();
-        // Navigate to answer display page. Use the preview-specific route name when in preview mode
-        // so downstream components that check the route name (`endsWith('-preview')`) keep
-        // behaving in preview mode.
-        router.push({ name: isPreview.value ? 'quiz-answer-preview' : 'quiz-answer', params: { id: quizId } });
+        router.push({ name: session.routeName('quiz-answer'), params: { id: quizId } });
     }
 };
 </script>

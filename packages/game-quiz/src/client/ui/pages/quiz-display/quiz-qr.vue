@@ -12,13 +12,16 @@
 import { onMounted, onUnmounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useParticipantJoinUrl } from '../../composables/use-participant-join-url';
+import { useQuizSession } from '../../composables/use-quiz-session';
 
 const router = useRouter();
 const route = useRoute();
 
 const quizId = route.params.id as string;
 
-const { joinUrl } = useParticipantJoinUrl(quizId);
+const session = useQuizSession();
+
+const { joinUrl } = useParticipantJoinUrl(quizId, session);
 
 const qrCodeUrl = computed(() => {
     return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl.value)}`;
@@ -26,10 +29,7 @@ const qrCodeUrl = computed(() => {
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
-        // Navigate to the preview variant if this route is a preview route.
-        const isPreviewRoute = String(route.name)?.endsWith('-preview');
-        const routeName = isPreviewRoute ? 'quiz-play-preview' : 'quiz-play';
-        router.push({ name: routeName, params: { id: quizId } });
+        router.push({ name: session.routeName('quiz-play'), params: { id: quizId } });
     }
 };
 

@@ -23,9 +23,11 @@ import ResultStage from '../../components/result/result-stage.vue';
 import RankingBoard from '../../components/result/ranking-board.vue';
 import { usePrizeOrchestrator } from '../../composables/use-prize-orchestrator';
 import { useRankingReveal } from '../../composables/use-ranking-reveal';
+import { useQuizSession } from '../../composables/use-quiz-session';
 
 const router = useRouter();
 const route = useRoute();
+const session = useQuizSession();
 
 type DisplayResult = RankedResult & { rank: number };
 
@@ -88,8 +90,8 @@ onMounted(() => {
 
             const [quiz, acceptanceState, answers] = await Promise.all([
                 startQuizUseCase.execute(quizId),
-                getAcceptanceStateUseCase.execute(quizId),
-                getSubmittedAnswersUseCase.execute(quizId),
+                getAcceptanceStateUseCase.execute(quizId, session.scope),
+                getSubmittedAnswersUseCase.execute(quizId, session.scope),
             ]);
 
             currentQuiz.value = quiz;

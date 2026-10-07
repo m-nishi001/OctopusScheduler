@@ -71,14 +71,16 @@ import { container } from 'tsyringe';
 import OptionCard from '../../components/option-card.vue';
 import { useParticipantSession } from '../../composables/use-participant-session';
 import { useAcceptancePolling } from '../../composables/use-acceptance-polling';
+import { useQuizSession } from '../../composables/use-quiz-session';
 import { SubmitAnswerUseCase } from '../../../control/use-cases/submit-answer-use-case';
 
 const route = useRoute();
 const quizId = route.params.id as string;
+const quizSession = useQuizSession();
 
 const { session, isRestoring, isLoggingIn, loginError, restore, login } = useParticipantSession();
 const { state: acceptanceState, start: startPolling, stop: stopPolling } =
-    useAcceptancePolling(quizId);
+    useAcceptancePolling(quizId, quizSession.scope);
 
 const submitUseCase = container.resolve(SubmitAnswerUseCase);
 
@@ -112,7 +114,7 @@ async function handleSelect(optionNo: number) {
     isSubmitting.value = true;
     submitError.value = null;
     try {
-        await submitUseCase.execute(quizId, session.value.token, optionNo);
+        await submitUseCase.execute(quizId, quizSession.scope, session.value.token, optionNo);
         hasSubmitted.value = true;
     } catch (e) {
         submitError.value = e instanceof Error ? e.message : String(e);

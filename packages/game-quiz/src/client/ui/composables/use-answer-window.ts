@@ -2,7 +2,7 @@ import { getCurrentInstance, onUnmounted, ref } from 'vue';
 import { container } from 'tsyringe';
 import { StartAcceptingAnswersUseCase } from '../../control/use-cases/start-accepting-answers-use-case';
 import { StopAcceptingAnswersUseCase } from '../../control/use-cases/stop-accepting-answers-use-case';
-import type { AcceptanceOption } from '../../../server/quiz-api-contract';
+import type { AcceptanceOption, QuizSessionScope } from '../../../server/quiz-api-contract';
 
 export interface UseAnswerWindowDeps {
   startAcceptingAnswersUseCase?: Pick<StartAcceptingAnswersUseCase, 'execute'>;
@@ -13,8 +13,7 @@ export interface StartAnswerWindowArgs {
   quizId: string;
   timeLimit: number;
   options: AcceptanceOption[];
-  /** デモ実行かどうか。デモでも本番同様に回答受付を開始/終了する(参加者端末の動作確認のため)。 */
-  isPreview: boolean;
+  scope: QuizSessionScope;
   /** タイマー終了・手動停止のどちらでも、締切処理が始まる直前に一度だけ呼ばれる。 */
   onFinish?: () => void;
 }
@@ -38,6 +37,7 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
 
   let timer: ReturnType<typeof setInterval> | undefined;
   let currentQuizId = '';
+  let currentScope: QuizSessionScope = 'live';
   let onFinishCallback: (() => void) | undefined;
 
   async function finish(): Promise<void> {
@@ -53,7 +53,7 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
     errorMessage.value = null;
 
     try {
-      await stopAcceptingAnswersUseCase.execute(currentQuizId);
+      await stopAcceptingAnswersUseCase.execute(currentQuizId, currentScope);
       isLoading.value = false;
       canProceed.value = true;
     } catch (err) {
@@ -66,6 +66,7 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
 
   async function start(args: StartAnswerWindowArgs): Promise<void> {
     currentQuizId = args.quizId;
+    currentScope = args.scope;
     onFinishCallback = args.onFinish;
     timeLeft.value = args.timeLimit;
 
@@ -73,10 +74,8 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
     // countdown. Previously the Google Form was always "open", which let
     // participants answer while the QR/intro screens were still showing; now
     // acceptance only opens here, at the moment the question is displayed.
-    // Preview (demo) runs open acceptance too, so a participant who joins via the QR
-    // code can answer exactly as in production.
     try {
-      await startAcceptingAnswersUseCase.execute(args.quizId, args.options);
+      await startAcceptingAnswersUseCase.execute(args.quizId, args.scope, args.options);
     } catch (e) {
       console.error('Failed to start accepting answers', e);
     }

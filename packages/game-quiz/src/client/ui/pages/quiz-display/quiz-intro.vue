@@ -10,18 +10,17 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useQuizSession } from '../../composables/use-quiz-session';
 
 const router = useRouter();
 const route = useRoute();
 
 const quizId = route.params.id as string;
+const session = useQuizSession();
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter') {
-        // If this route is a preview route, navigate to the next preview route.
-        const isPreviewRoute = String(route.name)?.endsWith('-preview');
-        const routeName = isPreviewRoute ? 'quiz-qr-preview' : 'quiz-qr';
-        router.push({ name: routeName, params: { id: quizId } });
+        router.push({ name: session.routeName('quiz-qr'), params: { id: quizId } });
     }
 };
 

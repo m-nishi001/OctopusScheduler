@@ -4,6 +4,7 @@ import type {
   AcceptanceOption,
   AcceptanceState,
   QuizGameApi,
+  QuizSessionScope,
   SubmittedAnswer,
 } from "../../server/quiz-api-contract";
 
@@ -11,24 +12,24 @@ import type {
 export class AnswerSessionRepository {
   constructor(@inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi) {}
 
-  async start(quizId: string, options: AcceptanceOption[]): Promise<AcceptanceState> {
-    return this.quizApi.startAcceptingAnswers({ quizId, options });
+  async start(quizId: string, scope: QuizSessionScope, options: AcceptanceOption[]): Promise<AcceptanceState> {
+    return this.quizApi.startAcceptingAnswers({ quizId, scope, options });
   }
 
-  async stop(quizId: string): Promise<AcceptanceState> {
-    return this.quizApi.stopAcceptingAnswers({ quizId });
+  async stop(quizId: string, scope: QuizSessionScope): Promise<AcceptanceState> {
+    return this.quizApi.stopAcceptingAnswers({ quizId, scope });
   }
 
-  async getState(quizId: string): Promise<AcceptanceState> {
-    return this.quizApi.getAcceptanceState({ quizId });
+  async getState(quizId: string, scope: QuizSessionScope): Promise<AcceptanceState> {
+    return this.quizApi.getAcceptanceState({ quizId, scope });
   }
 
-  async submit(quizId: string, token: string, optionNo: number): Promise<SubmittedAnswer> {
-    return this.quizApi.submitAnswer({ quizId, token, optionNo });
+  async submit(quizId: string, scope: QuizSessionScope, token: string, optionNo: number): Promise<SubmittedAnswer> {
+    return this.quizApi.submitAnswer({ quizId, scope, token, optionNo });
   }
 
-  async getAnswers(quizId: string): Promise<SubmittedAnswer[]> {
-    return this.quizApi.getAnswers({ quizId });
+  async getAnswers(quizId: string, scope: QuizSessionScope): Promise<SubmittedAnswer[]> {
+    return this.quizApi.getAnswers({ quizId, scope });
   }
 
   async getWebAppUrl(): Promise<string | null> {
