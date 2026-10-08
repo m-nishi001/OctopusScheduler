@@ -46,7 +46,7 @@ describe('useAnswerWindow', () => {
     expect(canProceed.value).toBe(true);
   });
 
-  it('does not touch server acceptance state in preview mode', async () => {
+  it('opens and closes server acceptance in preview mode too so participants can answer the demo', async () => {
     vi.useFakeTimers();
     const deps = createDeps();
     const { start } = useAnswerWindow(deps);
@@ -55,8 +55,8 @@ describe('useAnswerWindow', () => {
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(deps.startAcceptingAnswersUseCase.execute).not.toHaveBeenCalled();
-    expect(deps.stopAcceptingAnswersUseCase.execute).not.toHaveBeenCalled();
+    expect(deps.startAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1', []);
+    expect(deps.stopAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1');
   });
 
   it('emergencyStop() finishes immediately and prevents the timer from also finishing', async () => {
