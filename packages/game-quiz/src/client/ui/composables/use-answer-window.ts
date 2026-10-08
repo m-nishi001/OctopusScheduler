@@ -13,6 +13,7 @@ export interface StartAnswerWindowArgs {
   quizId: string;
   timeLimit: number;
   options: AcceptanceOption[];
+  /** デモ実行かどうか。デモでも本番同様に回答受付を開始/終了する(参加者端末の動作確認のため)。 */
   isPreview: boolean;
   /** タイマー終了・手動停止のどちらでも、締切処理が始まる直前に一度だけ呼ばれる。 */
   onFinish?: () => void;
@@ -37,7 +38,6 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
 
   let timer: ReturnType<typeof setInterval> | undefined;
   let currentQuizId = '';
-  let currentIsPreview = false;
   let onFinishCallback: (() => void) | undefined;
 
   async function finish(): Promise<void> {
@@ -51,12 +51,6 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
     isLoading.value = true;
     canProceed.value = false;
     errorMessage.value = null;
-
-    if (currentIsPreview) {
-      isLoading.value = false;
-      canProceed.value = true;
-      return;
-    }
 
     try {
       await stopAcceptingAnswersUseCase.execute(currentQuizId);
@@ -72,7 +66,6 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
 
   async function start(args: StartAnswerWindowArgs): Promise<void> {
     currentQuizId = args.quizId;
-    currentIsPreview = args.isPreview;
     onFinishCallback = args.onFinish;
     timeLeft.value = args.timeLimit;
 
@@ -80,13 +73,12 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
     // countdown. Previously the Google Form was always "open", which let
     // participants answer while the QR/intro screens were still showing; now
     // acceptance only opens here, at the moment the question is displayed.
-    // Preview runs must not touch the live quiz's acceptance state.
-    if (!currentIsPreview) {
-      try {
-        await startAcceptingAnswersUseCase.execute(args.quizId, args.options);
-      } catch (e) {
-        console.error('Failed to start accepting answers', e);
-      }
+    // Preview (demo) runs open acceptance too, so a participant who joins via the QR
+    // code can answer exactly as in production.
+    try {
+      await startAcceptingAnswersUseCase.execute(args.quizId, args.options);
+    } catch (e) {
+      console.error('Failed to start accepting answers', e);
     }
 
     timer = setInterval(() => {
