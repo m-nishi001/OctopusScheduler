@@ -3,6 +3,7 @@ import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { addMember } from "@octopus/accounts/server-use-cases";
 import { loginParticipant } from "../participant-auth-use-cases";
 import { getAnswers, submitAnswer } from "../answer-submission-use-cases";
+import { startAcceptingAnswers } from "../answer-session-use-cases";
 
 function stubClock(times: number[]) {
   let i = 0;
@@ -117,5 +118,34 @@ describe("answer-submission-use-cases", () => {
 
     const answers = await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1" });
     expect(answers.map((a) => a.userId).sort()).toEqual(["u1", "u2"]);
+  });
+
+  it("同じクイズの受付を再開始すると前回の回答が消え、同じ参加者の新しい回答が記録される(再実行)", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    const token = await setupParticipant(storage, "u1", "太郎");
+    const deps = (times: number[]) => ({ storage, generateId: stubGenerateId, now: stubClock(times) });
+
+    await startAcceptingAnswers({ storage, now: stubClock([1000]) }, { quizId: "q1", options: [] });
+    await submitAnswer(deps([1500]), { quizId: "q1", token, optionNo: 2 });
+
+    // 2ラウンド目(デモ → 本番 など)
+    await startAcceptingAnswers({ storage, now: stubClock([5000]) }, { quizId: "q1", options: [] });
+    expect(await getAnswers(deps([]), { quizId: "q1" })).toEqual([]);
+
+    await submitAnswer(deps([5300]), { quizId: "q1", token, optionNo: 1 });
+    expect(await getAnswers(deps([]), { quizId: "q1" })).toEqual([
+      { userId: "u1", displayName: "太郎", optionNo: 1, serverTimestampMs: 5300 },
+    ]);
+  });
+
+  it("受付の再開始は他のクイズの回答には影響しない", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    const token = await setupParticipant(storage, "u1", "太郎");
+    const deps = (times: number[]) => ({ storage, generateId: stubGenerateId, now: stubClock(times) });
+
+    await submitAnswer(deps([100]), { quizId: "q2", token, optionNo: 1 });
+    await startAcceptingAnswers({ storage, now: stubClock([5000]) }, { quizId: "q1", options: [] });
+
+    expect(await getAnswers(deps([]), { quizId: "q2" })).toHaveLength(1);
   });
 });

@@ -1,5 +1,6 @@
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import type { AcceptanceState } from "./quiz-api-contract";
+import { clearAnswers } from "./answer-submission-use-cases";
 
 export interface AnswerSessionDeps {
   storage: IKeyValueStorage;
@@ -26,6 +27,10 @@ async function readState(storage: IKeyValueStorage, quizId: string): Promise<Acc
 /**
  * 回答受付を開始する。出題前(QR表示中など)に回答できてしまうバグの修正の要:
  * ここで記録される acceptStartedAtMs が、集計時の下限フィルタの基準になる。
+ * 同じクイズを再実行(デモ後の本番、やり直し)しても前回の回答が残らないよう、
+ * 受付開始のたびにそのクイズの回答を消す。消さないと「最初の回答が正」の規則で
+ * 前回の回答が今回の回答を弾き、かつ集計側のフィルタで前回の回答も除外され、
+ * 誰も正答者にならなくなる。
  */
 export async function startAcceptingAnswers(
   deps: AnswerSessionDeps,
@@ -37,6 +42,7 @@ export async function startAcceptingAnswers(
     acceptStartedAtMs: deps.now(),
     options: args.options,
   };
+  await clearAnswers(deps.storage, args.quizId);
   await deps.storage.set(acceptanceKey(args.quizId), JSON.stringify(state));
   return state;
 }
