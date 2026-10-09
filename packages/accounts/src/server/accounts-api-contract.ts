@@ -11,6 +11,7 @@ export const ACCOUNTS_PREFIX = "accounts" as const;
 
 export const ACCOUNTS_ENDPOINTS = [
   "listMembers",
+  "listAccounts",
   "addMember",
   "updateMember",
   "deleteMember",
@@ -36,7 +37,7 @@ export interface Member {
   name: string;
   /** 管理画面を操作できるか。未設定は管理者ではない。 */
   isAdmin?: boolean;
-  /** パスワードが設定済みか(listMembersの結果にのみ付く。ハッシュ自体は返さない)。 */
+  /** パスワードが設定済みか(listAccountsの結果にのみ付く。ハッシュ自体は返さない)。 */
   hasPassword?: boolean;
 }
 
@@ -99,7 +100,10 @@ export interface GetSessionArgs {
  * Proxyの型として使う。
  */
 export interface AccountsApi {
+  /** 表示用の名簿(id/name のみ)。 */
   listMembers(args: ListMembersArgs, options?: ApiCallOptions): Promise<Member[]>;
+  /** 管理者向け一覧(isAdmin / hasPassword 付き)。 */
+  listAccounts(args: ListMembersArgs, options?: ApiCallOptions): Promise<Member[]>;
   addMember(args: AddMemberArgs, options?: ApiCallOptions): Promise<Member>;
   updateMember(args: UpdateMemberArgs, options?: ApiCallOptions): Promise<Member>;
   deleteMember(args: DeleteMemberArgs, options?: ApiCallOptions): Promise<void>;

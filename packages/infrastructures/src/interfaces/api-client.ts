@@ -15,6 +15,8 @@ export type ApiResponse<T> =
   | {
       status: "error";
       message: string;
+      /** false の場合、クライアントはリトライせず即座に失敗とする(認証エラー等)。 */
+      retryable?: false;
     };
 
 export interface ApiCallOptions {

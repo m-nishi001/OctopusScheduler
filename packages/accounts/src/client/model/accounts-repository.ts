@@ -12,6 +12,10 @@ export class AccountsRepository {
     return this.accountsApi.listMembers({});
   }
 
+  async listAccounts(): Promise<Member[]> {
+    return this.accountsApi.listAccounts({});
+  }
+
   async addMember(args: { id?: string; name: string; isAdmin?: boolean }): Promise<Member> {
     return this.accountsApi.addMember(args);
   }

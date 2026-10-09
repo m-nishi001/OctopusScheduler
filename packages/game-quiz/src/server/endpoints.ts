@@ -52,6 +52,7 @@ import {
   stopAcceptingAnswers,
 } from "./answer-session-use-cases";
 import { getAnswers, submitAnswer } from "./answer-submission-use-cases";
+import { secure } from "@octopus/accounts/secure";
 
 function resolveDeps() {
   return {
@@ -219,6 +220,22 @@ _quizGame_getWebAppUrl = async (): Promise<string> => {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
+
+// 認可ポリシー。表示・参加者向けの読み取りは公開、書き込みと管理操作は管理者のみ(本番モード)。
+_quizGame_addDriveData = secure("admin", _quizGame_addDriveData);
+_quizGame_getDriveMetaData = secure("public", _quizGame_getDriveMetaData);
+_quizGame_getDriveData = secure("public", _quizGame_getDriveData);
+_quizGame_updateDriveData = secure("admin", _quizGame_updateDriveData);
+_quizGame_addJson = secure("admin", _quizGame_addJson);
+_quizGame_getJson = secure("public", _quizGame_getJson);
+_quizGame_loginParticipant = secure("public", _quizGame_loginParticipant);
+_quizGame_resolveDeviceToken = secure("public", _quizGame_resolveDeviceToken);
+_quizGame_startAcceptingAnswers = secure("admin", _quizGame_startAcceptingAnswers);
+_quizGame_stopAcceptingAnswers = secure("admin", _quizGame_stopAcceptingAnswers);
+_quizGame_getAcceptanceState = secure("public", _quizGame_getAcceptanceState);
+_quizGame_submitAnswer = secure("public", _quizGame_submitAnswer);
+_quizGame_getAnswers = secure("admin", _quizGame_getAnswers);
+_quizGame_getWebAppUrl = secure("public", _quizGame_getWebAppUrl);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Promise<string>> = {

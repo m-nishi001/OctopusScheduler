@@ -6,11 +6,16 @@
  * 「同時実行数超過」エラーの特別扱いは対象外(Cloudflareにその制約はないため)。
  */
 import { injectable } from "tsyringe";
+import { getSessionToken } from "@octopus/client-common/auth/session-token-store";
 import type { ApiCallOptions, ApiResponse, IApiClient } from "../interfaces/api-client";
+import { wrapWithAuth } from "../interfaces/auth-envelope";
 
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_RETRIES = 3;
 const DEFAULT_RETRY_DELAY_MS = 1000;
+
+/** リトライしても結果が変わらないエラー(認証エラー等)。 */
+class NonRetryableError extends Error {}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -34,13 +39,14 @@ export class CloudflareApiClient implements IApiClient {
       try {
         const response = await this.callOnce<T>(functionName, args, timeout);
         if (response.status === "success") return response.data;
+        if (response.retryable === false) throw new NonRetryableError(response.message);
         if (attempts <= retries) {
           await sleep(retryDelay);
           continue;
         }
         throw new Error(response.message);
       } catch (error) {
-        if (attempts <= retries) {
+        if (!(error instanceof NonRetryableError) && attempts <= retries) {
           await sleep(retryDelay);
           continue;
         }
@@ -60,7 +66,7 @@ export class CloudflareApiClient implements IApiClient {
       const res = await fetch("/rpc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: functionName, args }),
+        body: JSON.stringify({ name: functionName, args: wrapWithAuth(getSessionToken(), args) }),
         signal: controller.signal,
       });
       const text = await res.text();

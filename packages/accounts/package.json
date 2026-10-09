@@ -21,6 +21,11 @@
       "types": "./src/server/accounts-use-cases.ts",
       "import": "./src/server/accounts-use-cases.ts",
       "default": "./src/server/accounts-use-cases.ts"
+    },
+    "./secure": {
+      "types": "./src/server/secure.ts",
+      "import": "./src/server/secure.ts",
+      "default": "./src/server/secure.ts"
     }
   },
   "scripts": {

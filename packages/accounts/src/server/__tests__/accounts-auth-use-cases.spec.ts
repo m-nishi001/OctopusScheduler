@@ -4,6 +4,7 @@ import {
   addMember,
   deleteMember,
   getSession,
+  listAccounts,
   listMembers,
   login,
   logout,
@@ -104,12 +105,16 @@ describe("accounts auth", () => {
     await expect(login(deps, { id: "admin", password: "correct-horse" })).rejects.toThrow();
   });
 
-  it("flags hasPassword in listMembers only for members with a credential", async () => {
+  it("listAccounts flags isAdmin/hasPassword; listMembers exposes only id and name", async () => {
     const deps = createDeps();
     await adminWithPassword(deps);
     await addMember(deps, { id: "u1", name: "太郎" });
-    expect(await listMembers(deps)).toEqual([
+    expect(await listAccounts(deps)).toEqual([
       { id: "admin", name: "管理者", isAdmin: true, hasPassword: true },
+      { id: "u1", name: "太郎" },
+    ]);
+    expect(await listMembers(deps)).toEqual([
+      { id: "admin", name: "管理者" },
       { id: "u1", name: "太郎" },
     ]);
   });
@@ -137,7 +142,7 @@ describe("accounts isAdmin handling", () => {
       { id: "admin", name: "管理者(改)" },
       { id: "u1", name: "太郎", isAdmin: true },
     ]);
-    expect(await listMembers(deps)).toEqual([
+    expect(await listAccounts(deps)).toEqual([
       { id: "admin", name: "管理者(改)", isAdmin: true },
       { id: "u1", name: "太郎" },
     ]);

@@ -46,7 +46,14 @@ async function writeMembers(storage: IKeyValueStorage, members: Member[]): Promi
   await storage.set(MEMBERS_KEY, JSON.stringify(members));
 }
 
+/** 表示用の名簿(id/name のみ)。誰でも取得できるよう、管理者フラグ等は含めない。 */
 export async function listMembers(deps: AccountsUseCaseDeps): Promise<Member[]> {
+  const members = await readMembers(deps.storage);
+  return members.map((m) => ({ id: m.id, name: m.name }));
+}
+
+/** 管理画面用の一覧。isAdmin / hasPassword を含む。 */
+export async function listAccounts(deps: AccountsUseCaseDeps): Promise<Member[]> {
   const members = await readMembers(deps.storage);
   return Promise.all(
     members.map(async (m) =>
