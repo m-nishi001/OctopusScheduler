@@ -103,6 +103,7 @@ function hasExportConst(src, constName) {
  *   prefixedNames: string[],
  *   allNames: string[],
  *   internalNames: string[],
+ *   handlerVariableNames: string[],
  *   ownerOf: (name: string) => string,
  *   apiTokenToPrefix: Record<string, string>,
  * }}
@@ -174,6 +175,14 @@ export function loadGasContract() {
     allNames: [...unprefixed, ...prefixedNames],
     /** esbuild の banner で宣言する内部変数名（`_<prefix>_<name>`）。 */
     internalNames: prefixedNames.map((n) => `_${n}`),
+    /**
+     * 実装側が代入する内部変数すべて(`internalNames` + 接頭辞なし関数 doGet 等の実装変数)。
+     * ESM(Cloudflare)は宣言なし代入が ReferenceError になるため、こちらを let 宣言する。
+     */
+    handlerVariableNames: [
+      ...prefixedNames.map((n) => `_${n}`),
+      ...unprefixed.map((name) => `_${ownerOf(name)}_${name}`),
+    ],
     ownerOf,
     /** DIトークン識別子名(例: "IJackpotGameApiToken") -> そのモジュールのprefix。 */
     apiTokenToPrefix,
