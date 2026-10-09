@@ -1,6 +1,6 @@
 import { inject, injectable } from "tsyringe";
 import { IAccountsApiToken } from "../../server/accounts-api-contract";
-import type { Member, AccountsApi } from "../../server/accounts-api-contract";
+import type { LoginResult, Member, AccountsApi } from "../../server/accounts-api-contract";
 
 @injectable()
 export class AccountsRepository {
@@ -12,7 +12,7 @@ export class AccountsRepository {
     return this.accountsApi.listMembers({});
   }
 
-  async addMember(args: { id?: string; name: string }): Promise<Member> {
+  async addMember(args: { id?: string; name: string; isAdmin?: boolean }): Promise<Member> {
     return this.accountsApi.addMember(args);
   }
 
@@ -26,5 +26,21 @@ export class AccountsRepository {
 
   async replaceAllMembers(members: Member[]): Promise<{ replaced: number }> {
     return this.accountsApi.replaceAllMembers({ members });
+  }
+
+  async setPassword(id: string, password: string): Promise<void> {
+    return this.accountsApi.setPassword({ id, password });
+  }
+
+  async login(id: string, password: string): Promise<LoginResult> {
+    return this.accountsApi.login({ id, password });
+  }
+
+  async logout(token: string): Promise<void> {
+    return this.accountsApi.logout({ token });
+  }
+
+  async getSession(token: string): Promise<Member | null> {
+    return this.accountsApi.getSession({ token });
   }
 }

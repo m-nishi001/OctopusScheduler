@@ -9,12 +9,20 @@
  */
 import "reflect-metadata";
 import { container } from "tsyringe";
-import { IKeyValueStorageToken, ICacheToken, DataBaseFactoryToken, IUuidGeneratorToken, ILockToken } from "../interfaces";
+import {
+  IKeyValueStorageToken,
+  ICacheToken,
+  DataBaseFactoryToken,
+  IUuidGeneratorToken,
+  ILockToken,
+  IPasswordHasherToken,
+} from "../interfaces";
 import { CloudflareKeyValueStorage } from "./cloudflare-key-value-storage";
 import { CloudflareCache } from "./cloudflare-cache";
 import { createCloudflareDataBase } from "./cloudflare-database";
 import { CloudflareUuidGenerator } from "./cloudflare-uuid-generator";
 import { CloudflareLock } from "./cloudflare-lock";
+import { CloudflarePasswordHasher } from "./cloudflare-password-hasher";
 
 export function registerCloudflareInfrastructures(): void {
   container.register(IKeyValueStorageToken, { useClass: CloudflareKeyValueStorage });
@@ -22,4 +30,5 @@ export function registerCloudflareInfrastructures(): void {
   container.register(DataBaseFactoryToken, { useValue: createCloudflareDataBase });
   container.register(IUuidGeneratorToken, { useClass: CloudflareUuidGenerator });
   container.register(ILockToken, { useClass: CloudflareLock });
+  container.register(IPasswordHasherToken, { useClass: CloudflarePasswordHasher });
 }

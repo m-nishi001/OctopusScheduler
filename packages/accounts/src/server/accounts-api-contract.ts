@@ -15,6 +15,10 @@ export const ACCOUNTS_ENDPOINTS = [
   "updateMember",
   "deleteMember",
   "replaceAllMembers",
+  "setPassword",
+  "login",
+  "logout",
+  "getSession",
 ] as const;
 
 export type AccountsEndpointName = (typeof ACCOUNTS_ENDPOINTS)[number];
@@ -30,6 +34,10 @@ export type AccountsFunctionName =
 export interface Member {
   id: string;
   name: string;
+  /** 管理画面を操作できるか。未設定は管理者ではない。 */
+  isAdmin?: boolean;
+  /** パスワードが設定済みか(listMembersの結果にのみ付く。ハッシュ自体は返さない)。 */
+  hasPassword?: boolean;
 }
 
 export type ListMembersArgs = Record<string, never>;
@@ -41,11 +49,14 @@ export interface AddMemberArgs {
    */
   id?: string;
   name: string;
+  isAdmin?: boolean;
 }
 
+/** isAdmin を省略した場合は既存の値を保つ。 */
 export interface UpdateMemberArgs {
   id: string;
   name: string;
+  isAdmin?: boolean;
 }
 
 export interface DeleteMemberArgs {
@@ -58,6 +69,29 @@ export interface ReplaceAllMembersArgs {
 
 export interface ReplaceAllMembersResult {
   replaced: number;
+}
+
+export interface SetPasswordArgs {
+  id: string;
+  password: string;
+}
+
+export interface LoginArgs {
+  id: string;
+  password: string;
+}
+
+export interface LoginResult {
+  token: string;
+  member: Member;
+}
+
+export interface LogoutArgs {
+  token: string;
+}
+
+export interface GetSessionArgs {
+  token: string;
 }
 
 /**
@@ -73,6 +107,11 @@ export interface AccountsApi {
     args: ReplaceAllMembersArgs,
     options?: ApiCallOptions
   ): Promise<ReplaceAllMembersResult>;
+  setPassword(args: SetPasswordArgs, options?: ApiCallOptions): Promise<void>;
+  login(args: LoginArgs, options?: ApiCallOptions): Promise<LoginResult>;
+  logout(args: LogoutArgs, options?: ApiCallOptions): Promise<void>;
+  /** トークンが有効ならそのメンバー、無効/期限切れなら null。 */
+  getSession(args: GetSessionArgs, options?: ApiCallOptions): Promise<Member | null>;
 }
 
 /** `AccountsApi` をDI解決するためのトークン。 */
