@@ -4,6 +4,7 @@ import {
   addMember,
   deleteMember,
   getSession,
+  InvalidCredentialsError,
   listAccounts,
   listMembers,
   login,
@@ -59,6 +60,14 @@ describe("accounts auth", () => {
       ].map((args) => login(deps, args).then(() => "ok", (e: Error) => e.message))
     );
     expect(messages).toEqual(["Invalid id or password", "Invalid id or password", "Invalid id or password"]);
+  });
+
+  it("throws InvalidCredentialsError so the endpoint can mark it non-retryable", async () => {
+    const deps = createDeps();
+    await adminWithPassword(deps);
+    await expect(login(deps, { id: "admin", password: "wrong-password" })).rejects.toBeInstanceOf(
+      InvalidCredentialsError
+    );
   });
 
   it("rejects short passwords and unknown members when setting a password", async () => {
