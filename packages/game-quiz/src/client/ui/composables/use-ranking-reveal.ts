@@ -18,13 +18,17 @@ export interface RankingRevealTiming {
  * isFinishedがtrueになり、呼び出し側はこれをもって次の操作(Enterで賞品発表など)を
  * 許可できる。
  */
-export function useRankingReveal<T>(timing: RankingRevealTiming = {}) {
+export function useRankingReveal<T>(
+  timing: RankingRevealTiming = {},
+  options: { isCelebratable?: (item: T) => boolean } = {},
+) {
   const {
     otherPlacesIntervalMs = 500,
     beforeTopPauseMs = 1000,
     topPlaceIntervalMs = 1000,
-    celebrationDurationMs = 3000,
+    celebrationDurationMs = 6000,
   } = timing;
+  const { isCelebratable = () => true } = options;
 
   const displayedResults = ref<T[]>([]) as Ref<T[]>;
   const showCelebration = ref(false);
@@ -58,7 +62,7 @@ export function useRankingReveal<T>(timing: RankingRevealTiming = {}) {
       if (item) {
         displayedResults.value.unshift(item);
         await wait(topPlaceIntervalMs);
-        if (j === 0) {
+        if (j === 0 && isCelebratable(item)) {
           showCelebration.value = true;
           setTimeout(() => {
             showCelebration.value = false;

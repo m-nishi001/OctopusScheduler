@@ -51,6 +51,24 @@ describe('useRankingReveal', () => {
     expect(isFinished.value).toBe(true);
   });
 
+  it('does not celebrate when the 1st place item is not celebratable (e.g. placeholder row)', async () => {
+    vi.useFakeTimers();
+    const { showCelebration, isFinished, reveal } = useRankingReveal<string>(TIMING, {
+      isCelebratable: (item) => item !== 'none',
+    });
+
+    const done = reveal(['none', 'b', 'c']);
+    let celebrated = false;
+    for (let i = 0; i < 10; i++) {
+      await vi.advanceTimersByTimeAsync(50);
+      celebrated ||= showCelebration.value;
+    }
+    await done;
+
+    expect(celebrated).toBe(false);
+    expect(isFinished.value).toBe(true);
+  });
+
   it('still waits out the beforeTopPause window and finishes when there are no results', async () => {
     vi.useFakeTimers();
     const { isFinished, showCelebration, reveal } = useRankingReveal(TIMING);
