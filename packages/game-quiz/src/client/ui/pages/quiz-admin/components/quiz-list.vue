@@ -31,7 +31,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { eventBus } from '@octopus/client-common/events/event-bus';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { DataTable, UiButton, UiToolbar, toast, useConfirm, type DataTableColumn } from '@octopus/ui-kit';
@@ -80,16 +81,30 @@ const currentQuiz = ref<QuizDto>({
     },
 });
 
-onMounted(async () => {
+const loadQuizzes = async () => {
     try {
-        const dtos = await getAllQuizzesUseCase.execute();
-        quizzes.value = dtos;
+        quizzes.value = await getAllQuizzesUseCase.execute();
     } catch (error) {
         console.error('クイズ一覧取得エラー:', error);
         toast.error('クイズ一覧の取得に失敗しました');
     } finally {
         loading.value = false;
     }
+};
+
+// 別端末/新しいブラウザでは初回表示後に背景同期でクイズが取り込まれるため、
+// 取り込み完了時に一覧を読み直す。編集中は editingIndex がずれないよう読み直さない。
+const onSyncPulled = () => {
+    if (!showModal.value) void loadQuizzes();
+};
+
+onMounted(() => {
+    void loadQuizzes();
+    eventBus.on('syncPulled', onSyncPulled);
+});
+
+onUnmounted(() => {
+    eventBus.off('syncPulled', onSyncPulled);
 });
 
 const addQuiz = () => {
