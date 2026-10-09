@@ -34,9 +34,18 @@ async function writeAnswers(
 }
 
 /**
+ * 指定クイズの回答をすべて消す。回答受付の開始(=新しいラウンド)時に呼び、
+ * 前回ラウンドの回答が「最初の回答が正」の規則で今回の回答を弾かないようにする。
+ */
+export async function clearAnswers(storage: IKeyValueStorage, quizId: string): Promise<void> {
+  await writeAnswers(storage, quizId, []);
+}
+
+/**
  * 参加者の回答を記録する。タイムスタンプはクライアントの時計を信用せず、
  * サーバー側の受信時刻を使う。同一クイズ・同一参加者からの2回目以降の
- * 送信は無視し、最初に届いた回答を正とする(呼び出し側での同時書き込みの
+ * 送信は無視し、最初に届いた回答を正とする(これは1ラウンド内の話で、回答受付を
+ * 開始するたびに clearAnswers で消える)。(呼び出し側での同時書き込みの
  * 競合はGASの LockService 相当のロックで守る想定 — endpoints.ts 側の責務)。
  */
 export async function submitAnswer(
