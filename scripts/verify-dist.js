@@ -13,6 +13,7 @@
 import { readdirSync, existsSync, readFileSync, statSync } from "fs";
 import { join, dirname, relative } from "path";
 import { fileURLToPath } from "url";
+import { loadGasContract } from "./gas-contract.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -113,6 +114,26 @@ if (bundles.length > 4) {
       "単一 GAS プロジェクトに多数のバンドルを同居させると、グローバル名衝突を避けるための" +
       "コード生成が必要になります（@octopus/server への統合を検討）。"
   );
+}
+
+// 5. Cloudflare Worker(ESM/strict)の内部ハンドラ変数が宣言されているか
+// 宣言なし代入は起動時に ReferenceError になり、Worker 全体が動かなくなる。
+const CF_WORKER = join(DIST, "cloudflare", "worker.js");
+if (existsSync(CF_WORKER)) {
+  const src = readFileSync(CF_WORKER, "utf8");
+  const declared = new Set(
+    (src.match(/^let\s+([^;]+);/m)?.[1] ?? "").split(",").map((n) => n.trim())
+  );
+  const missing = loadGasContract().handlerVariableNames.filter((n) => !declared.has(n));
+  if (missing.length > 0) {
+    errors.push(
+      `[5] dist/cloudflare/worker.js に未宣言の内部ハンドラ変数があります (${missing.length} 件): ` +
+        `${missing.slice(0, 3).join(", ")}${missing.length > 3 ? " ..." : ""}\n` +
+        "      esbuild.cloudflare.config.js の banner で let 宣言してください。"
+    );
+  } else {
+    info.push(`dist/cloudflare/worker.js: 内部ハンドラ ${declared.size} 件を宣言済み`);
+  }
 }
 
 console.log("=== ビルド成果物検証 ===");
