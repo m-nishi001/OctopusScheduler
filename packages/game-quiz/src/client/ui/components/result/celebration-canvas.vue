@@ -2,7 +2,7 @@
     <div class="celebration" aria-hidden="true">
         <canvas ref="canvasRef" class="fx-canvas"></canvas>
         <transition name="banner">
-            <div v-if="active && winnerName" class="banner">
+            <div v-if="showBanner && winnerName" class="banner">
                 <div class="banner-label">🎉 1位 おめでとう！ 🎉</div>
                 <div class="banner-name">{{ winnerName }}</div>
             </div>
@@ -20,6 +20,8 @@ const props = defineProps<{
 }>();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
+const showBanner = ref(false);
+const BANNER_MS = 3200;
 
 const COLORS = ['#ffd700', '#ff4d4d', '#4dff88', '#4da6ff', '#ff4dff', '#ffff4d', '#ff7a1a', '#4dffff'];
 const MAX_PARTICLES = 900;
@@ -224,6 +226,9 @@ function start() {
     resize();
     clearTimers();
     reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    // バナーは最初の数秒だけ。その後は順位表が見えるよう引っ込める
+    showBanner.value = true;
+    timers.push(setTimeout(() => (showBanner.value = false), BANNER_MS));
     confettiUntil = performance.now() + (reducedMotion ? 3000 : 5500);
     if (!reducedMotion) {
         // 開幕: 中央で大きな花火 + 連続打ち上げ
@@ -237,6 +242,7 @@ function start() {
 
 function stop() {
     clearTimers();
+    showBanner.value = false;
     confettiUntil = 0;
     particles = particles.filter((p) => p.kind !== 'rocket');
 }

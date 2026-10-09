@@ -8,12 +8,11 @@
                     { placeholder: !record.userId, 'first-place': record.rank === 1 && !!record.userId },
                 ]">
                 <div v-if="record.rank === 1 && record.userId" class="rays" aria-hidden="true"></div>
-                <div class="rank-badge">
-                    <span v-if="record.rank === 1 && record.userId" class="crown" aria-hidden="true">👑</span>
-                    {{ record.rank }}
-                </div>
+                <div class="rank-badge">{{ record.rank }}</div>
                 <div class="player-info">
-                    <div class="player-name">{{ record.displayName }}</div>
+                    <div class="player-name">
+                        <span v-if="record.rank === 1 && record.userId" class="crown" aria-hidden="true">👑</span>{{ record.displayName }}
+                    </div>
                     <div class="player-time">{{ formatTime(record.timeToAnswerSec) }}</div>
                 </div>
                 <div v-if="record.rank === 1 && record.userId" class="shimmer" aria-hidden="true"></div>
@@ -183,17 +182,14 @@ function formatTime(seconds: number | null): string {
 }
 
 .crown {
-    position: absolute;
-    top: -55%;
-    left: 50%;
-    translate: -50% 0;
-    font-size: 1.1em;
+    display: inline-block;
+    margin-right: 0.3em;
     animation: crownBob 1s ease-in-out infinite alternate;
 }
 
 @keyframes crownBob {
     to {
-        transform: translateY(-3px) rotate(6deg);
+        transform: translateY(-2px) rotate(8deg);
     }
 }
 
