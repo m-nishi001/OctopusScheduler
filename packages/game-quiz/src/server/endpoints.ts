@@ -60,7 +60,7 @@ function resolveDeps() {
     // node環境のテストではこれらの関数はDIコンテナに触れないよう、
     // 各use-caseのテストで別途スタブを注入する。
     generateToken: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
-    // findMemberById(@octopus/member-directory)呼び出しのために必要
+    // findMemberById(@octopus/accounts)呼び出しのために必要
     // (このuse-case経由では新規メンバー作成は行わないため実際には使われない)。
     generateId: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
     now: (): number => Date.now(),

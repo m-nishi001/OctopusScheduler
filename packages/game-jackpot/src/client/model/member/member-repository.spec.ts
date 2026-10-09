@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { container } from "tsyringe";
 import { MemberRepository } from "./member-repository";
-import { MemberDirectoryRepository } from "@octopus/member-directory";
-import type { Member as DirectoryMember } from "@octopus/member-directory";
+import { AccountsRepository } from "@octopus/accounts";
+import type { Member as DirectoryMember } from "@octopus/accounts";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
@@ -46,7 +46,7 @@ describe("MemberRepository (jackpot)", () => {
   beforeEach(async () => {
     container.reset();
     mockDirectory = createMockDirectory();
-    container.register(MemberDirectoryRepository, { useValue: mockDirectory as any });
+    container.register(AccountsRepository, { useValue: mockDirectory as any });
     container.register(IJackpotGameApiToken, { useValue: createMockJackpotApi() as any });
     repo = container.resolve(MemberRepository);
     // 各テストのローカル拡張ストレージを分離する(localforageはグローバルなので明示的にクリア)。
@@ -66,7 +66,7 @@ describe("MemberRepository (jackpot)", () => {
 
   it("attaches to an existing shared member without creating a duplicate", async () => {
     mockDirectory = createMockDirectory([{ id: "shared-1", name: "既存メンバー" }]);
-    container.register(MemberDirectoryRepository, { useValue: mockDirectory as any });
+    container.register(AccountsRepository, { useValue: mockDirectory as any });
     repo = container.resolve(MemberRepository);
 
     const added = await repo.addMembers([
@@ -80,7 +80,7 @@ describe("MemberRepository (jackpot)", () => {
 
   it("deleteMembers only removes the local extra, not the shared member", async () => {
     mockDirectory = createMockDirectory([{ id: "shared-1", name: "既存メンバー" }]);
-    container.register(MemberDirectoryRepository, { useValue: mockDirectory as any });
+    container.register(AccountsRepository, { useValue: mockDirectory as any });
     repo = container.resolve(MemberRepository);
 
     await repo.addMembers([{ id: "shared-1", name: "既存メンバー", rank: 4 }]);
@@ -121,7 +121,7 @@ describe("MemberRepository.listSyncTargets", () => {
     await new LocalStorageService("jackpot-game", "SyncDirtyTracker").clear();
     mockDirectory = createMockDirectory([{ id: "shared-1", name: "既存メンバー" }]);
     mockJackpotApi = createMockJackpotApi();
-    container.register(MemberDirectoryRepository, { useValue: mockDirectory as any });
+    container.register(AccountsRepository, { useValue: mockDirectory as any });
     container.register(IJackpotGameApiToken, { useValue: mockJackpotApi as any });
     repo = container.resolve(MemberRepository);
     await repo.clearRosterOverride();

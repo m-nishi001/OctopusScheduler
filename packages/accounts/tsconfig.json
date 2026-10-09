@@ -6,7 +6,7 @@
     "lib": ["ESNext"],
     "moduleResolution": "bundler",
     "useDefineForClassFields": true,
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.member-directory.tsbuildinfo",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.accounts.tsbuildinfo",
     "noEmit": false,
     "declaration": true,
     "emitDeclarationOnly": true,

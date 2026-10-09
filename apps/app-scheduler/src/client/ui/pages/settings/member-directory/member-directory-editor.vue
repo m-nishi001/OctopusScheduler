@@ -13,10 +13,10 @@ import { onMounted } from 'vue';
 import { container } from 'tsyringe';
 import { MemberEditor, toast } from '@octopus/ui-kit';
 import { useCachedCollection } from '@octopus/composables';
-import { MemberDirectoryRepository } from '@octopus/member-directory';
-import type { Member } from '@octopus/member-directory';
+import { AccountsRepository } from '@octopus/accounts';
+import type { Member } from '@octopus/accounts';
 
-const repo = container.resolve(MemberDirectoryRepository);
+const repo = container.resolve(AccountsRepository);
 
 // IndexedDB のキャッシュを即表示し、背景で最新化。更新/削除は楽観的に反映する。
 const { items: members, loading, error, load, add: addMember, update: updateMember, remove: deleteMembers } =

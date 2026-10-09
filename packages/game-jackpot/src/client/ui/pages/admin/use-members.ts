@@ -3,8 +3,8 @@ import { container } from "tsyringe";
 import { MemberRepository } from "@model/member/member-repository";
 import { AssetDataService } from "@control/asset/asset-data-service";
 import { MemberService } from "@control/member/member-service";
-import { MemberDirectoryRepository } from "@octopus/member-directory";
-import type { Member as DirectoryMember } from "@octopus/member-directory";
+import { AccountsRepository } from "@octopus/accounts";
+import type { Member as DirectoryMember } from "@octopus/accounts";
 import type { MemberDto } from "@control/member/dto/member-dto";
 import type { Asset } from "@model/asset/asset-data";
 
@@ -24,14 +24,14 @@ export function useMembers(
   memberRepoArg?: MemberRepository,
   assetDataServiceArg?: AssetDataService,
   memberServiceArg?: MemberService,
-  directoryRepoArg?: MemberDirectoryRepository
+  directoryRepoArg?: AccountsRepository
 ) {
   const memberRepo = memberRepoArg || container.resolve(MemberRepository);
   const assetDataService =
     assetDataServiceArg || container.resolve(AssetDataService);
   const memberService = memberServiceArg || container.resolve(MemberService);
   const directoryRepo =
-    directoryRepoArg || container.resolve(MemberDirectoryRepository);
+    directoryRepoArg || container.resolve(AccountsRepository);
 
   const members = ref<any[]>([]);
   /** 共有マスタに登録済みだが、まだこのゲームに紐付けていないメンバー。 */

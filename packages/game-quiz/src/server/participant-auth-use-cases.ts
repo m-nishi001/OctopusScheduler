@@ -1,9 +1,9 @@
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
-import { findMemberById } from "@octopus/member-directory/server-use-cases";
-import type { MemberDirectoryUseCaseDeps } from "@octopus/member-directory/server-use-cases";
+import { findMemberById } from "@octopus/accounts/server-use-cases";
+import type { AccountsUseCaseDeps } from "@octopus/accounts/server-use-cases";
 import type { ParticipantSession } from "./quiz-api-contract";
 
-export interface ParticipantAuthDeps extends MemberDirectoryUseCaseDeps {
+export interface ParticipantAuthDeps extends AccountsUseCaseDeps {
   storage: IKeyValueStorage;
   /** トークン生成関数。GAS本番では Utilities.getUuid() を注入する。 */
   generateToken: () => string;

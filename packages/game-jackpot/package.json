@@ -14,7 +14,7 @@
     "@octopus/infrastructures": "*",
     "@octopus/sync-engine": "*",
     "@octopus/ui-kit": "*",
-    "@octopus/member-directory": "*",
+    "@octopus/accounts": "*",
     "gsap": "^3.13.0",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",

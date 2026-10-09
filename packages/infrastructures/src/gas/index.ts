@@ -17,4 +17,4 @@ registerGasInfrastructures();
 import "@octopus/game-quiz/server";
 import "@octopus/game-jackpot/server";
 import "@octopus/app-scheduler/server";
-import "@octopus/member-directory/server";
+import "@octopus/accounts/server";
