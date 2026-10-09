@@ -3,8 +3,8 @@ import { eventBus } from "@octopus/client-common/events/event-bus";
 import { DirtyTracker } from "@octopus/sync-engine";
 import type { SyncTarget } from "@octopus/sync-engine";
 import { injectable, inject } from "tsyringe";
-import { MemberDirectoryRepository } from "@octopus/member-directory";
-import type { Member as DirectoryMember } from "@octopus/member-directory";
+import { AccountsRepository } from "@octopus/accounts";
+import type { Member as DirectoryMember } from "@octopus/accounts";
 import type { Member } from "./member";
 import type { JackpotMemberExtra } from "./jackpot-member-extra";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
@@ -25,7 +25,7 @@ const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-member-extras-file-id";
 /**
  * jackpot固有のメンバーリポジトリ。
  *
- * メンバーのid/nameは `@octopus/member-directory` が持つ共有マスタから取得し、
+ * メンバーのid/nameは `@octopus/accounts` が持つ共有マスタから取得し、
  * rank/写真といったjackpot固有の設定は `MemberExtraData`(id => JackpotMemberExtra)
  * としてローカルに保持してマージする。id/nameは共有マスタへの書き込みで
  * 即座に他デバイスへ反映されるため、バックグラウンド同期の対象はjackpot固有の
@@ -45,7 +45,7 @@ export class MemberRepository {
   private readonly dirtyTracker = new DirtyTracker("jackpot-game");
 
   constructor(
-    @inject(MemberDirectoryRepository) private readonly directory: MemberDirectoryRepository,
+    @inject(AccountsRepository) private readonly directory: AccountsRepository,
     @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {}
 

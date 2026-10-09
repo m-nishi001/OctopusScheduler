@@ -1,5 +1,5 @@
 /**
- * member-directory の GAS エンドポイント。
+ * accounts の GAS エンドポイント。
  *
  * 各ハンドラは「引数パース -> use-case呼び出し -> ApiResponseに詰めてJSON.stringify」
  * という薄い層のみを担う。マスタメンバーデータは app-scheduler本体・各ゲームパッケージ
@@ -12,18 +12,18 @@ import type {
   AddMemberArgs,
   DeleteMemberArgs,
   ListMembersArgs,
-  MemberDirectoryEndpointName,
+  AccountsEndpointName,
   ReplaceAllMembersArgs,
   UpdateMemberArgs,
-} from "./member-directory-api-contract";
-import { MEMBER_DIRECTORY_PREFIX } from "./member-directory-api-contract";
+} from "./accounts-api-contract";
+import { ACCOUNTS_PREFIX } from "./accounts-api-contract";
 import {
   addMember,
   deleteMember,
   listMembers,
   replaceAllMembers,
   updateMember,
-} from "./member-directory-use-cases";
+} from "./accounts-use-cases";
 
 function resolveDeps() {
   return {
@@ -32,13 +32,13 @@ function resolveDeps() {
   };
 }
 
-declare let _memberDirectory_listMembers: (args: ListMembersArgs) => Promise<string>;
-declare let _memberDirectory_addMember: (args: AddMemberArgs) => Promise<string>;
-declare let _memberDirectory_updateMember: (args: UpdateMemberArgs) => Promise<string>;
-declare let _memberDirectory_deleteMember: (args: DeleteMemberArgs) => Promise<string>;
-declare let _memberDirectory_replaceAllMembers: (args: ReplaceAllMembersArgs) => Promise<string>;
+declare let _accounts_listMembers: (args: ListMembersArgs) => Promise<string>;
+declare let _accounts_addMember: (args: AddMemberArgs) => Promise<string>;
+declare let _accounts_updateMember: (args: UpdateMemberArgs) => Promise<string>;
+declare let _accounts_deleteMember: (args: DeleteMemberArgs) => Promise<string>;
+declare let _accounts_replaceAllMembers: (args: ReplaceAllMembersArgs) => Promise<string>;
 
-_memberDirectory_listMembers = async (_args: ListMembersArgs): Promise<string> => {
+_accounts_listMembers = async (_args: ListMembersArgs): Promise<string> => {
   try {
     const result = await listMembers(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
@@ -47,7 +47,7 @@ _memberDirectory_listMembers = async (_args: ListMembersArgs): Promise<string> =
   }
 };
 
-_memberDirectory_addMember = async (args: AddMemberArgs): Promise<string> => {
+_accounts_addMember = async (args: AddMemberArgs): Promise<string> => {
   try {
     const result = await addMember(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
@@ -56,7 +56,7 @@ _memberDirectory_addMember = async (args: AddMemberArgs): Promise<string> => {
   }
 };
 
-_memberDirectory_updateMember = async (args: UpdateMemberArgs): Promise<string> => {
+_accounts_updateMember = async (args: UpdateMemberArgs): Promise<string> => {
   try {
     const result = await updateMember(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
@@ -65,7 +65,7 @@ _memberDirectory_updateMember = async (args: UpdateMemberArgs): Promise<string> 
   }
 };
 
-_memberDirectory_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
+_accounts_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
   try {
     await deleteMember(resolveDeps(), args.id);
     return JSON.stringify({ status: "success", data: undefined });
@@ -74,7 +74,7 @@ _memberDirectory_deleteMember = async (args: DeleteMemberArgs): Promise<string> 
   }
 };
 
-_memberDirectory_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promise<string> => {
+_accounts_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promise<string> => {
   try {
     const result = await replaceAllMembers(resolveDeps(), args.members);
     return JSON.stringify({ status: "success", data: result });
@@ -84,12 +84,12 @@ _memberDirectory_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promis
 };
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
-export const MEMBER_DIRECTORY_HANDLERS: Record<MemberDirectoryEndpointName, (args: any) => Promise<string>> = {
-  listMembers: _memberDirectory_listMembers,
-  addMember: _memberDirectory_addMember,
-  updateMember: _memberDirectory_updateMember,
-  deleteMember: _memberDirectory_deleteMember,
-  replaceAllMembers: _memberDirectory_replaceAllMembers,
+export const ACCOUNTS_HANDLERS: Record<AccountsEndpointName, (args: any) => Promise<string>> = {
+  listMembers: _accounts_listMembers,
+  addMember: _accounts_addMember,
+  updateMember: _accounts_updateMember,
+  deleteMember: _accounts_deleteMember,
+  replaceAllMembers: _accounts_replaceAllMembers,
 };
 
-export { MEMBER_DIRECTORY_PREFIX };
+export { ACCOUNTS_PREFIX };

@@ -1,10 +1,10 @@
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
-import { findMemberById } from "@octopus/member-directory/server-use-cases";
-import type { MemberDirectoryUseCaseDeps } from "@octopus/member-directory/server-use-cases";
+import { findMemberById } from "@octopus/accounts/server-use-cases";
+import type { AccountsUseCaseDeps } from "@octopus/accounts/server-use-cases";
 import type { SubmittedAnswer } from "./quiz-api-contract";
 import { findUserIdByToken } from "./participant-auth-use-cases";
 
-export interface AnswerSubmissionDeps extends MemberDirectoryUseCaseDeps {
+export interface AnswerSubmissionDeps extends AccountsUseCaseDeps {
   storage: IKeyValueStorage;
   /** サーバー側の受信時刻(ms)。GAS本番では Date.now() を注入する。 */
   now: () => number;

@@ -71,7 +71,7 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
-import type { Member as DirectoryMember } from '@octopus/member-directory';
+import type { Member as DirectoryMember } from '@octopus/accounts';
 import type { MemberFormInput } from '../use-members';
 
 const props = defineProps({

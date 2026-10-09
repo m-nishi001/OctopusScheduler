@@ -1,5 +1,5 @@
 {
-  "name": "@octopus/member-directory",
+  "name": "@octopus/accounts",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -18,9 +18,9 @@
       "default": "./src/server/endpoints.ts"
     },
     "./server-use-cases": {
-      "types": "./src/server/member-directory-use-cases.ts",
-      "import": "./src/server/member-directory-use-cases.ts",
-      "default": "./src/server/member-directory-use-cases.ts"
+      "types": "./src/server/accounts-use-cases.ts",
+      "import": "./src/server/accounts-use-cases.ts",
+      "default": "./src/server/accounts-use-cases.ts"
     }
   },
   "scripts": {

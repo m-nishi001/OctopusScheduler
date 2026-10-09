@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
-import { addMember } from "@octopus/member-directory/server-use-cases";
+import { addMember } from "@octopus/accounts/server-use-cases";
 import { loginParticipant, resolveDeviceToken } from "../participant-auth-use-cases";
 
 function stubTokenGenerator(tokens: string[]) {

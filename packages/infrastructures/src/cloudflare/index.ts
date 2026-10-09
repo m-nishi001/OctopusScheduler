@@ -19,7 +19,7 @@ import type { CloudflareEnv } from "./env";
 import { QUIZ_GAME_PREFIX, QUIZ_GAME_HANDLERS } from "@octopus/game-quiz/server";
 import { JACKPOT_GAME_PREFIX, JACKPOT_GAME_HANDLERS } from "@octopus/game-jackpot/server";
 import { OCTOPUS_SCHEDULER_PREFIX, OCTOPUS_SCHEDULER_HANDLERS } from "@octopus/app-scheduler/server";
-import { MEMBER_DIRECTORY_PREFIX, MEMBER_DIRECTORY_HANDLERS } from "@octopus/member-directory/server";
+import { ACCOUNTS_PREFIX, ACCOUNTS_HANDLERS } from "@octopus/accounts/server";
 
 type Handler = (args: unknown) => Promise<string>;
 
@@ -34,7 +34,7 @@ function mount(prefix: string, handlers: Record<string, Handler>): void {
 mount(QUIZ_GAME_PREFIX, QUIZ_GAME_HANDLERS);
 mount(JACKPOT_GAME_PREFIX, JACKPOT_GAME_HANDLERS);
 mount(OCTOPUS_SCHEDULER_PREFIX, OCTOPUS_SCHEDULER_HANDLERS);
-mount(MEMBER_DIRECTORY_PREFIX, MEMBER_DIRECTORY_HANDLERS);
+mount(ACCOUNTS_PREFIX, ACCOUNTS_HANDLERS);
 
 registerCloudflareInfrastructures();
 

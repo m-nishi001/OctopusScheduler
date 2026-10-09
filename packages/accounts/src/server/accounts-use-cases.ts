@@ -1,7 +1,7 @@
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
-import type { Member } from "./member-directory-api-contract";
+import type { Member } from "./accounts-api-contract";
 
-export interface MemberDirectoryUseCaseDeps {
+export interface AccountsUseCaseDeps {
   storage: IKeyValueStorage;
   /** id省略時の採番。GAS本番では Utilities.getUuid() を注入する。 */
   generateId: () => string;
@@ -24,17 +24,17 @@ async function writeMembers(storage: IKeyValueStorage, members: Member[]): Promi
   await storage.set(MEMBERS_KEY, JSON.stringify(members));
 }
 
-export async function listMembers(deps: MemberDirectoryUseCaseDeps): Promise<Member[]> {
+export async function listMembers(deps: AccountsUseCaseDeps): Promise<Member[]> {
   return readMembers(deps.storage);
 }
 
-export async function findMemberById(deps: MemberDirectoryUseCaseDeps, id: string): Promise<Member | null> {
+export async function findMemberById(deps: AccountsUseCaseDeps, id: string): Promise<Member | null> {
   const members = await readMembers(deps.storage);
   return members.find((m) => m.id === id) ?? null;
 }
 
 export async function addMember(
-  deps: MemberDirectoryUseCaseDeps,
+  deps: AccountsUseCaseDeps,
   args: { id?: string; name: string }
 ): Promise<Member> {
   const name = args.name.trim();
@@ -49,7 +49,7 @@ export async function addMember(
   return created;
 }
 
-export async function updateMember(deps: MemberDirectoryUseCaseDeps, member: Member): Promise<Member> {
+export async function updateMember(deps: AccountsUseCaseDeps, member: Member): Promise<Member> {
   const members = await readMembers(deps.storage);
   const index = members.findIndex((m) => m.id === member.id);
   if (index === -1) {
@@ -62,7 +62,7 @@ export async function updateMember(deps: MemberDirectoryUseCaseDeps, member: Mem
   return updated;
 }
 
-export async function deleteMember(deps: MemberDirectoryUseCaseDeps, id: string): Promise<void> {
+export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promise<void> {
   const members = await readMembers(deps.storage);
   await writeMembers(
     deps.storage,
@@ -76,7 +76,7 @@ export async function deleteMember(deps: MemberDirectoryUseCaseDeps, id: string)
  * (マスタは他モジュールとも共有されているため、一括置換で消してはいけない)。
  */
 export async function replaceAllMembers(
-  deps: MemberDirectoryUseCaseDeps,
+  deps: AccountsUseCaseDeps,
   members: Member[]
 ): Promise<{ replaced: number }> {
   const current = await readMembers(deps.storage);

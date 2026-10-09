@@ -7,10 +7,10 @@ import {
   listMembers,
   replaceAllMembers,
   updateMember,
-} from "../member-directory-use-cases";
-import type { MemberDirectoryUseCaseDeps } from "../member-directory-use-cases";
+} from "../accounts-use-cases";
+import type { AccountsUseCaseDeps } from "../accounts-use-cases";
 
-function createDeps(): MemberDirectoryUseCaseDeps {
+function createDeps(): AccountsUseCaseDeps {
   let counter = 0;
   return {
     storage: new InMemoryKeyValueStorage(),
@@ -18,7 +18,7 @@ function createDeps(): MemberDirectoryUseCaseDeps {
   };
 }
 
-describe("member-directory-use-cases", () => {
+describe("accounts-use-cases", () => {
   it("returns an empty list when no members are registered", async () => {
     expect(await listMembers(createDeps())).toEqual([]);
   });
