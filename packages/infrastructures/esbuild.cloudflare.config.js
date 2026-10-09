@@ -5,6 +5,7 @@
  * 不要。Workersは通常のESモジュールとして`export default { fetch }`を実行できる。
  */
 import { build } from "esbuild";
+import { appModeDefine } from "../../scripts/app-mode.js";
 
 build({
   entryPoints: ["src/cloudflare/index.ts"],
@@ -14,6 +15,7 @@ build({
   format: "esm",
   platform: "browser",
   conditions: ["workerd", "browser"],
+  define: appModeDefine(),
   // nodejs_compat(wrangler.toml)がランタイム側で提供するため、バンドルに含めない。
   external: ["node:async_hooks"],
 }).catch(() => process.exit(1));

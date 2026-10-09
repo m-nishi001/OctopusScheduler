@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import { sharedPlugins } from "../../vite.shared";
+import { appModeDefine } from "../../scripts/app-mode.js";
 
 /**
  * `--mode cloudflare` でビルドすると、`@octopus/infrastructures/platform-api-client`
@@ -10,6 +11,8 @@ import { sharedPlugins } from "../../vite.shared";
  */
 export default defineConfig(({ mode }) => ({
   plugins: [...sharedPlugins, viteSingleFile()],
+  // app-mode.config.json の動作モード(development / production)をビルド時に埋め込む。
+  define: appModeDefine(),
   resolve: {
     conditions: mode === "cloudflare" ? ["cloudflare"] : [],
   },

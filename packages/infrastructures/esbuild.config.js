@@ -8,6 +8,7 @@
  */
 import { build } from "esbuild";
 import { loadGasContract } from "../../scripts/gas-contract.js";
+import { appModeDefine } from "../../scripts/app-mode.js";
 
 const { internalNames, unprefixed, ownerOf } = loadGasContract();
 
@@ -28,6 +29,7 @@ build({
   target: "es2020",
   format: "iife",
   platform: "browser",
+  define: appModeDefine(),
   banner: { js: `\nlet ${internalNames.join(", ")};\n` },
   footer: { js: `\n${prefixedFooter}\n${unprefixedFooter}\n` },
 }).catch(() => process.exit(1));
