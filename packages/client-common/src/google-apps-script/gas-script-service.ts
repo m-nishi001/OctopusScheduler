@@ -16,7 +16,7 @@
  */
 export type ApiResponse<T> =
   | { status: "success"; data: T }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; retryable?: false };
 
 declare namespace google {
   namespace script {
@@ -109,6 +109,9 @@ export class GasFunctionService {
         if (result.status === "success") return result;
 
         const msg = result.message ?? "Unknown error";
+
+        // 認証エラー等、リトライしても結果が変わらないものは即座に返す。
+        if (result.retryable === false) return { status: "error", message: msg };
 
         if (
           this.isParallelLimitError(msg) &&

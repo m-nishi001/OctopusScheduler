@@ -30,6 +30,7 @@ import {
   getRemoteControlState,
   setRemoteScreen,
 } from "./remote-control-use-cases";
+import { secure } from "@octopus/accounts/secure";
 
 function resolveDeps() {
   return {
@@ -135,6 +136,17 @@ _jackpotGame_getRemoteControlState = async (): Promise<string> => {
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
+
+// 認可ポリシー。表示・参加者向けの読み取りは公開、書き込みと管理操作は管理者のみ(本番モード)。
+_jackpotGame_addDriveData = secure("admin", _jackpotGame_addDriveData);
+_jackpotGame_getDriveMetaData = secure("public", _jackpotGame_getDriveMetaData);
+_jackpotGame_getDriveData = secure("public", _jackpotGame_getDriveData);
+_jackpotGame_updateDriveData = secure("admin", _jackpotGame_updateDriveData);
+_jackpotGame_addJson = secure("admin", _jackpotGame_addJson);
+_jackpotGame_getJson = secure("public", _jackpotGame_getJson);
+_jackpotGame_setRemoteScreen = secure("admin", _jackpotGame_setRemoteScreen);
+_jackpotGame_advanceRemoteAction = secure("admin", _jackpotGame_advanceRemoteAction);
+_jackpotGame_getRemoteControlState = secure("public", _jackpotGame_getRemoteControlState);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const JACKPOT_GAME_HANDLERS: Record<JackpotGameEndpointName, (args: any) => Promise<string>> = {

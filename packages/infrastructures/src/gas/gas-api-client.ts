@@ -7,7 +7,9 @@
 import { injectable } from "tsyringe";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { GasFunctionService } from "@octopus/client-common/google-apps-script/gas-script-service";
+import { getSessionToken } from "@octopus/client-common/auth/session-token-store";
 import type { IApiClient, ApiCallOptions } from "../interfaces/api-client";
+import { wrapWithAuth } from "../interfaces/auth-envelope";
 
 @injectable()
 export class GasApiClient implements IApiClient {
@@ -19,7 +21,7 @@ export class GasApiClient implements IApiClient {
   ): Promise<T> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const service = new GasFunctionService(functionName as any, options);
-    return service.call<T>(args);
+    return service.call<T>(wrapWithAuth(getSessionToken(), args));
   }
 }
 

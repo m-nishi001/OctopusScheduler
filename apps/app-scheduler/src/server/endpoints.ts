@@ -32,6 +32,7 @@ import {
   getKeyboardShortcuts,
   setKeyboardShortcuts,
 } from "./keyboard-shortcuts-use-cases";
+import { secure } from "@octopus/accounts/secure";
 
 function resolveDeps() {
   return {
@@ -139,6 +140,14 @@ _octopusScheduler_doGet = (
     );
   }
 };
+
+// 認可ポリシー。表示・参加者向けの読み取りは公開、書き込みと管理操作は管理者のみ(本番モード)。
+_octopusScheduler_addDriveData = secure("admin", _octopusScheduler_addDriveData);
+_octopusScheduler_getDriveMetaData = secure("public", _octopusScheduler_getDriveMetaData);
+_octopusScheduler_getDriveData = secure("public", _octopusScheduler_getDriveData);
+_octopusScheduler_updateDriveData = secure("admin", _octopusScheduler_updateDriveData);
+_octopusScheduler_getKeyboardShortcuts = secure("public", _octopusScheduler_getKeyboardShortcuts);
+_octopusScheduler_setKeyboardShortcuts = secure("admin", _octopusScheduler_setKeyboardShortcuts);
 
 /**
  * Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。

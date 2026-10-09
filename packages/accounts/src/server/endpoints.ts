@@ -21,10 +21,12 @@ import type {
   UpdateMemberArgs,
 } from "./accounts-api-contract";
 import { ACCOUNTS_PREFIX } from "./accounts-api-contract";
+import { secure } from "./secure";
 import {
   addMember,
   deleteMember,
   getSession,
+  listAccounts,
   listMembers,
   login,
   logout,
@@ -42,6 +44,7 @@ function resolveDeps() {
   };
 }
 
+declare let _accounts_listAccounts: (args: ListMembersArgs) => Promise<string>;
 declare let _accounts_listMembers: (args: ListMembersArgs) => Promise<string>;
 declare let _accounts_addMember: (args: AddMemberArgs) => Promise<string>;
 declare let _accounts_updateMember: (args: UpdateMemberArgs) => Promise<string>;
@@ -55,6 +58,15 @@ declare let _accounts_getSession: (args: GetSessionArgs) => Promise<string>;
 _accounts_listMembers = async (_args: ListMembersArgs): Promise<string> => {
   try {
     const result = await listMembers(resolveDeps());
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_accounts_listAccounts = async (_args: ListMembersArgs): Promise<string> => {
+  try {
+    const result = await listAccounts(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return JSON.stringify({ status: "error", message: (error as Error).message });
@@ -133,9 +145,22 @@ _accounts_getSession = async (args: GetSessionArgs): Promise<string> => {
   }
 };
 
+// 認可ポリシー。名簿(id/name)の取得とログイン系は誰でも、それ以外の変更・管理者向け一覧は管理者のみ。
+_accounts_listMembers = secure("public", _accounts_listMembers);
+_accounts_listAccounts = secure("admin", _accounts_listAccounts);
+_accounts_addMember = secure("admin", _accounts_addMember);
+_accounts_updateMember = secure("admin", _accounts_updateMember);
+_accounts_deleteMember = secure("admin", _accounts_deleteMember);
+_accounts_replaceAllMembers = secure("admin", _accounts_replaceAllMembers);
+_accounts_setPassword = secure("admin", _accounts_setPassword);
+_accounts_login = secure("public", _accounts_login);
+_accounts_logout = secure("public", _accounts_logout);
+_accounts_getSession = secure("public", _accounts_getSession);
+
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const ACCOUNTS_HANDLERS: Record<AccountsEndpointName, (args: any) => Promise<string>> = {
   listMembers: _accounts_listMembers,
+  listAccounts: _accounts_listAccounts,
   addMember: _accounts_addMember,
   updateMember: _accounts_updateMember,
   deleteMember: _accounts_deleteMember,
