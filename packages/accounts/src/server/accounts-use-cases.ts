@@ -164,12 +164,20 @@ export async function setPassword(
   await deps.storage.set(CREDENTIAL_KEY_PREFIX + args.id, JSON.stringify(credential));
 }
 
+/** ID/パスワードの不一致。リトライしても結果が変わらないため、クライアントには再試行させない。 */
+export class InvalidCredentialsError extends Error {
+  constructor() {
+    super("Invalid id or password");
+    this.name = "InvalidCredentialsError";
+  }
+}
+
 /** ID/パスワードを検証し、セッショントークンを発行する。失敗理由は区別しない。 */
 export async function login(
   deps: AccountsAuthDeps,
   args: { id: string; password: string }
 ): Promise<LoginResult> {
-  const invalid = new Error("Invalid id or password");
+  const invalid = new InvalidCredentialsError();
   const member = await findMemberById(deps, args.id);
   const credential = member ? await readCredential(deps.storage, args.id) : null;
   if (!member || !credential) throw invalid;

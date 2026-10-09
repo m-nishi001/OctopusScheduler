@@ -62,7 +62,12 @@ async function submit() {
 .login-view {
     display: flex;
     justify-content: center;
-    padding: var(--ui-space-6, 24px) var(--ui-space-4, 16px);
+    box-sizing: border-box;
+    min-height: 100vh;
+    padding: var(--ui-space-5, 24px) var(--ui-space-4, 16px);
+    /* PageShell を使わない画面なので、ui-kit の背景/文字色を自前で当てる */
+    background: var(--ui-bg, #23252b);
+    color: var(--ui-text, #fff);
 }
 
 .login-view__card {

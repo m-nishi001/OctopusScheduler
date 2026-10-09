@@ -26,6 +26,7 @@ import {
   addMember,
   deleteMember,
   getSession,
+  InvalidCredentialsError,
   listAccounts,
   listMembers,
   login,
@@ -123,6 +124,10 @@ _accounts_login = async (args: LoginArgs): Promise<string> => {
     const result = await login(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
+    // 認証失敗はクライアントにリトライさせない(遅延とブルートフォースの増幅を避ける)。
+    if (error instanceof InvalidCredentialsError) {
+      return JSON.stringify({ status: "error", message: error.message, retryable: false });
+    }
     return JSON.stringify({ status: "error", message: (error as Error).message });
   }
 };
