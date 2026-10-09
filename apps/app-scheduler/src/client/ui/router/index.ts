@@ -1,6 +1,7 @@
 import Home from "../pages/home/home-view.vue";
 import Settings from "../pages/settings/settings-view.vue";
 import Execute from "../pages/execute/execute-view.vue";
+import Login from "../pages/login/login-view.vue";
 import AssetListEditor from "../pages/settings/asset-list/asset-list-editor.vue";
 import EventEditor from "../pages/settings/event-list/event-list.vue";
 import ShowImage from "../pages/execute/show-content/show-image.vue";
@@ -13,6 +14,11 @@ const octopusSchedulerRoutes = [
     path: "/home",
     name: "home",
     component: Home,
+  },
+  {
+    path: "/login",
+    name: "login",
+    component: Login,
   },
   {
     path: "/settings",

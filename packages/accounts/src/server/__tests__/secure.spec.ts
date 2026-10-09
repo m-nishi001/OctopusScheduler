@@ -30,7 +30,7 @@ async function setup(isProduction: boolean) {
 describe("secure (production)", () => {
   it("rejects admin endpoints without a token, with a non-admin token and with an unknown token", async () => {
     const { secure, userToken } = await setup(true);
-    const handler = vi.fn(async () => OK);
+    const handler = vi.fn(async (_args?: unknown) => OK);
     const guarded = secure("admin", handler);
     expect(await guarded({ a: 1 })).toBe(UNAUTHORIZED_RESPONSE);
     expect(await guarded(wrapWithAuth(userToken, { a: 1 }))).toBe(UNAUTHORIZED_RESPONSE);

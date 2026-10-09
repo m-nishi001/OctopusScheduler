@@ -10,16 +10,10 @@
 import { container } from "tsyringe";
 import { IKeyValueStorageToken, unwrapAuth } from "@octopus/infrastructures/interfaces";
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
+import { isProductionMode } from "../app-mode";
 import { getSession } from "./accounts-use-cases";
 
 export type EndpointPolicy = "public" | "admin";
-
-declare const __APP_MODE__: "development" | "production";
-
-/** ビルド時に app-mode.config.json から埋め込まれたモードが本番か。 */
-export function isProductionMode(): boolean {
-  return __APP_MODE__ === "production";
-}
 
 /** クライアントはリトライせず即座に失敗として扱う(retryable:false)。 */
 export const UNAUTHORIZED_RESPONSE = JSON.stringify({
