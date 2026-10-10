@@ -230,8 +230,16 @@ export class DrawApplicationService {
       selectedReserved
     );
 
-    const dummyWinnerPrize =
-      this.prizeDrawService.pickRandomPrizeFrom(availablePrizes);
+    // ダミー当選は、実際に当たる景品とも他の予約景品とも重ならないものから選ぶ
+    const dummyCandidates = this.prizeDrawService.getDrawablePrizes(
+      prizes,
+      results
+    );
+    const dummyWinnerPrize = this.prizeDrawService.pickRandomPrizeFrom(
+      dummyCandidates.length > 0
+        ? dummyCandidates
+        : prizes.filter((p) => p.id !== selectedReserved.wonPrize?.id)
+    );
     const dummyWinnerPrizeId = dummyWinnerPrize?.id || null;
 
     console.log(
@@ -269,10 +277,17 @@ export class DrawApplicationService {
     request: DrawPrizeRequest,
     member: Member
   ): Promise<DrawPrizeResponse> {
-    const availablePrizes = this.prizeDrawService.getAvailablePrizes(
+    const availablePrizes = this.prizeDrawService.getDrawablePrizes(
       prizes,
       results
     );
+    if (
+      availablePrizes.length === 0 &&
+      results.some((r) => r.wonMember === null)
+    ) {
+      // 通常枠が尽きたが予約景品が残っている(景品の増減で回数がずれた場合など)ときは予約から引く
+      return this.executeKakuhenDraw(member, results, prizes, request);
+    }
     console.log(
       "[DrawApplicationService] executeNormalDraw: availablePrizes",
       availablePrizes
@@ -287,9 +302,9 @@ export class DrawApplicationService {
       };
     }
     const result = this.prizeDrawService.drawPrize({
-      prizes: availablePrizes,
+      // 当選候補は引ける景品だけ。ダミー(見せ用)は全景品から選んで演出に変化を持たせる
+      prizes,
       assignedPrizeIds: results
-        .filter((r) => r.wonMember !== null)
         .map((r) => r.wonPrize?.id)
         .filter(Boolean) as string[],
       member: member as Member,

@@ -16,13 +16,15 @@ export class PrizeReservationService {
    * Returns unique, sorted timings in the range [1..totalPrizes].
    */
   calculateKakuhenTimings(totalPrizes: number): number[] {
-    if (totalPrizes <= 0) return [];
+    // 確変は予約景品を使うため、少なくとも1件は通常抽選用に残す(景品1件では確変なし)
+    if (totalPrizes <= 1) return [];
     const center = Math.max(1, Math.floor(totalPrizes / 2));
     const t1 = Math.min(Math.max(center, 1), totalPrizes);
     const t2 = Math.min(Math.max(center + 1, 1), totalPrizes);
     return [t1, t2]
       .filter((v, i, a) => a.indexOf(v) === i)
-      .sort((a, b) => a - b);
+      .sort((a, b) => a - b)
+      .slice(0, totalPrizes - 1);
   }
 
   private createPool(reservedCount: number, prizes: Prize[]) {

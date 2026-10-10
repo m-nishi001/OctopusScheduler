@@ -42,6 +42,20 @@ export class PrizeDrawService {
     return getAvailablePrizes;
   }
 
+  /**
+   * 通常抽選で引いてよい景品。当選済みに加えて、確変用に予約済み(当選者未確定)の景品も除く。
+   * 予約景品を通常抽選で引くと、後の確変抽選で同じ景品が重複して当選してしまう。
+   */
+  getDrawablePrizes(
+    prizes: Prize[],
+    results: { wonPrize?: Prize | null }[]
+  ): Prize[] {
+    const heldIds = new Set(
+      results.map((r) => r.wonPrize?.id).filter((id): id is string => !!id)
+    );
+    return prizes.filter((p) => !heldIds.has(p.id));
+  }
+
   selectRandomReserved<T extends { drawId: string }>(reservedResults: T[]): T {
     if (!reservedResults || reservedResults.length === 0)
       throw new NoReservedPrizesError("No reserved results to select from");
@@ -55,13 +69,12 @@ export class PrizeDrawService {
    */
   getRemainingPrizes(
     prizes: Prize[],
-    results: { wonPrize?: Prize | null; wonMember?: any; drawId?: string }[]
+    results: { wonPrize?: Prize | null; wonMember?: any }[]
   ): Prize[] {
     const assignedPrizeIds = results.reduce((set, r) => {
       const hasWinner = !!r.wonMember;
-      const isNotReserved = !(r.drawId && r.drawId.startsWith("reserved-"));
       const hasPrizeId = !!r.wonPrize?.id;
-      const isAssigned = hasWinner && isNotReserved && hasPrizeId;
+      const isAssigned = hasWinner && hasPrizeId;
       if (isAssigned) {
         set.add(r.wonPrize!.id);
       }
@@ -121,7 +134,7 @@ export class PrizeDrawService {
    */
   isKakuhenTurn(
     prizes: Prize[],
-    results: { wonPrize?: Prize | null; wonMember?: any; drawId?: string }[],
+    results: { wonPrize?: Prize | null; wonMember?: any }[],
     state: number[]
   ): boolean {
     const total = prizes.length;
