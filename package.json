@@ -23,6 +23,7 @@
     "e2e": "node scripts/e2e-local.js",
     "deploy:gas": "npm run build && clasp push --force",
     "setup:cloudflare": "node scripts/setup-cloudflare.js",
+    "teardown:cloudflare": "node scripts/teardown-cloudflare.js",
     "secret:bootstrap": "wrangler secret put OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD",
     "deploy:cloudflare": "npm run build && npm run setup:cloudflare && wrangler d1 migrations apply DB --remote && wrangler deploy",
     "clean": "rimraf dist",

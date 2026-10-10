@@ -42,6 +42,22 @@ npx wrangler whoami
 3. `wrangler d1 migrations apply DB --remote`: `packages/infrastructures/migrations` を適用
 4. `wrangler deploy`
 
+## 削除（作り直したいとき・使わない間）
+
+`npm run teardown:cloudflare` で、`deploy:cloudflare` が作ったものをまとめて削除します。次の `deploy:cloudflare` で、また一から作られます。
+
+| 操作 | コマンド |
+| --- | --- |
+| 対象を表示するだけ（何も消さない） | `npm run teardown:cloudflare -- --dry-run` |
+| 削除（Worker 名の入力で確認） | `npm run teardown:cloudflare` |
+| 確認なしで削除 | `npm run teardown:cloudflare -- --yes` |
+| R2 は残して削除（管理者アカウントを維持） | `npm run teardown:cloudflare -- --keep-bucket` |
+
+- 削除するのは Worker（Durable Object と secret を含む）、D1、R2 バケット、ローカルの `wrangler.toml` です。
+- 管理者アカウントとセッションは R2 にあるため、バケットを消すと失われます。次回の `deploy:cloudflare` 後に `npm run secret:bootstrap` でやり直してください。`--keep-bucket` なら引き継がれ、ブートストラップは不要です。
+- **R2 バケットは空でないと削除できません。** wrangler にバケットを空にするコマンドが無いため、失敗したらダッシュボードの R2 → 対象バケット → Settings → Empty Bucket で空にし、同じコマンドをもう一度実行してください（削除済みのものはスキップされます）。
+- 公開だけ止めたい場合は、ダッシュボードの Workers → Settings → Domains & Routes で `workers.dev` を無効にすれば足ります（データは残ります）。
+
 ## 設定
 
 | 項目 | 既定値 | 変更方法 |
