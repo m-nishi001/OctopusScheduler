@@ -5,13 +5,14 @@ import { MockRandom } from "./test-utils";
 describe("PrizeReservationService", () => {
   /**
    * calculateKakuhenTimingsメソッドが2つの近くのタイミングを返し、境界を制限することをテストする。
-   * 期待値: 0で[], 1で[1], 2で[1,2], 5で[2,3]。
+   * 期待値: 0・1で[](通常抽選用に最低1件残すため確変なし), 2で[1], 3で[1,2], 5で[2,3]。
    */
   it("calculateKakuhenTimings returns 2 nearby timings and bounds them", () => {
     const s = new PrizeReservationService(new MockRandom([0]) as any);
     expect(s.calculateKakuhenTimings(0)).toEqual([]);
-    expect(s.calculateKakuhenTimings(1)).toEqual([1]);
-    expect(s.calculateKakuhenTimings(2)).toEqual([1, 2]);
+    expect(s.calculateKakuhenTimings(1)).toEqual([]);
+    expect(s.calculateKakuhenTimings(2)).toEqual([1]);
+    expect(s.calculateKakuhenTimings(3)).toEqual([1, 2]);
     expect(s.calculateKakuhenTimings(5)).toEqual([2, 3]);
   });
 

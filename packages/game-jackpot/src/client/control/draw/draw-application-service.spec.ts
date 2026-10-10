@@ -35,6 +35,7 @@ function createDeps(overrides: {
   };
   const prizeDrawService = {
     getAvailablePrizes: vi.fn((p: any[]) => p),
+    getDrawablePrizes: vi.fn((p: any[]) => p),
     getRemainingPrizes: vi.fn((p: any[]) => p),
     isKakuhenTurn: vi.fn(() => overrides.isKakuhenTurn ?? false),
     drawPrize: vi.fn(
