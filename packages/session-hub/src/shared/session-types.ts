@@ -137,5 +137,8 @@ export function commandKey(game: string, type: string): string {
   return `${game}.${type}`;
 }
 
+/** クライアントが採番する端末ID(入室の再送を冪等にするため)。 */
+export const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+
 /** "jackpot.advance" のような `game.type` 形式か。 */
 export const COMMAND_KEY_PATTERN = /^[a-z][a-zA-Z0-9]{0,23}\.[a-z][a-zA-Z0-9]{0,31}$/;

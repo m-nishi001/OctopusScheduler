@@ -10,6 +10,7 @@ import {
   ADMIN_ALIVE_MS,
   CLIENT_ALIVE_MS,
   COMMAND_KEY_PATTERN,
+  DEVICE_ID_PATTERN,
   COMMAND_RING_SIZE,
   HOST_STALE_MS,
   MAX_COMMAND_PAYLOAD_BYTES,
@@ -135,11 +136,16 @@ export async function joinOperator(
     throw hubError("INVALID_ARGUMENT", "role は host か admin を指定してください");
   }
 
-  // 同じ端末としての復帰(リロード)
+  // 同じ端末としての復帰(リロード)。端末IDはクライアントが採番して送るため、入室の応答が
+  // 失われて再送されたときも、同じIDなら前回作った端末をそのまま返す(冪等)。
+  // IDが他人/他の役割の端末と衝突した場合は流用せず、サーバが新しいIDを採番する。
+  const requestedId = args.deviceId && DEVICE_ID_PATTERN.test(args.deviceId) ? args.deviceId : undefined;
   let device: Device | null = null;
-  if (args.deviceId) {
-    const existing = await deps.repo.getDevice(args.deviceId);
-    if (existing && existing.role === args.role && existing.memberId === memberId) device = existing;
+  let newDeviceId = deps.newId();
+  if (requestedId) {
+    const existing = await deps.repo.getDevice(requestedId);
+    if (!existing) newDeviceId = requestedId;
+    else if (existing.role === args.role && existing.memberId === memberId) device = existing;
   }
 
   if (args.role === "host" && meta.hostDeviceId && meta.hostDeviceId !== device?.deviceId) {
@@ -156,7 +162,7 @@ export async function joinOperator(
   const label = cleanLabel(args.label, args.role === "host" ? "ホスト" : "管理");
   if (!device) {
     device = {
-      deviceId: deps.newId(),
+      deviceId: newDeviceId,
       sessionId: meta.id,
       role: args.role,
       memberId,

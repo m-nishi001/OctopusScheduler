@@ -15,7 +15,12 @@ import {
 } from "../server/engine/session-repo";
 import type { ServiceDeps } from "../server/engine/session-service";
 
-export class FakeClock {
+export interface Clock {
+  now: () => number;
+  advance(ms: number): void;
+}
+
+export class FakeClock implements Clock {
   constructor(private ms = 1_700_000_000_000) {}
   now = (): number => this.ms;
   advance(ms: number): void {
@@ -61,14 +66,14 @@ class CountingCache extends InMemoryCache {
 
 export interface TestHub {
   deps: ServiceDeps;
-  clock: FakeClock;
+  clock: Clock;
   counts: OpCounts;
   storage: IKeyValueStorage;
   cache: ICache;
   resetCounts(): void;
 }
 
-export function createTestHub(options: { clock?: FakeClock } = {}): TestHub {
+export function createTestHub(options: { clock?: Clock } = {}): TestHub {
   const clock = options.clock ?? new FakeClock();
   const counts: OpCounts = { kvGet: 0, kvSet: 0, cacheGet: 0, cachePut: 0, lock: 0 };
   const storage = new CountingKv(counts);

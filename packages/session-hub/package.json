@@ -43,6 +43,7 @@
     "@octopus/client-common": "*",
     "@octopus/infrastructures": "*",
     "reflect-metadata": "^0.2.2",
+    "vue": "^3.5.17",
     "tsyringe": "^4.10.0"
   },
   "devDependencies": {
