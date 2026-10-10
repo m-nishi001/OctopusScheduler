@@ -19,6 +19,7 @@
     "@octopus/game-card": "*",
     "@octopus/game-jackpot": "*",
     "@octopus/accounts": "*",
+    "@octopus/session-hub": "*",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
     "vue": "^3.5.17",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@types/google-apps-script": "^1.0.83",
     "@vitejs/plugin-vue": "^6.0.0",
+    "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.7.0",
     "core-js": "^3.44.0",
     "reflect-metadata": "^0.2.2",

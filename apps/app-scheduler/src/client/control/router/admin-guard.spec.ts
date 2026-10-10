@@ -12,6 +12,9 @@ describe("requiresAdmin", () => {
     "/card-admin",
     "/execute/quiz-admin/members",
     "/execute/jackpot-admin/remote-control",
+    "/sessions",
+    "/session/host/abc",
+    "/session/console/abc",
   ])("%s は管理画面", (path) => {
     expect(requiresAdmin(path)).toBe(true);
   });
@@ -28,6 +31,10 @@ describe("requiresAdmin", () => {
     "/quiz/q1/join",
     "/settingsfoo",
     "/quiz-administrators",
+    "/portal",
+    "/portal/ABC234",
+    "/sessionsfoo",
+    "/session/other",
   ])("%s は公開", (path) => {
     expect(requiresAdmin(path)).toBe(false);
   });
