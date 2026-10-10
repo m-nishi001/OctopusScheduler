@@ -10,6 +10,8 @@ export const HUB_ERROR_CODES = [
   "INVALID_ARGUMENT",
   "PAYLOAD_TOO_LARGE",
   "TOO_MANY_SESSIONS",
+  "ROUND_NOT_OPEN",
+  "ROUND_CLOSED",
 ] as const;
 export type HubErrorCode = (typeof HUB_ERROR_CODES)[number];
 

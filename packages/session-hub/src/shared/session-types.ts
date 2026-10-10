@@ -140,6 +140,16 @@ export function commandKey(game: string, type: string): string {
   return `${game}.${type}`;
 }
 
+// ---- 回答ラウンド ----
+export const ROUND_KEY_PATTERN = /^[A-Za-z0-9:_-]{1,80}$/;
+export const MAX_ROUND_OPTIONS = 8;
+export const MAX_ROUND_OPTION_TEXT = 100;
+export const MIN_ROUND_DURATION_MS = 1_000;
+export const MAX_ROUND_DURATION_MS = 10 * 60 * 1000;
+/** KV(GAS の1値 ~9KB)で保持できる回答数の目安。Durable Object はこれより大きく取れる。 */
+export const MAX_ROUND_ANSWERS_KV = 100;
+export const MAX_ROUND_ANSWERS_DO = 1000;
+
 /** クライアントが採番する端末ID(入室の再送を冪等にするため)。 */
 export const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 

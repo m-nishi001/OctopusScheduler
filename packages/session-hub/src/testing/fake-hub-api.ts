@@ -79,6 +79,10 @@ export function createFakeHubApi(
     poll: (args) => run("poll", args, () => service.poll(hub.deps, args)),
     issueCommand: (args) => run("issueCommand", args, () => service.issueCommand(hub.deps, args)),
     publishState: (args) => run("publishState", args, () => service.publishState(hub.deps, args)),
+    openRound: (args) => run("openRound", args, () => service.openRound(hub.deps, args)),
+    closeRound: (args) => run("closeRound", args, () => service.closeRound(hub.deps, args)),
+    submitAnswer: (args) => run("submitAnswer", args, () => service.submitAnswer(hub.deps, args)),
+    getAnswers: (args) => run("getAnswers", args, () => service.getAnswers(hub.deps, args)),
     getWebAppUrl: () => run("getWebAppUrl", undefined, async () => ({ url: webAppUrl })),
   };
 

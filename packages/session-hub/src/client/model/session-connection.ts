@@ -14,6 +14,11 @@ import type { SessionHubApi } from "../../server/session-hub-api-contract";
 import { parseHubErrorCode } from "../../server/engine/hub-error";
 import type { HubErrorCode } from "../../server/engine/hub-error";
 import type {
+  GetAnswersResult,
+  OpenRoundResult,
+  RoundOption,
+  RoundSummary,
+  SubmitAnswerResult,
   IssueCommandResult,
   JoinClientArgs,
   JoinOperatorArgs,
@@ -60,6 +65,8 @@ export interface ConnectionState {
   roomState: RoomState | null;
   presence: PresenceView | null;
   headSeq: number;
+  /** 運営端末にだけ届く、回答ラウンドの進行(回答数など)。 */
+  round: RoundSummary | null;
   /** 管理端末のコンソール表示用の直近コマンド(新しいものが後ろ)。 */
   recentCommands: Command[];
   failureCount: number;
@@ -106,6 +113,7 @@ export class SessionConnection implements TransportSource {
     roomState: null,
     presence: null,
     headSeq: 0,
+    round: null,
     recentCommands: [],
     failureCount: 0,
     lastError: null,
@@ -364,6 +372,7 @@ export class SessionConnection implements TransportSource {
       headSeq: result.head.seq,
       roomState: result.state ?? this.current.roomState,
       presence: result.presence,
+      round: result.round,
       recentCommands: recent,
       failureCount: 0,
       lastError: null,
@@ -450,6 +459,70 @@ export class SessionConnection implements TransportSource {
         await this.sleep(this.issueRetryDelayMs * attempt);
       }
     }
+  }
+
+  /** 通信失敗だけを再試行する(業務エラーは即座に投げる)。冪等な操作専用。 */
+  private async withNetworkRetry<T>(fn: () => Promise<T>): Promise<T> {
+    let attempt = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        return await fn();
+      } catch (error) {
+        if (errorInfo(error).code || attempt >= this.issueRetries) throw error;
+        attempt++;
+        await this.sleep(this.issueRetryDelayMs * attempt);
+      }
+    }
+  }
+
+  private requireCreds(): StoredCredentials {
+    if (!this.creds) throw new Error("not joined");
+    return this.creds;
+  }
+
+  /**
+   * 参加者: 回答ラウンドに回答する。先着で1人1回(2回目以降は最初の回答のまま `duplicate`)なので、
+   * 通信失敗は同じ内容で安全に再送できる。WebSocket があればそちらで送る(RPC より安い)。
+   */
+  async answer(key: string, no: number): Promise<SubmitAnswerResult> {
+    const c = this.requireCreds();
+    const request = { requestId: this.newRequestId(), key, no };
+    return this.withNetworkRetry(async () => {
+      const viaTransport = this.opts.transport.answer?.(request) ?? null;
+      if (viaTransport) {
+        try {
+          return await viaTransport;
+        } catch (error) {
+          if (!(error instanceof TransportUnavailableError)) throw error;
+        }
+      }
+      return this.opts.api.submitAnswer({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key, no });
+    });
+  }
+
+  /** ホスト: 回答の受付を開始する(同じラウンドが受付中なら続きとして扱われる)。 */
+  async openRound(key: string, options: RoundOption[], durationMs: number): Promise<OpenRoundResult> {
+    const c = this.requireCreds();
+    return this.withNetworkRetry(() =>
+      this.opts.api.openRound({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key, options, durationMs })
+    );
+  }
+
+  /** ホスト/管理: 受付を締め切る(締切済みでも安全)。 */
+  async closeRound(key: string): Promise<RoundSummary> {
+    const c = this.requireCreds();
+    return this.withNetworkRetry(() =>
+      this.opts.api.closeRound({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key })
+    );
+  }
+
+  /** ホスト/管理: 回答の一覧を取得する。 */
+  async getAnswers(key: string): Promise<GetAnswersResult> {
+    const c = this.requireCreds();
+    return this.withNetworkRetry(() =>
+      this.opts.api.getAnswers({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key })
+    );
   }
 
   /** ホスト: 現在の状態を公開する。連続して呼ばれたら最新のものだけ送る。 */

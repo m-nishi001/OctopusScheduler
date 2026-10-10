@@ -70,15 +70,19 @@ async function runEvent(clients: number, scale = 1) {
     await room.call("publishState", { ...creds(host), data: { n: i }, clientInput: i % 20 === 0 ? ["quiz.answer"] : [] });
   }
 
-  // 参加者の入力ラウンド(全員が1回ずつ送る。例: クイズ20問)
+  // 参加者の入力ラウンド(例: クイズ20問)。ホストが受付を開始し、全員が WebSocket で回答し、
+  // ホストが締め切って回答一覧を取得する。回答は1件ごとに書き込まず、まとめて保存される。
   const rounds = Math.max(1, Math.round(EXPECTED_LOAD.inputRoundsPerEvent * scale));
-  await room.call("publishState", { ...creds(host), data: { open: true }, clientInput: ["quiz.answer"] });
+  const options = [1, 2, 3, 4].map((no) => ({ no, text: `選択肢${no}` }));
   for (let r = 0; r < rounds; r++) {
+    const key = `quiz-${r}:live`;
+    await room.call("openRound", { ...creds(host), key, options, durationMs: 30_000 });
     for (let i = 0; i < clients; i++) {
-      // 接続済みの参加者は WebSocket で送る(20件=1リクエスト換算)
-      await room.send(sockets[i], { t: "issue", requestId: `r${r}-c${i}`, game: "quiz", type: "answer", payload: { no: (i % 4) + 1 } });
+      await room.send(sockets[i], { t: "answer", requestId: `r${r}-c${i}`, key, no: (i % 4) + 1 });
     }
     await room.runAlarm();
+    await room.call("closeRound", { ...creds(host), key });
+    await room.call("getAnswers", { ...creds(host), key });
   }
   return room;
 }
@@ -123,7 +127,7 @@ describe("Cloudflare 無料枠の予算", () => {
     expect(ratio).toBeLessThan(2.4);
   }, 120_000);
 
-  it("WebSocketの送信は課金に含まれず、参加者の入力はRPCより大幅に安い", async () => {
+  it("WebSocketの送信は課金に含まれず、参加者の回答はRPCより大幅に安い", async () => {
     const room = await runEvent(30, 0.1);
     expect(room.counts.wsOutgoing).toBeGreaterThan(room.counts.rpc); // 送信は大量だが
     expect(room.billableRequests()).toBeLessThan((room.counts.rpc + room.counts.wsConnect) * 2 + room.counts.wsIncoming); // 課金には効かない

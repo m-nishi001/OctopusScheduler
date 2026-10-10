@@ -184,3 +184,26 @@ export async function publishState(deps: ServiceDeps, args: Parameters<typeof en
     engine.publishState(engineDeps(deps, args.sessionId), args)
   );
 }
+
+export async function openRound(deps: ServiceDeps, args: Parameters<typeof engine.openRound>[1]) {
+  return deps.withLock(sessionLock(args.sessionId), LOCK_TIMEOUT_MS, () =>
+    engine.openRound(engineDeps(deps, args.sessionId), args)
+  );
+}
+
+export async function closeRound(deps: ServiceDeps, args: Parameters<typeof engine.closeRound>[1]) {
+  return deps.withLock(sessionLock(args.sessionId), LOCK_TIMEOUT_MS, () =>
+    engine.closeRound(engineDeps(deps, args.sessionId), args)
+  );
+}
+
+/** 回答は配列の読み書きなので、同一セッション内でロックして先着判定と件数を正しく保つ。 */
+export async function submitAnswer(deps: ServiceDeps, args: Parameters<typeof engine.submitAnswer>[1]) {
+  return deps.withLock(sessionLock(args.sessionId), LOCK_TIMEOUT_MS, () =>
+    engine.submitAnswer(engineDeps(deps, args.sessionId), args)
+  );
+}
+
+export async function getAnswers(deps: ServiceDeps, args: Parameters<typeof engine.getAnswers>[1]) {
+  return engine.getAnswers(engineDeps(deps, args.sessionId), args);
+}

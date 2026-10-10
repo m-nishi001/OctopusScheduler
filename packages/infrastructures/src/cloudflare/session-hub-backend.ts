@@ -56,5 +56,9 @@ export function createDoBackend(kvDeps: () => ServiceDeps): SessionHubBackend {
     poll: (args) => callRoom(args.sessionId, "poll", args) as ReturnType<SessionHubBackend["poll"]>,
     issueCommand: (args) => callRoom(args.sessionId, "issueCommand", args) as ReturnType<SessionHubBackend["issueCommand"]>,
     publishState: (args) => callRoom(args.sessionId, "publishState", args) as ReturnType<SessionHubBackend["publishState"]>,
+    openRound: (args) => callRoom(args.sessionId, "openRound", args) as ReturnType<SessionHubBackend["openRound"]>,
+    closeRound: (args) => callRoom(args.sessionId, "closeRound", args) as ReturnType<SessionHubBackend["closeRound"]>,
+    submitAnswer: (args) => callRoom(args.sessionId, "submitAnswer", args) as ReturnType<SessionHubBackend["submitAnswer"]>,
+    getAnswers: (args) => callRoom(args.sessionId, "getAnswers", args) as ReturnType<SessionHubBackend["getAnswers"]>,
   };
 }

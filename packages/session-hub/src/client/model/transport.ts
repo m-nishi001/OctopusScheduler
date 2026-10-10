@@ -2,7 +2,7 @@
  * 「サーバの更新をどう受け取るか」の抽象。GAS/標準はポーリング、Cloudflare は WebSocket
  * (Durable Object)。SessionConnection はこのインターフェースだけを知る。
  */
-import type { IssueCommandResult, PollArgs, PollResult } from "../../shared/protocol";
+import type { IssueCommandResult, PollArgs, PollResult, SubmitAnswerResult } from "../../shared/protocol";
 
 export interface TransportSource {
   /** 次の更新取得に使う引数(受信済み seq・state version・ack 等)。 */
@@ -23,6 +23,12 @@ export interface IssueRequest {
   payload?: unknown;
 }
 
+export interface AnswerRequest {
+  requestId: string;
+  key: string;
+  no: number;
+}
+
 export interface SessionTransport {
   start(source: TransportSource): void;
   stop(): void;
@@ -36,6 +42,8 @@ export interface SessionTransport {
    * 業務エラー(権限なし等)は例外にする。通信の失敗は NetworkIssue で表す。
    */
   issue?(request: IssueRequest): Promise<IssueCommandResult> | null;
+  /** 回答ラウンドへの回答の近道(WebSocket)。接続中でなければ null。 */
+  answer?(request: AnswerRequest): Promise<SubmitAnswerResult> | null;
 }
 
 /** transport 上の通信失敗(業務エラーではない)。呼び出し側は RPC へフォールバックして再送できる。 */

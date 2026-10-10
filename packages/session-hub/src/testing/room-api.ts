@@ -37,6 +37,10 @@ export function createRoomApi(room: FakeRoom, memberId: string | null, faults: F
     poll: (args) => run("poll", args, () => room.call("poll", args)),
     issueCommand: (args) => run("issueCommand", args, () => room.call("issueCommand", args)),
     publishState: (args) => run("publishState", args, () => room.call("publishState", args)),
+    openRound: (args) => run("openRound", args, () => room.call("openRound", args)),
+    closeRound: (args) => run("closeRound", args, () => room.call("closeRound", args)),
+    submitAnswer: (args) => run("submitAnswer", args, () => room.call("submitAnswer", args)),
+    getAnswers: (args) => run("getAnswers", args, () => room.call("getAnswers", args)),
     getWebAppUrl: () => Promise.resolve({ url: null }),
   };
 

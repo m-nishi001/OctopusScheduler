@@ -18,6 +18,10 @@ import {
 import type { ICache, IKeyValueStorage, ILock, IUuidGenerator } from "@octopus/infrastructures/interfaces";
 import { secure, secureAdminWithMember } from "@octopus/accounts/secure";
 import type {
+  CloseRoundArgs,
+  GetAnswersArgs,
+  OpenRoundArgs,
+  SubmitAnswerArgs,
   CloseSessionArgs,
   CreateSessionArgs,
   IssueCommandArgs,
@@ -68,6 +72,10 @@ declare let _sessionHub_joinClient: (args: JoinClientArgs) => Promise<string>;
 declare let _sessionHub_poll: (args: PollArgs) => Promise<string>;
 declare let _sessionHub_issueCommand: (args: IssueCommandArgs) => Promise<string>;
 declare let _sessionHub_publishState: (args: PublishStateArgs) => Promise<string>;
+declare let _sessionHub_openRound: (args: OpenRoundArgs) => Promise<string>;
+declare let _sessionHub_closeRound: (args: CloseRoundArgs) => Promise<string>;
+declare let _sessionHub_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
+declare let _sessionHub_getAnswers: (args: GetAnswersArgs) => Promise<string>;
 declare let _sessionHub_getWebAppUrl: () => Promise<string>;
 
 _sessionHub_createSession = secureAdminWithMember(async (args: CreateSessionArgs, member) => {
@@ -135,6 +143,38 @@ _sessionHub_publishState = secure("public", async (args: PublishStateArgs): Prom
   }
 });
 
+_sessionHub_openRound = secure("public", async (args: OpenRoundArgs): Promise<string> => {
+  try {
+    return ok(await backend().openRound(args));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+_sessionHub_closeRound = secure("public", async (args: CloseRoundArgs): Promise<string> => {
+  try {
+    return ok(await backend().closeRound(args));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+_sessionHub_submitAnswer = secure("public", async (args: SubmitAnswerArgs): Promise<string> => {
+  try {
+    return ok(await backend().submitAnswer(args));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+_sessionHub_getAnswers = secure("public", async (args: GetAnswersArgs): Promise<string> => {
+  try {
+    return ok(await backend().getAnswers(args));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
 _sessionHub_getWebAppUrl = secure("public", async (): Promise<string> => {
   try {
     // GAS固有(ScriptApp)のためポート化せずここで直接呼ぶ。GAS以外ではnullを返す。
@@ -155,6 +195,10 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   poll: _sessionHub_poll,
   issueCommand: _sessionHub_issueCommand,
   publishState: _sessionHub_publishState,
+  openRound: _sessionHub_openRound,
+  closeRound: _sessionHub_closeRound,
+  submitAnswer: _sessionHub_submitAnswer,
+  getAnswers: _sessionHub_getAnswers,
   getWebAppUrl: _sessionHub_getWebAppUrl,
 };
 
