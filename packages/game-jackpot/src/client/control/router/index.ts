@@ -37,6 +37,12 @@ const jackpotGameRoutes = [
       { path: "", component: AdminMembers },
       { path: "members", component: AdminMembers },
       { path: "prizes", component: AdminPrizes },
+      {
+        path: "screens",
+        redirect: (to: { path: string }) => ({
+          path: `${to.path.replace(/\/$/, "")}/opening`,
+        }),
+      },
       { path: "screens/home", component: HomeScreenConfig },
       { path: "screens/opening", component: OpeningScreenConfig },
       { path: "screens/description", component: DescriptionScreenConfig },

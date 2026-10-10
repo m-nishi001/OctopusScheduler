@@ -44,9 +44,10 @@ const screenTabs = [
 ];
 
 // /jackpot-admin(子パスなし)はメンバー画面を表示するため members 扱いにする。
+// スケジューラ内では /execute/jackpot-admin/... で描画されるため、接頭辞に依存せず BASE 以降を取り出す。
 const activeKey = computed(() => {
-  const seg = (route.path ?? '').replace(BASE, '').split('/').filter(Boolean)[0];
-  return seg ?? 'members';
+  const m = /\/jackpot-admin(?:\/([^/]+))?/.exec(route.path ?? '');
+  return m?.[1] ?? 'members';
 });
 
 const downloadingBackup = ref(false);
