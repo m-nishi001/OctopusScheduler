@@ -30,7 +30,6 @@ import { DrawApplicationService } from "../draw/draw-application-service";
 import { DrawStateInitializer } from "../draw/draw-state-initializer";
 import { MathRandomProvider } from "../../model/common/math-random-provider";
 import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
-import { RemoteControlRepository } from "../../model/remote-control/remote-control-repository";
 import { SyncService } from "../sync/sync-service";
 
 export class Container {
@@ -83,9 +82,6 @@ export class Container {
     });
     container.register(MathRandomProvider, { useClass: MathRandomProvider });
     container.register(CryptoIdGenerator, { useClass: CryptoIdGenerator });
-    container.register(RemoteControlRepository, {
-      useClass: RemoteControlRepository,
-    });
     container.register(SyncRunner, { useClass: SyncRunner });
     container.register(SyncService, { useClass: SyncService });
   }

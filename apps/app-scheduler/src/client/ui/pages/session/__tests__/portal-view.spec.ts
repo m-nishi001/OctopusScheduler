@@ -217,7 +217,7 @@ describe("portal-view: セッション中", () => {
     const meta = await env.repo.create({ name: "x" });
     const { agent } = await hostWith(meta.id);
     const { wrapper } = await mountPortal(`/portal/${meta.code}`);
-    await agent.publishSlice("session", { path: "/execute/jackpot-main-draw" });
+    await agent.publishSlice("session", { path: "/execute/jackpot-draw" });
     await settle(8000);
     expect(wrapper.find(".portal__screen").text()).toBe("ジャックポット");
   });

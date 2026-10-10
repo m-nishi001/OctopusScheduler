@@ -42,12 +42,10 @@ import { MemberRepository } from '@model/member/member-repository';
 import { DrawApplicationService } from '@control/draw/draw-application-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { DemoScreenSetting } from '@model/screen-config/demo-screen-setting';
-import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 export default {
   name: 'DemoDraw',
   components: { MainLayout, Loader },
   setup() {
-    useRemoteScreenSync();
     const router = useRouter();
     const session = useJackpotSession();
 
@@ -137,7 +135,7 @@ export default {
 
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && drawn.value) {
-        router.push(session.to('/main-draw'));
+        router.push(session.to('/jackpot-draw'));
       }
     };
     onMounted(() => window.addEventListener('keydown', handleKey));

@@ -9,7 +9,7 @@ const SEGMENT = "[^/?#\\s]{1,100}";
 
 const ALLOWED_PATHS: readonly RegExp[] = [
   new RegExp(`^/session/host/${SESSION_ID}$`),
-  /^\/(?:execute\/)?jackpot-(?:opening|description|demo|main-draw|draw|result|history|ending)$/,
+  /^\/(?:execute\/)?jackpot-(?:opening|description|demo|draw|result|history|ending)$/,
   new RegExp(`^/(?:execute/)?quiz/${SEGMENT}/(?:intro|qr|play|answer|result)$`),
   new RegExp(`^/execute/show-(?:image|video|html)/${SEGMENT}$`),
 ];

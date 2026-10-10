@@ -5,7 +5,7 @@ describe("isAllowedHostPath", () => {
   it.each([
     "/session/host/abc-123",
     "/jackpot-opening",
-    "/execute/jackpot-main-draw",
+    "/execute/jackpot-draw",
     "/jackpot-ending?demo=1",
     "/quiz/q1/intro",
     "/execute/quiz/q1/play",

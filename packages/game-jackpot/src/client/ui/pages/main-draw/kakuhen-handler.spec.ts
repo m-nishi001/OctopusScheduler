@@ -366,5 +366,15 @@ describe("KakuhenHandler", () => {
       expect(actions.length).toBeGreaterThan(0);
       expect(actions.every((a) => typeof a === "function")).toBe(true);
     });
+
+    it("labels every stop step of the kakuhen cycle (member / dummy / final)", () => {
+      const actions = KakuhenHandler.getActions(
+        ref(null), ref(null), ref(null), ref(null), ref([]), ref(false), {} as any, ref(false), ref(false),
+        vi.fn(), vi.fn(), ref(null), ref(null), ref(false), ref(false), ref(false),
+        new ActionQueue(), mitt<any>(), { phase: "idle" }, vi.fn(), null
+      );
+      const labels = actions.map((a) => (a as any).label).filter(Boolean);
+      expect(labels).toEqual(["stopMemberDraw", "stopKakuhenDummyDraw", "stopKakuhenFinalDraw"]);
+    });
   });
 });
