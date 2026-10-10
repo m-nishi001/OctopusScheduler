@@ -38,7 +38,13 @@ export function drawSector(
   ctx.stroke();
 
   const midAngle = startAngle + sectorAngle / 2;
-  const img = currentRouletteItems[i].imageElement;
+  // 項目が8個未満でもホイールは最低8分割で描くため、足りない扇は項目を巡回させて埋める
+  // (空の扇が出ない/存在しない項目を読んで落ちない)。停止位置の計算は元の項目の添字のまま。
+  const item =
+    currentRouletteItems.length > 0
+      ? currentRouletteItems[i % currentRouletteItems.length]
+      : undefined;
+  const img = item?.imageElement;
   if (!img) return;
 
   const innerRadius = Math.max(6, Math.floor(radius * 0.05));

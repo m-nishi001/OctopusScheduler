@@ -3,12 +3,14 @@
         <div class="dialog-overlay" role="dialog" aria-modal="true">
             <div class="dialog-content">
                 <h3 class="dialog-title">{{ title }}</h3>
+                <!-- 画像が未設定の賞品でも、何が当たったかが必ず分かるように賞品名を出す -->
+                <p class="prize-name" data-testid="prize-winning-name">{{ prize.name }}</p>
                 <div v-if="imageUrl1 || imageUrl2"
                     :class="['dialog-images-wrap', { 'single-image': imageUrl1 && !imageUrl2 }]">
                     <img v-if="imageUrl1" :src="imageUrl1" :alt="title + ' 画像1'" class="modal-image" />
                     <img v-if="imageUrl2" :src="imageUrl2" :alt="title + ' 画像2'" class="modal-image" />
                 </div>
-                <p class="dialog-message">
+                <p v-if="message || $slots.default" class="dialog-message">
                     <slot>{{ message }}</slot>
                 </p>
                 <div class="dialog-actions">
@@ -126,6 +128,7 @@ export default defineComponent({
 }
 
 .dialog-content {
+    justify-content: center;
     background: #000;
     border-radius: 12px;
     /* keep ~100px margin around viewport */
@@ -150,6 +153,17 @@ export default defineComponent({
     margin: 0 0 12px 0;
     color: #ffffff !important;
     text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.prize-name {
+    flex: 0 0 auto;
+    margin: 0 0 16px 0;
+    color: #ffd700;
+    font-size: clamp(2.5rem, 7vw, 6rem);
+    font-weight: 900;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+    text-shadow: 0 0 24px rgba(255, 215, 0, 0.55), 0 3px 0 rgba(0, 0, 0, 0.7);
 }
 
 .dialog-images-wrap {
