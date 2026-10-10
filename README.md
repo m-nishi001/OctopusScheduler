@@ -28,6 +28,12 @@
 
 TypeScript / Vue 3 / Vite / Vitest / Turborepo（monorepo）/ GAS + clasp / Cloudflare（Workers・D1・R2・Durable Objects）
 
+## ライセンス・免責
+
+本体は [MIT License](LICENSE) です。ただし依存の `gsap` は独自の [Standard "no charge" license](https://gsap.com/standard-license) で、MIT ではありません。
+
+個人で開発しているため、無保証（as is）で提供しており、利用は自己責任でお願いします。脆弱性は公開の Issue ではなく [SECURITY.md](SECURITY.md) の方法で報告してください。
+
 ---
 
 実運用を目指しつつ、設計・実装・運用を通して学んだことを検証するポートフォリオでもあります。
