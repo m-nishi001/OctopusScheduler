@@ -1,15 +1,10 @@
 <template>
-  <div v-if="quiz" class="answer-container">
-    <header class="answer-header">
-      <h1 class="answer-title">クイズの回答はこちら！！</h1>
-    </header>
-    <main class="answer-main">
-      <div class="answer-card">
-        <OptionCard v-if="correctOption" :option="correctOption" :index="correctIndex" variant="large" />
-        <div v-else class="no-answer">正解が設定されていません。</div>
-      </div>
-    </main>
-  </div>
+  <DisplayStage v-if="quiz">
+    <template #title>クイズの回答はこちら！！</template>
+    <OptionCard v-if="correctOption" :option="correctOption" :index="correctIndex" variant="large" />
+    <div v-else class="no-answer">正解が設定されていません。</div>
+    <template #hint>Enterで結果発表へ</template>
+  </DisplayStage>
   <div v-else class="loading">Loading...</div>
 </template>
 
@@ -18,6 +13,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import OptionCard from '../../components/option-card.vue';
+import DisplayStage from '../../components/display/display-stage.vue';
 import { onUnmounted } from 'vue';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
@@ -84,149 +80,9 @@ const handleKeydown = (ev: KeyboardEvent) => {
 </script>
 
 <style scoped>
-.answer-container {
-  height: 100vh;
-  box-sizing: border-box;
-  background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 32px;
-}
-
-.answer-title {
-  font-size: 2rem;
-  font-weight: 800;
-  color: #ffd54a;
-  margin: 16px 0 24px 0;
-}
-
-.answer-main {
-  width: 100%;
-  max-width: 960px;
-  display: flex;
-  justify-content: center;
-}
-
-.answer-card {
-  width: 100%;
-}
-
 .no-answer {
   color: #f97316;
-  text-align: center;
   font-weight: 700;
-}
-</style>
-
-<style scoped>
-@media (min-width: 1024px) {
-  .answer-title {
-    font-size: 2.75rem;
-  }
-
-  .answer-container {
-    /* reduce bottom padding slightly to give more room for the card area */
-    padding-bottom: 20px;
-  }
-}
-</style>
-
-<style scoped>
-@media (max-width: 1023px) {
-
-  /* Make main area fill available vertical space on small screens
-     so the OptionCard (variant="large") can expand and be centered. */
-  .answer-main {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .answer-card {
-    width: 100%;
-    display: flex;
-    align-items: stretch;
-    justify-content: center;
-    box-sizing: border-box;
-    /* keep a conservative max height to avoid pushing past the viewport */
-    max-height: calc(100vh - 140px);
-  }
-
-  /* Allow the child OptionCard (large variant) to fill the parent area. */
-  .answer-card :deep(.option-card) {
-    height: 100% !important;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .answer-card :deep(.option-button) {
-    height: 100% !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    justify-content: stretch !important;
-  }
-
-  .answer-card :deep(.image-wrapper) {
-    height: 100% !important;
-    aspect-ratio: auto !important;
-    max-height: calc(100vh - 220px) !important;
-  }
-
-  .answer-card :deep(.option-image) {
-    height: 100% !important;
-    width: 100% !important;
-    object-fit: cover !important;
-  }
-}
-</style>
-
-<style scoped>
-@media (min-width: 1024px) {
-
-  /* Make main area layout adjustments for large screens */
-  .answer-main {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .answer-card {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    /* do not force full-height growth on large screens */
-    flex: 0 1 auto;
-  }
-
-  /* Adjust child component internals to use natural height */
-  .answer-card :deep(.option-card) {
-    height: auto !important;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .answer-card :deep(.option-button) {
-    height: auto !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: stretch !important;
-    justify-content: stretch !important;
-  }
-
-  .answer-card :deep(.image-wrapper) {
-    height: auto !important;
-    aspect-ratio: auto !important;
-  }
-
-  .answer-card :deep(.option-image) {
-    height: auto !important;
-    width: 100% !important;
-    object-fit: cover !important;
-  }
+  font-size: clamp(1.25rem, 3vmin, 2.5rem);
 }
 </style>

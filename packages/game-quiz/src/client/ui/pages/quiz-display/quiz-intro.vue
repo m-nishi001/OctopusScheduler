@@ -1,16 +1,15 @@
 <template>
-    <div class="intro-container">
-        <div class="announcement">
-            <h1 class="announcement-text">これからクイズが始まります！！</h1>
-            <p class="instruction">Enterキーを押して次へ</p>
-        </div>
-    </div>
+    <DisplayStage>
+        <p class="announcement-text">これからクイズが始まります！！</p>
+        <template #hint>Enterキーを押して次へ</template>
+    </DisplayStage>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
+import DisplayStage from '../../components/display/display-stage.vue';
 import { useQuizSession } from '../../composables/use-quiz-session';
 import { StopAcceptingAnswersUseCase } from '../../../control/use-cases/stop-accepting-answers-use-case';
 
@@ -39,47 +38,17 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.intro-container {
-    width: 100%;
-    height: 100vh;
-    box-sizing: border-box;
-    padding: 28px 32px;
-    background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.announcement {
-    background: rgba(17, 24, 39, 0.65);
-    border-radius: 12px;
-    padding: 40px;
-    box-shadow: 0 12px 30px rgba(2, 6, 23, 0.5);
-}
-
 .announcement-text {
-    font-size: 4rem;
-    font-weight: 800;
-    color: #ffd54a;
-    margin: 0 0 20px 0;
-    line-height: 1.2;
-}
-
-.instruction {
-    font-size: 1.5rem;
-    color: rgba(255, 255, 255, 0.85);
     margin: 0;
-}
-
-@media (max-width: 768px) {
-    .announcement-text {
-        font-size: 3rem;
-    }
-
-    .instruction {
-        font-size: 1.25rem;
-    }
+    padding: clamp(24px, 6vmin, 80px) clamp(24px, 8vmin, 120px);
+    font-size: clamp(2rem, 8vmin, 7rem);
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--stage-gold, #ffd54a);
+    background: var(--stage-card, rgba(17, 24, 39, 0.65));
+    border-radius: clamp(12px, 2vmin, 28px);
+    box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
+    max-width: 100%;
+    box-sizing: border-box;
 }
 </style>

@@ -1,16 +1,15 @@
 <template>
-    <div class="qr-container">
-        <div class="qr-display">
-            <img :src="qrCodeUrl" alt="QR Code" class="qr-large-image" />
-            <p class="instruction">このQRコードを読み込んでください！</p>
-            <p class="enter-hint">Enterで次へ進みます</p>
-        </div>
-    </div>
+    <DisplayStage>
+        <template #title>このQRコードを読み込んでください！</template>
+        <img :src="qrCodeUrl" alt="QR Code" class="qr-image" />
+        <template #hint>Enterで次へ進みます</template>
+    </DisplayStage>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import DisplayStage from '../../components/display/display-stage.vue';
 import { useParticipantJoinUrl } from '../../composables/use-participant-join-url';
 import { useQuizSession } from '../../composables/use-quiz-session';
 
@@ -24,7 +23,7 @@ const session = useQuizSession();
 const { joinUrl } = useParticipantJoinUrl(quizId, session);
 
 const qrCodeUrl = computed(() => {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl.value)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=800x800&margin=2&data=${encodeURIComponent(joinUrl.value)}`;
 });
 
 const handleKeydown = (event: KeyboardEvent) => {
@@ -43,79 +42,16 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.qr-container {
-    width: 100%;
-    height: 100vh;
+/* 本文領域(タイトル・ヒントを除いた残り)いっぱいの正方形。遠くからでも読み取れる大きさにする。 */
+.qr-image {
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+    background: #fff;
+    padding: clamp(8px, 1.6vmin, 24px);
     box-sizing: border-box;
-    padding: 28px 32px;
-    background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-}
-
-.qr-display {
-    background: rgba(17, 24, 39, 0.65);
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 12px 30px rgba(2, 6, 23, 0.5);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-}
-
-.enter-hint {
-    font-size: 1.1rem;
-    color: #e6eef8;
-    margin: 0;
-}
-
-.qr-large-image {
-    width: 400px;
-    height: 400px;
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.55);
-}
-
-.instruction {
-    font-size: 1.8rem;
-    font-weight: bold;
-    color: #ffd54a;
-    margin: 0;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-    animation: bounce 2s infinite;
-}
-
-@keyframes bounce {
-
-    0%,
-    20%,
-    50%,
-    80%,
-    100% {
-        transform: translateY(0);
-    }
-
-    40% {
-        transform: translateY(-10px);
-    }
-
-    60% {
-        transform: translateY(-5px);
-    }
-}
-
-@media (max-width: 768px) {
-    .qr-large-image {
-        width: 300px;
-        height: 300px;
-    }
-
-    .instruction {
-        font-size: 1.5rem;
-    }
+    border-radius: clamp(8px, 1.6vmin, 20px);
+    box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
 }
 </style>
