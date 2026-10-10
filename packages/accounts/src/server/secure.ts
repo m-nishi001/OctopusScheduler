@@ -12,6 +12,7 @@ import { IKeyValueStorageToken, unwrapAuth } from "@octopus/infrastructures/inte
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import { isProductionMode } from "../app-mode";
 import { getSession } from "./accounts-use-cases";
+import type { Member } from "./accounts-api-contract";
 
 export type EndpointPolicy = "public" | "admin";
 
@@ -43,8 +44,29 @@ export function createSecure(deps: SecureDeps) {
   };
 }
 
-export const secure = createSecure({
+type MemberHandler = (args: any, member: Member) => Promise<string>;
+
+/**
+ * `secure("admin", ...)` の亜種。ハンドラへ認証済みの管理者メンバーも渡す
+ * (「誰の端末か」を記録したい操作、例: セッション作成者・ホスト端末の起動者)。
+ * 管理者として検証できない場合は常に Unauthorized(開発モードの素通しはしない)。
+ */
+export function createSecureAdminWithMember(deps: SecureDeps) {
+  return function secureAdminWithMember<H extends MemberHandler>(handler: H): (raw?: unknown) => Promise<string> {
+    return async (raw?: unknown): Promise<string> => {
+      const { token, args } = unwrapAuth(raw);
+      const member = await getSession({ storage: deps.getStorage(), now: deps.now }, token ?? "");
+      if (!member?.isAdmin) return UNAUTHORIZED_RESPONSE;
+      return handler(args, member);
+    };
+  };
+}
+
+const deps: SecureDeps = {
   isProduction: isProductionMode,
   getStorage: () => container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
   now: () => Date.now(),
-});
+};
+
+export const secure = createSecure(deps);
+export const secureAdminWithMember = createSecureAdminWithMember(deps);
