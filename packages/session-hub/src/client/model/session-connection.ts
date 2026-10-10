@@ -34,6 +34,7 @@ import {
   saveCredentials,
 } from "./device-store";
 import type { DeviceStore, StoredCredentials } from "./device-store";
+import { TransportUnavailableError } from "./transport";
 import type { SessionTransport, TransportSource } from "./transport";
 
 export type ConnectionPhase =
@@ -113,6 +114,7 @@ export class SessionConnection implements TransportSource {
   private listeners = new Set<(state: ConnectionState) => void>();
   private commandHandler: ((command: Command) => void | Promise<void>) | null = null;
 
+  private updateChain: Promise<void> = Promise.resolve();
   private readonly pendingDeviceIds = new Map<string, string>();
   private creds: StoredCredentials | null = null;
   private sinceSeq = 0;
@@ -294,7 +296,17 @@ export class SessionConnection implements TransportSource {
     };
   }
 
-  async onUpdate(result: PollResult): Promise<void> {
+  /**
+   * 更新の適用は必ず直列に行う。WebSocket では更新が連続して届くため、先のコマンドの適用中に
+   * 次の更新を適用し始めると、コマンドの実行順が崩れる。
+   */
+  onUpdate(result: PollResult): Promise<void> {
+    const run = this.updateChain.then(() => this.applyUpdate(result));
+    this.updateChain = run.catch(() => undefined);
+    return run;
+  }
+
+  private async applyUpdate(result: PollResult): Promise<void> {
     const c = this.creds;
     if (!c) return;
     const localNow = this.now();
@@ -396,18 +408,25 @@ export class SessionConnection implements TransportSource {
     const c = this.creds;
     if (!c) throw new Error("not joined");
     const requestId = this.newRequestId();
+    const request = { requestId, game, type, payload };
     let attempt = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
+        // 常時接続(WebSocket)があればそちらで送る(RPC より安い)。無い/失敗したら RPC に切り替えて同じ requestId で送る。
+        const viaTransport = this.opts.transport.issue?.(request) ?? null;
+        if (viaTransport) {
+          try {
+            return await viaTransport;
+          } catch (error) {
+            if (!(error instanceof TransportUnavailableError)) throw error;
+          }
+        }
         const result = await this.opts.api.issueCommand({
           sessionId: c.sessionId,
           deviceId: c.deviceId,
           token: c.token,
-          requestId,
-          game,
-          type,
-          payload,
+          ...request,
         });
         this.opts.transport.kick();
         return result;

@@ -1,8 +1,8 @@
 /**
  * 「サーバの更新をどう受け取るか」の抽象。GAS/標準はポーリング、Cloudflare は WebSocket
- * (Durable Object)で差し替える。SessionConnection はこのインターフェースだけを知る。
+ * (Durable Object)。SessionConnection はこのインターフェースだけを知る。
  */
-import type { PollArgs, PollResult } from "../../shared/protocol";
+import type { IssueCommandResult, PollArgs, PollResult } from "../../shared/protocol";
 
 export interface TransportSource {
   /** 次の更新取得に使う引数(受信済み seq・state version・ack 等)。 */
@@ -16,6 +16,13 @@ export interface TransportSource {
   onError(error: unknown, consecutiveFailures: number): "retry" | "stop";
 }
 
+export interface IssueRequest {
+  requestId: string;
+  game: string;
+  type: string;
+  payload?: unknown;
+}
+
 export interface SessionTransport {
   start(source: TransportSource): void;
   stop(): void;
@@ -23,4 +30,18 @@ export interface SessionTransport {
   setVisible(visible: boolean): void;
   /** 次回の予約を待たず、すぐ取得する(操作直後の反映を速くする)。 */
   kick(): void;
+  /**
+   * 常時接続(WebSocket)がある場合の、コマンド発行の近道(RPC より安い)。
+   * 接続中でなければ null を返し、呼び出し側は通常の RPC を使う。
+   * 業務エラー(権限なし等)は例外にする。通信の失敗は NetworkIssue で表す。
+   */
+  issue?(request: IssueRequest): Promise<IssueCommandResult> | null;
+}
+
+/** transport 上の通信失敗(業務エラーではない)。呼び出し側は RPC へフォールバックして再送できる。 */
+export class TransportUnavailableError extends Error {
+  constructor(message = "transport unavailable") {
+    super(message);
+    this.name = "TransportUnavailableError";
+  }
 }
