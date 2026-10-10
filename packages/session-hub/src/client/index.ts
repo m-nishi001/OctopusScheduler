@@ -1,1 +1,14 @@
+// session-hub の公開 API(クライアント側)。
 export * from "../shared";
+export { Container as SessionHubContainer, createSessionConnection } from "./control/container";
+export { SessionConnection } from "./model/session-connection";
+export type { ConnectionOptions, ConnectionPhase, ConnectionState } from "./model/session-connection";
+export { PollingTransport, DEFAULT_POLLING_OPTIONS } from "./model/polling-transport";
+export type { SessionTransport, TransportSource } from "./model/transport";
+export { createBrowserDeviceStore, MemoryDeviceStore } from "./model/device-store";
+export type { DeviceStore } from "./model/device-store";
+export { useSessionConnection } from "./ui/use-session-connection";
+export { parseHubErrorCode } from "../server/engine/hub-error";
+export type { HubErrorCode } from "../server/engine/hub-error";
+export { ISessionHubApiToken } from "../server/session-hub-api-contract";
+export type { SessionHubApi } from "../server/session-hub-api-contract";
