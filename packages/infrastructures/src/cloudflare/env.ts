@@ -9,4 +9,6 @@ export interface CloudflareEnv {
   DB: D1Database;
   BUCKET: R2Bucket;
   ASSETS: Fetcher;
+  /** session-hub のセッション1件ぶんの Durable Object。未設定の環境では R2 版にフォールバックする。 */
+  SESSION_ROOM?: DurableObjectNamespace;
 }

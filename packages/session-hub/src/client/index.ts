@@ -8,6 +8,8 @@ export type { CommandHandler } from "./model/host-command-router";
 export { SessionAdminRepository } from "./model/session-admin-repository";
 export type { ConnectionOptions, ConnectionPhase, ConnectionState } from "./model/session-connection";
 export { PollingTransport, DEFAULT_POLLING_OPTIONS } from "./model/polling-transport";
+export { WebSocketTransport, DEFAULT_WS_OPTIONS } from "./model/websocket-transport";
+export { createDefaultTransport } from "./control/container";
 export type { SessionTransport, TransportSource } from "./model/transport";
 export { createBrowserDeviceStore, MemoryDeviceStore } from "./model/device-store";
 export type { DeviceStore } from "./model/device-store";

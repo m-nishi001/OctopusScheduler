@@ -24,3 +24,5 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run verify
+      # 実 workerd(wrangler dev --local)で Durable Object / WebSocket を含む通しの動作を確認する。
+      - run: npm run e2e
