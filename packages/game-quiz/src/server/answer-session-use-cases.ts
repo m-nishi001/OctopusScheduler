@@ -1,32 +1,12 @@
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import type { AcceptanceState, QuizSessionScope } from "./quiz-api-contract";
 import { clearAnswers } from "./answer-submission-use-cases";
-import { sessionKey } from "./session-key";
+import { acceptanceKey, readAcceptanceState as readState } from "./acceptance-state";
 
 export interface AnswerSessionDeps {
   storage: IKeyValueStorage;
   /** 現在時刻(ms)を返す関数。GAS本番では Date.now() を注入する。 */
   now: () => number;
-}
-
-const ACCEPTANCE_KEY_PREFIX = "quiz-game-acceptance";
-
-function acceptanceKey(quizId: string, scope: QuizSessionScope): string {
-  return sessionKey(ACCEPTANCE_KEY_PREFIX, quizId, scope);
-}
-
-async function readState(
-  storage: IKeyValueStorage,
-  quizId: string,
-  scope: QuizSessionScope
-): Promise<AcceptanceState | null> {
-  const raw = await storage.get(acceptanceKey(quizId, scope));
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as AcceptanceState;
-  } catch {
-    return null;
-  }
 }
 
 /**

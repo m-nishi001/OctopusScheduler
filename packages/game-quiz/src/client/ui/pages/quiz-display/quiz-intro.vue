@@ -10,7 +10,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { container } from 'tsyringe';
 import { useQuizSession } from '../../composables/use-quiz-session';
+import { StopAcceptingAnswersUseCase } from '../../../control/use-cases/stop-accepting-answers-use-case';
 
 const router = useRouter();
 const route = useRoute();
@@ -25,6 +27,9 @@ const handleKeydown = (event: KeyboardEvent) => {
 };
 
 onMounted(() => {
+    // 前回の実行で受付中のまま離脱していても、開始前に回答できないよう受付を止めておく。
+    container.resolve(StopAcceptingAnswersUseCase).execute(quizId, session.scope)
+        .catch((e) => console.error('Failed to reset acceptance', e));
     document.addEventListener('keydown', handleKeydown);
 });
 
