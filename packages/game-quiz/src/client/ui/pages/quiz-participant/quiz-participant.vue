@@ -110,7 +110,7 @@ async function handleLogin() {
 }
 
 async function handleSelect(optionNo: number) {
-    if (!session.value || isSubmitting.value) return;
+    if (!session.value || isSubmitting.value || phase.value !== 'answering') return;
     isSubmitting.value = true;
     submitError.value = null;
     try {

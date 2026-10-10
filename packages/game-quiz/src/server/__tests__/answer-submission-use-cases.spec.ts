@@ -3,7 +3,7 @@ import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { addMember } from "@octopus/accounts/server-use-cases";
 import { loginParticipant } from "../participant-auth-use-cases";
 import { getAnswers, submitAnswer } from "../answer-submission-use-cases";
-import { startAcceptingAnswers } from "../answer-session-use-cases";
+import { startAcceptingAnswers, stopAcceptingAnswers } from "../answer-session-use-cases";
 
 function stubClock(times: number[]) {
   let i = 0;
@@ -26,6 +26,10 @@ async function setupParticipant(storage: InMemoryKeyValueStorage, userId: string
   return token;
 }
 
+async function open(storage: InMemoryKeyValueStorage, quizId: string, scope: "live" | "demo" = "live") {
+  await startAcceptingAnswers({ storage, now: stubClock([1]) }, { quizId, scope, options: [] });
+}
+
 describe("answer-submission-use-cases", () => {
   it("returns an empty list when no answers have been submitted", async () => {
     const storage = new InMemoryKeyValueStorage();
@@ -37,6 +41,7 @@ describe("answer-submission-use-cases", () => {
   it("records a submitted answer with the server-side timestamp", async () => {
     const storage = new InMemoryKeyValueStorage();
     const token = await setupParticipant(storage, "u1", "太郎");
+    await open(storage, "q1");
     const now = stubClock([1234]);
 
     const answer = await submitAnswer(
@@ -57,6 +62,7 @@ describe("answer-submission-use-cases", () => {
 
   it("rejects a submission with an invalid device token", async () => {
     const storage = new InMemoryKeyValueStorage();
+    await open(storage, "q1");
     await expect(
       submitAnswer(
         { storage, generateId: stubGenerateId, now: stubClock([1000]) },
@@ -68,6 +74,7 @@ describe("answer-submission-use-cases", () => {
   it("ignores a second submission from the same participant and keeps the first", async () => {
     const storage = new InMemoryKeyValueStorage();
     const token = await setupParticipant(storage, "u1", "太郎");
+    await open(storage, "q1");
     const now = stubClock([1000, 9999]);
 
     const first = await submitAnswer(
@@ -88,6 +95,8 @@ describe("answer-submission-use-cases", () => {
   it("keeps answers to different quizzes independent", async () => {
     const storage = new InMemoryKeyValueStorage();
     const token = await setupParticipant(storage, "u1", "太郎");
+    await open(storage, "q1");
+    await open(storage, "q2");
     const now = stubClock([1000, 2000]);
 
     await submitAnswer({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live", token, optionNo: 1 });
@@ -105,6 +114,7 @@ describe("answer-submission-use-cases", () => {
     const storage = new InMemoryKeyValueStorage();
     const tokenA = await setupParticipant(storage, "u1", "太郎");
     const tokenB = await setupParticipant(storage, "u2", "次郎");
+    await open(storage, "q1");
     const now = stubClock([1000, 1500]);
 
     await submitAnswer(
@@ -142,6 +152,7 @@ describe("answer-submission-use-cases", () => {
   it("受付の再開始は他のクイズの回答には影響しない", async () => {
     const storage = new InMemoryKeyValueStorage();
     const token = await setupParticipant(storage, "u1", "太郎");
+    await open(storage, "q2");
     const deps = (times: number[]) => ({ storage, generateId: stubGenerateId, now: stubClock(times) });
 
     await submitAnswer(deps([100]), { quizId: "q2", scope: "live", token, optionNo: 1 });
@@ -153,6 +164,8 @@ describe("answer-submission-use-cases", () => {
   it("keeps demo and live answers of the same quiz independent", async () => {
     const storage = new InMemoryKeyValueStorage();
     const token = await setupParticipant(storage, "u1", "太郎");
+    await open(storage, "q1", "demo");
+    await open(storage, "q1", "live");
     const now = stubClock([1000, 2000]);
 
     await submitAnswer({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "demo", token, optionNo: 1 });
@@ -167,11 +180,43 @@ describe("answer-submission-use-cases", () => {
   it("デモの受付開始は本番の回答を消さない", async () => {
     const storage = new InMemoryKeyValueStorage();
     const token = await setupParticipant(storage, "u1", "太郎");
+    await open(storage, "q1", "live");
     const deps = (times: number[]) => ({ storage, generateId: stubGenerateId, now: stubClock(times) });
 
     await submitAnswer(deps([100]), { quizId: "q1", scope: "live", token, optionNo: 1 });
     await startAcceptingAnswers({ storage, now: stubClock([5000]) }, { quizId: "q1", scope: "demo", options: [] });
 
     expect(await getAnswers(deps([]), { quizId: "q1", scope: "live" })).toHaveLength(1);
+  });
+
+  it("受付を開始していない間(開始前)の回答は拒否され、記録されない", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    const token = await setupParticipant(storage, "u1", "太郎");
+    const deps = { storage, generateId: stubGenerateId, now: stubClock([100]) };
+
+    await expect(submitAnswer(deps, { quizId: "q1", scope: "live", token, optionNo: 1 })).rejects.toThrow();
+    expect(await getAnswers(deps, { quizId: "q1", scope: "live" })).toEqual([]);
+  });
+
+  it("受付を停止した後の回答は拒否される", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    const token = await setupParticipant(storage, "u1", "太郎");
+    const deps = { storage, generateId: stubGenerateId, now: stubClock([100]) };
+
+    await open(storage, "q1");
+    await stopAcceptingAnswers({ storage, now: stubClock([200]) }, { quizId: "q1", scope: "live" });
+
+    await expect(submitAnswer(deps, { quizId: "q1", scope: "live", token, optionNo: 1 })).rejects.toThrow();
+  });
+
+  it("デモの受付中でも本番の回答は受け付けない(scopeが独立)", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    const token = await setupParticipant(storage, "u1", "太郎");
+    const deps = { storage, generateId: stubGenerateId, now: stubClock([100]) };
+
+    await open(storage, "q1", "demo");
+
+    await expect(submitAnswer(deps, { quizId: "q1", scope: "live", token, optionNo: 1 })).rejects.toThrow();
+    await expect(submitAnswer(deps, { quizId: "q1", scope: "demo", token, optionNo: 1 })).resolves.toBeDefined();
   });
 });

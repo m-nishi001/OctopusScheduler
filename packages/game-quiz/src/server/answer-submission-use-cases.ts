@@ -3,6 +3,7 @@ import { findMemberById } from "@octopus/accounts/server-use-cases";
 import type { AccountsUseCaseDeps } from "@octopus/accounts/server-use-cases";
 import type { QuizSessionScope, SubmittedAnswer } from "./quiz-api-contract";
 import { sessionKey } from "./session-key";
+import { readAcceptanceState } from "./acceptance-state";
 import { findUserIdByToken } from "./participant-auth-use-cases";
 
 export interface AnswerSubmissionDeps extends AccountsUseCaseDeps {
@@ -62,6 +63,10 @@ export async function submitAnswer(
   deps: AnswerSubmissionDeps,
   args: { quizId: string; scope: QuizSessionScope; token: string; optionNo: number }
 ): Promise<SubmittedAnswer> {
+  const acceptance = await readAcceptanceState(deps.storage, args.quizId, args.scope);
+  if (!acceptance?.isAccepting) {
+    throw new Error("Answers are not being accepted");
+  }
   const userId = await findUserIdByToken(deps.storage, args.token);
   if (!userId) {
     throw new Error("Invalid or expired device token");
