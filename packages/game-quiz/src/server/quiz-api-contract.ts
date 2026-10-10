@@ -21,17 +21,6 @@ export const QUIZ_GAME_ENDPOINTS = [
   "updateDriveData",
   "addJson",
   "getJson",
-  "loginParticipant",
-  "resolveDeviceToken",
-  "startAcceptingAnswers",
-  "stopAcceptingAnswers",
-  "getAcceptanceState",
-  "issueJoinToken",
-  "getParticipantState",
-  "getOptionImage",
-  "submitAnswer",
-  "getAnswers",
-  "getWebAppUrl",
 ] as const;
 
 export type QuizGameEndpointName = (typeof QUIZ_GAME_ENDPOINTS)[number];
@@ -81,119 +70,10 @@ export interface GetJsonArgs {
 }
 
 /**
- * 参加者の端末ログインセッション。token は端末の localStorage に保存し、
- * 以降のリクエストで userId 入力を省略するために使う。
- */
-export interface ParticipantSession {
-  token: string;
-  userId: string;
-  displayName: string;
-}
-
-export interface LoginParticipantArgs {
-  userId: string;
-}
-
-export interface ResolveDeviceTokenArgs {
-  token: string;
-}
-
-/**
- * 参加者の回答画面に表示する選択肢メタデータ。参加者の端末には正解情報を
- * 一切渡さないため、画像やcorrectNoは含めない(テキスト+色のボタンのみ表示する)。
- */
-/**
- * クイズの1回の実施を隔離する単位。本番(live)とデモ(demo)で受付状態・回答のKVキーが
- * 分かれるため、プレビュー実行が本番データに影響しない。
+ * クイズの1回の実施を本番(live)とデモ(demo)に分ける区分。回答ラウンドのキーに含めるため、
+ * デモ実行が本番の回答に影響しない。
  */
 export type QuizSessionScope = "live" | "demo";
-
-export interface AcceptanceOption {
-  no: number;
-  text: string;
-  color: string;
-  /** サムネイル画像があるか。画像本体はポーリングに載せず getOptionImage で個別に取得する。 */
-  hasImage: boolean;
-}
-
-/**
- * クイズ1問分の回答受付状態。acceptStartedAtMs は「出題前に回答できてしまう」
- * バグの修正のため、集計時にこの時刻未満のタイムスタンプを除外する基準として使う。
- * options は回答受付開始時に呼び出し側(quiz-play.vue)から渡され、参加者端末は
- * ポーリングで取得したこの options だけを頼りにボタンを描画する。
- */
-export interface AcceptanceState {
-  quizId: string;
-  isAccepting: boolean;
-  acceptStartedAtMs: number | null;
-  options: AcceptanceOption[];
-}
-
-export interface StartAcceptingAnswersArgs {
-  quizId: string;
-  scope: QuizSessionScope;
-  options: AcceptanceOption[];
-}
-
-export interface StopAcceptingAnswersArgs {
-  quizId: string;
-  scope: QuizSessionScope;
-}
-
-export interface GetAcceptanceStateArgs {
-  quizId: string;
-  scope: QuizSessionScope;
-}
-
-/** 参加者から実際に届いた1件の回答。タイムスタンプはサーバー受信時刻。 */
-export interface SubmittedAnswer {
-  userId: string;
-  displayName: string;
-  optionNo: number;
-  serverTimestampMs: number;
-}
-
-export interface SubmitAnswerArgs {
-  quizId: string;
-  scope: QuizSessionScope;
-  /** 参加URLに埋め込まれたトークン。無効(期限切れURL)なら拒否される。 */
-  joinToken: string;
-  token: string;
-  optionNo: number;
-}
-
-export interface IssueJoinTokenArgs {
-  quizId: string;
-  scope: QuizSessionScope;
-  /** true: 新しいトークンに切り替えて旧URLを無効化する(QR表示=セッション開始時)。 */
-  rotate: boolean;
-}
-
-export interface GetParticipantStateArgs {
-  quizId: string;
-  scope: QuizSessionScope;
-  joinToken: string;
-  /** 端末ログイントークン。あれば自分の回答(myAnswerNo)を返す。 */
-  token?: string;
-}
-
-/** 参加者端末が受け取る状態。myAnswerNoでリロード後も選択状態を復元する。 */
-export interface ParticipantState {
-  acceptance: AcceptanceState;
-  myAnswerNo: number | null;
-}
-
-export interface GetOptionImageArgs {
-  quizId: string;
-  scope: QuizSessionScope;
-  joinToken: string;
-  optionIndex: number;
-}
-
-export interface GetAnswersArgs {
-  quizId: string;
-  scope: QuizSessionScope;
-}
 
 /**
  * クライアントが直接呼び出せる型付きAPI。`createTypedApiClient()` で生成される
@@ -217,46 +97,6 @@ export interface QuizGameApi {
     args: GetJsonArgs,
     options?: ApiCallOptions
   ): Promise<{ json: string; updatedAt: string | null }>;
-  loginParticipant(
-    args: LoginParticipantArgs,
-    options?: ApiCallOptions
-  ): Promise<ParticipantSession>;
-  resolveDeviceToken(
-    args: ResolveDeviceTokenArgs,
-    options?: ApiCallOptions
-  ): Promise<ParticipantSession>;
-  startAcceptingAnswers(
-    args: StartAcceptingAnswersArgs,
-    options?: ApiCallOptions
-  ): Promise<AcceptanceState>;
-  stopAcceptingAnswers(
-    args: StopAcceptingAnswersArgs,
-    options?: ApiCallOptions
-  ): Promise<AcceptanceState>;
-  getAcceptanceState(
-    args: GetAcceptanceStateArgs,
-    options?: ApiCallOptions
-  ): Promise<AcceptanceState>;
-  issueJoinToken(
-    args: IssueJoinTokenArgs,
-    options?: ApiCallOptions
-  ): Promise<{ joinToken: string }>;
-  getParticipantState(
-    args: GetParticipantStateArgs,
-    options?: ApiCallOptions
-  ): Promise<ParticipantState>;
-  getOptionImage(
-    args: GetOptionImageArgs,
-    options?: ApiCallOptions
-  ): Promise<{ fileDataUrl: string | null }>;
-  submitAnswer(args: SubmitAnswerArgs, options?: ApiCallOptions): Promise<SubmittedAnswer>;
-  getAnswers(args: GetAnswersArgs, options?: ApiCallOptions): Promise<SubmittedAnswer[]>;
-  /**
-   * 参加者がスマホで開けるWebアプリの公開URL。GASのiframe内ではwindow.locationが
-   * 内側のサンドボックスURL(userCodeAppPanel)になり単独では開けないため、サーバーから取得する。
-   * 取得できない環境(Cloudflare等)ではnullを返し、クライアントはwindow.locationで代替する。
-   */
-  getWebAppUrl(args?: undefined, options?: ApiCallOptions): Promise<{ url: string | null }>;
 }
 
 /** `QuizGameApi` をDI解決するためのトークン。 */

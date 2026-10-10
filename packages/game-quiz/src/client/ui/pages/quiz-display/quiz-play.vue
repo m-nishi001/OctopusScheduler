@@ -51,7 +51,9 @@ import { useAudio } from '@octopus/composables';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
 import OptionCard from '../../components/option-card.vue';
-import { useParticipantJoinUrl } from '../../composables/use-participant-join-url';
+import { useQuizHost } from '../../composables/use-quiz-host';
+import { QuizRoundGateway } from '../../../model/quiz-round-gateway';
+import { buildQuizHostState, roundKeyFor } from '../../../model/quiz-host-state';
 import { useQuizSession } from '../../composables/use-quiz-session';
 import { useAnswerWindow } from '../../composables/use-answer-window';
 import { useCardGridLayout } from '../../composables/use-card-grid-layout';
@@ -66,11 +68,12 @@ const session = useQuizSession();
 const quiz = ref<QuizDto | null>(null);
 const objectUrls = ref<string[]>([]);
 
-const { joinUrl } = useParticipantJoinUrl(quizId, session, { rotate: false });
-
+// 参加者が読み取るのは、このセッションの参加ポータル(参加コード入り)。
+const gateway = container.resolve(QuizRoundGateway);
+const portalUrl = ref('');
 const qrCodeUrl = computed(() => {
-    if (!joinUrl.value) return '';
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl.value)}`;
+    if (!portalUrl.value) return '';
+    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(portalUrl.value)}`;
 });
 
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
@@ -101,7 +104,38 @@ const { containerRef, headerRef, questionAreaRef, containerStyle } = useCardGrid
 const bgmAudio = useAudio({ mode: 'html-audio' });
 
 const { timeLeft, showModal, isLoading, canProceed, errorMessage, start, emergencyStop } =
-    useAnswerWindow();
+    useAnswerWindow({ gateway });
+
+// 公開する状態(参加者のポータルが問題と選択肢、残り時間を表示する)。
+let deadlineMs: number | null = null;
+const publishState = (phase: 'answering' | 'closed') => {
+    const q = quiz.value;
+    host.publish(
+        buildQuizHostState({
+            page: 'play',
+            quizId,
+            title: q?.title,
+            roundKey: deadlineMs !== null || phase === 'closed' ? roundKeyFor(quizId, session.scope) : null,
+            deadlineMs,
+            phase,
+            question: q?.question,
+            options: q?.options.map((o: any) => ({ no: o.no, text: o.text, color: o.color })) ?? [],
+        })
+    );
+};
+
+const goAnswer = () => {
+    void bgmAudio.stop();
+    void router.push({ name: session.routeName('quiz-answer'), params: { id: quizId } });
+};
+
+// セッションのホストなら、管理端末の「次へ」(受付終了後の正解表示へ)と「受付を締め切る」でも操作できる。
+const host = useQuizHost({
+    advance: () => {
+        if (showModal.value && canProceed.value) goAnswer();
+    },
+    closeAnswers: () => emergencyStop(),
+});
 
 onMounted(async () => {
     // Load quiz data
@@ -114,13 +148,21 @@ onMounted(async () => {
             color: option.color,
             hasImage: Boolean(option.image),
         }));
+        void gateway.portalUrl().then((p) => {
+            if (p) portalUrl.value = p.url;
+        });
         await start({
             quizId,
             timeLimit: quiz.value.timeLimit,
-            options,
+            options: options.map((o: { no: number; text: string }) => ({ no: o.no, text: o.text })),
             scope: session.scope,
+            onOpened: (round) => {
+                deadlineMs = round.deadlineMs;
+                publishState('answering');
+            },
             onFinish: () => {
                 void bgmAudio.stop();
+                publishState('closed');
             },
         });
 
@@ -158,10 +200,7 @@ const handleEmergencyStop = () => {
 };
 
 const handleKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Enter' && showModal.value && canProceed.value) {
-        void bgmAudio.stop();
-        router.push({ name: session.routeName('quiz-answer'), params: { id: quizId } });
-    }
+    if (event.key === 'Enter' && showModal.value && canProceed.value) goAnswer();
 };
 </script>
 <style>

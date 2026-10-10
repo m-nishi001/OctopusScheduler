@@ -30,10 +30,8 @@ describe('quizGameRoutes', () => {
     expect(router.currentRoute.value.matched.length).toBe(2);
   });
 
-  it('resolves the participant join route with the quiz id param', async () => {
-    await router.push('/quiz/abc123/join');
-    expect(router.currentRoute.value.name).toBe('quiz-join');
-    expect(router.currentRoute.value.params.id).toBe('abc123');
+  it('has no participant join route any more (participants join via the session portal)', async () => {
+    expect(router.resolve('/quiz/abc123/join').matched).toHaveLength(0);
   });
 
   it('resolves the quiz-play preview route with the preview prop injected', async () => {

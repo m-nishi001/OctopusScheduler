@@ -8,8 +8,8 @@
                 <ul class="quiz-help">
                     <li>「クイズ一覧」でクイズを作成・編集します。「プレビュー」で進行画面を確認できます。</li>
                     <li>「メンバー管理」で参加者を登録します。</li>
-                    <li>本番は、設定画面の「画面遷移」イベントに <code>/quiz/クイズID/intro</code> を指定し、ショートカットで実行画面を切り替えます。</li>
-                    <li>クイズ進行中は <kbd>Enter</kbd> で次の画面(イントロ → QR → 出題 → 解答 → 結果)に進みます。</li>
+                    <li>本番は「セッション」で会場の投影端末を<strong>ホスト</strong>として起動し、管理端末の<strong>操作</strong>画面からクイズを選んで進行します。参加者はホストのQRコード(または参加コード)から参加ポータルに入り、そこで回答します。</li>
+                    <li>クイズ進行中は、ホストの <kbd>Enter</kbd> または操作画面の「次へ」で次の画面(イントロ → QR → 出題 → 解答 → 結果)に進みます。</li>
                     <li>設定画面に戻るには「ホーム」から「設定画面」を選びます。</li>
                 </ul>
                 <template #footer><UiButton variant="primary" @click="helpOpen = false">閉じる</UiButton></template>

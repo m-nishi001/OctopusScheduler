@@ -14,25 +14,13 @@ import {
 } from "../../../server/quiz-api-contract";
 import type { QuizGameApi } from "../../../server/quiz-api-contract";
 import { QuizRepository } from "../../model/quiz-repository";
-import { ParticipantAuthRepository } from "../../model/participant-auth-repository";
-import { AnswerSessionRepository } from "../../model/answer-session-repository";
 import { QuizService } from "../../model/quiz-service";
+import { QuizRoundGateway } from "../../model/quiz-round-gateway";
 import { StartQuizUseCase } from "../use-cases/start-quiz-use-case";
 import { AddQuizUseCase } from "../use-cases/add-quiz-use-case";
 import { UpdateQuizUseCase } from "../use-cases/update-quiz-use-case";
 import { GetAllQuizzesUseCase } from "../use-cases/get-all-quizzes-use-case";
 import { DeleteQuizUseCase } from "../use-cases/delete-quiz-use-case";
-import { LoginParticipantUseCase } from "../use-cases/login-participant-use-case";
-import { ResolveDeviceTokenUseCase } from "../use-cases/resolve-device-token-use-case";
-import { StartAcceptingAnswersUseCase } from "../use-cases/start-accepting-answers-use-case";
-import { StopAcceptingAnswersUseCase } from "../use-cases/stop-accepting-answers-use-case";
-import { GetAcceptanceStateUseCase } from "../use-cases/get-acceptance-state-use-case";
-import { GetWebAppUrlUseCase } from "../use-cases/get-web-app-url-use-case";
-import { IssueJoinTokenUseCase } from "../use-cases/issue-join-token-use-case";
-import { GetParticipantStateUseCase } from "../use-cases/get-participant-state-use-case";
-import { GetOptionImageUseCase } from "../use-cases/get-option-image-use-case";
-import { SubmitAnswerUseCase } from "../use-cases/submit-answer-use-case";
-import { GetSubmittedAnswersUseCase } from "../use-cases/get-submitted-answers-use-case";
 import { SyncService } from "../sync/sync-service";
 
 export class Container {
@@ -55,9 +43,8 @@ export class Container {
     });
 
     container.register(QuizRepository, { useClass: QuizRepository });
-    container.register(ParticipantAuthRepository, { useClass: ParticipantAuthRepository });
-    container.register(AnswerSessionRepository, { useClass: AnswerSessionRepository });
 
+    container.register(QuizRoundGateway, { useClass: QuizRoundGateway });
     container.register(QuizService, { useClass: QuizService });
     container.register(StartQuizUseCase, { useClass: StartQuizUseCase });
     container.register(AddQuizUseCase, { useClass: AddQuizUseCase });
@@ -66,19 +53,6 @@ export class Container {
       useClass: GetAllQuizzesUseCase,
     });
     container.register(DeleteQuizUseCase, { useClass: DeleteQuizUseCase });
-    container.register(LoginParticipantUseCase, { useClass: LoginParticipantUseCase });
-    container.register(ResolveDeviceTokenUseCase, { useClass: ResolveDeviceTokenUseCase });
-    container.register(StartAcceptingAnswersUseCase, {
-      useClass: StartAcceptingAnswersUseCase,
-    });
-    container.register(StopAcceptingAnswersUseCase, { useClass: StopAcceptingAnswersUseCase });
-    container.register(GetAcceptanceStateUseCase, { useClass: GetAcceptanceStateUseCase });
-    container.register(GetWebAppUrlUseCase, { useClass: GetWebAppUrlUseCase });
-    container.register(IssueJoinTokenUseCase, { useClass: IssueJoinTokenUseCase });
-    container.register(GetParticipantStateUseCase, { useClass: GetParticipantStateUseCase });
-    container.register(GetOptionImageUseCase, { useClass: GetOptionImageUseCase });
-    container.register(SubmitAnswerUseCase, { useClass: SubmitAnswerUseCase });
-    container.register(GetSubmittedAnswersUseCase, { useClass: GetSubmittedAnswersUseCase });
     container.register(SyncRunner, { useClass: SyncRunner });
     container.register(SyncService, { useClass: SyncService });
   }

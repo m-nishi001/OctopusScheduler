@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { SubmittedAnswer } from "../../server/quiz-api-contract";
+import type { RankingAnswer as SubmittedAnswer } from "./ranking";
 import { computeRanking } from "./ranking";
 
 function answer(overrides: Partial<SubmittedAnswer>): SubmittedAnswer {
