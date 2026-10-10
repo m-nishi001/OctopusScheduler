@@ -2,8 +2,24 @@
 
 > **要点**
 > - 認証して `npm run deploy:cloudflare` を実行するだけ。D1・R2 の作成も自動
-> - 初回管理者のパスワードは `npx wrangler secret put OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD`（再デプロイ不要）
+> - 初回管理者のパスワードは `npm run secret:bootstrap`（再デプロイ不要）
+> - 作ったものは `npm run teardown:cloudflare` でまとめて削除できる
 > - セッション機能は Durable Object + WebSocket で、無料プランで数百人まで動く
+
+## まずこれだけ（早見表）
+
+認証済み（`npx wrangler whoami` で自分のアカウントが出る）なら、毎回この順に実行するだけです。認証が切れていたら、先に[下の手順](#docker--コンテナ内で-wrangler-login-が完了しない)で `npx wrangler login --callback-host=0.0.0.0` を実行してください。
+
+| やりたいこと | コマンド | 補足 |
+| --- | --- | --- |
+| 作る・更新する | `npm run deploy:cloudflare` | 何度実行してもよい。表示された URL が公開先（反映に数十秒） |
+| 最初の管理者を作る | `npm run secret:bootstrap` | 新規に作ったときだけ。パスワードを入力し、ID `admin` でログイン |
+| 全部消す | `npm run teardown:cloudflare -- --yes` | R2 が空でないと失敗する → 下の「削除」へ |
+| 消すが管理者は残す | `npm run teardown:cloudflare -- --yes --keep-bucket` | 次の deploy で `secret:bootstrap` は不要 |
+
+**全部消すときの流れ**: ① `npm run teardown:cloudflare -- --yes` → R2 で失敗したら ② ダッシュボードの R2 → `octopus-scheduler-assets` → Settings → **Empty Bucket** → ③ もう一度 ① を実行。
+
+アカウントに初めてデプロイするときだけ、[R2 の有効化と課金通知](#初回だけ必要な手作業)が必要です。
 
 ## 手順
 
