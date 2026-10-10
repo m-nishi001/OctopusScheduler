@@ -1,6 +1,6 @@
 <template>
     <div>
-        <ResultStage :loading="isLoadingResults" :celebrating="showFullScreenParticles" :winner-name="winnerName">
+        <ResultStage :loading="isLoadingResults" :celebrating="showFullScreenParticles" :winner-name="winnerName" :no-winner="noWinner">
             <RankingBoard :rows="displayedResults" :slots="RANK_LIMIT" />
         </ResultStage>
         <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="prizeName" :prize-image-url="prizeImageUrl"
@@ -47,6 +47,11 @@ const winnerName = computed(() => {
     const first = finalResults.value[0];
     return first && first.userId ? first.displayName : '';
 });
+
+// 全員不正解(または回答なし)。順位発表が終わってから演出を出す。
+const noWinner = computed(
+    () => rankingFinished.value && !finalResults.value.some((r) => r.userId)
+);
 
 const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
     getSettings: () => currentQuiz.value?.settings,
