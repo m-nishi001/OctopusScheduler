@@ -30,8 +30,18 @@ export function findD1Id(listJson, name) {
   return found ? found.uuid : null;
 }
 
-/** `wrangler r2 bucket list` の出力に bucket が含まれるか。 */
+/**
+ * `wrangler r2 bucket list --json`(従来のテキスト出力も許容)の結果に bucket が含まれるか。
+ * JSON は `[{ "name": ... }]` 形式を想定し、解釈できなければ `name: xxx` の行を探す。
+ */
 export function r2BucketExists(listOutput, bucket) {
+  try {
+    const parsed = JSON.parse(listOutput);
+    const list = Array.isArray(parsed) ? parsed : parsed?.buckets;
+    if (Array.isArray(list)) return list.some((b) => b?.name === bucket);
+  } catch {
+    // テキスト形式にフォールバックする。
+  }
   return listOutput.split("\n").some((line) => {
     const m = line.trim().match(/^name:\s+(\S+)$/);
     return m !== null && m[1] === bucket;
@@ -64,7 +74,7 @@ export function setup({ run, readTemplate, existingToml, d1Name, bucket }) {
     if (!d1Id) throw new Error(`D1 database '${d1Name}' was created but its id could not be found.`);
   }
 
-  if (!r2BucketExists(run(["r2", "bucket", "list"]), bucket)) {
+  if (!r2BucketExists(run(["r2", "bucket", "list", "--json"]), bucket)) {
     run(["r2", "bucket", "create", bucket]);
     created.push(`R2:${bucket}`);
   }
