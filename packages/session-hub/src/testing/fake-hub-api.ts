@@ -39,7 +39,8 @@ export interface FakeHubApi extends SessionHubApi {
 export function createFakeHubApi(
   hub: TestHub,
   memberId: string | null,
-  faults: FaultInjector = NO_FAULTS
+  faults: FaultInjector = NO_FAULTS,
+  webAppUrl: string | null = null
 ): FakeHubApi {
   const calls: Record<string, number> = {};
 
@@ -78,6 +79,7 @@ export function createFakeHubApi(
     poll: (args) => run("poll", args, () => service.poll(hub.deps, args)),
     issueCommand: (args) => run("issueCommand", args, () => service.issueCommand(hub.deps, args)),
     publishState: (args) => run("publishState", args, () => service.publishState(hub.deps, args)),
+    getWebAppUrl: () => run("getWebAppUrl", undefined, async () => ({ url: webAppUrl })),
   };
 
   return Object.assign(api, {

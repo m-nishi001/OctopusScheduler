@@ -8,6 +8,7 @@ import type {
   OperatorRole,
   PresenceView,
   RoomState,
+  SessionInfo,
   SessionMeta,
   SessionMode,
   SessionSummary,
@@ -65,7 +66,8 @@ export interface PollArgs extends DeviceCredentials {
 }
 
 export interface PollResult {
-  sessionStatus: SessionMeta["status"];
+  /** 現在のセッション情報(リロード復帰直後の画面表示と、終了の検知に使う)。 */
+  session: SessionInfo;
   serverTimeMs: number;
   head: { seq: number; stateVersion: number };
   commands: Command[];

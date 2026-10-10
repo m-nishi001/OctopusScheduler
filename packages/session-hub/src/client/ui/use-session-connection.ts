@@ -43,3 +43,16 @@ export function useSessionConnection(
   });
   return { state, connection };
 }
+
+/**
+ * 接続の状態だけを購読する(接続の寿命は管理しない)。
+ * アプリ全体で動くホストのエージェントの接続のように、画面を離れても閉じてはいけない接続用。
+ */
+export function useConnectionState(connection: SessionConnection): ShallowRef<ConnectionState> {
+  const state = shallowRef<ConnectionState>(connection.state);
+  const unsubscribe = connection.subscribe((s) => {
+    state.value = s;
+  });
+  onScopeDispose(unsubscribe);
+  return state;
+}
