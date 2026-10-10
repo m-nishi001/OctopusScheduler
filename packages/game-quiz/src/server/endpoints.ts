@@ -6,6 +6,7 @@
  * 各 use-case ファイルにある。リポジトリ実装は infrastructures/gas/container.ts
  * が起動時に登録したものを tsyringe コンテナから解決する。
  */
+import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import {
   ICacheToken,
@@ -101,7 +102,7 @@ _quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
     // 既存挙動を保持: duplicate/error でも常に status:"success" として返す。
     return JSON.stringify({ status: "success", data: result.data! });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -110,7 +111,7 @@ _quizGame_getDriveMetaData = async (args: GetDriveMetaDataArgs): Promise<string>
     const result = await getQuizDriveMetadata(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -119,7 +120,7 @@ _quizGame_getDriveData = async (args: GetDriveDataArgs): Promise<string> => {
     const result = await getQuizDriveData(resolveDeps(), args.dataId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -128,7 +129,7 @@ _quizGame_updateDriveData = async (args: UpdateDriveDataArgs): Promise<string> =
     await updateQuizDriveData(resolveDeps(), args.driveData);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -137,7 +138,7 @@ _quizGame_addJson = async (args: AddJsonArgs): Promise<string> => {
     const result = await addJsonBlob(resolveDeps(), args.driveJson);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -160,7 +161,7 @@ _quizGame_loginParticipant = async (args: LoginParticipantArgs): Promise<string>
     const result = await loginParticipant(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -169,7 +170,7 @@ _quizGame_resolveDeviceToken = async (args: ResolveDeviceTokenArgs): Promise<str
     const result = await resolveDeviceToken(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -178,7 +179,7 @@ _quizGame_startAcceptingAnswers = async (args: StartAcceptingAnswersArgs): Promi
     const result = await startAcceptingAnswers(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -187,7 +188,7 @@ _quizGame_stopAcceptingAnswers = async (args: StopAcceptingAnswersArgs): Promise
     const result = await stopAcceptingAnswers(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -196,7 +197,7 @@ _quizGame_getAcceptanceState = async (args: GetAcceptanceStateArgs): Promise<str
     const result = await getAcceptanceState(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -205,7 +206,7 @@ _quizGame_issueJoinToken = async (args: IssueJoinTokenArgs): Promise<string> => 
     const result = await issueJoinToken(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -214,7 +215,7 @@ _quizGame_getParticipantState = async (args: GetParticipantStateArgs): Promise<s
     const result = await getParticipantState(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -223,7 +224,7 @@ _quizGame_getOptionImage = async (args: GetOptionImageArgs): Promise<string> => 
     const result = await getOptionImage(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -239,7 +240,7 @@ _quizGame_submitAnswer = async (args: SubmitAnswerArgs): Promise<string> => {
       return JSON.stringify({ status: "success", data: result });
     });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -248,7 +249,7 @@ _quizGame_getAnswers = async (args: GetAnswersArgs): Promise<string> => {
     const result = await getAnswers(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -258,7 +259,7 @@ _quizGame_getWebAppUrl = async (): Promise<string> => {
     const url = typeof ScriptApp !== "undefined" ? ScriptApp.getService().getUrl() : null;
     return JSON.stringify({ status: "success", data: { url: url || null } });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 

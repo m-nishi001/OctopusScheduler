@@ -4,6 +4,7 @@
  * 各ハンドラは「引数パース -> use-case 呼び出し -> ApiResponse に詰めて
  * JSON.stringify」という薄い層のみを担う。
  */
+import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import {
   ICacheToken,
@@ -56,7 +57,7 @@ _jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
     // 既存挙動を保持: duplicate/error でも常に status:"success" として返す。
     return JSON.stringify({ status: "success", data: result.data! });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -65,7 +66,7 @@ _jackpotGame_getDriveMetaData = async (folderId?: string): Promise<string> => {
     const result = await getJackpotDriveMetadata(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -74,7 +75,7 @@ _jackpotGame_getDriveData = async (dataId: string): Promise<string> => {
     const result = await getJackpotDriveData(resolveDeps(), dataId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -83,7 +84,7 @@ _jackpotGame_updateDriveData = async (driveData: DriveData): Promise<string> => 
     await updateJackpotDriveData(resolveDeps(), driveData);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -92,7 +93,7 @@ _jackpotGame_addJson = async (driveJson: DriveJsonData): Promise<string> => {
     const result = await addJsonBlob(resolveDeps(), driveJson);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -115,7 +116,7 @@ _jackpotGame_setRemoteScreen = async (screen: JackpotRemoteScreen): Promise<stri
     const result = await setRemoteScreen(resolveDeps(), { screen });
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -124,7 +125,7 @@ _jackpotGame_advanceRemoteAction = async (): Promise<string> => {
     const result = await advanceRemoteAction(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -133,7 +134,7 @@ _jackpotGame_getRemoteControlState = async (): Promise<string> => {
     const result = await getRemoteControlState(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 

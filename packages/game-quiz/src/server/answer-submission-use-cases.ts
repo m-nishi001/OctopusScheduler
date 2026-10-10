@@ -1,3 +1,4 @@
+import { DomainError } from "@octopus/infrastructures/interfaces";
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import { findMemberById } from "@octopus/accounts/server-use-cases";
 import type { AccountsUseCaseDeps } from "@octopus/accounts/server-use-cases";
@@ -65,15 +66,15 @@ export async function submitAnswer(
 ): Promise<SubmittedAnswer> {
   const acceptance = await readAcceptanceState(deps.storage, args.quizId, args.scope);
   if (!acceptance?.isAccepting) {
-    throw new Error("Answers are not being accepted");
+    throw new DomainError("Answers are not being accepted");
   }
   const userId = await findUserIdByToken(deps.storage, args.token);
   if (!userId) {
-    throw new Error("Invalid or expired device token");
+    throw new DomainError("Invalid or expired device token");
   }
   const member = await findMemberById(deps, userId);
   if (!member) {
-    throw new Error(`Member with userId "${userId}" no longer exists`);
+    throw new DomainError(`Member with userId "${userId}" no longer exists`);
   }
 
   const answers = await readAnswers(deps.storage, args.quizId, args.scope);

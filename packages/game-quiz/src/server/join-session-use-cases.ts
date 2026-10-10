@@ -1,3 +1,4 @@
+import { DomainError } from "@octopus/infrastructures/interfaces";
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import type { DriveData } from "@octopus/infrastructures/compositions";
 import type { QuizSessionScope } from "./quiz-api-contract";
@@ -43,7 +44,7 @@ export async function assertJoinToken(
 ): Promise<void> {
   const current = await storage.get(sessionKey(JOIN_KEY_PREFIX, args.quizId, args.scope));
   if (!current || !args.joinToken || current !== args.joinToken) {
-    throw new Error("Join link is no longer valid");
+    throw new DomainError("Join link is no longer valid");
   }
 }
 
@@ -83,7 +84,7 @@ export async function getOptionImage(
 ): Promise<{ fileDataUrl: string | null }> {
   await assertJoinToken(deps.storage, args);
   if (!Number.isInteger(args.optionIndex) || args.optionIndex < 0) {
-    throw new Error("Invalid option index");
+    throw new DomainError("Invalid option index");
   }
   const slotId = `${args.quizId}::option::${args.optionIndex}`;
   const metas = await getQuizDriveMetadata(deps);

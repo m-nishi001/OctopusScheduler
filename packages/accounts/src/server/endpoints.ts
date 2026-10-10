@@ -5,6 +5,7 @@
  * という薄い層のみを担う。マスタメンバーデータは app-scheduler本体・各ゲームパッケージ
  * から共有される単一の名簿として IKeyValueStorage に保存する。
  */
+import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import { IKeyValueStorageToken, IPasswordHasherToken, IUuidGeneratorToken } from "@octopus/infrastructures/interfaces";
 import type { IKeyValueStorage, IPasswordHasher, IUuidGenerator } from "@octopus/infrastructures/interfaces";
@@ -61,7 +62,7 @@ _accounts_listMembers = async (_args: ListMembersArgs): Promise<string> => {
     const result = await listMembers(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -70,7 +71,7 @@ _accounts_listAccounts = async (_args: ListMembersArgs): Promise<string> => {
     const result = await listAccounts(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -79,7 +80,7 @@ _accounts_addMember = async (args: AddMemberArgs): Promise<string> => {
     const result = await addMember(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -88,7 +89,7 @@ _accounts_updateMember = async (args: UpdateMemberArgs): Promise<string> => {
     const result = await updateMember(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -97,7 +98,7 @@ _accounts_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
     await deleteMember(resolveDeps(), args.id);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -106,7 +107,7 @@ _accounts_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promise<strin
     const result = await replaceAllMembers(resolveDeps(), args.members);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -115,7 +116,7 @@ _accounts_setPassword = async (args: SetPasswordArgs): Promise<string> => {
     await setPassword(resolveDeps(), args);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -128,7 +129,7 @@ _accounts_login = async (args: LoginArgs): Promise<string> => {
     if (error instanceof InvalidCredentialsError) {
       return JSON.stringify({ status: "error", message: error.message, retryable: false });
     }
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -137,7 +138,7 @@ _accounts_logout = async (args: LogoutArgs): Promise<string> => {
     await logout(resolveDeps(), args.token);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -146,7 +147,7 @@ _accounts_getSession = async (args: GetSessionArgs): Promise<string> => {
     const result = await getSession(resolveDeps(), args.token);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
