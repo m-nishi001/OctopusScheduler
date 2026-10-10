@@ -42,12 +42,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 本文領域(タイトル・ヒントを除いた残り)いっぱいの正方形。遠くからでも読み取れる大きさにする。 */
+/* 本文領域(タイトル・ヒントを除いた残り)に収まる最大の正方形。遠くからでも読み取れる大きさにする。 */
 .qr-image {
-    height: 100%;
-    max-width: 100%;
+    width: min(100cqw, 100cqh);
+    height: auto;
     aspect-ratio: 1 / 1;
-    object-fit: contain;
     background: #fff;
     padding: clamp(8px, 1.6vmin, 24px);
     box-sizing: border-box;

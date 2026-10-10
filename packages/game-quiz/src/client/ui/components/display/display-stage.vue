@@ -53,6 +53,8 @@
 .stage-body {
     min-height: 0;
     min-width: 0;
+    /* 子が cqw / cqh で「本文領域に収まる最大サイズ」を指定できるようにする。 */
+    container-type: size;
     display: grid;
     place-items: center;
 }
