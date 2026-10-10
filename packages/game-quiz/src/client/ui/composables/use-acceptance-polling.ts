@@ -2,7 +2,7 @@ import { ref } from "vue";
 import { container } from "tsyringe";
 import { usePolling } from "@octopus/composables";
 import { GetAcceptanceStateUseCase } from "../../control/use-cases/get-acceptance-state-use-case";
-import type { AcceptanceState } from "../../../server/quiz-api-contract";
+import type { AcceptanceState, QuizSessionScope } from "../../../server/quiz-api-contract";
 
 const POLL_INTERVAL_MS = 1000;
 
@@ -15,14 +15,14 @@ export interface UseAcceptancePollingDeps {
  * 依存はテストで差し替えられるよう引数として受け取れるようにしている
  * (省略時は実際のDIコンテナを使う)。
  */
-export function useAcceptancePolling(quizId: string, deps?: Partial<UseAcceptancePollingDeps>) {
+export function useAcceptancePolling(quizId: string, scope: QuizSessionScope, deps?: Partial<UseAcceptancePollingDeps>) {
   const state = ref<AcceptanceState | null>(null);
   const useCase = deps?.useCase ?? container.resolve(GetAcceptanceStateUseCase);
 
   const { start, stop, isActive } = usePolling(
     async () => {
       try {
-        state.value = await useCase.execute(quizId);
+        state.value = await useCase.execute(quizId, scope);
       } catch {
         // 一時的なポーリング失敗は無視し、次回のポーリングに委ねる
       }

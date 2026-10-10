@@ -6,9 +6,10 @@
  */
 export function buildParticipantJoinUrl(
   quizId: string,
+  query: string,
   location: { origin: string; pathname: string } = window.location
 ): string {
-  return `${location.origin}${location.pathname}#/quiz/${encodeURIComponent(quizId)}/join`;
+  return `${location.origin}${location.pathname}#/quiz/${encodeURIComponent(quizId)}/join${query}`;
 }
 
 /**
@@ -18,9 +19,10 @@ export function buildParticipantJoinUrl(
  */
 export function buildParticipantJoinUrlFromBase(
   quizId: string,
+  query: string,
   baseUrl: string | null
 ): string {
-  if (!baseUrl) return buildParticipantJoinUrl(quizId);
+  if (!baseUrl) return buildParticipantJoinUrl(quizId, query);
   const base = baseUrl.split("#")[0];
-  return `${base}#/quiz/${encodeURIComponent(quizId)}/join`;
+  return `${base}#/quiz/${encodeURIComponent(quizId)}/join${query}`;
 }

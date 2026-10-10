@@ -14,20 +14,20 @@ describe("useAcceptancePolling", () => {
       options: [],
     };
     const execute = vi.fn().mockResolvedValue(acceptanceState);
-    const { state, start, stop } = useAcceptancePolling("q1", { useCase: { execute } });
+    const { state, start, stop } = useAcceptancePolling("q1", "demo", { useCase: { execute } });
 
     start();
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(execute).toHaveBeenCalledWith("q1");
+    expect(execute).toHaveBeenCalledWith("q1", "demo");
     expect(state.value).toEqual(acceptanceState);
     stop();
   });
 
   it("swallows a poll failure without throwing and leaves state unset", async () => {
     const execute = vi.fn().mockRejectedValue(new Error("network error"));
-    const { state, start, stop } = useAcceptancePolling("q1", { useCase: { execute } });
+    const { state, start, stop } = useAcceptancePolling("q1", "demo", { useCase: { execute } });
 
     start();
     await Promise.resolve();
@@ -39,7 +39,7 @@ describe("useAcceptancePolling", () => {
 
   it("does nothing until started", () => {
     const execute = vi.fn();
-    const { state, isActive } = useAcceptancePolling("q1", { useCase: { execute } });
+    const { state, isActive } = useAcceptancePolling("q1", "demo", { useCase: { execute } });
 
     expect(execute).not.toHaveBeenCalled();
     expect(state.value).toBeNull();

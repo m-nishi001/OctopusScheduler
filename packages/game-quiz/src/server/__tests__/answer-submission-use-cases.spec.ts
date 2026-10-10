@@ -30,7 +30,7 @@ describe("answer-submission-use-cases", () => {
   it("returns an empty list when no answers have been submitted", async () => {
     const storage = new InMemoryKeyValueStorage();
     expect(
-      await getAnswers({ storage, generateId: stubGenerateId, now: stubClock([]) }, { quizId: "q1" })
+      await getAnswers({ storage, generateId: stubGenerateId, now: stubClock([]) }, { quizId: "q1", scope: "live" })
     ).toEqual([]);
   });
 
@@ -41,7 +41,7 @@ describe("answer-submission-use-cases", () => {
 
     const answer = await submitAnswer(
       { storage, generateId: stubGenerateId, now },
-      { quizId: "q1", token, optionNo: 2 }
+      { quizId: "q1", scope: "live", token, optionNo: 2 }
     );
 
     expect(answer).toEqual({
@@ -51,7 +51,7 @@ describe("answer-submission-use-cases", () => {
       serverTimestampMs: 1234,
     });
     expect(
-      await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1" })
+      await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live" })
     ).toEqual([answer]);
   });
 
@@ -60,7 +60,7 @@ describe("answer-submission-use-cases", () => {
     await expect(
       submitAnswer(
         { storage, generateId: stubGenerateId, now: stubClock([1000]) },
-        { quizId: "q1", token: "bogus", optionNo: 1 }
+        { quizId: "q1", scope: "live", token: "bogus", optionNo: 1 }
       )
     ).rejects.toThrow();
   });
@@ -72,16 +72,16 @@ describe("answer-submission-use-cases", () => {
 
     const first = await submitAnswer(
       { storage, generateId: stubGenerateId, now },
-      { quizId: "q1", token, optionNo: 1 }
+      { quizId: "q1", scope: "live", token, optionNo: 1 }
     );
     const second = await submitAnswer(
       { storage, generateId: stubGenerateId, now },
-      { quizId: "q1", token, optionNo: 3 }
+      { quizId: "q1", scope: "live", token, optionNo: 3 }
     );
 
     expect(second).toEqual(first);
     expect(
-      await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1" })
+      await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live" })
     ).toEqual([first]);
   });
 
@@ -90,14 +90,14 @@ describe("answer-submission-use-cases", () => {
     const token = await setupParticipant(storage, "u1", "太郎");
     const now = stubClock([1000, 2000]);
 
-    await submitAnswer({ storage, generateId: stubGenerateId, now }, { quizId: "q1", token, optionNo: 1 });
-    await submitAnswer({ storage, generateId: stubGenerateId, now }, { quizId: "q2", token, optionNo: 2 });
+    await submitAnswer({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live", token, optionNo: 1 });
+    await submitAnswer({ storage, generateId: stubGenerateId, now }, { quizId: "q2", scope: "live", token, optionNo: 2 });
 
     expect(
-      await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1" })
+      await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live" })
     ).toHaveLength(1);
     expect(
-      await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q2" })
+      await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q2", scope: "live" })
     ).toHaveLength(1);
   });
 
@@ -109,14 +109,14 @@ describe("answer-submission-use-cases", () => {
 
     await submitAnswer(
       { storage, generateId: stubGenerateId, now },
-      { quizId: "q1", token: tokenA, optionNo: 1 }
+      { quizId: "q1", scope: "live", token: tokenA, optionNo: 1 }
     );
     await submitAnswer(
       { storage, generateId: stubGenerateId, now },
-      { quizId: "q1", token: tokenB, optionNo: 2 }
+      { quizId: "q1", scope: "live", token: tokenB, optionNo: 2 }
     );
 
-    const answers = await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1" });
+    const answers = await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live" });
     expect(answers.map((a) => a.userId).sort()).toEqual(["u1", "u2"]);
   });
 
@@ -124,16 +124,17 @@ describe("answer-submission-use-cases", () => {
     const storage = new InMemoryKeyValueStorage();
     const token = await setupParticipant(storage, "u1", "太郎");
     const deps = (times: number[]) => ({ storage, generateId: stubGenerateId, now: stubClock(times) });
+    const args = { quizId: "q1", scope: "live" as const };
 
-    await startAcceptingAnswers({ storage, now: stubClock([1000]) }, { quizId: "q1", options: [] });
-    await submitAnswer(deps([1500]), { quizId: "q1", token, optionNo: 2 });
+    await startAcceptingAnswers({ storage, now: stubClock([1000]) }, { ...args, options: [] });
+    await submitAnswer(deps([1500]), { ...args, token, optionNo: 2 });
 
-    // 2ラウンド目(デモ → 本番 など)
-    await startAcceptingAnswers({ storage, now: stubClock([5000]) }, { quizId: "q1", options: [] });
-    expect(await getAnswers(deps([]), { quizId: "q1" })).toEqual([]);
+    // 2ラウンド目(やり直し など)
+    await startAcceptingAnswers({ storage, now: stubClock([5000]) }, { ...args, options: [] });
+    expect(await getAnswers(deps([]), args)).toEqual([]);
 
-    await submitAnswer(deps([5300]), { quizId: "q1", token, optionNo: 1 });
-    expect(await getAnswers(deps([]), { quizId: "q1" })).toEqual([
+    await submitAnswer(deps([5300]), { ...args, token, optionNo: 1 });
+    expect(await getAnswers(deps([]), args)).toEqual([
       { userId: "u1", displayName: "太郎", optionNo: 1, serverTimestampMs: 5300 },
     ]);
   });
@@ -143,9 +144,34 @@ describe("answer-submission-use-cases", () => {
     const token = await setupParticipant(storage, "u1", "太郎");
     const deps = (times: number[]) => ({ storage, generateId: stubGenerateId, now: stubClock(times) });
 
-    await submitAnswer(deps([100]), { quizId: "q2", token, optionNo: 1 });
-    await startAcceptingAnswers({ storage, now: stubClock([5000]) }, { quizId: "q1", options: [] });
+    await submitAnswer(deps([100]), { quizId: "q2", scope: "live", token, optionNo: 1 });
+    await startAcceptingAnswers({ storage, now: stubClock([5000]) }, { quizId: "q1", scope: "live", options: [] });
 
-    expect(await getAnswers(deps([]), { quizId: "q2" })).toHaveLength(1);
+    expect(await getAnswers(deps([]), { quizId: "q2", scope: "live" })).toHaveLength(1);
+  });
+
+  it("keeps demo and live answers of the same quiz independent", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    const token = await setupParticipant(storage, "u1", "太郎");
+    const now = stubClock([1000, 2000]);
+
+    await submitAnswer({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "demo", token, optionNo: 1 });
+    await submitAnswer({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live", token, optionNo: 2 });
+
+    const demo = await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "demo" });
+    const live = await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live" });
+    expect(demo.map((a) => a.optionNo)).toEqual([1]);
+    expect(live.map((a) => a.optionNo)).toEqual([2]);
+  });
+
+  it("デモの受付開始は本番の回答を消さない", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    const token = await setupParticipant(storage, "u1", "太郎");
+    const deps = (times: number[]) => ({ storage, generateId: stubGenerateId, now: stubClock(times) });
+
+    await submitAnswer(deps([100]), { quizId: "q1", scope: "live", token, optionNo: 1 });
+    await startAcceptingAnswers({ storage, now: stubClock([5000]) }, { quizId: "q1", scope: "demo", options: [] });
+
+    expect(await getAnswers(deps([]), { quizId: "q1", scope: "live" })).toHaveLength(1);
   });
 });

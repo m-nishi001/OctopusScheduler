@@ -18,9 +18,9 @@ describe('useAnswerWindow', () => {
     const deps = createDeps();
     const { timeLeft, showModal, start } = useAnswerWindow(deps);
 
-    await start({ quizId: 'q1', timeLimit: 3, options: [], isPreview: false });
+    await start({ quizId: 'q1', timeLimit: 3, options: [], scope: 'live' });
 
-    expect(deps.startAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1', []);
+    expect(deps.startAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1', 'live', []);
     expect(timeLeft.value).toBe(3);
 
     await vi.advanceTimersByTimeAsync(1000);
@@ -34,29 +34,29 @@ describe('useAnswerWindow', () => {
     const onFinish = vi.fn();
     const { timeLeft, showModal, canProceed, start } = useAnswerWindow(deps);
 
-    await start({ quizId: 'q1', timeLimit: 1, options: [], isPreview: false, onFinish });
+    await start({ quizId: 'q1', timeLimit: 1, options: [], scope: 'live', onFinish });
     await vi.advanceTimersByTimeAsync(1000);
     // allow the async finish() to resolve
     await vi.advanceTimersByTimeAsync(0);
 
     expect(timeLeft.value).toBe(0);
     expect(onFinish).toHaveBeenCalledTimes(1);
-    expect(deps.stopAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1');
+    expect(deps.stopAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1', 'live');
     expect(showModal.value).toBe(true);
     expect(canProceed.value).toBe(true);
   });
 
-  it('opens and closes server acceptance in preview mode too so participants can answer the demo', async () => {
+  it('starts and stops acceptance on the given session scope (demo runs the real flow)', async () => {
     vi.useFakeTimers();
     const deps = createDeps();
     const { start } = useAnswerWindow(deps);
 
-    await start({ quizId: 'q1', timeLimit: 1, options: [], isPreview: true });
+    await start({ quizId: 'q1', timeLimit: 1, options: [], scope: 'demo' });
     await vi.advanceTimersByTimeAsync(1000);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(deps.startAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1', []);
-    expect(deps.stopAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1');
+    expect(deps.startAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1', 'demo', []);
+    expect(deps.stopAcceptingAnswersUseCase.execute).toHaveBeenCalledWith('q1', 'demo');
   });
 
   it('emergencyStop() finishes immediately and prevents the timer from also finishing', async () => {
@@ -65,7 +65,7 @@ describe('useAnswerWindow', () => {
     const onFinish = vi.fn();
     const { timeLeft, showModal, emergencyStop, start } = useAnswerWindow(deps);
 
-    await start({ quizId: 'q1', timeLimit: 10, options: [], isPreview: false, onFinish });
+    await start({ quizId: 'q1', timeLimit: 10, options: [], scope: 'live', onFinish });
     emergencyStop();
     await vi.advanceTimersByTimeAsync(0);
 
@@ -85,7 +85,7 @@ describe('useAnswerWindow', () => {
     const deps = createDeps();
     const { emergencyStop, start } = useAnswerWindow(deps);
 
-    await start({ quizId: 'q1', timeLimit: 10, options: [], isPreview: false });
+    await start({ quizId: 'q1', timeLimit: 10, options: [], scope: 'live' });
     emergencyStop();
     emergencyStop();
     await vi.advanceTimersByTimeAsync(0);
@@ -99,7 +99,7 @@ describe('useAnswerWindow', () => {
     deps.stopAcceptingAnswersUseCase.execute.mockRejectedValue(new Error('network error'));
     const { errorMessage, canProceed, isLoading, emergencyStop, start } = useAnswerWindow(deps);
 
-    await start({ quizId: 'q1', timeLimit: 10, options: [], isPreview: false });
+    await start({ quizId: 'q1', timeLimit: 10, options: [], scope: 'live' });
     emergencyStop();
     await vi.advanceTimersByTimeAsync(0);
 

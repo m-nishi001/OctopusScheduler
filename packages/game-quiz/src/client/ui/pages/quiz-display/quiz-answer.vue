@@ -23,10 +23,12 @@ import type { QuizDto } from '../../../control/dto/quiz-dto';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
 import { useAudio } from '@octopus/composables';
 import { dataUrlToBlob } from '../../../model/blob-utils';
+import { useQuizSession } from '../../composables/use-quiz-session';
 
 const route = useRoute();
 const router = useRouter();
 const quizId = route.params.id as string;
+const session = useQuizSession();
 const quiz = ref<QuizDto | null>(null);
 const { load, play, stop } = useAudio({ mode: 'html-audio' });
 
@@ -76,10 +78,7 @@ onUnmounted(() => {
 
 const handleKeydown = (ev: KeyboardEvent) => {
   if (ev.key === 'Enter') {
-    // Navigate to the preview variant if this route is a preview route.
-    const isPreviewRoute = String(route.name)?.endsWith('-preview');
-    const routeName = isPreviewRoute ? 'quiz-result-preview' : 'quiz-result';
-    router.push({ name: routeName, params: { id: quizId } });
+    router.push({ name: session.routeName('quiz-result'), params: { id: quizId } });
   }
 };
 </script>

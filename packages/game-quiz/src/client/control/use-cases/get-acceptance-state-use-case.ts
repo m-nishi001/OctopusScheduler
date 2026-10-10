@@ -1,6 +1,6 @@
 import { injectable, inject } from "tsyringe";
 import { AnswerSessionRepository } from "../../model/answer-session-repository";
-import type { AcceptanceState } from "../../../server/quiz-api-contract";
+import type { QuizSessionScope, AcceptanceState } from "../../../server/quiz-api-contract";
 
 @injectable()
 export class GetAcceptanceStateUseCase {
@@ -8,7 +8,7 @@ export class GetAcceptanceStateUseCase {
     @inject(AnswerSessionRepository) private readonly answerSessionRepository: AnswerSessionRepository
   ) {}
 
-  async execute(quizId: string): Promise<AcceptanceState> {
-    return this.answerSessionRepository.getState(quizId);
+  async execute(quizId: string, scope: QuizSessionScope): Promise<AcceptanceState> {
+    return this.answerSessionRepository.getState(quizId, scope);
   }
 }
