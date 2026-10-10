@@ -9,6 +9,7 @@
     { "path": "./packages/game-card" },
     { "path": "./packages/game-quiz" },
     { "path": "./packages/accounts" },
+    { "path": "./packages/session-hub" },
     { "path": "./apps/app-scheduler" }
   ]
 }

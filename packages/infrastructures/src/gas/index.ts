@@ -18,3 +18,4 @@ import "@octopus/game-quiz/server";
 import "@octopus/game-jackpot/server";
 import "@octopus/app-scheduler/server";
 import "@octopus/accounts/server";
+import "@octopus/session-hub/server";

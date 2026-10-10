@@ -55,6 +55,12 @@ const CONTRACT_SOURCES = [
     endpointsConst: "ACCOUNTS_ENDPOINTS",
     apiTokenConst: "IAccountsApiToken",
   },
+  {
+    path: "packages/session-hub/src/server/session-hub-api-contract.ts",
+    prefixConst: "SESSION_HUB_PREFIX",
+    endpointsConst: "SESSION_HUB_ENDPOINTS",
+    apiTokenConst: "ISessionHubApiToken",
+  },
 ];
 
 function stripBlockComments(src) {
