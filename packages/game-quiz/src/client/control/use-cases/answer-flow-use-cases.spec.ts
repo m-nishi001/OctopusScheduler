@@ -89,9 +89,9 @@ describe("answer flow use-cases", () => {
     });
 
     await expect(
-      new SubmitAnswerUseCase(repository).execute("q1", "demo", "tok-1", 2)
+      new SubmitAnswerUseCase(repository).execute("q1", "demo", "jt", "tok-1", 2)
     ).resolves.toEqual(answer);
-    expect(repository.submit).toHaveBeenCalledWith("q1", "demo", "tok-1", 2);
+    expect(repository.submit).toHaveBeenCalledWith("q1", "demo", "jt", "tok-1", 2);
   });
 
   it("GetSubmittedAnswersUseCase delegates to the repository", async () => {

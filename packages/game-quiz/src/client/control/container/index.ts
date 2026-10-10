@@ -28,6 +28,9 @@ import { StartAcceptingAnswersUseCase } from "../use-cases/start-accepting-answe
 import { StopAcceptingAnswersUseCase } from "../use-cases/stop-accepting-answers-use-case";
 import { GetAcceptanceStateUseCase } from "../use-cases/get-acceptance-state-use-case";
 import { GetWebAppUrlUseCase } from "../use-cases/get-web-app-url-use-case";
+import { IssueJoinTokenUseCase } from "../use-cases/issue-join-token-use-case";
+import { GetParticipantStateUseCase } from "../use-cases/get-participant-state-use-case";
+import { GetOptionImageUseCase } from "../use-cases/get-option-image-use-case";
 import { SubmitAnswerUseCase } from "../use-cases/submit-answer-use-case";
 import { GetSubmittedAnswersUseCase } from "../use-cases/get-submitted-answers-use-case";
 import { SyncService } from "../sync/sync-service";
@@ -71,6 +74,9 @@ export class Container {
     container.register(StopAcceptingAnswersUseCase, { useClass: StopAcceptingAnswersUseCase });
     container.register(GetAcceptanceStateUseCase, { useClass: GetAcceptanceStateUseCase });
     container.register(GetWebAppUrlUseCase, { useClass: GetWebAppUrlUseCase });
+    container.register(IssueJoinTokenUseCase, { useClass: IssueJoinTokenUseCase });
+    container.register(GetParticipantStateUseCase, { useClass: GetParticipantStateUseCase });
+    container.register(GetOptionImageUseCase, { useClass: GetOptionImageUseCase });
     container.register(SubmitAnswerUseCase, { useClass: SubmitAnswerUseCase });
     container.register(GetSubmittedAnswersUseCase, { useClass: GetSubmittedAnswersUseCase });
     container.register(SyncRunner, { useClass: SyncRunner });

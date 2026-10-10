@@ -205,6 +205,12 @@ const onSelect = () => {
     max-width: 1100px;
 }
 
+/* 参加者の回答画面で、現在選択中の選択肢を示す。 */
+.option-card--selected .option-button {
+    outline: 4px solid #ffd54a;
+    outline-offset: 2px;
+}
+
 @media (min-width: 1024px) {
     .option-card--large .image-wrapper {
         aspect-ratio: 16/9;

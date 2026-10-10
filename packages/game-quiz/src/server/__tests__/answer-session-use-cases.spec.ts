@@ -12,8 +12,8 @@ function stubClock(times: number[]) {
 }
 
 const OPTIONS = [
-  { no: 1, text: "赤", color: "#ef4444" },
-  { no: 2, text: "青", color: "#3b82f6" },
+  { no: 1, text: "赤", color: "#ef4444", hasImage: false },
+  { no: 2, text: "青", color: "#3b82f6", hasImage: false },
 ];
 
 describe("answer-session-use-cases", () => {
@@ -91,7 +91,7 @@ describe("answer-session-use-cases", () => {
     await startAcceptingAnswers({ storage, now }, { quizId: "q1", scope: "live", options: OPTIONS });
     await stopAcceptingAnswers({ storage, now: stubClock([]) }, { quizId: "q1", scope: "live" });
 
-    const newOptions = [{ no: 1, text: "はい", color: "#22c55e" }];
+    const newOptions = [{ no: 1, text: "はい", color: "#22c55e", hasImage: false }];
     const restarted = await startAcceptingAnswers(
       { storage, now },
       { quizId: "q1", scope: "live", options: newOptions }

@@ -7,7 +7,7 @@
         <header ref="headerRef" class="quiz-header">
             <div class="header-row">
                 <div class="qr-inline" aria-hidden="false">
-                    <img :src="qrCodeUrl" alt="QR Code" class="qr-image qr-inline-image" />
+                    <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" class="qr-image qr-inline-image" />
                 </div>
                 <div class="header-content">
                     <div class="title-card" aria-hidden="false">
@@ -66,9 +66,10 @@ const session = useQuizSession();
 const quiz = ref<QuizDto | null>(null);
 const objectUrls = ref<string[]>([]);
 
-const { joinUrl } = useParticipantJoinUrl(quizId, session);
+const { joinUrl } = useParticipantJoinUrl(quizId, session, { rotate: false });
 
 const qrCodeUrl = computed(() => {
+    if (!joinUrl.value) return '';
     return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl.value)}`;
 });
 
@@ -111,6 +112,7 @@ onMounted(async () => {
             no: option.no,
             text: option.text,
             color: option.color,
+            hasImage: Boolean(option.image),
         }));
         await start({
             quizId,

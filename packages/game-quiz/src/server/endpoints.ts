@@ -24,6 +24,9 @@ import type {
   AddJsonArgs,
   GetAcceptanceStateArgs,
   GetAnswersArgs,
+  GetOptionImageArgs,
+  GetParticipantStateArgs,
+  IssueJoinTokenArgs,
   GetDriveDataArgs,
   GetDriveMetaDataArgs,
   GetJsonArgs,
@@ -52,6 +55,12 @@ import {
   stopAcceptingAnswers,
 } from "./answer-session-use-cases";
 import { getAnswers, submitAnswer } from "./answer-submission-use-cases";
+import {
+  assertJoinToken,
+  getOptionImage,
+  getParticipantState,
+  issueJoinToken,
+} from "./join-session-use-cases";
 import { secure } from "@octopus/accounts/secure";
 
 function resolveDeps() {
@@ -79,6 +88,9 @@ declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => Prom
 declare let _quizGame_startAcceptingAnswers: (args: StartAcceptingAnswersArgs) => Promise<string>;
 declare let _quizGame_stopAcceptingAnswers: (args: StopAcceptingAnswersArgs) => Promise<string>;
 declare let _quizGame_getAcceptanceState: (args: GetAcceptanceStateArgs) => Promise<string>;
+declare let _quizGame_issueJoinToken: (args: IssueJoinTokenArgs) => Promise<string>;
+declare let _quizGame_getParticipantState: (args: GetParticipantStateArgs) => Promise<string>;
+declare let _quizGame_getOptionImage: (args: GetOptionImageArgs) => Promise<string>;
 declare let _quizGame_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
 declare let _quizGame_getAnswers: (args: GetAnswersArgs) => Promise<string>;
 declare let _quizGame_getWebAppUrl: () => Promise<string>;
@@ -188,13 +200,42 @@ _quizGame_getAcceptanceState = async (args: GetAcceptanceStateArgs): Promise<str
   }
 };
 
+_quizGame_issueJoinToken = async (args: IssueJoinTokenArgs): Promise<string> => {
+  try {
+    const result = await issueJoinToken(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_getParticipantState = async (args: GetParticipantStateArgs): Promise<string> => {
+  try {
+    const result = await getParticipantState(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
+_quizGame_getOptionImage = async (args: GetOptionImageArgs): Promise<string> => {
+  try {
+    const result = await getOptionImage(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return JSON.stringify({ status: "error", message: (error as Error).message });
+  }
+};
+
 _quizGame_submitAnswer = async (args: SubmitAnswerArgs): Promise<string> => {
   // 複数参加者からの同時送信でread-modify-writeが競合しないよう排他制御で保護する。
   // ドメインの排他制御とは無関係のインフラ固有の関心事のため、use-case層には持ち込まずここで直接扱う。
   const lock = container.resolve<ILock>(ILockToken);
   try {
     return await lock.withLock("quizGame:submitAnswer", 5000, async () => {
-      const result = await submitAnswer(resolveDeps(), args);
+      const deps = resolveDeps();
+      await assertJoinToken(deps.storage, args);
+      const result = await submitAnswer(deps, args);
       return JSON.stringify({ status: "success", data: result });
     });
   } catch (error) {
@@ -233,6 +274,9 @@ _quizGame_resolveDeviceToken = secure("public", _quizGame_resolveDeviceToken);
 _quizGame_startAcceptingAnswers = secure("admin", _quizGame_startAcceptingAnswers);
 _quizGame_stopAcceptingAnswers = secure("admin", _quizGame_stopAcceptingAnswers);
 _quizGame_getAcceptanceState = secure("public", _quizGame_getAcceptanceState);
+_quizGame_issueJoinToken = secure("admin", _quizGame_issueJoinToken);
+_quizGame_getParticipantState = secure("public", _quizGame_getParticipantState);
+_quizGame_getOptionImage = secure("public", _quizGame_getOptionImage);
 _quizGame_submitAnswer = secure("public", _quizGame_submitAnswer);
 _quizGame_getAnswers = secure("admin", _quizGame_getAnswers);
 _quizGame_getWebAppUrl = secure("public", _quizGame_getWebAppUrl);
@@ -250,6 +294,9 @@ export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Pro
   startAcceptingAnswers: _quizGame_startAcceptingAnswers,
   stopAcceptingAnswers: _quizGame_stopAcceptingAnswers,
   getAcceptanceState: _quizGame_getAcceptanceState,
+  issueJoinToken: _quizGame_issueJoinToken,
+  getParticipantState: _quizGame_getParticipantState,
+  getOptionImage: _quizGame_getOptionImage,
   submitAnswer: _quizGame_submitAnswer,
   getAnswers: _quizGame_getAnswers,
   getWebAppUrl: _quizGame_getWebAppUrl,

@@ -1,3 +1,8 @@
+/** 参加者URLのハッシュ内クエリ(`?demo=1` など)に、現在有効な参加トークンを足す。 */
+export function withJoinToken(query: string, joinToken: string): string {
+  return `${query}${query ? "&" : "?"}t=${encodeURIComponent(joinToken)}`;
+}
+
 /**
  * 参加者がQRコードから開く回答画面の絶対URLを組み立てる。
  * vue-routerはハッシュモード(createWebHashHistory、apps/app-scheduler側で設定)で
