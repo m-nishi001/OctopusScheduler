@@ -7,8 +7,8 @@
 
 ## 手順
 
-1. `wrangler login`、または環境変数 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` で認証する
-2. `npm run deploy:cloudflare`
+1. `npx wrangler login`、または環境変数 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` で認証する（`wrangler` はリポジトリ内の依存なので、単体で呼ぶときは `npx` が必要。`npm run` 経由なら不要）
+2. `npm run deploy:cloudflare`（完了すると `https://octopus-scheduler.<アカウントのサブドメイン>.workers.dev` が表示される。反映に数十秒かかり、その間は 404 や error 1042 が出ることがある）
 3. `npm run secret:bootstrap`（= `wrangler secret put OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD`）で初回管理者のパスワードを登録する。入力は伏せ字で、履歴・ファイルに残らない（[詳細](authentication.md)）
 
 ### 初回だけ必要な手作業
@@ -18,6 +18,22 @@
 - 認証は `wrangler login`（OAuth）が簡単。API トークンを使う場合は環境変数で渡し、リポジトリに置かない
 
 Wrangler は 4.36 以上が必要です（レート制限バインディングのため。`npm ci` で入ります）。
+
+### Docker / コンテナ内で `wrangler login` が完了しない
+
+ブラウザの認証後の戻り先（コンテナ内の `localhost:8976`）に、ホストのブラウザから届かないためです。コールバックの待ち受けを全インターフェースにして実行してください。
+
+```
+npx wrangler login --callback-host=0.0.0.0
+```
+
+これでも通らない場合は、API トークンを使います。`read -s` なら履歴に残りません。トークンはリポジトリやチャットに置かないでください。
+
+```
+read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN
+export CLOUDFLARE_ACCOUNT_ID=<アカウントID>
+npx wrangler whoami
+```
 
 ## `deploy:cloudflare` がやること（すべて冪等）
 

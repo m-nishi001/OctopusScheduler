@@ -31,8 +31,8 @@ export function findD1Id(listJson, name) {
 }
 
 /**
- * `wrangler r2 bucket list --json`(従来のテキスト出力も許容)の結果に bucket が含まれるか。
- * JSON は `[{ "name": ... }]` 形式を想定し、解釈できなければ `name: xxx` の行を探す。
+ * `wrangler r2 bucket list`(`--json` は無い)の結果に bucket が含まれるか。
+ * 出力は `name: xxx` の行。JSON の配列で返る版にも備えて先に JSON として解釈を試みる。
  */
 export function r2BucketExists(listOutput, bucket) {
   try {
@@ -74,7 +74,7 @@ export function setup({ run, readTemplate, existingToml, d1Name, bucket }) {
     if (!d1Id) throw new Error(`D1 database '${d1Name}' was created but its id could not be found.`);
   }
 
-  if (!r2BucketExists(run(["r2", "bucket", "list", "--json"]), bucket)) {
+  if (!r2BucketExists(run(["r2", "bucket", "list"]), bucket)) {
     run(["r2", "bucket", "create", bucket]);
     created.push(`R2:${bucket}`);
   }
