@@ -80,6 +80,15 @@ const handleKeydown = (ev: KeyboardEvent) => {
 </script>
 
 <style scoped>
+/* 正解は遠くからでも読めるよう、画面サイズに合わせて大きく表示する。 */
+:deep(.option-text) {
+  font-size: clamp(2rem, 7vmin, 6rem);
+}
+
+:deep(.text-ribbon) {
+  padding: clamp(12px, 3vmin, 40px);
+}
+
 .no-answer {
   color: #f97316;
   font-weight: 700;
