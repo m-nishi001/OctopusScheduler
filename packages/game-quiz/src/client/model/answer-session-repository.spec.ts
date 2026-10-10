@@ -47,8 +47,8 @@ describe("AnswerSessionRepository", () => {
     const api = createFakeApi({ submitAnswer: vi.fn().mockResolvedValue(answer) });
     const repo = new AnswerSessionRepository(api);
 
-    await expect(repo.submit("q1", "demo", "tok-1", 2)).resolves.toEqual(answer);
-    expect(api.submitAnswer).toHaveBeenCalledWith({ quizId: "q1", scope: "demo", token: "tok-1", optionNo: 2 });
+    await expect(repo.submit("q1", "demo", "jt", "tok-1", 2)).resolves.toEqual(answer);
+    expect(api.submitAnswer).toHaveBeenCalledWith({ quizId: "q1", scope: "demo", joinToken: "jt", token: "tok-1", optionNo: 2 });
   });
 
   it("gets submitted answers via the API", async () => {

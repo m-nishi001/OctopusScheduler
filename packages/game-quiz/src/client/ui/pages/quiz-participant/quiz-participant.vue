@@ -31,6 +31,11 @@
                 </p>
             </form>
 
+            <div v-else-if="phase === 'expired'" class="state-block">
+                <p class="welcome">このQRコードは期限切れです</p>
+                <p class="hint">会場の画面に表示されている最新のQRコードを読み取り直してください</p>
+            </div>
+
             <div v-else-if="phase === 'waiting'" class="state-block">
                 <p class="welcome">ようこそ、{{ session?.displayName }} さん</p>
                 <div class="spinner" aria-hidden="true"></div>
@@ -38,13 +43,16 @@
             </div>
 
             <div v-else-if="phase === 'answering'" class="answering-block">
-                <p class="welcome">選んでください！</p>
+                <p class="welcome">
+                    {{ selectedNo === null ? '選んでください！' : '回答を受け付けました！受付中は変更できます' }}
+                </p>
                 <div class="options-grid" role="list">
                     <OptionCard
                         v-for="(option, index) in options"
                         :key="option.no"
-                        :option="{ no: option.no, text: option.text, color: option.color, image: null }"
+                        :option="{ no: option.no, text: option.text, color: option.color, imageUrl: imageUrls[option.no] ?? null }"
                         :index="index"
+                        :variant="selectedNo === option.no ? 'selected' : undefined"
                         @select="() => handleSelect(option.no)"
                     />
                 </div>
@@ -52,13 +60,9 @@
                 <p v-if="submitError" class="error-text">{{ submitError }}</p>
             </div>
 
-            <div v-else-if="phase === 'submitted'" class="state-block">
-                <p class="welcome">回答を受け付けました！</p>
-                <p class="hint">結果発表をお楽しみに</p>
-            </div>
-
             <div v-else class="state-block">
                 <p class="welcome">回答受付は終了しました</p>
+                <p v-if="selectedNo !== null" class="hint">結果発表をお楽しみに</p>
             </div>
         </div>
     </div>
@@ -73,30 +77,36 @@ import { useParticipantSession } from '../../composables/use-participant-session
 import { useAcceptancePolling } from '../../composables/use-acceptance-polling';
 import { useQuizSession } from '../../composables/use-quiz-session';
 import { SubmitAnswerUseCase } from '../../../control/use-cases/submit-answer-use-case';
+import { GetOptionImageUseCase } from '../../../control/use-cases/get-option-image-use-case';
 
 const route = useRoute();
 const quizId = route.params.id as string;
 const quizSession = useQuizSession();
 
 const { session, isRestoring, isLoggingIn, loginError, restore, login } = useParticipantSession();
-const { state: acceptanceState, start: startPolling, stop: stopPolling } =
-    useAcceptancePolling(quizId, quizSession.scope);
+// 参加URLに埋め込まれたトークン。QRが新しいセッションに切り替わると無効になる。
+const joinToken = typeof route.query.t === 'string' ? route.query.t : '';
+const { state: acceptanceState, myAnswerNo, isLinkExpired, start: startPolling, stop: stopPolling } =
+    useAcceptancePolling(quizId, quizSession.scope, joinToken, () => session.value?.token);
 
 const submitUseCase = container.resolve(SubmitAnswerUseCase);
+const getOptionImageUseCase = container.resolve(GetOptionImageUseCase);
 
 const userIdInput = ref('');
-const hasSubmitted = ref(false);
+// 画面上の選択。サーバーの自分の回答(myAnswerNo)と同期するため、リロードしても失われない。
+const selectedNo = ref<number | null>(null);
+const imageUrls = ref<Record<number, string>>({});
 const isSubmitting = ref(false);
 const submitError = ref<string | null>(null);
 
 const options = computed(() => acceptanceState.value?.options ?? []);
 
-type Phase = 'loading' | 'login' | 'waiting' | 'answering' | 'submitted' | 'closed';
+type Phase = 'loading' | 'login' | 'expired' | 'waiting' | 'answering' | 'closed';
 
 const phase = computed<Phase>(() => {
     if (isRestoring.value) return 'loading';
+    if (isLinkExpired.value || !joinToken) return 'expired';
     if (!session.value) return 'login';
-    if (hasSubmitted.value) return 'submitted';
     if (!acceptanceState.value) return 'waiting';
     if (acceptanceState.value.isAccepting) return 'answering';
     if (acceptanceState.value.acceptStartedAtMs === null) return 'waiting';
@@ -114,14 +124,40 @@ async function handleSelect(optionNo: number) {
     isSubmitting.value = true;
     submitError.value = null;
     try {
-        await submitUseCase.execute(quizId, quizSession.scope, session.value.token, optionNo);
-        hasSubmitted.value = true;
+        await submitUseCase.execute(quizId, quizSession.scope, joinToken, session.value.token, optionNo);
+        selectedNo.value = optionNo;
     } catch (e) {
         submitError.value = e instanceof Error ? e.message : String(e);
     } finally {
         isSubmitting.value = false;
     }
 }
+
+// サーバー側の自分の回答を反映する(リロード復元・次のラウンドでのリセット)。送信中は上書きしない。
+watch(myAnswerNo, (value) => {
+    if (!isSubmitting.value) selectedNo.value = value;
+});
+
+// サムネイルは状態ポーリングに載せず、受付開始ごとに画像ありの選択肢だけ個別に取得する。
+watch(
+    () => acceptanceState.value?.acceptStartedAtMs,
+    async () => {
+        const opts = acceptanceState.value?.options ?? [];
+        const next: Record<number, string> = {};
+        await Promise.all(
+            opts.map(async (option, index) => {
+                if (!option.hasImage) return;
+                try {
+                    const url = await getOptionImageUseCase.execute(quizId, quizSession.scope, joinToken, index);
+                    if (url) next[option.no] = url;
+                } catch {
+                    // 画像が取れなくてもテキストで回答できるため無視する
+                }
+            })
+        );
+        imageUrls.value = next;
+    }
+);
 
 watch(session, (value) => {
     if (value) startPolling();

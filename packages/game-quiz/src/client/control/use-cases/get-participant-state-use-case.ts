@@ -1,9 +1,9 @@
 import { injectable, inject } from "tsyringe";
 import { AnswerSessionRepository } from "../../model/answer-session-repository";
-import type { QuizSessionScope, SubmittedAnswer } from "../../../server/quiz-api-contract";
+import type { ParticipantState, QuizSessionScope } from "../../../server/quiz-api-contract";
 
 @injectable()
-export class SubmitAnswerUseCase {
+export class GetParticipantStateUseCase {
   constructor(
     @inject(AnswerSessionRepository) private readonly answerSessionRepository: AnswerSessionRepository
   ) {}
@@ -12,9 +12,8 @@ export class SubmitAnswerUseCase {
     quizId: string,
     scope: QuizSessionScope,
     joinToken: string,
-    token: string,
-    optionNo: number
-  ): Promise<SubmittedAnswer> {
-    return this.answerSessionRepository.submit(quizId, scope, joinToken, token, optionNo);
+    token?: string
+  ): Promise<ParticipantState> {
+    return this.answerSessionRepository.getParticipantState(quizId, scope, joinToken, token);
   }
 }

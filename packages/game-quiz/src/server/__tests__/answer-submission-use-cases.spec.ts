@@ -71,7 +71,7 @@ describe("answer-submission-use-cases", () => {
     ).rejects.toThrow();
   });
 
-  it("ignores a second submission from the same participant and keeps the first", async () => {
+  it("replaces the earlier answer when the same participant changes their choice", async () => {
     const storage = new InMemoryKeyValueStorage();
     const token = await setupParticipant(storage, "u1", "太郎");
     await open(storage, "q1");
@@ -86,10 +86,11 @@ describe("answer-submission-use-cases", () => {
       { quizId: "q1", scope: "live", token, optionNo: 3 }
     );
 
-    expect(second).toEqual(first);
+    expect(first.optionNo).toBe(1);
+    expect(second).toMatchObject({ userId: "u1", optionNo: 3, serverTimestampMs: 9999 });
     expect(
       await getAnswers({ storage, generateId: stubGenerateId, now }, { quizId: "q1", scope: "live" })
-    ).toEqual([first]);
+    ).toEqual([second]);
   });
 
   it("keeps answers to different quizzes independent", async () => {

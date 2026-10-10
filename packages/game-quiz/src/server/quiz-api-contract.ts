@@ -26,6 +26,9 @@ export const QUIZ_GAME_ENDPOINTS = [
   "startAcceptingAnswers",
   "stopAcceptingAnswers",
   "getAcceptanceState",
+  "issueJoinToken",
+  "getParticipantState",
+  "getOptionImage",
   "submitAnswer",
   "getAnswers",
   "getWebAppUrl",
@@ -109,6 +112,8 @@ export interface AcceptanceOption {
   no: number;
   text: string;
   color: string;
+  /** サムネイル画像があるか。画像本体はポーリングに載せず getOptionImage で個別に取得する。 */
+  hasImage: boolean;
 }
 
 /**
@@ -151,8 +156,38 @@ export interface SubmittedAnswer {
 export interface SubmitAnswerArgs {
   quizId: string;
   scope: QuizSessionScope;
+  /** 参加URLに埋め込まれたトークン。無効(期限切れURL)なら拒否される。 */
+  joinToken: string;
   token: string;
   optionNo: number;
+}
+
+export interface IssueJoinTokenArgs {
+  quizId: string;
+  scope: QuizSessionScope;
+  /** true: 新しいトークンに切り替えて旧URLを無効化する(QR表示=セッション開始時)。 */
+  rotate: boolean;
+}
+
+export interface GetParticipantStateArgs {
+  quizId: string;
+  scope: QuizSessionScope;
+  joinToken: string;
+  /** 端末ログイントークン。あれば自分の回答(myAnswerNo)を返す。 */
+  token?: string;
+}
+
+/** 参加者端末が受け取る状態。myAnswerNoでリロード後も選択状態を復元する。 */
+export interface ParticipantState {
+  acceptance: AcceptanceState;
+  myAnswerNo: number | null;
+}
+
+export interface GetOptionImageArgs {
+  quizId: string;
+  scope: QuizSessionScope;
+  joinToken: string;
+  optionIndex: number;
 }
 
 export interface GetAnswersArgs {
@@ -202,6 +237,18 @@ export interface QuizGameApi {
     args: GetAcceptanceStateArgs,
     options?: ApiCallOptions
   ): Promise<AcceptanceState>;
+  issueJoinToken(
+    args: IssueJoinTokenArgs,
+    options?: ApiCallOptions
+  ): Promise<{ joinToken: string }>;
+  getParticipantState(
+    args: GetParticipantStateArgs,
+    options?: ApiCallOptions
+  ): Promise<ParticipantState>;
+  getOptionImage(
+    args: GetOptionImageArgs,
+    options?: ApiCallOptions
+  ): Promise<{ fileDataUrl: string | null }>;
   submitAnswer(args: SubmitAnswerArgs, options?: ApiCallOptions): Promise<SubmittedAnswer>;
   getAnswers(args: GetAnswersArgs, options?: ApiCallOptions): Promise<SubmittedAnswer[]>;
   /**
