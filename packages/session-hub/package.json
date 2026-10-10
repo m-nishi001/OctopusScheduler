@@ -22,6 +22,16 @@
       "import": "./src/server/engine/index.ts",
       "default": "./src/server/engine/index.ts"
     },
+    "./room": {
+      "types": "./src/server/room/index.ts",
+      "import": "./src/server/room/index.ts",
+      "default": "./src/server/room/index.ts"
+    },
+    "./backend": {
+      "types": "./src/server/hub-backend.ts",
+      "import": "./src/server/hub-backend.ts",
+      "default": "./src/server/hub-backend.ts"
+    },
     "./testing": {
       "types": "./src/testing/index.ts",
       "import": "./src/testing/index.ts",

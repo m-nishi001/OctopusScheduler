@@ -21,6 +21,7 @@ import type {
   Command,
   Device,
   PresenceEntry,
+  DeviceRole,
   PresenceView,
   RoomState,
   SessionMeta,
@@ -245,6 +246,65 @@ export function buildPresenceView(
   };
 }
 
+/** 更新1件(PollResult)を作るのに必要な読み取り。ポーリングと WebSocket の push で共通に使う。 */
+export interface UpdateSource {
+  meta: SessionMeta;
+  head: StoredHead;
+  presence: PresenceView;
+  now: number;
+  /** 現在の RoomState(未公開は null)。同じ push の中で何度呼ばれても1回の読み取りで済むようメモ化して渡す。 */
+  getState: () => Promise<RoomState | null>;
+  getCommand: (seq: number) => Promise<Command | null>;
+}
+
+/**
+ * ある端末(role, 手元の seq / state version)に送る更新を組み立てる。
+ * 参加者には運営向けのコマンドを渡さない(進行の中身を露出させない)。
+ */
+export async function buildUpdate(
+  src: UpdateSource,
+  role: DeviceRole,
+  sinceSeq: number,
+  stateVersion: number
+): Promise<PollResult> {
+  const { meta, head } = src;
+  let commands: Command[] = [];
+  let resync = false;
+  if (role !== "client") {
+    const since = Math.max(0, sinceSeq);
+    if (since > head.seq) {
+      // 手元の方が先に進んでいる(セッションが作り直された等)。取り直させる。
+      resync = true;
+    } else if (head.seq - since > COMMAND_RING_SIZE) {
+      resync = true;
+    } else {
+      for (let seq = since + 1; seq <= head.seq; seq++) {
+        const cmd = await src.getCommand(seq);
+        if (!cmd || cmd.seq !== seq) {
+          resync = true;
+          commands = [];
+          break;
+        }
+        commands.push(cmd);
+      }
+    }
+  }
+
+  const needState = head.stateVersion !== stateVersion || resync;
+  const state = needState && head.stateVersion > 0 ? await src.getState() : null;
+
+  return {
+    session: { id: meta.id, code: meta.code, name: meta.name, mode: meta.mode, status: meta.status, hostDeviceId: meta.hostDeviceId },
+    serverTimeMs: src.now,
+    head: { seq: head.seq, stateVersion: head.stateVersion },
+    commands,
+    resync,
+    state,
+    presence: src.presence,
+    nextPollMs: computeNextPollMs(role, src.now - head.updatedAtMs),
+  };
+}
+
 /** 差分の取得(コマンド・状態・在席)と、次回までの間隔の指示。 */
 export async function poll(deps: EngineDeps, args: PollArgs): Promise<PollResult> {
   const { meta, device } = await authenticate(deps, args);
@@ -259,42 +319,19 @@ export async function poll(deps: EngineDeps, args: PollArgs): Promise<PollResult
     ackSeq: device.role === "host" ? Math.max(0, args.ackSeq ?? 0) : 0,
   });
 
-  // 参加者には運営向けのコマンドを渡さない(進行の中身を露出させない)。
-  let commands: Command[] = [];
-  let resync = false;
-  if (device.role !== "client") {
-    const since = Math.max(0, args.sinceSeq);
-    if (since > head.seq) {
-      // 手元の方が先に進んでいる(セッションが作り直された等)。取り直させる。
-      resync = true;
-    } else if (head.seq - since > COMMAND_RING_SIZE) {
-      resync = true;
-    } else {
-      for (let seq = since + 1; seq <= head.seq; seq++) {
-        const cmd = await deps.repo.getCommand(seq);
-        if (!cmd || cmd.seq !== seq) {
-          resync = true;
-          commands = [];
-          break;
-        }
-        commands.push(cmd);
-      }
-    }
-  }
-
-  const needState = head.stateVersion !== args.stateVersion || resync;
-  const state = needState && head.stateVersion > 0 ? await deps.repo.getState() : null;
-
-  return {
-    session: { id: meta.id, code: meta.code, name: meta.name, mode: meta.mode, status: meta.status, hostDeviceId: meta.hostDeviceId },
-    serverTimeMs: now,
-    head: { seq: head.seq, stateVersion: head.stateVersion },
-    commands,
-    resync,
-    state,
-    presence: buildPresenceView(entries, meta.hostDeviceId, now),
-    nextPollMs: computeNextPollMs(device.role, now - head.updatedAtMs),
-  };
+  return buildUpdate(
+    {
+      meta,
+      head,
+      presence: buildPresenceView(entries, meta.hostDeviceId, now),
+      now,
+      getState: () => deps.repo.getState(),
+      getCommand: (seq) => deps.repo.getCommand(seq),
+    },
+    device.role,
+    args.sinceSeq,
+    args.stateVersion
+  );
 }
 
 /** 管理(または許可された参加者入力)からコマンドを発行する。 */

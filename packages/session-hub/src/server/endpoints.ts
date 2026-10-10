@@ -29,10 +29,12 @@ import type {
 import type { SessionHubEndpointName } from "./session-hub-api-contract";
 import { SESSION_HUB_PREFIX } from "./session-hub-api-contract";
 import { createCachePresenceStore, createKvSessionIndex, createKvSessionRepo } from "./engine/session-repo";
-import * as service from "./engine/session-service";
+import { ISessionHubBackendToken, createKvBackend } from "./hub-backend";
+import type { SessionHubBackend } from "./hub-backend";
 import type { ServiceDeps } from "./engine/session-service";
 
-function resolveDeps(): ServiceDeps {
+/** KV + ロック + キャッシュによる実装の依存(GAS の既定、および Cloudflare でも一覧/コード解決に使う)。 */
+export function resolveKvDeps(): ServiceDeps {
   const storage = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
   const cache = container.resolve<ICache>(ICacheToken);
   const lock = container.resolve<ILock>(ILockToken);
@@ -49,6 +51,13 @@ function resolveDeps(): ServiceDeps {
   };
 }
 
+/** 登録された基盤(Cloudflare は Durable Object)があればそれを、無ければ KV 実装を使う。 */
+function backend(): SessionHubBackend {
+  return container.isRegistered(ISessionHubBackendToken)
+    ? container.resolve<SessionHubBackend>(ISessionHubBackendToken)
+    : createKvBackend(resolveKvDeps());
+}
+
 const ok = (data: unknown): string => JSON.stringify({ status: "success", data });
 
 declare let _sessionHub_createSession: (args: CreateSessionArgs) => Promise<string>;
@@ -63,7 +72,7 @@ declare let _sessionHub_getWebAppUrl: () => Promise<string>;
 
 _sessionHub_createSession = secureAdminWithMember(async (args: CreateSessionArgs, member) => {
   try {
-    return ok(await service.createSession(resolveDeps(), args, member.id));
+    return ok(await backend().createSession(args, member.id));
   } catch (error) {
     return errorResponse(error);
   }
@@ -71,7 +80,7 @@ _sessionHub_createSession = secureAdminWithMember(async (args: CreateSessionArgs
 
 _sessionHub_listSessions = secure("admin", async (): Promise<string> => {
   try {
-    return ok(await service.listSessions(resolveDeps()));
+    return ok(await backend().listSessions());
   } catch (error) {
     return errorResponse(error);
   }
@@ -79,7 +88,7 @@ _sessionHub_listSessions = secure("admin", async (): Promise<string> => {
 
 _sessionHub_closeSession = secure("admin", async (args: CloseSessionArgs): Promise<string> => {
   try {
-    await service.closeSession(resolveDeps(), args);
+    await backend().closeSession(args);
     return ok(null);
   } catch (error) {
     return errorResponse(error);
@@ -88,7 +97,7 @@ _sessionHub_closeSession = secure("admin", async (args: CloseSessionArgs): Promi
 
 _sessionHub_joinOperator = secureAdminWithMember(async (args: JoinOperatorArgs, member) => {
   try {
-    return ok(await service.joinOperator(resolveDeps(), args, member.id));
+    return ok(await backend().joinOperator(args, member.id));
   } catch (error) {
     return errorResponse(error);
   }
@@ -96,7 +105,7 @@ _sessionHub_joinOperator = secureAdminWithMember(async (args: JoinOperatorArgs, 
 
 _sessionHub_joinClient = secure("public", async (args: JoinClientArgs): Promise<string> => {
   try {
-    return ok(await service.joinClient(resolveDeps(), args));
+    return ok(await backend().joinClient(args));
   } catch (error) {
     return errorResponse(error);
   }
@@ -104,7 +113,7 @@ _sessionHub_joinClient = secure("public", async (args: JoinClientArgs): Promise<
 
 _sessionHub_poll = secure("public", async (args: PollArgs): Promise<string> => {
   try {
-    return ok(await service.poll(resolveDeps(), args));
+    return ok(await backend().poll(args));
   } catch (error) {
     return errorResponse(error);
   }
@@ -112,7 +121,7 @@ _sessionHub_poll = secure("public", async (args: PollArgs): Promise<string> => {
 
 _sessionHub_issueCommand = secure("public", async (args: IssueCommandArgs): Promise<string> => {
   try {
-    return ok(await service.issueCommand(resolveDeps(), args));
+    return ok(await backend().issueCommand(args));
   } catch (error) {
     return errorResponse(error);
   }
@@ -120,7 +129,7 @@ _sessionHub_issueCommand = secure("public", async (args: IssueCommandArgs): Prom
 
 _sessionHub_publishState = secure("public", async (args: PublishStateArgs): Promise<string> => {
   try {
-    return ok(await service.publishState(resolveDeps(), args));
+    return ok(await backend().publishState(args));
   } catch (error) {
     return errorResponse(error);
   }
