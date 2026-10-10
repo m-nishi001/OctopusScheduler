@@ -6,6 +6,16 @@ dist
 wrangler.toml
 .wrangler/
 
+# 認証情報・環境固有の設定(誤コミット防止)。
+.clasp.json
+.dev.vars
+.env
+.env.*
+!.env.example
+
+# Claude Code のローカル作業ディレクトリ(worktree など)
+.claude/
+
 # Ignore per-project build logs created during the workspace build
 **/build.log
 build.log

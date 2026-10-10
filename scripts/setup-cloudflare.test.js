@@ -29,7 +29,7 @@ function fakeWrangler({ d1 = [], r2 = [] }) {
       return "";
     }
     if (args[0] === "r2" && args[2] === "list") {
-      return r2.map((n) => `name:           ${n}\ncreation_date:  2026-01-01`).join("\n");
+      return JSON.stringify(r2.map((n) => ({ name: n, creation_date: "2026-01-01" })));
     }
     if (args[0] === "r2" && args[2] === "create") {
       r2.push(args[3]);
@@ -74,5 +74,8 @@ test("helpers", () => {
   assert.equal(findD1Id('[{"name":"a","uuid":"1"}]', "b"), null);
   assert.equal(r2BucketExists("name:   x\nname:   y", "y"), true);
   assert.equal(r2BucketExists("name:   xy", "y"), false);
+  assert.equal(r2BucketExists('[{"name":"x"},{"name":"y"}]', "y"), true);
+  assert.equal(r2BucketExists('[{"name":"xy"}]', "y"), false);
+  assert.equal(r2BucketExists("[]", "y"), false);
   assert.match(renderWranglerToml(TEMPLATE, { d1Name: "n", d1Id: "i", bucket: "b" }), /"i"/);
 });

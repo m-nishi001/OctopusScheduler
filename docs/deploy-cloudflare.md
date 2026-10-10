@@ -9,7 +9,15 @@
 
 1. `wrangler login`、または環境変数 `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` で認証する
 2. `npm run deploy:cloudflare`
-3. `npx wrangler secret put OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD` で初回管理者のパスワードを登録する（[詳細](authentication.md)）
+3. `npm run secret:bootstrap`（= `wrangler secret put OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD`）で初回管理者のパスワードを登録する。入力は伏せ字で、履歴・ファイルに残らない（[詳細](authentication.md)）
+
+### 初回だけ必要な手作業
+
+- ダッシュボードで **R2 を有効化**する（カード登録が必要。従量課金は R2 のみで、自動停止の上限は無い）
+- Billing の通知・使用量アラートを設定する
+- 認証は `wrangler login`（OAuth）が簡単。API トークンを使う場合は環境変数で渡し、リポジトリに置かない
+
+Wrangler は 4.36 以上が必要です（レート制限バインディングのため。`npm ci` で入ります）。
 
 ## `deploy:cloudflare` がやること（すべて冪等）
 
@@ -31,7 +39,21 @@
 
 ### 既存の `wrangler.toml` がある場合
 
-セッション機能に必要な設定を追記してください。`wrangler.example.toml` 末尾の `[[durable_objects.bindings]]` と `[[migrations]]` です。無い場合は R2 版に自動でフォールバックしますが、大人数には向きません。
+セッション機能に必要な設定を追記してください。`wrangler.example.toml` 末尾の `[[durable_objects.bindings]]`、`[[migrations]]`、`[[ratelimits]]` です。`[[ratelimits]]` が無いとレート制限は無効になります。無い場合は R2 版に自動でフォールバックしますが、大人数には向きません。
+
+### 無差別アクセスへの備え（レート制限）
+
+公開 URL は不特定多数から到達できるため、`/rpc` と `/ws` の入口で R2・D1・Durable Object に触る前にレート制限をかけます（`packages/infrastructures/src/cloudflare/rate-limit.ts`）。
+
+| バインディング | 対象 | 既定の上限 |
+| --- | --- | --- |
+| `LOGIN_LIMITER` | `accounts_login`（総当たり対策） | 接続元 IP ごとに 10 回 / 60 秒 |
+| `PUBLIC_LIMITER` | その他の `/rpc` と `/ws` | 接続元 IP ごとに 1200 回 / 60 秒（会場の共有 IP を考慮して緩め） |
+
+- 上限は `wrangler.example.toml` の `[[ratelimits]]` で変更できます。超過は 429 を返します。
+- カウンタは Cloudflare のロケーションごとの結果整合で、厳密な上限ではありません。アカウント内で `namespace_id` を重複させないでください。
+- 独自ドメイン（ゾーン）が無いため、Cloudflare Access や WAF のレート制限ルールは使っていません。ドメインを用意すれば管理系を Access で隠せます。
+- アカウント側のロック（同一 ID 5 回失敗で 15 分）と組み合わせて使います。
 
 ### 無料枠
 

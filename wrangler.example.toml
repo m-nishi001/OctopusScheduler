@@ -31,3 +31,17 @@ class_name = "SessionRoom"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["SessionRoom"]
+
+# 入口のレート制限(無差別アクセス・パスワード総当たり対策。packages/infrastructures/src/cloudflare/rate-limit.ts)。
+# Wrangler 4.36 以上が必要。period は 10 か 60(秒)のみ。カウンタはロケーションごとの結果整合で厳密ではない。
+# namespace_id は秘密ではないが、同一アカウント内で一意にする必要がある。
+[[ratelimits]]
+name = "LOGIN_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+# 会場の共有IPから多数の参加者が接続しうるため、公開側は緩めにする。
+[[ratelimits]]
+name = "PUBLIC_LIMITER"
+namespace_id = "1002"
+simple = { limit = 1200, period = 60 }

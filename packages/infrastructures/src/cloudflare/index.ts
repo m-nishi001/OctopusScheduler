@@ -16,6 +16,7 @@ import { container } from "tsyringe";
 import { registerCloudflareInfrastructures } from "./container";
 import { runWithRequestEnv } from "./request-context";
 import type { CloudflareEnv } from "./env";
+import { allowRequest, clientKey, limiterKindForRpc, tooManyRequests } from "./rate-limit";
 
 import { QUIZ_GAME_PREFIX, QUIZ_GAME_HANDLERS } from "@octopus/game-quiz/server";
 import { JACKPOT_GAME_PREFIX, JACKPOT_GAME_HANDLERS } from "@octopus/game-jackpot/server";
@@ -59,13 +60,16 @@ interface RpcRequestBody {
   args?: unknown;
 }
 
-async function handleRpc(request: Request): Promise<Response> {
+async function handleRpc(request: Request, env: CloudflareEnv): Promise<Response> {
   let body: RpcRequestBody;
   try {
     body = await request.json<RpcRequestBody>();
   } catch {
     return Response.json({ status: "error", message: "Invalid JSON body" }, { status: 400 });
   }
+
+  // R2/D1 に触る前に弾く(無差別アクセスでの操作数増加と総当たりを抑える)。
+  if (!(await allowRequest(env, limiterKindForRpc(body.name), clientKey(request)))) return tooManyRequests();
 
   const handler = ROUTES[body.name];
   if (!handler) {
@@ -82,6 +86,7 @@ const SESSION_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 async function handleWebSocket(request: Request, env: CloudflareEnv, sessionId: string): Promise<Response> {
   if (!env.SESSION_ROOM) return new Response("WebSocket is not available", { status: 501 });
   if (!SESSION_ID_PATTERN.test(sessionId)) return new Response("Bad session id", { status: 400 });
+  if (!(await allowRequest(env, "public", clientKey(request)))) return tooManyRequests();
   if (request.headers.get("Upgrade") !== "websocket") return new Response("Expected WebSocket upgrade", { status: 426 });
   const stub = env.SESSION_ROOM.get(env.SESSION_ROOM.idFromName(sessionId));
   const forwarded = new Request("https://session-room/ws", request);
@@ -93,7 +98,7 @@ export default {
     return runWithRequestEnv(env, async () => {
       const url = new URL(request.url);
       if (url.pathname === "/rpc" && request.method === "POST") {
-        return handleRpc(request);
+        return handleRpc(request, env);
       }
       if (url.pathname.startsWith("/ws/")) {
         return handleWebSocket(request, env, decodeURIComponent(url.pathname.slice("/ws/".length)));
