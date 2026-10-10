@@ -16,6 +16,7 @@ import {
   IUuidGeneratorToken,
   ILockToken,
   IPasswordHasherToken,
+  ISecretProviderToken,
 } from "../interfaces";
 import { CloudflareKeyValueStorage } from "./cloudflare-key-value-storage";
 import { CloudflareCache } from "./cloudflare-cache";
@@ -23,6 +24,7 @@ import { createCloudflareDataBase } from "./cloudflare-database";
 import { CloudflareUuidGenerator } from "./cloudflare-uuid-generator";
 import { CloudflareLock } from "./cloudflare-lock";
 import { CloudflarePasswordHasher } from "./cloudflare-password-hasher";
+import { CloudflareSecretProvider } from "./cloudflare-secret-provider";
 
 export function registerCloudflareInfrastructures(): void {
   container.register(IKeyValueStorageToken, { useClass: CloudflareKeyValueStorage });
@@ -31,4 +33,5 @@ export function registerCloudflareInfrastructures(): void {
   container.register(IUuidGeneratorToken, { useClass: CloudflareUuidGenerator });
   container.register(ILockToken, { useClass: CloudflareLock });
   container.register(IPasswordHasherToken, { useClass: CloudflarePasswordHasher });
+  container.register(ISecretProviderToken, { useClass: CloudflareSecretProvider });
 }

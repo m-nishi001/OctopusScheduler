@@ -1,11 +1,7 @@
 <template>
     <section class="accounts-editor">
-        <p v-if="!production" class="accounts-editor__notice">
-            開発モードのため、ログインなしで管理画面を開けます。管理者を登録してパスワードを設定したら、
-            <code>app-mode.config.json</code> を <code>production</code> にして再ビルド・デプロイしてください。
-        </p>
         <p v-if="!hasLoginableAdmin" class="accounts-editor__warning" role="alert">
-            パスワード設定済みの管理者がいません。このまま本番モードにすると管理画面にログインできなくなります。
+            パスワード設定済みの管理者がいません。この状態で全員がログアウトすると、管理画面にログインできなくなります。
         </p>
 
         <div class="accounts-editor__toolbar">
@@ -53,7 +49,7 @@ import { computed, onMounted, ref } from 'vue';
 import { container } from 'tsyringe';
 import { DataTable, UiButton, UiDialog, UiField, toast, useConfirm } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
-import { AccountsRepository, isProductionMode } from '@octopus/accounts';
+import { AccountsRepository } from '@octopus/accounts';
 import type { Member } from '@octopus/accounts';
 import { useAuthSession } from '../../../../control/auth/auth-session';
 
@@ -63,7 +59,6 @@ const MIN_PASSWORD_LENGTH = 8;
 const repo = container.resolve(AccountsRepository);
 const { confirmDelete } = useConfirm();
 const { currentMember } = useAuthSession();
-const production = isProductionMode();
 
 const columns: DataTableColumn[] = [
     { key: 'id', label: 'ID', sortable: true },
@@ -129,7 +124,7 @@ function openEdit(row: Member) {
 
 async function save() {
     if (!canSave.value || saving.value) return;
-    // 自分自身の管理者権限を外すと、本番モードでその場から操作できなくなる
+    // 自分自身の管理者権限を外すと、その場から操作できなくなる
     if (editing.value && editing.value.id === currentMember.value?.id && !formIsAdmin.value) {
         formError.value = 'ログイン中のアカウントの管理者権限は外せません';
         return;
@@ -168,17 +163,9 @@ async function removeOne(row: Member) {
 </script>
 
 <style scoped>
-.accounts-editor__notice,
 .accounts-editor__warning {
     margin: 0 0 var(--ui-space-3, 12px);
     font-size: var(--ui-font-sm, 0.875rem);
-}
-
-.accounts-editor__notice {
-    color: var(--ui-text-muted, #cfd6dd);
-}
-
-.accounts-editor__warning {
     color: var(--ui-danger, #e5484d);
 }
 

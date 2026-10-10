@@ -1,25 +1,30 @@
 /**
- * 管理系画面へのルーターガード。
+ * アプリの入口のルーターガード。
  *
- * 管理画面は「設定/アセット/イベント」と各ゲームの `*-admin`。実行画面(投影用の
- * 表示ルート)とクイズ参加者の回答画面(`/quiz/:id/join`)は公開のまま。
- * 開発モードでは何も制限しない(最初の管理者を登録できるようにするため)。
+ * 既定で全ルートが管理者ログイン必須(default-deny)。ログイン不要なのは次の最小限だけで、
+ * 新しい画面を足してもうっかり公開にならない。
+ *   - `/login`           : ログイン画面そのもの
+ *   - `/portal`, `/portal/:code` : 参加者の入口(QRコード・参加コード)
+ * 投影用の実行画面(`/execute/**`)も、端末ごとに一度ログインすれば以降はトークンで通る。
+ * 本当の防御は各エンドポイントの `secure`(サーバー側)で、これは入口のUX。
  */
-const ADMIN_PATH = /^(?:\/execute)?\/(?:settings|assets|events|sessions|session\/(?:host|console)|(?:jackpot|quiz)-admin)(?:\/|$)/;
+const PUBLIC_PATH = /^\/(?:login|portal)(?:\/|$)/;
 
-export function requiresAdmin(path: string): boolean {
-  return ADMIN_PATH.test(path);
+export function isPublicPath(path: string): boolean {
+  return PUBLIC_PATH.test(path);
 }
 
 export interface AdminGuardDeps {
-  isProduction: () => boolean;
   ensureAdmin: () => Promise<boolean>;
 }
 
 export function createAdminGuard(deps: AdminGuardDeps) {
   return async (to: { path: string; fullPath: string }) => {
-    if (!deps.isProduction() || !requiresAdmin(to.path)) return true;
-    if (await deps.ensureAdmin()) return true;
+    // 参加者の入口では確認通信をしない。
+    if (isPublicPath(to.path) && to.path !== "/login") return true;
+    const signedIn = await deps.ensureAdmin();
+    if (to.path === "/login") return signedIn ? { path: "/home" } : true;
+    if (signedIn) return true;
     return { path: "/login", query: { redirect: to.fullPath } };
   };
 }

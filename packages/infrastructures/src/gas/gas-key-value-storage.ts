@@ -33,6 +33,10 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     PropertiesService.getScriptProperties().setProperty(key, value);
   }
 
+  async deleteScalar(key: string): Promise<void> {
+    PropertiesService.getScriptProperties().deleteProperty(key);
+  }
+
   /** ルートフォルダを返す。未設定・参照不能なら StorageNotConfiguredError。 */
   private rootFolder(): GoogleAppsScript.Drive.Folder {
     const id = PropertiesService.getScriptProperties().getProperty(ROOT_FOLDER_PROPERTY_KEY);

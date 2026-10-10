@@ -31,6 +31,10 @@ export class CloudflareKeyValueStorage implements IKeyValueStorage {
     await this.bucket().put(SCALAR_PREFIX + key, value);
   }
 
+  async deleteScalar(key: string): Promise<void> {
+    await this.bucket().delete(SCALAR_PREFIX + key);
+  }
+
   private toMeta(key: string, obj: R2Object): StoredItemMeta {
     return {
       key,

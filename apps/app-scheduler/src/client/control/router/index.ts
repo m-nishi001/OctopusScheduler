@@ -9,7 +9,6 @@ import { jackpotGameRoutes } from "@octopus/game-jackpot";
 import { quizGameRoutes } from "@octopus/game-quiz";
 import { hashToPath } from "./initial-hash";
 import { createAdminGuard } from "./admin-guard";
-import { isProductionMode } from "@octopus/accounts";
 import { ensureAdminSession } from "../auth/auth-session";
 
 const router = createRouter({
@@ -61,10 +60,8 @@ router.beforeEach(async (_to, from) => {
   return { path: resolvedPath, query, replace: true };
 });
 
-// 本番モードでは管理画面に管理者ログインを要求する(開発モードは素通し)。
-router.beforeEach(
-  createAdminGuard({ isProduction: isProductionMode, ensureAdmin: ensureAdminSession })
-);
+// 入口で管理者ログインを要求する(参加者の入口とログイン画面だけ公開)。
+router.beforeEach(createAdminGuard({ ensureAdmin: ensureAdminSession }));
 
 router.beforeEach((to, from, next) => {
   // If we're navigating from inside /execute and the target is a game absolute path

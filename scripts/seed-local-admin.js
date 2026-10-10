@@ -2,9 +2,8 @@
 /**
  * ローカル(`wrangler dev --local`)の R2 に管理者アカウントとログイン済みセッションを投入する。
  *
- * 本番モード(app-mode.config.json = production)では管理画面もコマンド発行もログインが
- * 必須になる。worktree ごとにローカルの D1/R2 が別れるため、開発・UI テストで毎回
- * 手作業のログインを避けるための**ローカル専用**ツール。リモート(--remote)は対象外。
+ * アプリ全体が管理者ログイン必須で、worktree ごとにローカルの D1/R2 も別れるため、
+ * 開発・UI テストで毎回手作業のログインを避けるための**ローカル専用**ツール。リモート(--remote)は対象外。
  *
  * 使い方:
  *   node scripts/seed-local-admin.js --config <wrangler.toml> [--persist-to <dir>]
