@@ -16,7 +16,6 @@
     "@octopus/infrastructures": "*",
     "@octopus/sync-engine": "*",
     "@octopus/ui-kit": "*",
-    "@octopus/game-card": "*",
     "@octopus/game-jackpot": "*",
     "@octopus/accounts": "*",
     "@octopus/session-hub": "*",

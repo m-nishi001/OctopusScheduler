@@ -6,7 +6,6 @@
     { "path": "./packages/composables" },
     { "path": "./packages/sync-engine" },
     { "path": "./packages/game-jackpot" },
-    { "path": "./packages/game-card" },
     { "path": "./packages/game-quiz" },
     { "path": "./packages/accounts" },
     { "path": "./packages/session-hub" },
