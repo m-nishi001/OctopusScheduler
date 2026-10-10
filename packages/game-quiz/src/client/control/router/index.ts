@@ -48,8 +48,6 @@ const quizGameRoutes = [
     name: "quiz-result-preview",
     component: QuizResult,
   },
-  // legacy path kept for compatibility
-  { path: "/quiz-result/:id", component: QuizResult },
   {
     path: "/quiz-admin",
     component: AdminLayout,

@@ -25,10 +25,6 @@
                     <span class="btn-icon">🎯</span>
                     <span class="btn-label">Quiz Game</span>
                 </button>
-                <button class="main-btn" @click="goToCardGame" aria-label="Card Game">
-                    <span class="btn-icon">🃏</span>
-                    <span class="btn-label">Card Game</span>
-                </button>
             </div>
         </div>
     </div>
@@ -49,10 +45,6 @@ const goToJackpotGame = () => {
 const goToQuizGame = () => {
     // Navigate to the quiz admin page within the same tab
     router.push('/quiz-admin');
-};
-const goToCardGame = () => {
-    // Navigate to the card game page within the same tab
-    router.push('/card-home');
 };
 </script>
 

@@ -43,7 +43,6 @@ packages/
 ├─ ui-kit/                   @octopus/ui-kit（設定画面の共通UI部品・デザイントークン）
 ├─ game-jackpot/             @octopus/game-jackpot
 ├─ game-quiz/                @octopus/game-quiz
-├─ game-card/                @octopus/game-card
 └─ server/                   @octopus/server（単一 GAS バンドル）
 ```
 
@@ -97,6 +96,8 @@ packages/
 リソース名は既定で `octopus-scheduler-db` / `octopus-scheduler-assets` です。変更する場合は `CLOUDFLARE_D1_NAME` / `CLOUDFLARE_R2_BUCKET` を設定してください。Cloudflare ではルートフォルダの設定は不要です（R2 のキー接頭辞としてそのまま使われます）。
 
 ### セッション(ホスト/管理/参加者)と Cloudflare 無料枠
+
+設計・運用の詳細は [docs/session-hub.md](docs/session-hub.md) を参照してください(端末の役割、データの流れ、GAS/Cloudflare の違い、無料枠の予算、テスト、新しいゲームのつなぎ方)。
 
 セッション機能(`/sessions`)は、Cloudflare では**セッション1件につき1つの Durable Object**(SQLite バックエンド=無料プラン可)を使い、更新は WebSocket で push します。ポーリングだと参加者300人で無料枠(Workers 10万リクエスト/日)を約17分で使い切るためで、WebSocket はサーバからの送信が課金されず、クライアントからのメッセージも20件で1リクエスト換算です。GAS ではポーリング(適応間隔)で動きます。
 

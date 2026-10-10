@@ -38,5 +38,4 @@ export const TRANSITION_URL_PRESETS = [
     { value: '/quiz-admin', label: 'クイズ管理' },
     { value: '/jackpot-admin', label: 'Jackpot 管理' },
     { value: '/jackpot-opening', label: 'Jackpot 開始(オープニング)' },
-    { value: '/card-home', label: 'Card ホーム' },
 ];

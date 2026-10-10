@@ -6,7 +6,6 @@ import {
 import { HistoryService } from "@octopus/client-common/google-apps-script/gas-history-service";
 import octopusSchedulerRoutes from "../../ui/router";
 import { jackpotGameRoutes } from "@octopus/game-jackpot";
-import { cardGameRoutes } from "@octopus/game-card";
 import { quizGameRoutes } from "@octopus/game-quiz";
 import { hashToPath } from "./initial-hash";
 import { createAdminGuard } from "./admin-guard";
@@ -21,7 +20,7 @@ const router = createRouter({
     // "No match found for location" warnings when rendering links inside
     // the execute screen which uses game absolute paths.
     {
-      path: "/:game(jackpot|card|quiz)-:subpath(.*)",
+      path: "/:game(jackpot|quiz)-:subpath(.*)",
       redirect: (to) => ({ path: `/execute${to.path}` }),
     },
     ...octopusSchedulerRoutes.filter((r) => r.path !== "/execute"),
@@ -40,7 +39,6 @@ const router = createRouter({
           // include app-defined children first (e.g. show-html, show-image, ...)
           ...appExecuteChildren.map((c: any) => ({ ...c })),
           ...jackpotGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
-          ...cardGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
           ...quizGameRoutes.map((r) => ({ ...r, path: r.path.slice(1) })),
         ];
       })(),
@@ -70,12 +68,12 @@ router.beforeEach(
 
 router.beforeEach((to, from, next) => {
   // If we're navigating from inside /execute and the target is a game absolute path
-  // (e.g. `/jackpot-admin`, `/card-admin`, `/quiz-admin`), rewrite to be
+  // (e.g. `/jackpot-admin`, `/quiz-admin`), rewrite to be
   // under `/execute` so execute-view remains mounted.
   const isFromExecute = String(from.path || "").startsWith("/execute");
   const isTargetExecuteAlready = String(to.path || "").startsWith("/execute");
   // Match game-prefixed absolute paths. Adjust patterns here if other game prefixes exist.
-  const gameAbsPathRE = /^\/(jackpot|card|quiz)(?:-|\/|$)/;
+  const gameAbsPathRE = /^\/(jackpot|quiz)(?:-|\/|$)/;
 
   if (
     isFromExecute &&
