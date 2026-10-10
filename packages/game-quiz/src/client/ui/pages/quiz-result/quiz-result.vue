@@ -13,8 +13,9 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
-import { GetAcceptanceStateUseCase } from '../../../control/use-cases/get-acceptance-state-use-case';
-import { GetSubmittedAnswersUseCase } from '../../../control/use-cases/get-submitted-answers-use-case';
+import { QuizRoundGateway } from '../../../model/quiz-round-gateway';
+import { useQuizHost } from '../../composables/use-quiz-host';
+import { buildQuizHostState, roundKeyFor } from '../../../model/quiz-host-state';
 import { computeRanking } from '../../../model/ranking';
 import type { RankedResult } from '../../../model/ranking';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
@@ -28,6 +29,8 @@ import { useQuizSession } from '../../composables/use-quiz-session';
 const router = useRouter();
 const route = useRoute();
 const session = useQuizSession();
+// セッションのホストなら、管理端末の「次へ」(順位発表→賞品)でも進める。
+const host = useQuizHost();
 
 type DisplayResult = RankedResult & { rank: number };
 
@@ -90,19 +93,28 @@ onMounted(() => {
         const quizId = route.params.id as string;
         try {
             const startQuizUseCase = container.resolve(StartQuizUseCase);
-            const getAcceptanceStateUseCase = container.resolve(GetAcceptanceStateUseCase);
-            const getSubmittedAnswersUseCase = container.resolve(GetSubmittedAnswersUseCase);
+            const gateway = container.resolve(QuizRoundGateway);
 
-            const [quiz, acceptanceState, answers] = await Promise.all([
+            // 回答はセッション基盤が集めたもの。ホストとして接続していなければ空(= 正答者なし)になる。
+            const [quiz, roundAnswers] = await Promise.all([
                 startQuizUseCase.execute(quizId),
-                getAcceptanceStateUseCase.execute(quizId, session.scope),
-                getSubmittedAnswersUseCase.execute(quizId, session.scope),
+                gateway.answers(quizId, session.scope),
             ]);
 
             currentQuiz.value = quiz;
-            const ranked = computeRanking(answers, {
+            host.publish(
+                buildQuizHostState({
+                    page: 'result',
+                    quizId,
+                    title: quiz?.title,
+                    roundKey: roundKeyFor(quizId, session.scope),
+                    phase: 'closed',
+                    correctNo: quiz?.correctNo ?? 1,
+                })
+            );
+            const ranked = computeRanking(roundAnswers?.answers ?? [], {
                 correctNo: quiz?.correctNo ?? 1,
-                acceptStartedAtMs: acceptanceState.acceptStartedAtMs,
+                acceptStartedAtMs: roundAnswers?.openedAtMs ?? null,
             });
             finalResults.value = ranked.map((result, idx) => ({ ...result, rank: idx + 1 }));
         } catch (e) {

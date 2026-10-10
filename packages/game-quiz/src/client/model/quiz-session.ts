@@ -11,13 +11,10 @@ export interface QuizSession {
   readonly scope: QuizSessionScope;
   /** 次の画面のルート名。 */
   routeName(base: QuizDisplayRoute): string;
-  /** 参加者URLの末尾に付けるハッシュ内クエリ(参加者端末が同じセッションを選ぶため)。 */
-  readonly joinUrlQuery: string;
 }
 
 export class LiveQuizSession implements QuizSession {
   readonly scope = "live" as const;
-  readonly joinUrlQuery = "";
 
   routeName(base: QuizDisplayRoute): string {
     return base;
@@ -26,7 +23,6 @@ export class LiveQuizSession implements QuizSession {
 
 export class DemoQuizSession implements QuizSession {
   readonly scope = "demo" as const;
-  readonly joinUrlQuery = "?demo=1";
 
   routeName(base: QuizDisplayRoute): string {
     return `${base}-preview`;

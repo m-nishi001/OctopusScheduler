@@ -8,7 +8,6 @@ import octopusSchedulerRoutes from "../../ui/router";
 import { jackpotGameRoutes } from "@octopus/game-jackpot";
 import { cardGameRoutes } from "@octopus/game-card";
 import { quizGameRoutes } from "@octopus/game-quiz";
-import { createStandaloneQuizJoinRoutes } from "./quiz-join-route";
 import { hashToPath } from "./initial-hash";
 import { createAdminGuard } from "./admin-guard";
 import { isProductionMode } from "@octopus/accounts";
@@ -25,7 +24,6 @@ const router = createRouter({
       path: "/:game(jackpot|card|quiz)-:subpath(.*)",
       redirect: (to) => ({ path: `/execute${to.path}` }),
     },
-    ...createStandaloneQuizJoinRoutes(quizGameRoutes),
     ...octopusSchedulerRoutes.filter((r) => r.path !== "/execute"),
     {
       path: "/execute",

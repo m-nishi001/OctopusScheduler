@@ -1,33 +1,39 @@
 import { getCurrentInstance, onUnmounted, ref } from 'vue';
 import { container } from 'tsyringe';
-import { StartAcceptingAnswersUseCase } from '../../control/use-cases/start-accepting-answers-use-case';
-import { StopAcceptingAnswersUseCase } from '../../control/use-cases/stop-accepting-answers-use-case';
-import type { AcceptanceOption, QuizSessionScope } from '../../../server/quiz-api-contract';
+import type { QuizSessionScope } from '../../../server/quiz-api-contract';
+import { QuizRoundGateway } from '../../model/quiz-round-gateway';
+import type { OpenedRound } from '../../model/quiz-round-gateway';
 
 export interface UseAnswerWindowDeps {
-  startAcceptingAnswersUseCase?: Pick<StartAcceptingAnswersUseCase, 'execute'>;
-  stopAcceptingAnswersUseCase?: Pick<StopAcceptingAnswersUseCase, 'execute'>;
+  gateway?: Pick<QuizRoundGateway, 'open' | 'close'>;
+}
+
+export interface AnswerWindowOption {
+  no: number;
+  text: string;
 }
 
 export interface StartAnswerWindowArgs {
   quizId: string;
   timeLimit: number;
-  options: AcceptanceOption[];
+  options: AnswerWindowOption[];
   scope: QuizSessionScope;
+  /** 受付が開始できたとき(セッションのホストとして接続している場合)。締切(サーバ時刻)を受け取る。 */
+  onOpened?: (round: OpenedRound) => void;
   /** タイマー終了・手動停止のどちらでも、締切処理が始まる直前に一度だけ呼ばれる。 */
   onFinish?: () => void;
 }
 
 /**
  * クイズの回答受付ウィンドウ(カウントダウン + 受付開始/終了)を管理するcomposable。
- * タイマー終了時の自動締切と、管理者の「今すぐ受付停止」ボタンからの手動締切の
- * 両方を同じfinish()経路に集約し、二重に締切処理が走らないようにする。
+ *
+ * 受付の締切はセッション基盤(サーバ時刻)が持つので、このタイマーは表示用。開始時にサーバから
+ * 返る残り時間でカウントダウンを揃え、ホストのリロードや端末の時計ずれがあっても参加者の
+ * 画面と同じ時刻に終わる。タイマー終了時の自動締切と、管理者の「今すぐ受付停止」からの
+ * 手動締切は同じ finish() に集約し、二重に締切処理が走らないようにする。
  */
 export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
-  const startAcceptingAnswersUseCase =
-    deps?.startAcceptingAnswersUseCase ?? container.resolve(StartAcceptingAnswersUseCase);
-  const stopAcceptingAnswersUseCase =
-    deps?.stopAcceptingAnswersUseCase ?? container.resolve(StopAcceptingAnswersUseCase);
+  const gateway = deps?.gateway ?? container.resolve(QuizRoundGateway);
 
   const timeLeft = ref(0);
   const showModal = ref(false);
@@ -39,8 +45,11 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
   let currentQuizId = '';
   let currentScope: QuizSessionScope = 'live';
   let onFinishCallback: (() => void) | undefined;
+  let finishing = false;
 
   async function finish(): Promise<void> {
+    if (finishing) return;
+    finishing = true;
     if (timer) {
       clearInterval(timer);
       timer = undefined;
@@ -53,31 +62,33 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
     errorMessage.value = null;
 
     try {
-      await stopAcceptingAnswersUseCase.execute(currentQuizId, currentScope);
-      isLoading.value = false;
-      canProceed.value = true;
+      await gateway.close(currentQuizId, currentScope);
     } catch (err) {
-      console.error('Failed to stop accepting answers', err);
-      errorMessage.value = '受付終了処理に失敗しました。';
-      isLoading.value = false;
-      canProceed.value = true; // Allow retry or proceed
+      // 締切はサーバ側の時刻でも自動的に来るので、失敗しても進行は止めない。
+      console.error('Failed to close the answer round', err);
+      errorMessage.value = '受付終了の通知に失敗しました(締切時刻には自動で終了します)。';
     }
+    isLoading.value = false;
+    canProceed.value = true;
   }
 
   async function start(args: StartAnswerWindowArgs): Promise<void> {
     currentQuizId = args.quizId;
     currentScope = args.scope;
     onFinishCallback = args.onFinish;
+    finishing = false;
     timeLeft.value = args.timeLimit;
 
-    // Open the answer-acceptance window on the server before starting the visible
-    // countdown. Previously the Google Form was always "open", which let
-    // participants answer while the QR/intro screens were still showing; now
-    // acceptance only opens here, at the moment the question is displayed.
+    // 受付は出題の瞬間に開く(QR表示中などに回答されないように)。
     try {
-      await startAcceptingAnswersUseCase.execute(args.quizId, args.scope, args.options);
+      const round = await gateway.open(args.quizId, args.scope, args.options, args.timeLimit);
+      if (round) {
+        timeLeft.value = Math.max(0, Math.ceil(round.remainingMs / 1000));
+        args.onOpened?.(round);
+      }
     } catch (e) {
-      console.error('Failed to start accepting answers', e);
+      console.error('Failed to open the answer round', e);
+      errorMessage.value = '回答の受付を開始できませんでした。';
     }
 
     timer = setInterval(() => {

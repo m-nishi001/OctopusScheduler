@@ -1,4 +1,12 @@
-import type { SubmittedAnswer } from "../../server/quiz-api-contract";
+/** ランキングの入力。セッション基盤の回答(RoundAnswer)をこの形に直して渡す。 */
+export interface RankingAnswer {
+  /** メンバーID(ゲストは端末ID)。 */
+  userId: string;
+  displayName: string;
+  optionNo: number;
+  /** 回答を受け付けたサーバ時刻(ms)。 */
+  serverTimestampMs: number;
+}
 
 export interface RankedResult {
   userId: string;
@@ -24,7 +32,7 @@ export interface RankingOptions {
  * 送信された回答がランキングに混入しないようにする。
  */
 export function computeRanking(
-  answers: SubmittedAnswer[],
+  answers: RankingAnswer[],
   options: RankingOptions
 ): RankedResult[] {
   const { correctNo, acceptStartedAtMs, limit = 10 } = options;

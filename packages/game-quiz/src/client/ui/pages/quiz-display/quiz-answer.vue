@@ -20,6 +20,8 @@ import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case
 import { useAudio } from '@octopus/composables';
 import { dataUrlToBlob } from '../../../model/blob-utils';
 import { useQuizSession } from '../../composables/use-quiz-session';
+import { useQuizHost } from '../../composables/use-quiz-host';
+import { buildQuizHostState, roundKeyFor } from '../../../model/quiz-host-state';
 
 const route = useRoute();
 const router = useRouter();
@@ -27,6 +29,8 @@ const quizId = route.params.id as string;
 const session = useQuizSession();
 const quiz = ref<QuizDto | null>(null);
 const { load, play, stop } = useAudio({ mode: 'html-audio' });
+// セッションのホストなら、管理端末の「次へ」でも進める。正解はこの画面になって初めて参加者へ公開する。
+const host = useQuizHost();
 
 const correctNo = computed(() => {
   if (!quiz.value) return 1;
@@ -45,6 +49,18 @@ onMounted(async () => {
   const startQuizUseCase = container.resolve(StartQuizUseCase);
   quiz.value = await startQuizUseCase.execute(quizId);
   document.addEventListener('keydown', handleKeydown);
+  host.publish(
+    buildQuizHostState({
+      page: 'answer',
+      quizId,
+      title: quiz.value?.title,
+      roundKey: roundKeyFor(quizId, session.scope),
+      phase: 'closed',
+      question: quiz.value?.question,
+      options: quiz.value?.options.map((o: any) => ({ no: o.no, text: o.text, color: o.color })) ?? [],
+      correctNo: correctNo.value,
+    })
+  );
 
   // Play correct BGM if set (supports new Blob form or legacy data URL string)
   const maybeCorrect = quiz.value?.settings?.correctBgm;

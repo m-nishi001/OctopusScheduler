@@ -11,7 +11,9 @@ import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import DisplayStage from '../../components/display/display-stage.vue';
 import { useQuizSession } from '../../composables/use-quiz-session';
-import { StopAcceptingAnswersUseCase } from '../../../control/use-cases/stop-accepting-answers-use-case';
+import { useQuizHost } from '../../composables/use-quiz-host';
+import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
+import { buildQuizHostState } from '../../../model/quiz-host-state';
 
 const router = useRouter();
 const route = useRoute();
@@ -19,17 +21,25 @@ const route = useRoute();
 const quizId = route.params.id as string;
 const session = useQuizSession();
 
-const handleKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Enter') {
-        router.push({ name: session.routeName('quiz-qr'), params: { id: quizId } });
-    }
+const goNext = () => {
+    void router.push({ name: session.routeName('quiz-qr'), params: { id: quizId } });
 };
 
-onMounted(() => {
-    // 前回の実行で受付中のまま離脱していても、開始前に回答できないよう受付を止めておく。
-    container.resolve(StopAcceptingAnswersUseCase).execute(quizId, session.scope)
-        .catch((e) => console.error('Failed to reset acceptance', e));
+// セッションのホストなら、管理端末の「次へ」でも進める。
+const host = useQuizHost({ advance: goNext });
+
+const handleKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Enter') goNext();
+};
+
+onMounted(async () => {
     document.addEventListener('keydown', handleKeydown);
+    try {
+        const quiz = await container.resolve(StartQuizUseCase).execute(quizId);
+        host.publish(buildQuizHostState({ page: 'intro', quizId, title: quiz?.title }));
+    } catch {
+        host.publish(buildQuizHostState({ page: 'intro', quizId }));
+    }
 });
 
 onUnmounted(() => {

@@ -1,6 +1,9 @@
 /**
  * quiz-game の GAS エンドポイント。
  *
+ * クイズの問題・画像などのデータ(Drive/JSON)だけを扱う。参加者の回答の受付・集計は
+ * セッション基盤(@octopus/session-hub の回答ラウンド)が担当する。
+ *
  * 各ハンドラは「引数パース -> use-case 呼び出し -> ApiResponse に詰めて
  * JSON.stringify」という薄い層のみを担う。ビジネスロジックは同ディレクトリの
  * 各 use-case ファイルにある。リポジトリ実装は infrastructures/gas/container.ts
@@ -8,36 +11,16 @@
  */
 import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
-import {
-  ICacheToken,
-  IKeyValueStorageToken,
-  IUuidGeneratorToken,
-  ILockToken,
-} from "@octopus/infrastructures/interfaces";
-import type {
-  ICache,
-  IKeyValueStorage,
-  IUuidGenerator,
-  ILock,
-} from "@octopus/infrastructures/interfaces";
+import { ICacheToken, IKeyValueStorageToken } from "@octopus/infrastructures/interfaces";
+import type { ICache, IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import type {
   AddDriveDataArgs,
   AddJsonArgs,
-  GetAcceptanceStateArgs,
-  GetAnswersArgs,
-  GetOptionImageArgs,
-  GetParticipantStateArgs,
-  IssueJoinTokenArgs,
   GetDriveDataArgs,
   GetDriveMetaDataArgs,
   GetJsonArgs,
-  LoginParticipantArgs,
   QuizGameEndpointName,
   UpdateDriveDataArgs,
-  ResolveDeviceTokenArgs,
-  StartAcceptingAnswersArgs,
-  StopAcceptingAnswersArgs,
-  SubmitAnswerArgs,
 } from "./quiz-api-contract";
 import { QUIZ_GAME_PREFIX } from "./quiz-api-contract";
 
@@ -49,31 +32,12 @@ import {
 } from "./drive-asset-use-cases";
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
-import { loginParticipant, resolveDeviceToken } from "./participant-auth-use-cases";
-import {
-  getAcceptanceState,
-  startAcceptingAnswers,
-  stopAcceptingAnswers,
-} from "./answer-session-use-cases";
-import { getAnswers, submitAnswer } from "./answer-submission-use-cases";
-import {
-  assertJoinToken,
-  getOptionImage,
-  getParticipantState,
-  issueJoinToken,
-} from "./join-session-use-cases";
 import { secure } from "@octopus/accounts/secure";
 
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
     cache: container.resolve<ICache>(ICacheToken),
-    // node環境のテストではこれらの関数はDIコンテナに触れないよう、
-    // 各use-caseのテストで別途スタブを注入する。
-    generateToken: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
-    // findMemberById(@octopus/accounts)呼び出しのために必要
-    // (このuse-case経由では新規メンバー作成は行わないため実際には使われない)。
-    generateId: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
     now: (): number => Date.now(),
   };
 }
@@ -84,17 +48,6 @@ declare let _quizGame_getDriveData: (args: GetDriveDataArgs) => Promise<string>;
 declare let _quizGame_updateDriveData: (args: UpdateDriveDataArgs) => Promise<string>;
 declare let _quizGame_addJson: (args: AddJsonArgs) => Promise<string>;
 declare let _quizGame_getJson: (args: GetJsonArgs) => Promise<string>;
-declare let _quizGame_loginParticipant: (args: LoginParticipantArgs) => Promise<string>;
-declare let _quizGame_resolveDeviceToken: (args: ResolveDeviceTokenArgs) => Promise<string>;
-declare let _quizGame_startAcceptingAnswers: (args: StartAcceptingAnswersArgs) => Promise<string>;
-declare let _quizGame_stopAcceptingAnswers: (args: StopAcceptingAnswersArgs) => Promise<string>;
-declare let _quizGame_getAcceptanceState: (args: GetAcceptanceStateArgs) => Promise<string>;
-declare let _quizGame_issueJoinToken: (args: IssueJoinTokenArgs) => Promise<string>;
-declare let _quizGame_getParticipantState: (args: GetParticipantStateArgs) => Promise<string>;
-declare let _quizGame_getOptionImage: (args: GetOptionImageArgs) => Promise<string>;
-declare let _quizGame_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
-declare let _quizGame_getAnswers: (args: GetAnswersArgs) => Promise<string>;
-declare let _quizGame_getWebAppUrl: () => Promise<string>;
 
 _quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
   try {
@@ -106,7 +59,7 @@ _quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
   }
 };
 
-_quizGame_getDriveMetaData = async (args: GetDriveMetaDataArgs): Promise<string> => {
+_quizGame_getDriveMetaData = async (_args: GetDriveMetaDataArgs): Promise<string> => {
   try {
     const result = await getQuizDriveMetadata(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
@@ -156,131 +109,13 @@ _quizGame_getJson = async (args: GetJsonArgs): Promise<string> => {
   }
 };
 
-_quizGame_loginParticipant = async (args: LoginParticipantArgs): Promise<string> => {
-  try {
-    const result = await loginParticipant(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_resolveDeviceToken = async (args: ResolveDeviceTokenArgs): Promise<string> => {
-  try {
-    const result = await resolveDeviceToken(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_startAcceptingAnswers = async (args: StartAcceptingAnswersArgs): Promise<string> => {
-  try {
-    const result = await startAcceptingAnswers(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_stopAcceptingAnswers = async (args: StopAcceptingAnswersArgs): Promise<string> => {
-  try {
-    const result = await stopAcceptingAnswers(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_getAcceptanceState = async (args: GetAcceptanceStateArgs): Promise<string> => {
-  try {
-    const result = await getAcceptanceState(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_issueJoinToken = async (args: IssueJoinTokenArgs): Promise<string> => {
-  try {
-    const result = await issueJoinToken(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_getParticipantState = async (args: GetParticipantStateArgs): Promise<string> => {
-  try {
-    const result = await getParticipantState(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_getOptionImage = async (args: GetOptionImageArgs): Promise<string> => {
-  try {
-    const result = await getOptionImage(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_submitAnswer = async (args: SubmitAnswerArgs): Promise<string> => {
-  // 複数参加者からの同時送信でread-modify-writeが競合しないよう排他制御で保護する。
-  // ドメインの排他制御とは無関係のインフラ固有の関心事のため、use-case層には持ち込まずここで直接扱う。
-  const lock = container.resolve<ILock>(ILockToken);
-  try {
-    return await lock.withLock("quizGame:submitAnswer", 5000, async () => {
-      const deps = resolveDeps();
-      await assertJoinToken(deps.storage, args);
-      const result = await submitAnswer(deps, args);
-      return JSON.stringify({ status: "success", data: result });
-    });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_getAnswers = async (args: GetAnswersArgs): Promise<string> => {
-  try {
-    const result = await getAnswers(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_quizGame_getWebAppUrl = async (): Promise<string> => {
-  try {
-    // GAS固有(ScriptApp)のためポート化せずここで直接呼ぶ。GAS以外ではnullを返す。
-    const url = typeof ScriptApp !== "undefined" ? ScriptApp.getService().getUrl() : null;
-    return JSON.stringify({ status: "success", data: { url: url || null } });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-// 認可ポリシー。表示・参加者向けの読み取りは公開、書き込みと管理操作は管理者のみ(本番モード)。
+// 認可ポリシー。表示向けの読み取りは公開、書き込みは管理者のみ(本番モード)。
 _quizGame_addDriveData = secure("admin", _quizGame_addDriveData);
 _quizGame_getDriveMetaData = secure("public", _quizGame_getDriveMetaData);
 _quizGame_getDriveData = secure("public", _quizGame_getDriveData);
 _quizGame_updateDriveData = secure("admin", _quizGame_updateDriveData);
 _quizGame_addJson = secure("admin", _quizGame_addJson);
 _quizGame_getJson = secure("public", _quizGame_getJson);
-_quizGame_loginParticipant = secure("public", _quizGame_loginParticipant);
-_quizGame_resolveDeviceToken = secure("public", _quizGame_resolveDeviceToken);
-_quizGame_startAcceptingAnswers = secure("admin", _quizGame_startAcceptingAnswers);
-_quizGame_stopAcceptingAnswers = secure("admin", _quizGame_stopAcceptingAnswers);
-_quizGame_getAcceptanceState = secure("public", _quizGame_getAcceptanceState);
-_quizGame_issueJoinToken = secure("admin", _quizGame_issueJoinToken);
-_quizGame_getParticipantState = secure("public", _quizGame_getParticipantState);
-_quizGame_getOptionImage = secure("public", _quizGame_getOptionImage);
-_quizGame_submitAnswer = secure("public", _quizGame_submitAnswer);
-_quizGame_getAnswers = secure("admin", _quizGame_getAnswers);
-_quizGame_getWebAppUrl = secure("public", _quizGame_getWebAppUrl);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Promise<string>> = {
@@ -290,17 +125,6 @@ export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Pro
   updateDriveData: _quizGame_updateDriveData,
   addJson: _quizGame_addJson,
   getJson: _quizGame_getJson,
-  loginParticipant: _quizGame_loginParticipant,
-  resolveDeviceToken: _quizGame_resolveDeviceToken,
-  startAcceptingAnswers: _quizGame_startAcceptingAnswers,
-  stopAcceptingAnswers: _quizGame_stopAcceptingAnswers,
-  getAcceptanceState: _quizGame_getAcceptanceState,
-  issueJoinToken: _quizGame_issueJoinToken,
-  getParticipantState: _quizGame_getParticipantState,
-  getOptionImage: _quizGame_getOptionImage,
-  submitAnswer: _quizGame_submitAnswer,
-  getAnswers: _quizGame_getAnswers,
-  getWebAppUrl: _quizGame_getWebAppUrl,
 };
 
 export { QUIZ_GAME_PREFIX };
