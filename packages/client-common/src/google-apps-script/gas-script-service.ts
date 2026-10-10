@@ -96,6 +96,9 @@ export class GasFunctionService {
     let attempts = 0;
     let parallelErrorAttempts = 0;
     const MAX_PARALLEL_ERROR_RETRY = 100;
+    // 試行回数だけでなく経過時間でも打ち切る(100回×遅延で数分UIが固まるのを防ぐ)。
+    const MAX_PARALLEL_ERROR_WAIT_MS = 30_000;
+    const parallelDeadline = Date.now() + MAX_PARALLEL_ERROR_WAIT_MS;
 
     while (true) {
       attempts++;
@@ -115,7 +118,8 @@ export class GasFunctionService {
 
         if (
           this.isParallelLimitError(msg) &&
-          parallelErrorAttempts < MAX_PARALLEL_ERROR_RETRY
+          parallelErrorAttempts < MAX_PARALLEL_ERROR_RETRY &&
+          Date.now() < parallelDeadline
         ) {
           parallelErrorAttempts++;
           await new Promise((r) => setTimeout(r, this.options.retryDelay));
@@ -133,7 +137,8 @@ export class GasFunctionService {
 
         if (
           this.isParallelLimitError(msg) &&
-          parallelErrorAttempts < MAX_PARALLEL_ERROR_RETRY
+          parallelErrorAttempts < MAX_PARALLEL_ERROR_RETRY &&
+          Date.now() < parallelDeadline
         ) {
           parallelErrorAttempts++;
           await new Promise((r) => setTimeout(r, this.options.retryDelay));
