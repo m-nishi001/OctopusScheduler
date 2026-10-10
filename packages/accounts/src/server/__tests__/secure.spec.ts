@@ -8,7 +8,7 @@ import { createSecure, UNAUTHORIZED_RESPONSE } from "../secure";
 
 const OK = JSON.stringify({ status: "success", data: "ok" });
 
-async function setup(isProduction: boolean) {
+async function setup() {
   const storage = new InMemoryKeyValueStorage();
   let counter = 0;
   const authDeps: AccountsAuthDeps = {
@@ -23,13 +23,13 @@ async function setup(isProduction: boolean) {
   await setPassword(authDeps, { id: "user", password: "correct-horse" });
   const adminToken = (await login(authDeps, { id: "admin", password: "correct-horse" })).token;
   const userToken = (await login(authDeps, { id: "user", password: "correct-horse" })).token;
-  const secure = createSecure({ isProduction: () => isProduction, getStorage: () => storage, now: () => 1000 });
+  const secure = createSecure({ getStorage: () => storage, now: () => 1000 });
   return { secure, adminToken, userToken };
 }
 
-describe("secure (production)", () => {
+describe("secure", () => {
   it("rejects admin endpoints without a token, with a non-admin token and with an unknown token", async () => {
-    const { secure, userToken } = await setup(true);
+    const { secure, userToken } = await setup();
     const handler = vi.fn(async (_args?: unknown) => OK);
     const guarded = secure("admin", handler);
     expect(await guarded({ a: 1 })).toBe(UNAUTHORIZED_RESPONSE);
@@ -39,14 +39,14 @@ describe("secure (production)", () => {
   });
 
   it("lets an admin token through and passes the unwrapped args to the handler", async () => {
-    const { secure, adminToken } = await setup(true);
+    const { secure, adminToken } = await setup();
     const handler = vi.fn(async (_args?: unknown) => OK);
     expect(await secure("admin", handler)(wrapWithAuth(adminToken, { a: 1 }))).toBe(OK);
     expect(handler).toHaveBeenCalledWith({ a: 1 });
   });
 
   it("works for string and missing args (not only objects)", async () => {
-    const { secure, adminToken } = await setup(true);
+    const { secure, adminToken } = await setup();
     const handler = vi.fn(async (_args?: unknown) => OK);
     const guarded = secure("admin", handler);
     await guarded(wrapWithAuth(adminToken, "screen-name"));
@@ -56,7 +56,7 @@ describe("secure (production)", () => {
   });
 
   it("leaves public endpoints open, with or without a token", async () => {
-    const { secure, adminToken } = await setup(true);
+    const { secure, adminToken } = await setup();
     const handler = vi.fn(async (_args?: unknown) => OK);
     const open = secure("public", handler);
     expect(await open({ a: 1 })).toBe(OK);
@@ -70,14 +70,5 @@ describe("secure (production)", () => {
       message: "Unauthorized",
       retryable: false,
     });
-  });
-});
-
-describe("secure (development)", () => {
-  it("lets admin endpoints through without any token", async () => {
-    const { secure } = await setup(false);
-    const handler = vi.fn(async (_args?: unknown) => OK);
-    expect(await secure("admin", handler)({ a: 1 })).toBe(OK);
-    expect(handler).toHaveBeenCalledWith({ a: 1 });
   });
 });

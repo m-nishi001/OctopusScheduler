@@ -6,7 +6,6 @@
  * ただし内部ハンドラ変数の `let` 宣言(banner)だけは必要(下記参照)。
  */
 import { build } from "esbuild";
-import { appModeDefine } from "../../scripts/app-mode.js";
 import { loadGasContract } from "../../scripts/gas-contract.js";
 
 // 各機能パッケージの endpoints.ts は `_<prefix>_<name> = async (...) => {...}` と
@@ -22,7 +21,6 @@ build({
   format: "esm",
   platform: "browser",
   conditions: ["workerd", "browser"],
-  define: appModeDefine(),
   banner: { js: `\nlet ${handlerVariableNames.join(", ")};\n` },
   // nodejs_compat(wrangler.toml)がランタイム側で提供するため、バンドルに含めない。
   external: ["node:async_hooks"],

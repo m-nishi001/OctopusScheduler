@@ -4,6 +4,10 @@
             <h1 class="home-title">
                 <span class="octo-icon">🐙</span> Octopus Scheduler
             </h1>
+            <p v-if="currentMember" class="home-account">
+                {{ currentMember.name }} でログイン中
+                <button class="home-signout" type="button" @click="onSignOut">ログアウト</button>
+            </p>
             <div class="btn-grid">
                 <button class="main-btn" @click="goToSettings" aria-label="設定画面">
                     <span class="btn-icon">⚙️</span>
@@ -32,8 +36,15 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import { useAuthSession } from '../../../control/auth/auth-session';
 
 const router = useRouter();
+const { currentMember, signOut } = useAuthSession();
+
+const onSignOut = async () => {
+    await signOut();
+    await router.push('/login');
+};
 
 const goToSettings = () => router.push({ name: 'settings' });
 const goToExecute = () => router.push('/execute');
@@ -78,6 +89,22 @@ const goToQuizGame = () => {
     gap: 0.5em;
     color: #fff;
     text-shadow: 0 2px 12px #000a;
+}
+
+.home-account {
+    margin: -1.2em 0 1.5em;
+    color: #cfd6dd;
+    font-size: 0.95em;
+}
+
+.home-signout {
+    margin-left: 0.8em;
+    padding: 0.2em 0.8em;
+    color: inherit;
+    background: transparent;
+    border: 1px solid #666;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
 .octo-icon {

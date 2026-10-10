@@ -7,8 +7,20 @@
  */
 import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
-import { IKeyValueStorageToken, IPasswordHasherToken, IUuidGeneratorToken } from "@octopus/infrastructures/interfaces";
-import type { IKeyValueStorage, IPasswordHasher, IUuidGenerator } from "@octopus/infrastructures/interfaces";
+import {
+  IKeyValueStorageToken,
+  ILockToken,
+  IPasswordHasherToken,
+  ISecretProviderToken,
+  IUuidGeneratorToken,
+} from "@octopus/infrastructures/interfaces";
+import type {
+  IKeyValueStorage,
+  ILock,
+  IPasswordHasher,
+  ISecretProvider,
+  IUuidGenerator,
+} from "@octopus/infrastructures/interfaces";
 import type {
   AddMemberArgs,
   DeleteMemberArgs,
@@ -29,6 +41,7 @@ import {
   getSession,
   InvalidCredentialsError,
   listAccounts,
+  LoginLockedError,
   listMembers,
   login,
   logout,
@@ -43,6 +56,8 @@ function resolveDeps() {
     generateId: (): string => container.resolve<IUuidGenerator>(IUuidGeneratorToken).generate(),
     hasher: container.resolve<IPasswordHasher>(IPasswordHasherToken),
     now: (): number => Date.now(),
+    secrets: container.resolve<ISecretProvider>(ISecretProviderToken),
+    lock: container.resolve<ILock>(ILockToken),
   };
 }
 
@@ -126,7 +141,7 @@ _accounts_login = async (args: LoginArgs): Promise<string> => {
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     // 認証失敗はクライアントにリトライさせない(遅延とブルートフォースの増幅を避ける)。
-    if (error instanceof InvalidCredentialsError) {
+    if (error instanceof InvalidCredentialsError || error instanceof LoginLockedError) {
       return JSON.stringify({ status: "error", message: error.message, retryable: false });
     }
     return errorResponse(error);

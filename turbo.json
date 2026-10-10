@@ -1,5 +1,4 @@
 {
-  "globalDependencies": ["app-mode.config.json"],
   "tasks": {
     "build": {
       "dependsOn": [

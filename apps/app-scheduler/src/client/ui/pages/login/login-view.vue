@@ -35,7 +35,7 @@ function redirectTarget(): string {
     const redirect = route.query.redirect;
     return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
         ? redirect
-        : '/settings';
+        : '/home';
 }
 
 async function submit() {

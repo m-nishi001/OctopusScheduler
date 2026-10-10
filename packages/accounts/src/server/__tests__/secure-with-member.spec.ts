@@ -23,13 +23,12 @@ async function setup() {
   await setPassword(authDeps, { id: "user", password: "correct-horse" });
   const adminToken = (await login(authDeps, { id: "admin", password: "correct-horse" })).token;
   const userToken = (await login(authDeps, { id: "user", password: "correct-horse" })).token;
-  // 開発モード(isProduction=false)でも素通ししないことを確認するため false を渡す
-  const wrap = createSecureAdminWithMember({ isProduction: () => false, getStorage: () => storage, now: () => 1000 });
+  const wrap = createSecureAdminWithMember({ getStorage: () => storage, now: () => 1000 });
   return { wrap, adminToken, userToken };
 }
 
 describe("createSecureAdminWithMember", () => {
-  it("管理者トークンならメンバー付きでハンドラを呼ぶ(開発モードでも素通ししない)", async () => {
+  it("管理者トークンならメンバー付きでハンドラを呼ぶ", async () => {
     const { wrap, adminToken } = await setup();
     const handler = vi.fn(async (_args: unknown, _member: unknown) => OK);
     expect(await wrap(handler)(wrapWithAuth(adminToken, { a: 1 }))).toBe(OK);

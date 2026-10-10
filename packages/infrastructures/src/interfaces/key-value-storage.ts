@@ -27,6 +27,9 @@ export interface IKeyValueStorage {
   /** 単純な文字列値を書く。 */
   set(key: string, value: string): Promise<void>;
 
+  /** 単純な文字列値を削除する(無ければ何もしない)。 */
+  deleteScalar(key: string): Promise<void>;
+
   /** プレーンテキスト(JSON等)を key に書く(既存があれば上書き)。 */
   putText(key: string, content: string, mimeType: string): Promise<StoredItemMeta>;
 

@@ -14,6 +14,7 @@ import {
   IUuidGeneratorToken,
   ILockToken,
   IPasswordHasherToken,
+  ISecretProviderToken,
 } from "../interfaces";
 import { GasApiClient } from "./gas-api-client";
 import { GasKeyValueStorage } from "./gas-key-value-storage";
@@ -23,6 +24,7 @@ import { createGasDataBase } from "./gas-database";
 import { GasUuidGenerator } from "./gas-uuid-generator";
 import { GasLock } from "./gas-lock";
 import { GasPasswordHasher } from "./gas-password-hasher";
+import { GasSecretProvider } from "./gas-secret-provider";
 
 export function registerGasInfrastructures(): void {
   container.register(IApiClientToken, { useClass: GasApiClient });
@@ -32,5 +34,6 @@ export function registerGasInfrastructures(): void {
   container.register(IUuidGeneratorToken, { useClass: GasUuidGenerator });
   container.register(ILockToken, { useClass: GasLock });
   container.register(IPasswordHasherToken, { useClass: GasPasswordHasher });
+  container.register(ISecretProviderToken, { useClass: GasSecretProvider });
   container.registerSingleton(GasFormRepository);
 }

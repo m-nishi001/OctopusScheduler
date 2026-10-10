@@ -103,13 +103,13 @@ _jackpotGame_getJson = async (fileId?: string): Promise<string> => {
   }
 };
 
-// 認可ポリシー。表示・参加者向けの読み取りは公開、書き込みと管理操作は管理者のみ(本番モード)。
+// 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。
 _jackpotGame_addDriveData = secure("admin", _jackpotGame_addDriveData);
-_jackpotGame_getDriveMetaData = secure("public", _jackpotGame_getDriveMetaData);
-_jackpotGame_getDriveData = secure("public", _jackpotGame_getDriveData);
+_jackpotGame_getDriveMetaData = secure("admin", _jackpotGame_getDriveMetaData);
+_jackpotGame_getDriveData = secure("admin", _jackpotGame_getDriveData);
 _jackpotGame_updateDriveData = secure("admin", _jackpotGame_updateDriveData);
 _jackpotGame_addJson = secure("admin", _jackpotGame_addJson);
-_jackpotGame_getJson = secure("public", _jackpotGame_getJson);
+_jackpotGame_getJson = secure("admin", _jackpotGame_getJson);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const JACKPOT_GAME_HANDLERS: Record<JackpotGameEndpointName, (args: any) => Promise<string>> = {

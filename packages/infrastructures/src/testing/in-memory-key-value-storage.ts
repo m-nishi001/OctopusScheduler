@@ -24,6 +24,10 @@ export class InMemoryKeyValueStorage implements IKeyValueStorage {
     this.scalars.set(key, value);
   }
 
+  async deleteScalar(key: string): Promise<void> {
+    this.scalars.delete(key);
+  }
+
   private toMeta(item: StoredItem): StoredItemMeta {
     return {
       key: item.key,

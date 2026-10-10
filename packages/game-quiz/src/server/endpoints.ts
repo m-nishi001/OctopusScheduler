@@ -109,13 +109,13 @@ _quizGame_getJson = async (args: GetJsonArgs): Promise<string> => {
   }
 };
 
-// 認可ポリシー。表示向けの読み取りは公開、書き込みは管理者のみ(本番モード)。
+// 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。
 _quizGame_addDriveData = secure("admin", _quizGame_addDriveData);
-_quizGame_getDriveMetaData = secure("public", _quizGame_getDriveMetaData);
-_quizGame_getDriveData = secure("public", _quizGame_getDriveData);
+_quizGame_getDriveMetaData = secure("admin", _quizGame_getDriveMetaData);
+_quizGame_getDriveData = secure("admin", _quizGame_getDriveData);
 _quizGame_updateDriveData = secure("admin", _quizGame_updateDriveData);
 _quizGame_addJson = secure("admin", _quizGame_addJson);
-_quizGame_getJson = secure("public", _quizGame_getJson);
+_quizGame_getJson = secure("admin", _quizGame_getJson);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const QUIZ_GAME_HANDLERS: Record<QuizGameEndpointName, (args: any) => Promise<string>> = {

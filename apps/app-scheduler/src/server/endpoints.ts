@@ -142,12 +142,12 @@ _octopusScheduler_doGet = (
   }
 };
 
-// 認可ポリシー。表示・参加者向けの読み取りは公開、書き込みと管理操作は管理者のみ(本番モード)。
+// 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。
 _octopusScheduler_addDriveData = secure("admin", _octopusScheduler_addDriveData);
-_octopusScheduler_getDriveMetaData = secure("public", _octopusScheduler_getDriveMetaData);
-_octopusScheduler_getDriveData = secure("public", _octopusScheduler_getDriveData);
+_octopusScheduler_getDriveMetaData = secure("admin", _octopusScheduler_getDriveMetaData);
+_octopusScheduler_getDriveData = secure("admin", _octopusScheduler_getDriveData);
 _octopusScheduler_updateDriveData = secure("admin", _octopusScheduler_updateDriveData);
-_octopusScheduler_getKeyboardShortcuts = secure("public", _octopusScheduler_getKeyboardShortcuts);
+_octopusScheduler_getKeyboardShortcuts = secure("admin", _octopusScheduler_getKeyboardShortcuts);
 _octopusScheduler_setKeyboardShortcuts = secure("admin", _octopusScheduler_setKeyboardShortcuts);
 
 /**
