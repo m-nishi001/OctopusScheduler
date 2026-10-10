@@ -38,7 +38,6 @@ const tabs = [
   { key: 'members', label: 'メンバー' },
   { key: 'prizes', label: '景品' },
   { key: 'results', label: '抽選結果' },
-  { key: 'remote-control', label: 'リモート操作' },
   { key: 'screens', label: '画面設定' },
 ];
 

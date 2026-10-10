@@ -15,14 +15,12 @@ import OpeningHtml from '../opening/opening-html.vue';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { EndingScreenSetting } from '@model/screen-config/ending-screen-setting';
-import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 
 export default {
     name: 'EndingView',
     components: { MainLayout, Loader, OpeningSequence, OpeningHtml },
     setup() {
-        useRemoteScreenSync();
         // 本番はエンディングで止まる(トップ画面は廃止)。デモのみ設定画面へ戻る。
         const { isDemo } = useJackpotSession();
         const screenSettingsService = container.resolve(ScreenSettingsService);

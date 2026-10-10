@@ -31,13 +31,11 @@ import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { ResultScreenSetting } from '@model/screen-config/result-screen-setting';
-import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
 
 export default {
   name: 'ResultView',
   components: { MainLayout, Loader },
   setup() {
-    useRemoteScreenSync();
     const router = useRouter();
     const session = useJackpotSession();
     const isLoading = ref(true);

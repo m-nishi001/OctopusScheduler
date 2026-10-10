@@ -15,7 +15,7 @@ import type {
   IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
 import type { DriveData, DriveJsonData } from "@octopus/infrastructures/compositions";
-import type { JackpotGameEndpointName, JackpotRemoteScreen } from "./jackpot-api-contract";
+import type { JackpotGameEndpointName } from "./jackpot-api-contract";
 import { JACKPOT_GAME_PREFIX } from "./jackpot-api-contract";
 
 import {
@@ -26,11 +26,6 @@ import {
 } from "./drive-asset-use-cases";
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
-import {
-  advanceRemoteAction,
-  getRemoteControlState,
-  setRemoteScreen,
-} from "./remote-control-use-cases";
 import { secure } from "@octopus/accounts/secure";
 
 function resolveDeps() {
@@ -47,9 +42,6 @@ declare let _jackpotGame_getDriveData: (dataId: string) => Promise<string>;
 declare let _jackpotGame_updateDriveData: (driveData: DriveData) => Promise<string>;
 declare let _jackpotGame_addJson: (driveJson: DriveJsonData) => Promise<string>;
 declare let _jackpotGame_getJson: (fileId?: string) => Promise<string>;
-declare let _jackpotGame_setRemoteScreen: (screen: JackpotRemoteScreen) => Promise<string>;
-declare let _jackpotGame_advanceRemoteAction: () => Promise<string>;
-declare let _jackpotGame_getRemoteControlState: () => Promise<string>;
 
 _jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
   try {
@@ -111,33 +103,6 @@ _jackpotGame_getJson = async (fileId?: string): Promise<string> => {
   }
 };
 
-_jackpotGame_setRemoteScreen = async (screen: JackpotRemoteScreen): Promise<string> => {
-  try {
-    const result = await setRemoteScreen(resolveDeps(), { screen });
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_jackpotGame_advanceRemoteAction = async (): Promise<string> => {
-  try {
-    const result = await advanceRemoteAction(resolveDeps());
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
-_jackpotGame_getRemoteControlState = async (): Promise<string> => {
-  try {
-    const result = await getRemoteControlState(resolveDeps());
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
-};
-
 // 認可ポリシー。表示・参加者向けの読み取りは公開、書き込みと管理操作は管理者のみ(本番モード)。
 _jackpotGame_addDriveData = secure("admin", _jackpotGame_addDriveData);
 _jackpotGame_getDriveMetaData = secure("public", _jackpotGame_getDriveMetaData);
@@ -145,9 +110,6 @@ _jackpotGame_getDriveData = secure("public", _jackpotGame_getDriveData);
 _jackpotGame_updateDriveData = secure("admin", _jackpotGame_updateDriveData);
 _jackpotGame_addJson = secure("admin", _jackpotGame_addJson);
 _jackpotGame_getJson = secure("public", _jackpotGame_getJson);
-_jackpotGame_setRemoteScreen = secure("admin", _jackpotGame_setRemoteScreen);
-_jackpotGame_advanceRemoteAction = secure("admin", _jackpotGame_advanceRemoteAction);
-_jackpotGame_getRemoteControlState = secure("public", _jackpotGame_getRemoteControlState);
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const JACKPOT_GAME_HANDLERS: Record<JackpotGameEndpointName, (args: any) => Promise<string>> = {
@@ -157,9 +119,6 @@ export const JACKPOT_GAME_HANDLERS: Record<JackpotGameEndpointName, (args: any) 
   updateDriveData: _jackpotGame_updateDriveData,
   addJson: _jackpotGame_addJson,
   getJson: _jackpotGame_getJson,
-  setRemoteScreen: _jackpotGame_setRemoteScreen,
-  advanceRemoteAction: _jackpotGame_advanceRemoteAction,
-  getRemoteControlState: _jackpotGame_getRemoteControlState,
 };
 
 export { JACKPOT_GAME_PREFIX };
