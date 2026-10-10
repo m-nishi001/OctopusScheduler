@@ -36,7 +36,7 @@ export class HostAgent {
 
   get active(): boolean {
     const { phase, role } = this.connection.state;
-    return role === "host" && phase !== "idle" && phase !== "ended" && phase !== "unauthorized";
+    return role === "host" && phase !== "idle" && phase !== "ended" && phase !== "unauthorized" && phase !== "replaced";
   }
 
   /**

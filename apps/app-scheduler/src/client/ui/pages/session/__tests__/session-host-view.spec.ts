@@ -183,4 +183,23 @@ describe("session-host-view", () => {
     await settle(10_000);
     expect(wrapper.text()).toContain("セッションは終了しました");
   });
+
+  it("別の端末にホストを引き継がれたら案内を出し、ボタンで引き継ぎ返せる", async () => {
+    const meta = await env.repo.create({ name: "x" });
+    const { agent } = registerHostAgent(env);
+    const { wrapper } = await mountHost(meta.id);
+    expect(agent.active).toBe(true);
+
+    const other = makeDevice(env.hub, { memberId: "admin1" });
+    await other.conn.joinOperator({ sessionId: meta.id, role: "host", label: "別PC", takeover: true });
+    await settle(8000);
+    expect(agent.active).toBe(false);
+    expect(wrapper.find('[data-testid="replaced"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("別の端末がこのセッションのホストを引き継ぎました");
+
+    await wrapper.findAll("button").find((b) => b.text() === "この端末をホストに戻す")!.trigger("click");
+    await settle(100);
+    expect(agent.active).toBe(true);
+    expect(wrapper.find('[data-testid="replaced"]').exists()).toBe(false);
+  });
 });
