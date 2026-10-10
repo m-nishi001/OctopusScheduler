@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { ADMIN_TOKEN, createSession, expect, newDevice, route, test } from "./fixtures";
+import { ADMIN_TOKEN, createSession, expect, joinPortal, newDevice, route, test } from "./fixtures";
 
 /**
  * ジャックポットの本抽選を、ホスト(投影)・管理・参加者の3端末で通しで動かす。
@@ -67,8 +67,7 @@ test.describe("ジャックポットの遠隔進行", () => {
     ]);
 
     const phone = await newDevice(browser, { mobile: true });
-    await phone.page.goto(`/#/portal/${code}`);
-    await expect(phone.page.locator(".portal__session")).toBeVisible();
+    await joinPortal(phone.page, code);
 
     // 管理端末から本抽選の画面を開く
     await adminDev.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
@@ -87,7 +86,7 @@ test.describe("ジャックポットの遠隔進行", () => {
         await stopBtn.click(); // 参加者がスマホで止める
         phoneStopped = true;
       } else {
-        await adminDev.page.getByRole("button", { name: /次へ/ }).click();
+        await adminDev.page.getByTestId("jackpot-panel").getByRole("button", { name: /次へ/ }).click();
       }
       await adminDev.page.waitForTimeout(1500);
     }

@@ -11,8 +11,15 @@
                 <label class="portal__label" for="portal-code">参加コード</label>
                 <input id="portal-code" v-model="codeInput" class="portal__code-input" type="text" inputmode="latin" autocomplete="off"
                     autocapitalize="characters" maxlength="6" placeholder="ABC234" :disabled="joining" />
-                <label class="portal__label" for="portal-name">表示名(任意)</label>
-                <input id="portal-name" v-model="nameInput" class="portal__name-input" type="text" autocomplete="nickname" maxlength="30" :disabled="joining" />
+                <template v-if="members.length > 0">
+                    <label class="portal__label" for="portal-member">あなたの名前(メンバーから選ぶ)</label>
+                    <select id="portal-member" v-model="memberId" class="portal__name-input" :disabled="joining">
+                        <option value="">ゲストとして参加</option>
+                        <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
+                    </select>
+                </template>
+                <label v-if="!memberId" class="portal__label" for="portal-name">表示名(任意)</label>
+                <input v-if="!memberId" id="portal-name" v-model="nameInput" class="portal__name-input" type="text" autocomplete="nickname" maxlength="30" :disabled="joining" />
                 <UiButton type="submit" variant="primary" :loading="joining" :disabled="normalizedCode.length < 6">参加する</UiButton>
                 <p v-if="errorMessage" class="portal__error" role="alert">{{ errorMessage }}</p>
             </form>
@@ -42,6 +49,34 @@
                     <p v-if="jackpot.prize" class="portal__winner-line">🎁 賞品: <strong>{{ jackpot.prize }}</strong></p>
                 </section>
 
+                <section v-if="quiz" class="portal__quiz" data-testid="quiz-panel" aria-live="polite">
+                    <h3 v-if="quiz.title" class="portal__quiz-title">{{ quiz.title }}</h3>
+                    <template v-if="quiz.page === 'play'">
+                        <p class="portal__question">{{ quiz.question }}</p>
+                        <p v-if="quiz.phase === 'answering' && remainingSec !== null" class="portal__timer" data-testid="quiz-timer">残り {{ remainingSec }} 秒</p>
+                        <div class="portal__options" role="group" aria-label="選択肢">
+                            <button v-for="o in quiz.options" :key="o.no" type="button" class="portal__option"
+                                :class="{ 'is-chosen': myAnswer === o.no }" :style="{ '--option-color': o.color || '#3b82f6' }"
+                                :disabled="!canAnswer" :aria-pressed="myAnswer === o.no" @click="answerQuiz(o.no)">
+                                <span class="portal__option-no">{{ o.no }}</span>{{ o.text }}
+                            </button>
+                        </div>
+                        <p v-if="myAnswer !== null" class="portal__answered" data-testid="quiz-answered">回答しました(選択: {{ optionLabel(myAnswer) }})</p>
+                        <p v-else-if="quiz.phase === 'closed' || (remainingSec !== null && remainingSec <= 0)" class="portal__closed" data-testid="quiz-closed">受付は終了しました</p>
+                        <p v-if="quizMessage" class="portal__action" role="alert">{{ quizMessage }}</p>
+                    </template>
+                    <template v-else-if="quiz.page === 'answer'">
+                        <p class="portal__question">{{ quiz.question }}</p>
+                        <p class="portal__correct" data-testid="quiz-correct">正解: {{ correctLabel }}</p>
+                        <p v-if="myAnswer !== null" class="portal__verdict" :class="myAnswer === quiz.correctNo ? 'is-correct' : 'is-wrong'" data-testid="quiz-verdict">
+                            {{ verdictText }}
+                        </p>
+                        <p v-else class="portal__closed">あなたは回答していません</p>
+                    </template>
+                    <p v-else-if="quiz.page === 'result'" class="portal__waiting">結果発表中です。画面をご覧ください。</p>
+                    <p v-else class="portal__waiting">クイズが始まります。しばらくお待ちください。</p>
+                </section>
+
                 <section v-if="inputs.length > 0" class="portal__inputs" aria-label="受付中の操作">
                     <UiButton v-for="key in inputs" :key="key" class="portal__input-btn" variant="primary" :disabled="busyKey !== null"
                         :loading="busyKey === key" @click="send(key)">
@@ -58,9 +93,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { container } from 'tsyringe';
 import { UiButton } from '@octopus/ui-kit';
+import { AccountsRepository } from '@octopus/accounts';
 import { createSessionConnection, parseHubErrorCode, useSessionConnection } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import ConnectionBanner from './components/connection-banner.vue';
@@ -73,6 +110,23 @@ const router = useRouter();
 const { state, connection } = useSessionConnection(props.connection ?? createSessionConnection());
 
 const NAME_KEY = 'octopus.portal.name';
+const MEMBER_KEY = 'octopus.portal.member';
+
+interface QuizOption {
+    no: number;
+    text: string;
+    color: string;
+}
+interface QuizView {
+    page: 'intro' | 'qr' | 'play' | 'answer' | 'result';
+    title: string;
+    roundKey: string | null;
+    deadlineMs: number | null;
+    phase: 'idle' | 'answering' | 'closed';
+    question: string | null;
+    options: QuizOption[];
+    correctNo: number | null;
+}
 
 const codeInput = ref(String(route.params.code ?? '').toUpperCase());
 const nameInput = ref(readName());
@@ -83,6 +137,79 @@ const actionMessage = ref('');
 
 const normalizedCode = computed(() => codeInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase());
 const joined = computed(() => !!state.value.session && (state.value.phase === 'connected' || state.value.phase === 'reconnecting' || state.value.phase === 'joining'));
+// ---- クイズ(回答ラウンド) ----
+const members = ref<Array<{ id: string; name: string }>>([]);
+const memberId = ref(readStored(MEMBER_KEY));
+const myAnswer = ref<number | null>(null);
+const answering = ref(false);
+const quizMessage = ref('');
+const nowMs = ref(Date.now());
+let clock: ReturnType<typeof setInterval> | null = null;
+
+const quiz = computed(() => (state.value.roomState?.data as { quiz?: QuizView } | undefined)?.quiz ?? null);
+/** 締切までの秒数。端末の時計ではなくサーバ時刻との差(serverOffsetMs)で出すので、端末の時計がずれていても揃う。 */
+const remainingSec = computed(() => {
+    const deadline = quiz.value?.deadlineMs;
+    if (deadline === null || deadline === undefined) return null;
+    return Math.max(0, Math.ceil((deadline - (nowMs.value + state.value.serverOffsetMs)) / 1000));
+});
+const canAnswer = computed(
+    () => quiz.value?.phase === 'answering' && (remainingSec.value ?? 0) > 0 && myAnswer.value === null && !answering.value,
+);
+const optionLabel = (no: number): string => {
+    const o = quiz.value?.options.find((x) => x.no === no);
+    return o ? no + '. ' + o.text : String(no);
+};
+const correctLabel = computed(() => (quiz.value?.correctNo != null ? optionLabel(quiz.value.correctNo) : ''));
+const verdictText = computed(() => {
+    if (myAnswer.value === null) return '';
+    return myAnswer.value === quiz.value?.correctNo ? '正解！' : '残念… あなたの回答: ' + optionLabel(myAnswer.value);
+});
+
+const answerStorageKey = (): string | null => {
+    const sessionId = state.value.session?.id;
+    const key = quiz.value?.roundKey;
+    return sessionId && key ? 'octopus.quiz.answer:' + sessionId + ':' + key : null;
+};
+
+// 問題(ラウンド)が変わったら、保存してある自分の回答を読み直す(リロードしても回答済み表示が残る)。
+// 文字列で比較する(配列を返すと、更新のたびに「変わった」と判定されて回答済みの表示や案内が消えてしまう)。
+watch(
+    () => String(state.value.session?.id) + '|' + String(quiz.value?.roundKey),
+    () => {
+        quizMessage.value = '';
+        const k = answerStorageKey();
+        const saved = k ? readStored(k) : '';
+        myAnswer.value = saved ? Number(saved) : null;
+    },
+    { immediate: true },
+);
+
+async function answerQuiz(no: number) {
+    const key = quiz.value?.roundKey;
+    if (!canAnswer.value || !key) return;
+    answering.value = true;
+    quizMessage.value = '';
+    try {
+        const result = await connection.answer(key, no);
+        myAnswer.value = result.no;
+        const k = answerStorageKey();
+        if (k) writeStored(k, String(result.no));
+        if (result.duplicate) quizMessage.value = 'すでに回答済みです(選択: ' + optionLabel(result.no) + ')';
+    } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        const code = parseHubErrorCode(message);
+        quizMessage.value =
+            code === 'ROUND_CLOSED' || code === 'ROUND_NOT_OPEN'
+                ? '受付は終了しました'
+                : code
+                  ? message.replace(/^\[[A-Z_]+\]\s*/, '')
+                  : '通信できませんでした。電波の良い場所で、もう一度押してください';
+    } finally {
+        answering.value = false;
+    }
+}
+
 const jackpot = computed(
     () => (state.value.roomState?.data as { jackpot?: { member: string | null; prize: string | null } } | undefined)?.jackpot ?? null,
 );
@@ -102,20 +229,27 @@ const screenLabel = computed(() => {
     return '';
 });
 
-function readName(): string {
+function readStored(key: string): string {
     try {
-        return localStorage.getItem(NAME_KEY) ?? '';
+        return localStorage.getItem(key) ?? '';
     } catch {
         return '';
     }
 }
 
-function saveName(name: string): void {
+function writeStored(key: string, value: string): void {
     try {
-        localStorage.setItem(NAME_KEY, name);
+        localStorage.setItem(key, value);
     } catch {
-        // 保存できなくても参加には影響しない
+        // 保存できなくても動作には影響しない
     }
+}
+
+function readName(): string {
+    return readStored(NAME_KEY);
+}
+function saveName(name: string): void {
+    writeStored(NAME_KEY, name);
 }
 
 function friendly(e: unknown): string {
@@ -128,9 +262,11 @@ async function join() {
     joining.value = true;
     errorMessage.value = '';
     try {
-        const label = nameInput.value.trim();
-        saveName(label);
-        await connection.joinClient({ code: normalizedCode.value, label: label || undefined });
+        const picked = members.value.find((m) => m.id === memberId.value);
+        const label = (picked ? picked.name : nameInput.value).trim();
+        if (picked) writeStored(MEMBER_KEY, picked.id);
+        else saveName(label);
+        await connection.joinClient({ code: normalizedCode.value, label: label || undefined, memberId: picked?.id });
         // URL のコードを揃えておく(リロードしても同じコードで復帰できる)
         if (route.params.code !== normalizedCode.value) await router.replace(`/portal/${normalizedCode.value}`);
     } catch (e) {
@@ -174,6 +310,9 @@ async function send(key: string) {
 }
 
 onMounted(() => {
+    clock = setInterval(() => {
+        nowMs.value = Date.now();
+    }, 250);
     const routeCode = String(route.params.code ?? '').toUpperCase();
     // 保存済みの入室情報があり、URLのコードが無い/同じならそのまま復帰する(誤リロード対策)。
     if (connection.resume('client')) {
@@ -185,7 +324,22 @@ onMounted(() => {
         }
         return;
     }
-    if (normalizedCode.value.length === 6) void join();
+    void (async () => {
+        // 参加者名簿(メンバー)。選ぶと回答が個人に紐づき、クイズの順位に名前が出る。取得できなくてもゲスト参加できる。
+        try {
+            const list = await container.resolve(AccountsRepository).listMembers();
+            members.value = list.map((m) => ({ id: m.id, name: m.name }));
+            if (!members.value.some((m) => m.id === memberId.value)) memberId.value = '';
+        } catch {
+            // 名簿が取れなくてもゲストとして参加できる
+        }
+        // URL(QR)のコードで開いた場合、名簿があれば名前を選ぶ画面を出す(自動参加すると必ずゲストになるため)。
+        if (members.value.length === 0 && normalizedCode.value.length === 6) void join();
+    })();
+});
+
+onUnmounted(() => {
+    if (clock) clearInterval(clock);
 });
 
 watch(
@@ -215,6 +369,21 @@ watch(
 .portal__input-btn { min-height: 64px; font-size: 1.2rem; }
 .portal__winner { padding: 12px 16px; border-radius: 12px; background: rgba(255, 215, 64, 0.15); }
 .portal__winner-line { margin: 4px 0; font-size: 1.2rem; }
+.portal__quiz { display: flex; flex-direction: column; gap: 10px; }
+.portal__quiz-title { margin: 0; font-size: 1rem; opacity: 0.8; }
+.portal__question { margin: 0; font-size: 1.25rem; font-weight: 700; line-height: 1.5; }
+.portal__timer { margin: 0; font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #ffd54f; }
+.portal__options { display: flex; flex-direction: column; gap: 10px; }
+.portal__option { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 16px; border-radius: 12px; border: 3px solid var(--option-color); background: color-mix(in srgb, var(--option-color) 25%, #1a1d23); color: #fff; font: inherit; font-size: 1.1rem; font-weight: 700; text-align: left; cursor: pointer; }
+.portal__option:disabled { opacity: 0.55; cursor: default; }
+.portal__option.is-chosen { opacity: 1; background: var(--option-color); box-shadow: 0 0 0 3px #fff; }
+.portal__option-no { display: inline-flex; width: 1.8em; height: 1.8em; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255, 255, 255, 0.2); }
+.portal__answered { margin: 0; font-weight: 700; color: #81c784; }
+.portal__closed { margin: 0; opacity: 0.8; }
+.portal__correct { margin: 0; font-size: 1.3rem; font-weight: 800; color: #ffd54f; }
+.portal__verdict { margin: 0; font-size: 1.4rem; font-weight: 800; }
+.portal__verdict.is-correct { color: #81c784; }
+.portal__verdict.is-wrong { color: #ff8a80; }
 .portal__waiting { opacity: 0.7; }
 .portal__action { margin: 0; }
 </style>

@@ -1,6 +1,7 @@
 import { container } from "tsyringe";
 import type { Router } from "vue-router";
 import { HostAgent, isAllowedHostPath } from "@octopus/session-hub";
+import { prepareHostData } from "./prepare-host-data";
 
 /** 管理端末の `session.navigate` で受け取るペイロード。 */
 interface NavigatePayload {
@@ -21,14 +22,17 @@ export function setupHostAgent(router: Router): HostAgent {
     if (command.type !== "navigate") return;
     const path = (command.payload as NavigatePayload | null)?.path;
     if (!isAllowedHostPath(path)) return;
-    if (router.currentRoute.value.fullPath === path) return;
-    await router.push(path);
+    // クイズの表示ルートは /execute 配下にだけ登録されている(ジャックポットは jackpot- 接頭辞で自動解決される)。
+    const target = path.startsWith("/quiz/") ? `/execute${path}` : path;
+    if (router.currentRoute.value.fullPath === target) return;
+    await router.push(target);
   });
 
   router.afterEach((to) => {
     if (agent.active) void agent.publishSlice("session", { path: to.fullPath });
   });
 
-  agent.restore();
+  // リロード後に自動でホストへ復帰したときも、各ゲームのデータを取り込み直す(失敗しても本番の進行は止めない)。
+  if (agent.restore()) void prepareHostData();
   return agent;
 }

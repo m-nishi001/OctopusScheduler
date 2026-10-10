@@ -61,6 +61,39 @@
                     </div>
                 </div>
 
+                <h2 class="console__h2">クイズ</h2>
+                <div class="console__quiz" data-testid="quiz-panel">
+                    <label class="console__quiz-select">
+                        クイズ
+                        <select v-model="selectedQuizId" :disabled="quizzes.length === 0" data-testid="quiz-select">
+                            <option v-if="quizzes.length === 0" value="">{{ quizLoading ? '読み込み中…' : 'クイズがありません' }}</option>
+                            <option v-for="q in quizzes" :key="q.id" :value="q.id">{{ q.title || q.question }}</option>
+                        </select>
+                    </label>
+                    <div class="console__presets">
+                        <UiButton v-for="p in quizPages" :key="p.page" :disabled="busyPath !== null || !canSend || !selectedQuizId"
+                            :loading="busyPath === quizPath(p.page)" @click="navigate(quizPath(p.page))">
+                            {{ p.label }}
+                        </UiButton>
+                    </div>
+                    <p class="console__sub" data-testid="quiz-state">
+                        <template v-if="quizState">
+                            {{ quizPageLabel }}<template v-if="quizState.phase === 'answering'"> ・ 回答受付中</template>
+                            <template v-if="roundSummary"> ・ 回答 {{ roundSummary.answerCount }} 人</template>
+                        </template>
+                        <template v-else>クイズの画面を開くと、ここに進行状況が表示されます。</template>
+                    </p>
+                    <div class="console__presets">
+                        <UiButton variant="primary" :disabled="busyQuiz !== null || !canSend" :loading="busyQuiz === 'advance'" @click="sendQuiz('advance')">
+                            ▶ 次へ(Enterキー相当)
+                        </UiButton>
+                        <UiButton variant="danger" :disabled="busyQuiz !== null || !canSend || quizState?.phase !== 'answering'"
+                            :loading="busyQuiz === 'closeAnswers'" @click="sendQuiz('closeAnswers')">
+                            ⏹ 受付を今すぐ締め切る
+                        </UiButton>
+                    </div>
+                </div>
+
                 <h2 class="console__h2">操作ログ</h2>
                 <ol class="console__log" data-testid="log">
                     <li v-for="c in log" :key="c.seq">
@@ -80,6 +113,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { container } from 'tsyringe';
+import { GetAllQuizzesUseCase, QuizSyncService } from '@octopus/game-quiz';
 import { PageShell, UiButton, toast } from '@octopus/ui-kit';
 import { createSessionConnection, lobbyPath, parseHubErrorCode, useSessionConnection } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
@@ -101,6 +136,10 @@ const joining = ref(false);
 const errorMessage = ref('');
 const busyPath = ref<string | null>(null);
 const busyJackpot = ref<'advance' | 'stopRoulette' | null>(null);
+const busyQuiz = ref<'advance' | 'closeAnswers' | null>(null);
+const quizzes = ref<Array<{ id: string; title: string; question: string }>>([]);
+const quizLoading = ref(false);
+const selectedQuizId = ref('');
 const nowMs = ref(Date.now());
 
 const isDemo = computed(() => state.value.session?.mode === 'demo');
@@ -133,6 +172,22 @@ const phaseLabel = computed(() => {
     const phase = jackpot.value?.phase;
     return phase === 'member' ? 'メンバー抽選' : phase === 'prize' ? '賞品抽選' : '待機中';
 });
+interface QuizState {
+    page: string;
+    phase: string;
+}
+const quizState = computed(() => (state.value.roomState?.data?.quiz as QuizState | undefined) ?? null);
+const roundSummary = computed(() => state.value.round);
+const QUIZ_PAGE_LABELS: Record<string, string> = { intro: 'イントロ', qr: 'QR表示', play: '出題中', answer: '正解発表', result: '結果発表' };
+const quizPageLabel = computed(() => QUIZ_PAGE_LABELS[quizState.value?.page ?? ''] ?? '');
+const quizPages = [
+    { page: 'intro', label: 'イントロ' },
+    { page: 'qr', label: 'QR' },
+    { page: 'play', label: '出題' },
+    { page: 'answer', label: '正解' },
+    { page: 'result', label: '結果' },
+];
+const quizPath = (page: string): string => q(`/quiz/${selectedQuizId.value}/${page}`);
 const log = computed(() => [...state.value.recentCommands].reverse().slice(0, 15));
 const canSend = computed(() => state.value.phase === 'connected' || state.value.phase === 'reconnecting');
 
@@ -167,6 +222,38 @@ async function navigate(path: string) {
     }
 }
 
+async function sendQuiz(type: 'advance' | 'closeAnswers') {
+    if (busyQuiz.value !== null) return;
+    busyQuiz.value = type;
+    try {
+        await connection.issue('quiz', type);
+    } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        toast.error(parseHubErrorCode(message) ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
+    } finally {
+        busyQuiz.value = null;
+    }
+}
+
+/** クイズの一覧。この端末に無ければ Drive から取り込んで読み直す(スマホの管理端末は初回は空のため)。 */
+async function loadQuizzes() {
+    quizLoading.value = true;
+    try {
+        const list = container.resolve(GetAllQuizzesUseCase);
+        let all = await list.execute();
+        if (all.length === 0) {
+            await container.resolve(QuizSyncService).syncAll();
+            all = await list.execute();
+        }
+        quizzes.value = all.map((x) => ({ id: x.id, title: x.title, question: x.question }));
+        if (!selectedQuizId.value && quizzes.value.length > 0) selectedQuizId.value = quizzes.value[0].id;
+    } catch {
+        quizzes.value = [];
+    } finally {
+        quizLoading.value = false;
+    }
+}
+
 async function sendJackpot(type: 'advance' | 'stopRoulette') {
     if (busyJackpot.value !== null) return;
     busyJackpot.value = type;
@@ -187,6 +274,7 @@ onMounted(() => {
     }, 1000);
     // リロード後は保存済みの入室情報から復帰(同じセッションのときだけ)。無ければ入室する。
     void join();
+    void loadQuizzes();
 });
 onUnmounted(() => {
     if (clock) clearInterval(clock);
@@ -206,6 +294,9 @@ onUnmounted(() => {
 .console__error { margin: 0; color: #ff8a80; }
 .console__h2 { margin: 8px 0 0; font-size: 1rem; }
 .console__presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.console__quiz { display: flex; flex-direction: column; gap: 8px; }
+.console__quiz-select { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; max-width: 28em; }
+.console__quiz-select select { font: inherit; padding: 8px; border-radius: 6px; background: var(--ui-surface, #2b3036); color: inherit; border: 1px solid var(--ui-border, #3a4048); }
 .console__log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .console__log li { display: flex; gap: 12px; align-items: baseline; }
 .console__seq { font-variant-numeric: tabular-nums; opacity: 0.6; }

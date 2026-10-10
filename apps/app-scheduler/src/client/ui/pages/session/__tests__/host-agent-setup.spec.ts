@@ -56,6 +56,22 @@ describe("setupHostAgent: session.navigate", () => {
     expect(router.currentRoute.value.fullPath).toBe(`/session/host/${meta.id}`);
   });
 
+  it("クイズの表示画面(/quiz/...)は /execute 配下のルートへ遷移する", async () => {
+    const meta = await env.repo.create({ name: "q" });
+    const { agent, device } = registerHostAgent(env);
+    const router = makeRouter("/session/host/" + meta.id);
+    router.addRoute({ path: "/execute/quiz/:id/play", component: { render: () => null } });
+    await router.isReady();
+    setupHostAgent(router);
+    await agent.connection.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
+    const admin = makeDevice(env.hub, { memberId: "admin2" });
+    await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
+    await admin.conn.issue("session", "navigate", { path: "/quiz/q1/play" });
+    await settle(5000);
+    expect(router.currentRoute.value.fullPath).toBe("/execute/quiz/q1/play");
+    void device;
+  });
+
   it("すでに同じ画面なら遷移しない(重複ナビゲーション警告を出さない)", async () => {
     const { router, admin } = await hostedScene();
     await admin.conn.issue("session", "navigate", { path: "/jackpot-opening" });

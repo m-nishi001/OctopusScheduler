@@ -1,4 +1,4 @@
-import { ADMIN_ID, ADMIN_PASSWORD, createSession, expect, newDevice, route, test } from "./fixtures";
+import { ADMIN_ID, ADMIN_PASSWORD, createSession, expect, joinPortal, newDevice, route, test } from "./fixtures";
 
 /**
  * ホスト(投影)・管理・参加者の3種類の端末を、別々のブラウザコンテキストとして同時に動かす。
@@ -122,7 +122,7 @@ test.describe("ホスト・管理・参加者の通し", () => {
     await expect(host.page.locator(".host-view__title")).toBeVisible();
 
     const phone = await newDevice(browser, { mobile: true });
-    await phone.page.goto(`/#/portal/${code}`); // QR から開いた想定
+    await joinPortal(phone.page, code); // QR から開いた想定
     await expect(phone.page.locator(".portal__session")).toContainText("復帰会場");
     await expect(host.page.locator(".host-view__presence")).toContainText("参加者 1 人");
 
@@ -144,7 +144,7 @@ test.describe("ホスト・管理・参加者の通し", () => {
     const adminDev = await newDevice(browser, { signedIn: true });
     const { code } = await createSession(adminDev.page, "多人数会場");
     const phones = await Promise.all(Array.from({ length: 5 }, () => newDevice(browser, { mobile: true })));
-    await Promise.all(phones.map((p) => p.page.goto(`/#/portal/${code}`)));
+    await Promise.all(phones.map((p) => joinPortal(p.page, code)));
     for (const p of phones) await expect(p.page.locator(".portal__session")).toContainText("多人数会場");
     await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 5 人");
     // 1人が退出すると減る
@@ -190,8 +190,7 @@ test.describe("ホストの引き継ぎと終了", () => {
     const host = await newDevice(browser, { signedIn: true, projector: true });
     await host.page.goto(`/#/session/host/${id}`);
     const phone = await newDevice(browser, { mobile: true });
-    await phone.page.goto(`/#/portal/${code}`);
-    await expect(phone.page.locator(".portal__session")).toBeVisible();
+    await joinPortal(phone.page, code);
 
     // 一覧の画面から終了(確認ダイアログあり)
     const lister = await newDevice(browser, { signedIn: true });
@@ -210,6 +209,8 @@ test.describe("ホストの引き継ぎと終了", () => {
     // 終了済みのコードでは参加できない
     const late = await newDevice(browser, { mobile: true });
     await late.page.goto(`/#/portal/${code}`);
+    const joinButton = late.page.getByRole("button", { name: "参加する" });
+    if (await joinButton.isVisible().catch(() => false)) await joinButton.click();
     await expect(late.page.getByRole("alert")).toContainText("参加コードが見つかりません");
     for (const d of [adminDev, host, phone, lister, late]) await d.context.close();
   });
@@ -248,7 +249,7 @@ test.describe("異常系・環境差", () => {
 
     const phone = await newDevice(browser, { mobile: true });
     await phone.context.route("**/ws/**", (r) => r.abort()); // 社内ネットワーク等で WebSocket が遮断されている想定
-    await phone.page.goto(`/#/portal/${code}`);
+    await joinPortal(phone.page, code);
     await expect(phone.page.locator(".portal__session")).toContainText("WS不可会場");
     // ポーリングへ切り替わった後も、人数が反映される
     await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 1 人", { timeout: 40_000 });
@@ -281,8 +282,7 @@ test.describe("異常系・環境差", () => {
     const adminDev = await newDevice(browser, { signedIn: true });
     const { code } = await createSession(adminDev.page, "オフライン会場");
     const phone = await newDevice(browser, { mobile: true });
-    await phone.page.goto(`/#/portal/${code}`);
-    await expect(phone.page.locator(".portal__session")).toBeVisible();
+    await joinPortal(phone.page, code);
 
     await phone.context.setOffline(true);
     // 切断を検知して「再接続中」と表示する(画面は壊れず、セッション名は表示されたまま)
