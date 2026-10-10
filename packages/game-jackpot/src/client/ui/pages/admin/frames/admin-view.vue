@@ -2,7 +2,9 @@
   <PageShell title="管理画面" :tabs="tabs" :active-key="activeKey" @select="router.push(`${BASE}/${$event}`)">
     <template #actions>
       <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError"
-        @backup="onDownloadBackup" @home="router.push('/jackpot-home')" />
+        @backup="onDownloadBackup" @home="router.push('/home')">
+        <UiButton icon="play" size="sm" @click="startDemo">デモ実行</UiButton>
+      </HeaderActions>
     </template>
     <template v-if="activeKey === 'screens'" #subtabs>
       <router-link v-for="s in screenTabs" :key="s.path" :to="`${BASE}/screens/${s.path}`" class="sub-link"
@@ -15,7 +17,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { HeaderActions, PageShell } from '@octopus/ui-kit';
+import { HeaderActions, PageShell, UiButton } from '@octopus/ui-kit';
+import { DEMO_QUERY_KEY, setJackpotScope } from '@model/jackpot-session';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
@@ -23,6 +26,12 @@ const BASE = '/jackpot-admin';
 const router = useRouter();
 const route = useRoute();
 const { status, lastError } = useBackgroundSync();
+
+// 管理画面は常に本番(live)スコープ。デモ実行後に戻ってきた場合もここで戻す。
+setJackpotScope('live');
+
+// 設定画面からの動作確認用。抽選結果・確変状態はデモ専用ストアに分離される。
+const startDemo = () => router.push({ path: '/jackpot-opening', query: { [DEMO_QUERY_KEY]: '1' } });
 
 const tabs = [
   { key: 'assets', label: 'アセット' },
@@ -34,7 +43,6 @@ const tabs = [
 ];
 
 const screenTabs = [
-  { path: 'home', label: 'ホーム' },
   { path: 'opening', label: 'オープニング' },
   { path: 'description', label: '説明' },
   { path: 'demo', label: 'デモ抽選' },

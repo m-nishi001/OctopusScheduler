@@ -34,6 +34,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import Loader from '../common/loader.vue';
 import { useRouter } from 'vue-router';
+import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { container } from 'tsyringe';
 import { PrizeRepository } from '@model/prize/prize-repository';
@@ -48,6 +49,7 @@ export default {
   setup() {
     useRemoteScreenSync();
     const router = useRouter();
+    const session = useJackpotSession();
 
     const demoConfig = ref<DemoScreenSetting | null>(null);
     const screenSettingsService = container.resolve(ScreenSettingsService);
@@ -135,7 +137,7 @@ export default {
 
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && drawn.value) {
-        router.push('/main-draw');
+        router.push(session.to('/main-draw'));
       }
     };
     onMounted(() => window.addEventListener('keydown', handleKey));

@@ -1,8 +1,8 @@
 <template>
     <MainLayout :fullScreen="true">
         <Loader v-if="!screenConfig" label="読み込み中..." />
-        <OpeningSequence v-if="screenConfig" :screenConfig="convertedConfig" :bgm="bgm" :autoNavigate="true"
-            :nextRoute="'/jackpot-home'" />
+        <OpeningSequence v-if="screenConfig" :screenConfig="convertedConfig" :bgm="bgm" :autoNavigate="isDemo"
+            :nextRoute="'/jackpot-admin'" />
     </MainLayout>
 </template>
 
@@ -16,12 +16,15 @@ import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { EndingScreenSetting } from '@model/screen-config/ending-screen-setting';
 import { useRemoteScreenSync } from '../../composables/use-remote-screen-sync';
+import { useJackpotSession } from '../../composables/use-jackpot-session';
 
 export default {
     name: 'EndingView',
     components: { MainLayout, Loader, OpeningSequence, OpeningHtml },
     setup() {
         useRemoteScreenSync();
+        // 本番はエンディングで止まる(トップ画面は廃止)。デモのみ設定画面へ戻る。
+        const { isDemo } = useJackpotSession();
         const screenSettingsService = container.resolve(ScreenSettingsService);
         const screenConfig = ref<any | null>(null);
         const bgm = ref<HTMLAudioElement | null>(null);
@@ -65,7 +68,7 @@ export default {
             }
         });
 
-        return { screenConfig, isHtmlFullscreen, htmlElement, bgm, convertedConfig };
+        return { screenConfig, isHtmlFullscreen, htmlElement, bgm, convertedConfig, isDemo };
     }
 };
 </script>

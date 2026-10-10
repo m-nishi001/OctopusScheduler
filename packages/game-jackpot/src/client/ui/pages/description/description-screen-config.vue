@@ -13,6 +13,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
+import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { DescriptionScreenSetting } from '@model/screen-config/description-screen-setting';
@@ -22,6 +23,7 @@ export default {
 	components: { MainLayout },
 	setup() {
 		const router = useRouter();
+		const session = useJackpotSession();
 
 		const descriptionConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenSettingsService = container.resolve(ScreenSettingsService);
@@ -52,7 +54,7 @@ export default {
 		};		// Enterキーで次へ
 		const handleKey = (e: KeyboardEvent) => {
 			if (e.key === 'Enter') {
-				router.push('/jackpot-demo');
+				router.push(session.to('/jackpot-demo'));
 			}
 		};
 		onMounted(() => window.addEventListener('keydown', handleKey));

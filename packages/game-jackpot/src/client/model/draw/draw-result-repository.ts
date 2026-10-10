@@ -1,13 +1,17 @@
 import { injectable } from "tsyringe";
 import type { DrawResultDto } from "../../control/draw/dto/draw-result-dto";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { getJackpotScope, scopedStoreName } from "../jackpot-session";
 
 @injectable()
 export class DrawResultRepository {
-  private readonly localStorage = new LocalStorageService(
-    "jackpot-game",
-    "DrawResultData"
-  );
+  /** 現在のスコープ(live/demo)に応じたストアを返す。 */
+  private get localStorage(): LocalStorageService {
+    return new LocalStorageService(
+      "jackpot-game",
+      scopedStoreName("DrawResultData", getJackpotScope())
+    );
+  }
 
   async getDrawResults(): Promise<DrawResultDto[]> {
     const allResults = await this.localStorage.getAll<DrawResultDto>();
