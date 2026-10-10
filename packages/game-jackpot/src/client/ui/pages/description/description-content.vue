@@ -55,6 +55,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
+import { useJackpotSession } from '../../composables/use-jackpot-session';
 import type { ScreenElement } from '@model/screen-config/description-screen-setting';
 import { DescriptionScreenSetting } from '@model/screen-config/description-screen-setting';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
@@ -67,6 +68,7 @@ export default {
 	setup() {
 		useRemoteScreenSync();
 		const router = useRouter();
+		const session = useJackpotSession();
 
 		const screenConfig = ref<DescriptionScreenSetting | null>(null);
 		const screenSettingsService = container.resolve(ScreenSettingsService);
@@ -157,7 +159,7 @@ export default {
 				if (bgmAudio.value) {
 					bgmAudio.value.pause();
 				}
-				router.push('/jackpot-draw');
+				router.push(session.to('/jackpot-draw'));
 			}
 		};
 		const handleKey = (e: KeyboardEvent) => {

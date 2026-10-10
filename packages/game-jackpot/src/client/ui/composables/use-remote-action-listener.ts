@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { usePolling } from "@octopus/composables";
 import { RemoteControlRepository } from "@model/remote-control/remote-control-repository";
 import { shouldFireRemoteAdvance } from "@model/remote-control/remote-control-sync";
+import { useJackpotSession } from "./use-jackpot-session";
 
 const POLL_INTERVAL_MS = 1000;
 
@@ -17,6 +18,8 @@ const POLL_INTERVAL_MS = 1000;
  * unmount後もポーリングが止まらなくなる。
  */
 export function useRemoteActionListener(onAdvance: () => void): void {
+  // デモ中は本番のリモート操作と干渉させない
+  if (useJackpotSession().isDemo) return;
   const repo = container.resolve(RemoteControlRepository);
   const lastSeq = ref<number | null>(null);
 

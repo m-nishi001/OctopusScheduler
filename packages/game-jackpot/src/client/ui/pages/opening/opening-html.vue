@@ -7,6 +7,7 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import { useJackpotSession } from '../../composables/use-jackpot-session';
 
 export default {
     name: 'OpeningHtml',
@@ -16,6 +17,7 @@ export default {
     },
     setup(props: any) {
         const router = useRouter();
+        const session = useJackpotSession();
         const contentHtml = ref('');
 
         const escapeHtml = (str: string) =>
@@ -61,7 +63,7 @@ export default {
             const durationMs = props.element.animation?.duration || 3000;
             setTimeout(() => {
                 props.bgm?.pause();
-                router.push('/jackpot-description');
+                router.push(session.to('/jackpot-description'));
             }, durationMs);
         });
 

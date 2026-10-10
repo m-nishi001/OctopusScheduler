@@ -2,7 +2,6 @@ import type { JackpotRemoteScreen } from "./remote-control-repository";
 
 /** リモート制御の画面キーと実際のルートパスの対応。 */
 export const REMOTE_SCREEN_ROUTES: Record<JackpotRemoteScreen, string> = {
-  home: "/jackpot-home",
   opening: "/jackpot-opening",
   description: "/jackpot-description",
   demo: "/jackpot-demo",

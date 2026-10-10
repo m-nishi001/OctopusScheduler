@@ -23,6 +23,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import gsap from 'gsap';
 import { useRouter } from 'vue-router';
+import { useJackpotSession } from '../../composables/use-jackpot-session';
 
 export default {
     name: 'OpeningSequence',
@@ -34,6 +35,7 @@ export default {
     },
     setup(props: any) {
         const router = useRouter();
+        const session = useJackpotSession();
         const containerEl = ref<HTMLElement | null>(null);
         const scrollContent = ref<HTMLElement | null>(null);
         const currentIndex = ref<number>(-1);
@@ -178,7 +180,7 @@ export default {
             if (!cancelled && props.autoNavigate) {
                 // Hide all elements before navigating to prevent visual artifacts
                 elements.forEach(el => gsap.set(el, { opacity: 0 }));
-                router.push(props.nextRoute);
+                router.push(session.to(props.nextRoute));
             }
         };
 

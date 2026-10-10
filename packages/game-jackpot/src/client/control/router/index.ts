@@ -1,4 +1,3 @@
-import HomeView from "../../ui/pages/home/home.vue";
 import DrawOrchestrator from "../../ui/pages/main-draw/draw-orchestrator-view.vue";
 import ResultView from "../../ui/pages/result/result-view.vue";
 import HistoryView from "../../ui/pages/result/history-view.vue";
@@ -9,7 +8,6 @@ import DemoDraw from "../../ui/pages/demo/demo-draw.vue";
 import AdminLayout from "../../ui/pages/admin/frames/admin-view.vue";
 import AdminMembers from "../../ui/pages/admin/admin-members.vue";
 import AdminPrizes from "../../ui/pages/admin/prizes/admin-prizes.vue";
-import HomeScreenConfig from "../../ui/pages/admin/screen-config/home-screen-config.vue";
 import OpeningScreenConfig from "../../ui/pages/admin/screen-config/opening-screen-config.vue";
 import DescriptionScreenConfig from "../../ui/pages/admin/screen-config/description-screen-config.vue";
 import DemoScreenConfig from "../../ui/pages/admin/screen-config/demo-screen-config.vue";
@@ -21,7 +19,6 @@ import AdminResults from "../../ui/pages/admin/admin-results.vue";
 import AdminRemoteControl from "../../ui/pages/admin/remote-control/admin-remote-control.vue";
 
 const jackpotGameRoutes = [
-  { path: "/jackpot-home", component: HomeView },
   { path: "/jackpot-draw", component: DrawOrchestrator },
   { path: "/jackpot-result", component: ResultView },
   { path: "/jackpot-history", component: HistoryView },
@@ -43,7 +40,6 @@ const jackpotGameRoutes = [
           path: `${to.path.replace(/\/$/, "")}/opening`,
         }),
       },
-      { path: "screens/home", component: HomeScreenConfig },
       { path: "screens/opening", component: OpeningScreenConfig },
       { path: "screens/description", component: DescriptionScreenConfig },
       { path: "screens/demo", component: DemoScreenConfig },

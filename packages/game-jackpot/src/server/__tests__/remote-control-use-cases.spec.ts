@@ -55,7 +55,7 @@ describe("remote-control-use-cases", () => {
   it("switching screens preserves the current actionSeq", async () => {
     const storage = new InMemoryKeyValueStorage();
     const now = stubClock([1000, 2000, 3000]);
-    await setRemoteScreen({ storage, now }, { screen: "home" });
+    await setRemoteScreen({ storage, now }, { screen: "description" });
     await advanceRemoteAction({ storage, now });
 
     const state = await setRemoteScreen({ storage, now }, { screen: "opening" });

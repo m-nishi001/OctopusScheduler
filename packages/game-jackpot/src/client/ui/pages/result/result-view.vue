@@ -26,6 +26,7 @@ import { DrawResultService } from '@control/draw/draw-result-service';
 import MainLayout from '../common/main-layout.vue';
 import Loader from '../common/loader.vue';
 import { useRouter } from 'vue-router';
+import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -38,6 +39,7 @@ export default {
   setup() {
     useRemoteScreenSync();
     const router = useRouter();
+    const session = useJackpotSession();
     const isLoading = ref(true);
     const winners = ref<any[]>([]);
     const specialWinner = ref<any | undefined>(undefined);
@@ -109,7 +111,7 @@ export default {
       if (e.key === 'Enter' && !fadeOut.value) {
         fadeOut.value = true;
         setTimeout(() => {
-          router.push('/jackpot-ending');
+          router.push(session.to('/jackpot-ending'));
         }, 1200);
       }
     };

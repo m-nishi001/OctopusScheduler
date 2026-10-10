@@ -39,7 +39,7 @@ const goToSettings = () => router.push({ name: 'settings' });
 const goToExecute = () => router.push('/execute');
 const goToJackpotGame = () => {
     // Navigate to the jackpot page within the same tab
-    router.push('/jackpot-home');
+    router.push('/jackpot-admin');
 };
 const goToQuizGame = () => {
     // Navigate to the quiz admin page within the same tab

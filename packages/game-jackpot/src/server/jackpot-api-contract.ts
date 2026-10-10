@@ -27,7 +27,6 @@ export const JACKPOT_GAME_ENDPOINTS = [
  * リモート制御するための対象画面。演出画面側はこの値に応じて画面遷移する。
  */
 export const JACKPOT_REMOTE_SCREENS = [
-  "home",
   "opening",
   "description",
   "demo",

@@ -50,7 +50,6 @@ import {
 const POLL_INTERVAL_MS = 2000;
 
 const screenOptions: { key: JackpotRemoteScreen; label: string }[] = [
-  { key: 'home', label: 'ホーム' },
   { key: 'opening', label: 'オープニング' },
   { key: 'description', label: '説明' },
   { key: 'demo', label: 'デモ抽選' },

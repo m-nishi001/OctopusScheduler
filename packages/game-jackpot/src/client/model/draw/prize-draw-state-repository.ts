@@ -1,14 +1,18 @@
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { injectable } from "tsyringe";
+import { getJackpotScope, scopedStoreName } from "../jackpot-session";
 
 export type PrizeDrawState = number[]; // indices when kakuhen should trigger (1-based)
 
 @injectable()
 export class PrizeDrawStateRepository {
-  private readonly localStorage = new LocalStorageService(
-    "jackpot-game",
-    "PrizeDrawState"
-  );
+  /** 現在のスコープ(live/demo)に応じたストアを返す。 */
+  private get localStorage(): LocalStorageService {
+    return new LocalStorageService(
+      "jackpot-game",
+      scopedStoreName("PrizeDrawState", getJackpotScope())
+    );
+  }
 
   async getState(): Promise<PrizeDrawState | null> {
     const s = (await this.localStorage.get<PrizeDrawState>("state")) || null;

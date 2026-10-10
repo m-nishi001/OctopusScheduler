@@ -7,7 +7,6 @@ import {
 
 describe("resolveScreenFromPath", () => {
   it("resolves each canonical route to its screen key", () => {
-    expect(resolveScreenFromPath("/jackpot-home")).toBe("home");
     expect(resolveScreenFromPath("/jackpot-opening")).toBe("opening");
     expect(resolveScreenFromPath("/jackpot-description")).toBe("description");
     expect(resolveScreenFromPath("/jackpot-demo")).toBe("demo");
@@ -28,11 +27,11 @@ describe("resolveScreenFromPath", () => {
 
 describe("shouldNavigateToRemoteScreen", () => {
   it("never navigates when no remote screen has been set", () => {
-    expect(shouldNavigateToRemoteScreen("/jackpot-home", null)).toBe(false);
+    expect(shouldNavigateToRemoteScreen("/jackpot-opening", null)).toBe(false);
   });
 
   it("navigates when the current path does not match the target screen", () => {
-    expect(shouldNavigateToRemoteScreen("/jackpot-home", "opening")).toBe(
+    expect(shouldNavigateToRemoteScreen("/jackpot-description", "opening")).toBe(
       true
     );
   });

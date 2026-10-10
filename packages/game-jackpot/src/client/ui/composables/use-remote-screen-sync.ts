@@ -7,6 +7,8 @@ import {
   shouldNavigateToRemoteScreen,
 } from "@model/remote-control/remote-control-sync";
 
+import { useJackpotSession } from "./use-jackpot-session";
+
 const POLL_INTERVAL_MS = 2000;
 
 /**
@@ -16,6 +18,8 @@ const POLL_INTERVAL_MS = 2000;
  * 既存のローカル画面遷移を一切妨げない。
  */
 export function useRemoteScreenSync(): void {
+  // デモ中は本番のリモート操作と干渉させない
+  if (useJackpotSession().isDemo) return;
   const router = useRouter();
   const route = useRoute();
   const repo = container.resolve(RemoteControlRepository);

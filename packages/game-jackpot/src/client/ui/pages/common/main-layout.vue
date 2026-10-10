@@ -3,19 +3,49 @@
     <main :class="{ 'full-screen': fullScreen }">
       <slot />
     </main>
+    <button v-if="isDemo" type="button" class="demo-exit" @click="exitDemo">デモ終了</button>
   </div>
 </template>
 
 <script lang="ts">
+import { useRouter } from 'vue-router';
+import { useJackpotSession } from '../../composables/use-jackpot-session';
+
 export default {
   name: 'MainLayout',
   props: {
     fullScreen: { type: Boolean, default: false },
   },
+  setup() {
+    const router = useRouter();
+    const { isDemo } = useJackpotSession();
+    // デモはどの画面からでも設定画面へ戻れるようにする(本抽選以降はリモート操作でしか進めないため)。
+    const exitDemo = () => router.push('/jackpot-admin');
+    return { isDemo, exitDemo };
+  },
 };
 </script>
 
 <style scoped>
+.demo-exit {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.demo-exit:hover {
+  opacity: 1;
+}
+
 .main-layout {
   min-height: 100vh;
   background: #000;
