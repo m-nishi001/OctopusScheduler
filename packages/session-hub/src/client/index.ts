@@ -2,12 +2,16 @@
 export * from "../shared";
 export { Container as SessionHubContainer, createSessionConnection } from "./control/container";
 export { SessionConnection } from "./model/session-connection";
+export { HostAgent } from "./model/host-agent";
+export { HostCommandRouter } from "./model/host-command-router";
+export type { CommandHandler } from "./model/host-command-router";
+export { SessionAdminRepository } from "./model/session-admin-repository";
 export type { ConnectionOptions, ConnectionPhase, ConnectionState } from "./model/session-connection";
 export { PollingTransport, DEFAULT_POLLING_OPTIONS } from "./model/polling-transport";
 export type { SessionTransport, TransportSource } from "./model/transport";
 export { createBrowserDeviceStore, MemoryDeviceStore } from "./model/device-store";
 export type { DeviceStore } from "./model/device-store";
-export { useSessionConnection } from "./ui/use-session-connection";
+export { useSessionConnection, useConnectionState } from "./ui/use-session-connection";
 export { parseHubErrorCode } from "../server/engine/hub-error";
 export type { HubErrorCode } from "../server/engine/hub-error";
 export { ISessionHubApiToken } from "../server/session-hub-api-contract";

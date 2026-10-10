@@ -59,6 +59,7 @@ declare let _sessionHub_joinClient: (args: JoinClientArgs) => Promise<string>;
 declare let _sessionHub_poll: (args: PollArgs) => Promise<string>;
 declare let _sessionHub_issueCommand: (args: IssueCommandArgs) => Promise<string>;
 declare let _sessionHub_publishState: (args: PublishStateArgs) => Promise<string>;
+declare let _sessionHub_getWebAppUrl: () => Promise<string>;
 
 _sessionHub_createSession = secureAdminWithMember(async (args: CreateSessionArgs, member) => {
   try {
@@ -125,6 +126,16 @@ _sessionHub_publishState = secure("public", async (args: PublishStateArgs): Prom
   }
 });
 
+_sessionHub_getWebAppUrl = secure("public", async (): Promise<string> => {
+  try {
+    // GAS固有(ScriptApp)のためポート化せずここで直接呼ぶ。GAS以外ではnullを返す。
+    const url = typeof ScriptApp !== "undefined" ? ScriptApp.getService().getUrl() : null;
+    return ok({ url: url || null });
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
 export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) => Promise<string>> = {
   createSession: _sessionHub_createSession,
@@ -135,6 +146,7 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   poll: _sessionHub_poll,
   issueCommand: _sessionHub_issueCommand,
   publishState: _sessionHub_publishState,
+  getWebAppUrl: _sessionHub_getWebAppUrl,
 };
 
 export { SESSION_HUB_PREFIX };

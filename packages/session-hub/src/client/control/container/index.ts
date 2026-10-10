@@ -9,6 +9,8 @@ import {
 import type { SessionHubApi } from "../../../server/session-hub-api-contract";
 import { createBrowserDeviceStore } from "../../model/device-store";
 import { PollingTransport } from "../../model/polling-transport";
+import { HostAgent } from "../../model/host-agent";
+import { SessionAdminRepository } from "../../model/session-admin-repository";
 import { SessionConnection } from "../../model/session-connection";
 import type { ConnectionOptions } from "../../model/session-connection";
 
@@ -24,6 +26,13 @@ export class Container {
           SESSION_HUB_ENDPOINTS
         )
       ),
+    });
+    container.register(SessionAdminRepository, {
+      useFactory: instanceCachingFactory((c) => new SessionAdminRepository(c.resolve<SessionHubApi>(ISessionHubApiToken))),
+    });
+    // ホストのエージェントはアプリ全体で1つ(画面遷移を跨いで接続を保つため)。
+    container.register(HostAgent, {
+      useFactory: instanceCachingFactory(() => new HostAgent(createSessionConnection())),
     });
   }
 }

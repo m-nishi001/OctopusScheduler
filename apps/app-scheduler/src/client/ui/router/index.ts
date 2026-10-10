@@ -8,6 +8,10 @@ import ShowImage from "../pages/execute/show-content/show-image.vue";
 import ShowVideo from "../pages/execute/show-content/show-video.vue";
 import ShowHtml from "../pages/execute/show-content/show-html.vue";
 import ShowSlideshow from "../pages/execute/show-content/show-slideshow.vue";
+import SessionsView from "../pages/session/sessions-view.vue";
+import SessionHostView from "../pages/session/session-host-view.vue";
+import SessionConsoleView from "../pages/session/session-console-view.vue";
+import PortalView from "../pages/session/portal-view.vue";
 
 const octopusSchedulerRoutes = [
   {
@@ -25,6 +29,11 @@ const octopusSchedulerRoutes = [
     name: "settings",
     component: Settings,
   },
+  // セッション(パーティールーム)。一覧・ホスト・操作は管理者のみ、ポータルは参加者向けに公開。
+  { path: "/sessions", name: "sessions", component: SessionsView },
+  { path: "/session/host/:id", name: "session-host", component: SessionHostView },
+  { path: "/session/console/:id", name: "session-console", component: SessionConsoleView },
+  { path: "/portal/:code?", name: "portal", component: PortalView },
   {
     path: "/execute",
     name: "execute",

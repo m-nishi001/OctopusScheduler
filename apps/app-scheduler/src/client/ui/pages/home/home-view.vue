@@ -13,6 +13,10 @@
                     <span class="btn-icon">🎬</span>
                     <span class="btn-label">実行画面へ</span>
                 </button>
+                <button class="main-btn" @click="goToSessions" aria-label="セッション">
+                    <span class="btn-icon">📡</span>
+                    <span class="btn-label">セッション</span>
+                </button>
                 <button class="main-btn" @click="goToJackpotGame" aria-label="Jackpot Game">
                     <span class="btn-icon">🎰</span>
                     <span class="btn-label">Jackpot Game</span>
@@ -37,6 +41,7 @@ const router = useRouter();
 
 const goToSettings = () => router.push({ name: 'settings' });
 const goToExecute = () => router.push('/execute');
+const goToSessions = () => router.push('/sessions');
 const goToJackpotGame = () => {
     // Navigate to the jackpot page within the same tab
     router.push('/jackpot-admin');

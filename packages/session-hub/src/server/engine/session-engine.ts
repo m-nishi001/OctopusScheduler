@@ -286,7 +286,7 @@ export async function poll(deps: EngineDeps, args: PollArgs): Promise<PollResult
   const state = needState && head.stateVersion > 0 ? await deps.repo.getState() : null;
 
   return {
-    sessionStatus: meta.status,
+    session: { id: meta.id, code: meta.code, name: meta.name, mode: meta.mode, status: meta.status, hostDeviceId: meta.hostDeviceId },
     serverTimeMs: now,
     head: { seq: head.seq, stateVersion: head.stateVersion },
     commands,

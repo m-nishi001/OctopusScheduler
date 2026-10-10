@@ -31,6 +31,9 @@ export interface SessionMeta {
   hostDeviceId: string | null;
 }
 
+/** 画面表示に必要なセッション情報(参加者にも見せてよい項目のみ)。 */
+export type SessionInfo = Pick<SessionMeta, "id" | "code" | "name" | "mode" | "status" | "hostDeviceId">;
+
 /** 一覧表示用の要約(セッション一覧のインデックスに保存する)。 */
 export interface SessionSummary {
   id: string;

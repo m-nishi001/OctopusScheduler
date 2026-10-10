@@ -30,6 +30,7 @@ export const SESSION_HUB_ENDPOINTS = [
   "poll",
   "issueCommand",
   "publishState",
+  "getWebAppUrl",
 ] as const;
 
 export type SessionHubEndpointName = (typeof SESSION_HUB_ENDPOINTS)[number];
@@ -44,6 +45,8 @@ export interface SessionHubApi {
   poll(args: PollArgs, options?: ApiCallOptions): Promise<PollResult>;
   issueCommand(args: IssueCommandArgs, options?: ApiCallOptions): Promise<IssueCommandResult>;
   publishState(args: PublishStateArgs, options?: ApiCallOptions): Promise<PublishStateResult>;
+  /** GAS ではデプロイURL(参加者向けQRの基点)。それ以外・取得不可は null。 */
+  getWebAppUrl(args?: undefined, options?: ApiCallOptions): Promise<{ url: string | null }>;
 }
 
 /** `SessionHubApi` をDI解決するためのトークン。 */

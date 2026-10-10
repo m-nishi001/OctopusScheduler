@@ -26,7 +26,7 @@ import type {
   DeviceRole,
   PresenceView,
   RoomState,
-  SessionMeta,
+  SessionInfo,
 } from "../../shared/session-types";
 import {
   clearCredentials,
@@ -50,7 +50,7 @@ export type ConnectionPhase =
 export interface ConnectionState {
   phase: ConnectionPhase;
   role: DeviceRole | null;
-  session: SessionMeta | null;
+  session: SessionInfo | null;
   deviceId: string | null;
   /** 参加者の参加コード。端末認証が切れたときに同じコードで入り直すために保持する。 */
   code: string | null;
@@ -335,8 +335,8 @@ export class SessionConnection implements TransportSource {
     this.persistApplied();
 
     this.set({
-      phase: result.sessionStatus === "closed" ? "ended" : "connected",
-      session: this.current.session ? { ...this.current.session, status: result.sessionStatus } : this.current.session,
+      phase: result.session.status === "closed" ? "ended" : "connected",
+      session: result.session,
       headSeq: result.head.seq,
       roomState: result.state ?? this.current.roomState,
       presence: result.presence,
@@ -347,7 +347,7 @@ export class SessionConnection implements TransportSource {
       serverOffsetMs,
       skippedCommands: skipped,
     });
-    if (result.sessionStatus === "closed") this.opts.transport.stop();
+    if (result.session.status === "closed") this.opts.transport.stop();
     await this.flushPendingPublish();
   }
 
