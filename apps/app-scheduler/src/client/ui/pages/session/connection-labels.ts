@@ -18,6 +18,8 @@ export function describePhase(phase: ConnectionPhase, failureCount = 0): PhaseLa
       return { text: "セッションは終了しました", tone: "error" };
     case "unauthorized":
       return { text: "認証が切れました。入り直してください", tone: "error" };
+    case "replaced":
+      return { text: "別の端末にホストを引き継がれました", tone: "error" };
     default:
       return { text: "未接続", tone: "idle" };
   }

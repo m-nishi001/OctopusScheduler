@@ -21,6 +21,13 @@
                 <p class="host-view__hint">この画面は管理端末からの操作で切り替わります。</p>
             </template>
 
+            <template v-else-if="state.phase === 'replaced' && state.session?.id === sessionId">
+                <p class="host-view__error" role="alert" data-testid="replaced">
+                    別の端末がこのセッションのホストを引き継ぎました。この端末は操作を受け付けません。
+                </p>
+                <UiButton variant="primary" :loading="joining" @click="join(true)">この端末をホストに戻す</UiButton>
+            </template>
+
             <template v-else-if="errorMessage">
                 <p class="host-view__error" role="alert">{{ errorMessage }}</p>
                 <UiButton variant="primary" :loading="joining" @click="join(false)">もう一度接続する</UiButton>
@@ -62,7 +69,7 @@ const takeoverOpen = ref(false);
 const takeoverMessage = ref('');
 
 const joined = computed(
-    () => state.value.role === 'host' && state.value.session?.id === sessionId.value && state.value.phase !== 'idle' && state.value.phase !== 'ended' && state.value.phase !== 'unauthorized',
+    () => state.value.role === 'host' && state.value.session?.id === sessionId.value && state.value.phase !== 'idle' && state.value.phase !== 'ended' && state.value.phase !== 'unauthorized' && state.value.phase !== 'replaced',
 );
 
 function deviceLabel(): string {

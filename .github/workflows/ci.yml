@@ -24,5 +24,14 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run verify
-      # 実 workerd(wrangler dev --local)で Durable Object / WebSocket を含む通しの動作を確認する。
+      # 実 workerd(wrangler dev --local)で Durable Object / WebSocket を含む通しの動作と、
+      # ホスト・管理・参加者の複数端末の画面操作(Playwright)を確認する。
+      - run: npx playwright install --with-deps chromium
       - run: npm run e2e
+      - name: E2E の失敗時の成果物(スクリーンショット・トレース)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: node_modules/.cache/e2e-results
+          if-no-files-found: ignore

@@ -7,7 +7,9 @@
  *   2. ローカルD1にマイグレーションを適用し、管理者アカウントとログイン済みセッションを投入する
  *   3. wrangler dev を起動して準備できるまで待ち、テストコマンドを実行し、終了時に必ず停止する
  *
- * 使い方: node scripts/e2e-local.js [テストファイル ...]   (既定: e2e/worker-smoke.mjs)
+ * 使い方: node scripts/e2e-local.js [worker-smoke] [ui] [-- playwrightの引数]   (既定: 両方)
+ *   worker-smoke: 実 workerd に対する REST / WebSocket / Durable Object の疎通(Node)
+ *   ui          : Playwright で複数の端末(ブラウザコンテキスト)を動かす画面の通しテスト
  * 事前に `npm run build` が必要(dist/cloudflare/worker.js を使う)。
  * テストには環境変数 BASE / E2E_ADMIN_TOKEN / E2E_ADMIN_ID / E2E_ADMIN_PASSWORD が渡る。
  */
@@ -15,11 +17,28 @@ import { execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ADMIN = { id: "admin", password: "e2e-password-1234", token: "e2e-admin-session-token-0001" };
+
+/** 実行できるテスト。key はコマンドライン引数。 */
+export const TARGETS = {
+  "worker-smoke": () => ["node", [join(ROOT, "e2e/worker-smoke.mjs")]],
+  ui: (extra) => ["npx", ["playwright", "test", "-c", join(ROOT, "e2e/playwright.config.ts"), ...extra]],
+};
+
+/** コマンドライン引数を { targets, extra }(-- 以降は Playwright へ渡す)に分ける。 */
+export function parseArgs(argv) {
+  const dd = argv.indexOf("--");
+  const names = dd === -1 ? argv : argv.slice(0, dd);
+  const extra = dd === -1 ? [] : argv.slice(dd + 1);
+  const targets = names.length ? names : Object.keys(TARGETS);
+  const unknown = targets.filter((t) => !(t in TARGETS));
+  if (unknown.length) throw new Error(`不明なテスト: ${unknown.join(", ")}(${Object.keys(TARGETS).join(" / ")})`);
+  return { targets, extra };
+}
 
 /** 空いているポートを1つ得る。 */
 export function freePort() {
@@ -63,7 +82,7 @@ async function waitForReady(base, child, timeoutMs = 120_000) {
 }
 
 export async function main(argv = process.argv.slice(2)) {
-  const tests = argv.length ? argv : ["e2e/worker-smoke.mjs"];
+  const { targets, extra } = parseArgs(argv);
   if (!existsSync(join(ROOT, "dist/cloudflare/worker.js"))) {
     throw new Error("dist/cloudflare/worker.js がありません。先に npm run build を実行してください。");
   }
@@ -114,10 +133,12 @@ export async function main(argv = process.argv.slice(2)) {
     }
 
     let failed = 0;
-    for (const test of tests) {
-      console.log(`\n=== ${test} ===`);
+    for (const target of targets) {
+      console.log(`\n=== ${target} ===`);
+      const [cmd, args] = TARGETS[target](extra);
       await new Promise((done) => {
-        const run = spawn("node", [resolve(ROOT, test)], {
+        const run = spawn(cmd, args, {
+          cwd: ROOT,
           stdio: "inherit",
           env: { ...process.env, BASE: base, E2E_ADMIN_ID: ADMIN.id, E2E_ADMIN_PASSWORD: ADMIN.password, E2E_ADMIN_TOKEN: ADMIN.token },
         });

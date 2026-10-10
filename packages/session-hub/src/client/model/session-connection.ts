@@ -46,7 +46,9 @@ export type ConnectionPhase =
   /** セッションが終了/期限切れ/存在しない。 */
   | "ended"
   /** 端末の認証が無効(入室し直しが必要)。 */
-  | "unauthorized";
+  | "unauthorized"
+  /** ホストを別の端末に引き継がれた(この端末はもうコマンドを適用しない)。 */
+  | "replaced";
 
 export interface ConnectionState {
   phase: ConnectionPhase;
@@ -309,6 +311,16 @@ export class SessionConnection implements TransportSource {
   private async applyUpdate(result: PollResult): Promise<void> {
     const c = this.creds;
     if (!c) return;
+
+    // 別の端末にホストを引き継がれた。二重に演出が走らないよう、これ以降コマンドは適用せず停止する。
+    if (c.role === "host" && result.session.hostDeviceId && result.session.hostDeviceId !== c.deviceId) {
+      this.opts.transport.stop();
+      clearCredentials(this.opts.store, "host");
+      this.rejectPublishWaiters(new Error("[NOT_HOST] 別のホスト端末に引き継がれました"));
+      this.set({ phase: "replaced", session: result.session, presence: result.presence, lastError: null, lastErrorCode: null });
+      return;
+    }
+
     const localNow = this.now();
     const serverOffsetMs = result.serverTimeMs - localNow;
 
