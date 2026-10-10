@@ -7,6 +7,7 @@
  */
 import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
 import { COMMAND_RING_SIZE } from "../../shared/session-types";
+import type { RoundAnswer } from "../../shared/protocol";
 import type {
   Command,
   Device,
@@ -27,6 +28,27 @@ export interface StoredHead {
   updatedAtMs: number;
   /** 直近に受理したコマンドの requestId(重複送信を同じ seq で返すため)。 */
   recent: RecentRequest[];
+  /** 回答ラウンドが一度でも開始された。false の間は poll でラウンドを読まない(読み取り回数の節約)。 */
+  hasRound?: boolean;
+}
+
+/** 回答ラウンド(同時に進行できるのは1つ)。選択肢の番号と、サーバ時刻の締切を持つ。 */
+export interface StoredRound {
+  key: string;
+  optionNos: number[];
+  openedAtMs: number;
+  deadlineMs: number;
+  /** 手動/自動で締め切った時刻。受付中は null。 */
+  closedAtMs: number | null;
+  answerCount: number;
+}
+
+export interface AppendAnswerResult {
+  inserted: boolean;
+  /** inserted が false のとき、すでに採用されている回答。 */
+  existing: RoundAnswer | null;
+  /** 上限に達していて受け付けられなかった。 */
+  full: boolean;
 }
 
 export interface SessionRepo {
@@ -41,6 +63,14 @@ export interface SessionRepo {
   /** seq に対応するスロット(seq % COMMAND_RING_SIZE)の内容。 */
   getCommand(seq: number): Promise<Command | null>;
   putCommand(command: Command): Promise<void>;
+  getRound(): Promise<StoredRound | null>;
+  /** 新しいラウンドを開始する。前のラウンドの回答は破棄される。 */
+  openRound(round: Omit<StoredRound, "answerCount" | "closedAtMs">): Promise<void>;
+  /** 締め切る(すでに締切済みなら何もしない)。 */
+  closeRound(closedAtMs: number): Promise<void>;
+  listAnswers(key: string): Promise<RoundAnswer[]>;
+  /** 先着で採用する。同じ端末の2回目以降は inserted=false で既存を返す。上限なら full=true。 */
+  appendAnswer(key: string, answer: RoundAnswer, maxAnswers: number): Promise<AppendAnswerResult>;
 }
 
 /** 全セッション共通の一覧インデックス。 */
@@ -83,6 +113,42 @@ export function createKvSessionRepo(storage: IKeyValueStorage, sessionId: string
     putDevice: (device) => storage.set(k(`dev/${device.deviceId}`), JSON.stringify(device)),
     getCommand: (seq) => readJson<Command>(storage, k(`cmd/${slotOf(seq)}`)),
     putCommand: (command) => storage.set(k(`cmd/${slotOf(command.seq)}`), JSON.stringify(command)),
+    ...createKvRoundOps(storage, k),
+  };
+}
+
+/** 回答ラウンドの KV 実装。round(要約)と answers(回答の配列)をそれぞれ1キーに持つ(GAS の1値 ~9KB 以内)。 */
+function createKvRoundOps(
+  storage: IKeyValueStorage,
+  k: (name: string) => string
+): Pick<SessionRepo, "getRound" | "openRound" | "closeRound" | "listAnswers" | "appendAnswer"> {
+  const readAnswers = async (key: string): Promise<RoundAnswer[]> => {
+    const stored = await readJson<{ key: string; answers: RoundAnswer[] }>(storage, k("answers"));
+    return stored && stored.key === key ? stored.answers : [];
+  };
+  return {
+    getRound: () => readJson<StoredRound>(storage, k("round")),
+    async openRound(round) {
+      await storage.set(k("answers"), JSON.stringify({ key: round.key, answers: [] }));
+      await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs: null, answerCount: 0 } satisfies StoredRound));
+    },
+    async closeRound(closedAtMs) {
+      const round = await readJson<StoredRound>(storage, k("round"));
+      if (!round || round.closedAtMs !== null) return;
+      await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs }));
+    },
+    listAnswers: readAnswers,
+    async appendAnswer(key, answer, maxAnswers) {
+      const answers = await readAnswers(key);
+      const existing = answers.find((a) => a.deviceId === answer.deviceId) ?? null;
+      if (existing) return { inserted: false, existing, full: false };
+      if (answers.length >= maxAnswers) return { inserted: false, existing: null, full: true };
+      answers.push(answer);
+      await storage.set(k("answers"), JSON.stringify({ key, answers }));
+      const round = await readJson<StoredRound>(storage, k("round"));
+      if (round) await storage.set(k("round"), JSON.stringify({ ...round, answerCount: answers.length }));
+      return { inserted: true, existing: null, full: false };
+    },
   };
 }
 

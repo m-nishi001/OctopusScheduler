@@ -26,12 +26,15 @@ export type ClientWsMessage =
    * コマンド発行。接続済みの端末なら RPC ではなくこちらで送る(20件=1リクエスト換算で、
    * 参加者数百人の一斉入力でも無料枠に収まる)。応答は `issued` / `rejected`。
    */
-  | { t: "issue"; requestId: string; game: string; type: string; payload?: unknown };
+  | { t: "issue"; requestId: string; game: string; type: string; payload?: unknown }
+  /** 回答ラウンドへの回答(参加者)。応答は `answered` / `rejected`。 */
+  | { t: "answer"; requestId: string; key: string; no: number };
 
 export type ServerWsMessage =
   | { t: "update"; result: PollResult }
   | { t: "error"; code: HubErrorCode | null; message: string }
   | { t: "issued"; requestId: string; seq: number; duplicate: boolean }
+  | { t: "answered"; requestId: string; no: number; atMs: number; duplicate: boolean }
   | { t: "rejected"; requestId: string; code: HubErrorCode | null; message: string };
 
 /** 生存確認。サーバは auto-response で "pong" を返す(DOを起こさない)。 */

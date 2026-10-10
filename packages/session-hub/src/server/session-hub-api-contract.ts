@@ -5,6 +5,14 @@
  */
 import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
 import type {
+  CloseRoundArgs,
+  GetAnswersArgs,
+  GetAnswersResult,
+  OpenRoundArgs,
+  OpenRoundResult,
+  RoundSummary,
+  SubmitAnswerArgs,
+  SubmitAnswerResult,
   CloseSessionArgs,
   CreateSessionArgs,
   IssueCommandArgs,
@@ -30,6 +38,10 @@ export const SESSION_HUB_ENDPOINTS = [
   "poll",
   "issueCommand",
   "publishState",
+  "openRound",
+  "closeRound",
+  "submitAnswer",
+  "getAnswers",
   "getWebAppUrl",
 ] as const;
 
@@ -45,6 +57,10 @@ export interface SessionHubApi {
   poll(args: PollArgs, options?: ApiCallOptions): Promise<PollResult>;
   issueCommand(args: IssueCommandArgs, options?: ApiCallOptions): Promise<IssueCommandResult>;
   publishState(args: PublishStateArgs, options?: ApiCallOptions): Promise<PublishStateResult>;
+  openRound(args: OpenRoundArgs, options?: ApiCallOptions): Promise<OpenRoundResult>;
+  closeRound(args: CloseRoundArgs, options?: ApiCallOptions): Promise<RoundSummary>;
+  submitAnswer(args: SubmitAnswerArgs, options?: ApiCallOptions): Promise<SubmitAnswerResult>;
+  getAnswers(args: GetAnswersArgs, options?: ApiCallOptions): Promise<GetAnswersResult>;
   /** GAS ではデプロイURL(参加者向けQRの基点)。それ以外・取得不可は null。 */
   getWebAppUrl(args?: undefined, options?: ApiCallOptions): Promise<{ url: string | null }>;
 }

@@ -7,7 +7,7 @@
  *   - 再接続は指数バックオフ+ジッタ。1時間あたりの再接続回数に上限を設ける
  *   - WebSocket が使えない/繋がらない環境では、低頻度のポーリングに自動で切り替える(フォールバック)
  */
-import type { IssueCommandResult, PollArgs } from "../../shared/protocol";
+import type { IssueCommandResult, PollArgs, SubmitAnswerResult } from "../../shared/protocol";
 import {
   WS_PING,
   WS_PING_INTERVAL_MS,
@@ -19,7 +19,7 @@ import { parseHubErrorCode } from "../../server/engine/hub-error";
 import { realTimers } from "./polling-transport";
 import type { Timers } from "./polling-transport";
 import { TransportUnavailableError } from "./transport";
-import type { IssueRequest, SessionTransport, TransportSource } from "./transport";
+import type { AnswerRequest, IssueRequest, SessionTransport, TransportSource } from "./transport";
 
 /** ブラウザの WebSocket と、テスト用の偽物の共通部分。 */
 export interface WebSocketLike {
@@ -65,7 +65,7 @@ export const DEFAULT_WS_OPTIONS: Omit<WebSocketOptions, "url" | "createSocket"> 
 };
 
 interface PendingIssue {
-  resolve: (r: IssueCommandResult) => void;
+  resolve: (r: never) => void;
   reject: (e: unknown) => void;
   timer: unknown;
 }
@@ -167,6 +167,18 @@ export class WebSocketTransport implements SessionTransport {
       }, this.options.issueTimeoutMs);
       this.pending.set(request.requestId, { resolve, reject, timer });
       this.sendMessage({ t: "issue", ...request });
+    });
+  }
+
+  answer(request: AnswerRequest): Promise<SubmitAnswerResult> | null {
+    if (this.usingFallback || !this.ws || this.ws.readyState !== OPEN || !this.authed) return null;
+    return new Promise<SubmitAnswerResult>((resolve, reject) => {
+      const timer = this.timers.setTimeout(() => {
+        this.pending.delete(request.requestId);
+        reject(new TransportUnavailableError("answer timed out"));
+      }, this.options.issueTimeoutMs);
+      this.pending.set(request.requestId, { resolve, reject, timer });
+      this.sendMessage({ t: "answer", ...request });
     });
   }
 
@@ -328,7 +340,16 @@ export class WebSocketTransport implements SessionTransport {
         if (p) {
           this.timers.clearTimeout(p.timer);
           this.pending.delete(msg.requestId);
-          p.resolve({ seq: msg.seq, duplicate: msg.duplicate });
+          (p.resolve as (r: IssueCommandResult) => void)({ seq: msg.seq, duplicate: msg.duplicate });
+        }
+        break;
+      }
+      case "answered": {
+        const p = this.pending.get(msg.requestId);
+        if (p) {
+          this.timers.clearTimeout(p.timer);
+          this.pending.delete(msg.requestId);
+          (p.resolve as (r: SubmitAnswerResult) => void)({ no: msg.no, atMs: msg.atMs, duplicate: msg.duplicate });
         }
         break;
       }

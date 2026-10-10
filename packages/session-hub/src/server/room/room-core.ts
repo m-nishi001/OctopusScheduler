@@ -26,7 +26,15 @@ import {
 import type { ClientWsMessage, ServerWsMessage } from "../../shared/ws-protocol";
 import * as engine from "../engine/session-engine";
 import { parseHubErrorCode } from "../engine/hub-error";
-import type { PresenceStore, SessionRepo, StoredHead } from "../engine/session-repo";
+import type { PresenceStore, SessionRepo, StoredHead, StoredRound } from "../engine/session-repo";
+import { MAX_ROUND_ANSWERS_DO } from "../../shared/session-types";
+import type {
+  CloseRoundArgs,
+  GetAnswersArgs,
+  OpenRoundArgs,
+  RoundAnswer,
+  SubmitAnswerArgs,
+} from "../../shared/protocol";
 import { COMMAND_RING_SIZE } from "../../shared/session-types";
 
 export interface RoomStorage {
@@ -69,16 +77,54 @@ export type RoomOp =
   | "joinClient"
   | "poll"
   | "issueCommand"
-  | "publishState";
+  | "publishState"
+  | "openRound"
+  | "closeRound"
+  | "submitAnswer"
+  | "getAnswers";
 
 export type RoomRpcResult = { ok: true; data: unknown } | { ok: false; message: string };
 
 /** 在席の変化(入退室・ack)をまとめて配信する間隔。入室が殺到しても1回の push にまとめる。 */
 export const PRESENCE_BROADCAST_DELAY_MS = 2000;
 
-/** DO ストレージ上のセッション永続化(KV版と同じ形・同じキー粒度)。 */
-export function createRoomRepo(storage: RoomStorage): SessionRepo {
+/** createRoomRepo の戻り値。回答は書き込みをまとめるため、flush で永続化する。 */
+export interface RoomRepo extends SessionRepo {
+  /** 回答のメモリ上の変更を永続化する。alarm と締切・終了時に呼ぶ。 */
+  flush(): Promise<void>;
+  /** 永続化されていない回答があるか。 */
+  hasPendingWrites(): boolean;
+}
+
+/**
+ * DO ストレージ上のセッション永続化(KV版と同じ形・同じキー粒度)。
+ *
+ * 回答ラウンドだけは、参加者数百人が一斉に答えても書き込み行数が増えないよう、回答をメモリに
+ * 溜めて alarm でまとめて書く(回答1件ごとに書くと無料枠の書き込み行数を圧迫するため)。
+ */
+export function createRoomRepo(storage: RoomStorage): RoomRepo {
   const slot = (seq: number): string => `cmd:${seq % COMMAND_RING_SIZE}`;
+  let roundCache: StoredRound | null | undefined;
+  let answersCache: { key: string; answers: RoundAnswer[] } | null | undefined;
+  let dirty = false;
+
+  const loadRound = async (): Promise<StoredRound | null> => {
+    if (roundCache === undefined) roundCache = (await storage.get<StoredRound>("round")) ?? null;
+    return roundCache;
+  };
+  const loadAnswers = async (): Promise<{ key: string; answers: RoundAnswer[] } | null> => {
+    if (answersCache === undefined) {
+      answersCache = (await storage.get<{ key: string; answers: RoundAnswer[] }>("answers")) ?? null;
+    }
+    return answersCache;
+  };
+  const flush = async (): Promise<void> => {
+    if (!dirty) return;
+    dirty = false;
+    if (answersCache) await storage.put("answers", answersCache);
+    if (roundCache) await storage.put("round", roundCache);
+  };
+
   return {
     getMeta: async () => (await storage.get<SessionMeta>("meta")) ?? null,
     putMeta: (meta) => storage.put("meta", meta),
@@ -90,11 +136,45 @@ export function createRoomRepo(storage: RoomStorage): SessionRepo {
     putDevice: (device) => storage.put(`dev:${device.deviceId}`, device),
     getCommand: async (seq) => (await storage.get<Command>(slot(seq))) ?? null,
     putCommand: (command) => storage.put(slot(command.seq), command),
+
+    getRound: loadRound,
+    async openRound(round) {
+      roundCache = { ...round, closedAtMs: null, answerCount: 0 };
+      answersCache = { key: round.key, answers: [] };
+      dirty = false;
+      await storage.put("answers", answersCache);
+      await storage.put("round", roundCache);
+    },
+    async closeRound(closedAtMs) {
+      const round = await loadRound();
+      if (!round || round.closedAtMs !== null) return;
+      roundCache = { ...round, closedAtMs };
+      dirty = true;
+      await flush();
+    },
+    async listAnswers(key) {
+      const stored = await loadAnswers();
+      return stored && stored.key === key ? stored.answers : [];
+    },
+    async appendAnswer(key, answer, maxAnswers) {
+      const round = await loadRound();
+      const stored = await loadAnswers();
+      if (!round || !stored || stored.key !== key) return { inserted: false, existing: null, full: false };
+      const existing = stored.answers.find((a) => a.deviceId === answer.deviceId) ?? null;
+      if (existing) return { inserted: false, existing, full: false };
+      if (stored.answers.length >= maxAnswers) return { inserted: false, existing: null, full: true };
+      stored.answers.push(answer);
+      roundCache = { ...round, answerCount: stored.answers.length };
+      dirty = true;
+      return { inserted: true, existing: null, full: false };
+    },
+    flush,
+    hasPendingWrites: () => dirty,
   };
 }
 
 export class SessionRoomCore {
-  private readonly repo: SessionRepo;
+  private readonly repo: RoomRepo;
   /** ポーリング(WebSocket を使えない端末)の在席。接続中ソケットの在席とは別に、メモリ上だけで持つ。 */
   private readonly pollTouches = new Map<string, PresenceEntry>();
   private presenceDirty = false;
@@ -133,6 +213,7 @@ export class SessionRoomCore {
       now: this.ctx.now,
       newId: this.ctx.newId,
       newToken: this.ctx.newToken,
+      maxAnswers: MAX_ROUND_ANSWERS_DO,
     };
   }
 
@@ -181,6 +262,24 @@ export class SessionRoomCore {
         await this.broadcast();
         return result;
       }
+      case "openRound": {
+        const result = await engine.openRound(deps, args as OpenRoundArgs);
+        await this.broadcast();
+        return result;
+      }
+      case "closeRound": {
+        const result = await engine.closeRound(deps, args as CloseRoundArgs);
+        await this.broadcast();
+        return result;
+      }
+      case "submitAnswer": {
+        const result = await engine.submitAnswer(deps, args as SubmitAnswerArgs);
+        // 回答数の変化は、在席と同じくまとめて配信する(1件ごとに全端末へ push しない)
+        if (!result.duplicate) this.markPresenceDirty();
+        return result;
+      }
+      case "getAnswers":
+        return engine.getAnswers(deps, args as GetAnswersArgs);
       default:
         throw new DomainError(`unknown op: ${String(op)}`);
     }
@@ -190,6 +289,7 @@ export class SessionRoomCore {
     const meta = await this.repo.getMeta();
     if (!meta) return;
     if (meta.status !== "closed") await this.repo.putMeta({ ...meta, status: "closed" });
+    await this.repo.flush();
     await this.broadcast();
     for (const ws of this.ctx.sockets()) ws.close(WS_CLOSE_SESSION_ENDED, "session ended");
   }
@@ -207,6 +307,40 @@ export class SessionRoomCore {
     if (msg?.t === "auth") await this.onAuth(ws, msg);
     else if (msg?.t === "ack") await this.onAck(ws, msg.seq);
     else if (msg?.t === "issue") await this.onIssue(ws, msg);
+    else if (msg?.t === "answer") await this.onAnswer(ws, msg);
+  }
+
+  /** WebSocket 経由の回答。1件ごとに全端末へ push せず、回答数は在席と同じ間隔でまとめて配信する。 */
+  private async onAnswer(ws: RoomSocket, msg: Extract<ClientWsMessage, { t: "answer" }>): Promise<void> {
+    const a = ws.getAttachment();
+    const requestId = typeof msg.requestId === "string" ? msg.requestId : "";
+    const reject = (error: unknown): void => {
+      const message = error instanceof Error ? error.message : String(error);
+      ws.send(JSON.stringify({ t: "rejected", requestId, code: parseHubErrorCode(message), message } satisfies ServerWsMessage));
+    };
+    if (!a) {
+      reject(new DomainError("[DEVICE_UNAUTHORIZED] 先に認証してください"));
+      return;
+    }
+    try {
+      const meta = await this.repo.getMeta();
+      const device = await this.repo.getDevice(a.deviceId);
+      if (!meta || !device) throw new DomainError("[DEVICE_UNAUTHORIZED] 端末を認証できません");
+      const result = await engine.submitAnswer(this.engineDeps(), {
+        sessionId: meta.id,
+        deviceId: device.deviceId,
+        token: device.token,
+        key: msg.key,
+        no: msg.no,
+      });
+      ws.send(
+        JSON.stringify({ t: "answered", requestId, no: result.no, atMs: result.atMs, duplicate: result.duplicate } satisfies ServerWsMessage)
+      );
+      if (!result.duplicate) this.markPresenceDirty();
+    } catch (error) {
+      if (error instanceof DomainError) reject(error);
+      else throw error;
+    }
   }
 
   /** WebSocket 経由のコマンド発行。接続時に認証済みの端末として、RPC と同じ検証(権限・許可入力・重複排除)を通す。 */
@@ -332,6 +466,7 @@ export class SessionRoomCore {
 
   /** DO の alarm から呼ぶ。在席の変化があれば全端末へ push する。 */
   async onAlarm(): Promise<void> {
+    await this.repo.flush();
     if (this.presenceDirty) await this.broadcast();
   }
 
@@ -344,6 +479,7 @@ export class SessionRoomCore {
       now,
       presence: engine.buildPresenceView(this.presenceEntries(), meta.hostDeviceId, now),
       getState: () => (statePromise ??= this.repo.getState()),
+      getRound: async () => engine.toRoundSummary(await this.repo.getRound(), now),
       getCommand: (seq) => {
         let p = commandCache.get(seq);
         if (!p) {

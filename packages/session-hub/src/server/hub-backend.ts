@@ -7,6 +7,14 @@
  *     Worker 起動時に ISessionHubBackendToken へ登録して差し替える。
  */
 import type {
+  CloseRoundArgs,
+  GetAnswersArgs,
+  GetAnswersResult,
+  OpenRoundArgs,
+  OpenRoundResult,
+  RoundSummary,
+  SubmitAnswerArgs,
+  SubmitAnswerResult,
   CloseSessionArgs,
   CreateSessionArgs,
   IssueCommandArgs,
@@ -32,6 +40,10 @@ export interface SessionHubBackend {
   poll(args: PollArgs): Promise<PollResult>;
   issueCommand(args: IssueCommandArgs): Promise<IssueCommandResult>;
   publishState(args: PublishStateArgs): Promise<PublishStateResult>;
+  openRound(args: OpenRoundArgs): Promise<OpenRoundResult>;
+  closeRound(args: CloseRoundArgs): Promise<RoundSummary>;
+  submitAnswer(args: SubmitAnswerArgs): Promise<SubmitAnswerResult>;
+  getAnswers(args: GetAnswersArgs): Promise<GetAnswersResult>;
 }
 
 export const ISessionHubBackendToken = Symbol("ISessionHubBackend");
@@ -47,5 +59,9 @@ export function createKvBackend(deps: ServiceDeps): SessionHubBackend {
     poll: (args) => service.poll(deps, args),
     issueCommand: (args) => service.issueCommand(deps, args),
     publishState: (args) => service.publishState(deps, args),
+    openRound: (args) => service.openRound(deps, args),
+    closeRound: (args) => service.closeRound(deps, args),
+    submitAnswer: (args) => service.submitAnswer(deps, args),
+    getAnswers: (args) => service.getAnswers(deps, args),
   };
 }
