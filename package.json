@@ -20,6 +20,7 @@
     "verify:dist": "node scripts/verify-dist.js",
     "verify": "npm run verify:gas && npm run verify:dist",
     "seed:local-admin": "node scripts/seed-local-admin.js",
+    "e2e": "node scripts/e2e-local.js",
     "deploy:gas": "npm run build && clasp push --force",
     "setup:cloudflare": "node scripts/setup-cloudflare.js",
     "deploy:cloudflare": "npm run build && npm run setup:cloudflare && wrangler d1 migrations apply DB --remote && wrangler deploy",

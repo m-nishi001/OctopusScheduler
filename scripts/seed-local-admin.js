@@ -53,8 +53,11 @@ function parseArgs(argv) {
   return out;
 }
 
-function wrangler(args) {
-  return execFileSync("npx", ["-y", "wrangler@4", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+function wrangler(args, { quiet = false } = {}) {
+  return execFileSync("npx", ["-y", "wrangler@4", ...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", quiet ? "pipe" : "inherit"],
+  });
 }
 
 function main() {
@@ -72,7 +75,7 @@ function main() {
   try {
     const dir = mkdtempSync(join(tmpdir(), "seed-admin-"));
     const out = join(dir, "members.json");
-    wrangler(["r2", "object", "get", `${bucket}/${SCALAR_PREFIX}member-directory-members`, "--file", out, "--local", "--config", config, ...persist]);
+    wrangler(["r2", "object", "get", `${bucket}/${SCALAR_PREFIX}member-directory-members`, "--file", out, "--local", "--config", config, ...persist], { quiet: true });
     existingMembers = JSON.parse(readFileSync(out, "utf8"));
   } catch {
     existingMembers = [];

@@ -96,6 +96,14 @@ packages/
 
 リソース名は既定で `octopus-scheduler-db` / `octopus-scheduler-assets` です。変更する場合は `CLOUDFLARE_D1_NAME` / `CLOUDFLARE_R2_BUCKET` を設定してください。Cloudflare ではルートフォルダの設定は不要です（R2 のキー接頭辞としてそのまま使われます）。
 
+### セッション(ホスト/管理/参加者)と Cloudflare 無料枠
+
+セッション機能(`/sessions`)は、Cloudflare では**セッション1件につき1つの Durable Object**(SQLite バックエンド=無料プラン可)を使い、更新は WebSocket で push します。ポーリングだと参加者300人で無料枠(Workers 10万リクエスト/日)を約17分で使い切るためで、WebSocket はサーバからの送信が課金されず、クライアントからのメッセージも20件で1リクエスト換算です。GAS ではポーリング(適応間隔)で動きます。
+
+- 既存の `wrangler.toml` がある環境は、`wrangler.example.toml` 末尾の `[[durable_objects.bindings]]` と `[[migrations]]` を追記してください(無い場合は自動で R2 版にフォールバックしますが、大人数には向きません)。
+- 想定最大(参加者300人・2時間のイベントを1日2回)でも無料枠の30%以内に収まることを、`packages/session-hub` の予算テストで固定しています(上限値と出典は `src/shared/quota-budget.ts`)。
+- `npm run build && npm run e2e` で、ローカルの実 workerd(`wrangler dev --local`)に対して Durable Object / WebSocket を含む通しの動作を確認できます(ダミーIDのローカル設定を一時ディレクトリに作るだけで、リモートには触れません)。
+
 ### 認証モード(app-mode.config.json)とローカル開発
 
 `app-mode.config.json` の `mode` はビルド時に埋め込まれます。既定は `production` で、管理画面・管理系エンドポイントは管理者ログインが必須です。
