@@ -1,3 +1,4 @@
+import { DomainError } from "@octopus/infrastructures/interfaces";
 import type { QuizSessionScope } from "./quiz-api-contract";
 
 /**
@@ -6,7 +7,7 @@ import type { QuizSessionScope } from "./quiz-api-contract";
  */
 export function sessionKey(prefix: string, quizId: string, scope: QuizSessionScope): string {
   if (scope !== "live" && scope !== "demo") {
-    throw new Error(`Invalid quiz session scope: ${String(scope)}`);
+    throw new DomainError(`Invalid quiz session scope: ${String(scope)}`);
   }
   return `${prefix}/${quizId}:${scope}`;
 }

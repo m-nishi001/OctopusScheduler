@@ -6,6 +6,7 @@
  * エントリポイントで、HtmlService の呼び出しはこのファイルに留める
  * (エントリポイント固有の関心事であり、ポート化しない)。
  */
+import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import {
   ICacheToken,
@@ -61,7 +62,7 @@ _octopusScheduler_addDriveData = async (driveData: DriveData): Promise<string> =
     // 既存挙動を保持: duplicate/error でも常に status:"success" として返す。
     return JSON.stringify({ status: "success", data: result.data! });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -70,7 +71,7 @@ _octopusScheduler_getDriveMetaData = async (folderName?: string): Promise<string
     const result = await getSchedulerDriveMetadata(resolveDeps(), folderName);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -79,7 +80,7 @@ _octopusScheduler_getDriveData = async (dataId: string): Promise<string> => {
     const result = await getSchedulerDriveData(resolveDeps(), dataId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -88,7 +89,7 @@ _octopusScheduler_updateDriveData = async (driveData: DriveData): Promise<string
     await updateSchedulerDriveData(resolveDeps(), driveData);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -98,7 +99,7 @@ _octopusScheduler_getKeyboardShortcuts = async (): Promise<string> => {
     const result = await getKeyboardShortcuts({ kv });
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 
@@ -112,7 +113,7 @@ _octopusScheduler_setKeyboardShortcuts = async (payload: {
     await setKeyboardShortcuts({ kv }, payload);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
-    return JSON.stringify({ status: "error", message: (error as Error).message });
+    return errorResponse(error);
   }
 };
 

@@ -96,6 +96,13 @@ packages/
 
 リソース名は既定で `octopus-scheduler-db` / `octopus-scheduler-assets` です。変更する場合は `CLOUDFLARE_D1_NAME` / `CLOUDFLARE_R2_BUCKET` を設定してください。Cloudflare ではルートフォルダの設定は不要です（R2 のキー接頭辞としてそのまま使われます）。
 
+### 認証モード(app-mode.config.json)とローカル開発
+
+`app-mode.config.json` の `mode` はビルド時に埋め込まれます。既定は `production` で、管理画面・管理系エンドポイントは管理者ログインが必須です。
+
+- **最初の管理者の登録**: `development` に変更して再ビルドすると、ログインなしで設定画面のアカウント画面から管理者(パスワード必須)を登録できます。登録後は `production` に戻して再ビルド・デプロイしてください。
+- **ローカル開発(wrangler dev --local)**: worktree ごとにローカルの D1/R2 が別になるため、`npm run seed:local-admin -- --config <wrangler.toml> [--persist-to <dir>]` で管理者とログイン済みセッションを投入できます(`SEED_ADMIN_ID` / `SEED_ADMIN_PASSWORD` / `SEED_SESSION_TOKEN` で指定可)。出力された `sessionToken` をブラウザの localStorage `octopus-session-token` に設定すると、ログイン済みで開けます。`--local` 専用で、リモートには書き込みません。
+
 ## Key Decisions and Rationale
 
 ### 1. Why GAS First

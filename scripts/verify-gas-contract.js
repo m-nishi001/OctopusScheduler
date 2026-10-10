@@ -80,7 +80,7 @@ info.push(
 const sourceFiles = [
   ...listSourceFiles(join(ROOT, "apps")),
   ...listSourceFiles(join(ROOT, "packages")),
-].filter((f) => /\.(ts|tsx|vue|mts|js)$/.test(f));
+].filter((f) => /\.(ts|tsx|vue|mts|js)$/.test(f) && !/\.(spec|test)\.[cm]?[jt]sx?$/.test(f));
 
 // 旧: new GasFunctionService("prefix_name") の直接呼び出し(型付きAPIクライアントを
 // 経由しない、より低レベルな迂回があれば検出する)。

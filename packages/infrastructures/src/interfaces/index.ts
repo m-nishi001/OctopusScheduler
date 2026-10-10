@@ -8,3 +8,4 @@ export * from "./password-hasher";
 export * from "./auth-envelope";
 export * from "./lock";
 export * from "./concurrency-policy";
+export * from "./domain-error";
