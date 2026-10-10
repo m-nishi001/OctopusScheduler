@@ -26,7 +26,8 @@ import { KakuhenHandler } from "./kakuhen-handler";
 import mitt from "mitt";
 import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
-import { useRemoteActionListener } from "../../composables/use-remote-action-listener";
+import { useJackpotHost } from "../../composables/use-jackpot-host";
+import { RevealTracker, buildJackpotHostState } from "@model/jackpot-host-state";
 
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.
@@ -40,6 +41,9 @@ export function useDrawOrchestrator() {
     currentAction: null as (() => void) | null,
     currentQueue: new ActionQueue(),
   });
+
+  // 参加者への公開用: 当選者を「停止演出が終わるまで」見せないために、どこまで見えたかを追跡する
+  const revealTracker = new RevealTracker();
 
   // services
   const prizeRepo = container.resolve(PrizeRepository);
@@ -165,6 +169,8 @@ export function useDrawOrchestrator() {
   // executeDraw moved here from BaseHandler to use local refs/services
   const executeDraw = async () => {
     console.log("[DrawOrchestrator] executeDraw");
+    // 新しい抽選が始まったので、前回の当選者を参加者への公開から外す
+    revealTracker.reset();
 
     try {
       const {
@@ -357,16 +363,31 @@ export function useDrawOrchestrator() {
         console.log("[DrawOrchestrator] Auto-executing next action");
         pendingAutoExecution.value = false;
         void executeCurrentAction();
+      } else {
+        // 次のEnter待ちに入った(連鎖が止まった)。この時点の状態を公開する。
+        publishHostState();
       }
     }
   };
 
-  // 管理画面の「リモート操作」の「次へ」ボタンをEnterキー押下と同じ扱いにする。
-  // usePolling内部がonUnmountedを自動登録するため、必ずonMountedの外
-  // (setup()の同期実行中)で呼び出す。
-  useRemoteActionListener(() => {
-    void executeCurrentAction();
+  // セッションのホストとして接続している場合、管理端末の「次へ」と、ホストが許可した
+  // 参加者のスマホからの「止める」をEnterキー押下と同じ扱いにし、抽選の状態を公開する。
+  // onUnmountedを登録するため、必ずonMountedの外(setup()の同期実行中)で呼び出す。
+  drawState.currentQueue.onDequeue = (label) => revealTracker.onAction(label);
+  const host = useJackpotHost({
+    advance: () => void executeCurrentAction(),
+    stopRoulette: () => void executeCurrentAction(),
   });
+  const publishHostState = () =>
+    host.publish(
+      buildJackpotHostState({
+        phase: drawState.phase,
+        nextLabel: drawState.currentQueue.peekLabel(),
+        tracker: revealTracker,
+        memberName: latestResult.value?.wonMember?.name,
+        prizeName: latestResult.value?.wonPrize?.name,
+      })
+    );
 
   onMounted(async () => {
     const loadedPrizes = await prizeRepo.getPrizes();

@@ -286,5 +286,29 @@ describe("BaseHandler", () => {
       expect(actions.length).toBeGreaterThan(0);
       expect(actions.every((a) => typeof a === "function")).toBe(true);
     });
+
+    it("labels exactly the stop steps (member draw / prize draw) so remote controllers know when a stop is possible", () => {
+      const actions = BaseHandler.getActions(
+        ref(null), ref(null), ref(null), ref(null), ref([]), ref(false), {} as any, ref(false), ref(false),
+        vi.fn(), vi.fn(), ref(false), new ActionQueue(), mitt<any>(), { phase: "idle" }
+      );
+      const labels = actions.map((a) => (a as any).label).filter(Boolean);
+      expect(labels).toEqual(["stopMemberDraw", "stopPrizeDraw"]);
+    });
+
+    it("a labeled step still runs the underlying handler", async () => {
+      const memberAnimRef = ref({ stopDraw: vi.fn(async () => {}) });
+      const emitter = mitt<any>();
+      const emitted: string[] = [];
+      emitter.on("nextAction", () => emitted.push("nextAction"));
+      const actions = BaseHandler.getActions(
+        ref(null), ref(null), memberAnimRef, ref(null), ref([]), ref(false), {} as any, ref(false), ref(false),
+        vi.fn(), vi.fn(), ref(false), new ActionQueue(), emitter, { phase: "idle" }
+      );
+      const stop = actions.find((a) => (a as any).label === "stopMemberDraw")!;
+      await stop();
+      expect(memberAnimRef.value.stopDraw).toHaveBeenCalledTimes(1);
+      expect(emitted).toEqual(["nextAction"]);
+    });
   });
 });

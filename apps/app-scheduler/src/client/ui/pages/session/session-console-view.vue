@@ -41,6 +41,26 @@
                     </UiButton>
                 </div>
 
+                <h2 class="console__h2">ジャックポット</h2>
+                <div class="console__jackpot" data-testid="jackpot-panel">
+                    <p class="console__sub" data-testid="jackpot-state">
+                        <template v-if="jackpot">
+                            {{ phaseLabel }} ・ 当選者: {{ jackpot.member ?? '—' }} ・ 賞品: {{ jackpot.prize ?? '—' }}
+                        </template>
+                        <template v-else>本抽選の画面を開くと、ここに進行状況が表示されます。</template>
+                    </p>
+                    <div class="console__presets">
+                        <UiButton variant="primary" :disabled="busyJackpot !== null || !canSend" :loading="busyJackpot === 'advance'"
+                            @click="sendJackpot('advance')">
+                            ▶ 次へ(Enterキー相当)
+                        </UiButton>
+                        <UiButton :disabled="busyJackpot !== null || !canSend || !jackpot?.canStop" :loading="busyJackpot === 'stopRoulette'"
+                            @click="sendJackpot('stopRoulette')">
+                            ⏹ 止める
+                        </UiButton>
+                    </div>
+                </div>
+
                 <h2 class="console__h2">操作ログ</h2>
                 <ol class="console__log" data-testid="log">
                     <li v-for="c in log" :key="c.seq">
@@ -80,6 +100,7 @@ const sessionId = computed(() => String(route.params.id ?? ''));
 const joining = ref(false);
 const errorMessage = ref('');
 const busyPath = ref<string | null>(null);
+const busyJackpot = ref<'advance' | 'stopRoulette' | null>(null);
 const nowMs = ref(Date.now());
 
 const isDemo = computed(() => state.value.session?.mode === 'demo');
@@ -89,7 +110,7 @@ const presets = computed(() => [
     { label: 'ロビー(QR表示)', path: lobbyPath(sessionId.value) },
     { label: 'ジャックポット: オープニング', path: q('/jackpot-opening') },
     { label: 'ジャックポット: 説明', path: q('/jackpot-description') },
-    { label: 'ジャックポット: 抽選', path: q('/jackpot-main-draw') },
+    { label: 'ジャックポット: 抽選', path: q('/jackpot-draw') },
     { label: 'ジャックポット: 結果', path: q('/jackpot-result') },
     { label: 'ジャックポット: エンディング', path: q('/jackpot-ending') },
 ]);
@@ -100,6 +121,17 @@ const pending = computed(() => Math.max(0, state.value.headSeq - (state.value.pr
 const hostPath = computed(() => {
     const session = state.value.roomState?.data?.session as { path?: string } | undefined;
     return session?.path ?? '';
+});
+interface JackpotState {
+    phase: string;
+    canStop: boolean;
+    member: string | null;
+    prize: string | null;
+}
+const jackpot = computed(() => (state.value.roomState?.data?.jackpot as JackpotState | undefined) ?? null);
+const phaseLabel = computed(() => {
+    const phase = jackpot.value?.phase;
+    return phase === 'member' ? 'メンバー抽選' : phase === 'prize' ? '賞品抽選' : '待機中';
 });
 const log = computed(() => [...state.value.recentCommands].reverse().slice(0, 15));
 const canSend = computed(() => state.value.phase === 'connected' || state.value.phase === 'reconnecting');
@@ -132,6 +164,19 @@ async function navigate(path: string) {
         toast.error(code ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
     } finally {
         busyPath.value = null;
+    }
+}
+
+async function sendJackpot(type: 'advance' | 'stopRoulette') {
+    if (busyJackpot.value !== null) return;
+    busyJackpot.value = type;
+    try {
+        await connection.issue('jackpot', type);
+    } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        toast.error(parseHubErrorCode(message) ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
+    } finally {
+        busyJackpot.value = null;
     }
 }
 

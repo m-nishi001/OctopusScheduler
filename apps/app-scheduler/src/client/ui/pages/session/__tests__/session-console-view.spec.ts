@@ -100,7 +100,7 @@ describe("session-console-view", () => {
     const { wrapper } = await mountConsole(meta.id);
     await button(wrapper, "ジャックポット: 抽選").trigger("click");
     await settle(5000);
-    expect(seen).toEqual([{ path: "/jackpot-main-draw?demo=1" }]);
+    expect(seen).toEqual([{ path: "/jackpot-draw?demo=1" }]);
   });
 
   it("送信中は他のプリセットを押せず、連打しても1件しか発行されない", async () => {

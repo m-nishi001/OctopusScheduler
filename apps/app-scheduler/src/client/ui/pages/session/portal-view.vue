@@ -37,6 +37,11 @@
 
                 <p v-if="screenLabel" class="portal__screen">{{ screenLabel }}</p>
 
+                <section v-if="jackpot && (jackpot.member || jackpot.prize)" class="portal__winner" data-testid="winner" aria-live="polite">
+                    <p v-if="jackpot.member" class="portal__winner-line">🎉 当選者: <strong>{{ jackpot.member }}</strong></p>
+                    <p v-if="jackpot.prize" class="portal__winner-line">🎁 賞品: <strong>{{ jackpot.prize }}</strong></p>
+                </section>
+
                 <section v-if="inputs.length > 0" class="portal__inputs" aria-label="受付中の操作">
                     <UiButton v-for="key in inputs" :key="key" class="portal__input-btn" variant="primary" :disabled="busyKey !== null"
                         :loading="busyKey === key" @click="send(key)">
@@ -78,6 +83,9 @@ const actionMessage = ref('');
 
 const normalizedCode = computed(() => codeInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase());
 const joined = computed(() => !!state.value.session && (state.value.phase === 'connected' || state.value.phase === 'reconnecting' || state.value.phase === 'joining'));
+const jackpot = computed(
+    () => (state.value.roomState?.data as { jackpot?: { member: string | null; prize: string | null } } | undefined)?.jackpot ?? null,
+);
 const inputs = computed(() => state.value.roomState?.clientInput ?? []);
 const hostOnline = computed(() => {
     const seen = state.value.presence?.host?.seenAtMs;
@@ -205,6 +213,8 @@ watch(
 .portal__screen { margin: 0; font-size: 1.1rem; font-weight: 700; }
 .portal__inputs { display: flex; flex-direction: column; gap: 12px; }
 .portal__input-btn { min-height: 64px; font-size: 1.2rem; }
+.portal__winner { padding: 12px 16px; border-radius: 12px; background: rgba(255, 215, 64, 0.15); }
+.portal__winner-line { margin: 4px 0; font-size: 1.2rem; }
 .portal__waiting { opacity: 0.7; }
 .portal__action { margin: 0; }
 </style>

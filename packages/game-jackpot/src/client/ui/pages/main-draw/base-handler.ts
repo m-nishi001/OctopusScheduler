@@ -2,7 +2,7 @@ import type { Ref } from "vue";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import { DrawApplicationService } from "@control/draw/draw-application-service";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
-import { ActionQueue } from "./action-queue";
+import { ActionQueue, labeled } from "./action-queue";
 import { type Emitter } from "mitt";
 import { RouletteBgmManager } from "./roulette/roulette-bgm-manager";
 
@@ -298,7 +298,9 @@ export class BaseHandler {
       BaseHandler.startMemberDraw(preDrawResult, memberAnimRef, emitter)
     );
     baseActions.push(() => BaseHandler.wait(1));
-    baseActions.push(() => BaseHandler.stopMemberDraw(memberAnimRef, emitter));
+    baseActions.push(
+      labeled("stopMemberDraw", () => BaseHandler.stopMemberDraw(memberAnimRef, emitter))
+    );
     baseActions.push(() =>
       BaseHandler.showMemberWinnerDialog(showMemberWinnerDialog, emitter)
     );
@@ -320,12 +322,14 @@ export class BaseHandler {
       )
     );
     baseActions.push(() => BaseHandler.wait(1));
-    baseActions.push(() =>
-      BaseHandler.stopPrizeDraw(
-        selectedPrize,
-        animationRef,
-        loadBgmBlob,
-        emitter
+    baseActions.push(
+      labeled("stopPrizeDraw", () =>
+        BaseHandler.stopPrizeDraw(
+          selectedPrize,
+          animationRef,
+          loadBgmBlob,
+          emitter
+        )
       )
     );
     baseActions.push(() =>
