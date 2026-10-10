@@ -20,6 +20,7 @@ import { QUIZ_GAME_PREFIX, QUIZ_GAME_HANDLERS } from "@octopus/game-quiz/server"
 import { JACKPOT_GAME_PREFIX, JACKPOT_GAME_HANDLERS } from "@octopus/game-jackpot/server";
 import { OCTOPUS_SCHEDULER_PREFIX, OCTOPUS_SCHEDULER_HANDLERS } from "@octopus/app-scheduler/server";
 import { ACCOUNTS_PREFIX, ACCOUNTS_HANDLERS } from "@octopus/accounts/server";
+import { SESSION_HUB_PREFIX, SESSION_HUB_HANDLERS } from "@octopus/session-hub/server";
 
 type Handler = (args: unknown) => Promise<string>;
 
@@ -35,6 +36,7 @@ mount(QUIZ_GAME_PREFIX, QUIZ_GAME_HANDLERS);
 mount(JACKPOT_GAME_PREFIX, JACKPOT_GAME_HANDLERS);
 mount(OCTOPUS_SCHEDULER_PREFIX, OCTOPUS_SCHEDULER_HANDLERS);
 mount(ACCOUNTS_PREFIX, ACCOUNTS_HANDLERS);
+mount(SESSION_HUB_PREFIX, SESSION_HUB_HANDLERS);
 
 registerCloudflareInfrastructures();
 
