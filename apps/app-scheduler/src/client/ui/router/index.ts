@@ -12,6 +12,7 @@ import SessionsView from "../pages/session/sessions-view.vue";
 import SessionHostView from "../pages/session/session-host-view.vue";
 import SessionConsoleView from "../pages/session/session-console-view.vue";
 import PortalView from "../pages/session/portal-view.vue";
+import ParticipantHome from "../pages/participant/participant-home-view.vue";
 
 const octopusSchedulerRoutes = [
   {
@@ -34,6 +35,8 @@ const octopusSchedulerRoutes = [
   { path: "/session/host/:id", name: "session-host", component: SessionHostView },
   { path: "/session/console/:id", name: "session-console", component: SessionConsoleView },
   { path: "/portal/:code?", name: "portal", component: PortalView },
+  // 参加者ポータル(ログイン済みの参加者向け。受付QRまたはID/パスワードでログインして入る)。
+  { path: "/p", name: "participant-home", component: ParticipantHome },
   {
     path: "/execute",
     name: "execute",

@@ -10,7 +10,7 @@
  * 使い方:
  *   node scripts/seed-test-data.js --config <wrangler.toml> [--persist-to <dir>] [--remote] [--count 20]
  *     環境変数: SEED_ADMIN_ID(既定 admin) / SEED_ADMIN_PASSWORD / SEED_PARTICIPANT_PASSWORD / SEED_SESSION_TOKEN
- *   標準出力に JSON(管理者ID・パスワード、参加者ID一覧・パスワード、管理者セッショントークン)を出す。
+ *   標準出力に JSON(管理者ID・パスワード、参加者ID一覧・パスワード・受付QRのログインキー、管理者セッショントークン)を出す。
  *
  * 保存形式は seed-local-admin.js(= accounts-use-cases.ts / cloudflare-password-hasher.ts)と同じ。
  */
@@ -42,6 +42,14 @@ export function deterministicSalt(id) {
   return createHash("sha256").update(`octopus-test-data:${id}`).digest("hex").slice(0, 32);
 }
 
+/**
+ * ローカル用の決定的なログインキー(受付QRのキー)。架空IDから作るだけで、本物の資格情報ではない。
+ * Cloudflare 上(`--remote`)では使わず、実行ごとにランダム生成する。
+ */
+export function deriveLoginKey(id) {
+  return createHash("sha256").update(`octopus-test-login-key:${id}`).digest("hex");
+}
+
 /** 既存の名簿に、テスト参加者を足す(同じ ID は置き換え、それ以外は残す)。 */
 export function mergeMembers(existing, testMembers) {
   const ids = new Set(testMembers.map((m) => m.id));
@@ -49,9 +57,10 @@ export function mergeMembers(existing, testMembers) {
 }
 
 /** R2 に書くべき [キー, 値] の一覧を組み立てる(純粋関数。テスト対象)。 */
-export function buildTestDataEntries({ count = DEFAULT_COUNT, admin, participantPassword, token, now, existingMembers = [] }) {
+export function buildTestDataEntries({ count = DEFAULT_COUNT, admin, participantPassword, loginKeys, token, now, existingMembers = [] }) {
   if (!participantPassword || participantPassword.length < 8) throw new Error("participantPassword must be at least 8 characters");
   const participants = buildTestMembers(count);
+  const keyOf = (id) => loginKeys?.[id] ?? deriveLoginKey(id);
   const entries = buildSeedEntries({
     id: admin.id,
     name: admin.name,
@@ -63,6 +72,8 @@ export function buildTestDataEntries({ count = DEFAULT_COUNT, admin, participant
   for (const m of participants) {
     const salt = deterministicSalt(m.id);
     entries.push([`${SCALAR_PREFIX}accounts-credential/${m.id}`, JSON.stringify({ salt, hash: hashPassword(participantPassword, salt) })]);
+    // 受付QR用のログインキー(accounts-use-cases.ts の issueLoginKey と同じ保存形式)
+    entries.push([`${SCALAR_PREFIX}accounts-login-key/${m.id}`, JSON.stringify({ salt, hash: hashPassword(keyOf(m.id), salt) })]);
   }
   return entries;
 }
@@ -106,7 +117,11 @@ function main() {
     existingMembers = [];
   }
 
-  const entries = buildTestDataEntries({ count, admin, participantPassword, token, now: Date.now(), existingMembers });
+  // ローカルは決定的なキー、リモートは実行ごとのランダム(公開リポジトリの既知値を本物の環境に使わない)
+  const loginKeys = Object.fromEntries(
+    buildTestMembers(count).map((m) => [m.id, args.remote ? randomBytes(32).toString("hex") : deriveLoginKey(m.id)])
+  );
+  const entries = buildTestDataEntries({ count, admin, participantPassword, loginKeys, token, now: Date.now(), existingMembers });
   const dir = mkdtempSync(join(tmpdir(), "seed-test-"));
   entries.forEach(([key, value], i) => {
     const file = join(dir, `entry-${i}.json`);
@@ -118,7 +133,7 @@ function main() {
     JSON.stringify(
       {
         admin: { id: admin.id, password: admin.password, sessionToken: token },
-        participants: { ids: buildTestMembers(count).map((m) => m.id), password: participantPassword },
+        participants: { ids: buildTestMembers(count).map((m) => m.id), password: participantPassword, loginKeys },
       },
       null,
       2

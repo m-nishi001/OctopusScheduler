@@ -40,6 +40,19 @@ export class AccountsRepository {
     return this.accountsApi.login({ id, password });
   }
 
+  /** 参加者の受付QR用ログインキーを(再)発行する。平文は戻り値でしか見られない。 */
+  async issueLoginKey(id: string): Promise<string> {
+    return (await this.accountsApi.issueLoginKey({ id })).key;
+  }
+
+  async revokeLoginKey(id: string): Promise<void> {
+    return this.accountsApi.revokeLoginKey({ id });
+  }
+
+  async loginWithKey(id: string, key: string): Promise<LoginResult> {
+    return this.accountsApi.loginWithKey({ id, key });
+  }
+
   async logout(token: string): Promise<void> {
     return this.accountsApi.logout({ token });
   }

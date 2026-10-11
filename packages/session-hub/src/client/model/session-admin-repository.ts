@@ -20,19 +20,21 @@ export class SessionAdminRepository {
   }
 
   /**
-   * 参加者がQRから開くポータルの絶対URL。GAS ではデプロイURLを基点にし
+   * アプリの絶対URL(ハッシュなし)。GAS ではデプロイURLを基点にし
    * (window.location は内側の iframe になるため)、取得できなければ現在のURLを使う。
    */
-  async portalUrl(
-    code: string,
-    location: { origin: string; pathname: string } = window.location
-  ): Promise<string> {
+  async appBaseUrl(location: { origin: string; pathname: string } = window.location): Promise<string> {
     let base: string | null = null;
     try {
       base = (await this.api.getWebAppUrl()).url;
     } catch {
       base = null;
     }
-    return buildPortalUrl(code, base ?? `${location.origin}${location.pathname}`);
+    return base ?? `${location.origin}${location.pathname}`;
+  }
+
+  /** 参加者がQRから開くポータルの絶対URL。 */
+  async portalUrl(code: string, location?: { origin: string; pathname: string }): Promise<string> {
+    return buildPortalUrl(code, await this.appBaseUrl(location));
   }
 }

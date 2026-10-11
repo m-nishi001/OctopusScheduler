@@ -1,5 +1,5 @@
 import { expect, test as base } from "@playwright/test";
-import type { Browser, BrowserContext, Page } from "@playwright/test";
+import type { APIRequestContext, Browser, BrowserContext, Page } from "@playwright/test";
 
 export const ADMIN_TOKEN = process.env.E2E_ADMIN_TOKEN ?? "e2e-admin-session-token-0001";
 export const ADMIN_ID = process.env.E2E_ADMIN_ID ?? "admin";
@@ -38,6 +38,14 @@ export const errors: string[] = [];
 
 export const test = base.extend({});
 export { expect };
+
+/** 管理者のトークンでRPCを呼ぶ(テストの準備・後片付け用)。失敗は例外にする。 */
+export async function adminRpc<T = unknown>(request: APIRequestContext, name: string, args: unknown): Promise<T> {
+  const res = await request.post("/rpc", { data: { name, args: { __octopusAuth: ADMIN_TOKEN, args } } });
+  const json = await res.json();
+  if (json.status !== "success") throw new Error(`${name}: ${json.message}`);
+  return json.data as T;
+}
 
 /** 管理端末でセッションを作成し、一覧から id と参加コードを返す。 */
 export async function createSession(page: Page, label: string, options: { demo?: boolean } = {}): Promise<{ id: string; code: string; name: string }> {

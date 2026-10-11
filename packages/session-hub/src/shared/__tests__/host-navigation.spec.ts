@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPortalUrl, isAllowedHostPath, lobbyPath } from "../host-navigation";
+import { buildLoginUrl, buildPortalUrl, isAllowedHostPath, lobbyPath } from "../host-navigation";
 
 describe("isAllowedHostPath", () => {
   it.each([
@@ -52,5 +52,17 @@ describe("isAllowedHostPath", () => {
 describe("buildPortalUrl", () => {
   it("既存のハッシュを取り除いてポータルのハッシュを付ける", () => {
     expect(buildPortalUrl("ABC234", "https://example.com/app/exec#/home")).toBe("https://example.com/app/exec#/portal/ABC234");
+  });
+});
+
+describe("buildLoginUrl", () => {
+  it("既存のハッシュを取り除き、IDとキーをフラグメントに入れる(サーバーのログに残らない)", () => {
+    const url = buildLoginUrl("test-user-01", "abc123", "https://example.com/app/exec#/home");
+    expect(url).toBe("https://example.com/app/exec#/login?id=test-user-01&key=abc123");
+    expect(new URL(url).search).toBe("");
+  });
+
+  it("IDやキーに記号があってもエスケープする", () => {
+    expect(buildLoginUrl("a b&c", "k=1/2", "https://e.com/")).toBe("https://e.com/#/login?id=a%20b%26c&key=k%3D1%2F2");
   });
 });

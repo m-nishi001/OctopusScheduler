@@ -11,19 +11,20 @@
     "typecheck": "vue-tsc --noEmit && tsc -b tsconfig.server.json"
   },
   "dependencies": {
+    "@octopus/accounts": "*",
     "@octopus/client-common": "*",
     "@octopus/composables": "*",
+    "@octopus/game-jackpot": "*",
+    "@octopus/game-quiz": "*",
     "@octopus/infrastructures": "*",
+    "@octopus/session-hub": "*",
     "@octopus/sync-engine": "*",
     "@octopus/ui-kit": "*",
-    "@octopus/game-jackpot": "*",
-    "@octopus/accounts": "*",
-    "@octopus/session-hub": "*",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
+    "qrcode-generator": "^2.0.4",
     "vue": "^3.5.17",
-    "vue-router": "^4.5.1",
-    "@octopus/game-quiz": "*"
+    "vue-router": "^4.5.1"
   },
   "types": "dist/types",
   "exports": {
