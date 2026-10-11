@@ -26,6 +26,8 @@ npm run build
 | `npm run e2e` | 実 workerd のスモーク（29 項目）＋ Playwright の複数端末テスト |
 | `npm run deploy:gas` / `npm run deploy:cloudflare` | デプロイ（[GAS](deploy-gas.md) / [Cloudflare](deploy-cloudflare.md)） |
 | `npm run seed:local-admin` | ローカルに管理者とログイン済みセッションを投入（[詳細](authentication.md#ローカル開発で使う)） |
+| `npm run dev:stack` | 架空データ入りの実 workerd を1コマンドで起動（[手順書](dev-verification.md)） |
+| `npm run staging:up` / `staging:down` | Cloudflare 上の試験環境を作る／撤去する（[手順書](dev-verification.md#3-cloudflare-上の試験環境staging)） |
 
 ## テストの種類
 

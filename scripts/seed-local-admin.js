@@ -52,7 +52,7 @@ function parseArgs(argv) {
   return out;
 }
 
-function wrangler(args, { quiet = false } = {}) {
+export function wrangler(args, { quiet = false } = {}) {
   return execFileSync("npx", ["-y", "wrangler@4", ...args], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", quiet ? "pipe" : "inherit"],
