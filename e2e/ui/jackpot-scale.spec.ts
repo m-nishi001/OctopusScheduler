@@ -105,12 +105,23 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
       let shot = 0;
       let finished = false;
       let prizeNamesSeen = 0;
+      const shotKinds = new Set<string>();
       await page.waitForTimeout(2000);
       for (let step = 0; step < maxSteps && !finished; step++) {
         await page.keyboard.press("Enter");
         await page.waitForTimeout(sc.members * sc.prizes > 5000 ? 1500 : 900);
         for (const l of await overflowReport(page)) layout.add(l);
         if (dir && step % 3 === 0) await page.screenshot({ path: join(dir, `${String(shot++).padStart(3, "0")}.png`) });
+        // 演出ダイアログが出た瞬間(演出が立ち上がった後)の見た目を残す
+        if (dir) {
+          for (const id of ["prize-winning-dialog", "member-winner-dialog", "half-remaining-dialog", "end-dialog"]) {
+            if (!shotKinds.has(id) && (await page.getByTestId(id).isVisible().catch(() => false))) {
+              await page.waitForTimeout(1200);
+              await page.screenshot({ path: join(dir, `dialog-${id}.png`) });
+              shotKinds.add(id);
+            }
+          }
+        }
         // 賞品ダイアログには必ず賞品名が出ている(画像なしの賞品でも何が当たったか分かる)
         if (await page.getByText("景品当選").isVisible().catch(() => false)) {
           const name = await page.getByTestId("prize-winning-name").innerText().catch(() => "");
