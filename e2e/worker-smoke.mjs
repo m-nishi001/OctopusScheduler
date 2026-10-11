@@ -32,12 +32,25 @@ const check = (name, ok, extra = "") => {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name} ${extra}`);
 };
 
+// 参加者はログイン済みのメンバー(受付QRのキーでログインしてトークンを得る)。名前を選ぶだけの匿名の入室はない。
+const participants = [];
+async function participant(id, name) {
+  await rpc("accounts_addMember", { id, name }, ADMIN_TOKEN);
+  const { key } = await rpc("accounts_issueLoginKey", { id }, ADMIN_TOKEN);
+  const { token } = await rpc("accounts_loginWithKey", { id, key });
+  participants.push(id);
+  return token;
+}
+const joinAs = (token) => rpc("sessionHub_joinPortal", {}, token);
+
 const meta = await rpc("sessionHub_createSession", { name: "E2E会場" }, ADMIN_TOKEN);
 check("セッション作成(管理者)", !!meta.id && /^[A-Z2-9]{6}$/.test(meta.code), meta.code);
 
 const host = await rpc("sessionHub_joinOperator", { sessionId: meta.id, role: "host", label: "PC", deviceId: "e2e-host-device-0001" }, ADMIN_TOKEN);
 const admin = await rpc("sessionHub_joinOperator", { sessionId: meta.id, role: "admin", label: "Phone", deviceId: "e2e-admin-device-0001" }, ADMIN_TOKEN);
-const client = await rpc("sessionHub_joinClient", { code: meta.code, label: "太郎" });
+await rpc("sessionHub_setPortalSession", { sessionId: meta.id, published: true }, ADMIN_TOKEN);
+const taroToken = await participant("smoke-taro", "太郎");
+const client = await joinAs(taroToken);
 check("入室(host/admin/client)", host.role === "host" && admin.role === "admin" && client.role === "client");
 
 try {
@@ -114,7 +127,7 @@ wsClient.ws.send(JSON.stringify({ t: "answer", requestId: "ans-after", key: "q1:
 await sleep(300);
 check("締切後でも回答済みの端末には最初の回答を返す(画面表示を揃える)",
   wsClient.messages.some((m) => m.t === "answered" && m.requestId === "ans-after" && m.no === 2 && m.duplicate === true));
-const late = await rpc("sessionHub_joinClient", { code: meta.code, label: "遅刻" });
+const late = await joinAs(await participant("smoke-late", "遅刻"));
 const wsLate = await connect(meta.id, creds(late));
 wsLate.ws.send(JSON.stringify({ t: "answer", requestId: "ans-late", key: "q1:live", no: 1 }));
 await sleep(300);
@@ -136,15 +149,24 @@ await rpc("sessionHub_closeSession", { sessionId: meta.id }, ADMIN_TOKEN);
 await sleep(500);
 check("終了が全端末へ通知され 4410 で切断", wsHost.messages.some((m) => m.closed === 4410) && wsClient2.messages.some((m) => m.t === "update" && m.result.session.status === "closed"));
 try {
-  await rpc("sessionHub_joinClient", { code: meta.code });
+  await joinAs(taroToken);
   check("終了後の参加は拒否", false);
 } catch (e) {
   check("終了後の参加は拒否", /SESSION_NOT_FOUND/.test(e.message), e.message);
 }
 
+// 名前を選ぶだけの匿名の入室(参加コード)は存在しない
+try {
+  await rpc("sessionHub_joinClient", { code: meta.code });
+  check("匿名の参加(joinClient)は呼べない", false);
+} catch (e) {
+  check("匿名の参加(joinClient)は呼べない", /joinClient|not found|Unknown|unknown/i.test(e.message), e.message);
+}
+
 // ポーリング(フォールバック)RPC
 const meta2 = await rpc("sessionHub_createSession", { name: "poll" }, ADMIN_TOKEN);
-const c2 = await rpc("sessionHub_joinClient", { code: meta2.code });
+await rpc("sessionHub_setPortalSession", { sessionId: meta2.id, published: true }, ADMIN_TOKEN);
+const c2 = await joinAs(await participant("smoke-c2", "花子"));
 const polled = await rpc("sessionHub_poll", { sessionId: meta2.id, deviceId: c2.deviceId, token: c2.token, sinceSeq: 0, stateVersion: 0 });
 check("poll RPC(フォールバック)も DO 経由で動く", polled.session.id === meta2.id && polled.presence.clientCount === 1);
 
@@ -158,6 +180,8 @@ const ghost = await new Promise((resolve) => {
 check("存在しないセッションへの WebSocket は拒否される(404)", ghost === "rejected", ghost);
 
 for (const c of [wsHost, wsAdmin, wsClient2]) c.ws.close();
+await rpc("sessionHub_closeSession", { sessionId: meta2.id }, ADMIN_TOKEN).catch(() => undefined);
+for (const id of participants) await rpc("accounts_deleteMember", { id }, ADMIN_TOKEN).catch(() => undefined);
 const failed = results.filter((r) => !r).length;
 console.log(`\n${results.length - failed}/${results.length} passed`);
 process.exit(failed ? 1 : 0);

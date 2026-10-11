@@ -46,13 +46,6 @@ export function createDoBackend(kvDeps: () => ServiceDeps): SessionHubBackend {
       await callRoom(args.sessionId, "close", {});
     },
     joinOperator: (args, memberId) => callRoom(args.sessionId, "joinOperator", args, memberId) as ReturnType<SessionHubBackend["joinOperator"]>,
-    async joinClient(args) {
-      const code = (args.code ?? "").trim().toUpperCase();
-      if (!code) throw new DomainError("[INVALID_ARGUMENT] 参加コードを入力してください");
-      const summary = (await kvDeps().index.list()).find((s) => s.code === code && s.status !== "closed");
-      if (!summary) throw new DomainError("[SESSION_NOT_FOUND] 参加コードが見つかりません。コードを確認してください");
-      return callRoom(summary.id, "joinClient", args) as ReturnType<SessionHubBackend["joinClient"]>;
-    },
     // 公開の指定は一覧のインデックスだけを書き換える(Durable Object は触らない)
     setPortalSession: (args) => kv().setPortalSession(args),
     async joinPortal(args, member) {
@@ -61,7 +54,7 @@ export function createDoBackend(kvDeps: () => ServiceDeps): SessionHubBackend {
       return callRoom(
         summary.id,
         "joinPortal",
-        { code: summary.code, deviceId: args.deviceId, token: args.token, label: member.name },
+        { deviceId: args.deviceId, token: args.token, label: member.name },
         member.id
       ) as ReturnType<SessionHubBackend["joinPortal"]>;
     },

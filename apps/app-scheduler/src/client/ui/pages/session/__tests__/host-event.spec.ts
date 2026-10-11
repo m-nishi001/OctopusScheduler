@@ -293,12 +293,7 @@ describe("抽選の対象（ジャックポット）", () => {
       await d.conn.joinPortal();
       await d.conn.answer(await currentKey(), 1);
     };
-    const guestEnter = async (memberId: string) => {
-      const d = makeDevice(env.hub, { memberId: null });
-      await d.conn.joinClient({ code: meta.code, memberId, label: "ゲスト" });
-      await d.conn.answer(await currentKey(), 1);
-    };
-    return { meta, agent, admin, pool, command, published, enter, guestEnter, storage };
+    return { meta, agent, admin, pool, command, published, enter, storage };
   }
 
   it("イベントが無い・対象が指定されていない・「全メンバー」なら、絞り込まない（null）", async () => {
@@ -332,13 +327,12 @@ describe("抽選の対象（ジャックポット）", () => {
     expect((await fresh.published())?.pool).toBe("entrants");
   });
 
-  it("対象が「エントリーした人だけ」なら、ログインから確定したエントリー者のIDを返す（匿名のゲストは含めない）", async () => {
+  it("対象が「エントリーした人だけ」なら、エントリーした人のIDを返す", async () => {
     const s = await poolScene();
     await s.command("start", { title: "抽選" });
     await s.command("openEntry");
     await s.enter("alice", "アリス");
     await s.enter("bob", "ボブ");
-    await s.guestEnter("carol");
     expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
   });
 

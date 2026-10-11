@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope } from "vue";
 import { container } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
-import { makeDevice, makeHub } from "@octopus/session-hub/testing";
+import { joinParticipant, makeDevice, makeHub } from "@octopus/session-hub/testing";
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { useJackpotHost } from "./use-jackpot-host";
 import type { JackpotHostState } from "@model/jackpot-host-state";
@@ -35,8 +35,7 @@ async function scene() {
   await hostDevice.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
   const admin = makeDevice(hub, { memberId: "b" });
   await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
-  const client = makeDevice(hub);
-  await client.conn.joinClient({ code: meta.code });
+  const client = await joinParticipant(hub, meta.id);
   return { hub, meta, agent, admin, client, hostDevice };
 }
 
@@ -112,13 +111,7 @@ describe("useJackpotHost", () => {
     host.publish(state({ canStop: true }));
     // ハンドラ内で止めた瞬間に次の場面へ進む想定: 最初の呼び出しで canStop を false にする
     handlers.stopRoulette.mockImplementation(() => host.publish(state({ canStop: false })));
-    const clients = await Promise.all(
-      [1, 2, 3].map(async () => {
-        const c = makeDevice(hub);
-        await c.conn.joinClient({ code: meta.code });
-        return c;
-      })
-    );
+    const clients = [await joinParticipant(hub, meta.id), await joinParticipant(hub, meta.id), await joinParticipant(hub, meta.id)];
     await tick(4000);
     await Promise.all(clients.map((c) => c.conn.issue("jackpot", "stopRoulette").catch(() => undefined)));
     await tick(4000);

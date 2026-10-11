@@ -79,12 +79,12 @@ async function trio() {
   const { room, bridge } = await setup();
   const host = makeWsDevice(room, bridge, { memberId: "a" });
   const admin = makeWsDevice(room, bridge, { memberId: "b" });
-  const client = makeWsDevice(room, bridge);
+  const client = makeWsDevice(room, bridge, { memberId: "u1" });
   const applied: Command[] = [];
   host.conn.onCommand((c) => void applied.push(c));
   await host.conn.joinOperator({ sessionId: SID, role: "host", label: "PC" });
   await admin.conn.joinOperator({ sessionId: SID, role: "admin", label: "A" });
-  await client.conn.joinClient({ code: "WSCODE", label: "太郎" });
+  await client.conn.joinPortal();
   await tick(100);
   return { room, bridge, host, admin, client, applied };
 }
@@ -311,9 +311,9 @@ describe("WebSocketTransport: フォールバック", () => {
     const { room, bridge } = await setup();
     bridge.refuseConnections = true;
     const admin = makeWsDevice(room, bridge, { memberId: "b" });
-    const client = makeWsDevice(room, bridge);
+    const client = makeWsDevice(room, bridge, { memberId: "u1" });
     await admin.conn.joinOperator({ sessionId: SID, role: "admin", label: "A" });
-    await client.conn.joinClient({ code: "WSCODE" });
+    await client.conn.joinPortal();
     await tick(60_000);
     expect(client.transport.isUsingFallback).toBe(true);
     expect(client.conn.state.phase).toBe("connected");
@@ -325,7 +325,7 @@ describe("WebSocketTransport: フォールバック", () => {
 
   it("WebSocket のコンストラクタが使えない(例外)環境でもポーリングで動く", async () => {
     const { room } = await setup();
-    const api = createRoomApi(room, null);
+    const api = createRoomApi(room, "u1");
     const fallback = new PollingTransport(api, noJitter, DEFAULT_POLLING_OPTIONS);
     const transport = new WebSocketTransport(
       {
@@ -339,7 +339,7 @@ describe("WebSocketTransport: フォールバック", () => {
       noJitter
     );
     const conn = new SessionConnection({ api, store: new MemoryDeviceStore(), transport, now: dateClock.now });
-    await conn.joinClient({ code: "WSCODE" });
+    await conn.joinPortal();
     await tick(60_000);
     expect(transport.isUsingFallback).toBe(true);
     expect(api.calls.poll ?? 0).toBeGreaterThan(0);
@@ -347,8 +347,8 @@ describe("WebSocketTransport: フォールバック", () => {
 
   it("再接続が短時間に繰り返されると(不安定)ポーリングへ切り替えて暴走を防ぐ", async () => {
     const { room, bridge } = await setup();
-    const client = makeWsDevice(room, bridge, { ws: { reconnectMaxPerWindow: 5, backoffBaseMs: 10, backoffMaxMs: 20 } });
-    await client.conn.joinClient({ code: "WSCODE" });
+    const client = makeWsDevice(room, bridge, { memberId: "u1", ws: { reconnectMaxPerWindow: 5, backoffBaseMs: 10, backoffMaxMs: 20 } });
+    await client.conn.joinPortal();
     await tick(100);
     for (let i = 0; i < 10 && !client.transport.isUsingFallback; i++) {
       bridge.live.forEach((s) => s.drop());

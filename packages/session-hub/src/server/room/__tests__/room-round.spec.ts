@@ -37,7 +37,7 @@ async function scene(clients = 3) {
   const wsAdmin = await room.connectAndAuth(creds(admin));
   const players: Array<{ join: JoinResult; ws: FakeSocket }> = [];
   for (let i = 0; i < clients; i++) {
-    const join = await room.call<JoinResult>("joinClient", { code: "ROUND2", memberId: `m${i}`, label: `参加者${i}` });
+    const join = await room.call<JoinResult>("joinPortal", { label: `参加者${i}` }, `m${i}`);
     players.push({ join, ws: await room.connectAndAuth(creds(join)) });
   }
   const open = (key = "q1", durationMs = 20_000) => room.call("openRound", { ...creds(host), key, options: OPTIONS, durationMs });
@@ -114,7 +114,7 @@ describe("DO: 回答ラウンド", () => {
     void players;
     const many: Array<{ ws: FakeSocket }> = [];
     for (let i = 0; i < 300; i++) {
-      const j = await room.call<JoinResult>("joinClient", { code: "ROUND2", label: `c${i}` });
+      const j = await room.call<JoinResult>("joinPortal", { label: `c${i}` }, `c${i}`);
       many.push({ ws: await room.connectAndAuth(creds(j)) });
     }
     await open("q1");

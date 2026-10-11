@@ -35,11 +35,12 @@ describe("useSessionConnection", () => {
   it("接続状態の変化をリアクティブな参照へ反映する", async () => {
     const hub = makeHub();
     const meta = await service.createSession(hub.deps, { name: "x" }, "a");
-    const dev = makeDevice(hub);
+    const dev = makeDevice(hub, { memberId: "u1" });
     const scope = effectScope();
     const { state } = scope.run(() => useSessionConnection(dev.conn, fakeVisibility().source))!;
     expect(state.value.phase).toBe("idle");
-    await dev.conn.joinClient({ code: meta.code });
+    await service.setPortalSession(hub.deps, { sessionId: meta.id, published: true });
+    await dev.conn.joinPortal();
     expect(state.value.phase).toBe("connected");
     await tick(4000);
     expect(state.value.presence?.clientCount).toBe(1);
@@ -49,11 +50,12 @@ describe("useSessionConnection", () => {
   it("スコープ破棄で購読を解除し、接続(ポーリング)を止める", async () => {
     const hub = makeHub();
     const meta = await service.createSession(hub.deps, { name: "x" }, "a");
-    const dev = makeDevice(hub);
+    const dev = makeDevice(hub, { memberId: "u1" });
     const vis = fakeVisibility();
     const scope = effectScope();
     scope.run(() => useSessionConnection(dev.conn, vis.source));
-    await dev.conn.joinClient({ code: meta.code });
+    await service.setPortalSession(hub.deps, { sessionId: meta.id, published: true });
+    await dev.conn.joinPortal();
     await tick(4000);
     expect(vis.listenerCount()).toBe(1);
     scope.stop();
@@ -66,11 +68,12 @@ describe("useSessionConnection", () => {
   it("非表示で取得を減らし、表示に戻ると即座に取得する", async () => {
     const hub = makeHub();
     const meta = await service.createSession(hub.deps, { name: "x" }, "a");
-    const dev = makeDevice(hub);
+    const dev = makeDevice(hub, { memberId: "u1" });
     const vis = fakeVisibility();
     const scope = effectScope();
     scope.run(() => useSessionConnection(dev.conn, vis.source));
-    await dev.conn.joinClient({ code: meta.code });
+    await service.setPortalSession(hub.deps, { sessionId: meta.id, published: true });
+    await dev.conn.joinPortal();
     await tick(5000);
     vis.set(false);
     const hidden = dev.api.calls.poll;

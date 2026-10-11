@@ -19,7 +19,6 @@ import type {
   CreateSessionArgs,
   IssueCommandArgs,
   IssueCommandResult,
-  JoinClientArgs,
   JoinOperatorArgs,
   JoinPortalArgs,
   JoinResult,
@@ -38,7 +37,6 @@ export interface SessionHubBackend {
   listSessions(): Promise<SessionSummary[]>;
   closeSession(args: CloseSessionArgs): Promise<void>;
   joinOperator(args: JoinOperatorArgs, memberId: string): Promise<JoinResult>;
-  joinClient(args: JoinClientArgs): Promise<JoinResult>;
   setPortalSession(args: SetPortalSessionArgs): Promise<void>;
   /** ログイン済みの参加者がポータル公開中のセッションに入る。member は認証済みのメンバー。 */
   joinPortal(args: JoinPortalArgs, member: { id: string; name: string }): Promise<JoinResult>;
@@ -60,7 +58,6 @@ export function createKvBackend(deps: ServiceDeps): SessionHubBackend {
     listSessions: () => service.listSessions(deps),
     closeSession: (args) => service.closeSession(deps, args),
     joinOperator: (args, memberId) => service.joinOperator(deps, args, memberId),
-    joinClient: (args) => service.joinClient(deps, args),
     setPortalSession: (args) => service.setPortalSession(deps, args),
     joinPortal: (args, member) => service.joinPortal(deps, args, member),
     poll: (args) => service.poll(deps, args),

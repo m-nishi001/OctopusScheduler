@@ -13,7 +13,7 @@ import { DomainError } from "@octopus/infrastructures/interfaces";
 import type { PresenceEntry, SessionMeta, RoomState, Command, Device, DeviceRole } from "../../shared/session-types";
 import type {
   IssueCommandArgs,
-  JoinClientArgs,
+  RoomJoinPortalArgs,
   JoinOperatorArgs,
   PollArgs,
   PublishStateArgs,
@@ -74,7 +74,6 @@ export type RoomOp =
   | "init"
   | "close"
   | "joinOperator"
-  | "joinClient"
   | "joinPortal"
   | "poll"
   | "issueCommand"
@@ -253,16 +252,11 @@ export class SessionRoomCore {
         this.markPresenceDirty();
         return result;
       }
-      case "joinClient": {
-        const result = await engine.joinClient(deps, args as JoinClientArgs);
-        this.markPresenceDirty();
-        return result;
-      }
       case "joinPortal": {
         // memberId は Worker が認証済みのトークンから渡したもの(クライアントの申告ではない)
         if (!memberId) throw new DomainError("[INVALID_ARGUMENT] memberId が必要です");
-        const portalArgs = args as JoinClientArgs;
-        const result = await engine.joinClient(deps, portalArgs, { memberId, label: portalArgs.label ?? "" });
+        const portalArgs = args as RoomJoinPortalArgs;
+        const result = await engine.joinParticipant(deps, portalArgs, { memberId, label: portalArgs.label ?? "" });
         this.markPresenceDirty();
         return result;
       }

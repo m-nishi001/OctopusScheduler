@@ -25,9 +25,10 @@ async function setup(clients = 1) {
   const meta = await svc.createSession(hub.deps, { name: "x" }, "a");
   const host = await svc.joinOperator(hub.deps, { sessionId: meta.id, role: "host", label: "PC" }, "a");
   const admin = await svc.joinOperator(hub.deps, { sessionId: meta.id, role: "admin", label: "A" }, "b");
+  await svc.setPortalSession(hub.deps, { sessionId: meta.id, published: true });
   const players: JoinResult[] = [];
   for (let i = 0; i < clients; i++) {
-    players.push(await svc.joinClient(hub.deps, { code: meta.code, memberId: `m${i}`, label: `参加者${i}` }));
+    players.push(await svc.joinPortal(hub.deps, {}, { id: `m${i}`, name: `参加者${i}` }));
   }
   const creds = (j: JoinResult) => ({ sessionId: meta.id, deviceId: j.deviceId, token: j.token });
   const open = (key = "q1:live", durationMs = 20_000, options = OPTIONS) =>

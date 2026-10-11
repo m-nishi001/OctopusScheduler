@@ -26,7 +26,6 @@ import type {
   CloseSessionArgs,
   CreateSessionArgs,
   IssueCommandArgs,
-  JoinClientArgs,
   JoinOperatorArgs,
   JoinPortalArgs,
   PollArgs,
@@ -71,7 +70,6 @@ declare let _sessionHub_createSession: (args: CreateSessionArgs) => Promise<stri
 declare let _sessionHub_listSessions: (args?: undefined) => Promise<string>;
 declare let _sessionHub_closeSession: (args: CloseSessionArgs) => Promise<string>;
 declare let _sessionHub_joinOperator: (args: JoinOperatorArgs) => Promise<string>;
-declare let _sessionHub_joinClient: (args: JoinClientArgs) => Promise<string>;
 declare let _sessionHub_setPortalSession: (args: SetPortalSessionArgs) => Promise<string>;
 declare let _sessionHub_joinPortal: (args: JoinPortalArgs) => Promise<string>;
 declare let _sessionHub_poll: (args: PollArgs) => Promise<string>;
@@ -111,14 +109,6 @@ _sessionHub_closeSession = secure("admin", async (args: CloseSessionArgs): Promi
 _sessionHub_joinOperator = secureAdminWithMember(async (args: JoinOperatorArgs, member) => {
   try {
     return ok(await backend().joinOperator(args, member.id));
-  } catch (error) {
-    return errorResponse(error);
-  }
-});
-
-_sessionHub_joinClient = secure("public", async (args: JoinClientArgs): Promise<string> => {
-  try {
-    return ok(await backend().joinClient(args));
   } catch (error) {
     return errorResponse(error);
   }
@@ -214,7 +204,6 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   listSessions: _sessionHub_listSessions,
   closeSession: _sessionHub_closeSession,
   joinOperator: _sessionHub_joinOperator,
-  joinClient: _sessionHub_joinClient,
   setPortalSession: _sessionHub_setPortalSession,
   joinPortal: _sessionHub_joinPortal,
   poll: _sessionHub_poll,

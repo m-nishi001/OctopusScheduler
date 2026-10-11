@@ -153,10 +153,11 @@ describe("管理コンソールのクイズ操作", () => {
     const { wrapper } = await mountConsole(meta.id);
     await device.conn.openRound("q1:live", OPTIONS, 30_000);
     await agent.publishSlice("quiz", quizState({ phase: "answering", deadlineMs: Date.now() + 30_000 }));
+    await env.repo.setPortalSession(meta.id, true);
     const players = [];
     for (let i = 0; i < 3; i++) {
-      const p = makeDevice(env.hub);
-      await p.conn.joinClient({ code: meta.code, label: `p${i}` });
+      const p = makeDevice(env.hub, { memberId: `p${i}`, memberName: `p${i}` });
+      await p.conn.joinPortal();
       players.push(p);
     }
     for (const p of players) await p.conn.answer("q1:live", 1);

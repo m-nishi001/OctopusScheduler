@@ -125,13 +125,4 @@ describe("joinPortal", () => {
     const again = await svc.joinPortal(hub.deps, { deviceId: first.deviceId, token: "wrong" }, ALICE);
     expect(again.deviceId).not.toBe(first.deviceId);
   });
-
-  it("匿名の参加コード入室は従来どおり(メンバーIDの申告をそのまま使い、復帰も申告どおり)", async () => {
-    const { hub, a } = await setup();
-    const anon = await svc.joinClient(hub.deps, { code: a.code, memberId: "u1", label: "太郎" });
-    const device = await hub.deps.repoFor(a.id).getDevice(anon.deviceId);
-    expect(device).toMatchObject({ memberId: "u1", label: "太郎" });
-    const again = await svc.joinClient(hub.deps, { code: a.code, deviceId: anon.deviceId, token: anon.token });
-    expect(again.deviceId).toBe(anon.deviceId);
-  });
 });

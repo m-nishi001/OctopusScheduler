@@ -20,7 +20,6 @@ import type {
   RoundSummary,
   SubmitAnswerResult,
   IssueCommandResult,
-  JoinClientArgs,
   JoinOperatorArgs,
   JoinResult,
   PollArgs,
@@ -193,26 +192,8 @@ export class SessionConnection implements TransportSource {
     }
   }
 
-  async joinClient(args: Omit<JoinClientArgs, "deviceId" | "token">): Promise<JoinResult> {
-    this.set({ phase: "joining", lastError: null, lastErrorCode: null });
-    const stored = loadCredentials(this.opts.store, "client");
-    const sameCode = stored?.code && stored.code.toUpperCase() === args.code.trim().toUpperCase();
-    try {
-      const result = await this.opts.api.joinClient({
-        ...args,
-        deviceId: sameCode ? stored?.deviceId : undefined,
-        token: sameCode ? stored?.token : undefined,
-      });
-      this.adopt(result, args.label ?? "", args.code.trim().toUpperCase());
-      return result;
-    } catch (error) {
-      this.failJoin(error);
-      throw error;
-    }
-  }
-
   /**
-   * ログイン済みの参加者として、ポータル公開中のセッションに参加コード無しで入る。
+   * ログイン済みの参加者として、ポータル公開中のセッションに入る。
    * メンバーはサーバーがログインから決める。保存済みの入室情報があれば同じ端末として復帰を試みる
    * (別のメンバーの情報ならサーバーが新しい端末として扱う)。
    */

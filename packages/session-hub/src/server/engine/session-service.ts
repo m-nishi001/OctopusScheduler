@@ -14,7 +14,6 @@ import type { SessionMeta, SessionSummary } from "../../shared/session-types";
 import type {
   CloseSessionArgs,
   CreateSessionArgs,
-  JoinClientArgs,
   JoinOperatorArgs,
   JoinPortalArgs,
   JoinResult,
@@ -193,18 +192,8 @@ export async function joinOperator(
   );
 }
 
-export async function joinClient(deps: ServiceDeps, args: JoinClientArgs): Promise<JoinResult> {
-  const code = (args.code ?? "").trim().toUpperCase();
-  if (!code) throw hubError("INVALID_ARGUMENT", "参加コードを入力してください");
-  const summary = (await deps.index.list()).find((s) => s.code === code && isActive(s));
-  if (!summary) throw hubError("SESSION_NOT_FOUND", "参加コードが見つかりません。コードを確認してください");
-  return deps.withLock(sessionLock(summary.id), LOCK_TIMEOUT_MS, () =>
-    engine.joinClient(engineDeps(deps, summary.id), args)
-  );
-}
-
 /**
- * ログイン済みの参加者が、参加コード無しでポータル公開中のセッションに入る。
+ * ログイン済みの参加者が、ポータル公開中のセッションに入る。
  * メンバーIDと表示名は呼び出し側(認証済みのトークン)から受け取り、クライアントの申告は使わない。
  */
 export async function joinPortal(
@@ -215,9 +204,9 @@ export async function joinPortal(
   const summary = await findPortalSession(deps);
   if (!summary) throw hubError("SESSION_NOT_FOUND", "いま参加できるイベントはありません");
   return deps.withLock(sessionLock(summary.id), LOCK_TIMEOUT_MS, () =>
-    engine.joinClient(
+    engine.joinParticipant(
       engineDeps(deps, summary.id),
-      { code: summary.code, deviceId: args.deviceId, token: args.token },
+      { deviceId: args.deviceId, token: args.token },
       { memberId: member.id, label: member.name }
     )
   );
