@@ -1,8 +1,11 @@
 <template>
     <teleport to="body">
-        <div class="dialog-overlay" role="dialog" aria-modal="true">
-            <div class="dialog-content">
-                <h3 class="dialog-title">{{ title }}</h3>
+        <div class="dialog-overlay jp-stage" role="dialog" aria-modal="true" data-testid="prize-winning-dialog">
+            <div class="jp-rays" aria-hidden="true"></div>
+            <div class="jp-flash" aria-hidden="true"></div>
+            <JackpotConfetti />
+            <div :class="['dialog-content', 'jp-frame', 'jp-pop-in', { 'no-image': !imageUrl1 && !imageUrl2 }]">
+                <h3 class="dialog-title jp-gold-text">{{ title }}</h3>
                 <!-- 画像が未設定の賞品でも、何が当たったかが必ず分かるように賞品名を出す -->
                 <p class="prize-name" data-testid="prize-winning-name">{{ prize.name }}</p>
                 <div v-if="imageUrl1 || imageUrl2"
@@ -14,7 +17,7 @@
                     <slot>{{ message }}</slot>
                 </p>
                 <div class="dialog-actions">
-                    <button v-if="showPrimary" class="btn-primary" type="button" @click.prevent.stop="() => { }">{{
+                    <button v-if="showPrimary" class="jp-button" type="button" @click.prevent.stop="() => { }">{{
                         primaryLabel }}</button>
                 </div>
             </div>
@@ -26,9 +29,12 @@
 import { defineComponent, ref, watch, onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
+import JackpotConfetti from '../../components/jackpot-confetti.vue';
+import '../../theme/jackpot-theme.css';
 
 export default defineComponent({
     name: 'DrawResultDialog',
+    components: { JackpotConfetti },
     props: {
         title: { type: String, required: true },
         message: { type: String, required: false, default: '' },
@@ -119,88 +125,94 @@ export default defineComponent({
 .dialog-overlay {
     position: fixed;
     inset: 0;
-    /* Use grid to reliably center content both vertically and horizontally */
     display: grid;
     place-items: center;
     padding: 24px;
-    background: rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    background-color: var(--jp-ink);
     z-index: 10000;
 }
 
+.dialog-overlay>.jp-rays {
+    inset: -80%;
+}
+
 .dialog-content {
-    justify-content: center;
-    background: #000;
-    border-radius: 12px;
-    /* keep ~100px margin around viewport */
+    position: relative;
+    z-index: 1;
     width: calc(100vw - 200px);
     height: calc(100vh - 200px);
     max-width: 1200px;
     max-height: 900px;
-    padding: 20px;
+    padding: 28px 32px;
     box-sizing: border-box;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-    /* hide native scrollbars for the modal itself */
-    overflow: hidden;
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    justify-content: center;
 }
 
 .dialog-title {
-    font-size: 3rem;
+    flex: 0 0 auto;
+    margin: 0 0 8px 0;
+    font-size: clamp(1.8rem, 3.4vw, 3rem);
     font-weight: 900;
-    margin: 0 0 12px 0;
-    color: #ffffff !important;
-    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+    letter-spacing: 0.4em;
+    text-indent: 0.4em;
 }
 
 .prize-name {
     flex: 0 0 auto;
     margin: 0 0 16px 0;
-    color: #ffd700;
     font-size: clamp(2.5rem, 7vw, 6rem);
     font-weight: 900;
     line-height: 1.15;
     overflow-wrap: anywhere;
-    text-shadow: 0 0 24px rgba(255, 215, 0, 0.55), 0 3px 0 rgba(0, 0, 0, 0.7);
+    color: var(--jp-text);
+    text-shadow: var(--jp-glow), 0 3px 0 rgba(0, 0, 0, 0.7);
+    animation: prize-name-in 900ms var(--jp-ease-pop) 250ms both;
+}
+
+@keyframes prize-name-in {
+    from {
+        opacity: 0;
+        transform: scale(0.3) translateY(30px);
+        letter-spacing: 0.3em;
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        letter-spacing: 0;
+    }
 }
 
 .dialog-images-wrap {
     margin: 0 0 12px 0;
     width: 100%;
-    /* take remaining vertical space inside dialog so image can be large */
     flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
-    border-radius: 12px;
-    border: 3px solid #ffd700;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    border-radius: 16px;
+    border: 3px solid var(--jp-gold);
+    box-shadow: var(--jp-glow);
     overflow: hidden;
 }
 
 .dialog-message {
+    flex: 0 0 auto;
     margin-bottom: 20px;
-    color: white;
+    color: var(--jp-text);
     font-size: 1.25rem;
 }
 
 .dialog-actions {
+    flex: 0 0 auto;
     margin-top: 18px;
-}
-
-.btn-primary {
-    background: linear-gradient(90deg, #ffd700, #ff6b35);
-    color: black;
-    padding: 20px 56px;
-    border-radius: 24px;
-    border: none;
-    cursor: pointer;
-    font-weight: 900;
-    font-size: 1.8rem;
-    box-shadow: 0 10px 30px rgba(255, 215, 0, 0.6), 0 0 30px rgba(255, 107, 53, 0.25);
 }
 
 .modal-image {
@@ -211,17 +223,22 @@ export default defineComponent({
     object-fit: contain;
     display: block;
     flex: 1 1 auto;
+    min-height: 0;
 }
 
 .dialog-images-wrap.single-image .modal-image {
-    /* single image should take full available width */
     flex: 1 1 100%;
     max-width: 100%;
 }
 
-@media (max-width: 480px) {
+/* 画像が無い賞品は、賞品名が主役の引き締まったサイズにする */
+.dialog-content.no-image {
+    height: auto;
+    min-height: 46vh;
+    padding: 56px 72px;
+}
 
-    /* small screens: reduce margins so dialog fits nicely */
+@media (max-width: 480px) {
     .dialog-content {
         width: calc(100vw - 40px);
         height: calc(100vh - 80px);
@@ -231,27 +248,5 @@ export default defineComponent({
     .dialog-images-wrap {
         gap: 8px;
     }
-
-    .dialog-title {
-        font-size: 2rem;
-    }
-
-    .btn-primary {
-        padding: 14px 36px;
-        font-size: 1.2rem;
-    }
-}
-
-/* Ensure title/message/actions do not overflow the dialog; image area uses remaining space */
-.dialog-title {
-    flex: 0 0 auto;
-}
-
-.dialog-message {
-    flex: 0 0 auto;
-}
-
-.dialog-actions {
-    flex: 0 0 auto;
 }
 </style>

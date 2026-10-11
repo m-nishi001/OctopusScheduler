@@ -1,14 +1,18 @@
 <template>
   <teleport to="body">
-    <div v-if="visible" class="dialog-overlay" role="dialog" aria-modal="true">
-      <div class="dialog-content">
-        <h3 class="dialog-title">{{ title }}</h3>
+    <div v-if="visible" class="dialog-overlay jp-stage" role="dialog" aria-modal="true" data-testid="member-winner-dialog">
+      <div class="jp-rays" aria-hidden="true"></div>
+      <div class="jp-flash" aria-hidden="true"></div>
+      <JackpotConfetti :count="110" :duration-ms="3500" />
+      <div class="dialog-content jp-frame jp-pop-in">
+        <p class="dialog-kicker jp-gold-text">WINNER</p>
         <div v-if="imageUrl" class="dialog-image-wrap">
           <img :src="imageUrl" alt="winner" class="modal-image" />
         </div>
+        <h3 class="dialog-title" data-testid="member-winner-name">{{ title }}</h3>
         <div class="dialog-actions">
           <!-- Inert: clicking does not close; parent orchestrator will handle flow via Enter/currentAction -->
-          <button ref="nextBtn" type="button" class="btn-primary" @click.prevent.stop="() => { }">次へ</button>
+          <button ref="nextBtn" type="button" class="jp-button" @click.prevent.stop="() => { }">次へ</button>
         </div>
       </div>
     </div>
@@ -17,6 +21,8 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue';
+import JackpotConfetti from '../../../components/jackpot-confetti.vue';
+import '../../../theme/jackpot-theme.css';
 
 const props = defineProps({
   visible: { type: Boolean, required: true },
@@ -60,60 +66,82 @@ watch(() => props.visible, async (newVal) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  background-color: var(--jp-ink);
   z-index: 10000;
 }
 
+.dialog-overlay>.jp-rays {
+  inset: -80%;
+}
+
 .dialog-content {
-  background: #000;
-  border-radius: 20px;
-  padding: 48px;
-  width: 760px;
+  position: relative;
+  z-index: 1;
+  padding: 36px 56px;
+  width: min(760px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
   box-sizing: border-box;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
-  border: 2px solid #ffd700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.dialog-kicker {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.4vw, 2rem);
+  font-weight: 900;
+  letter-spacing: 0.6em;
+  text-indent: 0.6em;
 }
 
 .dialog-title {
-  font-size: 3rem;
+  margin: 0;
+  max-width: 100%;
+  font-size: clamp(1.6rem, 3.4vw, 3rem);
   font-weight: 900;
-  margin-bottom: 18px;
-  color: #ffffff !important;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
-  /* preserve explicit newlines and prevent automatic wrapping */
-  white-space: pre;
-  word-break: normal;
+  line-height: 1.4;
+  text-wrap: balance;
+  word-break: auto-phrase;
+  color: var(--jp-text);
+  text-shadow: var(--jp-glow), 0 3px 0 rgba(0, 0, 0, 0.7);
+  /* 明示的な改行は保持し、長い名前は枠内で折り返す */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  animation: member-name-in 800ms var(--jp-ease-pop) 200ms both;
+}
+
+@keyframes member-name-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .dialog-image-wrap {
-  margin-bottom: 12px;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .modal-image {
-  max-width: 460px;
-  max-height: 460px;
+  max-width: min(420px, 100%);
+  max-height: min(42vh, 420px);
   object-fit: cover;
   display: block;
-  margin: 0 auto 20px auto;
-  border-radius: 12px;
-  border: 3px solid #ffd700;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  border: 5px solid var(--jp-gold);
+  box-shadow: var(--jp-glow);
 }
 
 .dialog-actions {
-  margin-top: 18px;
-}
-
-.btn-primary {
-  background: linear-gradient(90deg, #ffd700, #ff6b35);
-  color: black;
-  padding: 20px 56px;
-  border-radius: 24px;
-  border: none;
-  cursor: pointer;
-  font-weight: 900;
-  font-size: 1.8rem;
-  box-shadow: 0 10px 30px rgba(255, 215, 0, 0.6), 0 0 30px rgba(255, 107, 53, 0.25);
+  margin-top: 8px;
 }
 </style>
