@@ -11,7 +11,6 @@ import ShowSlideshow from "../pages/execute/show-content/show-slideshow.vue";
 import SessionsView from "../pages/session/sessions-view.vue";
 import SessionHostView from "../pages/session/session-host-view.vue";
 import SessionConsoleView from "../pages/session/session-console-view.vue";
-import PortalView from "../pages/session/portal-view.vue";
 import { participantPortalRoutes } from "@octopus/participant-portal";
 import EntryStage from "../pages/event-entry/entry-stage-view.vue";
 
@@ -31,11 +30,10 @@ const octopusSchedulerRoutes = [
     name: "settings",
     component: Settings,
   },
-  // セッション(パーティールーム)。一覧・ホスト・操作は管理者のみ、ポータルは参加者向けに公開。
+  // セッション(パーティールーム)。一覧・ホスト・操作は管理者のみ。参加者はログインして /p(参加者ポータル)に入る。
   { path: "/sessions", name: "sessions", component: SessionsView },
   { path: "/session/host/:id", name: "session-host", component: SessionHostView },
   { path: "/session/console/:id", name: "session-console", component: SessionConsoleView },
-  { path: "/portal/:code?", name: "portal", component: PortalView },
   // 会場の画面に出すエントリー受付(ホスト端末が開く。管理端末が session.navigate で切り替える)
   { path: "/event-entry", name: "event-entry", component: EntryStage },
   // 参加者ポータル(ログイン済みの参加者向け。受付QRまたはID/パスワードでログインして入る)。

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLoginUrl, buildPortalUrl, isAllowedHostPath, lobbyPath } from "../host-navigation";
+import { buildLoginUrl, isAllowedHostPath, lobbyPath } from "../host-navigation";
 
 describe("isAllowedHostPath", () => {
   it.each([
@@ -52,12 +52,6 @@ describe("isAllowedHostPath", () => {
 
   it("lobbyPath は常に許可される", () => {
     expect(isAllowedHostPath(lobbyPath("0a1b2c3d-4e5f"))).toBe(true);
-  });
-});
-
-describe("buildPortalUrl", () => {
-  it("既存のハッシュを取り除いてポータルのハッシュを付ける", () => {
-    expect(buildPortalUrl("ABC234", "https://example.com/app/exec#/home")).toBe("https://example.com/app/exec#/portal/ABC234");
   });
 });
 

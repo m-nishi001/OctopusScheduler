@@ -1,9 +1,8 @@
-import { buildPortalUrl } from "../../shared/host-navigation";
 import type { CreateSessionArgs } from "../../shared/protocol";
 import type { SessionMeta, SessionSummary } from "../../shared/session-types";
 import type { SessionHubApi } from "../../server/session-hub-api-contract";
 
-/** セッションの作成・一覧・終了(管理者向けの低頻度な操作)と、参加用URLの組み立て。 */
+/** セッションの作成・一覧・終了・ポータル公開の指定(管理者向けの低頻度な操作)と、アプリのURLの取得。 */
 export class SessionAdminRepository {
   constructor(private readonly api: SessionHubApi) {}
 
@@ -36,10 +35,5 @@ export class SessionAdminRepository {
       base = null;
     }
     return base ?? `${location.origin}${location.pathname}`;
-  }
-
-  /** 参加者がQRから開くポータルの絶対URL。 */
-  async portalUrl(code: string, location?: { origin: string; pathname: string }): Promise<string> {
-    return buildPortalUrl(code, await this.appBaseUrl(location));
   }
 }

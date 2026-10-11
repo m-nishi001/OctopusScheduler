@@ -117,18 +117,18 @@ describe("SessionAdminRepository", () => {
     expect((await repo.list())[0].status).toBe("closed");
   });
 
-  it("GAS のデプロイURLがあればそれを基点に、無ければ現在のURLで参加URLを作る", async () => {
+  it("GAS のデプロイURLがあればそれを基点に、無ければ現在のURLをアプリのURLとする", async () => {
     const hub = makeHub();
-    const withUrl = new SessionAdminRepository(createFakeHubApi(hub, "a", undefined, "https://script.example/exec#/x"));
-    expect(await withUrl.portalUrl("ABC234", { origin: "https://inner", pathname: "/p" })).toBe("https://script.example/exec#/portal/ABC234");
+    const withUrl = new SessionAdminRepository(createFakeHubApi(hub, "a", undefined, "https://script.example/exec"));
+    expect(await withUrl.appBaseUrl({ origin: "https://inner", pathname: "/p" })).toBe("https://script.example/exec");
     const without = new SessionAdminRepository(createFakeHubApi(hub, "a"));
-    expect(await without.portalUrl("ABC234", { origin: "https://app.example", pathname: "/" })).toBe("https://app.example/#/portal/ABC234");
+    expect(await without.appBaseUrl({ origin: "https://app.example", pathname: "/" })).toBe("https://app.example/");
   });
 
   it("URL取得に失敗しても現在のURLにフォールバックする", async () => {
     const hub = makeHub();
     const api = createFakeHubApi(hub, "a", { decide: (e) => (e === "getWebAppUrl" ? "dropRequest" : "ok") });
     const repo = new SessionAdminRepository(api);
-    expect(await repo.portalUrl("ABC234", { origin: "https://app.example", pathname: "/" })).toBe("https://app.example/#/portal/ABC234");
+    expect(await repo.appBaseUrl({ origin: "https://app.example", pathname: "/" })).toBe("https://app.example/");
   });
 });

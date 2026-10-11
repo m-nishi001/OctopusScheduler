@@ -4,8 +4,8 @@
  * 既定で全ルートが管理者ログイン必須(default-deny)。例外は次の最小限だけで、
  * 新しい画面を足してもうっかり公開にならない。
  *   - `/login`           : ログイン画面そのもの(ログイン済みなら役割ごとの着地先へ)
- *   - `/portal`, `/portal/:code` : 匿名参加の入口(QRコード・参加コード)
  *   - `/p`, `/p/**`      : 参加者ポータル。ログイン済みなら管理者・参加者のどちらも入れる
+ * 参加者はログイン必須(匿名の参加は無い)。
  * 同じURLから入り、役割(管理者 / 参加者)で表示する画面を出し分ける。参加者が管理画面を
  * 直打ちしても、参加者ポータルへ戻される。
  * 投影用の実行画面(`/execute/**`)も、端末ごとに一度ログインすれば以降はトークンで通る。
@@ -13,7 +13,7 @@
  */
 export type Role = "admin" | "participant";
 
-const PUBLIC_PATH = /^\/(?:login|portal)(?:\/|$)/;
+const PUBLIC_PATH = /^\/login(?:\/|$)/;
 const PARTICIPANT_PATH = /^\/p(?:\/|$)/;
 
 export const ADMIN_HOME = "/home";
@@ -50,8 +50,6 @@ export interface AuthGuardDeps {
 
 export function createAuthGuard(deps: AuthGuardDeps) {
   return async (to: { path: string; fullPath: string }) => {
-    // 匿名参加の入口では確認通信をしない。
-    if (isPublicPath(to.path) && to.path !== "/login") return true;
     const role = await deps.getRole();
     if (to.path === "/login") return role ? { path: landingPath(role) } : true;
     if (!role) return { path: "/login", query: { redirect: to.fullPath } };

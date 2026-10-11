@@ -39,12 +39,12 @@ async function mountConsole(sessionId: string, faults?: FaultInjector) {
 const button = (wrapper: ReturnType<typeof mount>, text: string) => wrapper.findAll("button").find((b) => b.text().includes(text))!;
 
 describe("session-console-view", () => {
-  it("管理端末として入室し、セッション名・参加コード・接続状態を表示する", async () => {
+  it("管理端末として入室し、セッション名・接続状態を表示する(参加コードは出さない)", async () => {
     const meta = await env.repo.create({ name: "夏祭り" });
     const { wrapper, device } = await mountConsole(meta.id);
     expect(device.conn.state.role).toBe("admin");
     expect(wrapper.text()).toContain("操作: 夏祭り");
-    expect(wrapper.find('[data-testid="people-card"]').text()).toContain(meta.code);
+    expect(wrapper.find('[data-testid="people-card"]').text()).not.toContain(meta.code);
     expect(wrapper.text()).toContain("接続中");
   });
 
@@ -145,8 +145,9 @@ describe("session-console-view", () => {
     await hostDevice.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
     await agent.publishSlice("jackpot", { phase: "draw" }, ["jackpot.stopRoulette"]);
     const { wrapper } = await mountConsole(meta.id);
-    const client = makeDevice(env.hub);
-    await client.conn.joinClient({ code: meta.code });
+    await env.repo.setPortalSession(meta.id, true);
+    const client = makeDevice(env.hub, { memberId: "alice", memberName: "アリス" });
+    await client.conn.joinPortal();
     await settle(5000);
     await client.conn.issue("jackpot", "stopRoulette");
     await settle(5000);

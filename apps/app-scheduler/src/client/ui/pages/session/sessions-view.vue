@@ -8,8 +8,8 @@
         <section class="sessions">
             <p class="sessions__lead">
                 セッション(パーティールーム)を作り、会場の投影端末を「ホスト」として、手元の端末を「管理」として接続します。
-                参加者はQRコードまたは参加コードでポータルに入ります。
-                ログイン済みの参加者(受付QR)は、「ポータルに公開」したセッションに自動で入ります。公開できるのは同時に1つです。
+                参加者は、受付のQRコード(またはIDとパスワード)でログインし、「ポータルに公開」したセッションに自動で入ります。
+                公開できるのは同時に1つです。
             </p>
 
             <form class="sessions__create" @submit.prevent="create">
@@ -28,7 +28,6 @@
             <p v-if="error" class="sessions__error" role="alert">{{ error }}</p>
 
             <DataTable :columns="columns" :rows="rows" row-key="id" :loading="loading" empty-text="進行中のセッションはありません">
-                <template #cell-code="{ row }"><code class="sessions__code">{{ row.code }}</code></template>
                 <template #cell-status="{ row }">{{ statusLabel(row) }}</template>
                 <template #cell-portal="{ row }">
                     <span v-if="row.portal" class="sessions__portal" data-testid="portal-on">公開中</span>
@@ -72,7 +71,6 @@ const { confirm } = useConfirm();
 
 const columns: DataTableColumn[] = [
     { key: 'name', label: 'セッション名' },
-    { key: 'code', label: '参加コード' },
     { key: 'status', label: '状態' },
     { key: 'portal', label: '参加者ポータル' },
     { key: 'actions', label: '操作' },
@@ -191,7 +189,6 @@ onUnmounted(() => {
 .sessions__lead { margin: 0; opacity: 0.8; line-height: 1.6; }
 .sessions__create { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 .sessions__check { display: flex; align-items: center; gap: 6px; }
-.sessions__code { font-size: 1.1rem; letter-spacing: 0.15em; font-weight: 700; }
 .sessions__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .sessions__error { color: #ff8a80; margin: 0; }
 .sessions__portal { font-weight: 700; color: var(--ui-success, #3fb27f); }

@@ -1,12 +1,31 @@
-import { ADMIN_ID, ADMIN_PASSWORD, createSession, expect, joinPortal, newDevice, route, test } from "./fixtures";
+import { ADMIN_ID, ADMIN_PASSWORD, adminRpc, addParticipant, createSession, expect, loginByQr, newDevice, publishPortal, removeParticipant, route, test } from "./fixtures";
 
 /**
  * ホスト(投影)・管理・参加者の3種類の端末を、別々のブラウザコンテキストとして同時に動かす。
  * 実 workerd(Durable Object + WebSocket)上で、画面から見える挙動を通しで確認する。
+ * 参加者は受付QRでログインした別々のスマホ。参加者・セッションは各テストの中で作り、終わったら消す。
  */
 
+const PREFIX = "sf-e2e";
+const ids = Array.from({ length: 5 }, (_, i) => `${PREFIX}-${i + 1}`);
+const keys = new Map<string, string>();
+const sessionIds: string[] = [];
+
+test.describe.configure({ mode: "serial" });
+
+test.beforeAll(async ({ request }) => {
+  for (const [i, id] of ids.entries()) keys.set(id, await addParticipant(request, id, `参加者${i + 1}`));
+});
+
+test.afterAll(async ({ request }) => {
+  for (const sessionId of sessionIds) await adminRpc(request, "sessionHub_closeSession", { sessionId }).catch(() => undefined);
+  for (const id of ids) await removeParticipant(request, id).catch(() => undefined);
+});
+
+const login = (browser: import("@playwright/test").Browser, i = 0) => loginByQr(browser, ids[i], keys.get(ids[i])!);
+
 test.describe("認証", () => {
-  test("未ログインでは管理画面からログイン画面へ。ポータルは公開のまま", async ({ browser }) => {
+  test("未ログインでは、管理画面も参加者ポータルもログイン画面へ", async ({ browser }) => {
     const d = await newDevice(browser);
     await d.page.goto("/#/sessions");
     await expect(d.page).toHaveURL(/#\/login/);
@@ -14,8 +33,8 @@ test.describe("認証", () => {
     await expect(d.page).toHaveURL(/#\/login/);
     await d.page.goto("/#/session/console/whatever");
     await expect(d.page).toHaveURL(/#\/login/);
-    await d.page.goto("/#/portal");
-    await expect(d.page.locator("#portal-code")).toBeVisible();
+    await d.page.goto("/#/p");
+    await expect(d.page).toHaveURL(/#\/login/);
     await d.context.close();
   });
 
@@ -41,36 +60,39 @@ test.describe("認証", () => {
   });
 });
 
+/** セッションを作り、参加者ポータルに公開する(参加者のスマホが自動で入る)。 */
+async function openSession(adminPage: import("@playwright/test").Page, request: import("@playwright/test").APIRequestContext, label: string) {
+  const created = await createSession(adminPage, label);
+  sessionIds.push(created.id);
+  await publishPortal(request, created.id);
+  return created;
+}
+
 test.describe("ホスト・管理・参加者の通し", () => {
-  test("作成 → ホスト起動 → 参加 → 遠隔で画面切り替え → 参加者の画面にも反映", async ({ browser }) => {
+  test("作成 → ホスト起動 → 参加者ログイン → 遠隔で画面切り替え → 参加者の人数にも反映", async ({ browser, request }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
-    const { id, code } = await createSession(adminDev.page, "E2E会場");
-    expect(code).toMatch(/^[A-HJKMNP-Z2-9]{6}$/);
+    const { id } = await openSession(adminDev.page, request, "E2E会場");
 
     // 管理コンソール: ホスト未接続の警告
     await expect(adminDev.page.getByTestId("host-warning")).toBeVisible();
     await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト未接続");
 
-    // ホスト(プロジェクター)
+    // ホスト(プロジェクター): 参加コードやQRは出さず、ログインの案内を出す
     const host = await newDevice(browser, { signedIn: true, projector: true });
     await host.page.goto(`/#/session/host/${id}`);
     await expect(host.page.locator(".host-view__title")).toContainText("E2E会場");
-    await expect(host.page.locator(".session-qr__code")).toHaveText(code);
-    await expect(host.page.locator("img.session-qr__image")).toHaveAttribute("src", /api\.qrserver\.com.*portal/);
+    await expect(host.page.getByTestId("host-guide")).toContainText("ログイン");
+    await expect(host.page.locator("img.session-qr__image")).toHaveCount(0);
 
-    // 参加者(スマホ・未ログイン)
-    const phone = await newDevice(browser, { mobile: true });
-    await phone.page.goto("/#/portal");
-    await phone.page.locator("#portal-code").fill(code.toLowerCase());
-    await phone.page.getByRole("button", { name: "参加する" }).click();
-    await expect(phone.page.locator(".portal__session")).toContainText("E2E会場");
-    await expect(phone.page).toHaveURL(new RegExp(`#/portal/${code}$`));
+    // 参加者(スマホ・受付QRでログイン済み)
+    const phone = await login(browser, 0);
+    await expect(phone.page.getByTestId("home-greeting")).toContainText("参加者1");
 
-    // 管理コンソールにホストと参加者が反映される(在席はまとめて配信される)
+    // 管理コンソールとホストに参加者が反映される(在席はまとめて配信される)
     await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト接続中");
     await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 1 人");
     await expect(adminDev.page.getByTestId("host-warning")).toBeHidden();
-    await expect(host.page.locator(".host-view__presence")).toContainText("参加者 1 人");
+    await expect(host.page.getByTestId("host-count")).toContainText("1");
 
     // 遠隔操作: ホストの画面を切り替える
     await adminDev.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();
@@ -81,20 +103,19 @@ test.describe("ホスト・管理・参加者の通し", () => {
     await expect(adminDev.page.getByTestId("host-card")).toContainText("/execute/jackpot-ending");
     await expect(adminDev.page.getByTestId("log")).toContainText("session.navigate");
     await expect(adminDev.page.getByTestId("host-card")).not.toContainText("未適用のコマンド");
-    // 参加者のポータルにも、ホストの画面が反映される
-    await expect(phone.page.locator(".portal__screen")).toHaveText("ジャックポット");
 
     // ロビーに戻す
-    await adminDev.page.getByRole("button", { name: "ロビー(QR表示)" }).click();
+    await adminDev.page.getByRole("button", { name: "ロビー" }).click();
     await expect.poll(() => route(host.page)).toBe(`/session/host/${id}`);
-    await expect(host.page.locator(".session-qr__code")).toHaveText(code);
 
+    await publishPortal(request, id, false);
     for (const d of [adminDev, host, phone]) await d.context.close();
   });
 
   test("ホストのリロードから自動復帰し、その後の遠隔操作も引き続き届く", async ({ browser }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
     const { id } = await createSession(adminDev.page, "リロード会場");
+    sessionIds.push(id);
     const host = await newDevice(browser, { signedIn: true, projector: true });
     await host.page.goto(`/#/session/host/${id}`);
     await expect(host.page.locator(".host-view__title")).toContainText("リロード会場");
@@ -108,48 +129,45 @@ test.describe("ホスト・管理・参加者の通し", () => {
     // ホスト端末が増えていない(同じ端末として復帰)= 引き継ぎ確認が出ていない
     await expect(host.page.getByText("ホストを引き継ぎますか")).toBeHidden();
 
-    await adminDev.page.getByRole("button", { name: "ロビー(QR表示)" }).click();
+    await adminDev.page.getByRole("button", { name: "ロビー" }).click();
     await expect.poll(() => route(host.page)).toBe(`/session/host/${id}`);
     await expect(host.page.locator(".host-view__title")).toContainText("リロード会場");
     for (const d of [adminDev, host]) await d.context.close();
   });
 
-  test("参加者の誤リロードで自動復帰する。URLのコードで直接参加もできる", async ({ browser }) => {
+  test("参加者の誤リロードで自動復帰する(ログインは保たれ、人数も増えない)", async ({ browser, request }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
-    const { id, code } = await createSession(adminDev.page, "復帰会場");
+    const { id } = await openSession(adminDev.page, request, "復帰会場");
     const host = await newDevice(browser, { signedIn: true, projector: true });
     await host.page.goto(`/#/session/host/${id}`);
     await expect(host.page.locator(".host-view__title")).toBeVisible();
 
-    const phone = await newDevice(browser, { mobile: true });
-    await joinPortal(phone.page, code); // QR から開いた想定
-    await expect(phone.page.locator(".portal__session")).toContainText("復帰会場");
-    await expect(host.page.locator(".host-view__presence")).toContainText("参加者 1 人");
+    const phone = await login(browser, 0);
+    await expect(host.page.getByTestId("host-count")).toContainText("1");
 
-    // 誤リロード 3 回。コードを入れ直さずに戻り、参加者数も増えない(同じ端末として復帰)
+    // 誤リロード 3 回。ログインし直さずに戻り、参加者数も増えない(同じ端末として復帰)
     for (let i = 0; i < 3; i++) {
       await phone.page.reload();
-      await expect(phone.page.locator(".portal__session")).toContainText("復帰会場");
+      await expect(phone.page.getByTestId("home-greeting")).toBeVisible();
+      await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中");
     }
     await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 1 人");
 
-    // コード無しのURLに戻ってリロードしても復帰する
-    await phone.page.goto("/#/portal");
-    await phone.page.reload();
-    await expect(phone.page.locator(".portal__session")).toContainText("復帰会場");
+    await publishPortal(request, id, false);
     for (const d of [adminDev, host, phone]) await d.context.close();
   });
 
-  test("参加者を5人入れても、人数が正しく反映される", async ({ browser }) => {
+  test("参加者を5人入れても、人数が正しく反映される", async ({ browser, request }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
-    const { code } = await createSession(adminDev.page, "多人数会場");
-    const phones = await Promise.all(Array.from({ length: 5 }, () => newDevice(browser, { mobile: true })));
-    await Promise.all(phones.map((p) => joinPortal(p.page, code)));
-    for (const p of phones) await expect(p.page.locator(".portal__session")).toContainText("多人数会場");
+    const { id } = await openSession(adminDev.page, request, "多人数会場");
+    const phones = await Promise.all(ids.map((_, i) => login(browser, i)));
     await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 5 人");
-    // 1人が退出すると減る
-    await phones[0].page.getByRole("button", { name: "退出する" }).click();
+    // 1人がログアウト(退出)すると減る
+    await phones[0].page.getByRole("link", { name: "マイページ" }).click();
+    await phones[0].page.getByTestId("me-signout").click();
     await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 4 人");
+
+    await publishPortal(request, id, false);
     for (const d of [adminDev, ...phones]) await d.context.close();
   });
 });
@@ -158,6 +176,7 @@ test.describe("ホストの引き継ぎと終了", () => {
   test("別の端末がホストを引き継ぐと、旧ホストは操作を受け付けず、新ホストだけが動く", async ({ browser }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
     const { id } = await createSession(adminDev.page, "引き継ぎ会場");
+    sessionIds.push(id);
 
     const host1 = await newDevice(browser, { signedIn: true, projector: true });
     await host1.page.goto(`/#/session/host/${id}`);
@@ -184,13 +203,12 @@ test.describe("ホストの引き継ぎと終了", () => {
     for (const d of [adminDev, host1, host2]) await d.context.close();
   });
 
-  test("セッションを終了すると、ホスト・管理・参加者の全端末に終了が伝わる", async ({ browser }) => {
+  test("セッションを終了すると、ホスト・管理・参加者の全端末に終了が伝わる", async ({ browser, request }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
-    const { id, code, name } = await createSession(adminDev.page, "終了会場");
+    const { id, name } = await openSession(adminDev.page, request, "終了会場");
     const host = await newDevice(browser, { signedIn: true, projector: true });
     await host.page.goto(`/#/session/host/${id}`);
-    const phone = await newDevice(browser, { mobile: true });
-    await joinPortal(phone.page, code);
+    const phone = await login(browser, 0);
 
     // 一覧の画面から終了(確認ダイアログあり)
     const lister = await newDevice(browser, { signedIn: true });
@@ -200,36 +218,17 @@ test.describe("ホストの引き継ぎと終了", () => {
     await lister.page.getByRole("button", { name: "終了する" }).click();
     await expect(row).toContainText("終了");
 
-    await expect(phone.page.getByText("このセッションは終了しました")).toBeVisible();
+    // 参加者は、公開中のセッションがなくなるので「イベント待ち」に戻る
+    await expect(phone.page.getByTestId("portal-conn")).toContainText("イベント待ち");
     await expect(adminDev.page.getByText("このセッションは終了しました")).toBeVisible();
     // ホストの画面: 隅のバッジ(セッションは終了しました)と、ロビーの接続表示の両方が終了を示す
     await expect(host.page.getByTestId("host-badge")).toContainText("セッションは終了しました");
     await expect(host.page.locator(".connection-banner")).toHaveText("セッションは終了しました");
-
-    // 終了済みのコードでは参加できない
-    const late = await newDevice(browser, { mobile: true });
-    await late.page.goto(`/#/portal/${code}`);
-    const joinButton = late.page.getByRole("button", { name: "参加する" });
-    if (await joinButton.isVisible().catch(() => false)) await joinButton.click();
-    await expect(late.page.getByRole("alert")).toContainText("参加コードが見つかりません");
-    for (const d of [adminDev, host, phone, lister, late]) await d.context.close();
+    for (const d of [adminDev, host, phone, lister]) await d.context.close();
   });
 });
 
 test.describe("異常系・環境差", () => {
-  test("存在しない参加コードはエラーを出して入力欄に留まる。大小文字・空白は吸収される", async ({ browser }) => {
-    const phone = await newDevice(browser, { mobile: true });
-    await phone.page.goto("/#/portal");
-    await phone.page.locator("#portal-code").fill("zzzzzz");
-    await phone.page.getByRole("button", { name: "参加する" }).click();
-    await expect(phone.page.getByRole("alert")).toContainText("参加コードが見つかりません");
-    await expect(phone.page.locator("#portal-code")).toBeVisible();
-    // 6文字未満では押せない
-    await phone.page.locator("#portal-code").fill("ab");
-    await expect(phone.page.getByRole("button", { name: "参加する" })).toBeDisabled();
-    await phone.context.close();
-  });
-
   test("存在しないセッションの管理コンソール・ホスト画面はエラーを表示する", async ({ browser }) => {
     const d = await newDevice(browser, { signedIn: true });
     await d.page.goto("/#/session/console/no-such-session");
@@ -240,57 +239,56 @@ test.describe("異常系・環境差", () => {
     await d.context.close();
   });
 
-  test("WebSocket が使えない回線でも、ポーリングに切り替わって参加・反映できる", async ({ browser }) => {
+  test("WebSocket が使えない回線でも、ポーリングに切り替わって参加・反映できる", async ({ browser, request }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
-    const { id, code } = await createSession(adminDev.page, "WS不可会場");
+    const { id } = await openSession(adminDev.page, request, "WS不可会場");
     const host = await newDevice(browser, { signedIn: true, projector: true });
     await host.page.goto(`/#/session/host/${id}`);
     await expect(host.page.locator(".host-view__title")).toBeVisible();
 
     const phone = await newDevice(browser, { mobile: true });
     await phone.context.route("**/ws/**", (r) => r.abort()); // 社内ネットワーク等で WebSocket が遮断されている想定
-    await joinPortal(phone.page, code);
-    await expect(phone.page.locator(".portal__session")).toContainText("WS不可会場");
+    await phone.page.goto(`/#/login?id=${ids[0]}&key=${encodeURIComponent(keys.get(ids[0])!)}`);
+    await expect(phone.page.getByTestId("home-greeting")).toBeVisible();
     // ポーリングへ切り替わった後も、人数が反映される
     await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 1 人", { timeout: 40_000 });
-    await adminDev.page.getByRole("button", { name: "ジャックポット: 結果" }).click();
-    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-result");
-    await expect(phone.page.locator(".portal__screen")).toHaveText("ジャックポット", { timeout: 40_000 });
+    await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中", { timeout: 40_000 });
+
+    await publishPortal(request, id, false);
     for (const d of [adminDev, host, phone]) await d.context.close();
   });
 
-  test("スマホの画面幅で横スクロールが出ない(入室前・入室後)", async ({ browser }) => {
-    const adminDev = await newDevice(browser, { signedIn: true });
-    const { code } = await createSession(adminDev.page, "スマホ表示会場");
+  test("スマホの画面幅で横スクロールが出ない(ログイン前・ログイン後)", async ({ browser }) => {
     const phone = await newDevice(browser, { mobile: true });
-    await phone.page.goto("/#/portal");
-    await expect(phone.page.locator("#portal-code")).toBeVisible();
+    await phone.page.goto("/#/login");
+    await expect(phone.page.locator('input[type="password"]')).toBeVisible();
     const overflow = () => phone.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(await overflow()).toBeLessThanOrEqual(0);
-    await phone.page.locator("#portal-code").fill(code);
-    await phone.page.getByRole("button", { name: "参加する" }).click();
-    await expect(phone.page.locator(".portal__session")).toBeVisible();
-    expect(await overflow()).toBeLessThanOrEqual(0);
-    // 押しやすさ: 参加ボタン/退出ボタンの高さが 28px 以上
-    const box = await phone.page.getByRole("button", { name: "退出する" }).boundingBox();
-    expect(box!.height).toBeGreaterThanOrEqual(28);
-    await adminDev.context.close();
     await phone.context.close();
+
+    // ログイン後(ホーム)も同じ。同じページでハッシュだけ変えると読み込み直されないので、別の端末で開く
+    const loggedIn = await newDevice(browser, { mobile: true });
+    await loggedIn.page.goto(`/#/login?id=${ids[0]}&key=${encodeURIComponent(keys.get(ids[0])!)}`);
+    await expect(loggedIn.page.getByTestId("home-greeting")).toBeVisible();
+    const loggedInOverflow = await loggedIn.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(loggedInOverflow).toBeLessThanOrEqual(0);
+    await loggedIn.context.close();
   });
 
-  test("ブラウザがオフラインになっても落ちず、復帰すると自動で再接続する", async ({ browser }) => {
+  test("ブラウザがオフラインになっても落ちず、復帰すると自動で再接続する", async ({ browser, request }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
-    const { code } = await createSession(adminDev.page, "オフライン会場");
-    const phone = await newDevice(browser, { mobile: true });
-    await joinPortal(phone.page, code);
+    const { id } = await openSession(adminDev.page, request, "オフライン会場");
+    const phone = await login(browser, 0);
 
     await phone.context.setOffline(true);
-    // 切断を検知して「再接続中」と表示する(画面は壊れず、セッション名は表示されたまま)
-    await expect(phone.page.locator(".connection-banner")).toContainText("再接続中", { timeout: 90_000 });
-    await expect(phone.page.locator(".portal__session")).toBeVisible();
+    // 切断を検知して「再接続中」と表示する(画面は壊れず、ホームは表示されたまま)
+    await expect(phone.page.getByTestId("portal-conn")).toContainText("再接続中", { timeout: 90_000 });
+    await expect(phone.page.getByTestId("home-greeting")).toBeVisible();
     await phone.context.setOffline(false);
-    await expect(phone.page.locator(".connection-banner")).toHaveText(/^接続中/, { timeout: 90_000 });
-    await expect(phone.page.locator(".portal__session")).toBeVisible();
+    await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中", { timeout: 90_000 });
+    await expect(phone.page.getByTestId("home-greeting")).toBeVisible();
+
+    await publishPortal(request, id, false);
     await adminDev.context.close();
     await phone.context.close();
   });

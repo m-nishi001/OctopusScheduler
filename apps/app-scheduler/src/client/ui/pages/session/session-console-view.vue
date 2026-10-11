@@ -25,7 +25,6 @@
                         <h2>接続</h2>
                         <p class="console__big">参加者 {{ state.presence?.clientCount ?? 0 }} 人</p>
                         <p class="console__sub">管理端末 {{ state.presence?.admins.length ?? 0 }} 台</p>
-                        <p class="console__sub">参加コード <code>{{ state.session.code }}</code></p>
                     </article>
                 </div>
 
@@ -233,7 +232,7 @@ const q = (path: string) => (isDemo.value ? `${path}?demo=1` : path);
 const ENTRY_STAGE_PATH = '/event-entry';
 
 const presets = computed(() => [
-    { label: 'ロビー(QR表示)', path: lobbyPath(sessionId.value) },
+    { label: 'ロビー', path: lobbyPath(sessionId.value) },
     { label: 'エントリー受付(バブル)', path: ENTRY_STAGE_PATH },
     { label: 'ジャックポット: オープニング', path: q('/jackpot-opening') },
     { label: 'ジャックポット: 説明', path: q('/jackpot-description') },

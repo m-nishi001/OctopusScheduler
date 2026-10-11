@@ -47,8 +47,8 @@ export async function adminRpc<T = unknown>(request: APIRequestContext, name: st
   return json.data as T;
 }
 
-/** 管理端末でセッションを作成し、一覧から id と参加コードを返す。 */
-export async function createSession(page: Page, label: string, options: { demo?: boolean } = {}): Promise<{ id: string; code: string; name: string }> {
+/** 管理端末でセッションを作成し、id と名前を返す。 */
+export async function createSession(page: Page, label: string, options: { demo?: boolean } = {}): Promise<{ id: string; name: string }> {
   // 同じ wrangler 上で他のテストが作ったセッションと取り違えないよう、名前は毎回ユニークにする。
   const name = `${label}-${Math.random().toString(36).slice(2, 7)}`;
   await page.goto("/#/sessions");
@@ -57,26 +57,33 @@ export async function createSession(page: Page, label: string, options: { demo?:
   await page.getByRole("button", { name: "セッションを作成" }).click();
   const row = page.locator("tbody tr", { hasText: name }).first();
   await expect(row).toBeVisible();
-  const code = (await row.locator(".sessions__code").innerText()).trim();
   // 操作画面へ遷移して id を URL から得る
   await row.getByRole("button", { name: "操作する" }).click();
   await page.waitForURL(/#\/session\/console\/[^/]+$/);
   const id = new URL(page.url()).hash.split("/").pop()!;
-  return { id, code, name };
+  return { id, name };
 }
 
-/**
- * 参加者としてポータルに入る(QRのURLを開いた想定)。名簿(メンバー)がある環境では名前を選ぶ画面が
- * 出るので「参加する」を押し、無い環境では自動で参加する。どちらでも参加済みの状態まで進める。
- */
-export async function joinPortal(page: Page, code: string): Promise<void> {
-  await page.goto(`/#/portal/${code}`);
-  const session = page.locator(".portal__session");
-  const button = page.getByRole("button", { name: "参加する" });
-  await expect(session.or(button)).toBeVisible();
-  if (await button.isVisible()) await button.click();
-  await expect(session).toBeVisible();
+/** 架空の参加者アカウントを作り、受付QRのログインキーを返す(テストの準備用)。 */
+export async function addParticipant(request: APIRequestContext, id: string, name: string): Promise<string> {
+  await adminRpc(request, "accounts_addMember", { id, name });
+  return (await adminRpc<{ key: string }>(request, "accounts_issueLoginKey", { id })).key;
 }
+
+export const removeParticipant = (request: APIRequestContext, id: string) => adminRpc(request, "accounts_deleteMember", { id });
+
+/** 受付のQRを読み取った想定で、参加者のスマホとしてログインし、ポータルに接続するまで進める。 */
+export async function loginByQr(browser: Browser, id: string, key: string): Promise<Device> {
+  const d = await newDevice(browser, { mobile: true });
+  await d.page.goto(`/#/login?id=${encodeURIComponent(id)}&key=${encodeURIComponent(key)}`);
+  await expect(d.page.getByTestId("home-greeting")).toBeVisible();
+  await expect(d.page.getByTestId("portal-conn")).toContainText("接続中");
+  return d;
+}
+
+/** セッションを参加者ポータルに公開する / 取り下げる。 */
+export const publishPortal = (request: APIRequestContext, sessionId: string, published = true) =>
+  adminRpc(request, "sessionHub_setPortalSession", { sessionId, published });
 
 /** 現在のハッシュルート(例: "/jackpot-opening")。 */
 export async function route(page: Page): Promise<string> {

@@ -8,7 +8,6 @@ vi.mock("../../../../control/auth/auth-session", () => ({
 }));
 
 import SessionConsoleView from "../session-console-view.vue";
-import PortalView from "../portal-view.vue";
 import { makeDevice, makeRouter, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
 import type { SessionEnv } from "./session-test-kit";
 
@@ -45,15 +44,6 @@ async function mountConsole(sessionId: string) {
   const router = makeRouter(`/session/console/${sessionId}`);
   await router.isReady();
   const wrapper = mount(SessionConsoleView, { props: { connection: device.conn }, global: { plugins: [router] } });
-  await settle();
-  return { wrapper, device };
-}
-
-async function mountPortal(code: string) {
-  const device = makeDevice(env.hub);
-  const router = makeRouter(`/portal/${code}`);
-  await router.isReady();
-  const wrapper = mount(PortalView, { props: { connection: device.conn }, global: { plugins: [router] } });
   await settle();
   return { wrapper, device };
 }
@@ -111,57 +101,5 @@ describe("管理コンソールのジャックポット操作", () => {
     await agent.clearSlice("jackpot");
     await settle(5000);
     expect(wrapper.find('[data-testid="jackpot-state"]').text()).toContain("本抽選の画面を開くと");
-  });
-});
-
-describe("参加ポータルのジャックポット", () => {
-  it("当選者・賞品は公開されるまで表示されない(ネタバレしない)。公開後に表示される", async () => {
-    const { meta, agent } = await setupHosted();
-    const { wrapper } = await mountPortal(meta.code);
-    await agent.publishSlice("jackpot", jackpotState({ phase: "member" }));
-    await settle(8000);
-    expect(wrapper.find('[data-testid="winner"]').exists()).toBe(false);
-
-    await agent.publishSlice("jackpot", jackpotState({ phase: "member", member: "太郎" }));
-    await settle(8000);
-    expect(wrapper.find('[data-testid="winner"]').text()).toContain("当選者: 太郎");
-    expect(wrapper.find('[data-testid="winner"]').text()).not.toContain("賞品");
-
-    await agent.publishSlice("jackpot", jackpotState({ phase: "prize", member: "太郎", prize: "特賞" }));
-    await settle(8000);
-    expect(wrapper.find('[data-testid="winner"]').text()).toContain("賞品: 特賞");
-  });
-
-  it("止められる場面でだけ「ルーレットを止める」が出て、押すとホストに届く。止まったら消える", async () => {
-    const { meta, agent, calls } = await setupHosted();
-    const { wrapper } = await mountPortal(meta.code);
-    expect(wrapper.text()).toContain("受付が始まるまでお待ちください");
-
-    await agent.publishSlice("jackpot", jackpotState({ canStop: true }), ["jackpot.stopRoulette"]);
-    await settle(8000);
-    const stop = btn(wrapper, "ルーレットを止める");
-    expect(stop.exists()).toBe(true);
-    await stop.trigger("click");
-    await stop.trigger("click"); // 連打
-    await settle(5000);
-    expect(calls).toEqual(["stopRoulette"]);
-
-    await agent.publishSlice("jackpot", jackpotState({ canStop: false, member: "花子" }), []);
-    await settle(8000);
-    expect(wrapper.findAll("button").some((b) => b.text().includes("ルーレットを止める"))).toBe(false);
-    expect(wrapper.find('[data-testid="winner"]').text()).toContain("花子");
-  });
-
-  it("遅れて押された(すでに止まった後の)停止は「受付が終了しました」と案内される", async () => {
-    const { meta, agent } = await setupHosted();
-    const { wrapper } = await mountPortal(meta.code);
-    await agent.publishSlice("jackpot", jackpotState({ canStop: true }), ["jackpot.stopRoulette"]);
-    await settle(8000);
-    const stop = btn(wrapper, "ルーレットを止める");
-    // 参加者の画面にはまだボタンが残っているが、ホストはすでに受付を閉じた
-    await agent.publishSlice("jackpot", jackpotState({ canStop: false }), []);
-    await stop.trigger("click");
-    await settle(100);
-    expect(wrapper.find(".portal__action").text()).toBe("受付が終了しました");
   });
 });

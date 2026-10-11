@@ -38,18 +38,19 @@ async function mountHost(sessionId: string) {
 }
 
 describe("session-host-view", () => {
-  it("ホストとして入室し、セッション名・参加コード・QR(ポータルURL)を表示する", async () => {
+  it("ホストとして入室し、セッション名・参加者の人数・ログインの案内を表示する(参加コードやQRは出さない)", async () => {
     const meta = await env.repo.create({ name: "夏祭り" });
     const { agent } = registerHostAgent(env);
     const { wrapper } = await mountHost(meta.id);
 
     expect(agent.active).toBe(true);
     expect(wrapper.find(".host-view__title").text()).toContain("夏祭り");
-    expect(wrapper.find(".session-qr__code").text()).toBe(meta.code);
-    const qr = wrapper.find("img.session-qr__image");
-    expect(qr.exists()).toBe(true);
-    expect(decodeURIComponent(qr.attributes("src")!)).toContain(`https://app.example/exec#/portal/${meta.code}`);
+    expect(wrapper.find('[data-testid="host-count"]').text()).toContain("0");
+    expect(wrapper.find('[data-testid="host-guide"]').text()).toContain("ログイン");
     expect(wrapper.text()).toContain("接続中");
+    // 参加コード・QRコードの表示は無い（参加者はログインして入る）
+    expect(wrapper.find("img").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain(meta.code);
   });
 
   it("端末名にログイン中のアカウント名が入る", async () => {
@@ -83,11 +84,13 @@ describe("session-host-view", () => {
     const { wrapper } = await mountHost(meta.id);
     const admin = makeDevice(env.hub, { memberId: "admin2" });
     await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
-    const c1 = makeDevice(env.hub);
-    await c1.conn.joinClient({ code: meta.code });
+    await env.repo.setPortalSession(meta.id, true);
+    const c1 = makeDevice(env.hub, { memberId: "alice", memberName: "アリス" });
+    await c1.conn.joinPortal();
     await settle(5000);
     expect(wrapper.find(".host-view__presence").text()).toContain("管理端末 1 台");
-    expect(wrapper.find(".host-view__presence").text()).toContain("参加者 1 人");
+    expect(wrapper.find('[data-testid="host-count"]').text()).toContain("1");
+    expect(wrapper.find('[data-testid="host-count"]').text()).toContain("人が参加中");
   });
 
   it("別のホストが在席中なら引き継ぎの確認を出し、承認で引き継ぐ", async () => {

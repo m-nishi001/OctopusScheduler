@@ -44,15 +44,14 @@ describe("sessions-view", () => {
     expect(wrapper.find('form button[type="submit"]').attributes("disabled")).toBeDefined();
   });
 
-  it("名前を入れて作成すると一覧に出て、参加コードが表示され、入力欄が空に戻る", async () => {
+  it("名前を入れて作成すると一覧に出て、入力欄が空に戻る(参加コードは表示しない)", async () => {
     const { wrapper } = await mountView();
     const input = wrapper.find('input[type="text"]');
     await input.setValue("夏祭り");
     await wrapper.find("form").trigger("submit");
     await settle();
     expect(wrapper.text()).toContain("夏祭り");
-    const code = (await env.repo.list())[0].code;
-    expect(wrapper.find(".sessions__code").text()).toBe(code);
+    expect(wrapper.text()).not.toContain((await env.repo.list())[0].code);
     expect((input.element as HTMLInputElement).value).toBe("");
     expect(wrapper.text()).toContain("待機中");
   });
