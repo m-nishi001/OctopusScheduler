@@ -110,12 +110,10 @@ export default defineComponent({
     position: relative;
     display: inline-block;
     box-sizing: border-box;
-    background: radial-gradient(circle, #000 0%, #800000 50%, #FFD700 100%);
+    /* 四角い箱は置かず、円形のホイールだけを舞台の上に浮かせる */
+    background: transparent;
     padding: clamp(12px, 3vmin, 24px);
-    border-radius: 20px;
-    box-shadow: 0 0 50px rgba(255, 215, 0, 0.8), inset 0 0 50px rgba(0, 0, 0, 0.5);
-    border: 5px solid #FFD700;
-    width: min(90vmin, 760px);
+    width: min(90vmin, 860px);
     aspect-ratio: 1;
     margin: 0 auto;
     max-width: 100%;
