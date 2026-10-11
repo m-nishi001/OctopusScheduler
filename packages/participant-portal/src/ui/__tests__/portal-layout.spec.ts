@@ -3,9 +3,9 @@ import { flushPromises, mount } from "@vue/test-utils";
 import type { VueWrapper } from "@vue/test-utils";
 import { defineComponent, h, ref } from "vue";
 import { RouterView, createMemoryHistory, createRouter } from "vue-router";
-import type { SessionConnection } from "@octopus/session-hub";
+import type { Command, SessionConnection } from "@octopus/session-hub";
 import { tick } from "@octopus/session-hub/testing";
-import { ALICE, BOB, MemoryDeviceStore, participantDevice, portalEnv, sampleEvent } from "../../__tests__/portal-test-kit";
+import { ALICE, BOB, MemoryDeviceStore, participantDevice, portalEnv, sampleEvent, sampleQuizState } from "../../__tests__/portal-test-kit";
 import type { Device } from "../../__tests__/portal-test-kit";
 import { PARTICIPANT_AUTH_KEY } from "../../model/participant-auth";
 import { participantPortalRoutes } from "../../routes";
@@ -302,6 +302,176 @@ describe("参加者ポータル: エントリー", () => {
     await flushPromises();
     expect(has(m, "entry-open")).toBe(false);
     expect(text(m, "event-none")).toContain("イベントは終了しました");
+    m.wrapper.unmount();
+  });
+});
+
+describe("参加者ポータル: クイズ", () => {
+  it("出題されるとホームに問題と選択肢・残り時間が出て、押すと「回答しました」になる", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE));
+    await env.startQuiz();
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "quiz-panel")).toContain("みかんはどれ?");
+    expect(text(m, "quiz-timer")).toMatch(/残り \d+ 秒/);
+    const buttons = m.wrapper.findAll(".pp-quiz__option");
+    expect(buttons.map((b) => b.text())).toEqual(["1りんご", "2みかん", "3ぶどう"]);
+
+    await buttons[1].trigger("click");
+    await flushPromises();
+    await tick(0);
+    expect(text(m, "quiz-answered")).toContain("2. みかん");
+    // 回答後は選び直せない
+    expect(m.wrapper.findAll(".pp-quiz__option").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    m.wrapper.unmount();
+  });
+
+  it("回答受付中でまだ答えていない人には「クイズ出題中!」をバナーで出し、答えるとバナーは消える（ホームでは重ねて出さない）", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/me");
+    await env.publishEvent(sampleEvent());
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "event-banner")).toContain("イベント発生中!");
+
+    await env.startQuiz();
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "event-banner")).toContain("クイズ出題中!");
+    expect(text(m, "event-banner")).toContain("果物クイズ");
+
+    // バナーからホームへ。ホームでは同じ内容のバナーは出さない（イベントのバナーに戻ることもない）
+    await m.wrapper.find('[data-testid="event-banner"]').trigger("click");
+    await flushPromises();
+    expect(m.router.currentRoute.value.fullPath).toBe("/p");
+    expect(has(m, "event-banner")).toBe(false);
+
+    await m.wrapper.findAll(".pp-quiz__option")[0].trigger("click");
+    await flushPromises();
+    await tick(0);
+    expect(has(m, "quiz-answered")).toBe(true);
+    expect(text(m, "event-banner")).toContain("イベント発生中!");
+    m.wrapper.unmount();
+  });
+
+  it("クイズ・当選者・操作が出ている間は「イベントは行われていません」を出さず、それらを先に出す。イベントがあれば両方出す", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE));
+    expect(text(m, "home-status")).toContain("いまイベントは行われていません");
+
+    await env.startQuiz();
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "quiz-panel")).toBe(true);
+    expect(has(m, "home-status")).toBe(false);
+
+    await env.publishEvent(sampleEvent());
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "home-status")).toBe(true);
+    expect(text(m, "home-status")).toContain("ジャックポット抽選");
+    // 進行中のクイズが、イベントの案内より上に出る
+    const html = m.wrapper.html();
+    expect(html.indexOf('data-testid="quiz-panel"')).toBeLessThan(html.indexOf('data-testid="home-status"'));
+
+    await env.publishQuiz(null);
+    await env.publishJackpot({ phase: "member", canStop: false, member: "太郎", prize: "特賞" });
+    await env.publishEvent(null);
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "winner")).toBe(true);
+    expect(has(m, "home-status")).toBe(false);
+    m.wrapper.unmount();
+  });
+
+  it("受付が終わったクイズでは、バナーを出さない。時間切れの表示と、正解発表の判定が出る", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE));
+    const quiz = await env.startQuiz({}, 3_000);
+    await tick(5000);
+    await flushPromises();
+    await tick(4000);
+    await flushPromises();
+    expect(text(m, "quiz-closed")).toContain("受付は終了しました");
+    expect(m.wrapper.findAll(".pp-quiz__option").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
+    expect(has(m, "event-banner")).toBe(false);
+
+    await env.publishQuiz({ ...sampleQuizState(), ...quiz, page: "answer", phase: "closed", deadlineMs: null, correctNo: 2 });
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "quiz-correct")).toContain("2. みかん");
+    expect(m.wrapper.text()).toContain("あなたは回答していません");
+    m.wrapper.unmount();
+  });
+
+  it("イントロ・結果発表の案内を出す", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE));
+    await env.publishQuiz({ ...sampleQuizState(), page: "intro", phase: "idle", roundKey: null, question: null, options: [] });
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "quiz-panel")).toContain("クイズが始まります");
+
+    await env.publishQuiz({ ...sampleQuizState(), page: "result", phase: "idle", question: null, options: [] });
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "quiz-panel")).toContain("結果発表中です");
+    m.wrapper.unmount();
+  });
+});
+
+describe("参加者ポータル: ジャックポットと参加者の操作", () => {
+  const STOP = { phase: "member", canStop: true, member: null, prize: null };
+
+  it("当選者・賞品は公開されたときだけ出る（停止演出の前は出ない）", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE));
+    await env.publishJackpot(STOP);
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "winner")).toBe(false);
+
+    await env.publishJackpot({ ...STOP, canStop: false, member: "太郎", prize: "特賞" });
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "winner")).toContain("当選者: 太郎");
+    expect(text(m, "winner")).toContain("賞品: 特賞");
+    m.wrapper.unmount();
+  });
+
+  it("ホストが許可した操作がボタンで出て、押すとホストへ届く。受付が終わると消える", async () => {
+    const env = await portalEnv();
+    const seen: Command[] = [];
+    env.host.conn.onCommand((c) => void seen.push(c));
+    const m = await mountPortal(participantDevice(env.hub, ALICE));
+    expect(has(m, "client-inputs")).toBe(false);
+
+    await env.publishJackpot(STOP, ["jackpot.stopRoulette"]);
+    await tick(5000);
+    await flushPromises();
+    const button = m.wrapper.find('[data-testid="client-input"]');
+    expect(button.text()).toBe("ルーレットを止める");
+
+    await button.trigger("click");
+    await flushPromises();
+    await tick(5000);
+    expect(text(m, "client-input-message")).toBe("送信しました");
+    expect(seen.map((c) => `${c.game}.${c.type}`)).toEqual(["jackpot.stopRoulette"]);
+
+    await env.publishJackpot({ ...STOP, canStop: false }, []);
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "client-inputs")).toBe(false);
+    m.wrapper.unmount();
+  });
+
+  it("接続できていない（イベント待ち）間は、クイズ・当選者・操作を出さない", async () => {
+    const env = await portalEnv({ publish: false });
+    const m = await mountPortal(participantDevice(env.hub, ALICE));
+    expect(has(m, "quiz-panel")).toBe(false);
+    expect(has(m, "winner")).toBe(false);
+    expect(has(m, "client-inputs")).toBe(false);
     m.wrapper.unmount();
   });
 });

@@ -8,7 +8,7 @@
             </span>
         </header>
 
-        <PortalEventBanner v-if="showBanner && session.event.value" :title="session.event.value.title" :label="bannerLabel" />
+        <PortalEventBanner v-if="banner" :title="banner.title" :label="banner.label" :to="banner.to" />
 
         <main class="pp-main">
             <RouterView />
@@ -30,6 +30,7 @@ import { createSessionConnection } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import { useParticipantAuth } from '../model/participant-auth';
 import { ENTRY_KEY, useEntry } from '../model/use-entry';
+import { QUIZ_KEY, useQuiz } from '../model/use-quiz';
 import { PORTAL_SESSION_KEY, usePortalSession } from '../model/use-portal-session';
 import PortalEventBanner from './portal-event-banner.vue';
 import './portal-theme.css';
@@ -44,16 +45,33 @@ const auth = useParticipantAuth();
 const entry = useEntry(session, { memberId: () => auth.currentMember.value?.id ?? null });
 provide(ENTRY_KEY, entry);
 
-// エントリー受付中でまだの人には、バナーでも促す
-const bannerLabel = computed(() => (entry.phase.value === 'open' && !entry.entered.value ? 'エントリー受付中!' : 'イベント発生中!'));
+// クイズの参加者側。回答済みの表示などを、ホームとバナーで共有する
+const quiz = useQuiz(session, { memberId: () => auth.currentMember.value?.id ?? null });
+provide(QUIZ_KEY, quiz);
 
 const tabs = [
     { to: '/p', label: 'ホーム', exact: true },
     { to: '/p/me', label: 'マイページ', exact: false },
 ];
 
-// 参加画面を開いている間は、同じ内容のバナーを重ねて出さない
-const showBanner = computed(() => route.name !== 'participant-event' && (session.status.value === 'connected' || session.status.value === 'reconnecting'));
+/**
+ * 画面上部に固定表示するお知らせ。いま参加者にいちばん関わるもの1つだけを出す。
+ *   1. 回答受付中のクイズ(まだ答えていない人)  → ホームへ
+ *   2. エントリー受付中(まだの人) / イベント発生中 → イベント画面へ
+ * 行き先の画面を開いている間は、同じ内容のバナーを重ねて出さない。接続できていない間は出さない。
+ */
+const banner = computed(() => {
+    if (session.status.value !== 'connected' && session.status.value !== 'reconnecting') return null;
+    let found: { label: string; title: string; to: string } | null = null;
+    const q = quiz.quiz.value;
+    if (q && q.phase === 'answering' && quiz.myAnswer.value === null) {
+        found = { label: 'クイズ出題中!', title: q.title || 'クイズに答えよう', to: '/p' };
+    } else if (session.event.value) {
+        const entering = entry.phase.value === 'open' && !entry.entered.value;
+        found = { label: entering ? 'エントリー受付中!' : 'イベント発生中!', title: session.event.value.title, to: '/p/event' };
+    }
+    return found && route.path !== found.to ? found : null;
+});
 
 const connLabel = computed(() => {
     switch (session.status.value) {

@@ -15,19 +15,28 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
   if (options.publish ?? true) await admin.setPortalSession(meta.id, true);
   const host = makeDevice(hub, { memberId: "admin1" });
   await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
+  // ホストは、機能ごとの状態（event / quiz / jackpot …）を名前空間ごとに合成して公開する（本番の HostAgent と同じ）。
+  const slices: Record<string, unknown> = {};
+  let clientInput: string[] = [];
+  const setSlice = (ns: string, value: unknown | null, input?: string[]): Promise<void> => {
+    if (value === null) delete slices[ns];
+    else slices[ns] = value;
+    if (input) clientInput = input;
+    return host.conn.publish({ ...slices }, clientInput);
+  };
   return {
     hub,
     admin,
     meta,
     host,
     /** ホストが「イベント発生中」を公開する/取り下げる(本番ではホストの event.start / event.end が行う)。 */
-    publishEvent: (event: PortalEvent | null) => host.conn.publish(event ? { event } : {}),
+    publishEvent: (event: PortalEvent | null) => setSlice("event", event),
     /** ホストがエントリー受付を開始する（回答ラウンドを開き、イベントに受付中の印を付けて公開する）。 */
     openEntry: async (event: PortalEvent, resume = false): Promise<PortalEvent> => {
       const key = event.entry?.key ?? entryRoundKey(event.id);
       await host.conn.openEntryRound(key, [...ENTRY_OPTIONS], resume);
       const next = { ...event, entry: { key, open: true } };
-      await host.conn.publish({ event: next });
+      await setSlice("event", next);
       return next;
     },
     /** ホストがエントリー受付を締め切る。 */
@@ -35,9 +44,22 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
       if (!event.entry) throw new Error("受付が始まっていません");
       await host.conn.closeRound(event.entry.key);
       const next = { ...event, entry: { ...event.entry, open: false } };
-      await host.conn.publish({ event: next });
+      await setSlice("event", next);
       return next;
     },
+    /** ホストがクイズの出題を公開し、回答受付を開始する（本番ではクイズのホストが行う）。 */
+    startQuiz: async (patch: Partial<QuizPublished> = {}, durationMs = 30_000): Promise<QuizPublished> => {
+      const quiz: QuizPublished = { ...sampleQuizState(), ...patch };
+      const { deadlineMs } = await host.conn.openRound(quiz.roundKey!, QUIZ_OPTIONS.map(({ no, text }) => ({ no, text })), durationMs);
+      // 受付中でない状態を公開するテストでは、締切を指定（null）できる
+      const published = { ...quiz, deadlineMs: patch.deadlineMs !== undefined ? patch.deadlineMs : deadlineMs };
+      await setSlice("quiz", published);
+      return published;
+    },
+    publishQuiz: (quiz: QuizPublished | null) => setSlice("quiz", quiz),
+    /** ホストがジャックポットの状態と、参加者に許可する操作を公開する。 */
+    publishJackpot: (jackpot: { phase: string; canStop: boolean; member: string | null; prize: string | null } | null, input: string[] = []) =>
+      setSlice("jackpot", jackpot, input),
     /** 運営側が見るエントリー済みの一覧（メンバーID）。 */
     entrants: async (key: string): Promise<string[]> => (await host.conn.getAnswers(key)).answers.map((a) => a.memberId ?? "?"),
   };
@@ -62,3 +84,36 @@ export const sampleEvent = (patch: Partial<PortalEvent> = {}): PortalEvent => ({
   startedAtMs: 1_700_000_000_000,
   ...patch,
 });
+
+/** ホストが公開するクイズの状態（game-quiz の QuizHostState と同じ形）。 */
+export interface QuizPublished {
+  page: "intro" | "qr" | "play" | "answer" | "result";
+  quizId: string;
+  title: string;
+  roundKey: string | null;
+  deadlineMs: number | null;
+  phase: "idle" | "answering" | "closed";
+  question: string | null;
+  options: Array<{ no: number; text: string; color: string }>;
+  correctNo: number | null;
+}
+
+export const QUIZ_OPTIONS = [
+  { no: 1, text: "りんご", color: "#ef4444" },
+  { no: 2, text: "みかん", color: "#f59e0b" },
+  { no: 3, text: "ぶどう", color: "#8b5cf6" },
+];
+
+export function sampleQuizState(): QuizPublished {
+  return {
+    page: "play",
+    quizId: "qz1",
+    title: "果物クイズ",
+    roundKey: "qz1:live",
+    deadlineMs: null,
+    phase: "answering",
+    question: "みかんはどれ?",
+    options: QUIZ_OPTIONS,
+    correctNo: null,
+  };
+}

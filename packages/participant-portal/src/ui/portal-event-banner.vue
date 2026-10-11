@@ -1,18 +1,18 @@
 <template>
-    <RouterLink to="/p/event" class="pp-banner" data-testid="event-banner" :aria-label="`${label} ${title}。タップして参加画面を開く`">
+    <RouterLink :to="to" class="pp-banner" data-testid="event-banner" :aria-label="`${label} ${title}。タップして参加画面を開く`">
         <span class="pp-banner__pulse" aria-hidden="true" />
         <span class="pp-banner__body">
             <span class="pp-banner__label">{{ label }}</span>
             <span class="pp-banner__title">{{ title }}</span>
         </span>
-        <span class="pp-banner__go" aria-hidden="true">参加する ›</span>
+        <span class="pp-banner__go" aria-hidden="true">開く ›</span>
     </RouterLink>
 </template>
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
 
-defineProps<{ title: string; label: string }>();
+defineProps<{ title: string; label: string; to: string }>();
 </script>
 
 <style scoped>
