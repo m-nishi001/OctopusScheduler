@@ -17,6 +17,7 @@
     "@octopus/game-jackpot": "*",
     "@octopus/game-quiz": "*",
     "@octopus/infrastructures": "*",
+    "@octopus/participant-portal": "*",
     "@octopus/session-hub": "*",
     "@octopus/sync-engine": "*",
     "@octopus/ui-kit": "*",

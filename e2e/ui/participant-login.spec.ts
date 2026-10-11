@@ -42,13 +42,13 @@ test.describe("受付QRでのログイン", () => {
     const [id] = ids;
     const d = await newDevice(browser, { mobile: true });
     await d.page.goto(qrUrl(id, keys.get(id)!));
-    await expect(d.page.getByTestId("participant-name")).toHaveText("参加者01 さん");
+    await expect(d.page.getByTestId("home-greeting")).toContainText("参加者01 さん");
     await expect(d.page).toHaveURL(/#\/p$/);
     expect(d.page.url()).not.toContain(keys.get(id)!);
 
     // リロードしてもログインは維持される
     await d.page.reload();
-    await expect(d.page.getByTestId("participant-name")).toBeVisible();
+    await expect(d.page.getByTestId("home-greeting")).toBeVisible();
     await d.context.close();
   });
 
@@ -61,7 +61,7 @@ test.describe("受付QRでのログイン", () => {
       if (url.host !== new URL(process.env.BASE!).host) external.push(req.url());
     });
     await d.page.goto(qrUrl(id, keys.get(id)!));
-    await expect(d.page.getByTestId("participant-name")).toBeVisible();
+    await expect(d.page.getByTestId("home-greeting")).toBeVisible();
     expect(external.filter((u) => u.includes(keys.get(id)!))).toEqual([]);
     await d.context.close();
   });
@@ -76,7 +76,7 @@ test.describe("受付QRでのログイン", () => {
 
     await d.page.locator('input[type="password"]').fill(PASSWORD);
     await d.page.getByRole("button", { name: "ログイン" }).click();
-    await expect(d.page.getByTestId("participant-name")).toBeVisible();
+    await expect(d.page.getByTestId("home-greeting")).toBeVisible();
     await d.context.close();
   });
 
@@ -93,7 +93,7 @@ test.describe("受付QRでのログイン", () => {
 
     const b = await newDevice(browser, { mobile: true });
     await b.page.goto(qrUrl(id, key));
-    await expect(b.page.getByTestId("participant-name")).toBeVisible();
+    await expect(b.page.getByTestId("home-greeting")).toBeVisible();
     await b.context.close();
 
     await adminRpc(request, "accounts_revokeLoginKey", { id });
@@ -120,7 +120,7 @@ test.describe("役割ごとの入口", () => {
 
     for (const path of ["/home", "/settings", "/sessions", "/execute", "/session/console/whatever"]) {
       await d.page.goto(`/#${path}`);
-      await expect(d.page.getByTestId("participant-name")).toBeVisible();
+      await expect(d.page.getByTestId("home-greeting")).toBeVisible();
       await expect(d.page).toHaveURL(/#\/p$/);
     }
     // ログイン済みなら /login を開いても参加者ポータルへ
@@ -133,7 +133,7 @@ test.describe("役割ごとの入口", () => {
     const [id] = ids;
     const d = await newDevice(browser, { mobile: true });
     await d.page.goto(qrUrl(id, keys.get(id)!));
-    await expect(d.page.getByTestId("participant-name")).toBeVisible();
+    await expect(d.page.getByTestId("home-greeting")).toBeVisible();
     const token = await d.page.evaluate(() => localStorage.getItem("octopus-session-token"));
     expect(token).toBeTruthy();
     for (const name of ["accounts_listAccounts", "accounts_issueLoginKey", "accounts_setPassword", "sessionHub_listSessions"]) {
@@ -153,7 +153,7 @@ test.describe("役割ごとの入口", () => {
     await d.page.getByRole("button", { name: "ログイン" }).click();
     await expect(d.page).toHaveURL(/#\/home$/);
     await d.page.goto("/#/p");
-    await expect(d.page.getByTestId("participant-name")).toBeVisible();
+    await expect(d.page.getByTestId("home-greeting")).toBeVisible();
     await d.context.close();
   });
 });
@@ -210,7 +210,7 @@ test.describe("受付の混雑", () => {
     // 受付で一斉に読み取った状況: 全員のログインを同時に始める
     await Promise.all(devices.map((d, i) => d.page.goto(qrUrl(ids[i], keys.get(ids[i])!))));
     for (const [i, d] of devices.entries()) {
-      await expect(d.page.getByTestId("participant-name"), ids[i]).toHaveText(`参加者${ids[i].slice(-2)} さん`);
+      await expect(d.page.getByTestId("home-greeting"), ids[i]).toContainText(`参加者${ids[i].slice(-2)} さん`);
       await expect(d.page).toHaveURL(/#\/p$/);
     }
     await Promise.all(devices.map((d) => d.context.close()));
