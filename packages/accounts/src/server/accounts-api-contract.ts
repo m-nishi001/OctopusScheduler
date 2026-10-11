@@ -18,6 +18,9 @@ export const ACCOUNTS_ENDPOINTS = [
   "replaceAllMembers",
   "setPassword",
   "login",
+  "issueLoginKey",
+  "revokeLoginKey",
+  "loginWithKey",
   "logout",
   "getSession",
 ] as const;
@@ -39,6 +42,8 @@ export interface Member {
   isAdmin?: boolean;
   /** パスワードが設定済みか(listAccountsの結果にのみ付く。ハッシュ自体は返さない)。 */
   hasPassword?: boolean;
+  /** 受付QR用のログインキーが発行済みか(listAccountsの結果にのみ付く。キー自体は返さない)。 */
+  hasLoginKey?: boolean;
 }
 
 export type ListMembersArgs = Record<string, never>;
@@ -87,6 +92,24 @@ export interface LoginResult {
   member: Member;
 }
 
+export interface IssueLoginKeyArgs {
+  id: string;
+}
+
+/** 発行直後の1回だけ平文のキーを返す(サーバーにはハッシュしか残らない)。再発行すると古いキーは無効になる。 */
+export interface IssueLoginKeyResult {
+  key: string;
+}
+
+export interface RevokeLoginKeyArgs {
+  id: string;
+}
+
+export interface LoginWithKeyArgs {
+  id: string;
+  key: string;
+}
+
 export interface LogoutArgs {
   token: string;
 }
@@ -113,6 +136,11 @@ export interface AccountsApi {
   ): Promise<ReplaceAllMembersResult>;
   setPassword(args: SetPasswordArgs, options?: ApiCallOptions): Promise<void>;
   login(args: LoginArgs, options?: ApiCallOptions): Promise<LoginResult>;
+  /** 参加者(管理者以外)の受付QR用ログインキーを発行する。管理者には発行できない。 */
+  issueLoginKey(args: IssueLoginKeyArgs, options?: ApiCallOptions): Promise<IssueLoginKeyResult>;
+  revokeLoginKey(args: RevokeLoginKeyArgs, options?: ApiCallOptions): Promise<void>;
+  /** 受付QRのキーでログインする。失敗理由は区別しない(パスワードログインと同じ失敗カウンタ・ロックを共有)。 */
+  loginWithKey(args: LoginWithKeyArgs, options?: ApiCallOptions): Promise<LoginResult>;
   logout(args: LogoutArgs, options?: ApiCallOptions): Promise<void>;
   /** トークンが有効ならそのメンバー、無効/期限切れなら null。 */
   getSession(args: GetSessionArgs, options?: ApiCallOptions): Promise<Member | null>;

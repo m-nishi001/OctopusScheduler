@@ -95,8 +95,10 @@ npx wrangler whoami
 
 | バインディング | 対象 | 既定の上限 |
 | --- | --- | --- |
-| `LOGIN_LIMITER` | `accounts_login`（総当たり対策） | 接続元 IP ごとに 10 回 / 60 秒 |
-| `PUBLIC_LIMITER` | その他の `/rpc` と `/ws` | 接続元 IP ごとに 1200 回 / 60 秒（会場の共有 IP を考慮して緩め） |
+| `LOGIN_LIMITER` | `accounts_login`（総当たり対策） | 接続元 IP ごとに 60 回 / 60 秒（受付で参加者が会場の共有 IP から一斉にログインしても弾かれないよう、緩めにしてある） |
+| `PUBLIC_LIMITER` | その他の `/rpc` と `/ws`（受付 QR の `accounts_loginWithKey` を含む） | 接続元 IP ごとに 1200 回 / 60 秒（会場の共有 IP を考慮して緩め） |
+
+受付 QR のログインキーは約 244 ビットのランダム値で総当たりが成り立たないため、`accounts_loginWithKey` は専用の厳しい枠を使いません（ID 単位の失敗ロックはパスワードと共有）。
 
 - 上限は `wrangler.example.toml` の `[[ratelimits]]` で変更できます。超過は 429 を返します。
 - カウンタは Cloudflare のロケーションごとの結果整合で、厳密な上限ではありません。アカウント内で `namespace_id` を重複させないでください。

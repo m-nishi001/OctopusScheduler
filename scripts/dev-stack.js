@@ -41,6 +41,11 @@ export function stackPaths(root) {
   return { dir, config: join(dir, "wrangler.toml"), state: join(dir, "state") };
 }
 
+/** 受付QRが開くログインURL(キーはフラグメントに入れる。サーバーには送られない)。 */
+export function qrLoginUrl(base, id, key) {
+  return key ? `${base}/#/login?id=${encodeURIComponent(id)}&key=${encodeURIComponent(key)}` : "(キーなし)";
+}
+
 /** 画面で見せる案内文。 */
 export function renderBanner({ base, seed }) {
   const ids = seed.participants.ids;
@@ -50,6 +55,7 @@ export function renderBanner({ base, seed }) {
     `  アプリ        : ${base}/`,
     `  管理者        : ID ${seed.admin.id} / パスワード ${seed.admin.password}`,
     `  参加者        : ${ids[0]} 〜 ${ids.at(-1)}(${ids.length}名) / 共通パスワード ${seed.participants.password}`,
+    `  受付QR相当    : ${qrLoginUrl(base, ids[0], seed.participants.loginKeys?.[ids[0]])}`,
     `  管理者トークン : ${seed.admin.sessionToken}(localStorage の octopus-session-token に入れるとログイン済みになる)`,
     "",
     "  Ctrl-C で停止。手順は docs/dev-verification.md",

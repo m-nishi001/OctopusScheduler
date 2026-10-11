@@ -25,11 +25,14 @@ import type {
   AddMemberArgs,
   DeleteMemberArgs,
   GetSessionArgs,
+  IssueLoginKeyArgs,
   ListMembersArgs,
   LoginArgs,
+  LoginWithKeyArgs,
   LogoutArgs,
   AccountsEndpointName,
   ReplaceAllMembersArgs,
+  RevokeLoginKeyArgs,
   SetPasswordArgs,
   UpdateMemberArgs,
 } from "./accounts-api-contract";
@@ -40,12 +43,15 @@ import {
   deleteMember,
   getSession,
   InvalidCredentialsError,
+  issueLoginKey,
   listAccounts,
   LoginLockedError,
   listMembers,
   login,
+  loginWithKey,
   logout,
   replaceAllMembers,
+  revokeLoginKey,
   setPassword,
   updateMember,
 } from "./accounts-use-cases";
@@ -69,6 +75,9 @@ declare let _accounts_deleteMember: (args: DeleteMemberArgs) => Promise<string>;
 declare let _accounts_replaceAllMembers: (args: ReplaceAllMembersArgs) => Promise<string>;
 declare let _accounts_setPassword: (args: SetPasswordArgs) => Promise<string>;
 declare let _accounts_login: (args: LoginArgs) => Promise<string>;
+declare let _accounts_issueLoginKey: (args: IssueLoginKeyArgs) => Promise<string>;
+declare let _accounts_revokeLoginKey: (args: RevokeLoginKeyArgs) => Promise<string>;
+declare let _accounts_loginWithKey: (args: LoginWithKeyArgs) => Promise<string>;
 declare let _accounts_logout: (args: LogoutArgs) => Promise<string>;
 declare let _accounts_getSession: (args: GetSessionArgs) => Promise<string>;
 
@@ -148,6 +157,37 @@ _accounts_login = async (args: LoginArgs): Promise<string> => {
   }
 };
 
+_accounts_issueLoginKey = async (args: IssueLoginKeyArgs): Promise<string> => {
+  try {
+    const result = await issueLoginKey(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return errorResponse(error);
+  }
+};
+
+_accounts_revokeLoginKey = async (args: RevokeLoginKeyArgs): Promise<string> => {
+  try {
+    await revokeLoginKey(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: undefined });
+  } catch (error) {
+    return errorResponse(error);
+  }
+};
+
+_accounts_loginWithKey = async (args: LoginWithKeyArgs): Promise<string> => {
+  try {
+    const result = await loginWithKey(resolveDeps(), args);
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    // パスワードログインと同じく、認証失敗はリトライさせない。
+    if (error instanceof InvalidCredentialsError || error instanceof LoginLockedError) {
+      return JSON.stringify({ status: "error", message: error.message, retryable: false });
+    }
+    return errorResponse(error);
+  }
+};
+
 _accounts_logout = async (args: LogoutArgs): Promise<string> => {
   try {
     await logout(resolveDeps(), args.token);
@@ -175,6 +215,10 @@ _accounts_deleteMember = secure("admin", _accounts_deleteMember);
 _accounts_replaceAllMembers = secure("admin", _accounts_replaceAllMembers);
 _accounts_setPassword = secure("admin", _accounts_setPassword);
 _accounts_login = secure("public", _accounts_login);
+// キーの発行・失効は管理者のみ。キーでのログインは入口なので公開(キーそのものが資格情報)。
+_accounts_issueLoginKey = secure("admin", _accounts_issueLoginKey);
+_accounts_revokeLoginKey = secure("admin", _accounts_revokeLoginKey);
+_accounts_loginWithKey = secure("public", _accounts_loginWithKey);
 _accounts_logout = secure("public", _accounts_logout);
 _accounts_getSession = secure("public", _accounts_getSession);
 
@@ -188,6 +232,9 @@ export const ACCOUNTS_HANDLERS: Record<AccountsEndpointName, (args: any) => Prom
   replaceAllMembers: _accounts_replaceAllMembers,
   setPassword: _accounts_setPassword,
   login: _accounts_login,
+  issueLoginKey: _accounts_issueLoginKey,
+  revokeLoginKey: _accounts_revokeLoginKey,
+  loginWithKey: _accounts_loginWithKey,
   logout: _accounts_logout,
   getSession: _accounts_getSession,
 };

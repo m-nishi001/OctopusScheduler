@@ -10,6 +10,8 @@ export interface AccountsUseCaseDeps {
 const MEMBERS_KEY = "member-directory-members";
 const CREDENTIAL_KEY_PREFIX = "accounts-credential/";
 const SESSION_KEY_PREFIX = "accounts-session/";
+/** 受付QR用のログインキー(ハッシュのみ保存)。 */
+const LOGIN_KEY_PREFIX = "accounts-login-key/";
 /** セッションの有効期間(固定)。 */
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const MIN_PASSWORD_LENGTH = 8;
@@ -82,13 +84,16 @@ export async function listMembers(deps: AccountsUseCaseDeps): Promise<Member[]> 
   return members.map((m) => ({ id: m.id, name: m.name }));
 }
 
-/** 管理画面用の一覧。isAdmin / hasPassword を含む。 */
+/** 管理画面用の一覧。isAdmin / hasPassword / hasLoginKey を含む。 */
 export async function listAccounts(deps: AccountsUseCaseDeps): Promise<Member[]> {
   const members = await readMembers(deps.storage);
   return Promise.all(
-    members.map(async (m) =>
-      (await readCredential(deps.storage, m.id)) ? { ...m, hasPassword: true } : m
-    )
+    members.map(async (m) => {
+      const listed: Member = { ...m };
+      if (await readCredential(deps.storage, m.id)) listed.hasPassword = true;
+      if (await readLoginKey(deps.storage, m.id)) listed.hasLoginKey = true;
+      return listed;
+    })
   );
 }
 
@@ -137,6 +142,7 @@ export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promi
     members.filter((m) => m.id !== id)
   );
   await deps.storage.deleteScalar(CREDENTIAL_KEY_PREFIX + id);
+  await deps.storage.deleteScalar(LOGIN_KEY_PREFIX + id);
 }
 
 /**
@@ -322,6 +328,58 @@ export async function login(
   if (!member) {
     await recordFailure(deps, target);
     throw invalid;
+  }
+
+  await clearAttempts(deps, target.key);
+  const token = await issueSession(deps, member.id);
+  return { token, member };
+}
+
+async function readLoginKey(storage: IKeyValueStorage, id: string): Promise<StoredCredential | null> {
+  const raw = await storage.get(LOGIN_KEY_PREFIX + id);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as StoredCredential;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 参加者(管理者以外)の受付QR用ログインキーを発行する。平文は戻り値でしか見られず、保存はハッシュのみ。
+ * 再発行すると古いキーは無効になる。キーはUUID2つ分(約244ビット)のランダム値で、総当たりは成立しない。
+ * 管理者は対象外(印刷物のQRが管理者権限の入口になるのを避ける)。
+ */
+export async function issueLoginKey(deps: AccountsAuthDeps, args: { id: string }): Promise<{ key: string }> {
+  const member = await findMemberById(deps, args.id);
+  if (!member) throw new Error(`Member with id "${args.id}" not found`);
+  if (member.isAdmin) throw new Error("Login keys can only be issued to non-admin members");
+  const key = (deps.generateId() + deps.generateId()).replace(/-/g, "");
+  const salt = deps.generateId();
+  const stored: StoredCredential = { salt, hash: await deps.hasher.hash(key, salt) };
+  await deps.storage.set(LOGIN_KEY_PREFIX + args.id, JSON.stringify(stored));
+  return { key };
+}
+
+export async function revokeLoginKey(deps: AccountsUseCaseDeps, args: { id: string }): Promise<void> {
+  await deps.storage.deleteScalar(LOGIN_KEY_PREFIX + args.id);
+}
+
+/**
+ * 受付QRのキーで参加者としてログインする。失敗理由は区別せず、パスワードログインと同じ
+ * ID単位の失敗カウンタ・ロックを共有する(キーを推測し続けても、ロックで止まる)。
+ */
+export async function loginWithKey(deps: AccountsAuthDeps, args: { id: string; key: string }): Promise<LoginResult> {
+  const members = await readMembers(deps.storage);
+  const member = members.find((m) => m.id === args.id) ?? null;
+  const target = attemptTarget(args.id, member !== null);
+  await assertNotLocked(deps, target.key);
+
+  const stored = member && !member.isAdmin ? await readLoginKey(deps.storage, args.id) : null;
+  const hash = stored ? await deps.hasher.hash(args.key, stored.salt) : null;
+  if (!member || !stored || hash === null || !constantTimeEquals(hash, stored.hash)) {
+    await recordFailure(deps, target);
+    throw new InvalidCredentialsError();
   }
 
   await clearAttempts(deps, target.key);

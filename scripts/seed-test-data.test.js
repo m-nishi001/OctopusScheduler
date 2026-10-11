@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { hashPassword } from "./seed-local-admin.js";
-import { buildTestDataEntries, buildTestMembers, deterministicSalt, mergeMembers, parseArgs } from "./seed-test-data.js";
+import { buildTestDataEntries, buildTestMembers, deriveLoginKey, deterministicSalt, mergeMembers, parseArgs } from "./seed-test-data.js";
 
 const ADMIN = { id: "admin", name: "A", password: "password-1234" };
 const base = { admin: ADMIN, participantPassword: "participant-1234", token: "tok", now: 1000 };
@@ -63,4 +63,23 @@ test("mergeMembers: 同じIDはテスト側で置き換える", () => {
 test("parseArgs: --remote は値を取らないフラグ", () => {
   assert.deepEqual(parseArgs(["--config", "w.toml", "--remote", "--count", "5"]), { remote: true, config: "w.toml", count: "5" });
   assert.deepEqual(parseArgs(["--config", "w.toml"]), { remote: false, config: "w.toml" });
+});
+
+test("buildTestDataEntries: 参加者ごとに受付QR用のログインキーが検証できる形で入り、管理者には入らない", () => {
+  const entries = Object.fromEntries(buildTestDataEntries({ ...base, count: 2 }));
+  const stored = JSON.parse(entries["__scalars__/accounts-login-key/test-user-01"]);
+  assert.equal(stored.hash, hashPassword(deriveLoginKey("test-user-01"), stored.salt));
+  assert.equal(entries["__scalars__/accounts-login-key/admin"], undefined);
+});
+
+test("buildTestDataEntries: 渡したログインキーを優先する(リモートはランダム値)", () => {
+  const entries = Object.fromEntries(buildTestDataEntries({ ...base, count: 1, loginKeys: { "test-user-01": "random-key-value" } }));
+  const stored = JSON.parse(entries["__scalars__/accounts-login-key/test-user-01"]);
+  assert.equal(stored.hash, hashPassword("random-key-value", stored.salt));
+});
+
+test("deriveLoginKey: 決定的で、IDごとに異なる64桁のhex", () => {
+  assert.equal(deriveLoginKey("a"), deriveLoginKey("a"));
+  assert.notEqual(deriveLoginKey("a"), deriveLoginKey("b"));
+  assert.match(deriveLoginKey("a"), /^[0-9a-f]{64}$/);
 });
