@@ -80,6 +80,21 @@
                         </ol>
                         <p v-if="entryRoster.error.value" class="console__sub is-warn" role="alert">エントリー一覧を取得できませんでした。人数が変わると自動で取り直します。</p>
                     </div>
+
+                    <div v-if="portalEvent" class="console__pool" data-testid="pool-panel">
+                        <p class="console__sub" data-testid="pool-state">
+                            ジャックポットの抽選の対象:
+                            <strong>{{ poolLabel }}</strong>
+                        </p>
+                        <p v-if="drawPool === 'entrants' && !portalEvent.entry" class="console__sub is-warn" data-testid="pool-hint">
+                            エントリー受付を始めるまで、抽選の対象は0人です。
+                        </p>
+                        <div class="console__presets">
+                            <UiButton :disabled="busyPool !== null || !canSend" :loading="busyPool !== null" @click="sendPool(drawPool === 'entrants' ? 'all' : 'entrants')">
+                                {{ drawPool === 'entrants' ? '全メンバーに切り替える' : 'エントリーした人だけに切り替える' }}
+                            </UiButton>
+                        </div>
+                    </div>
                 </div>
 
                 <h2 class="console__h2">ホストの画面を切り替える</h2>
@@ -171,6 +186,7 @@ import {
     PORTAL_EVENT_END,
     PORTAL_EVENT_NS,
     PORTAL_EVENT_OPEN_ENTRY,
+    PORTAL_EVENT_SET_POOL,
     PORTAL_EVENT_START,
     createSessionConnection,
     lobbyPath,
@@ -180,6 +196,7 @@ import {
     useRoundAnswers,
     useSessionConnection,
 } from '@octopus/session-hub';
+import type { DrawPool } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import { useAuthSession } from '../../../control/auth/auth-session';
 import ConnectionBanner from './components/connection-banner.vue';
@@ -202,6 +219,7 @@ const busyJackpot = ref<'advance' | 'stopRoulette' | null>(null);
 const busyQuiz = ref<'advance' | 'closeAnswers' | null>(null);
 const busyEvent = ref<'start' | 'end' | null>(null);
 const busyEntry = ref<'openEntry' | 'closeEntry' | null>(null);
+const busyPool = ref<DrawPool | null>(null);
 const eventTitle = ref('');
 const quizzes = ref<Array<{ id: string; title: string; question: string }>>([]);
 const quizLoading = ref(false);
@@ -262,6 +280,9 @@ const portalEvent = computed(() => readPortalEvent(state.value.roomState?.data))
 // エントリー済みの一覧（人数が変わったときだけ取り直す。定期的な問い合わせはしない）
 const entryKey = computed(() => portalEvent.value?.entry?.key ?? null);
 const entryRoster = useRoundAnswers(connection, state, entryKey);
+/** ジャックポットの抽選の対象。指定が無いイベントは全メンバー。 */
+const drawPool = computed<DrawPool>(() => portalEvent.value?.pool ?? 'all');
+const poolLabel = computed(() => (drawPool.value === 'entrants' ? `エントリーした人だけ(${entryRoster.count.value}人)` : '全メンバー'));
 /** 新しい順に最大50人。全員を並べると長くなるので、人数は別に出す。 */
 const recentEntrants = computed(() => [...entryRoster.answers.value].reverse().slice(0, 50));
 const entryTime = (atMs: number): string => new Date(atMs).toLocaleTimeString('ja-JP', { hour12: false });
@@ -327,6 +348,20 @@ async function sendEntry(type: 'openEntry' | 'closeEntry') {
         toast.error(parseHubErrorCode(message) ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
     } finally {
         busyEntry.value = null;
+    }
+}
+
+/** 抽選の対象の切り替え（全メンバー / エントリーした人だけ）。ホストが公開し、抽選にも反映される。 */
+async function sendPool(mode: DrawPool) {
+    if (busyPool.value !== null) return;
+    busyPool.value = mode;
+    try {
+        await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_SET_POOL, { mode });
+    } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        toast.error(parseHubErrorCode(message) ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
+    } finally {
+        busyPool.value = null;
     }
 }
 
@@ -409,6 +444,7 @@ onUnmounted(() => {
 .console__event { display: flex; flex-direction: column; gap: 8px; }
 .console__event-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .console__entry { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.console__pool { display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
 .console__entrants { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
 .console__entrants li { display: flex; gap: 12px; align-items: baseline; }
 .console__event-form input { flex: 1 1 14em; max-width: 28em; font: inherit; padding: 8px; border-radius: 6px; background: var(--ui-surface, #2b3036); color: inherit; border: 1px solid var(--ui-border, #3a4048); }
