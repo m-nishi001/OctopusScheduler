@@ -77,7 +77,6 @@ export function createFakeHubApi(
       await service.closeSession(hub.deps, args);
     }),
     joinOperator: (args) => run("joinOperator", args, () => service.joinOperator(hub.deps, args, operator())),
-    joinClient: (args) => run("joinClient", args, () => service.joinClient(hub.deps, args)),
     setPortalSession: (args) => run("setPortalSession", args, async () => {
       operator();
       await service.setPortalSession(hub.deps, args);

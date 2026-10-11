@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as service from "../../../server/engine/session-service";
 import { HostAgent } from "../host-agent";
-import { makeDevice, makeHub, tick } from "./harness";
+import { joinParticipant, makeDevice, makeHub, tick } from "./harness";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -14,8 +14,7 @@ async function scene() {
   const meta = await service.createSession(hub.deps, { name: "x" }, "a");
   const host = makeDevice(hub, { memberId: "a" });
   const agent = new HostAgent(host.conn);
-  const client = makeDevice(hub);
-  await client.conn.joinClient({ code: meta.code });
+  const client = await joinParticipant(hub, meta.id);
   return { hub, meta, host, agent, client };
 }
 

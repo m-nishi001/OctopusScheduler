@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import * as service from "../server/engine/session-service";
 import { createTestHub } from "./test-hub";
 import type { TestHub } from "./test-hub";
 import { createFakeHubApi, NO_FAULTS } from "./fake-hub-api";
@@ -51,6 +52,24 @@ export function makeDevice(hub: TestHub, options: DeviceOptions = {}): Device {
     ...options.connection,
   });
   return { api, store, transport, conn };
+}
+
+let participantSeq = 0;
+
+/**
+ * ログイン済みの参加者のスマホとして、ポータル公開中のセッションに入る。
+ * セッションを公開してから joinPortal で入る(他のセッションの公開は外れる)。memberId を省略すると連番の別人になる。
+ */
+export async function joinParticipant(
+  hub: TestHub,
+  sessionId: string,
+  options: DeviceOptions = {}
+): Promise<Device> {
+  await service.setPortalSession(hub.deps, { sessionId, published: true });
+  const memberId = options.memberId ?? `p${++participantSeq}`;
+  const device = makeDevice(hub, { memberName: memberId, ...options, memberId });
+  await device.conn.joinPortal();
+  return device;
 }
 
 export function makeHub(): TestHub {

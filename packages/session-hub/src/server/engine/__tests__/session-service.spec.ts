@@ -21,12 +21,15 @@ async function code(promise: Promise<unknown>): Promise<string | null> {
   }
 }
 
+const TARO = { id: "u1", name: "太郎" };
+
 async function setup() {
   const hub = createTestHub();
   const meta = await svc.createSession(hub.deps, { name: "夏祭り" }, "admin1");
   const host = await svc.joinOperator(hub.deps, { sessionId: meta.id, role: "host", label: "体育館PC" }, "admin1");
   const admin = await svc.joinOperator(hub.deps, { sessionId: meta.id, role: "admin", label: "スマホ" }, "admin2");
-  const client = await svc.joinClient(hub.deps, { code: meta.code, memberId: "u1", label: "太郎" });
+  await svc.setPortalSession(hub.deps, { sessionId: meta.id, published: true });
+  const client = await svc.joinPortal(hub.deps, {}, TARO);
   const creds = (j: JoinResult) => ({ sessionId: meta.id, deviceId: j.deviceId, token: j.token });
   return { hub, meta, host, admin, client, creds };
 }
@@ -73,7 +76,7 @@ describe("createSession / listSessions / closeSession", () => {
   it("終了したセッションには入室できず、一定時間後に一覧から消える", async () => {
     const { hub, meta, client, creds } = await setup();
     await svc.closeSession(hub.deps, { sessionId: meta.id });
-    expect(await code(svc.joinClient(hub.deps, { code: meta.code }))).toBe("SESSION_NOT_FOUND");
+    expect(await code(svc.joinPortal(hub.deps, {}, TARO))).toBe("SESSION_NOT_FOUND");
     expect(
       await code(svc.poll(hub.deps, { ...creds(client), sinceSeq: 0, stateVersion: 0 }))
     ).toBe("SESSION_CLOSED");
@@ -103,18 +106,6 @@ describe("入室", () => {
     expect(stored?.hostDeviceId).toBe(host.deviceId);
   });
 
-  it("参加コードは大文字小文字・前後空白を問わない", async () => {
-    const { hub, meta } = await setup();
-    const j = await svc.joinClient(hub.deps, { code: ` ${meta.code.toLowerCase()} ` });
-    expect(j.role).toBe("client");
-  });
-
-  it("不明な参加コードは SESSION_NOT_FOUND、空は INVALID_ARGUMENT", async () => {
-    const { hub } = await setup();
-    expect(await code(svc.joinClient(hub.deps, { code: "ZZZZZZ" }))).toBe("SESSION_NOT_FOUND");
-    expect(await code(svc.joinClient(hub.deps, { code: "" }))).toBe("INVALID_ARGUMENT");
-  });
-
   it("リロード復帰: 同じ deviceId で運営者が再入室すると同じ端末のまま", async () => {
     const { hub, meta, host } = await setup();
     const again = await svc.joinOperator(hub.deps, { sessionId: meta.id, role: "host", label: "体育館PC", deviceId: host.deviceId }, "admin1");
@@ -129,10 +120,10 @@ describe("入室", () => {
   });
 
   it("参加者のリロード復帰は deviceId と token の両方が一致したときだけ", async () => {
-    const { hub, meta, client } = await setup();
-    const ok = await svc.joinClient(hub.deps, { code: meta.code, deviceId: client.deviceId, token: client.token });
+    const { hub, client } = await setup();
+    const ok = await svc.joinPortal(hub.deps, { deviceId: client.deviceId, token: client.token }, TARO);
     expect(ok.deviceId).toBe(client.deviceId);
-    const bad = await svc.joinClient(hub.deps, { code: meta.code, deviceId: client.deviceId, token: "wrong" });
+    const bad = await svc.joinPortal(hub.deps, { deviceId: client.deviceId, token: "wrong" }, TARO);
     expect(bad.deviceId).not.toBe(client.deviceId);
   });
 
@@ -325,9 +316,9 @@ describe("状態の公開", () => {
 
 describe("在席(presence)と間隔の指示", () => {
   it("ホストのack・管理の在席・参加者数を返す", async () => {
-    const { hub, host, admin, client, creds } = await setup();
+    const { hub, host, client, creds } = await setup();
     await svc.poll(hub.deps, { ...creds(host), sinceSeq: 0, stateVersion: 0, ackSeq: 5 });
-    await svc.joinClient(hub.deps, { code: (await hub.deps.repoFor(admin.session.id).getMeta())!.code, label: "花子" });
+    await svc.joinPortal(hub.deps, {}, { id: "u2", name: "花子" });
     const polled = await svc.poll(hub.deps, { ...creds(client), sinceSeq: 0, stateVersion: 0 });
     expect(polled.presence.host).toMatchObject({ deviceId: host.deviceId, ackSeq: 5, label: "体育館PC" });
     expect(polled.presence.admins.map((a) => a.label)).toEqual(["スマホ"]);

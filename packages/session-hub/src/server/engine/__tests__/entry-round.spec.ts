@@ -26,13 +26,11 @@ async function setup() {
   const creds = (j: JoinResult) => ({ sessionId: meta.id, deviceId: j.deviceId, token: j.token });
   /** ログイン済みの参加者(ポータル入室)。同じメンバーでも、呼ぶたびに別の端末になる(保存情報を渡さないため)。 */
   const portal = (id: string, name = id) => svc.joinPortal(hub.deps, {}, { id, name });
-  /** 匿名の参加者(参加コード入室。メンバーIDは申告するだけ)。 */
-  const anonymous = (memberId: string | undefined, label = "ゲスト") => svc.joinClient(hub.deps, { code: meta.code, memberId, label });
   const openEntry = (resume = false) =>
     svc.openRound(hub.deps, { ...creds(host), key: KEY, options: ENTRY, mode: "open", resume });
   const enter = (who: JoinResult) => svc.submitAnswer(hub.deps, { ...creds(who), key: KEY, no: 1 });
   const answers = async () => (await svc.getAnswers(hub.deps, { ...creds(host), key: KEY })).answers;
-  return { hub, meta, host, admin, creds, portal, anonymous, openEntry, enter, answers };
+  return { hub, meta, host, admin, creds, portal, openEntry, enter, answers };
 }
 
 describe("オープン型ラウンド(運営が締め切るまで開き続ける)", () => {
@@ -160,33 +158,12 @@ describe("ログイン済みメンバーは1人1回（端末が違っても）",
   });
 
   it("回答にはログイン確定の印(verified)が付く", async () => {
-    const { openEntry, portal, anonymous, enter, answers } = await setup();
+    const { openEntry, portal, enter, answers } = await setup();
     await openEntry();
     await enter(await portal("alice"));
-    await enter(await anonymous("carol"));
+    await enter(await portal("carol"));
     const byMember = Object.fromEntries((await answers()).map((a) => [a.memberId, a.verified]));
-    expect(byMember).toEqual({ alice: true, carol: undefined });
-  });
-
-  it("匿名の申告でメンバーIDをなりすましても、本人(ログイン済み)のエントリーを妨げない", async () => {
-    const { openEntry, portal, anonymous, enter, answers } = await setup();
-    await openEntry();
-    // 先に匿名の誰かが alice を名乗ってエントリーした
-    await enter(await anonymous("alice", "なりすまし"));
-    // 本物の alice(ログイン済み)は問題なくエントリーできる
-    const real = await enter(await portal("alice", "アリス"));
-    expect(real.duplicate).toBe(false);
-    const list = await answers();
-    expect(list).toHaveLength(2);
-    expect(list.filter((a) => a.verified === true).map((a) => a.label)).toEqual(["アリス"]);
-  });
-
-  it("匿名の参加者は従来どおり端末単位（メンバー単位では数えない）", async () => {
-    const { openEntry, anonymous, enter, answers } = await setup();
-    await openEntry();
-    await enter(await anonymous("alice"));
-    await enter(await anonymous("alice"));
-    expect(await answers()).toHaveLength(2);
+    expect(byMember).toEqual({ alice: true, carol: true });
   });
 
   it("時間を競うラウンドでも、ログイン済みメンバーは1人1回", async () => {

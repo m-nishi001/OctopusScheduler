@@ -46,7 +46,7 @@ async function runEvent(clients: number, scale = 1) {
   const joined: JoinResult[] = [];
   const sockets: FakeSocket[] = [];
   for (let i = 0; i < clients; i++) {
-    const j = await room.call<JoinResult>("joinClient", { code: "QUOTA2", label: `c${i}` });
+    const j = await room.call<JoinResult>("joinPortal", { label: `c${i}` }, `c${i}`);
     joined.push(j);
     sockets.push(await room.connectAndAuth(creds(j)));
   }

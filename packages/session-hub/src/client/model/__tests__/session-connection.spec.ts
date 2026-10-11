@@ -3,7 +3,7 @@ import * as service from "../../../server/engine/session-service";
 import { NetworkError, seededRandom, randomFaults } from "../../../testing";
 import type { FaultInjector } from "../../../testing";
 import type { Command } from "../../../shared/session-types";
-import { dateClock, makeDevice, makeHub, tick } from "./harness";
+import { dateClock, joinParticipant, makeDevice, makeHub, tick } from "./harness";
 import { loadCredentials } from "../device-store";
 
 beforeEach(() => {
@@ -17,14 +17,13 @@ async function scene() {
   const meta = await service.createSession(hub.deps, { name: "夏祭り" }, "admin1");
   const host = makeDevice(hub, { memberId: "admin1" });
   const admin = makeDevice(hub, { memberId: "admin2" });
-  const client = makeDevice(hub);
   const applied: Command[] = [];
   host.conn.onCommand((c) => {
     applied.push(c);
   });
   await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
   await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "スマホ" });
-  await client.conn.joinClient({ code: meta.code, memberId: "u1", label: "太郎" });
+  const client = await joinParticipant(hub, meta.id, { memberId: "u1", memberName: "太郎" });
   return { hub, meta, host, admin, client, applied };
 }
 
@@ -191,8 +190,7 @@ describe("障害と復帰", () => {
     const meta = await service.createSession(hub.deps, { name: "x" }, "a");
     let down = false;
     const faults: FaultInjector = { decide: (e) => (down && e === "poll" ? "dropRequest" : "ok") };
-    const client = makeDevice(hub, { faults });
-    await client.conn.joinClient({ code: meta.code });
+    const client = await joinParticipant(hub, meta.id, { faults });
     await tick(4000);
     expect(client.conn.state.phase).toBe("connected");
 
@@ -238,8 +236,8 @@ describe("障害と復帰", () => {
 
   it("入室に失敗したら idle に戻り、エラーコードを持つ", async () => {
     const hub = makeHub();
-    const d = makeDevice(hub);
-    await expect(d.conn.joinClient({ code: "NOPE22" })).rejects.toThrow();
+    const d = makeDevice(hub, { memberId: "u1" });
+    await expect(d.conn.joinPortal()).rejects.toThrow(); // 公開中のセッションがない
     expect(d.conn.state.phase).toBe("idle");
     expect(d.conn.state.lastErrorCode).toBe("SESSION_NOT_FOUND");
   });

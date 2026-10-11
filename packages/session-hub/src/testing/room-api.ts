@@ -38,12 +38,11 @@ export function createRoomApi(
       await room.call("close", {});
     }),
     joinOperator: (args) => run("joinOperator", args, () => room.call("joinOperator", args, operator())),
-    joinClient: (args) => run("joinClient", args, () => room.call("joinClient", args)),
     setPortalSession: () => Promise.reject(new Error("not supported in room api")),
     // Worker が認証済みのトークンから渡す memberId / 表示名を、本番と同じ経路で DO に渡す
     joinPortal: (args) =>
       run("joinPortal", args, () =>
-        room.call("joinPortal", { code: "", deviceId: args.deviceId, token: args.token, label: memberName ?? operator() }, operator())
+        room.call("joinPortal", { deviceId: args.deviceId, token: args.token, label: memberName ?? operator() }, operator())
       ),
     poll: (args) => run("poll", args, () => room.call("poll", args)),
     issueCommand: (args) => run("issueCommand", args, () => room.call("issueCommand", args)),

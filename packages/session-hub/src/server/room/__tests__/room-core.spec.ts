@@ -32,7 +32,7 @@ async function scene() {
   await room.init(meta());
   const host = await room.call<JoinResult>("joinOperator", { sessionId: SID, role: "host", label: "PC" }, "admin1");
   const admin = await room.call<JoinResult>("joinOperator", { sessionId: SID, role: "admin", label: "スマホ" }, "admin2");
-  const client = await room.call<JoinResult>("joinClient", { code: "ABC234", label: "太郎" });
+  const client = await room.call<JoinResult>("joinPortal", { label: "太郎" }, "u1");
   const creds = (j: JoinResult) => ({ sessionId: SID, deviceId: j.deviceId, token: j.token });
   const wsHost = await room.connectAndAuth(creds(host));
   const wsAdmin = await room.connectAndAuth(creds(admin));
@@ -198,7 +198,7 @@ describe("SessionRoomCore: 在席と ack", () => {
     const { room, wsHost } = await scene();
     await room.runAlarm();
     const before = wsHost.received.length;
-    for (let i = 0; i < 50; i++) await room.call("joinClient", { code: "ABC234", label: `c${i}` });
+    for (let i = 0; i < 50; i++) await room.call("joinPortal", { label: `c${i}` }, `c${i}`);
     expect(room.alarmAt).not.toBeNull();
     expect(wsHost.received.length).toBe(before);
     await room.runAlarm();
@@ -211,7 +211,7 @@ describe("SessionRoomCore: 在席と ack", () => {
     const { room } = await scene();
     await room.runAlarm();
     const now = room.clock.now();
-    await room.call("joinClient", { code: "ABC234" });
+    await room.call("joinPortal", { label: "太郎" }, "u2");
     expect(room.alarmAt).toBe(now + PRESENCE_BROADCAST_DELAY_MS);
   });
 
@@ -225,7 +225,7 @@ describe("SessionRoomCore: 在席と ack", () => {
 
   it("ポーリング(WebSocket 非対応)の端末も在席に数えられる", async () => {
     const { room, creds, wsHost } = await scene();
-    const poller = await room.call<JoinResult>("joinClient", { code: "ABC234", label: "古い端末" });
+    const poller = await room.call<JoinResult>("joinPortal", { label: "古い端末" }, "u2");
     await room.call("poll", { ...creds(poller), sinceSeq: 0, stateVersion: 0 });
     await room.core.broadcast();
     expect(wsHost.lastUpdate()?.presence.clientCount).toBe(2);
@@ -264,7 +264,7 @@ describe("SessionRoomCore: 終了・復帰・エラー", () => {
 
   it("業務エラーは ok:false(メッセージにコード付き)で返り、想定外の例外はそのまま投げる", async () => {
     const { room } = await scene();
-    const res = await room.rpc("joinClient", { code: "ABC234", deviceId: "x", token: "bad" });
+    const res = await room.rpc("joinPortal", { label: "太郎", deviceId: "x", token: "bad" }, "u1");
     expect(res.ok).toBe(true); // 復帰に失敗しても新規の参加者として入室する
     const bad = await room.rpc("joinOperator", { sessionId: SID, role: "client" }, "admin1");
     expect(bad).toMatchObject({ ok: false });

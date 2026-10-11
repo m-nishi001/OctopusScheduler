@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope } from "vue";
 import { container } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
-import { makeDevice, makeHub } from "@octopus/session-hub/testing";
+import { joinParticipant, makeDevice, makeHub } from "@octopus/session-hub/testing";
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { useQuizHost } from "./use-quiz-host";
 import type { QuizHostHandlers } from "./use-quiz-host";
@@ -26,8 +26,7 @@ async function scene() {
   await hostDevice.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
   const admin = makeDevice(hub, { memberId: "b" });
   await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
-  const client = makeDevice(hub);
-  await client.conn.joinClient({ code: meta.code });
+  const client = await joinParticipant(hub, meta.id);
   return { admin, client };
 }
 

@@ -17,7 +17,6 @@ import type {
   CreateSessionArgs,
   IssueCommandArgs,
   IssueCommandResult,
-  JoinClientArgs,
   JoinOperatorArgs,
   JoinPortalArgs,
   JoinResult,
@@ -36,7 +35,6 @@ export const SESSION_HUB_ENDPOINTS = [
   "listSessions",
   "closeSession",
   "joinOperator",
-  "joinClient",
   "setPortalSession",
   "joinPortal",
   "poll",
@@ -57,10 +55,9 @@ export interface SessionHubApi {
   listSessions(args?: undefined, options?: ApiCallOptions): Promise<SessionSummary[]>;
   closeSession(args: CloseSessionArgs, options?: ApiCallOptions): Promise<void>;
   joinOperator(args: JoinOperatorArgs, options?: ApiCallOptions): Promise<JoinResult>;
-  joinClient(args: JoinClientArgs, options?: ApiCallOptions): Promise<JoinResult>;
   /** 参加者ポータルの入口にするセッションを指定する(管理者のみ。同時に1つだけ)。 */
   setPortalSession(args: SetPortalSessionArgs, options?: ApiCallOptions): Promise<void>;
-  /** ログイン済みの参加者が、参加コード無しでポータル公開中のセッションに入る。 */
+  /** ログイン済みの参加者が、ポータル公開中のセッションに入る。 */
   joinPortal(args: JoinPortalArgs, options?: ApiCallOptions): Promise<JoinResult>;
   poll(args: PollArgs, options?: ApiCallOptions): Promise<PollResult>;
   issueCommand(args: IssueCommandArgs, options?: ApiCallOptions): Promise<IssueCommandResult>;

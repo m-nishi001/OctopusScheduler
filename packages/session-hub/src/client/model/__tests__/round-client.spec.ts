@@ -8,7 +8,7 @@ import { MemoryDeviceStore } from "../device-store";
 import { DEFAULT_POLLING_OPTIONS, PollingTransport, realTimers } from "../polling-transport";
 import { SessionConnection } from "../session-connection";
 import { DEFAULT_WS_OPTIONS, WebSocketTransport } from "../websocket-transport";
-import { makeDevice, makeHub, tick } from "./harness";
+import { joinParticipant, makeDevice, makeHub, tick } from "./harness";
 
 const OPTIONS: RoundOption[] = [
   { no: 1, text: "A" },
@@ -32,16 +32,13 @@ describe("SessionConnection の回答ラウンド(ポーリング/KV)", () => {
     await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
     return { hub, meta, host, admin };
   }
-  const player = async (hub: ReturnType<typeof makeHub>, code: string, faults?: FaultInjector, label = "太郎") => {
-    const d = makeDevice(hub, { faults });
-    await d.conn.joinClient({ code, label, memberId: label });
-    return d;
-  };
+  const player = (hub: ReturnType<typeof makeHub>, sessionId: string, faults?: FaultInjector, label = "太郎") =>
+    joinParticipant(hub, sessionId, { faults, memberId: label });
 
   it("ホストが開始し、参加者が回答し、ホスト/管理が一覧と回答数を確認できる", async () => {
     const { hub, meta, host, admin } = await scene();
-    const p1 = await player(hub, meta.code, undefined, "太郎");
-    const p2 = await player(hub, meta.code, undefined, "花子");
+    const p1 = await player(hub, meta.id, undefined, "太郎");
+    const p2 = await player(hub, meta.id, undefined, "花子");
     const round = await host.conn.openRound("q1:live", OPTIONS, 20_000);
     expect(round.deadlineMs).toBe(round.serverNowMs + 20_000);
     expect(await p1.conn.answer("q1:live", 1)).toMatchObject({ no: 1, duplicate: false });
@@ -59,7 +56,7 @@ describe("SessionConnection の回答ラウンド(ポーリング/KV)", () => {
   it("回答の応答が失われて再送されても、1件だけ採用され duplicate が返る", async () => {
     const { hub, meta, host } = await scene();
     let dropOnce = true;
-    const p = await player(hub, meta.code, {
+    const p = await player(hub, meta.id, {
       decide: (e) => {
         if (e === "submitAnswer" && dropOnce) {
           dropOnce = false;
@@ -77,7 +74,7 @@ describe("SessionConnection の回答ラウンド(ポーリング/KV)", () => {
 
   it("業務エラー(締切後)は再送せずに例外にする", async () => {
     const { hub, meta, host } = await scene();
-    const p = await player(hub, meta.code);
+    const p = await player(hub, meta.id);
     await host.conn.openRound("q1", OPTIONS, 5000);
     dateClock.advance(6000);
     await expect(p.conn.answer("q1", 1)).rejects.toThrow(/ROUND_CLOSED/);
@@ -86,7 +83,7 @@ describe("SessionConnection の回答ラウンド(ポーリング/KV)", () => {
 
   it("通信失敗が続けば再送回数を使い切って例外になる", async () => {
     const { hub, meta, host } = await scene();
-    const p = await player(hub, meta.code, { decide: (e) => (e === "submitAnswer" ? "dropRequest" : "ok") });
+    const p = await player(hub, meta.id, { decide: (e) => (e === "submitAnswer" ? "dropRequest" : "ok") });
     await host.conn.openRound("q1", OPTIONS, 20_000);
     const promise = p.conn.answer("q1", 1);
     const assertion = expect(promise).rejects.toThrow();
@@ -97,7 +94,7 @@ describe("SessionConnection の回答ラウンド(ポーリング/KV)", () => {
 
   it("ホストの開始の再送(リロード)は続きとして扱われ、回答は消えない", async () => {
     const { hub, meta, host } = await scene();
-    const p = await player(hub, meta.code);
+    const p = await player(hub, meta.id);
     const first = await host.conn.openRound("q1", OPTIONS, 20_000);
     await p.conn.answer("q1", 2);
     dateClock.advance(2000);
@@ -152,8 +149,8 @@ describe("SessionConnection の回答ラウンド(WebSocket/DO)", () => {
     const bridge = new WsBridge(room);
     const host = wsDevice(room, bridge, "a");
     await host.conn.joinOperator({ sessionId: SID, role: "host", label: "PC" });
-    const player = wsDevice(room, bridge, null);
-    await player.conn.joinClient({ code: "WSRND2", label: "太郎" });
+    const player = wsDevice(room, bridge, "u1");
+    await player.conn.joinPortal();
     await tick(100);
     return { room, bridge, host, player };
   }
