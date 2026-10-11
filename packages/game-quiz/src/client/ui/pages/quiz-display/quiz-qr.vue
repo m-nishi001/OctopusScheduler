@@ -1,18 +1,19 @@
 <template>
     <DisplayStage>
-        <template #title>このQRコードを読み込んでください！</template>
-        <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" class="qr-image" />
-        <p v-else-if="notHost" class="qr-note">
+        <template #title>スマホで参加者ポータルを開いてください！</template>
+        <p v-if="notHost" class="qr-note">
             セッションのホストとして接続していません。管理画面の「セッション」から、この端末をホストとして開いてください。
         </p>
-        <p v-else-if="errorMessage">{{ errorMessage }}</p>
-        <p v-if="portal" class="qr-code" aria-label="参加コード">参加コード {{ portal.code }}</p>
+        <template v-else>
+            <p class="qr-guide">受付でログインしたスマホの画面に、クイズが表示されます。</p>
+            <p class="qr-guide">ログインしていない方は、IDとパスワードでログインしてください。</p>
+        </template>
         <template #hint>Enterで次へ進みます</template>
     </DisplayStage>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed, ref } from 'vue';
+import { onMounted, onUnmounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { container } from 'tsyringe';
 import DisplayStage from '../../components/display/display-stage.vue';
@@ -30,15 +31,7 @@ const quizId = route.params.id as string;
 const session = useQuizSession();
 const gateway = container.resolve(QuizRoundGateway);
 
-// 参加者が読み取るのは、このセッションの参加ポータル(参加コード入り)。
-const portal = ref<{ url: string; code: string } | null>(null);
-const errorMessage = ref<string | null>(null);
 const notHost = computed(() => !gateway.isActive());
-
-const qrCodeUrl = computed(() => {
-    if (!portal.value) return '';
-    return `https://api.qrserver.com/v1/create-qr-code/?size=800x800&margin=2&data=${encodeURIComponent(portal.value.url)}`;
-});
 
 const goNext = () => {
     void router.push({ name: session.routeName('quiz-play'), params: { id: quizId } });
@@ -57,11 +50,6 @@ onMounted(async () => {
     } catch {
         host.publish(buildQuizHostState({ page: 'qr', quizId }));
     }
-    try {
-        portal.value = await gateway.portalUrl();
-    } catch (e) {
-        errorMessage.value = e instanceof Error ? e.message : String(e);
-    }
 });
 
 onUnmounted(() => {
@@ -70,24 +58,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 本文領域(タイトル・ヒントを除いた残り)に収まる最大の正方形。遠くからでも読み取れる大きさにする。 */
-.qr-image {
-    width: min(100cqw, 100cqh);
-    height: auto;
-    aspect-ratio: 1 / 1;
-    background: #fff;
-    padding: clamp(8px, 1.6vmin, 24px);
-    box-sizing: border-box;
-    border-radius: clamp(8px, 1.6vmin, 20px);
-    box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
-}
-
-.qr-code {
+.qr-guide {
     margin: 0;
-    font-size: clamp(1rem, 3vmin, 2rem);
-    font-weight: 800;
-    letter-spacing: 0.2em;
-    color: #ffd54a;
+    max-width: 30em;
+    font-size: clamp(1.2rem, 3.4vmin, 2.4rem);
+    font-weight: 700;
+    line-height: 1.8;
+    text-align: center;
 }
 
 .qr-note {

@@ -14,10 +14,14 @@
                     {{ state.session.name }}
                     <span v-if="state.session.mode === 'demo'" class="host-view__tag">デモ</span>
                 </h1>
-                <SessionQr :code="state.session.code" :repository="repo" />
-                <p class="host-view__presence">
-                    管理端末 {{ state.presence?.admins.length ?? 0 }} 台 ・ 参加者 {{ state.presence?.clientCount ?? 0 }} 人
+                <p class="host-view__count" data-testid="host-count">
+                    <span class="host-view__count-num">{{ state.presence?.clientCount ?? 0 }}</span>
+                    <span class="host-view__count-unit">人が参加中</span>
                 </p>
+                <p class="host-view__guide" data-testid="host-guide">
+                    参加者は、スマホで受付のQRコード(またはIDとパスワード)からログインして、参加者ポータルに入ります。
+                </p>
+                <p class="host-view__presence">管理端末 {{ state.presence?.admins.length ?? 0 }} 台</p>
                 <p class="host-view__hint" data-testid="prepare-status">{{ prepareText }}</p>
                 <p class="host-view__hint">この画面は管理端末からの操作で切り替わります。</p>
             </template>
@@ -50,16 +54,14 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { UiButton, UiDialog, useConfirm } from '@octopus/ui-kit';
-import { HostAgent, SessionAdminRepository, parseHubErrorCode, useConnectionState } from '@octopus/session-hub';
+import { HostAgent, parseHubErrorCode, useConnectionState } from '@octopus/session-hub';
 import { useAuthSession } from '../../../control/auth/auth-session';
 import { prepareHostData } from '../../../control/session/prepare-host-data';
 import ConnectionBanner from './components/connection-banner.vue';
-import SessionQr from './components/session-qr.vue';
 
 const route = useRoute();
 const router = useRouter();
 const agent = container.resolve(HostAgent);
-const repo = container.resolve(SessionAdminRepository);
 const state = useConnectionState(agent.connection);
 const { currentMember } = useAuthSession();
 const { confirm } = useConfirm();
@@ -179,6 +181,10 @@ onMounted(() => {
 .host-view__title { margin: 0; font-size: clamp(1.4rem, 5vmin, 3rem); }
 .host-view__tag { margin-left: 8px; padding: 2px 10px; border-radius: 999px; background: #ffb300; color: #000; font-size: 0.5em; vertical-align: middle; }
 .host-view__presence { margin: 0; font-size: clamp(1rem, 3vmin, 1.6rem); }
+.host-view__count { margin: 0; display: flex; align-items: baseline; justify-content: center; gap: 1vw; }
+.host-view__count-num { font-size: clamp(3rem, 12vmin, 8rem); font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; color: #ffd54a; }
+.host-view__count-unit { font-size: clamp(1rem, 3vmin, 2rem); font-weight: 800; }
+.host-view__guide { margin: 0; max-width: 40em; line-height: 1.8; font-size: clamp(1rem, 2.6vmin, 1.5rem); opacity: 0.85; }
 .host-view__hint { margin: 0; opacity: 0.6; }
 .host-view__error { color: #ff8a80; max-width: 40em; }
 </style>

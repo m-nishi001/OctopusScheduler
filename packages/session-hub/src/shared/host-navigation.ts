@@ -29,12 +29,6 @@ export function isAllowedHostPath(target: unknown): target is string {
 
 export const lobbyPath = (sessionId: string): string => `/session/host/${sessionId}`;
 
-/** 参加者向けポータルの絶対URL。GAS ではデプロイURL(取得できれば)を基点にする。 */
-export function buildPortalUrl(code: string, baseUrl: string): string {
-  const base = baseUrl.split("#")[0];
-  return `${base}#/portal/${encodeURIComponent(code)}`;
-}
-
 /**
  * 受付QRに入れるログインURL。キーはフラグメント(#以降)に入れるので、サーバーのログには送られない。
  * ログイン画面が最初にURLからキーを取り除く。

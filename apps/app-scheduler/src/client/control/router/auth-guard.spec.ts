@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createAuthGuard, isParticipantPath, isPublicPath, landingPath, resolveLoginRedirect } from "./auth-guard";
 import type { Role } from "./auth-guard";
 
 describe("isPublicPath", () => {
-  it.each(["/login", "/portal", "/portal/ABC234"])("%s は公開", (path) => {
+  it.each(["/login"])("%s は公開", (path) => {
     expect(isPublicPath(path)).toBe(true);
   });
 
@@ -25,6 +25,9 @@ describe("isPublicPath", () => {
     "/loginx",
     "/portalx",
     "/portal-admin",
+    // 旧い匿名ポータル。参加者はログインして /p に入る
+    "/portal",
+    "/portal/ABC234",
     "/p",
     "/p/event",
   ])("%s は要ログイン", (path) => {
@@ -74,11 +77,12 @@ describe("createAuthGuard", () => {
   const guardFor = (role: Role | null) => createAuthGuard({ getRole: async () => role });
   const settings = { path: "/settings", fullPath: "/settings?tab=members" };
 
-  it("匿名参加の入口は確認通信なしで通す", async () => {
-    const getRole = vi.fn(async () => null);
-    const guard = createAuthGuard({ getRole });
-    expect(await guard({ path: "/portal/ABC234", fullPath: "/portal/ABC234" })).toBe(true);
-    expect(getRole).not.toHaveBeenCalled();
+  it("旧い匿名ポータル(/portal)も、未ログインならログイン画面へ。参加者は参加者ポータルへ戻される", async () => {
+    expect(await guardFor(null)({ path: "/portal/ABC234", fullPath: "/portal/ABC234" })).toEqual({
+      path: "/login",
+      query: { redirect: "/portal/ABC234" },
+    });
+    expect(await guardFor("participant")({ path: "/portal", fullPath: "/portal" })).toEqual({ path: "/p" });
   });
 
   it("未ログインなら入口(/home)も参加者ポータルもログイン画面へ(戻り先付き)", async () => {

@@ -6,9 +6,6 @@
         </div>
         <header ref="headerRef" class="quiz-header">
             <div class="header-row">
-                <div class="qr-inline" aria-hidden="false">
-                    <img v-if="qrCodeUrl" :src="qrCodeUrl" alt="QR Code" class="qr-image qr-inline-image" />
-                </div>
                 <div class="header-content">
                     <div class="title-card" aria-hidden="false">
                         <h1 class="quiz-title">{{ quiz.title }}</h1>
@@ -68,13 +65,8 @@ const session = useQuizSession();
 const quiz = ref<QuizDto | null>(null);
 const objectUrls = ref<string[]>([]);
 
-// 参加者が読み取るのは、このセッションの参加ポータル(参加コード入り)。
+// 参加者は、ログイン済みのスマホの参加者ポータルで回答する(この画面にQRは出さない)。
 const gateway = container.resolve(QuizRoundGateway);
-const portalUrl = ref('');
-const qrCodeUrl = computed(() => {
-    if (!portalUrl.value) return '';
-    return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(portalUrl.value)}`;
-});
 
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
     if (!quiz.value) return [];
@@ -148,9 +140,6 @@ onMounted(async () => {
             color: option.color,
             hasImage: Boolean(option.image),
         }));
-        void gateway.portalUrl().then((p) => {
-            if (p) portalUrl.value = p.url;
-        });
         await start({
             quizId,
             timeLimit: quiz.value.timeLimit,
@@ -480,20 +469,6 @@ body::-webkit-scrollbar {
     padding: 6px 8px;
 }
 
-.qr-inline {
-    display: flex;
-    align-items: center;
-    margin-right: 16px;
-}
-
-.qr-inline-image,
-.qr-image {
-    width: 168px;
-    height: 168px;
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.55);
-}
-
 .emergency-stop-button {
     position: absolute;
     bottom: 18px;
@@ -589,11 +564,6 @@ body::-webkit-scrollbar {
         top: 10px;
     }
 
-    .qr-inline-image,
-    .qr-image {
-        width: 196px;
-        height: 196px;
-    }
 
     .option-button {
         padding: 22px 16px;
@@ -611,11 +581,6 @@ body::-webkit-scrollbar {
         gap: 8px;
     }
 
-    .qr-inline-image,
-    .qr-image {
-        width: 134px;
-        height: 134px;
-    }
 
     /* keep full-width images inside option cards on very small screens */
 

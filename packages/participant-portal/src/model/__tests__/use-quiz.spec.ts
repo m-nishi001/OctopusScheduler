@@ -20,14 +20,14 @@ function memoryStorage(): QuizStorage & { data: Map<string, string> } {
   return { data, get: (k) => data.get(k) ?? null, set: (k, v) => void data.set(k, v) };
 }
 
-async function connect(device: Device, storage: QuizStorage = memoryStorage(), memberId: string | null = "alice") {
+async function connect(device: Device, storage: QuizStorage = memoryStorage(), memberId: string | null = "alice", now?: () => number) {
   let session!: PortalSession;
   let quiz!: QuizState;
   const app = createApp(
     defineComponent({
       setup() {
         session = usePortalSession(device.conn);
-        quiz = useQuiz(session, { memberId: () => memberId, storage });
+        quiz = useQuiz(session, { memberId: () => memberId, storage, now });
         return () => h("div");
       },
     })
@@ -68,6 +68,25 @@ describe("useQuiz: 出題と残り時間", () => {
     await tick(20_000);
     expect(alice.quiz.remainingSec.value).toBe(0);
     expect(alice.quiz.canAnswer.value).toBe(false);
+    alice.unmount();
+  });
+
+  it("残り時間は端末の時計ではなくサーバー時刻で数える（端末の時計が30分進んでいても、締切前なら回答できる）", async () => {
+    const env = await portalEnv();
+    const SKEW = 30 * 60 * 1000;
+    const skewedNow = () => Date.now() + SKEW;
+    const device = participantDevice(env.hub, ALICE, { connection: { now: skewedNow } });
+    const alice = await connect(device, memoryStorage(), "alice", skewedNow);
+    await env.startQuiz({}, 20_000);
+    await tick(5000);
+
+    // サーバーとの差（約 -30分）を使って、端末の時計のずれを打ち消す
+    expect(device.conn.state.serverOffsetMs).toBeLessThan(-SKEW + 10_000);
+    expect(alice.quiz.remainingSec.value).toBeGreaterThan(10);
+    expect(alice.quiz.remainingSec.value).toBeLessThanOrEqual(20);
+    expect(alice.quiz.canAnswer.value).toBe(true);
+    await alice.quiz.answer(1);
+    expect(alice.quiz.myAnswer.value).toBe(1);
     alice.unmount();
   });
 

@@ -1,5 +1,5 @@
 import { container } from "tsyringe";
-import { HostAgent, SessionAdminRepository } from "@octopus/session-hub";
+import { HostAgent } from "@octopus/session-hub";
 import type { QuizSessionScope } from "../../server/quiz-api-contract";
 import type { QuizHostState } from "./quiz-host-state";
 import { roundKeyFor } from "./quiz-host-state";
@@ -91,19 +91,5 @@ export class QuizRoundGateway {
   clear(): void {
     const agent = this.agent();
     if (agent) void agent.clearSlice(NAMESPACE);
-  }
-
-  /** 参加者がQRから開くポータルのURL(セッションの参加コード入り)。ホストでなければ null。 */
-  async portalUrl(): Promise<{ url: string; code: string } | null> {
-    const agent = this.agent();
-    const code = agent?.active ? agent.connection.state.session?.code : null;
-    if (!code || !container.isRegistered(SessionAdminRepository)) return null;
-    return { url: await container.resolve(SessionAdminRepository).portalUrl(code), code };
-  }
-
-  /** ホストとして接続中のセッションの参加コード。 */
-  sessionCode(): string | null {
-    const agent = this.agent();
-    return agent?.active ? agent.connection.state.session?.code ?? null : null;
   }
 }

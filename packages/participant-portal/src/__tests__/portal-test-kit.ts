@@ -69,9 +69,9 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
 export function participantDevice(
   hub: TestHub,
   member: { id: string; name: string },
-  options: { store?: MemoryDeviceStore; faults?: FaultInjector } = {}
+  options: { store?: MemoryDeviceStore; faults?: FaultInjector; connection?: { now?: () => number } } = {}
 ): Device {
-  return makeDevice(hub, { memberId: member.id, memberName: member.name, store: options.store, faults: options.faults });
+  return makeDevice(hub, { memberId: member.id, memberName: member.name, store: options.store, faults: options.faults, connection: options.connection });
 }
 
 export const ALICE = { id: "alice", name: "アリス" };
