@@ -40,7 +40,8 @@ onMounted(() => {
   if (!el) return;
   if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const ctx = el.getContext("2d");
-  if (!ctx) return;
+  // canvas を実装していない環境(テスト用のjsdomなど)では何も描かない
+  if (!ctx || typeof ctx.save !== "function" || typeof ctx.fillRect !== "function") return;
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const resize = () => {
