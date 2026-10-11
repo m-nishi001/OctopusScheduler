@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseArgs, qrLoginUrl, renderBanner, stackPaths } from "./dev-stack.js";
+import { parseArgs, participantLoginUrls, qrLoginUrl, renderBanner, stackPaths } from "./dev-stack.js";
 
 test("parseArgs: 既定値とオプション", () => {
   assert.deepEqual(parseArgs([]), { reset: false, port: undefined, count: undefined });
@@ -38,4 +38,18 @@ test("renderBanner: URL・管理者・参加者の範囲が出る", () => {
 test("qrLoginUrl: キーはフラグメントに入れ、キーが無ければ案内を出す", () => {
   assert.equal(qrLoginUrl("http://h", "a b", "k&1"), "http://h/#/login?id=a%20b&key=k%261");
   assert.equal(qrLoginUrl("http://h", "a", undefined), "(キーなし)");
+});
+
+test("participantLoginUrls: 全員分のログインURLを返す", () => {
+  const seed = { participants: { ids: ["a", "b"], loginKeys: { a: "ka", b: "kb" } } };
+  assert.deepEqual(participantLoginUrls("http://h", seed), [
+    { id: "a", url: "http://h/#/login?id=a&key=ka" },
+    { id: "b", url: "http://h/#/login?id=b&key=kb" },
+  ]);
+});
+
+test("renderBanner: URL一覧のファイルがあれば案内に出す", () => {
+  const seed = { admin: { id: "admin", password: "p", sessionToken: "t" }, participants: { ids: ["a"], password: "x", loginKeys: { a: "k" } } };
+  assert.match(renderBanner({ base: "http://h", seed, urlsFile: "/tmp/p.json" }), /\/tmp\/p\.json/);
+  assert.doesNotMatch(renderBanner({ base: "http://h", seed }), /全員の受付QR/);
 });

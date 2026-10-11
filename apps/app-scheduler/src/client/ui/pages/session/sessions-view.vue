@@ -9,6 +9,7 @@
             <p class="sessions__lead">
                 セッション(パーティールーム)を作り、会場の投影端末を「ホスト」として、手元の端末を「管理」として接続します。
                 参加者はQRコードまたは参加コードでポータルに入ります。
+                ログイン済みの参加者(受付QR)は、「ポータルに公開」したセッションに自動で入ります。公開できるのは同時に1つです。
             </p>
 
             <form class="sessions__create" @submit.prevent="create">
@@ -29,11 +30,19 @@
             <DataTable :columns="columns" :rows="rows" row-key="id" :loading="loading" empty-text="進行中のセッションはありません">
                 <template #cell-code="{ row }"><code class="sessions__code">{{ row.code }}</code></template>
                 <template #cell-status="{ row }">{{ statusLabel(row) }}</template>
+                <template #cell-portal="{ row }">
+                    <span v-if="row.portal" class="sessions__portal" data-testid="portal-on">公開中</span>
+                    <span v-else class="sessions__portal-off">—</span>
+                </template>
                 <template #cell-actions="{ row }">
                     <div class="sessions__actions">
                         <UiButton size="sm" :disabled="row.status === 'closed'" @click="openHost(row.id)">ホストとして開く</UiButton>
                         <UiButton size="sm" variant="primary" :disabled="row.status === 'closed'" @click="openConsole(row.id)">
                             操作する
+                        </UiButton>
+                        <UiButton size="sm" :disabled="row.status === 'closed' || portalBusyId === row.id" :loading="portalBusyId === row.id"
+                            @click="togglePortal(row)">
+                            {{ row.portal ? 'ポータル公開を止める' : 'ポータルに公開' }}
                         </UiButton>
                         <UiButton size="sm" variant="danger" :disabled="row.status === 'closed' || closingId === row.id" :loading="closingId === row.id" @click="closeOne(row)">
                             終了
@@ -65,6 +74,7 @@ const columns: DataTableColumn[] = [
     { key: 'name', label: 'セッション名' },
     { key: 'code', label: '参加コード' },
     { key: 'status', label: '状態' },
+    { key: 'portal', label: '参加者ポータル' },
     { key: 'actions', label: '操作' },
 ];
 
@@ -72,6 +82,7 @@ const sessions = ref<SessionSummary[]>([]);
 const loading = ref(false);
 const creating = ref(false);
 const closingId = ref<string | null>(null);
+const portalBusyId = ref<string | null>(null);
 const error = ref('');
 const name = ref('');
 const demo = ref(false);
@@ -108,6 +119,33 @@ async function create() {
         toast.error(`作成に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
         creating.value = false;
+    }
+}
+
+/** 参加者ポータルの入口にする/やめる。公開すると他のセッションの公開は外れる。 */
+async function togglePortal(row: SessionSummary) {
+    if (portalBusyId.value) return;
+    const publish = !row.portal;
+    if (publish) {
+        const other = sessions.value.find((s) => s.portal && s.id !== row.id);
+        if (other) {
+            const ok = await confirm({
+                title: '参加者ポータルの入口を切り替え',
+                message: `いま「${other.name}」が公開中です。「${row.name}」に切り替えると、これから入る参加者は「${row.name}」に入ります(すでに接続中の参加者は「${other.name}」に残ります)。`,
+                confirmLabel: '切り替える',
+            });
+            if (!ok) return;
+        }
+    }
+    portalBusyId.value = row.id;
+    try {
+        await repo.setPortalSession(row.id, publish);
+        toast.success(publish ? `「${row.name}」を参加者ポータルに公開しました` : '参加者ポータルへの公開を止めました');
+        await load();
+    } catch (e) {
+        toast.error(`切り替えに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+        portalBusyId.value = null;
     }
 }
 
@@ -156,4 +194,6 @@ onUnmounted(() => {
 .sessions__code { font-size: 1.1rem; letter-spacing: 0.15em; font-weight: 700; }
 .sessions__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .sessions__error { color: #ff8a80; margin: 0; }
+.sessions__portal { font-weight: 700; color: var(--ui-success, #3fb27f); }
+.sessions__portal-off { opacity: 0.5; }
 </style>

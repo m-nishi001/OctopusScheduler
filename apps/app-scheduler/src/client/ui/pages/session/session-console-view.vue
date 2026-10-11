@@ -33,6 +33,26 @@
                     ホストが不在です。送ったコマンドは、ホストが戻っても約30秒を過ぎていると適用されません。
                 </p>
 
+                <h2 class="console__h2">参加者ポータルのイベント</h2>
+                <div class="console__event" data-testid="event-panel">
+                    <p class="console__sub" data-testid="event-state">
+                        <template v-if="portalEvent">発生中: 「{{ portalEvent.title }}」 ・ ログイン中の参加者の画面に「イベント発生中」が出ています</template>
+                        <template v-else>イベントは発生していません。開始すると、ログイン中の参加者の画面に「イベント発生中」が出ます。</template>
+                    </p>
+                    <form class="console__event-form" @submit.prevent="startEvent">
+                        <input v-model="eventTitle" type="text" :maxlength="MAX_EVENT_TITLE_LENGTH" autocomplete="off"
+                            placeholder="例: ジャックポット抽選" aria-label="イベント名" data-testid="event-title" />
+                        <UiButton type="submit" variant="primary" :disabled="busyEvent !== null || !canSend || !normalizeEventTitle(eventTitle)"
+                            :loading="busyEvent === 'start'">
+                            {{ portalEvent ? 'イベントを切り替える' : 'イベントを開始' }}
+                        </UiButton>
+                        <UiButton v-if="portalEvent" variant="danger" :disabled="busyEvent !== null || !canSend" :loading="busyEvent === 'end'"
+                            @click="endEvent">
+                            イベントを終了
+                        </UiButton>
+                    </form>
+                </div>
+
                 <h2 class="console__h2">ホストの画面を切り替える</h2>
                 <div class="console__presets" data-testid="presets">
                     <UiButton v-for="p in presets" :key="p.path" :disabled="busyPath !== null || !canSend" :loading="busyPath === p.path"
@@ -116,7 +136,18 @@ import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { GetAllQuizzesUseCase, QuizSyncService } from '@octopus/game-quiz';
 import { PageShell, UiButton, toast } from '@octopus/ui-kit';
-import { createSessionConnection, lobbyPath, parseHubErrorCode, useSessionConnection } from '@octopus/session-hub';
+import {
+    MAX_EVENT_TITLE_LENGTH,
+    PORTAL_EVENT_END,
+    PORTAL_EVENT_NS,
+    PORTAL_EVENT_START,
+    createSessionConnection,
+    lobbyPath,
+    normalizeEventTitle,
+    parseHubErrorCode,
+    readPortalEvent,
+    useSessionConnection,
+} from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import { useAuthSession } from '../../../control/auth/auth-session';
 import ConnectionBanner from './components/connection-banner.vue';
@@ -137,6 +168,8 @@ const errorMessage = ref('');
 const busyPath = ref<string | null>(null);
 const busyJackpot = ref<'advance' | 'stopRoulette' | null>(null);
 const busyQuiz = ref<'advance' | 'closeAnswers' | null>(null);
+const busyEvent = ref<'start' | 'end' | null>(null);
+const eventTitle = ref('');
 const quizzes = ref<Array<{ id: string; title: string; question: string }>>([]);
 const quizLoading = ref(false);
 const selectedQuizId = ref('');
@@ -188,6 +221,7 @@ const quizPages = [
     { page: 'result', label: '結果' },
 ];
 const quizPath = (page: string): string => q(`/quiz/${selectedQuizId.value}/${page}`);
+const portalEvent = computed(() => readPortalEvent(state.value.roomState?.data));
 const log = computed(() => [...state.value.recentCommands].reverse().slice(0, 15));
 const canSend = computed(() => state.value.phase === 'connected' || state.value.phase === 'reconnecting');
 
@@ -221,6 +255,26 @@ async function navigate(path: string) {
         busyPath.value = null;
     }
 }
+
+/** 参加者ポータルのイベントを開始(または切り替え)/終了する。ホストが公開し、参加者の画面に反映される。 */
+async function sendEvent(type: 'start' | 'end') {
+    if (busyEvent.value !== null) return;
+    const title = normalizeEventTitle(eventTitle.value);
+    if (type === 'start' && !title) return;
+    busyEvent.value = type;
+    try {
+        await connection.issue(PORTAL_EVENT_NS, type === 'start' ? PORTAL_EVENT_START : PORTAL_EVENT_END, type === 'start' ? { title } : undefined);
+        if (type === 'start') eventTitle.value = '';
+    } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        toast.error(parseHubErrorCode(message) ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
+    } finally {
+        busyEvent.value = null;
+    }
+}
+
+const startEvent = () => sendEvent('start');
+const endEvent = () => sendEvent('end');
 
 async function sendQuiz(type: 'advance' | 'closeAnswers') {
     if (busyQuiz.value !== null) return;
@@ -295,6 +349,9 @@ onUnmounted(() => {
 .console__h2 { margin: 8px 0 0; font-size: 1rem; }
 .console__presets { display: flex; flex-wrap: wrap; gap: 8px; }
 .console__quiz { display: flex; flex-direction: column; gap: 8px; }
+.console__event { display: flex; flex-direction: column; gap: 8px; }
+.console__event-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.console__event-form input { flex: 1 1 14em; max-width: 28em; font: inherit; padding: 8px; border-radius: 6px; background: var(--ui-surface, #2b3036); color: inherit; border: 1px solid var(--ui-border, #3a4048); }
 .console__quiz-select { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; max-width: 28em; }
 .console__quiz-select select { font: inherit; padding: 8px; border-radius: 6px; background: var(--ui-surface, #2b3036); color: inherit; border: 1px solid var(--ui-border, #3a4048); }
 .console__log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }

@@ -15,6 +15,7 @@ apps/
 packages/
 ├─ accounts/             メンバー名簿・ログイン・セッション・認可
 ├─ session-hub/          ホスト／管理／参加者を結ぶセッション基盤
+├─ participant-portal/   ログイン済み参加者のスマホ向けポータル（画面のみ。通信は session-hub）
 ├─ game-jackpot/         ジャックポット抽選
 ├─ game-quiz/            クイズ
 ├─ infrastructures/      GAS／Cloudflare の実装を差し替える層
