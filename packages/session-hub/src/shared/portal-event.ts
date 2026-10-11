@@ -13,6 +13,26 @@ export const PORTAL_EVENT_END = "end";
 /** エントリー受付を開始する（受付済みで締め切ったあとなら、回答を残したまま再開する）。 */
 export const PORTAL_EVENT_OPEN_ENTRY = "openEntry";
 export const PORTAL_EVENT_CLOSE_ENTRY = "closeEntry";
+/** ジャックポットの抽選の対象を切り替える（全メンバー / エントリーした人だけ）。 */
+export const PORTAL_EVENT_SET_POOL = "setPool";
+
+/**
+ * ジャックポットの抽選の対象。
+ *   all     : 名簿の全メンバー（従来どおり）
+ *   entrants: イベントにエントリーした人だけ
+ */
+export const DRAW_POOLS = ["all", "entrants"] as const;
+export type DrawPool = (typeof DRAW_POOLS)[number];
+
+export function parseDrawPool(value: unknown): DrawPool | null {
+  return (DRAW_POOLS as readonly unknown[]).includes(value) ? (value as DrawPool) : null;
+}
+
+/** `event.setPool` のペイロードを検証する。不正なら null。 */
+export function parseSetPoolPayload(payload: unknown): { mode: DrawPool } | null {
+  const mode = parseDrawPool((payload as { mode?: unknown } | null)?.mode);
+  return mode ? { mode } : null;
+}
 
 export const MAX_EVENT_TITLE_LENGTH = 60;
 
@@ -33,6 +53,8 @@ export interface PortalEvent {
   startedAtMs: number;
   /** エントリー受付を始めていれば入る。 */
   entry?: PortalEventEntry;
+  /** ジャックポットの抽選の対象。省略は all。 */
+  pool?: DrawPool;
 }
 
 /** エントリーの選択肢（1つだけ）。 */
@@ -72,5 +94,7 @@ export function readPortalEvent(data: Record<string, unknown> | null | undefined
   if (entry && typeof entry === "object" && typeof entry.key === "string" && ROUND_KEY_PATTERN.test(entry.key) && typeof entry.open === "boolean") {
     event.entry = { key: entry.key, open: entry.open };
   }
+  const pool = parseDrawPool(value.pool);
+  if (pool) event.pool = pool;
   return event;
 }
