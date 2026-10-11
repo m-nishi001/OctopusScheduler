@@ -10,7 +10,8 @@
  * 生成する wrangler.staging.toml(リソースIDを含む)と投入したパスワードはコミットしない(gitignore 済み)。
  * 事前に `npm run build` が必要。
  *
- * 注意: R2 バケットが空でないと削除できない(wrangler に一覧・一括削除が無い)。その場合は案内を表示する。
+ * 注意: R2 バケットが空でないと削除できない(wrangler に一覧・一括削除が無い)。そのため staging:up でバケットに
+ * 「1日で自動削除」のルールを付けてある。撤去時に空でなければ、翌日以降にもう一度 staging:down すればよい。
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -18,6 +19,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setup } from "./setup-cloudflare.js";
 import { teardown } from "./teardown-cloudflare.js";
+import { qrLoginUrl } from "./dev-stack.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TOML_NAME = "wrangler.staging.toml";
@@ -46,6 +48,24 @@ export function assertNotProduction({ workerName, d1Name, bucket }, production =
   }
 }
 
+/** staging のバケットは使い捨てなので、オブジェクトを1日で自動削除する(空にしないと撤去できないため)。 */
+export const LIFECYCLE_RULE = "staging-autoclean";
+
+/** 自動削除ルールの追加コマンド引数。 */
+export function lifecycleArgs(bucket) {
+  return ["r2", "bucket", "lifecycle", "add", bucket, LIFECYCLE_RULE, "--expire-days", "1", "--force"];
+}
+
+/** ルールが既にあって追加に失敗したのは問題ない。それ以外の失敗は例外にする。 */
+export function ensureLifecycle(run, bucket) {
+  try {
+    run(lifecycleArgs(bucket));
+  } catch (error) {
+    const text = `${error.stderr ?? ""}${error.stdout ?? ""}${error.message ?? ""}`;
+    if (!/already exists|duplicate|same name|ID.*in use/i.test(text)) throw error;
+  }
+}
+
 /** `wrangler deploy` の出力から公開URLを取り出す。無ければ null。 */
 export function parseDeployUrl(output) {
   const m = output.match(/https:\/\/[A-Za-z0-9.-]+\.workers\.dev/);
@@ -60,6 +80,7 @@ export function renderUpSummary({ url, seed }) {
     `  URL        : ${url ?? "(デプロイ出力から取得できませんでした。ダッシュボードで確認してください)"}`,
     `  管理者     : ID ${seed.admin.id} / パスワード ${seed.admin.password}`,
     `  参加者     : ${seed.participants.ids[0]} 〜 ${seed.participants.ids.at(-1)} / 共通パスワード ${seed.participants.password}`,
+    `  受付QR相当 : ${qrLoginUrl(url ?? "<URL>", seed.participants.ids[0], seed.participants.loginKeys?.[seed.participants.ids[0]])}`,
     "",
     "  Playwright を向ける:",
     `    BASE=${url ?? "<URL>"} E2E_ADMIN_ID=${seed.admin.id} E2E_ADMIN_PASSWORD=${seed.admin.password} E2E_ADMIN_TOKEN=${seed.admin.sessionToken} \\`,
@@ -91,6 +112,7 @@ function up() {
     console.log(`${TOML_NAME} を生成しました。${result.created.length ? `作成: ${result.created.join(", ")}` : "既存リソースを使用"}`);
   }
 
+  ensureLifecycle(wranglerRun, STAGING.bucket);
   wranglerRun(["d1", "migrations", "apply", "DB", "--remote", "--config", TOML_NAME]);
   const deployOut = wranglerRun(["deploy", "--config", TOML_NAME], ["ignore", "pipe", "pipe"]);
   const seed = JSON.parse(
@@ -115,7 +137,7 @@ function down() {
   });
   if (result.bucketNotEmpty) {
     console.log(
-      `\nR2 バケットが空でないため削除できませんでした。ダッシュボードの R2 → ${STAGING.bucket} → Settings → Empty Bucket で空にしてから、もう一度 npm run staging:down を実行してください(削除済みのものはスキップされます)。`
+      `\nR2 バケットが空でないため削除できませんでした。オブジェクトは1日で自動削除されるので、翌日以降にもう一度 npm run staging:down を実行してください(削除済みのものはスキップされます)。すぐ消したい場合は、ダッシュボードの R2 → ${STAGING.bucket} → Settings → Empty Bucket で空にしてから実行してください。`
     );
   }
   if (result.failed.length > 0) process.exitCode = 1;
