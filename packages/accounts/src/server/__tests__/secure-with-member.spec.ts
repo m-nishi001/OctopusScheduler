@@ -2,9 +2,9 @@ import "reflect-metadata";
 import { describe, it, expect, vi } from "vitest";
 import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { wrapWithAuth } from "@octopus/infrastructures/interfaces";
-import { addMember, login, setPassword } from "../accounts-use-cases";
+import { addMember, login, logout, setPassword } from "../accounts-use-cases";
 import type { AccountsAuthDeps } from "../accounts-use-cases";
-import { createSecureAdminWithMember, UNAUTHORIZED_RESPONSE } from "../secure";
+import { createSecureAdminWithMember, createSecureMember, UNAUTHORIZED_RESPONSE } from "../secure";
 
 const OK = JSON.stringify({ status: "success", data: "ok" });
 
@@ -23,8 +23,10 @@ async function setup() {
   await setPassword(authDeps, { id: "user", password: "correct-horse" });
   const adminToken = (await login(authDeps, { id: "admin", password: "correct-horse" })).token;
   const userToken = (await login(authDeps, { id: "user", password: "correct-horse" })).token;
-  const wrap = createSecureAdminWithMember({ getStorage: () => storage, now: () => 1000 });
-  return { wrap, adminToken, userToken };
+  const secureDeps = { getStorage: () => storage, now: () => 1000 };
+  const wrap = createSecureAdminWithMember(secureDeps);
+  const wrapMember = createSecureMember(secureDeps);
+  return { wrap, wrapMember, adminToken, userToken, storage };
 }
 
 describe("createSecureAdminWithMember", () => {
@@ -43,5 +45,33 @@ describe("createSecureAdminWithMember", () => {
     expect(await guarded(wrapWithAuth(userToken, { a: 1 }))).toBe(UNAUTHORIZED_RESPONSE);
     expect(await guarded(wrapWithAuth("bogus", { a: 1 }))).toBe(UNAUTHORIZED_RESPONSE);
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe("createSecureMember", () => {
+  it("管理者でも一般メンバー(参加者)でも、有効なトークンならメンバー付きでハンドラを呼ぶ", async () => {
+    const { wrapMember, adminToken, userToken } = await setup();
+    const handler = vi.fn(async (_args: unknown, _member: unknown) => OK);
+    expect(await wrapMember(handler)(wrapWithAuth(userToken, { a: 1 }))).toBe(OK);
+    expect(handler).toHaveBeenLastCalledWith({ a: 1 }, expect.objectContaining({ id: "user" }));
+    expect(await wrapMember(handler)(wrapWithAuth(adminToken, { a: 2 }))).toBe(OK);
+    expect(handler).toHaveBeenLastCalledWith({ a: 2 }, expect.objectContaining({ id: "admin", isAdmin: true }));
+  });
+
+  it("トークンなし・不明なトークンは Unauthorized でハンドラを呼ばない", async () => {
+    const { wrapMember } = await setup();
+    const handler = vi.fn(async (_args: unknown, _member: unknown) => OK);
+    expect(await wrapMember(handler)({ x: 1 })).toBe(UNAUTHORIZED_RESPONSE);
+    expect(await wrapMember(handler)(wrapWithAuth("unknown-token", {}))).toBe(UNAUTHORIZED_RESPONSE);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("ログアウト済みのトークンは使えない", async () => {
+    const { wrapMember, userToken, storage } = await setup();
+    const handler = vi.fn(async (_args: unknown, _member: unknown) => OK);
+    expect(await wrapMember(handler)(wrapWithAuth(userToken, {}))).toBe(OK);
+    await logout({ storage, generateId: () => "x" }, userToken);
+    expect(await wrapMember(handler)(wrapWithAuth(userToken, {}))).toBe(UNAUTHORIZED_RESPONSE);
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });

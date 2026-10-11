@@ -4,3 +4,4 @@ export * from "./poll-interval";
 export * from "./host-navigation";
 export * from "./ws-protocol";
 export * from "./quota-budget";
+export * from "./portal-event";

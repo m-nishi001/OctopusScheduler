@@ -53,6 +53,18 @@ export function createDoBackend(kvDeps: () => ServiceDeps): SessionHubBackend {
       if (!summary) throw new DomainError("[SESSION_NOT_FOUND] 参加コードが見つかりません。コードを確認してください");
       return callRoom(summary.id, "joinClient", args) as ReturnType<SessionHubBackend["joinClient"]>;
     },
+    // 公開の指定は一覧のインデックスだけを書き換える(Durable Object は触らない)
+    setPortalSession: (args) => kv().setPortalSession(args),
+    async joinPortal(args, member) {
+      const summary = (await kv().listSessions()).find((s) => s.portal === true && s.status !== "closed");
+      if (!summary) throw new DomainError("[SESSION_NOT_FOUND] いま参加できるイベントはありません");
+      return callRoom(
+        summary.id,
+        "joinPortal",
+        { code: summary.code, deviceId: args.deviceId, token: args.token, label: member.name },
+        member.id
+      ) as ReturnType<SessionHubBackend["joinPortal"]>;
+    },
     poll: (args) => callRoom(args.sessionId, "poll", args) as ReturnType<SessionHubBackend["poll"]>,
     issueCommand: (args) => callRoom(args.sessionId, "issueCommand", args) as ReturnType<SessionHubBackend["issueCommand"]>,
     publishState: (args) => callRoom(args.sessionId, "publishState", args) as ReturnType<SessionHubBackend["publishState"]>,

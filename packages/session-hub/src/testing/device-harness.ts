@@ -28,6 +28,8 @@ export interface Device {
 
 export interface DeviceOptions {
   memberId?: string | null;
+  /** ログイン中のメンバーの表示名(参加者ポータルへの入室で使う)。 */
+  memberName?: string | null;
   faults?: FaultInjector;
   store?: MemoryDeviceStore;
   polling?: Partial<PollingOptions>;
@@ -35,7 +37,7 @@ export interface DeviceOptions {
 }
 
 export function makeDevice(hub: TestHub, options: DeviceOptions = {}): Device {
-  const api = createFakeHubApi(hub, options.memberId ?? null, options.faults ?? NO_FAULTS);
+  const api = createFakeHubApi(hub, options.memberId ?? null, options.faults ?? NO_FAULTS, null, options.memberName ?? null);
   const store = options.store ?? new MemoryDeviceStore();
   const transport = new PollingTransport(api, noJitterTimers, { ...DEFAULT_POLLING_OPTIONS, ...options.polling });
   let n = 0;

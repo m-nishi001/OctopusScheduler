@@ -21,11 +21,13 @@ import type {
   IssueCommandResult,
   JoinClientArgs,
   JoinOperatorArgs,
+  JoinPortalArgs,
   JoinResult,
   PollArgs,
   PollResult,
   PublishStateArgs,
   PublishStateResult,
+  SetPortalSessionArgs,
 } from "../shared/protocol";
 import type { SessionMeta, SessionSummary } from "../shared/session-types";
 import * as service from "./engine/session-service";
@@ -37,6 +39,9 @@ export interface SessionHubBackend {
   closeSession(args: CloseSessionArgs): Promise<void>;
   joinOperator(args: JoinOperatorArgs, memberId: string): Promise<JoinResult>;
   joinClient(args: JoinClientArgs): Promise<JoinResult>;
+  setPortalSession(args: SetPortalSessionArgs): Promise<void>;
+  /** ログイン済みの参加者がポータル公開中のセッションに入る。member は認証済みのメンバー。 */
+  joinPortal(args: JoinPortalArgs, member: { id: string; name: string }): Promise<JoinResult>;
   poll(args: PollArgs): Promise<PollResult>;
   issueCommand(args: IssueCommandArgs): Promise<IssueCommandResult>;
   publishState(args: PublishStateArgs): Promise<PublishStateResult>;
@@ -56,6 +61,8 @@ export function createKvBackend(deps: ServiceDeps): SessionHubBackend {
     closeSession: (args) => service.closeSession(deps, args),
     joinOperator: (args, memberId) => service.joinOperator(deps, args, memberId),
     joinClient: (args) => service.joinClient(deps, args),
+    setPortalSession: (args) => service.setPortalSession(deps, args),
+    joinPortal: (args, member) => service.joinPortal(deps, args, member),
     poll: (args) => service.poll(deps, args),
     issueCommand: (args) => service.issueCommand(deps, args),
     publishState: (args) => service.publishState(deps, args),

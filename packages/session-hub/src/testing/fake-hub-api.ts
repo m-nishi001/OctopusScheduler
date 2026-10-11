@@ -34,13 +34,15 @@ export interface FakeHubApi extends SessionHubApi {
 }
 
 /**
- * @param memberId ログイン中の管理者メンバーID。null なら未ログイン(運営系エンドポイントは Unauthorized)。
+ * @param memberId ログイン中のメンバーID。null なら未ログイン(運営系・ポータル入室は Unauthorized)。
+ * @param memberName ログイン中のメンバーの表示名(参加者ポータルへの入室で使う。省略時は ID)。
  */
 export function createFakeHubApi(
   hub: TestHub,
   memberId: string | null,
   faults: FaultInjector = NO_FAULTS,
-  webAppUrl: string | null = null
+  webAppUrl: string | null = null,
+  memberName: string | null = null
 ): FakeHubApi {
   const calls: Record<string, number> = {};
 
@@ -76,6 +78,11 @@ export function createFakeHubApi(
     }),
     joinOperator: (args) => run("joinOperator", args, () => service.joinOperator(hub.deps, args, operator())),
     joinClient: (args) => run("joinClient", args, () => service.joinClient(hub.deps, args)),
+    setPortalSession: (args) => run("setPortalSession", args, async () => {
+      operator();
+      await service.setPortalSession(hub.deps, args);
+    }),
+    joinPortal: (args) => run("joinPortal", args, () => service.joinPortal(hub.deps, args, { id: operator(), name: memberName ?? operator() })),
     poll: (args) => run("poll", args, () => service.poll(hub.deps, args)),
     issueCommand: (args) => run("issueCommand", args, () => service.issueCommand(hub.deps, args)),
     publishState: (args) => run("publishState", args, () => service.publishState(hub.deps, args)),

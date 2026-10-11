@@ -15,7 +15,6 @@ import {
   WS_PONG_TIMEOUT_MS,
 } from "../../shared/ws-protocol";
 import type { ClientWsMessage, ServerWsMessage } from "../../shared/ws-protocol";
-import { parseHubErrorCode } from "../../server/engine/hub-error";
 import { realTimers } from "./polling-transport";
 import type { Timers } from "./polling-transport";
 import { TransportUnavailableError } from "./transport";

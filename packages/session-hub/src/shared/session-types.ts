@@ -45,6 +45,11 @@ export interface SessionSummary {
   createdAtMs: number;
   /** 終了した時刻(一覧から外すまでの猶予の起点)。 */
   closedAtMs?: number;
+  /**
+   * 参加者ポータルの入口として公開中か。ログイン済みの参加者は参加コード無しでこのセッションに入る。
+   * 進行中のセッションのうち同時に1つだけ立つ。
+   */
+  portal?: boolean;
 }
 
 export interface Device {

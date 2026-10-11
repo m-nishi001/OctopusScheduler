@@ -19,6 +19,11 @@ export class SessionAdminRepository {
     return this.api.closeSession({ sessionId });
   }
 
+  /** 参加者ポータルの入口にするセッションを指定する(同時に1つだけ。published=false で公開を止める)。 */
+  setPortalSession(sessionId: string, published: boolean): Promise<void> {
+    return this.api.setPortalSession({ sessionId, published });
+  }
+
   /**
    * アプリの絶対URL(ハッシュなし)。GAS ではデプロイURLを基点にし
    * (window.location は内側の iframe になるため)、取得できなければ現在のURLを使う。

@@ -75,6 +75,7 @@ export type RoomOp =
   | "close"
   | "joinOperator"
   | "joinClient"
+  | "joinPortal"
   | "poll"
   | "issueCommand"
   | "publishState"
@@ -247,6 +248,14 @@ export class SessionRoomCore {
       }
       case "joinClient": {
         const result = await engine.joinClient(deps, args as JoinClientArgs);
+        this.markPresenceDirty();
+        return result;
+      }
+      case "joinPortal": {
+        // memberId は Worker が認証済みのトークンから渡したもの(クライアントの申告ではない)
+        if (!memberId) throw new DomainError("[INVALID_ARGUMENT] memberId が必要です");
+        const portalArgs = args as JoinClientArgs;
+        const result = await engine.joinClient(deps, portalArgs, { memberId, label: portalArgs.label ?? "" });
         this.markPresenceDirty();
         return result;
       }
