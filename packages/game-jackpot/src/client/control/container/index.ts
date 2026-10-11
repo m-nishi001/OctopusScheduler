@@ -31,6 +31,7 @@ import { DrawStateInitializer } from "../draw/draw-state-initializer";
 import { MathRandomProvider } from "../../model/common/math-random-provider";
 import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
 import { SyncService } from "../sync/sync-service";
+import { AllMembersDrawPool, DrawPoolProviderToken } from "../../model/draw/draw-pool";
 
 export class Container {
   static register() {
@@ -77,6 +78,8 @@ export class Container {
     container.register(DrawStateInitializer, {
       useClass: DrawStateInitializer,
     });
+    // 抽選の対象。既定は全メンバー。アプリが setDrawPoolProvider で差し替える（後から登録したものが優先される）。
+    container.register(DrawPoolProviderToken, { useClass: AllMembersDrawPool });
     container.register(DrawApplicationService, {
       useClass: DrawApplicationService,
     });

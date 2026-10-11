@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { container } from "tsyringe";
 import { entryRoundKey, parseHubErrorCode, readPortalEvent } from "@octopus/session-hub";
-import { registerEventHost } from "../../../../control/session/event-host";
+import { createEntrantDrawPool, registerEventHost } from "../../../../control/session/event-host";
 import type { EventStorage } from "../../../../control/session/event-host";
 import { makeDevice, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
+import type { FaultInjector } from "@octopus/session-hub/testing";
 import type { SessionEnv } from "./session-test-kit";
 
 let env: SessionEnv;
@@ -266,5 +267,157 @@ describe("registerEventHost: エントリー受付", () => {
     expect(await first.published()).toEqual(before);
     const r = await env.hub.deps.repoFor(first.meta.id).getRound();
     expect(r?.answerCount).toBe(1);
+  });
+});
+
+describe("抽選の対象（ジャックポット）", () => {
+  async function poolScene(faults?: FaultInjector) {
+    const storage = memoryStorage();
+    const meta = await env.repo.create({ name: "受付会場" });
+    await env.repo.setPortalSession(meta.id, true);
+    const { agent } = registerHostAgent(env, "admin1", faults);
+    registerEventHost(agent, { ...options(storage), storage });
+    await agent.connection.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
+    const admin = makeDevice(env.hub, { memberId: "admin2" });
+    await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
+    const pool = createEntrantDrawPool(agent, { storage });
+    const command = async (type: string, payload?: unknown) => {
+      await admin.conn.issue("event", type, payload);
+      await settle(8000);
+    };
+    const published = async () => readPortalEvent((await env.hub.deps.repoFor(meta.id).getState())?.data);
+    /** いま受付中のエントリーのラウンドの key（イベントの id から決まる）。 */
+    const currentKey = async (): Promise<string> => (await env.hub.deps.repoFor(meta.id).getRound())!.key;
+    const enter = async (id: string, name: string) => {
+      const d = makeDevice(env.hub, { memberId: id, memberName: name });
+      await d.conn.joinPortal();
+      await d.conn.answer(await currentKey(), 1);
+    };
+    const guestEnter = async (memberId: string) => {
+      const d = makeDevice(env.hub, { memberId: null });
+      await d.conn.joinClient({ code: meta.code, memberId, label: "ゲスト" });
+      await d.conn.answer(await currentKey(), 1);
+    };
+    return { meta, agent, admin, pool, command, published, enter, guestEnter, storage };
+  }
+
+  it("イベントが無い・対象が指定されていない・「全メンバー」なら、絞り込まない（null）", async () => {
+    const s = await poolScene();
+    expect(await s.pool.getEligibleMemberIds()).toBeNull();
+
+    await s.command("start", { title: "抽選" });
+    expect(await s.pool.getEligibleMemberIds()).toBeNull();
+    expect((await s.published())?.pool).toBeUndefined();
+
+    await s.command("setPool", { mode: "all" });
+    expect((await s.published())?.pool).toBe("all");
+    expect(await s.pool.getEligibleMemberIds()).toBeNull();
+  });
+
+  it("最初のエントリー受付を始めると、対象が「エントリーした人だけ」になる。受付を始める前の対象は空", async () => {
+    const s = await poolScene();
+    await s.command("start", { title: "抽選" });
+    await s.command("setPool", { mode: "entrants" });
+    // 受付を始める前は、対象に誰もいない（抽選側が「対象のメンバーがいません」と知らせる）
+    expect(await s.pool.getEligibleMemberIds()).toEqual([]);
+
+    await s.command("setPool", { mode: "all" });
+    await s.command("openEntry");
+    // 「全メンバー」に切り替え済みなら、受付を始めても運営の選択を上書きしない
+    expect((await s.published())?.pool).toBe("all");
+
+    const fresh = await poolScene();
+    await fresh.command("start", { title: "抽選" });
+    await fresh.command("openEntry");
+    expect((await fresh.published())?.pool).toBe("entrants");
+  });
+
+  it("対象が「エントリーした人だけ」なら、ログインから確定したエントリー者のIDを返す（匿名のゲストは含めない）", async () => {
+    const s = await poolScene();
+    await s.command("start", { title: "抽選" });
+    await s.command("openEntry");
+    await s.enter("alice", "アリス");
+    await s.enter("bob", "ボブ");
+    await s.guestEnter("carol");
+    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+  });
+
+  it("受付を途中で増やしても、最新のエントリー者を返す。「全メンバー」に切り替えると絞り込まない", async () => {
+    const s = await poolScene();
+    await s.command("start", { title: "抽選" });
+    await s.command("openEntry");
+    await s.enter("alice", "アリス");
+    expect(await s.pool.getEligibleMemberIds()).toEqual(["alice"]);
+    await s.enter("bob", "ボブ");
+    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+
+    await s.command("setPool", { mode: "all" });
+    expect(await s.pool.getEligibleMemberIds()).toBeNull();
+    await s.command("setPool", { mode: "entrants" });
+    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+  });
+
+  it("不正な対象の指定や、イベントが無いときの指定は無視する", async () => {
+    const s = await poolScene();
+    await s.command("setPool", { mode: "entrants" });
+    expect(await s.published()).toBeNull();
+    await s.command("start", { title: "抽選" });
+    await s.command("setPool", { mode: "everyone" });
+    await s.command("setPool");
+    expect((await s.published())?.pool).toBeUndefined();
+  });
+
+  it("締め切ったあと別の回答受付（クイズなど）が始まっても、保存した一覧で抽選の対象を返せる", async () => {
+    const s = await poolScene();
+    await s.command("start", { title: "抽選" });
+    await s.command("openEntry");
+    await s.enter("alice", "アリス");
+    await s.enter("bob", "ボブ");
+    await s.command("closeEntry");
+
+    // 同じセッションで別の回答受付が始まり、エントリーのラウンドは置き換えられる
+    await s.agent.connection.openRound("quiz-1:live", [{ no: 1, text: "a" }, { no: 2, text: "b" }], 30_000);
+    expect((await s.pool.getEligibleMemberIds())?.sort()).toEqual(["alice", "bob"]);
+  });
+
+  it("一覧を取得できず、保存した一覧も無いときは、全メンバーにフォールバックせず例外にする", async () => {
+    let offline = false;
+    const faults: FaultInjector = { decide: (e) => (offline && e === "getAnswers" ? "fail" : "ok") };
+    const s = await poolScene(faults);
+    await s.command("start", { title: "抽選" });
+    await s.command("openEntry");
+    await s.enter("alice", "アリス");
+    offline = true;
+    const pending = s.pool.getEligibleMemberIds().then(() => null, (e: Error) => e);
+    await settle(10_000);
+    expect((await pending)?.message).toContain("エントリーした人の一覧を取得できませんでした");
+  });
+
+  it("一覧を取得できなくても、直近に取得できた一覧があればそれを使う", async () => {
+    let offline = false;
+    const faults: FaultInjector = { decide: (e) => (offline && e === "getAnswers" ? "fail" : "ok") };
+    const s = await poolScene(faults);
+    await s.command("start", { title: "抽選" });
+    await s.command("openEntry");
+    await s.enter("alice", "アリス");
+    expect(await s.pool.getEligibleMemberIds()).toEqual(["alice"]);
+
+    offline = true;
+    const pending = s.pool.getEligibleMemberIds();
+    await settle(10_000);
+    expect(await pending).toEqual(["alice"]);
+  });
+
+  it("新しいイベントを始める・イベントを終了すると、保存した一覧を消す", async () => {
+    const s = await poolScene();
+    await s.command("start", { title: "第1部" });
+    await s.command("openEntry");
+    await s.enter("alice", "アリス");
+    expect(await s.pool.getEligibleMemberIds()).toEqual(["alice"]);
+    await s.command("start", { title: "第2部" });
+    // 新しいイベントの対象は指定なし（全メンバー）で、前のイベントの一覧は使われない
+    expect(await s.pool.getEligibleMemberIds()).toBeNull();
+    await s.command("openEntry");
+    expect(await s.pool.getEligibleMemberIds()).toEqual([]);
   });
 });

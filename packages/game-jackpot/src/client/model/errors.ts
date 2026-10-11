@@ -32,3 +32,11 @@ export class BusinessError extends Error {
     this.name = "BusinessError";
   }
 }
+
+/** 抽選の対象（例: エントリーした人）に、まだ当選していない人がいない。 */
+export class NoEligibleMembersError extends Error {
+  constructor(message?: string) {
+    super(message);
+    this.name = "NoEligibleMembersError";
+  }
+}

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ROUND_KEY_PATTERN } from "../session-types";
 import {
   ENTRY_OPTIONS,
+  parseDrawPool,
+  parseSetPoolPayload,
   MAX_EVENT_TITLE_LENGTH,
   entryRoundKey,
   normalizeEventTitle,
@@ -79,5 +81,27 @@ describe("エントリー受付", () => {
 
   it("エントリーの選択肢は1つだけ", () => {
     expect(ENTRY_OPTIONS).toHaveLength(1);
+  });
+});
+
+describe("ジャックポットの抽選の対象", () => {
+  const event = { id: "e1", title: "ジャックポット", startedAtMs: 1_700_000_000_000 };
+
+  it("イベントから対象を取り出す。省略・不正な値は指定なし（全メンバー）として扱う", () => {
+    expect(readPortalEvent({ event: { ...event, pool: "entrants" } })?.pool).toBe("entrants");
+    expect(readPortalEvent({ event: { ...event, pool: "all" } })?.pool).toBe("all");
+    for (const pool of [undefined, null, "", "everyone", 1, {}]) {
+      const read = readPortalEvent({ event: { ...event, pool } });
+      expect(read, String(pool)).toEqual(event);
+      expect(read?.pool).toBeUndefined();
+    }
+  });
+
+  it("parseDrawPool / parseSetPoolPayload は all と entrants だけを受け付ける", () => {
+    expect(parseDrawPool("all")).toBe("all");
+    expect(parseDrawPool("entrants")).toBe("entrants");
+    for (const v of [undefined, null, "", "ALL", "member", 0]) expect(parseDrawPool(v)).toBeNull();
+    expect(parseSetPoolPayload({ mode: "entrants" })).toEqual({ mode: "entrants" });
+    for (const p of [null, undefined, {}, { mode: "x" }, "entrants"]) expect(parseSetPoolPayload(p)).toBeNull();
   });
 });
