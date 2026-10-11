@@ -9,9 +9,12 @@ import { PrizeReservationService } from "../../model/draw/prize-reservation-serv
 import { WeightedSelector } from "../../model/draw/weighted-selector";
 import { MathRandomProvider } from "../../model/common/math-random-provider";
 import type { DrawResultDto } from "./dto/draw-result-dto";
+import { AllMembersDrawPool } from "../../model/draw/draw-pool";
+import type { DrawPoolProvider } from "../../model/draw/draw-pool";
+import { NoEligibleMembersError } from "../../model/errors";
 
 /** 全員・全景品を最後まで引き切る通しの検証(実サービス + インメモリ保存)。 */
-function build(memberCount: number, prizeCount: number, weights?: (i: number) => number | undefined) {
+function build(memberCount: number, prizeCount: number, weights?: (i: number) => number | undefined, pool: DrawPoolProvider = new AllMembersDrawPool()) {
   const members = Array.from({ length: memberCount }, (_, i) => ({ id: `m${i}`, name: `M${i}`, rank: 1 }));
   const prizes = Array.from({ length: prizeCount }, (_, i) => ({
     id: `p${i}`,
@@ -57,7 +60,8 @@ function build(memberCount: number, prizeCount: number, weights?: (i: number) =>
     new MemberDrawService(selector, rand),
     new PrizeDrawService(selector, rand),
     idGen as any,
-    initializer
+    initializer,
+    pool
   );
   return { service, rows, prizes, members, initializer };
 }
@@ -123,5 +127,47 @@ describe("通し抽選: 異常な入力", () => {
     const before = rows.length;
     await expect(service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 })).rejects.toThrow();
     expect(rows.length).toBe(before);
+  });
+});
+
+describe("通し抽選: 抽選の対象（エントリーした人だけ）", () => {
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+  const run = async (memberCount: number, prizeCount: number, eligible: string[], draws: number) => {
+    const { service, prizes, initializer } = build(memberCount, prizeCount, undefined, { getEligibleMemberIds: async () => eligible });
+    await initializer.initialize(prizes as any);
+    const out: Array<{ member: string; dummies: string[] }> = [];
+    for (let i = 0; i < draws; i++) {
+      const { result, memberRes } = await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+      out.push({ member: result.wonMember!.id, dummies: memberRes.dummyIds });
+    }
+    return { out, service };
+  };
+
+  it("全員当選するまで、当選者は必ずエントリーした人で、重複せず、リールのダミーも対象の中だけ", async () => {
+    const eligible = ["m3", "m7", "m11", "m20", "m42"];
+    const { out } = await run(50, 10, eligible, eligible.length);
+    expect(out.map((o) => o.member).sort()).toEqual([...eligible].sort());
+    for (const o of out) for (const d of o.dummies) expect(eligible).toContain(d);
+  });
+
+  it("対象の人数より景品が多くても、対象の全員が当選したら明示的なエラーになり、結果を壊さない", async () => {
+    const eligible = ["m1", "m2"];
+    const { service } = await run(10, 6, eligible, 2);
+    await expect(service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 })).rejects.toThrow(NoEligibleMembersError);
+  });
+
+  it("エントリーした人が1人でも、その人が当選する（リールのダミーは重複して埋める）", async () => {
+    const { out } = await run(30, 5, ["m9"], 1);
+    expect(out[0].member).toBe("m9");
+    expect(out[0].dummies.every((d) => d === "m9" || d === undefined)).toBe(true);
+  });
+
+  it("エントリー者が大勢でも（300人中200人）、当選者は常に対象の中", async () => {
+    const eligible = Array.from({ length: 200 }, (_, i) => `m${i * 1}`);
+    const { out } = await run(300, 40, eligible, 40);
+    for (const o of out) expect(eligible).toContain(o.member);
+    expect(new Set(out.map((o) => o.member)).size).toBe(40);
   });
 });

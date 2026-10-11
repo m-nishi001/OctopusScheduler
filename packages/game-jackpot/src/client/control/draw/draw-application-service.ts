@@ -18,7 +18,10 @@ import {
   NotFoundError,
   StateNotInitializedError,
   NoAvailablePrizesError,
+  NoEligibleMembersError,
 } from "../../model/errors";
+import { DrawPoolProviderToken } from "../../model/draw/draw-pool";
+import type { DrawPoolProvider } from "../../model/draw/draw-pool";
 import { DrawStateInitializer } from "./draw-state-initializer";
 import {
   mapToDrawResult,
@@ -39,7 +42,8 @@ export class DrawApplicationService {
     @inject(PrizeDrawService) private prizeDrawService: PrizeDrawService,
     @inject(CryptoIdGenerator) private readonly idGenerator: CryptoIdGenerator,
     @inject(DrawStateInitializer)
-    private drawStateInitializer: DrawStateInitializer
+    private drawStateInitializer: DrawStateInitializer,
+    @inject(DrawPoolProviderToken) private readonly drawPool: DrawPoolProvider
   ) {}
 
   async initializeStateIfNeeded(prizes: Prize[]): Promise<void> {
@@ -330,8 +334,13 @@ export class DrawApplicationService {
   private async executeMemberDraw(
     request: DrawMemberRequest
   ): Promise<DrawMemberResponse> {
-    const members = await this.memberRepo.getMembers();
+    const allMembers = await this.memberRepo.getMembers();
     const results = await this.drawResultService.getDrawResults();
+
+    // 抽選の対象を絞り込む（例: エントリーした人だけ）。候補も、リールに流すダミーも対象の中から選ぶ。
+    // 一覧を取得できないときは例外のまま上へ伝える（全メンバーにフォールバックしない）。
+    const eligibleIds = await this.drawPool.getEligibleMemberIds();
+    const members = this.restrictToPool(allMembers, eligibleIds, results);
 
     const res = this.memberDrawService.drawMember(
       members,
@@ -350,6 +359,31 @@ export class DrawApplicationService {
       { membersCount: members.length, existingResultsCount: results.length }
     );
     return response;
+  }
+
+  /**
+   * 抽選の対象（eligibleIds）に含まれるメンバーだけに絞る。null なら絞り込みなし。
+   * 対象に、まだ当選していない人が1人もいなければ、理由が分かる例外にする。
+   */
+  private restrictToPool(
+    members: Member[],
+    eligibleIds: string[] | null,
+    results: DrawResultDto[]
+  ): Member[] {
+    if (eligibleIds === null) return members;
+    const eligible = new Set(eligibleIds);
+    const pool = members.filter((m) => eligible.has(m.id));
+    const remaining = pool.filter(
+      (m) => !results.some((r) => r.wonMember?.id === m.id)
+    );
+    if (remaining.length === 0) {
+      throw new NoEligibleMembersError(
+        pool.length === 0
+          ? "抽選の対象のメンバーがいません。エントリーした人がいないか、メンバー名簿に登録がありません。"
+          : "抽選の対象のメンバーは、全員がすでに当選しています。"
+      );
+    }
+    return pool;
   }
 
   /**

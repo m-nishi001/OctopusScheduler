@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DrawApplicationService } from "./draw-application-service";
+import { MemberDrawService } from "../../model/draw/member-draw-service";
+import { WeightedSelector } from "../../model/draw/weighted-selector";
+import { NoEligibleMembersError } from "../../model/errors";
 
 function createDeps(overrides: {
   members?: any[];
@@ -12,6 +15,9 @@ function createDeps(overrides: {
     winnerPrizeId: string | null;
     dummyPrizeIds: string[];
   } | null;
+  /** 抽選の対象。null / 省略は全メンバー。 */
+  eligibleMemberIds?: string[] | null;
+  poolError?: Error;
 } = {}) {
   const members = overrides.members ?? [{ id: "m1", name: "Member1", rank: 1 }];
   const prizes = overrides.prizes ?? [
@@ -52,6 +58,13 @@ function createDeps(overrides: {
   const idGenerator = { nextId: vi.fn(() => "draw-1") };
   const drawStateInitializer = { initialize: vi.fn(async () => undefined) };
 
+  const drawPool = {
+    getEligibleMemberIds: vi.fn(async () => {
+      if (overrides.poolError) throw overrides.poolError;
+      return overrides.eligibleMemberIds ?? null;
+    }),
+  };
+
   const service = new DrawApplicationService(
     memberRepo as any,
     prizeRepo as any,
@@ -60,10 +73,11 @@ function createDeps(overrides: {
     memberDrawService as any,
     prizeDrawService as any,
     idGenerator as any,
-    drawStateInitializer as any
+    drawStateInitializer as any,
+    drawPool as any
   );
 
-  return { service, drawResultService, members, prizes };
+  return { service, drawResultService, members, prizes, memberDrawService, drawPool };
 }
 
 describe("DrawApplicationService", () => {
@@ -160,6 +174,80 @@ describe("DrawApplicationService", () => {
       await expect(
         service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 })
       ).rejects.toThrow();
+    });
+  });
+
+  describe("抽選の対象（エントリーした人だけ）", () => {
+    const roster = ["alice", "bob", "carol", "dave"].map((id, i) => ({ id, name: id, rank: i }));
+    const draw = (service: DrawApplicationService) => service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+
+    it("対象を指定しないときは、全メンバーを抽選に渡す（従来どおり）", async () => {
+      const { service, memberDrawService } = createDeps({ members: roster, memberDrawResult: { winnerId: "alice", dummyIds: [] } });
+      await draw(service);
+      const passed = memberDrawService.drawMember.mock.calls[0][0] as Array<{ id: string }>;
+      expect(passed.map((m) => m.id)).toEqual(["alice", "bob", "carol", "dave"]);
+    });
+
+    it("対象に含まれるメンバーだけを、候補にもリールのダミーにも渡す", async () => {
+      const { service, memberDrawService } = createDeps({
+        members: roster,
+        eligibleMemberIds: ["bob", "dave"],
+        memberDrawResult: { winnerId: "bob", dummyIds: ["dave"] },
+      });
+      await draw(service);
+      const passed = memberDrawService.drawMember.mock.calls[0][0] as Array<{ id: string }>;
+      expect(passed.map((m) => m.id)).toEqual(["bob", "dave"]);
+    });
+
+    it("名簿に無いID（ジャックポットに登録の無い人）は無視する", async () => {
+      const { service, memberDrawService } = createDeps({
+        members: roster,
+        eligibleMemberIds: ["bob", "stranger"],
+        memberDrawResult: { winnerId: "bob", dummyIds: [] },
+      });
+      await draw(service);
+      expect((memberDrawService.drawMember.mock.calls[0][0] as Array<{ id: string }>).map((m) => m.id)).toEqual(["bob"]);
+    });
+
+    it("対象が空・対象の全員が当選済みなら、理由の分かる例外にする（全メンバーにフォールバックしない）", async () => {
+      const empty = createDeps({ members: roster, eligibleMemberIds: [] });
+      await expect(draw(empty.service)).rejects.toThrow(NoEligibleMembersError);
+      await expect(draw(empty.service)).rejects.toThrow(/対象のメンバーがいません/);
+      expect(empty.memberDrawService.drawMember).not.toHaveBeenCalled();
+
+      const allWon = createDeps({
+        members: roster,
+        eligibleMemberIds: ["bob"],
+        existingResults: [{ wonMember: { id: "bob" }, wonPrize: { id: "p0" } }],
+      });
+      await expect(draw(allWon.service)).rejects.toThrow(/全員がすでに当選/);
+      expect(allWon.memberDrawService.drawMember).not.toHaveBeenCalled();
+    });
+
+    it("対象の一覧を取得できないときは、そのまま例外を伝え、抽選も保存もしない", async () => {
+      const { service, drawResultService, memberDrawService } = createDeps({ members: roster, poolError: new Error("エントリー者の一覧を取得できませんでした") });
+      await expect(draw(service)).rejects.toThrow("エントリー者の一覧を取得できませんでした");
+      expect(memberDrawService.drawMember).not.toHaveBeenCalled();
+      expect(drawResultService.addDrawResult).not.toHaveBeenCalled();
+    });
+
+    it("プレビュー抽選にも同じ対象が使われる", async () => {
+      const { service, memberDrawService } = createDeps({ members: roster, eligibleMemberIds: ["carol"], memberDrawResult: { winnerId: "carol", dummyIds: [] } });
+      await service.previewDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+      expect((memberDrawService.drawMember.mock.calls[0][0] as Array<{ id: string }>).map((m) => m.id)).toEqual(["carol"]);
+    });
+
+    it("本物の抽選ロジックでも、対象外の人は決して当選せず、ダミーにも出ない", async () => {
+      const real = new MemberDrawService(new WeightedSelector({ nextFloat: () => Math.random(), nextInt: (n: number) => Math.floor(Math.random() * n) } as any), {
+        nextInt: (n: number) => Math.floor(Math.random() * n),
+      } as any);
+      const { service } = createDeps({ members: roster, eligibleMemberIds: ["bob", "carol"] });
+      (service as any).memberDrawService = real;
+      for (let i = 0; i < 100; i++) {
+        const res = await (service as any).executeMemberDraw({ requestCount: 10 });
+        expect(["bob", "carol"]).toContain(res.winnerId);
+        for (const id of res.dummyIds) expect(["bob", "carol"]).toContain(id);
+      }
     });
   });
 });

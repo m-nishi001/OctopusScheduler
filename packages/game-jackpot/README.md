@@ -13,6 +13,15 @@
 - `getLastPrizeCount()`
   - `{ total, remaining }`。`remaining` が 0 になったら「おしまい」。
 
+### 抽選の対象(`DrawPoolProvider`)
+
+メンバー抽選の候補は、既定では名簿の全メンバー。外から絞り込めるよう、`DrawPoolProvider`(`getEligibleMemberIds(): Promise<string[] | null>`)という口を持つ。アプリのホストが `setDrawPoolProvider` で実装を渡す(例: イベントにエントリーした人だけ。参加者ポータルの `event-host.ts`)。
+
+- `null` なら絞り込まない。配列なら、**候補にもリールのダミーにも、その中のメンバーだけ**を使う。名簿に無いIDは無視する。
+- 対象が空、または対象の全員が当選済みなら `NoEligibleMembersError`(理由つきのメッセージ)で止める。
+- 実装が例外を投げたら、そのまま抽選を失敗させる(**全メンバーにフォールバックしない**。対象外の人が当選する事故を防ぐため)。
+- `previewDraw` も同じ対象を使う。
+
 保存先は IndexedDB(localforage、DB 名 `jackpot-game`)。デモ(`?demo=1` / デモセッション)は別ストア(`:demo` 付き)を使うので本番データを汚さない。
 
 ## 確変

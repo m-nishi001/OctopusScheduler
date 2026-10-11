@@ -5,3 +5,8 @@ export { Container as JackpotContainer } from "./control/container";
 export { SyncService as JackpotSyncService } from "./control/sync/sync-service";
 // メンバーの顔写真（ホスト端末が持つジャックポットのデータ）。エントリー受付の会場画面などで使う。
 export { MemberPhotoCache, createMemberPhotoCache } from "./control/member/member-photo-cache";
+// 抽選の対象（例: エントリーした人だけ）を、アプリのホストが差し込むためのポート。
+export { DrawPoolProviderToken } from "./model/draw/draw-pool";
+export type { DrawPoolProvider } from "./model/draw/draw-pool";
+export { NoEligibleMembersError } from "./model/errors";
+export { setDrawPoolProvider } from "./control/draw/set-draw-pool-provider";
