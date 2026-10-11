@@ -52,5 +52,5 @@ CI（`.github/workflows/ci.yml`）は lint → typecheck → test → build → 
 
 - サーバー関数は、各機能パッケージの `src/server/*-api-contract.ts` に名前を足し、`endpoints.ts` で実装する。認可は `secure("admin" | "public", …)` で必ず指定する。
 - UI は `@octopus/ui-kit` の部品で組む。独自の overlay・色・フォントサイズ・絵文字アイコンは作らない（規約は `packages/ui-kit/README.md`）。
-- 新しい画面は既定でログイン必須。参加者に公開したい場合だけ、`apps/app-scheduler/src/client/control/router/admin-guard.ts` の許可リストに足す。
+- 新しい画面は既定で管理者ログイン必須。匿名参加の入口にしたい場合は `apps/app-scheduler/src/client/control/router/auth-guard.ts` の許可リストに、ログイン済みの参加者向け画面は `/p` 配下に置く。
 - 構成のルールは [architecture.md](architecture.md) を参照。

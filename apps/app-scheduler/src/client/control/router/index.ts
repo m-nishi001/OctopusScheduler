@@ -8,8 +8,8 @@ import octopusSchedulerRoutes from "../../ui/router";
 import { jackpotGameRoutes } from "@octopus/game-jackpot";
 import { quizGameRoutes } from "@octopus/game-quiz";
 import { hashToPath } from "./initial-hash";
-import { createAdminGuard } from "./admin-guard";
-import { ensureAdminSession } from "../auth/auth-session";
+import { createAuthGuard } from "./auth-guard";
+import { ensureRole } from "../auth/auth-session";
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -60,8 +60,8 @@ router.beforeEach(async (_to, from) => {
   return { path: resolvedPath, query, replace: true };
 });
 
-// 入口で管理者ログインを要求する(参加者の入口とログイン画面だけ公開)。
-router.beforeEach(createAdminGuard({ ensureAdmin: ensureAdminSession }));
+// 入口でログインを要求し、役割(管理者 / 参加者)で行き先を出し分ける(匿名参加の入口とログイン画面だけ公開)。
+router.beforeEach(createAuthGuard({ getRole: ensureRole }));
 
 router.beforeEach((to, from, next) => {
   // If we're navigating from inside /execute and the target is a game absolute path

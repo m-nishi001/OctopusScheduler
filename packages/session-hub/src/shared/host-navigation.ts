@@ -32,3 +32,12 @@ export function buildPortalUrl(code: string, baseUrl: string): string {
   const base = baseUrl.split("#")[0];
   return `${base}#/portal/${encodeURIComponent(code)}`;
 }
+
+/**
+ * 受付QRに入れるログインURL。キーはフラグメント(#以降)に入れるので、サーバーのログには送られない。
+ * ログイン画面が最初にURLからキーを取り除く。
+ */
+export function buildLoginUrl(id: string, key: string, baseUrl: string): string {
+  const base = baseUrl.split("#")[0];
+  return `${base}#/login?id=${encodeURIComponent(id)}&key=${encodeURIComponent(key)}`;
+}

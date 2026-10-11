@@ -6,14 +6,25 @@
 
         <div class="accounts-editor__toolbar">
             <UiButton variant="primary" icon="add" @click="openAdd">アカウント追加</UiButton>
+            <UiButton :disabled="issuing || withoutKey.length === 0" :loading="issuing" @click="issueMissing">
+                未発行の参加者に受付QRを発行({{ withoutKey.length }}人)
+            </UiButton>
             <span class="accounts-editor__count">{{ accounts.length }}件</span>
         </div>
 
         <DataTable :columns="columns" :rows="accounts" row-key="id" :loading="loading" empty-text="アカウントはありません">
             <template #cell-isAdmin="{ row }">{{ row.isAdmin ? '管理者' : '一般' }}</template>
             <template #cell-hasPassword="{ row }">{{ row.hasPassword ? '設定済み' : '未設定' }}</template>
+            <template #cell-hasLoginKey="{ row }">
+                <template v-if="row.isAdmin">—</template>
+                <template v-else>{{ row.hasLoginKey ? '発行済み' : '未発行' }}</template>
+            </template>
             <template #cell-actions="{ row }">
                 <div class="accounts-editor__row-actions">
+                    <UiButton v-if="!row.isAdmin" size="sm" :disabled="issuing"
+                        :aria-label="`${row.name} の受付QRを${row.hasLoginKey ? '再発行' : '発行'}`" @click="issueOne(row)">
+                        {{ row.hasLoginKey ? 'QR再発行' : 'QR発行' }}
+                    </UiButton>
                     <UiButton size="sm" icon="edit" icon-only aria-label="編集" @click="openEdit(row)" />
                     <UiButton size="sm" variant="danger" icon="delete" icon-only aria-label="削除"
                         @click="removeOne(row)" />
@@ -41,23 +52,29 @@
                 </UiField>
             </form>
         </UiDialog>
+
+        <LoginQrSheet v-model="sheetOpen" :cards="sheetCards" />
     </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { container } from 'tsyringe';
 import { DataTable, UiButton, UiDialog, UiField, toast, useConfirm } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
 import { AccountsRepository } from '@octopus/accounts';
 import type { Member } from '@octopus/accounts';
+import { SessionAdminRepository, buildLoginUrl } from '@octopus/session-hub';
 import { useAuthSession } from '../../../../control/auth/auth-session';
+import LoginQrSheet from './login-qr-sheet.vue';
+import type { LoginQrCard } from './login-qr-sheet.vue';
+import { qrDataUrl } from './login-qr';
 
 /** サーバー側 setPassword の最小文字数(accounts-use-cases.ts の MIN_PASSWORD_LENGTH と同じ)。 */
 const MIN_PASSWORD_LENGTH = 8;
 
 const repo = container.resolve(AccountsRepository);
-const { confirmDelete } = useConfirm();
+const { confirm, confirmDelete } = useConfirm();
 const { currentMember } = useAuthSession();
 
 const columns: DataTableColumn[] = [
@@ -65,6 +82,7 @@ const columns: DataTableColumn[] = [
     { key: 'name', label: '名前', sortable: true },
     { key: 'isAdmin', label: '権限' },
     { key: 'hasPassword', label: 'パスワード' },
+    { key: 'hasLoginKey', label: '受付QR' },
     { key: 'actions', label: '操作' },
 ];
 
@@ -85,6 +103,58 @@ async function load() {
 }
 
 onMounted(load);
+
+// 受付QR(参加者ごとのログインキー)。平文のキーは発行直後の1回しか見られないため、
+// シートを開いている間だけ画面に保持し、閉じたら破棄する。
+const sessionAdmin = container.resolve(SessionAdminRepository);
+const issuing = ref(false);
+const sheetOpen = ref(false);
+const sheetCards = ref<LoginQrCard[]>([]);
+const withoutKey = computed(() => accounts.value.filter((a) => !a.isAdmin && !a.hasLoginKey));
+
+watch(sheetOpen, (open) => {
+    if (!open) sheetCards.value = [];
+});
+
+/** 順番に(1人ずつ)発行する。途中で失敗しても、そこまでに発行できた分はシートに出す。 */
+async function issueFor(rows: Member[]) {
+    if (issuing.value || rows.length === 0) return;
+    issuing.value = true;
+    const cards: LoginQrCard[] = [];
+    try {
+        const base = await sessionAdmin.appBaseUrl();
+        for (const row of rows) {
+            const key = await repo.issueLoginKey(row.id);
+            cards.push({ id: row.id, name: row.name, qr: qrDataUrl(buildLoginUrl(row.id, key, base)) });
+        }
+    } catch (e) {
+        toast.error(`受付QRの発行に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+        issuing.value = false;
+    }
+    if (cards.length > 0) {
+        sheetCards.value = cards;
+        sheetOpen.value = true;
+    }
+    await load();
+}
+
+async function issueOne(row: Member) {
+    if (row.hasLoginKey) {
+        const ok = await confirm({
+            title: '受付QRの再発行',
+            message: `「${row.name}」のQRコードを再発行します。すでに配布したQRコードは使えなくなります。`,
+            confirmLabel: '再発行',
+            danger: true,
+        });
+        if (!ok) return;
+    }
+    await issueFor([row]);
+}
+
+async function issueMissing() {
+    await issueFor(withoutKey.value);
+}
 
 const dialogOpen = ref(false);
 const editing = ref<Member | null>(null);
