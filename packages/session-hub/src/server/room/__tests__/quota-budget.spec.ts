@@ -12,6 +12,7 @@ import type { FakeSocket } from "../../../testing";
 import type { JoinResult } from "../../../shared/protocol";
 import type { SessionMeta } from "../../../shared/session-types";
 import { BUDGET_RATIO, EXPECTED_LOAD, FREE_TIER, WS_MESSAGES_PER_REQUEST } from "../../../shared/quota-budget";
+import { MIN_ANSWERS_REFRESH_MS } from "../../../client/ui/use-round-answers";
 
 const SID = "session-quota";
 
@@ -87,7 +88,66 @@ async function runEvent(clients: number, scale = 1) {
   return room;
 }
 
+/**
+ * エントリー受付の負荷: 参加者がログインして入室し、WebSocket でエントリーする。会場の画面と運営の端末
+ * （2台）は、受付の間じゅう、回答数が変わるたびに一覧を取得する（最短 MIN_ANSWERS_REFRESH_MS 間隔）。
+ * 戻り値の loginRequests は、DO の外（Worker のみ）で課金される受付QRのログイン分。
+ */
+async function runEntry(clients: number, windowMs = 10 * 60 * 1000) {
+  const room = new FakeRoom(new FakeClock());
+  await room.init(meta());
+  const host = await room.call<JoinResult>("joinOperator", { sessionId: SID, role: "host", label: "PC" }, "a");
+  const admin = await room.call<JoinResult>("joinOperator", { sessionId: SID, role: "admin", label: "A" }, "b");
+  const wsHost = await room.connectAndAuth(creds(host));
+  await room.connectAndAuth(creds(admin));
+  const key = "entry:event-1";
+  await room.call("openRound", { ...creds(host), key, options: [{ no: 1, text: "エントリー" }], mode: "open" });
+
+  const sockets: FakeSocket[] = [];
+  for (let i = 0; i < clients; i++) {
+    const j = await room.call<JoinResult>("joinPortal", { code: "QUOTA2", label: `m${i}` }, `member-${i}`);
+    const ws = await room.connectAndAuth(creds(j));
+    sockets.push(ws);
+    await room.send(ws, { t: "answer", requestId: `e${i}`, key, no: 1 });
+  }
+  await room.runAlarm();
+
+  // 受付の間、運営の2台が一覧を取得する回数の上限（最短間隔ごとに1回ずつ）
+  const refreshes = Math.ceil(windowMs / MIN_ANSWERS_REFRESH_MS);
+  for (let r = 0; r < refreshes; r++) {
+    await room.call("getAnswers", { ...creds(host), key });
+    await room.call("getAnswers", { ...creds(admin), key });
+  }
+  await room.call("closeRound", { ...creds(admin), key });
+  void wsHost;
+  return { room, loginRequests: clients };
+}
+
 describe("Cloudflare 無料枠の予算", () => {
+  it("エントリー受付(300人・10分)を1日2回行っても、リクエスト数・DO書き込みは無料枠の30%以内", async () => {
+    const { room, loginRequests } = await runEntry(EXPECTED_LOAD.clients);
+    const perEvent = room.billableRequests(WS_MESSAGES_PER_REQUEST) + loginRequests;
+    const perDay = perEvent * EXPECTED_LOAD.eventsPerDay;
+    const writesPerDay = room.counts.storagePut * EXPECTED_LOAD.eventsPerDay;
+    // eslint-disable-next-line no-console
+    console.log(`[quota] エントリー 1イベント ${perEvent} リクエスト / 1日 ${perDay}, DO書き込み 1日 ${writesPerDay}`);
+    expect(perDay).toBeLessThanOrEqual(FREE_TIER.workersRequestsPerDay * BUDGET_RATIO);
+    expect(writesPerDay).toBeLessThanOrEqual(FREE_TIER.doRowsWrittenPerDay * BUDGET_RATIO);
+  }, 120_000);
+
+  it("エントリー1件ごとにDOへ書き込まない（回答はまとめて保存）", async () => {
+    const { room } = await runEntry(300, 60_000);
+    // 300件のエントリーに対して、書き込みは入室(端末)分が中心で、回答は数回にまとまる
+    expect(room.counts.storagePut).toBeLessThan(300 * 2 + 20);
+  }, 120_000);
+
+  it("エントリーの一覧取得は、受付の長さで決まり、人数には依存しない（RPCの差は入室の分だけ）", async () => {
+    const small = await runEntry(30, 60_000);
+    const big = await runEntry(300, 60_000);
+    // 同じ長さの受付なら一覧取得の回数は同じ。RPC の差は、入室(joinPortal)の人数差ちょうど。
+    expect(big.room.counts.rpc - small.room.counts.rpc).toBe(300 - 30);
+  }, 120_000);
+
   it("想定最大のイベント(300人)を1日2回行っても、リクエスト数は無料枠の30%以内", async () => {
     const room = await runEvent(EXPECTED_LOAD.clients);
     const perEvent = room.billableRequests(WS_MESSAGES_PER_REQUEST);

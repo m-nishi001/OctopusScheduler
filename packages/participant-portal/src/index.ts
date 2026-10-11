@@ -5,3 +5,5 @@ export { PORTAL_SESSION_KEY, usePortalContext, usePortalSession, MAX_AUTO_REJOIN
 export type { PortalSession } from "./model/use-portal-session";
 export { derivePortalStatus, statusMessage } from "./model/portal-status";
 export type { PortalStatus, JoinFailure } from "./model/portal-status";
+export { ENTRY_KEY, useEntry, useEntryContext } from "./model/use-entry";
+export type { EntryPhase, EntryState } from "./model/use-entry";

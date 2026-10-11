@@ -10,6 +10,7 @@ describe("isAllowedHostPath", () => {
     "/quiz/q1/intro",
     "/execute/quiz/q1/play",
     "/execute/show-image/asset1",
+    "/event-entry",
   ])("許可: %s", (p) => expect(isAllowedHostPath(p)).toBe(true));
 
   it.each([
@@ -34,6 +35,11 @@ describe("isAllowedHostPath", () => {
     "/session/host/../settings",
     "",
     "/jackpot-opening ",
+    "/event-entry/",
+    "/event-entry/x",
+    "/event-entry?x=1",
+    "/event-entryx",
+    "/events",
   ])("拒否: %j", (p) => expect(isAllowedHostPath(p)).toBe(false));
 
   it("文字列以外・長すぎる値は拒否", () => {

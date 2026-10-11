@@ -68,6 +68,8 @@ export interface SessionRepo {
   openRound(round: Omit<StoredRound, "answerCount" | "closedAtMs">): Promise<void>;
   /** 締め切る(すでに締切済みなら何もしない)。 */
   closeRound(closedAtMs: number): Promise<void>;
+  /** 締切済みのラウンドを、回答を残したまま再開する(新しい締切を設定し、締切済みの印を外す)。 */
+  reopenRound(deadlineMs: number): Promise<void>;
   listAnswers(key: string): Promise<RoundAnswer[]>;
   /** 先着で採用する。同じ端末の2回目以降は inserted=false で既存を返す。上限なら full=true。 */
   appendAnswer(key: string, answer: RoundAnswer, maxAnswers: number): Promise<AppendAnswerResult>;
@@ -121,7 +123,7 @@ export function createKvSessionRepo(storage: IKeyValueStorage, sessionId: string
 function createKvRoundOps(
   storage: IKeyValueStorage,
   k: (name: string) => string
-): Pick<SessionRepo, "getRound" | "openRound" | "closeRound" | "listAnswers" | "appendAnswer"> {
+): Pick<SessionRepo, "getRound" | "openRound" | "closeRound" | "reopenRound" | "listAnswers" | "appendAnswer"> {
   const readAnswers = async (key: string): Promise<RoundAnswer[]> => {
     const stored = await readJson<{ key: string; answers: RoundAnswer[] }>(storage, k("answers"));
     return stored && stored.key === key ? stored.answers : [];
@@ -136,6 +138,11 @@ function createKvRoundOps(
       const round = await readJson<StoredRound>(storage, k("round"));
       if (!round || round.closedAtMs !== null) return;
       await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs }));
+    },
+    async reopenRound(deadlineMs) {
+      const round = await readJson<StoredRound>(storage, k("round"));
+      if (!round) return;
+      await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs: null, deadlineMs }));
     },
     listAnswers: readAnswers,
     async appendAnswer(key, answer, maxAnswers) {

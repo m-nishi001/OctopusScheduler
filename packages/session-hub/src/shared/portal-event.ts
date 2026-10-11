@@ -5,17 +5,43 @@
  * 参加者のポータルはこの状態を見て、画面上部に「イベント発生中」を固定表示する。
  * ホスト・管理・参加者の3者が同じ定義を使う。
  */
+import { ROUND_KEY_PATTERN } from "./session-types";
+
 export const PORTAL_EVENT_NS = "event";
 export const PORTAL_EVENT_START = "start";
 export const PORTAL_EVENT_END = "end";
+/** エントリー受付を開始する（受付済みで締め切ったあとなら、回答を残したまま再開する）。 */
+export const PORTAL_EVENT_OPEN_ENTRY = "openEntry";
+export const PORTAL_EVENT_CLOSE_ENTRY = "closeEntry";
 
 export const MAX_EVENT_TITLE_LENGTH = 60;
+
+/**
+ * イベントのエントリー受付。参加者は key の回答ラウンド（選択肢 ENTRY_OPTION_NO）に回答することでエントリーする。
+ * 件数は含めない（エントリーのたびに全員へ配信しないため）。件数・一覧は運営端末が回答ラウンドから取得する。
+ */
+export interface PortalEventEntry {
+  key: string;
+  /** 受付中か。締め切ったあとも、エントリー済みの人の表示のために残す。 */
+  open: boolean;
+}
 
 export interface PortalEvent {
   /** イベントごとの識別子(同じイベントの再配信と、新しいイベントを見分ける)。 */
   id: string;
   title: string;
   startedAtMs: number;
+  /** エントリー受付を始めていれば入る。 */
+  entry?: PortalEventEntry;
+}
+
+/** エントリーの選択肢（1つだけ）。 */
+export const ENTRY_OPTION_NO = 1;
+export const ENTRY_OPTIONS = [{ no: ENTRY_OPTION_NO, text: "エントリー" }] as const;
+
+/** イベントのエントリー受付に使う回答ラウンドの key。 */
+export function entryRoundKey(eventId: string): string {
+  return `entry:${eventId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60)}`;
 }
 
 /** 入力されたタイトルを整える。空(空白のみ)は null。 */
@@ -40,5 +66,11 @@ export function readPortalEvent(data: Record<string, unknown> | null | undefined
   if (!value || typeof value !== "object") return null;
   const title = normalizeEventTitle(value.title);
   if (!title || typeof value.id !== "string" || !value.id || typeof value.startedAtMs !== "number") return null;
-  return { id: value.id, title, startedAtMs: value.startedAtMs };
+  const event: PortalEvent = { id: value.id, title, startedAtMs: value.startedAtMs };
+  const entry = value.entry as Partial<PortalEventEntry> | null | undefined;
+  // エントリーの形が合わないときは、イベントごと捨てずにエントリーだけ無いものとして扱う
+  if (entry && typeof entry === "object" && typeof entry.key === "string" && ROUND_KEY_PATTERN.test(entry.key) && typeof entry.open === "boolean") {
+    event.entry = { key: entry.key, open: entry.open };
+  }
+  return event;
 }

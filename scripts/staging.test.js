@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertNotProduction, ensureLifecycle, lifecycleArgs, parseDeployUrl, renderUpSummary, STAGING, toStagingTemplate } from "./staging.js";
+import { assertNotProduction, ensureLifecycle, isTransientAuthError, lifecycleArgs, parseDeployUrl, renderUpSummary, runWithRetry, STAGING, toStagingTemplate } from "./staging.js";
 
 const template = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../wrangler.example.toml"), "utf8");
 
@@ -62,4 +62,49 @@ test("ensureLifecycle: 既にルールがある失敗は無視し、それ以外
   let called;
   ensureLifecycle((a) => (called = a), "b");
   assert.deepEqual(called, lifecycleArgs("b"));
+});
+
+test("isTransientAuthError: Cloudflare の一時的な認証エラー(10000)だけを見分ける", () => {
+  assert.ok(isTransientAuthError("Authentication error [code: 10000]"));
+  assert.ok(!isTransientAuthError("Authentication error [code: 10001]"));
+  assert.ok(!isTransientAuthError("Rule IDs must be unique"));
+});
+
+test("runWithRetry: 一時的な認証エラーなら待って再実行し、成功すれば結果を返す", () => {
+  let calls = 0;
+  const waits = [];
+  const result = runWithRetry(
+    () => {
+      if (++calls < 3) throw Object.assign(new Error("x"), { stderr: "Authentication error [code: 10000]" });
+      return "ok";
+    },
+    { sleep: (ms) => waits.push(ms) }
+  );
+  assert.equal(result, "ok");
+  assert.equal(calls, 3);
+  assert.deepEqual(waits, [2000, 4000]);
+});
+
+test("runWithRetry: 上限回数で諦め、それ以外のエラーは再実行せずそのまま投げる", () => {
+  let calls = 0;
+  const transient = () => {
+    calls++;
+    throw Object.assign(new Error("x"), { stderr: "Authentication error [code: 10000]" });
+  };
+  assert.throws(() => runWithRetry(transient, { attempts: 3, sleep: () => {} }), /x/);
+  assert.equal(calls, 3);
+
+  let other = 0;
+  assert.throws(
+    () =>
+      runWithRetry(
+        () => {
+          other++;
+          throw new Error("Rule IDs must be unique");
+        },
+        { sleep: () => {} }
+      ),
+    /unique/
+  );
+  assert.equal(other, 1);
 });

@@ -91,8 +91,31 @@ export function renderUpSummary({ url, seed }) {
   ].join("\n");
 }
 
-const wranglerRun = (args, stdio = ["ignore", "pipe", "inherit"]) =>
-  execFileSync("npx", ["-y", "wrangler@4", ...args], { cwd: ROOT, encoding: "utf8", stdio });
+/** Cloudflare API が一時的に返す認証エラー（再実行すると通る）。 */
+export function isTransientAuthError(text) {
+  return /Authentication error \[code: 10000\]/.test(text);
+}
+
+/** 一時的な認証エラーのときだけ、少し待って再実行する(最大 attempts 回)。それ以外の失敗はそのまま投げる。 */
+export function runWithRetry(exec, { attempts = 3, sleep = sleepSync } = {}) {
+  for (let i = 1; ; i++) {
+    try {
+      return exec();
+    } catch (error) {
+      const text = `${error.stderr ?? ""}${error.stdout ?? ""}${error.message ?? ""}`;
+      if (i >= attempts || !isTransientAuthError(text)) throw error;
+      sleep(2000 * i);
+    }
+  }
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+// 標準エラーも取り込む（一時的な認証エラーの判定と、失敗時の表示のため。失敗したときは main が中身を出す）
+const wranglerRun = (args) =>
+  runWithRetry(() => execFileSync("npx", ["-y", "wrangler@4", ...args], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }));
 
 function up() {
   assertNotProduction(STAGING);
@@ -112,10 +135,9 @@ function up() {
     console.log(`${TOML_NAME} を生成しました。${result.created.length ? `作成: ${result.created.join(", ")}` : "既存リソースを使用"}`);
   }
 
-  // 「既にルールがある」失敗を見分けるため、この呼び出しだけ標準エラーを取り込む
-  ensureLifecycle((args) => wranglerRun(args, ["ignore", "pipe", "pipe"]), STAGING.bucket);
+  ensureLifecycle(wranglerRun, STAGING.bucket);
   wranglerRun(["d1", "migrations", "apply", "DB", "--remote", "--config", TOML_NAME]);
-  const deployOut = wranglerRun(["deploy", "--config", TOML_NAME], ["ignore", "pipe", "pipe"]);
+  const deployOut = wranglerRun(["deploy", "--config", TOML_NAME]);
   const seed = JSON.parse(
     execFileSync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], {
       cwd: ROOT,
@@ -130,7 +152,7 @@ function down() {
   assertNotProduction(STAGING);
   const tomlPath = join(ROOT, TOML_NAME);
   const result = teardown({
-    run: (args) => wranglerRun(args, ["ignore", "pipe", "pipe"]),
+    run: wranglerRun,
     ...STAGING,
     keepBucket: false,
     removeLocalToml: () => existsSync(tomlPath) && rmSync(tomlPath),

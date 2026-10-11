@@ -128,11 +128,25 @@ export interface RoundOption {
   text: string;
 }
 
+/**
+ * timed: 受付時間(durationMs)で自動で締まる。クイズなど、時間を競う一斉回答。選択肢は2個以上。
+ * open : 運営が締め切るまで開き続ける。エントリー受付など。選択肢は1個から。durationMs は使わない。
+ */
+export type RoundMode = "timed" | "open";
+
 export interface OpenRoundArgs extends DeviceCredentials {
   /** ラウンドの識別子(例: "quizId:live")。結果の取得に使う。 */
   key: string;
   options: RoundOption[];
-  durationMs: number;
+  /** timed のとき必須（MIN_ROUND_DURATION_MS 〜 MAX_ROUND_DURATION_MS）。 */
+  durationMs?: number;
+  /** 省略時は timed。 */
+  mode?: RoundMode;
+  /**
+   * 同じ key のラウンドが締切済みなら、回答を残したまま受付を再開する(途中参加を受け付け直す)。
+   * 受付中のラウンドには影響しない（従来どおり続きとして扱う）。
+   */
+  resume?: boolean;
 }
 
 export interface OpenRoundResult {
@@ -171,6 +185,8 @@ export interface RoundAnswer {
   no: number;
   /** 回答を受け付けたサーバ時刻(ms)。 */
   atMs: number;
+  /** memberId がログインから確定したものか(Device.verified と同じ)。匿名の申告は false/未設定。 */
+  verified?: boolean;
 }
 
 export interface RoundSummary {

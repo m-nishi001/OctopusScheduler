@@ -13,6 +13,7 @@ import {
   DEVICE_ID_PATTERN,
   COMMAND_RING_SIZE,
   HOST_STALE_MS,
+  MAX_OPEN_ROUND_MS,
   MAX_ROUND_ANSWERS_KV,
   MAX_ROUND_DURATION_MS,
   MAX_ROUND_OPTIONS,
@@ -243,6 +244,7 @@ export async function joinClient(deps: EngineDeps, args: JoinClientArgs, trusted
     sessionId: meta.id,
     role: "client",
     memberId: trusted ? trusted.memberId : args.memberId ?? null,
+    ...(trusted ? { verified: true } : {}),
     label: cleanLabel(trusted ? trusted.label : args.label, "参加者"),
     token: deps.newToken(),
     joinedAtMs: now,
@@ -472,12 +474,20 @@ export async function openRound(deps: EngineDeps, args: OpenRoundArgs): Promise<
     throw hubError("NOT_HOST", "現在のホスト端末だけが回答の受付を開始できます");
   }
   if (!ROUND_KEY_PATTERN.test(args.key ?? "")) throw hubError("INVALID_ARGUMENT", "key が不正です");
-  if (!Number.isFinite(args.durationMs) || args.durationMs < MIN_ROUND_DURATION_MS || args.durationMs > MAX_ROUND_DURATION_MS) {
-    throw hubError("INVALID_ARGUMENT", "受付時間が範囲外です");
+  if (args.mode !== undefined && args.mode !== "timed" && args.mode !== "open") {
+    throw hubError("INVALID_ARGUMENT", "mode が不正です");
+  }
+  const openEnded = args.mode === "open";
+  if (!openEnded) {
+    const durationMs = args.durationMs;
+    if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs < MIN_ROUND_DURATION_MS || durationMs > MAX_ROUND_DURATION_MS) {
+      throw hubError("INVALID_ARGUMENT", "受付時間が範囲外です");
+    }
   }
   const options = args.options;
-  if (!Array.isArray(options) || options.length < 2 || options.length > MAX_ROUND_OPTIONS) {
-    throw hubError("INVALID_ARGUMENT", `選択肢は2〜${MAX_ROUND_OPTIONS}個で指定してください`);
+  const minOptions = openEnded ? 1 : 2;
+  if (!Array.isArray(options) || options.length < minOptions || options.length > MAX_ROUND_OPTIONS) {
+    throw hubError("INVALID_ARGUMENT", `選択肢は${minOptions}〜${MAX_ROUND_OPTIONS}個で指定してください`);
   }
   const nos = new Set<number>();
   for (const o of options) {
@@ -491,12 +501,19 @@ export async function openRound(deps: EngineDeps, args: OpenRoundArgs): Promise<
   }
 
   const now = deps.now();
+  const durationMs = openEnded ? MAX_OPEN_ROUND_MS : (args.durationMs as number);
   const existing = await deps.repo.getRound();
-  // ホストのリロードなどで同じラウンドの開始が再送されても、回答を消さずに続きとして扱う。
-  if (existing && existing.key === args.key && isRoundOpen(existing, now)) {
-    return { key: existing.key, deadlineMs: existing.deadlineMs, serverNowMs: now };
+  if (existing && existing.key === args.key) {
+    // ホストのリロードなどで同じラウンドの開始が再送されても、回答を消さずに続きとして扱う。
+    if (isRoundOpen(existing, now)) return { key: existing.key, deadlineMs: existing.deadlineMs, serverNowMs: now };
+    // 締切済みでも resume なら、回答を残したまま受付を再開する(途中参加を受け付け直す)。
+    if (args.resume === true) {
+      const deadlineMs = now + durationMs;
+      await deps.repo.reopenRound(deadlineMs);
+      return { key: existing.key, deadlineMs, serverNowMs: now };
+    }
   }
-  const round = { key: args.key, optionNos: [...nos].sort((a, b) => a - b), openedAtMs: now, deadlineMs: now + args.durationMs };
+  const round = { key: args.key, optionNos: [...nos].sort((a, b) => a - b), openedAtMs: now, deadlineMs: now + durationMs };
   await deps.repo.openRound(round);
   const head = (await deps.repo.getHead()) ?? EMPTY_HEAD(meta);
   if (!head.hasRound) await deps.repo.putHead({ ...head, hasRound: true });
@@ -523,13 +540,24 @@ export async function submitAnswer(deps: EngineDeps, args: SubmitAnswerArgs): Pr
   if (!round || round.key !== args.key) throw hubError("ROUND_NOT_OPEN", "いまは回答を受け付けていません");
 
   // すでに回答済みなら、締切後でも「回答済み」として最初の回答を返す(画面表示を揃えるため)。
+  // ログインから確定したメンバーは、別の端末からでも1人1回(2台でエントリーさせない)。
+  const findMine = async (): Promise<RoundAnswer | undefined> => {
+    const answers = await deps.repo.listAnswers(round.key);
+    return answers.find(
+      (a) => a.deviceId === device.deviceId || (device.verified === true && device.memberId !== null && a.verified === true && a.memberId === device.memberId)
+    );
+  };
   if (!isRoundOpen(round, now)) {
-    const mine = (await deps.repo.listAnswers(round.key)).find((a) => a.deviceId === device.deviceId);
+    const mine = await findMine();
     if (mine) return { no: mine.no, atMs: mine.atMs, duplicate: true };
     throw hubError("ROUND_CLOSED", "回答の受付は終了しました");
   }
   if (!Number.isInteger(args.no) || !round.optionNos.includes(args.no)) {
     throw hubError("INVALID_ARGUMENT", "選択肢の番号が不正です");
+  }
+  if (device.verified === true && device.memberId !== null) {
+    const mine = await findMine();
+    if (mine) return { no: mine.no, atMs: mine.atMs, duplicate: true };
   }
   const answer: RoundAnswer = {
     deviceId: device.deviceId,
@@ -537,6 +565,7 @@ export async function submitAnswer(deps: EngineDeps, args: SubmitAnswerArgs): Pr
     label: device.label,
     no: args.no,
     atMs: now,
+    ...(device.verified === true ? { verified: true } : {}),
   };
   const result = await deps.repo.appendAnswer(round.key, answer, deps.maxAnswers ?? MAX_ROUND_ANSWERS_KV);
   if (result.full) throw hubError("PAYLOAD_TOO_LARGE", "回答数が上限に達しました");
