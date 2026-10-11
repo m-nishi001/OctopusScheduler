@@ -51,6 +51,35 @@
                             イベントを終了
                         </UiButton>
                     </form>
+
+                    <div v-if="portalEvent" class="console__entry" data-testid="entry-panel">
+                        <p class="console__sub" data-testid="entry-state">
+                            <template v-if="!portalEvent.entry">エントリー受付は始まっていません。開始すると、参加者の画面に「エントリー」ボタンが出ます。</template>
+                            <template v-else-if="portalEvent.entry.open">エントリー受付中 ・ <strong data-testid="entry-count">{{ entryRoster.count.value }}</strong> 人</template>
+                            <template v-else>エントリー受付は終了 ・ <strong data-testid="entry-count">{{ entryRoster.count.value }}</strong> 人（再開すると、途中から来た人も受け付けられます）</template>
+                        </p>
+                        <div class="console__presets">
+                            <UiButton v-if="!portalEvent.entry?.open" variant="primary" :disabled="busyEntry !== null || !canSend"
+                                :loading="busyEntry === 'openEntry'" @click="sendEntry('openEntry')">
+                                {{ portalEvent.entry ? 'エントリー受付を再開' : 'エントリー受付を開始' }}
+                            </UiButton>
+                            <UiButton v-else variant="danger" :disabled="busyEntry !== null || !canSend" :loading="busyEntry === 'closeEntry'"
+                                @click="sendEntry('closeEntry')">
+                                エントリーを締め切る
+                            </UiButton>
+                            <UiButton :disabled="busyPath !== null || !canSend" :loading="busyPath === ENTRY_STAGE_PATH" @click="navigate(ENTRY_STAGE_PATH)">
+                                会場の画面にエントリーを映す
+                            </UiButton>
+                        </div>
+                        <ol v-if="entryRoster.answers.value.length > 0" class="console__entrants" data-testid="entrants">
+                            <li v-for="(a, i) in recentEntrants" :key="a.deviceId">
+                                <span class="console__seq">#{{ entryRoster.answers.value.length - i }}</span>
+                                <span>{{ a.label }}</span>
+                                <span class="console__sub">{{ entryTime(a.atMs) }}</span>
+                            </li>
+                        </ol>
+                        <p v-if="entryRoster.error.value" class="console__sub is-warn" role="alert">エントリー一覧を取得できませんでした。人数が変わると自動で取り直します。</p>
+                    </div>
                 </div>
 
                 <h2 class="console__h2">ホストの画面を切り替える</h2>
@@ -138,14 +167,17 @@ import { GetAllQuizzesUseCase, QuizSyncService } from '@octopus/game-quiz';
 import { PageShell, UiButton, toast } from '@octopus/ui-kit';
 import {
     MAX_EVENT_TITLE_LENGTH,
+    PORTAL_EVENT_CLOSE_ENTRY,
     PORTAL_EVENT_END,
     PORTAL_EVENT_NS,
+    PORTAL_EVENT_OPEN_ENTRY,
     PORTAL_EVENT_START,
     createSessionConnection,
     lobbyPath,
     normalizeEventTitle,
     parseHubErrorCode,
     readPortalEvent,
+    useRoundAnswers,
     useSessionConnection,
 } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
@@ -169,6 +201,7 @@ const busyPath = ref<string | null>(null);
 const busyJackpot = ref<'advance' | 'stopRoulette' | null>(null);
 const busyQuiz = ref<'advance' | 'closeAnswers' | null>(null);
 const busyEvent = ref<'start' | 'end' | null>(null);
+const busyEntry = ref<'openEntry' | 'closeEntry' | null>(null);
 const eventTitle = ref('');
 const quizzes = ref<Array<{ id: string; title: string; question: string }>>([]);
 const quizLoading = ref(false);
@@ -178,8 +211,12 @@ const nowMs = ref(Date.now());
 const isDemo = computed(() => state.value.session?.mode === 'demo');
 const q = (path: string) => (isDemo.value ? `${path}?demo=1` : path);
 
+/** 会場の画面に映すエントリー受付（バブル）。ホストの許可リスト(isAllowedHostPath)にある画面。 */
+const ENTRY_STAGE_PATH = '/event-entry';
+
 const presets = computed(() => [
     { label: 'ロビー(QR表示)', path: lobbyPath(sessionId.value) },
+    { label: 'エントリー受付(バブル)', path: ENTRY_STAGE_PATH },
     { label: 'ジャックポット: オープニング', path: q('/jackpot-opening') },
     { label: 'ジャックポット: 説明', path: q('/jackpot-description') },
     { label: 'ジャックポット: 抽選', path: q('/jackpot-draw') },
@@ -222,6 +259,12 @@ const quizPages = [
 ];
 const quizPath = (page: string): string => q(`/quiz/${selectedQuizId.value}/${page}`);
 const portalEvent = computed(() => readPortalEvent(state.value.roomState?.data));
+// エントリー済みの一覧（人数が変わったときだけ取り直す。定期的な問い合わせはしない）
+const entryKey = computed(() => portalEvent.value?.entry?.key ?? null);
+const entryRoster = useRoundAnswers(connection, state, entryKey);
+/** 新しい順に最大50人。全員を並べると長くなるので、人数は別に出す。 */
+const recentEntrants = computed(() => [...entryRoster.answers.value].reverse().slice(0, 50));
+const entryTime = (atMs: number): string => new Date(atMs).toLocaleTimeString('ja-JP', { hour12: false });
 const log = computed(() => [...state.value.recentCommands].reverse().slice(0, 15));
 const canSend = computed(() => state.value.phase === 'connected' || state.value.phase === 'reconnecting');
 
@@ -270,6 +313,20 @@ async function sendEvent(type: 'start' | 'end') {
         toast.error(parseHubErrorCode(message) ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
     } finally {
         busyEvent.value = null;
+    }
+}
+
+/** エントリー受付の開始/再開/締切。ホストが回答ラウンドを操作し、参加者の画面に反映される。 */
+async function sendEntry(type: 'openEntry' | 'closeEntry') {
+    if (busyEntry.value !== null) return;
+    busyEntry.value = type;
+    try {
+        await connection.issue(PORTAL_EVENT_NS, type === 'openEntry' ? PORTAL_EVENT_OPEN_ENTRY : PORTAL_EVENT_CLOSE_ENTRY);
+    } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        toast.error(parseHubErrorCode(message) ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
+    } finally {
+        busyEntry.value = null;
     }
 }
 
@@ -351,6 +408,9 @@ onUnmounted(() => {
 .console__quiz { display: flex; flex-direction: column; gap: 8px; }
 .console__event { display: flex; flex-direction: column; gap: 8px; }
 .console__event-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.console__entry { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.console__entrants { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+.console__entrants li { display: flex; gap: 12px; align-items: baseline; }
 .console__event-form input { flex: 1 1 14em; max-width: 28em; font: inherit; padding: 8px; border-radius: 6px; background: var(--ui-surface, #2b3036); color: inherit; border: 1px solid var(--ui-border, #3a4048); }
 .console__quiz-select { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; max-width: 28em; }
 .console__quiz-select select { font: inherit; padding: 8px; border-radius: 6px; background: var(--ui-surface, #2b3036); color: inherit; border: 1px solid var(--ui-border, #3a4048); }

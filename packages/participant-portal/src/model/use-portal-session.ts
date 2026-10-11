@@ -1,7 +1,7 @@
 import { computed, inject, onScopeDispose, ref, watch } from "vue";
 import type { ComputedRef, InjectionKey, Ref, ShallowRef } from "vue";
 import { parseHubErrorCode, readPortalEvent, useSessionConnection } from "@octopus/session-hub";
-import type { ConnectionState, PortalEvent, SessionConnection } from "@octopus/session-hub";
+import type { ConnectionState, PortalEvent, SessionConnection, SubmitAnswerResult } from "@octopus/session-hub";
 import { derivePortalStatus, statusMessage } from "./portal-status";
 import type { JoinFailure, PortalStatus } from "./portal-status";
 
@@ -27,6 +27,8 @@ export interface PortalSession {
   event: ComputedRef<PortalEvent | null>;
   /** 参加者数(在席)。 */
   clientCount: ComputedRef<number>;
+  /** 回答ラウンドに回答する（エントリーなど）。先着で1人1回で、再送しても安全。 */
+  answer(key: string, no: number): Promise<SubmitAnswerResult>;
   /** 入り直す(手動の「つなぎ直す」。回数制限なし)。 */
   join(): Promise<void>;
   /** 退室して、保存した入室情報を消す(ログアウト時)。 */
@@ -142,6 +144,7 @@ export function usePortalSession(connection: SessionConnection, options: PortalS
     failure,
     event,
     clientCount,
+    answer: (key, no) => connection.answer(key, no),
     join,
     leave: () => connection.leave(),
   };

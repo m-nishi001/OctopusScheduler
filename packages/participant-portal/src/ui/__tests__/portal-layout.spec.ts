@@ -5,7 +5,7 @@ import { defineComponent, h, ref } from "vue";
 import { RouterView, createMemoryHistory, createRouter } from "vue-router";
 import type { SessionConnection } from "@octopus/session-hub";
 import { tick } from "@octopus/session-hub/testing";
-import { ALICE, MemoryDeviceStore, participantDevice, portalEnv, sampleEvent } from "../../__tests__/portal-test-kit";
+import { ALICE, BOB, MemoryDeviceStore, participantDevice, portalEnv, sampleEvent } from "../../__tests__/portal-test-kit";
 import type { Device } from "../../__tests__/portal-test-kit";
 import { PARTICIPANT_AUTH_KEY } from "../../model/participant-auth";
 import { participantPortalRoutes } from "../../routes";
@@ -20,6 +20,8 @@ vi.mock("@octopus/session-hub", async (importOriginal) => {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(1_700_000_000_000);
+  // エントリー済みの保存（localStorage）が、同じIDを使うテストへ持ち越されないようにする
+  localStorage.clear();
 });
 afterEach(() => vi.useRealTimers());
 
@@ -32,7 +34,7 @@ interface Mounted {
   signOut: ReturnType<typeof vi.fn>;
 }
 
-async function mountPortal(device: Device, path = "/p"): Promise<Mounted> {
+async function mountPortal(device: Device, path = "/p", member: { id: string; name: string } = ALICE): Promise<Mounted> {
   nextConnection = device.conn;
   const router = createRouter({
     history: createMemoryHistory(),
@@ -46,7 +48,7 @@ async function mountPortal(device: Device, path = "/p"): Promise<Mounted> {
     {
       global: {
         plugins: [router],
-        provide: { [PARTICIPANT_AUTH_KEY as symbol]: { currentMember: ref(ALICE), signOut } },
+        provide: { [PARTICIPANT_AUTH_KEY as symbol]: { currentMember: ref(member), signOut } },
       },
       attachTo: document.body,
     }
@@ -198,6 +200,108 @@ describe("参加者ポータル: マイページ", () => {
     await next.conn.joinPortal();
     expect(next.conn.state.deviceId).not.toBe(before);
     next.conn.dispose();
+    m.wrapper.unmount();
+  });
+});
+
+describe("参加者ポータル: エントリー", () => {
+  it("受付が始まる前は案内だけ。始まるとバナー・ホーム・イベント画面でエントリーを促す", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    await env.publishEvent(sampleEvent());
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "entry-none")).toBe(true);
+    expect(has(m, "entry-button")).toBe(false);
+
+    await env.openEntry(sampleEvent());
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "entry-open")).toBe(true);
+    expect(text(m, "entry-button")).toContain("エントリー");
+
+    await m.router.push("/p");
+    await flushPromises();
+    expect(text(m, "event-banner")).toContain("エントリー受付中!");
+    expect(text(m, "home-entry-open")).toContain("エントリー受付中!");
+    expect(text(m, "home-join")).toBe("エントリーする");
+    m.wrapper.unmount();
+  });
+
+  it("エントリーするボタンを押すと「エントリーしました!」になり、バナーとホームは済みの表示に変わる", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    const event = await env.openEntry(sampleEvent());
+    await tick(5000);
+    await flushPromises();
+
+    await m.wrapper.find('[data-testid="entry-button"]').trigger("click");
+    await flushPromises();
+    await tick(0);
+    expect(text(m, "entry-done")).toContain("エントリーしました!");
+    expect(has(m, "entry-button")).toBe(false);
+    expect(await env.entrants(event.entry!.key)).toEqual(["alice"]);
+
+    await m.router.push("/p");
+    await flushPromises();
+    expect(text(m, "event-banner")).toContain("イベント発生中!");
+    expect(text(m, "home-entry-done")).toContain("エントリー済み");
+    expect(text(m, "home-join")).toBe("参加する");
+    m.wrapper.unmount();
+  });
+
+  it("締め切ると、未エントリーの人には終了の案内、エントリー済みの人には受付終了と結果待ちの案内", async () => {
+    const env = await portalEnv();
+    const alice = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    const event = await env.openEntry(sampleEvent());
+    await tick(5000);
+    await flushPromises();
+    await alice.wrapper.find('[data-testid="entry-button"]').trigger("click");
+    await flushPromises();
+
+    await env.closeEntry(event);
+    await tick(5000);
+    await flushPromises();
+    expect(text(alice, "entry-done")).toContain("受付は終了しました");
+    expect(has(alice, "entry-button")).toBe(false);
+    alice.wrapper.unmount();
+
+    // 未エントリーのボブ（同じ端末の別の人ではなく、別のスマホ）には、終了の案内だけが出る
+    const bob = await mountPortal(participantDevice(env.hub, BOB), "/p/event", BOB);
+    expect(has(bob, "entry-button")).toBe(false);
+    expect(has(bob, "entry-done")).toBe(false);
+    expect(text(bob, "entry-closed")).toContain("エントリーの受付は終了しました");
+    bob.wrapper.unmount();
+  });
+
+  it("受付を再開すると、締切後に来た人もエントリーできる", async () => {
+    const env = await portalEnv();
+    const event = await env.openEntry(sampleEvent());
+    const closed = await env.closeEntry(event);
+    const late = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    expect(has(late, "entry-closed")).toBe(true);
+
+    await env.openEntry(closed, true);
+    await tick(5000);
+    await flushPromises();
+    expect(has(late, "entry-open")).toBe(true);
+    await late.wrapper.find('[data-testid="entry-button"]').trigger("click");
+    await flushPromises();
+    expect(text(late, "entry-done")).toContain("エントリーしました!");
+    expect(await env.entrants(event.entry!.key)).toEqual(["alice"]);
+    late.wrapper.unmount();
+  });
+
+  it("イベントが終わると、エントリーの表示は出さず終了の案内になる", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    await env.openEntry(sampleEvent());
+    await tick(5000);
+    await env.publishEvent(null);
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "entry-open")).toBe(false);
+    expect(text(m, "event-none")).toContain("イベントは終了しました");
     m.wrapper.unmount();
   });
 });

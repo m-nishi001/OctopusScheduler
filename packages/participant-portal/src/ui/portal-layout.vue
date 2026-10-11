@@ -8,7 +8,7 @@
             </span>
         </header>
 
-        <PortalEventBanner v-if="showBanner && session.event.value" :title="session.event.value.title" />
+        <PortalEventBanner v-if="showBanner && session.event.value" :title="session.event.value.title" :label="bannerLabel" />
 
         <main class="pp-main">
             <RouterView />
@@ -28,6 +28,8 @@ import { computed, onMounted, provide } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { createSessionConnection } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
+import { useParticipantAuth } from '../model/participant-auth';
+import { ENTRY_KEY, useEntry } from '../model/use-entry';
 import { PORTAL_SESSION_KEY, usePortalSession } from '../model/use-portal-session';
 import PortalEventBanner from './portal-event-banner.vue';
 import './portal-theme.css';
@@ -37,6 +39,13 @@ const props = defineProps<{ connection?: SessionConnection }>();
 const route = useRoute();
 const session = usePortalSession(props.connection ?? createSessionConnection());
 provide(PORTAL_SESSION_KEY, session);
+// エントリーの状態はレイアウトで1つだけ持ち、バナーと各ページで共有する(「済み」の表示が食い違わないように)
+const auth = useParticipantAuth();
+const entry = useEntry(session, { memberId: () => auth.currentMember.value?.id ?? null });
+provide(ENTRY_KEY, entry);
+
+// エントリー受付中でまだの人には、バナーでも促す
+const bannerLabel = computed(() => (entry.phase.value === 'open' && !entry.entered.value ? 'エントリー受付中!' : 'イベント発生中!'));
 
 const tabs = [
     { to: '/p', label: 'ホーム', exact: true },
