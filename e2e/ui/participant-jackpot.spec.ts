@@ -119,4 +119,49 @@ test.describe("エントリー → ジャックポット", () => {
     await publish(request, sessionId, false);
     for (const d of [admin, host, ...guests]) await d.context.close();
   });
+
+  test("参加者のスマホからルーレットを止められ、当選者は停止演出のあとにスマホへ公開される", async ({ browser, request }) => {
+    test.setTimeout(240_000);
+    const admin = await newDevice(browser, { signedIn: true });
+    const { id: sessionId } = await createSession(admin.page, "抽選会場D");
+    sessionIds.push(sessionId);
+    const host = await newDevice(browser, { signedIn: true, projector: true });
+    host.page.on("dialog", (d) => void d.dismiss());
+    await host.page.goto(`/#/session/host/${sessionId}`);
+    await expect(host.page.locator(".host-view__title")).toContainText("抽選会場D");
+    await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+    await publish(request, sessionId);
+
+    const phone = await newDevice(browser, { mobile: true });
+    await phone.page.goto(qrUrl(ids[2]));
+    await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中");
+
+    await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+    await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
+    // まだ当選者は公開されない
+    await expect(phone.page.getByTestId("winner")).toBeHidden();
+
+    // 「次へ」で進める。ルーレットを止められる場面では参加者のスマホに停止ボタンが出る → スマホで止める
+    // （名簿には他のテストが残したメンバーもいるので、当選者の名前は決め打ちしない）
+    let phoneStopped = false;
+    for (let i = 0; i < 30; i++) {
+      const state = await admin.page.getByTestId("jackpot-state").innerText();
+      if (/当選者: [^—\s]\S*/.test(state)) break;
+      const stopBtn = phone.page.getByRole("button", { name: "ルーレットを止める" });
+      if (!phoneStopped && (await stopBtn.isVisible().catch(() => false))) {
+        await stopBtn.click();
+        phoneStopped = true;
+      } else {
+        await admin.page.getByTestId("jackpot-panel").getByRole("button", { name: /次へ/ }).click();
+      }
+      await admin.page.waitForTimeout(1500);
+    }
+    expect(phoneStopped).toBe(true);
+    await expect(admin.page.getByTestId("jackpot-state")).toContainText(/当選者: [^—\s]\S*/, { timeout: 60_000 });
+    await expect(phone.page.getByTestId("winner")).toContainText(/当選者: [^—\s]\S*/);
+
+    await publish(request, sessionId, false);
+    for (const d of [admin, host, phone]) await d.context.close();
+  });
 });
