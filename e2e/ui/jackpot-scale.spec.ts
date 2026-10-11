@@ -54,10 +54,12 @@ async function overflowReport(page: Page): Promise<string[]> {
   });
 }
 
-const SCENARIOS: Array<{ members: number; prizes: number; viewport: { width: number; height: number }; maxDraws?: number }> = [
+const SCENARIOS: Array<{ members: number; prizes: number; viewport: { width: number; height: number }; maxDraws?: number; animation?: "slot" }> = [
   { members: 1, prizes: 1, viewport: { width: 1920, height: 1080 } },
   { members: 2, prizes: 3, viewport: { width: 1920, height: 1080 } },
   { members: 3, prizes: 2, viewport: { width: 1920, height: 1080 } },
+  // スロット演出(賞品の animation が slot)。確変(景品4件なら2・3回目)も通る
+  { members: 4, prizes: 4, viewport: { width: 1920, height: 1080 }, animation: "slot" },
   { members: 10, prizes: 10, viewport: { width: 1280, height: 720 }, maxDraws: 3 },
   // 全100回の演出を進めると長すぎるため、先頭の数回だけ実画面で確認する(全回の整合はユニットのマトリクスで検証)
   { members: 300, prizes: 100, viewport: { width: 1920, height: 1080 }, maxDraws: 3 },
@@ -65,7 +67,7 @@ const SCENARIOS: Array<{ members: number; prizes: number; viewport: { width: num
 
 test.describe("ジャックポットの規模別・通し(ホスト単体)", () => {
   for (const sc of SCENARIOS) {
-    test(`メンバー${sc.members}人 × 景品${sc.prizes}件 (${sc.viewport.width}x${sc.viewport.height})`, async ({ browser }) => {
+    test(`メンバー${sc.members}人 × 景品${sc.prizes}件 (${sc.viewport.width}x${sc.viewport.height}${sc.animation ? `, ${sc.animation}` : ""})`, async ({ browser }) => {
       test.setTimeout(600_000);
       const dev = await newDevice(browser, { signedIn: true, projector: true });
       const page = dev.page;
@@ -91,7 +93,7 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
         "PrizeData",
         Array.from({ length: sc.prizes }, (_, i) => ({
           id: `p${i + 1}`,
-          value: { id: `p${i + 1}`, name: `景品${i + 1}`, order: i + 1, weight: 10 },
+          value: { id: `p${i + 1}`, name: `景品${i + 1}`, order: i + 1, weight: 10, ...(sc.animation ? { animation: sc.animation } : {}) },
         }))
       );
       await page.goto("/#/execute/jackpot-draw");
@@ -114,6 +116,17 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
         if (dir && step % 3 === 0) await page.screenshot({ path: join(dir, `${String(shot++).padStart(3, "0")}.png`) });
         // 演出ダイアログが出た瞬間(演出が立ち上がった後)の見た目を残す
         if (dir) {
+          if (!shotKinds.has("slot") && (await page.locator(".slot-container").isVisible().catch(() => false))) {
+            await page.waitForTimeout(500);
+            await page.screenshot({ path: join(dir, "stage-slot.png") });
+            shotKinds.add("slot");
+          }
+          // 確変の「だが…」演出(オーバーレイ)も撮る
+          if (!shotKinds.has("kakuhen") && (await page.locator(".kakuhen-overlay-root").isVisible().catch(() => false))) {
+            await page.waitForTimeout(600);
+            await page.screenshot({ path: join(dir, "dialog-kakuhen.png") });
+            shotKinds.add("kakuhen");
+          }
           for (const id of ["prize-winning-dialog", "member-winner-dialog", "half-remaining-dialog", "end-dialog"]) {
             if (!shotKinds.has(id) && (await page.getByTestId(id).isVisible().catch(() => false))) {
               await page.waitForTimeout(1200);

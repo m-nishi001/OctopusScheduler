@@ -1,5 +1,5 @@
 <template>
-    <div class="slot-container" ref="container" :class="{ spinning }">
+    <div class="slot-container jp-frame" ref="container" :class="{ spinning }" :style="sizeVars">
         <div class="slot-reels">
             <div class="reel" v-for="(reel, index) in reels" :key="index">
                 <div class="reel-content" :style="{ transform: `translateY(${reel.offset}px)` }">
@@ -16,6 +16,7 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useAudio } from '@octopus/composables/use-audio';
+import '../../../theme/jackpot-theme.css';
 import type { PrizeDto } from '@control/prize/dto/prize-dto';
 import { defineExpose } from 'vue';
 import type { AnimationRef } from './animation-types';
@@ -51,16 +52,19 @@ export default {
 
         const itemHeight = ref(60);
 
+        // 筐体の大きさは画面の高さに合わせる(投影の1080pでも見映えがするよう、既定60pxから拡大)。
+        // リール内の位置計算(itemHeight)と見た目のCSS変数は同じ値を使う。
         const updateItemHeight = () => {
-            if (container.value) {
-                const style = getComputedStyle(container.value);
-                const h = style.getPropertyValue('--slot-item-h').trim();
-                const parsed = parseFloat(h);
-                if (!isNaN(parsed)) {
-                    itemHeight.value = parsed;
-                }
-            }
+            const vh = typeof window !== 'undefined' ? window.innerHeight : 720;
+            itemHeight.value = Math.max(64, Math.min(170, Math.round(vh * 0.13)));
         };
+
+        const sizeVars = computed(() => ({
+            '--slot-item-h': `${itemHeight.value}px`,
+            '--slot-reel-h': `${itemHeight.value * 3}px`,
+            '--slot-reel-w': `${Math.round(itemHeight.value * 2.6)}px`,
+            '--slot-font': `${Math.round(itemHeight.value * 0.34)}px`,
+        }));
 
         const startSpin = async (bgmUrl?: Blob | null) => {
             console.log('[SlotAnimation] startSpin: bgmUrl=', bgmUrl ? { size: bgmUrl.size, type: bgmUrl.type } : null);
@@ -150,7 +154,7 @@ export default {
             stopSpin,
         });
 
-        return { spinning, reels, allPrizes };
+        return { spinning, reels, allPrizes, sizeVars };
     }
 };
 </script>
@@ -161,16 +165,12 @@ export default {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: linear-gradient(180deg, #000 0%, #222 50%, #000 100%);
-    padding: 30px;
-    border-radius: 20px;
-    box-shadow: 0 0 50px rgba(255, 215, 0, 0.8);
-    border: 5px solid #FFD700;
+    padding: clamp(24px, 4vh, 48px);
 }
 
 .slot-reels {
     display: flex;
-    gap: 20px;
+    gap: clamp(14px, 2vh, 28px);
     margin-bottom: 20px;
 }
 
@@ -199,7 +199,12 @@ export default {
     justify-content: center;
     color: #FFD700;
     font-weight: bold;
-    font-size: 18px;
+    font-size: var(--slot-font, 18px);
+    padding: 0 8px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     background: rgba(0, 0, 0, 0.8);
     border-bottom: 1px solid #FFD700;
 }
@@ -209,7 +214,7 @@ export default {
 }
 
 .result {
-    font-size: 28px;
+    font-size: calc(var(--slot-font, 18px) * 1.5);
     color: #FFD700;
     font-weight: bold;
     text-shadow: 0 0 15px #FFD700;
