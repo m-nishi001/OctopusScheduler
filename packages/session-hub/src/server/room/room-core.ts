@@ -153,6 +153,13 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
       dirty = true;
       await flush();
     },
+    async reopenRound(deadlineMs) {
+      const round = await loadRound();
+      if (!round) return;
+      roundCache = { ...round, closedAtMs: null, deadlineMs };
+      dirty = true;
+      await flush();
+    },
     async listAnswers(key) {
       const stored = await loadAnswers();
       return stored && stored.key === key ? stored.answers : [];

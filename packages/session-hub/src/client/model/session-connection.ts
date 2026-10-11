@@ -519,11 +519,22 @@ export class SessionConnection implements TransportSource {
     });
   }
 
-  /** ホスト: 回答の受付を開始する(同じラウンドが受付中なら続きとして扱われる)。 */
+  /** ホスト: 時間を競う一斉回答の受付を開始する(同じラウンドが受付中なら続きとして扱われる)。 */
   async openRound(key: string, options: RoundOption[], durationMs: number): Promise<OpenRoundResult> {
     const c = this.requireCreds();
     return this.withNetworkRetry(() =>
       this.opts.api.openRound({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key, options, durationMs })
+    );
+  }
+
+  /**
+   * ホスト: 運営が締め切るまで開き続ける受付(エントリーなど)を開始する。
+   * 同じ key が受付中なら続きとして扱い、締切済みで resume なら回答を残したまま再開する。
+   */
+  async openEntryRound(key: string, options: RoundOption[], resume = false): Promise<OpenRoundResult> {
+    const c = this.requireCreds();
+    return this.withNetworkRetry(() =>
+      this.opts.api.openRound({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key, options, mode: "open", resume })
     );
   }
 

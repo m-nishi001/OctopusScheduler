@@ -14,6 +14,8 @@ export type { SessionTransport, TransportSource } from "./model/transport";
 export { createBrowserDeviceStore, MemoryDeviceStore } from "./model/device-store";
 export type { DeviceStore } from "./model/device-store";
 export { useSessionConnection, useConnectionState } from "./ui/use-session-connection";
+export { useRoundAnswers, uniqueAnswers, MIN_ANSWERS_REFRESH_MS } from "./ui/use-round-answers";
+export type { RoundAnswers } from "./ui/use-round-answers";
 export { parseHubErrorCode } from "../server/engine/hub-error";
 export type { HubErrorCode } from "../server/engine/hub-error";
 export { ISessionHubApiToken } from "../server/session-hub-api-contract";

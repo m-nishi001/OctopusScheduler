@@ -59,6 +59,12 @@ export interface Device {
   /** ログイン済みアカウント、または参加者として選んだメンバー。 */
   memberId: string | null;
   label: string;
+  /**
+   * memberId がログインのトークンから確定したもの(参加者ポータルへの入室)か。
+   * 匿名の参加コード入室では memberId をクライアントが申告するだけなので false。
+   * 「1人1回」をメンバー単位で数える(2台でエントリーさせない)のは、これが true の端末だけ。
+   */
+  verified?: boolean;
   /** 端末認証用のトークン。サーバ側にのみ保存し、他端末へは返さない。 */
   token: string;
   joinedAtMs: number;
@@ -151,6 +157,11 @@ export const MAX_ROUND_OPTIONS = 8;
 export const MAX_ROUND_OPTION_TEXT = 100;
 export const MIN_ROUND_DURATION_MS = 1_000;
 export const MAX_ROUND_DURATION_MS = 10 * 60 * 1000;
+/**
+ * オープン型ラウンド(エントリー受付など)の受付時間。運営が締め切るまで開き続けるので、長めに取る
+ * (セッションの有効期間より前に必ず切れる)。時間を競うクイズ等は従来どおり MAX_ROUND_DURATION_MS まで。
+ */
+export const MAX_OPEN_ROUND_MS = 6 * 60 * 60 * 1000;
 /** KV(GAS の1値 ~9KB)で保持できる回答数の目安。Durable Object はこれより大きく取れる。 */
 export const MAX_ROUND_ANSWERS_KV = 100;
 export const MAX_ROUND_ANSWERS_DO = 1000;
