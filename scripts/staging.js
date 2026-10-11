@@ -62,7 +62,7 @@ export function ensureLifecycle(run, bucket) {
     run(lifecycleArgs(bucket));
   } catch (error) {
     const text = `${error.stderr ?? ""}${error.stdout ?? ""}${error.message ?? ""}`;
-    if (!/already exists|duplicate|same name|ID.*in use/i.test(text)) throw error;
+    if (!/already exists|must be unique|duplicate/i.test(text)) throw error;
   }
 }
 
@@ -112,7 +112,8 @@ function up() {
     console.log(`${TOML_NAME} を生成しました。${result.created.length ? `作成: ${result.created.join(", ")}` : "既存リソースを使用"}`);
   }
 
-  ensureLifecycle(wranglerRun, STAGING.bucket);
+  // 「既にルールがある」失敗を見分けるため、この呼び出しだけ標準エラーを取り込む
+  ensureLifecycle((args) => wranglerRun(args, ["ignore", "pipe", "pipe"]), STAGING.bucket);
   wranglerRun(["d1", "migrations", "apply", "DB", "--remote", "--config", TOML_NAME]);
   const deployOut = wranglerRun(["deploy", "--config", TOML_NAME], ["ignore", "pipe", "pipe"]);
   const seed = JSON.parse(
@@ -151,6 +152,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     else throw new Error("使い方: node scripts/staging.js <up|down>");
   } catch (e) {
     console.error(e.message);
+    // 標準エラーを取り込んで実行したコマンドの失敗は、中身も見せる
+    if (e.stderr) console.error(String(e.stderr));
     process.exit(1);
   }
 }

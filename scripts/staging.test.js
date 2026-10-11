@@ -56,6 +56,8 @@ test("ensureLifecycle: 既にルールがある失敗は無視し、それ以外
     throw new Error(message);
   };
   assert.doesNotThrow(() => ensureLifecycle(fail("A rule with this name already exists"), "b"));
+  // 実際の Cloudflare の文言(実環境で確認)
+  assert.doesNotThrow(() => ensureLifecycle(fail("Invalid Lifecycle Configuration: Rule IDs must be unique. [code: 10061]"), "b"));
   assert.throws(() => ensureLifecycle(fail("Authentication error"), "b"), /Authentication/);
   let called;
   ensureLifecycle((a) => (called = a), "b");
