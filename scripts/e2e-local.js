@@ -62,11 +62,11 @@ export function renderLocalToml(template) {
     .replace(/^migrations_dir = ".*"$/m, `migrations_dir = "${join(ROOT, "packages/infrastructures/migrations")}"`);
 }
 
-function wrangler(args, options = {}) {
+export function wrangler(args, options = {}) {
   return execFileSync("npx", ["-y", "wrangler@4", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...options });
 }
 
-async function waitForReady(base, child, timeoutMs = 120_000) {
+export async function waitForReady(base, child, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error(`wrangler dev が終了しました(code ${child.exitCode})`);
