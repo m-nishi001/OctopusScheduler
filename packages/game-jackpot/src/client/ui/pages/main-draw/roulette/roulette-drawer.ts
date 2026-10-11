@@ -1,6 +1,53 @@
 import { InternalRouletteItem } from "./roulette-image-loader";
 import { calculateSectorAngle } from "./roulette-angle-utils";
 
+/**
+ * 画像の無い賞品の扇に、賞品名を放射方向に描く。扇の幅・半径に収まるよう文字サイズを調整し、
+ * 長い名前は末尾を「…」で省略する(扇が多いほど文字は小さくなる)。
+ */
+function drawSectorLabel(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  startAngle: number,
+  sectorAngle: number
+) {
+  const text = (name ?? "").trim();
+  if (!text) return;
+  const midAngle = startAngle + sectorAngle / 2;
+  const maxLen = radius * 0.62; // 中心のつまみを避けた、半径方向に使える長さ
+  const maxHeight = Math.max(8, 2 * radius * 0.6 * Math.tan(sectorAngle / 2) * 0.8);
+  let fontSize = Math.min(radius * 0.11, maxHeight);
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.rotate(midAngle);
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  const setFont = () => (ctx.font = `900 ${Math.floor(fontSize)}px sans-serif`);
+  setFont();
+  const measure = (t: string) => ctx.measureText(t).width;
+  let label = Array.from(text);
+  // 長すぎるときは、まず文字を縮め、それでも収まらなければ省略する
+  while (fontSize > 10 && measure(label.join("")) > maxLen) {
+    fontSize -= 1;
+    setFont();
+  }
+  while (label.length > 1 && measure(label.join("")) > maxLen) {
+    label = label.slice(0, -1);
+    label[label.length - 1] = "…";
+  }
+  const out = label.join("");
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(2, fontSize * 0.18);
+  ctx.strokeStyle = "rgba(42, 18, 10, 0.9)";
+  ctx.fillStyle = "#fff8e1";
+  ctx.strokeText(out, radius * 0.9, 0);
+  ctx.fillText(out, radius * 0.9, 0);
+  ctx.restore();
+}
+
 export function drawSector(
   i: number,
   centerX: number,
@@ -44,6 +91,10 @@ export function drawSector(
     currentRouletteItems.length > 0
       ? currentRouletteItems[i % currentRouletteItems.length]
       : undefined;
+  if (item && item.hasImage === false) {
+    drawSectorLabel(ctx, item.name, centerX, centerY, radius, startAngle, sectorAngle);
+    return;
+  }
   const img = item?.imageElement;
   if (!img) return;
 

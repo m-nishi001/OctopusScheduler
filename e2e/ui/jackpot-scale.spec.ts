@@ -134,6 +134,17 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
       }
       if (dir) await page.screenshot({ path: join(dir, "final.png") });
 
+      // 結果画面: 当選者が一覧に並び、はみ出しや文字切れが無いこと
+      await page.goto("/#/execute/jackpot-result");
+      await expect(page.getByTestId("result-screen")).toBeVisible();
+      const rows = await page.getByTestId("result-list").locator("li").count();
+      if (rows < 1) layout.add(`結果画面に当選者が並んでいない: ${rows}件`);
+      for (const l of await overflowReport(page)) layout.add(`[結果] ${l}`);
+      if (dir) {
+        await page.waitForTimeout(1500);
+        await page.screenshot({ path: join(dir, "result.png") });
+      }
+
       const summary = [...new Set(problems)].concat([...layout]);
       console.log(`[scale ${sc.members}x${sc.prizes}] problems=${summary.length}\n${summary.join("\n")}`);
       expect(summary, summary.join("\n")).toEqual([]);

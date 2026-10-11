@@ -3,10 +3,12 @@ import { drawWheel } from "./roulette-drawer";
 
 function fakeCtx() {
   const gradient = { addColorStop: vi.fn() };
-  return new Proxy(
-    { createRadialGradient: () => gradient, drawImage: vi.fn() } as any,
-    { get: (t, k) => (k in t ? t[k] : vi.fn()), set: () => true }
-  ) as CanvasRenderingContext2D & { drawImage: ReturnType<typeof vi.fn> };
+  const target: any = { createRadialGradient: () => gradient, drawImage: vi.fn() };
+  return new Proxy(target, {
+    // 未定義のメソッドは最初のアクセスで vi.fn を作って保持する(呼び出し回数を後から確認できる)
+    get: (t, k) => (k in t ? t[k] : (t[k] = vi.fn())),
+    set: (t, k, v) => ((t[k] = v), true),
+  }) as CanvasRenderingContext2D & { drawImage: ReturnType<typeof vi.fn> };
 }
 
 const item = (id: string) => ({ id, imageElement: { naturalWidth: 10, naturalHeight: 10 } as any }) as any;
@@ -19,6 +21,17 @@ describe("drawWheel", () => {
     const items = Array.from({ length: n }, (_, i) => item(`p${i}`));
     expect(() => drawWheel(0, items, ctx, canvas)).not.toThrow();
     expect(ctx.drawImage).toHaveBeenCalledTimes(8);
+  });
+
+  /** 画像の無い賞品は、画像ではなく賞品名を扇に描くこと(何が当たるか分からない扇を作らない)。 */
+  it("画像が無い項目は賞品名を描く", () => {
+    const ctx = fakeCtx() as any;
+    ctx.measureText = (t: string) => ({ width: t.length * 10 });
+    const canvas = { width: 800, height: 800 } as HTMLCanvasElement;
+    const items = ["特賞", "一等", "二等"].map((name, i) => ({ id: `p${i}`, name, hasImage: false, imageElement: {} as any }) as any);
+    drawWheel(0, items, ctx, canvas);
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalled();
   });
 
   it("項目が0個でも落ちない", () => {

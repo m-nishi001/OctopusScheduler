@@ -26,6 +26,7 @@
 <script lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import gsap from 'gsap';
+import '../../../theme/jackpot-theme.css';
 import type { MemberDto } from '@control/member/dto/member-dto';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -605,7 +606,7 @@ export default {
 .member-item img {
     width: 192px;
     height: 192px;
-    border-radius: 8px;
+    border-radius: 50%;
     object-fit: cover;
     display: block;
     margin: 0 auto 6px auto;
@@ -620,6 +621,8 @@ export default {
 /* Active center styling: larger center, medium neighbors */
 .member-item.active img {
     transform: scale(1.8);
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px var(--jp-gold), 0 0 28px rgba(255, 213, 74, 0.8);
 }
 
 .member-item.left1 img,
@@ -663,13 +666,13 @@ export default {
 }
 
 .start-button {
-    background: linear-gradient(90deg, #6d28d9, #ec4899);
-    color: white;
+    background: linear-gradient(180deg, var(--jp-gold-light), var(--jp-gold) 55%, var(--jp-gold-deep));
+    color: var(--jp-ink);
     padding: 28px 56px;
-    border-radius: 24px;
-    font-weight: 700;
+    border-radius: 999px;
+    border: 3px solid var(--jp-gold-light);
+    font-weight: 900;
     font-size: clamp(28px, 4.5vw, 48px);
-    border: none;
     cursor: pointer;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     max-width: 90vw;
@@ -703,7 +706,7 @@ export default {
     }
 
     50% {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 40px rgba(255, 255, 255, 1), 0 0 60px rgba(108, 40, 217, 0.5);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 40px rgba(255, 213, 74, 1), 0 0 60px rgba(200, 16, 46, 0.6);
     }
 
     100% {

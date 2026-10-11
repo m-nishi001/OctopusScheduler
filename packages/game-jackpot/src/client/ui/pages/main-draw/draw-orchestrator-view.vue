@@ -1,7 +1,7 @@
 <template>
     <MainLayout>
         <Loader v-if="drawState.phase === 'idle'" label="準備中..." />
-        <div class="orchestrator container mx-auto p-6">
+        <div class="orchestrator container mx-auto p-6 jp-stage-host">
 
             <DrawResultDialog v-if="showPrizeWinningDialog && selectedPrize" title="景品当選" :prize="selectedPrize"
                 primaryLabel="次へ" />
@@ -10,15 +10,16 @@
             <EndDialog v-if="showEndDialog" :visible="showEndDialog" />
 
             <div class="rich-layout">
-                <section class="member-area-fullscreen" v-if="drawState.phase === 'member'">
+                <section class="member-area-fullscreen jp-stage" v-if="drawState.phase === 'member'">
+                    <div class="jp-rays" aria-hidden="true"></div>
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
                             :memberRes="currentMemberRes" />
                     </div>
                 </section>
 
-                <section v-if="drawState.phase === 'prize'"
-                    class="center-area flex items-center justify-center min-h-screen">
+                <section v-if="drawState.phase === 'prize'" class="center-area jp-stage">
+                    <div class="jp-rays" aria-hidden="true"></div>
                     <div class="roulette-panel">
                         <component :is="currentPrizeComponent" ref="animationRef" :prizes="prizes"
                             :preparedPrizes="preparedPrizes" :selectedPrize="selectedPrize"
@@ -45,6 +46,7 @@ import SlotAnimation from './slot/slot-animation.vue';
 import RouletteAnimation from './roulette/roulette-animation.vue';
 import { useDrawOrchestrator } from './use-draw-orchestrator';
 import KakuhenOverlay from './kakuhen-overlay.vue';
+import '../../theme/jackpot-theme.css';
 
 export default {
     name: 'DrawOrchestratorPage',
@@ -75,7 +77,7 @@ export default {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: #0b0b0b;
+    overflow: hidden;
     z-index: 50;
 }
 
@@ -87,8 +89,21 @@ export default {
     justify-content: center;
 }
 
+/* 賞品抽選(ルーレット/スロット)は画面全体を舞台にして、中央に置く */
 .center-area {
-    align-items: start;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.center-area>.roulette-panel,
+.member-area-fullscreen>.member-stage-fullscreen {
+    position: relative;
+    z-index: 1;
 }
 
 .roulette-panel {

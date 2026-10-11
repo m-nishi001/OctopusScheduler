@@ -10,6 +10,8 @@ export interface InternalRouletteItem {
   prizeId?: string;
   name: string;
   imageElement: HTMLImageElement;
+  /** 賞品に実際の画像が設定されているか。無い場合は扇に賞品名を描く。 */
+  hasImage?: boolean;
   index: number;
 }
 
@@ -80,6 +82,7 @@ export async function convertToInternal(
       prizeId: (prize as any).prizeId ?? prize.id,
       name: prize.name,
       imageElement,
+      hasImage: !!prize.imageUrl,
       index,
     };
   });
