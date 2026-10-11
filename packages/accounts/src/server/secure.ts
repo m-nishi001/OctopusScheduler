@@ -4,6 +4,7 @@
  * 全ハンドラを `secure(policy, handler)` で包む。ポリシーは次の2つ:
  *   - "public": 誰でも呼べる(トークンがあっても検証しない)
  *   - "admin" : 有効な管理者セッションが必須。
+ * (ログイン済みなら誰でも、は `secureMember`。)
  * どちらの場合も、クライアントが相乗りさせたトークンのエンベロープは外してから
  * ハンドラへ渡す(ハンドラは認証を意識しない)。
  */
@@ -60,6 +61,22 @@ export function createSecureAdminWithMember(deps: SecureDeps) {
   };
 }
 
+/**
+ * ログイン済みなら誰でも(管理者・参加者)呼べるエンドポイント用。ハンドラへ認証済みのメンバーを渡す
+ * (「誰が」を確定したい操作、例: 参加者ポータルへの入室でメンバーIDをトークンから決める)。
+ * セッションが無効なら常に Unauthorized。
+ */
+export function createSecureMember(deps: SecureDeps) {
+  return function secureMember<H extends MemberHandler>(handler: H): (raw?: unknown) => Promise<string> {
+    return async (raw?: unknown): Promise<string> => {
+      const { token, args } = unwrapAuth(raw);
+      const member = await getSession({ storage: deps.getStorage(), now: deps.now }, token ?? "");
+      if (!member) return UNAUTHORIZED_RESPONSE;
+      return handler(args, member);
+    };
+  };
+}
+
 const deps: SecureDeps = {
   getStorage: () => container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
   now: () => Date.now(),
@@ -67,3 +84,4 @@ const deps: SecureDeps = {
 
 export const secure = createSecure(deps);
 export const secureAdminWithMember = createSecureAdminWithMember(deps);
+export const secureMember = createSecureMember(deps);

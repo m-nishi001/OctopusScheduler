@@ -1,0 +1,110 @@
+/*
+ * 参加者ポータルのテーマ(ラスベガス金 × 赤。ジャックポットの演出と色をそろえる)。
+ * スマホの片手操作が前提。--pp- 接頭辞で他の機能と衝突しない。.pp の中だけで使う。
+ */
+.pp {
+    --pp-ink: #120508;
+    --pp-ink-soft: #2a0c12;
+    --pp-surface: #2a0c12;
+    --pp-surface-raised: #3a1119;
+    --pp-line: rgba(255, 213, 74, 0.28);
+    --pp-gold: #ffd54a;
+    --pp-gold-light: #fff2b0;
+    --pp-gold-deep: #c98a0b;
+    --pp-red: #c8102e;
+    --pp-red-deep: #6e0a1a;
+    --pp-text: #fff8e1;
+    --pp-text-muted: rgba(255, 248, 225, 0.72);
+    --pp-ok: #6fdc9b;
+    --pp-warn: #ffb300;
+    --pp-danger: #ff8a80;
+    --pp-header-h: 52px;
+    --pp-tabs-h: 64px;
+    --pp-radius: 16px;
+
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    color: var(--pp-text);
+    font-family: var(--ui-font-family, system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif);
+    background:
+        radial-gradient(ellipse at 50% -10%, rgba(255, 213, 74, 0.14), transparent 55%),
+        radial-gradient(ellipse at 50% 110%, var(--pp-red-deep), transparent 65%),
+        var(--pp-ink);
+}
+
+.pp *,
+.pp *::before,
+.pp *::after {
+    box-sizing: border-box;
+}
+
+.pp a {
+    color: inherit;
+}
+
+/* 金のボタン。タップしやすい高さ(48px以上)を確保する */
+.pp-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 999px;
+    font: inherit;
+    font-weight: 800;
+    color: var(--pp-ink);
+    background: linear-gradient(180deg, var(--pp-gold-light), var(--pp-gold) 45%, var(--pp-gold-deep));
+    box-shadow: 0 6px 18px rgba(255, 213, 74, 0.25);
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.pp-button:active {
+    transform: translateY(1px);
+}
+
+.pp-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.pp-button--ghost {
+    color: var(--pp-gold);
+    background: transparent;
+    border: 1.5px solid var(--pp-line);
+    box-shadow: none;
+}
+
+.pp-card {
+    padding: 18px;
+    border-radius: var(--pp-radius);
+    border: 1px solid var(--pp-line);
+    background: linear-gradient(160deg, var(--pp-surface-raised), var(--pp-surface));
+}
+
+.pp-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.pp-muted {
+    margin: 0;
+    color: var(--pp-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pp *,
+    .pp *::before,
+    .pp *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}

@@ -16,7 +16,9 @@ import type {
   CreateSessionArgs,
   JoinClientArgs,
   JoinOperatorArgs,
+  JoinPortalArgs,
   JoinResult,
+  SetPortalSessionArgs,
 } from "../../shared/protocol";
 import * as engine from "./session-engine";
 import type { EngineDeps } from "./session-engine";
@@ -142,9 +144,42 @@ export async function closeSession(deps: ServiceDeps, args: CloseSessionArgs): P
     const list = await deps.index.list();
     const closedAtMs = deps.now();
     await deps.index.put(
-      list.map((s) => (s.id === meta.id ? { ...s, status: "closed" as const, closedAtMs } : s))
+      // 終了したセッションは参加者ポータルの入口ではなくなる
+      list.map((s) => {
+        if (s.id !== meta.id) return s;
+        const { portal: _portal, ...rest } = s;
+        return { ...rest, status: "closed" as const, closedAtMs };
+      })
     );
   });
+}
+
+/**
+ * 参加者ポータルの入口にするセッションを指定する(同時に1つだけ)。公開すると他のセッションの公開は外れる。
+ * 一覧のインデックスだけを書き換えるので、Durable Object 版でもこの関数をそのまま使える。
+ */
+export async function setPortalSession(deps: ServiceDeps, args: SetPortalSessionArgs): Promise<void> {
+  if (!args.sessionId) throw hubError("INVALID_ARGUMENT", "sessionId が必要です");
+  await deps.withLock(INDEX_LOCK, LOCK_TIMEOUT_MS, async () => {
+    const list = await deps.index.list();
+    const target = list.find((s) => s.id === args.sessionId);
+    if (!target) throw hubError("SESSION_NOT_FOUND", "セッションが見つかりません");
+    if (args.published && !isActive(target)) throw hubError("SESSION_CLOSED", "終了したセッションは公開できません");
+    await deps.index.put(
+      list.map((s) => {
+        const { portal: _portal, ...rest } = s;
+        if (s.id === args.sessionId) return args.published ? { ...rest, portal: true } : rest;
+        // 公開するときだけ、他のセッションの公開を外す(同時に1つだけ)。止めるときは他に触れない。
+        return args.published ? rest : s;
+      })
+    );
+  });
+}
+
+/** 参加者ポータルの入口として公開中の、進行中のセッション。無ければ null。 */
+export async function findPortalSession(deps: ServiceDeps): Promise<SessionSummary | null> {
+  const list = prune(await deps.index.list(), deps.now());
+  return list.find((s) => s.portal === true && isActive(s)) ?? null;
 }
 
 export async function joinOperator(
@@ -165,6 +200,26 @@ export async function joinClient(deps: ServiceDeps, args: JoinClientArgs): Promi
   if (!summary) throw hubError("SESSION_NOT_FOUND", "参加コードが見つかりません。コードを確認してください");
   return deps.withLock(sessionLock(summary.id), LOCK_TIMEOUT_MS, () =>
     engine.joinClient(engineDeps(deps, summary.id), args)
+  );
+}
+
+/**
+ * ログイン済みの参加者が、参加コード無しでポータル公開中のセッションに入る。
+ * メンバーIDと表示名は呼び出し側(認証済みのトークン)から受け取り、クライアントの申告は使わない。
+ */
+export async function joinPortal(
+  deps: ServiceDeps,
+  args: JoinPortalArgs,
+  member: { id: string; name: string }
+): Promise<JoinResult> {
+  const summary = await findPortalSession(deps);
+  if (!summary) throw hubError("SESSION_NOT_FOUND", "いま参加できるイベントはありません");
+  return deps.withLock(sessionLock(summary.id), LOCK_TIMEOUT_MS, () =>
+    engine.joinClient(
+      engineDeps(deps, summary.id),
+      { code: summary.code, deviceId: args.deviceId, token: args.token },
+      { memberId: member.id, label: member.name }
+    )
   );
 }
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertNotProduction, parseDeployUrl, renderUpSummary, STAGING, toStagingTemplate } from "./staging.js";
+import { assertNotProduction, ensureLifecycle, lifecycleArgs, parseDeployUrl, renderUpSummary, STAGING, toStagingTemplate } from "./staging.js";
 
 const template = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../wrangler.example.toml"), "utf8");
 
@@ -36,9 +36,30 @@ test("parseDeployUrl: デプロイ出力から workers.dev の URL を取り出�
 test("renderUpSummary: Playwright を向けるコマンドと撤去の案内を含む", () => {
   const text = renderUpSummary({
     url: "https://x.workers.dev",
-    seed: { admin: { id: "admin", password: "pw", sessionToken: "tok" }, participants: { ids: ["test-user-01", "test-user-20"], password: "pu" } },
+    seed: { admin: { id: "admin", password: "pw", sessionToken: "tok" }, participants: { ids: ["test-user-01", "test-user-20"], password: "pu", loginKeys: { "test-user-01": "k01" } } },
   });
   assert.match(text, /BASE=https:\/\/x\.workers\.dev/);
   assert.match(text, /E2E_ADMIN_TOKEN=tok/);
   assert.match(text, /staging:down/);
+  assert.match(text, /https:\/\/x\.workers\.dev\/#\/login\?id=test-user-01&key=k01/);
+});
+
+test("lifecycleArgs: staging のバケットに1日で自動削除するルールを付ける", () => {
+  const args = lifecycleArgs("b");
+  assert.deepEqual(args.slice(0, 5), ["r2", "bucket", "lifecycle", "add", "b"]);
+  assert.equal(args[args.indexOf("--expire-days") + 1], "1");
+  assert.ok(args.includes("--force"));
+});
+
+test("ensureLifecycle: 既にルールがある失敗は無視し、それ以外は例外にする", () => {
+  const fail = (message) => () => {
+    throw new Error(message);
+  };
+  assert.doesNotThrow(() => ensureLifecycle(fail("A rule with this name already exists"), "b"));
+  // 実際の Cloudflare の文言(実環境で確認)
+  assert.doesNotThrow(() => ensureLifecycle(fail("Invalid Lifecycle Configuration: Rule IDs must be unique. [code: 10061]"), "b"));
+  assert.throws(() => ensureLifecycle(fail("Authentication error"), "b"), /Authentication/);
+  let called;
+  ensureLifecycle((a) => (called = a), "b");
+  assert.deepEqual(called, lifecycleArgs("b"));
 });

@@ -3,7 +3,8 @@
  *
  * 各ハンドラは「依存解決 -> sessionService 呼び出し -> ApiResponse に詰めて JSON.stringify」
  * という薄い層のみを担う。認可は次の2層:
- *   - 管理系(作成/一覧/終了/運営者入室): アカウントの管理者セッション(secure)
+ *   - 管理系(作成/一覧/終了/運営者入室/ポータル公開の指定): アカウントの管理者セッション(secure)
+ *   - 参加者ポータルへの入室: ログイン済みなら誰でも。メンバーはトークンから確定する(secureMember)
  *   - 端末系(poll/issueCommand/publishState/参加者入室): 入室時に払い出した端末トークン(エンジン内で検証)
  * 端末系は secure("public") で公開し、端末トークンの検証はエンジンが行う。
  */
@@ -16,7 +17,7 @@ import {
   errorResponse,
 } from "@octopus/infrastructures/interfaces";
 import type { ICache, IKeyValueStorage, ILock, IUuidGenerator } from "@octopus/infrastructures/interfaces";
-import { secure, secureAdminWithMember } from "@octopus/accounts/secure";
+import { secure, secureAdminWithMember, secureMember } from "@octopus/accounts/secure";
 import type {
   CloseRoundArgs,
   GetAnswersArgs,
@@ -27,8 +28,10 @@ import type {
   IssueCommandArgs,
   JoinClientArgs,
   JoinOperatorArgs,
+  JoinPortalArgs,
   PollArgs,
   PublishStateArgs,
+  SetPortalSessionArgs,
 } from "../shared/protocol";
 import type { SessionHubEndpointName } from "./session-hub-api-contract";
 import { SESSION_HUB_PREFIX } from "./session-hub-api-contract";
@@ -69,6 +72,8 @@ declare let _sessionHub_listSessions: (args?: undefined) => Promise<string>;
 declare let _sessionHub_closeSession: (args: CloseSessionArgs) => Promise<string>;
 declare let _sessionHub_joinOperator: (args: JoinOperatorArgs) => Promise<string>;
 declare let _sessionHub_joinClient: (args: JoinClientArgs) => Promise<string>;
+declare let _sessionHub_setPortalSession: (args: SetPortalSessionArgs) => Promise<string>;
+declare let _sessionHub_joinPortal: (args: JoinPortalArgs) => Promise<string>;
 declare let _sessionHub_poll: (args: PollArgs) => Promise<string>;
 declare let _sessionHub_issueCommand: (args: IssueCommandArgs) => Promise<string>;
 declare let _sessionHub_publishState: (args: PublishStateArgs) => Promise<string>;
@@ -114,6 +119,24 @@ _sessionHub_joinOperator = secureAdminWithMember(async (args: JoinOperatorArgs, 
 _sessionHub_joinClient = secure("public", async (args: JoinClientArgs): Promise<string> => {
   try {
     return ok(await backend().joinClient(args));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+_sessionHub_setPortalSession = secure("admin", async (args: SetPortalSessionArgs): Promise<string> => {
+  try {
+    await backend().setPortalSession(args);
+    return ok(null);
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+_sessionHub_joinPortal = secureMember(async (args: JoinPortalArgs, member) => {
+  try {
+    // メンバーIDと表示名はトークンから確定したもの。引数からは deviceId / token(復帰用)だけを受け取る。
+    return ok(await backend().joinPortal({ deviceId: args?.deviceId, token: args?.token }, { id: member.id, name: member.name }));
   } catch (error) {
     return errorResponse(error);
   }
@@ -192,6 +215,8 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   closeSession: _sessionHub_closeSession,
   joinOperator: _sessionHub_joinOperator,
   joinClient: _sessionHub_joinClient,
+  setPortalSession: _sessionHub_setPortalSession,
+  joinPortal: _sessionHub_joinPortal,
   poll: _sessionHub_poll,
   issueCommand: _sessionHub_issueCommand,
   publishState: _sessionHub_publishState,

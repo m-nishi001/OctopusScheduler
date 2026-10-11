@@ -42,6 +42,22 @@ export interface JoinClientArgs {
   token?: string;
 }
 
+export interface SetPortalSessionArgs {
+  sessionId: string;
+  /** true で参加者ポータルの入口にする(他のセッションの公開は外れる)。false で公開を止める。 */
+  published: boolean;
+}
+
+/**
+ * ログイン済みの参加者が、参加コード無しでポータル公開中のセッションに入る。
+ * メンバーID・表示名はサーバーがログインのトークンから決める(クライアントの申告は受け取らない)。
+ */
+export interface JoinPortalArgs {
+  /** リロード復帰用。同じメンバーの端末で、deviceId と token の両方が一致したときだけ復帰する。 */
+  deviceId?: string;
+  token?: string;
+}
+
 export interface DeviceCredentials {
   sessionId: string;
   deviceId: string;

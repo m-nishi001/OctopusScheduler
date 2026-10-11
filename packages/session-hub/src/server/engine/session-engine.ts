@@ -212,13 +212,21 @@ export async function joinOperator(
 }
 
 /** 参加者として入室する(参加コード解決は呼び出し側)。 */
-export async function joinClient(deps: EngineDeps, args: JoinClientArgs): Promise<JoinResult> {
+/** サーバーがログインから確定した参加者。クライアントの申告(memberId / label)は使わない。 */
+export interface TrustedMember {
+  memberId: string;
+  label: string;
+}
+
+export async function joinClient(deps: EngineDeps, args: JoinClientArgs, trusted?: TrustedMember): Promise<JoinResult> {
   const now = deps.now();
   const meta = await loadMeta(deps.repo, now);
 
   if (args.deviceId && args.token) {
     const existing = await deps.repo.getDevice(args.deviceId);
-    if (existing && existing.role === "client" && safeEqual(existing.token, args.token)) {
+    // ログイン済みの参加者は、同じメンバーの端末にだけ復帰させる(共有端末で別の人に引き継がれないように)。
+    const sameOwner = !trusted || existing?.memberId === trusted.memberId;
+    if (existing && sameOwner && existing.role === "client" && safeEqual(existing.token, args.token)) {
       await deps.presence.touch({
         deviceId: existing.deviceId,
         role: "client",
@@ -234,8 +242,8 @@ export async function joinClient(deps: EngineDeps, args: JoinClientArgs): Promis
     deviceId: deps.newId(),
     sessionId: meta.id,
     role: "client",
-    memberId: args.memberId ?? null,
-    label: cleanLabel(args.label, "参加者"),
+    memberId: trusted ? trusted.memberId : args.memberId ?? null,
+    label: cleanLabel(trusted ? trusted.label : args.label, "参加者"),
     token: deps.newToken(),
     joinedAtMs: now,
   };

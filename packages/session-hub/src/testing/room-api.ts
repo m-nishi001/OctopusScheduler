@@ -7,7 +7,12 @@ import type { FakeRoom } from "./fake-room";
 import { NetworkError, NO_FAULTS } from "./fake-hub-api";
 import type { FakeHubApi, FaultInjector } from "./fake-hub-api";
 
-export function createRoomApi(room: FakeRoom, memberId: string | null, faults: FaultInjector = NO_FAULTS): FakeHubApi {
+export function createRoomApi(
+  room: FakeRoom,
+  memberId: string | null,
+  faults: FaultInjector = NO_FAULTS,
+  memberName: string | null = null
+): FakeHubApi {
   const calls: Record<string, number> = {};
 
   const run = async <T>(endpoint: keyof SessionHubApi, args: unknown, exec: () => Promise<T>): Promise<T> => {
@@ -34,6 +39,12 @@ export function createRoomApi(room: FakeRoom, memberId: string | null, faults: F
     }),
     joinOperator: (args) => run("joinOperator", args, () => room.call("joinOperator", args, operator())),
     joinClient: (args) => run("joinClient", args, () => room.call("joinClient", args)),
+    setPortalSession: () => Promise.reject(new Error("not supported in room api")),
+    // Worker が認証済みのトークンから渡す memberId / 表示名を、本番と同じ経路で DO に渡す
+    joinPortal: (args) =>
+      run("joinPortal", args, () =>
+        room.call("joinPortal", { code: "", deviceId: args.deviceId, token: args.token, label: memberName ?? operator() }, operator())
+      ),
     poll: (args) => run("poll", args, () => room.call("poll", args)),
     issueCommand: (args) => run("issueCommand", args, () => room.call("issueCommand", args)),
     publishState: (args) => run("publishState", args, () => room.call("publishState", args)),

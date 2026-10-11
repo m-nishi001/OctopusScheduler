@@ -212,6 +212,24 @@ export class SessionConnection implements TransportSource {
   }
 
   /**
+   * ログイン済みの参加者として、ポータル公開中のセッションに参加コード無しで入る。
+   * メンバーはサーバーがログインから決める。保存済みの入室情報があれば同じ端末として復帰を試みる
+   * (別のメンバーの情報ならサーバーが新しい端末として扱う)。
+   */
+  async joinPortal(): Promise<JoinResult> {
+    this.set({ phase: "joining", lastError: null, lastErrorCode: null });
+    const stored = loadCredentials(this.opts.store, "client");
+    try {
+      const result = await this.opts.api.joinPortal({ deviceId: stored?.deviceId, token: stored?.token });
+      this.adopt(result, "", result.session.code);
+      return result;
+    } catch (error) {
+      this.failJoin(error);
+      throw error;
+    }
+  }
+
+  /**
    * 保存済みの入室情報から復帰する(リロード後)。最初の取得で認証を確かめ、
    * 無効なら 'unauthorized' になる。復帰できる情報が無ければ false。
    */
