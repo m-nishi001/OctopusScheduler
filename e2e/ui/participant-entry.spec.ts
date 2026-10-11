@@ -108,7 +108,9 @@ test.describe("エントリー受付", () => {
     for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("entry-done"), ids[i]).toContainText("受付は終了しました");
     const straggler = await newDevice(browser, { mobile: true });
     await straggler.page.goto(qrUrl(ids[CROWD + 1]));
-    await straggler.page.goto("/#/p/event");
+    // ログインが終わってから(実環境では通信に時間がかかる)、バナーからイベント画面へ
+    await expect(straggler.page.getByTestId("home-greeting")).toBeVisible();
+    await straggler.page.getByTestId("event-banner").click();
     await expect(straggler.page.getByTestId("entry-closed")).toContainText("エントリーの受付は終了しました");
     await expect(straggler.page.getByTestId("entry-button")).toHaveCount(0);
 
