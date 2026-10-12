@@ -3,18 +3,20 @@ import { container } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
 import type { JackpotDraw } from "@octopus/session-hub";
 import { JACKPOT_STOP_COMMAND } from "@model/jackpot-host-state";
-import type { JackpotHostState } from "@model/jackpot-host-state";
+import type { JackpotDescriptionState, JackpotHostState } from "@model/jackpot-host-state";
 
 export interface JackpotHostHandlers {
   /** 管理端末の「次へ」。本番画面の Enter キーと同じ進行。 */
   advance(): void;
+  /** 管理端末の「前へ」。説明画面のスライドを1つ戻す。戻る操作が無い画面では渡さない。 */
+  back?(): void;
   /** ルーレット/スロットを止める。管理端末、またはホストが許可した参加者から届く。 */
   stopRoulette(): void;
 }
 
 export interface JackpotHost {
   /** いまの抽選の状態を公開する。canStop の間だけ参加者のスマホに停止ボタンが出る。 */
-  publish(state: JackpotHostState): void;
+  publish(state: JackpotHostState | JackpotDescriptionState): void;
   /** 抽選結果を保存して、参加者のポータルへ知らせる(失敗しても抽選は止めない。数回だけ再試行する)。 */
   recordDraw(draw: JackpotDraw, sleep?: (ms: number) => Promise<void>): Promise<boolean>;
 }
@@ -38,6 +40,9 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
       case "advance":
         handlers.advance();
         break;
+      case "back":
+        handlers.back?.();
+        break;
       case "stopRoulette":
         // 止められる場面でだけ受け付ける。参加者の押下が遅れて届いても、次の場面を誤って進めない。
         if (canStop) handlers.stopRoulette();
@@ -54,6 +59,11 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
 
   return {
     publish(state) {
+      if (state.page === "description") {
+        canStop = false;
+        void agent.publishSlice(NAMESPACE, state, []);
+        return;
+      }
       canStop = state.canStop;
       // メンバー抽選は管理者が進行するので、参加者には停止ボタンを出さない(景品抽選のときだけ出す)。
       const participantsMayStop = state.canStop && state.phase !== "member";

@@ -104,6 +104,85 @@ describe("管理コンソールのジャックポット操作", () => {
     expect(wrapper.find('[data-testid="next-hint"]').text()).toContain("まだ抽選は始まりません");
   });
 
+  describe("説明のスライド", () => {
+    const descState = (index: number, total: number) => ({ page: "description", index, total });
+    const openDescription = async (agent: Awaited<ReturnType<typeof setupHosted>>["agent"], index: number, total = 3) => {
+      await agent.publishSlice("session", { path: "/execute/jackpot-description" });
+      await agent.publishSlice("jackpot", descState(index, total));
+      await settle(5000);
+    };
+    const back = (wrapper: ReturnType<typeof mount>) => wrapper.find('[data-testid="back-button"]');
+    const pressKey = (key: string, target: EventTarget = document.body) => target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+
+    it("導入画面では「次のスライドへ」だけ。押すとホストに advance が届き、前へは出ない", async () => {
+      const { meta, agent, calls, nav } = await setupHosted();
+      const { wrapper } = await mountConsole(meta.id);
+      await openDescription(agent, -1);
+      expect(next(wrapper).text()).toContain("次のスライドへ (1/3)");
+      expect(back(wrapper).exists()).toBe(false);
+      await next(wrapper).trigger("click");
+      await settle(5000);
+      expect(calls).toEqual(["advance"]);
+      expect(nav).toEqual([]); // スライドを飛ばして抽選画面へは行かない
+    });
+
+    it("途中では「← 前へ」が出て、押すとホストに back が届く。Enter / Backspace でも同じ", async () => {
+      const { meta, agent, calls } = await setupHosted();
+      const { wrapper } = await mountConsole(meta.id);
+      await openDescription(agent, 1);
+      expect(wrapper.find('[data-testid="now"]').text()).toContain("(2/3)");
+      expect(back(wrapper).exists()).toBe(true);
+      expect(wrapper.find('[data-testid="back-key"]').text()).toBe("Backspace");
+      await back(wrapper).trigger("click");
+      await settle(5000);
+      expect(calls).toEqual(["back"]);
+
+      pressKey("Enter");
+      await settle(5000);
+      pressKey("Backspace");
+      await settle(5000);
+      expect(calls).toEqual(["back", "advance", "back"]);
+    });
+
+    it("最後のスライドで主ボタンが「抽選を始める」になり、押すと抽選画面へ切り替わる", async () => {
+      const { meta, agent, calls, nav } = await setupHosted();
+      const { wrapper } = await mountConsole(meta.id);
+      await openDescription(agent, 2);
+      expect(next(wrapper).text()).toContain("抽選を始める");
+      expect(back(wrapper).exists()).toBe(true);
+      await next(wrapper).trigger("click");
+      await settle(5000);
+      expect(nav).toEqual([{ path: "/jackpot-draw" }]);
+      expect(calls).toEqual([]);
+    });
+
+    it("前へが無い画面(導入・抽選)では Backspace を押しても何も送られない", async () => {
+      const { meta, agent, calls } = await setupHosted();
+      const { wrapper } = await mountConsole(meta.id);
+      await openDescription(agent, -1);
+      pressKey("Backspace");
+      await settle(5000);
+      await openDraw(agent);
+      pressKey("Backspace");
+      await settle(5000);
+      expect(calls).toEqual([]);
+      wrapper.unmount();
+    });
+
+    it("入力欄にフォーカスがあるときの Backspace は前へにならない", async () => {
+      const { meta, agent, calls } = await setupHosted();
+      const { wrapper } = await mountConsole(meta.id);
+      await openDescription(agent, 1);
+      const input = document.createElement("input");
+      document.body.appendChild(input);
+      pressKey("Backspace", input);
+      await settle(5000);
+      expect(calls).toEqual([]);
+      input.remove();
+      wrapper.unmount();
+    });
+  });
+
   it("抽選画面では「次へ」でホストに jackpot.advance が届く。連打しても1件", async () => {
     const { meta, agent, calls } = await setupHosted();
     const { wrapper, device } = await mountConsole(meta.id);

@@ -6,6 +6,11 @@
  */
 
 export interface JackpotProgress {
+  /** 公開している画面("description" = 説明のスライド)。抽選画面の状態では未設定のことがある。 */
+  page?: string;
+  /** 説明画面: 表示中のスライド(-1 = 導入画面)と枚数。 */
+  index?: number;
+  total?: number;
   phase: string;
   canStop: boolean;
   member: string | null;
@@ -42,6 +47,8 @@ export interface Guidance {
   now: string;
   /** 主ボタン。押せる操作が無い(ホスト不在・準備中)ときは null。 */
   main: { label: string; hint: string; action: MainAction } | null;
+  /** 副ボタン「前へ」(説明のスライドを戻す)。戻れるときだけ。 */
+  back?: { label: string; hint: string } | null;
 }
 
 const withDemo = (path: string, demo: boolean): string => (demo ? `${path}?demo=1` : path);
@@ -111,6 +118,30 @@ function describeJackpotDraw(jackpot: JackpotProgress | null): Guidance {
   return { game: "jackpot", now, main: { label: "次へ", hint, action: { kind: "advance" } } };
 }
 
+/** 説明画面のスライド。コントロールから1枚ずつ進め/戻せる。最後のスライドの次で抽選画面へ進む。 */
+function describeJackpotDescription(input: GuidanceInput): Guidance {
+  const step = JACKPOT_FLOW["/jackpot-description"];
+  const jp = input.jackpot;
+  const toDraw = { kind: "navigate", path: withDemo(step.to, input.demo) } as const;
+  const base = { game: "jackpot" as const, now: step.now };
+  // スライドの位置がまだ届いていない(古いホスト・読み込み中)ときは、従来どおり抽選画面へ進める
+  if (!jp || jp.page !== "description" || typeof jp.index !== "number" || typeof jp.total !== "number") {
+    return { ...base, main: { label: step.label, hint: step.hint, action: toDraw }, back: null };
+  }
+  const { index, total } = jp;
+  const back = index >= 0 ? { label: "前へ", hint: index === 0 ? "導入の画面に戻します" : "ひとつ前のスライドに戻します" } : null;
+  if (index >= total - 1) {
+    return { ...base, now: total > 0 ? `${step.now}(${total}/${total})` : step.now, main: { label: step.label, hint: step.hint, action: toDraw }, back };
+  }
+  const position = `${index + 2}/${total}`;
+  return {
+    game: "jackpot",
+    now: index < 0 ? `${step.now}(導入)` : `${step.now}(${index + 1}/${total})`,
+    main: { label: `次のスライドへ (${position})`, hint: index < 0 ? "説明の最初のスライドを映します" : "次のスライドを映します", action: { kind: "advance" } },
+    back,
+  };
+}
+
 export function describeProgress(input: GuidanceInput): Guidance {
   if (!input.hostOnline) return { game: null, now: "ホストの画面が開かれていません", main: null };
 
@@ -120,6 +151,7 @@ export function describeProgress(input: GuidanceInput): Guidance {
 
   const jp = jackpotPage(hostPath);
   if (jp === "/jackpot-draw") return describeJackpotDraw(input.jackpot);
+  if (jp === "/jackpot-description") return describeJackpotDescription(input);
   if (jp && JACKPOT_FLOW[jp]) {
     const step = JACKPOT_FLOW[jp];
     return {

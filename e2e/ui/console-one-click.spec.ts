@@ -114,6 +114,58 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     for (const d of [admin, host]) await d.context.close();
   });
 
+  test("ジャックポット: 説明のスライドをコントロール画面から1枚ずつ進め/戻せる(ボタンとキー)。最後のスライドの次は抽選画面", async ({ browser }) => {
+    test.setTimeout(180_000);
+    const { admin, host } = await scene(browser, "説明スライド操作");
+    const slides = ["一枚目の説明", "二枚目の説明", "三枚目の説明"].map((content, i) => ({ id: `s${i}`, type: "text", content }));
+    const setting = {
+      screenName: "description",
+      settingName: "description-screen-settings",
+      settingValue: JSON.stringify({ descriptionBgm: "", screenElements: slides }),
+    };
+    await seedStore(host.page, "jackpot-game", "ScreenConfigData", [{ id: "description_description-screen-settings", value: setting }]);
+    await admin.page.getByTestId("start-jackpot").click();
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
+
+    const hostText = host.page.locator("body");
+    const back = admin.page.getByTestId("back-button");
+    // 導入画面: 次のスライドへ。前へは無い
+    await expect(nextButton(admin.page)).toHaveText(/次のスライドへ \(1\/3\)/);
+    await expect(back).toHaveCount(0);
+    await nextButton(admin.page).click();
+    await expect(hostText).toContainText("一枚目の説明");
+    await expect(admin.page.getByTestId("now")).toContainText("(1/3)");
+    await expect(back).toBeVisible();
+
+    await nextButton(admin.page).click();
+    await expect(hostText).toContainText("二枚目の説明");
+
+    // 前へ(ボタン)でひとつ戻る。ホストの画面も戻る
+    await back.click();
+    await expect(hostText).toContainText("一枚目の説明");
+    await expect(admin.page.getByTestId("now")).toContainText("(1/3)");
+
+    // キーでも操作できる: Enter で進み、Backspace で戻る
+    await admin.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await admin.page.keyboard.press("Enter");
+    await expect(hostText).toContainText("二枚目の説明");
+    await admin.page.keyboard.press("Enter");
+    await expect(hostText).toContainText("三枚目の説明");
+    await admin.page.keyboard.press("Backspace");
+    await expect(hostText).toContainText("二枚目の説明");
+    await admin.page.keyboard.press("Enter");
+    await expect(hostText).toContainText("三枚目の説明");
+
+    // 最後のスライド: 主ボタンは「抽選を始める」。route はまだ説明のまま
+    await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);
+    expect(await route(host.page)).toBe("/execute/jackpot-description");
+    await nextButton(admin.page).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+    await expect(back).toHaveCount(0);
+
+    for (const d of [admin, host]) await d.context.close();
+  });
+
   test("セッション一覧の「今すぐイベントを開催する」1回で、作成・公開・操作画面まで進み、この端末をホストにもできる", async ({ browser, request }) => {
     const admin = await newDevice(browser, { signedIn: true });
     await admin.page.goto("/#/sessions");

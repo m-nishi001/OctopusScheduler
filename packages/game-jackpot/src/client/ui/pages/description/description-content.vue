@@ -52,10 +52,11 @@
 	</MainLayout>
 </template>
 <script lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
+import { useJackpotHost } from '../../composables/use-jackpot-host';
 import type { ScreenElement } from '@model/screen-config/description-screen-setting';
 import { DescriptionScreenSetting } from '@model/screen-config/description-screen-setting';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
@@ -83,6 +84,7 @@ export default {
 
 
 		const bgmAudio = ref<HTMLAudioElement | null>(null);
+		const ready = ref(false);
 
 		onMounted(async () => {
 
@@ -99,6 +101,8 @@ export default {
 			}
 
 			elements.value = screenConfig.value?.screenElements || [];
+			// スライドの枚数が決まってから管理端末へ公開する(読み込み中に「枚数0」を見せない)
+			ready.value = true;
 
 
 			for (const element of elements.value) {
@@ -160,6 +164,23 @@ export default {
 				router.push(session.to('/jackpot-draw'));
 			}
 		};
+		const prevSlide = () => {
+			// 導入画面(-1)より前には戻らない
+			if (slideIndex.value < 0) return;
+			slideIndex.value--;
+			currentSlide.value = slideIndex.value >= 0 ? elements.value[slideIndex.value] : null;
+		};
+
+		// 管理端末(コントロール画面)の「次へ/前へ」を、この画面のEnterキーと同じ進行にする。現在位置を公開する。
+		// setup() の同期実行中に呼ぶ(コンポーネントの破棄時に後片付けを登録するため)。
+		const host = useJackpotHost({ advance: nextSlide, back: prevSlide, stopRoulette: () => undefined });
+		watch(
+			[ready, slideIndex, elements],
+			() => {
+				if (ready.value) host.publish({ page: 'description', index: slideIndex.value, total: elements.value.length });
+			},
+			{ immediate: true }
+		);
 		const handleKey = (e: KeyboardEvent) => {
 			if (e.key === 'Enter') nextSlide();
 		};
@@ -196,7 +217,7 @@ export default {
 			return (el.text && typeof el.text === 'string') ? el.text : '';
 		};
 
-		return { screenConfig, currentSlide, slideIndex, elements, isHtml, getContent, nextSlide };
+		return { screenConfig, currentSlide, slideIndex, elements, isHtml, getContent, nextSlide, prevSlide };
 	},
 };
 </script>

@@ -21,6 +21,16 @@ export interface JackpotHostState {
   prize: string | null;
 }
 
+/**
+ * 説明画面(スライド)の状態。管理端末が「次のスライドへ/前へ」を出し分けるために公開する。
+ * index は -1 が導入画面、0 以上が表示中のスライド(0始まり)。total はスライドの枚数。
+ */
+export interface JackpotDescriptionState {
+  page: "description";
+  index: number;
+  total: number;
+}
+
 /** 当選者が確定して画面に見えるステップのラベル。 */
 const REVEAL_MEMBER = ["stopMemberDraw"];
 const REVEAL_PRIZE = ["stopPrizeDraw", "stopKakuhenFinalDraw"];

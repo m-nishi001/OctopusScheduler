@@ -40,6 +40,13 @@
                         <kbd v-if="enterTriggers(guidance.main.action)" class="console__key" data-testid="next-key">Enter</kbd>
                     </UiButton>
                     <p class="console__hint" data-testid="next-hint">押すと: {{ guidance.main.hint }}</p>
+                    <div v-if="guidance.back" class="console__back">
+                        <UiButton class="console__back-button" :disabled="busyMain || !canSend" data-testid="back-button" @click="runBack">
+                            ← {{ guidance.back.label }}
+                            <kbd class="console__key" data-testid="back-key">Backspace</kbd>
+                        </UiButton>
+                        <p class="console__hint" data-testid="back-hint">押すと: {{ guidance.back.hint }}</p>
+                    </div>
                 </div>
 
                 <!-- 始める: ワンクリックでイベント開催〜対象の画面まで -->
@@ -265,6 +272,9 @@ const hostPath = computed(() => {
     return session?.path ?? '';
 });
 interface JackpotState {
+    page?: string;
+    index?: number;
+    total?: number;
     phase: string;
     canStop: boolean;
     member: string | null;
@@ -360,6 +370,19 @@ async function runMain() {
         if (main.action.kind === 'navigate') await connection.issue('session', 'navigate', { path: main.action.path });
         else if (main.action.kind === 'closeAnswers') await connection.issue('quiz', 'closeAnswers');
         else await connection.issue(guidance.value.game === 'quiz' ? 'quiz' : 'jackpot', 'advance');
+    } catch (e) {
+        reportError(e);
+    } finally {
+        busyMain.value = false;
+    }
+}
+
+/** 副ボタン「前へ」。説明のスライドをひとつ戻す。 */
+async function runBack() {
+    if (!guidance.value.back || busyMain.value) return;
+    busyMain.value = true;
+    try {
+        await connection.issue('jackpot', 'back');
     } catch (e) {
         reportError(e);
     } finally {
@@ -483,10 +506,13 @@ async function loadQuizzes() {
 
 /** ホスト画面を見ながら Enter で主ボタンを押せる。入力欄やボタンにフォーカスがあるときは、その要素の操作を優先する。 */
 function onKeydown(e: KeyboardEvent) {
-    const command = resolveConsoleKey(e, { mainAction: guidance.value.main?.action ?? null, blocked: busyMain.value || !canSend.value });
+    const command = resolveConsoleKey(e, { mainAction: guidance.value.main?.action ?? null, canBack: !!guidance.value.back, blocked: busyMain.value || !canSend.value });
     if (command === 'main') {
         e.preventDefault();
         void runMain();
+    } else if (command === 'back') {
+        e.preventDefault();
+        void runBack();
     }
 }
 
@@ -518,6 +544,8 @@ onUnmounted(() => {
 .console__warn { margin: 0; padding: 8px 12px; border-radius: 8px; background: rgba(255, 179, 0, 0.15); color: #ffd54f; }
 .console__error { margin: 0; color: #ff8a80; }
 .console__main { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.console__back { display: flex; flex-direction: column; gap: 6px; align-items: stretch; margin-top: 4px; }
+.console__back-button { min-height: 48px; width: 100%; }
 .console__key { margin-left: 10px; padding: 1px 8px; font-size: 0.8rem; font-weight: 600; border: 1px solid currentColor; border-radius: 6px; opacity: 0.7; vertical-align: middle; }
 .console__main-button { min-height: 64px; font-size: 1.4rem; width: 100%; }
 .console__hint { margin: 0; font-size: 0.95rem; opacity: 0.85; text-align: center; }
