@@ -16,7 +16,7 @@ concurrency:
 # 各ジョブは互いに待たず並列に走る。直列にしか進められないのは「build → e2e(dist が要る)」だけ。
 #   lint / unit ........ build 不要(turbo の lint・test は ^build に依存しない)
 #   build .............. typecheck → build → verify。dist を artifact にして e2e へ渡す
-#   e2e ................ worker-smoke と、画面の通し(Playwright)を 3 分割して並列に流す
+#   e2e ................ worker-smoke と、画面の通し(Playwright)を 8 分割して並列に流す
 #   verify ............. 全ジョブの結果を1つにまとめる(以前の check 名 `verify` を維持する集約ジョブ)
 jobs:
   lint:
@@ -91,12 +91,22 @@ jobs:
         include:
           - name: worker-smoke
             args: worker-smoke
-          - name: ui-1of3
-            args: ui -- --shard=1/3
-          - name: ui-2of3
-            args: ui -- --shard=2/3
-          - name: ui-3of3
-            args: ui -- --shard=3/3
+          - name: ui-1of8
+            args: ui -- --shard=1/8
+          - name: ui-2of8
+            args: ui -- --shard=2/8
+          - name: ui-3of8
+            args: ui -- --shard=3/8
+          - name: ui-4of8
+            args: ui -- --shard=4/8
+          - name: ui-5of8
+            args: ui -- --shard=5/8
+          - name: ui-6of8
+            args: ui -- --shard=6/8
+          - name: ui-7of8
+            args: ui -- --shard=7/8
+          - name: ui-8of8
+            args: ui -- --shard=8/8
     name: e2e (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
