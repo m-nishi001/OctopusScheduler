@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertNotProduction, ensureLifecycle, isTransientAuthError, lifecycleArgs, parseDeployUrl, renderUpSummary, runWithRetry, STAGING, toStagingTemplate } from "./staging.js";
+import { assertNotProduction, ensureLifecycle, ensureLifecycleAsync, isTransientAuthError, lifecycleArgs, parseDeployUrl, renderTimings, renderUpSummary, runWithRetry, runWithRetryAsync, STAGING, toStagingTemplate } from "./staging.js";
 
 const template = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../wrangler.example.toml"), "utf8");
 
@@ -107,4 +107,54 @@ test("runWithRetry: 上限回数で諦め、それ以外のエラーは再実行
     /unique/
   );
   assert.equal(other, 1);
+});
+
+test("ensureLifecycleAsync: 既にルールがある失敗は無視し、それ以外は例外にする", async () => {
+  const fail = (message) => async () => {
+    throw new Error(message);
+  };
+  await ensureLifecycleAsync(fail("A rule with this name already exists"), "b");
+  await assert.rejects(() => ensureLifecycleAsync(fail("Authentication error"), "b"), /Authentication/);
+  let called;
+  await ensureLifecycleAsync(async (a) => (called = a), "b");
+  assert.deepEqual(called, lifecycleArgs("b"));
+});
+
+test("runWithRetryAsync: 一時的な認証エラーのときだけ待って再実行する", async () => {
+  let n = 0;
+  const result = await runWithRetryAsync(
+    async () => {
+      if (++n < 2) throw new Error("Authentication error [code: 10000]");
+      return "ok";
+    },
+    { sleep: async () => {} }
+  );
+  assert.equal(result, "ok");
+  assert.equal(n, 2);
+  let m = 0;
+  await assert.rejects(
+    () =>
+      runWithRetryAsync(
+        async () => {
+          m++;
+          throw new Error("boom");
+        },
+        { sleep: async () => {} }
+      ),
+    /boom/
+  );
+  assert.equal(m, 1);
+});
+
+test("renderTimings: ステップ名と秒数、全体を出す", () => {
+  const out = renderTimings(
+    [
+      ["deploy", 12345],
+      ["seed", 800],
+    ],
+    13000
+  );
+  assert.match(out, /deploy\s*: 12\.3s/);
+  assert.match(out, /seed\s*: 0\.8s/);
+  assert.match(out, /全体\s*: 13\.0s/);
 });

@@ -10,10 +10,10 @@
  * CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID)に従う。
  * リソース名は環境変数 CLOUDFLARE_D1_NAME / CLOUDFLARE_R2_BUCKET で変更できる。
  */
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { runWrangler } from "./lib/wrangler.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_D1_NAME = "octopus-scheduler-db";
@@ -85,7 +85,7 @@ export function setup({ run, readTemplate, existingToml, d1Name, bucket }) {
 function main() {
   const tomlPath = join(ROOT, "wrangler.toml");
   const run = (args) =>
-    execFileSync("npx", ["wrangler", ...args], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+    runWrangler(args, { cwd: ROOT, stdio: ["ignore", "pipe", "inherit"] });
 
   const result = setup({
     run,

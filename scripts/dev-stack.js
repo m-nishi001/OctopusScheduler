@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { freePort, renderLocalToml, waitForReady, wrangler } from "./e2e-local.js";
+import { wranglerCommand } from "./lib/wrangler.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -86,9 +87,10 @@ export async function main(argv = process.argv.slice(2)) {
 
   const port = args.port ?? (await freePort());
   const inspectorPort = await freePort();
+  const [wranglerFile, wranglerPrefix] = wranglerCommand();
   const child = spawn(
-    "npx",
-    ["-y", "wrangler@4", "dev", "--local", "--config", paths.config, "--persist-to", paths.state, "--port", String(port), "--inspector-port", String(inspectorPort)],
+    wranglerFile,
+    [...wranglerPrefix, "dev", "--local", "--config", paths.config, "--persist-to", paths.state, "--port", String(port), "--inspector-port", String(inspectorPort)],
     { stdio: ["ignore", "pipe", "pipe"], detached: true }
   );
   let log = "";

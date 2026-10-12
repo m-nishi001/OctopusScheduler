@@ -12,11 +12,11 @@
  * 何も消さずに対象を表示するだけなら `--dry-run`。
  * 認証・リソース名は setup-cloudflare.js と同じ(`wrangler login` / CLOUDFLARE_* 環境変数)。
  */
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
+import { runWrangler } from "./lib/wrangler.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_D1_NAME = "octopus-scheduler-db";
@@ -114,7 +114,7 @@ async function main() {
 
   const tomlPath = join(ROOT, "wrangler.toml");
   const run = (a) =>
-    execFileSync("npx", ["wrangler", ...a], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    runWrangler(a, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
   const result = teardown({
     run,
     workerName,

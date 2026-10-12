@@ -78,6 +78,39 @@ export function buildTestDataEntries({ count = DEFAULT_COUNT, admin, participant
   return entries;
 }
 
+const DEFAULT_CONTENT_TYPE = "application/json";
+export const BULK_CONCURRENCY = 20;
+
+/** エントリ([キー, 値, Content-Type?])を Content-Type ごとにまとめる(bulk put は1回の指定が1種類のため)。 */
+export function groupByContentType(entries) {
+  const groups = new Map();
+  for (const [key, value, contentType = DEFAULT_CONTENT_TYPE] of entries) {
+    if (!groups.has(contentType)) groups.set(contentType, []);
+    groups.get(contentType).push([key, value]);
+  }
+  return groups;
+}
+
+/** `wrangler r2 bulk put` に渡す [{key, file}] を作る。ファイル名は連番(キーに / が含まれるため)。 */
+export function buildBulkManifest(pairs, dir, prefix = "entry") {
+  return pairs.map(([key], i) => ({ key, file: join(dir, `${prefix}-${i}`) }));
+}
+
+/** 全エントリを Content-Type ごとに1回の `r2 bulk put`(同時 BULK_CONCURRENCY 件)で書き込む。 */
+function putAll({ entries, bucket, target, persist, config, dir }) {
+  let n = 0;
+  for (const [contentType, pairs] of groupByContentType(entries)) {
+    const manifest = buildBulkManifest(pairs, dir, `g${n}`);
+    pairs.forEach(([, value], i) => writeFileSync(manifest[i].file, value));
+    const manifestFile = join(dir, `manifest-${n++}.json`);
+    writeFileSync(manifestFile, JSON.stringify(manifest));
+    wrangler(
+      ["r2", "bulk", "put", bucket, "--filename", manifestFile, "--content-type", contentType, "--concurrency", String(BULK_CONCURRENCY), "--force", ...target, "--config", config, ...persist],
+      { quiet: true }
+    );
+  }
+}
+
 export function parseArgs(argv) {
   const out = { remote: false };
   for (let i = 0; i < argv.length; i++) {
@@ -122,12 +155,7 @@ function main() {
     buildTestMembers(count).map((m) => [m.id, args.remote ? randomBytes(32).toString("hex") : deriveLoginKey(m.id)])
   );
   const entries = buildTestDataEntries({ count, admin, participantPassword, loginKeys, token, now: Date.now(), existingMembers });
-  const dir = mkdtempSync(join(tmpdir(), "seed-test-"));
-  entries.forEach(([key, value], i) => {
-    const file = join(dir, `entry-${i}.json`);
-    writeFileSync(file, value);
-    wrangler(["r2", "object", "put", `${bucket}/${key}`, "--file", file, ...target, "--config", args.config, ...persist], { quiet: true });
-  });
+  putAll({ entries, bucket, target, persist, config: args.config, dir: mkdtempSync(join(tmpdir(), "seed-test-")) });
 
   console.log(
     JSON.stringify(
