@@ -51,6 +51,11 @@ export function createRoomApi(
     closeRound: (args) => run("closeRound", args, () => room.call("closeRound", args)),
     submitAnswer: (args) => run("submitAnswer", args, () => room.call("submitAnswer", args)),
     getAnswers: (args) => run("getAnswers", args, () => room.call("getAnswers", args)),
+    // 結果の保存は DO ではなく R2 / Drive(Worker 側)で扱うので、1セッション分の DO を模すこの API には無い
+    putQuizResult: () => Promise.reject(new Error("not supported in room api")),
+    putJackpotDraw: () => Promise.reject(new Error("not supported in room api")),
+    deleteJackpotDraw: () => Promise.reject(new Error("not supported in room api")),
+    getResults: () => Promise.reject(new Error("not supported in room api")),
     getWebAppUrl: () => Promise.resolve({ url: null }),
   };
 

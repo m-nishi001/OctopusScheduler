@@ -11,6 +11,7 @@ export const StorageModule = {
   Scheduler: "octopus-scheduler",
   Jackpot: "jackpot-game",
   Quiz: "quiz-game",
+  Results: "results",
 } as const;
 export type StorageModuleName = (typeof StorageModule)[keyof typeof StorageModule];
 

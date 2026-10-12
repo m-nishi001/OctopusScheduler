@@ -10,6 +10,10 @@ describe("storage-paths", () => {
     );
   });
 
+  it("places per-session results under results/json", () => {
+    expect(storagePath(StorageModule.Results, StorageKind.Json, "abc.json")).toBe("results/json/abc.json");
+  });
+
   it.each(["", ".", "..", "a/b"])("rejects invalid segment %j", (segment) => {
     expect(() => storagePath(StorageModule.Scheduler, StorageKind.Assets, segment)).toThrow(
       /Invalid storage path segment/

@@ -15,6 +15,8 @@ import type {
   SubmitAnswerResult,
   CloseSessionArgs,
   CreateSessionArgs,
+  DeleteJackpotDrawArgs,
+  GetResultsArgs,
   IssueCommandArgs,
   IssueCommandResult,
   JoinOperatorArgs,
@@ -24,8 +26,12 @@ import type {
   PollResult,
   PublishStateArgs,
   PublishStateResult,
+  PutJackpotDrawArgs,
+  PutQuizResultArgs,
+  ResultsRevResult,
   SetPortalSessionArgs,
 } from "../shared/protocol";
+import type { ResultsView } from "../shared/results";
 import type { SessionMeta, SessionSummary } from "../shared/session-types";
 
 export const SESSION_HUB_PREFIX = "sessionHub" as const;
@@ -44,6 +50,10 @@ export const SESSION_HUB_ENDPOINTS = [
   "closeRound",
   "submitAnswer",
   "getAnswers",
+  "putQuizResult",
+  "putJackpotDraw",
+  "deleteJackpotDraw",
+  "getResults",
   "getWebAppUrl",
 ] as const;
 
@@ -66,6 +76,14 @@ export interface SessionHubApi {
   closeRound(args: CloseRoundArgs, options?: ApiCallOptions): Promise<RoundSummary>;
   submitAnswer(args: SubmitAnswerArgs, options?: ApiCallOptions): Promise<SubmitAnswerResult>;
   getAnswers(args: GetAnswersArgs, options?: ApiCallOptions): Promise<GetAnswersResult>;
+  /** クイズ1ラウンドの結果を保存する(管理者のみ)。内容が変わったときだけ rev が進む。 */
+  putQuizResult(args: PutQuizResultArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
+  /** ジャックポットの抽選結果を1件保存する(管理者のみ)。 */
+  putJackpotDraw(args: PutJackpotDrawArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
+  /** 抽選結果を取り消す(管理者のみ)。 */
+  deleteJackpotDraw(args: DeleteJackpotDrawArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
+  /** 結果を、ログイン中のメンバー向けの見せ方で返す(ログイン済みなら誰でも)。 */
+  getResults(args: GetResultsArgs, options?: ApiCallOptions): Promise<ResultsView>;
   /** GAS ではデプロイURL(参加者向けQRの基点)。それ以外・取得不可は null。 */
   getWebAppUrl(args?: undefined, options?: ApiCallOptions): Promise<{ url: string | null }>;
 }
