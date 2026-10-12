@@ -13,13 +13,15 @@
  * 注意: R2 バケットが空でないと削除できない(wrangler に一覧・一括削除が無い)。そのため staging:up でバケットに
  * 「1日で自動削除」のルールを付けてある。撤去時に空でなければ、翌日以降にもう一度 staging:down すればよい。
  */
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setup } from "./setup-cloudflare.js";
 import { teardown } from "./teardown-cloudflare.js";
 import { qrLoginUrl } from "./dev-stack.js";
+import { runWrangler, runWranglerAsync } from "./lib/wrangler.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TOML_NAME = "wrangler.staging.toml";
@@ -61,9 +63,22 @@ export function ensureLifecycle(run, bucket) {
   try {
     run(lifecycleArgs(bucket));
   } catch (error) {
-    const text = `${error.stderr ?? ""}${error.stdout ?? ""}${error.message ?? ""}`;
-    if (!/already exists|must be unique|duplicate/i.test(text)) throw error;
+    if (!isLifecycleRuleExists(error)) throw error;
   }
+}
+
+/** ensureLifecycle の非同期版(`run` が Promise を返す)。 */
+export async function ensureLifecycleAsync(run, bucket) {
+  try {
+    await run(lifecycleArgs(bucket));
+  } catch (error) {
+    if (!isLifecycleRuleExists(error)) throw error;
+  }
+}
+
+function isLifecycleRuleExists(error) {
+  const text = `${error.stderr ?? ""}${error.stdout ?? ""}${error.message ?? ""}`;
+  return /already exists|must be unique|duplicate/i.test(text);
 }
 
 /** `wrangler deploy` の出力から公開URLを取り出す。無ければ null。 */
@@ -109,15 +124,48 @@ export function runWithRetry(exec, { attempts = 3, sleep = sleepSync } = {}) {
   }
 }
 
+/** runWithRetry の非同期版。 */
+export async function runWithRetryAsync(exec, { attempts = 3, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+  for (let i = 1; ; i++) {
+    try {
+      return await exec();
+    } catch (error) {
+      const text = `${error.stderr ?? ""}${error.stdout ?? ""}${error.message ?? ""}`;
+      if (i >= attempts || !isTransientAuthError(text)) throw error;
+      await sleep(2000 * i);
+    }
+  }
+}
+
 function sleepSync(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
 // 標準エラーも取り込む（一時的な認証エラーの判定と、失敗時の表示のため。失敗したときは main が中身を出す）
 const wranglerRun = (args) =>
-  runWithRetry(() => execFileSync("npx", ["-y", "wrangler@4", ...args], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }));
+  runWithRetry(() => runWrangler(args, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] }));
 
-function up() {
+const wranglerRunAsync = (args) => runWithRetryAsync(() => runWranglerAsync(args, { cwd: ROOT }));
+const execFileAsync = promisify(execFile);
+
+/** 各ステップの所要時間を測って表示する(`label` の処理を実行して結果を返す)。 */
+async function timed(label, timings, fn) {
+  const start = Date.now();
+  try {
+    return await fn();
+  } finally {
+    timings.push([label, Date.now() - start]);
+  }
+}
+
+export function renderTimings(timings, totalMs) {
+  const lines = timings.map(([label, ms]) => `  ${label.padEnd(12)}: ${(ms / 1000).toFixed(1)}s`);
+  return ["", "所要時間(並列実行のため合計は一致しません):", ...lines, `  ${"全体".padEnd(10)}: ${(totalMs / 1000).toFixed(1)}s`].join("\n");
+}
+
+async function up() {
+  const startedAt = Date.now();
+  const timings = [];
   assertNotProduction(STAGING);
   if (!existsSync(join(ROOT, "dist/cloudflare/worker.js"))) {
     throw new Error("dist/cloudflare/worker.js がありません。先に npm run build を実行してください。");
@@ -135,17 +183,15 @@ function up() {
     console.log(`${TOML_NAME} を生成しました。${result.created.length ? `作成: ${result.created.join(", ")}` : "既存リソースを使用"}`);
   }
 
-  ensureLifecycle(wranglerRun, STAGING.bucket);
-  wranglerRun(["d1", "migrations", "apply", "DB", "--remote", "--config", TOML_NAME]);
-  const deployOut = wranglerRun(["deploy", "--config", TOML_NAME]);
-  const seed = JSON.parse(
-    execFileSync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], {
-      cwd: ROOT,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "inherit"],
-    })
-  );
-  console.log(renderUpSummary({ url: parseDeployUrl(deployOut), seed }));
+  // この4つは互いに依存しない(デプロイはマイグレーション済みでなくても行える、シードは R2 バケットだけあればよい)ので並列に流す
+  const [, , deployOut, seedOut] = await Promise.all([
+    timed("lifecycle", timings, () => ensureLifecycleAsync(wranglerRunAsync, STAGING.bucket)),
+    timed("migrations", timings, () => wranglerRunAsync(["d1", "migrations", "apply", "DB", "--remote", "--config", TOML_NAME])),
+    timed("deploy", timings, () => wranglerRunAsync(["deploy", "--config", TOML_NAME])),
+    timed("seed", timings, async () => (await execFileAsync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).stdout),
+  ]);
+  console.log(renderUpSummary({ url: parseDeployUrl(deployOut), seed: JSON.parse(seedOut) }));
+  console.log(renderTimings(timings, Date.now() - startedAt));
 }
 
 function down() {
@@ -169,7 +215,7 @@ function down() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const command = process.argv[2];
   try {
-    if (command === "up") up();
+    if (command === "up") await up();
     else if (command === "down") down();
     else throw new Error("使い方: node scripts/staging.js <up|down>");
   } catch (e) {

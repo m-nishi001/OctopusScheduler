@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { hashPassword } from "./seed-local-admin.js";
-import { buildTestDataEntries, buildTestMembers, deriveLoginKey, deterministicSalt, mergeMembers, parseArgs } from "./seed-test-data.js";
+import { join } from "node:path";
+import { buildBulkManifest, buildTestDataEntries, buildTestMembers, deriveLoginKey, deterministicSalt, groupByContentType, mergeMembers, parseArgs } from "./seed-test-data.js";
 
 const ADMIN = { id: "admin", name: "A", password: "password-1234" };
 const base = { admin: ADMIN, participantPassword: "participant-1234", token: "tok", now: 1000 };
@@ -82,4 +83,24 @@ test("deriveLoginKey: 決定的で、IDごとに異なる64桁のhex", () => {
   assert.equal(deriveLoginKey("a"), deriveLoginKey("a"));
   assert.notEqual(deriveLoginKey("a"), deriveLoginKey("b"));
   assert.match(deriveLoginKey("a"), /^[0-9a-f]{64}$/);
+});
+
+test("groupByContentType: Content-Type ごとにまとめ、未指定は application/json", () => {
+  const groups = groupByContentType([
+    ["a", "1"],
+    ["b", "2", "image/png"],
+    ["c", "3"],
+    ["d", "4", "image/png"],
+  ]);
+  assert.deepEqual([...groups.keys()], ["application/json", "image/png"]);
+  assert.deepEqual(groups.get("application/json"), [["a", "1"], ["c", "3"]]);
+  assert.deepEqual(groups.get("image/png"), [["b", "2"], ["d", "4"]]);
+});
+
+test("buildBulkManifest: キーと連番ファイルの対応を作る(キーの / をファイル名に使わない)", () => {
+  const manifest = buildBulkManifest([["x/y/z", "1"], ["q", "2"]], "/tmp/d", "g0");
+  assert.deepEqual(manifest, [
+    { key: "x/y/z", file: join("/tmp/d", "g0-0") },
+    { key: "q", file: join("/tmp/d", "g0-1") },
+  ]);
 });

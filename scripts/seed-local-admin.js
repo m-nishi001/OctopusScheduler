@@ -12,12 +12,12 @@
  * 保存形式は packages/accounts/src/server/accounts-use-cases.ts と
  * packages/infrastructures/src/cloudflare/cloudflare-password-hasher.ts(PBKDF2-SHA256, 100000回)に合わせる。
  */
-import { execFileSync } from "node:child_process";
 import { pbkdf2Sync, randomUUID } from "node:crypto";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { runWrangler } from "./lib/wrangler.js";
 
 const SCALAR_PREFIX = "__scalars__/";
 const PBKDF2_ITERATIONS = 100_000;
@@ -53,10 +53,7 @@ function parseArgs(argv) {
 }
 
 export function wrangler(args, { quiet = false } = {}) {
-  return execFileSync("npx", ["-y", "wrangler@4", ...args], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", quiet ? "pipe" : "inherit"],
-  });
+  return runWrangler(args, { stdio: ["ignore", "pipe", quiet ? "pipe" : "inherit"] });
 }
 
 function main() {

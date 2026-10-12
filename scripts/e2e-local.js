@@ -19,6 +19,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { runWrangler, wranglerCommand } from "./lib/wrangler.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ADMIN = { id: "admin", password: "e2e-password-1234", token: "e2e-admin-session-token-0001" };
@@ -63,7 +64,7 @@ export function renderLocalToml(template) {
 }
 
 export function wrangler(args, options = {}) {
-  return execFileSync("npx", ["-y", "wrangler@4", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...options });
+  return runWrangler(args, { stdio: ["ignore", "pipe", "pipe"], ...options });
 }
 
 export async function waitForReady(base, child, timeoutMs = 120_000) {
@@ -116,9 +117,10 @@ export async function main(argv = process.argv.slice(2)) {
 
     const port = await freePort();
     const inspectorPort = await freePort();
+    const [wranglerFile, wranglerPrefix] = wranglerCommand();
     child = spawn(
-      "npx",
-      ["-y", "wrangler@4", "dev", "--local", "--config", config, "--persist-to", state, "--port", String(port), "--inspector-port", String(inspectorPort)],
+      wranglerFile,
+      [...wranglerPrefix, "dev", "--local", "--config", config, "--persist-to", state, "--port", String(port), "--inspector-port", String(inspectorPort)],
       { stdio: ["ignore", "pipe", "pipe"], detached: true }
     );
     let log = "";
