@@ -142,6 +142,29 @@ await sleep(300);
 check("同じ端末の再接続で古い接続は 4409 になる", wsClient.messages.some((m) => m.closed === 4409));
 check("再接続で状態を取り直す", wsClient2.messages[0]?.result?.state?.data?.session?.path === "/lobby");
 
+// 結果の保存(R2)と、参加者向けの取得
+const quizResult = { roundKey: "q1:live", quizId: "q1", title: "第1問", correctNo: 2, closedAtMs: Date.now(), answeredCount: 1, correct: [{ memberId: "smoke-taro", name: "太郎", sec: 1.5 }], wrongMemberIds: [] };
+const put1 = await rpc("sessionHub_putQuizResult", { sessionId: meta.id, result: quizResult }, ADMIN_TOKEN);
+const put2 = await rpc("sessionHub_putQuizResult", { sessionId: meta.id, result: quizResult }, ADMIN_TOKEN);
+check("結果を保存でき、同じ内容の再送では rev が進まない", put1.rev === 1 && put2.rev === 1, JSON.stringify([put1, put2]));
+await rpc("sessionHub_putJackpotDraw", { sessionId: meta.id, draw: { drawId: "d1", memberId: "smoke-taro", memberName: "太郎", prizeId: "p1", prizeName: "1等", isKakuhen: false, atMs: Date.now() } }, ADMIN_TOKEN);
+const view = await rpc("sessionHub_getResults", { sessionId: meta.id }, taroToken);
+check("参加者は自分向けの結果を読める", view.rev === 2 && view.quiz.rounds[0].me.rank === 1 && view.jackpot.myWins === 1 && !JSON.stringify(view).includes('"memberId"'), JSON.stringify(view).slice(0, 200));
+try {
+  await rpc("sessionHub_putQuizResult", { sessionId: meta.id, result: quizResult }, taroToken);
+  check("参加者は結果を書けない", false);
+} catch (e) {
+  check("参加者は結果を書けない", /Unauthorized|Forbidden|権限/i.test(e.message), e.message);
+}
+try {
+  await rpc("sessionHub_getResults", { sessionId: meta.id });
+  check("未ログインは結果を読めない", false);
+} catch (e) {
+  check("未ログインは結果を読めない", /Unauthorized/.test(e.message), e.message);
+}
+await rpc("sessionHub_deleteJackpotDraw", { sessionId: meta.id, drawId: "d1" }, ADMIN_TOKEN);
+check("抽選結果を削除すると取得結果から消える", (await rpc("sessionHub_getResults", { sessionId: meta.id }, taroToken)).jackpot.draws.length === 0);
+
 // セッション一覧 / 終了
 const list = await rpc("sessionHub_listSessions", undefined, ADMIN_TOKEN);
 check("一覧に載る", list.some((s) => s.id === meta.id));

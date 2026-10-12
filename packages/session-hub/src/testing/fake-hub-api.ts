@@ -10,6 +10,8 @@
  */
 import type { SessionHubApi } from "../server/session-hub-api-contract";
 import * as service from "../server/engine/session-service";
+import * as results from "../server/results/results-use-cases";
+import type { ResultsDeps } from "../server/results/results-use-cases";
 import type { TestHub } from "./test-hub";
 
 export type Fault = "ok" | "dropRequest" | "dropResponse" | "duplicate" | "fail";
@@ -61,6 +63,8 @@ export function createFakeHubApi(
     return result;
   };
 
+  const resultsDeps = (): ResultsDeps => ({ storage: hub.storage, withLock: hub.deps.withLock, now: hub.deps.now });
+
   const operator = (): string => {
     if (!memberId) throw new Error("Unauthorized");
     return memberId;
@@ -89,6 +93,19 @@ export function createFakeHubApi(
     closeRound: (args) => run("closeRound", args, () => service.closeRound(hub.deps, args)),
     submitAnswer: (args) => run("submitAnswer", args, () => service.submitAnswer(hub.deps, args)),
     getAnswers: (args) => run("getAnswers", args, () => service.getAnswers(hub.deps, args)),
+    putQuizResult: (args) => run("putQuizResult", args, async () => {
+      operator();
+      return results.putQuizResult(resultsDeps(), args.sessionId, args.result);
+    }),
+    putJackpotDraw: (args) => run("putJackpotDraw", args, async () => {
+      operator();
+      return results.putJackpotDraw(resultsDeps(), args.sessionId, args.draw);
+    }),
+    deleteJackpotDraw: (args) => run("deleteJackpotDraw", args, async () => {
+      operator();
+      return results.deleteJackpotDraw(resultsDeps(), args.sessionId, args.drawId);
+    }),
+    getResults: (args) => run("getResults", args, () => results.getResultsFor(resultsDeps(), args.sessionId, operator())),
     getWebAppUrl: () => run("getWebAppUrl", undefined, async () => ({ url: webAppUrl })),
   };
 

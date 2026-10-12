@@ -25,11 +25,15 @@ import type {
   SubmitAnswerArgs,
   CloseSessionArgs,
   CreateSessionArgs,
+  DeleteJackpotDrawArgs,
+  GetResultsArgs,
   IssueCommandArgs,
   JoinOperatorArgs,
   JoinPortalArgs,
   PollArgs,
   PublishStateArgs,
+  PutJackpotDrawArgs,
+  PutQuizResultArgs,
   SetPortalSessionArgs,
 } from "../shared/protocol";
 import type { SessionHubEndpointName } from "./session-hub-api-contract";
@@ -38,6 +42,8 @@ import { createCachePresenceStore, createKvSessionIndex, createKvSessionRepo } f
 import { ISessionHubBackendToken, createKvBackend } from "./hub-backend";
 import type { SessionHubBackend } from "./hub-backend";
 import type { ServiceDeps } from "./engine/session-service";
+import * as results from "./results/results-use-cases";
+import type { ResultsDeps } from "./results/results-use-cases";
 
 /** KV + ロック + キャッシュによる実装の依存(GAS の既定、および Cloudflare でも一覧/コード解決に使う)。 */
 export function resolveKvDeps(): ServiceDeps {
@@ -55,6 +61,13 @@ export function resolveKvDeps(): ServiceDeps {
     newId: () => uuid.generate(),
     newToken: () => `${uuid.generate()}${uuid.generate()}`.replace(/-/g, ""),
   };
+}
+
+/** 結果の保存(R2 / GAS は Drive)に使う依存。 */
+function resolveResultsDeps(): ResultsDeps {
+  const storage = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
+  const lock = container.resolve<ILock>(ILockToken);
+  return { storage, withLock: (key, timeoutMs, fn) => lock.withLock(key, timeoutMs, fn), now: () => Date.now() };
 }
 
 /** 登録された基盤(Cloudflare は Durable Object)があればそれを、無ければ KV 実装を使う。 */
@@ -79,6 +92,10 @@ declare let _sessionHub_openRound: (args: OpenRoundArgs) => Promise<string>;
 declare let _sessionHub_closeRound: (args: CloseRoundArgs) => Promise<string>;
 declare let _sessionHub_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
 declare let _sessionHub_getAnswers: (args: GetAnswersArgs) => Promise<string>;
+declare let _sessionHub_putQuizResult: (args: PutQuizResultArgs) => Promise<string>;
+declare let _sessionHub_putJackpotDraw: (args: PutJackpotDrawArgs) => Promise<string>;
+declare let _sessionHub_deleteJackpotDraw: (args: DeleteJackpotDrawArgs) => Promise<string>;
+declare let _sessionHub_getResults: (args: GetResultsArgs) => Promise<string>;
 declare let _sessionHub_getWebAppUrl: () => Promise<string>;
 
 _sessionHub_createSession = secureAdminWithMember(async (args: CreateSessionArgs, member) => {
@@ -188,6 +205,39 @@ _sessionHub_getAnswers = secure("public", async (args: GetAnswersArgs): Promise<
   }
 });
 
+// 結果の書き込みは管理者(= ホスト端末を操作する運営者)のみ。読み取りはログイン済みのメンバーなら誰でも(本人向けに整形)。
+_sessionHub_putQuizResult = secure("admin", async (args: PutQuizResultArgs): Promise<string> => {
+  try {
+    return ok(await results.putQuizResult(resolveResultsDeps(), args?.sessionId, args?.result));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+_sessionHub_putJackpotDraw = secure("admin", async (args: PutJackpotDrawArgs): Promise<string> => {
+  try {
+    return ok(await results.putJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.draw));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+_sessionHub_deleteJackpotDraw = secure("admin", async (args: DeleteJackpotDrawArgs): Promise<string> => {
+  try {
+    return ok(await results.deleteJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.drawId));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+_sessionHub_getResults = secureMember(async (args: GetResultsArgs, member) => {
+  try {
+    return ok(await results.getResultsFor(resolveResultsDeps(), args?.sessionId, member.id));
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
 _sessionHub_getWebAppUrl = secure("public", async (): Promise<string> => {
   try {
     // GAS固有(ScriptApp)のためポート化せずここで直接呼ぶ。GAS以外ではnullを返す。
@@ -213,6 +263,10 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   closeRound: _sessionHub_closeRound,
   submitAnswer: _sessionHub_submitAnswer,
   getAnswers: _sessionHub_getAnswers,
+  putQuizResult: _sessionHub_putQuizResult,
+  putJackpotDraw: _sessionHub_putJackpotDraw,
+  deleteJackpotDraw: _sessionHub_deleteJackpotDraw,
+  getResults: _sessionHub_getResults,
   getWebAppUrl: _sessionHub_getWebAppUrl,
 };
 

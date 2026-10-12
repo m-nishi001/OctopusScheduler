@@ -39,6 +39,32 @@ export interface SetPortalSessionArgs {
   published: boolean;
 }
 
+/** クイズ1ラウンドの結果を保存する(管理者=ホストのみ)。`result` の形は shared/results.ts の QuizRoundResult。 */
+export interface PutQuizResultArgs {
+  sessionId: string;
+  result: unknown;
+}
+
+/** ジャックポットの抽選結果を1件保存する(管理者=ホストのみ)。`draw` の形は JackpotDraw。 */
+export interface PutJackpotDrawArgs {
+  sessionId: string;
+  draw: unknown;
+}
+
+export interface DeleteJackpotDrawArgs {
+  sessionId: string;
+  drawId: string;
+}
+
+/** 保存した結果の更新番号。ホストが RoomState の `results` スライスで参加者へ知らせる。 */
+export interface ResultsRevResult {
+  rev: number;
+}
+
+export interface GetResultsArgs {
+  sessionId: string;
+}
+
 /**
  * ログイン済みの参加者が、ポータル公開中のセッションに入る。
  * メンバーID・表示名はサーバーがログインのトークンから決める(クライアントの申告は受け取らない)。
