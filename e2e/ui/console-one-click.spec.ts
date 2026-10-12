@@ -68,6 +68,36 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     for (const d of [admin, host]) await d.context.close();
   });
 
+  test("クイズ: コントロール画面で Enter キーを押すと主ボタンと同じ操作になる(受付の締切だけは Enter では動かない)", async ({ browser }) => {
+    test.setTimeout(180_000);
+    const { admin, host } = await scene(browser, "Enter操作(クイズ)");
+    await admin.page.getByTestId("quiz-select").selectOption("oc1");
+    await admin.page.getByTestId("start-quiz").click();
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/intro");
+    await expect(nextButton(admin.page).getByTestId("next-key")).toHaveText("Enter");
+    // 開始ボタンのフォーカスを外す(ボタンにフォーカスがあるとEnterはそのボタンの操作になる)
+    await admin.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+
+    await admin.page.keyboard.press("Enter"); // → QR
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/qr");
+    await admin.page.keyboard.press("Enter"); // → 出題
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/play");
+    await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
+
+    // 締切は Enter では動かない(表示も出ない)。クリックなら動く
+    await expect(nextButton(admin.page)).toHaveText(/受付を締め切る/);
+    await expect(admin.page.getByTestId("next-key")).toHaveCount(0);
+    await admin.page.keyboard.press("Enter");
+    await admin.page.waitForTimeout(1_500);
+    await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
+    await nextButton(admin.page).click();
+    await expect(admin.page.getByTestId("now")).toContainText("受付終了");
+
+    await admin.page.keyboard.press("Enter"); // → 正解
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/answer");
+    for (const d of [admin, host]) await d.context.close();
+  });
+
   test("ジャックポット: 「ジャックポットを始める」→ オープニング・説明を経て、主ボタンで抽選画面まで進む", async ({ browser }) => {
     test.setTimeout(180_000);
     const { admin, host } = await scene(browser, "ワンクリック(ジャックポット)");

@@ -172,6 +172,90 @@ describe("管理コンソールのクイズ操作", () => {
     expect(nav).toEqual([]); // 主ボタンは画面を直接切り替えない(クイズの進行はホストの「次へ」)
   });
 
+  describe("Enterキー", () => {
+    const pressEnter = (init: KeyboardEventInit = {}, target: EventTarget = document.body) =>
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, ...init }));
+
+    async function atQr() {
+      const { meta, agent, received } = await setupHosted();
+      registerQuizList([{ id: "q1", title: "果物", question: "?" }]);
+      const mounted = await mountConsole(meta.id);
+      await agent.publishSlice("session", { path: "/execute/quiz/q1/qr" });
+      await agent.publishSlice("quiz", quizState({ page: "qr" }));
+      await settle(5000);
+      return { ...mounted, agent, received };
+    }
+
+    it("Enter で主ボタン(次へ)と同じ操作が1回だけ送られ、ボタンに Enter の表示が出る", async () => {
+      const { wrapper, received } = await atQr();
+      expect(wrapper.find('[data-testid="next-key"]').text()).toBe("Enter");
+      pressEnter();
+      await settle(5000);
+      expect(received).toEqual(["advance"]);
+      wrapper.unmount();
+    });
+
+    it("送信中の連打は1回にまとまり、押しっぱなしや修飾キー付きは送らない", async () => {
+      const { wrapper, received } = await atQr();
+      pressEnter({ repeat: true });
+      pressEnter({ ctrlKey: true });
+      pressEnter({ shiftKey: true });
+      await settle(5000);
+      expect(received).toEqual([]);
+      pressEnter();
+      pressEnter();
+      await settle(5000);
+      expect(received).toEqual(["advance"]);
+      wrapper.unmount();
+    });
+
+    it("回答受付中の「受付を締め切る」は Enter では動かず(表示も出さず)、クリックでは動く", async () => {
+      const { wrapper, agent, received } = await atQr();
+      await agent.publishSlice("session", { path: "/execute/quiz/q1/play" });
+      await agent.publishSlice("quiz", quizState({ phase: "answering", deadlineMs: Date.now() + 20_000 }));
+      await settle(5000);
+      expect(wrapper.find('[data-testid="next-button"]').text()).toContain("受付を締め切る");
+      expect(wrapper.find('[data-testid="next-key"]').exists()).toBe(false);
+      pressEnter();
+      await settle(5000);
+      expect(received).toEqual([]);
+      await wrapper.find('[data-testid="next-button"]').trigger("click");
+      await settle(5000);
+      expect(received).toEqual(["closeAnswers"]);
+      wrapper.unmount();
+    });
+
+    it("入力欄やボタンにフォーカスがあるときの Enter は送らない", async () => {
+      const { wrapper, received } = await atQr();
+      const input = document.createElement("input");
+      document.body.appendChild(input);
+      pressEnter({}, input);
+      await settle(5000);
+      expect(received).toEqual([]);
+      input.remove();
+      wrapper.unmount();
+    });
+
+    it("主ボタンが無い画面(ロビー)では何も送らない", async () => {
+      const { meta, received } = await setupHosted();
+      registerQuizList([{ id: "q1", title: "果物", question: "?" }]);
+      const { wrapper } = await mountConsole(meta.id);
+      expect(wrapper.find('[data-testid="next-button"]').exists()).toBe(false);
+      pressEnter();
+      await settle(5000);
+      expect(received).toEqual([]);
+      wrapper.unmount();
+    });
+
+    it("画面を閉じたあとの Enter は送られない", async () => {
+      const { wrapper, received } = await atQr();
+      wrapper.unmount();
+      pressEnter();
+      await settle(5000);
+      expect(received).toEqual([]);
+    });
+  });
+
   it("受付中は回答数が表示される(参加者の回答が集まる様子)", async () => {
     const { meta, agent, device } = await setupHosted();
     registerQuizList([{ id: "q1", title: "果物", question: "?" }]);
