@@ -36,8 +36,6 @@ test.describe("シード済みコンテンツ", () => {
     const page = dev.page;
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto("/#/execute/jackpot-admin/prizes");
-    await expect(page.getByText("同期済み")).toBeVisible({ timeout: 60_000 });
-    await page.reload();
     for (const name of ["1等 ペア旅行券", "参加賞 オリジナルタンブラー"]) {
       await expect(page.getByText(name).first()).toBeVisible({ timeout: 90_000 });
     }

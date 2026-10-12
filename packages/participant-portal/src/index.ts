@@ -11,5 +11,7 @@ export { readQuizView, readJackpotView, clientInputLabel, CLIENT_INPUT_LABELS } 
 export type { QuizView, QuizOption, QuizPage, QuizPhase, JackpotView } from "./model/activity";
 export { QUIZ_KEY, useQuiz, useQuizContext } from "./model/use-quiz";
 export type { QuizState } from "./model/use-quiz";
+export { RESULTS_KEY, REFETCH_JITTER_MS, useResults, useResultsContext } from "./model/use-results";
+export type { ResultsState } from "./model/use-results";
 export { useClientInputs } from "./model/use-client-inputs";
 export type { ClientInputs } from "./model/use-client-inputs";

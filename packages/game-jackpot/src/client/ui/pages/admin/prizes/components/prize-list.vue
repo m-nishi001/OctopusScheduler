@@ -6,24 +6,24 @@
           <template
             v-if="prize.imageAssetId || prize.image2AssetId || prize.winningImage1AssetId || prize.winningImage2AssetId">
             <div class="preview-half">
-              <img v-if="prize.imageAssetId" :src="objectUrlMap.get(prize.imageAssetId) || prize.imageAssetId"
+              <img v-if="prize.imageAssetId" :src="objectUrlMap.get(prize.imageAssetId) || BLANK_IMAGE"
                 alt="image1" class="preview-img" @error="onImageError" />
               <div v-else class="preview-placeholder small">画像1なし</div>
             </div>
             <div class="preview-half">
-              <img v-if="prize.image2AssetId" :src="objectUrlMap.get(prize.image2AssetId) || prize.image2AssetId"
+              <img v-if="prize.image2AssetId" :src="objectUrlMap.get(prize.image2AssetId) || BLANK_IMAGE"
                 alt="image2" class="preview-img" @error="onImageError" />
               <div v-else class="preview-placeholder small">画像2なし</div>
             </div>
             <div class="preview-half">
               <img v-if="prize.winningImage1AssetId"
-                :src="objectUrlMap.get(prize.winningImage1AssetId) || prize.winningImage1AssetId" alt="winning1"
+                :src="objectUrlMap.get(prize.winningImage1AssetId) || BLANK_IMAGE" alt="winning1"
                 class="preview-img" @error="onImageError" />
               <div v-else class="preview-placeholder small">当選1なし</div>
             </div>
             <div class="preview-half">
               <img v-if="prize.winningImage2AssetId"
-                :src="objectUrlMap.get(prize.winningImage2AssetId) || prize.winningImage2AssetId" alt="winning2"
+                :src="objectUrlMap.get(prize.winningImage2AssetId) || BLANK_IMAGE" alt="winning2"
                 class="preview-img" @error="onImageError" />
               <div v-else class="preview-placeholder small">当選2なし</div>
             </div>
@@ -62,6 +62,9 @@ defineEmits<{
   delete: [id: string];
   'update:selected': [ids: string[]];
 }>();
+
+// 画像(アセット)の取り込みがまだのとき。アセットIDをそのままURLにすると存在しないパスを取りに行って 404 になる
+const BLANK_IMAGE = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
 
 const onImageError = (event: Event) => {
   const img = event.target as HTMLImageElement;
