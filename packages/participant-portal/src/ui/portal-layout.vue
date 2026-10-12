@@ -26,8 +26,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, provide } from 'vue';
-import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { computed, onMounted, provide, watch } from 'vue';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { createSessionConnection } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import { useParticipantAuth } from '../model/participant-auth';
@@ -41,6 +41,7 @@ import './portal-theme.css';
 const props = defineProps<{ connection?: SessionConnection }>();
 
 const route = useRoute();
+const router = useRouter();
 const session = usePortalSession(props.connection ?? createSessionConnection());
 provide(PORTAL_SESSION_KEY, session);
 // エントリーの状態はレイアウトで1つだけ持ち、バナーと各ページで共有する(「済み」の表示が食い違わないように)
@@ -80,6 +81,29 @@ const banner = computed(() => {
     }
     return found && route.path !== found.to ? found : null;
 });
+
+/**
+ * 出題が始まったら、バナーを押さなくても回答画面(ホーム)へ移る。
+ *   - エントリー済みの人: いまどの画面にいても移る
+ *   - それ以外の人: ホームかイベント画面を見ているときだけ移る(結果やマイページを見ている人の画面は奪わず、バナーで知らせる)
+ * 同じ出題(roundKey)では1回だけ移る。移った後に別の画面へ戻っても、勝手にまた連れ戻さない。
+ */
+const AUTO_NAV_FROM = new Set(['/p', '/p/event']);
+let navigatedRound: string | null = null;
+watch(
+    () => {
+        const q = quiz.quiz.value;
+        const live = session.status.value === 'connected' || session.status.value === 'reconnecting';
+        return live && q && q.phase === 'answering' && quiz.myAnswer.value === null ? q.roundKey : null;
+    },
+    (roundKey) => {
+        if (!roundKey || roundKey === navigatedRound) return;
+        navigatedRound = roundKey;
+        if (route.path === '/p') return;
+        if (entry.entered.value || AUTO_NAV_FROM.has(route.path)) void router.push('/p');
+    },
+    { immediate: true }
+);
 
 const connLabel = computed(() => {
     switch (session.status.value) {

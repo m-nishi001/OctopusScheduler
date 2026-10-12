@@ -362,6 +362,90 @@ describe("参加者ポータル: クイズ", () => {
     m.wrapper.unmount();
   });
 
+  describe("出題時の自動遷移", () => {
+    async function enteredAt(path: string) {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+      await env.openEntry(sampleEvent());
+      await tick(5000);
+      await flushPromises();
+      await m.wrapper.find('[data-testid="entry-button"]').trigger("click");
+      await flushPromises();
+      await tick(0);
+      if (path !== "/p/event") await m.router.push(path);
+      await flushPromises();
+      return { env, m };
+    }
+
+    it.each(["/p/event", "/p/results", "/p/me"])("エントリー済みの人は、%s にいても出題と同時に回答画面(/p)へ移る", async (path) => {
+      const { env, m } = await enteredAt(path);
+      await env.startQuiz();
+      await tick(5000);
+      await flushPromises();
+      expect(m.router.currentRoute.value.fullPath).toBe("/p");
+      expect(has(m, "quiz-panel")).toBe(true);
+      m.wrapper.unmount();
+    });
+
+    it("エントリーしていない人は、イベント画面にいるときだけ移る", async () => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+      await env.publishEvent(sampleEvent());
+      await tick(5000);
+      await flushPromises();
+      await env.startQuiz();
+      await tick(5000);
+      await flushPromises();
+      expect(m.router.currentRoute.value.fullPath).toBe("/p");
+      m.wrapper.unmount();
+    });
+
+    it.each(["/p/results", "/p/me"])("エントリーしていない人が %s を見ていても移動させず、バナーで知らせる", async (path) => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE), path);
+      await env.startQuiz();
+      await tick(5000);
+      await flushPromises();
+      expect(m.router.currentRoute.value.fullPath).toBe(path);
+      expect(text(m, "event-banner")).toContain("クイズ出題中!");
+      m.wrapper.unmount();
+    });
+
+    it("同じ出題では1回だけ移り、戻っても連れ戻さない。次の出題ではまた移る", async () => {
+      const { env, m } = await enteredAt("/p/me");
+      await env.startQuiz();
+      await tick(5000);
+      await flushPromises();
+      expect(m.router.currentRoute.value.fullPath).toBe("/p");
+
+      await m.router.push("/p/results");
+      await flushPromises();
+      await env.publishQuiz({ ...sampleQuizState() });
+      await tick(5000);
+      await flushPromises();
+      expect(m.router.currentRoute.value.fullPath).toBe("/p/results");
+
+      await env.startQuiz({ roundKey: "qz1:next" });
+      await tick(5000);
+      await flushPromises();
+      expect(m.router.currentRoute.value.fullPath).toBe("/p");
+      m.wrapper.unmount();
+    });
+
+    it("回答済み・受付中でない出題では移動しない", async () => {
+      const { env, m } = await enteredAt("/p/me");
+      await env.publishQuiz({ ...sampleQuizState(), page: "intro", phase: "idle", roundKey: null, question: null, options: [] });
+      await tick(5000);
+      await flushPromises();
+      expect(m.router.currentRoute.value.fullPath).toBe("/p/me");
+      await env.publishQuiz({ ...sampleQuizState(), phase: "closed", deadlineMs: null });
+      await tick(5000);
+      await flushPromises();
+      expect(m.router.currentRoute.value.fullPath).toBe("/p/me");
+      m.wrapper.unmount();
+    });
+  });
+
   it("クイズ・当選者・操作が出ている間は「イベントは行われていません」を出さず、それらを先に出す。イベントがあれば両方出す", async () => {
     const env = await portalEnv();
     const m = await mountPortal(participantDevice(env.hub, ALICE));
