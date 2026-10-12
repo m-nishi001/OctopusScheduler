@@ -13,7 +13,7 @@ const key = (over: Partial<KeyLike> = {}): KeyLike => ({
   target: document.body,
   ...over,
 });
-const ctx = (over: Partial<KeyContext> = {}): KeyContext => ({ mainAction: { kind: "advance" }, blocked: false, ...over });
+const ctx = (over: Partial<KeyContext> = {}): KeyContext => ({ mainAction: { kind: "advance" }, canBack: false, blocked: false, ...over });
 
 describe("コントロール画面のEnterキー", () => {
   it.each<[string, MainAction]>([
@@ -39,8 +39,8 @@ describe("コントロール画面のEnterキー", () => {
     expect(resolveConsoleKey(key(), ctx({ blocked: true }))).toBeNull();
   });
 
-  it("Enter 以外のキーは無視する", () => {
-    for (const k of [" ", "Escape", "ArrowRight", "Backspace", "a"]) expect(resolveConsoleKey(key({ key: k }), ctx())).toBeNull();
+  it("Enter と Backspace 以外のキーは無視する", () => {
+    for (const k of [" ", "Escape", "ArrowRight", "ArrowLeft", "a"]) expect(resolveConsoleKey(key({ key: k }), ctx())).toBeNull();
   });
 
   it("押しっぱなし(repeat)は無視する(連打で何度も進めない)", () => {
@@ -65,5 +65,26 @@ describe("コントロール画面のEnterキー", () => {
   it("通常の要素・発生元が無いときは押せる", () => {
     expect(resolveConsoleKey(key({ target: document.createElement("div") }), ctx())).toBe("main");
     expect(resolveConsoleKey(key({ target: null }), ctx())).toBe("main");
+  });
+
+  describe("Backspace(前へ)", () => {
+    it("前へ戻れるときだけ 'back' になる", () => {
+      expect(resolveConsoleKey(key({ key: "Backspace" }), ctx({ canBack: true }))).toBe("back");
+      expect(resolveConsoleKey(key({ key: "Backspace" }), ctx({ canBack: false }))).toBeNull();
+    });
+
+    it("主ボタンが無い・締切でも、戻れるなら 'back' が使える。Enter は主ボタン次第のまま", () => {
+      expect(resolveConsoleKey(key({ key: "Backspace" }), ctx({ canBack: true, mainAction: null }))).toBe("back");
+      expect(resolveConsoleKey(key({ key: "Enter" }), ctx({ canBack: true, mainAction: null }))).toBeNull();
+    });
+
+    it("blocked・repeat・修飾キー・入力欄フォーカスでは無視する(入力欄の文字削除を邪魔しない)", () => {
+      const c = ctx({ canBack: true });
+      expect(resolveConsoleKey(key({ key: "Backspace" }), { ...c, blocked: true })).toBeNull();
+      expect(resolveConsoleKey(key({ key: "Backspace", repeat: true }), c)).toBeNull();
+      expect(resolveConsoleKey(key({ key: "Backspace", ctrlKey: true }), c)).toBeNull();
+      expect(resolveConsoleKey(key({ key: "Backspace", target: document.createElement("input") }), c)).toBeNull();
+      expect(resolveConsoleKey(key({ key: "Backspace", target: document.createElement("textarea") }), c)).toBeNull();
+    });
   });
 });

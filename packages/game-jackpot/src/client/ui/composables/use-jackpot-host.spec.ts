@@ -63,6 +63,37 @@ describe("useJackpotHost", () => {
     expect(handlers.stopRoulette).not.toHaveBeenCalled();
   });
 
+  it("管理端末の back でハンドラが呼ばれる。ハンドラが無い画面では何も起きない", async () => {
+    const { admin } = await scene();
+    const back = vi.fn();
+    const mounted = mountHost({ advance: vi.fn(), back, stopRoulette: vi.fn() });
+    await admin.conn.issue("jackpot", "back");
+    await tick(4000);
+    expect(back).toHaveBeenCalledTimes(1);
+    mounted.stop();
+
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    mountHost(handlers);
+    await admin.conn.issue("jackpot", "back");
+    await tick(4000);
+    expect(handlers.advance).not.toHaveBeenCalled();
+    expect(handlers.stopRoulette).not.toHaveBeenCalled();
+  });
+
+  it("説明画面の状態(スライド位置)を公開し、参加者に停止ボタンは出さない。stopRoulette も受け付けない", async () => {
+    const { admin, client } = await scene();
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    const { host } = mountHost(handlers);
+    host.publish(state({ phase: "prize", canStop: true })); // 直前の抽選画面の状態が残っていても
+    host.publish({ page: "description", index: 1, total: 3 });
+    await tick(4000);
+    expect(admin.conn.state.roomState?.data?.jackpot).toEqual({ page: "description", index: 1, total: 3 });
+    expect(client.conn.state.roomState?.clientInput).toEqual([]);
+    await admin.conn.issue("jackpot", "stopRoulette");
+    await tick(4000);
+    expect(handlers.stopRoulette).not.toHaveBeenCalled();
+  });
+
   it("stopRoulette は止められる場面(canStop)でだけ実行される。管理端末からでも同じ", async () => {
     const { admin } = await scene();
     const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
