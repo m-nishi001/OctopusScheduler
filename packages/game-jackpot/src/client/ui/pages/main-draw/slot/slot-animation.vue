@@ -18,7 +18,6 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useAudio } from '@octopus/composables/use-audio';
 import '../../../theme/jackpot-theme.css';
 import type { PrizeDto } from '@control/prize/dto/prize-dto';
-import { defineExpose } from 'vue';
 import type { AnimationRef } from './animation-types';
 
 export default {
@@ -29,7 +28,7 @@ export default {
         showResult: { type: Boolean, default: false },
     },
     emits: ['stopped'],
-    setup(props, { emit }) {
+    setup(props, { emit, expose }) {
         const spinning = ref(false);
         const container = ref<HTMLElement | null>(null);
         let resizeObserver: ResizeObserver | null = null;
@@ -90,7 +89,9 @@ export default {
                     if (index >= totalReels) return;
                     setTimeout(() => {
                         reels.value[index].speed = 0;
-                        const targetIndex = props.selectedPrize ? props.prizes.findIndex(p => p.id === props.selectedPrize!.id) : Math.floor(Math.random() * props.prizes.length);
+                        const targetId = targetPrizeId ?? props.selectedPrize?.id ?? null;
+                        const found = targetId ? props.prizes.findIndex(p => p.id === targetId) : -1;
+                        const targetIndex = found >= 0 ? found : Math.floor(Math.random() * props.prizes.length);
                         const targetOffset = - (targetIndex * itemHeight.value);
                         reels.value[index].offset = targetOffset;
                         stoppedCount++;
@@ -98,7 +99,7 @@ export default {
                             spinning.value = false;
                             stopBgm().catch(() => { });
                             setTimeout(() => {
-                                const prizeId = props.selectedPrize?.id || null;
+                                const prizeId = targetId || null;
                                 emit('stopped', prizeId);
                                 resolve(prizeId);
                             }, 1000);
@@ -149,10 +150,9 @@ export default {
             stopBgm().catch(() => { });
         });
 
-        defineExpose<AnimationRef>({
-            startSpin,
-            stopSpin,
-        });
+        // Options API の setup() では defineExpose は使えない(何もしない)ので、context の expose を使う。
+        // これが無いと親から startSpin/stopSpin が見えず、景品抽選を開始しても何も動かない。
+        expose({ startSpin, stopSpin } satisfies AnimationRef);
 
         return { spinning, reels, allPrizes, sizeVars };
     }

@@ -95,6 +95,21 @@ describe("HostAgent", () => {
     expect(host.api.calls.joinOperator).toBe(1);
   });
 
+  it("lobbyPath: ホストとして接続中だけ、そのセッションのロビーのパスを返す(ゲーム終了後に管理画面へ出さないため)", async () => {
+    const hub = makeHub();
+    const meta = await service.createSession(hub.deps, { name: "x" }, "a");
+    const host = makeDevice(hub, { memberId: "a" });
+    const agent = new HostAgent(host.conn);
+    expect(agent.lobbyPath).toBeNull();
+    await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
+    expect(agent.lobbyPath).toBe(`/session/host/${meta.id}`);
+
+    const admin = makeDevice(hub, { memberId: "b" });
+    const adminAgent = new HostAgent(admin.conn);
+    await admin.conn.joinOperator({ sessionId: meta.id, role: "admin", label: "A" });
+    expect(adminAgent.lobbyPath).toBeNull();
+  });
+
   it("セッションが終了したら active ではなくなる", async () => {
     const hub = makeHub();
     const meta = await service.createSession(hub.deps, { name: "x" }, "a");

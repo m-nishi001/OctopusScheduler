@@ -1,5 +1,6 @@
 import { RESULTS_NAMESPACE } from "../../shared/results";
 import type { JackpotDraw, QuizRoundResult } from "../../shared/results";
+import { lobbyPath } from "../../shared/host-navigation";
 import { HostCommandRouter } from "./host-command-router";
 import type { SessionConnection } from "./session-connection";
 
@@ -42,6 +43,15 @@ export class HostAgent {
   get active(): boolean {
     const { phase, role } = this.connection.state;
     return role === "host" && phase !== "idle" && phase !== "ended" && phase !== "unauthorized" && phase !== "replaced";
+  }
+
+  /**
+   * ホストとして接続中なら、このセッションのロビー画面のパス。ゲームの終了後はここへ戻る
+   * (管理画面などホストが開いてはいけない画面へ出ないようにするため)。ホストでなければ null。
+   */
+  get lobbyPath(): string | null {
+    const session = this.connection.state.session;
+    return this.active && session ? lobbyPath(session.id) : null;
   }
 
   /**
