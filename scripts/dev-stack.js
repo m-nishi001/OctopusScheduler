@@ -18,6 +18,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { freePort, renderLocalToml, waitForReady, wrangler } from "./e2e-local.js";
 import { wranglerCommand } from "./lib/wrangler.js";
+import { ensurePortalSession } from "./seed-session.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -53,7 +54,7 @@ export function participantLoginUrls(base, seed) {
 }
 
 /** 画面で見せる案内文。 */
-export function renderBanner({ base, seed, urlsFile }) {
+export function renderBanner({ base, seed, urlsFile, session }) {
   const ids = seed.participants.ids;
   return [
     "",
@@ -63,6 +64,7 @@ export function renderBanner({ base, seed, urlsFile }) {
     `  参加者        : ${ids[0]} 〜 ${ids.at(-1)}(${ids.length}名) / 共通パスワード ${seed.participants.password}`,
     `  受付QR相当    : ${qrLoginUrl(base, ids[0], seed.participants.loginKeys?.[ids[0]])}`,
     ...(urlsFile ? [`  全員の受付QR相当URL : ${urlsFile}`] : []),
+    ...(session ? [`  セッション    : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み`] : []),
     `  管理者トークン : ${seed.admin.sessionToken}(localStorage の octopus-session-token に入れるとログイン済みになる)`,
     "",
     "  Ctrl-C で停止。手順は docs/dev-verification.md",
@@ -120,7 +122,8 @@ export async function main(argv = process.argv.slice(2)) {
   // 全員分のログインURL（キーを含むので gitignore 済みの .wrangler 配下に書く）
   const urlsFile = join(paths.dir, "participants.json");
   writeFileSync(urlsFile, JSON.stringify(participantLoginUrls(base, seed), null, 2));
-  console.log(renderBanner({ base, seed, urlsFile }));
+  const session = await ensurePortalSession({ baseUrl: base, token: seed.admin.sessionToken });
+  console.log(renderBanner({ base, seed, urlsFile, session }));
   await new Promise((done) => child.on("exit", done));
 }
 

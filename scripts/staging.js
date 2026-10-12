@@ -15,13 +15,14 @@
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setup } from "./setup-cloudflare.js";
 import { teardown } from "./teardown-cloudflare.js";
 import { qrLoginUrl } from "./dev-stack.js";
 import { runWrangler, runWranglerAsync } from "./lib/wrangler.js";
+import { ensurePortalSession } from "./seed-session.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TOML_NAME = "wrangler.staging.toml";
@@ -88,7 +89,7 @@ export function parseDeployUrl(output) {
 }
 
 /** up 完了時に表示する、テストを staging に向けるための案内。 */
-export function renderUpSummary({ url, seed }) {
+export function renderUpSummary({ url, seed, session }) {
   return [
     "",
     "=== staging 起動完了 ===",
@@ -96,6 +97,9 @@ export function renderUpSummary({ url, seed }) {
     `  管理者     : ID ${seed.admin.id} / パスワード ${seed.admin.password}`,
     `  参加者     : ${seed.participants.ids[0]} 〜 ${seed.participants.ids.at(-1)} / 共通パスワード ${seed.participants.password}`,
     `  受付QR相当 : ${qrLoginUrl(url ?? "<URL>", seed.participants.ids[0], seed.participants.loginKeys?.[seed.participants.ids[0]])}`,
+    ...(session
+      ? [`  セッション : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み。${session.reused ? "既存を再利用" : "新規作成"}。寿命は12時間(切れたら npm run staging:seed)`]
+      : []),
     "",
     "  Playwright を向ける:",
     `    BASE=${url ?? "<URL>"} E2E_ADMIN_ID=${seed.admin.id} E2E_ADMIN_PASSWORD=${seed.admin.password} E2E_ADMIN_TOKEN=${seed.admin.sessionToken} \\`,
@@ -190,8 +194,29 @@ async function up() {
     timed("deploy", timings, () => wranglerRunAsync(["deploy", "--config", TOML_NAME])),
     timed("seed", timings, async () => (await execFileAsync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).stdout),
   ]);
-  console.log(renderUpSummary({ url: parseDeployUrl(deployOut), seed: JSON.parse(seedOut) }));
+  const url = parseDeployUrl(deployOut);
+  const seed = JSON.parse(seedOut);
+  if (url) writeFileSync(urlFile(), url);
+  const session = url ? await timed("session", timings, () => ensurePortalSession({ baseUrl: url, token: seed.admin.sessionToken })) : null;
+  console.log(renderUpSummary({ url, seed, session }));
   console.log(renderTimings(timings, Date.now() - startedAt));
+}
+
+/** `up` で得た URL を覚えておく場所(`seed` で使う。gitignore 済みの .wrangler 配下)。 */
+function urlFile() {
+  mkdirSync(join(ROOT, ".wrangler"), { recursive: true });
+  return join(ROOT, ".wrangler", "staging-url");
+}
+
+/** デプロイはせず、架空データの再投入とポータル公開セッションの作り直しだけ行う(セッション期限切れ・コンテンツ更新時)。 */
+async function seedOnly(argUrl) {
+  assertNotProduction(STAGING);
+  const url = argUrl ?? (existsSync(urlFile()) ? readFileSync(urlFile(), "utf8").trim() : null);
+  if (!url) throw new Error("staging の URL が分かりません。先に npm run staging:up するか、node scripts/staging.js seed <URL> と指定してください。");
+  const seedOut = (await execFileAsync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).stdout;
+  const seed = JSON.parse(seedOut);
+  const session = await ensurePortalSession({ baseUrl: url, token: seed.admin.sessionToken });
+  console.log(renderUpSummary({ url, seed, session }));
 }
 
 function down() {
@@ -201,7 +226,10 @@ function down() {
     run: wranglerRun,
     ...STAGING,
     keepBucket: false,
-    removeLocalToml: () => existsSync(tomlPath) && rmSync(tomlPath),
+    removeLocalToml: () => {
+      if (existsSync(tomlPath)) rmSync(tomlPath);
+      rmSync(urlFile(), { force: true });
+    },
     log: console.log,
   });
   if (result.bucketNotEmpty) {
@@ -217,7 +245,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     if (command === "up") await up();
     else if (command === "down") down();
-    else throw new Error("使い方: node scripts/staging.js <up|down>");
+    else if (command === "seed") await seedOnly(process.argv[3]);
+    else throw new Error("使い方: node scripts/staging.js <up|down|seed [URL]>");
   } catch (e) {
     console.error(e.message);
     // 標準エラーを取り込んで実行したコマンドの失敗は、中身も見せる
