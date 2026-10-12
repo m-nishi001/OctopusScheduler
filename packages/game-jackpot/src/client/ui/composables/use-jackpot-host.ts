@@ -1,6 +1,7 @@
 import { onScopeDispose } from "vue";
 import { container } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
+import type { JackpotDraw } from "@octopus/session-hub";
 import { JACKPOT_STOP_COMMAND } from "@model/jackpot-host-state";
 import type { JackpotHostState } from "@model/jackpot-host-state";
 
@@ -14,6 +15,8 @@ export interface JackpotHostHandlers {
 export interface JackpotHost {
   /** いまの抽選の状態を公開する。canStop の間だけ参加者のスマホに停止ボタンが出る。 */
   publish(state: JackpotHostState): void;
+  /** 抽選結果を保存して、参加者のポータルへ知らせる(失敗しても抽選は止めない。数回だけ再試行する)。 */
+  recordDraw(draw: JackpotDraw, sleep?: (ms: number) => Promise<void>): Promise<boolean>;
 }
 
 const NAMESPACE = "jackpot";
@@ -26,7 +29,7 @@ const NAMESPACE = "jackpot";
  * 必ずコンポーネントの setup() の同期実行中に呼ぶ(コンポーネントの破棄時に後片付けを登録するため)。
  */
 export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
-  if (!container.isRegistered(HostAgent)) return { publish: () => undefined };
+  if (!container.isRegistered(HostAgent)) return { publish: () => undefined, recordDraw: () => Promise.resolve(false) };
   const agent = container.resolve(HostAgent);
   let canStop = false;
 
@@ -53,6 +56,19 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
     publish(state) {
       canStop = state.canStop;
       void agent.publishSlice(NAMESPACE, state, state.canStop ? [JACKPOT_STOP_COMMAND] : []);
+    },
+    async recordDraw(draw, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
+      if (!agent.active) return false;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await agent.recordJackpotDraw(draw);
+          return true;
+        } catch (e) {
+          if (attempt === 3) console.error("Failed to record jackpot draw", e);
+          else await sleep(1000 * attempt);
+        }
+      }
+      return false;
     },
   };
 }

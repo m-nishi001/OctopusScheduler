@@ -1,3 +1,5 @@
+import { RESULTS_NAMESPACE } from "../../shared/results";
+import type { JackpotDraw, QuizRoundResult } from "../../shared/results";
 import { HostCommandRouter } from "./host-command-router";
 import type { SessionConnection } from "./session-connection";
 
@@ -23,7 +25,10 @@ export class HostAgent {
     // 入室(新規・引き継ぎ・再接続)のたびに、手元の最新状態を公開し直す。
     connection.subscribe((state) => {
       const connected = state.phase === "connected" && state.role === "host";
-      if (connected && !this.wasConnected) void this.flush();
+      if (connected && !this.wasConnected) {
+        void this.flush();
+        void this.restoreResultsRev();
+      }
       this.wasConnected = connected;
     });
   }
@@ -47,6 +52,44 @@ export class HostAgent {
     this.slices[ns] = data;
     if (clientInput) this.clientInputs.set(ns, clientInput);
     return this.flush();
+  }
+
+  /**
+   * クイズ1ラウンドの結果を保存し、更新番号(rev)を参加者へ知らせる。
+   * 結果そのものは R2 に置き、DO には `{ rev }` だけを載せる(参加者はそれを見て取り直す)。
+   */
+  async recordQuizResult(result: QuizRoundResult): Promise<void> {
+    if (!this.active) return;
+    this.publishResultsRev(await this.connection.putQuizResult(result));
+  }
+
+  /** ジャックポットの抽選結果を1件保存し、参加者へ知らせる。 */
+  async recordJackpotDraw(draw: JackpotDraw): Promise<void> {
+    if (!this.active) return;
+    this.publishResultsRev(await this.connection.putJackpotDraw(draw));
+  }
+
+  /** 保存済みの抽選結果を取り消し、参加者へ知らせる。 */
+  async removeJackpotDraw(drawId: string): Promise<void> {
+    if (!this.active) return;
+    this.publishResultsRev(await this.connection.deleteJackpotDraw(drawId));
+  }
+
+  /**
+   * ホストの再読み込み・引き継ぎ後は、公開していた rev が消えている。保存済みの結果から rev を取り直して公開し直す
+   * (結果が1件も無ければ何も公開しない)。
+   */
+  async restoreResultsRev(): Promise<void> {
+    try {
+      const { rev } = await this.connection.getResults();
+      if (rev > 0 && this.active) this.publishResultsRev(rev);
+    } catch {
+      // 結果が読めなくても、ホストの進行は止めない(次に結果を保存したときに公開される)
+    }
+  }
+
+  private publishResultsRev(rev: number): void {
+    void this.publishSlice(RESULTS_NAMESPACE, { rev });
   }
 
   /** 名前空間を状態から外す(画面を離れたとき)。受付中の参加者入力も閉じる。 */

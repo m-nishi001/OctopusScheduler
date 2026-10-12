@@ -107,6 +107,86 @@ describe("HostAgent", () => {
   });
 });
 
+describe("HostAgent: 結果の保存と更新通知", () => {
+  const quizResult = (over: Record<string, unknown> = {}) => ({
+    roundKey: "q1:live",
+    quizId: "q1",
+    title: "第1問",
+    correctNo: 2,
+    closedAtMs: 1000,
+    answeredCount: 2,
+    correct: [{ memberId: "p1", name: "太郎", sec: 1.5 }],
+    wrongMemberIds: ["p2"],
+    ...over,
+  });
+  const draw = { drawId: "d1", memberId: "p1", memberName: "太郎", prizeId: "x", prizeName: "1等", isKakuhen: false, atMs: 10 };
+
+  async function setup() {
+    const hub = makeHub();
+    const meta = await service.createSession(hub.deps, { name: "x" }, "a");
+    const host = makeDevice(hub, { memberId: "a" });
+    const agent = new HostAgent(host.conn);
+    await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
+    await tick(3000);
+    return { hub, meta, host, agent };
+  }
+
+  it("保存すると、結果は R2 側に入り、DO の状態には rev だけが載る", async () => {
+    const { host, agent } = await setup();
+    await agent.recordQuizResult(quizResult());
+    await tick(3000);
+    expect(host.conn.state.roomState?.data.results).toEqual({ rev: 1 });
+    await agent.recordJackpotDraw(draw);
+    await tick(3000);
+    expect(host.conn.state.roomState?.data.results).toEqual({ rev: 2 });
+    // DO の状態に結果の中身(名前など)は入らない
+    expect(JSON.stringify(host.conn.state.roomState?.data)).not.toContain("太郎");
+    const view = await host.conn.getResults();
+    expect(view.quiz.rounds[0].top[0].name).toBe("太郎");
+    expect(view.jackpot.draws[0].prizeName).toBe("1等");
+  });
+
+  it("同じ内容の再保存では rev が進まず、取り消すと進む", async () => {
+    const { host, agent } = await setup();
+    await agent.recordJackpotDraw(draw);
+    await agent.recordJackpotDraw(draw);
+    await tick(3000);
+    expect(host.conn.state.roomState?.data.results).toEqual({ rev: 1 });
+    await agent.removeJackpotDraw("d1");
+    await tick(3000);
+    expect(host.conn.state.roomState?.data.results).toEqual({ rev: 2 });
+    expect((await host.conn.getResults()).jackpot.draws).toEqual([]);
+  });
+
+  it("ホストを再読み込みしても、保存済みの rev を公開し直す", async () => {
+    const { hub, meta, host, agent } = await setup();
+    await agent.recordQuizResult(quizResult());
+    await tick(3000);
+    host.conn.dispose();
+
+    const host2 = makeDevice(hub, { memberId: "a", store: host.store });
+    const agent2 = new HostAgent(host2.conn);
+    expect(agent2.restore()).toBe(true);
+    await tick(5000);
+    expect(host2.conn.state.roomState?.data.results).toEqual({ rev: 1 });
+    expect(meta.id).toBeTruthy();
+  });
+
+  it("結果がまだ無いセッションでは、何も公開しない", async () => {
+    const { host } = await setup();
+    await tick(3000);
+    expect(host.conn.state.roomState?.data.results).toBeUndefined();
+  });
+
+  it("ホストとして接続していなければ、何もしない", async () => {
+    const hub = makeHub();
+    const host = makeDevice(hub, { memberId: "a" });
+    const agent = new HostAgent(host.conn);
+    await expect(agent.recordQuizResult(quizResult())).resolves.toBeUndefined();
+    expect(host.api.calls.putQuizResult).toBeUndefined();
+  });
+});
+
 describe("SessionAdminRepository", () => {
   it("作成・一覧・終了を API に委譲する", async () => {
     const hub = makeHub();

@@ -25,6 +25,7 @@ import type {
   PollArgs,
   PollResult,
 } from "../../shared/protocol";
+import type { JackpotDraw, QuizRoundResult, ResultsView } from "../../shared/results";
 import type {
   Command,
   DeviceRole,
@@ -533,6 +534,30 @@ export class SessionConnection implements TransportSource {
     return this.withNetworkRetry(() =>
       this.opts.api.getAnswers({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key })
     );
+  }
+
+  /** ホスト(管理者): クイズ1ラウンドの結果を保存する。返る rev が変わったときだけ参加者へ通知すればよい。 */
+  async putQuizResult(result: QuizRoundResult): Promise<number> {
+    const c = this.requireCreds();
+    return (await this.withNetworkRetry(() => this.opts.api.putQuizResult({ sessionId: c.sessionId, result }))).rev;
+  }
+
+  /** ホスト(管理者): 抽選結果を1件保存する。 */
+  async putJackpotDraw(draw: JackpotDraw): Promise<number> {
+    const c = this.requireCreds();
+    return (await this.withNetworkRetry(() => this.opts.api.putJackpotDraw({ sessionId: c.sessionId, draw }))).rev;
+  }
+
+  /** ホスト(管理者): 抽選結果を取り消す(管理画面で結果を削除したとき)。 */
+  async deleteJackpotDraw(drawId: string): Promise<number> {
+    const c = this.requireCreds();
+    return (await this.withNetworkRetry(() => this.opts.api.deleteJackpotDraw({ sessionId: c.sessionId, drawId }))).rev;
+  }
+
+  /** 結果を、ログイン中のメンバー向けの見せ方で取得する(参加者ポータル・ホストの更新番号の復元)。 */
+  async getResults(): Promise<ResultsView> {
+    const c = this.requireCreds();
+    return this.withNetworkRetry(() => this.opts.api.getResults({ sessionId: c.sessionId }));
   }
 
   /** ホスト: 現在の状態を公開する。連続して呼ばれたら最新のものだけ送る。 */
