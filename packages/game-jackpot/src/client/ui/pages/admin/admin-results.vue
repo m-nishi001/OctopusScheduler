@@ -113,6 +113,7 @@
 import { UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { container } from 'tsyringe';
+import { HostAgent } from '@octopus/session-hub';
 import { DrawResultService } from '@control/draw/draw-result-service';
 import { PrizeService } from '@control/prize/prize-service';
 import type { DrawResultDto } from '@control/draw/dto/draw-result-dto';
@@ -193,9 +194,26 @@ const openResetModal = () => {
     showResetModal.value = true;
 };
 
+// ホストとして接続している端末なら、参加者のポータルの「当選履歴」からも消す(失敗しても管理画面の操作は止めない)
+const removeFromPortal = async (drawIds: string[]) => {
+    if (!container.isRegistered(HostAgent)) return;
+    const agent = container.resolve(HostAgent);
+    if (!agent.active) return;
+    for (const drawId of drawIds) {
+        try {
+            await agent.removeJackpotDraw(drawId);
+        } catch (error) {
+            console.error('Failed to remove draw from portal results:', error);
+            return;
+        }
+    }
+};
+
 const confirmReset = async () => {
     try {
-        await Promise.all(drawResults.value.map(result => drawResultService.deleteDrawResult(result.drawId)));
+        const removedIds = drawResults.value.map(result => result.drawId);
+        await Promise.all(removedIds.map(drawId => drawResultService.deleteDrawResult(drawId)));
+        await removeFromPortal(removedIds);
         await prizeService.resetAllAssigned();
         await prizeDrawStateRepository.clearState();
         await fetchData();

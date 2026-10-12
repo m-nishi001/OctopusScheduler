@@ -161,6 +161,19 @@ test.describe("エントリー → ジャックポット", () => {
     await expect(admin.page.getByTestId("jackpot-state")).toContainText(/当選者: [^—\s]\S*/, { timeout: 60_000 });
     await expect(phone.page.getByTestId("winner")).toContainText(/当選者: [^—\s]\S*/);
 
+    // 当選者と賞品の両方が画面に見えた後に、結果がサーバー(R2)へ保存される(参加者ポータルの「当選履歴」の元データ)。
+    // 演出の途中では保存されない(ネタバレ防止)ので、賞品まで「次へ」で進める。
+    type Results = { jackpot: { draws: Array<{ prizeName: string; memberName: string }> } };
+    const drawsSaved = async () => (await adminRpc<Results>(request, "sessionHub_getResults", { sessionId })).jackpot.draws;
+    for (let i = 0; i < 30 && (await drawsSaved()).length === 0; i++) {
+      await admin.page.getByTestId("jackpot-panel").getByRole("button", { name: /次へ/ }).click();
+      await admin.page.waitForTimeout(1500);
+    }
+    const saved = await drawsSaved();
+    expect(saved.length).toBeGreaterThanOrEqual(1);
+    expect(saved[0].prizeName).toBeTruthy();
+    expect(saved[0].memberName).toBeTruthy();
+
     await publish(request, sessionId, false);
     for (const d of [admin, host, phone]) await d.context.close();
   });

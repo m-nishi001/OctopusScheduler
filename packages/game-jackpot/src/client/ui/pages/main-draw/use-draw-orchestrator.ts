@@ -27,7 +27,8 @@ import mitt from "mitt";
 import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 import { useJackpotHost } from "../../composables/use-jackpot-host";
-import { RevealTracker, buildJackpotHostState } from "@model/jackpot-host-state";
+import { RevealTracker, buildJackpotDraw, buildJackpotHostState } from "@model/jackpot-host-state";
+import { useJackpotSession } from "../../composables/use-jackpot-session";
 
 // This composable extracts the heavy orchestration logic from the Vue SFC
 // so the component can stay thin and focused on template/registration.
@@ -44,6 +45,9 @@ export function useDrawOrchestrator() {
 
   // 参加者への公開用: 当選者を「停止演出が終わるまで」見せないために、どこまで見えたかを追跡する
   const revealTracker = new RevealTracker();
+  // 参加者のポータルの「当選履歴」へ保存済みの抽選(重複保存を防ぐ)。デモは保存しない。
+  const { isDemo } = useJackpotSession();
+  const recordedDrawIds = new Set<string>();
 
   // services
   const prizeRepo = container.resolve(PrizeRepository);
@@ -378,7 +382,7 @@ export function useDrawOrchestrator() {
     advance: () => void executeCurrentAction(),
     stopRoulette: () => void executeCurrentAction(),
   });
-  const publishHostState = () =>
+  const publishHostState = () => {
     host.publish(
       buildJackpotHostState({
         phase: drawState.phase,
@@ -388,6 +392,16 @@ export function useDrawOrchestrator() {
         prizeName: latestResult.value?.wonPrize?.name,
       })
     );
+    // 当選者と賞品が画面に見えた後に1回だけ、結果をポータル用に保存する(演出の途中では保存しない)
+    if (isDemo) return;
+    const draw = buildJackpotDraw(latestResult.value, revealTracker);
+    if (draw && !recordedDrawIds.has(draw.drawId)) {
+      recordedDrawIds.add(draw.drawId);
+      void host.recordDraw(draw).then((saved) => {
+        if (!saved) recordedDrawIds.delete(draw.drawId);
+      });
+    }
+  };
 
   onMounted(async () => {
     const loadedPrizes = await prizeRepo.getPrizes();

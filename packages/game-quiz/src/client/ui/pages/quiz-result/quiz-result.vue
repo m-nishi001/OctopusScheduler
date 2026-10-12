@@ -16,7 +16,7 @@ import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case
 import { QuizRoundGateway } from '../../../model/quiz-round-gateway';
 import { useQuizHost } from '../../composables/use-quiz-host';
 import { buildQuizHostState, roundKeyFor } from '../../../model/quiz-host-state';
-import { computeRanking } from '../../../model/ranking';
+import { buildQuizRoundResult, computeRanking } from '../../../model/ranking';
 import type { RankedResult } from '../../../model/ranking';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
 import PrizeDialog from '../../components/prize-dialog.vue';
@@ -35,6 +35,14 @@ const host = useQuizHost();
 type DisplayResult = RankedResult & { rank: number };
 
 const finalResults = ref<DisplayResult[]>([]);
+// 参加者ポータルの「結果」に残す内容。順位発表(演出)が終わってから保存する(ネタバレ防止)。
+let pendingRecord: ReturnType<typeof buildQuizRoundResult> | null = null;
+const recordResult = async () => {
+    const result = pendingRecord;
+    pendingRecord = null;
+    if (!result) return;
+    await container.resolve(QuizRoundGateway).recordResult(result);
+};
 const currentQuiz = ref<QuizDto | null>(null);
 const isLoadingResults = ref(true);
 
@@ -112,6 +120,17 @@ onMounted(() => {
                     correctNo: quiz?.correctNo ?? 1,
                 })
             );
+            if (session.scope === 'live' && roundAnswers) {
+                pendingRecord = buildQuizRoundResult({
+                    roundKey: roundKeyFor(quizId, session.scope),
+                    quizId,
+                    title: quiz?.title ?? '',
+                    correctNo: quiz?.correctNo ?? 1,
+                    answers: roundAnswers.answers,
+                    openedAtMs: roundAnswers.openedAtMs,
+                    closedAtMs: Date.now(),
+                });
+            }
             const ranked = computeRanking(roundAnswers?.answers ?? [], {
                 correctNo: quiz?.correctNo ?? 1,
                 acceptStartedAtMs: roundAnswers?.openedAtMs ?? null,
@@ -124,11 +143,14 @@ onMounted(() => {
         }
         isLoadingResults.value = false;
         await revealRanking(finalResults.value);
+        await recordResult();
     })();
 });
 
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
+    // 順位発表の途中で画面を離れても、結果は残す(発表を見終えるのを待たずに次の画面へ進んだ場合)
+    void recordResult();
     try {
         if (prizeImageUrl.value && prizeImageUrl.value.startsWith('blob:')) {
             URL.revokeObjectURL(prizeImageUrl.value);

@@ -1,5 +1,6 @@
 import { container } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
+import type { QuizRoundResult } from "@octopus/session-hub";
 import type { QuizSessionScope } from "../../server/quiz-api-contract";
 import type { QuizHostState } from "./quiz-host-state";
 import { roundKeyFor } from "./quiz-host-state";
@@ -72,6 +73,7 @@ export class QuizRoundGateway {
         openedAtMs: result.round.openedAtMs,
         answers: result.answers.map((a) => ({
           userId: a.memberId ?? a.deviceId,
+          memberId: a.memberId ?? null,
           displayName: a.label,
           optionNo: a.no,
           serverTimestampMs: a.atMs,
@@ -81,6 +83,28 @@ export class QuizRoundGateway {
       console.error("Failed to load answers", e);
       return null;
     }
+  }
+
+  /**
+   * このラウンドの結果を保存して、参加者のポータルへ知らせる。失敗しても演出は止めず、数回だけ再試行する。
+   * ホストとして接続していなければ何もしない。保存できたら true。
+   */
+  async recordResult(
+    result: QuizRoundResult,
+    sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))
+  ): Promise<boolean> {
+    const agent = this.agent();
+    if (!agent?.active) return false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await agent.recordQuizResult(result);
+        return true;
+      } catch (e) {
+        if (attempt === 3) console.error("Failed to record quiz result", e);
+        else await sleep(1000 * attempt);
+      }
+    }
+    return false;
   }
 
   publish(state: QuizHostState): void {
