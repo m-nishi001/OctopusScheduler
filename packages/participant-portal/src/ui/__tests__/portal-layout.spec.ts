@@ -88,19 +88,26 @@ describe("参加者ポータル: 接続とホーム", () => {
     m.wrapper.unmount();
   });
 
-  it("下のタブで現在地が分かり、マイページへ移動できる", async () => {
+  it("下のタブで現在地が分かり、結果・マイページへ移動できる", async () => {
     const { hub } = await portalEnv();
     const m = await mountPortal(participantDevice(hub, ALICE));
     const tabs = () => m.wrapper.findAll(".pp-tabs__item");
-    expect(tabs().map((t) => t.text())).toEqual(["ホーム", "マイページ"]);
+    expect(tabs().map((t) => t.text())).toEqual(["ホーム", "結果", "マイページ"]);
     expect(tabs()[0].classes()).toContain("is-active");
     expect(tabs()[1].classes()).not.toContain("is-active");
+    expect(tabs()[2].classes()).not.toContain("is-active");
 
     await tabs()[1].trigger("click");
     await flushPromises();
-    expect(m.router.currentRoute.value.fullPath).toBe("/p/me");
+    expect(m.router.currentRoute.value.fullPath).toBe("/p/results");
     expect(tabs()[0].classes()).not.toContain("is-active");
     expect(tabs()[1].classes()).toContain("is-active");
+
+    await tabs()[2].trigger("click");
+    await flushPromises();
+    expect(m.router.currentRoute.value.fullPath).toBe("/p/me");
+    expect(tabs()[1].classes()).not.toContain("is-active");
+    expect(tabs()[2].classes()).toContain("is-active");
     m.wrapper.unmount();
   });
 });
@@ -417,6 +424,8 @@ describe("参加者ポータル: クイズ", () => {
     await tick(5000);
     await flushPromises();
     expect(text(m, "quiz-panel")).toContain("結果発表中です");
+    // 結果発表のあとは、そのまま「結果」タブで順位を見られる
+    expect(m.wrapper.find('[data-testid="quiz-results-link"]').attributes("href")).toBe("/p/results");
     m.wrapper.unmount();
   });
 });

@@ -126,12 +126,15 @@ describe("useResults", () => {
     const device = participantDevice(env.hub, ALICE, { faults: { decide: (e) => (e === "getResults" && fail ? "fail" : "ok") } });
     const alice = await connect(device);
     alice.results.setVisible(true);
-    await tick(100);
+    // 通信の一時的な失敗は接続が数回だけ再送する。それでも駄目なら error になる
+    await tick(120_000);
     expect(alice.results.error.value).toBe(true);
     expect(alice.results.view.value).toBeNull();
-    await tick(120_000);
     const calls = fetches(device);
     expect(calls).toBeGreaterThanOrEqual(1);
+    // その後は、画面側から自動では取り直さない
+    await tick(300_000);
+    expect(fetches(device)).toBe(calls);
 
     fail = false;
     await alice.results.refresh();

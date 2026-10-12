@@ -35,12 +35,16 @@
             <p v-else class="pp-muted">あなたは回答していません</p>
         </template>
 
-        <p v-else-if="quiz.quiz.value.page === 'result'" class="pp-muted">結果発表中です。会場の画面をご覧ください。</p>
+        <template v-else-if="quiz.quiz.value.page === 'result'">
+            <p class="pp-muted">結果発表中です。会場の画面をご覧ください。</p>
+            <RouterLink to="/p/results" class="pp-button pp-button--ghost pp-quiz__results" data-testid="quiz-results-link">順位を見る</RouterLink>
+        </template>
         <p v-else class="pp-muted">クイズが始まります。しばらくお待ちください。</p>
     </section>
 </template>
 
 <script setup lang="ts">
+import { RouterLink } from 'vue-router';
 import { useQuizContext } from '../../model/use-quiz';
 
 const quiz = useQuizContext();
@@ -157,5 +161,9 @@ const quiz = useQuizContext();
 
 .pp-quiz__verdict.is-wrong {
     color: var(--pp-danger);
+}
+
+.pp-quiz__results {
+    margin-top: 12px;
 }
 </style>

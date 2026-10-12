@@ -159,7 +159,9 @@ describe("参加者ポータル: 結果タブ", () => {
     const env = await portalEnv();
     let fail = true;
     const m = await mountPortal(participantDevice(env.hub, ALICE, { faults: { decide: (e) => (e === "getResults" && fail ? "fail" : "ok") } }), "/p/results");
-    await tick(500);
+    // 通信の一時的な失敗は接続が数回だけ再送する。それでも駄目なら案内を出す
+    await tick(120_000);
+    await flushPromises();
     expect(has(m, "results-error")).toBe(true);
     fail = false;
     await m.wrapper.find('[data-testid="results-error"] button').trigger("click");

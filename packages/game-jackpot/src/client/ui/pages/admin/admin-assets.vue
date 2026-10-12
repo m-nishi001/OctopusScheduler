@@ -22,6 +22,7 @@
 import { UiBusyOverlay, UiButton, UiToolbar } from '@octopus/ui-kit';
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
+import { eventBus } from '@octopus/client-common/events/event-bus';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
 import { useAssetsList } from './use-assets-list';
@@ -138,11 +139,18 @@ const addAssets = async () => {
     selectedFiles.value = [];
 };
 
+// 初めて開くブラウザでは、表示した後の背景同期でサーバーのデータが取り込まれる。取り込み完了時に一覧を読み直す
+const reloadAfterSync = () => {
+    void fetchAssets();
+};
+
 onMounted(async () => {
+    eventBus.on('syncPulled', reloadAfterSync);
     await fetchAssets();
 });
 
 onBeforeUnmount(() => {
+    eventBus.off('syncPulled', reloadAfterSync);
     disposeObjectUrls();
 });
 </script>

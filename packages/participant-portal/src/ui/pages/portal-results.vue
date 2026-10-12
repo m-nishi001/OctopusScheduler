@@ -114,12 +114,14 @@ const kinds = computed(() => [
     { id: 'quiz' as const, label: 'クイズ', count: view.value?.quiz.rounds.length ?? 0 },
     { id: 'jackpot' as const, label: 'ジャックポット', count: view.value?.jackpot.draws.length ?? 0 },
 ]);
-// 初めて結果が届いたとき、クイズの結果が無くてジャックポットだけあるなら、そちらを先に見せる
-const stopFirst = watch(
-    () => view.value !== null,
+// 初めて結果が届いたとき、クイズの結果が無くてジャックポットだけあるなら、そちらを先に見せる(最初の1回だけ)
+let decidedFirst = false;
+watch(
+    view,
     (loaded) => {
-        if (loaded && view.value!.quiz.rounds.length === 0 && view.value!.jackpot.draws.length > 0) kind.value = 'jackpot';
-        stopFirst();
+        if (!loaded || decidedFirst) return;
+        decidedFirst = true;
+        if (loaded.quiz.rounds.length === 0 && loaded.jackpot.draws.length > 0) kind.value = 'jackpot';
     },
     { immediate: true }
 );

@@ -91,6 +91,9 @@ export function useResults(session: PortalSession, options: ResultsOptions = {})
     }, Math.floor(random() * jitterMs));
   });
 
+  // 入室できている間だけ取得できる(「結果」を直接開いた・リロードした直後は、入室が済むのを待つ)
+  const connected = computed(() => session.status.value === "connected" || session.status.value === "reconnecting");
+
   function setVisible(next: boolean): void {
     visible.value = next;
     if (!next) {
@@ -98,12 +101,18 @@ export function useResults(session: PortalSession, options: ResultsOptions = {})
       return;
     }
     // 開いた直後は待たせない(見に来た人が待っている)。未取得、または新しい結果があれば取得する。
-    if (view.value === null || stale.value) void refresh();
+    if (connected.value && (view.value === null || stale.value)) void refresh();
   }
+
+  // 画面を開いたあとに入室できた(または再接続できた)ら、そこで取得する
+  const stopWatchConnected = watch(connected, (now) => {
+    if (now && visible.value && (view.value === null || stale.value)) void refresh();
+  });
 
   onScopeDispose(() => {
     clearTimer();
     stopWatchRev();
+    stopWatchConnected();
   });
 
   return { view, loading, error, stale, setVisible, refresh };
