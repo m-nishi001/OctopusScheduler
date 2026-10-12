@@ -36,10 +36,24 @@ describe("ScreenConfigRepository.listSyncTargets", () => {
     expect(await target.getLocal()).toBeNull();
   });
 
-  it("returns no remote snapshot until a fileId has been learned", async () => {
+  it("asks for the default screens.json key before a fileId has been learned", async () => {
     const [target] = await repo.listSyncTargets();
     expect(await target.getRemote()).toBeNull();
-    expect(fakeApi.getJson).not.toHaveBeenCalled();
+    expect(fakeApi.getJson).toHaveBeenCalledWith("jackpot-game/json/screens.json");
+  });
+
+  it("pulls seeded screen settings on a fresh browser", async () => {
+    const seeded = [{ screenName: "opening", settingName: "opening-screen-settings", settingValue: "{}" }];
+    fakeApi.getJson.mockResolvedValueOnce({ json: JSON.stringify(seeded), updatedAt: "2026-01-01T00:00:00.000Z" });
+    const [target] = await repo.listSyncTargets();
+    const remote = await target.getRemote();
+    expect(remote?.data).toEqual(seeded);
+  });
+
+  it("ignores the prizes.json fallback the server returns when screens.json does not exist", async () => {
+    fakeApi.getJson.mockResolvedValueOnce({ json: JSON.stringify([{ id: "p1", name: "x", order: 0 }]), updatedAt: "2026-01-01T00:00:00.000Z" });
+    const [target] = await repo.listSyncTargets();
+    expect(await target.getRemote()).toBeNull();
   });
 
   it("push uploads all local screen settings and remembers the returned fileId", async () => {
