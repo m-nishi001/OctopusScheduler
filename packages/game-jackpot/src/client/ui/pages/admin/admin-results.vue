@@ -20,87 +20,36 @@
         </div>
 
         <h3>抽選結果一覧</h3>
-        <table v-if="drawResults.length" class="admin-table">
-            <thead>
-                <tr>
-                    <th>メンバー</th>
-                    <th>景品</th>
-                    <th>ステータス</th>
-                    <th>日時</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="result in drawResults" :key="result.drawId">
-                    <td>{{ result.wonMember?.name || '不明' }}</td>
-                    <td>{{ result.wonPrize?.name || '不明' }}</td>
-                    <td>
-                        <span v-if="result.wonMember !== null" class="winner-badge">当選</span>
-                        <span v-if="result.isKakuhen" class="kakuhen-badge">確変</span>
-                        <span v-if="result.wonMember === null" class="reserved-badge">予約</span>
-                    </td>
-                    <td>{{ formatDate(result) }}</td>
-                </tr>
-            </tbody>
-        </table>
-        <div v-else class="empty-state">
-            抽選結果はありません
-        </div>
+        <DataTable :columns="drawColumns" :rows="drawRows" row-key="drawId" empty-text="抽選結果はありません">
+            <template #cell-status="{ row }">
+                <span v-if="row.wonMember !== null" class="winner-badge">当選</span>
+                <span v-if="row.isKakuhen" class="kakuhen-badge">確変</span>
+                <span v-if="row.wonMember === null" class="reserved-badge">予約</span>
+            </template>
+        </DataTable>
 
         <h3>メンバー当選状況</h3>
-        <table v-if="members.length" class="admin-table">
-            <thead>
-                <tr>
-                    <th>メンバー</th>
-                    <th>写真</th>
-                    <th>当選回数</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="stat in memberStats" :key="stat.id">
-                    <td>{{ stat.name }}</td>
-                    <td>
-                        <div class="member-preview">
-                            <img v-if="stat.photoAssetId && imageUrls.get(stat.photoAssetId)"
-                                :src="imageUrls.get(stat.photoAssetId)!" alt="photo" class="preview-img" />
-                            <span v-else>写真なし</span>
-                        </div>
-                    </td>
-                    <td>{{ stat.wins }}回</td>
-                </tr>
-            </tbody>
-        </table>
-        <div v-else class="empty-state">
-            メンバー当選状況はありません
-        </div>
+        <DataTable :columns="memberColumns" :rows="memberStats" row-key="id" empty-text="メンバー当選状況はありません">
+            <template #cell-photo="{ row }">
+                <div class="member-preview">
+                    <img v-if="row.photoAssetId && imageUrls.get(row.photoAssetId)" :src="imageUrls.get(row.photoAssetId)!" alt="photo"
+                        class="preview-img" />
+                    <span v-else>写真なし</span>
+                </div>
+            </template>
+            <template #cell-wins="{ row }">{{ row.wins }}回</template>
+        </DataTable>
 
         <h3>景品当選状況</h3>
-        <table v-if="prizes.length" class="admin-table">
-            <thead>
-                <tr>
-                    <th>景品</th>
-                    <th>画像</th>
-                    <th>当選回数</th>
-                    <th>残り</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="stat in prizeStats" :key="stat.id">
-                    <td>{{ stat.name }}</td>
-                    <td>
-                        <div class="prize-preview">
-                            <img v-if="stat.imageAssetId && imageUrls.get(stat.imageAssetId)"
-                                :src="imageUrls.get(stat.imageAssetId)!" alt="image" class="preview-img" />
-                            <span v-else>画像なし</span>
-                        </div>
-                    </td>
-                    <td>{{ stat.wins }}</td>
-                    <td>{{ stat.remaining }}</td>
-                </tr>
-            </tbody>
-        </table>
-        <div v-else class="empty-state">
-            景品当選状況はありません
-        </div>
+        <DataTable :columns="prizeColumns" :rows="prizeStats" row-key="id" empty-text="景品当選状況はありません">
+            <template #cell-image="{ row }">
+                <div class="prize-preview">
+                    <img v-if="row.imageAssetId && imageUrls.get(row.imageAssetId)" :src="imageUrls.get(row.imageAssetId)!" alt="image"
+                        class="preview-img" />
+                    <span v-else>画像なし</span>
+                </div>
+            </template>
+        </DataTable>
     </div>
 
     <UiDialog :model-value="showResetModal" title="抽選結果をリセット" size="sm" danger confirm-label="リセット"
@@ -110,7 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import { UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
+import { DataTable, UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
+import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { HostAgent } from '@octopus/session-hub';
@@ -136,6 +86,27 @@ const prizes = ref<Prize[]>([]);
 const members = ref<MemberDto[]>([]);
 const showResetModal = ref(false);
 const imageUrls = ref(new Map<string, string>());
+
+const drawColumns: DataTableColumn[] = [
+    { key: 'memberName', label: 'メンバー' },
+    { key: 'prizeName', label: '景品' },
+    { key: 'status', label: 'ステータス' },
+    { key: 'at', label: '日時' },
+];
+const memberColumns: DataTableColumn[] = [
+    { key: 'name', label: 'メンバー' },
+    { key: 'photo', label: '写真' },
+    { key: 'wins', label: '当選回数' },
+];
+const prizeColumns: DataTableColumn[] = [
+    { key: 'name', label: '景品' },
+    { key: 'image', label: '画像' },
+    { key: 'wins', label: '当選回数' },
+    { key: 'remaining', label: '残り' },
+];
+const drawRows = computed(() =>
+    drawResults.value.map(r => ({ ...r, memberName: r.wonMember?.name || '不明', prizeName: r.wonPrize?.name || '不明', at: formatDate(r) }))
+);
 
 const totalDraws = computed(() => drawResults.value.length);
 const winnersCount = computed(() => drawResults.value.filter(r => r.wonMember !== null).length);
@@ -268,7 +239,8 @@ onUnmounted(() => {
 <style scoped>
 .results-summary {
     display: flex;
-    gap: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-bottom: 20px;
 }
 
@@ -277,7 +249,7 @@ onUnmounted(() => {
     padding: 15px;
     border-radius: 8px;
     text-align: center;
-    flex: 1;
+    flex: 1 1 120px;
 }
 
 .summary-item h3 {

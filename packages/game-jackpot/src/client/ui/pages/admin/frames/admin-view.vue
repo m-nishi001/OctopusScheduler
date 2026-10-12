@@ -34,9 +34,9 @@ setJackpotScope('live');
 const startDemo = () => router.push({ path: '/jackpot-opening', query: { [DEMO_QUERY_KEY]: '1' } });
 
 const tabs = [
-  { key: 'assets', label: 'アセット' },
   { key: 'members', label: 'メンバー' },
   { key: 'prizes', label: '景品' },
+  { key: 'assets', label: 'アセット' },
   { key: 'results', label: '抽選結果' },
   { key: 'screens', label: '画面設定' },
 ];
