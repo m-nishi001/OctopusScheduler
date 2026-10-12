@@ -1,5 +1,5 @@
 <template>
-    <PageShell title="設定画面" :tabs="tabs" :active-key="currentTab" @select="currentTab = $event">
+    <PageShell title="設定" :tabs="tabs" :active-key="currentTab" @select="selectTab">
         <template #actions><SettingsHeaderActions /></template>
         <p class="tab-hint">{{ SETTINGS_TAB_HINTS[currentTab] }}</p>
         <EventEditor v-if="currentTab === 'events'" />
@@ -11,7 +11,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { PageShell } from '@octopus/ui-kit';
 import { SETTINGS_TAB_HINTS } from './help/help-content';
 import SettingsHeaderActions from './frames/settings-header-actions.vue';
@@ -28,7 +29,14 @@ const tabs = [
     { key: 'accounts', label: 'アカウント' },
     { key: 'keyboard-shortcuts', label: 'ショートカット' },
 ];
-const currentTab = ref('events');
+// 表示中のタブはURL(?tab=)に持つので、再読み込みやリンクで同じタブに戻れる
+const route = useRoute();
+const router = useRouter();
+const currentTab = computed(() => {
+    const tab = String(route.query.tab ?? '');
+    return tabs.some((t) => t.key === tab) ? tab : 'events';
+});
+const selectTab = (key: string) => router.replace({ query: { ...route.query, tab: key } });
 </script>
 
 <style scoped>

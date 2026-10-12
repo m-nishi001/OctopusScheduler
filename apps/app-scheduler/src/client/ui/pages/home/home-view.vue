@@ -1,5 +1,5 @@
 <template>
-    <div class="home dark-bg">
+    <div class="home">
         <div class="home-content">
             <h1 class="home-title">
                 <span class="octo-icon">🐙</span> Octopus Scheduler
@@ -8,26 +8,31 @@
                 {{ currentMember.name }} でログイン中
                 <button class="home-signout" type="button" @click="onSignOut">ログアウト</button>
             </p>
+
+            <!-- 当日の進行: これだけ押せば始められる -->
+            <button class="main-btn main-btn--primary" type="button" data-testid="home-run" @click="goToSessions">
+                <span class="btn-icon">📡</span>
+                <span class="btn-label">イベントを開催・進行する</span>
+                <span class="btn-desc">クイズやジャックポットを、その場で始められます</span>
+            </button>
+
+            <!-- 事前の準備・管理 -->
+            <h2 class="home-section">準備・管理</h2>
             <div class="btn-grid">
-                <button class="main-btn" @click="goToSettings" aria-label="設定画面">
-                    <span class="btn-icon">⚙️</span>
-                    <span class="btn-label">設定画面</span>
-                </button>
-                <button class="main-btn" @click="goToExecute" aria-label="実行画面">
-                    <span class="btn-icon">🎬</span>
-                    <span class="btn-label">実行画面へ</span>
-                </button>
-                <button class="main-btn" @click="goToSessions" aria-label="セッション">
-                    <span class="btn-icon">📡</span>
-                    <span class="btn-label">セッション</span>
-                </button>
-                <button class="main-btn" @click="goToJackpotGame" aria-label="Jackpot Game">
-                    <span class="btn-icon">🎰</span>
-                    <span class="btn-label">Jackpot Game</span>
-                </button>
-                <button class="main-btn" @click="goToQuizGame" aria-label="Quiz Game">
+                <button class="main-btn" type="button" data-testid="home-quiz" @click="goToQuizGame">
                     <span class="btn-icon">🎯</span>
-                    <span class="btn-label">Quiz Game</span>
+                    <span class="btn-label">クイズの準備</span>
+                    <span class="btn-desc">問題・選択肢・メンバー</span>
+                </button>
+                <button class="main-btn" type="button" data-testid="home-jackpot" @click="goToJackpotGame">
+                    <span class="btn-icon">🎰</span>
+                    <span class="btn-label">ジャックポットの準備</span>
+                    <span class="btn-desc">景品・メンバー・画面の設定</span>
+                </button>
+                <button class="main-btn" type="button" data-testid="home-settings" @click="goToSettings">
+                    <span class="btn-icon">⚙️</span>
+                    <span class="btn-label">設定</span>
+                    <span class="btn-desc">アカウント・アセット・ショートカット</span>
                 </button>
             </div>
         </div>
@@ -47,16 +52,9 @@ const onSignOut = async () => {
 };
 
 const goToSettings = () => router.push({ name: 'settings' });
-const goToExecute = () => router.push('/execute');
 const goToSessions = () => router.push('/sessions');
-const goToJackpotGame = () => {
-    // Navigate to the jackpot page within the same tab
-    router.push('/jackpot-admin');
-};
-const goToQuizGame = () => {
-    // Navigate to the quiz admin page within the same tab
-    router.push('/quiz-admin');
-};
+const goToJackpotGame = () => router.push('/jackpot-admin');
+const goToQuizGame = () => router.push('/quiz-admin');
 </script>
 
 <style scoped>
@@ -64,18 +62,21 @@ const goToQuizGame = () => {
     background: linear-gradient(135deg, #181818 0%, #222 100%);
     color: #fff;
     min-height: 100vh;
-    width: 100vw;
-    height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
 }
 
 .home-content {
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
     padding: 2em;
     display: flex;
     flex-direction: column;
+    gap: 1.2em;
     box-sizing: border-box;
 }
 
@@ -83,7 +84,7 @@ const goToQuizGame = () => {
     font-size: 2.2em;
     font-weight: 700;
     letter-spacing: 0.04em;
-    margin-bottom: 2em;
+    margin: 0;
     display: flex;
     align-items: center;
     gap: 0.5em;
@@ -92,7 +93,7 @@ const goToQuizGame = () => {
 }
 
 .home-account {
-    margin: -1.2em 0 1.5em;
+    margin: 0;
     color: #cfd6dd;
     font-size: 0.95em;
 }
@@ -107,19 +108,22 @@ const goToQuizGame = () => {
     cursor: pointer;
 }
 
+.home-section {
+    margin: 0.6em 0 0;
+    font-size: 1rem;
+    color: #cfd6dd;
+    font-weight: 600;
+}
+
 .octo-icon {
     font-size: 1.3em;
 }
 
 .btn-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2em;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
     width: 100%;
-    align-items: stretch;
-    flex: 1 1 auto;
-    grid-auto-rows: 1fr;
 }
 
 .main-btn {
@@ -134,65 +138,57 @@ const goToQuizGame = () => {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
     transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
     outline: none;
-    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.6em;
+    gap: 0.4em;
     justify-content: center;
     text-align: center;
-    min-height: 0;
-    height: 100%;
+}
+
+.main-btn--primary {
+    background: linear-gradient(90deg, #1565c0 0%, #1e88e5 100%);
+    min-height: 160px;
+    font-size: 1.3em;
 }
 
 .main-btn .btn-icon {
     font-size: 2.2em;
 }
 
-.main-btn .btn-label {
-    display: inline-block;
+.main-btn .btn-desc {
+    font-size: 0.7em;
+    font-weight: 400;
+    opacity: 0.8;
 }
 
 .main-btn:hover,
-.main-btn:focus {
-    background: linear-gradient(90deg, #2a2a2a 0%, #333 100%);
+.main-btn:focus-visible {
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
-    transform: translateY(-2px) scale(1.04);
+    transform: translateY(-2px);
 }
 
 .main-btn:active {
-    background: #1a1a1a;
     transform: scale(0.98);
-}
-
-.desc {
-    color: #bbb;
-    font-size: 1em;
-    margin-top: 1em;
-    text-align: center;
 }
 
 @media (max-width: 600px) {
     .home-content {
-        width: 100vw;
-        height: 100vh;
-        padding: 0.5em;
+        padding: 1em;
     }
 
     .home-title {
-        font-size: 1.3em;
+        font-size: 1.5em;
     }
 
     .main-btn {
         font-size: 1em;
         padding: 0.9em 1rem;
-        min-height: 120px;
     }
 
-    .btn-grid {
-        grid-template-columns: 1fr;
+    .main-btn--primary {
+        min-height: 140px;
+        font-size: 1.15em;
     }
-
-
 }
 </style>
