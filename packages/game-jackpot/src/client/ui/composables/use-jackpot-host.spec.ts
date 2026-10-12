@@ -82,21 +82,36 @@ describe("useJackpotHost", () => {
     expect(handlers.stopRoulette).toHaveBeenCalledTimes(1);
   });
 
-  it("canStop の間だけ参加者に停止ボタン(clientInput)が公開され、参加者の押下がホストに届く", async () => {
+  it("メンバー抽選では canStop でも参加者に停止ボタンを出さず、参加者の停止は受け付けない(管理端末だけが止める)", async () => {
+    const { admin, client } = await scene();
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    const { host } = mountHost(handlers);
+
+    host.publish(state({ phase: "member", canStop: true }));
+    await tick(4000);
+    expect(client.conn.state.roomState?.clientInput).toEqual([]);
+    await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
+
+    await admin.conn.issue("jackpot", "stopRoulette");
+    await tick(4000);
+    expect(handlers.stopRoulette).toHaveBeenCalledTimes(1);
+  });
+
+  it("景品抽選で canStop の間だけ参加者に停止ボタン(clientInput)が公開され、参加者の押下がホストに届く", async () => {
     const { hub, meta, client } = await scene();
     const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
     const { host } = mountHost(handlers);
 
     await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
 
-    host.publish(state({ canStop: true }));
+    host.publish(state({ phase: "prize", canStop: true }));
     await tick(4000);
     expect(client.conn.state.roomState?.clientInput).toEqual(["jackpot.stopRoulette"]);
     await client.conn.issue("jackpot", "stopRoulette");
     await tick(4000);
     expect(handlers.stopRoulette).toHaveBeenCalledTimes(1);
 
-    host.publish(state({ canStop: false }));
+    host.publish(state({ phase: "prize", canStop: false }));
     await tick(4000);
     expect(client.conn.state.roomState?.clientInput).toEqual([]);
     await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
@@ -108,9 +123,9 @@ describe("useJackpotHost", () => {
     const { hub, meta } = await scene();
     const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
     const { host } = mountHost(handlers);
-    host.publish(state({ canStop: true }));
+    host.publish(state({ phase: "prize", canStop: true }));
     // ハンドラ内で止めた瞬間に次の場面へ進む想定: 最初の呼び出しで canStop を false にする
-    handlers.stopRoulette.mockImplementation(() => host.publish(state({ canStop: false })));
+    handlers.stopRoulette.mockImplementation(() => host.publish(state({ phase: "prize", canStop: false })));
     const clients = [await joinParticipant(hub, meta.id), await joinParticipant(hub, meta.id), await joinParticipant(hub, meta.id)];
     await tick(4000);
     await Promise.all(clients.map((c) => c.conn.issue("jackpot", "stopRoulette").catch(() => undefined)));
@@ -131,7 +146,7 @@ describe("useJackpotHost", () => {
     const { admin, client } = await scene();
     const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
     const { host, stop } = mountHost(handlers);
-    host.publish(state({ canStop: true }));
+    host.publish(state({ phase: "prize", canStop: true }));
     await tick(4000);
     expect(client.conn.state.roomState?.clientInput).toEqual(["jackpot.stopRoulette"]);
 

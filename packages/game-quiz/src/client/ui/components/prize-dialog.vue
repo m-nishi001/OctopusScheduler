@@ -2,6 +2,7 @@
     <div v-if="visible" class="prize-dialog-overlay">
         <div class="prize-dialog">
             <h2>おめでとうございます！</h2>
+            <div v-if="winnerName" class="winner-name">{{ winnerName }} さん</div>
             <div v-if="prizeImageUrl" class="prize-image">
                 <img :src="prizeImageUrl" alt="当選景品" />
             </div>
@@ -20,6 +21,7 @@ defineProps<{
     visible: boolean;
     prizeName: string | null;
     prizeImageUrl: string | null;
+    winnerName?: string;
 }>();
 
 const emit = defineEmits<{
@@ -32,6 +34,11 @@ const handleClose = () => {
 </script>
 
 <style scoped>
+.winner-name {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
 .prize-dialog-overlay {
     position: fixed;
     top: 0;

@@ -131,8 +131,44 @@ test.describe("クイズ（参加者ポータル）", () => {
       .poll(async () => (await adminRpc<Results>(request, "sessionHub_getResults", { sessionId })).quiz.rounds[0] ?? null, { timeout: 60_000 })
       .toMatchObject({ title: "果物クイズ", answeredCount: 2, correctCount: 1, top: [{ name: "太郎" }] });
 
+    // 当選者がいるので「次へ」で景品(当選者名つき)が出て、もう一度「次へ」でロビーに戻る(管理画面には出ない)
+    const next = admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" });
+    await next.click();
+    await expect(host.page.getByText("おめでとうございます")).toBeVisible();
+    await expect(host.page.getByText("太郎 さん")).toBeVisible();
+    await next.click();
+    await expect.poll(() => route(host.page)).toBe(`/session/host/${sessionId}`);
+
     await publish(request, sessionId, false);
     for (const d of [admin, host, taro, taro2, hanako, jiro]) await d.context.close();
+  });
+
+  test("全員不正解なら景品は出さず、「次へ」でそのままロビーに戻る", async ({ browser, request }) => {
+    test.setTimeout(150_000);
+    const { admin, host, sessionId } = await scene(browser, request, "不正解会場", "qz4", 60);
+    const hanako = await login(browser, ids[1]);
+
+    await admin.page.getByTestId("quiz-select").selectOption("qz4");
+    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "出題" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz4/play");
+    await hanako.page.getByRole("button", { name: /りんご/ }).click(); // 正解は2番なので不正解
+    await expect(hanako.page.getByTestId("quiz-answered")).toContainText("1. りんご");
+    await admin.page.getByRole("button", { name: "受付を今すぐ締め切る" }).click();
+
+    const next = admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" });
+    await next.click(); // → 正解
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz4/answer");
+    await next.click(); // → 結果
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz4/result");
+    await expect(host.page.getByText("全員不正解").first()).toBeVisible({ timeout: 30_000 });
+
+    // 景品ダイアログは出ない。次へ → ロビー
+    await next.click();
+    await expect.poll(() => route(host.page)).toBe(`/session/host/${sessionId}`);
+    await expect(host.page.getByText("おめでとうございます")).toBeHidden();
+
+    await publish(request, sessionId, false);
+    for (const d of [admin, host, hanako]) await d.context.close();
   });
 
   test("制限時間が来ればホストが何もしなくても受付が終わり、締切後の回答は拒否される", async ({ browser, request }) => {

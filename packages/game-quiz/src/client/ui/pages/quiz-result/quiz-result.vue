@@ -4,6 +4,7 @@
             <RankingBoard :rows="displayedResults" :slots="RANK_LIMIT" />
         </ResultStage>
         <PrizeDialog :visible="isPrizeDialogVisible" :prize-name="prizeName" :prize-image-url="prizeImageUrl"
+            :winner-name="winnerName"
             @close="hidePrizeDialog" />
     </div>
 </template>
@@ -64,9 +65,13 @@ const noWinner = computed(
     () => rankingFinished.value && !finalResults.value.some((r) => r.userId)
 );
 
+// 終わったらホストはロビーへ戻る。管理画面(/quiz-home)へ出してはいけない。
+// ホストでない場合(管理者のプレビュー)だけ、従来どおりクイズ管理へ戻る。
+const goHome = () => router.push({ path: host.lobbyPath() ?? '/quiz-home' });
+
 const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
     getSettings: () => currentQuiz.value?.settings,
-    onNavigateHome: () => router.push({ path: '/quiz-home' }),
+    onNavigateHome: goHome,
 });
 
 const prizeName = computed(() => currentQuiz.value?.settings?.prizeName || null);
@@ -166,11 +171,10 @@ function handleKeydown(event: KeyboardEvent) {
             // Let orchestrator handle it
             return;
         }
-        // If ranking animation finished, Enter shows prize dialog
+        // 順位発表が終わったら、当選者がいる時だけ景品を出す。いなければ景品は出さずに戻る。
         if (rankingFinished.value) {
-            if (!isPrizeDialogVisible.value) {
-                showPrizeDialog();
-            }
+            if (noWinner.value) goHome();
+            else showPrizeDialog();
             return;
         }
     }
