@@ -8,10 +8,96 @@ on:
 permissions:
   contents: read
 
+# 同じ PR に新しいコミットが来たら、古い実行は止める(main は止めない)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# 各ジョブは互いに待たず並列に走る。直列にしか進められないのは「build → e2e(dist が要る)」だけ。
+#   lint / unit ........ build 不要(turbo の lint・test は ^build に依存しない)
+#   build .............. typecheck → build → verify。dist を artifact にして e2e へ渡す
+#   e2e ................ worker-smoke と、画面の通し(Playwright)を 3 分割して並列に流す
+#   verify ............. 全ジョブの結果を1つにまとめる(以前の check 名 `verify` を維持する集約ジョブ)
 jobs:
-  verify:
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-lint-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-lint-${{ runner.os }}-
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-unit-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-unit-${{ runner.os }}-
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-build-${{ runner.os }}-
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run verify
+      - name: e2e へ渡すビルド成果物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 1
+          if-no-files-found: error
+
+  # 実 workerd(wrangler dev --local)で Durable Object / WebSocket を含む通しの動作と、
+  # ホスト・管理・参加者の複数端末の画面操作(Playwright)を確認する。
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: worker-smoke
+            args: worker-smoke
+          - name: ui-1of3
+            args: ui -- --shard=1/3
+          - name: ui-2of3
+            args: ui -- --shard=2/3
+          - name: ui-3of3
+            args: ui -- --shard=3/3
+    name: e2e (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,19 +105,43 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
-      - run: npm run verify
-      # 実 workerd(wrangler dev --local)で Durable Object / WebSocket を含む通しの動作と、
-      # ホスト・管理・参加者の複数端末の画面操作(Playwright)を確認する。
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      # ブラウザ本体はキャッシュし、OS の依存ライブラリは毎回入れる(キャッシュできないため)
+      - name: Playwright のバージョン
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+        if: matrix.name != 'worker-smoke'
+      - uses: actions/cache@v4
+        id: playwright-cache
+        if: matrix.name != 'worker-smoke'
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       - run: npx playwright install --with-deps chromium
-      - run: npm run e2e
+        if: matrix.name != 'worker-smoke' && steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: npx playwright install-deps chromium
+        if: matrix.name != 'worker-smoke' && steps.playwright-cache.outputs.cache-hit == 'true'
+      - run: npm run e2e -- ${{ matrix.args }}
       - name: E2E の失敗時の成果物(スクリーンショット・トレース)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-results
+          name: e2e-results-${{ matrix.name }}
           path: node_modules/.cache/e2e-results
           if-no-files-found: ignore
+
+  verify:
+    if: always()
+    needs: [lint, unit, build, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - name: すべてのジョブの結果を確認する
+        run: |
+          echo "lint=${{ needs.lint.result }} unit=${{ needs.unit.result }} build=${{ needs.build.result }} e2e=${{ needs.e2e.result }}"
+          test "${{ needs.lint.result }}" = "success"
+          test "${{ needs.unit.result }}" = "success"
+          test "${{ needs.build.result }}" = "success"
+          test "${{ needs.e2e.result }}" = "success"
