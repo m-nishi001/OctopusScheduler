@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 通しの動作確認用に、架空のテストデータ(管理者1名 + 参加者メンバー N 名)を R2 に投入する。
+ * 通しの動作確認用に、架空のテストデータ(管理者1名 + 参加者メンバー N 名 + クイズ・景品・画面設定・画像/音)を R2 に投入する。
  *
  * - ローカル(`wrangler dev --local` の永続領域)が既定。`--remote` で Cloudflare 上の試験環境(staging)にも入れられる。
  * - 決定的(同じ入力なら同じ ID・名前・ソルト)で冪等。2回流しても名簿が増えない。既存の他メンバーは残す。
@@ -19,6 +19,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { buildContentEntries } from "./seed-content.js";
 import { buildSeedEntries, hashPassword, parseBucketName, wrangler } from "./seed-local-admin.js";
 
 const SCALAR_PREFIX = "__scalars__/";
@@ -154,7 +155,10 @@ function main() {
   const loginKeys = Object.fromEntries(
     buildTestMembers(count).map((m) => [m.id, args.remote ? randomBytes(32).toString("hex") : deriveLoginKey(m.id)])
   );
-  const entries = buildTestDataEntries({ count, admin, participantPassword, loginKeys, token, now: Date.now(), existingMembers });
+  const entries = [
+    ...buildTestDataEntries({ count, admin, participantPassword, loginKeys, token, now: Date.now(), existingMembers }),
+    ...buildContentEntries(),
+  ];
   putAll({ entries, bucket, target, persist, config: args.config, dir: mkdtempSync(join(tmpdir(), "seed-test-")) });
 
   console.log(

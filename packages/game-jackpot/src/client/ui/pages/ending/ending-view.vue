@@ -7,13 +7,14 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
 import MainLayout from '../common/main-layout.vue';
 import Loader from '../common/loader.vue';
 import OpeningSequence from '../opening/opening-sequence.vue';
 import OpeningHtml from '../opening/opening-html.vue';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
+import { AssetDataService } from '@control/asset/asset-data-service';
 import { EndingScreenSetting } from '@model/screen-config/ending-screen-setting';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 
@@ -30,26 +31,57 @@ export default {
         const isHtmlFullscreen = ref(false);
         const htmlElement = ref<any | null>(null);
 
-        const convertedConfig = {
-            get value() {
+        // OpeningSequence は contents を読む。エディタが保存する形(contents)のほか、旧形式(elements / screenElements)も受ける。
+        // テンプレートで自動的に展開されるよう computed にする(素のオブジェクトの getter は展開されない)。
+        const convertedConfig = computed(() => {
+            const cfg = screenConfig.value as any;
+            if (!cfg) return null;
+            return {
+                ...cfg,
+                contents: cfg.contents || cfg.elements || cfg.screenElements || []
+            };
+        });
 
-                const cfg = screenConfig.value as any;
-                if (!cfg) return null;
-                return {
-                    ...cfg,
-                    contents: cfg.contents || cfg.elements || cfg.screenElements || []
-                };
-            }
-        } as any;
+        let bgmObjectUrl: string | undefined;
+        const createdContentUrls: string[] = [];
 
         onMounted(async () => {
             const config = await screenSettingsService.fetchScreenSetting('ending', 'ending-screen-settings');
             screenConfig.value = config ?? new EndingScreenSetting("", "", "");
 
-            if (screenConfig.value?.bgmAssetUrl) {
+            // エディタが保存するのは bgmAssetId なので、オープニングと同じようにアセットから音を読み込む
+            const assetService = container.resolve(AssetDataService);
+            if (screenConfig.value?.bgmAssetId) {
+                const assetDto = await assetService.getAssetDataById(screenConfig.value.bgmAssetId);
+                if (assetDto && assetDto.blob) {
+                    try {
+                        bgmObjectUrl = URL.createObjectURL(assetDto.blob);
+                        bgm.value = new Audio(bgmObjectUrl);
+                    } catch (e) {
+                        bgm.value = null;
+                    }
+                }
+            } else if (screenConfig.value?.bgmAssetUrl) {
                 bgm.value = new Audio(screenConfig.value.bgmAssetUrl);
+            }
+            if (bgm.value) {
                 bgm.value.loop = true;
                 setTimeout(() => bgm.value?.play().catch(() => { }), 500);
+            }
+
+            // 画像コンテンツは assetId から表示用URLを作る(オープニングと同じ)
+            for (const content of (convertedConfig.value?.contents ?? []) as any[]) {
+                if (!content.assetId) continue;
+                try {
+                    const assetDto = await assetService.getAssetDataById(content.assetId);
+                    if (assetDto && assetDto.blob) {
+                        const url = URL.createObjectURL(assetDto.blob);
+                        content.assetUrl = url;
+                        createdContentUrls.push(url);
+                    }
+                } catch (e) {
+                    console.warn('Failed to load asset for content:', content, e);
+                }
             }
 
             const htmlEl = screenConfig.value?.elements?.find((e: any) => e.type === 'html');
@@ -64,6 +96,8 @@ export default {
                 try { bgm.value.pause(); } catch (e) { }
                 bgm.value = null;
             }
+            try { if (bgmObjectUrl) URL.revokeObjectURL(bgmObjectUrl); } catch { }
+            try { for (const u of createdContentUrls) URL.revokeObjectURL(u); } catch { }
         });
 
         return { screenConfig, isHtmlFullscreen, htmlElement, bgm, convertedConfig, isDemo };

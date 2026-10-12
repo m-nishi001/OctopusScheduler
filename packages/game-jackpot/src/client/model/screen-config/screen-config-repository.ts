@@ -14,6 +14,19 @@ const DRIVE_FILE_NAME = "screens.json";
 // このファイル名には効かないため、pushで得たfileId(フルキー)をこのブラウザに
 // 保存しておき、次回以降はそれを明示的に渡す。
 const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-screens-last-file-id";
+// 初めて開くブラウザ(まだpushしていない)でも、サーバーに画面設定があれば(試験環境のシード等)取り込めるよう、
+// 保存先の既定キー(jackpot-game/json/screens.json)を既定の問い合わせ先にする。
+const DEFAULT_REMOTE_FILE_ID = "jackpot-game/json/screens.json";
+
+/** getJsonBlob は見つからないと既定ファイル(prizes.json)を返すため、画面設定の形をしているものだけ受け入れる。 */
+function isScreenSettingList(value: unknown): value is ScreenSetting[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (v) => v && typeof v.screenName === "string" && typeof v.settingName === "string" && typeof v.settingValue === "string"
+    )
+  );
+}
 
 @injectable()
 export class ScreenConfigRepository {
@@ -77,8 +90,7 @@ export class ScreenConfigRepository {
         return { data: settings, updatedAt: trackedAt ?? Date.now() };
       },
       getRemote: async () => {
-        const storedFileId = localStorage.getItem(DRIVE_FILE_ID_STORAGE_KEY) || undefined;
-        if (!storedFileId) return null;
+        const storedFileId = localStorage.getItem(DRIVE_FILE_ID_STORAGE_KEY) || DEFAULT_REMOTE_FILE_ID;
         let resp;
         try {
           resp = await this.jackpotApi.getJson(storedFileId);
@@ -91,11 +103,13 @@ export class ScreenConfigRepository {
         }
         let parsed: ScreenSetting[];
         try {
-          parsed = JSON.parse(resp.json) as ScreenSetting[];
+          const raw: unknown = JSON.parse(resp.json);
+          if (!isScreenSettingList(raw)) return null;
+          parsed = raw;
         } catch {
           return null;
         }
-        if (!Array.isArray(parsed) || parsed.length === 0) return null;
+        if (parsed.length === 0) return null;
         const updatedAt = resp.updatedAt ? new Date(resp.updatedAt).getTime() : 0;
         return { data: parsed, updatedAt };
       },
