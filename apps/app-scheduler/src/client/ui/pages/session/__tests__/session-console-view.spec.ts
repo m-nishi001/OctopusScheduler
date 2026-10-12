@@ -87,7 +87,8 @@ describe("session-console-view", () => {
 
     await agent.publishSlice("session", { path: "/jackpot-opening" });
     await settle(5000);
-    expect(wrapper.find('[data-testid="host-card"]').text()).toContain("/jackpot-opening");
+    expect(wrapper.find('[data-testid="now"]').text()).toContain("オープニング表示中");
+    expect(wrapper.find('[data-testid="advanced"]').text()).toContain("/jackpot-opening");
     expect(wrapper.find('[data-testid="log"]').text()).toContain("session.navigate");
   });
 
@@ -136,7 +137,7 @@ describe("session-console-view", () => {
     await settle(5000);
     await button(wrapper, "ジャックポット: エンディング").trigger("click");
     await settle(5000);
-    expect(wrapper.find('[data-testid="host-card"]').text()).toContain("未適用のコマンド 2 件");
+    expect(wrapper.find('[data-testid="advanced"]').text()).toContain("未適用のコマンド 2 件");
   });
 
   it("参加者が許可入力を送るとログに「参加者」として出る", async () => {

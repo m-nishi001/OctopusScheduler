@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminRpc, expect, newDevice, route, test } from "./fixtures";
+import { adminRpc, expect, newDevice, nextButton, openAdvanced, route, test } from "./fixtures";
 
 /**
  * 第三者の目線の通しチェック(シード済みの環境向け)。
@@ -167,12 +167,13 @@ test.describe("第三者の通しチェック(シード済みの環境)", () => 
     const hanako = await loginAs(browser, request, "test-user-06");
 
     await admin.page.getByTestId("quiz-select").selectOption("seed-quiz-1");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "イントロ" }).click();
+    await openAdvanced(admin.page);
+    await admin.page.getByTestId("advanced").getByRole("button", { name: "イントロ" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/intro");
     await shot(host.page, "quiz-host-intro");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" }).click(); // QR
+    await nextButton(admin.page).click(); // QR
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/qr");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" }).click(); // 出題
+    await nextButton(admin.page).click(); // 出題
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/play");
     await shot(host.page, "quiz-host-play");
 
@@ -185,13 +186,13 @@ test.describe("第三者の通しチェック(シード済みの環境)", () => 
     await expect(hanako.page.getByTestId("quiz-answered")).toContainText("1つ");
     await expect(admin.page.getByTestId("quiz-state")).toContainText("回答 2 人");
 
-    await admin.page.getByRole("button", { name: "受付を今すぐ締め切る" }).click();
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" }).click(); // 正解発表
+    await nextButton(admin.page).click(); // 回答受付中は主ボタンが「受付を締め切る」
+    await nextButton(admin.page).click(); // 正解発表
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/answer");
     await expect(taro.page.getByTestId("quiz-verdict")).toHaveText("正解！");
     await expect(hanako.page.getByTestId("quiz-verdict")).toContainText("残念");
     await shot(taro.page, "quiz-portal-answer");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" }).click(); // 結果発表
+    await nextButton(admin.page).click(); // 結果発表
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/result");
     await expect(host.page.getByText("テスト参加者05").first()).toBeVisible({ timeout: 30_000 });
     await shot(host.page, "quiz-host-result");

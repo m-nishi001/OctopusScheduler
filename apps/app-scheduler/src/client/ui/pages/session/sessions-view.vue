@@ -7,10 +7,16 @@
 
         <section class="sessions">
             <p class="sessions__lead">
-                セッション(パーティールーム)を作り、会場の投影端末を「ホスト」として、手元の端末を「管理」として接続します。
-                参加者は、受付のQRコード(またはIDとパスワード)でログインし、「ポータルに公開」したセッションに自動で入ります。
-                公開できるのは同時に1つです。
+                イベントは「今すぐイベントを開催する」で始められます。会場の投影端末を「ホスト」として、手元の端末を「操作」として開きます。
+                参加者は、受付のQRコード(またはIDとパスワード)でログインし、公開中のイベントに自動で入ります(公開できるのは同時に1つです)。
             </p>
+
+            <div class="sessions__quick">
+                <UiButton variant="primary" class="sessions__quick-button" :loading="quickStarting" :disabled="creating" data-testid="quick-start" @click="quickStart">
+                    今すぐイベントを開催する
+                </UiButton>
+                <p class="sessions__quick-hint">新しいセッションを作って参加者ポータルに公開し、操作画面を開きます。会場のPCでは「ホストとして開く」を行ってください。</p>
+            </div>
 
             <form class="sessions__create" @submit.prevent="create">
                 <UiField label="セッション名" required>
@@ -79,6 +85,7 @@ const columns: DataTableColumn[] = [
 const sessions = ref<SessionSummary[]>([]);
 const loading = ref(false);
 const creating = ref(false);
+const quickStarting = ref(false);
 const closingId = ref<string | null>(null);
 const portalBusyId = ref<string | null>(null);
 const error = ref('');
@@ -117,6 +124,41 @@ async function create() {
         toast.error(`作成に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
         creating.value = false;
+    }
+}
+
+/** 既定のセッション名(日時つき。複数回やっても区別できる)。 */
+function defaultSessionName(now = new Date()): string {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `イベント ${now.getMonth() + 1}/${now.getDate()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+/**
+ * 「今すぐ開催」: セッション作成 → 参加者ポータルに公開 → 操作画面へ、を1回で行う。
+ * すでに別のセッションが公開中なら、切り替えてよいか確認する(参加者の入口が変わるため)。
+ */
+async function quickStart() {
+    if (quickStarting.value || creating.value) return;
+    quickStarting.value = true;
+    try {
+        const other = sessions.value.find((s) => s.portal && s.status !== 'closed');
+        if (other) {
+            const ok = await confirm({
+                title: '新しいイベントを開催しますか?',
+                message: `いま「${other.name}」が参加者ポータルに公開中です。新しいイベントを公開すると、これから入る参加者は新しいイベントに入ります(すでに接続中の参加者は「${other.name}」に残ります)。`,
+                confirmLabel: '開催する',
+            });
+            if (!ok) return;
+        }
+        const meta = await repo.create({ name: defaultSessionName(), mode: 'live' });
+        await repo.setPortalSession(meta.id, true);
+        toast.success(`「${meta.name}」を開催しました。会場のPCで「ホストとして開く」を行ってください`);
+        await router.push(`/session/console/${meta.id}`);
+    } catch (e) {
+        toast.error(`開催できませんでした: ${e instanceof Error ? e.message : String(e)}`);
+        await load();
+    } finally {
+        quickStarting.value = false;
     }
 }
 
@@ -187,6 +229,9 @@ onUnmounted(() => {
 }
 
 .sessions__lead { margin: 0; opacity: 0.8; line-height: 1.6; }
+.sessions__quick { display: flex; flex-direction: column; gap: 6px; }
+.sessions__quick-button { min-height: 56px; font-size: 1.2rem; }
+.sessions__quick-hint { margin: 0; font-size: 0.85rem; opacity: 0.75; }
 .sessions__create { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 .sessions__check { display: flex; align-items: center; gap: 6px; }
 .sessions__actions { display: flex; flex-wrap: wrap; gap: 6px; }

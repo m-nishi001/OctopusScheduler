@@ -1,4 +1,4 @@
-import { ADMIN_ID, ADMIN_PASSWORD, adminRpc, addParticipant, createSession, expect, loginByQr, newDevice, publishPortal, removeParticipant, route, test } from "./fixtures";
+import { addParticipant, ADMIN_ID, ADMIN_PASSWORD, adminRpc, createSession, expect, loginByQr, newDevice, openAdvanced, publishPortal, removeParticipant, route, test } from "./fixtures";
 
 /**
  * ホスト(投影)・管理・参加者の3種類の端末を、別々のブラウザコンテキストとして同時に動かす。
@@ -90,17 +90,18 @@ test.describe("ホスト・管理・参加者の通し", () => {
 
     // 管理コンソールとホストに参加者が反映される(在席はまとめて配信される)
     await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト接続中");
-    await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 1 人");
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("参加者 1 人");
     await expect(adminDev.page.getByTestId("host-warning")).toBeHidden();
     await expect(host.page.getByTestId("host-count")).toContainText("1");
 
     // 遠隔操作: ホストの画面を切り替える
+    await openAdvanced(adminDev.page);
     await adminDev.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-ending");
     // 隅の接続バッジは演出画面でも出続ける
     await expect(host.page.getByTestId("host-badge")).toContainText("E2E会場");
     // 管理コンソール: 表示中の画面と操作ログ、ホストの適用済み(未適用0件)
-    await expect(adminDev.page.getByTestId("host-card")).toContainText("/execute/jackpot-ending");
+    await expect(adminDev.page.getByTestId("now")).toContainText("エンディング表示中");
     await expect(adminDev.page.getByTestId("log")).toContainText("session.navigate");
     await expect(adminDev.page.getByTestId("host-card")).not.toContainText("未適用のコマンド");
 
@@ -122,6 +123,7 @@ test.describe("ホスト・管理・参加者の通し", () => {
     await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト接続中");
 
     // 演出画面に切り替えた状態でリロード
+    await openAdvanced(adminDev.page);
     await adminDev.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-ending");
     await host.page.reload();
@@ -151,7 +153,7 @@ test.describe("ホスト・管理・参加者の通し", () => {
       await expect(phone.page.getByTestId("home-greeting")).toBeVisible();
       await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中");
     }
-    await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 1 人");
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("参加者 1 人");
 
     await publishPortal(request, id, false);
     for (const d of [adminDev, host, phone]) await d.context.close();
@@ -161,11 +163,11 @@ test.describe("ホスト・管理・参加者の通し", () => {
     const adminDev = await newDevice(browser, { signedIn: true });
     const { id } = await openSession(adminDev.page, request, "多人数会場");
     const phones = await Promise.all(ids.map((_, i) => login(browser, i)));
-    await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 5 人");
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("参加者 5 人");
     // 1人がログアウト(退出)すると減る
     await phones[0].page.getByRole("link", { name: "マイページ" }).click();
     await phones[0].page.getByTestId("me-signout").click();
-    await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 4 人");
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("参加者 4 人");
 
     await publishPortal(request, id, false);
     for (const d of [adminDev, ...phones]) await d.context.close();
@@ -192,6 +194,7 @@ test.describe("ホストの引き継ぎと終了", () => {
     await expect(host1.page.getByTestId("replaced")).toBeVisible();
 
     // 以後の遠隔操作は新ホストだけに届く
+    await openAdvanced(adminDev.page);
     await adminDev.page.getByRole("button", { name: "ジャックポット: 説明" }).click();
     await expect.poll(() => route(host2.page)).toBe("/execute/jackpot-description");
     expect(await route(host1.page)).toBe(`/session/host/${id}`);
@@ -251,7 +254,7 @@ test.describe("異常系・環境差", () => {
     await phone.page.goto(`/#/login?id=${ids[0]}&key=${encodeURIComponent(keys.get(ids[0])!)}`);
     await expect(phone.page.getByTestId("home-greeting")).toBeVisible();
     // ポーリングへ切り替わった後も、人数が反映される
-    await expect(adminDev.page.getByTestId("people-card")).toContainText("参加者 1 人", { timeout: 40_000 });
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("参加者 1 人", { timeout: 40_000 });
     await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中", { timeout: 40_000 });
 
     await publishPortal(request, id, false);

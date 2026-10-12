@@ -10,6 +10,7 @@ vi.mock("../../../../control/auth/auth-session", () => ({
 import SessionConsoleView from "../session-console-view.vue";
 import { makeDevice, makeRouter, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
 import type { SessionEnv } from "./session-test-kit";
+import { PORTAL_EVENT_NS } from "@octopus/session-hub";
 import { GetAllQuizzesUseCase, QuizSyncService } from "@octopus/game-quiz";
 
 let env: SessionEnv;
@@ -125,26 +126,50 @@ describe("管理コンソールのクイズ操作", () => {
     expect(btn(empty, "出題").attributes("disabled")).toBeDefined();
   });
 
-  it("「次へ」と「受付を締め切る」がホストに届く。締め切りは受付中だけ押せる", async () => {
-    const { meta, agent, received } = await setupHosted();
+  it("クイズを始める1回で、クイズ名のイベント開催とイントロ画面への切り替えが済む(デモは ?demo=1 付き)", async () => {
+    const { meta, agent, nav } = await setupHosted();
+    registerQuizList([{ id: "q1", title: "果物クイズ", question: "?" }]);
+    const hostEvents: Array<{ type: string; payload: unknown }> = [];
+    agent.router.register(PORTAL_EVENT_NS, (c) => void hostEvents.push({ type: c.type, payload: c.payload }));
+    const { wrapper } = await mountConsole(meta.id);
+    await wrapper.find('[data-testid="start-quiz"]').trigger("click");
+    await settle(8000);
+    expect(hostEvents).toEqual([{ type: "start", payload: { title: "果物クイズ" } }]);
+    expect(nav).toEqual([{ path: "/quiz/q1/intro" }]);
+  });
+
+  it("クイズの画面ごとに、主ボタンの文言と予告が変わる。回答受付中は「受付を締め切る」", async () => {
+    const { meta, agent, received, nav } = await setupHosted();
     registerQuizList([{ id: "q1", title: "果物", question: "?" }]);
     const { wrapper } = await mountConsole(meta.id);
-    expect(btn(wrapper, "受付を今すぐ締め切る").attributes("disabled")).toBeDefined();
+    const next = () => wrapper.find('[data-testid="next-button"]');
+    const hint = () => wrapper.find('[data-testid="next-hint"]').text();
+    expect(next().exists()).toBe(false); // ロビーでは主ボタンは無い
 
-    const quizNext = wrapper.find('[data-testid="quiz-panel"]').findAll("button").find((b) => b.text().includes("次へ"))!;
-    await quizNext.trigger("click");
+    await agent.publishSlice("session", { path: "/execute/quiz/q1/qr" });
+    await agent.publishSlice("quiz", quizState({ page: "qr" }));
+    await settle(5000);
+    expect(wrapper.find('[data-testid="now"]').text()).toContain("QRコード表示中");
+    expect(hint()).toContain("回答受付を始めます");
+    await next().trigger("click");
     await settle(5000);
     expect(received).toEqual(["advance"]);
 
+    await agent.publishSlice("session", { path: "/execute/quiz/q1/play" });
     await agent.publishSlice("quiz", quizState({ phase: "answering", deadlineMs: Date.now() + 20_000 }));
     await settle(5000);
+    expect(wrapper.find('[data-testid="now"]').text()).toContain("回答受付中");
     expect(wrapper.find('[data-testid="quiz-state"]').text()).toContain("出題中");
-    expect(wrapper.find('[data-testid="quiz-state"]').text()).toContain("回答受付中");
-    const close = btn(wrapper, "受付を今すぐ締め切る");
-    expect(close.attributes("disabled")).toBeUndefined();
-    await close.trigger("click");
+    expect(next().text()).toContain("受付を締め切る");
+    await next().trigger("click");
     await settle(5000);
     expect(received).toEqual(["advance", "closeAnswers"]);
+
+    await agent.publishSlice("quiz", quizState({ phase: "closed" }));
+    await settle(5000);
+    expect(next().text()).toContain("次へ");
+    expect(hint()).toContain("正解を発表");
+    expect(nav).toEqual([]); // 主ボタンは画面を直接切り替えない(クイズの進行はホストの「次へ」)
   });
 
   it("受付中は回答数が表示される(参加者の回答が集まる様子)", async () => {
@@ -165,10 +190,11 @@ describe("管理コンソールのクイズ操作", () => {
     expect(wrapper.find('[data-testid="quiz-state"]').text()).toContain("回答 3 人");
   });
 
-  it("クイズの画面が開かれていない間は案内を表示する", async () => {
+  it("クイズの画面が開かれていない間は、「いま」は待機中で、進行状況は空", async () => {
     const { meta } = await setupHosted();
     registerQuizList([{ id: "q1", title: "果物", question: "?" }]);
     const { wrapper } = await mountConsole(meta.id);
-    expect(wrapper.find('[data-testid="quiz-state"]').text()).toContain("クイズの画面を開くと");
+    expect(wrapper.find('[data-testid="now"]').text()).toContain("待機中");
+    expect(wrapper.find('[data-testid="quiz-state"]').text()).toBe("");
   });
 });

@@ -146,3 +146,17 @@ export function sampleQuiz(id: string, timeLimit = 60) {
     bgm: null,
   };
 }
+
+/** コントロール画面の「詳細な操作」(普段は閉じている)を開く。画面の直接切り替えやイベント名の指定はここにある。 */
+export async function openAdvanced(page: Page): Promise<void> {
+  const details = page.getByTestId("advanced");
+  if (!(await details.evaluate((el) => (el as HTMLDetailsElement).open))) await details.locator("summary").click();
+}
+
+/** コントロール画面の主ボタン(「次へ」「止める」「受付を締め切る」など。いま押せる操作が1つだけ出る)。 */
+export const nextButton = (page: Page) => page.getByTestId("next-button");
+
+/** 確認ダイアログの主操作(「終了する」など)を押す。 */
+export async function acceptConfirm(page: Page, label = "終了する"): Promise<void> {
+  await page.getByRole("button", { name: label, exact: true }).click();
+}

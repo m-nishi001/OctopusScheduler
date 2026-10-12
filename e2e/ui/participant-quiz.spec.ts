@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, route, sampleQuiz, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedStore, test } from "./fixtures";
 
 /**
  * クイズを、ホスト(投影)・管理・参加者(ログイン済みのスマホ)で通しで動かす。
@@ -67,15 +67,16 @@ test.describe("クイズ（参加者ポータル）", () => {
 
     // 管理端末: クイズを選んでイントロ → QR → 出題
     await admin.page.getByTestId("quiz-select").selectOption("qz1");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "イントロ" }).click();
+    await openAdvanced(admin.page);
+    await admin.page.getByTestId("advanced").getByRole("button", { name: "イントロ" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/intro");
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("クイズが始まります");
 
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" }).click(); // → QR
+    await nextButton(admin.page).click(); // → QR
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/qr");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" }).click(); // → 出題
+    await nextButton(admin.page).click(); // → 出題
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/play");
-    await expect(admin.page.getByTestId("quiz-state")).toContainText("回答受付中");
+    await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
 
     // 参加者のスマホに問題と選択肢・残り時間が出て、バナーは出題中でも、ホームでは重ねない
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("みかんはどれ?");
@@ -107,12 +108,12 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect(taro.page.getByTestId("quiz-answered")).toContainText("2. みかん");
 
     // 管理端末から受付を締め切る → 以後は回答できない
-    await admin.page.getByRole("button", { name: "受付を今すぐ締め切る" }).click();
+    await nextButton(admin.page).click(); // 回答受付中は主ボタンが「受付を締め切る」
     await expect(host.page.getByText("受付終了。Enterで正解表示")).toBeVisible();
     await expect(jiro.page.getByTestId("quiz-closed")).toBeVisible();
 
     // 正解発表: 参加者の画面に正解と正誤が出る
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" }).click();
+    await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/answer");
     await expect(taro.page.getByTestId("quiz-correct")).toContainText("2. みかん");
     await expect(taro.page.getByTestId("quiz-verdict")).toHaveText("正解！");
@@ -120,7 +121,7 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect(jiro.page.getByTestId("quiz-panel")).toContainText("あなたは回答していません");
 
     // 結果: ホストにランキング(正答者=太郎)が出る
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" }).click();
+    await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/result");
     await expect(host.page.getByText("太郎").first()).toBeVisible({ timeout: 30_000 });
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("結果発表中");
@@ -132,7 +133,7 @@ test.describe("クイズ（参加者ポータル）", () => {
       .toMatchObject({ title: "果物クイズ", answeredCount: 2, correctCount: 1, top: [{ name: "太郎" }] });
 
     // 当選者がいるので「次へ」で景品(当選者名つき)が出て、もう一度「次へ」でロビーに戻る(管理画面には出ない)
-    const next = admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" });
+    const next = nextButton(admin.page);
     await next.click();
     await expect(host.page.getByText("おめでとうございます")).toBeVisible();
     await expect(host.page.getByText("太郎 さん")).toBeVisible();
@@ -149,13 +150,14 @@ test.describe("クイズ（参加者ポータル）", () => {
     const hanako = await login(browser, ids[1]);
 
     await admin.page.getByTestId("quiz-select").selectOption("qz4");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "出題" }).click();
+    await openAdvanced(admin.page);
+    await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz4/play");
     await hanako.page.getByRole("button", { name: /りんご/ }).click(); // 正解は2番なので不正解
     await expect(hanako.page.getByTestId("quiz-answered")).toContainText("1. りんご");
-    await admin.page.getByRole("button", { name: "受付を今すぐ締め切る" }).click();
+    await nextButton(admin.page).click(); // 回答受付中は主ボタンが「受付を締め切る」
 
-    const next = admin.page.getByTestId("quiz-panel").getByRole("button", { name: "次へ" });
+    const next = nextButton(admin.page);
     await next.click(); // → 正解
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz4/answer");
     await next.click(); // → 結果
@@ -177,7 +179,8 @@ test.describe("クイズ（参加者ポータル）", () => {
     const phone = await login(browser, ids[0]);
 
     await admin.page.getByTestId("quiz-select").selectOption("qz2");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "出題" }).click();
+    await openAdvanced(admin.page);
+    await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
     await expect(phone.page.getByTestId("quiz-panel")).toContainText("みかんはどれ?");
     // 4秒の制限時間が過ぎると、回答できなくなる(ボタンが無効 + 終了表示)
     await expect(phone.page.getByTestId("quiz-closed")).toBeVisible({ timeout: 20_000 });
@@ -194,14 +197,15 @@ test.describe("クイズ（参加者ポータル）", () => {
     const phone = await login(browser, ids[0]);
 
     await admin.page.getByTestId("quiz-select").selectOption("qz3");
-    await admin.page.getByTestId("quiz-panel").getByRole("button", { name: "出題" }).click();
+    await openAdvanced(admin.page);
+    await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
     await expect(phone.page.getByTestId("quiz-timer")).toBeVisible();
     await phone.page.getByRole("button", { name: /ぶどう/ }).click();
     await expect(phone.page.getByTestId("quiz-answered")).toContainText("3. ぶどう");
 
     await host.page.waitForTimeout(4000); // 時間を進めてからリロードする(やり直しなら残り時間が90に戻って判別できる)
     await host.page.reload(); // 出題中にホストがリロード
-    await expect(admin.page.getByTestId("quiz-state")).toContainText("回答受付中");
+    await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
     await expect(admin.page.getByTestId("quiz-state")).toContainText("回答 1 人"); // 回答は消えない
     // 残り時間は最初からやり直しではない(90秒のまま戻らない)。答えた人の画面では、残り時間の表示は出し続ける
     const text = await phone.page.getByTestId("quiz-timer").innerText();

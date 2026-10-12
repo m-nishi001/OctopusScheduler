@@ -1,4 +1,4 @@
-import { adminRpc, createSession, expect, newDevice, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
 import { captureTimeline, expectAnimating } from "./helpers/motion";
 
 /**
@@ -37,10 +37,11 @@ for (const kind of ["roulette", "slot"] as const) {
     }));
     await seedStore(host.page, "jackpot-game", "PrizeData", prizes.map((p) => ({ id: p.id, value: p })));
 
+    await openAdvanced(admin.page);
     await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
     const state = admin.page.getByTestId("jackpot-state");
     await expect(state).toContainText("メンバー抽選", { timeout: 60_000 });
-    const next = admin.page.getByTestId("jackpot-panel").getByRole("button", { name: /次へ/ });
+    const next = nextButton(admin.page);
 
     // 景品抽選の画面になるまで「次へ」で進める
     const reel = host.page.locator(kind === "slot" ? ".slot-container" : ".roulette-container");
