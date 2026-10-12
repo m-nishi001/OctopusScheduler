@@ -125,6 +125,12 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect(host.page.getByText("太郎").first()).toBeVisible({ timeout: 30_000 });
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("結果発表中");
 
+    // 順位発表が終わると、結果がサーバー(R2)に保存される(参加者ポータルの「結果」の元データ)
+    type Results = { rev: number; quiz: { rounds: Array<{ title: string; answeredCount: number; correctCount: number; top: Array<{ name: string }> }> } };
+    await expect
+      .poll(async () => (await adminRpc<Results>(request, "sessionHub_getResults", { sessionId })).quiz.rounds[0] ?? null, { timeout: 60_000 })
+      .toMatchObject({ title: "果物クイズ", answeredCount: 2, correctCount: 1, top: [{ name: "太郎" }] });
+
     await publish(request, sessionId, false);
     for (const d of [admin, host, taro, taro2, hanako, jiro]) await d.context.close();
   });

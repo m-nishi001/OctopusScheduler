@@ -6,6 +6,7 @@ import { makeDevice, makeHub } from "@octopus/session-hub/testing";
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { QuizRoundGateway } from "./quiz-round-gateway";
 import { buildQuizHostState } from "./quiz-host-state";
+import { buildQuizRoundResult } from "./ranking";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -98,6 +99,42 @@ describe("QuizRoundGateway", () => {
     gateway.clear();
     await tick(5000);
     expect((players[0].conn.state.roomState?.data as { quiz?: unknown }).quiz).toBeUndefined();
+  });
+
+  it("ラウンドの結果を保存すると、ポータルのメンバーが自分の順位を取得でき、DOには rev だけが載る", async () => {
+    const { gateway, players } = await scene();
+    const round = await gateway.open("q1", "live", OPTIONS, 20);
+    await players[0].conn.answer("q1:live", 2);
+    await tick(1000);
+    await players[1].conn.answer("q1:live", 1);
+    const answers = await gateway.answers("q1", "live");
+    const result = buildQuizRoundResult({ roundKey: "q1:live", quizId: "q1", title: "第1問", correctNo: 2, answers: answers!.answers, openedAtMs: answers!.openedAtMs, closedAtMs: round!.deadlineMs });
+    expect(await gateway.recordResult(result)).toBe(true);
+    await tick(3000);
+    const view = await players[0].conn.getResults();
+    expect(view.quiz.rounds[0].me).toMatchObject({ answered: true, correct: true, rank: 1 });
+    expect((await players[1].conn.getResults()).quiz.rounds[0].me).toMatchObject({ answered: true, correct: false });
+    expect(players[0].conn.state.roomState?.data.results).toEqual({ rev: 1 });
+    expect(JSON.stringify(players[0].conn.state.roomState?.data)).not.toContain("太郎");
+  });
+
+  it("結果の保存に失敗しても例外にせず、数回だけ再試行する。ホストでなければ何もしない", async () => {
+    const { agent, gateway } = await scene();
+    const spy = vi.spyOn(agent, "recordQuizResult").mockRejectedValueOnce(new Error("net")).mockResolvedValue(undefined);
+    const sleeps: number[] = [];
+    const result = buildQuizRoundResult({ roundKey: "q1:live", quizId: "q1", title: "t", correctNo: 1, answers: [], openedAtMs: null, closedAtMs: 1 });
+    expect(await gateway.recordResult(result, async (ms) => void sleeps.push(ms))).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(sleeps).toEqual([1000]);
+
+    spy.mockReset().mockRejectedValue(new Error("net"));
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(await gateway.recordResult(result, async () => undefined)).toBe(false);
+    expect(spy).toHaveBeenCalledTimes(3);
+    quiet.mockRestore();
+
+    const off = await scene({ host: false });
+    expect(await off.gateway.recordResult(result)).toBe(false);
   });
 
   it("回答一覧の取得に失敗しても例外にせず null(結果画面は「正答者なし」で続行できる)", async () => {
