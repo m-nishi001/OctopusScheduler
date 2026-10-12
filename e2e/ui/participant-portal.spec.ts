@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, test } from "./fixtures";
+import { acceptConfirm, adminRpc, createSession, expect, newDevice, openAdvanced, test } from "./fixtures";
 
 /**
  * 参加者ポータル: 管理者が公開したセッションに、ログイン済みの参加者が参加コード無しで入り、
@@ -35,6 +35,7 @@ async function publish(request: APIRequestContext, sessionId: string, published 
 
 /** 管理者がコンソールでイベントを開始する(画面の操作)。 */
 async function startEvent(admin: Page, title: string) {
+  await openAdvanced(admin);
   await admin.getByTestId("event-title").fill(title);
   await admin.getByRole("button", { name: /^イベントを(開始|切り替える)$/ }).click();
 }
@@ -59,8 +60,8 @@ test.describe("参加者ポータル", () => {
       await expect(g.page.getByTestId("event-banner"), ids[i]).toHaveCount(0);
     }
     // 運営の画面に、入室した参加者が数えられる
-    await expect(admin.page.getByTestId("people-card")).toContainText(`参加者 ${CROWD} 人`);
-    await expect(admin.page.getByTestId("event-state")).toContainText("イベントは発生していません");
+    await expect(admin.page.getByTestId("host-card")).toContainText(`参加者 ${CROWD} 人`);
+    await expect(admin.page.getByTestId("event-state")).toContainText("イベントは開催していません");
 
     // イベント開始 → 全員の画面の上に「イベント発生中!」
     await startEvent(admin.page, "ジャックポット抽選");
@@ -98,7 +99,8 @@ test.describe("参加者ポータル", () => {
 
     // イベント終了 → 全員のバナーが消え、イベント画面は終了の案内に変わる
     await admin.page.getByRole("button", { name: "イベントを終了" }).click();
-    await expect(admin.page.getByTestId("event-state")).toContainText("イベントは発生していません");
+    await acceptConfirm(admin.page);
+    await expect(admin.page.getByTestId("event-state")).toContainText("イベントは開催していません");
     for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("event-banner"), ids[i]).toHaveCount(0);
     await expect(guests[0].page.getByTestId("event-none")).toContainText("イベントは終了しました");
     await expect(late.page.getByTestId("event-banner")).toHaveCount(0);

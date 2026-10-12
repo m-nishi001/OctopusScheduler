@@ -1,5 +1,5 @@
 import type { APIRequestContext } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, route, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, route, seedStore, test } from "./fixtures";
 
 /**
  * エントリー受付 → ジャックポットの抽選。エントリーした人だけが抽選の対象になる。
@@ -38,13 +38,14 @@ const PRIZES = ["特賞", "一等", "二等", "三等", "四等"].map((name, i) 
 
 /** 1回の抽選を最後まで進め、当選者の名前を返す（管理コンソールの「次へ」で進める）。 */
 async function drawOnce(admin: import("@playwright/test").Page): Promise<string> {
+  await openAdvanced(admin);
   await admin.getByRole("button", { name: "ジャックポット: 抽選" }).click();
   await expect(admin.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
   for (let i = 0; i < 30; i++) {
     const state = await admin.getByTestId("jackpot-state").innerText();
     const m = /当選者: (参加者\d\d)/.exec(state);
     if (m) return m[1];
-    await admin.getByTestId("jackpot-panel").getByRole("button", { name: /次へ/ }).click();
+    await nextButton(admin).click();
     await admin.waitForTimeout(1500);
   }
   await expect(admin.getByTestId("jackpot-state")).toContainText(/当選者: 参加者\d\d/, { timeout: 60_000 });
@@ -63,6 +64,7 @@ async function scene(browser: import("@playwright/test").Browser, request: APIRe
   await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
   await publish(request, sessionId);
 
+  await openAdvanced(admin.page);
   await admin.page.getByTestId("event-title").fill("ジャックポット抽選");
   await admin.page.getByRole("button", { name: "イベントを開始" }).click();
   await expect(admin.page.getByTestId("event-state")).toContainText("ジャックポット抽選");
@@ -136,6 +138,7 @@ test.describe("エントリー → ジャックポット", () => {
     await phone.page.goto(qrUrl(ids[2]));
     await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中");
 
+    await openAdvanced(admin.page);
     await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
     await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
@@ -149,7 +152,7 @@ test.describe("エントリー → ジャックポット", () => {
       const state = await admin.page.getByTestId("jackpot-state").innerText();
       if (/当選者: [^—\s]\S*/.test(state)) break;
       await expect(stopBtn).toBeHidden();
-      await admin.page.getByTestId("jackpot-panel").getByRole("button", { name: /次へ/ }).click();
+      await nextButton(admin.page).click();
       await admin.page.waitForTimeout(1500);
     }
     await expect(admin.page.getByTestId("jackpot-state")).toContainText(/当選者: [^—\s]\S*/, { timeout: 60_000 });
@@ -162,7 +165,7 @@ test.describe("エントリー → ジャックポット", () => {
         await stopBtn.click();
         phoneStopped = true;
       } else {
-        await admin.page.getByTestId("jackpot-panel").getByRole("button", { name: /次へ/ }).click();
+        await nextButton(admin.page).click();
       }
       await admin.page.waitForTimeout(1500);
     }
@@ -173,7 +176,7 @@ test.describe("エントリー → ジャックポット", () => {
     type Results = { jackpot: { draws: Array<{ prizeName: string; memberName: string }> } };
     const drawsSaved = async () => (await adminRpc<Results>(request, "sessionHub_getResults", { sessionId })).jackpot.draws;
     for (let i = 0; i < 30 && (await drawsSaved()).length === 0; i++) {
-      await admin.page.getByTestId("jackpot-panel").getByRole("button", { name: /次へ/ }).click();
+      await nextButton(admin.page).click();
       await admin.page.waitForTimeout(1500);
     }
     const saved = await drawsSaved();

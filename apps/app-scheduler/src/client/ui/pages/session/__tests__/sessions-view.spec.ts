@@ -56,6 +56,40 @@ describe("sessions-view", () => {
     expect(wrapper.text()).toContain("待機中");
   });
 
+  it("「今すぐイベントを開催する」で、作成・ポータル公開・操作画面への移動が1回で済む。連打しても1つだけ", async () => {
+    const { wrapper, router } = await mountView();
+    const quick = wrapper.find('[data-testid="quick-start"]');
+    await quick.trigger("click");
+    await quick.trigger("click");
+    await settle(100);
+    const list = await env.repo.list();
+    expect(list).toHaveLength(1);
+    expect(list[0].name).toMatch(/^イベント \d+\/\d+ \d\d:\d\d$/);
+    expect(list[0].portal).toBe(true);
+    expect(router.currentRoute.value.path).toBe(`/session/console/${list[0].id}`);
+    expect(confirmMock).not.toHaveBeenCalled(); // 公開中のセッションが無ければ確認しない
+  });
+
+  it("「今すぐイベントを開催する」: 別のセッションが公開中なら確認し、キャンセルすれば何も作らない", async () => {
+    const other = await env.repo.create({ name: "公開中のイベント" });
+    await env.repo.setPortalSession(other.id, true);
+    const { wrapper, router } = await mountView();
+    confirmMock.mockResolvedValue(false);
+    await wrapper.find('[data-testid="quick-start"]').trigger("click");
+    await settle(100);
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(await env.repo.list()).toHaveLength(1);
+    expect(router.currentRoute.value.path).toBe("/sessions");
+
+    confirmMock.mockResolvedValue(true);
+    await wrapper.find('[data-testid="quick-start"]').trigger("click");
+    await settle(100);
+    const list = await env.repo.list();
+    expect(list).toHaveLength(2);
+    expect(list.filter((s) => s.portal)).toHaveLength(1); // 公開は常に1つ(新しい方へ切り替わる)
+    expect(list.find((s) => s.portal)?.id).not.toBe(other.id);
+  });
+
   it("デモとして作ると状態に(デモ)が付く", async () => {
     const { wrapper } = await mountView();
     await wrapper.find('input[type="text"]').setValue("リハ");

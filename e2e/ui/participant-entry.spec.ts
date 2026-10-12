@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, test } from "./fixtures";
+import { acceptConfirm, adminRpc, createSession, expect, newDevice, openAdvanced, test } from "./fixtures";
 
 /**
  * エントリー受付: 管理者がイベントを開始してエントリーを受け付け、参加者(10人 + 途中参加)がスマホから
@@ -34,6 +34,7 @@ const publish = (request: APIRequestContext, sessionId: string, published = true
 
 /** 管理コンソールの操作（画面のボタン）。 */
 async function startEvent(admin: Page, title: string) {
+  await openAdvanced(admin);
   await admin.getByTestId("event-title").fill(title);
   await admin.getByRole("button", { name: "イベントを開始" }).click();
   await expect(admin.getByTestId("event-state")).toContainText(title);
@@ -52,7 +53,8 @@ test.describe("エントリー受付", () => {
     // 運営: イベントを開始 → エントリー受付を開始 → 会場の画面にバブルのステージを映す
     await startEvent(admin.page, "ジャックポット抽選");
     await admin.page.getByRole("button", { name: "エントリー受付を開始" }).click();
-    await expect(admin.page.getByTestId("entry-state")).toContainText("エントリー受付中");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付中");
+    await openAdvanced(admin.page);
     await admin.page.getByRole("button", { name: "エントリー受付(バブル)" }).click();
     await expect(host.page).toHaveURL(/#\/event-entry$/);
     await expect(host.page.getByTestId("stage-label")).toHaveText("エントリー受付中!");
@@ -125,6 +127,7 @@ test.describe("エントリー受付", () => {
 
     // イベント終了: エントリーの表示は消える
     await admin.page.getByRole("button", { name: "イベントを終了" }).click();
+    await acceptConfirm(admin.page);
     await expect(guests[0].page.getByTestId("event-none")).toBeVisible();
 
     await publish(request, sessionId, false);
@@ -141,6 +144,7 @@ test.describe("エントリー受付", () => {
     await publish(request, sessionId);
     await startEvent(admin.page, "乾杯クイズ");
     await admin.page.getByRole("button", { name: "エントリー受付を開始" }).click();
+    await openAdvanced(admin.page);
     await admin.page.getByRole("button", { name: "エントリー受付(バブル)" }).click();
     await expect(host.page).toHaveURL(/#\/event-entry$/);
 
@@ -183,7 +187,7 @@ test.describe("エントリー受付", () => {
     await publish(request, sessionId);
     await startEvent(admin.page, "権限テスト");
     await admin.page.getByRole("button", { name: "エントリー受付を開始" }).click();
-    await expect(admin.page.getByTestId("entry-state")).toContainText("エントリー受付中");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付中");
 
     const guest = await newDevice(browser, { mobile: true });
     await guest.page.goto(qrUrl(ids[0]));

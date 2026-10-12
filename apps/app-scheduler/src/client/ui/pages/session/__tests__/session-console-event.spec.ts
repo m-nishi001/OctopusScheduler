@@ -8,6 +8,7 @@ vi.mock("../../../../control/auth/auth-session", () => ({
 }));
 
 import SessionConsoleView from "../session-console-view.vue";
+import { resolveConfirm } from "../../../../../../../../packages/ui-kit/src/composables/use-feedback";
 import { registerEventHost } from "../../../../control/session/event-host";
 import type { EventStorage } from "../../../../control/session/event-host";
 import { makeDevice, makeRouter, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
@@ -51,6 +52,8 @@ async function consoleScene() {
     const b = button(label);
     if (!b) throw new Error(`ボタンが見つかりません: ${String(label)}`);
     await b.trigger("click");
+    // イベントの終了は確認ダイアログが出る(誤操作防止)。テストでは「終了する」を選ぶ
+    if (label === "イベントを終了") resolveConfirm(true);
     await settle(8000);
   };
   const startEvent = async (title: string) => {
@@ -72,7 +75,7 @@ async function consoleScene() {
 describe("session-console-view: 参加者ポータルのイベント", () => {
   it("イベント名が空の間は開始できない。入力して開始すると「発生中」の表示になり、終了できる", async () => {
     const s = await consoleScene();
-    expect(s.byTestId("event-state").text()).toContain("イベントは発生していません");
+    expect(s.byTestId("event-state").text()).toContain("イベントは開催していません");
     expect(s.button("イベントを開始")!.attributes("disabled")).toBeDefined();
     expect(s.button("イベントを終了")).toBeUndefined();
 
@@ -82,8 +85,18 @@ describe("session-console-view: 参加者ポータルのイベント", () => {
     expect(s.button("イベントを切り替える")).toBeDefined();
 
     await s.click("イベントを終了");
-    expect(s.byTestId("event-state").text()).toContain("イベントは発生していません");
+    expect(s.byTestId("event-state").text()).toContain("イベントは開催していません");
     expect(s.button("イベントを終了")).toBeUndefined();
+  });
+
+  it("「イベントを終了」は確認が出て、キャンセルすればイベントは続く", async () => {
+    const s = await consoleScene();
+    await s.startEvent("抽選会");
+    await s.button("イベントを終了")!.trigger("click");
+    resolveConfirm(false);
+    await settle(8000);
+    expect(s.byTestId("event-state").text()).toContain("抽選会");
+    expect(s.button("イベントを終了")).toBeDefined();
   });
 
   it("発生中にもう一度開始すると、別のイベントに切り替わる", async () => {
@@ -104,10 +117,10 @@ describe("session-console-view: エントリー受付", () => {
   it("イベントを始めると操作が出る。受付を開始すると「受付中」と人数0が出て、参加者のエントリーが一覧に載る", async () => {
     const s = await consoleScene();
     await s.startEvent("ジャックポット抽選");
-    expect(s.byTestId("entry-state").text()).toContain("エントリー受付は始まっていません");
+    expect(s.byTestId("entry-state").text()).toContain("受付は始まっていません");
 
     await s.click("エントリー受付を開始");
-    expect(s.byTestId("entry-state").text()).toContain("エントリー受付中");
+    expect(s.byTestId("entry-state").text()).toContain("受付中");
     expect(s.byTestId("entry-count").text()).toBe("0");
     expect(s.byTestId("entrants").exists()).toBe(false);
 
@@ -134,7 +147,7 @@ describe("session-console-view: エントリー受付", () => {
     expect(s.button("エントリーを締め切る")).toBeUndefined();
 
     await s.click("エントリー受付を再開");
-    expect(s.byTestId("entry-state").text()).toContain("エントリー受付中");
+    expect(s.byTestId("entry-state").text()).toContain("受付中");
     await s.enter("bob", "ボブ");
     expect(s.byTestId("entry-count").text()).toBe("2");
     expect(s.byTestId("entrants").findAll("li")).toHaveLength(2);
