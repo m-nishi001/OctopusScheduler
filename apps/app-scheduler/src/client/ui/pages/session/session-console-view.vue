@@ -37,6 +37,7 @@
                     <UiButton variant="primary" class="console__main-button" :disabled="busyMain || !canSend" :loading="busyMain"
                         data-testid="next-button" @click="runMain">
                         {{ guidance.main.label }}
+                        <kbd v-if="enterTriggers(guidance.main.action)" class="console__key" data-testid="next-key">Enter</kbd>
                     </UiButton>
                     <p class="console__hint" data-testid="next-hint">押すと: {{ guidance.main.hint }}</p>
                 </div>
@@ -209,6 +210,7 @@ import { useAuthSession } from '../../../control/auth/auth-session';
 import ConnectionBanner from './components/connection-banner.vue';
 import { describeHostPresence } from './connection-labels';
 import { describeProgress } from './console-guidance';
+import { enterTriggers, resolveConsoleKey } from './console-keys';
 
 const props = defineProps<{ connection?: SessionConnection }>();
 
@@ -479,8 +481,18 @@ async function loadQuizzes() {
     }
 }
 
+/** ホスト画面を見ながら Enter で主ボタンを押せる。入力欄やボタンにフォーカスがあるときは、その要素の操作を優先する。 */
+function onKeydown(e: KeyboardEvent) {
+    const command = resolveConsoleKey(e, { mainAction: guidance.value.main?.action ?? null, blocked: busyMain.value || !canSend.value });
+    if (command === 'main') {
+        e.preventDefault();
+        void runMain();
+    }
+}
+
 let clock: ReturnType<typeof setInterval> | null = null;
 onMounted(() => {
+    window.addEventListener('keydown', onKeydown);
     clock = setInterval(() => {
         nowMs.value = Date.now();
     }, 1000);
@@ -489,6 +501,7 @@ onMounted(() => {
     void loadQuizzes();
 });
 onUnmounted(() => {
+    window.removeEventListener('keydown', onKeydown);
     if (clock) clearInterval(clock);
 });
 </script>
@@ -505,6 +518,7 @@ onUnmounted(() => {
 .console__warn { margin: 0; padding: 8px 12px; border-radius: 8px; background: rgba(255, 179, 0, 0.15); color: #ffd54f; }
 .console__error { margin: 0; color: #ff8a80; }
 .console__main { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.console__key { margin-left: 10px; padding: 1px 8px; font-size: 0.8rem; font-weight: 600; border: 1px solid currentColor; border-radius: 6px; opacity: 0.7; vertical-align: middle; }
 .console__main-button { min-height: 64px; font-size: 1.4rem; width: 100%; }
 .console__hint { margin: 0; font-size: 0.95rem; opacity: 0.85; text-align: center; }
 .console__h2 { margin: 8px 0 8px; font-size: 1rem; }
