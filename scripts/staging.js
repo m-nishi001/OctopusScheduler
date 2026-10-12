@@ -22,7 +22,7 @@ import { setup } from "./setup-cloudflare.js";
 import { teardown } from "./teardown-cloudflare.js";
 import { qrLoginUrl } from "./dev-stack.js";
 import { runWrangler, runWranglerAsync } from "./lib/wrangler.js";
-import { ensurePortalSession } from "./seed-session.js";
+import { ensurePortalSession, seedDemoResults } from "./seed-session.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TOML_NAME = "wrangler.staging.toml";
@@ -98,7 +98,7 @@ export function renderUpSummary({ url, seed, session }) {
     `  参加者     : ${seed.participants.ids[0]} 〜 ${seed.participants.ids.at(-1)} / 共通パスワード ${seed.participants.password}`,
     `  受付QR相当 : ${qrLoginUrl(url ?? "<URL>", seed.participants.ids[0], seed.participants.loginKeys?.[seed.participants.ids[0]])}`,
     ...(session
-      ? [`  セッション : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み。${session.reused ? "既存を再利用" : "新規作成"}。寿命は12時間(切れたら npm run staging:seed)`]
+      ? [`  セッション : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み。${session.reused ? "既存を再利用" : "新規作成"}。寿命は12時間(切れたら npm run staging:seed)。結果タブにはサンプルの順位・当選履歴を投入済み`]
       : []),
     "",
     "  Playwright を向ける:",
@@ -198,6 +198,7 @@ async function up() {
   const seed = JSON.parse(seedOut);
   if (url) writeFileSync(urlFile(), url);
   const session = url ? await timed("session", timings, () => ensurePortalSession({ baseUrl: url, token: seed.admin.sessionToken })) : null;
+  if (url && session) await timed("results", timings, () => seedDemoResults({ baseUrl: url, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids }));
   console.log(renderUpSummary({ url, seed, session }));
   console.log(renderTimings(timings, Date.now() - startedAt));
 }
@@ -216,6 +217,7 @@ async function seedOnly(argUrl) {
   const seedOut = (await execFileAsync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).stdout;
   const seed = JSON.parse(seedOut);
   const session = await ensurePortalSession({ baseUrl: url, token: seed.admin.sessionToken });
+  await seedDemoResults({ baseUrl: url, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids });
   console.log(renderUpSummary({ url, seed, session }));
 }
 

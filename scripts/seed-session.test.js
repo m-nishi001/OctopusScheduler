@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildRpcBody, ensurePortalSession, pickReusableSession, withRetry } from "./seed-session.js";
+import { buildDemoResults, buildRpcBody, ensurePortalSession, pickReusableSession, seedDemoResults, withRetry } from "./seed-session.js";
 
 const noSleep = async () => {};
 
@@ -77,4 +77,50 @@ test("withRetry: 失敗したら待って再試行し、上限で諦める", asy
     /always/
   );
   assert.equal(m, 3);
+});
+
+const PARTICIPANTS = Array.from({ length: 20 }, (_, i) => `test-user-${String(i + 1).padStart(2, "0")}`);
+
+test("buildDemoResults: クイズ3ラウンド・抽選5件を、サンプルだとわかる ID で作る(決定的)", () => {
+  const a = buildDemoResults(PARTICIPANTS, 1_700_000_000_000);
+  assert.deepEqual(a, buildDemoResults(PARTICIPANTS, 1_700_000_000_000));
+  assert.equal(a.rounds.length, 3);
+  assert.equal(a.draws.length, 5);
+  assert.ok(a.rounds.every((r) => r.roundKey.startsWith("seed-demo-")));
+  assert.ok(a.draws.every((d) => d.drawId.startsWith("seed-demo-")));
+  assert.equal(new Set(a.draws.map((d) => d.drawId)).size, 5);
+});
+
+test("buildDemoResults: 順位表として成り立つ(早い順・正解/不正解が重ならない・十分な人数)", () => {
+  const { rounds, draws } = buildDemoResults(PARTICIPANTS, 1_700_000_000_000);
+  for (const r of rounds) {
+    assert.ok(r.correct.length >= 5, `${r.title}: 正解者が少ない`);
+    assert.deepEqual(r.correct.map((c) => c.sec), [...r.correct.map((c) => c.sec)].sort((x, y) => x - y));
+    const correctIds = new Set(r.correct.map((c) => c.memberId));
+    assert.ok(r.wrongMemberIds.every((id) => !correctIds.has(id)));
+    assert.equal(r.answeredCount, r.correct.length + r.wrongMemberIds.length);
+    assert.ok(r.correct.every((c) => /^テスト参加者\d+$/.test(c.name) && c.memberId.startsWith("test-user-")));
+  }
+  assert.ok(rounds[0].closedAtMs < rounds[2].closedAtMs);
+  assert.ok(draws.every((d) => d.prizeName && d.memberName && Number.isFinite(d.atMs)));
+  assert.ok(draws.some((d) => d.isKakuhen));
+});
+
+test("buildDemoResults: 参加者が少なくても作れる(存在しない人を当選にしない)", () => {
+  const { rounds, draws } = buildDemoResults(PARTICIPANTS.slice(0, 5), 1);
+  assert.equal(rounds.length, 3);
+  assert.ok(draws.length >= 1 && draws.length <= 5);
+  assert.ok(draws.every((d) => PARTICIPANTS.slice(0, 5).includes(d.memberId)));
+});
+
+test("seedDemoResults: ラウンドと抽選を管理者トークンで保存する", async () => {
+  const { fetch, calls } = fakeFetch({
+    sessionHub_putQuizResult: () => ({ rev: 1 }),
+    sessionHub_putJackpotDraw: () => ({ rev: 2 }),
+  });
+  const done = await seedDemoResults({ fetch, baseUrl: "https://x.example/", token: "tok", sessionId: "s1", participantIds: PARTICIPANTS, now: 1_700_000_000_000, sleep: noSleep });
+  assert.deepEqual(done, { rounds: 3, draws: 5 });
+  assert.equal(calls.filter((c) => c.name === "sessionHub_putQuizResult").length, 3);
+  assert.equal(calls.filter((c) => c.name === "sessionHub_putJackpotDraw").length, 5);
+  assert.ok(calls.every((c) => c.token === "tok" && c.args.sessionId === "s1"));
 });

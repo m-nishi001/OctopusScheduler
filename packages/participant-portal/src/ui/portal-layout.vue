@@ -18,6 +18,8 @@
             <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="pp-tabs__item" :exact-active-class="'is-active'"
                 :active-class="tab.exact ? '' : 'is-active'">
                 {{ tab.label }}
+                <span v-if="tab.to === '/p/results' && results.stale.value" class="pp-tabs__dot" data-testid="results-new"
+                    role="img" aria-label="新しい結果があります" />
             </RouterLink>
         </nav>
     </div>
@@ -31,6 +33,7 @@ import type { SessionConnection } from '@octopus/session-hub';
 import { useParticipantAuth } from '../model/participant-auth';
 import { ENTRY_KEY, useEntry } from '../model/use-entry';
 import { QUIZ_KEY, useQuiz } from '../model/use-quiz';
+import { RESULTS_KEY, useResults } from '../model/use-results';
 import { PORTAL_SESSION_KEY, usePortalSession } from '../model/use-portal-session';
 import PortalEventBanner from './portal-event-banner.vue';
 import './portal-theme.css';
@@ -49,8 +52,13 @@ provide(ENTRY_KEY, entry);
 const quiz = useQuiz(session, { memberId: () => auth.currentMember.value?.id ?? null });
 provide(QUIZ_KEY, quiz);
 
+// 結果(クイズの順位・当選履歴)。ホストが保存すると更新番号だけが届くので、新しい結果があるときはタブに印を出す
+const results = useResults(session);
+provide(RESULTS_KEY, results);
+
 const tabs = [
     { to: '/p', label: 'ホーム', exact: true },
+    { to: '/p/results', label: '結果', exact: false },
     { to: '/p/me', label: 'マイページ', exact: false },
 ];
 
@@ -174,6 +182,22 @@ onMounted(() => {
     text-decoration: none;
     font-weight: 700;
     color: var(--pp-text-muted);
+}
+
+.pp-tabs__item {
+    position: relative;
+}
+
+/* 新しい結果があるときの印 */
+.pp-tabs__dot {
+    position: absolute;
+    top: 12px;
+    left: calc(50% + 1.4em);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--pp-red);
+    box-shadow: 0 0 0 2px rgba(18, 5, 8, 0.96), 0 0 10px var(--pp-red);
 }
 
 .pp-tabs__item.is-active {

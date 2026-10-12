@@ -1,7 +1,7 @@
 import { computed, inject, onScopeDispose, ref, watch } from "vue";
 import type { ComputedRef, InjectionKey, Ref, ShallowRef } from "vue";
 import { parseHubErrorCode, readPortalEvent, useSessionConnection } from "@octopus/session-hub";
-import type { ConnectionState, PortalEvent, SessionConnection, SubmitAnswerResult } from "@octopus/session-hub";
+import type { ConnectionState, PortalEvent, ResultsView, SessionConnection, SubmitAnswerResult } from "@octopus/session-hub";
 import { derivePortalStatus, statusMessage } from "./portal-status";
 import type { JoinFailure, PortalStatus } from "./portal-status";
 
@@ -31,6 +31,8 @@ export interface PortalSession {
   answer(key: string, no: number): Promise<SubmitAnswerResult>;
   /** ホストが許可した操作を送る（例: ルーレットを止める）。通信失敗は同じ内容で安全に再送される。 */
   issue(game: string, type: string): Promise<unknown>;
+  /** 結果(クイズの順位・ジャックポットの当選履歴)を、自分向けの見せ方で取得する。 */
+  fetchResults(): Promise<ResultsView>;
   /** 入り直す(手動の「つなぎ直す」。回数制限なし)。 */
   join(): Promise<void>;
   /** 退室して、保存した入室情報を消す(ログアウト時)。 */
@@ -148,6 +150,7 @@ export function usePortalSession(connection: SessionConnection, options: PortalS
     clientCount,
     answer: (key, no) => connection.answer(key, no),
     issue: (game, type) => connection.issue(game, type),
+    fetchResults: () => connection.getResults(),
     join,
     leave: () => connection.leave(),
   };

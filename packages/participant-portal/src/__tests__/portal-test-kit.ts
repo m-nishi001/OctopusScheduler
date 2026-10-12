@@ -2,7 +2,7 @@ import { createFakeHubApi, makeDevice, makeHub } from "@octopus/session-hub/test
 import type { Device, FaultInjector, TestHub } from "@octopus/session-hub/testing";
 import { MemoryDeviceStore, SessionAdminRepository } from "@octopus/session-hub";
 import { ENTRY_OPTIONS, entryRoundKey } from "@octopus/session-hub";
-import type { PortalEvent } from "@octopus/session-hub";
+import type { JackpotDraw, PortalEvent, QuizRoundResult } from "@octopus/session-hub";
 
 export { makeDevice, makeHub };
 export type { Device, TestHub };
@@ -60,6 +60,27 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
     /** ホストがジャックポットの状態と、参加者に許可する操作を公開する。 */
     publishJackpot: (jackpot: { phase: string; canStop: boolean; member: string | null; prize: string | null } | null, input: string[] = []) =>
       setSlice("jackpot", jackpot, input),
+    /**
+     * ホストがクイズ1ラウンドの結果を保存し、更新番号を公開する(本番では HostAgent.recordQuizResult が行う)。
+     * 返り値は保存後の rev。
+     */
+    saveQuizResult: async (result: QuizRoundResult): Promise<number> => {
+      const rev = await host.conn.putQuizResult(result);
+      await setSlice("results", { rev });
+      return rev;
+    },
+    /** ホストがジャックポットの抽選結果を保存し、更新番号を公開する。 */
+    saveJackpotDraw: async (draw: JackpotDraw): Promise<number> => {
+      const rev = await host.conn.putJackpotDraw(draw);
+      await setSlice("results", { rev });
+      return rev;
+    },
+    /** ホストが抽選結果を取り消し、更新番号を公開する。 */
+    removeJackpotDraw: async (drawId: string): Promise<number> => {
+      const rev = await host.conn.deleteJackpotDraw(drawId);
+      await setSlice("results", { rev });
+      return rev;
+    },
     /** 運営側が見るエントリー済みの一覧（メンバーID）。 */
     entrants: async (key: string): Promise<string[]> => (await host.conn.getAnswers(key)).answers.map((a) => a.memberId ?? "?"),
   };
@@ -117,3 +138,29 @@ export function sampleQuizState(): QuizPublished {
     correctNo: null,
   };
 }
+
+export const sampleRound = (patch: Partial<QuizRoundResult> = {}): QuizRoundResult => ({
+  roundKey: "qz1:live",
+  quizId: "qz1",
+  title: "果物クイズ",
+  correctNo: 2,
+  closedAtMs: 1_700_000_000_000,
+  answeredCount: 3,
+  correct: [
+    { memberId: "alice", name: "アリス", sec: 1.2 },
+    { memberId: "bob", name: "ボブ", sec: 2.4 },
+  ],
+  wrongMemberIds: ["carol"],
+  ...patch,
+});
+
+export const sampleDraw = (patch: Partial<JackpotDraw> = {}): JackpotDraw => ({
+  drawId: "d1",
+  memberId: "alice",
+  memberName: "アリス",
+  prizeId: "p1",
+  prizeName: "1等 ペア旅行券",
+  isKakuhen: false,
+  atMs: 1_700_000_100_000,
+  ...patch,
+});

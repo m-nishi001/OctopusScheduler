@@ -18,7 +18,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { freePort, renderLocalToml, waitForReady, wrangler } from "./e2e-local.js";
 import { wranglerCommand } from "./lib/wrangler.js";
-import { ensurePortalSession } from "./seed-session.js";
+import { ensurePortalSession, seedDemoResults } from "./seed-session.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -123,6 +123,7 @@ export async function main(argv = process.argv.slice(2)) {
   const urlsFile = join(paths.dir, "participants.json");
   writeFileSync(urlsFile, JSON.stringify(participantLoginUrls(base, seed), null, 2));
   const session = await ensurePortalSession({ baseUrl: base, token: seed.admin.sessionToken });
+  await seedDemoResults({ baseUrl: base, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids });
   console.log(renderBanner({ base, seed, urlsFile, session }));
   await new Promise((done) => child.on("exit", done));
 }

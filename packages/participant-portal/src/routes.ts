@@ -3,6 +3,7 @@ import PortalLayout from "./ui/portal-layout.vue";
 import PortalHome from "./ui/pages/portal-home.vue";
 import PortalEvent from "./ui/pages/portal-event.vue";
 import PortalMe from "./ui/pages/portal-me.vue";
+import PortalResults from "./ui/pages/portal-results.vue";
 
 /**
  * 参加者ポータルのルート。`/p` 配下で、レイアウト(固定ヘッダー・イベントのバナー・下タブ)の中に各ページが入る。
@@ -15,6 +16,7 @@ export const participantPortalRoutes: RouteRecordRaw[] = [
     children: [
       { path: "", name: "participant-home", component: PortalHome },
       { path: "event", name: "participant-event", component: PortalEvent },
+      { path: "results", name: "participant-results", component: PortalResults },
       { path: "me", name: "participant-me", component: PortalMe },
     ],
   },
