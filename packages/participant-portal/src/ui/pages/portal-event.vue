@@ -68,7 +68,6 @@ const entry = useEntryContext();
     font-size: 2rem;
     font-weight: 900;
     line-height: 1.25;
-    word-break: break-word;
     color: var(--pp-gold-light);
     text-shadow: 0 0 22px rgba(255, 213, 74, 0.45);
 }
@@ -92,7 +91,7 @@ const entry = useEntryContext();
     align-items: center;
     justify-content: center;
     gap: 4px;
-    width: min(72vw, 260px);
+    width: min(100%, 260px);
     aspect-ratio: 1 / 1;
     border: 0;
     border-radius: 50%;

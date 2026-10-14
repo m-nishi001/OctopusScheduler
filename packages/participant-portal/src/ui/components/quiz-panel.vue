@@ -76,7 +76,6 @@ const quiz = useQuizContext();
     font-size: 1.3rem;
     font-weight: 800;
     line-height: 1.5;
-    word-break: break-word;
 }
 
 .pp-quiz__timer {

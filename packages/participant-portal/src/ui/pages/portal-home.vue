@@ -115,7 +115,6 @@ async function retry() {
     font-size: 1.5rem;
     font-weight: 900;
     line-height: 1.3;
-    word-break: break-word;
 }
 
 .pp-home__entry {

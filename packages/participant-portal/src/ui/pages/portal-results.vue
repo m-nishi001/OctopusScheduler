@@ -247,7 +247,7 @@ function clock(ms: number): string {
 
 .pp-rank__row {
     display: grid;
-    grid-template-columns: 34px 1fr auto auto;
+    grid-template-columns: 34px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: 10px;
     min-height: 44px;
@@ -289,8 +289,6 @@ function clock(ms: number): string {
 }
 
 .pp-rank__name {
-    min-width: 0;
-    overflow-wrap: anywhere;
     font-weight: 700;
 }
 
