@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { adminRpc, expect, newDevice, nextButton, openAdvanced, route, test } from "./fixtures";
+import { expectNoHorizontalOverflow } from "./helpers/responsive";
 
 /**
  * 第三者の目線の通しチェック(シード済みの環境向け)。
@@ -23,10 +24,6 @@ const shot = async (page: Page, name: string) => {
   await page.screenshot({ path: join(SHOTS, `${name}.png`) });
 };
 
-const noHorizontalScroll = async (page: Page, where: string) => {
-  const { sw, vw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, vw: window.innerWidth }));
-  expect(sw, `${where}: 横スクロールが出ない`).toBeLessThanOrEqual(vw + 1);
-};
 
 /** 受付QR相当でログインした参加者のスマホ。シードの参加者は、管理者がログインキーを発行して入る。 */
 async function loginAs(browser: import("@playwright/test").Browser, request: APIRequestContext, id: string) {
@@ -57,7 +54,7 @@ test.describe("第三者の通しチェック(シード済みの環境)", () => 
     // 進行中のクイズなどが無ければ「イベントの案内」、あればそのカードが出る(どちらでも空ではない)
     await expect(winner.page.getByTestId("home-status").or(winner.page.getByTestId("quiz-panel"))).toBeVisible();
     await expect(winner.page.locator(".pp-tabs__item")).toHaveCount(3);
-    await noHorizontalScroll(winner.page, "ホーム");
+    await expectNoHorizontalOverflow(winner.page, "ホーム");
     await shot(winner.page, "portal-home");
 
     // 結果: クイズ(総合ランキング + 各問)
@@ -66,14 +63,14 @@ test.describe("第三者の通しチェック(シード済みの環境)", () => 
     expect(await winner.page.getByTestId("results-round").count(), "各問の結果が3問以上ある").toBeGreaterThanOrEqual(3);
     expect(await winner.page.locator('[data-testid="results-cumulative"] li').count(), "総合ランキングが5人以上いる").toBeGreaterThanOrEqual(5);
     await expect(winner.page.getByTestId("results-my-wins")).toContainText("1"); // 当選1回
-    await noHorizontalScroll(winner.page, "結果(クイズ)");
+    await expectNoHorizontalOverflow(winner.page, "結果(クイズ)");
     await shot(winner.page, "portal-results-quiz");
 
     // 結果: ジャックポット
     await winner.page.getByTestId("results-tab-jackpot").click();
     expect(await winner.page.getByTestId("results-draw").count(), "当選履歴が5件ある").toBeGreaterThanOrEqual(5);
     await expect(winner.page.getByTestId("results-draw-mine")).toHaveText("あなたが当選!");
-    await noHorizontalScroll(winner.page, "結果(ジャックポット)");
+    await expectNoHorizontalOverflow(winner.page, "結果(ジャックポット)");
     await shot(winner.page, "portal-results-jackpot");
 
     // 当選していない人には強調が出ない。他の人のIDは画面に出ない
@@ -140,7 +137,7 @@ test.describe("第三者の通しチェック(シード済みの環境)", () => 
       else await page.waitForTimeout(2500);
       const bodyText = (await page.locator("body").innerText()).trim();
       expect(bodyText.length, `${path} が空でない`).toBeGreaterThan(5);
-      await noHorizontalScroll(page, path);
+      await expectNoHorizontalOverflow(page, path);
       await shot(page, `admin-${path.replace(/^\//, "").replace(/\//g, "_")}`);
     }
     expect([...new Set(problems)], [...new Set(problems)].join("\n")).toEqual([]);
