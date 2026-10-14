@@ -113,6 +113,26 @@ test.describe("ホスト・管理・参加者の通し", () => {
     for (const d of [adminDev, host, phone]) await d.context.close();
   });
 
+  test("ホストが無操作でも接続中のままで、画面を閉じると未接続になる", async ({ browser }) => {
+    const adminDev = await newDevice(browser, { signedIn: true });
+    const { id } = await createSession(adminDev.page, "死活会場");
+    sessionIds.push(id);
+    const host = await newDevice(browser, { signedIn: true, projector: true });
+    await host.page.goto(`/#/session/host/${id}`);
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト接続中");
+
+    // 状態が変わらないまま「途絶」の閾値(20秒)を十分に超えても、接続中のまま
+    await adminDev.page.waitForTimeout(30_000);
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト接続中");
+    await expect(adminDev.page.getByTestId("host-card")).not.toContainText("途絶");
+
+    // ホスト画面を閉じると、切断が配信されて未接続になる
+    await host.context.close();
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト未接続", { timeout: 15_000 });
+
+    await adminDev.context.close();
+  });
+
   test("ホストのリロードから自動復帰し、その後の遠隔操作も引き続き届く", async ({ browser }) => {
     const adminDev = await newDevice(browser, { signedIn: true });
     const { id } = await createSession(adminDev.page, "リロード会場");

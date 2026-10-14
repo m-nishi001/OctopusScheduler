@@ -200,7 +200,7 @@ export class SessionRoomCore {
       const a = ws.getAttachment();
       if (!a) continue;
       // 接続中のソケットは「いま在席」。ack はソケット側の値を使う。
-      byId.set(a.deviceId, { deviceId: a.deviceId, role: a.role, label: a.label, seenAtMs: now, ackSeq: a.ackSeq });
+      byId.set(a.deviceId, { deviceId: a.deviceId, role: a.role, label: a.label, seenAtMs: now, live: true, ackSeq: a.ackSeq });
     }
     return [...byId.values()];
   }

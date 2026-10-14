@@ -265,7 +265,7 @@ const presets = computed(() => [
 ]);
 
 const serverNow = computed(() => nowMs.value + state.value.serverOffsetMs);
-const host = computed(() => describeHostPresence(state.value.presence?.host?.seenAtMs ?? null, serverNow.value));
+const host = computed(() => describeHostPresence(state.value.presence?.host ?? null, serverNow.value));
 const pending = computed(() => Math.max(0, state.value.headSeq - (state.value.presence?.host?.ackSeq ?? 0)));
 const hostPath = computed(() => {
     const session = state.value.roomState?.data?.session as { path?: string } | undefined;

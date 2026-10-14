@@ -35,13 +35,17 @@ export function clientInputLabel(key: string): string {
   return CLIENT_INPUT_LABELS[key] ?? key;
 }
 
-/** ホストの在席の表示(サーバ時刻基準の経過秒)。 */
+/**
+ * ホストの在席の表示。WebSocket 接続中(live)は経過時間によらず接続中。
+ * ポーリング由来は、サーバ時刻基準の経過秒で判定する。
+ */
 export function describeHostPresence(
-  seenAtMs: number | null,
+  host: { seenAtMs: number; live?: boolean } | null,
   serverNowMs: number
 ): { text: string; online: boolean } {
-  if (seenAtMs === null) return { text: "ホスト未接続", online: false };
-  const sec = Math.max(0, Math.round((serverNowMs - seenAtMs) / 1000));
+  if (host === null) return { text: "ホスト未接続", online: false };
+  if (host.live) return { text: "ホスト接続中", online: true };
+  const sec = Math.max(0, Math.round((serverNowMs - host.seenAtMs) / 1000));
   if (sec <= 20) return { text: "ホスト接続中", online: true };
   return { text: `ホストの応答が${sec}秒途絶えています`, online: false };
 }
