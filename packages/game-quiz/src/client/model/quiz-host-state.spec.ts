@@ -29,16 +29,16 @@ describe("buildQuizHostState", () => {
     expect(JSON.stringify(s)).not.toContain('"correctNo":2');
   });
 
-  it("正解発表(answer)で正解番号が入り、結果(result)でも保たれる。イントロ/QRでは入らない", () => {
+  it("正解発表(answer)で正解番号が入り、結果(result)でも保たれる。イントロ/エントリーでは入らない", () => {
     const base = { quizId: "q1", question: "Q?", options: OPTIONS, correctNo: 2 };
     expect(buildQuizHostState({ ...base, page: "answer" }).correctNo).toBe(2);
     expect(buildQuizHostState({ ...base, page: "result" }).correctNo).toBe(2);
     expect(buildQuizHostState({ ...base, page: "intro" }).correctNo).toBeNull();
-    expect(buildQuizHostState({ ...base, page: "qr" }).correctNo).toBeNull();
+    expect(buildQuizHostState({ ...base, page: "entry" }).correctNo).toBeNull();
   });
 
-  it("問題文・選択肢は intro/qr/result では含めない", () => {
-    for (const page of ["intro", "qr", "result"] as const) {
+  it("問題文・選択肢は intro/entry/result では含めない", () => {
+    for (const page of ["intro", "entry", "result"] as const) {
       const s = buildQuizHostState({ page, quizId: "q1", question: "Q?", options: OPTIONS });
       expect(s.question).toBeNull();
       expect(s.options).toEqual([]);

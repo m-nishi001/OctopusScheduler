@@ -7,7 +7,7 @@
  */
 import type { QuizSessionScope } from "../../server/quiz-api-contract";
 
-export type QuizHostPage = "intro" | "qr" | "play" | "answer" | "result";
+export type QuizHostPage = "intro" | "entry" | "play" | "answer" | "result";
 export type QuizAnswerPhase = "idle" | "answering" | "closed";
 
 export interface QuizHostOption {

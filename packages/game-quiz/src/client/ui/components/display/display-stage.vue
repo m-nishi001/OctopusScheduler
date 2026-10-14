@@ -14,7 +14,7 @@
 
 <style scoped>
 /*
- * クイズ表示画面(intro / qr / answer)の共通枠。
+ * クイズ表示画面(intro / answer)の共通枠。
  * 親(execute-view)の `.execute-content > * { display:block }` に負けないよう、
  * ルートのセレクタを重ねて詳細度を上げている。
  * サイズはすべて vmin / clamp 基準なので、横長・縦長・4Kのいずれでも収まる。

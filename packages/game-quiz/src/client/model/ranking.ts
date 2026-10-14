@@ -23,7 +23,7 @@ export interface RankingOptions {
   correctNo: number;
   /**
    * 回答受付が開始された時刻(ms)。この時刻より前に届いた回答は、
-   * 出題前(QR表示中など)に送信された不正な回答として除外する。
+   * 出題前(エントリー画面など)に送信された不正な回答として除外する。
    * セッションが一度も開始されていない場合は null。
    */
   acceptStartedAtMs: number | null;

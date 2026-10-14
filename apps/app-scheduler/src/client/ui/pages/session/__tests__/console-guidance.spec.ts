@@ -22,8 +22,8 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
     const quiz = (page: string, phase = "idle") => at({ hostPath: `/execute/quiz/q1/${page}`, quiz: { page, phase, title: "果物" } });
 
     it.each([
-      ["intro", "イントロ", "QR"],
-      ["qr", "QRコード", "回答受付"],
+      ["intro", "イントロ", "エントリー"],
+      ["entry", "エントリー受付中", "回答受付"],
       ["answer", "正解発表", "結果"],
       ["result", "結果発表", "景品"],
     ])("%s: 主ボタンは「次へ」で、予告が出る", (page, now, hint) => {
@@ -53,7 +53,7 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
     });
 
     it("デモの ?demo=1 付きパスでも同じに判定する", () => {
-      expect(at({ hostPath: "/execute/quiz/q1/qr?demo=1", quiz: { page: "qr", phase: "idle" } }).now).toContain("QRコード");
+      expect(at({ hostPath: "/execute/quiz/q1/entry?demo=1", quiz: { page: "entry", phase: "idle" } }).now).toContain("エントリー受付中");
     });
   });
 

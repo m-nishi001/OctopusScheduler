@@ -6,7 +6,7 @@
  * 公開する側（ゲームのホスト）との形の一致は、アプリの契約テストで確かめている。
  */
 
-export type QuizPage = "intro" | "qr" | "play" | "answer" | "result";
+export type QuizPage = "intro" | "entry" | "play" | "answer" | "result";
 export type QuizPhase = "idle" | "answering" | "closed";
 
 export interface QuizOption {
@@ -29,7 +29,7 @@ export interface QuizView {
   correctNo: number | null;
 }
 
-const QUIZ_PAGES: readonly string[] = ["intro", "qr", "play", "answer", "result"];
+const QUIZ_PAGES: readonly string[] = ["intro", "entry", "play", "answer", "result"];
 const QUIZ_PHASES: readonly string[] = ["idle", "answering", "closed"];
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);

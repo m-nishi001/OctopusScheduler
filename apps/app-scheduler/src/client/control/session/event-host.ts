@@ -2,6 +2,7 @@ import {
   ENTRY_OPTIONS,
   PORTAL_EVENT_CLOSE_ENTRY,
   PORTAL_EVENT_END,
+  PORTAL_EVENT_ENSURE_ENTRY,
   PORTAL_EVENT_NS,
   PORTAL_EVENT_OPEN_ENTRY,
   PORTAL_EVENT_SET_POOL,
@@ -70,6 +71,7 @@ const defaultNewId = (): string =>
  *   - `event.end`             : イベントを終了する(受付中のエントリーも締め切る)
  *   - `event.openEntry`       : エントリー受付を開始する。締切後なら、エントリー済みの人を残したまま再開する
  *   - `event.closeEntry`      : エントリー受付を締め切る
+ *   - `event.ensureEntry`     : まだ受付を始めていないイベントだけ、受付を開始する(クイズのエントリー画面が自動で呼ぶ)
  * 発生中のイベントはセッションごとに端末へ保存し、ホストがリロード・再接続しても公開し直す。
  * 受付そのものは回答ラウンドとしてサーバー側に残るので、リロードしても受付中の人数は失われない。
  */
@@ -115,6 +117,21 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
     }
   };
 
+  /** エントリー受付を開く(締切後なら、エントリー済みの人を残したまま再開する)。 */
+  const openEntry = async (sessionId: string | null, event: PortalEvent): Promise<void> => {
+    const key = event.entry?.key ?? entryRoundKey(event.id);
+    try {
+      // 以前に受付を始めたイベントなら、エントリー済みの人を残したまま再開する
+      await agent.connection.openEntryRound(key, [...ENTRY_OPTIONS], event.entry !== undefined);
+    } catch (error) {
+      console.error("エントリー受付を開始できませんでした", error);
+      return;
+    }
+    // エントリーの目的は抽選の対象を決めること。最初の受付では、抽選の対象を「エントリーした人」にする
+    // （運営が「全メンバー」に戻せる）。
+    await save(sessionId, { ...event, entry: { key, open: true }, pool: event.pool ?? "entrants" });
+  };
+
   const unregister = agent.router.register(PORTAL_EVENT_NS, async (command) => {
     const sessionId = currentSessionId();
     const event = load(sessionId);
@@ -134,17 +151,11 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
       await agent.clearSlice(PORTAL_EVENT_NS);
     } else if (command.type === PORTAL_EVENT_OPEN_ENTRY) {
       if (!event || event.entry?.open) return;
-      const key = event.entry?.key ?? entryRoundKey(event.id);
-      try {
-        // 以前に受付を始めたイベントなら、エントリー済みの人を残したまま再開する
-        await agent.connection.openEntryRound(key, [...ENTRY_OPTIONS], event.entry !== undefined);
-      } catch (error) {
-        console.error("エントリー受付を開始できませんでした", error);
-        return;
-      }
-      // エントリーの目的は抽選の対象を決めること。最初の受付では、抽選の対象を「エントリーした人」にする
-      // （運営が「全メンバー」に戻せる）。
-      await save(sessionId, { ...event, entry: { key, open: true }, pool: event.pool ?? "entrants" });
+      await openEntry(sessionId, event);
+    } else if (command.type === PORTAL_EVENT_ENSURE_ENTRY) {
+      // 受付を始めたことがあるイベント(締切済み含む)は触らない。再開すると、別の回答受付に置き換わった一覧が空から始まるため
+      if (!event || event.entry) return;
+      await openEntry(sessionId, event);
     } else if (command.type === PORTAL_EVENT_CLOSE_ENTRY) {
       if (!event?.entry?.open) return;
       await closeRoundQuietly(event.entry.key);

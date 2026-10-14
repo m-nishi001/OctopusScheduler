@@ -1,7 +1,7 @@
 import type { QuizSessionScope } from "../../server/quiz-api-contract";
 
 /** 表示画面のルート名(プレビュー版は `-preview` が付く)。 */
-export type QuizDisplayRoute = "quiz-qr" | "quiz-play" | "quiz-answer" | "quiz-result";
+export type QuizDisplayRoute = "quiz-entry" | "quiz-play" | "quiz-answer" | "quiz-result";
 
 /**
  * クイズ1回の実施(本番 or デモ)を表す。受付状態・回答のscope、画面遷移先、

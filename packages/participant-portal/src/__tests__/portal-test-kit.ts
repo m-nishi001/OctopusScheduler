@@ -108,7 +108,7 @@ export const sampleEvent = (patch: Partial<PortalEvent> = {}): PortalEvent => ({
 
 /** ホストが公開するクイズの状態（game-quiz の QuizHostState と同じ形）。 */
 export interface QuizPublished {
-  page: "intro" | "qr" | "play" | "answer" | "result";
+  page: "intro" | "entry" | "play" | "answer" | "result";
   quizId: string;
   title: string;
   roundKey: string | null;

@@ -41,7 +41,7 @@ describe("クイズ: ホストの公開 → ポータルの読み取り", () => 
     expect(view?.options).toEqual(OPTIONS);
   });
 
-  it.each(["intro", "qr", "result"] as const)("%s: 問題文・選択肢は公開されない（先に問題を渡さない）", (page) => {
+  it.each(["intro", "entry", "result"] as const)("%s: 問題文・選択肢は公開されない（先に問題を渡さない）", (page) => {
     const state = buildQuizHostState({ ...base, page, phase: "idle", correctNo: page === "result" ? 2 : null });
     const view = readQuizView({ quiz: wire(state) });
     expect(view?.page).toBe(page);
@@ -50,7 +50,7 @@ describe("クイズ: ホストの公開 → ポータルの読み取り", () => 
   });
 
   it("全ページ・全状態でポータルが読み取れる（null にならない）", () => {
-    for (const page of ["intro", "qr", "play", "answer", "result"] as const) {
+    for (const page of ["intro", "entry", "play", "answer", "result"] as const) {
       for (const phase of ["idle", "answering", "closed"] as const) {
         const state = buildQuizHostState({ ...base, page, phase, roundKey: "qz1:live", deadlineMs: 1, correctNo: 1 });
         expect(readQuizView({ quiz: wire(state) }), `${page}/${phase}`).not.toBeNull();

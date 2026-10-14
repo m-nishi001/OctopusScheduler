@@ -73,7 +73,7 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("クイズが始まります");
 
     await nextButton(admin.page).click(); // → QR
-    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/qr");
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/entry");
     await nextButton(admin.page).click(); // → 出題
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/play");
     await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
@@ -153,6 +153,47 @@ test.describe("クイズ（参加者ポータル）", () => {
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, taro, taro2, hanako, jiro]) await d.context.close();
+  });
+
+  test("エントリー画面: 受付を手動で始めなくても自動で始まり、人数が増え、「次へ」で締め切って出題に進む", async ({ browser, request }) => {
+    test.setTimeout(150_000);
+    const { admin, host, sessionId } = await scene(browser, request, "エントリー会場", "qz6", 60);
+    const taro = await login(browser, ids[0]);
+    const hanako = await login(browser, ids[1]);
+
+    // 「このクイズを始める」だけ(エントリー受付は手動で始めない)
+    await admin.page.getByTestId("quiz-select").selectOption("qz6");
+    await admin.page.getByTestId("start-quiz").click();
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz6/intro");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付は始まっていません");
+
+    // イントロの次: ホストはQRではなくエントリー画面になり、受付が自動で始まる
+    await nextButton(admin.page).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz6/entry");
+    await expect(admin.page.getByTestId("now")).toContainText("エントリー受付中");
+    await expect(host.page.getByTestId("stage-label")).toHaveText("エントリー受付中!");
+    await expect(host.page.getByTestId("stage-count")).toHaveText("0");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付中");
+
+    // 参加者がエントリーするたびに、会場の人数が増える
+    for (const g of [taro, hanako]) {
+      await g.page.getByTestId("event-banner").click();
+      await g.page.getByTestId("entry-button").click();
+      await expect(g.page.getByTestId("entry-done")).toContainText("エントリーしました!");
+    }
+    await expect(host.page.getByTestId("stage-count")).toHaveText("2");
+    await expect(host.page.getByTestId("entry-bubble")).toHaveCount(2);
+    await host.page.screenshot({ path: "/tmp/claude-0/quiz-host-entry.png" });
+
+    // 「次へ」でエントリーを締め切って出題へ。エントリーした人の一覧は残る(ジャックポットの抽選の対象)
+    await nextButton(admin.page).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz6/play");
+    await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("エントリー受付は終了");
+    await expect(admin.page.getByTestId("pool-state")).toContainText("2人");
+
+    await publish(request, sessionId, false);
+    for (const d of [admin, host, taro, hanako]) await d.context.close();
   });
 
   test("全員不正解なら景品は出さず、「次へ」でそのままロビーに戻る", async ({ browser, request }) => {
