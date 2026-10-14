@@ -422,10 +422,12 @@ const startQuiz = () =>
         await connection.issue('session', 'navigate', { path: quizPath('intro') });
     });
 
-/** ジャックポットを始める: イベント開催(未開催なら) → オープニング画面。 */
+/** ジャックポットを始める: イベント開催(未開催なら) → エントリー受付開始(まだ始めていなければ) → オープニング画面。 */
 const startJackpot = () =>
     runStart('jackpot', async () => {
         await ensureEvent(JACKPOT_EVENT_TITLE);
+        // 受付済みのイベント(締切後も)には触らない。エントリー済みの人を残すため
+        if (!portalEvent.value?.entry) await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_OPEN_ENTRY);
         await connection.issue('session', 'navigate', { path: q('/jackpot-opening') });
     });
 
