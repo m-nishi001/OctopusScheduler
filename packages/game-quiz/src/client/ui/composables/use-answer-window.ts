@@ -79,7 +79,7 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
     finishing = false;
     timeLeft.value = args.timeLimit;
 
-    // 受付は出題の瞬間に開く(QR表示中などに回答されないように)。
+    // 受付は出題の瞬間に開く(エントリー画面などに回答されないように)。
     try {
       const round = await gateway.open(args.quizId, args.scope, args.options, args.timeLimit);
       if (round) {

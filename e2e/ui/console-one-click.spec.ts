@@ -36,10 +36,11 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/intro");
     await expect(admin.page.getByTestId("event-state")).toContainText("果物クイズ");
     await expect(admin.page.getByTestId("now")).toContainText("イントロ表示中");
-    await expect(admin.page.getByTestId("next-hint")).toContainText("QR");
+    await expect(admin.page.getByTestId("next-hint")).toContainText("エントリー");
 
-    await nextButton(admin.page).click(); // → QR
-    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/qr");
+    await nextButton(admin.page).click(); // → エントリー(受付が自動で始まる)
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/entry");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付中");
     await expect(admin.page.getByTestId("next-hint")).toContainText("回答受付");
     await nextButton(admin.page).click(); // → 出題
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/play");
@@ -78,8 +79,8 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     // 開始ボタンのフォーカスを外す(ボタンにフォーカスがあるとEnterはそのボタンの操作になる)
     await admin.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 
-    await admin.page.keyboard.press("Enter"); // → QR
-    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/qr");
+    await admin.page.keyboard.press("Enter"); // → エントリー
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/entry");
     await admin.page.keyboard.press("Enter"); // → 出題
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/oc1/play");
     await expect(admin.page.getByTestId("now")).toContainText("回答受付中");

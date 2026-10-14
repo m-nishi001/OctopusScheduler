@@ -153,7 +153,7 @@
                     <h3 class="console__h3">クイズの画面を直接切り替える</h3>
                     <div class="console__presets">
                         <UiButton v-for="p in quizPages" :key="p.page" :disabled="busyPath !== null || !canSend || !selectedQuizId"
-                            :loading="busyPath === quizPath(p.page)" @click="navigate(quizPath(p.page))">
+                            :loading="busyPath === quizPath(p.page)" @click="navigate(quizPath(p.page), p.page === 'entry' ? ensureQuizEvent : undefined)">
                             {{ p.label }}
                         </UiButton>
                     </div>
@@ -292,11 +292,11 @@ interface QuizState {
 }
 const quizState = computed(() => (state.value.roomState?.data?.quiz as QuizState | undefined) ?? null);
 const roundSummary = computed(() => state.value.round);
-const QUIZ_PAGE_LABELS: Record<string, string> = { intro: 'イントロ', qr: 'QR表示', play: '出題中', answer: '正解発表', result: '結果発表' };
+const QUIZ_PAGE_LABELS: Record<string, string> = { intro: 'イントロ', entry: 'エントリー受付', play: '出題中', answer: '正解発表', result: '結果発表' };
 const quizPageLabel = computed(() => QUIZ_PAGE_LABELS[quizState.value?.page ?? ''] ?? '');
 const quizPages = [
     { page: 'intro', label: 'イントロ' },
-    { page: 'qr', label: 'QR' },
+    { page: 'entry', label: 'エントリー' },
     { page: 'play', label: '出題' },
     { page: 'answer', label: '正解' },
     { page: 'result', label: '結果' },
@@ -349,10 +349,11 @@ async function join() {
     }
 }
 
-async function navigate(path: string) {
+async function navigate(path: string, before?: () => Promise<void>) {
     if (busyPath.value !== null) return;
     busyPath.value = path;
     try {
+        await before?.();
         await connection.issue('session', 'navigate', { path });
     } catch (e) {
         reportError(e);
@@ -408,11 +409,16 @@ async function runStart(kind: 'quiz' | 'jackpot' | 'entry', steps: () => Promise
     }
 }
 
-/** このクイズを始める: イベント開催(未開催なら) → イントロ画面。 */
+/** 選んでいるクイズの名前でイベントを開催する(未開催なら)。 */
+const ensureQuizEvent = () => {
+    const quiz = quizzes.value.find((x) => x.id === selectedQuizId.value);
+    return ensureEvent(quiz?.title || quiz?.question || 'クイズ');
+};
+
+/** このクイズを始める: イベント開催(未開催なら) → イントロ画面。エントリー受付は、次のエントリー画面で自動で始まる。 */
 const startQuiz = () =>
     runStart('quiz', async () => {
-        const quiz = quizzes.value.find((x) => x.id === selectedQuizId.value);
-        await ensureEvent(quiz?.title || quiz?.question || 'クイズ');
+        await ensureQuizEvent();
         await connection.issue('session', 'navigate', { path: quizPath('intro') });
     });
 

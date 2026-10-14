@@ -4,4 +4,6 @@ export { Container as QuizContainer } from "./control/container";
 // 管理コンソールのクイズ選択と、ホスト端末のデータ準備(Driveからの取り込み)に使う。
 export { SyncService as QuizSyncService } from "./control/sync/sync-service";
 export { GetAllQuizzesUseCase } from "./control/use-cases/get-all-quizzes-use-case";
+// ホスト端末のエントリー画面(アプリ側で用意する)が、クイズの進行(状態の公開・Enter/「次へ」)に加わるために使う。
+export { useQuizStep } from "./ui/composables/use-quiz-step";
 export type { QuizDto } from "./control/dto/quiz-dto";

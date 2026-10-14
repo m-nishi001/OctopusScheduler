@@ -13,6 +13,8 @@ export const PORTAL_EVENT_END = "end";
 /** エントリー受付を開始する（受付済みで締め切ったあとなら、回答を残したまま再開する）。 */
 export const PORTAL_EVENT_OPEN_ENTRY = "openEntry";
 export const PORTAL_EVENT_CLOSE_ENTRY = "closeEntry";
+/** まだ一度もエントリー受付を始めていないイベントだけ、受付を開始する(クイズのエントリー画面が自動で呼ぶ)。 */
+export const PORTAL_EVENT_ENSURE_ENTRY = "ensureEntry";
 /** ジャックポットの抽選の対象を切り替える（全メンバー / エントリーした人だけ）。 */
 export const PORTAL_EVENT_SET_POOL = "setPool";
 

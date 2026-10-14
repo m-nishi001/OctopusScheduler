@@ -66,7 +66,7 @@ function jackpotPage(path: string): string | null {
 }
 
 function quizPage(path: string): string | null {
-  const m = /^\/(?:execute\/)?quiz\/[^/]+\/(intro|qr|play|answer|result)$/.exec(path);
+  const m = /^\/(?:execute\/)?quiz\/[^/]+\/(intro|entry|play|answer|result)$/.exec(path);
   return m ? m[1] : null;
 }
 
@@ -76,9 +76,13 @@ function describeQuiz(input: GuidanceInput, page: string): Guidance {
   const advance = (label: string, hint: string): Guidance["main"] => ({ label, hint, action: { kind: "advance" } });
   switch (page) {
     case "intro":
-      return { game: "quiz", now: `クイズ${title}: イントロ表示中`, main: advance("次へ", "参加用のQRコードを映します") };
-    case "qr":
-      return { game: "quiz", now: `クイズ${title}: QRコード表示中`, main: advance("次へ", "問題を映し、参加者の回答受付を始めます") };
+      return { game: "quiz", now: `クイズ${title}: イントロ表示中`, main: advance("次へ", "エントリー受付を始め、エントリーした人数を映します") };
+    case "entry":
+      return {
+        game: "quiz",
+        now: `クイズ${title}: エントリー受付中`,
+        main: advance("次へ", "エントリーを締め切り、問題を映して、参加者の回答受付を始めます"),
+      };
     case "play":
       if (phase === "answering") {
         const n = input.answerCount === null ? "" : ` ・ 回答 ${input.answerCount} 人`;

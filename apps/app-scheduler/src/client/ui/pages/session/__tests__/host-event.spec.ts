@@ -191,6 +191,33 @@ describe("registerEventHost: エントリー受付", () => {
     expect((await eventNow()).entry).toEqual({ key, open: true });
   });
 
+  it("ensureEntry は、まだ受付を始めていないイベントの受付を開始する。イベントが無ければ何もしない", async () => {
+    const { start, command, eventNow, round } = await entryScene();
+    await command("ensureEntry");
+    expect(await round()).toBeNull();
+
+    await start();
+    await command("ensureEntry");
+    const event = await eventNow();
+    expect(event.entry).toEqual({ key: entryRoundKey(event.id), open: true });
+    expect(await round()).toMatchObject({ key: event.entry!.key, closedAtMs: null });
+  });
+
+  it("ensureEntry は、受付済みのイベント(締切後も)には何もしない(エントリー済みの一覧を触らない)", async () => {
+    const { start, command, eventNow, joinParticipant, answers } = await entryScene();
+    await start();
+    await command("ensureEntry");
+    const key = (await eventNow()).entry!.key;
+    await enterWith(await joinParticipant("alice", "アリス"), key);
+
+    await command("ensureEntry"); // 受付中
+    expect(await answers()).toHaveLength(1);
+    await command("closeEntry");
+    await command("ensureEntry"); // 締切後も再開しない
+    expect((await eventNow()).entry).toEqual({ key, open: false });
+    expect(await answers()).toHaveLength(1);
+  });
+
   it("closeEntry で締め切ると、以後のエントリーは受け付けず、参加者の画面用に open=false で残る", async () => {
     const { start, command, eventNow, joinParticipant } = await entryScene();
     await start();

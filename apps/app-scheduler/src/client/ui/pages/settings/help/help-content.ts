@@ -29,7 +29,7 @@ export const HELP_SHORTCUT_RULES = [
 
 export const HELP_QUIZ_NOTES = [
     'クイズ画面は「画面遷移」イベントで切り替えられます。遷移URLに /quiz/クイズID/intro のように入力します。',
-    'クイズ進行中は Enter キーで次の画面(イントロ → QR → 出題 → 解答 → 結果)に進みます。',
+    'クイズ進行中は Enter キーで次の画面(イントロ → エントリー → 出題 → 解答 → 結果)に進みます。',
     'クイズの作成・メンバー管理は ホーム →「Quiz Game」(クイズ管理)から行います。',
 ];
 

@@ -22,7 +22,7 @@ const quizId = route.params.id as string;
 const session = useQuizSession();
 
 const goNext = () => {
-    void router.push({ name: session.routeName('quiz-qr'), params: { id: quizId } });
+    void router.push({ name: session.routeName('quiz-entry'), params: { id: quizId } });
 };
 
 // セッションのホストなら、管理端末の「次へ」でも進める。

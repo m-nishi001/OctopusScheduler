@@ -146,10 +146,10 @@ describe("管理コンソールのクイズ操作", () => {
     const hint = () => wrapper.find('[data-testid="next-hint"]').text();
     expect(next().exists()).toBe(false); // ロビーでは主ボタンは無い
 
-    await agent.publishSlice("session", { path: "/execute/quiz/q1/qr" });
-    await agent.publishSlice("quiz", quizState({ page: "qr" }));
+    await agent.publishSlice("session", { path: "/execute/quiz/q1/entry" });
+    await agent.publishSlice("quiz", quizState({ page: "entry" }));
     await settle(5000);
-    expect(wrapper.find('[data-testid="now"]').text()).toContain("QRコード表示中");
+    expect(wrapper.find('[data-testid="now"]').text()).toContain("エントリー受付中");
     expect(hint()).toContain("回答受付を始めます");
     await next().trigger("click");
     await settle(5000);
@@ -180,8 +180,8 @@ describe("管理コンソールのクイズ操作", () => {
       const { meta, agent, received } = await setupHosted();
       registerQuizList([{ id: "q1", title: "果物", question: "?" }]);
       const mounted = await mountConsole(meta.id);
-      await agent.publishSlice("session", { path: "/execute/quiz/q1/qr" });
-      await agent.publishSlice("quiz", quizState({ page: "qr" }));
+      await agent.publishSlice("session", { path: "/execute/quiz/q1/entry" });
+      await agent.publishSlice("quiz", quizState({ page: "entry" }));
       await settle(5000);
       return { ...mounted, agent, received };
     }

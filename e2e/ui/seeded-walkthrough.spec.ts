@@ -171,8 +171,8 @@ test.describe("第三者の通しチェック(シード済みの環境)", () => 
     await admin.page.getByTestId("advanced").getByRole("button", { name: "イントロ" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/intro");
     await shot(host.page, "quiz-host-intro");
-    await nextButton(admin.page).click(); // QR
-    await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/qr");
+    await nextButton(admin.page).click(); // エントリー
+    await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/entry");
     await nextButton(admin.page).click(); // 出題
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/seed-quiz-1/play");
     await shot(host.page, "quiz-host-play");
