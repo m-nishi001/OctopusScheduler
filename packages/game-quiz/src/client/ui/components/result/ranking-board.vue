@@ -1,7 +1,7 @@
 <template>
     <div class="board" :style="{ '--slots': slots }">
         <transition-group name="ranking" tag="div" class="ranking-list">
-            <div v-for="(record, idx) in rows" :key="record.userId || (record.displayName + '-' + idx)"
+            <div v-for="record in rows" :key="record.rank"
                 class="ranking-item"
                 :class="[
                     `rank-${Math.min(record.rank, 4)}`,

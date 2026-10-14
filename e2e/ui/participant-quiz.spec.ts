@@ -123,7 +123,18 @@ test.describe("クイズ（参加者ポータル）", () => {
     // 結果: ホストにランキング(正答者=太郎)が出る
     await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/result");
-    await expect(host.page.getByText("太郎").first()).toBeVisible({ timeout: 30_000 });
+    // 順位発表は最下位(10位)から積み上がる: 行が増えるたびに順位の数字が重複せず、最後に1位(太郎)が最上段に出る
+    const badges = () => host.page.locator(".ranking-item .rank-badge").allTextContents();
+    expect((await badges()).length).toBeLessThanOrEqual(10);
+    for (let i = 0; i < 30; i++) {
+      const seen = await badges();
+      expect(new Set(seen).size).toBe(seen.length);
+      if (seen[0] === "1") break;
+      await host.page.waitForTimeout(500);
+    }
+    await expect(host.page.locator(".ranking-item").first()).toContainText("太郎", { timeout: 30_000 });
+    await expect(host.page.locator(".ranking-item .rank-badge").first()).toHaveText("1");
+    await expect(host.page.locator(".ranking-item .rank-badge").last()).toHaveText("10");
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("結果発表中");
 
     // 順位発表が終わると、結果がサーバー(R2)に保存される(参加者ポータルの「結果」の元データ)
