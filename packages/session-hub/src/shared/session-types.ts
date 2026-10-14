@@ -118,6 +118,11 @@ export interface PresenceEntry {
   label: string;
   /** 最後にポーリング/接続を確認した時刻。 */
   seenAtMs: number;
+  /**
+   * WebSocket が接続中であること。接続中は変化が無い間 push されず seenAtMs が古くなるので、
+   * 在席の判定は経過時間ではなくこちらを優先する(切断は close の push で伝わる)。
+   */
+  live?: boolean;
   /** ホストが適用済みと報告した最後の seq(host のみ意味を持つ)。 */
   ackSeq: number;
 }

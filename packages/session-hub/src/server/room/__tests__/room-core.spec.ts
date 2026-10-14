@@ -223,6 +223,25 @@ describe("SessionRoomCore: 在席と ack", () => {
     expect(wsHost.lastUpdate()?.presence.clientCount).toBe(0);
   });
 
+  it("接続中のホストは live で、切断すると在席から外れてその変化が配信される", async () => {
+    const { room, wsAdmin, wsHost } = await scene();
+    await room.runAlarm();
+    expect(wsAdmin.lastUpdate()?.presence.host?.live).toBe(true);
+    await room.disconnect(wsHost);
+    await room.runAlarm();
+    expect(wsAdmin.lastUpdate()?.presence.host).toBeNull();
+  });
+
+  it("ポーリングのホストは live にならない(経過時間で判定する)", async () => {
+    const { room, host, creds, wsAdmin, wsHost } = await scene();
+    await room.disconnect(wsHost);
+    await room.call("poll", { ...creds(host), sinceSeq: 0, stateVersion: 0 });
+    await room.core.broadcast();
+    const entry = wsAdmin.lastUpdate()?.presence.host;
+    expect(entry).not.toBeNull();
+    expect(entry?.live).toBeFalsy();
+  });
+
   it("ポーリング(WebSocket 非対応)の端末も在席に数えられる", async () => {
     const { room, creds, wsHost } = await scene();
     const poller = await room.call<JoinResult>("joinPortal", { label: "古い端末" }, "u2");
