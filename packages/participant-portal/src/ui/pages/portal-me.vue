@@ -68,14 +68,9 @@ async function signOut() {
     background: linear-gradient(180deg, var(--pp-gold-light), var(--pp-gold-deep));
 }
 
-.pp-me__who {
-    min-width: 0;
-}
-
 .pp-me__name {
     margin: 0;
     font-size: 1.2rem;
     font-weight: 800;
-    word-break: break-word;
 }
 </style>

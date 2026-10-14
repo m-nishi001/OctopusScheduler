@@ -27,6 +27,8 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    /* どの幅でも長い名前・英数字・URLが枠を押し広げないよう、折り返しはここで一括して決める */
+    overflow-wrap: anywhere;
     color: var(--pp-text);
     font-family: var(--ui-font-family, system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', 'Yu Gothic UI', sans-serif);
     background:

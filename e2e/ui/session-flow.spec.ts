@@ -1,4 +1,5 @@
 import { addParticipant, ADMIN_ID, ADMIN_PASSWORD, adminRpc, createSession, expect, loginByQr, newDevice, openAdvanced, publishPortal, removeParticipant, route, test } from "./fixtures";
+import { expectNoHorizontalOverflow } from "./helpers/responsive";
 
 /**
  * ホスト(投影)・管理・参加者の3種類の端末を、別々のブラウザコンテキストとして同時に動かす。
@@ -285,16 +286,14 @@ test.describe("異常系・環境差", () => {
     const phone = await newDevice(browser, { mobile: true });
     await phone.page.goto("/#/login");
     await expect(phone.page.locator('input[type="password"]')).toBeVisible();
-    const overflow = () => phone.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(await overflow()).toBeLessThanOrEqual(0);
+    await expectNoHorizontalOverflow(phone.page, "ログイン前");
     await phone.context.close();
 
     // ログイン後(ホーム)も同じ。同じページでハッシュだけ変えると読み込み直されないので、別の端末で開く
     const loggedIn = await newDevice(browser, { mobile: true });
     await loggedIn.page.goto(`/#/login?id=${ids[0]}&key=${encodeURIComponent(keys.get(ids[0])!)}`);
     await expect(loggedIn.page.getByTestId("home-greeting")).toBeVisible();
-    const loggedInOverflow = await loggedIn.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    expect(loggedInOverflow).toBeLessThanOrEqual(0);
+    await expectNoHorizontalOverflow(loggedIn.page, "ログイン後");
     await loggedIn.context.close();
   });
 

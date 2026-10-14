@@ -1,5 +1,6 @@
-import type { APIRequestContext, Page } from "@playwright/test";
 import { adminRpc, createSession, expect, newDevice, test } from "./fixtures";
+import { fakeHost } from "./helpers/fake-host";
+import { expectNoHorizontalOverflow } from "./helpers/responsive";
 
 /**
  * 参加者ポータルの「結果」タブ(スマホ幅の実ブラウザ)。
@@ -30,32 +31,6 @@ test.afterAll(async ({ request }) => {
   for (const id of ids) await adminRpc(request, "accounts_deleteMember", { id });
 });
 
-/** ホスト端末の代わり: 管理者として入室して、結果の保存と更新番号の公開を行う。 */
-async function fakeHost(request: APIRequestContext, sessionId: string) {
-  const host = await adminRpc<{ deviceId: string; token: string }>(request, "sessionHub_joinOperator", {
-    sessionId,
-    role: "host",
-    label: "E2E ホスト",
-    deviceId: `rs-e2e-host-${sessionId}`,
-  });
-  const announce = (rev: number) =>
-    adminRpc(request, "sessionHub_publishState", { sessionId, deviceId: host.deviceId, token: host.token, data: { results: { rev } }, clientInput: [] });
-  return {
-    async quiz(result: Record<string, unknown>) {
-      const { rev } = await adminRpc<{ rev: number }>(request, "sessionHub_putQuizResult", { sessionId, result });
-      await announce(rev);
-    },
-    async draw(draw: Record<string, unknown>) {
-      const { rev } = await adminRpc<{ rev: number }>(request, "sessionHub_putJackpotDraw", { sessionId, draw });
-      await announce(rev);
-    },
-    async removeDraw(drawId: string) {
-      const { rev } = await adminRpc<{ rev: number }>(request, "sessionHub_deleteJackpotDraw", { sessionId, drawId });
-      await announce(rev);
-    },
-  };
-}
-
 async function login(browser: import("@playwright/test").Browser, id: string) {
   const d = await newDevice(browser, { mobile: true });
   await d.page.goto(qrUrl(id));
@@ -63,11 +38,6 @@ async function login(browser: import("@playwright/test").Browser, id: string) {
   await expect(d.page.getByTestId("portal-conn")).toContainText("接続中");
   return d;
 }
-
-const noHorizontalScroll = async (page: Page) => {
-  const { sw, vw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, vw: window.innerWidth }));
-  expect(sw, "横スクロールが出ない").toBeLessThanOrEqual(vw + 1);
-};
 
 const round = (over: Record<string, unknown>) => ({
   roundKey: "q1:live",
@@ -105,7 +75,7 @@ test.describe("参加者ポータル: 結果タブ", () => {
     await taro.page.getByTestId("results-tab-quiz").click();
     const tabBox = await taro.page.getByRole("link", { name: "結果" }).boundingBox();
     expect(tabBox!.height).toBeGreaterThanOrEqual(48);
-    await noHorizontalScroll(taro.page);
+    await expectNoHorizontalOverflow(taro.page, "結果");
 
     // --- ホストがクイズの結果を保存 → 開いている画面が数秒で更新される(再読み込み不要)
     await host.quiz(round({}));
@@ -130,7 +100,7 @@ test.describe("参加者ポータル: 結果タブ", () => {
     await expect(taro.page.getByTestId("results-draw").first()).toContainText("確変");
     await expect(taro.page.getByTestId("results-draw-mine")).toHaveText("あなたが当選!");
     await expect(taro.page.getByTestId("results-my-wins")).toContainText("1");
-    await noHorizontalScroll(taro.page);
+    await expectNoHorizontalOverflow(taro.page, "結果");
     // 次郎は当選していないので強調は出ない
     await jiro.page.getByTestId("results-tab-jackpot").click();
     await expect(jiro.page.getByTestId("results-draw")).toHaveCount(2, { timeout: 15_000 });
