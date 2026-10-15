@@ -8,6 +8,12 @@
                 <p class="pp-muted">エントリーの受付は、このあと始まります。この画面を開いたままお待ちください。</p>
             </article>
 
+            <!-- 抽選が始まったら、「お待ちください」ではなく進行状況と当選結果を出す -->
+            <template v-else-if="entry.entered.value && jackpotActive">
+                <JackpotWaiting />
+                <JackpotCard />
+            </template>
+
             <article v-else-if="entry.entered.value" class="pp-card pp-event__panel pp-event__done" data-testid="entry-done">
                 <span class="pp-event__check" aria-hidden="true">✓</span>
                 <p class="pp-event__done-title">エントリーしました!</p>
@@ -39,12 +45,18 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useEntryContext } from '../../model/use-entry';
 import { usePortalContext } from '../../model/use-portal-session';
+import { readJackpotView } from '../../model/activity';
+import JackpotCard from '../components/jackpot-card.vue';
+import JackpotWaiting from '../components/jackpot-waiting.vue';
 
 const session = usePortalContext();
 const entry = useEntryContext();
+/** ホストがジャックポットの状態を公開している(説明・抽選の最中、または結果が出ている)。 */
+const jackpotActive = computed(() => readJackpotView(session.state.value.roomState?.data) !== null);
 </script>
 
 <style scoped>

@@ -389,6 +389,7 @@ export function useDrawOrchestrator() {
         nextLabel: drawState.currentQueue.peekLabel(),
         tracker: revealTracker,
         memberName: latestResult.value?.wonMember?.name,
+        memberId: latestResult.value?.wonMember?.id,
         prizeName: latestResult.value?.wonPrize?.name,
       })
     );

@@ -96,6 +96,16 @@ test.describe("エントリー → ジャックポット", () => {
     expect(winner).toBe(nameOf(ids[entrant]));
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
 
+    // エントリー済みの当選者のスマホには「あたりました!」が全面に出る。ほかの人には当選者名が出て、演出は出ない
+    const won = guests[entrant].page;
+    await expect(won.getByTestId("you-won")).toBeVisible();
+    await expect(won.getByTestId("you-won-name")).toContainText(winner);
+    await won.getByTestId("you-won-close").click();
+    await expect(won.getByTestId("you-won")).toBeHidden();
+    const other = guests[(entrant + 1) % ALL].page;
+    await expect(other.getByTestId("winner-member")).toContainText(winner);
+    await expect(other.getByTestId("you-won")).toBeHidden();
+
     await publish(request, sessionId, false);
     for (const d of [admin, host, ...guests]) await d.context.close();
   });
@@ -161,6 +171,9 @@ test.describe("エントリー → ジャックポット", () => {
     // 景品抽選では、止められる場面でスマホに停止ボタンが出る → スマホで止める
     let phoneStopped = false;
     for (let i = 0; i < 30 && !phoneStopped; i++) {
+      // 自分が当選していると「あたりました!」が全面に出ているので、閉じてから操作する
+      const close = phone.page.getByTestId("you-won-close");
+      if (await close.isVisible().catch(() => false)) await close.click();
       if (await stopBtn.isVisible().catch(() => false)) {
         await stopBtn.click();
         phoneStopped = true;

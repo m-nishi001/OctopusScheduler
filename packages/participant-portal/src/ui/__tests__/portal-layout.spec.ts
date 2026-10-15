@@ -528,9 +528,123 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     await env.publishJackpot({ ...STOP, canStop: false, member: "太郎", prize: "特賞" });
     await tick(5000);
     await flushPromises();
-    expect(text(m, "winner")).toContain("当選者: 太郎");
-    expect(text(m, "winner")).toContain("賞品: 特賞");
+    expect(text(m, "winner-member")).toContain("太郎");
+    expect(text(m, "winner-prize")).toContain("特賞");
     m.wrapper.unmount();
+  });
+
+  describe("待機画面と当選演出", () => {
+    const base = { canStop: false, member: null, memberId: null, prize: null };
+
+    it("抽選の段階に合わせた待機画面が出て、「お待ちください」だけにならない", async () => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE));
+      expect(has(m, "jackpot-waiting")).toBe(false);
+
+      await env.publishJackpot({ ...base, phase: "idle" });
+      await tick(5000);
+      await flushPromises();
+      expect(text(m, "jackpot-waiting-title")).toContain("まもなく抽選");
+      expect(has(m, "home-status")).toBe(false);
+
+      await env.publishJackpot({ ...base, phase: "member" });
+      await tick(5000);
+      await flushPromises();
+      expect(text(m, "jackpot-waiting-title")).toContain("メンバー抽選中");
+
+      await env.publishJackpot({ ...base, phase: "prize", member: "太郎", memberId: "taro" });
+      await tick(5000);
+      await flushPromises();
+      expect(text(m, "jackpot-waiting-title")).toContain("景品抽選中");
+      expect(text(m, "jackpot-waiting")).toContain("太郎");
+
+      // 景品まで決まったら待機画面は消え、結果が出る
+      await env.publishJackpot({ ...base, phase: "prize", member: "太郎", memberId: "taro", prize: "特賞" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(m, "jackpot-waiting")).toBe(false);
+      expect(text(m, "winner-prize")).toContain("特賞");
+      m.wrapper.unmount();
+    });
+
+    it("エントリー済みの人のエントリー画面にも、待機画面と結果が出る", async () => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+      await env.openEntry(sampleEvent());
+      await tick(5000);
+      await flushPromises();
+      await m.wrapper.find('[data-testid="entry-button"]').trigger("click");
+      await flushPromises();
+      await tick(0);
+      expect(has(m, "entry-done")).toBe(true);
+
+      await env.publishJackpot({ ...base, phase: "member" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(m, "entry-done")).toBe(false);
+      expect(text(m, "jackpot-waiting-title")).toContain("メンバー抽選中");
+
+      await env.publishJackpot({ ...base, phase: "prize", member: "太郎", memberId: "taro", prize: "特賞" });
+      await tick(5000);
+      await flushPromises();
+      expect(text(m, "winner-prize")).toContain("特賞");
+      m.wrapper.unmount();
+    });
+
+    it("自分が当選したときだけ「あなたがあたりました!」が全面に出る。公開前は出ず、閉じられる", async () => {
+      const env = await portalEnv();
+      const alice = await mountPortal(participantDevice(env.hub, ALICE));
+      const bob = await mountPortal(participantDevice(env.hub, BOB), "/p", BOB);
+
+      // 停止演出の前(当選者が未公開)は誰にも出ない
+      await env.publishJackpot({ ...base, phase: "member" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(false);
+
+      await env.publishJackpot({ ...base, phase: "member", member: ALICE.name, memberId: ALICE.id });
+      await tick(5000);
+      await flushPromises();
+      expect(text(alice, "you-won")).toContain("あたりました");
+      expect(text(alice, "you-won-name")).toContain(ALICE.name);
+      expect(has(bob, "you-won")).toBe(false);
+      expect(text(bob, "winner-member")).toContain(ALICE.name);
+
+      await alice.wrapper.find('[data-testid="you-won-close"]').trigger("click");
+      expect(has(alice, "you-won")).toBe(false);
+
+      // 次の抽選で、もう一度当たったら、また出る
+      await env.publishJackpot({ ...base, phase: "member" });
+      await tick(5000);
+      await flushPromises();
+      await env.publishJackpot({ ...base, phase: "member", member: ALICE.name, memberId: ALICE.id });
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(true);
+      alice.wrapper.unmount();
+      bob.wrapper.unmount();
+    });
+
+    it("当選の演出は、ほかの画面(結果タブ)にいても出る", async () => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/results");
+      await env.publishJackpot({ ...base, phase: "member", member: ALICE.name, memberId: ALICE.id });
+      await tick(5000);
+      await flushPromises();
+      expect(has(m, "you-won")).toBe(true);
+      m.wrapper.unmount();
+    });
+
+    it("長い賞品名・当選者名でも、そのまま折り返して表示する", async () => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE));
+      const prize = "とても長い名前の特別賞品セット(ペア宿泊券+お食事券+記念品)";
+      await env.publishJackpot({ ...base, phase: "prize", member: "あ".repeat(40), memberId: "x", prize });
+      await tick(5000);
+      await flushPromises();
+      expect(text(m, "winner-prize")).toContain(prize);
+      m.wrapper.unmount();
+    });
   });
 
   it("ホストが許可した操作がボタンで出て、押すとホストへ届く。受付が終わると消える", async () => {

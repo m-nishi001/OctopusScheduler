@@ -106,6 +106,8 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     // オープニングの演出が終わると、説明の画面へ自動で進む
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/\/jackpot-(opening|description)$/);
     await expect(admin.page.getByTestId("event-state")).toContainText("ジャックポット抽選");
+    // 開始と同時にエントリー受付も始まる(クイズと同じ)
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付中");
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
     await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);
     await nextButton(admin.page).click();

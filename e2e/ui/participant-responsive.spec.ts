@@ -46,7 +46,7 @@ async function loginAs(browser: Browser, id: string, preset?: (typeof DEVICE_PRE
 const go = (page: Page, path: string) => page.evaluate((p) => (location.hash = p), path);
 
 test("参加者ポータル: 幅の掃引と実機プリセットで、どの画面も横にはみ出さない", async ({ browser, request }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(480_000);
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, "レスポンシブ会場");
   sessionIds.push(sessionId);
@@ -75,8 +75,11 @@ test("参加者ポータル: 幅の掃引と実機プリセットで、どの画
     ...(await Promise.all(DEVICE_PRESETS.map((p) => loginAs(browser, ids[0], p)))),
   ];
 
-  const check = async (state: string, routes: Array<{ path: string; ready: (page: Page) => Promise<void> }>) => {
+  // 端末の組み合わせは、小型スマホ・横向き・タブレットを含む代表に絞れる(時間がかかるため、ジャックポットの各状態で使う)
+  const REPRESENTATIVE = new Set([0, 1, 7, 8]);
+  const check = async (state: string, routes: Array<{ path: string; ready: (page: Page) => Promise<void> }>, onlyRepresentative = false) => {
     for (const [i, c] of clients.entries()) {
+      if (onlyRepresentative && !REPRESENTATIVE.has(i)) continue;
       const device = i === 0 ? "phone" : DEVICE_PRESETS[i - 1];
       for (const r of routes) {
         await go(c.page, r.path);
@@ -120,6 +123,31 @@ test("参加者ポータル: 幅の掃引と実機プリセットで、どの画
     },
   });
   await check("クイズ出題", [{ path: "/p", ready: (p) => expect(p.getByTestId("quiz-panel")).toContainText("これは長い問題文") }]);
+
+  // 4. ジャックポット: 待機 → メンバー抽選中 → 他の人が当選 → 景品抽選中 → 景品が決まる(長い名前・長い景品名)
+  const jackpot = { page: "main-draw", canStop: false, member: null, memberId: null, prize: null };
+  await host.publish({ quiz: null, jackpot: { ...jackpot, phase: "idle" } });
+  await check("ジャックポット待機", [{ path: "/p", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("まもなく抽選") }], true);
+  await host.publish({ jackpot: { ...jackpot, phase: "member" } });
+  await check("メンバー抽選中", [{ path: "/p", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("メンバー抽選中") }], true);
+  await host.publish({ jackpot: { ...jackpot, phase: "member", member: `${LONG}${LONG}`, memberId: "rp-other-0" } });
+  await check("他の人が当選", [{ path: "/p", ready: (p) => expect(p.getByTestId("winner-member")).toContainText(LONG) }], true);
+  await host.publish({ jackpot: { ...jackpot, phase: "prize", member: `${LONG}${LONG}`, memberId: "rp-other-0" } });
+  await check("景品抽選中", [{ path: "/p", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("景品抽選中") }], true);
+  await host.publish({ jackpot: { ...jackpot, phase: "prize", member: `${LONG}${LONG}`, memberId: "rp-other-0", prize: `特賞 ${LONG}${LONG}` } });
+  await check("景品が決まる", [{ path: "/p", ready: (p) => expect(p.getByTestId("winner-prize")).toContainText("特賞") }], true);
+  // 自分が当選: 全面の「あたりました!」が、どの端末でも画面に収まり、閉じられる
+  await host.publish({ jackpot: { ...jackpot, phase: "member", member: LONG_NAME, memberId: ids[0], prize: null } });
+  for (const c of clients) {
+    await go(c.page, "/p");
+    await expect(c.page.getByTestId("you-won")).toBeVisible();
+    await expect(c.page.getByTestId("you-won-close")).toBeInViewport();
+  }
+  await check("自分が当選", [{ path: "/p", ready: (p) => expect(p.getByTestId("you-won-name")).toContainText("さん") }], true);
+  for (const c of clients) {
+    await c.page.getByTestId("you-won-close").click();
+    await expect(c.page.getByTestId("you-won")).toBeHidden();
+  }
 
   for (const c of clients) await c.context.close();
   await admin.context.close();
