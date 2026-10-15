@@ -100,7 +100,17 @@ watch(currentQuiz, (q: QuizDto | null) => {
     }
 });
 
+// この画面の間だけページのスクロールを止める。離れたら元に戻す(SPA なので、ここで止めたままにすると参加者ポータル等がスクロールできなくなる)
+let restoreScroll: (() => void) | null = null;
+const lockPageScroll = () => {
+    const targets = [document.documentElement, document.body];
+    const previous = targets.map((el) => el.style.overflow);
+    targets.forEach((el) => (el.style.overflow = 'hidden'));
+    restoreScroll = () => targets.forEach((el, i) => (el.style.overflow = previous[i]));
+};
+
 onMounted(() => {
+    lockPageScroll();
     document.addEventListener('keydown', handleKeydown);
     (async () => {
         const quizId = route.params.id as string;
@@ -153,6 +163,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    restoreScroll?.();
     document.removeEventListener('keydown', handleKeydown);
     // 順位発表の途中で画面を離れても、結果は残す(発表を見終えるのを待たずに次の画面へ進んだ場合)
     void recordResult();
@@ -181,10 +192,3 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 </script>
-
-<style scoped>
-:global(html),
-:global(body) {
-    overflow: hidden;
-}
-</style>
