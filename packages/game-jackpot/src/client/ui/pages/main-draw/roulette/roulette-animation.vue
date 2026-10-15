@@ -9,6 +9,7 @@
 <script lang="ts">
 import { defineComponent, computed, onMounted, watch } from 'vue';
 import { useRouletteAnimation, type RouletteItem, type RouletteAnimationProps } from './roulette-animation-logic';
+import { pickStopPattern } from './roulette-angle-utils';
 import { useRouletteAnimationState } from '../prize-animation-state';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -54,7 +55,10 @@ export default defineComponent({
             targetPrizeId?: string | null,
             occurrence: number = 1
         ) => {
-            const result = await logicStopSpin(durationSec, targetPrizeId, occurrence);
+            // 当選は変えずに、止まり方だけをランダムに変える(通り過ぎて戻る・じわじわ・止まったと見せて再加速 など)
+            const stopPattern = pickStopPattern();
+            console.log('[RouletteAnimation] stop pattern', stopPattern);
+            const result = await logicStopSpin(durationSec, targetPrizeId, occurrence, stopPattern);
             await new Promise<void>((resolve) => setTimeout(resolve, 1000));
             emit('stopped', result);
             return result;

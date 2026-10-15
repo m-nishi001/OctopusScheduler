@@ -5,6 +5,9 @@ import {
   calculateTotalRotation,
   calculateAcceleratedRotation,
   calculateDeceleratedRotationCalc,
+  calculatePatternRotation,
+  STOP_PATTERN_DURATION_FACTOR,
+  StopPattern,
 } from "./roulette-angle-utils";
 
 export type UseRouletteOptions = {
@@ -75,7 +78,8 @@ export function useRouletteAnimator(
     currentRouletteItems: InternalRouletteItem[],
     sectorAngle: number,
     duration: number = 3,
-    occurrence: number = 1
+    occurrence: number = 1,
+    pattern: StopPattern = "normal"
   ): Promise<string | null> => {
     if (duration <= 0) {
       throw new Error("Duration must be positive");
@@ -124,6 +128,8 @@ export function useRouletteAnimator(
       animationId = null;
     }
 
+    // 止まり方によって減速にかける時間を伸ばす(当選の角度は変わらない)
+    const decelSeconds = duration * (STOP_PATTERN_DURATION_FACTOR[pattern] ?? 1);
     const decelStartTime = nowFn();
     const startRotation = currentRotation;
     const initialSpeed = currentSpeedValue;
@@ -155,13 +161,10 @@ export function useRouletteAnimator(
 
       const animate = () => {
         const elapsed = nowFn() - decelStartTime;
-        const { rotation } = calculateDeceleratedRotationCalc(
-          totalRotation,
-          duration,
-          initialSpeed,
-          elapsed,
-          startRotation
-        );
+        const rotation =
+          pattern === "normal"
+            ? calculateDeceleratedRotationCalc(totalRotation, duration, initialSpeed, elapsed, startRotation).rotation
+            : calculatePatternRotation(pattern, totalRotation, startRotation, elapsed / (decelSeconds * 1000), sectorAngle);
 
         currentRotation = rotation;
         currentRotation %= Math.PI * 2;
@@ -169,7 +172,7 @@ export function useRouletteAnimator(
         if (drawCallback) drawCallback(currentRotation);
 
         // Continue animation until the requested duration elapses.
-        if (elapsed < duration * 1000) {
+        if (elapsed < decelSeconds * 1000) {
           animationId = raf(animate);
         } else {
           if (animationId) cancelRaf(animationId);

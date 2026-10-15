@@ -100,6 +100,26 @@ export async function seedStore(
   storeName: string,
   items: Array<{ id: string; value: unknown }>
 ): Promise<void> {
+  // 画面側のアプリが同じ DB を作成・更新している最中だと、ストアの作成と競合して失敗することがある。
+  // その場合だけ(NotFoundError / VersionError)、少し待って最初からやり直す。
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await seedStoreOnce(page, dbName, storeName, items);
+      return;
+    } catch (e) {
+      const retryable = /NotFoundError|VersionError|InvalidStateError/.test(String(e));
+      if (!retryable || attempt >= 5) throw e;
+      await page.waitForTimeout(300 * attempt);
+    }
+  }
+}
+
+async function seedStoreOnce(
+  page: Page,
+  dbName: string,
+  storeName: string,
+  items: Array<{ id: string; value: unknown }>
+): Promise<void> {
   await page.evaluate(
     async ({ dbName, storeName, items }) => {
       const open = (version?: number, upgrade?: (db: IDBDatabase) => void) =>
