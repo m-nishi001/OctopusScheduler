@@ -102,6 +102,31 @@ describe("setupHostAgent: session.navigate", () => {
   });
 });
 
+describe("setupHostAgent: ゲーム終了でイベントを終了", () => {
+  const eventOf = async (meta: { id: string }) => (await env.hub.deps.repoFor(meta.id).getState())?.data?.event;
+
+  it.each(["/jackpot-ending", "/execute/quiz/q1/result"])("終了画面(%s)に入ると、受付を締め切ってイベントを終了する", async (path) => {
+    const { router, admin, meta } = await hostedScene();
+    router.addRoute({ path: "/execute/quiz/:id/result", name: "quiz-result", component: { render: () => null } });
+    await admin.conn.issue("event", "start", { title: "乾杯" });
+    await admin.conn.issue("event", "openEntry");
+    await settle(5000);
+    expect(await eventOf(meta)).toMatchObject({ title: "乾杯", entry: { open: true } });
+    await router.push(path);
+    await settle(5000);
+    expect(await eventOf(meta)).toBeUndefined();
+  });
+
+  it("終了画面以外へ遷移してもイベントは続く", async () => {
+    const { router, admin, meta } = await hostedScene();
+    await admin.conn.issue("event", "start", { title: "乾杯" });
+    await settle(5000);
+    await router.push("/jackpot-opening");
+    await settle(5000);
+    expect(await eventOf(meta)).toMatchObject({ title: "乾杯" });
+  });
+});
+
 describe("setupHostAgent: リロード復帰", () => {
   it("保存済みのホスト入室情報から自動で復帰し、不在中のコマンドを適用する", async () => {
     const { meta, device, admin } = await hostedScene();
