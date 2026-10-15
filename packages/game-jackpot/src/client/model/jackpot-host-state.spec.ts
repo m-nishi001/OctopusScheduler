@@ -35,17 +35,17 @@ describe("RevealTracker", () => {
 });
 
 describe("buildJackpotHostState", () => {
-  const base = { phase: "member", nextLabel: undefined as string | undefined, memberName: "太郎", prizeName: "特賞" };
+  const base = { phase: "member", nextLabel: undefined as string | undefined, memberName: "太郎", memberId: "taro", prizeName: "特賞" };
 
   it("停止演出が終わるまで当選者・賞品を含めない(ネタバレ防止)", () => {
     const t = new RevealTracker();
-    expect(buildJackpotHostState({ ...base, tracker: t })).toEqual({ page: "main-draw", phase: "member", canStop: false, member: null, prize: null });
+    expect(buildJackpotHostState({ ...base, tracker: t })).toEqual({ page: "main-draw", phase: "member", canStop: false, member: null, memberId: null, prize: null });
   });
 
   it("メンバー停止後は当選者だけ、賞品停止後は賞品も含める", () => {
     const t = new RevealTracker();
     t.onAction("stopMemberDraw");
-    expect(buildJackpotHostState({ ...base, tracker: t })).toMatchObject({ member: "太郎", prize: null });
+    expect(buildJackpotHostState({ ...base, tracker: t })).toMatchObject({ member: "太郎", memberId: "taro", prize: null });
     t.onAction("stopPrizeDraw");
     expect(buildJackpotHostState({ ...base, tracker: t })).toMatchObject({ member: "太郎", prize: "特賞" });
   });
@@ -60,7 +60,7 @@ describe("buildJackpotHostState", () => {
     const t = new RevealTracker();
     t.onAction("stopMemberDraw");
     t.onAction("stopPrizeDraw");
-    expect(buildJackpotHostState({ ...base, memberName: undefined, prizeName: null, tracker: t })).toMatchObject({ member: null, prize: null });
+    expect(buildJackpotHostState({ ...base, memberName: undefined, memberId: undefined, prizeName: null, tracker: t })).toMatchObject({ member: null, memberId: null, prize: null });
   });
 
   it("公開サイズは小さい(RoomStateの上限6KBに十分収まる)", () => {

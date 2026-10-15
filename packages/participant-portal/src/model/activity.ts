@@ -67,6 +67,8 @@ export interface JackpotView {
   phase: string;
   /** 公開済みの当選者名（停止演出が終わるまでは null）。 */
   member: string | null;
+  /** 公開済みの当選者のID(自分が当選したかの判定に使う)。 */
+  memberId: string | null;
   /** 公開済みの当選賞品名（停止演出が終わるまでは null）。 */
   prize: string | null;
 }
@@ -78,6 +80,7 @@ export function readJackpotView(data: Record<string, unknown> | null | undefined
   return {
     phase: isString(raw.phase) ? raw.phase : "",
     member: orNull(raw.member, isString),
+    memberId: orNull(raw.memberId, isString),
     prize: orNull(raw.prize, isString),
   };
 }

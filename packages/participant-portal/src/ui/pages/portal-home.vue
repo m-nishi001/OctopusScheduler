@@ -9,6 +9,7 @@
         <template v-if="connected">
             <ClientInputs />
             <QuizPanel />
+            <JackpotWaiting />
             <JackpotCard />
         </template>
 
@@ -48,6 +49,7 @@ import { readJackpotView } from '../../model/activity';
 import { useEntryContext } from '../../model/use-entry';
 import { useQuizContext } from '../../model/use-quiz';
 import ClientInputs from '../components/client-inputs.vue';
+import JackpotWaiting from '../components/jackpot-waiting.vue';
 import JackpotCard from '../components/jackpot-card.vue';
 import QuizPanel from '../components/quiz-panel.vue';
 import { usePortalContext } from '../../model/use-portal-session';
@@ -65,7 +67,7 @@ const hasActivity = computed(() => {
     return (
         (session.state.value.roomState?.clientInput.length ?? 0) > 0 ||
         quiz.quiz.value !== null ||
-        !!(jackpot && (jackpot.member || jackpot.prize))
+        jackpot !== null
     );
 });
 

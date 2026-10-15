@@ -17,6 +17,8 @@ export interface JackpotHostState {
   canStop: boolean;
   /** 公開済みの当選者名(停止演出が終わるまでは null)。 */
   member: string | null;
+  /** 公開済みの当選者のID(ポータルが「自分が当選したか」を判定する。member と同時に公開する)。 */
+  memberId: string | null;
   /** 公開済みの当選賞品名(停止演出が終わるまでは null)。 */
   prize: string | null;
 }
@@ -65,6 +67,7 @@ export function buildJackpotHostState(input: {
   nextLabel: string | undefined;
   tracker: RevealTracker;
   memberName: string | null | undefined;
+  memberId?: string | null;
   prizeName: string | null | undefined;
 }): JackpotHostState {
   const { tracker } = input;
@@ -73,6 +76,7 @@ export function buildJackpotHostState(input: {
     phase: input.phase,
     canStop: canStopAt(input.nextLabel),
     member: tracker.memberRevealed ? input.memberName ?? null : null,
+    memberId: tracker.memberRevealed ? input.memberId || null : null,
     prize: tracker.prizeRevealed ? input.prizeName ?? null : null,
   };
 }

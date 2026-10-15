@@ -14,6 +14,9 @@
             <RouterView />
         </main>
 
+        <!-- 自分が当選したとき、どの画面にいても全面で知らせる -->
+        <JackpotWinnerOverlay />
+
         <nav class="pp-tabs" aria-label="メニュー">
             <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="pp-tabs__item" :exact-active-class="'is-active'"
                 :active-class="tab.exact ? '' : 'is-active'">
@@ -36,6 +39,7 @@ import { QUIZ_KEY, useQuiz } from '../model/use-quiz';
 import { RESULTS_KEY, useResults } from '../model/use-results';
 import { PORTAL_SESSION_KEY, usePortalSession } from '../model/use-portal-session';
 import PortalEventBanner from './portal-event-banner.vue';
+import JackpotWinnerOverlay from './components/jackpot-winner-overlay.vue';
 import './portal-theme.css';
 
 const props = defineProps<{ connection?: SessionConnection }>();

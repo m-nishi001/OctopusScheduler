@@ -58,7 +58,7 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
     },
     publishQuiz: (quiz: QuizPublished | null) => setSlice("quiz", quiz),
     /** ホストがジャックポットの状態と、参加者に許可する操作を公開する。 */
-    publishJackpot: (jackpot: { phase: string; canStop: boolean; member: string | null; prize: string | null } | null, input: string[] = []) =>
+    publishJackpot: (jackpot: { phase: string; canStop: boolean; member: string | null; memberId?: string | null; prize: string | null } | null, input: string[] = []) =>
       setSlice("jackpot", jackpot, input),
     /**
      * ホストがクイズ1ラウンドの結果を保存し、更新番号を公開する(本番では HostAgent.recordQuizResult が行う)。
