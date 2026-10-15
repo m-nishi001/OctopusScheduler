@@ -70,20 +70,20 @@ describe("管理コンソールのジャックポット操作", () => {
     expect(wrapper.find('[data-testid="start-jackpot"]').attributes("disabled")).toBeUndefined();
   });
 
-  it("「ジャックポットを始める」1回で、イベントの開催とオープニング画面への切り替えが済む。もう一度押してもイベントは重ねない", async () => {
+  it("「ジャックポットを始める」1回で、イベントの開催・エントリー受付の開始・オープニング画面への切り替えが済む。もう一度押してもイベントも受付も重ねない", async () => {
     const { meta, agent, nav, events } = await setupHosted();
     const { wrapper } = await mountConsole(meta.id);
     await wrapper.find('[data-testid="start-jackpot"]').trigger("click");
     await settle(8000);
-    expect(events).toEqual(["start"]);
+    expect(events).toEqual(["start", "openEntry"]);
     expect(nav).toEqual([{ path: "/jackpot-opening" }]);
 
-    // ホストがイベントを公開した後に再度押すと、イベントは作らず画面だけ切り替える
-    await agent.publishSlice(PORTAL_EVENT_NS, { id: "e1", title: "ジャックポット抽選", startedAtMs: Date.now() });
+    // ホストがイベントと受付を公開した後に再度押すと、イベントも受付も触らず画面だけ切り替える
+    await agent.publishSlice(PORTAL_EVENT_NS, { id: "e1", title: "ジャックポット抽選", startedAtMs: Date.now(), entry: { key: "entry-e1", open: false } });
     await settle(5000);
     await wrapper.find('[data-testid="start-jackpot"]').trigger("click");
     await settle(8000);
-    expect(events).toEqual(["start"]);
+    expect(events).toEqual(["start", "openEntry"]);
     expect(nav).toEqual([{ path: "/jackpot-opening" }, { path: "/jackpot-opening" }]);
   });
 
