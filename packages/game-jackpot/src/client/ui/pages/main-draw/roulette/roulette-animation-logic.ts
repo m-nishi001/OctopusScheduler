@@ -6,7 +6,7 @@ import type {
 import { convertToInternal } from "./roulette-image-loader";
 import { drawWheel } from "./roulette-drawer";
 import { useRouletteAnimator, UseRouletteOptions } from "./roulette-animator";
-import { calculateSectorAngle } from "./roulette-angle-utils";
+import { calculateSectorAngle, type StopPattern } from "./roulette-angle-utils";
 
 export type { RouletteItem } from "./roulette-image-loader";
 
@@ -71,7 +71,8 @@ export function useRouletteAnimation(
   const stopSpin = async (
     durationSec?: number,
     targetPrizeId?: string | null,
-    occurrence: number = 1
+    occurrence: number = 1,
+    pattern?: StopPattern
   ): Promise<string | null> => {
     const targetId = targetPrizeId || null;
     if (!targetId) {
@@ -86,7 +87,8 @@ export function useRouletteAnimation(
       currentRouletteItems,
       sectorAngle,
       durationSec || 3,
-      occurrence
+      occurrence,
+      ...(pattern ? [pattern] : [])
     );
     return result;
   };

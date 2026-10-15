@@ -33,6 +33,7 @@ import { AssetDataService } from '@control/asset/asset-data-service';
 import type { DrawMemberResponse } from '@control/draw/dto/draw-member-response';
 import MemberWinnerDialog from './member-winner-dialog.vue';
 import { useMemberDrawBgm } from './use-member-draw-bgm';
+import { buildMemberStopSteps, pickMemberStopPattern, requiredLeadPx } from './member-stop-patterns';
 
 // Per-animation defaults (hardcoded here per your request)
 export const MEMBER_DRAW_REQUEST_COUNT = 10;
@@ -416,6 +417,29 @@ export default {
                     }
                 }
 
+                // 止まり方を選ぶ。手前から進入する止まり方は、当選者の位置が中央より十分右にあるときだけ(無ければふつうに止まる)
+                const centerOf = (i: number) => {
+                    const r = children[i].getBoundingClientRect();
+                    return r.left + r.width / 2;
+                };
+                const pitch = children.length > 1
+                    ? Math.abs(children[1].getBoundingClientRect().left - children[0].getBoundingClientRect().left) || children[0].getBoundingClientRect().width
+                    : children[0].getBoundingClientRect().width;
+                let stopPattern = pickMemberStopPattern();
+                const lead = requiredLeadPx(stopPattern, pitch);
+                if (lead > 0 && targetChildIdx >= 0) {
+                    const winnerId = displayMembers.value[targetChildIdx]?.id ?? null;
+                    const ahead: number[] = [];
+                    for (let i = 0; i < children.length; i++) {
+                        if ((displayMembers.value[i]?.id ?? null) === winnerId && centerOf(i) - viewportCenter >= lead) ahead.push(i);
+                    }
+                    if (ahead.length) {
+                        targetChildIdx = ahead.reduce((best, cur) => (centerOf(cur) < centerOf(best) ? cur : best), ahead[0]);
+                    } else {
+                        stopPattern = 'smooth';
+                    }
+                }
+
                 const item = children[targetChildIdx];
                 if (!item) {
                     resolve(null);
@@ -428,24 +452,8 @@ export default {
                 const delta = viewportCenter - itemCenter;
                 const finalX = currentTransform + delta;
 
-                const patterns = [
-                    (tl: gsap.core.Timeline) => {
-                        tl.to(track.value, { x: finalX, duration: 3.0, ease: 'power2.out' });
-                    },
-                    (tl: gsap.core.Timeline) => {
-                        const overshoot = finalX - 150;
-                        tl.to(track.value, { x: overshoot, duration: 1.0, ease: 'power2.out' })
-                            .to(track.value, { x: finalX + 60, duration: 1.0, ease: 'power1.inOut' }, "+=0.2")
-                            .to(track.value, { x: finalX, duration: 1.0, ease: 'bounce.out' });
-                    },
-                    (tl: gsap.core.Timeline) => {
-                        tl.to(track.value, { x: finalX - 90, duration: 1.0, ease: 'power2.out' })
-                            .to(track.value, { x: finalX + 90, duration: 1.0, ease: 'power1.inOut' })
-                            .to(track.value, { x: finalX, duration: 1.5, ease: 'elastic.out(1, 0.3)' });
-                    }
-                ];
-
-                const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+                const steps = buildMemberStopSteps(stopPattern, finalX, pitch);
+                console.log('[MemberDrawAnimation] stopAt: pattern', stopPattern);
                 const tl = gsap.timeline({
                     onComplete: () => {
                         const id = displayMembers.value[targetChildIdx]?.id ?? null;
@@ -482,7 +490,9 @@ export default {
                         resolve(id);
                     }
                 });
-                pattern(tl);
+                for (const step of steps) {
+                    tl.to(track.value, { x: step.x, duration: step.duration, ease: step.ease }, step.delay ? `+=${step.delay}` : undefined);
+                }
             });
         };
 
