@@ -1,7 +1,6 @@
 <template>
     <DisplayStage>
         <p class="announcement-text">これからクイズが始まります！！</p>
-        <template #hint>Enterキーを押して次へ</template>
     </DisplayStage>
 </template>
 

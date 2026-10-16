@@ -33,7 +33,7 @@
                 <h2 class="modal-title">終了！</h2>
                 <p class="modal-body" v-if="isLoading">受付を締め切っています…</p>
                 <p class="modal-body" v-else-if="errorMessage">{{ errorMessage }}</p>
-                <p class="modal-body" v-else>受付終了。Enterで正解表示</p>
+                <p class="modal-body" v-else>受付を終了しました</p>
             </div>
         </div>
     </div>
