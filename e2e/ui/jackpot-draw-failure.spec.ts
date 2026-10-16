@@ -40,6 +40,13 @@ test("エントリー者がいなくて抽選に失敗しても、ホストは�
   await admin.page.getByTestId("start-jackpot").click();
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
   const next = nextButton(admin.page);
+  // 説明のスライドを最後まで進める（最後の1枚の次が「抽選を始める」）
+  for (let i = 0; i < 10; i++) {
+    const label = await next.innerText();
+    if (/抽選を始める/.test(label)) break;
+    await next.click();
+    await expect(next).not.toHaveText(label); // 1枚進んでから次を押す（押しすぎて抽選画面に進まないように）
+  }
   await expect(next).toHaveText(/抽選を始める/);
   await next.click();
   await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
