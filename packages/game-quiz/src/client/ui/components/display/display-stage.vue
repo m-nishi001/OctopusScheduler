@@ -6,9 +6,6 @@
         <main class="stage-body">
             <slot />
         </main>
-        <footer class="stage-footer">
-            <p v-if="$slots.hint" class="stage-hint"><slot name="hint" /></p>
-        </footer>
     </div>
 </template>
 
@@ -29,7 +26,7 @@
     box-sizing: border-box;
     padding: clamp(16px, 3vmin, 48px);
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     overflow: hidden;
     background: radial-gradient(ellipse at 50% 0%, #1e293b 0%, #0f172a 45%, #0b1220 100%);
     color: #fff;
@@ -57,13 +54,6 @@
     container-type: size;
     display: grid;
     place-items: center;
-}
-
-.stage-hint {
-    margin: 0;
-    padding-top: clamp(8px, 2vmin, 28px);
-    font-size: clamp(1rem, 2.4vmin, 1.75rem);
-    color: var(--stage-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

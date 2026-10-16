@@ -110,7 +110,7 @@ test.describe("クイズ（参加者ポータル）", () => {
 
     // 管理端末から受付を締め切る → 以後は回答できない
     await nextButton(admin.page).click(); // 回答受付中は主ボタンが「受付を締め切る」
-    await expect(host.page.getByText("受付終了。Enterで正解表示")).toBeVisible();
+    await expect(host.page.getByText("受付を終了しました")).toBeVisible();
     await expect(jiro.page.getByTestId("quiz-closed")).toBeVisible();
 
     // 正解発表: 参加者の画面に正解と正誤が出る
@@ -238,7 +238,7 @@ test.describe("クイズ（参加者ポータル）", () => {
     // 4秒の制限時間が過ぎると、回答できなくなる(ボタンが無効 + 終了表示)
     await expect(phone.page.getByTestId("quiz-closed")).toBeVisible({ timeout: 20_000 });
     await expect(phone.page.getByRole("button", { name: /みかん/ })).toBeDisabled();
-    await expect(host.page.getByText("受付終了。Enterで正解表示")).toBeVisible();
+    await expect(host.page.getByText("受付を終了しました")).toBeVisible();
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, phone]) await d.context.close();

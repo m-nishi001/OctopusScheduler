@@ -13,6 +13,21 @@ describe("roundKeyFor", () => {
     expect(roundKeyFor("q1", "demo")).not.toBe(roundKeyFor("q1", "live"));
   });
 
+  it("イベントIDを含めると、同じクイズでもイベントごとに別のキーになる。イベントが無ければ従来のキー", () => {
+    expect(roundKeyFor("q1", "live", "ev-1")).toBe("q1:live:ev-1");
+    expect(roundKeyFor("q1", "live", "ev-1")).not.toBe(roundKeyFor("q1", "live", "ev-2"));
+    expect(roundKeyFor("q1", "live", null)).toBe("q1:live");
+  });
+
+  it("長いクイズIDでもイベントIDの部分は切り落とさない(UUID同士でも80文字以内で区別できる)", () => {
+    const quizId = "0f4c2d6e-1b2a-4c3d-9e8f-123456789abc".repeat(3);
+    const a = roundKeyFor(quizId, "live", "11111111-2222-4333-8444-555555555555");
+    const b = roundKeyFor(quizId, "live", "11111111-2222-4333-8444-666666666666");
+    expect(a).toMatch(/^[A-Za-z0-9:_-]{1,80}$/);
+    expect(a.endsWith(":live:11111111-2222-4333-8444-555555555555")).toBe(true);
+    expect(a).not.toBe(b);
+  });
+
   it("セッション基盤のキー形式(英数と : _ - のみ、80文字以内)に収める", () => {
     const key = roundKeyFor("日本語 id/with*chars" + "x".repeat(200), "live");
     expect(key).toMatch(/^[A-Za-z0-9:_-]{1,80}$/);

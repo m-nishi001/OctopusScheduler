@@ -1,6 +1,7 @@
 import { RESULTS_NAMESPACE } from "../../shared/results";
 import type { JackpotDraw, QuizRoundResult } from "../../shared/results";
 import { lobbyPath } from "../../shared/host-navigation";
+import { PORTAL_EVENT_NS, readPortalEvent } from "../../shared/portal-event";
 import { HostCommandRouter } from "./host-command-router";
 import type { SessionConnection } from "./session-connection";
 
@@ -43,6 +44,11 @@ export class HostAgent {
   get active(): boolean {
     const { phase, role } = this.connection.state;
     return role === "host" && phase !== "idle" && phase !== "ended" && phase !== "unauthorized" && phase !== "replaced";
+  }
+
+  /** いま発生中のイベントのID。イベントが無ければ null。クイズの回答ラウンドをイベントごとに分けるのに使う。 */
+  get eventId(): string | null {
+    return readPortalEvent({ [PORTAL_EVENT_NS]: this.slices[PORTAL_EVENT_NS] })?.id ?? null;
   }
 
   /**
