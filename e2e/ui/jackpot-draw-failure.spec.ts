@@ -40,6 +40,7 @@ test("エントリー者がいなくて抽選に失敗しても、ホストは�
   await admin.page.getByTestId("start-jackpot").click();
   await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
   const next = nextButton(admin.page);
+  await expect(next).toHaveText(/抽選を始める/);
   await next.click();
   await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
 
