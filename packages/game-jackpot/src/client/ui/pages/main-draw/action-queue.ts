@@ -1,47 +1,53 @@
 /**
- * 抽選の進行ステップ。Enterキー(または遠隔の「次へ」)で1つずつ(または連鎖して)実行される。
+ * 抽選の進行ステップ。Enterキー(または遠隔の「次へ」)で、pause のステップまで連続して実行される。
  *
- * ステップには任意のラベルを付けられる。遠隔操作では「いま次に実行されるのが
- * ルーレットを止める操作か」を知る必要がある(参加者のスマホに停止ボタンを出すため)。
+ * - label: 遠隔操作が「いま次に実行されるのがルーレットを止める操作か」を知るための目印
+ *   (参加者のスマホに停止ボタンを出す)。
+ * - pause: 実行し終えたら次のEnterを待つ。
  */
-export type QueuedAction = (() => Promise<void>) & { label?: string };
-
-/** ステップにラベルを付ける(関数自体は変えない)。 */
-export function labeled(label: string, action: () => Promise<void>): QueuedAction {
-  const wrapped: QueuedAction = () => action();
-  wrapped.label = label;
-  return wrapped;
+export interface Step {
+  label?: string;
+  pause?: boolean;
+  run: () => Promise<void>;
 }
 
-export class ActionQueue {
-  public actions: QueuedAction[] = [];
-  /** ステップを取り出して実行する直前に呼ばれる(ラベルが無ければ undefined)。 */
-  public onDequeue: ((label: string | undefined) => void) | null = null;
+export const delay = (seconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
-  enqueue(action: QueuedAction) {
-    this.actions.push(action);
+export const step = (run: () => Promise<void> | void, label?: string): Step => ({
+  run: async () => {
+    await run();
+  },
+  label,
+});
+
+/** 指定秒数待ってから、次のEnterを待つ。 */
+export const pause = (seconds = 1): Step => ({
+  run: () => delay(seconds),
+  pause: true,
+});
+
+export class ActionQueue {
+  private steps: Step[] = [];
+  /** ステップを取り出して実行する直前に呼ばれる(ラベルが無ければ undefined)。 */
+  onDequeue: ((label: string | undefined) => void) | null = null;
+
+  addCycle(steps: Step[]) {
+    this.steps.push(...steps);
   }
 
-  dequeue(): QueuedAction | undefined {
-    const action = this.actions.shift();
-    if (action) this.onDequeue?.(action.label);
-    return action;
+  dequeue(): Step | undefined {
+    const next = this.steps.shift();
+    if (next) this.onDequeue?.(next.label);
+    return next;
   }
 
   /** 次に実行されるステップのラベル(取り出さない)。 */
   peekLabel(): string | undefined {
-    return this.actions[0]?.label;
+    return this.steps[0]?.label;
   }
 
   isEmpty(): boolean {
-    return this.actions.length === 0;
-  }
-
-  addCycle(actions: QueuedAction[]) {
-    this.actions.push(...actions);
-  }
-
-  clear() {
-    this.actions = [];
+    return this.steps.length === 0;
   }
 }

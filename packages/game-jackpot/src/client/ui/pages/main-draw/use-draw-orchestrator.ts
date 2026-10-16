@@ -1,445 +1,146 @@
-import {
-  ref,
-  onMounted,
-  onUnmounted,
-  reactive,
-  shallowRef,
-  markRaw,
-} from "vue";
+import { ref, onMounted, onUnmounted, shallowRef, markRaw } from "vue";
 import type { Component } from "vue";
+import { container } from "tsyringe";
 import { DrawApplicationService } from "@control/draw/draw-application-service";
 import { PrizeRepository } from "@model/prize/prize-repository";
 import { MemberRepository } from "@model/member/member-repository";
+import { AssetDataService } from "@control/asset/asset-data-service";
 import type { MemberDto } from "@control/member/dto/member-dto";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
-import { container } from "tsyringe";
-import { AssetDataService } from "@control/asset/asset-data-service";
+import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
+import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
+import { RevealTracker } from "@model/jackpot-host-state";
+import { useJackpotHost } from "../../composables/use-jackpot-host";
+import { useJackpotSession } from "../../composables/use-jackpot-session";
 import { usePrizeDrawState } from "./prize-animation-state";
 import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
-
-import type { PrizeDto } from "@control/prize/dto/prize-dto";
-
 import { ActionQueue } from "./action-queue";
-import { BaseHandler } from "./base-handler";
-import { KakuhenHandler } from "./kakuhen-handler";
-import mitt from "mitt";
-import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
-import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
-import { useJackpotHost } from "../../composables/use-jackpot-host";
-import { RevealTracker, buildJackpotDraw, buildJackpotHostState } from "@model/jackpot-host-state";
-import { useJackpotSession } from "../../composables/use-jackpot-session";
+import { createBgmBlobLoader } from "./bgm-blob-loader";
+import type { DrawContext } from "./draw-context";
+import { buildCycle } from "./draw-cycle";
+import { DrawFlowController } from "./draw-flow-controller";
+import { createHostPublisher } from "./host-publisher";
+import { performDraw } from "./perform-draw";
 
-// This composable extracts the heavy orchestration logic from the Vue SFC
-// so the component can stay thin and focused on template/registration.
+// 本抽選画面の配線。画面の状態(ref)とサービスを集めて、進行(DrawFlowController)と
+// ステップ(buildCycle)につなぐだけにして、ロジックは単体テストできるモジュール側に置く。
 export function useDrawOrchestrator() {
-  const members = ref<MemberDto[]>([]);
-  const latestResult = ref<DrawResultDto | null>(null);
-  const emitter = mitt<any>();
-  const drawState = reactive({
-    phase: "idle" as string,
-    prizeAnimationStopped: false,
-    currentAction: null as (() => void) | null,
-    currentQueue: new ActionQueue(),
-  });
-
-  // 参加者への公開用: 当選者を「停止演出が終わるまで」見せないために、どこまで見えたかを追跡する
-  const revealTracker = new RevealTracker();
-  // 参加者のポータルの「当選履歴」へ保存済みの抽選(重複保存を防ぐ)。デモは保存しない。
-  const { isDemo } = useJackpotSession();
-  const recordedDrawIds = new Set<string>();
-
-  // services
   const prizeRepo = container.resolve(PrizeRepository);
   const memberRepo = container.resolve(MemberRepository);
   const drawService = container.resolve(DrawApplicationService);
   const assetService = container.resolve(AssetDataService);
+  const { isDemo } = useJackpotSession();
 
-  // prize draw state
-  const {
-    prizes,
-    selectedPrize,
-    preparedPrizes,
-    updatePrizes,
-    preparePrizes,
-    updateSelectedPrize,
-  } = usePrizeDrawState([], null, false, assetService);
+  const { prizes, selectedPrize, preparedPrizes, updatePrizes, preparePrizes, updateSelectedPrize } =
+    usePrizeDrawState(assetService);
 
-  // animation refs
-  const memberAnimRef = ref(null as any);
-  const animationRef = ref(null as any);
+  const members = ref<MemberDto[]>([]);
+  const phase = ref("idle");
+  const latestResult = ref<DrawResultDto | null>(null);
+  const currentPrizeRes = ref<DrawPrizeResponse | null>(null);
+  const currentMemberRes = ref<DrawMemberResponse | null>(null);
+  const currentPrizeComponent = shallowRef<Component>(markRaw(RouletteAnimation));
+
+  // 演出コンポーネント(テンプレート ref)
+  const memberAnimRef = ref<any>(null);
+  const animationRef = ref<any>(null);
 
   const showPrizeWinningDialog = ref(false);
   const showHalfRemainingDialog = ref(false);
   const showEndDialog = ref(false);
-  const showMemberWinnerDialog = ref(false);
-
-  const kakuhenInProgress = ref(false);
   const kakuhenOverlayVisible = ref(false);
-  const preDrawResult = ref<DrawResultDto | null>(null);
-  const currentPrizeRes = ref<DrawPrizeResponse | null>(null);
-  const currentMemberRes = ref<DrawMemberResponse | null>(null);
 
-  const currentMemberComponent = ref("MemberDrawAnimation");
-  const currentPrizeComponent = shallowRef<Component>(
-    markRaw(RouletteAnimation)
-  );
-
-  // Define action cycles
-  const kakuhenDummyPrize = ref<PrizeDto | null>(null);
-  const kakuhenFinalPrize = ref<PrizeDto | null>(null);
-
-  const keyDownHandler = ref<((ev: KeyboardEvent) => void) | null>(null);
-
-  const loadBgmBlob = async (assetId: string | null): Promise<Blob | null> => {
-    if (!assetId) return null;
-    try {
-      console.log(
-        "[DrawOrchestrator] loadBgmBlob: requesting assetId=",
-        assetId
-      );
-      const asset = await assetService.getAssetDataById(assetId);
-      if (!asset) {
-        console.warn(
-          "[DrawOrchestrator] loadBgmBlob: asset not found for id=",
-          assetId
-        );
-        return null;
-      }
-      console.log("[DrawOrchestrator] loadBgmBlob: found asset", {
-        id: asset.id,
-        name: asset.name,
-        mime: asset.type,
-        size: asset.size,
-      });
-      // asset.blob may be a Blob, a File, or even a string URL (data URL or http blob URL).
-      const candidate = (asset as any).blob;
-      if (!candidate) return null;
-      // If it's already a Blob (including File), return it directly
-      if (candidate instanceof Blob) return candidate as Blob;
-
-      // If the stored value is a string (URL or data URL), attempt to fetch it
-      if (typeof candidate === "string") {
-        try {
-          console.log(
-            "[DrawOrchestrator] loadBgmBlob: asset.blob is a string, fetching URL to produce Blob",
-            candidate
-          );
-          const resp = await fetch(candidate);
-          if (!resp.ok) {
-            console.warn(
-              "[DrawOrchestrator] loadBgmBlob: fetch for asset string failed",
-              resp.status
-            );
-            return null;
-          }
-          const blob = await resp.blob();
-          return blob;
-        } catch (e) {
-          console.warn(
-            "[DrawOrchestrator] loadBgmBlob: failed to fetch asset blob from string",
-            e
-          );
-          return null;
-        }
-      }
-
-      // As a last resort, try to coerce plain objects into a Blob by checking for
-      // arrayBuffer/constructor forms (e.g., serialized Blob), otherwise return null.
-      try {
-        if (
-          candidate &&
-          typeof candidate === "object" &&
-          (candidate as any).type !== undefined &&
-          (candidate as any).size !== undefined
-        ) {
-          // Create a new Blob from candidate if we can
-          const constructed = new Blob([candidate as any], {
-            type: (candidate as any).type || "application/octet-stream",
-          });
-          return constructed;
-        }
-      } catch (e) {
-        /* noop */
-      }
-
-      return null;
-    } catch (e) {
-      console.log("[DrawOrchestrator] loadBgmBlob failed", e);
-      return null;
-    }
+  const ctx: DrawContext = {
+    drawService,
+    phase,
+    result: latestResult,
+    prizeRes: currentPrizeRes,
+    prizes,
+    selectedPrize,
+    setSelectedPrize: updateSelectedPrize,
+    preparePrizes,
+    loadBgmBlob: createBgmBlobLoader(assetService),
+    memberAnim: memberAnimRef,
+    prizeAnim: animationRef,
+    showPrizeWinningDialog,
+    showHalfRemainingDialog,
+    showEndDialog,
+    kakuhenOverlayVisible,
   };
 
-  // executeDraw moved here from BaseHandler to use local refs/services
-  const executeDraw = async () => {
-    console.log("[DrawOrchestrator] executeDraw");
-    // 新しい抽選が始まったので、前回の当選者を参加者への公開から外す
-    revealTracker.reset();
+  // 参加者への公開用: 当選者を「停止演出が終わるまで」見せないために、どこまで見えたかを追跡する
+  const queue = new ActionQueue();
+  const revealTracker = new RevealTracker();
+  queue.onDequeue = (label) => revealTracker.onAction(label);
 
-    try {
-      const {
-        result: drawResult,
-        prizeRes,
-        memberRes,
-      } = await drawService.executeDraw({
-        memberRequestCount: 10,
-        prizeRequestCount: 8,
-      });
-
-      console.log("[DrawOrchestrator] draw result received", {
-        result: drawResult,
-        prizeRes,
-      });
-
-      preDrawResult.value = drawResult;
-      currentPrizeRes.value = prizeRes;
-      currentMemberRes.value = memberRes;
-      latestResult.value = drawResult;
-      console.log(
-        "[DrawOrchestrator] executeDraw: assigned preDrawResult/currentPrizeRes/latestResult",
-        {
-          preDrawWinnerId: preDrawResult.value?.wonMember?.id,
-          preDrawPrizeId: preDrawResult.value?.wonPrize?.id,
-          prizeRes,
-        }
-      );
-
-      const winnerId = drawResult.wonPrize!.id;
-      const winnerPrizeObj = prizes.value.find((p) => p.id === winnerId)!;
-
-      latestResult.value.wonPrize = winnerPrizeObj;
-      updateSelectedPrize(winnerPrizeObj);
-
-      // Ensure the prepared/prerendered roulette items include the winner (if known)
-      // The server may return duplicate IDs in `dummyPrizeIds` when unique
-      // candidates are insufficient. The UI needs one visual entry per
-      // dummy slot, so map `dummyPrizeIds` to cloned prize DTOs with unique
-      // visual IDs while keeping the original prize reference in
-      // `originalPrizeId` (kakuhen uses a similar approach).
-      const prizesToPrepare: any[] = [];
-
-      // include the winner prize object (single entry)
-      if (prizeRes.winnerPrizeId) {
-        const winnerObj = prizes.value.find(
-          (p) => p.id === prizeRes.winnerPrizeId
-        );
-        if (winnerObj) {
-          prizesToPrepare.push(winnerObj);
-        }
-      }
-
-      // include dummyWinnerPrizeId explicitly if present and not the same as winner
-      if (prizeRes.dummyWinnerPrizeId) {
-        const dw = prizes.value.find(
-          (p) => p.id === prizeRes.dummyWinnerPrizeId
-        );
-        if (dw && dw.id !== prizeRes.winnerPrizeId) {
-          // clone with unique visual id
-          const clone: any = { ...(dw as any) };
-          clone.id = `${dw.id}#dummy-winner`;
-          clone.originalPrizeId = dw.id;
-          prizesToPrepare.push(clone);
-        }
-      }
-
-      // map each dummyPrizeId occurrence to a visual slot (clone to preserve duplicates)
-      prizeRes.dummyPrizeIds.forEach((id, idx) => {
-        const p = prizes.value.find((pp) => pp.id === id);
-        if (!p) return;
-        const clone: any = { ...(p as any) };
-        // create a unique visual id to avoid client-side id collisions
-        clone.id = `${p.id}#dup-${idx}`;
-        clone.originalPrizeId = p.id;
-        prizesToPrepare.push(clone);
-      });
-
-      await preparePrizes(prizesToPrepare);
-
-      if (selectedPrize.value?.animation === "slot") {
-        currentPrizeComponent.value = markRaw(SlotAnimation as any);
-        console.log("[DrawOrchestrator] selected component: SlotAnimation");
-      } else {
-        currentPrizeComponent.value = markRaw(RouletteAnimation as any);
-        console.log("[DrawOrchestrator] selected component: RouletteAnimation");
-      }
-    } catch (e: any) {
-      console.error("[DrawOrchestrator] draw failed", e);
-      preDrawResult.value = null;
-      latestResult.value = null;
-      try {
-        window.alert(e?.message || String(e));
-      } catch (_) {
-        /* noop */
-      }
-    } finally {
-      console.log("[DrawOrchestrator] executeDraw completed");
-      emitter.emit("nextAction");
-    }
+  /** 抽選して画面の状態に反映し、そのサイクルのステップを返す。失敗したら例外(状態は何も反映しない)。 */
+  const drawNextCycle = async () => {
+    revealTracker.reset(); // 新しい抽選が始まったので、前回の当選者を参加者への公開から外す
+    const { result, prizeRes, memberRes, winner } = await performDraw({ drawService, prizes, preparePrizes });
+    latestResult.value = result;
+    currentPrizeRes.value = prizeRes;
+    currentMemberRes.value = memberRes;
+    updateSelectedPrize(winner);
+    currentPrizeComponent.value = markRaw(
+      winner.animation === "slot" ? (SlotAnimation as Component) : RouletteAnimation
+    );
+    return buildCycle(ctx, result.isKakuhen ?? false);
   };
 
-  const getCycle = (isKakuhen: boolean) => {
-    if (isKakuhen) {
-      return KakuhenHandler.getActions(
-        preDrawResult,
-        memberAnimRef,
-        animationRef,
-        latestResult,
-        prizes,
-        showPrizeWinningDialog,
-        drawService,
-        showHalfRemainingDialog,
-        showEndDialog,
-        updateSelectedPrize,
-        loadBgmBlob,
-        kakuhenDummyPrize,
-        kakuhenFinalPrize,
-        kakuhenInProgress,
-        kakuhenOverlayVisible,
-        showMemberWinnerDialog,
-        drawState.currentQueue,
-        emitter,
-        drawState,
-        preparePrizes,
-        currentPrizeRes.value
-      );
-    } else {
-      return BaseHandler.getActions(
-        preDrawResult,
-        selectedPrize,
-        memberAnimRef,
-        animationRef,
-        prizes,
-        showPrizeWinningDialog,
-        drawService,
-        showHalfRemainingDialog,
-        showEndDialog,
-        updateSelectedPrize,
-        loadBgmBlob,
-        showMemberWinnerDialog,
-        drawState.currentQueue,
-        emitter,
-        drawState
-      );
-    }
-  };
-
-  const isQueueExecuting = ref(false);
-  const pendingAutoExecution = ref(false);
-
-  const executeCurrentAction = async () => {
-    if (isQueueExecuting.value || pendingAutoExecution.value) {
-      return;
-    }
-    isQueueExecuting.value = true;
-
-    if (drawState.currentQueue.isEmpty()) {
-      try {
-        const count = await drawService.getLastPrizeCount();
-        if (count.remaining <= 0) {
-          isQueueExecuting.value = false;
-          return;
-        }
-        await executeDraw();
-        const isKakuhen = preDrawResult.value?.isKakuhen || false;
-        drawState.currentQueue.addCycle(getCycle(isKakuhen));
-      } catch (e) {
-        console.error("Failed to get prize count for cycle addition:", e);
-        isQueueExecuting.value = false;
-        return;
-      } finally {
-        pendingAutoExecution.value = false;
-      }
-    }
-    try {
-      const action = drawState.currentQueue.dequeue();
-      if (!action) {
-        console.warn("No action to execute in the queue");
-        isQueueExecuting.value = false;
-        return;
-      }
-      console.log("[DrawOrchestrator] Executing action from queue");
-      await action();
-    } catch (e) {
-      console.error("Error executing action from queue", e);
-    } finally {
-      isQueueExecuting.value = false;
-      if (pendingAutoExecution.value) {
-        console.log("[DrawOrchestrator] Auto-executing next action");
-        pendingAutoExecution.value = false;
-        void executeCurrentAction();
-      } else {
-        // 次のEnter待ちに入った(連鎖が止まった)。この時点の状態を公開する。
-        publishHostState();
-      }
-    }
+  const onDrawError = (e: unknown) => {
+    console.error("[DrawOrchestrator] draw failed", e);
+    latestResult.value = null;
+    currentPrizeRes.value = null;
+    currentMemberRes.value = null;
+    alertError(e);
   };
 
   // セッションのホストとして接続している場合、管理端末の「次へ」と、ホストが許可した
   // 参加者のスマホからの「止める」をEnterキー押下と同じ扱いにし、抽選の状態を公開する。
   // onUnmountedを登録するため、必ずonMountedの外(setup()の同期実行中)で呼び出す。
-  drawState.currentQueue.onDequeue = (label) => revealTracker.onAction(label);
-  const host = useJackpotHost({
-    advance: () => void executeCurrentAction(),
-    stopRoulette: () => void executeCurrentAction(),
+  let flow: DrawFlowController;
+  const advance = () => void flow.advance();
+  const host = useJackpotHost({ advance, stopRoulette: advance });
+  const publishHostState = createHostPublisher({
+    host,
+    tracker: revealTracker,
+    isDemo,
+    phase: () => phase.value,
+    nextLabel: () => queue.peekLabel(),
+    result: () => latestResult.value,
   });
-  const publishHostState = () => {
-    host.publish(
-      buildJackpotHostState({
-        phase: drawState.phase,
-        nextLabel: drawState.currentQueue.peekLabel(),
-        tracker: revealTracker,
-        memberName: latestResult.value?.wonMember?.name,
-        memberId: latestResult.value?.wonMember?.id,
-        prizeName: latestResult.value?.wonPrize?.name,
-      })
-    );
-    // 当選者と賞品が画面に見えた後に1回だけ、結果をポータル用に保存する(演出の途中では保存しない)
-    if (isDemo) return;
-    const draw = buildJackpotDraw(latestResult.value, revealTracker);
-    if (draw && !recordedDrawIds.has(draw.drawId)) {
-      recordedDrawIds.add(draw.drawId);
-      void host.recordDraw(draw).then((saved) => {
-        if (!saved) recordedDrawIds.delete(draw.drawId);
-      });
-    }
+
+  flow = new DrawFlowController({
+    queue,
+    remainingPrizes: async () => (await drawService.getLastPrizeCount()).remaining,
+    drawNextCycle,
+    onDrawError,
+    onStepError: (e) => console.error("[DrawOrchestrator] step failed", e),
+    onSettled: publishHostState,
+  });
+
+  const handleKeyDown = (ev: KeyboardEvent) => {
+    if (ev.key === "Enter") advance();
   };
 
   onMounted(async () => {
-    const loadedPrizes = await prizeRepo.getPrizes();
-    // updatePrizes now returns prepared roulette items. We don't need them here, but
-    // await to ensure prize state is prepared before next cycle is enqueued.
-    await updatePrizes(loadedPrizes);
-    members.value = await memberRepo.getMembers();
-
-    await drawService.initializeStateIfNeeded(prizes.value);
-
-    currentMemberComponent.value = "MemberDrawAnimation";
-
-    await executeDraw();
-
-    const isKakuhen = preDrawResult.value?.isKakuhen || false;
-    drawState.currentQueue.addCycle(getCycle(isKakuhen));
-
-    const handleKeyDown = (ev: KeyboardEvent) => {
-      if (ev.key === "Enter") {
-        void executeCurrentAction();
-      }
-    };
-    keyDownHandler.value = handleKeyDown;
+    try {
+      await updatePrizes(await prizeRepo.getPrizes());
+      members.value = await memberRepo.getMembers();
+      await drawService.initializeStateIfNeeded(prizes.value);
+    } catch (e) {
+      console.error("[DrawOrchestrator] failed to load draw data", e);
+      alertError(e);
+      return;
+    }
     window.addEventListener("keydown", handleKeyDown);
-
-    emitter.on("nextAction", () => {
-      pendingAutoExecution.value = true;
-    });
-
-    void executeCurrentAction();
+    flow.ready = true;
+    advance();
   });
 
   onUnmounted(() => {
-    if (keyDownHandler.value) {
-      window.removeEventListener("keydown", keyDownHandler.value);
-    }
-    emitter.off("nextAction");
+    window.removeEventListener("keydown", handleKeyDown);
   });
 
   return {
@@ -447,7 +148,7 @@ export function useDrawOrchestrator() {
     preparedPrizes,
     members,
     latestResult,
-    drawState,
+    phase,
     memberAnimRef,
     animationRef,
     selectedPrize,
@@ -455,9 +156,15 @@ export function useDrawOrchestrator() {
     showPrizeWinningDialog,
     showHalfRemainingDialog,
     showEndDialog,
-    showMemberWinnerDialog,
-    kakuhenInProgress,
     kakuhenOverlayVisible,
     currentMemberRes,
   } as const;
+}
+
+function alertError(e: unknown) {
+  try {
+    window.alert((e as Error)?.message || String(e));
+  } catch {
+    /* noop */
+  }
 }

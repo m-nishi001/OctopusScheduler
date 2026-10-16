@@ -1,49 +1,67 @@
 import { describe, it, expect, vi } from "vitest";
-import { ActionQueue } from "./action-queue";
+import { ActionQueue, pause, step } from "./action-queue";
+
+describe("step / pause", () => {
+  it("step は元の処理を呼び、ラベルを持つ", async () => {
+    const fn = vi.fn(async () => {});
+    const s = step(fn, "stopMemberDraw");
+    expect(s.label).toBe("stopMemberDraw");
+    expect(s.pause).toBeUndefined();
+    await s.run();
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("pause は待ってから次のEnterを待つステップ", async () => {
+    vi.useFakeTimers();
+    const s = pause(2);
+    expect(s.pause).toBe(true);
+    const done = vi.fn();
+    void s.run().then(done);
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(done).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(done).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+});
 
 describe("ActionQueue", () => {
-  it("starts empty", () => {
+  const noop = async () => {};
+
+  it("空から始まり、サイクルを順番どおりに取り出す", () => {
     const queue = new ActionQueue();
     expect(queue.isEmpty()).toBe(true);
     expect(queue.dequeue()).toBeUndefined();
-  });
 
-  it("enqueues and dequeues actions in FIFO order", () => {
-    const queue = new ActionQueue();
-    const first = vi.fn(async () => {});
-    const second = vi.fn(async () => {});
-
-    queue.enqueue(first);
-    queue.enqueue(second);
+    const a = step(noop);
+    const b = step(noop);
+    const c = step(noop);
+    queue.addCycle([a, b]);
+    queue.addCycle([c]);
 
     expect(queue.isEmpty()).toBe(false);
-    expect(queue.dequeue()).toBe(first);
-    expect(queue.dequeue()).toBe(second);
+    expect([queue.dequeue(), queue.dequeue(), queue.dequeue()]).toEqual([a, b, c]);
     expect(queue.isEmpty()).toBe(true);
   });
 
-  it("addCycle appends a whole batch of actions at once, preserving order", () => {
+  it("peekLabel は次のステップのラベルを返し、取り出さない。ラベル無しや空キューは undefined", () => {
     const queue = new ActionQueue();
-    const a = vi.fn(async () => {});
-    const b = vi.fn(async () => {});
-    const c = vi.fn(async () => {});
-    queue.enqueue(a);
-
-    queue.addCycle([b, c]);
-
-    expect(queue.dequeue()).toBe(a);
-    expect(queue.dequeue()).toBe(b);
-    expect(queue.dequeue()).toBe(c);
+    expect(queue.peekLabel()).toBeUndefined();
+    queue.addCycle([step(noop), step(noop, "stopPrizeDraw")]);
+    expect(queue.peekLabel()).toBeUndefined();
+    queue.dequeue();
+    expect(queue.peekLabel()).toBe("stopPrizeDraw");
+    expect(queue.peekLabel()).toBe("stopPrizeDraw");
   });
 
-  it("clear empties the queue", () => {
+  it("onDequeue は取り出す直前に、そのステップのラベルで呼ばれる(取り出せないときは呼ばれない)", () => {
     const queue = new ActionQueue();
-    queue.enqueue(vi.fn(async () => {}));
-    queue.enqueue(vi.fn(async () => {}));
-
-    queue.clear();
-
-    expect(queue.isEmpty()).toBe(true);
+    const seen: Array<string | undefined> = [];
+    queue.onDequeue = (label) => seen.push(label);
     expect(queue.dequeue()).toBeUndefined();
+    queue.addCycle([step(noop, "a"), step(noop)]);
+    queue.dequeue();
+    queue.dequeue();
+    expect(seen).toEqual(["a", undefined]);
   });
 });
