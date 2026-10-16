@@ -619,6 +619,38 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       m.wrapper.unmount();
     });
 
+    it("当選者・賞品が公開された瞬間に、全員の画面で弾ける演出が出る。公開前は出ず、別の当選者・賞品になるたびに出し直す", async () => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+
+      await env.publishJackpot({ ...base, phase: "member" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(m, "reveal-burst-member")).toBe(false);
+      expect(has(m, "reveal-burst-prize")).toBe(false);
+
+      await env.publishJackpot({ ...base, phase: "member", member: "太郎", memberId: "taro" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(m, "reveal-burst-member")).toBe(true);
+      expect(has(m, "reveal-burst-prize")).toBe(false);
+      const firstBurst = m.wrapper.find('[data-testid="reveal-burst-member"]').element;
+
+      await env.publishJackpot({ ...base, phase: "prize", member: "太郎", memberId: "taro", prize: "特賞" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(m, "reveal-burst-prize")).toBe(true);
+      // 同じ当選者のままなら、当選者の演出は作り直さない（景品の公開で、もう一度弾けない）
+      expect(m.wrapper.find('[data-testid="reveal-burst-member"]').element).toBe(firstBurst);
+
+      // 次の抽選で別の人が当たったら、また出る
+      await env.publishJackpot({ ...base, phase: "member", member: "花子", memberId: "hanako" });
+      await tick(5000);
+      await flushPromises();
+      expect(m.wrapper.find('[data-testid="reveal-burst-member"]').element).not.toBe(firstBurst);
+      m.wrapper.unmount();
+    });
+
     it("エントリー済みの人のエントリー画面にも、待機画面と結果が出る", async () => {
       const env = await portalEnv();
       const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
