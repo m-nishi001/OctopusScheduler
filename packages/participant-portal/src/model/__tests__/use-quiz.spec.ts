@@ -200,6 +200,22 @@ describe("useQuiz: 回答済みの保存", () => {
     reloaded.unmount();
   });
 
+  it("同じクイズでも、別のイベントで出し直したら（ラウンドのキーが変われば）未回答に戻る", async () => {
+    const env = await portalEnv();
+    const storage = memoryStorage();
+    const device = await connect(participantDevice(env.hub, ALICE, { store: new MemoryDeviceStore() }), storage);
+    await env.startQuiz({ roundKey: "qz1:live:ev-1" });
+    await tick(5000);
+    await device.quiz.answer(2);
+    expect(device.quiz.myAnswer.value).toBe(2);
+
+    await env.startQuiz({ roundKey: "qz1:live:ev-2" });
+    await tick(5000);
+    expect(device.quiz.myAnswer.value).toBeNull();
+    expect(device.quiz.canAnswer.value).toBe(true);
+    device.unmount();
+  });
+
   it("1台のスマホを何人かで使っても、前の人の回答を引き継がない（保存は人ごと）", async () => {
     const env = await portalEnv();
     const storage = memoryStorage();
