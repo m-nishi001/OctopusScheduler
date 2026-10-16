@@ -1,6 +1,6 @@
 <template>
     <MainLayout>
-        <Loader v-if="drawState.phase === 'idle'" label="準備中..." />
+        <Loader v-if="phase === 'idle'" label="準備中..." />
         <div class="orchestrator container mx-auto p-6 jp-stage-host">
 
             <DrawResultDialog v-if="showPrizeWinningDialog && selectedPrize" title="景品当選" :prize="selectedPrize"
@@ -10,7 +10,7 @@
             <EndDialog v-if="showEndDialog" :visible="showEndDialog" />
 
             <div class="rich-layout">
-                <section class="member-area-fullscreen jp-stage" v-if="drawState.phase === 'member'">
+                <section class="member-area-fullscreen jp-stage" v-if="phase === 'member'">
                     <div class="jp-rays" aria-hidden="true"></div>
                     <div class="member-stage-fullscreen">
                         <MemberDrawAnimation ref="memberAnimRef" :members="members" :externalDialog="false"
@@ -18,7 +18,7 @@
                     </div>
                 </section>
 
-                <section v-if="drawState.phase === 'prize'" class="center-area jp-stage">
+                <section v-if="phase === 'prize'" class="center-area jp-stage">
                     <div class="jp-rays" aria-hidden="true"></div>
                     <div class="roulette-panel">
                         <component :is="currentPrizeComponent" ref="animationRef" :prizes="prizes"
