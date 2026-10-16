@@ -1,4 +1,4 @@
-import { acceptConfirm, createSession, expect, newDevice, nextButton, route, sampleQuiz, seedStore, test, adminRpc } from "./fixtures";
+import { createSession, expect, newDevice, nextButton, route, sampleQuiz, seedStore, test, adminRpc } from "./fixtures";
 import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
 
 /**
@@ -57,13 +57,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await nextButton(admin.page).click(); // 当選者なし → 景品を出さずロビーへ
     await expect.poll(() => route(host.page)).toBe(`/session/host/${sessionId}`);
     await expect(admin.page.getByTestId("now")).toContainText("待機中");
-
-    // イベントの終了は確認が出る。キャンセルすれば続く
-    await admin.page.getByTestId("end-event").click();
-    await admin.page.getByRole("button", { name: "キャンセル", exact: true }).click();
-    await expect(admin.page.getByTestId("event-state")).toContainText("開催中");
-    await admin.page.getByTestId("end-event").click();
-    await acceptConfirm(admin.page);
+    // クイズが終わってロビーに戻ると、イベントも自動で終了する
     await expect(admin.page.getByTestId("event-state")).toContainText("イベントは開催していません");
 
     for (const d of [admin, host]) await d.context.close();
