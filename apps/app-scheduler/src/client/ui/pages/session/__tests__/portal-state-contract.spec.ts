@@ -63,12 +63,12 @@ describe("ジャックポット: ホストの公開 → ポータルの読み取
   it("停止演出の前は当選者・賞品が入らず、後に入る", () => {
     const tracker = new RevealTracker();
     const hidden = buildJackpotHostState({ phase: "member", nextLabel: "stopMemberDraw", tracker, memberName: "太郎", prizeName: "特賞" });
-    expect(readJackpotView({ jackpot: wire(hidden) })).toEqual({ phase: "member", member: null, prize: null });
+    expect(readJackpotView({ jackpot: wire(hidden) })).toEqual({ phase: "member", member: null, memberId: null, prize: null });
 
     tracker.onAction("stopMemberDraw");
     tracker.onAction("stopPrizeDraw");
     const shown = buildJackpotHostState({ phase: "prize", nextLabel: undefined, tracker, memberName: "太郎", prizeName: "特賞" });
-    expect(readJackpotView({ jackpot: wire(shown) })).toEqual({ phase: "prize", member: "太郎", prize: "特賞" });
+    expect(readJackpotView({ jackpot: wire(shown) })).toEqual({ phase: "prize", member: "太郎", memberId: null, prize: "特賞" });
   });
 
   it("参加者に許可する操作のキーに、ポータルの表示名がある", () => {
