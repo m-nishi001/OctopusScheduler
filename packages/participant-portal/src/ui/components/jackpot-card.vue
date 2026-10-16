@@ -55,6 +55,8 @@ const jackpot = computed(() => readJackpotView(session.state.value.roomState?.da
 .pp-jackpot__reveal {
     position: relative;
     padding: 6px 0;
+    /* 演出の拡大・紙吹雪が、狭い画面で横にはみ出さないようにする */
+    overflow: hidden;
 }
 
 /* 演出は背面に置き、文字は常に前面に出す */
@@ -98,13 +100,13 @@ const jackpot = computed(() => readJackpotView(session.state.value.roomState?.da
 
 @keyframes pp-member-in {
     0% {
-        transform: scale(2.4);
+        transform: scale(0.3);
         opacity: 0;
         filter: blur(8px);
     }
 
-    60% {
-        transform: scale(0.92);
+    70% {
+        transform: scale(1.06);
         opacity: 1;
         filter: blur(0);
     }
