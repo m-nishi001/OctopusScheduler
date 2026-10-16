@@ -40,6 +40,11 @@ export class QuizRoundGateway {
     return this.agent()?.active === true;
   }
 
+  /** この端末のホストで発生中のイベントを含めた、回答ラウンドのキー。 */
+  roundKey(quizId: string, scope: QuizSessionScope): string {
+    return roundKeyFor(quizId, scope, this.agent()?.eventId);
+  }
+
   async open(
     quizId: string,
     scope: QuizSessionScope,
@@ -48,7 +53,7 @@ export class QuizRoundGateway {
   ): Promise<OpenedRound | null> {
     const agent = this.agent();
     if (!agent?.active) return null;
-    const key = roundKeyFor(quizId, scope);
+    const key = this.roundKey(quizId, scope);
     const result = await agent.connection.openRound(
       key,
       options.map((o) => ({ no: o.no, text: o.text.slice(0, 100) })),
@@ -60,7 +65,7 @@ export class QuizRoundGateway {
   async close(quizId: string, scope: QuizSessionScope): Promise<void> {
     const agent = this.agent();
     if (!agent?.active) return;
-    await agent.connection.closeRound(roundKeyFor(quizId, scope));
+    await agent.connection.closeRound(this.roundKey(quizId, scope));
   }
 
   /** 回答の一覧。ラウンドが無い/ホストでない場合は null(順位は「正答者なし」になる)。 */
@@ -68,7 +73,7 @@ export class QuizRoundGateway {
     const agent = this.agent();
     if (!agent?.active) return null;
     try {
-      const result = await agent.connection.getAnswers(roundKeyFor(quizId, scope));
+      const result = await agent.connection.getAnswers(this.roundKey(quizId, scope));
       return {
         openedAtMs: result.round.openedAtMs,
         answers: result.answers.map((a) => ({

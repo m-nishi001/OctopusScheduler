@@ -16,7 +16,7 @@ import { container } from 'tsyringe';
 import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case';
 import { QuizRoundGateway } from '../../../model/quiz-round-gateway';
 import { useQuizHost } from '../../composables/use-quiz-host';
-import { buildQuizHostState, roundKeyFor } from '../../../model/quiz-host-state';
+import { buildQuizHostState } from '../../../model/quiz-host-state';
 import { buildQuizRoundResult, computeRanking } from '../../../model/ranking';
 import type { RankedResult } from '../../../model/ranking';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
@@ -130,14 +130,14 @@ onMounted(() => {
                     page: 'result',
                     quizId,
                     title: quiz?.title,
-                    roundKey: roundKeyFor(quizId, session.scope),
+                    roundKey: gateway.roundKey(quizId, session.scope),
                     phase: 'closed',
                     correctNo: quiz?.correctNo ?? 1,
                 })
             );
             if (session.scope === 'live' && roundAnswers) {
                 pendingRecord = buildQuizRoundResult({
-                    roundKey: roundKeyFor(quizId, session.scope),
+                    roundKey: gateway.roundKey(quizId, session.scope),
                     quizId,
                     title: quiz?.title ?? '',
                     correctNo: quiz?.correctNo ?? 1,

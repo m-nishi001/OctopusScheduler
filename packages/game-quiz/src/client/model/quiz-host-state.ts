@@ -36,9 +36,18 @@ const MAX_QUESTION = 300;
 const MAX_TITLE = 100;
 const MAX_OPTION_TEXT = 100;
 
-/** 回答ラウンドのキー。同じクイズ・同じ区分(本番/デモ)なら同じキーなので、ホストのリロードで続きになる。 */
-export function roundKeyFor(quizId: string, scope: QuizSessionScope): string {
-  return `${quizId}:${scope}`.replace(/[^A-Za-z0-9:_-]/g, "_").slice(0, 80);
+const ROUND_KEY_MAX = 80;
+const EVENT_PART_MAX = 36;
+const sanitizeKeyPart = (text: string): string => text.replace(/[^A-Za-z0-9_-]/g, "_");
+
+/**
+ * 回答ラウンドのキー。同じクイズ・同じ区分(本番/デモ)・同じイベントなら同じキーなので、ホストのリロードで続きになる。
+ * イベント中はイベントIDを含め、同じクイズを別のイベントで出し直したときは別のラウンド(未回答)にする。
+ */
+export function roundKeyFor(quizId: string, scope: QuizSessionScope, eventId?: string | null): string {
+  const eventPart = eventId ? `:${sanitizeKeyPart(eventId).slice(0, EVENT_PART_MAX)}` : "";
+  const tail = `:${scope}${eventPart}`;
+  return sanitizeKeyPart(quizId).slice(0, ROUND_KEY_MAX - tail.length) + tail;
 }
 
 const clip = (text: string | undefined | null, max: number): string => (text ?? "").slice(0, max);

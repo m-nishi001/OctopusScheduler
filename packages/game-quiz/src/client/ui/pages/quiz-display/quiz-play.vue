@@ -50,7 +50,7 @@ import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case
 import OptionCard from '../../components/option-card.vue';
 import { useQuizHost } from '../../composables/use-quiz-host';
 import { QuizRoundGateway } from '../../../model/quiz-round-gateway';
-import { buildQuizHostState, roundKeyFor } from '../../../model/quiz-host-state';
+import { buildQuizHostState } from '../../../model/quiz-host-state';
 import { useQuizSession } from '../../composables/use-quiz-session';
 import { useAnswerWindow } from '../../composables/use-answer-window';
 import { useCardGridLayout } from '../../composables/use-card-grid-layout';
@@ -107,7 +107,7 @@ const publishState = (phase: 'answering' | 'closed') => {
             page: 'play',
             quizId,
             title: q?.title,
-            roundKey: deadlineMs !== null || phase === 'closed' ? roundKeyFor(quizId, session.scope) : null,
+            roundKey: deadlineMs !== null || phase === 'closed' ? gateway.roundKey(quizId, session.scope) : null,
             deadlineMs,
             phase,
             question: q?.question,
