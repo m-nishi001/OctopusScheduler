@@ -14,7 +14,7 @@
                 <JackpotCard />
             </template>
 
-            <template v-if="session.event.value && !quizActive">
+            <template v-if="session.event.value && !quizInProgress">
                 <article v-if="entry.phase.value === 'none'" class="pp-card pp-event__panel" data-testid="entry-none">
                     <p class="pp-muted">エントリーの受付は、このあと始まります。この画面を開いたままお待ちください。</p>
                 </article>
@@ -70,8 +70,12 @@ const session = usePortalContext();
 const entry = useEntryContext();
 const quiz = useQuizContext();
 const connected = computed(() => session.status.value === 'connected' || session.status.value === 'reconnecting');
-/** クイズが出ている間は、エントリーの案内を重ねて出さない。 */
 const quizActive = computed(() => quiz.quiz.value !== null);
+/** 出題・正解発表・結果発表の間は、エントリーの案内を重ねて出さない（イントロとエントリー画面の間は、エントリーできる）。 */
+const quizInProgress = computed(() => {
+    const page = quiz.quiz.value?.page;
+    return page === 'play' || page === 'answer' || page === 'result';
+});
 /** ホストがジャックポットの状態を公開している(説明・抽選の最中、または結果が出ている)。 */
 const jackpotActive = computed(() => readJackpotView(session.state.value.roomState?.data) !== null);
 /** 参加者の操作・クイズ・当選者のどれかが出ているか（出ている間は「イベントは行われていません」を出さない）。 */

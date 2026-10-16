@@ -52,7 +52,8 @@ async function scene(browser: import("@playwright/test").Browser, request: APIRe
 async function login(browser: import("@playwright/test").Browser, id: string) {
   const d = await newDevice(browser, { mobile: true });
   await d.page.goto(qrUrl(id));
-  await expect(d.page.getByTestId("home-greeting")).toBeVisible();
+  // 出題中に入った人は、ホームではなくイベントタブに着く
+  await expect(d.page.locator(".pp-tabs")).toBeVisible();
   await expect(d.page.getByTestId("portal-conn")).toContainText("接続中");
   return d;
 }
