@@ -49,6 +49,16 @@ describe("QuizRoundGateway", () => {
     expect(() => gateway.publish(buildQuizHostState({ page: "intro", quizId: "q1" }))).not.toThrow();
   });
 
+  it("発生中のイベントがあればそのIDをラウンドのキーに含め、イベントが変われば別のキーになる", async () => {
+    const { gateway, agent } = await scene();
+    expect(gateway.roundKey("q1", "live")).toBe("q1:live");
+    await agent.publishSlice("event", { id: "ev-1", title: "t", startedAtMs: 1 });
+    expect(gateway.roundKey("q1", "live")).toBe("q1:live:ev-1");
+    await agent.publishSlice("event", { id: "ev-2", title: "t", startedAtMs: 2 });
+    expect(gateway.roundKey("q1", "live")).toBe("q1:live:ev-2");
+    expect((await gateway.open("q1", "live", OPTIONS, 20))?.key).toBe("q1:live:ev-2");
+  });
+
   it("HostAgent が未登録でも例外にならない", async () => {
     container.clearInstances();
     const gateway = new QuizRoundGateway();

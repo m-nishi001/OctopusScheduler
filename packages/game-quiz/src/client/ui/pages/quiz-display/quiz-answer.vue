@@ -21,7 +21,8 @@ import { useAudio } from '@octopus/composables';
 import { dataUrlToBlob } from '../../../model/blob-utils';
 import { useQuizSession } from '../../composables/use-quiz-session';
 import { useQuizHost } from '../../composables/use-quiz-host';
-import { buildQuizHostState, roundKeyFor } from '../../../model/quiz-host-state';
+import { QuizRoundGateway } from '../../../model/quiz-round-gateway';
+import { buildQuizHostState } from '../../../model/quiz-host-state';
 
 const route = useRoute();
 const router = useRouter();
@@ -54,7 +55,7 @@ onMounted(async () => {
       page: 'answer',
       quizId,
       title: quiz.value?.title,
-      roundKey: roundKeyFor(quizId, session.scope),
+      roundKey: (container.isRegistered(QuizRoundGateway) ? container.resolve(QuizRoundGateway) : new QuizRoundGateway()).roundKey(quizId, session.scope),
       phase: 'closed',
       question: quiz.value?.question,
       options: quiz.value?.options.map((o: any) => ({ no: o.no, text: o.text, color: o.color })) ?? [],
