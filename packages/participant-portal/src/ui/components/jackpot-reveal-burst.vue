@@ -40,8 +40,19 @@ const PIECES = 18;
 /* ゆっくり回る光線。しばらく見せてから消える */
 .pp-burst__rays {
     position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+
+/* 回る光線は疑似要素に持たせ、要素そのものは枠からはみ出さない（画面の端を越える要素を作らない） */
+.pp-burst__rays::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
     width: 220%;
     aspect-ratio: 1 / 1;
+    margin: -110% 0 0 -110%;
     background: repeating-conic-gradient(from 0deg, rgba(255, 213, 74, 0.32) 0deg 8deg, transparent 8deg 24deg);
     mask-image: radial-gradient(circle, #000 0%, transparent 60%);
     -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 60%);
