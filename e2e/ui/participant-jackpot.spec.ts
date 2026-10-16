@@ -1,5 +1,5 @@
 import type { APIRequestContext } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, route, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, seedStore, test } from "./fixtures";
 
 /**
  * エントリー受付 → ジャックポットの抽選。エントリーした人だけが抽選の対象になる。
@@ -103,6 +103,7 @@ test.describe("エントリー → ジャックポット", () => {
     await won.getByTestId("you-won-close").click();
     await expect(won.getByTestId("you-won")).toBeHidden();
     const other = guests[(entrant + 1) % ALL].page;
+    await openEventTab(other);
     await expect(other.getByTestId("winner-member")).toContainText(winner);
     await expect(other.getByTestId("you-won")).toBeHidden();
 
@@ -147,6 +148,7 @@ test.describe("エントリー → ジャックポット", () => {
     const phone = await newDevice(browser, { mobile: true });
     await phone.page.goto(qrUrl(ids[2]));
     await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中");
+    await openEventTab(phone.page);
 
     await openAdvanced(admin.page);
     await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();

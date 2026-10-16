@@ -122,20 +122,20 @@ test("参加者ポータル: 幅の掃引と実機プリセットで、どの画
       correctNo: null,
     },
   });
-  await check("クイズ出題", [{ path: "/p", ready: (p) => expect(p.getByTestId("quiz-panel")).toContainText("これは長い問題文") }]);
+  await check("クイズ出題", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("quiz-panel")).toContainText("これは長い問題文") }]);
 
   // 4. ジャックポット: 待機 → メンバー抽選中 → 他の人が当選 → 景品抽選中 → 景品が決まる(長い名前・長い景品名)
   const jackpot = { page: "main-draw", canStop: false, member: null, memberId: null, prize: null };
   await host.publish({ quiz: null, jackpot: { ...jackpot, phase: "idle" } });
-  await check("ジャックポット待機", [{ path: "/p", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("まもなく抽選") }], true);
+  await check("ジャックポット待機", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("まもなく抽選") }], true);
   await host.publish({ jackpot: { ...jackpot, phase: "member" } });
-  await check("メンバー抽選中", [{ path: "/p", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("メンバー抽選中") }], true);
+  await check("メンバー抽選中", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("メンバー抽選中") }], true);
   await host.publish({ jackpot: { ...jackpot, phase: "member", member: `${LONG}${LONG}`, memberId: "rp-other-0" } });
-  await check("他の人が当選", [{ path: "/p", ready: (p) => expect(p.getByTestId("winner-member")).toContainText(LONG) }], true);
+  await check("他の人が当選", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("winner-member")).toContainText(LONG) }], true);
   await host.publish({ jackpot: { ...jackpot, phase: "prize", member: `${LONG}${LONG}`, memberId: "rp-other-0" } });
-  await check("景品抽選中", [{ path: "/p", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("景品抽選中") }], true);
+  await check("景品抽選中", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("景品抽選中") }], true);
   await host.publish({ jackpot: { ...jackpot, phase: "prize", member: `${LONG}${LONG}`, memberId: "rp-other-0", prize: `特賞 ${LONG}${LONG}` } });
-  await check("景品が決まる", [{ path: "/p", ready: (p) => expect(p.getByTestId("winner-prize")).toContainText("特賞") }], true);
+  await check("景品が決まる", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("winner-prize")).toContainText("特賞") }], true);
   // 自分が当選: 全面の「あたりました!」が、どの端末でも画面に収まり、閉じられる
   await host.publish({ jackpot: { ...jackpot, phase: "member", member: LONG_NAME, memberId: ids[0], prize: null } });
   for (const c of clients) {

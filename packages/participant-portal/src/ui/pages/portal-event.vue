@@ -1,44 +1,54 @@
 <template>
     <section class="pp-event">
-        <template v-if="session.event.value">
-            <p class="pp-event__label">イベント発生中!</p>
-            <h1 class="pp-event__title" data-testid="event-title">{{ session.event.value.title }}</h1>
+        <template v-if="session.event.value || hasActivity">
+            <template v-if="session.event.value">
+                <p class="pp-event__label">イベント発生中!</p>
+                <h1 class="pp-event__title" data-testid="event-title">{{ session.event.value.title }}</h1>
+            </template>
 
-            <article v-if="entry.phase.value === 'none'" class="pp-card pp-event__panel" data-testid="entry-none">
-                <p class="pp-muted">エントリーの受付は、このあと始まります。この画面を開いたままお待ちください。</p>
-            </article>
-
-            <!-- 抽選が始まったら、「お待ちください」ではなく進行状況と当選結果を出す -->
-            <template v-else-if="entry.entered.value && jackpotActive">
+            <!-- いま進行中のもの（参加者の操作・クイズ・当選者）を、イベントの案内より上に出す -->
+            <template v-if="connected">
+                <ClientInputs />
+                <QuizPanel />
                 <JackpotWaiting />
                 <JackpotCard />
             </template>
 
-            <article v-else-if="entry.entered.value" class="pp-card pp-event__panel pp-event__done" data-testid="entry-done">
-                <span class="pp-event__check" aria-hidden="true">✓</span>
-                <p class="pp-event__done-title">エントリーしました!</p>
-                <p class="pp-muted">
-                    {{ entry.phase.value === 'open' ? '会場の画面に表示されます。このままお待ちください。' : '受付は終了しました。結果をお待ちください。' }}
-                </p>
-            </article>
+            <template v-if="session.event.value && !quizActive">
+                <article v-if="entry.phase.value === 'none'" class="pp-card pp-event__panel" data-testid="entry-none">
+                    <p class="pp-muted">エントリーの受付は、このあと始まります。この画面を開いたままお待ちください。</p>
+                </article>
 
-            <article v-else-if="entry.phase.value === 'open'" class="pp-event__panel pp-event__open" data-testid="entry-open">
-                <button type="button" class="pp-entry-button" :disabled="entry.submitting.value" data-testid="entry-button" @click="entry.enter">
-                    <span class="pp-entry-button__main">{{ entry.submitting.value ? '送信中…' : 'エントリー' }}</span>
-                    <span class="pp-entry-button__sub">タップして参加する</span>
-                </button>
-                <p class="pp-muted">押すと、会場の画面にあなたが表示されます。</p>
-                <p v-if="entry.message.value" class="pp-event__error" role="alert" data-testid="entry-error">{{ entry.message.value }}</p>
-            </article>
+                <!-- 抽選が始まったら、エントリー済みの人には「お待ちください」ではなく進行状況と当選結果だけを出す -->
+                <article v-else-if="entry.entered.value && !jackpotActive" class="pp-card pp-event__panel pp-event__done" data-testid="entry-done">
+                    <span class="pp-event__check" aria-hidden="true">✓</span>
+                    <p class="pp-event__done-title">エントリーしました!</p>
+                    <p class="pp-muted">
+                        {{ entry.phase.value === 'open' ? '会場の画面に表示されます。このままお待ちください。' : '受付は終了しました。結果をお待ちください。' }}
+                    </p>
+                </article>
 
-            <article v-else class="pp-card pp-event__panel" data-testid="entry-closed">
-                <p class="pp-event__done-title">エントリーの受付は終了しました</p>
-                <p class="pp-muted">{{ entry.message.value || '次の機会をお待ちください。' }}</p>
-            </article>
+                <!-- 抽選が始まった後のエントリー済みの人には、案内を足さない（上の進行状況と当選結果だけを見せる） -->
+                <template v-else-if="entry.entered.value" />
+
+                <article v-else-if="entry.phase.value === 'open'" class="pp-event__panel pp-event__open" data-testid="entry-open">
+                    <button type="button" class="pp-entry-button" :disabled="entry.submitting.value" data-testid="entry-button" @click="entry.enter">
+                        <span class="pp-entry-button__main">{{ entry.submitting.value ? '送信中…' : 'エントリー' }}</span>
+                        <span class="pp-entry-button__sub">タップして参加する</span>
+                    </button>
+                    <p class="pp-muted">押すと、会場の画面にあなたが表示されます。</p>
+                    <p v-if="entry.message.value" class="pp-event__error" role="alert" data-testid="entry-error">{{ entry.message.value }}</p>
+                </article>
+
+                <article v-else class="pp-card pp-event__panel" data-testid="entry-closed">
+                    <p class="pp-event__done-title">エントリーの受付は終了しました</p>
+                    <p class="pp-muted">{{ entry.message.value || '次の機会をお待ちください。' }}</p>
+                </article>
+            </template>
         </template>
         <template v-else>
-            <h1 class="pp-title" data-testid="event-none">イベントは終了しました</h1>
-            <p class="pp-muted">次のイベントが始まると、ホーム画面の上にお知らせが出ます。</p>
+            <h1 class="pp-title" data-testid="event-none">いまイベントは行われていません</h1>
+            <p class="pp-muted">イベントが始まると、下の「イベント」タブが光ってお知らせします。このまま画面を開いてお待ちください。</p>
             <RouterLink to="/p" class="pp-button pp-button--ghost">ホームへ戻る</RouterLink>
         </template>
     </section>
@@ -50,13 +60,24 @@ import { RouterLink } from 'vue-router';
 import { useEntryContext } from '../../model/use-entry';
 import { usePortalContext } from '../../model/use-portal-session';
 import { readJackpotView } from '../../model/activity';
+import { useQuizContext } from '../../model/use-quiz';
+import ClientInputs from '../components/client-inputs.vue';
 import JackpotCard from '../components/jackpot-card.vue';
 import JackpotWaiting from '../components/jackpot-waiting.vue';
+import QuizPanel from '../components/quiz-panel.vue';
 
 const session = usePortalContext();
 const entry = useEntryContext();
+const quiz = useQuizContext();
+const connected = computed(() => session.status.value === 'connected' || session.status.value === 'reconnecting');
+/** クイズが出ている間は、エントリーの案内を重ねて出さない。 */
+const quizActive = computed(() => quiz.quiz.value !== null);
 /** ホストがジャックポットの状態を公開している(説明・抽選の最中、または結果が出ている)。 */
 const jackpotActive = computed(() => readJackpotView(session.state.value.roomState?.data) !== null);
+/** 参加者の操作・クイズ・当選者のどれかが出ているか（出ている間は「イベントは行われていません」を出さない）。 */
+const hasActivity = computed(
+    () => (session.state.value.roomState?.clientInput.length ?? 0) > 0 || quizActive.value || jackpotActive.value
+);
 </script>
 
 <style scoped>

@@ -5,16 +5,8 @@
             <template v-else>ようこそ</template>
         </h1>
 
-        <!-- いま進行中のもの（参加者の操作・クイズ・当選者）を、いちばん上に出す -->
-        <template v-if="connected">
-            <ClientInputs />
-            <QuizPanel />
-            <JackpotWaiting />
-            <JackpotCard />
-        </template>
-
-        <article v-if="connected && (session.event.value || !hasActivity)" class="pp-card pp-home__card"
-            :class="{ 'is-live': !!session.event.value }" data-testid="home-status">
+        <article v-if="connected" class="pp-card pp-home__card"
+            :class="{ 'is-live': !!session.event.value || hasActivity }" data-testid="home-status">
             <template v-if="session.event.value">
                 <p class="pp-home__live">イベント発生中!</p>
                 <p class="pp-home__event-title" data-testid="home-event-title">{{ session.event.value.title }}</p>
@@ -24,9 +16,14 @@
                     {{ entry.phase.value === 'open' && !entry.entered.value ? 'エントリーする' : '参加する' }}
                 </RouterLink>
             </template>
+            <template v-else-if="hasActivity">
+                <p class="pp-home__live">進行中です!</p>
+                <p class="pp-home__entry">クイズや抽選が行われています</p>
+                <RouterLink to="/p/event" class="pp-button" data-testid="home-join">イベントを見る</RouterLink>
+            </template>
             <template v-else>
                 <p class="pp-home__idle-title">いまイベントは行われていません</p>
-                <p class="pp-muted">イベントが始まると、画面の上に「イベント発生中!」が表示されます。このまま画面を開いてお待ちください。</p>
+                <p class="pp-muted">イベントが始まると、画面の上に「イベント発生中!」が表示され、下の「イベント」タブが光ります。このまま画面を開いてお待ちください。</p>
             </template>
             <p class="pp-muted pp-home__count" data-testid="home-count">会場の参加者 {{ session.clientCount.value }} 人</p>
         </article>
@@ -48,10 +45,6 @@ import { useParticipantAuth } from '../../model/participant-auth';
 import { readJackpotView } from '../../model/activity';
 import { useEntryContext } from '../../model/use-entry';
 import { useQuizContext } from '../../model/use-quiz';
-import ClientInputs from '../components/client-inputs.vue';
-import JackpotWaiting from '../components/jackpot-waiting.vue';
-import JackpotCard from '../components/jackpot-card.vue';
-import QuizPanel from '../components/quiz-panel.vue';
 import { usePortalContext } from '../../model/use-portal-session';
 
 const auth = useParticipantAuth();

@@ -52,8 +52,8 @@ test.describe("第三者の通しチェック(シード済みの環境)", () => 
     // ホーム: あいさつ・会場の人数・タブ
     await expect(winner.page.getByTestId("home-greeting")).toContainText("テスト参加者03");
     // 進行中のクイズなどが無ければ「イベントの案内」、あればそのカードが出る(どちらでも空ではない)
-    await expect(winner.page.getByTestId("home-status").or(winner.page.getByTestId("quiz-panel"))).toBeVisible();
-    await expect(winner.page.locator(".pp-tabs__item")).toHaveCount(3);
+    await expect(winner.page.getByTestId("home-status")).toBeVisible();
+    await expect(winner.page.locator(".pp-tabs__item")).toHaveCount(4);
     await expectNoHorizontalOverflow(winner.page, "ホーム");
     await shot(winner.page, "portal-home");
 

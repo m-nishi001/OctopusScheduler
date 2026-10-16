@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, seedStore, test } from "./fixtures";
 
 /**
  * クイズを、ホスト(投影)・管理・参加者(ログイン済みのスマホ)で通しで動かす。
@@ -54,6 +54,7 @@ async function login(browser: import("@playwright/test").Browser, id: string) {
   await d.page.goto(qrUrl(id));
   await expect(d.page.getByTestId("home-greeting")).toBeVisible();
   await expect(d.page.getByTestId("portal-conn")).toContainText("接続中");
+  await openEventTab(d.page);
   return d;
 }
 
