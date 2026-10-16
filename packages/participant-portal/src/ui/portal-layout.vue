@@ -18,9 +18,12 @@
         <JackpotWinnerOverlay />
 
         <nav class="pp-tabs" aria-label="メニュー">
-            <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="pp-tabs__item" :exact-active-class="'is-active'"
+            <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="pp-tabs__item"
+                :class="{ 'is-live': tab.to === EVENT_PATH && eventLive }" :exact-active-class="'is-active'"
                 :active-class="tab.exact ? '' : 'is-active'">
                 {{ tab.label }}
+                <span v-if="tab.to === EVENT_PATH && eventLive" class="pp-tabs__live" data-testid="event-live" role="img"
+                    aria-label="イベントが行われています" />
                 <span v-if="tab.to === '/p/results' && results.stale.value" class="pp-tabs__dot" data-testid="results-new"
                     role="img" aria-label="新しい結果があります" />
             </RouterLink>
@@ -38,6 +41,7 @@ import { ENTRY_KEY, useEntry } from '../model/use-entry';
 import { QUIZ_KEY, useQuiz } from '../model/use-quiz';
 import { RESULTS_KEY, useResults } from '../model/use-results';
 import { PORTAL_SESSION_KEY, usePortalSession } from '../model/use-portal-session';
+import { readJackpotView } from '../model/activity';
 import PortalEventBanner from './portal-event-banner.vue';
 import JackpotWinnerOverlay from './components/jackpot-winner-overlay.vue';
 import './portal-theme.css';
@@ -61,15 +65,35 @@ provide(QUIZ_KEY, quiz);
 const results = useResults(session);
 provide(RESULTS_KEY, results);
 
+/** エントリー・クイズ・ジャックポットなど、イベントの画面をまとめて出すタブ。 */
+const EVENT_PATH = '/p/event';
+
 const tabs = [
     { to: '/p', label: 'ホーム', exact: true },
+    { to: EVENT_PATH, label: 'イベント', exact: false },
     { to: '/p/results', label: '結果', exact: false },
     { to: '/p/me', label: 'マイページ', exact: false },
 ];
 
 /**
+ * イベントタブを光らせる。イベントの開催中、またはクイズ・ジャックポット・参加者の操作が出ている間。
+ * イベントタブを開いている間は、タブ自体が現在地として強調されるので光らせない。
+ */
+const eventLive = computed(() => {
+    if (session.status.value !== 'connected' && session.status.value !== 'reconnecting') return false;
+    if (route.path === EVENT_PATH) return false;
+    const room = session.state.value.roomState;
+    return (
+        session.event.value !== null ||
+        quiz.quiz.value !== null ||
+        readJackpotView(room?.data) !== null ||
+        (room?.clientInput.length ?? 0) > 0
+    );
+});
+
+/**
  * 画面上部に固定表示するお知らせ。いま参加者にいちばん関わるもの1つだけを出す。
- *   1. 回答受付中のクイズ(まだ答えていない人)  → ホームへ
+ *   1. 回答受付中のクイズ(まだ答えていない人)    → イベント画面へ
  *   2. エントリー受付中(まだの人) / イベント発生中 → イベント画面へ
  * 行き先の画面を開いている間は、同じ内容のバナーを重ねて出さない。接続できていない間は出さない。
  */
@@ -78,21 +102,21 @@ const banner = computed(() => {
     let found: { label: string; title: string; to: string } | null = null;
     const q = quiz.quiz.value;
     if (q && q.phase === 'answering' && quiz.myAnswer.value === null) {
-        found = { label: 'クイズ出題中!', title: q.title || 'クイズに答えよう', to: '/p' };
+        found = { label: 'クイズ出題中!', title: q.title || 'クイズに答えよう', to: EVENT_PATH };
     } else if (session.event.value) {
         const entering = entry.phase.value === 'open' && !entry.entered.value;
-        found = { label: entering ? 'エントリー受付中!' : 'イベント発生中!', title: session.event.value.title, to: '/p/event' };
+        found = { label: entering ? 'エントリー受付中!' : 'イベント発生中!', title: session.event.value.title, to: EVENT_PATH };
     }
     return found && route.path !== found.to ? found : null;
 });
 
 /**
- * 出題が始まったら、バナーを押さなくても回答画面(ホーム)へ移る。
+ * 出題が始まったら、バナーを押さなくても回答画面(イベントタブ)へ移る。
  *   - エントリー済みの人: いまどの画面にいても移る
- *   - それ以外の人: ホームかイベント画面を見ているときだけ移る(結果やマイページを見ている人の画面は奪わず、バナーで知らせる)
+ *   - それ以外の人: ホームを見ているときだけ移る(結果やマイページを見ている人の画面は奪わず、バナーで知らせる)
  * 同じ出題(roundKey)では1回だけ移る。移った後に別の画面へ戻っても、勝手にまた連れ戻さない。
  */
-const AUTO_NAV_FROM = new Set(['/p', '/p/event']);
+const AUTO_NAV_FROM = new Set(['/p']);
 let navigatedRound: string | null = null;
 watch(
     () => {
@@ -103,8 +127,8 @@ watch(
     (roundKey) => {
         if (!roundKey || roundKey === navigatedRound) return;
         navigatedRound = roundKey;
-        if (route.path === '/p') return;
-        if (entry.entered.value || AUTO_NAV_FROM.has(route.path)) void router.push('/p');
+        if (route.path === EVENT_PATH) return;
+        if (entry.entered.value || AUTO_NAV_FROM.has(route.path)) void router.push(EVENT_PATH);
     },
     { immediate: true }
 );
@@ -226,6 +250,36 @@ onMounted(() => {
     border-radius: 50%;
     background: var(--pp-red);
     box-shadow: 0 0 0 2px rgba(18, 5, 8, 0.96), 0 0 10px var(--pp-red);
+}
+
+/* イベントが行われているときにタブを光らせる（開催中の画面へ誘導する） */
+.pp-tabs__item.is-live {
+    color: var(--pp-gold-light);
+    animation: pp-tab-glow 1.6s ease-in-out infinite;
+}
+
+.pp-tabs__live {
+    position: absolute;
+    top: 12px;
+    left: calc(50% + 2.2em);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--pp-gold);
+    box-shadow: 0 0 0 2px rgba(18, 5, 8, 0.96), 0 0 10px var(--pp-gold);
+}
+
+@keyframes pp-tab-glow {
+    0%,
+    100% {
+        background: rgba(255, 213, 74, 0);
+        box-shadow: inset 0 3px 0 var(--pp-gold);
+    }
+
+    50% {
+        background: rgba(255, 213, 74, 0.18);
+        box-shadow: inset 0 3px 0 var(--pp-gold-light), 0 -6px 18px rgba(255, 213, 74, 0.45);
+    }
 }
 
 .pp-tabs__item.is-active {

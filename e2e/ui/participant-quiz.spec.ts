@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, seedStore, test } from "./fixtures";
 
 /**
  * クイズを、ホスト(投影)・管理・参加者(ログイン済みのスマホ)で通しで動かす。
@@ -52,7 +52,8 @@ async function scene(browser: import("@playwright/test").Browser, request: APIRe
 async function login(browser: import("@playwright/test").Browser, id: string) {
   const d = await newDevice(browser, { mobile: true });
   await d.page.goto(qrUrl(id));
-  await expect(d.page.getByTestId("home-greeting")).toBeVisible();
+  // 出題中に入った人は、ホームではなくイベントタブに着く
+  await expect(d.page.locator(".pp-tabs")).toBeVisible();
   await expect(d.page.getByTestId("portal-conn")).toContainText("接続中");
   return d;
 }
@@ -70,6 +71,8 @@ test.describe("クイズ（参加者ポータル）", () => {
     await openAdvanced(admin.page);
     await admin.page.getByTestId("advanced").getByRole("button", { name: "イントロ" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/intro");
+    // 出題の前（イントロ）はホームにいる人を移動させないので、イベントタブを開いて待つ
+    await openEventTab(taro.page);
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("クイズが始まります");
 
     await nextButton(admin.page).click(); // → QR
@@ -78,7 +81,7 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz1/play");
     await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
 
-    // 参加者のスマホに問題と選択肢・残り時間が出て、バナーは出題中でも、ホームでは重ねない
+    // 参加者のスマホに問題と選択肢・残り時間が出て、出題と同時にホームにいる人はイベントタブへ移る
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("みかんはどれ?");
     await expect(taro.page.getByTestId("quiz-timer")).toContainText("残り");
     // 別の画面（マイページ）にいる人には、バナーで出題を知らせる

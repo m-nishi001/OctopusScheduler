@@ -102,7 +102,7 @@ test.describe("参加者ポータル", () => {
     await acceptConfirm(admin.page);
     await expect(admin.page.getByTestId("event-state")).toContainText("イベントは開催していません");
     for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("event-banner"), ids[i]).toHaveCount(0);
-    await expect(guests[0].page.getByTestId("event-none")).toContainText("イベントは終了しました");
+    await expect(guests[0].page.getByTestId("event-none")).toContainText("いまイベントは行われていません");
     await expect(late.page.getByTestId("event-banner")).toHaveCount(0);
 
     // 後続のテストに公開を残さない

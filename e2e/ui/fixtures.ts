@@ -168,6 +168,12 @@ export function sampleQuiz(id: string, timeLimit = 60) {
 }
 
 /** コントロール画面の「詳細な操作」(普段は閉じている)を開く。画面の直接切り替えやイベント名の指定はここにある。 */
+/** 参加者ポータルの下タブから「イベント」を開く（クイズ・抽選・エントリーはこのタブに出る）。 */
+export async function openEventTab(page: Page): Promise<void> {
+  await page.locator(".pp-tabs__item", { hasText: "イベント" }).click();
+  await expect(page).toHaveURL(/#\/p\/event$/);
+}
+
 export async function openAdvanced(page: Page): Promise<void> {
   const details = page.getByTestId("advanced");
   if (!(await details.evaluate((el) => (el as HTMLDetailsElement).open))) await details.locator("summary").click();
