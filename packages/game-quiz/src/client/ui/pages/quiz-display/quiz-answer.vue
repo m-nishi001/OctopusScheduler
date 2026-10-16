@@ -3,7 +3,6 @@
     <template #title>クイズの回答はこちら！！</template>
     <OptionCard v-if="correctOption" :option="correctOption" :index="correctIndex" variant="large" />
     <div v-else class="no-answer">正解が設定されていません。</div>
-    <template #hint>Enterで結果発表へ</template>
   </DisplayStage>
   <div v-else class="loading">Loading...</div>
 </template>
