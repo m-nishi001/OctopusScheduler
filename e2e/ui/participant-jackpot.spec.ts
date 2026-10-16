@@ -105,6 +105,7 @@ test.describe("エントリー → ジャックポット", () => {
     const other = guests[(entrant + 1) % ALL].page;
     await openEventTab(other);
     await expect(other.getByTestId("winner-member")).toContainText(winner);
+    await expect(other.getByTestId("reveal-burst-member")).toBeAttached(); // 当選者の公開で、弾ける演出が出る
     await expect(other.getByTestId("you-won")).toBeHidden();
 
     await publish(request, sessionId, false);
