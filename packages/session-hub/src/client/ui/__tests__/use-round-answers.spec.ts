@@ -5,7 +5,7 @@ import type { FaultInjector } from "../../../testing";
 import type { RoundAnswer } from "../../../shared/protocol";
 import { makeDevice, makeHub, tick } from "../../model/__tests__/harness";
 import type { Device } from "../../model/__tests__/harness";
-import { MIN_ANSWERS_REFRESH_MS, uniqueAnswers, useRoundAnswers } from "../use-round-answers";
+import { MIN_ANSWERS_REFRESH_MS, useRoundAnswers } from "../use-round-answers";
 import type { RoundAnswers } from "../use-round-answers";
 import { useSessionConnection } from "../use-session-connection";
 
@@ -54,6 +54,23 @@ describe("useRoundAnswers", () => {
     await s.participant("bob");
     await tick(5000);
     expect(ids(s.roster())).toEqual(["alice", "bob"]);
+    s.unmount();
+  });
+
+  it("回答を選び直すと(回答数は同じでも)通知をきっかけに一覧が更新される", async () => {
+    const s = await setup();
+    await s.host.conn.openEntryRound("q1", [{ no: 1, text: "A" }, { no: 2, text: "B" }]);
+    s.key.value = "q1";
+    const alice = makeDevice(s.hub, { memberId: "alice", memberName: "alice" });
+    await alice.conn.joinPortal();
+    await alice.conn.answer("q1", 1);
+    await tick(5000);
+    expect(s.roster().answers.value.map((a) => a.no)).toEqual([1]);
+
+    await alice.conn.answer("q1", 2);
+    await tick(5000);
+    expect(s.roster().answers.value.map((a) => a.no)).toEqual([2]);
+    expect(s.roster().count.value).toBe(1);
     s.unmount();
   });
 
@@ -132,35 +149,5 @@ describe("useRoundAnswers", () => {
     await s.participant("bob");
     await tick(30_000);
     expect(s.host.api.calls.getAnswers ?? 0).toBe(before);
-  });
-});
-
-describe("uniqueAnswers", () => {
-  const answer = (deviceId: string, memberId: string | null, atMs: number, verified?: boolean): RoundAnswer => ({
-    deviceId,
-    memberId,
-    label: memberId ?? "ゲスト",
-    no: 1,
-    atMs,
-    ...(verified ? { verified } : {}),
-  });
-
-  it("受け付けた順に並べ、ログインから確定したメンバーは先着1件にそろえる", () => {
-    const list = uniqueAnswers([answer("d3", "bob", 30, true), answer("d2", "alice", 20, true), answer("d1", "alice", 10, true)]);
-    expect(list.map((a) => [a.deviceId, a.memberId])).toEqual([
-      ["d1", "alice"],
-      ["d3", "bob"],
-    ]);
-  });
-
-  it("匿名の申告は端末ごとにそのまま残し、ログイン済みの本人を消さない", () => {
-    const list = uniqueAnswers([answer("d1", "alice", 10), answer("d2", "alice", 20), answer("d3", "alice", 30, true)]);
-    expect(list.map((a) => a.deviceId)).toEqual(["d1", "d2", "d3"]);
-  });
-
-  it("元の配列を変更しない", () => {
-    const input = [answer("d2", "b", 20, true), answer("d1", "a", 10, true)];
-    uniqueAnswers(input);
-    expect(input.map((a) => a.deviceId)).toEqual(["d2", "d1"]);
   });
 });

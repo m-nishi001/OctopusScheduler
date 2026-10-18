@@ -334,7 +334,37 @@ describe("参加者ポータル: クイズ", () => {
     await flushPromises();
     await tick(0);
     expect(text(m, "quiz-answered")).toContain("2. みかん");
-    // 回答後は選び直せない
+    // 受付中は、回答後も選び直せる(選んだものが強調され、案内が出る)
+    expect(has(m, "quiz-changeable")).toBe(true);
+    expect(m.wrapper.findAll(".pp-quiz__option").every((b) => b.attributes("disabled") === undefined)).toBe(true);
+    expect(m.wrapper.findAll(".pp-quiz__option")[1].classes()).toContain("is-chosen");
+
+    await m.wrapper.findAll(".pp-quiz__option")[2].trigger("click");
+    await flushPromises();
+    await tick(0);
+    expect(text(m, "quiz-answered")).toContain("3. ぶどう");
+    expect(m.wrapper.findAll(".pp-quiz__option")[2].classes()).toContain("is-chosen");
+    expect(m.wrapper.findAll(".pp-quiz__option")[1].classes()).not.toContain("is-chosen");
+    m.wrapper.unmount();
+  });
+
+  it("締め切られると、回答済みでも選び直せなくなり、選び直しの案内も消える", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    const quiz = await env.startQuiz();
+    await tick(5000);
+    await flushPromises();
+    await m.wrapper.findAll(".pp-quiz__option")[0].trigger("click");
+    await flushPromises();
+    await tick(0);
+    expect(has(m, "quiz-changeable")).toBe(true);
+
+    await env.host.conn.closeRound(quiz.roundKey!);
+    await env.publishQuiz({ ...quiz, phase: "closed", deadlineMs: null });
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "quiz-changeable")).toBe(false);
+    expect(text(m, "quiz-answered")).toContain("1. りんご");
     expect(m.wrapper.findAll(".pp-quiz__option").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
     m.wrapper.unmount();
   });

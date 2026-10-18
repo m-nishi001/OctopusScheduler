@@ -90,19 +90,24 @@ test.describe("クイズ（参加者ポータル）", () => {
     await jiro.page.getByTestId("event-banner").click();
     await expect(jiro.page.getByTestId("quiz-panel")).toContainText("みかんはどれ?");
 
+    // 太郎は最初に誤ってりんごを押し、受付中に選び直してみかんにする(最後に選んだものが回答になる)
+    await taro.page.getByRole("button", { name: /りんご/ }).click();
+    await expect(taro.page.getByTestId("quiz-answered")).toContainText("1. りんご");
+    await expect(taro.page.getByTestId("quiz-changeable")).toBeVisible();
+    await expect(taro.page.getByRole("button", { name: /みかん/ })).toBeEnabled();
     await taro.page.getByRole("button", { name: /みかん/ }).click();
     await expect(taro.page.getByTestId("quiz-answered")).toContainText("2. みかん");
     await hanako.page.getByRole("button", { name: /りんご/ }).click();
     await expect(hanako.page.getByTestId("quiz-answered")).toContainText("1. りんご");
-    // 回答後に選び直せない。答えた人にはバナーは出ない
-    await expect(taro.page.getByRole("button", { name: /ぶどう/ })).toBeDisabled();
-    // 管理端末に回答数(まとめて配信)
+    // 管理端末に回答数(まとめて配信)。選び直しても人数は増えない
     await expect(admin.page.getByTestId("quiz-state")).toContainText("回答 2 人");
 
-    // 同じ人が別のスマホで答えようとしても、先着の回答のまま（1人1回）
+    // 同じ人が別のスマホで選び直すと、その選択に置き換わる(2人分にはならない)
     const taro2 = await login(browser, ids[0]);
     await expect(taro2.page.getByTestId("quiz-panel")).toContainText("みかんはどれ?");
     await taro2.page.getByRole("button", { name: /ぶどう/ }).click();
+    await expect(taro2.page.getByTestId("quiz-answered")).toContainText("3. ぶどう");
+    await taro2.page.getByRole("button", { name: /みかん/ }).click();
     await expect(taro2.page.getByTestId("quiz-answered")).toContainText("2. みかん");
     await expect(admin.page.getByTestId("quiz-state")).toContainText("回答 2 人");
 
@@ -114,6 +119,10 @@ test.describe("クイズ（参加者ポータル）", () => {
     await nextButton(admin.page).click(); // 回答受付中は主ボタンが「受付を締め切る」
     await expect(host.page.getByText("受付を終了しました")).toBeVisible();
     await expect(jiro.page.getByTestId("quiz-closed")).toBeVisible();
+    // 締切後は、回答済みの人も選び直せない
+    await expect(taro.page.getByRole("button", { name: /ぶどう/ })).toBeDisabled();
+    await expect(taro.page.getByTestId("quiz-changeable")).toBeHidden();
+    await expect(taro.page.getByTestId("quiz-answered")).toContainText("2. みかん");
 
     // 正解発表: 参加者の画面に正解と正誤が出る
     await nextButton(admin.page).click();

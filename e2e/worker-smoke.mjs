@@ -103,16 +103,18 @@ const round = await rpc("sessionHub_openRound", { sessionId: meta.id, ...creds(h
 check("ホストが回答ラウンドを開始(締切はサーバ時刻)", round.deadlineMs - round.serverNowMs === 30000);
 wsClient.ws.send(JSON.stringify({ t: "answer", requestId: "ans-1", key: "q1:live", no: 2 }));
 wsClient.ws.send(JSON.stringify({ t: "answer", requestId: "ans-2", key: "q1:live", no: 3 }));
+wsClient.ws.send(JSON.stringify({ t: "answer", requestId: "ans-3", key: "q1:live", no: 3 }));
 await sleep(500);
-check("参加者の回答(WS)が受理され、2回目は最初の回答のまま duplicate",
+check("参加者の回答(WS)が受理され、受付中は選び直せる(同じ選択の再送は duplicate)",
   wsClient.messages.some((m) => m.t === "answered" && m.requestId === "ans-1" && m.no === 2 && m.duplicate === false) &&
-  wsClient.messages.some((m) => m.t === "answered" && m.requestId === "ans-2" && m.no === 2 && m.duplicate === true));
+  wsClient.messages.some((m) => m.t === "answered" && m.requestId === "ans-2" && m.no === 3 && m.duplicate === false) &&
+  wsClient.messages.some((m) => m.t === "answered" && m.requestId === "ans-3" && m.no === 3 && m.duplicate === true));
 wsClient.ws.send(JSON.stringify({ t: "answer", requestId: "ans-bad", key: "q1:live", no: 9 }));
 await sleep(300);
 check("存在しない選択肢は rejected", wsClient.messages.some((m) => m.t === "rejected" && m.requestId === "ans-bad" && m.code === "INVALID_ARGUMENT"));
 await sleep(2600);
 const adminRound = wsAdmin.messages.filter((m) => m.t === "update").at(-1)?.result.round;
-check("回答数が運営端末へまとめて届く(alarm)", adminRound?.answerCount === 1 && adminRound?.open === true, JSON.stringify(adminRound));
+check("回答数と更新番号(選び直し分も)が運営端末へまとめて届く(alarm)", adminRound?.answerCount === 1 && adminRound?.answerRev === 2 && adminRound?.open === true, JSON.stringify(adminRound));
 const clientRound = wsClient.messages.filter((m) => m.t === "update").at(-1)?.result.round;
 check("参加者には回答数を渡さない", clientRound === null);
 try {
@@ -125,8 +127,8 @@ const closed = await rpc("sessionHub_closeRound", { sessionId: meta.id, ...creds
 check("管理端末が締め切れる", closed.open === false && closed.answerCount === 1);
 wsClient.ws.send(JSON.stringify({ t: "answer", requestId: "ans-after", key: "q1:live", no: 1 }));
 await sleep(300);
-check("締切後でも回答済みの端末には最初の回答を返す(画面表示を揃える)",
-  wsClient.messages.some((m) => m.t === "answered" && m.requestId === "ans-after" && m.no === 2 && m.duplicate === true));
+check("締切後は選び直せず、回答済みの端末には採用済みの回答を返す(画面表示を揃える)",
+  wsClient.messages.some((m) => m.t === "answered" && m.requestId === "ans-after" && m.no === 3 && m.duplicate === true));
 const late = await joinAs(await participant("smoke-late", "遅刻"));
 const wsLate = await connect(meta.id, creds(late));
 wsLate.ws.send(JSON.stringify({ t: "answer", requestId: "ans-late", key: "q1:live", no: 1 }));
@@ -134,7 +136,7 @@ await sleep(300);
 check("締切後に初めて回答する端末は ROUND_CLOSED", wsLate.messages.some((m) => m.t === "rejected" && m.requestId === "ans-late" && m.code === "ROUND_CLOSED"));
 wsLate.ws.close();
 const answers = await rpc("sessionHub_getAnswers", { sessionId: meta.id, ...creds(host), key: "q1:live" });
-check("ホストが回答一覧を取得(永続化済み)", answers.answers.length === 1 && answers.answers[0].no === 2 && answers.answers[0].label === "太郎", JSON.stringify(answers.answers));
+check("ホストが回答一覧を取得(永続化済み)", answers.answers.length === 1 && answers.answers[0].no === 3 && answers.answers[0].label === "太郎", JSON.stringify(answers.answers));
 
 // 再接続: 古い接続は置き換えられる
 const wsClient2 = await connect(meta.id, creds(client), 0, 0);

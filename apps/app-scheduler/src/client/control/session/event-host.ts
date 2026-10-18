@@ -12,7 +12,6 @@ import {
   parseHubErrorCode,
   parseSetPoolPayload,
   readPortalEvent,
-  uniqueAnswers,
 } from "@octopus/session-hub";
 import type { HostAgent, PortalEvent } from "@octopus/session-hub";
 import type { DrawPoolProvider } from "@octopus/game-jackpot";
@@ -206,7 +205,7 @@ interface EntrantSnapshot {
  */
 async function fetchEntrantIds(agent: HostAgent, storage: EventStorage, sessionId: string, key: string): Promise<string[]> {
   const { answers } = await agent.connection.getAnswers(key);
-  const memberIds = uniqueAnswers(answers)
+  const memberIds = answers
     .filter((a) => a.verified === true && a.memberId)
     .map((a) => a.memberId as string);
   const snapshot: EntrantSnapshot = { key, memberIds };

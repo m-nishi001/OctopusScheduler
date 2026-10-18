@@ -7,7 +7,7 @@ import type { ConnectionState, SessionConnection } from "../model/session-connec
 export const MIN_ANSWERS_REFRESH_MS = 1_500;
 
 export interface RoundAnswers {
-  /** 回答の一覧（受け付けた順）。ログインから確定したメンバーは1人1件にそろえる。 */
+  /** 回答の一覧（受け付けた順）。サーバーが1人1件にそろえている（選び直した人は最後の選択）。 */
   answers: Ref<RoundAnswer[]>;
   /** サーバー側の回答数（一覧の取得を待たずに、更新の通知で分かる最新の数）。 */
   count: Ref<number>;
@@ -22,23 +22,9 @@ export interface RoundAnswersOptions {
   now?: () => number;
 }
 
-/** ログインから確定したメンバーは先着1件にそろえる（匿名の申告は端末ごとにそのまま残す）。 */
-export function uniqueAnswers(answers: RoundAnswer[]): RoundAnswer[] {
-  const seen = new Set<string>();
-  const out: RoundAnswer[] = [];
-  for (const a of [...answers].sort((x, y) => x.atMs - y.atMs)) {
-    if (a.verified === true && a.memberId) {
-      if (seen.has(a.memberId)) continue;
-      seen.add(a.memberId);
-    }
-    out.push(a);
-  }
-  return out;
-}
-
 /**
  * 運営端末（ホスト/管理）が、回答ラウンドの回答の一覧をリアルタイムに見る。
- * 回答数の変化（更新の通知で届く）をきっかけにだけ一覧を取りに行くので、定期的な問い合わせはしない。
+ * 回答の変化（回答数、または選び直しの更新番号。更新の通知で届く）をきっかけにだけ一覧を取りに行くので、定期的な問い合わせはしない。
  * 取得は最短 MIN_ANSWERS_REFRESH_MS 間隔にまとめる（先頭の1回はすぐ、続く変化は間隔をあけて1回に）。
  */
 export function useRoundAnswers(
@@ -53,6 +39,7 @@ export function useRoundAnswers(
   const count = ref(0);
   const error = ref<string | null>(null);
 
+  let fetchedRev = -1;
   let lastFetchAt = Number.NEGATIVE_INFINITY;
   let inFlight = false;
   let again = false;
@@ -73,8 +60,9 @@ export function useRoundAnswers(
       const result = await connection.getAnswers(current);
       // 取得中に受付（key）が変わっていたら捨てる
       if (mine === generation) {
-        answers.value = uniqueAnswers(result.answers);
+        answers.value = result.answers;
         count.value = result.round.answerCount;
+        fetchedRev = result.round.answerRev;
         error.value = null;
       }
     } catch (e) {
@@ -108,6 +96,7 @@ export function useRoundAnswers(
       generation++;
       answers.value = [];
       count.value = 0;
+      fetchedRev = -1;
       error.value = null;
       if (timer) {
         clearTimeout(timer);
@@ -118,12 +107,18 @@ export function useRoundAnswers(
     },
     { immediate: true }
   );
+  // 回答数または更新番号が変わったときだけ動く(更新の通知のたびに新しい round オブジェクトが届くので、値で比べる)
   const stopCount = watch(
-    () => (state.value.round && state.value.round.key === key.value ? state.value.round.answerCount : null),
+    () => {
+      const round = state.value.round;
+      return round && round.key === key.value ? `${round.answerCount}:${round.answerRev}` : null;
+    },
     (next) => {
-      if (next === null) return;
-      count.value = next;
-      if (next !== answers.value.length) schedule();
+      const round = state.value.round;
+      if (next === null || !round) return;
+      count.value = round.answerCount;
+      // 取得済みの内容と同じなら、取り直さない(自分の取得で追いついた場合)
+      if (round.answerRev !== fetchedRev || round.answerCount !== answers.value.length) schedule();
     }
   );
 
