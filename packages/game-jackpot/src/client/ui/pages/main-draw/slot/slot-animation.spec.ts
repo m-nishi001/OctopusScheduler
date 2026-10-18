@@ -51,4 +51,65 @@ describe("SlotAnimation", () => {
     expect(wrapper.classes()).not.toContain("spinning");
     expect(wrapper.emitted("stopped")?.[0]).toEqual(["p3"]);
   });
+
+  // 3列のリールが回る間、窓(3マス)が帯の外(黒)を映さないこと(以前は帯の末尾で位置を戻す瞬間に黒が見えた)
+  describe("リールの継ぎ目(今回の不具合)", () => {
+    const px = (s: string | undefined) => Number.parseFloat(s ?? "0");
+
+    /** 描画された帯と窓の関係を、DOMから読む。 */
+    function inspect(wrapper: ReturnType<typeof mount>) {
+      const itemH = px((wrapper.element as HTMLElement).style.getPropertyValue("--slot-item-h"));
+      return wrapper.findAll(".reel").map((reel) => {
+        const content = reel.find(".reel-content").element as HTMLElement;
+        const shift = -px(/translateY\((.*)px\)/.exec(content.style.transform)?.[1]);
+        const rows = reel.findAll(".prize-item");
+        return { itemH, shift, rows, windowBottom: shift + 3 * itemH, stripHeight: rows.length * itemH };
+      });
+    }
+
+    it("回転中は毎フレーム、どのリールも窓が帯の内側に収まる", async () => {
+      const frames: Array<() => void> = [];
+      vi.stubGlobal("requestAnimationFrame", (cb: () => void) => {
+        frames.push(cb);
+        return 0;
+      });
+      const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+      await (wrapper.vm as unknown as Required<AnimationRef>).startSpin();
+
+      for (let frame = 0; frame < 1500; frame++) {
+        frames.splice(0).forEach((run) => run());
+        await wrapper.vm.$nextTick();
+        for (const reel of inspect(wrapper)) {
+          expect(reel.shift, `frame ${frame}`).toBeGreaterThanOrEqual(0);
+          expect(reel.windowBottom, `frame ${frame}`).toBeLessThanOrEqual(reel.stripHeight);
+        }
+      }
+    });
+
+    it("どの景品に止めても、窓が帯の内側に収まり、一番上にその景品が見える", async () => {
+      for (const target of prizes as Array<{ id: string; name: string }>) {
+        const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: target } });
+        const api = wrapper.vm as unknown as Required<AnimationRef>;
+        await api.startSpin();
+        const stopped = api.stopSpin(3, target.id);
+        await vi.advanceTimersByTimeAsync(5000);
+        await stopped;
+        for (const reel of inspect(wrapper)) {
+          expect(reel.windowBottom).toBeLessThanOrEqual(reel.stripHeight);
+          expect(reel.rows[Math.round(reel.shift / reel.itemH)].text()).toBe(target.name);
+        }
+      }
+    });
+
+    it("景品が1件・2件でも、帯が空白にならない", async () => {
+      for (const n of [1, 2]) {
+        const few = (prizes as Array<{ id: string; name: string }>).slice(0, n);
+        const wrapper = mount(SlotAnimation, { props: { prizes: few, selectedPrize: few[0] } });
+        for (const reel of inspect(wrapper)) {
+          expect(reel.rows.length).toBeGreaterThanOrEqual(3);
+          expect(reel.rows.every((row) => row.text() !== "")).toBe(true);
+        }
+      }
+    });
+  });
 });
