@@ -28,14 +28,19 @@ const ADMIN = { id: "admin", password: "e2e-password-1234", token: "e2e-admin-se
 export const TARGETS = {
   "worker-smoke": () => ["node", [join(ROOT, "e2e/worker-smoke.mjs")]],
   ui: (extra) => ["npx", ["playwright", "test", "-c", join(ROOT, "e2e/playwright.config.ts"), ...extra]],
+  // 負荷テスト(参加者50人 + 運営3端末のフルコース)。時間がかかるので、名前を指定したときだけ動かす。
+  load: () => ["node", [join(ROOT, "e2e/load/full-course.mjs")]],
 };
+
+/** 引数なしで動かすテスト。 */
+export const DEFAULT_TARGETS = ["worker-smoke", "ui"];
 
 /** コマンドライン引数を { targets, extra }(-- 以降は Playwright へ渡す)に分ける。 */
 export function parseArgs(argv) {
   const dd = argv.indexOf("--");
   const names = dd === -1 ? argv : argv.slice(0, dd);
   const extra = dd === -1 ? [] : argv.slice(dd + 1);
-  const targets = names.length ? names : Object.keys(TARGETS);
+  const targets = names.length ? names : DEFAULT_TARGETS;
   const unknown = targets.filter((t) => !(t in TARGETS));
   if (unknown.length) throw new Error(`不明なテスト: ${unknown.join(", ")}(${Object.keys(TARGETS).join(" / ")})`);
   return { targets, extra };
