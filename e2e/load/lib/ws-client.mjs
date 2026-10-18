@@ -33,6 +33,8 @@ export class WsSession {
     /** 状態の version ごとの受信時刻(公開から全員に届くまでの時間を測る)。 */
     this.arrivals = new Map();
     this.updates = 0;
+    /** サーバ時刻 - この端末の時刻(往復の遅れを含む近似)。締切の判定を端末の時計で近似するのに使う。 */
+    this.serverOffsetMs = 0;
     this.closeCode = null;
     this.errors = [];
     this.pending = new Map();
@@ -124,6 +126,7 @@ export class WsSession {
     if (msg.t === "update") {
       const r = msg.result;
       this.updates++;
+      if (typeof r.serverTimeMs === "number") this.serverOffsetMs = r.serverTimeMs - Date.now();
       if (r.state) {
         this.state = r.state;
         const version = r.head?.stateVersion ?? r.state.version;

@@ -30,6 +30,8 @@ export const TARGETS = {
   ui: (extra) => ["npx", ["playwright", "test", "-c", join(ROOT, "e2e/playwright.config.ts"), ...extra]],
   // 負荷テスト(参加者50人 + 運営3端末のフルコース)。時間がかかるので、名前を指定したときだけ動かす。
   load: () => ["node", [join(ROOT, "e2e/load/full-course.mjs")]],
+  // 負荷テストの画面つき版(実ブラウザのホスト・管理・参加者3 + 合成の参加者47)。
+  "load-ui": (extra) => ["npx", ["playwright", "test", "-c", join(ROOT, "e2e/load/playwright.config.ts"), ...extra]],
 };
 
 /** 引数なしで動かすテスト。 */
