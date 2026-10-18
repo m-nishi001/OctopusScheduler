@@ -65,9 +65,9 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
         return;
       }
       canStop = state.canStop;
-      // メンバー抽選は管理者が進行するので、参加者には停止ボタンを出さない(景品抽選のときだけ出す)。
-      const participantsMayStop = state.canStop && state.phase !== "member";
-      void agent.publishSlice(NAMESPACE, state, participantsMayStop ? [JACKPOT_STOP_COMMAND] : []);
+      // メンバー抽選は管理者が進行する。景品抽選の停止は、当選した本人だけが送れる(宛先を当選者に絞る。管理者は常に可)。
+      const winnerId = state.canStop && state.phase === "prize" ? state.memberId : null;
+      void agent.publishSlice(NAMESPACE, state, winnerId ? [{ key: JACKPOT_STOP_COMMAND, memberIds: [winnerId] }] : []);
     },
     async recordDraw(draw, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
       if (!agent.active) return false;

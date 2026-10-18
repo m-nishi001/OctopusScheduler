@@ -2,7 +2,7 @@ import { createFakeHubApi, makeDevice, makeHub } from "@octopus/session-hub/test
 import type { Device, FaultInjector, TestHub } from "@octopus/session-hub/testing";
 import { MemoryDeviceStore, SessionAdminRepository } from "@octopus/session-hub";
 import { ENTRY_OPTIONS, entryRoundKey } from "@octopus/session-hub";
-import type { JackpotDraw, PortalEvent, QuizRoundResult } from "@octopus/session-hub";
+import type { ClientInput, JackpotDraw, PortalEvent, QuizRoundResult } from "@octopus/session-hub";
 
 export { makeDevice, makeHub };
 export type { Device, TestHub };
@@ -17,8 +17,8 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
   await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
   // ホストは、機能ごとの状態（event / quiz / jackpot …）を名前空間ごとに合成して公開する（本番の HostAgent と同じ）。
   const slices: Record<string, unknown> = {};
-  let clientInput: string[] = [];
-  const setSlice = (ns: string, value: unknown | null, input?: string[]): Promise<void> => {
+  let clientInput: ClientInput[] = [];
+  const setSlice = (ns: string, value: unknown | null, input?: ClientInput[]): Promise<void> => {
     if (value === null) delete slices[ns];
     else slices[ns] = value;
     if (input) clientInput = input;
@@ -58,7 +58,7 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
     },
     publishQuiz: (quiz: QuizPublished | null) => setSlice("quiz", quiz),
     /** ホストがジャックポットの状態と、参加者に許可する操作を公開する。 */
-    publishJackpot: (jackpot: { phase: string; canStop: boolean; member: string | null; memberId?: string | null; prize: string | null } | null, input: string[] = []) =>
+    publishJackpot: (jackpot: { phase: string; canStop: boolean; member: string | null; memberId?: string | null; prize: string | null } | null, input: ClientInput[] = []) =>
       setSlice("jackpot", jackpot, input),
     /**
      * ホストがクイズ1ラウンドの結果を保存し、更新番号を公開する(本番では HostAgent.recordQuizResult が行う)。

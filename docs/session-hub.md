@@ -166,7 +166,7 @@ GAS で参加者に使ってもらう場合のデプロイ設定は [deploy-gas.
 ## 7. 新しいゲーム/機能をつなぐには
 
 1. ホスト側の画面で `HostAgent` の `router.register("<名前空間>", handler)` を登録し、`publishSlice("<名前空間>", state)` で状態を公開する(画面を離れたら `clearSlice`)。ジャックポットは `use-jackpot-host.ts`、クイズは `use-quiz-host.ts` が実例。
-2. 参加者の入力が必要なら、ホストが許可したコマンド種別(`clientInput`)で受ける。一斉回答は回答ラウンドを使う。
+2. 参加者の入力が必要なら、ホストが許可した操作(`clientInput` = `{ key: "game.type", memberIds? }[]`)で受ける。`memberIds` を付けると、そのメンバー本人だけが送れる(サーバーが `issueCommand` で強制し、ポータルのボタンも同じ判定 `clientInputAllows` で出し分ける。ジャックポットの景品抽選の停止は当選者だけ)。一斉回答は回答ラウンドを使う。
 3. 管理コンソールに操作パネルを足し、`connection.issue("<名前空間>", "<種別>")` を送る。
 4. 遷移先の画面は `isAllowedHostPath`(`packages/session-hub/src/shared/host-navigation.ts`)の許可リストに追加する。
 5. 参加者に見せる情報は公開する状態に含めるものだけにする(答えを先に渡さない)。

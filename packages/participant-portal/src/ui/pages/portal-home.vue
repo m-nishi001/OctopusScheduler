@@ -58,7 +58,7 @@ const hasActivity = computed(() => {
     const data = session.state.value.roomState?.data;
     const jackpot = readJackpotView(data);
     return (
-        (session.state.value.roomState?.clientInput.length ?? 0) > 0 ||
+        session.clientInputs.value.length > 0 ||
         quiz.quiz.value !== null ||
         jackpot !== null
     );

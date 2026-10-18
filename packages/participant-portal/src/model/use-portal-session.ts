@@ -1,6 +1,6 @@
 import { computed, inject, onScopeDispose, ref, watch } from "vue";
 import type { ComputedRef, InjectionKey, Ref, ShallowRef } from "vue";
-import { parseHubErrorCode, readPortalEvent, useSessionConnection } from "@octopus/session-hub";
+import { clientInputKeysFor, parseHubErrorCode, readPortalEvent, useSessionConnection } from "@octopus/session-hub";
 import type { ConnectionState, PortalEvent, ResultsView, SessionConnection, SubmitAnswerResult } from "@octopus/session-hub";
 import { derivePortalStatus, statusMessage } from "./portal-status";
 import type { JoinFailure, PortalStatus } from "./portal-status";
@@ -27,6 +27,8 @@ export interface PortalSession {
   event: ComputedRef<PortalEvent | null>;
   /** 参加者数(在席)。 */
   clientCount: ComputedRef<number>;
+  /** いま自分が送れる操作(例: "jackpot.stopRoulette")。宛先が自分でない操作は含まない。 */
+  clientInputs: ComputedRef<string[]>;
   /** 回答ラウンドに回答する（エントリーなど）。先着で1人1回で、再送しても安全。 */
   answer(key: string, no: number): Promise<SubmitAnswerResult>;
   /** ホストが許可した操作を送る（例: ルーレットを止める）。通信失敗は同じ内容で安全に再送される。 */
@@ -57,6 +59,8 @@ function toFailure(error: unknown): JoinFailure {
 }
 
 export interface PortalSessionOptions {
+  /** ログイン中のメンバーのID。宛先つきの操作を、自分向けのものだけに絞るのに使う。 */
+  memberId?: () => string | null;
   now?: () => number;
   /** 画面の表示/非表示の通知源。省略時はブラウザの visibilitychange。 */
   visibility?: { isVisible(): boolean; subscribe(listener: () => void): () => void };
@@ -97,6 +101,10 @@ export function usePortalSession(connection: SessionConnection, options: PortalS
   const message = computed(() => statusMessage(status.value, failure.value));
   const event = computed(() => readPortalEvent(state.value.roomState?.data));
   const clientCount = computed(() => state.value.presence?.clientCount ?? 0);
+  // ポータルの参加者はログインで確定した本人。サーバーの受付と同じ判定(clientInputKeysFor)で絞る。
+  const clientInputs = computed(() =>
+    clientInputKeysFor(state.value.roomState?.clientInput ?? [], { memberId: options.memberId?.() ?? null, verified: true })
+  );
 
   // 切断・終了・認証切れで接続が止まったら、上限つきで自動で入り直す。
   // 回数を数え直すのは、STABLE_CONNECTION_MS 以上つながり続けたあとだけ(すぐ切れる状態では上限で止める)。
@@ -148,6 +156,7 @@ export function usePortalSession(connection: SessionConnection, options: PortalS
     failure,
     event,
     clientCount,
+    clientInputs,
     answer: (key, no) => connection.answer(key, no),
     issue: (game, type) => connection.issue(game, type),
     fetchResults: () => connection.getResults(),

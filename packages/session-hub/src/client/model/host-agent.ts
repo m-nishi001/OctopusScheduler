@@ -3,6 +3,7 @@ import type { JackpotDraw, QuizRoundResult } from "../../shared/results";
 import { lobbyPath } from "../../shared/host-navigation";
 import { PORTAL_EVENT_NS, readPortalEvent } from "../../shared/portal-event";
 import { HostCommandRouter } from "./host-command-router";
+import type { ClientInput } from "../../shared/session-types";
 import type { SessionConnection } from "./session-connection";
 
 /**
@@ -19,7 +20,7 @@ export class HostAgent {
   readonly router = new HostCommandRouter();
 
   private readonly slices: Record<string, unknown> = {};
-  private readonly clientInputs = new Map<string, string[]>();
+  private readonly clientInputs = new Map<string, ClientInput[]>();
   private wasConnected = false;
 
   constructor(readonly connection: SessionConnection) {
@@ -62,9 +63,9 @@ export class HostAgent {
 
   /**
    * 名前空間 `ns` の状態を更新して公開する。`clientInput` はその名前空間で
-   * 参加者から受け付けるコマンド種別("game.type")。省略時は変更しない。
+   * 参加者から受け付ける操作(key は "game.type"。memberIds で宛先のメンバーに絞れる)。省略時は変更しない。
    */
-  publishSlice(ns: string, data: unknown, clientInput?: string[]): Promise<void> {
+  publishSlice(ns: string, data: unknown, clientInput?: ClientInput[]): Promise<void> {
     this.slices[ns] = data;
     if (clientInput) this.clientInputs.set(ns, clientInput);
     return this.flush();
