@@ -35,8 +35,15 @@ export const LOGIN_LOCK_MS = 15 * 60 * 1000;
 export const MAX_GLOBAL_LOGIN_FAILURES = 100;
 
 const SESSION_INDEX_KEY = "accounts-session-index";
-/** 索引は GAS の ScriptProperty(1値あたり約9KB)に収まる件数に抑える。超えたら古い順に失効させる。 */
-export const MAX_ACTIVE_SESSIONS = 100;
+/**
+ * セッションの索引はトークンから決まる複数の区画に分ける。受付QRで参加者が一斉にログインしても、
+ * 1つのロックの順番待ちにならないようにするため(50人が同時に読み取ると、1つの索引では待ち時間が人数に比例して
+ * ロックの上限を超え、ほぼ全員の初回が失敗した)。
+ * 各区画の索引は GAS の ScriptProperty(1値あたり約9KB)に収まる件数に抑える。超えたら、その区画の古い順に失効させる。
+ */
+export const SESSION_SHARDS = 8;
+export const MAX_SESSIONS_PER_SHARD = 32;
+export const MAX_ACTIVE_SESSIONS = SESSION_SHARDS * MAX_SESSIONS_PER_SHARD;
 const AUTH_LOCK_KEY = "accounts-auth";
 const AUTH_LOCK_TIMEOUT_MS = 10_000;
 const ROSTER_LOCK_KEY = "accounts-roster";
@@ -402,27 +409,43 @@ export async function loginWithKey(deps: AccountsAuthDeps, args: { id: string; k
   return { token, member };
 }
 
-/** セッションを発行し、索引に載せる。期限切れと、上限を超えた古いセッションはここで実削除する。 */
+/** トークンが載る索引の区画(同じトークンは常に同じ区画)。 */
+export function sessionShardOf(token: string): number {
+  let hash = 0;
+  for (let i = 0; i < token.length; i++) hash = (Math.imul(hash, 31) + token.charCodeAt(i)) >>> 0;
+  return hash % SESSION_SHARDS;
+}
+
+/**
+ * セッションを発行し、索引に載せる。期限切れと、区画の上限を超えた古いセッションは実削除する。
+ * ロックの中は索引の読み書きだけにする(セッション本体の保存と、古いセッションの削除はロックの外)。
+ * 同時に発行しても、区画ごとに順番に処理されるので、索引への登録は失われない。
+ */
 async function issueSession(deps: AccountsAuthDeps, memberId: string): Promise<string> {
   const token = deps.generateId();
   const now = deps.now();
   const session: StoredSession = { memberId, expiresAt: now + SESSION_TTL_MS };
-  await withAuthLock(deps, async () => {
-    const index = await readSessionIndex(deps.storage);
-    const expired = index.filter(([, expiresAt]) => expiresAt <= now);
-    const alive = [...index.filter(([, expiresAt]) => expiresAt > now), [token, session.expiresAt] as [string, number]];
-    const overflow = Math.max(0, alive.length - MAX_ACTIVE_SESSIONS);
-    for (const [old] of [...expired, ...alive.slice(0, overflow)]) {
-      await deps.storage.deleteScalar(SESSION_KEY_PREFIX + old);
-    }
-    await deps.storage.set(SESSION_KEY_PREFIX + token, JSON.stringify(session));
-    await deps.storage.set(SESSION_INDEX_KEY, JSON.stringify(alive.slice(overflow)));
-  });
+  const shard = sessionShardOf(token);
+  const indexKey = `${SESSION_INDEX_KEY}/${shard}`;
+  await deps.storage.set(SESSION_KEY_PREFIX + token, JSON.stringify(session));
+  const register = () => registerSession(deps, indexKey, token, session, now);
+  const removed = deps.lock ? await deps.lock.withLock(`${AUTH_LOCK_KEY}-session-${shard}`, AUTH_LOCK_TIMEOUT_MS, register) : await register();
+  await Promise.all(removed.map((old) => deps.storage.deleteScalar(SESSION_KEY_PREFIX + old)));
   return token;
 }
 
-async function readSessionIndex(storage: IKeyValueStorage): Promise<Array<[string, number]>> {
-  const raw = await storage.get(SESSION_INDEX_KEY);
+/** 区画の索引にセッションを載せ、実削除すべき(期限切れ・上限超過の)トークンを返す。 */
+async function registerSession(deps: AccountsAuthDeps, indexKey: string, token: string, session: StoredSession, now: number): Promise<string[]> {
+  const index = await readSessionIndex(deps.storage, indexKey);
+  const expired = index.filter(([, expiresAt]) => expiresAt <= now);
+  const alive = [...index.filter(([, expiresAt]) => expiresAt > now), [token, session.expiresAt] as [string, number]];
+  const overflow = Math.max(0, alive.length - MAX_SESSIONS_PER_SHARD);
+  await deps.storage.set(indexKey, JSON.stringify(alive.slice(overflow)));
+  return [...expired, ...alive.slice(0, overflow)].map(([old]) => old);
+}
+
+async function readSessionIndex(storage: IKeyValueStorage, indexKey: string): Promise<Array<[string, number]>> {
+  const raw = await storage.get(indexKey);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
