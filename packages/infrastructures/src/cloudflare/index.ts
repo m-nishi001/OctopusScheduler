@@ -16,6 +16,7 @@ import { container } from "tsyringe";
 import { registerCloudflareInfrastructures } from "./container";
 import { runWithRequestEnv } from "./request-context";
 import type { CloudflareEnv } from "./env";
+import { withSimulatedLatency } from "./simulated-latency";
 import { allowRequest, clientKey, limiterKindForRpc, tooManyRequests } from "./rate-limit";
 
 import { QUIZ_GAME_PREFIX, QUIZ_GAME_HANDLERS } from "@octopus/game-quiz/server";
@@ -95,7 +96,8 @@ async function handleWebSocket(request: Request, env: CloudflareEnv, sessionId: 
 
 export default {
   async fetch(request: Request, env: CloudflareEnv, _ctx: ExecutionContext): Promise<Response> {
-    return runWithRequestEnv(env, async () => {
+    // ローカルの負荷テストでだけ、R2 / D1 に本番相当の遅延を足す(環境変数が無ければ素通し)。
+    return runWithRequestEnv(withSimulatedLatency(env), async () => {
       const url = new URL(request.url);
       if (url.pathname === "/rpc" && request.method === "POST") {
         return handleRpc(request, env);
