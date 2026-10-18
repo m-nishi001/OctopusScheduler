@@ -41,9 +41,21 @@ export class PollSession extends WsSession {
     this.polling = true;
     try {
       const { sessionId, deviceId, token } = this.identity;
-      const result = await rpc(this.env, "sessionHub_poll", { sessionId, deviceId, token, sinceSeq: this.seq, stateVersion: this.stateVersion });
+      const result = await rpc(this.env, "sessionHub_poll", { sessionId, deviceId, token, sinceSeq: this.seq, stateVersion: this.stateVersion }, null, {
+        expect: ["SESSION_CLOSED"],
+      });
       this.lastPollMs = result.nextPollMs ?? this.lastPollMs;
       this.handle({ t: "update", result });
+    } catch (e) {
+      // セッションが終了すると、ポーリングは SESSION_CLOSED で返る。これが「終了の検知」(WebSocket の 4410 に相当)
+      if (e instanceof RpcError && e.code === "SESSION_CLOSED") {
+        this.sessionInfo = { ...(this.sessionInfo ?? {}), status: "closed" };
+        this.closeCode = 4410;
+        this.stopped = true;
+        this.notify();
+        return;
+      }
+      throw e;
     } finally {
       this.polling = false;
     }

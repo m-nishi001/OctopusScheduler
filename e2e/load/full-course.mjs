@@ -1,5 +1,5 @@
 // 負荷テスト(フルコース): 参加者50人 + 運営(ホスト1・管理2)が同時に接続した状態で、本番と同じ順にイベントを通す。
-//   ログインの殺到 → 入室 → イベント開始 → エントリー(全員一斉) → クイズ4問(一斉回答・選び直し・締切の競り合い・手動締切)
+//   ログインの殺到 → 入室 → イベント開始 → エントリー(全員一斉) → クイズ5問(一斉回答・選び直し・締切の競り合い・連打の嵐・手動締切)
 //   → 全員の一斉再接続とホストのリロード → ジャックポット(停止操作の権限) → 結果の一斉取得 → エンディング・ロビー → セッション終了
 // 画面は使わず、実際のクライアントと同じ RPC / WebSocket で動かす(DO と R2 にかかる負荷を再現するため)。
 // 使い方は docs/load-test.md。BASE と E2E_ADMIN_TOKEN は scripts/e2e-local.js(npm run e2e -- load)か staging の出力が渡す。
@@ -26,7 +26,6 @@ const cfg = {
   participants: int("LOAD_PARTICIPANTS", 50),
   /** 参加者のうち、WebSocket を使わずポーリングで動く端末の割合(電波・端末の事情でフォールバックする人)。 */
   pollRatio: float("LOAD_POLL_RATIO", 0.2),
-  roundMs: int("LOAD_ROUND_MS", 20_000),
   seed: int("LOAD_SEED", 20261018),
   reportPath: process.env.LOAD_REPORT ?? "",
   /** 合格基準。環境(ローカル / staging)に合わせて環境変数で調整できる。 */
@@ -275,7 +274,7 @@ async function eventAndEntry() {
   report.check("管理端末がエントリーを締め切れる(受付後も人数は変わらない)", closed.open === false && closed.answerCount === participants.length);
 }
 
-// ───────────────────────── 3. クイズ4問 ─────────────────────────
+// ───────────────────────── 3. クイズ5問 ─────────────────────────
 
 const quizResults = [];
 let quizNumber = 0;
@@ -285,12 +284,12 @@ let quizNumber = 0;
  * plan(participant, index, ctx) は、その参加者の手順 [{ at: 絶対時刻(ms), no, window }] を返す。
  *   window: "open"(必ず受理される) | "race"(締切と競る。どちらでもよい) | "closed"(締切後。受理されてはいけない)
  */
-async function quizRound(title, { plan, manualCloseAtMs = null }) {
+async function quizRound(title, { plan, manualCloseAtMs = null, durationMs = 20_000 }) {
   const number = ++quizNumber;
   const key = `ld${runId}-q${number}:live`;
   const correctNo = randInt(1, 4);
   const t0 = Date.now();
-  const opened = await host.openRound(key, QUIZ_OPTIONS.map(({ no, text }) => ({ no, text })), cfg.roundMs);
+  const opened = await host.openRound(key, QUIZ_OPTIONS.map(({ no, text }) => ({ no, text })), durationMs);
   const offsetMs = opened.serverNowMs - Date.now(); // サーバ時刻 - この端末の時刻(往復の遅れを含む近似)
   const deadlineLocal = opened.deadlineMs - offsetMs;
   const slice = {
@@ -334,8 +333,8 @@ async function quizRound(title, { plan, manualCloseAtMs = null }) {
     })
   );
   await closer;
-  // 自動の締切(サーバ時刻)を待つ。ホストは何もしない。
-  await sleep(Math.max(0, deadlineLocal - Date.now()) + 800);
+  // 手動で締めない問題は、自動の締切(サーバ時刻)を待つ。ホストは何もしない。
+  if (manualCloseAtMs === null) await sleep(Math.max(0, deadlineLocal - Date.now()) + 800);
 
   const final = await host.getAnswers(key);
   report.check(`${title}: 締切後は受付が閉じている(ホストが何もしなくても)`, final.round.open === false, `open=${final.round.open}`);
@@ -431,6 +430,7 @@ const answersFor = (p) => pick([1, 2, 3, 4]);
 async function quizRounds() {
   // 第1問: 開始と同時に全員が答える(最も負荷が高い瞬間)。2割は二度押し。
   await quizRound("第1問(一斉回答)", {
+    durationMs: 10_000,
     plan: (p, i, c) => {
       const no = answersFor(p);
       const at = Date.now() + 300 + rand(0, 300);
@@ -472,8 +472,25 @@ async function quizRounds() {
     },
   });
 
-  // 第4問: 管理端末が途中で手動締切。締切後の試行は受理されない。
-  await quizRound("第4問(手動締切)", {
+  // 第4問: 連打と選び直しの嵐。全員が2秒のあいだに6回ずつ押し直す(DO への書き込みが最も集中する場面)。
+  await quizRound("第4問(連打の嵐)", {
+    durationMs: 10_000,
+    plan: (p, i, c) => {
+      const base = Date.now() + 400;
+      const steps = [];
+      let last = 0;
+      for (let k = 0; k < 6; k++) {
+        let no = answersFor(p);
+        while (no === last) no = answersFor(p);
+        last = no;
+        steps.push({ at: base + rand(0, 2_000), no, window: "open" });
+      }
+      return steps;
+    },
+  });
+
+  // 第5問: 管理端末が途中で手動締切。締切後の試行は受理されない。
+  await quizRound("第5問(手動締切)", {
     manualCloseAtMs: 6_000,
     plan: (p, i, c) => {
       const early = i % 4 !== 3;
@@ -617,7 +634,7 @@ async function results() {
   report.check("最終の取得に、書き込んだ抽選結果がすべて反映される", third.every((r) => r.view.jackpot.draws.length === draws.length + 5), `${third[0].view.jackpot.draws.length}件`);
 
   // 参加者は結果を書けない
-  const forbidden = await rpc(env, "sessionHub_putQuizResult", { sessionId, result: quizResults[0].result }, participants[0].token, { expect: ["FORBIDDEN"] }).then(
+  const forbidden = await rpc(env, "sessionHub_putQuizResult", { sessionId, result: quizResults[0].result }, participants[0].token, { expectMessage: /Unauthorized/ }).then(
     () => "allowed",
     (e) => (e instanceof RpcError ? "rejected" : "error")
   );
@@ -643,6 +660,7 @@ async function endingAndClose() {
   const wsClients = participants.filter((p) => p.transport === "ws");
   await Promise.all(wsClients.map((p) => p.session.waitFor((s) => s.closeCode !== null, 15_000, "終了の通知").catch(() => undefined)));
   const pollClients = participants.filter((p) => p.transport === "poll");
+  // ポーリングの端末は次の取得で終了を知る(取得間隔ぶん遅れる)
   await Promise.all(pollClients.map((p) => p.session.waitFor((s) => s.sessionInfo?.status === "closed", 15_000, "終了の検知").catch(() => undefined)));
   metrics.time("close:notify", Date.now() - started);
   report.check(
@@ -675,6 +693,13 @@ function judge() {
   const all = fanouts.flatMap((k) => metrics.timings.get(k)).sort((a, b) => a - b);
   report.gate("状態の公開から WebSocket 端末に届くまで p95", all.length ? all[Math.min(all.length - 1, Math.ceil(all.length * 0.95) - 1)] : null, cfg.maxFanoutP95Ms);
   const counters = metrics.counters;
+  // 無料枠の目安: 1日2回のイベントでも、Workers / Durable Objects のリクエスト(各 100,000/日)の 30% に収める
+  // (packages/session-hub/src/shared/quota-budget.ts の FREE_TIER / BUDGET_RATIO / EXPECTED_LOAD.eventsPerDay と同じ前提)。
+  // WebSocket は接続1回 = 1リクエスト、クライアントからの送信 20件 = 1リクエスト。
+  const httpTotal = [...counters.entries()].filter(([k]) => /^http:\d+$/.test(k)).reduce((sum, [, v]) => sum + v, 0);
+  const wsConnects = metrics.timings.get("ws:connect+auth")?.length ?? 0;
+  const estimated = httpTotal + wsConnects + Math.ceil((counters.get("ws:messages-sent") ?? 0) / 20);
+  report.check(`1イベントの課金対象リクエストの推定(HTTP ${httpTotal} + WebSocket接続 ${wsConnects} + 送信 ${counters.get("ws:messages-sent") ?? 0}件/20)が、無料枠の30%を2回分に収まる範囲`, estimated * 2 <= 100_000 * 0.3, `推定 ${estimated} 件 / イベント`);
   report.check("HTTP 429(レート制限)が出ていない", (counters.get("http:429") ?? 0) === 0, `${counters.get("http:429") ?? 0}件`);
   report.check(
     "HTTP 5xx が出ていない",
@@ -684,14 +709,14 @@ function judge() {
 }
 
 async function main() {
-  console.log(`負荷テスト(フルコース): BASE=${cfg.base} 参加者=${cfg.participants} ポーリング割合=${cfg.pollRatio} 1問=${cfg.roundMs}ms seed=${cfg.seed}`);
+  console.log(`負荷テスト(フルコース): BASE=${cfg.base} 参加者=${cfg.participants} ポーリング割合=${cfg.pollRatio} seed=${cfg.seed}`);
   try {
     const ready = await report.phase("準備(参加者・セッション・運営端末)", setup);
     if (ready.ok) {
       const entered = await report.phase("1. ログインと入室の殺到", loginAndJoin);
       if (entered.ok) {
         await report.phase("2. イベント開始とエントリー受付", eventAndEntry);
-        await report.phase("3. クイズ4問", quizRounds);
+        await report.phase("3. クイズ5問", quizRounds);
         await report.phase("4. 全員の一斉再接続とホストのリロード", reconnectStorm);
         await report.phase("5. ジャックポット", jackpot);
         await report.phase("6. 結果の一斉取得", results);

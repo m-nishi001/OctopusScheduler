@@ -168,6 +168,7 @@ export class WsSession {
         reject(new Error(`timeout waiting for ${requestId}`));
       }, REQUEST_TIMEOUT_MS);
       this.pending.set(requestId, { kind, started: Date.now(), resolve, reject, timer });
+      this.env.metrics.count("ws:messages-sent");
       this.ws.send(JSON.stringify({ requestId, ...payload }));
     });
   }
@@ -183,7 +184,9 @@ export class WsSession {
   }
 
   ack(seq) {
-    if (this.connected) this.ws.send(JSON.stringify({ t: "ack", seq }));
+    if (!this.connected) return;
+    this.env.metrics.count("ws:messages-sent");
+    this.ws.send(JSON.stringify({ t: "ack", seq }));
   }
 
   /** 条件を満たすまで更新を待つ。満たさずに時間切れなら例外。 */

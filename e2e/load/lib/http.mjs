@@ -21,7 +21,8 @@ const REQUEST_TIMEOUT_MS = 30_000;
  * @param {string} name RPC 名(例: sessionHub_poll)
  * @param {unknown} args
  * @param {string | null} [token] 管理者などのログイントークン
- * @param {{expect?: string[], soft?: boolean}} [options] expect: 想定内のエラーコード(失敗として数えない) /
+ * @param {{expect?: string[], expectMessage?: RegExp, soft?: boolean}} [options] expect: 想定内のエラーコード(失敗として数えない) /
+ *   expectMessage: コードの付かないエラー(例: Unauthorized)を想定内とする /
  *   soft: 呼び出し側が再試行するので、失敗は警告として数える(最後の試行は soft にしない)
  */
 export async function rpc(env, name, args, token = null, options = {}) {
@@ -55,7 +56,7 @@ export async function rpc(env, name, args, token = null, options = {}) {
   if (!json || json.status !== "success") {
     const message = json?.message ?? `HTTP ${res.status}`;
     const code = CODE_PATTERN.exec(message)?.[1] ?? null;
-    const expected = options.expect?.includes(code);
+    const expected = options.expect?.includes(code) || options.expectMessage?.test(message);
     if (!expected && res.status < 500 && res.status !== 429) fail("rpc", `${name}: ${message}`);
     throw new RpcError({ name, message, status: res.status, code, retryAfter });
   }
