@@ -2,9 +2,9 @@
     <div class="slot-container jp-frame" ref="container" :class="{ spinning }" :style="sizeVars">
         <div class="slot-reels">
             <div class="reel" v-for="(reel, index) in reels" :key="index">
-                <div class="reel-content" :style="{ transform: `translateY(${reel.offset}px)` }">
-                    <div v-for="prize in allPrizes" :key="prize.id" class="prize-item">
-                        {{ prize.name }}
+                <div class="reel-content" :style="{ transform: `translateY(${-reel.position}px)` }">
+                    <div v-for="slot in strip" :key="slot.key" class="prize-item">
+                        {{ slot.name }}
                     </div>
                 </div>
             </div>
@@ -19,6 +19,7 @@ import { useAudio } from '@octopus/composables/use-audio';
 import '../../../theme/jackpot-theme.css';
 import type { PrizeDto } from '@control/prize/dto/prize-dto';
 import type { AnimationRef } from './animation-types';
+import { advancePosition, buildLoop, cycleHeight, indexInLoop, positionForIndex, renderedCount } from './reel-model';
 
 export default {
     name: 'SlotAnimation',
@@ -35,19 +36,21 @@ export default {
         let animationId: number | null = null;
         // useAudio を使って BGM を再生
         const { load: loadBgm, play: playBgm, stop: stopBgm } = useAudio({ mode: 'html-audio' });
+        // position は「上へ流れた距離(px)」。ループ1周で元に戻る(位置計算は reel-model.ts)。
         const reels = ref([
-            { offset: 0, speed: 0 },
-            { offset: 0, speed: 0 },
-            { offset: 0, speed: 0 },
+            { position: 0, speed: 0 },
+            { position: 0, speed: 0 },
+            { position: 0, speed: 0 },
         ]);
 
-        const allPrizes = computed(() => {
-            const extended = [...props.prizes];
-            while (extended.length < 10) {
-                extended.push(...props.prizes);
-            }
-            return extended.slice(0, 10);
-        });
+        const loop = computed(() => buildLoop(props.prizes));
+        // 描画は「ループ + 窓の高さ分」。窓が帯の外(黒)を映さないので、1周の継ぎ目が見えない。
+        const strip = computed(() =>
+            Array.from({ length: renderedCount(loop.value.length) }, (_, k) => ({
+                key: k,
+                name: loop.value[k % loop.value.length].name,
+            }))
+        );
 
         const itemHeight = ref(60);
 
@@ -90,10 +93,13 @@ export default {
                     setTimeout(() => {
                         reels.value[index].speed = 0;
                         const targetId = targetPrizeId ?? props.selectedPrize?.id ?? null;
-                        const found = targetId ? props.prizes.findIndex(p => p.id === targetId) : -1;
-                        const targetIndex = found >= 0 ? found : Math.floor(Math.random() * props.prizes.length);
-                        const targetOffset = - (targetIndex * itemHeight.value);
-                        reels.value[index].offset = targetOffset;
+                        const found = indexInLoop(loop.value, targetId);
+                        const targetIndex = found >= 0 ? found : Math.floor(Math.random() * loop.value.length);
+                        reels.value[index].position = positionForIndex(
+                            targetIndex,
+                            itemHeight.value,
+                            cycleHeight(loop.value.length, itemHeight.value)
+                        );
                         stoppedCount++;
                         if (stoppedCount === totalReels) {
                             spinning.value = false;
@@ -116,13 +122,9 @@ export default {
 
         // アニメーションループ
         const animate = () => {
+            const cycle = cycleHeight(loop.value.length, itemHeight.value);
             reels.value.forEach(reel => {
-                if (reel.speed > 0) {
-                    reel.offset -= reel.speed;
-                    if (reel.offset <= - (allPrizes.value.length * itemHeight.value)) {
-                        reel.offset = 0;
-                    }
-                }
+                if (reel.speed > 0) reel.position = advancePosition(reel.position, reel.speed, cycle);
             });
             animationId = requestAnimationFrame(animate);
         };
@@ -154,7 +156,7 @@ export default {
         // これが無いと親から startSpin/stopSpin が見えず、景品抽選を開始しても何も動かない。
         expose({ startSpin, stopSpin } satisfies AnimationRef);
 
-        return { spinning, reels, allPrizes, sizeVars };
+        return { spinning, reels, strip, sizeVars };
     }
 };
 </script>

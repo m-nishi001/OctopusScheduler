@@ -60,6 +60,27 @@ for (const kind of ["roulette", "slot"] as const) {
     await expect(spinning, "「次へ」を押しても景品抽選が回り始めない").toBeVisible();
     await expectAnimating(reel, `prize-${kind}-spinning`, { count: 4, intervalMs: 400 });
 
+    if (kind === "slot") {
+      // 回転中、どのリールも窓(3マス)が帯の外(黒)を映さない(以前は1周の継ぎ目で黒が見えた)
+      const violations = await host.page.evaluate(async () => {
+        const out: string[] = [];
+        for (let i = 0; i < 120; i++) {
+          document.querySelectorAll<HTMLElement>(".slot-container .reel").forEach((reel, r) => {
+            const content = reel.querySelector<HTMLElement>(".reel-content")!;
+            const rows = content.querySelectorAll<HTMLElement>(".prize-item");
+            const rowH = rows[0].getBoundingClientRect().height;
+            const top = reel.getBoundingClientRect().top;
+            const bottom = rows[rows.length - 1].getBoundingClientRect().bottom;
+            const windowBottom = top + reel.getBoundingClientRect().height;
+            if (bottom + 1 < windowBottom) out.push(`frame ${i} reel ${r}: 帯の末尾(${bottom})が窓の下端(${windowBottom})より上 rowH=${rowH}`);
+          });
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+        return out;
+      });
+      expect(violations, "回転中にリールの窓が帯の外を映した").toEqual([]);
+    }
+
     // 止める → 回転が止まり、当選した景品が発表される（発表の紙吹雪は動き続けるので、静止ではなく発表の表示で確認する）
     await next.click();
     await expect(spinning).toBeHidden({ timeout: 30_000 });
