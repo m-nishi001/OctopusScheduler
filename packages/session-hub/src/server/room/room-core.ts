@@ -26,6 +26,7 @@ import {
 import type { ClientWsMessage, ServerWsMessage } from "../../shared/ws-protocol";
 import * as engine from "../engine/session-engine";
 import { parseHubErrorCode } from "../engine/hub-error";
+import { upsertAnswer } from "../engine/round-answers";
 import type { PresenceStore, SessionRepo, StoredHead, StoredRound } from "../engine/session-repo";
 import { MAX_ROUND_ANSWERS_DO } from "../../shared/session-types";
 import type {
@@ -139,7 +140,7 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
 
     getRound: loadRound,
     async openRound(round) {
-      roundCache = { ...round, closedAtMs: null, answerCount: 0 };
+      roundCache = { ...round, closedAtMs: null, answerCount: 0, answerRev: 0 };
       answersCache = { key: round.key, answers: [] };
       dirty = false;
       await storage.put("answers", answersCache);
@@ -163,17 +164,16 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
       const stored = await loadAnswers();
       return stored && stored.key === key ? stored.answers : [];
     },
-    async appendAnswer(key, answer, maxAnswers) {
+    async upsertAnswer(key, answer, maxAnswers) {
       const round = await loadRound();
       const stored = await loadAnswers();
-      if (!round || !stored || stored.key !== key) return { inserted: false, existing: null, full: false };
-      const existing = stored.answers.find((a) => a.deviceId === answer.deviceId) ?? null;
-      if (existing) return { inserted: false, existing, full: false };
-      if (stored.answers.length >= maxAnswers) return { inserted: false, existing: null, full: true };
-      stored.answers.push(answer);
-      roundCache = { ...round, answerCount: stored.answers.length };
-      dirty = true;
-      return { inserted: true, existing: null, full: false };
+      if (!round || !stored || stored.key !== key) return null;
+      const result = upsertAnswer(stored.answers, answer, maxAnswers);
+      if (result.kind === "inserted" || result.kind === "replaced") {
+        roundCache = { ...round, answerCount: stored.answers.length, answerRev: round.answerRev + 1 };
+        dirty = true;
+      }
+      return result;
     },
     flush,
     hasPendingWrites: () => dirty,

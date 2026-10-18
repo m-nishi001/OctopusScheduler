@@ -61,7 +61,8 @@ export interface QuizOptions {
 
 /**
  * クイズ（回答ラウンド）の参加者側。出題の表示・残り時間・回答・正誤の表示を持つ。
- * 回答は先着で1人1回（別の端末でも）。回答済みはブラウザに（メンバーごとに）保存し、リロードしても残る。
+ * 回答は1人1件（別の端末でも）で、受付中（制限時間内）なら何度でも選び直せる。最後に選んだものが採用される。
+ * 回答はブラウザに（メンバーごとに）保存し、リロードしても残る。
  * 締切の判定はサーバー時刻なので、端末の時計がずれていても公平。
  */
 export function useQuiz(session: PortalSession, options: QuizOptions): QuizState {
@@ -119,9 +120,7 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
     { immediate: true }
   );
 
-  const canAnswer = computed(
-    () => quiz.value?.phase === "answering" && (remainingSec.value ?? 0) > 0 && myAnswer.value === null && !answering.value
-  );
+  const canAnswer = computed(() => quiz.value?.phase === "answering" && (remainingSec.value ?? 0) > 0 && !answering.value);
 
   const optionLabel = (no: number): string => {
     const o = quiz.value?.options.find((x) => x.no === no);
@@ -136,6 +135,7 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
   async function answer(no: number): Promise<void> {
     const key = quiz.value?.roundKey;
     if (!canAnswer.value || !key) return;
+    if (no === myAnswer.value) return; // いま選んでいるものを押し直しても、何も送らない
     answering.value = true;
     message.value = "";
     try {
@@ -143,7 +143,8 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
       myAnswer.value = result.no;
       const saveKey = storageKey();
       if (saveKey) storage.set(saveKey, String(result.no));
-      if (result.duplicate) message.value = `すでに回答済みです(選択: ${optionLabel(result.no)})`;
+      // 送った番号と違う回答が返るのは、送信中に締め切られたとき(採用済みの回答のまま変わらない)
+      if (result.no !== no) message.value = `受付は終了しました(あなたの回答: ${optionLabel(result.no)})`;
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       const code = parseHubErrorCode(text);

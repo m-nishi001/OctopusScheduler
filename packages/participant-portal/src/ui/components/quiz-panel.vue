@@ -18,6 +18,9 @@
             <p v-if="quiz.myAnswer.value !== null" class="pp-quiz__answered" data-testid="quiz-answered">
                 回答しました(選択: {{ quiz.optionLabel(quiz.myAnswer.value) }})
             </p>
+            <p v-if="quiz.myAnswer.value !== null && quiz.canAnswer.value" class="pp-muted" data-testid="quiz-changeable">
+                受付中は選び直せます。最後に選んだものが回答になります。
+            </p>
             <p v-else-if="quiz.quiz.value.phase === 'closed' || (quiz.remainingSec.value !== null && quiz.remainingSec.value <= 0)"
                 class="pp-muted" data-testid="quiz-closed">
                 受付は終了しました

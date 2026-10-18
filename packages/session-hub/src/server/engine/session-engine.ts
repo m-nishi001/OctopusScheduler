@@ -60,6 +60,7 @@ import type {
 } from "../../shared/protocol";
 import { computeNextPollMs } from "../../shared/poll-interval";
 import { hubError } from "./hub-error";
+import { isSameRespondent } from "./round-answers";
 import type { PresenceStore, SessionRepo, StoredHead, StoredRound } from "./session-repo";
 
 export interface EngineDeps {
@@ -483,6 +484,7 @@ export function toRoundSummary(round: StoredRound | null, now: number): RoundSum
     openedAtMs: round.openedAtMs,
     deadlineMs: round.deadlineMs,
     answerCount: round.answerCount,
+    answerRev: round.answerRev,
   };
 }
 
@@ -550,7 +552,12 @@ export async function closeRound(deps: EngineDeps, args: CloseRoundArgs): Promis
   return toRoundSummary({ ...round, closedAtMs: round.closedAtMs ?? now }, now)!;
 }
 
-/** 参加者の回答。先着で1人1回。締切の判定はサーバ時刻なので、端末の時計がずれていても公平。 */
+/**
+ * 参加者の回答。1人1件で、受付中なら何度でも選び直せる(最後に選んだものが採用され、回答時刻もその時刻になる)。
+ * 締切の判定はサーバ時刻なので、端末の時計がずれていても公平。
+ * ログインから確定したメンバーは、別の端末から選び直しても同じ1件(2台でエントリーさせない)。
+ * `duplicate` は「今回の送信で回答が変わらなかった」(同じ選択の再送、または締切後に回答済みの内容を返した)。
+ */
 export async function submitAnswer(deps: EngineDeps, args: SubmitAnswerArgs): Promise<SubmitAnswerResult> {
   const { device } = await authenticate(deps, args);
   if (device.role !== "client") throw hubError("FORBIDDEN", "回答できるのは参加者のみです");
@@ -558,26 +565,6 @@ export async function submitAnswer(deps: EngineDeps, args: SubmitAnswerArgs): Pr
   const round = await deps.repo.getRound();
   if (!round || round.key !== args.key) throw hubError("ROUND_NOT_OPEN", "いまは回答を受け付けていません");
 
-  // すでに回答済みなら、締切後でも「回答済み」として最初の回答を返す(画面表示を揃えるため)。
-  // ログインから確定したメンバーは、別の端末からでも1人1回(2台でエントリーさせない)。
-  const findMine = async (): Promise<RoundAnswer | undefined> => {
-    const answers = await deps.repo.listAnswers(round.key);
-    return answers.find(
-      (a) => a.deviceId === device.deviceId || (device.verified === true && device.memberId !== null && a.verified === true && a.memberId === device.memberId)
-    );
-  };
-  if (!isRoundOpen(round, now)) {
-    const mine = await findMine();
-    if (mine) return { no: mine.no, atMs: mine.atMs, duplicate: true };
-    throw hubError("ROUND_CLOSED", "回答の受付は終了しました");
-  }
-  if (!Number.isInteger(args.no) || !round.optionNos.includes(args.no)) {
-    throw hubError("INVALID_ARGUMENT", "選択肢の番号が不正です");
-  }
-  if (device.verified === true && device.memberId !== null) {
-    const mine = await findMine();
-    if (mine) return { no: mine.no, atMs: mine.atMs, duplicate: true };
-  }
   const answer: RoundAnswer = {
     deviceId: device.deviceId,
     memberId: device.memberId,
@@ -586,10 +573,19 @@ export async function submitAnswer(deps: EngineDeps, args: SubmitAnswerArgs): Pr
     atMs: now,
     ...(device.verified === true ? { verified: true } : {}),
   };
-  const result = await deps.repo.appendAnswer(round.key, answer, deps.maxAnswers ?? MAX_ROUND_ANSWERS_KV);
-  if (result.full) throw hubError("PAYLOAD_TOO_LARGE", "回答数が上限に達しました");
-  if (!result.inserted && result.existing) return { no: result.existing.no, atMs: result.existing.atMs, duplicate: true };
-  return { no: answer.no, atMs: answer.atMs, duplicate: false };
+  if (!isRoundOpen(round, now)) {
+    // 締切後は変更できない。回答済みなら、その内容を返す(画面表示を揃えるため)。
+    const mine = (await deps.repo.listAnswers(round.key)).find((a) => isSameRespondent(a, answer));
+    if (mine) return { no: mine.no, atMs: mine.atMs, duplicate: true };
+    throw hubError("ROUND_CLOSED", "回答の受付は終了しました");
+  }
+  if (!Number.isInteger(args.no) || !round.optionNos.includes(args.no)) {
+    throw hubError("INVALID_ARGUMENT", "選択肢の番号が不正です");
+  }
+  const result = await deps.repo.upsertAnswer(round.key, answer, deps.maxAnswers ?? MAX_ROUND_ANSWERS_KV);
+  if (!result) throw hubError("ROUND_NOT_OPEN", "いまは回答を受け付けていません");
+  if (result.kind === "full") throw hubError("PAYLOAD_TOO_LARGE", "回答数が上限に達しました");
+  return { no: result.answer.no, atMs: result.answer.atMs, duplicate: result.kind === "unchanged" };
 }
 
 /** ホスト/管理が、回答の一覧(正誤・順位の集計に使う)を取得する。 */
