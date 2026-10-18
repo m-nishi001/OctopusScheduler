@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { freePort, renderLocalToml } from "./e2e-local.js";
+import { DEFAULT_TARGETS, freePort, parseArgs, renderLocalToml, TARGETS } from "./e2e-local.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -27,4 +27,13 @@ test("renderLocalToml: 実在のリソースIDや認証情報を含まない(公
 test("freePort: 使用可能なポート番号を返す", async () => {
   const port = await freePort();
   assert.ok(Number.isInteger(port) && port > 0 && port < 65536);
+});
+
+test("parseArgs: 引数なしでは負荷テストを動かさない。名前を指定したときだけ動く", () => {
+  assert.deepEqual(parseArgs([]).targets, DEFAULT_TARGETS);
+  assert.ok(!DEFAULT_TARGETS.includes("load") && !DEFAULT_TARGETS.includes("load-ui"));
+  assert.ok("load" in TARGETS && "load-ui" in TARGETS);
+  assert.deepEqual(parseArgs(["load"]).targets, ["load"]);
+  assert.deepEqual(parseArgs(["load-ui", "--", "--headed"]), { targets: ["load-ui"], extra: ["--headed"] });
+  assert.throws(() => parseArgs(["nothing"]), /不明なテスト/);
 });
