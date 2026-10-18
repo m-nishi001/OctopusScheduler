@@ -5,6 +5,8 @@ export interface AccountsUseCaseDeps {
   storage: IKeyValueStorage;
   /** id省略時の採番。GAS本番では Utilities.getUuid() を注入する。 */
   generateId: () => string;
+  /** 名簿・カウンタ・索引の更新を直列化する(読んで書き換える更新が同時に走ると、片方の更新が失われるため)。未指定なら排他しない(テスト用)。 */
+  lock?: ILock;
 }
 
 const MEMBERS_KEY = "member-directory-members";
@@ -37,6 +39,8 @@ const SESSION_INDEX_KEY = "accounts-session-index";
 export const MAX_ACTIVE_SESSIONS = 100;
 const AUTH_LOCK_KEY = "accounts-auth";
 const AUTH_LOCK_TIMEOUT_MS = 10_000;
+const ROSTER_LOCK_KEY = "accounts-roster";
+const ROSTER_LOCK_TIMEOUT_MS = 10_000;
 
 /** 認証系ユースケースが追加で必要とする依存。 */
 export interface AccountsAuthDeps extends AccountsUseCaseDeps {
@@ -45,12 +49,15 @@ export interface AccountsAuthDeps extends AccountsUseCaseDeps {
   now: () => number;
   /** ブートストラップ用の設定値の読み出し。未指定ならブートストラップは無効。 */
   secrets?: ISecretProvider;
-  /** カウンタ・索引・ブートストラップの更新を直列化する。未指定なら排他しない(テスト用)。 */
-  lock?: ILock;
 }
 
-async function withAuthLock<T>(deps: Pick<AccountsAuthDeps, "lock">, fn: () => Promise<T>): Promise<T> {
+async function withAuthLock<T>(deps: Pick<AccountsUseCaseDeps, "lock">, fn: () => Promise<T>): Promise<T> {
   return deps.lock ? deps.lock.withLock(AUTH_LOCK_KEY, AUTH_LOCK_TIMEOUT_MS, fn) : fn();
+}
+
+/** 名簿(メンバー一覧)の更新を直列化する。ログインの排他とは別のキーなので、ログインを待たせない。 */
+async function withRosterLock<T>(deps: Pick<AccountsUseCaseDeps, "lock">, fn: () => Promise<T>): Promise<T> {
+  return deps.lock ? deps.lock.withLock(ROSTER_LOCK_KEY, ROSTER_LOCK_TIMEOUT_MS, fn) : fn();
 }
 
 interface StoredCredential {
@@ -108,39 +115,45 @@ export async function addMember(
 ): Promise<Member> {
   const name = args.name.trim();
   if (!name) throw new Error("name is required");
-  const members = await readMembers(deps.storage);
-  const id = args.id?.trim() || deps.generateId();
-  if (members.some((m) => m.id === id)) {
-    throw new Error(`Member with id "${id}" already exists`);
-  }
-  const created: Member = args.isAdmin ? { id, name, isAdmin: true } : { id, name };
-  await writeMembers(deps.storage, [...members, created]);
-  return created;
+  return withRosterLock(deps, async () => {
+    const members = await readMembers(deps.storage);
+    const id = args.id?.trim() || deps.generateId();
+    if (members.some((m) => m.id === id)) {
+      throw new Error(`Member with id "${id}" already exists`);
+    }
+    const created: Member = args.isAdmin ? { id, name, isAdmin: true } : { id, name };
+    await writeMembers(deps.storage, [...members, created]);
+    return created;
+  });
 }
 
 export async function updateMember(deps: AccountsUseCaseDeps, member: Member): Promise<Member> {
-  const members = await readMembers(deps.storage);
-  const index = members.findIndex((m) => m.id === member.id);
-  if (index === -1) {
-    throw new Error(`Member with id "${member.id}" not found`);
-  }
-  // isAdmin 省略時は既存値を保つ(ゲーム側の同期などが管理者権限を落とさないように)。
-  const isAdmin = member.isAdmin ?? members[index].isAdmin;
-  const updated: Member = isAdmin
-    ? { id: member.id, name: member.name, isAdmin: true }
-    : { id: member.id, name: member.name };
-  const next = [...members];
-  next[index] = updated;
-  await writeMembers(deps.storage, next);
-  return updated;
+  return withRosterLock(deps, async () => {
+    const members = await readMembers(deps.storage);
+    const index = members.findIndex((m) => m.id === member.id);
+    if (index === -1) {
+      throw new Error(`Member with id "${member.id}" not found`);
+    }
+    // isAdmin 省略時は既存値を保つ(ゲーム側の同期などが管理者権限を落とさないように)。
+    const isAdmin = member.isAdmin ?? members[index].isAdmin;
+    const updated: Member = isAdmin
+      ? { id: member.id, name: member.name, isAdmin: true }
+      : { id: member.id, name: member.name };
+    const next = [...members];
+    next[index] = updated;
+    await writeMembers(deps.storage, next);
+    return updated;
+  });
 }
 
 export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promise<void> {
-  const members = await readMembers(deps.storage);
-  await writeMembers(
-    deps.storage,
-    members.filter((m) => m.id !== id)
-  );
+  await withRosterLock(deps, async () => {
+    const members = await readMembers(deps.storage);
+    await writeMembers(
+      deps.storage,
+      members.filter((m) => m.id !== id)
+    );
+  });
   await deps.storage.deleteScalar(CREDENTIAL_KEY_PREFIX + id);
   await deps.storage.deleteScalar(LOGIN_KEY_PREFIX + id);
 }
@@ -154,16 +167,18 @@ export async function replaceAllMembers(
   deps: AccountsUseCaseDeps,
   members: Member[]
 ): Promise<{ replaced: number }> {
-  const current = await readMembers(deps.storage);
-  const byId = new Map(current.map((m) => [m.id, m] as const));
-  for (const member of members) {
-    const id = member.id?.trim() || deps.generateId();
-    // 一括同期では管理者権限を付与も剥奪もしない(既存値を保つ)。
-    const isAdmin = byId.get(id)?.isAdmin;
-    byId.set(id, isAdmin ? { id, name: member.name, isAdmin: true } : { id, name: member.name });
-  }
-  await writeMembers(deps.storage, Array.from(byId.values()));
-  return { replaced: members.length };
+  return withRosterLock(deps, async () => {
+    const current = await readMembers(deps.storage);
+    const byId = new Map(current.map((m) => [m.id, m] as const));
+    for (const member of members) {
+      const id = member.id?.trim() || deps.generateId();
+      // 一括同期では管理者権限を付与も剥奪もしない(既存値を保つ)。
+      const isAdmin = byId.get(id)?.isAdmin;
+      byId.set(id, isAdmin ? { id, name: member.name, isAdmin: true } : { id, name: member.name });
+    }
+    await writeMembers(deps.storage, Array.from(byId.values()));
+    return { replaced: members.length };
+  });
 }
 
 async function readCredential(storage: IKeyValueStorage, id: string): Promise<StoredCredential | null> {
