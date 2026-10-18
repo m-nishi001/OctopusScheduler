@@ -3,6 +3,7 @@
  * 依らず同じ形を使う。
  */
 import type {
+  ClientInput,
   Command,
   DeviceRole,
   OperatorRole,
@@ -135,7 +136,7 @@ export interface IssueCommandResult {
 
 export interface PublishStateArgs extends DeviceCredentials {
   data: Record<string, unknown>;
-  clientInput?: string[];
+  clientInput?: ClientInput[];
 }
 
 export interface PublishStateResult {

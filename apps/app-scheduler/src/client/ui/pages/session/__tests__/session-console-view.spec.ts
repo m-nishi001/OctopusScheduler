@@ -144,7 +144,7 @@ describe("session-console-view", () => {
     const meta = await env.repo.create({ name: "x" });
     const { agent, device: hostDevice } = registerHostAgent(env);
     await hostDevice.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
-    await agent.publishSlice("jackpot", { phase: "draw" }, ["jackpot.stopRoulette"]);
+    await agent.publishSlice("jackpot", { phase: "draw" }, [{ key: "jackpot.stopRoulette" }]);
     const { wrapper } = await mountConsole(meta.id);
     await env.repo.setPortalSession(meta.id, true);
     const client = makeDevice(env.hub, { memberId: "alice", memberName: "アリス" });

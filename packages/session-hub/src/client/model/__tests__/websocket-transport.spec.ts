@@ -131,17 +131,17 @@ describe("WebSocketTransport: 基本動作", () => {
 
   it("状態の公開は参加者へ push される。公開(RPC)は課金上は少数で済む", async () => {
     const { host, client } = await trio();
-    await host.conn.publish({ screen: "draw" }, ["jackpot.stopRoulette"]);
+    await host.conn.publish({ screen: "draw" }, [{ key: "jackpot.stopRoulette" }]);
     await tick(100);
     expect(client.conn.state.roomState?.data).toEqual({ screen: "draw" });
-    expect(client.conn.state.roomState?.clientInput).toEqual(["jackpot.stopRoulette"]);
+    expect(client.conn.state.roomState?.clientInput).toEqual([{ key: "jackpot.stopRoulette" }]);
   });
 
   it("参加者の許可入力は WebSocket で送られ、ホストに届く。許可外はそのまま拒否され再送されない", async () => {
     const { host, client, applied, room } = await trio();
     await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
     expect(client.api.calls.issueCommand ?? 0).toBe(0); // 業務エラーなので RPC にもフォールバックしない
-    await host.conn.publish({}, ["jackpot.stopRoulette"]);
+    await host.conn.publish({}, [{ key: "jackpot.stopRoulette" }]);
     await tick(100);
     const rpcBefore = room.counts.rpc;
     await client.conn.issue("jackpot", "stopRoulette");

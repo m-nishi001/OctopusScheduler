@@ -3,6 +3,7 @@ import { mount } from "@vue/test-utils";
 import { container } from "tsyringe";
 import { ref } from "vue";
 import { PORTAL_EVENT_NS } from "@octopus/session-hub";
+import type { ClientInput } from "@octopus/session-hub";
 
 vi.mock("../../../../control/auth/auth-session", () => ({
   useAuthSession: () => ({ currentMember: ref({ id: "admin2", name: "田中", isAdmin: true }) }),
@@ -56,7 +57,7 @@ async function mountConsole(sessionId: string) {
 const next = (wrapper: ReturnType<typeof mount>) => wrapper.find('[data-testid="next-button"]');
 
 /** ホストが抽選画面を開いて、状態を公開した状態にする。 */
-async function openDraw(agent: Awaited<ReturnType<typeof setupHosted>>["agent"], over: Record<string, unknown> = {}, clientInput: string[] = []) {
+async function openDraw(agent: Awaited<ReturnType<typeof setupHosted>>["agent"], over: Record<string, unknown> = {}, clientInput: ClientInput[] = []) {
   await agent.publishSlice("session", { path: "/execute/jackpot-draw" });
   await agent.publishSlice("jackpot", jackpotState(over), clientInput);
   await settle(5000);
@@ -201,7 +202,7 @@ describe("管理コンソールのジャックポット操作", () => {
     const { meta, agent, calls } = await setupHosted();
     const { wrapper } = await mountConsole(meta.id);
 
-    await openDraw(agent, { phase: "member", canStop: true }, ["jackpot.stopRoulette"]);
+    await openDraw(agent, { phase: "member", canStop: true }, [{ key: "jackpot.stopRoulette" }]);
     expect(wrapper.find('[data-testid="now"]').text()).toContain("メンバー抽選");
     expect(next(wrapper).text()).toContain("止める");
     expect(wrapper.find('[data-testid="next-hint"]').text()).toContain("メンバー");

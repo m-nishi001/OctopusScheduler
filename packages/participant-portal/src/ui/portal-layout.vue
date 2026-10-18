@@ -50,10 +50,10 @@ const props = defineProps<{ connection?: SessionConnection }>();
 
 const route = useRoute();
 const router = useRouter();
-const session = usePortalSession(props.connection ?? createSessionConnection());
-provide(PORTAL_SESSION_KEY, session);
 // エントリーの状態はレイアウトで1つだけ持ち、バナーと各ページで共有する(「済み」の表示が食い違わないように)
 const auth = useParticipantAuth();
+const session = usePortalSession(props.connection ?? createSessionConnection(), { memberId: () => auth.currentMember.value?.id ?? null });
+provide(PORTAL_SESSION_KEY, session);
 const entry = useEntry(session, { memberId: () => auth.currentMember.value?.id ?? null });
 provide(ENTRY_KEY, entry);
 
@@ -87,7 +87,7 @@ const eventLive = computed(() => {
         session.event.value !== null ||
         quiz.quiz.value !== null ||
         readJackpotView(room?.data) !== null ||
-        (room?.clientInput.length ?? 0) > 0
+        session.clientInputs.value.length > 0
     );
 });
 

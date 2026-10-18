@@ -738,7 +738,7 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
     expect(has(m, "client-inputs")).toBe(false);
 
-    await env.publishJackpot(STOP, ["jackpot.stopRoulette"]);
+    await env.publishJackpot(STOP, [{ key: "jackpot.stopRoulette" }]);
     await tick(5000);
     await flushPromises();
     const button = m.wrapper.find('[data-testid="client-input"]');
@@ -755,6 +755,21 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     await flushPromises();
     expect(has(m, "client-inputs")).toBe(false);
     m.wrapper.unmount();
+  });
+
+  it("宛先が当選者の停止ボタンは、当選者の画面にだけ出て、他の参加者には出ない(今回の不具合)", async () => {
+    const env = await portalEnv();
+    const winner = await mountPortal(participantDevice(env.hub, ALICE), "/p/event", ALICE);
+    const other = await mountPortal(participantDevice(env.hub, BOB), "/p/event", BOB);
+
+    await env.publishJackpot({ ...STOP, phase: "prize", member: "アリス", memberId: ALICE.id }, [{ key: "jackpot.stopRoulette", memberIds: [ALICE.id] }]);
+    await tick(5000);
+    await flushPromises();
+    expect(winner.wrapper.find('[data-testid="client-input"]').text()).toBe("ルーレットを止める");
+    expect(has(other, "client-inputs")).toBe(false);
+
+    winner.wrapper.unmount();
+    other.wrapper.unmount();
   });
 
   it("接続できていない（イベント待ち）間は、クイズ・当選者・操作を出さない", async () => {

@@ -23,11 +23,11 @@ describe("HostAgent の状態公開(スライス)", () => {
     const { hub, meta, host, agent, client } = await scene();
     await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
     await agent.publishSlice("session", { path: "/jackpot-opening" });
-    await agent.publishSlice("jackpot", { phase: "draw" }, ["jackpot.stopRoulette"]);
-    await agent.publishSlice("quiz", { quizId: "q1" }, ["quiz.answer"]);
+    await agent.publishSlice("jackpot", { phase: "draw" }, [{ key: "jackpot.stopRoulette" }]);
+    await agent.publishSlice("quiz", { quizId: "q1" }, [{ key: "quiz.answer" }]);
     const state = await hub.deps.repoFor(meta.id).getState();
     expect(state?.data).toEqual({ session: { path: "/jackpot-opening" }, jackpot: { phase: "draw" }, quiz: { quizId: "q1" } });
-    expect(state?.clientInput.sort()).toEqual(["jackpot.stopRoulette", "quiz.answer"]);
+    expect(state?.clientInput.map((i) => i.key).sort()).toEqual(["jackpot.stopRoulette", "quiz.answer"]);
     await tick(5000);
     expect(client.conn.state.roomState?.data).toMatchObject({ jackpot: { phase: "draw" } });
   });
@@ -35,7 +35,7 @@ describe("HostAgent の状態公開(スライス)", () => {
   it("名前空間を外すと、その参加者入力も閉じる", async () => {
     const { hub, meta, host, agent } = await scene();
     await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
-    await agent.publishSlice("jackpot", { phase: "draw" }, ["jackpot.stopRoulette"]);
+    await agent.publishSlice("jackpot", { phase: "draw" }, [{ key: "jackpot.stopRoulette" }]);
     await agent.clearSlice("jackpot");
     const state = await hub.deps.repoFor(meta.id).getState();
     expect(state?.data).toEqual({});

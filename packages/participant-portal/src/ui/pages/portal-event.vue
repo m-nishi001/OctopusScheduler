@@ -80,7 +80,7 @@ const quizInProgress = computed(() => {
 const jackpotActive = computed(() => readJackpotView(session.state.value.roomState?.data) !== null);
 /** 参加者の操作・クイズ・当選者のどれかが出ているか（出ている間は「イベントは行われていません」を出さない）。 */
 const hasActivity = computed(
-    () => (session.state.value.roomState?.clientInput.length ?? 0) > 0 || quizActive.value || jackpotActive.value
+    () => session.clientInputs.value.length > 0 || quizActive.value || jackpotActive.value
 );
 </script>
 
