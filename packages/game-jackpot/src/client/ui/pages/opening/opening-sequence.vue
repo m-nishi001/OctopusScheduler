@@ -33,7 +33,8 @@ export default {
         autoNavigate: { type: Boolean, default: true },
         nextRoute: { type: String, default: '/jackpot-description' }
     },
-    setup(props: any) {
+    emits: ['finished'],
+    setup(props: any, { emit }: { emit: (event: 'finished') => void }) {
         const router = useRouter();
         const session = useJackpotSession();
         const containerEl = ref<HTMLElement | null>(null);
@@ -177,9 +178,11 @@ export default {
                 }
             }
 
-            if (!cancelled && props.autoNavigate) {
-                // Hide all elements before navigating to prevent visual artifacts
-                elements.forEach(el => gsap.set(el, { opacity: 0 }));
+            if (cancelled) return;
+            // 最後の要素が消えたあとに残像が出ないよう、遷移や通知の前にすべて隠す
+            elements.forEach(el => gsap.set(el, { opacity: 0 }));
+            emit('finished');
+            if (props.autoNavigate) {
                 router.push(session.to(props.nextRoute));
             }
         };

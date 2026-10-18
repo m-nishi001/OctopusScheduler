@@ -15,6 +15,7 @@
 | ジャックポット(参加者) | 場面 = member-revealed(自分が当選) | 「あなたがあたりました!」が全面に出る | (操作なし。景品抽選に進むと自動で閉じる。「とじる」で手動でも閉じられる) | U: portal-layout / E: jackpot-five-people |
 | ジャックポット(参加者) | 場面 = prize(景品抽選中) | 「景品抽選中…」。当選者には停止ボタンが出る | (当選者) 止める | U: portal-layout / E: jackpot-five-people |
 | ジャックポット(ホスト) | 場面 = ended(景品かメンバーが尽きた) | 「おしまい!」。理由ごとの文言(景品が残っていてもメンバーが尽きれば終わる) | 次へ / Enter / OK → 結果の画面へ | U: draw-flow-controller / draw-full-run / end-dialog / E: jackpot-five-people, jackpot-scale |
+| ジャックポット エンディング(ホスト) | 全スライド表示後 | エンディングを最後まで流し終えた | (操作なし) 自動でロビーに戻る。イベントはエンディングに入った時点で終了済み。ホストでない(プレビュー)ときは留まり、デモは設定画面へ戻る | U: use-ending-exit / host-agent-setup / E: session-flow |
 | ジャックポット 景品抽選 | ルーレット/スロット 開始〜回転〜停止 | 回転中は絵が動き、止めると当選が発表される | 次へ → 開始 / 止める → 停止 | U: slot-animation.spec / E: jackpot-prize-draw(スクリーンショット列) |
 
 ## コントロール画面(主ボタン)

@@ -2,7 +2,7 @@
     <MainLayout :fullScreen="true">
         <Loader v-if="!screenConfig" label="読み込み中..." />
         <OpeningSequence v-if="screenConfig" :screenConfig="convertedConfig" :bgm="bgm" :autoNavigate="isDemo"
-            :nextRoute="'/jackpot-admin'" />
+            :nextRoute="'/jackpot-admin'" @finished="onFinished" />
     </MainLayout>
 </template>
 
@@ -17,13 +17,18 @@ import { ScreenSettingsService } from '@control/screen-config/screen-settings-se
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { EndingScreenSetting } from '@model/screen-config/ending-screen-setting';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
+import { useEndingExit } from '../../composables/use-ending-exit';
 
 export default {
     name: 'EndingView',
     components: { MainLayout, Loader, OpeningSequence, OpeningHtml },
     setup() {
-        // 本番はエンディングで止まる(トップ画面は廃止)。デモのみ設定画面へ戻る。
+        // エンディングを最後まで表示し終えたら、本番(ホスト)はロビーへ戻る。デモは設定画面へ戻る。
         const { isDemo } = useJackpotSession();
+        const { exitToLobby } = useEndingExit();
+        const onFinished = () => {
+            if (!isDemo) exitToLobby();
+        };
         const screenSettingsService = container.resolve(ScreenSettingsService);
         const screenConfig = ref<any | null>(null);
         const bgm = ref<HTMLAudioElement | null>(null);
@@ -100,7 +105,7 @@ export default {
             try { for (const u of createdContentUrls) URL.revokeObjectURL(u); } catch { }
         });
 
-        return { screenConfig, isHtmlFullscreen, htmlElement, bgm, convertedConfig, isDemo };
+        return { screenConfig, isHtmlFullscreen, htmlElement, bgm, convertedConfig, isDemo, onFinished };
     }
 };
 </script>
