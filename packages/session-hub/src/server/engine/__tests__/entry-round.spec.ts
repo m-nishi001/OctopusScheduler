@@ -166,15 +166,18 @@ describe("ログイン済みメンバーは1人1回（端末が違っても）",
     expect(byMember).toEqual({ alice: true, carol: true });
   });
 
-  it("時間を競うラウンドでも、ログイン済みメンバーは1人1回", async () => {
-    const { hub, host, portal, creds } = await setup();
+  it("時間を競うラウンドでも、ログイン済みメンバーは1人1件(別の端末から選び直すと置き換わる)", async () => {
+    const { hub, meta, host, portal, creds } = await setup();
     const options = [{ no: 1, text: "a" }, { no: 2, text: "b" }];
     await svc.openRound(hub.deps, { ...creds(host), key: "q1", options, durationMs: 20_000 });
     const phone = await portal("alice");
     const tablet = await portal("alice");
     const first = await svc.submitAnswer(hub.deps, { ...creds(phone), key: "q1", no: 1 });
+    hub.clock.advance(300);
+    // 別の端末から選び直しても、同じメンバーの1件が置き換わる(2件にならない)
     const second = await svc.submitAnswer(hub.deps, { ...creds(tablet), key: "q1", no: 2 });
     expect(first.duplicate).toBe(false);
-    expect(second).toMatchObject({ duplicate: true, no: 1 });
+    expect(second).toMatchObject({ duplicate: false, no: 2, atMs: hub.clock.now() });
+    expect(await hub.deps.repoFor(meta.id).listAnswers("q1")).toMatchObject([{ memberId: "alice", no: 2 }]);
   });
 });

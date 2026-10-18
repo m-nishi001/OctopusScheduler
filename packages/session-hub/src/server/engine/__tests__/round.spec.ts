@@ -119,16 +119,70 @@ describe("submitAnswer", () => {
     expect(r).toEqual({ no: 2, atMs: hub.clock.now(), duplicate: false });
   });
 
-  it("先着で1人1回: 2回目以降は最初の回答のまま duplicate を返す", async () => {
-    const { hub, players, creds, open } = await setup();
+  it("受付中は選び直せる: 最後に選んだ選択肢と、その時刻が採用され、回答数は増えない", async () => {
+    const { hub, meta, players, creds, open } = await setup();
     await open("q1");
     await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 1 });
     hub.clock.advance(500);
     const second = await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 3 });
-    expect(second).toMatchObject({ no: 1, duplicate: true });
+    expect(second).toEqual({ no: 3, atMs: hub.clock.now(), duplicate: false });
+    const repo = hub.deps.repoFor(meta.id);
+    expect(await repo.listAnswers("q1")).toMatchObject([{ no: 3, atMs: hub.clock.now() }]);
+    expect((await repo.getRound())!.answerCount).toBe(1);
   });
 
-  it("締切後は ROUND_CLOSED。ただし回答済みの端末には最初の回答を返す(画面表示を揃える)", async () => {
+  it("選び直すたびに answerRev が増える(回答数が変わらなくても運営端末が気づける)。同じ選択の再送では増えない", async () => {
+    const { hub, meta, players, creds, open } = await setup();
+    await open("q1");
+    const rev = async () => (await hub.deps.repoFor(meta.id).getRound())!.answerRev;
+    expect(await rev()).toBe(0);
+    await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 1 });
+    expect(await rev()).toBe(1);
+    await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 2 });
+    expect(await rev()).toBe(2);
+    hub.clock.advance(100);
+    const same = await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 2 });
+    expect(same).toMatchObject({ no: 2, duplicate: true });
+    expect(await rev()).toBe(2);
+    expect((await hub.deps.repoFor(meta.id).listAnswers("q1"))[0].atMs).not.toBe(hub.clock.now());
+  });
+
+  it("締切後は選び直せない: 回答済みなら採用済みの回答を返し、回答は変わらない", async () => {
+    const { hub, meta, players, creds, open } = await setup();
+    await open("q1", 5000);
+    await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 1 });
+    hub.clock.advance(5000);
+    expect(await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 3 })).toMatchObject({ no: 1, duplicate: true });
+    expect(await hub.deps.repoFor(meta.id).listAnswers("q1")).toMatchObject([{ no: 1 }]);
+  });
+
+  it("手動で締め切ったあとも選び直せない", async () => {
+    const { hub, meta, host, players, creds, open } = await setup();
+    await open("q1");
+    await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 1 });
+    await svc.closeRound(hub.deps, { ...creds(host), key: "q1" });
+    expect(await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 2 })).toMatchObject({ no: 1, duplicate: true });
+    expect(await hub.deps.repoFor(meta.id).listAnswers("q1")).toMatchObject([{ no: 1 }]);
+  });
+
+  it("締切の1ms前に選び直した回答は採用される", async () => {
+    const { hub, meta, players, creds, open } = await setup();
+    await open("q1", 5000);
+    await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 1 });
+    hub.clock.advance(4999);
+    expect(await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 2 })).toMatchObject({ no: 2, duplicate: false });
+    expect(await hub.deps.repoFor(meta.id).listAnswers("q1")).toMatchObject([{ no: 2 }]);
+  });
+
+  it("存在しない選択肢への選び直しは拒否され、元の回答が残る", async () => {
+    const { hub, meta, players, creds, open } = await setup();
+    await open("q1");
+    await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 1 });
+    expect(await code(svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 9 }))).toBe("INVALID_ARGUMENT");
+    expect(await hub.deps.repoFor(meta.id).listAnswers("q1")).toMatchObject([{ no: 1 }]);
+  });
+
+  it("締切後は ROUND_CLOSED。ただし回答済みの端末には採用済みの回答を返す(画面表示を揃える)", async () => {
     const { hub, players, creds, open } = await setup(2);
     await open("q1", 5000);
     await svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no: 2 });
@@ -195,12 +249,13 @@ describe("submitAnswer", () => {
     expect(await hub.deps.repoFor(meta.id).listAnswers("q1")).toHaveLength(30);
   });
 
-  it("同じ端末の同時二重送信でも1件だけ採用される", async () => {
+  it("同じ端末の同時送信でも、回答は常に1件(どれかの選択が採用される)", async () => {
     const { hub, meta, players, creds, open } = await setup();
     await open("q1");
-    const results = await Promise.all([1, 2, 3].map((no) => svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no })));
-    expect(results.filter((r) => !r.duplicate)).toHaveLength(1);
-    expect(await hub.deps.repoFor(meta.id).listAnswers("q1")).toHaveLength(1);
+    await Promise.all([1, 2, 3].map((no) => svc.submitAnswer(hub.deps, { ...creds(players[0]), key: "q1", no })));
+    const answers = await hub.deps.repoFor(meta.id).listAnswers("q1");
+    expect(answers).toHaveLength(1);
+    expect((await hub.deps.repoFor(meta.id).getRound())!.answerCount).toBe(1);
   });
 
   it("KV 版の回答数の上限を超えると PAYLOAD_TOO_LARGE(GAS の1値の上限を守る)", async () => {

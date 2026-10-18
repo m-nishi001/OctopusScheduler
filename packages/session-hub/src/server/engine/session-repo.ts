@@ -8,6 +8,7 @@
 import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
 import { COMMAND_RING_SIZE } from "../../shared/session-types";
 import type { RoundAnswer } from "../../shared/protocol";
+import { upsertAnswer, type UpsertAnswerResult } from "./round-answers";
 import type {
   Command,
   Device,
@@ -41,14 +42,8 @@ export interface StoredRound {
   /** 手動/自動で締め切った時刻。受付中は null。 */
   closedAtMs: number | null;
   answerCount: number;
-}
-
-export interface AppendAnswerResult {
-  inserted: boolean;
-  /** inserted が false のとき、すでに採用されている回答。 */
-  existing: RoundAnswer | null;
-  /** 上限に達していて受け付けられなかった。 */
-  full: boolean;
+  /** 回答が新しく入る/選び直されるたびに増える。回答数が変わらない選び直しも、運営端末が検知できるようにする。 */
+  answerRev: number;
 }
 
 export interface SessionRepo {
@@ -65,14 +60,17 @@ export interface SessionRepo {
   putCommand(command: Command): Promise<void>;
   getRound(): Promise<StoredRound | null>;
   /** 新しいラウンドを開始する。前のラウンドの回答は破棄される。 */
-  openRound(round: Omit<StoredRound, "answerCount" | "closedAtMs">): Promise<void>;
+  openRound(round: Omit<StoredRound, "answerCount" | "answerRev" | "closedAtMs">): Promise<void>;
   /** 締め切る(すでに締切済みなら何もしない)。 */
   closeRound(closedAtMs: number): Promise<void>;
   /** 締切済みのラウンドを、回答を残したまま再開する(新しい締切を設定し、締切済みの印を外す)。 */
   reopenRound(deadlineMs: number): Promise<void>;
   listAnswers(key: string): Promise<RoundAnswer[]>;
-  /** 先着で採用する。同じ端末の2回目以降は inserted=false で既存を返す。上限なら full=true。 */
-  appendAnswer(key: string, answer: RoundAnswer, maxAnswers: number): Promise<AppendAnswerResult>;
+  /**
+   * 受付中の回答を反映する。1人1件で、同じ参加者が別の選択肢を送ると置き換わる(`upsertAnswer`)。
+   * ラウンドが無い/key が違うときは null。
+   */
+  upsertAnswer(key: string, answer: RoundAnswer, maxAnswers: number): Promise<UpsertAnswerResult | null>;
 }
 
 /** 全セッション共通の一覧インデックス。 */
@@ -123,7 +121,7 @@ export function createKvSessionRepo(storage: IKeyValueStorage, sessionId: string
 function createKvRoundOps(
   storage: IKeyValueStorage,
   k: (name: string) => string
-): Pick<SessionRepo, "getRound" | "openRound" | "closeRound" | "reopenRound" | "listAnswers" | "appendAnswer"> {
+): Pick<SessionRepo, "getRound" | "openRound" | "closeRound" | "reopenRound" | "listAnswers" | "upsertAnswer"> {
   const readAnswers = async (key: string): Promise<RoundAnswer[]> => {
     const stored = await readJson<{ key: string; answers: RoundAnswer[] }>(storage, k("answers"));
     return stored && stored.key === key ? stored.answers : [];
@@ -132,7 +130,7 @@ function createKvRoundOps(
     getRound: () => readJson<StoredRound>(storage, k("round")),
     async openRound(round) {
       await storage.set(k("answers"), JSON.stringify({ key: round.key, answers: [] }));
-      await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs: null, answerCount: 0 } satisfies StoredRound));
+      await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs: null, answerCount: 0, answerRev: 0 } satisfies StoredRound));
     },
     async closeRound(closedAtMs) {
       const round = await readJson<StoredRound>(storage, k("round"));
@@ -145,16 +143,16 @@ function createKvRoundOps(
       await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs: null, deadlineMs }));
     },
     listAnswers: readAnswers,
-    async appendAnswer(key, answer, maxAnswers) {
-      const answers = await readAnswers(key);
-      const existing = answers.find((a) => a.deviceId === answer.deviceId) ?? null;
-      if (existing) return { inserted: false, existing, full: false };
-      if (answers.length >= maxAnswers) return { inserted: false, existing: null, full: true };
-      answers.push(answer);
-      await storage.set(k("answers"), JSON.stringify({ key, answers }));
+    async upsertAnswer(key, answer, maxAnswers) {
       const round = await readJson<StoredRound>(storage, k("round"));
-      if (round) await storage.set(k("round"), JSON.stringify({ ...round, answerCount: answers.length }));
-      return { inserted: true, existing: null, full: false };
+      if (!round || round.key !== key) return null;
+      const answers = await readAnswers(key);
+      const result = upsertAnswer(answers, answer, maxAnswers);
+      if (result.kind === "inserted" || result.kind === "replaced") {
+        await storage.set(k("answers"), JSON.stringify({ key, answers }));
+        await storage.set(k("round"), JSON.stringify({ ...round, answerCount: answers.length, answerRev: round.answerRev + 1 } satisfies StoredRound));
+      }
+      return result;
     },
   };
 }

@@ -1,0 +1,38 @@
+import type { RoundAnswer } from "../../shared/protocol";
+
+/**
+ * 回答を1件、回答の一覧へ反映した結果。
+ *   - inserted  : 新しく採用した
+ *   - replaced  : 同じ参加者の以前の回答を、別の選択肢に置き換えた(選び直し)
+ *   - unchanged : 同じ選択肢の再送。何も変えない(回答時刻も動かさない)
+ *   - full      : 上限に達していて、新しい回答は受け付けられなかった
+ */
+export type UpsertAnswerResult =
+  | { kind: "inserted" | "replaced" | "unchanged"; answer: RoundAnswer }
+  | { kind: "full" };
+
+/**
+ * 同じ参加者の回答か。同じ端末、またはログインから確定した同じメンバー(別の端末からでも1人1件)。
+ * 匿名の申告(verified でない)は端末ごとに別の参加者として扱う。
+ */
+export function isSameRespondent(existing: RoundAnswer, by: Pick<RoundAnswer, "deviceId" | "memberId" | "verified">): boolean {
+  if (existing.deviceId === by.deviceId) return true;
+  return by.verified === true && by.memberId !== null && existing.verified === true && existing.memberId === by.memberId;
+}
+
+/**
+ * 受付中の回答を一覧へ反映する(一覧を直接書き換える)。1人1件で、選び直すと置き換わる。
+ * 置き換えたときだけ回答時刻(atMs)が新しくなる = 速さの基準は「最後に選んだ時刻」。
+ */
+export function upsertAnswer(answers: RoundAnswer[], answer: RoundAnswer, maxAnswers: number): UpsertAnswerResult {
+  const index = answers.findIndex((a) => isSameRespondent(a, answer));
+  if (index >= 0) {
+    const existing = answers[index];
+    if (existing.no === answer.no) return { kind: "unchanged", answer: existing };
+    answers[index] = answer;
+    return { kind: "replaced", answer };
+  }
+  if (answers.length >= maxAnswers) return { kind: "full" };
+  answers.push(answer);
+  return { kind: "inserted", answer };
+}
