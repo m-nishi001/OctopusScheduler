@@ -97,12 +97,12 @@ test.describe("ホスト・管理・参加者の通し", () => {
 
     // 遠隔操作: ホストの画面を切り替える
     await openAdvanced(adminDev.page);
-    await adminDev.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();
-    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-ending");
+    await adminDev.page.getByRole("button", { name: "ジャックポット: 結果" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-result");
     // 隅の接続バッジは演出画面でも出続ける
     await expect(host.page.getByTestId("host-badge")).toContainText("E2E会場");
     // 管理コンソール: 表示中の画面と操作ログ、ホストの適用済み(未適用0件)
-    await expect(adminDev.page.getByTestId("now")).toContainText("エンディング表示中");
+    await expect(adminDev.page.getByTestId("now")).toContainText("結果表示中");
     await expect(adminDev.page.getByTestId("log")).toContainText("session.navigate");
     await expect(adminDev.page.getByTestId("host-card")).not.toContainText("未適用のコマンド");
 
@@ -145,8 +145,8 @@ test.describe("ホスト・管理・参加者の通し", () => {
 
     // 演出画面に切り替えた状態でリロード
     await openAdvanced(adminDev.page);
-    await adminDev.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();
-    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-ending");
+    await adminDev.page.getByRole("button", { name: "ジャックポット: 結果" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-result");
     await host.page.reload();
     await expect(host.page.getByTestId("host-badge")).toContainText("・接続中");
     // ホスト端末が増えていない(同じ端末として復帰)= 引き継ぎ確認が出ていない
@@ -155,6 +155,24 @@ test.describe("ホスト・管理・参加者の通し", () => {
     await adminDev.page.getByRole("button", { name: "ロビー" }).click();
     await expect.poll(() => route(host.page)).toBe(`/session/host/${id}`);
     await expect(host.page.locator(".host-view__title")).toContainText("リロード会場");
+    for (const d of [adminDev, host]) await d.context.close();
+  });
+
+  test("ジャックポットのエンディングが終わると、ホストは自動でロビーへ戻る", async ({ browser, request }) => {
+    const adminDev = await newDevice(browser, { signedIn: true });
+    const { id } = await openSession(adminDev.page, request, "自動復帰会場");
+    const host = await newDevice(browser, { signedIn: true, projector: true });
+    await host.page.goto(`/#/session/host/${id}`);
+    await expect(host.page.locator(".host-view__title")).toContainText("自動復帰会場");
+
+    // エンディングを映す(画面設定が空のe2e環境では、すぐに最後まで流れ終わる)。管理端末は何も押さない。
+    await openAdvanced(adminDev.page);
+    await adminDev.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();
+    await expect.poll(() => route(host.page), { timeout: 30_000 }).toBe(`/session/host/${id}`);
+    await expect(host.page.locator(".host-view__title")).toContainText("自動復帰会場");
+    await expect(host.page.getByTestId("host-badge")).toContainText("・接続中");
+
+    await publishPortal(request, id, false);
     for (const d of [adminDev, host]) await d.context.close();
   });
 
