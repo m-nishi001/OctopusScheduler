@@ -47,12 +47,17 @@ export async function rpc(env, name, args, token = null, options = {}) {
   env.metrics.count(`http:${res.status}`);
   const retryAfter = res.headers.get("retry-after");
   let json = null;
+  let text = "";
   try {
-    json = await res.json();
+    text = await res.text();
+    json = JSON.parse(text);
   } catch {
     // JSON でない応答(429 や 5xx のエラーページなど)
   }
-  if (res.status === 429 || res.status >= 500) fail(`http-${res.status}`, `${name} (retry-after: ${retryAfter ?? "-"})`);
+  if (res.status === 429 || res.status >= 500) {
+    // 原因を追えるよう、所要時間と応答本文の先頭も残す。
+    fail(`http-${res.status}`, `${name} (${elapsed}ms, retry-after: ${retryAfter ?? "-"}): ${text.slice(0, 200)}`);
+  }
   if (!json || json.status !== "success") {
     const message = json?.message ?? `HTTP ${res.status}`;
     const code = CODE_PATTERN.exec(message)?.[1] ?? null;
