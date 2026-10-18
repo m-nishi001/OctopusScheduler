@@ -25,9 +25,10 @@ afterEach(() => vi.useRealTimers());
 
 const jackpotState = (over: Record<string, unknown> = {}) => ({
   page: "main-draw",
-  phase: "member",
+  stage: "member",
   canStop: false,
   member: null,
+  memberId: null,
   prize: null,
   ...over,
 });
@@ -202,7 +203,7 @@ describe("管理コンソールのジャックポット操作", () => {
     const { meta, agent, calls } = await setupHosted();
     const { wrapper } = await mountConsole(meta.id);
 
-    await openDraw(agent, { phase: "member", canStop: true }, [{ key: "jackpot.stopRoulette" }]);
+    await openDraw(agent, { stage: "member", canStop: true }, [{ key: "jackpot.stopRoulette" }]);
     expect(wrapper.find('[data-testid="now"]').text()).toContain("メンバー抽選");
     expect(next(wrapper).text()).toContain("止める");
     expect(wrapper.find('[data-testid="next-hint"]').text()).toContain("メンバー");
@@ -210,11 +211,24 @@ describe("管理コンソールのジャックポット操作", () => {
     await settle(5000);
     expect(calls).toEqual(["advance"]);
 
-    await openDraw(agent, { phase: "prize", member: "太郎", prize: "特賞" });
+    await openDraw(agent, { stage: "prize-revealed", member: "太郎", prize: "特賞" });
     expect(wrapper.find('[data-testid="now"]').text()).toContain("景品抽選");
     expect(wrapper.find('[data-testid="jackpot-state"]').text()).toContain("当選者: 太郎");
     expect(wrapper.find('[data-testid="jackpot-state"]').text()).toContain("賞品: 特賞");
     expect(next(wrapper).text()).toContain("次へ");
+  });
+
+  it("抽選が終わった(ended)ら主ボタンが「結果へ」になり、押すと進行(advance)が届く(景品 > メンバー でも進める)", async () => {
+    const { meta, agent, calls } = await setupHosted();
+    const { wrapper } = await mountConsole(meta.id);
+
+    await openDraw(agent, { stage: "ended", member: "太郎", prize: "特賞" });
+    expect(wrapper.find('[data-testid="now"]').text()).toContain("抽選は終了");
+    expect(wrapper.find('[data-testid="jackpot-state"]').text()).toContain("抽選終了");
+    expect(next(wrapper).text()).toContain("結果へ");
+    await next(wrapper).trigger("click");
+    await settle(5000);
+    expect(calls).toEqual(["advance"]);
   });
 
   it("抽選画面を離れたら、進行状況の表示が消え、主ボタンも無くなる", async () => {

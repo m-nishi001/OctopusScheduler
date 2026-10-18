@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { effectScope } from "vue";
 import { container } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
+import type { JackpotPublished } from "@octopus/session-hub";
 import { joinParticipant, makeDevice, makeHub } from "@octopus/session-hub/testing";
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { useJackpotHost } from "./use-jackpot-host";
-import type { JackpotHostState } from "@model/jackpot-host-state";
+import { buildJackpotDescriptionState } from "@model/jackpot-host-state";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -17,9 +18,9 @@ afterEach(() => vi.useRealTimers());
 
 const tick = (ms: number) => vi.advanceTimersByTimeAsync(ms);
 
-const state = (over: Partial<JackpotHostState> = {}): JackpotHostState => ({
+const state = (over: Partial<JackpotPublished> = {}): JackpotPublished => ({
   page: "main-draw",
-  phase: "member",
+  stage: "member",
   canStop: false,
   member: null,
   memberId: null,
@@ -28,8 +29,8 @@ const state = (over: Partial<JackpotHostState> = {}): JackpotHostState => ({
 });
 
 /** 景品抽選で止められる場面。当選者は "winner"。 */
-const prizeStop = (over: Partial<JackpotHostState> = {}) =>
-  state({ phase: "prize", canStop: true, member: "太郎", memberId: "winner", ...over });
+const prizeStop = (over: Partial<JackpotPublished> = {}) =>
+  state({ stage: "prize", canStop: true, member: "太郎", memberId: "winner", ...over });
 const STOP_FOR_WINNER = [{ key: "jackpot.stopRoulette", memberIds: ["winner"] }];
 
 async function scene() {
@@ -92,9 +93,9 @@ describe("useJackpotHost", () => {
     const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
     const { host } = mountHost(handlers);
     host.publish(prizeStop()); // 直前の抽選画面の状態が残っていても
-    host.publish({ page: "description", index: 1, total: 3 });
+    host.publish(buildJackpotDescriptionState(1, 3));
     await tick(4000);
-    expect(admin.conn.state.roomState?.data?.jackpot).toEqual({ page: "description", index: 1, total: 3 });
+    expect(admin.conn.state.roomState?.data?.jackpot).toEqual(buildJackpotDescriptionState(1, 3));
     expect(client.conn.state.roomState?.clientInput).toEqual([]);
     await admin.conn.issue("jackpot", "stopRoulette");
     await tick(4000);
@@ -125,7 +126,7 @@ describe("useJackpotHost", () => {
     const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
     const { host } = mountHost(handlers);
 
-    host.publish(state({ phase: "member", canStop: true }));
+    host.publish(state({ stage: "member", canStop: true }));
     await tick(4000);
     expect(client.conn.state.roomState?.clientInput).toEqual([]);
     await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
@@ -208,8 +209,8 @@ describe("useJackpotHost", () => {
     const { host } = mountHost({ advance: vi.fn(), stopRoulette: vi.fn() });
     host.publish(state({ member: "太郎", prize: "特賞" }));
     await tick(4000);
-    expect((client.conn.state.roomState?.data as { jackpot?: JackpotHostState }).jackpot).toMatchObject({ member: "太郎", prize: "特賞" });
-    expect((admin.conn.state.roomState?.data as { jackpot?: JackpotHostState }).jackpot?.phase).toBe("member");
+    expect((client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot).toMatchObject({ member: "太郎", prize: "特賞" });
+    expect((admin.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot?.stage).toBe("member");
   });
 
   it("画面を離れると、コマンドの受付を止め、公開していた状態と停止ボタンを取り下げる", async () => {

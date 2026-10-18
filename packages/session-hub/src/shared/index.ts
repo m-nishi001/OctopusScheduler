@@ -6,3 +6,4 @@ export * from "./ws-protocol";
 export * from "./quota-budget";
 export * from "./portal-event";
 export * from "./results";
+export * from "./jackpot-state";

@@ -58,6 +58,8 @@ const SCENARIOS: Array<{ members: number; prizes: number; viewport: { width: num
   { members: 1, prizes: 1, viewport: { width: 1920, height: 1080 } },
   { members: 2, prizes: 3, viewport: { width: 1920, height: 1080 } },
   { members: 3, prizes: 2, viewport: { width: 1920, height: 1080 } },
+  // 景品 > メンバー: メンバーが尽きた時点で終了し、結果の画面へ進める(名簿は管理者を含めて4人)
+  { members: 3, prizes: 8, viewport: { width: 1920, height: 1080 } },
   // スロット演出(賞品の animation が slot)。確変(景品4件なら2・3回目)も通る
   { members: 4, prizes: 4, viewport: { width: 1920, height: 1080 }, animation: "slot" },
   { members: 10, prizes: 10, viewport: { width: 1280, height: 720 }, maxDraws: 3 },
@@ -141,9 +143,20 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
           if (!/^景品\d+$/.test(name.trim())) layout.add(`景品当選ダイアログに賞品名が出ていない: "${name}"`);
           else prizeNamesSeen++;
         }
+        // 景品かメンバーが尽きたら終了の画面が出る(景品 > メンバー のときも、メンバーが尽きた時点で終わる)
         finished =
-          (await page.getByText("すべての景品が皆さんの手元にいきました").isVisible().catch(() => false)) ||
+          (await page.getByTestId("end-dialog").isVisible().catch(() => false)) ||
           (sc.maxDraws !== undefined && prizeNamesSeen >= sc.maxDraws * 2);
+      }
+      if (sc.maxDraws === undefined) {
+        const reason = await page.getByTestId("end-dialog").getAttribute("data-reason");
+        // 名簿には、ここで作る sc.members 人のほかに管理者のアカウントも入る(アカウントの名簿から取り込まれる)
+        const roster = sc.members + 1;
+        if (reason !== (sc.prizes <= roster ? "prizes" : "members")) layout.add(`終了の理由が違う: ${reason}(名簿${roster}人 × 景品${sc.prizes}件)`);
+        // 終了後の「次へ」(Enter)で結果の画面へ進める。固まらない
+        await page.waitForTimeout(1200);
+        await page.keyboard.press("Enter");
+        await page.waitForURL(/jackpot-result/, { timeout: 15_000 }).catch(() => layout.add("終了後に結果の画面へ進めない"));
       }
       if (dir) await page.screenshot({ path: join(dir, "final.png") });
 

@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted, shallowRef, markRaw } from "vue";
 import type { Component } from "vue";
 import { container } from "tsyringe";
+import { useRouter } from "vue-router";
 import { DrawApplicationService } from "@control/draw/draw-application-service";
 import { PrizeRepository } from "@model/prize/prize-repository";
 import { MemberRepository } from "@model/member/member-repository";
@@ -9,6 +10,7 @@ import type { MemberDto } from "@control/member/dto/member-dto";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
 import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
+import type { DrawEndReason } from "@control/draw/dto/draw-progress";
 import { RevealTracker } from "@model/jackpot-host-state";
 import { useJackpotHost } from "../../composables/use-jackpot-host";
 import { useJackpotSession } from "../../composables/use-jackpot-session";
@@ -30,7 +32,8 @@ export function useDrawOrchestrator() {
   const memberRepo = container.resolve(MemberRepository);
   const drawService = container.resolve(DrawApplicationService);
   const assetService = container.resolve(AssetDataService);
-  const { isDemo } = useJackpotSession();
+  const { isDemo, to } = useJackpotSession();
+  const router = useRouter();
 
   const { prizes, selectedPrize, preparedPrizes, updatePrizes, preparePrizes, updateSelectedPrize } =
     usePrizeDrawState(assetService);
@@ -48,7 +51,8 @@ export function useDrawOrchestrator() {
 
   const showPrizeWinningDialog = ref(false);
   const showHalfRemainingDialog = ref(false);
-  const showEndDialog = ref(false);
+  /** 抽選が終わっていれば理由(終了の画面を出す)。続けられるうちは null。 */
+  const endReason = ref<DrawEndReason | null>(null);
   const kakuhenOverlayVisible = ref(false);
 
   const ctx: DrawContext = {
@@ -65,7 +69,6 @@ export function useDrawOrchestrator() {
     prizeAnim: animationRef,
     showPrizeWinningDialog,
     showHalfRemainingDialog,
-    showEndDialog,
     kakuhenOverlayVisible,
   };
 
@@ -107,16 +110,22 @@ export function useDrawOrchestrator() {
     tracker: revealTracker,
     isDemo,
     phase: () => phase.value,
+    ended: () => endReason.value !== null,
     nextLabel: () => queue.peekLabel(),
     result: () => latestResult.value,
   });
 
   flow = new DrawFlowController({
     queue,
-    remainingPrizes: async () => (await drawService.getLastPrizeCount()).remaining,
+    progress: () => drawService.getDrawProgress(),
     drawNextCycle,
     onDrawError,
     onStepError: (e) => console.error("[DrawOrchestrator] step failed", e),
+    onFinished: (reason) => {
+      endReason.value = reason;
+    },
+    // 終了後の「次へ」・Enter・OK は、結果の画面へ進む(エンディングへは結果の画面から進む)
+    onLeave: () => void router.push(to("/jackpot-result")),
     onSettled: publishHostState,
   });
 
@@ -155,7 +164,8 @@ export function useDrawOrchestrator() {
     currentPrizeComponent,
     showPrizeWinningDialog,
     showHalfRemainingDialog,
-    showEndDialog,
+    endReason,
+    advance,
     kakuhenOverlayVisible,
     currentMemberRes,
   } as const;

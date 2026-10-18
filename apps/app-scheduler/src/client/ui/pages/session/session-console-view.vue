@@ -207,11 +207,12 @@ import {
     lobbyPath,
     normalizeEventTitle,
     parseHubErrorCode,
+    readJackpotState,
     readPortalEvent,
     useRoundAnswers,
     useSessionConnection,
 } from '@octopus/session-hub';
-import type { DrawPool } from '@octopus/session-hub';
+import type { DrawPool, JackpotStage } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import { useAuthSession } from '../../../control/auth/auth-session';
 import ConnectionBanner from './components/connection-banner.vue';
@@ -271,20 +272,16 @@ const hostPath = computed(() => {
     const session = state.value.roomState?.data?.session as { path?: string } | undefined;
     return session?.path ?? '';
 });
-interface JackpotState {
-    page?: string;
-    index?: number;
-    total?: number;
-    phase: string;
-    canStop: boolean;
-    member: string | null;
-    prize: string | null;
-}
-const jackpot = computed(() => (state.value.roomState?.data?.jackpot as JackpotState | undefined) ?? null);
-const phaseLabel = computed(() => {
-    const phase = jackpot.value?.phase;
-    return phase === 'member' ? 'メンバー抽選' : phase === 'prize' ? '賞品抽選' : '待機中';
-});
+const jackpot = computed(() => readJackpotState(state.value.roomState?.data));
+const STAGE_LABELS: Record<JackpotStage, string> = {
+    waiting: '待機中',
+    member: 'メンバー抽選',
+    'member-revealed': 'メンバー抽選',
+    prize: '賞品抽選',
+    'prize-revealed': '賞品抽選',
+    ended: '抽選終了',
+};
+const phaseLabel = computed(() => STAGE_LABELS[jackpot.value?.stage ?? 'waiting']);
 interface QuizState {
     page: string;
     phase: string;

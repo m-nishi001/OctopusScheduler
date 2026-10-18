@@ -134,24 +134,15 @@ test.describe("エントリー → ジャックポット", () => {
     for (const d of [admin, host, ...guests]) await d.context.close();
   });
 
-  test("メンバー抽選では参加者のスマホに停止ボタンが出ず(管理端末が止める)、景品抽選ではスマホから止められる", async ({ browser, request }) => {
-    test.setTimeout(240_000);
-    const admin = await newDevice(browser, { signedIn: true });
-    const { id: sessionId } = await createSession(admin.page, "抽選会場D");
-    sessionIds.push(sessionId);
-    const host = await newDevice(browser, { signedIn: true, projector: true });
-    host.page.on("dialog", (d) => void d.dismiss());
-    await host.page.goto(`/#/session/host/${sessionId}`);
-    await expect(host.page.locator(".host-view__title")).toContainText("抽選会場D");
-    await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
-    await publish(request, sessionId);
-
-    const phone = await newDevice(browser, { mobile: true });
-    await phone.page.goto(qrUrl(ids[2]));
-    await expect(phone.page.getByTestId("portal-conn")).toContainText("接続中");
+  test("メンバー抽選では参加者のスマホに停止ボタンが出ず(管理端末が止める)、景品抽選では当選者のスマホだけから止められる", async ({ browser, request }) => {
+    // エントリーした1人(ids[2])が必ず当選する。エントリーしていない人(ids[0])には、停止ボタンが一度も出ない。
+    const { admin, host, guests, sessionId } = await scene(browser, request, "抽選会場D", [2]);
+    const phone = guests[2];
+    const bystander = guests[0];
     await openEventTab(phone.page);
+    await openEventTab(bystander.page);
+    const bystanderStop = bystander.page.getByRole("button", { name: "ルーレットを止める" });
 
-    await openAdvanced(admin.page);
     await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
     await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
@@ -165,18 +156,18 @@ test.describe("エントリー → ジャックポット", () => {
       const state = await admin.page.getByTestId("jackpot-state").innerText();
       if (/当選者: [^—\s]\S*/.test(state)) break;
       await expect(stopBtn).toBeHidden();
+      await expect(bystanderStop).toBeHidden();
       await nextButton(admin.page).click();
       await admin.page.waitForTimeout(1500);
     }
     await expect(admin.page.getByTestId("jackpot-state")).toContainText(/当選者: [^—\s]\S*/, { timeout: 60_000 });
-    await expect(phone.page.getByTestId("winner")).toContainText(/当選者: [^—\s]\S*/);
+    await expect(phone.page.getByTestId("winner")).toContainText(nameOf(ids[2]));
 
-    // 景品抽選では、止められる場面でスマホに停止ボタンが出る → スマホで止める
+    // 景品抽選では、止められる場面で当選者のスマホにだけ停止ボタンが出る → 当選者のスマホで止める
+    // (当選者の「あたりました!」は、景品抽選に進めば自動で閉じるので、閉じる操作は要らない)
     let phoneStopped = false;
     for (let i = 0; i < 30 && !phoneStopped; i++) {
-      // 自分が当選していると「あたりました!」が全面に出ているので、閉じてから操作する
-      const close = phone.page.getByTestId("you-won-close");
-      if (await close.isVisible().catch(() => false)) await close.click();
+      await expect(bystanderStop).toBeHidden();
       if (await stopBtn.isVisible().catch(() => false)) {
         await stopBtn.click();
         phoneStopped = true;
@@ -201,6 +192,6 @@ test.describe("エントリー → ジャックポット", () => {
     expect(saved[0].memberName).toBeTruthy();
 
     await publish(request, sessionId, false);
-    for (const d of [admin, host, phone]) await d.context.close();
+    for (const d of [admin, host, ...guests]) await d.context.close();
   });
 });

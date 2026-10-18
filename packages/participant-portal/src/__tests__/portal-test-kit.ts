@@ -2,7 +2,7 @@ import { createFakeHubApi, makeDevice, makeHub } from "@octopus/session-hub/test
 import type { Device, FaultInjector, TestHub } from "@octopus/session-hub/testing";
 import { MemoryDeviceStore, SessionAdminRepository } from "@octopus/session-hub";
 import { ENTRY_OPTIONS, entryRoundKey } from "@octopus/session-hub";
-import type { ClientInput, JackpotDraw, PortalEvent, QuizRoundResult } from "@octopus/session-hub";
+import type { ClientInput, JackpotDraw, JackpotPublished, PortalEvent, QuizRoundResult } from "@octopus/session-hub";
 
 export { makeDevice, makeHub };
 export type { Device, TestHub };
@@ -58,7 +58,7 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
     },
     publishQuiz: (quiz: QuizPublished | null) => setSlice("quiz", quiz),
     /** ホストがジャックポットの状態と、参加者に許可する操作を公開する。 */
-    publishJackpot: (jackpot: { phase: string; canStop: boolean; member: string | null; memberId?: string | null; prize: string | null } | null, input: ClientInput[] = []) =>
+    publishJackpot: (jackpot: Partial<JackpotPublished> | null, input: ClientInput[] = []) =>
       setSlice("jackpot", jackpot, input),
     /**
      * ホストがクイズ1ラウンドの結果を保存し、更新番号を公開する(本番では HostAgent.recordQuizResult が行う)。

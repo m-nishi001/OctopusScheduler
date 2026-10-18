@@ -62,7 +62,10 @@ export function winningDialogSteps(ctx: DrawContext): Step[] {
   ];
 }
 
-/** 景品がちょうど半分になったら知らせ、全部なくなったら終了を知らせる。 */
+/**
+ * 景品がちょうど半分になったら知らせる。
+ * 終了(景品かメンバーが尽きた)は、サイクルの外で進行役が抽選の前に判定する(DrawFlowController)。
+ */
 export function remainingSteps(ctx: DrawContext): Step[] {
   return [
     step(async () => {
@@ -72,10 +75,6 @@ export function remainingSteps(ctx: DrawContext): Step[] {
         await delay(3);
         ctx.showHalfRemainingDialog.value = false;
       }
-    }),
-    step(async () => {
-      const { remaining } = await ctx.drawService.getLastPrizeCount();
-      if (remaining <= 0) ctx.showEndDialog.value = true;
     }),
   ];
 }

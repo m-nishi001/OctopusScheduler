@@ -33,7 +33,7 @@ async function connect(device: Device, memberId: string = ALICE.id) {
   return { session, inputs, unmount: () => app.unmount() };
 }
 
-const STOP = { phase: "member", canStop: true, member: null, prize: null };
+const STOP = { stage: "member" as const, canStop: true, member: null, prize: null };
 
 describe("useClientInputs", () => {
   it("ホストが受け付けている操作だけが出て、受付が終わると消える", async () => {

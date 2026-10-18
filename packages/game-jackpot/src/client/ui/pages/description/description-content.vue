@@ -57,6 +57,7 @@ import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { useJackpotHost } from '../../composables/use-jackpot-host';
+import { buildJackpotDescriptionState } from '@model/jackpot-host-state';
 import type { ScreenElement } from '@model/screen-config/description-screen-setting';
 import { DescriptionScreenSetting } from '@model/screen-config/description-screen-setting';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
@@ -177,7 +178,7 @@ export default {
 		watch(
 			[ready, slideIndex, elements],
 			() => {
-				if (ready.value) host.publish({ page: 'description', index: slideIndex.value, total: elements.value.length });
+				if (ready.value) host.publish(buildJackpotDescriptionState(slideIndex.value, elements.value.length));
 			},
 			{ immediate: true }
 		);

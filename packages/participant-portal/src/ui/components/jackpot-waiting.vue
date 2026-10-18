@@ -19,19 +19,21 @@ const quiz = useQuizContext();
 
 /**
  * ジャックポットの待機画面。ホストが抽選を進めている間、スマホにも「いま何をしているか」を出して場の熱を伝える。
- * 賞品まで公開されたら(結果は JackpotCard が大きく出す)、またクイズが出ている間は出さない。
+ * 場面(stage)から導く。当選者・賞品が見えている場面(結果は JackpotCard が出す)と、クイズが出ている間は出さない。
  */
 const stage = computed(() => {
     const jackpot = readJackpotView(session.state.value.roomState?.data);
-    if (!jackpot || jackpot.prize || quiz.quiz.value) return null;
-    if (jackpot.phase === 'member' && !jackpot.member) {
-        return { kind: 'member', title: 'メンバー抽選中…', sub: '誰に当たるかな? 会場の画面に注目!' };
+    if (!jackpot || quiz.quiz.value) return null;
+    switch (jackpot.stage) {
+        case 'waiting':
+            return { kind: 'ready', title: 'まもなく抽選!', sub: 'このまま画面を開いてお待ちください' };
+        case 'member':
+            return { kind: 'member', title: 'メンバー抽選中…', sub: '誰に当たるかな? 会場の画面に注目!' };
+        case 'prize':
+            return { kind: 'prize', title: '景品抽選中…', sub: jackpot.member ? `当選者は ${jackpot.member} さん! 景品は何かな?` : 'どの景品に決まるか、ドキドキ!' };
+        default:
+            return null;
     }
-    if (jackpot.phase === 'prize') {
-        return { kind: 'prize', title: '景品抽選中…', sub: jackpot.member ? `当選者は ${jackpot.member} さん! 景品は何かな?` : 'どの景品に決まるか、ドキドキ!' };
-    }
-    if (jackpot.member) return null;
-    return { kind: 'ready', title: 'まもなく抽選!', sub: 'このまま画面を開いてお待ちください' };
 });
 </script>
 

@@ -21,19 +21,23 @@ const session = usePortalContext();
 const auth = useParticipantAuth();
 
 const jackpot = computed(() => readJackpotView(session.state.value.roomState?.data));
-/** 公開された当選者が自分のとき(停止演出が終わるまで当選者は公開されないので、先にネタバレしない)。 */
+/**
+ * 自分が当選したことが見えている間(場面が member-revealed のとき)。景品抽選に進んだら、場面が変わって自動で閉じる。
+ * 当選者は停止演出が終わるまで公開されないので、先にネタバレしない。
+ */
 const won = computed(() => {
     const id = auth.currentMember.value?.id;
-    return !!id && !!jackpot.value?.member && jackpot.value.memberId === id;
+    return !!id && jackpot.value?.stage === 'member-revealed' && !!jackpot.value.member && jackpot.value.memberId === id;
 });
 
+/** 手動で閉じたか。当選の場面が終われば戻し、次の抽選でまた当たったとき表示し直す。 */
 const dismissed = ref(false);
-// 当選が出るたびに表示し直す(閉じたあと、次の抽選でまた当たったとき)。出た瞬間に振動で知らせる
 watch(won, (now) => {
     if (!now) {
         dismissed.value = false;
         return;
     }
+    // 出た瞬間に振動で知らせる
     try {
         navigator.vibrate?.([200, 100, 200, 100, 400]);
     } catch {
