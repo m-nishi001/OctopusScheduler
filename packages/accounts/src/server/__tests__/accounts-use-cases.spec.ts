@@ -18,6 +18,18 @@ function createDeps(): AccountsUseCaseDeps {
   };
 }
 
+/** 同じキーの排他を直列実行で表現する(本番は D1 / LockService)。 */
+function serialLock(): NonNullable<AccountsUseCaseDeps["lock"]> {
+  const chains = new Map<string, Promise<unknown>>();
+  return {
+    withLock: <T>(key: string, _timeoutMs: number, fn: () => Promise<T> | T) => {
+      const run = (chains.get(key) ?? Promise.resolve()).then(fn);
+      chains.set(key, run.catch(() => undefined));
+      return run;
+    },
+  };
+}
+
 describe("accounts-use-cases", () => {
   it("returns an empty list when no members are registered", async () => {
     expect(await listMembers(createDeps())).toEqual([]);
@@ -100,5 +112,41 @@ describe("accounts-use-cases", () => {
     const result = await replaceAllMembers(deps, [{ id: "", name: "太郎" }]);
     expect(result).toEqual({ replaced: 1 });
     expect(await listMembers(deps)).toEqual([{ id: "generated-1", name: "太郎" }]);
+  });
+
+  describe("同時に名簿を更新したとき", () => {
+    const ids = Array.from({ length: 20 }, (_, i) => `u${i + 1}`);
+
+    it("排他しないと、同時の追加で片方の更新が失われる(排他が必要な理由)", async () => {
+      const deps = createDeps();
+      await Promise.all(ids.map((id) => addMember(deps, { id, name: id })));
+      expect((await listMembers(deps)).length).toBeLessThan(ids.length);
+    });
+
+    it("排他すれば、同時に追加した全員が名簿に残る", async () => {
+      const deps = { ...createDeps(), lock: serialLock() };
+      await Promise.all(ids.map((id) => addMember(deps, { id, name: id })));
+      expect((await listMembers(deps)).map((m) => m.id).sort()).toEqual([...ids].sort());
+    });
+
+    it("排他すれば、同時の削除・更新・一括反映も互いの更新を消さない", async () => {
+      const deps = { ...createDeps(), lock: serialLock() };
+      await Promise.all(ids.map((id) => addMember(deps, { id, name: id })));
+      await Promise.all([
+        ...ids.slice(0, 10).map((id) => deleteMember(deps, id)),
+        ...ids.slice(10, 15).map((id) => updateMember(deps, { id, name: `${id}(改)` })),
+        replaceAllMembers(deps, [{ id: "extra", name: "追加" }]),
+      ]);
+      const members = await listMembers(deps);
+      expect(members.map((m) => m.id).sort()).toEqual([...ids.slice(10), "extra"].sort());
+      expect(members.filter((m) => m.name.endsWith("(改)")).map((m) => m.id).sort()).toEqual(ids.slice(10, 15).sort());
+    });
+
+    it("同時に同じIDを追加しても、1件だけ作られ、もう片方は重複として失敗する", async () => {
+      const deps = { ...createDeps(), lock: serialLock() };
+      const results = await Promise.allSettled([addMember(deps, { id: "same", name: "A" }), addMember(deps, { id: "same", name: "B" })]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect(await listMembers(deps)).toHaveLength(1);
+    });
   });
 });
