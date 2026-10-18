@@ -7,7 +7,7 @@
                 primaryLabel="次へ" />
 
             <HalfRemainingDialog v-if="showHalfRemainingDialog" :visible="showHalfRemainingDialog" />
-            <EndDialog v-if="showEndDialog" :visible="showEndDialog" />
+            <EndDialog v-if="endReason" :reason="endReason" @close="advance" />
 
             <div class="rich-layout">
                 <section class="member-area-fullscreen jp-stage" v-if="phase === 'member'">

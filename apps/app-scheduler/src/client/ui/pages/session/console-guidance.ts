@@ -5,17 +5,8 @@
  * 主ボタンは常に1つ。進行中のゲームに合わせて中身が変わり、押した結果を1行で予告する。
  */
 
-export interface JackpotProgress {
-  /** 公開している画面("description" = 説明のスライド)。抽選画面の状態では未設定のことがある。 */
-  page?: string;
-  /** 説明画面: 表示中のスライド(-1 = 導入画面)と枚数。 */
-  index?: number;
-  total?: number;
-  phase: string;
-  canStop: boolean;
-  member: string | null;
-  prize: string | null;
-}
+/** ホストが公開しているジャックポットの状態(ホスト・ポータルと共有する定義)。 */
+export type JackpotProgress = JackpotPublished;
 
 export interface QuizProgress {
   page: string;
@@ -105,20 +96,36 @@ function describeQuiz(input: GuidanceInput, page: string): Guidance {
   }
 }
 
+const STAGE_TEXT: Record<JackpotStage, string> = {
+  waiting: "抽選の準備中",
+  member: "メンバー抽選",
+  "member-revealed": "メンバー抽選",
+  prize: "景品抽選",
+  "prize-revealed": "景品抽選",
+  ended: "抽選は終了",
+};
+
 function describeJackpotDraw(jackpot: JackpotProgress | null): Guidance {
   if (!jackpot) return { game: "jackpot", now: "ジャックポット: 抽選画面を準備中", main: null };
-  const phaseText = jackpot.phase === "member" ? "メンバー抽選" : jackpot.phase === "prize" ? "景品抽選" : "抽選の準備中";
   const result = jackpot.member || jackpot.prize ? ` ・ 当選者: ${jackpot.member ?? "—"} ・ 景品: ${jackpot.prize ?? "—"}` : "";
-  const now = `ジャックポット: ${phaseText}${result}`;
+  const now = `ジャックポット: ${STAGE_TEXT[jackpot.stage]}${result}`;
+  if (jackpot.stage === "ended") {
+    return { game: "jackpot", now, main: { label: "結果へ", hint: "抽選は終わりました。結果の画面を映します", action: { kind: "advance" } } };
+  }
   if (jackpot.canStop) {
+    const target = jackpot.stage === "prize" || jackpot.stage === "prize-revealed" ? "景品" : "メンバー";
     return {
       game: "jackpot",
       now,
-      main: { label: "止める", hint: `${jackpot.phase === "prize" ? "景品" : "メンバー"}のルーレットを止めて、結果を決めます`, action: { kind: "advance" } },
+      main: { label: "止める", hint: `${target}のルーレットを止めて、結果を決めます`, action: { kind: "advance" } },
     };
   }
   const hint =
-    jackpot.phase === "member" ? "メンバー抽選を進めます(回し始める/結果を発表する)" : jackpot.phase === "prize" ? "景品抽選を進めます(回し始める/結果を発表する)" : "抽選を始めます";
+    jackpot.stage === "member" || jackpot.stage === "member-revealed"
+      ? "メンバー抽選を進めます(回し始める/結果を発表する)"
+      : jackpot.stage === "prize" || jackpot.stage === "prize-revealed"
+        ? "景品抽選を進めます(回し始める/結果を発表する)"
+        : "抽選を始めます";
   return { game: "jackpot", now, main: { label: "次へ", hint, action: { kind: "advance" } } };
 }
 

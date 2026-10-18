@@ -34,7 +34,6 @@ export interface DrawContext {
   prizeAnim: Readable<any>;
   showPrizeWinningDialog: Writable<boolean>;
   showHalfRemainingDialog: Writable<boolean>;
-  showEndDialog: Writable<boolean>;
   /** 確変メッセージのオーバーレイ。 */
   kakuhenOverlayVisible: Writable<boolean>;
 }

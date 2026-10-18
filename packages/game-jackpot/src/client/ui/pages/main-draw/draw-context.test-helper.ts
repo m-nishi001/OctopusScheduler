@@ -27,7 +27,6 @@ export function createTestContext(overrides: Record<string, unknown> = {}) {
     }),
     showPrizeWinningDialog: ref(false),
     showHalfRemainingDialog: ref(false),
-    showEndDialog: ref(false),
     kakuhenOverlayVisible: ref(false),
     ...overrides,
   };

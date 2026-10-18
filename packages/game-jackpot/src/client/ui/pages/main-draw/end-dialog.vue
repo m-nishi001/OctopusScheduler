@@ -1,88 +1,40 @@
 <template>
-    <div class="modal-overlay jp-stage" ref="overlay" tabindex="-1" data-testid="end-dialog">
+    <div class="modal-overlay jp-stage" data-testid="end-dialog" :data-reason="reason">
         <div class="jp-rays" aria-hidden="true"></div>
         <JackpotConfetti :count="180" :duration-ms="12000" />
         <div class="modal-content jp-frame jp-pop-in">
             <p class="kicker jp-gold-text">FINISH</p>
             <h2 class="highlight jp-gold-text">おしまい！！</h2>
-            <p class="message">すべての景品が皆さんの手元にいきました。</p>
-            <button class="jp-button" @click="closeDialog">OK</button>
+            <p class="message" data-testid="end-message">{{ message }}</p>
+            <button class="jp-button" data-testid="end-ok" @click="closeDialog">OK</button>
         </div>
     </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, watch, onMounted, onUnmounted, ref, nextTick } from 'vue';
+import { computed, defineComponent, type PropType } from 'vue';
+import type { DrawEndReason } from '@control/draw/dto/draw-progress';
 import JackpotConfetti from '../../components/jackpot-confetti.vue';
 import '../../theme/jackpot-theme.css';
 
+/** 終了の理由ごとの文言。景品が残っていてもメンバーが尽きれば終わるので、取り違えない文言にする。 */
+export const END_MESSAGES: Record<DrawEndReason, string> = {
+    prizes: 'すべての景品が皆さんの手元にいきました。',
+    members: '対象のメンバー全員の抽選が終わりました。',
+};
+
+// 閉じる操作(OKボタン・Enter・管理端末の「次へ」)は、すべて抽選の進行役(DrawFlowController)が受ける。
+// この画面は表示だけで、OKボタンは close を通知する(親が進行操作として扱う)。
 export default defineComponent({
     name: 'EndDialog',
     components: { JackpotConfetti },
     props: {
-        visible: { type: Boolean, default: false },
+        reason: { type: String as PropType<DrawEndReason>, required: true },
     },
     emits: ['close'],
     setup(props, { emit }) {
-        const overlay = ref<HTMLDivElement | null>(null);
-        let keydownTimer: number | null = null;
-
-        const closeDialog = () => {
-            emit('close');
-        };
-
-        const handleKeydown = (event: KeyboardEvent) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                closeDialog();
-            }
-        };
-
-        watch(() => props.visible, (newVal) => {
-            if (newVal) {
-                nextTick(() => {
-                    overlay.value?.focus();
-                });
-                // delay attaching keydown handler to ensure dialog is shown
-                // for at least 1 second before Enter can close it
-                keydownTimer = window.setTimeout(() => {
-                    window.addEventListener('keydown', handleKeydown);
-                    keydownTimer = null;
-                }, 1000);
-            } else {
-                if (keydownTimer != null) {
-                    clearTimeout(keydownTimer);
-                    keydownTimer = null;
-                }
-                window.removeEventListener('keydown', handleKeydown);
-            }
-        });
-
-        onMounted(() => {
-            if (props.visible) {
-                nextTick(() => {
-                    overlay.value?.focus();
-                });
-                // attach delayed as well on mount
-                keydownTimer = window.setTimeout(() => {
-                    window.addEventListener('keydown', handleKeydown);
-                    keydownTimer = null;
-                }, 1000);
-            }
-        });
-
-        onUnmounted(() => {
-            if (keydownTimer != null) {
-                clearTimeout(keydownTimer);
-                keydownTimer = null;
-            }
-            window.removeEventListener('keydown', handleKeydown);
-        });
-
-        return {
-            overlay,
-            closeDialog,
-        };
+        const message = computed(() => END_MESSAGES[props.reason]);
+        return { message, closeDialog: () => emit('close') };
     },
 });
 </script>

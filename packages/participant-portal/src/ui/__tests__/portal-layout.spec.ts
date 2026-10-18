@@ -475,7 +475,7 @@ describe("参加者ポータル: クイズ", () => {
     expect(has(m, "entry-none")).toBe(false);
 
     await env.publishQuiz(null);
-    await env.publishJackpot({ phase: "member", canStop: false, member: "太郎", prize: "特賞" });
+    await env.publishJackpot({ stage: "prize-revealed", canStop: false, member: "太郎", prize: "特賞" });
     await env.publishEvent(null);
     await tick(5000);
     await flushPromises();
@@ -568,7 +568,7 @@ describe("参加者ポータル: クイズ", () => {
 });
 
 describe("参加者ポータル: ジャックポットと参加者の操作", () => {
-  const STOP = { phase: "member", canStop: true, member: null, prize: null };
+  const STOP = { stage: "member" as const, canStop: true, member: null, prize: null };
 
   it("当選者・賞品は公開されたときだけ出る（停止演出の前は出ない）", async () => {
     const env = await portalEnv();
@@ -594,24 +594,24 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
       expect(has(m, "jackpot-waiting")).toBe(false);
 
-      await env.publishJackpot({ ...base, phase: "idle" });
+      await env.publishJackpot({ ...base, stage: "waiting" });
       await tick(5000);
       await flushPromises();
       expect(text(m, "jackpot-waiting-title")).toContain("まもなく抽選");
 
-      await env.publishJackpot({ ...base, phase: "member" });
+      await env.publishJackpot({ ...base, stage: "member" });
       await tick(5000);
       await flushPromises();
       expect(text(m, "jackpot-waiting-title")).toContain("メンバー抽選中");
 
-      await env.publishJackpot({ ...base, phase: "prize", member: "太郎", memberId: "taro" });
+      await env.publishJackpot({ ...base, stage: "prize", member: "太郎", memberId: "taro" });
       await tick(5000);
       await flushPromises();
       expect(text(m, "jackpot-waiting-title")).toContain("景品抽選中");
       expect(text(m, "jackpot-waiting")).toContain("太郎");
 
       // 景品まで決まったら待機画面は消え、結果が出る
-      await env.publishJackpot({ ...base, phase: "prize", member: "太郎", memberId: "taro", prize: "特賞" });
+      await env.publishJackpot({ ...base, stage: "prize-revealed", member: "太郎", memberId: "taro", prize: "特賞" });
       await tick(5000);
       await flushPromises();
       expect(has(m, "jackpot-waiting")).toBe(false);
@@ -623,20 +623,20 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       const env = await portalEnv();
       const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
 
-      await env.publishJackpot({ ...base, phase: "member" });
+      await env.publishJackpot({ ...base, stage: "member" });
       await tick(5000);
       await flushPromises();
       expect(has(m, "reveal-burst-member")).toBe(false);
       expect(has(m, "reveal-burst-prize")).toBe(false);
 
-      await env.publishJackpot({ ...base, phase: "member", member: "太郎", memberId: "taro" });
+      await env.publishJackpot({ ...base, stage: "member-revealed", member: "太郎", memberId: "taro" });
       await tick(5000);
       await flushPromises();
       expect(has(m, "reveal-burst-member")).toBe(true);
       expect(has(m, "reveal-burst-prize")).toBe(false);
       const firstBurst = m.wrapper.find('[data-testid="reveal-burst-member"]').element;
 
-      await env.publishJackpot({ ...base, phase: "prize", member: "太郎", memberId: "taro", prize: "特賞" });
+      await env.publishJackpot({ ...base, stage: "prize-revealed", member: "太郎", memberId: "taro", prize: "特賞" });
       await tick(5000);
       await flushPromises();
       expect(has(m, "reveal-burst-prize")).toBe(true);
@@ -644,7 +644,7 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       expect(m.wrapper.find('[data-testid="reveal-burst-member"]').element).toBe(firstBurst);
 
       // 次の抽選で別の人が当たったら、また出る
-      await env.publishJackpot({ ...base, phase: "member", member: "花子", memberId: "hanako" });
+      await env.publishJackpot({ ...base, stage: "member-revealed", member: "花子", memberId: "hanako" });
       await tick(5000);
       await flushPromises();
       expect(m.wrapper.find('[data-testid="reveal-burst-member"]').element).not.toBe(firstBurst);
@@ -662,13 +662,13 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       await tick(0);
       expect(has(m, "entry-done")).toBe(true);
 
-      await env.publishJackpot({ ...base, phase: "member" });
+      await env.publishJackpot({ ...base, stage: "member" });
       await tick(5000);
       await flushPromises();
       expect(has(m, "entry-done")).toBe(false);
       expect(text(m, "jackpot-waiting-title")).toContain("メンバー抽選中");
 
-      await env.publishJackpot({ ...base, phase: "prize", member: "太郎", memberId: "taro", prize: "特賞" });
+      await env.publishJackpot({ ...base, stage: "prize-revealed", member: "太郎", memberId: "taro", prize: "特賞" });
       await tick(5000);
       await flushPromises();
       expect(text(m, "winner-prize")).toContain("特賞");
@@ -681,12 +681,12 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       const bob = await mountPortal(participantDevice(env.hub, BOB), "/p/event", BOB);
 
       // 停止演出の前(当選者が未公開)は誰にも出ない
-      await env.publishJackpot({ ...base, phase: "member" });
+      await env.publishJackpot({ ...base, stage: "member" });
       await tick(5000);
       await flushPromises();
       expect(has(alice, "you-won")).toBe(false);
 
-      await env.publishJackpot({ ...base, phase: "member", member: ALICE.name, memberId: ALICE.id });
+      await env.publishJackpot({ ...base, stage: "member-revealed", member: ALICE.name, memberId: ALICE.id });
       await tick(5000);
       await flushPromises();
       expect(text(alice, "you-won")).toContain("あたりました");
@@ -698,10 +698,10 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       expect(has(alice, "you-won")).toBe(false);
 
       // 次の抽選で、もう一度当たったら、また出る
-      await env.publishJackpot({ ...base, phase: "member" });
+      await env.publishJackpot({ ...base, stage: "member" });
       await tick(5000);
       await flushPromises();
-      await env.publishJackpot({ ...base, phase: "member", member: ALICE.name, memberId: ALICE.id });
+      await env.publishJackpot({ ...base, stage: "member-revealed", member: ALICE.name, memberId: ALICE.id });
       await tick(5000);
       await flushPromises();
       expect(has(alice, "you-won")).toBe(true);
@@ -709,10 +709,79 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       bob.wrapper.unmount();
     });
 
+    it("当選の表示は、景品抽選に進んだら自動で閉じる。手で閉じなくてよい(今回の不具合)", async () => {
+      const env = await portalEnv();
+      const alice = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+      const win = { ...base, member: ALICE.name, memberId: ALICE.id };
+
+      await env.publishJackpot({ ...win, stage: "member-revealed" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(true);
+
+      // 景品抽選の画面に進んだ → 場面が変わるので、閉じるボタンを押さなくても消える
+      await env.publishJackpot({ ...win, stage: "prize" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(false);
+      expect(text(alice, "jackpot-waiting-title")).toContain("景品抽選中");
+
+      // 景品が決まっても、終了しても、出し直さない
+      await env.publishJackpot({ ...win, stage: "prize-revealed", prize: "特賞" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(false);
+      await env.publishJackpot({ ...win, stage: "ended", prize: "特賞" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(false);
+      alice.wrapper.unmount();
+    });
+
+    it("当選の表示を手で閉じたあとに景品抽選へ進んでも壊れない。次の抽選で当たれば、また出る", async () => {
+      const env = await portalEnv();
+      const alice = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+      const win = { ...base, member: ALICE.name, memberId: ALICE.id };
+
+      await env.publishJackpot({ ...win, stage: "member-revealed" });
+      await tick(5000);
+      await flushPromises();
+      await alice.wrapper.find('[data-testid="you-won-close"]').trigger("click");
+      expect(has(alice, "you-won")).toBe(false);
+
+      await env.publishJackpot({ ...win, stage: "prize" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(false);
+
+      await env.publishJackpot({ ...base, stage: "member" });
+      await tick(5000);
+      await flushPromises();
+      await env.publishJackpot({ ...win, stage: "member-revealed" });
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(true);
+      alice.wrapper.unmount();
+    });
+
+    it("途中でリロードして景品抽選の最中に入り直した当選者には、当選の全面表示は出ない(景品抽選の待機画面と停止ボタンが見える)", async () => {
+      const env = await portalEnv();
+      await env.publishJackpot(
+        { ...base, stage: "prize", canStop: true, member: ALICE.name, memberId: ALICE.id },
+        [{ key: "jackpot.stopRoulette", memberIds: [ALICE.id] }]
+      );
+      const alice = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+      await tick(5000);
+      await flushPromises();
+      expect(has(alice, "you-won")).toBe(false);
+      expect(has(alice, "client-inputs")).toBe(true);
+      alice.wrapper.unmount();
+    });
+
     it("当選の演出は、ほかの画面(結果タブ)にいても出る", async () => {
       const env = await portalEnv();
       const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/results");
-      await env.publishJackpot({ ...base, phase: "member", member: ALICE.name, memberId: ALICE.id });
+      await env.publishJackpot({ ...base, stage: "member-revealed", member: ALICE.name, memberId: ALICE.id });
       await tick(5000);
       await flushPromises();
       expect(has(m, "you-won")).toBe(true);
@@ -723,7 +792,7 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       const env = await portalEnv();
       const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
       const prize = "とても長い名前の特別賞品セット(ペア宿泊券+お食事券+記念品)";
-      await env.publishJackpot({ ...base, phase: "prize", member: "あ".repeat(40), memberId: "x", prize });
+      await env.publishJackpot({ ...base, stage: "prize-revealed", member: "あ".repeat(40), memberId: "x", prize });
       await tick(5000);
       await flushPromises();
       expect(text(m, "winner-prize")).toContain(prize);
@@ -762,7 +831,7 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     const winner = await mountPortal(participantDevice(env.hub, ALICE), "/p/event", ALICE);
     const other = await mountPortal(participantDevice(env.hub, BOB), "/p/event", BOB);
 
-    await env.publishJackpot({ ...STOP, phase: "prize", member: "アリス", memberId: ALICE.id }, [{ key: "jackpot.stopRoulette", memberIds: [ALICE.id] }]);
+    await env.publishJackpot({ ...STOP, stage: "prize", member: "アリス", memberId: ALICE.id }, [{ key: "jackpot.stopRoulette", memberIds: [ALICE.id] }]);
     await tick(5000);
     await flushPromises();
     expect(winner.wrapper.find('[data-testid="client-input"]').text()).toBe("ルーレットを止める");
