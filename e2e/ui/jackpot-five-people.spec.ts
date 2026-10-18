@@ -101,8 +101,10 @@ test("管理者+参加者4名・景品10件: 当選表示の自動クローズ�
 
     // 景品抽選の停止は、当選者のスマホから行う(出ていなければ管理端末の「次へ」で進める)
     if (winner >= 0 && (await stopButton(winner).isVisible().catch(() => false))) {
-      await stopButton(winner).click();
-      stoppedByWinner.add(winner);
+      // 見えた直後にホストが先へ進んでボタンが消えることがある(押した直後の古い表示など)。その場合は次の周回に任せる
+      // (短い上限を付けないと、ボタンが再び現れるまで click が待ち続けて固まる)
+      const clicked = await stopButton(winner).click({ timeout: 3000 }).then(() => true, () => false);
+      if (clicked) stoppedByWinner.add(winner);
     } else {
       await nextButton(admin.page).click();
     }
