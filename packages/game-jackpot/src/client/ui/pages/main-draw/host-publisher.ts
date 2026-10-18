@@ -9,6 +9,8 @@ export interface HostPublisherDeps {
   /** デモは結果を保存しない。 */
   isDemo: boolean;
   phase(): string;
+  /** 抽選が終わった(景品かメンバーが尽きて、終了の画面を出している)。 */
+  ended(): boolean;
   nextLabel(): string | undefined;
   result(): DrawResultDto | null;
 }
@@ -24,6 +26,7 @@ export function createHostPublisher(deps: HostPublisherDeps): () => void {
     deps.host.publish(
       buildJackpotHostState({
         phase: deps.phase(),
+        ended: deps.ended(),
         nextLabel: deps.nextLabel(),
         tracker: deps.tracker,
         memberName: result?.wonMember?.name,

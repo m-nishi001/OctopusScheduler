@@ -100,7 +100,7 @@ export interface RoomState {
   /** ゲームごとの任意の状態(JSON)。サイズ上限あり。 */
   data: Record<string, unknown>;
   /** いまクライアントから受け付けるコマンド種別("game.type" 形式)。空なら入力不可。 */
-  clientInput: string[];
+  clientInput: ClientInput[];
   updatedAtMs: number;
 }
 
@@ -176,3 +176,40 @@ export const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 /** "jackpot.advance" のような `game.type` 形式か。 */
 export const COMMAND_KEY_PATTERN = /^[a-z][a-zA-Z0-9]{0,23}\.[a-z][a-zA-Z0-9]{0,31}$/;
+
+// ---- 参加者から受け付ける操作(宛先つき) ----
+/** 宛先を指定できるメンバー数の上限(状態のサイズを小さく保つ)。 */
+export const MAX_CLIENT_INPUT_MEMBERS = 10;
+export const MAX_CLIENT_INPUT_MEMBER_ID_LENGTH = 128;
+
+/**
+ * ホストが「いま受け付ける」参加者の操作。`memberIds` を指定すると、そのメンバーだけが送れる
+ * (サーバーが issueCommand で強制する。画面に出さないだけで済ませない)。省略は参加者全員。
+ */
+export interface ClientInput {
+  /** "game.type" 形式。 */
+  key: string;
+  memberIds?: string[];
+}
+
+/** 操作の送り手。ポータルの参加者はログインで確定した本人(verified)。 */
+export interface ClientInputActor {
+  memberId: string | null;
+  verified?: boolean;
+}
+
+/**
+ * 参加者 `actor` が `key` の操作を送れるか。サーバーの受付と、ポータルのボタン表示が同じ判定を使う。
+ * 宛先が決まっている操作は、ログインで確定した宛先のメンバー本人だけ(匿名の参加コード入室は、申告だけなので不可)。
+ */
+export function clientInputAllows(inputs: readonly ClientInput[], key: string, actor: ClientInputActor): boolean {
+  const input = inputs.find((i) => i.key === key);
+  if (!input) return false;
+  if (!input.memberIds) return true;
+  return actor.verified === true && actor.memberId !== null && input.memberIds.includes(actor.memberId);
+}
+
+/** `actor` が送れる操作の key 一覧(ホストの公開順)。 */
+export function clientInputKeysFor(inputs: readonly ClientInput[], actor: ClientInputActor): string[] {
+  return inputs.filter((i) => clientInputAllows(inputs, i.key, actor)).map((i) => i.key);
+}

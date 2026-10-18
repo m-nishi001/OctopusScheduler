@@ -27,6 +27,7 @@ import type {
 } from "../../shared/protocol";
 import type { JackpotDraw, QuizRoundResult, ResultsView } from "../../shared/results";
 import type {
+  ClientInput,
   Command,
   DeviceRole,
   PresenceView,
@@ -131,7 +132,7 @@ export class SessionConnection implements TransportSource {
   private stateVersion = 0;
 
   private publishing = false;
-  private pendingPublish: { data: Record<string, unknown>; clientInput: string[] } | null = null;
+  private pendingPublish: { data: Record<string, unknown>; clientInput: ClientInput[] } | null = null;
   private publishWaiters: Array<{ resolve: () => void; reject: (e: unknown) => void }> = [];
 
   private readonly now: () => number;
@@ -561,7 +562,7 @@ export class SessionConnection implements TransportSource {
   }
 
   /** ホスト: 現在の状態を公開する。連続して呼ばれたら最新のものだけ送る。 */
-  publish(data: Record<string, unknown>, clientInput: string[] = []): Promise<void> {
+  publish(data: Record<string, unknown>, clientInput: ClientInput[] = []): Promise<void> {
     if (!this.creds) return Promise.reject(new Error("not joined"));
     return new Promise<void>((resolve, reject) => {
       this.pendingPublish = { data, clientInput };

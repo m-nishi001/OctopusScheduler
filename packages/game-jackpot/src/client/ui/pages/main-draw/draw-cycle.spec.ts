@@ -23,14 +23,14 @@ describe("buildCycle の形(進行の停止位置・ラベル)", () => {
   it("通常: Enter待ちの位置が従来どおり(メンバー4回 + 景品2回 + 当選ダイアログ1回)", () => {
     // 従来は wait() が次のEnterを待つ区切りだった。区切りの位置をここで固定する。
     expect(pauseShape(buildCycle(createTestContext(), false)).join("")).toBe(
-      // member: 開始P / 回転開始P / 停止P / 景品へP,  prize: 回転開始P / 停止,  dialog: 表示P / 閉じる,  残数: 2ステップ
-      ".P.P.P.P" + ".P." + ".P." + ".."
+      // member: 開始P / 回転開始P / 停止P / 景品へP,  prize: 回転開始P / 停止,  dialog: 表示P / 閉じる,  残数(半分の通知): 1ステップ(終了は進行役が判定)
+      ".P.P.P.P" + ".P." + ".P." + "."
     );
   });
 
   it("確変: Enter待ちの位置が従来どおり", () => {
     expect(pauseShape(buildCycle(createTestContext(), true)).join("")).toBe(
-      ".P.P.P.P" + ".P......." + ".P." + ".."
+      ".P.P.P.P" + ".P......." + ".P." + "."
     );
   });
 });
@@ -85,9 +85,8 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
     expect(ctx.prizeAnim.value.stopSpin).toHaveBeenCalledWith(3, "p1", 1);
     expect(ctx.showPrizeWinningDialog.value).toBe(true);
 
-    await advance(); // ダイアログを閉じて、残数を確認する(まだ残っているので終了ダイアログは出ない)
+    await advance(); // ダイアログを閉じて、残数を確認する
     expect(ctx.showPrizeWinningDialog.value).toBe(false);
-    expect(ctx.showEndDialog.value).toBe(false);
     expect(queue.isEmpty()).toBe(true);
   });
 });
@@ -136,15 +135,5 @@ describe("remainingSteps", () => {
     const ctx = withCount({ total: 10, remaining: 3 });
     await remainingSteps(ctx)[0].run();
     expect(ctx.showHalfRemainingDialog.value).toBe(false);
-  });
-
-  it("景品が残っていなければ終了ダイアログを出す。残っていれば出さない", async () => {
-    const done = withCount({ total: 10, remaining: 0 });
-    await remainingSteps(done)[1].run();
-    expect(done.showEndDialog.value).toBe(true);
-
-    const more = withCount({ total: 10, remaining: 4 });
-    await remainingSteps(more)[1].run();
-    expect(more.showEndDialog.value).toBe(false);
   });
 });

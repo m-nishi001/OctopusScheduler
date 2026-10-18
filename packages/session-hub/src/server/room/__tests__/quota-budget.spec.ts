@@ -68,7 +68,7 @@ async function runEvent(clients: number, scale = 1) {
     if (i % 2 === 0) await room.send(wsHost, { t: "ack", seq: i + 1 });
   }
   for (let i = 0; i < hostPublishes; i++) {
-    await room.call("publishState", { ...creds(host), data: { n: i }, clientInput: i % 20 === 0 ? ["quiz.answer"] : [] });
+    await room.call("publishState", { ...creds(host), data: { n: i }, clientInput: i % 20 === 0 ? [{ key: "quiz.answer" }] : [] });
   }
 
   // 参加者の入力ラウンド(例: クイズ20問)。ホストが受付を開始し、全員が WebSocket で回答し、

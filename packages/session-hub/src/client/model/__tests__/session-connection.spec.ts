@@ -144,7 +144,7 @@ describe("参加者", () => {
   it("ホストが公開した状態を受け取り、許可された入力だけ送れる", async () => {
     const { client, host, applied, admin } = await scene();
     await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
-    await host.conn.publish({ screen: "draw", winner: null }, ["jackpot.stopRoulette"]);
+    await host.conn.publish({ screen: "draw", winner: null }, [{ key: "jackpot.stopRoulette" }]);
     await tick(4000);
     expect(client.conn.state.roomState?.data).toEqual({ screen: "draw", winner: null });
     await client.conn.issue("jackpot", "stopRoulette");

@@ -9,6 +9,7 @@ import { sessionService as svc } from "@octopus/session-hub/engine";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
 import { AssetDataService } from "@control/asset/asset-data-service";
 import DescriptionContent from "./description-content.vue";
+import { buildJackpotDescriptionState } from "@model/jackpot-host-state";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -58,7 +59,7 @@ async function scene(slideCount: number) {
 describe("説明画面: 管理端末からのスライド操作", () => {
   it("読み込み後に、導入画面(index -1)とスライド枚数を公開する", async () => {
     const { published, wrapper } = await scene(3);
-    expect(published()).toEqual({ page: "description", index: -1, total: 3 });
+    expect(published()).toEqual(buildJackpotDescriptionState(-1, 3));
     wrapper.unmount();
   });
 
@@ -102,7 +103,7 @@ describe("説明画面: 管理端末からのスライド操作", () => {
 
   it("スライドが0枚でも、最初の advance で抽選画面へ進む", async () => {
     const { published, issue, router, wrapper } = await scene(0);
-    expect(published()).toEqual({ page: "description", index: -1, total: 0 });
+    expect(published()).toEqual(buildJackpotDescriptionState(-1, 0));
     await issue("advance");
     expect(router.currentRoute.value.path).toBe("/jackpot-draw");
     wrapper.unmount();

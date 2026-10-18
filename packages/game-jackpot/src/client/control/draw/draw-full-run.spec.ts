@@ -171,3 +171,83 @@ describe("通し抽選: 抽選の対象（エントリーした人だけ）", ()
     expect(new Set(out.map((o) => o.member)).size).toBe(40);
   });
 });
+
+describe("通し抽選: 終了の判定(景品 > メンバー でも終わる)", () => {
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+  /** 進行役と同じ手順: 終了でない限り抽選する。終了までの抽選回数と終了の理由を返す。 */
+  const runUntilEnd = async (service: DrawApplicationService, limit = 1000) => {
+    let draws = 0;
+    for (;;) {
+      const progress = await service.getDrawProgress();
+      if (progress.endReason) return { draws, progress };
+      if (draws >= limit) throw new Error("終了しない");
+      await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+      draws++;
+    }
+  };
+
+  for (const m of [1, 2, 4, 5, 10]) {
+    for (const p of [1, 3, 4, 5, 10, 30]) {
+      it(`メンバー${m}人 × 景品${p}件: ${Math.min(m, p)}回で、例外なく終了する(理由: ${p <= m ? "景品" : "メンバー"})`, async () => {
+        const { service, prizes, initializer } = build(m, p);
+        await initializer.initialize(prizes as any);
+        const { draws, progress } = await runUntilEnd(service);
+        expect(draws).toBe(Math.min(m, p));
+        expect(progress.endReason).toBe(p <= m ? "prizes" : "members");
+        expect(progress.remainingMembers).toBe(Math.max(0, m - draws));
+      });
+    }
+  }
+
+  it("メンバー4人 × 景品10件(今回の不具合): 4人目の後は、景品が残っていても終了(メンバー)になり、続けて抽選しない", async () => {
+    const { service, prizes, initializer } = build(4, 10);
+    await initializer.initialize(prizes as any);
+    const { draws, progress } = await runUntilEnd(service);
+    expect(draws).toBe(4);
+    expect(progress).toMatchObject({ endReason: "members", remainingMembers: 0 });
+    expect(progress.remainingPrizes).toBeGreaterThan(0);
+  });
+
+  it("抽選の対象を絞っていれば、対象の人数で終わる(エントリー3人 × 景品10件 → 3回)", async () => {
+    const { service, prizes, initializer } = build(50, 10, undefined, { getEligibleMemberIds: async () => ["m1", "m2", "m3"] });
+    await initializer.initialize(prizes as any);
+    const { draws, progress } = await runUntilEnd(service);
+    expect(draws).toBe(3);
+    expect(progress.endReason).toBe("members");
+  });
+
+  it("対象の一覧を取得できないときは、終了と見なさず例外のまま(誤って抽選を終わらせない)", async () => {
+    const { service, prizes, initializer } = build(4, 10, undefined, {
+      getEligibleMemberIds: async () => Promise.reject(new Error("一覧を取得できません")),
+    });
+    await initializer.initialize(prizes as any);
+    await expect(service.getDrawProgress()).rejects.toThrow("一覧を取得できません");
+  });
+
+  it("開始前(誰も当選していない)は続けられる", async () => {
+    const { service, prizes, initializer } = build(4, 10);
+    await initializer.initialize(prizes as any);
+    expect(await service.getDrawProgress()).toMatchObject({ endReason: null, remainingMembers: 4, drawn: 0 });
+  });
+
+  it("抽選の対象が0人・景品が0件でも、1回も抽選していないうちは終了にしない(設定の問題として、抽選の失敗で理由を知らせる)", async () => {
+    const noEntrants = build(10, 5, undefined, { getEligibleMemberIds: async () => [] });
+    await noEntrants.initializer.initialize(noEntrants.prizes as any);
+    expect(await noEntrants.service.getDrawProgress()).toMatchObject({ endReason: null, remainingMembers: 0, drawn: 0 });
+    await expect(noEntrants.service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 })).rejects.toThrow(NoEligibleMembersError);
+
+    const noPrizes = build(4, 0);
+    await noPrizes.initializer.initialize([]);
+    expect(await noPrizes.service.getDrawProgress()).toMatchObject({ endReason: null, remainingPrizes: 0, drawn: 0 });
+  });
+
+  it("抽選したあとにリロードしても(結果が残っている)、尽きていれば終了と判定する", async () => {
+    const { service, prizes, initializer } = build(2, 5);
+    await initializer.initialize(prizes as any);
+    await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+    await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+    expect(await service.getDrawProgress()).toMatchObject({ endReason: "members", drawn: 2 });
+  });
+});

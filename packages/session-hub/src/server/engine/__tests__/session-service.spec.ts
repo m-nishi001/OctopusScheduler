@@ -6,6 +6,8 @@ import {
   COMMAND_RING_SIZE,
   HOST_STALE_MS,
   MAX_ACTIVE_SESSIONS,
+  MAX_CLIENT_INPUT_MEMBERS,
+  MAX_CLIENT_INPUT_MEMBER_ID_LENGTH,
   MAX_COMMAND_PAYLOAD_BYTES,
   MAX_STATE_BYTES,
   SESSION_TTL_MS,
@@ -232,10 +234,50 @@ describe("コマンド", () => {
     const { hub, host, client, creds } = await setup();
     const send = () => svc.issueCommand(hub.deps, { ...creds(client), requestId: `r${Math.random()}`, game: "jackpot", type: "stopRoulette" });
     expect(await code(send())).toBe("FORBIDDEN");
-    await svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: ["jackpot.stopRoulette"] });
+    await svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: [{ key: "jackpot.stopRoulette" }] });
     await expect(send()).resolves.toMatchObject({ seq: 1 });
     await svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: [] });
     expect(await code(send())).toBe("FORBIDDEN");
+  });
+
+  describe("宛先つきの操作(当選者だけが止められる、の土台)", () => {
+    const HANAKO = { id: "u2", name: "花子" };
+    const key = "jackpot.stopRoulette";
+
+    it("宛先に含まれる本人だけが送れる。他の参加者は拒否され、コマンドも積まれない", async () => {
+      const { hub, host, client, creds } = await setup();
+      const hanako = await svc.joinPortal(hub.deps, {}, HANAKO);
+      await svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: [{ key, memberIds: [TARO.id] }] });
+      const send = (who: JoinResult, requestId: string) => svc.issueCommand(hub.deps, { ...creds(who), requestId, game: "jackpot", type: "stopRoulette" });
+
+      expect(await code(send(hanako, "h1"))).toBe("FORBIDDEN");
+      await expect(send(client, "t1")).resolves.toMatchObject({ seq: 1 }); // 花子の拒否分は採番されていない
+    });
+
+    it("宛先の指定がない(memberIds なし)操作は、参加者全員が送れる", async () => {
+      const { hub, host, creds } = await setup();
+      const hanako = await svc.joinPortal(hub.deps, {}, HANAKO);
+      await svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: [{ key }] });
+      await expect(svc.issueCommand(hub.deps, { ...creds(hanako), requestId: "h1", game: "jackpot", type: "stopRoulette" })).resolves.toMatchObject({ seq: 1 });
+    });
+
+    it("宛先つきでも、運営端末(管理)は送れる", async () => {
+      const { hub, host, admin, creds } = await setup();
+      await svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: [{ key, memberIds: [TARO.id] }] });
+      await expect(svc.issueCommand(hub.deps, { ...creds(admin), requestId: "a1", game: "jackpot", type: "stopRoulette" })).resolves.toMatchObject({ seq: 1 });
+    });
+
+    it("同じキーが複数あっても重複は拒否し、宛先の形(空・多すぎ・長すぎ・文字列以外)も拒否する", async () => {
+      const { hub, host, creds } = await setup();
+      const publish = (clientInput: unknown) => code(svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: clientInput as never }));
+      expect(await publish([{ key }, { key }])).toBe("INVALID_ARGUMENT");
+      expect(await publish([{ key, memberIds: [] }])).toBe("INVALID_ARGUMENT");
+      expect(await publish([{ key, memberIds: Array.from({ length: MAX_CLIENT_INPUT_MEMBERS + 1 }, (_, i) => `m${i}`) }])).toBe("INVALID_ARGUMENT");
+      expect(await publish([{ key, memberIds: ["x".repeat(MAX_CLIENT_INPUT_MEMBER_ID_LENGTH + 1)] }])).toBe("INVALID_ARGUMENT");
+      expect(await publish([{ key, memberIds: [1] }])).toBe("INVALID_ARGUMENT");
+      expect(await publish(["jackpot.stopRoulette"])).toBe("INVALID_ARGUMENT"); // 旧形式(文字列)は受け付けない
+      expect(await publish([{ key, memberIds: [TARO.id] }])).toBeNull();
+    });
   });
 
   it("参加者にはコマンドの中身を返さない(seq だけ)", async () => {
@@ -303,7 +345,7 @@ describe("状態の公開", () => {
     const { hub, host, creds } = await setup();
     expect(await code(svc.publishState(hub.deps, { ...creds(host), data: { big: "x".repeat(MAX_STATE_BYTES) } }))).toBe("PAYLOAD_TOO_LARGE");
     expect(await code(svc.publishState(hub.deps, { ...creds(host), data: [] as never }))).toBe("INVALID_ARGUMENT");
-    expect(await code(svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: ["bad key"] }))).toBe("INVALID_ARGUMENT");
+    expect(await code(svc.publishState(hub.deps, { ...creds(host), data: {}, clientInput: [{ key: "bad key" }] }))).toBe("INVALID_ARGUMENT");
   });
 
   it("状態未公開の間は state が null", async () => {

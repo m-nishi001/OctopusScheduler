@@ -70,7 +70,7 @@ const bad = await connect(meta.id, { deviceId: client.deviceId, token: "wrong" }
 await sleep(300);
 check("不正トークンは error + 4401", bad?.messages.some((m) => m.t === "error") && bad.messages.some((m) => m.closed === 4401), JSON.stringify(bad?.messages?.slice(-2)));
 
-await rpc("sessionHub_publishState", { sessionId: meta.id, ...creds(host), data: { session: { path: "/lobby" } }, clientInput: ["jackpot.stopRoulette"] });
+await rpc("sessionHub_publishState", { sessionId: meta.id, ...creds(host), data: { session: { path: "/lobby" } }, clientInput: [{ key: "jackpot.stopRoulette" }] });
 await sleep(300);
 const clientUpdates = wsClient.messages.filter((m) => m.t === "update");
 check("状態公開が参加者へ push される", clientUpdates.at(-1)?.result.state?.data?.session?.path === "/lobby");

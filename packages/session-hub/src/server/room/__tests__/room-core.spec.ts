@@ -123,9 +123,9 @@ describe("SessionRoomCore: push 配信", () => {
 
   it("状態の公開は全端末に push され、同じ版は二度送らない", async () => {
     const { room, host, creds, wsClient, wsAdmin } = await scene();
-    await room.call("publishState", { ...creds(host), data: { screen: "draw" }, clientInput: ["jackpot.stopRoulette"] });
+    await room.call("publishState", { ...creds(host), data: { screen: "draw" }, clientInput: [{ key: "jackpot.stopRoulette" }] });
     expect(wsClient.lastUpdate()?.state?.data).toEqual({ screen: "draw" });
-    expect(wsClient.lastUpdate()?.state?.clientInput).toEqual(["jackpot.stopRoulette"]);
+    expect(wsClient.lastUpdate()?.state?.clientInput).toEqual([{ key: "jackpot.stopRoulette" }]);
     expect(wsAdmin.lastUpdate()?.state?.version).toBe(1);
     await room.core.broadcast(); // 在席だけが変わった push
     expect(wsClient.lastUpdate()?.state).toBeNull();
@@ -134,7 +134,7 @@ describe("SessionRoomCore: push 配信", () => {
   it("参加者はホストが許可した入力だけ送れて、運営端末に届く", async () => {
     const { room, host, client, creds, wsHost } = await scene();
     await expect(issue(room, creds(client), "c1", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
-    await room.call("publishState", { ...creds(host), data: {}, clientInput: ["jackpot.stopRoulette"] });
+    await room.call("publishState", { ...creds(host), data: {}, clientInput: [{ key: "jackpot.stopRoulette" }] });
     await issue(room, creds(client), "c2", "stopRoulette");
     expect(wsHost.lastUpdate()?.commands.map((c) => [c.type, c.issuerRole])).toEqual([["stopRoulette", "client"]]);
   });

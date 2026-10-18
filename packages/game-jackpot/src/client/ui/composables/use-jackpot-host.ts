@@ -1,9 +1,8 @@
 import { onScopeDispose } from "vue";
 import { container } from "tsyringe";
-import { HostAgent } from "@octopus/session-hub";
-import type { JackpotDraw } from "@octopus/session-hub";
+import { HostAgent, JACKPOT_NS } from "@octopus/session-hub";
+import type { JackpotDraw, JackpotPublished } from "@octopus/session-hub";
 import { JACKPOT_STOP_COMMAND } from "@model/jackpot-host-state";
-import type { JackpotDescriptionState, JackpotHostState } from "@model/jackpot-host-state";
 
 export interface JackpotHostHandlers {
   /** 管理端末の「次へ」。本番画面の Enter キーと同じ進行。 */
@@ -16,12 +15,12 @@ export interface JackpotHostHandlers {
 
 export interface JackpotHost {
   /** いまの抽選の状態を公開する。canStop の間だけ参加者のスマホに停止ボタンが出る。 */
-  publish(state: JackpotHostState | JackpotDescriptionState): void;
+  publish(state: JackpotPublished): void;
   /** 抽選結果を保存して、参加者のポータルへ知らせる(失敗しても抽選は止めない。数回だけ再試行する)。 */
   recordDraw(draw: JackpotDraw, sleep?: (ms: number) => Promise<void>): Promise<boolean>;
 }
 
-const NAMESPACE = "jackpot";
+const NAMESPACE = JACKPOT_NS;
 
 /**
  * 本抽選画面(ホスト端末)で使う。セッションのホストとして接続している場合だけ、
@@ -65,9 +64,9 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
         return;
       }
       canStop = state.canStop;
-      // メンバー抽選は管理者が進行するので、参加者には停止ボタンを出さない(景品抽選のときだけ出す)。
-      const participantsMayStop = state.canStop && state.phase !== "member";
-      void agent.publishSlice(NAMESPACE, state, participantsMayStop ? [JACKPOT_STOP_COMMAND] : []);
+      // メンバー抽選は管理者が進行する。景品抽選の停止は、当選した本人だけが送れる(宛先を当選者に絞る。管理者は常に可)。
+      const winnerId = state.canStop && state.stage === "prize" ? state.memberId : null;
+      void agent.publishSlice(NAMESPACE, state, winnerId ? [{ key: JACKPOT_STOP_COMMAND, memberIds: [winnerId] }] : []);
     },
     async recordDraw(draw, sleep = (ms) => new Promise((r) => setTimeout(r, ms))) {
       if (!agent.active) return false;

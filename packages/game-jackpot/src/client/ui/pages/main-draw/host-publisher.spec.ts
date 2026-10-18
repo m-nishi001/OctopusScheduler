@@ -10,12 +10,14 @@ function setup(options: { isDemo?: boolean; result?: any; nextLabel?: string } =
       ? { drawId: "d1", wonMember: { id: "m1", name: "Alice" }, wonPrize: { id: "p1", name: "Prize" }, isKakuhen: false, createdAt: 1 }
       : options.result,
     nextLabel: options.nextLabel,
+    ended: false,
   };
   const publish = createHostPublisher({
     host,
     tracker,
     isDemo: options.isDemo ?? false,
     phase: () => "prize",
+    ended: () => state.ended,
     nextLabel: () => state.nextLabel,
     result: () => state.result,
   });
@@ -27,12 +29,24 @@ describe("createHostPublisher", () => {
     const { publish, host, tracker } = setup({ nextLabel: "stopPrizeDraw" });
 
     publish();
-    expect(host.publish).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "prize", canStop: true, member: null, prize: null }));
+    expect(host.publish).toHaveBeenLastCalledWith(expect.objectContaining({ stage: "waiting", canStop: true, member: null, prize: null }));
 
     tracker.onAction("stopMemberDraw");
     tracker.onAction("stopPrizeDraw");
     publish();
     expect(host.publish).toHaveBeenLastCalledWith(expect.objectContaining({ member: "Alice", memberId: "m1", prize: "Prize" }));
+  });
+
+  it("抽選が終わったら、場面は ended として公開される(管理端末・ポータルが終了を知る)", () => {
+    const { publish, host, tracker, state } = setup();
+    tracker.onAction("stopMemberDraw");
+    tracker.onAction("stopPrizeDraw");
+    publish();
+    expect(host.publish).toHaveBeenLastCalledWith(expect.objectContaining({ stage: "prize-revealed" }));
+
+    state.ended = true;
+    publish();
+    expect(host.publish).toHaveBeenLastCalledWith(expect.objectContaining({ stage: "ended", canStop: false, member: "Alice", prize: "Prize" }));
   });
 
   it("抽選に失敗して結果が無くても公開できる", () => {

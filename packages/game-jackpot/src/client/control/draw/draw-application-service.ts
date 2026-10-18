@@ -12,6 +12,7 @@ import {
 } from "../../model/draw/prize-draw-state-repository";
 import type { Prize } from "../../model/prize/prize";
 import type { DrawResultDto } from "./dto/draw-result-dto";
+import { toDrawProgress, type DrawProgress } from "./dto/draw-progress";
 import type { Member } from "../../model/member/member";
 import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
 import {
@@ -68,6 +69,26 @@ export class DrawApplicationService {
       results
     ).length;
     return { total: prizes.length, remaining };
+  }
+
+  /**
+   * 抽選の進み具合(残り景品・抽選の対象の残りメンバー・終了の理由)。
+   * 終了の判定はここ1か所。景品が残っていても、対象のメンバーが全員当選していれば終了になる。
+   * 対象の一覧を取得できないときは、終了と見なさず例外のまま上へ伝える(誤って終わらせない)。
+   */
+  async getDrawProgress(): Promise<DrawProgress> {
+    const [prizes, results, allMembers, eligibleIds] = await Promise.all([
+      this.prizeRepo.getPrizes(),
+      this.drawResultService.getDrawResults(),
+      this.memberRepo.getMembers(),
+      this.drawPool.getEligibleMemberIds(),
+    ]);
+    const remainingPrizes = this.prizeDrawService.getRemainingPrizes(prizes, results).length;
+    const eligible = eligibleIds === null ? null : new Set(eligibleIds);
+    const won = new Set(results.map((r) => r.wonMember?.id).filter(Boolean));
+    const remainingMembers = allMembers.filter((m) => (eligible === null || eligible.has(m.id)) && !won.has(m.id)).length;
+    const drawn = results.filter((r) => r.wonMember).length;
+    return toDrawProgress(remainingPrizes, remainingMembers, drawn);
   }
 
   /**

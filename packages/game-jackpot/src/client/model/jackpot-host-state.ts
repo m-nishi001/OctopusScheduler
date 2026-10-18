@@ -5,33 +5,9 @@
  * 当選者は「停止演出が終わって画面に見える」まで公開しない(参加者のスマホに
  * 先にネタバレさせない)。サイズは小さく保つ(RoomState の上限は約6KB)。
  */
-import type { JackpotDraw } from "@octopus/session-hub";
+import type { JackpotDraw, JackpotPublished, JackpotStage } from "@octopus/session-hub";
 
 export const JACKPOT_STOP_COMMAND = "jackpot.stopRoulette";
-
-export interface JackpotHostState {
-  page: "main-draw";
-  /** 抽選の段階("member" = メンバー抽選, "prize" = 賞品抽選, それ以外 = 待機)。 */
-  phase: string;
-  /** 次の操作でルーレット/スロットを止められるか。 */
-  canStop: boolean;
-  /** 公開済みの当選者名(停止演出が終わるまでは null)。 */
-  member: string | null;
-  /** 公開済みの当選者のID(ポータルが「自分が当選したか」を判定する。member と同時に公開する)。 */
-  memberId: string | null;
-  /** 公開済みの当選賞品名(停止演出が終わるまでは null)。 */
-  prize: string | null;
-}
-
-/**
- * 説明画面(スライド)の状態。管理端末が「次のスライドへ/前へ」を出し分けるために公開する。
- * index は -1 が導入画面、0 以上が表示中のスライド(0始まり)。total はスライドの枚数。
- */
-export interface JackpotDescriptionState {
-  page: "description";
-  index: number;
-  total: number;
-}
 
 /** 当選者が確定して画面に見えるステップのラベル。 */
 const REVEAL_MEMBER = ["stopMemberDraw"];
@@ -62,23 +38,42 @@ export class RevealTracker {
   }
 }
 
+/**
+ * 場面(stage)を、画面の段階・どこまで見えたか・終了済みかから1か所で決める。
+ * 各画面(管理コンソール・参加者のポータル)は、この stage だけを見て表示を切り替える。
+ */
+export function deriveStage(input: { phase: string; tracker: RevealTracker; ended: boolean }): JackpotStage {
+  const { phase, tracker } = input;
+  if (input.ended) return "ended";
+  if (tracker.prizeRevealed) return "prize-revealed";
+  if (tracker.memberRevealed) return phase === "prize" ? "prize" : "member-revealed";
+  return phase === "member" ? "member" : "waiting";
+}
+
 export function buildJackpotHostState(input: {
   phase: string;
+  /** 抽選が終わった(景品かメンバーが尽きた)。 */
+  ended?: boolean;
   nextLabel: string | undefined;
   tracker: RevealTracker;
   memberName: string | null | undefined;
   memberId?: string | null;
   prizeName: string | null | undefined;
-}): JackpotHostState {
+}): JackpotPublished {
   const { tracker } = input;
   return {
     page: "main-draw",
-    phase: input.phase,
+    stage: deriveStage({ phase: input.phase, tracker, ended: input.ended ?? false }),
     canStop: canStopAt(input.nextLabel),
     member: tracker.memberRevealed ? input.memberName ?? null : null,
     memberId: tracker.memberRevealed ? input.memberId || null : null,
     prize: tracker.prizeRevealed ? input.prizeName ?? null : null,
   };
+}
+
+/** 説明画面(スライド)の公開状態。管理端末が「次のスライドへ/前へ」を出し分けるために index/total を載せる。 */
+export function buildJackpotDescriptionState(index: number, total: number): JackpotPublished {
+  return { page: "description", stage: "waiting", canStop: false, member: null, memberId: null, prize: null, index, total };
 }
 
 /**

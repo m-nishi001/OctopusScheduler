@@ -87,6 +87,7 @@ GAS で参加者に使ってもらう場合のデプロイ設定は [deploy-gas.
 | ジャックポット | 当選者・賞品は、**ホストの停止演出が終わってから**公開される（先にネタバレしない） |
 | バナー | 回答受付中でまだ答えていないクイズがあると「クイズ出題中!」を画面上部に固定表示（イベントタブへ）。クイズが無ければ、従来のイベント / エントリー受付のバナー |
 
+- ジャックポットの公開状態は、**場面(`stage`)** で伝える: `waiting` → `member` → `member-revealed`(当選者が見えている) → `prize` → `prize-revealed` → … → `ended`(景品かメンバーが尽きた)。型と読み取り(`readJackpotState`)は session-hub の `shared/jackpot-state.ts` にあり、ホスト・管理コンソール・ポータルが同じ定義を使う。各画面は member/prize の有無から場面を推測せず、`stage` で表示を切り替える(当選表示は `member-revealed` の間だけ出るので、景品抽選に進めば自動で閉じる)。終了の判定は `DrawApplicationService.getDrawProgress()` の1か所
 - ポータルはゲームのパッケージに依存せず、公開された状態（`quiz` / `jackpot` / `clientInput`）を**形を検証して読む**。形が合わないものは「無い」として扱う。公開する側との形の一致は、アプリの契約テスト（`portal-state-contract.spec.ts`）で確かめている
 
 **エントリー受付**（イベントの中で参加者を募る。ジャックポットの抽選対象などに使う）
@@ -166,7 +167,7 @@ GAS で参加者に使ってもらう場合のデプロイ設定は [deploy-gas.
 ## 7. 新しいゲーム/機能をつなぐには
 
 1. ホスト側の画面で `HostAgent` の `router.register("<名前空間>", handler)` を登録し、`publishSlice("<名前空間>", state)` で状態を公開する(画面を離れたら `clearSlice`)。ジャックポットは `use-jackpot-host.ts`、クイズは `use-quiz-host.ts` が実例。
-2. 参加者の入力が必要なら、ホストが許可したコマンド種別(`clientInput`)で受ける。一斉回答は回答ラウンドを使う。
+2. 参加者の入力が必要なら、ホストが許可した操作(`clientInput` = `{ key: "game.type", memberIds? }[]`)で受ける。`memberIds` を付けると、そのメンバー本人だけが送れる(サーバーが `issueCommand` で強制し、ポータルのボタンも同じ判定 `clientInputAllows` で出し分ける。ジャックポットの景品抽選の停止は当選者だけ)。一斉回答は回答ラウンドを使う。
 3. 管理コンソールに操作パネルを足し、`connection.issue("<名前空間>", "<種別>")` を送る。
 4. 遷移先の画面は `isAllowedHostPath`(`packages/session-hub/src/shared/host-navigation.ts`)の許可リストに追加する。
 5. 参加者に見せる情報は公開する状態に含めるものだけにする(答えを先に渡さない)。

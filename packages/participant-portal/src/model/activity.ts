@@ -6,6 +6,9 @@
  * 公開する側（ゲームのホスト）との形の一致は、アプリの契約テストで確かめている。
  */
 
+import { readJackpotState } from "@octopus/session-hub";
+import type { JackpotPublished } from "@octopus/session-hub";
+
 export type QuizPage = "intro" | "entry" | "play" | "answer" | "result";
 export type QuizPhase = "idle" | "answering" | "closed";
 
@@ -62,27 +65,13 @@ export function readQuizView(data: Record<string, unknown> | null | undefined): 
   };
 }
 
-export interface JackpotView {
-  /** 抽選の段階（"member" = メンバー抽選, "prize" = 賞品抽選, それ以外 = 待機）。 */
-  phase: string;
-  /** 公開済みの当選者名（停止演出が終わるまでは null）。 */
-  member: string | null;
-  /** 公開済みの当選者のID(自分が当選したかの判定に使う)。 */
-  memberId: string | null;
-  /** 公開済みの当選賞品名（停止演出が終わるまでは null）。 */
-  prize: string | null;
-}
+/** ポータルが見るジャックポットの公開状態。形と読み取りは、ホスト・管理端末と共有する定義(session-hub)。 */
+export type JackpotView = Pick<JackpotPublished, "stage" | "member" | "memberId" | "prize">;
 
 /** 公開された状態から、いまのジャックポットを取り出す。無い・形が合わないときは null。 */
 export function readJackpotView(data: Record<string, unknown> | null | undefined): JackpotView | null {
-  const raw = data?.jackpot;
-  if (!isRecord(raw)) return null;
-  return {
-    phase: isString(raw.phase) ? raw.phase : "",
-    member: orNull(raw.member, isString),
-    memberId: orNull(raw.memberId, isString),
-    prize: orNull(raw.prize, isString),
-  };
+  const state = readJackpotState(data);
+  return state && { stage: state.stage, member: state.member, memberId: state.memberId, prize: state.prize };
 }
 
 /** 参加者に見せる「いま受け付けている操作」の表示名。未知のキーはそのまま出す。 */

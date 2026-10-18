@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { RevealTracker, buildJackpotDraw, buildJackpotHostState, canStopAt } from "./jackpot-host-state";
+import { RevealTracker, buildJackpotDescriptionState, buildJackpotDraw, buildJackpotHostState, canStopAt, deriveStage } from "./jackpot-host-state";
+import { JACKPOT_STAGES, readJackpotState } from "@octopus/session-hub";
 
 describe("canStopAt", () => {
   it.each(["stopMemberDraw", "stopPrizeDraw", "stopKakuhenDummyDraw", "stopKakuhenFinalDraw"])("%s は止められる", (l) => {
@@ -34,12 +35,73 @@ describe("RevealTracker", () => {
   });
 });
 
+describe("deriveStage(場面を1か所で決める)", () => {
+  const at = (phase: string, reveal: { member?: boolean; prize?: boolean } = {}, ended = false) => {
+    const tracker = new RevealTracker();
+    if (reveal.member) tracker.onAction("stopMemberDraw");
+    if (reveal.prize) tracker.onAction("stopPrizeDraw");
+    return deriveStage({ phase, tracker, ended });
+  };
+
+  it("1回の抽選の流れ: 準備 → メンバー抽選 → 当選者が見える → 景品抽選 → 景品が見える", () => {
+    expect(at("idle")).toBe("waiting");
+    expect(at("member")).toBe("member");
+    expect(at("member", { member: true })).toBe("member-revealed"); // 当選者が見えているが、景品抽選にはまだ進んでいない
+    expect(at("prize", { member: true })).toBe("prize"); // 景品抽選に進むと member-revealed は終わる(当選表示が閉じる)
+    expect(at("prize", { member: true, prize: true })).toBe("prize-revealed");
+  });
+
+  it("抽選が終わっていれば、どの段階でも ended", () => {
+    for (const phase of ["idle", "member", "prize"]) {
+      expect(at(phase, { member: true, prize: true }, true)).toBe("ended");
+      expect(at(phase, {}, true)).toBe("ended");
+    }
+  });
+
+  it("次の抽選が始まる(reset)と、前回の当選者・景品は場面から外れる", () => {
+    const tracker = new RevealTracker();
+    tracker.onAction("stopMemberDraw");
+    tracker.onAction("stopPrizeDraw");
+    expect(deriveStage({ phase: "prize", tracker, ended: false })).toBe("prize-revealed");
+    tracker.reset();
+    expect(deriveStage({ phase: "member", tracker, ended: false })).toBe("member");
+  });
+
+  it("どの組み合わせでも、公開される場面は定義済みのものだけ", () => {
+    for (const phase of ["idle", "member", "prize", "unknown"]) {
+      for (const member of [false, true]) {
+        for (const prize of [false, true]) {
+          for (const ended of [false, true]) {
+            expect(JACKPOT_STAGES).toContain(at(phase, { member, prize }, ended));
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("公開状態は、管理端末・ポータルが読む形と一致する(ホスト → 読み取り)", () => {
+  it("抽選画面の状態を、そのまま読み取れる。場面は stage で伝わる", () => {
+    const tracker = new RevealTracker();
+    tracker.onAction("stopMemberDraw");
+    const state = buildJackpotHostState({ phase: "member", nextLabel: undefined, tracker, memberName: "太郎", memberId: "taro", prizeName: "特賞" });
+    expect(readJackpotState({ jackpot: JSON.parse(JSON.stringify(state)) })).toEqual(state);
+    expect(state.stage).toBe("member-revealed");
+  });
+
+  it("説明画面の状態は、場面は waiting のまま、スライドの位置(index/total)を伝える", () => {
+    const state = buildJackpotDescriptionState(1, 3);
+    expect(state).toMatchObject({ page: "description", stage: "waiting", canStop: false, member: null, prize: null, index: 1, total: 3 });
+    expect(readJackpotState({ jackpot: JSON.parse(JSON.stringify(state)) })).toEqual(state);
+  });
+});
+
 describe("buildJackpotHostState", () => {
   const base = { phase: "member", nextLabel: undefined as string | undefined, memberName: "太郎", memberId: "taro", prizeName: "特賞" };
 
   it("停止演出が終わるまで当選者・賞品を含めない(ネタバレ防止)", () => {
     const t = new RevealTracker();
-    expect(buildJackpotHostState({ ...base, tracker: t })).toEqual({ page: "main-draw", phase: "member", canStop: false, member: null, memberId: null, prize: null });
+    expect(buildJackpotHostState({ ...base, tracker: t })).toEqual({ page: "main-draw", stage: "member", canStop: false, member: null, memberId: null, prize: null });
   });
 
   it("メンバー停止後は当選者だけ、賞品停止後は賞品も含める", () => {

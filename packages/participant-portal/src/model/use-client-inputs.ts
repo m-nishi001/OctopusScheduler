@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import { parseHubErrorCode } from "@octopus/session-hub";
 import type { PortalSession } from "./use-portal-session";
@@ -14,10 +14,10 @@ export interface ClientInputs {
 
 /**
  * ホストが許可した参加者の操作（例: ルーレットを止める）。受け付けている操作はホストが公開する
- * （RoomState.clientInput）。押すと、ホストへコマンドとして届く。
+ * （RoomState.clientInput のうち、自分が宛先のもの）。押すと、ホストへコマンドとして届く。
  */
 export function useClientInputs(session: PortalSession): ClientInputs {
-  const inputs = computed(() => session.state.value.roomState?.clientInput ?? []);
+  const inputs = session.clientInputs;
   const busyKey = ref<string | null>(null);
   const message = ref("");
 
