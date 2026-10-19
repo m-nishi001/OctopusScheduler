@@ -21,6 +21,7 @@ export class ShowContentEventHandler {
       contentType: "image" | "movie" | "html";
       contentId?: string;
       htmlString?: string;
+      eventId?: string;
       displayMode?: "fade" | "scroll-up" | "scroll-down";
       effect?: "fade" | "scroll" | "static";
       duration?: number;

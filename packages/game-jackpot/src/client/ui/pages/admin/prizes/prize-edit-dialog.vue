@@ -24,7 +24,7 @@ const props = defineProps({
     prize: { type: Object, required: true },
     imageAssets: { type: Array as () => Asset[], required: true },
     audioAssets: { type: Array as () => Asset[], required: true },
-    objectUrlMap: { type: Object, required: true },
+    objectUrlMap: { type: Object as () => Map<string, string>, required: true },
     otherPrizes: { type: Array as () => Prize[], default: () => [] },
 });
 

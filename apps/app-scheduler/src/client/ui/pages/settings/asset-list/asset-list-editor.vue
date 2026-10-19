@@ -30,7 +30,7 @@
             confirm-label="追加" :loading="uploading" :confirm-disabled="!selectedFiles.length"
             @confirm="confirmAdd" @cancel="closeAddModal" @close="closeAddModal">
             <p class="modal-lead">追加するファイルを選択してください。</p>
-            <input ref="fileInput" type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
+            <input type="file" @change="onFileChange" accept="image/*,audio/*,video/*" multiple
                 class="file-input" :disabled="uploading" />
 
             <div class="selected-files" v-if="selectedFiles.length">
@@ -100,7 +100,6 @@ const rows = computed(() =>
 
 const { confirmDelete } = useConfirm();
 
-const fileInput = ref<HTMLInputElement | null>(null);
 const showAddModal = ref(false);
 const openAddModal = () => { showAddModal.value = true; };
 const closeAddModal = () => { showAddModal.value = false; selectedFiles.value = []; };

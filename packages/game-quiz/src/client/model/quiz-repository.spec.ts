@@ -6,7 +6,7 @@ import { LocalStorageService } from "@octopus/client-common/storage/local-storag
 function makeFakeApi() {
   return {
     addDriveData: vi.fn(async (d: any) => ({ ...d.driveData.metadata, fileId: "file-1" })),
-    getDriveMetaData: vi.fn(async () => []),
+    getDriveMetaData: vi.fn(async (): Promise<unknown[]> => []),
     getDriveData: vi.fn(),
     updateDriveData: vi.fn(async () => undefined),
     addJson: vi.fn(async (d: any) => ({

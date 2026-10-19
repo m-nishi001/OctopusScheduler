@@ -30,84 +30,24 @@ export const RouletteBgmManager = {
     return this.playBlob(blob);
   },
 
+  /** BGM を再生する。自動再生がブロックされていれば先に再開を試す。失敗しても演出は止めず null を返す。 */
   async playBlob(blob: Blob | null) {
     if (!blob) return null;
     try {
       const audioApi = useRouletteAudio();
-      // 詳細ログ: audio APIの状態
-      console.log("[RouletteBgmManager] playBlob: before tryResumeBgm", {
-        isBgmPlaying: audioApi.isBgmPlaying?.value,
-        currentBgmSrc: audioApi.currentBgmSrc?.value,
-        bgmAutoplayBlocked: audioApi.bgmAutoplayBlocked?.value,
-        audioApi,
-      });
-      if (typeof audioApi.tryResumeBgm === "function") {
-        try {
-          await audioApi.tryResumeBgm();
-          console.log("[RouletteBgmManager] tryResumeBgm called successfully");
-        } catch (e) {
-          console.warn("[RouletteBgmManager] tryResumeBgm failed", e);
-        }
-      }
-      // 詳細ログ: startBgm前のaudio element状態
       try {
-        const state = audioApi.getHtmlAudioState?.();
-        console.log(
-          "[RouletteBgmManager] audio element state before startBgm",
-          state
-        );
+        await audioApi.tryResumeBgm();
       } catch (e) {
-        console.warn(
-          "[RouletteBgmManager] failed to get audio element state before startBgm",
-          e
-        );
+        console.warn("[RouletteBgmManager] tryResumeBgm failed", e);
       }
-      if (typeof audioApi.startBgm === "function") {
-        await audioApi.startBgm(blob);
-        console.log("[RouletteBgmManager] startBgm called");
-      }
-      // 詳細ログ: startBgm後のaudio element状態
-      try {
-        const state = audioApi.getHtmlAudioState?.();
-        console.log(
-          "[RouletteBgmManager] audio element state after startBgm",
-          state
-        );
-      } catch (e) {
-        console.warn(
-          "[RouletteBgmManager] failed to get audio element state after startBgm",
-          e
-        );
-      }
-      // 追加: audio elementのpaused, currentTime, volume, src なども出力
-      try {
-        const audioEl = document.querySelector("audio");
-        if (audioEl) {
-          console.log(
-            "[RouletteBgmManager] <audio> element: paused=",
-            audioEl.paused,
-            "currentTime=",
-            audioEl.currentTime,
-            "volume=",
-            audioEl.volume,
-            "src=",
-            audioEl.src
-          );
-        } else {
-          console.log("[RouletteBgmManager] <audio> element not found in DOM");
-        }
-      } catch (e) {
-        console.warn(
-          "[RouletteBgmManager] failed to log <audio> element state",
-          e
-        );
-      }
+      await audioApi.startBgm(blob);
       return blob;
     } catch (e) {
       console.warn("[RouletteBgmManager] failed to play blob", e);
       return null;
     }
   },
+
 
   async stop() {
     try {

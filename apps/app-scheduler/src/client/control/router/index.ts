@@ -2,6 +2,7 @@ import {
   createRouter,
   createWebHashHistory,
   START_LOCATION,
+  type RouteRecordSingleView,
 } from "vue-router";
 import { HistoryService } from "@octopus/client-common/google-apps-script/gas-history-service";
 import octopusSchedulerRoutes from "../../ui/router";
@@ -25,8 +26,11 @@ const router = createRouter({
     ...octopusSchedulerRoutes.filter((r) => r.path !== "/execute"),
     {
       path: "/execute",
-      component: octopusSchedulerRoutes.find((r) => r.path === "/execute")
-        ?.component,
+      component: (
+        octopusSchedulerRoutes.find((r) => r.path === "/execute") as
+          | RouteRecordSingleView
+          | undefined
+      )?.component,
       children: (function () {
         // include any children that the octopusSchedulerRoutes defined for /execute
         const appExecuteRoute = octopusSchedulerRoutes.find(

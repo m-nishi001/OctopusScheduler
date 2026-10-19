@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ref } from "vue";
 import { useKeyCapture } from "./useKeyCapture";
 
 describe("useKeyCapture", () => {

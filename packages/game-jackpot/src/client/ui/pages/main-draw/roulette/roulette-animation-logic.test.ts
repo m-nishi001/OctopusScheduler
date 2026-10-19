@@ -55,7 +55,6 @@ vi.mock("./roulette-angle-utils", () => ({
 }));
 
 import { useRouletteAnimation } from "./roulette-animation-logic";
-import { useRouletteAudio } from "./roulette-audio";
 import { useRouletteAnimator } from "./roulette-animator";
 import { convertToInternal } from "./roulette-image-loader";
 import { drawWheel } from "./roulette-drawer";

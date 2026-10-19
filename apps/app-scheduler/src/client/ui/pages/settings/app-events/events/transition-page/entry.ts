@@ -1,5 +1,5 @@
 import TransitionPageForm from "./transition-page-form.vue";
-import type { UIActionEntry } from "../../app-events/ui-action-entry";
+import type { UIActionEntry } from "../../ui-action-entry";
 
 export const TransitionPageAction: UIActionEntry = {
   actionType: "TransitionPageEvent",

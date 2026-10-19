@@ -25,7 +25,6 @@ const BANNER_MS = 3200;
 
 const COLORS = ['#ffd700', '#ff4d4d', '#4dff88', '#4da6ff', '#ff4dff', '#ffff4d', '#ff7a1a', '#4dffff'];
 const MAX_PARTICLES = 900;
-const GRAVITY = 900; // px/s^2
 
 type Kind = 'spark' | 'ribbon' | 'star' | 'dot' | 'rocket';
 interface Particle {

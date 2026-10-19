@@ -7,6 +7,7 @@ import type { JackpotPublished } from "@octopus/session-hub";
 import { joinParticipant, makeDevice, makeHub } from "@octopus/session-hub/testing";
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { useJackpotHost } from "./use-jackpot-host";
+import type { JackpotHostHandlers } from "./use-jackpot-host";
 import { buildJackpotDescriptionState } from "@model/jackpot-host-state";
 
 beforeEach(() => {
@@ -47,7 +48,7 @@ async function scene() {
   return { hub, meta, agent, admin, client, other, hostDevice };
 }
 
-function mountHost(handlers: { advance: () => void; stopRoulette: () => void }) {
+function mountHost(handlers: JackpotHostHandlers) {
   const scope = effectScope();
   const host = scope.run(() => useJackpotHost(handlers))!;
   return { host, stop: () => scope.stop() };

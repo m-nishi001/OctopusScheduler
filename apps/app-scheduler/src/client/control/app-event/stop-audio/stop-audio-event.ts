@@ -94,12 +94,12 @@ export class StopAudioEvent implements AppEvent {
     return new StopAudioEvent(params);
   }
 
-  async execute(isStart: boolean, manual?: boolean): Promise<void> {
+  async execute(isStart: boolean): Promise<void> {
     if (isStart) {
       eventBus.emit("stopAudio", {
         audioId: this.audioId,
         fadeOutDuration: this.fadeOutDuration,
-      } as any);
+      });
     }
   }
 

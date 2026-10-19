@@ -1,5 +1,5 @@
 import PlayAudioForm from "./play-audio-form.vue";
-import type { UIActionEntry } from "../../app-events/ui-action-entry";
+import type { UIActionEntry } from "../../ui-action-entry";
 
 export const PlayAudioAction: UIActionEntry = {
   actionType: "PlayAudioEvent",

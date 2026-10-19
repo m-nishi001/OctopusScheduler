@@ -12,7 +12,12 @@
       "cache": false
     },
     "lint": {},
-    "test": {},
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
+    "test": {
+      "dependsOn": ["transit"]
+    },
     "typecheck": {
       "dependsOn": ["^build"]
     }

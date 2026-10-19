@@ -35,12 +35,6 @@ const blobUrl = ref<string | null>(null);
 
 const optionText = computed(() => (props.option && (props.option.text ?? (props.option.no != null ? String(props.option.no) : ''))) || '');
 
-const displayText = computed(() => {
-    if (optionText.value && optionText.value.length > 0) return optionText.value;
-    if (props.option && props.option.no != null) return String(props.option.no);
-    return String(props.index + 1);
-});
-
 const ariaLabel = computed(() => props.ariaLabel || optionText.value || `option-${props.index + 1}`);
 
 const variantClass = computed(() => (props.variant ? `option-card--${props.variant}` : ''));

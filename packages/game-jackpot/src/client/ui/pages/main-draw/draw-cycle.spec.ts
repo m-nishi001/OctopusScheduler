@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ActionQueue, type Step } from "./action-queue";
 import { DrawFlowController } from "./draw-flow-controller";
+import { toDrawProgress } from "@control/draw/dto/draw-progress";
 import { buildCycle, normalPrizeSteps, remainingSteps } from "./draw-cycle";
 import { DrawStateError } from "./draw-context";
 import { createTestContext } from "./draw-context.test-helper";
@@ -44,14 +45,16 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
     const settled = vi.fn();
     const flow = new DrawFlowController({
       queue,
-      remainingPrizes: vi.fn().mockResolvedValue(0), // サイクルが終わったら止める
+      progress: vi.fn(async () => toDrawProgress(0, 0, 1)), // サイクルが終わったら止める(景品が尽きた)
       drawNextCycle: async () => buildCycle(ctx, isKakuhen),
       onDrawError: vi.fn(),
       onStepError: vi.fn(),
+      onFinished: vi.fn(),
+      onLeave: vi.fn(),
       onSettled: settled,
     });
     flow.ready = true;
-    // remainingPrizes が 0 だと最初の抽選ができないので、先にサイクルを積む
+    // 景品が尽きた状態だと最初の抽選ができないので、先にサイクルを積む
     queue.addCycle(buildCycle(ctx, isKakuhen));
     const advance = async () => {
       const p = flow.advance();

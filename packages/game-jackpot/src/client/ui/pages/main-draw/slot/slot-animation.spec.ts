@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import SlotAnimation from "./slot-animation.vue";
-import type { AnimationRef } from "./animation-types";
+import type { AnimationRef } from "../animation-types";
+import type { PrizeDto } from "@control/prize/dto/prize-dto";
 
 vi.mock("@octopus/composables/use-audio", () => ({
   useAudio: () => ({
@@ -11,11 +12,11 @@ vi.mock("@octopus/composables/use-audio", () => ({
   }),
 }));
 
-const prizes = [
-  { id: "p1", name: "賞1" },
-  { id: "p2", name: "賞2" },
-  { id: "p3", name: "賞3" },
-] as never[];
+const prizes: PrizeDto[] = [
+  { id: "p1", name: "賞1", order: 1 },
+  { id: "p2", name: "賞2", order: 2 },
+  { id: "p3", name: "賞3", order: 3 },
+];
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -87,7 +88,7 @@ describe("SlotAnimation", () => {
     });
 
     it("どの景品に止めても、窓が帯の内側に収まり、一番上にその景品が見える", async () => {
-      for (const target of prizes as Array<{ id: string; name: string }>) {
+      for (const target of prizes) {
         const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: target } });
         const api = wrapper.vm as unknown as Required<AnimationRef>;
         await api.startSpin();
@@ -103,7 +104,7 @@ describe("SlotAnimation", () => {
 
     it("景品が1件・2件でも、帯が空白にならない", async () => {
       for (const n of [1, 2]) {
-        const few = (prizes as Array<{ id: string; name: string }>).slice(0, n);
+        const few = (prizes).slice(0, n);
         const wrapper = mount(SlotAnimation, { props: { prizes: few, selectedPrize: few[0] } });
         for (const reel of inspect(wrapper)) {
           expect(reel.rows.length).toBeGreaterThanOrEqual(3);

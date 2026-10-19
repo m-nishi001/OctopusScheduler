@@ -4,7 +4,15 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/*/src/**", "$TURBO_ROOT$/apps/*/src/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/*/src/**",
+        "$TURBO_ROOT$/apps/*/src/**",
+        "!$TURBO_ROOT$/packages/*/src/**/__tests__/**",
+        "!$TURBO_ROOT$/apps/*/src/**/__tests__/**",
+        "!$TURBO_ROOT$/**/*.spec.ts",
+        "!$TURBO_ROOT$/**/*.test.ts"
+      ]
     }
   }
 }
