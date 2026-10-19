@@ -53,7 +53,7 @@ describe("WeightedSelector", () => {
      * weight未設定の景品はデフォルト値にフォールバックすることをテストする。
      */
     it("falls back to the default weight when unset", () => {
-      const pool = [{ id: "a" }, { id: "b" }];
+      const pool: Array<{ id: string; weight?: number }> = [{ id: "a" }, { id: "b" }];
       const sel = new WeightedSelector(new MockRandom([0]) as any);
       // Both resolve to DEFAULT_PRIZE_WEIGHT, so total = 2*DEFAULT_PRIZE_WEIGHT and r=0 selects the first.
       expect(sel.selectWeightedPrize(pool).id).toBe("a");

@@ -1,6 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    /* 型検査のためだけに -b で実行する。ソースの隣に成果物を出さないよう、宣言ファイルだけを node_modules/.tmp に出す */
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationDir": "./node_modules/.tmp/types",
+    "outDir": "./node_modules/.tmp/out",
     "lib": ["ES2022", "DOM"],
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
 
@@ -25,5 +30,5 @@
     { "path": "../composables" },
     { "path": "../sync-engine" }
   ],
-  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.vue"]
+  "include": ["src/client/**/*.ts", "src/client/**/*.tsx", "src/client/**/*.vue", "src/server/jackpot-api-contract.ts"]
 }

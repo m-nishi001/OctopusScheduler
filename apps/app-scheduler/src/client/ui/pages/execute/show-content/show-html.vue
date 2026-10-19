@@ -24,7 +24,6 @@ const htmlContent = ref('');
 const assetService = container.resolve(AssetService);
 
 const displayMode = ref(route.query.displayMode as string || 'fade');
-const manual = ref((route.query.manual as string) === 'true');
 
 const displayModeClass = computed(() => {
     return displayMode.value === 'fade' ? 'fade-in' : displayMode.value;

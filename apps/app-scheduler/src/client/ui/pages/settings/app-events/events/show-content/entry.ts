@@ -1,5 +1,5 @@
 import ShowContentForm from "./show-content-form.vue";
-import type { UIActionEntry } from "../../app-events/ui-action-entry";
+import type { UIActionEntry } from "../../ui-action-entry";
 
 export const ShowContentAction: UIActionEntry = {
   actionType: "ShowContentEvent",

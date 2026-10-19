@@ -10,6 +10,7 @@
 import { defineComponent, computed, onMounted, watch } from 'vue';
 import { useRouletteAnimation, type RouletteItem, type RouletteAnimationProps } from './roulette-animation-logic';
 import { pickStopPattern } from './roulette-angle-utils';
+import { useRouletteAudio } from './roulette-audio';
 import { useRouletteAnimationState } from '../prize-animation-state';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -46,7 +47,9 @@ export default defineComponent({
             showResult: stateShowResult.value,
         };
 
-        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes, getInternalItems, tryResumeBgm } = useRouletteAnimation(
+        // 利用者の操作をきっかけに、自動再生がブロックされた BGM を再開できるようにする
+        const { tryResumeBgm } = useRouletteAudio();
+        const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes, getInternalItems } = useRouletteAnimation(
             rouletteProps
         );
 

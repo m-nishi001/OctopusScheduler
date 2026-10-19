@@ -18,7 +18,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useAudio } from '@octopus/composables/use-audio';
 import '../../../theme/jackpot-theme.css';
 import type { PrizeDto } from '@control/prize/dto/prize-dto';
-import type { AnimationRef } from './animation-types';
+import type { AnimationRef } from '../animation-types';
 import { advancePosition, buildLoop, cycleHeight, indexInLoop, positionForIndex, renderedCount } from './reel-model';
 
 export default {
@@ -83,7 +83,7 @@ export default {
             });
         };
 
-        const stopSpin = async (durationSec?: number, targetPrizeId?: string | null) => {
+        const stopSpin = async (_durationSec?: number, targetPrizeId?: string | null) => {
             return new Promise<string | null>((resolve) => {
                 let stoppedCount = 0;
                 const totalReels = reels.value.length;

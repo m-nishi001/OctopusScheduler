@@ -4,6 +4,7 @@
  *
  * 主ボタンは常に1つ。進行中のゲームに合わせて中身が変わり、押した結果を1行で予告する。
  */
+import type { JackpotPublished, JackpotStage } from "@octopus/session-hub";
 
 /** ホストが公開しているジャックポットの状態(ホスト・ポータルと共有する定義)。 */
 export type JackpotProgress = JackpotPublished;

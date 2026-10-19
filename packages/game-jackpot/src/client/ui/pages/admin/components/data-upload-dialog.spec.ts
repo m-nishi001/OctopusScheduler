@@ -128,8 +128,6 @@ const dummyPrizeRepo: Pick<
   | "addPrizes"
   | "deletePrizes"
   | "replaceAllPrizes"
-  | "exportAllPrizesToDrive"
-  | "importAllPrizesFromDrive"
 > = {
   async getPrizes() {
     return [] as any;
@@ -146,12 +144,6 @@ const dummyPrizeRepo: Pick<
   async replaceAllPrizes(_prizes: any[]) {
     return { replaced: 0 };
   },
-  async exportAllPrizesToDrive() {
-    return undefined as any;
-  },
-  async importAllPrizesFromDrive() {
-    return undefined as any;
-  },
 };
 
 const dummyMemberRepo: Pick<
@@ -161,7 +153,6 @@ const dummyMemberRepo: Pick<
   | "addMembers"
   | "updateMembers"
   | "deleteMembers"
-  | "replaceAllMembers"
 > = {
   async getMembers() {
     return [] as any;
@@ -179,9 +170,6 @@ const dummyMemberRepo: Pick<
   },
   async deleteMembers(_ids: string[]) {
     return undefined as any;
-  },
-  async replaceAllMembers(_members: any[]) {
-    return { replaced: 0 };
   },
 };
 

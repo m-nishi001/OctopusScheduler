@@ -184,7 +184,7 @@ describe("DrawApplicationService", () => {
     it("対象を指定しないときは、全メンバーを抽選に渡す（従来どおり）", async () => {
       const { service, memberDrawService } = createDeps({ members: roster, memberDrawResult: { winnerId: "alice", dummyIds: [] } });
       await draw(service);
-      const passed = memberDrawService.drawMember.mock.calls[0][0] as Array<{ id: string }>;
+      const passed = (memberDrawService.drawMember.mock.calls[0] as unknown[])[0] as Array<{ id: string }>;
       expect(passed.map((m) => m.id)).toEqual(["alice", "bob", "carol", "dave"]);
     });
 
@@ -195,7 +195,7 @@ describe("DrawApplicationService", () => {
         memberDrawResult: { winnerId: "bob", dummyIds: ["dave"] },
       });
       await draw(service);
-      const passed = memberDrawService.drawMember.mock.calls[0][0] as Array<{ id: string }>;
+      const passed = (memberDrawService.drawMember.mock.calls[0] as unknown[])[0] as Array<{ id: string }>;
       expect(passed.map((m) => m.id)).toEqual(["bob", "dave"]);
     });
 
@@ -206,7 +206,7 @@ describe("DrawApplicationService", () => {
         memberDrawResult: { winnerId: "bob", dummyIds: [] },
       });
       await draw(service);
-      expect((memberDrawService.drawMember.mock.calls[0][0] as Array<{ id: string }>).map((m) => m.id)).toEqual(["bob"]);
+      expect(((memberDrawService.drawMember.mock.calls[0] as unknown[])[0] as Array<{ id: string }>).map((m) => m.id)).toEqual(["bob"]);
     });
 
     it("対象が空・対象の全員が当選済みなら、理由の分かる例外にする（全メンバーにフォールバックしない）", async () => {
@@ -234,7 +234,7 @@ describe("DrawApplicationService", () => {
     it("プレビュー抽選にも同じ対象が使われる", async () => {
       const { service, memberDrawService } = createDeps({ members: roster, eligibleMemberIds: ["carol"], memberDrawResult: { winnerId: "carol", dummyIds: [] } });
       await service.previewDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
-      expect((memberDrawService.drawMember.mock.calls[0][0] as Array<{ id: string }>).map((m) => m.id)).toEqual(["carol"]);
+      expect(((memberDrawService.drawMember.mock.calls[0] as unknown[])[0] as Array<{ id: string }>).map((m) => m.id)).toEqual(["carol"]);
     });
 
     it("本物の抽選ロジックでも、対象外の人は決して当選せず、ダミーにも出ない", async () => {

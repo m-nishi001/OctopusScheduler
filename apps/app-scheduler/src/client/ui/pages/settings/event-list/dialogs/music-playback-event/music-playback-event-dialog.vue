@@ -34,7 +34,7 @@
             <div class="form-group" v-if="form.assetSource === 'upload'">
                 <label for="uploadFile">アップロードファイル</label>
                 <div class="file-picker">
-                    <input id="uploadFile" ref="fileInput" class="hidden-file-input" type="file"
+                    <input id="uploadFile" :ref="(el) => (fileInput = el as HTMLInputElement | null)" class="hidden-file-input" type="file"
                         @change="onFileChange" accept=".mp3,.wav,.ogg,.m4a" />
                     <button type="button" class="file-btn" @click.prevent="openFilePicker">Choose File</button>
                     <span class="file-name">{{ form.uploadFile ? form.uploadFile.name : 'No file chosen' }}</span>

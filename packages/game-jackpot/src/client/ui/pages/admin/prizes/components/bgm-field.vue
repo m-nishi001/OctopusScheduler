@@ -56,7 +56,7 @@ const uploadedFile = ref<File | null>(null);
 
 // useAudio instance (local to this field) for playback in admin UI
 const audio = useAudio({ mode: 'html-audio' });
-const { load, play, stop, isPlaying, isLoading } = audio as any;
+const { load, play, stop, isPlaying } = audio as any;
 
 const onFileChange = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0] || null;

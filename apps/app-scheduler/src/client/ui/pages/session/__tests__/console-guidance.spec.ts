@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { describeProgress } from "../console-guidance";
 import { JACKPOT_STAGES } from "@octopus/session-hub";
+import type { JackpotPublished } from "@octopus/session-hub";
 import type { GuidanceInput } from "../console-guidance";
 
 const base: GuidanceInput = { hostPath: "/session/host/s1", jackpot: null, quiz: null, answerCount: null, hostOnline: true, demo: false };
@@ -106,7 +107,8 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
       });
 
       it("スライドの位置がまだ届いていない/別画面の状態が残っているときは、従来どおり「抽選を始める」で戻れない", () => {
-        for (const jackpot of [null, { page: "main-draw", stage: "member", canStop: false, member: null, memberId: null, prize: null }, { page: "main-draw", stage: "prize", canStop: true, member: null, memberId: null, prize: null }]) {
+        const stale: Array<JackpotPublished | null> = [null, { page: "main-draw", stage: "member", canStop: false, member: null, memberId: null, prize: null }, { page: "main-draw", stage: "prize", canStop: true, member: null, memberId: null, prize: null }];
+        for (const jackpot of stale) {
           const g = at({ hostPath: "/execute/jackpot-description", jackpot });
           expect(g.main).toMatchObject({ label: "抽選を始める", action: { kind: "navigate", path: "/jackpot-draw" } });
           expect(g.back ?? null).toBeNull();

@@ -1,5 +1,5 @@
 import SlideshowForm from "./slideshow-form.vue";
-import type { UIActionEntry } from "../../app-events/ui-action-entry";
+import type { UIActionEntry } from "../../ui-action-entry";
 
 export const SlideshowAction: UIActionEntry = {
   actionType: "SlideshowEvent",

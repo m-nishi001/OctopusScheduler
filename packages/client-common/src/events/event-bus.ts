@@ -2,7 +2,8 @@ import mitt from "mitt";
 
 export const eventBus = mitt<{
   playAudio: { audioId?: string };
-  stopAudio: void;
+  /** audioId を省略すると、再生中の音声すべてを止める。fadeOutDuration は秒。 */
+  stopAudio: { audioId?: string; fadeOutDuration?: number } | undefined;
   showContent: {
     contentType: "image" | "movie" | "html";
     // If true, the content was triggered manually (via keyboard shortcut)

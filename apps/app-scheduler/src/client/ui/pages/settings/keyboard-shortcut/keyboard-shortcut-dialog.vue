@@ -122,7 +122,7 @@ watch(() => props.show, (newShow) => {
                 const dtoList: Array<AppEventDto> = [];
                 for (const ev of evs) {
                     if (!ev) {
-                        dtoList.push({ actionType: 'Unknown' } as AppEventDto);
+                        dtoList.push({ actionType: 'Unknown' } as unknown as AppEventDto);
                         continue;
                     }
                     try {

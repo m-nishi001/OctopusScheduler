@@ -1,10 +1,10 @@
 <template>
-    <div v-if="quiz" ref="containerRef" class="quiz-container" :style="containerStyle">
+    <div v-if="quiz" :ref="(el) => (containerRef = el as HTMLElement | null)" class="quiz-container" :style="containerStyle">
         <div class="timer-pill" :class="{ 'urgent': timeLeft <= 10 }" aria-hidden="false">
             <span class="time">{{ timeLeft }}</span>
             <span class="unit">秒</span>
         </div>
-        <header ref="headerRef" class="quiz-header">
+        <header :ref="(el) => (headerRef = el as HTMLElement | null)" class="quiz-header">
             <div class="header-row">
                 <div class="header-content">
                     <div class="title-card" aria-hidden="false">
@@ -14,7 +14,7 @@
                 </div>
             </div>
         </header>
-        <section ref="questionAreaRef" class="question-area" aria-live="polite">
+        <section :ref="(el) => (questionAreaRef = el as HTMLElement | null)" class="question-area" aria-live="polite">
             <div class="options-grid" :class="{ 'two-options': optionsCount === 2 }" role="list">
                 <OptionCard v-for="(option, index) in optionsWithImageUrls" :key="index" :option="option" :index="index"
                     @select="selectOption" :style="{ '--option-color': option.color }" />

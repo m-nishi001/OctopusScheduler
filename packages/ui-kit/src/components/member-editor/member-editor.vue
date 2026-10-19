@@ -52,9 +52,10 @@ const props = withDefaults(
         loading?: boolean;
         /** true で追加時にIDの入力を必須にする(クイズのログインID等) */
         idRequired?: boolean;
-        onAdd: (input: { id?: string; name: string }) => Promise<void>;
-        onUpdate: (input: MemberRow) => Promise<void>;
-        onDelete: (ids: string[]) => Promise<void>;
+        /** 追加・更新・削除の完了を待つ。戻り値は使わない。 */
+        onAdd: (input: { id?: string; name: string }) => Promise<unknown>;
+        onUpdate: (input: MemberRow) => Promise<unknown>;
+        onDelete: (ids: string[]) => Promise<unknown>;
     }>(),
     { loading: false, idRequired: false },
 );

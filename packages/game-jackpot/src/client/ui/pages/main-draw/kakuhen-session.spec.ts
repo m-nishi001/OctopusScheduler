@@ -6,9 +6,9 @@ import { createTestContext } from "./draw-context.test-helper";
 const prizeRes = { winnerPrizeId: "p1", dummyWinnerPrizeId: null, dummyPrizeIds: [], drawId: "d1" };
 
 function setup(overrides: { items?: Array<{ id: string }> } = {}) {
-  const winner = { id: "p1", imageAssetId: "img1", image2AssetId: "img2", winningImage2AssetId: "win2" };
+  const winner = { id: "p1", name: "p1", order: 1, imageAssetId: "img1", image2AssetId: "img2", winningImage2AssetId: "win2" };
   const ctx = createTestContext();
-  ctx.prizes.value = [winner, { id: "p2" }];
+  ctx.prizes.value = [winner, { id: "p2", name: "p2", order: 2 }];
   ctx.prizeRes.value = prizeRes as any;
   ctx.result.value = { wonPrize: winner, wonMember: { id: "m1" } } as any;
   if (overrides.items) ctx.prizeAnim.value.getInternalItems = vi.fn(() => overrides.items);
@@ -105,7 +105,7 @@ describe("KakuhenSession", () => {
       await settle(session.stopFinalDraw());
 
       expect(ctx.prizeAnim.value.stopSpin).toHaveBeenLastCalledWith(5, "p1__k2", 2);
-      expect(ctx.preparePrizes).toHaveBeenLastCalledWith([winner, { id: "p2" }]); // 複製を除いた元の一覧
+      expect(ctx.preparePrizes).toHaveBeenLastCalledWith([winner, { id: "p2", name: "p2", order: 2 }]); // 複製を除いた元の一覧
       expect(ctx.result.value?.wonPrize).toMatchObject({
         id: "p1",
         winningImage2AssetId: "win2",

@@ -62,7 +62,7 @@
                         </div>
                         <div v-if="newBgmSource === 'upload'">
                             <div class="file-picker">
-                                <input ref="bgmFileInput" class="hidden-file-input" type="file"
+                                <input :ref="(el) => (bgmFileInput = el as HTMLInputElement | null)" class="hidden-file-input" type="file"
                                     @change="onBgmFileChange" accept=".mp3,.wav,.ogg,.m4a" />
                                 <button type="button" class="file-btn" @click.prevent="openBgmFilePicker">Choose
                                     File</button>

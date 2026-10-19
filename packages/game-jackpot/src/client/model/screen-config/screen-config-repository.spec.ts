@@ -15,7 +15,7 @@ function makeFakeApi() {
       parentFolderId: "folder1",
       lastUpdate: new Date().toISOString(),
     })),
-    getJson: vi.fn(async () => ({ json: "[]", updatedAt: null })),
+    getJson: vi.fn(async (..._args: unknown[]): Promise<{ json: string; updatedAt: string | null }> => ({ json: "[]", updatedAt: null })),
   };
 }
 
