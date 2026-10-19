@@ -78,8 +78,11 @@ async function runEvent(clients: number, scale = 1) {
   for (let r = 0; r < rounds; r++) {
     const key = `quiz-${r}:live`;
     await room.call("openRound", { ...creds(host), key, options, durationMs: 30_000 });
-    for (let i = 0; i < clients; i++) {
-      await room.send(sockets[i], { t: "answer", requestId: `r${r}-c${i}`, key, no: (i % 4) + 1 });
+    // 全員が答え、(受付中は選び直せるので)選び直す分も送る
+    for (let n = 0; n < EXPECTED_LOAD.answersPerClientPerRound; n++) {
+      for (let i = 0; i < clients; i++) {
+        await room.send(sockets[i], { t: "answer", requestId: `r${r}-c${i}-${n}`, key, no: ((i + n) % 4) + 1 });
+      }
     }
     await room.runAlarm();
     await room.call("closeRound", { ...creds(host), key });

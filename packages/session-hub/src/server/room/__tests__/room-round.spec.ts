@@ -57,13 +57,15 @@ describe("DO: 回答ラウンド", () => {
     expect(players[0].ws.lastUpdate()?.round).toBeNull();
   });
 
-  it("WebSocket で回答でき、answered が返る。重複は最初の回答のまま duplicate", async () => {
+  it("WebSocket で回答でき、answered が返る。選び直すと新しい選択が採用され、同じ選択の再送は duplicate", async () => {
     const { players, open, answer } = await scene();
     await open("q1");
     await answer(players[0], "q1", 2, "req-1");
     expect(lastOf(players[0].ws, "answered")).toMatchObject({ requestId: "req-1", no: 2, duplicate: false });
     await answer(players[0], "q1", 3, "req-2");
-    expect(lastOf(players[0].ws, "answered")).toMatchObject({ requestId: "req-2", no: 2, duplicate: true });
+    expect(lastOf(players[0].ws, "answered")).toMatchObject({ requestId: "req-2", no: 3, duplicate: false });
+    await answer(players[0], "q1", 3, "req-3");
+    expect(lastOf(players[0].ws, "answered")).toMatchObject({ requestId: "req-3", no: 3, duplicate: true });
   });
 
   it("不正な回答(締切後・存在しない選択肢・ラウンド無し)は rejected で、コードが付く", async () => {
@@ -129,6 +131,46 @@ describe("DO: 回答ラウンド", () => {
     expect(result.answers).toHaveLength(300);
   });
 
+  it("回答の選び直しも、回答数が同じまま更新番号(answerRev)の変化としてまとめて運営端末へ届く", async () => {
+    const { room, wsHost, players, open, answer } = await scene(2);
+    await open("q1");
+    await answer(players[0], "q1", 1);
+    await answer(players[1], "q1", 1);
+    await room.runAlarm();
+    const first = wsHost.lastUpdate()?.round;
+    expect(first).toMatchObject({ answerCount: 2 });
+
+    const before = wsHost.received.length;
+    await answer(players[0], "q1", 2);
+    expect(wsHost.received.length).toBe(before); // 1件ごとには push されない
+    await room.runAlarm();
+    const next = wsHost.lastUpdate()?.round;
+    expect(next).toMatchObject({ answerCount: 2 });
+    expect(next!.answerRev).toBe(first!.answerRev + 1);
+  });
+
+  it("300人が全員選び直しても、書き込みはまとめて数行で、選び直した内容がハイバネート後も残る", async () => {
+    const { room, host, open, answer } = await scene(1);
+    const many: Array<{ ws: FakeSocket }> = [];
+    for (let i = 0; i < 300; i++) {
+      const j = await room.call<JoinResult>("joinPortal", { label: `c${i}` }, `c${i}`);
+      many.push({ ws: await room.connectAndAuth(creds(j)) });
+    }
+    await open("q1");
+    await room.runAlarm();
+    for (const p of many) await answer(p, "q1", 1);
+    await room.runAlarm();
+    const putsBefore = room.counts.storagePut;
+    for (const p of many) await answer(p, "q1", 2);
+    expect(room.counts.storagePut).toBe(putsBefore); // 選び直しの処理中も書き込みは0
+    await room.runAlarm();
+    expect(room.counts.storagePut - putsBefore).toBeLessThanOrEqual(2);
+    room.hibernate();
+    const result = await room.call<{ round: { answerCount: number }; answers: Array<{ no: number }> }>("getAnswers", { ...creds(host), key: "q1" });
+    expect(result.round.answerCount).toBe(300);
+    expect(result.answers.every((a) => a.no === 2)).toBe(true);
+  });
+
   it("締切(closeRound)の時点で未保存の回答も永続化される", async () => {
     const { room, host, players, open, answer } = await scene(3);
     await open("q1");
@@ -155,8 +197,10 @@ describe("DO: 回答ラウンド", () => {
     await open("q1");
     const r = await room.call("submitAnswer", { ...creds(players[0].join), key: "q1", no: 2 });
     expect(r).toMatchObject({ no: 2, duplicate: false });
+    const changed = await room.call("submitAnswer", { ...creds(players[0].join), key: "q1", no: 1 });
+    expect(changed).toMatchObject({ no: 1, duplicate: false });
     const again = await room.call("submitAnswer", { ...creds(players[0].join), key: "q1", no: 1 });
-    expect(again).toMatchObject({ no: 2, duplicate: true });
+    expect(again).toMatchObject({ no: 1, duplicate: true });
   });
 
   it("締切(サーバ時刻)を過ぎたら、ホストが何もしなくても回答は拒否される", async () => {

@@ -13,6 +13,8 @@ import {
   LoginLockedError,
   logout,
   MAX_ACTIVE_SESSIONS,
+  MAX_SESSIONS_PER_SHARD,
+  SESSION_SHARDS,
   MAX_GLOBAL_LOGIN_FAILURES,
   MAX_LOGIN_FAILURES,
   SESSION_TTL_MS,
@@ -197,11 +199,15 @@ describe("session cleanup", () => {
     return deps;
   }
 
-  it("期限切れセッションのキーは、次のログイン時に実削除される", async () => {
+  it("期限切れセッションのキーは、同じ区画への次のログイン時に実削除される", async () => {
     const deps = await setupAdmin();
     const first = await login(deps, { id: "admin", password: "correct-horse" });
     deps.advance(SESSION_TTL_MS + 1);
-    const second = await login(deps, { id: "admin", password: "correct-horse" });
+    // 索引は区画に分かれているので、期限切れのセッションと同じ区画に載るまでログインする
+    let second = first;
+    for (let i = 0; i < 200 && (await deps.storage.get(`accounts-session/${first.token}`)) !== null; i++) {
+      second = await login(deps, { id: "admin", password: "correct-horse" });
+    }
     expect(await deps.storage.get(`accounts-session/${first.token}`)).toBeNull();
     expect(await getSession(deps, first.token)).toBeNull();
     expect(await getSession(deps, second.token)).not.toBeNull();
@@ -215,16 +221,53 @@ describe("session cleanup", () => {
     expect(await getSession(deps, token)).toBeNull();
   });
 
-  it(`有効なセッションが${MAX_ACTIVE_SESSIONS}件を超えたら古い順に失効させる`, async () => {
+  it("区画の上限以内なら、どの区画に載ってもセッションは失効しない", async () => {
+    const deps = await setupAdmin();
+    const tokens: string[] = [];
+    // どれだけ偏っても、1つの区画の上限(MAX_SESSIONS_PER_SHARD)を超えない件数
+    for (let i = 0; i < MAX_SESSIONS_PER_SHARD; i++) {
+      tokens.push((await login(deps, { id: "admin", password: "correct-horse" })).token);
+      deps.advance(1);
+    }
+    for (const token of tokens) expect(await getSession(deps, token)).not.toBeNull();
+  });
+
+  it(`有効なセッションが${MAX_ACTIVE_SESSIONS}件を超えると、上限を超えた区画の古いものから失効し、新しいセッションは有効`, async () => {
     const deps = await setupAdmin();
     const tokens: string[] = [];
     for (let i = 0; i < MAX_ACTIVE_SESSIONS + 1; i++) {
       tokens.push((await login(deps, { id: "admin", password: "correct-horse" })).token);
       deps.advance(1);
     }
-    expect(await getSession(deps, tokens[0])).toBeNull();
-    expect(await getSession(deps, tokens[1])).not.toBeNull();
-    expect(await getSession(deps, tokens[MAX_ACTIVE_SESSIONS])).not.toBeNull();
+    const alive = (await Promise.all(tokens.map((t) => getSession(deps, t)))).filter((m) => m !== null).length;
+    expect(alive).toBeLessThanOrEqual(MAX_ACTIVE_SESSIONS);
+    expect(alive).toBeGreaterThan(MAX_ACTIVE_SESSIONS - SESSION_SHARDS * 4);
+    expect(await getSession(deps, tokens[tokens.length - 1])).not.toBeNull();
+    // 失効したものは、実際にストレージからも消えている
+    const dead = tokens.filter((_, i) => i < tokens.length).length - alive;
+    expect(dead).toBeGreaterThanOrEqual(1);
+  });
+
+  it("同時にログインしても、索引への登録が互いに失われない(区画ごとに順番に処理される)", async () => {
+    const deps = await setupAdmin();
+    let chain: Record<string, Promise<unknown>> = {};
+    deps.lock = {
+      withLock: <T>(key: string, _timeoutMs: number, fn: () => Promise<T> | T) => {
+        const run = (chain[key] ?? Promise.resolve()).then(fn);
+        chain[key] = run.catch(() => undefined);
+        return run;
+      },
+    };
+    const results = await Promise.all(Array.from({ length: 40 }, () => login(deps, { id: "admin", password: "correct-horse" })));
+    chain = {};
+    // 全員のセッションが有効で、索引にも全員分が載っている
+    for (const r of results) expect(await getSession(deps, r.token)).not.toBeNull();
+    const indexed = new Set<string>();
+    for (let shard = 0; shard < SESSION_SHARDS; shard++) {
+      const raw = await deps.storage.get(`accounts-session-index/${shard}`);
+      for (const [token] of raw ? (JSON.parse(raw) as Array<[string, number]>) : []) indexed.add(token);
+    }
+    expect(indexed.size).toBe(40);
   });
 
   it("メンバー削除で認証情報も実削除される", async () => {

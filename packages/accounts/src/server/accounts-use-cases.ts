@@ -5,6 +5,8 @@ export interface AccountsUseCaseDeps {
   storage: IKeyValueStorage;
   /** id省略時の採番。GAS本番では Utilities.getUuid() を注入する。 */
   generateId: () => string;
+  /** 名簿・カウンタ・索引の更新を直列化する(読んで書き換える更新が同時に走ると、片方の更新が失われるため)。未指定なら排他しない(テスト用)。 */
+  lock?: ILock;
 }
 
 const MEMBERS_KEY = "member-directory-members";
@@ -33,10 +35,19 @@ export const LOGIN_LOCK_MS = 15 * 60 * 1000;
 export const MAX_GLOBAL_LOGIN_FAILURES = 100;
 
 const SESSION_INDEX_KEY = "accounts-session-index";
-/** 索引は GAS の ScriptProperty(1値あたり約9KB)に収まる件数に抑える。超えたら古い順に失効させる。 */
-export const MAX_ACTIVE_SESSIONS = 100;
+/**
+ * セッションの索引はトークンから決まる複数の区画に分ける。受付QRで参加者が一斉にログインしても、
+ * 1つのロックの順番待ちにならないようにするため(50人が同時に読み取ると、1つの索引では待ち時間が人数に比例して
+ * ロックの上限を超え、ほぼ全員の初回が失敗した)。
+ * 各区画の索引は GAS の ScriptProperty(1値あたり約9KB)に収まる件数に抑える。超えたら、その区画の古い順に失効させる。
+ */
+export const SESSION_SHARDS = 8;
+export const MAX_SESSIONS_PER_SHARD = 32;
+export const MAX_ACTIVE_SESSIONS = SESSION_SHARDS * MAX_SESSIONS_PER_SHARD;
 const AUTH_LOCK_KEY = "accounts-auth";
 const AUTH_LOCK_TIMEOUT_MS = 10_000;
+const ROSTER_LOCK_KEY = "accounts-roster";
+const ROSTER_LOCK_TIMEOUT_MS = 10_000;
 
 /** 認証系ユースケースが追加で必要とする依存。 */
 export interface AccountsAuthDeps extends AccountsUseCaseDeps {
@@ -45,12 +56,15 @@ export interface AccountsAuthDeps extends AccountsUseCaseDeps {
   now: () => number;
   /** ブートストラップ用の設定値の読み出し。未指定ならブートストラップは無効。 */
   secrets?: ISecretProvider;
-  /** カウンタ・索引・ブートストラップの更新を直列化する。未指定なら排他しない(テスト用)。 */
-  lock?: ILock;
 }
 
-async function withAuthLock<T>(deps: Pick<AccountsAuthDeps, "lock">, fn: () => Promise<T>): Promise<T> {
+async function withAuthLock<T>(deps: Pick<AccountsUseCaseDeps, "lock">, fn: () => Promise<T>): Promise<T> {
   return deps.lock ? deps.lock.withLock(AUTH_LOCK_KEY, AUTH_LOCK_TIMEOUT_MS, fn) : fn();
+}
+
+/** 名簿(メンバー一覧)の更新を直列化する。ログインの排他とは別のキーなので、ログインを待たせない。 */
+async function withRosterLock<T>(deps: Pick<AccountsUseCaseDeps, "lock">, fn: () => Promise<T>): Promise<T> {
+  return deps.lock ? deps.lock.withLock(ROSTER_LOCK_KEY, ROSTER_LOCK_TIMEOUT_MS, fn) : fn();
 }
 
 interface StoredCredential {
@@ -108,39 +122,45 @@ export async function addMember(
 ): Promise<Member> {
   const name = args.name.trim();
   if (!name) throw new Error("name is required");
-  const members = await readMembers(deps.storage);
-  const id = args.id?.trim() || deps.generateId();
-  if (members.some((m) => m.id === id)) {
-    throw new Error(`Member with id "${id}" already exists`);
-  }
-  const created: Member = args.isAdmin ? { id, name, isAdmin: true } : { id, name };
-  await writeMembers(deps.storage, [...members, created]);
-  return created;
+  return withRosterLock(deps, async () => {
+    const members = await readMembers(deps.storage);
+    const id = args.id?.trim() || deps.generateId();
+    if (members.some((m) => m.id === id)) {
+      throw new Error(`Member with id "${id}" already exists`);
+    }
+    const created: Member = args.isAdmin ? { id, name, isAdmin: true } : { id, name };
+    await writeMembers(deps.storage, [...members, created]);
+    return created;
+  });
 }
 
 export async function updateMember(deps: AccountsUseCaseDeps, member: Member): Promise<Member> {
-  const members = await readMembers(deps.storage);
-  const index = members.findIndex((m) => m.id === member.id);
-  if (index === -1) {
-    throw new Error(`Member with id "${member.id}" not found`);
-  }
-  // isAdmin 省略時は既存値を保つ(ゲーム側の同期などが管理者権限を落とさないように)。
-  const isAdmin = member.isAdmin ?? members[index].isAdmin;
-  const updated: Member = isAdmin
-    ? { id: member.id, name: member.name, isAdmin: true }
-    : { id: member.id, name: member.name };
-  const next = [...members];
-  next[index] = updated;
-  await writeMembers(deps.storage, next);
-  return updated;
+  return withRosterLock(deps, async () => {
+    const members = await readMembers(deps.storage);
+    const index = members.findIndex((m) => m.id === member.id);
+    if (index === -1) {
+      throw new Error(`Member with id "${member.id}" not found`);
+    }
+    // isAdmin 省略時は既存値を保つ(ゲーム側の同期などが管理者権限を落とさないように)。
+    const isAdmin = member.isAdmin ?? members[index].isAdmin;
+    const updated: Member = isAdmin
+      ? { id: member.id, name: member.name, isAdmin: true }
+      : { id: member.id, name: member.name };
+    const next = [...members];
+    next[index] = updated;
+    await writeMembers(deps.storage, next);
+    return updated;
+  });
 }
 
 export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promise<void> {
-  const members = await readMembers(deps.storage);
-  await writeMembers(
-    deps.storage,
-    members.filter((m) => m.id !== id)
-  );
+  await withRosterLock(deps, async () => {
+    const members = await readMembers(deps.storage);
+    await writeMembers(
+      deps.storage,
+      members.filter((m) => m.id !== id)
+    );
+  });
   await deps.storage.deleteScalar(CREDENTIAL_KEY_PREFIX + id);
   await deps.storage.deleteScalar(LOGIN_KEY_PREFIX + id);
 }
@@ -154,16 +174,18 @@ export async function replaceAllMembers(
   deps: AccountsUseCaseDeps,
   members: Member[]
 ): Promise<{ replaced: number }> {
-  const current = await readMembers(deps.storage);
-  const byId = new Map(current.map((m) => [m.id, m] as const));
-  for (const member of members) {
-    const id = member.id?.trim() || deps.generateId();
-    // 一括同期では管理者権限を付与も剥奪もしない(既存値を保つ)。
-    const isAdmin = byId.get(id)?.isAdmin;
-    byId.set(id, isAdmin ? { id, name: member.name, isAdmin: true } : { id, name: member.name });
-  }
-  await writeMembers(deps.storage, Array.from(byId.values()));
-  return { replaced: members.length };
+  return withRosterLock(deps, async () => {
+    const current = await readMembers(deps.storage);
+    const byId = new Map(current.map((m) => [m.id, m] as const));
+    for (const member of members) {
+      const id = member.id?.trim() || deps.generateId();
+      // 一括同期では管理者権限を付与も剥奪もしない(既存値を保つ)。
+      const isAdmin = byId.get(id)?.isAdmin;
+      byId.set(id, isAdmin ? { id, name: member.name, isAdmin: true } : { id, name: member.name });
+    }
+    await writeMembers(deps.storage, Array.from(byId.values()));
+    return { replaced: members.length };
+  });
 }
 
 async function readCredential(storage: IKeyValueStorage, id: string): Promise<StoredCredential | null> {
@@ -387,27 +409,43 @@ export async function loginWithKey(deps: AccountsAuthDeps, args: { id: string; k
   return { token, member };
 }
 
-/** セッションを発行し、索引に載せる。期限切れと、上限を超えた古いセッションはここで実削除する。 */
+/** トークンが載る索引の区画(同じトークンは常に同じ区画)。 */
+export function sessionShardOf(token: string): number {
+  let hash = 0;
+  for (let i = 0; i < token.length; i++) hash = (Math.imul(hash, 31) + token.charCodeAt(i)) >>> 0;
+  return hash % SESSION_SHARDS;
+}
+
+/**
+ * セッションを発行し、索引に載せる。期限切れと、区画の上限を超えた古いセッションは実削除する。
+ * ロックの中は索引の読み書きだけにする(セッション本体の保存と、古いセッションの削除はロックの外)。
+ * 同時に発行しても、区画ごとに順番に処理されるので、索引への登録は失われない。
+ */
 async function issueSession(deps: AccountsAuthDeps, memberId: string): Promise<string> {
   const token = deps.generateId();
   const now = deps.now();
   const session: StoredSession = { memberId, expiresAt: now + SESSION_TTL_MS };
-  await withAuthLock(deps, async () => {
-    const index = await readSessionIndex(deps.storage);
-    const expired = index.filter(([, expiresAt]) => expiresAt <= now);
-    const alive = [...index.filter(([, expiresAt]) => expiresAt > now), [token, session.expiresAt] as [string, number]];
-    const overflow = Math.max(0, alive.length - MAX_ACTIVE_SESSIONS);
-    for (const [old] of [...expired, ...alive.slice(0, overflow)]) {
-      await deps.storage.deleteScalar(SESSION_KEY_PREFIX + old);
-    }
-    await deps.storage.set(SESSION_KEY_PREFIX + token, JSON.stringify(session));
-    await deps.storage.set(SESSION_INDEX_KEY, JSON.stringify(alive.slice(overflow)));
-  });
+  const shard = sessionShardOf(token);
+  const indexKey = `${SESSION_INDEX_KEY}/${shard}`;
+  await deps.storage.set(SESSION_KEY_PREFIX + token, JSON.stringify(session));
+  const register = () => registerSession(deps, indexKey, token, session, now);
+  const removed = deps.lock ? await deps.lock.withLock(`${AUTH_LOCK_KEY}-session-${shard}`, AUTH_LOCK_TIMEOUT_MS, register) : await register();
+  await Promise.all(removed.map((old) => deps.storage.deleteScalar(SESSION_KEY_PREFIX + old)));
   return token;
 }
 
-async function readSessionIndex(storage: IKeyValueStorage): Promise<Array<[string, number]>> {
-  const raw = await storage.get(SESSION_INDEX_KEY);
+/** 区画の索引にセッションを載せ、実削除すべき(期限切れ・上限超過の)トークンを返す。 */
+async function registerSession(deps: AccountsAuthDeps, indexKey: string, token: string, session: StoredSession, now: number): Promise<string[]> {
+  const index = await readSessionIndex(deps.storage, indexKey);
+  const expired = index.filter(([, expiresAt]) => expiresAt <= now);
+  const alive = [...index.filter(([, expiresAt]) => expiresAt > now), [token, session.expiresAt] as [string, number]];
+  const overflow = Math.max(0, alive.length - MAX_SESSIONS_PER_SHARD);
+  await deps.storage.set(indexKey, JSON.stringify(alive.slice(overflow)));
+  return [...expired, ...alive.slice(0, overflow)].map(([old]) => old);
+}
+
+async function readSessionIndex(storage: IKeyValueStorage, indexKey: string): Promise<Array<[string, number]>> {
+  const raw = await storage.get(indexKey);
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);

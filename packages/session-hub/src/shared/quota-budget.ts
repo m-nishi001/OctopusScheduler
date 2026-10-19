@@ -35,6 +35,8 @@ export const EXPECTED_LOAD = {
   reconnectStormsPerEvent: 3,
   /** 参加者の入力を受け付ける回数(イベントあたり。例: クイズ20問)。 */
   inputRoundsPerEvent: 20,
+  /** 1ラウンドで参加者1人が送る回答の数。受付中は選び直せるので、全員が1回は選び直す最悪を見込む。 */
+  answersPerClientPerRound: 2,
   adminCommandsPerEvent: 200,
   hostPublishesPerEvent: 400,
 } as const;

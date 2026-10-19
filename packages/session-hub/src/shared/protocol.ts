@@ -189,10 +189,11 @@ export interface SubmitAnswerArgs extends DeviceCredentials {
 }
 
 export interface SubmitAnswerResult {
-  /** 実際に採用された回答の番号。2回目以降の送信は最初の回答のまま変えない。 */
+  /** 実際に採用されている回答の番号。受付中は、今回送った番号(選び直しは最後のものが採用される)。 */
   no: number;
+  /** 採用されている回答の時刻(サーバ時刻)。選び直すと新しくなる。 */
   atMs: number;
-  /** すでに回答済みで、今回の送信は採用されなかった。 */
+  /** 今回の送信で回答が変わらなかった(同じ選択の再送、または締切後に回答済みの内容を返した)。 */
   duplicate: boolean;
 }
 
@@ -218,6 +219,8 @@ export interface RoundSummary {
   openedAtMs: number;
   deadlineMs: number;
   answerCount: number;
+  /** 回答が入る/選び直されるたびに増える。回答数が同じでも、一覧を取り直すきっかけになる。 */
+  answerRev: number;
 }
 
 export interface GetAnswersResult {

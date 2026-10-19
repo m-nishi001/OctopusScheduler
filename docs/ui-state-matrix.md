@@ -9,12 +9,15 @@
 | クイズ結果(ホスト) | 発表後・当選者あり | 1位を祝う | 次へ → 景品を表示 | U: host-agent.spec / E: participant-quiz |
 | クイズ結果(ホスト) | 発表後・当選者なし | 「正解者なし」 | 次へ → ロビーに戻る | U: host-agent.spec / E: participant-quiz |
 | クイズ結果(ホスト) | 景品表示中 | 当選者名と景品 | 次へ → ロビーに戻る(管理画面には出ない) | U: host-agent.spec / E: participant-quiz |
+| クイズ(参加者) | 回答受付中・回答済み | 選んだ選択肢が強調され、「受付中は選び直せます」が出る | 別の選択肢を押す → 回答が置き換わる(最後の選択が採用。同じ選択は送らない) | U: use-quiz / portal-layout / session-hub round.spec / E: participant-quiz |
+| クイズ(参加者) | 締切後 | 選択肢は押せず、採用済みの回答が表示される | (操作なし) | U: use-quiz / portal-layout / E: participant-quiz |
 | ジャックポット(参加者) | メンバー抽選中 | 結果だけ表示。停止ボタンは出ない(管理端末だけが止める) | (操作なし) | U: use-jackpot-host / E: participant-jackpot |
 | ジャックポット(参加者) | 景品抽選・止められる場面 | 「ルーレットを止める」が出る | 押すと止まる | U/E: participant-jackpot |
 | ジャックポット 景品抽選(参加者) | 当選者の画面 / 当選者以外の画面 | 当選者にだけ停止ボタンが出る(他の参加者には出ず、送っても拒否される。管理端末はいつでも止められる) | (当選者) 止める | U: use-jackpot-host / session-service / portal-layout |
 | ジャックポット(参加者) | 場面 = member-revealed(自分が当選) | 「あなたがあたりました!」が全面に出る | (操作なし。景品抽選に進むと自動で閉じる。「とじる」で手動でも閉じられる) | U: portal-layout / E: jackpot-five-people |
 | ジャックポット(参加者) | 場面 = prize(景品抽選中) | 「景品抽選中…」。当選者には停止ボタンが出る | (当選者) 止める | U: portal-layout / E: jackpot-five-people |
 | ジャックポット(ホスト) | 場面 = ended(景品かメンバーが尽きた) | 「おしまい!」。理由ごとの文言(景品が残っていてもメンバーが尽きれば終わる) | 次へ / Enter / OK → 結果の画面へ | U: draw-flow-controller / draw-full-run / end-dialog / E: jackpot-five-people, jackpot-scale |
+| ジャックポット エンディング(ホスト) | 全スライド表示後 | エンディングを最後まで流し終えた | (操作なし) 自動でロビーに戻る。イベントはエンディングに入った時点で終了済み。ホストでない(プレビュー)ときは留まり、デモは設定画面へ戻る | U: use-ending-exit / host-agent-setup / E: session-flow |
 | ジャックポット 景品抽選 | ルーレット/スロット 開始〜回転〜停止 | 回転中は絵が動き、止めると当選が発表される | 次へ → 開始 / 止める → 停止 | U: slot-animation.spec / E: jackpot-prize-draw(スクリーンショット列) |
 
 ## コントロール画面(主ボタン)

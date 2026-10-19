@@ -15,6 +15,10 @@ export interface CloudflareEnv {
   LOGIN_LIMITER?: RateLimit;
   /** 公開エンドポイント全般のレート制限。未設定の環境では制限しない。 */
   PUBLIC_LIMITER?: RateLimit;
+  /** ローカルの負荷テスト専用。R2 の1呼び出しに足す平均遅延(ミリ秒)。本番・staging では設定しない。 */
+  SIM_R2_LATENCY_MS?: string;
+  /** ローカルの負荷テスト専用。D1 の1呼び出しに足す平均遅延(ミリ秒)。本番・staging では設定しない。 */
+  SIM_D1_LATENCY_MS?: string;
   /** 初回管理者のブートストラップ用パスワード(`wrangler secret put`)。管理者が1人でもログイン可能になれば無効。 */
   OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD?: string;
   /** ブートストラップ管理者のID(任意。既定 admin)。 */

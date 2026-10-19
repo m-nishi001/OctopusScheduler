@@ -28,14 +28,21 @@ const ADMIN = { id: "admin", password: "e2e-password-1234", token: "e2e-admin-se
 export const TARGETS = {
   "worker-smoke": () => ["node", [join(ROOT, "e2e/worker-smoke.mjs")]],
   ui: (extra) => ["npx", ["playwright", "test", "-c", join(ROOT, "e2e/playwright.config.ts"), ...extra]],
+  // 負荷テスト(参加者50人 + 運営3端末のフルコース)。時間がかかるので、名前を指定したときだけ動かす。
+  load: () => ["node", [join(ROOT, "e2e/load/full-course.mjs")]],
+  // 負荷テストの画面つき版(実ブラウザのホスト・管理・参加者3 + 合成の参加者47)。
+  "load-ui": (extra) => ["npx", ["playwright", "test", "-c", join(ROOT, "e2e/load/playwright.config.ts"), ...extra]],
 };
+
+/** 引数なしで動かすテスト。 */
+export const DEFAULT_TARGETS = ["worker-smoke", "ui"];
 
 /** コマンドライン引数を { targets, extra }(-- 以降は Playwright へ渡す)に分ける。 */
 export function parseArgs(argv) {
   const dd = argv.indexOf("--");
   const names = dd === -1 ? argv : argv.slice(0, dd);
   const extra = dd === -1 ? [] : argv.slice(dd + 1);
-  const targets = names.length ? names : Object.keys(TARGETS);
+  const targets = names.length ? names : DEFAULT_TARGETS;
   const unknown = targets.filter((t) => !(t in TARGETS));
   if (unknown.length) throw new Error(`不明なテスト: ${unknown.join(", ")}(${Object.keys(TARGETS).join(" / ")})`);
   return { targets, extra };
@@ -61,6 +68,35 @@ export function renderLocalToml(template) {
     .replace(/^main = ".*"$/m, `main = "${join(ROOT, "dist/cloudflare/worker.js")}"`)
     .replace(/^directory = ".*"$/m, `directory = "${join(ROOT, "dist/cloudflare/assets")}"`)
     .replace(/^migrations_dir = ".*"$/m, `migrations_dir = "${join(ROOT, "packages/infrastructures/migrations")}"`);
+}
+
+/**
+ * 遅延の組み合わせ。`staging` は、参加者50の負荷テストで staging のログイン p99(約4秒)に近づく値
+ * (R2 80ms / D1 30ms)。個別の SIM_*_LATENCY_MS を指定するとそちらが優先される。
+ */
+export const LATENCY_PRESETS = {
+  staging: { SIM_R2_LATENCY_MS: "80", SIM_D1_LATENCY_MS: "30" },
+};
+
+/**
+ * R2 / D1 に足す遅延(ミリ秒)を、環境変数 SIM_R2_LATENCY_MS / SIM_D1_LATENCY_MS から wrangler の `[vars]` に変換する。
+ * どちらも未設定なら空文字(遅延なし)。数値以外・0以下は不正としてエラーにする。
+ * Worker 側(packages/infrastructures/src/cloudflare/simulated-latency.ts)がこの値で呼び出しを遅らせる。
+ */
+export function simulatedLatencyVars(env = process.env) {
+  const lines = [];
+  const preset = env.SIM_LATENCY ? LATENCY_PRESETS[env.SIM_LATENCY] : undefined;
+  if (env.SIM_LATENCY && !preset) {
+    throw new Error(`SIM_LATENCY は ${Object.keys(LATENCY_PRESETS).join(" / ")} のいずれかを指定してください: ${env.SIM_LATENCY}`);
+  }
+  for (const name of ["SIM_R2_LATENCY_MS", "SIM_D1_LATENCY_MS"]) {
+    const raw = env[name] ?? preset?.[name];
+    if (raw === undefined || raw === "") continue;
+    const ms = Number(raw);
+    if (!Number.isFinite(ms) || ms <= 0) throw new Error(`${name} は 0 より大きい数値(ミリ秒)で指定してください: ${raw}`);
+    lines.push(`${name} = "${ms}"`);
+  }
+  return lines.length ? `\n[vars]\n${lines.join("\n")}\n` : "";
 }
 
 export function wrangler(args, options = {}) {
@@ -90,7 +126,7 @@ export async function main(argv = process.argv.slice(2)) {
   const dir = mkdtempSync(join(tmpdir(), "octopus-e2e-"));
   const config = join(dir, "wrangler.toml");
   const state = join(dir, "state");
-  writeFileSync(config, renderLocalToml(readFileSync(join(ROOT, "wrangler.example.toml"), "utf8")));
+  writeFileSync(config, renderLocalToml(readFileSync(join(ROOT, "wrangler.example.toml"), "utf8")) + simulatedLatencyVars());
 
   let child = null;
   const cleanup = () => {
@@ -149,6 +185,11 @@ export async function main(argv = process.argv.slice(2)) {
           done();
         });
       });
+    }
+    if (failed) {
+      // 失敗の原因が Worker 側のエラーのことがあるので、wrangler のログからエラー行を残す。
+      const errors = log.split("\n").filter((line) => /error|exception/i.test(line));
+      if (errors.length) console.error(`\n── wrangler dev のエラーログ(末尾 40 行)\n${errors.slice(-40).join("\n")}`);
     }
     return failed;
   } finally {
