@@ -4,7 +4,7 @@
  * 各ハンドラは「引数パース -> use-case 呼び出し -> ApiResponse に詰めて
  * JSON.stringify」という薄い層のみを担う。
  */
-import { errorResponse } from "@octopus/infrastructures/interfaces";
+import { respond } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import {
   IKeyValueStorageToken,
@@ -39,57 +39,27 @@ declare let _jackpotGame_addJson: (driveJson: DriveJsonData) => Promise<string>;
 declare let _jackpotGame_getJson: (fileId?: string) => Promise<string>;
 
 _jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
-  try {
-    const result = await assets.save(resolveDeps(), driveData);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.save(resolveDeps(), driveData));
 };
 
 _jackpotGame_getDriveMetaData = async (folderId?: string): Promise<string> => {
-  try {
-    const result = await assets.listMetadata(resolveDeps());
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.listMetadata(resolveDeps()));
 };
 
 _jackpotGame_getDriveData = async (dataId: string): Promise<string> => {
-  try {
-    const result = await assets.get(resolveDeps(), dataId);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.get(resolveDeps(), dataId));
 };
 
 _jackpotGame_updateDriveData = async (driveData: DriveData): Promise<string> => {
-  try {
-    const result = await assets.save(resolveDeps(), driveData);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.save(resolveDeps(), driveData));
 };
 
 _jackpotGame_addJson = async (driveJson: DriveJsonData): Promise<string> => {
-  try {
-    const result = await addJsonBlob(resolveDeps(), driveJson);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => addJsonBlob(resolveDeps(), driveJson));
 };
 
 _jackpotGame_getJson = async (fileId?: string): Promise<string> => {
-  try {
-    const result = await getJsonBlob(resolveDeps(), fileId);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => getJsonBlob(resolveDeps(), fileId));
 };
 
 // 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。

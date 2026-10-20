@@ -6,7 +6,7 @@
  * エントリポイントで、HtmlService の呼び出しはこのファイルに留める
  * (エントリポイント固有の関心事であり、ポート化しない)。
  */
-import { errorResponse } from "@octopus/infrastructures/interfaces";
+import { respond } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import {
   IKeyValueStorageToken,
@@ -52,49 +52,26 @@ declare let _octopusScheduler_setKeyboardShortcuts: (payload: {
 }) => Promise<string>;
 
 _octopusScheduler_addDriveData = async (driveData: DriveData): Promise<string> => {
-  try {
-    const result = await assets.save(resolveDeps(), driveData);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.save(resolveDeps(), driveData));
 };
 
 _octopusScheduler_getDriveMetaData = async (folderName?: string): Promise<string> => {
-  try {
-    const result = await assets.listMetadata(resolveDeps(), folderName);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.listMetadata(resolveDeps(), folderName));
 };
 
 _octopusScheduler_getDriveData = async (dataId: string): Promise<string> => {
-  try {
-    const result = await assets.get(resolveDeps(), dataId);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.get(resolveDeps(), dataId));
 };
 
 _octopusScheduler_updateDriveData = async (driveData: DriveData): Promise<string> => {
-  try {
-    const result = await assets.save(resolveDeps(), driveData);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.save(resolveDeps(), driveData));
 };
 
 _octopusScheduler_getKeyboardShortcuts = async (): Promise<string> => {
-  try {
+  return respond(async () => {
     const kv = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
-    const result = await getKeyboardShortcuts({ kv });
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+    return getKeyboardShortcuts({ kv });
+  });
 };
 
 _octopusScheduler_setKeyboardShortcuts = async (payload: {
@@ -102,13 +79,10 @@ _octopusScheduler_setKeyboardShortcuts = async (payload: {
   config: unknown;
   updatedAt: string;
 }): Promise<string> => {
-  try {
+  return respond(async () => {
     const kv = container.resolve<IKeyValueStorage>(IKeyValueStorageToken);
     await setKeyboardShortcuts({ kv }, payload);
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  });
 };
 
 _octopusScheduler_doGet = (

@@ -21,3 +21,16 @@ export function errorResponse(error: unknown): string {
   }
   return JSON.stringify({ status: "error", message });
 }
+
+/**
+ * エンドポイントの本体を実行し、成功なら `{ status: "success", data }`、失敗なら `errorResponse` の JSON 文字列にする。
+ * 戻り値が無い(undefined)ときの `data` は null。各エンドポイントの try/catch を1か所にまとめるための関数。
+ */
+export async function respond(run: () => unknown): Promise<string> {
+  try {
+    const data = await run();
+    return JSON.stringify({ status: "success", data: data ?? null });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

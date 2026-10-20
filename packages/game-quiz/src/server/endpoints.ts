@@ -9,7 +9,7 @@
  * 各 use-case ファイルにある。リポジトリ実装は infrastructures/gas/container.ts
  * が起動時に登録したものを tsyringe コンテナから解決する。
  */
-import { errorResponse } from "@octopus/infrastructures/interfaces";
+import { respond } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import { IKeyValueStorageToken } from "@octopus/infrastructures/interfaces";
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
@@ -47,57 +47,27 @@ declare let _quizGame_addJson: (args: AddJsonArgs) => Promise<string>;
 declare let _quizGame_getJson: (args: GetJsonArgs) => Promise<string>;
 
 _quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
-  try {
-    const result = await assets.save(resolveDeps(), args.driveData);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.save(resolveDeps(), args.driveData));
 };
 
 _quizGame_getDriveMetaData = async (_args: GetDriveMetaDataArgs): Promise<string> => {
-  try {
-    const result = await assets.listMetadata(resolveDeps());
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.listMetadata(resolveDeps()));
 };
 
 _quizGame_getDriveData = async (args: GetDriveDataArgs): Promise<string> => {
-  try {
-    const result = await assets.get(resolveDeps(), args.dataId);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.get(resolveDeps(), args.dataId));
 };
 
 _quizGame_updateDriveData = async (args: UpdateDriveDataArgs): Promise<string> => {
-  try {
-    const result = await assets.save(resolveDeps(), args.driveData);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => assets.save(resolveDeps(), args.driveData));
 };
 
 _quizGame_addJson = async (args: AddJsonArgs): Promise<string> => {
-  try {
-    const result = await addJsonBlob(resolveDeps(), args.driveJson);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => addJsonBlob(resolveDeps(), args.driveJson));
 };
 
 _quizGame_getJson = async (args: GetJsonArgs): Promise<string> => {
-  try {
-    const result = await getJsonBlob(resolveDeps(), args.fileId);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => getJsonBlob(resolveDeps(), args.fileId));
 };
 
 // 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。
