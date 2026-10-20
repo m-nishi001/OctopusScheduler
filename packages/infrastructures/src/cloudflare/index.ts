@@ -24,7 +24,7 @@ import { JACKPOT_GAME_PREFIX, JACKPOT_GAME_HANDLERS } from "@octopus/game-jackpo
 import { OCTOPUS_SCHEDULER_PREFIX, OCTOPUS_SCHEDULER_HANDLERS } from "@octopus/app-scheduler/server";
 import { ACCOUNTS_PREFIX, ACCOUNTS_HANDLERS } from "@octopus/accounts/server";
 import { SESSION_HUB_PREFIX, SESSION_HUB_HANDLERS, resolveKvDeps } from "@octopus/session-hub/server";
-import { ISessionHubBackendToken, createKvBackend } from "@octopus/session-hub/backend";
+import { ISessionHubBackendToken } from "@octopus/session-hub/backend";
 import { createDoBackend } from "./session-hub-backend";
 import { currentEnv } from "./request-context";
 
@@ -49,11 +49,16 @@ mount(SESSION_HUB_PREFIX, SESSION_HUB_HANDLERS);
 
 registerCloudflareInfrastructures();
 
-// session-hub: Durable Object のバインディングがあれば DO(WebSocket push・直列実行)を、
-// 無ければ R2 + ロックの実装を使う(wrangler.toml が古い環境でも動くように)。
+// session-hub: セッション1件を1つの Durable Object が担当する(WebSocket push・直列実行)。
+// バインディング(SESSION_ROOM)が無い環境では動かさず、設定の不足を明示する。
 const doBackend = createDoBackend(resolveKvDeps);
 container.register(ISessionHubBackendToken, {
-  useFactory: () => (currentEnv().SESSION_ROOM ? doBackend : createKvBackend(resolveKvDeps())),
+  useFactory: () => {
+    if (!currentEnv().SESSION_ROOM) {
+      throw new Error("Durable Object のバインディング SESSION_ROOM が未設定です（wrangler.toml を wrangler.example.toml と見比べてください）");
+    }
+    return doBackend;
+  },
 });
 
 interface RpcRequestBody {

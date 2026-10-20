@@ -5,6 +5,7 @@
  * (どちらも IKeyValueStorage)。書き込みはホストが演出の終わりに行う(1ラウンド・1抽選につき1回程度)ので、
  * ロックをかけた read-modify-write で足りる。
  */
+import { DomainError } from "@octopus/infrastructures/interfaces";
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
 import {
@@ -34,15 +35,23 @@ export function resultsKey(sessionId: string): string {
   return storagePath(StorageModule.Results, StorageKind.Json, `${sessionId}.json`);
 }
 
+/**
+ * 結果ファイルを読む。まだ無ければ空。**ファイルがあるのに読めない（壊れている）ときは例外にする**
+ * （空として扱うと、次の保存が壊れたファイルを空で上書きし、残っていた結果が消えてしまう）。
+ */
 async function load(deps: ResultsDeps, key: string): Promise<ResultsDoc> {
   const text = await deps.storage.getContentAsText(key);
   if (text === null) return emptyResultsDoc();
+  let doc: ResultsDoc | null = null;
   try {
-    const doc = JSON.parse(text) as ResultsDoc;
-    return doc && doc.v === 1 && Array.isArray(doc.rounds) && Array.isArray(doc.draws) ? doc : emptyResultsDoc();
+    doc = JSON.parse(text) as ResultsDoc;
   } catch {
-    return emptyResultsDoc();
+    // 下で扱う
   }
+  if (!doc || doc.v !== 1 || !Array.isArray(doc.rounds) || !Array.isArray(doc.draws)) {
+    throw new DomainError(`結果ファイルを読み込めませんでした（${key} が壊れている可能性があります）`);
+  }
+  return doc;
 }
 
 /** 内容が変わるときだけ rev を上げて保存する(同じ内容の再送で通知が走らないように)。 */

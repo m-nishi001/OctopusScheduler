@@ -172,15 +172,26 @@ export class GasKeyValueStorage implements IKeyValueStorage {
     };
   }
 
+  /**
+   * 書き込む。テキストで、すでにファイルがあれば**そのファイルの内容を書き換える**（ファイルの ID が変わらないので、
+   * 直後の読み取りが古い/空の結果にならない。「捨てて作り直す」と、Drive の検索の反映が遅れたときに、
+   * 読み取りが「無い」になって空で上書きしてしまう）。バイナリはファイルを作り直す。
+   */
   private upsert(
     key: string,
-    blob: GoogleAppsScript.Base.Blob
+    blob: GoogleAppsScript.Base.Blob,
+    text?: string
   ): StoredItemMeta {
     const { dir, localName } = this.splitKey(key);
     const folder = this.resolveDir(dir, true)!;
     const existing = folder.getFilesByName(localName);
     if (existing.hasNext()) {
-      existing.next().setTrashed(true);
+      const file = existing.next();
+      if (text !== undefined) {
+        file.setContent(text);
+        return this.toMeta(file, dir, localName);
+      }
+      file.setTrashed(true);
     }
     const file = folder.createFile(blob);
     file.setName(localName);
@@ -206,7 +217,7 @@ export class GasKeyValueStorage implements IKeyValueStorage {
 
   async putText(key: string, content: string, mimeType: string): Promise<StoredItemMeta> {
     const { localName } = this.splitKey(key);
-    return this.upsert(key, Utilities.newBlob(content, mimeType, localName));
+    return this.upsert(key, Utilities.newBlob(content, mimeType, localName), content);
   }
 
   async putBinary(key: string, contentBase64: string, mimeType: string): Promise<StoredItemMeta> {

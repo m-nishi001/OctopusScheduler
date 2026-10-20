@@ -9,7 +9,7 @@ import { DomainError } from "../interfaces/domain-error";
 import type { RoomOp, RoomRpcResult } from "@octopus/session-hub/room";
 import type { SessionHubBackend } from "@octopus/session-hub/backend";
 import { createKvBackend } from "@octopus/session-hub/backend";
-import type { ServiceDeps } from "@octopus/session-hub/engine";
+import type { ServiceDeps, SessionHome } from "@octopus/session-hub/engine";
 import { currentEnv } from "./request-context";
 
 export interface SessionRoomNamespaceEnv {
@@ -30,21 +30,24 @@ async function callRoom(sessionId: string, op: RoomOp, args: unknown, memberId?:
 }
 
 /**
- * @param kvDeps R2 を使う従来の依存。インデックス(一覧・参加コード)と、作成/終了時のメタ保存に使う。
+ * セッション本体の置き場としての Durable Object。メタ情報は DO だけが持つ（R2 に二重に持たない）。
+ * 作成・終了は idempotent なので、失敗しても同じ操作をやり直せる。
+ */
+const durableObjectHome: SessionHome = {
+  create: async (meta) => void (await callRoom(meta.id, "init", { meta })),
+  close: async (sessionId) => void (await callRoom(sessionId, "close", {})),
+};
+
+/**
+ * @param kvDeps R2 の一覧（全セッション共通のインデックス）を含む依存。セッション本体の置き場は Durable Object に差し替える。
+ *               一覧への追加・削除は、DO への操作が成功してから行う（{@link SessionHome}）。
  */
 export function createDoBackend(kvDeps: () => ServiceDeps): SessionHubBackend {
-  const kv = (): SessionHubBackend => createKvBackend(kvDeps());
+  const kv = (): SessionHubBackend => createKvBackend({ ...kvDeps(), home: durableObjectHome });
   return {
-    async createSession(args, ownerMemberId) {
-      const meta = await kv().createSession(args, ownerMemberId);
-      await callRoom(meta.id, "init", { meta });
-      return meta;
-    },
+    createSession: (args, ownerMemberId) => kv().createSession(args, ownerMemberId),
     listSessions: () => kv().listSessions(),
-    async closeSession(args) {
-      await kv().closeSession(args);
-      await callRoom(args.sessionId, "close", {});
-    },
+    closeSession: (args) => kv().closeSession(args),
     joinOperator: (args, memberId) => callRoom(args.sessionId, "joinOperator", args, memberId) as ReturnType<SessionHubBackend["joinOperator"]>,
     // 公開の指定は一覧のインデックスだけを書き換える(Durable Object は触らない)
     setPortalSession: (args) => kv().setPortalSession(args),
