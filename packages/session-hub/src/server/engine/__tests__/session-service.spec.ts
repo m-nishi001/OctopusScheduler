@@ -127,6 +127,29 @@ describe("createSession / listSessions / closeSession", () => {
       expect((await svc.listSessions(hub.deps)).map((s) => s.status)).toEqual(["closed"]);
     });
 
+    it("終了の処理中(本体は終了済みで、一覧はまだ公開中)にポータルへ入ると、「参加できるイベントが無い」になる(エラーのまま止まらない)", async () => {
+      const { hub, meta } = await setup();
+      // 本体の置き場だけが先に終了していて、一覧にはまだ反映されていない(本物のストレージで目に見える長さになる間)
+      await hub.deps.home.close(meta.id);
+      expect((await svc.listSessions(hub.deps)).map((s) => ({ status: s.status, portal: s.portal }))).toEqual([{ status: "lobby", portal: true }]);
+
+      expect(await code(svc.joinPortal(hub.deps, {}, TARO))).toBe("SESSION_NOT_FOUND");
+      // 終了済みの本体に入れないこと自体は変わらない(運営者の入室は、これまでどおり SESSION_CLOSED)
+      expect(await code(svc.joinOperator(hub.deps, { sessionId: meta.id, role: "admin", label: "スマホ" }, "admin1"))).toBe("SESSION_CLOSED");
+    });
+
+    it("orNoPortalSession: SESSION_CLOSED だけを「イベント無し」に読み替え、それ以外のエラーはそのまま", async () => {
+      const closed = svc.orNoPortalSession(async () => {
+        throw new Error("[SESSION_CLOSED] セッションは終了しています");
+      });
+      expect(await code(closed)).toBe("SESSION_NOT_FOUND");
+      const other = svc.orNoPortalSession(async () => {
+        throw new Error("DO unavailable");
+      });
+      expect(await code(other)).toBe("DO unavailable");
+      expect(await svc.orNoPortalSession(async () => 42)).toBe(42);
+    });
+
     it("終了済みのセッションをもう一度終了しても、エラーにならず、終了時刻は延びない", async () => {
       const hub = createTestHub();
       const meta = await svc.createSession(hub.deps, { name: "x" }, "a");

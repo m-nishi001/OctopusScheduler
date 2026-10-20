@@ -10,6 +10,7 @@ import type { RoomOp, RoomRpcResult } from "@octopus/session-hub/room";
 import type { SessionHubBackend } from "@octopus/session-hub/backend";
 import { createKvBackend } from "@octopus/session-hub/backend";
 import type { ServiceDeps, SessionHome } from "@octopus/session-hub/engine";
+import { sessionService } from "@octopus/session-hub/engine";
 import { currentEnv } from "./request-context";
 
 export interface SessionRoomNamespaceEnv {
@@ -54,12 +55,16 @@ export function createDoBackend(kvDeps: () => ServiceDeps): SessionHubBackend {
     async joinPortal(args, member) {
       const summary = (await kv().listSessions()).find((s) => s.portal === true && s.status !== "closed");
       if (!summary) throw new DomainError("[SESSION_NOT_FOUND] いま参加できるイベントはありません");
-      return callRoom(
-        summary.id,
-        "joinPortal",
-        { deviceId: args.deviceId, token: args.token, label: member.name },
-        member.id
-      ) as ReturnType<SessionHubBackend["joinPortal"]>;
+      // 終了の処理中(部屋は終了済みで、一覧はまだ「公開中」)は、「参加できるイベントが無い」と同じ扱い
+      return sessionService.orNoPortalSession(
+        () =>
+          callRoom(
+            summary.id,
+            "joinPortal",
+            { deviceId: args.deviceId, token: args.token, label: member.name },
+            member.id
+          ) as ReturnType<SessionHubBackend["joinPortal"]>
+      );
     },
     poll: (args) => callRoom(args.sessionId, "poll", args) as ReturnType<SessionHubBackend["poll"]>,
     issueCommand: (args) => callRoom(args.sessionId, "issueCommand", args) as ReturnType<SessionHubBackend["issueCommand"]>,
