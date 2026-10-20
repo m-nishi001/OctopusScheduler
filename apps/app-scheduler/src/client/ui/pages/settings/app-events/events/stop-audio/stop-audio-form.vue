@@ -1,7 +1,7 @@
 <template>
     <div>
-        <label>フェードアウト時間 (秒)</label>
-        <input type="number" v-model.number="local.fadeOutDuration" min="0" step="0.1" />
+        <label for="fadeOutDuration">フェードアウト時間 (秒)</label>
+        <input id="fadeOutDuration" type="number" v-model.number="local.fadeOutDuration" min="0" step="0.1" />
     </div>
 </template>
 

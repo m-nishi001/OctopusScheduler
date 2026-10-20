@@ -36,6 +36,25 @@ test.describe("予定イベント(設定 > イベント)", () => {
     await d.context.close();
   });
 
+  test("音楽再生: 選んだ音声ファイルは保存のときにアップロードされ、編集画面でその音声が選ばれている", async ({ browser }) => {
+    const d = await newDevice(browser, { signedIn: true });
+    const { page } = d;
+    await openEvents(page);
+    await addEvent(page, "音楽再生イベント");
+    await page.locator('input[type="file"]').setInputFiles({ name: "beep.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("ID3-e2e") });
+    await page.locator("#fadeOutDuration").fill("1.5");
+    await page.getByRole("button", { name: "追加", exact: true }).last().click();
+    await expect(row(page, "音楽再生")).toHaveCount(1);
+
+    await page.reload();
+    await row(page, "音楽再生").getByRole("button", { name: "編集" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.locator("select")).not.toHaveValue("");
+    await expect(dialog.locator("select option:checked")).toHaveText("beep.mp3");
+    await expect(page.locator("#fadeOutDuration")).toHaveValue("1.5");
+    await d.context.close();
+  });
+
   test("画面遷移と音楽停止を追加すると一覧に並び、再読み込みしても残る。編集で中身と時刻が保たれ、削除できる", async ({ browser }) => {
     const d = await newDevice(browser, { signedIn: true });
     const { page } = d;
@@ -55,6 +74,7 @@ test.describe("予定イベント(設定 > イベント)", () => {
     await addEvent(page, "音楽停止イベント");
     await page.locator("#startTime").fill("2030-03-01T12:00");
     await page.locator("#endTime").fill("2030-03-01T12:05");
+    await page.locator("#fadeOutDuration").fill("4");
     await page.getByRole("button", { name: "追加", exact: true }).last().click();
     await expect(row(page, "音楽停止")).toHaveCount(1);
 
@@ -76,6 +96,9 @@ test.describe("予定イベント(設定 > イベント)", () => {
     await row(page, "画面遷移").getByRole("button", { name: "編集" }).click();
     await expect(page.locator("#transitionUrl")).toHaveValue("/jackpot-admin");
     await expect(page.locator("#startTime")).toHaveValue("2030-03-01T10:00");
+    await page.getByRole("button", { name: "キャンセル" }).click();
+    await row(page, "音楽停止").getByRole("button", { name: "編集" }).click();
+    await expect(page.locator("#fadeOutDuration")).toHaveValue("4");
     await page.getByRole("button", { name: "キャンセル" }).click();
 
     // 削除

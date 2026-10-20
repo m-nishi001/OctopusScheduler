@@ -15,6 +15,11 @@
             </button>
         </div>
         <input type="file" accept="audio/*" @change="handleFileUpload" ref="fileInput" style="display: none;">
+        <span v-if="formData.audioFile" class="file-name">{{ formData.audioFile.name }}</span>
+    </div>
+    <div class="form-group">
+        <label for="fadeOutDuration">フェードアウト時間 (秒)</label>
+        <input id="fadeOutDuration" v-model.number="formData.fadeOutDuration" type="number" min="0" step="0.1" />
     </div>
 </template>
 
@@ -43,6 +48,7 @@ const { load, play, pause, isPlaying } = useAudio();
 const formData = reactive({
     audioId: props.initialData?.audioId ?? '',
     audioFile: null as File | null,
+    fadeOutDuration: props.initialData?.fadeOutDuration ?? 0,
 });
 
 const refreshAssets = async () => {
@@ -127,12 +133,11 @@ const save = async () => {
                 audioAssets.value = assets.filter(asset => asset.blob.type.startsWith('audio/'));
             }
         } catch (error) {
-            console.error('Failed to upload audio:', error);
-            return;
+            throw new Error('音声のアップロードに失敗しました: ' + (error instanceof Error ? error.message : String(error)));
         }
     }
 
-    const base: PlayAudioEventDto = { actionType: 'PlayAudioEvent', audioId: formData.audioId };
+    const base: PlayAudioEventDto = { actionType: 'PlayAudioEvent', audioId: formData.audioId, fadeOutDuration: formData.fadeOutDuration };
     if (props.initialData?.id) {
         emit('save', { ...base, id: props.initialData.id });
     } else {
@@ -143,6 +148,7 @@ const save = async () => {
 const reset = () => {
     formData.audioId = props.initialData?.audioId ?? '';
     formData.audioFile = null;
+    formData.fadeOutDuration = props.initialData?.fadeOutDuration ?? 0;
 };
 
 watch(() => props.initialData, () => {

@@ -3,7 +3,7 @@ import type { UIActionEntry } from "../../ui-action-entry";
 
 export const PlayAudioAction: UIActionEntry = {
   actionType: "PlayAudioEvent",
-  label: "音声再生",
+  label: "音楽再生",
   component: PlayAudioForm,
   defaultData: (action?: any) => ({
     actionType: "PlayAudioEvent",
