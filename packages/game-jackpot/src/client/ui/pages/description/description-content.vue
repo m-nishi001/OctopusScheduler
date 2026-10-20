@@ -53,6 +53,7 @@
 </template>
 <script lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { useScreenAssetUrls, useScreenBgm } from '../../composables/use-screen-media';
 import MainLayout from '../common/main-layout.vue';
 import { useRouter } from 'vue-router';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
@@ -61,7 +62,6 @@ import { buildJackpotDescriptionState } from '@model/jackpot-host-state';
 import type { ScreenElement } from '@model/screen-config/description-screen-setting';
 import { DescriptionScreenSetting } from '@model/screen-config/description-screen-setting';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
-import { AssetDataService } from '@control/asset/asset-data-service';
 import { container } from 'tsyringe';
 export default {
 	name: 'Description',
@@ -78,13 +78,11 @@ export default {
 
 		const elements = ref<ScreenElement[]>([]);
 
-		const assetService = container.resolve(AssetDataService);
 
 
-		const createdUrls: string[] = [];
-
-
-		const bgmAudio = ref<HTMLAudioElement | null>(null);
+		// 画像のURLとBGMの読み込みと後始末（画面を離れたら止めて、URLを破棄する）
+		const assetUrls = useScreenAssetUrls();
+		const bgm = useScreenBgm();
 		const ready = ref(false);
 
 		onMounted(async () => {
@@ -106,46 +104,9 @@ export default {
 			ready.value = true;
 
 
-			for (const element of elements.value) {
-				if (element.assetId) {
-					const asset = await assetService.getAssetDataById(element.assetId);
-					if (asset && asset.blob) {
-						try {
-							const url = URL.createObjectURL(asset.blob);
-							element.assetUrl = url;
-							createdUrls.push(url);
-						} catch (e) {
-							element.assetUrl = '';
-						}
-					} else {
-						element.assetUrl = '';
-					}
-				}
-			}
-
-
-
-
-			try {
-				const bgmId = screenConfig.value?.descriptionBgm || '';
-				if (bgmId) {
-					const bgmAsset = await assetService.getAssetDataById(bgmId);
-					if (bgmAsset && bgmAsset.blob) {
-						try {
-							const bgmUrl = URL.createObjectURL(bgmAsset.blob);
-							createdUrls.push(bgmUrl);
-							bgmAudio.value = new Audio(bgmUrl);
-							bgmAudio.value.loop = true;
-
-							void bgmAudio.value.play().catch(() => { });
-						} catch (e) {
-
-						}
-					}
-				}
-			} catch (e) {
-
-			}
+			await assetUrls.attach(elements.value);
+			await bgm.load(screenConfig.value?.descriptionBgm);
+			bgm.play();
 		});
 
 		const nextSlide = () => {
@@ -159,9 +120,7 @@ export default {
 				}
 			} else {
 
-				if (bgmAudio.value) {
-					bgmAudio.value.pause();
-				}
+				bgm.bgm.value?.pause();
 				router.push(session.to('/jackpot-draw'));
 			}
 		};
@@ -188,22 +147,6 @@ export default {
 		onMounted(() => window.addEventListener('keydown', handleKey));
 		onUnmounted(() => {
 			try { window.removeEventListener('keydown', handleKey); } catch { }
-
-
-			if (bgmAudio.value) {
-				bgmAudio.value.pause();
-			}
-
-			try {
-				for (const el of elements.value) {
-					if (el.assetUrl) {
-						try { URL.revokeObjectURL(el.assetUrl); } catch { }
-					}
-				}
-				for (const u of createdUrls) {
-					try { URL.revokeObjectURL(u); } catch { }
-				}
-			} catch { }
 		});
 
 		const isHtml = (s: any) => {

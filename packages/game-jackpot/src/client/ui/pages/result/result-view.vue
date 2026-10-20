@@ -38,6 +38,7 @@ import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { ResultScreenSetting } from '@model/screen-config/result-screen-setting';
+import { useScreenBgm } from '../../composables/use-screen-media';
 import '../../theme/jackpot-theme.css';
 
 export default {
@@ -52,7 +53,11 @@ export default {
     const lowestWinner = ref<any | undefined>(undefined);
     const resultConfig = ref<ResultScreenSetting | null>(null);
 
+    // 当選者の写真の表示用URL（画面を離れたら破棄する）
     const objectUrlMap = new Map<string, string>();
+    const bgm = useScreenBgm();
+    /** 画面が出てから BGM を鳴らし始めるまでの待ち（ミリ秒）。 */
+    const BGM_DELAY_MS = 1200;
 
     const screenSettingsService = container.resolve(ScreenSettingsService);
     const assetService = container.resolve(AssetDataService);
@@ -62,6 +67,7 @@ export default {
         const results = await drawResultService.getDrawResults();
         const config = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
         resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
+        void bgm.load(resultConfig.value.resultBgm).then(() => bgm.play(BGM_DELAY_MS));
 
         for (const r of results) {
           if (r.wonMember) {
@@ -88,30 +94,6 @@ export default {
       fetchResults();
     });
 
-    const bgmAudio = ref<HTMLAudioElement | null>(null);
-    let bgmObjectUrl: string | undefined;
-    const playBGM = async () => {
-      if (!resultConfig.value || !resultConfig.value.resultBgm) return;
-      const asset = await assetService.getAssetDataById(resultConfig.value.resultBgm);
-      if (asset) {
-
-        if (asset.blob) {
-          try { bgmObjectUrl = URL.createObjectURL(asset.blob); }
-          catch (err) { console.error(err); bgmObjectUrl = undefined; }
-        }
-        const url = bgmObjectUrl;
-        if (url) {
-          bgmAudio.value = new Audio(url);
-          bgmAudio.value.loop = true;
-          bgmAudio.value.play().catch(() => { });
-        }
-      }
-    };
-    onMounted(() => {
-      setTimeout(playBGM, 1200);
-    });
-
-
     const fadeOut = ref(false);
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && !fadeOut.value) {
@@ -124,14 +106,10 @@ export default {
     onMounted(() => window.addEventListener('keydown', handleKey));
     onUnmounted(() => {
       window.removeEventListener('keydown', handleKey);
-      if (bgmAudio.value) {
-        try { bgmAudio.value.pause(); } catch (e) { }
-        bgmAudio.value = null;
+      for (const url of objectUrlMap.values()) {
+        try { URL.revokeObjectURL(url); } catch { /* 破棄できなくても画面は閉じる */ }
       }
-      if (bgmObjectUrl) {
-        try { URL.revokeObjectURL(bgmObjectUrl); } catch (e) { }
-        bgmObjectUrl = undefined;
-      }
+      objectUrlMap.clear();
     });
 
     const winnerClass = (winner: any) => {
