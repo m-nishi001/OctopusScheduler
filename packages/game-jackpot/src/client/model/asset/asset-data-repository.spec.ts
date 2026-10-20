@@ -6,6 +6,9 @@ import { CryptoIdGenerator } from "../common/crypto-id-generator";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
+/** サーバーが付ける更新日時。端末の時計(いま)とは大きく違う値にして、どちらを採ったか区別できるようにする。 */
+const SERVER_TIME = "2020-01-01T00:00:00.000Z";
+
 describe("AssetDataRepository", () => {
   let repo: AssetDataRepository;
 
@@ -88,10 +91,10 @@ describe("AssetDataRepository.listSyncTargets", () => {
 
     container.register(CryptoIdGenerator, { useValue: { nextId: () => "generated-id" } });
     mockJackpotApi = {
-      addDriveData: vi.fn(async (d: any) => ({ ...d.metadata, fileId: "file-1" })),
+      addDriveData: vi.fn(async (d: any) => ({ ...d.metadata, fileId: "file-1", lastUpdate: SERVER_TIME })),
       getDriveMetaData: vi.fn(async () => []),
       getDriveData: vi.fn(),
-      updateDriveData: vi.fn(async () => undefined),
+      updateDriveData: vi.fn(async (d: any) => ({ ...d.metadata, fileId: "file-1", lastUpdate: SERVER_TIME })),
     };
     container.register(IJackpotGameApiToken, { useValue: mockJackpotApi });
     repo = container.resolve(AssetDataRepository);
@@ -117,9 +120,11 @@ describe("AssetDataRepository.listSyncTargets", () => {
 
     const local = await targets[0].getLocal();
     expect(await targets[0].getRemote()).toBeNull();
-    await targets[0].push(local!.data);
+    const pushed = await targets[0].push(local!.data);
 
     expect(mockJackpotApi.addDriveData).toHaveBeenCalledOnce();
+    // 端末の時計ではなく、サーバーが付けた更新日時を返す(時計がずれた端末でも、新旧の比較が狂わない)
+    expect(pushed.updatedAt).toBe(new Date(SERVER_TIME).getTime());
   });
 
   it("includes remote-only assets so they can be pulled down", async () => {

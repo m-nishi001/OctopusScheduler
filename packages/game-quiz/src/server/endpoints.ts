@@ -75,8 +75,8 @@ _quizGame_getDriveData = async (args: GetDriveDataArgs): Promise<string> => {
 
 _quizGame_updateDriveData = async (args: UpdateDriveDataArgs): Promise<string> => {
   try {
-    await assets.save(resolveDeps(), args.driveData);
-    return JSON.stringify({ status: "success", data: undefined });
+    const result = await assets.save(resolveDeps(), args.driveData);
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
   }

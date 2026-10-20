@@ -27,7 +27,7 @@ export function useBackgroundSyncCore(syncAll: () => Promise<SyncSummary>) {
   const status = ref<BackgroundSyncStatus>("idle");
   const lastError = ref<string | null>(null);
 
-  const runSync = async () => {
+  const syncOnce = async () => {
     status.value = "syncing";
     try {
       const summary = await syncAll();
@@ -42,6 +42,29 @@ export function useBackgroundSyncCore(syncAll: () => Promise<SyncSummary>) {
     } catch (e) {
       lastError.value = e instanceof Error ? e.message : String(e);
       status.value = "error";
+    }
+  };
+
+  let running = false;
+  let requestedWhileRunning = false;
+
+  /**
+   * 同期を実行する。同期中に呼ばれたら重ねて走らせず、いまの同期が終わったあとにもう1回だけ流す
+   * (同期の途中で起きたローカル変更を取りこぼさないため。重なると同じ素材を同時に保存しようとして競合する)。
+   */
+  const runSync = async () => {
+    if (running) {
+      requestedWhileRunning = true;
+      return;
+    }
+    running = true;
+    try {
+      do {
+        requestedWhileRunning = false;
+        await syncOnce();
+      } while (requestedWhileRunning);
+    } finally {
+      running = false;
     }
   };
 

@@ -170,14 +170,13 @@ export class AssetDataRepository {
           parentFolderId: "",
         };
 
-        if (remoteMap.has(id)) {
-          await this.jackpotApi.updateDriveData(driveData, { timeout: 180000 });
-        } else {
-          await this.jackpotApi.addDriveData(driveData, { timeout: 180000 });
-        }
+        // 更新日時はサーバーの時刻を採る(端末の時計がずれていても、リモートとの新旧比較が狂わないように)
+        const saved = remoteMap.has(id)
+          ? await this.jackpotApi.updateDriveData(driveData, { timeout: 180000 })
+          : await this.jackpotApi.addDriveData(driveData, { timeout: 180000 });
 
-        await this.localStorage.save(id, { ...asset, lastUpdated: clientNow });
-        return { updatedAt: new Date(clientNow).getTime() };
+        await this.localStorage.save(id, { ...asset, lastUpdated: saved.lastUpdate });
+        return { updatedAt: new Date(saved.lastUpdate).getTime() };
       },
       pull: async (meta) => {
         const driveData = await this.jackpotApi.getDriveData(meta.fileId, {

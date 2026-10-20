@@ -313,12 +313,11 @@ export class QuizRepository {
           uploadDate: new Date().toISOString(),
           parentFolderId: "",
         };
-        if (remoteAssetMap.has(id)) {
-          await this.quizApi.updateDriveData({ driveData });
-        } else {
-          await this.quizApi.addDriveData({ driveData });
-        }
-        return { updatedAt: new Date(clientNow).getTime() };
+        // 更新日時はサーバーの時刻を採る(端末の時計がずれていても、リモートとの新旧比較が狂わないように)
+        const saved = remoteAssetMap.has(id)
+          ? await this.quizApi.updateDriveData({ driveData })
+          : await this.quizApi.addDriveData({ driveData });
+        return { updatedAt: new Date(saved.lastUpdate).getTime() };
       },
       pull: async (meta) => {
         const data = await this.quizApi.getDriveData({ dataId: meta.fileId });

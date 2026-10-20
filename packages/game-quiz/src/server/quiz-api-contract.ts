@@ -87,7 +87,7 @@ export interface QuizGameApi {
     options?: ApiCallOptions
   ): Promise<DriveMetadata[]>;
   getDriveData(args: GetDriveDataArgs, options?: ApiCallOptions): Promise<DriveData>;
-  updateDriveData(args: UpdateDriveDataArgs, options?: ApiCallOptions): Promise<void>;
+  updateDriveData(args: UpdateDriveDataArgs, options?: ApiCallOptions): Promise<DriveMetadata>;
   addJson(args: AddJsonArgs, options?: ApiCallOptions): Promise<DriveMetadata>;
   /**
    * updatedAt: 解決されたファイルの最終更新日時(ISO文字列)。バックグラウンド
