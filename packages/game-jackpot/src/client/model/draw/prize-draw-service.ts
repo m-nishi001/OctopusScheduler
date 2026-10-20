@@ -120,7 +120,7 @@ export class PrizeDrawService {
     const available = prizes.filter((p) => !assignedPrizeIds.includes(p.id));
     if (available.length === 0) return null;
 
-    const picked = this.weightedSelector.selectWeightedPrize(available);
+    const picked = this.weightedSelector.selectWeighted(available);
     const dummyPool = prizes.map((p) => p.id).filter((id) => id !== picked.id);
     return {
       winnerPrizeId: picked.id,

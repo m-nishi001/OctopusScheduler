@@ -24,6 +24,7 @@ import {
 import { DrawPoolProviderToken } from "../../model/draw/draw-pool";
 import type { DrawPoolProvider } from "../../model/draw/draw-pool";
 import { DrawStateInitializer } from "./draw-state-initializer";
+import type { KakuhenPlan } from "../../model/draw/kakuhen-plan";
 import {
   mapToDrawResult,
   mapToUpdatedDrawResult,
@@ -47,8 +48,9 @@ export class DrawApplicationService {
     @inject(DrawPoolProviderToken) private readonly drawPool: DrawPoolProvider
   ) {}
 
-  async initializeStateIfNeeded(prizes: Prize[]): Promise<void> {
-    return this.drawStateInitializer.initialize(prizes);
+  /** 抽選を始める準備（確変の回の決定と景品の予約）。決まっていれば何もしない。{@link DrawStateInitializer.initialize} */
+  async initializeStateIfNeeded(prizes: Prize[], plan?: KakuhenPlan): Promise<void> {
+    return this.drawStateInitializer.initialize(prizes, plan);
   }
 
   async getRemainingPrizes(): Promise<Prize[]> {

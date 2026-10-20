@@ -23,31 +23,22 @@
 
 
                 <div class="config-item">
-                    <label>メンバー抽選要求数 (memberDrawRequestCount)</label>
-                    <input type="number" v-model.number="localConfig.memberDrawRequestCount" min="1"
-                        class="admin-input" />
-                    <div class="hint">メンバー抽選でアプリが要求する候補数（デフォルト 10）</div>
-                </div>
-
-
-                <div class="config-item">
-                    <label>確変モード (kakuhenMode)</label>
-                    <select v-model="localConfig.kakuhenMode" class="admin-input">
-                        <option value="random">ランダム</option>
-                        <option value="fixed">固定タイミング</option>
+                    <label>確変の起こし方</label>
+                    <select v-model="localConfig.kakuhenMode" class="admin-input" data-testid="kakuhen-mode">
+                        <option value="auto">おまかせ（景品の真ん中あたりで続けて2回）</option>
+                        <option value="fixed">回を指定する</option>
                     </select>
                 </div>
 
-                <div class="config-item">
-                    <label>固定確変タイミング (kakuhenFixedTimings)</label>
-                    <input type="text" v-model="kakuhenFixedTimingsText" class="admin-input" placeholder="例: 3,7" />
-                    <div class="hint">kakuhenMode が fixed の場合、カンマ区切りの 1-based インデックスを入力してください。</div>
-                </div>
-
-                <div class="config-item">
-                    <label>グローバル BGM ボリューム (0-100)</label>
-                    <input type="number" step="1" v-model.number="localConfig.globalBgmVolume" min="0" max="100"
-                        class="admin-input" />
+                <div v-if="localConfig.kakuhenMode === 'fixed'" class="config-item">
+                    <label>確変にする回</label>
+                    <input type="text" v-model="kakuhenTimingsText" class="admin-input" placeholder="例: 3, 7"
+                        data-testid="kakuhen-timings" />
+                    <div class="hint">
+                        「何回目の抽選か」をカンマ区切りで入力します（例: 3, 7）。空欄なら確変は起きません。
+                        通常の抽選用に景品を1件は残すため、景品がN件なら最大 N-1 回までです。
+                        この設定は、本番の抽選を始めるときに一度だけ確定します。抽選が始まったあとに変えても、結果をリセットするまでは反映されません。
+                    </div>
                 </div>
 
 
@@ -85,6 +76,8 @@ import { ScreenSettingsService } from '@control/screen-config/screen-settings-se
 import { AssetDataService } from '@control/asset/asset-data-service';
 import SimulationDialog from './simulation-dialog.vue';
 import UnsavedChangesDialog from '../unsaved-changes-dialog.vue';
+import { parseKakuhenPlan, parseTimingsText } from '@model/draw/kakuhen-plan';
+import type { KakuhenMode } from '@model/draw/kakuhen-plan';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -125,22 +118,18 @@ const closeTestDialog = () => {
 
 const localConfig = ref({
     memberLotteryBgms: [] as string[],
-    memberDrawRequestCount: 10,
-    kakuhenMode: 'random' as 'random' | 'fixed',
-    kakuhenFixedTimings: [] as number[],
-    globalBgmVolume: 50,
+    kakuhenMode: 'auto' as KakuhenMode,
 });
+/** 確変にする回の入力欄の文字（カンマ区切り）。保存時に回の一覧にする。 */
+const kakuhenTimingsText = ref('');
 
 const loadConfig = async () => {
     try {
         const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
-        if (cfg) {
-            localConfig.value.memberLotteryBgms = (cfg as any).memberLotteryBgms || [];
-            localConfig.value.memberDrawRequestCount = (cfg as any).memberDrawRequestCount || 10;
-            localConfig.value.kakuhenMode = (cfg as any).kakuhenMode || 'random';
-            localConfig.value.kakuhenFixedTimings = (cfg as any).kakuhenFixedTimings || [];
-            localConfig.value.globalBgmVolume = typeof (cfg as any).globalBgmVolume === 'number' ? (cfg as any).globalBgmVolume : 50;
-        }
+        localConfig.value.memberLotteryBgms = cfg?.memberLotteryBgms || [];
+        const plan = parseKakuhenPlan(cfg);
+        localConfig.value.kakuhenMode = plan.mode;
+        kakuhenTimingsText.value = plan.fixedTimings.join(', ');
     } catch (error) {
         console.error('Failed to load main config:', error);
     }
@@ -151,7 +140,7 @@ onMounted(async () => {
     hasUnsavedChanges.value = false;
 });
 
-watch(localConfig, () => {
+watch([localConfig, kakuhenTimingsText], () => {
     hasUnsavedChanges.value = true;
 }, { deep: true });
 
@@ -170,20 +159,10 @@ const handleSaveClick = async () => {
     saving.value = true;
     saveStatus.value = '保存中...';
     try {
-        // parse kakuhenFixedTimings text into array
-        const raw = kakuhenFixedTimingsText.value || '';
-        const arr = raw
-            .split(',')
-            .map((s) => parseInt(s.trim()))
-            .filter((n) => !isNaN(n) && n > 0);
-        localConfig.value.kakuhenFixedTimings = arr;
-
         const payload = {
             memberLotteryBgms: localConfig.value.memberLotteryBgms,
-            memberDrawRequestCount: localConfig.value.memberDrawRequestCount,
             kakuhenMode: localConfig.value.kakuhenMode,
-            kakuhenFixedTimings: localConfig.value.kakuhenFixedTimings,
-            globalBgmVolume: localConfig.value.globalBgmVolume,
+            kakuhenFixedTimings: parseTimingsText(kakuhenTimingsText.value),
         };
         await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload);
         await loadConfig();
@@ -222,16 +201,6 @@ const removeMemberBgm = (index: number) => {
 // Per-prize music/animation helpers removed
 
 // previewAnimation and closePreview removed
-
-// removed variableTiming. keep prizes reference for potential UI use
-// helper to bind/edit kakuhen fixed timings text
-const kakuhenFixedTimingsText = ref('');
-
-// initialize kakuhenFixedTimingsText after load
-onMounted(async () => {
-    await loadConfig();
-    kakuhenFixedTimingsText.value = (localConfig.value.kakuhenFixedTimings || []).join(',');
-});
 </script>
 
 <style scoped>

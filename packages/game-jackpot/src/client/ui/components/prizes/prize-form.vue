@@ -65,7 +65,7 @@ import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
 import type { Prize } from '@model/prize/prize';
-import { DEFAULT_PRIZE_WEIGHT, resolvePrizeWeight } from '@model/draw/weighted-selector';
+import { DEFAULT_WEIGHT, resolveWeight } from '@model/draw/weighted-selector';
 
 const props = defineProps({
   mode: { type: String as () => 'add' | 'edit', required: true },
@@ -117,7 +117,7 @@ const animationOptions = [
 
 const formData = ref({
   name: '',
-  weight: DEFAULT_PRIZE_WEIGHT,
+  weight: DEFAULT_WEIGHT,
   animation: 'roulette',
   imageAssetId: '',
   image2AssetId: '',
@@ -193,8 +193,8 @@ const oddsPreviewPercent = computed(() => {
   const currentId = props.mode === 'edit' && props.prize ? props.prize.id : undefined;
   const othersTotalWeight = props.otherPrizes
     .filter((p) => p.id !== currentId)
-    .reduce((sum, p) => sum + resolvePrizeWeight(p.weight), 0);
-  const currentWeight = resolvePrizeWeight(formData.value.weight);
+    .reduce((sum, p) => sum + resolveWeight(p.weight), 0);
+  const currentWeight = resolveWeight(formData.value.weight);
   const totalWeight = othersTotalWeight + currentWeight;
   if (totalWeight <= 0) return '0.0';
   return ((currentWeight / totalWeight) * 100).toFixed(1);
@@ -212,7 +212,7 @@ watch(() => props.prize, (val) => {
 function loadPrize(prize: any) {
   formData.value = {
     name: prize.name,
-    weight: prize.weight ?? DEFAULT_PRIZE_WEIGHT,
+    weight: prize.weight ?? DEFAULT_WEIGHT,
     animation: prize.animation || 'roulette',
     imageAssetId: prize.imageAssetId || '',
     image2AssetId: prize.image2AssetId || '',

@@ -1,7 +1,9 @@
 import { injectable, inject } from "tsyringe";
 import type { Prize } from "../prize/prize";
 import { MathRandomProvider } from "../common/math-random-provider";
-import { resolvePrizeWeight } from "./weighted-selector";
+import { resolveWeight } from "./weighted-selector";
+import { AUTO_KAKUHEN_PLAN, usableKakuhenTimings } from "./kakuhen-plan";
+import type { KakuhenPlan } from "./kakuhen-plan";
 
 @injectable()
 export class PrizeReservationService {
@@ -12,10 +14,12 @@ export class PrizeReservationService {
   }
 
   /**
-   * Calculate two nearby kakuhen timings around the halfway point.
-   * Returns unique, sorted timings in the range [1..totalPrizes].
+   * 確変にする回（何回目の抽選か。1始まり、小さい順）を決める。
+   * おまかせ（既定）は景品の数の真ん中あたりで続けて2回。指定（fixed）は指定した回（範囲外は除く）。
+   * どちらも、通常の抽選用に景品を最低1件残す。
    */
-  calculateKakuhenTimings(totalPrizes: number): number[] {
+  calculateKakuhenTimings(totalPrizes: number, plan: KakuhenPlan = AUTO_KAKUHEN_PLAN): number[] {
+    if (plan.mode === "fixed") return usableKakuhenTimings(plan.fixedTimings, totalPrizes);
     // 確変は予約景品を使うため、少なくとも1件は通常抽選用に残す(景品1件では確変なし)
     if (totalPrizes <= 1) return [];
     const center = Math.max(1, Math.floor(totalPrizes / 2));
@@ -30,7 +34,7 @@ export class PrizeReservationService {
   private createPool(reservedCount: number, prizes: Prize[]) {
     // sort by weight descending
     const sortedHigh = [...prizes].sort(
-      (a, b) => resolvePrizeWeight(b.weight) - resolvePrizeWeight(a.weight)
+      (a, b) => resolveWeight(b.weight) - resolveWeight(a.weight)
     );
 
     // number to take from each side
@@ -72,10 +76,10 @@ export class PrizeReservationService {
       const candidates = arr.filter((p) => !exclude.has(p.id));
       if (candidates.length === 0) return null;
       if (pref === 0) return candidates[this.rand.nextInt(candidates.length)];
-      const weights = candidates.map((p) => resolvePrizeWeight(p.weight));
+      const weights = candidates.map((p) => resolveWeight(p.weight));
       const target = pref > 0 ? Math.max(...weights) : Math.min(...weights);
       const filtered = candidates.filter(
-        (p) => resolvePrizeWeight(p.weight) === target
+        (p) => resolveWeight(p.weight) === target
       );
       return filtered[this.rand.nextInt(filtered.length)];
     };

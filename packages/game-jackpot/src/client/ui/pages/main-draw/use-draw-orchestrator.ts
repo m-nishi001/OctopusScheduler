@@ -6,6 +6,8 @@ import { DrawApplicationService } from "@control/draw/draw-application-service";
 import { PrizeRepository } from "@model/prize/prize-repository";
 import { MemberRepository } from "@model/member/member-repository";
 import { AssetDataService } from "@control/asset/asset-data-service";
+import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
+import { parseKakuhenPlan } from "@model/draw/kakuhen-plan";
 import type { MemberDto } from "@control/member/dto/member-dto";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { DrawMemberResponse } from "@control/draw/dto/draw-member-response";
@@ -137,7 +139,9 @@ export function useDrawOrchestrator() {
     try {
       await updatePrizes(await prizeRepo.getPrizes());
       members.value = await memberRepo.getMembers();
-      await drawService.initializeStateIfNeeded(prizes.value);
+      // 確変にする回は、管理画面の設定（本抽選画面設定）に従って、この抽選を始めるときに決める
+      const mainSettings = await container.resolve(ScreenSettingsService).fetchScreenSetting("main", "main-screen-settings");
+      await drawService.initializeStateIfNeeded(prizes.value, parseKakuhenPlan(mainSettings));
     } catch (e) {
       console.error("[DrawOrchestrator] failed to load draw data", e);
       alertError(e);

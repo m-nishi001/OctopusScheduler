@@ -26,6 +26,7 @@ import { ref } from 'vue';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { MemberService } from '@control/member/member-service';
 import { PrizeService } from '@control/prize/prize-service';
+import { resolveWeight } from '@model/draw/weighted-selector';
 import { container } from 'tsyringe';
 
 const props = defineProps<{
@@ -235,11 +236,14 @@ const uploadMembers = async (dataLines: string[], assetMap: Map<string, string>)
         const name = cols[0];
         const rank = parseInt(cols[1]);
         const photoFilename = cols[2];
+        // 4列目（任意）: 当選しやすさ（1〜100）。無ければ既定値
+        const weight = cols[3] ? resolveWeight(parseInt(cols[3])) : undefined;
         const photoAssetId = photoFilename ? assetMap.get(norm(photoFilename)) || assetMap.get(norm(photoFilename).toLowerCase()) : undefined;
         const member = {
             id: `upload_member_${Date.now()}_${i}`,
             name,
             rank,
+            weight,
             photoAssetId
         };
         await memberService.saveMember(member);

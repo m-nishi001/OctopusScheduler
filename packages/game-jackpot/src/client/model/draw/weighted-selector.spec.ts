@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
   WeightedSelector,
-  resolvePrizeWeight,
-  DEFAULT_PRIZE_WEIGHT,
-  MIN_PRIZE_WEIGHT,
-  MAX_PRIZE_WEIGHT,
+  resolveWeight,
+  DEFAULT_WEIGHT,
+  MIN_WEIGHT,
+  MAX_WEIGHT,
 } from "./weighted-selector";
 import { MockRandom } from "./test-utils";
 
 describe("WeightedSelector", () => {
-  describe("selectWeightedPrize", () => {
+  describe("selectWeighted", () => {
     /**
      * weightを重みとした累積和選択が期待通りの境界で切り替わることをテストする。
      */
@@ -21,15 +21,15 @@ describe("WeightedSelector", () => {
         { id: "c", weight: 8 },
       ];
       // total=10, r = 0.05*10 = 0.5 -> falls into first item's weight (a)
-      expect(sel1.selectWeightedPrize(pool).id).toBe("a");
+      expect(sel1.selectWeighted(pool).id).toBe("a");
 
       const sel2 = new WeightedSelector(new MockRandom([0.15]) as any);
       // r = 0.15*10 = 1.5 -> falls into second item's weight (b)
-      expect(sel2.selectWeightedPrize(pool).id).toBe("b");
+      expect(sel2.selectWeighted(pool).id).toBe("b");
 
       const sel3 = new WeightedSelector(new MockRandom([0.5]) as any);
       // r = 0.5*10 = 5 -> falls into third item's weight (c)
-      expect(sel3.selectWeightedPrize(pool).id).toBe("c");
+      expect(sel3.selectWeighted(pool).id).toBe("c");
     });
 
     /**
@@ -42,11 +42,11 @@ describe("WeightedSelector", () => {
       ];
       // total=91, r just under the common item's boundary (1/91) still selects grand.
       const sel = new WeightedSelector(new MockRandom([0.02]) as any);
-      expect(sel.selectWeightedPrize(pool).id).toBe("grand");
+      expect(sel.selectWeighted(pool).id).toBe("grand");
 
       // r within the tiny common-item slice selects common.
       const selCommon = new WeightedSelector(new MockRandom([0.0]) as any);
-      expect(selCommon.selectWeightedPrize(pool).id).toBe("common");
+      expect(selCommon.selectWeighted(pool).id).toBe("common");
     });
 
     /**
@@ -55,55 +55,34 @@ describe("WeightedSelector", () => {
     it("falls back to the default weight when unset", () => {
       const pool: Array<{ id: string; weight?: number }> = [{ id: "a" }, { id: "b" }];
       const sel = new WeightedSelector(new MockRandom([0]) as any);
-      // Both resolve to DEFAULT_PRIZE_WEIGHT, so total = 2*DEFAULT_PRIZE_WEIGHT and r=0 selects the first.
-      expect(sel.selectWeightedPrize(pool).id).toBe("a");
+      // Both resolve to DEFAULT_WEIGHT, so total = 2*DEFAULT_WEIGHT and r=0 selects the first.
+      expect(sel.selectWeighted(pool).id).toBe("a");
     });
 
     it("throws on an empty pool", () => {
       const sel = new WeightedSelector(new MockRandom([0]) as any);
-      expect(() => sel.selectWeightedPrize([])).toThrow();
+      expect(() => sel.selectWeighted([])).toThrow();
     });
   });
 
-  describe("selectUniformRandom", () => {
-    /**
-     * selectUniformRandomは重みを無視し、rand.nextIntのみでインデックスを決めることをテストする。
-     */
-    it("picks purely by index, ignoring any weight-like fields", () => {
-      const pool = [
-        { id: "a", weight: 1 },
-        { id: "b", weight: 999 },
-        { id: "c", weight: 1 },
-      ];
-      const sel = new WeightedSelector(new MockRandom([0.5]) as any);
-      // nextInt(3) with next()=0.5 -> floor(0.5*3)=1 -> index 1 regardless of weight
-      expect(sel.selectUniformRandom(pool).id).toBe("b");
-    });
-
-    it("throws on an empty pool", () => {
-      const sel = new WeightedSelector(new MockRandom([0]) as any);
-      expect(() => sel.selectUniformRandom([])).toThrow();
-    });
-  });
-
-  describe("resolvePrizeWeight", () => {
+  describe("resolveWeight", () => {
     it("returns the default when weight is undefined", () => {
-      expect(resolvePrizeWeight(undefined)).toBe(DEFAULT_PRIZE_WEIGHT);
+      expect(resolveWeight(undefined)).toBe(DEFAULT_WEIGHT);
     });
 
     it("returns the default for NaN/Infinity", () => {
-      expect(resolvePrizeWeight(NaN)).toBe(DEFAULT_PRIZE_WEIGHT);
-      expect(resolvePrizeWeight(Infinity)).toBe(DEFAULT_PRIZE_WEIGHT);
+      expect(resolveWeight(NaN)).toBe(DEFAULT_WEIGHT);
+      expect(resolveWeight(Infinity)).toBe(DEFAULT_WEIGHT);
     });
 
-    it("clamps to [MIN_PRIZE_WEIGHT, MAX_PRIZE_WEIGHT]", () => {
-      expect(resolvePrizeWeight(-5)).toBe(MIN_PRIZE_WEIGHT);
-      expect(resolvePrizeWeight(0)).toBe(MIN_PRIZE_WEIGHT);
-      expect(resolvePrizeWeight(1000)).toBe(MAX_PRIZE_WEIGHT);
+    it("clamps to [MIN_WEIGHT, MAX_WEIGHT]", () => {
+      expect(resolveWeight(-5)).toBe(MIN_WEIGHT);
+      expect(resolveWeight(0)).toBe(MIN_WEIGHT);
+      expect(resolveWeight(1000)).toBe(MAX_WEIGHT);
     });
 
     it("floors fractional weights", () => {
-      expect(resolvePrizeWeight(12.7)).toBe(12);
+      expect(resolveWeight(12.7)).toBe(12);
     });
   });
 });

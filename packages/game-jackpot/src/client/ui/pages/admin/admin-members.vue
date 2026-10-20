@@ -3,7 +3,7 @@
     <UiToolbar>
       <UiButton variant="primary" icon="add" @click.prevent="openModal('add')">追加</UiButton>
       <UiButton variant="danger" icon="delete" :disabled="!selectedMembers.length || deleting"
-        @click="showDeleteModal = true">選択を外す</UiButton>
+        @click="showDeleteModal = true">選択の設定を初期値に戻す</UiButton>
       <UiButton icon="file" @click.prevent="exportFormatCsv">書式CSV</UiButton>
       <UiButton icon="upload" @click.prevent="showDataUploadDialog = true">データ取込</UiButton>
     </UiToolbar>
