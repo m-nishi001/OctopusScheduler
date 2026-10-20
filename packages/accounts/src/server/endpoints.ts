@@ -41,6 +41,7 @@ import { secure } from "./secure";
 import {
   addMember,
   deleteMember,
+  getRosterUsage,
   getSession,
   InvalidCredentialsError,
   issueLoginKey,
@@ -68,6 +69,7 @@ function resolveDeps() {
 }
 
 declare let _accounts_listAccounts: (args: ListMembersArgs) => Promise<string>;
+declare let _accounts_getRosterUsage: (args: ListMembersArgs) => Promise<string>;
 declare let _accounts_listMembers: (args: ListMembersArgs) => Promise<string>;
 declare let _accounts_addMember: (args: AddMemberArgs) => Promise<string>;
 declare let _accounts_updateMember: (args: UpdateMemberArgs) => Promise<string>;
@@ -93,6 +95,15 @@ _accounts_listMembers = async (_args: ListMembersArgs): Promise<string> => {
 _accounts_listAccounts = async (_args: ListMembersArgs): Promise<string> => {
   try {
     const result = await listAccounts(resolveDeps());
+    return JSON.stringify({ status: "success", data: result });
+  } catch (error) {
+    return errorResponse(error);
+  }
+};
+
+_accounts_getRosterUsage = async (_args: ListMembersArgs): Promise<string> => {
+  try {
+    const result = await getRosterUsage(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
@@ -209,6 +220,7 @@ _accounts_getSession = async (args: GetSessionArgs): Promise<string> => {
 // 認可ポリシー。名簿(id/name)の取得とログイン系は誰でも、それ以外の変更・管理者向け一覧は管理者のみ。
 _accounts_listMembers = secure("public", _accounts_listMembers);
 _accounts_listAccounts = secure("admin", _accounts_listAccounts);
+_accounts_getRosterUsage = secure("admin", _accounts_getRosterUsage);
 _accounts_addMember = secure("admin", _accounts_addMember);
 _accounts_updateMember = secure("admin", _accounts_updateMember);
 _accounts_deleteMember = secure("admin", _accounts_deleteMember);
@@ -226,6 +238,7 @@ _accounts_getSession = secure("public", _accounts_getSession);
 export const ACCOUNTS_HANDLERS: Record<AccountsEndpointName, (args: any) => Promise<string>> = {
   listMembers: _accounts_listMembers,
   listAccounts: _accounts_listAccounts,
+  getRosterUsage: _accounts_getRosterUsage,
   addMember: _accounts_addMember,
   updateMember: _accounts_updateMember,
   deleteMember: _accounts_deleteMember,

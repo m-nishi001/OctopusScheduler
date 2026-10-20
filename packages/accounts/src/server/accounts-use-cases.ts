@@ -1,5 +1,6 @@
+import { utf8ByteLength } from "@octopus/infrastructures/interfaces";
 import type { IKeyValueStorage, ILock, IPasswordHasher, ISecretProvider } from "@octopus/infrastructures/interfaces";
-import type { LoginResult, Member } from "./accounts-api-contract";
+import type { LoginResult, Member, RosterUsage } from "./accounts-api-contract";
 
 export interface AccountsUseCaseDeps {
   storage: IKeyValueStorage;
@@ -92,6 +93,16 @@ async function writeMembers(storage: IKeyValueStorage, members: Member[]): Promi
 }
 
 /** 表示用の名簿(id/name のみ)。誰でも取得できるよう、管理者フラグ等は含めない。 */
+/** 名簿の容量の使用状況。上限に近いかどうかを管理画面が判断する。 */
+export async function getRosterUsage(deps: AccountsUseCaseDeps): Promise<RosterUsage> {
+  const raw = (await deps.storage.get(MEMBERS_KEY)) ?? "[]";
+  return {
+    members: (await readMembers(deps.storage)).length,
+    usedBytes: utf8ByteLength(raw),
+    maxBytes: deps.storage.maxScalarBytes ?? null,
+  };
+}
+
 export async function listMembers(deps: AccountsUseCaseDeps): Promise<Member[]> {
   const members = await readMembers(deps.storage);
   return members.map((m) => ({ id: m.id, name: m.name }));

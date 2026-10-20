@@ -84,6 +84,17 @@ function prune(list: SessionSummary[], now: number): SessionSummary[] {
   });
 }
 
+/**
+ * 一覧から外れたセッションの保存データを消す(消さないと、GAS では ScriptProperty の容量が
+ * セッションの数だけ増え続け、いずれ全ての保存が失敗する)。
+ */
+async function purgeDropped(deps: ServiceDeps, before: SessionSummary[], kept: SessionSummary[]): Promise<void> {
+  const keptIds = new Set(kept.map((s) => s.id));
+  for (const dropped of before.filter((s) => !keptIds.has(s.id))) {
+    await deps.repoFor(dropped.id).purge?.();
+  }
+}
+
 function isActive(s: SessionSummary): boolean {
   return s.status !== "closed";
 }
@@ -102,7 +113,9 @@ export async function createSession(
 
   return deps.withLock(INDEX_LOCK, LOCK_TIMEOUT_MS, async () => {
     const now = deps.now();
-    const list = prune(await deps.index.list(), now);
+    const stored = await deps.index.list();
+    const list = prune(stored, now);
+    await purgeDropped(deps, stored, list);
     if (list.filter(isActive).length >= MAX_ACTIVE_SESSIONS) {
       throw hubError("TOO_MANY_SESSIONS", "進行中のセッションが多すぎます。不要なセッションを終了してください");
     }

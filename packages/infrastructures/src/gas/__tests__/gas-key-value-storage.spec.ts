@@ -4,7 +4,7 @@ import {
   GasKeyValueStorage,
   ROOT_FOLDER_PROPERTY_KEY,
 } from "../gas-key-value-storage";
-import { StorageNotConfiguredError } from "../../interfaces/key-value-storage";
+import { StorageCapacityError, StorageNotConfiguredError } from "../../interfaces/key-value-storage";
 
 // --- 最小限の Drive / Properties フェイク ---
 class FakeFile {
@@ -65,6 +65,8 @@ class FakeFolder {
 
 const g = globalThis as Record<string, unknown>;
 let props: Record<string, string>;
+/** setProperty が投げる GAS 側の例外(合計容量の超過を模擬する)。 */
+let setPropertyError: string | null;
 let root: FakeFolder;
 let createFolderCalls: number;
 let lockEvents: string[];
@@ -72,6 +74,7 @@ let lockFails: boolean;
 
 beforeEach(() => {
   props = {};
+  setPropertyError = null;
   root = new FakeFolder();
   createFolderCalls = 0;
   lockEvents = [];
@@ -88,7 +91,12 @@ beforeEach(() => {
   g.PropertiesService = {
     getScriptProperties: () => ({
       getProperty: (k: string) => props[k] ?? null,
-      setProperty: (k: string, v: string) => { props[k] = v; },
+      setProperty: (k: string, v: string) => {
+        if (setPropertyError) throw new Error(setPropertyError);
+        props[k] = v;
+      },
+      getKeys: () => Object.keys(props),
+      deleteProperty: (k: string) => { delete props[k]; },
     }),
   };
   g.DriveApp = {
@@ -217,5 +225,39 @@ describe("GasKeyValueStorage (root-relative paths)", () => {
     expect(newer.folders.has("json")).toBe(false);
     expect(await kv.getContentAsText("quiz-game/json/a.json")).toBe("{}");
     expect(createFolderCalls).toBe(1);
+  });
+
+  describe("ScriptProperty の容量の上限", () => {
+    it("1値の上限(約9KB)を超える値は、原因の分かる容量エラーにする(日本語は1文字3バイトで数える)", async () => {
+      const kv = new GasKeyValueStorage();
+      await kv.set("small", "あ".repeat(2000)); // 6000 バイト
+      expect(props["small"]).toBeDefined();
+      await expect(kv.set("big", "あ".repeat(4000))).rejects.toBeInstanceOf(StorageCapacityError); // 12000 バイト
+      expect(props["big"]).toBeUndefined();
+      await expect(kv.set("big", "あ".repeat(4000))).rejects.toThrow(/上限/);
+    });
+
+    it("合計容量の超過で GAS が投げる例外も、容量エラーにして伝える", async () => {
+      setPropertyError = "Exceeded maximum storage quota";
+      await expect(new GasKeyValueStorage().set("k", "v")).rejects.toBeInstanceOf(StorageCapacityError);
+    });
+
+    it("容量に関係のない例外は、そのまま伝える", async () => {
+      setPropertyError = "Service invoked too many times";
+      await expect(new GasKeyValueStorage().set("k", "v")).rejects.not.toBeInstanceOf(StorageCapacityError);
+    });
+
+    it("1値の上限を、呼び出し側が参照できる(件数を抑える判断に使う)", () => {
+      expect(new GasKeyValueStorage().maxScalarBytes).toBe(9000);
+    });
+
+    it("接頭辞が一致する文字列値だけをまとめて削除し、件数を返す", async () => {
+      const kv = new GasKeyValueStorage();
+      await kv.set("session-hub/s/a/meta", "1");
+      await kv.set("session-hub/s/a/dev/1", "2");
+      await kv.set("session-hub/s/b/meta", "3");
+      expect(await kv.deleteScalarsByPrefix("session-hub/s/a/")).toBe(2);
+      expect(Object.keys(props)).toEqual(["session-hub/s/b/meta"]);
+    });
   });
 });

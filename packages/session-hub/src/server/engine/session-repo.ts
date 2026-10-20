@@ -8,7 +8,7 @@
 import type { IKeyValueStorage, ICache } from "@octopus/infrastructures/interfaces";
 import { COMMAND_RING_SIZE } from "../../shared/session-types";
 import type { RoundAnswer } from "../../shared/protocol";
-import { upsertAnswer, type UpsertAnswerResult } from "./round-answers";
+import { isSameRespondent, upsertAnswer, type UpsertAnswerResult } from "./round-answers";
 import type {
   Command,
   Device,
@@ -47,6 +47,11 @@ export interface StoredRound {
 }
 
 export interface SessionRepo {
+  /**
+   * このセッションの保存データをすべて消す(終わって一覧から外れたセッションの掃除)。
+   * 容量に上限のある保存先(GAS の ScriptProperty は全体で約500KB)のために、KV 実装だけが持つ。
+   */
+  purge?(): Promise<void>;
   getMeta(): Promise<SessionMeta | null>;
   putMeta(meta: SessionMeta): Promise<void>;
   getHead(): Promise<StoredHead | null>;
@@ -113,23 +118,49 @@ export function createKvSessionRepo(storage: IKeyValueStorage, sessionId: string
     putDevice: (device) => storage.set(k(`dev/${device.deviceId}`), JSON.stringify(device)),
     getCommand: (seq) => readJson<Command>(storage, k(`cmd/${slotOf(seq)}`)),
     putCommand: (command) => storage.set(k(`cmd/${slotOf(command.seq)}`), JSON.stringify(command)),
+    async purge() {
+      await storage.deleteScalarsByPrefix(k(""));
+    },
     ...createKvRoundOps(storage, k),
   };
 }
 
-/** 回答ラウンドの KV 実装。round(要約)と answers(回答の配列)をそれぞれ1キーに持つ(GAS の1値 ~9KB 以内)。 */
+/**
+ * 1つのキーに入れる回答の数。1件 約200〜300バイトなので、GAS の 1 値の上限(約9KB)に収まる大きさ。
+ * 回答の上限(MAX_ROUND_ANSWERS_KV)はこの数で何個かのキーに分けて保存する。
+ */
+export const ANSWER_CHUNK_SIZE = 25;
+
+interface AnswerChunk {
+  key: string;
+  answers: RoundAnswer[];
+}
+
+/**
+ * 回答ラウンドの KV 実装。round(要約)と、answers/0, answers/1, …(回答を ANSWER_CHUNK_SIZE 件ずつ)を別々のキーに持つ。
+ * 前のラウンドのキーが残っていても、ラウンドの key が違えば無視する。
+ */
 function createKvRoundOps(
   storage: IKeyValueStorage,
   k: (name: string) => string
 ): Pick<SessionRepo, "getRound" | "openRound" | "closeRound" | "reopenRound" | "listAnswers" | "upsertAnswer"> {
-  const readAnswers = async (key: string): Promise<RoundAnswer[]> => {
-    const stored = await readJson<{ key: string; answers: RoundAnswer[] }>(storage, k("answers"));
-    return stored && stored.key === key ? stored.answers : [];
+  const chunkKey = (index: number): string => k(`answers/${index}`);
+
+  /** このラウンドの回答のかたまりを、先頭から順に読む(満杯でないかたまりが最後)。 */
+  const readChunks = async (key: string): Promise<RoundAnswer[][]> => {
+    const chunks: RoundAnswer[][] = [];
+    for (let i = 0; ; i++) {
+      const stored = await readJson<AnswerChunk>(storage, chunkKey(i));
+      if (!stored || stored.key !== key) break;
+      chunks.push(stored.answers);
+      if (stored.answers.length < ANSWER_CHUNK_SIZE) break;
+    }
+    return chunks;
   };
   return {
     getRound: () => readJson<StoredRound>(storage, k("round")),
     async openRound(round) {
-      await storage.set(k("answers"), JSON.stringify({ key: round.key, answers: [] }));
+      await storage.set(chunkKey(0), JSON.stringify({ key: round.key, answers: [] } satisfies AnswerChunk));
       await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs: null, answerCount: 0, answerRev: 0 } satisfies StoredRound));
     },
     async closeRound(closedAtMs) {
@@ -142,14 +173,22 @@ function createKvRoundOps(
       if (!round) return;
       await storage.set(k("round"), JSON.stringify({ ...round, closedAtMs: null, deadlineMs }));
     },
-    listAnswers: readAnswers,
+    async listAnswers(key) {
+      return (await readChunks(key)).flat();
+    },
     async upsertAnswer(key, answer, maxAnswers) {
       const round = await readJson<StoredRound>(storage, k("round"));
       if (!round || round.key !== key) return null;
-      const answers = await readAnswers(key);
+      const answers = (await readChunks(key)).flat();
+      const previousIndex = answers.findIndex((a) => isSameRespondent(a, answer));
       const result = upsertAnswer(answers, answer, maxAnswers);
       if (result.kind === "inserted" || result.kind === "replaced") {
-        await storage.set(k("answers"), JSON.stringify({ key, answers }));
+        // 変わったかたまり(選び直しは元の位置、新規は末尾)だけを書く
+        const changedIndex = previousIndex >= 0 ? previousIndex : answers.length - 1;
+        for (let i = Math.floor(changedIndex / ANSWER_CHUNK_SIZE); i * ANSWER_CHUNK_SIZE < answers.length; i++) {
+          const chunk: AnswerChunk = { key, answers: answers.slice(i * ANSWER_CHUNK_SIZE, (i + 1) * ANSWER_CHUNK_SIZE) };
+          await storage.set(chunkKey(i), JSON.stringify(chunk));
+        }
         await storage.set(k("round"), JSON.stringify({ ...round, answerCount: answers.length, answerRev: round.answerRev + 1 } satisfies StoredRound));
       }
       return result;

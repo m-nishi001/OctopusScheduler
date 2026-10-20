@@ -1,6 +1,6 @@
 import { inject, injectable } from "tsyringe";
 import { IAccountsApiToken } from "../../server/accounts-api-contract";
-import type { LoginResult, Member, AccountsApi } from "../../server/accounts-api-contract";
+import type { LoginResult, Member, AccountsApi, RosterUsage } from "../../server/accounts-api-contract";
 
 @injectable()
 export class AccountsRepository {
@@ -14,6 +14,11 @@ export class AccountsRepository {
 
   async listAccounts(): Promise<Member[]> {
     return this.accountsApi.listAccounts({});
+  }
+
+  /** 名簿の容量の使用状況(上限に近づいたら警告するため)。 */
+  async getRosterUsage(): Promise<RosterUsage> {
+    return this.accountsApi.getRosterUsage({});
   }
 
   async addMember(args: { id?: string; name: string; isAdmin?: boolean }): Promise<Member> {

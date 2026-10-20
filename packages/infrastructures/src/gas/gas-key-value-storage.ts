@@ -1,6 +1,8 @@
 import { injectable } from "tsyringe";
 import {
+  StorageCapacityError,
   StorageNotConfiguredError,
+  utf8ByteLength,
   type IKeyValueStorage,
   type StoredItemContent,
   type StoredItemMeta,
@@ -8,6 +10,9 @@ import {
 
 /** 保存先ルートとなる Drive フォルダIDを登録する ScriptProperty のキー。 */
 export const ROOT_FOLDER_PROPERTY_KEY = "OCTOPUS_ROOT_FOLDER_ID";
+
+/** ScriptProperty の 1 値あたりの上限(公称 9KB)に、余裕を持たせた値。 */
+export const GAS_MAX_SCALAR_BYTES = 9000;
 
 /** フォルダ作成時のスクリプトロック待機上限(ms)。 */
 const FOLDER_LOCK_TIMEOUT_MS = 10000;
@@ -25,16 +30,44 @@ const FOLDER_LOCK_TIMEOUT_MS = 10000;
  */
 @injectable()
 export class GasKeyValueStorage implements IKeyValueStorage {
+  readonly maxScalarBytes = GAS_MAX_SCALAR_BYTES;
+
   async get(key: string): Promise<string | null> {
     return PropertiesService.getScriptProperties().getProperty(key);
   }
 
+  /**
+   * 上限(1 値 約 9KB・全体 約 500KB)を超えるときは、GAS の分かりにくい例外ではなく
+   * {@link StorageCapacityError} で、何が原因かを伝える。
+   */
   async set(key: string, value: string): Promise<void> {
-    PropertiesService.getScriptProperties().setProperty(key, value);
+    const bytes = utf8ByteLength(value);
+    if (bytes > this.maxScalarBytes) {
+      throw new StorageCapacityError(
+        `保存できる大きさの上限(約9KB)を超えました(${key}: ${bytes}バイト)。人数や件数を減らしてください。`
+      );
+    }
+    try {
+      PropertiesService.getScriptProperties().setProperty(key, value);
+    } catch (error) {
+      if (/quota|exceed|limit/i.test(error instanceof Error ? error.message : String(error))) {
+        throw new StorageCapacityError(
+          "保存先の合計の容量(約500KB)がいっぱいです。終わったセッションなど、不要なデータの整理が必要です。"
+        );
+      }
+      throw error;
+    }
   }
 
   async deleteScalar(key: string): Promise<void> {
     PropertiesService.getScriptProperties().deleteProperty(key);
+  }
+
+  async deleteScalarsByPrefix(prefix: string): Promise<number> {
+    const properties = PropertiesService.getScriptProperties();
+    const keys = properties.getKeys().filter((key) => key.startsWith(prefix));
+    for (const key of keys) properties.deleteProperty(key);
+    return keys.length;
   }
 
   /** ルートフォルダを返す。未設定・参照不能なら StorageNotConfiguredError。 */
