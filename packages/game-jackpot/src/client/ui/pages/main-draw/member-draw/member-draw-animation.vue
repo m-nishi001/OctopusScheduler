@@ -25,6 +25,7 @@
 
 <script lang="ts">
 import { pickStopTarget } from './stop-target';
+import { buildReelLap, reelScale, repeatReel, startButtonCenterY } from './member-reel';
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import gsap from 'gsap';
 import '../../../theme/jackpot-theme.css';
@@ -77,31 +78,13 @@ export default {
         const displayMembers = ref<MemberDto[]>([]);
 
         const buildDisplay = () => {
-            console.log('★ [MemberDrawAnimation] buildDisplay called with memberRes:', props.memberRes);
-            const allMembers = props.members.slice();
-            let list: MemberDto[] = [];
-
-            if (props.memberRes && props.memberRes.winnerId) {
-                const winner = allMembers.find((m: MemberDto) => m.id === props.memberRes!.winnerId);
-                if (winner) {
-                    // ダミーIDを先に配置
-                    const dummies = props.memberRes.dummyIds.map((id: string) => allMembers.find((m: MemberDto) => m.id === id)).filter(Boolean) as MemberDto[];
-                    list = [...dummies];
-                    // 当選者をランダムな位置に挿入
-                    const randomIndex = Math.floor(Math.random() * (list.length + 1));
-                    list.splice(randomIndex, 0, winner);
-                    console.log('★ [MemberDrawAnimation] Winner placed at random index:', randomIndex);
-                } else {
-                    list = allMembers.slice(0, props.visibleCount);
-                }
-            } else {
-                list = allMembers.slice(0, props.visibleCount);
-            }
-
-            while (list.length < props.visibleCount) {
-                list.push({ id: 'empty-' + list.length, name: '---', photoAssetId: undefined, rank: 0 } as MemberDto);
-            }
-            displayMembers.value = [...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list, ...list];
+            const allMembers: MemberDto[] = props.members.slice();
+            const planned: DrawMemberResponse | null = props.memberRes;
+            const winner = planned?.winnerId ? allMembers.find((m) => m.id === planned.winnerId) ?? null : null;
+            const others = winner
+                ? (planned!.dummyIds.map((id: string) => allMembers.find((m) => m.id === id)).filter(Boolean) as MemberDto[])
+                : allMembers.slice(0, props.visibleCount);
+            displayMembers.value = repeatReel(buildReelLap(others, winner, props.visibleCount, Math.random));
         };
 
         // Ensure the planned winner (if provided) is included in the visible display list.
@@ -113,35 +96,10 @@ export default {
                 return;
             }
 
-            const all = props.members.slice();
-            const winner = all.find((m: MemberDto) => m.id === winnerId) || null;
-
-            let list: MemberDto[] = [];
-            if (winner) {
-                const withoutWinner = all.filter((m: MemberDto) => m.id !== winnerId);
-                list = withoutWinner.slice(0, Math.max(visible - 1, 0));
-                // 当選者をランダムな位置に挿入
-                const randomIndex = Math.floor(Math.random() * (list.length + 1));
-                list.splice(randomIndex, 0, winner);
-                console.log('[MemberDrawAnimation] ensureWinnerInDisplay: Winner placed at random index:', randomIndex);
-            } else {
-                list = all.slice(0, visible);
-            }
-
-            while (list.length < visible) {
-                list.push({ id: 'empty-' + list.length, name: '---', photoAssetId: undefined, rank: 0 } as MemberDto);
-            }
-
-            const seen = new Set<string>();
-            const unique: MemberDto[] = [];
-            for (const m of list) {
-                if (!seen.has(m.id)) {
-                    seen.add(m.id);
-                    unique.push(m);
-                }
-            }
-
-            displayMembers.value = [...unique, ...unique, ...unique, ...unique, ...unique, ...unique, ...unique, ...unique, ...unique, ...unique];
+            const all: MemberDto[] = props.members.slice();
+            const winner = all.find((m) => m.id === winnerId) ?? null;
+            const others = winner ? all.filter((m) => m.id !== winnerId).slice(0, Math.max(visible - 1, 0)) : all.slice(0, visible);
+            displayMembers.value = repeatReel(buildReelLap(others, winner, visible, Math.random, { unique: true }));
 
             try {
                 await loadImages();
@@ -215,10 +173,7 @@ export default {
             // prepare scales array
             if (scales.value.length !== children.length) scales.value = new Array(children.length).fill(1);
 
-            // tuning constants
-            const maxScale = 1.8; // scale at exact center
-            const minScale = 0.8; // scale far from center
-            const influence = viewportRect.width / 2; // distance at which scale reaches min
+            const influence = viewportRect.width / 2; // この距離で拡大率が最小になる
 
             for (let i = 0; i < children.length; i++) {
                 const c = children[i];
@@ -231,10 +186,7 @@ export default {
                     bestIdx = i;
                 }
 
-                // continuous scale mapping: closer -> larger
-                const ratio = Math.min(1, dist / Math.max(1, influence));
-                const scale = minScale + (1 - ratio) * (maxScale - minScale);
-                scales.value[i] = Number(scale.toFixed(3));
+                scales.value[i] = reelScale(dist, influence);
             }
 
             if (bestIdx >= 0 && activeIndex.value !== bestIdx) {
@@ -290,30 +242,11 @@ export default {
                 const r = children[activeIndex.value].getBoundingClientRect();
                 centerY = r.top + r.height / 2;
             }
-            const screenBottom = window.innerHeight;
-            const midpoint = (centerY + screenBottom) / 2;
             const btn = startButtonContainer.value;
-            // use viewport-fixed positioning so the button is always relative to the window
+            // 画面に固定して、いつも窓に対する位置にする(横の中央寄せは CSS)
             btn.style.position = 'fixed';
-            // Compute clamped top so the button center never goes outside the viewport
-            try {
-                const btnHeight = btn.offsetHeight || parseInt(getComputedStyle(btn).height || '0') || 0;
-                const padding = 12; // minimum distance from viewport edge in px
-                const minCenter = btnHeight / 2 + padding;
-                const maxCenter = window.innerHeight - (btnHeight / 2) - padding;
-                // clamp midpoint between minCenter and maxCenter
-                const clamped = Math.max(minCenter, Math.min(midpoint, maxCenter));
-                // set vertical center using translateY; horizontal centering is handled by CSS flex
-                // apply a small downward bias so the button sits a bit lower visually
-                const verticalOffset = 40; // pixels to nudge the button down
-                const biased = Math.min(clamped + verticalOffset, maxCenter);
-                btn.style.top = `${biased}px`;
-                btn.style.transform = 'translateY(-50%)';
-            } catch (e) {
-                // fallback to original midpoint if any measurement fails
-                btn.style.top = `${midpoint}px`;
-                btn.style.transform = 'translateY(-50%)';
-            }
+            btn.style.top = `${startButtonCenterY(centerY, window.innerHeight, btn.offsetHeight || 0)}px`;
+            btn.style.transform = 'translateY(-50%)';
         };
 
         const startActiveLoop = () => {
@@ -366,7 +299,6 @@ export default {
                     resolve(null);
                     return;
                 }
-                console.log('[MemberDrawAnimation] stopAt called', { memberId, displayMembersCount: displayMembers.value.length });
                 gsap.killTweensOf(track.value);
                 // stop continuous tween
                 if (tweenRef.tween) tweenRef.tween.kill();
@@ -434,16 +366,12 @@ export default {
                 const finalX = currentTransform + delta;
 
                 const steps = buildMemberStopSteps(stopPattern, finalX, pitch);
+                // e2e(jackpot-stop-patterns)が、選ばれた止まり方をこのログから読む。文言を変えるときはテストも直す。
                 console.log('[MemberDrawAnimation] stopAt: pattern', stopPattern);
                 const tl = gsap.timeline({
                     onComplete: () => {
                         const id = displayMembers.value[targetChildIdx]?.id ?? null;
                         activeIndex.value = targetChildIdx;
-                        console.log('[MemberDrawAnimation] stopAt: chosen', {
-                            targetChildIdx,
-                            chosenId: id,
-                            chosenName: displayMembers.value[targetChildIdx]?.name,
-                        });
                         emit('stopped', id);
                         stopActiveLoop();
                         try { isAnimating.value = false; } catch (e) { }
@@ -453,12 +381,6 @@ export default {
                         if (winner) {
                             winnerAssetId.value = winner.photoAssetId || '';
                             winnerName.value = winner.name;
-                            console.log('[MemberDrawAnimation] stopAt: winner info set', {
-                                winnerId: winner.id,
-                                winnerName: winner.name,
-                                winnerAssetId: winner.photoAssetId,
-                                externalDialog: props.externalDialog,
-                            });
                             // only show the internal dialog when the parent is NOT handling the dialog
                             try {
                                 if (!props.externalDialog) showWinnerDialog.value = true;
@@ -466,7 +388,6 @@ export default {
                                 // defensive: if props aren't available for any reason, default to showing
                                 showWinnerDialog.value = true;
                             }
-                            console.log('[MemberDrawAnimation] stopAt: showWinnerDialog=', showWinnerDialog.value);
                         }
                         resolve(id);
                     }
@@ -488,7 +409,6 @@ export default {
 
         const startDraw = (winnerId?: string | null) => {
             plannedWinnerId = winnerId ?? null;
-            console.log('[MemberDrawAnimation] startDraw plannedWinnerId=', plannedWinnerId);
             // Ensure winner is part of the displayed set before starting animation
             starting = (async () => {
                 try {
