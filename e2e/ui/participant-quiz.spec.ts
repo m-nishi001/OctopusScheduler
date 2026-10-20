@@ -222,6 +222,7 @@ test.describe("クイズ（参加者ポータル）", () => {
     await nextButton(admin.page).click(); // 回答受付中は主ボタンが「受付を締め切る」
 
     const next = nextButton(admin.page);
+    await expect(next).not.toContainText("締め切る"); // 締切が反映される前に押すと、また締切を送るだけで先へ進まない
     await next.click(); // → 正解
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz4/answer");
     await next.click(); // → 結果
