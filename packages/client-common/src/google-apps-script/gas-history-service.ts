@@ -31,18 +31,18 @@ declare namespace google {
   }
 }
 
+/** GAS の実行環境か。Cloudflare・ローカルでは `google` が無いので、履歴の操作は何もしない（警告も出さない）。 */
+function isGasRuntime(): boolean {
+  return typeof google !== "undefined";
+}
+
 export class HistoryService {
   static push(
     state: object | null,
     params?: { [key: string]: string },
     bookmark?: string
   ): void {
-    if (typeof google === "undefined") {
-      console.warn(
-        "google global object not found, this is expected in local environment"
-      );
-      return;
-    }
+    if (!isGasRuntime()) return;
     google.script.history.push(state, params, bookmark);
   }
 
@@ -51,12 +51,7 @@ export class HistoryService {
     params?: { [key: string]: string },
     hash?: string
   ): void {
-    if (typeof google === "undefined") {
-      console.warn(
-        "google global object not found, this is expected in local environment"
-      );
-      return;
-    }
+    if (!isGasRuntime()) return;
     google.script.history.replace(state, params, hash);
   }
 
@@ -66,12 +61,7 @@ export class HistoryService {
       location: google.script.Location;
     }) => void
   ): void {
-    if (typeof google === "undefined") {
-      console.warn(
-        "google global object not found, this is expected in local environment"
-      );
-      return;
-    }
+    if (!isGasRuntime()) return;
     google.script.history.setChangeHandler(handler);
   }
 

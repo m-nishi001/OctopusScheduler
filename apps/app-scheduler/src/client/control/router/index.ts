@@ -11,18 +11,13 @@ import { quizGameRoutes } from "@octopus/game-quiz";
 import { hashToPath } from "./initial-hash";
 import { createAuthGuard } from "./auth-guard";
 import { ensureRole } from "../auth/auth-session";
+import { gamePathRedirectRoutes } from "./execute-path";
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    // Redirect top-level game absolute paths to /execute/... so links resolve
-    // (e.g. /jackpot-admin/... -> /execute/jackpot-admin/...). This prevents
-    // "No match found for location" warnings when rendering links inside
-    // the execute screen which uses game absolute paths.
-    {
-      path: "/:game(jackpot|quiz)-:subpath(.*)",
-      redirect: (to) => ({ path: `/execute${to.path}` }),
-    },
+    // ゲームの画面へのパス(/jackpot-admin、/quiz/… など)は、実行画面(/execute)の中へ振り替える
+    ...gamePathRedirectRoutes,
     ...octopusSchedulerRoutes.filter((r) => r.path !== "/execute"),
     {
       path: "/execute",
@@ -66,28 +61,6 @@ router.beforeEach(async (_to, from) => {
 
 // 入口でログインを要求し、役割(管理者 / 参加者)で行き先を出し分ける(匿名参加の入口とログイン画面だけ公開)。
 router.beforeEach(createAuthGuard({ getRole: ensureRole }));
-
-router.beforeEach((to, from, next) => {
-  // If we're navigating from inside /execute and the target is a game absolute path
-  // (e.g. `/jackpot-admin`, `/quiz-admin`), rewrite to be
-  // under `/execute` so execute-view remains mounted.
-  const isFromExecute = String(from.path || "").startsWith("/execute");
-  const isTargetExecuteAlready = String(to.path || "").startsWith("/execute");
-  // Match game-prefixed absolute paths. Adjust patterns here if other game prefixes exist.
-  const gameAbsPathRE = /^\/(jackpot|quiz)(?:-|\/|$)/;
-
-  if (
-    isFromExecute &&
-    !isTargetExecuteAlready &&
-    gameAbsPathRE.test(String(to.path || ""))
-  ) {
-    const newPath = `/execute${to.path}`;
-    next({ path: newPath });
-    return;
-  }
-
-  next();
-});
 
 // 画面遷移が発生したらGoogle apps scriptの関数を通じてブラウザのURL（ハッシュ値）を変更する
 router.afterEach((route) => {
