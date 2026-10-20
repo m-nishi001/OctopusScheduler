@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { errorResponse } from "@octopus/infrastructures/interfaces";
-import { HUB_ERROR_CODES, hubError, parseHubErrorCode } from "../hub-error";
+import { HUB_ERROR_CODES, parseHubErrorCode, stripHubErrorCode } from "../../../shared/hub-error";
+import { hubError } from "../hub-error";
 
 describe("hubError", () => {
   it("コード付きメッセージで、再試行されない応答になる", () => {
@@ -16,5 +17,12 @@ describe("hubError", () => {
     expect(parseHubErrorCode("Unauthorized")).toBeNull();
     expect(parseHubErrorCode("[UNKNOWN_CODE] x")).toBeNull();
     expect(parseHubErrorCode("")).toBeNull();
+  });
+
+  it("stripHubErrorCode: 利用者に見せる文言から先頭の [CODE] だけを外す", () => {
+    expect(stripHubErrorCode(hubError("ROUND_CLOSED", "受付は終了しました").message)).toBe("受付は終了しました");
+    expect(stripHubErrorCode("[UNKNOWN_CODE] x")).toBe("x");
+    expect(stripHubErrorCode("通信できません [近くの] 例")).toBe("通信できません [近くの] 例");
+    expect(stripHubErrorCode("")).toBe("");
   });
 });

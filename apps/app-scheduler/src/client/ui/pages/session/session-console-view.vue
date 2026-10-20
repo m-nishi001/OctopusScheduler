@@ -206,7 +206,7 @@ import {
     createSessionConnection,
     lobbyPath,
     normalizeEventTitle,
-    parseHubErrorCode,
+    parseHubErrorCode, stripHubErrorCode,
     readJackpotState,
     readPortalEvent,
     useRoundAnswers,
@@ -330,7 +330,7 @@ function label(): string {
 
 function reportError(e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
-    toast.error(parseHubErrorCode(message) ? message.replace(/^\[[A-Z_]+\]\s*/, '') : `送信できませんでした。通信状況を確認してください(${message})`);
+    toast.error(parseHubErrorCode(message) ? stripHubErrorCode(message) : `送信できませんでした。通信状況を確認してください(${message})`);
 }
 
 async function join() {
@@ -340,7 +340,7 @@ async function join() {
     try {
         await connection.joinOperator({ sessionId: sessionId.value, role: 'admin', label: label() });
     } catch (e) {
-        errorMessage.value = (e instanceof Error ? e.message : String(e)).replace(/^\[[A-Z_]+\]\s*/, '');
+        errorMessage.value = stripHubErrorCode((e instanceof Error ? e.message : String(e)));
     } finally {
         joining.value = false;
     }

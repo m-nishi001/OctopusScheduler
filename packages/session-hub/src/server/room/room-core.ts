@@ -25,7 +25,7 @@ import {
 } from "../../shared/ws-protocol";
 import type { ClientWsMessage, ServerWsMessage } from "../../shared/ws-protocol";
 import * as engine from "../engine/session-engine";
-import { parseHubErrorCode } from "../engine/hub-error";
+import { parseHubErrorCode } from "../../shared/hub-error";
 import { upsertAnswer } from "../engine/round-answers";
 import type { PresenceStore, SessionRepo, StoredHead, StoredRound } from "../engine/session-repo";
 import { MAX_ROUND_ANSWERS_DO } from "../../shared/session-types";

@@ -54,7 +54,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { UiButton, UiDialog, useConfirm } from '@octopus/ui-kit';
-import { HostAgent, parseHubErrorCode, useConnectionState } from '@octopus/session-hub';
+import { HostAgent, parseHubErrorCode, stripHubErrorCode, useConnectionState } from '@octopus/session-hub';
 import { useAuthSession } from '../../../control/auth/auth-session';
 import { prepareHostData } from '../../../control/session/prepare-host-data';
 import ConnectionBanner from './components/connection-banner.vue';
@@ -122,11 +122,11 @@ async function join(takeover: boolean) {
     } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         if (parseHubErrorCode(message) === 'HOST_ALREADY_CONNECTED') {
-            takeoverMessage.value = message.replace(/^\[[A-Z_]+\]\s*/, '');
+            takeoverMessage.value = stripHubErrorCode(message);
             takeoverOpen.value = true;
         } else {
             takeoverOpen.value = false;
-            errorMessage.value = message.replace(/^\[[A-Z_]+\]\s*/, '');
+            errorMessage.value = stripHubErrorCode(message);
         }
     } finally {
         joining.value = false;

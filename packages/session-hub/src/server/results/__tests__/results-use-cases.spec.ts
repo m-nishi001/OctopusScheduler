@@ -4,7 +4,7 @@ import { RESULTS_LIMITS } from "../../../shared/results";
 import { createTestHub } from "../../../testing/test-hub";
 import { deleteJackpotDraw, getResultsFor, putJackpotDraw, putQuizResult, resultsKey } from "../results-use-cases";
 import type { ResultsDeps } from "../results-use-cases";
-import { parseHubErrorCode } from "../../engine/hub-error";
+import { parseHubErrorCode } from "../../../shared/hub-error";
 
 function setup() {
   const hub = createTestHub();

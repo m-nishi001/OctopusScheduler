@@ -11,8 +11,8 @@
  *   - 状態公開は最新のものだけ送る(連続更新を間引く)
  */
 import type { SessionHubApi } from "../../server/session-hub-api-contract";
-import { parseHubErrorCode } from "../../server/engine/hub-error";
-import type { HubErrorCode } from "../../server/engine/hub-error";
+import { parseHubErrorCode } from "../../shared/hub-error";
+import type { HubErrorCode } from "../../shared/hub-error";
 import type {
   GetAnswersResult,
   OpenRoundResult,
