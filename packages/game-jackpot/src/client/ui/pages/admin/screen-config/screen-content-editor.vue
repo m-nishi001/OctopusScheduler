@@ -363,6 +363,7 @@ const handleSaveClick = async () => {
 	saveStatus.value = '保存中...';
 	try {
 		const uploads = tempAssets.length > 0 ? await assetService.addAssetData(tempAssets) : [];
+		tempAssets.length = 0; // 保存できた分は空にする(空にしないと、次の保存のたびに同じファイルを保存し直す)
 		const payload = {
 			bgmAssetId: localConfig.value.bgmAssetId || '',
 			contents: localConfig.value.contents,

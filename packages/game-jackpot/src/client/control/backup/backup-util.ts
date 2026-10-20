@@ -1,34 +1,80 @@
-export async function exportLocalBackup(includeAssets = true) {
-  // Minimal backup: export localStorage keys relevant to jackpot-game
-  try {
-    const keys = Object.keys(localStorage).filter((k) =>
-      k.startsWith("jackpot-")
-    );
-    const data: Record<string, string> = {};
-    for (const k of keys) {
-      data[k] = localStorage.getItem(k) as string;
-    }
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      includeAssets,
-      data,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const filename = `jackpot-backup-${new Date().toISOString()}.json`;
-    // Create a temporary link and click to download
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    return { filename, size: blob.size };
-  } catch (e) {
-    console.error("exportLocalBackup failed", e);
-    throw e;
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+
+/**
+ * ジャックポットのローカルバックアップ。
+ *
+ * このブラウザに保存してあるデータ（IndexedDB の `jackpot-game`）を1つの JSON にして書き出す。
+ * 以前は localStorage の `jackpot-` で始まるキーだけを書き出していたため、実際のデータ（景品・メンバーの設定・
+ * 画面設定・抽選結果・アセット）は1つも入らず、ほぼ空のファイルだった。
+ */
+
+/** 常に書き出すストア（ストア名 → 内容）。抽選結果と確変の状態は本番（live）のもの。 */
+export const BACKUP_STORES = ["PrizeData", "MemberExtraData", "ScreenConfigData", "DrawResultData", "PrizeDrawState"] as const;
+/** `includeAssets` のときだけ書き出すストア（画像・音声などの中身を含むため大きい）。 */
+export const BACKUP_ASSET_STORE = "AssetData";
+
+const DB_NAME = "jackpot-game";
+
+export interface LocalBackup {
+  exportedAt: string;
+  includeAssets: boolean;
+  /** ストア名 → (キー → 保存されている値)。Blob は `{ __blob: true, type, dataUrl }` に直してある。 */
+  stores: Record<string, Record<string, unknown>>;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error("failed to read blob"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** JSON にできない Blob を、中身ごと（データURLで）持てる形に直す。入れ子の中も辿る。 */
+export async function toJsonSafe(value: unknown): Promise<unknown> {
+  if (value instanceof Blob) {
+    return { __blob: true, type: value.type, dataUrl: await blobToDataUrl(value) };
   }
+  if (Array.isArray(value)) return Promise.all(value.map(toJsonSafe));
+  if (value !== null && typeof value === "object") {
+    const entries = await Promise.all(Object.entries(value).map(async ([k, v]) => [k, await toJsonSafe(v)] as const));
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
+
+/** ストアの中身を、キー順に読み出す。 */
+async function readStore(storeName: string): Promise<Record<string, unknown>> {
+  const all = await new LocalStorageService(DB_NAME, storeName).getAll<unknown>();
+  const out: Record<string, unknown> = {};
+  for (const key of Array.from(all.keys()).sort()) out[key] = await toJsonSafe(all.get(key));
+  return out;
+}
+
+/** バックアップの内容を作る（ダウンロードはしない）。 */
+export async function buildLocalBackup(includeAssets = true): Promise<LocalBackup> {
+  const names: string[] = [...BACKUP_STORES, ...(includeAssets ? [BACKUP_ASSET_STORE] : [])];
+  const stores: Record<string, Record<string, unknown>> = {};
+  for (const name of names) stores[name] = await readStore(name);
+  return { exportedAt: new Date().toISOString(), includeAssets, stores };
+}
+
+/**
+ * バックアップを JSON ファイルとしてダウンロードする。
+ * @returns ファイル名と大きさ(バイト)
+ */
+export async function exportLocalBackup(includeAssets = true): Promise<{ filename: string; size: number }> {
+  const backup = await buildLocalBackup(includeAssets);
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const filename = `jackpot-backup-${backup.exportedAt}.json`;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  return { filename, size: blob.size };
 }

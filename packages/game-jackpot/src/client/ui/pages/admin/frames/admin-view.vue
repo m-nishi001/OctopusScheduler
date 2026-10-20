@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { HeaderActions, PageShell, UiButton } from '@octopus/ui-kit';
+import { HeaderActions, PageShell, UiButton, toast } from '@octopus/ui-kit';
 import { DEMO_QUERY_KEY, setJackpotScope } from '@model/jackpot-session';
 import { useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
@@ -62,9 +62,11 @@ const downloadingBackup = ref(false);
 async function onDownloadBackup() {
   downloadingBackup.value = true;
   try {
-    await exportLocalBackup(true);
+    const { filename } = await exportLocalBackup(true);
+    toast.success(`バックアップを保存しました(${filename})`);
   } catch (e) {
     console.error('Failed to export local backup', e);
+    toast.error('バックアップを作れませんでした');
   } finally {
     downloadingBackup.value = false;
   }

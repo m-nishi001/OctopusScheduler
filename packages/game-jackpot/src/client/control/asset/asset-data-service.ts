@@ -2,10 +2,12 @@ import { injectable, container } from "tsyringe";
 import type { SyncTarget } from "@octopus/sync-engine";
 import { AssetDataRepository } from "../../model/asset/asset-data-repository";
 import { Asset } from "../../model/asset/asset-data";
+import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
 
 @injectable()
 export class AssetDataService {
   private repo: AssetDataRepository;
+  private readonly ids = container.resolve(CryptoIdGenerator);
 
   constructor() {
     // Resolve repository by class token. Registrations are expected to be
@@ -37,6 +39,11 @@ export class AssetDataService {
     return await this.repo.listSyncTargets();
   }
 
+  /**
+   * アップロードするファイルから、保存前のアセットを作る。**id はここで発行する**。
+   * 呼び出し側は、保存を待たずに、この id を設定(BGM・画像・効果音の参照)に書ける。
+   * (id が空のまま渡すと、保存時に別の id が付き、設定の参照先が「空の id」のまま残る。)
+   */
   async createDriveDataDtoFromFile(file: File): Promise<Asset> {
     const now = new Date().toISOString();
     let normalizedName = file.name || "";
@@ -47,7 +54,7 @@ export class AssetDataService {
       normalizedName = file.name || "";
     }
     return new Asset(
-      "",
+      this.ids.nextId(),
       file.type,
       normalizedName,
       now,
