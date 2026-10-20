@@ -100,4 +100,59 @@ describe("KeyboardShortcutRepository.listSyncTargets", () => {
     const remote = await target.getRemote();
     expect(local!.updatedAt).toBeGreaterThan(remote!.updatedAt);
   });
+
+  describe("最後の1件を削除したとき", () => {
+    const one = () => [new KeyboardShortcut({ id: "s1", keys: ["Control", "1"], eventIds: [] })];
+
+    it("「データなし」ではなく「空にした」として扱い、空の一覧をサーバーへ送る(削除が別の端末にも伝わる)", async () => {
+      await repo.saveKeyboardShortcuts(one());
+      const [target] = await repo.listSyncTargets();
+      await target.push((await target.getLocal())!.data);
+      expect(serverShortcuts).toHaveLength(1);
+
+      await repo.saveKeyboardShortcuts([]); // 最後の1件を削除
+      const local = await target.getLocal();
+      expect(local).not.toBeNull();
+      expect(local!.data.shortcuts).toEqual([]);
+
+      await target.push(local!.data);
+      expect(serverShortcuts).toEqual([]);
+      expect(serverUpdatedAt).not.toBeNull();
+    });
+
+    it("送ったあとは、ふつうの「空」(データなし)に戻る", async () => {
+      await repo.saveKeyboardShortcuts(one());
+      await repo.saveKeyboardShortcuts([]);
+      const [target] = await repo.listSyncTargets();
+      await target.push((await target.getLocal())!.data);
+      expect(await target.getLocal()).toBeNull();
+    });
+
+    it("空にしたあとで、もう一度空を保存しても、削除は同期の対象のまま", async () => {
+      await repo.saveKeyboardShortcuts(one());
+      await repo.saveKeyboardShortcuts([]);
+      await repo.saveKeyboardShortcuts([]);
+      const [target] = await repo.listSyncTargets();
+      expect(await target.getLocal()).not.toBeNull();
+    });
+
+    it("別の端末は、サーバーの空の一覧(更新日時あり)を最新として取り込み、自分の分も空にする", async () => {
+      await repo.saveKeyboardShortcuts(one());
+      serverShortcuts = [];
+      serverConfig = { enabled: true };
+      serverUpdatedAt = new Date(Date.now() + 60_000).toISOString();
+
+      const [target] = await repo.listSyncTargets();
+      const remote = await target.getRemote();
+      expect(remote).not.toBeNull();
+      expect(remote!.data.shortcuts).toEqual([]);
+      await target.pull(remote!.data);
+      expect(await repo.getKeyboardShortcutsRaw()).toEqual([]);
+    });
+
+    it("一度も保存されていないサーバー(更新日時も中身も無い)は、これまでどおり「データなし」", async () => {
+      const [target] = await repo.listSyncTargets();
+      expect(await target.getRemote()).toBeNull();
+    });
+  });
 });

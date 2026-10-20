@@ -161,6 +161,8 @@ test.describe("予定イベント(設定 > イベント)", () => {
     // 編集して更新: 1件のまま、URL だけ変わる
     await page.locator("#transitionUrl").fill("/jackpot-admin");
     await page.getByRole("button", { name: "更新", exact: true }).click();
+    // 編集では行が最初からあるので、行の数では保存の完了が分からない。ダイアログが閉じる(保存が済む)のを待ってから再読み込みする
+    await expect(page.getByRole("dialog")).toBeHidden();
     await expect(row(page, "画面遷移")).toHaveCount(1);
     await page.reload();
     await row(page, "画面遷移").getByRole("button", { name: "編集" }).click();
