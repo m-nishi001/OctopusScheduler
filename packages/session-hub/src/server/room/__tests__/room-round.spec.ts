@@ -171,6 +171,34 @@ describe("DO: 回答ラウンド", () => {
     expect(result.answers.every((a) => a.no === 2)).toBe(true);
   });
 
+  it("保存に失敗しても回答は失われず、alarm が再試行されて保存される（ハイバネートしても残る）", async () => {
+    const { room, host, players, open, answer } = await scene(3);
+    await open("q1");
+    await room.runAlarm();
+    for (const p of players) await answer(p, "q1", 2);
+
+    room.failPuts = true;
+    await expect(room.runAlarm()).rejects.toThrow("storage unavailable"); // 保存に失敗 → alarm は例外で終わる
+    expect(room.alarmAt).not.toBeNull(); // 再試行される
+    expect(room.core["repo"].hasPendingWrites()).toBe(true); // 未保存のまま残る
+
+    room.failPuts = false;
+    await room.runAlarm(); // 再試行で保存
+    room.hibernate();
+    const result = await room.call<{ round: { answerCount: number }; answers: Array<{ no: number }> }>("getAnswers", { ...creds(host), key: "q1" });
+    expect(result.round.answerCount).toBe(3);
+    expect(result.answers.map((a) => a.no)).toEqual([2, 2, 2]);
+  });
+
+  it("alarm を予約できないときは、保存されない回答を受理せず、エラーを返す", async () => {
+    const { room, players, open, answer } = await scene(1);
+    await open("q1");
+    await room.runAlarm();
+    room.failSetAlarm = true;
+    await expect(answer(players[0], "q1", 1)).rejects.toThrow("setAlarm unavailable");
+    expect(players[0].ws.received.some((m) => m.t === "answered")).toBe(false); // 受理の返事は送っていない
+  });
+
   it("締切(closeRound)の時点で未保存の回答も永続化される", async () => {
     const { room, host, players, open, answer } = await scene(3);
     await open("q1");

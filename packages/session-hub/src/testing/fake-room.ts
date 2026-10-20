@@ -78,6 +78,10 @@ export class FakeRoom {
   readonly counts: RoomCounts = { rpc: 0, wsConnect: 0, wsIncoming: 0, wsOutgoing: 0, storageGet: 0, storagePut: 0, alarms: 0 };
   readonly store = new Map<string, unknown>();
   alarmAt: number | null = null;
+  /** true の間、ストレージへの書き込みが失敗する（保存の失敗を模す）。 */
+  failPuts = false;
+  /** true の間、alarm の予約が失敗する。 */
+  failSetAlarm = false;
   core: SessionRoomCore;
   /** テストからソケットを参照できるよう公開する。 */
   sockets: FakeSocket[] = [];
@@ -96,10 +100,12 @@ export class FakeRoom {
         return this.store.get(key) as T | undefined;
       },
       put: async (key, value) => {
+        if (this.failPuts) throw new Error("storage unavailable");
         this.counts.storagePut++;
         this.store.set(key, structuredClone(value));
       },
       setAlarm: async (at) => {
+        if (this.failSetAlarm) throw new Error("setAlarm unavailable");
         this.alarmAt = at;
       },
       getAlarm: async () => this.alarmAt,
@@ -162,12 +168,21 @@ export class FakeRoom {
     });
   }
 
-  /** alarm が予約済みなら実行する。 */
+  /**
+   * alarm が予約済みなら実行する。実物の DO と同じく、alarm が例外で終わったら、同じ alarm が再試行される
+   * （予約を残し、例外はそのまま呼び出し元へ返す）。
+   */
   async runAlarm(): Promise<boolean> {
     if (this.alarmAt === null) return false;
+    const scheduled = this.alarmAt;
     this.alarmAt = null;
     this.counts.alarms++;
-    await this.serial(() => this.core.onAlarm());
+    try {
+      await this.serial(() => this.core.onAlarm());
+    } catch (error) {
+      this.alarmAt = scheduled;
+      throw error;
+    }
     return true;
   }
 

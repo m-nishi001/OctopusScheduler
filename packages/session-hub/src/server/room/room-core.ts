@@ -107,7 +107,9 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
   const slot = (seq: number): string => `cmd:${seq % COMMAND_RING_SIZE}`;
   let roundCache: StoredRound | null | undefined;
   let answersCache: { key: string; answers: RoundAnswer[] } | null | undefined;
-  let dirty = false;
+  // メモリ上の変更の版と、永続化できた版。差があれば未保存。書き込みに失敗しても未保存のまま残り、次の flush でやり直す。
+  let version = 0;
+  let persistedVersion = 0;
 
   const loadRound = async (): Promise<StoredRound | null> => {
     if (roundCache === undefined) roundCache = (await storage.get<StoredRound>("round")) ?? null;
@@ -119,11 +121,17 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
     }
     return answersCache;
   };
+  /**
+   * 未保存の変更を書く。書き込みに失敗したら例外を投げ、未保存のまま残す
+   * (alarm から呼ばれたときは、例外で Cloudflare が alarm を再試行する)。
+   * 書き込み中に入った新しい変更は、次の flush で書く。
+   */
   const flush = async (): Promise<void> => {
-    if (!dirty) return;
-    dirty = false;
+    if (persistedVersion === version) return;
+    const target = version;
     if (answersCache) await storage.put("answers", answersCache);
     if (roundCache) await storage.put("round", roundCache);
+    persistedVersion = target;
   };
 
   return {
@@ -142,22 +150,22 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
     async openRound(round) {
       roundCache = { ...round, closedAtMs: null, answerCount: 0, answerRev: 0 };
       answersCache = { key: round.key, answers: [] };
-      dirty = false;
       await storage.put("answers", answersCache);
       await storage.put("round", roundCache);
+      persistedVersion = ++version;
     },
     async closeRound(closedAtMs) {
       const round = await loadRound();
       if (!round || round.closedAtMs !== null) return;
       roundCache = { ...round, closedAtMs };
-      dirty = true;
+      version++;
       await flush();
     },
     async reopenRound(deadlineMs) {
       const round = await loadRound();
       if (!round) return;
       roundCache = { ...round, closedAtMs: null, deadlineMs };
-      dirty = true;
+      version++;
       await flush();
     },
     async listAnswers(key) {
@@ -171,12 +179,12 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
       const result = upsertAnswer(stored.answers, answer, maxAnswers);
       if (result.kind === "inserted" || result.kind === "replaced") {
         roundCache = { ...round, answerCount: stored.answers.length, answerRev: round.answerRev + 1 };
-        dirty = true;
+        version++;
       }
       return result;
     },
     flush,
-    hasPendingWrites: () => dirty,
+    hasPendingWrites: () => persistedVersion !== version,
   };
 }
 
@@ -284,8 +292,9 @@ export class SessionRoomCore {
       }
       case "submitAnswer": {
         const result = await engine.submitAnswer(deps, args as SubmitAnswerArgs);
-        // 回答数の変化は、在席と同じくまとめて配信する(1件ごとに全端末へ push しない)
-        if (!result.duplicate) this.markPresenceDirty();
+        // 回答数の変化は、在席と同じくまとめて配信する(1件ごとに全端末へ push しない)。
+        // 受理した回答は alarm で保存されるので、alarm の予約に失敗したら受理せずエラーにする(保存されない回答を受理しない)。
+        if (!result.duplicate) await this.scheduleAnswerFlush();
         return result;
       }
       case "getAnswers":
@@ -343,10 +352,11 @@ export class SessionRoomCore {
         key: msg.key,
         no: msg.no,
       });
+      // 保存の予約ができてから、受理を返す
+      if (!result.duplicate) await this.scheduleAnswerFlush();
       ws.send(
         JSON.stringify({ t: "answered", requestId, no: result.no, atMs: result.atMs, duplicate: result.duplicate } satisfies ServerWsMessage)
       );
-      if (!result.duplicate) this.markPresenceDirty();
     } catch (error) {
       if (error instanceof DomainError) reject(error);
       else throw error;
@@ -466,12 +476,29 @@ export class SessionRoomCore {
 
   // ---- 配信 ----
 
+  /**
+   * 在席の変化の配信と、回答の保存を、少し先の alarm にまとめて予約する（すでに予約済みなら何もしない）。
+   * 予約に失敗しても例外を握りつぶさず、ログに残す（配信は次の変化でやり直せる）。回答の保存は {@link scheduleAnswerFlush} で確実に予約する。
+   */
   private markPresenceDirty(): void {
     this.presenceDirty = true;
-    void this.ctx.storage.getAlarm().then((at) => {
-      if (at === null) return this.ctx.storage.setAlarm(this.ctx.now() + PRESENCE_BROADCAST_DELAY_MS);
-      return undefined;
-    });
+    void this.ensureAlarm().catch((error) => console.error("failed to schedule alarm", error));
+  }
+
+  /**
+   * 受理した回答の保存(と回答数の配信)を、alarm に確実に予約する。予約できなければ例外にして、
+   * 保存されない回答を受理しない。回答はメモリに溜めて alarm でまとめて書く(書き込み行数を抑えるため)ので、
+   * 受理してから保存までの間(PRESENCE_BROADCAST_DELAY_MS)に DO が落ちると、その間の回答は失われうる。
+   */
+  private async scheduleAnswerFlush(): Promise<void> {
+    this.presenceDirty = true;
+    await this.ensureAlarm();
+  }
+
+  private async ensureAlarm(): Promise<void> {
+    if ((await this.ctx.storage.getAlarm()) === null) {
+      await this.ctx.storage.setAlarm(this.ctx.now() + PRESENCE_BROADCAST_DELAY_MS);
+    }
   }
 
   /** DO の alarm から呼ぶ。在席の変化があれば全端末へ push する。 */
