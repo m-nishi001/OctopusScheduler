@@ -11,7 +11,8 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  // リトライで不安定さを隠さない。落ちたら、待ち方(固定の sleep でなく状態を待つ)かアプリを直す。
+  retries: 0,
   reporter: [["list"]],
   use: {
     baseURL: process.env.BASE,

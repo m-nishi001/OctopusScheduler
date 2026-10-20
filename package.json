@@ -33,7 +33,8 @@
     "clean": "rimraf dist",
     "dev": "turbo run dev",
     "prepare-dist": "node scripts/prepare-dist.js",
-    "lint:typecheck": "npm run lint && npm run typecheck"
+    "lint:typecheck": "npm run lint && npm run typecheck",
+    "test:coverage": "turbo run test:coverage"
   },
   "devDependencies": {
     "@google/clasp": "^3.1.1",
@@ -41,6 +42,7 @@
     "@typescript-eslint/eslint-plugin": "^7.9.0",
     "@typescript-eslint/parser": "^7.9.0",
     "@vitejs/plugin-vue": "^6.0.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "esbuild": "^0.25.6",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",

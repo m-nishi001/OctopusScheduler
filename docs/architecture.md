@@ -43,6 +43,15 @@ packages/
 3. `npm run verify` が、クライアントの呼び出し名とサーバーの公開関数が契約と一致しているかを検証する。
 4. すべてのエンドポイントは `secure("admin" | "public", handler)` で認可を宣言する（[authentication.md](authentication.md)）。
 
+## 主な部品の置き場
+
+| もの | 置き場 |
+| --- | --- |
+| 予定イベント（音楽・コンテンツ・スライドショー・画面遷移） | 保存形 `AppEventData`（`model/app-event/`）がそのまま実行時の型。種類ごとの違いは `control/app-event/app-event.ts` の表（実行 `RUNNERS`・新規の初期値 `EMPTY_FIELDS`）だけにある。編集は共通の `ScheduledEventDialog` と、種類ごとのフォーム `ui/pages/settings/app-events/events/*-form.vue`（ショートカットの編集と共通） |
+| エンドポイントの成功・失敗の変換 | `respond()`（`infrastructures/interfaces`）。各 `endpoints.ts` はこれで本体を包む |
+| 複数のパッケージで使う小さな部品 | `client-common`（`blobToDataUrl`・`{{asset:…}}` の解析 `assets/asset-placeholder.ts`・日時）、`ui-kit`（`lockScroll` など） |
+| セッション基盤の中核 | `session-hub/src/server/engine/`（`engine-core` / `engine-join` / `engine-feed` / `engine-commands` / `engine-rounds`。外からは `session-engine.ts` 経由）と、`server/room/`（`room-core`・`room-repo`・`room-types`）。詳しくは [session-hub.md](session-hub.md) |
+
 ## 保存
 
 アセットや JSON は、環境を問わず `<module>/<kind>/<name>` のルート相対パスで保存します（例: `octopus-scheduler/assets/1_a.png`、`quiz-game/json/quizzes.json`）。パスの組み立ては `packages/infrastructures/src/compositions/storage-paths.ts` に集約され、各環境のアダプタが実体に対応付けます。

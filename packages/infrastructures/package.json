@@ -57,7 +57,8 @@
     "build": "rimraf dist && tsc -b && node esbuild.config.js && node esbuild.cloudflare.config.js",
     "lint": "eslint src",
     "typecheck": "tsc -b",
-    "test": "vitest"
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@octopus/client-common": "*",

@@ -52,6 +52,8 @@ jobs:
           restore-keys: turbo-unit-${{ runner.os }}-
       - run: npm ci --no-audit --no-fund
       - run: npm test
+      # server / model / transport などの下限を割っていないか(各パッケージの vitest.config.ts の coverage.thresholds)
+      - run: npm run test:coverage
 
   build:
     runs-on: ubuntu-latest

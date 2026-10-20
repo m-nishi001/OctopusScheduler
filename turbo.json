@@ -18,6 +18,9 @@
     "test": {
       "dependsOn": ["transit"]
     },
+    "test:coverage": {
+      "dependsOn": ["transit"]
+    },
     "typecheck": {
       "dependsOn": ["^build"]
     }

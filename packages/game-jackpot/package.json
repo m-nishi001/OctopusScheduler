@@ -6,7 +6,8 @@
   "scripts": {
     "lint": "eslint src",
     "test": "vitest --config vitest.config.ts && vitest --config vitest.server.config.ts",
-    "typecheck": "vue-tsc -b tsconfig.app.json && tsc -b tsconfig.server.json"
+    "typecheck": "vue-tsc -b tsconfig.app.json && tsc -b tsconfig.server.json",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts"
   },
   "dependencies": {
     "@octopus/client-common": "*",

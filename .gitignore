@@ -1,5 +1,7 @@
 node_modules
 dist
+# カバレッジのレポート(`npm run test:coverage` が各パッケージに作る)
+coverage
 
 # Cloudflare: D1データベースID・R2バケット名など環境固有のリソースIDを含むため、
 # .clasp.json と同様にコミットしない(テンプレートは wrangler.example.toml)。
