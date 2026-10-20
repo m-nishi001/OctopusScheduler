@@ -50,7 +50,7 @@ CI（`.github/workflows/ci.yml`）は lint → typecheck → test(＋カバレ�
 | session-hub | server・client/model・shared | 85 / 80 / 85 / 88 |
 | accounts | server | 90 / 85 / 90 / 90 |
 | infrastructures | compositions・interfaces | 80 / 70 / 90 / 80 |
-| sync-engine | 全体 | 90 / 85 / 90 / 90 |
+| sync-engine | 全体 | 90 / 70 / 90 / 90(分岐は22個で、並列実行の負荷で揺らぐため低め) |
 | game-jackpot | client/model・client/control | 68 / 62 / 65 / 68 |
 | app-scheduler | client/model・client/control・server | 57 / 58 / 60 / 55 |
 

@@ -19,9 +19,14 @@ const KEY = `F${6 + (Date.now() % 5)}`;
 async function removeShortcuts(page: Page, key: string) {
   const rows = page.getByRole("row").filter({ hasText: key });
   while ((await rows.count()) > 0) {
+    const before = await rows.count();
     await rows.first().getByRole("button", { name: "削除" }).click();
+    // 削除はバックグラウンド同期(2秒のデバウンス)でサーバーへ送られる。送り終える前にブラウザを閉じると、
+    // 次の実行が前回の分を引き継いでしまうので、送信の完了を待つ。
+    const pushed = page.waitForResponse((r) => (r.request().postData() ?? "").includes("setKeyboardShortcuts"), { timeout: 15_000 });
     await page.getByRole("contentinfo").getByRole("button", { name: "削除" }).click();
-    await expect(rows).toHaveCount((await rows.count()) - 1);
+    await expect(rows).toHaveCount(before - 1);
+    await pushed;
   }
 }
 

@@ -14,6 +14,8 @@ import type {
 } from "../../../server/scheduler-api-contract";
 
 const SYNC_KIND = "keyboard-shortcuts";
+/** 最後の1件を消して空にしたこと(まだ同期していない)を覚えておく保存先のキー。 */
+const EMPTIED_KEY = "shortcutsEmptied";
 
 interface KeyboardShortcutsLocalSnapshot {
   shortcuts: KeyboardShortcutData[];
@@ -48,12 +50,20 @@ export class KeyboardShortcutRepository {
     return data || [];
   }
 
+  /** 最後の1件を消して空にした状態か(まだサーバーへ送っていない)。 */
+  private async wasEmptied(): Promise<boolean> {
+    return (await this.localStorage.get<boolean>(EMPTIED_KEY)) === true;
+  }
+
   async saveKeyboardShortcuts(shortcuts: KeyboardShortcut[]): Promise<void> {
     const datas = shortcuts.map((s) => s.serialize());
     // Ensure we pass plain JSON-serializable objects to LocalStorageService
     // This strips classes, methods and prototypes that may cause structured clone errors.
     const serializableDatas = JSON.parse(JSON.stringify(datas));
+    // 最後の1件を消して空になったときは「空にした」印を残す(最初から空の端末=データなし、と区別して、削除を同期するため)
+    const emptied = shortcuts.length === 0 && ((await this.getKeyboardShortcutsRaw()).length > 0 || (await this.wasEmptied()));
     await this.localStorage.save("shortcuts", serializableDatas as any);
+    await this.localStorage.save(EMPTIED_KEY, emptied);
     await this.dirtyTracker.touch(SYNC_KIND);
     eventBus.emit("syncDirty");
   }
@@ -95,7 +105,8 @@ export class KeyboardShortcutRepository {
       kind: SYNC_KIND,
       getLocal: async () => {
         const shortcuts = await this.getKeyboardShortcutsRaw();
-        if (shortcuts.length === 0) return null;
+        // 最初から空なら「データなし」。最後の1件を消して空にしたのなら、「空である」ことを同期する
+        if (shortcuts.length === 0 && !(await this.wasEmptied())) return null;
         const config = await this.getConfig();
         const trackedAt = await this.dirtyTracker.getUpdatedAt(SYNC_KIND);
         const updatedAt = trackedAt ?? Date.now();
@@ -114,7 +125,8 @@ export class KeyboardShortcutRepository {
           );
           return null;
         }
-        if (!remote || (remote.shortcuts?.length ?? 0) === 0) return null;
+        // 一度も保存されていない(更新日時が無く、中身も空)なら「データなし」。更新日時があるなら、空でもそれが最新の状態
+        if (!remote || (!remote.updatedAt && (remote.shortcuts?.length ?? 0) === 0)) return null;
         const updatedAt = remote.updatedAt
           ? new Date(remote.updatedAt).getTime()
           : 0;
@@ -141,12 +153,14 @@ export class KeyboardShortcutRepository {
           { timeout: 30000 }
         );
         const updatedAt = new Date(updatedAtIso).getTime();
+        await this.localStorage.save(EMPTIED_KEY, false);
         await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
         return { updatedAt };
       },
       pull: async (remote) => {
         await this.localStorage.save("shortcuts", remote.shortcuts as any);
         await this.localStorage.save("config", remote.config as any);
+        await this.localStorage.save(EMPTIED_KEY, false);
         const updatedAt = Date.now();
         await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
         return { updatedAt };
