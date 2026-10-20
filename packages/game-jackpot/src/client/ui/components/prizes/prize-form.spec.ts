@@ -99,6 +99,47 @@ describe("PrizeForm", () => {
     expect((input.element as HTMLInputElement).value).toBe("80");
   });
 
+  describe("submit", () => {
+    it("選んだ素材をアップロードして、欄ごとの項目に id を入れて送る(選んでいない欄は変えない)", async () => {
+      const uploadAsset = vi.fn(async (asset: { id: string }) => ({ assetId: `up-${asset.id}` }));
+      mockUseAssetUpload.mockReturnValueOnce({ uploadAsset });
+      mockAssetDataService.createDriveDataDtoFromFile.mockImplementation((file: File) => ({ id: `id-${file.name}`, blob: file }) as never);
+
+      const wrapper = mount(PrizeForm, {
+        props: { mode: "edit", prize: { id: "p1", name: "賞", bgm2AssetId: "keep-bgm2" }, imageAssets: [], audioAssets: [] },
+      });
+      const fileEvent = (name: string) => ({ target: { files: [new File(["x"], name)] } });
+      const images = wrapper.findAllComponents({ name: "ImageField" });
+      const bgms = wrapper.findAllComponents({ name: "BgmField" });
+      expect(images).toHaveLength(4);
+      expect(bgms).toHaveLength(2);
+
+      images[0].vm.$emit("file-change", fileEvent("main.png"));
+      images[3].vm.$emit("file-change", fileEvent("win2.png"));
+      bgms[0].vm.$emit("file-change", fileEvent("bgm1.mp3"));
+      await new Promise((r) => setTimeout(r, 0));
+
+      await (wrapper.vm as unknown as { submit: () => Promise<void> }).submit();
+
+      expect(uploadAsset).toHaveBeenCalledTimes(3);
+      const [submitted] = wrapper.emitted("submit")![0] as [Record<string, string>];
+      expect(submitted).toMatchObject({
+        name: "賞",
+        imageAssetId: "up-id-main.png",
+        winningImage2AssetId: "up-id-win2.png",
+        bgm1AssetId: "up-id-bgm1.mp3",
+        bgm2AssetId: "keep-bgm2",
+        image2AssetId: "",
+      });
+    });
+
+    it("名前が空なら送らない", async () => {
+      const wrapper = mount(PrizeForm, { props: { mode: "add", imageAssets: [], audioAssets: [] } });
+      await (wrapper.vm as unknown as { submit: () => Promise<void> }).submit();
+      expect(wrapper.emitted("submit")).toBeUndefined();
+    });
+  });
+
   describe("odds preview", () => {
     it("computes the win probability against the other prizes in the pool", () => {
       const wrapper = mount(PrizeForm, {

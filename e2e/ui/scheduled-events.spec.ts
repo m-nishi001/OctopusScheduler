@@ -14,7 +14,7 @@ async function addEvent(page: Page, typeLabel: string) {
 }
 
 /** 1x1 の PNG。 */
-const PNG_1X1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+const PNG_1X1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC", "base64");
 
 const row = (page: Page, typeLabel: string) => page.getByRole("row").filter({ hasText: typeLabel });
 

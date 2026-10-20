@@ -1,13 +1,6 @@
 <template>
   <div class="prize-form">
     <div class="form-grid">
-      <!-- Left Top: Image1 -->
-      <div class="image1-preview">
-        <ImageField label="画像1" v-model:mode="image1Mode" v-model:assetId="formData.imageAssetId"
-          :filename="image1Filename" :preview="image1Preview" :assets="imageAssets" @file-change="onImage1Change" />
-      </div>
-
-      <!-- Right Top: Basic Fields -->
       <div class="basic-fields">
         <div class="name-field">
           <FieldText v-model="formData.name" label="名前" placeholder="景品名" />
@@ -21,39 +14,23 @@
         </div>
       </div>
 
-      <!-- Left Bottom: Image2 -->
-      <div class="image2-section">
-        <ImageField label="画像2" v-model:mode="image2Mode" v-model:assetId="formData.image2AssetId"
-          :filename="image2Filename" :preview="image2Preview" :assets="imageAssets" @file-change="onImage2Change" />
+      <div v-for="slot in IMAGE_SLOTS" :key="slot.field" :class="slot.area">
+        <ImageField :label="slot.label" v-model:mode="slotState[slot.field].mode" v-model:assetId="formData[slot.field]"
+          :filename="slotState[slot.field].filename" :preview="previewOf(slot)" :assets="imageAssets"
+          @file-change="onFileChange(slot, $event)" />
       </div>
 
-      <!-- Winning Image1 -->
-      <div class="winning-image1-section">
-        <ImageField label="当選画像1" v-model:mode="winningImage1Mode" v-model:assetId="formData.winningImage1AssetId"
-          :filename="winningImage1Filename" :preview="winningImage1Preview" :assets="imageAssets"
-          @file-change="onWinningImage1Change" />
-      </div>
-
-      <!-- Winning Image2 -->
-      <div class="winning-image2-section">
-        <ImageField label="当選画像2" v-model:mode="winningImage2Mode" v-model:assetId="formData.winningImage2AssetId"
-          :filename="winningImage2Filename" :preview="winningImage2Preview" :assets="imageAssets"
-          @file-change="onWinningImage2Change" />
-      </div>
-
-      <!-- Right Bottom: BGM and Actions -->
       <div class="bgm-actions">
-        <BgmField label="BGM1" v-model:mode="bgm1Mode" v-model:assetId="formData.bgm1AssetId" :filename="bgm1Filename"
-          :assets="audioAssets" @file-change="onBgm1Change" />
-        <BgmField label="BGM2" v-model:mode="bgm2Mode" v-model:assetId="formData.bgm2AssetId" :filename="bgm2Filename"
-          :assets="audioAssets" @file-change="onBgm2Change" />
+        <BgmField v-for="slot in BGM_SLOTS" :key="slot.field" :label="slot.label" v-model:mode="slotState[slot.field].mode"
+          v-model:assetId="formData[slot.field]" :filename="slotState[slot.field].filename" :assets="audioAssets"
+          @file-change="onFileChange(slot, $event)" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import FieldText from '../../../ui/pages/admin/prizes/components/field-text.vue';
 import FieldNumberStepper from '../../../ui/pages/admin/prizes/components/field-number-stepper.vue';
 import FieldSelect from '../../../ui/pages/admin/prizes/components/field-select.vue';
@@ -66,6 +43,16 @@ import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
 import type { Prize } from '@model/prize/prize';
 import { DEFAULT_WEIGHT, resolveWeight } from '@model/draw/weighted-selector';
+import {
+  BGM_SLOTS,
+  IMAGE_SLOTS,
+  PRIZE_ASSET_SLOTS,
+  initialSlotMode,
+  slotModeFor,
+  type PrizeAssetField,
+  type PrizeAssetSlot,
+  type SlotMode,
+} from './prize-asset-slots';
 
 const props = defineProps({
   mode: { type: String as () => 'add' | 'edit', required: true },
@@ -79,21 +66,16 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'cancel']);
 
-// Use a local object-url store, but prefer a passed-in `objectUrlMap` prop when available.
+// 親から渡された objectUrlMap があればそれを、無ければこのフォームの中だけのものを使う。
 const localStore = useObjectUrlStore();
-const internalObjectUrlMap = localStore.objectUrlMap;
-const createUrlInternal = localStore.createObjectUrl;
-const revokeInternal = localStore.revoke;
+const getMap = () => props.objectUrlMap ?? localStore.objectUrlMap;
 
-function createObjUrl(file: File | Blob, id: string): string {
+function createObjUrl(file: File | Blob, id: string): void {
   if (props.objectUrlMap) {
-    const url = URL.createObjectURL(file);
-    try {
-      props.objectUrlMap.set(id, url);
-    } catch { }
-    return url;
+    try { props.objectUrlMap.set(id, URL.createObjectURL(file)); } catch { }
+    return;
   }
-  return createUrlInternal(file, id);
+  localStore.createObjectUrl(file, id);
 }
 
 function revokeObj(id: string): void {
@@ -105,7 +87,7 @@ function revokeObj(id: string): void {
     }
     return;
   }
-  revokeInternal(id);
+  localStore.revoke(id);
 }
 const { uploadAsset } = useAssetUpload();
 const assetDataService = container.resolve(AssetDataService);
@@ -115,7 +97,9 @@ const animationOptions = [
   { value: 'slot', label: 'スロット' },
 ];
 
-const formData = ref({
+type FormData = { name: string; weight: number; animation: string } & Record<PrizeAssetField, string>;
+
+const emptyFormData = (): FormData => ({
   name: '',
   weight: DEFAULT_WEIGHT,
   animation: 'roulette',
@@ -126,65 +110,32 @@ const formData = ref({
   winningImage1AssetId: '',
   winningImage2AssetId: '',
 });
+const formData = ref<FormData>(emptyFormData());
 
-const image1Mode = ref('upload');
-const image1Filename = ref('');
-const image2Mode = ref('upload');
-const image2Filename = ref('');
-const winningImage1Mode = ref('upload');
-const winningImage1Filename = ref('');
-const winningImage2Mode = ref('upload');
-const winningImage2Filename = ref('');
-const bgm1Mode = ref('select');
-const bgm1Filename = ref('');
-const bgm2Mode = ref('select');
-const bgm2Filename = ref('');
+/** 素材欄ごとの状態。選び方・選んだファイル名・まだ保存していない(アップロード前の)素材。 */
+interface SlotState { mode: SlotMode; filename: string; temp: Asset | null }
+const slotState = reactive(
+  Object.fromEntries(PRIZE_ASSET_SLOTS.map((s) => [s.field, { mode: initialSlotMode(s), filename: '', temp: null } as SlotState]))
+) as Record<PrizeAssetField, SlotState>;
 
-const tempAsset1 = ref<Asset | null>(null);
-const tempAsset2 = ref<Asset | null>(null);
-const tempBgm1Asset = ref<Asset | null>(null);
-const tempBgm2Asset = ref<Asset | null>(null);
-const tempWinningAsset1 = ref<Asset | null>(null);
-const tempWinningAsset2 = ref<Asset | null>(null);
-
-// Resolve preview URL by: temporary object URL -> objectUrlMap lookup for selected assetId -> fallback to raw assetId
-const getMap = () => props.objectUrlMap ?? internalObjectUrlMap;
-
-const image1Preview = computed(() => {
+/** プレビューの URL。選んだだけの画像 → 登録済みの素材の URL → 素材の id そのもの、の順。 */
+function previewOf(slot: PrizeAssetSlot): string {
   const map = getMap();
-  return (
-    map.get('temp-image1') ||
-    (formData.value.imageAssetId ? map.get(formData.value.imageAssetId) : undefined) ||
-    formData.value.imageAssetId
-  );
-});
+  const id = formData.value[slot.field];
+  return (slot.previewKey ? map.get(slot.previewKey) : undefined) || (id ? map.get(id) : undefined) || id;
+}
 
-const image2Preview = computed(() => {
-  const map = getMap();
-  return (
-    map.get('temp-image2') ||
-    (formData.value.image2AssetId ? map.get(formData.value.image2AssetId) : undefined) ||
-    formData.value.image2AssetId
-  );
-});
-
-const winningImage1Preview = computed(() => {
-  const map = getMap();
-  return (
-    map.get('temp-winning-image1') ||
-    (formData.value.winningImage1AssetId ? map.get(formData.value.winningImage1AssetId) : undefined) ||
-    formData.value.winningImage1AssetId
-  );
-});
-
-const winningImage2Preview = computed(() => {
-  const map = getMap();
-  return (
-    map.get('temp-winning-image2') ||
-    (formData.value.winningImage2AssetId ? map.get(formData.value.winningImage2AssetId) : undefined) ||
-    formData.value.winningImage2AssetId
-  );
-});
+async function onFileChange(slot: PrizeAssetSlot, e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const state = slotState[slot.field];
+  state.temp = await assetDataService.createDriveDataDtoFromFile(file);
+  state.filename = file.name;
+  if (slot.previewKey) {
+    revokeObj(slot.previewKey);
+    createObjUrl(file, slot.previewKey);
+  }
+}
 
 const isValid = computed(() => formData.value.name.trim());
 
@@ -200,150 +151,42 @@ const oddsPreviewPercent = computed(() => {
   return ((currentWeight / totalWeight) * 100).toFixed(1);
 });
 
-// expose submit and cancel so parent dialog can call them from footer buttons
+// 親のダイアログのフッターのボタンから呼べるようにする
 defineExpose({ submit, cancel });
 
 watch(() => props.prize, (val) => {
-  if (val && props.mode === 'edit') {
-    loadPrize(val);
-  }
+  if (val && props.mode === 'edit') loadPrize(val);
 }, { immediate: true });
 
 function loadPrize(prize: any) {
   formData.value = {
+    ...emptyFormData(),
     name: prize.name,
     weight: prize.weight ?? DEFAULT_WEIGHT,
     animation: prize.animation || 'roulette',
-    imageAssetId: prize.imageAssetId || '',
-    image2AssetId: prize.image2AssetId || '',
-    bgm1AssetId: prize.bgm1AssetId || '',
-    bgm2AssetId: prize.bgm2AssetId || '',
-    winningImage1AssetId: prize.winningImage1AssetId || '',
-    winningImage2AssetId: prize.winningImage2AssetId || '',
+    ...Object.fromEntries(PRIZE_ASSET_SLOTS.map((s) => [s.field, prize[s.field] || ''])),
   };
-  // Modes based on existence
-  image1Mode.value = prize.imageAssetId ? 'select' : 'upload';
-  image2Mode.value = prize.image2AssetId ? 'select' : 'upload';
-  winningImage1Mode.value = prize.winningImage1AssetId ? 'select' : 'upload';
-  winningImage2Mode.value = prize.winningImage2AssetId ? 'select' : 'upload';
-  bgm1Mode.value = prize.bgm1AssetId ? 'select' : 'upload';
-  bgm2Mode.value = prize.bgm2AssetId ? 'select' : 'upload';
-}
-
-async function onImage2Change(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    const dto = await createAssetDto(file);
-    tempAsset2.value = dto;
-    image2Filename.value = file.name;
-    revokeObj('temp-image2');
-    createObjUrl(file, 'temp-image2');
-  }
-}
-
-async function onImage1Change(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    const dto = await createAssetDto(file);
-    tempAsset1.value = dto;
-    image1Filename.value = file.name;
-    revokeObj('temp-image1');
-    createObjUrl(file, 'temp-image1');
-  }
-}
-
-async function onBgm1Change(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    tempBgm1Asset.value = await createAssetDto(file);
-    bgm1Filename.value = file.name;
-  }
-}
-
-async function onBgm2Change(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    tempBgm2Asset.value = await createAssetDto(file);
-    bgm2Filename.value = file.name;
-  }
-}
-
-async function onWinningImage1Change(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    const dto = await createAssetDto(file);
-    tempWinningAsset1.value = dto;
-    revokeObj('temp-winning-image1');
-    createObjUrl(file, 'temp-winning-image1');
-  }
-}
-
-async function onWinningImage2Change(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (file) {
-    const dto = await createAssetDto(file);
-    tempWinningAsset2.value = dto;
-    revokeObj('temp-winning-image2');
-    createObjUrl(file, 'temp-winning-image2');
-  }
-}
-
-async function createAssetDto(file: File): Promise<Asset> {
-  return await assetDataService.createDriveDataDtoFromFile(file);
+  for (const slot of PRIZE_ASSET_SLOTS) slotState[slot.field].mode = slotModeFor(prize, slot);
 }
 
 async function submit() {
-  console.log('submit called');
   if (!isValid.value) return;
 
   try {
-    // Upload temporary assets concurrently
-    const uploadPromises = [];
-    console.log('tempAsset1.value:', tempAsset1.value);
-    console.log('tempAsset2.value:', tempAsset2.value);
-    if (tempAsset1.value) uploadPromises.push(uploadAsset(tempAsset1.value).then((result: any) => ({ type: 'image1', result })));
-    if (tempAsset2.value) uploadPromises.push(uploadAsset(tempAsset2.value).then((result: any) => ({ type: 'image2', result })));
-    if (tempBgm1Asset.value) uploadPromises.push(uploadAsset(tempBgm1Asset.value).then((result: any) => ({ type: 'bgm1', result })));
-    if (tempBgm2Asset.value) uploadPromises.push(uploadAsset(tempBgm2Asset.value).then((result: any) => ({ type: 'bgm2', result })));
-    if (tempWinningAsset1.value) uploadPromises.push(uploadAsset(tempWinningAsset1.value).then((result: any) => ({ type: 'winningImage1', result })));
-    if (tempWinningAsset2.value) uploadPromises.push(uploadAsset(tempWinningAsset2.value).then((result: any) => ({ type: 'winningImage2', result })));
+    // 選んだだけの素材を、まとめてアップロードして id を入れる
+    const pending = PRIZE_ASSET_SLOTS.filter((s) => slotState[s.field].temp);
+    const uploaded = await Promise.all(pending.map(async (s) => ({ slot: s, result: await uploadAsset(slotState[s.field].temp!) })));
+    for (const { slot, result } of uploaded) formData.value[slot.field] = (result as { assetId: string }).assetId;
 
-    console.log('uploadPromises length:', uploadPromises.length);
-    const results = await Promise.all(uploadPromises);
-
-    // Set uploaded asset IDs into formData
-    for (const { type, result } of results) {
-      if (type === 'image1') {
-        formData.value.imageAssetId = result.assetId;
-      } else if (type === 'image2') {
-        formData.value.image2AssetId = result.assetId;
-      } else if (type === 'bgm1') {
-        formData.value.bgm1AssetId = result.assetId;
-      } else if (type === 'bgm2') {
-        formData.value.bgm2AssetId = result.assetId;
-      } else if (type === 'winningImage1') {
-        formData.value.winningImage1AssetId = result.assetId;
-      } else if (type === 'winningImage2') {
-        formData.value.winningImage2AssetId = result.assetId;
-      }
+    // 一時的なプレビュー URL と、アップロード済みの素材を片付ける
+    for (const slot of PRIZE_ASSET_SLOTS) {
+      if (slot.previewKey) revokeObj(slot.previewKey);
+      slotState[slot.field].temp = null;
     }
-
-    // Clean up temporary object URLs and refs
-    revokeObj('temp-image1');
-    revokeObj('temp-image2');
-    revokeObj('temp-winning-image1');
-    revokeObj('temp-winning-image2');
-    tempAsset1.value = null;
-    tempAsset2.value = null;
-    tempBgm1Asset.value = null;
-    tempBgm2Asset.value = null;
-    tempWinningAsset1.value = null;
-    tempWinningAsset2.value = null;
 
     emit('submit', formData.value);
   } catch (error) {
     console.error('Failed to upload assets:', error);
-    // Optionally emit an error or show UI feedback
   }
 }
 
