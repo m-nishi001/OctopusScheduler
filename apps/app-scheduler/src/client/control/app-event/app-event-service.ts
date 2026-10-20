@@ -1,39 +1,9 @@
 import { injectable, inject } from "tsyringe";
 import { AppEventRepository } from "@model/app-event/app-event-repository";
-import type { AppEventData } from "@model/app-event/app-event-data";
 import type { ExecutionStatus } from "@model/app-event/execution-status";
 import { AssetService } from "../asset/asset-service";
-import type { AppEvent } from "./app-event";
+import { appEventFromDto, reviveAppEvent, type AppEvent, type AppEventTiming } from "./app-event";
 import type { AppEventDto } from "./dto/app-event-dto";
-import { PlayAudioEvent, PlayAudioEventParams } from "./play-audio/play-audio-event";
-import { ShowContentEvent, ShowContentEventParams } from "./show-content/show-content-event";
-import { SlideshowEvent, SlideshowEventParams } from "./slideshow/slideshow-event";
-import { StopAudioEvent, StopAudioEventParams } from "./stop-audio/stop-audio-event";
-import { TransitionPageEvent, TransitionPageEventParams } from "./transition/transition-page-event";
-
-interface ScheduledEventTiming {
-  id: string;
-  startTime: Date;
-  endTime: Date;
-  processedAt: Date | null;
-  registeredAt: Date;
-  updatedAt: Date;
-}
-
-// The concrete union of every event kind. `AppEventService` is the only
-// place that ever constructs these, so it is also the only place that needs
-// to know the full union (everywhere else works with the plain `AppEvent`
-// behavioral contract).
-export type AnyAppEvent =
-  | PlayAudioEvent
-  | ShowContentEvent
-  | SlideshowEvent
-  | StopAudioEvent
-  | TransitionPageEvent;
-
-function assertNever(x: never): never {
-  throw new Error(`Unhandled app-event value: ${JSON.stringify(x)}`);
-}
 
 @injectable()
 export class AppEventService {
@@ -42,107 +12,12 @@ export class AppEventService {
     @inject(AssetService) private assetService: AssetService
   ) {}
 
-  // The single place plain storage data is turned into a behavioral event
-  // instance. Replaces the old *-event-serializer.ts files + IEventSerializerToken.
-  private reviveEvent(raw: AppEventData): AnyAppEvent {
-    switch (raw.type) {
-      case "PlayAudioEvent":
-        return PlayAudioEvent.fromRawData(raw);
-      case "ShowContentEvent":
-        return ShowContentEvent.fromRawData(raw);
-      case "SlideshowEvent":
-        return SlideshowEvent.fromRawData(raw);
-      case "StopAudioEvent":
-        return StopAudioEvent.fromRawData(raw);
-      case "TransitionPageEvent":
-        return TransitionPageEvent.fromRawData(raw);
-      default:
-        return assertNever(raw);
-    }
-  }
-
-  // Replaces the old *-event-converter.ts files' `toEntity()` + IAppEventConverterToken.
-  buildEventFromDto(dto: AppEventDto): AnyAppEvent {
-    switch (dto.actionType) {
-      case "PlayAudioEvent":
-        return PlayAudioEvent.fromData(dto);
-      case "ShowContentEvent":
-        return ShowContentEvent.fromData(dto);
-      case "SlideshowEvent":
-        return SlideshowEvent.fromData(dto);
-      case "StopAudioEvent":
-        return StopAudioEvent.fromData(dto);
-      case "TransitionPageEvent":
-        return TransitionPageEvent.fromData(dto);
-      default:
-        return assertNever(dto);
-    }
-  }
-
-  // Replaces the old *-event-converter.ts files' `toDto()`.
-  toDto(event: AppEvent): AppEventDto {
-    // AppEventService is the only place that constructs AppEvent instances,
-    // so any value reaching here is known to be one of the concrete classes
-    // even though the public contract only guarantees the AppEvent shape.
-    const ev = event as AnyAppEvent;
-    switch (ev.type) {
-      case "PlayAudioEvent":
-        return {
-          actionType: "PlayAudioEvent",
-          id: ev.id,
-          audioId: ev.audioId,
-          fadeOutDuration: ev.fadeOutDuration,
-        };
-      case "ShowContentEvent":
-        return {
-          actionType: "ShowContentEvent",
-          id: ev.id,
-          contentType: ev.contentType,
-          contentId: ev.contentId,
-          htmlString: ev.htmlString,
-          fadeOutDuration: ev.fadeOutDuration,
-          displayMode: ev.displayMode,
-          effect: ev.effect,
-          duration: ev.duration,
-          fadeInTime: ev.fadeInTime,
-          fadeOutTime: ev.fadeOutTime,
-          scrollDirection: ev.scrollDirection,
-        };
-      case "SlideshowEvent":
-        return {
-          actionType: "SlideshowEvent",
-          id: ev.id,
-          folderId: ev.folderId,
-          displayDuration: ev.displayDuration,
-          transitionType: ev.transitionType,
-          slideDirection: ev.slideDirection,
-          bgmIds: ev.bgmIds,
-        };
-      case "StopAudioEvent":
-        return {
-          actionType: "StopAudioEvent",
-          id: ev.id,
-          audioId: ev.audioId,
-          fadeOutDuration: ev.fadeOutDuration,
-        };
-      case "TransitionPageEvent":
-        return {
-          actionType: "TransitionPageEvent",
-          id: ev.id,
-          transitionUrl: ev.transitionUrl,
-          fadeOutDuration: ev.fadeOutDuration,
-        };
-      default:
-        return assertNever(ev);
-    }
-  }
-
   async getScheduleEvents(): Promise<AppEvent[]> {
     const raws = await this.repository.getScheduleEvents();
     const results: AppEvent[] = [];
     for (const raw of raws) {
       try {
-        results.push(this.reviveEvent(raw));
+        results.push(reviveAppEvent(raw));
       } catch (e) {
         console.error("Failed to revive schedule event", e);
       }
@@ -158,7 +33,7 @@ export class AppEventService {
     try {
       const raw = await this.repository.getEventById(String(id));
       if (!raw) return null;
-      return this.reviveEvent(raw);
+      return reviveAppEvent(raw);
     } catch (e) {
       console.error("getEventById failed", e);
       return null;
@@ -175,11 +50,7 @@ export class AppEventService {
   }
 
   async updateScheduleEvents(events: AppEvent[]): Promise<void> {
-    // AppEvent instances are structurally a superset of AppEventData (they
-    // add execute()/serializeAsObject()), so this is a safe widening, not a lie.
-    await this.repository.updateScheduleEvents(
-      events as unknown as AppEventData[]
-    );
+    await this.repository.updateScheduleEvents(events);
   }
 
   async deleteScheduleEvents(ids: string[]): Promise<void> {
@@ -187,9 +58,7 @@ export class AppEventService {
   }
 
   async addScheduleEvents(events: AppEvent[]): Promise<string[]> {
-    return await this.repository.addScheduleEvents(
-      events as unknown as AppEventData[]
-    );
+    return await this.repository.addScheduleEvents(events);
   }
 
   async getCurrentScheduleEvent(): Promise<{
@@ -248,16 +117,15 @@ export class AppEventService {
     }
   }
 
-  // Replaces the duplicated construct-then-persist ceremony that used to be
-  // hand-rolled in each event-list dialog's onSubmit(): build the right
-  // event kind from explicit schedule fields, preserving processedAt/
-  // registeredAt when editing an existing event, and save it.
+  /**
+   * 予定のイベントを保存する。編集のときは `existing` の id・処理済み日時・登録日時を引き継ぐ。
+   */
   async saveScheduledEvent(
     input: AppEventDto & { startTime: Date; endTime: Date },
     existing?: AppEvent
   ): Promise<void> {
     const now = new Date();
-    const timing: ScheduledEventTiming = {
+    const timing: AppEventTiming = {
       id: existing?.id ?? "",
       startTime: input.startTime,
       endTime: input.endTime,
@@ -265,72 +133,12 @@ export class AppEventService {
       registeredAt: existing?.registeredAt ?? now,
       updatedAt: now,
     };
-    const ev = this.buildScheduledEvent(input, timing);
+    const { startTime: _s, endTime: _e, ...dto } = input;
+    const ev = appEventFromDto(dto, timing);
     if (existing) {
       await this.updateScheduleEvents([ev]);
     } else {
       await this.addScheduleEvents([ev]);
-    }
-  }
-
-  private buildScheduledEvent(
-    input: AppEventDto,
-    timing: ScheduledEventTiming
-  ): AnyAppEvent {
-    switch (input.actionType) {
-      case "PlayAudioEvent":
-        return PlayAudioEvent.fromParams(
-          new PlayAudioEventParams({
-            ...timing,
-            audioId: input.audioId,
-            fadeOutDuration: input.fadeOutDuration,
-          })
-        );
-      case "ShowContentEvent":
-        return ShowContentEvent.fromParams(
-          new ShowContentEventParams({
-            ...timing,
-            contentType: input.contentType,
-            contentId: input.contentId,
-            htmlString: input.htmlString,
-            fadeOutDuration: input.fadeOutDuration,
-            displayMode: input.displayMode,
-            effect: input.effect,
-            duration: input.duration,
-            fadeInTime: input.fadeInTime,
-            fadeOutTime: input.fadeOutTime,
-            scrollDirection: input.scrollDirection,
-          })
-        );
-      case "SlideshowEvent":
-        return SlideshowEvent.fromParams(
-          new SlideshowEventParams({
-            ...timing,
-            folderId: input.folderId,
-            displayDuration: input.displayDuration,
-            transitionType: input.transitionType ?? "fade",
-            slideDirection: input.slideDirection,
-            bgmIds: input.bgmIds ?? [],
-          })
-        );
-      case "StopAudioEvent":
-        return StopAudioEvent.fromParams(
-          new StopAudioEventParams({
-            ...timing,
-            audioId: input.audioId,
-            fadeOutDuration: input.fadeOutDuration,
-          })
-        );
-      case "TransitionPageEvent":
-        return TransitionPageEvent.fromParams(
-          new TransitionPageEventParams({
-            ...timing,
-            transitionUrl: input.transitionUrl,
-            fadeOutDuration: input.fadeOutDuration,
-          })
-        );
-      default:
-        return assertNever(input);
     }
   }
 

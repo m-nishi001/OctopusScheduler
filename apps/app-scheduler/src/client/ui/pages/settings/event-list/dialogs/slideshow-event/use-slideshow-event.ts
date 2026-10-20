@@ -5,12 +5,13 @@ import { container } from "tsyringe";
 import { AssetService } from "../../../../../../control/asset/asset-service";
 import type { Asset } from "../../../../../../model/asset/asset";
 import { AppEventService } from "../../../../../../control/app-event/app-event-service";
-import { SlideshowEvent } from "../../../../../../control/app-event/slideshow/slideshow-event";
+import { createEmptyAppEvent } from "../../../../../../control/app-event/app-event";
+import type { SlideshowEventData } from "@model/app-event/slideshow/slideshow-event-data";
 
 export function useSlideshowEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);
 
-  function entityToForm(e: SlideshowEvent) {
+  function entityToForm(e: SlideshowEventData) {
     return {
       startTime: toDatetimeLocal(e.startTime),
       endTime: toDatetimeLocal(e.endTime),
@@ -23,7 +24,7 @@ export function useSlideshowEvent(props: any, emit: any) {
     };
   }
 
-  const initialEntity = props.event ?? SlideshowEvent.createEmpty();
+  const initialEntity = props.event ?? createEmptyAppEvent("SlideshowEvent");
   const form = ref(entityToForm(initialEntity));
 
   const newBgmSource = ref<"existing" | "upload">("existing");
@@ -36,7 +37,7 @@ export function useSlideshowEvent(props: any, emit: any) {
   watch(
     () => props.event,
     (newEvent) => {
-      const e = newEvent ?? SlideshowEvent.createEmpty();
+      const e = newEvent ?? createEmptyAppEvent("SlideshowEvent");
       form.value = entityToForm(e);
       isEdit.value = !!newEvent;
     }

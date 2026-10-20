@@ -43,7 +43,7 @@ import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
-import type { AppEvent } from '../../../../control/app-event/app-event';
+import { executeAppEvent, type AppEvent } from '../../../../control/app-event/app-event';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
 import ContentDisplayEventDialog from './dialogs/content-display-event/content-display-event-dialog.vue';
 import MusicPlaybackEventDialog from './dialogs/music-playback-event/music-playback-event-dialog.vue';
@@ -104,22 +104,13 @@ function calculateWaitTime(event: AppEvent): number {
     const baseTime = 5000; // 5秒
     switch (event.type) {
         case 'ShowContentEvent':
-            const showEvent = event as any; // Type assertion for simplicity
-            return baseTime + (showEvent.fadeInTime || 0) + (showEvent.fadeOutTime || 0) + (showEvent.duration || 0);
+            return baseTime + (event.fadeInTime || 0) + (event.fadeOutTime || 0) + (event.duration || 0);
         case 'PlayAudioEvent':
-            const audioEvent = event as any;
-            return baseTime + (audioEvent.fadeOutDuration || 0);
         case 'StopAudioEvent':
-            const stopEvent = event as any;
-            return baseTime + (stopEvent.fadeOutDuration || 0);
         case 'TransitionPageEvent':
-            const transitionEvent = event as any;
-            return baseTime + (transitionEvent.fadeOutDuration || 0);
+            return baseTime + (event.fadeOutDuration || 0);
         case 'SlideshowEvent':
-            const slideshowEvent = event as any;
-            return baseTime + (slideshowEvent.displayDuration || 0);
-        default:
-            return baseTime;
+            return baseTime + (event.displayDuration || 0);
     }
 }
 
@@ -233,7 +224,7 @@ async function onExecute() {
             if (interruptFlag.value) break;
 
             // 開始実行
-            await event.execute(true);
+            await executeAppEvent(event, true);
 
             // 待機時間計算
             const waitTime = calculateWaitTime(event);
@@ -252,7 +243,7 @@ async function onExecute() {
             });
 
             // 終了実行
-            await event.execute(false);
+            await executeAppEvent(event, false);
         }
     } catch (e) {
         toast.error('実行中にエラーが発生しました: ' + (e instanceof Error ? e.message : String(e)));

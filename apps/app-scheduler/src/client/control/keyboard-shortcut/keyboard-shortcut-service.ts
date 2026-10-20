@@ -4,7 +4,7 @@ import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortc
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import type { AppEventData } from "@model/app-event/app-event-data";
 import { AppEventService } from "../app-event/app-event-service";
-import type { AppEvent } from "../app-event/app-event";
+import { executeAppEvent } from "../app-event/app-event";
 
 // レガシー形式の `actions`(旧shortcutに埋め込まれたイベントデータ)を移行する際、
 // 未知の種別が混在していても assertNever まで到達させず、ここで安全に弾く。
@@ -52,11 +52,7 @@ export class KeyboardShortcutService {
       }
       if (toSave.length === 0) continue;
       try {
-        // AppEvent instances are a superset of AppEventData; updateScheduleEvents
-        // only persists the plain fields, so passing revived-less data here is safe.
-        await this.appEventService.updateScheduleEvents(
-          toSave as unknown as AppEvent[]
-        );
+        await this.appEventService.updateScheduleEvents(toSave);
         // populate eventIds so subsequent code can resolve them
         (data as any).eventIds = toSave.map((t) => t.id);
       } catch (e) {
@@ -151,7 +147,7 @@ export class KeyboardShortcutService {
       try {
         const ev = await this.appEventService.getEventById(id);
         if (!ev) continue;
-        ev.execute(true, true).catch((err) => {
+        executeAppEvent(ev, true, true).catch((err) => {
           console.error(
             `[KeyboardShortcutService] execute promise rejected eventId=${id} err=`,
             err

@@ -144,10 +144,11 @@ import { container } from 'tsyringe';
 import { AssetService } from '../../../../../../control/asset/asset-service';
 import type { Asset } from '../../../../../../model/asset/asset';
 import { AppEventService } from '../../../../../../control/app-event/app-event-service';
-import { ShowContentEvent } from '../../../../../../control/app-event/show-content/show-content-event';
+import { createEmptyAppEvent } from '../../../../../../control/app-event/app-event';
+import type { ShowContentEventData } from '@model/app-event/show-content/show-content-event-data';
 
 interface Props {
-    event?: ShowContentEvent;
+    event?: ShowContentEventData;
 }
 
 const props = defineProps<Props>();
@@ -159,7 +160,7 @@ const emit = defineEmits<{
 
 const isEdit = ref(!!props.event);
 
-function entityToForm(e: ShowContentEvent) {
+function entityToForm(e: ShowContentEventData) {
     return {
         startTime: toDatetimeLocal(e.startTime),
         endTime: toDatetimeLocal(e.endTime),
@@ -182,7 +183,7 @@ function entityToForm(e: ShowContentEvent) {
     };
 }
 
-const initialEntity = props.event ?? ShowContentEvent.createEmpty();
+const initialEntity = props.event ?? createEmptyAppEvent('ShowContentEvent');
 const form = ref(entityToForm(initialEntity));
 
 const assets = ref<Asset[]>([]);
@@ -262,7 +263,7 @@ watch(() => form.value.htmlString, async (newHtml) => {
 }, { deep: true });
 
 watch(() => props.event, (newEvent) => {
-    const e = newEvent ?? ShowContentEvent.createEmpty();
+    const e = newEvent ?? createEmptyAppEvent('ShowContentEvent');
     form.value = entityToForm(e);
     isEdit.value = !!newEvent;
 });
