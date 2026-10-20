@@ -15,6 +15,8 @@ export interface MemberFormInput {
   id?: string;
   name: string;
   rank: number;
+  /** 当選しやすさ(1〜100)。省略時は既定値。 */
+  weight?: number;
   photoAssetId?: string;
   /** アップロードモードで選択された、まだ保存されていないアセット。 */
   tempAsset?: Asset | null;
@@ -118,6 +120,7 @@ export function useMembers(
       id: input.id || "",
       name: input.name,
       rank: input.rank,
+      weight: input.weight,
       photoAssetId: input.photoAssetId || undefined,
     };
     let previewBlob: Blob | undefined;
@@ -155,7 +158,7 @@ export function useMembers(
   };
 
   const updateMember = async (original: any, input: MemberFormInput) => {
-    const updated: any = { ...original, name: input.name, rank: input.rank };
+    const updated: any = { ...original, name: input.name, rank: input.rank, weight: input.weight };
     if (input.tempAsset) {
       try {
         const uploaded = await assetDataService.addAssetData([input.tempAsset]);
@@ -175,7 +178,7 @@ export function useMembers(
 
   const deleteMember = async (id: string) => {
     deleting.value = true;
-    deleteMessage.value = "メンバーをこのゲームから外しています...";
+    deleteMessage.value = "メンバーの設定(ランク・当選しやすさ・写真)を初期値に戻しています...";
     try {
       await memberService.deleteMember(id);
       await fetchMembers();
@@ -190,7 +193,7 @@ export function useMembers(
   const deleteSelectedMembers = async () => {
     if (!selectedMembers.value.length) return;
     deleting.value = true;
-    deleteMessage.value = "メンバーをこのゲームから外しています...";
+    deleteMessage.value = "メンバーの設定(ランク・当選しやすさ・写真)を初期値に戻しています...";
     try {
       await memberService.deleteMembers(selectedMembers.value);
       await fetchMembers();

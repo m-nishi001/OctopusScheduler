@@ -36,6 +36,12 @@
         </div>
 
         <div class="form-group">
+          <label>当選しやすさ（{{ MIN_WEIGHT }}〜{{ MAX_WEIGHT }}）</label>
+          <input v-model.number="weight" type="number" :min="MIN_WEIGHT" :max="MAX_WEIGHT" step="1" data-testid="member-weight" />
+          <div class="hint">大きいほど当選しやすくなります。全員が同じ値なら、みんな同じ確率です（既定 {{ DEFAULT_WEIGHT }}）。</div>
+        </div>
+
+        <div class="form-group">
           <label>写真</label>
           <div class="photo-mode">
             <label><input type="radio" v-model="photoMode" value="upload" /> アップロード</label>
@@ -71,6 +77,7 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import type { Asset } from '@model/asset/asset-data';
+import { DEFAULT_WEIGHT, MAX_WEIGHT, MIN_WEIGHT, resolveWeight } from '@model/draw/weighted-selector';
 import type { Member as DirectoryMember } from '@octopus/accounts';
 import type { MemberFormInput } from '../use-members';
 
@@ -91,6 +98,7 @@ const assetDataService = container.resolve(AssetDataService);
 const name = ref('');
 const rank = ref(1);
 const maxRank = ref(10);
+const weight = ref<number>(DEFAULT_WEIGHT);
 const photoMode = ref<'upload' | 'select'>('upload');
 const photoAsset = ref<Asset | undefined>();
 const photoPreview = ref('');
@@ -116,6 +124,7 @@ watch(selectedExistingId, (id) => {
 
 const canSubmit = computed(() => {
   if (rank.value < 1 || saving.value) return false;
+  if (!Number.isInteger(weight.value) || weight.value < MIN_WEIGHT || weight.value > MAX_WEIGHT) return false;
   if (props.mode === 'add' && attachMode.value === 'existing') {
     return !!selectedExistingId.value;
   }
@@ -132,6 +141,7 @@ const revokePreviewUrl = () => {
 const loadFromMember = (member: any) => {
   name.value = member.name;
   rank.value = member.rank;
+  weight.value = resolveWeight(member.weight);
   maxRank.value = 10;
   if (member.photoAssetId) {
     photoMode.value = 'select';
@@ -200,6 +210,7 @@ const submit = async () => {
       id: props.mode === 'add' && attachMode.value === 'existing' ? selectedExistingId.value : undefined,
       name: name.value,
       rank: rank.value,
+      weight: weight.value,
       photoAssetId: photoMode.value === 'select' ? photoAssetId.value || undefined : undefined,
       tempAsset: photoMode.value === 'upload' ? tempAsset.value : null,
     });

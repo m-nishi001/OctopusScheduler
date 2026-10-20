@@ -1,8 +1,8 @@
 <template>
-  <UiDialog :model-value="true" :title="deleting ? '削除中...' : 'メンバーをこのゲームから外す'" size="sm" nested :persistent="deleting"
-    :confirm-label="deleting ? undefined : '外す'" danger @confirm="$emit('confirm')" @close="$emit('cancel')">
+  <UiDialog :model-value="true" :title="deleting ? '処理中...' : 'メンバーの設定を初期値に戻す'" size="sm" nested :persistent="deleting"
+    :confirm-label="deleting ? undefined : '初期値に戻す'" danger @confirm="$emit('confirm')" @close="$emit('cancel')">
     <p v-if="!deleting" class="message">
-      選択したメンバーをジャックポットから外しますか？共有マスタからは削除されないため、他のゲームの名簿には影響しません。
+      選択したメンバーのジャックポットの設定（ランク・当選しやすさ・写真）を初期値に戻しますか？名簿からは削除されません（メンバーの追加・削除は 設定 > アカウント で行います）。
     </p>
     <p v-else class="message">{{ deleteMessage }}</p>
   </UiDialog>

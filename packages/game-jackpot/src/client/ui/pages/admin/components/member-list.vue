@@ -5,11 +5,12 @@
       <img v-if="row.photoAssetId || row.photoAsset" :src="getMemberImageSrc(row)" alt="photo" class="preview-img" />
       <span v-else>-</span>
     </template>
+    <template #cell-weight="{ row }">{{ resolveWeight(row.weight) }}</template>
     <template #cell-actions="{ row }">
       <div class="row-actions">
         <UiButton size="sm" icon="edit" icon-only aria-label="詳細" title="詳細" @click="$emit('edit', row)" />
-        <UiButton size="sm" variant="danger" icon="delete" icon-only aria-label="このゲームから外す"
-          title="このゲームから外す" @click="$emit('delete', row.id)" />
+        <UiButton size="sm" variant="danger" icon="restore" icon-only aria-label="設定を初期値に戻す"
+          title="設定を初期値に戻す" @click="$emit('delete', row.id)" />
       </div>
     </template>
   </DataTable>
@@ -18,9 +19,11 @@
 <script setup lang="ts">
 import { DataTable, UiButton } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
+import { resolveWeight } from '@model/draw/weighted-selector';
 const columns: DataTableColumn[] = [
   { key: 'photo', label: '写真' },
   { key: 'name', label: '名前', sortable: true },
+  { key: 'weight', label: '当選しやすさ' },
   { key: 'actions', label: '操作' },
 ];
 

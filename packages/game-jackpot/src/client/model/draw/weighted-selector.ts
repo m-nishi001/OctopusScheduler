@@ -1,20 +1,19 @@
 import { injectable, inject } from "tsyringe";
 import { MathRandomProvider } from "../common/math-random-provider";
 
-/** 景品の重み未設定時に使うデフォルト値。 */
-export const DEFAULT_PRIZE_WEIGHT = 10;
-export const MIN_PRIZE_WEIGHT = 1;
-export const MAX_PRIZE_WEIGHT = 100;
+/** 重み（当選しやすさ）が未設定のときの既定値。景品もメンバーも同じ規則。 */
+export const DEFAULT_WEIGHT = 10;
+export const MIN_WEIGHT = 1;
+export const MAX_WEIGHT = 100;
 
 /**
- * 景品の当選確率の重みを正規化する。範囲外・不正値はクランプ/デフォルト値で補う。
- * `prize-reservation-service.ts` や `draw-simulation-service.ts` からも同じ正規化規則を使う。
+ * 当選確率の重み（景品・メンバー共通）を 1〜100 の整数に正規化する。範囲外・不正値はクランプ/既定値で補う。
  */
-export function resolvePrizeWeight(weight: number | undefined): number {
-  let w = weight ?? DEFAULT_PRIZE_WEIGHT;
-  if (Number.isNaN(w) || !isFinite(w)) w = DEFAULT_PRIZE_WEIGHT;
-  if (w < MIN_PRIZE_WEIGHT) w = MIN_PRIZE_WEIGHT;
-  if (w > MAX_PRIZE_WEIGHT) w = MAX_PRIZE_WEIGHT;
+export function resolveWeight(weight: number | undefined): number {
+  let w = weight ?? DEFAULT_WEIGHT;
+  if (Number.isNaN(w) || !isFinite(w)) w = DEFAULT_WEIGHT;
+  if (w < MIN_WEIGHT) w = MIN_WEIGHT;
+  if (w > MAX_WEIGHT) w = MAX_WEIGHT;
   return Math.floor(w);
 }
 
@@ -27,13 +26,14 @@ export class WeightedSelector {
   }
 
   /**
-   * 景品の `weight` を重みとした累積和選択。重みが大きいほど当選しやすい。
+   * `weight` を重みとした累積和選択（景品・メンバー共通）。重みが大きいほど当選しやすい。
+   * 重みが無いものは既定値（{@link DEFAULT_WEIGHT}）として扱うので、全員が無指定なら均等になる。
    */
-  selectWeightedPrize<T extends { weight?: number }>(pool: T[]): T {
+  selectWeighted<T extends { weight?: number }>(pool: T[]): T {
     if (pool.length === 0) {
       throw new Error("Pool is empty");
     }
-    const weights = pool.map((p) => resolvePrizeWeight(p.weight));
+    const weights = pool.map((p) => resolveWeight(p.weight));
     const total = weights.reduce((s, w) => s + w, 0);
     if (total <= 0) {
       // fallback to uniform random if something unexpected happens
@@ -49,16 +49,5 @@ export class WeightedSelector {
     }
     // numerical edge: return last
     return pool[pool.length - 1];
-  }
-
-  /**
-   * 重みを一切考慮しない完全な均等ランダム選択。
-   */
-  selectUniformRandom<T>(pool: T[]): T {
-    if (pool.length === 0) {
-      throw new Error("Pool is empty");
-    }
-    const idx = this.rand.nextInt(pool.length);
-    return pool[idx];
   }
 }

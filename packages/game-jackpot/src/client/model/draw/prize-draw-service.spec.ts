@@ -79,10 +79,10 @@ describe("PrizeDrawService", () => {
 
   describe("drawPrize", () => {
     /**
-     * drawPrizeがWeightedSelector.selectWeightedPrizeに委譲し、
+     * drawPrizeがWeightedSelector.selectWeightedに委譲し、
      * 当選景品を除いたダミーIDを返すことをテストする。
      */
-    it("delegates to WeightedSelector.selectWeightedPrize and excludes the winner from dummies", () => {
+    it("delegates to WeightedSelector.selectWeighted and excludes the winner from dummies", () => {
       // r=0.05*total(10)=0.5 -> falls into the first prize's weight slice (p1).
       const rand = new MockRandom([0.05, 0.1, 0.2, 0.3]);
       const selector = new WeightedSelector(rand as any);

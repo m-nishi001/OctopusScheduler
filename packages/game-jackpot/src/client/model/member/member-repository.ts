@@ -25,7 +25,7 @@ const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-member-extras-file-id";
  * jackpot固有のメンバーリポジトリ。
  *
  * メンバーのid/nameは `@octopus/accounts` が持つ共有マスタから取得し、
- * rank/写真といったjackpot固有の設定は `MemberExtraData`(id => JackpotMemberExtra)
+ * rank/当選しやすさ(weight)/写真といったjackpot固有の設定は `MemberExtraData`(id => JackpotMemberExtra)
  * としてローカルに保持してマージする。id/nameは共有マスタへの書き込みで
  * 即座に他デバイスへ反映されるため、バックグラウンド同期の対象はjackpot固有の
  * 拡張設定(rank/写真)のみでよい。
@@ -49,6 +49,7 @@ export class MemberRepository {
       id: directoryMember.id,
       name: directoryMember.name,
       rank: extra?.rank ?? DEFAULT_RANK,
+      weight: extra?.weight,
       photoAssetId: extra?.photoAssetId,
       photoDataUrl: extra?.photoDataUrl,
     };
@@ -88,6 +89,7 @@ export class MemberRepository {
       const extra: JackpotMemberExtra = {
         memberId: directoryMember.id,
         rank: member.rank,
+        weight: member.weight,
         photoAssetId: member.photoAssetId,
         photoDataUrl: member.photoDataUrl,
       };
@@ -112,6 +114,7 @@ export class MemberRepository {
       const extra: JackpotMemberExtra = {
         memberId: update.id,
         rank: updated.rank,
+        weight: updated.weight,
         photoAssetId: updated.photoAssetId,
         photoDataUrl: updated.photoDataUrl,
       };
@@ -121,7 +124,10 @@ export class MemberRepository {
     eventBus.emit("syncDirty");
   }
 
-  /** jackpotのロースターからメンバーを外す(共有マスタからは削除しない)。 */
+  /**
+   * メンバーのジャックポット固有の設定（ランク・当選しやすさ・写真）を初期値に戻す。
+   * 共有マスタ（名簿）からは削除しない。メンバーは名簿にいる限り、ジャックポットのメンバーでもある。
+   */
   async deleteMembers(ids: string[]): Promise<void> {
     await this.extraStorage.removeMultiple(ids);
     await this.dirtyTracker.touch(SYNC_KIND);

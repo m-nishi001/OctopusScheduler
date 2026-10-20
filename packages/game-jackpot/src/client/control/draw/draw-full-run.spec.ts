@@ -5,6 +5,7 @@ import type { DrawApplicationService } from "./draw-application-service";
 import { AllMembersDrawPool } from "../../model/draw/draw-pool";
 import type { DrawPoolProvider } from "../../model/draw/draw-pool";
 import { NoEligibleMembersError } from "../../model/errors";
+import type { KakuhenPlan } from "../../model/draw/kakuhen-plan";
 
 /** 全員・全景品を最後まで引き切る通しの検証（本番と同じ抽選ロジック + メモリ上の保存先）。 */
 function build(memberCount: number, prizeCount: number, weights?: (i: number) => number | undefined, pool: DrawPoolProvider = new AllMembersDrawPool()) {
@@ -21,7 +22,7 @@ function build(memberCount: number, prizeCount: number, weights?: (i: number) =>
     rows: results,
     prizes,
     members,
-    initializer: { initialize: (target: typeof prizes) => app.initializeStateIfNeeded(target) },
+    initializer: { initialize: (target: typeof prizes, plan?: KakuhenPlan) => app.initializeStateIfNeeded(target, plan) },
   };
 }
 
@@ -208,5 +209,57 @@ describe("通し抽選: 終了の判定(景品 > メンバー でも終わる)",
     await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
     await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
     expect(await service.getDrawProgress()).toMatchObject({ endReason: "members", drawn: 2 });
+  });
+});
+
+describe("通し抽選: 確変にする回の計画", () => {
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+  /** 景品 `prizeCount` 件を引き切り、何回目が確変だったか（1始まり）を返す。 */
+  const kakuhenDraws = async (prizeCount: number, plan?: KakuhenPlan) => {
+    const { service, prizes, initializer, rows } = build(prizeCount + 3, prizeCount);
+    await initializer.initialize(prizes as never, plan);
+    const flags: boolean[] = [];
+    for (let i = 0; i < prizeCount; i++) {
+      const { prizeRes } = await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+      flags.push(prizeRes.isKakuhen === true);
+    }
+    return { draws: flags.flatMap((f, i) => (f ? [i + 1] : [])), reserved: rows.filter((r) => !r.wonMember).length };
+  };
+
+  it("計画を渡さなければ、これまでどおり景品の真ん中あたりで続けて2回", async () => {
+    expect((await kakuhenDraws(10)).draws).toEqual([5, 6]);
+  });
+
+  it("回を指定すると、指定した回だけが確変になる", async () => {
+    const { draws, reserved } = await kakuhenDraws(10, { mode: "fixed", fixedTimings: [3, 8] });
+    expect(draws).toEqual([3, 8]);
+    expect(reserved).toBe(0); // 予約した景品はすべて使われる
+  });
+
+  it("最初の回・最後から2番目の回も指定できる", async () => {
+    expect((await kakuhenDraws(6, { mode: "fixed", fixedTimings: [1, 5] })).draws).toEqual([1, 5]);
+  });
+
+  it("指定が空なら確変なし", async () => {
+    expect((await kakuhenDraws(10, { mode: "fixed", fixedTimings: [] })).draws).toEqual([]);
+  });
+
+  it("景品の数を超える回は無視する", async () => {
+    expect((await kakuhenDraws(4, { mode: "fixed", fixedTimings: [2, 4, 9] })).draws).toEqual([2, 4]);
+  });
+
+  it("通常の抽選用に景品を1件は残すので、全部の回を指定しても、確変は景品の数-1回まで", async () => {
+    expect((await kakuhenDraws(4, { mode: "fixed", fixedTimings: [1, 2, 3, 4] })).draws).toEqual([1, 2, 3]);
+  });
+
+  it("計画は最初の1回で確定し、あとから別の計画で初期化しても変わらない", async () => {
+    const { service, prizes, initializer } = build(13, 10);
+    await initializer.initialize(prizes as never, { mode: "fixed", fixedTimings: [2] });
+    await initializer.initialize(prizes as never, { mode: "fixed", fixedTimings: [9] }); // 無視される
+    const flags: boolean[] = [];
+    for (let i = 0; i < 10; i++) flags.push((await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 })).prizeRes.isKakuhen === true);
+    expect(flags.flatMap((f, i) => (f ? [i + 1] : []))).toEqual([2]);
   });
 });

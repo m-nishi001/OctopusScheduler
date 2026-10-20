@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DrawApplicationService } from "./draw-application-service";
 import { MemberDrawService } from "../../model/draw/member-draw-service";
 import { WeightedSelector } from "../../model/draw/weighted-selector";
+import { MathRandomProvider } from "../../model/common/math-random-provider";
 import { NoEligibleMembersError } from "../../model/errors";
 
 function createDeps(overrides: {
@@ -238,9 +239,8 @@ describe("DrawApplicationService", () => {
     });
 
     it("本物の抽選ロジックでも、対象外の人は決して当選せず、ダミーにも出ない", async () => {
-      const real = new MemberDrawService(new WeightedSelector({ nextFloat: () => Math.random(), nextInt: (n: number) => Math.floor(Math.random() * n) } as any), {
-        nextInt: (n: number) => Math.floor(Math.random() * n),
-      } as any);
+      const rand = new MathRandomProvider();
+      const real = new MemberDrawService(new WeightedSelector(rand), rand);
       const { service } = createDeps({ members: roster, eligibleMemberIds: ["bob", "carol"] });
       (service as any).memberDrawService = real;
       for (let i = 0; i < 100; i++) {

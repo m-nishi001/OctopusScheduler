@@ -194,10 +194,8 @@ export function buildScreenSettings() {
     }),
     screen("main", "main-screen-settings", {
       memberLotteryBgms: ["seed-bgm-draw"],
-      memberDrawRequestCount: 10,
-      kakuhenMode: "random",
+      kakuhenMode: "auto",
       kakuhenFixedTimings: [],
-      globalBgmVolume: 0.8,
     }),
     screen("demo", "demo-screen-settings", { demoBgm: "seed-bgm-draw", demoSe1: "seed-se-fanfare", demoSe2: "" }),
     screen("result", "result-screen-settings", { resultBgm: "seed-bgm-ending", resultSe1: "seed-se-fanfare", resultSe2: "" }),

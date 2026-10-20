@@ -76,6 +76,26 @@ describe("MemberRepository (jackpot)", () => {
     expect(mockDirectory.addMember).not.toHaveBeenCalled();
   });
 
+  it("当選しやすさ(weight)を保存して読み出せ、更新でき、設定を初期値に戻すと既定(未設定)に戻る", async () => {
+    mockDirectory = createMockDirectory([{ id: "shared-1", name: "既存メンバー" }]);
+    container.register(AccountsRepository, { useValue: mockDirectory as any });
+    repo = container.resolve(MemberRepository);
+
+    await repo.addMembers([{ id: "shared-1", name: "既存メンバー", rank: 4, weight: 50 }]);
+    expect((await repo.getMembers())[0].weight).toBe(50);
+
+    await repo.updateMembers([{ id: "shared-1", updateFn: (m) => ({ ...m, weight: 80 }) }]);
+    expect((await repo.getMemberById("shared-1"))?.weight).toBe(80);
+
+    await repo.deleteMembers(["shared-1"]);
+    expect((await repo.getMembers())[0].weight).toBeUndefined();
+  });
+
+  it("weight を設定していないメンバーは weight が未設定のまま（抽選では既定値として扱われる）", async () => {
+    await repo.addMembers([{ id: "", name: "花子", rank: 2 }]);
+    expect((await repo.getMembers())[0].weight).toBeUndefined();
+  });
+
   it("deleteMembers only removes the local extra, not the shared member", async () => {
     mockDirectory = createMockDirectory([{ id: "shared-1", name: "既存メンバー" }]);
     container.register(AccountsRepository, { useValue: mockDirectory as any });
@@ -86,7 +106,8 @@ describe("MemberRepository (jackpot)", () => {
 
     expect(mockDirectory.deleteMember).not.toHaveBeenCalled();
     const members = await repo.getMembers();
-    // 拡張データは消えるが、共有マスタのメンバー自体は残るためデフォルトrankで表示される。
+    // 拡張データは消えるが、共有マスタのメンバー自体は残るためデフォルトrankで表示される
+    // （メンバーは名簿にいる限りジャックポットのメンバーでもある。外す操作ではなく「設定を初期値に戻す」操作）。
     expect(members).toEqual([
       expect.objectContaining({ id: "shared-1", name: "既存メンバー", rank: 5 }),
     ]);
