@@ -42,3 +42,79 @@ describe("useBackgroundSyncCore: syncPulled", () => {
     expect(onPulled).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("useBackgroundSyncCore: 同期の重なり", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** 解放するまで終わらない同期。呼び出し回数と同時実行数を数える。 */
+  function makeBlockingSync() {
+    let active = 0;
+    let maxActive = 0;
+    let calls = 0;
+    const releases: Array<() => void> = [];
+    const syncAll = async () => {
+      calls++;
+      active++;
+      maxActive = Math.max(maxActive, active);
+      await new Promise<void>((resolve) => releases.push(resolve));
+      active--;
+      return { failed: [] };
+    };
+    return {
+      syncAll,
+      stats: () => ({ calls, maxActive }),
+      releaseOne: async () => {
+        releases.shift()?.();
+        await vi.advanceTimersByTimeAsync(0);
+      },
+    };
+  }
+
+  it("同期中に変更の通知が来ても同時には走らせず、終わったあとにもう1回だけ流す", async () => {
+    const sync = makeBlockingSync();
+    const { cleanup } = useBackgroundSyncCore(sync.syncAll);
+    await vi.advanceTimersByTimeAsync(0); // 起動直後の同期が始まる
+    expect(sync.stats()).toEqual({ calls: 1, maxActive: 1 });
+
+    eventBus.emit("syncDirty");
+    eventBus.emit("syncDirty");
+    await vi.advanceTimersByTimeAsync(3000); // デバウンスが明ける(同期はまだ終わっていない)
+    expect(sync.stats()).toEqual({ calls: 1, maxActive: 1 });
+
+    await sync.releaseOne(); // 1回目が終わる → 待たせていた1回が始まる
+    expect(sync.stats()).toEqual({ calls: 2, maxActive: 1 });
+
+    await sync.releaseOne();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sync.stats()).toEqual({ calls: 2, maxActive: 1 }); // それ以上は流れない
+    cleanup();
+  });
+
+  it("定期の同期が、実行中の同期に重ならない", async () => {
+    const sync = makeBlockingSync();
+    const { cleanup } = useBackgroundSyncCore(sync.syncAll);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(61_000); // 1回目が終わらないまま、定期の時刻になる
+    expect(sync.stats().maxActive).toBe(1);
+    cleanup();
+  });
+
+  it("失敗しても次の同期は流れる(実行中の印が残らない)", async () => {
+    let calls = 0;
+    const { cleanup } = useBackgroundSyncCore(async () => {
+      calls++;
+      throw new Error("boom");
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    eventBus.emit("syncDirty");
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(calls).toBe(2);
+    cleanup();
+  });
+});

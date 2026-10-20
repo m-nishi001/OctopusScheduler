@@ -164,16 +164,13 @@ export class AssetRepository {
           parentFolderId: asset.directoryId || undefined,
         } as any;
 
-        let updatedAtIso = clientNow;
-        if (remoteMap.has(id)) {
-          await this.schedulerApi.updateDriveData(driveData);
-        } else {
-          const meta = await this.schedulerApi.addDriveData(driveData);
-          updatedAtIso = meta?.lastUpdate ?? clientNow;
-        }
+        // 更新日時はサーバーの時刻を採る(端末の時計がずれていても、リモートとの新旧比較が狂わないように)
+        const saved = remoteMap.has(id)
+          ? await this.schedulerApi.updateDriveData(driveData)
+          : await this.schedulerApi.addDriveData(driveData);
 
-        await this.localStorage.save(id, { ...asset, lastUpdated: updatedAtIso });
-        return { updatedAt: new Date(updatedAtIso).getTime() };
+        await this.localStorage.save(id, { ...asset, lastUpdated: saved.lastUpdate });
+        return { updatedAt: new Date(saved.lastUpdate).getTime() };
       },
       pull: async (meta) => {
         const res = await this.schedulerApi.getDriveData(meta.fileId);

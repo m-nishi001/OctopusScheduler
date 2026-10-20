@@ -51,7 +51,7 @@ export interface OctopusSchedulerApi {
   addDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<DriveMetadata>;
   getDriveMetaData(folderName?: string, options?: ApiCallOptions): Promise<DriveMetadata[]>;
   getDriveData(dataId: string, options?: ApiCallOptions): Promise<DriveData>;
-  updateDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<void>;
+  updateDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<DriveMetadata>;
   getKeyboardShortcuts(
     args?: undefined,
     options?: ApiCallOptions

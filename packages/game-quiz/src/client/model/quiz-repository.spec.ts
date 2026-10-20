@@ -3,12 +3,15 @@ import { QuizRepository } from "./quiz-repository";
 import { Quiz } from "./quiz";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
+/** サーバーが付ける更新日時。端末の時計(いま)とは大きく違う値にして、どちらを採ったか区別できるようにする。 */
+const SERVER_TIME = "2020-01-01T00:00:00.000Z";
+
 function makeFakeApi() {
   return {
-    addDriveData: vi.fn(async (d: any) => ({ ...d.driveData.metadata, fileId: "file-1" })),
+    addDriveData: vi.fn(async (d: any) => ({ ...d.driveData.metadata, fileId: "file-1", lastUpdate: SERVER_TIME })),
     getDriveMetaData: vi.fn(async (): Promise<unknown[]> => []),
     getDriveData: vi.fn(),
-    updateDriveData: vi.fn(async () => undefined),
+    updateDriveData: vi.fn(async (d: any) => ({ ...d.driveData.metadata, fileId: "file-1", lastUpdate: SERVER_TIME })),
     addJson: vi.fn(async (d: any) => ({
       driveDataId: d.driveJson.fileName,
       fileId: `folder1/${d.driveJson.fileName}`,
@@ -123,8 +126,10 @@ describe("QuizRepository.listSyncTargets", () => {
       // "blob" here isn't usable with FileReader. push()'s own behavior
       // (stable id, add-vs-update branching) doesn't depend on where the
       // blob came from, so this still exercises the real code path.
-      await bgmTarget.push(new Blob(["bgm"], { type: "audio/mpeg" }));
+      const pushed = await bgmTarget.push(new Blob(["bgm"], { type: "audio/mpeg" }));
 
+      // 端末の時計ではなく、サーバーが付けた更新日時を返す(時計がずれた端末でも、新旧の比較が狂わない)
+      expect(pushed.updatedAt).toBe(new Date(SERVER_TIME).getTime());
       expect(fakeApi.addDriveData).toHaveBeenCalledOnce();
       const driveData = fakeApi.addDriveData.mock.calls[0][0].driveData;
       expect(driveData.metadata.driveDataId).toBe("q1::bgm");

@@ -80,8 +80,8 @@ _octopusScheduler_getDriveData = async (dataId: string): Promise<string> => {
 
 _octopusScheduler_updateDriveData = async (driveData: DriveData): Promise<string> => {
   try {
-    await assets.save(resolveDeps(), driveData);
-    return JSON.stringify({ status: "success", data: undefined });
+    const result = await assets.save(resolveDeps(), driveData);
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
   }

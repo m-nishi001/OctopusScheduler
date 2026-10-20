@@ -34,7 +34,7 @@ export interface JackpotGameApi {
   addDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<DriveMetadata>;
   getDriveMetaData(folderId?: string, options?: ApiCallOptions): Promise<DriveMetadata[]>;
   getDriveData(dataId: string, options?: ApiCallOptions): Promise<DriveData>;
-  updateDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<void>;
+  updateDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<DriveMetadata>;
   addJson(driveJson: DriveJsonData, options?: ApiCallOptions): Promise<DriveMetadata>;
   /**
    * updatedAt: 解決されたファイルの最終更新日時(ISO文字列)。バックグラウンド

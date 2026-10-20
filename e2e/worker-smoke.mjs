@@ -205,7 +205,8 @@ const assetData = (text) => ({
   parentFolderId: "",
 });
 const assetMeta = await rpc("quizGame_addDriveData", { driveData: assetData("v1") }, ADMIN_TOKEN);
-await rpc("quizGame_updateDriveData", { driveData: assetData("v2") }, ADMIN_TOKEN);
+const assetUpdated = await rpc("quizGame_updateDriveData", { driveData: assetData("v2") }, ADMIN_TOKEN);
+check("素材の更新は、サーバーが付けた更新日時を返す(クライアントはこれで新旧を比べる)", !!assetUpdated?.lastUpdate && assetUpdated.fileId === assetMeta.fileId, JSON.stringify(assetUpdated));
 const assetNow = await rpc("quizGame_getDriveData", { dataId: assetMeta.fileId }, ADMIN_TOKEN);
 check("素材は fileId なしで更新でき、更新後の内容が取れる",
   Buffer.from(assetNow.fileDataUrl.split("base64,")[1], "base64").toString() === "v2", assetNow?.fileDataUrl);
