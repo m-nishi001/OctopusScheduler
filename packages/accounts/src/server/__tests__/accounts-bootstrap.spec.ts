@@ -11,10 +11,10 @@ import {
   login,
   LOGIN_LOCK_MS,
   LoginLockedError,
+  issueLoginKey,
+  loginWithKey,
   logout,
-  MAX_ACTIVE_SESSIONS,
-  MAX_SESSIONS_PER_SHARD,
-  SESSION_SHARDS,
+  MAX_SESSIONS_PER_MEMBER,
   MAX_GLOBAL_LOGIN_FAILURES,
   MAX_LOGIN_FAILURES,
   SESSION_TTL_MS,
@@ -199,15 +199,33 @@ describe("session cleanup", () => {
     return deps;
   }
 
-  it("期限切れセッションのキーは、同じ区画への次のログイン時に実削除される", async () => {
+  /** 同じキーの処理を順番に流す排他(本番のロックと同じ振る舞い)。使われたキーも記録する。 */
+  function serialLock() {
+    let chain: Record<string, Promise<unknown>> = {};
+    const keys = new Set<string>();
+    return {
+      keys,
+      lock: {
+        withLock: <T>(key: string, _timeoutMs: number, fn: () => Promise<T> | T) => {
+          keys.add(key);
+          const run = (chain[key] ?? Promise.resolve()).then(fn);
+          chain[key] = run.catch(() => undefined);
+          return run;
+        },
+      },
+      reset: () => {
+        chain = {};
+      },
+    };
+  }
+
+  const loginAdmin = (deps: AccountsAuthDeps) => login(deps, { id: "admin", password: "correct-horse" });
+
+  it("期限切れのセッションのキーは、同じメンバーの次のログイン時に実削除される", async () => {
     const deps = await setupAdmin();
-    const first = await login(deps, { id: "admin", password: "correct-horse" });
+    const first = await loginAdmin(deps);
     deps.advance(SESSION_TTL_MS + 1);
-    // 索引は区画に分かれているので、期限切れのセッションと同じ区画に載るまでログインする
-    let second = first;
-    for (let i = 0; i < 200 && (await deps.storage.get(`accounts-session/${first.token}`)) !== null; i++) {
-      second = await login(deps, { id: "admin", password: "correct-horse" });
-    }
+    const second = await loginAdmin(deps);
     expect(await deps.storage.get(`accounts-session/${first.token}`)).toBeNull();
     expect(await getSession(deps, first.token)).toBeNull();
     expect(await getSession(deps, second.token)).not.toBeNull();
@@ -215,59 +233,81 @@ describe("session cleanup", () => {
 
   it("ログアウトでセッションが実削除される", async () => {
     const deps = await setupAdmin();
-    const { token } = await login(deps, { id: "admin", password: "correct-horse" });
+    const { token } = await loginAdmin(deps);
     await logout(deps, token);
     expect(await deps.storage.get(`accounts-session/${token}`)).toBeNull();
     expect(await getSession(deps, token)).toBeNull();
   });
 
-  it("区画の上限以内なら、どの区画に載ってもセッションは失効しない", async () => {
+  it(`1人のセッションは${MAX_SESSIONS_PER_MEMBER}件まで。超えたら古いものから失効し、新しいものは有効`, async () => {
     const deps = await setupAdmin();
     const tokens: string[] = [];
-    // どれだけ偏っても、1つの区画の上限(MAX_SESSIONS_PER_SHARD)を超えない件数
-    for (let i = 0; i < MAX_SESSIONS_PER_SHARD; i++) {
-      tokens.push((await login(deps, { id: "admin", password: "correct-horse" })).token);
+    for (let i = 0; i < MAX_SESSIONS_PER_MEMBER + 2; i++) {
+      tokens.push((await loginAdmin(deps)).token);
       deps.advance(1);
     }
-    for (const token of tokens) expect(await getSession(deps, token)).not.toBeNull();
+    const valid = await Promise.all(tokens.map(async (t) => (await getSession(deps, t)) !== null));
+    expect(valid).toEqual(tokens.map((_, i) => i >= 2)); // 最初の2件だけが失効
+    expect(await deps.storage.get(`accounts-session/${tokens[0]}`)).toBeNull(); // 実削除もされている
   });
 
-  it(`有効なセッションが${MAX_ACTIVE_SESSIONS}件を超えると、上限を超えた区画の古いものから失効し、新しいセッションは有効`, async () => {
+  it("ログアウトしたセッションは枠を使わない(ログアウトとログインを繰り返しても、他の端末のセッションが追い出されない)", async () => {
     const deps = await setupAdmin();
-    const tokens: string[] = [];
-    for (let i = 0; i < MAX_ACTIVE_SESSIONS + 1; i++) {
-      tokens.push((await login(deps, { id: "admin", password: "correct-horse" })).token);
+    const kept: string[] = [];
+    for (let i = 0; i < MAX_SESSIONS_PER_MEMBER - 1; i++) kept.push((await loginAdmin(deps)).token);
+    for (let i = 0; i < 10; i++) await logout(deps, (await loginAdmin(deps)).token);
+    for (const token of kept) expect(await getSession(deps, token)).not.toBeNull();
+  });
+
+  it("参加者が大勢ログインしても、先にログインした管理者のセッションは失効しない", async () => {
+    const deps = await setupAdmin();
+    const admin = await loginAdmin(deps);
+    for (let i = 0; i < 300; i++) {
+      const id = `member-${i}`;
+      await addMember(deps, { id, name: id });
+      const { key } = await issueLoginKey(deps, { id });
+      await loginWithKey(deps, { id, key });
       deps.advance(1);
     }
-    const alive = (await Promise.all(tokens.map((t) => getSession(deps, t)))).filter((m) => m !== null).length;
-    expect(alive).toBeLessThanOrEqual(MAX_ACTIVE_SESSIONS);
-    expect(alive).toBeGreaterThan(MAX_ACTIVE_SESSIONS - SESSION_SHARDS * 4);
-    expect(await getSession(deps, tokens[tokens.length - 1])).not.toBeNull();
-    // 失効したものは、実際にストレージからも消えている
-    const dead = tokens.filter((_, i) => i < tokens.length).length - alive;
-    expect(dead).toBeGreaterThanOrEqual(1);
+    expect(await getSession(deps, admin.token)).not.toBeNull();
   });
 
-  it("同時にログインしても、索引への登録が互いに失われない(区画ごとに順番に処理される)", async () => {
+  it("別のメンバーのログインは別々のロックで処理される(互いを待たない)", async () => {
     const deps = await setupAdmin();
-    let chain: Record<string, Promise<unknown>> = {};
-    deps.lock = {
-      withLock: <T>(key: string, _timeoutMs: number, fn: () => Promise<T> | T) => {
-        const run = (chain[key] ?? Promise.resolve()).then(fn);
-        chain[key] = run.catch(() => undefined);
-        return run;
-      },
-    };
-    const results = await Promise.all(Array.from({ length: 40 }, () => login(deps, { id: "admin", password: "correct-horse" })));
-    chain = {};
-    // 全員のセッションが有効で、索引にも全員分が載っている
-    for (const r of results) expect(await getSession(deps, r.token)).not.toBeNull();
-    const indexed = new Set<string>();
-    for (let shard = 0; shard < SESSION_SHARDS; shard++) {
-      const raw = await deps.storage.get(`accounts-session-index/${shard}`);
-      for (const [token] of raw ? (JSON.parse(raw) as Array<[string, number]>) : []) indexed.add(token);
+    const { lock, keys } = serialLock();
+    deps.lock = lock;
+    for (const id of ["a", "b"]) await addMember(deps, { id, name: id });
+    keys.clear();
+    for (const id of ["a", "b"]) {
+      const { key } = await issueLoginKey(deps, { id });
+      await loginWithKey(deps, { id, key });
     }
-    expect(indexed.size).toBe(40);
+    const sessionLocks = [...keys].filter((k) => k.startsWith("accounts-sessions-"));
+    expect(sessionLocks.sort()).toEqual(["accounts-sessions-a", "accounts-sessions-b"]);
+  });
+
+  it("同じメンバーが同時にログインしても、一覧への登録が互いに失われない", async () => {
+    const deps = await setupAdmin();
+    const { lock, reset } = serialLock();
+    deps.lock = lock;
+    const results = await Promise.all(Array.from({ length: 40 }, () => loginAdmin(deps)));
+    reset();
+    // 一覧には上限ちょうどの件数が残り、そのどれもが有効。上限を超えた分は実削除されている
+    const list = JSON.parse((await deps.storage.get("accounts-member-sessions/admin")) ?? "[]") as Array<[string, number]>;
+    expect(list).toHaveLength(MAX_SESSIONS_PER_MEMBER);
+    for (const [token] of list) expect(await getSession(deps, token)).not.toBeNull();
+    const valid = (await Promise.all(results.map((r) => getSession(deps, r.token)))).filter((m) => m !== null);
+    expect(valid).toHaveLength(MAX_SESSIONS_PER_MEMBER);
+  });
+
+  it("メンバーを削除すると、そのメンバーのセッションも実削除される", async () => {
+    const deps = await setupAdmin();
+    await addMember(deps, { id: "taro", name: "太郎" });
+    const { key } = await issueLoginKey(deps, { id: "taro" });
+    const { token } = await loginWithKey(deps, { id: "taro", key });
+    await deleteMember(deps, "taro");
+    expect(await deps.storage.get(`accounts-session/${token}`)).toBeNull();
+    expect(await deps.storage.get("accounts-member-sessions/taro")).toBeNull();
   });
 
   it("メンバー削除で認証情報も実削除される", async () => {
