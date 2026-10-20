@@ -5,7 +5,7 @@
  * という薄い層のみを担う。マスタメンバーデータは app-scheduler本体・各ゲームパッケージ
  * から共有される単一の名簿として IKeyValueStorage に保存する。
  */
-import { errorResponse } from "@octopus/infrastructures/interfaces";
+import { errorResponse, respond } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import {
   IKeyValueStorageToken,
@@ -84,75 +84,39 @@ declare let _accounts_logout: (args: LogoutArgs) => Promise<string>;
 declare let _accounts_getSession: (args: GetSessionArgs) => Promise<string>;
 
 _accounts_listMembers = async (_args: ListMembersArgs): Promise<string> => {
-  try {
-    const result = await listMembers(resolveDeps());
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => listMembers(resolveDeps()));
 };
 
 _accounts_listAccounts = async (_args: ListMembersArgs): Promise<string> => {
-  try {
-    const result = await listAccounts(resolveDeps());
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => listAccounts(resolveDeps()));
 };
 
 _accounts_getRosterUsage = async (_args: ListMembersArgs): Promise<string> => {
-  try {
-    const result = await getRosterUsage(resolveDeps());
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => getRosterUsage(resolveDeps()));
 };
 
 _accounts_addMember = async (args: AddMemberArgs): Promise<string> => {
-  try {
-    const result = await addMember(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => addMember(resolveDeps(), args));
 };
 
 _accounts_updateMember = async (args: UpdateMemberArgs): Promise<string> => {
-  try {
-    const result = await updateMember(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => updateMember(resolveDeps(), args));
 };
 
 _accounts_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
-  try {
+  return respond(async () => {
     await deleteMember(resolveDeps(), args.id);
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  });
 };
 
 _accounts_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promise<string> => {
-  try {
-    const result = await replaceAllMembers(resolveDeps(), args.members);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => replaceAllMembers(resolveDeps(), args.members));
 };
 
 _accounts_setPassword = async (args: SetPasswordArgs): Promise<string> => {
-  try {
+  return respond(async () => {
     await setPassword(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  });
 };
 
 _accounts_login = async (args: LoginArgs): Promise<string> => {
@@ -169,21 +133,13 @@ _accounts_login = async (args: LoginArgs): Promise<string> => {
 };
 
 _accounts_issueLoginKey = async (args: IssueLoginKeyArgs): Promise<string> => {
-  try {
-    const result = await issueLoginKey(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => issueLoginKey(resolveDeps(), args));
 };
 
 _accounts_revokeLoginKey = async (args: RevokeLoginKeyArgs): Promise<string> => {
-  try {
+  return respond(async () => {
     await revokeLoginKey(resolveDeps(), args);
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  });
 };
 
 _accounts_loginWithKey = async (args: LoginWithKeyArgs): Promise<string> => {
@@ -200,21 +156,13 @@ _accounts_loginWithKey = async (args: LoginWithKeyArgs): Promise<string> => {
 };
 
 _accounts_logout = async (args: LogoutArgs): Promise<string> => {
-  try {
+  return respond(async () => {
     await logout(resolveDeps(), args.token);
-    return JSON.stringify({ status: "success", data: undefined });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  });
 };
 
 _accounts_getSession = async (args: GetSessionArgs): Promise<string> => {
-  try {
-    const result = await getSession(resolveDeps(), args.token);
-    return JSON.stringify({ status: "success", data: result });
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => getSession(resolveDeps(), args.token));
 };
 
 // 認可ポリシー。名簿(id/name)の取得とログイン系は誰でも、それ以外の変更・管理者向け一覧は管理者のみ。

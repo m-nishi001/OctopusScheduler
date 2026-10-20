@@ -14,7 +14,7 @@ import {
   IKeyValueStorageToken,
   ILockToken,
   IUuidGeneratorToken,
-  errorResponse,
+  respond,
 } from "@octopus/infrastructures/interfaces";
 import type { ICache, IKeyValueStorage, ILock, IUuidGenerator } from "@octopus/infrastructures/interfaces";
 import { secure, secureAdminWithMember, secureMember } from "@octopus/accounts/secure";
@@ -79,8 +79,6 @@ function backend(): SessionHubBackend {
     : createKvBackend(resolveKvDeps());
 }
 
-const ok = (data: unknown): string => JSON.stringify({ status: "success", data });
-
 declare let _sessionHub_createSession: (args: CreateSessionArgs) => Promise<string>;
 declare let _sessionHub_listSessions: (args?: undefined) => Promise<string>;
 declare let _sessionHub_closeSession: (args: CloseSessionArgs) => Promise<string>;
@@ -101,153 +99,81 @@ declare let _sessionHub_getResults: (args: GetResultsArgs) => Promise<string>;
 declare let _sessionHub_getWebAppUrl: () => Promise<string>;
 
 _sessionHub_createSession = secureAdminWithMember(async (args: CreateSessionArgs, member) => {
-  try {
-    return ok(await backend().createSession(args, member.id));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().createSession(args, member.id));
 });
 
 _sessionHub_listSessions = secure("admin", async (): Promise<string> => {
-  try {
-    return ok(await backend().listSessions());
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().listSessions());
 });
 
 _sessionHub_closeSession = secure("admin", async (args: CloseSessionArgs): Promise<string> => {
-  try {
-    await backend().closeSession(args);
-    return ok(null);
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().closeSession(args));
 });
 
 _sessionHub_joinOperator = secureAdminWithMember(async (args: JoinOperatorArgs, member) => {
-  try {
-    return ok(await backend().joinOperator(args, member.id));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().joinOperator(args, member.id));
 });
 
 _sessionHub_setPortalSession = secure("admin", async (args: SetPortalSessionArgs): Promise<string> => {
-  try {
-    await backend().setPortalSession(args);
-    return ok(null);
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().setPortalSession(args));
 });
 
 _sessionHub_joinPortal = secureMember(async (args: JoinPortalArgs, member) => {
-  try {
-    // メンバーIDと表示名はトークンから確定したもの。引数からは deviceId / token(復帰用)だけを受け取る。
-    return ok(await backend().joinPortal({ deviceId: args?.deviceId, token: args?.token }, { id: member.id, name: member.name }));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  // メンバーIDと表示名はトークンから確定したもの。引数からは deviceId / token(復帰用)だけを受け取る。
+  return respond(() => backend().joinPortal({ deviceId: args?.deviceId, token: args?.token }, { id: member.id, name: member.name }));
 });
 
 _sessionHub_poll = secure("public", async (args: PollArgs): Promise<string> => {
-  try {
-    return ok(await backend().poll(args));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().poll(args));
 });
 
 _sessionHub_issueCommand = secure("public", async (args: IssueCommandArgs): Promise<string> => {
-  try {
-    return ok(await backend().issueCommand(args));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().issueCommand(args));
 });
 
 _sessionHub_publishState = secure("public", async (args: PublishStateArgs): Promise<string> => {
-  try {
-    return ok(await backend().publishState(args));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().publishState(args));
 });
 
 _sessionHub_openRound = secure("public", async (args: OpenRoundArgs): Promise<string> => {
-  try {
-    return ok(await backend().openRound(args));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().openRound(args));
 });
 
 _sessionHub_closeRound = secure("public", async (args: CloseRoundArgs): Promise<string> => {
-  try {
-    return ok(await backend().closeRound(args));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().closeRound(args));
 });
 
 _sessionHub_submitAnswer = secure("public", async (args: SubmitAnswerArgs): Promise<string> => {
-  try {
-    return ok(await backend().submitAnswer(args));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().submitAnswer(args));
 });
 
 _sessionHub_getAnswers = secure("public", async (args: GetAnswersArgs): Promise<string> => {
-  try {
-    return ok(await backend().getAnswers(args));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => backend().getAnswers(args));
 });
 
 // 結果の書き込みは管理者(= ホスト端末を操作する運営者)のみ。読み取りはログイン済みのメンバーなら誰でも(本人向けに整形)。
 _sessionHub_putQuizResult = secure("admin", async (args: PutQuizResultArgs): Promise<string> => {
-  try {
-    return ok(await results.putQuizResult(resolveResultsDeps(), args?.sessionId, args?.result));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => results.putQuizResult(resolveResultsDeps(), args?.sessionId, args?.result));
 });
 
 _sessionHub_putJackpotDraw = secure("admin", async (args: PutJackpotDrawArgs): Promise<string> => {
-  try {
-    return ok(await results.putJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.draw));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => results.putJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.draw));
 });
 
 _sessionHub_deleteJackpotDraw = secure("admin", async (args: DeleteJackpotDrawArgs): Promise<string> => {
-  try {
-    return ok(await results.deleteJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.drawId));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => results.deleteJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.drawId));
 });
 
 _sessionHub_getResults = secureMember(async (args: GetResultsArgs, member) => {
-  try {
-    return ok(await results.getResultsFor(resolveResultsDeps(), args?.sessionId, member.id));
-  } catch (error) {
-    return errorResponse(error);
-  }
+  return respond(() => results.getResultsFor(resolveResultsDeps(), args?.sessionId, member.id));
 });
 
 _sessionHub_getWebAppUrl = secure("public", async (): Promise<string> => {
-  try {
+  return respond(() => {
     // GAS固有(ScriptApp)のためポート化せずここで直接呼ぶ。GAS以外ではnullを返す。
     const url = typeof ScriptApp !== "undefined" ? ScriptApp.getService().getUrl() : null;
-    return ok({ url: url || null });
-  } catch (error) {
-    return errorResponse(error);
-  }
+    return { url: url || null };
+  });
 });
 
 /** Cloudflare Worker から直接importして呼び出すためのハンドラ一覧。 */
