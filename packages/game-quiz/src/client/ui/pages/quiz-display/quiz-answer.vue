@@ -30,7 +30,8 @@ const session = useQuizSession();
 const quiz = ref<QuizDto | null>(null);
 const { load, play, stop } = useAudio({ mode: 'html-audio' });
 // セッションのホストなら、管理端末の「次へ」でも進める。正解はこの画面になって初めて参加者へ公開する。
-const host = useQuizHost();
+const goResult = () => void router.push({ name: session.routeName('quiz-result'), params: { id: quizId } });
+const host = useQuizHost({ advance: goResult });
 
 const correctNo = computed(() => {
   if (!quiz.value) return 1;
@@ -45,16 +46,21 @@ const correctOption = computed(() => {
   return quiz.value.options[correctIndex.value] || quiz.value.options[0];
 });
 
+// 画面を離れた印。読み込みの途中で離れたら、そのあとの公開や BGM の再生をしない(公開は離れたときに取り下げられている)。
+let disposed = false;
+
 onMounted(async () => {
-  const startQuizUseCase = container.resolve(StartQuizUseCase);
-  quiz.value = await startQuizUseCase.execute(quizId);
   document.addEventListener('keydown', handleKeydown);
+  const startQuizUseCase = container.resolve(StartQuizUseCase);
+  const loaded = await startQuizUseCase.execute(quizId);
+  if (disposed) return;
+  quiz.value = loaded;
   host.publish(
     buildQuizHostState({
       page: 'answer',
       quizId,
       title: quiz.value?.title,
-      roundKey: (container.isRegistered(QuizRoundGateway) ? container.resolve(QuizRoundGateway) : new QuizRoundGateway()).roundKey(quizId, session.scope),
+      roundKey: container.resolve(QuizRoundGateway).roundKey(quizId, session.scope),
       phase: 'closed',
       question: quiz.value?.question,
       options: quiz.value?.options.map((o: any) => ({ no: o.no, text: o.text, color: o.color })) ?? [],
@@ -75,7 +81,7 @@ onMounted(async () => {
       }
       if (blobToPlay) {
         await load(blobToPlay);
-        await play();
+        if (!disposed) await play();
       }
     } catch (error) {
       console.error('Failed to play correct BGM:', error);
@@ -84,14 +90,13 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  disposed = true;
   document.removeEventListener('keydown', handleKeydown);
   stop();
 });
 
 const handleKeydown = (ev: KeyboardEvent) => {
-  if (ev.key === 'Enter') {
-    router.push({ name: session.routeName('quiz-result'), params: { id: quizId } });
-  }
+  if (ev.key === 'Enter') goResult();
 };
 </script>
 

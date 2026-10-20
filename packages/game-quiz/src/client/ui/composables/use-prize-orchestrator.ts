@@ -32,11 +32,16 @@ export function usePrizeOrchestrator(options: {
       if (event.key === "Enter") {
         event.preventDefault();
         event.stopPropagation();
-        hidePrizeDialog();
-        options.onNavigateHome();
+        confirm();
       }
     };
     document.addEventListener("keydown", keydownHandler);
+  };
+
+  /** 賞品のダイアログを閉じて、ホームへ戻る(Enter キーと、管理端末の「次へ」で共通)。 */
+  const confirm = () => {
+    void hidePrizeDialog();
+    options.onNavigateHome();
   };
 
   const hidePrizeDialog = async () => {
@@ -62,6 +67,7 @@ export function usePrizeOrchestrator(options: {
     isPrizeDialogVisible: readonly(isPrizeDialogVisible),
     showPrizeDialog,
     hidePrizeDialog,
+    confirm,
     dispose,
   };
 }

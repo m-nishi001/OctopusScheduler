@@ -30,7 +30,7 @@ async function scene() {
   return { admin, client };
 }
 
-function mount(handlers?: QuizHostHandlers) {
+function mount(handlers: QuizHostHandlers) {
   const scope = effectScope();
   const host = scope.run(() => useQuizHost(handlers))!;
   return { host, stop: () => scope.stop() };
@@ -40,18 +40,6 @@ describe("useQuizHost", () => {
   it("HostAgent 未登録(ホストでない端末)では何もしない", () => {
     const { host } = mount({ advance: vi.fn() });
     expect(() => host.publish(buildQuizHostState({ page: "intro", quizId: "q1" }))).not.toThrow();
-  });
-
-  it("advance を省略すると、管理端末の「次へ」が表示画面の Enter キー押下として届く", async () => {
-    const { admin } = await scene();
-    mount();
-    const keys: string[] = [];
-    const onKey = (e: KeyboardEvent) => keys.push(e.key);
-    document.addEventListener("keydown", onKey);
-    await admin.conn.issue("quiz", "advance");
-    await tick(4000);
-    document.removeEventListener("keydown", onKey);
-    expect(keys).toEqual(["Enter"]);
   });
 
   it("advance を指定した画面ではそのハンドラが呼ばれ、Enter は再現されない", async () => {
@@ -71,13 +59,13 @@ describe("useQuizHost", () => {
   it("closeAnswers は指定した画面でだけ処理され、未指定の画面では無視される", async () => {
     const { admin } = await scene();
     const closeAnswers = vi.fn();
-    const first = mount({ closeAnswers });
+    const first = mount({ advance: vi.fn(), closeAnswers });
     await admin.conn.issue("quiz", "closeAnswers");
     await tick(4000);
     expect(closeAnswers).toHaveBeenCalledTimes(1);
     first.stop();
 
-    mount({}); // closeAnswers を持たない画面
+    mount({ advance: vi.fn() }); // closeAnswers を持たない画面
     await admin.conn.issue("quiz", "closeAnswers");
     await tick(4000);
     expect(closeAnswers).toHaveBeenCalledTimes(1);

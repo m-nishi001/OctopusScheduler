@@ -5,8 +5,8 @@ import { QuizRoundGateway } from "../../model/quiz-round-gateway";
 import type { QuizHostState } from "../../model/quiz-host-state";
 
 export interface QuizHostHandlers {
-  /** 管理端末の「次へ」。省略すると、表示画面の Enter キー押下と同じ扱い(画面ごとの既存の進行をそのまま使う)。 */
-  advance?(): void;
+  /** 管理端末の「次へ」。画面の Enter キーと同じ進行を、その画面が明示的に渡す。 */
+  advance(): void;
   /** 回答受付を今すぐ締め切る(出題画面のみ)。 */
   closeAnswers?(): void;
 }
@@ -20,23 +20,18 @@ export interface QuizHost {
 
 const NAMESPACE = "quiz";
 
-/** 表示画面の Enter キー押下を再現する(各画面は document の keydown で進行を処理している)。 */
-function pressEnter(): void {
-  if (typeof document !== "undefined") document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-}
-
 /**
  * クイズの表示画面(ホスト端末)で使う。セッションのホストとして接続している場合だけ、
  * 管理端末からの quiz.* コマンドを受け付け、画面の状態を公開する。
  * 必ずコンポーネントの setup() の同期実行中に呼ぶ(破棄時の後片付けを登録するため)。
  */
-export function useQuizHost(handlers: QuizHostHandlers = {}): QuizHost {
+export function useQuizHost(handlers: QuizHostHandlers): QuizHost {
   if (!container.isRegistered(HostAgent)) return { publish: () => undefined, lobbyPath: () => null };
   const agent = container.resolve(HostAgent);
-  const gateway = container.isRegistered(QuizRoundGateway) ? container.resolve(QuizRoundGateway) : new QuizRoundGateway();
+  const gateway = container.resolve(QuizRoundGateway);
 
   const off = agent.router.register(NAMESPACE, (command) => {
-    if (command.type === "advance") (handlers.advance ?? pressEnter)();
+    if (command.type === "advance") handlers.advance();
     else if (command.type === "closeAnswers") handlers.closeAnswers?.();
   });
   onScopeDispose(() => {

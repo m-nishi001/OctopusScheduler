@@ -1,4 +1,4 @@
-import { getCurrentInstance, onUnmounted, ref } from 'vue';
+import { getCurrentScope, onScopeDispose, ref } from 'vue';
 import { container } from 'tsyringe';
 import type { QuizSessionScope } from '../../../server/quiz-api-contract';
 import { QuizRoundGateway } from '../../model/quiz-round-gateway';
@@ -46,9 +46,11 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
   let currentScope: QuizSessionScope = 'live';
   let onFinishCallback: (() => void) | undefined;
   let finishing = false;
+  /** 画面を離れた。以降は、タイマーを作らず、締切処理も始めない。 */
+  let disposed = false;
 
   async function finish(): Promise<void> {
-    if (finishing) return;
+    if (finishing || disposed) return;
     finishing = true;
     if (timer) {
       clearInterval(timer);
@@ -91,6 +93,8 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
       errorMessage.value = '回答の受付を開始できませんでした。';
     }
 
+    // 受付を開く通信の間に画面を離れていたら、離れたあとに動くタイマー(締切処理の呼び出し)を作らない
+    if (disposed) return;
     timer = setInterval(() => {
       timeLeft.value--;
       if (timeLeft.value <= 0) {
@@ -104,9 +108,12 @@ export function useAnswerWindow(deps?: UseAnswerWindowDeps) {
     void finish();
   }
 
-  if (getCurrentInstance()) {
-    onUnmounted(() => {
+  // 画面を離れたら、タイマーを止める。コンポーネントの中でも、effectScope の中でも働く。
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      disposed = true;
       if (timer) clearInterval(timer);
+      timer = undefined;
     });
   }
 
