@@ -1,3 +1,4 @@
+import { toDatetimeLocal, fromDatetimeLocal } from "@octopus/client-common/date-utils/date-utils";
 import { toast } from '@octopus/ui-kit';
 import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
@@ -11,8 +12,8 @@ export function useSlideshowEvent(props: any, emit: any) {
 
   function entityToForm(e: SlideshowEvent) {
     return {
-      startTime: formatDateTime(e.startTime),
-      endTime: formatDateTime(e.endTime),
+      startTime: toDatetimeLocal(e.startTime),
+      endTime: toDatetimeLocal(e.endTime),
       folderId: e.folderId ?? "",
       displayDuration: e.displayDuration ?? 5,
       transitionType: e.transitionType ?? "fade",
@@ -64,9 +65,6 @@ export function useSlideshowEvent(props: any, emit: any) {
     }
   }
 
-  function formatDateTime(date: Date): string {
-    return date.toISOString().slice(0, 16);
-  }
 
   function removeBgm(index: number) {
     form.value.bgmList.splice(index, 1);
@@ -120,8 +118,8 @@ export function useSlideshowEvent(props: any, emit: any) {
   }
 
   async function onSubmit() {
-    const startTime = new Date(form.value.startTime);
-    const endTime = new Date(form.value.endTime);
+    const startTime = fromDatetimeLocal(form.value.startTime);
+    const endTime = fromDatetimeLocal(form.value.endTime);
     if (startTime >= endTime) {
       toast.error("開始時間が終了時間より後です。");
       return;

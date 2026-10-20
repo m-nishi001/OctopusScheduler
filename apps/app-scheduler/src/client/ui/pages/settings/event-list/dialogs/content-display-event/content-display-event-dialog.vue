@@ -136,6 +136,7 @@
 </template>
 
 <script setup lang="ts">
+import { toDatetimeLocal, fromDatetimeLocal } from "@octopus/client-common/date-utils/date-utils";
 import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { toast } from '@octopus/ui-kit';
 import { ref, watch, computed, onUnmounted } from 'vue';
@@ -160,8 +161,8 @@ const isEdit = ref(!!props.event);
 
 function entityToForm(e: ShowContentEvent) {
     return {
-        startTime: formatDateTime(e.startTime),
-        endTime: formatDateTime(e.endTime),
+        startTime: toDatetimeLocal(e.startTime),
+        endTime: toDatetimeLocal(e.endTime),
         contentType: e.contentType,
         contentId: e.contentId ?? '',
         htmlString: e.htmlString ?? '',
@@ -199,10 +200,6 @@ function getPrimaryType(mime?: string | null) {
     if (!mime) return '';
     const parts = mime.split('/');
     return parts[0] || '';
-}
-
-function formatDateTime(date: Date): string {
-    return date.toISOString().slice(0, 16);
 }
 
 const filteredAssets = computed(() => {
@@ -275,8 +272,8 @@ function onClose() {
 }
 
 async function onSubmit() {
-    const startTime = new Date(form.value.startTime);
-    const endTime = new Date(form.value.endTime);
+    const startTime = fromDatetimeLocal(form.value.startTime);
+    const endTime = fromDatetimeLocal(form.value.endTime);
     if (startTime >= endTime) {
         toast.error('開始時間が終了時間より後です。');
         return;
