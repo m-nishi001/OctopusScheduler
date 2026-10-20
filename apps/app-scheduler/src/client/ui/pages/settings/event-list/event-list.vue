@@ -23,16 +23,12 @@
 
         <EventTypeSelectionDialog v-if="showTypeSelection" @select="onTypeSelected"
             @close="showTypeSelection = false" />
-        <ContentDisplayEventDialog v-if="showContentDialog" :event="editingEvent as any" @saved="onDialogSaved"
-            @close="closeDialogs" />
-        <MusicPlaybackEventDialog v-if="showMusicDialog" :event="editingEvent as any" @saved="onDialogSaved"
-            @close="closeDialogs" />
-        <StopAudioEventDialog v-if="showStopAudioDialog" :event="editingEvent as any" @saved="onDialogSaved"
-            @close="closeDialogs" />
-        <ScreenTransitionEventDialog v-if="showTransitionDialog" :event="editingEvent as any" @saved="onDialogSaved"
-            @close="closeDialogs" />
-        <SlideshowEventDialog v-if="showSlideshowDialog" :event="editingEvent as any" @saved="onDialogSaved"
-            @close="closeDialogs" />
+        <ScheduledEventDialog v-if="dialogType && !UNMERGED_DIALOG_TYPES.includes(dialogType)" :type="dialogType"
+            :event="editingEvent" @saved="onDialogSaved" @close="closeDialogs" />
+        <ContentDisplayEventDialog v-if="dialogType === 'ShowContentEvent'" :event="editingEvent as any"
+            @saved="onDialogSaved" @close="closeDialogs" />
+        <SlideshowEventDialog v-if="dialogType === 'SlideshowEvent'" :event="editingEvent as any"
+            @saved="onDialogSaved" @close="closeDialogs" />
         <!-- per-screen sync removed: background sync runs automatically -->
     </div>
 </template>
@@ -43,12 +39,10 @@ import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, computed } from 'vue';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
-import { executeAppEvent, type AppEvent } from '../../../../control/app-event/app-event';
+import { executeAppEvent, type AppEvent, type AppEventType } from '../../../../control/app-event/app-event';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
 import ContentDisplayEventDialog from './dialogs/content-display-event/content-display-event-dialog.vue';
-import MusicPlaybackEventDialog from './dialogs/music-playback-event/music-playback-event-dialog.vue';
-import StopAudioEventDialog from './dialogs/stop-audio-event/stop-audio-event-dialog.vue';
-import ScreenTransitionEventDialog from './dialogs/screen-transition-event/screen-transition-event-dialog.vue';
+import ScheduledEventDialog from './dialogs/scheduled-event-dialog.vue';
 import SlideshowEventDialog from './dialogs/slideshow-event/slideshow-event-dialog.vue';
 
 const { confirmDelete } = useConfirm();
@@ -61,11 +55,10 @@ const deleting = ref(false);
 const executing = ref(false);
 const interruptFlag = ref(false);
 const showTypeSelection = ref(false);
-const showContentDialog = ref(false);
-const showMusicDialog = ref(false);
-const showTransitionDialog = ref(false);
-const showSlideshowDialog = ref(false);
-const showStopAudioDialog = ref(false);
+/** 開いている追加・編集ダイアログの種類(閉じていれば null)。 */
+const dialogType = ref<AppEventType | null>(null);
+/** 共通ダイアログにまだ統合していない種類(専用ダイアログを使う)。 */
+const UNMERGED_DIALOG_TYPES: AppEventType[] = ['ShowContentEvent', 'SlideshowEvent'];
 const editingEvent = ref<AppEvent | null>(null);
 
 const scheduleEventService = container.resolve(AppEventService);
@@ -142,52 +135,16 @@ function onAdd() {
 
 function onTypeSelected(type: string) {
     showTypeSelection.value = false;
-    switch (type) {
-        case 'ShowContentEvent':
-            showContentDialog.value = true;
-            break;
-        case 'PlayAudioEvent':
-            showMusicDialog.value = true;
-            break;
-        case 'StopAudioEvent':
-            showStopAudioDialog.value = true;
-            break;
-        case 'TransitionPageEvent':
-            showTransitionDialog.value = true;
-            break;
-        case 'SlideshowEvent':
-            showSlideshowDialog.value = true;
-            break;
-    }
+    dialogType.value = type as AppEventType;
 }
 
 function onEdit(ev: AppEvent) {
     editingEvent.value = ev;
-    switch (ev.type) {
-        case 'ShowContentEvent':
-            showContentDialog.value = true;
-            break;
-        case 'PlayAudioEvent':
-            showMusicDialog.value = true;
-            break;
-        case 'StopAudioEvent':
-            showStopAudioDialog.value = true;
-            break;
-        case 'TransitionPageEvent':
-            showTransitionDialog.value = true;
-            break;
-        case 'SlideshowEvent':
-            showSlideshowDialog.value = true;
-            break;
-    }
+    dialogType.value = ev.type;
 }
 
 function closeDialogs() {
-    showContentDialog.value = false;
-    showMusicDialog.value = false;
-    showTransitionDialog.value = false;
-    showSlideshowDialog.value = false;
-    showStopAudioDialog.value = false;
+    dialogType.value = null;
     editingEvent.value = null;
 }
 

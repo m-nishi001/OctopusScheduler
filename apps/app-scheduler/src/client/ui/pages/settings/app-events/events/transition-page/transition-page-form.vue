@@ -1,11 +1,15 @@
 <template>
     <div class="form-group">
-        <label>遷移URL:</label>
-        <input v-model="formData.transitionUrl" type="text" list="transition-url-presets" placeholder="/quiz-admin" />
+        <label for="transitionUrl">遷移URL</label>
+        <input id="transitionUrl" v-model="formData.transitionUrl" type="text" list="transition-url-presets" placeholder="/quiz-admin" required />
         <datalist id="transition-url-presets">
             <option v-for="p in TRANSITION_URL_PRESETS" :key="p.value" :value="p.value">{{ p.label }}</option>
         </datalist>
         <small>実行画面を切り替える先のパスです。クイズは /quiz/クイズID/intro の形式です。</small>
+    </div>
+    <div class="form-group">
+        <label for="fadeOutDuration">フェードアウト時間 (秒)</label>
+        <input id="fadeOutDuration" v-model.number="formData.fadeOutDuration" type="number" min="0" step="0.1" />
     </div>
 </template>
 
@@ -23,10 +27,11 @@ const emit = defineEmits<{ save: [TransitionPageEventDto] }>();
 
 const formData = reactive({
     transitionUrl: props.initialData?.transitionUrl ?? '',
+    fadeOutDuration: props.initialData?.fadeOutDuration ?? 0,
 });
 
 const save = () => {
-    const base: TransitionPageEventDto = { actionType: 'TransitionPageEvent', transitionUrl: formData.transitionUrl };
+    const base: TransitionPageEventDto = { actionType: 'TransitionPageEvent', transitionUrl: formData.transitionUrl, fadeOutDuration: formData.fadeOutDuration };
     if (props.initialData?.id) {
         emit('save', { ...base, id: props.initialData.id });
     } else {
@@ -36,6 +41,7 @@ const save = () => {
 
 const reset = () => {
     formData.transitionUrl = props.initialData?.transitionUrl ?? '';
+    formData.fadeOutDuration = props.initialData?.fadeOutDuration ?? 0;
 };
 
 // auto-reset when initialData changes
