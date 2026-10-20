@@ -219,6 +219,7 @@ import ConnectionBanner from './components/connection-banner.vue';
 import { describeHostPresence } from './connection-labels';
 import { describeProgress } from './console-guidance';
 import { enterTriggers, resolveConsoleKey } from './console-keys';
+import { useBusy } from './use-busy';
 
 const props = defineProps<{ connection?: SessionConnection }>();
 
@@ -233,12 +234,14 @@ const { state, connection } = useSessionConnection(props.connection ?? createSes
 const sessionId = computed(() => String(route.params.id ?? ''));
 const joining = ref(false);
 const errorMessage = ref('');
-const busyPath = ref<string | null>(null);
-const busyMain = ref(false);
-const busyStart = ref<'quiz' | 'jackpot' | 'entry' | null>(null);
-const busyEvent = ref<'start' | 'end' | null>(null);
-const busyEntry = ref<'openEntry' | 'closeEntry' | null>(null);
-const busyPool = ref<DrawPool | null>(null);
+// 同時に1つだけ実行する操作の実行中の印と、失敗の通知(連打しても1回だけ送る)
+const { busy: busyPath, run: runPath } = useBusy<string>(reportError);
+const { busy: mainKey, run: runMainOrBack } = useBusy<'main' | 'back'>(reportError);
+const busyMain = computed(() => mainKey.value !== null);
+const { busy: busyStart, run: runStart } = useBusy<'quiz' | 'jackpot' | 'entry'>(reportError);
+const { busy: busyEvent, run: runEvent } = useBusy<'start' | 'end'>(reportError);
+const { busy: busyEntry, run: runEntry } = useBusy<'openEntry' | 'closeEntry'>(reportError);
+const { busy: busyPool, run: runPool } = useBusy<DrawPool>(reportError);
 const eventTitle = ref('');
 const quizzes = ref<Array<{ id: string; title: string; question: string }>>([]);
 const quizLoading = ref(false);
@@ -346,64 +349,35 @@ async function join() {
     }
 }
 
-async function navigate(path: string, before?: () => Promise<void>) {
-    if (busyPath.value !== null) return;
-    busyPath.value = path;
-    try {
+const navigate = (path: string, before?: () => Promise<void>) =>
+    runPath(path, async () => {
         await before?.();
         await connection.issue('session', 'navigate', { path });
-    } catch (e) {
-        reportError(e);
-    } finally {
-        busyPath.value = null;
-    }
-}
+    });
 
 /** 主ボタン。連打しても1回だけ送る。 */
 async function runMain() {
     const main = guidance.value.main;
-    if (!main || busyMain.value) return;
-    busyMain.value = true;
-    try {
+    if (!main) return;
+    await runMainOrBack('main', async () => {
         if (main.action.kind === 'navigate') await connection.issue('session', 'navigate', { path: main.action.path });
         else if (main.action.kind === 'closeAnswers') await connection.issue('quiz', 'closeAnswers');
         else await connection.issue(guidance.value.game === 'quiz' ? 'quiz' : 'jackpot', 'advance');
-    } catch (e) {
-        reportError(e);
-    } finally {
-        busyMain.value = false;
-    }
+    });
 }
 
 /** 副ボタン「前へ」。説明のスライドをひとつ戻す。 */
 async function runBack() {
-    if (!guidance.value.back || busyMain.value) return;
-    busyMain.value = true;
-    try {
+    if (!guidance.value.back) return;
+    await runMainOrBack('back', async () => {
         await connection.issue('jackpot', 'back');
-    } catch (e) {
-        reportError(e);
-    } finally {
-        busyMain.value = false;
-    }
+    });
 }
 
 /** イベントが開催されていなければ、名前を付けて開催する(ワンクリック開催の1段目)。 */
 async function ensureEvent(title: string) {
     if (portalEvent.value) return;
     await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_START, { title: normalizeEventTitle(title) });
-}
-
-async function runStart(kind: 'quiz' | 'jackpot' | 'entry', steps: () => Promise<void>) {
-    if (busyStart.value !== null) return;
-    busyStart.value = kind;
-    try {
-        await steps();
-    } catch (e) {
-        reportError(e);
-    } finally {
-        busyStart.value = null;
-    }
 }
 
 /** 選んでいるクイズの名前でイベントを開催する(未開催なら)。 */
@@ -450,42 +424,23 @@ async function sendEvent(type: 'start' | 'end') {
         });
         if (!ok) return;
     }
-    busyEvent.value = type;
-    try {
+    await runEvent(type, async () => {
         await connection.issue(PORTAL_EVENT_NS, type === 'start' ? PORTAL_EVENT_START : PORTAL_EVENT_END, type === 'start' ? { title } : undefined);
         if (type === 'start') eventTitle.value = '';
-    } catch (e) {
-        reportError(e);
-    } finally {
-        busyEvent.value = null;
-    }
+    });
 }
 
 /** エントリー受付の開始/再開/締切。ホストが回答ラウンドを操作し、参加者の画面に反映される。 */
-async function sendEntry(type: 'openEntry' | 'closeEntry') {
-    if (busyEntry.value !== null) return;
-    busyEntry.value = type;
-    try {
+const sendEntry = (type: 'openEntry' | 'closeEntry') =>
+    runEntry(type, async () => {
         await connection.issue(PORTAL_EVENT_NS, type === 'openEntry' ? PORTAL_EVENT_OPEN_ENTRY : PORTAL_EVENT_CLOSE_ENTRY);
-    } catch (e) {
-        reportError(e);
-    } finally {
-        busyEntry.value = null;
-    }
-}
+    });
 
 /** 抽選の対象の切り替え（全メンバー / エントリーした人だけ）。ホストが公開し、抽選にも反映される。 */
-async function sendPool(mode: DrawPool) {
-    if (busyPool.value !== null) return;
-    busyPool.value = mode;
-    try {
+const sendPool = (mode: DrawPool) =>
+    runPool(mode, async () => {
         await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_SET_POOL, { mode });
-    } catch (e) {
-        reportError(e);
-    } finally {
-        busyPool.value = null;
-    }
-}
+    });
 
 const startEvent = () => sendEvent('start');
 const endEvent = () => sendEvent('end');
