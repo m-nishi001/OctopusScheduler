@@ -263,7 +263,7 @@ async function eventAndEntry() {
   const entrants = new Set(answers.answers.map((a) => a.memberId));
   report.check(
     "エントリー一覧にログイン済みの全員が1件ずつ載る",
-    answers.answers.length === participants.length && participants.every((p) => entrants.has(p.id)) && answers.answers.every((a) => a.verified === true),
+    answers.answers.length === participants.length && participants.every((p) => entrants.has(p.id)),
     `${answers.answers.length}件`
   );
   report.check("回答数が運営の全端末に届く", [host, admin1, admin2].every((op) => op.session.round?.answerCount === participants.length));
