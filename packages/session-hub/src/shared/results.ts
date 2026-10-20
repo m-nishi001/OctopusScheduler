@@ -74,6 +74,7 @@ export interface ResultsDoc {
   draws: JackpotDraw[];
 }
 
+/** まだ何も残していない結果ファイル。 */
 export function emptyResultsDoc(): ResultsDoc {
   return { v: 1, rev: 0, updatedAtMs: 0, rounds: [], draws: [] };
 }

@@ -42,6 +42,10 @@ import type { RoomContext, RoomOp, RoomRpcResult, RoomSocket, SocketAttachment }
 export const PRESENCE_BROADCAST_DELAY_MS = 2000;
 
 
+/**
+ * セッション1件の部屋(Durable Object の中身)。RPC・WebSocket の受信・更新の配信(push)・回答の永続化(alarm)を受け持つ。
+ * Cloudflare の型には依存せず、`RoomContext` を通して動くので、テストでは偽物で多数の端末を動かせる。
+ */
 export class SessionRoomCore {
   private readonly repo: RoomRepo;
   /** ポーリング(WebSocket を使えない端末)の在席。接続中ソケットの在席とは別に、メモリ上だけで持つ。 */

@@ -28,6 +28,7 @@ export interface ResultsDeps {
 
 const LOCK_TIMEOUT_MS = 5000;
 
+/** セッションの結果ファイルの保存先のキー。sessionId が不正(パスを含むなど)なら INVALID_ARGUMENT。 */
 export function resultsKey(sessionId: string): string {
   if (typeof sessionId !== "string" || !RESULTS_SESSION_ID_PATTERN.test(sessionId)) {
     throw hubError("INVALID_ARGUMENT", "sessionId が不正です");

@@ -16,6 +16,7 @@ export interface RouletteAnimationProps {
   showResult?: boolean;
 }
 
+/** ルーレットの演出(canvas への描画・画面サイズへの追従・回転と停止・景品の差し替え)。音は扱わない。 */
 export function useRouletteAnimation(
   props: RouletteAnimationProps,
   opts?: UseRouletteOptions

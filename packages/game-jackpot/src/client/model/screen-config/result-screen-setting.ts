@@ -1,3 +1,4 @@
+/** 結果画面の設定(BGM・効果音)。 */
 export class ResultScreenSetting {
   readonly type = "result" as const;
   resultBgm: string;

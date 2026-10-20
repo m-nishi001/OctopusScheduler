@@ -10,6 +10,7 @@ export interface OpeningContent {
   seAssetId?: string;
 }
 
+/** オープニング画面の設定(BGM と、順に出すコンテンツ)。 */
 export class OpeningScreenSetting {
   readonly type = "opening" as const;
   bgmMode: "select" | "upload";

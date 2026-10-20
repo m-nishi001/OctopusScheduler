@@ -4,6 +4,7 @@ import { ScreenConfigRepository } from "../../model/screen-config/screen-config-
 import type { Asset } from "../../model/asset/asset-data";
 import { ScreenSetting } from "../../model/screen-config/screen-setting";
 
+/** 各画面(オープニング・説明・エンディング・デモ・結果)の設定の取得・保存。保存のとき、選んだだけの素材(BGM・画像)も一緒に登録する。 */
 @injectable()
 export class ScreenSettingsService {
   private assetDataService: AssetDataService;

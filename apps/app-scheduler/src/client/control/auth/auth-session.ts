@@ -46,6 +46,7 @@ export async function ensureRole(): Promise<Role | null> {
   return currentMember.value ? roleOf(currentMember.value) : null;
 }
 
+/** 管理者としてログインする。セッショントークンを保存し、ログイン中のメンバーを更新する。 */
 export async function signIn(id: string, password: string): Promise<Member> {
   const { token, member } = await container.resolve(AccountsRepository).login(id, password);
   setSessionToken(token);
@@ -63,6 +64,7 @@ export async function signInWithKey(id: string, key: string): Promise<Member> {
   return member;
 }
 
+/** ログアウトする。端末のトークンを消してからサーバーのセッションも破棄する(サーバー側の失敗は無視)。 */
 export async function signOut(): Promise<void> {
   const token = getSessionToken();
   setSessionToken(null);
@@ -76,6 +78,7 @@ export async function signOut(): Promise<void> {
   }
 }
 
+/** 画面から使うログイン状態。ログイン中のメンバー(読み取り専用)・ログイン済みか・ログイン/ログアウトの操作。 */
 export function useAuthSession() {
   return {
     currentMember: readonly(currentMember),

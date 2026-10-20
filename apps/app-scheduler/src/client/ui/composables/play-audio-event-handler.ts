@@ -3,6 +3,7 @@ import { AudioService } from "@octopus/client-common/audio/audio-service";
 import { container } from "tsyringe";
 import { AssetService } from "../../control/asset/asset-service";
 
+/** 実行画面で、`playAudio` / `stopAudio` のイベントを受けて音を鳴らす・止める。音声の指定がある停止は、ここで鳴らした音だけを止める。 */
 export class PlayAudioEventHandler {
   private static audioService = new AudioService();
   private static playingInstances = new Map<string, string>();

@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import type { ICache } from "../interfaces/cache";
 
+/** `ICache` の GAS 実装(スクリプトキャッシュ)。 */
 @injectable()
 export class GasCache implements ICache {
   private readonly cache = CacheService.getScriptCache();

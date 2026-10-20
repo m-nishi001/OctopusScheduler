@@ -26,6 +26,7 @@ const WEIGHTS: Record<MemberStopPattern, number> = {
   fakeout: 16,
 };
 
+/** メンバー抽選の止まり方を、重みに応じて選ぶ。`random` はテストで固定できる。 */
 export function pickMemberStopPattern(random: () => number = Math.random): MemberStopPattern {
   let r = random() * 100;
   for (const pattern of MEMBER_STOP_PATTERNS) {

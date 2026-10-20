@@ -4,6 +4,7 @@ import type { MemberDto } from "./dto/member-dto";
 import { fromMember, toMember } from "./dto/member-dto";
 import type { Member } from "../../model/member/member";
 
+/** 抽選の対象メンバーの取得・登録・更新・削除。 */
 @injectable()
 export class MemberService {
   constructor(@inject(MemberRepository) private readonly repo: MemberRepository) {}

@@ -1,6 +1,10 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
+/**
+ * この端末に保存している設定(IndexedDB)を JSON にまとめて書き出す。
+ * `includeAssets` が true(既定)なら、素材の中身(Blob)もデータURLにして含める。
+ */
 export async function exportLocalBackup(options?: { includeAssets?: boolean }) {
   const includeAssets = options?.includeAssets ?? true;
   const ls = new LocalStorageService("octopus-scheduler", "");

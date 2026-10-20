@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { AssetDataService } from "@control/asset/asset-data-service";
 import type { Asset } from "@model/asset/asset-data";
 
+/** 素材の管理画面の状態と操作(一覧・選択・選択した素材の削除)。 */
 export function useAssetsList(assetDataServiceArg?: AssetDataService) {
   const assetDataService = assetDataServiceArg || container.resolve(AssetDataService);
 

@@ -13,6 +13,7 @@ import type { IConcurrencyPolicy } from "../interfaces/concurrency-policy";
 const ASSET_LIKE_CONCURRENCY = 6;
 const DEFAULT_CONCURRENCY = 4;
 
+/** `IConcurrencyPolicy` の GAS 実装。`google.script.run` の同時実行の制限に収まるよう、ファイル単位の同期(素材など)は6、それ以外は4を返す。 */
 @injectable()
 export class GasConcurrencyPolicy implements IConcurrencyPolicy {
   maxConcurrency(kind: string): number {

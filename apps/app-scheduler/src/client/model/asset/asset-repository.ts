@@ -7,6 +7,7 @@ import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract
 import type { Asset } from "./asset";
 import type { DriveData, DriveMetadata } from "@octopus/infrastructures/compositions";
 
+/** 素材の保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。 */
 @injectable()
 export class AssetRepository {
   private readonly localStorage: LocalStorageService;

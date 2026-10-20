@@ -47,6 +47,7 @@ export interface RouletteAnimationState {
   setPreparedPrizes?: (newPrepared: RouletteItem[]) => void;
 }
 
+/** 景品抽選の演出の表示状態。景品の一覧・選ばれた景品・結果を出すかと、画像の読み込み。 */
 export function useRouletteAnimationState(
   initialPrizes: PrizeDto[],
   initialSelectedPrize: PrizeDto,

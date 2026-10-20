@@ -2,6 +2,7 @@ import { injectable, inject } from "tsyringe";
 import { DrawResultRepository } from "../../model/draw/draw-result-repository";
 import type { DrawResultDto } from "./dto/draw-result-dto";
 
+/** 抽選結果の取得・追加・更新・削除と、同期。 */
 @injectable()
 export class DrawResultService {
   constructor(

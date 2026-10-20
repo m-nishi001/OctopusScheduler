@@ -31,6 +31,9 @@ function createEmptySummary(): SyncSummary {
   return { pushed: 0, pulled: 0, skipped: 0, failed: [] };
 }
 
+/**
+ * 同期の対象の一覧を受け取り、ローカルとリモートの差分に応じて送る(push)・取り込む(pull)を実行する。種類ごとの並列度の上限(`IConcurrencyPolicy`)の範囲で並列に行い、1件の失敗は全体を止めず、結果にまとめる。
+ */
 @injectable()
 export class SyncRunner {
   constructor(

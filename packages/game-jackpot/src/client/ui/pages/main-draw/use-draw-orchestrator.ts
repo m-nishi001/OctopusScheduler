@@ -31,6 +31,7 @@ import { performDraw } from "./perform-draw";
 
 // 本抽選画面の配線。画面の状態(ref)とサービスを集めて、進行(DrawFlowController)と
 // ステップ(buildCycle)につなぐだけにして、ロジックは単体テストできるモジュール側に置く。
+/** 抽選画面の進行役。メンバー抽選・景品抽選・確変・終了を、Enter(または遠隔の「次へ」)で順に進め、画面を離れたら受付・BGM・画像の URL をすべて片付ける。 */
 export function useDrawOrchestrator() {
   const prizeRepo = container.resolve(PrizeRepository);
   const memberRepo = container.resolve(MemberRepository);

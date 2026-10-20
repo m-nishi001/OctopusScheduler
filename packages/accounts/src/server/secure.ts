@@ -30,6 +30,9 @@ export interface SecureDeps {
 
 type Handler = (args?: any) => Promise<string>;
 
+/**
+ * 認可のラッパー `secure(policy, handler)` を作る。`admin` は有効な管理者のセッションが無ければ Unauthorized を返し、どちらの場合もハンドラには、包みを外した引数だけを渡す。
+ */
 export function createSecure(deps: SecureDeps) {
   return function secure<H extends Handler>(policy: EndpointPolicy, handler: H): H {
     return (async (raw?: unknown): Promise<string> => {

@@ -8,6 +8,7 @@ function toHex(bytes: number[]): string {
   return bytes.map((b) => (b & 0xff).toString(16).padStart(2, "0")).join("");
 }
 
+/** `IPasswordHasher` の GAS 実装(HMAC-SHA256 を繰り返す)。 */
 @injectable()
 export class GasPasswordHasher implements IPasswordHasher {
   async hash(password: string, salt: string): Promise<string> {

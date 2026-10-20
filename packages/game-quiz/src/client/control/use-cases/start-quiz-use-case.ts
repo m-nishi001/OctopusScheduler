@@ -3,6 +3,7 @@ import type { QuizDto } from "../dto/quiz-dto";
 import { QuizService } from "../../model/quiz-service";
 import { SyncService } from "../sync/sync-service";
 
+/** 出題するクイズを読み込む。投影用の端末に無ければ、Drive から取り込んで読み直す。それでも無ければ null。 */
 @injectable()
 export class StartQuizUseCase {
   constructor(

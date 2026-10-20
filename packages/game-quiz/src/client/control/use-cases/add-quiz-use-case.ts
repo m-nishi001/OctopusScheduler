@@ -3,6 +3,7 @@ import type { AddQuizDto } from "../dto/quiz-dto";
 import { Quiz } from "../../model/quiz";
 import { QuizService } from "../../model/quiz-service";
 
+/** クイズを追加する。追加したクイズの id を返す。 */
 @injectable()
 export class AddQuizUseCase {
   constructor(@inject(QuizService) private quizService: QuizService) {}

@@ -28,6 +28,7 @@ function isScreenSettingList(value: unknown): value is ScreenSetting[] {
   );
 }
 
+/** 各画面の設定の保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。 */
 @injectable()
 export class ScreenConfigRepository {
   private readonly localStorage = new LocalStorageService(

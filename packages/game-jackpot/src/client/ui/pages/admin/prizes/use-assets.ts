@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { AssetDataService } from "@control/asset/asset-data-service";
 import { useObjectUrlStore } from "@ui/composables/use-object-url-store";
 
+/** 景品の管理画面で使う素材の一覧(画像・音声に分けたもの)と、プレビュー用の URL。 */
 export function useAssets(assetDataServiceArg?: AssetDataService) {
   const assetDataService =
     assetDataServiceArg || container.resolve(AssetDataService);

@@ -30,6 +30,7 @@ export function isRoundOpen(round: StoredRound, now: number): boolean {
   return round.closedAtMs === null && now < round.deadlineMs;
 }
 
+/** 保存している回答ラウンドを、端末に返す要約(受付中か・締切・回答数・回答の版)にする。ラウンドが無ければ null。 */
 export function toRoundSummary(round: StoredRound | null, now: number): RoundSummary | null {
   if (!round) return null;
   return {

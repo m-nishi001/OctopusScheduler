@@ -31,4 +31,5 @@ class CloudflareDataBase implements IDataBase {
   }
 }
 
+/** D1 を `IDataBase` として使うファクトリ。D1 は Worker ごとに固定なので、引数(GAS のスプレッドシート ID に相当)は無視する。 */
 export const createCloudflareDataBase: DataBaseFactory = () => new CloudflareDataBase();

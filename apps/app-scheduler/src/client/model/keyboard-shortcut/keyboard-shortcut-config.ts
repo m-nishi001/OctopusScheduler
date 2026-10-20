@@ -2,6 +2,7 @@ export interface KeyboardShortcutConfigData {
   enabled: boolean;
 }
 
+/** キーボードショートカット全体の設定(有効・無効)。 */
 export class KeyboardShortcutConfig {
   readonly enabled: boolean;
 

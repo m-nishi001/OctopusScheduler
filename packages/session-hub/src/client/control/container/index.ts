@@ -17,6 +17,7 @@ import { SessionAdminRepository } from "../../model/session-admin-repository";
 import { SessionConnection } from "../../model/session-connection";
 import type { ConnectionOptions } from "../../model/session-connection";
 
+/** session-hub のクライアントの依存の登録(RPC の API、端末の保存先、転送方式の既定)。 */
 export class Container {
   static register(): void {
     // IApiClientToken は他機能の Container も同じ実装を登録する(同じ解決結果なので上書きして問題ない)。

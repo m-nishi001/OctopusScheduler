@@ -5,6 +5,7 @@ import type { Member } from "../member/member";
 import { MathRandomProvider } from "../common/math-random-provider";
 import { NoReservedPrizesError } from "../errors";
 
+/** 景品抽選。残っている景品から、景品の重みに応じて1つを選ぶ。 */
 @injectable()
 export class PrizeDrawService {
   private weightedSelector: WeightedSelector;

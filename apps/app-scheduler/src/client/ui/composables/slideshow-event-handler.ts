@@ -1,6 +1,7 @@
 import type { Router } from "vue-router";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 
+/** 実行画面で、`startSlideshow` / `stopSlideshow` のイベントを受けてスライドショーを始める・止める。 */
 export class SlideshowEventHandler {
   static register(router: Router) {
     eventBus.on(

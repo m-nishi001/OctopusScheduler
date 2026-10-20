@@ -11,9 +11,11 @@ export interface Step {
   run: () => Promise<void>;
 }
 
+/** 指定した秒数だけ待つ。 */
 export const delay = (seconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
+/** 進行のステップを作る。`label` は、いま次に実行されるのがどの操作かを遠隔操作が知るための目印。 */
 export const step = (run: () => Promise<void> | void, label?: string): Step => ({
   run: async () => {
     await run();
@@ -27,6 +29,7 @@ export const pause = (seconds = 1): Step => ({
   pause: true,
 });
 
+/** 抽選の進行ステップの待ち行列。Enter(または遠隔の「次へ」)のたびに、`pause` のステップまで連続して実行する。 */
 export class ActionQueue {
   private steps: Step[] = [];
   /** ステップを取り出して実行する直前に呼ばれる(ラベルが無ければ undefined)。 */

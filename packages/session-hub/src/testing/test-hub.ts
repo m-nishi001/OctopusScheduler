@@ -22,6 +22,7 @@ export interface Clock {
   advance(ms: number): void;
 }
 
+/** 進められるテスト用の時計。 */
 export class FakeClock implements Clock {
   constructor(private ms = 1_700_000_000_000) {}
   now = (): number => this.ms;
@@ -75,6 +76,7 @@ export interface TestHub {
   resetCounts(): void;
 }
 
+/** テスト用のハブ(メモリ上のストレージ・時計・操作回数の計測つき)を作る。 */
 export function createTestHub(options: { clock?: Clock; storageLimits?: InMemoryStorageOptions } = {}): TestHub {
   const clock = options.clock ?? new FakeClock();
   const counts: OpCounts = { kvGet: 0, kvSet: 0, cacheGet: 0, cachePut: 0, lock: 0 };

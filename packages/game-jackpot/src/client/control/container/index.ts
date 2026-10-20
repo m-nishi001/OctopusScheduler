@@ -32,6 +32,7 @@ import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
 import { SyncService } from "../sync/sync-service";
 import { AllMembersDrawPool, DrawPoolProviderToken } from "../../model/draw/draw-pool";
 
+/** ジャックポットの依存の登録。ビルド対象(GAS / Cloudflare)ごとの API クライアントなど、環境で変わるものをここで結ぶ。 */
 export class Container {
   static register() {
     // ビルド対象(GAS/Cloudflare)ごとに @octopus/infrastructures/platform-api-client が

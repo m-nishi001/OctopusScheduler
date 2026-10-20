@@ -21,6 +21,9 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * `IApiClient` の Cloudflare 実装。`/rpc` への fetch で呼び出し、タイムアウトと再試行を持つ。`retryable: false` の応答(認証エラー・業務エラー)は再試行しない。
+ */
 @injectable()
 export class CloudflareApiClient implements IApiClient {
   async call<T = unknown>(

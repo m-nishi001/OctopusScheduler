@@ -12,10 +12,12 @@ export const DEMO_QUERY_KEY = "demo";
 
 let currentScope: JackpotScope = "live";
 
+/** いまの実行スコープ(本番 / デモ)。 */
 export function getJackpotScope(): JackpotScope {
   return currentScope;
 }
 
+/** 実行スコープ(本番 / デモ)を切り替える。画面を開くときにルートのクエリから決める。 */
 export function setJackpotScope(scope: JackpotScope): void {
   currentScope = scope;
 }

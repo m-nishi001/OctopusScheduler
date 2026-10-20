@@ -13,6 +13,7 @@ export interface QuizSession {
   routeName(base: QuizDisplayRoute): string;
 }
 
+/** 本番のクイズ。画面遷移先はそのままのルート名。 */
 export class LiveQuizSession implements QuizSession {
   readonly scope = "live" as const;
 
@@ -21,6 +22,7 @@ export class LiveQuizSession implements QuizSession {
   }
 }
 
+/** デモ(プレビュー)のクイズ。画面遷移先は `-preview` つきのルート名で、本番の受付・回答とは分かれる。 */
 export class DemoQuizSession implements QuizSession {
   readonly scope = "demo" as const;
 

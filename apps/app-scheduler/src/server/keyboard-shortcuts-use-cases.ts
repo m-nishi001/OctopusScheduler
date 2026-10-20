@@ -20,6 +20,7 @@ interface KeyboardShortcutsState {
   updatedAt: string;
 }
 
+/** 保存されているキーボードショートカットと設定を返す。 */
 export async function getKeyboardShortcuts(
   deps: KeyboardShortcutsUseCaseDeps
 ): Promise<{
@@ -48,6 +49,7 @@ export async function getKeyboardShortcuts(
   };
 }
 
+/** キーボードショートカットと設定を、更新日時とあわせて1つのキーに保存する(更新日時は同期の後勝ち判定に使う)。 */
 export async function setKeyboardShortcuts(
   deps: KeyboardShortcutsUseCaseDeps,
   payload: {

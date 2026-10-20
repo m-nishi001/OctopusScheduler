@@ -4,6 +4,7 @@ import type { PrizeDto } from "./dto/prize-dto";
 import { fromPrize, toPrize } from "./dto/prize-dto";
 import type { Prize } from "../../model/prize/prize";
 
+/** 景品の取得・追加・更新・削除と、当選済みの状態のリセット。 */
 @injectable()
 export class PrizeService {
   constructor(@inject(PrizeRepository) private readonly repo: PrizeRepository) {}

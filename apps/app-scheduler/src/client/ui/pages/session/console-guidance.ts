@@ -154,6 +154,7 @@ function describeJackpotDescription(input: GuidanceInput): Guidance {
   };
 }
 
+/** 管理コンソールに出す「いま」の説明と、主ボタン(押すと起きることの予告つき)を、ホスト画面の状態から決める。ホストが開かれていなければ、ボタンは出さない。 */
 export function describeProgress(input: GuidanceInput): Guidance {
   if (!input.hostOnline) return { game: null, now: "ホストの画面が開かれていません", main: null };
 

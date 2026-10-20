@@ -22,6 +22,7 @@ export interface MemberFormInput {
   tempAsset?: Asset | null;
 }
 
+/** メンバーの管理画面の状態と操作(一覧・選択・削除・アカウントの名簿からの取り込み)。 */
 export function useMembers(
   memberRepoArg?: MemberRepository,
   assetDataServiceArg?: AssetDataService,

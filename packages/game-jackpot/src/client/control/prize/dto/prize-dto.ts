@@ -14,6 +14,7 @@ export interface PrizeDto {
   winningImage2AssetId?: string;
 }
 
+/** 画面用の `PrizeDto` を、モデルの `Prize` にする。 */
 export const toPrize = (dto: PrizeDto): Prize => ({
   id: dto.id,
   name: dto.name,
@@ -28,6 +29,7 @@ export const toPrize = (dto: PrizeDto): Prize => ({
   winningImage2AssetId: dto.winningImage2AssetId,
 });
 
+/** モデルの `Prize` を、画面用の `PrizeDto` にする。 */
 export const fromPrize = (prize: Prize): PrizeDto => ({
   id: prize.id,
   name: prize.name,

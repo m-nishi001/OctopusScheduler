@@ -25,6 +25,7 @@ export interface FakeGas {
 
 export const THROTTLE_MESSAGE = "Service invoked too many times in a short time";
 
+/** テスト用に `google.script.run` を差し替える。遅延・失敗・同時実行数の超過を起こせて、呼び出しを記録する。戻り値の `uninstall` で元に戻す。 */
 export function installFakeGas(
   handlers: Record<string, FakeGasHandler> = {},
   initial: FakeGasOptions = {}

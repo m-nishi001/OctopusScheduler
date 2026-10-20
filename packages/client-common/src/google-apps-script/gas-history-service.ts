@@ -36,6 +36,7 @@ function isGasRuntime(): boolean {
   return typeof google !== "undefined";
 }
 
+/** GAS の画面の履歴(戻る・進む)への窓口。GAS 以外の環境では何もしない。 */
 export class HistoryService {
   static push(
     state: object | null,

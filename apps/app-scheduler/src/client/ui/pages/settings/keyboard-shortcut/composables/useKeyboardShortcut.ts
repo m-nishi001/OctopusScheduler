@@ -5,6 +5,7 @@ import { KeyboardShortcutService } from "../../../../../control/keyboard-shortcu
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
 import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
 
+/** ショートカット設定画面の状態と操作(一覧の読み込み・保存・削除・有効/無効の切り替え)。 */
 export function useKeyboardShortcut() {
   const shortcuts = ref<KeyboardShortcut[]>([]);
   const { confirmDelete } = useConfirm();

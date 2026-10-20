@@ -24,7 +24,7 @@ export interface MediaDeps {
   createAudio(url: string): HTMLAudioElement;
 }
 
-export function defaultMediaDeps(): MediaDeps {
+function defaultMediaDeps(): MediaDeps {
   return {
     fetchSetting: (screenName, settingName) => container.resolve(ScreenSettingsService).fetchScreenSetting(screenName, settingName),
     getAssetBlob: async (assetId) => (await container.resolve(AssetDataService).getAssetDataById(assetId))?.blob ?? null,

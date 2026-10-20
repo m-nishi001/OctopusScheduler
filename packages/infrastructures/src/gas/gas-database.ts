@@ -25,5 +25,6 @@ export class GasDataBase implements IDataBase {
   }
 }
 
+/** スプレッドシートを `IDataBase` として使うファクトリ。 */
 export const createGasDataBase: DataBaseFactory = (dataBaseId: string | null) =>
   new GasDataBase(dataBaseId);

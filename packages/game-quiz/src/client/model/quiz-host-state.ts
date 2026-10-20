@@ -52,6 +52,7 @@ export function roundKeyFor(quizId: string, scope: QuizSessionScope, eventId?: s
 
 const clip = (text: string | undefined | null, max: number): string => (text ?? "").slice(0, max);
 
+/** ホストが公開するクイズ画面の状態を作る。参加者のポータルが、問題・選択肢・残り時間を表示するのに使う。 */
 export function buildQuizHostState(input: {
   page: QuizHostPage;
   quizId: string;

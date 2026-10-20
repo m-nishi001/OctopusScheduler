@@ -1,8 +1,10 @@
+/** 1つの扇の角度(ラジアン)。扇が8つに満たないときは8つで割る。 */
 export function calculateSectorAngle(sectorsCount: number): number {
   const sectors = Math.max(8, sectorsCount);
   return (Math.PI * 2) / sectors;
 }
 
+/** 当選する景品の扇の中(中央付近のランダムな位置)で止まる角度(ラジアン)。 */
 export function calculateTargetRotation(
   finalPrizeIndex: number,
   sectorAngle: number
@@ -15,6 +17,7 @@ export function calculateTargetRotation(
   return adjustedAngle + Math.PI / 2;
 }
 
+/** いまの角度から目標の角度まで、少なくとも3周(または初速で回る周数)してから止まる、総回転量。 */
 export function calculateTotalRotation(
   startRotation: number,
   targetAngle: number,
@@ -31,6 +34,7 @@ export function calculateTotalRotation(
   return startRotation + delta + Math.PI * 2 * calculatedMinRotations;
 }
 
+/** 加速中の1フレームの回転量と速度。加速時間のあいだは速度を線形に上げ、そのあとは目標の速度。 */
 export function calculateAcceleratedRotation(
   elapsed: number,
   accelerationDuration: number,
@@ -47,6 +51,7 @@ export function calculateAcceleratedRotation(
   return { deltaRotation, acceleratedSpeed };
 }
 
+/** 減速中の、経過時間ごとの角度と速度(終わりに向かってゆっくりになるイージング)。 */
 export function calculateDeceleratedRotationCalc(
   totalRotation: number,
   duration: number,

@@ -105,6 +105,7 @@ async function readJson<T>(storage: IKeyValueStorage, key: string): Promise<T | 
 
 const slotOf = (seq: number): number => seq % COMMAND_RING_SIZE;
 
+/** セッション1件の保存先(`SessionRepo`)を、KV(GAS / R2)の上に作る。キーは `session-hub/s/<sessionId>/…`。 */
 export function createKvSessionRepo(storage: IKeyValueStorage, sessionId: string): SessionRepo {
   const k = (name: string): string => `session-hub/s/${sessionId}/${name}`;
   return {
@@ -196,6 +197,7 @@ function createKvRoundOps(
   };
 }
 
+/** セッションの一覧(索引)の保存先を、KV の上に作る。 */
 export function createKvSessionIndex(storage: IKeyValueStorage): SessionIndexStore {
   const key = "session-hub/index";
   return {

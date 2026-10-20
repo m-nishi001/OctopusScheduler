@@ -16,13 +16,15 @@ export type Role = "admin" | "participant";
 const PUBLIC_PATH = /^\/login(?:\/|$)/;
 const PARTICIPANT_PATH = /^\/p(?:\/|$)/;
 
-export const ADMIN_HOME = "/home";
-export const PARTICIPANT_HOME = "/p";
+const ADMIN_HOME = "/home";
+const PARTICIPANT_HOME = "/p";
 
+/** ログイン不要の画面(`/login`)か。 */
 export function isPublicPath(path: string): boolean {
   return PUBLIC_PATH.test(path);
 }
 
+/** 参加者ポータル(`/p` 以下)か。参加者が入れるのはここだけ。 */
 export function isParticipantPath(path: string): boolean {
   return PARTICIPANT_PATH.test(path);
 }
@@ -48,6 +50,7 @@ export interface AuthGuardDeps {
   getRole: () => Promise<Role | null>;
 }
 
+/** ルーターの入口のガードを作る。未ログインなら `/login` へ(戻り先つき)、参加者が管理画面へ行こうとしたら参加者ポータルへ戻す。 */
 export function createAuthGuard(deps: AuthGuardDeps) {
   return async (to: { path: string; fullPath: string }) => {
     const role = await deps.getRole();

@@ -105,6 +105,10 @@ function errorInfo(error: unknown): { message: string; code: HubErrorCode | null
   return { message, code: parseHubErrorCode(message) };
 }
 
+/**
+ * セッションへの接続1つの状態機械。入室・復帰・更新の受信・コマンド発行・状態公開と、切断時の再接続を扱う。
+ * 画面は `state`(購読できる状態)だけを見ればよい。転送方式(WebSocket / ポーリング)は差し替えられる。
+ */
 export class SessionConnection implements TransportSource {
   private current: ConnectionState = {
     phase: "idle",

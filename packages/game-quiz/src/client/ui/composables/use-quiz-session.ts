@@ -10,6 +10,7 @@ export function resolveQuizSession(route: { name?: unknown; query?: Record<strin
   return isDemo ? new DemoQuizSession() : new LiveQuizSession();
 }
 
+/** いまの画面が本番かデモか(`QuizSession`)を、ルートから決めて返す。 */
 export function useQuizSession(): QuizSession {
   return resolveQuizSession(useRoute());
 }

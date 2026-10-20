@@ -1,5 +1,6 @@
 import type { DataBaseFactory, DataCollection, IDataBase } from "../interfaces/database";
 
+/** テスト用の `IDataBase`(メモリ上)。シートの中身を直接入れられる。 */
 export class InMemoryDataBase implements IDataBase {
   private readonly collections = new Map<string, unknown[][]>();
 
@@ -22,6 +23,7 @@ export class InMemoryDataBase implements IDataBase {
   }
 }
 
+/** テスト用の `DataBaseFactory`。ID ごとのメモリ上の DB を作り、中身を取り出せるよう `byId` も返す。 */
 export function createInMemoryDataBaseFactory(): {
   factory: DataBaseFactory;
   byId: Map<string, InMemoryDataBase>;

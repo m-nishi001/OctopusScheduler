@@ -8,6 +8,7 @@ import type { EngineDeps } from "./engine-core";
 import { toRoundSummary } from "./engine-rounds";
 import type { StoredHead } from "./session-repo";
 
+/** 在席の一覧から、画面に出す形(ホスト・生きている管理端末・参加者の人数)を作る。 */
 export function buildPresenceView(
   entries: PresenceEntry[],
   hostDeviceId: string | null,

@@ -7,6 +7,7 @@ import type { FakeRoom } from "./fake-room";
 import { NetworkError, NO_FAULTS } from "./fake-hub-api";
 import type { FakeHubApi, FaultInjector } from "./fake-hub-api";
 
+/** `FakeRoom` に対して、実際のクライアントと同じ API の形で呼べるようにする(テスト用)。 */
 export function createRoomApi(
   room: FakeRoom,
   memberId: string | null,

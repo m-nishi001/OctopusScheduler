@@ -19,6 +19,7 @@ export function wrapWithAuth(token: string | null | undefined, args: unknown): u
   return envelope;
 }
 
+/** RPC の引数から、セッショントークンと本来の引数を取り出す。包まれていなければトークンは null で、引数はそのまま。 */
 export function unwrapAuth(raw: unknown): { token: string | null; args: unknown } {
   if (
     typeof raw === "object" &&

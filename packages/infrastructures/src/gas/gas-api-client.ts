@@ -11,6 +11,7 @@ import { getSessionToken } from "@octopus/client-common/auth/session-token-store
 import type { IApiClient, ApiCallOptions } from "../interfaces/api-client";
 import { wrapWithAuth } from "../interfaces/auth-envelope";
 
+/** `IApiClient` の GAS 実装。`google.script.run` の呼び出しを、リトライ・タイムアウトを持つ `GasFunctionService` に任せる。 */
 @injectable()
 export class GasApiClient implements IApiClient {
   call<T = unknown>(

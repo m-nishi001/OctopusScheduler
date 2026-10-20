@@ -26,6 +26,7 @@ import { CloudflareLock } from "./cloudflare-lock";
 import { CloudflarePasswordHasher } from "./cloudflare-password-hasher";
 import { CloudflareSecretProvider } from "./cloudflare-secret-provider";
 
+/** Cloudflare 実行基盤の実装(KV・キャッシュ・DB・UUID・ロックなど)を DI コンテナに登録する。 */
 export function registerCloudflareInfrastructures(): void {
   container.register(IKeyValueStorageToken, { useClass: CloudflareKeyValueStorage });
   container.register(ICacheToken, { useClass: CloudflareCache });

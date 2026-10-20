@@ -13,6 +13,7 @@ function sharedAudio(): ReturnType<typeof useAudio> {
   return shared;
 }
 
+/** ルーレットの BGM の再生・停止。 */
 export function useRouletteAudio() {
   const audio = sharedAudio();
 

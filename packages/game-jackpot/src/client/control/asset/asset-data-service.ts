@@ -4,6 +4,7 @@ import { AssetDataRepository } from "../../model/asset/asset-data-repository";
 import { Asset } from "../../model/asset/asset-data";
 import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
 
+/** ジャックポットの素材(画像・音声)の取得・登録と、同期の対象の一覧。アップロードしたファイルから、保存前の素材(id つき)も作る。 */
 @injectable()
 export class AssetDataService {
   private repo: AssetDataRepository;

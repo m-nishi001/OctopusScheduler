@@ -9,6 +9,7 @@ import {
 import type { AccountsApi } from "../../../server/accounts-api-contract";
 import { AccountsRepository } from "../../model/accounts-repository";
 
+/** アカウントのクライアントの依存の登録。ビルド対象(GAS / Cloudflare)ごとの API クライアントなど、環境で変わるものをここで結ぶ。 */
 export class Container {
   static register() {
     // ビルド対象(GAS/Cloudflare)ごとに @octopus/infrastructures/platform-api-client が

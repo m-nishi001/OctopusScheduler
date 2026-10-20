@@ -3,6 +3,10 @@ import { eventBus } from "@octopus/client-common/events/event-bus";
 import type { Asset } from "../../model/asset/asset";
 import { AssetRepository } from "../../model/asset/asset-repository";
 
+/**
+ * 素材(画像・音声・動画)の追加・取得・削除。
+ * 追加と削除のあとは、一覧を開いている画面へ `assets:updated` を知らせ、バックグラウンド同期にも変更を伝える。
+ */
 @injectable()
 export class AssetService {
   constructor(@inject(AssetRepository) private assetRepository: AssetRepository) {}

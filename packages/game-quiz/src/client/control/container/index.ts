@@ -23,6 +23,7 @@ import { GetAllQuizzesUseCase } from "../use-cases/get-all-quizzes-use-case";
 import { DeleteQuizUseCase } from "../use-cases/delete-quiz-use-case";
 import { SyncService } from "../sync/sync-service";
 
+/** クイズの依存の登録。ビルド対象(GAS / Cloudflare)ごとの API クライアントなど、環境で変わるものをここで結ぶ。 */
 export class Container {
   static register() {
     // ビルド対象(GAS/Cloudflare)ごとに @octopus/infrastructures/platform-api-client が

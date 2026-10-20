@@ -5,6 +5,7 @@ export interface QuizSettings {
   prizeBgm: Blob | null;
 }
 
+/** クイズ1問(問題・選択肢・正解・制限時間・BGM・設定)。選択肢の画像と BGM は Blob で持つ。 */
 export class Quiz {
   id: string;
   title: string;

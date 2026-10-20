@@ -20,6 +20,10 @@ function isKnownAppEventType(type: unknown): type is AppEventData["type"] {
   );
 }
 
+/**
+ * キーボードショートカットの保存・照合・実行。
+ * キーの並びからショートカットを探し、割り当てたイベントを順に実行する。
+ */
 @injectable()
 export class KeyboardShortcutService {
   constructor(

@@ -28,6 +28,7 @@ export interface AnimationSettings {
   scrollDirection?: "up" | "down" | "left" | "right";
 }
 
+/** 説明画面の設定(BGM と、スライドに出す要素)。 */
 export class DescriptionScreenSetting {
   readonly type = "description" as const;
   descriptionBgm: string;

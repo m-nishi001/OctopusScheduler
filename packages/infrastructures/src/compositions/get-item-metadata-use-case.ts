@@ -6,6 +6,7 @@ export interface GetItemMetadataUseCaseDeps {
   storage: IKeyValueStorage;
 }
 
+/** 保存先のうち、名前空間(`namespace/`)の下にあるものの一覧(メタ情報)を返す。 */
 export async function getDriveMetadata(
   deps: GetItemMetadataUseCaseDeps,
   namespace: string

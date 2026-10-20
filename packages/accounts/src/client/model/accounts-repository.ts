@@ -2,6 +2,7 @@ import { inject, injectable } from "tsyringe";
 import { IAccountsApiToken } from "../../server/accounts-api-contract";
 import type { LoginResult, Member, AccountsApi, RosterUsage } from "../../server/accounts-api-contract";
 
+/** アカウント・名簿の API(ログイン・ログアウト・メンバーの一覧と変更・ログインキーの発行)への窓口。 */
 @injectable()
 export class AccountsRepository {
   constructor(

@@ -16,7 +16,7 @@ export function buildCycle(ctx: DrawContext, isKakuhen: boolean): Step[] {
   ];
 }
 
-export function memberSteps(ctx: DrawContext): Step[] {
+function memberSteps(ctx: DrawContext): Step[] {
   return [
     step(() => {
       ctx.phase.value = "member";
@@ -33,6 +33,7 @@ export function memberSteps(ctx: DrawContext): Step[] {
   ];
 }
 
+/** 通常の景品抽選1回ぶんの進行ステップ。回転を始める → 次の操作で BGM を鳴らして止める(この止める操作には `stopPrizeDraw` の目印がつく)。 */
 export function normalPrizeSteps(ctx: DrawContext): Step[] {
   return [
     step(async () => {
@@ -49,7 +50,7 @@ export function normalPrizeSteps(ctx: DrawContext): Step[] {
   ];
 }
 
-export function winningDialogSteps(ctx: DrawContext): Step[] {
+function winningDialogSteps(ctx: DrawContext): Step[] {
   return [
     step(async () => {
       await stopBgm();

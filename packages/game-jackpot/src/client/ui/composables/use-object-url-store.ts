@@ -1,5 +1,6 @@
 import { reactive } from "vue";
 
+/** Blob から作ったプレビュー用の URL を、id ごとに持つ。作り直すときや不要になったときに破棄できる。 */
 export function useObjectUrlStore() {
   const objectUrlMap: Map<string, string> = reactive(new Map<string, string>());
 

@@ -4,6 +4,7 @@ import { getJackpotScope, scopedStoreName } from "../jackpot-session";
 
 export type PrizeDrawState = number[]; // indices when kakuhen should trigger (1-based)
 
+/** 景品抽選の状態(確変にする回)の保存先。実行スコープ(本番 / デモ)ごとに別のストアを使う。 */
 @injectable()
 export class PrizeDrawStateRepository {
   /** 現在のスコープ(live/demo)に応じたストアを返す。 */

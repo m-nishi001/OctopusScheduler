@@ -10,6 +10,7 @@ export interface DeviceStore {
   remove(key: string): void;
 }
 
+/** メモリ上だけの `DeviceStore`。ブラウザの保存が使えない環境と、テストで使う。 */
 export class MemoryDeviceStore implements DeviceStore {
   private readonly map = new Map<string, string>();
   get(key: string): string | null {
@@ -23,6 +24,7 @@ export class MemoryDeviceStore implements DeviceStore {
   }
 }
 
+/** ブラウザの localStorage を使う `DeviceStore`。保存できない環境(プライベートモード等)では、読み書きが失敗してもメモリ上の保存に切り替えて動き続ける。 */
 export function createBrowserDeviceStore(storage?: Storage): DeviceStore {
   const fallback = new MemoryDeviceStore();
   let backing: Storage | null = null;
@@ -72,6 +74,7 @@ export interface StoredCredentials {
 /** host/admin/client は同一ブラウザで別々に保持する(管理とホストを同じブラウザで試す場合がある)。 */
 export const credentialsKey = (role: StoredCredentials["role"]): string => `octopus.session.${role}`;
 
+/** この端末が持っている入室情報(端末ID・トークンなど)を役割ごとに読む。無い・壊れている場合は null。 */
 export function loadCredentials(store: DeviceStore, role: StoredCredentials["role"]): StoredCredentials | null {
   const raw = store.get(credentialsKey(role));
   if (!raw) return null;
@@ -99,10 +102,12 @@ export function loadCredentials(store: DeviceStore, role: StoredCredentials["rol
   return null;
 }
 
+/** 入室情報を役割ごとに保存する。リロードしても同じ端末として復帰できるようにするため。 */
 export function saveCredentials(store: DeviceStore, creds: StoredCredentials): void {
   store.set(credentialsKey(creds.role), JSON.stringify(creds));
 }
 
+/** 役割ごとの入室情報を消す。 */
 export function clearCredentials(store: DeviceStore, role: StoredCredentials["role"]): void {
   store.remove(credentialsKey(role));
 }
