@@ -21,15 +21,17 @@ export function isSameRespondent(existing: RoundAnswer, by: Pick<RoundAnswer, "d
 }
 
 /**
- * 受付中の回答を一覧へ反映する(一覧を直接書き換える)。1人1件で、選び直すと置き換わる。
+ * 受付中の回答を一覧へ反映する(一覧を直接書き換える)。1人1件で、選び直すと置き換わり、一覧の末尾へ移る。
  * 置き換えたときだけ回答時刻(atMs)が新しくなる = 速さの基準は「最後に選んだ時刻」。
+ * 一覧は常に回答時刻の順に並ぶ。
  */
 export function upsertAnswer(answers: RoundAnswer[], answer: RoundAnswer, maxAnswers: number): UpsertAnswerResult {
   const index = answers.findIndex((a) => isSameRespondent(a, answer));
   if (index >= 0) {
     const existing = answers[index];
     if (existing.no === answer.no) return { kind: "unchanged", answer: existing };
-    answers[index] = answer;
+    answers.splice(index, 1);
+    answers.push(answer);
     return { kind: "replaced", answer };
   }
   if (answers.length >= maxAnswers) return { kind: "full" };

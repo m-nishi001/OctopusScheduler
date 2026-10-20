@@ -29,6 +29,15 @@ function browserStorage(): QuizStorage {
   };
 }
 
+/**
+ * 回答まわりの表示の状態（画面の出し分けはこれ1つで決める）。
+ *   open-unanswered  : 受付中で、まだ答えていない
+ *   open-answered    : 受付中で、答えた（選び直せる）
+ *   closed-answered  : 受付が終わり、答えた
+ *   closed-unanswered: 受付が終わり、答えていない
+ */
+export type QuizAnswerStatus = "open-unanswered" | "open-answered" | "closed-answered" | "closed-unanswered";
+
 export interface QuizState {
   quiz: ComputedRef<QuizView | null>;
   /** 締切までの秒数（サーバー時刻との差で出す）。受付中でなければ null。 */
@@ -36,6 +45,8 @@ export interface QuizState {
   /** 自分が選んだ選択肢の番号（回答済みのとき）。 */
   myAnswer: Ref<number | null>;
   canAnswer: ComputedRef<boolean>;
+  /** 回答まわりの表示の状態。送信中かどうかには左右されない（送信中に表示が揺れないように）。 */
+  answerStatus: ComputedRef<QuizAnswerStatus>;
   answering: Ref<boolean>;
   message: Ref<string>;
   optionLabel(no: number): string;
@@ -120,7 +131,13 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
     { immediate: true }
   );
 
-  const canAnswer = computed(() => quiz.value?.phase === "answering" && (remainingSec.value ?? 0) > 0 && !answering.value);
+  const isOpen = computed(() => quiz.value?.phase === "answering" && (remainingSec.value ?? 0) > 0);
+  const canAnswer = computed(() => isOpen.value && !answering.value);
+  const answerStatus = computed<QuizAnswerStatus>(() => {
+    const answered = myAnswer.value !== null;
+    if (isOpen.value) return answered ? "open-answered" : "open-unanswered";
+    return answered ? "closed-answered" : "closed-unanswered";
+  });
 
   const optionLabel = (no: number): string => {
     const o = quiz.value?.options.find((x) => x.no === no);
@@ -135,7 +152,8 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
   async function answer(no: number): Promise<void> {
     const key = quiz.value?.roundKey;
     if (!canAnswer.value || !key) return;
-    if (no === myAnswer.value) return; // いま選んでいるものを押し直しても、何も送らない
+    // 同じ番号の押し直しも送る(別の端末で選び直していると、この端末の「いまの回答」は古いかもしれない。
+    // サーバーは同じ選択の再送を何も変えずに受け流す)
     answering.value = true;
     message.value = "";
     try {
@@ -165,5 +183,5 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
     stopWatchRound();
   });
 
-  return { quiz, remainingSec, myAnswer, canAnswer, answering, message, optionLabel, correctLabel, verdictText, answer };
+  return { quiz, remainingSec, myAnswer, canAnswer, answerStatus, answering, message, optionLabel, correctLabel, verdictText, answer };
 }

@@ -7,7 +7,7 @@ import type { ConnectionState, SessionConnection } from "../model/session-connec
 export const MIN_ANSWERS_REFRESH_MS = 1_500;
 
 export interface RoundAnswers {
-  /** 回答の一覧（受け付けた順）。サーバーが1人1件にそろえている（選び直した人は最後の選択）。 */
+  /** 回答の一覧（回答時刻の順）。サーバーが1人1件にそろえている（選び直した人は最後の選択の位置）。 */
   answers: Ref<RoundAnswer[]>;
   /** サーバー側の回答数（一覧の取得を待たずに、更新の通知で分かる最新の数）。 */
   count: Ref<number>;
@@ -107,24 +107,25 @@ export function useRoundAnswers(
     },
     { immediate: true }
   );
-  // 回答数または更新番号が変わったときだけ動く(更新の通知のたびに新しい round オブジェクトが届くので、値で比べる)
-  const stopCount = watch(
+  // 回答の更新番号(answerRev)が変わったときだけ動く。回答が入る・選び直されるたびに増える(回答数が同じ選び直しも含む)。
+  // 更新の通知のたびに新しい round オブジェクトが届くので、オブジェクトではなく番号で比べる。
+  const stopRev = watch(
     () => {
       const round = state.value.round;
-      return round && round.key === key.value ? `${round.answerCount}:${round.answerRev}` : null;
+      return round && round.key === key.value ? round.answerRev : null;
     },
-    (next) => {
+    (rev) => {
       const round = state.value.round;
-      if (next === null || !round) return;
+      if (rev === null || !round) return;
       count.value = round.answerCount;
       // 取得済みの内容と同じなら、取り直さない(自分の取得で追いついた場合)
-      if (round.answerRev !== fetchedRev || round.answerCount !== answers.value.length) schedule();
+      if (rev !== fetchedRev) schedule();
     }
   );
 
   onScopeDispose(() => {
     stopKey();
-    stopCount();
+    stopRev();
     generation++;
     if (timer) clearTimeout(timer);
   });
