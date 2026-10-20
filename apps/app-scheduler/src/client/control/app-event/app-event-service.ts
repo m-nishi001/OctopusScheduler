@@ -1,6 +1,7 @@
 import { injectable, inject } from "tsyringe";
 import { AppEventRepository } from "@model/app-event/app-event-repository";
 import type { ExecutionStatus } from "@model/app-event/execution-status";
+import { replaceAssetPlaceholderIds } from "@octopus/client-common/assets/asset-placeholder";
 import { AssetService } from "../asset/asset-service";
 import { appEventFromDto, reviveAppEvent, type AppEvent, type AppEventTiming } from "./app-event";
 import type { AppEventDto } from "./dto/app-event-dto";
@@ -174,21 +175,10 @@ export class AppEventService {
     }
 
     const ids = await this.assetService.addAssets(assetsToAdd as any);
-    const tempToReal: Record<string, string> = {};
-    for (let i = 0; i < tempOrder.length; i++) tempToReal[tempOrder[i]] = ids[i];
-
-    let html = currentHtml ?? "";
-    for (const tempId of tempOrder) {
-      const realId = tempToReal[tempId];
-      const regex = new RegExp(`\\{\\{asset:(image|video):${tempId}\\}\\}`, "g");
-      html = html.replace(regex, (_match: string, type: string) => `{{asset:${type}:${realId}}}`);
-    }
-
-    let newContentId = currentContentId ?? "";
-    if (currentContentId && tempToReal[currentContentId]) {
-      newContentId = tempToReal[currentContentId];
-    }
-
-    return { contentId: newContentId, htmlString: html };
+    const tempToReal = new Map(tempOrder.map((tempId, i) => [tempId, ids[i]]));
+    return {
+      contentId: tempToReal.get(currentContentId ?? "") ?? currentContentId ?? "",
+      htmlString: replaceAssetPlaceholderIds(currentHtml ?? "", tempToReal),
+    };
   }
 }

@@ -8,6 +8,8 @@
 import { onMounted, ref, computed, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { container } from 'tsyringe';
+import { lockScroll } from '@octopus/ui-kit';
+import { listAssetPlaceholderIds, renderAssetPlaceholders } from '@octopus/client-common/assets/asset-placeholder';
 import { AssetService } from '../../../../control/asset/asset-service';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
 
@@ -29,8 +31,7 @@ const displayModeClass = computed(() => {
     return displayMode.value === 'fade' ? 'fade-in' : displayMode.value;
 });
 const createdUrls: string[] = [];
-let prevHtmlOverflow: string | null = null;
-let prevBodyOverflow: string | null = null;
+let releaseScroll: (() => void) | null = null;
 
 async function loadHtmlContent() {
     // cleanup previous created urls and restore overflow before loading new content
@@ -39,25 +40,12 @@ async function loadHtmlContent() {
             try { URL.revokeObjectURL(u); } catch (e) { }
         });
         createdUrls.length = 0;
-        if (prevHtmlOverflow !== null) {
-            try { document.documentElement.style.overflow = prevHtmlOverflow; } catch { }
-        }
-        if (prevBodyOverflow !== null) {
-            try { document.body.style.overflow = prevBodyOverflow; } catch { }
-        }
     } catch (e) {
         // ignore
     }
 
-    // Prevent page from showing browser scrollbars while fullscreen html is displayed
-    try {
-        prevHtmlOverflow = document.documentElement.style.overflow || null;
-        prevBodyOverflow = document.body.style.overflow || null;
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.overflow = 'hidden';
-    } catch (e) {
-        // ignore (SSR or restricted env)
-    }
+    // 全画面の HTML を出している間は、ブラウザのスクロールバーを出さない
+    releaseScroll ??= lockScroll();
 
     let html = '';
     // prefer legacy encoded content if provided
@@ -102,14 +90,8 @@ async function loadHtmlContent() {
             }
         }
     }
-    const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
-    const assetIds = [];
-    let match;
-    while ((match = assetRegex.exec(html)) !== null) {
-        assetIds.push(match[2]);
-    }
     const assetMap = new Map<string, string>();
-    for (const id of assetIds) {
+    for (const id of listAssetPlaceholderIds(html)) {
         try {
             const asset = await assetService.getAssetById(id);
             if (asset) {
@@ -127,16 +109,7 @@ async function loadHtmlContent() {
             console.error('Failed to load asset:', id, e);
         }
     }
-    html = html.replace(assetRegex, (match, type, assetId) => {
-        const dataUrl = assetMap.get(assetId);
-        if (!dataUrl) return match;
-        if (type === 'image') {
-            return `<img src="${dataUrl}" alt="asset" />`;
-        } else if (type === 'video') {
-            return `<video src="${dataUrl}" controls autoplay></video>`;
-        }
-        return match;
-    });
+    html = renderAssetPlaceholders(html, (id) => assetMap.get(id), { autoplay: true });
     htmlContent.value = html;
 }
 
@@ -153,15 +126,8 @@ onUnmounted(() => {
     createdUrls.forEach((u: string) => {
         try { URL.revokeObjectURL(u); } catch (e) { }
     });
-    // Restore previous overflow styles
-    try {
-        if (prevHtmlOverflow !== null) document.documentElement.style.overflow = prevHtmlOverflow;
-        else document.documentElement.style.removeProperty('overflow');
-        if (prevBodyOverflow !== null) document.body.style.overflow = prevBodyOverflow;
-        else document.body.style.removeProperty('overflow');
-    } catch (e) {
-        // ignore
-    }
+    releaseScroll?.();
+    releaseScroll = null;
 });
 </script>
 

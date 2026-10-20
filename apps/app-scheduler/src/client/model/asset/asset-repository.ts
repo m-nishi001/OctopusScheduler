@@ -1,3 +1,4 @@
+import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { injectable, inject } from "tsyringe";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import type { SyncTarget } from "@octopus/sync-engine";
@@ -42,15 +43,6 @@ export class AssetRepository {
     }
 
     return asset;
-  }
-
-  private blobToDataUrl(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result));
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(blob);
-    });
   }
 
   async addAssets(assets: Asset[]): Promise<string[]> {
@@ -148,7 +140,7 @@ export class AssetRepository {
         return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
       },
       push: async (asset) => {
-        const dataUrl = asset.blob ? await this.blobToDataUrl(asset.blob) : "";
+        const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";
         const clientNow = new Date().toISOString();
         const driveData = {
           metadata: {

@@ -1,3 +1,4 @@
+import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { inject, injectable } from "tsyringe";
 import { Quiz } from "./quiz";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
@@ -74,15 +75,6 @@ export class QuizRepository {
     await this.localStorage.delete(id);
     await this.dirtyTracker.touch(METADATA_SYNC_KIND);
     eventBus.emit("syncDirty");
-  }
-
-  private blobToDataUrl(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result));
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(blob);
-    });
   }
 
   // --- 同期対象のid規約 ---
@@ -297,7 +289,7 @@ export class QuizRepository {
         return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
       },
       push: async (blob) => {
-        const dataUrl = await this.blobToDataUrl(blob);
+        const dataUrl = await blobToDataUrl(blob);
         const clientNow = new Date().toISOString();
         const driveData: any = {
           metadata: {

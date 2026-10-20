@@ -20,7 +20,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onBeforeUnmount } from 'vue';
+import { lockScroll } from '@octopus/ui-kit';
 import JackpotConfetti from '../../../components/jackpot-confetti.vue';
 import '../../../theme/jackpot-theme.css';
 
@@ -37,9 +38,16 @@ const emit = defineEmits<{
 
 const nextBtn = ref<HTMLButtonElement | null>(null);
 
+let releaseScroll: (() => void) | null = null;
+const unlockScroll = () => {
+  releaseScroll?.();
+  releaseScroll = null;
+};
+onBeforeUnmount(unlockScroll);
+
 watch(() => props.visible, async (newVal) => {
   if (newVal) {
-    document.body.style.overflow = 'hidden';
+    releaseScroll ??= lockScroll();
     // wait for DOM update then focus the primary action so Enter works reliably
     try {
       await nextTick();
@@ -53,7 +61,7 @@ watch(() => props.visible, async (newVal) => {
       // ignore focus errors
     }
   } else {
-    document.body.style.overflow = '';
+    unlockScroll();
     try { emit('closed'); } catch (e) { /* ignore */ }
   }
 });

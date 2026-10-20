@@ -6,18 +6,10 @@
  * (各機能パッケージのリポジトリ)はこのインターフェースだけに依存する。
  */
 
-/** RPC 呼び出しの共通レスポンス。 */
-export type ApiResponse<T> =
-  | {
-      status: "success";
-      data: T;
-    }
-  | {
-      status: "error";
-      message: string;
-      /** false の場合、クライアントはリトライせず即座に失敗とする(認証エラー等)。 */
-      retryable?: false;
-    };
+import type { ApiResponse } from "@octopus/client-common/google-apps-script/gas-script-service";
+
+/** RPC 呼び出しの共通レスポンス。定義は(より下位の)client-common にあり、ここから再公開する。 */
+export type { ApiResponse };
 
 export interface ApiCallOptions {
   timeout?: number;

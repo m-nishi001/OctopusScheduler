@@ -1,3 +1,4 @@
+import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { injectable, inject } from "tsyringe";
 import { CryptoIdGenerator } from "../common/crypto-id-generator";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
@@ -65,15 +66,6 @@ export class AssetDataRepository {
 
   async deleteAssetData(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
-  }
-
-  private blobToDataUrl(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result));
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(blob);
-    });
   }
 
   private async dataUrlToBlob(
@@ -153,7 +145,7 @@ export class AssetDataRepository {
         return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
       },
       push: async (asset) => {
-        const dataUrl = asset.blob ? await this.blobToDataUrl(asset.blob) : "";
+        const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";
         const clientNow = new Date().toISOString();
         const driveData: DriveData = {
           metadata: {

@@ -10,13 +10,17 @@
  */
 
 /**
- * RPC呼び出しの共通レスポンス。@octopus/infrastructures の ApiResponse<T> と
- * 構造的に同じ形(このファイルは infrastructures より下位に位置するため、
- * 循環依存を避けてここでも同じ形を独立定義している)。
+ * RPC呼び出しの共通レスポンス。サーバ側のエンドポイントが返し、クライアントが解釈する。
+ * @octopus/infrastructures はこの型を再公開している(このパッケージのほうが下位のため、定義はここ)。
  */
 export type ApiResponse<T> =
   | { status: "success"; data: T }
-  | { status: "error"; message: string; retryable?: false };
+  | {
+      status: "error";
+      message: string;
+      /** false の場合、クライアントはリトライせず即座に失敗とする(認証エラー等)。 */
+      retryable?: false;
+    };
 
 declare namespace google {
   namespace script {
