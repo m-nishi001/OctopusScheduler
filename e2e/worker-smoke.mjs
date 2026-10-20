@@ -195,6 +195,23 @@ const c2 = await joinAs(await participant("smoke-c2", "花子"));
 const polled = await rpc("sessionHub_poll", { sessionId: meta2.id, deviceId: c2.deviceId, token: c2.token, sinceSeq: 0, stateVersion: 0 });
 check("poll RPC(フォールバック)も DO 経由で動く", polled.session.id === meta2.id && polled.presence.clientCount === 1);
 
+// 素材の保存(追加 → fileId なしで更新 → 取得)。更新が黙って捨てられないこと。
+const assetData = (text) => ({
+  metadata: { driveDataId: "smoke-asset", fileId: "", parentFolderId: "", lastUpdate: "" },
+  fileName: "smoke.png",
+  fileKind: "image/png",
+  fileDataUrl: `data:image/png;base64,${Buffer.from(text).toString("base64")}`,
+  uploadDate: "",
+  parentFolderId: "",
+});
+const assetMeta = await rpc("quizGame_addDriveData", { driveData: assetData("v1") }, ADMIN_TOKEN);
+await rpc("quizGame_updateDriveData", { driveData: assetData("v2") }, ADMIN_TOKEN);
+const assetNow = await rpc("quizGame_getDriveData", { dataId: assetMeta.fileId }, ADMIN_TOKEN);
+check("素材は fileId なしで更新でき、更新後の内容が取れる",
+  Buffer.from(assetNow.fileDataUrl.split("base64,")[1], "base64").toString() === "v2", assetNow?.fileDataUrl);
+const assetList = await rpc("quizGame_getDriveMetaData", {}, ADMIN_TOKEN);
+check("更新しても素材は1件のまま", assetList.filter((m) => m.driveDataId === "smoke-asset").length === 1);
+
 // 存在しないセッションへの WS
 const ghost = await new Promise((resolve) => {
   const ws = new WebSocket(`${BASE.replace("http", "ws")}/ws/no-such-session`);

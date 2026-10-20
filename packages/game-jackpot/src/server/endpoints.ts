@@ -7,31 +7,26 @@
 import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import {
-  ICacheToken,
   IKeyValueStorageToken,
 } from "@octopus/infrastructures/interfaces";
 import type {
-  ICache,
   IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
 import type { DriveData, DriveJsonData } from "@octopus/infrastructures/compositions";
 import type { JackpotGameEndpointName } from "./jackpot-api-contract";
 import { JACKPOT_GAME_PREFIX } from "./jackpot-api-contract";
 
-import {
-  addJackpotDriveData,
-  getJackpotDriveData,
-  getJackpotDriveMetadata,
-  updateJackpotDriveData,
-} from "./drive-asset-use-cases";
+import { createDriveAssets, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
 import { secure } from "@octopus/accounts/secure";
 
+/** この置き場の素材の保存・一覧・取得。 */
+const assets = createDriveAssets(StorageModule.Jackpot, StorageKind.Assets);
+
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
-    cache: container.resolve<ICache>(ICacheToken),
     now: (): number => Date.now(),
   };
 }
@@ -45,9 +40,8 @@ declare let _jackpotGame_getJson: (fileId?: string) => Promise<string>;
 
 _jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
   try {
-    const result = await addJackpotDriveData(resolveDeps(), driveData);
-    // 既存挙動を保持: duplicate/error でも常に status:"success" として返す。
-    return JSON.stringify({ status: "success", data: result.data! });
+    const result = await assets.save(resolveDeps(), driveData);
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
   }
@@ -55,7 +49,7 @@ _jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
 
 _jackpotGame_getDriveMetaData = async (folderId?: string): Promise<string> => {
   try {
-    const result = await getJackpotDriveMetadata(resolveDeps());
+    const result = await assets.listMetadata(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
@@ -64,7 +58,7 @@ _jackpotGame_getDriveMetaData = async (folderId?: string): Promise<string> => {
 
 _jackpotGame_getDriveData = async (dataId: string): Promise<string> => {
   try {
-    const result = await getJackpotDriveData(resolveDeps(), dataId);
+    const result = await assets.get(resolveDeps(), dataId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
@@ -73,7 +67,7 @@ _jackpotGame_getDriveData = async (dataId: string): Promise<string> => {
 
 _jackpotGame_updateDriveData = async (driveData: DriveData): Promise<string> => {
   try {
-    await updateJackpotDriveData(resolveDeps(), driveData);
+    await assets.save(resolveDeps(), driveData);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return errorResponse(error);
@@ -94,12 +88,7 @@ _jackpotGame_getJson = async (fileId?: string): Promise<string> => {
     const result = await getJsonBlob(resolveDeps(), fileId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    // 既存挙動を保持: 想定外のエラーでも空配列で成功を返す。
-    console.error("_jackpotGame_getJson error:", (error as Error).message);
-    return JSON.stringify({
-      status: "success",
-      data: { json: JSON.stringify([]), updatedAt: null },
-    });
+    return errorResponse(error);
   }
 };
 

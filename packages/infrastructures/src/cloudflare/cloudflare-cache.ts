@@ -5,7 +5,7 @@ import { currentEnv } from "./request-context";
 /**
  * ICache の Cloudflare 実装(D1)。
  *
- * dedupe-guard.ts が要求する「即時の read-your-write整合性」は、PoP局所的な
+ * 以前の dedupe-guard が要求していた「即時の read-your-write整合性」は、PoP局所的な
  * Cache API では満たせないため、単一の論理DBであるD1に持たせる。
  */
 @injectable()
