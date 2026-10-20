@@ -5,7 +5,24 @@ import { expect, newDevice, test } from "./fixtures";
 
 async function openShortcuts(page: Page) {
   await page.goto("/#/settings?tab=keyboard-shortcuts");
-  await expect(page.getByText("ショートカットがありません")).toBeVisible();
+  await expect(page.getByRole("button", { name: "追加", exact: true })).toBeVisible();
+
+}
+
+/**
+ * このテストが使うキー。実行ごとに F6〜F10 から選ぶ。新しい端末は、前回までの保存が同期で届くまで一覧が空に見えるので、
+ * 「始める前に残りを消す」は確実にできない。代わりに、前回の取り残しと重ならないキーを使い、終わりに自分の分だけ消す。
+ */
+const KEY = `F${6 + (Date.now() % 5)}`;
+
+/** そのキーのショートカットを全部消す。 */
+async function removeShortcuts(page: Page, key: string) {
+  const rows = page.getByRole("row").filter({ hasText: key });
+  while ((await rows.count()) > 0) {
+    await rows.first().getByRole("button", { name: "削除" }).click();
+    await page.getByRole("contentinfo").getByRole("button", { name: "削除" }).click();
+    await expect(rows).toHaveCount((await rows.count()) - 1);
+  }
 }
 
 async function startShortcut(page: Page, key: string) {
@@ -31,7 +48,7 @@ test.describe("キーボードショートカット(設定 > ショートカッ�
     const d = await newDevice(browser, { signedIn: true });
     const { page } = d;
     await openShortcuts(page);
-    await startShortcut(page, "F5");
+    await startShortcut(page, KEY);
 
     await addAction(page, "画面遷移", async (editor) => {
       await editor.locator("#transitionUrl").fill("/quiz-admin");
@@ -44,10 +61,10 @@ test.describe("キーボードショートカット(設定 > ショートカッ�
       await editor.locator("#slideDirection").selectOption("down");
     });
     await page.getByRole("button", { name: "保存", exact: true }).click();
-    await expect(page.getByRole("row").filter({ hasText: "F5" })).toHaveCount(1);
+    await expect(page.getByRole("row").filter({ hasText: KEY })).toHaveCount(1);
 
     await page.reload();
-    const shortcutRow = page.getByRole("row").filter({ hasText: "F5" });
+    const shortcutRow = page.getByRole("row").filter({ hasText: KEY });
     await expect(shortcutRow).toHaveCount(1);
     await shortcutRow.getByRole("button", { name: "編集" }).click();
     // アクションの並びから、それぞれ開いて保存した値が戻っていることを見る
@@ -57,6 +74,11 @@ test.describe("キーボードショートカット(設定 > ショートカッ�
     const editor = page.getByRole("dialog").filter({ hasText: "アクション編集" });
     await expect(editor.locator("#transitionUrl")).toHaveValue("/quiz-admin");
     await expect(editor.locator("#fadeOutDuration")).toHaveValue("2");
+
+    // 後始末(編集を閉じてから、作ったショートカットを消す)
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "キャンセル" }).last().click();
+    await removeShortcuts(page, KEY);
     await d.context.close();
   });
 });
