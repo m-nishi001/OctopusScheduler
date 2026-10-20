@@ -103,8 +103,13 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
 
       const dir = SHOTS ? join(SHOTS, `m${sc.members}-p${sc.prizes}-${sc.viewport.width}`) : null;
       if (dir) mkdirSync(dir, { recursive: true });
-      const draws = Math.min(sc.members, sc.prizes, sc.maxDraws ?? Infinity);
+      // 名簿は、ここで作る人のほかに管理者のアカウントや、環境に前から居る参加者(staging のシード 20 人など)も含む。
+      // 人数を仮定せず実測して、抽選の回数・ステップの上限・終了の理由を決める。
+      const roster = ((await rpc(page, "accounts_listMembers", {})) as unknown[]).length;
+      const draws = Math.min(roster, sc.prizes, sc.maxDraws ?? Infinity);
       const maxSteps = draws * 40 + 20;
+      // 1 ステップは約 1 秒(待ち 0.9〜1.5 秒 + 計測)。上限まで進めても収まる時間にする。
+      test.setTimeout(maxSteps * 2_500 + 60_000);
       const layout = new Set<string>();
       let shot = 0;
       let finished = false;
@@ -149,9 +154,10 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
           (sc.maxDraws !== undefined && prizeNamesSeen >= sc.maxDraws * 2);
       }
       if (sc.maxDraws === undefined) {
+        // 終わらないときは、無期限に待たず、何回抽選したかを添えてすぐ落とす
+        await expect(page.getByTestId("end-dialog"), `${draws}回の抽選に必要な${maxSteps}ステップ内に終了画面が出ない(名簿${roster}人 × 景品${sc.prizes}件)`).toBeVisible({ timeout: 15_000 });
         const reason = await page.getByTestId("end-dialog").getAttribute("data-reason");
-        // 名簿には、ここで作る sc.members 人のほかに管理者のアカウントも入る(アカウントの名簿から取り込まれる)
-        const roster = sc.members + 1;
+        // 景品 > 名簿 の「メンバーが尽きて終わる」経路は、名簿が sc.members+1 人のローカル/CI でだけ通る(名簿が多い staging では景品が尽きて終わる)
         if (reason !== (sc.prizes <= roster ? "prizes" : "members")) layout.add(`終了の理由が違う: ${reason}(名簿${roster}人 × 景品${sc.prizes}件)`);
         // 終了後の「次へ」(Enter)で結果の画面へ進める。固まらない
         await page.waitForTimeout(1200);
