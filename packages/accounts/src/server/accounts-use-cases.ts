@@ -41,7 +41,7 @@ export const MAX_GLOBAL_LOGIN_FAILURES = 100;
  */
 const MEMBER_SESSIONS_KEY_PREFIX = "accounts-member-sessions/";
 /** 1人が同時に持てるセッション数。超えたら、そのメンバーの古いものから失効する(端末の買い替えや複数端末を許す程度)。 */
-export const MAX_SESSIONS_PER_MEMBER = 5;
+export const MAX_SESSIONS_PER_MEMBER = 10;
 
 /** 排他の待ち時間。 */
 const LOCK_TIMEOUT_MS = 10_000;
