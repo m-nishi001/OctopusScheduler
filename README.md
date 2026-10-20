@@ -18,6 +18,7 @@
 | デプロイ手順 | [GAS](docs/deploy-gas.md) / [Cloudflare](docs/deploy-cloudflare.md) |
 | ログイン・初回管理者・復旧 | [docs/authentication.md](docs/authentication.md) |
 | 開発の始め方・テスト・CI | [docs/development.md](docs/development.md) |
+| 新しい PC で開発環境を作る | [docs/dev-environment.md](docs/dev-environment.md) |
 | 全体の構成・設計ルール | [docs/architecture.md](docs/architecture.md) |
 | ホスト／管理／参加者のセッション基盤 | [docs/session-hub.md](docs/session-hub.md) |
 | なぜこの設計にしたか | [docs/design-decisions.md](docs/design-decisions.md) |

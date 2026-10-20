@@ -8,6 +8,8 @@
 
 ## セットアップ
 
+新しい PC やコンテナの作り直しは [開発環境を作る](dev-environment.md)(devcontainer で自動。足りないログインは `npm run doctor` で確認)。手元の環境では:
+
 ```bash
 npm ci
 npm run build

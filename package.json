@@ -24,6 +24,7 @@
     "staging:up": "node scripts/staging.js up",
     "staging:down": "node scripts/staging.js down",
     "staging:seed": "node scripts/staging.js seed",
+    "doctor": "node scripts/doctor.js",
     "e2e": "node scripts/e2e-local.js",
     "deploy:gas": "npm run build && clasp push --force",
     "setup:cloudflare": "node scripts/setup-cloudflare.js",
