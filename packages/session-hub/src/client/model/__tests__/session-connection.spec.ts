@@ -315,6 +315,56 @@ describe("状態の公開", () => {
     expect((await hub.deps.repoFor(meta.id).getState())?.data).toEqual({ screen: "x" });
   });
 
+  it("公開が通信失敗したら、更新の取得を待たずに、待ち時間を延ばしながら自分で再試行する（WebSocket の静かな部屋でも届く）", async () => {
+    const hub = makeHub();
+    const meta = await service.createSession(hub.deps, { name: "x" }, "a");
+    let failures = 2;
+    const faults: FaultInjector = {
+      decide: (e) => {
+        if (e !== "publishState" || failures === 0) return "ok";
+        failures--;
+        return "dropRequest";
+      },
+    };
+    const host = makeDevice(hub, { memberId: "a", faults });
+    await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
+    host.transport.stop(); // WebSocket と同じく、定期的な取得はしない（更新が来るのを待っても何も起きない）
+
+    let resolved = false;
+    void host.conn.publish({ screen: "x" }).then(() => (resolved = true));
+    await tick(10);
+    expect(host.api.calls.publishState).toBe(1);
+    expect(resolved).toBe(false);
+
+    await tick(1000); // 1秒後に1回目の再試行 → また失敗
+    expect(host.api.calls.publishState).toBe(2);
+    expect(resolved).toBe(false);
+
+    await tick(2000); // 待ち時間は2秒に延びる → 成功
+    expect(host.api.calls.publishState).toBe(3);
+    expect(resolved).toBe(true);
+    expect((await hub.deps.repoFor(meta.id).getState())?.data).toEqual({ screen: "x" });
+
+    await tick(30_000); // 成功したら、もう再試行しない
+    expect(host.api.calls.publishState).toBe(3);
+  });
+
+  it("画面を閉じたら、公開の再試行は止まる", async () => {
+    const hub = makeHub();
+    const meta = await service.createSession(hub.deps, { name: "x" }, "a");
+    const faults: FaultInjector = { decide: (e) => (e === "publishState" ? "dropRequest" : "ok") };
+    const host = makeDevice(hub, { memberId: "a", faults });
+    await host.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
+    host.transport.stop();
+    void host.conn.publish({ screen: "x" });
+    await tick(10);
+    const calls = host.api.calls.publishState;
+
+    host.conn.dispose();
+    await tick(60_000);
+    expect(host.api.calls.publishState).toBe(calls);
+  });
+
   it("ホストでない端末の公開は業務エラーとして拒否される", async () => {
     const { admin } = await scene();
     await expect(admin.conn.publish({ a: 1 })).rejects.toThrow(/NOT_HOST/);

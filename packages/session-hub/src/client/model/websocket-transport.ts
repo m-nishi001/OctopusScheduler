@@ -9,6 +9,9 @@
  */
 import type { IssueCommandResult, PollArgs, SubmitAnswerResult } from "../../shared/protocol";
 import {
+  WS_CLOSE_REPLACED,
+  WS_CLOSE_SESSION_ENDED,
+  WS_CLOSE_UNAUTHORIZED,
   WS_PING,
   WS_PING_INTERVAL_MS,
   WS_PONG,
@@ -247,16 +250,16 @@ export class WebSocketTransport implements SessionTransport {
       this.authed = false;
       this.clearConnectionTimers();
       this.failPending(new TransportUnavailableError("socket closed"));
-      if (ev.code === 4401 || ev.code === 4410) {
+      if (ev.code === WS_CLOSE_UNAUTHORIZED || ev.code === WS_CLOSE_SESSION_ENDED) {
         // サーバが拒否/終了で閉じた。理由の error メッセージが届いていなければここで通知する(再接続しない)。
         const source2 = this.source;
         if (this.running && source2) {
-          const fatal = ev.code === 4401 ? "[DEVICE_UNAUTHORIZED] 端末を認証できません" : "[SESSION_CLOSED] セッションは終了しています";
+          const fatal = ev.code === WS_CLOSE_UNAUTHORIZED ? "[DEVICE_UNAUTHORIZED] 端末を認証できません" : "[SESSION_CLOSED] セッションは終了しています";
           if (source2.onError(new Error(fatal), this.failures + 1) === "stop") this.running = false;
         }
         return;
       }
-      if (ev.code === 4409) return; // 同じ端末の新しい接続に置き換えられた
+      if (ev.code === WS_CLOSE_REPLACED) return; // 同じ端末の新しい接続に置き換えられた
       if (this.running) this.onConnectionLost(new TransportUnavailableError(`socket closed (${ev.code})`));
     };
   }
@@ -449,6 +452,10 @@ export class WebSocketTransport implements SessionTransport {
     this.hiddenTimer = null;
   }
 
+  /**
+   * こちらから接続を閉じる。そのソケットに送って返事待ちの入力・回答は、もう返事が来ないので、
+   * 待たせず(タイムアウトまで数秒待たず)すぐ失敗させる。呼び出し側は RPC に切り替えて送り直す。
+   */
   private closeSocket(code: number, reason: string): void {
     const socket = this.ws;
     this.ws = null;
@@ -460,6 +467,7 @@ export class WebSocketTransport implements SessionTransport {
     } catch {
       // すでに閉じている
     }
+    this.failPending(new TransportUnavailableError(`socket closed locally (${reason})`));
   }
 
   private failPending(error: unknown): void {

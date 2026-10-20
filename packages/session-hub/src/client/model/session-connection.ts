@@ -94,6 +94,9 @@ export interface ConnectionOptions {
 }
 
 const RECENT_COMMANDS_LIMIT = 30;
+/** 状態の公開に失敗したときの再試行の待ち時間（最初の値と上限）。 */
+const PUBLISH_RETRY_BASE_MS = 1_000;
+const PUBLISH_RETRY_MAX_MS = 10_000;
 const FATAL_CODES: ReadonlySet<HubErrorCode> = new Set(["SESSION_CLOSED", "SESSION_NOT_FOUND", "DEVICE_UNAUTHORIZED"]);
 
 const defaultRequestId = (): string =>
@@ -132,6 +135,9 @@ export class SessionConnection implements TransportSource {
   private stateVersion = 0;
 
   private publishing = false;
+  /** 公開の再試行の予約と、連続して失敗した回数（待ち時間を延ばすため）。 */
+  private publishRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private publishFailures = 0;
   private pendingPublish: { data: Record<string, unknown>; clientInput: ClientInput[] } | null = null;
   private publishWaiters: Array<{ resolve: () => void; reject: (e: unknown) => void }> = [];
 
@@ -276,6 +282,7 @@ export class SessionConnection implements TransportSource {
 
   /** 退室する。保存済みの入室情報も消す(次回は新規入室になる)。 */
   leave(): void {
+    this.cancelPublishRetry();
     this.opts.transport.stop();
     if (this.creds) clearCredentials(this.opts.store, this.creds.role);
     this.creds = null;
@@ -284,6 +291,7 @@ export class SessionConnection implements TransportSource {
 
   /** 画面を閉じるとき。入室情報は残す(リロード復帰のため)。 */
   dispose(): void {
+    this.cancelPublishRetry();
     this.opts.transport.stop();
     this.listeners.clear();
   }
@@ -409,7 +417,25 @@ export class SessionConnection implements TransportSource {
     return "retry";
   }
 
+  /** 公開の再試行を予約する（すでに予約済みなら何もしない）。待ち時間は 1 秒から倍々に延ばし、10 秒まで。 */
+  private schedulePublishRetry(): void {
+    if (this.publishRetryTimer) return;
+    const delay = Math.min(PUBLISH_RETRY_MAX_MS, PUBLISH_RETRY_BASE_MS * 2 ** this.publishFailures);
+    this.publishFailures++;
+    this.publishRetryTimer = setTimeout(() => {
+      this.publishRetryTimer = null;
+      void this.flushPendingPublish();
+    }, delay);
+  }
+
+  private cancelPublishRetry(): void {
+    if (this.publishRetryTimer) clearTimeout(this.publishRetryTimer);
+    this.publishRetryTimer = null;
+    this.publishFailures = 0;
+  }
+
   private rejectPublishWaiters(error: unknown): void {
+    this.cancelPublishRetry();
     const waiters = this.publishWaiters;
     this.publishWaiters = [];
     this.pendingPublish = null;
@@ -573,8 +599,9 @@ export class SessionConnection implements TransportSource {
 
   /**
    * 保留中の公開を送る。成功したら待っていた呼び出しを解決し、その間に新しい公開が
-   * 溜まっていれば続けて送る。通信失敗なら保留に戻し、次の更新取得の成功時に再送する
-   * (ここで即再試行すると障害中に無限ループになるため)。
+   * 溜まっていれば続けて送る。通信失敗なら保留に戻し、待ち時間を延ばしながら再試行する
+   * （即再試行すると障害中に無限ループになるため）。次の更新取得の成功時にも再送する
+   * （WebSocket は変化が無いと更新が来ないので、再試行の予約が無いと、静かな部屋で公開が届かないままになる）。
    */
   private async flushPendingPublish(): Promise<void> {
     if (this.publishing || !this.pendingPublish || !this.creds) return;
@@ -600,12 +627,14 @@ export class SessionConnection implements TransportSource {
       });
       for (const w of waiters) w.resolve();
       published = true;
+      this.publishFailures = 0;
     } catch (error) {
       if (errorInfo(error).code) {
         for (const w of waiters) w.reject(error);
       } else {
         this.pendingPublish = this.pendingPublish ?? job;
         this.publishWaiters = [...waiters, ...this.publishWaiters];
+        this.schedulePublishRetry();
       }
     } finally {
       this.publishing = false;
