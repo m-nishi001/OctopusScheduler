@@ -37,6 +37,7 @@ export interface DeviceOptions {
   connection?: Partial<ConnectionOptions>;
 }
 
+/** テスト用の端末1台(接続・転送・保存先つき)を作る。 */
 export function makeDevice(hub: TestHub, options: DeviceOptions = {}): Device {
   const api = createFakeHubApi(hub, options.memberId ?? null, options.faults ?? NO_FAULTS, null, options.memberName ?? null);
   const store = options.store ?? new MemoryDeviceStore();
@@ -72,6 +73,7 @@ export async function joinParticipant(
   return device;
 }
 
+/** テスト用のハブ(時計は実際の時間)を作る。 */
 export function makeHub(): TestHub {
   return createTestHub({ clock: dateClock });
 }

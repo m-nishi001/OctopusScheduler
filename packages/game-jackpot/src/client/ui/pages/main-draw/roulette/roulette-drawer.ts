@@ -48,7 +48,7 @@ function drawSectorLabel(
   ctx.restore();
 }
 
-export function drawSector(
+function drawSector(
   i: number,
   centerX: number,
   centerY: number,
@@ -145,6 +145,7 @@ export function drawSector(
   ctx.restore();
 }
 
+/** ルーレットの盤面(扇と、景品の画像・名前)を canvas に描く。 */
 export function drawWheel(
   rotation: number,
   currentRouletteItems: InternalRouletteItem[],

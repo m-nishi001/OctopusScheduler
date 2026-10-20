@@ -72,6 +72,11 @@ interface PendingIssue {
   timer: unknown;
 }
 
+/**
+ * WebSocket でセッションの更新を受け取る転送方式。更新はサーバーからの push で届くので、ポーリングしない。
+ * 画面が一定時間見えなければ切断し、戻ったら再接続して差分を受け取る。再接続は間隔を広げながら行い、回数に上限がある。
+ * 使えない・繋がらないときは、ポーリングに自動で切り替える。
+ */
 export class WebSocketTransport implements SessionTransport {
   private source: TransportSource | null = null;
   private running = false;

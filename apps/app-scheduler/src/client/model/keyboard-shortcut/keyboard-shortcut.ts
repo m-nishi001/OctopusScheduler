@@ -9,6 +9,7 @@ export interface KeyboardShortcutData {
   eventIds?: string[];
 }
 
+/** キーボードショートカット1件。押した順のキーの並びと、それで実行するイベントの id の一覧。 */
 export class KeyboardShortcut {
   readonly id: string;
   readonly keys: string[]; // 例: ["Control", "1"] （押下順）

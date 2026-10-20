@@ -21,6 +21,7 @@ const DEFAULT_SVG_DATAURL =
 const TRANSPARENT_DATAURL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
+/** 景品の画像を読み込んで、描画用の形にする。画像が無い・読み込めない景品は代わりの画像にする。 */
 export async function convertToInternal(
   prizes: RouletteItem[]
 ): Promise<InternalRouletteItem[]> {

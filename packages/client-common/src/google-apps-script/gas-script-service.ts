@@ -41,6 +41,7 @@ export interface GasFunctionOptions {
   retryDelay?: number;
 }
 
+/** GAS のサーバー関数を `google.script.run` で呼ぶ。タイムアウト・再試行・同時実行数の超過の待ち直しを持つ。 */
 export class GasFunctionService {
   private static readonly DEFAULT_TIMEOUT_MS = 10000;
   private static readonly DEFAULT_RETRIES = 3;

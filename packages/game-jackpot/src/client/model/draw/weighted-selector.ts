@@ -17,6 +17,7 @@ export function resolveWeight(weight: number | undefined): number {
   return Math.floor(w);
 }
 
+/** 重み(当選しやすさ)に応じた抽選。景品とメンバーで同じ規則を使う。 */
 @injectable()
 export class WeightedSelector {
   private rand: MathRandomProvider;

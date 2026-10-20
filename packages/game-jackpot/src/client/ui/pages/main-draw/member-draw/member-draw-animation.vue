@@ -37,10 +37,6 @@ import MemberWinnerDialog from './member-winner-dialog.vue';
 import { useMemberDrawBgm } from './use-member-draw-bgm';
 import { buildMemberStopSteps, pickMemberStopPattern, requiredLeadPx } from './member-stop-patterns';
 
-// Per-animation defaults (hardcoded here per your request)
-export const MEMBER_DRAW_REQUEST_COUNT = 10;
-export const MEMBER_DUMMY_DISPLAY_COUNT = 0;
-
 // Public ref interface for parent components that call methods on this component
 export type MemberAnimRef = {
     startDraw: (winnerId?: string | null) => void;

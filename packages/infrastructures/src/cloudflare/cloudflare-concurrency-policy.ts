@@ -10,6 +10,7 @@ import type { IConcurrencyPolicy } from "../interfaces/concurrency-policy";
 
 const HIGH_CONCURRENCY = 32;
 
+/** `IConcurrencyPolicy` の Cloudflare 実装。GAS のような同時実行数の制限が無いので、高い上限(32)を返す。 */
 @injectable()
 export class CloudflareConcurrencyPolicy implements IConcurrencyPolicy {
   maxConcurrency(_kind: string): number {

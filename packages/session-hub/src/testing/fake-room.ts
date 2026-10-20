@@ -25,6 +25,7 @@ export interface RoomCounts {
   alarms: number;
 }
 
+/** テスト用の WebSocket。受け取ったメッセージと切断を記録する。 */
 export class FakeSocket implements RoomSocket {
   readonly received: ServerWsMessage[] = [];
   closed: { code: number; reason: string } | null = null;
@@ -73,6 +74,7 @@ export class FakeSocket implements RoomSocket {
   }
 }
 
+/** テスト用の部屋(Durable Object の代わり)。メモリ上のストレージ・時計・操作回数の計測つきで、保存の失敗も模せる。 */
 export class FakeRoom {
   readonly clock: Clock;
   readonly counts: RoomCounts = { rpc: 0, wsConnect: 0, wsIncoming: 0, wsOutgoing: 0, storageGet: 0, storagePut: 0, alarms: 0 };

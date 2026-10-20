@@ -12,6 +12,7 @@ export async function playBgm(assetId: string | null | undefined, ctx: BgmLoader
   }
 }
 
+/** 抽選中の BGM を止める。失敗しても演出は止めない。 */
 export async function stopBgm(): Promise<void> {
   try {
     await RouletteBgmManager.stop();

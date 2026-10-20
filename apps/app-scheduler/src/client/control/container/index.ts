@@ -22,6 +22,7 @@ import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-sh
 import { KeyboardShortcutService } from "../keyboard-shortcut/keyboard-shortcut-service";
 import { SyncService } from "../sync/sync-service";
 
+/** アプリの依存の登録。ビルド対象(GAS / Cloudflare)ごとの API クライアントなど、環境で変わるものをここで結ぶ。 */
 export class Container {
   static register() {
     // ビルド対象(GAS/Cloudflare)ごとに @octopus/infrastructures/platform-api-client が

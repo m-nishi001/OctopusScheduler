@@ -8,6 +8,7 @@ export interface RoulettePrizeDto extends PrizeDto {
 
 export type AssetService = Pick<AssetDataService, "getAssetDataById">;
 
+/** 景品を、ルーレットに描く形(画像の URL つき)にする。 */
 export async function prepareRenderPrizes(
   prizes: RoulettePrizeDto[],
   assetService: AssetService
@@ -71,6 +72,7 @@ export async function prepareRenderPrizes(
   }
 }
 
+/** `prepareRenderPrizes` が作った画像の URL を破棄する。 */
 export function revokePreparedPrizes(preparedPrizes: RouletteItem[]) {
   for (const p of preparedPrizes) {
     try {

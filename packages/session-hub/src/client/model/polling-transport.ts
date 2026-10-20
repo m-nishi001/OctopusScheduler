@@ -52,6 +52,11 @@ export const realTimers: Timers = {
   random: () => Math.random(),
 };
 
+/**
+ * ポーリングでセッションの更新を受け取る転送方式。
+ * 間隔はサーバーの指示(`nextPollMs`)に従い、ばらつきをつけて一斉アクセスを避ける。失敗したら間隔を広げ、画面が見えない間は延ばす。
+ * 取得回数には上限があり、想定外の暴走でクォータを使い切らない。
+ */
 export class PollingTransport implements SessionTransport {
   private source: TransportSource | null = null;
   private timer: unknown = null;

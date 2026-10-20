@@ -6,6 +6,10 @@ import { AssetService } from "../asset/asset-service";
 import { appEventFromDto, reviveAppEvent, type AppEvent, type AppEventTiming } from "./app-event";
 import type { AppEventDto } from "./dto/app-event-dto";
 
+/**
+ * 予定イベントの保存・取得・実行状態の管理。
+ * 実行する中身(`AppEvent`)の組み立てと実行は `app-event.ts` にある。
+ */
 @injectable()
 export class AppEventService {
   constructor(

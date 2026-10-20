@@ -2,9 +2,10 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import vue from "@vitejs/plugin-vue";
 import type { Alias } from "vite";
 
-export const sharedAliases: Record<string, string> = {};
+const sharedAliases: Record<string, string> = {};
 
 // Expose as Alias[] for Vite config
+/** 各パッケージの Vite / Vitest の設定で共通に使う、別名(alias)の一覧。 */
 export function sharedAliasArray(): Alias[] {
   return Object.entries(sharedAliases).map(([find, replacement]) => ({
     find,

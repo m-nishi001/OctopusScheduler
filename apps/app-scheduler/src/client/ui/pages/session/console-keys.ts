@@ -42,6 +42,9 @@ function isInteractive(target: EventTarget | null): boolean {
     return ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A', 'SUMMARY'].includes(el.tagName.toUpperCase());
 }
 
+/**
+ * 管理コンソールのキー操作を、主ボタン(Enter)か「前へ」(Backspace)に対応づける。修飾キー付き・押しっぱなし・入力欄やボタンにフォーカスがあるとき・操作を受け付けられないときは null。
+ */
 export function resolveConsoleKey(e: KeyLike, ctx: KeyContext): ConsoleKeyCommand | null {
     if (e.key !== 'Enter' && e.key !== 'Backspace') return null;
     if (e.repeat) return null;

@@ -3,6 +3,7 @@ import type { Prize } from "../../../model/prize/prize";
 import type { Member } from "../../../model/member/member";
 import { fromMember } from "../../member/dto/member-dto";
 
+/** 確変のために予約した景品の、まだ当選者のいない抽選結果。 */
 export const mapToReservedDrawResult = (
   drawId: string,
   prize: Prize
@@ -14,6 +15,7 @@ export const mapToReservedDrawResult = (
   createdAt: Date.now(),
 });
 
+/** 当選者と景品から、抽選結果を作る。確変なら `isKakuhen`。 */
 export const mapToDrawResult = (
   drawId: string,
   member: Member,
@@ -27,6 +29,7 @@ export const mapToDrawResult = (
   createdAt: Date.now(),
 });
 
+/** 予約済みの抽選結果に、当選者を入れて確定させる。 */
 export const mapToUpdatedDrawResult = (
   existing: DrawResultDto,
   member: Member,

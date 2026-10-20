@@ -1,6 +1,7 @@
 import { ref, readonly, onUnmounted } from "vue";
 import { useAudio } from "@octopus/composables";
 
+/** 結果発表のあとの景品ダイアログの進行。景品の BGM を鳴らしてダイアログを出し、Enter で閉じて戻る。 */
 export function usePrizeOrchestrator(options: {
   getSettings: () =>
     | {

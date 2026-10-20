@@ -12,6 +12,7 @@ export interface ParticipantAuth {
 
 export const PARTICIPANT_AUTH_KEY: InjectionKey<ParticipantAuth> = Symbol("participantAuth");
 
+/** 参加者ポータルのログイン状態(アプリが提供したもの)を取り出す。提供されていなければ例外。 */
 export function useParticipantAuth(): ParticipantAuth {
   const auth = inject(PARTICIPANT_AUTH_KEY, null);
   if (!auth) throw new Error("PARTICIPANT_AUTH_KEY が提供されていません(アプリの起動時に app.provide してください)");

@@ -31,6 +31,7 @@ export interface ResultsState {
 
 export const RESULTS_KEY: InjectionKey<ResultsState> = Symbol("portalResults");
 
+/** `PortalLayout` が提供する結果の状態を取り出す。レイアウトの外で呼ぶと例外。 */
 export function useResultsContext(): ResultsState {
   const results = inject(RESULTS_KEY, null);
   if (!results) throw new Error("PortalLayout の中で使ってください");
@@ -43,6 +44,7 @@ export interface ResultsOptions {
   jitterMs?: number;
 }
 
+/** 参加者に見せる結果の取得。結果の画面を開いたとき(または、ホストが保存した結果が新しいとき)に、ばらつきをつけて取得する。 */
 export function useResults(session: PortalSession, options: ResultsOptions = {}): ResultsState {
   const random = options.random ?? Math.random;
   const jitterMs = options.jitterMs ?? REFETCH_JITTER_MS;

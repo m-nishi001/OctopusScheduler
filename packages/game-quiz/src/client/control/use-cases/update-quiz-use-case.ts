@@ -3,6 +3,7 @@ import type { UpdateQuizDto } from "../dto/quiz-dto";
 import { Quiz } from "../../model/quiz";
 import { QuizService } from "../../model/quiz-service";
 
+/** クイズを更新する。 */
 @injectable()
 export class UpdateQuizUseCase {
   constructor(@inject(QuizService) private quizService: QuizService) {}

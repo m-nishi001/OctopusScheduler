@@ -1,5 +1,6 @@
 import { ref } from "vue";
 
+/** ショートカットのキー入力の取り込み。押したキーを順に記録し、一定時間入力が途絶えたら確定する(最大3つ)。 */
 export function useKeyCapture() {
   const capturedKeys = ref<string[]>([]);
   const capturing = ref(false);

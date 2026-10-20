@@ -14,7 +14,7 @@ export type OperatorRole = Exclude<DeviceRole, "client">;
 export const SESSION_MODES = ["live", "demo"] as const;
 export type SessionMode = (typeof SESSION_MODES)[number];
 
-export const SESSION_STATUSES = ["lobby", "live", "closed"] as const;
+const SESSION_STATUSES = ["lobby", "live", "closed"] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
 export interface SessionMeta {
@@ -141,6 +141,7 @@ export const HOST_STALE_MS = 30_000;
 export const ADMIN_ALIVE_MS = 45_000;
 export const CLIENT_ALIVE_MS = 60_000;
 
+/** コマンドの識別子(`game.type`)。 */
 export function commandKey(game: string, type: string): string {
   return `${game}.${type}`;
 }

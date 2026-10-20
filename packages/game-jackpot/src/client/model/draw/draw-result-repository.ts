@@ -3,6 +3,7 @@ import type { DrawResultDto } from "../../control/draw/dto/draw-result-dto";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { getJackpotScope, scopedStoreName } from "../jackpot-session";
 
+/** 抽選結果の保存先。実行スコープ(本番 / デモ)ごとに別のストアを使うので、デモが本番の結果を汚さない。 */
 @injectable()
 export class DrawResultRepository {
   /** 現在のスコープ(live/demo)に応じたストアを返す。 */

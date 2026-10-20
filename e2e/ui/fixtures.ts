@@ -70,6 +70,7 @@ export async function addParticipant(request: APIRequestContext, id: string, nam
   return (await adminRpc<{ key: string }>(request, "accounts_issueLoginKey", { id })).key;
 }
 
+/** テスト用の参加者(メンバー)を削除する。 */
 export const removeParticipant = (request: APIRequestContext, id: string) => adminRpc(request, "accounts_deleteMember", { id });
 
 /** 受付のQRを読み取った想定で、参加者のスマホとしてログインし、ポータルに接続するまで進める。 */
@@ -174,6 +175,7 @@ export async function openEventTab(page: Page): Promise<void> {
   await expect(page).toHaveURL(/#\/p\/event$/);
 }
 
+/** 管理コンソールの「詳細」(折りたたまれた操作)を開く。すでに開いていれば何もしない。 */
 export async function openAdvanced(page: Page): Promise<void> {
   const details = page.getByTestId("advanced");
   if (!(await details.evaluate((el) => (el as HTMLDetailsElement).open))) await details.locator("summary").click();

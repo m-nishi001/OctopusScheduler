@@ -22,6 +22,7 @@ export interface FaultInjector {
 
 export const NO_FAULTS: FaultInjector = { decide: () => "ok" };
 
+/** 通信の失敗を模すエラー(テスト用)。 */
 export class NetworkError extends Error {
   constructor(message: string) {
     super(message);

@@ -1,3 +1,4 @@
+/** デモ画面の設定(BGM・効果音)。 */
 export class DemoScreenSetting {
   readonly type = "demo" as const;
   demoBgm: string;

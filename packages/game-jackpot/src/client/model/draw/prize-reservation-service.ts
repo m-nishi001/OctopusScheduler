@@ -5,6 +5,7 @@ import { resolveWeight } from "./weighted-selector";
 import { AUTO_KAKUHEN_PLAN, usableKakuhenTimings } from "./kakuhen-plan";
 import type { KakuhenPlan } from "./kakuhen-plan";
 
+/** 確変の準備。確変にする回を決め、その数だけ景品を予約して、通常の抽選用に最低1件は残す。 */
 @injectable()
 export class PrizeReservationService {
   private rand: MathRandomProvider;

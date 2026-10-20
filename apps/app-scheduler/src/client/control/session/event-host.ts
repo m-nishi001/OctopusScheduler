@@ -27,6 +27,7 @@ const STORAGE_PREFIX = "octopus.host.event:";
 /** 抽選に使うエントリー者の一覧（直近に取得できたもの）。回答ラウンドが別の受付に置き換わっても抽選できるように残す。 */
 const ENTRANTS_PREFIX = "octopus.host.entrants:";
 
+/** ブラウザの localStorage を使う `EventStorage`。保存できない環境(プライベートモード等)でも例外を出さず、復元できないだけにする。 */
 export function browserEventStorage(): EventStorage {
   return {
     get: (key) => {

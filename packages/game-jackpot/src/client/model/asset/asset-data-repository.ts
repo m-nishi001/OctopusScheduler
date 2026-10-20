@@ -11,6 +11,7 @@ import type {
   DriveMetadata,
 } from "@octopus/infrastructures/compositions";
 
+/** ジャックポットの素材の保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。 */
 @injectable()
 export class AssetDataRepository {
   private readonly localStorage: LocalStorageService;

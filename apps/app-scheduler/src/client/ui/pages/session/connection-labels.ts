@@ -31,6 +31,7 @@ export const CLIENT_INPUT_LABELS: Record<string, string> = {
   "quiz.answer": "回答する",
 };
 
+/** 参加者の操作(`game.type` の形のキー)の表示名。知らないキーはそのまま返す。 */
 export function clientInputLabel(key: string): string {
   return CLIENT_INPUT_LABELS[key] ?? key;
 }

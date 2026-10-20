@@ -25,6 +25,7 @@ interface KeyboardShortcutsRemoteSnapshot {
   config: unknown;
 }
 
+/** キーボードショートカットとその設定の保存先。この端末に持ち、変更があればバックグラウンド同期でサーバーへ送る。 */
 @injectable()
 export class KeyboardShortcutRepository {
   private readonly localStorage: LocalStorageService;

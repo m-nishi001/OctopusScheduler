@@ -4,6 +4,7 @@ import type { IPasswordHasher } from "../interfaces/password-hasher";
 /** Workers の PBKDF2 は反復回数 100000 が上限。 */
 const ITERATIONS = 100_000;
 
+/** `IPasswordHasher` の Cloudflare 実装(PBKDF2 / SHA-256)。 */
 @injectable()
 export class CloudflarePasswordHasher implements IPasswordHasher {
   async hash(password: string, salt: string): Promise<string> {

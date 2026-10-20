@@ -1,11 +1,2 @@
+/** 予定イベントの実行状態。未実行(pending)→ 実行中(running)→ 完了(completed)。 */
 export type ExecutionStatus = "pending" | "running" | "completed";
-
-export class ScheduleEventExecutionStatus {
-  public readonly eventId: string;
-  public readonly status: ExecutionStatus;
-
-  constructor(eventId: string, status: ExecutionStatus) {
-    this.eventId = eventId;
-    this.status = status;
-  }
-}

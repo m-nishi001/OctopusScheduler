@@ -24,6 +24,7 @@ export interface InMemoryStorageOptions {
   maxTotalScalarBytes?: number;
 }
 
+/** テスト用の `IKeyValueStorage`(メモリ上)。値の大きさ・合計の上限を指定でき、GAS の容量制限を再現できる。 */
 export class InMemoryKeyValueStorage implements IKeyValueStorage {
   private readonly scalars = new Map<string, string>();
   private readonly items = new Map<string, StoredItem>();

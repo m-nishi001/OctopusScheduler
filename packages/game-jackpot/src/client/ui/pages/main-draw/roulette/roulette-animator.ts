@@ -18,6 +18,7 @@ export type UseRouletteOptions = {
   initialPrizes?: InternalRouletteItem[];
 };
 
+/** ルーレットの回転のアニメーション。フレームごとに加速 → 一定 → 減速して、指定した景品で止める。 */
 export function useRouletteAnimator(
   opts?: UseRouletteOptions,
   drawCallback?: (rotation: number) => void

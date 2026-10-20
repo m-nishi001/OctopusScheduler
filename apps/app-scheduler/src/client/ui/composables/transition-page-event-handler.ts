@@ -1,6 +1,7 @@
 import type { Router } from "vue-router";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 
+/** 実行画面で、`transitionPage` のイベントを受けて指定の画面へ遷移する。 */
 export class TransitionPageEventHandler {
   static register(router: Router) {
     eventBus.on("transitionPage", (data: { transitionUrl: string }) =>

@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { PrizeRepository } from "@model/prize/prize-repository";
 import { PrizeService } from "@control/prize/prize-service";
 
+/** 景品の管理画面の状態と操作(一覧・選択・削除)。 */
 export function usePrizes(
   prizeRepoArg?: PrizeRepository,
   prizeServiceArg?: PrizeService

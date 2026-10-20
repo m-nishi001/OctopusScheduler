@@ -4,6 +4,7 @@ import type { Member } from "../member/member";
 import { injectable, inject } from "tsyringe";
 import { MathRandomProvider } from "../common/math-random-provider";
 
+/** メンバー抽選。当選済みを除いた候補から、メンバーの重みに応じて1人を選ぶ。 */
 @injectable()
 export class MemberDrawService {
   private weightedSelector: WeightedSelector;

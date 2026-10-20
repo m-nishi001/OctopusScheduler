@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { useObjectUrlStore } from "./use-object-url-store";
 import type { Asset } from "@model/asset/asset-data";
 
+/** 選んだだけの素材(保存前)を、素材として登録し、プレビュー用の URL も作る。 */
 export function useAssetUpload() {
   const assetDataService = container.resolve(AssetDataService);
   const { createObjectUrl, setUrl } = useObjectUrlStore();

@@ -18,6 +18,7 @@ export interface EngineDeps {
 }
 
 const MAX_LABEL_LENGTH = 60;
+/** まだ1件もコマンド・状態が無いセッションの、先頭情報(seq 0・状態の版 0)。 */
 export const EMPTY_HEAD = (meta: SessionMeta): StoredHead => ({
   seq: 0,
   stateVersion: 0,
@@ -33,6 +34,7 @@ export function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** 値を JSON にしたときの UTF-8 のバイト数(日本語は3バイト)。ペイロードの大きさの上限の判定に使う。 */
 export function jsonBytes(value: unknown): number {
   const s = JSON.stringify(value) ?? "";
   // UTF-8 のバイト数(日本語は3バイト)。TextEncoder が無い環境でも動くよう手計算する。
@@ -49,11 +51,13 @@ export function jsonBytes(value: unknown): number {
   return bytes;
 }
 
+/** 表示名を整える。前後の空白を除き、長すぎれば切り、空なら `fallback`。 */
 export function cleanLabel(label: string | undefined, fallback: string): string {
   const trimmed = (label ?? "").trim().slice(0, MAX_LABEL_LENGTH);
   return trimmed || fallback;
 }
 
+/** セッションの情報を読む。無ければ SESSION_NOT_FOUND、終了済みか期限切れなら SESSION_CLOSED。 */
 export async function loadMeta(repo: SessionRepo, now: number): Promise<SessionMeta> {
   const meta = await repo.getMeta();
   if (!meta) throw hubError("SESSION_NOT_FOUND", "セッションが見つかりません");
@@ -76,6 +80,7 @@ export async function authenticate(
   return { meta, device };
 }
 
+/** 在席の記録が、閾値(ミリ秒)以内に更新されているか。 */
 export function isAlive(entry: PresenceEntry | undefined, now: number, thresholdMs: number): boolean {
   return !!entry && now - entry.seenAtMs <= thresholdMs;
 }

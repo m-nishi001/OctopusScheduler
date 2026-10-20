@@ -18,6 +18,7 @@ const ALLOWED_PATHS: readonly RegExp[] = [
 
 const ALLOWED_QUERIES: readonly string[] = ["", "demo=1"];
 
+/** ホスト画面に遷移させてよいパスか(許可した画面だけ。クエリは決まった形のみ)。管理端末の遠隔操作が任意のURLへ飛ばさないための確認。 */
 export function isAllowedHostPath(target: unknown): target is string {
   if (typeof target !== "string" || target.length === 0 || target.length > 300) return false;
   if (target.includes("#") || /\s/.test(target)) return false;
@@ -27,6 +28,7 @@ export function isAllowedHostPath(target: unknown): target is string {
   return ALLOWED_PATHS.some((re) => re.test(path));
 }
 
+/** セッションのロビー(ホスト画面)のパス。 */
 export const lobbyPath = (sessionId: string): string => `/session/host/${sessionId}`;
 
 /**

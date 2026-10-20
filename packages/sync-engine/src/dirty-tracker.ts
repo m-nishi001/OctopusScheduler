@@ -9,6 +9,7 @@
  */
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
+/** ローカルで変更した種類(kind)ごとの最終変更日時を記録する軽量な台帳。個々のレコードに更新日時を持たない(JSON 全体を1つの同期対象とする)データの、同期の差分判定に使う。 */
 export class DirtyTracker {
   private readonly storage: LocalStorageService;
 

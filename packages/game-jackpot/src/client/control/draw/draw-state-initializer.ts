@@ -8,6 +8,7 @@ import type { KakuhenPlan } from "../../model/draw/kakuhen-plan";
 import { mapToReservedDrawResult } from "./mappers/draw-result-mapper";
 import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
 
+/** 本番の抽選の準備。確変にする回を決めて保存し、その数だけ景品を予約する。 */
 @injectable()
 export class DrawStateInitializer {
   constructor(

@@ -13,6 +13,7 @@ const SYNC_KIND = "prizes";
 // appFileIdは付けず常にこのファイル名そのものを使う(prizes.json)。
 const DRIVE_FILE_NAME = "prizes.json";
 
+/** 景品の保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。 */
 @injectable()
 export class PrizeRepository {
   private readonly localStorage = new LocalStorageService(

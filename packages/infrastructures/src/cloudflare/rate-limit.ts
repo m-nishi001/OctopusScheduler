@@ -11,6 +11,7 @@ const STRICT_RPC_NAMES = new Set(["accounts_login"]);
 
 export type LimiterKind = "login" | "public";
 
+/** RPC の名前から、かける上限の種類を決める。パスワード総当たりの対象(ログイン)は厳しい `login`、それ以外は `public`。 */
 export function limiterKindForRpc(name: unknown): LimiterKind {
   return typeof name === "string" && STRICT_RPC_NAMES.has(name) ? "login" : "public";
 }
@@ -28,6 +29,7 @@ export async function allowRequest(env: CloudflareEnv, kind: LimiterKind, key: s
   return success;
 }
 
+/** 上限を超えたときの応答(429・再試行不要・60秒後に再試行の目安)。 */
 export function tooManyRequests(): Response {
   return Response.json(
     { status: "error", message: "Too many requests", retryable: false },

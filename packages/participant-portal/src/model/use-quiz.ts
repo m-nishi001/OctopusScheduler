@@ -57,6 +57,7 @@ export interface QuizState {
 
 export const QUIZ_KEY: InjectionKey<QuizState> = Symbol("portalQuiz");
 
+/** `PortalLayout` が提供するクイズの状態を取り出す。レイアウトの外で呼ぶと例外。 */
 export function useQuizContext(): QuizState {
   const quiz = inject(QUIZ_KEY, null);
   if (!quiz) throw new Error("PortalLayout の中で使ってください");

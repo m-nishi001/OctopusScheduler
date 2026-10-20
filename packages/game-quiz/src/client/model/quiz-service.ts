@@ -2,6 +2,7 @@ import { injectable, inject } from "tsyringe";
 import type { Quiz } from "./quiz";
 import { QuizRepository } from "./quiz-repository";
 
+/** クイズの取得・保存・削除(リポジトリへの窓口)。 */
 @injectable()
 export class QuizService {
   constructor(@inject(QuizRepository) private readonly quizRepo: QuizRepository) {}

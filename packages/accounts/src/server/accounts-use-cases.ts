@@ -103,6 +103,7 @@ export async function getRosterUsage(deps: AccountsUseCaseDeps): Promise<RosterU
   };
 }
 
+/** メンバーの一覧(id と名前だけ)。ログインしていれば誰でも見られる範囲。 */
 export async function listMembers(deps: AccountsUseCaseDeps): Promise<Member[]> {
   const members = await readMembers(deps.storage);
   return members.map((m) => ({ id: m.id, name: m.name }));
@@ -121,11 +122,13 @@ export async function listAccounts(deps: AccountsUseCaseDeps): Promise<Member[]>
   );
 }
 
+/** id でメンバーを探す。無ければ null。 */
 export async function findMemberById(deps: AccountsUseCaseDeps, id: string): Promise<Member | null> {
   const members = await readMembers(deps.storage);
   return members.find((m) => m.id === id) ?? null;
 }
 
+/** メンバーを追加する。名前は必須で、id を省略すると自動で付ける。同じ id が既にあればエラー。名簿のロックの中で行う。 */
 export async function addMember(
   deps: AccountsUseCaseDeps,
   args: { id?: string; name: string; isAdmin?: boolean }
@@ -144,6 +147,7 @@ export async function addMember(
   });
 }
 
+/** メンバーを更新する。名簿のロックの中で行う。いなければエラー。 */
 export async function updateMember(deps: AccountsUseCaseDeps, member: Member): Promise<Member> {
   return withLock(deps, ROSTER_LOCK_KEY, async () => {
     const members = await readMembers(deps.storage);
@@ -163,6 +167,7 @@ export async function updateMember(deps: AccountsUseCaseDeps, member: Member): P
   });
 }
 
+/** メンバーを削除する。名簿のロックの中で行う。 */
 export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promise<void> {
   await withLock(deps, ROSTER_LOCK_KEY, async () => {
     const members = await readMembers(deps.storage);
@@ -217,6 +222,7 @@ function constantTimeEquals(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** パスワードを設定する。最低の長さに満たなければエラー。 */
 export async function setPassword(
   deps: AccountsAuthDeps,
   args: { id: string; password: string }
@@ -394,6 +400,7 @@ export async function issueLoginKey(deps: AccountsAuthDeps, args: { id: string }
   return { key };
 }
 
+/** メンバーの受付QRのログインキーを無効にする。 */
 export async function revokeLoginKey(deps: AccountsUseCaseDeps, args: { id: string }): Promise<void> {
   await deps.storage.deleteScalar(LOGIN_KEY_PREFIX + args.id);
 }

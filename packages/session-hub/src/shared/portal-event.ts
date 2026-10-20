@@ -26,6 +26,7 @@ export const PORTAL_EVENT_SET_POOL = "setPool";
 export const DRAW_POOLS = ["all", "entrants"] as const;
 export type DrawPool = (typeof DRAW_POOLS)[number];
 
+/** 公開された値を、抽選の対象(全メンバー / エントリーした人だけ)として読む。不正なら null。 */
 export function parseDrawPool(value: unknown): DrawPool | null {
   return (DRAW_POOLS as readonly unknown[]).includes(value) ? (value as DrawPool) : null;
 }

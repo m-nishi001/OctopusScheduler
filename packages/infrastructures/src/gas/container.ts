@@ -26,6 +26,7 @@ import { GasLock } from "./gas-lock";
 import { GasPasswordHasher } from "./gas-password-hasher";
 import { GasSecretProvider } from "./gas-secret-provider";
 
+/** GAS 実行基盤の実装(KV・キャッシュ・DB・UUID・ロックなど)を DI コンテナに登録する。 */
 export function registerGasInfrastructures(): void {
   container.register(IApiClientToken, { useClass: GasApiClient });
   container.register(IKeyValueStorageToken, { useClass: GasKeyValueStorage });

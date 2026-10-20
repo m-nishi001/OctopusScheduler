@@ -21,6 +21,7 @@ export const JACKPOT_NS = "jackpot";
 export const JACKPOT_STAGES = ["waiting", "member", "member-revealed", "prize", "prize-revealed", "ended"] as const;
 export type JackpotStage = (typeof JACKPOT_STAGES)[number];
 
+/** 公開された値を、ジャックポットの進行段階として読む。知らない値は `waiting`。 */
 export function parseJackpotStage(value: unknown): JackpotStage {
   return (JACKPOT_STAGES as readonly unknown[]).includes(value) ? (value as JackpotStage) : "waiting";
 }

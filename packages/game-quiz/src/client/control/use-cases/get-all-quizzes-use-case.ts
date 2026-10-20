@@ -2,6 +2,7 @@ import { injectable, inject } from "tsyringe";
 import type { QuizDto } from "../dto/quiz-dto";
 import { QuizService } from "../../model/quiz-service";
 
+/** クイズの一覧を返す。 */
 @injectable()
 export class GetAllQuizzesUseCase {
   constructor(@inject(QuizService) private quizService: QuizService) {}

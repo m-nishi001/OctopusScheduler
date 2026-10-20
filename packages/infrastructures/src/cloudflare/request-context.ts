@@ -14,10 +14,12 @@ import type { CloudflareEnv } from "./env";
 
 const als = new AsyncLocalStorage<CloudflareEnv>();
 
+/** リクエストの `env`(D1・R2 などのバインディング)を、この処理の中だけで `currentEnv()` から取れるようにして実行する。 */
 export function runWithRequestEnv<T>(env: CloudflareEnv, fn: () => T | Promise<T>): Promise<T> {
   return als.run(env, async () => fn());
 }
 
+/** いま処理中のリクエストの `env`。`runWithRequestEnv` の外で呼ぶと例外。 */
 export function currentEnv(): CloudflareEnv {
   const env = als.getStore();
   if (!env) {

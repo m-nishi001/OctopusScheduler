@@ -5,6 +5,7 @@
 import type { WebSocketLike } from "../client/model/websocket-transport";
 import type { FakeRoom, FakeSocket } from "./fake-room";
 
+/** クライアントの WebSocket と `FakeRoom` をつなぐテスト用の WebSocket。 */
 export class BridgedWebSocket implements WebSocketLike {
   readyState = 0;
   onopen: ((ev: unknown) => void) | null = null;
@@ -65,6 +66,7 @@ export class BridgedWebSocket implements WebSocketLike {
   }
 }
 
+/** テスト用の WebSocket の橋渡し。接続の拒否・通信の遮断・pong の停止など、障害を起こせる。 */
 export class WsBridge {
   refuseConnections = false;
   /** true の間、通信が一切届かない(切断の検知は ping/pong の失敗に任せる)。 */

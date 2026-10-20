@@ -3,6 +3,7 @@ import { injectable } from "tsyringe";
 import type { AppEventData } from "./app-event-data";
 import type { ExecutionStatus } from "./execution-status";
 
+/** 予定イベントと、その実行状態(未実行・実行中・完了)のこの端末への保存(IndexedDB)。 */
 @injectable()
 export class AppEventRepository {
   private readonly localStorage: LocalStorageService;

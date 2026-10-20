@@ -7,6 +7,7 @@ const STORAGE_KEY = "octopus-session-token";
 
 let memoryToken: string | null | undefined;
 
+/** この端末のセッショントークンを返す。メモリ上に持ち、無ければ localStorage から読む。使えない環境では null。 */
 export function getSessionToken(): string | null {
   if (memoryToken !== undefined) return memoryToken;
   try {
@@ -17,6 +18,7 @@ export function getSessionToken(): string | null {
   return memoryToken;
 }
 
+/** セッショントークンを保存する(null なら消す)。localStorage が使えない環境でも、メモリ上には持つ。 */
 export function setSessionToken(token: string | null): void {
   memoryToken = token;
   try {

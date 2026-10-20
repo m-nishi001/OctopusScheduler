@@ -16,6 +16,7 @@ const ASSET_SYNC_KIND = "quiz-asset";
 
 type AssetSlotType = "bgm" | "option" | "prizeImage" | "prizeBgm";
 
+/** クイズの保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。画像・音声は `drive:<slotId>` の参照で持つ。 */
 @injectable()
 export class QuizRepository {
   private readonly localStorage = new LocalStorageService(

@@ -4,6 +4,7 @@ import tsParser from "@typescript-eslint/parser";
 import vue from "eslint-plugin-vue";
 import vueParser from "vue-eslint-parser";
 import prettier from "eslint-config-prettier";
+import jsdoc from "eslint-plugin-jsdoc";
 
 // Node.js globals for build/tooling scripts (esbuild.config.js, vite.config.ts, ...)
 const nodeGlobals = {
@@ -94,6 +95,24 @@ export default [
     files: ["packages/server/**/*.ts"],
     languageOptions: {
       globals: gasGlobals,
+    },
+  },
+  {
+    // 公開(export)する関数・クラスには JSDoc を付ける。何をするものか、1行でよいので書く。
+    // テストと、テスト用の部品(testing/)・e2e は対象外。
+    files: ["**/src/**/*.ts", "vite.shared.ts"],
+    ignores: ["**/*.spec.ts", "**/*.test.ts", "**/__tests__/**", "**/testing/**"],
+    plugins: { jsdoc },
+    rules: {
+      "jsdoc/require-jsdoc": [
+        "error",
+        {
+          publicOnly: true,
+          require: { FunctionDeclaration: true, ClassDeclaration: true, ArrowFunctionExpression: false, FunctionExpression: false, MethodDefinition: false },
+          // `export const f = () => …` の形も対象にする
+          contexts: ["ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ArrowFunctionExpression"],
+        },
+      ],
     },
   },
   {

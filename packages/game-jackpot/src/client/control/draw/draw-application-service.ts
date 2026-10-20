@@ -32,6 +32,10 @@ import {
 import { MemberRepository } from "../../model/member/member-repository";
 import { PrizeRepository } from "../../model/prize/prize-repository";
 
+/**
+ * 抽選の流れ(メンバー抽選・景品抽選・確変)をまとめるアプリケーション層。
+ * 画面はここを呼ぶだけで、抽選の規則(重み・予約・確変)や保存は下の層が受け持つ。
+ */
 @injectable()
 export class DrawApplicationService {
   constructor(

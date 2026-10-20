@@ -1,5 +1,6 @@
 import type { ICache } from "../interfaces/cache";
 
+/** テスト用の `ICache`(メモリ上)。 */
 export class InMemoryCache implements ICache {
   private readonly store = new Map<string, string>();
 

@@ -110,6 +110,7 @@ function isActive(s: SessionSummary): boolean {
   return s.status !== "closed";
 }
 
+/** セッションを作る。本体を作ってから一覧に載せるので、失敗しても一覧には残らず、やり直せる。進行中のセッションが多すぎるときは TOO_MANY_SESSIONS。 */
 export async function createSession(
   deps: ServiceDeps,
   args: CreateSessionArgs,
@@ -148,11 +149,13 @@ export async function createSession(
   });
 }
 
+/** 進行中のセッションの一覧(期限切れは除く)。 */
 export async function listSessions(deps: ServiceDeps): Promise<SessionSummary[]> {
   const now = deps.now();
   return prune(await deps.index.list(), now);
 }
 
+/** セッションを終了する。終了済みを再度終了しても終了時刻は延びない(やり直せる)。 */
 export async function closeSession(deps: ServiceDeps, args: CloseSessionArgs): Promise<void> {
   if (!args.sessionId) throw hubError("INVALID_ARGUMENT", "sessionId が必要です");
   await deps.withLock(INDEX_LOCK, LOCK_TIMEOUT_MS, async () => {
@@ -201,6 +204,7 @@ export async function findPortalSession(deps: ServiceDeps): Promise<SessionSumma
   return list.find((s) => s.portal === true && isActive(s)) ?? null;
 }
 
+/** 運営者(ホスト / 管理)としてセッションに入室する。 */
 export async function joinOperator(
   deps: ServiceDeps,
   args: JoinOperatorArgs,
@@ -232,29 +236,34 @@ export async function joinPortal(
   );
 }
 
+/** 差分の取得。読み取りだけなのでロックは取らない(取ると全端末のポーリングが直列になる)。 */
 export async function poll(deps: ServiceDeps, args: Parameters<typeof engine.poll>[1]) {
   // 読み取りのみ(在席の書き込みはロック不要)。ロックを取ると全クライアントのポーリングが直列化する。
   return engine.poll(engineDeps(deps, args.sessionId), args);
 }
 
+/** コマンドを発行する。同じセッションへの書き込みは、ロックで直列にする。 */
 export async function issueCommand(deps: ServiceDeps, args: Parameters<typeof engine.issueCommand>[1]) {
   return deps.withLock(sessionLock(args.sessionId), LOCK_TIMEOUT_MS, () =>
     engine.issueCommand(engineDeps(deps, args.sessionId), args)
   );
 }
 
+/** ホストが状態を公開する。同じセッションへの書き込みは、ロックで直列にする。 */
 export async function publishState(deps: ServiceDeps, args: Parameters<typeof engine.publishState>[1]) {
   return deps.withLock(sessionLock(args.sessionId), LOCK_TIMEOUT_MS, () =>
     engine.publishState(engineDeps(deps, args.sessionId), args)
   );
 }
 
+/** ホストが回答の受付を始める。同じセッションへの書き込みは、ロックで直列にする。 */
 export async function openRound(deps: ServiceDeps, args: Parameters<typeof engine.openRound>[1]) {
   return deps.withLock(sessionLock(args.sessionId), LOCK_TIMEOUT_MS, () =>
     engine.openRound(engineDeps(deps, args.sessionId), args)
   );
 }
 
+/** 回答の受付を締め切る。同じセッションへの書き込みは、ロックで直列にする。 */
 export async function closeRound(deps: ServiceDeps, args: Parameters<typeof engine.closeRound>[1]) {
   return deps.withLock(sessionLock(args.sessionId), LOCK_TIMEOUT_MS, () =>
     engine.closeRound(engineDeps(deps, args.sessionId), args)
@@ -268,6 +277,7 @@ export async function submitAnswer(deps: ServiceDeps, args: Parameters<typeof en
   );
 }
 
+/** 回答の一覧を取得する(読み取りだけなのでロックは取らない)。 */
 export async function getAnswers(deps: ServiceDeps, args: Parameters<typeof engine.getAnswers>[1]) {
   return engine.getAnswers(engineDeps(deps, args.sessionId), args);
 }

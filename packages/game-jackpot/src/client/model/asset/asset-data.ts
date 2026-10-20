@@ -1,29 +1,4 @@
-export class AssetMetadata {
-  id: string;
-  type: string;
-  name: string;
-  // Use ISO string for dates to make serialization deterministic
-  uploadedAt: string;
-  lastUpdated: string;
-  size: number;
-
-  constructor(
-    id: string,
-    type: string,
-    name: string,
-    uploadedAt: string,
-    lastUpdated: string,
-    size: number
-  ) {
-    this.id = id;
-    this.type = type;
-    this.name = name;
-    this.uploadedAt = uploadedAt;
-    this.lastUpdated = lastUpdated;
-    this.size = size;
-  }
-}
-
+/** 素材1件(画像・音声)。日時は ISO 文字列で持つ(保存・同期で Date が崩れないように)。 */
 export class Asset {
   id: string;
   type: string;

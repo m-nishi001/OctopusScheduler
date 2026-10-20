@@ -46,6 +46,7 @@ export class DrawStateError extends Error {
   }
 }
 
+/** 抽選された景品を返す。まだ抽選が済んでいなければ `DrawStateError`。 */
 export function requireSelectedPrize(ctx: DrawContext): PrizeDto {
   const prize = ctx.selectedPrize.value;
   if (!prize) throw new DrawStateError("抽選された景品がありません(抽選が完了していません)");

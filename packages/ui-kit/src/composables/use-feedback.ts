@@ -36,11 +36,13 @@ export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
     });
 }
 
+/** 表示中の確認ダイアログに答える(はい / いいえ)。次の確認があれば続けて表示される。 */
 export function resolveConfirm(ok: boolean) {
     const current = confirmQueue.shift();
     current?.resolve(ok);
 }
 
+/** 通知(トースト)を消す。 */
 export function dismissToast(id: number) {
     toasts.value = toasts.value.filter((t) => t.id !== id);
 }
@@ -58,6 +60,7 @@ export const toast = {
     error: (message: string, durationMs = 6000) => pushToast('error', message, durationMs),
 };
 
+/** 確認ダイアログ(`confirm`)と、削除・破棄の確認の定型(`confirmDelete` / `confirmDiscard`)。 */
 export function useConfirm() {
     return {
         confirm: confirmDialog,
@@ -70,6 +73,7 @@ export function useConfirm() {
     };
 }
 
+/** 通知(トースト)を出す関数。 */
 export function useToast() {
     return toast;
 }

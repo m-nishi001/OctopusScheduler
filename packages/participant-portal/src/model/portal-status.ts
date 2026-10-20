@@ -24,6 +24,7 @@ export interface StatusInput {
   failure: JoinFailure | null;
 }
 
+/** 接続の段階・入室中か・入室の失敗から、ポータルに出す状態(接続中・再接続中・入室中・終了・待機・エラー)を1つに決める。 */
 export function derivePortalStatus({ phase, joining, failure }: StatusInput): PortalStatus {
   if (phase === "connected") return "connected";
   if (phase === "reconnecting") return "reconnecting";

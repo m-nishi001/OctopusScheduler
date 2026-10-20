@@ -26,6 +26,9 @@ function newUuid(): string {
   return crypto.randomUUID();
 }
 
+/**
+ * セッション1件の Durable Object。中核は session-hub の `SessionRoomCore` で、ここは Cloudflare の API(ストレージ・WebSocket の Hibernation・alarm)へつなぐ薄いアダプタ。
+ */
 export class SessionRoom {
   private readonly core: SessionRoomCore;
 

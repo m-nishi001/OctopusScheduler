@@ -15,6 +15,7 @@ const REVEAL_PRIZE = ["stopPrizeDraw", "stopKakuhenFinalDraw"];
 /** 参加者のスマホからも止めてよいステップのラベル。 */
 const STOP_LABELS = ["stopMemberDraw", "stopPrizeDraw", "stopKakuhenDummyDraw", "stopKakuhenFinalDraw"];
 
+/** 次の操作のラベルが「止める」(回転を止める操作)か。 */
 export function canStopAt(label: string | undefined): boolean {
   return !!label && STOP_LABELS.includes(label);
 }
@@ -50,6 +51,7 @@ export function deriveStage(input: { phase: string; tracker: RevealTracker; ende
   return phase === "member" ? "member" : "waiting";
 }
 
+/** ホストが公開する抽選画面の状態を作る。場面(stage)・止められるか・見えているメンバーと景品(まだ明かしていないものは null)。 */
 export function buildJackpotHostState(input: {
   phase: string;
   /** 抽選が終わった(景品かメンバーが尽きた)。 */

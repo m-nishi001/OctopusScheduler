@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import type { ILock } from "../interfaces/lock";
 
+/** `ILock` の GAS 実装。GAS のロックはスクリプトに1つだけなので、キーごとには分けられない(キーは無視する)。 */
 @injectable()
 export class GasLock implements ILock {
   // GAS の LockService はスクリプト単位の単一ロックであり、key ごとには分離できない。

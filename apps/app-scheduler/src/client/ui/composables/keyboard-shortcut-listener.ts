@@ -4,6 +4,10 @@ import { KeyboardShortcutService } from "../../control/keyboard-shortcut/keyboar
 // AppEventService not required here
 import { sendShortcutViaChannel } from "./send-shortcut-via-channel";
 
+/**
+ * 管理画面でのキー入力を監視し、ショートカットに一致したら、実行画面(別タブ)へ BroadcastChannel で実行を頼む。
+ * 戻り値は、監視をやめる関数。
+ */
 export function registerKeyboardShortcutListener(): () => void {
   const keyboardShortcutService = container.resolve(KeyboardShortcutService);
   let manualContentVisible = false;

@@ -1,6 +1,7 @@
 import type { Router } from "vue-router";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 
+/** 実行画面で、`showContent` / `hideContent` のイベントを受けて画像・動画・HTML を表示する・隠す。 */
 export class ShowContentEventHandler {
   static register(router: Router) {
     eventBus.on(

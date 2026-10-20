@@ -64,6 +64,7 @@ export interface EntryOptions {
   storage?: EntryStorage;
 }
 
+/** イベントのエントリー(参加受付)。受付中に押すと回答ラウンドに回答し、サーバー側で1人1回に数える。エントリー済みはメンバーごとに端末に保存する。 */
 export function useEntry(session: PortalSession, options: EntryOptions): EntryState {
   const storage = options.storage ?? browserStorage();
   const entry = computed(() => session.event.value?.entry ?? null);
