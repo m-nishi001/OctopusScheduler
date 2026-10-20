@@ -1,5 +1,5 @@
 <template>
-    <div class="roulette-container" :class="{ spinning }" tabindex="0" @keydown.enter="enterHandler">
+    <div class="roulette-container" :class="{ spinning }">
         <canvas ref="canvas"></canvas>
         <div class="indicator">▼</div>
         <div v-if="showResult" class="result">{{ selectedPrize?.name }}</div>
@@ -7,10 +7,9 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, onMounted, watch } from 'vue';
+import { defineComponent, onMounted, watch } from 'vue';
 import { useRouletteAnimation, type RouletteItem, type RouletteAnimationProps } from './roulette-animation-logic';
 import { pickStopPattern } from './roulette-angle-utils';
-import { useRouletteAudio } from './roulette-audio';
 import { useRouletteAnimationState } from '../prize-animation-state';
 import { container } from 'tsyringe';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -31,9 +30,7 @@ export default defineComponent({
             selectedPrize: stateSelectedPrize,
             showResult: stateShowResult,
             preparedPrizes: statePreparedPrizes,
-            canStop: stateCanStop,
             setPreparedPrizes,
-            setCanStop,
         } = useRouletteAnimationState(
             props.prizes,
             props.selectedPrize,
@@ -47,8 +44,6 @@ export default defineComponent({
             showResult: stateShowResult.value,
         };
 
-        // 利用者の操作をきっかけに、自動再生がブロックされた BGM を再開できるようにする
-        const { tryResumeBgm } = useRouletteAudio();
         const { canvas, startSpin, stopSpin: logicStopSpin, spinning, updatePrizes: logicUpdatePrizes, getInternalItems } = useRouletteAnimation(
             rouletteProps
         );
@@ -87,26 +82,10 @@ export default defineComponent({
             }
         });
 
-        const handleStart = () => {
-            void tryResumeBgm();
-            startSpin();
-            setCanStop(false);
-            setTimeout(() => {
-                setCanStop(true);
-            }, 1000);
-        };
-
-        const handleStop = () => {
-            if (stateCanStop.value) {
-                stopSpin(undefined, props.selectedPrize.id);
-                setCanStop(false);
-            }
-        };
-
-        const enterHandler = computed(() => (spinning.value ? handleStop : handleStart));
-
+        // 開始・停止の操作(Enter / 遠隔の「次へ」/ 参加者の停止)は、親の抽選の進行が startSpin / stopSpin を呼んで行う。
+        // この部品が自分でキー操作を受けると、同じ Enter で進行と二重に動いてしまう。
         return {
-            canvas, startSpin, stopSpin, spinning, enterHandler, preparedPrizes: statePreparedPrizes, updatePrizes: logicUpdatePrizes, getInternalItems
+            canvas, startSpin, stopSpin, spinning, preparedPrizes: statePreparedPrizes, updatePrizes: logicUpdatePrizes, getInternalItems
         };
     }
 });

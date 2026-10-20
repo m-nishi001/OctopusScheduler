@@ -24,6 +24,7 @@
 </template>
 
 <script lang="ts">
+import { pickStopTarget } from './stop-target';
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import gsap from 'gsap';
 import '../../../theme/jackpot-theme.css';
@@ -354,8 +355,13 @@ export default {
             startActiveLoop();
         };
 
+        /**
+         * 指定した参加者の位置(中央に近いコピー)へ止める。止めた参加者の id を返す。
+         * 指定した参加者が表示の中に無いときは、別の人で止めず、例外にする(画面の当選と保存した抽選結果が食い違うため)。
+         * 参加者を指定しない(null)ときだけ、中央にいちばん近い人で止める。
+         */
         const stopAt = (memberId: string | null): Promise<string | null> => {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 if (!track.value || !viewport.value) {
                     resolve(null);
                     return;
@@ -380,41 +386,16 @@ export default {
                     return Math.abs(center - viewportCenter);
                 };
 
-                let targetChildIdx = -1;
-                if (memberId) {
-                    const candidates: number[] = [];
-                    for (let i = 0; i < children.length; i++) {
-                        if ((displayMembers.value[i]?.id ?? null) === memberId) candidates.push(i);
-                    }
-                    console.log('[MemberDrawAnimation] stopAt: candidateIndexes', candidates);
-                    if (candidates.length) {
-                        targetChildIdx = candidates.reduce((best, cur) => childCenterDist(cur) < childCenterDist(best) ? cur : best, candidates[0]);
-                    }
-                }
-
-                // fallback: if no memberId match or not found, pick a random member from the base set
-                if (targetChildIdx === -1) {
-                    const baseLen = Math.floor(displayMembers.value.length / 2) || displayMembers.value.length;
-                    const randomBaseIdx = Math.floor(Math.random() * baseLen);
-                    const candidates: number[] = [];
-                    for (let i = 0; i < children.length; i++) {
-                        if ((displayMembers.value[i]?.id ?? null) === displayMembers.value[randomBaseIdx]?.id) candidates.push(i);
-                    }
-                    if (candidates.length) {
-                        targetChildIdx = candidates.reduce((best, cur) => childCenterDist(cur) < childCenterDist(best) ? cur : best, candidates[0]);
-                    } else {
-                        // as ultimate fallback pick the visible child closest to center
-                        let bestIdx = 0;
-                        let bestDist = Infinity;
-                        for (let i = 0; i < children.length; i++) {
-                            const d = childCenterDist(i);
-                            if (d < bestDist) {
-                                bestDist = d;
-                                bestIdx = i;
-                            }
-                        }
-                        targetChildIdx = bestIdx;
-                    }
+                let targetChildIdx: number;
+                try {
+                    targetChildIdx = pickStopTarget(
+                        children.map((_, i) => displayMembers.value[i]?.id ?? null),
+                        memberId,
+                        childCenterDist
+                    );
+                } catch (error) {
+                    reject(error);
+                    return;
                 }
 
                 // 止まり方を選ぶ。手前から進入する止まり方は、当選者の位置が中央より十分右にあるときだけ(無ければふつうに止まる)
@@ -501,11 +482,15 @@ export default {
         // The actual draw logic (remote call / winner selection) must be done
         // by an external orchestrator (e.g. draw-orchestrator-view.vue). This
         // component only receives the planned id and performs the animation.
+        // 開始の準備(当選者を表示に入れる)が終わるまでを表す。stopDraw はこれを待ってから止める
+        // (開始の準備中に止めると、止めたあとにリールが回り出し、二度と止まらなかった)。
+        let starting: Promise<void> = Promise.resolve();
+
         const startDraw = (winnerId?: string | null) => {
             plannedWinnerId = winnerId ?? null;
             console.log('[MemberDrawAnimation] startDraw plannedWinnerId=', plannedWinnerId);
             // Ensure winner is part of the displayed set before starting animation
-            void (async () => {
+            starting = (async () => {
                 try {
                     await ensureWinnerInDisplay(plannedWinnerId);
                 } catch (e) {
@@ -518,10 +503,15 @@ export default {
         };
 
         const stopDraw = async (): Promise<string | null> => {
-            const id = await stopAt(plannedWinnerId || null);
-            try { await stopBgm(); } catch (e) { /* ignore */ }
+            await starting;
+            let id: string | null;
+            try {
+                id = await stopAt(plannedWinnerId || null);
+            } finally {
+                try { await stopBgm(); } catch (e) { /* ignore */ }
+                plannedWinnerId = null;
+            }
             emit('member-selected', id);
-            plannedWinnerId = null;
             return id;
         };
 
