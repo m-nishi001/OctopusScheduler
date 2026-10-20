@@ -13,8 +13,10 @@ class FakeAudio extends EventTarget {
   paused = true;
   /** 次の play() を拒否する回数（自動再生が止められる状況）。mutedで鳴らすときは通す。 */
   static blockUnmutedPlay = false;
-  constructor(public src: string) {
+  src: string;
+  constructor(src: string) {
     super();
+    this.src = src;
     FakeAudio.instances.push(this);
   }
   async play() {
