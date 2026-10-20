@@ -1,322 +1,286 @@
 <template>
     <div v-bind="$attrs">
         <div class="form-group">
-            <label>コンテンツタイプ:</label>
-            <select v-model="formData.contentType">
+            <label for="contentType">コンテンツ種別</label>
+            <select id="contentType" v-model="formData.contentType">
                 <option value="image">画像</option>
                 <option value="movie">動画</option>
                 <option value="html">HTML</option>
             </select>
         </div>
 
-        <!-- Image Selection -->
-        <div v-if="formData.contentType === 'image'" class="form-group">
-            <label>画像:</label>
+        <!-- 画像・動画: 既存のアセットを選ぶか、ファイルを選ぶ(ファイルは保存のときにアップロードする) -->
+        <div v-if="formData.contentType !== 'html'" class="form-group">
+            <label for="contentAsset">{{ formData.contentType === 'image' ? '画像' : '動画' }}</label>
             <div class="content-selection">
-                <select v-model="formData.contentId">
+                <select id="contentAsset" v-model="formData.contentId" :required="!mainUpload">
+                    <option v-if="mainUpload" :value="mainUpload.tempId">{{ mainUpload.file.name }} (保存時にアップロード)</option>
                     <option value="">選択してください</option>
-                    <option v-for="asset in imageAssets" :key="asset.id" :value="asset.id">
-                        {{ asset.name || asset.id }}
-                    </option>
+                    <option v-for="asset in mediaAssets" :key="asset.id" :value="asset.id">{{ asset.name || asset.id }}</option>
                 </select>
-                <button type="button" @click="triggerFileUpload" class="upload-button">+</button>
-                <button type="button" @click="togglePreview" class="preview-button"
-                    :disabled="!formData.contentId && !formData.contentFile">
-                    ▶️
-                </button>
+                <button type="button" class="icon-button" aria-label="ファイルを選ぶ" @click="mainFileInput?.click()">+</button>
+                <button type="button" class="icon-button" aria-label="プレビュー" :disabled="!formData.contentId" @click="openPreview">▶️</button>
             </div>
-            <input type="file" accept="image/*" @change="handleFileUpload" ref="fileInput" style="display: none;">
+            <input ref="mainFileInput" type="file" :accept="formData.contentType === 'image' ? 'image/*' : 'video/*'"
+                style="display: none;" @change="onMainFile" />
         </div>
 
-        <!-- Movie Selection -->
-        <div v-else-if="formData.contentType === 'movie'" class="form-group">
-            <label>動画:</label>
-            <div class="content-selection">
-                <select v-model="formData.contentId">
-                    <option value="">選択してください</option>
-                    <option v-for="asset in videoAssets" :key="asset.id" :value="asset.id">
-                        {{ asset.name || asset.id }}
-                    </option>
-                </select>
-                <button type="button" @click="triggerFileUpload" class="upload-button">+</button>
-                <button type="button" @click="togglePreview" class="preview-button"
-                    :disabled="!formData.contentId && !formData.contentFile">
-                    ▶️
-                </button>
+        <!-- HTML: 本文と、アセットの挿入 -->
+        <template v-else>
+            <div class="form-group">
+                <label for="htmlString">HTML文字列</label>
+                <textarea id="htmlString" ref="htmlTextarea" v-model="formData.htmlString" rows="8" required
+                    placeholder="HTMLを入力してください"></textarea>
+                <div class="asset-insert">
+                    <select v-model="insertType" aria-label="挿入する種類">
+                        <option value="image">画像</option>
+                        <option value="video">動画</option>
+                    </select>
+                    <select v-model="insertAssetId" aria-label="挿入するアセット">
+                        <option value="">既存のアセットから選択</option>
+                        <option v-for="asset in insertableAssets" :key="asset.id" :value="asset.id">{{ asset.name || asset.id }}</option>
+                    </select>
+                    <button type="button" :disabled="!insertAssetId" @click="insertExisting">挿入</button>
+                    <button type="button" class="icon-button" aria-label="ファイルを選んで挿入" @click="insertFileInput?.click()">+</button>
+                    <input ref="insertFileInput" type="file" :accept="insertType === 'image' ? 'image/*' : 'video/*'"
+                        style="display: none;" @change="onInsertFile" />
+                </div>
             </div>
-            <input type="file" accept="video/*" @change="handleFileUpload" ref="fileInput" style="display: none;">
+            <div class="form-group">
+                <label>プレビュー</label>
+                <div class="html-preview" v-html="previewHtml"></div>
+            </div>
+        </template>
+
+        <div class="form-group">
+            <label for="effect">表示方法</label>
+            <select id="effect" v-model="formData.effect">
+                <option value="fade">フェード</option>
+                <option value="scroll">スクロール</option>
+                <option value="static">静的表示</option>
+            </select>
+        </div>
+        <template v-if="formData.effect === 'fade'">
+            <div class="form-group">
+                <label for="fadeInTime">フェードイン時間 (秒)</label>
+                <input id="fadeInTime" v-model.number="formData.fadeInTime" type="number" step="0.1" min="0" />
+            </div>
+            <div class="form-group">
+                <label for="fadeOutTime">フェードアウト時間 (秒)</label>
+                <input id="fadeOutTime" v-model.number="formData.fadeOutTime" type="number" step="0.1" min="0" />
+            </div>
+        </template>
+        <div v-if="formData.effect === 'scroll'" class="form-group">
+            <label for="scrollDirection">スクロール方向</label>
+            <select id="scrollDirection" v-model="formData.scrollDirection">
+                <option value="up">上</option>
+                <option value="down">下</option>
+                <option value="left">左</option>
+                <option value="right">右</option>
+            </select>
+        </div>
+        <div v-if="formData.effect !== 'fade'" class="form-group">
+            <label for="duration">表示時間 (秒)</label>
+            <input id="duration" v-model.number="formData.duration" type="number" step="0.1" min="0" />
         </div>
 
-        <!-- HTML Input -->
-        <div v-else-if="formData.contentType === 'html'" class="form-group">
-            <label>HTMLコンテンツ:</label>
-            <textarea v-model="formData.htmlString" placeholder="HTMLを入力してください" rows="10"></textarea>
-            <div class="html-actions">
-                <select v-model="selectedImageForHtml">
-                    <option value="">画像を選択</option>
-                    <optgroup label="既存画像">
-                        <option v-for="asset in imageAssets" :key="'existing-' + asset.id"
-                            :value="'existing-' + asset.id">
-                            {{ asset.name || asset.id }}
-                        </option>
-                    </optgroup>
-                    <optgroup label="新規アップロード画像">
-                        <option v-for="(file, index) in uploadedImages" :key="'uploaded-' + index"
-                            :value="'uploaded-' + index">
-                            {{ file.name }}
-                        </option>
-                    </optgroup>
-                </select>
-                <button type="button" @click="triggerImageUploadForHtml" class="upload-button">+</button>
-                <button type="button" @click="insertImageIntoHtml" :disabled="!selectedImageForHtml">画像挿入</button>
-                <button type="button" @click="togglePreview" class="preview-button">▶️</button>
-            </div>
-            <input type="file" accept="image/*" @change="handleImageUploadForHtml" ref="imageFileInput"
-                style="display: none;">
-        </div>
-
-        <UiDialog :model-value="showPreviewDialog" title="プレビュー" size="lg" nested @close="closePreview">
-            <img v-if="previewType === 'image'" :src="previewContent.url" alt="preview" class="preview-media" />
-            <video v-else-if="previewType === 'movie'" :src="previewContent.url" controls class="preview-media" />
-            <div v-else-if="previewType === 'html'" v-html="previewContent"></div>
+        <UiDialog :model-value="!!preview" title="プレビュー" size="lg" nested @close="preview = null">
+            <img v-if="preview?.kind === 'image'" :src="preview.url" alt="preview" class="preview-media" />
+            <video v-else-if="preview?.kind === 'movie'" :src="preview.url" controls class="preview-media" />
             <template #footer>
-                <UiButton @click="closePreview">閉じる</UiButton>
+                <UiButton @click="preview = null">閉じる</UiButton>
             </template>
         </UiDialog>
     </div>
 </template>
 
 <script setup lang="ts">
-import { UiButton, UiDialog } from '@octopus/ui-kit';
-import { reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue';
-import type { ShowContentEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { container } from 'tsyringe';
+import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { AssetService } from '../../../../../../control/asset/asset-service';
+import { AppEventService } from '../../../../../../control/app-event/app-event-service';
+import type { ShowContentEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
 import type { Asset } from '../../../../../../model/asset/asset';
 
 type Props = { initialData?: ShowContentEventDto }
+type PendingUpload = { tempId: string; file: File };
 
 const props = defineProps<Props>();
 const emit = defineEmits<{ save: [ShowContentEventDto] }>();
 
 const assetService = container.resolve(AssetService);
-const imageAssets = ref<Asset[]>([]);
-const videoAssets = ref<Asset[]>([]);
-const fileInput = ref<HTMLInputElement>();
-const imageFileInput = ref<HTMLInputElement>();
+const appEventService = container.resolve(AppEventService);
 
-const formData = reactive({
+const initialFields = () => ({
     contentType: props.initialData?.contentType ?? 'image',
     contentId: props.initialData?.contentId ?? '',
     htmlString: props.initialData?.htmlString ?? '',
-    contentFile: null as File | null,
+    effect: props.initialData?.effect ?? 'fade',
+    fadeInTime: props.initialData?.fadeInTime ?? 1,
+    fadeOutTime: props.initialData?.fadeOutTime ?? 1,
+    duration: props.initialData?.duration ?? 3,
+    scrollDirection: props.initialData?.scrollDirection ?? 'up',
 });
+const formData = reactive(initialFields());
 
-const selectedImageForHtml = ref('');
-const uploadedImages = ref<File[]>([]);
-const createdPreviewUrls: string[] = [];
-const showPreviewDialog = ref(false);
-const previewContent = ref<any>(null);
-const previewType = ref('');
+const assets = ref<Asset[]>([]);
+/** まだアップロードしていない、選択済みのファイル。保存のときにアセットになり、仮の id が本物の id に置き換わる。 */
+const pendingUploads = ref<PendingUpload[]>([]);
+/** 仮の id・アセット id → プレビュー用の URL。 */
+const previewUrls = reactive(new Map<string, string>());
+const preview = ref<{ kind: 'image' | 'movie'; url: string } | null>(null);
 
-const refreshAssets = async () => {
+const mainFileInput = ref<HTMLInputElement | null>(null);
+const insertFileInput = ref<HTMLInputElement | null>(null);
+const htmlTextarea = ref<HTMLTextAreaElement | null>(null);
+const insertType = ref<'image' | 'video'>('image');
+const insertAssetId = ref('');
+
+const mediaType = (kind: string) => (kind === 'image' ? 'image' : 'video');
+const assetsOf = (type: string) => assets.value.filter((a) => a.blob.type.startsWith(type + '/'));
+const mediaAssets = computed(() => assetsOf(mediaType(formData.contentType)));
+const insertableAssets = computed(() => assetsOf(insertType.value));
+const mainUpload = computed(() => pendingUploads.value.find((u) => u.tempId === formData.contentId) ?? null);
+
+const tempId = () => 'TMP_' + Math.random().toString(36).slice(2, 9);
+
+function setPreviewUrl(id: string, blob: Blob) {
+    revokePreviewUrl(id);
+    previewUrls.set(id, URL.createObjectURL(blob));
+}
+function revokePreviewUrl(id: string) {
+    const url = previewUrls.get(id);
+    if (url) URL.revokeObjectURL(url);
+    previewUrls.delete(id);
+}
+
+async function refreshAssets() {
     try {
-        const assets = await assetService.getAssets();
-        imageAssets.value = assets.filter(asset => asset.blob.type.startsWith('image/'));
-        videoAssets.value = assets.filter(asset => asset.blob.type.startsWith('video/'));
-    } catch (error) {
-        console.error('Failed to load assets:', error);
+        assets.value = await assetService.getAssets();
+    } catch (e) {
+        console.error('Failed to load assets:', e);
     }
-};
-let assetsUpdatedHandler: ((ev: Event) => void) | null = null;
-
+}
+const onAssetsUpdated = () => { void refreshAssets(); };
 onMounted(async () => {
     await refreshAssets();
-
-    // assign handler defined in outer scope and register it
-    assetsUpdatedHandler = (ev: Event) => {
-        const ce = ev as CustomEvent;
-        setTimeout(async () => {
-            await refreshAssets();
-            const added: string[] | undefined = ce?.detail?.added;
-            if (Array.isArray(added) && added.length > 0) {
-                for (const id of added) {
-                    const found = (formData.contentType === 'image' ? imageAssets.value : videoAssets.value)
-                        .find(a => a.id === id);
-                    if (found) {
-                        if (!formData.contentId) formData.contentId = id;
-                        break;
-                    }
-                }
-            }
-        }, 0);
-    };
-    window.addEventListener('assets:updated', assetsUpdatedHandler as EventListener);
+    window.addEventListener('assets:updated', onAssetsUpdated);
 });
-
-onBeforeUnmount(() => { if (showPreviewDialog.value) { try { closePreview(); } catch { } } });
-
-// Ensure event listener is removed when component unmounts (registered during setup)
 onBeforeUnmount(() => {
-    if (assetsUpdatedHandler) {
-        try { window.removeEventListener('assets:updated', assetsUpdatedHandler as EventListener); } catch { }
-        assetsUpdatedHandler = null;
+    window.removeEventListener('assets:updated', onAssetsUpdated);
+    if (preview.value) URL.revokeObjectURL(preview.value.url);
+    for (const id of [...previewUrls.keys()]) revokePreviewUrl(id);
+});
+
+function onMainFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (mainUpload.value) dropPending(mainUpload.value.tempId);
+    const id = tempId();
+    pendingUploads.value.push({ tempId: id, file });
+    setPreviewUrl(id, file);
+    formData.contentId = id;
+}
+
+function dropPending(id: string) {
+    pendingUploads.value = pendingUploads.value.filter((u) => u.tempId !== id);
+    revokePreviewUrl(id);
+}
+
+async function openPreview() {
+    if (formData.contentType === 'html' || !formData.contentId) return;
+    const pending = mainUpload.value;
+    const blob = pending?.file ?? assets.value.find((a) => a.id === formData.contentId)?.blob;
+    if (!blob) return;
+    preview.value = { kind: formData.contentType, url: URL.createObjectURL(blob) };
+}
+watch(preview, (_next, prev) => { if (prev) URL.revokeObjectURL(prev.url); });
+
+/** カーソル位置にテキストを入れる。 */
+function insertAtCursor(text: string) {
+    const el = htmlTextarea.value;
+    const start = el?.selectionStart ?? formData.htmlString.length;
+    const end = el?.selectionEnd ?? start;
+    formData.htmlString = formData.htmlString.slice(0, start) + text + formData.htmlString.slice(end);
+    el?.focus();
+    el?.setSelectionRange(start + text.length, start + text.length);
+}
+
+function insertExisting() {
+    if (insertAssetId.value) insertAtCursor(`{{asset:${insertType.value}:${insertAssetId.value}}}`);
+    insertAssetId.value = '';
+}
+
+function onInsertFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    const id = tempId();
+    pendingUploads.value.push({ tempId: id, file });
+    setPreviewUrl(id, file);
+    insertAtCursor(`{{asset:${insertType.value}:${id}}}`);
+}
+
+/** HTML の `{{asset:…}}` を、プレビュー用の URL に置き換えた HTML。URL が未取得のアセットは先に読み込む。 */
+const PLACEHOLDER = /\{\{asset:(image|video):([^}]+)\}\}/g;
+const previewHtml = computed(() =>
+    formData.htmlString.replace(PLACEHOLDER, (match, type: string, id: string) => {
+        const url = previewUrls.get(id);
+        if (!url) return match;
+        return type === 'image' ? `<img src="${url}" alt="asset" />` : `<video src="${url}" controls></video>`;
+    })
+);
+watch(() => formData.htmlString, async (html) => {
+    for (const [, , id] of html.matchAll(PLACEHOLDER)) {
+        if (previewUrls.has(id)) continue;
+        try {
+            const asset = await assetService.getAssetById(id);
+            if (asset?.blob) setPreviewUrl(id, asset.blob);
+        } catch (e) {
+            console.error('Failed to load asset for preview:', id, e);
+        }
     }
 });
 
-const handleFileUpload = async (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-    if (!file) return;
-
-    if (formData.contentId) {
-        const assets = formData.contentType === 'image' ? imageAssets.value : videoAssets.value;
-        const existingAsset = assets.find(a => a.id === formData.contentId);
-        if (existingAsset && (existingAsset as any).uploaded) {
-            try { await assetService.deleteAssets([formData.contentId]); } catch (error) { console.error('Failed to delete previous asset:', error); }
-        }
-    }
-
-    try {
-        const asset: Asset = { id: '', blob: file, name: file.name, uploadedAt: new Date().toISOString(), lastUpdated: new Date().toISOString(), size: file.size, uploaded: true };
-        const addedIds = await assetService.addAssets([asset]);
-        if (addedIds.length > 0) {
-            formData.contentId = addedIds[0];
-            const assets = await assetService.getAssets();
-            imageAssets.value = assets.filter(asset => asset.blob.type.startsWith('image/'));
-            videoAssets.value = assets.filter(asset => asset.blob.type.startsWith('video/'));
-        }
-    } catch (error) { console.error('Failed to upload content:', error); }
-};
-
-const triggerFileUpload = () => { fileInput.value?.click(); };
-
-const togglePreview = async () => {
-    if (formData.contentType === 'html') {
-        // Replace any {{asset:type:id}} placeholders with object URLs for preview
-        let html = formData.htmlString || '';
-        const assetRegex = /\{\{asset:(image|video):([^}]+)\}\}/g;
-        const assetIds: string[] = [];
-        let match: RegExpExecArray | null = null;
-        while ((match = assetRegex.exec(html)) !== null) {
-            assetIds.push(match[2]);
-        }
-        const assetMap = new Map<string, string>();
-        for (const id of assetIds) {
-            try {
-                const asset = await assetService.getAssetById(id);
-                if (asset && (asset as any).blob) {
-                    try {
-                        const url = URL.createObjectURL((asset as any).blob);
-                        createdPreviewUrls.push(url);
-                        assetMap.set(id, url);
-                    } catch (err) {
-                        console.error('Failed to create object URL for preview asset', err);
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to load asset for preview:', id, e);
-            }
-        }
-        html = html.replace(assetRegex, (m: string, type: string, assetId: string) => {
-            const dataUrl = assetMap.get(assetId);
-            if (!dataUrl) return m;
-            if (type === 'image') return `<img src="${dataUrl}" alt="asset" />`;
-            if (type === 'video') return `<video src="${dataUrl}" controls></video>`;
-            return m;
-        });
-        previewContent.value = html;
-        previewType.value = 'html';
-    } else {
-        if (formData.contentFile) { const url = URL.createObjectURL(formData.contentFile); createdPreviewUrls.push(url); previewContent.value = { url }; previewType.value = formData.contentType; }
-        else if (formData.contentId) {
-            const asset = (formData.contentType === 'image' ? imageAssets.value : videoAssets.value).find(a => a.id === formData.contentId);
-            if (asset) { const url = URL.createObjectURL(asset.blob); createdPreviewUrls.push(url); previewContent.value = { url }; previewType.value = formData.contentType; }
-        }
-    }
-    showPreviewDialog.value = true;
-};
-
-const closePreview = () => {
-    showPreviewDialog.value = false;
-    try {
-        createdPreviewUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch { } });
-        createdPreviewUrls.length = 0;
-    } catch (e) { }
-    previewContent.value = null;
-    previewType.value = '';
-};
-
-const triggerImageUploadForHtml = () => { imageFileInput.value?.click(); };
-
-const handleImageUploadForHtml = async (event: Event) => {
-    const target = event.target as HTMLInputElement; const file = target.files?.[0]; if (!file) return;
-    try {
-        const asset: Asset = { id: '', blob: file, name: file.name, uploadedAt: new Date().toISOString(), lastUpdated: new Date().toISOString(), size: file.size, uploaded: true };
-        const addedIds = await assetService.addAssets([asset]);
-        if (addedIds.length > 0) {
-            // Immediately select the newly added asset (use existing-<id> semantics)
-            selectedImageForHtml.value = 'existing-' + addedIds[0];
-            // keep uploadedImages for backward compatibility in UI if needed
-            uploadedImages.value.push(file);
-            const assets = await assetService.getAssets();
-            imageAssets.value = assets.filter(asset => asset.blob.type.startsWith('image/'));
-        }
-    } catch (error) {
-        console.error('Failed to upload image for HTML:', error);
-    }
-};
-
-const insertImageIntoHtml = () => {
-    if (!selectedImageForHtml.value) return;
-    if (selectedImageForHtml.value.startsWith('existing-')) {
-        const assetId = selectedImageForHtml.value.replace('existing-', '');
-        // Insert placeholder instead of object URL
-        const placeholder = `{{asset:image:${assetId}}}`;
-        formData.htmlString += placeholder;
-    } else if (selectedImageForHtml.value.startsWith('uploaded-')) {
-        // Fallback: try to map uploaded index to an asset if possible
-        const index = parseInt(selectedImageForHtml.value.replace('uploaded-', ''));
-        const file = uploadedImages.value[index];
-        if (file) {
-            // Attempt to find matching asset by name/size in imageAssets
-            const found = imageAssets.value.find(a => a.name === file.name && a.size === file.size);
-            if (found) {
-                formData.htmlString += `{{asset:image:${found.id}}}`;
-            } else {
-                // as a last resort insert an object URL (temporary) so user sees something
-                const url = URL.createObjectURL(file);
-                createdPreviewUrls.push(url);
-                formData.htmlString += `<img src="${url}" alt="${file.name}" />`;
-            }
-        }
-    }
-    selectedImageForHtml.value = '';
-};
-
+/** 使われているファイルだけをアップロードして、仮の id を本物の id に置き換えた結果を渡す。 */
 const save = async () => {
-    let outBase: ShowContentEventDto;
-    if (formData.contentType === 'html') outBase = { actionType: 'ShowContentEvent', contentType: 'html', contentId: '', htmlString: formData.htmlString };
-    else outBase = { actionType: 'ShowContentEvent', contentType: formData.contentType as 'image' | 'movie', contentId: formData.contentId, htmlString: undefined };
-    if (props.initialData?.id) {
-        emit('save', { ...outBase, id: props.initialData.id });
-    } else {
-        emit('save', outBase);
-    }
+    const isHtml = formData.contentType === 'html';
+    const used = pendingUploads.value.filter((u) =>
+        isHtml ? formData.htmlString.includes(`:${u.tempId}}}`) : u.tempId === formData.contentId
+    );
+    const resolved = await appEventService.resolveShowContentUploads(
+        isHtml ? '' : formData.contentId,
+        isHtml ? formData.htmlString : '',
+        used
+    );
+    const base: ShowContentEventDto = {
+        actionType: 'ShowContentEvent',
+        contentType: formData.contentType,
+        contentId: isHtml ? '' : resolved.contentId,
+        htmlString: isHtml ? resolved.htmlString : undefined,
+        displayMode: props.initialData?.displayMode,
+        fadeOutDuration: props.initialData?.fadeOutDuration,
+        effect: formData.effect,
+        duration: formData.duration,
+        fadeInTime: formData.fadeInTime,
+        fadeOutTime: formData.fadeOutTime,
+        scrollDirection: formData.scrollDirection,
+    };
+    emit('save', props.initialData?.id ? { ...base, id: props.initialData.id } : base);
 };
 
 const reset = () => {
-    formData.contentType = props.initialData?.contentType ?? 'image';
-    formData.contentId = props.initialData?.contentId ?? '';
-    formData.htmlString = props.initialData?.htmlString ?? '';
-    formData.contentFile = null;
-    selectedImageForHtml.value = '';
-    uploadedImages.value = [];
+    Object.assign(formData, initialFields());
+    for (const u of pendingUploads.value) revokePreviewUrl(u.tempId);
+    pendingUploads.value = [];
+    insertAssetId.value = '';
 };
 
-watch(() => props.initialData, () => {
-    reset();
-});
+watch(() => props.initialData, reset);
 
 defineExpose({ save, reset });
 </script>
@@ -342,41 +306,39 @@ defineExpose({ save, reset });
     color: var(--ui-text, #fff);
 }
 
-.content-selection {
+.content-selection,
+.asset-insert {
     display: flex;
     gap: 10px;
     align-items: center;
+    margin-top: 6px;
 }
 
-.upload-button {
-    padding: 8px 12px;
+.content-selection select,
+.asset-insert select:last-of-type {
+    flex: 1;
+}
+
+.icon-button {
+    flex: none;
+    width: 40px;
+    height: 40px;
     border: 1px solid var(--ui-border, #3a4048);
     border-radius: 4px;
     background: var(--ui-surface, #2b3036);
     color: var(--ui-text, #fff);
     cursor: pointer;
-    font-size: var(--ui-font-md, 1rem);
     font-weight: bold;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
-.preview-button {
-    padding: 8px 12px;
+.html-preview {
     border: 1px solid var(--ui-border, #3a4048);
-    border-radius: 4px;
-    background: var(--ui-surface, #2b3036);
+    border-radius: 6px;
+    padding: 0.5em;
+    background: var(--ui-bg, #23252b);
     color: var(--ui-text, #fff);
-    cursor: pointer;
-    font-size: var(--ui-font-md, 1rem);
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    max-height: 200px;
+    overflow-y: auto;
 }
 
 .preview-media {

@@ -13,6 +13,9 @@ async function addEvent(page: Page, typeLabel: string) {
   await page.getByRole("button", { name: typeLabel }).click();
 }
 
+/** 1x1 の PNG。 */
+const PNG_1X1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+
 const row = (page: Page, typeLabel: string) => page.getByRole("row").filter({ hasText: typeLabel });
 
 /** 削除の確認ダイアログの「削除」(行の削除ボタンと同じ名前なので、ダイアログの中に絞る)。 */
@@ -52,6 +55,73 @@ test.describe("予定イベント(設定 > イベント)", () => {
     await expect(dialog.locator("select")).not.toHaveValue("");
     await expect(dialog.locator("select option:checked")).toHaveText("beep.mp3");
     await expect(page.locator("#fadeOutDuration")).toHaveValue("1.5");
+    await d.context.close();
+  });
+
+  test("スライドショー: 切替・方向・BGM(その場でアップロード)が保存され、編集画面に戻る", async ({ browser }) => {
+    const d = await newDevice(browser, { signedIn: true });
+    const { page } = d;
+    await openEvents(page);
+    await addEvent(page, "スライドショーイベント");
+    await page.locator("#folderId").fill("slides-a");
+    await page.locator("#displayDuration").fill("7");
+    await page.locator("#transitionType").selectOption("slide");
+    await page.locator("#slideDirection").selectOption("up");
+    await page.getByRole("dialog").locator('input[type="file"]').setInputFiles({ name: "bgm.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("ID3-e2e") });
+    await expect(page.getByRole("dialog").locator(".bgm-item")).toContainText("bgm.mp3");
+    await page.getByRole("button", { name: "追加", exact: true }).last().click();
+    await expect(row(page, "スライドショー")).toHaveCount(1);
+
+    await page.reload();
+    await row(page, "スライドショー").getByRole("button", { name: "編集" }).click();
+    await expect(page.locator("#folderId")).toHaveValue("slides-a");
+    await expect(page.locator("#displayDuration")).toHaveValue("7");
+    await expect(page.locator("#transitionType")).toHaveValue("slide");
+    await expect(page.locator("#slideDirection")).toHaveValue("up");
+    await expect(page.getByRole("dialog").locator(".bgm-item")).toContainText("bgm.mp3");
+    await d.context.close();
+  });
+
+  test("コンテンツ表示(HTML): 画像を挿入すると保存時にアップロードされ、仮の id が本物に置き換わる。表示方法も保たれる", async ({ browser }) => {
+    const d = await newDevice(browser, { signedIn: true });
+    const { page } = d;
+    await openEvents(page);
+    await addEvent(page, "コンテンツ表示イベント");
+    await page.locator("#contentType").selectOption("html");
+    await page.locator("#htmlString").fill("<p>こんにちは</p>");
+    await page.getByRole("dialog").locator('input[type="file"]').setInputFiles({ name: "pic.png", mimeType: "image/png", buffer: PNG_1X1 });
+    await expect(page.locator("#htmlString")).toHaveValue(/\{\{asset:image:TMP_[a-z0-9]+\}\}/);
+    await page.locator("#effect").selectOption("static");
+    await page.locator("#duration").fill("9");
+    await page.getByRole("button", { name: "追加", exact: true }).last().click();
+    await expect(row(page, "コンテンツ表示")).toHaveCount(1);
+
+    await page.reload();
+    await row(page, "コンテンツ表示").getByRole("button", { name: "編集" }).click();
+    await expect(page.locator("#contentType")).toHaveValue("html");
+    const html = await page.locator("#htmlString").inputValue();
+    expect(html).toContain("<p>こんにちは</p>");
+    expect(html).toMatch(/\{\{asset:image:(?!TMP_)[^}]+\}\}/);
+    await expect(page.locator("#effect")).toHaveValue("static");
+    await expect(page.locator("#duration")).toHaveValue("9");
+    await d.context.close();
+  });
+
+  test("コンテンツ表示(画像): 選んだ画像は保存時にアップロードされ、編集画面でその画像が選ばれている", async ({ browser }) => {
+    const d = await newDevice(browser, { signedIn: true });
+    const { page } = d;
+    await openEvents(page);
+    await addEvent(page, "コンテンツ表示イベント");
+    await page.getByRole("dialog").locator('input[type="file"]').setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: PNG_1X1 });
+    await expect(page.locator("#contentAsset option:checked")).toContainText("photo.png");
+    await page.locator("#fadeInTime").fill("2");
+    await page.getByRole("button", { name: "追加", exact: true }).last().click();
+    await expect(row(page, "コンテンツ表示")).toHaveCount(1);
+
+    await page.reload();
+    await row(page, "コンテンツ表示").getByRole("button", { name: "編集" }).click();
+    await expect(page.locator("#contentAsset option:checked")).toHaveText("photo.png");
+    await expect(page.locator("#fadeInTime")).toHaveValue("2");
     await d.context.close();
   });
 
