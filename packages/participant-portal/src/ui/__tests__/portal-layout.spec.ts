@@ -364,6 +364,8 @@ describe("参加者ポータル: クイズ", () => {
     await tick(5000);
     await flushPromises();
     expect(has(m, "quiz-changeable")).toBe(false);
+    // 回答済みの人に「受付は終了しました」を重ねて出さない(回答済みの案内だけ)
+    expect(has(m, "quiz-closed")).toBe(false);
     expect(text(m, "quiz-answered")).toContain("1. りんご");
     expect(m.wrapper.findAll(".pp-quiz__option").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
     m.wrapper.unmount();

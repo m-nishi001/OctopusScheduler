@@ -42,6 +42,13 @@ describe("upsertAnswer", () => {
     expect(list).toEqual([answer("d1", "a", 2, 50, true)]);
   });
 
+  it("選び直した人は一覧の末尾へ移り、一覧は常に回答時刻の順に並ぶ", () => {
+    const list = [answer("d1", "a", 1, 10, true), answer("d2", "b", 1, 20, true), answer("d3", "c", 1, 30, true)];
+    upsertAnswer(list, answer("d1", "a", 2, 40, true), 5);
+    expect(list.map((a) => a.memberId)).toEqual(["b", "c", "a"]);
+    expect(list.map((a) => a.atMs)).toEqual([20, 30, 40]);
+  });
+
   it("別の端末から選び直しても、同じメンバーの1件が置き換わる", () => {
     const list = [answer("d1", "a", 1, 10, true)];
     const result = upsertAnswer(list, answer("d2", "a", 3, 60, true), 5);

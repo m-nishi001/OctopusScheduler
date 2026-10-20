@@ -101,6 +101,48 @@ describe("useQuiz: 出題と残り時間", () => {
   });
 });
 
+describe("useQuiz: 回答まわりの表示の状態(answerStatus)", () => {
+  it("受付中・未回答 → 回答 → 受付中・回答済み → 締切 → 締切後・回答済み", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    const quiz = await env.startQuiz();
+    await tick(5000);
+    expect(alice.quiz.answerStatus.value).toBe("open-unanswered");
+
+    await alice.quiz.answer(1);
+    expect(alice.quiz.answerStatus.value).toBe("open-answered");
+
+    await env.host.conn.closeRound(quiz.roundKey!);
+    await env.startQuiz({ phase: "closed", deadlineMs: null, roundKey: quiz.roundKey });
+    await tick(5000);
+    expect(alice.quiz.answerStatus.value).toBe("closed-answered");
+    alice.unmount();
+  });
+
+  it("答えないまま締め切られたら、締切後・未回答", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    await env.startQuiz({ phase: "closed", deadlineMs: null });
+    await tick(5000);
+    expect(alice.quiz.answerStatus.value).toBe("closed-unanswered");
+    alice.unmount();
+  });
+
+  it("送信中でも状態は変わらない(画面の案内が一瞬消えない)", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    await env.startQuiz();
+    await tick(5000);
+    await alice.quiz.answer(1);
+
+    const pending = alice.quiz.answer(2);
+    expect(alice.quiz.answering.value).toBe(true);
+    expect(alice.quiz.answerStatus.value).toBe("open-answered");
+    await pending;
+    alice.unmount();
+  });
+});
+
 describe("useQuiz: 回答する", () => {
   it("押した選択肢が採用され、回答済みになる。ホスト側にはメンバーとして1件届く", async () => {
     const env = await portalEnv();
@@ -117,7 +159,7 @@ describe("useQuiz: 回答する", () => {
     alice.unmount();
   });
 
-  it("連打しても送信中は1回だけ。同じ選択肢を押し直しても送らない", async () => {
+  it("連打しても、送信中は1回だけ送る", async () => {
     const env = await portalEnv();
     const device = participantDevice(env.hub, ALICE);
     const alice = await connect(device);
@@ -127,9 +169,37 @@ describe("useQuiz: 回答する", () => {
     await Promise.all([alice.quiz.answer(1), alice.quiz.answer(1), alice.quiz.answer(3)]);
     expect(alice.quiz.myAnswer.value).toBe(1);
     expect(device.api.calls.submitAnswer).toBe(1);
-    await alice.quiz.answer(1);
-    expect(device.api.calls.submitAnswer).toBe(1);
     alice.unmount();
+  });
+
+  it("同じ選択肢を押し直しても送る(別の端末で選び直していたら、この端末の「いまの回答」は古いため)。回答は変わらない", async () => {
+    const env = await portalEnv();
+    const device = participantDevice(env.hub, ALICE);
+    const alice = await connect(device);
+    const quiz = await env.startQuiz();
+    await tick(5000);
+
+    await alice.quiz.answer(1);
+    await alice.quiz.answer(1);
+    expect(device.api.calls.submitAnswer).toBe(2);
+    expect(alice.quiz.myAnswer.value).toBe(1);
+    expect((await env.host.conn.getAnswers(quiz.roundKey!)).answers).toMatchObject([{ no: 1 }]);
+    alice.unmount();
+  });
+
+  it("2台で使い、もう一方で選び直したあとに、元の選択を押し直すと、元の選択に戻せる", async () => {
+    const env = await portalEnv();
+    const phone = await connect(participantDevice(env.hub, ALICE));
+    const tablet = await connect(participantDevice(env.hub, ALICE));
+    const quiz = await env.startQuiz();
+    await tick(5000);
+
+    await phone.quiz.answer(1); // 端末Aの記憶: 1
+    await tablet.quiz.answer(2); // 端末Bで選び直した(サーバー: 2)。端末Aの記憶は古いまま
+    await phone.quiz.answer(1); // 端末Aで1を押し直す → 送らずに無視してはいけない
+    expect((await env.host.conn.getAnswers(quiz.roundKey!)).answers).toMatchObject([{ memberId: "alice", no: 1 }]);
+    phone.unmount();
+    tablet.unmount();
   });
 
   it("受付中なら選び直せて、最後に選んだものが回答になる(回答は1件のまま)", async () => {
