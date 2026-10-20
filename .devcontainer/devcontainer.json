@@ -1,0 +1,24 @@
+{
+  "name": "octopus-scheduler",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "remoteUser": "root",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/octopus-scheduler,type=bind",
+  "workspaceFolder": "/workspace/octopus-scheduler",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/root/.claude"
+  },
+  "mounts": [
+    "source=${localEnv:USERPROFILE}/.octopus-dev/claude,target=/root/.claude,type=bind",
+    "source=octopus-dev-gh,target=/root/.config/gh,type=volume",
+    "source=octopus-dev-wrangler,target=/root/.config/.wrangler,type=volume",
+    "source=octopus-dev-aws,target=/root/.aws,type=volume"
+  ],
+  "forwardPorts": [8976],
+  "postCreateCommand": "npm ci --no-audit --no-fund && npx playwright install --with-deps chromium"
+}

@@ -21,6 +21,7 @@
 | [deploy-cloudflare.md](deploy-cloudflare.md) | Cloudflare へのデプロイ、作られるリソース、無料枠 |
 | [authentication.md](authentication.md) | ログインの仕組み、初回管理者、総当たり対策、復旧 |
 | [development.md](development.md) | セットアップ、コマンド、テスト、CI、ローカル確認 |
+| [dev-environment.md](dev-environment.md) | 新しい PC・コンテナの作り直しで開発環境を再現する(devcontainer、ログイン、`npm run doctor`) |
 | [dev-verification.md](dev-verification.md) | 開発中の通し動作確認（テストデータ入りのローカル起動、Cloudflare 試験環境） |
 | [architecture.md](architecture.md) | パッケージ構成、依存ルール、保存パス |
 | [session-hub.md](session-hub.md) | ホスト／管理／参加者を結ぶセッション基盤の設計と運用 |

@@ -1,0 +1,24 @@
+name: Devcontainer
+
+# 開発環境の定義(.devcontainer)を変えたときだけ、コンテナが組み立てられるか確かめる
+on:
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - ".github/workflows/devcontainer.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".devcontainer/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # ホストの mounts(メモリ用フォルダ)は CI では不要なので、イメージと features の組み立てだけを確かめる
+      - run: npx -y @devcontainers/cli@0.80.0 build --workspace-folder . --image-name octopus-dev-ci
