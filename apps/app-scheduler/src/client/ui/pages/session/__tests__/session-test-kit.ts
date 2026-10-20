@@ -1,3 +1,4 @@
+import { gamePathRedirectRoutes } from "../../../../control/router/execute-path";
 import "reflect-metadata";
 import { vi } from "vitest";
 import { container } from "tsyringe";
@@ -28,6 +29,7 @@ export function makeRouter(initial = "/") {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
+      ...gamePathRedirectRoutes, // 本物のルーターと同じ振り替え(/quiz/… → /execute/quiz/…)
       { path: "/", component: Stub },
       { path: "/home", component: Stub },
       { path: "/sessions", component: Stub },

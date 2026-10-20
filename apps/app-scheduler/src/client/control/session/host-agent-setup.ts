@@ -50,10 +50,10 @@ export function setupHostAgent(router: Router): HostAgent {
     if (command.type !== "navigate") return;
     const path = (command.payload as NavigatePayload | null)?.path;
     if (!isAllowedHostPath(path)) return;
-    // クイズの表示ルートは /execute 配下にだけ登録されている(ジャックポットは jackpot- 接頭辞で自動解決される)。
-    const target = path.startsWith("/quiz/") ? `/execute${path}` : path;
+    // ゲームの画面は /execute 配下に登録されている。/execute への振り替えはルーターが行う(execute-path.ts)。
+    const target = router.resolve(path).fullPath;
     if (router.currentRoute.value.fullPath === target) return;
-    await router.push(target);
+    await router.push(path);
   });
 
   // 参加者ポータルに出すイベント(管理端末の `event.start` / `event.end`)
