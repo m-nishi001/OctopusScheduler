@@ -10,8 +10,9 @@
  * 生成する wrangler.staging.toml(リソースIDを含む)と投入したパスワードはコミットしない(gitignore 済み)。
  * 事前に `npm run build` が必要。
  *
- * 注意: R2 バケットが空でないと削除できない(wrangler に一覧・一括削除が無い)。そのため staging:up でバケットに
- * 「1日で自動削除」のルールを付けてある。撤去時に空でなければ、翌日以降にもう一度 staging:down すればよい。
+ * 注意: R2 バケットが空でないと削除できない(wrangler に一覧・一括削除が無い)。そのため撤去時は、AWS CLI の
+ * profile r2(S3 互換 API。docs/dev-environment.md)でバケットを空にしてから削除する。profile が無いときの保険として、
+ * staging:up でバケットに「1日で自動削除」のルールを付けてある(翌日以降にもう一度 staging:down すればよい)。
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -21,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { setup } from "./setup-cloudflare.js";
 import { teardown } from "./teardown-cloudflare.js";
 import { qrLoginUrl } from "./dev-stack.js";
+import { emptyBucket } from "./lib/r2-s3.js";
 import { runWrangler, runWranglerAsync } from "./lib/wrangler.js";
 import { ensurePortalSession, seedDemoResults } from "./seed-session.js";
 
@@ -226,6 +228,7 @@ function down() {
   const tomlPath = join(ROOT, TOML_NAME);
   const result = teardown({
     run: wranglerRun,
+    emptyBucket: (b) => emptyBucket(b),
     ...STAGING,
     keepBucket: false,
     removeLocalToml: () => {
@@ -236,7 +239,7 @@ function down() {
   });
   if (result.bucketNotEmpty) {
     console.log(
-      `\nR2 バケットが空でないため削除できませんでした。オブジェクトは1日で自動削除されるので、翌日以降にもう一度 npm run staging:down を実行してください(削除済みのものはスキップされます)。すぐ消したい場合は、ダッシュボードの R2 → ${STAGING.bucket} → Settings → Empty Bucket で空にしてから実行してください。`
+      `\nR2 バケットが空でないため削除できませんでした。AWS CLI の profile r2 を設定すると自動で空にします(docs/dev-environment.md)。それまでは、オブジェクトが1日で自動削除されるので翌日以降にもう一度 npm run staging:down を実行するか、ダッシュボードの R2 → ${STAGING.bucket} → Settings → Empty Bucket で空にしてから実行してください(削除済みのものはスキップされます)。`
     );
   }
   if (result.failed.length > 0) process.exitCode = 1;
