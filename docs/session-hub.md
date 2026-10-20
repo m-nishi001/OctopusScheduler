@@ -154,6 +154,12 @@ GAS で参加者に使ってもらう場合のデプロイ設定は [deploy-gas.
 | 冪等性 | ラウンドは `roundKey`、抽選は `drawId` で上書き。内容が変わらない再送では rev は進まない。ホストの再読み込みで回答が空になった書き直しが、保存済みの(回答の多い)結果を壊さない |
 | 注意 | クイズの回答はラウンドごとに置き換わるので、**結果画面を表示せずに次のラウンドを始めると、その回の結果は残らない** |
 
+## 5.9 コードの構成とエラーコード
+
+- **エンジン** (`server/engine/`): 操作ごとにファイルが分かれている。`engine-core`(依存・認証・小さな部品)/ `engine-join`(入室)/ `engine-feed`(在席・更新の組み立て・ポーリング)/ `engine-commands`(コマンド・状態の公開)/ `engine-rounds`(回答ラウンド)。外からは `session-engine.ts`(まとめて再公開)を `engine.xxx` で使う。
+- **部屋** (`server/room/`): `room-core`(`SessionRoomCore`。RPC・WebSocket・配信)/ `room-repo`(DO ストレージの永続化。回答はメモリに溜めて alarm で書く)/ `room-types`(プラットフォームに依存しない型)。
+- **業務エラーのコード**: エラーメッセージの先頭に `[CODE] ` を付けて返す(`hubError()`)。コードの一覧と、取り出す・利用者向けに外す関数(`parseHubErrorCode` / `stripHubErrorCode`)は `shared/hub-error.ts`。専用のフィールドにせずメッセージに入れているのは、Durable Object の境界を越える例外は name / message しか確実に残らないため。変えるときは、その境界を実機(staging)で確かめてから。
+
 ## 6. テスト
 
 共通のコマンドは [development.md](development.md#テストの種類) を参照。session-hub 固有の観点は次のとおりです。
