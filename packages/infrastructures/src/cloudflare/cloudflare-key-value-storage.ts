@@ -35,6 +35,20 @@ export class CloudflareKeyValueStorage implements IKeyValueStorage {
     await this.bucket().delete(SCALAR_PREFIX + key);
   }
 
+  async deleteScalarsByPrefix(prefix: string): Promise<number> {
+    let deleted = 0;
+    let cursor: string | undefined;
+    do {
+      const page = await this.bucket().list({ prefix: SCALAR_PREFIX + prefix, cursor });
+      if (page.objects.length > 0) {
+        await this.bucket().delete(page.objects.map((obj) => obj.key));
+        deleted += page.objects.length;
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+    return deleted;
+  }
+
   private toMeta(key: string, obj: R2Object): StoredItemMeta {
     return {
       key,

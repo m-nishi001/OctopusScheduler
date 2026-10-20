@@ -12,6 +12,7 @@ export const ACCOUNTS_PREFIX = "accounts" as const;
 export const ACCOUNTS_ENDPOINTS = [
   "listMembers",
   "listAccounts",
+  "getRosterUsage",
   "addMember",
   "updateMember",
   "deleteMember",
@@ -47,6 +48,19 @@ export interface Member {
 }
 
 export type ListMembersArgs = Record<string, never>;
+
+/**
+ * 名簿が保存先の容量のどれだけを使っているか。名簿は 1 つの値に保存するので、GAS では約9KBが上限
+ * (50人なら十分だが、人数が増えると追加できなくなる)。管理画面が、上限に近づいたら警告するために使う。
+ */
+export interface RosterUsage {
+  /** 登録人数。 */
+  members: number;
+  /** 名簿の保存に使っているバイト数。 */
+  usedBytes: number;
+  /** 保存できる上限(バイト数)。上限の無い保存先(Cloudflare)は null。 */
+  maxBytes: number | null;
+}
 
 export interface AddMemberArgs {
   /**
@@ -127,6 +141,8 @@ export interface AccountsApi {
   listMembers(args: ListMembersArgs, options?: ApiCallOptions): Promise<Member[]>;
   /** 管理者向け一覧(isAdmin / hasPassword 付き)。 */
   listAccounts(args: ListMembersArgs, options?: ApiCallOptions): Promise<Member[]>;
+  /** 名簿の容量の使用状況(管理者向け)。 */
+  getRosterUsage(args: ListMembersArgs, options?: ApiCallOptions): Promise<RosterUsage>;
   addMember(args: AddMemberArgs, options?: ApiCallOptions): Promise<Member>;
   updateMember(args: UpdateMemberArgs, options?: ApiCallOptions): Promise<Member>;
   deleteMember(args: DeleteMemberArgs, options?: ApiCallOptions): Promise<void>;

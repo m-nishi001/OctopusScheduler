@@ -1,7 +1,9 @@
-import type {
-  IKeyValueStorage,
-  StoredItemContent,
-  StoredItemMeta,
+import {
+  StorageCapacityError,
+  utf8ByteLength,
+  type IKeyValueStorage,
+  type StoredItemContent,
+  type StoredItemMeta,
 } from "../interfaces/key-value-storage";
 
 interface StoredItem {
@@ -12,20 +14,61 @@ interface StoredItem {
   updatedAt: string;
 }
 
+/** GAS の ScriptProperty と同じ容量の上限(1 値 9KB・全体 500KB)。テストで上限の挙動を再現する。 */
+export const GAS_LIKE_LIMITS = { maxScalarBytes: 9000, maxTotalScalarBytes: 500 * 1024 } as const;
+
+export interface InMemoryStorageOptions {
+  /** 文字列値 1 件の上限(バイト)。省略時は無制限。 */
+  maxScalarBytes?: number;
+  /** 文字列値全体(キー + 値)の上限(バイト)。省略時は無制限。 */
+  maxTotalScalarBytes?: number;
+}
+
 export class InMemoryKeyValueStorage implements IKeyValueStorage {
   private readonly scalars = new Map<string, string>();
   private readonly items = new Map<string, StoredItem>();
+  readonly maxScalarBytes?: number;
+  private readonly maxTotalScalarBytes?: number;
+
+  constructor(options: InMemoryStorageOptions = {}) {
+    this.maxScalarBytes = options.maxScalarBytes;
+    this.maxTotalScalarBytes = options.maxTotalScalarBytes;
+  }
+
+  /** 文字列値全体の使用量(バイト)。 */
+  scalarBytesUsed(): number {
+    let total = 0;
+    for (const [key, value] of this.scalars) total += utf8ByteLength(key) + utf8ByteLength(value);
+    return total;
+  }
 
   async get(key: string): Promise<string | null> {
     return this.scalars.has(key) ? this.scalars.get(key)! : null;
   }
 
   async set(key: string, value: string): Promise<void> {
+    const bytes = utf8ByteLength(value);
+    if (this.maxScalarBytes !== undefined && bytes > this.maxScalarBytes) {
+      throw new StorageCapacityError(`1値の上限を超えました(${key}: ${bytes}バイト)`);
+    }
+    if (this.maxTotalScalarBytes !== undefined) {
+      const previous = this.scalars.get(key);
+      const delta = utf8ByteLength(key) + bytes - (previous === undefined ? 0 : utf8ByteLength(key) + utf8ByteLength(previous));
+      if (this.scalarBytesUsed() + delta > this.maxTotalScalarBytes) {
+        throw new StorageCapacityError("合計の容量の上限を超えました");
+      }
+    }
     this.scalars.set(key, value);
   }
 
   async deleteScalar(key: string): Promise<void> {
     this.scalars.delete(key);
+  }
+
+  async deleteScalarsByPrefix(prefix: string): Promise<number> {
+    const keys = Array.from(this.scalars.keys()).filter((key) => key.startsWith(prefix));
+    for (const key of keys) this.scalars.delete(key);
+    return keys.length;
   }
 
   private toMeta(item: StoredItem): StoredItemMeta {

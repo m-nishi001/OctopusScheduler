@@ -4,6 +4,11 @@
             パスワード設定済みの管理者がいません。この状態で全員がログアウトすると、管理画面にログインできなくなります。
         </p>
 
+        <p v-if="capacity" class="accounts-editor__capacity" :class="`is-${capacity.level}`"
+            :role="capacity.level === 'ok' ? undefined : 'alert'" data-testid="roster-capacity">
+            {{ capacity.message }}
+        </p>
+
         <div class="accounts-editor__toolbar">
             <UiButton variant="primary" icon="add" @click="openAdd">アカウント追加</UiButton>
             <UiButton :disabled="issuing || withoutKey.length === 0" :loading="issuing" @click="issueMissing">
@@ -63,12 +68,13 @@ import { container } from 'tsyringe';
 import { DataTable, UiButton, UiDialog, UiField, toast, useConfirm } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
 import { AccountsRepository } from '@octopus/accounts';
-import type { Member } from '@octopus/accounts';
+import type { Member, RosterUsage } from '@octopus/accounts';
 import { SessionAdminRepository, buildLoginUrl } from '@octopus/session-hub';
 import { useAuthSession } from '../../../../control/auth/auth-session';
 import LoginQrSheet from './login-qr-sheet.vue';
 import type { LoginQrCard } from './login-qr-sheet.vue';
 import { qrDataUrl } from './login-qr';
+import { describeRosterCapacity } from './roster-capacity';
 
 /** サーバー側 setPassword の最小文字数(accounts-use-cases.ts の MIN_PASSWORD_LENGTH と同じ)。 */
 const MIN_PASSWORD_LENGTH = 8;
@@ -91,10 +97,15 @@ const loading = ref(false);
 
 const hasLoginableAdmin = computed(() => accounts.value.some((a) => a.isAdmin && a.hasPassword));
 
+/** 名簿の容量の使用状況(上限のある保存先でだけ表示する)。取得に失敗しても一覧の表示は止めない。 */
+const usage = ref<RosterUsage | null>(null);
+const capacity = computed(() => (usage.value ? describeRosterCapacity(usage.value) : null));
+
 async function load() {
     loading.value = true;
     try {
         accounts.value = await repo.listAccounts();
+        usage.value = await repo.getRosterUsage().catch(() => null);
     } catch (e) {
         toast.error(`アカウント一覧の取得に失敗しました: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -236,6 +247,20 @@ async function removeOne(row: Member) {
 .accounts-editor__warning {
     margin: 0 0 var(--ui-space-3, 12px);
     font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-danger, #e5484d);
+}
+
+.accounts-editor__capacity {
+    margin: 0 0 var(--ui-space-3, 12px);
+    font-size: var(--ui-font-sm, 0.875rem);
+    color: var(--ui-text-muted, #6b7280);
+}
+
+.accounts-editor__capacity.is-warn {
+    color: var(--ui-warning, #b45309);
+}
+
+.accounts-editor__capacity.is-full {
     color: var(--ui-danger, #e5484d);
 }
 

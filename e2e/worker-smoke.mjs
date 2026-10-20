@@ -213,6 +213,10 @@ check("素材は fileId なしで更新でき、更新後の内容が取れる",
 const assetList = await rpc("quizGame_getDriveMetaData", {}, ADMIN_TOKEN);
 check("更新しても素材は1件のまま", assetList.filter((m) => m.driveDataId === "smoke-asset").length === 1);
 
+// 名簿の容量の使用状況(Cloudflare は上限なし)
+const rosterUsage = await rpc("accounts_getRosterUsage", {}, ADMIN_TOKEN);
+check("名簿の使用状況が取れる(Cloudflare は上限なし)", rosterUsage.members >= 1 && rosterUsage.usedBytes > 0 && rosterUsage.maxBytes === null, JSON.stringify(rosterUsage));
+
 // 存在しないセッションへの WS
 const ghost = await new Promise((resolve) => {
   const ws = new WebSocket(`${BASE.replace("http", "ws")}/ws/no-such-session`);

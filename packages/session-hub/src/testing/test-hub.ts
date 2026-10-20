@@ -7,6 +7,7 @@
  * - ロックは同一キーを直列化する(ILock と同じ意味)
  */
 import { InMemoryCache, InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
+import type { InMemoryStorageOptions } from "@octopus/infrastructures/testing";
 import type { ICache, IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import {
   createCachePresenceStore,
@@ -37,8 +38,8 @@ export interface OpCounts {
 }
 
 class CountingKv extends InMemoryKeyValueStorage {
-  constructor(private readonly counts: OpCounts) {
-    super();
+  constructor(private readonly counts: OpCounts, limits: InMemoryStorageOptions) {
+    super(limits);
   }
   override async get(key: string): Promise<string | null> {
     this.counts.kvGet++;
@@ -73,10 +74,10 @@ export interface TestHub {
   resetCounts(): void;
 }
 
-export function createTestHub(options: { clock?: Clock } = {}): TestHub {
+export function createTestHub(options: { clock?: Clock; storageLimits?: InMemoryStorageOptions } = {}): TestHub {
   const clock = options.clock ?? new FakeClock();
   const counts: OpCounts = { kvGet: 0, kvSet: 0, cacheGet: 0, cachePut: 0, lock: 0 };
-  const storage = new CountingKv(counts);
+  const storage = new CountingKv(counts, options.storageLimits ?? {});
   const cache = new CountingCache(counts);
   let idCounter = 0;
   const chains = new Map<string, Promise<unknown>>();
