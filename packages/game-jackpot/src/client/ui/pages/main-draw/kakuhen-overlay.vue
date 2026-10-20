@@ -12,180 +12,61 @@
     </transition>
 </template>
 
-<script lang="ts">
-export default {
-    name: 'KakuhenOverlay',
-    props: {
-        visible: {
-            type: Boolean,
-            required: true,
-        },
+<script setup lang="ts">
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+
+/**
+ * 確変の「だが」の演出。表示されるたびに、演出が終わったら window に `kakuhen.finished` を1回だけ通知し、
+ * 消え終わったら `kakuhen.dismissed` を通知する(進行役がこの2つを待って次へ進む)。
+ */
+const props = defineProps<{ visible: boolean }>();
+
+/** 演出の終わりを検知できなくても、この時間が経ったら終わりとして通知する。 */
+const FINISHED_FALLBACK_MS = 2000;
+
+const root = ref<HTMLElement | null>(null);
+let stopWatching: (() => void) | null = null;
+
+/** 表示のたびに呼ぶ。2文字目の演出が終わる(animationend)か、時間切れで、`kakuhen.finished` を1回だけ通知する。 */
+function watchUntilFinished(): void {
+    let notified = false;
+    const target = root.value?.querySelector('.char-2') ?? null;
+    const timer = window.setTimeout(notifyFinished, FINISHED_FALLBACK_MS);
+
+    function notifyFinished(): void {
+        if (notified) return;
+        notified = true;
+        stopWatching?.();
+        window.dispatchEvent(new CustomEvent('kakuhen.finished'));
+    }
+
+    target?.addEventListener('animationend', notifyFinished);
+    stopWatching = () => {
+        window.clearTimeout(timer);
+        target?.removeEventListener('animationend', notifyFinished);
+        stopWatching = null;
+    };
+
+    // 動きを減らす設定の端末では、演出を待たずにすぐ終わりにする
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) notifyFinished();
+}
+
+watch(
+    () => props.visible,
+    async (visible) => {
+        stopWatching?.();
+        if (!visible) return;
+        await nextTick(); // 表示された要素(.char-2)ができてから探す
+        if (props.visible) watchUntilFinished();
     },
-    mounted() {
-        // If the overlay is already visible at mount, schedule attaching listeners.
-        if ((this as any).visible) {
-            // Defer to attach function which will use $nextTick.
-            (this as any)._attachKakuhenListeners && (this as any)._attachKakuhenListeners();
-        }
-    },
-    watch: {
-        visible(v: boolean) {
-            if (v) {
-                try {
-                    (this as any)._attachKakuhenListeners && (this as any)._attachKakuhenListeners();
-                } catch (e) {
-                    // noop
-                }
-            }
-        }
-    },
-    methods: {
-        async _attachKakuhenListeners() {
-            if ((this as any)._kakuhen_attached) return;
-            (this as any)._kakuhen_attached = true;
+    { immediate: true }
+);
 
-            await (this as any).$nextTick();
+onBeforeUnmount(() => stopWatching?.());
 
-            const el = (this as any).$refs.root as HTMLElement | null;
-            const dispatchFinished = (_source = 'unknown') => {
-                try {
-                    if ((this as any)._kakuhen_dispatched) return;
-                    (this as any)._kakuhen_dispatched = true;
-                    // dispatch finished (production: no debug log)
-                    window.dispatchEvent(new CustomEvent('kakuhen.finished'));
-                } catch (e) {
-                    // noop
-                }
-            };
-
-            // Respect reduced-motion: immediately dispatch finished.
-            if (
-                typeof window !== 'undefined' &&
-                window.matchMedia &&
-                window.matchMedia('(prefers-reduced-motion: reduce)').matches
-            ) {
-                dispatchFinished('reduced-motion');
-                return;
-            }
-
-            if (!el) {
-                // fallback: small timeout — tag the source so diagnostics show why we fired
-                (this as any)._kakuhen_timer = window.setTimeout(() => {
-                    dispatchFinished('no-el');
-                }, 1200);
-                return;
-            }
-
-            // Attach listener to the second character (.char-2) so we dispatch
-            // `kakuhen.finished` precisely when the last character's animation ends.
-            const char2 = el.querySelector('.char-2');
-            if (char2) {
-                    const onChar2End = (_ev: AnimationEvent) => {
-                    dispatchFinished('char2');
-                    (char2 as Element).removeEventListener('animationend', onChar2End as EventListener);
-                };
-                char2.addEventListener('animationend', onChar2End as EventListener);
-                (this as any)._kakuhen_char2_onend = onChar2End;
-                (this as any)._kakuhen_char2 = char2;
-                // attached char2 animationend listener
-
-                // Also try to detect ongoing animations via the Web Animations API.
-                try {
-                    const el2 = char2 as HTMLElement;
-                    if (typeof el2.getAnimations === 'function') {
-                        const anims = el2.getAnimations();
-                        // char2.getAnimations.length: ${anims.length}
-                        if (anims.length > 0) {
-                            // Wait for any of the animations to finish (race) and then dispatch.
-                            const finishedPromises = anims.map((a) => a.finished);
-                            Promise.race(finishedPromises)
-                                .then(() => {
-                                    dispatchFinished('char2-promise');
-                                })
-                                .catch(() => {
-                                    // ignore
-                                });
-                        } else {
-                            // No animations found on the element — probably already visible.
-                            Promise.resolve().then(() => dispatchFinished('char2-none'));
-                        }
-                    }
-                } catch (e) {
-                    // ignore failures from getAnimations in older browsers
-                }
-            }
-
-            // Keep ripple as a secondary fallback (some render scenarios may not fire
-            // char animations reliably). It will dispatch only if char2 doesn't.
-            const ripple = el.querySelector('.kakuhen-ripple');
-            if (ripple) {
-                const onEnd = () => {
-                    // If char2 exists (likely animating), defer dispatch so char2 can finish.
-                    if ((this as any)._kakuhen_char2) {
-                        const prev = (this as any)._kakuhen_ripple_timer;
-                        if (prev) {
-                            clearTimeout(prev);
-                        }
-                        (this as any)._kakuhen_ripple_timer = window.setTimeout(() => {
-                            dispatchFinished('ripple');
-                        }, 200);
-                    } else {
-                        // No char2 — dispatch immediately.
-                        dispatchFinished('ripple');
-                    }
-
-                    ripple.removeEventListener('animationend', onEnd as EventListener);
-                };
-                ripple.addEventListener('animationend', onEnd as EventListener);
-                (this as any)._kakuhen_onend = onEnd;
-                (this as any)._kakuhen_ripple = ripple;
-            } else {
-                // no ripple found: fallback to timeout slightly longer than char animations
-                (this as any)._kakuhen_timer = window.setTimeout(() => {
-                    dispatchFinished('fallback');
-                }, 2000);
-            }
-        },
-        onAfterLeave() {
-            try {
-                window.dispatchEvent(new CustomEvent('kakuhen.dismissed'));
-            } catch (e) {
-                // noop
-            }
-        },
-    },
-    unmounted() {
-        try {
-            const onEnd = (this as any)._kakuhen_onend;
-            const ripple = (this as any)._kakuhen_ripple;
-            if (ripple && onEnd) {
-                ripple.removeEventListener('animationend', onEnd as EventListener);
-            }
-
-            const char2OnEnd = (this as any)._kakuhen_char2_onend;
-            const char2El = (this as any)._kakuhen_char2;
-            if (char2El && char2OnEnd) {
-                try {
-                    char2El.removeEventListener('animationend', char2OnEnd as EventListener);
-                } catch (e) {
-                    // noop
-                }
-            }
-
-            const t = (this as any)._kakuhen_timer;
-            if (t) {
-                clearTimeout(t);
-            }
-
-            const rt = (this as any)._kakuhen_ripple_timer;
-            if (rt) {
-                clearTimeout(rt);
-            }
-        } catch (e) {
-            // noop
-        }
-    },
-};
+function onAfterLeave(): void {
+    window.dispatchEvent(new CustomEvent('kakuhen.dismissed'));
+}
 </script>
 
 <style>

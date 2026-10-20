@@ -44,7 +44,6 @@ export interface RouletteAnimationState {
   selectedPrize: PrizeDto;
   showResult: boolean;
   preparedPrizes: RouletteItem[];
-  canStop: boolean;
   setPreparedPrizes?: (newPrepared: RouletteItem[]) => void;
 }
 
@@ -58,7 +57,6 @@ export function useRouletteAnimationState(
   const selectedPrize = ref<PrizeDto>(initialSelectedPrize);
   const showResult = ref<boolean>(initialShowResult);
   const preparedPrizes = ref<RouletteItem[]>([]);
-  const canStop = ref(false);
 
   const updatePrizes = async (newPrizes: PrizeDto[]) => {
     prizes.value = newPrizes;
@@ -88,21 +86,15 @@ export function useRouletteAnimationState(
     showResult.value = newShow;
   };
 
-  const setCanStop = (value: boolean) => {
-    canStop.value = value;
-  };
-
   return {
     prizes: computed(() => prizes.value),
     selectedPrize: computed(() => selectedPrize.value),
     showResult: computed(() => showResult.value),
     preparedPrizes: computed(() => preparedPrizes.value),
-    canStop: computed(() => canStop.value),
     updatePrizes,
     preparePrizes,
     setPreparedPrizes,
     updateSelectedPrize,
     updateShowResult,
-    setCanStop,
   };
 }

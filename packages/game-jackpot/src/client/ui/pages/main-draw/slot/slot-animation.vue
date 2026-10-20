@@ -18,7 +18,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useAudio } from '@octopus/composables/use-audio';
 import '../../../theme/jackpot-theme.css';
 import type { PrizeDto } from '@control/prize/dto/prize-dto';
-import type { AnimationRef } from '../animation-types';
+import type { AnimationItem, AnimationRef } from '../animation-types';
 import { advancePosition, buildLoop, cycleHeight, indexInLoop, positionForIndex, renderedCount } from './reel-model';
 
 export default {
@@ -43,7 +43,10 @@ export default {
             { position: 0, speed: 0 },
         ]);
 
-        const loop = computed(() => buildLoop(props.prizes));
+        // 流す景品。通常は親から渡された一覧。確変の間は、親が updatePrizes で差し替えた一覧（当選景品を複製したもの）。
+        const items = ref<ReadonlyArray<AnimationItem> | null>(null);
+        const source = computed<ReadonlyArray<AnimationItem>>(() => items.value ?? props.prizes);
+        const loop = computed(() => buildLoop(source.value));
         // 描画は「ループ + 窓の高さ分」。窓が帯の外(黒)を映さないので、1周の継ぎ目が見えない。
         const strip = computed(() =>
             Array.from({ length: renderedCount(loop.value.length) }, (_, k) => ({
@@ -83,7 +86,19 @@ export default {
             });
         };
 
+        const updatePrizes = (next: ReadonlyArray<AnimationItem>) => {
+            items.value = next.map(({ id, name }) => ({ id, name }));
+        };
+        const getInternalItems = () => source.value;
+
+        // 止める景品は、止め始める前に決めて確かめる。演出の中に無い景品を黙って別の景品に置き換えると、
+        // 画面の当選と保存した抽選結果が食い違うので、例外にする。
         const stopSpin = async (_durationSec?: number, targetPrizeId?: string | null) => {
+            const targetId = targetPrizeId ?? props.selectedPrize?.id ?? null;
+            const targetIndex = indexInLoop(loop.value, targetId);
+            if (targetIndex < 0) {
+                throw new Error(`スロットに、止める景品(${targetId ?? '指定なし'})がありません`);
+            }
             return new Promise<string | null>((resolve) => {
                 let stoppedCount = 0;
                 const totalReels = reels.value.length;
@@ -92,9 +107,6 @@ export default {
                     if (index >= totalReels) return;
                     setTimeout(() => {
                         reels.value[index].speed = 0;
-                        const targetId = targetPrizeId ?? props.selectedPrize?.id ?? null;
-                        const found = indexInLoop(loop.value, targetId);
-                        const targetIndex = found >= 0 ? found : Math.floor(Math.random() * loop.value.length);
                         reels.value[index].position = positionForIndex(
                             targetIndex,
                             itemHeight.value,
@@ -105,9 +117,8 @@ export default {
                             spinning.value = false;
                             stopBgm().catch(() => { });
                             setTimeout(() => {
-                                const prizeId = targetId || null;
-                                emit('stopped', prizeId);
-                                resolve(prizeId);
+                                emit('stopped', targetId);
+                                resolve(targetId);
                             }, 1000);
                         } else {
                             stopReel(index + 1);
@@ -154,7 +165,7 @@ export default {
 
         // Options API の setup() では defineExpose は使えない(何もしない)ので、context の expose を使う。
         // これが無いと親から startSpin/stopSpin が見えず、景品抽選を開始しても何も動かない。
-        expose({ startSpin, stopSpin } satisfies AnimationRef);
+        expose({ startSpin, stopSpin, updatePrizes, getInternalItems } satisfies AnimationRef);
 
         return { spinning, reels, strip, sizeVars };
     }

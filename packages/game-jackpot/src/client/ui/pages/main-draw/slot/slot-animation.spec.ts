@@ -53,6 +53,55 @@ describe("SlotAnimation", () => {
     expect(wrapper.emitted("stopped")?.[0]).toEqual(["p3"]);
   });
 
+  // 画面の当選と保存した抽選結果が食い違わないこと: 止める景品が無いとき、乱数で別の景品に止めない
+  it("止める景品が演出の中に無いときは、別の景品で止まらず、例外にする（止まったと通知もしない）", async () => {
+    const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+    const api = wrapper.vm as unknown as Required<AnimationRef>;
+    await api.startSpin();
+
+    await expect(api.stopSpin(3, "no-such-prize")).rejects.toThrow("no-such-prize");
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(wrapper.emitted("stopped")).toBeUndefined();
+  });
+
+  // 確変では、当選景品を2つに複製した一覧(p1__k1 / p1__k2)を流して、その複製に止める。
+  // スロットがこれに対応していないと、複製が見つからず、乱数で別の景品に止まっていた。
+  describe("確変: 流す景品の差し替え", () => {
+    const kakuhenItems = [
+      { id: "p1__k1", name: "賞1" },
+      { id: "p1__k2", name: "賞1" },
+      { id: "p2", name: "賞2" },
+    ];
+
+    it("updatePrizes で差し替えた景品が getInternalItems に出て、複製の景品に止まれる", async () => {
+      const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+      const api = wrapper.vm as unknown as Required<AnimationRef>;
+      expect(api.getInternalItems().map((i) => i.id)).toEqual(["p1", "p2", "p3"]);
+
+      await api.updatePrizes(kakuhenItems);
+      expect(api.getInternalItems().map((i) => i.id)).toEqual(["p1__k1", "p1__k2", "p2"]);
+
+      await api.startSpin();
+      const stopped = api.stopSpin(3, "p1__k2");
+      await vi.advanceTimersByTimeAsync(5000);
+      await expect(stopped).resolves.toBe("p1__k2");
+      expect(wrapper.emitted("stopped")?.[0]).toEqual(["p1__k2"]);
+    });
+
+    it("元の一覧に戻すと、複製は止められなくなり、元の景品に止まれる", async () => {
+      const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+      const api = wrapper.vm as unknown as Required<AnimationRef>;
+      await api.updatePrizes(kakuhenItems);
+      await api.updatePrizes(prizes);
+
+      await api.startSpin();
+      await expect(api.stopSpin(3, "p1__k2")).rejects.toThrow("p1__k2");
+      const stopped = api.stopSpin(3, "p3");
+      await vi.advanceTimersByTimeAsync(5000);
+      await expect(stopped).resolves.toBe("p3");
+    });
+  });
+
   // 3列のリールが回る間、窓(3マス)が帯の外(黒)を映さないこと(以前は帯の末尾で位置を戻す瞬間に黒が見えた)
   describe("リールの継ぎ目(今回の不具合)", () => {
     const px = (s: string | undefined) => Number.parseFloat(s ?? "0");
