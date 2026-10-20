@@ -44,7 +44,6 @@ describe("session-console-view", () => {
     const { wrapper, device } = await mountConsole(meta.id);
     expect(device.conn.state.role).toBe("admin");
     expect(wrapper.text()).toContain("操作: 夏祭り");
-    expect(wrapper.find('[data-testid="people-card"]').text()).not.toContain(meta.code);
     expect(wrapper.text()).toContain("接続中");
   });
 

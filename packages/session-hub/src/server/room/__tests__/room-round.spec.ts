@@ -14,7 +14,6 @@ const OPTIONS: RoundOption[] = [
 function meta(): SessionMeta {
   return {
     id: SID,
-    code: "ROUND2",
     name: "回答会場",
     ownerMemberId: "a",
     status: "lobby",

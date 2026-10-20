@@ -118,7 +118,7 @@ async function create() {
     try {
         const meta = await repo.create({ name: name.value.trim(), mode: demo.value ? 'demo' : 'live' });
         name.value = '';
-        toast.success(`「${meta.name}」を作成しました(参加コード ${meta.code})`);
+        toast.success(`「${meta.name}」を作成しました`);
         await load();
     } catch (e) {
         toast.error(`作成に失敗しました: ${e instanceof Error ? e.message : String(e)}`);

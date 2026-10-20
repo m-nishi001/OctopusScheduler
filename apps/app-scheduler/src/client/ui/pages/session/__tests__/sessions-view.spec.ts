@@ -51,7 +51,6 @@ describe("sessions-view", () => {
     await wrapper.find("form").trigger("submit");
     await settle();
     expect(wrapper.text()).toContain("夏祭り");
-    expect(wrapper.text()).not.toContain((await env.repo.list())[0].code);
     expect((input.element as HTMLInputElement).value).toBe("");
     expect(wrapper.text()).toContain("待機中");
   });

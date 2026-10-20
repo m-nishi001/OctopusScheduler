@@ -16,7 +16,6 @@ const SID = "session-1";
 function meta(): SessionMeta {
   return {
     id: SID,
-    code: "ABC234",
     name: "夏祭り",
     ownerMemberId: "admin1",
     status: "lobby",

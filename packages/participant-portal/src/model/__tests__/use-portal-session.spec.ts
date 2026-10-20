@@ -146,7 +146,6 @@ class FakeConnection {
     role: null,
     session: null,
     deviceId: null,
-    code: null,
     roomState: null,
     presence: null,
     headSeq: 0,

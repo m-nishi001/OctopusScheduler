@@ -61,8 +61,6 @@ export interface ConnectionState {
   role: DeviceRole | null;
   session: SessionInfo | null;
   deviceId: string | null;
-  /** 参加者の参加コード。端末認証が切れたときに同じコードで入り直すために保持する。 */
-  code: string | null;
   roomState: RoomState | null;
   presence: PresenceView | null;
   headSeq: number;
@@ -113,7 +111,6 @@ export class SessionConnection implements TransportSource {
     role: null,
     session: null,
     deviceId: null,
-    code: null,
     roomState: null,
     presence: null,
     headSeq: 0,
@@ -192,7 +189,7 @@ export class SessionConnection implements TransportSource {
     try {
       const result = await this.opts.api.joinOperator({ ...args, deviceId });
       this.pendingDeviceIds.delete(pendingKey);
-      this.adopt(result, args.label, undefined, stored?.sessionId === args.sessionId && stored.deviceId === result.deviceId ? stored.appliedSeq : undefined);
+      this.adopt(result, args.label, stored?.sessionId === args.sessionId && stored.deviceId === result.deviceId ? stored.appliedSeq : undefined);
       return result;
     } catch (error) {
       this.failJoin(error);
@@ -210,7 +207,7 @@ export class SessionConnection implements TransportSource {
     const stored = loadCredentials(this.opts.store, "client");
     try {
       const result = await this.opts.api.joinPortal({ deviceId: stored?.deviceId, token: stored?.token });
-      this.adopt(result, "", result.session.code);
+      this.adopt(result, "");
       return result;
     } catch (error) {
       this.failJoin(error);
@@ -232,7 +229,6 @@ export class SessionConnection implements TransportSource {
       phase: "joining",
       role: stored.role,
       deviceId: stored.deviceId,
-      code: stored.code ?? null,
       headSeq: 0,
       lastError: null,
       lastErrorCode: null,
@@ -241,7 +237,7 @@ export class SessionConnection implements TransportSource {
     return true;
   }
 
-  private adopt(result: JoinResult, label: string, code?: string, storedAppliedSeq?: number): void {
+  private adopt(result: JoinResult, label: string, storedAppliedSeq?: number): void {
     const role = result.role;
     // ホストが新規入室したときは、過去のコマンドを再生しない(現在の head から始める)。
     // リロード復帰で適用済み seq が残っている場合はそこから続ける。
@@ -252,7 +248,6 @@ export class SessionConnection implements TransportSource {
       token: result.token,
       role,
       label,
-      code,
       appliedSeq: startSeq,
     };
     saveCredentials(this.opts.store, this.creds);
@@ -263,7 +258,6 @@ export class SessionConnection implements TransportSource {
       role,
       session: result.session,
       deviceId: result.deviceId,
-      code: code ?? null,
       headSeq: result.head.seq,
       roomState: null,
       presence: null,
@@ -286,7 +280,7 @@ export class SessionConnection implements TransportSource {
     this.opts.transport.stop();
     if (this.creds) clearCredentials(this.opts.store, this.creds.role);
     this.creds = null;
-    this.set({ phase: "idle", role: null, session: null, deviceId: null, code: null, roomState: null, presence: null });
+    this.set({ phase: "idle", role: null, session: null, deviceId: null, roomState: null, presence: null });
   }
 
   /** 画面を閉じるとき。入室情報は残す(リロード復帰のため)。 */

@@ -22,7 +22,7 @@ describe("SessionConnection.joinPortal", () => {
     const alice = makeDevice(hub, { memberId: "alice", memberName: "アリス" });
     const result = await alice.conn.joinPortal();
     expect(result.session.id).toBe(meta.id);
-    expect(alice.conn.state).toMatchObject({ phase: "connected", role: "client", code: meta.code });
+    expect(alice.conn.state).toMatchObject({ phase: "connected", role: "client" });
     expect(await hub.deps.repoFor(meta.id).getDevice(result.deviceId)).toMatchObject({ memberId: "alice", label: "アリス" });
     alice.conn.dispose();
   });

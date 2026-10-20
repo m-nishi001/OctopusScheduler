@@ -50,7 +50,6 @@ describe("session-host-view", () => {
     expect(wrapper.text()).toContain("接続中");
     // 参加コード・QRコードの表示は無い（参加者はログインして入る）
     expect(wrapper.find("img").exists()).toBe(false);
-    expect(wrapper.text()).not.toContain(meta.code);
   });
 
   it("端末名にログイン中のアカウント名が入る", async () => {
