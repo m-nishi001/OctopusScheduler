@@ -1,3 +1,4 @@
+import { toDatetimeLocal, fromDatetimeLocal } from "@octopus/client-common/date-utils/date-utils";
 import { toast } from '@octopus/ui-kit';
 import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
@@ -11,8 +12,8 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
 
   function entityToForm(e: PlayAudioEvent) {
     return {
-      startTime: formatDateTime(e.startTime),
-      endTime: formatDateTime(e.endTime),
+      startTime: toDatetimeLocal(e.startTime),
+      endTime: toDatetimeLocal(e.endTime),
       audioId: e.audioId ?? "",
       fadeOutDuration: e.fadeOutDuration ?? 0,
       assetSource: "existing" as "existing" | "upload",
@@ -55,13 +56,10 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
     }
   }
 
-  function formatDateTime(date: Date): string {
-    return date.toISOString().slice(0, 16);
-  }
 
   async function onSubmit() {
-    const startTime = new Date(form.value.startTime);
-    const endTime = new Date(form.value.endTime);
+    const startTime = fromDatetimeLocal(form.value.startTime);
+    const endTime = fromDatetimeLocal(form.value.endTime);
     if (startTime >= endTime) {
       toast.error("開始時間が終了時間より後です。");
       return;
