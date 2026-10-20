@@ -9,11 +9,9 @@
 import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
 import {
-  ICacheToken,
   IKeyValueStorageToken,
 } from "@octopus/infrastructures/interfaces";
 import type {
-  ICache,
   IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
 import type { DriveData } from "@octopus/infrastructures/compositions";
@@ -23,22 +21,19 @@ import type {
 } from "./scheduler-api-contract";
 import { OCTOPUS_SCHEDULER_PREFIX } from "./scheduler-api-contract";
 
-import {
-  addSchedulerDriveData,
-  getSchedulerDriveData,
-  getSchedulerDriveMetadata,
-  updateSchedulerDriveData,
-} from "./drive-asset-use-cases";
+import { createDriveAssets, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
 import {
   getKeyboardShortcuts,
   setKeyboardShortcuts,
 } from "./keyboard-shortcuts-use-cases";
 import { secure } from "@octopus/accounts/secure";
 
+/** この置き場の素材の保存・一覧・取得。 */
+const assets = createDriveAssets(StorageModule.Scheduler, StorageKind.Assets);
+
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
-    cache: container.resolve<ICache>(ICacheToken),
   };
 }
 
@@ -58,9 +53,8 @@ declare let _octopusScheduler_setKeyboardShortcuts: (payload: {
 
 _octopusScheduler_addDriveData = async (driveData: DriveData): Promise<string> => {
   try {
-    const result = await addSchedulerDriveData(resolveDeps(), driveData);
-    // 既存挙動を保持: duplicate/error でも常に status:"success" として返す。
-    return JSON.stringify({ status: "success", data: result.data! });
+    const result = await assets.save(resolveDeps(), driveData);
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
   }
@@ -68,7 +62,7 @@ _octopusScheduler_addDriveData = async (driveData: DriveData): Promise<string> =
 
 _octopusScheduler_getDriveMetaData = async (folderName?: string): Promise<string> => {
   try {
-    const result = await getSchedulerDriveMetadata(resolveDeps(), folderName);
+    const result = await assets.listMetadata(resolveDeps(), folderName);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
@@ -77,7 +71,7 @@ _octopusScheduler_getDriveMetaData = async (folderName?: string): Promise<string
 
 _octopusScheduler_getDriveData = async (dataId: string): Promise<string> => {
   try {
-    const result = await getSchedulerDriveData(resolveDeps(), dataId);
+    const result = await assets.get(resolveDeps(), dataId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
@@ -86,7 +80,7 @@ _octopusScheduler_getDriveData = async (dataId: string): Promise<string> => {
 
 _octopusScheduler_updateDriveData = async (driveData: DriveData): Promise<string> => {
   try {
-    await updateSchedulerDriveData(resolveDeps(), driveData);
+    await assets.save(resolveDeps(), driveData);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return errorResponse(error);

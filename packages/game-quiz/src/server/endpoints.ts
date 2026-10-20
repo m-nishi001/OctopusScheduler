@@ -11,8 +11,8 @@
  */
 import { errorResponse } from "@octopus/infrastructures/interfaces";
 import { container } from "tsyringe";
-import { ICacheToken, IKeyValueStorageToken } from "@octopus/infrastructures/interfaces";
-import type { ICache, IKeyValueStorage } from "@octopus/infrastructures/interfaces";
+import { IKeyValueStorageToken } from "@octopus/infrastructures/interfaces";
+import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
 import type {
   AddDriveDataArgs,
   AddJsonArgs,
@@ -24,20 +24,17 @@ import type {
 } from "./quiz-api-contract";
 import { QUIZ_GAME_PREFIX } from "./quiz-api-contract";
 
-import {
-  addQuizDriveData,
-  getQuizDriveData,
-  getQuizDriveMetadata,
-  updateQuizDriveData,
-} from "./drive-asset-use-cases";
+import { createDriveAssets, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
 import { addJsonBlob } from "./add-json-blob-use-case";
 import { getJsonBlob } from "./get-json-blob-use-case";
 import { secure } from "@octopus/accounts/secure";
 
+/** この置き場の素材の保存・一覧・取得。 */
+const assets = createDriveAssets(StorageModule.Quiz, StorageKind.Assets);
+
 function resolveDeps() {
   return {
     storage: container.resolve<IKeyValueStorage>(IKeyValueStorageToken),
-    cache: container.resolve<ICache>(ICacheToken),
     now: (): number => Date.now(),
   };
 }
@@ -51,9 +48,8 @@ declare let _quizGame_getJson: (args: GetJsonArgs) => Promise<string>;
 
 _quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
   try {
-    const result = await addQuizDriveData(resolveDeps(), args.driveData);
-    // 既存挙動を保持: duplicate/error でも常に status:"success" として返す。
-    return JSON.stringify({ status: "success", data: result.data! });
+    const result = await assets.save(resolveDeps(), args.driveData);
+    return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
   }
@@ -61,7 +57,7 @@ _quizGame_addDriveData = async (args: AddDriveDataArgs): Promise<string> => {
 
 _quizGame_getDriveMetaData = async (_args: GetDriveMetaDataArgs): Promise<string> => {
   try {
-    const result = await getQuizDriveMetadata(resolveDeps());
+    const result = await assets.listMetadata(resolveDeps());
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
@@ -70,7 +66,7 @@ _quizGame_getDriveMetaData = async (_args: GetDriveMetaDataArgs): Promise<string
 
 _quizGame_getDriveData = async (args: GetDriveDataArgs): Promise<string> => {
   try {
-    const result = await getQuizDriveData(resolveDeps(), args.dataId);
+    const result = await assets.get(resolveDeps(), args.dataId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
     return errorResponse(error);
@@ -79,7 +75,7 @@ _quizGame_getDriveData = async (args: GetDriveDataArgs): Promise<string> => {
 
 _quizGame_updateDriveData = async (args: UpdateDriveDataArgs): Promise<string> => {
   try {
-    await updateQuizDriveData(resolveDeps(), args.driveData);
+    await assets.save(resolveDeps(), args.driveData);
     return JSON.stringify({ status: "success", data: undefined });
   } catch (error) {
     return errorResponse(error);
@@ -100,12 +96,7 @@ _quizGame_getJson = async (args: GetJsonArgs): Promise<string> => {
     const result = await getJsonBlob(resolveDeps(), args.fileId);
     return JSON.stringify({ status: "success", data: result });
   } catch (error) {
-    // 既存挙動を保持: 想定外のエラーでも空配列で成功を返す。
-    console.error("_quizGame_getJson error:", (error as Error).message);
-    return JSON.stringify({
-      status: "success",
-      data: { json: JSON.stringify([]), updatedAt: null },
-    });
+    return errorResponse(error);
   }
 };
 

@@ -1,4 +1,4 @@
-import { StorageNotConfiguredError, type IKeyValueStorage } from "../interfaces/key-value-storage";
+import type { IKeyValueStorage } from "../interfaces/key-value-storage";
 import type { DriveData } from "./types";
 import {
   decodeDisplayName,
@@ -12,32 +12,29 @@ export interface GetItemUseCaseDeps {
   storage: IKeyValueStorage;
 }
 
+/**
+ * 素材 1 件(内容つき)を取得する。存在しなければ null。
+ * 読み取りの失敗(通信エラーなど)は null にせず例外で伝える
+ * (null を「無い」と解釈する呼び出し側が、空の内容で上書きしてしまうため)。
+ */
 export async function getDriveData(
   deps: GetItemUseCaseDeps,
   storageRef: string
 ): Promise<DriveData | null> {
-  try {
-    const content = await deps.storage.getContent(storageRef);
-    if (!content) return null;
+  const content = await deps.storage.getContent(storageRef);
+  if (!content) return null;
 
-    const { namespace, localName } = splitKey(content.meta.key);
-    const itemId = decodeItemId(localName);
-    const displayName = decodeDisplayName(localName);
-    const dataUrl = toDataUrl(
-      content.meta.mimeType || "application/octet-stream",
-      content.contentBase64
-    );
+  const { namespace, localName } = splitKey(content.meta.key);
+  const itemId = decodeItemId(localName);
+  const displayName = decodeDisplayName(localName);
+  const dataUrl = toDataUrl(content.meta.mimeType || "application/octet-stream", content.contentBase64);
 
-    return {
-      metadata: toDriveMetadata(content.meta, itemId),
-      fileName: displayName,
-      fileKind: content.meta.mimeType,
-      fileDataUrl: dataUrl,
-      uploadDate: content.meta.createdAt,
-      parentFolderId: namespace,
-    };
-  } catch (error) {
-    if (error instanceof StorageNotConfiguredError) throw error;
-    return null;
-  }
+  return {
+    metadata: toDriveMetadata(content.meta, itemId),
+    fileName: displayName,
+    fileKind: content.meta.mimeType,
+    fileDataUrl: dataUrl,
+    uploadDate: content.meta.createdAt,
+    parentFolderId: namespace,
+  };
 }
