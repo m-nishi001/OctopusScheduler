@@ -19,8 +19,6 @@ export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
 export interface SessionMeta {
   id: string;
-  /** 参加コード。クライアントはこのコード(またはQR)でセッションを探す。 */
-  code: string;
   name: string;
   ownerMemberId: string;
   status: SessionStatus;
@@ -32,12 +30,11 @@ export interface SessionMeta {
 }
 
 /** 画面表示に必要なセッション情報(参加者にも見せてよい項目のみ)。 */
-export type SessionInfo = Pick<SessionMeta, "id" | "code" | "name" | "mode" | "status" | "hostDeviceId">;
+export type SessionInfo = Pick<SessionMeta, "id" | "name" | "mode" | "status" | "hostDeviceId">;
 
 /** 一覧表示用の要約(セッション一覧のインデックスに保存する)。 */
 export interface SessionSummary {
   id: string;
-  code: string;
   name: string;
   status: SessionStatus;
   mode: SessionMode;
@@ -149,8 +146,6 @@ export const HOST_STALE_MS = 30_000;
 /** 管理端末/クライアントを「在席」とみなす猶予(最長ポーリング間隔+書き込み間引きより長く)。 */
 export const ADMIN_ALIVE_MS = 45_000;
 export const CLIENT_ALIVE_MS = 60_000;
-export const JOIN_CODE_LENGTH = 6;
-export const JOIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 export function commandKey(game: string, type: string): string {
   return `${game}.${type}`;

@@ -65,8 +65,6 @@ export interface StoredCredentials {
   token: string;
   role: "host" | "admin" | "client";
   label: string;
-  /** 参加者の再入室(コードで復帰)に使う。 */
-  code?: string;
   /** ホストが適用済みの最後の seq。 */
   appliedSeq: number;
 }
@@ -91,7 +89,6 @@ export function loadCredentials(store: DeviceStore, role: StoredCredentials["rol
         token: parsed.token,
         role,
         label: typeof parsed.label === "string" ? parsed.label : "",
-        code: typeof parsed.code === "string" ? parsed.code : undefined,
         appliedSeq: typeof parsed.appliedSeq === "number" ? parsed.appliedSeq : 0,
       };
     }

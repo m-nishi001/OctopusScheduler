@@ -118,7 +118,6 @@ describe("SessionConnection の回答ラウンド(WebSocket/DO)", () => {
   function meta(): SessionMeta {
     return {
       id: SID,
-      code: "WSRND2",
       name: "WS回答",
       ownerMemberId: "a",
       status: "lobby",

@@ -19,7 +19,6 @@ const SID = "session-quota";
 function meta(): SessionMeta {
   return {
     id: SID,
-    code: "QUOTA2",
     name: "予算",
     ownerMemberId: "a",
     status: "lobby",
@@ -108,7 +107,7 @@ async function runEntry(clients: number, windowMs = 10 * 60 * 1000) {
 
   const sockets: FakeSocket[] = [];
   for (let i = 0; i < clients; i++) {
-    const j = await room.call<JoinResult>("joinPortal", { code: "QUOTA2", label: `m${i}` }, `member-${i}`);
+    const j = await room.call<JoinResult>("joinPortal", { label: `m${i}` }, `member-${i}`);
     const ws = await room.connectAndAuth(creds(j));
     sockets.push(ws);
     await room.send(ws, { t: "answer", requestId: `e${i}`, key, no: 1 });

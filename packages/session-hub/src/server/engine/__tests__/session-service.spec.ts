@@ -37,27 +37,19 @@ async function setup() {
 }
 
 describe("createSession / listSessions / closeSession", () => {
-  it("セッションを作成し、一覧に載り、参加コードが付く", async () => {
+  it("セッションを作成し、一覧に載り", async () => {
     const hub = createTestHub();
     const meta = await svc.createSession(hub.deps, { name: "  新年会 " }, "a");
     expect(meta).toMatchObject({ name: "新年会", status: "lobby", mode: "live", ownerMemberId: "a", hostDeviceId: null });
-    expect(meta.code).toMatch(/^[A-HJKMNP-Z2-9]{6}$/);
     const list = await svc.listSessions(hub.deps);
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ id: meta.id, code: meta.code });
+    expect(list[0]).toMatchObject({ id: meta.id });
   });
 
   it("名前が空・modeが不正なら拒否する", async () => {
     const hub = createTestHub();
     expect(await code(svc.createSession(hub.deps, { name: "  " }, "a"))).toBe("INVALID_ARGUMENT");
     expect(await code(svc.createSession(hub.deps, { name: "x", mode: "bogus" as never }, "a"))).toBe("INVALID_ARGUMENT");
-  });
-
-  it("参加コードは進行中のセッション間で重複しない", async () => {
-    const hub = createTestHub();
-    const codes = new Set<string>();
-    for (let i = 0; i < 10; i++) codes.add((await svc.createSession(hub.deps, { name: `s${i}` }, "a")).code);
-    expect(codes.size).toBe(10);
   });
 
   it("進行中セッションの上限を超えると拒否し、終了すれば作れる", async () => {

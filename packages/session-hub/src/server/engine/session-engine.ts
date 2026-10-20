@@ -327,7 +327,7 @@ export async function buildUpdate(
   const state = needState && head.stateVersion > 0 ? await src.getState() : null;
 
   return {
-    session: { id: meta.id, code: meta.code, name: meta.name, mode: meta.mode, status: meta.status, hostDeviceId: meta.hostDeviceId },
+    session: { id: meta.id, name: meta.name, mode: meta.mode, status: meta.status, hostDeviceId: meta.hostDeviceId },
     serverTimeMs: src.now,
     head: { seq: head.seq, stateVersion: head.stateVersion },
     commands,

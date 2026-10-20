@@ -157,7 +157,7 @@ describe("参加者", () => {
     expect(client.conn.state.recentCommands).toEqual([]);
   });
 
-  it("リロード復帰: 保存した入室情報で同じ端末として再接続し、参加コードを保持する", async () => {
+  it("リロード復帰: 保存した入室情報で同じ端末として再接続し", async () => {
     const { hub, meta, client } = await scene();
     const first = client.conn.state.deviceId;
     client.conn.dispose();
@@ -166,7 +166,6 @@ describe("参加者", () => {
     await tick(4000);
     expect(again.conn.state.phase).toBe("connected");
     expect(again.conn.state.deviceId).toBe(first);
-    expect(again.conn.state.code).toBe(meta.code);
   });
 
   it("保存情報が無ければ resume は false", async () => {
@@ -216,7 +215,6 @@ describe("障害と復帰", () => {
     await tick(20_000);
     expect(client.conn.state.phase).toBe("unauthorized");
     expect(client.conn.state.lastErrorCode).toBe("DEVICE_UNAUTHORIZED");
-    expect(client.conn.state.code).toBe(meta.code);
     expect(loadCredentials(client.store, "client")).toBeNull();
     const calls = client.api.calls.poll;
     await tick(60_000);

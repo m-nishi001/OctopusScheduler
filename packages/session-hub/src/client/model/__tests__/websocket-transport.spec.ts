@@ -21,7 +21,6 @@ afterEach(() => vi.useRealTimers());
 function meta(): SessionMeta {
   return {
     id: SID,
-    code: "WSCODE",
     name: "WS会場",
     ownerMemberId: "a",
     status: "lobby",

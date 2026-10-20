@@ -20,7 +20,6 @@ import { ScreenConfigRepository } from "../../model/screen-config/screen-config-
 import { DrawResultRepository } from "../../model/draw/draw-result-repository";
 import { AssetDataService } from "../asset/asset-data-service";
 import { ScreenSettingsService } from "../screen-config/screen-settings-service";
-import { ScreenConfigService } from "../screen-config/screen-config-service";
 import { DrawResultService } from "../draw/draw-result-service";
 import { PrizeDrawStateRepository } from "../../model/draw/prize-draw-state-repository";
 import { MemberDrawService } from "../../model/draw/member-draw-service";
@@ -67,7 +66,6 @@ export class Container {
     container.register(ScreenSettingsService, {
       useClass: ScreenSettingsService,
     });
-    container.register(ScreenConfigService, { useClass: ScreenConfigService });
     container.register(DrawResultService, { useClass: DrawResultService });
     container.register(PrizeDrawStateRepository, {
       useClass: PrizeDrawStateRepository,

@@ -1,11 +1,9 @@
 /**
- * セッションの作成・一覧・終了と、参加コードによる入室。
+ * セッションの作成・一覧・終了と。
  * 個々のセッション内の操作は session-engine.ts。ここは「複数セッションをまたぐ」層で、
  * 書き込みは ILock で直列化する。
  */
 import {
-  JOIN_CODE_ALPHABET,
-  JOIN_CODE_LENGTH,
   MAX_ACTIVE_SESSIONS,
   SESSION_MODES,
   SESSION_TTL_MS,
@@ -78,22 +76,9 @@ function engineDeps(deps: ServiceDeps, sessionId: string): EngineDeps {
   };
 }
 
-/** `newId()` の16進文字から、紛らわしい文字を除いた参加コードを作る。 */
-export function generateJoinCode(newId: () => string): string {
-  let source = "";
-  while (source.length < JOIN_CODE_LENGTH * 2) source += newId().replace(/[^0-9a-f]/gi, "");
-  let code = "";
-  for (let i = 0; i < JOIN_CODE_LENGTH; i++) {
-    const pair = parseInt(source.slice(i * 2, i * 2 + 2), 16);
-    code += JOIN_CODE_ALPHABET[pair % JOIN_CODE_ALPHABET.length];
-  }
-  return code;
-}
-
 function summarize(meta: SessionMeta): SessionSummary {
   return {
     id: meta.id,
-    code: meta.code,
     name: meta.name,
     status: meta.status,
     mode: meta.mode,
@@ -145,14 +130,9 @@ export async function createSession(
     if (list.filter(isActive).length >= MAX_ACTIVE_SESSIONS) {
       throw hubError("TOO_MANY_SESSIONS", "進行中のセッションが多すぎます。不要なセッションを終了してください");
     }
-    const usedCodes = new Set(list.filter(isActive).map((s) => s.code));
-    let code = generateJoinCode(deps.newId);
-    for (let i = 0; usedCodes.has(code) && i < 20; i++) code = generateJoinCode(deps.newId);
-    if (usedCodes.has(code)) throw hubError("TOO_MANY_SESSIONS", "参加コードを割り当てられませんでした");
 
     const meta: SessionMeta = {
       id: deps.newId(),
-      code,
       name,
       ownerMemberId,
       status: "lobby",

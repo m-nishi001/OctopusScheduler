@@ -11,7 +11,6 @@ const ENTRY = [{ no: 1, text: "エントリー" }];
 function meta(): SessionMeta {
   return {
     id: SID,
-    code: "ENT234",
     name: "受付会場",
     ownerMemberId: "admin1",
     status: "lobby",
@@ -28,7 +27,7 @@ async function scene() {
   const host = await room.call<JoinResult>("joinOperator", { sessionId: SID, role: "host", label: "PC" }, "admin1");
   const admin = await room.call<JoinResult>("joinOperator", { sessionId: SID, role: "admin", label: "A" }, "admin2");
   const creds = (j: JoinResult) => ({ sessionId: SID, deviceId: j.deviceId, token: j.token });
-  const portal = (memberId: string) => room.call<JoinResult>("joinPortal", { code: "ENT234", label: memberId }, memberId);
+  const portal = (memberId: string) => room.call<JoinResult>("joinPortal", { label: memberId }, memberId);
   const open = (resume = false) =>
     room.call<OpenRoundResult>("openRound", { ...creds(host), key: KEY, options: ENTRY, mode: "open", resume });
   const enter = (who: JoinResult) => room.call<SubmitAnswerResult>("submitAnswer", { ...creds(who), key: KEY, no: 1 });

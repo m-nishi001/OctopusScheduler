@@ -44,7 +44,7 @@ async function participant(id, name) {
 const joinAs = (token) => rpc("sessionHub_joinPortal", {}, token);
 
 const meta = await rpc("sessionHub_createSession", { name: "E2E会場" }, ADMIN_TOKEN);
-check("セッション作成(管理者)", !!meta.id && /^[A-Z2-9]{6}$/.test(meta.code), meta.code);
+check("セッション作成(管理者)", !!meta.id, meta.id);
 
 const host = await rpc("sessionHub_joinOperator", { sessionId: meta.id, role: "host", label: "PC", deviceId: "e2e-host-device-0001" }, ADMIN_TOKEN);
 const admin = await rpc("sessionHub_joinOperator", { sessionId: meta.id, role: "admin", label: "Phone", deviceId: "e2e-admin-device-0001" }, ADMIN_TOKEN);
@@ -180,9 +180,9 @@ try {
   check("終了後の参加は拒否", /SESSION_NOT_FOUND/.test(e.message), e.message);
 }
 
-// 名前を選ぶだけの匿名の入室(参加コード)は存在しない
+// 名前を選ぶだけの匿名の入室は存在しない
 try {
-  await rpc("sessionHub_joinClient", { code: meta.code });
+  await rpc("sessionHub_joinClient", { sessionId: meta.id });
   check("匿名の参加(joinClient)は呼べない", false);
 } catch (e) {
   check("匿名の参加(joinClient)は呼べない", /joinClient|not found|Unknown|unknown/i.test(e.message), e.message);
