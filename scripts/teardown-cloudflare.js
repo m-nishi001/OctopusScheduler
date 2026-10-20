@@ -4,7 +4,8 @@
  *
  *   1. Worker を削除する(Durable Object・Worker の secret も一緒に消える)
  *   2. D1 データベースを削除する
- *   3. R2 バケットを削除する(バケットが空でないと失敗する。その場合は手順を表示する)
+ *   3. R2 バケットを削除する(空でなければ AWS CLI の profile r2 で S3 互換 API から空にして再試行する。
+ *      AWS CLI が使えず空にできないときは手順を表示する)
  *   4. ローカルの wrangler.toml を削除する(次回デプロイで新しい ID で生成し直す)
  *
  * 管理者アカウントやセッションは R2 に入っているため、バケットを消すと失われる。
@@ -16,6 +17,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
+import { emptyBucket } from "./lib/r2-s3.js";
 import { runWrangler } from "./lib/wrangler.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -52,7 +54,7 @@ function attempt(label, fn, log) {
     return { ok: true };
   } catch (error) {
     const text = `${error.stderr ?? ""}${error.stdout ?? ""}${error.message ?? ""}`;
-    if (/not found|does not exist|no such|10007|10006|7404/i.test(text)) {
+    if (/not found|couldn't find|does not exist|no such|10007|10006|7404/i.test(text)) {
       log(`- ${label}(既に存在しません)`);
       return { ok: true, missing: true };
     }
@@ -61,11 +63,16 @@ function attempt(label, fn, log) {
   }
 }
 
+function isBucketNotEmpty(text) {
+  return /not empty|non-empty|10008|must be empty/i.test(text ?? "");
+}
+
 /**
- * 削除の本体。run(args) は wrangler を実行する関数(テストで差し替える)。
+ * 削除の本体。run(args) は wrangler を実行する関数、emptyBucket(bucket) は R2 を S3 互換 API で空にする関数
+ * (どちらもテストで差し替える。emptyBucket は省略可)。
  * 戻り値: { failed: string[], bucketNotEmpty: boolean }
  */
-export function teardown({ run, workerName, d1Name, bucket, keepBucket, removeLocalToml, log }) {
+export function teardown({ run, emptyBucket, workerName, d1Name, bucket, keepBucket, removeLocalToml, log }) {
   const failed = [];
   let bucketNotEmpty = false;
 
@@ -73,10 +80,15 @@ export function teardown({ run, workerName, d1Name, bucket, keepBucket, removeLo
   if (!attempt("D1 を削除", () => run(["d1", "delete", d1Name, "--skip-confirmation"]), log).ok) failed.push("d1");
 
   if (!keepBucket) {
-    const r = attempt("R2 バケットを削除", () => run(["r2", "bucket", "delete", bucket]), log);
+    const deleteBucket = () => attempt("R2 バケットを削除", () => run(["r2", "bucket", "delete", bucket]), log);
+    let r = deleteBucket();
+    // 空でなければ S3 互換 API で空にして、もう一度削除する(emptyBucket が無い・失敗したときは従来どおり案内する)
+    if (!r.ok && emptyBucket && isBucketNotEmpty(r.text)) {
+      if (attempt("R2 バケットの中身を削除(S3 互換 API)", () => emptyBucket(bucket), log).ok) r = deleteBucket();
+    }
     if (!r.ok) {
       failed.push("r2");
-      bucketNotEmpty = /not empty|non-empty|10008|must be empty/i.test(r.text ?? "");
+      bucketNotEmpty = isBucketNotEmpty(r.text);
     }
   }
 
@@ -117,6 +129,7 @@ async function main() {
     runWrangler(a, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
   const result = teardown({
     run,
+    emptyBucket: (b) => emptyBucket(b),
     workerName,
     d1Name,
     bucket,
@@ -127,7 +140,7 @@ async function main() {
 
   if (result.bucketNotEmpty) {
     console.log(
-      `\nR2 バケットが空でないため削除できませんでした。ダッシュボードの R2 → ${bucket} → Settings → Empty Bucket で空にしてから、もう一度 npm run teardown:cloudflare を実行してください(削除済みのものはスキップされます)。`
+      `\nR2 バケットが空でないため削除できませんでした。AWS CLI の profile r2 を設定すると自動で空にします(docs/dev-environment.md)。それまでは、ダッシュボードの R2 → ${bucket} → Settings → Empty Bucket で空にしてから、もう一度 npm run teardown:cloudflare を実行してください(削除済みのものはスキップされます)。`
     );
   }
   if (result.failed.length > 0) process.exitCode = 1;

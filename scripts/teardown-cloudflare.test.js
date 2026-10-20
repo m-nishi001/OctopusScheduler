@@ -57,6 +57,11 @@ test("既に存在しないリソースは成功扱いで続行する", () => {
   assert.equal(h.calls.length, 3);
 });
 
+test("D1 が「Couldn't find a D1 DB」でも既に無いものとして扱う", () => {
+  const h = harness({ d1: "Couldn't find a D1 DB with name or binding 'db'" });
+  assert.deepEqual(teardown(h.opts).failed, []);
+});
+
 test("R2 が空でなければ失敗として報告し、wrangler.toml は残す", () => {
   const h = harness({ r2: "The bucket you tried to delete is not empty" });
   const result = teardown(h.opts);
@@ -69,4 +74,50 @@ test("1つ失敗しても残りの削除は試みる", () => {
   const result = teardown(h.opts);
   assert.deepEqual(result.failed, ["worker"]);
   assert.equal(h.calls.length, 3);
+});
+
+/** r2 bucket delete が1回目は「空でない」で失敗し、空にした後は成功する run。 */
+function emptyThenDelete({ emptyFails = false } = {}) {
+  const h = harness();
+  const emptied = [];
+  let deleteTries = 0;
+  const run = (args) => {
+    h.calls.push(args.join(" "));
+    if (args[0] === "r2" && ++deleteTries === 1) throw Object.assign(new Error("boom"), { stderr: "The bucket you tried to delete is not empty" });
+    return "";
+  };
+  const emptyBucket = (b) => {
+    emptied.push(b);
+    if (emptyFails) throw new Error("aws コマンドが見つかりません");
+  };
+  return { h, emptied, opts: { ...h.opts, run, emptyBucket } };
+}
+
+test("R2 が空でなくても、emptyBucket で空にして削除し直せば成功し、wrangler.toml も消す", () => {
+  const { h, emptied, opts } = emptyThenDelete();
+  const result = teardown(opts);
+  assert.deepEqual(emptied, ["bk"]);
+  assert.deepEqual(result, { failed: [], bucketNotEmpty: false });
+  assert.equal(h.calls.filter((c) => c === "r2 bucket delete bk").length, 2);
+  assert.equal(h.wasRemoved(), true);
+});
+
+test("空にするのに失敗したら、従来どおり bucketNotEmpty として報告する", () => {
+  const { h, opts } = emptyThenDelete({ emptyFails: true });
+  const result = teardown(opts);
+  assert.deepEqual(result, { failed: ["r2"], bucketNotEmpty: true });
+  assert.equal(h.wasRemoved(), false);
+});
+
+test("「空でない」以外の失敗では、バケットの中身を消さない", () => {
+  const h = harness({ r2: "network error" });
+  const emptied = [];
+  teardown({ ...h.opts, emptyBucket: (b) => emptied.push(b) });
+  assert.deepEqual(emptied, []);
+});
+
+test("--keep-bucket では emptyBucket も呼ばない", () => {
+  const { emptied, opts } = emptyThenDelete();
+  teardown({ ...opts, keepBucket: true });
+  assert.deepEqual(emptied, []);
 });

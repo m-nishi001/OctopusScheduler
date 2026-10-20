@@ -14,10 +14,10 @@
 | --- | --- | --- |
 | 作る・更新する | `npm run deploy:cloudflare` | 何度実行してもよい。表示された URL が公開先（反映に数十秒） |
 | 最初の管理者を作る | `npm run secret:bootstrap` | 新規に作ったときだけ。パスワードを入力し、ID `admin` でログイン |
-| 全部消す | `npm run teardown:cloudflare -- --yes` | R2 が空でないと失敗する → 下の「削除」へ |
+| 全部消す | `npm run teardown:cloudflare -- --yes` | R2 は AWS CLI の profile `r2` で自動的に空にして削除する。profile が無いと空でない R2 で失敗する → 下の「削除」へ |
 | 消すが管理者は残す | `npm run teardown:cloudflare -- --yes --keep-bucket` | 次の deploy で `secret:bootstrap` は不要 |
 
-**全部消すときの流れ**: ① `npm run teardown:cloudflare -- --yes` → R2 で失敗したら ② ダッシュボードの R2 → `octopus-scheduler-assets` → Settings → **Empty Bucket** → ③ もう一度 ① を実行。
+**全部消すときの流れ**: ① `npm run teardown:cloudflare -- --yes`(profile `r2` の設定は[開発環境を作る](dev-environment.md#r2-の-s3-キーバケットを空にする用)) → R2 で失敗したら ② ダッシュボードの R2 → `octopus-scheduler-assets` → Settings → **Empty Bucket** → ③ もう一度 ① を実行。
 
 アカウントに初めてデプロイするときだけ、[R2 の有効化と課金通知](#初回だけ必要な手作業)が必要です。
 
@@ -71,7 +71,7 @@ npx wrangler whoami
 
 - 削除するのは Worker（Durable Object と secret を含む）、D1、R2 バケット、ローカルの `wrangler.toml` です。
 - 管理者アカウントとセッションは R2 にあるため、バケットを消すと失われます。次回の `deploy:cloudflare` 後に `npm run secret:bootstrap` でやり直してください。`--keep-bucket` なら引き継がれ、ブートストラップは不要です。
-- **R2 バケットは空でないと削除できません。** wrangler にバケットを空にするコマンドが無いため、失敗したらダッシュボードの R2 → 対象バケット → Settings → Empty Bucket で空にし、同じコマンドをもう一度実行してください（削除済みのものはスキップされます）。
+- **R2 バケットは空でないと削除できません。** wrangler にバケットを空にするコマンドが無いため、削除スクリプトは AWS CLI の profile `r2`(S3 互換 API)で空にします。profile が無くて失敗したらダッシュボードの R2 → 対象バケット → Settings → Empty Bucket で空にし、同じコマンドをもう一度実行してください（削除済みのものはスキップされます）。
 - 公開だけ止めたい場合は、ダッシュボードの Workers → Settings → Domains & Routes で `workers.dev` を無効にすれば足ります（データは残ります）。
 
 ## 設定
