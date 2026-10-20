@@ -17,14 +17,14 @@
         <section :ref="(el) => (questionAreaRef = el as HTMLElement | null)" class="question-area" aria-live="polite">
             <div class="options-grid" :class="{ 'two-options': optionsCount === 2 }" role="list">
                 <OptionCard v-for="(option, index) in optionsWithImageUrls" :key="index" :option="option" :index="index"
-                    @select="selectOption" :style="{ '--option-color': option.color }" />
+                    :style="{ '--option-color': option.color }" />
             </div>
         </section>
         <button
             v-if="!showModal"
             type="button"
             class="emergency-stop-button"
-            @click="handleEmergencyStop"
+            @click="emergencyStop"
         >
             今すぐ受付停止
         </button>
@@ -54,6 +54,7 @@ import { buildQuizHostState } from '../../../model/quiz-host-state';
 import { useQuizSession } from '../../composables/use-quiz-session';
 import { useAnswerWindow } from '../../composables/use-answer-window';
 import { useCardGridLayout } from '../../composables/use-card-grid-layout';
+import { useObjectUrlStore } from '../../composables/use-object-url-store';
 
 const route = useRoute();
 const router = useRouter();
@@ -63,25 +64,21 @@ const quizId = route.params.id as string;
 const session = useQuizSession();
 
 const quiz = ref<QuizDto | null>(null);
-const objectUrls = ref<string[]>([]);
+// 選択肢の画像の表示用URL。同じ画像には同じURLを使い回し、画面を離れたら破棄する。
+const imageUrls = useObjectUrlStore();
 
 // 参加者は、ログイン済みのスマホの参加者ポータルで回答する(この画面にQRは出さない)。
 const gateway = container.resolve(QuizRoundGateway);
 
 const optionsWithImageUrls = computed((): { no: number; text: string; color: string; imageUrl: string }[] => {
     if (!quiz.value) return [];
-    return quiz.value.options.map((option: any, index: number) => {
-        // Prefer already-created object URL from `objectUrls`; if absent, create from Blob
-        // or use the string value. Use nullish coalescing to avoid `undefined` leaking
-        // into `ref<string | null>` which is not allowed under `strictNullChecks`.
-        const imageUrl = objectUrls.value[index] || (option.image ? URL.createObjectURL(option.image) : '');
-        return {
-            no: option.no,
-            text: option.text,
-            color: option.color,
-            imageUrl,
-        };
-    });
+    return quiz.value.options.map((option: any, index: number) => ({
+        no: option.no,
+        text: option.text,
+        color: option.color,
+        // ensure は同じ画像なら同じURLを返すので、再計算のたびにURLが増えることはない
+        imageUrl: imageUrls.ensure(`option-${index}`, option.image) ?? '',
+    }));
 });
 
 const optionsCount = computed(() => optionsWithImageUrls.value.length);
@@ -129,64 +126,43 @@ const host = useQuizHost({
     closeAnswers: () => emergencyStop(),
 });
 
-onMounted(async () => {
-    // Load quiz data
-    const startQuizUseCase = container.resolve(StartQuizUseCase);
-    quiz.value = await startQuizUseCase.execute(quizId);
-    if (quiz.value) {
-        const options = quiz.value.options.map((option: any) => ({
-            no: option.no,
-            text: option.text,
-            color: option.color,
-            hasImage: Boolean(option.image),
-        }));
-        await start({
-            quizId,
-            timeLimit: quiz.value.timeLimit,
-            options: options.map((o: { no: number; text: string }) => ({ no: o.no, text: o.text })),
-            scope: session.scope,
-            onOpened: (round) => {
-                deadlineMs = round.deadlineMs;
-                publishState('answering');
-            },
-            onFinish: () => {
-                void bgmAudio.stop();
-                publishState('closed');
-            },
-        });
+// 画面を離れた印。読み込みの途中で離れたら、そのあとの BGM の再生や受付の開始をしない。
+let disposed = false;
 
-        // Create object URLs for images
-        objectUrls.value = quiz.value.options.map((option: any) => {
-            return option.image ? URL.createObjectURL(option.image) : '';
-        });
-        // Play BGM if available
-        if (quiz.value.bgm) {
-            await bgmAudio.load(quiz.value.bgm);
-            await bgmAudio.play({ isRepeat: true });
-        }
-    }
+onMounted(async () => {
+    // 先に登録しておく(離れるときに必ず外す。読み込みの途中で離れても取り残さない)
     document.addEventListener('keydown', handleKeydown);
+
+    const loaded = await container.resolve(StartQuizUseCase).execute(quizId);
+    if (disposed) return;
+    quiz.value = loaded;
+    if (!loaded) return;
+
+    await start({
+        quizId,
+        timeLimit: loaded.timeLimit,
+        options: loaded.options.map((o: { no: number; text: string }) => ({ no: o.no, text: o.text })),
+        scope: session.scope,
+        onOpened: (round) => {
+            deadlineMs = round.deadlineMs;
+            publishState('answering');
+        },
+        onFinish: () => {
+            void bgmAudio.stop();
+            publishState('closed');
+        },
+    });
+
+    if (disposed || !loaded.bgm) return;
+    await bgmAudio.load(loaded.bgm);
+    if (disposed) return; // 読み込みの間に離れたら、鳴らさない
+    await bgmAudio.play({ isRepeat: true });
 });
 
 onUnmounted(() => {
+    disposed = true;
     document.removeEventListener('keydown', handleKeydown);
-    // Revoke object URLs to prevent memory leaks
-    objectUrls.value.forEach(url => {
-        if (url.startsWith('blob:')) {
-            URL.revokeObjectURL(url);
-        }
-    });
 });
-
-const selectOption = (index?: number) => {
-    const idx = typeof index === 'number' ? index : -1;
-    if (idx < 0) return;
-    console.log('Selected option:', idx);
-};
-
-const handleEmergencyStop = () => {
-    emergencyStop();
-};
 
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Enter' && showModal.value && canProceed.value) goAnswer();

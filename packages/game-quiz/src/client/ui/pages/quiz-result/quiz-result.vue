@@ -30,8 +30,8 @@ import { useQuizSession } from '../../composables/use-quiz-session';
 const router = useRouter();
 const route = useRoute();
 const session = useQuizSession();
-// セッションのホストなら、管理端末の「次へ」(順位発表→賞品)でも進める。
-const host = useQuizHost();
+// セッションのホストなら、管理端末の「次へ」(順位発表→賞品→ホーム)でも進める。Enter キーと同じ進行。
+const host = useQuizHost({ advance: () => advance() });
 
 type DisplayResult = RankedResult & { rank: number };
 
@@ -69,7 +69,7 @@ const noWinner = computed(
 // ホストでない場合(管理者のプレビュー)だけ、従来どおりクイズ管理へ戻る。
 const goHome = () => router.push({ path: host.lobbyPath() ?? '/quiz-home' });
 
-const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog } = usePrizeOrchestrator({
+const { isPrizeDialogVisible, showPrizeDialog, hidePrizeDialog, confirm: confirmPrize } = usePrizeOrchestrator({
     getSettings: () => currentQuiz.value?.settings,
     onNavigateHome: goHome,
 });
@@ -109,6 +109,9 @@ const lockPageScroll = () => {
     restoreScroll = () => targets.forEach((el, i) => (el.style.overflow = previous[i]));
 };
 
+// 画面を離れた印。読み込みの途中で離れたら、そのあとの状態の公開(取り下げたあとの再公開)をしない。
+let disposed = false;
+
 onMounted(() => {
     lockPageScroll();
     document.addEventListener('keydown', handleKeydown);
@@ -124,6 +127,7 @@ onMounted(() => {
                 gateway.answers(quizId, session.scope),
             ]);
 
+            if (disposed) return;
             currentQuiz.value = quiz;
             host.publish(
                 buildQuizHostState({
@@ -163,6 +167,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    disposed = true;
     restoreScroll?.();
     document.removeEventListener('keydown', handleKeydown);
     // 順位発表の途中で画面を離れても、結果は残す(発表を見終えるのを待たずに次の画面へ進んだ場合)
@@ -176,19 +181,21 @@ onUnmounted(() => {
     }
 });
 
-function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter') {
-        if (isPrizeDialogVisible.value) {
-            // Let orchestrator handle it
-            return;
-        }
-        // 順位発表が終わったら、当選者がいる時だけ景品を出す。いなければ景品は出さずに戻る。
-        if (rankingFinished.value) {
-            if (noWinner.value) goHome();
-            else showPrizeDialog();
-            return;
-        }
+/**
+ * 「次へ」の進行。賞品のダイアログが出ていれば閉じてホームへ、順位発表が終わっていれば、
+ * 当選者がいる時だけ景品を出す(いなければ景品は出さずに戻る)。発表の途中は何もしない。
+ */
+function advance(): void {
+    if (isPrizeDialogVisible.value) confirmPrize();
+    else if (rankingFinished.value) {
+        if (noWinner.value) goHome();
+        else showPrizeDialog();
     }
+}
+
+function handleKeydown(event: KeyboardEvent) {
+    // 賞品のダイアログが出ている間の Enter は、ダイアログ側(use-prize-orchestrator)が処理する
+    if (event.key === 'Enter' && !isPrizeDialogVisible.value) advance();
 }
 
 </script>

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { effectScope } from 'vue';
 import { useAnswerWindow } from './use-answer-window';
 
 function createDeps(remainingMs = 3000) {
@@ -141,5 +142,56 @@ describe('useAnswerWindow', () => {
     expect(isLoading.value).toBe(false);
     expect(canProceed.value).toBe(true);
     expect(errorMessage.value).toContain('自動で終了');
+  });
+
+  describe('画面を離れたとき', () => {
+    it('離れたあとは、カウントダウンが進まず、受付を締める処理も呼ばれない', async () => {
+      vi.useFakeTimers();
+      const deps = createDeps(3000);
+      const scope = effectScope();
+      const window = scope.run(() => useAnswerWindow(deps))!;
+      await window.start({ quizId: 'q1', timeLimit: 10, options: OPTIONS, scope: 'live' });
+
+      scope.stop();
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(window.timeLeft.value).toBe(3);
+      expect(deps.gateway.close).not.toHaveBeenCalled();
+    });
+
+    it('受付を開く通信の間に離れた場合、通信が終わってもタイマーを作らず、締めない', async () => {
+      vi.useFakeTimers();
+      let release!: (round: { key: string; deadlineMs: number; remainingMs: number }) => void;
+      const deps = {
+        gateway: {
+          open: vi.fn(() => new Promise<{ key: string; deadlineMs: number; remainingMs: number }>((resolve) => (release = resolve))),
+          close: vi.fn().mockResolvedValue(undefined),
+        },
+      };
+      const scope = effectScope();
+      const window = scope.run(() => useAnswerWindow(deps))!;
+      const starting = window.start({ quizId: 'q1', timeLimit: 2, options: OPTIONS, scope: 'live' });
+
+      scope.stop(); // 通信の返事を待つ間に画面を離れる
+      release({ key: 'q1:live', deadlineMs: 0, remainingMs: 2000 });
+      await starting;
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      expect(deps.gateway.close).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0); // 離れたあとに動くタイマーが残らない
+    });
+
+    it('離れたあとに手動で止められても、何もしない', async () => {
+      vi.useFakeTimers();
+      const deps = createDeps(3000);
+      const scope = effectScope();
+      const window = scope.run(() => useAnswerWindow(deps))!;
+      await window.start({ quizId: 'q1', timeLimit: 10, options: OPTIONS, scope: 'live' });
+      scope.stop();
+
+      window.emergencyStop();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(deps.gateway.close).not.toHaveBeenCalled();
+    });
   });
 });
