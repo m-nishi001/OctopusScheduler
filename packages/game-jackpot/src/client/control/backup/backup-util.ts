@@ -1,3 +1,4 @@
+import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
 /**
@@ -20,15 +21,6 @@ export interface LocalBackup {
   includeAssets: boolean;
   /** ストア名 → (キー → 保存されている値)。Blob は `{ __blob: true, type, dataUrl }` に直してある。 */
   stores: Record<string, Record<string, unknown>>;
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error("failed to read blob"));
-    reader.readAsDataURL(blob);
-  });
 }
 
 /** JSON にできない Blob を、中身ごと（データURLで）持てる形に直す。入れ子の中も辿る。 */

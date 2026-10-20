@@ -1,3 +1,4 @@
+import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 
 export async function exportLocalBackup(options?: { includeAssets?: boolean }) {
@@ -61,15 +62,3 @@ export async function exportLocalBackup(options?: { includeAssets?: boolean }) {
   return { filename, size: blob.size };
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    try {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result));
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(blob as Blob);
-    } catch (e) {
-      reject(e);
-    }
-  });
-}

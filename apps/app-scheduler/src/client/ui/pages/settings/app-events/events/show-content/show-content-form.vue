@@ -98,6 +98,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { container } from 'tsyringe';
 import { UiButton, UiDialog } from '@octopus/ui-kit';
+import { assetPlaceholder, listAssetPlaceholderIds, renderAssetPlaceholders } from '@octopus/client-common/assets/asset-placeholder';
 import { AssetService } from '../../../../../../control/asset/asset-service';
 import { AppEventService } from '../../../../../../control/app-event/app-event-service';
 import type { ShowContentEventDto } from '../../../../../../control/app-event/dto/app-event-dto';
@@ -210,7 +211,7 @@ function insertAtCursor(text: string) {
 }
 
 function insertExisting() {
-    if (insertAssetId.value) insertAtCursor(`{{asset:${insertType.value}:${insertAssetId.value}}}`);
+    if (insertAssetId.value) insertAtCursor(assetPlaceholder(insertType.value, insertAssetId.value));
     insertAssetId.value = '';
 }
 
@@ -222,20 +223,13 @@ function onInsertFile(event: Event) {
     const id = tempId();
     pendingUploads.value.push({ tempId: id, file });
     setPreviewUrl(id, file);
-    insertAtCursor(`{{asset:${insertType.value}:${id}}}`);
+    insertAtCursor(assetPlaceholder(insertType.value, id));
 }
 
 /** HTML の `{{asset:…}}` を、プレビュー用の URL に置き換えた HTML。URL が未取得のアセットは先に読み込む。 */
-const PLACEHOLDER = /\{\{asset:(image|video):([^}]+)\}\}/g;
-const previewHtml = computed(() =>
-    formData.htmlString.replace(PLACEHOLDER, (match, type: string, id: string) => {
-        const url = previewUrls.get(id);
-        if (!url) return match;
-        return type === 'image' ? `<img src="${url}" alt="asset" />` : `<video src="${url}" controls></video>`;
-    })
-);
+const previewHtml = computed(() => renderAssetPlaceholders(formData.htmlString, (id) => previewUrls.get(id)));
 watch(() => formData.htmlString, async (html) => {
-    for (const [, , id] of html.matchAll(PLACEHOLDER)) {
+    for (const id of listAssetPlaceholderIds(html)) {
         if (previewUrls.has(id)) continue;
         try {
             const asset = await assetService.getAssetById(id);
@@ -249,8 +243,9 @@ watch(() => formData.htmlString, async (html) => {
 /** 使われているファイルだけをアップロードして、仮の id を本物の id に置き換えた結果を渡す。 */
 const save = async () => {
     const isHtml = formData.contentType === 'html';
+    const usedInHtml = new Set(listAssetPlaceholderIds(formData.htmlString));
     const used = pendingUploads.value.filter((u) =>
-        isHtml ? formData.htmlString.includes(`:${u.tempId}}}`) : u.tempId === formData.contentId
+        isHtml ? usedInHtml.has(u.tempId) : u.tempId === formData.contentId
     );
     const resolved = await appEventService.resolveShowContentUploads(
         isHtml ? '' : formData.contentId,
