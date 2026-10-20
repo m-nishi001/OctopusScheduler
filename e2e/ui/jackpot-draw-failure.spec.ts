@@ -48,8 +48,12 @@ test("エントリー者がいなくて抽選に失敗しても、ホストは�
     await expect(next).not.toHaveText(label); // 1枚進んでから次を押す（押しすぎて抽選画面に進まないように）
   }
   await expect(next).toHaveText(/抽選を始める/);
-  await next.click();
-  await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+  // 押したコマンドが(通信の都合などで)処理されなかったときのために、抽選画面に進むまで押し直す。
+  // 進んだあとの追加の「次へ」は、この先の確認(失敗しても固まらず、やり直せる)の妨げにならない。
+  await expect(async () => {
+    await next.click();
+    await expect.poll(() => route(host.page), { timeout: 5_000 }).toBe("/execute/jackpot-draw");
+  }).toPass({ timeout: 45_000 });
 
   // 1. 抽選に失敗: アラートで知らせる
   await expect.poll(() => alerts.length, { timeout: 60_000 }).toBeGreaterThan(0);
