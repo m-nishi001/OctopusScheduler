@@ -1,260 +1,83 @@
-import { injectable, container } from "tsyringe";
-import { DrawApplicationService } from "./draw-application-service";
-import { MemberRepository } from "../../model/member/member-repository";
-import { PrizeRepository } from "../../model/prize/prize-repository";
-import { DrawResultService } from "./draw-result-service";
-import { PrizeDrawStateRepository } from "../../model/draw/prize-draw-state-repository";
-import { MathRandomProvider } from "../../model/common/math-random-provider";
-import { FixedRandomProvider } from "../../model/common/fixed-random-provider";
-import type { MemberDto } from "../member/dto/member-dto";
-import type { PrizeDto } from "../prize/dto/prize-dto";
+import { injectable } from "tsyringe";
+import { createInMemoryDrawApp } from "./in-memory-draw-app";
+import type { DrawApplicationService } from "./draw-application-service";
 import type { DrawResultDto } from "./dto/draw-result-dto";
+import { FixedRandomProvider } from "../../model/common/fixed-random-provider";
+import type { Member } from "../../model/member/member";
+import type { Prize } from "../../model/prize/prize";
 
+/**
+ * 抽選のシミュレーション（設定画面の「テスト」）。ダミーのメンバーと景品を全部引き切り、結果を返す。
+ *
+ * 抽選はメモリ上だけで行う（{@link createInMemoryDrawApp}）。本番のメンバー・景品・抽選結果・確変の状態には
+ * 一切触れないので、途中でタブを閉じても、失敗しても、本番のデータが書き換わったままになることはない。
+ */
 @injectable()
 export class DrawSimulationService {
-  private drawAppService!: DrawApplicationService;
-  private memberRepo!: MemberRepository;
-  private prizeRepo!: PrizeRepository;
-  private drawResultService!: DrawResultService;
-  private prizeDrawStateRepository!: PrizeDrawStateRepository;
-
-  // Backups for restore after test
-  private backupMembers: MemberDto[] | null = null;
-  private backupPrizes: PrizeDto[] | null = null;
-  private backupResults: DrawResultDto[] | null = null;
-  private backupState: number[] | null = null;
-  private readonly PERSIST_KEY = "jackpot-test-backup";
-
-  constructor() {}
-
-  // Main simulation method
+  /**
+   * ダミーのメンバー `memberCount` 人・景品 `prizeCount` 個で、景品が尽きるまで抽選する。
+   *
+   * @param randomValues 指定すると、乱数をこの並び（0以上1未満）の繰り返しにして、結果を再現できる。
+   * @returns 抽選結果（引いた順）と、そのCSV
+   */
   async runSimulation(
     memberCount: number,
     prizeCount: number,
     randomValues?: number[]
   ): Promise<{ results: DrawResultDto[]; csv: string }> {
-    try {
-      // If a deterministic random sequence is requested, override the RandomProvider
-      let originalRand: any = null;
-      if (randomValues && randomValues.length > 0) {
-        try {
-          originalRand = container.resolve(MathRandomProvider);
-        } catch (e) {
-          originalRand = null;
-        }
-        // register FixedRandomProvider instance for deterministic behavior
-        container.registerInstance(
-          MathRandomProvider,
-          new FixedRandomProvider(randomValues)
-        );
-      }
-
-      // Resolve services after possibly overriding RandomProvider
-      this.drawAppService = container.resolve(DrawApplicationService);
-      this.memberRepo = container.resolve(MemberRepository);
-      this.prizeRepo = container.resolve(PrizeRepository);
-      this.drawResultService = container.resolve(DrawResultService);
-      this.prizeDrawStateRepository =
-        container.resolve<PrizeDrawStateRepository>(PrizeDrawStateRepository);
-
-      // 1. バックアップを取得
-      await this.backupCurrentData();
-
-      // 2. テストデータ投入
-      await this.setDummyData(memberCount, prizeCount);
-
-      // 3. シミュレーション実行
-      const results = await this.runDrawSimulation();
-
-      // 4. シミュレート結果を取得 (already collected in results)
-
-      // 5. バックアップを復元
-      await this.restoreBackup();
-
-      // restore original RandomProvider registration if we overrode it
-      if (randomValues && randomValues.length > 0) {
-        try {
-          if (originalRand) {
-            container.registerInstance(MathRandomProvider, originalRand);
-          }
-        } catch (e) {
-          // ignore restore errors
-        }
-      }
-
-      // 6. シミュレート結果を表示 (return results and CSV)
-      const csv = this.generateCsv(results);
-      return { results, csv };
-    } catch (error) {
-      console.error("Simulation failed:", error);
-      // Attempt to restore backup even on failure
-      try {
-        await this.restoreBackup();
-      } catch (restoreError) {
-        console.error("Failed to restore backup:", restoreError);
-      }
-      throw error;
-    }
+    const prizes = this.dummyPrizes(prizeCount);
+    const { app } = createInMemoryDrawApp({
+      members: this.dummyMembers(memberCount),
+      prizes,
+      random: randomValues && randomValues.length > 0 ? new FixedRandomProvider(randomValues) : undefined,
+    });
+    await app.initializeStateIfNeeded(prizes);
+    const results = await this.drawUntilPrizesRunOut(app, prizes.length);
+    return { results, csv: this.generateCsv(results) };
   }
 
-  private async backupCurrentData(): Promise<void> {
-    console.info("Backing up current data...");
-    this.backupMembers = (await this.memberRepo.getMembers()).map((m) => ({
-      ...m,
+  private dummyMembers(count: number): Member[] {
+    return Array.from({ length: count }, (_, i) => ({
+      id: `member-${i + 1}`,
+      name: `メンバー${i + 1}`,
+      rank: (i % 3) + 1,
+      photoAssetId: "dummy",
     }));
-    this.backupPrizes = (await this.prizeRepo.getPrizes()).map((p) => ({
-      ...p,
+  }
+
+  /** レア度の異なる景品が混ざるよう、重みを 1 / 10 / 80 の順に繰り返す。 */
+  private dummyPrizes(count: number): Prize[] {
+    const weights = [1, 10, 80];
+    return Array.from({ length: count }, (_, i) => ({
+      id: `prize-${i + 1}`,
+      name: `景品${i + 1}`,
+      weight: weights[i % weights.length],
+      imageAssetId: "dummy",
+      animation: "roulette",
+      order: i + 1,
     }));
-    this.backupResults = (await this.drawResultService.getDrawResults()).map(
-      (r) => ({ ...r })
-    );
-    this.backupState = await this.prizeDrawStateRepository.getState();
-
-    // Persist to localStorage
-    try {
-      const payload = JSON.stringify({
-        backupMembers: this.backupMembers,
-        backupPrizes: this.backupPrizes,
-        backupResults: this.backupResults,
-        backupState: this.backupState,
-      });
-      window.localStorage.setItem(this.PERSIST_KEY, payload);
-    } catch (e) {
-      console.warn("Failed to persist backup:", e);
-    }
-    console.info("Backup complete");
   }
 
-  private async setDummyData(
-    memberCount: number,
-    prizeCount: number
-  ): Promise<void> {
-    console.info("Setting dummy data...");
-
-    const dummyMembers: MemberDto[] = [];
-    for (let i = 1; i <= memberCount; i++) {
-      dummyMembers.push({
-        id: `member-${i}`,
-        name: `メンバー${i}`,
-        rank: ((i - 1) % 3) + 1, // 1,2,3 を繰り返す
-        photoAssetId: "dummy",
-      });
-    }
-
-    const dummyPrizes: PrizeDto[] = [];
-    const dummyWeights = [1, 10, 80]; // レア度の異なる景品が混在することを示すサンプル重み
-    for (let i = 1; i <= prizeCount; i++) {
-      dummyPrizes.push({
-        id: `prize-${i}`,
-        name: `景品${i}`,
-        weight: dummyWeights[(i - 1) % dummyWeights.length],
-        imageAssetId: "dummy",
-        animation: "roulette",
-        order: i,
-      });
-    }
-
-    // ダミーメンバーは共有マスタに一切書き込まない一時的なローカル上書き
-    // (game-quiz等の名簿を汚さないため、replaceAllMembersは使わない)。
-    await this.memberRepo.setRosterOverride(dummyMembers as any);
-    await this.prizeRepo.replaceAllPrizes(dummyPrizes as any);
-
-    // Clear existing results
-    const existingResults = await this.drawResultService.getDrawResults();
-    for (const r of existingResults) {
-      await this.drawResultService.deleteDrawResult(r.drawId);
-    }
-
-    // Clear state to ensure initialization
-    await this.prizeDrawStateRepository.clearState();
-
-    // Initialize state
-    const savedPrizes = await this.prizeRepo.getPrizes();
-    await this.drawAppService.initializeStateIfNeeded(savedPrizes as any);
-
-    console.info("Dummy data set");
-  }
-
-  private async runDrawSimulation(): Promise<DrawResultDto[]> {
-    console.info("Running draw simulation...");
+  /** 景品が尽きるまで引く。メンバーが尽きたとき・想定外の失敗のときは、そこまでの結果を返す。 */
+  private async drawUntilPrizesRunOut(app: DrawApplicationService, prizeCount: number): Promise<DrawResultDto[]> {
     const results: DrawResultDto[] = [];
-    const total = (await this.prizeRepo.getPrizes()).length;
-    let safetyCounter = 0;
-    while (true) {
+    const limit = Math.max(50, prizeCount * 3); // 無限ループの安全弁
+    for (let i = 0; i < limit; i++) {
       try {
-        const { result } = await this.drawAppService.executeDraw({
-          memberRequestCount: 10,
-          prizeRequestCount: 8,
-        });
-        if (result) {
-          results.push(result);
-        }
-
-        const remainingPrizes = await this.drawAppService.getRemainingPrizes();
-        // Stop when there are no remaining prizes
-        if (remainingPrizes.length === 0) break;
-
-        // Safety: avoid infinite loops; if exceeded some threshold, break
-        safetyCounter++;
-        if (safetyCounter > Math.max(50, total * 3)) {
-          console.warn("Simulation reached safety limit, stopping early");
-          break;
-        }
-      } catch (e) {
-        console.error("Error in draw execution:", e);
+        const { result } = await app.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
+        if (result) results.push(result);
+        if ((await app.getRemainingPrizes()).length === 0) break;
+      } catch (error) {
+        console.error("Error in draw execution:", error);
         break;
       }
     }
-
-    console.info(`Simulation complete: ${results.length} draws`);
     return results;
   }
 
-  // バックアップを復元
-  async restoreBackup(): Promise<void> {
-    console.info("Restoring backup...");
-    // ダミーメンバーは共有マスタに書き込んでいないため、上書きを解除するだけでよい。
-    await this.memberRepo.clearRosterOverride();
-    if (this.backupPrizes) {
-      await this.prizeRepo.replaceAllPrizes(this.backupPrizes as any);
-    }
-
-    // Clear current results and restore
-    const currentResults = await this.drawResultService.getDrawResults();
-    for (const r of currentResults) {
-      await this.drawResultService.deleteDrawResult(r.drawId);
-    }
-    if (this.backupResults) {
-      for (const r of this.backupResults) {
-        await this.drawResultService.addDrawResult(r);
-      }
-    }
-
-    // Restore state
-    if (this.backupState) {
-      await this.prizeDrawStateRepository.saveState(this.backupState);
-    } else {
-      await this.prizeDrawStateRepository.clearState();
-    }
-
-    // Clear backups
-    this.backupMembers = null;
-    this.backupPrizes = null;
-    this.backupResults = null;
-    this.backupState = null;
-
-    console.info("Backup restored");
-  }
-
-  // 結果をCSV形式で取得
+  /** 結果をCSV形式にする。 */
   generateCsv(results: DrawResultDto[]): string {
-    const headers = [
-      "Draw ID",
-      "Member Name",
-      "Prize Name",
-      "Prize Weight",
-      "Is Kakuhen",
-    ];
+    const headers = ["Draw ID", "Member Name", "Prize Name", "Prize Weight", "Is Kakuhen"];
     const rows = results.map((result) => [
       result.drawId,
       result.wonMember?.name || "",
@@ -262,9 +85,6 @@ export class DrawSimulationService {
       result.wonPrize?.weight || "",
       (result.isKakuhen || false).toString(),
     ]);
-
-    return [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
+    return [headers, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
   }
 }

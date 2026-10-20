@@ -43,14 +43,12 @@ describe("MemberRepository (jackpot)", () => {
   let mockDirectory: ReturnType<typeof createMockDirectory>;
   let repo: MemberRepository;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     container.reset();
     mockDirectory = createMockDirectory();
     container.register(AccountsRepository, { useValue: mockDirectory as any });
     container.register(IJackpotGameApiToken, { useValue: createMockJackpotApi() as any });
     repo = container.resolve(MemberRepository);
-    // 各テストのローカル拡張ストレージを分離する(localforageはグローバルなので明示的にクリア)。
-    await repo.clearRosterOverride();
   });
 
   it("creates a new shared member when adding without an existing id", async () => {
@@ -93,18 +91,6 @@ describe("MemberRepository (jackpot)", () => {
       expect.objectContaining({ id: "shared-1", name: "既存メンバー", rank: 5 }),
     ]);
   });
-
-  it("setRosterOverride/clearRosterOverride never call the shared directory", async () => {
-    await repo.setRosterOverride([{ id: "dummy-1", name: "テスト", rank: 1 }]);
-    expect(await repo.getMembers()).toEqual([
-      { id: "dummy-1", name: "テスト", rank: 1 },
-    ]);
-    expect(mockDirectory.addMember).not.toHaveBeenCalled();
-    expect(mockDirectory.replaceAllMembers).not.toHaveBeenCalled();
-
-    await repo.clearRosterOverride();
-    expect(await repo.getMembers()).toEqual([]);
-  });
 });
 
 describe("MemberRepository.listSyncTargets", () => {
@@ -124,7 +110,6 @@ describe("MemberRepository.listSyncTargets", () => {
     container.register(AccountsRepository, { useValue: mockDirectory as any });
     container.register(IJackpotGameApiToken, { useValue: mockJackpotApi as any });
     repo = container.resolve(MemberRepository);
-    await repo.clearRosterOverride();
   });
 
   it("returns no local snapshot when no extras have ever been saved", async () => {

@@ -12,7 +12,6 @@ import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
 import type { DriveJsonData } from "@octopus/infrastructures/compositions";
 
 const DEFAULT_RANK = 5;
-const ROSTER_OVERRIDE_KEY = "override";
 const SYNC_KIND = "member-extras";
 const DRIVE_FILE_NAME = "member-extras.json";
 // getJsonBlobの「fileId省略時は既定ファイル(prizes.json)」というフォールバックは
@@ -38,10 +37,6 @@ const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-member-extras-file-id";
 @injectable()
 export class MemberRepository {
   private readonly extraStorage = new LocalStorageService("jackpot-game", "MemberExtraData");
-  private readonly overrideStorage = new LocalStorageService(
-    "jackpot-game",
-    "MemberRosterOverride"
-  );
   private readonly dirtyTracker = new DirtyTracker("jackpot-game");
 
   constructor(
@@ -60,9 +55,6 @@ export class MemberRepository {
   }
 
   async getMembers(): Promise<Member[]> {
-    const override = await this.overrideStorage.get<Member[]>(ROSTER_OVERRIDE_KEY);
-    if (override) return override;
-
     const [directoryMembers, extras] = await Promise.all([
       this.directory.listMembers(),
       this.extraStorage.getAll<JackpotMemberExtra>(),
@@ -71,9 +63,6 @@ export class MemberRepository {
   }
 
   async getMemberById(id: string): Promise<Member | null> {
-    const override = await this.overrideStorage.get<Member[]>(ROSTER_OVERRIDE_KEY);
-    if (override) return override.find((m) => m.id === id) ?? null;
-
     const directoryMembers = await this.directory.listMembers();
     const directoryMember = directoryMembers.find((m) => m.id === id);
     if (!directoryMember) return null;
@@ -137,20 +126,6 @@ export class MemberRepository {
     await this.extraStorage.removeMultiple(ids);
     await this.dirtyTracker.touch(SYNC_KIND);
     eventBus.emit("syncDirty");
-  }
-
-  /**
-   * 動作確認シミュレーション用にロースターを一時的にダミーメンバーへ差し替える。
-   * 共有マスタには一切書き込まない(他モジュールの名簿を汚さないため)。
-   * `clearRosterOverride()` を呼ぶまで getMembers()/getMemberById() はこの内容のみを返す。
-   */
-  async setRosterOverride(members: Member[]): Promise<void> {
-    await this.overrideStorage.save(ROSTER_OVERRIDE_KEY, members);
-  }
-
-  /** シミュレーション用の一時的な上書きを解除し、共有マスタ由来の内容に戻す。 */
-  async clearRosterOverride(): Promise<void> {
-    await this.overrideStorage.delete(ROSTER_OVERRIDE_KEY);
   }
 
   /**
