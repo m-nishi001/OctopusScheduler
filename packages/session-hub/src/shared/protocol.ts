@@ -209,8 +209,6 @@ export interface RoundAnswer {
   no: number;
   /** 回答を受け付けたサーバ時刻(ms)。 */
   atMs: number;
-  /** memberId がログインから確定したものか(Device.verified と同じ)。匿名の申告は false/未設定。 */
-  verified?: boolean;
 }
 
 export interface RoundSummary {

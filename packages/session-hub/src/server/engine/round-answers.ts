@@ -12,12 +12,11 @@ export type UpsertAnswerResult =
   | { kind: "full" };
 
 /**
- * 同じ参加者の回答か。同じ端末、またはログインから確定した同じメンバー(別の端末からでも1人1件)。
- * 匿名の申告(verified でない)は端末ごとに別の参加者として扱う。
+ * 同じ参加者の回答か。同じ端末、または同じメンバー(別の端末からでも1人1件)。
  */
-export function isSameRespondent(existing: RoundAnswer, by: Pick<RoundAnswer, "deviceId" | "memberId" | "verified">): boolean {
+export function isSameRespondent(existing: RoundAnswer, by: Pick<RoundAnswer, "deviceId" | "memberId">): boolean {
   if (existing.deviceId === by.deviceId) return true;
-  return by.verified === true && by.memberId !== null && existing.verified === true && existing.memberId === by.memberId;
+  return by.memberId !== null && existing.memberId === by.memberId;
 }
 
 /**

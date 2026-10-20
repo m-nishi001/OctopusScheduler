@@ -103,7 +103,7 @@ export function usePortalSession(connection: SessionConnection, options: PortalS
   const clientCount = computed(() => state.value.presence?.clientCount ?? 0);
   // ポータルの参加者はログインで確定した本人。サーバーの受付と同じ判定(clientInputKeysFor)で絞る。
   const clientInputs = computed(() =>
-    clientInputKeysFor(state.value.roomState?.clientInput ?? [], { memberId: options.memberId?.() ?? null, verified: true })
+    clientInputKeysFor(state.value.roomState?.clientInput ?? [], { memberId: options.memberId?.() ?? null })
   );
 
   // 切断・終了・認証切れで接続が止まったら、上限つきで自動で入り直す。

@@ -248,7 +248,6 @@ export async function joinParticipant(deps: EngineDeps, args: JoinPortalArgs, tr
     sessionId: meta.id,
     role: "client",
     memberId: trusted.memberId,
-    verified: true,
     label: cleanLabel(trusted.label, "参加者"),
     token: deps.newToken(),
     joinedAtMs: now,
@@ -571,7 +570,6 @@ export async function submitAnswer(deps: EngineDeps, args: SubmitAnswerArgs): Pr
     label: device.label,
     no: args.no,
     atMs: now,
-    ...(device.verified === true ? { verified: true } : {}),
   };
   if (!isRoundOpen(round, now)) {
     // 締切後は変更できない。回答済みなら、その内容を返す(画面表示を揃えるため)。
