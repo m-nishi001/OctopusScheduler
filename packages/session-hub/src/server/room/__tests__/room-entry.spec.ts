@@ -54,7 +54,6 @@ describe("SessionRoomCore: エントリー受付(オープン型ラウンド)", 
     await enter(await portal("carol"));
     const list = (await answers()).answers;
     expect(list.map((a) => a.memberId)).toEqual(["alice", "bob", "carol"]);
-    expect(list.every((a) => a.verified === true)).toBe(true);
   });
 
   it("同じメンバーが2台でエントリーしても1件", async () => {

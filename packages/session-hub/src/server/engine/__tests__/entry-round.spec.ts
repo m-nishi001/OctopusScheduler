@@ -157,15 +157,6 @@ describe("ログイン済みメンバーは1人1回（端末が違っても）",
     expect((await answers()).map((a) => a.memberId).sort()).toEqual(["alice", "bob"]);
   });
 
-  it("回答にはログイン確定の印(verified)が付く", async () => {
-    const { openEntry, portal, enter, answers } = await setup();
-    await openEntry();
-    await enter(await portal("alice"));
-    await enter(await portal("carol"));
-    const byMember = Object.fromEntries((await answers()).map((a) => [a.memberId, a.verified]));
-    expect(byMember).toEqual({ alice: true, carol: true });
-  });
-
   it("時間を競うラウンドでも、ログイン済みメンバーは1人1件(別の端末から選び直すと置き換わる)", async () => {
     const { hub, meta, host, portal, creds } = await setup();
     const options = [{ no: 1, text: "a" }, { no: 2, text: "b" }];

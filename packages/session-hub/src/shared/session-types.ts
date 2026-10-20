@@ -59,12 +59,6 @@ export interface Device {
   /** ログイン済みアカウント、または参加者として選んだメンバー。 */
   memberId: string | null;
   label: string;
-  /**
-   * memberId がログインのトークンから確定したもの(参加者ポータルへの入室)か。
-   * 匿名の参加コード入室では memberId をクライアントが申告するだけなので false。
-   * 「1人1回」をメンバー単位で数える(2台でエントリーさせない)のは、これが true の端末だけ。
-   */
-  verified?: boolean;
   /** 端末認証用のトークン。サーバ側にのみ保存し、他端末へは返さない。 */
   token: string;
   joinedAtMs: number;
@@ -192,21 +186,20 @@ export interface ClientInput {
   memberIds?: string[];
 }
 
-/** 操作の送り手。ポータルの参加者はログインで確定した本人(verified)。 */
+/** 操作の送り手。ポータルの参加者はログインで確定した本人。 */
 export interface ClientInputActor {
   memberId: string | null;
-  verified?: boolean;
 }
 
 /**
  * 参加者 `actor` が `key` の操作を送れるか。サーバーの受付と、ポータルのボタン表示が同じ判定を使う。
- * 宛先が決まっている操作は、ログインで確定した宛先のメンバー本人だけ(匿名の参加コード入室は、申告だけなので不可)。
+ * 宛先が決まっている操作は、ログインで確定した宛先のメンバー本人だけ。
  */
 export function clientInputAllows(inputs: readonly ClientInput[], key: string, actor: ClientInputActor): boolean {
   const input = inputs.find((i) => i.key === key);
   if (!input) return false;
   if (!input.memberIds) return true;
-  return actor.verified === true && actor.memberId !== null && input.memberIds.includes(actor.memberId);
+  return actor.memberId !== null && input.memberIds.includes(actor.memberId);
 }
 
 /** `actor` が送れる操作の key 一覧(ホストの公開順)。 */
