@@ -92,6 +92,62 @@ describe("createSession / listSessions / closeSession", () => {
     expect(await code(svc.closeSession(hub.deps, { sessionId: "nope" }))).toBe("SESSION_NOT_FOUND");
   });
 
+  describe("作成・終了の途中で失敗しても、一覧と本体が食い違わず、やり直せる", () => {
+    /** 本体の置き場への操作を、指定した回数だけ失敗させる（Durable Object への通信失敗を模す）。 */
+    function flakyHome(hub: ReturnType<typeof createTestHub>, failures: { create: number; close: number }) {
+      const real = hub.deps.home;
+      const calls = { create: 0, close: 0 };
+      hub.deps.home = {
+        async create(meta) {
+          calls.create++;
+          if (failures.create-- > 0) throw new Error("DO unavailable");
+          await real.create(meta);
+        },
+        async close(sessionId) {
+          calls.close++;
+          if (failures.close-- > 0) throw new Error("DO unavailable");
+          await real.close(sessionId);
+        },
+      };
+      return calls;
+    }
+
+    it("作成で本体を作れなかったら、一覧に載せない（本体の無いセッションが一覧に残らない）", async () => {
+      const hub = createTestHub();
+      flakyHome(hub, { create: 1, close: 0 });
+      await expect(svc.createSession(hub.deps, { name: "x" }, "a")).rejects.toThrow("DO unavailable");
+      expect(await svc.listSessions(hub.deps)).toEqual([]);
+
+      // やり直すと、重複なく1件だけ作られる
+      const meta = await svc.createSession(hub.deps, { name: "x" }, "a");
+      expect((await svc.listSessions(hub.deps)).map((s) => s.id)).toEqual([meta.id]);
+    });
+
+    it("終了で本体を終了できなかったら、一覧は進行中のまま（終了済みと表示されない）。やり直せる", async () => {
+      const hub = createTestHub();
+      const meta = await svc.createSession(hub.deps, { name: "x" }, "a");
+      flakyHome(hub, { create: 0, close: 1 });
+
+      await expect(svc.closeSession(hub.deps, { sessionId: meta.id })).rejects.toThrow("DO unavailable");
+      expect((await svc.listSessions(hub.deps)).map((s) => s.status)).toEqual(["lobby"]);
+
+      await svc.closeSession(hub.deps, { sessionId: meta.id });
+      expect((await svc.listSessions(hub.deps)).map((s) => s.status)).toEqual(["closed"]);
+    });
+
+    it("終了済みのセッションをもう一度終了しても、エラーにならず、終了時刻は延びない", async () => {
+      const hub = createTestHub();
+      const meta = await svc.createSession(hub.deps, { name: "x" }, "a");
+      await svc.closeSession(hub.deps, { sessionId: meta.id });
+      const closedAt = (await svc.listSessions(hub.deps))[0].closedAtMs;
+
+      hub.clock.advance(30 * 60 * 1000);
+      await svc.closeSession(hub.deps, { sessionId: meta.id });
+
+      expect((await svc.listSessions(hub.deps))[0].closedAtMs).toBe(closedAt);
+    });
+  });
+
   it("有効期限が切れたセッションは使えない", async () => {
     const { hub, client, creds } = await setup();
     hub.clock.advance(SESSION_TTL_MS + 1);

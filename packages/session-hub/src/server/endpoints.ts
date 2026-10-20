@@ -39,6 +39,7 @@ import type {
 import type { SessionHubEndpointName } from "./session-hub-api-contract";
 import { SESSION_HUB_PREFIX } from "./session-hub-api-contract";
 import { createCachePresenceStore, createKvSessionIndex, createKvSessionRepo } from "./engine/session-repo";
+import { createKvSessionHome } from "./engine/session-service";
 import { ISessionHubBackendToken, createKvBackend } from "./hub-backend";
 import type { SessionHubBackend } from "./hub-backend";
 import type { ServiceDeps } from "./engine/session-service";
@@ -54,6 +55,7 @@ export function resolveKvDeps(): ServiceDeps {
   const now = (): number => Date.now();
   return {
     index: createKvSessionIndex(storage),
+    home: createKvSessionHome((id) => createKvSessionRepo(storage, id)),
     repoFor: (id) => createKvSessionRepo(storage, id),
     presenceFor: (id) => createCachePresenceStore(cache, id, now),
     withLock: (key, timeoutMs, fn) => lock.withLock(key, timeoutMs, fn),

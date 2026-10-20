@@ -24,8 +24,34 @@ import type { EngineDeps } from "./session-engine";
 import { hubError } from "./hub-error";
 import type { PresenceStore, SessionIndexStore, SessionRepo } from "./session-repo";
 
+/**
+ * セッション本体（メタ情報・端末・状態）の置き場の、作成と終了。KV 実装（GAS・ローカル）と Durable Object 実装がある。
+ * 一覧（index）に載せる・外すのは、この置き場への操作が成功してから行う（途中で失敗しても、
+ * 一覧に載ったのに本体が無い、本体は終わったのに一覧では進行中、という食い違いが残らず、再試行できる）。
+ */
+export interface SessionHome {
+  /** 新しいセッションの本体を作る。 */
+  create(meta: SessionMeta): Promise<void>;
+  /** セッションを終了する。すでに終了していても何もしない（再試行できるように）。 */
+  close(sessionId: string): Promise<void>;
+}
+
+/** KV（GAS・ローカル）の置き場。セッションのメタ情報を repo に保存する。 */
+export function createKvSessionHome(repoFor: (sessionId: string) => SessionRepo): SessionHome {
+  return {
+    create: (meta) => repoFor(meta.id).putMeta(meta),
+    async close(sessionId) {
+      const repo = repoFor(sessionId);
+      const meta = await repo.getMeta();
+      if (!meta) throw hubError("SESSION_NOT_FOUND", "セッションが見つかりません");
+      if (meta.status !== "closed") await repo.putMeta({ ...meta, status: "closed" });
+    },
+  };
+}
+
 export interface ServiceDeps {
   index: SessionIndexStore;
+  home: SessionHome;
   repoFor: (sessionId: string) => SessionRepo;
   presenceFor: (sessionId: string) => PresenceStore;
   withLock: <T>(key: string, timeoutMs: number, fn: () => Promise<T> | T) => Promise<T>;
@@ -135,7 +161,8 @@ export async function createSession(
       expiresAtMs: now + SESSION_TTL_MS,
       hostDeviceId: null,
     };
-    await deps.repoFor(meta.id).putMeta(meta);
+    // 本体を先に作る。失敗したら一覧には載せない（作り直せる）
+    await deps.home.create(meta);
     await deps.index.put([...list, summarize(meta)]);
     return meta;
   });
@@ -149,16 +176,16 @@ export async function listSessions(deps: ServiceDeps): Promise<SessionSummary[]>
 export async function closeSession(deps: ServiceDeps, args: CloseSessionArgs): Promise<void> {
   if (!args.sessionId) throw hubError("INVALID_ARGUMENT", "sessionId が必要です");
   await deps.withLock(INDEX_LOCK, LOCK_TIMEOUT_MS, async () => {
-    const repo = deps.repoFor(args.sessionId);
-    const meta = await repo.getMeta();
-    if (!meta) throw hubError("SESSION_NOT_FOUND", "セッションが見つかりません");
-    if (meta.status !== "closed") await repo.putMeta({ ...meta, status: "closed" });
     const list = await deps.index.list();
-    const closedAtMs = deps.now();
+    const target = list.find((s) => s.id === args.sessionId);
+    if (!target) throw hubError("SESSION_NOT_FOUND", "セッションが見つかりません");
+    // 本体を先に終了する。失敗したら一覧は変えない（進行中のまま、もう一度終了できる）
+    await deps.home.close(args.sessionId);
+    const closedAtMs = target.closedAtMs ?? deps.now();
     await deps.index.put(
       // 終了したセッションは参加者ポータルの入口ではなくなる
       list.map((s) => {
-        if (s.id !== meta.id) return s;
+        if (s.id !== target.id) return s;
         const { portal: _portal, ...rest } = s;
         return { ...rest, status: "closed" as const, closedAtMs };
       })

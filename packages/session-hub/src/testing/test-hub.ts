@@ -14,6 +14,7 @@ import {
   createKvSessionIndex,
   createKvSessionRepo,
 } from "../server/engine/session-repo";
+import { createKvSessionHome } from "../server/engine/session-service";
 import type { ServiceDeps } from "../server/engine/session-service";
 
 export interface Clock {
@@ -84,6 +85,7 @@ export function createTestHub(options: { clock?: Clock; storageLimits?: InMemory
 
   const deps: ServiceDeps = {
     index: createKvSessionIndex(storage),
+    home: createKvSessionHome((id) => createKvSessionRepo(storage, id)),
     repoFor: (id) => createKvSessionRepo(storage, id),
     presenceFor: (id) => createCachePresenceStore(cache, id, clock.now),
     withLock: async <T>(key: string, _timeoutMs: number, fn: () => Promise<T> | T): Promise<T> => {

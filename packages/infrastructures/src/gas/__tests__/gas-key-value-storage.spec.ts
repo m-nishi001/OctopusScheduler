@@ -17,6 +17,7 @@ class FakeFile {
   getName() { return this.name; }
   setName(n: string) { this.name = n; }
   setTrashed(v: boolean) { this.trashed = v; }
+  setContent(c: string) { this.content = c; }
   getMimeType() { return this.mime; }
   getSize() { return this.content.length; }
   getDateCreated() { return new Date(0); }
@@ -172,6 +173,21 @@ describe("GasKeyValueStorage (root-relative paths)", () => {
 
     expect((await kv.delete("m/json/a.json"))?.key).toBe("m/json/a.json");
     expect(await kv.stat("m/json/a.json")).toBeNull();
+  });
+
+  it("テキストの上書きは同じファイルを書き換える(捨てて作り直さない)。直後の読み取りが「無い」にならない", async () => {
+    props[ROOT_FOLDER_PROPERTY_KEY] = "root-id";
+    const kv = new GasKeyValueStorage();
+    await kv.putText("m/json/a.json", "1", "application/json");
+    const folder = root.folders.get("m")!.folders.get("json")!;
+    const original = folder.files[0];
+
+    await kv.putText("m/json/a.json", "2", "application/json");
+
+    expect(folder.files).toHaveLength(1); // ファイルが増えていない
+    expect(folder.files[0]).toBe(original); // 同じファイル(ID が変わらない)
+    expect(original.trashed).toBe(false);
+    expect(await kv.getContentAsText("m/json/a.json")).toBe("2");
   });
 
   it("takes the script lock only when a folder must be created", async () => {

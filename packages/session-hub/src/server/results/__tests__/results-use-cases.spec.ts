@@ -141,10 +141,36 @@ describe("results-use-cases", () => {
     expect(JSON.stringify(await getResultsFor(deps, "s1", "b"))).not.toContain('"memberId"');
   });
 
-  it("壊れた保存内容は空として扱う", async () => {
-    const { deps, storage } = setup();
-    await storage.putText("results/json/s1.json", "{not json", "application/json");
-    expect((await getResultsFor(deps, "s1", "a")).rev).toBe(0);
-    expect(await putJackpotDraw(deps, "s1", drawInput())).toEqual({ rev: 1 });
+  describe("結果ファイルが壊れているとき", () => {
+    it("読み込めないときは空として扱わず、エラーにする（保存も、取得も）", async () => {
+      const { deps, storage } = setup();
+      await storage.putText(resultsKey("s1"), "{ これはJSONではない", "application/json");
+
+      await expect(getResultsFor(deps, "s1", "a")).rejects.toThrow("結果ファイルを読み込めませんでした");
+      await expect(putQuizResult(deps, "s1", roundInput())).rejects.toThrow("結果ファイルを読み込めませんでした");
+    });
+
+    it("壊れたファイルを、新しい結果で上書きしない（残っている中身を失わない）", async () => {
+      const { deps, storage } = setup();
+      const broken = '{"v":1,"rev":3,"rounds":[';
+      await storage.putText(resultsKey("s1"), broken, "application/json");
+
+      await expect(putQuizResult(deps, "s1", roundInput())).rejects.toThrow();
+      expect(await storage.getContentAsText(resultsKey("s1"))).toBe(broken);
+    });
+
+    it("形が違うファイル（別の版・配列でない）も同じ扱い", async () => {
+      const { deps, storage } = setup();
+      await storage.putText(resultsKey("s1"), JSON.stringify({ v: 2, rev: 1, rounds: [], draws: [] }), "application/json");
+      await expect(putJackpotDraw(deps, "s1", drawInput())).rejects.toThrow("結果ファイルを読み込めませんでした");
+      await storage.putText(resultsKey("s2"), JSON.stringify({ v: 1, rev: 1, rounds: {}, draws: [] }), "application/json");
+      await expect(putJackpotDraw(deps, "s2", drawInput())).rejects.toThrow("結果ファイルを読み込めませんでした");
+    });
+
+    it("ファイルが無いだけなら、これまでどおり空から始まる", async () => {
+      const { deps } = setup();
+      expect((await getResultsFor(deps, "fresh", "a")).rev).toBe(0);
+      expect(await putJackpotDraw(deps, "fresh", drawInput())).toEqual({ rev: 1 });
+    });
   });
 });
