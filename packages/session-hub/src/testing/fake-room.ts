@@ -5,7 +5,7 @@
  * 無料枠の予算テストのため、課金に関わる操作(リクエスト・メッセージ・ストレージの読み書き)を数える。
  */
 import { SessionRoomCore } from "../server/room/room-core";
-import type { RoomOp, RoomRpcResult, RoomSocket, RoomStorage, SocketAttachment } from "../server/room/room-core";
+import type { RoomOp, RoomRpcResult, RoomSocket, RoomStorage, SocketAttachment } from "../server/room/room-types";
 import type { ClientWsMessage, ServerWsMessage } from "../shared/ws-protocol";
 import type { SessionMeta } from "../shared/session-types";
 import type { Clock } from "./test-hub";
