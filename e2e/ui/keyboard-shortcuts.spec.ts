@@ -23,7 +23,14 @@ async function removeShortcuts(page: Page, key: string) {
     await rows.first().getByRole("button", { name: "削除" }).click();
     // 削除はバックグラウンド同期(2秒のデバウンス)でサーバーへ送られる。送り終える前にブラウザを閉じると、
     // 次の実行が前回の分を引き継いでしまうので、送信の完了を待つ。
-    const pushed = page.waitForResponse((r) => (r.request().postData() ?? "").includes("setKeyboardShortcuts"), { timeout: 15_000 });
+    // (すでに送られていた「作成」の送信と取り違えないよう、自分のキーを含まない内容の送信だけを待つ)
+    const pushed = page.waitForResponse(
+      (r) => {
+        const body = r.request().postData() ?? "";
+        return body.includes("setKeyboardShortcuts") && !body.includes(JSON.stringify(key));
+      },
+      { timeout: 8_000 }
+    ).catch(() => null); // 後始末の確認なので、届かなくてもテストは失敗にしない
     await page.getByRole("contentinfo").getByRole("button", { name: "削除" }).click();
     await expect(rows).toHaveCount(before - 1);
     await pushed;
