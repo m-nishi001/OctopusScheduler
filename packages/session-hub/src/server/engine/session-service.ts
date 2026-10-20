@@ -19,6 +19,7 @@ import type {
 } from "../../shared/protocol";
 import * as engine from "./session-engine";
 import type { EngineDeps } from "./session-engine";
+import { parseHubErrorCode } from "../../shared/hub-error";
 import { hubError } from "./hub-error";
 import type { PresenceStore, SessionIndexStore, SessionRepo } from "./session-repo";
 
@@ -217,6 +218,22 @@ export async function joinOperator(
 }
 
 /**
+ * ポータルの入室を実行する。終了の処理中(部屋はもう終了済みだが、一覧がまだ「公開中」のまま)に
+ * 当たったときは、「参加できるイベントが無い」と同じ扱いにする。そうしないと、参加者の画面が
+ * 待機に戻らず、エラーのまま止まる(本物のストレージは遅く、この間が目に見える長さになる)。
+ */
+export async function orNoPortalSession<T>(join: () => Promise<T>): Promise<T> {
+  try {
+    return await join();
+  } catch (error) {
+    if (parseHubErrorCode(error instanceof Error ? error.message : "") === "SESSION_CLOSED") {
+      throw hubError("SESSION_NOT_FOUND", "いま参加できるイベントはありません");
+    }
+    throw error;
+  }
+}
+
+/**
  * ログイン済みの参加者が、ポータル公開中のセッションに入る。
  * メンバーIDと表示名は呼び出し側(認証済みのトークン)から受け取り、クライアントの申告は使わない。
  */
@@ -227,11 +244,13 @@ export async function joinPortal(
 ): Promise<JoinResult> {
   const summary = await findPortalSession(deps);
   if (!summary) throw hubError("SESSION_NOT_FOUND", "いま参加できるイベントはありません");
-  return deps.withLock(sessionLock(summary.id), LOCK_TIMEOUT_MS, () =>
-    engine.joinParticipant(
-      engineDeps(deps, summary.id),
-      { deviceId: args.deviceId, token: args.token },
-      { memberId: member.id, label: member.name }
+  return orNoPortalSession(() =>
+    deps.withLock(sessionLock(summary.id), LOCK_TIMEOUT_MS, () =>
+      engine.joinParticipant(
+        engineDeps(deps, summary.id),
+        { deviceId: args.deviceId, token: args.token },
+        { memberId: member.id, label: member.name }
+      )
     )
   );
 }
