@@ -1,19 +1,12 @@
 import "reflect-metadata";
 import { describe, it, expect, vi } from "vitest";
-import { DrawApplicationService } from "./draw-application-service";
-import { DrawResultService } from "./draw-result-service";
-import { DrawStateInitializer } from "./draw-state-initializer";
-import { MemberDrawService } from "../../model/draw/member-draw-service";
-import { PrizeDrawService } from "../../model/draw/prize-draw-service";
-import { PrizeReservationService } from "../../model/draw/prize-reservation-service";
-import { WeightedSelector } from "../../model/draw/weighted-selector";
-import { MathRandomProvider } from "../../model/common/math-random-provider";
-import type { DrawResultDto } from "./dto/draw-result-dto";
+import { createInMemoryDrawApp } from "./in-memory-draw-app";
+import type { DrawApplicationService } from "./draw-application-service";
 import { AllMembersDrawPool } from "../../model/draw/draw-pool";
 import type { DrawPoolProvider } from "../../model/draw/draw-pool";
 import { NoEligibleMembersError } from "../../model/errors";
 
-/** 全員・全景品を最後まで引き切る通しの検証(実サービス + インメモリ保存)。 */
+/** 全員・全景品を最後まで引き切る通しの検証（本番と同じ抽選ロジック + メモリ上の保存先）。 */
 function build(memberCount: number, prizeCount: number, weights?: (i: number) => number | undefined, pool: DrawPoolProvider = new AllMembersDrawPool()) {
   const members = Array.from({ length: memberCount }, (_, i) => ({ id: `m${i}`, name: `M${i}`, rank: 1 }));
   const prizes = Array.from({ length: prizeCount }, (_, i) => ({
@@ -22,48 +15,14 @@ function build(memberCount: number, prizeCount: number, weights?: (i: number) =>
     order: i + 1,
     weight: weights ? weights(i) : 10,
   }));
-  const rows: DrawResultDto[] = [];
-  let state: number[] | null = null;
-  const resultRepo = {
-    getDrawResults: async () => rows.map((r) => ({ ...r })),
-    getDrawResultById: async (id: string) => rows.find((r) => r.drawId === id) ?? null,
-    addDrawResult: async (r: DrawResultDto) => void rows.push(r),
-    updateDrawResult: async (r: DrawResultDto) => {
-      const i = rows.findIndex((x) => x.drawId === r.drawId);
-      if (i < 0) throw new Error("not found");
-      rows[i] = r;
-    },
-    deleteDrawResult: async () => undefined,
-    syncDrawResults: async () => ({ synced: 0 }),
+  const { app, results } = createInMemoryDrawApp({ members, prizes, pool });
+  return {
+    service: app,
+    rows: results,
+    prizes,
+    members,
+    initializer: { initialize: (target: typeof prizes) => app.initializeStateIfNeeded(target) },
   };
-  const stateRepo = {
-    getState: async () => state,
-    saveState: async (s: number[]) => void (state = s),
-    clearState: async () => void (state = null),
-  };
-  let n = 0;
-  const idGen = { nextId: () => `d${n++}` };
-  const rand = new MathRandomProvider();
-  const selector = new WeightedSelector(rand);
-  const resultService = new DrawResultService(resultRepo as any);
-  const initializer = new DrawStateInitializer(
-    new PrizeReservationService(rand),
-    resultService,
-    stateRepo as any,
-    idGen as any
-  );
-  const service = new DrawApplicationService(
-    { getMembers: async () => members } as any,
-    { getPrizes: async () => prizes } as any,
-    resultService,
-    stateRepo as any,
-    new MemberDrawService(selector, rand),
-    new PrizeDrawService(selector, rand),
-    idGen as any,
-    initializer,
-    pool
-  );
-  return { service, rows, prizes, members, initializer };
 }
 
 const MEMBER_COUNTS = [1, 2, 3, 5, 10, 50, 300];

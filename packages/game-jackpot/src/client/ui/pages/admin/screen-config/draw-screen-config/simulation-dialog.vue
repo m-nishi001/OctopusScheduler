@@ -2,6 +2,7 @@
     <UiDialog :model-value="visible" title="抽選テスト" size="lg" nested :close-on-overlay="false" :persistent="running"
         @close="close">
             <div v-if="!results" class="test-section">
+                <p class="note">ダミーのメンバーと景品で抽選を試します。本番のメンバー・景品・抽選結果には影響しません。</p>
                 <div class="input-group">
                     <label for="memberCount">メンバー数:</label>
                     <input id="memberCount" v-model.number="memberCount" type="number" min="1" max="100" />
@@ -100,6 +101,12 @@ const close = () => {
 </script>
 
 <style scoped>
+.note {
+    margin: 0 0 16px;
+    font-size: 0.875rem;
+    opacity: 0.8;
+}
+
 .test-section {
     text-align: center;
 }
