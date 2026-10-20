@@ -42,6 +42,7 @@ import { MemberRepository } from '@model/member/member-repository';
 import { DrawApplicationService } from '@control/draw/draw-application-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { DemoScreenSetting } from '@model/screen-config/demo-screen-setting';
+import { useScreenBgm } from '../../composables/use-screen-media';
 export default {
   name: 'DemoDraw',
   components: { MainLayout, Loader },
@@ -60,25 +61,13 @@ export default {
     const fetchPrizes = async () => { prizes.value = await prizeRepo.getPrizes(); };
     const fetchMembers = async () => { members.value = await memberRepo.getMembers(); };
 
-    const bgmAudio = ref<HTMLAudioElement | null>(null);
-    let bgmObjectUrl: string | undefined;
-    const playBGM = async () => {
-      if (!demoConfig.value || !demoConfig.value.demoBgm) return;
-      const asset = await assetService.getAssetDataById(demoConfig.value.demoBgm);
-      if (asset && (asset as any).blob) {
-        try {
-          bgmObjectUrl = URL.createObjectURL((asset as any).blob);
-          bgmAudio.value = new Audio(bgmObjectUrl);
-          bgmAudio.value.loop = true;
-          bgmAudio.value.play().catch(() => { });
-        } catch (err) { console.error(err); }
-      }
-    };
+    const bgm = useScreenBgm();
 
     onMounted(async () => {
       const config = await screenSettingsService.fetchScreenSetting('demo', 'demo-screen-settings');
       demoConfig.value = (config as DemoScreenSetting) ?? new DemoScreenSetting("", "", "");
-      await playBGM();
+      await bgm.load(demoConfig.value.demoBgm);
+      bgm.play();
       await fetchPrizes();
       await fetchMembers();
     });
@@ -141,14 +130,6 @@ export default {
     onMounted(() => window.addEventListener('keydown', handleKey));
     onUnmounted(() => {
       window.removeEventListener('keydown', handleKey);
-      if (bgmAudio.value) {
-        try { bgmAudio.value.pause(); } catch (e) { }
-        bgmAudio.value = null;
-      }
-      if (bgmObjectUrl) {
-        try { URL.revokeObjectURL(bgmObjectUrl); } catch (e) { }
-        bgmObjectUrl = undefined;
-      }
     });
 
     return { demoConfig, runDemoDraw, drawn, result, errorMessage };

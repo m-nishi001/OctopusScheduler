@@ -20,6 +20,8 @@ import { usePrizeDrawState } from "./prize-animation-state";
 import SlotAnimation from "./slot/slot-animation.vue";
 import RouletteAnimation from "./roulette/roulette-animation.vue";
 import { ActionQueue } from "./action-queue";
+import { RouletteBgmManager } from "./roulette/roulette-bgm-manager";
+import { revokePreparedPrizes } from "./roulette/roulette-prize-preparer";
 import { createBgmBlobLoader } from "./bgm-blob-loader";
 import type { DrawContext } from "./draw-context";
 import { buildCycle } from "./draw-cycle";
@@ -135,6 +137,9 @@ export function useDrawOrchestrator() {
     if (ev.key === "Enter") advance();
   };
 
+  // 読み込み中に画面を離れた場合に、離れたあとでキー操作の受付や進行を始めないための印
+  let disposed = false;
+
   onMounted(async () => {
     try {
       await updatePrizes(await prizeRepo.getPrizes());
@@ -147,13 +152,20 @@ export function useDrawOrchestrator() {
       alertError(e);
       return;
     }
+    if (disposed) return;
     window.addEventListener("keydown", handleKeyDown);
     flow.ready = true;
     advance();
   });
 
+  // 画面を離れたら、キー操作の受付を止め、進行を止め、鳴らしているルーレットの BGM を止め、
+  // 景品の画像のURLを破棄する（離れたあとに BGM が鳴り続けたり、URLが残ったりしないように）。
   onUnmounted(() => {
+    disposed = true;
     window.removeEventListener("keydown", handleKeyDown);
+    flow.ready = false;
+    void RouletteBgmManager.stop();
+    revokePreparedPrizes(preparedPrizes.value);
   });
 
   return {
