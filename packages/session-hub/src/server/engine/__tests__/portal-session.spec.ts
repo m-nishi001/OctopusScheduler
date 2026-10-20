@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestHub } from "../../../testing";
 import * as svc from "../session-service";
-import { parseHubErrorCode } from "../hub-error";
+import { parseHubErrorCode } from "../../../shared/hub-error";
 import { SESSION_TTL_MS } from "../../../shared/session-types";
 
 async function code(promise: Promise<unknown>): Promise<string | null> {

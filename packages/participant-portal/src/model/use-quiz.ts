@@ -1,6 +1,6 @@
 import { computed, inject, onScopeDispose, ref, watch } from "vue";
 import type { ComputedRef, InjectionKey, Ref } from "vue";
-import { parseHubErrorCode } from "@octopus/session-hub";
+import { parseHubErrorCode, stripHubErrorCode } from "@octopus/session-hub";
 import { readQuizView } from "./activity";
 import type { QuizView } from "./activity";
 import type { PortalSession } from "./use-portal-session";
@@ -170,7 +170,7 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
         code === "ROUND_CLOSED" || code === "ROUND_NOT_OPEN"
           ? "受付は終了しました"
           : code
-            ? text.replace(/^\[[A-Z_]+\]\s*/, "")
+            ? stripHubErrorCode(text)
             : "通信できませんでした。電波の良い場所で、もう一度押してください";
     } finally {
       answering.value = false;

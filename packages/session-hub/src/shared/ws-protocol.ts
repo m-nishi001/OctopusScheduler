@@ -8,7 +8,7 @@
  *   - クライアントから送るのは入室時の `auth` と、ホストの適用報告 `ack` だけ
  * にする。コマンド発行・状態公開は(再送制御のある)RPC を使う。
  */
-import type { HubErrorCode } from "../server/engine/hub-error";
+import type { HubErrorCode } from "./hub-error";
 import type { PollResult } from "./protocol";
 
 export type ClientWsMessage =

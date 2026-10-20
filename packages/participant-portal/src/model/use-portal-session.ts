@@ -1,6 +1,6 @@
 import { computed, inject, onScopeDispose, ref, watch } from "vue";
 import type { ComputedRef, InjectionKey, Ref, ShallowRef } from "vue";
-import { clientInputKeysFor, parseHubErrorCode, readPortalEvent, useSessionConnection } from "@octopus/session-hub";
+import { clientInputKeysFor, parseHubErrorCode, stripHubErrorCode, readPortalEvent, useSessionConnection } from "@octopus/session-hub";
 import type { ConnectionState, PortalEvent, ResultsView, SessionConnection, SubmitAnswerResult } from "@octopus/session-hub";
 import { derivePortalStatus, statusMessage } from "./portal-status";
 import type { JoinFailure, PortalStatus } from "./portal-status";
@@ -53,7 +53,7 @@ export function usePortalContext(): PortalSession {
 function toFailure(error: unknown): JoinFailure {
   const raw = error instanceof Error ? error.message : String(error);
   const code = parseHubErrorCode(raw);
-  if (code) return { code, message: raw.replace(/^\[[A-Z_]+\]\s*/, "") };
+  if (code) return { code, message: stripHubErrorCode(raw) };
   if (/Unauthorized/i.test(raw)) return { code: null, message: "ログインが切れました。もう一度ログインしてください。" };
   return { code: null, message: "通信できませんでした。電波の良い場所で、もう一度お試しください。" };
 }

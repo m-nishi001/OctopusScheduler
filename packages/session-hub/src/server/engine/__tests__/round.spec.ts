@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestHub } from "../../../testing";
 import * as svc from "../session-service";
-import { parseHubErrorCode } from "../hub-error";
+import { parseHubErrorCode } from "../../../shared/hub-error";
 import { MAX_ROUND_ANSWERS_KV } from "../../../shared/session-types";
 import type { JoinResult, RoundOption } from "../../../shared/protocol";
 

@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import type { ComputedRef, Ref } from "vue";
-import { parseHubErrorCode } from "@octopus/session-hub";
+import { parseHubErrorCode, stripHubErrorCode } from "@octopus/session-hub";
 import type { PortalSession } from "./use-portal-session";
 
 export interface ClientInputs {
@@ -37,7 +37,7 @@ export function useClientInputs(session: PortalSession): ClientInputs {
         code === "FORBIDDEN"
           ? "受付が終了しました"
           : code
-            ? text.replace(/^\[[A-Z_]+\]\s*/, "")
+            ? stripHubErrorCode(text)
             : "通信できませんでした。電波の良い場所でもう一度お試しください。";
     } finally {
       busyKey.value = null;
