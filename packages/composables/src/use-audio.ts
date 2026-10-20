@@ -1,566 +1,146 @@
 /// <reference lib="dom" />
-import { getCurrentInstance, onUnmounted, readonly, ref } from "vue";
-import { AudioService } from "@octopus/client-common/audio/audio-service";
+import { getCurrentScope, onScopeDispose, readonly, ref } from "vue";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 
-// Debug flag: enable by setting window.__DBG_AUDIO__ = true or localStorage.setItem('__DBG_AUDIO__','1')
-const __DBG_AUDIO__ = !!(
-  typeof window !== "undefined" &&
-  ((window as any).__DBG_AUDIO__ ||
-    (typeof localStorage !== "undefined" &&
-      localStorage.getItem("__DBG_AUDIO__") === "1"))
-);
-let __dbgAudioCounter = 0;
-const __makeDbgId = () => `audio#${++__dbgAudioCounter}`;
+export interface PlayOptions {
+  /** 繰り返し再生する（BGM 向け）。 */
+  isRepeat?: boolean;
+}
 
 /**
- * AudioServiceの機能をラップし、Vueのリアクティブな状態と統合するComposable関数
- * @param options オプション設定
- * @returns オーディオ再生を制御するためのリアクティブな状態とメソッド
+ * 画面の BGM を1曲ぶん扱う（読み込み → 再生 → 停止）。HTML の `<audio>` で鳴らす。
+ *
+ *   - `load` は、いま読み込んでいる曲を止めて破棄してから、新しい曲に差し替える（Blob の URL もここで破棄する）。
+ *   - 自動再生がブラウザに止められたら、音を出さずに再生を始め（`autoplayBlocked`）、利用者の操作から
+ *     `tryResume` を呼ぶと音が出る。
+ *   - 管理画面の「音声を止める」（`stopAudio` を、音声の指定なしで通知）では止まる。特定の音声を指定した
+ *     停止（予定イベントで流した音声を止める）では止まらない。
+ *   - 画面（スコープ）を離れたら、止めて URL を破棄する。
  */
-export function useAudio(options?: {
-  mode?: "web-audio" | "html-audio";
-  bgmMode?: "random-member";
-  assetService?: any;
-  screenSettingsService?: any;
-}) {
-  const mode = options?.mode ?? "web-audio";
-
-  const audioService = mode === "web-audio" ? new AudioService() : null;
-
-  const htmlAudio = ref<HTMLAudioElement | null>(null);
-
-  const _instanceId = Math.random().toString(36).slice(2);
-  const instanceId = ref<string>(_instanceId);
-
-  const audioInstanceId = ref<string | null>(null);
-  const isLoading = ref(false);
+export function useAudio() {
   const isPlaying = ref(false);
-  const currentTime = ref(0);
-  const duration = ref(0);
   const volume = ref(1);
   const error = ref<Error | null>(null);
-  const currentSrc = ref<string>("");
-
-  const loop = ref(false);
+  const currentSrc = ref("");
+  /** 自動再生が止められて、いまは音が出ていない。利用者の操作で `tryResume` すると出る。 */
   const autoplayBlocked = ref(false);
-  const tryResume = async () => {
-    if (mode === "html-audio" && htmlAudio.value && autoplayBlocked.value) {
-      try {
-        await htmlAudio.value.play();
-        autoplayBlocked.value = false;
-        isPlaying.value = true;
-        return true;
-      } catch (err) {
-        console.warn("[useAudio] tryResume: failed to resume", err);
-        return false;
-      }
+
+  let audio: HTMLAudioElement | null = null;
+  let blobUrl: string | null = null;
+
+  /** 鳴らしている曲を止めて捨てる（Blob の URL も破棄）。 */
+  const release = (): void => {
+    if (audio) {
+      audio.pause();
+      audio = null;
     }
-    return false;
-  };
-
-  let animationFrameId: number | null = null;
-
-  const getCurrentTime = (): number => {
-    if (mode === "web-audio" && audioService && audioInstanceId.value) {
-      return audioService.getCurrentTime(audioInstanceId.value);
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      return htmlAudio.value.currentTime;
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+      blobUrl = null;
     }
-    return 0;
-  };
-
-  const getDuration = (): number => {
-    if (mode === "web-audio" && audioService && audioInstanceId.value) {
-      return audioService.getDuration(audioInstanceId.value);
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      return htmlAudio.value.duration || 0;
-    }
-    return 0;
-  };
-
-  const playAudio = async (fadeIn?: number, isRepeat?: boolean) => {
-    if (mode === "web-audio" && audioService && audioInstanceId.value) {
-      await audioService.play(audioInstanceId.value, fadeIn, isRepeat);
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      htmlAudio.value.loop = isRepeat ?? false;
-      await htmlAudio.value.play();
-    }
-  };
-
-  const pauseAudio = () => {
-    if (mode === "web-audio" && audioService && audioInstanceId.value) {
-      audioService.pause(audioInstanceId.value);
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      htmlAudio.value.pause();
-    }
-  };
-
-  const stopAudio = async (fadeOut: number = 0) => {
-    if (mode === "web-audio" && audioService && audioInstanceId.value) {
-      await audioService.stop(audioInstanceId.value, fadeOut);
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      // Pause and reset playback position but DO NOT revoke the object URL here.
-      // Revocation is performed when loading a new source or on unmount to avoid
-      // races where an external stop call clears the tracked src while another
-      // actor expects to read it immediately after play.
-      if (__DBG_AUDIO__) {
-        console.log(
-          "[DBG][useAudio] stopAudio PRE dbgId=%s currentSrc=%s time=%d",
-          (htmlAudio.value as any)?.__dbgId ?? "nil",
-          currentSrc.value,
-          Date.now()
-        );
-      }
-      htmlAudio.value.pause();
-      htmlAudio.value.currentTime = 0;
-    }
-  };
-
-  const setVolumeAudio = (newVolume: number) => {
-    if (mode === "web-audio" && audioService && audioInstanceId.value) {
-      audioService.setVolume(audioInstanceId.value, newVolume);
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      htmlAudio.value.volume = newVolume;
-    }
-  };
-
-  const updateCurrentTime = () => {
-    if (!isPlaying.value) return;
-
-    currentTime.value = getCurrentTime();
-
-    // Only stop when we have a valid duration (> 0). When audio metadata
-    // hasn't loaded yet duration may be 0 which would falsely trigger stop()
-    // immediately after play resolves. Use void to ignore returned Promise.
-    if (duration.value > 0 && currentTime.value >= duration.value) {
-      void stop();
-      return;
-    }
-
-    animationFrameId = requestAnimationFrame(updateCurrentTime);
-  };
-
-  /**
-   * 再生位置を設定する (HTML Audio用)
-   * @param time 設定したい再生時間（秒）
-   */
-  const seek = (time: number) => {
-    if (
-      mode === "html-audio" &&
-      htmlAudio.value &&
-      !isNaN(time) &&
-      time >= 0 &&
-      time <= duration.value
-    ) {
-      htmlAudio.value.currentTime = time;
-    }
-  };
-
-  /**
-   * ループ再生のオン/オフを設定する (HTML Audio用)
-   * @param enableLoop trueでループ再生有効
-   */
-  const setLoop = (enableLoop: boolean) => {
-    loop.value = enableLoop;
-    if (mode === "html-audio" && htmlAudio.value) {
-      htmlAudio.value.loop = enableLoop;
-    }
-  };
-
-  const getHtmlAudioState = () => {
-    try {
-      return {
-        muted: htmlAudio.value?.muted ?? null,
-        volume: htmlAudio.value?.volume ?? null,
-        paused: htmlAudio.value?.paused ?? null,
-        readyState: htmlAudio.value?.readyState ?? null,
-        // tracked src (object URL or provided string)
-        src: currentSrc.value ?? null,
-        // actual HTMLAudio element src for cross-checking races
-        elementSrc: htmlAudio.value?.src ?? null,
-      };
-    } catch (e) {
-      return null;
-    }
-  };
-
-  /**
-   * URLまたはBlobからオーディオデータをロードする
-   * @param source ロードするオーディオファイルのURLまたはBlob
-   */
-  const load = async (source: string | Blob) => {
-    if (isLoading.value) return;
-
-    isLoading.value = true;
-    error.value = null;
-
-    try {
-      if (mode === "web-audio" && audioService) {
-        if (audioInstanceId.value) {
-          audioService.disposeInstance(audioInstanceId.value);
-        }
-
-        const id =
-          typeof source === "string"
-            ? await audioService.loadFromUrl(source)
-            : await audioService.loadFromBlob(source);
-
-        audioInstanceId.value = id;
-        duration.value = getDuration();
-        volume.value = audioService.getVolume(id);
-      } else if (mode === "html-audio") {
-        // HTMLAudio の場合は Blob から作成した object URL を追跡して
-        // 再ロードやアンマウント時に revoke できるようにする
-        if (htmlAudio.value) {
-          htmlAudio.value.pause();
-          // 既に設定されている blob URL があれば解放
-          if (currentSrc.value && currentSrc.value.startsWith("blob:")) {
-            try {
-              if (__DBG_AUDIO__) {
-                console.log(
-                  "[DBG][useAudio] load: revoke PRE dbgId=%s blob=%s time=%d",
-                  (htmlAudio.value as any).__dbgId ?? "nil",
-                  currentSrc.value,
-                  Date.now()
-                );
-                console.trace();
-              }
-              // 無条件で trace を出力して必ずスタックを取得
-              try {
-                console.trace();
-              } catch (e) {
-                /* noop */
-              }
-              URL.revokeObjectURL(currentSrc.value);
-            } catch (e) {
-              console.warn("[useAudio] load: revoke failed", e);
-            }
-          }
-          htmlAudio.value.src = "";
-        }
-
-        const url =
-          typeof source === "string" ? source : URL.createObjectURL(source);
-        htmlAudio.value = new Audio(url);
-        if (__DBG_AUDIO__) {
-          try {
-            const dbgId = __makeDbgId();
-            (htmlAudio.value as any).__dbgId = dbgId;
-            console.log(
-              "[DBG][useAudio] NEW audio dbgId=%s created src=%s time=%d",
-              dbgId,
-              url,
-              Date.now()
-            );
-          } catch (e) {
-            /* noop */
-          }
-        }
-        // Attach event listeners for debugging and state updates
-        const safeAddEvent = (name: string, handler: any) => {
-          try {
-            htmlAudio.value?.addEventListener(
-              name,
-              handler as EventListenerOrEventListenerObject
-            );
-          } catch (e) {
-            /* noop */
-          }
-        };
-        safeAddEvent("play", () => {
-          if (__DBG_AUDIO__)
-            console.log(
-              "[EVT][useAudio] play dbgId=%s src=%s paused=%s readyState=%d time=%d",
-              (htmlAudio.value as any).__dbgId ?? "nil",
-              htmlAudio.value?.src,
-              htmlAudio.value?.paused,
-              htmlAudio.value?.readyState,
-              Date.now()
-            );
-          else
-            console.log("[useAudio] html-audio event: play", {
-              src: currentSrc.value,
-            });
-        });
-        safeAddEvent("playing", () => {
-          if (__DBG_AUDIO__)
-            console.log(
-              "[EVT][useAudio] playing dbgId=%s src=%s paused=%s readyState=%d time=%d",
-              (htmlAudio.value as any).__dbgId ?? "nil",
-              htmlAudio.value?.src,
-              htmlAudio.value?.paused,
-              htmlAudio.value?.readyState,
-              Date.now()
-            );
-          else
-            console.log("[useAudio] html-audio event: playing", {
-              src: currentSrc.value,
-              paused: htmlAudio.value?.paused,
-            });
-          // Ensure playback is actually audible
-          try {
-            if (htmlAudio.value) {
-              htmlAudio.value.muted = false;
-              htmlAudio.value.volume = volume.value ?? 1;
-            }
-          } catch (e) {
-            /* noop */
-          }
-          isPlaying.value = true;
-          autoplayBlocked.value = false;
-        });
-        // Ensure duration is captured when metadata becomes available
-        safeAddEvent("loadedmetadata", () => {
-          try {
-            duration.value = getDuration();
-            if (__DBG_AUDIO__)
-              console.log(
-                "[useAudio] loadedmetadata dbgId=%s duration=%d",
-                (htmlAudio.value as any).__dbgId ?? "nil",
-                duration.value
-              );
-          } catch (e) {
-            /* noop */
-          }
-        });
-        safeAddEvent("pause", () => {
-          if (__DBG_AUDIO__)
-            console.log(
-              "[EVT][useAudio] pause dbgId=%s src=%s paused=%s readyState=%d time=%d",
-              (htmlAudio.value as any).__dbgId ?? "nil",
-              htmlAudio.value?.src,
-              htmlAudio.value?.paused,
-              htmlAudio.value?.readyState,
-              Date.now()
-            );
-          else
-            console.log("[useAudio] html-audio event: pause", {
-              src: currentSrc.value,
-            });
-          isPlaying.value = false;
-        });
-        safeAddEvent("ended", () => {
-          if (__DBG_AUDIO__)
-            console.log(
-              "[EVT][useAudio] ended dbgId=%s src=%s time=%d",
-              (htmlAudio.value as any).__dbgId ?? "nil",
-              htmlAudio.value?.src,
-              Date.now()
-            );
-          else
-            console.log("[useAudio] html-audio event: ended", {
-              src: currentSrc.value,
-            });
-          isPlaying.value = false;
-        });
-        safeAddEvent("error", (ev: Event) => {
-          if (__DBG_AUDIO__)
-            console.error(
-              "[EVT][useAudio] error dbgId=%s src=%s ev=%o time=%d",
-              (htmlAudio.value as any).__dbgId ?? "nil",
-              htmlAudio.value?.src,
-              ev,
-              Date.now()
-            );
-          else
-            console.error("[useAudio] html-audio event: error", {
-              src: currentSrc.value,
-              ev,
-            });
-          isPlaying.value = false;
-        });
-        // ensure audio is not muted and playable inline
-        try {
-          htmlAudio.value.muted = false;
-          // enable playsInline for mobile browsers
-          // @ts-ignore
-          htmlAudio.value.playsInline = true;
-        } catch {}
-        htmlAudio.value.volume = volume.value;
-        // currentSrc に実際に設定した URL を保持しておく
-        currentSrc.value = typeof source === "string" ? source : url;
-        if (__DBG_AUDIO__)
-          console.log(
-            "[DBG][useAudio] load: set currentSrc dbgId=%s newSrc=%s time=%d",
-            (htmlAudio.value as any).__dbgId ?? "nil",
-            currentSrc.value,
-            Date.now()
-          );
-        duration.value = getDuration();
-        audioInstanceId.value = "html-audio";
-      }
-    } catch (err) {
-      error.value = err as Error;
-      console.error("Failed to load audio:", err);
-    } finally {
-      isLoading.value = false;
-    }
-  };
-
-  /**
-   * ロードされたオーディオを再生する
-   * @param options 再生オプション
-   */
-  const play = async (
-    options: { fadeIn?: number; isRepeat?: boolean } = {}
-  ) => {
-    if (!audioInstanceId.value || isPlaying.value) return;
-
-    try {
-      await playAudio(options.fadeIn, options.isRepeat);
-      if (__DBG_AUDIO__ && mode === "html-audio" && htmlAudio.value) {
-        try {
-          console.log(
-            "[DBG][useAudio] play RESOLVED dbgId=%s paused=%s readyState=%d muted=%s volume=%s elementSrc=%s time=%d",
-            (htmlAudio.value as any).__dbgId ?? "nil",
-            htmlAudio.value.paused,
-            htmlAudio.value.readyState,
-            htmlAudio.value.muted,
-            htmlAudio.value.volume,
-            htmlAudio.value.src,
-            Date.now()
-          );
-        } catch (e) {
-          /* noop */
-        }
-      }
-      isPlaying.value = true;
-      autoplayBlocked.value = false;
-      if (animationFrameId === null) {
-        updateCurrentTime();
-      }
-    } catch (err) {
-      error.value = err as Error;
-      console.error("Failed to play audio:", err);
-      // If autoplay appears to be blocked, attempt muted-play fallback for html-audio.
-      if (mode === "html-audio" && htmlAudio.value) {
-        try {
-          console.warn(
-            "[useAudio] autoplay blocked; attempting muted-play fallback"
-          );
-          const wasMuted = htmlAudio.value.muted;
-          htmlAudio.value.muted = true;
-          await htmlAudio.value.play();
-          isPlaying.value = true;
-          autoplayBlocked.value = true;
-          // restore muted state (we leave it unmuted to ensure silence until user interacts to unmute)
-          htmlAudio.value.muted = wasMuted;
-          console.warn(
-            "[useAudio] muted-play fallback succeeded; audio remains muted until unmuted by user action"
-          );
-        } catch (fallbackErr) {
-          console.error(
-            "[useAudio] muted-play fallback also failed",
-            fallbackErr
-          );
-        }
-      }
-    }
-  };
-
-  /**
-   * オーディオを一時停止する
-   */
-  const pause = () => {
-    if (!audioInstanceId.value || !isPlaying.value) return;
-    pauseAudio();
     isPlaying.value = false;
-    if (animationFrameId !== null) {
-      cancelAnimationFrame(animationFrameId);
-      animationFrameId = null;
-    }
+    autoplayBlocked.value = false;
+    currentSrc.value = "";
   };
 
-  /**
-   * オーディオを停止する
-   * @param fadeOut フェードアウト時間 (ミリ秒)
-   */
-  const stop = async (fadeOut: number = 0) => {
-    if (!audioInstanceId.value) return;
-
-    try {
-      await stopAudio(fadeOut);
+  /** 曲を読み込む（再生は {@link play}）。すでに曲があれば、止めて差し替える。 */
+  async function load(source: string | Blob): Promise<void> {
+    release();
+    error.value = null;
+    const url = typeof source === "string" ? source : (blobUrl = URL.createObjectURL(source));
+    const element = new Audio(url);
+    element.volume = volume.value;
+    element.addEventListener("playing", () => (isPlaying.value = true));
+    element.addEventListener("pause", () => (isPlaying.value = false));
+    element.addEventListener("ended", () => (isPlaying.value = false));
+    element.addEventListener("error", () => {
       isPlaying.value = false;
-      currentTime.value = 0;
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-      }
-    } catch (err) {
-      error.value = err as Error;
-      console.error("Failed to stop audio:", err);
-    }
-  };
+      error.value = new Error(`audio failed to load: ${url}`);
+    });
+    audio = element;
+    currentSrc.value = url;
+  }
 
-  // subscribe to global stopAudio so external stopAll/stopAudio commands stop this instance
-  const onStopAudio = async () => {
+  /** 読み込んだ曲を再生する。曲が無い・すでに鳴っているときは何もしない。 */
+  async function play(options: PlayOptions = {}): Promise<void> {
+    const element = audio;
+    if (!element || isPlaying.value) return;
+    element.loop = options.isRepeat ?? false;
     try {
-      // immediate stop, ignore fade
-      await stop(0);
-    } catch {
-      // ignore
+      await element.play();
+      autoplayBlocked.value = false;
+    } catch (cause) {
+      // 自動再生が止められた。音を出さずに再生を始めておき、利用者の操作で音を出す（tryResume）。
+      error.value = cause as Error;
+      try {
+        element.muted = true;
+        await element.play();
+        autoplayBlocked.value = true;
+      } catch (fallback) {
+        console.error("[useAudio] failed to play", fallback);
+      }
     }
-  };
+  }
 
   /**
-   * オーディオの音量を設定する
-   * @param newVolume 新しい音量 (0.0 から 1.0 の範囲)
+   * 自動再生で止められていた曲の音を出す。利用者の操作（クリック・キー）の中から呼ぶ。
+   * @returns 音が出る状態になったか
    */
-  const setVolume = (newVolume: number) => {
-    volume.value = Math.max(0, Math.min(1, newVolume));
-    setVolumeAudio(volume.value);
-  };
-
-  const cleanup = () => {
-    if (animationFrameId !== null) {
-      cancelAnimationFrame(animationFrameId);
-    }
-    if (mode === "web-audio" && audioService) {
-      audioService.disposeAll();
-    } else if (mode === "html-audio" && htmlAudio.value) {
-      htmlAudio.value.pause();
-      if (currentSrc.value.startsWith("blob:")) {
-        URL.revokeObjectURL(currentSrc.value);
-      }
-    }
+  async function tryResume(): Promise<boolean> {
+    if (!audio || !autoplayBlocked.value) return false;
     try {
-      eventBus.off("stopAudio", onStopAudio as any);
-    } catch {
-      /* ignore */
+      audio.muted = false;
+      await audio.play();
+      autoplayBlocked.value = false;
+      return true;
+    } catch (cause) {
+      console.warn("[useAudio] failed to resume", cause);
+      return false;
     }
+  }
+
+  function pause(): void {
+    audio?.pause();
+  }
+
+  /** 止めて、先頭に戻す。 */
+  async function stop(): Promise<void> {
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    isPlaying.value = false;
+  }
+
+  /** 音量（0〜1）。次に読み込む曲にも引き継ぐ。 */
+  function setVolume(next: number): void {
+    volume.value = Math.max(0, Math.min(1, next));
+    if (audio) audio.volume = volume.value;
+  }
+
+  // 「音声を止める」が、音声を指定せずに通知されたときは止める（指定ありは予定イベントの音声用なので止めない）。
+  const onStopAll = (event?: { audioId?: string }): void => {
+    if (!event?.audioId) void stop();
   };
+  eventBus.on("stopAudio", onStopAll);
 
-  if (getCurrentInstance()) {
-    onUnmounted(cleanup);
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      eventBus.off("stopAudio", onStopAll);
+      release();
+    });
   }
 
-  try {
-    eventBus.on("stopAudio", onStopAudio as any);
-  } catch {
-    // ignore if eventBus not available
-  }
   return {
-    instanceId: readonly(instanceId),
-    audioInstanceId: readonly(audioInstanceId),
-    isLoading: readonly(isLoading),
     isPlaying: readonly(isPlaying),
-    currentTime: readonly(currentTime),
-    duration: readonly(duration),
     volume: readonly(volume),
     error: readonly(error),
     currentSrc: readonly(currentSrc),
-    loop: readonly(loop),
     autoplayBlocked: readonly(autoplayBlocked),
-
     load,
     play,
     pause,
     stop,
     setVolume,
-    seek,
-    setLoop,
     tryResume,
-    getHtmlAudioState,
   };
 }

@@ -12,23 +12,10 @@ export function useMemberDrawBgm() {
   const assetService = container.resolve(AssetDataService);
   const screenSettingsService = container.resolve(ScreenSettingsService);
 
-  const { load, play, stop, setVolume } = useAudio({
-    assetService,
-    screenSettingsService,
-  });
-
-  const loadGlobalVolume = async () => {
-    try {
-      const cfg = await screenSettingsService.fetchScreenSetting('main', 'global-volume');
-      if (cfg && typeof cfg.volume === 'number') setVolume(cfg.volume);
-    } catch (e) {
-      console.error('Failed to load global volume:', e);
-    }
-  };
+  const { load, play, stop } = useAudio();
 
   const playRandomMemberBgm = async () => {
     try {
-      await loadGlobalVolume();
       const cfg = await screenSettingsService.fetchScreenSetting('main', 'main-screen-settings');
       if (!cfg || !cfg.memberLotteryBgms || cfg.memberLotteryBgms.length === 0) return;
       const bgmIds: string[] = cfg.memberLotteryBgms.filter((id: string) => id && id.trim());

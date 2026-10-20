@@ -90,7 +90,7 @@ const { containerRef, headerRef, questionAreaRef, containerStyle } = useCardGrid
 
 // クイズ再生中のBGM。ロード/再生/停止/unmount時のobject URL失効は
 // composable内部で自動的に処理される。
-const bgmAudio = useAudio({ mode: 'html-audio' });
+const bgmAudio = useAudio();
 
 const { timeLeft, showModal, isLoading, canProceed, errorMessage, start, emergencyStop } =
     useAnswerWindow({ gateway });
