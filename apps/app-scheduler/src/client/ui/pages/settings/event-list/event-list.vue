@@ -23,12 +23,8 @@
 
         <EventTypeSelectionDialog v-if="showTypeSelection" @select="onTypeSelected"
             @close="showTypeSelection = false" />
-        <ScheduledEventDialog v-if="dialogType && !UNMERGED_DIALOG_TYPES.includes(dialogType)" :type="dialogType"
-            :event="editingEvent" @saved="onDialogSaved" @close="closeDialogs" />
-        <ContentDisplayEventDialog v-if="dialogType === 'ShowContentEvent'" :event="editingEvent as any"
-            @saved="onDialogSaved" @close="closeDialogs" />
-        <SlideshowEventDialog v-if="dialogType === 'SlideshowEvent'" :event="editingEvent as any"
-            @saved="onDialogSaved" @close="closeDialogs" />
+        <ScheduledEventDialog v-if="dialogType" :type="dialogType" :event="editingEvent" @saved="onDialogSaved"
+            @close="closeDialogs" />
         <!-- per-screen sync removed: background sync runs automatically -->
     </div>
 </template>
@@ -41,9 +37,7 @@ import { container } from 'tsyringe';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
 import { executeAppEvent, type AppEvent, type AppEventType } from '../../../../control/app-event/app-event';
 import EventTypeSelectionDialog from './dialogs/event-type-selection-dialog.vue';
-import ContentDisplayEventDialog from './dialogs/content-display-event/content-display-event-dialog.vue';
 import ScheduledEventDialog from './dialogs/scheduled-event-dialog.vue';
-import SlideshowEventDialog from './dialogs/slideshow-event/slideshow-event-dialog.vue';
 
 const { confirmDelete } = useConfirm();
 // persistence moved into dialog components
@@ -57,8 +51,6 @@ const interruptFlag = ref(false);
 const showTypeSelection = ref(false);
 /** 開いている追加・編集ダイアログの種類(閉じていれば null)。 */
 const dialogType = ref<AppEventType | null>(null);
-/** 共通ダイアログにまだ統合していない種類(専用ダイアログを使う)。 */
-const UNMERGED_DIALOG_TYPES: AppEventType[] = ['ShowContentEvent', 'SlideshowEvent'];
 const editingEvent = ref<AppEvent | null>(null);
 
 const scheduleEventService = container.resolve(AppEventService);
