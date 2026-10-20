@@ -27,6 +27,7 @@ import type { DataTableColumn } from '@octopus/ui-kit';
 import { container } from 'tsyringe';
 import { KeyboardShortcut } from '@model/keyboard-shortcut/keyboard-shortcut';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
+import { appEventToDto } from '../../../../control/app-event/app-event';
 import { uiActionEntries } from '../app-events/registry';
 import { sendShortcutViaChannel } from '../../../composables/send-shortcut-via-channel';
 
@@ -108,11 +109,7 @@ async function loadResolvedActions() {
                 evDtos.push({ actionType: 'Unknown', eventId: null });
                 continue;
             }
-            try {
-                evDtos.push(appEventService.toDto(ev));
-            } catch (e) {
-                evDtos.push({ actionType: ev.type, eventId: ev.id });
-            }
+            evDtos.push(appEventToDto(ev));
         }
         result[s.id] = evDtos;
     }

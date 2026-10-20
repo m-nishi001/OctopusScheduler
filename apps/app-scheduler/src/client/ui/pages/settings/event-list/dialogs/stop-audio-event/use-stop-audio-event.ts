@@ -3,12 +3,13 @@ import { toast } from '@octopus/ui-kit';
 import { ref, onMounted } from "vue";
 import { container } from "tsyringe";
 import { AppEventService } from "../../../../../../control/app-event/app-event-service";
-import { StopAudioEvent } from "../../../../../../control/app-event/stop-audio/stop-audio-event";
+import { createEmptyAppEvent } from "../../../../../../control/app-event/app-event";
+import type { StopAudioEventData } from "@model/app-event/stop-audio/stop-audio-event-data";
 
 export function useStopAudioEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);
 
-  function entityToForm(e: StopAudioEvent) {
+  function entityToForm(e: StopAudioEventData) {
     return {
       startTime: toDatetimeLocal(e.startTime),
       endTime: toDatetimeLocal(e.endTime),
@@ -16,7 +17,7 @@ export function useStopAudioEvent(props: any, emit: any) {
     };
   }
 
-  const initialEntity = props.event ?? StopAudioEvent.createEmpty();
+  const initialEntity = props.event ?? createEmptyAppEvent("StopAudioEvent");
   const form = ref(entityToForm(initialEntity));
   const appEventService = container.resolve(AppEventService);
 

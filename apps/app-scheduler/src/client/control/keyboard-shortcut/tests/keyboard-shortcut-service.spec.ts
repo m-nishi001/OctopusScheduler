@@ -4,8 +4,7 @@ import { container } from "tsyringe";
 import { KeyboardShortcutService } from "../keyboard-shortcut-service";
 import { Container } from "../../container/index";
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
-import { PlayAudioEvent } from "../../app-event/play-audio/play-audio-event";
-import { TransitionPageEvent } from "../../app-event/transition/transition-page-event";
+import { appEventFromDto } from "../../app-event/app-event";
 import { KeyboardShortcutConfig } from "@model/keyboard-shortcut/keyboard-shortcut-config";
 import { AppEventService } from "../../app-event/app-event-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
@@ -51,7 +50,8 @@ afterEach(() => {
 describe("KeyboardShortcutService", () => {
   it("finds a shortcut by keys, executes PlayAudioEvent and emits playAudio", async () => {
     // prepare PlayAudioEvent
-    const playEvent = PlayAudioEvent.fromData({
+    const playEvent = appEventFromDto({
+      actionType: "PlayAudioEvent",
       id: "e1",
       audioId: "audio-1",
       processedAt: null,
@@ -90,11 +90,12 @@ describe("KeyboardShortcutService", () => {
     await service.executeShortcut(found!);
 
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toEqual({ audioId: "audio-1", manual: true });
+    expect(spy.mock.calls[0][0]).toEqual({ audioId: "audio-1" });
   });
 
   it("finds a shortcut for TransitionPageEvent and emits transitionPage", async () => {
-    const event = TransitionPageEvent.fromData({
+    const event = appEventFromDto({
+      actionType: "TransitionPageEvent",
       id: "e2",
       transitionUrl: "/test/path",
       processedAt: null,
@@ -132,10 +133,7 @@ describe("KeyboardShortcutService", () => {
     await service.executeShortcut(found!);
 
     expect(spy).toHaveBeenCalledOnce();
-    expect(spy.mock.calls[0][0]).toEqual({
-      transitionUrl: "/test/path",
-      manual: true,
-    });
+    expect(spy.mock.calls[0][0]).toEqual({ transitionUrl: "/test/path" });
   });
 
   it("isEnabled() reflects repository config", async () => {
@@ -146,7 +144,8 @@ describe("KeyboardShortcutService", () => {
   });
 
   it("keys matching is strict about order and length", async () => {
-    const event = TransitionPageEvent.fromData({
+    const event = appEventFromDto({
+      actionType: "TransitionPageEvent",
       id: "e3",
       transitionUrl: "/p",
       processedAt: null,
@@ -184,9 +183,8 @@ describe("KeyboardShortcutService", () => {
   });
 
   it("executes ShowContentEvent via keyboard and emits showContent with manual flag", async () => {
-    const event = (
-      await import("../../app-event/show-content/show-content-event")
-    ).ShowContentEvent.fromData({
+    const event = appEventFromDto({
+      actionType: "ShowContentEvent",
       id: "e4",
       contentType: "image",
       contentId: "img-1",

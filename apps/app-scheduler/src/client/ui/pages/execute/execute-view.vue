@@ -11,6 +11,7 @@
 import { onMounted, onUnmounted } from 'vue';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../control/app-event/app-event-service';
+import { executeAppEvent } from '../../../control/app-event/app-event';
 import { eventBus } from '@octopus/client-common/events/event-bus';
 
 
@@ -39,9 +40,9 @@ const handleMessage = async (event: MessageEvent) => {
                 const ev = await service.getEventById(String(eventId));
                 if (ev) {
                     if (actionType === 'start' || actionType === 'trigger') {
-                        await ev.execute(true, true);
+                        await executeAppEvent(ev, true, true);
                     } else if (actionType === 'stop') {
-                        await ev.execute(false, true);
+                        await executeAppEvent(ev, false, true);
                     }
                     return;
                 }

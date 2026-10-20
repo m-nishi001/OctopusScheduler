@@ -4,13 +4,14 @@ import { ref, watch, onMounted, computed } from "vue";
 import { container } from "tsyringe";
 import { AssetService } from "../../../../../../control/asset/asset-service";
 import { AppEventService } from "../../../../../../control/app-event/app-event-service";
-import { PlayAudioEvent } from "../../../../../../control/app-event/play-audio/play-audio-event";
+import { createEmptyAppEvent } from "../../../../../../control/app-event/app-event";
+import type { PlayAudioEventData } from "@model/app-event/play-audio/play-audio-event-data";
 import type { Asset } from "../../../../../../model/asset/asset";
 
 export function useMusicPlaybackEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);
 
-  function entityToForm(e: PlayAudioEvent) {
+  function entityToForm(e: PlayAudioEventData) {
     return {
       startTime: toDatetimeLocal(e.startTime),
       endTime: toDatetimeLocal(e.endTime),
@@ -22,7 +23,7 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
     };
   }
 
-  const initialEntity = props.event ?? PlayAudioEvent.createEmpty();
+  const initialEntity = props.event ?? createEmptyAppEvent("PlayAudioEvent");
   const form = ref(entityToForm(initialEntity));
 
   const assets = ref<Asset[]>([]);
@@ -32,7 +33,7 @@ export function useMusicPlaybackEvent(props: any, emit: any) {
   watch(
     () => props.event,
     (newEvent) => {
-      const e = newEvent ?? PlayAudioEvent.createEmpty();
+      const e = newEvent ?? createEmptyAppEvent("PlayAudioEvent");
       form.value = entityToForm(e);
       isEdit.value = !!newEvent;
     }

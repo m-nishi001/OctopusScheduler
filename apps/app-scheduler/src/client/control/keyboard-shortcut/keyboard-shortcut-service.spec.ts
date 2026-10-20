@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { KeyboardShortcutService } from "./keyboard-shortcut-service";
-import { PlayAudioEvent } from "../app-event/play-audio/play-audio-event";
+import type { AppEvent } from "../app-event/app-event";
 import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
 import { KeyboardShortcut } from "@model/keyboard-shortcut/keyboard-shortcut";
 import type { AppEventService } from "../app-event/app-event-service";
@@ -46,7 +46,8 @@ describe("KeyboardShortcutService", () => {
   it("matches 3-key sequence", async () => {
     // Construct a real KeyboardShortcut object
     const now = new Date();
-    const event = PlayAudioEvent.fromParams({
+    const event: AppEvent = {
+      type: "PlayAudioEvent",
       id: "e1",
       startTime: now,
       endTime: new Date(now.getTime() + 1000),
@@ -55,7 +56,7 @@ describe("KeyboardShortcutService", () => {
       processedAt: null,
       registeredAt: now,
       updatedAt: now,
-    });
+  };
     const shortcut = new KeyboardShortcut({
       id: "s1",
       keys: ["Control", "s", "1"],
@@ -69,7 +70,8 @@ describe("KeyboardShortcutService", () => {
 
   it("detects longer prefix", async () => {
     const now = new Date();
-    const eventA = PlayAudioEvent.fromParams({
+    const eventA: AppEvent = {
+      type: "PlayAudioEvent",
       id: "e1",
       startTime: now,
       endTime: new Date(now.getTime() + 1000),
@@ -78,8 +80,9 @@ describe("KeyboardShortcutService", () => {
       processedAt: null,
       registeredAt: now,
       updatedAt: now,
-    });
-    const eventB = PlayAudioEvent.fromParams({
+  };
+    const eventB: AppEvent = {
+      type: "PlayAudioEvent",
       id: "e2",
       startTime: now,
       endTime: new Date(now.getTime() + 1000),
@@ -88,7 +91,7 @@ describe("KeyboardShortcutService", () => {
       processedAt: null,
       registeredAt: now,
       updatedAt: now,
-    });
+  };
     const shortCut = new KeyboardShortcut({
       id: "s1",
       keys: ["Control", "s"],

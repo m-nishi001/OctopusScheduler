@@ -3,12 +3,13 @@ import { toast } from '@octopus/ui-kit';
 import { ref, watch } from "vue";
 import { container } from "tsyringe";
 import { AppEventService } from "../../../../../../control/app-event/app-event-service";
-import { TransitionPageEvent } from "../../../../../../control/app-event/transition/transition-page-event";
+import { createEmptyAppEvent } from "../../../../../../control/app-event/app-event";
+import type { TransitionPageEventData } from "@model/app-event/transition/transition-page-event-data";
 
 export function useScreenTransitionEvent(props: any, emit: any) {
   const isEdit = ref(!!props.event);
 
-  function entityToForm(e: any) {
+  function entityToForm(e: TransitionPageEventData) {
     return {
       startTime: toDatetimeLocal(e.startTime),
       endTime: toDatetimeLocal(e.endTime),
@@ -17,14 +18,14 @@ export function useScreenTransitionEvent(props: any, emit: any) {
     };
   }
 
-  const initialEntity = props.event ?? TransitionPageEvent.createEmpty();
+  const initialEntity = props.event ?? createEmptyAppEvent("TransitionPageEvent");
   const form = ref(entityToForm(initialEntity));
   const appEventService = container.resolve(AppEventService);
 
   watch(
     () => props.event,
     (newEvent) => {
-      const e = newEvent ?? TransitionPageEvent.createEmpty();
+      const e = newEvent ?? createEmptyAppEvent("TransitionPageEvent");
       form.value = entityToForm(e);
       isEdit.value = !!newEvent;
     }

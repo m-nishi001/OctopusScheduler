@@ -53,7 +53,7 @@ import ActionItemSummary from './action-item-summary.vue';
 import EventSelectionDialog from './event-selection-dialog.vue';
 import ActionEditorDialog from './action-editor-dialog.vue';
 import type { AppEventDto } from '../../../../control/app-event/dto/app-event-dto';
-import type { AppEvent } from '../../../../control/app-event/app-event';
+import { appEventFromDto, appEventToDto, type AppEvent } from '../../../../control/app-event/app-event';
 import { container } from 'tsyringe';
 import { AppEventService } from '../../../../control/app-event/app-event-service';
 import { uiActionEntries } from '../app-events/registry';
@@ -125,11 +125,7 @@ watch(() => props.show, (newShow) => {
                         dtoList.push({ actionType: 'Unknown' } as unknown as AppEventDto);
                         continue;
                     }
-                    try {
-                        dtoList.push(appEventService.toDto(ev));
-                    } catch (e) {
-                        dtoList.push({ actionType: ev.type } as AppEventDto);
-                    }
+                    dtoList.push(appEventToDto(ev));
                 }
                 actions.value = dtoList;
             })();
@@ -166,13 +162,7 @@ const saveShortcut = async () => {
     for (let i = 0; i < actions.value.length; i++) {
         const a = actions.value[i];
         if (!a.id) a.id = crypto.randomUUID();
-        try {
-            events.push(appEventService.buildEventFromDto(a));
-        } catch (err) {
-            console.error(err);
-            toast.error(`アクションの作成に失敗しました: ${a.actionType}`);
-            return;
-        }
+        events.push(appEventFromDto(a));
     }
 
     // persist events to AppEventRepository via AppEventService
