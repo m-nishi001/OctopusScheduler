@@ -28,7 +28,7 @@ const router = useRouter();
 const quizId = route.params.id as string;
 const session = useQuizSession();
 const quiz = ref<QuizDto | null>(null);
-const { load, play, stop } = useAudio({ mode: 'html-audio' });
+const { load, play, stop } = useAudio();
 // セッションのホストなら、管理端末の「次へ」でも進める。正解はこの画面になって初めて参加者へ公開する。
 const goResult = () => void router.push({ name: session.routeName('quiz-result'), params: { id: quizId } });
 const host = useQuizHost({ advance: goResult });

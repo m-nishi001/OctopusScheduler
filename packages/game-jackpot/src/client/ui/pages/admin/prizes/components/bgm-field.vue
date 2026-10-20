@@ -55,8 +55,7 @@ const assetService = container.resolve(AssetDataService);
 const uploadedFile = ref<File | null>(null);
 
 // useAudio instance (local to this field) for playback in admin UI
-const audio = useAudio({ mode: 'html-audio' });
-const { load, play, stop, isPlaying } = audio as any;
+const { load, play, stop, isPlaying } = useAudio();
 
 const onFileChange = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0] || null;
@@ -71,7 +70,7 @@ const onModeChange = (event: Event) => {
 
 const onTogglePlay = async () => {
     try {
-        if ((isPlaying as any).value) {
+        if (isPlaying.value) {
             await stop();
             return;
         }

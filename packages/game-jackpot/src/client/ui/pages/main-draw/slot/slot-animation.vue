@@ -35,7 +35,7 @@ export default {
         let resizeObserver: ResizeObserver | null = null;
         let animationId: number | null = null;
         // useAudio を使って BGM を再生
-        const { load: loadBgm, play: playBgm, stop: stopBgm } = useAudio({ mode: 'html-audio' });
+        const { load: loadBgm, play: playBgm, stop: stopBgm } = useAudio();
         // position は「上へ流れた距離(px)」。ループ1周で元に戻る(位置計算は reel-model.ts)。
         const reels = ref([
             { position: 0, speed: 0 },

@@ -38,7 +38,7 @@ const assetService = container.resolve(AssetService);
 const audioAssets = ref<Asset[]>([]);
 const fileInput = ref<HTMLInputElement>();
 
-const { load, play, pause, isPlaying } = useAudio({ mode: 'html-audio' });
+const { load, play, pause, isPlaying } = useAudio();
 
 const formData = reactive({
     audioId: props.initialData?.audioId ?? '',

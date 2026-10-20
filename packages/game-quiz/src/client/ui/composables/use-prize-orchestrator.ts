@@ -12,7 +12,7 @@ export function usePrizeOrchestrator(options: {
   onNavigateHome: () => void;
 }) {
   const isPrizeDialogVisible = ref(false);
-  const audio = useAudio({ mode: "html-audio" });
+  const audio = useAudio();
   let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
   const showPrizeDialog = async () => {
