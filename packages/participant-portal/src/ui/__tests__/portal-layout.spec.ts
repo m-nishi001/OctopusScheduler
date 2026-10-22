@@ -669,6 +669,12 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       await flushPromises();
       expect(has(m, "reveal-burst-member")).toBe(true);
       expect(has(m, "reveal-burst-prize")).toBe(false);
+      // 紙吹雪の飛距離・遅れは、CSS の剰余演算子ではなくインラインの CSS 変数で渡す(演算子は無効な宣言になる)
+      for (const piece of m.wrapper.findAll(".pp-burst__piece")) {
+        const style = piece.attributes("style") ?? "";
+        expect(style).toMatch(/--d:\s*\d+px/);
+        expect(style).toMatch(/--delay:\s*[\d.]+s/);
+      }
       const firstBurst = m.wrapper.find('[data-testid="reveal-burst-member"]').element;
 
       await env.publishJackpot({ ...base, stage: "prize-revealed", member: "太郎", memberId: "taro", prize: "特賞" });
@@ -710,7 +716,7 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       m.wrapper.unmount();
     });
 
-    it("自分が当選したときだけ「あなたがあたりました!」が全面に出る。公開前は出ず、閉じられる", async () => {
+    it("自分が当選したときだけ「あなたがあたりました!」が全面に出る。公開前は出ず、閉じるボタンは無い", async () => {
       const env = await portalEnv();
       const alice = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
       const bob = await mountPortal(participantDevice(env.hub, BOB), "/p/event", BOB);
@@ -729,8 +735,18 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       expect(has(bob, "you-won")).toBe(false);
       expect(text(bob, "winner-member")).toContain(ALICE.name);
 
-      await alice.wrapper.find('[data-testid="you-won-close"]').trigger("click");
-      expect(has(alice, "you-won")).toBe(false);
+      // 閉じるボタンは無い(場面が変わったときだけ自動で消える)
+      expect(has(alice, "you-won-close")).toBe(false);
+      expect(text(alice, "you-won")).not.toContain("とじる");
+      // 紙吹雪は、CSS の剰余演算子に頼らず、1枚ごとの落下時間と遅れをインラインの CSS 変数で持つ
+      const pieces = alice.wrapper.findAll(".pp-won__piece");
+      expect(pieces.length).toBeGreaterThan(0);
+      for (const piece of pieces) {
+        const style = piece.attributes("style") ?? "";
+        expect(style).toMatch(/--dur:\s*[\d.]+s/);
+        expect(style).toMatch(/--delay:\s*-?[\d.]+s/);
+        expect(style).not.toContain("%");
+      }
 
       // 次の抽選で、もう一度当たったら、また出る
       await env.publishJackpot({ ...base, stage: "member" });
@@ -770,32 +786,6 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       await tick(5000);
       await flushPromises();
       expect(has(alice, "you-won")).toBe(false);
-      alice.wrapper.unmount();
-    });
-
-    it("当選の表示を手で閉じたあとに景品抽選へ進んでも壊れない。次の抽選で当たれば、また出る", async () => {
-      const env = await portalEnv();
-      const alice = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
-      const win = { ...base, member: ALICE.name, memberId: ALICE.id };
-
-      await env.publishJackpot({ ...win, stage: "member-revealed" });
-      await tick(5000);
-      await flushPromises();
-      await alice.wrapper.find('[data-testid="you-won-close"]').trigger("click");
-      expect(has(alice, "you-won")).toBe(false);
-
-      await env.publishJackpot({ ...win, stage: "prize" });
-      await tick(5000);
-      await flushPromises();
-      expect(has(alice, "you-won")).toBe(false);
-
-      await env.publishJackpot({ ...base, stage: "member" });
-      await tick(5000);
-      await flushPromises();
-      await env.publishJackpot({ ...win, stage: "member-revealed" });
-      await tick(5000);
-      await flushPromises();
-      expect(has(alice, "you-won")).toBe(true);
       alice.wrapper.unmount();
     });
 
