@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h } from "vue";
+import { createApp, defineComponent, h, ref } from "vue";
 import { tick } from "@octopus/session-hub/testing";
 import { usePortalSession } from "../use-portal-session";
 import type { PortalSession } from "../use-portal-session";
@@ -33,6 +33,31 @@ async function connect(device: Device, options: ResultsOptions = { random: () =>
 }
 
 const fetches = (device: Device) => device.api.calls.getResults ?? 0;
+
+describe("useResults: 順位発表の途中(held)", () => {
+  it("held の間は新しい結果の印(stale)を出さず、解けたら(画面を開いていれば)取得する", async () => {
+    const env = await portalEnv();
+    const device = participantDevice(env.hub, ALICE);
+    const held = ref(true);
+    const alice = await connect(device, { random: () => 0, held: () => held.value });
+    alice.results.setVisible(true);
+    await tick(100);
+    expect(fetches(device)).toBe(1);
+
+    await env.saveQuizResult(sampleRound());
+    await tick(5000);
+    expect(alice.results.held.value).toBe(true);
+    expect(alice.results.stale.value).toBe(false);
+    expect(fetches(device)).toBe(1);
+
+    held.value = false;
+    await tick(100);
+    expect(fetches(device)).toBe(2);
+    expect(alice.results.stale.value).toBe(false);
+    expect(alice.results.view.value?.quiz.rounds).toHaveLength(1);
+    alice.unmount();
+  });
+});
 
 describe("useResults", () => {
   it("結果がまだ無いときは、画面を開くと空の結果を取得する(新しい結果の印は出ない)", async () => {

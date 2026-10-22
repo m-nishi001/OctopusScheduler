@@ -117,6 +117,7 @@ export interface QuizPublished {
   question: string | null;
   options: Array<{ no: number; text: string; color: string }>;
   correctNo: number | null;
+  reveal: "revealing" | "finished" | null;
 }
 
 export const QUIZ_OPTIONS = [
@@ -136,6 +137,7 @@ export function sampleQuizState(): QuizPublished {
     question: "みかんはどれ?",
     options: QUIZ_OPTIONS,
     correctNo: null,
+    reveal: null,
   };
 }
 

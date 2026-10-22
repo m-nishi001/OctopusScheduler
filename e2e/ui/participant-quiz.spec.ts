@@ -149,7 +149,7 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect(host.page.locator(".ranking-item").first()).toContainText("太郎", { timeout: 30_000 });
     await expect(host.page.locator(".ranking-item .rank-badge").first()).toHaveText("1");
     await expect(host.page.locator(".ranking-item .rank-badge").last()).toHaveText("10");
-    await expect(taro.page.getByTestId("quiz-panel")).toContainText("結果発表中");
+    await expect(taro.page.getByTestId("quiz-panel")).toContainText("会場の画面をご覧ください");
 
     // 順位発表が終わると、結果がサーバー(R2)に保存される(参加者ポータルの「結果」の元データ)
     type Results = { rev: number; quiz: { rounds: Array<{ title: string; answeredCount: number; correctCount: number; top: Array<{ name: string }> }> } };

@@ -440,3 +440,28 @@ describe("useQuiz: 正解発表", () => {
     alice.unmount();
   });
 });
+
+describe("useQuiz: 順位発表の伏せ(rankingHidden)", () => {
+  it("結果発表の画面は reveal が finished になるまで true。ほかの画面・出題なしでは false", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    expect(alice.quiz.rankingHidden.value).toBe(false);
+
+    await env.publishQuiz({ ...sampleQuizState(), page: "answer", phase: "closed", reveal: null });
+    await tick(5000);
+    expect(alice.quiz.rankingHidden.value).toBe(false);
+
+    await env.publishQuiz({ ...sampleQuizState(), page: "result", phase: "closed", reveal: "revealing" });
+    await tick(5000);
+    expect(alice.quiz.rankingHidden.value).toBe(true);
+
+    await env.publishQuiz({ ...sampleQuizState(), page: "result", phase: "closed", reveal: "finished" });
+    await tick(5000);
+    expect(alice.quiz.rankingHidden.value).toBe(false);
+
+    await env.publishQuiz(null);
+    await tick(5000);
+    expect(alice.quiz.rankingHidden.value).toBe(false);
+    alice.unmount();
+  });
+});
