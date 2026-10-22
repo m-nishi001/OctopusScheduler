@@ -136,6 +136,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
 
     await nextButton(admin.page).click();
     await expect(hostText).toContainText("二枚目の説明");
+    await expect(admin.page.getByTestId("now")).toContainText("(2/3)");
 
     // 前へ(ボタン)でひとつ戻る。ホストの画面も戻る
     await back.click();
@@ -144,14 +145,21 @@ test.describe("コントロール画面: ワンクリック開催", () => {
 
     // キーでも操作できる: Enter で進み、Backspace で戻る
     await admin.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    // 管理端末の表示(いま何枚目か)がホストに追いついてから次のキーを押す。通信に時間がかかる環境では、追いつく前のキーは
+    // 古い状態に対する操作になり(たとえば最後のスライドだと思って「抽選を始める」を押してしまい)、期待とずれる。
+    const now = admin.page.getByTestId("now");
     await admin.page.keyboard.press("Enter");
     await expect(hostText).toContainText("二枚目の説明");
+    await expect(now).toContainText("(2/3)");
     await admin.page.keyboard.press("Enter");
     await expect(hostText).toContainText("三枚目の説明");
+    await expect(now).toContainText("(3/3)");
     await admin.page.keyboard.press("Backspace");
     await expect(hostText).toContainText("二枚目の説明");
+    await expect(now).toContainText("(2/3)");
     await admin.page.keyboard.press("Enter");
     await expect(hostText).toContainText("三枚目の説明");
+    await expect(now).toContainText("(3/3)");
 
     // 最後のスライド: 主ボタンは「抽選を始める」。route はまだ説明のまま
     await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);

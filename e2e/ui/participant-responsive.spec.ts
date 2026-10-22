@@ -1,6 +1,6 @@
 import type { Browser, Page } from "@playwright/test";
 import { devices } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, publishPortal, test } from "./fixtures";
+import { adminRpc, createSession, expect, isGas, newDevice, publishPortal, test } from "./fixtures";
 import { fakeHost } from "./helpers/fake-host";
 import { expectFitsEverySize } from "./helpers/responsive";
 
@@ -46,7 +46,8 @@ async function loginAs(browser: Browser, id: string, preset?: (typeof DEVICE_PRE
 const go = (page: Page, path: string) => page.evaluate((p) => (location.hash = p), path);
 
 test("参加者ポータル: 幅の掃引と実機プリセットで、どの画面も横にはみ出さない", async ({ browser, request }) => {
-  test.setTimeout(480_000);
+  // GAS では、ホストの公開が各端末に届くまでがポーリング(数秒)なので、状態を切り替えるたびの待ちが長い
+  test.setTimeout(isGas ? 900_000 : 480_000);
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, "レスポンシブ会場");
   sessionIds.push(sessionId);

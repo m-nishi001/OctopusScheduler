@@ -59,6 +59,10 @@ test("エントリー者がいなくて抽選に失敗しても、ホストは�
   await expect.poll(() => alerts.length, { timeout: 60_000 }).toBeGreaterThan(0);
   expect(alerts[0]).toContain("抽選の対象のメンバーがいません");
 
+  // 管理端末の「次へ」が、ホストの抽選画面の状態を受け取るまで待つ(通信に時間がかかる環境では、受け取る前の「次へ」は
+  // 説明画面からの「抽選画面へ進む」のままで、すでに抽選画面にいるホストには何も起きない)。
+  await expect(admin.page.getByText("押すと: 抽選を始めます")).toBeVisible({ timeout: 30_000 });
+
   // 2. 「次へ」を押すたびに、抽選をやり直して(失敗するたびに)知らせる。壊れた手順は実行されない
   for (let i = 1; i <= 3; i++) {
     await next.click();
