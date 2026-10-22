@@ -5,9 +5,16 @@
 
         <template v-if="quiz.quiz.value.page === 'play'">
             <p class="pp-quiz__question">{{ quiz.quiz.value.question }}</p>
-            <p v-if="quiz.quiz.value.phase === 'answering' && quiz.remainingSec.value !== null" class="pp-quiz__timer" data-testid="quiz-timer">
+            <p v-if="quiz.quiz.value.phase === 'answering' && quiz.remainingSec.value !== null && !quiz.isClosed.value" class="pp-quiz__timer" data-testid="quiz-timer">
                 残り {{ quiz.remainingSec.value }} 秒
             </p>
+            <div v-if="quiz.isClosed.value" class="pp-quiz__closed" data-testid="quiz-closed" role="status">
+                <p class="pp-quiz__closed-title">回答受付終了です!</p>
+                <p v-if="quiz.myAnswer.value !== null" class="pp-quiz__closed-answer" data-testid="quiz-closed-answer">
+                    あなたの回答: {{ quiz.optionLabel(quiz.myAnswer.value) }}
+                </p>
+                <p v-else class="pp-quiz__closed-answer" data-testid="quiz-closed-unanswered">あなたは回答していません</p>
+            </div>
             <div class="pp-quiz__options" role="group" aria-label="選択肢">
                 <button v-for="o in quiz.quiz.value.options" :key="o.no" type="button" class="pp-quiz__option"
                     :class="{ 'is-chosen': quiz.myAnswer.value === o.no }" :style="{ '--option-color': o.color || '#3b82f6' }"
@@ -15,14 +22,11 @@
                     <span class="pp-quiz__no">{{ o.no }}</span>{{ o.text }}
                 </button>
             </div>
-            <p v-if="quiz.myAnswer.value !== null" class="pp-quiz__answered" data-testid="quiz-answered">
+            <p v-if="quiz.myAnswer.value !== null && !quiz.isClosed.value" class="pp-quiz__answered" data-testid="quiz-answered">
                 回答しました(選択: {{ quiz.optionLabel(quiz.myAnswer.value) }})
             </p>
             <p v-if="quiz.answerStatus.value === 'open-answered'" class="pp-muted" data-testid="quiz-changeable">
                 受付中は選び直せます。最後に選んだものが回答になります。
-            </p>
-            <p v-else-if="quiz.answerStatus.value === 'closed-unanswered'" class="pp-muted" data-testid="quiz-closed">
-                受付は終了しました
             </p>
             <p v-if="quiz.message.value" class="pp-quiz__message" role="alert">{{ quiz.message.value }}</p>
         </template>
@@ -86,6 +90,29 @@ const quiz = useQuizContext();
     font-weight: 900;
     font-variant-numeric: tabular-nums;
     color: var(--pp-gold);
+}
+
+.pp-quiz__closed {
+    padding: 16px 12px;
+    border-radius: 14px;
+    border: 3px solid var(--pp-gold);
+    background: color-mix(in srgb, var(--pp-gold) 18%, #1a0a0e);
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.pp-quiz__closed-title {
+    margin: 0;
+    font-size: clamp(1.4rem, 7vw, 2rem);
+    font-weight: 900;
+    line-height: 1.3;
+    color: var(--pp-gold);
+}
+
+.pp-quiz__closed-answer {
+    margin: 8px 0 0;
+    font-size: 1.05rem;
+    font-weight: 700;
 }
 
 .pp-quiz__options {

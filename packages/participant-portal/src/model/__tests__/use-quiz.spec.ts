@@ -101,6 +101,36 @@ describe("useQuiz: 出題と残り時間", () => {
   });
 });
 
+describe("useQuiz: 回答受付終了(isClosed)", () => {
+  it("受付中は false。0秒になったら、ホストが締切を公開する前でも true(回答の有無によらない)", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    await env.startQuiz({}, 5_000);
+    await tick(1000);
+    expect(alice.quiz.isClosed.value).toBe(false);
+    await alice.quiz.answer(1);
+    await tick(10_000);
+    expect(alice.quiz.remainingSec.value).toBe(0);
+    expect(alice.quiz.quiz.value?.phase).toBe("answering");
+    expect(alice.quiz.isClosed.value).toBe(true);
+    expect(alice.quiz.myAnswer.value).toBe(1);
+    alice.unmount();
+  });
+
+  it("フェーズが closed になっても true。出題がなければ false", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    expect(alice.quiz.isClosed.value).toBe(false);
+    await env.startQuiz({ phase: "closed", deadlineMs: null });
+    await tick(5000);
+    expect(alice.quiz.isClosed.value).toBe(true);
+    await env.publishQuiz(null);
+    await tick(5000);
+    expect(alice.quiz.isClosed.value).toBe(false);
+    alice.unmount();
+  });
+});
+
 describe("useQuiz: 回答まわりの表示の状態(answerStatus)", () => {
   it("受付中・未回答 → 回答 → 受付中・回答済み → 締切 → 締切後・回答済み", async () => {
     const env = await portalEnv();
