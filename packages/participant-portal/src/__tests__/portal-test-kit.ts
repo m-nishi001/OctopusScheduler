@@ -2,7 +2,7 @@ import { createFakeHubApi, makeDevice, makeHub } from "@octopus/session-hub/test
 import type { Device, FaultInjector, TestHub } from "@octopus/session-hub/testing";
 import { MemoryDeviceStore, SessionAdminRepository } from "@octopus/session-hub";
 import { ENTRY_OPTIONS, entryRoundKey } from "@octopus/session-hub";
-import type { ClientInput, JackpotDraw, JackpotPublished, PortalEvent, QuizRoundResult } from "@octopus/session-hub";
+import type { ClientInput, JackpotDrawInput, JackpotPublished, PortalEvent, QuizRoundResult } from "@octopus/session-hub";
 
 export { makeDevice, makeHub };
 export type { Device, TestHub };
@@ -69,15 +69,16 @@ export async function portalEnv(options: { publish?: boolean } = {}) {
       await setSlice("results", { rev });
       return rev;
     },
-    /** ホストがジャックポットの抽選結果を保存し、更新番号を公開する。 */
-    saveJackpotDraw: async (draw: JackpotDraw): Promise<number> => {
-      const rev = await host.conn.putJackpotDraw(draw);
+    /** ホストがジャックポットの抽選結果を確定(commit)して公開(reveal)し、更新番号を公開する。 */
+    saveJackpotDraw: async (draw: JackpotDrawInput): Promise<number> => {
+      await host.conn.commitJackpotDraw(draw);
+      const rev = await host.conn.revealJackpotDraw(draw.drawId);
       await setSlice("results", { rev });
       return rev;
     },
-    /** ホストが抽選結果を取り消し、更新番号を公開する。 */
-    removeJackpotDraw: async (drawId: string): Promise<number> => {
-      const rev = await host.conn.deleteJackpotDraw(drawId);
+    /** ホストが抽選の結果と予定を消し、更新番号を公開する。 */
+    resetJackpot: async (): Promise<number> => {
+      const rev = await host.conn.resetJackpot();
       await setSlice("results", { rev });
       return rev;
     },
@@ -154,7 +155,7 @@ export const sampleRound = (patch: Partial<QuizRoundResult> = {}): QuizRoundResu
   ...patch,
 });
 
-export const sampleDraw = (patch: Partial<JackpotDraw> = {}): JackpotDraw => ({
+export const sampleDraw = (patch: Partial<JackpotDrawInput> = {}): JackpotDrawInput => ({
   drawId: "d1",
   memberId: "alice",
   memberName: "アリス",

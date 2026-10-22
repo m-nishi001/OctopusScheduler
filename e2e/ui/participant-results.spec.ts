@@ -106,9 +106,9 @@ test.describe("参加者ポータル: 結果タブ", () => {
     await expect(jiro.page.getByTestId("results-draw")).toHaveCount(2, { timeout: 15_000 });
     await expect(jiro.page.getByTestId("results-draw-mine")).toHaveCount(0);
 
-    // --- 管理画面で取り消すと、当選履歴からも消える
-    await host.removeDraw("d1");
-    await expect(taro.page.getByTestId("results-draw")).toHaveCount(1, { timeout: 15_000 });
+    // --- 管理画面でリセットすると、当選履歴がすべて消える
+    await host.resetJackpot();
+    await expect(taro.page.getByTestId("results-draw")).toHaveCount(0, { timeout: 15_000 });
     await expect(taro.page.getByTestId("results-draw-mine")).toHaveCount(0);
 
     // 他の人のID(rs-e2e-…)は画面のどこにも出ない

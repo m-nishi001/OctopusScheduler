@@ -25,7 +25,7 @@ import type {
   PollArgs,
   PollResult,
 } from "../../shared/protocol";
-import type { JackpotDraw, QuizRoundResult, ResultsView } from "../../shared/results";
+import type { JackpotDrawInput, JackpotPlan, JackpotPlanInput, JackpotState, QuizRoundResult, ResultsView } from "../../shared/results";
 import type {
   ClientInput,
   Command,
@@ -567,16 +567,34 @@ export class SessionConnection implements TransportSource {
     return (await this.withNetworkRetry(() => this.opts.api.putQuizResult({ sessionId: c.sessionId, result }))).rev;
   }
 
-  /** ホスト(管理者): 抽選結果を1件保存する。 */
-  async putJackpotDraw(draw: JackpotDraw): Promise<number> {
+  /** ホスト(管理者): 抽選の状態(未公開の行を含む全件・確変の予定・rev)を読む。 */
+  async getJackpotState(): Promise<JackpotState> {
     const c = this.requireCreds();
-    return (await this.withNetworkRetry(() => this.opts.api.putJackpotDraw({ sessionId: c.sessionId, draw }))).rev;
+    return this.withNetworkRetry(() => this.opts.api.getJackpotState({ sessionId: c.sessionId }));
   }
 
-  /** ホスト(管理者): 抽選結果を取り消す(管理画面で結果を削除したとき)。 */
-  async deleteJackpotDraw(drawId: string): Promise<number> {
+  /** ホスト(管理者): 確変の予定を、まだ無ければ保存する。返るのは保存されている予定。 */
+  async ensureJackpotPlan(plan: JackpotPlanInput): Promise<JackpotPlan> {
     const c = this.requireCreds();
-    return (await this.withNetworkRetry(() => this.opts.api.deleteJackpotDraw({ sessionId: c.sessionId, drawId }))).rev;
+    return (await this.withNetworkRetry(() => this.opts.api.ensureJackpotPlan({ sessionId: c.sessionId, plan }))).plan;
+  }
+
+  /** ホスト(管理者): 抽選結果を未公開で確定する。矛盾すれば JACKPOT_CONFLICT。再送は成功。返る rev は変わらない(参加者に見えないため)。 */
+  async commitJackpotDraw(draw: JackpotDrawInput): Promise<number> {
+    const c = this.requireCreds();
+    return (await this.withNetworkRetry(() => this.opts.api.commitJackpotDraw({ sessionId: c.sessionId, draw }))).rev;
+  }
+
+  /** ホスト(管理者): 確定済みの抽選を公開する。返る rev を参加者へ知らせる。 */
+  async revealJackpotDraw(drawId: string): Promise<number> {
+    const c = this.requireCreds();
+    return (await this.withNetworkRetry(() => this.opts.api.revealJackpotDraw({ sessionId: c.sessionId, drawId }))).rev;
+  }
+
+  /** ホスト(管理者): 抽選の結果と確変の予定を消す(クイズの結果はそのまま)。 */
+  async resetJackpot(): Promise<number> {
+    const c = this.requireCreds();
+    return (await this.withNetworkRetry(() => this.opts.api.resetJackpot({ sessionId: c.sessionId }))).rev;
   }
 
   /** 結果を、ログイン中のメンバー向けの見せ方で取得する(参加者ポータル・ホストの更新番号の復元)。 */

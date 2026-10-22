@@ -4,6 +4,7 @@ import {
   computeCumulative,
   emptyResultsDoc,
   parseJackpotDraw,
+  parseJackpotPlan,
   parseQuizRoundResult,
   personalize,
   readResultsRev,
@@ -34,6 +35,7 @@ const draw = (over: Partial<JackpotDraw> = {}): JackpotDraw => ({
   prizeName: "1等",
   isKakuhen: false,
   atMs: 100,
+  revealedAtMs: 200,
   ...over,
 });
 
@@ -61,11 +63,28 @@ describe("parseQuizRoundResult", () => {
 });
 
 describe("parseJackpotDraw", () => {
-  it("memberId が無い当選も受け付ける", () => {
-    expect(parseJackpotDraw({ ...draw(), memberId: undefined }).memberId).toBeNull();
+  it("memberId は必須(無い・空の当選は拒否する)", () => {
+    expect(() => parseJackpotDraw({ ...draw(), memberId: undefined })).toThrow();
+    expect(() => parseJackpotDraw({ ...draw(), memberId: null })).toThrow();
+    expect(() => parseJackpotDraw({ ...draw(), memberId: "" })).toThrow();
+  });
+  it("revealedAtMs は受け取らない(サーバーが決める)", () => {
+    expect(parseJackpotDraw(draw())).not.toHaveProperty("revealedAtMs");
   });
   it("必須項目が無ければ拒否する", () => {
     expect(() => parseJackpotDraw({ ...draw(), prizeName: "" })).toThrow();
+  });
+});
+
+describe("parseJackpotPlan", () => {
+  it("正規化し、createdAtMs は受け取らない", () => {
+    expect(parseJackpotPlan({ kakuhenTimings: [2.7, 5], reservedPrizeIds: ["p1"], createdAtMs: 1 })).toEqual({ kakuhenTimings: [2, 5], reservedPrizeIds: ["p1"] });
+  });
+  it("配列でない・要素が不正なら拒否する", () => {
+    expect(() => parseJackpotPlan({ kakuhenTimings: 1, reservedPrizeIds: [] })).toThrow();
+    expect(() => parseJackpotPlan({ kakuhenTimings: ["a"], reservedPrizeIds: [] })).toThrow();
+    expect(() => parseJackpotPlan({ kakuhenTimings: [], reservedPrizeIds: [""] })).toThrow();
+    expect(() => parseJackpotPlan(null)).toThrow();
   });
 });
 
@@ -133,6 +152,17 @@ describe("personalize", () => {
     expect(view.quiz.cumulative.top).toHaveLength(RESULTS_LIMITS.topN);
     expect(view.quiz.cumulative.participants).toBe(25);
     expect(view.quiz.cumulative.me?.rank).toBe(21);
+  });
+
+  it("公開済み(revealedAtMs が数値)の抽選だけを見せる。未公開の行は存在も示さない", () => {
+    const mixed = docWith({
+      rev: 1,
+      draws: [draw({ drawId: "d1", atMs: 1 }), draw({ drawId: "d2", memberId: "b", memberName: "Bob", prizeName: "秘密の景品", atMs: 2, revealedAtMs: null })],
+    });
+    const view = personalize(mixed, "b");
+    expect(view.jackpot.draws.map((d) => d.drawId)).toEqual(["d1"]);
+    expect(view.jackpot.myWins).toBe(0);
+    expect(JSON.stringify(view)).not.toContain("秘密の景品");
   });
 
   it("結果が空でも壊れない", () => {

@@ -1,10 +1,10 @@
-import type { JackpotDraw } from "@octopus/session-hub";
+import type { JackpotDrawInput } from "@octopus/session-hub";
 import { buildJackpotDraw, buildJackpotHostState, type RevealTracker } from "@model/jackpot-host-state";
 import type { JackpotHost } from "../../composables/use-jackpot-host";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 
 export interface HostPublisherDeps {
-  host: Pick<JackpotHost, "publish"> & { recordDraw(draw: JackpotDraw): Promise<boolean> };
+  host: Pick<JackpotHost, "publish"> & { recordDraw(draw: JackpotDrawInput): Promise<boolean> };
   tracker: RevealTracker;
   /** デモは結果を保存しない。 */
   isDemo: boolean;

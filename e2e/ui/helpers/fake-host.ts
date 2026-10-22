@@ -24,12 +24,15 @@ export async function fakeHost(request: APIRequestContext, sessionId: string) {
       const { rev } = await adminRpc<{ rev: number }>(request, "sessionHub_putQuizResult", { sessionId, result });
       await announce(rev);
     },
+    /** 抽選結果を確定(commit)して公開(reveal)する。 */
     async draw(draw: Record<string, unknown>) {
-      const { rev } = await adminRpc<{ rev: number }>(request, "sessionHub_putJackpotDraw", { sessionId, draw });
+      await adminRpc(request, "sessionHub_commitJackpotDraw", { sessionId, draw });
+      const { rev } = await adminRpc<{ rev: number }>(request, "sessionHub_revealJackpotDraw", { sessionId, drawId: draw.drawId });
       await announce(rev);
     },
-    async removeDraw(drawId: string) {
-      const { rev } = await adminRpc<{ rev: number }>(request, "sessionHub_deleteJackpotDraw", { sessionId, drawId });
+    /** 抽選の結果と確変の予定を消す(クイズの結果は残る)。 */
+    async resetJackpot() {
+      const { rev } = await adminRpc<{ rev: number }>(request, "sessionHub_resetJackpot", { sessionId });
       await announce(rev);
     },
   };

@@ -102,7 +102,9 @@ test("buildDemoResults: 順位表として成り立つ(早い順・正解/不正
     assert.ok(r.correct.every((c) => /^テスト参加者\d+$/.test(c.name) && c.memberId.startsWith("test-user-")));
   }
   assert.ok(rounds[0].closedAtMs < rounds[2].closedAtMs);
-  assert.ok(draws.every((d) => d.prizeName && d.memberName && Number.isFinite(d.atMs)));
+  assert.ok(draws.every((d) => d.prizeName && d.memberName && d.memberId && Number.isFinite(d.atMs)));
+  assert.equal(new Set(draws.map((d) => d.memberId)).size, draws.length);
+  assert.equal(new Set(draws.map((d) => d.prizeId)).size, draws.length);
   assert.ok(draws.some((d) => d.isKakuhen));
 });
 
@@ -116,11 +118,20 @@ test("buildDemoResults: 参加者が少なくても作れる(存在しない人�
 test("seedDemoResults: ラウンドと抽選を管理者トークンで保存する", async () => {
   const { fetch, calls } = fakeFetch({
     sessionHub_putQuizResult: () => ({ rev: 1 }),
-    sessionHub_putJackpotDraw: () => ({ rev: 2 }),
+    sessionHub_resetJackpot: () => ({ rev: 0 }),
+    sessionHub_commitJackpotDraw: () => ({ rev: 1 }),
+    sessionHub_revealJackpotDraw: () => ({ rev: 2 }),
   });
   const done = await seedDemoResults({ fetch, baseUrl: "https://x.example/", token: "tok", sessionId: "s1", participantIds: PARTICIPANTS, now: 1_700_000_000_000, sleep: noSleep });
   assert.deepEqual(done, { rounds: 3, draws: 5 });
   assert.equal(calls.filter((c) => c.name === "sessionHub_putQuizResult").length, 3);
-  assert.equal(calls.filter((c) => c.name === "sessionHub_putJackpotDraw").length, 5);
+  assert.equal(calls.filter((c) => c.name === "sessionHub_commitJackpotDraw").length, 5);
+  assert.equal(calls.filter((c) => c.name === "sessionHub_revealJackpotDraw").length, 5);
+  // 抽選は最初に一度消してから入れ直す。各抽選は commit のあとに reveal される
+  assert.equal(calls.findIndex((c) => c.name === "sessionHub_resetJackpot"), calls.findIndex((c) => c.name.endsWith("JackpotDraw")) - 1);
+  for (const c of calls.filter((c) => c.name === "sessionHub_revealJackpotDraw")) {
+    const commitIdx = calls.findIndex((x) => x.name === "sessionHub_commitJackpotDraw" && x.args.draw.drawId === c.args.drawId);
+    assert.ok(commitIdx >= 0 && commitIdx < calls.indexOf(c));
+  }
   assert.ok(calls.every((c) => c.token === "tok" && c.args.sessionId === "s1"));
 });

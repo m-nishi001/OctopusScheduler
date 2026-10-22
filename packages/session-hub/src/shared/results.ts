@@ -52,31 +52,60 @@ export interface QuizRoundResult {
   wrongMemberIds: string[];
 }
 
-export interface JackpotDraw {
+/** ホストが commit する抽選結果(サーバーが revealedAtMs を足して保存する)。 */
+export interface JackpotDrawInput {
   drawId: string;
-  memberId: string | null;
+  /** 当選したメンバーのID(必須。同じセッションで二度当選させないための鍵)。 */
+  memberId: string;
   memberName: string;
   prizeId: string;
   prizeName: string;
   isKakuhen: boolean;
+  /** commit した時刻。 */
   atMs: number;
+}
+
+export interface JackpotDraw extends JackpotDrawInput {
+  /** ホストの画面に当選者と景品が見えた時刻。null = commit 済みだが未公開(ポータルには見せない)。 */
+  revealedAtMs: number | null;
+}
+
+/** 確変の予定。セッションで最初に決めたものを保存し、以後は変えない。 */
+export interface JackpotPlan {
+  /** 確変にする抽選の順番(確定済みの件数 + 1 を基準にした何回目か)。 */
+  kakuhenTimings: number[];
+  /** 確変のために取り置いた景品のID。通常の抽選ではこの景品は当たらない。 */
+  reservedPrizeIds: string[];
+  createdAtMs: number;
+}
+
+/** ensureJackpotPlan に渡す案(createdAtMs はサーバーが決める)。 */
+export type JackpotPlanInput = Omit<JackpotPlan, "createdAtMs">;
+
+/** 管理用に返す抽選の状態(未公開の行を含む)。 */
+export interface JackpotState {
+  rev: number;
+  plan: JackpotPlan | null;
+  /** 古い順。 */
+  draws: JackpotDraw[];
 }
 
 /** R2 に保存する文書。 */
 export interface ResultsDoc {
-  v: 1;
+  v: 2;
   /** 実際に内容が変わった回数。DO の通知(RESULTS_NAMESPACE)と突き合わせる。 */
   rev: number;
   updatedAtMs: number;
   /** クイズのラウンド(終了時刻の昇順)。 */
   rounds: QuizRoundResult[];
-  /** 抽選結果(古い順)。 */
+  /** 抽選結果(commit 順=古い順)。未公開(revealedAtMs が null)の行を含む。 */
   draws: JackpotDraw[];
+  jackpot: { plan: JackpotPlan | null };
 }
 
 /** まだ何も残していない結果ファイル。 */
 export function emptyResultsDoc(): ResultsDoc {
-  return { v: 1, rev: 0, updatedAtMs: 0, rounds: [], draws: [] };
+  return { v: 2, rev: 0, updatedAtMs: 0, rounds: [], draws: [], jackpot: { plan: null } };
 }
 
 // ---------- ポータルへ返す見せ方 ----------
@@ -199,18 +228,38 @@ export function parseQuizRoundResult(input: unknown): QuizRoundResult {
   };
 }
 
-/** putJackpotDraw の引数を検証して正規化する。 */
-export function parseJackpotDraw(input: unknown): JackpotDraw {
+/** commitJackpotDraw の引数を検証して正規化する(memberId は必須)。 */
+export function parseJackpotDraw(input: unknown): JackpotDrawInput {
   if (!isRecord(input)) throw new ResultsValidationError("抽選結果が不正です");
   return {
     drawId: str(input.drawId, "drawId", RESULTS_LIMITS.maxIdLength),
-    memberId: optId(input.memberId, "memberId"),
+    memberId: str(input.memberId, "memberId", RESULTS_LIMITS.maxIdLength),
     memberName: str(input.memberName, "memberName", RESULTS_LIMITS.maxNameLength),
     prizeId: str(input.prizeId, "prizeId", RESULTS_LIMITS.maxIdLength),
     prizeName: str(input.prizeName, "prizeName", RESULTS_LIMITS.maxNameLength),
     isKakuhen: input.isKakuhen === true,
     atMs: Math.floor(num(input.atMs, "atMs")),
   };
+}
+
+/** ensureJackpotPlan の引数を検証して正規化する。 */
+export function parseJackpotPlan(input: unknown): JackpotPlanInput {
+  if (!isRecord(input)) throw new ResultsValidationError("確変の予定が不正です");
+  if (!Array.isArray(input.kakuhenTimings) || !Array.isArray(input.reservedPrizeIds)) {
+    throw new ResultsValidationError("kakuhenTimings / reservedPrizeIds は配列で指定してください");
+  }
+  if (input.kakuhenTimings.length > RESULTS_LIMITS.maxDraws || input.reservedPrizeIds.length > RESULTS_LIMITS.maxDraws) {
+    throw new ResultsValidationError("確変の予定が大きすぎます");
+  }
+  return {
+    kakuhenTimings: input.kakuhenTimings.map((t, i) => Math.floor(num(t, `kakuhenTimings[${i}]`))),
+    reservedPrizeIds: input.reservedPrizeIds.map((id, i) => str(id, `reservedPrizeIds[${i}]`, RESULTS_LIMITS.maxIdLength)),
+  };
+}
+
+/** 参加者に見せてよい(公開済みの)抽選だけにする。 */
+export function revealedDraws(draws: readonly JackpotDraw[]): JackpotDraw[] {
+  return draws.filter((d) => d.revealedAtMs !== null);
 }
 
 // ---------- 集計 ----------
@@ -269,7 +318,7 @@ export function personalize(doc: ResultsDoc, memberId: string | null): ResultsVi
   });
   const myIndex = memberId ? cumulative.findIndex((c) => c.memberId === memberId) : -1;
 
-  const draws = [...doc.draws]
+  const draws = revealedDraws(doc.draws)
     .sort((a, b) => b.atMs - a.atMs)
     .map((d) => ({
       drawId: d.drawId,

@@ -98,13 +98,25 @@ export function createFakeHubApi(
       operator();
       return results.putQuizResult(resultsDeps(), args.sessionId, args.result);
     }),
-    putJackpotDraw: (args) => run("putJackpotDraw", args, async () => {
+    getJackpotState: (args) => run("getJackpotState", args, async () => {
       operator();
-      return results.putJackpotDraw(resultsDeps(), args.sessionId, args.draw);
+      return results.getJackpotState(resultsDeps(), args.sessionId);
     }),
-    deleteJackpotDraw: (args) => run("deleteJackpotDraw", args, async () => {
+    ensureJackpotPlan: (args) => run("ensureJackpotPlan", args, async () => {
       operator();
-      return results.deleteJackpotDraw(resultsDeps(), args.sessionId, args.drawId);
+      return results.ensureJackpotPlan(resultsDeps(), args.sessionId, args.plan);
+    }),
+    commitJackpotDraw: (args) => run("commitJackpotDraw", args, async () => {
+      operator();
+      return results.commitJackpotDraw(resultsDeps(), args.sessionId, args.draw);
+    }),
+    revealJackpotDraw: (args) => run("revealJackpotDraw", args, async () => {
+      operator();
+      return results.revealJackpotDraw(resultsDeps(), args.sessionId, args.drawId);
+    }),
+    resetJackpot: (args) => run("resetJackpot", args, async () => {
+      operator();
+      return results.resetJackpot(resultsDeps(), args.sessionId);
     }),
     getResults: (args) => run("getResults", args, () => results.getResultsFor(resultsDeps(), args.sessionId, operator())),
     getWebAppUrl: () => run("getWebAppUrl", undefined, async () => ({ url: webAppUrl })),
