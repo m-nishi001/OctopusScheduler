@@ -100,13 +100,50 @@ test.describe("エントリー → ジャックポット", () => {
     const won = guests[entrant].page;
     await expect(won.getByTestId("you-won")).toBeVisible();
     await expect(won.getByTestId("you-won-name")).toContainText(winner);
-    await won.getByTestId("you-won-close").click();
-    await expect(won.getByTestId("you-won")).toBeHidden();
+    // 閉じるボタンは無い(景品抽選に進めば自動で消える)
+    await expect(won.getByTestId("you-won").getByRole("button")).toHaveCount(0);
+    await expect(won.getByTestId("you-won-close")).toHaveCount(0);
+    // 紙吹雪は本当に動いている: animation が有効で、落下の時間が1枚ごとにばらける(無効な宣言だと 'none' のまま上に張り付く)
+    const confetti = await won.locator(".pp-won__piece").evaluateAll((els) =>
+      els.map((el) => {
+        const cs = getComputedStyle(el);
+        return { name: cs.animationName, duration: cs.animationDuration, delay: cs.animationDelay };
+      })
+    );
+    expect(confetti.length).toBeGreaterThan(0);
+    for (const c of confetti) expect(c.name).toBe("pp-won-fall");
+    expect(new Set(confetti.map((c) => c.duration)).size).toBeGreaterThan(1);
+    expect(new Set(confetti.map((c) => c.delay)).size).toBeGreaterThan(1);
+
     const other = guests[(entrant + 1) % ALL].page;
     await openEventTab(other);
     await expect(other.getByTestId("winner-member")).toContainText(winner);
     await expect(other.getByTestId("reveal-burst-member")).toBeAttached(); // 当選者の公開で、弾ける演出が出る
     await expect(other.getByTestId("you-won")).toBeHidden();
+
+    // 弾ける演出は、終わったあとに何も見える形で残らない(紙吹雪が名前の真ん中に積み重なって残る不具合の防止)
+    const burst = other.getByTestId("reveal-burst-member");
+    const pieces = await burst.locator(".pp-burst__piece").evaluateAll((els) =>
+      els.map((el) => {
+        const cs = getComputedStyle(el);
+        return { name: cs.animationName, distance: cs.getPropertyValue("--d").trim() };
+      })
+    );
+    expect(pieces.length).toBe(18);
+    for (const p of pieces) expect(p.name).toBe("pp-burst-fly");
+    expect(new Set(pieces.map((p) => p.distance)).size).toBeGreaterThan(1); // 飛距離がばらける
+    await expect
+      .poll(
+        () =>
+          burst.evaluate((root) => {
+            const opacities = [...root.querySelectorAll<HTMLElement>(".pp-burst__flash, .pp-burst__piece")].map((el) => getComputedStyle(el).opacity);
+            const rays = root.querySelector<HTMLElement>(".pp-burst__rays");
+            if (rays) opacities.push(getComputedStyle(rays, "::before").opacity);
+            return opacities.every((o) => o === "0");
+          }),
+        { timeout: 10_000 }
+      )
+      .toBe(true);
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, ...guests]) await d.context.close();

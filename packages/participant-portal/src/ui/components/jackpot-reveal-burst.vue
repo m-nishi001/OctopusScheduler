@@ -2,7 +2,7 @@
     <div class="pp-burst" aria-hidden="true" :data-testid="`reveal-burst-${kind}`">
         <span class="pp-burst__flash" />
         <span class="pp-burst__rays" />
-        <span v-for="n in PIECES" :key="n" class="pp-burst__piece" :style="{ '--a': `${(n * 360) / PIECES}deg`, '--n': n }" />
+        <span v-for="n in PIECES" :key="n" class="pp-burst__piece" :style="pieceStyle(n)" />
     </div>
 </template>
 
@@ -15,6 +15,19 @@
 defineProps<{ kind: 'member' | 'prize' }>();
 
 const PIECES = 18;
+
+/**
+ * 紙吹雪1枚ごとの向き・飛距離・遅れ。CSS には剰余演算子が無い(古い Safari は mod() も未対応)ので、
+ * ここで計算してインラインの CSS 変数として渡す。
+ */
+function pieceStyle(n: number): Record<string, string | number> {
+    return {
+        '--a': `${(n * 360) / PIECES}deg`,
+        '--n': n,
+        '--d': `${70 + (n % 3) * 38}px`,
+        '--delay': `${(n % 4) * 0.05}s`,
+    };
+}
 </script>
 
 <style scoped>
@@ -66,8 +79,7 @@ const PIECES = 18;
     height: 14px;
     border-radius: 2px;
     background: hsl(calc(var(--n) * 47), 90%, 62%);
-    --d: calc(70px + (var(--n) % 3) * 38px);
-    animation: pp-burst-fly 1.3s cubic-bezier(0.1, 0.8, 0.3, 1) calc((var(--n) % 4) * 0.05s) both;
+    animation: pp-burst-fly 1.3s cubic-bezier(0.1, 0.8, 0.3, 1) var(--delay) both;
 }
 
 @keyframes pp-burst-flash {
