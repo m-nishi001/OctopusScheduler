@@ -24,15 +24,16 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** コマンドライン引数を解釈する。 */
 export function parseArgs(argv) {
-  const out = { reset: false, port: undefined, count: undefined };
+  const out = { reset: false, withResults: false, port: undefined, count: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--reset") out.reset = true;
+    else if (arg === "--with-results") out.withResults = true;
     else if (arg === "--port" || arg === "--count") {
       const value = Number(argv[++i]);
       if (!Number.isInteger(value) || value < 1) throw new Error(`${arg} には正の整数を指定してください`);
       out[arg.slice(2)] = value;
-    } else throw new Error(`不明な引数: ${arg}(--port / --count / --reset)`);
+    } else throw new Error(`不明な引数: ${arg}(--port / --count / --reset / --with-results)`);
   }
   return out;
 }
@@ -54,7 +55,7 @@ export function participantLoginUrls(base, seed) {
 }
 
 /** 画面で見せる案内文。 */
-export function renderBanner({ base, seed, urlsFile, session }) {
+export function renderBanner({ base, seed, urlsFile, session, withResults = false }) {
   const ids = seed.participants.ids;
   return [
     "",
@@ -64,7 +65,7 @@ export function renderBanner({ base, seed, urlsFile, session }) {
     `  参加者        : ${ids[0]} 〜 ${ids.at(-1)}(${ids.length}名) / 共通パスワード ${seed.participants.password}`,
     `  受付QR相当    : ${qrLoginUrl(base, ids[0], seed.participants.loginKeys?.[ids[0]])}`,
     ...(urlsFile ? [`  全員の受付QR相当URL : ${urlsFile}`] : []),
-    ...(session ? [`  セッション    : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み`] : []),
+    ...(session ? [`  セッション    : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み${withResults ? "。結果タブにはサンプルの順位・当選履歴を投入済み" : ""}`] : []),
     `  管理者トークン : ${seed.admin.sessionToken}(localStorage の octopus-session-token に入れるとログイン済みになる)`,
     "",
     "  Ctrl-C で停止。手順は docs/dev-verification.md",
@@ -123,8 +124,8 @@ export async function main(argv = process.argv.slice(2)) {
   const urlsFile = join(paths.dir, "participants.json");
   writeFileSync(urlsFile, JSON.stringify(participantLoginUrls(base, seed), null, 2));
   const session = await ensurePortalSession({ baseUrl: base, token: seed.admin.sessionToken });
-  await seedDemoResults({ baseUrl: base, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids });
-  console.log(renderBanner({ base, seed, urlsFile, session }));
+  if (args.withResults) await seedDemoResults({ baseUrl: base, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids });
+  console.log(renderBanner({ base, seed, urlsFile, session, withResults: args.withResults }));
   await new Promise((done) => child.on("exit", done));
 }
 
