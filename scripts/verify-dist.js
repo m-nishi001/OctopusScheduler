@@ -116,6 +116,28 @@ if (bundles.length > 4) {
   );
 }
 
+// 6. GAS(V8)に無いグローバルを使っていないか。ブラウザ/Node には有っても Apps Script には無く、実行時に初めて
+//    ReferenceError になる(例: structuredClone)。実際に動かす確認は GAS シミュレーター(npm run e2e:gas)が担う。
+const NOT_IN_GAS = [
+  { re: /\bstructuredClone\s*\(/, name: "structuredClone" },
+  { re: /\bnew\s+TextEncoder\b|\bnew\s+TextDecoder\b/, name: "TextEncoder / TextDecoder" },
+  { re: /\bnew\s+URL\s*\(|\bnew\s+URLSearchParams\b/, name: "URL / URLSearchParams" },
+  { re: /\bqueueMicrotask\s*\(/, name: "queueMicrotask" },
+  { re: /(?<![.\w])(?:atob|btoa)\s*\(/, name: "atob / btoa" },
+  { re: /(?<![.\w])fetch\s*\(/, name: "fetch" },
+];
+for (const bundle of bundles) {
+  const src = readFileSync(join(GAS_DIST, bundle.split("/").pop()), "utf8");
+  for (const { re, name } of NOT_IN_GAS) {
+    if (re.test(src)) {
+      errors.push(
+        `[6] ${rel(bundle)} が GAS に無いグローバルを使っています: ${name}\n` +
+          "      Apps Script(V8)には無く、実行時に ReferenceError になります。JSON の往復など、あるものだけで書き直してください。"
+      );
+    }
+  }
+}
+
 // 5. Cloudflare Worker(ESM/strict)の内部ハンドラ変数が宣言されているか
 // 宣言なし代入は起動時に ReferenceError になり、Worker 全体が動かなくなる。
 const CF_WORKER = join(DIST, "cloudflare", "worker.js");
