@@ -31,6 +31,7 @@ import { MAX_ROUND_ANSWERS_DO } from "../../shared/session-types";
 import type {
   CloseRoundArgs,
   GetAnswersArgs,
+  ListParticipantsArgs,
   OpenRoundArgs,
   SubmitAnswerArgs,
 } from "../../shared/protocol";
@@ -157,6 +158,8 @@ export class SessionRoomCore {
       }
       case "getAnswers":
         return engine.getAnswers(deps, args as GetAnswersArgs);
+      case "listParticipants":
+        return engine.listParticipants(deps, args as ListParticipantsArgs);
       default:
         throw new DomainError(`unknown op: ${String(op)}`);
     }

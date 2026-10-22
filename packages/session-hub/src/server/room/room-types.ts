@@ -45,6 +45,7 @@ export type RoomOp =
   | "openRound"
   | "closeRound"
   | "submitAnswer"
-  | "getAnswers";
+  | "getAnswers"
+  | "listParticipants";
 
 export type RoomRpcResult = { ok: true; data: unknown } | { ok: false; message: string };

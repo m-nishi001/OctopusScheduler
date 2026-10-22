@@ -4,6 +4,7 @@ import { lobbyPath } from "../../shared/host-navigation";
 import { PORTAL_EVENT_NS, readPortalEvent } from "../../shared/portal-event";
 import { HostCommandRouter } from "./host-command-router";
 import type { ClientInput } from "../../shared/session-types";
+import type { ListParticipantsResult } from "../../shared/protocol";
 import type { SessionConnection } from "./session-connection";
 
 /**
@@ -78,6 +79,11 @@ export class HostAgent {
   async recordQuizResult(result: QuizRoundResult): Promise<void> {
     if (!this.active) return;
     this.publishResultsRev(await this.connection.putQuizResult(result));
+  }
+
+  /** このセッションにポータルから入室したメンバーのID一覧(自動エントリー・抽選の対象)。 */
+  listParticipants(): Promise<ListParticipantsResult> {
+    return this.connection.listParticipants();
   }
 
   /** ジャックポットの抽選結果を1件保存し、参加者へ知らせる。 */
