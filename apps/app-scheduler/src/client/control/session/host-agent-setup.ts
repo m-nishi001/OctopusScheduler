@@ -7,6 +7,7 @@ import {
   PORTAL_EVENT_NS,
   isAllowedHostPath,
 } from "@octopus/session-hub";
+import { toExecutePath } from "../router/execute-path";
 import { registerEventHost } from "./event-host";
 import { prepareHostData } from "./prepare-host-data";
 
@@ -17,7 +18,15 @@ interface NavigatePayload {
 
 /** ゲームの終了画面(クイズの結果、ジャックポットのエンディング)。 */
 function isGameFinishRoute(route: RouteLocationNormalized): boolean {
-  return route.name === "quiz-result" || route.path === "/jackpot-ending";
+  return route.name === "quiz-result" || JACKPOT_ENDING_PATH.test(route.path);
+}
+
+/** ジャックポットのエンディングは /execute 配下に登録されている(振り替え前の /jackpot-ending も許す)。 */
+const JACKPOT_ENDING_PATH = /^\/(?:execute\/)?jackpot-ending$/;
+
+/** セッションのロビー(ホスト端末の待機画面)。 */
+function isLobbyRoute(route: RouteLocationNormalized): boolean {
+  return route.name === "session-host";
 }
 
 /** ホスト自身が、管理端末から届いたときと同じ経路でイベントのコマンドを処理する。 */
@@ -40,7 +49,8 @@ async function dispatchEventCommand(agent: HostAgent, type: string): Promise<voi
  *   - 管理端末からの画面遷移コマンド(`session.navigate`)を実行する。許可リスト外のパスは
  *     ホスト側で必ず拒否する(管理画面を投影画面に開かせない)
  *   - 管理端末のイベント開始/終了(`event.*`)を受け、参加者ポータルに出すイベントを公開する
- *   - ゲームの終了画面に入ったら、エントリー受付を締め切ってイベントを終了する(運営の手動操作を不要にする)
+ *   - ゲームの終了画面からロビーへ戻ったら、エントリー受付を締め切ってイベントを終了する(運営の手動操作を不要にする)。
+ *     終了画面に入った時点では終了しない(クイズの順位発表はイベントとクイズの状態が生きている間に行う)
  *   - 画面遷移のたびに、いまの画面(`session.path`)を状態として公開する
  */
 export function setupHostAgent(router: Router): HostAgent {
@@ -51,7 +61,8 @@ export function setupHostAgent(router: Router): HostAgent {
     const path = (command.payload as NavigatePayload | null)?.path;
     if (!isAllowedHostPath(path)) return;
     // ゲームの画面は /execute 配下に登録されている。/execute への振り替えはルーターが行う(execute-path.ts)。
-    const target = router.resolve(path).fullPath;
+    // router.resolve はリダイレクトを辿らないので、/execute への振り替えは自分で行ってから比べる。
+    const target = router.resolve(toExecutePath(path)).fullPath;
     if (router.currentRoute.value.fullPath === target) return;
     await router.push(path);
   });
@@ -59,10 +70,10 @@ export function setupHostAgent(router: Router): HostAgent {
   // 参加者ポータルに出すイベント(管理端末の `event.start` / `event.end`)
   registerEventHost(agent);
 
-  router.afterEach((to) => {
+  router.afterEach((to, from) => {
     if (!agent.active) return; // プレビューなど、ホストとして接続していないときは何もしない
     void agent.publishSlice("session", { path: to.fullPath });
-    if (isGameFinishRoute(to)) {
+    if (isGameFinishRoute(from) && isLobbyRoute(to)) {
       // 締切(エントリー者の一覧を保存)のあとにイベントを終了する。どちらも繰り返し実行しても安全。
       void dispatchEventCommand(agent, PORTAL_EVENT_CLOSE_ENTRY)
         .then(() => dispatchEventCommand(agent, PORTAL_EVENT_END))
