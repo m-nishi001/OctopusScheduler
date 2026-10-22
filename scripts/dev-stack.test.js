@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { parseArgs, participantLoginUrls, qrLoginUrl, renderBanner, stackPaths } from "./dev-stack.js";
 
 test("parseArgs: 既定値とオプション", () => {
-  assert.deepEqual(parseArgs([]), { reset: false, port: undefined, count: undefined });
-  assert.deepEqual(parseArgs(["--port", "8800", "--count", "10", "--reset"]), { reset: true, port: 8800, count: 10 });
+  assert.deepEqual(parseArgs([]), { reset: false, withResults: false, port: undefined, count: undefined });
+  assert.deepEqual(parseArgs(["--port", "8800", "--count", "10", "--reset"]), { reset: true, withResults: false, port: 8800, count: 10 });
+  assert.equal(parseArgs(["--with-results"]).withResults, true);
 });
 
 test("parseArgs: 不正な値や不明な引数は拒否する", () => {

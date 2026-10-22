@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertNotProduction, ensureLifecycle, ensureLifecycleAsync, isTransientAuthError, lifecycleArgs, parseDeployUrl, renderTimings, renderUpSummary, runWithRetry, runWithRetryAsync, STAGING, toStagingTemplate } from "./staging.js";
+import { assertNotProduction, ensureLifecycle, ensureLifecycleAsync, isTransientAuthError, lifecycleArgs, parseDeployUrl, renderTimings, parseSeedArgs, renderUpSummary, runWithRetry, runWithRetryAsync, STAGING, toStagingTemplate } from "./staging.js";
 
 const template = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../wrangler.example.toml"), "utf8");
 
@@ -42,6 +42,23 @@ test("renderUpSummary: Playwright を向けるコマンドと撤去の案内を�
   assert.match(text, /E2E_ADMIN_TOKEN=tok/);
   assert.match(text, /staging:down/);
   assert.match(text, /https:\/\/x\.workers\.dev\/#\/login\?id=test-user-01&key=k01/);
+});
+
+test("renderUpSummary: 結果データの投入有無を要約に正しく出す(既定は含まない)", () => {
+  const base = {
+    url: "https://x.workers.dev",
+    seed: { admin: { id: "admin", password: "pw", sessionToken: "tok" }, participants: { ids: ["test-user-01"], password: "pu" } },
+    session: { name: "S", code: "123456", reused: false },
+  };
+  assert.match(renderUpSummary(base), /結果データは投入していません/);
+  assert.doesNotMatch(renderUpSummary(base), /サンプルの順位・当選履歴を投入済み/);
+  assert.match(renderUpSummary({ ...base, withResults: true }), /サンプルの順位・当選履歴を投入済み/);
+});
+
+test("parseSeedArgs: 既定は結果を含まず、--with-results で含む。不明なフラグは拒否する", () => {
+  assert.deepEqual(parseSeedArgs([]), { withResults: false, positional: [] });
+  assert.deepEqual(parseSeedArgs(["https://x.dev", "--with-results"]), { withResults: true, positional: ["https://x.dev"] });
+  assert.throws(() => parseSeedArgs(["--bogus"]), /不明な引数/);
 });
 
 test("lifecycleArgs: staging のバケットに1日で自動削除するルールを付ける", () => {

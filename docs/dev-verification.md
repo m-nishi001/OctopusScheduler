@@ -16,7 +16,7 @@
 
 ```bash
 npm run build
-npm run dev:stack -- --port 8841     # --port 省略時は空きポート。--count 参加者数(既定20)、--reset で作り直し
+npm run dev:stack -- --port 8841     # --port 省略時は空きポート。--count 参加者数(既定20)、--reset で作り直し、--with-results でサンプルの結果も投入(`npm run dev:stack:results`)。staging は `npm run staging:up -- --with-results`
 ```
 
 起動すると URL とログイン情報が表示される。
@@ -56,10 +56,11 @@ npm run dev:stack -- --port 8841     # --port 省略時は空きポート。--co
 | 画面設定 | オープニング・説明・抽選・デモ・結果・エンディング(文言・画像・BGM・SE) |
 | 画像・音 | スクリプトが生成する小さな PNG / WAV(ネットワーク不要・著作権の問題なし。音は短い自作の旋律) |
 | セッション | 「年末ジャックポット抽選会(試験環境)」を作成し、参加者ポータルに公開済み(寿命 12 時間。切れたら `npm run staging:seed`) |
-| 結果(サンプル) | 参加者ポータルの「結果」タブが最初から埋まるよう、クイズ3ラウンドの順位と抽選5件の当選履歴を投入(`seed-demo-` で始まる ID。実際に出題した結果とは混ざらない)。`test-user-03` などでログインすると「あなたが当選!」の強調も見える |
+| 結果(サンプル。**既定では投入しない**) | `npm run dev:stack:results` / `npm run staging:seed:results`(`--with-results`)を使ったときだけ、参加者ポータルの「結果」タブが最初から埋まるよう、クイズ3ラウンドの順位と抽選5件の当選履歴を投入(`seed-demo-` で始まる ID。実際に出題した結果とは混ざらない)。`test-user-03` などでログインすると「あなたが当選!」の強調も見える。投入すると新しく始める抽選の結果と混ざってノイズになるため、通常は付けない |
 
 - クイズ・景品・画面設定・画像/音は**ブラウザが管理画面を開いたときに R2 から取り込まれる**(同期)。新しいブラウザで、クイズ管理(`/#/quiz-admin`)とジャックポット管理(`/#/execute/jackpot-admin`)を一度開けば揃う。すでに自分のデータがあるブラウザは、同期でシードを上書きしてしまうことがあるので、シークレットウィンドウで試す。
 - ジャックポットのメンバーの「ランク」は同期の対象外のためシードできない(既定値 5)。抽選結果・クイズの回答は操作して作る。
+- 結果つきで確認する E2E(`seeded-walkthrough`)は結果データありのシードが前提で、`E2E_SEEDED=1` に加えて `E2E_SEEDED_RESULTS=1` を付けたときだけ「結果タブ」のテストが動く。
 - 確認用の E2E: `E2E_SEEDED=1 BASE=<URL> E2E_ADMIN_TOKEN=<管理者トークン> npx playwright test -c e2e/playwright.config.ts seeded-content`(画面の見た目は `E2E_SHOTS=<出力先>` でスクリーンショットに保存)
 
 ## 2. 自動テスト
