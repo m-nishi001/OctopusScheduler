@@ -1,4 +1,4 @@
-import { addParticipant, ADMIN_ID, ADMIN_PASSWORD, adminRpc, createSession, expect, loginByQr, newDevice, openAdvanced, publishPortal, removeParticipant, route, test } from "./fixtures";
+import { addParticipant, ADMIN_ID, ADMIN_PASSWORD, adminRpc, createSession, expect, isGas, loginByQr, newDevice, openAdvanced, publishPortal, removeParticipant, route, test } from "./fixtures";
 import { expectNoHorizontalOverflow } from "./helpers/responsive";
 
 /**
@@ -127,9 +127,10 @@ test.describe("ホスト・管理・参加者の通し", () => {
     await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト接続中");
     await expect(adminDev.page.getByTestId("host-card")).not.toContainText("途絶");
 
-    // ホスト画面を閉じると、切断が配信されて未接続になる
+    // ホスト画面を閉じると、切断が配信されて未接続になる。
+    // GAS には切断の通知(WebSocket)が無く、ホストの応答が途絶えて20秒たつと「ホストの応答が○秒途絶えています」になる。
     await host.context.close();
-    await expect(adminDev.page.getByTestId("host-card")).toContainText("ホスト未接続", { timeout: 15_000 });
+    await expect(adminDev.page.getByTestId("host-card")).toContainText(isGas ? /ホストの応答が\d+秒途絶えています/ : "ホスト未接続", { timeout: isGas ? 60_000 : 15_000 });
 
     await adminDev.context.close();
   });
@@ -210,10 +211,10 @@ test.describe("ホスト・管理・参加者の通し", () => {
     const { id } = await openSession(adminDev.page, request, "多人数会場");
     const phones = await Promise.all(ids.map((_, i) => login(browser, i)));
     await expect(adminDev.page.getByTestId("host-card")).toContainText("参加者 5 人");
-    // 1人がログアウト(退出)すると減る
+    // 1人がログアウト(退出)すると減る。GAS には切断の通知が無く、応答が途絶えて CLIENT_ALIVE_MS(60秒)たつと減る。
     await phones[0].page.getByRole("link", { name: "マイページ" }).click();
     await phones[0].page.getByTestId("me-signout").click();
-    await expect(adminDev.page.getByTestId("host-card")).toContainText("参加者 4 人");
+    await expect(adminDev.page.getByTestId("host-card")).toContainText("参加者 4 人", { timeout: isGas ? 90_000 : 15_000 });
 
     await publishPortal(request, id, false);
     for (const d of [adminDev, ...phones]) await d.context.close();
@@ -289,6 +290,7 @@ test.describe("異常系・環境差", () => {
   });
 
   test("WebSocket が使えない回線でも、ポーリングに切り替わって参加・反映できる", async ({ browser, request }) => {
+    test.skip(isGas, "Cloudflare 専用(GAS には WebSocket が無く、常にポーリングで動く。ほかのテストがその経路を通る)");
     const adminDev = await newDevice(browser, { signedIn: true });
     const { id } = await openSession(adminDev.page, request, "WS不可会場");
     const host = await newDevice(browser, { signedIn: true, projector: true });

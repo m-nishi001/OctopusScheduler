@@ -16,7 +16,9 @@ concurrency:
 # 各ジョブは互いに待たず並列に走る。直列にしか進められないのは「build → e2e(dist が要る)」だけ。
 #   lint / unit ........ build 不要(turbo の lint・test は ^build に依存しない)
 #   build .............. typecheck → build → verify。dist を artifact にして e2e へ渡す
-#   e2e ................ worker-smoke と、画面の通し(Playwright)を 8 分割して並列に流す
+#   e2e ................ worker-smoke と、画面の通し(Playwright)を 8 分割して並列に流す(Cloudflare)。
+#                        あわせて GAS 実行環境シミュレーター(scripts/gas-sim)に対しても同じ画面の通しを 8 分割して流す(gas-*)。
+#                        どちらもすべてローカルで動き、外部(Cloudflare / Google)へのアクセスは無い
 #   verify ............. 全ジョブの結果を1つにまとめる(以前の check 名 `verify` を維持する集約ジョブ)
 jobs:
   lint:
@@ -86,7 +88,8 @@ jobs:
   e2e:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # GAS シミュレーターは 1 呼び出しに 200ms の遅延を足すので、Cloudflare より 1 テストが長い(分割しても 20 分前後のシャードがある)
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -109,6 +112,23 @@ jobs:
             args: ui -- --shard=7/8
           - name: ui-8of8
             args: ui -- --shard=8/8
+          # GAS 実行環境シミュレーター(dist/gas/server.js を GAS に近い条件で動かす)に対する、同じ画面の通し
+          - name: gas-1of8
+            args: --target gas ui -- --shard=1/8
+          - name: gas-2of8
+            args: --target gas ui -- --shard=2/8
+          - name: gas-3of8
+            args: --target gas ui -- --shard=3/8
+          - name: gas-4of8
+            args: --target gas ui -- --shard=4/8
+          - name: gas-5of8
+            args: --target gas ui -- --shard=5/8
+          - name: gas-6of8
+            args: --target gas ui -- --shard=6/8
+          - name: gas-7of8
+            args: --target gas ui -- --shard=7/8
+          - name: gas-8of8
+            args: --target gas ui -- --shard=8/8
     name: e2e (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4

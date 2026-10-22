@@ -76,15 +76,22 @@ async function scene(browser: import("@playwright/test").Browser, label: string,
   return { admin, host, pageErrors, patterns };
 }
 
-/** 管理コンソールの主ボタンが「止める」(指定の種類)になるまで「次へ」で進める。 */
+/**
+ * 管理コンソールの主ボタンが「止める」(指定の種類)になるまで「次へ」で進める。
+ * 押したあとは、管理端末の表示(主ボタン・予告・状態)が変わるのを待ってから次を押す。通信に時間がかかる環境では、
+ * 表示が変わる前に押し直すと、回し始めた直後の抽選を意図せず止めてしまい、強制した止まり方にならない。
+ */
 async function advanceUntilStop(admin: Page, what: "メンバー" | "景品") {
   const next = nextButton(admin);
+  const view = async () =>
+    [await next.innerText().catch(() => ""), await admin.getByTestId("next-hint").innerText().catch(() => ""), await admin.getByTestId("jackpot-state").innerText().catch(() => "")].join("|");
   for (let i = 0; i < 40; i++) {
     const label = (await next.innerText().catch(() => "")).trim();
     const hint = (await admin.getByTestId("next-hint").innerText().catch(() => "")).trim();
     if (label.includes("止める") && hint.includes(what)) return;
+    const before = await view();
     await next.click();
-    await admin.waitForTimeout(1500);
+    await expect.poll(view, { timeout: 20_000 }).not.toBe(before);
   }
   throw new Error(`${what}を止められる状態にならなかった`);
 }

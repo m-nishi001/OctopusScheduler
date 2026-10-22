@@ -60,7 +60,8 @@ async function mutate(deps: ResultsDeps, sessionId: string, change: (doc: Result
   const key = resultsKey(sessionId);
   return deps.withLock(`results:${sessionId}`, LOCK_TIMEOUT_MS, async () => {
     const current = await load(deps, key);
-    const next = change(structuredClone(current));
+    // GAS の実行環境(V8)には structuredClone が無いので、JSON の往復で複製する(結果ファイルは JSON だけで成り立つ)。
+    const next = change(JSON.parse(JSON.stringify(current)) as ResultsDoc);
     if (next === null || JSON.stringify({ rounds: next.rounds, draws: next.draws }) === JSON.stringify({ rounds: current.rounds, draws: current.draws })) {
       return { rev: current.rev };
     }

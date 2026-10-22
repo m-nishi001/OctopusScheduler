@@ -7,7 +7,8 @@
  *   2. ローカルD1にマイグレーションを適用し、管理者アカウントとログイン済みセッションを投入する
  *   3. wrangler dev を起動して準備できるまで待ち、テストコマンドを実行し、終了時に必ず停止する
  *
- * 使い方: node scripts/e2e-local.js [worker-smoke] [ui] [-- playwrightの引数]   (既定: 両方)
+ * 使い方: node scripts/e2e-local.js [--target gas] [worker-smoke] [ui] [-- playwrightの引数]   (既定: 両方)
+ *   --target gas: wrangler の代わりに GAS 実行環境シミュレーター(scripts/gas-sim)に対して ui を流す(要 dist/gas。Cloudflare 専用のテストは除く)
  *   worker-smoke: 実 workerd に対する REST / WebSocket / Durable Object の疎通(Node)
  *   ui          : Playwright で複数の端末(ブラウザコンテキスト)を動かす画面の通しテスト
  * 事前に `npm run build` が必要(dist/cloudflare/worker.js を使う)。
@@ -37,15 +38,31 @@ export const TARGETS = {
 /** 引数なしで動かすテスト。 */
 export const DEFAULT_TARGETS = ["worker-smoke", "ui"];
 
-/** コマンドライン引数を { targets, extra }(-- 以降は Playwright へ渡す)に分ける。 */
+/** 実行環境。`cloudflare` は実 workerd(wrangler dev --local)、`gas` は GAS 実行環境シミュレーター(scripts/gas-sim)。 */
+export const PLATFORMS = ["cloudflare", "gas"];
+
+/** GAS シミュレーターで動かせるテスト(worker-smoke / load は Cloudflare 専用)。 */
+export const GAS_TARGETS = ["ui"];
+
+/** コマンドライン引数を { targets, extra, platform }(-- 以降は Playwright へ渡す。`--target gas` で GAS)に分ける。 */
 export function parseArgs(argv) {
   const dd = argv.indexOf("--");
-  const names = dd === -1 ? argv : argv.slice(0, dd);
+  const head = dd === -1 ? argv : argv.slice(0, dd);
   const extra = dd === -1 ? [] : argv.slice(dd + 1);
-  const targets = names.length ? names : DEFAULT_TARGETS;
+  let platform = "cloudflare";
+  const names = [];
+  for (let i = 0; i < head.length; i++) {
+    if (head[i] === "--target") platform = head[++i] ?? "";
+    else if (head[i].startsWith("--target=")) platform = head[i].slice("--target=".length);
+    else names.push(head[i]);
+  }
+  if (!PLATFORMS.includes(platform)) throw new Error(`不明な --target: ${platform}(${PLATFORMS.join(" / ")})`);
+  const targets = names.length ? names : platform === "gas" ? GAS_TARGETS : DEFAULT_TARGETS;
   const unknown = targets.filter((t) => !(t in TARGETS));
   if (unknown.length) throw new Error(`不明なテスト: ${unknown.join(", ")}(${Object.keys(TARGETS).join(" / ")})`);
-  return { targets, extra };
+  const unsupported = platform === "gas" ? targets.filter((t) => !GAS_TARGETS.includes(t)) : [];
+  if (unsupported.length) throw new Error(`--target gas では動かせないテスト: ${unsupported.join(", ")}(Cloudflare 専用。動かせるのは ${GAS_TARGETS.join(" / ")})`);
+  return { targets, extra, platform };
 }
 
 /** 空いているポートを1つ得る。 */
@@ -118,8 +135,51 @@ export async function waitForReady(base, child, timeoutMs = 120_000) {
   throw new Error("wrangler dev の起動がタイムアウトしました");
 }
 
+/** テストコマンドを順に実行する。失敗した数を返す。 */
+async function runTargets(targets, extra, base, platform) {
+  let failed = 0;
+  for (const target of targets) {
+    console.log(`\n=== ${target}${platform === "gas" ? " (gas)" : ""} ===`);
+    const [cmd, args] = TARGETS[target](extra);
+    await new Promise((done) => {
+      const run = spawn(cmd, args, {
+        cwd: ROOT,
+        stdio: "inherit",
+        env: { ...process.env, BASE: base, E2E_TARGET: platform, E2E_ADMIN_ID: ADMIN.id, E2E_ADMIN_PASSWORD: ADMIN.password, E2E_ADMIN_TOKEN: ADMIN.token },
+      });
+      run.on("exit", (code) => {
+        if (code !== 0) failed++;
+        done();
+      });
+    });
+  }
+  return failed;
+}
+
+/** GAS シミュレーターを起動して(GAS 方式でシード済み)、テストを流す。外部へのアクセスは無い。 */
+async function mainGas(targets, extra) {
+  if (!existsSync(join(ROOT, "dist/gas/server.js"))) {
+    throw new Error("dist/gas/server.js がありません。先に npm run build を実行してください。");
+  }
+  const { startSimulator } = await import("./gas-sim/simulator.js");
+  const { SimState } = await import("./gas-sim/state.js");
+  const { seedAdmin } = await import("./gas-sim/seed.js");
+  const state = new SimState();
+  seedAdmin(state, { id: ADMIN.id, password: ADMIN.password, token: ADMIN.token });
+  const sim = await startSimulator({ serverPath: join(ROOT, "dist/gas/server.js"), htmlDir: join(ROOT, "dist/gas"), state });
+  console.log(`GAS シミュレーター: ${sim.url}(同時実行 ${process.env.GAS_SIM_CONCURRENCY ?? 20}、遅延 ${process.env.GAS_SIM_LATENCY_MS ?? 200}ms)`);
+  try {
+    const failed = await runTargets(targets, extra, sim.url, "gas");
+    console.log(`GAS シミュレーター統計: ${JSON.stringify(sim.stats)}`);
+    return failed;
+  } finally {
+    await sim.close();
+  }
+}
+
 export async function main(argv = process.argv.slice(2)) {
-  const { targets, extra } = parseArgs(argv);
+  const { targets, extra, platform } = parseArgs(argv);
+  if (platform === "gas") return mainGas(targets, extra);
   if (!existsSync(join(ROOT, "dist/cloudflare/worker.js"))) {
     throw new Error("dist/cloudflare/worker.js がありません。先に npm run build を実行してください。");
   }
@@ -170,22 +230,7 @@ export async function main(argv = process.argv.slice(2)) {
       throw e;
     }
 
-    let failed = 0;
-    for (const target of targets) {
-      console.log(`\n=== ${target} ===`);
-      const [cmd, args] = TARGETS[target](extra);
-      await new Promise((done) => {
-        const run = spawn(cmd, args, {
-          cwd: ROOT,
-          stdio: "inherit",
-          env: { ...process.env, BASE: base, E2E_ADMIN_ID: ADMIN.id, E2E_ADMIN_PASSWORD: ADMIN.password, E2E_ADMIN_TOKEN: ADMIN.token },
-        });
-        run.on("exit", (code) => {
-          if (code !== 0) failed++;
-          done();
-        });
-      });
-    }
+    const failed = await runTargets(targets, extra, base, "cloudflare");
     if (failed) {
       // 失敗の原因が Worker 側のエラーのことがあるので、wrangler のログからエラー行を残す。
       const errors = log.split("\n").filter((line) => /error|exception/i.test(line));
