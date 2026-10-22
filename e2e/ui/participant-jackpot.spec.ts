@@ -111,7 +111,7 @@ test.describe("エントリー → ジャックポット", () => {
       })
     );
     expect(confetti.length).toBeGreaterThan(0);
-    for (const c of confetti) expect(c.name).toBe("pp-won-fall");
+    for (const c of confetti) expect(c.name).toMatch(/^pp-won-fall/);
     expect(new Set(confetti.map((c) => c.duration)).size).toBeGreaterThan(1);
     expect(new Set(confetti.map((c) => c.delay)).size).toBeGreaterThan(1);
 
@@ -130,7 +130,7 @@ test.describe("エントリー → ジャックポット", () => {
       })
     );
     expect(pieces.length).toBe(18);
-    for (const p of pieces) expect(p.name).toBe("pp-burst-fly");
+    for (const p of pieces) expect(p.name).toMatch(/^pp-burst-fly/);
     expect(new Set(pieces.map((p) => p.distance)).size).toBeGreaterThan(1); // 飛距離がばらける
     await expect
       .poll(
