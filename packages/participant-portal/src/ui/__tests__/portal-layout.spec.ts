@@ -364,9 +364,10 @@ describe("参加者ポータル: クイズ", () => {
     await tick(5000);
     await flushPromises();
     expect(has(m, "quiz-changeable")).toBe(false);
-    // 回答済みの人に「受付は終了しました」を重ねて出さない(回答済みの案内だけ)
-    expect(has(m, "quiz-closed")).toBe(false);
-    expect(text(m, "quiz-answered")).toContain("1. りんご");
+    // 回答済みの人にも「回答受付終了です!」と自分の回答を出す
+    expect(text(m, "quiz-closed")).toContain("回答受付終了です!");
+    expect(text(m, "quiz-closed-answer")).toContain("あなたの回答: 1. りんご");
+    expect(has(m, "quiz-timer")).toBe(false);
     expect(m.wrapper.findAll(".pp-quiz__option").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
     m.wrapper.unmount();
   });
@@ -569,7 +570,9 @@ describe("参加者ポータル: クイズ", () => {
     await flushPromises();
     await tick(4000);
     await flushPromises();
-    expect(text(m, "quiz-closed")).toContain("受付は終了しました");
+    expect(text(m, "quiz-closed")).toContain("回答受付終了です!");
+    expect(has(m, "quiz-closed-unanswered")).toBe(true);
+    expect(has(m, "quiz-timer")).toBe(false); // 「残り 0 秒」は隠す
     expect(m.wrapper.findAll(".pp-quiz__option").every((b) => b.attributes("disabled") !== undefined)).toBe(true);
     expect(has(m, "event-banner")).toBe(false);
 
