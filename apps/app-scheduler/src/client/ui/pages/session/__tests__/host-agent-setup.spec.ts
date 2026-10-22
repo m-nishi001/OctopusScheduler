@@ -34,7 +34,7 @@ describe("setupHostAgent: session.navigate", () => {
     const { router, admin } = await hostedScene();
     await admin.conn.issue("session", "navigate", { path: "/jackpot-opening" });
     await settle(5000);
-    expect(router.currentRoute.value.fullPath).toBe("/jackpot-opening");
+    expect(router.currentRoute.value.fullPath).toBe("/execute/jackpot-opening");
   });
 
   it.each(["/settings", "https://evil.example/", "/jackpot-opening#/settings", "//evil.example", "/quiz-admin/quizzes"])(
@@ -87,7 +87,7 @@ describe("setupHostAgent: session.navigate", () => {
     await router.push("/jackpot-ending");
     await settle(100);
     const state = await env.hub.deps.repoFor(meta.id).getState();
-    expect(state?.data).toEqual({ session: { path: "/jackpot-ending" } });
+    expect(state?.data).toEqual({ session: { path: "/execute/jackpot-ending" } });
   });
 
   it("ホストでない(未接続の)端末は遷移を公開しようとしない", async () => {
@@ -102,26 +102,55 @@ describe("setupHostAgent: session.navigate", () => {
   });
 });
 
-describe("setupHostAgent: ゲーム終了でイベントを終了", () => {
+describe("setupHostAgent: ゲーム終了からロビーへ戻るとイベントを終了", () => {
   const eventOf = async (meta: { id: string }) => (await env.hub.deps.repoFor(meta.id).getState())?.data?.event;
 
-  it.each(["/jackpot-ending", "/execute/quiz/q1/result"])("終了画面(%s)に入ると、受付を締め切ってイベントを終了する", async (path) => {
-    const { router, admin, meta } = await hostedScene();
-    router.addRoute({ path: "/execute/quiz/:id/result", name: "quiz-result", component: { render: () => null } });
-    await admin.conn.issue("event", "start", { title: "乾杯" });
-    await admin.conn.issue("event", "openEntry");
+  async function startedEvent() {
+    const scene = await hostedScene();
+    scene.router.addRoute({ path: "/execute/quiz/:id/result", name: "quiz-result", component: { render: () => null } });
+    await scene.admin.conn.issue("event", "start", { title: "乾杯" });
+    await scene.admin.conn.issue("event", "openEntry");
     await settle(5000);
-    expect(await eventOf(meta)).toMatchObject({ title: "乾杯", entry: { open: true } });
-    await router.push(path);
+    expect(await eventOf(scene.meta)).toMatchObject({ title: "乾杯", entry: { open: true } });
+    return scene;
+  }
+
+  it.each(["/execute/quiz/q1/result", "/execute/jackpot-ending", "/jackpot-ending"])(
+    "終了画面(%s)に入っただけではイベントを終了しない",
+    async (path) => {
+      const { router, meta } = await startedEvent();
+      await router.push(path);
+      await settle(5000);
+      expect(await eventOf(meta)).toMatchObject({ title: "乾杯", entry: { open: true } });
+    },
+  );
+
+  it.each(["/execute/quiz/q1/result", "/execute/jackpot-ending", "/jackpot-ending"])(
+    "終了画面(%s)からロビーへ戻ると、受付を締め切ってイベントを終了する",
+    async (path) => {
+      const { router, meta } = await startedEvent();
+      await router.push(path);
+      await settle(5000);
+      await router.push(`/session/host/${meta.id}`);
+      await settle(5000);
+      expect(await eventOf(meta)).toBeUndefined();
+    },
+  );
+
+  it("終了画面以外からロビーへ戻ってもイベントは続く", async () => {
+    const { router, meta } = await startedEvent();
+    await router.push("/jackpot-opening");
     await settle(5000);
-    expect(await eventOf(meta)).toBeUndefined();
+    await router.push(`/session/host/${meta.id}`);
+    await settle(5000);
+    expect(await eventOf(meta)).toMatchObject({ title: "乾杯" });
   });
 
-  it("終了画面以外へ遷移してもイベントは続く", async () => {
-    const { router, admin, meta } = await hostedScene();
-    await admin.conn.issue("event", "start", { title: "乾杯" });
+  it("終了画面から、ロビー以外へ遷移してもイベントは続く", async () => {
+    const { router, meta } = await startedEvent();
+    await router.push("/execute/jackpot-ending");
     await settle(5000);
-    await router.push("/jackpot-opening");
+    await router.push("/home");
     await settle(5000);
     expect(await eventOf(meta)).toMatchObject({ title: "乾杯" });
   });
@@ -145,7 +174,7 @@ describe("setupHostAgent: リロード復帰", () => {
     await settle(5000);
     expect(agent2.active).toBe(true);
     expect(device2.conn.state.session?.id).toBe(meta.id);
-    expect(router2.currentRoute.value.fullPath).toBe("/jackpot-ending");
+    expect(router2.currentRoute.value.fullPath).toBe("/execute/jackpot-ending");
   });
 });
 
