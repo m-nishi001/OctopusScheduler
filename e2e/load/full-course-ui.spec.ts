@@ -166,8 +166,8 @@ test("実ブラウザ(ホスト・管理・参加者3)+ 合成の参加者47・�
       // 受付を締め切る(実際の管理端末の主ボタン)。管理者2人目も同時に締めても問題ない
       await Promise.all([nextButton(admin.page).click(), admin2!.closeRound(roundKey).catch(() => undefined)]);
       await expect(host.page.getByText("受付を終了しました")).toBeVisible();
-      await expect(p3.page.getByTestId("quiz-closed")).toBeVisible();
-      await expect(p1.page.getByTestId("quiz-answered")).toContainText("2. みかん");
+      await expect(p3.page.getByTestId("quiz-closed")).toContainText("回答受付終了です!");
+      await expect(p1.page.getByTestId("quiz-closed-answer")).toContainText("2. みかん");
 
       // 保存された回答を、実際に送った内容と突き合わせる(合成の参加者は最後の応答、実ブラウザは画面で選んだもの)
       const stored = await admin2!.getAnswers(roundKey);

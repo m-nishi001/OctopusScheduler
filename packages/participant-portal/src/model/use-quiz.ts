@@ -47,6 +47,8 @@ export interface QuizState {
   canAnswer: ComputedRef<boolean>;
   /** 回答まわりの表示の状態。送信中かどうかには左右されない（送信中に表示が揺れないように）。 */
   answerStatus: ComputedRef<QuizAnswerStatus>;
+  /** 出題中の問題の回答受付が終わった（0秒になった、または締め切られた）。回答の有無によらない。 */
+  isClosed: ComputedRef<boolean>;
   answering: Ref<boolean>;
   message: Ref<string>;
   optionLabel(no: number): string;
@@ -134,6 +136,12 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
 
   const isOpen = computed(() => quiz.value?.phase === "answering" && (remainingSec.value ?? 0) > 0);
   const canAnswer = computed(() => isOpen.value && !answering.value);
+  // 0秒になったらホストの締切の公開を待たずに「受付終了」を出す(それまでは無言で押せなくなるだけだった)
+  const isClosed = computed(() => {
+    const q = quiz.value;
+    if (!q || q.page !== "play") return false;
+    return q.phase === "closed" || (q.phase === "answering" && remainingSec.value === 0);
+  });
   const answerStatus = computed<QuizAnswerStatus>(() => {
     const answered = myAnswer.value !== null;
     if (isOpen.value) return answered ? "open-answered" : "open-unanswered";
@@ -184,5 +192,5 @@ export function useQuiz(session: PortalSession, options: QuizOptions): QuizState
     stopWatchRound();
   });
 
-  return { quiz, remainingSec, myAnswer, canAnswer, answerStatus, answering, message, optionLabel, correctLabel, verdictText, answer };
+  return { quiz, remainingSec, myAnswer, canAnswer, answerStatus, isClosed, answering, message, optionLabel, correctLabel, verdictText, answer };
 }

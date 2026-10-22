@@ -137,16 +137,17 @@ test("参加者ポータル: 幅の掃引と実機プリセットで、どの画
   await check("景品抽選中", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("景品抽選中") }], true);
   await host.publish({ jackpot: { ...jackpot, stage: "prize-revealed", member: `${LONG}${LONG}`, memberId: "rp-other-0", prize: `特賞 ${LONG}${LONG}` } });
   await check("景品が決まる", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("winner-prize")).toContainText("特賞") }], true);
-  // 自分が当選: 全面の「あたりました!」が、どの端末でも画面に収まり、閉じられる
+  // 自分が当選: 全面の「あたりました!」が、どの端末でも画面に収まる(閉じるボタンは無く、景品抽選に進めば自動で消える)
   await host.publish({ jackpot: { ...jackpot, stage: "member-revealed", member: LONG_NAME, memberId: ids[0], prize: null } });
   for (const c of clients) {
     await go(c.page, "/p");
     await expect(c.page.getByTestId("you-won")).toBeVisible();
-    await expect(c.page.getByTestId("you-won-close")).toBeInViewport();
+    await expect(c.page.getByTestId("you-won-name")).toBeInViewport();
+    await expect(c.page.getByTestId("you-won-close")).toHaveCount(0);
   }
   await check("自分が当選", [{ path: "/p", ready: (p) => expect(p.getByTestId("you-won-name")).toContainText("さん") }], true);
+  await host.publish({ jackpot: { ...jackpot, stage: "prize", member: LONG_NAME, memberId: ids[0], prize: null } });
   for (const c of clients) {
-    await c.page.getByTestId("you-won-close").click();
     await expect(c.page.getByTestId("you-won")).toBeHidden();
   }
 

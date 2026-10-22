@@ -166,12 +166,19 @@ test.describe("ホスト・管理・参加者の通し", () => {
     await host.page.goto(`/#/session/host/${id}`);
     await expect(host.page.locator(".host-view__title")).toContainText("自動復帰会場");
 
-    // エンディングを映す(画面設定が空のe2e環境では、すぐに最後まで流れ終わる)。管理端末は何も押さない。
+    // イベントを開催しておく(エンディングが終わってロビーへ戻ると、自動で終了する)
     await openAdvanced(adminDev.page);
+    await adminDev.page.getByTestId("event-title").fill("自動終了イベント");
+    await adminDev.page.getByRole("button", { name: "イベントを開始" }).click();
+    await expect(adminDev.page.getByTestId("event-state")).toContainText("自動終了イベント");
+
+    // エンディングを映す(画面設定が空のe2e環境では、すぐに最後まで流れ終わる)。管理端末は何も押さない。
     await adminDev.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();
     await expect.poll(() => route(host.page), { timeout: 30_000 }).toBe(`/session/host/${id}`);
     await expect(host.page.locator(".host-view__title")).toContainText("自動復帰会場");
     await expect(host.page.getByTestId("host-badge")).toContainText("・接続中");
+    // ロビーへ戻ったので、イベントは自動で終了している
+    await expect(adminDev.page.getByTestId("event-state")).toContainText("イベントは開催していません");
 
     await publishPortal(request, id, false);
     for (const d of [adminDev, host]) await d.context.close();
