@@ -128,7 +128,7 @@ test("ロック: waitLock は本物と同様にブロックし、更新が直列
 test("ロック: 取れなければ timeout の例外。実行が終わればロックは自動で解放される", () =>
   withSim({}, async (sim) => {
     const holder = value(sim, "holdLockForever");
-    await new Promise((r) => setTimeout(r, 80)); // holder がロックを取るのを待つ
+    while (sim.state.lockHolder === null) await new Promise((r) => setTimeout(r, 5)); // holder がロックを取るのを待つ
     assert.equal(await value(sim, "tryLockTimeout"), LOCK_TIMEOUT_MESSAGE);
     assert.equal(await holder, "held"); // releaseLock せずに終わった
     assert.equal(await value(sim, "tryLockTimeout"), "acquired");

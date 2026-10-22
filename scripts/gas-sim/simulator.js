@@ -90,6 +90,8 @@ export async function startSimulator(options) {
   const idle = [];
   /** @type {Array<(w: any) => void>} */
   const waiting = [];
+  /** 作った全ワーカー(実行中のものや、打ち切って捨てたものも、終了時に止める)。 */
+  const allSlots = new Set();
 
   /** 同期 RPC の 1 リクエストを処理して、応答をワーカーへ返す。 */
   async function handleCall(slot, msg) {
@@ -178,6 +180,8 @@ export async function startSimulator(options) {
       transferList: [port2],
     });
     const slot = { worker, i32: new Int32Array(signal), replyPort: port1, dead: false, onDone: null };
+    allSlots.add(slot);
+    worker.unref(); // 止め忘れがあっても、ワーカーだけが残ってプロセスが終わらないことが無いように
     worker.on("message", (msg) => {
       if (msg.type === "call") void handleCall(slot, msg);
       else if (msg.type === "done") slot.onDone?.(msg);
@@ -211,9 +215,11 @@ export async function startSimulator(options) {
           // 上限時間を超えた実行は打ち切る(ワーカーごと捨てて作り直す)
           stats.timeouts++;
           slot.dead = true;
+          allSlots.delete(slot);
           void slot.worker.terminate();
           resolve({ type: "done", ok: false, message: TIMEOUT_MESSAGE, killed: true });
         }, execLimitMs);
+        timer.unref(); // 上限時間の見張りだけが残ってプロセスが終わらないことが無いように
         slot.worker.postMessage({ type: "run", execId, fn, argJson });
       });
     } finally {
@@ -244,6 +250,7 @@ export async function startSimulator(options) {
     try {
       if (latencyMs > 0) await sleep(latencyMs * (0.75 + Math.random() * 0.5));
       const started = Date.now();
+      if (trace) console.error(`[gas-sim] start ${fn}`);
       const done = await runOnWorker(fn, arg === undefined ? null : JSON.stringify(arg));
       if (trace) {
         const clip = (v, n = 300) => String(v).slice(0, n);
@@ -326,9 +333,11 @@ export async function startSimulator(options) {
     inFlight: () => inFlight,
     async close() {
       closed = true;
-      await new Promise((r) => server.close(r));
+      // keep-alive の接続が残っていると close が終わらないので、先に切る
+      const stopped = new Promise((r) => server.close(r));
       server.closeAllConnections?.();
-      await Promise.all([...idle].map((s) => s.worker.terminate()));
+      await stopped;
+      await Promise.all([...allSlots].map((s) => s.worker.terminate()));
     },
   };
 }
