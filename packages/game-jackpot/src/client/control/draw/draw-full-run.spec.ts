@@ -16,10 +16,10 @@ function build(memberCount: number, prizeCount: number, weights?: (i: number) =>
     order: i + 1,
     weight: weights ? weights(i) : 10,
   }));
-  const { app, results } = createInMemoryDrawApp({ members, prizes, pool });
+  const { app, store } = createInMemoryDrawApp({ members, prizes, pool });
   return {
     service: app,
-    rows: results,
+    store,
     prizes,
     members,
     initializer: { initialize: (target: typeof prizes, plan?: KakuhenPlan) => app.initializeStateIfNeeded(target, plan) },
@@ -36,7 +36,7 @@ describe("通し抽選: 人数 × 景品数マトリクス", () => {
   for (const m of MEMBER_COUNTS) {
     for (const p of PRIZE_COUNTS) {
       it(`メンバー${m}人 × 景品${p}件: 例外なく引き切り、重複当選がない`, async () => {
-        const { service, rows, prizes, initializer } = build(m, p, (i) => (i % 3 === 0 ? 100 : i % 3 === 1 ? 1 : undefined));
+        const { service, store, prizes, initializer } = build(m, p, (i) => (i % 3 === 0 ? 100 : i % 3 === 1 ? 1 : undefined));
         await initializer.initialize(prizes as any);
         const draws = Math.min(m, p);
         const wonMembers = new Set<string>();
@@ -60,10 +60,8 @@ describe("通し抽選: 人数 × 景品数マトリクス", () => {
           wonMembers.add(result.wonMember!.id);
           wonPrizes.add(result.wonPrize!.id);
         }
-        // 確定していない予約枠が残らない(景品 <= メンバーなら全景品が当選済み)
-        const pending = rows.filter((r) => !r.wonMember);
-        if (p <= m) expect(pending.length).toBe(0);
-        expect(rows.filter((r) => r.wonMember).length).toBe(draws);
+        // 確定した件数が引いた回数と一致する(景品 <= メンバーなら全景品が当選済み)
+        expect((await store.results()).length).toBe(draws);
       });
     }
   }
@@ -80,13 +78,13 @@ describe("通し抽選: 異常な入力", () => {
   });
 
   it("全員当選後の追加抽選は明示的なエラーになり、結果を壊さない", async () => {
-    const { service, rows, prizes, initializer } = build(2, 5);
+    const { service, store, prizes, initializer } = build(2, 5);
     await initializer.initialize(prizes as any);
     await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
     await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
-    const before = rows.length;
+    const before = (await store.results()).length;
     await expect(service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 })).rejects.toThrow();
-    expect(rows.length).toBe(before);
+    expect((await store.results()).length).toBe(before);
   });
 });
 
@@ -218,14 +216,14 @@ describe("通し抽選: 確変にする回の計画", () => {
 
   /** 景品 `prizeCount` 件を引き切り、何回目が確変だったか（1始まり）を返す。 */
   const kakuhenDraws = async (prizeCount: number, plan?: KakuhenPlan) => {
-    const { service, prizes, initializer, rows } = build(prizeCount + 3, prizeCount);
+    const { service, prizes, initializer, store } = build(prizeCount + 3, prizeCount);
     await initializer.initialize(prizes as never, plan);
     const flags: boolean[] = [];
     for (let i = 0; i < prizeCount; i++) {
       const { prizeRes } = await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 });
       flags.push(prizeRes.isKakuhen === true);
     }
-    return { draws: flags.flatMap((f, i) => (f ? [i + 1] : [])), reserved: rows.filter((r) => !r.wonMember).length };
+    return { draws: flags.flatMap((f, i) => (f ? [i + 1] : [])), reserved: (await store.plan())!.reservedPrizeIds.length - (await store.results()).filter((r) => r.isKakuhen).length };
   };
 
   it("計画を渡さなければ、これまでどおり景品の真ん中あたりで続けて2回", async () => {

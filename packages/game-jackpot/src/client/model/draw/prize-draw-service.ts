@@ -5,6 +5,9 @@ import type { Member } from "../member/member";
 import { MathRandomProvider } from "../common/math-random-provider";
 import { NoReservedPrizesError } from "../errors";
 
+/** 確定済みの抽選のうち、景品の側だけ見る。 */
+type WonPrizes = { wonPrize?: { id: string } | null }[];
+
 /** 景品抽選。残っている景品から、景品の重みに応じて1つを選ぶ。 */
 @injectable()
 export class PrizeDrawService {
@@ -19,69 +22,39 @@ export class PrizeDrawService {
     this.rand = rand;
   }
 
-  /**
-   * Filter out prizes that have already been assigned in draw results.
-   */
-  getAvailablePrizes(
-    prizes: Prize[],
-    results: { wonPrize?: Prize | null; wonMember?: any }[]
-  ): Prize[] {
-    // Exclude only prizes that are actually assigned to a winner.
-    // Reserved entries keep the prize available until a member is attached.
-    const assignedPrizeIds = results.reduce((set, r) => {
-      const hasWinner = !!r.wonMember;
-      const hasPrizeId = !!r.wonPrize?.id;
-      const isAssigned = hasWinner && hasPrizeId;
-      if (isAssigned) {
-        set.add(r.wonPrize!.id);
-      }
-      return set;
-    }, new Set<string>());
-    const getAvailablePrizes = prizes.filter(
-      (p) => !assignedPrizeIds.has(p.id)
-    );
-    return getAvailablePrizes;
+  private static wonIds(results: WonPrizes): Set<string> {
+    return new Set(results.map((r) => r.wonPrize?.id).filter((id): id is string => !!id));
   }
 
   /**
-   * 通常抽選で引いてよい景品。当選済みに加えて、確変用に予約済み(当選者未確定)の景品も除く。
-   * 予約景品を通常抽選で引くと、後の確変抽選で同じ景品が重複して当選してしまう。
+   * 通常抽選で引いてよい景品。当選済みに加えて、確変のために取り置いた景品も除く。
+   * 取り置いた景品を通常抽選で引くと、後の確変抽選で同じ景品が重複して当選してしまう。
    */
-  getDrawablePrizes(
-    prizes: Prize[],
-    results: { wonPrize?: Prize | null }[]
-  ): Prize[] {
-    const heldIds = new Set(
-      results.map((r) => r.wonPrize?.id).filter((id): id is string => !!id)
-    );
-    return prizes.filter((p) => !heldIds.has(p.id));
+  getDrawablePrizes(prizes: Prize[], results: WonPrizes, reservedPrizeIds: readonly string[] = []): Prize[] {
+    const held = PrizeDrawService.wonIds(results);
+    for (const id of reservedPrizeIds) held.add(id);
+    return prizes.filter((p) => !held.has(p.id));
   }
 
-  selectRandomReserved<T extends { drawId: string }>(reservedResults: T[]): T {
-    if (!reservedResults || reservedResults.length === 0)
-      throw new NoReservedPrizesError("No reserved results to select from");
-    const idx = this.rand.nextInt(reservedResults.length);
-    return reservedResults[idx];
+  /** 取り置いた景品のうち、まだ当選していないもの(確変で当てる景品の候補)。 */
+  getUnusedReservedPrizes(prizes: Prize[], results: WonPrizes, reservedPrizeIds: readonly string[]): Prize[] {
+    const won = PrizeDrawService.wonIds(results);
+    return prizes.filter((p) => reservedPrizeIds.includes(p.id) && !won.has(p.id));
+  }
+
+  /** 候補から1つを選ぶ。空なら例外。 */
+  selectRandomReserved<T>(reserved: T[]): T {
+    if (!reserved || reserved.length === 0) throw new NoReservedPrizesError("No reserved prizes to select from");
+    return reserved[this.rand.nextInt(reserved.length)];
   }
 
   /**
-   * Calculate remaining prizes by excluding assigned prize ids from results.
-   * This is a pure function and helps move filtering logic out of the application layer.
+   * 当選していない景品(取り置きの景品も含む)。景品の残りの数え方はこれ1つ。
+   * 確定済みの抽選は必ず当選者がいるので、結果に出てくる景品がそのまま「当選済み」。
    */
-  getRemainingPrizes(
-    prizes: Prize[],
-    results: { wonPrize?: Prize | null; wonMember?: any }[]
-  ): Prize[] {
-    const assignedPrizeIds = results.reduce((set, r) => {
-      const hasWinner = !!r.wonMember;
-      const hasPrizeId = !!r.wonPrize?.id;
-      const isAssigned = hasWinner && hasPrizeId;
-      if (isAssigned) {
-        set.add(r.wonPrize!.id);
-      }
-      return set;
-    }, new Set<string>());
-    return prizes.filter((p) => !assignedPrizeIds.has(p.id));
+  getRemainingPrizes(prizes: Prize[], results: WonPrizes): Prize[] {
+    const won = PrizeDrawService.wonIds(results);
+    return prizes.filter((p) => !won.has(p.id));
   }
 
   pickRandomPrizeFrom(prizes: Prize[]): Prize | null {
@@ -110,6 +83,12 @@ export class PrizeDrawService {
     return arr.slice(0, requiredSize).map((p) => p.id);
   }
 
+  /** 当選景品の他に、見せ用のダミー景品のIDを `count` 個選ぶ(足りなければ重複して埋める)。 */
+  pickDummyPrizeIds(prizes: Prize[], winnerPrizeId: string, count: number): string[] {
+    const dummyPool = prizes.map((p) => p.id).filter((id) => id !== winnerPrizeId);
+    return this.getDummyPrize(dummyPool, count);
+  }
+
   drawPrize(opts: {
     prizes: Prize[];
     assignedPrizeIds: string[];
@@ -122,26 +101,18 @@ export class PrizeDrawService {
     if (available.length === 0) return null;
 
     const picked = this.weightedSelector.selectWeighted(available);
-    const dummyPool = prizes.map((p) => p.id).filter((id) => id !== picked.id);
     return {
       winnerPrizeId: picked.id,
-      dummyPrizeIds: this.getDummyPrize(dummyPool, opts.dummyCount),
+      dummyPrizeIds: this.pickDummyPrizeIds(prizes, picked.id, opts.dummyCount),
     };
   }
 
   /**
-   * Decide whether the current draw should use kakuhen (reserved) logic.
-   * This encapsulates the "total - remaining + 1" calculation and state check.
+   * 次の抽選を確変にするか。確変にする順番(timings。1始まり)に、「確定済みの件数 + 1」回目が含まれるか。
+   * 確定済みの件数はセッション全体の数(イベントを跨いで数える)。
    */
-  isKakuhenTurn(
-    prizes: Prize[],
-    results: { wonPrize?: Prize | null; wonMember?: any }[],
-    state: number[]
-  ): boolean {
-    const total = prizes.length;
-    const remaining = this.getRemainingPrizes(prizes, results).length;
-    const drawCount = total - remaining + 1;
-    return state.includes(drawCount);
+  isKakuhenTurn(committedCount: number, timings: readonly number[]): boolean {
+    return timings.includes(committedCount + 1);
   }
 
   private getDummyPrize(poolIds: string[], count: number): string[] {

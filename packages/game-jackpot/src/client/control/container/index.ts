@@ -17,14 +17,12 @@ import { MemberRepository } from "../../model/member/member-repository";
 import { AssetDataRepository } from "../../model/asset/asset-data-repository";
 import { PrizeRepository } from "../../model/prize/prize-repository";
 import { ScreenConfigRepository } from "../../model/screen-config/screen-config-repository";
-import { DrawResultRepository } from "../../model/draw/draw-result-repository";
 import { AssetDataService } from "../asset/asset-data-service";
 import { ScreenSettingsService } from "../screen-config/screen-settings-service";
-import { DrawResultService } from "../draw/draw-result-service";
-import { PrizeDrawStateRepository } from "../../model/draw/prize-draw-state-repository";
 import { MemberDrawService } from "../../model/draw/member-draw-service";
 import { PrizeDrawService } from "../../model/draw/prize-draw-service";
 import { WeightedSelector } from "../../model/draw/weighted-selector";
+import { DrawStoreProvider } from "../draw/draw-store-provider";
 import { DrawApplicationService } from "../draw/draw-application-service";
 import { DrawStateInitializer } from "../draw/draw-state-initializer";
 import { MathRandomProvider } from "../../model/common/math-random-provider";
@@ -60,17 +58,12 @@ export class Container {
     container.register(ScreenConfigRepository, {
       useClass: ScreenConfigRepository,
     });
-    container.register(DrawResultRepository, {
-      useClass: DrawResultRepository,
-    });
     container.register(AssetDataService, { useClass: AssetDataService });
     container.register(ScreenSettingsService, {
       useClass: ScreenSettingsService,
     });
-    container.register(DrawResultService, { useClass: DrawResultService });
-    container.register(PrizeDrawStateRepository, {
-      useClass: PrizeDrawStateRepository,
-    });
+    // 抽選状態の置き場の選択(セッションの結果ファイル / メモリだけ)。読み込んだ内容を持つのでアプリで1つ。
+    container.registerSingleton(DrawStoreProvider);
     container.register(MemberDrawService, { useClass: MemberDrawService });
     container.register(PrizeDrawService, { useClass: PrizeDrawService });
     container.register(WeightedSelector, { useClass: WeightedSelector });

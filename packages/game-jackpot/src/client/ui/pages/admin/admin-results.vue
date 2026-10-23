@@ -1,13 +1,22 @@
 <template>
     <div class="admin-section">
         <UiToolbar>
+            <label class="session-picker">
+                結果の保存先
+                <select v-model="selected" data-testid="results-source" @change="fetchData">
+                    <option v-for="s in sessions" :key="s.id" :value="s.id">{{ s.name }}{{ s.mode === 'demo' ? '(デモ)' : '' }}{{ s.status === 'closed' ? '(終了)' : '' }}</option>
+                    <option :value="REHEARSAL">リハーサル(このブラウザのメモリ。結果は保存されません)</option>
+                </select>
+            </label>
+            <UiButton @click="fetchData">読み直す</UiButton>
             <UiButton variant="danger" icon="restore" @click="openResetModal">結果をリセット</UiButton>
         </UiToolbar>
+        <p v-if="errorMessage" class="results-error" role="alert" data-testid="results-error">{{ errorMessage }}</p>
 
         <div class="results-summary">
             <div class="summary-item">
                 <h3>総抽選回数</h3>
-                <p>{{ totalDraws }}</p>
+                <p data-testid="total-draws">{{ totalDraws }}</p>
             </div>
             <div class="summary-item">
                 <h3>当選者数</h3>
@@ -22,9 +31,9 @@
         <h3>抽選結果一覧</h3>
         <DataTable :columns="drawColumns" :rows="drawRows" row-key="drawId" empty-text="抽選結果はありません">
             <template #cell-status="{ row }">
-                <span v-if="row.wonMember !== null" class="winner-badge">当選</span>
+                <span class="winner-badge">当選</span>
                 <span v-if="row.isKakuhen" class="kakuhen-badge">確変</span>
-                <span v-if="row.wonMember === null" class="reserved-badge">予約</span>
+                <span v-if="!row.revealed" class="reserved-badge">未公開</span>
             </template>
         </DataTable>
 
@@ -49,12 +58,15 @@
                     <span v-else>画像なし</span>
                 </div>
             </template>
+            <template #cell-reserved="{ row }">
+                <span v-if="row.reserved" class="reserved-badge" data-testid="reserved-badge">確変用に取り置き</span>
+            </template>
         </DataTable>
     </div>
 
     <UiDialog :model-value="showResetModal" title="抽選結果をリセット" size="sm" danger confirm-label="リセット"
         @confirm="confirmReset" @close="showResetModal = false">
-        <p class="message">全ての抽選結果を削除し、景品の当選フラグをリセットします。この操作は取り消せません。続行しますか？</p>
+        <p class="message">選んだ保存先の抽選結果と確変の予定を削除します(参加者のポータルの当選履歴も消えます)。この操作は取り消せません。続行しますか？</p>
     </UiDialog>
 </template>
 
@@ -63,28 +75,45 @@ import { DataTable, UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { container } from 'tsyringe';
-import { HostAgent } from '@octopus/session-hub';
-import { DrawResultService } from '@control/draw/draw-result-service';
-import { PrizeService } from '@control/prize/prize-service';
-import type { DrawResultDto } from '@control/draw/dto/draw-result-dto';
+import { HostAgent, ISessionHubApiToken } from '@octopus/session-hub';
+import type { JackpotState, SessionHubApi, SessionSummary } from '@octopus/session-hub';
 import type { Prize } from '../../../model/prize/prize';
 import type { MemberDto } from '@control/member/dto/member-dto';
 import { MemberRepository } from '@model/member/member-repository';
 import { PrizeRepository } from '@model/prize/prize-repository';
 import { AssetDataService } from '@control/asset/asset-data-service';
-import { PrizeDrawStateRepository } from '@model/draw/prize-draw-state-repository';
+import { DrawStoreProvider } from '@control/draw/draw-store-provider';
 
-const drawResultService = container.resolve(DrawResultService);
-const prizeService = container.resolve(PrizeService);
+/** 結果の保存先の選択肢「リハーサル」の値。 */
+const REHEARSAL = '';
+
+/** 表示用の1行(サーバーの JackpotDraw と、メモリのリハーサルの両方をこの形にする)。 */
+interface Row {
+    drawId: string;
+    memberId: string;
+    memberName: string;
+    prizeId: string;
+    prizeName: string;
+    isKakuhen: boolean;
+    atMs: number;
+    revealed: boolean;
+}
+
 const memberRepo = container.resolve(MemberRepository);
 const prizeRepo = container.resolve(PrizeRepository);
 const assetService = container.resolve(AssetDataService);
-const prizeDrawStateRepository = container.resolve<PrizeDrawStateRepository>(PrizeDrawStateRepository);
+const drawStores = container.resolve(DrawStoreProvider);
+const hubApi = (): SessionHubApi | null => (container.isRegistered(ISessionHubApiToken) ? container.resolve<SessionHubApi>(ISessionHubApiToken) : null);
+const hostAgent = (): HostAgent | null => (container.isRegistered(HostAgent) ? container.resolve(HostAgent) : null);
 
-const drawResults = ref<DrawResultDto[]>([]);
+const sessions = ref<SessionSummary[]>([]);
+const selected = ref<string>(REHEARSAL);
+const draws = ref<Row[]>([]);
+const reservedPrizeIds = ref<string[]>([]);
 const prizes = ref<Prize[]>([]);
 const members = ref<MemberDto[]>([]);
 const showResetModal = ref(false);
+const errorMessage = ref<string | null>(null);
 const imageUrls = ref(new Map<string, string>());
 
 const drawColumns: DataTableColumn[] = [
@@ -103,58 +132,41 @@ const prizeColumns: DataTableColumn[] = [
     { key: 'image', label: '画像' },
     { key: 'wins', label: '当選回数' },
     { key: 'remaining', label: '残り' },
+    { key: 'reserved', label: '取り置き' },
 ];
-const drawRows = computed(() =>
-    drawResults.value.map(r => ({ ...r, memberName: r.wonMember?.name || '不明', prizeName: r.wonPrize?.name || '不明', at: formatDate(r) }))
+
+const formatDate = (atMs: number) => {
+    const date = new Date(atMs);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
+const drawRows = computed(() => draws.value.map(r => ({ ...r, at: formatDate(r.atMs) })));
+
+const totalDraws = computed(() => draws.value.length);
+const winnersCount = computed(() => new Set(draws.value.map(r => r.memberId)).size);
+const remainingPrizes = computed(() => {
+    const won = new Set(draws.value.map(r => r.prizeId));
+    return prizes.value.filter(p => !won.has(p.id)).length;
+});
+
+const memberStats = computed(() =>
+    members.value.map(member => ({ ...member, wins: draws.value.filter(r => r.memberId === member.id).length }))
 );
 
-const totalDraws = computed(() => drawResults.value.length);
-const winnersCount = computed(() => drawResults.value.filter(r => r.wonMember !== null).length);
-const remainingPrizes = computed(() => {
-    const assignedPrizeIds = new Set(drawResults.value.filter(r => r.wonMember !== null).map(r => r.wonPrize?.id).filter(Boolean));
-    return prizes.value.length - assignedPrizeIds.size;
-});
-
-const memberStats = computed(() => {
-    const stats = members.value.map(member => {
-        const wins = drawResults.value.filter(r => r.wonMember?.id === member.id).length;
-        return {
-            ...member,
-            wins
-        };
-    });
-    return stats;
-});
-
-const prizeStats = computed(() => {
-    const stats = prizes.value.map(prize => {
-        const wins = drawResults.value.filter(r => r.wonPrize?.id === prize.id).length;
-        const remaining = drawResults.value.some(r => r.wonPrize?.id === prize.id && r.wonMember !== null) ? 0 : 1;
-        return {
-            ...prize,
-            wins,
-            remaining
-        };
-    });
-    return stats;
-}); const formatDate = (result: DrawResultDto) => {
-    const date = new Date(result.createdAt);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
-};
+const prizeStats = computed(() =>
+    prizes.value.map(prize => {
+        const wins = draws.value.filter(r => r.prizeId === prize.id).length;
+        return { ...prize, wins, remaining: wins > 0 ? 0 : 1, reserved: reservedPrizeIds.value.includes(prize.id) };
+    })
+);
 
 const loadImage = async (assetId?: string) => {
     if (!assetId || imageUrls.value.has(assetId)) return;
     try {
         const asset = await assetService.getAssetDataById(assetId);
         if (asset?.blob) {
-            const objectUrl = URL.createObjectURL(asset.blob);
-            imageUrls.value.set(assetId, objectUrl);
+            imageUrls.value.set(assetId, URL.createObjectURL(asset.blob));
         }
     } catch (error) {
         console.error('Failed to load image:', error);
@@ -165,59 +177,73 @@ const openResetModal = () => {
     showResetModal.value = true;
 };
 
-// ホストとして接続している端末なら、サーバーの結果ファイルの抽選(参加者のポータルの当選履歴を含む)も消す(失敗しても管理画面の操作は止めない)
-const resetOnServer = async () => {
-    if (!container.isRegistered(HostAgent)) return;
-    const agent = container.resolve(HostAgent);
-    if (!agent.active) return;
+const fromState = (state: JackpotState) => {
+    draws.value = state.draws.map(d => ({ ...d, revealed: d.revealedAtMs !== null }));
+    reservedPrizeIds.value = state.plan?.reservedPrizeIds ?? [];
+};
+
+/** 選んだ保存先(セッションの結果ファイル / リハーサル)の抽選状態を読む。 */
+const loadJackpot = async () => {
+    if (selected.value === REHEARSAL) {
+        const store = drawStores.rehearsal();
+        draws.value = (await store.results()).map(r => ({
+            drawId: r.drawId, memberId: r.wonMember?.id ?? '', memberName: r.wonMember?.name ?? '不明',
+            prizeId: r.wonPrize?.id ?? '', prizeName: r.wonPrize?.name ?? '不明', isKakuhen: r.isKakuhen, atMs: r.createdAt, revealed: true,
+        }));
+        reservedPrizeIds.value = (await store.plan())?.reservedPrizeIds ?? [];
+        return;
+    }
+    const api = hubApi();
+    if (!api) throw new Error('セッションに接続できません');
+    fromState(await api.getJackpotState({ sessionId: selected.value }));
+};
+
+const fetchData = async () => {
+    errorMessage.value = null;
     try {
-        await agent.resetJackpot();
+        await loadJackpot();
+        prizes.value = await prizeRepo.getPrizes();
+        members.value = await memberRepo.getMembers();
     } catch (error) {
-        console.error('Failed to reset jackpot results on the server:', error);
+        console.error('Failed to fetch data:', error);
+        errorMessage.value = `結果を読み込めませんでした: ${(error as Error)?.message ?? error}`;
     }
 };
 
 const confirmReset = async () => {
     try {
-        const removedIds = drawResults.value.map(result => result.drawId);
-        await Promise.all(removedIds.map(drawId => drawResultService.deleteDrawResult(drawId)));
-        await resetOnServer();
-        await prizeService.resetAllAssigned();
-        await prizeDrawStateRepository.clearState();
+        if (selected.value === REHEARSAL) {
+            await drawStores.rehearsal().reset();
+        } else {
+            const agent = hostAgent();
+            // このホスト端末が接続しているセッションなら、参加者への通知(rev)とメモリの状態も合わせて更新する
+            if (agent?.active && agent.connection.state.session?.id === selected.value) await agent.resetJackpot();
+            else await hubApi()!.resetJackpot({ sessionId: selected.value });
+            await drawStores.current().load().catch(() => undefined);
+        }
         await fetchData();
         showResetModal.value = false;
     } catch (error) {
         console.error('Failed to reset draw results:', error);
-    }
-};
-
-const fetchData = async () => {
-    try {
-        drawResults.value = await drawResultService.getDrawResults();
-        prizes.value = await prizeRepo.getPrizes();
-        members.value = await memberRepo.getMembers();
-        console.log("[AdminResults] fetchData: drawResults", drawResults.value.length, "prizes", prizes.value.length, "members", members.value.length);
-        console.log("[AdminResults] drawResults sample:", drawResults.value.slice(0, 5).map(r => ({ drawId: r.drawId, wonMember: r.wonMember, wonPrizeId: r.wonPrize?.id, isKakuhen: r.isKakuhen })));
-    } catch (error) {
-        console.error('Failed to fetch data:', error);
+        errorMessage.value = `リセットできませんでした: ${(error as Error)?.message ?? error}`;
     }
 };
 
 onMounted(async () => {
+    try {
+        sessions.value = (await hubApi()?.listSessions()) ?? [];
+    } catch (error) {
+        console.error('Failed to list sessions:', error);
+    }
+    // 既定は、このホスト端末が接続しているセッション。無ければ進行中の最初のセッション、それも無ければリハーサル
+    const agent = hostAgent();
+    const hosted = agent?.active ? agent.connection.state.session?.id : undefined;
+    selected.value = hosted ?? sessions.value.find(s => s.status !== 'closed')?.id ?? REHEARSAL;
     await fetchData();
-    const promises = [];
-    for (const member of members.value) {
-        if (member.photoAssetId) promises.push(loadImage(member.photoAssetId));
-    }
-    for (const prize of prizes.value) {
-        if (prize.imageAssetId) promises.push(loadImage(prize.imageAssetId));
-    }
-    await Promise.all(promises);
-    // Add storage event listener for debugging
-    window.addEventListener('storage', (event) => {
-        console.log("[AdminResults] storage event detected:", event.key, event.newValue);
-        fetchData();
-    });
+    await Promise.all([
+        ...members.value.map(m => loadImage(m.photoAssetId)),
+        ...prizes.value.map(p => loadImage(p.imageAssetId)),
+    ]);
 });
 
 onUnmounted(() => {
@@ -234,6 +260,23 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.session-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.session-picker select {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.results-error {
+    color: var(--ui-danger, #e5484d);
+}
+
 .results-summary {
     display: flex;
     flex-wrap: wrap;

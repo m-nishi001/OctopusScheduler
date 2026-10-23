@@ -45,7 +45,7 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
     const settled = vi.fn();
     const flow = new DrawFlowController({
       queue,
-      progress: vi.fn(async () => toDrawProgress(0, 0, 1)), // サイクルが終わったら止める(景品が尽きた)
+      progress: vi.fn(async () => toDrawProgress(0, 0, 1, 3)), // サイクルが終わったら止める(景品が尽きた)
       drawNextCycle: async () => buildCycle(ctx, isKakuhen),
       onDrawError: vi.fn(),
       onStepError: vi.fn(),

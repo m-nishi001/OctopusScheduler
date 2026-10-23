@@ -5,7 +5,7 @@
  * 当選者は「停止演出が終わって画面に見える」まで公開しない(参加者のスマホに
  * 先にネタバレさせない)。サイズは小さく保つ(RoomState の上限は約6KB)。
  */
-import type { JackpotDrawInput, JackpotPublished, JackpotStage } from "@octopus/session-hub";
+import type { JackpotPublished, JackpotStage } from "@octopus/session-hub";
 
 export const JACKPOT_STOP_COMMAND = "jackpot.stopRoulette";
 
@@ -79,28 +79,14 @@ export function buildJackpotDescriptionState(index: number, total: number): Jack
 }
 
 /**
- * 参加者のポータルの「当選履歴」に残す1件を作る。当選者と賞品の**両方が画面に見えた後**でなければ null
+ * 参加者のポータルの「当選履歴」に出してよい(公開する)抽選の drawId。当選者と賞品の**両方が画面に見えた後**でなければ null
  * (抽選の途中で参加者のスマホに結果が出てしまうのを防ぐ。公開用の状態と同じ基準)。
  */
-export function buildJackpotDraw(
-  result: {
-    drawId: string;
-    wonMember: { id: string; name: string } | null;
-    wonPrize: { id: string; name: string } | null;
-    isKakuhen: boolean;
-    createdAt: number;
-  } | null,
+export function revealableDrawId(
+  result: { drawId: string; wonMember: { id: string } | null; wonPrize: { id: string } | null } | null,
   tracker: RevealTracker
-): JackpotDrawInput | null {
+): string | null {
   if (!result || !result.wonMember || !result.wonPrize || !result.wonMember.id) return null;
   if (!tracker.memberRevealed || !tracker.prizeRevealed) return null;
-  return {
-    drawId: result.drawId,
-    memberId: result.wonMember.id,
-    memberName: result.wonMember.name,
-    prizeId: result.wonPrize.id,
-    prizeName: result.wonPrize.name,
-    isKakuhen: result.isKakuhen,
-    atMs: result.createdAt,
-  };
+  return result.drawId;
 }
