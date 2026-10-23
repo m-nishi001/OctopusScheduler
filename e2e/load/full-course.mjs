@@ -576,7 +576,8 @@ async function jackpot() {
 
     await host.publishSlice("jackpot", stage("prize-revealed", { member: winner.name, memberId: winner.id, prize: `景品${i + 1}` }), []);
     const draw = { drawId: `ld${runId}-d${i + 1}`, memberId: winner.id, memberName: winner.name, prizeId: `p${i + 1}`, prizeName: `景品${i + 1}`, isKakuhen: false, atMs: Date.now() };
-    await admin("sessionHub_putJackpotDraw", { sessionId, draw });
+    await admin("sessionHub_commitJackpotDraw", { sessionId, draw });
+    await admin("sessionHub_revealJackpotDraw", { sessionId, drawId: draw.drawId });
     draws.push({ draw, winner });
   }
   await host.publishSlice("jackpot", { page: "main-draw", stage: "ended", canStop: false, member: null, memberId: null, prize: null });
@@ -619,7 +620,9 @@ async function results() {
     for (let k = 0; k < 5; k++) {
       await sleep(150);
       await Promise.all(quizResults.map(({ result }) => admin("sessionHub_putQuizResult", { sessionId, result })));
-      await admin("sessionHub_putJackpotDraw", { sessionId, draw: { ...draws[0].draw, drawId: `ld${runId}-x${k}`, atMs: Date.now() } });
+      const extra = { ...draws[0].draw, drawId: `ld${runId}-x${k}`, memberId: `ld${runId}-x${k}`, prizeId: `ld${runId}-xp${k}`, atMs: Date.now() };
+      await admin("sessionHub_commitJackpotDraw", { sessionId, draw: extra });
+      await admin("sessionHub_revealJackpotDraw", { sessionId, drawId: extra.drawId });
     }
   })();
   const second = await readAll("書き込み中");

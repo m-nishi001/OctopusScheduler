@@ -17,7 +17,10 @@ import type {
   SubmitAnswerResult,
   CloseSessionArgs,
   CreateSessionArgs,
-  DeleteJackpotDrawArgs,
+  CommitJackpotDrawArgs,
+  EnsureJackpotPlanArgs,
+  EnsureJackpotPlanResult,
+  GetJackpotStateArgs,
   GetResultsArgs,
   IssueCommandArgs,
   IssueCommandResult,
@@ -28,12 +31,13 @@ import type {
   PollResult,
   PublishStateArgs,
   PublishStateResult,
-  PutJackpotDrawArgs,
   PutQuizResultArgs,
+  ResetJackpotArgs,
   ResultsRevResult,
+  RevealJackpotDrawArgs,
   SetPortalSessionArgs,
 } from "../shared/protocol";
-import type { ResultsView } from "../shared/results";
+import type { JackpotState, ResultsView } from "../shared/results";
 import type { SessionMeta, SessionSummary } from "../shared/session-types";
 
 export const SESSION_HUB_PREFIX = "sessionHub" as const;
@@ -54,8 +58,11 @@ export const SESSION_HUB_ENDPOINTS = [
   "getAnswers",
   "listParticipants",
   "putQuizResult",
-  "putJackpotDraw",
-  "deleteJackpotDraw",
+  "getJackpotState",
+  "ensureJackpotPlan",
+  "commitJackpotDraw",
+  "revealJackpotDraw",
+  "resetJackpot",
   "getResults",
   "getWebAppUrl",
 ] as const;
@@ -83,10 +90,16 @@ export interface SessionHubApi {
   listParticipants(args: ListParticipantsArgs, options?: ApiCallOptions): Promise<ListParticipantsResult>;
   /** クイズ1ラウンドの結果を保存する(管理者のみ)。内容が変わったときだけ rev が進む。 */
   putQuizResult(args: PutQuizResultArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
-  /** ジャックポットの抽選結果を1件保存する(管理者のみ)。 */
-  putJackpotDraw(args: PutJackpotDrawArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
-  /** 抽選結果を取り消す(管理者のみ)。 */
-  deleteJackpotDraw(args: DeleteJackpotDrawArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
+  /** ジャックポットの抽選状態(未公開の行を含む全件・確変の予定・rev)を返す(管理者のみ)。 */
+  getJackpotState(args: GetJackpotStateArgs, options?: ApiCallOptions): Promise<JackpotState>;
+  /** 確変の予定を、まだ無ければ保存する。返るのは保存されている予定(並行して呼ばれても先に保存されたものが勝つ)。管理者のみ。 */
+  ensureJackpotPlan(args: EnsureJackpotPlanArgs, options?: ApiCallOptions): Promise<EnsureJackpotPlanResult>;
+  /** 抽選結果を未公開で確定する(管理者のみ)。矛盾すれば JACKPOT_CONFLICT。同じ内容の再送は成功。rev は進まない。 */
+  commitJackpotDraw(args: CommitJackpotDrawArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
+  /** 確定済みの抽選を公開する(管理者のみ)。何度呼んでも同じ。公開で rev が進む。 */
+  revealJackpotDraw(args: RevealJackpotDrawArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
+  /** 抽選の結果と確変の予定を消す(管理者のみ。クイズの結果はそのまま)。 */
+  resetJackpot(args: ResetJackpotArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
   /** 結果を、ログイン中のメンバー向けの見せ方で返す(ログイン済みなら誰でも)。 */
   getResults(args: GetResultsArgs, options?: ApiCallOptions): Promise<ResultsView>;
   /** GAS ではデプロイURL(参加者向けQRの基点)。それ以外・取得不可は null。 */

@@ -149,7 +149,11 @@ const quizResult = { roundKey: "q1:live", quizId: "q1", title: "第1問", correc
 const put1 = await rpc("sessionHub_putQuizResult", { sessionId: meta.id, result: quizResult }, ADMIN_TOKEN);
 const put2 = await rpc("sessionHub_putQuizResult", { sessionId: meta.id, result: quizResult }, ADMIN_TOKEN);
 check("結果を保存でき、同じ内容の再送では rev が進まない", put1.rev === 1 && put2.rev === 1, JSON.stringify([put1, put2]));
-await rpc("sessionHub_putJackpotDraw", { sessionId: meta.id, draw: { drawId: "d1", memberId: "smoke-taro", memberName: "太郎", prizeId: "p1", prizeName: "1等", isKakuhen: false, atMs: Date.now() } }, ADMIN_TOKEN);
+const jackpotDraw = { drawId: "d1", memberId: "smoke-taro", memberName: "太郎", prizeId: "p1", prizeName: "1等", isKakuhen: false, atMs: Date.now() };
+const commit1 = await rpc("sessionHub_commitJackpotDraw", { sessionId: meta.id, draw: jackpotDraw }, ADMIN_TOKEN);
+check("確定しただけでは rev が進まない", commit1.rev === 1, JSON.stringify(commit1));
+check("確定しただけの抽選は参加者に見えない", (await rpc("sessionHub_getResults", { sessionId: meta.id }, taroToken)).jackpot.draws.length === 0);
+await rpc("sessionHub_revealJackpotDraw", { sessionId: meta.id, drawId: "d1" }, ADMIN_TOKEN);
 const view = await rpc("sessionHub_getResults", { sessionId: meta.id }, taroToken);
 check("参加者は自分向けの結果を読める", view.rev === 2 && view.quiz.rounds[0].me.rank === 1 && view.jackpot.myWins === 1 && !JSON.stringify(view).includes('"memberId"'), JSON.stringify(view).slice(0, 200));
 try {
@@ -164,8 +168,8 @@ try {
 } catch (e) {
   check("未ログインは結果を読めない", /Unauthorized/.test(e.message), e.message);
 }
-await rpc("sessionHub_deleteJackpotDraw", { sessionId: meta.id, drawId: "d1" }, ADMIN_TOKEN);
-check("抽選結果を削除すると取得結果から消える", (await rpc("sessionHub_getResults", { sessionId: meta.id }, taroToken)).jackpot.draws.length === 0);
+await rpc("sessionHub_resetJackpot", { sessionId: meta.id }, ADMIN_TOKEN);
+check("抽選をリセットすると取得結果から消える", (await rpc("sessionHub_getResults", { sessionId: meta.id }, taroToken)).jackpot.draws.length === 0);
 
 // セッション一覧 / 終了
 const list = await rpc("sessionHub_listSessions", undefined, ADMIN_TOKEN);

@@ -5,7 +5,7 @@
  * 当選者は「停止演出が終わって画面に見える」まで公開しない(参加者のスマホに
  * 先にネタバレさせない)。サイズは小さく保つ(RoomState の上限は約6KB)。
  */
-import type { JackpotDraw, JackpotPublished, JackpotStage } from "@octopus/session-hub";
+import type { JackpotDrawInput, JackpotPublished, JackpotStage } from "@octopus/session-hub";
 
 export const JACKPOT_STOP_COMMAND = "jackpot.stopRoulette";
 
@@ -91,12 +91,12 @@ export function buildJackpotDraw(
     createdAt: number;
   } | null,
   tracker: RevealTracker
-): JackpotDraw | null {
-  if (!result || !result.wonMember || !result.wonPrize) return null;
+): JackpotDrawInput | null {
+  if (!result || !result.wonMember || !result.wonPrize || !result.wonMember.id) return null;
   if (!tracker.memberRevealed || !tracker.prizeRevealed) return null;
   return {
     drawId: result.drawId,
-    memberId: result.wonMember.id || null,
+    memberId: result.wonMember.id,
     memberName: result.wonMember.name,
     prizeId: result.wonPrize.id,
     prizeName: result.wonPrize.name,

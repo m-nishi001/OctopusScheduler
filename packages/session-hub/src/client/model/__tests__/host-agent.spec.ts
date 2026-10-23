@@ -161,16 +161,31 @@ describe("HostAgent: 結果の保存と更新通知", () => {
     expect(view.jackpot.draws[0].prizeName).toBe("1等");
   });
 
-  it("同じ内容の再保存では rev が進まず、取り消すと進む", async () => {
+  it("同じ内容の再保存では rev が進まず、リセットすると進む", async () => {
     const { host, agent } = await setup();
     await agent.recordJackpotDraw(draw);
     await agent.recordJackpotDraw(draw);
     await tick(3000);
     expect(host.conn.state.roomState?.data.results).toEqual({ rev: 1 });
-    await agent.removeJackpotDraw("d1");
+    await agent.resetJackpot();
     await tick(3000);
     expect(host.conn.state.roomState?.data.results).toEqual({ rev: 2 });
     expect((await host.conn.getResults()).jackpot.draws).toEqual([]);
+  });
+
+  it("抽選の確定(commit)では rev を公開せず、公開(reveal)で公開する。予定は先に保存されたものが返る", async () => {
+    const { host, agent } = await setup();
+    const plan = await agent.ensureJackpotPlan({ kakuhenTimings: [2], reservedPrizeIds: ["k"] });
+    expect(await agent.ensureJackpotPlan({ kakuhenTimings: [9], reservedPrizeIds: [] })).toEqual(plan);
+    await agent.commitJackpotDraw(draw);
+    await tick(3000);
+    expect(host.conn.state.roomState?.data.results).toBeUndefined();
+    expect((await agent.getJackpotState()).draws).toMatchObject([{ drawId: "d1", revealedAtMs: null }]);
+    expect((await host.conn.getResults()).jackpot.draws).toEqual([]);
+    await agent.revealJackpotDraw("d1");
+    await tick(3000);
+    expect(host.conn.state.roomState?.data.results).toEqual({ rev: 1 });
+    expect((await host.conn.getResults()).jackpot.draws).toHaveLength(1);
   });
 
   it("ホストを再読み込みしても、保存済みの rev を公開し直す", async () => {

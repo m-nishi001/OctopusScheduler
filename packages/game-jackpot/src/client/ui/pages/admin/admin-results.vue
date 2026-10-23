@@ -165,18 +165,15 @@ const openResetModal = () => {
     showResetModal.value = true;
 };
 
-// ホストとして接続している端末なら、参加者のポータルの「当選履歴」からも消す(失敗しても管理画面の操作は止めない)
-const removeFromPortal = async (drawIds: string[]) => {
+// ホストとして接続している端末なら、サーバーの結果ファイルの抽選(参加者のポータルの当選履歴を含む)も消す(失敗しても管理画面の操作は止めない)
+const resetOnServer = async () => {
     if (!container.isRegistered(HostAgent)) return;
     const agent = container.resolve(HostAgent);
     if (!agent.active) return;
-    for (const drawId of drawIds) {
-        try {
-            await agent.removeJackpotDraw(drawId);
-        } catch (error) {
-            console.error('Failed to remove draw from portal results:', error);
-            return;
-        }
+    try {
+        await agent.resetJackpot();
+    } catch (error) {
+        console.error('Failed to reset jackpot results on the server:', error);
     }
 };
 
@@ -184,7 +181,7 @@ const confirmReset = async () => {
     try {
         const removedIds = drawResults.value.map(result => result.drawId);
         await Promise.all(removedIds.map(drawId => drawResultService.deleteDrawResult(drawId)));
-        await removeFromPortal(removedIds);
+        await resetOnServer();
         await prizeService.resetAllAssigned();
         await prizeDrawStateRepository.clearState();
         await fetchData();

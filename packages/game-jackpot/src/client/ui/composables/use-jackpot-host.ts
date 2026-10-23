@@ -1,7 +1,7 @@
 import { onScopeDispose } from "vue";
 import { container } from "tsyringe";
 import { HostAgent, JACKPOT_NS } from "@octopus/session-hub";
-import type { JackpotDraw, JackpotPublished } from "@octopus/session-hub";
+import type { JackpotDrawInput, JackpotPublished } from "@octopus/session-hub";
 import { JACKPOT_STOP_COMMAND } from "@model/jackpot-host-state";
 
 export interface JackpotHostHandlers {
@@ -17,7 +17,7 @@ export interface JackpotHost {
   /** いまの抽選の状態を公開する。canStop の間だけ参加者のスマホに停止ボタンが出る。 */
   publish(state: JackpotPublished): void;
   /** 抽選結果を保存して、参加者のポータルへ知らせる(失敗しても抽選は止めない。数回だけ再試行する)。 */
-  recordDraw(draw: JackpotDraw, sleep?: (ms: number) => Promise<void>): Promise<boolean>;
+  recordDraw(draw: JackpotDrawInput, sleep?: (ms: number) => Promise<void>): Promise<boolean>;
 }
 
 const NAMESPACE = JACKPOT_NS;
