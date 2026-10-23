@@ -171,6 +171,11 @@ jobs:
           - name: gas-6of6
             args: --target gas ui -- $(node scripts/e2e-shards.js gas 6/6)
     name: e2e (${{ matrix.name }})
+    # ブラウザと OS の依存ライブラリが入った公式イメージ。以前は毎回 apt で依存ライブラリを入れていたが、
+    # apt のミラーが詰まって 1 ジョブ 10 分以上止まることがあった(測定)ので、apt を使わない。タグは @playwright/test に合わせる
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.0-noble
+      options: --init --ipc=host
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -182,32 +187,11 @@ jobs:
         with:
           name: dist
           path: dist
-      # ブラウザ本体はキャッシュし、OS の依存ライブラリは毎回入れる(キャッシュできないため)
-      - name: Playwright のバージョン
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-        if: matrix.name != 'worker-smoke'
-      - uses: actions/cache@v4
-        id: playwright-cache
-        if: matrix.name != 'worker-smoke'
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      # OS の依存ライブラリ(apt)は毎回要る。apt のミラーが詰まると 10 分近く止まることがあった(測定)ので、
-      # apt 自身に短いタイムアウトと再試行を設定する(外から timeout で殺すと apt のロックが残って再試行できなくなる)。
-      # それでも詰まったら 6 分でジョブを落とす(再実行で直る)
-      - name: Playwright の OS 依存ライブラリ
-        if: matrix.name != 'worker-smoke'
-        timeout-minutes: 6
+      # イメージのタグと @playwright/test のバージョンがずれると、ブラウザが見つからず落ちる。その場合は分かる形で落とす
+      - name: Playwright のバージョンがコンテナイメージと一致すること
         run: |
-          printf 'Acquire::http::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99ci-timeouts >/dev/null
-          for attempt in 1 2 3; do
-            if npx playwright install-deps chromium; then exit 0; fi
-            echo "install-deps が失敗(試行 $attempt/3)"
-          done
-          exit 1
-      - run: npx playwright install chromium
-        if: matrix.name != 'worker-smoke' && steps.playwright-cache.outputs.cache-hit != 'true'
+          version="$(node -p "require('@playwright/test/package.json').version")"
+          test "$version" = "1.64.0" || { echo "::error::@playwright/test は $version ですが、ci.yml の container は v1.64.0 です。タグを合わせてください"; exit 1; }
       - run: npm run e2e -- ${{ matrix.args }}
       - name: E2E の失敗時の成果物(スクリーンショット・トレース)
         if: failure()
