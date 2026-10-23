@@ -128,8 +128,8 @@ test("(a) ホストを再読み込みしても、演出の途中だった抽選�
   await expect(s.admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
 
   // 演出し直し: 同じ当選者になる。引き直されていない(サーバーの確定は1件のまま)
-  await stepUntil(s.admin.page, async () => /当選者: 状態\d/.test(await s.admin.page.getByTestId("jackpot-state").innerText()), "当選者が見える(再読み込み後)");
-  await expect(s.admin.page.getByTestId("jackpot-state")).toContainText(`当選者: ${before[0].memberName}`);
+  // 再読み込み前の表示が残っている間に通り過ぎないよう、同じ当選者が(再び)見えるまで進める
+  await stepUntil(s.admin.page, async () => (await s.admin.page.getByTestId("jackpot-state").innerText()).includes(`当選者: ${before[0].memberName}`), "同じ当選者が見える(再読み込み後)");
   await stepUntil(s.admin.page, async () => (await revealedCount(request, s.sessionId)) === 1, "景品が見えて公開される");
   const after = (await serverState(request, s.sessionId)).draws;
   // 通信の遅い環境では、公開を確かめる間に次の抽選が確定していることがある。最初の抽選が引き直されず(同じ drawId・当選者・景品)、
@@ -185,14 +185,16 @@ test("(d) 管理画面の結果のリセットで、当選者・景品の記録�
   await openDraw(admin.page, host.page);
   await stepUntil(admin.page, async () => (await revealedCount(request, sessionId)) === 1, "1回目の抽選が公開される");
   const first = (await serverState(request, sessionId)).draws[0];
-  expect((await serverState(request, sessionId)).plan).not.toBeNull();
+  const plan = (await serverState(request, sessionId)).plan;
+  expect(plan).not.toBeNull();
 
   // 管理画面の結果ページ: セッションを選ぶと、そのセッションの抽選結果が見える。リセットする
   const results = await newDevice(browser, { signedIn: true });
   await results.page.goto("/#/execute/jackpot-admin/results");
   await results.page.getByTestId("results-source").selectOption(sessionId);
   await expect(results.page.getByTestId("total-draws")).toHaveText("1");
-  await expect(results.page.getByTestId("reserved-badge").first()).toBeVisible(); // 確変用に取り置いた景品の印(予定から)
+  // 確変用に取り置いた景品の印(予定から)。確変の予定は乱数で決まり、取り置きが0件のこともあるので、あるときだけ確かめる
+  if (plan!.reservedPrizeIds.length > 0) await expect(results.page.getByTestId("reserved-badge").first()).toBeVisible();
   await results.page.getByRole("button", { name: "結果をリセット" }).click();
   await acceptConfirm(results.page, "リセット");
   await expect(results.page.getByTestId("total-draws")).toHaveText("0");
