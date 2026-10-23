@@ -45,8 +45,12 @@ async function drawOnce(admin: import("@playwright/test").Page): Promise<string>
     const state = await admin.getByTestId("jackpot-state").innerText();
     const m = /当選者: (参加者\d\d)/.exec(state);
     if (m) return m[1];
+    // 押したら画面が変わるのを待ってから次を押す(通信が遅い環境で押し重ねると、当選者が見えた直後に先の場面まで進み、
+    // 参加者の端末が「あたりました!」の場面を一度も受け取らないうちに消えてしまう)。変わらなければ、届かなかったとして押し直す
+    const screen = async () => [await admin.getByTestId("now").innerText(), await admin.getByTestId("jackpot-state").innerText(), await admin.getByTestId("next-hint").innerText().catch(() => "")].join("|");
+    const before = await screen();
     await nextButton(admin).click();
-    await admin.waitForTimeout(1500);
+    await expect.poll(async () => (await screen()) !== before, { timeout: 6_000 }).toBe(true).catch(() => undefined);
   }
   await expect(admin.getByTestId("jackpot-state")).toContainText(/当選者: 参加者\d\d/, { timeout: 60_000 });
   return /当選者: (参加者\d\d)/.exec(await admin.getByTestId("jackpot-state").innerText())![1];
