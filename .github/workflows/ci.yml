@@ -193,10 +193,19 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - run: npx playwright install --with-deps chromium
+      # OS の依存ライブラリ(apt)は毎回要る。apt のミラーが詰まると 10 分近く止まることがあった(測定)ので、
+      # apt に短いタイムアウトと再試行を設定し、全体にも時間の上限を付けて、詰まったら最初からやり直す
+      - name: Playwright の OS 依存ライブラリ
+        if: matrix.name != 'worker-smoke'
+        run: |
+          printf 'Acquire::http::Timeout "20";\nAcquire::Retries "3";\n' | sudo tee /etc/apt/apt.conf.d/99ci-timeouts >/dev/null
+          for attempt in 1 2 3; do
+            if timeout 150 npx playwright install-deps chromium; then exit 0; fi
+            echo "install-deps が失敗または時間切れ(試行 $attempt/3)"
+          done
+          exit 1
+      - run: npx playwright install chromium
         if: matrix.name != 'worker-smoke' && steps.playwright-cache.outputs.cache-hit != 'true'
-      - run: npx playwright install-deps chromium
-        if: matrix.name != 'worker-smoke' && steps.playwright-cache.outputs.cache-hit == 'true'
       - run: npm run e2e -- ${{ matrix.args }}
       - name: E2E の失敗時の成果物(スクリーンショット・トレース)
         if: failure()
