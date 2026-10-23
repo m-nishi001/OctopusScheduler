@@ -36,10 +36,15 @@ test("参加者がいなくて抽選に失敗しても、ホストは固まら�
     { id: "jp-fail-prize-2", value: { id: "jp-fail-prize-2", name: "一等", order: 2, weight: 10, animation: "roulette" } },
   ]);
 
-  // ジャックポットを始める(参加者は誰もポータルに入っていない)→ 説明 → 抽選画面
+  // ジャックポットを始める(参加者は誰もポータルに入っていない)→ エントリー → 説明 → 抽選画面
   await admin.page.getByTestId("start-jackpot").click();
-  await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
+  await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
   const next = nextButton(admin.page);
+  // 管理端末の表示がホストに追いついてから押す(古い表示のまま押すと、次の画面の操作として扱われて抽選画面まで進んでしまう)
+  await expect(admin.page.getByTestId("now")).toContainText("エントリー");
+  await next.click(); // エントリー画面 → 説明
+  await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+  await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
   // 説明のスライドを最後まで進める（最後の1枚の次が「抽選を始める」）
   for (let i = 0; i < 10; i++) {
     const label = await next.innerText();

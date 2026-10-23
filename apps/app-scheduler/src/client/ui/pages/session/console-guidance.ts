@@ -45,9 +45,13 @@ export interface Guidance {
 
 const withDemo = (path: string, demo: boolean): string => (demo ? `${path}?demo=1` : path);
 
-/** ジャックポットの画面の並び。主ボタンで順に進める(抽選画面の中は「次へ」で進む)。 */
+/** デモ(リハーサル)にはエントリー画面が無い。オープニングの次は説明。 */
+const DEMO_OPENING = { label: "説明へ", hint: "ルールの説明画面を映します", to: "/jackpot-description" };
+
+/** ジャックポットの画面の並び(オープニング → エントリー → 説明 → 抽選)。主ボタンで順に進める(抽選画面の中は「次へ」で進む)。 */
 const JACKPOT_FLOW: Record<string, { now: string; label: string; hint: string; to: string }> = {
-  "/jackpot-opening": { now: "ジャックポット: オープニング表示中", label: "説明へ", hint: "ルールの説明画面を映します", to: "/jackpot-description" },
+  "/jackpot-opening": { now: "ジャックポット: オープニング表示中", label: "エントリーへ", hint: "エントリーの画面を映します(自動の対象なら参加済みの人、エントリーした人のみなら受付を始めます)", to: "/jackpot-entry" },
+  "/jackpot-entry": { now: "ジャックポット: エントリー画面表示中", label: "説明へ", hint: "エントリーを締め切り、ルールの説明画面を映します", to: "/jackpot-description" },
   "/jackpot-description": { now: "ジャックポット: 説明表示中", label: "抽選を始める", hint: "抽選の画面を映します(まだ抽選は始まりません)", to: "/jackpot-draw" },
   "/jackpot-result": { now: "ジャックポット: 結果表示中", label: "エンディングへ", hint: "エンディング画面を映します", to: "/jackpot-ending" },
 };
@@ -166,7 +170,7 @@ export function describeProgress(input: GuidanceInput): Guidance {
   if (jp === "/jackpot-draw") return describeJackpotDraw(input.jackpot);
   if (jp === "/jackpot-description") return describeJackpotDescription(input);
   if (jp && JACKPOT_FLOW[jp]) {
-    const step = JACKPOT_FLOW[jp];
+    const step = jp === "/jackpot-opening" && input.demo ? { ...JACKPOT_FLOW[jp], ...DEMO_OPENING } : JACKPOT_FLOW[jp];
     return {
       game: "jackpot",
       now: step.now,

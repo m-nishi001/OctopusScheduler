@@ -262,6 +262,7 @@ const presets = computed(() => [
     { label: 'ロビー', path: lobbyPath(sessionId.value) },
     { label: 'エントリー受付(バブル)', path: ENTRY_STAGE_PATH },
     { label: 'ジャックポット: オープニング', path: q('/jackpot-opening') },
+    { label: 'ジャックポット: エントリー', path: '/jackpot-entry' },
     { label: 'ジャックポット: 説明', path: q('/jackpot-description') },
     { label: 'ジャックポット: 抽選', path: q('/jackpot-draw') },
     { label: 'ジャックポット: 結果', path: q('/jackpot-result') },

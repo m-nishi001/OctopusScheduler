@@ -6,6 +6,8 @@ describe("isAllowedHostPath", () => {
     "/session/host/abc-123",
     "/jackpot-opening",
     "/execute/jackpot-draw",
+    "/jackpot-entry",
+    "/execute/jackpot-entry",
     "/jackpot-ending?demo=1",
     "/quiz/q1/intro",
     "/execute/quiz/q1/play",

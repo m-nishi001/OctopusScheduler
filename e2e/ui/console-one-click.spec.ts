@@ -93,17 +93,24 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     for (const d of [admin, host]) await d.context.close();
   });
 
-  test("ジャックポット: 「ジャックポットを始める」→ オープニング・説明を経て、主ボタンで抽選画面まで進む", async ({ browser }) => {
+  test("ジャックポット: 「ジャックポットを始める」→ オープニング → エントリー → 説明を経て、主ボタンで抽選画面まで進む", async ({ browser }) => {
     test.setTimeout(180_000);
     const { admin, host } = await scene(browser, "ワンクリック(ジャックポット)");
     await admin.page.getByTestId("start-jackpot").click();
-    // オープニングの演出が終わると、説明の画面へ自動で進む
-    await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/\/jackpot-(opening|description)$/);
+    // オープニングの演出が終わると、共通のエントリー画面へ自動で進む
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/\/jackpot-(opening|entry)$/);
     await expect(admin.page.getByTestId("event-state")).toContainText("ジャックポット抽選");
     // 抽選の対象は既定で参加者全員(自動)なので、開始してもエントリー受付は始まらない
     await expect(admin.page.getByTestId("entry-state")).toContainText("受付は始まっていません");
     await expect(admin.page.getByTestId("pool-state")).toContainText("参加者全員(自動)");
-    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
+    await expect(admin.page.getByTestId("now")).toContainText("エントリー");
+    await expect(host.page.getByTestId("stage-label")).toContainText("自動でエントリー");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付は始まっていません");
+    await expect(nextButton(admin.page)).toHaveText(/説明へ/);
+    await nextButton(admin.page).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+    await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
     await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);
     await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
@@ -123,7 +130,11 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     };
     await seedStore(host.page, "jackpot-game", "ScreenConfigData", [{ id: "description_description-screen-settings", value: setting }]);
     await admin.page.getByTestId("start-jackpot").click();
-    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
+    await expect(admin.page.getByTestId("now")).toContainText("エントリー");
+    await nextButton(admin.page).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+    await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
 
     const hostText = host.page.locator("body");
     const back = admin.page.getByTestId("back-button");
