@@ -17,6 +17,8 @@ import { StartQuizUseCase } from '../../../control/use-cases/start-quiz-use-case
 import { QuizRoundGateway } from '../../../model/quiz-round-gateway';
 import { useQuizHost } from '../../composables/use-quiz-host';
 import { buildQuizHostState } from '../../../model/quiz-host-state';
+import type { QuizRevealPhase } from '../../../model/quiz-host-state';
+import { runResultRevealSequence } from '../../../model/result-reveal-sequence';
 import { buildQuizRoundResult, computeRanking } from '../../../model/ranking';
 import type { RankedResult } from '../../../model/ranking';
 import type { QuizDto } from '../../../control/dto/quiz-dto';
@@ -111,6 +113,8 @@ const lockPageScroll = () => {
 
 // 画面を離れた印。読み込みの途中で離れたら、そのあとの状態の公開(取り下げたあとの再公開)をしない。
 let disposed = false;
+// 順位発表の画面の状態を公開する(読み込みが済むまでは何もしない)
+let publishResult: (reveal: QuizRevealPhase) => void = () => undefined;
 
 onMounted(() => {
     lockPageScroll();
@@ -129,16 +133,20 @@ onMounted(() => {
 
             if (disposed) return;
             currentQuiz.value = quiz;
-            host.publish(
-                buildQuizHostState({
-                    page: 'result',
-                    quizId,
-                    title: quiz?.title,
-                    roundKey: gateway.roundKey(quizId, session.scope),
-                    phase: 'closed',
-                    correctNo: quiz?.correctNo ?? 1,
-                })
-            );
+            publishResult = (reveal: QuizRevealPhase) =>
+                host.publish(
+                    buildQuizHostState({
+                        page: 'result',
+                        quizId,
+                        title: quiz?.title,
+                        roundKey: gateway.roundKey(quizId, session.scope),
+                        phase: 'closed',
+                        correctNo: quiz?.correctNo ?? 1,
+                        reveal,
+                    })
+                );
+            // 発表中は順位を参加者に見せない。1位の発表と結果の保存が終わったら finished にする
+            publishResult('revealing');
             if (session.scope === 'live' && roundAnswers) {
                 pendingRecord = buildQuizRoundResult({
                     roundKey: gateway.roundKey(quizId, session.scope),
@@ -161,8 +169,12 @@ onMounted(() => {
             finalResults.value = [];
         }
         isLoadingResults.value = false;
-        await revealRanking(finalResults.value);
-        await recordResult();
+        await runResultRevealSequence({
+            reveal: () => revealRanking(finalResults.value),
+            record: recordResult,
+            publishFinished: () => publishResult('finished'),
+            isDisposed: () => disposed,
+        });
     })();
 });
 

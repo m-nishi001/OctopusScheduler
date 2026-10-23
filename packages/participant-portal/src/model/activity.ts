@@ -11,6 +11,8 @@ import type { JackpotPublished } from "@octopus/session-hub";
 
 export type QuizPage = "intro" | "entry" | "play" | "answer" | "result";
 export type QuizPhase = "idle" | "answering" | "closed";
+/** 順位発表の進み具合。revealing の間は順位を出さず、finished で自分の順位を出す。 */
+export type QuizReveal = "revealing" | "finished";
 
 export interface QuizOption {
   no: number;
@@ -30,6 +32,8 @@ export interface QuizView {
   options: QuizOption[];
   /** 正解発表の画面になってから入る。 */
   correctNo: number | null;
+  /** 順位発表の画面でだけ入る。発表中か、終わったか。 */
+  reveal: QuizReveal | null;
 }
 
 const QUIZ_PAGES: readonly string[] = ["intro", "entry", "play", "answer", "result"];
@@ -62,6 +66,8 @@ export function readQuizView(data: Record<string, unknown> | null | undefined): 
     question: orNull(raw.question, isString),
     options,
     correctNo: orNull(raw.correctNo, isFiniteNumber),
+    // 発表中の印が無い・壊れているときは、順位を出さない側(revealing)に倒す
+    reveal: raw.page === "result" ? (raw.reveal === "finished" ? "finished" : "revealing") : null,
   };
 }
 

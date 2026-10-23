@@ -101,6 +101,12 @@ export async function seedDemoResults({ fetch = globalThis.fetch, baseUrl, token
   const ctx = { fetch, baseUrl: baseUrl.replace(/\/$/, ""), token };
   const { rounds, draws } = buildDemoResults(participantIds, now);
   for (const result of rounds) await withRetry(() => rpc(ctx, "sessionHub_putQuizResult", { sessionId, result }), { sleep });
-  for (const draw of draws) await withRetry(() => rpc(ctx, "sessionHub_putJackpotDraw", { sessionId, draw }), { sleep });
+  // 流し直しても増えない・食い違わないよう、抽選は一度消してから入れ直す(同じ drawId でも時刻が違うと commit が衝突するため)。
+  await withRetry(() => rpc(ctx, "sessionHub_resetJackpot", { sessionId }), { sleep });
+  // 抽選は確定(commit)してから公開(reveal)する。ポータルには公開済みの行だけが見える。
+  for (const draw of draws) {
+    await withRetry(() => rpc(ctx, "sessionHub_commitJackpotDraw", { sessionId, draw }), { sleep });
+    await withRetry(() => rpc(ctx, "sessionHub_revealJackpotDraw", { sessionId, drawId: draw.drawId }), { sleep });
+  }
   return { rounds: rounds.length, draws: draws.length };
 }

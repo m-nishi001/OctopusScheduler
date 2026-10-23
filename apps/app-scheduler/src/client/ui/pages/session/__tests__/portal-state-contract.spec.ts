@@ -31,6 +31,7 @@ describe("クイズ: ホストの公開 → ポータルの読み取り", () => 
       question: "みかんはどれ?",
       options: OPTIONS,
       correctNo: null,
+      reveal: null,
     });
   });
 
@@ -47,6 +48,12 @@ describe("クイズ: ホストの公開 → ポータルの読み取り", () => 
     expect(view?.page).toBe(page);
     expect(view?.question).toBeNull();
     expect(view?.options).toEqual([]);
+  });
+
+  it("順位発表: 発表中は revealing、終わると finished がポータルに届く", () => {
+    const result = { ...base, page: "result" as const, phase: "closed" as const, roundKey: "qz1:live", correctNo: 2 };
+    expect(readQuizView({ quiz: wire(buildQuizHostState({ ...result, reveal: "revealing" })) })?.reveal).toBe("revealing");
+    expect(readQuizView({ quiz: wire(buildQuizHostState({ ...result, reveal: "finished" })) })?.reveal).toBe("finished");
   });
 
   it("全ページ・全状態でポータルが読み取れる（null にならない）", () => {

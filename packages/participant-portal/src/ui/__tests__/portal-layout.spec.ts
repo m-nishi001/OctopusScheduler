@@ -5,7 +5,7 @@ import { defineComponent, h, ref } from "vue";
 import { RouterView, createMemoryHistory, createRouter } from "vue-router";
 import type { Command, SessionConnection } from "@octopus/session-hub";
 import { tick } from "@octopus/session-hub/testing";
-import { ALICE, BOB, MemoryDeviceStore, participantDevice, portalEnv, sampleEvent, sampleQuizState } from "../../__tests__/portal-test-kit";
+import { ALICE, BOB, MemoryDeviceStore, participantDevice, portalEnv, sampleEvent, sampleQuizState, sampleRound } from "../../__tests__/portal-test-kit";
 import type { Device } from "../../__tests__/portal-test-kit";
 import { PARTICIPANT_AUTH_KEY } from "../../model/participant-auth";
 import { participantPortalRoutes } from "../../routes";
@@ -648,12 +648,14 @@ describe("参加者ポータル: クイズ", () => {
     await flushPromises();
     expect(text(m, "quiz-panel")).toContain("クイズが始まります");
 
-    await env.publishQuiz({ ...sampleQuizState(), page: "result", phase: "idle", question: null, options: [] });
+    await env.publishQuiz({ ...sampleQuizState(), page: "result", phase: "closed", question: null, options: [], reveal: "revealing" });
     await tick(5000);
     await flushPromises();
-    expect(text(m, "quiz-panel")).toContain("結果発表中です");
-    // 結果発表のあとは、そのまま「結果」タブで順位を見られる
-    expect(m.wrapper.find('[data-testid="quiz-results-link"]').attributes("href")).toBe("/p/results");
+    // 発表中は会場の画面を見てもらう。順位へのリンクも、自分の順位も出さない(ネタバレ防止)
+    expect(text(m, "quiz-panel")).toContain("会場の画面をご覧ください");
+    expect(has(m, "quiz-results-link")).toBe(false);
+    expect(m.wrapper.find('a[href="/p/results"][data-testid]').exists()).toBe(false);
+    expect(has(m, "quiz-my-rank")).toBe(false);
     m.wrapper.unmount();
   });
 });
@@ -947,6 +949,70 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     expect(has(m, "quiz-panel")).toBe(false);
     expect(has(m, "winner")).toBe(false);
     expect(has(m, "client-inputs")).toBe(false);
+    m.wrapper.unmount();
+  });
+});
+
+describe("参加者ポータル: クイズの順位発表(ネタバレ防止と「あなたは N 位!」)", () => {
+  const resultState = (reveal: "revealing" | "finished") => ({ ...sampleQuizState(), page: "result" as const, phase: "closed" as const, question: null, options: [], correctNo: 2, reveal });
+
+  it("発表中は、保存済みの結果があっても順位を出さない(結果タブにも、この回の結果と新着の印を出さない)。終わると全画面で自分の順位を出す", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/results");
+    await env.saveQuizResult(sampleRound());
+    await env.publishQuiz(resultState("revealing"));
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "results-new")).toBe(false);
+    expect(has(m, "results-quiz-held")).toBe(true);
+    expect(has(m, "results-round")).toBe(false);
+    expect(has(m, "results-my-rank")).toBe(false);
+    expect(has(m, "quiz-my-rank")).toBe(false);
+
+    await env.publishQuiz(resultState("finished"));
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "quiz-my-rank-text")).toBe("1位!");
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "results-quiz-held")).toBe(false);
+    expect(has(m, "results-round")).toBe(true);
+    m.wrapper.unmount();
+  });
+
+  it("不正解・未回答の人には「今回は ランク外」を出す", async () => {
+    const env = await portalEnv();
+    await env.saveQuizResult(sampleRound({ wrongMemberIds: ["bob", "carol"], correct: [{ memberId: "alice", name: "アリス", sec: 1 }] }));
+    await env.publishQuiz(resultState("finished"));
+    const bob = await mountPortal(participantDevice(env.hub, BOB), "/p/event", BOB);
+    await tick(5000);
+    await flushPromises();
+    expect(text(bob, "quiz-my-rank-text")).toBe("今回は ランク外");
+    expect(text(bob, "quiz-my-rank-sub")).toContain("不正解");
+    bob.wrapper.unmount();
+
+    const dave = await mountPortal(participantDevice(env.hub, { id: "dave", name: "デイブ" }), "/p/event", { id: "dave", name: "デイブ" });
+    await tick(5000);
+    await flushPromises();
+    expect(text(dave, "quiz-my-rank-text")).toBe("今回は ランク外");
+    expect(text(dave, "quiz-my-rank-sub")).toContain("回答していません");
+    dave.wrapper.unmount();
+  });
+
+  it("ホストがロビーへ戻って状態が消えたら、順位の全画面は消えて通常の表示に戻る", async () => {
+    const env = await portalEnv();
+    await env.saveQuizResult(sampleRound());
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    await env.publishQuiz(resultState("finished"));
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "quiz-my-rank")).toBe(true);
+
+    await env.publishQuiz(null);
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "quiz-my-rank")).toBe(false);
+    expect(has(m, "quiz-panel")).toBe(false);
     m.wrapper.unmount();
   });
 });

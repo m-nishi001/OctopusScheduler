@@ -49,7 +49,16 @@ describe("readQuizView", () => {
         { no: 4, text: "もう一つ", color: "" },
       ],
       correctNo: null,
+      // 発表中の印が無い状態は、順位を出さない側に倒す
+      reveal: "revealing",
     });
+  });
+
+  it("順位発表(result)の reveal を読む。result 以外では null。壊れた値は revealing", () => {
+    expect(readQuizView({ quiz: { page: "result", reveal: "finished" } })?.reveal).toBe("finished");
+    expect(readQuizView({ quiz: { page: "result", reveal: "revealing" } })?.reveal).toBe("revealing");
+    expect(readQuizView({ quiz: { page: "result", reveal: "done" } })?.reveal).toBe("revealing");
+    expect(readQuizView({ quiz: { page: "play", reveal: "finished" } })?.reveal).toBeNull();
   });
 });
 

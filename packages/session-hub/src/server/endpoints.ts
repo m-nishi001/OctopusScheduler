@@ -26,15 +26,18 @@ import type {
   SubmitAnswerArgs,
   CloseSessionArgs,
   CreateSessionArgs,
-  DeleteJackpotDrawArgs,
+  CommitJackpotDrawArgs,
+  EnsureJackpotPlanArgs,
+  GetJackpotStateArgs,
   GetResultsArgs,
   IssueCommandArgs,
   JoinOperatorArgs,
   JoinPortalArgs,
   PollArgs,
   PublishStateArgs,
-  PutJackpotDrawArgs,
   PutQuizResultArgs,
+  ResetJackpotArgs,
+  RevealJackpotDrawArgs,
   SetPortalSessionArgs,
 } from "../shared/protocol";
 import type { SessionHubEndpointName } from "./session-hub-api-contract";
@@ -95,8 +98,11 @@ declare let _sessionHub_submitAnswer: (args: SubmitAnswerArgs) => Promise<string
 declare let _sessionHub_getAnswers: (args: GetAnswersArgs) => Promise<string>;
 declare let _sessionHub_listParticipants: (args: ListParticipantsArgs) => Promise<string>;
 declare let _sessionHub_putQuizResult: (args: PutQuizResultArgs) => Promise<string>;
-declare let _sessionHub_putJackpotDraw: (args: PutJackpotDrawArgs) => Promise<string>;
-declare let _sessionHub_deleteJackpotDraw: (args: DeleteJackpotDrawArgs) => Promise<string>;
+declare let _sessionHub_getJackpotState: (args: GetJackpotStateArgs) => Promise<string>;
+declare let _sessionHub_ensureJackpotPlan: (args: EnsureJackpotPlanArgs) => Promise<string>;
+declare let _sessionHub_commitJackpotDraw: (args: CommitJackpotDrawArgs) => Promise<string>;
+declare let _sessionHub_revealJackpotDraw: (args: RevealJackpotDrawArgs) => Promise<string>;
+declare let _sessionHub_resetJackpot: (args: ResetJackpotArgs) => Promise<string>;
 declare let _sessionHub_getResults: (args: GetResultsArgs) => Promise<string>;
 declare let _sessionHub_getWebAppUrl: () => Promise<string>;
 
@@ -162,12 +168,24 @@ _sessionHub_putQuizResult = secure("admin", async (args: PutQuizResultArgs): Pro
   return respond(() => results.putQuizResult(resolveResultsDeps(), args?.sessionId, args?.result));
 });
 
-_sessionHub_putJackpotDraw = secure("admin", async (args: PutJackpotDrawArgs): Promise<string> => {
-  return respond(() => results.putJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.draw));
+_sessionHub_getJackpotState = secure("admin", async (args: GetJackpotStateArgs): Promise<string> => {
+  return respond(() => results.getJackpotState(resolveResultsDeps(), args?.sessionId));
 });
 
-_sessionHub_deleteJackpotDraw = secure("admin", async (args: DeleteJackpotDrawArgs): Promise<string> => {
-  return respond(() => results.deleteJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.drawId));
+_sessionHub_ensureJackpotPlan = secure("admin", async (args: EnsureJackpotPlanArgs): Promise<string> => {
+  return respond(() => results.ensureJackpotPlan(resolveResultsDeps(), args?.sessionId, args?.plan));
+});
+
+_sessionHub_commitJackpotDraw = secure("admin", async (args: CommitJackpotDrawArgs): Promise<string> => {
+  return respond(() => results.commitJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.draw));
+});
+
+_sessionHub_revealJackpotDraw = secure("admin", async (args: RevealJackpotDrawArgs): Promise<string> => {
+  return respond(() => results.revealJackpotDraw(resolveResultsDeps(), args?.sessionId, args?.drawId));
+});
+
+_sessionHub_resetJackpot = secure("admin", async (args: ResetJackpotArgs): Promise<string> => {
+  return respond(() => results.resetJackpot(resolveResultsDeps(), args?.sessionId));
 });
 
 _sessionHub_getResults = secureMember(async (args: GetResultsArgs, member) => {
@@ -199,8 +217,11 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   getAnswers: _sessionHub_getAnswers,
   listParticipants: _sessionHub_listParticipants,
   putQuizResult: _sessionHub_putQuizResult,
-  putJackpotDraw: _sessionHub_putJackpotDraw,
-  deleteJackpotDraw: _sessionHub_deleteJackpotDraw,
+  getJackpotState: _sessionHub_getJackpotState,
+  ensureJackpotPlan: _sessionHub_ensureJackpotPlan,
+  commitJackpotDraw: _sessionHub_commitJackpotDraw,
+  revealJackpotDraw: _sessionHub_revealJackpotDraw,
+  resetJackpot: _sessionHub_resetJackpot,
   getResults: _sessionHub_getResults,
   getWebAppUrl: _sessionHub_getWebAppUrl,
 };

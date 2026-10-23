@@ -110,7 +110,7 @@ describe("参加者ポータル: 結果タブ", () => {
   it("ジャックポット: 当選履歴が新しい順に出て、自分の当選は強調される。成績カードに当選回数が出る", async () => {
     const env = await portalEnv();
     await env.saveJackpotDraw(sampleDraw());
-    await env.saveJackpotDraw(sampleDraw({ drawId: "d2", memberId: "bob", memberName: "ボブ", prizeName: "5等 スイーツ", atMs: 1_700_000_200_000, isKakuhen: true }));
+    await env.saveJackpotDraw(sampleDraw({ drawId: "d2", prizeId: "p2", memberId: "bob", memberName: "ボブ", prizeName: "5等 スイーツ", atMs: 1_700_000_200_000, isKakuhen: true }));
     const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/results");
     await tick(500);
     // クイズの結果が無く、当選だけあるので、最初からジャックポットが開く

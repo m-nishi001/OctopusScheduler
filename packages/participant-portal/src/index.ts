@@ -8,7 +8,7 @@ export type { PortalStatus, JoinFailure } from "./model/portal-status";
 export { ENTRY_KEY, useEntry, useEntryContext } from "./model/use-entry";
 export type { EntryPhase, EntryState } from "./model/use-entry";
 export { readQuizView, readJackpotView, clientInputLabel, CLIENT_INPUT_LABELS } from "./model/activity";
-export type { QuizView, QuizOption, QuizPage, QuizPhase, JackpotView } from "./model/activity";
+export type { QuizView, QuizOption, QuizPage, QuizPhase, QuizReveal, JackpotView } from "./model/activity";
 export { QUIZ_KEY, useQuiz, useQuizContext } from "./model/use-quiz";
 export type { QuizState } from "./model/use-quiz";
 export { RESULTS_KEY, REFETCH_JITTER_MS, useResults, useResultsContext } from "./model/use-results";

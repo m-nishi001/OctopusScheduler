@@ -42,15 +42,15 @@
         </template>
 
         <template v-else-if="quiz.quiz.value.page === 'result'">
-            <p class="pp-muted">結果発表中です。会場の画面をご覧ください。</p>
-            <RouterLink to="/p/results" class="pp-button pp-button--ghost pp-quiz__results" data-testid="quiz-results-link">順位を見る</RouterLink>
+            <!-- 順位は会場の発表が終わるまで出さない(ネタバレ防止)。終わったら全画面の「あなたは N 位!」で知らせる -->
+            <p v-if="quiz.rankingHidden.value" class="pp-quiz__watch" data-testid="quiz-reveal-watch">会場の画面をご覧ください</p>
+            <p v-else class="pp-muted" data-testid="quiz-reveal-done">結果発表が終わりました。順位は「結果」タブで見られます。</p>
         </template>
         <p v-else class="pp-muted">クイズが始まります。しばらくお待ちください。</p>
     </section>
 </template>
 
 <script setup lang="ts">
-import { RouterLink } from 'vue-router';
 import { useQuizContext } from '../../model/use-quiz';
 
 const quiz = useQuizContext();
@@ -191,7 +191,14 @@ const quiz = useQuizContext();
     color: var(--pp-danger);
 }
 
-.pp-quiz__results {
-    margin-top: 12px;
+.pp-quiz__watch {
+    margin: 0;
+    padding: 16px 12px;
+    border-radius: 14px;
+    border: 3px solid var(--pp-gold);
+    text-align: center;
+    font-size: clamp(1.3rem, 6vw, 1.8rem);
+    font-weight: 900;
+    color: var(--pp-gold);
 }
 </style>
