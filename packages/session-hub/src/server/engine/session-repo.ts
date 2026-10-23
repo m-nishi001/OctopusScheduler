@@ -76,6 +76,13 @@ export interface SessionRepo {
    * ラウンドが無い/key が違うときは null。
    */
   upsertAnswer(key: string, answer: RoundAnswer, maxAnswers: number): Promise<UpsertAnswerResult | null>;
+  /**
+   * 参加者名簿(ポータルから入室したことのあるメンバーのID)に追加する。すでに入っていれば何もしない(書き込みもしない)。
+   * 保存するのはメンバーIDだけ。
+   */
+  addParticipant(memberId: string): Promise<void>;
+  /** 参加者名簿のメンバーID(入室した順)。 */
+  listParticipantIds(): Promise<string[]>;
 }
 
 /** 全セッション共通の一覧インデックス。 */
@@ -123,6 +130,45 @@ export function createKvSessionRepo(storage: IKeyValueStorage, sessionId: string
       await storage.deleteScalarsByPrefix(k(""));
     },
     ...createKvRoundOps(storage, k),
+    ...createKvParticipantOps(storage, k),
+  };
+}
+
+/**
+ * 1つのキーに入れるメンバーIDの数。1件 数十バイトなので、GAS の 1 値の上限(約9KB)に十分収まる。
+ */
+export const PARTICIPANT_CHUNK_SIZE = 100;
+
+/** 参加者名簿の KV 実装。participants/0, participants/1, …(メンバーIDの配列を PARTICIPANT_CHUNK_SIZE 件ずつ)。 */
+function createKvParticipantOps(
+  storage: IKeyValueStorage,
+  k: (name: string) => string
+): Pick<SessionRepo, "addParticipant" | "listParticipantIds"> {
+  const chunkKey = (index: number): string => k(`participants/${index}`);
+  const readChunks = async (): Promise<string[][]> => {
+    const chunks: string[][] = [];
+    for (let i = 0; ; i++) {
+      const stored = await readJson<string[]>(storage, chunkKey(i));
+      if (!stored) break;
+      chunks.push(stored);
+      if (stored.length < PARTICIPANT_CHUNK_SIZE) break;
+    }
+    return chunks;
+  };
+  return {
+    async listParticipantIds() {
+      return (await readChunks()).flat();
+    },
+    async addParticipant(memberId) {
+      const chunks = await readChunks();
+      if (chunks.some((c) => c.includes(memberId))) return;
+      const last = chunks[chunks.length - 1];
+      if (last && last.length < PARTICIPANT_CHUNK_SIZE) {
+        await storage.set(chunkKey(chunks.length - 1), JSON.stringify([...last, memberId]));
+      } else {
+        await storage.set(chunkKey(chunks.length), JSON.stringify([memberId]));
+      }
+    },
   };
 }
 
