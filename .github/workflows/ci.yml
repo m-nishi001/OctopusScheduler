@@ -13,13 +13,18 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# 各ジョブは互いに待たず並列に走る。直列にしか進められないのは「build → e2e(dist が要る)」だけ。
-#   lint / unit ........ build 不要(turbo の lint・test は ^build に依存しない)
-#   build .............. typecheck → build → verify。dist を artifact にして e2e へ渡す
-#   e2e ................ worker-smoke と、画面の通し(Playwright)を 8 分割して並列に流す(Cloudflare)。
-#                        あわせて GAS 実行環境シミュレーター(scripts/gas-sim)に対しても同じ画面の通しを 8 分割して流す(gas-*)。
-#                        どちらもすべてローカルで動き、外部(Cloudflare / Google)へのアクセスは無い
-#   verify ............. 全ジョブの結果を1つにまとめる(以前の check 名 `verify` を維持する集約ジョブ)
+# wrangler にテレメトリを送らせない(e2e はすべてローカルの wrangler dev --local。Cloudflare へのアクセスは無い)
+env:
+  WRANGLER_SEND_METRICS: "false"
+
+# 各ジョブは互いに待たず並列に走る。待つのは「build → e2e / check-dist(dist が要る)」だけ。
+#   lint / typecheck / unit ... build 不要(typecheck は turbo が必要な分だけ自分でビルドする)
+#   build .................... dist を作って artifact にする。e2e はこれだけを待つ(typecheck / verify は待たない)
+#   check-dist ............... dist の検証(verify:gas / verify:dist)。build のあと e2e と並列に走る
+#   e2e ...................... worker-smoke と、画面の通し(Playwright)を Cloudflare(ui-*) と GAS シミュレーター(gas-*)で流す。
+#                              シャードは spec の所要時間(e2e/shard-weights.json)で均等に分ける(scripts/e2e-shards.js)。
+#                              重い jackpot-scale は専用のシャードに分ける。どれもローカルで動き、外部へのアクセスは無い
+#   verify ................... 全ジョブの結果を1つにまとめる(以前の check 名 `verify` を維持する集約ジョブ)
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -53,9 +58,27 @@ jobs:
           key: turbo-unit-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-unit-${{ runner.os }}-
       - run: npm ci --no-audit --no-fund
-      - run: npm test
-      # server / model / transport などの下限を割っていないか(各パッケージの vitest.config.ts の coverage.thresholds)
+      # 全パッケージのテストを1回だけ流す。coverage の下限(server / model / transport など。各パッケージの
+      # vitest.config.ts の coverage.thresholds)もこの1回で確かめる。test:coverage は test と同じ範囲を流すスクリプトにそろえてある
       - run: npm run test:coverage
+      - run: npm run test:scripts
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-typecheck-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-typecheck-${{ runner.os }}-
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
 
   build:
     runs-on: ubuntu-latest
@@ -72,9 +95,7 @@ jobs:
           key: turbo-build-${{ runner.os }}-${{ github.sha }}
           restore-keys: turbo-build-${{ runner.os }}-
       - run: npm ci --no-audit --no-fund
-      - run: npm run typecheck
       - run: npm run build
-      - run: npm run verify
       - name: e2e へ渡すビルド成果物
         uses: actions/upload-artifact@v4
         with:
@@ -83,52 +104,72 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+  # dist の検証。e2e は待たない
+  check-dist:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - run: npm run verify
+
   # 実 workerd(wrangler dev --local)で Durable Object / WebSocket を含む通しの動作と、
   # ホスト・管理・参加者の複数端末の画面操作(Playwright)を確認する。
   e2e:
     needs: build
     runs-on: ubuntu-latest
     # GAS シミュレーターは 1 呼び出しに 200ms の遅延を足すので、Cloudflare より 1 テストが長い(分割しても 20 分前後のシャードがある)
-    timeout-minutes: 40
+    # シャードは 5〜7 分(setup 込み)に均してある。余裕を見て 25 分で止める
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: worker-smoke
             args: worker-smoke
-          - name: ui-1of8
-            args: ui -- --shard=1/8
-          - name: ui-2of8
-            args: ui -- --shard=2/8
-          - name: ui-3of8
-            args: ui -- --shard=3/8
-          - name: ui-4of8
-            args: ui -- --shard=4/8
-          - name: ui-5of8
-            args: ui -- --shard=5/8
-          - name: ui-6of8
-            args: ui -- --shard=6/8
-          - name: ui-7of8
-            args: ui -- --shard=7/8
-          - name: ui-8of8
-            args: ui -- --shard=8/8
-          # GAS 実行環境シミュレーター(dist/gas/server.js を GAS に近い条件で動かす)に対する、同じ画面の通し
-          - name: gas-1of8
-            args: --target gas ui -- --shard=1/8
-          - name: gas-2of8
-            args: --target gas ui -- --shard=2/8
-          - name: gas-3of8
-            args: --target gas ui -- --shard=3/8
-          - name: gas-4of8
-            args: --target gas ui -- --shard=4/8
-          - name: gas-5of8
-            args: --target gas ui -- --shard=5/8
-          - name: gas-6of8
-            args: --target gas ui -- --shard=6/8
-          - name: gas-7of8
-            args: --target gas ui -- --shard=7/8
-          - name: gas-8of8
-            args: --target gas ui -- --shard=8/8
+          # 重い jackpot-scale は専用のシャード(Playwright の --shard はファイルの中のテストも分ける)
+          - name: ui-scale-1of2
+            args: ui -- e2e/ui/jackpot-scale.spec.ts --shard=1/2
+          - name: ui-scale-2of2
+            args: ui -- e2e/ui/jackpot-scale.spec.ts --shard=2/2
+          # 残りの spec は所要時間で4束に分ける(serial の spec はファイル単位で同じ束に入る)
+          - name: ui-1of4
+            args: ui -- $(node scripts/e2e-shards.js ui 1/4)
+          - name: ui-2of4
+            args: ui -- $(node scripts/e2e-shards.js ui 2/4)
+          - name: ui-3of4
+            args: ui -- $(node scripts/e2e-shards.js ui 3/4)
+          - name: ui-4of4
+            args: ui -- $(node scripts/e2e-shards.js ui 4/4)
+          # GAS 実行環境シミュレーター(dist/gas/server.js を GAS に近い条件で動かす)に対する、同じ画面の通し。
+          # 1 呼び出しに 200ms の遅延を足すので Cloudflare より長く、束も多い
+          - name: gas-scale-1of3
+            args: --target gas ui -- e2e/ui/jackpot-scale.spec.ts --shard=1/3
+          - name: gas-scale-2of3
+            args: --target gas ui -- e2e/ui/jackpot-scale.spec.ts --shard=2/3
+          - name: gas-scale-3of3
+            args: --target gas ui -- e2e/ui/jackpot-scale.spec.ts --shard=3/3
+          - name: gas-1of6
+            args: --target gas ui -- $(node scripts/e2e-shards.js gas 1/6)
+          - name: gas-2of6
+            args: --target gas ui -- $(node scripts/e2e-shards.js gas 2/6)
+          - name: gas-3of6
+            args: --target gas ui -- $(node scripts/e2e-shards.js gas 3/6)
+          - name: gas-4of6
+            args: --target gas ui -- $(node scripts/e2e-shards.js gas 4/6)
+          - name: gas-5of6
+            args: --target gas ui -- $(node scripts/e2e-shards.js gas 5/6)
+          - name: gas-6of6
+            args: --target gas ui -- $(node scripts/e2e-shards.js gas 6/6)
     name: e2e (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
@@ -167,13 +208,15 @@ jobs:
 
   verify:
     if: always()
-    needs: [lint, unit, build, e2e]
+    needs: [lint, typecheck, unit, build, check-dist, e2e]
     runs-on: ubuntu-latest
     steps:
       - name: すべてのジョブの結果を確認する
         run: |
-          echo "lint=${{ needs.lint.result }} unit=${{ needs.unit.result }} build=${{ needs.build.result }} e2e=${{ needs.e2e.result }}"
+          echo "lint=${{ needs.lint.result }} typecheck=${{ needs.typecheck.result }} check-dist=${{ needs.check-dist.result }} unit=${{ needs.unit.result }} build=${{ needs.build.result }} e2e=${{ needs.e2e.result }}"
           test "${{ needs.lint.result }}" = "success"
+          test "${{ needs.typecheck.result }}" = "success"
           test "${{ needs.unit.result }}" = "success"
+          test "${{ needs.check-dist.result }}" = "success"
           test "${{ needs.build.result }}" = "success"
           test "${{ needs.e2e.result }}" = "success"

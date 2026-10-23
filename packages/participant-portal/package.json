@@ -8,7 +8,8 @@
   "scripts": {
     "lint": "eslint src",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@octopus/accounts": "*",
