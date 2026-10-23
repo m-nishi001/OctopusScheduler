@@ -300,3 +300,8 @@ export async function submitAnswer(deps: ServiceDeps, args: Parameters<typeof en
 export async function getAnswers(deps: ServiceDeps, args: Parameters<typeof engine.getAnswers>[1]) {
   return engine.getAnswers(engineDeps(deps, args.sessionId), args);
 }
+
+/** 参加者名簿(ポータルから入室したメンバーのID)を取得する(読み取りだけなのでロックは取らない)。 */
+export async function listParticipants(deps: ServiceDeps, args: Parameters<typeof engine.listParticipants>[1]) {
+  return engine.listParticipants(engineDeps(deps, args.sessionId), args);
+}

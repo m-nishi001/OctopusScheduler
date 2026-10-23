@@ -8,6 +8,8 @@ import type {
   CloseRoundArgs,
   GetAnswersArgs,
   GetAnswersResult,
+  ListParticipantsArgs,
+  ListParticipantsResult,
   OpenRoundArgs,
   OpenRoundResult,
   RoundSummary,
@@ -50,6 +52,7 @@ export const SESSION_HUB_ENDPOINTS = [
   "closeRound",
   "submitAnswer",
   "getAnswers",
+  "listParticipants",
   "putQuizResult",
   "putJackpotDraw",
   "deleteJackpotDraw",
@@ -76,6 +79,8 @@ export interface SessionHubApi {
   closeRound(args: CloseRoundArgs, options?: ApiCallOptions): Promise<RoundSummary>;
   submitAnswer(args: SubmitAnswerArgs, options?: ApiCallOptions): Promise<SubmitAnswerResult>;
   getAnswers(args: GetAnswersArgs, options?: ApiCallOptions): Promise<GetAnswersResult>;
+  /** ホスト/管理: このセッションにポータルから入室したメンバーのID一覧を取得する。 */
+  listParticipants(args: ListParticipantsArgs, options?: ApiCallOptions): Promise<ListParticipantsResult>;
   /** クイズ1ラウンドの結果を保存する(管理者のみ)。内容が変わったときだけ rev が進む。 */
   putQuizResult(args: PutQuizResultArgs, options?: ApiCallOptions): Promise<ResultsRevResult>;
   /** ジャックポットの抽選結果を1件保存する(管理者のみ)。 */
