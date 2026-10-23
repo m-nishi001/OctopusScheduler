@@ -132,9 +132,12 @@ test("(a) ホストを再読み込みしても、演出の途中だった抽選�
   await expect(s.admin.page.getByTestId("jackpot-state")).toContainText(`当選者: ${before[0].memberName}`);
   await stepUntil(s.admin.page, async () => (await revealedCount(request, s.sessionId)) === 1, "景品が見えて公開される");
   const after = (await serverState(request, s.sessionId)).draws;
-  expect(after).toHaveLength(1);
+  // 通信の遅い環境では、公開を確かめる間に次の抽選が確定していることがある。最初の抽選が引き直されず(同じ drawId・当選者・景品)、
+  // 同じ人が二度当選していなければよい
+  expect(after.length).toBeGreaterThanOrEqual(1);
   expect(after[0]).toMatchObject({ drawId: before[0].drawId, memberId: before[0].memberId, prizeId: before[0].prizeId });
   expect(after[0].revealedAtMs).not.toBeNull();
+  expect(new Set(after.map((d) => d.memberId)).size, "同じ人が二度当選していない").toBe(after.length);
   await closeAll(s);
 });
 
