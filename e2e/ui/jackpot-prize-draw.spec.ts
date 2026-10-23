@@ -40,7 +40,7 @@ for (const kind of ["roulette", "slot"] as const) {
     await seedStore(host.page, "jackpot-game", "PrizeData", prizes.map((p) => ({ id: p.id, value: p })));
 
     // 抽選の対象は既定で「参加者全員(自動)」: ポータルから入室した人を1人用意する
-    await joinPortalAs(browser, request, admin, sessionId, MEMBER.id, memberKey);
+    const guest = await joinPortalAs(browser, request, sessionId, MEMBER.id, memberKey);
     await openAdvanced(admin.page);
     await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
     const state = admin.page.getByTestId("jackpot-state");
@@ -91,6 +91,6 @@ for (const kind of ["roulette", "slot"] as const) {
     await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 30_000 });
     await captureTimeline(host.page, `prize-${kind}-stopped`, { count: 2, intervalMs: 500 });
 
-    for (const d of [admin, host]) await d.context.close();
+    for (const d of [admin, host, guest]) await d.context.close();
   });
 }

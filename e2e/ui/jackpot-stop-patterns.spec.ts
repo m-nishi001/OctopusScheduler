@@ -73,11 +73,11 @@ async function scene(browser: import("@playwright/test").Browser, request: impor
   const prizes = ["特賞", "一等", "二等", "三等", "四等"].map((name, i) => ({ id: `jp-stop-${kind}-${i + 1}`, name, order: i + 1, weight: 10, animation: kind }));
   await seedStore(host.page, "jackpot-game", "PrizeData", prizes.map((p) => ({ id: p.id, value: p })));
   // 抽選の対象は既定で「参加者全員(自動)」: ポータルから入室した人を1人用意する
-  await joinPortalAs(browser, request, admin, sessionId, MEMBER.id, memberKey);
+  const guest = await joinPortalAs(browser, request, sessionId, MEMBER.id, memberKey);
   await openAdvanced(admin.page);
   await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
   await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
-  return { admin, host, pageErrors, patterns };
+  return { admin, host, guest, pageErrors, patterns };
 }
 
 /**
@@ -103,7 +103,7 @@ async function advanceUntilStop(admin: Page, what: "メンバー" | "景品") {
 for (const pattern of ROULETTE_PATTERNS) {
   test(`@motion ルーレットの止まり方(${pattern.name}): 動いて、固まらず、当選が発表される`, async ({ browser, request }) => {
     test.setTimeout(300_000);
-    const { admin, host, pageErrors, patterns } = await scene(browser, request, `止まり方-${pattern.name}`, "roulette");
+    const { admin, host, guest, pageErrors, patterns } = await scene(browser, request, `止まり方-${pattern.name}`, "roulette");
     const reel = host.page.locator(".roulette-container");
     const spinning = host.page.locator(".roulette-container.spinning");
 
@@ -127,14 +127,14 @@ for (const pattern of ROULETTE_PATTERNS) {
     await expect(admin.page.getByTestId("jackpot-state")).toContainText(/当選者: [^—\s]\S*/);
     expect(patterns.roulette, `${pattern.name}: 強制した止まり方で止まっていない`).toEqual([pattern.name]);
     expect(pageErrors, `${pattern.name}: ホスト画面で例外が出た`).toEqual([]);
-    for (const d of [admin, host]) await d.context.close();
+    for (const d of [admin, host, guest]) await d.context.close();
   });
 }
 
 for (const pattern of MEMBER_PATTERNS) {
   test(`@motion メンバー抽選の止まり方(${pattern.name}): 動いて、固まらず、当選者が発表される`, async ({ browser, request }) => {
     test.setTimeout(300_000);
-    const { admin, host, pageErrors, patterns } = await scene(browser, request, `メンバー止まり方-${pattern.name}`, "roulette");
+    const { admin, host, guest, pageErrors, patterns } = await scene(browser, request, `メンバー止まり方-${pattern.name}`, "roulette");
     const viewport = host.page.locator(".member-draw .viewport");
 
     await advanceUntilStop(admin.page, "メンバー");
@@ -150,6 +150,6 @@ for (const pattern of MEMBER_PATTERNS) {
     await restoreRandom(host.page);
     expect(patterns.member, `${pattern.name}: 強制した止まり方で止まっていない`).toEqual([pattern.name]);
     expect(pageErrors, `${pattern.name}: ホスト画面で例外が出た`).toEqual([]);
-    for (const d of [admin, host]) await d.context.close();
+    for (const d of [admin, host, guest]) await d.context.close();
   });
 }

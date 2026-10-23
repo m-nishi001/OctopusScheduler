@@ -87,13 +87,11 @@ export async function loginByQr(browser: Browser, id: string, key: string): Prom
 
 /**
  * 参加者のスマホとしてセッションのポータルに入室させる(ジャックポットの既定の対象「参加者全員(自動)」に入る)。
- * `owner` のコンテキストを閉じると、この端末も一緒に閉じる。
+ * 返した端末は、呼び出し側がテストの最後に閉じる。
  */
-export async function joinPortalAs(browser: Browser, request: APIRequestContext, owner: Device, sessionId: string, id: string, key: string): Promise<Device> {
+export async function joinPortalAs(browser: Browser, request: APIRequestContext, sessionId: string, id: string, key: string): Promise<Device> {
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
-  const guest = await loginByQr(browser, id, key);
-  owner.context.on("close", () => void guest.context.close().catch(() => undefined));
-  return guest;
+  return loginByQr(browser, id, key);
 }
 
 /** セッションを参加者ポータルに公開する / 取り下げる。 */
