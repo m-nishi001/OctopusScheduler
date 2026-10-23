@@ -142,7 +142,7 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
       if (!parsed) return;
       if (event?.entry?.open) await closeRoundQuietly(event.entry.key);
       if (sessionId) storage.remove(entrantsKey(sessionId));
-      await save(sessionId, { id: newId(), title: parsed.title, startedAtMs: now(), pool: "auto" });
+      await save(sessionId, { id: newId(), title: parsed.title, startedAtMs: now(), pool: parsed.pool });
     } else if (command.type === PORTAL_EVENT_END) {
       if (event?.entry?.open) await closeRoundQuietly(event.entry.key);
       if (sessionId) {

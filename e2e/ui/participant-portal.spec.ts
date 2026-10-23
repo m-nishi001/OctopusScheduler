@@ -69,8 +69,8 @@ test.describe("参加者ポータル", () => {
     for (const [i, g] of guests.entries()) {
       await expect(g.page.getByTestId("home-status"), ids[i]).toContainText("イベント発生中!");
       await expect(g.page.getByTestId("home-event-title"), ids[i]).toContainText("ジャックポット抽選");
-      // 受付が始まるまでは「お待ちください」。「参加する」のようなリンクは無い
-      await expect(g.page.getByTestId("entry-none"), ids[i]).toContainText("お待ちください");
+      // 抽選の対象は既定で参加者全員(自動)なので、受付が無くても「自動でエントリー済み」。「参加する」のようなリンクは無い
+      await expect(g.page.getByTestId("entry-done"), ids[i]).toContainText("自動でエントリー済み ✓");
       await expect(g.page.getByTestId("home-join"), ids[i]).toHaveCount(0);
     }
 

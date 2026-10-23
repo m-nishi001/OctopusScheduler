@@ -76,10 +76,14 @@ export function normalizeEventTitle(raw: unknown): string | null {
   return title || null;
 }
 
-/** `event.start` のペイロードを検証する。不正なら null。 */
-export function parseEventStartPayload(payload: unknown): { title: string } | null {
+/**
+ * `event.start` のペイロードを検証する。不正なら null。
+ * pool は省略可(省略は auto)。クイズやエントリー受付のように、参加者の操作でエントリーするイベントは entrants で始める。
+ */
+export function parseEventStartPayload(payload: unknown): { title: string; pool: DrawPool } | null {
   const title = normalizeEventTitle((payload as { title?: unknown } | null)?.title);
-  return title ? { title } : null;
+  if (!title) return null;
+  return { title, pool: parseDrawPool((payload as { pool?: unknown }).pool) ?? "auto" };
 }
 
 /**

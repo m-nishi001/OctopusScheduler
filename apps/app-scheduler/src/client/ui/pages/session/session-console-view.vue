@@ -375,15 +375,16 @@ async function runBack() {
 }
 
 /** イベントが開催されていなければ、名前を付けて開催する(ワンクリック開催の1段目)。 */
-async function ensureEvent(title: string) {
+async function ensureEvent(title: string, pool?: DrawPool) {
     if (portalEvent.value) return;
-    await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_START, { title: normalizeEventTitle(title) });
+    await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_START, { title: normalizeEventTitle(title), ...(pool ? { pool } : {}) });
 }
 
 /** 選んでいるクイズの名前でイベントを開催する(未開催なら)。 */
 const ensureQuizEvent = () => {
     const quiz = quizzes.value.find((x) => x.id === selectedQuizId.value);
-    return ensureEvent(quiz?.title || quiz?.question || 'クイズ');
+    // クイズは参加者がエントリーして参加するので、対象は「エントリーした人のみ」で始める
+    return ensureEvent(quiz?.title || quiz?.question || 'クイズ', 'entrants');
 };
 
 /** このクイズを始める: イベント開催(未開催なら) → イントロ画面。エントリー受付は、次のエントリー画面で自動で始まる。 */
@@ -403,7 +404,7 @@ const startJackpot = () =>
 /** エントリー受付を始める: イベント開催(未開催なら) → 受付開始 → 会場の画面に映す。 */
 const startEntry = () =>
     runStart('entry', async () => {
-        await ensureEvent(ENTRY_EVENT_TITLE);
+        await ensureEvent(ENTRY_EVENT_TITLE, 'entrants');
         if (!portalEvent.value?.entry?.open) await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_OPEN_ENTRY);
         await connection.issue('session', 'navigate', { path: ENTRY_STAGE_PATH });
     });

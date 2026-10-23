@@ -27,7 +27,9 @@ describe("normalizeEventTitle", () => {
 
 describe("parseEventStartPayload", () => {
   it("タイトルがあれば整えて返す", () => {
-    expect(parseEventStartPayload({ title: " 乾杯クイズ " })).toEqual({ title: "乾杯クイズ" });
+    expect(parseEventStartPayload({ title: " 乾杯クイズ " })).toEqual({ title: "乾杯クイズ", pool: "auto" });
+    expect(parseEventStartPayload({ title: "x", pool: "entrants" })?.pool).toBe("entrants");
+    expect(parseEventStartPayload({ title: "x", pool: "all" })?.pool).toBe("auto");
   });
 
   it.each([null, undefined, {}, { title: "" }, { title: 1 }, "x"])("不正なペイロード %s は null", (payload) => {
