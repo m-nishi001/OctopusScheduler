@@ -38,10 +38,9 @@ function browserStorage(): EntryStorage {
 /**
  * エントリーしなくても抽選の対象になるイベントか（抽選の対象が「自動」）。
  * 対象の方式が決まっていない（pool が無い）イベントは、まだ受付前なので自動とは扱わない。
- * 'entrants' 以外はすべて自動扱いにして、対象の呼び名が all から auto に変わっても動くようにする。
  */
 export function isAutoEntered(event: Pick<PortalEvent, "pool"> | null | undefined): boolean {
-  return !!event && event.pool !== undefined && (event.pool as string) !== "entrants";
+  return !!event && event.pool === "auto";
 }
 
 export const ENTRY_KEY: InjectionKey<EntryState> = Symbol("portalEntry");

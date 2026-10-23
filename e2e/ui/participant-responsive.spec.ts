@@ -128,7 +128,7 @@ test("参加者ポータル: 幅の掃引と実機プリセットで、どの画
   // 4. ジャックポット: 待機 → メンバー抽選中 → 他の人が当選 → 景品抽選中 → 景品が決まる(長い名前・長い景品名)
   const jackpot = { page: "main-draw", canStop: false, member: null, memberId: null, prize: null };
   // 対象が自動のイベント(エントリーしなくても対象)なので、待機画面が出る
-  await host.publish({ event: { id: "ev1", title: `長いイベント名${LONG}`, startedAtMs: Date.now(), pool: "all" }, quiz: null, jackpot: { ...jackpot, stage: "waiting" } });
+  await host.publish({ event: { id: "ev1", title: `長いイベント名${LONG}`, startedAtMs: Date.now(), pool: "auto" }, quiz: null, jackpot: { ...jackpot, stage: "waiting" } });
   await check("ジャックポット待機", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("まもなく抽選") }], true);
   await host.publish({ jackpot: { ...jackpot, stage: "member" } });
   await check("メンバー抽選中", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("メンバー抽選中") }], true);

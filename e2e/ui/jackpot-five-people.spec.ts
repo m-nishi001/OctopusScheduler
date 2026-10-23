@@ -1,4 +1,4 @@
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, loginByQr, nextButton, newDevice, openAdvanced, openEventTab, route, seedStore, test } from "./fixtures";
 
 /**
  * 5名構成(管理者1 + 参加者4)で、景品がメンバーより多いジャックポットを最後まで通す。
@@ -17,8 +17,6 @@ const keys = new Map<string, string>();
 const sessionIds: string[] = [];
 /** メンバー(4人)より多い景品。 */
 const PRIZES = Array.from({ length: 10 }, (_, i) => ({ id: `jp-five-p${i + 1}`, name: `景品${i + 1}`, order: i + 1, weight: 10 }));
-
-const qrUrl = (id: string) => `/#/login?id=${encodeURIComponent(id)}&key=${encodeURIComponent(keys.get(id)!)}`;
 
 test.beforeAll(async ({ request }) => {
   for (const id of ids) {
@@ -44,21 +42,13 @@ test("管理者+参加者4名・景品10件: 当選表示の自動クローズ�
   await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
 
-  // イベントを始め、参加者4人全員がエントリーする(抽選の対象は、エントリーした人だけ)
+  // イベントを始め、参加者4人がポータルに入る(抽選の対象は既定の「参加者全員(自動)」。エントリーは要らない)
   await openAdvanced(admin.page);
   await admin.page.getByTestId("event-title").fill("五人の抽選会");
   await admin.page.getByRole("button", { name: "イベントを開始" }).click();
-  await admin.page.getByRole("button", { name: "エントリー受付を開始" }).click();
-  await expect(admin.page.getByTestId("pool-state")).toContainText("エントリーした人だけ");
-  const guests = await Promise.all(ids.map(() => newDevice(browser, { mobile: true })));
-  await Promise.all(guests.map((g, i) => g.page.goto(qrUrl(ids[i]))));
-  for (const [i, g] of guests.entries()) {
-    // ホームのエントリーカードで、1タップでエントリーが済む
-    await expect(g.page.getByTestId("entry-button"), ids[i]).toBeVisible();
-    await g.page.getByTestId("entry-button").click();
-    await expect(g.page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
-  }
-  await expect(admin.page.getByTestId("entry-count")).toHaveText(`${MEMBERS}`);
+  await expect(admin.page.getByTestId("pool-state")).toContainText("参加者全員(自動)");
+  const guests = await Promise.all(ids.map((id) => loginByQr(browser, id, keys.get(id)!)));
+  for (const g of guests) await expect(g.page.getByTestId("entry-done")).toContainText("自動でエントリー済み ✓");
 
   await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
   await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");

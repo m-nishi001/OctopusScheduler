@@ -1,10 +1,12 @@
 import type { APIRequestContext } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, seedStore, test, type Device } from "./fixtures";
 
 /**
- * エントリー受付 → ジャックポットの抽選。エントリーした人だけが抽選の対象になる。
- * エントリー者を1人に絞ると当選者が決まるので、「対象外の人が当選しない」ことを決定的に確かめられる
- * （全メンバーから引いていれば、6人中5人は別の人が当選する）。
+ * ジャックポットの抽選の対象:
+ *   - 既定の「参加者全員(自動)」: このセッションにポータルから入室した人(エントリー不要)。途中参加の人も対象になる
+ *   - 「エントリーした人のみ」: 受付でエントリーした人だけ
+ * 対象を1人に絞ると当選者が決まるので、「対象外の人が当選しない」ことを決定的に確かめられる
+ * （対象外の人まで引いていれば、6人中5人は別の人が当選する）。
  * 参加者は別々のブラウザコンテキスト(= 別々のスマホ)。参加者・セッションは各テストの中で作り、終わったら消す。
  */
 
@@ -70,8 +72,11 @@ async function scene(browser: import("@playwright/test").Browser, request: APIRe
   await admin.page.getByTestId("event-title").fill("ジャックポット抽選");
   await admin.page.getByRole("button", { name: "イベントを開始" }).click();
   await expect(admin.page.getByTestId("event-state")).toContainText("ジャックポット抽選");
+  // 対象を「エントリーした人のみ」に切り替えてから、受付を開始する(既定は参加者全員(自動))
+  await expect(admin.page.getByTestId("pool-state")).toContainText("参加者全員(自動)");
+  await admin.page.getByRole("button", { name: "エントリーした人だけに切り替える" }).click();
+  await expect(admin.page.getByTestId("pool-state")).toContainText("エントリーした人のみ");
   await admin.page.getByRole("button", { name: "エントリー受付を開始" }).click();
-  await expect(admin.page.getByTestId("pool-state")).toContainText("エントリーした人だけ");
 
   // 参加者が全員ログインし、決めた人だけがエントリーする
   const guests = await Promise.all(ids.map(() => newDevice(browser, { mobile: true })));
@@ -84,8 +89,44 @@ async function scene(browser: import("@playwright/test").Browser, request: APIRe
     await expect(guests[i].page).toHaveURL(/#\/p$/);
   }
   await expect(admin.page.getByTestId("entry-count")).toHaveText(`${entrantIndexes.length}`);
-  await expect(admin.page.getByTestId("pool-state")).toContainText(`エントリーした人だけ(${entrantIndexes.length}人)`);
+  await expect(admin.page.getByTestId("pool-state")).toContainText(`エントリーした人のみ(${entrantIndexes.length}人)`);
   return { admin, host, guests, sessionId };
+}
+
+/** 対象が既定の「参加者全員(自動)」のまま、`joined` の人だけがポータルに入室している場面(エントリー受付は開かない)。 */
+async function autoScene(browser: import("@playwright/test").Browser, request: APIRequestContext, label: string, joined: number[]) {
+  test.setTimeout(300_000);
+  const admin = await newDevice(browser, { signedIn: true });
+  const { id: sessionId } = await createSession(admin.page, label);
+  sessionIds.push(sessionId);
+  const host = await newDevice(browser, { signedIn: true, projector: true });
+  host.page.on("dialog", (d) => void d.dismiss());
+  await host.page.goto(`/#/session/host/${sessionId}`);
+  await expect(host.page.locator(".host-view__title")).toContainText(label);
+  await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+  await publish(request, sessionId);
+
+  await openAdvanced(admin.page);
+  await admin.page.getByTestId("event-title").fill("ジャックポット抽選");
+  await admin.page.getByRole("button", { name: "イベントを開始" }).click();
+  await expect(admin.page.getByTestId("event-state")).toContainText("ジャックポット抽選");
+  await expect(admin.page.getByTestId("pool-state")).toContainText("参加者全員(自動)");
+
+  const guests: Array<Device | undefined> = ids.map(() => undefined);
+  const join = async (i: number) => {
+    const g = await newDevice(browser, { mobile: true });
+    guests[i] = g;
+    await g.page.goto(qrUrl(ids[i]));
+    // エントリーの操作は無く、最初から「自動でエントリー済み」になる
+    await expect(g.page.getByTestId("entry-done")).toContainText("自動でエントリー済み ✓");
+    await expect(g.page.getByTestId("entry-button")).toHaveCount(0);
+    return g;
+  };
+  for (const i of joined) await join(i);
+  const closeAll = async () => {
+    for (const d of [admin, host, ...guests]) await d?.context.close();
+  };
+  return { admin, host, guests, sessionId, join, closeAll };
 }
 
 test.describe("エントリー → ジャックポット", () => {
@@ -189,15 +230,55 @@ test.describe("エントリー → ジャックポット", () => {
     for (const d of [admin, host, ...guests]) await d.context.close();
   });
 
-  test("「全メンバー」に切り替えると、エントリーしていない人も抽選の対象になる（画面の表示が切り替わる）", async ({ browser, request }) => {
+  test("「参加者全員(自動)」に切り替えると、エントリーしていない人も自動でエントリー済みになる（画面の表示が切り替わる）", async ({ browser, request }) => {
     const { admin, host, guests, sessionId } = await scene(browser, request, "抽選会場C", [0]);
-    await admin.page.getByRole("button", { name: "全メンバーに切り替える" }).click();
-    await expect(admin.page.getByTestId("pool-state")).toContainText("全メンバー");
+    await expect(guests[1].page.getByTestId("entry-button")).toBeVisible();
+    await admin.page.getByRole("button", { name: "参加者全員(自動)に切り替える" }).click();
+    await expect(admin.page.getByTestId("pool-state")).toContainText("参加者全員(自動)");
+    await expect(guests[1].page.getByTestId("entry-done")).toContainText("自動でエントリー済み ✓");
+    await expect(guests[1].page.getByTestId("entry-button")).toHaveCount(0);
     await admin.page.getByRole("button", { name: "エントリーした人だけに切り替える" }).click();
-    await expect(admin.page.getByTestId("pool-state")).toContainText("エントリーした人だけ(1人)");
+    await expect(admin.page.getByTestId("pool-state")).toContainText("エントリーした人のみ(1人)");
+    await expect(guests[0].page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
+    await expect(guests[1].page.getByTestId("entry-button")).toBeVisible();
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, ...guests]) await d.context.close();
+  });
+
+  test("自動(既定): ポータルに入室した人だけが対象。エントリーは要らず、入室していない人・管理者は当選しない", async ({ browser, request }) => {
+    const joined = 3;
+    const { admin, host, guests, sessionId, closeAll } = await autoScene(browser, request, "抽選会場E", [joined]);
+    const winner = await drawOnce(admin.page);
+    expect(winner).toBe(nameOf(ids[joined]));
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+    await expect(guests[joined]!.page.getByTestId("you-won")).toBeVisible();
+
+    await publish(request, sessionId, false);
+    await closeAll();
+  });
+
+  test("自動(既定): 抽選の途中から入室した人も、次の抽選の対象になる", async ({ browser, request }) => {
+    test.setTimeout(420_000);
+    const { admin, host, guests, sessionId, join, closeAll } = await autoScene(browser, request, "抽選会場F", [2]);
+    const first = await drawOnce(admin.page);
+    expect(first).toBe(nameOf(ids[2]));
+
+    // 1人目が出たあとに入室した人。2人目の対象は、この人だけ(1人目は当選済みで外れる)
+    await join(4);
+    let second = "";
+    for (let i = 0; i < 60 && !second; i++) {
+      await nextButton(admin.page).click();
+      await admin.page.waitForTimeout(1500);
+      const m = /当選者: (参加者\d\d)/.exec(await admin.page.getByTestId("jackpot-state").innerText());
+      if (m && m[1] !== first) second = m[1];
+    }
+    expect(second).toBe(nameOf(ids[4]));
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+    void guests;
+
+    await publish(request, sessionId, false);
+    await closeAll();
   });
 
   test("メンバー抽選では参加者のスマホに停止ボタンが出ず(管理端末が止める)、景品抽選では当選者のスマホだけから止められる", async ({ browser, request }) => {

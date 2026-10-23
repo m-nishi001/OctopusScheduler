@@ -89,7 +89,7 @@ describe("ジャックポットの抽選の対象", () => {
 
   it("イベントから対象を取り出す。省略・不正な値は指定なし（全メンバー）として扱う", () => {
     expect(readPortalEvent({ event: { ...event, pool: "entrants" } })?.pool).toBe("entrants");
-    expect(readPortalEvent({ event: { ...event, pool: "all" } })?.pool).toBe("all");
+    expect(readPortalEvent({ event: { ...event, pool: "auto" } })?.pool).toBe("auto");
     for (const pool of [undefined, null, "", "everyone", 1, {}]) {
       const read = readPortalEvent({ event: { ...event, pool } });
       expect(read, String(pool)).toEqual(event);
@@ -97,10 +97,10 @@ describe("ジャックポットの抽選の対象", () => {
     }
   });
 
-  it("parseDrawPool / parseSetPoolPayload は all と entrants だけを受け付ける", () => {
-    expect(parseDrawPool("all")).toBe("all");
+  it("parseDrawPool / parseSetPoolPayload は auto と entrants だけを受け付ける", () => {
+    expect(parseDrawPool("auto")).toBe("auto");
     expect(parseDrawPool("entrants")).toBe("entrants");
-    for (const v of [undefined, null, "", "ALL", "member", 0]) expect(parseDrawPool(v)).toBeNull();
+    for (const v of [undefined, null, "", "all", "ALL", "member", 0]) expect(parseDrawPool(v)).toBeNull();
     expect(parseSetPoolPayload({ mode: "entrants" })).toEqual({ mode: "entrants" });
     for (const p of [null, undefined, {}, { mode: "x" }, "entrants"]) expect(parseSetPoolPayload(p)).toBeNull();
   });

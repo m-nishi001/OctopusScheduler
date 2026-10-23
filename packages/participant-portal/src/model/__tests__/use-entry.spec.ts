@@ -212,12 +212,11 @@ describe("useEntry: エントリー済みの保存", () => {
 });
 
 describe("useEntry: 自動エントリー", () => {
-  it("isAutoEntered は、対象が entrants 以外で決まっているイベントだけを自動とみなす(all/auto のどちらの呼び名でも)", () => {
+  it("isAutoEntered は、対象が auto と明示されたイベントだけを自動とみなす", () => {
     expect(isAutoEntered(null)).toBe(false);
     expect(isAutoEntered({})).toBe(false);
     expect(isAutoEntered({ pool: "entrants" })).toBe(false);
-    expect(isAutoEntered({ pool: "all" })).toBe(true);
-    expect(isAutoEntered({ pool: "auto" as never })).toBe(true);
+    expect(isAutoEntered({ pool: "auto" })).toBe(true);
   });
 
   it("対象が自動なら、押さなくても isIn になり、押しても何も送らない。entrants なら押すまで isIn にならない", async () => {
@@ -229,7 +228,7 @@ describe("useEntry: 自動エントリー", () => {
     expect(alice.entry.autoEntered.value).toBe(false);
     expect(alice.entry.isIn.value).toBe(false);
 
-    await env.publishEvent(sampleEvent({ pool: "all", entry: { key: "entry:event-1", open: true } }));
+    await env.publishEvent(sampleEvent({ pool: "auto", entry: { key: "entry:event-1", open: true } }));
     await tick(5000);
     expect(alice.entry.autoEntered.value).toBe(true);
     expect(alice.entry.isIn.value).toBe(true);

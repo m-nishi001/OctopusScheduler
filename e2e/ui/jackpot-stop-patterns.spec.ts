@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
 import { changedFrames, captureTimeline } from "./helpers/motion";
 
 /**
@@ -12,9 +12,11 @@ import { changedFrames, captureTimeline } from "./helpers/motion";
 
 const MEMBER = { id: "jp-stop-e2e-01", name: "停止太郎" };
 const sessionIds: string[] = [];
+let memberKey = "";
 
 test.beforeAll(async ({ request }) => {
   await adminRpc(request, "accounts_addMember", MEMBER);
+  memberKey = (await adminRpc<{ key: string }>(request, "accounts_issueLoginKey", { id: MEMBER.id })).key;
 });
 test.afterAll(async ({ request }) => {
   for (const sessionId of sessionIds) await adminRpc(request, "sessionHub_closeSession", { sessionId }).catch(() => undefined);
@@ -50,7 +52,7 @@ const restoreRandom = (page: Page) =>
     if (w.__origRandom) Math.random = w.__origRandom;
   });
 
-async function scene(browser: import("@playwright/test").Browser, label: string, kind: "roulette" | "slot") {
+async function scene(browser: import("@playwright/test").Browser, request: import("@playwright/test").APIRequestContext, label: string, kind: "roulette" | "slot") {
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, label);
   sessionIds.push(sessionId);
@@ -70,6 +72,8 @@ async function scene(browser: import("@playwright/test").Browser, label: string,
   await expect(host.page.locator(".host-view__title")).toBeVisible();
   const prizes = ["特賞", "一等", "二等", "三等", "四等"].map((name, i) => ({ id: `jp-stop-${kind}-${i + 1}`, name, order: i + 1, weight: 10, animation: kind }));
   await seedStore(host.page, "jackpot-game", "PrizeData", prizes.map((p) => ({ id: p.id, value: p })));
+  // 抽選の対象は既定で「参加者全員(自動)」: ポータルから入室した人を1人用意する
+  await joinPortalAs(browser, request, admin, sessionId, MEMBER.id, memberKey);
   await openAdvanced(admin.page);
   await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
   await expect(admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
@@ -97,9 +101,9 @@ async function advanceUntilStop(admin: Page, what: "メンバー" | "景品") {
 }
 
 for (const pattern of ROULETTE_PATTERNS) {
-  test(`@motion ルーレットの止まり方(${pattern.name}): 動いて、固まらず、当選が発表される`, async ({ browser }) => {
+  test(`@motion ルーレットの止まり方(${pattern.name}): 動いて、固まらず、当選が発表される`, async ({ browser, request }) => {
     test.setTimeout(300_000);
-    const { admin, host, pageErrors, patterns } = await scene(browser, `止まり方-${pattern.name}`, "roulette");
+    const { admin, host, pageErrors, patterns } = await scene(browser, request, `止まり方-${pattern.name}`, "roulette");
     const reel = host.page.locator(".roulette-container");
     const spinning = host.page.locator(".roulette-container.spinning");
 
@@ -128,9 +132,9 @@ for (const pattern of ROULETTE_PATTERNS) {
 }
 
 for (const pattern of MEMBER_PATTERNS) {
-  test(`@motion メンバー抽選の止まり方(${pattern.name}): 動いて、固まらず、当選者が発表される`, async ({ browser }) => {
+  test(`@motion メンバー抽選の止まり方(${pattern.name}): 動いて、固まらず、当選者が発表される`, async ({ browser, request }) => {
     test.setTimeout(300_000);
-    const { admin, host, pageErrors, patterns } = await scene(browser, `メンバー止まり方-${pattern.name}`, "roulette");
+    const { admin, host, pageErrors, patterns } = await scene(browser, request, `メンバー止まり方-${pattern.name}`, "roulette");
     const viewport = host.page.locator(".member-draw .viewport");
 
     await advanceUntilStop(admin.page, "メンバー");

@@ -111,8 +111,9 @@ test("実ブラウザ(ホスト・管理・参加者3)+ 合成の参加者47・�
     await openAdvanced(admin.page);
     await admin.page.getByTestId("event-title").fill("負荷試験イベント");
     await admin.page.getByRole("button", { name: "イベントを開始" }).click();
+    await admin.page.getByRole("button", { name: "エントリーした人だけに切り替える" }).click();
     await admin.page.getByRole("button", { name: "エントリー受付を開始" }).click();
-    await expect(admin.page.getByTestId("pool-state")).toContainText("エントリーした人だけ");
+    await expect(admin.page.getByTestId("pool-state")).toContainText("エントリーした人のみ");
     for (const [i, d] of real.entries()) {
       await expect(d.page.getByTestId("entry-button"), `real${i + 1}`).toBeVisible({ timeout: 30_000 });
       await d.page.getByTestId("entry-button").click();

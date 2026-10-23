@@ -176,31 +176,33 @@ describe("session-console-view: エントリー受付", () => {
 });
 
 describe("session-console-view: ジャックポットの抽選の対象", () => {
-  it("イベントが無い間は出さない。始めると「全メンバー」で、切り替えボタンが出る", async () => {
+  it("イベントが無い間は出さない。始めると「参加者全員(自動)」で、切り替えボタンが出る", async () => {
     const s = await consoleScene();
     expect(s.byTestId("pool-panel").exists()).toBe(false);
     await s.startEvent("ジャックポット抽選");
-    expect(s.byTestId("pool-state").text()).toContain("全メンバー");
+    expect(s.byTestId("pool-state").text()).toContain("参加者全員(自動)");
     expect(s.button("エントリーした人だけに切り替える")).toBeDefined();
   });
 
-  it("エントリー受付を始めると、対象が「エントリーした人だけ」になり、人数が出る。全メンバーに戻せて、また切り替えられる", async () => {
+  it("エントリー受付を始めても対象は「参加者全員(自動)」のまま。「エントリーした人のみ」に切り替えると人数が出て、また戻せる", async () => {
     const s = await consoleScene();
     await s.startEvent("ジャックポット抽選");
     await s.click("エントリー受付を開始");
-    expect(s.byTestId("pool-state").text()).toContain("エントリーした人だけ(0人)");
+    expect(s.byTestId("pool-state").text()).toContain("参加者全員(自動)");
 
+    await s.click("エントリーした人だけに切り替える");
+    expect(s.byTestId("pool-state").text()).toContain("エントリーした人のみ(0人)");
     await s.enter("alice", "アリス");
     await s.enter("bob", "ボブ");
-    expect(s.byTestId("pool-state").text()).toContain("エントリーした人だけ(2人)");
+    expect(s.byTestId("pool-state").text()).toContain("エントリーした人のみ(2人)");
 
-    await s.click("全メンバーに切り替える");
-    expect(s.byTestId("pool-state").text()).toContain("全メンバー");
+    await s.click("参加者全員(自動)に切り替える");
+    expect(s.byTestId("pool-state").text()).toContain("参加者全員(自動)");
     await s.click("エントリーした人だけに切り替える");
-    expect(s.byTestId("pool-state").text()).toContain("エントリーした人だけ(2人)");
+    expect(s.byTestId("pool-state").text()).toContain("エントリーした人のみ(2人)");
   });
 
-  it("エントリー受付を始める前に「エントリーした人だけ」にすると、対象が0人であることを知らせる", async () => {
+  it("エントリー受付を始める前に「エントリーした人のみ」にすると、対象が0人であることを知らせる", async () => {
     const s = await consoleScene();
     await s.startEvent("ジャックポット抽選");
     await s.click("エントリーした人だけに切り替える");
