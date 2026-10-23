@@ -46,6 +46,8 @@ async function drawOnce(admin: import("@playwright/test").Page): Promise<string>
     const m = /当選者: (参加者\d\d)/.exec(state);
     if (m) return m[1];
     await nextButton(admin).click();
+    // 通信が遅い環境(GAS)では、押した結果が表示に出るまで時間がかかる。出る前に重ねて押すと、当選者の表示を通り越して景品抽選まで進んでしまう
+    await expect.poll(() => admin.getByTestId("jackpot-state").innerText(), { timeout: 10_000 }).not.toBe(state).catch(() => undefined);
     await admin.waitForTimeout(1500);
   }
   await expect(admin.getByTestId("jackpot-state")).toContainText(/当選者: 参加者\d\d/, { timeout: 60_000 });
@@ -74,11 +76,12 @@ async function scene(browser: import("@playwright/test").Browser, request: APIRe
   // 参加者が全員ログインし、決めた人だけがエントリーする
   const guests = await Promise.all(ids.map(() => newDevice(browser, { mobile: true })));
   await Promise.all(guests.map((g, i) => g.page.goto(qrUrl(ids[i]))));
-  for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("event-banner"), ids[i]).toBeVisible();
+  // ホームのカードに「エントリーする」が出ていて、1タップでエントリーが済む(別の画面へは移らない)
+  for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("entry-button"), ids[i]).toBeVisible();
   for (const i of entrantIndexes) {
-    await guests[i].page.getByTestId("event-banner").click();
     await guests[i].page.getByTestId("entry-button").click();
-    await expect(guests[i].page.getByTestId("entry-done")).toBeVisible();
+    await expect(guests[i].page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
+    await expect(guests[i].page).toHaveURL(/#\/p$/);
   }
   await expect(admin.page.getByTestId("entry-count")).toHaveText(`${entrantIndexes.length}`);
   await expect(admin.page.getByTestId("pool-state")).toContainText(`エントリーした人だけ(${entrantIndexes.length}人)`);
@@ -144,6 +147,32 @@ test.describe("エントリー → ジャックポット", () => {
         { timeout: 10_000 }
       )
       .toBe(true);
+
+    await publish(request, sessionId, false);
+    for (const d of [admin, host, ...guests]) await d.context.close();
+  });
+
+  test("説明画面の「まもなく抽選!」は、エントリー済みの人にだけ出る。未エントリーの人にはエントリーのボタンが出て、1タップで同じ表示になる", async ({ browser, request }) => {
+    const entrant = 1;
+    const { admin, host, guests, sessionId } = await scene(browser, request, "抽選会場W", [entrant]);
+    await admin.page.getByRole("button", { name: "ジャックポット: 説明" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+
+    const entered = guests[entrant].page;
+    const bystander = guests[0].page;
+    await openEventTab(entered);
+    await openEventTab(bystander);
+    await expect(entered.getByTestId("jackpot-waiting-title")).toContainText("まもなく抽選");
+    await expect(entered.getByTestId("entry-button")).toHaveCount(0);
+
+    // 未エントリーの人には「まもなく抽選」を出さず、エントリーカードを出す
+    await expect(bystander.getByTestId("entry-button")).toBeVisible();
+    await expect(bystander.getByTestId("jackpot-waiting")).toHaveCount(0);
+
+    // 受付中なので、1タップでエントリーでき、そのまま「まもなく抽選」に変わる(2回目のタップは要らない)
+    await bystander.getByTestId("entry-button").click();
+    await expect(bystander.getByTestId("jackpot-waiting-title")).toContainText("まもなく抽選");
+    await expect(bystander.getByTestId("entry-button")).toHaveCount(0);
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, ...guests]) await d.context.close();

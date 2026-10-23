@@ -180,6 +180,12 @@ test.describe("クイズ（参加者ポータル）", () => {
     await admin.page.getByTestId("start-quiz").click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz6/intro");
     await expect(admin.page.getByTestId("entry-state")).toContainText("受付は始まっていません");
+    // 受付が始まる前は「お待ちください」だけ(「参加する」のリンクもボタンも無い)
+    for (const g of [taro, hanako]) {
+      await expect(g.page.getByTestId("entry-none")).toContainText("お待ちください");
+      await expect(g.page.getByTestId("entry-button")).toHaveCount(0);
+      await expect(g.page.getByTestId("home-join")).toHaveCount(0);
+    }
 
     // イントロの次: ホストはQRではなくエントリー画面になり、受付が自動で始まる
     await nextButton(admin.page).click();
@@ -191,9 +197,9 @@ test.describe("クイズ（参加者ポータル）", () => {
 
     // 参加者がエントリーするたびに、会場の人数が増える
     for (const g of [taro, hanako]) {
-      await g.page.getByTestId("event-banner").click();
+      // 1タップでエントリー(ホームのカードのボタン。別の画面へは移らない)
       await g.page.getByTestId("entry-button").click();
-      await expect(g.page.getByTestId("entry-done")).toContainText("エントリーしました!");
+      await expect(g.page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
     }
     await expect(host.page.getByTestId("stage-count")).toHaveText("2");
     await expect(host.page.getByTestId("entry-bubble")).toHaveCount(2);
@@ -205,6 +211,15 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
     await expect(admin.page.getByTestId("entry-state")).toContainText("エントリー受付は終了");
     await expect(admin.page.getByTestId("pool-state")).toContainText("2人");
+
+    // 次へのあとに、もう一度エントリーを押す必要は無い。そのまま出題が出て、答えられる
+    for (const g of [taro, hanako]) {
+      await expect(g.page.getByTestId("quiz-panel")).toContainText("みかんはどれ?");
+      await expect(g.page.getByTestId("entry-button")).toHaveCount(0);
+      await expect(g.page.getByRole("button", { name: /みかん/ })).toBeEnabled();
+    }
+    await taro.page.getByRole("button", { name: /みかん/ }).click();
+    await expect(taro.page.getByTestId("quiz-answered")).toContainText("2. みかん");
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, taro, hanako]) await d.context.close();

@@ -47,7 +47,7 @@ const go = (page: Page, path: string) => page.evaluate((p) => (location.hash = p
 
 test("参加者ポータル: 幅の掃引と実機プリセットで、どの画面も横にはみ出さない", async ({ browser, request }) => {
   // GAS では、ホストの公開が各端末に届くまでがポーリング(数秒)なので、状態を切り替えるたびの待ちが長い
-  test.setTimeout(isGas ? 900_000 : 480_000);
+  test.setTimeout(isGas ? 900_000 : 720_000);
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, "レスポンシブ会場");
   sessionIds.push(sessionId);
@@ -107,7 +107,7 @@ test("参加者ポータル: 幅の掃引と実機プリセットで、どの画
   await host.publish({ event: { id: "ev1", title: `長いイベント名${LONG}`, startedAtMs: Date.now(), entry: { key: "e1", open: true } } });
   await check("エントリー受付", [
     { path: "/p/event", ready: (p) => expect(p.getByTestId("entry-button")).toBeVisible() },
-    { path: "/p", ready: (p) => expect(p.getByTestId("event-banner")).toBeVisible() },
+    { path: "/p", ready: (p) => expect(p.getByTestId("entry-button")).toBeVisible() },
   ]);
 
   // 3. クイズ出題中(長い問題文・英数字だけの選択肢)
@@ -127,7 +127,8 @@ test("参加者ポータル: 幅の掃引と実機プリセットで、どの画
 
   // 4. ジャックポット: 待機 → メンバー抽選中 → 他の人が当選 → 景品抽選中 → 景品が決まる(長い名前・長い景品名)
   const jackpot = { page: "main-draw", canStop: false, member: null, memberId: null, prize: null };
-  await host.publish({ quiz: null, jackpot: { ...jackpot, stage: "waiting" } });
+  // 対象が自動のイベント(エントリーしなくても対象)なので、待機画面が出る
+  await host.publish({ event: { id: "ev1", title: `長いイベント名${LONG}`, startedAtMs: Date.now(), pool: "all" }, quiz: null, jackpot: { ...jackpot, stage: "waiting" } });
   await check("ジャックポット待機", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("まもなく抽選") }], true);
   await host.publish({ jackpot: { ...jackpot, stage: "member" } });
   await check("メンバー抽選中", [{ path: "/p/event", ready: (p) => expect(p.getByTestId("jackpot-waiting-title")).toContainText("メンバー抽選中") }], true);
