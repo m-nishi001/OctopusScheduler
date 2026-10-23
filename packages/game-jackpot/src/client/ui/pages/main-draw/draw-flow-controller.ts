@@ -15,7 +15,7 @@ export interface DrawFlowDeps {
   /** ステップの失敗。そのステップは捨てられ、次の進行操作で続きから進む。 */
   onStepError(error: unknown): void;
   /** 抽選が終わった(景品かメンバーが尽きた)。終了の画面を出す。 */
-  onFinished(reason: DrawEndReason): void;
+  onFinished(reason: DrawEndReason, progress: DrawProgress): void;
   /** 終了の画面で進行操作(「次へ」・Enter・OK)があった。結果の画面へ進む。 */
   onLeave(): void;
   /** 進行が止まった(次のEnter待ち、または終了)。この時点の状態を公開する。 */
@@ -78,10 +78,11 @@ export class DrawFlowController {
   /** 続けられるなら次の抽選を引いてサイクルを積む。終了、または積めなかったら false。 */
   private async refill(): Promise<boolean> {
     try {
-      const { endReason } = await this.deps.progress();
+      const progress = await this.deps.progress();
+      const { endReason } = progress;
       if (endReason) {
         this.endedAtMs = this.now();
-        this.deps.onFinished(endReason);
+        this.deps.onFinished(endReason, progress);
         return false;
       }
       this.deps.queue.addCycle(await this.deps.drawNextCycle());

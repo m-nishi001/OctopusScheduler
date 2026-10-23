@@ -10,7 +10,9 @@ export interface DrawProgress {
   remainingPrizes: number;
   /** 抽選の対象のうち、まだ当選していない人数。 */
   remainingMembers: number;
-  /** これまでに当選が決まった回数。 */
+  /** 抽選の対象の人数(当選済みを含む)。終了の画面で「対象の N 名全員」と出して、理由を画面から判断できるようにする。 */
+  eligibleMembers: number;
+  /** これまでに当選が決まった回数(同じセッションの、前のイベントの分も含む)。 */
   drawn: number;
   /**
    * 終了していれば理由。続けられるなら null。景品もメンバーも尽きたときは prizes。
@@ -21,7 +23,7 @@ export interface DrawProgress {
 }
 
 /** 抽選の進み具合(残りの景品・残りのメンバー・済んだ回数)から、終了の理由(景品が尽きた / メンバーが尽きた)を決める。1回も引いていなければ終了にしない。 */
-export function toDrawProgress(remainingPrizes: number, remainingMembers: number, drawn: number): DrawProgress {
+export function toDrawProgress(remainingPrizes: number, remainingMembers: number, drawn: number, eligibleMembers: number): DrawProgress {
   const exhausted: DrawEndReason | null = remainingPrizes <= 0 ? "prizes" : remainingMembers <= 0 ? "members" : null;
-  return { remainingPrizes, remainingMembers, drawn, endReason: drawn > 0 ? exhausted : null };
+  return { remainingPrizes, remainingMembers, eligibleMembers, drawn, endReason: drawn > 0 ? exhausted : null };
 }

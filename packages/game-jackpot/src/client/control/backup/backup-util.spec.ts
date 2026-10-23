@@ -15,12 +15,10 @@ beforeEach(async () => {
 });
 
 describe("buildLocalBackup", () => {
-  it("景品・メンバーの設定・画面設定・抽選結果・確変の状態を書き出す", async () => {
+  it("景品・メンバーの設定・画面設定を書き出す", async () => {
     await store("PrizeData").save("p1", { id: "p1", name: "1等", order: 1 });
     await store("MemberExtraData").save("m1", { memberId: "m1", rank: 3 });
     await store("ScreenConfigData").save("opening", { screenName: "opening", settingValue: "{}" });
-    await store("DrawResultData").save("d1", { drawId: "d1", wonMember: { id: "m1" } });
-    await store("PrizeDrawState").save("state", [2, 3]);
 
     const backup = await buildLocalBackup(false);
 
@@ -29,8 +27,9 @@ describe("buildLocalBackup", () => {
     expect(JSON.stringify(backup.stores.PrizeData.p1)).toContain("1等");
     expect(JSON.stringify(backup.stores.MemberExtraData.m1)).toContain('"rank":3');
     expect(JSON.stringify(backup.stores.ScreenConfigData.opening)).toContain("opening");
-    expect(JSON.stringify(backup.stores.DrawResultData.d1)).toContain("d1");
-    expect(JSON.stringify(backup.stores.PrizeDrawState.state)).toContain("[2,3]");
+    // 抽選結果と確変の予定はセッションの結果ファイル(サーバー)にあり、ローカルのバックアップには含めない
+    expect(backup.stores.DrawResultData).toBeUndefined();
+    expect(backup.stores.PrizeDrawState).toBeUndefined();
   });
 
   // jsdom の localforage は Blob を保存して読み戻せない（{} になる）ので、Blob をデータURLに直す部分は toJsonSafe のテストで確かめる。

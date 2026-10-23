@@ -37,3 +37,15 @@ export class NoEligibleMembersError extends Error {
     this.name = "NoEligibleMembersError";
   }
 }
+
+/**
+ * 抽選の保存先(サーバーの結果ファイル)が、この結果を受け付けなかった。
+ * すでに当選している人・景品、公開されていない別の結果、結果のリセット(別の端末から)などで起きる。
+ * 保存先から状態を読み直したうえで投げるので、呼び出し側は引き直せる。
+ */
+export class DrawConflictError extends Error {
+  constructor(message?: string) {
+    super(message);
+    this.name = "DrawConflictError";
+  }
+}

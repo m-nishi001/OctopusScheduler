@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RevealTracker, buildJackpotDescriptionState, buildJackpotDraw, buildJackpotHostState, canStopAt, deriveStage } from "./jackpot-host-state";
+import { RevealTracker, buildJackpotDescriptionState, buildJackpotHostState, canStopAt, deriveStage, revealableDrawId } from "./jackpot-host-state";
 import { JACKPOT_STAGES, readJackpotState } from "@octopus/session-hub";
 
 describe("canStopAt", () => {
@@ -134,7 +134,7 @@ describe("buildJackpotHostState", () => {
   });
 });
 
-describe("buildJackpotDraw", () => {
+describe("revealableDrawId", () => {
   const result = {
     drawId: "d1",
     wonMember: { id: "m1", name: "太郎" },
@@ -145,38 +145,30 @@ describe("buildJackpotDraw", () => {
 
   it("当選者と賞品の両方が画面に見えるまでは保存しない(ネタバレ防止)", () => {
     const t = new RevealTracker();
-    expect(buildJackpotDraw(result, t)).toBeNull();
+    expect(revealableDrawId(result, t)).toBeNull();
     t.onAction("stopMemberDraw");
-    expect(buildJackpotDraw(result, t)).toBeNull();
+    expect(revealableDrawId(result, t)).toBeNull();
     t.onAction("stopPrizeDraw");
-    expect(buildJackpotDraw(result, t)).toEqual({
-      drawId: "d1",
-      memberId: "m1",
-      memberName: "太郎",
-      prizeId: "p1",
-      prizeName: "1等",
-      isKakuhen: true,
-      atMs: 123,
-    });
+    expect(revealableDrawId(result, t)).toBe("d1");
   });
 
   it("確変の最終抽選でも公開済みになり、次の抽選に進む(reset)と保存しない", () => {
     const t = new RevealTracker();
     t.onAction("stopMemberDraw");
     t.onAction("stopKakuhenDummyDraw");
-    expect(buildJackpotDraw(result, t)).toBeNull();
+    expect(revealableDrawId(result, t)).toBeNull();
     t.onAction("stopKakuhenFinalDraw");
-    expect(buildJackpotDraw(result, t)).not.toBeNull();
+    expect(revealableDrawId(result, t)).not.toBeNull();
     t.reset();
-    expect(buildJackpotDraw(result, t)).toBeNull();
+    expect(revealableDrawId(result, t)).toBeNull();
   });
 
   it("結果が無い・当選者や賞品が無いときは null", () => {
     const t = new RevealTracker();
     t.onAction("stopMemberDraw");
     t.onAction("stopPrizeDraw");
-    expect(buildJackpotDraw(null, t)).toBeNull();
-    expect(buildJackpotDraw({ ...result, wonMember: null }, t)).toBeNull();
-    expect(buildJackpotDraw({ ...result, wonPrize: null }, t)).toBeNull();
+    expect(revealableDrawId(null, t)).toBeNull();
+    expect(revealableDrawId({ ...result, wonMember: null }, t)).toBeNull();
+    expect(revealableDrawId({ ...result, wonPrize: null }, t)).toBeNull();
   });
 });

@@ -7,7 +7,9 @@
                 primaryLabel="次へ" />
 
             <HalfRemainingDialog v-if="showHalfRemainingDialog" :visible="showHalfRemainingDialog" />
-            <EndDialog v-if="endReason" :reason="endReason" @close="advance" />
+            <EndDialog v-if="endReason" :reason="endReason" :eligible-members="eligibleMembers" @close="advance" />
+            <p v-if="rehearsal" class="draw-badge" data-testid="rehearsal-badge">リハーサル（結果は保存されません）</p>
+            <p v-if="notice" class="draw-notice" role="alert" data-testid="draw-notice">{{ notice }}</p>
 
             <div class="rich-layout">
                 <section class="member-area-fullscreen jp-stage" v-if="phase === 'member'">
@@ -59,6 +61,33 @@ export default {
 </script>
 
 <style scoped>
+.draw-badge,
+.draw-notice {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 120;
+    margin: 0;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    pointer-events: none;
+}
+
+.draw-badge {
+    top: 8px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+}
+
+.draw-notice {
+    bottom: 16px;
+    background: #b42318;
+    color: #fff;
+    font-size: 1rem;
+    padding: 8px 18px;
+}
+
 .orchestrator {
     max-width: 1024px;
 }

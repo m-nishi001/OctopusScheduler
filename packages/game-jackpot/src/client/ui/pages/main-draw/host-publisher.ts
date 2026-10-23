@@ -1,13 +1,15 @@
-import type { JackpotDrawInput } from "@octopus/session-hub";
-import { buildJackpotDraw, buildJackpotHostState, type RevealTracker } from "@model/jackpot-host-state";
+import { buildJackpotHostState, revealableDrawId, type RevealTracker } from "@model/jackpot-host-state";
 import type { JackpotHost } from "../../composables/use-jackpot-host";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 
 export interface HostPublisherDeps {
-  host: Pick<JackpotHost, "publish"> & { recordDraw(draw: JackpotDrawInput): Promise<boolean> };
+  host: Pick<JackpotHost, "publish">;
   tracker: RevealTracker;
-  /** デモは結果を保存しない。 */
-  isDemo: boolean;
+  /**
+   * 当選者と景品が画面に見えた抽選を公開する(確定済みの結果を、参加者のポータルに見せる)。
+   * 成功なら true。通信の失敗などで公開できなかったら false(次の公開でもう一度試す)。
+   */
+  reveal(drawId: string): Promise<boolean>;
   phase(): string;
   /** 抽選が終わった(景品かメンバーが尽きて、終了の画面を出している)。 */
   ended(): boolean;
@@ -17,10 +19,10 @@ export interface HostPublisherDeps {
 
 /**
  * 進行が止まるたびに呼ぶ。いまの状態をセッションへ公開し、当選者と景品が画面に見えた後に
- * 1回だけ(演出の途中では保存しない)結果をポータル用に保存する。
+ * 1回だけ(演出の途中では公開しない)、確定済みの結果を参加者のポータルに公開(reveal)する。
  */
 export function createHostPublisher(deps: HostPublisherDeps): () => void {
-  const recordedDrawIds = new Set<string>();
+  const revealedDrawIds = new Set<string>();
   return () => {
     const result = deps.result();
     deps.host.publish(
@@ -34,12 +36,11 @@ export function createHostPublisher(deps: HostPublisherDeps): () => void {
         prizeName: result?.wonPrize?.name,
       })
     );
-    if (deps.isDemo) return;
-    const draw = buildJackpotDraw(result, deps.tracker);
-    if (!draw || recordedDrawIds.has(draw.drawId)) return;
-    recordedDrawIds.add(draw.drawId);
-    void deps.host.recordDraw(draw).then((saved) => {
-      if (!saved) recordedDrawIds.delete(draw.drawId);
+    const drawId = revealableDrawId(result, deps.tracker);
+    if (!drawId || revealedDrawIds.has(drawId)) return;
+    revealedDrawIds.add(drawId);
+    void deps.reveal(drawId).then((ok) => {
+      if (!ok) revealedDrawIds.delete(drawId);
     });
   };
 }

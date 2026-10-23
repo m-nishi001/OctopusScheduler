@@ -151,7 +151,8 @@ describe("HostAgent: 結果の保存と更新通知", () => {
     await agent.recordQuizResult(quizResult());
     await tick(3000);
     expect(host.conn.state.roomState?.data.results).toEqual({ rev: 1 });
-    await agent.recordJackpotDraw(draw);
+    await agent.commitJackpotDraw(draw);
+    await agent.revealJackpotDraw(draw.drawId);
     await tick(3000);
     expect(host.conn.state.roomState?.data.results).toEqual({ rev: 2 });
     // DO の状態に結果の中身(名前など)は入らない
@@ -163,8 +164,9 @@ describe("HostAgent: 結果の保存と更新通知", () => {
 
   it("同じ内容の再保存では rev が進まず、リセットすると進む", async () => {
     const { host, agent } = await setup();
-    await agent.recordJackpotDraw(draw);
-    await agent.recordJackpotDraw(draw);
+    await agent.commitJackpotDraw(draw);
+    await agent.revealJackpotDraw(draw.drawId);
+    await agent.revealJackpotDraw(draw.drawId);
     await tick(3000);
     expect(host.conn.state.roomState?.data.results).toEqual({ rev: 1 });
     await agent.resetJackpot();

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   getJackpotScope,
   resolveJackpotScope,
-  scopedStoreName,
   setJackpotScope,
 } from "./jackpot-session";
 
@@ -14,13 +13,6 @@ describe("jackpot-session", () => {
     expect(resolveJackpotScope({ demo: "0" })).toBe("live");
     expect(resolveJackpotScope({})).toBe("live");
     expect(resolveJackpotScope(undefined)).toBe("live");
-  });
-
-  it("keeps live store names and separates demo", () => {
-    expect(scopedStoreName("DrawResultData", "live")).toBe("DrawResultData");
-    expect(scopedStoreName("DrawResultData", "demo")).toBe(
-      "DrawResultData:demo"
-    );
   });
 
   it("holds the current scope", () => {
