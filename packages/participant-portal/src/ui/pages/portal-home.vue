@@ -10,16 +10,11 @@
             <template v-if="session.event.value">
                 <p class="pp-home__live">イベント発生中!</p>
                 <p class="pp-home__event-title" data-testid="home-event-title">{{ session.event.value.title }}</p>
-                <p v-if="entry.phase.value === 'open' && !entry.entered.value" class="pp-home__entry" data-testid="home-entry-open">エントリー受付中!</p>
-                <p v-else-if="entry.entered.value" class="pp-home__entry is-done" data-testid="home-entry-done">エントリー済み ✓</p>
-                <RouterLink to="/p/event" class="pp-button" data-testid="home-join">
-                    {{ entry.phase.value === 'open' && !entry.entered.value ? 'エントリーする' : '参加する' }}
-                </RouterLink>
+                <EventEntryCard class="pp-home__entry-card" />
             </template>
             <template v-else-if="hasActivity">
                 <p class="pp-home__live">進行中です!</p>
                 <p class="pp-home__entry">クイズや抽選が行われています</p>
-                <RouterLink to="/p/event" class="pp-button" data-testid="home-join">イベントを見る</RouterLink>
             </template>
             <template v-else>
                 <p class="pp-home__idle-title">いまイベントは行われていません</p>
@@ -40,16 +35,14 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { RouterLink } from 'vue-router';
+import EventEntryCard from '../components/event-entry-card.vue';
 import { useParticipantAuth } from '../../model/participant-auth';
 import { readJackpotView } from '../../model/activity';
-import { useEntryContext } from '../../model/use-entry';
 import { useQuizContext } from '../../model/use-quiz';
 import { usePortalContext } from '../../model/use-portal-session';
 
 const auth = useParticipantAuth();
 const session = usePortalContext();
-const entry = useEntryContext();
 const quiz = useQuizContext();
 
 const connected = computed(() => session.status.value === 'connected' || session.status.value === 'reconnecting');
@@ -119,8 +112,8 @@ async function retry() {
     color: var(--pp-gold);
 }
 
-.pp-home__entry.is-done {
-    color: var(--pp-ok);
+.pp-home__entry-card {
+    align-self: stretch;
 }
 
 .pp-home__idle-title {

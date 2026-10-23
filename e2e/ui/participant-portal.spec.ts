@@ -67,12 +67,15 @@ test.describe("参加者ポータル", () => {
     await startEvent(admin.page, "ジャックポット抽選");
     await expect(admin.page.getByTestId("event-state")).toContainText("ジャックポット抽選");
     for (const [i, g] of guests.entries()) {
-      await expect(g.page.getByTestId("event-banner"), ids[i]).toContainText("イベント発生中!");
-      await expect(g.page.getByTestId("event-banner"), ids[i]).toContainText("ジャックポット抽選");
+      await expect(g.page.getByTestId("home-status"), ids[i]).toContainText("イベント発生中!");
+      await expect(g.page.getByTestId("home-event-title"), ids[i]).toContainText("ジャックポット抽選");
+      // 受付が始まるまでは「お待ちください」。「参加する」のようなリンクは無い
+      await expect(g.page.getByTestId("entry-none"), ids[i]).toContainText("お待ちください");
+      await expect(g.page.getByTestId("home-join"), ids[i]).toHaveCount(0);
     }
 
-    // バナーを押すとイベント画面へ。ほかの画面にいる人にもバナーが出ている
-    await guests[0].page.getByTestId("event-banner").click();
+    // イベントタブを開くとイベント画面(同じカード)。ほかの画面にいる人には、上部のバナーが出ている
+    await guests[0].page.getByRole("link", { name: "イベント" }).click();
     await expect(guests[0].page).toHaveURL(/#\/p\/event$/);
     await expect(guests[0].page.getByTestId("event-title")).toHaveText("ジャックポット抽選");
     await expect(guests[0].page.getByTestId("event-banner")).toHaveCount(0);
@@ -84,26 +87,28 @@ test.describe("参加者ポータル", () => {
     const late = await newDevice(browser, { mobile: true });
     await late.page.goto(qrUrl(ids[CROWD]));
     await expect(late.page.getByTestId("home-greeting")).toContainText(`${nameOf(ids[CROWD])} さん`);
-    await expect(late.page.getByTestId("event-banner")).toContainText("ジャックポット抽選");
+    await expect(late.page.getByTestId("home-event-title")).toContainText("ジャックポット抽選");
 
     // ホストをリロードしても、発生中のイベントは保たれる(あとから入った人にも出る)
     await host.page.reload();
     await expect(host.page.locator(".host-view__title")).toContainText("ポータル会場");
     const afterReload = await newDevice(browser, { mobile: true });
     await afterReload.page.goto(qrUrl(ids[2]));
-    await expect(afterReload.page.getByTestId("event-banner")).toContainText("ジャックポット抽選");
+    await expect(afterReload.page.getByTestId("home-event-title")).toContainText("ジャックポット抽選");
 
     // イベントを切り替えると全員のタイトルが変わる
     await startEvent(admin.page, "乾杯クイズ");
-    for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("event-banner").or(g.page.getByTestId("event-title")), ids[i]).toContainText("乾杯クイズ");
+    for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("home-event-title").or(g.page.getByTestId("event-title")).or(g.page.getByTestId("event-banner")), ids[i]).toContainText("乾杯クイズ");
 
     // イベント終了 → 全員のバナーが消え、イベント画面は終了の案内に変わる
     await admin.page.getByRole("button", { name: "イベントを終了" }).click();
     await acceptConfirm(admin.page);
     await expect(admin.page.getByTestId("event-state")).toContainText("イベントは開催していません");
     for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("event-banner"), ids[i]).toHaveCount(0);
+    await expect(guests[1].page.getByTestId("entry-none")).toHaveCount(0);
     await expect(guests[0].page.getByTestId("event-none")).toContainText("いまイベントは行われていません");
     await expect(late.page.getByTestId("event-banner")).toHaveCount(0);
+    await expect(late.page.getByTestId("home-event-title")).toHaveCount(0);
 
     // 後続のテストに公開を残さない
     await publish(request, sessionId, false);

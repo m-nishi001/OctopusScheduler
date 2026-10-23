@@ -93,21 +93,24 @@ const eventLive = computed(() => {
 
 /**
  * 画面上部に固定表示するお知らせ。いま参加者にいちばん関わるもの1つだけを出す。
- *   1. 回答受付中のクイズ(まだ答えていない人)    → イベント画面へ
- *   2. エントリー受付中(まだの人) / イベント発生中 → イベント画面へ
- * 行き先の画面を開いている間は、同じ内容のバナーを重ねて出さない。接続できていない間は出さない。
+ *   1. 回答受付中のクイズ(まだ答えていない人)    → イベント画面へのリンク
+ *   2. イベント発生中 → エントリーのカード(お待ちください / エントリーする / エントリー済み / 受付終了)
+ * 行き先の画面や、同じカードを出しているホームでは、同じ内容のバナーを重ねて出さない。接続できていない間は出さない。
  */
+/** エントリーのカードを本体に出している画面(ここではバナーを出さない)。 */
+const ENTRY_HOST_PATHS = new Set(['/p', EVENT_PATH]);
+
 const banner = computed(() => {
     if (session.status.value !== 'connected' && session.status.value !== 'reconnecting') return null;
-    let found: { label: string; title: string; to: string } | null = null;
     const q = quiz.quiz.value;
     if (q && q.phase === 'answering' && quiz.myAnswer.value === null) {
-        found = { label: 'クイズ出題中!', title: q.title || 'クイズに答えよう', to: EVENT_PATH };
-    } else if (session.event.value) {
-        const entering = entry.phase.value === 'open' && !entry.entered.value;
-        found = { label: entering ? 'エントリー受付中!' : 'イベント発生中!', title: session.event.value.title, to: EVENT_PATH };
+        return route.path === EVENT_PATH ? null : { label: 'クイズ出題中!', title: q.title || 'クイズに答えよう', to: EVENT_PATH };
     }
-    return found && route.path !== found.to ? found : null;
+    // エントリーの入口はバナー(ホーム・イベント画面では、その画面のカード)に1つだけ。リンクではなく、その場で押せる
+    if (session.event.value && !ENTRY_HOST_PATHS.has(route.path)) {
+        return { label: 'イベント発生中!', title: session.event.value.title };
+    }
+    return null;
 });
 
 /**

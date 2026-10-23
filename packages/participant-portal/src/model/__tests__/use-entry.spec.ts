@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h } from "vue";
 import type { FaultInjector } from "@octopus/session-hub/testing";
 import { tick } from "@octopus/session-hub/testing";
-import { useEntry } from "../use-entry";
+import { isAutoEntered, useEntry } from "../use-entry";
 import type { EntryState, EntryStorage } from "../use-entry";
 import { usePortalSession } from "../use-portal-session";
 import type { PortalSession } from "../use-portal-session";
@@ -208,5 +208,48 @@ describe("useEntry: エントリー済みの保存", () => {
     await alice.entry.enter();
     expect(alice.entry.entered.value).toBe(true);
     expect(storage.data.size).toBe(0);
+  });
+});
+
+describe("useEntry: 自動エントリー", () => {
+  it("isAutoEntered は、対象が entrants 以外で決まっているイベントだけを自動とみなす(all/auto のどちらの呼び名でも)", () => {
+    expect(isAutoEntered(null)).toBe(false);
+    expect(isAutoEntered({})).toBe(false);
+    expect(isAutoEntered({ pool: "entrants" })).toBe(false);
+    expect(isAutoEntered({ pool: "all" })).toBe(true);
+    expect(isAutoEntered({ pool: "auto" as never })).toBe(true);
+  });
+
+  it("対象が自動なら、押さなくても isIn になり、押しても何も送らない。entrants なら押すまで isIn にならない", async () => {
+    const env = await portalEnv();
+    const device = participantDevice(env.hub, ALICE);
+    const alice = await connect(device);
+    await env.openEntry(sampleEvent({ pool: "entrants" }));
+    await tick(5000);
+    expect(alice.entry.autoEntered.value).toBe(false);
+    expect(alice.entry.isIn.value).toBe(false);
+
+    await env.publishEvent(sampleEvent({ pool: "all", entry: { key: "entry:event-1", open: true } }));
+    await tick(5000);
+    expect(alice.entry.autoEntered.value).toBe(true);
+    expect(alice.entry.isIn.value).toBe(true);
+    await alice.entry.enter();
+    expect(device.api.calls.submitAnswer ?? 0).toBe(0);
+  });
+
+  it("受付前(none)から受付中(open)に変わったあと、1回 enter() するだけでエントリーできる", async () => {
+    const env = await portalEnv();
+    const alice = await connect(participantDevice(env.hub, ALICE));
+    await env.publishEvent(sampleEvent());
+    await tick(5000);
+    expect(alice.entry.phase.value).toBe("none");
+    expect(alice.entry.isIn.value).toBe(false);
+
+    const event = await env.openEntry(sampleEvent());
+    await tick(5000);
+    expect(alice.entry.phase.value).toBe("open");
+    await alice.entry.enter();
+    expect(alice.entry.entered.value).toBe(true);
+    expect(await env.entrants(event.entry!.key)).toEqual(["alice"]);
   });
 });
