@@ -12,6 +12,8 @@ import type {
   CloseRoundArgs,
   GetAnswersArgs,
   GetAnswersResult,
+  ListParticipantsArgs,
+  ListParticipantsResult,
   OpenRoundArgs,
   OpenRoundResult,
   RoundAnswer,
@@ -151,4 +153,11 @@ export async function getAnswers(deps: EngineDeps, args: GetAnswersArgs): Promis
   if (!round || round.key !== args.key) throw hubError("ROUND_NOT_OPEN", "該当する回答受付がありません");
   const answers = (await deps.repo.listAnswers(round.key)).slice().sort((a, b) => a.atMs - b.atMs);
   return { round: toRoundSummary(round, now)!, answers };
+}
+
+/** ホスト/管理が、このセッションにポータルから入室したメンバーのID一覧を取得する(自動エントリー・抽選の対象)。 */
+export async function listParticipants(deps: EngineDeps, args: ListParticipantsArgs): Promise<ListParticipantsResult> {
+  const { device } = await authenticate(deps, args);
+  if (device.role === "client") throw hubError("FORBIDDEN", "参加者は参加者名簿を取得できません");
+  return { memberIds: await deps.repo.listParticipantIds() };
 }

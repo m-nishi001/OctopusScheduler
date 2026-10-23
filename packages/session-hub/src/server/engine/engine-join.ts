@@ -122,6 +122,8 @@ export async function joinParticipant(deps: EngineDeps, args: JoinPortalArgs, tr
     joinedAtMs: now,
   };
   await deps.repo.putDevice(device);
+  // 新しい端末のときだけ名簿に載せる(復帰した端末は、すでに載っている)。
+  await deps.repo.addParticipant(trusted.memberId);
   await deps.presence.touch({
     deviceId: device.deviceId,
     role: "client",
