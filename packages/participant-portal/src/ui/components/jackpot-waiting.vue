@@ -11,11 +11,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { readJackpotView } from '../../model/activity';
+import { useEntryContext } from '../../model/use-entry';
 import { useQuizContext } from '../../model/use-quiz';
 import { usePortalContext } from '../../model/use-portal-session';
 
 const session = usePortalContext();
 const quiz = useQuizContext();
+const entry = useEntryContext();
 
 /**
  * ジャックポットの待機画面。ホストが抽選を進めている間、スマホにも「いま何をしているか」を出して場の熱を伝える。
@@ -26,6 +28,8 @@ const stage = computed(() => {
     if (!jackpot || quiz.quiz.value) return null;
     switch (jackpot.stage) {
         case 'waiting':
+            // エントリーしていない人には「まもなく抽選」を出さない(その人にはエントリーカードを出す)
+            if (!entry.isIn.value) return null;
             return { kind: 'ready', title: 'まもなく抽選!', sub: 'このまま画面を開いてお待ちください' };
         case 'member':
             return { kind: 'member', title: 'メンバー抽選中…', sub: '誰に当たるかな? 会場の画面に注目!' };

@@ -118,7 +118,7 @@ describe("参加者ポータル: 接続とホーム", () => {
 });
 
 describe("参加者ポータル: イベント発生中のお知らせ", () => {
-  it("ホストがイベントを公開すると、画面上部のバナーとホームの「参加する」に出る", async () => {
+  it("ホストがイベントを公開すると、ホームにエントリーのカードが出る(リンクの「参加する」は無い)。ほかの画面では上部のバナーに出る", async () => {
     const { hub, publishEvent } = await portalEnv();
     const m = await mountPortal(participantDevice(hub, ALICE));
     expect(has(m, "event-banner")).toBe(false);
@@ -126,24 +126,31 @@ describe("参加者ポータル: イベント発生中のお知らせ", () => {
     await publishEvent(sampleEvent());
     await tick(5000);
     await flushPromises();
+    expect(text(m, "home-event-title")).toBe("ジャックポット抽選");
+    expect(text(m, "entry-none")).toContain("お待ちください");
+    expect(has(m, "home-join")).toBe(false);
+    // ホームはカードを本体に出しているので、同じ内容のバナーは重ねない
+    expect(has(m, "event-banner")).toBe(false);
+
+    await m.router.push("/p/me");
+    await flushPromises();
     expect(text(m, "event-banner")).toContain("イベント発生中!");
     expect(text(m, "event-banner")).toContain("ジャックポット抽選");
-    expect(text(m, "home-event-title")).toBe("ジャックポット抽選");
-    expect(has(m, "home-join")).toBe(true);
+    expect(text(m, "entry-none")).toContain("お待ちください");
     m.wrapper.unmount();
   });
 
-  it("バナーを押すとイベント画面へ。イベント画面ではバナーを重ねて出さない", async () => {
+  it("イベント画面にもエントリーのカードが出て、バナーは重ねて出さない", async () => {
     const { hub, publishEvent } = await portalEnv();
     const m = await mountPortal(participantDevice(hub, ALICE));
     await publishEvent(sampleEvent());
     await tick(5000);
     await flushPromises();
 
-    await m.wrapper.find('[data-testid="event-banner"]').trigger("click");
+    await m.router.push("/p/event");
     await flushPromises();
-    expect(m.router.currentRoute.value.name).toBe("participant-event");
     expect(text(m, "event-title")).toBe("ジャックポット抽選");
+    expect(text(m, "entry-none")).toContain("お待ちください");
     expect(has(m, "event-banner")).toBe(false);
     m.wrapper.unmount();
   });
@@ -172,6 +179,9 @@ describe("参加者ポータル: イベント発生中のお知らせ", () => {
     await tick(5000);
     await publishEvent(sampleEvent({ id: "event-2", title: "乾杯クイズ" }));
     await tick(5000);
+    await flushPromises();
+    expect(text(m, "home-event-title")).toBe("乾杯クイズ");
+    await m.router.push("/p/me");
     await flushPromises();
     expect(text(m, "event-banner")).toContain("乾杯クイズ");
     m.wrapper.unmount();
@@ -217,30 +227,72 @@ describe("参加者ポータル: マイページ", () => {
 });
 
 describe("参加者ポータル: エントリー", () => {
-  it("受付が始まる前は案内だけ。始まるとバナー・ホーム・イベント画面でエントリーを促す", async () => {
+  it("受付が始まる前は「お待ちください」。始まるとホーム・バナー・イベント画面のどこでも「エントリーする」が出て、押すとその場で送る", async () => {
     const env = await portalEnv();
     const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
     await env.publishEvent(sampleEvent());
     await tick(5000);
     await flushPromises();
-    expect(has(m, "entry-none")).toBe(true);
+    expect(text(m, "entry-none")).toContain("お待ちください");
     expect(has(m, "entry-button")).toBe(false);
 
-    await env.openEntry(sampleEvent());
+    const event = await env.openEntry(sampleEvent());
     await tick(5000);
     await flushPromises();
     expect(has(m, "entry-open")).toBe(true);
-    expect(text(m, "entry-button")).toContain("エントリー");
+    expect(text(m, "entry-button")).toContain("エントリーする");
 
     await m.router.push("/p");
     await flushPromises();
-    expect(text(m, "event-banner")).toContain("エントリー受付中!");
-    expect(text(m, "home-entry-open")).toContain("エントリー受付中!");
-    expect(text(m, "home-join")).toBe("エントリーする");
+    expect(text(m, "entry-button")).toContain("エントリーする");
+    expect(has(m, "home-join")).toBe(false);
+
+    // 別の画面ではバナーの中に同じボタンが出る。1回押すだけで、画面を移らずにエントリーが済む
+    await m.router.push("/p/me");
+    await flushPromises();
+    expect(text(m, "event-banner")).toContain("エントリーする");
+    await m.wrapper.find('[data-testid="event-banner"] [data-testid="entry-button"]').trigger("click");
+    await flushPromises();
+    await tick(0);
+    expect(m.router.currentRoute.value.fullPath).toBe("/p/me");
+    expect(text(m, "event-banner")).toContain("エントリー済み ✓");
+    expect(await env.entrants(event.entry!.key)).toEqual(["alice"]);
     m.wrapper.unmount();
   });
 
-  it("エントリーするボタンを押すと「エントリーしました!」になり、バナーとホームは済みの表示に変わる", async () => {
+  it("待っている間にホストが受付を開いても、1回押すだけでエントリーできる(「参加する」の段階は無い)", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p");
+    await env.publishEvent(sampleEvent());
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "entry-button")).toBe(false);
+    expect(text(m, "entry-none")).toContain("お待ちください");
+
+    const event = await env.openEntry(sampleEvent());
+    await tick(5000);
+    await flushPromises();
+    await m.wrapper.find('[data-testid="entry-button"]').trigger("click");
+    await flushPromises();
+    await tick(0);
+    expect(text(m, "entry-done")).toContain("エントリー済み ✓");
+    expect(has(m, "entry-button")).toBe(false);
+    expect(await env.entrants(event.entry!.key)).toEqual(["alice"]);
+    m.wrapper.unmount();
+  });
+
+  it("抽選の対象が自動のイベントでは、押さなくても「エントリー済み」になる", async () => {
+    const env = await portalEnv();
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p");
+    await env.publishEvent(sampleEvent({ pool: "all" }));
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "entry-done")).toContain("エントリー済み ✓");
+    expect(has(m, "entry-button")).toBe(false);
+    m.wrapper.unmount();
+  });
+
+  it("エントリーするボタンを押すと「エントリー済み ✓」になり、ほかの画面のバナーも済みの表示に変わる", async () => {
     const env = await portalEnv();
     const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
     const event = await env.openEntry(sampleEvent());
@@ -250,15 +302,16 @@ describe("参加者ポータル: エントリー", () => {
     await m.wrapper.find('[data-testid="entry-button"]').trigger("click");
     await flushPromises();
     await tick(0);
-    expect(text(m, "entry-done")).toContain("エントリーしました!");
+    expect(text(m, "entry-done")).toContain("エントリー済み ✓");
     expect(has(m, "entry-button")).toBe(false);
     expect(await env.entrants(event.entry!.key)).toEqual(["alice"]);
 
     await m.router.push("/p");
     await flushPromises();
-    expect(text(m, "event-banner")).toContain("イベント発生中!");
-    expect(text(m, "home-entry-done")).toContain("エントリー済み");
-    expect(text(m, "home-join")).toBe("参加する");
+    expect(text(m, "entry-done")).toContain("エントリー済み ✓");
+    await m.router.push("/p/me");
+    await flushPromises();
+    expect(text(m, "event-banner")).toContain("エントリー済み ✓");
     m.wrapper.unmount();
   });
 
@@ -274,6 +327,7 @@ describe("参加者ポータル: エントリー", () => {
     await env.closeEntry(event);
     await tick(5000);
     await flushPromises();
+    expect(text(alice, "entry-done")).toContain("エントリー済み ✓");
     expect(text(alice, "entry-done")).toContain("受付は終了しました");
     expect(has(alice, "entry-button")).toBe(false);
     alice.wrapper.unmount();
@@ -282,7 +336,7 @@ describe("参加者ポータル: エントリー", () => {
     const bob = await mountPortal(participantDevice(env.hub, BOB), "/p/event", BOB);
     expect(has(bob, "entry-button")).toBe(false);
     expect(has(bob, "entry-done")).toBe(false);
-    expect(text(bob, "entry-closed")).toContain("エントリーの受付は終了しました");
+    expect(text(bob, "entry-closed")).toContain("受付終了");
     bob.wrapper.unmount();
   });
 
@@ -299,7 +353,7 @@ describe("参加者ポータル: エントリー", () => {
     expect(has(late, "entry-open")).toBe(true);
     await late.wrapper.find('[data-testid="entry-button"]').trigger("click");
     await flushPromises();
-    expect(text(late, "entry-done")).toContain("エントリーしました!");
+    expect(text(late, "entry-done")).toContain("エントリー済み ✓");
     expect(await env.entrants(event.entry!.key)).toEqual(["alice"]);
     late.wrapper.unmount();
   });
@@ -379,6 +433,7 @@ describe("参加者ポータル: クイズ", () => {
     await tick(5000);
     await flushPromises();
     expect(text(m, "event-banner")).toContain("イベント発生中!");
+    expect(text(m, "entry-none")).toContain("お待ちください");
 
     await env.startQuiz();
     await tick(5000);
@@ -529,7 +584,8 @@ describe("参加者ポータル: クイズ", () => {
     await m.router.push("/p");
     await flushPromises();
     expect(has(m, "quiz-panel")).toBe(false);
-    expect(text(m, "home-join")).toBe("イベントを見る");
+    expect(has(m, "home-join")).toBe(false);
+    expect(text(m, "home-status")).toContain("進行中です!");
     m.wrapper.unmount();
   });
 
@@ -624,6 +680,17 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
   });
 
   describe("待機画面と当選演出", () => {
+    it("対象が自動のイベントでは、エントリーしていない人にも「まもなく抽選」を出す", async () => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+      await env.publishEvent(sampleEvent({ pool: "all" }));
+      await env.publishJackpot({ canStop: false, member: null, memberId: null, prize: null, stage: "waiting" });
+      await tick(5000);
+      await flushPromises();
+      expect(text(m, "jackpot-waiting-title")).toContain("まもなく抽選");
+      m.wrapper.unmount();
+    });
+
     const base = { canStop: false, member: null, memberId: null, prize: null };
 
     it("抽選の段階に合わせた待機画面が出て、「お待ちください」だけにならない", async () => {
@@ -631,9 +698,17 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
       const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
       expect(has(m, "jackpot-waiting")).toBe(false);
 
+      // エントリーしていない人には「まもなく抽選」を出さず、エントリーカードを出す
+      await env.openEntry(sampleEvent());
       await env.publishJackpot({ ...base, stage: "waiting" });
       await tick(5000);
       await flushPromises();
+      expect(has(m, "jackpot-waiting")).toBe(false);
+      expect(has(m, "entry-button")).toBe(true);
+
+      await m.wrapper.find('[data-testid="entry-button"]').trigger("click");
+      await flushPromises();
+      await tick(0);
       expect(text(m, "jackpot-waiting-title")).toContain("まもなく抽選");
 
       await env.publishJackpot({ ...base, stage: "member" });

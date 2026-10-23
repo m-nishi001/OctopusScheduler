@@ -1,5 +1,6 @@
 <template>
-    <RouterLink :to="to" class="pp-banner" data-testid="event-banner" :aria-label="`${label} ${title}。タップして参加画面を開く`">
+    <!-- 行き先があるお知らせ(クイズ出題中)はリンク、イベントのエントリーは、その場で押せる共通のカードを置く -->
+    <RouterLink v-if="to" :to="to" class="pp-banner" data-testid="event-banner" :aria-label="`${label} ${title}。タップして参加画面を開く`">
         <span class="pp-banner__pulse" aria-hidden="true" />
         <span class="pp-banner__body">
             <span class="pp-banner__label">{{ label }}</span>
@@ -7,12 +8,21 @@
         </span>
         <span class="pp-banner__go" aria-hidden="true">開く ›</span>
     </RouterLink>
+    <div v-else class="pp-banner" data-testid="event-banner">
+        <span class="pp-banner__pulse" aria-hidden="true" />
+        <span class="pp-banner__body">
+            <span class="pp-banner__label">{{ label }}</span>
+            <span class="pp-banner__title">{{ title }}</span>
+        </span>
+        <EventEntryCard size="compact" />
+    </div>
 </template>
 
 <script setup lang="ts">
 import { RouterLink } from 'vue-router';
+import EventEntryCard from './components/event-entry-card.vue';
 
-defineProps<{ title: string; label: string; to: string }>();
+defineProps<{ title: string; label: string; to?: string }>();
 </script>
 
 <style scoped>

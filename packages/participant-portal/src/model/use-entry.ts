@@ -1,6 +1,7 @@
 import { computed, inject, ref, watch } from "vue";
 import type { ComputedRef, InjectionKey, Ref } from "vue";
 import { ENTRY_OPTION_NO, parseHubErrorCode } from "@octopus/session-hub";
+import type { PortalEvent } from "@octopus/session-hub";
 import type { PortalSession } from "./use-portal-session";
 
 /**
@@ -34,6 +35,15 @@ function browserStorage(): EntryStorage {
   };
 }
 
+/**
+ * エントリーしなくても抽選の対象になるイベントか（抽選の対象が「自動」）。
+ * 対象の方式が決まっていない（pool が無い）イベントは、まだ受付前なので自動とは扱わない。
+ * 'entrants' 以外はすべて自動扱いにして、対象の呼び名が all から auto に変わっても動くようにする。
+ */
+export function isAutoEntered(event: Pick<PortalEvent, "pool"> | null | undefined): boolean {
+  return !!event && event.pool !== undefined && (event.pool as string) !== "entrants";
+}
+
 export const ENTRY_KEY: InjectionKey<EntryState> = Symbol("portalEntry");
 
 /** レイアウトが提供するエントリーの状態を取り出す。レイアウトの外で使うと例外にする。 */
@@ -47,6 +57,10 @@ export interface EntryState {
   phase: ComputedRef<EntryPhase>;
   /** 自分がエントリー済みか（この端末で押した、または別の端末で済みと返された）。 */
   entered: Ref<boolean>;
+  /** 抽選の対象が「自動」で、エントリーしなくても対象になっている。 */
+  autoEntered: ComputedRef<boolean>;
+  /** エントリー済み、または自動エントリー（画面に「エントリー済み」を出す条件）。 */
+  isIn: ComputedRef<boolean>;
   submitting: Ref<boolean>;
   /** 直近の操作の結果として見せる案内（失敗時など）。 */
   message: Ref<string>;
@@ -75,7 +89,9 @@ export function useEntry(session: PortalSession, options: EntryOptions): EntrySt
     return sessionId && memberId && entry.value ? `octopus.entry:${memberId}:${sessionId}:${entry.value.key}` : null;
   });
 
+  const autoEntered = computed(() => isAutoEntered(session.event.value));
   const entered = ref(false);
+  const isIn = computed(() => entered.value || autoEntered.value);
   const submitting = ref(false);
   const message = ref("");
 
@@ -91,7 +107,7 @@ export function useEntry(session: PortalSession, options: EntryOptions): EntrySt
 
   async function enter(): Promise<void> {
     const current = entry.value;
-    if (!current || !current.open || entered.value || submitting.value) return;
+    if (!current || !current.open || isIn.value || submitting.value) return;
     submitting.value = true;
     message.value = "";
     try {
@@ -111,5 +127,5 @@ export function useEntry(session: PortalSession, options: EntryOptions): EntrySt
     }
   }
 
-  return { phase, entered, submitting, message, enter };
+  return { phase, entered, autoEntered, isIn, submitting, message, enter };
 }

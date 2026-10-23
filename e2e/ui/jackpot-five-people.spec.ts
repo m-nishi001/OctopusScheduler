@@ -53,10 +53,10 @@ test("管理者+参加者4名・景品10件: 当選表示の自動クローズ�
   const guests = await Promise.all(ids.map(() => newDevice(browser, { mobile: true })));
   await Promise.all(guests.map((g, i) => g.page.goto(qrUrl(ids[i]))));
   for (const [i, g] of guests.entries()) {
-    await expect(g.page.getByTestId("event-banner"), ids[i]).toBeVisible();
-    await g.page.getByTestId("event-banner").click();
+    // ホームのエントリーカードで、1タップでエントリーが済む
+    await expect(g.page.getByTestId("entry-button"), ids[i]).toBeVisible();
     await g.page.getByTestId("entry-button").click();
-    await expect(g.page.getByTestId("entry-done")).toBeVisible();
+    await expect(g.page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
   }
   await expect(admin.page.getByTestId("entry-count")).toHaveText(`${MEMBERS}`);
 
