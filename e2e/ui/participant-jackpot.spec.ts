@@ -46,6 +46,8 @@ async function drawOnce(admin: import("@playwright/test").Page): Promise<string>
     const m = /当選者: (参加者\d\d)/.exec(state);
     if (m) return m[1];
     await nextButton(admin).click();
+    // 通信が遅い環境(GAS)では、押した結果が表示に出るまで時間がかかる。出る前に重ねて押すと、当選者の表示を通り越して景品抽選まで進んでしまう
+    await expect.poll(() => admin.getByTestId("jackpot-state").innerText(), { timeout: 10_000 }).not.toBe(state).catch(() => undefined);
     await admin.waitForTimeout(1500);
   }
   await expect(admin.getByTestId("jackpot-state")).toContainText(/当選者: 参加者\d\d/, { timeout: 60_000 });
