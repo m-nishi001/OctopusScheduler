@@ -89,6 +89,18 @@ export function useDrawOrchestrator() {
   const revealTracker = new RevealTracker();
   queue.onDequeue = (label) => revealTracker.onAction(label);
 
+  /** 保存先から最後に読み直した時刻。 */
+  let storeLoadedAtMs = 0;
+  /**
+   * 抽選の前に、保存先の状態を読み直す(別の端末で結果がリセットされた、などを取り込む。抽選1回につき通信1回)。
+   * 画面を開いた直後に読んだばかりなら省く。
+   */
+  const refreshStore = async () => {
+    if (Date.now() - storeLoadedAtMs < 2000) return;
+    await drawService.store.load();
+    storeLoadedAtMs = Date.now();
+  };
+
   /** 管理画面の設定(本抽選画面設定)に従う、確変の予定の案。抽選の準備のときに読む。 */
   let kakuhenPlan: KakuhenPlan = AUTO_KAKUHEN_PLAN;
 
@@ -171,7 +183,10 @@ export function useDrawOrchestrator() {
 
   flow = new DrawFlowController({
     queue,
-    progress: () => drawService.getDrawProgress(),
+    progress: async () => {
+      await refreshStore();
+      return drawService.getDrawProgress();
+    },
     drawNextCycle,
     onDrawError,
     onStepError: (e) => console.error("[DrawOrchestrator] step failed", e),
@@ -202,6 +217,7 @@ export function useDrawOrchestrator() {
       const store = drawService.store;
       rehearsal.value = store.kind === "rehearsal";
       await store.load();
+      storeLoadedAtMs = Date.now();
       // 確変にする回は、管理画面の設定（本抽選画面設定）に従って、セッションで最初の抽選のときに決める
       const mainSettings = await container.resolve(ScreenSettingsService).fetchScreenSetting("main", "main-screen-settings");
       kakuhenPlan = parseKakuhenPlan(mainSettings);

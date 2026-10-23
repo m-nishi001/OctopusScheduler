@@ -114,12 +114,6 @@ export class HostAgent {
     this.publishResultsRev(await this.connection.resetJackpot());
   }
 
-  /** 確定して、すぐ公開する(抽選画面の改修まで使う暫定の窓口)。 */
-  async recordJackpotDraw(draw: JackpotDrawInput): Promise<void> {
-    await this.commitJackpotDraw(draw);
-    await this.revealJackpotDraw(draw.drawId);
-  }
-
   /**
    * ホストの再読み込み・引き継ぎ後は、公開していた rev が消えている。保存済みの結果から rev を取り直して公開し直す
    * (結果が1件も無ければ何も公開しない)。
