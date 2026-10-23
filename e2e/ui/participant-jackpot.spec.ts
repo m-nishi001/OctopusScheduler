@@ -117,6 +117,8 @@ async function autoScene(browser: import("@playwright/test").Browser, request: A
     const g = await newDevice(browser, { mobile: true });
     guests[i] = g;
     await g.page.goto(qrUrl(ids[i]));
+    // ポータルに接続して名簿に載るまで待つ(載る前に抽選すると、対象が空になる)
+    await expect(g.page.getByTestId("portal-conn")).toContainText("接続中");
     // エントリーの操作は無く、最初から「自動でエントリー済み」になる
     await expect(g.page.getByTestId("entry-done")).toContainText("自動でエントリー済み ✓");
     await expect(g.page.getByTestId("entry-button")).toHaveCount(0);
