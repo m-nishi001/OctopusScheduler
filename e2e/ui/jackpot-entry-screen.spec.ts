@@ -87,6 +87,7 @@ test("オープニング → エントリー画面(自動: 管理者を除く参
     await expect(nextButton(admin.page)).toHaveText(/説明へ/);
     await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+    await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
     await expect(admin.page.getByTestId("entry-state")).toContainText("受付は終了");
 
     // 説明画面の「まもなく抽選!」は、エントリー済みの人にだけ出る

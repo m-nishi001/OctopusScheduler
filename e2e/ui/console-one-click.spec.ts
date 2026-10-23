@@ -110,6 +110,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await expect(nextButton(admin.page)).toHaveText(/説明へ/);
     await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+    await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
     await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);
     await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
@@ -130,8 +131,10 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await seedStore(host.page, "jackpot-game", "ScreenConfigData", [{ id: "description_description-screen-settings", value: setting }]);
     await admin.page.getByTestId("start-jackpot").click();
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
+    await expect(admin.page.getByTestId("now")).toContainText("エントリー");
     await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+    await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
 
     const hostText = host.page.locator("body");
     const back = admin.page.getByTestId("back-button");
