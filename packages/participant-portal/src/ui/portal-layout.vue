@@ -16,6 +16,8 @@
 
         <!-- 自分が当選したとき、どの画面にいても全面で知らせる -->
         <JackpotWinnerOverlay />
+        <!-- クイズの順位発表が終わったら、自分の順位を全面で知らせる(発表中は出さない) -->
+        <QuizRankOverlay />
 
         <nav class="pp-tabs" aria-label="メニュー">
             <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="pp-tabs__item"
@@ -44,6 +46,7 @@ import { PORTAL_SESSION_KEY, usePortalSession } from '../model/use-portal-sessio
 import { readJackpotView } from '../model/activity';
 import PortalEventBanner from './portal-event-banner.vue';
 import JackpotWinnerOverlay from './components/jackpot-winner-overlay.vue';
+import QuizRankOverlay from './components/quiz-rank-overlay.vue';
 import './portal-theme.css';
 
 const props = defineProps<{ connection?: SessionConnection }>();
@@ -62,7 +65,7 @@ const quiz = useQuiz(session, { memberId: () => auth.currentMember.value?.id ?? 
 provide(QUIZ_KEY, quiz);
 
 // 結果(クイズの順位・当選履歴)。ホストが保存すると更新番号だけが届くので、新しい結果があるときはタブに印を出す
-const results = useResults(session);
+const results = useResults(session, { held: () => quiz.rankingHidden.value });
 provide(RESULTS_KEY, results);
 
 /** エントリー・クイズ・ジャックポットなど、イベントの画面をまとめて出すタブ。 */

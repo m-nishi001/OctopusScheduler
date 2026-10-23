@@ -19,6 +19,8 @@ export interface ResultsState {
   /** 最後に取得できた結果。まだ取得していなければ null。 */
   view: ShallowRef<ResultsView | null>;
   loading: Ref<boolean>;
+  /** クイズの順位発表の途中で、クイズの結果を見せない。 */
+  held: ComputedRef<boolean>;
   /** 最後の取得が失敗した。 */
   error: Ref<boolean>;
   /** ホストが保存した結果が、取得済みより新しい(タブの印に使う)。 */
@@ -42,6 +44,8 @@ export interface ResultsOptions {
   /** 0以上1未満の乱数(ばらつき用。テストで固定する)。 */
   random?: () => number;
   jitterMs?: number;
+  /** クイズの順位発表の途中。true の間は、新しい結果の印(stale)を出さず、画面もクイズの結果を伏せる。 */
+  held?: () => boolean;
 }
 
 /** 参加者に見せる結果の取得。結果の画面を開いたとき(または、ホストが保存した結果が新しいとき)に、ばらつきをつけて取得する。 */
@@ -54,7 +58,8 @@ export function useResults(session: PortalSession, options: ResultsOptions = {})
   const visible = ref(false);
 
   const notifiedRev = computed(() => readResultsRev(session.state.value.roomState?.data) ?? 0);
-  const stale = computed(() => notifiedRev.value > (view.value?.rev ?? 0));
+  const held = computed(() => options.held?.() ?? false);
+  const stale = computed(() => !held.value && notifiedRev.value > (view.value?.rev ?? 0));
 
   let inflight: Promise<void> | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -85,7 +90,7 @@ export function useResults(session: PortalSession, options: ResultsOptions = {})
   }
 
   /** 通知(rev の更新)を受けて取り直す。画面を開いているときだけ、少しばらつかせて。 */
-  const stopWatchRev = watch(notifiedRev, () => {
+  const stopWatchRev = watch(() => `${notifiedRev.value}|${held.value}`, () => {
     if (!visible.value || !stale.value || timer) return;
     timer = setTimeout(() => {
       timer = null;
@@ -117,5 +122,5 @@ export function useResults(session: PortalSession, options: ResultsOptions = {})
     stopWatchConnected();
   });
 
-  return { view, loading, error, stale, setVisible, refresh };
+  return { view, loading, error, stale, held, setVisible, refresh };
 }

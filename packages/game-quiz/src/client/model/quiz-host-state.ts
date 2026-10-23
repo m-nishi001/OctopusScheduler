@@ -9,6 +9,11 @@ import type { QuizSessionScope } from "../../server/quiz-api-contract";
 
 export type QuizHostPage = "intro" | "entry" | "play" | "answer" | "result";
 export type QuizAnswerPhase = "idle" | "answering" | "closed";
+/**
+ * 順位発表(result)の進み具合。会場の発表が終わるまで、参加者のスマホに順位を出さないための印。
+ *   revealing: 発表中(順位は会場の画面だけ) / finished: 1位の発表まで終わり、結果の保存も済んだ
+ */
+export type QuizRevealPhase = "revealing" | "finished";
 
 export interface QuizHostOption {
   no: number;
@@ -30,6 +35,8 @@ export interface QuizHostState {
   options: QuizHostOption[];
   /** 正解発表の画面(answer / result)になってから入る。 */
   correctNo: number | null;
+  /** 順位発表(result)の画面でだけ入る。それ以外は null。 */
+  reveal: QuizRevealPhase | null;
 }
 
 const MAX_QUESTION = 300;
@@ -63,6 +70,7 @@ export function buildQuizHostState(input: {
   question?: string | null;
   options?: Array<{ no: number; text: string; color?: string }>;
   correctNo?: number | null;
+  reveal?: QuizRevealPhase | null;
 }): QuizHostState {
   const showQuestion = input.page === "play" || input.page === "answer";
   return {
@@ -77,5 +85,6 @@ export function buildQuizHostState(input: {
       ? (input.options ?? []).map((o) => ({ no: o.no, text: clip(o.text, MAX_OPTION_TEXT), color: o.color ?? "" }))
       : [],
     correctNo: input.page === "answer" || input.page === "result" ? input.correctNo ?? null : null,
+    reveal: input.page === "result" ? input.reveal ?? "revealing" : null,
   };
 }

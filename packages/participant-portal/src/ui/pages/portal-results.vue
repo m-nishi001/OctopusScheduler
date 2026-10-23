@@ -3,9 +3,9 @@
         <h1 class="pp-title">結果</h1>
 
         <!-- 自分の成績。クイズでの累計順位と、ジャックポットの当選回数 -->
-        <article v-if="view && (view.quiz.cumulative.me || view.jackpot.myWins > 0)" class="pp-card pp-results__me" data-testid="results-me">
+        <article v-if="view && ((!held && view.quiz.cumulative.me) || view.jackpot.myWins > 0)" class="pp-card pp-results__me" data-testid="results-me">
             <p class="pp-results__label">あなたの成績</p>
-            <p v-if="view.quiz.cumulative.me" class="pp-results__big" data-testid="results-my-rank">
+            <p v-if="!held && view.quiz.cumulative.me" class="pp-results__big" data-testid="results-my-rank">
                 クイズ <strong>{{ view.quiz.cumulative.me.rank }}</strong> 位 <span class="pp-muted">/ {{ view.quiz.cumulative.participants }} 人中（{{ view.quiz.cumulative.me.points }} 問正解）</span>
             </p>
             <p v-if="view.jackpot.myWins > 0" class="pp-results__big is-win" data-testid="results-my-wins">
@@ -30,7 +30,11 @@
 
             <!-- クイズ -->
             <div v-if="kind === 'quiz'" role="tabpanel" data-testid="results-quiz">
-                <p v-if="view.quiz.rounds.length === 0" class="pp-card pp-muted" data-testid="results-quiz-empty">
+                <!-- 順位発表の途中は、会場の発表が終わるまでクイズの結果(この回の順位も総合も)を伏せる -->
+                <p v-if="held" class="pp-card pp-muted" data-testid="results-quiz-held">
+                    結果発表中です。会場の画面をご覧ください。発表が終わると、ここに順位が表示されます。
+                </p>
+                <p v-else-if="view.quiz.rounds.length === 0" class="pp-card pp-muted" data-testid="results-quiz-empty">
                     まだクイズの結果はありません。クイズの結果発表のあとに、ここに順位が表示されます。
                 </p>
                 <template v-else>
@@ -103,6 +107,7 @@ import { useResultsContext } from '../../model/use-results';
 
 const results = useResultsContext();
 const view = computed(() => results.view.value);
+const held = results.held;
 /** 取得に失敗していて、表示できる結果もまだ無い。 */
 const connectedError = computed(() => results.error.value && !view.value);
 
@@ -111,7 +116,7 @@ onUnmounted(() => results.setVisible(false));
 
 const kind = ref<'quiz' | 'jackpot'>('quiz');
 const kinds = computed(() => [
-    { id: 'quiz' as const, label: 'クイズ', count: view.value?.quiz.rounds.length ?? 0 },
+    { id: 'quiz' as const, label: 'クイズ', count: held.value ? '-' : (view.value?.quiz.rounds.length ?? 0) },
     { id: 'jackpot' as const, label: 'ジャックポット', count: view.value?.jackpot.draws.length ?? 0 },
 ]);
 // 初めて結果が届いたとき、クイズの結果が無くてジャックポットだけあるなら、そちらを先に見せる(最初の1回だけ)
