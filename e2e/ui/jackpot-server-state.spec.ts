@@ -81,10 +81,10 @@ async function startEvent(admin: Page, guests: Device[], title: string): Promise
   await admin.getByRole("button", { name: "イベントを開始" }).click();
   await admin.getByRole("button", { name: "エントリー受付を開始" }).click();
   for (const [i, g] of guests.entries()) {
-    await expect(g.page.getByTestId("event-banner"), ids[i]).toBeVisible();
-    await g.page.getByTestId("event-banner").click();
+    // ホームのエントリーカードで、1タップでエントリーが済む
+    await expect(g.page.getByTestId("entry-button"), ids[i]).toBeVisible();
     await g.page.getByTestId("entry-button").click();
-    await expect(g.page.getByTestId("entry-done")).toBeVisible();
+    await expect(g.page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
   }
   await expect(admin.getByTestId("entry-count")).toHaveText(`${guests.length}`);
 }
