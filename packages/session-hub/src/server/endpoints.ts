@@ -21,6 +21,7 @@ import { secure, secureAdminWithMember, secureMember } from "@octopus/accounts/s
 import type {
   CloseRoundArgs,
   GetAnswersArgs,
+  ListParticipantsArgs,
   OpenRoundArgs,
   SubmitAnswerArgs,
   CloseSessionArgs,
@@ -95,6 +96,7 @@ declare let _sessionHub_openRound: (args: OpenRoundArgs) => Promise<string>;
 declare let _sessionHub_closeRound: (args: CloseRoundArgs) => Promise<string>;
 declare let _sessionHub_submitAnswer: (args: SubmitAnswerArgs) => Promise<string>;
 declare let _sessionHub_getAnswers: (args: GetAnswersArgs) => Promise<string>;
+declare let _sessionHub_listParticipants: (args: ListParticipantsArgs) => Promise<string>;
 declare let _sessionHub_putQuizResult: (args: PutQuizResultArgs) => Promise<string>;
 declare let _sessionHub_getJackpotState: (args: GetJackpotStateArgs) => Promise<string>;
 declare let _sessionHub_ensureJackpotPlan: (args: EnsureJackpotPlanArgs) => Promise<string>;
@@ -157,6 +159,10 @@ _sessionHub_getAnswers = secure("public", async (args: GetAnswersArgs): Promise<
   return respond(() => backend().getAnswers(args));
 });
 
+_sessionHub_listParticipants = secure("public", async (args: ListParticipantsArgs): Promise<string> => {
+  return respond(() => backend().listParticipants(args));
+});
+
 // 結果の書き込みは管理者(= ホスト端末を操作する運営者)のみ。読み取りはログイン済みのメンバーなら誰でも(本人向けに整形)。
 _sessionHub_putQuizResult = secure("admin", async (args: PutQuizResultArgs): Promise<string> => {
   return respond(() => results.putQuizResult(resolveResultsDeps(), args?.sessionId, args?.result));
@@ -209,6 +215,7 @@ export const SESSION_HUB_HANDLERS: Record<SessionHubEndpointName, (args: any) =>
   closeRound: _sessionHub_closeRound,
   submitAnswer: _sessionHub_submitAnswer,
   getAnswers: _sessionHub_getAnswers,
+  listParticipants: _sessionHub_listParticipants,
   putQuizResult: _sessionHub_putQuizResult,
   getJackpotState: _sessionHub_getJackpotState,
   ensureJackpotPlan: _sessionHub_ensureJackpotPlan,

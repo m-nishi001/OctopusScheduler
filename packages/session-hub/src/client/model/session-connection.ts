@@ -15,6 +15,7 @@ import { parseHubErrorCode } from "../../shared/hub-error";
 import type { HubErrorCode } from "../../shared/hub-error";
 import type {
   GetAnswersResult,
+  ListParticipantsResult,
   OpenRoundResult,
   RoundOption,
   RoundSummary,
@@ -559,6 +560,12 @@ export class SessionConnection implements TransportSource {
     return this.withNetworkRetry(() =>
       this.opts.api.getAnswers({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token, key })
     );
+  }
+
+  /** ホスト/管理: このセッションにポータルから入室したメンバーのID一覧(入室した順)。 */
+  async listParticipants(): Promise<ListParticipantsResult> {
+    const c = this.requireCreds();
+    return this.withNetworkRetry(() => this.opts.api.listParticipants({ sessionId: c.sessionId, deviceId: c.deviceId, token: c.token }));
   }
 
   /** ホスト(管理者): クイズ1ラウンドの結果を保存する。返る rev が変わったときだけ参加者へ通知すればよい。 */

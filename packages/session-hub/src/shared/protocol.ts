@@ -250,6 +250,13 @@ export interface GetAnswersResult {
   answers: RoundAnswer[];
 }
 
+export type ListParticipantsArgs = DeviceCredentials;
+
+export interface ListParticipantsResult {
+  /** ポータルから入室したことのあるメンバーのID(入室した順。ホスト/管理の端末は含まない)。 */
+  memberIds: string[];
+}
+
 export interface ListSessionsResult {
   sessions: SessionSummary[];
 }

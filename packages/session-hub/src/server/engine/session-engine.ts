@@ -15,4 +15,4 @@ export type { TrustedMember } from "./engine-join";
 export { buildPresenceView, buildUpdate, poll } from "./engine-feed";
 export type { UpdateSource } from "./engine-feed";
 export { issueCommand, publishState } from "./engine-commands";
-export { closeRound, getAnswers, isRoundOpen, openRound, submitAnswer, toRoundSummary } from "./engine-rounds";
+export { closeRound, getAnswers, isRoundOpen, listParticipants, openRound, submitAnswer, toRoundSummary } from "./engine-rounds";

@@ -27,6 +27,12 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
   // メモリ上の変更の版と、永続化できた版。差があれば未保存。書き込みに失敗しても未保存のまま残り、次の flush でやり直す。
   let version = 0;
   let persistedVersion = 0;
+  // 参加者名簿。新しいメンバーのときだけ書く(1人1回)ので、回答のようなまとめ書きはしない。
+  let participantsCache: string[] | undefined;
+  const loadParticipants = async (): Promise<string[]> => {
+    if (participantsCache === undefined) participantsCache = (await storage.get<string[]>("participants")) ?? [];
+    return participantsCache;
+  };
 
   const loadRound = async (): Promise<StoredRound | null> => {
     if (roundCache === undefined) roundCache = (await storage.get<StoredRound>("round")) ?? null;
@@ -99,6 +105,14 @@ export function createRoomRepo(storage: RoomStorage): RoomRepo {
         version++;
       }
       return result;
+    },
+    listParticipantIds: async () => [...(await loadParticipants())],
+    async addParticipant(memberId) {
+      const current = await loadParticipants();
+      if (current.includes(memberId)) return;
+      const next = [...current, memberId];
+      await storage.put("participants", next);
+      participantsCache = next;
     },
     flush,
     hasPendingWrites: () => persistedVersion !== version,
