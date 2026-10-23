@@ -14,6 +14,7 @@ import SessionConsoleView from "../pages/session/session-console-view.vue";
 import { participantPortalRoutes } from "@octopus/participant-portal";
 import EntryStage from "../pages/event-entry/entry-stage-view.vue";
 import QuizEntry from "../pages/event-entry/quiz-entry-view.vue";
+import JackpotEntry from "../pages/event-entry/jackpot-entry-view.vue";
 
 const octopusSchedulerRoutes = [
   {
@@ -65,6 +66,8 @@ const octopusSchedulerRoutes = [
       // クイズのエントリー画面(イントロの次)。本番とデモ(管理端末のプレビュー)の2つ
       { path: "quiz/:id/entry", name: "quiz-entry", component: QuizEntry },
       { path: "quiz/:id/entry/preview", name: "quiz-entry-preview", component: QuizEntry },
+      // ジャックポットのエントリー画面(オープニングの次、説明の前)
+      { path: "jackpot-entry", name: "jackpot-entry", component: JackpotEntry },
       {
         path: "show-slideshow/:data",
         name: "show-slideshow",

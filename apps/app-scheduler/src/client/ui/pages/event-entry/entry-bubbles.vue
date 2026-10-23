@@ -1,5 +1,5 @@
 <template>
-    <TransitionGroup tag="ul" name="bubble" class="bubbles" :style="{ '--bubble-size': `${size}px` }" data-testid="entry-bubbles" aria-label="エントリーした人">
+    <TransitionGroup tag="ul" name="bubble" class="bubbles" :style="{ '--bubble-size': `${size}px` }" data-testid="entry-bubbles" :aria-label="label ?? 'エントリーした人'">
         <li v-for="(e, i) in entrants" :key="e.id" class="bubble" :class="{ 'is-latest': i === entrants.length - 1 }"
             :style="{ '--float-delay': `${floatDelay(e.id)}s`, '--hue': hue(e.id) }" data-testid="entry-bubble">
             <span class="bubble__avatar">
@@ -22,7 +22,7 @@ export interface Entrant {
     photoUrl?: string;
 }
 
-const props = defineProps<{ entrants: Entrant[] }>();
+const props = defineProps<{ entrants: Entrant[]; label?: string }>();
 
 /** 人数が増えるほど小さくして、画面に収める。 */
 const size = computed(() => {

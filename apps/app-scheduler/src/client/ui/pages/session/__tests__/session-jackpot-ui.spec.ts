@@ -89,16 +89,23 @@ describe("管理コンソールのジャックポット操作", () => {
     expect(nav).toEqual([{ path: "/jackpot-opening" }, { path: "/jackpot-opening" }]);
   });
 
-  it("オープニング → 説明 → 抽選 の順に、主ボタンで画面が進む", async () => {
+  it("オープニング → エントリー → 説明 → 抽選 の順に、主ボタンで画面が進む", async () => {
     const { meta, agent, nav } = await setupHosted();
     const { wrapper } = await mountConsole(meta.id);
 
     await agent.publishSlice("session", { path: "/jackpot-opening" });
     await settle(5000);
+    expect(next(wrapper).text()).toContain("エントリーへ");
+    await next(wrapper).trigger("click");
+    await settle(5000);
+    expect(nav).toEqual([{ path: "/jackpot-entry" }]);
+
+    await agent.publishSlice("session", { path: "/execute/jackpot-entry" });
+    await settle(5000);
     expect(next(wrapper).text()).toContain("説明へ");
     await next(wrapper).trigger("click");
     await settle(5000);
-    expect(nav).toEqual([{ path: "/jackpot-description" }]);
+    expect(nav).toEqual([{ path: "/jackpot-entry" }, { path: "/jackpot-description" }]);
 
     await agent.publishSlice("session", { path: "/jackpot-description" });
     await settle(5000);
