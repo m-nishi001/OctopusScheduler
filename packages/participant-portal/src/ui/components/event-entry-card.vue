@@ -9,7 +9,7 @@
         <!-- エントリー済み、または自動エントリー -->
         <div v-else-if="state === 'done'" class="pp-entry__done" data-testid="entry-done">
             <span v-if="size === 'full'" class="pp-entry__check" aria-hidden="true">✓</span>
-            <span class="pp-entry__text">エントリー済み ✓</span>
+            <span class="pp-entry__text">{{ entry.autoEntered.value ? '自動でエントリー済み ✓' : 'エントリー済み ✓' }}</span>
             <span v-if="size === 'full'" class="pp-muted">
                 {{ entry.phase.value === 'closed' ? '受付は終了しました。結果をお待ちください。' : '会場の画面に表示されます。このままお待ちください。' }}
             </span>

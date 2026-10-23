@@ -27,7 +27,9 @@ describe("normalizeEventTitle", () => {
 
 describe("parseEventStartPayload", () => {
   it("タイトルがあれば整えて返す", () => {
-    expect(parseEventStartPayload({ title: " 乾杯クイズ " })).toEqual({ title: "乾杯クイズ" });
+    expect(parseEventStartPayload({ title: " 乾杯クイズ " })).toEqual({ title: "乾杯クイズ", pool: "auto" });
+    expect(parseEventStartPayload({ title: "x", pool: "entrants" })?.pool).toBe("entrants");
+    expect(parseEventStartPayload({ title: "x", pool: "all" })?.pool).toBe("auto");
   });
 
   it.each([null, undefined, {}, { title: "" }, { title: 1 }, "x"])("不正なペイロード %s は null", (payload) => {
@@ -89,7 +91,7 @@ describe("ジャックポットの抽選の対象", () => {
 
   it("イベントから対象を取り出す。省略・不正な値は指定なし（全メンバー）として扱う", () => {
     expect(readPortalEvent({ event: { ...event, pool: "entrants" } })?.pool).toBe("entrants");
-    expect(readPortalEvent({ event: { ...event, pool: "all" } })?.pool).toBe("all");
+    expect(readPortalEvent({ event: { ...event, pool: "auto" } })?.pool).toBe("auto");
     for (const pool of [undefined, null, "", "everyone", 1, {}]) {
       const read = readPortalEvent({ event: { ...event, pool } });
       expect(read, String(pool)).toEqual(event);
@@ -97,10 +99,10 @@ describe("ジャックポットの抽選の対象", () => {
     }
   });
 
-  it("parseDrawPool / parseSetPoolPayload は all と entrants だけを受け付ける", () => {
-    expect(parseDrawPool("all")).toBe("all");
+  it("parseDrawPool / parseSetPoolPayload は auto と entrants だけを受け付ける", () => {
+    expect(parseDrawPool("auto")).toBe("auto");
     expect(parseDrawPool("entrants")).toBe("entrants");
-    for (const v of [undefined, null, "", "ALL", "member", 0]) expect(parseDrawPool(v)).toBeNull();
+    for (const v of [undefined, null, "", "all", "ALL", "member", 0]) expect(parseDrawPool(v)).toBeNull();
     expect(parseSetPoolPayload({ mode: "entrants" })).toEqual({ mode: "entrants" });
     for (const p of [null, undefined, {}, { mode: "x" }, "entrants"]) expect(parseSetPoolPayload(p)).toBeNull();
   });

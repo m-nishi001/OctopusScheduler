@@ -38,6 +38,9 @@ async function startEvent(admin: Page, title: string) {
   await admin.getByTestId("event-title").fill(title);
   await admin.getByRole("button", { name: "イベントを開始" }).click();
   await expect(admin.getByTestId("event-state")).toContainText(title);
+  // 既定の対象は「参加者全員(自動)」でエントリーのボタンは出ない。ボタンで参加する形にするため、「エントリーした人のみ」に切り替える
+  await admin.getByRole("button", { name: "エントリーした人だけに切り替える" }).click();
+  await expect(admin.getByTestId("pool-state")).toContainText("エントリーした人のみ");
 }
 
 test.describe("エントリー受付", () => {

@@ -100,8 +100,9 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     // オープニングの演出が終わると、説明の画面へ自動で進む
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/\/jackpot-(opening|description)$/);
     await expect(admin.page.getByTestId("event-state")).toContainText("ジャックポット抽選");
-    // 開始と同時にエントリー受付も始まる(クイズと同じ)
-    await expect(admin.page.getByTestId("entry-state")).toContainText("受付中");
+    // 抽選の対象は既定で参加者全員(自動)なので、開始してもエントリー受付は始まらない
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付は始まっていません");
+    await expect(admin.page.getByTestId("pool-state")).toContainText("参加者全員(自動)");
     await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
     await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);
     await nextButton(admin.page).click();

@@ -205,12 +205,12 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect(host.page.getByTestId("entry-bubble")).toHaveCount(2);
     await host.page.screenshot({ path: "/tmp/claude-0/quiz-host-entry.png" });
 
-    // 「次へ」でエントリーを締め切って出題へ。エントリーした人の一覧は残る(ジャックポットの抽選の対象)
+    // 「次へ」でエントリーを締め切って出題へ。エントリーした人の一覧は残る
     await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/quiz/qz6/play");
     await expect(admin.page.getByTestId("now")).toContainText("回答受付中");
     await expect(admin.page.getByTestId("entry-state")).toContainText("エントリー受付は終了");
-    await expect(admin.page.getByTestId("pool-state")).toContainText("2人");
+    await expect(admin.page.getByTestId("entry-count")).toHaveText("2");
 
     // 次へのあとに、もう一度エントリーを押す必要は無い。そのまま出題が出て、答えられる
     for (const g of [taro, hanako]) {

@@ -1,4 +1,4 @@
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
 import { captureTimeline, expectAnimating } from "./helpers/motion";
 
 /**
@@ -9,9 +9,11 @@ import { captureTimeline, expectAnimating } from "./helpers/motion";
 
 const MEMBER = { id: "jp-draw-e2e-01", name: "抽選太郎" };
 const sessionIds: string[] = [];
+let memberKey = "";
 
 test.beforeAll(async ({ request }) => {
   await adminRpc(request, "accounts_addMember", MEMBER);
+  memberKey = (await adminRpc<{ key: string }>(request, "accounts_issueLoginKey", { id: MEMBER.id })).key;
 });
 test.afterAll(async ({ request }) => {
   for (const sessionId of sessionIds) await adminRpc(request, "sessionHub_closeSession", { sessionId }).catch(() => undefined);
@@ -19,7 +21,7 @@ test.afterAll(async ({ request }) => {
 });
 
 for (const kind of ["roulette", "slot"] as const) {
-  test(`@motion 景品抽選(${kind}): 開始で回り始め、停止で止まる`, async ({ browser }) => {
+  test(`@motion 景品抽選(${kind}): 開始で回り始め、停止で止まる`, async ({ browser, request }) => {
     test.setTimeout(240_000);
     const admin = await newDevice(browser, { signedIn: true });
     const { id: sessionId } = await createSession(admin.page, `景品抽選-${kind}`);
@@ -37,6 +39,8 @@ for (const kind of ["roulette", "slot"] as const) {
     }));
     await seedStore(host.page, "jackpot-game", "PrizeData", prizes.map((p) => ({ id: p.id, value: p })));
 
+    // 抽選の対象は既定で「参加者全員(自動)」: ポータルから入室した人を1人用意する
+    const guest = await joinPortalAs(browser, request, sessionId, MEMBER.id, memberKey);
     await openAdvanced(admin.page);
     await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
     const state = admin.page.getByTestId("jackpot-state");
@@ -87,6 +91,6 @@ for (const kind of ["roulette", "slot"] as const) {
     await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 30_000 });
     await captureTimeline(host.page, `prize-${kind}-stopped`, { count: 2, intervalMs: 500 });
 
-    for (const d of [admin, host]) await d.context.close();
+    for (const d of [admin, host, guest]) await d.context.close();
   });
 }

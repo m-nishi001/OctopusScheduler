@@ -284,7 +284,7 @@ describe("参加者ポータル: エントリー", () => {
   it("抽選の対象が自動のイベントでは、押さなくても「エントリー済み」になる", async () => {
     const env = await portalEnv();
     const m = await mountPortal(participantDevice(env.hub, ALICE), "/p");
-    await env.publishEvent(sampleEvent({ pool: "all" }));
+    await env.publishEvent(sampleEvent({ pool: "auto" }));
     await tick(5000);
     await flushPromises();
     expect(text(m, "entry-done")).toContain("エントリー済み ✓");
@@ -683,7 +683,7 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     it("対象が自動のイベントでは、エントリーしていない人にも「まもなく抽選」を出す", async () => {
       const env = await portalEnv();
       const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
-      await env.publishEvent(sampleEvent({ pool: "all" }));
+      await env.publishEvent(sampleEvent({ pool: "auto" }));
       await env.publishJackpot({ canStop: false, member: null, memberId: null, prize: null, stage: "waiting" });
       await tick(5000);
       await flushPromises();

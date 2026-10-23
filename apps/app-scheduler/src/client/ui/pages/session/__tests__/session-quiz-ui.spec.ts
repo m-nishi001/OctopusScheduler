@@ -134,7 +134,7 @@ describe("管理コンソールのクイズ操作", () => {
     const { wrapper } = await mountConsole(meta.id);
     await wrapper.find('[data-testid="start-quiz"]').trigger("click");
     await settle(8000);
-    expect(hostEvents).toEqual([{ type: "start", payload: { title: "果物クイズ" } }]);
+    expect(hostEvents).toEqual([{ type: "start", payload: { title: "果物クイズ", pool: "entrants" } }]);
     expect(nav).toEqual([{ path: "/quiz/q1/intro" }]);
   });
 

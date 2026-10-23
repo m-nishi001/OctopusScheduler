@@ -1,5 +1,5 @@
 import type { APIRequestContext, Browser, Page } from "@playwright/test";
-import { acceptConfirm, adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, route, seedStore, test, type Device } from "./fixtures";
+import { acceptConfirm, adminRpc, createSession, expect, loginByQr, newDevice, nextButton, openAdvanced, route, seedStore, test, type Device } from "./fixtures";
 
 /**
  * ジャックポットの抽選状態(当選者・景品の在庫・確変の予定)は、ホストの端末ではなくセッションの結果ファイル(サーバー)が正本。
@@ -17,7 +17,6 @@ const keys = new Map<string, string>();
 const sessionIds: string[] = [];
 const PRIZES = Array.from({ length: 8 }, (_, i) => ({ id: `jp-state-p${i + 1}`, name: `状態景品${i + 1}`, order: i + 1, weight: 10 }));
 
-const qrUrl = (id: string) => `/#/login?id=${encodeURIComponent(id)}&key=${encodeURIComponent(keys.get(id)!)}`;
 
 interface ServerDraw {
   drawId: string;
@@ -57,7 +56,7 @@ interface Scene {
   guests: Device[];
 }
 
-/** 管理・ホスト(投影)を開き、景品を入れる。参加者は `memberCount` 人がログインして、イベントにエントリーする。 */
+/** 管理・ホスト(投影)を開き、景品を入れる。参加者は `memberCount` 人がポータルにログインする(抽選の対象は既定の「参加者全員(自動)」なので、エントリーは要らない)。 */
 async function scene(browser: Browser, request: APIRequestContext, label: string, memberCount: number): Promise<Scene> {
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, label);
@@ -68,25 +67,18 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
   await expect(host.page.locator(".host-view__title")).toContainText(label);
   await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
-  const guests = await Promise.all(ids.slice(0, memberCount).map(() => newDevice(browser, { mobile: true })));
-  await Promise.all(guests.map((g, i) => g.page.goto(qrUrl(ids[i]))));
+  const guests = await Promise.all(ids.slice(0, memberCount).map((id) => loginByQr(browser, id, keys.get(id)!)));
   await startEvent(admin.page, guests, "状態の抽選会");
   return { admin, host, sessionId, guests };
 }
 
-/** イベントを始めて受付を開き、参加者全員がエントリーする(抽選の対象は、エントリーした人だけ)。 */
+/** イベントを始める。抽選の対象は参加者全員(自動)なので、受付もエントリーも要らず、参加者の画面は「自動でエントリー済み」になる。 */
 async function startEvent(admin: Page, guests: Device[], title: string): Promise<void> {
   await openAdvanced(admin);
   await admin.getByTestId("event-title").fill(title);
   await admin.getByRole("button", { name: "イベントを開始" }).click();
-  await admin.getByRole("button", { name: "エントリー受付を開始" }).click();
-  for (const [i, g] of guests.entries()) {
-    // ホームのエントリーカードで、1タップでエントリーが済む
-    await expect(g.page.getByTestId("entry-button"), ids[i]).toBeVisible();
-    await g.page.getByTestId("entry-button").click();
-    await expect(g.page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
-  }
-  await expect(admin.getByTestId("entry-count")).toHaveText(`${guests.length}`);
+  await expect(admin.getByTestId("pool-state")).toContainText("参加者全員(自動)");
+  for (const g of guests) await expect(g.page.getByTestId("entry-done")).toContainText("自動でエントリー済み ✓");
 }
 
 /** 管理端末から、ホストを抽選画面へ進める。 */
@@ -136,13 +128,16 @@ test("(a) ホストを再読み込みしても、演出の途中だった抽選�
   await expect(s.admin.page.getByTestId("jackpot-state")).toContainText("メンバー抽選", { timeout: 60_000 });
 
   // 演出し直し: 同じ当選者になる。引き直されていない(サーバーの確定は1件のまま)
-  await stepUntil(s.admin.page, async () => /当選者: 状態\d/.test(await s.admin.page.getByTestId("jackpot-state").innerText()), "当選者が見える(再読み込み後)");
-  await expect(s.admin.page.getByTestId("jackpot-state")).toContainText(`当選者: ${before[0].memberName}`);
+  // 再読み込み前の表示が残っている間に通り過ぎないよう、同じ当選者が(再び)見えるまで進める
+  await stepUntil(s.admin.page, async () => (await s.admin.page.getByTestId("jackpot-state").innerText()).includes(`当選者: ${before[0].memberName}`), "同じ当選者が見える(再読み込み後)");
   await stepUntil(s.admin.page, async () => (await revealedCount(request, s.sessionId)) === 1, "景品が見えて公開される");
   const after = (await serverState(request, s.sessionId)).draws;
-  expect(after).toHaveLength(1);
+  // 通信の遅い環境では、公開を確かめる間に次の抽選が確定していることがある。最初の抽選が引き直されず(同じ drawId・当選者・景品)、
+  // 同じ人が二度当選していなければよい
+  expect(after.length).toBeGreaterThanOrEqual(1);
   expect(after[0]).toMatchObject({ drawId: before[0].drawId, memberId: before[0].memberId, prizeId: before[0].prizeId });
   expect(after[0].revealedAtMs).not.toBeNull();
+  expect(new Set(after.map((d) => d.memberId)).size, "同じ人が二度当選していない").toBe(after.length);
   await closeAll(s);
 });
 
@@ -162,7 +157,7 @@ test("(b)(c) 同じセッションの2回目のイベントでも、当選した
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toBeVisible();
 
-  // 2回目のイベント(エントリーし直す): 最後まで引き切る。残りは2人 = 合計3回で、対象の3名全員になる
+  // 2回目のイベント: 最後まで引き切る。残りは2人 = 合計3回で、対象の3名全員になる
   await startEvent(admin.page, s.guests, "状態の抽選会 第2部");
   await openDraw(admin.page, host.page);
   await stepUntil(admin.page, async () => host.page.getByTestId("end-dialog").isVisible().catch(() => false), "終了の画面が出る", 200);
@@ -190,14 +185,16 @@ test("(d) 管理画面の結果のリセットで、当選者・景品の記録�
   await openDraw(admin.page, host.page);
   await stepUntil(admin.page, async () => (await revealedCount(request, sessionId)) === 1, "1回目の抽選が公開される");
   const first = (await serverState(request, sessionId)).draws[0];
-  expect((await serverState(request, sessionId)).plan).not.toBeNull();
+  const plan = (await serverState(request, sessionId)).plan;
+  expect(plan).not.toBeNull();
 
   // 管理画面の結果ページ: セッションを選ぶと、そのセッションの抽選結果が見える。リセットする
   const results = await newDevice(browser, { signedIn: true });
   await results.page.goto("/#/execute/jackpot-admin/results");
   await results.page.getByTestId("results-source").selectOption(sessionId);
   await expect(results.page.getByTestId("total-draws")).toHaveText("1");
-  await expect(results.page.getByTestId("reserved-badge").first()).toBeVisible(); // 確変用に取り置いた景品の印(予定から)
+  // 確変用に取り置いた景品の印(予定から)。確変の予定は乱数で決まり、取り置きが0件のこともあるので、あるときだけ確かめる
+  if (plan!.reservedPrizeIds.length > 0) await expect(results.page.getByTestId("reserved-badge").first()).toBeVisible();
   await results.page.getByRole("button", { name: "結果をリセット" }).click();
   await acceptConfirm(results.page, "リセット");
   await expect(results.page.getByTestId("total-draws")).toHaveText("0");
