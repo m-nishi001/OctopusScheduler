@@ -15,6 +15,7 @@ import {
 } from "@octopus/session-hub";
 import type { HostAgent, PortalEvent } from "@octopus/session-hub";
 import type { DrawPoolProvider } from "@octopus/game-jackpot";
+import { QUIZ_NAMESPACE } from "@octopus/game-quiz";
 import { AccountsRepository } from "@octopus/accounts";
 import { container } from "tsyringe";
 
@@ -150,6 +151,8 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
         storage.remove(entrantsKey(sessionId));
       }
       await agent.clearSlice(PORTAL_EVENT_NS);
+      // 順位発表の画面を開いたままイベントを終えても、参加者の順位の全面表示が残らないようにする
+      await agent.clearSlice(QUIZ_NAMESPACE);
     } else if (command.type === PORTAL_EVENT_OPEN_ENTRY) {
       if (!event || event.entry?.open) return;
       await openEntry(sessionId, event);

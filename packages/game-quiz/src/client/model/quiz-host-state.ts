@@ -7,6 +7,9 @@
  */
 import type { QuizSessionScope } from "../../server/quiz-api-contract";
 
+/** 画面の状態を公開する名前空間(ホスト → 参加者・管理端末)。 */
+export const QUIZ_NAMESPACE = "quiz";
+
 export type QuizHostPage = "intro" | "entry" | "play" | "answer" | "result";
 export type QuizAnswerPhase = "idle" | "answering" | "closed";
 /**

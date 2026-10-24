@@ -20,7 +20,11 @@ export interface RankingRevealTiming {
  */
 export function useRankingReveal<T>(
   timing: RankingRevealTiming = {},
-  options: { isCelebratable?: (item: T) => boolean } = {},
+  options: {
+    isCelebratable?: (item: T) => boolean;
+    /** 1位の祝福演出を始める瞬間に呼ぶ(待たない)。 */
+    onCelebrate?: () => void;
+  } = {},
 ) {
   const {
     otherPlacesIntervalMs = 500,
@@ -28,7 +32,7 @@ export function useRankingReveal<T>(
     topPlaceIntervalMs = 1000,
     celebrationDurationMs = 6000,
   } = timing;
-  const { isCelebratable = () => true } = options;
+  const { isCelebratable = () => true, onCelebrate } = options;
 
   const displayedResults = ref<T[]>([]) as Ref<T[]>;
   const showCelebration = ref(false);
@@ -64,6 +68,7 @@ export function useRankingReveal<T>(
         await wait(topPlaceIntervalMs);
         if (j === 0 && isCelebratable(item)) {
           showCelebration.value = true;
+          onCelebrate?.();
           setTimeout(() => {
             showCelebration.value = false;
           }, celebrationDurationMs);

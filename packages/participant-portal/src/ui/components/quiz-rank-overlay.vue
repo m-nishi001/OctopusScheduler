@@ -21,10 +21,6 @@
             <button type="button" class="pp-button" @click="load">もう一度読み込む</button>
         </template>
         <p v-else class="pp-rank-won__sub" data-testid="quiz-my-rank-loading" role="status">順位を集計しています…</p>
-
-        <button type="button" class="pp-button pp-button--ghost pp-rank-won__close" data-testid="quiz-my-rank-close" @click="dismissedRound = roundKey">
-            とじる
-        </button>
     </div>
 </template>
 
@@ -34,7 +30,10 @@ import { useQuizContext } from '../../model/use-quiz';
 import { useResultsContext } from '../../model/use-results';
 
 const PIECES = 24;
-/** 保存が済んでから公開されるので、普通は1回で見つかる。見つからないときの取り直しの回数と間隔。 */
+/** 発表の途中(revealing)に、自分の順位を裏で先に取っておく。見つからなくても表示はしないので、間隔は長めにして回数を抑える。 */
+const PREFETCH_ATTEMPTS = 4;
+const PREFETCH_INTERVAL_MS = 2000;
+/** 発表が終わった(finished)のに見つからないときの取り直し。保存が済んでから公開されるので、普通は1回で見つかる。 */
 const LOAD_ATTEMPTS = 4;
 const LOAD_INTERVAL_MS = 1000;
 
@@ -50,16 +49,23 @@ function pieceStyle(n: number): Record<string, string | number> {
 const quiz = useQuizContext();
 const results = useResultsContext();
 
-/** 会場の発表が終わった(1位の発表と結果の保存まで済んだ)回のキー。 */
+/** 会場が順位発表の画面にいる回のキー(発表の途中も含む。裏で順位を取っておくために使う)。 */
+const resultRoundKey = computed(() => {
+    const q = quiz.quiz.value;
+    return q && q.page === 'result' ? q.roundKey : null;
+});
+/**
+ * 会場の発表が終わった(1位の祝福演出が始まり、結果の保存も済んだ)回のキー。表示するかどうかはこれだけで決める。
+ * 会場が順位発表の画面を離れる、またはイベントが終わると、公開された状態から消えるので自然に閉じる。
+ */
 const roundKey = computed(() => {
     const q = quiz.quiz.value;
     return q && q.page === 'result' && q.reveal === 'finished' ? q.roundKey : null;
 });
-const dismissedRound = ref<string | null>(null);
-const shown = computed(() => roundKey.value !== null && dismissedRound.value !== roundKey.value);
+const shown = computed(() => roundKey.value !== null);
 
 const round = computed(() => {
-    const key = roundKey.value;
+    const key = resultRoundKey.value;
     return key ? (results.view.value?.quiz.rounds.find((r) => r.roundKey === key) ?? null) : null;
 });
 const failed = ref(false);
@@ -71,28 +77,33 @@ let loadId = 0;
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** この回の結果が見つかるまで取り直す(ホストの保存と公開のずれ、通信の失敗に備える)。 */
-async function load(): Promise<void> {
+async function load(attempts = LOAD_ATTEMPTS, intervalMs = LOAD_INTERVAL_MS): Promise<void> {
     const id = ++loadId;
     failed.value = false;
-    for (let i = 0; i < LOAD_ATTEMPTS; i++) {
+    for (let i = 0; i < attempts; i++) {
         await results.refresh();
         if (disposed || id !== loadId) return;
         if (round.value) return;
-        if (i < LOAD_ATTEMPTS - 1) await sleep(LOAD_INTERVAL_MS);
+        if (i < attempts - 1) await sleep(intervalMs);
         if (disposed || id !== loadId) return;
     }
     failed.value = !round.value;
 }
 
+// 発表の途中は裏で取っておき(表示しない)、finished になったら取れていればそのまま出す。取れていなければ取り直す。
 watch(
-    roundKey,
-    (key) => {
+    [resultRoundKey, roundKey],
+    ([key, finishedKey], [prevKey, prevFinished] = [null, null]) => {
         if (!key) {
             loadId++;
             failed.value = false;
             return;
         }
-        if (dismissedRound.value !== key) void load();
+        if (finishedKey) {
+            if (!round.value && (key !== prevKey || !prevFinished)) void load();
+        } else if (key !== prevKey) {
+            void load(PREFETCH_ATTEMPTS, PREFETCH_INTERVAL_MS);
+        }
     },
     { immediate: true }
 );
@@ -175,10 +186,6 @@ onScopeDispose(() => {
     font-size: clamp(1rem, 4.5vw, 1.3rem);
     font-weight: 700;
     overflow-wrap: anywhere;
-}
-
-.pp-rank-won__close {
-    margin: 12px 0 auto;
 }
 
 @media (max-height: 480px) {
