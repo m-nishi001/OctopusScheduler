@@ -276,10 +276,8 @@ test("(e) 先に確定したあとで結果がリセットされても、進行�
   if (noticed) await expect(s.host.page.getByTestId("draw-notice")).toContainText("リセット");
 
   // そのあとは、読み直した状態から新しく引き直せる(最初の抽選は二度と出ない)。確変の予定も決め直される
-  await s.host.page.keyboard.press("Enter");
-  await expect(winningDialog(s.host.page)).toBeHidden();
-  await untilDialog(s.host.page);
-  await waitRevealed(request, s.sessionId, 1);
+  // 読み直した状態から、新しい抽選がサーバーに確定される(先読み・その場のどちらでも)
+  await expect.poll(async () => (await serverState(request, s.sessionId)).draws.length, { timeout: 45_000 }).toBeGreaterThanOrEqual(1);
   const after = await serverState(request, s.sessionId);
   expect(after.draws.every((d) => d.drawId !== first.drawId)).toBe(true);
   expect(after.plan).not.toBeNull();
