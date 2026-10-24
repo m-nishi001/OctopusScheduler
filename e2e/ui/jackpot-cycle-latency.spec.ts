@@ -71,19 +71,16 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText(label);
   await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
-  if (kakuhenTimings) {
-    await seedStore(host.page, "jackpot-game", "ScreenConfigData", [
-      {
-        id: "main_main-screen-settings",
-        value: {
-          screenName: "main",
-          settingName: "main-screen-settings",
-          settingValue: JSON.stringify({ kakuhenMode: "fixed", kakuhenFixedTimings: kakuhenTimings }),
-        },
-      },
-    ]);
-  }
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
+  if (kakuhenTimings) {
+    // 確変の予定は、ホストの画面設定(端末のIndexedDB・サーバーとバックグラウンドで同期される共有の設定)ではなく、
+    // このセッションの結果ファイルに先に決めておく(予定はセッションで最初の1回で確定し、以後は変わらない)。
+    // 画面設定を端末に入れると、別のテストの設定との同期の競合で、予定が意図と違うものになることがある。
+    await adminRpc(request, "sessionHub_ensureJackpotPlan", {
+      sessionId,
+      plan: { kakuhenTimings, reservedPrizeIds: kakuhenTimings.length > 0 ? [PRIZES[PRIZES.length - 1].id] : [] },
+    });
+  }
   const guests = await Promise.all(ids.slice(0, memberCount).map((id) => loginByQr(browser, id, keys.get(id)!)));
 
   await openAdvanced(admin.page);
