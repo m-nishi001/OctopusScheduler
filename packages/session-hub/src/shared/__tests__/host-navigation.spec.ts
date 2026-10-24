@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLoginUrl, isAllowedHostPath, lobbyPath } from "../host-navigation";
+import { buildLoginUrl, isAllowedHostPath, lobbyPath, readExpectedPath } from "../host-navigation";
 
 describe("isAllowedHostPath", () => {
   it.each([
@@ -66,5 +66,15 @@ describe("buildLoginUrl", () => {
 
   it("IDやキーに記号があってもエスケープする", () => {
     expect(buildLoginUrl("a b&c", "k=1/2", "https://e.com/")).toBe("https://e.com/#/login?id=a%20b%26c&key=k%3D1%2F2");
+  });
+});
+
+describe("readExpectedPath", () => {
+  it("文字列の expectedPath だけを取り出す", () => {
+    expect(readExpectedPath({ path: "/a", expectedPath: "/execute/jackpot-opening" })).toBe("/execute/jackpot-opening");
+  });
+
+  it.each([undefined, null, 42, "x", {}, { expectedPath: 1 }, { expectedPath: null }])("付いていない・文字列でない(%j)ときは null", (payload) => {
+    expect(readExpectedPath(payload)).toBeNull();
   });
 });
