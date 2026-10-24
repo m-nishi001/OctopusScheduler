@@ -191,6 +191,9 @@ test("(d) 管理画面の結果のリセットで、当選者・景品の記録�
   // 管理画面の結果ページ: セッションを選ぶと、そのセッションの抽選結果が見える。リセットする
   const results = await newDevice(browser, { signedIn: true });
   await results.page.goto("/#/execute/jackpot-admin/results");
+  // この端末には景品が無い(取り置きの印は景品の行に付く)ので、先に入れて読み直す
+  await seedStore(results.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+  await results.page.reload();
   await results.page.getByTestId("results-source").selectOption(sessionId);
   // 次のサイクルは公開のあと裏で先に確定される(未公開)ので、確定済みの件数は1件とは限らない。サーバーの件数と一致することを確かめる
   await expect
