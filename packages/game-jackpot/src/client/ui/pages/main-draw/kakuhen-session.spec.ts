@@ -6,7 +6,7 @@ import { createTestContext } from "./draw-context.test-helper";
 const prizeRes = { winnerPrizeId: "p1", dummyWinnerPrizeId: null, dummyPrizeIds: [], drawId: "d1" };
 
 function setup(overrides: { items?: Array<{ id: string }> } = {}) {
-  const winner = { id: "p1", name: "p1", order: 1, imageAssetId: "img1", image2AssetId: "img2", winningImage2AssetId: "win2" };
+  const winner = { id: "p1", name: "p1", order: 1, imageAssetId: "img1", image2AssetId: "img2", winningImage1AssetId: "win1", winningImage2AssetId: "win2" };
   const ctx = createTestContext();
   ctx.prizes.value = [winner, { id: "p2", name: "p2", order: 2 }];
   ctx.prizeRes.value = prizeRes as any;
@@ -34,6 +34,9 @@ describe("KakuhenSession", () => {
       expect(shown.map((p) => p.id)).toEqual(["p1__k1", "p1__k2"]);
       expect(shown[0]).toMatchObject({ originalPrizeId: "p1", imageAssetId: "img1" });
       expect(shown[1]).toMatchObject({ originalPrizeId: "p1", imageAssetId: "img2" });
+      // 当選ダイアログに出す画像も、1つ目は画像1側・2つ目は画像2側になる(景品の名前と ID は同じ)
+      expect(shown[0]).toMatchObject({ name: "p1", winningImage1AssetId: "win1" });
+      expect(shown[1]).toMatchObject({ name: "p1", winningImage1AssetId: "win2" });
       expect(ctx.prizeAnim.value.updatePrizes).toHaveBeenCalled();
       expect(ctx.prizeAnim.value.startSpin).toHaveBeenCalled();
     });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildPrizesToPrepare, performDraw, performResume } from "./perform-draw";
+import { buildPrizesToPrepare, performNext, performResume } from "./perform-draw";
 
 const prizes: any[] = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
 const prizeRes = (over: Record<string, unknown> = {}): any => ({
@@ -25,59 +25,68 @@ describe("buildPrizesToPrepare", () => {
   });
 });
 
-describe("performDraw", () => {
-  const deps = (executeDraw: any) => ({
-    drawService: { executeDraw, resumeDraw: executeDraw },
+const drawn = (over: Record<string, unknown> = {}): any => ({
+  kind: "drawn",
+  progress: {},
+  outcome: {
+    result: { drawId: "d", wonPrize: { id: "p2" }, wonMember: { id: "m" } },
+    prizeRes: prizeRes({ winnerPrizeId: "p2" }),
+    memberRes: { winnerId: "m" },
+    ...over,
+  },
+});
+
+describe("performNext", () => {
+  const deps = (drawNext: any) => ({
+    drawService: { drawNext, resumeDraw: vi.fn() },
     prizes: { value: prizes },
-    preparePrizes: vi.fn().mockResolvedValue([]),
+    buildPrizeItems: vi.fn().mockResolvedValue([{ id: "item" }]),
   });
 
-  it("抽選結果の当選景品を、景品一覧の完全な情報に置き換えて返す", async () => {
-    const d = deps(
-      vi.fn().mockResolvedValue({
-        result: { wonPrize: { id: "p2" }, wonMember: { id: "m" } },
-        prizeRes: prizeRes({ winnerPrizeId: "p2" }),
-        memberRes: { winnerId: "m" },
-      })
-    );
+  it("抽選結果の当選景品を、景品一覧の完全な情報に置き換え、ルーレットの材料を添えて返す(画面には反映しない)", async () => {
+    const d = deps(vi.fn().mockResolvedValue(drawn()));
 
-    const out = await performDraw(d);
+    const next = await performNext(d);
 
-    expect(out.winner).toBe(prizes[1]);
-    expect(out.result.wonPrize).toBe(prizes[1]);
-    expect(d.preparePrizes).toHaveBeenCalledTimes(1);
+    expect(next.kind).toBe("draw");
+    if (next.kind !== "draw") return;
+    expect(next.outcome.winner).toBe(prizes[1]);
+    expect(next.outcome.result.wonPrize).toBe(prizes[1]);
+    expect(next.outcome.prizeItems).toEqual([{ id: "item" }]);
+    expect(d.buildPrizeItems).toHaveBeenCalledTimes(1);
+  });
+
+  it("終了なら、抽選もルーレットの材料の用意もせずに終了を返す", async () => {
+    const finished = { kind: "finished", progress: { endReason: "prizes" } };
+    const d = deps(vi.fn().mockResolvedValue(finished));
+    expect(await performNext(d)).toBe(finished);
+    expect(d.buildPrizeItems).not.toHaveBeenCalled();
   });
 
   it("抽選サービスが失敗したら、そのまま例外にする(中途半端な結果を返さない)", async () => {
     const d = deps(vi.fn().mockRejectedValue(new Error("対象のメンバーがいません")));
-    await expect(performDraw(d)).rejects.toThrow("対象のメンバーがいません");
-    expect(d.preparePrizes).not.toHaveBeenCalled();
+    await expect(performNext(d)).rejects.toThrow("対象のメンバーがいません");
+    expect(d.buildPrizeItems).not.toHaveBeenCalled();
   });
 
   it("当選景品が景品一覧に無いとき、null 参照ではなく原因の分かるエラーにする", async () => {
-    const d = deps(
-      vi.fn().mockResolvedValue({ result: { wonPrize: { id: "ghost" } }, prizeRes: prizeRes(), memberRes: {} })
-    );
-    await expect(performDraw(d)).rejects.toThrow("当選した景品が景品一覧に見つかりません");
+    const d = deps(vi.fn().mockResolvedValue(drawn({ result: { wonPrize: { id: "ghost" } }, prizeRes: prizeRes() })));
+    await expect(performNext(d)).rejects.toThrow("当選した景品が景品一覧に見つかりません");
   });
 });
 
 describe("performResume", () => {
   it("引き直さず、確定済みの結果の材料でルーレットを用意する", async () => {
-    const resumeDraw = vi.fn().mockResolvedValue({
-      result: { drawId: "d", wonPrize: { id: "p2" }, wonMember: { id: "m" } },
-      prizeRes: prizeRes({ winnerPrizeId: "p2" }),
-      memberRes: { winnerId: "m" },
-    });
-    const executeDraw = vi.fn();
-    const preparePrizes = vi.fn().mockResolvedValue([]);
+    const resumeDraw = vi.fn().mockResolvedValue(drawn().outcome);
+    const drawNext = vi.fn();
+    const buildPrizeItems = vi.fn().mockResolvedValue([]);
     const pending: any = { drawId: "d", wonPrize: { id: "p2" }, wonMember: { id: "m" } };
 
-    const out = await performResume({ drawService: { executeDraw, resumeDraw }, prizes: { value: prizes }, preparePrizes }, pending);
+    const out = await performResume({ drawService: { drawNext, resumeDraw }, prizes: { value: prizes }, buildPrizeItems }, pending);
 
-    expect(executeDraw).not.toHaveBeenCalled();
+    expect(drawNext).not.toHaveBeenCalled();
     expect(resumeDraw).toHaveBeenCalledWith(pending, expect.anything());
     expect(out.winner).toBe(prizes[1]);
-    expect(preparePrizes).toHaveBeenCalledTimes(1);
+    expect(buildPrizeItems).toHaveBeenCalledTimes(1);
   });
 });

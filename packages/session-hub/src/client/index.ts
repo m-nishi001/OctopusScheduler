@@ -4,7 +4,7 @@ export { Container as SessionHubContainer, createSessionConnection } from "./con
 export { SessionConnection } from "./model/session-connection";
 export { HostAgent } from "./model/host-agent";
 export { HostCommandRouter } from "./model/host-command-router";
-export type { CommandHandler } from "./model/host-command-router";
+export type { CommandGuard, CommandHandler } from "./model/host-command-router";
 export { SessionAdminRepository } from "./model/session-admin-repository";
 export type { ConnectionOptions, ConnectionPhase, ConnectionState } from "./model/session-connection";
 export { PollingTransport, DEFAULT_POLLING_OPTIONS } from "./model/polling-transport";

@@ -54,7 +54,12 @@ const {
     showCelebration: showFullScreenParticles,
     isFinished: rankingFinished,
     reveal: revealRanking,
-} = useRankingReveal<DisplayResult>({}, { isCelebratable: (r) => !!r.userId });
+} = useRankingReveal<DisplayResult>({}, {
+    isCelebratable: (r) => !!r.userId,
+    // 1位の祝福演出が始まる瞬間に finished を公開する(保存は並行して先に進めてある)
+    onCelebrate: () => celebrateHook(),
+});
+let celebrateHook: () => void = () => undefined;
 
 const RANK_LIMIT = 10;
 const winnerName = computed(() => {
@@ -145,7 +150,7 @@ onMounted(() => {
                         reveal,
                     })
                 );
-            // 発表中は順位を参加者に見せない。1位の発表と結果の保存が終わったら finished にする
+            // 発表中は順位を参加者に見せない。結果の保存が済み、1位の祝福演出が始まったら finished にする
             publishResult('revealing');
             if (session.scope === 'live' && roundAnswers) {
                 pendingRecord = buildQuizRoundResult({
@@ -170,7 +175,10 @@ onMounted(() => {
         }
         isLoadingResults.value = false;
         await runResultRevealSequence({
-            reveal: () => revealRanking(finalResults.value),
+            reveal: (onCelebrate) => {
+                celebrateHook = onCelebrate;
+                return revealRanking(finalResults.value);
+            },
             record: recordResult,
             publishFinished: () => publishResult('finished'),
             isDisposed: () => disposed,

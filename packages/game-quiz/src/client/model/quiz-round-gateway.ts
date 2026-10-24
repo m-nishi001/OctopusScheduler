@@ -3,7 +3,7 @@ import { HostAgent } from "@octopus/session-hub";
 import type { QuizRoundResult } from "@octopus/session-hub";
 import type { QuizSessionScope } from "../../server/quiz-api-contract";
 import type { QuizHostState } from "./quiz-host-state";
-import { roundKeyFor } from "./quiz-host-state";
+import { QUIZ_NAMESPACE as NAMESPACE, roundKeyFor } from "./quiz-host-state";
 import type { RankingAnswer } from "./ranking";
 
 export interface OpenedRound {
@@ -19,8 +19,6 @@ export interface RoundAnswers {
   /** 受付を開始した時刻(サーバ時刻 ms)。順位の「回答までの秒数」の基準。 */
   openedAtMs: number;
 }
-
-const NAMESPACE = "quiz";
 
 /**
  * クイズの回答受付(参加者の回答の収集)と、ホスト/管理/参加者への状態公開の窓口。

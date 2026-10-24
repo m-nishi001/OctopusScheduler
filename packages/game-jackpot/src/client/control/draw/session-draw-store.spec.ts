@@ -121,4 +121,67 @@ describe("SessionDrawStore", () => {
     expect(await store.results()).toEqual([]);
     expect(await store.plan()).toBeNull();
   });
+
+  it("同じ抽選の公開が通信中なら、重ねて送らず、その完了を待つ(公開の通信は1回)", async () => {
+    const { store, agent } = await scene();
+    await store.ensurePlan([], []);
+    await store.commit(draw("d1", 0, 0));
+    const spy = vi.spyOn(agent, "revealJackpotDraw");
+    await Promise.all([store.reveal("d1"), store.reveal("d1")]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(await store.pending()).toBeNull();
+    // 完了後の呼び出しは、また普通に送れる(何度呼んでも同じ結果)
+    await store.reveal("d1");
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it("公開が失敗したら、次の公開はやり直せる(失敗を覚えて塞がない)", async () => {
+    const { store, agent } = await scene();
+    await store.ensurePlan([], []);
+    await store.commit(draw("d1", 0, 0));
+    vi.spyOn(agent, "revealJackpotDraw").mockRejectedValueOnce(new Error("network"));
+    await expect(store.reveal("d1")).rejects.toThrow("network");
+    await store.reveal("d1");
+    expect(await store.pending()).toBeNull();
+  });
+
+  describe("通信の間に読み直し(load)が入っても、書いたことがメモリから消えない", () => {
+    it("commit の通信中に load が入れ替わっても、確定した抽選が pending に残る", async () => {
+      const { store, agent } = await scene();
+      await store.ensurePlan([], []);
+      const real = agent.commitJackpotDraw.bind(agent);
+      vi.spyOn(agent, "commitJackpotDraw").mockImplementation(async (input) => {
+        await store.load(); // 書く前に、別の読み直しが、サーバーの(まだ d1 が無い)内容でメモリを入れ替える
+        return real(input);
+      });
+      await store.commit(draw("d1", 0, 0));
+      expect((await store.pending())?.drawId).toBe("d1");
+      expect((await store.results()).filter((r) => r.drawId === "d1")).toHaveLength(1); // 二重に積まない
+    });
+
+    it("ensurePlan の通信中に load が入れ替わっても、予定がメモリに残る", async () => {
+      const { store, agent } = await scene();
+      await store.load();
+      const real = agent.ensureJackpotPlan.bind(agent);
+      vi.spyOn(agent, "ensureJackpotPlan").mockImplementation(async (input) => {
+        await store.load();
+        return real(input);
+      });
+      await store.ensurePlan([2], ["p2"]);
+      expect(await store.plan()).toEqual({ kakuhenTimings: [2], reservedPrizeIds: ["p2"] });
+    });
+
+    it("reveal の通信中に load が入れ替わっても、公開済みとしてメモリに残る(次の確定を止める未公開に見えない)", async () => {
+      const { store, agent } = await scene();
+      await store.ensurePlan([], []);
+      await store.commit(draw("d1", 0, 0));
+      const real = agent.revealJackpotDraw.bind(agent);
+      vi.spyOn(agent, "revealJackpotDraw").mockImplementation(async (id) => {
+        await store.load(); // 書く前の(d1 がまだ未公開の)内容で入れ替わる
+        return real(id);
+      });
+      await store.reveal("d1");
+      expect(await store.pending()).toBeNull();
+    });
+  });
 });

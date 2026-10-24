@@ -151,16 +151,21 @@ test.describe("クイズ（参加者ポータル）", () => {
     await expect(host.page.locator(".ranking-item .rank-badge").last()).toHaveText("10");
     await expect(taro.page.getByTestId("quiz-panel")).toContainText("会場の画面をご覧ください");
 
-    // 順位発表が終わると、結果がサーバー(R2)に保存される(参加者ポータルの「結果」の元データ)
+    // 順位発表の1位の祝福演出が始まるまでに、結果がサーバー(R2)に保存される(参加者ポータルの「結果」の元データ)
     type Results = { rev: number; quiz: { rounds: Array<{ title: string; answeredCount: number; correctCount: number; top: Array<{ name: string }> }> } };
     await expect
       .poll(async () => (await adminRpc<Results>(request, "sessionHub_getResults", { sessionId })).quiz.rounds[0] ?? null, { timeout: 60_000 })
       .toMatchObject({ title: "果物クイズ", answeredCount: 2, correctCount: 1, top: [{ name: "太郎" }] });
 
     // 当選者がいるので「次へ」で景品(当選者名つき)が出て、もう一度「次へ」でロビーに戻る(管理画面には出ない)
+    // 結果の保存は祝福演出の開始時に済むので、保存の確認は発表の終わりを意味しない。祝福バナーが消えて、ホストが「次へ」を受け付けてから押す
+    await expect(host.page.locator(".banner-label")).toBeHidden({ timeout: 30_000 });
     const next = nextButton(admin.page);
-    await next.click();
-    await expect(host.page.getByText("おめでとうございます")).toBeVisible();
+    // (演出の終了直後の「次へ」は受け付けられないことがあるので、景品が出るまで押し直す)
+    await expect(async () => {
+      await next.click();
+      await expect(host.page.getByText("おめでとうございます")).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 20_000 });
     await expect(host.page.getByText("太郎 さん")).toBeVisible();
     await next.click();
     await expect.poll(() => route(host.page)).toBe(`/session/host/${sessionId}`);

@@ -51,6 +51,34 @@ describe('useRankingReveal', () => {
     expect(isFinished.value).toBe(true);
   });
 
+  it('calls onCelebrate exactly when the celebration starts (not after the hold)', async () => {
+    vi.useFakeTimers();
+    const onCelebrate = vi.fn();
+    const { showCelebration, reveal } = useRankingReveal<string>(TIMING, { onCelebrate });
+
+    const done = reveal(['a', 'b', 'c']);
+    await vi.advanceTimersByTimeAsync(50); // beforeTopPause
+    await vi.advanceTimersByTimeAsync(50); // 3rd
+    await vi.advanceTimersByTimeAsync(50); // 2nd
+    expect(onCelebrate).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(50); // 1st shown + celebration starts
+    expect(showCelebration.value).toBe(true);
+    expect(onCelebrate).toHaveBeenCalledTimes(1);
+    await vi.runAllTimersAsync();
+    await done;
+    expect(onCelebrate).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onCelebrate when the 1st place is not celebratable', async () => {
+    vi.useFakeTimers();
+    const onCelebrate = vi.fn();
+    const { reveal } = useRankingReveal<string>(TIMING, { isCelebratable: () => false, onCelebrate });
+    const done = reveal(['a', 'b']);
+    await vi.runAllTimersAsync();
+    await done;
+    expect(onCelebrate).not.toHaveBeenCalled();
+  });
+
   it('does not celebrate when the 1st place item is not celebratable (e.g. placeholder row)', async () => {
     vi.useFakeTimers();
     const { showCelebration, isFinished, reveal } = useRankingReveal<string>(TIMING, {

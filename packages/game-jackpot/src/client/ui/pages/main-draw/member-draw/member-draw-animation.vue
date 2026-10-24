@@ -30,8 +30,7 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import gsap from 'gsap';
 import '../../../theme/jackpot-theme.css';
 import type { MemberDto } from '@control/member/dto/member-dto';
-import { container } from 'tsyringe';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { sharedMemberImageCache } from './member-image-cache';
 import type { DrawMemberResponse } from '@control/draw/dto/draw-member-response';
 import MemberWinnerDialog from './member-winner-dialog.vue';
 import { useMemberDrawBgm } from './use-member-draw-bgm';
@@ -61,11 +60,9 @@ export default {
         const track = ref<HTMLDivElement | null>(null);
         const startButtonContainer = ref<HTMLDivElement | null>(null);
         const tweenRef: { tween: gsap.core.Tween | null } = { tween: null };
-        const memberImageMap = new Map<string, string>();
+        const memberImageMap = sharedMemberImageCache();
         // inline SVG placeholder (dark rounded avatar) as fallback so images render even when asset loading fails
         const defaultAvatar = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="100%" height="100%" fill="%23111111"/><circle cx="60" cy="44" r="30" fill="%23888"/><rect x="20" y="86" width="80" height="12" rx="6" fill="%23888"/></svg>';
-
-        const assetService = container.resolve(AssetDataService);
 
         // メンバー抽選中のBGM再生はアニメーション本体と独立した関心事のため
         // composableに分離している。
@@ -112,28 +109,11 @@ export default {
             }
         };
 
+        // 表示するメンバーの写真を読み込む。置き場は画面の外(共有)にあるので、抽選のたびに作り直されても読み直さず、
+        // 次のサイクルの下ごしらえで先に読んであればここでは待たない。読み込みは並列。
         const loadImages = async () => {
             const base = displayMembers.value.slice(0, Math.max(displayMembers.value.length / 2, 0));
-            for (const m of base) {
-                const aid = m?.photoAssetId;
-                if (!aid) continue;
-                if (memberImageMap.has(aid)) continue;
-                try {
-                    const asset = await assetService.getAssetDataById(aid);
-                    if (!asset) continue;
-                    // asset may contain blob, dataUrl, or url depending on implementation
-                    if ((asset as any).blob) {
-                        const url = URL.createObjectURL((asset as any).blob);
-                        memberImageMap.set(aid, url);
-                    } else if ((asset as any).dataUrl) {
-                        memberImageMap.set(aid, (asset as any).dataUrl);
-                    } else if ((asset as any).url) {
-                        memberImageMap.set(aid, (asset as any).url);
-                    }
-                } catch (e) {
-                    // ignore individual load failures; fallback image will be used
-                }
-            }
+            await memberImageMap.preload(base.map((m) => m?.photoAssetId));
         };
 
         const activeIndex = ref<number | null>(null);
@@ -449,7 +429,6 @@ export default {
             if (tweenRef.tween) tweenRef.tween.kill();
             gsap.killTweensOf(track.value);
             stopActiveLoop();
-            for (const url of Array.from(memberImageMap.values())) try { URL.revokeObjectURL(url); } catch (e) { }
             window.removeEventListener('resize', positionStartButton);
         });
 

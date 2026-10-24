@@ -1,11 +1,17 @@
 import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
 import { captureTimeline, expectAnimating } from "./helpers/motion";
+import type { Page } from "@playwright/test";
+import { expectSlotFitsEverySize, expectSlotLarge, sampleRepeatedRows, stoppedTopRows } from "./helpers/slot";
 
 /**
  * 景品抽選（ルーレット / スロット）が、開始で回り始め、停止で止まること。
  * 以前、スロットは開始しても何も動かない不具合があった（親から startSpin/stopSpin が見えなかった）。
  * 回転は画面の見た目で確認する: 回転中はスクリーンショットが毎回変わり、止めると回転が終わって当選が発表される。
  */
+
+/** スロットの高さが窓の高さに占める割合(窓の大きさを変えた直後は、組み直されるまで 1 を超える)。 */
+const slotHeightRatio = (page: Page) => () =>
+  page.evaluate(() => document.querySelector(".slot-container")!.getBoundingClientRect().height / window.innerHeight);
 
 const MEMBER = { id: "jp-draw-e2e-01", name: "抽選太郎" };
 const sessionIds: string[] = [];
@@ -65,6 +71,18 @@ for (const kind of ["roulette", "slot"] as const) {
     await expectAnimating(reel, `prize-${kind}-spinning`, { count: 4, intervalMs: 400 });
 
     if (kind === "slot") {
+      // 遠くからでも読めるよう、ルーレット並みに画面を使う(1080p でも 720p でも。窓の大きさを変えると組み直される)
+      await expectSlotLarge(host.page, "1920x1080", { heightRatio: 0.68, font: 58 });
+      await host.page.setViewportSize({ width: 1280, height: 720 });
+      await expect.poll(slotHeightRatio(host.page), "窓の大きさに合わせて組み直される").toBeLessThan(0.9);
+      await expectSlotLarge(host.page, "1280x720", { heightRatio: 0.68, font: 38 });
+      await expectSlotFitsEverySize(host.page, "スロット");
+      await host.page.setViewportSize({ width: 1920, height: 1080 });
+      await expect.poll(slotHeightRatio(host.page), "窓の大きさに合わせて組み直される").toBeLessThan(0.9);
+
+      // 回転中、窓に見える景品が同じ名前で続かない(当選を推測できない)
+      expect(await sampleRepeatedRows(host.page, 180), "回転中に同じ景品名が続けて見えた").toEqual([]);
+
       // 回転中、どのリールも窓(3マス)が帯の外(黒)を映さない(以前は1周の継ぎ目で黒が見えた)
       const violations = await host.page.evaluate(async () => {
         const out: string[] = [];
@@ -75,7 +93,8 @@ for (const kind of ["roulette", "slot"] as const) {
             const rowH = rows[0].getBoundingClientRect().height;
             const top = reel.getBoundingClientRect().top;
             const bottom = rows[rows.length - 1].getBoundingClientRect().bottom;
-            const windowBottom = top + reel.getBoundingClientRect().height;
+            // 窓は枠線の内側(clientHeight)。枠線ぶんを含めると、帯の末尾ちょうどで止まる瞬間に誤検出する
+            const windowBottom = top + reel.clientTop + reel.clientHeight;
             if (bottom + 1 < windowBottom) out.push(`frame ${i} reel ${r}: 帯の末尾(${bottom})が窓の下端(${windowBottom})より上 rowH=${rowH}`);
           });
           await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -88,7 +107,13 @@ for (const kind of ["roulette", "slot"] as const) {
     // 止める → 回転が止まり、当選した景品が発表される（発表の紙吹雪は動き続けるので、静止ではなく発表の表示で確認する）
     await next.click();
     await expect(spinning).toBeHidden({ timeout: 30_000 });
+    // スロットは、3本とも同じ景品(当選景品)で止まり、発表される景品と一致する
+    const stoppedRows = kind === "slot" ? await stoppedTopRows(host.page) : [];
     await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 30_000 });
+    if (kind === "slot") {
+      expect(new Set(stoppedRows).size, `3本のリールが同じ景品で止まる: ${stoppedRows.join(",")}`).toBe(1);
+      await expect(host.page.getByTestId("prize-winning-name")).toHaveText(stoppedRows[0]);
+    }
     await captureTimeline(host.page, `prize-${kind}-stopped`, { count: 2, intervalMs: 500 });
 
     for (const d of [admin, host, guest]) await d.context.close();
