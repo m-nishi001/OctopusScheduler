@@ -23,9 +23,13 @@ export const step = (run: () => Promise<void> | void, label?: string): Step => (
   label,
 });
 
-/** 指定秒数待ってから、次のEnterを待つ。 */
-export const pause = (seconds = 1): Step => ({
-  run: () => delay(seconds),
+/**
+ * 指定秒数待ってから、次のEnterを待つ。この待ちは進行中の扱いなので、その間の進行操作は受け付けない(連打の二重実行を防ぐ)。
+ * 秒数は「演出が落ち着くまでに要る時間」。必要な分だけにする(長いほど、操作を受け付けるのが遅れる)。
+ * `wait` を渡すと待ち方を差し替えられる(テストで時間を進めずに確かめる)。
+ */
+export const pause = (seconds = 1, wait: (seconds: number) => Promise<void> = delay): Step => ({
+  run: () => wait(seconds),
   pause: true,
 });
 

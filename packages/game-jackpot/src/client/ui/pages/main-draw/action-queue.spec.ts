@@ -25,6 +25,27 @@ describe("step / pause", () => {
   });
 });
 
+describe("pause の待ち方の差し替え", () => {
+  it("渡した wait で待つ(実際には待たない)。秒数がそのまま渡る", async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const s = pause(0.5, wait);
+    expect(s.pause).toBe(true);
+    await s.run();
+    expect(wait).toHaveBeenCalledWith(0.5);
+  });
+
+  it("wait を渡さなければ実際に待つ。秒数を省くと1秒", async () => {
+    vi.useFakeTimers();
+    const done = vi.fn();
+    void pause().run().then(done);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(done).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(done).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+});
+
 describe("ActionQueue", () => {
   const noop = async () => {};
 

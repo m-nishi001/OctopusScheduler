@@ -4,6 +4,7 @@
   "dedicated": ["jackpot-scale.spec.ts"],
   "ui": {
     "jackpot-scale.spec.ts": 477,
+    "jackpot-cycle-latency.spec.ts": 320,
     "participant-responsive.spec.ts": 276,
     "jackpot-stop-patterns.spec.ts": 232,
     "jackpot-five-people.spec.ts": 108,
@@ -32,6 +33,7 @@
   },
   "gas": {
     "jackpot-scale.spec.ts": 525,
+    "jackpot-cycle-latency.spec.ts": 340,
     "participant-responsive.spec.ts": 318,
     "jackpot-stop-patterns.spec.ts": 279,
     "session-flow.spec.ts": 190,
