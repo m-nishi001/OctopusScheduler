@@ -39,6 +39,18 @@ describe("HostCommandRouter", () => {
     expect(seen).toEqual(["j:advance", "q:next"]);
   });
 
+  it("ガードが false を返したコマンドは破棄し、解除すれば再び通る", async () => {
+    const router = new HostCommandRouter();
+    const seen: string[] = [];
+    router.register("jackpot", (c) => void seen.push(c.type));
+    router.setGuard((c) => c.type !== "advance");
+    await router.dispatch(cmd("jackpot", "advance"));
+    await router.dispatch(cmd("jackpot", "back"));
+    router.setGuard(null);
+    await router.dispatch(cmd("jackpot", "advance"));
+    expect(seen).toEqual(["back", "advance"]);
+  });
+
   it("登録解除後は呼ばれず、同じ名前空間は後勝ち。古い解除関数は新しい登録を消さない", async () => {
     const router = new HostCommandRouter();
     const calls: string[] = [];

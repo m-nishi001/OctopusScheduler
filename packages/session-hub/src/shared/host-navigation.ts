@@ -39,3 +39,17 @@ export function buildLoginUrl(id: string, key: string, baseUrl: string): string 
   const base = baseUrl.split("#")[0];
   return `${base}#/login?id=${encodeURIComponent(id)}&key=${encodeURIComponent(key)}`;
 }
+
+/**
+ * 管理端末の主ボタンが「自分が見ていたホストの画面」を伝えるためにペイロードへ入れる項目。
+ * ホストがすでに別の画面へ進んでいたら、古い画面向けの操作として破棄する(次の画面の操作と取り違えて飛ばさないため)。
+ */
+export interface ExpectedPathPayload {
+  expectedPath?: string;
+}
+
+/** コマンドのペイロードから expectedPath を取り出す。無い・文字列でないときは null(確認しない)。 */
+export function readExpectedPath(payload: unknown): string | null {
+  const value = (payload as ExpectedPathPayload | null | undefined)?.expectedPath;
+  return typeof value === "string" ? value : null;
+}

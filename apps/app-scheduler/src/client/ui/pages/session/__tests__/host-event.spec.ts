@@ -58,6 +58,19 @@ describe("registerEventHost", () => {
     expect(await published()).toBeNull();
   });
 
+  it("event.end で、会場に残っているクイズの表示状態(順位発表など)も取り下げる", async () => {
+    const { agent, admin, meta } = await scene();
+    await admin.conn.issue("event", "start", { title: "クイズ大会" });
+    await agent.publishSlice("quiz", { page: "result", roundKey: "r1", reveal: "finished" });
+    await settle(5000);
+    const dataOf = async () => (await env.hub.deps.repoFor(meta.id).getState())?.data as Record<string, unknown> | undefined;
+    expect((await dataOf())?.quiz).toBeDefined();
+
+    await admin.conn.issue("event", "end");
+    await settle(5000);
+    expect((await dataOf())?.quiz).toBeUndefined();
+  });
+
   it("タイトルを整えて公開し、空・不正なペイロードは無視する", async () => {
     const { admin, published } = await scene();
     await admin.conn.issue("event", "start", { title: "  乾杯   クイズ " });
