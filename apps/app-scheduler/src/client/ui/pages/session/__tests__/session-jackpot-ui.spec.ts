@@ -39,11 +39,15 @@ async function setupHosted() {
   await device.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
   const calls: string[] = [];
   const nav: unknown[] = [];
+  const payloads: unknown[] = [];
   const events: string[] = [];
-  agent.router.register("jackpot", (c) => void calls.push(c.type));
+  agent.router.register("jackpot", (c) => {
+    calls.push(c.type);
+    payloads.push(c.payload);
+  });
   agent.router.register("session", (c) => void nav.push(c.payload));
   agent.router.register(PORTAL_EVENT_NS, (c) => void events.push(c.type));
-  return { meta, agent, calls, nav, events };
+  return { meta, agent, calls, nav, events, payloads };
 }
 
 async function mountConsole(sessionId: string) {
@@ -89,28 +93,45 @@ describe("管理コンソールのジャックポット操作", () => {
     expect(nav).toEqual([{ path: "/jackpot-opening" }, { path: "/jackpot-opening" }]);
   });
 
-  it("オープニング → エントリー → 説明 → 抽選 の順に、主ボタンで画面が進む", async () => {
+  it("参加者全員(自動)では、オープニングの次は説明(エントリー画面を挟まない)。説明 → 抽選 と進む", async () => {
     const { meta, agent, nav } = await setupHosted();
     const { wrapper } = await mountConsole(meta.id);
+
+    await agent.publishSlice("session", { path: "/jackpot-opening" });
+    await settle(5000);
+    expect(next(wrapper).text()).toContain("説明へ");
+    await next(wrapper).trigger("click");
+    await settle(5000);
+    expect(nav).toEqual([{ path: "/jackpot-description", expectedPath: "/jackpot-opening" }]);
+
+    await agent.publishSlice("session", { path: "/jackpot-description" });
+    await settle(5000);
+    expect(next(wrapper).text()).toContain("抽選を始める");
+    expect(wrapper.find('[data-testid="next-hint"]').text()).toContain("まだ抽選は始まりません");
+  });
+
+  it("エントリーした人のみでは、オープニング → エントリー → 説明 → 抽選 の順に、主ボタンで画面が進む", async () => {
+    const { meta, agent, nav } = await setupHosted();
+    const { wrapper } = await mountConsole(meta.id);
+    await agent.publishSlice(PORTAL_EVENT_NS, { id: "e1", title: "抽選", startedAtMs: Date.now(), pool: "entrants" });
 
     await agent.publishSlice("session", { path: "/jackpot-opening" });
     await settle(5000);
     expect(next(wrapper).text()).toContain("エントリーへ");
     await next(wrapper).trigger("click");
     await settle(5000);
-    expect(nav).toEqual([{ path: "/jackpot-entry" }]);
+    expect(nav).toEqual([{ path: "/jackpot-entry", expectedPath: "/jackpot-opening" }]);
 
     await agent.publishSlice("session", { path: "/execute/jackpot-entry" });
     await settle(5000);
     expect(next(wrapper).text()).toContain("説明へ");
     await next(wrapper).trigger("click");
     await settle(5000);
-    expect(nav).toEqual([{ path: "/jackpot-entry" }, { path: "/jackpot-description" }]);
+    expect(nav[1]).toEqual({ path: "/jackpot-description", expectedPath: "/execute/jackpot-entry" });
 
     await agent.publishSlice("session", { path: "/jackpot-description" });
     await settle(5000);
     expect(next(wrapper).text()).toContain("抽選を始める");
-    expect(wrapper.find('[data-testid="next-hint"]').text()).toContain("まだ抽選は始まりません");
   });
 
   describe("説明のスライド", () => {
@@ -161,7 +182,7 @@ describe("管理コンソールのジャックポット操作", () => {
       expect(back(wrapper).exists()).toBe(true);
       await next(wrapper).trigger("click");
       await settle(5000);
-      expect(nav).toEqual([{ path: "/jackpot-draw" }]);
+      expect(nav).toEqual([{ path: "/jackpot-draw", expectedPath: "/execute/jackpot-description" }]);
       expect(calls).toEqual([]);
     });
 
@@ -204,6 +225,15 @@ describe("管理コンソールのジャックポット操作", () => {
     await settle(5000);
     expect(device.api.calls.issueCommand).toBe(1);
     expect(calls).toEqual(["advance"]);
+  });
+
+  it("抽選画面の主ボタンは、見ていたホストの画面(expectedPath)を添えて advance を送る", async () => {
+    const { meta, agent, payloads } = await setupHosted();
+    const { wrapper } = await mountConsole(meta.id);
+    await openDraw(agent);
+    await next(wrapper).trigger("click");
+    await settle(5000);
+    expect(payloads).toEqual([{ expectedPath: "/execute/jackpot-draw" }]);
   });
 
   it("止められる間は主ボタンが「止める」になり、押すと進行(advance)が届く。止められない間は「次へ」に戻る", async () => {
