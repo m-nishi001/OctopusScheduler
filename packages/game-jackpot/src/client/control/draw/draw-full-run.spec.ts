@@ -6,6 +6,8 @@ import { AllMembersDrawPool } from "../../model/draw/draw-pool";
 import type { DrawPoolProvider } from "../../model/draw/draw-pool";
 import { NoEligibleMembersError } from "../../model/errors";
 import type { KakuhenPlan } from "../../model/draw/kakuhen-plan";
+import { DrawConflictError } from "../../model/errors";
+import { CycleSource } from "../../ui/pages/main-draw/cycle-source";
 
 /** 全員・全景品を最後まで引き切る通しの検証（本番と同じ抽選ロジック + メモリ上の保存先）。 */
 function build(memberCount: number, prizeCount: number, weights?: (i: number) => number | undefined, pool: DrawPoolProvider = new AllMembersDrawPool()) {
@@ -259,5 +261,122 @@ describe("通し抽選: 確変にする回の計画", () => {
     const flags: boolean[] = [];
     for (let i = 0; i < 10; i++) flags.push((await service.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 })).prizeRes.isKakuhen === true);
     expect(flags.flatMap((f, i) => (f ? [i + 1] : []))).toEqual([2]);
+  });
+});
+
+describe("通し抽選: 次のサイクルの先読み(CycleSource)つきで、最後まで", () => {
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+  type Prepared = Awaited<ReturnType<DrawApplicationService["drawNext"]>>;
+  const flush = async () => {
+    for (let i = 0; i < 30; i++) await Promise.resolve();
+  };
+
+  /**
+   * 画面の進行と同じ手順: 押下 = source.next()、抽選が出たら当選者・景品が見えて公開(reveal)→ 先読み(prefetch)。
+   * 公開が済むまでは次の確定ができない(サーバーと同じ検査は RehearsalDrawStore が行う)。
+   */
+  async function runWithPrefetch(options: { members: number; prizes: number; fixedTimings?: number[]; pool?: DrawPoolProvider; failCommit?: (n: number) => boolean; prefetch?: boolean }) {
+    const { service, store, prizes } = build(options.members, options.prizes, undefined, options.pool);
+    await service.initializeStateIfNeeded(prizes as never, { mode: "fixed", fixedTimings: options.fixedTimings ?? [] });
+    let commitCalls = 0;
+    const realCommit = store.commit.bind(store);
+    store.commit = async (r) => {
+      commitCalls++;
+      if (options.failCommit?.(commitCalls)) throw new DrawConflictError("injected conflict");
+      return realCommit(r);
+    };
+    const request = { memberRequestCount: 10, prizeRequestCount: 8 };
+    const source = new CycleSource<Prepared>({
+      refresh: () => store.load(),
+      prepare: async () => {
+        const pending = await store.pending();
+        if (pending) throw new Error("公開されていない抽選が残ったまま次を用意した");
+        return service.drawNext(request);
+      },
+      discard: () => undefined,
+    });
+    const awarded: Array<{ member: string; prize: string; kakuhen: boolean }> = [];
+    let ended: Prepared | null = null;
+    for (let i = 0; i < 1000 && !ended; i++) {
+      const next = await source.next();
+      if (next.kind === "finished") {
+        ended = next;
+        break;
+      }
+      const { result } = next.outcome;
+      awarded.push({ member: result.wonMember!.id, prize: result.wonPrize!.id, kakuhen: !!result.isKakuhen });
+      await store.reveal(result.drawId); // 当選ダイアログが出て、参加者に公開された
+      if (options.prefetch !== false) source.prefetch(result.drawId);
+      await flush(); // 演出の間に、裏で次の用意が済む
+    }
+    return { awarded, ended, store, source, commitCalls: () => commitCalls };
+  }
+
+  it("全員・全景品がちょうど1回ずつ当たり、最後のところで終了になる(メンバー6人 × 景品6件)", async () => {
+    const { awarded, ended, store } = await runWithPrefetch({ members: 6, prizes: 6 });
+    expect(awarded).toHaveLength(6);
+    expect(new Set(awarded.map((a) => a.member)).size).toBe(6);
+    expect(new Set(awarded.map((a) => a.prize)).size).toBe(6);
+    expect(ended).toMatchObject({ kind: "finished", progress: { endReason: "prizes", remainingPrizes: 0 } });
+    expect(await store.results()).toHaveLength(6);
+    expect(await store.pending()).toBeNull();
+  });
+
+  it("先読みのおかげで確定は引いた回数ぶんだけ(余分な確定・二重の確定がない)", async () => {
+    const { awarded, commitCalls } = await runWithPrefetch({ members: 8, prizes: 5 });
+    expect(commitCalls()).toBe(awarded.length);
+  });
+
+  it("確変の回を含んでも、取り置いた景品は確変の回にだけ当たり、重複や取りこぼしがない", async () => {
+    const { awarded, store, ended } = await runWithPrefetch({ members: 12, prizes: 10, fixedTimings: [3, 7] });
+    const plan = (await store.plan())!;
+    expect(awarded).toHaveLength(10);
+    expect(awarded.filter((a) => a.kakuhen)).toHaveLength(2);
+    for (const a of awarded) expect(plan.reservedPrizeIds.includes(a.prize)).toBe(a.kakuhen);
+    expect(new Set(awarded.map((a) => a.prize)).size).toBe(10);
+    expect(ended).toMatchObject({ kind: "finished", progress: { endReason: "prizes" } });
+  });
+
+  it("景品が残っていても対象のメンバーが尽きたら、メンバーの終了になる(エントリー3人 × 景品10件)", async () => {
+    const { awarded, ended } = await runWithPrefetch({ members: 20, prizes: 10, pool: { getEligibleMemberIds: async () => ["m1", "m2", "m3"] } });
+    expect(awarded.map((a) => a.member).sort()).toEqual(["m1", "m2", "m3"]);
+    expect(ended).toMatchObject({ kind: "finished", progress: { endReason: "members" } });
+  });
+
+  it("途中で確定が矛盾で断られても(先読み・その場のどちらでも)、その場の用意に切り替わって最後まで進み、重複しない", async () => {
+    // 2回目と4回目の確定を失敗させる(サービスは1回だけ引き直す。それでも失敗する分は、次の用意に任せる)
+    const { awarded, ended, store } = await runWithPrefetch({ members: 6, prizes: 6, failCommit: (n) => n === 2 || n === 3 });
+    expect(new Set(awarded.map((a) => a.member)).size).toBe(awarded.length);
+    expect(new Set(awarded.map((a) => a.prize)).size).toBe(awarded.length);
+    expect(awarded).toHaveLength(6);
+    expect(ended).toMatchObject({ kind: "finished" });
+    expect(await store.pending()).toBeNull();
+  });
+
+  it("先読みをしない従来の進行と、同じ結果の件数・終了になる(退行がない)", async () => {
+    const withPrefetch = await runWithPrefetch({ members: 7, prizes: 4, prefetch: true });
+    const without = await runWithPrefetch({ members: 7, prizes: 4, prefetch: false });
+    expect(withPrefetch.awarded).toHaveLength(without.awarded.length);
+    expect(withPrefetch.ended).toMatchObject({ kind: "finished", progress: { endReason: "prizes" } });
+    expect(without.ended).toMatchObject({ kind: "finished", progress: { endReason: "prizes" } });
+  });
+
+  it("先読みで確定したあと、公開する前に引き継げなくなっても(再読み込み相当)、確定済みで未公開の抽選として残り、同じ当選者で演出し直せる", async () => {
+    const { service, store, prizes } = build(5, 5);
+    await service.initializeStateIfNeeded(prizes as never, { mode: "fixed", fixedTimings: [] });
+    const first = await service.drawNext({ memberRequestCount: 10, prizeRequestCount: 8 });
+    if (first.kind !== "drawn") throw new Error("unexpected");
+    await store.reveal(first.outcome.result.drawId);
+    const prefetched = await service.drawNext({ memberRequestCount: 10, prizeRequestCount: 8 }); // 先読みが確定した
+    if (prefetched.kind !== "drawn") throw new Error("unexpected");
+    // 画面を再読み込み: 先読みは失われるが、保存先には未公開の抽選が残る
+    const pending = await store.pending();
+    expect(pending?.drawId).toBe(prefetched.outcome.result.drawId);
+    const resumed = await service.resumeDraw(pending!);
+    expect(resumed.result.wonMember?.id).toBe(prefetched.outcome.result.wonMember?.id);
+    expect(resumed.result.wonPrize?.id).toBe(prefetched.outcome.result.wonPrize?.id);
+    expect(await store.results()).toHaveLength(2); // 引き直していない
   });
 });

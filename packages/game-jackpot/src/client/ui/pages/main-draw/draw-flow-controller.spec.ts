@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { ActionQueue, type Step } from "./action-queue";
 import { toDrawProgress } from "@control/draw/dto/draw-progress";
-import { DrawFlowController, MIN_END_DISPLAY_MS } from "./draw-flow-controller";
+import { DrawFlowController, MIN_END_DISPLAY_MS, type NextCycle } from "./draw-flow-controller";
+import { CycleSource } from "./cycle-source";
 
 /** 実行順を記録するステップ。pause 付きなら次のEnterを待つ。 */
 function makeCycle(log: string[], name: string, pausesAfter: number[] = []): Step[] {
@@ -21,19 +22,26 @@ function setup(options: { remaining?: number[]; members?: number[]; cycles?: Arr
   const cycles = [...(options.cycles ?? [makeCycle(log, "a", [2])])];
   const clock = { ms: 1_000_000 };
   const next = (list: number[]) => (list.length > 1 ? list.shift()! : list[0]);
+  // 終了の確認は1回以上抽選したあとだけ有効(drawn)。このテストは抽選済みとして扱う。
+  const progress = vi.fn(async () => toDrawProgress(next(remaining), next(members), 1, 5));
+  const drawNextCycle = vi.fn(async () => {
+    const next = cycles.shift();
+    if (!next) throw new Error("no more cycles");
+    if (next instanceof Error) throw next;
+    return next;
+  });
   const deps = {
     queue: new ActionQueue(),
-    // 終了の確認は1回以上抽選したあとだけ有効(drawn)。このテストは抽選済みとして扱う。
-    progress: vi.fn(async () => toDrawProgress(next(remaining), next(members), 1, 5)),
+    progress,
+    drawNextCycle,
     onFinished: vi.fn(),
     onLeave: vi.fn(),
     now: () => clock.ms,
-    drawNextCycle: vi.fn(async () => {
-      const next = cycles.shift();
-      if (!next) throw new Error("no more cycles");
-      if (next instanceof Error) throw next;
-      return next;
-    }),
+    nextCycle: async (): Promise<NextCycle> => {
+      const p = await progress();
+      if (p.endReason) return { kind: "finished", progress: p };
+      return { kind: "cycle", steps: await drawNextCycle() };
+    },
     onDrawError: vi.fn(),
     onStepError: vi.fn(),
     onSettled: vi.fn(),
@@ -209,5 +217,114 @@ describe("DrawFlowController", () => {
       expect(deps.drawNextCycle).not.toHaveBeenCalled();
       expect(deps.onSettled).not.toHaveBeenCalled();
     });
+  });
+});
+
+/** 先に用意した次のサイクルを使う進行(CycleSource と組み合わせる)。 */
+describe("DrawFlowController + CycleSource(次のサイクルの先読み)", () => {
+  type Prepared = NextCycle;
+  function build(prepareImpl: () => Promise<Prepared>) {
+    const log: string[] = [];
+    const prepare = vi.fn(prepareImpl);
+    const refresh = vi.fn(async () => undefined);
+    const discard = vi.fn();
+    const source = new CycleSource<Prepared>({ refresh, prepare, discard });
+    const onFinished = vi.fn();
+    const onDrawError = vi.fn(() => source.invalidate());
+    const flow = new DrawFlowController({
+      queue: new ActionQueue(),
+      nextCycle: () => source.next(),
+      onDrawError,
+      onStepError: vi.fn(),
+      onFinished,
+      onLeave: vi.fn(),
+      onSettled: vi.fn(),
+    });
+    flow.ready = true;
+    return { flow, source, prepare, refresh, discard, log, onFinished, onDrawError };
+  }
+  const cycle = (log: string[], name: string): Prepared => ({ kind: "cycle", steps: [{ run: async () => void log.push(name), pause: true }] });
+  const flush = async () => {
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+  };
+
+  it("先に用意してあれば、押下では通信(読み直し・抽選)をせず、用意したサイクルをすぐ積む", async () => {
+    const log: string[] = [];
+    const { flow, source, prepare, refresh } = build(async () => cycle(log, "pre"));
+    source.prefetch("d0");
+    await flush();
+    prepare.mockClear();
+    refresh.mockClear();
+
+    await flow.advance();
+
+    expect(log).toEqual(["pre"]);
+    expect(prepare).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("用意の最中に押されたら、出来上がりを待って使う(二重に抽選・確定しない)", async () => {
+    const log: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { flow, source, prepare } = build(async () => {
+      await gate;
+      return cycle(log, "pre");
+    });
+    source.prefetch("d0");
+    const pressed = flow.advance();
+    await flush();
+    release();
+    await pressed;
+    expect(log).toEqual(["pre"]);
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it("用意が失敗していたら、その場で用意して進む(従来どおり。止まらない)", async () => {
+    const log: string[] = [];
+    const impl = vi.fn().mockRejectedValueOnce(new Error("conflict")).mockResolvedValueOnce(cycle(log, "sync"));
+    const { flow, source, onDrawError } = build(impl);
+    source.prefetch("d0");
+    await flush();
+
+    await flow.advance();
+
+    expect(log).toEqual(["sync"]);
+    expect(onDrawError).not.toHaveBeenCalled();
+  });
+
+  it("先に用意したものが終了なら、終了の画面を出す(抽選しない)", async () => {
+    const { flow, source, onFinished } = build(async () => ({ kind: "finished", progress: toDrawProgress(0, 3, 5, 5) }));
+    source.prefetch("d0");
+    await flush();
+    await flow.advance();
+    expect(onFinished).toHaveBeenCalledWith("prizes", expect.anything());
+    expect(flow.finished).toBe(true);
+  });
+
+  it("無効化(リセットなど)したら、用意したものは使わず、その場で用意し直す", async () => {
+    const log: string[] = [];
+    const impl = vi.fn().mockResolvedValueOnce(cycle(log, "stale")).mockResolvedValueOnce(cycle(log, "fresh"));
+    const { flow, source, discard } = build(impl);
+    source.prefetch("d0");
+    await flush();
+    source.invalidate();
+    await flow.advance();
+    expect(log).toEqual(["fresh"]);
+    expect(discard).toHaveBeenCalledTimes(1);
+  });
+
+  it("実行中の押下は捨てる(先に用意したものも二重に使わない)", async () => {
+    const log: string[] = [];
+    const { flow, source, prepare } = build(async () => cycle(log, "pre"));
+    source.prefetch("d0");
+    await flush();
+    prepare.mockClear();
+    const first = flow.advance();
+    await flow.advance();
+    await flow.advance();
+    await first;
+    expect(log).toEqual(["pre"]);
+    expect(prepare).not.toHaveBeenCalled();
   });
 });

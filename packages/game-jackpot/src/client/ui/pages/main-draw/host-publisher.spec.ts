@@ -83,4 +83,65 @@ describe("createHostPublisher", () => {
 
     expect(reveal).toHaveBeenCalledTimes(2);
   });
+
+  describe("公開に成功したら次のサイクルの下ごしらえを始める合図(onRevealed)", () => {
+    const flush = async () => {
+      for (let i = 0; i < 4; i++) await Promise.resolve();
+    };
+    function withHook() {
+      const s = setup();
+      const onRevealed = vi.fn();
+      const publish = createHostPublisher({
+        host: s.host,
+        tracker: s.tracker,
+        reveal: s.reveal,
+        onRevealed,
+        phase: () => "prize",
+        ended: () => false,
+        nextLabel: () => undefined,
+        result: () => s.state.result,
+      });
+      s.tracker.onAction("stopMemberDraw");
+      s.tracker.onAction("stopPrizeDraw");
+      return { ...s, publish, onRevealed };
+    }
+
+    it("公開に成功した drawId につき1回だけ呼ぶ", async () => {
+      const { publish, onRevealed } = withHook();
+      publish();
+      publish();
+      await flush();
+      expect(onRevealed).toHaveBeenCalledTimes(1);
+      expect(onRevealed).toHaveBeenCalledWith("d1");
+    });
+
+    it("公開に失敗したら呼ばない。次の公開で成功したときに呼ぶ", async () => {
+      const { publish, reveal, onRevealed } = withHook();
+      reveal.mockResolvedValueOnce(false);
+      publish();
+      await flush();
+      expect(onRevealed).not.toHaveBeenCalled();
+      publish();
+      await flush();
+      expect(onRevealed).toHaveBeenCalledTimes(1);
+    });
+
+    it("まだ公開できない(当選者・景品が見えていない)間は呼ばない", async () => {
+      const s = setup();
+      const onRevealed = vi.fn();
+      const publish = createHostPublisher({
+        host: s.host,
+        tracker: s.tracker,
+        reveal: s.reveal,
+        onRevealed,
+        phase: () => "member",
+        ended: () => false,
+        nextLabel: () => undefined,
+        result: () => s.state.result,
+      });
+      publish();
+      await flush();
+      expect(onRevealed).not.toHaveBeenCalled();
+    });
+  });
 });

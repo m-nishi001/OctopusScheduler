@@ -4,6 +4,8 @@ import type { DrawPrizeResponse } from "@control/draw/dto/draw-prize-response";
 import type { DrawResultDto } from "@control/draw/dto/draw-result-dto";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
 import { DrawStateError } from "./draw-context";
+import type { DrawProgress } from "@control/draw/dto/draw-progress";
+import type { RouletteItem } from "./roulette/roulette-image-loader";
 import type { RoulettePrizeDto } from "./roulette/roulette-prize-preparer";
 
 /**
@@ -31,9 +33,13 @@ export function buildPrizesToPrepare(prizes: PrizeDto[], prizeRes: DrawPrizeResp
 }
 
 export interface PerformDrawDeps {
-  drawService: Pick<DrawApplicationService, "executeDraw" | "resumeDraw">;
+  drawService: Pick<DrawApplicationService, "drawNext" | "resumeDraw">;
   prizes: { readonly value: PrizeDto[] };
-  preparePrizes(prizes: RoulettePrizeDto[]): Promise<unknown>;
+  /**
+   * ルーレットに描く形(画像の URL つき)にする。**画面には反映しない**(裏で先に用意しても、いま見えている景品を壊さないため)。
+   * 反映は、そのサイクルを始めるときに呼び出し側が行う。
+   */
+  buildPrizeItems(prizes: RoulettePrizeDto[]): Promise<RouletteItem[]>;
 }
 
 export interface DrawOutcome {
@@ -42,14 +48,23 @@ export interface DrawOutcome {
   memberRes: DrawMemberResponse;
   /** 当選した景品(景品一覧にある完全な情報)。 */
   winner: PrizeDto;
+  /** ルーレットに描く景品(画像の URL つき)。使わずに捨てるときは revokePreparedPrizes で URL を破棄する。 */
+  prizeItems: RouletteItem[];
 }
 
+/** 続けられるかの確認と、続けられるなら抽選・確定・ルーレットの材料まで済ませた結果。 */
+export type NextCycleResult =
+  | { kind: "finished"; progress: DrawProgress }
+  | { kind: "draw"; outcome: DrawOutcome };
+
 /**
- * 抽選して結果を保存先に確定(commit)し、ルーレットの用意まで済ませる。演出は、これが成功してから始める。
- * 失敗したら例外を投げる(状態は呼び出し側が反映する)。
+ * 続けられるか確かめ(景品・メンバーが尽きていれば終了を返す)、続けられるなら抽選して結果を保存先に確定(commit)し、
+ * ルーレットの材料まで用意する。演出は、これが成功してから始める。失敗したら例外を投げる(状態は呼び出し側が反映する)。
  */
-export async function performDraw(deps: PerformDrawDeps): Promise<DrawOutcome> {
-  return prepareOutcome(deps, await deps.drawService.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 }));
+export async function performNext(deps: PerformDrawDeps): Promise<NextCycleResult> {
+  const next = await deps.drawService.drawNext({ memberRequestCount: 10, prizeRequestCount: 8 });
+  if (next.kind === "finished") return next;
+  return { kind: "draw", outcome: await prepareOutcome(deps, next.outcome) };
 }
 
 /**
@@ -67,6 +82,6 @@ async function prepareOutcome(
   const winner = winnerId ? deps.prizes.value.find((p) => p.id === winnerId) : undefined;
   if (!winner) throw new DrawStateError("当選した景品が景品一覧に見つかりません");
 
-  await deps.preparePrizes(buildPrizesToPrepare(deps.prizes.value, prizeRes));
-  return { result: { ...result, wonPrize: winner }, prizeRes, memberRes, winner };
+  const prizeItems = await deps.buildPrizeItems(buildPrizesToPrepare(deps.prizes.value, prizeRes));
+  return { result: { ...result, wonPrize: winner }, prizeRes, memberRes, winner, prizeItems };
 }

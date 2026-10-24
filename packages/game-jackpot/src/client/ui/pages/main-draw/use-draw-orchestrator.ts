@@ -26,9 +26,14 @@ import { revokePreparedPrizes } from "./roulette/roulette-prize-preparer";
 import { createBgmBlobLoader } from "./bgm-blob-loader";
 import type { DrawContext } from "./draw-context";
 import { buildCycle } from "./draw-cycle";
-import { DrawFlowController } from "./draw-flow-controller";
+import { DrawFlowController, type NextCycle } from "./draw-flow-controller";
 import { createHostPublisher } from "./host-publisher";
-import { performDraw, performResume, type DrawOutcome } from "./perform-draw";
+import { performNext, performResume, type DrawOutcome, type NextCycleResult } from "./perform-draw";
+import { CycleSource } from "./cycle-source";
+import { releaseSharedMemberImageCache, sharedMemberImageCache } from "./member-draw/member-image-cache";
+
+/** メンバー抽選の画面が並べて見せる人数(member-draw-animation.vue の visibleCount の既定)。先に写真を読む範囲。 */
+const MEMBER_REEL_VISIBLE = 10;
 
 // 本抽選画面の配線。画面の状態(ref)とサービスを集めて、進行(DrawFlowController)と
 // ステップ(buildCycle)につなぐだけにして、ロジックは単体テストできるモジュール側に置く。
@@ -41,7 +46,7 @@ export function useDrawOrchestrator() {
   const { to } = useJackpotSession();
   const router = useRouter();
 
-  const { prizes, selectedPrize, preparedPrizes, updatePrizes, preparePrizes, updateSelectedPrize } =
+  const { prizes, selectedPrize, preparedPrizes, updatePrizes, preparePrizes, buildPrizeItems, installPreparedPrizes, updateSelectedPrize } =
     usePrizeDrawState(assetService);
 
   const members = ref<MemberDto[]>([]);
@@ -105,7 +110,8 @@ export function useDrawOrchestrator() {
   let kakuhenPlan: KakuhenPlan = AUTO_KAKUHEN_PLAN;
 
   /** 抽選の結果を画面の状態に反映し、そのサイクルのステップを返す。 */
-  const applyOutcome = ({ result, prizeRes, memberRes, winner }: DrawOutcome) => {
+  const applyOutcome = ({ result, prizeRes, memberRes, winner, prizeItems }: DrawOutcome) => {
+    installPreparedPrizes(prizeItems);
     latestResult.value = result;
     currentPrizeRes.value = prizeRes;
     currentMemberRes.value = memberRes;
@@ -116,24 +122,70 @@ export function useDrawOrchestrator() {
     return buildCycle(ctx, result.isKakuhen ?? false);
   };
 
+  const performDeps = { drawService, prizes, buildPrizeItems };
+
   /**
-   * 抽選して結果を保存先に確定(commit)してから、画面の状態に反映し、そのサイクルのステップを返す。
-   * 確定できなかったとき(通信の失敗・矛盾)は例外で、状態は何も反映しない(演出は始まらない)。
+   * 次のサイクルの材料を用意する(画面の状態には触れない。裏で先に走らせてもよい)。
+   * 続けられるかの確認 → 抽選 → 保存先への確定(commit) → ルーレットの景品・メンバーの写真の下ごしらえ。
+   * 確定できなかったとき(通信の失敗・矛盾)は例外。確定済みで未公開の抽選が残っていれば、引き直さずそれを材料にする。
    */
-  const drawNextCycle = async () => {
-    revealTracker.reset(); // 新しい抽選が始まったので、前回の当選者を参加者への公開から外す
+  const prepareNextCycle = async (): Promise<NextCycleResult> => {
     // 結果が別の端末でリセットされた後などは確変の予定が無いので、引く前に決め直す(メモリから見るだけで通信しない)
     if (!(await drawService.store.plan())) await drawService.initializeStateIfNeeded(prizes.value, kakuhenPlan);
     // 確定はできていたのに応答が届かなかった抽選など、まだ画面に見せていない確定済みの抽選があれば、引き直さずにそれを演出する
     const pending = await drawService.store.pending();
-    if (pending && pending.drawId !== latestResult.value?.drawId) return resumeCycle(pending);
-    return applyOutcome(await performDraw({ drawService, prizes, preparePrizes }));
+    const next: NextCycleResult =
+      pending && pending.drawId !== latestResult.value?.drawId
+        ? { kind: "draw", outcome: await performResume(performDeps, pending) }
+        : await performNext(performDeps);
+    if (next.kind === "draw") await preloadMemberImages(next.outcome.memberRes);
+    return next;
+  };
+
+  /** メンバー抽選の画面で使う写真(当選者・ダミー・並べて見せる先頭のメンバー)を先に読む。画面を作る時点で読み終わっている。 */
+  const preloadMemberImages = async (memberRes: DrawMemberResponse) => {
+    const byId = new Map(members.value.map((m) => [m.id, m]));
+    const shown = [memberRes.winnerId, ...memberRes.dummyIds].map((id) => (id ? byId.get(id) : undefined));
+    const lead = members.value.slice(0, MEMBER_REEL_VISIBLE);
+    await sharedMemberImageCache().preload([...shown, ...lead].map((m) => m?.photoAssetId));
+  };
+
+  /** 使わずに捨てる材料の後始末(ルーレットの画像の URL)。 */
+  const discardPrepared = (prepared: NextCycleResult) => {
+    if (prepared.kind === "draw") revokePreparedPrizes(prepared.outcome.prizeItems);
+  };
+
+  /**
+   * 次のサイクルの材料の出どころ。公開(reveal)が済んだら裏で先に用意し、進行操作で即座に渡す。
+   * 用意できていなければ、従来どおりその場で(保存先を読み直して)用意する。
+   */
+  const cycleSource = new CycleSource<NextCycleResult>({
+    refresh: () => refreshStore(),
+    prepare: prepareNextCycle,
+    discard: discardPrepared,
+    onPrefetchError: (e) => console.warn("[DrawOrchestrator] next cycle prefetch failed; falling back to on-demand", e),
+  });
+  /** 先読みを作ったときの保存先(リハーサルとセッションの切り替えなどで別物になったら、先読みは使わない)。 */
+  let prefetchedStore = drawService.store;
+
+  /** 次のサイクルを、画面の状態に反映して進行役に渡す。 */
+  const nextCycle = async (): Promise<NextCycle> => {
+    revealTracker.reset(); // 新しい抽選が始まったので、前回の当選者を参加者への公開から外す
+    if (prefetchedStore !== drawService.store) {
+      cycleSource.invalidate();
+      prefetchedStore = drawService.store;
+    }
+    const prepared = await cycleSource.next();
+    if (prepared.kind === "finished") return prepared;
+    return { kind: "cycle", steps: applyOutcome(prepared.outcome) };
   };
 
   /** 確定済みで未公開の抽選を、引き直さずに同じ結果で演出し直すステップを返す(ホストの再読み込み後)。 */
   const resumeCycle = async (pending: DrawResultDto) => {
     revealTracker.reset();
-    return applyOutcome(await performResume({ drawService, prizes, preparePrizes }, pending));
+    const outcome = await performResume(performDeps, pending);
+    await preloadMemberImages(outcome.memberRes);
+    return applyOutcome(outcome);
   };
 
   const onDrawError = (e: unknown) => {
@@ -141,6 +193,7 @@ export function useDrawOrchestrator() {
     latestResult.value = null;
     currentPrizeRes.value = null;
     currentMemberRes.value = null;
+    cycleSource.invalidate(); // 先に用意したものは、読み直す前の状態の上に作ったもの
     // 保存先の状態を読み直しておく(矛盾の原因が別の端末の操作かもしれない。次の進行操作で、読み直した状態から引き直す)
     void drawService.store.load().catch((err) => console.error("[DrawOrchestrator] reload failed", err));
     alertError(e);
@@ -158,6 +211,7 @@ export function useDrawOrchestrator() {
       if (e instanceof DrawConflictError) {
         console.error("[DrawOrchestrator] reveal conflict", e);
         notice.value = "別の端末で抽選の結果がリセットされたため、この抽選は参加者に公開されませんでした。状態を読み直しました。";
+        cycleSource.invalidate();
         return true;
       }
       console.error("[DrawOrchestrator] reveal failed", e);
@@ -175,6 +229,10 @@ export function useDrawOrchestrator() {
     host,
     tracker: revealTracker,
     reveal: revealDraw,
+    // いまの抽選が公開されたので、次のサイクルを裏で用意し始める(サーバーは公開されていない抽選がある間は次の確定を断る)
+    onRevealed: (drawId) => {
+      if (!disposed && flow.ready && !flow.finished) cycleSource.prefetch(drawId);
+    },
     phase: () => phase.value,
     ended: () => endReason.value !== null,
     nextLabel: () => queue.peekLabel(),
@@ -183,11 +241,7 @@ export function useDrawOrchestrator() {
 
   flow = new DrawFlowController({
     queue,
-    progress: async () => {
-      await refreshStore();
-      return drawService.getDrawProgress();
-    },
-    drawNextCycle,
+    nextCycle,
     onDrawError,
     onStepError: (e) => console.error("[DrawOrchestrator] step failed", e),
     onFinished: (reason, progress) => {
@@ -251,8 +305,10 @@ export function useDrawOrchestrator() {
     disposed = true;
     window.removeEventListener("keydown", handleKeyDown);
     flow.ready = false;
+    cycleSource.invalidate();
     void RouletteBgmManager.stop();
     revokePreparedPrizes(preparedPrizes.value);
+    releaseSharedMemberImageCache();
   });
 
   return {

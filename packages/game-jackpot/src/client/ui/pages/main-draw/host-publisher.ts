@@ -10,6 +10,11 @@ export interface HostPublisherDeps {
    * 成功なら true。通信の失敗などで公開できなかったら false(次の公開でもう一度試す)。
    */
   reveal(drawId: string): Promise<boolean>;
+  /**
+   * 公開に成功した(サーバーが、次の抽選の確定を受け付けられる状態になった)。次のサイクルの下ごしらえを裏で始める合図。
+   * 公開は drawId ごとに成功するまで試すので、成功した drawId につき1回だけ呼ぶ。
+   */
+  onRevealed?(drawId: string): void;
   phase(): string;
   /** 抽選が終わった(景品かメンバーが尽きて、終了の画面を出している)。 */
   ended(): boolean;
@@ -41,6 +46,7 @@ export function createHostPublisher(deps: HostPublisherDeps): () => void {
     revealedDrawIds.add(drawId);
     void deps.reveal(drawId).then((ok) => {
       if (!ok) revealedDrawIds.delete(drawId);
+      else deps.onRevealed?.(drawId);
     });
   };
 }
