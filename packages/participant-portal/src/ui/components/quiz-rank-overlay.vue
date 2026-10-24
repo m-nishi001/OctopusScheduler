@@ -18,7 +18,7 @@
         </template>
         <template v-else-if="failed">
             <p class="pp-rank-won__sub" data-testid="quiz-my-rank-error">順位を読み込めませんでした。</p>
-            <button type="button" class="pp-button" @click="load">もう一度読み込む</button>
+            <button type="button" class="pp-button" @click="load()">もう一度読み込む</button>
         </template>
         <p v-else class="pp-rank-won__sub" data-testid="quiz-my-rank-loading" role="status">順位を集計しています…</p>
     </div>
