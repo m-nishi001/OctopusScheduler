@@ -192,7 +192,10 @@ test("(d) 管理画面の結果のリセットで、当選者・景品の記録�
   const results = await newDevice(browser, { signedIn: true });
   await results.page.goto("/#/execute/jackpot-admin/results");
   await results.page.getByTestId("results-source").selectOption(sessionId);
-  await expect(results.page.getByTestId("total-draws")).toHaveText("1");
+  // 次のサイクルは公開のあと裏で先に確定される(未公開)ので、確定済みの件数は1件とは限らない。サーバーの件数と一致することを確かめる
+  await expect
+    .poll(async () => (await results.page.getByTestId("total-draws").innerText()) === String((await serverState(request, sessionId)).draws.length))
+    .toBe(true);
   // 確変用に取り置いた景品の印(予定から)。確変の予定は乱数で決まり、取り置きが0件のこともあるので、あるときだけ確かめる
   if (plan!.reservedPrizeIds.length > 0) await expect(results.page.getByTestId("reserved-badge").first()).toBeVisible();
   await results.page.getByRole("button", { name: "結果をリセット" }).click();
