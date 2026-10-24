@@ -62,6 +62,63 @@ describe("DrawApplicationService", () => {
     });
   });
 
+  describe("drawNext(終了の判定と抽選を、対象の一覧の取得1回で行う)", () => {
+    it("抽選できるときは、対象の一覧を1回だけ取得し、抽選して確定する", async () => {
+      const eligibleMemberIds = ["alice", "bob"];
+      const { service, store, prizes } = setup({ eligibleMemberIds });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const pool = (service as never as { drawPool: { getEligibleMemberIds: ReturnType<typeof vi.fn> } }).drawPool;
+      const next = await service.drawNext(REQUEST);
+      expect(next.kind).toBe("drawn");
+      expect(pool.getEligibleMemberIds).toHaveBeenCalledTimes(1);
+      if (next.kind === "drawn") expect(eligibleMemberIds).toContain(next.outcome.result.wonMember?.id);
+      expect(await store.results()).toHaveLength(1);
+    });
+
+    it("対象が全員当選済みなら、抽選せずに終了(members)を返す。確定も増えない", async () => {
+      const { service, store, prizes } = setup({ eligibleMemberIds: ["alice"] });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      await service.drawNext(REQUEST);
+      const commit = vi.spyOn(store, "commit");
+      const next = await service.drawNext(REQUEST);
+      expect(next).toMatchObject({ kind: "finished", progress: { endReason: "members" } });
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it("景品が尽きたら終了(prizes)を返す", async () => {
+      const { service, prizes } = setup({ prizes: prizeList.slice(0, 1) });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      await service.drawNext(REQUEST);
+      expect(await service.drawNext(REQUEST)).toMatchObject({ kind: "finished", progress: { endReason: "prizes" } });
+    });
+
+    it("対象の一覧を取得できないときは、終了と見なさず例外のまま伝える", async () => {
+      const { service, prizes } = setup({ poolError: new Error("offline") });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      await expect(service.drawNext(REQUEST)).rejects.toThrow("offline");
+    });
+  });
+
+  describe("対象の一覧の取得回数", () => {
+    it("executeDraw は、一覧を渡さなければ1回、渡せば取得しない(1回の抽選で重ねて取得しない)", async () => {
+      const { service, prizes } = setup({ eligibleMemberIds: ["alice", "bob"] });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const pool = (service as never as { drawPool: { getEligibleMemberIds: ReturnType<typeof vi.fn> } }).drawPool;
+      await service.executeDraw(REQUEST);
+      expect(pool.getEligibleMemberIds).toHaveBeenCalledTimes(1);
+      await service.executeDraw(REQUEST, ["alice", "bob", "carol"]);
+      expect(pool.getEligibleMemberIds).toHaveBeenCalledTimes(1);
+    });
+
+    it("null(絞り込みなし)を渡したときも取得しない", async () => {
+      const { service, prizes } = setup();
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const pool = (service as never as { drawPool: { getEligibleMemberIds: ReturnType<typeof vi.fn> } }).drawPool;
+      await service.executeDraw(REQUEST, null);
+      expect(pool.getEligibleMemberIds).not.toHaveBeenCalled();
+    });
+  });
+
   describe("executeDraw", () => {
     it("通常の抽選は、結果をちょうど1回 commit する(未公開のまま)", async () => {
       const { service, store, prizes } = setup();

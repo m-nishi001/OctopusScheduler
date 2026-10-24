@@ -33,6 +33,8 @@ export class SessionDrawStore implements DrawStore {
   readonly kind = "session" as const;
   private snapshot: Snapshot | null = null;
   private loading: Promise<void> | null = null;
+  /** 公開(reveal)の通信中のもの。同じ抽選の公開を重ねて送らない(通信中に次の抽選の前の後始末が来ても、その完了を待つだけにする)。 */
+  private revealing = new Map<string, Promise<void>>();
 
   constructor(
     private readonly agent: () => HostAgent,
@@ -102,7 +104,15 @@ export class SessionDrawStore implements DrawStore {
     if (!snapshot.rows.some((r) => r.result.drawId === result.drawId)) snapshot.rows.push({ result: { ...result }, revealed: false });
   }
 
-  async reveal(drawId: string): Promise<void> {
+  reveal(drawId: string): Promise<void> {
+    const inflight = this.revealing.get(drawId);
+    if (inflight) return inflight;
+    const run = this.revealOnce(drawId).finally(() => this.revealing.delete(drawId));
+    this.revealing.set(drawId, run);
+    return run;
+  }
+
+  private async revealOnce(drawId: string): Promise<void> {
     const snapshot = await this.ready();
     try {
       await this.requireAgent().revealJackpotDraw(drawId);

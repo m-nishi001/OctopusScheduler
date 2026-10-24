@@ -35,6 +35,11 @@ export interface DrawOutcomeParts {
   memberRes: DrawMemberResponse;
 }
 
+/** {@link DrawApplicationService.drawNext} の結果。終了(抽選せず)か、抽選して確定したか。 */
+export type DrawNextResult =
+  | { kind: "finished"; progress: DrawProgress }
+  | { kind: "drawn"; progress: DrawProgress; outcome: DrawOutcomeParts };
+
 /**
  * 抽選の流れ(メンバー抽選・景品抽選・確変)をまとめるアプリケーション層。
  * 画面はここを呼ぶだけで、抽選の規則(重み・取り置き・確変)は下の層が、結果の保存は DrawStore が受け持つ。
@@ -87,12 +92,12 @@ export class DrawApplicationService {
    * 対象の一覧を取得できないときは、終了と見なさず例外のまま上へ伝える(誤って終わらせない)。
    */
   async getDrawProgress(): Promise<DrawProgress> {
-    const [prizes, results, allMembers, eligibleIds] = await Promise.all([
-      this.prizeRepo.getPrizes(),
-      this.store.results(),
-      this.memberRepo.getMembers(),
-      this.drawPool.getEligibleMemberIds(),
-    ]);
+    return this.progressWith(await this.drawPool.getEligibleMemberIds());
+  }
+
+  /** 対象の一覧(eligibleIds)が分かっているときの進み具合。通信はしない(保存先の読み出しはメモリから)。 */
+  private async progressWith(eligibleIds: string[] | null): Promise<DrawProgress> {
+    const [prizes, results, allMembers] = await Promise.all([this.prizeRepo.getPrizes(), this.store.results(), this.memberRepo.getMembers()]);
     const remainingPrizes = this.prizeDrawService.getRemainingPrizes(prizes, results).length;
     const eligible = eligibleIds === null ? null : new Set(eligibleIds);
     const won = new Set(results.map((r) => r.wonMember?.id).filter(Boolean));
@@ -102,15 +107,31 @@ export class DrawApplicationService {
   }
 
   /**
+   * 続けられるか確かめ、続けられるなら抽選して確定する(本番の1サイクルぶんの下ごしらえ)。
+   * 抽選の対象の一覧は1回だけ取得し、終了の判定と抽選で共有する(取得は通信になることがある)。
+   * 終了なら抽選せずに `finished` を返す。
+   */
+  async drawNext(request: { memberRequestCount: number; prizeRequestCount: number } = DEFAULT_REQUEST): Promise<DrawNextResult> {
+    const eligibleIds = await this.drawPool.getEligibleMemberIds();
+    const progress = await this.progressWith(eligibleIds);
+    if (progress.endReason) return { kind: "finished", progress };
+    return { kind: "drawn", progress, outcome: await this.executeDraw(request, eligibleIds) };
+  }
+
+  /**
    * 抽選を実行し、結果を保存先に確定(commit)する。演出は、この結果が返ってから始める
    * (確定できなかった結果で演出すると、画面と記録が食い違うため)。
    * 確定が矛盾で断られた(別の端末の操作・古い状態)ときは、状態を読み直して1回だけ引き直す。
+   * `eligibleIds` を渡すと、抽選の対象の一覧を取り直さずにそれを使う(終了の判定で取得済みのとき。省略したら取得する)。
    */
-  async executeDraw(request: { memberRequestCount: number; prizeRequestCount: number } = DEFAULT_REQUEST): Promise<DrawOutcomeParts> {
+  async executeDraw(
+    request: { memberRequestCount: number; prizeRequestCount: number } = DEFAULT_REQUEST,
+    eligibleIds?: string[] | null
+  ): Promise<DrawOutcomeParts> {
     const store = this.store;
     await this.revealPending(store);
     for (let attempt = 0; ; attempt++) {
-      const computed = await this.computeDrawResult(request);
+      const computed = await this.computeDrawResult(request, eligibleIds);
       const result = mapToDrawResult(computed.prizeRes.drawId, computed.winnerMember, computed.winnerPrize, computed.prizeRes.isKakuhen ?? false);
       try {
         await store.commit(result);
@@ -175,14 +196,17 @@ export class DrawApplicationService {
    * メンバー抽選〜確変判定〜景品抽選までの計算を行う(保存はしない)。
    * `executeDraw`(確定する)と `previewDraw`(確定しない)の共通ロジック。
    */
-  private async computeDrawResult(request: { memberRequestCount: number; prizeRequestCount: number }): Promise<{
+  private async computeDrawResult(
+    request: { memberRequestCount: number; prizeRequestCount: number },
+    eligibleIds?: string[] | null
+  ): Promise<{
     prizeRes: DrawPrizeResponse;
     memberRes: DrawMemberResponse;
     winnerMember: Member;
     winnerPrize: Prize;
   }> {
     const store = this.store;
-    const memberRes = await this.executeMemberDraw({ requestCount: request.memberRequestCount });
+    const memberRes = await this.executeMemberDraw({ requestCount: request.memberRequestCount }, eligibleIds);
     if (!memberRes.winnerId) {
       throw new NotFoundError("No member winner");
     }
@@ -278,13 +302,13 @@ export class DrawApplicationService {
     };
   }
 
-  private async executeMemberDraw(request: DrawMemberRequest): Promise<DrawMemberResponse> {
+  private async executeMemberDraw(request: DrawMemberRequest, knownEligibleIds?: string[] | null): Promise<DrawMemberResponse> {
     const allMembers = await this.memberRepo.getMembers();
     const results = await this.store.results();
 
     // 抽選の対象を絞り込む（例: エントリーした人だけ）。候補も、リールに流すダミーも対象の中から選ぶ。
     // 一覧を取得できないときは例外のまま上へ伝える（全メンバーにフォールバックしない）。
-    const eligibleIds = await this.drawPool.getEligibleMemberIds();
+    const eligibleIds = knownEligibleIds !== undefined ? knownEligibleIds : await this.drawPool.getEligibleMemberIds();
     const members = this.restrictToPool(allMembers, eligibleIds, results);
 
     const res = this.memberDrawService.drawMember(members, results, request.requestCount - 1);

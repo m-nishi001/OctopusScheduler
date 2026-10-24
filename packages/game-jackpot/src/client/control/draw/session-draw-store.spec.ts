@@ -121,4 +121,27 @@ describe("SessionDrawStore", () => {
     expect(await store.results()).toEqual([]);
     expect(await store.plan()).toBeNull();
   });
+
+  it("同じ抽選の公開が通信中なら、重ねて送らず、その完了を待つ(公開の通信は1回)", async () => {
+    const { store, agent } = await scene();
+    await store.ensurePlan([], []);
+    await store.commit(draw("d1", 0, 0));
+    const spy = vi.spyOn(agent, "revealJackpotDraw");
+    await Promise.all([store.reveal("d1"), store.reveal("d1")]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(await store.pending()).toBeNull();
+    // 完了後の呼び出しは、また普通に送れる(何度呼んでも同じ結果)
+    await store.reveal("d1");
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it("公開が失敗したら、次の公開はやり直せる(失敗を覚えて塞がない)", async () => {
+    const { store, agent } = await scene();
+    await store.ensurePlan([], []);
+    await store.commit(draw("d1", 0, 0));
+    vi.spyOn(agent, "revealJackpotDraw").mockRejectedValueOnce(new Error("network"));
+    await expect(store.reveal("d1")).rejects.toThrow("network");
+    await store.reveal("d1");
+    expect(await store.pending()).toBeNull();
+  });
 });
