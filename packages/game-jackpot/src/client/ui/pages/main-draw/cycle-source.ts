@@ -11,6 +11,11 @@ export interface CycleSourceDeps<P> {
   prepare(): Promise<P>;
   /** 使わずに捨てる材料の後始末(画像の URL の破棄など)。 */
   discard(prepared: P): void;
+  /**
+   * 通信中の公開(reveal)が済むのを待つ(省略可)。受け取りの前に呼ぶ。公開の通信中に押されたとき、公開が済んで先読みが始まるのを
+   * 待ってから受け取り、「その場の用意」と「先読み」が同時に抽選・確定するのを防ぐ。
+   */
+  settle?(): Promise<void>;
   onPrefetchError?(error: unknown): void;
 }
 
@@ -46,6 +51,7 @@ export class CycleSource<P> {
 
   /** 次のサイクルの材料。用意中なら出来上がりを待つ(二重に確定しない)。無ければ、その場で用意する。 */
   async next(): Promise<P> {
+    await this.deps.settle?.();
     const prepared = await this.slot.take();
     if (prepared) return prepared;
     await this.deps.refresh();

@@ -161,6 +161,7 @@ export function useDrawOrchestrator() {
    */
   const cycleSource = new CycleSource<NextCycleResult>({
     refresh: () => refreshStore(),
+    settle: () => publishHostState.settled(),
     prepare: prepareNextCycle,
     discard: discardPrepared,
     onPrefetchError: (e) => console.warn("[DrawOrchestrator] next cycle prefetch failed; falling back to on-demand", e),

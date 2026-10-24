@@ -126,6 +126,30 @@ describe("createHostPublisher", () => {
       expect(onRevealed).toHaveBeenCalledTimes(1);
     });
 
+    it("settled は、公開の通信が終わり onRevealed が呼ばれるまで待つ。通信が無ければすぐ解決する", async () => {
+      const { publish, reveal, onRevealed } = withHook();
+      await publish.settled(); // 何も通信していない
+      let finish!: (ok: boolean) => void;
+      reveal.mockReturnValueOnce(new Promise<boolean>((r) => (finish = r)));
+      publish();
+      let done = false;
+      void publish.settled().then(() => (done = true));
+      await flush();
+      expect(done).toBe(false);
+      expect(onRevealed).not.toHaveBeenCalled();
+      finish(true);
+      await publish.settled();
+      expect(onRevealed).toHaveBeenCalledTimes(1);
+      expect(done).toBe(true);
+    });
+
+    it("公開に失敗しても settled は解決する(待ち続けない)", async () => {
+      const { publish, reveal } = withHook();
+      reveal.mockResolvedValueOnce(false);
+      publish();
+      await expect(publish.settled()).resolves.toBeUndefined();
+    });
+
     it("まだ公開できない(当選者・景品が見えていない)間は呼ばない", async () => {
       const s = setup();
       const onRevealed = vi.fn();

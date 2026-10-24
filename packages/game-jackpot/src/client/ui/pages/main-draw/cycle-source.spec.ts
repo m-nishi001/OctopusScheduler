@@ -115,4 +115,24 @@ describe("CycleSource", () => {
     });
     await expect(source.next()).rejects.toThrow("offline");
   });
+
+  it("公開の通信中に押されたら、公開が済んで先読みが始まるのを待って受け取る(その場の用意と先読みが同時に確定しない)", async () => {
+    // 公開の通信を再現: 通信が終わると onRevealed で先読みが始まる
+    let finishReveal!: () => void;
+    const revealing = new Promise<void>((r) => (finishReveal = r));
+    const prepare = vi.fn(async () => "prepared-once");
+    const source = new CycleSource<string>({
+      refresh: async () => undefined,
+      settle: () => revealing,
+      prepare,
+      discard: vi.fn(),
+    });
+    void revealing.then(() => source.prefetch("d1")); // 公開の完了 → 先読みの開始
+    const taken = source.next(); // 通信中に押された
+    await flush();
+    expect(prepare).not.toHaveBeenCalled(); // まだ何も用意しない
+    finishReveal();
+    expect(await taken).toBe("prepared-once");
+    expect(prepare).toHaveBeenCalledTimes(1); // 用意は1回だけ
+  });
 });
