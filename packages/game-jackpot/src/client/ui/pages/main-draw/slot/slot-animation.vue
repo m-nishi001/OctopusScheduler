@@ -261,7 +261,9 @@ export default {
     top: 0;
     left: 0;
     width: 100%;
-    transition: transform 0.1s ease-out;
+    /* 位置は JS が毎フレーム決める。CSS の移動(transition)を入れると、最後のリールが止まって .spinning が外れた瞬間に
+       0.1秒の滑りが入り、その間は止まった景品が窓の一番上からずれて見える(遅い端末では長引く) */
+    transition: none;
 }
 
 .prize-item {
@@ -290,10 +292,6 @@ export default {
     overflow: hidden;
     overflow-wrap: anywhere;
     max-width: 100%;
-}
-
-.spinning .reel-content {
-    transition: none;
 }
 
 .result-area {

@@ -79,16 +79,24 @@ export async function sampleRepeatedRows(page: Page, frames: number): Promise<st
   }, frames);
 }
 
-/** 止まったとき、3本のリールの窓の一番上に見える景品の名前。 */
+/**
+ * 止まったとき、3本のリールの窓の一番上に見える景品の名前。
+ * 実時間では待たず、「3本とも窓の一番上に景品が揃った」状態になるまで待つ(遅い環境でも、揃えば読める)。
+ * 位置は JS が決めるので、止まった瞬間から CSS の移動は無い(あれば最後のリールだけ滑って、行がずれる)。
+ */
 export async function stoppedTopRows(page: Page): Promise<string[]> {
-  // 止まった直後は、最後の位置合わせ(CSS の 0.1 秒の移動)が終わるまで待つ
-  await page.waitForTimeout(300);
-  return page.evaluate(() =>
-    Array.from(document.querySelectorAll<HTMLElement>(".slot-container .reel")).map((reel) => {
-      const box = reel.getBoundingClientRect();
-      const rows = Array.from(reel.querySelectorAll<HTMLElement>(".prize-item"));
-      const top = rows.find((row) => Math.abs(row.getBoundingClientRect().top - (box.top + reel.clientTop)) < 3);
-      return top?.textContent?.trim() ?? "";
-    })
-  );
+  const read = () =>
+    page.evaluate(() => ({
+      transitions: Array.from(document.querySelectorAll<HTMLElement>(".slot-container .reel-content")).map((el) => getComputedStyle(el).transitionDuration),
+      rows: Array.from(document.querySelectorAll<HTMLElement>(".slot-container .reel")).map((reel) => {
+        const box = reel.getBoundingClientRect();
+        const rows = Array.from(reel.querySelectorAll<HTMLElement>(".prize-item"));
+        const top = rows.find((row) => Math.abs(row.getBoundingClientRect().top - (box.top + reel.clientTop)) < 3);
+        return top?.textContent?.trim() ?? "";
+      }),
+    }));
+  const first = await read();
+  expect(first.transitions, "リールの移動に CSS の transition が掛かっていない").toEqual(["0s", "0s", "0s"]);
+  await expect.poll(async () => (await read()).rows.every((r) => r !== ""), { message: "3本とも窓の一番上に景品が揃う" }).toBe(true);
+  return (await read()).rows;
 }
