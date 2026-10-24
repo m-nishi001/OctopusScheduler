@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import SlotAnimation from "./slot-animation.vue";
@@ -435,5 +437,14 @@ describe("SlotAnimation", () => {
       await (wrapper.vm as unknown as Required<AnimationRef>).startSpin(new Blob(["x"], { type: "audio/mpeg" }));
       expect(wrapper.classes()).toContain("spinning");
     });
+  });
+
+  // 最後のリールが止まって .spinning が外れた瞬間に CSS の移動(0.1秒)が掛かると、そのリールだけ止まった景品が
+  // 窓の一番上からずれて見える(CI で「3本目の行が空」になった)。位置は JS が決めるので、CSS の移動は持たない。
+  it("リールの位置に CSS の transition を掛けない(止まった瞬間に最後のリールだけ滑らない)", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/client/ui/pages/main-draw/slot/slot-animation.vue"), "utf-8");
+    const rule = /\.reel-content\s*\{([^}]*)\}/.exec(source)?.[1] ?? "";
+    expect(rule).toMatch(/transition:\s*none/);
+    expect(source).not.toMatch(/transition:\s*transform/);
   });
 });
