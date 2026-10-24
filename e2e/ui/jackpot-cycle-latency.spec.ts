@@ -161,7 +161,7 @@ async function measureNextToMember(host: Page): Promise<number> {
 
 test("(a) 当選ダイアログの間に次の抽選が確定され、「次へ」でメンバー抽選の画面が通信を待たずに出る", async ({ browser, request }) => {
   test.setTimeout(300_000);
-  const s = await scene(browser, request, "遅延会場A", 3);
+  const s = await scene(browser, request, "遅延会場A", 3, []);
   await untilDialog(s.host.page);
   await waitRevealed(request, s.sessionId, 1);
   await waitPrefetched(request, s.sessionId, 2);
@@ -187,7 +187,7 @@ test("(a) 当選ダイアログの間に次の抽選が確定され、「次へ�
 test("(b) 先に確定した(未公開の)抽選は、ホストを再読み込みしても同じ当選者で演出し直す。引き直さない", async ({ browser, request }) => {
   test.skip(BASELINE, "先読みの検査");
   test.setTimeout(300_000);
-  const s = await scene(browser, request, "遅延会場B", 3);
+  const s = await scene(browser, request, "遅延会場B", 3, []);
   await untilDialog(s.host.page);
   await waitRevealed(request, s.sessionId, 1);
   await waitPrefetched(request, s.sessionId, 2);
@@ -208,7 +208,7 @@ test("(b) 先に確定した(未公開の)抽選は、ホストを再読み込�
 
 test("(c) 対象の最後の人の抽選のあとは、先読みでも終了の画面が出る。余分な抽選は確定しない", async ({ browser, request }) => {
   test.setTimeout(420_000);
-  const s = await scene(browser, request, "遅延会場C", 2);
+  const s = await scene(browser, request, "遅延会場C", 2, []);
   await untilDialog(s.host.page);
   await waitRevealed(request, s.sessionId, 1);
   await waitPrefetched(request, s.sessionId, 2);
@@ -254,7 +254,8 @@ test("(d) 確変の回を挟んでも、取り置いた景品は確変の回に�
 test("(e) 先に確定したあとで結果がリセットされても、進行は壊れず、知らせが出て、新しく引き直せる", async ({ browser, request }) => {
   test.skip(BASELINE, "先読みの検査");
   test.setTimeout(420_000);
-  const s = await scene(browser, request, "遅延会場E", 3);
+  // 確変なし(確変の回は演出が長く、回数が乱数の「おまかせ」だと待ち時間が揺れるため、固定で「なし」にする)
+  const s = await scene(browser, request, "遅延会場E", 3, []);
   await untilDialog(s.host.page);
   await waitRevealed(request, s.sessionId, 1);
   await waitPrefetched(request, s.sessionId, 2);
