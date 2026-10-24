@@ -1,9 +1,10 @@
 import { adminRpc, createSession, expect, loginByQr, newDevice, nextButton, openAdvanced, openEventTab, route, seedStore, test, type Device } from "./fixtures";
 
 /**
- * ジャックポットのエントリー画面(オープニング → エントリー → 説明 → 抽選)。クイズと共通のエントリー画面。
- *   - 既定の「参加者全員(自動)」: 管理者を除く、ポータルに入った人が自動でエントリー済みとして並ぶ(途中参加も増える)
- *   - 「エントリーした人のみ」に切り替えると、その場で受付が始まり、エントリーした人だけが並ぶ・抽選される
+ * ジャックポットのエントリー画面。クイズと共通のエントリー画面で、抽選の対象が「エントリーした人のみ」のときだけオープニングの次に挟まる。
+ *   - 既定の「参加者全員(自動)」: オープニングの次は説明(エントリー画面は挟まない)。「詳細な操作」から手動で開くと、
+ *     管理者を除く、ポータルに入った人が自動でエントリー済みとして並ぶ(途中参加も増える)
+ *   - 「エントリーした人のみ」に切り替えてからエントリー画面を開くと、その場で受付が始まり、エントリーした人だけが並ぶ・抽選される
  *   - 「説明へ」で受付が閉じ、説明画面の「まもなく抽選!」は未エントリーの人には出ない
  */
 const PRIZES = ["特賞", "一等", "二等"].map((name, i) => ({ id: `jes-p${i + 1}`, name, order: i + 1, weight: 10 }));
@@ -24,7 +25,7 @@ test.afterAll(async ({ request }) => {
   for (const id of Object.values(ids)) await adminRpc(request, "accounts_deleteMember", { id }).catch(() => undefined);
 });
 
-test("オープニング → エントリー画面(自動: 管理者を除く参加者、途中参加も増える) → エントリーした人のみに切り替え → 説明で受付が閉じる → 抽選はエントリーした人だけ", async ({ browser, request }) => {
+test("自動ではオープニングの次は説明(エントリー画面を挟まない) → 手動で開いたエントリー画面(自動: 管理者を除く参加者、途中参加も増える) → エントリーした人のみに切り替え → 説明で受付が閉じる → 抽選はエントリーした人だけ", async ({ browser, request }) => {
   test.setTimeout(300_000);
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, "エントリー画面");
@@ -38,9 +39,16 @@ test("オープニング → エントリー画面(自動: 管理者を除く参
   const devices: Device[] = [admin, host];
 
   try {
-    // オープニングの次は、共通のエントリー画面
+    // 抽選の対象は既定で参加者全員(自動)なので、オープニングの次は説明(エントリー画面を挟まない)
     await admin.page.getByTestId("start-jackpot").click();
-    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付は始まっていません");
+
+    // 「詳細な操作」から手動でエントリー画面を開ける
+    await openAdvanced(admin.page);
+    await admin.page.getByRole("button", { name: "ジャックポット: エントリー" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-entry");
+    await expect(admin.page.getByTestId("now")).toContainText("エントリー画面表示中");
     const hostLabel = host.page.getByTestId("stage-label");
     const hostCount = host.page.getByTestId("stage-count");
     const bubbleNames = () => host.page.locator('[data-testid="entry-bubble"] .bubble__name').allInnerTexts();
@@ -84,6 +92,7 @@ test("オープニング → エントリー画面(自動: 管理者を除く参
     await expect.poll(bubbleNames, { timeout: 30_000 }).toEqual([names.b]);
 
     // 次へ(説明へ): 受付が閉じる
+    await expect(admin.page.getByTestId("now")).toContainText("エントリー画面表示中");
     await expect(nextButton(admin.page)).toHaveText(/説明へ/);
     await nextButton(admin.page).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
@@ -116,5 +125,31 @@ test("オープニング → エントリー画面(自動: 管理者を除く参
     expect(winner).toBe(names.b);
   } finally {
     for (const d of devices) await d.context.close();
+  }
+});
+
+test("エントリーした人のみでは、オープニングの次にエントリー画面が自動で出て(受付も始まる)、説明へ進むと受付が閉じる", async ({ browser }) => {
+  test.setTimeout(180_000);
+  const admin = await newDevice(browser, { signedIn: true });
+  const { id: sessionId } = await createSession(admin.page, "エントリー画面(対象指定)");
+  sessionIds.push(sessionId);
+  const host = await newDevice(browser, { signedIn: true, projector: true });
+  host.page.on("dialog", (d) => void d.dismiss());
+  await host.page.goto(`/#/session/host/${sessionId}`);
+  await expect(host.page.locator(".host-view__title")).toBeVisible();
+  try {
+    // エントリー受付から始めたイベントの対象は「エントリーした人のみ」。そのままジャックポットを始める
+    await admin.page.getByTestId("start-entry").click();
+    await expect(admin.page.getByTestId("pool-state")).toContainText("エントリーした人のみ");
+    await admin.page.getByTestId("start-jackpot").click();
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
+    await expect(admin.page.getByTestId("now")).toContainText("エントリー画面表示中");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付中");
+    await expect(nextButton(admin.page)).toHaveText(/説明へ/);
+    await nextButton(admin.page).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+    await expect(admin.page.getByTestId("entry-state")).toContainText("受付は終了");
+  } finally {
+    for (const d of [admin, host]) await d.context.close();
   }
 });

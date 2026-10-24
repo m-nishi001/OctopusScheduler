@@ -1,5 +1,7 @@
 import type { Command } from "../../shared/session-types";
 
+export type CommandGuard = (command: Command) => boolean;
+
 export type CommandHandler = (command: Command) => void | Promise<void>;
 
 /**
@@ -9,6 +11,12 @@ export type CommandHandler = (command: Command) => void | Promise<void>;
  */
 export class HostCommandRouter {
   private readonly handlers = new Map<string, CommandHandler>();
+  private guard: CommandGuard | null = null;
+
+  /** 振り分ける前の確認を差し込む。false を返したコマンドは破棄する(例: 古い画面を見て押された主ボタン)。 */
+  setGuard(guard: CommandGuard | null): void {
+    this.guard = guard;
+  }
 
   /** 登録する。戻り値は登録解除関数(画面の破棄時に呼ぶ)。同じ名前空間は後勝ち。 */
   register(game: string, handler: CommandHandler): () => void {
@@ -19,6 +27,7 @@ export class HostCommandRouter {
   }
 
   async dispatch(command: Command): Promise<void> {
+    if (this.guard && !this.guard(command)) return;
     const handler = this.handlers.get(command.game);
     if (handler) await handler(command);
   }

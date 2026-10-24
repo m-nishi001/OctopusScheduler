@@ -50,10 +50,14 @@ async function setupHosted() {
   const { agent, device } = registerHostAgent(env);
   await device.conn.joinOperator({ sessionId: meta.id, role: "host", label: "PC" });
   const received: string[] = [];
-  agent.router.register("quiz", (c) => void received.push(c.type));
+  const payloads: unknown[] = [];
+  agent.router.register("quiz", (c) => {
+    received.push(c.type);
+    payloads.push(c.payload);
+  });
   const nav: unknown[] = [];
   agent.router.register("session", (c) => void nav.push(c.payload));
-  return { meta, agent, device, received, nav };
+  return { meta, agent, device, received, nav, payloads };
 }
 
 function registerQuizList(list: Array<{ id: string; title: string; question: string }>, sync = vi.fn(async () => ({ failed: [] }))) {
@@ -139,7 +143,7 @@ describe("管理コンソールのクイズ操作", () => {
   });
 
   it("クイズの画面ごとに、主ボタンの文言と予告が変わる。回答受付中は「受付を締め切る」", async () => {
-    const { meta, agent, received, nav } = await setupHosted();
+    const { meta, agent, received, nav, payloads } = await setupHosted();
     registerQuizList([{ id: "q1", title: "果物", question: "?" }]);
     const { wrapper } = await mountConsole(meta.id);
     const next = () => wrapper.find('[data-testid="next-button"]');
@@ -154,6 +158,7 @@ describe("管理コンソールのクイズ操作", () => {
     await next().trigger("click");
     await settle(5000);
     expect(received).toEqual(["advance"]);
+    expect(payloads).toEqual([null]); // クイズの主ボタンは expectedPath を添えない(古い画面の確認はジャックポットだけ)
 
     await agent.publishSlice("session", { path: "/execute/quiz/q1/play" });
     await agent.publishSlice("quiz", quizState({ phase: "answering", deadlineMs: Date.now() + 20_000 }));
