@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
 import { changedFrames, captureTimeline } from "./helpers/motion";
+import { sampleRepeatedRows, stoppedTopRows } from "./helpers/slot";
 
 /**
  * ルーレット・メンバー抽選の「意地悪な止まり方」が、ホスト画面で実際に動き、最後は必ず当選が発表されること。
@@ -127,6 +128,44 @@ for (const pattern of ROULETTE_PATTERNS) {
     await expect(admin.page.getByTestId("jackpot-state")).toContainText(/当選者: [^—\s]\S*/);
     expect(patterns.roulette, `${pattern.name}: 強制した止まり方で止まっていない`).toEqual([pattern.name]);
     expect(pageErrors, `${pattern.name}: ホスト画面で例外が出た`).toEqual([]);
+    for (const d of [admin, host, guest]) await d.context.close();
+  });
+}
+
+// スロット: 乱数を固定しても(並びの作り方が偏る極端な値でも)、回っている間も減速して止まるまでも、
+// 窓に見える景品が同じ名前で続かず、固まらず、最後は3本とも当選景品で止まって発表される。
+// 乱数は景品の並びを作る回転の開始前に固定する(並びは回し始めるたびに組み直される)。
+const SLOT_RANDOMS = [0, 0.5, 0.999] as const;
+for (const random of SLOT_RANDOMS) {
+  test(`@motion スロットの止まり方(乱数${random}): 同じ景品名が続けて見えず、減速して、3本とも当選景品で止まる`, async ({ browser, request }) => {
+    test.setTimeout(300_000);
+    const { admin, host, guest, pageErrors } = await scene(browser, request, `スロット止まり方-${random}`, "slot");
+    const reel = host.page.locator(".slot-container");
+    const spinning = host.page.locator(".slot-container.spinning");
+
+    await forceRandom(host.page, random);
+    await advanceUntilStop(admin.page, "景品");
+    await expect(spinning, "止める時点で回っている").toBeVisible();
+    expect(await sampleRepeatedRows(host.page, 120), "回転中に同じ景品名が続けて見えた").toEqual([]);
+
+    // 止める操作の直後から、減速して止まるまでの窓も見る
+    const duringStop = sampleRepeatedRows(host.page, 200);
+    const clicked = Date.now();
+    await nextButton(admin.page).click();
+    const frames = await captureTimeline(reel, `stop-slot-${random}`, { count: 8, intervalMs: 400 });
+    expect(changedFrames(frames), "止まる演出が動いていない").toBeGreaterThanOrEqual(2);
+    expect(await duringStop, "減速中に同じ景品名が続けて見えた").toEqual([]);
+
+    await expect(spinning).toBeHidden({ timeout: 30_000 });
+    expect(Date.now() - clicked, "止まるまでが長すぎる").toBeLessThan(15_000);
+    const rows = await stoppedTopRows(host.page);
+    expect(new Set(rows).size, `3本のリールが同じ景品で止まる: ${rows.join(",")}`).toBe(1);
+    await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 30_000 });
+    await expect(host.page.getByTestId("prize-winning-name")).toHaveText(rows[0]);
+    await restoreRandom(host.page);
+
+    await expect(admin.page.getByTestId("jackpot-state")).toContainText(/当選者: [^—\s]\S*/);
+    expect(pageErrors, "ホスト画面で例外が出た").toEqual([]);
     for (const d of [admin, host, guest]) await d.context.close();
   });
 }

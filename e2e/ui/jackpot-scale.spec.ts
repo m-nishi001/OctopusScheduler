@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { ADMIN_TOKEN, expect, isGas, newDevice, seedStore, test } from "./fixtures";
+import { slotMetrics } from "./helpers/slot";
 
 /**
  * 人数・景品数を変えてホストの抽選画面を最後まで進め、例外・レイアウト崩れが出ないことを確認する。
@@ -65,6 +66,8 @@ const SCENARIOS: Array<{ members: number; prizes: number; viewport: { width: num
   { members: 3, prizes: 8, viewport: { width: 1920, height: 1080 } },
   // スロット演出(賞品の animation が slot)。確変(景品4件なら2・3回目)も通る
   { members: 4, prizes: 4, viewport: { width: 1920, height: 1080 }, animation: "slot" },
+  // スロットは窓の大きさに比例して大きくなる(720p でも読める大きさ)。先頭の数回だけ見る
+  { members: 4, prizes: 4, viewport: { width: 1280, height: 720 }, maxDraws: 2, animation: "slot" },
   { members: 10, prizes: 10, viewport: { width: 1280, height: 720 }, maxDraws: 3 },
   // 全100回の演出を進めると長すぎるため、先頭の数回だけ実画面で確認する(全回の整合はユニットのマトリクスで検証)
   { members: LARGE_MEMBERS, prizes: 100, viewport: { width: 1920, height: 1080 }, maxDraws: 3 },
@@ -117,6 +120,7 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
       let shot = 0;
       let finished = false;
       let prizeNamesSeen = 0;
+      let slotChecked = false;
       const shotKinds = new Set<string>();
       await page.waitForTimeout(2000);
       for (let step = 0; step < maxSteps && !finished; step++) {
@@ -124,6 +128,18 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
         await page.waitForTimeout(sc.members * sc.prizes > 5000 ? 1500 : 900);
         for (const l of await overflowReport(page)) layout.add(l);
         if (dir && step % 3 === 0) await page.screenshot({ path: join(dir, `${String(shot++).padStart(3, "0")}.png`) });
+        // スロットは遠くからでも読めるよう、ルーレット並みに画面を使い、文字を大きくする(画面の高さに比例)
+        if (sc.animation === "slot" && !slotChecked && (await page.locator(".slot-container").isVisible().catch(() => false))) {
+          slotChecked = true;
+          await page.waitForTimeout(400);
+          const m = await slotMetrics(page);
+          const k = sc.viewport.height / 1080;
+          if (m.heightRatio < 0.68) layout.add(`スロットが小さい: 画面の高さの ${(m.heightRatio * 100).toFixed(0)}%`);
+          if (m.font < 58 * k) layout.add(`スロットの景品の文字が小さい: ${m.font}px (< ${Math.round(58 * k)}px)`);
+          if (m.rect.left < -1 || m.rect.right > m.viewport.width + 1 || m.rect.top < -1 || m.rect.bottom > m.viewport.height + 1) {
+            layout.add(`スロットが画面からはみ出している: ${JSON.stringify(m.rect)}`);
+          }
+        }
         // 演出ダイアログが出た瞬間(演出が立ち上がった後)の見た目を残す
         if (dir) {
           if (!shotKinds.has("slot") && (await page.locator(".slot-container").isVisible().catch(() => false))) {
