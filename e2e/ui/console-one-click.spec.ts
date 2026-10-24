@@ -1,4 +1,4 @@
-import { createSession, expect, newDevice, nextButton, route, sampleQuiz, seedStore, test, adminRpc } from "./fixtures";
+import { createSession, expect, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedStore, test, adminRpc } from "./fixtures";
 import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
 
 /**
@@ -93,23 +93,17 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     for (const d of [admin, host]) await d.context.close();
   });
 
-  test("ジャックポット: 「ジャックポットを始める」→ オープニング → エントリー → 説明を経て、主ボタンで抽選画面まで進む", async ({ browser }) => {
+  test("ジャックポット: 「ジャックポットを始める」→ オープニング → 説明を経て、主ボタンで抽選画面まで進む(参加者全員(自動)はエントリー画面を挟まない)", async ({ browser }) => {
     test.setTimeout(180_000);
     const { admin, host } = await scene(browser, "ワンクリック(ジャックポット)");
     await admin.page.getByTestId("start-jackpot").click();
-    // オープニングの演出が終わると、共通のエントリー画面へ自動で進む
-    await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/\/jackpot-(opening|entry)$/);
+    // オープニングの演出が終わると、説明へ自動で進む(抽選の対象が参加者全員(自動)なので、エントリー画面は挟まない)
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toMatch(/\/jackpot-(opening|description)$/);
     await expect(admin.page.getByTestId("event-state")).toContainText("ジャックポット抽選");
-    // 抽選の対象は既定で参加者全員(自動)なので、開始してもエントリー受付は始まらない
+    // 開始してもエントリー受付は始まらない
     await expect(admin.page.getByTestId("entry-state")).toContainText("受付は始まっていません");
     await expect(admin.page.getByTestId("pool-state")).toContainText("参加者全員(自動)");
-    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
-    await expect(admin.page.getByTestId("now")).toContainText("エントリー");
-    await expect(host.page.getByTestId("stage-label")).toContainText("自動でエントリー");
-    await expect(admin.page.getByTestId("entry-state")).toContainText("受付は始まっていません");
-    await expect(nextButton(admin.page)).toHaveText(/説明へ/);
-    await nextButton(admin.page).click();
-    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
     await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
     await expect(nextButton(admin.page)).toHaveText(/抽選を始める/);
     await nextButton(admin.page).click();
@@ -130,10 +124,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     };
     await seedStore(host.page, "jackpot-game", "ScreenConfigData", [{ id: "description_description-screen-settings", value: setting }]);
     await admin.page.getByTestId("start-jackpot").click();
-    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
-    await expect(admin.page.getByTestId("now")).toContainText("エントリー");
-    await nextButton(admin.page).click();
-    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
     await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
 
     const hostText = host.page.locator("body");
@@ -212,5 +203,58 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await expect(nextButton(admin.page)).toBeVisible();
     await expectNoHorizontalOverflow(admin.page, "コントロール(進行中)/phone");
     for (const d of [admin, host]) await d.context.close();
+  });
+
+  test("ジャックポット: 管理端末が古い画面を見たまま押した主ボタンは、ホストがもう進んでいれば破棄され、次の画面の操作として画面を飛ばさない", async ({ browser }) => {
+    test.setTimeout(180_000);
+    const { admin, host, sessionId } = await scene(browser, "古い主ボタン");
+    // 参加者がいない抽選を進めると、ホストが「抽選の対象のメンバーがいません」と知らせる。抽選が進んだかどうかの目印にする
+    const alerts: string[] = [];
+    host.page.on("dialog", (d) => alerts.push(d.message()));
+    const slides = ["一枚目の説明", "二枚目の説明"].map((content, i) => ({ id: `s${i}`, type: "text", content }));
+    await seedStore(host.page, "jackpot-game", "ScreenConfigData", [
+      {
+        id: "description_description-screen-settings",
+        value: { screenName: "description", settingName: "description-screen-settings", settingValue: JSON.stringify({ descriptionBgm: "", screenElements: slides }) },
+      },
+    ]);
+    await seedStore(host.page, "jackpot-game", "PrizeData", [{ id: "stale-p1", value: { id: "stale-p1", name: "特賞", order: 1, weight: 10, animation: "roulette" } }]);
+
+    // 管理端末1の受信を止められるようにして開き直す(止めている間は、ホストの表示が変わっても古い画面のまま)
+    let frozen = false;
+    await admin.page.routeWebSocket(/.*/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((message) => server.send(message));
+      server.onMessage((message) => {
+        if (!frozen) ws.send(message);
+      });
+    });
+    await admin.page.reload();
+    await admin.page.getByTestId("start-jackpot").click();
+    await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
+    await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
+    await expect(nextButton(admin.page)).toHaveText(/次のスライドへ/);
+
+    // 管理端末2がホストを抽選画面へ進める。管理端末1はまだ説明を見ている
+    frozen = true;
+    const admin2 = await newDevice(browser, { signedIn: true });
+    await admin2.page.goto(`/#/session/console/${sessionId}`);
+    await openAdvanced(admin2.page);
+    await admin2.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+    await expect(admin2.page.getByTestId("now")).toContainText("抽選");
+    const before = await admin2.page.getByTestId("now").innerText();
+    await expect.poll(() => alerts.length, { timeout: 60_000 }).toBe(1); // 抽選画面を開いた時点の失敗の知らせ。以降は「次へ」のたびに増える
+    await expect(admin.page.getByTestId("now")).toContainText("説明表示中"); // 古い表示のまま
+
+    // 古い「次のスライドへ」を押す。ホストはもう抽選画面なので、そのまま抽選を進めてはいけない
+    await nextButton(admin.page).click();
+    await expect(admin2.page.getByTestId("log")).toContainText("jackpot.advance");
+    await expect(admin2.page.getByText("未適用のコマンド")).toHaveCount(0); // ホストが処理(破棄)し終えた
+    expect(await route(host.page)).toBe("/execute/jackpot-draw");
+    await expect(admin2.page.getByTestId("now")).toHaveText(before);
+    expect(alerts.length, "古い主ボタンで抽選をやり直していない").toBe(1);
+
+    for (const d of [admin, host, admin2]) await d.context.close();
   });
 });
