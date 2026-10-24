@@ -57,6 +57,15 @@ export class SessionDrawStore implements DrawStore {
     return this.snapshot!;
   }
 
+  /**
+   * サーバーに書けたことを、メモリの内容に反映する。通信の間に読み直し(load)でメモリの内容が入れ替わっていることがあるので、
+   * 通信の前に取った内容ではなく、いまの内容に反映する(古い内容に反映すると、書いたことが読み出しから消える)。
+   * 読み直しの結果がすでにそれを含んでいれば、変更は冪等(同じ抽選を二度積まない・公開済みのまま)。
+   */
+  private applyLocal(change: (snapshot: Snapshot) => void): void {
+    if (this.snapshot && this.snapshot.sessionId === this.currentSessionId()) change(this.snapshot);
+  }
+
   load(): Promise<void> {
     // 同時に何度呼ばれても、読み込みは1回にまとめる
     this.loading ??= this.fetch().finally(() => {
@@ -87,21 +96,24 @@ export class SessionDrawStore implements DrawStore {
   }
 
   async ensurePlan(kakuhenTimings: number[], reservedPrizeIds: string[]): Promise<DrawPlan> {
-    const snapshot = await this.ready();
+    await this.ready();
     const saved = await this.requireAgent().ensureJackpotPlan({ kakuhenTimings, reservedPrizeIds });
-    snapshot.plan = { kakuhenTimings: saved.kakuhenTimings, reservedPrizeIds: saved.reservedPrizeIds };
-    return snapshot.plan;
+    const plan = { kakuhenTimings: saved.kakuhenTimings, reservedPrizeIds: saved.reservedPrizeIds };
+    this.applyLocal((snapshot) => void (snapshot.plan = plan));
+    return plan;
   }
 
   async commit(result: DrawResultDto): Promise<void> {
-    const snapshot = await this.ready();
+    await this.ready();
     const input = toInput(result);
     try {
       await this.requireAgent().commitJackpotDraw(input);
     } catch (e) {
       throw await this.translate(e);
     }
-    if (!snapshot.rows.some((r) => r.result.drawId === result.drawId)) snapshot.rows.push({ result: { ...result }, revealed: false });
+    this.applyLocal((snapshot) => {
+      if (!snapshot.rows.some((r) => r.result.drawId === result.drawId)) snapshot.rows.push({ result: { ...result }, revealed: false });
+    });
   }
 
   reveal(drawId: string): Promise<void> {
@@ -113,14 +125,16 @@ export class SessionDrawStore implements DrawStore {
   }
 
   private async revealOnce(drawId: string): Promise<void> {
-    const snapshot = await this.ready();
+    await this.ready();
     try {
       await this.requireAgent().revealJackpotDraw(drawId);
     } catch (e) {
       throw await this.translate(e);
     }
-    const row = snapshot.rows.find((r) => r.result.drawId === drawId);
-    if (row) row.revealed = true;
+    this.applyLocal((snapshot) => {
+      const row = snapshot.rows.find((r) => r.result.drawId === drawId);
+      if (row) row.revealed = true;
+    });
   }
 
   async pending(): Promise<DrawResultDto | null> {
