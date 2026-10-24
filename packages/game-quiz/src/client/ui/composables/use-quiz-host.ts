@@ -2,6 +2,7 @@ import { onScopeDispose } from "vue";
 import { container } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
 import { QuizRoundGateway } from "../../model/quiz-round-gateway";
+import { QUIZ_NAMESPACE } from "../../model/quiz-host-state";
 import type { QuizHostState } from "../../model/quiz-host-state";
 
 export interface QuizHostHandlers {
@@ -18,7 +19,7 @@ export interface QuizHost {
   lobbyPath(): string | null;
 }
 
-const NAMESPACE = "quiz";
+const NAMESPACE = QUIZ_NAMESPACE;
 
 /**
  * クイズの表示画面(ホスト端末)で使う。セッションのホストとして接続している場合だけ、

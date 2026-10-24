@@ -1,12 +1,17 @@
-import type { APIRequestContext, Page } from "@playwright/test";
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, seedStore, test } from "./fixtures";
+import type { APIRequestContext, Browser, Page } from "@playwright/test";
+import { acceptConfirm, adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, seedStore, test } from "./fixtures";
+import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
 
 /**
  * クイズの順位発表のネタバレ防止と「あなたは N 位!」。
  *   - 発表中: 参加者のスマホには「会場の画面をご覧ください」だけ。順位へのリンクも、自分の順位も、「結果」タブのこの回の結果も出ない。
- *   - 発表が終わると: 結果の保存が済んでから、全画面で自分の順位(不正解・未回答は「今回は ランク外」)が出る。
- *   - ホストがロビーへ戻ると: 通常の表示に戻る。
+ *   - 1位の祝福演出(会場の「1位 おめでとう」)が始まると: 結果の保存が済んでいるので、ほぼ同時に全画面で自分の順位
+ *     (不正解・未回答は「今回は ランク外」)が出る。とじるボタンは無い。
+ *   - 会場が順位発表の画面にいる間(景品のダイアログ中も)は出たまま。ロビーへ戻る、またはイベントを終えると消える。
  */
+
+/** 会場の祝福演出が出てから、参加者の順位が出るまでの許容(ms)。以前は演出を見せ終える約6秒後だった。ポーリング間隔と通信の余裕を見込む。 */
+const MAX_PORTAL_LAG_MS = 5000;
 
 const NAMES = ["太郎", "花子", "次郎"];
 const ids = NAMES.map((_, i) => `qr-e2e-${String(i + 1).padStart(2, "0")}`);
@@ -39,90 +44,160 @@ async function login(browser: import("@playwright/test").Browser, id: string) {
   return d;
 }
 
+/** ホスト・管理・参加者3人を用意して、順位発表の画面(result)まで進める。 */
+async function playToResult(browser: Browser, request: APIRequestContext, label: string, options: { event?: string } = {}) {
+  const admin = await newDevice(browser, { signedIn: true });
+  const { id: sessionId } = await createSession(admin.page, label);
+  sessionIds.push(sessionId);
+  await seedQuiz(admin.page, "qr1");
+  await admin.page.reload();
+  const host = await newDevice(browser, { signedIn: true, projector: true });
+  host.page.on("dialog", (d) => void d.dismiss());
+  await host.page.goto(`/#/session/host/${sessionId}`);
+  await expect(host.page.locator(".host-view__title")).toBeVisible();
+  await seedQuiz(host.page, "qr1");
+  await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
+
+  const taro = await login(browser, ids[0]); // 正解(1位)
+  const hanako = await login(browser, ids[1]); // 不正解
+  const jiro = await login(browser, ids[2]); // 回答しない
+
+  if (options.event) {
+    await openAdvanced(admin.page);
+    await admin.page.getByTestId("event-title").fill(options.event);
+    await admin.page.getByRole("button", { name: /^イベントを(開始|切り替える)$/ }).click();
+    await expect(admin.page.getByTestId("event-state")).toContainText(options.event);
+  }
+  await admin.page.getByTestId("quiz-select").selectOption("qr1");
+  await openAdvanced(admin.page);
+  await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
+  await expect.poll(() => route(host.page)).toBe("/execute/quiz/qr1/play");
+  await taro.page.getByRole("button", { name: /みかん/ }).click(); // 正解
+  await expect(taro.page.getByTestId("quiz-answered")).toContainText("2. みかん");
+  await hanako.page.getByRole("button", { name: /りんご/ }).click(); // 不正解
+  await expect(hanako.page.getByTestId("quiz-answered")).toContainText("1. りんご");
+
+  await nextButton(admin.page).click(); // 受付を締め切る
+  const next = nextButton(admin.page);
+  await expect(next).not.toContainText("締め切る");
+  await next.click(); // → 正解発表
+  await expect.poll(() => route(host.page)).toBe("/execute/quiz/qr1/answer");
+  await expect(taro.page.getByTestId("quiz-verdict")).toHaveText("正解！");
+  await jiro.page.getByRole("link", { name: "結果" }).click();
+  await expect(jiro.page.getByTestId("results-page")).toBeVisible();
+
+  // 順位発表が始まる
+  await next.click();
+  await expect.poll(() => route(host.page)).toBe("/execute/quiz/qr1/result");
+  return { admin, host, taro, hanako, jiro, next, sessionId, all: [admin, host, taro, hanako, jiro] };
+}
+
 type Results = { rev: number; quiz: { rounds: Array<{ title: string }> } };
 const savedRounds = async (request: APIRequestContext, sessionId: string) =>
   (await adminRpc<Results>(request, "sessionHub_getResults", { sessionId })).quiz.rounds.length;
 
 test.describe("クイズの順位発表(参加者ポータル)", () => {
-  test("発表中は順位を出さず、終わると自分の順位を大きく出し、ロビーへ戻ると通常の表示に戻る", async ({ browser, request }) => {
+  test("会場の1位の祝福演出とほぼ同時に自分の順位が出る(とじるボタンは無い)。景品の間は出たまま、ロビーへ戻ると消える", async ({ browser, request }) => {
     test.setTimeout(240_000);
-    const admin = await newDevice(browser, { signedIn: true });
-    const { id: sessionId } = await createSession(admin.page, "順位発表会場");
-    sessionIds.push(sessionId);
-    await seedQuiz(admin.page, "qr1");
-    await admin.page.reload();
-    const host = await newDevice(browser, { signedIn: true, projector: true });
-    host.page.on("dialog", (d) => void d.dismiss());
-    await host.page.goto(`/#/session/host/${sessionId}`);
-    await expect(host.page.locator(".host-view__title")).toBeVisible();
-    await seedQuiz(host.page, "qr1");
-    await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
+    const { host, taro, hanako, jiro, next, sessionId, all } = await playToResult(browser, request, "順位発表会場");
 
-    const taro = await login(browser, ids[0]); // 正解(1位)
-    const hanako = await login(browser, ids[1]); // 不正解
-    const jiro = await login(browser, ids[2]); // 回答しない。順位発表の間は「結果」タブを開いておく
-
-    await admin.page.getByTestId("quiz-select").selectOption("qr1");
-    await openAdvanced(admin.page);
-    await admin.page.getByTestId("advanced").getByRole("button", { name: "出題" }).click();
-    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qr1/play");
-    await taro.page.getByRole("button", { name: /みかん/ }).click(); // 正解
-    await expect(taro.page.getByTestId("quiz-answered")).toContainText("2. みかん");
-    await hanako.page.getByRole("button", { name: /りんご/ }).click(); // 不正解
-    await expect(hanako.page.getByTestId("quiz-answered")).toContainText("1. りんご");
-
-    await nextButton(admin.page).click(); // 受付を締め切る
-    const next = nextButton(admin.page);
-    await expect(next).not.toContainText("締め切る");
-    await next.click(); // → 正解発表
-    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qr1/answer");
-    await expect(taro.page.getByTestId("quiz-verdict")).toHaveText("正解！");
-    await jiro.page.getByRole("link", { name: "結果" }).click();
-    await expect(jiro.page.getByTestId("results-page")).toBeVisible();
-
-    // 順位発表が始まる。発表の間は、会場の画面を見るよう促すだけ
-    await next.click();
-    await expect.poll(() => route(host.page)).toBe("/execute/quiz/qr1/result");
+    // 発表の間は、会場の画面を見るよう促すだけ
     for (const p of [taro.page, hanako.page]) {
       await expect(p.getByTestId("quiz-reveal-watch")).toContainText("会場の画面をご覧ください");
       await expect(p.getByTestId("quiz-results-link")).toHaveCount(0);
       await expect(p.getByTestId("quiz-my-rank")).toHaveCount(0);
       await expect(p.getByText("順位を見る")).toHaveCount(0);
     }
-    // 結果の保存は、発表が終わってから。結果タブにも、この回の結果と新着の印は出ない
-    expect(await savedRounds(request, sessionId)).toBe(0);
+    // 結果タブにも、この回の結果と新着の印は出ない
     await expect(jiro.page.getByTestId("results-quiz-held")).toBeVisible();
     await expect(jiro.page.getByTestId("results-round")).toHaveCount(0);
     await expect(jiro.page.getByTestId("results-new")).toHaveCount(0);
     await expect(jiro.page.getByTestId("quiz-my-rank")).toHaveCount(0);
 
-    // 発表が終わると、保存が済んだうえで、全画面で自分の順位が出る
-    await expect(taro.page.getByTestId("quiz-my-rank")).toBeVisible({ timeout: 60_000 });
+    // 会場の祝福演出と、参加者の順位の表示が出る時刻を測る
+    const banner = host.page.locator(".banner-label");
+    const at = async (loc: ReturnType<Page["locator"]>) => {
+      await expect(loc).toBeVisible({ timeout: 60_000 });
+      return Date.now();
+    };
+    const [hostAt, taroAt, hanakoAt, jiroAt] = await Promise.all([
+      at(banner),
+      at(taro.page.getByTestId("quiz-my-rank")),
+      at(hanako.page.getByTestId("quiz-my-rank")),
+      at(jiro.page.getByTestId("quiz-my-rank")),
+    ]);
+    const lags = [taroAt, hanakoAt, jiroAt].map((t) => t - hostAt);
+    console.log(`会場の祝福演出 → 参加者の順位の表示(ms): ${lags.join(", ")}`);
+    for (const lag of lags) expect(lag).toBeLessThan(MAX_PORTAL_LAG_MS);
+
+    // 出た時点で結果は保存済み。とじるボタンは無い
     expect(await savedRounds(request, sessionId)).toBe(1);
+    for (const p of [taro.page, hanako.page, jiro.page]) await expect(p.getByTestId("quiz-my-rank-close")).toHaveCount(0);
     await expect(taro.page.getByTestId("quiz-my-rank-text")).toHaveText("1位!");
     // 全画面(390x844 のスマホ)。出現のアニメーションが終わるのを待って測る
-    await expect.poll(async () => taro.page.getByTestId("quiz-my-rank").boundingBox()).toMatchObject({ x: 0, y: 0, width: 390, height: 844 });
+    await expect.poll(async () => taro.page.getByTestId("quiz-my-rank").boundingBox()).toMatchObject({ x: 0, y: 0, ...VIEWPORTS.phone });
     await expect(hanako.page.getByTestId("quiz-my-rank-text")).toHaveText("今回は ランク外");
     await expect(hanako.page.getByTestId("quiz-my-rank-sub")).toContainText("不正解");
     await expect(jiro.page.getByTestId("quiz-my-rank-text")).toHaveText("今回は ランク外");
     await expect(jiro.page.getByTestId("quiz-my-rank-sub")).toContainText("回答していません");
-
-    // 閉じると結果タブに今回の結果が出ている(結果タブにいた人は、開き直さなくても)
-    await jiro.page.getByTestId("quiz-my-rank-close").click();
+    // 結果タブにいた人は、開き直さなくても今回の結果が見える(裏で開いている)
     await expect(jiro.page.getByTestId("results-quiz-held")).toHaveCount(0);
-    await expect(jiro.page.getByTestId("results-round").first()).toContainText("果物クイズ");
 
-    // 「次へ」で景品、もう一度でロビーへ。順位の全画面は消え、通常の表示(クイズの表示なし)に戻る
-    await next.click();
-    await expect(host.page.getByText("おめでとうございます")).toBeVisible();
+    // タブレット・横向きでも全画面で、はみ出さない
+    for (const size of [VIEWPORTS.tablet, { width: 844, height: 390 }, { width: 568, height: 320 }]) {
+      for (const d of [taro, hanako]) {
+        await d.page.setViewportSize(size);
+        await expect.poll(async () => d.page.getByTestId("quiz-my-rank").boundingBox(), `${size.width}x${size.height}`).toMatchObject({ x: 0, y: 0, ...size });
+        await expect(d.page.getByTestId("quiz-my-rank-text")).toBeInViewport();
+        await expectNoHorizontalOverflow(d.page, `順位 ${size.width}x${size.height}`);
+      }
+    }
+    await taro.page.setViewportSize(VIEWPORTS.phone);
+    await hanako.page.setViewportSize(VIEWPORTS.phone);
+
+    // 会場の祝福演出が終わるまで待ってから「次へ」で景品。景品のダイアログが出ている間も、順位は出たまま
+    await expect(banner).toBeHidden({ timeout: 30_000 });
+    // (会場の演出が完全に終わる前の「次へ」は何も起きないので、景品が出るまで押し直す)
+    await expect(async () => {
+      await next.click();
+      await expect(host.page.getByText("おめでとうございます")).toBeVisible({ timeout: 1500 });
+    }).toPass({ timeout: 20_000 });
+    await host.page.waitForTimeout(2000);
+    await expect(taro.page.getByTestId("quiz-my-rank")).toBeVisible();
+    await expect(hanako.page.getByTestId("quiz-my-rank")).toBeVisible();
+
+    // もう一度「次へ」でロビーへ。順位の全画面は消え、通常の表示(クイズの表示なし)に戻る
     await next.click();
     await expect.poll(() => route(host.page)).toBe(`/session/host/${sessionId}`);
     await expect(taro.page.getByTestId("quiz-my-rank")).toHaveCount(0);
     await expect(hanako.page.getByTestId("quiz-my-rank")).toHaveCount(0);
+    await expect(jiro.page.getByTestId("quiz-my-rank")).toHaveCount(0);
+    await expect(jiro.page.getByTestId("results-round").first()).toContainText("果物クイズ");
     await openEventTab(taro.page);
     await expect(taro.page.getByTestId("quiz-panel")).toHaveCount(0);
 
     await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: false });
-    for (const d of [admin, host, taro, hanako, jiro]) await d.context.close();
+    for (const d of all) await d.context.close();
+  });
+
+  test("順位が出たまま管理端末で「イベントを終了」すると、順位の全画面も消える", async ({ browser, request }) => {
+    test.setTimeout(240_000);
+    const { admin, host, taro, hanako, sessionId, all } = await playToResult(browser, request, "順位発表の終了会場", { event: "果物クイズ大会" });
+
+    await expect(taro.page.getByTestId("quiz-my-rank")).toBeVisible({ timeout: 60_000 });
+    await expect(hanako.page.getByTestId("quiz-my-rank")).toBeVisible();
+    // 会場はまだ順位発表の画面のまま
+    expect(await route(host.page)).toBe("/execute/quiz/qr1/result");
+
+    await openAdvanced(admin.page);
+    await admin.page.getByRole("button", { name: "イベントを終了" }).click();
+    await acceptConfirm(admin.page);
+    await expect(admin.page.getByTestId("event-state")).toContainText("イベントは開催していません");
+    await expect(taro.page.getByTestId("quiz-my-rank")).toHaveCount(0);
+    await expect(hanako.page.getByTestId("quiz-my-rank")).toHaveCount(0);
+    await expect(taro.page.getByTestId("event-banner")).toHaveCount(0);
+
+    await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: false });
+    for (const d of all) await d.context.close();
   });
 });

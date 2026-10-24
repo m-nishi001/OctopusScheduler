@@ -980,6 +980,84 @@ describe("参加者ポータル: クイズの順位発表(ネタバレ防止と�
     m.wrapper.unmount();
   });
 
+  it("とじるボタンは無い。会場が順位発表の画面にいる間は出し続け(賞品のダイアログ中も同じ状態)、勝手には閉じない", async () => {
+    const env = await portalEnv();
+    await env.saveQuizResult(sampleRound());
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    await env.publishQuiz(resultState("finished"));
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "quiz-my-rank")).toBe(true);
+    expect(has(m, "quiz-my-rank-close")).toBe(false);
+    expect(m.wrapper.text()).not.toContain("とじる");
+
+    // ホストが賞品のダイアログを出しても公開される状態は変わらない(順位発表の画面のまま)
+    await env.publishQuiz({ ...resultState("finished") });
+    await tick(30_000);
+    await flushPromises();
+    expect(has(m, "quiz-my-rank")).toBe(true);
+    m.wrapper.unmount();
+  });
+
+  it("発表中に裏で自分の順位を取っておき、finished になったら取り直さずにすぐ出す(表示は finished まで出さない)", async () => {
+    const env = await portalEnv();
+    const device = participantDevice(env.hub, ALICE);
+    const m = await mountPortal(device, "/p/event");
+    await env.saveQuizResult(sampleRound());
+    await env.publishQuiz(resultState("revealing"));
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "quiz-my-rank")).toBe(false);
+    const before = device.api.calls.getResults ?? 0;
+    expect(before).toBeGreaterThan(0);
+
+    await env.publishQuiz(resultState("finished"));
+    await tick(1000);
+    await flushPromises();
+    expect(text(m, "quiz-my-rank-text")).toBe("1位!");
+    expect(has(m, "quiz-my-rank-loading")).toBe(false);
+    expect(device.api.calls.getResults ?? 0).toBe(before);
+    m.wrapper.unmount();
+  });
+
+  it("発表中の取得は回数を抑える(保存がまだでも何度も取りに行かない)。finished のあとに保存が済んでいれば取り直して出す", async () => {
+    const env = await portalEnv();
+    const device = participantDevice(env.hub, ALICE);
+    const m = await mountPortal(device, "/p/event");
+    await env.publishQuiz(resultState("revealing"));
+    await tick(60_000);
+    await flushPromises();
+    const prefetch = (device.api.calls.getResults ?? 0);
+    expect(prefetch).toBeLessThanOrEqual(5);
+    expect(has(m, "quiz-my-rank")).toBe(false);
+
+    await env.saveQuizResult(sampleRound());
+    await env.publishQuiz(resultState("finished"));
+    await tick(5000);
+    await flushPromises();
+    expect(text(m, "quiz-my-rank-text")).toBe("1位!");
+    m.wrapper.unmount();
+  });
+
+  it("ホストがイベントを終えて、会場のクイズの表示状態が取り下げられたら、順位の全画面は消える", async () => {
+    const env = await portalEnv();
+    await env.saveQuizResult(sampleRound());
+    await env.publishEvent(sampleEvent());
+    const m = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+    await env.publishQuiz(resultState("finished"));
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "quiz-my-rank")).toBe(true);
+
+    // event.end は event と quiz の両方を取り下げる
+    await env.publishEvent(null);
+    await env.publishQuiz(null);
+    await tick(5000);
+    await flushPromises();
+    expect(has(m, "quiz-my-rank")).toBe(false);
+    m.wrapper.unmount();
+  });
+
   it("不正解・未回答の人には「今回は ランク外」を出す", async () => {
     const env = await portalEnv();
     await env.saveQuizResult(sampleRound({ wrongMemberIds: ["bob", "carol"], correct: [{ memberId: "alice", name: "アリス", sec: 1 }] }));
