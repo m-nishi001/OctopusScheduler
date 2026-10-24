@@ -55,6 +55,16 @@ test("makeWav: RIFF/WAVE のヘッダとデータ長が合う", () => {
   assert.equal(wav.readUInt32LE(4), 36 + dataLen);
 });
 
+test("buildPrizes: 確変の画像1と画像2(と当選画像1・2)は別のアセットで、中身も違う", () => {
+  const assets = new Map(buildJackpotAssets().map(([id, , , body]) => [id, body]));
+  for (const p of buildPrizes()) {
+    assert.notEqual(p.imageAssetId, p.image2AssetId, p.id);
+    assert.notEqual(p.winningImage1AssetId, p.winningImage2AssetId, p.id);
+    assert.ok(!assets.get(p.imageAssetId).equals(assets.get(p.image2AssetId)), `${p.id}: 画像1と画像2の中身が同じ`);
+    assert.ok(!assets.get(p.winningImage1AssetId).equals(assets.get(p.winningImage2AssetId)), `${p.id}: 当選画像1と2の中身が同じ`);
+  }
+});
+
 test("buildContentEntries: 決定的で、キーが重複しない", () => {
   const a = buildContentEntries();
   const b = buildContentEntries();
