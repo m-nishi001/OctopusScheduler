@@ -91,7 +91,7 @@ export function parseDeployUrl(output) {
 }
 
 /** up 完了時に表示する、テストを staging に向けるための案内。 */
-export function renderUpSummary({ url, seed, session }) {
+export function renderUpSummary({ url, seed, session, withResults = false }) {
   return [
     "",
     "=== staging 起動完了 ===",
@@ -100,7 +100,7 @@ export function renderUpSummary({ url, seed, session }) {
     `  参加者     : ${seed.participants.ids[0]} 〜 ${seed.participants.ids.at(-1)} / 共通パスワード ${seed.participants.password}`,
     `  受付QR相当 : ${qrLoginUrl(url ?? "<URL>", seed.participants.ids[0], seed.participants.loginKeys?.[seed.participants.ids[0]])}`,
     ...(session
-      ? [`  セッション : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み。${session.reused ? "既存を再利用" : "新規作成"}。寿命は12時間(切れたら npm run staging:seed)。結果タブにはサンプルの順位・当選履歴を投入済み`]
+      ? [`  セッション : 「${session.name}」(コード ${session.code})を参加者ポータルに公開済み。${session.reused ? "既存を再利用" : "新規作成"}。寿命は12時間(切れたら npm run staging:seed)。${withResults ? "結果タブにはサンプルの順位・当選履歴を投入済み" : "結果データは投入していません(必要なら --with-results / npm run staging:seed:results)"}`]
       : []),
     "",
     "  Playwright を向ける:",
@@ -169,7 +169,7 @@ export function renderTimings(timings, totalMs) {
   return ["", "所要時間(並列実行のため合計は一致しません):", ...lines, `  ${"全体".padEnd(10)}: ${(totalMs / 1000).toFixed(1)}s`].join("\n");
 }
 
-async function up() {
+async function up({ withResults }) {
   const startedAt = Date.now();
   const timings = [];
   assertNotProduction(STAGING);
@@ -200,9 +200,20 @@ async function up() {
   const seed = JSON.parse(seedOut);
   if (url) writeFileSync(urlFile(), url);
   const session = url ? await timed("session", timings, () => ensurePortalSession({ baseUrl: url, token: seed.admin.sessionToken })) : null;
-  if (url && session) await timed("results", timings, () => seedDemoResults({ baseUrl: url, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids }));
-  console.log(renderUpSummary({ url, seed, session }));
+  if (url && session && withResults) await timed("results", timings, () => seedDemoResults({ baseUrl: url, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids }));
+  console.log(renderUpSummary({ url, seed, session, withResults }));
   console.log(renderTimings(timings, Date.now() - startedAt));
+}
+
+/** `up` / `seed` の引数を解釈する。結果データは `--with-results` を付けたときだけ投入する(既定は含まない)。 */
+export function parseSeedArgs(argv) {
+  const out = { withResults: false, positional: [] };
+  for (const arg of argv) {
+    if (arg === "--with-results") out.withResults = true;
+    else if (arg.startsWith("--")) throw new Error(`不明な引数: ${arg}(--with-results)`);
+    else out.positional.push(arg);
+  }
+  return out;
 }
 
 /** `up` で得た URL を覚えておく場所(`seed` で使う。gitignore 済みの .wrangler 配下)。 */
@@ -212,15 +223,15 @@ function urlFile() {
 }
 
 /** デプロイはせず、架空データの再投入とポータル公開セッションの作り直しだけ行う(セッション期限切れ・コンテンツ更新時)。 */
-async function seedOnly(argUrl) {
+async function seedOnly(argUrl, { withResults }) {
   assertNotProduction(STAGING);
   const url = argUrl ?? (existsSync(urlFile()) ? readFileSync(urlFile(), "utf8").trim() : null);
   if (!url) throw new Error("staging の URL が分かりません。先に npm run staging:up するか、node scripts/staging.js seed <URL> と指定してください。");
   const seedOut = (await execFileAsync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).stdout;
   const seed = JSON.parse(seedOut);
   const session = await ensurePortalSession({ baseUrl: url, token: seed.admin.sessionToken });
-  await seedDemoResults({ baseUrl: url, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids });
-  console.log(renderUpSummary({ url, seed, session }));
+  if (withResults) await seedDemoResults({ baseUrl: url, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids });
+  console.log(renderUpSummary({ url, seed, session, withResults }));
 }
 
 function down() {
@@ -248,10 +259,11 @@ function down() {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const command = process.argv[2];
   try {
-    if (command === "up") await up();
+    const rest = parseSeedArgs(process.argv.slice(3));
+    if (command === "up") await up(rest);
     else if (command === "down") down();
-    else if (command === "seed") await seedOnly(process.argv[3]);
-    else throw new Error("使い方: node scripts/staging.js <up|down|seed [URL]>");
+    else if (command === "seed") await seedOnly(rest.positional[0], rest);
+    else throw new Error("使い方: node scripts/staging.js <up [--with-results]|down|seed [URL] [--with-results]>");
   } catch (e) {
     console.error(e.message);
     // 標準エラーを取り込んで実行したコマンドの失敗は、中身も見せる

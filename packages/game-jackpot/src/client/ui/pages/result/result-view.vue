@@ -29,7 +29,7 @@
 
 <script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { DrawResultService } from '@control/draw/draw-result-service';
+import { DrawStoreProvider } from '@control/draw/draw-store-provider';
 import MainLayout from '../common/main-layout.vue';
 import Loader from '../common/loader.vue';
 import { useRouter } from 'vue-router';
@@ -61,10 +61,10 @@ export default {
 
     const screenSettingsService = container.resolve(ScreenSettingsService);
     const assetService = container.resolve(AssetDataService);
-    const drawResultService = container.resolve(DrawResultService);
+    const drawStores = container.resolve(DrawStoreProvider);
     const fetchResults = async () => {
       try {
-        const results = await drawResultService.getDrawResults();
+        const results = await drawStores.current().results();
         const config = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
         resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
         void bgm.load(resultConfig.value.resultBgm).then(() => bgm.play(BGM_DELAY_MS));

@@ -18,7 +18,7 @@
 import MainLayout from '../common/main-layout.vue';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { DrawResultService } from '@control/draw/draw-result-service';
+import { DrawStoreProvider } from '@control/draw/draw-store-provider';
 import type { DrawResultDto } from '@control/draw/dto/draw-result-dto';
 
 import { container } from 'tsyringe';
@@ -31,13 +31,13 @@ export default {
 		const router = useRouter();
 		const winners = ref<DrawResultDto[]>([]);
 		const loading = ref(true);
-		const drawResultService = container.resolve(DrawResultService);
+		const drawStores = container.resolve(DrawStoreProvider);
 		const screenConfig = ref<any | null>(null);
 		const screenSettingsService = container.resolve(ScreenSettingsService);
 		onMounted(async () => {
 			screenConfig.value = await screenSettingsService.fetchScreenSetting('result', 'result-screen-settings');
 			try {
-				const results = await drawResultService.getDrawResults();
+				const results = await drawStores.current().results();
 				winners.value = results.filter(r => r.wonMember);
 			} finally {
 				loading.value = false;

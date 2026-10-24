@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { ADMIN_TOKEN, expect, newDevice, seedStore, test } from "./fixtures";
+import { ADMIN_TOKEN, expect, isGas, newDevice, seedStore, test } from "./fixtures";
 
 /**
  * 人数・景品数を変えてホストの抽選画面を最後まで進め、例外・レイアウト崩れが出ないことを確認する。
@@ -54,6 +54,9 @@ async function overflowReport(page: Page): Promise<string[]> {
   });
 }
 
+/** 最大規模のメンバー数。GAS の名簿は ScriptProperties の 1 値(9KB)に入る分(約 230 人)までなので、そこに収まる人数にする。 */
+const LARGE_MEMBERS = isGas ? 200 : 300;
+
 const SCENARIOS: Array<{ members: number; prizes: number; viewport: { width: number; height: number }; maxDraws?: number; animation?: "slot" }> = [
   { members: 1, prizes: 1, viewport: { width: 1920, height: 1080 } },
   { members: 2, prizes: 3, viewport: { width: 1920, height: 1080 } },
@@ -64,7 +67,7 @@ const SCENARIOS: Array<{ members: number; prizes: number; viewport: { width: num
   { members: 4, prizes: 4, viewport: { width: 1920, height: 1080 }, animation: "slot" },
   { members: 10, prizes: 10, viewport: { width: 1280, height: 720 }, maxDraws: 3 },
   // 全100回の演出を進めると長すぎるため、先頭の数回だけ実画面で確認する(全回の整合はユニットのマトリクスで検証)
-  { members: 300, prizes: 100, viewport: { width: 1920, height: 1080 }, maxDraws: 3 },
+  { members: LARGE_MEMBERS, prizes: 100, viewport: { width: 1920, height: 1080 }, maxDraws: 3 },
 ];
 
 test.describe("ジャックポットの規模別・通し(ホスト単体)", () => {

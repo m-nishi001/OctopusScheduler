@@ -15,6 +15,8 @@ import {
 } from "@octopus/session-hub";
 import type { HostAgent, PortalEvent } from "@octopus/session-hub";
 import type { DrawPoolProvider } from "@octopus/game-jackpot";
+import { AccountsRepository } from "@octopus/accounts";
+import { container } from "tsyringe";
 
 /** ホストをリロードしても、発生中のイベントを参加者に出し続けるための保存先(セッションごと)。 */
 export interface EventStorage {
@@ -127,9 +129,8 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
       console.error("エントリー受付を開始できませんでした", error);
       return;
     }
-    // エントリーの目的は抽選の対象を決めること。最初の受付では、抽選の対象を「エントリーした人」にする
-    // （運営が「全メンバー」に戻せる）。
-    await save(sessionId, { ...event, entry: { key, open: true }, pool: event.pool ?? "entrants" });
+    // 抽選の対象（pool）は触らない。切り替えは運営の `event.setPool` だけで行う。
+    await save(sessionId, { ...event, entry: { key, open: true } });
   };
 
   const unregister = agent.router.register(PORTAL_EVENT_NS, async (command) => {
@@ -141,7 +142,7 @@ export function registerEventHost(agent: HostAgent, options: EventHostOptions = 
       if (!parsed) return;
       if (event?.entry?.open) await closeRoundQuietly(event.entry.key);
       if (sessionId) storage.remove(entrantsKey(sessionId));
-      await save(sessionId, { id: newId(), title: parsed.title, startedAtMs: now() });
+      await save(sessionId, { id: newId(), title: parsed.title, startedAtMs: now(), pool: parsed.pool });
     } else if (command.type === PORTAL_EVENT_END) {
       if (event?.entry?.open) await closeRoundQuietly(event.entry.key);
       if (sessionId) {
@@ -228,36 +229,85 @@ function loadEntrantSnapshot(storage: EventStorage, sessionId: string, key: stri
   return null;
 }
 
+/** 管理者のメンバーIDの集合を取得する（管理者は抽選の対象にしない）。取得できなければ例外。 */
+export type AdminIdsLoader = () => Promise<ReadonlySet<string>>;
+
+const defaultAdminIdsLoader: AdminIdsLoader = async () => {
+  const members = await container.resolve(AccountsRepository).listAccounts();
+  return new Set(members.filter((m) => m.isAdmin).map((m) => m.id));
+};
+
 /**
- * ジャックポットの抽選の対象を、イベントの設定から決める。
- *   - 対象が「全メンバー」（または指定なし・イベントなし）なら絞り込まない（null）
- *   - 「エントリーした人だけ」なら、受付の回答一覧（ログインから確定した人）から取得する。取得できなければ
- *     直近に保存した一覧を使い、それも無ければ例外にする（全メンバーにフォールバックして、対象外の人が
- *     当選する事故を起こさない）
+ * ジャックポットの抽選の対象を、イベントの設定から決める。いずれも管理者は除く。
+ *   - セッションの外（接続が無い）なら絞り込まない（null。リハーサル用）
+ *   - 「参加者全員(自動)」（既定・指定なし・イベントなしを含む）: 抽選のたびに参加者名簿を取り直す
+ *     （途中参加の人も対象になる）
+ *   - 「エントリーした人だけ」: 受付の回答一覧（ログインから確定した人）から取得する。取得できなければ
+ *     直近に保存した一覧を使い、それも無ければ例外にする
+ * いずれも取得できないときは例外にする（全メンバーにフォールバックして、対象外の人が当選する事故を起こさない）。
+ * 管理者の一覧は初めて必要になったときに取得し、このプロバイダが生きている間は保持する。
  */
-export function createEntrantDrawPool(agent: HostAgent, options: { storage?: EventStorage } = {}): DrawPoolProvider {
+export function createSessionDrawPool(agent: HostAgent, options: { storage?: EventStorage; loadAdminIds?: AdminIdsLoader } = {}): DrawPoolProvider {
   const storage = options.storage ?? browserEventStorage();
+  const loadAdminIds = options.loadAdminIds ?? defaultAdminIdsLoader;
+  let adminIds: Promise<ReadonlySet<string>> | null = null;
+  const admins = (): Promise<ReadonlySet<string>> => {
+    if (!adminIds) {
+      const pending = loadAdminIds();
+      adminIds = pending;
+      // 失敗は保持しない（次の抽選で取り直す）
+      pending.catch(() => {
+        if (adminIds === pending) adminIds = null;
+      });
+    }
+    return adminIds;
+  };
+  const withoutAdmins = async (ids: string[]): Promise<string[]> => {
+    let set: ReadonlySet<string>;
+    try {
+      set = await admins();
+    } catch (error) {
+      console.error("管理者の一覧を取得できませんでした", error);
+      throw new Error("管理者の一覧を取得できませんでした。通信状況を確認して、もう一度お試しください。");
+    }
+    return [...new Set(ids)].filter((id) => !set.has(id));
+  };
+
   return {
     async getEligibleMemberIds() {
       const sessionId = agent.connection.state.session?.id ?? null;
-      const raw = sessionId ? storage.get(`${STORAGE_PREFIX}${sessionId}`) : null;
+      if (!sessionId) return null;
+      const raw = storage.get(`${STORAGE_PREFIX}${sessionId}`);
       let event: PortalEvent | null = null;
       try {
         event = raw ? readPortalEvent({ [PORTAL_EVENT_NS]: JSON.parse(raw) }) : null;
       } catch {
         event = null;
       }
-      if (!sessionId || !event || event.pool !== "entrants") return null;
+      if (!event || event.pool !== "entrants") {
+        let memberIds: string[];
+        try {
+          memberIds = (await agent.listParticipants()).memberIds;
+        } catch (error) {
+          console.error("参加者の一覧を取得できませんでした", error);
+          throw new Error("参加者の一覧を取得できませんでした。通信状況を確認して、もう一度お試しください。");
+        }
+        return withoutAdmins(memberIds);
+      }
       // エントリー受付を始めていないなら、対象は空（抽選側が「対象のメンバーがいません」と知らせる）
       if (!event.entry) return [];
+      let entrants: string[];
       try {
-        return await fetchEntrantIds(agent, storage, sessionId, event.entry.key);
+        entrants = await fetchEntrantIds(agent, storage, sessionId, event.entry.key);
       } catch (error) {
         const saved = loadEntrantSnapshot(storage, sessionId, event.entry.key);
-        if (saved) return saved;
-        console.error("エントリー者の一覧を取得できませんでした", error);
-        throw new Error("エントリーした人の一覧を取得できませんでした。通信状況を確認して、もう一度お試しください。");
+        if (!saved) {
+          console.error("エントリー者の一覧を取得できませんでした", error);
+          throw new Error("エントリーした人の一覧を取得できませんでした。通信状況を確認して、もう一度お試しください。");
+        }
+        entrants = saved;
       }
+      return withoutAdmins(entrants);
     },
   };
 }

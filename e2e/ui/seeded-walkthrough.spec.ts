@@ -12,6 +12,7 @@ import { expectNoHorizontalOverflow } from "./helpers/responsive";
  *   3. 管理端末の操作だけでクイズを出題 → 参加者が回答 → 結果発表 → 参加者の「結果」に反映される
  * ことを確認する。シード無しの環境(`npm run e2e` の既定)ではスキップされる。
  *
+ *   結果タブの確認(1.)は `--with-results` でシードし、E2E_SEEDED_RESULTS=1 を足したときだけ動く。
  *   E2E_SEEDED=1 BASE=<URL> E2E_ADMIN_TOKEN=<管理者トークン> npx playwright test -c e2e/playwright.config.ts seeded-walkthrough
  *   画面を目で確かめたいときは E2E_SHOTS=<出力先> を足す。
  */
@@ -44,7 +45,9 @@ async function portalSession(request: APIRequestContext): Promise<{ id: string; 
 }
 
 test.describe("第三者の通しチェック(シード済みの環境)", () => {
+  // サンプルの順位・当選履歴が前提(`--with-results` でシードしたときだけ)
   test("参加者: ログインしてホームと結果(順位・当選履歴)を見られる。結果は空でなく、自分の当選が目立つ", async ({ browser, request }) => {
+    test.skip(!process.env.E2E_SEEDED_RESULTS, "結果つきのシードでのみ実行する(--with-results でシードし、E2E_SEEDED_RESULTS=1)");
     test.setTimeout(120_000);
     const winner = await loginAs(browser, request, "test-user-03"); // サンプルの当選者の1人
     const other = await loginAs(browser, request, "test-user-02"); // 当選していない人

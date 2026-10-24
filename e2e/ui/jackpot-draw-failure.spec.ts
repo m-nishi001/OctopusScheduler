@@ -1,7 +1,7 @@
 import { adminRpc, createSession, expect, newDevice, nextButton, route, seedStore, test } from "./fixtures";
 
 /**
- * 抽選に失敗したとき(ここでは、エントリーした人が1人もいない)に、ホストの画面が固まらないこと。
+ * 抽選に失敗したとき(ここでは、ポータルから参加した人が1人もいない)に、ホストの画面が固まらないこと。
  * 以前は失敗後も壊れた手順が積まれ、景品抽選で null 参照の例外が出てホストが固まった。
  * 失敗はアラートで知らせ、「次へ」を押すたびに抽選をやり直すこと(原因が直れば進める)。
  */
@@ -11,7 +11,7 @@ test.afterAll(async ({ request }) => {
   for (const sessionId of sessionIds) await adminRpc(request, "sessionHub_closeSession", { sessionId }).catch(() => undefined);
 });
 
-test("エントリー者がいなくて抽選に失敗しても、ホストは固まらず、「次へ」で抽選をやり直し続けられる", async ({ browser }) => {
+test("参加者がいなくて抽選に失敗しても、ホストは固まらず、「次へ」で抽選をやり直し続けられる", async ({ browser }) => {
   test.setTimeout(180_000);
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, "抽選失敗からの復帰");
@@ -36,10 +36,15 @@ test("エントリー者がいなくて抽選に失敗しても、ホストは�
     { id: "jp-fail-prize-2", value: { id: "jp-fail-prize-2", name: "一等", order: 2, weight: 10, animation: "roulette" } },
   ]);
 
-  // ジャックポットを始める(エントリー受付が始まるが、誰もエントリーしない)→ 説明 → 抽選画面
+  // ジャックポットを始める(参加者は誰もポータルに入っていない)→ エントリー → 説明 → 抽選画面
   await admin.page.getByTestId("start-jackpot").click();
-  await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-description");
+  await expect.poll(() => route(host.page), { timeout: 60_000 }).toBe("/execute/jackpot-entry");
   const next = nextButton(admin.page);
+  // 管理端末の表示がホストに追いついてから押す(古い表示のまま押すと、次の画面の操作として扱われて抽選画面まで進んでしまう)
+  await expect(admin.page.getByTestId("now")).toContainText("エントリー");
+  await next.click(); // エントリー画面 → 説明
+  await expect.poll(() => route(host.page)).toBe("/execute/jackpot-description");
+  await expect(admin.page.getByTestId("now")).toContainText("説明表示中");
   // 説明のスライドを最後まで進める（最後の1枚の次が「抽選を始める」）
   for (let i = 0; i < 10; i++) {
     const label = await next.innerText();
@@ -58,6 +63,10 @@ test("エントリー者がいなくて抽選に失敗しても、ホストは�
   // 1. 抽選に失敗: アラートで知らせる
   await expect.poll(() => alerts.length, { timeout: 60_000 }).toBeGreaterThan(0);
   expect(alerts[0]).toContain("抽選の対象のメンバーがいません");
+
+  // 管理端末の「次へ」が、ホストの抽選画面の状態を受け取るまで待つ(通信に時間がかかる環境では、受け取る前の「次へ」は
+  // 説明画面からの「抽選画面へ進む」のままで、すでに抽選画面にいるホストには何も起きない)。
+  await expect(admin.page.getByText("押すと: 抽選を始めます")).toBeVisible({ timeout: 30_000 });
 
   // 2. 「次へ」を押すたびに、抽選をやり直して(失敗するたびに)知らせる。壊れた手順は実行されない
   for (let i = 1; i <= 3; i++) {

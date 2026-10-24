@@ -35,11 +35,16 @@ export class MemberDrawService {
       return null;
     }
     const winner = this.weightedSelector.selectWeighted(candidates);
-    const dummyPool = members.map((m) => m.id).filter((id) => id !== winner.id);
     return {
       winnerId: winner.id,
-      dummyIds: this.getDummyMember(dummyPool, dummyCount),
+      dummyIds: this.pickDummyMemberIds(members, winner.id, dummyCount),
     };
+  }
+
+  /** 当選者の他に、リールに流す見せ用のメンバーのIDを `count` 人選ぶ(重みに関係なく。足りなければ重複して埋める)。 */
+  pickDummyMemberIds(members: Member[], winnerId: string, count: number): string[] {
+    const dummyPool = members.map((m) => m.id).filter((id) => id !== winnerId);
+    return this.getDummyMember(dummyPool, count);
   }
 
   private getDummyMember(poolIds: string[], count: number): string[] {

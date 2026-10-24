@@ -5,6 +5,9 @@ export const ADMIN_TOKEN = process.env.E2E_ADMIN_TOKEN ?? "e2e-admin-session-tok
 export const ADMIN_ID = process.env.E2E_ADMIN_ID ?? "admin";
 export const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "e2e-password-1234";
 
+/** GAS 実行環境シミュレーター(`npm run e2e -- --target gas`)に対して流しているか。Cloudflare 専用のテストは `test.skip(isGas, "理由")` で外す。 */
+export const isGas = process.env.E2E_TARGET === "gas";
+
 export const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } as const;
 export const PROJECTOR = { viewport: { width: 1920, height: 1080 } } as const;
 
@@ -80,6 +83,15 @@ export async function loginByQr(browser: Browser, id: string, key: string): Prom
   await expect(d.page.getByTestId("home-greeting")).toBeVisible();
   await expect(d.page.getByTestId("portal-conn")).toContainText("接続中");
   return d;
+}
+
+/**
+ * 参加者のスマホとしてセッションのポータルに入室させる(ジャックポットの既定の対象「参加者全員(自動)」に入る)。
+ * 返した端末は、呼び出し側がテストの最後に閉じる。
+ */
+export async function joinPortalAs(browser: Browser, request: APIRequestContext, sessionId: string, id: string, key: string): Promise<Device> {
+  await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
+  return loginByQr(browser, id, key);
 }
 
 /** セッションを参加者ポータルに公開する / 取り下げる。 */

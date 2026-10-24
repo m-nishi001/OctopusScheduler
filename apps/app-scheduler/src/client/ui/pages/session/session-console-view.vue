@@ -126,8 +126,8 @@
                         <p v-if="drawPool === 'entrants' && !portalEvent.entry" class="console__sub is-warn" data-testid="pool-hint">
                             エントリー受付を始めるまで、抽選の対象は0人です。
                         </p>
-                        <UiButton :disabled="busyPool !== null || !canSend" :loading="busyPool !== null" @click="sendPool(drawPool === 'entrants' ? 'all' : 'entrants')">
-                            {{ drawPool === 'entrants' ? '全メンバーに切り替える' : 'エントリーした人だけに切り替える' }}
+                        <UiButton :disabled="busyPool !== null || !canSend" :loading="busyPool !== null" @click="sendPool(drawPool === 'entrants' ? 'auto' : 'entrants')">
+                            {{ drawPool === 'entrants' ? '参加者全員(自動)に切り替える' : 'エントリーした人だけに切り替える' }}
                         </UiButton>
                     </div>
                 </section>
@@ -262,6 +262,7 @@ const presets = computed(() => [
     { label: 'ロビー', path: lobbyPath(sessionId.value) },
     { label: 'エントリー受付(バブル)', path: ENTRY_STAGE_PATH },
     { label: 'ジャックポット: オープニング', path: q('/jackpot-opening') },
+    { label: 'ジャックポット: エントリー', path: '/jackpot-entry' },
     { label: 'ジャックポット: 説明', path: q('/jackpot-description') },
     { label: 'ジャックポット: 抽選', path: q('/jackpot-draw') },
     { label: 'ジャックポット: 結果', path: q('/jackpot-result') },
@@ -307,8 +308,8 @@ const portalEvent = computed(() => readPortalEvent(state.value.roomState?.data))
 const entryKey = computed(() => portalEvent.value?.entry?.key ?? null);
 const entryRoster = useRoundAnswers(connection, state, entryKey);
 /** ジャックポットの抽選の対象。指定が無いイベントは全メンバー。 */
-const drawPool = computed<DrawPool>(() => portalEvent.value?.pool ?? 'all');
-const poolLabel = computed(() => (drawPool.value === 'entrants' ? `エントリーした人だけ(${entryRoster.count.value}人)` : '全メンバー'));
+const drawPool = computed<DrawPool>(() => portalEvent.value?.pool ?? 'auto');
+const poolLabel = computed(() => (drawPool.value === 'entrants' ? `エントリーした人のみ(${entryRoster.count.value}人)` : '参加者全員(自動)'));
 /** 新しい順に最大50人。全員を並べると長くなるので、人数は別に出す。 */
 const recentEntrants = computed(() => [...entryRoster.answers.value].reverse().slice(0, 50));
 const entryTime = (atMs: number): string => new Date(atMs).toLocaleTimeString('ja-JP', { hour12: false });
@@ -375,15 +376,16 @@ async function runBack() {
 }
 
 /** イベントが開催されていなければ、名前を付けて開催する(ワンクリック開催の1段目)。 */
-async function ensureEvent(title: string) {
+async function ensureEvent(title: string, pool?: DrawPool) {
     if (portalEvent.value) return;
-    await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_START, { title: normalizeEventTitle(title) });
+    await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_START, { title: normalizeEventTitle(title), ...(pool ? { pool } : {}) });
 }
 
 /** 選んでいるクイズの名前でイベントを開催する(未開催なら)。 */
 const ensureQuizEvent = () => {
     const quiz = quizzes.value.find((x) => x.id === selectedQuizId.value);
-    return ensureEvent(quiz?.title || quiz?.question || 'クイズ');
+    // クイズは参加者がエントリーして参加するので、対象は「エントリーした人のみ」で始める
+    return ensureEvent(quiz?.title || quiz?.question || 'クイズ', 'entrants');
 };
 
 /** このクイズを始める: イベント開催(未開催なら) → イントロ画面。エントリー受付は、次のエントリー画面で自動で始まる。 */
@@ -393,19 +395,17 @@ const startQuiz = () =>
         await connection.issue('session', 'navigate', { path: quizPath('intro') });
     });
 
-/** ジャックポットを始める: イベント開催(未開催なら) → エントリー受付開始(まだ始めていなければ) → オープニング画面。 */
+/** ジャックポットを始める: イベント開催(未開催なら) → オープニング画面。抽選の対象は既定で参加者全員(自動)なので、受付は始めない。 */
 const startJackpot = () =>
     runStart('jackpot', async () => {
         await ensureEvent(JACKPOT_EVENT_TITLE);
-        // 受付済みのイベント(締切後も)には触らない。エントリー済みの人を残すため
-        if (!portalEvent.value?.entry) await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_OPEN_ENTRY);
         await connection.issue('session', 'navigate', { path: q('/jackpot-opening') });
     });
 
 /** エントリー受付を始める: イベント開催(未開催なら) → 受付開始 → 会場の画面に映す。 */
 const startEntry = () =>
     runStart('entry', async () => {
-        await ensureEvent(ENTRY_EVENT_TITLE);
+        await ensureEvent(ENTRY_EVENT_TITLE, 'entrants');
         if (!portalEvent.value?.entry?.open) await connection.issue(PORTAL_EVENT_NS, PORTAL_EVENT_OPEN_ENTRY);
         await connection.issue('session', 'navigate', { path: ENTRY_STAGE_PATH });
     });

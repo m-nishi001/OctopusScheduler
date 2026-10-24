@@ -14,6 +14,7 @@ import type {
   SessionMode,
   SessionSummary,
 } from "./session-types";
+import type { JackpotPlan } from "./results";
 
 export interface CreateSessionArgs {
   name: string;
@@ -46,15 +47,38 @@ export interface PutQuizResultArgs {
   result: unknown;
 }
 
-/** ジャックポットの抽選結果を1件保存する(管理者=ホストのみ)。`draw` の形は JackpotDraw。 */
-export interface PutJackpotDrawArgs {
+/** ジャックポットの抽選状態(未公開の行を含む)を読む(管理者=ホストのみ)。 */
+export interface GetJackpotStateArgs {
+  sessionId: string;
+}
+
+/** 確変の予定を保存する。すでにあれば保存済みのものを返す(管理者=ホストのみ)。`plan` の形は JackpotPlanInput。 */
+export interface EnsureJackpotPlanArgs {
+  sessionId: string;
+  plan: unknown;
+}
+
+/** ensureJackpotPlan の結果。plan は保存されている予定(今回の案か、先に保存されていたもの)。 */
+export interface EnsureJackpotPlanResult {
+  rev: number;
+  plan: JackpotPlan;
+}
+
+/** 抽選結果を1件確定する(未公開で保存)。`draw` の形は JackpotDrawInput。矛盾があれば JACKPOT_CONFLICT。 */
+export interface CommitJackpotDrawArgs {
   sessionId: string;
   draw: unknown;
 }
 
-export interface DeleteJackpotDrawArgs {
+/** commit 済みの抽選を公開する(ポータルに見せる)。何度呼んでも同じ結果。 */
+export interface RevealJackpotDrawArgs {
   sessionId: string;
   drawId: string;
+}
+
+/** 抽選の結果と予定を消す(クイズの結果は消さない)。 */
+export interface ResetJackpotArgs {
+  sessionId: string;
 }
 
 /** 保存した結果の更新番号。ホストが RoomState の `results` スライスで参加者へ知らせる。 */
@@ -224,6 +248,13 @@ export interface RoundSummary {
 export interface GetAnswersResult {
   round: RoundSummary;
   answers: RoundAnswer[];
+}
+
+export type ListParticipantsArgs = DeviceCredentials;
+
+export interface ListParticipantsResult {
+  /** ポータルから入室したことのあるメンバーのID(入室した順。ホスト/管理の端末は含まない)。 */
+  memberIds: string[];
 }
 
 export interface ListSessionsResult {

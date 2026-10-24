@@ -1,46 +1,29 @@
 import { injectable, inject } from "tsyringe";
 import { PrizeReservationService } from "../../model/draw/prize-reservation-service";
-import { DrawResultService } from "./draw-result-service";
-import { PrizeDrawStateRepository } from "../../model/draw/prize-draw-state-repository";
 import type { Prize } from "../../model/prize/prize";
 import { AUTO_KAKUHEN_PLAN } from "../../model/draw/kakuhen-plan";
 import type { KakuhenPlan } from "../../model/draw/kakuhen-plan";
-import { mapToReservedDrawResult } from "./mappers/draw-result-mapper";
-import { CryptoIdGenerator } from "../../model/common/crypto-id-generator";
+import type { DrawPlan, DrawStore } from "./draw-store";
 
-/** 本番の抽選の準備。確変にする回を決めて保存し、その数だけ景品を予約する。 */
+/** 抽選の準備。確変にする回を決め、その数だけ景品を取り置いて、抽選の保存先に確変の予定として残す。 */
 @injectable()
 export class DrawStateInitializer {
   constructor(
     @inject(PrizeReservationService)
-    private prizeReservationService: PrizeReservationService,
-    @inject(DrawResultService) private drawResultService: DrawResultService,
-    @inject(PrizeDrawStateRepository)
-    private prizeDrawStateRepository: PrizeDrawStateRepository,
-    @inject(CryptoIdGenerator) private readonly idGenerator: CryptoIdGenerator
+    private prizeReservationService: PrizeReservationService
   ) {}
 
   /**
-   * 本番の抽選を始める準備。確変にする回を `plan` に従って決めて保存し、その数だけ景品を予約する。
-   * すでに決まっているとき（抽選の途中・再開）は何もしない。つまり、計画は最初の1回で確定する。
+   * 確変の予定を `plan`(画面設定)に従って決め、保存先に残す。
+   * すでに保存先にあるとき(抽選の途中・再開・同じセッションの2回目のイベント)は何もしない。
+   * つまり、予定はセッションで最初の1回で確定する(リセットするまで変わらない)。
    */
-  async initialize(prizes: Prize[], plan: KakuhenPlan = AUTO_KAKUHEN_PLAN): Promise<void> {
-    const state = await this.prizeDrawStateRepository.getState();
-    if (state) return;
+  async initialize(store: DrawStore, prizes: Prize[], plan: KakuhenPlan = AUTO_KAKUHEN_PLAN): Promise<DrawPlan> {
+    const existing = await store.plan();
+    if (existing) return existing;
 
-    const kakuhenTimings = this.prizeReservationService.calculateKakuhenTimings(
-      prizes.length,
-      plan
-    );
-    await this.prizeDrawStateRepository.saveState(kakuhenTimings);
-    const reservedPrizes = this.prizeReservationService.reservePrizes(
-      kakuhenTimings.length,
-      prizes
-    );
-    for (const prize of reservedPrizes) {
-      const dto = mapToReservedDrawResult(this.idGenerator.nextId(), prize);
-      console.log("[DrawStateInitializer] reserved dto:", dto);
-      await this.drawResultService.addDrawResult(dto);
-    }
+    const kakuhenTimings = this.prizeReservationService.calculateKakuhenTimings(prizes.length, plan);
+    const reservedPrizeIds = this.prizeReservationService.reservePrizes(kakuhenTimings.length, prizes).map((p) => p.id);
+    return store.ensurePlan(kakuhenTimings, reservedPrizeIds);
   }
 }

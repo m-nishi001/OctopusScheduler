@@ -2,7 +2,7 @@
     <div class="stage" data-testid="entry-stage">
         <header class="stage__head">
             <template v-if="event">
-                <p class="stage__label" :class="{ 'is-closed': event.entry && !event.entry.open }" data-testid="stage-label">{{ label }}</p>
+                <p class="stage__label" :class="{ 'is-closed': !autoMode && event.entry && !event.entry.open }" data-testid="stage-label">{{ label }}</p>
                 <h1 class="stage__title" data-testid="stage-title">{{ event.title }}</h1>
             </template>
             <template v-else>
@@ -13,11 +13,11 @@
 
         <div class="stage__count" data-testid="stage-count-box">
             <span class="stage__count-num" data-testid="stage-count">{{ total }}</span>
-            <span class="stage__count-unit">人がエントリー</span>
+            <span class="stage__count-unit">{{ autoMode ? '人が自動でエントリー済み' : '人がエントリー' }}</span>
         </div>
 
         <main class="stage__bubbles">
-            <EntryBubbles :entrants="entrants" />
+            <EntryBubbles :entrants="entrants" :label="autoMode ? '自動でエントリーした人' : undefined" />
         </main>
     </div>
 </template>
@@ -26,6 +26,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { container } from 'tsyringe';
 import { HostAgent, readPortalEvent, useConnectionState, useRoundAnswers } from '@octopus/session-hub';
+import { useAutoEntrants } from './use-auto-entrants';
 import { createMemberPhotoCache } from '@octopus/game-jackpot';
 import EntryBubbles from './entry-bubbles.vue';
 import type { Entrant } from './entry-bubbles.vue';
@@ -35,6 +36,18 @@ import type { Entrant } from './entry-bubbles.vue';
  * 管理端末が「エントリー受付」を開くと、この画面にエントリー済みの人が顔写真つきで並ぶ。
  * 顔写真はこの端末(ホスト)が持つジャックポットのメンバー写真から引き、参加者のスマホへは渡さない。
  */
+const props = withDefaults(
+    defineProps<{
+        /**
+         * 誰を並べるか。
+         *   entries: エントリーした人(受付の回答一覧。既定)
+         *   pool: イベントの抽選の対象に従う(自動なら今日参加した管理者以外の全員、「エントリーした人のみ」ならエントリーした人)
+         */
+        listing?: 'entries' | 'pool';
+    }>(),
+    { listing: 'entries' },
+);
+
 const agent = container.resolve(HostAgent);
 const state = useConnectionState(agent.connection);
 
@@ -42,7 +55,16 @@ const event = computed(() => readPortalEvent(state.value.roomState?.data));
 const entryKey = computed(() => event.value?.entry?.key ?? null);
 const roster = useRoundAnswers(agent.connection, state, entryKey);
 
+// 自動: 全員が自動でエントリー済み。受付(回答ラウンド)は使わず、名簿を読むだけで何も書かない。
+const autoMode = computed(() => props.listing === 'pool' && event.value !== null && event.value.pool !== 'entrants');
+const auto = useAutoEntrants({
+    agent,
+    active: autoMode,
+    signal: computed(() => state.value.presence?.clientCount ?? 0),
+});
+
 const label = computed(() => {
+    if (autoMode.value) return '参加者は自動でエントリーされます';
     const entry = event.value?.entry;
     if (!entry) return 'エントリー受付はまもなく';
     return entry.open ? 'エントリー受付中!' : 'エントリー受付は終了しました';
@@ -52,7 +74,7 @@ const label = computed(() => {
 const photos = createMemberPhotoCache();
 const photoTick = ref(0);
 watch(
-    () => roster.answers.value.map((a) => a.memberId).filter((id): id is string => !!id),
+    () => (autoMode.value ? auto.entrants.value.map((a) => a.memberId) : roster.answers.value.map((a) => a.memberId).filter((id): id is string => !!id)),
     async (ids) => {
         await photos.ensure(ids);
         photoTick.value++;
@@ -63,6 +85,9 @@ onUnmounted(() => photos.dispose());
 
 const entrants = computed<Entrant[]>(() => {
     void photoTick.value;
+    if (autoMode.value) {
+        return auto.entrants.value.map((a) => ({ id: a.memberId, name: a.name, photoUrl: photos.get(a.memberId) }));
+    }
     return roster.answers.value.map((a) => ({
         id: a.memberId ?? a.deviceId,
         name: a.label,
@@ -70,7 +95,7 @@ const entrants = computed<Entrant[]>(() => {
     }));
 });
 // 一覧の取得を待たずに、更新の通知で届く最新の人数を出す
-const total = computed(() => Math.max(entrants.value.length, roster.count.value));
+const total = computed(() => (autoMode.value ? entrants.value.length : Math.max(entrants.value.length, roster.count.value)));
 </script>
 
 <style scoped>

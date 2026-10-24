@@ -16,6 +16,8 @@
 
         <!-- 自分が当選したとき、どの画面にいても全面で知らせる -->
         <JackpotWinnerOverlay />
+        <!-- クイズの順位発表が終わったら、自分の順位を全面で知らせる(発表中は出さない) -->
+        <QuizRankOverlay />
 
         <nav class="pp-tabs" aria-label="メニュー">
             <RouterLink v-for="tab in tabs" :key="tab.to" :to="tab.to" class="pp-tabs__item"
@@ -44,6 +46,7 @@ import { PORTAL_SESSION_KEY, usePortalSession } from '../model/use-portal-sessio
 import { readJackpotView } from '../model/activity';
 import PortalEventBanner from './portal-event-banner.vue';
 import JackpotWinnerOverlay from './components/jackpot-winner-overlay.vue';
+import QuizRankOverlay from './components/quiz-rank-overlay.vue';
 import './portal-theme.css';
 
 const props = defineProps<{ connection?: SessionConnection }>();
@@ -62,7 +65,7 @@ const quiz = useQuiz(session, { memberId: () => auth.currentMember.value?.id ?? 
 provide(QUIZ_KEY, quiz);
 
 // 結果(クイズの順位・当選履歴)。ホストが保存すると更新番号だけが届くので、新しい結果があるときはタブに印を出す
-const results = useResults(session);
+const results = useResults(session, { held: () => quiz.rankingHidden.value });
 provide(RESULTS_KEY, results);
 
 /** エントリー・クイズ・ジャックポットなど、イベントの画面をまとめて出すタブ。 */
@@ -93,21 +96,24 @@ const eventLive = computed(() => {
 
 /**
  * 画面上部に固定表示するお知らせ。いま参加者にいちばん関わるもの1つだけを出す。
- *   1. 回答受付中のクイズ(まだ答えていない人)    → イベント画面へ
- *   2. エントリー受付中(まだの人) / イベント発生中 → イベント画面へ
- * 行き先の画面を開いている間は、同じ内容のバナーを重ねて出さない。接続できていない間は出さない。
+ *   1. 回答受付中のクイズ(まだ答えていない人)    → イベント画面へのリンク
+ *   2. イベント発生中 → エントリーのカード(お待ちください / エントリーする / エントリー済み / 受付終了)
+ * 行き先の画面や、同じカードを出しているホームでは、同じ内容のバナーを重ねて出さない。接続できていない間は出さない。
  */
+/** エントリーのカードを本体に出している画面(ここではバナーを出さない)。 */
+const ENTRY_HOST_PATHS = new Set(['/p', EVENT_PATH]);
+
 const banner = computed(() => {
     if (session.status.value !== 'connected' && session.status.value !== 'reconnecting') return null;
-    let found: { label: string; title: string; to: string } | null = null;
     const q = quiz.quiz.value;
     if (q && q.phase === 'answering' && quiz.myAnswer.value === null) {
-        found = { label: 'クイズ出題中!', title: q.title || 'クイズに答えよう', to: EVENT_PATH };
-    } else if (session.event.value) {
-        const entering = entry.phase.value === 'open' && !entry.entered.value;
-        found = { label: entering ? 'エントリー受付中!' : 'イベント発生中!', title: session.event.value.title, to: EVENT_PATH };
+        return route.path === EVENT_PATH ? null : { label: 'クイズ出題中!', title: q.title || 'クイズに答えよう', to: EVENT_PATH };
     }
-    return found && route.path !== found.to ? found : null;
+    // エントリーの入口はバナー(ホーム・イベント画面では、その画面のカード)に1つだけ。リンクではなく、その場で押せる
+    if (session.event.value && !ENTRY_HOST_PATHS.has(route.path)) {
+        return { label: 'イベント発生中!', title: session.event.value.title };
+    }
+    return null;
 });
 
 /**

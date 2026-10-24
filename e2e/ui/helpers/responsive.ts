@@ -60,6 +60,8 @@ export async function expectNoHorizontalOverflow(page: Page, label: string) {
     for (const el of Array.from(document.querySelectorAll<HTMLElement>("body *"))) {
       const style = getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden") continue;
+      // 公開の瞬間に弾ける飾り(紙吹雪)は、自分の枠(overflow:hidden)の中でだけ見える。飛んでいる途中は端を越えて見えるが、切られて問題ない
+      if (el.closest('[data-testid^="reveal-burst-"]')) continue;
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       // 固定表示(ヘッダ・下部タブなど)は、左右とも画面内に収まっているべき

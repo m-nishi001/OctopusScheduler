@@ -15,18 +15,18 @@ export const PORTAL_EVENT_OPEN_ENTRY = "openEntry";
 export const PORTAL_EVENT_CLOSE_ENTRY = "closeEntry";
 /** まだ一度もエントリー受付を始めていないイベントだけ、受付を開始する(クイズのエントリー画面が自動で呼ぶ)。 */
 export const PORTAL_EVENT_ENSURE_ENTRY = "ensureEntry";
-/** ジャックポットの抽選の対象を切り替える（全メンバー / エントリーした人だけ）。 */
+/** ジャックポットの抽選の対象を切り替える（参加者全員(自動) / エントリーした人だけ）。 */
 export const PORTAL_EVENT_SET_POOL = "setPool";
 
 /**
  * ジャックポットの抽選の対象。
- *   all     : 名簿の全メンバー（従来どおり）
- *   entrants: イベントにエントリーした人だけ
+ *   auto    : このセッションにポータルから参加した、管理者以外のメンバー全員（抽選のたびに取り直す。既定）
+ *   entrants: イベントにエントリーした人だけ（管理者を除く）
  */
-export const DRAW_POOLS = ["all", "entrants"] as const;
+export const DRAW_POOLS = ["auto", "entrants"] as const;
 export type DrawPool = (typeof DRAW_POOLS)[number];
 
-/** 公開された値を、抽選の対象(全メンバー / エントリーした人だけ)として読む。不正なら null。 */
+/** 公開された値を、抽選の対象(参加者全員(自動) / エントリーした人だけ)として読む。不正なら null。 */
 export function parseDrawPool(value: unknown): DrawPool | null {
   return (DRAW_POOLS as readonly unknown[]).includes(value) ? (value as DrawPool) : null;
 }
@@ -56,7 +56,7 @@ export interface PortalEvent {
   startedAtMs: number;
   /** エントリー受付を始めていれば入る。 */
   entry?: PortalEventEntry;
-  /** ジャックポットの抽選の対象。省略は all。 */
+  /** ジャックポットの抽選の対象。省略は auto。 */
   pool?: DrawPool;
 }
 
@@ -76,10 +76,14 @@ export function normalizeEventTitle(raw: unknown): string | null {
   return title || null;
 }
 
-/** `event.start` のペイロードを検証する。不正なら null。 */
-export function parseEventStartPayload(payload: unknown): { title: string } | null {
+/**
+ * `event.start` のペイロードを検証する。不正なら null。
+ * pool は省略可(省略は auto)。クイズやエントリー受付のように、参加者の操作でエントリーするイベントは entrants で始める。
+ */
+export function parseEventStartPayload(payload: unknown): { title: string; pool: DrawPool } | null {
   const title = normalizeEventTitle((payload as { title?: unknown } | null)?.title);
-  return title ? { title } : null;
+  if (!title) return null;
+  return { title, pool: parseDrawPool((payload as { pool?: unknown }).pool) ?? "auto" };
 }
 
 /**

@@ -38,6 +38,9 @@ async function startEvent(admin: Page, title: string) {
   await admin.getByTestId("event-title").fill(title);
   await admin.getByRole("button", { name: "イベントを開始" }).click();
   await expect(admin.getByTestId("event-state")).toContainText(title);
+  // 既定の対象は「参加者全員(自動)」でエントリーのボタンは出ない。ボタンで参加する形にするため、「エントリーした人のみ」に切り替える
+  await admin.getByRole("button", { name: "エントリーした人だけに切り替える" }).click();
+  await expect(admin.getByTestId("pool-state")).toContainText("エントリーした人のみ");
 }
 
 test.describe("エントリー受付", () => {
@@ -65,15 +68,14 @@ test.describe("エントリー受付", () => {
     const guests = await Promise.all(ids.slice(0, CROWD).map(() => newDevice(browser, { mobile: true })));
     await Promise.all(guests.map((g, i) => g.page.goto(qrUrl(ids[i]))));
     for (const [i, g] of guests.entries()) {
-      await expect(g.page.getByTestId("event-banner"), ids[i]).toContainText("エントリー受付中!");
-      await expect(g.page.getByTestId("home-entry-open"), ids[i]).toBeVisible();
+      await expect(g.page.getByTestId("entry-button"), ids[i]).toContainText("エントリーする");
+      await expect(g.page.getByTestId("home-join"), ids[i]).toHaveCount(0);
     }
 
-    // バナーからエントリー画面へ。全員がほぼ同時にエントリーボタンを押す
-    await Promise.all(guests.map((g) => g.page.getByTestId("event-banner").click()));
-    for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("entry-button"), ids[i]).toBeVisible();
+    // 全員がほぼ同時にエントリーボタンを押す。1タップで、画面を移らずにエントリーが済む
     await Promise.all(guests.map((g) => g.page.getByTestId("entry-button").click()));
-    for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("entry-done"), ids[i]).toContainText("エントリーしました!");
+    for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("entry-done"), ids[i]).toContainText("エントリー済み ✓");
+    for (const g of guests) await expect(g.page).toHaveURL(/#\/p$/);
 
     // 会場の画面: 10個のバブルに名前、人数10
     await expect(host.page.getByTestId("stage-count")).toHaveText(`${CROWD}`);
@@ -88,7 +90,6 @@ test.describe("エントリー受付", () => {
     await expect(guests[0].page.getByTestId("entry-done")).toBeVisible();
     const second = await newDevice(browser, { mobile: true });
     await second.page.goto(qrUrl(ids[1]));
-    await second.page.getByTestId("event-banner").click();
     await second.page.getByTestId("entry-button").click();
     await expect(second.page.getByTestId("entry-done")).toBeVisible();
     await expect(admin.page.getByTestId("entry-count")).toHaveText(`${CROWD}`);
@@ -96,9 +97,8 @@ test.describe("エントリー受付", () => {
     // 途中参加: 11人目が受付中に入ってエントリーできる
     const late = await newDevice(browser, { mobile: true });
     await late.page.goto(qrUrl(ids[CROWD]));
-    await late.page.getByTestId("event-banner").click();
     await late.page.getByTestId("entry-button").click();
-    await expect(late.page.getByTestId("entry-done")).toContainText("エントリーしました!");
+    await expect(late.page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
     await expect(host.page.getByTestId("stage-count")).toHaveText(`${CROWD + 1}`);
     await expect(host.page.getByTestId("entry-bubble")).toHaveCount(CROWD + 1);
 
@@ -110,10 +110,9 @@ test.describe("エントリー受付", () => {
     for (const [i, g] of guests.entries()) await expect(g.page.getByTestId("entry-done"), ids[i]).toContainText("受付は終了しました");
     const straggler = await newDevice(browser, { mobile: true });
     await straggler.page.goto(qrUrl(ids[CROWD + 1]));
-    // ログインが終わってから(実環境では通信に時間がかかる)、バナーからイベント画面へ
+    // ログインが終わってから(実環境では通信に時間がかかる)、ホームのカードが「受付終了」になっている
     await expect(straggler.page.getByTestId("home-greeting")).toBeVisible();
-    await straggler.page.getByTestId("event-banner").click();
-    await expect(straggler.page.getByTestId("entry-closed")).toContainText("エントリーの受付は終了しました");
+    await expect(straggler.page.getByTestId("entry-closed")).toContainText("受付終了");
     await expect(straggler.page.getByTestId("entry-button")).toHaveCount(0);
 
     // 再開: エントリー済みの人を残したまま、取り残された人がエントリーできる
@@ -121,14 +120,14 @@ test.describe("エントリー受付", () => {
     await expect(straggler.page.getByTestId("entry-button")).toBeVisible();
     await expect(host.page.getByTestId("stage-label")).toHaveText("エントリー受付中!");
     await straggler.page.getByTestId("entry-button").click();
-    await expect(straggler.page.getByTestId("entry-done")).toContainText("エントリーしました!");
+    await expect(straggler.page.getByTestId("entry-done")).toContainText("エントリー済み ✓");
     await expect(host.page.getByTestId("stage-count")).toHaveText(`${CROWD + 2}`);
     await expect(admin.page.getByTestId("entry-count")).toHaveText(`${CROWD + 2}`);
 
     // イベント終了: エントリーの表示は消える
     await admin.page.getByRole("button", { name: "イベントを終了" }).click();
     await acceptConfirm(admin.page);
-    await expect(guests[0].page.getByTestId("event-none")).toBeVisible();
+    await expect(guests[0].page.getByTestId("home-status")).toContainText("いまイベントは行われていません");
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, second, late, straggler, ...guests]) await d.context.close();
@@ -151,7 +150,6 @@ test.describe("エントリー受付", () => {
     const guests = await Promise.all(ids.slice(0, 3).map(() => newDevice(browser, { mobile: true })));
     for (const [i, g] of guests.entries()) {
       await g.page.goto(qrUrl(ids[i]));
-      await g.page.getByTestId("event-banner").click();
       await g.page.getByTestId("entry-button").click();
       await expect(g.page.getByTestId("entry-done")).toBeVisible();
     }
@@ -167,7 +165,6 @@ test.describe("エントリー受付", () => {
     // リロード後も受付は続いている（新しい人がエントリーできて、会場の画面に増える）
     const next = await newDevice(browser, { mobile: true });
     await next.page.goto(qrUrl(ids[3]));
-    await next.page.getByTestId("event-banner").click();
     await next.page.getByTestId("entry-button").click();
     await expect(next.page.getByTestId("entry-done")).toBeVisible();
     await expect(host.page.getByTestId("entry-bubble")).toHaveCount(4);
@@ -208,7 +205,6 @@ test.describe("エントリー受付", () => {
       expect(body, name).toContain("FORBIDDEN");
     }
     // 受付は閉じられていない（参加者は引き続きエントリーできる）
-    await guest.page.getByTestId("event-banner").click();
     await expect(guest.page.getByTestId("entry-button")).toBeVisible();
 
     await publish(request, sessionId, false);

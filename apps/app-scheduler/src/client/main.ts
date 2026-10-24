@@ -13,7 +13,7 @@ import { useAuthSession } from "./control/auth/auth-session";
 import { registerEventHandlers } from "./ui/composables/register-event-handlers";
 import { registerKeyboardShortcutListener } from "./ui/composables/keyboard-shortcut-listener";
 import { setupHostAgent } from "./control/session/host-agent-setup";
-import { createEntrantDrawPool } from "./control/session/event-host";
+import { createSessionDrawPool } from "./control/session/event-host";
 
 // Register app-specific DI
 Container.register();
@@ -32,9 +32,9 @@ registerEventHandlers(router);
 
 // ホスト端末なら、保存済みの入室情報からセッションへ復帰する(リロード対策)。
 const hostAgent = setupHostAgent(router);
-// ジャックポットの抽選の対象を、イベントの設定（全メンバー / エントリーした人だけ）に従わせる。
+// ジャックポットの抽選の対象を、イベントの設定（参加者全員(自動) / エントリーした人だけ）に従わせる。
 // JackpotContainer.register() のあとに差し替える（後から登録したものが優先される）。
-setDrawPoolProvider(createEntrantDrawPool(hostAgent));
+setDrawPoolProvider(createSessionDrawPool(hostAgent));
 
 // キーボードショートカットリスナー
 registerKeyboardShortcutListener();

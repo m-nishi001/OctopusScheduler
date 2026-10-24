@@ -10,6 +10,8 @@ import type {
   CloseRoundArgs,
   GetAnswersArgs,
   GetAnswersResult,
+  ListParticipantsArgs,
+  ListParticipantsResult,
   OpenRoundArgs,
   OpenRoundResult,
   RoundSummary,
@@ -47,6 +49,7 @@ export interface SessionHubBackend {
   closeRound(args: CloseRoundArgs): Promise<RoundSummary>;
   submitAnswer(args: SubmitAnswerArgs): Promise<SubmitAnswerResult>;
   getAnswers(args: GetAnswersArgs): Promise<GetAnswersResult>;
+  listParticipants(args: ListParticipantsArgs): Promise<ListParticipantsResult>;
 }
 
 export const ISessionHubBackendToken = Symbol("ISessionHubBackend");
@@ -67,5 +70,6 @@ export function createKvBackend(deps: ServiceDeps): SessionHubBackend {
     closeRound: (args) => service.closeRound(deps, args),
     submitAnswer: (args) => service.submitAnswer(deps, args),
     getAnswers: (args) => service.getAnswers(deps, args),
+    listParticipants: (args) => service.listParticipants(deps, args),
   };
 }

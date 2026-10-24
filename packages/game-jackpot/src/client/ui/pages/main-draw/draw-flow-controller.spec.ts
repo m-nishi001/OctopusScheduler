@@ -24,7 +24,7 @@ function setup(options: { remaining?: number[]; members?: number[]; cycles?: Arr
   const deps = {
     queue: new ActionQueue(),
     // 終了の確認は1回以上抽選したあとだけ有効(drawn)。このテストは抽選済みとして扱う。
-    progress: vi.fn(async () => toDrawProgress(next(remaining), next(members), 1)),
+    progress: vi.fn(async () => toDrawProgress(next(remaining), next(members), 1, 5)),
     onFinished: vi.fn(),
     onLeave: vi.fn(),
     now: () => clock.ms,
@@ -73,7 +73,7 @@ describe("DrawFlowController", () => {
       await flow.advance();
 
       expect(deps.drawNextCycle).not.toHaveBeenCalled();
-      expect(deps.onFinished).toHaveBeenCalledWith("prizes");
+      expect(deps.onFinished).toHaveBeenCalledWith("prizes", expect.anything());
       expect(flow.finished).toBe(true);
       expect(log).toEqual([]);
       expect(deps.onSettled).toHaveBeenCalledTimes(1);
@@ -90,14 +90,14 @@ describe("DrawFlowController", () => {
 
       expect(deps.drawNextCycle).toHaveBeenCalledTimes(1);
       expect(deps.onDrawError).not.toHaveBeenCalled(); // 「No member winner」の失敗を繰り返さない
-      expect(deps.onFinished).toHaveBeenCalledWith("members");
+      expect(deps.onFinished).toHaveBeenCalledWith("members", expect.anything());
       expect(flow.finished).toBe(true);
     });
 
     it("景品もメンバーも尽きたときは、景品の終了として通知する", async () => {
       const { flow, deps } = setup({ remaining: [0], members: [0] });
       await flow.advance();
-      expect(deps.onFinished).toHaveBeenCalledWith("prizes");
+      expect(deps.onFinished).toHaveBeenCalledWith("prizes", expect.anything());
     });
 
     it("終了後の進行操作(次へ・Enter・OK)は結果の画面へ進む。ただし表示の直後は連打で飛ばさない", async () => {

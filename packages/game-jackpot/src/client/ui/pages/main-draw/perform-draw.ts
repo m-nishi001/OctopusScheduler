@@ -31,7 +31,7 @@ export function buildPrizesToPrepare(prizes: PrizeDto[], prizeRes: DrawPrizeResp
 }
 
 export interface PerformDrawDeps {
-  drawService: Pick<DrawApplicationService, "executeDraw">;
+  drawService: Pick<DrawApplicationService, "executeDraw" | "resumeDraw">;
   prizes: { readonly value: PrizeDto[] };
   preparePrizes(prizes: RoulettePrizeDto[]): Promise<unknown>;
 }
@@ -45,14 +45,24 @@ export interface DrawOutcome {
 }
 
 /**
- * 抽選して、ルーレットの用意まで済ませる。失敗したら例外を投げる(状態は呼び出し側が反映する)。
+ * 抽選して結果を保存先に確定(commit)し、ルーレットの用意まで済ませる。演出は、これが成功してから始める。
+ * 失敗したら例外を投げる(状態は呼び出し側が反映する)。
  */
 export async function performDraw(deps: PerformDrawDeps): Promise<DrawOutcome> {
-  const { result, prizeRes, memberRes } = await deps.drawService.executeDraw({
-    memberRequestCount: 10,
-    prizeRequestCount: 8,
-  });
+  return prepareOutcome(deps, await deps.drawService.executeDraw({ memberRequestCount: 10, prizeRequestCount: 8 }));
+}
 
+/**
+ * 確定済みで未公開の抽選(ホストの再読み込みなどで演出が途中だったもの)を、引き直さずに同じ結果で演出し直す材料を用意する。
+ */
+export async function performResume(deps: PerformDrawDeps, pending: DrawResultDto): Promise<DrawOutcome> {
+  return prepareOutcome(deps, await deps.drawService.resumeDraw(pending, { memberRequestCount: 10, prizeRequestCount: 8 }));
+}
+
+async function prepareOutcome(
+  deps: PerformDrawDeps,
+  { result, prizeRes, memberRes }: { result: DrawResultDto; prizeRes: DrawPrizeResponse; memberRes: DrawMemberResponse }
+): Promise<DrawOutcome> {
   const winnerId = result.wonPrize?.id;
   const winner = winnerId ? deps.prizes.value.find((p) => p.id === winnerId) : undefined;
   if (!winner) throw new DrawStateError("当選した景品が景品一覧に見つかりません");

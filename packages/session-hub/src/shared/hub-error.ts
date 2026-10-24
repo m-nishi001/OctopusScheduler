@@ -16,6 +16,7 @@ export const HUB_ERROR_CODES = [
   "TOO_MANY_SESSIONS",
   "ROUND_NOT_OPEN",
   "ROUND_CLOSED",
+  "JACKPOT_CONFLICT",
 ] as const;
 export type HubErrorCode = (typeof HUB_ERROR_CODES)[number];
 

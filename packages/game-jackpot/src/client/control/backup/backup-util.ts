@@ -9,8 +9,8 @@ import { LocalStorageService } from "@octopus/client-common/storage/local-storag
  * 画面設定・抽選結果・アセット）は1つも入らず、ほぼ空のファイルだった。
  */
 
-/** 常に書き出すストア（ストア名 → 内容）。抽選結果と確変の状態は本番（live）のもの。 */
-export const BACKUP_STORES = ["PrizeData", "MemberExtraData", "ScreenConfigData", "DrawResultData", "PrizeDrawState"] as const;
+/** 常に書き出すストア（ストア名 → 内容）。抽選結果と確変の予定はセッションの結果ファイル（サーバー）にあり、ここには無い。 */
+export const BACKUP_STORES = ["PrizeData", "MemberExtraData", "ScreenConfigData"] as const;
 /** `includeAssets` のときだけ書き出すストア（画像・音声などの中身を含むため大きい）。 */
 export const BACKUP_ASSET_STORE = "AssetData";
 

@@ -51,6 +51,13 @@ test("parseArgs: 引数なしでは負荷テストを動かさない。名前を
   assert.ok(!DEFAULT_TARGETS.includes("load") && !DEFAULT_TARGETS.includes("load-ui"));
   assert.ok("load" in TARGETS && "load-ui" in TARGETS);
   assert.deepEqual(parseArgs(["load"]).targets, ["load"]);
-  assert.deepEqual(parseArgs(["load-ui", "--", "--headed"]), { targets: ["load-ui"], extra: ["--headed"] });
+  assert.deepEqual(parseArgs(["load-ui", "--", "--headed"]), { targets: ["load-ui"], extra: ["--headed"], platform: "cloudflare" });
   assert.throws(() => parseArgs(["nothing"]), /不明なテスト/);
+});
+
+test("parseArgs: --target gas は ui だけを GAS シミュレーターで流す。Cloudflare 専用のテストは指定できない", () => {
+  assert.deepEqual(parseArgs(["--target", "gas"]), { targets: ["ui"], extra: [], platform: "gas" });
+  assert.deepEqual(parseArgs(["ui", "--target=gas", "--", "--shard=1/8"]), { targets: ["ui"], extra: ["--shard=1/8"], platform: "gas" });
+  assert.throws(() => parseArgs(["worker-smoke", "--target", "gas"]), /Cloudflare 専用/);
+  assert.throws(() => parseArgs(["--target", "nope"]), /不明な --target/);
 });

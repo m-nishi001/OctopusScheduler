@@ -60,8 +60,12 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
   });
 
   describe("ジャックポット", () => {
-    it("オープニング → 説明 → 抽選 の順に、主ボタンで画面を切り替える", () => {
-      expect(at({ hostPath: "/jackpot-opening" }).main).toMatchObject({ label: "説明へ", action: { kind: "navigate", path: "/jackpot-description" } });
+    it("オープニング → エントリー → 説明 → 抽選 の順に、主ボタンで画面を切り替える", () => {
+      expect(at({ hostPath: "/jackpot-opening" }).main).toMatchObject({ label: "エントリーへ", action: { kind: "navigate", path: "/jackpot-entry" } });
+      expect(at({ hostPath: "/execute/jackpot-entry" })).toMatchObject({
+        now: expect.stringContaining("エントリー"),
+        main: { label: "説明へ", action: { kind: "navigate", path: "/jackpot-description" } },
+      });
       expect(at({ hostPath: "/execute/jackpot-description" }).main).toMatchObject({ label: "抽選を始める", action: { kind: "navigate", path: "/jackpot-draw" } });
       expect(at({ hostPath: "/jackpot-result" }).main).toMatchObject({ label: "エンディングへ", action: { kind: "navigate", path: "/jackpot-ending" } });
     });
@@ -122,8 +126,8 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
       });
     });
 
-    it("デモのセッションでは遷移先に ?demo=1 が付く", () => {
-      expect(at({ hostPath: "/jackpot-opening", demo: true }).main).toMatchObject({ action: { kind: "navigate", path: "/jackpot-description?demo=1" } });
+    it("デモのセッションでは遷移先に ?demo=1 が付き、エントリー画面は挟まない", () => {
+      expect(at({ hostPath: "/jackpot-opening", demo: true }).main).toMatchObject({ label: "説明へ", action: { kind: "navigate", path: "/jackpot-description?demo=1" } });
     });
 
     it("エンディングは押せる操作が無い", () => {

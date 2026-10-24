@@ -4,50 +4,45 @@ import { WeightedSelector } from "./weighted-selector";
 import { MockRandom } from "./test-utils";
 
 describe("PrizeDrawService", () => {
-  /**
-   * getAvailablePrizesメソッドが既に当選者に割り当てられている賞品をフィルタリングすることをテストする。
-   * 期待値: 'a'はメンバーに割り当てられているので除外され、'b'は予約されているがメンバーがいないので利用可能、結果は["b", "c"]。
-   */
-  it("getAvailablePrizes filters prizes that are already assigned to winners", () => {
-    const rand = new MockRandom([0]);
-    const svc = new PrizeDrawService(null as any, rand as any);
+  it("getDrawablePrizes は、当選済みと確変のために取り置いた景品を除く", () => {
+    const svc = new PrizeDrawService(null as any, new MockRandom([0]) as any);
+    const prizes = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+    const results = [{ wonPrize: { id: "a" } }];
+    expect(svc.getDrawablePrizes(prizes as any, results, ["b"]).map((p) => p.id)).toEqual(["c", "d"]);
+    expect(svc.getDrawablePrizes(prizes as any, results).map((p) => p.id)).toEqual(["b", "c", "d"]);
+  });
+
+  it("getUnusedReservedPrizes は、取り置いた景品のうちまだ当選していないものだけ", () => {
+    const svc = new PrizeDrawService(null as any, new MockRandom([0]) as any);
     const prizes = [{ id: "a" }, { id: "b" }, { id: "c" }];
-    const results = [
-      { wonPrize: { id: "a" }, wonMember: { id: "m1" } },
-      { wonPrize: { id: "b" }, wonMember: null },
-    ];
-    const avail = svc.getAvailablePrizes(prizes as any, results as any);
-    // 'a' is assigned to a member so excluded; 'b' reserved but no member -> still available
-    expect(avail.map((p) => p.id).sort()).toEqual(["b", "c"]);
+    expect(svc.getUnusedReservedPrizes(prizes as any, [{ wonPrize: { id: "b" } }], ["b", "c"]).map((p) => p.id)).toEqual(["c"]);
   });
 
   /**
-   * selectRandomReservedメソッドが空の配列でエラーを投げ、それ以外では要素を返すことをテストする。
-   * 期待値: 空の配列でエラーが投げられ、有効な配列では定義された要素が返される。
+   * 次の抽選が確変かは、「確定済みの件数 + 1」回目が確変の回に含まれるかで決まる(取り置きの行の数には依存しない)。
    */
+  it("isKakuhenTurn は確定済みの件数 + 1 回目で判定する", () => {
+    const svc = new PrizeDrawService(null as any, new MockRandom([0]) as any);
+    expect(svc.isKakuhenTurn(0, [1, 3])).toBe(true);
+    expect(svc.isKakuhenTurn(1, [1, 3])).toBe(false);
+    expect(svc.isKakuhenTurn(2, [1, 3])).toBe(true);
+    expect(svc.isKakuhenTurn(5, [])).toBe(false);
+  });
+
   it("selectRandomReserved throws on empty and returns an element otherwise", () => {
-    const rand = new MockRandom([0.3]);
-    const svc = new PrizeDrawService(null as any, rand as any);
-    expect(() => svc.selectRandomReserved([] as any)).toThrow();
-    const arr = [{ drawId: "reserved-1" }, { drawId: "reserved-2" }];
-    const sel = svc.selectRandomReserved(arr as any);
-    expect(sel).toBeDefined();
+    const svc = new PrizeDrawService(null as any, new MockRandom([0.3]) as any);
+    expect(() => svc.selectRandomReserved([])).toThrow();
+    expect(svc.selectRandomReserved([{ id: "x" }, { id: "y" }])).toBeDefined();
   });
 
   /**
-   * getRemainingPrizesメソッドが割り当てられた賞品（予約されていない）を無視し、予約されたものを保持することをテストする。
+   * getRemainingPrizes は、当選済み(確定済みの結果にある)景品だけを除く。取り置きの景品は、当選するまで残りに数える。
    */
-  it("getRemainingPrizes ignores assigned prizes (non-reserved) and keeps reserved ones", () => {
-    const rand = new MockRandom([0]);
-    const svc = new PrizeDrawService(null as any, rand as any);
+  it("getRemainingPrizes removes only prizes that already won", () => {
+    const svc = new PrizeDrawService(null as any, new MockRandom([0]) as any);
     const prizes = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
-    const results = [
-      { wonPrize: { id: "p1" }, wonMember: { id: "m1" }, drawId: "draw-1" },
-      { wonPrize: { id: "p2" }, wonMember: null, drawId: "reserved-1" },
-    ];
-    const rem = svc.getRemainingPrizes(prizes as any, results as any);
-    // p1 assigned -> removed; p2 reserved -> kept; p3 kept
-    expect(rem.map((p) => p.id).sort()).toEqual(["p2", "p3"]);
+    const rem = svc.getRemainingPrizes(prizes as any, [{ wonPrize: { id: "p1" } }]);
+    expect(rem.map((p) => p.id)).toEqual(["p2", "p3"]);
   });
 
   /**

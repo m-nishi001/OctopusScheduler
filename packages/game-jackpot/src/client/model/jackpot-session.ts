@@ -1,9 +1,9 @@
 /**
  * ジャックポットの実行スコープ。
- * - live: 本番。既存のストレージ(DrawResultData / PrizeDrawState)をそのまま使う。
- * - demo: 設定画面からの動作確認。抽選結果・確変状態を別ストアに分離し、本番を汚さない。
+ * - live: 本番。セッションのホストとして接続していれば、抽選状態はセッションの結果ファイル(サーバー)に残る。
+ * - demo: リハーサル。抽選状態はメモリだけに持ち、サーバーにも本番にも残さない。
  *
- * 抽選結果と確変状態はブラウザのローカルストレージで完結するため、サーバ側の検証は不要。
+ * 接続が無い(セッションの外で動かしている)ときは、live でもメモリだけのリハーサルになる(DrawStoreProvider)。
  * `?demo=1` はUI上の切替であり、セキュリティ境界ではない。
  */
 export type JackpotScope = "live" | "demo";
@@ -27,9 +27,4 @@ export function resolveJackpotScope(
   query: Record<string, unknown> | undefined
 ): JackpotScope {
   return query?.[DEMO_QUERY_KEY] === "1" ? "demo" : "live";
-}
-
-/** ストア名をスコープ別にする。live は既存名のままなのでデータ移行は不要。 */
-export function scopedStoreName(base: string, scope: JackpotScope): string {
-  return scope === "demo" ? `${base}:demo` : base;
 }

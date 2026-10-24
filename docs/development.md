@@ -27,6 +27,7 @@ npm run build
 | `npm run test:coverage` | カバレッジの下限の確認（server / model / transport など。下限は各パッケージの `vitest.config.ts`） |
 | `npm run verify` | GAS エンドポイント契約と `dist` の検証 |
 | `npm run e2e` | 実 workerd のスモーク（29 項目）＋ Playwright の複数端末テスト |
+| `npm run e2e:gas` | 同じ Playwright のテストを、GAS 実行環境シミュレーター（`scripts/gas-sim`）に対して流す |
 | `npm run deploy:gas` / `npm run deploy:cloudflare` | デプロイ（[GAS](deploy-gas.md) / [Cloudflare](deploy-cloudflare.md)） |
 | `npm run seed:local-admin` | ローカルに管理者とログイン済みセッションを投入（[詳細](authentication.md#ローカル開発で使う)） |
 | `npm run dev:stack` | 架空データ入りの実 workerd を1コマンドで起動（[手順書](dev-verification.md)） |
@@ -41,7 +42,22 @@ npm run build
 | 実 workerd のスモーク | Durable Object / WebSocket / 回答ラウンド | `npm run build && npm run e2e -- worker-smoke` |
 | 複数端末 E2E | ホスト・管理・参加者を別コンテキストで同時に動かす通し | `npm run build && npm run e2e -- ui`（初回は `npx playwright install chromium`） |
 
-CI（`.github/workflows/ci.yml`）は lint → typecheck → test(＋カバレッジの下限) → build → verify → e2e を実行します。E2E が失敗したときは、スクリーンショットとトレースが成果物として残ります。
+| GAS 向け E2E | `dist/gas/server.js` を GAS に近い条件で動かして、同じ画面の通しを流す | `npm run build && npm run e2e:gas`（`-- --shard=1/6` などで絞れる） |
+
+### GAS 実行環境シミュレーター（`scripts/gas-sim`）
+
+GAS 向けのバンドル（`dist/gas/server.js`）を、実機に近い条件で Node 上で動かすローカル専用のツールです（外部へのアクセスはありません）。`GET /` で `doGet` を通して `dist/gas/index.html` を返し、偽の `google.script.run` が `POST /rpc` でサーバー関数を呼びます（WebSocket は無いので、クライアントは自動でポーリングに切り替わります）。
+
+- 実行ごとに状態がまっさらな vm コンテキスト（`worker_thread` のプール。既定 20、`GAS_SIM_CONCURRENCY`）。超えた呼び出しは `Service invoked too many times in a short time`
+- 1 呼び出しに既定 200ms ±25% の遅延（`GAS_SIM_LATENCY_MS`）。Drive の操作にだけ足す遅延は `GAS_SIM_DRIVE_LATENCY_MS`
+- Properties / Cache / Drive / Lock は共有し、`LockService.waitLock` は本物と同様にブロックする。ScriptProperties は 1 値 9KB・合計 500KB、Cache は 100KB、1 実行の上限は 6 分（`GAS_SIM_EXEC_LIMIT_MS`）
+- `setTimeout` / `crypto` / `structuredClone` / `TextEncoder` / `URL` など、GAS に無いものは定義しない。`SpreadsheetApp` / `FormApp` は呼ぶと例外
+- 呼び出しの記録は `GAS_SIM_TRACE=1`、`console` の出力は `GAS_SIM_VERBOSE=1`。統計は `GET /__sim/stats`
+- Cloudflare 専用のテスト（WebSocket を遮断するもの、`worker-smoke`）は `test.skip(isGas, …)` で外す（`e2e/ui/fixtures.ts` の `isGas`）
+
+実機の挙動と完全には一致しません（実際の同時実行の上限、Drive の遅延のばらつきなど）。実デプロイでの最終確認は別に必要です。
+
+CI（`.github/workflows/ci.yml`）は lint / typecheck / test(＋カバレッジの下限。`npm run test:coverage` が全パッケージのテストを1回で流す) / build を並列に流し、build の成果物（dist）を使う check-dist(verify) と e2e がそのあとに続きます。e2e のシャードは spec の所要時間（`e2e/shard-weights.json`、`scripts/e2e-shards.js`）で均等に分けます。新しく重い spec を足したら、重みも足してください（載っていない spec は既定の重みで割り振られます）。E2E が失敗したときは、スクリーンショットとトレースが成果物として残ります。
 
 ### カバレッジの下限
 

@@ -76,8 +76,16 @@ describe("buildQuizHostState", () => {
     expect(new TextEncoder().encode(JSON.stringify(s)).length).toBeLessThan(5000);
   });
 
+  it("順位発表(result)でだけ reveal が入る。指定が無ければ revealing(順位を出さない側)。ほかの画面では null", () => {
+    expect(buildQuizHostState({ page: "result", quizId: "q" }).reveal).toBe("revealing");
+    expect(buildQuizHostState({ page: "result", quizId: "q", reveal: "finished" }).reveal).toBe("finished");
+    for (const page of ["intro", "entry", "play", "answer"] as const) {
+      expect(buildQuizHostState({ page, quizId: "q", reveal: "finished" }).reveal).toBeNull();
+    }
+  });
+
   it("未指定の値は安全な既定値になる", () => {
     const s = buildQuizHostState({ page: "play", quizId: "q1" });
-    expect(s).toMatchObject({ title: "", roundKey: null, deadlineMs: null, phase: "idle", question: null, options: [], correctNo: null });
+    expect(s).toMatchObject({ title: "", roundKey: null, deadlineMs: null, phase: "idle", question: null, options: [], correctNo: null, reveal: null });
   });
 });

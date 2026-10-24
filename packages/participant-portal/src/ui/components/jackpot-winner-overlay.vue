@@ -1,21 +1,31 @@
 <template>
-    <div v-if="won && !dismissed" class="pp-won" role="alertdialog" aria-live="assertive" aria-label="当選しました" data-testid="you-won">
+    <div v-if="won" class="pp-won" role="alertdialog" aria-live="assertive" aria-label="当選しました" data-testid="you-won">
         <div class="pp-won__confetti" aria-hidden="true">
-            <span v-for="n in 24" :key="n" class="pp-won__piece" :style="{ '--n': n }" />
+            <span v-for="n in PIECES" :key="n" class="pp-won__piece" :style="pieceStyle(n)" />
         </div>
         <p class="pp-won__lead">おめでとうございます!</p>
         <p class="pp-won__title">あなたが<br />あたりました!</p>
         <p class="pp-won__name" data-testid="you-won-name">{{ jackpot?.member }} さん</p>
         <p class="pp-won__hint">会場の画面に注目!</p>
-        <button type="button" class="pp-button pp-won__close" data-testid="you-won-close" @click="dismissed = true">とじる</button>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { readJackpotView } from '../../model/activity';
 import { useParticipantAuth } from '../../model/participant-auth';
 import { usePortalContext } from '../../model/use-portal-session';
+
+const PIECES = 24;
+
+/** 紙吹雪1枚ごとの落下時間・開始のずれ。CSS には剰余演算子が無いので、ここで計算して CSS 変数として渡す。 */
+function pieceStyle(n: number): Record<string, string | number> {
+    return {
+        '--n': n,
+        '--dur': `${2.2 + (n % 5) * 0.35}s`,
+        '--delay': `${(n % 7) * -0.4}s`,
+    };
+}
 
 const session = usePortalContext();
 const auth = useParticipantAuth();
@@ -30,13 +40,8 @@ const won = computed(() => {
     return !!id && jackpot.value?.stage === 'member-revealed' && !!jackpot.value.member && jackpot.value.memberId === id;
 });
 
-/** 手動で閉じたか。当選の場面が終われば戻し、次の抽選でまた当たったとき表示し直す。 */
-const dismissed = ref(false);
 watch(won, (now) => {
-    if (!now) {
-        dismissed.value = false;
-        return;
-    }
+    if (!now) return;
     // 出た瞬間に振動で知らせる
     try {
         navigator.vibrate?.([200, 100, 200, 100, 400]);
@@ -91,12 +96,8 @@ watch(won, (now) => {
 }
 
 .pp-won__hint {
-    margin: 0 0 8px;
+    margin: 0 0 auto;
     color: var(--pp-text-muted);
-}
-
-.pp-won__close {
-    margin-bottom: auto;
 }
 
 /* 高さの低い画面(スマホの横向き): 1画面に収めるため詰める */
@@ -129,7 +130,7 @@ watch(won, (now) => {
     width: 10px;
     height: 16px;
     background: hsl(calc(var(--n) * 47), 90%, 60%);
-    animation: pp-won-fall calc(2.2s + (var(--n) % 5) * 0.35s) linear calc((var(--n) % 7) * -0.4s) infinite;
+    animation: pp-won-fall var(--dur) linear var(--delay) infinite;
 }
 
 @keyframes pp-won-in {

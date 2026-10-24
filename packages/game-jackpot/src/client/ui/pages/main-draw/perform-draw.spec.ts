@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildPrizesToPrepare, performDraw } from "./perform-draw";
+import { buildPrizesToPrepare, performDraw, performResume } from "./perform-draw";
 
 const prizes: any[] = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
 const prizeRes = (over: Record<string, unknown> = {}): any => ({
@@ -27,7 +27,7 @@ describe("buildPrizesToPrepare", () => {
 
 describe("performDraw", () => {
   const deps = (executeDraw: any) => ({
-    drawService: { executeDraw },
+    drawService: { executeDraw, resumeDraw: executeDraw },
     prizes: { value: prizes },
     preparePrizes: vi.fn().mockResolvedValue([]),
   });
@@ -59,5 +59,25 @@ describe("performDraw", () => {
       vi.fn().mockResolvedValue({ result: { wonPrize: { id: "ghost" } }, prizeRes: prizeRes(), memberRes: {} })
     );
     await expect(performDraw(d)).rejects.toThrow("当選した景品が景品一覧に見つかりません");
+  });
+});
+
+describe("performResume", () => {
+  it("引き直さず、確定済みの結果の材料でルーレットを用意する", async () => {
+    const resumeDraw = vi.fn().mockResolvedValue({
+      result: { drawId: "d", wonPrize: { id: "p2" }, wonMember: { id: "m" } },
+      prizeRes: prizeRes({ winnerPrizeId: "p2" }),
+      memberRes: { winnerId: "m" },
+    });
+    const executeDraw = vi.fn();
+    const preparePrizes = vi.fn().mockResolvedValue([]);
+    const pending: any = { drawId: "d", wonPrize: { id: "p2" }, wonMember: { id: "m" } };
+
+    const out = await performResume({ drawService: { executeDraw, resumeDraw }, prizes: { value: prizes }, preparePrizes }, pending);
+
+    expect(executeDraw).not.toHaveBeenCalled();
+    expect(resumeDraw).toHaveBeenCalledWith(pending, expect.anything());
+    expect(out.winner).toBe(prizes[1]);
+    expect(preparePrizes).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,9 +1,10 @@
 import { RESULTS_NAMESPACE } from "../../shared/results";
-import type { JackpotDraw, QuizRoundResult } from "../../shared/results";
+import type { JackpotDrawInput, JackpotPlan, JackpotPlanInput, JackpotState, QuizRoundResult } from "../../shared/results";
 import { lobbyPath } from "../../shared/host-navigation";
 import { PORTAL_EVENT_NS, readPortalEvent } from "../../shared/portal-event";
 import { HostCommandRouter } from "./host-command-router";
 import type { ClientInput } from "../../shared/session-types";
+import type { ListParticipantsResult } from "../../shared/protocol";
 import type { SessionConnection } from "./session-connection";
 
 /**
@@ -80,16 +81,37 @@ export class HostAgent {
     this.publishResultsRev(await this.connection.putQuizResult(result));
   }
 
-  /** ジャックポットの抽選結果を1件保存し、参加者へ知らせる。 */
-  async recordJackpotDraw(draw: JackpotDraw): Promise<void> {
-    if (!this.active) return;
-    this.publishResultsRev(await this.connection.putJackpotDraw(draw));
+  /** このセッションにポータルから入室したメンバーのID一覧(自動エントリー・抽選の対象)。 */
+  listParticipants(): Promise<ListParticipantsResult> {
+    return this.connection.listParticipants();
   }
 
-  /** 保存済みの抽選結果を取り消し、参加者へ知らせる。 */
-  async removeJackpotDraw(drawId: string): Promise<void> {
+  /** 抽選の状態(未公開の行を含む)を読む。 */
+  getJackpotState(): Promise<JackpotState> {
+    return this.connection.getJackpotState();
+  }
+
+  /** 確変の予定を、まだ無ければ保存する。返るのは保存されている予定。 */
+  ensureJackpotPlan(plan: JackpotPlanInput): Promise<JackpotPlan> {
+    return this.connection.ensureJackpotPlan(plan);
+  }
+
+  /** 抽選結果を未公開で確定する(参加者には見えないので通知しない)。矛盾すれば JACKPOT_CONFLICT。 */
+  async commitJackpotDraw(draw: JackpotDrawInput): Promise<void> {
     if (!this.active) return;
-    this.publishResultsRev(await this.connection.deleteJackpotDraw(drawId));
+    await this.connection.commitJackpotDraw(draw);
+  }
+
+  /** 確定済みの抽選を公開し、参加者へ知らせる。 */
+  async revealJackpotDraw(drawId: string): Promise<void> {
+    if (!this.active) return;
+    this.publishResultsRev(await this.connection.revealJackpotDraw(drawId));
+  }
+
+  /** 抽選の結果と確変の予定を消し、参加者へ知らせる。 */
+  async resetJackpot(): Promise<void> {
+    if (!this.active) return;
+    this.publishResultsRev(await this.connection.resetJackpot());
   }
 
   /**

@@ -34,10 +34,10 @@ export function makeRouter(initial = "/") {
       { path: "/home", component: Stub },
       { path: "/sessions", component: Stub },
       { path: "/portal/:code?", component: Stub },
-      { path: "/session/host/:id", component: Stub },
+      { path: "/session/host/:id", name: "session-host", component: Stub },
       { path: "/session/console/:id", component: Stub },
-      { path: "/jackpot-opening", component: Stub },
-      { path: "/jackpot-ending", component: Stub },
+      { path: "/execute/jackpot-opening", component: Stub },
+      { path: "/execute/jackpot-ending", component: Stub },
       { path: "/settings", component: Stub },
     ],
   });

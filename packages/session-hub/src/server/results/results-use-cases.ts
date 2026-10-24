@@ -14,10 +14,12 @@ import {
   emptyResultsDoc,
   isResultsValidationError,
   parseJackpotDraw,
+  parseJackpotPlan,
   parseQuizRoundResult,
   personalize,
+  revealedDraws,
 } from "../../shared/results";
-import type { JackpotDraw, QuizRoundResult, ResultsDoc, ResultsView } from "../../shared/results";
+import type { JackpotDraw, JackpotDrawInput, JackpotPlan, JackpotState, QuizRoundResult, ResultsDoc, ResultsView } from "../../shared/results";
 import { hubError } from "../engine/hub-error";
 
 export interface ResultsDeps {
@@ -49,25 +51,36 @@ async function load(deps: ResultsDeps, key: string): Promise<ResultsDoc> {
   } catch {
     // 下で扱う
   }
-  if (!doc || doc.v !== 1 || !Array.isArray(doc.rounds) || !Array.isArray(doc.draws)) {
+  if (!doc || doc.v !== 2 || !Array.isArray(doc.rounds) || !Array.isArray(doc.draws) || typeof doc.jackpot !== "object" || doc.jackpot === null) {
     throw new DomainError(`結果ファイルを読み込めませんでした（${key} が壊れている可能性があります）`);
   }
   return doc;
 }
 
-/** 内容が変わるときだけ rev を上げて保存する(同じ内容の再送で通知が走らないように)。 */
-async function mutate(deps: ResultsDeps, sessionId: string, change: (doc: ResultsDoc) => ResultsDoc | null): Promise<{ rev: number }> {
+/**
+ * ロックをかけた read-modify-write。`change` が null を返す、または結果が同じなら何も書かない。
+ * rev は「ポータルに見える内容(クイズのラウンドと、公開済みの抽選)」が変わったときだけ上げる
+ * (未公開の抽選の確定や確変の予定の保存では、参加者が取り直さなくて済むように rev を据え置く)。
+ */
+async function mutateDoc(deps: ResultsDeps, sessionId: string, change: (doc: ResultsDoc) => ResultsDoc | null): Promise<ResultsDoc> {
   const key = resultsKey(sessionId);
   return deps.withLock(`results:${sessionId}`, LOCK_TIMEOUT_MS, async () => {
     const current = await load(deps, key);
-    const next = change(structuredClone(current));
-    if (next === null || JSON.stringify({ rounds: next.rounds, draws: next.draws }) === JSON.stringify({ rounds: current.rounds, draws: current.draws })) {
-      return { rev: current.rev };
-    }
-    const saved: ResultsDoc = { ...next, v: 1, rev: current.rev + 1, updatedAtMs: deps.now() };
+    // GAS の実行環境(V8)には structuredClone が無いので、JSON の往復で複製する(結果ファイルは JSON だけで成り立つ)。
+    const next = change(JSON.parse(JSON.stringify(current)) as ResultsDoc);
+    if (next === null) return current;
+    const content = (d: ResultsDoc): string => JSON.stringify({ rounds: d.rounds, draws: d.draws, jackpot: d.jackpot });
+    if (content(next) === content(current)) return current;
+    const visible = (d: ResultsDoc): string => JSON.stringify({ rounds: d.rounds, draws: revealedDraws(d.draws) });
+    const visibleChanged = visible(next) !== visible(current);
+    const saved: ResultsDoc = { ...next, v: 2, rev: visibleChanged ? current.rev + 1 : current.rev, updatedAtMs: deps.now() };
     await deps.storage.putText(key, JSON.stringify(saved), "application/json");
-    return { rev: saved.rev };
+    return saved;
   });
+}
+
+async function mutate(deps: ResultsDeps, sessionId: string, change: (doc: ResultsDoc) => ResultsDoc | null): Promise<{ rev: number }> {
+  return { rev: (await mutateDoc(deps, sessionId, change)).rev };
 }
 
 function parse<T>(parser: (input: unknown) => T, input: unknown): T {
@@ -100,29 +113,73 @@ export async function putQuizResult(deps: ResultsDeps, sessionId: string, input:
   });
 }
 
-/** ジャックポットの抽選結果を1件保存する(drawId で上書き)。 */
-export async function putJackpotDraw(deps: ResultsDeps, sessionId: string, input: unknown): Promise<{ rev: number }> {
+const conflict = (message: string): Error => hubError("JACKPOT_CONFLICT", message);
+
+const sameDraw = (a: JackpotDrawInput, b: JackpotDrawInput): boolean =>
+  a.drawId === b.drawId && a.memberId === b.memberId && a.memberName === b.memberName && a.prizeId === b.prizeId && a.prizeName === b.prizeName && a.isKakuhen === b.isKakuhen && a.atMs === b.atMs;
+
+/** ジャックポットの抽選状態(未公開の行を含む)。管理者向け。 */
+export async function getJackpotState(deps: ResultsDeps, sessionId: string): Promise<JackpotState> {
+  const doc = await load(deps, resultsKey(sessionId));
+  return { rev: doc.rev, plan: doc.jackpot.plan, draws: doc.draws };
+}
+
+/** 確変の予定を、まだ無ければ保存する。すでにあれば保存済みのものを返す(並行して呼ばれても先に保存されたものが勝つ)。 */
+export async function ensureJackpotPlan(deps: ResultsDeps, sessionId: string, input: unknown): Promise<{ rev: number; plan: JackpotPlan }> {
+  const proposal = parse(parseJackpotPlan, input);
+  const doc = await mutateDoc(deps, sessionId, (d) => {
+    if (d.jackpot.plan) return null;
+    d.jackpot.plan = { ...proposal, createdAtMs: deps.now() };
+    return d;
+  });
+  return { rev: doc.rev, plan: doc.jackpot.plan as JackpotPlan };
+}
+
+/**
+ * 抽選結果を未公開で確定する。ロックの中で次を検証し、矛盾すれば JACKPOT_CONFLICT。
+ * 同じ drawId で中身も同じ再送は成功(何も書かない)。
+ */
+export async function commitJackpotDraw(deps: ResultsDeps, sessionId: string, input: unknown): Promise<{ rev: number }> {
   const draw = parse(parseJackpotDraw, input);
   return mutate(deps, sessionId, (doc) => {
-    const index = doc.draws.findIndex((d) => d.drawId === draw.drawId);
-    if (index >= 0) {
-      doc.draws[index] = draw;
-    } else {
-      if (doc.draws.length >= RESULTS_LIMITS.maxDraws) throw hubError("PAYLOAD_TOO_LARGE", `結果を残せる抽選は ${RESULTS_LIMITS.maxDraws} 件までです`);
-      doc.draws.push(draw);
+    const same = doc.draws.find((d) => d.drawId === draw.drawId);
+    if (same) {
+      if (sameDraw(same, draw)) return null;
+      throw conflict("同じ抽選IDで内容の違う結果がすでにあります");
     }
+    if (doc.draws.some((d) => d.memberId === draw.memberId)) throw conflict("このメンバーはすでに当選しています");
+    if (doc.draws.some((d) => d.prizeId === draw.prizeId)) throw conflict("この景品はすでに当選済みです");
+    if (doc.draws.some((d) => d.revealedAtMs === null)) throw conflict("公開されていない抽選結果があります");
+    // 確変の取り置きは、予定(plan)があるときだけ突き合わせる(予定が無い=取り置きの概念が無い)。
+    if (doc.jackpot.plan) {
+      const reserved = doc.jackpot.plan.reservedPrizeIds;
+      if (draw.isKakuhen && !reserved.includes(draw.prizeId)) throw conflict("確変の抽選に、取り置いた景品以外が選ばれました");
+      if (!draw.isKakuhen && reserved.includes(draw.prizeId)) throw conflict("通常の抽選に、確変のために取り置いた景品が選ばれました");
+    }
+    if (doc.draws.length >= RESULTS_LIMITS.maxDraws) throw hubError("PAYLOAD_TOO_LARGE", `結果を残せる抽選は ${RESULTS_LIMITS.maxDraws} 件までです`);
+    doc.draws.push({ ...draw, revealedAtMs: null });
     doc.draws.sort((a: JackpotDraw, b: JackpotDraw) => a.atMs - b.atMs);
     return doc;
   });
 }
 
-/** 抽選結果を取り消す(管理画面で結果を削除したとき)。無ければ何もしない。 */
-export async function deleteJackpotDraw(deps: ResultsDeps, sessionId: string, drawId: unknown): Promise<{ rev: number }> {
+/** 確定済みの抽選を公開する(ポータルに見せ、rev を進める)。公開済みなら何もしない。 */
+export async function revealJackpotDraw(deps: ResultsDeps, sessionId: string, drawId: unknown): Promise<{ rev: number }> {
   if (typeof drawId !== "string" || drawId.length === 0) throw hubError("INVALID_ARGUMENT", "drawId が不正です");
   return mutate(deps, sessionId, (doc) => {
-    const next = doc.draws.filter((d) => d.drawId !== drawId);
-    if (next.length === doc.draws.length) return null;
-    doc.draws = next;
+    const draw = doc.draws.find((d) => d.drawId === drawId);
+    if (!draw) throw conflict("公開する抽選結果が見つかりません");
+    if (draw.revealedAtMs !== null) return null;
+    draw.revealedAtMs = deps.now();
+    return doc;
+  });
+}
+
+/** 抽選の結果と確変の予定を消す(クイズのラウンドはそのまま)。 */
+export async function resetJackpot(deps: ResultsDeps, sessionId: string): Promise<{ rev: number }> {
+  return mutate(deps, sessionId, (doc) => {
+    doc.draws = [];
+    doc.jackpot = { plan: null };
     return doc;
   });
 }

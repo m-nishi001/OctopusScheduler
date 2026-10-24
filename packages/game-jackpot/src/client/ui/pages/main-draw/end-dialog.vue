@@ -18,10 +18,11 @@ import JackpotConfetti from '../../components/jackpot-confetti.vue';
 import '../../theme/jackpot-theme.css';
 
 /** 終了の理由ごとの文言。景品が残っていてもメンバーが尽きれば終わるので、取り違えない文言にする。 */
-export const END_MESSAGES: Record<DrawEndReason, string> = {
-    prizes: 'すべての景品が皆さんの手元にいきました。',
-    members: '対象のメンバー全員の抽選が終わりました。',
-};
+export function endMessage(reason: DrawEndReason, eligibleMembers: number | null): string {
+    if (reason === 'prizes') return 'すべての景品が皆さんの手元にいきました。';
+    // 対象の人数を出して、「なぜ終わったか」(対象が少ない/前のイベントで当選済み)を画面から判断できるようにする
+    return eligibleMembers === null ? '対象のメンバー全員の抽選が終わりました。' : `対象の ${eligibleMembers} 名全員の抽選が終わりました。`;
+}
 
 // 閉じる操作(OKボタン・Enter・管理端末の「次へ」)は、すべて抽選の進行役(DrawFlowController)が受ける。
 // この画面は表示だけで、OKボタンは close を通知する(親が進行操作として扱う)。
@@ -30,10 +31,12 @@ export default defineComponent({
     components: { JackpotConfetti },
     props: {
         reason: { type: String as PropType<DrawEndReason>, required: true },
+        /** 抽選の対象の人数(終了の理由がメンバーのとき、文言に出す)。 */
+        eligibleMembers: { type: Number as PropType<number | null>, default: null },
     },
     emits: ['close'],
     setup(props, { emit }) {
-        const message = computed(() => END_MESSAGES[props.reason]);
+        const message = computed(() => endMessage(props.reason, props.eligibleMembers));
         return { message, closeDialog: () => emit('close') };
     },
 });
