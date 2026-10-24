@@ -1,4 +1,4 @@
-import { createSession, expect, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedStore, test, adminRpc } from "./fixtures";
+import { createSession, expect, isGas, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedStore, test, adminRpc } from "./fixtures";
 import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
 
 /**
@@ -206,6 +206,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
   });
 
   test("ジャックポット: 管理端末が古い画面を見たまま押した主ボタンは、ホストがもう進んでいれば破棄され、次の画面の操作として画面を飛ばさない", async ({ browser }) => {
+    test.skip(isGas, "WebSocket の受信を止めて古い表示を作るので、ポーリングの GAS では再現できない(ホスト側のガードは単体テストで固定)");
     test.setTimeout(180_000);
     const { admin, host, sessionId } = await scene(browser, "古い主ボタン");
     // 参加者がいない抽選を進めると、ホストが「抽選の対象のメンバーがいません」と知らせる。抽選が進んだかどうかの目印にする

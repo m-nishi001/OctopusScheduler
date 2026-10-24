@@ -361,12 +361,13 @@ const navigate = (path: string, before?: () => Promise<void>) =>
 async function runMain() {
     const main = guidance.value.main;
     if (!main) return;
-    // 押した時点で見ていたホストの画面を添える。ホストがもう進んでいたら破棄される(次の画面の操作と取り違えない)
-    const expectedPath = hostPath.value;
+    // ジャックポットは、押した時点で見ていたホストの画面を添える。ホストがもう進んでいたら破棄される(次の画面の操作と取り違えて画面を飛ばさない)。
+    // クイズはこの確認の対象にしない(挙動を変えない)。
+    const guard = guidance.value.game === 'jackpot' ? { expectedPath: hostPath.value } : {};
     await runMainOrBack('main', async () => {
-        if (main.action.kind === 'navigate') await connection.issue('session', 'navigate', { path: main.action.path, expectedPath });
-        else if (main.action.kind === 'closeAnswers') await connection.issue('quiz', 'closeAnswers', { expectedPath });
-        else await connection.issue(guidance.value.game === 'quiz' ? 'quiz' : 'jackpot', 'advance', { expectedPath });
+        if (main.action.kind === 'navigate') await connection.issue('session', 'navigate', { path: main.action.path, ...guard });
+        else if (main.action.kind === 'closeAnswers') await connection.issue('quiz', 'closeAnswers');
+        else await connection.issue(guidance.value.game === 'quiz' ? 'quiz' : 'jackpot', 'advance', guidance.value.game === 'quiz' ? undefined : guard);
     });
 }
 
