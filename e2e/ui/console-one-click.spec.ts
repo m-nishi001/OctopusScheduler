@@ -243,7 +243,7 @@ test.describe("コントロール画面: ワンクリック開催", () => {
     await openAdvanced(admin2.page);
     await admin2.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
     await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
-    await expect(admin2.page.getByTestId("now")).toContainText("抽選");
+    await expect(admin2.page.getByTestId("now")).toContainText("抽選の準備中"); // 抽選画面の状態が届くまで待つ(届く前は「抽選画面を準備中」)
     const before = await admin2.page.getByTestId("now").innerText();
     await expect.poll(() => alerts.length, { timeout: 60_000 }).toBe(1); // 抽選画面を開いた時点の失敗の知らせ。以降は「次へ」のたびに増える
     await expect(admin.page.getByTestId("now")).toContainText("説明表示中"); // 古い表示のまま
