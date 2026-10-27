@@ -918,7 +918,9 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     await button.trigger("click");
     await flushPromises();
     await tick(5000);
-    expect(text(m, "client-input-message")).toBe("送信しました");
+    expect(has(m, "client-input-message")).toBe(false); // 「送信しました」は出さない
+    expect(m.wrapper.find('[data-testid="client-input"]').text()).toBe("止めています…");
+    expect(m.wrapper.find('[data-testid="client-input"]').attributes("disabled")).toBeDefined();
     expect(seen.map((c) => `${c.game}.${c.type}`)).toEqual(["jackpot.stopRoulette"]);
 
     await env.publishJackpot({ ...STOP, canStop: false }, []);
