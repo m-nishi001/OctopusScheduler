@@ -72,12 +72,12 @@ export function readQuizView(data: Record<string, unknown> | null | undefined): 
 }
 
 /** ポータルが見るジャックポットの公開状態。形と読み取りは、ホスト・管理端末と共有する定義(session-hub)。 */
-export type JackpotView = Pick<JackpotPublished, "stage" | "member" | "memberId" | "prize">;
+export type JackpotView = Pick<JackpotPublished, "page" | "stage" | "member" | "memberId" | "prize">;
 
 /** 公開された状態から、いまのジャックポットを取り出す。無い・形が合わないときは null。 */
 export function readJackpotView(data: Record<string, unknown> | null | undefined): JackpotView | null {
   const state = readJackpotState(data);
-  return state && { stage: state.stage, member: state.member, memberId: state.memberId, prize: state.prize };
+  return state && { page: state.page, stage: state.stage, member: state.member, memberId: state.memberId, prize: state.prize };
 }
 
 /** 参加者に見せる「いま受け付けている操作」の表示名。未知のキーはそのまま出す。 */

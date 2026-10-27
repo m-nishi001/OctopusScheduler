@@ -100,6 +100,17 @@ export const ALICE = { id: "alice", name: "アリス" };
 export const BOB = { id: "bob", name: "ボブ" };
 export { MemoryDeviceStore };
 
+/** ホストが結果・エンディングの画面を映している間に公開する、ジャックポットの終了の場面。 */
+export const FINALE_STATE: JackpotPublished = {
+  page: "finale",
+  stage: "ended",
+  canStop: false,
+  busy: false,
+  member: null,
+  memberId: null,
+  prize: null,
+};
+
 export const sampleEvent = (patch: Partial<PortalEvent> = {}): PortalEvent => ({
   id: "event-1",
   title: "ジャックポット抽選",

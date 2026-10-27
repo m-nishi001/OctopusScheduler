@@ -79,6 +79,11 @@ export function buildJackpotDescriptionState(index: number, total: number): Jack
   return { page: "description", stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null, index, total };
 }
 
+/** 結果・エンディングの画面の公開状態。抽選は終わっているので、止める操作も当選者・賞品も出さない(ポータルは終了の画面を出す)。 */
+export function buildJackpotFinaleState(): JackpotPublished {
+  return { page: "finale", stage: "ended", canStop: false, busy: false, member: null, memberId: null, prize: null };
+}
+
 /**
  * 参加者のポータルの「当選履歴」に出してよい(公開する)抽選の drawId。当選者と賞品の**両方が画面に見えた後**でなければ null
  * (抽選の途中で参加者のスマホに結果が出てしまうのを防ぐ。公開用の状態と同じ基準)。

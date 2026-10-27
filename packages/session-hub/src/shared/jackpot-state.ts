@@ -27,8 +27,8 @@ export function parseJackpotStage(value: unknown): JackpotStage {
 }
 
 export interface JackpotPublished {
-  /** 公開している画面("description" = 説明のスライド、"main-draw" = 抽選画面)。 */
-  page: "main-draw" | "description";
+  /** 公開している画面("description" = 説明のスライド、"main-draw" = 抽選画面、"finale" = 結果・エンディングの画面)。 */
+  page: "main-draw" | "description" | "finale";
   stage: JackpotStage;
   /** 次の操作でルーレット/スロットを止められるか。 */
   canStop: boolean;
@@ -53,7 +53,7 @@ export function readJackpotState(data: Record<string, unknown> | null | undefine
   const raw = data?.[JACKPOT_NS];
   if (!isRecord(raw)) return null;
   const state: JackpotPublished = {
-    page: raw.page === "description" ? "description" : "main-draw",
+    page: raw.page === "description" || raw.page === "finale" ? raw.page : "main-draw",
     stage: parseJackpotStage(raw.stage),
     canStop: raw.canStop === true,
     busy: raw.busy === true,

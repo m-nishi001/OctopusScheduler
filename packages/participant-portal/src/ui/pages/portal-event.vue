@@ -10,12 +10,13 @@
             <template v-if="connected">
                 <ClientInputs />
                 <QuizPanel />
+                <JackpotFinale />
                 <JackpotWaiting />
                 <JackpotCard />
             </template>
 
             <!-- エントリーの入口はここ1つ。抽選が始まったら、エントリー済みの人には進行状況と当選結果だけを出す -->
-            <article v-if="session.event.value && !quizInProgress && !(entry.isIn.value && jackpotActive)" class="pp-card pp-event__panel">
+            <article v-if="session.event.value && !quizInProgress && !jackpotFinale && !(entry.isIn.value && jackpotActive)" class="pp-card pp-event__panel">
                 <EventEntryCard />
             </article>
         </template>
@@ -36,6 +37,7 @@ import { readJackpotView } from '../../model/activity';
 import { useQuizContext } from '../../model/use-quiz';
 import EventEntryCard from '../components/event-entry-card.vue';
 import ClientInputs from '../components/client-inputs.vue';
+import JackpotFinale from '../components/jackpot-finale.vue';
 import JackpotCard from '../components/jackpot-card.vue';
 import JackpotWaiting from '../components/jackpot-waiting.vue';
 import QuizPanel from '../components/quiz-panel.vue';
@@ -50,6 +52,8 @@ const quizInProgress = computed(() => {
     const page = quiz.quiz.value?.page;
     return page === 'play' || page === 'answer' || page === 'result';
 });
+/** ホストが結果・エンディングの画面を映している(エントリーの案内は出さず、終了の画面を出す)。 */
+const jackpotFinale = computed(() => readJackpotView(session.state.value.roomState?.data)?.page === 'finale');
 /** ホストがジャックポットの状態を公開している(説明・抽選の最中、または結果が出ている)。 */
 const jackpotActive = computed(() => readJackpotView(session.state.value.roomState?.data) !== null);
 /** 参加者の操作・クイズ・当選者のどれかが出ているか（出ている間は「イベントは行われていません」を出さない）。 */

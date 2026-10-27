@@ -110,7 +110,8 @@ const banner = computed(() => {
         return route.path === EVENT_PATH ? null : { label: 'クイズ出題中!', title: q.title || 'クイズに答えよう', to: EVENT_PATH };
     }
     // エントリーの入口はバナー(ホーム・イベント画面では、その画面のカード)に1つだけ。リンクではなく、その場で押せる
-    if (session.event.value && !ENTRY_HOST_PATHS.has(route.path)) {
+    // 結果・エンディングの画面の間は、エントリーの案内を出さない(終了の画面はイベント画面に出る)
+    if (session.event.value && !ENTRY_HOST_PATHS.has(route.path) && readJackpotView(session.state.value.roomState?.data)?.page !== 'finale') {
         return { label: 'イベント発生中!', title: session.event.value.title };
     }
     return null;

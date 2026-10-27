@@ -1,5 +1,5 @@
 import type { APIRequestContext } from "@playwright/test";
-import { expectOverlayCenteredWithoutScroll } from "./helpers/responsive";
+import { expectNoHorizontalOverflow, expectOverlayCenteredWithoutScroll } from "./helpers/responsive";
 import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, seedStore, test, type Device } from "./fixtures";
 
 /**
@@ -351,6 +351,79 @@ test.describe("エントリー → ジャックポット", () => {
     expect(saved.length).toBeGreaterThanOrEqual(1);
     expect(saved[0].prizeName).toBeTruthy();
     expect(saved[0].memberName).toBeTruthy();
+
+    await publish(request, sessionId, false);
+    for (const d of [admin, host, ...guests]) await d.context.close();
+  });
+
+  test("ホストが結果・エンディングを映している間、スマホはエントリーカードではなく「ジャックポット終了!」を出す。ロビーに戻れば消える", async ({ browser, request }) => {
+    // エントリーした人(ids[2])も、していない人(ids[0])も同じ終了の画面になる
+    const { admin, host, guests, sessionId } = await scene(browser, request, "抽選会場G", [2]);
+    const entered = guests[2].page;
+    const bystander = guests[0].page;
+    await openEventTab(entered);
+    await openEventTab(bystander);
+    await expect(entered.getByTestId("entry-done")).toContainText("エントリー済み ✓");
+    await expect(entered.getByTestId("jackpot-finale")).toHaveCount(0);
+
+    await openAdvanced(admin.page);
+    await admin.page.getByRole("button", { name: "ジャックポット: 抽選" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-draw");
+    await expect(entered.getByTestId("jackpot-finale")).toHaveCount(0);
+
+    await admin.page.getByRole("button", { name: "ジャックポット: 結果" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-result");
+    for (const page of [entered, bystander]) {
+      await expect(page.getByTestId("jackpot-finale")).toBeVisible();
+      await expect(page.getByTestId("jackpot-finale-title")).toContainText("ジャックポット終了!");
+      // エントリーカードは、エントリー済みの人にも未エントリーの人にも出ない
+      await expect(page.getByTestId("event-entry-card")).toHaveCount(0);
+      await expect(page.getByTestId("entry-done")).toHaveCount(0);
+      await expect(page.getByTestId("entry-button")).toHaveCount(0);
+      await expect(page.getByText("エントリー済み")).toHaveCount(0);
+      await expect(page.getByTestId("you-won")).toHaveCount(0);
+    }
+
+    // エンディングは設定が空だと一瞬でロビーへ戻るので、長く映る1枚を用意しておく
+    const ending = { bgmAssetId: "", contents: [{ id: "e1", type: "text", content: "ご参加ありがとうございました", duration: 60_000 }] };
+    await seedStore(host.page, "jackpot-game", "ScreenConfigData", [
+      { id: "ending_ending-screen-settings", value: { screenName: "ending", settingName: "ending-screen-settings", settingValue: JSON.stringify(ending) } },
+    ]);
+    // 結果 → エンディングに切り替わっても、終了の画面のまま(古い画面の後片付けで公開が消えない)
+    await admin.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();
+    await expect.poll(() => route(host.page)).toBe("/execute/jackpot-ending");
+    await expect(entered.getByTestId("jackpot-finale")).toBeVisible();
+    await expect(bystander.getByTestId("jackpot-finale")).toBeVisible();
+    await expect(entered.getByTestId("event-entry-card")).toHaveCount(0);
+
+    // 画面の大きさごとに、はみ出さず縦のスクロールも出ない(粒が漂う間の 0・2・4 秒で見る)
+    const shotsDir = process.env.E2E_SHOTS_DIR;
+    for (const size of [{ width: 412, height: 915 }, { width: 360, height: 640 }, { width: 844, height: 390 }]) {
+      await entered.setViewportSize(size);
+      const label = `終了の画面 ${size.width}x${size.height}`;
+      for (const sec of [0, 2, 4]) {
+        if (sec > 0) await entered.waitForTimeout(2000);
+        await expectNoHorizontalOverflow(entered, label);
+        const m = await entered.getByTestId("jackpot-finale").evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom, scrollable: el.scrollHeight > el.clientHeight + 1, docOver: document.documentElement.scrollHeight - document.documentElement.clientHeight };
+        });
+        expect(m.scrollable, `${label} t=${sec}s: 終了の画面の中が縦にスクロールする`).toBe(false);
+        expect(m.docOver, `${label} t=${sec}s: 画面全体が縦にスクロールする(${m.docOver}px)`).toBeLessThanOrEqual(1);
+        expect(m.top, `${label} t=${sec}s: 終了の画面が画面の上に切れている`).toBeGreaterThanOrEqual(0);
+        if (shotsDir) {
+          const { mkdirSync } = await import("node:fs");
+          mkdirSync(shotsDir, { recursive: true });
+          await entered.screenshot({ path: `${shotsDir}/finale-${size.width}x${size.height}-t${sec}s.png` });
+        }
+      }
+    }
+
+    // ロビーに戻れば、終了の画面は消える(未エントリーの人はエントリーカードに戻る)
+    await admin.page.getByRole("button", { name: "ロビー" }).click();
+    await expect.poll(() => route(host.page)).toMatch(/\/session\/host\//);
+    await expect(entered.getByTestId("jackpot-finale")).toHaveCount(0);
+    await expect(bystander.getByTestId("jackpot-finale")).toHaveCount(0);
 
     await publish(request, sessionId, false);
     for (const d of [admin, host, ...guests]) await d.context.close();
