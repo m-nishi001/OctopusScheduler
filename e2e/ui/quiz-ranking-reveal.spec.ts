@@ -1,6 +1,6 @@
 import type { APIRequestContext, Browser, Page } from "@playwright/test";
 import { acceptConfirm, adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, sampleQuiz, seedStore, test } from "./fixtures";
-import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
+import { expectNoHorizontalOverflow, expectOverlayCenteredWithoutScroll, VIEWPORTS } from "./helpers/responsive";
 
 /**
  * クイズの順位発表のネタバレ防止と「あなたは N 位!」。
@@ -150,6 +150,18 @@ test.describe("クイズの順位発表(参加者ポータル)", () => {
         await expect.poll(async () => d.page.getByTestId("quiz-my-rank").boundingBox(), `${size.width}x${size.height}`).toMatchObject({ x: 0, y: 0, ...size });
         await expect(d.page.getByTestId("quiz-my-rank-text")).toBeInViewport();
         await expectNoHorizontalOverflow(d.page, `順位 ${size.width}x${size.height}`);
+      }
+    }
+    // 縦にスクロールが出ず、縦の真ん中に出る(1位は紙吹雪が落ち続ける間も)。横向きは枠そのものがスクロールしないことだけを見る
+    for (const size of [{ width: 412, height: 915 }, { width: 360, height: 640 }, VIEWPORTS.tablet, { width: 844, height: 390 }]) {
+      const landscape = size.width > size.height && size.height < 500;
+      for (const [d, name] of [[taro, "rank1"], [hanako, "out"]] as const) {
+        await d.page.setViewportSize(size);
+        await expect(d.page.getByTestId("quiz-my-rank-text")).toBeInViewport();
+        await expectOverlayCenteredWithoutScroll(d.page, "quiz-my-rank", `順位(${name}) ${size.width}x${size.height}`, {
+          landscape,
+          shotPrefix: `${name}-${size.width}x${size.height}`,
+        });
       }
     }
     await taro.page.setViewportSize(VIEWPORTS.phone);

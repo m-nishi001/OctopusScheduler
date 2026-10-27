@@ -1,4 +1,5 @@
 import type { APIRequestContext } from "@playwright/test";
+import { expectOverlayCenteredWithoutScroll } from "./helpers/responsive";
 import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, seedStore, test, type Device } from "./fixtures";
 
 /**
@@ -149,6 +150,14 @@ test.describe("エントリー → ジャックポット", () => {
     // 閉じるボタンは無い(景品抽選に進めば自動で消える)
     await expect(won.getByTestId("you-won").getByRole("button")).toHaveCount(0);
     await expect(won.getByTestId("you-won-close")).toHaveCount(0);
+    // 縦にスクロールが出ず、縦の真ん中に出る(紙吹雪が落ち続ける間も)。横向きは枠そのものがスクロールしないことだけを見る
+    for (const size of [{ width: 412, height: 915 }, { width: 360, height: 640 }, { width: 768, height: 1024 }, { width: 844, height: 390 }]) {
+      await won.setViewportSize(size);
+      await expectOverlayCenteredWithoutScroll(won, "you-won", `当選 ${size.width}x${size.height}`, {
+        landscape: size.height < 500,
+        shotPrefix: `won-${size.width}x${size.height}`,
+      });
+    }
     // 紙吹雪は本当に動いている: animation が有効で、落下の時間が1枚ごとにばらける(無効な宣言だと 'none' のまま上に張り付く)
     const confetti = await won.locator(".pp-won__piece").evaluateAll((els) =>
       els.map((el) => {
