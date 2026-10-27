@@ -67,6 +67,7 @@ export function buildJackpotHostState(input: {
     page: "main-draw",
     stage: deriveStage({ phase: input.phase, tracker, ended: input.ended ?? false }),
     canStop: canStopAt(input.nextLabel),
+    busy: false,
     member: tracker.memberRevealed ? input.memberName ?? null : null,
     memberId: tracker.memberRevealed ? input.memberId || null : null,
     prize: tracker.prizeRevealed ? input.prizeName ?? null : null,
@@ -75,7 +76,7 @@ export function buildJackpotHostState(input: {
 
 /** 説明画面(スライド)の公開状態。管理端末が「次のスライドへ/前へ」を出し分けるために index/total を載せる。 */
 export function buildJackpotDescriptionState(index: number, total: number): JackpotPublished {
-  return { page: "description", stage: "waiting", canStop: false, member: null, memberId: null, prize: null, index, total };
+  return { page: "description", stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null, index, total };
 }
 
 /**

@@ -44,6 +44,7 @@ function setup(options: { remaining?: number[]; members?: number[]; cycles?: Arr
     },
     onDrawError: vi.fn(),
     onStepError: vi.fn(),
+    onStarted: vi.fn(),
     onSettled: vi.fn(),
   };
   const flow = new DrawFlowController(deps);
@@ -205,6 +206,19 @@ describe("DrawFlowController", () => {
       expect(deps.drawNextCycle).toHaveBeenCalledTimes(1);
       expect(log).toEqual(["slow"]);
       expect(deps.onSettled).toHaveBeenCalledTimes(1);
+      expect(deps.onStarted).toHaveBeenCalledTimes(1); // 無視された操作では呼ばない
+    });
+
+    it("onStarted は、有効な進行操作ごとにステップを実行する前に1回だけ呼ぶ", async () => {
+      const { flow, deps, log } = setup();
+      const before: number[] = [];
+      deps.onStarted.mockImplementation(() => void before.push(log.length));
+
+      await flow.advance();
+      expect(deps.onStarted).toHaveBeenCalledTimes(1);
+      await flow.advance();
+      expect(deps.onStarted).toHaveBeenCalledTimes(2);
+      expect(before).toEqual([0, 2]); // どちらもステップの実行前
     });
 
     it("ready になるまでの進行操作は無視する", async () => {
@@ -215,6 +229,7 @@ describe("DrawFlowController", () => {
 
       expect(deps.progress).not.toHaveBeenCalled();
       expect(deps.drawNextCycle).not.toHaveBeenCalled();
+      expect(deps.onStarted).not.toHaveBeenCalled();
       expect(deps.onSettled).not.toHaveBeenCalled();
     });
   });

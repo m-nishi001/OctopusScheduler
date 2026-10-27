@@ -251,6 +251,7 @@ export function useDrawOrchestrator() {
     },
     // 終了後の「次へ」・Enter・OK は、結果の画面へ進む(エンディングへは結果の画面から進む)
     onLeave: () => void router.push(to("/jackpot-result")),
+    onStarted: () => host.hold(),
     onSettled: publishHostState,
   });
 

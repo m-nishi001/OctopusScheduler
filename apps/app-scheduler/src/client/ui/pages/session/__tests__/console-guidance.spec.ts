@@ -77,7 +77,7 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
 
     describe("説明のスライド", () => {
       const desc = (index: number, total: number, over: Partial<GuidanceInput> = {}) =>
-        at({ hostPath: "/execute/jackpot-description", jackpot: { page: "description", index, total, stage: "waiting", canStop: false, member: null, memberId: null, prize: null }, ...over });
+        at({ hostPath: "/execute/jackpot-description", jackpot: { page: "description", index, total, stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null }, ...over });
 
       it("導入画面: 主ボタンは最初のスライドへ(advance)。前へは無い", () => {
         const g = desc(-1, 3);
@@ -116,7 +116,7 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
       });
 
       it("スライドの位置がまだ届いていない/別画面の状態が残っているときは、従来どおり「抽選を始める」で戻れない", () => {
-        const stale: Array<JackpotPublished | null> = [null, { page: "main-draw", stage: "member", canStop: false, member: null, memberId: null, prize: null }, { page: "main-draw", stage: "prize", canStop: true, member: null, memberId: null, prize: null }];
+        const stale: Array<JackpotPublished | null> = [null, { page: "main-draw", stage: "member", canStop: false, busy: false, member: null, memberId: null, prize: null }, { page: "main-draw", stage: "prize", canStop: true, busy: false, member: null, memberId: null, prize: null }];
         for (const jackpot of stale) {
           const g = at({ hostPath: "/execute/jackpot-description", jackpot });
           expect(g.main).toMatchObject({ label: "抽選を始める", action: { kind: "navigate", path: "/jackpot-draw" } });
@@ -142,7 +142,7 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
     const draw = (jackpot: Partial<NonNullable<Parameters<typeof at>[0]["jackpot"]>> | null) =>
       at({
         hostPath: "/execute/jackpot-draw",
-        jackpot: jackpot && { page: "main-draw", stage: "waiting", canStop: false, member: null, memberId: null, prize: null, ...jackpot },
+        jackpot: jackpot && { page: "main-draw", stage: "waiting", canStop: false, busy: false, member: null, memberId: null, prize: null, ...jackpot },
       });
 
     it("抽選画面を開いた直後(状態が届く前)は準備中", () => {
@@ -155,6 +155,15 @@ describe("describeProgress: 全ての状態で「いま」と「押すと起き�
       expect(member.main!.hint).toContain("メンバー");
       const prize = draw({ stage: "prize", canStop: true, member: "太郎" });
       expect(prize.main!.hint).toContain("景品");
+    });
+
+    it("ホストが演出中(busy)のときは、主ボタンは「演出中…」で押せない(止める/次へのどちらの場面でも)", () => {
+      for (const over of [{ stage: "prize" as const, canStop: false }, { stage: "member" as const, canStop: true }, { stage: "ended" as const }]) {
+        const g = draw({ ...over, busy: true });
+        expect(g.main).toMatchObject({ label: "演出中…", disabled: true });
+        expect(g.main!.hint).not.toBe("");
+      }
+      expect(draw({ stage: "prize", canStop: true }).main!.disabled).toBeUndefined();
     });
 
     it("止められない場面では「次へ」。当選者・景品が決まっていれば「いま」に出る", () => {

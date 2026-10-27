@@ -23,6 +23,7 @@ const state = (over: Partial<JackpotPublished> = {}): JackpotPublished => ({
   page: "main-draw",
   stage: "member",
   canStop: false,
+  busy: false,
   member: null,
   memberId: null,
   prize: null,
@@ -203,6 +204,34 @@ describe("useJackpotHost", () => {
     await Promise.all((await Promise.all(clients)).map((c) => c.conn.issue("jackpot", "stopRoulette").catch(() => undefined)));
     await tick(4000);
     expect(handlers.stopRoulette).toHaveBeenCalledTimes(1);
+  });
+
+  it("hold は直前の状態を busy・停止不可・参加者の操作なしで公開し直す(当選者・景品は増えない)。遅れて届いた停止は捨てる", async () => {
+    const { client, admin } = await scene();
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    const { host } = mountHost(handlers);
+    host.hold(); // 何も公開していなければ何もしない
+    await tick(4000);
+    expect(client.conn.state.roomState?.data).not.toHaveProperty("jackpot");
+
+    host.publish(prizeStop({ member: "太郎", prize: null }));
+    await tick(4000);
+    expect(client.conn.state.roomState?.clientInput).toEqual(STOP_FOR_WINNER);
+
+    host.hold();
+    await tick(4000);
+    const published = (client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot;
+    expect(published).toMatchObject({ stage: "prize", busy: true, canStop: false, member: "太郎", memberId: "winner", prize: null });
+    expect(client.conn.state.roomState?.clientInput).toEqual([]);
+
+    await admin.conn.issue("jackpot", "stopRoulette");
+    await client.conn.issue("jackpot", "stopRoulette").catch(() => undefined);
+    await tick(4000);
+    expect(handlers.stopRoulette).not.toHaveBeenCalled();
+
+    host.publish(prizeStop({ canStop: false, prize: "特賞" })); // 次の公開で busy は解ける
+    await tick(4000);
+    expect((client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot).toMatchObject({ busy: false, prize: "特賞" });
   });
 
   it("公開した状態が参加者・管理端末の画面に届く(名前空間 jackpot)", async () => {
