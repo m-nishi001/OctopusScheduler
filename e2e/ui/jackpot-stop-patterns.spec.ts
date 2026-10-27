@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
 import { changedFrames, captureTimeline } from "./helpers/motion";
-import { sampleRepeatedRows, stoppedTopRows } from "./helpers/slot";
+import { sampleRepeatedRows, stoppedWinRows } from "./helpers/slot";
 
 /**
  * ルーレット・メンバー抽選の「意地悪な止まり方」が、ホスト画面で実際に動き、最後は必ず当選が発表されること。
@@ -204,9 +204,11 @@ for (const random of SLOT_RANDOMS) {
     expect(await duringStop, "減速中に同じ景品名が続けて見えた").toEqual([]);
 
     await expect(spinning).toBeHidden({ timeout: 30_000 });
+    // 既定は停止から4秒で止まる(通信の遅れを見込んで余裕を持たせる)
     expect(Date.now() - clicked, "止まるまでが長すぎる").toBeLessThan(15_000);
-    const rows = await stoppedTopRows(host.page);
-    expect(new Set(rows).size, `3本のリールが同じ景品で止まる: ${rows.join(",")}`).toBe(1);
+    expect(Date.now() - clicked, "止まるまでが短すぎる(旧: 約2.3秒)").toBeGreaterThan(3000);
+    const rows = await stoppedWinRows(host.page);
+    expect(new Set(rows).size, `3本のリールが当たりの行(真ん中)に同じ景品で止まる: ${rows.join(",")}`).toBe(1);
     await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 30_000 });
     await expect(host.page.getByTestId("prize-winning-name")).toHaveText(rows[0]);
     await restoreRandom(host.page);

@@ -30,4 +30,35 @@ test.describe("ジャックポットの管理画面の設定", () => {
     await expect(page.getByTestId("kakuhen-timings")).toBeHidden();
     await dev.context.close();
   });
+
+  test("景品抽選が止まるまでの時間(初期値4秒)を変えて保存でき、開き直しても残る。範囲外は収められる", async ({ browser }) => {
+    const dev = await newDevice(browser, { signedIn: true });
+    const page = dev.page;
+    await page.goto("/#/execute/jackpot-admin/screens/draw");
+
+    const sec = page.getByTestId("prize-stop-sec");
+    await expect(sec).toBeVisible();
+    await expect(sec, "初期値").toHaveValue("4");
+    await expect(page.getByText("停止ボタンを押してから、最後の景品が止まるまでの長さ")).toBeVisible();
+
+    await sec.fill("7");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByText("保存しました")).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("prize-stop-sec")).toHaveValue("7");
+
+    // 範囲(2〜15秒)に収めて保存される
+    await page.getByTestId("prize-stop-sec").fill("99");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByText("保存しました")).toBeVisible();
+    await expect(page.getByTestId("prize-stop-sec")).toHaveValue("15");
+
+    // 初期値に戻しておく(ほかのテストに影響させない)
+    await page.getByTestId("prize-stop-sec").fill("4");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByText("保存しました")).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("prize-stop-sec")).toHaveValue("4");
+    await dev.context.close();
+  });
 });

@@ -1,7 +1,7 @@
 import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
 import { captureTimeline, expectAnimating } from "./helpers/motion";
 import type { Page } from "@playwright/test";
-import { expectSlotFitsEverySize, expectSlotLarge, sampleRepeatedRows, stoppedTopRows } from "./helpers/slot";
+import { expectNoGapUnderReels, expectSlotFitsEverySize, expectSlotLarge, observeSlotStop, sampleRepeatedRows, stoppedWinRows } from "./helpers/slot";
 
 /**
  * 景品抽選（ルーレット / スロット）が、開始で回り始め、停止で止まること。
@@ -72,11 +72,17 @@ for (const kind of ["roulette", "slot"] as const) {
 
     if (kind === "slot") {
       // 遠くからでも読めるよう、ルーレット並みに画面を使う(1080p でも 720p でも。窓の大きさを変えると組み直される)
-      await expectSlotLarge(host.page, "1920x1080", { heightRatio: 0.68, font: 58 });
+      await expectSlotLarge(host.page, "1920x1080", { heightRatio: 0.62, font: 58 });
       await host.page.setViewportSize({ width: 1280, height: 720 });
       await expect.poll(slotHeightRatio(host.page), "窓の大きさに合わせて組み直される").toBeLessThan(0.9);
-      await expectSlotLarge(host.page, "1280x720", { heightRatio: 0.68, font: 38 });
+      await expectSlotLarge(host.page, "1280x720", { heightRatio: 0.62, font: 38 });
       await expectSlotFitsEverySize(host.page, "スロット");
+      // 枠の中に、リールの下の空白が無い(上下左右の余白が同じ)。どの大きさでも
+      for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }, { width: 1024, height: 768 }]) {
+        await host.page.setViewportSize(size);
+        await expect.poll(slotHeightRatio(host.page), "窓の大きさに合わせて組み直される").toBeLessThan(0.9);
+        await expectNoGapUnderReels(host.page, `${size.width}x${size.height}`);
+      }
       await host.page.setViewportSize({ width: 1920, height: 1080 });
       await expect.poll(slotHeightRatio(host.page), "窓の大きさに合わせて組み直される").toBeLessThan(0.9);
 
@@ -105,10 +111,33 @@ for (const kind of ["roulette", "slot"] as const) {
     }
 
     // 止める → 回転が止まり、当選した景品が発表される（発表の紙吹雪は動き続けるので、静止ではなく発表の表示で確認する）
+    const observed = kind === "slot" ? await observeSlotStop(host.page) : null;
     await next.click();
     await expect(spinning).toBeHidden({ timeout: 30_000 });
-    // スロットは、3本とも同じ景品(当選景品)で止まり、発表される景品と一致する
-    const stoppedRows = kind === "slot" ? await stoppedTopRows(host.page) : [];
+    // スロットは、3本とも同じ景品(当選景品)で、当たりの行(真ん中)に止まり、発表される景品と一致する
+    const stoppedRows = kind === "slot" ? await stoppedWinRows(host.page) : [];
+    if (observed) {
+      // 止まり方: 左 → 中 → 右の順に止まり、最後のリールが止まるまでが設定(既定4秒)の前後25%。止まったあと、結果を見せる間は当たりの行が光る
+      const o = await observed();
+      expect(o.decelStartMs, "減速の始まりが見つからない").not.toBeNull();
+      const [l, m, r] = o.landedAt;
+      expect([l, m, r].every((x) => x !== null), `3本とも止まる: ${JSON.stringify(o.landedAt)}`).toBe(true);
+      expect(l!, `左 → 中の順に止まる: ${JSON.stringify(o.landedAt)}`).toBeLessThan(m!);
+      expect(m!, `中 → 右の順に止まる: ${JSON.stringify(o.landedAt)}`).toBeLessThan(r!);
+      const total = r! - o.decelStartMs!;
+      expect(total, `停止から最後のリールが止まるまで ${Math.round(total)}ms (設定 4000ms ±25%)`).toBeGreaterThan(3000);
+      expect(total).toBeLessThan(5000);
+      // 左が止まって(跳ね返りも終わって)いる間も、右は動いている
+      const at = (t: number) => o.samples.find((s) => s.t >= t)!;
+      const a = at(l! + 500);
+      const b = at(l! + 600);
+      expect(Math.abs(b.pos[0] - a.pos[0]), "左のリールは止まっている").toBeLessThan(0.5);
+      expect(Math.abs(b.pos[2] - a.pos[2]), "右のリールはまだ動いている").toBeGreaterThan(1);
+      const held = o.samples.filter((s) => s.t >= r! && s.t <= r! + 1500);
+      expect(held.length).toBeGreaterThan(10);
+      expect(held.every((s) => s.hit), "全部止まったあと、結果を見せる間は当たりの行が光る(hit)").toBe(true);
+      expect(o.samples.filter((s) => s.t < r! - 50).every((s) => !s.hit), "止まる前は光らない").toBe(true);
+    }
     await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 30_000 });
     if (kind === "slot") {
       expect(new Set(stoppedRows).size, `3本のリールが同じ景品で止まる: ${stoppedRows.join(",")}`).toBe(1);
