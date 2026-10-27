@@ -82,6 +82,38 @@ describe("setupHostAgent: session.navigate", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("expectedPath が現在の画面と違う遷移(古い画面を見て押された主ボタン)は破棄する", async () => {
+    const { router, admin } = await hostedScene();
+    await admin.conn.issue("session", "navigate", { path: "/jackpot-description" });
+    await settle(5000);
+    expect(router.currentRoute.value.fullPath).toBe("/execute/jackpot-description");
+    // 管理端末はまだオープニングを見ている → 「説明へ」ではなく、その次の画面として扱われてはいけない
+    await admin.conn.issue("session", "navigate", { path: "/jackpot-draw", expectedPath: "/execute/jackpot-opening" });
+    await settle(5000);
+    expect(router.currentRoute.value.fullPath).toBe("/execute/jackpot-description");
+  });
+
+  it("expectedPath が現在の画面と同じなら遷移する", async () => {
+    const { router, admin } = await hostedScene();
+    await admin.conn.issue("session", "navigate", { path: "/jackpot-opening" });
+    await settle(5000);
+    await admin.conn.issue("session", "navigate", { path: "/jackpot-description", expectedPath: "/execute/jackpot-opening" });
+    await settle(5000);
+    expect(router.currentRoute.value.fullPath).toBe("/execute/jackpot-description");
+  });
+
+  it("名前空間を問わず expectedPath が違う操作(advance など)は、ゲームの処理に届く前に破棄する", async () => {
+    const { agent, router, admin } = await hostedScene();
+    const received: string[] = [];
+    agent.router.register("jackpot", (c) => void received.push(c.type));
+    await router.push("/jackpot-description");
+    await admin.conn.issue("jackpot", "advance", { expectedPath: "/execute/jackpot-opening" });
+    await admin.conn.issue("jackpot", "advance", { expectedPath: "/execute/jackpot-description" });
+    await admin.conn.issue("jackpot", "back"); // 付けない操作は従来どおり通す
+    await settle(8000);
+    expect(received).toEqual(["advance", "back"]);
+  });
+
   it("遷移のたびに現在の画面を状態として公開する", async () => {
     const { router, meta } = await hostedScene();
     await router.push("/jackpot-ending");

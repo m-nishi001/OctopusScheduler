@@ -4,12 +4,16 @@ import type { ActionQueue, Step } from "./action-queue";
 /** 終了の画面が出た直後は、連打された進行操作で飛ばさない(この時間は見せる)。 */
 export const MIN_END_DISPLAY_MS = 1000;
 
+/** 次に進む先。終了(景品・メンバーのどちらが尽きた場合も endReason に出る)か、積むサイクルのステップ。 */
+export type NextCycle = { kind: "finished"; progress: DrawProgress } | { kind: "cycle"; steps: Step[] };
+
 export interface DrawFlowDeps {
   queue: ActionQueue;
-  /** 抽選の進み具合。終了の判定(endReason)は、景品・メンバーのどちらが尽きた場合もここから得る。 */
-  progress(): Promise<DrawProgress>;
-  /** 次の抽選をして、そのサイクルのステップを返す。失敗したら例外を投げる。 */
-  drawNextCycle(): Promise<Step[]>;
+  /**
+   * 続けられるかを確かめ、続けられるなら次の抽選のサイクルを返す(先に裏で用意してあれば、通信せずにそれを返す)。
+   * 失敗したら例外を投げる。
+   */
+  nextCycle(): Promise<NextCycle>;
   /** 抽選の失敗。サイクルは積まれず、次の進行操作でもう一度抽選する。 */
   onDrawError(error: unknown): void;
   /** ステップの失敗。そのステップは捨てられ、次の進行操作で続きから進む。 */
@@ -78,14 +82,13 @@ export class DrawFlowController {
   /** 続けられるなら次の抽選を引いてサイクルを積む。終了、または積めなかったら false。 */
   private async refill(): Promise<boolean> {
     try {
-      const progress = await this.deps.progress();
-      const { endReason } = progress;
-      if (endReason) {
+      const next = await this.deps.nextCycle();
+      if (next.kind === "finished") {
         this.endedAtMs = this.now();
-        this.deps.onFinished(endReason, progress);
+        this.deps.onFinished(next.progress.endReason!, next.progress);
         return false;
       }
-      this.deps.queue.addCycle(await this.deps.drawNextCycle());
+      this.deps.queue.addCycle(next.steps);
       return true;
     } catch (e) {
       this.deps.onDrawError(e);

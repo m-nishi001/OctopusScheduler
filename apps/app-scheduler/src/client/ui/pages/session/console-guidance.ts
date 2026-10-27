@@ -4,7 +4,7 @@
  *
  * 主ボタンは常に1つ。進行中のゲームに合わせて中身が変わり、押した結果を1行で予告する。
  */
-import type { JackpotPublished, JackpotStage } from "@octopus/session-hub";
+import type { DrawPool, JackpotPublished, JackpotStage } from "@octopus/session-hub";
 
 /** ホストが公開しているジャックポットの状態(ホスト・ポータルと共有する定義)。 */
 export type JackpotProgress = JackpotPublished;
@@ -25,6 +25,8 @@ export interface GuidanceInput {
   hostOnline: boolean;
   /** デモ(リハーサル)なら遷移先に ?demo=1 を付ける。 */
   demo: boolean;
+  /** ジャックポットの抽選の対象。オープニングの次が、auto=説明、entrants=エントリー画面で変わる。 */
+  pool: DrawPool;
 }
 
 /** 主ボタンの動作。advance=ホストの「次へ」、closeAnswers=受付の締切、navigate=ホストの画面を切り替える。 */
@@ -45,12 +47,12 @@ export interface Guidance {
 
 const withDemo = (path: string, demo: boolean): string => (demo ? `${path}?demo=1` : path);
 
-/** デモ(リハーサル)にはエントリー画面が無い。オープニングの次は説明。 */
-const DEMO_OPENING = { label: "説明へ", hint: "ルールの説明画面を映します", to: "/jackpot-description" };
+/** デモ(リハーサル)と、抽選の対象が参加者全員(自動)のときは、エントリー画面を挟まない。オープニングの次は説明。 */
+const OPENING_TO_DESCRIPTION = { label: "説明へ", hint: "ルールの説明画面を映します", to: "/jackpot-description" };
 
-/** ジャックポットの画面の並び(オープニング → エントリー → 説明 → 抽選)。主ボタンで順に進める(抽選画面の中は「次へ」で進む)。 */
+/** ジャックポットの画面の並び(オープニング → [エントリーした人のみのときだけ エントリー] → 説明 → 抽選)。主ボタンで順に進める(抽選画面の中は「次へ」で進む)。 */
 const JACKPOT_FLOW: Record<string, { now: string; label: string; hint: string; to: string }> = {
-  "/jackpot-opening": { now: "ジャックポット: オープニング表示中", label: "エントリーへ", hint: "エントリーの画面を映します(自動の対象なら参加済みの人、エントリーした人のみなら受付を始めます)", to: "/jackpot-entry" },
+  "/jackpot-opening": { now: "ジャックポット: オープニング表示中", label: "エントリーへ", hint: "エントリーの画面を映し、受付を始めます", to: "/jackpot-entry" },
   "/jackpot-entry": { now: "ジャックポット: エントリー画面表示中", label: "説明へ", hint: "エントリーを締め切り、ルールの説明画面を映します", to: "/jackpot-description" },
   "/jackpot-description": { now: "ジャックポット: 説明表示中", label: "抽選を始める", hint: "抽選の画面を映します(まだ抽選は始まりません)", to: "/jackpot-draw" },
   "/jackpot-result": { now: "ジャックポット: 結果表示中", label: "エンディングへ", hint: "エンディング画面を映します", to: "/jackpot-ending" },
@@ -170,7 +172,7 @@ export function describeProgress(input: GuidanceInput): Guidance {
   if (jp === "/jackpot-draw") return describeJackpotDraw(input.jackpot);
   if (jp === "/jackpot-description") return describeJackpotDescription(input);
   if (jp && JACKPOT_FLOW[jp]) {
-    const step = jp === "/jackpot-opening" && input.demo ? { ...JACKPOT_FLOW[jp], ...DEMO_OPENING } : JACKPOT_FLOW[jp];
+    const step = jp === "/jackpot-opening" && (input.demo || input.pool !== "entrants") ? { ...JACKPOT_FLOW[jp], ...OPENING_TO_DESCRIPTION } : JACKPOT_FLOW[jp];
     return {
       game: "jackpot",
       now: step.now,

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ActionQueue, type Step } from "./action-queue";
 import { DrawFlowController } from "./draw-flow-controller";
 import { toDrawProgress } from "@control/draw/dto/draw-progress";
-import { buildCycle, normalPrizeSteps, remainingSteps } from "./draw-cycle";
+import { buildCycle, normalPrizeSteps, remainingSteps, SETTLE_SEC } from "./draw-cycle";
 import { DrawStateError } from "./draw-context";
 import { createTestContext } from "./draw-context.test-helper";
 
@@ -36,6 +36,36 @@ describe("buildCycle の形(進行の停止位置・ラベル)", () => {
   });
 });
 
+describe("演出の待ち時間(SETTLE_SEC)", () => {
+  it("待ちは差し替えられ、各 pause は決めた秒数だけ待つ(時間を進めずに確かめられる)", async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const steps = buildCycle(createTestContext({ wait }), false);
+    for (const s of steps.filter((x) => x.pause)) await s.run();
+    expect(wait.mock.calls.map((c) => c[0])).toEqual([
+      SETTLE_SEC.memberStage,
+      SETTLE_SEC.spinning,
+      SETTLE_SEC.stopped,
+      SETTLE_SEC.prizeStage,
+      SETTLE_SEC.prizeSpinning,
+      SETTLE_SEC.dialog,
+    ]);
+  });
+
+  it("メンバー抽選の画面を出した後の待ちは、写真を先に読んである分だけ他より短い。ほかは演出に要る1秒を保つ", () => {
+    expect(SETTLE_SEC.memberStage).toBeLessThan(1);
+    expect(SETTLE_SEC.memberStage).toBeGreaterThan(0);
+    for (const k of ["spinning", "stopped", "prizeStage", "prizeSpinning", "dialog"] as const) expect(SETTLE_SEC[k]).toBe(1);
+  });
+
+  it("半分の知らせの3秒も、差し替えた待ちで待つ", async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const ctx = createTestContext({ wait, drawService: { getLastPrizeCount: vi.fn().mockResolvedValue({ total: 10, remaining: 5 }) } });
+    await remainingSteps(ctx)[0].run();
+    expect(wait).toHaveBeenCalledWith(3);
+    expect(ctx.showHalfRemainingDialog.value).toBe(false);
+  });
+});
+
 describe("サイクルを実際に進める(DrawFlowController と組み合わせ)", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -45,8 +75,8 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
     const settled = vi.fn();
     const flow = new DrawFlowController({
       queue,
-      progress: vi.fn(async () => toDrawProgress(0, 0, 1, 3)), // サイクルが終わったら止める(景品が尽きた)
-      drawNextCycle: async () => buildCycle(ctx, isKakuhen),
+      // サイクルが終わったら止める(景品が尽きた)
+      nextCycle: async () => ({ kind: "finished" as const, progress: toDrawProgress(0, 0, 1, 3) }),
       onDrawError: vi.fn(),
       onStepError: vi.fn(),
       onFinished: vi.fn(),

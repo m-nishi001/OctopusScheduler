@@ -36,6 +36,8 @@ export interface DrawContext {
   showHalfRemainingDialog: Writable<boolean>;
   /** 確変メッセージのオーバーレイ。 */
   kakuhenOverlayVisible: Writable<boolean>;
+  /** 演出の待ち(秒)。省略すると実際に待つ。テストで差し替える。 */
+  wait?: (seconds: number) => Promise<void>;
 }
 
 /** 抽選の進行に必要な状態が足りない(想定外)。握りつぶさず、原因が分かる名前で止める。 */

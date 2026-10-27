@@ -20,6 +20,15 @@ export function usePrizeDrawState(assetService: AssetService) {
     return newPrepared;
   };
 
+  /** ルーレットに描く形にするだけ(画面には反映しない)。次のサイクルの分を裏で先に用意するときに使う。 */
+  const buildPrizeItems = (newPrizes: PrizeDto[]) => prepareRenderPrizes(newPrizes, assetService);
+
+  /** 先に用意しておいた景品を画面に反映する。見えていた分の画像の URL は破棄する。 */
+  const installPreparedPrizes = (items: RouletteItem[]) => {
+    revokePreparedPrizes(preparedPrizes.value);
+    preparedPrizes.value = items;
+  };
+
   const updatePrizes = async (newPrizes: PrizeDto[]) => {
     prizes.value = newPrizes;
     await preparePrizes(newPrizes);
@@ -35,6 +44,8 @@ export function usePrizeDrawState(assetService: AssetService) {
     preparedPrizes: computed(() => preparedPrizes.value),
     updatePrizes,
     preparePrizes,
+    buildPrizeItems,
+    installPreparedPrizes,
     updateSelectedPrize,
   };
 }

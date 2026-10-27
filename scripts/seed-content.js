@@ -139,11 +139,16 @@ const PRIZE_DEFS = [
   { id: "seed-prize-6", name: "参加賞 オリジナルタンブラー", weight: 50, animation: "slot", colors: ["#8b5cf6", "#4c1d95"] },
 ];
 
+/** 景品の画像のアセット ID。1 が通常の画像、2 が確変の 2 回目に出す画像。 */
+const prizeImageId = (p, n) => p.id.replace("prize", n === 1 ? "img" : "img2");
+
 /** ジャックポット側のアセット。`[id, ファイル名, MIME, 中身]`。 */
 export function buildJackpotAssets() {
   const assets = [];
   for (const p of PRIZE_DEFS) {
-    assets.push([p.id.replace("prize", "img"), `${p.id}.png`, PNG_TYPE, makeBadgePng(...p.colors)]);
+    assets.push([prizeImageId(p, 1), `${p.id}.png`, PNG_TYPE, makeBadgePng(...p.colors)]);
+    // 確変の「画像2」。画像1と見て区別できるよう、色を反転させる。
+    assets.push([prizeImageId(p, 2), `${p.id}-2.png`, PNG_TYPE, makeBadgePng(p.colors[1], p.colors[0])]);
   }
   assets.push(["seed-img-opening", "opening.png", PNG_TYPE, makeBadgePng("#7c3aed", "#1e1b4b", { width: 320, height: 180 })]);
   assets.push(["seed-img-ending", "ending.png", PNG_TYPE, makeBadgePng("#0ea5e9", "#0c4a6e", { width: 320, height: 180 })]);
@@ -162,12 +167,12 @@ export function buildPrizes() {
     weight: p.weight,
     animation: p.animation,
     order: i + 1,
-    imageAssetId: p.id.replace("prize", "img"),
-    image2AssetId: p.id.replace("prize", "img"),
+    imageAssetId: prizeImageId(p, 1),
+    image2AssetId: prizeImageId(p, 2),
     bgm1AssetId: "seed-bgm-draw",
     bgm2AssetId: "seed-bgm-ending",
-    winningImage1AssetId: p.id.replace("prize", "img"),
-    winningImage2AssetId: p.id.replace("prize", "img"),
+    winningImage1AssetId: prizeImageId(p, 1),
+    winningImage2AssetId: prizeImageId(p, 2),
   }));
 }
 

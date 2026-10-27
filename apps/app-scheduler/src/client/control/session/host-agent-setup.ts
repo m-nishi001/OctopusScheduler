@@ -6,6 +6,7 @@ import {
   PORTAL_EVENT_END,
   PORTAL_EVENT_NS,
   isAllowedHostPath,
+  readExpectedPath,
 } from "@octopus/session-hub";
 import { toExecutePath } from "../router/execute-path";
 import { registerEventHost } from "./event-host";
@@ -51,10 +52,18 @@ async function dispatchEventCommand(agent: HostAgent, type: string): Promise<voi
  *   - 管理端末のイベント開始/終了(`event.*`)を受け、参加者ポータルに出すイベントを公開する
  *   - ゲームの終了画面からロビーへ戻ったら、エントリー受付を締め切ってイベントを終了する(運営の手動操作を不要にする)。
  *     終了画面に入った時点では終了しない(クイズの順位発表はイベントとクイズの状態が生きている間に行う)
+ *   - expectedPath 付きのコマンドは、ホストの現在の画面と違えば破棄する(古い画面を見て押された主ボタンの取り違え防止)
  *   - 画面遷移のたびに、いまの画面(`session.path`)を状態として公開する
  */
 export function setupHostAgent(router: Router): HostAgent {
   const agent = container.resolve(HostAgent);
+
+  // 管理端末が「見ていた画面」(expectedPath)を付けてきた操作は、ホストがもう別の画面なら破棄する。
+  // 遅れて届いた主ボタンが、次の画面の操作として扱われて画面を飛ばすのを防ぐ。付いていない操作は従来どおり通す。
+  agent.router.setGuard((command) => {
+    const expected = readExpectedPath(command.payload);
+    return expected === null || expected === router.currentRoute.value.fullPath;
+  });
 
   agent.router.register("session", async (command) => {
     if (command.type !== "navigate") return;

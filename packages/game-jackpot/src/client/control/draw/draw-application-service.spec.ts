@@ -29,8 +29,9 @@ function setup(options: { members?: typeof roster; prizes?: typeof prizeList; el
       return options.eligibleMemberIds ?? null;
     }),
   };
+  const memberRepo = { getMembers: vi.fn(async () => members) };
   const service = new DrawApplicationService(
-    { getMembers: async () => members } as never,
+    memberRepo as never,
     { getPrizes: async () => prizes } as never,
     { current: () => store },
     memberDrawService,
@@ -39,7 +40,7 @@ function setup(options: { members?: typeof roster; prizes?: typeof prizeList; el
     new DrawStateInitializer(new PrizeReservationService(rand)),
     drawPool as never
   );
-  return { service, store, memberDrawService, prizes, members };
+  return { service, store, memberDrawService, prizes, members, memberRepo };
 }
 
 const REQUEST = { memberRequestCount: 10, prizeRequestCount: 8 };
@@ -59,6 +60,73 @@ describe("DrawApplicationService", () => {
       expect(result.wonPrize).toBeTruthy();
       expect(commit).not.toHaveBeenCalled();
       expect(await store.results()).toEqual([]);
+    });
+  });
+
+  describe("drawNext(終了の判定と抽選を、対象の一覧の取得1回で行う)", () => {
+    it("抽選できるときは、対象の一覧を1回だけ取得し、抽選して確定する", async () => {
+      const eligibleMemberIds = ["alice", "bob"];
+      const { service, store, prizes } = setup({ eligibleMemberIds });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const pool = (service as never as { drawPool: { getEligibleMemberIds: ReturnType<typeof vi.fn> } }).drawPool;
+      const next = await service.drawNext(REQUEST);
+      expect(next.kind).toBe("drawn");
+      expect(pool.getEligibleMemberIds).toHaveBeenCalledTimes(1);
+      if (next.kind === "drawn") expect(eligibleMemberIds).toContain(next.outcome.result.wonMember?.id);
+      expect(await store.results()).toHaveLength(1);
+    });
+
+    it("対象が全員当選済みなら、抽選せずに終了(members)を返す。確定も増えない", async () => {
+      const { service, store, prizes } = setup({ eligibleMemberIds: ["alice"] });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      await service.drawNext(REQUEST);
+      const commit = vi.spyOn(store, "commit");
+      const next = await service.drawNext(REQUEST);
+      expect(next).toMatchObject({ kind: "finished", progress: { endReason: "members" } });
+      expect(commit).not.toHaveBeenCalled();
+    });
+
+    it("景品が尽きたら終了(prizes)を返す", async () => {
+      const { service, prizes } = setup({ prizes: prizeList.slice(0, 1) });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      await service.drawNext(REQUEST);
+      expect(await service.drawNext(REQUEST)).toMatchObject({ kind: "finished", progress: { endReason: "prizes" } });
+    });
+
+    it("対象の一覧を取得できないときは、終了と見なさず例外のまま伝える", async () => {
+      const { service, prizes } = setup({ poolError: new Error("offline") });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      await expect(service.drawNext(REQUEST)).rejects.toThrow("offline");
+    });
+  });
+
+  describe("対象の一覧・メンバー名簿の取得回数", () => {
+    it("executeDraw は、入力を渡さなければ1回ずつ取得し、渡せば取得しない(1回の抽選で重ねて取得しない)", async () => {
+      const { service, prizes, members, memberRepo } = setup({ eligibleMemberIds: ["alice", "bob"] });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const pool = (service as never as { drawPool: { getEligibleMemberIds: ReturnType<typeof vi.fn> } }).drawPool;
+      await service.executeDraw(REQUEST);
+      expect(pool.getEligibleMemberIds).toHaveBeenCalledTimes(1);
+      expect(memberRepo.getMembers).toHaveBeenCalledTimes(1);
+      await service.executeDraw(REQUEST, { eligibleIds: ["alice", "bob", "carol"], members });
+      expect(pool.getEligibleMemberIds).toHaveBeenCalledTimes(1);
+      expect(memberRepo.getMembers).toHaveBeenCalledTimes(1);
+    });
+
+    it("null(絞り込みなし)を渡したときも取得しない", async () => {
+      const { service, prizes, members, memberRepo } = setup();
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      const pool = (service as never as { drawPool: { getEligibleMemberIds: ReturnType<typeof vi.fn> } }).drawPool;
+      await service.executeDraw(REQUEST, { eligibleIds: null, members });
+      expect(pool.getEligibleMemberIds).not.toHaveBeenCalled();
+      expect(memberRepo.getMembers).not.toHaveBeenCalled();
+    });
+
+    it("drawNext は、対象の一覧もメンバー名簿も1回ずつ(終了の判定と抽選で共有)", async () => {
+      const { service, prizes, memberRepo } = setup({ eligibleMemberIds: ["alice", "bob"] });
+      await service.initializeStateIfNeeded(prizes, { mode: "fixed", fixedTimings: [] });
+      await service.drawNext(REQUEST);
+      expect(memberRepo.getMembers).toHaveBeenCalledTimes(1);
     });
   });
 
