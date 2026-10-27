@@ -152,18 +152,6 @@ test.describe("クイズの順位発表(参加者ポータル)", () => {
         await expectNoHorizontalOverflow(d.page, `順位 ${size.width}x${size.height}`);
       }
     }
-    // 縦にスクロールが出ず、縦の真ん中に出る(1位は紙吹雪が落ち続ける間も)。横向きは枠そのものがスクロールしないことだけを見る
-    for (const size of [{ width: 412, height: 915 }, { width: 360, height: 640 }, VIEWPORTS.tablet, { width: 844, height: 390 }]) {
-      const landscape = size.width > size.height && size.height < 500;
-      for (const [d, name] of [[taro, "rank1"], [hanako, "out"]] as const) {
-        await d.page.setViewportSize(size);
-        await expect(d.page.getByTestId("quiz-my-rank-text")).toBeInViewport();
-        await expectOverlayCenteredWithoutScroll(d.page, "quiz-my-rank", `順位(${name}) ${size.width}x${size.height}`, {
-          landscape,
-          shotPrefix: `${name}-${size.width}x${size.height}`,
-        });
-      }
-    }
     await taro.page.setViewportSize(VIEWPORTS.phone);
     await hanako.page.setViewportSize(VIEWPORTS.phone);
 
@@ -187,6 +175,29 @@ test.describe("クイズの順位発表(参加者ポータル)", () => {
     await expect(jiro.page.getByTestId("results-round").first()).toContainText("果物クイズ");
     await openEventTab(taro.page);
     await expect(taro.page.getByTestId("quiz-panel")).toHaveCount(0);
+
+    await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: false });
+    for (const d of all) await d.context.close();
+  });
+
+  // 長い進行(景品の「次へ」)の途中に挟むと、ホストの演出の待ち時間とずれて不安定になるため、独立したテストにする
+  test("順位の全画面は、どの画面の大きさでも縦の真ん中に出て、縦スクロールが出ない(1位の紙吹雪の間も)", async ({ browser, request }) => {
+    test.setTimeout(240_000);
+    const { taro, hanako, sessionId, all } = await playToResult(browser, request, "順位発表の寸法会場");
+    await expect(taro.page.getByTestId("quiz-my-rank-text")).toHaveText("1位!", { timeout: 60_000 });
+    await expect(hanako.page.getByTestId("quiz-my-rank-text")).toHaveText("今回は ランク外");
+    // 横向きは枠そのものがスクロールしないことだけを見る
+    for (const size of [{ width: 412, height: 915 }, { width: 360, height: 640 }, VIEWPORTS.tablet, { width: 844, height: 390 }]) {
+      const landscape = size.width > size.height && size.height < 500;
+      for (const [d, name] of [[taro, "rank1"], [hanako, "out"]] as const) {
+        await d.page.setViewportSize(size);
+        await expect(d.page.getByTestId("quiz-my-rank-text")).toBeInViewport();
+        await expectOverlayCenteredWithoutScroll(d.page, "quiz-my-rank", `順位(${name}) ${size.width}x${size.height}`, {
+          landscape,
+          shotPrefix: `${name}-${size.width}x${size.height}`,
+        });
+      }
+    }
 
     await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: false });
     for (const d of all) await d.context.close();

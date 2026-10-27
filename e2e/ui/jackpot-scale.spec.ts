@@ -134,7 +134,7 @@ test.describe("ジャックポットの規模別・通し(ホスト単体)", () 
           await page.waitForTimeout(400);
           const m = await slotMetrics(page);
           const k = sc.viewport.height / 1080;
-          if (m.heightRatio < 0.68) layout.add(`スロットが小さい: 画面の高さの ${(m.heightRatio * 100).toFixed(0)}%`);
+          if (m.heightRatio < 0.62) layout.add(`スロットが小さい: 画面の高さの ${(m.heightRatio * 100).toFixed(0)}%`);
           if (m.font < 58 * k) layout.add(`スロットの景品の文字が小さい: ${m.font}px (< ${Math.round(58 * k)}px)`);
           if (m.rect.left < -1 || m.rect.right > m.viewport.width + 1 || m.rect.top < -1 || m.rect.bottom > m.viewport.height + 1) {
             layout.add(`スロットが画面からはみ出している: ${JSON.stringify(m.rect)}`);

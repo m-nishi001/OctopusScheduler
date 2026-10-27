@@ -7,6 +7,7 @@ import { PrizeRepository } from "@model/prize/prize-repository";
 import { MemberRepository } from "@model/member/member-repository";
 import { AssetDataService } from "@control/asset/asset-data-service";
 import { ScreenSettingsService } from "@control/screen-config/screen-settings-service";
+import { parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC } from "@model/draw/prize-stop-sec";
 import { parseKakuhenPlan, AUTO_KAKUHEN_PLAN, type KakuhenPlan } from "@model/draw/kakuhen-plan";
 import { DrawConflictError } from "@model/errors";
 import type { MemberDto } from "@control/member/dto/member-dto";
@@ -87,6 +88,7 @@ export function useDrawOrchestrator() {
     showPrizeWinningDialog,
     showHalfRemainingDialog,
     kakuhenOverlayVisible,
+    prizeStopSec: DEFAULT_PRIZE_STOP_SEC,
   };
 
   // 参加者への公開用: 当選者を「停止演出が終わるまで」見せないために、どこまで見えたかを追跡する
@@ -277,6 +279,7 @@ export function useDrawOrchestrator() {
       // 確変にする回は、管理画面の設定（本抽選画面設定）に従って、セッションで最初の抽選のときに決める
       const mainSettings = await container.resolve(ScreenSettingsService).fetchScreenSetting("main", "main-screen-settings");
       kakuhenPlan = parseKakuhenPlan(mainSettings);
+      ctx.prizeStopSec = parsePrizeStopSec(mainSettings);
       await drawService.initializeStateIfNeeded(prizes.value, kakuhenPlan);
       // 確定済みで公開されていない抽選(再読み込み前に演出の途中だったもの)は、引き直さずに同じ結果で演出し直す
       const pending = await store.pending();
