@@ -330,7 +330,10 @@ test.describe("エントリー → ジャックポット", () => {
         await stopBtn.click();
         phoneStopped = true;
       } else {
-        await nextButton(admin.page).click();
+        // 景品を止められる場面では、管理端末は押さず、スマホに停止ボタンが出るのを待つ(演出中は主ボタンが押せないので、押せる時だけ押す)。
+        const next = nextButton(admin.page);
+        const label = (await next.innerText().catch(() => "")).trim();
+        if (!label.includes("止める") && (await next.isEnabled().catch(() => false))) await next.click();
       }
       await admin.page.waitForTimeout(1500);
     }
