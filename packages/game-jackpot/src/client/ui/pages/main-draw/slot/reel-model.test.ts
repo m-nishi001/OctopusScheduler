@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   MIN_LOOP_LENGTH,
-  STOP_BASE_MS,
-  STOP_STAGGER_MS,
+  DEFAULT_STOP_TOTAL_MS,
+  SETTLE_BOUNCE_MS,
+  SETTLE_BOUNCE_RATIO,
+  WIN_ROW,
+  settleOffset,
+  stopSchedule,
   WINDOW_ROWS,
   adjacentSameNameCount,
   advancePosition,
@@ -17,7 +21,6 @@ import {
   renderedCount,
   separateSameNames,
   spinSpeed,
-  stopDurationMs,
   windowWithinStrip,
   wrapPosition,
 } from "./reel-model";
@@ -239,7 +242,7 @@ describe("planStop(減速して止まる)", () => {
   const loop = buildReelLoop(["a", "b", "c", "d", "e", "f", "g", "h"].map(prize), rngOf(4));
   const itemHeight = 100;
   const cycle = cycleHeight(loop.length, itemHeight);
-  const base = { loop, itemHeight, speedPerFrame: spinSpeed(0, itemHeight), durationMs: STOP_BASE_MS };
+  const base = { loop, itemHeight, speedPerFrame: spinSpeed(0, itemHeight), durationMs: 1400 };
 
   it("どの位置から止めても、指定の景品のマスの位置で止まり、前へ進む", () => {
     for (const target of loop) {
@@ -247,7 +250,8 @@ describe("planStop(減速して止まる)", () => {
         const plan = planStop({ ...base, targetId: target.id, position })!;
         expect(plan.to).toBeGreaterThan(plan.from);
         const stopAt = wrapPosition(plan.to, cycle);
-        expect(loop[Math.round(stopAt / itemHeight) % loop.length].id).toBe(target.id);
+        // 止めた位置は窓の一番上のマス。止める景品は当たりの行(真ん中)に来る
+        expect(loop[(Math.round(stopAt / itemHeight) + WIN_ROW) % loop.length].id).toBe(target.id);
         expect(stopAt % itemHeight).toBeCloseTo(0, 6);
         expect(windowWithinStrip(stopAt, loop.length, itemHeight)).toBe(true);
       }
@@ -302,11 +306,6 @@ describe("planStop(減速して止まる)", () => {
     expect(positionAtStop(plan, 0)).toBe(plan.from);
   });
 
-  it("止まる時間は、左のリールから順に少しずつ遅れる", () => {
-    expect(stopDurationMs(0)).toBe(STOP_BASE_MS);
-    expect(stopDurationMs(2)).toBe(STOP_BASE_MS + 2 * STOP_STAGGER_MS);
-  });
-
   it("回転は速く(旧は 10px/フレーム @140px)、リールごとに少しずつ違う", () => {
     expect(spinSpeed(0, 140)).toBeGreaterThan(14);
     expect(spinSpeed(1, 140)).toBeGreaterThan(spinSpeed(0, 140));
@@ -314,16 +313,76 @@ describe("planStop(減速して止まる)", () => {
   });
 });
 
+describe("stopSchedule(左 → 中 → 右の順に止める時刻)", () => {
+  it("左から順に減速を始め、順に止まる。最後に止まるのは全体の長さちょうど", () => {
+    const [l, m, r] = stopSchedule(4000);
+    expect(l.startMs).toBe(0);
+    expect(l.startMs).toBeLessThan(m.startMs);
+    expect(m.startMs).toBeLessThan(r.startMs);
+    expect(l.endMs).toBeLessThan(m.endMs);
+    expect(m.endMs).toBeLessThan(r.endMs);
+    expect(r.endMs).toBe(4000);
+  });
+
+  it("どのリールも、減速を始めてから止まるまで時間がある。右が一番長い(粘って止まる)", () => {
+    const len = stopSchedule(4000).map((t) => t.endMs - t.startMs);
+    len.forEach((x) => expect(x).toBeGreaterThan(0));
+    expect(len[2]).toBeGreaterThan(len[0]);
+    expect(len[2]).toBeGreaterThan(len[1]);
+    // 隣のリールの減速は、前のリールが止まる前に始まる(間が空かない)
+    const t = stopSchedule(4000);
+    expect(t[1].startMs).toBeLessThan(t[0].endMs);
+    expect(t[2].startMs).toBeLessThan(t[1].endMs);
+  });
+
+  it("全体の長さに比例する", () => {
+    const a = stopSchedule(2000);
+    const b = stopSchedule(6000);
+    a.forEach((t, i) => {
+      expect(b[i].startMs).toBeCloseTo(t.startMs * 3, 6);
+      expect(b[i].endMs).toBeCloseTo(t.endMs * 3, 6);
+    });
+    expect(DEFAULT_STOP_TOTAL_MS).toBe(4000);
+  });
+});
+
+describe("settleOffset(止まった瞬間の跳ね返り)", () => {
+  const ih = 100;
+  it("0 から始まり、行き過ぎて、跳ね返りの長さで 0 に戻る。範囲外は 0", () => {
+    expect(settleOffset(0, ih)).toBe(0);
+    expect(settleOffset(-10, ih)).toBe(0);
+    expect(settleOffset(SETTLE_BOUNCE_MS, ih)).toBe(0);
+    expect(settleOffset(SETTLE_BOUNCE_MS + 500, ih)).toBe(0);
+  });
+
+  it("行き過ぎは進む向き(正)で、最大はマスの高さの 0.10〜0.15 倍。後戻りは無い", () => {
+    let max = 0;
+    for (let t = 1; t < SETTLE_BOUNCE_MS; t++) {
+      const v = settleOffset(t, ih);
+      expect(v).toBeGreaterThanOrEqual(0);
+      max = Math.max(max, v);
+    }
+    expect(max).toBeCloseTo(ih * SETTLE_BOUNCE_RATIO, 1);
+    expect(max).toBeGreaterThanOrEqual(ih * 0.1);
+    expect(max).toBeLessThanOrEqual(ih * 0.15);
+  });
+
+  it("マスの高さに比例する", () => {
+    expect(settleOffset(100, 200)).toBeCloseTo(settleOffset(100, 100) * 2, 9);
+  });
+});
+
 describe("computeSlotSize(窓の大きさからの寸法)", () => {
   /** 枠(縁・電球)を含む、スロット全体のおおよその寸法。 */
   const block = (s: ReturnType<typeof computeSlotSize>) => ({
-    h: s.itemHeight * 3 + 6 + s.itemHeight * 0.1 + (s.font * 1.5 * 1.25 + 24) + s.padding * 2 + 12 + 32,
+    // 結果は枠の中のリールに重ねて出すので、枠の下に空きは取らない
+    h: s.itemHeight * 3 + 6 + s.padding * 2 + 12 + 32,
     w: 3 * (s.reelWidth + 6) + 2 * s.gap + s.padding * 2 + 12 + 32,
   });
 
-  it("1920x1080: 全体の高さがルーレット(約860px)に近い 780〜860px で、文字も大きい", () => {
+  it("1920x1080: 全体の高さがルーレット(約860px)に近い 700〜860px で、文字も大きい", () => {
     const s = computeSlotSize(1920, 1080);
-    expect(block(s).h).toBeGreaterThan(740);
+    expect(block(s).h).toBeGreaterThan(700);
     expect(block(s).h).toBeLessThan(860);
     expect(s.font).toBeGreaterThanOrEqual(58); // 旧: 48px
     expect(s.itemHeight).toBeGreaterThan(140); // 旧: 140px

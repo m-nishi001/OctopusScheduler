@@ -8,6 +8,8 @@
 
 /** 窓に見えるマス数。 */
 export const WINDOW_ROWS = 3;
+/** 当たりの行(窓の上から数えた番号。真ん中の行)。止まったとき、止める景品はここに来る。 */
+export const WIN_ROW = 1;
 /** ループの最短の長さ。景品が少なくても、流れて見えるように繰り返して埋める。 */
 export const MIN_LOOP_LENGTH = 10;
 
@@ -159,19 +161,50 @@ export function spinSpeed(reelIndex: number, itemHeight: number): number {
   return itemHeight * (0.16 + reelIndex * 0.02);
 }
 
-export const STOP_BASE_MS = 1400;
-export const STOP_STAGGER_MS = 450;
+/** 景品抽選が止まるまでの時間(停止ボタンから最後のリールが止まるまで)の既定(ms)。設定が無いときに使う。 */
+export const DEFAULT_STOP_TOTAL_MS = 4000;
 
-/** 止め始めてから、リールが止まるまでの時間(ms)。左のリールから順に、少しずつ遅れて止まる。 */
-export function stopDurationMs(reelIndex: number): number {
-  return STOP_BASE_MS + reelIndex * STOP_STAGGER_MS;
+/** 各リールが減速を始める・止まる時刻(止め始めからの ms)。 */
+export interface ReelStopTiming {
+  startMs: number;
+  endMs: number;
+}
+
+/** 左・中・右の減速の開始と終わりを、全体の長さ D に対する割合で決める。右のリールが一番長く、ゆっくり粘って止まる(リーチの見せ場)。 */
+const STOP_FRACTIONS: ReadonlyArray<readonly [number, number]> = [
+  [0, 0.35],
+  [0.2, 0.65],
+  [0.4, 1],
+];
+
+/**
+ * 止め始めてから最後のリールが止まるまでを totalMs として、リールごとの減速の開始と終わりを返す。
+ * どのリールも、自分の減速が始まるまでは全速で回り続ける。左 → 中 → 右の順に止まり、最後に止まるのは totalMs ちょうど。
+ */
+export function stopSchedule(totalMs: number): ReelStopTiming[] {
+  return STOP_FRACTIONS.map(([start, end]) => ({ startMs: totalMs * start, endMs: totalMs * end }));
+}
+
+/** 止まった勢いで少し行き過ぎて戻る動き(跳ね返り)の長さ(ms)と、行き過ぎる大きさ(マスの高さに対する比)。 */
+export const SETTLE_BOUNCE_MS = 250;
+export const SETTLE_BOUNCE_RATIO = 0.12;
+
+/**
+ * 止まった瞬間からの経過時間に対する、行き過ぎの距離(px、進む向きが正)。
+ * 0 から始まり、中ほどで最大(マスの高さ × SETTLE_BOUNCE_RATIO)になり、SETTLE_BOUNCE_MS で 0 に戻る(始まりと終わりでなめらか)。
+ * 範囲外(止まる前・戻りきった後)は 0。
+ */
+export function settleOffset(elapsedMs: number, itemHeight: number): number {
+  if (elapsedMs <= 0 || elapsedMs >= SETTLE_BOUNCE_MS) return 0;
+  const u = elapsedMs / SETTLE_BOUNCE_MS;
+  return itemHeight * SETTLE_BOUNCE_RATIO * Math.sin(Math.PI * u) ** 2;
 }
 
 /** 描画が1秒に進むフレーム数(速さを px/フレーム から px/秒 にする目安)。 */
 const FRAMES_PER_SEC = 60;
 
 /**
- * 減速して止める計画。`from` から `to` まで(`to` は折り返す前の値で、止める景品のマスの位置 + 整数周)、
+ * 減速して止める計画。`from` から `to` まで(`to` は折り返す前の値で、止める景品のマスが当たりの行に来る位置 + 整数周)、
  * 最初は回転と同じ速さで、だんだん遅くなって止まる(速さが途切れない滑らかな曲線)。
  */
 export interface StopPlan {
@@ -183,7 +216,7 @@ export interface StopPlan {
 }
 
 /**
- * 止める景品のマスで止まる計画を立てる。回転の速さから滑らかに減速するのに必要な距離より先にある、最初のマスを選ぶ。
+ * 止める景品のマスが当たりの行(真ん中)に来る位置で止まる計画を立てる。回転の速さから滑らかに減速するのに必要な距離より先にある、最初のマスを選ぶ。
  * ループに止める景品が無ければ null。
  */
 export function planStop(args: {
@@ -204,7 +237,7 @@ export function planStop(args: {
   let to = Infinity;
   loop.forEach((item, index) => {
     if (item.id !== targetId) return;
-    const base = index * itemHeight;
+    const base = (index - WIN_ROW) * itemHeight; // 止める景品が当たりの行に来る位置
     const laps = Math.max(0, Math.ceil((from + minDistance - base) / cycle));
     to = Math.min(to, base + laps * cycle);
   });
@@ -234,8 +267,8 @@ export interface SlotSize {
 }
 
 /** スロットの全体の高さ・幅のうち、マスの高さに比例する分と、枠(縁・電球)など一定の分。 */
-const BLOCK_H_PER_ITEM = 4.04;
-const BLOCK_H_FIXED = 80;
+const BLOCK_H_PER_ITEM = 3.46;
+const BLOCK_H_FIXED = 60;
 const BLOCK_W_PER_ITEM = 8.34;
 const BLOCK_W_FIXED = 64;
 /** 画面に対してスロット全体が占める上限(高さは演出の舞台の7割台、幅はほぼ全幅)。 */

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import SlotAnimation from "./slot-animation.vue";
 import type { AnimationRef } from "../animation-types";
+import { WIN_ROW } from "./reel-model";
 import type { PrizeDto } from "@control/prize/dto/prize-dto";
 
 vi.mock("@octopus/composables/use-audio", () => ({
@@ -138,7 +139,7 @@ describe("SlotAnimation", () => {
       }
     });
 
-    it("どの景品に止めても、窓が帯の内側に収まり、一番上にその景品が見える", async () => {
+    it("どの景品に止めても、窓が帯の内側に収まり、真ん中の行にその景品が見える", async () => {
       for (const target of prizes) {
         const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: target } });
         const api = wrapper.vm as unknown as Required<AnimationRef>;
@@ -148,7 +149,7 @@ describe("SlotAnimation", () => {
         await stopped;
         for (const reel of inspect(wrapper)) {
           expect(reel.windowBottom).toBeLessThanOrEqual(reel.stripHeight);
-          expect(reel.rows[Math.round(reel.shift / reel.itemH)].text()).toBe(target.name);
+          expect(reel.rows[Math.round(reel.shift / reel.itemH) + WIN_ROW].text()).toBe(target.name);
         }
       }
     });
@@ -285,9 +286,9 @@ describe("SlotAnimation", () => {
       const after = itemHeightOf(wrapper);
       expect(after).toBeLessThan(before);
       expect(shiftOf(wrapper, 0) / after).toBeCloseTo(rowBefore, 6);
-      // 止まっている景品が、いまも一番上に見える
+      // 止まっている景品が、いまも当たりの行(真ん中)に見える
       const rows = wrapper.findAll(".reel")[0].findAll(".prize-item");
-      expect(rows[Math.round(shiftOf(wrapper, 0) / after)].text()).toBe("賞3");
+      expect(rows[Math.round(shiftOf(wrapper, 0) / after) + WIN_ROW].text()).toBe("賞3");
       wrapper.unmount();
     });
 
@@ -333,41 +334,101 @@ describe("SlotAnimation", () => {
       expect((shiftOf(wrapper, 0) - p0 + cycle) % cycle).toBeCloseTo(h * 0.16, 3);
     });
 
-    it("同時に減速を始め、左のリールから順に止まり、最後は3本とも選ばれた景品で止まる(先に止まっても他は動いている)", async () => {
+    it("左 → 中 → 右の順に止まる。先に止まったリールが止まっても、他は全速のまま回る・減速中で、最後は3本とも選ばれた景品が真ん中の行", async () => {
       const frame = manualFrames();
       const wrapper = mount(SlotAnimation, { props: { prizes, preparedPrizes: prepared, selectedPrize: prizes[0], rng: rngOf(5) } });
       const api = wrapper.vm as unknown as Required<AnimationRef>;
       await api.startSpin();
       await stepFor(wrapper, frame, 200);
-      const stopped = api.stopSpin(3, "q3");
+      const stopped = api.stopSpin(4, "q3"); // D = 4秒: 左 0〜1.4秒 / 中 0.8〜2.6秒 / 右 1.6〜4秒
       const h = itemHeightOf(wrapper);
+      const cycle = (wrapper.findAll(".reel")[0].findAll(".prize-item").length - 3) * h;
+      /** 1フレームの動き(px)。0 なら止まっている。 */
+      const stepOf = async (r: number) => {
+        const before = shiftOf(wrapper, r);
+        await stepFor(wrapper, frame, 16);
+        return (shiftOf(wrapper, r) - before + cycle) % cycle;
+      };
 
-      // 1本目が止まる前(1.3秒): 動いている
-      await stepFor(wrapper, frame, 1300);
+      // 減速が始まる前(0.4秒): 左は減速中だが、右はまだ全速(回転の速さそのまま)
+      await stepFor(wrapper, frame, 400);
+      expect(await stepOf(2)).toBeCloseTo(h * 0.2, 1);
+
+      // 1.9秒: 左は止まって(跳ね返りも終わって)いる。中・右は動いている
+      await stepFor(wrapper, frame, 1500);
+      expect(await stepOf(0)).toBe(0);
+      expect(await stepOf(1)).toBeGreaterThan(0);
+      expect(await stepOf(2)).toBeGreaterThan(0);
       expect(wrapper.classes()).toContain("spinning");
-      const moving = shiftOf(wrapper, 0);
-      await stepFor(wrapper, frame, 16);
-      expect(shiftOf(wrapper, 0)).not.toBe(moving);
+      expect(wrapper.classes()).not.toContain("hit");
 
-      // 1本目が止まった後(1.4秒〜): 1本目は止まったまま、他の2本はまだ動いている(当選を先に確定させて見せない)
-      await stepFor(wrapper, frame, 160);
-      const first = shiftOf(wrapper, 0);
-      const second = shiftOf(wrapper, 1);
-      await stepFor(wrapper, frame, 64);
-      expect(shiftOf(wrapper, 0)).toBe(first);
-      expect(shiftOf(wrapper, 1)).not.toBe(second);
-      expect(wrapper.classes()).toContain("spinning");
-      expect(wrapper.findAll(".reel")[0].findAll(".prize-item")[Math.round(first / h)].text()).toBe("三等");
+      // 3.1秒: 中も止まったが、右はまだ動いている
+      await stepFor(wrapper, frame, 1100);
+      expect(await stepOf(1)).toBe(0);
+      expect(await stepOf(2)).toBeGreaterThan(0);
 
-      // 3本目は 1.4 + 0.9 = 2.3 秒で止まり、さらに結果を見せてから通知する
-      await vi.advanceTimersByTimeAsync(3000);
-      await expect(stopped).resolves.toBe("q3");
+      // 右が止まったら、結果を見せ続ける間 hit が付き、そのあと通知する
+      await stepFor(wrapper, frame, 1000);
       expect(wrapper.classes()).not.toContain("spinning");
+      expect(wrapper.classes()).toContain("hit");
+      expect(wrapper.emitted("stopped")).toBeUndefined();
       for (let r = 0; r < 3; r++) {
         const rows = wrapper.findAll(".reel")[r].findAll(".prize-item");
-        expect(rows[Math.round(shiftOf(wrapper, r) / h)].text()).toBe("三等");
+        expect(rows[Math.round(shiftOf(wrapper, r) / h) + WIN_ROW].text()).toBe("三等");
       }
+      await stepFor(wrapper, frame, 2100);
+      await expect(stopped).resolves.toBe("q3");
       expect(wrapper.emitted("stopped")?.[0]).toEqual(["q3"]);
+    });
+
+    it("全部止まったら HOLD(2秒)のあいだ hit が付き、止まるまでの時間は指定した秒数(省略時は4秒)", async () => {
+      const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+      const api = wrapper.vm as unknown as Required<AnimationRef>;
+      await api.startSpin();
+      let done = false;
+      void api.stopSpin(undefined, "p2").then(() => (done = true));
+      await vi.advanceTimersByTimeAsync(3900);
+      expect(wrapper.classes()).toContain("spinning");
+      await vi.advanceTimersByTimeAsync(200); // 4.1秒: 全部止まった
+      expect(wrapper.classes()).not.toContain("spinning");
+      expect(wrapper.classes()).toContain("hit");
+      await vi.advanceTimersByTimeAsync(1800);
+      expect(done).toBe(false);
+      await vi.advanceTimersByTimeAsync(300); // 6.2秒: 通知
+      expect(done).toBe(true);
+
+      // 指定した秒数に従う
+      await api.startSpin();
+      expect(wrapper.classes()).not.toContain("hit");
+      done = false;
+      void api.stopSpin(8, "p2").then(() => (done = true));
+      await vi.advanceTimersByTimeAsync(7900);
+      expect(wrapper.classes()).toContain("spinning");
+      await vi.advanceTimersByTimeAsync(2200);
+      expect(done).toBe(true);
+    });
+
+    it("止まった直後、そのリールだけが光り(landed)、少しして消える", async () => {
+      const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+      const api = wrapper.vm as unknown as Required<AnimationRef>;
+      await api.startSpin();
+      void api.stopSpin(4, "p1"); // 左は 1.4秒
+      await vi.advanceTimersByTimeAsync(1500);
+      const reelsNow = wrapper.findAll(".reel");
+      expect(reelsNow[0].classes()).toContain("landed");
+      expect(reelsNow[1].classes()).not.toContain("landed");
+      await vi.advanceTimersByTimeAsync(700);
+      expect(wrapper.findAll(".reel")[0].classes()).not.toContain("landed");
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    it("結果は枠の中に重ねて出す(場所を空けないので、出ても高さが変わらない)", async () => {
+      const wrapper = mount(SlotAnimation, { props: { prizes, selectedPrize: prizes[0] } });
+      expect(wrapper.find(".result").exists()).toBe(false);
+      await wrapper.setProps({ showResult: true });
+      expect(wrapper.find(".result").text()).toBe("賞1");
+      const source = readFileSync(resolve(process.cwd(), "src/client/ui/pages/main-draw/slot/slot-animation.vue"), "utf-8");
+      expect(/\.result-area\s*\{([^}]*)\}/.exec(source)?.[1]).toMatch(/position:\s*absolute/);
     });
 
     it("減速の間、1フレームに進む距離がだんだん小さくなる(いきなり止まらない)", async () => {
@@ -376,19 +437,19 @@ describe("SlotAnimation", () => {
       const api = wrapper.vm as unknown as Required<AnimationRef>;
       await api.startSpin();
       await stepFor(wrapper, frame, 100);
-      void api.stopSpin(3, "q0");
+      void api.stopSpin(3, "q0"); // 右は 1.2〜3秒かけて減速
       const h = itemHeightOf(wrapper);
-      const cycle = (wrapper.findAll(".reel")[0].findAll(".prize-item").length - 3) * h;
+      const cycle = (wrapper.findAll(".reel")[2].findAll(".prize-item").length - 3) * h;
       const steps: number[] = [];
-      let last = shiftOf(wrapper, 0);
-      for (let i = 0; i < 80; i++) {
+      let last = shiftOf(wrapper, 2);
+      for (let i = 0; i < 170; i++) {
         await stepFor(wrapper, frame, 16);
-        const now = shiftOf(wrapper, 0);
+        const now = shiftOf(wrapper, 2);
         steps.push((now - last + cycle) % cycle);
         last = now;
       }
       const average = (from: number, to: number) => steps.slice(from, to).reduce((a, b) => a + b, 0) / (to - from);
-      expect(average(60, 75)).toBeLessThan(average(5, 15));
+      expect(average(150, 165)).toBeLessThan(average(80, 90));
       await vi.advanceTimersByTimeAsync(5000);
     });
 
@@ -418,7 +479,7 @@ describe("SlotAnimation", () => {
       const api = wrapper.vm as unknown as Required<AnimationRef>;
       await api.startSpin();
       const stopped = api.stopSpin(3, "q1");
-      await stepFor(wrapper, frame, 3600);
+      await stepFor(wrapper, frame, 5200);
       await stopped;
       const at = [0, 1, 2].map((r) => shiftOf(wrapper, r));
       await stepFor(wrapper, frame, 160);
