@@ -83,3 +83,69 @@ export async function expectNoHorizontalOverflow(page: Page, label: string) {
   });
   expect(clipped, `${label}: 画面の端を越えている要素がある`).toEqual([]);
 }
+
+/**
+ * 全画面の演出(順位発表・当選)が、縦にスクロールせず、画面の縦の真ん中に出ていることを確かめる。
+ * 紙吹雪は落ち続けるので、durationMs の間 250ms ごとに測り直す。
+ * 横向き(landscape)は中身が画面より高くなりうるので、本文の内側のスクロールは許し、
+ * 演出の枠そのものがスクロールしないことだけを見る(中央寄せは見ない)。
+ * E2E_SHOTS_DIR があるときだけ、測るたびのスクリーンショットを shotPrefix 付きで保存する。
+ */
+export async function expectOverlayCenteredWithoutScroll(
+  page: Page,
+  testId: string,
+  label: string,
+  opts: { durationMs?: number; landscape?: boolean; shotPrefix?: string } = {}
+) {
+  const durationMs = opts.durationMs ?? 4000;
+  const shotsDir = process.env.E2E_SHOTS_DIR;
+  const shotAt = new Set([0, 2000, 4000]);
+  const start = Date.now();
+  let nextShot = 0;
+  for (let i = 0; ; i++) {
+    const elapsed = Date.now() - start;
+    const m = await page.evaluate((id) => {
+      const el = document.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+      if (!el) return null;
+      const body = el.querySelector<HTMLElement>('[class*="__body"]');
+      const r = (body ?? el).getBoundingClientRect();
+      // overflow:hidden の枠は紙吹雪で scrollHeight が伸びても、スクロールバーは出ない。「スクロールできる枠」だけを見る
+      const probe = (n: HTMLElement | null) => {
+        if (!n) return { scrollable: false, over: 0, bar: 0 };
+        const oy = getComputedStyle(n).overflowY;
+        const scrollable = oy === "auto" || oy === "scroll";
+        const bar = n.offsetWidth - n.clientWidth;
+        return { scrollable, over: n.scrollHeight - n.clientHeight, bar };
+      };
+      return {
+        root: probe(el),
+        body: probe(body),
+        scrollWidth: el.scrollWidth,
+        clientWidth: el.clientWidth,
+        bodyCenterY: r.top + r.height / 2,
+        viewportH: window.innerHeight,
+      };
+    }, testId);
+    expect(m, `${label}: ${testId} が見つからない`).not.toBeNull();
+    const t = `${label} t=${Math.round(elapsed)}ms`;
+    expect(m!.root.scrollable && m!.root.over > 1, `${t}: 枠がスクロールできる状態で、中身がはみ出している(${m!.root.over}px)`).toBe(false);
+    expect(m!.root.bar, `${t}: 枠にスクロールバーが出ている`).toBeLessThanOrEqual(0);
+    expect(m!.body.bar, `${t}: 本文にスクロールバーが出ている`).toBeLessThanOrEqual(0);
+    if (!opts.landscape) {
+      expect(m!.body.scrollable && m!.body.over > 1, `${t}: 本文がスクロールになっている(${m!.body.over}px)`).toBe(false);
+    }
+    if (!opts.landscape) {
+      const off = Math.abs(m!.bodyCenterY - m!.viewportH / 2);
+      expect(off, `${t}: 縦の真ん中からずれている(${Math.round(off)}px)`).toBeLessThanOrEqual(m!.viewportH * 0.12);
+    }
+    if (shotsDir && opts.shotPrefix && elapsed >= nextShot) {
+      const { mkdirSync } = await import("node:fs");
+      mkdirSync(shotsDir, { recursive: true });
+      const sec = [...shotAt].filter((s) => s <= elapsed).pop() ?? 0;
+      await page.screenshot({ path: `${shotsDir}/${opts.shotPrefix}-t${sec / 1000}s.png` });
+      nextShot = sec + 2000;
+    }
+    if (elapsed >= durationMs) break;
+    await page.waitForTimeout(250);
+  }
+}
