@@ -64,8 +64,8 @@ describe("readQuizView", () => {
 
 describe("readJackpotView", () => {
   it("場面・当選者・賞品を取り出す。まだ公開されていない当選者は null", () => {
-    expect(readJackpotView({ jackpot: { page: "main-draw", stage: "member", canStop: true, member: null, prize: null } })).toEqual({ stage: "member", member: null, memberId: null, prize: null });
-    expect(readJackpotView({ jackpot: { stage: "prize-revealed", member: "太郎", memberId: "m1", prize: "特賞" } })).toEqual({ stage: "prize-revealed", member: "太郎", memberId: "m1", prize: "特賞" });
+    expect(readJackpotView({ jackpot: { page: "main-draw", stage: "member", canStop: true, member: null, prize: null } })).toEqual({ page: "main-draw", stage: "member", member: null, memberId: null, prize: null });
+    expect(readJackpotView({ jackpot: { stage: "prize-revealed", member: "太郎", memberId: "m1", prize: "特賞" } })).toEqual({ page: "main-draw", stage: "prize-revealed", member: "太郎", memberId: "m1", prize: "特賞" });
   });
 
   it("無い・形が合わないときは null。項目の型が違えば null / 既定の場面(waiting)にする", () => {
@@ -73,8 +73,12 @@ describe("readJackpotView", () => {
     expect(readJackpotView(null)).toBeNull();
     expect(readJackpotView({ jackpot: "x" })).toBeNull();
     expect(readJackpotView({ jackpot: [] })).toBeNull();
-    expect(readJackpotView({ jackpot: { stage: 1, member: 2, prize: {} } })).toEqual({ stage: "waiting", member: null, memberId: null, prize: null });
+    expect(readJackpotView({ jackpot: { stage: 1, member: 2, prize: {} } })).toEqual({ page: "main-draw", stage: "waiting", member: null, memberId: null, prize: null });
     expect(readJackpotView({ jackpot: { stage: "unknown-stage" } })?.stage).toBe("waiting");
+  });
+
+  it("結果・エンディングの画面(finale)は page で区別できる", () => {
+    expect(readJackpotView({ jackpot: { page: "finale", stage: "ended" } })).toEqual({ page: "finale", stage: "ended", member: null, memberId: null, prize: null });
   });
 });
 

@@ -7,14 +7,14 @@
 
         <article v-if="connected" class="pp-card pp-home__card"
             :class="{ 'is-live': !!session.event.value || hasActivity }" data-testid="home-status">
-            <template v-if="session.event.value">
+            <template v-if="session.event.value && !jackpotFinale">
                 <p class="pp-home__live">イベント発生中!</p>
                 <p class="pp-home__event-title" data-testid="home-event-title">{{ session.event.value.title }}</p>
                 <EventEntryCard class="pp-home__entry-card" />
             </template>
             <template v-else-if="hasActivity">
                 <p class="pp-home__live">進行中です!</p>
-                <p class="pp-home__entry">クイズや抽選が行われています</p>
+                <p class="pp-home__entry">{{ jackpotFinale ? 'ジャックポットが終了しました。当選結果は「結果」タブで見られます' : 'クイズや抽選が行われています' }}</p>
             </template>
             <template v-else>
                 <p class="pp-home__idle-title">いまイベントは行われていません</p>
@@ -46,6 +46,8 @@ const session = usePortalContext();
 const quiz = useQuizContext();
 
 const connected = computed(() => session.status.value === 'connected' || session.status.value === 'reconnecting');
+/** ホストが結果・エンディングの画面を映している(エントリーのカードは出さない)。 */
+const jackpotFinale = computed(() => readJackpotView(session.state.value.roomState?.data)?.page === 'finale');
 /** 参加者の操作・クイズ・当選者のどれかが出ているか（出ている間は「イベントは行われていません」を出さない）。 */
 const hasActivity = computed(() => {
     const data = session.state.value.roomState?.data;

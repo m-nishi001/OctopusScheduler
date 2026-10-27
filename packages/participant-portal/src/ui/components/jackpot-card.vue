@@ -1,5 +1,5 @@
 <template>
-    <section v-if="jackpot && (jackpot.member || jackpot.prize)" class="pp-card pp-jackpot" data-testid="winner" aria-live="polite">
+    <section v-if="jackpot && jackpot.page !== 'finale' && (jackpot.member || jackpot.prize)" class="pp-card pp-jackpot" data-testid="winner" aria-live="polite">
         <p class="pp-jackpot__label">ジャックポット</p>
         <!-- 公開されるたびに作り直して、その場で弾ける演出を1回再生する -->
         <div v-if="jackpot.member" :key="`m:${jackpot.member}`" class="pp-jackpot__reveal">
