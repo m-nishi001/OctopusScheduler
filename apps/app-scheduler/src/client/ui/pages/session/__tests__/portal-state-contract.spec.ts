@@ -70,22 +70,22 @@ describe("ジャックポット: ホストの公開 → ポータルの読み取
   it("停止演出の前は当選者・賞品が入らず、後に入る。場面は stage で伝わる", () => {
     const tracker = new RevealTracker();
     const hidden = buildJackpotHostState({ phase: "member", nextLabel: "stopMemberDraw", tracker, memberName: "太郎", prizeName: "特賞" });
-    expect(readJackpotView({ jackpot: wire(hidden) })).toEqual({ stage: "member", member: null, memberId: null, prize: null });
+    expect(readJackpotView({ jackpot: wire(hidden) })).toEqual({ page: "main-draw", stage: "member", member: null, memberId: null, prize: null });
 
     tracker.onAction("stopMemberDraw");
     const revealed = buildJackpotHostState({ phase: "member", nextLabel: undefined, tracker, memberName: "太郎", memberId: "m1", prizeName: "特賞" });
-    expect(readJackpotView({ jackpot: wire(revealed) })).toEqual({ stage: "member-revealed", member: "太郎", memberId: "m1", prize: null });
+    expect(readJackpotView({ jackpot: wire(revealed) })).toEqual({ page: "main-draw", stage: "member-revealed", member: "太郎", memberId: "m1", prize: null });
 
     tracker.onAction("stopPrizeDraw");
     const shown = buildJackpotHostState({ phase: "prize", nextLabel: undefined, tracker, memberName: "太郎", prizeName: "特賞" });
-    expect(readJackpotView({ jackpot: wire(shown) })).toEqual({ stage: "prize-revealed", member: "太郎", memberId: null, prize: "特賞" });
+    expect(readJackpotView({ jackpot: wire(shown) })).toEqual({ page: "main-draw", stage: "prize-revealed", member: "太郎", memberId: null, prize: "特賞" });
 
     const ended = buildJackpotHostState({ phase: "prize", ended: true, nextLabel: undefined, tracker, memberName: "太郎", prizeName: "特賞" });
     expect(readJackpotView({ jackpot: wire(ended) })?.stage).toBe("ended");
   });
 
   it("説明画面の公開状態も、ポータルが読める(場面は waiting)", () => {
-    expect(readJackpotView({ jackpot: wire(buildJackpotDescriptionState(0, 3)) })).toEqual({ stage: "waiting", member: null, memberId: null, prize: null });
+    expect(readJackpotView({ jackpot: wire(buildJackpotDescriptionState(0, 3)) })).toEqual({ page: "description", stage: "waiting", member: null, memberId: null, prize: null });
   });
 
   it("参加者に許可する操作のキーに、ポータルの表示名がある", () => {

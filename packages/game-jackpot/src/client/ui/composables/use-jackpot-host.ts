@@ -27,6 +27,12 @@ export interface JackpotHost {
 const NAMESPACE = JACKPOT_NS;
 
 /**
+ * 最後に公開した画面(インスタンス)。画面の切り替えで、古い画面の後片付けが新しい画面の公開を消さないよう、
+ * 自分が最後に公開したときだけ公開を取り下げる。
+ */
+let owner: symbol | null = null;
+
+/**
  * 本抽選画面(ホスト端末)で使う。セッションのホストとして接続している場合だけ、
  * 管理端末/参加者からの jackpot.* コマンドを受け付け、抽選の状態を公開する。
  * ホストとして接続していない端末(単独で動かしている場合)では何もしない。
@@ -38,6 +44,9 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
   const agent = container.resolve(HostAgent);
   let canStop = false;
   let last: JackpotPublished | null = null;
+  const self = Symbol("jackpot-host");
+  /** 画面を離れた後。破棄された画面の進行が遅れて公開しても、次の画面の公開を上書きしない。 */
+  let disposed = false;
 
   const off = agent.router.register(NAMESPACE, (command) => {
     switch (command.type) {
@@ -57,14 +66,20 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
   });
 
   onScopeDispose(() => {
+    disposed = true;
     off();
+    // 別の画面が公開し直していたら(切り替えの順序が前後しても)、その公開を消さない
+    if (owner !== null && owner !== self) return;
+    owner = null;
     void agent.clearSlice(NAMESPACE);
   });
 
   return {
     publish(state) {
+      if (disposed) return;
       last = state;
-      if (state.page === "description") {
+      owner = self;
+      if (state.page !== "main-draw") {
         canStop = false;
         void agent.publishSlice(NAMESPACE, state, []);
         return;
@@ -75,7 +90,7 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
       void agent.publishSlice(NAMESPACE, state, winnerId ? [{ key: JACKPOT_STOP_COMMAND, memberIds: [winnerId] }] : []);
     },
     hold() {
-      if (!last) return;
+      if (disposed || !last) return;
       canStop = false;
       last = { ...last, busy: true, canStop: false };
       void agent.publishSlice(NAMESPACE, last, []);
