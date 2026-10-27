@@ -75,7 +75,7 @@ describe("useClientInputs", () => {
     bob.unmount();
   });
 
-  it("押すと、ホストへコマンドとして届き、「送信しました」と出る", async () => {
+  it("押すと、ホストへコマンドとして届く。成功の案内は出さず、ホストが公開し直すまで同じ操作を押せない", async () => {
     const env = await portalEnv();
     const seen: Command[] = [];
     env.host.conn.onCommand((c) => void seen.push(c));
@@ -85,8 +85,39 @@ describe("useClientInputs", () => {
 
     await alice.inputs.send("jackpot.stopRoulette");
     await tick(5000);
-    expect(alice.inputs.message.value).toBe("送信しました");
+    expect(alice.inputs.message.value).toBe("");
+    expect(alice.inputs.waitingKeys.value).toEqual(["jackpot.stopRoulette"]);
     expect(seen.map((c) => [c.game, c.type, c.issuerRole])).toEqual([["jackpot", "stopRoulette", "client"]]);
+
+    // 通信が遅くて受付が取り下げられる前に押し直しても、送らない
+    await alice.inputs.send("jackpot.stopRoulette");
+    await tick(5000);
+    expect(seen).toHaveLength(1);
+
+    // ホストが公開し直したら、待ちは解ける(次の停止が出れば、また押せる)
+    await env.publishJackpot({ ...STOP, busy: true, canStop: false }, []);
+    await tick(5000);
+    expect(alice.inputs.waitingKeys.value).toEqual([]);
+    await env.publishJackpot(STOP, [{ key: "jackpot.stopRoulette" }]);
+    await tick(5000);
+    await alice.inputs.send("jackpot.stopRoulette");
+    await tick(5000);
+    expect(seen).toHaveLength(2);
+    alice.unmount();
+  });
+
+  it("送信に失敗したら案内を出し、待ちにせず押し直せる", async () => {
+    const env = await portalEnv();
+    const device = participantDevice(env.hub, ALICE);
+    const alice = await connect(device);
+    await env.publishJackpot(STOP, [{ key: "jackpot.stopRoulette" }]);
+    await tick(5000);
+    await env.publishJackpot({ ...STOP, canStop: false }, []); // 受付は終わったが、画面には未反映
+
+    await alice.inputs.send("jackpot.stopRoulette");
+    await tick(5000);
+    expect(alice.inputs.message.value).toBe("受付が終了しました");
+    expect(alice.inputs.waitingKeys.value).toEqual([]);
     alice.unmount();
   });
 

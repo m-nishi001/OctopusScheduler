@@ -32,6 +32,8 @@ export interface JackpotPublished {
   stage: JackpotStage;
   /** 次の操作でルーレット/スロットを止められるか。 */
   canStop: boolean;
+  /** ホストが進行のステップを実行中で、進行/停止の操作を受け付けていない(演出中)。管理端末と参加者は操作を押せなくする。 */
+  busy: boolean;
   /** 公開済みの当選者名(停止演出が終わるまでは null)。 */
   member: string | null;
   /** 公開済みの当選者のID(ポータルが「自分が当選したか」を判定する。member と同時に公開する)。 */
@@ -54,6 +56,7 @@ export function readJackpotState(data: Record<string, unknown> | null | undefine
     page: raw.page === "description" ? "description" : "main-draw",
     stage: parseJackpotStage(raw.stage),
     canStop: raw.canStop === true,
+    busy: raw.busy === true,
     member: orNull(raw.member),
     memberId: orNull(raw.memberId),
     prize: orNull(raw.prize),

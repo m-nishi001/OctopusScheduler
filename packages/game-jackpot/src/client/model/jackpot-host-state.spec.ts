@@ -91,7 +91,7 @@ describe("公開状態は、管理端末・ポータルが読む形と一致す�
 
   it("説明画面の状態は、場面は waiting のまま、スライドの位置(index/total)を伝える", () => {
     const state = buildJackpotDescriptionState(1, 3);
-    expect(state).toMatchObject({ page: "description", stage: "waiting", canStop: false, member: null, prize: null, index: 1, total: 3 });
+    expect(state).toMatchObject({ page: "description", stage: "waiting", canStop: false, busy: false, member: null, prize: null, index: 1, total: 3 });
     expect(readJackpotState({ jackpot: JSON.parse(JSON.stringify(state)) })).toEqual(state);
   });
 });
@@ -101,7 +101,7 @@ describe("buildJackpotHostState", () => {
 
   it("停止演出が終わるまで当選者・賞品を含めない(ネタバレ防止)", () => {
     const t = new RevealTracker();
-    expect(buildJackpotHostState({ ...base, tracker: t })).toEqual({ page: "main-draw", stage: "member", canStop: false, member: null, memberId: null, prize: null });
+    expect(buildJackpotHostState({ ...base, tracker: t })).toEqual({ page: "main-draw", stage: "member", canStop: false, busy: false, member: null, memberId: null, prize: null });
   });
 
   it("メンバー停止後は当選者だけ、賞品停止後は賞品も含める", () => {

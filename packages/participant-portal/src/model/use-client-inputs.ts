@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import { parseHubErrorCode, stripHubErrorCode } from "@octopus/session-hub";
 import type { PortalSession } from "./use-portal-session";
@@ -8,6 +8,9 @@ export interface ClientInputs {
   inputs: ComputedRef<string[]>;
   /** 送信中の操作。 */
   busyKey: Ref<string | null>;
+  /** 送信に成功して、ホストが状態を公開し直す(inputs が変わる)のを待っている操作。 */
+  waitingKeys: Ref<string[]>;
+  /** 失敗の案内。成功では何も出さない(押した結果は画面の変化で伝わる)。 */
   message: Ref<string>;
   send(key: string): Promise<void>;
 }
@@ -19,17 +22,24 @@ export interface ClientInputs {
 export function useClientInputs(session: PortalSession): ClientInputs {
   const inputs = session.clientInputs;
   const busyKey = ref<string | null>(null);
+  const waitingKeys = ref<string[]>([]);
   const message = ref("");
 
+  // ホストが公開し直して、その操作の受付が無くなったら(停止の演出が始まった)、待ちを解く。
+  // 通信が遅くても、公開が届くまで同じ操作を押せないようにして二重押しを防ぐ。
+  watch(inputs, (keys) => {
+    if (waitingKeys.value.some((k) => !keys.includes(k))) waitingKeys.value = waitingKeys.value.filter((k) => keys.includes(k));
+  });
+
   async function send(key: string): Promise<void> {
-    if (busyKey.value !== null) return;
+    if (busyKey.value !== null || waitingKeys.value.includes(key)) return;
     const [game, type] = key.split(".");
     if (!game || !type) return;
     busyKey.value = key;
     message.value = "";
     try {
       await session.issue(game, type);
-      message.value = "送信しました";
+      waitingKeys.value = [...waitingKeys.value, key];
     } catch (error) {
       const text = error instanceof Error ? error.message : String(error);
       const code = parseHubErrorCode(text);
@@ -44,5 +54,5 @@ export function useClientInputs(session: PortalSession): ClientInputs {
     }
   }
 
-  return { inputs, busyKey, message, send };
+  return { inputs, busyKey, waitingKeys, message, send };
 }
