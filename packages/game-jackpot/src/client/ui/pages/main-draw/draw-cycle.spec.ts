@@ -95,7 +95,7 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
   }
 
   it("通常サイクルを Enter ごとに進めると、画面の状態が期待どおりに変わる", async () => {
-    const ctx = createTestContext();
+    const ctx = createTestContext({ prizeStopSec: 6 });
     ctx.selectedPrize.value = { id: "p1", bgm1AssetId: null };
     const { advance, queue } = run(ctx);
 
@@ -115,7 +115,7 @@ describe("サイクルを実際に進める(DrawFlowController と組み合わ�
     expect(ctx.prizeAnim.value.startSpin).toHaveBeenCalledTimes(1);
 
     await advance(); // 止めて、当選ダイアログを出す
-    expect(ctx.prizeAnim.value.stopSpin).toHaveBeenCalledWith(3, "p1", 1);
+    expect(ctx.prizeAnim.value.stopSpin).toHaveBeenCalledWith(6, "p1", 1); // 管理画面で決めた、止まるまでの秒数
     expect(ctx.showPrizeWinningDialog.value).toBe(true);
 
     await advance(); // ダイアログを閉じて、残数を確認する

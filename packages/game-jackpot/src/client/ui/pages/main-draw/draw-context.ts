@@ -36,6 +36,8 @@ export interface DrawContext {
   showHalfRemainingDialog: Writable<boolean>;
   /** 確変メッセージのオーバーレイ。 */
   kakuhenOverlayVisible: Writable<boolean>;
+  /** 景品抽選で、停止から最後の景品が止まるまでの長さ(秒)。管理画面の設定。スロット・ルーレット共通(確変は対象外)。 */
+  prizeStopSec: number;
   /** 演出の待ち(秒)。省略すると実際に待つ。テストで差し替える。 */
   wait?: (seconds: number) => Promise<void>;
 }

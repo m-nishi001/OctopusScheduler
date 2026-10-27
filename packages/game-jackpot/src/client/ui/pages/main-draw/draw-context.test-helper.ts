@@ -28,6 +28,7 @@ export function createTestContext(overrides: Record<string, unknown> = {}) {
     showPrizeWinningDialog: ref(false),
     showHalfRemainingDialog: ref(false),
     kakuhenOverlayVisible: ref(false),
+    prizeStopSec: 4,
     ...overrides,
   };
   return ctx as typeof ctx & DrawContext;
