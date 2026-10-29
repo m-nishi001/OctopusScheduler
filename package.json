@@ -23,6 +23,7 @@
     "dev:stack": "node scripts/dev-stack.js",
     "dev:stack:results": "node scripts/dev-stack.js --with-results",
     "staging:up": "node scripts/staging.js up",
+    "staging:up:blank": "node scripts/staging.js up --no-seed",
     "staging:down": "node scripts/staging.js down",
     "staging:seed": "node scripts/staging.js seed",
     "staging:seed:results": "node scripts/staging.js seed --with-results",
