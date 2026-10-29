@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { adminRpc, createSession, expect, joinPortalAs, newDevice, nextButton, openAdvanced, seedStore, test } from "./fixtures";
 import { changedFrames, captureTimeline } from "./helpers/motion";
-import { sampleRepeatedRows, stoppedTopRows } from "./helpers/slot";
+import { sampleRepeatedRows, stoppedWinRows } from "./helpers/slot";
 
 /**
  * ルーレット・メンバー抽選の「意地悪な止まり方」が、ホスト画面で実際に動き、最後は必ず当選が発表されること。
@@ -91,6 +91,8 @@ async function advanceUntilStop(admin: Page, what: "メンバー" | "景品") {
   const view = async () =>
     [await next.innerText().catch(() => ""), await admin.getByTestId("next-hint").innerText().catch(() => ""), await admin.getByTestId("jackpot-state").innerText().catch(() => "")].join("|");
   for (let i = 0; i < 40; i++) {
+    // 演出中は主ボタンが「演出中…」で押せない。終わるのを待ってから見る(待たずに押すと、次に押せる状態になった瞬間に意図しない操作を送ってしまう)
+    await expect(next).not.toContainText("演出中", { timeout: 30_000 });
     const label = (await next.innerText().catch(() => "")).trim();
     const hint = (await admin.getByTestId("next-hint").innerText().catch(() => "")).trim();
     if (label.includes("止める") && hint.includes(what)) return;
@@ -132,6 +134,51 @@ for (const pattern of ROULETTE_PATTERNS) {
   });
 }
 
+// 止める操作の直後(停止の演出中)は、ホストが「演出中」を公開して、管理端末の主ボタンと参加者の停止ボタンを押せなくする。
+// 演出が終わった直後に滑り込んだ操作が、当選の画面を閉じて飛ばしてしまわないこと(今回の不具合)。
+test("@motion 停止の演出中は、参加者の停止ボタンが消え、管理端末の主ボタンが「演出中…」で押せず、連打しても当選の画面を飛ばさない", async ({ browser, request }) => {
+  test.setTimeout(300_000);
+  const { admin, host, guest, pageErrors } = await scene(browser, request, "停止の二重押し", "roulette");
+  const spinning = host.page.locator(".roulette-container.spinning");
+  const portalStop = guest.page.getByTestId("client-input");
+  await guest.page.goto("/#/p/event");
+
+  await advanceUntilStop(admin.page, "景品");
+  await expect(spinning, "止める時点で回っている").toBeVisible();
+  // 景品抽選の停止は、当選した本人(参加者1人)のスマホにも出る
+  await expect(portalStop).toBeVisible({ timeout: 30_000 });
+
+  await forceRandom(host.page, 0.1);
+  await nextButton(admin.page).click();
+  // 演出中: 参加者の停止ボタンはすぐ消え、管理端末の主ボタンは「演出中…」で押せない
+  await expect(nextButton(admin.page)).toContainText("演出中…", { timeout: 10_000 });
+  await expect(nextButton(admin.page)).toBeDisabled();
+  await expect(portalStop).toHaveCount(0, { timeout: 10_000 });
+
+  // 演出が終わるまで両方を連打する(無効なボタンへの force クリックと、消えた停止ボタンへのタップ)
+  const settled = spinning.waitFor({ state: "hidden", timeout: 30_000 });
+  let done = false;
+  void settled.then(() => (done = true));
+  for (let i = 0; i < 5 && !done; i++) {
+    await nextButton(admin.page).click({ force: true, timeout: 1000 }).catch(() => undefined);
+    await portalStop.tap({ force: true, timeout: 300 }).catch(() => undefined);
+  }
+  await settled;
+  const dialog = host.page.getByText("景品当選");
+  await expect(dialog, "連打しても当選の画面は閉じない").toBeVisible({ timeout: 30_000 });
+  await restoreRandom(host.page);
+
+  // 演出が終わったら、管理端末は「次へ」に戻り、押すと当選の画面を閉じて進める
+  await expect(admin.page.getByTestId("jackpot-state")).toContainText(/当選者: [^—\s]\S*/);
+  await expect(nextButton(admin.page)).toBeEnabled({ timeout: 30_000 });
+  await expect(nextButton(admin.page)).not.toContainText("演出中");
+  await expect(dialog).toBeVisible();
+  await nextButton(admin.page).click();
+  await expect(dialog, "演出が終わったあとの「次へ」は効く").toBeHidden({ timeout: 30_000 });
+  expect(pageErrors, "ホスト画面で例外が出た").toEqual([]);
+  for (const d of [admin, host, guest]) await d.context.close();
+});
+
 // スロット: 乱数を固定しても(並びの作り方が偏る極端な値でも)、回っている間も減速して止まるまでも、
 // 窓に見える景品が同じ名前で続かず、固まらず、最後は3本とも当選景品で止まって発表される。
 // 乱数は景品の並びを作る回転の開始前に固定する(並びは回し始めるたびに組み直される)。
@@ -157,9 +204,11 @@ for (const random of SLOT_RANDOMS) {
     expect(await duringStop, "減速中に同じ景品名が続けて見えた").toEqual([]);
 
     await expect(spinning).toBeHidden({ timeout: 30_000 });
+    // 既定は停止から4秒で止まる(通信の遅れを見込んで余裕を持たせる)
     expect(Date.now() - clicked, "止まるまでが長すぎる").toBeLessThan(15_000);
-    const rows = await stoppedTopRows(host.page);
-    expect(new Set(rows).size, `3本のリールが同じ景品で止まる: ${rows.join(",")}`).toBe(1);
+    expect(Date.now() - clicked, "止まるまでが短すぎる(旧: 約2.3秒)").toBeGreaterThan(3000);
+    const rows = await stoppedWinRows(host.page);
+    expect(new Set(rows).size, `3本のリールが当たりの行(真ん中)に同じ景品で止まる: ${rows.join(",")}`).toBe(1);
     await expect(host.page.getByText("景品当選")).toBeVisible({ timeout: 30_000 });
     await expect(host.page.getByTestId("prize-winning-name")).toHaveText(rows[0]);
     await restoreRandom(host.page);

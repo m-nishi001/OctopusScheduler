@@ -34,6 +34,7 @@ import MainLayout from '../common/main-layout.vue';
 import Loader from '../common/loader.vue';
 import { useRouter } from 'vue-router';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
+import { useJackpotFinale } from '../../composables/use-jackpot-finale';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
 import { AssetDataService } from '@control/asset/asset-data-service';
@@ -47,6 +48,7 @@ export default {
   setup() {
     const router = useRouter();
     const session = useJackpotSession();
+    useJackpotFinale();
     const isLoading = ref(true);
     const winners = ref<any[]>([]);
     const specialWinner = ref<any | undefined>(undefined);

@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { effectScope } from "vue";
+import { defineComponent, effectScope, h } from "vue";
+import { mount } from "@vue/test-utils";
 import { container } from "tsyringe";
 import { HostAgent } from "@octopus/session-hub";
 import type { JackpotPublished } from "@octopus/session-hub";
@@ -8,7 +9,8 @@ import { joinParticipant, makeDevice, makeHub } from "@octopus/session-hub/testi
 import { sessionService as svc } from "@octopus/session-hub/engine";
 import { useJackpotHost } from "./use-jackpot-host";
 import type { JackpotHostHandlers } from "./use-jackpot-host";
-import { buildJackpotDescriptionState } from "@model/jackpot-host-state";
+import { buildJackpotDescriptionState, buildJackpotFinaleState } from "@model/jackpot-host-state";
+import { useJackpotFinale } from "./use-jackpot-finale";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -23,6 +25,7 @@ const state = (over: Partial<JackpotPublished> = {}): JackpotPublished => ({
   page: "main-draw",
   stage: "member",
   canStop: false,
+  busy: false,
   member: null,
   memberId: null,
   prize: null,
@@ -205,6 +208,34 @@ describe("useJackpotHost", () => {
     expect(handlers.stopRoulette).toHaveBeenCalledTimes(1);
   });
 
+  it("hold は直前の状態を busy・停止不可・参加者の操作なしで公開し直す(当選者・景品は増えない)。遅れて届いた停止は捨てる", async () => {
+    const { client, admin } = await scene();
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    const { host } = mountHost(handlers);
+    host.hold(); // 何も公開していなければ何もしない
+    await tick(4000);
+    expect(client.conn.state.roomState?.data).not.toHaveProperty("jackpot");
+
+    host.publish(prizeStop({ member: "太郎", prize: null }));
+    await tick(4000);
+    expect(client.conn.state.roomState?.clientInput).toEqual(STOP_FOR_WINNER);
+
+    host.hold();
+    await tick(4000);
+    const published = (client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot;
+    expect(published).toMatchObject({ stage: "prize", busy: true, canStop: false, member: "太郎", memberId: "winner", prize: null });
+    expect(client.conn.state.roomState?.clientInput).toEqual([]);
+
+    await admin.conn.issue("jackpot", "stopRoulette");
+    await client.conn.issue("jackpot", "stopRoulette").catch(() => undefined);
+    await tick(4000);
+    expect(handlers.stopRoulette).not.toHaveBeenCalled();
+
+    host.publish(prizeStop({ canStop: false, prize: "特賞" })); // 次の公開で busy は解ける
+    await tick(4000);
+    expect((client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot).toMatchObject({ busy: false, prize: "特賞" });
+  });
+
   it("公開した状態が参加者・管理端末の画面に届く(名前空間 jackpot)", async () => {
     const { admin, client } = await scene();
     const { host } = mountHost({ advance: vi.fn(), stopRoulette: vi.fn() });
@@ -230,5 +261,95 @@ describe("useJackpotHost", () => {
     await admin.conn.issue("jackpot", "advance");
     await tick(4000);
     expect(handlers.advance).not.toHaveBeenCalled();
+  });
+
+  it("終了の場面(finale)は、停止不可・参加者の操作なしで公開される", async () => {
+    const { client, admin } = await scene();
+    const handlers = { advance: vi.fn(), stopRoulette: vi.fn() };
+    const { host } = mountHost(handlers);
+    host.publish(prizeStop()); // 直前は景品抽選で止められる場面
+    await tick(4000);
+    expect(client.conn.state.roomState?.clientInput).toEqual(STOP_FOR_WINNER);
+
+    host.publish(buildJackpotFinaleState());
+    await tick(4000);
+    expect(client.conn.state.roomState?.clientInput).toEqual([]);
+    expect((client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot).toMatchObject({ page: "finale", stage: "ended", canStop: false });
+    await expect(client.conn.issue("jackpot", "stopRoulette")).rejects.toThrow(/FORBIDDEN/);
+    await admin.conn.issue("jackpot", "stopRoulette");
+    await tick(4000);
+    expect(handlers.stopRoulette).not.toHaveBeenCalled();
+  });
+
+  it("画面の切り替えで、古い画面の後片付けが新しい画面の公開を消さない(新しい画面が先に公開しても、後に公開しても)", async () => {
+    const { client } = await scene();
+    const jackpot = () => (client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot;
+    const old = mountHost({ advance: vi.fn(), stopRoulette: vi.fn() });
+    old.host.publish(state());
+    await tick(4000);
+    expect(jackpot()?.page).toBe("main-draw");
+
+    // 新しい画面が先に公開してから、古い画面が破棄される
+    const next = mountHost({ advance: vi.fn(), stopRoulette: vi.fn() });
+    next.host.publish(buildJackpotFinaleState());
+    old.stop();
+    await tick(4000);
+    expect(jackpot()?.page).toBe("finale");
+
+    // 最後の画面を離れたら取り下げる
+    next.stop();
+    await tick(4000);
+    expect(jackpot()).toBeUndefined();
+  });
+});
+
+describe("useJackpotHost: 破棄された画面", () => {
+  it("画面を離れた後に遅れて publish / hold が呼ばれても、次の画面の公開を上書きしない", async () => {
+    const { client } = await scene();
+    const jackpot = () => (client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot;
+    const old = mountHost({ advance: vi.fn(), stopRoulette: vi.fn() });
+    old.host.publish(state());
+    const next = mountHost({ advance: vi.fn(), stopRoulette: vi.fn() });
+    old.stop();
+    next.host.publish(buildJackpotFinaleState());
+    await tick(4000);
+    // 離れた画面の進行が遅れて公開しようとする
+    old.host.publish(state({ stage: "member" }));
+    old.host.hold();
+    await tick(4000);
+    expect(jackpot()).toMatchObject({ page: "finale", stage: "ended" });
+  });
+});
+
+describe("useJackpotFinale(結果・エンディングの画面)", () => {
+  const Screen = defineComponent({
+    setup() {
+      useJackpotFinale();
+      return () => h("div");
+    }
+  });
+
+  it("画面が出ると終了の場面を公開し、結果からエンディングへの切り替えでも消えず、離れると取り下げる", async () => {
+    const { client } = await scene();
+    const jackpot = () => (client.conn.state.roomState?.data as { jackpot?: JackpotPublished }).jackpot;
+    const result = mount(Screen);
+    await tick(4000);
+    expect(jackpot()).toMatchObject({ page: "finale", stage: "ended", canStop: false });
+
+    // 本番のルーターと同じく、結果の画面を破棄してからエンディングを出す
+    result.unmount();
+    const ending = mount(Screen);
+    await tick(4000);
+    expect(jackpot()).toMatchObject({ page: "finale", stage: "ended" });
+
+    ending.unmount();
+    await tick(4000);
+    expect(jackpot()).toBeUndefined();
+  });
+
+  it("ホストとして接続していない端末では何も公開しない(エラーにもならない)", () => {
+    container.clearInstances();
+    const w = mount(Screen);
+    w.unmount();
   });
 });

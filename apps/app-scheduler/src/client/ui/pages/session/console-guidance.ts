@@ -40,7 +40,7 @@ export interface Guidance {
   /** 「いま」の1行。 */
   now: string;
   /** 主ボタン。押せる操作が無い(ホスト不在・準備中)ときは null。 */
-  main: { label: string; hint: string; action: MainAction } | null;
+  main: { label: string; hint: string; action: MainAction; /** 演出中などで押せない(ボタンは出すが無効にする)。 */ disabled?: boolean } | null;
   /** 副ボタン「前へ」(説明のスライドを戻す)。戻れるときだけ。 */
   back?: { label: string; hint: string } | null;
 }
@@ -116,6 +116,10 @@ function describeJackpotDraw(jackpot: JackpotProgress | null): Guidance {
   if (!jackpot) return { game: "jackpot", now: "ジャックポット: 抽選画面を準備中", main: null };
   const result = jackpot.member || jackpot.prize ? ` ・ 当選者: ${jackpot.member ?? "—"} ・ 景品: ${jackpot.prize ?? "—"}` : "";
   const now = `ジャックポット: ${STAGE_TEXT[jackpot.stage]}${result}`;
+  // ホストが停止の演出などを実行中。押しても無視されるので押せなくする(演出の直後に押した操作が、当選画面を飛ばさないため)
+  if (jackpot.busy) {
+    return { game: "jackpot", now, main: { label: "演出中…", hint: "演出が終わると、次の操作ができます", action: { kind: "advance" }, disabled: true } };
+  }
   if (jackpot.stage === "ended") {
     return { game: "jackpot", now, main: { label: "結果へ", hint: "抽選は終わりました。結果の画面を映します", action: { kind: "advance" } } };
   }

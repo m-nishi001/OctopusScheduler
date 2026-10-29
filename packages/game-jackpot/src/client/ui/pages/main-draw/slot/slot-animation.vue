@@ -1,15 +1,17 @@
 <template>
-    <div class="slot-container jp-frame" ref="container" :class="{ spinning }" :style="sizeVars">
+    <div class="slot-container jp-frame" ref="container" :class="{ spinning, hit }" :style="sizeVars">
         <div class="slot-reels">
-            <div class="reel" v-for="(reel, index) in reels" :key="index">
-                <div class="reel-content" :style="{ transform: `translateY(${-reel.position}px)` }">
+            <div class="reel" v-for="(reel, index) in reels" :key="index" :class="{ landed: landed[index] }">
+                <div class="reel-content" :style="{ transform: `translateY(${-(reel.position + reel.offset)}px)` }">
                     <div v-for="slot in strips[index]" :key="slot.key" class="prize-item">
                         <span class="prize-name">{{ slot.name }}</span>
                     </div>
                 </div>
+                <!-- 当たりの行(真ん中)。全部止まったあと、金色に光らせる -->
+                <div class="win-row"></div>
             </div>
         </div>
-        <!-- 結果の場所は、出る前から確保する(出た瞬間にリールが動かないように) -->
+        <!-- 結果は枠の下の方に重ねて出す(場所を空けておかないので、枠の下に空白ができず、出ても何も動かない) -->
         <div class="result-area">
             <div v-if="showResult" class="result">{{ selectedPrize?.name }}</div>
         </div>
@@ -25,12 +27,14 @@ import type { PrizeDto } from '@control/prize/dto/prize-dto';
 import type { AnimationItem, AnimationRef } from '../animation-types';
 import {
     advancePosition, buildReelLoop, computeSlotSize, cycleHeight, planStop, positionAtStop, renderedCount,
-    spinSpeed, stopDurationMs, wrapPosition,
+    settleOffset, spinSpeed, stopSchedule, wrapPosition, DEFAULT_STOP_TOTAL_MS,
 } from './reel-model';
 import type { Rng, StopPlan } from './reel-model';
 
 /** 止まってから結果を見せ続ける時間(ms)。 */
-const HOLD_AFTER_STOP_MS = 1000;
+const HOLD_AFTER_STOP_MS = 2000;
+/** 止まった直後にリールが光る時間(ms)。 */
+const LANDED_FLASH_MS = 600;
 const REEL_COUNT = 3;
 
 export default {
@@ -52,7 +56,20 @@ export default {
         // useAudio を使って BGM を再生
         const { load: loadBgm, play: playBgm, stop: stopBgm } = useAudio();
         // position は「上へ流れた距離(px)」。ループ1周で元に戻る(位置計算は reel-model.ts)。
-        const reels = ref(Array.from({ length: REEL_COUNT }, () => ({ position: 0, speed: 0 })));
+        // offset は止まった直後の跳ね返り(行き過ぎて戻る分)。position は常に止まる位置ぴったりのまま。
+        const reels = ref(Array.from({ length: REEL_COUNT }, () => ({ position: 0, speed: 0, offset: 0 })));
+        // 全部止まってから結果を見せ続けている間、当たりの行を光らせる印 / 止まった直後のリールの光
+        const hit = ref(false);
+        const landed = ref<boolean[]>(Array.from({ length: REEL_COUNT }, () => false));
+        // 止まった時刻(跳ね返りの経過時間を求める。跳ね返っていないリールは null)
+        const settledAt: Array<number | null> = Array.from({ length: REEL_COUNT }, () => null);
+        let stopTimers: Array<ReturnType<typeof setTimeout>> = [];
+        const clearStopTimers = () => {
+            stopTimers.forEach(clearTimeout);
+            stopTimers = [];
+        };
+        const prefersReducedMotion = () =>
+            typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         // 止め始めたリールの減速の計画(止まったら null)。描画のたびに時刻から位置を求める。
         const stopPlans: Array<(StopPlan & { startedAt: number }) | null> = Array.from({ length: REEL_COUNT }, () => null);
 
@@ -131,9 +148,14 @@ export default {
                 } catch { /* ignore */ }
             }
             rebuildLoops();
+            clearStopTimers();
+            hit.value = false;
             spinning.value = true;
             reels.value.forEach((reel, index) => {
                 stopPlans[index] = null;
+                settledAt[index] = null;
+                reel.offset = 0;
+                landed.value[index] = false;
                 reel.speed = spinSpeed(index, itemHeight.value); // 速く、リールごとに少しずつ違う速さ
             });
         };
@@ -145,48 +167,57 @@ export default {
 
         // 止める景品は、止め始める前に決めて確かめる。演出の中に無い景品を黙って別の景品に置き換えると、
         // 画面の当選と保存した抽選結果が食い違うので、例外にする。
-        // 3本とも同時に減速を始め、左から順に少しずつ遅れて、最後は全部が当選景品で止まる。
+        // 左 → 中 → 右の順に減速して止まる(時刻は stopSchedule)。どのリールも、自分の減速が始まるまでは全速で回り続ける。
+        // 減速の計画は、そのリールが減速を始める瞬間の位置と速さから立てる。右のリールが一番ゆっくり、粘って止まる。
         // どのリールも別の並びなので、先に止まったリールを見ても、他のリールの並びからは当選景品を見分けられない。
-        // (演出の長さは固定なので、親の指定する時間 `_durationSec` や `occurrence` は使わない)
-        const stopSpin = async (_durationSec?: number, targetPrizeId?: string | null) => {
+        // 全体の長さは、親の指定する時間 `durationSec`(秒。管理画面の設定)。無ければ既定。`occurrence` は使わない。
+        const stopSpin = async (durationSec?: number, targetPrizeId?: string | null) => {
             const targetId = targetPrizeId ?? props.selectedPrize?.id ?? null;
-            const startedAt = Date.now();
-            const plans = reels.value.map((reel, index) =>
-                targetId === null
-                    ? null
-                    : planStop({
+            if (targetId === null || loops.value.some((loop) => !loop.some((item) => item.id === targetId))) {
+                throw new Error(`スロットに、止める景品(${targetId ?? '指定なし'})がありません`);
+            }
+            const totalMs = durationSec && durationSec > 0 ? durationSec * 1000 : DEFAULT_STOP_TOTAL_MS;
+            const schedule = stopSchedule(totalMs);
+            clearStopTimers();
+            return new Promise<string | null>((resolve) => {
+                let stoppedCount = 0;
+                const beginDecel = (index: number) => {
+                    const reel = reels.value[index];
+                    const plan = planStop({
                         loop: loops.value[index],
                         targetId,
                         position: reel.position,
                         itemHeight: itemHeight.value,
                         speedPerFrame: reel.speed || spinSpeed(index, itemHeight.value),
-                        durationMs: stopDurationMs(index),
-                    })
-            );
-            if (targetId === null || plans.some((plan) => plan === null)) {
-                throw new Error(`スロットに、止める景品(${targetId ?? '指定なし'})がありません`);
-            }
-            return new Promise<string | null>((resolve) => {
-                let stoppedCount = 0;
-                reels.value.forEach((reel, index) => {
+                        durationMs: schedule[index].endMs - schedule[index].startMs,
+                    })!; // 景品がループにあることは上で確かめてある
                     reel.speed = 0;
-                    const plan = plans[index]!;
-                    stopPlans[index] = { ...plan, startedAt };
-                    setTimeout(() => {
-                        // 計画の終点にぴったり合わせる(時刻のずれで半端な位置に止まらない)
-                        const cycle = cycleHeight(loops.value[index].length, itemHeight.value);
-                        reel.position = wrapPosition(stopPlans[index]?.to ?? plan.to, cycle);
-                        stopPlans[index] = null;
-                        stoppedCount++;
-                        if (stoppedCount === reels.value.length) {
-                            spinning.value = false;
-                            stopBgm().catch(() => { });
-                            setTimeout(() => {
-                                emit('stopped', targetId);
-                                resolve(targetId);
-                            }, HOLD_AFTER_STOP_MS);
-                        }
-                    }, plan.durationMs);
+                    stopPlans[index] = { ...plan, startedAt: Date.now() };
+                };
+                const land = (index: number) => {
+                    const reel = reels.value[index];
+                    // 計画の終点にぴったり合わせる(時刻のずれで半端な位置に止まらない)
+                    const cycle = cycleHeight(loops.value[index].length, itemHeight.value);
+                    reel.position = wrapPosition(stopPlans[index]?.to ?? reel.position, cycle);
+                    stopPlans[index] = null;
+                    if (!prefersReducedMotion()) settledAt[index] = Date.now();
+                    landed.value[index] = true;
+                    stopTimers.push(setTimeout(() => { landed.value[index] = false; }, LANDED_FLASH_MS));
+                    stoppedCount++;
+                    if (stoppedCount === reels.value.length) {
+                        spinning.value = false;
+                        hit.value = true;
+                        stopBgm().catch(() => { });
+                        stopTimers.push(setTimeout(() => {
+                            emit('stopped', targetId);
+                            resolve(targetId);
+                        }, HOLD_AFTER_STOP_MS));
+                    }
+                };
+                schedule.forEach(({ startMs, endMs }, index) => {
+                    if (startMs <= 0) beginDecel(index);
+                    else stopTimers.push(setTimeout(() => beginDecel(index), startMs));
+                    stopTimers.push(setTimeout(() => land(index), endMs));
                 });
             });
         };
@@ -199,6 +230,9 @@ export default {
                 const plan = stopPlans[index];
                 if (plan) reel.position = wrapPosition(positionAtStop(plan, now - plan.startedAt), cycle);
                 else if (reel.speed > 0) reel.position = advancePosition(reel.position, reel.speed, cycle);
+                const settled = settledAt[index];
+                reel.offset = settled === null ? 0 : settleOffset(now - settled, itemHeight.value);
+                if (settled !== null && reel.offset === 0 && now - settled > 0) settledAt[index] = null;
             });
             animationId = requestAnimationFrame(animate);
         };
@@ -211,6 +245,7 @@ export default {
 
         onUnmounted(() => {
             window.removeEventListener('resize', updateSize);
+            clearStopTimers();
             if (animationId !== null) {
                 cancelAnimationFrame(animationId);
                 animationId = null;
@@ -222,7 +257,7 @@ export default {
         // これが無いと親から startSpin/stopSpin が見えず、景品抽選を開始しても何も動かない。
         expose({ startSpin, stopSpin, updatePrizes, getInternalItems } satisfies AnimationRef);
 
-        return { spinning, reels, strips, sizeVars, container };
+        return { spinning, hit, landed, reels, strips, sizeVars, container };
     }
 };
 </script>
@@ -242,7 +277,6 @@ export default {
 .slot-reels {
     display: flex;
     gap: var(--slot-gap, 14px);
-    margin-bottom: calc(var(--slot-item-h, 60px) * 0.1);
 }
 
 .reel {
@@ -294,11 +328,68 @@ export default {
     max-width: 100%;
 }
 
+/* 結果は、リールの下の行に重ねて出す。当たりの行(真ん中)は隠さない */
 .result-area {
+    position: absolute;
+    left: var(--slot-pad, 24px);
+    right: var(--slot-pad, 24px);
+    bottom: calc(var(--slot-pad, 24px) + var(--slot-item-h, 60px) * 0.08);
     display: flex;
     justify-content: center;
-    max-width: 100%;
-    min-height: calc(var(--slot-font, 18px) * 1.5 * 1.25 + 24px);
+    pointer-events: none;
+}
+
+/* 当たりの行。止まったあとの間だけ、金色の光が脈打つ */
+.win-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: var(--slot-item-h, 60px);
+    height: var(--slot-item-h, 60px);
+    box-sizing: border-box;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.hit .win-row {
+    opacity: 1;
+    border-top: 3px solid #FFE680;
+    border-bottom: 3px solid #FFE680;
+    background: rgba(255, 215, 0, 0.18);
+    box-shadow: inset 0 0 18px rgba(255, 215, 0, 0.9), 0 0 18px rgba(255, 215, 0, 0.9);
+    animation: winPulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes winPulse {
+    0% {
+        opacity: 0.55;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* リールが止まった瞬間の光 */
+.reel.landed {
+    animation: reelFlash 0.6s ease-out;
+}
+
+@keyframes reelFlash {
+    0% {
+        box-shadow: 0 0 0 rgba(255, 215, 0, 0), inset 0 0 0 rgba(255, 215, 0, 0);
+        border-color: #FFF4B0;
+    }
+
+    30% {
+        box-shadow: 0 0 28px rgba(255, 230, 128, 1), inset 0 0 22px rgba(255, 230, 128, 0.9);
+        border-color: #FFF4B0;
+    }
+
+    100% {
+        box-shadow: 0 0 0 rgba(255, 215, 0, 0), inset 0 0 0 rgba(255, 215, 0, 0);
+        border-color: #FFD700;
+    }
 }
 
 .result {
@@ -328,6 +419,21 @@ export default {
     100% {
         transform: scale(1);
         opacity: 1;
+    }
+}
+
+/* 動きを減らす設定: 光の点滅・パルスは止め、光りっぱなしにする */
+@media (prefers-reduced-motion: reduce) {
+    .hit .win-row {
+        animation: none;
+    }
+
+    .reel.landed {
+        animation: none;
+    }
+
+    .result {
+        animation: none;
     }
 }
 </style>

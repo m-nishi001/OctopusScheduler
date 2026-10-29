@@ -22,6 +22,8 @@ export interface DrawFlowDeps {
   onFinished(reason: DrawEndReason, progress: DrawProgress): void;
   /** 終了の画面で進行操作(「次へ」・Enter・OK)があった。結果の画面へ進む。 */
   onLeave(): void;
+  /** 進行のステップを実行し始めた(無視された進行操作では呼ばない)。ホストが「演出中」を公開して、止める操作の二重押しを防ぐ。 */
+  onStarted?(): void;
   /** 進行が止まった(次のEnter待ち、または終了)。この時点の状態を公開する。 */
   onSettled(): void;
   now?: () => number;
@@ -53,6 +55,7 @@ export class DrawFlowController {
       return;
     }
     this.running = true;
+    this.deps.onStarted?.();
     try {
       for (;;) {
         if (this.deps.queue.isEmpty() && !(await this.refill())) break;

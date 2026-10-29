@@ -23,6 +23,16 @@
 
 
                 <div class="config-item">
+                    <label>景品抽選が止まるまでの時間(秒)</label>
+                    <input type="number" v-model.number="localConfig.prizeStopSec" class="admin-input"
+                        :min="MIN_PRIZE_STOP_SEC" :max="MAX_PRIZE_STOP_SEC" step="0.5" data-testid="prize-stop-sec" />
+                    <div class="hint">
+                        停止ボタンを押してから、最後の景品が止まるまでの長さ。スロット・ルーレット共通。確変の演出は変わりません。
+                        {{ MIN_PRIZE_STOP_SEC }}〜{{ MAX_PRIZE_STOP_SEC }}秒(0.5秒刻み)、初期値は{{ DEFAULT_PRIZE_STOP_SEC }}秒です。
+                    </div>
+                </div>
+
+                <div class="config-item">
                     <label>確変の起こし方</label>
                     <select v-model="localConfig.kakuhenMode" class="admin-input" data-testid="kakuhen-mode">
                         <option value="auto">おまかせ（景品の真ん中あたりで続けて2回）</option>
@@ -78,6 +88,7 @@ import SimulationDialog from './simulation-dialog.vue';
 import UnsavedChangesDialog from '../unsaved-changes-dialog.vue';
 import { parseKakuhenPlan, parseTimingsText } from '@model/draw/kakuhen-plan';
 import type { KakuhenMode } from '@model/draw/kakuhen-plan';
+import { clampPrizeStopSec, parsePrizeStopSec, DEFAULT_PRIZE_STOP_SEC, MIN_PRIZE_STOP_SEC, MAX_PRIZE_STOP_SEC } from '@model/draw/prize-stop-sec';
 
 const screenSettingsService = container.resolve(ScreenSettingsService);
 const assetService = container.resolve(AssetDataService);
@@ -119,6 +130,7 @@ const closeTestDialog = () => {
 const localConfig = ref({
     memberLotteryBgms: [] as string[],
     kakuhenMode: 'auto' as KakuhenMode,
+    prizeStopSec: DEFAULT_PRIZE_STOP_SEC as number | string,
 });
 /** 確変にする回の入力欄の文字（カンマ区切り）。保存時に回の一覧にする。 */
 const kakuhenTimingsText = ref('');
@@ -129,6 +141,7 @@ const loadConfig = async () => {
         localConfig.value.memberLotteryBgms = cfg?.memberLotteryBgms || [];
         const plan = parseKakuhenPlan(cfg);
         localConfig.value.kakuhenMode = plan.mode;
+        localConfig.value.prizeStopSec = parsePrizeStopSec(cfg);
         kakuhenTimingsText.value = plan.fixedTimings.join(', ');
     } catch (error) {
         console.error('Failed to load main config:', error);
@@ -163,6 +176,7 @@ const handleSaveClick = async () => {
             memberLotteryBgms: localConfig.value.memberLotteryBgms,
             kakuhenMode: localConfig.value.kakuhenMode,
             kakuhenFixedTimings: parseTimingsText(kakuhenTimingsText.value),
+            prizeStopSec: clampPrizeStopSec(localConfig.value.prizeStopSec),
         };
         await screenSettingsService.saveScreenSetting('main', 'main-screen-settings', payload);
         await loadConfig();

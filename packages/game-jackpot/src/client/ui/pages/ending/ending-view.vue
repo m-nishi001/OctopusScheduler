@@ -11,6 +11,7 @@ import MainLayout from '../common/main-layout.vue';
 import Loader from '../common/loader.vue';
 import OpeningSequence from '../opening/opening-sequence.vue';
 import { useJackpotSession } from '../../composables/use-jackpot-session';
+import { useJackpotFinale } from '../../composables/use-jackpot-finale';
 import { useEndingExit } from '../../composables/use-ending-exit';
 import { useScreenMedia } from '../../composables/use-screen-media';
 
@@ -21,6 +22,7 @@ export default {
     name: 'EndingView',
     components: { MainLayout, Loader, OpeningSequence },
     setup() {
+        useJackpotFinale();
         // エンディングを最後まで表示し終えたら、本番(ホスト)はロビーへ戻る。デモは設定画面へ戻る。
         const { isDemo } = useJackpotSession();
         const { exitToLobby } = useEndingExit();

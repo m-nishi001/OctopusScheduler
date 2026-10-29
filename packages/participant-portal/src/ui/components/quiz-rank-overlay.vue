@@ -5,6 +5,7 @@
             <span v-for="n in PIECES" :key="n" class="pp-rank-won__piece" :style="pieceStyle(n)" />
         </div>
 
+        <div class="pp-rank-won__body">
         <p class="pp-rank-won__lead">結果発表!</p>
 
         <template v-if="round && round.me.correct && round.me.rank !== null">
@@ -21,6 +22,7 @@
             <button type="button" class="pp-button" @click="load()">もう一度読み込む</button>
         </template>
         <p v-else class="pp-rank-won__sub" data-testid="quiz-my-rank-loading" role="status">順位を集計しています…</p>
+        </div>
     </div>
 </template>
 
@@ -129,12 +131,10 @@ onScopeDispose(() => {
     z-index: 100;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
     padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
     text-align: center;
-    overflow: hidden auto;
+    /* 紙吹雪・拡大の演出が画面の外へはみ出しても、スクロールの範囲を広げない(スクロールするのは本文だけ) */
+    overflow: hidden;
     background: radial-gradient(circle at 50% 35%, #5c1020 0%, var(--pp-ink) 75%);
     animation: pp-rank-in 0.45s cubic-bezier(0.2, 1.3, 0.4, 1) both;
 }
@@ -143,8 +143,29 @@ onScopeDispose(() => {
     background: radial-gradient(circle at 50% 35%, #8a1428 0%, var(--pp-ink) 75%);
 }
 
+/* 縦横とも中央に寄せる。内容が画面より高いときだけ、本文の中でスクロールする(上が切れない) */
+.pp-rank-won__body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin: auto;
+    max-width: 100%;
+    max-height: 100%;
+    min-height: 0;
+    /* 数字の拡大(pulse)の分の余白。これが無いと、拡大しただけでスクロールバーが出る */
+    padding: 3vh 0;
+    overflow-y: auto;
+    scrollbar-width: none;
+}
+
+.pp-rank-won__body::-webkit-scrollbar {
+    display: none;
+}
+
 .pp-rank-won__lead {
-    margin: auto 0 0;
+    margin: 0;
     font-size: clamp(1rem, 5vw, 1.4rem);
     font-weight: 800;
     color: var(--pp-gold-light);
@@ -190,8 +211,11 @@ onScopeDispose(() => {
 
 @media (max-height: 480px) {
     .pp-rank-won {
-        gap: 6px;
         padding: 12px 16px;
+    }
+
+    .pp-rank-won__body {
+        gap: 6px;
     }
 
     .pp-rank-won__you {

@@ -16,9 +16,21 @@ export interface JackpotHostHandlers {
 export interface JackpotHost {
   /** いまの抽選の状態を公開する。canStop の間だけ参加者のスマホに停止ボタンが出る。 */
   publish(state: JackpotPublished): void;
+  /**
+   * 進行のステップを実行し始めたときに呼ぶ。直前に公開した状態を、busy・止められない・参加者の操作なしで公開し直し、
+   * 演出中に止める/進めるボタンが押せるまま残らないようにする。当選者・賞品は増やさない(ネタバレしない)。
+   * まだ何も公開していなければ何もしない。
+   */
+  hold(): void;
 }
 
 const NAMESPACE = JACKPOT_NS;
+
+/**
+ * 最後に公開した画面(インスタンス)。画面の切り替えで、古い画面の後片付けが新しい画面の公開を消さないよう、
+ * 自分が最後に公開したときだけ公開を取り下げる。
+ */
+let owner: symbol | null = null;
 
 /**
  * 本抽選画面(ホスト端末)で使う。セッションのホストとして接続している場合だけ、
@@ -28,9 +40,13 @@ const NAMESPACE = JACKPOT_NS;
  * 必ずコンポーネントの setup() の同期実行中に呼ぶ(コンポーネントの破棄時に後片付けを登録するため)。
  */
 export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
-  if (!container.isRegistered(HostAgent)) return { publish: () => undefined };
+  if (!container.isRegistered(HostAgent)) return { publish: () => undefined, hold: () => undefined };
   const agent = container.resolve(HostAgent);
   let canStop = false;
+  let last: JackpotPublished | null = null;
+  const self = Symbol("jackpot-host");
+  /** 画面を離れた後。破棄された画面の進行が遅れて公開しても、次の画面の公開を上書きしない。 */
+  let disposed = false;
 
   const off = agent.router.register(NAMESPACE, (command) => {
     switch (command.type) {
@@ -50,13 +66,20 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
   });
 
   onScopeDispose(() => {
+    disposed = true;
     off();
+    // 別の画面が公開し直していたら(切り替えの順序が前後しても)、その公開を消さない
+    if (owner !== null && owner !== self) return;
+    owner = null;
     void agent.clearSlice(NAMESPACE);
   });
 
   return {
     publish(state) {
-      if (state.page === "description") {
+      if (disposed) return;
+      last = state;
+      owner = self;
+      if (state.page !== "main-draw") {
         canStop = false;
         void agent.publishSlice(NAMESPACE, state, []);
         return;
@@ -65,6 +88,12 @@ export function useJackpotHost(handlers: JackpotHostHandlers): JackpotHost {
       // メンバー抽選は管理者が進行する。景品抽選の停止は、当選した本人だけが送れる(宛先を当選者に絞る。管理者は常に可)。
       const winnerId = state.canStop && state.stage === "prize" ? state.memberId : null;
       void agent.publishSlice(NAMESPACE, state, winnerId ? [{ key: JACKPOT_STOP_COMMAND, memberIds: [winnerId] }] : []);
+    },
+    hold() {
+      if (disposed || !last) return;
+      canStop = false;
+      last = { ...last, busy: true, canStop: false };
+      void agent.publishSlice(NAMESPACE, last, []);
     }
   };
 }

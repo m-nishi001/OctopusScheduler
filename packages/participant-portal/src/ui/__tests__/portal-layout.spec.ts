@@ -5,7 +5,7 @@ import { defineComponent, h, ref } from "vue";
 import { RouterView, createMemoryHistory, createRouter } from "vue-router";
 import type { Command, SessionConnection } from "@octopus/session-hub";
 import { tick } from "@octopus/session-hub/testing";
-import { ALICE, BOB, MemoryDeviceStore, participantDevice, portalEnv, sampleEvent, sampleQuizState, sampleRound } from "../../__tests__/portal-test-kit";
+import { ALICE, BOB, FINALE_STATE, MemoryDeviceStore, participantDevice, portalEnv, sampleEvent, sampleQuizState, sampleRound } from "../../__tests__/portal-test-kit";
 import type { Device } from "../../__tests__/portal-test-kit";
 import { PARTICIPANT_AUTH_KEY } from "../../model/participant-auth";
 import { participantPortalRoutes } from "../../routes";
@@ -679,6 +679,64 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     m.wrapper.unmount();
   });
 
+  describe("結果・エンディングの画面(finale)", () => {
+    it("エントリー済みの人にも、していない人にも、エントリーカードの代わりに終了の画面を出す。終わればまたエントリーカードに戻る", async () => {
+      const env = await portalEnv();
+      const entered = await mountPortal(participantDevice(env.hub, ALICE), "/p/event");
+      const other = await mountPortal(participantDevice(env.hub, BOB), "/p/event", BOB);
+      await env.openEntry(sampleEvent());
+      await tick(5000);
+      await flushPromises();
+      await entered.wrapper.find('[data-testid="entry-button"]').trigger("click");
+      await flushPromises();
+      await tick(0);
+      expect(text(entered, "event-entry-card")).toContain("エントリー済み");
+
+      await env.publishJackpot(FINALE_STATE);
+      await tick(5000);
+      await flushPromises();
+      for (const m of [entered, other]) {
+        expect(text(m, "jackpot-finale-title")).toContain("ジャックポット終了");
+        expect(text(m, "jackpot-finale")).toContain("ご参加ありがとうございました");
+        expect(m.wrapper.find('a[href="/p/results"][data-testid="jackpot-finale-results"]').exists()).toBe(true);
+        expect(has(m, "event-entry-card")).toBe(false);
+        expect(has(m, "jackpot-waiting")).toBe(false);
+        expect(has(m, "winner")).toBe(false);
+        // 全画面の当選演出は、当選者が見える場面でだけ出る
+        expect(has(m, "you-won")).toBe(false);
+      }
+
+      await env.publishJackpot(null);
+      await tick(5000);
+      await flushPromises();
+      expect(has(entered, "jackpot-finale")).toBe(false);
+      expect(has(other, "jackpot-finale")).toBe(false);
+      expect(has(other, "event-entry-card")).toBe(true);
+      entered.wrapper.unmount();
+      other.wrapper.unmount();
+    });
+
+    it("ホームにもエントリーカードを出さず、他の画面のバナーも出さない", async () => {
+      const env = await portalEnv();
+      const m = await mountPortal(participantDevice(env.hub, ALICE), "/p");
+      await env.openEntry(sampleEvent());
+      await tick(5000);
+      await flushPromises();
+      expect(has(m, "event-entry-card")).toBe(true);
+
+      await env.publishJackpot(FINALE_STATE);
+      await tick(5000);
+      await flushPromises();
+      expect(has(m, "event-entry-card")).toBe(false);
+      expect(text(m, "home-status")).toContain("ジャックポットが終了しました");
+
+      await m.router.push("/p/results");
+      await flushPromises();
+      expect(has(m, "event-banner")).toBe(false);
+      m.wrapper.unmount();
+    });
+  });
+
   describe("待機画面と当選演出", () => {
     it("対象が自動のイベントでは、エントリーしていない人にも「まもなく抽選」を出す", async () => {
       const env = await portalEnv();
@@ -918,7 +976,9 @@ describe("参加者ポータル: ジャックポットと参加者の操作", ()
     await button.trigger("click");
     await flushPromises();
     await tick(5000);
-    expect(text(m, "client-input-message")).toBe("送信しました");
+    expect(has(m, "client-input-message")).toBe(false); // 「送信しました」は出さない
+    expect(m.wrapper.find('[data-testid="client-input"]').text()).toBe("止めています…");
+    expect(m.wrapper.find('[data-testid="client-input"]').attributes("disabled")).toBeDefined();
     expect(seen.map((c) => `${c.game}.${c.type}`)).toEqual(["jackpot.stopRoulette"]);
 
     await env.publishJackpot({ ...STOP, canStop: false }, []);

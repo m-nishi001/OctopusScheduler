@@ -27,6 +27,7 @@ const jackpotState = (over: Record<string, unknown> = {}) => ({
   page: "main-draw",
   stage: "member",
   canStop: false,
+  busy: false,
   member: null,
   memberId: null,
   prize: null,

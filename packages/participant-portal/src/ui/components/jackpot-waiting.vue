@@ -25,7 +25,7 @@ const entry = useEntryContext();
  */
 const stage = computed(() => {
     const jackpot = readJackpotView(session.state.value.roomState?.data);
-    if (!jackpot || quiz.quiz.value) return null;
+    if (!jackpot || jackpot.page === 'finale' || quiz.quiz.value) return null;
     switch (jackpot.stage) {
         case 'waiting':
             // エントリーしていない人には「まもなく抽選」を出さない(その人にはエントリーカードを出す)

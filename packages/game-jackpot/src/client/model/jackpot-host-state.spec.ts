@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RevealTracker, buildJackpotDescriptionState, buildJackpotHostState, canStopAt, deriveStage, revealableDrawId } from "./jackpot-host-state";
+import { RevealTracker, buildJackpotDescriptionState, buildJackpotFinaleState, buildJackpotHostState, canStopAt, deriveStage, revealableDrawId } from "./jackpot-host-state";
 import { JACKPOT_STAGES, readJackpotState } from "@octopus/session-hub";
 
 describe("canStopAt", () => {
@@ -91,7 +91,7 @@ describe("公開状態は、管理端末・ポータルが読む形と一致す�
 
   it("説明画面の状態は、場面は waiting のまま、スライドの位置(index/total)を伝える", () => {
     const state = buildJackpotDescriptionState(1, 3);
-    expect(state).toMatchObject({ page: "description", stage: "waiting", canStop: false, member: null, prize: null, index: 1, total: 3 });
+    expect(state).toMatchObject({ page: "description", stage: "waiting", canStop: false, busy: false, member: null, prize: null, index: 1, total: 3 });
     expect(readJackpotState({ jackpot: JSON.parse(JSON.stringify(state)) })).toEqual(state);
   });
 });
@@ -101,7 +101,7 @@ describe("buildJackpotHostState", () => {
 
   it("停止演出が終わるまで当選者・賞品を含めない(ネタバレ防止)", () => {
     const t = new RevealTracker();
-    expect(buildJackpotHostState({ ...base, tracker: t })).toEqual({ page: "main-draw", stage: "member", canStop: false, member: null, memberId: null, prize: null });
+    expect(buildJackpotHostState({ ...base, tracker: t })).toEqual({ page: "main-draw", stage: "member", canStop: false, busy: false, member: null, memberId: null, prize: null });
   });
 
   it("メンバー停止後は当選者だけ、賞品停止後は賞品も含める", () => {
@@ -170,5 +170,13 @@ describe("revealableDrawId", () => {
     expect(revealableDrawId(null, t)).toBeNull();
     expect(revealableDrawId({ ...result, wonMember: null }, t)).toBeNull();
     expect(revealableDrawId({ ...result, wonPrize: null }, t)).toBeNull();
+  });
+});
+
+describe("buildJackpotFinaleState", () => {
+  it("結果・エンディングの画面は、終了の場面で止める操作も当選者・賞品も出さず、共有の読み取りでそのまま読める", () => {
+    const state = buildJackpotFinaleState();
+    expect(state).toEqual({ page: "finale", stage: "ended", canStop: false, busy: false, member: null, memberId: null, prize: null });
+    expect(readJackpotState({ jackpot: state })).toEqual(state);
   });
 });

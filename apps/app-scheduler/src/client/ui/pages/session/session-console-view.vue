@@ -34,7 +34,7 @@
 
                 <!-- 主ボタンは常に1つ。押すと何が起きるかを予告する -->
                 <div v-if="guidance.main" class="console__main" data-testid="next-panel">
-                    <UiButton variant="primary" class="console__main-button" :disabled="busyMain || !canSend" :loading="busyMain"
+                    <UiButton variant="primary" class="console__main-button" :disabled="busyMain || !canSend || !!guidance.main.disabled" :loading="busyMain"
                         data-testid="next-button" @click="runMain">
                         {{ guidance.main.label }}
                         <kbd v-if="enterTriggers(guidance.main.action)" class="console__key" data-testid="next-key">Enter</kbd>
@@ -360,7 +360,7 @@ const navigate = (path: string, before?: () => Promise<void>) =>
 /** 主ボタン。連打しても1回だけ送る。 */
 async function runMain() {
     const main = guidance.value.main;
-    if (!main) return;
+    if (!main || main.disabled) return;
     // ジャックポットは、押した時点で見ていたホストの画面を添える。ホストがもう進んでいたら破棄される(次の画面の操作と取り違えて画面を飛ばさない)。
     // クイズはこの確認の対象にしない(挙動を変えない)。
     const guard = guidance.value.game === 'jackpot' ? { expectedPath: hostPath.value } : {};
@@ -470,7 +470,7 @@ async function loadQuizzes() {
 
 /** ホスト画面を見ながら Enter で主ボタンを押せる。入力欄やボタンにフォーカスがあるときは、その要素の操作を優先する。 */
 function onKeydown(e: KeyboardEvent) {
-    const command = resolveConsoleKey(e, { mainAction: guidance.value.main?.action ?? null, canBack: !!guidance.value.back, blocked: busyMain.value || !canSend.value });
+    const command = resolveConsoleKey(e, { mainAction: guidance.value.main?.action ?? null, canBack: !!guidance.value.back, blocked: busyMain.value || !canSend.value || !!guidance.value.main?.disabled });
     if (command === 'main') {
         e.preventDefault();
         void runMain();

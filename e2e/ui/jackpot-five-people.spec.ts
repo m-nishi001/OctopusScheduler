@@ -96,7 +96,12 @@ test("管理者+参加者4名・景品10件: 当選表示の自動クローズ�
       const clicked = await stopButton(winner).click({ timeout: 3000 }).then(() => true, () => false);
       if (clicked) stoppedByWinner.add(winner);
     } else {
-      await nextButton(admin.page).click();
+      // 景品抽選の停止は当選者のスマホの役目: 管理端末の主ボタンが「止める」になっても、スマホに出るのを待つ(先に押すと自動クローズも停止の確認も飛ぶ)。
+      // 演出中は主ボタンが押せないので、押せるときだけ押す
+      const next = nextButton(admin.page);
+      const label = (await next.innerText().catch(() => "")).trim();
+      const phoneStops = winner >= 0 && /景品抽選/.test(now) && label.includes("止める");
+      if (!phoneStops && (await next.isEnabled().catch(() => false))) await next.click();
     }
     await admin.page.waitForTimeout(1500);
   }
