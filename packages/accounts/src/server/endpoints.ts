@@ -30,6 +30,8 @@ import type {
   LoginArgs,
   LoginWithKeyArgs,
   LogoutArgs,
+  MemberPhotoHashesArgs,
+  PutMemberPhotoArgs,
   AccountsEndpointName,
   ReplaceAllMembersArgs,
   RevokeLoginKeyArgs,
@@ -37,7 +39,8 @@ import type {
   UpdateMemberArgs,
 } from "./accounts-api-contract";
 import { ACCOUNTS_PREFIX } from "./accounts-api-contract";
-import { secure } from "./secure";
+import { secure, secureMember } from "./secure";
+import { existsMemberPhotos, getMemberPhotos, putMemberPhoto } from "./member-photos";
 import {
   addMember,
   deleteMember,
@@ -75,6 +78,9 @@ declare let _accounts_addMember: (args: AddMemberArgs) => Promise<string>;
 declare let _accounts_updateMember: (args: UpdateMemberArgs) => Promise<string>;
 declare let _accounts_deleteMember: (args: DeleteMemberArgs) => Promise<string>;
 declare let _accounts_replaceAllMembers: (args: ReplaceAllMembersArgs) => Promise<string>;
+declare let _accounts_putMemberPhoto: (args: PutMemberPhotoArgs) => Promise<string>;
+declare let _accounts_existsMemberPhotos: (args: MemberPhotoHashesArgs) => Promise<string>;
+declare let _accounts_getMemberPhotos: (args: MemberPhotoHashesArgs) => Promise<string>;
 declare let _accounts_setPassword: (args: SetPasswordArgs) => Promise<string>;
 declare let _accounts_login: (args: LoginArgs) => Promise<string>;
 declare let _accounts_issueLoginKey: (args: IssueLoginKeyArgs) => Promise<string>;
@@ -111,6 +117,18 @@ _accounts_deleteMember = async (args: DeleteMemberArgs): Promise<string> => {
 
 _accounts_replaceAllMembers = async (args: ReplaceAllMembersArgs): Promise<string> => {
   return respond(() => replaceAllMembers(resolveDeps(), args.members));
+};
+
+_accounts_putMemberPhoto = async (args: PutMemberPhotoArgs): Promise<string> => {
+  return respond(() => putMemberPhoto(resolveDeps(), args));
+};
+
+_accounts_existsMemberPhotos = async (args: MemberPhotoHashesArgs): Promise<string> => {
+  return respond(() => existsMemberPhotos(resolveDeps(), args.hashes));
+};
+
+_accounts_getMemberPhotos = async (args: MemberPhotoHashesArgs): Promise<string> => {
+  return respond(() => getMemberPhotos(resolveDeps(), args.hashes));
 };
 
 _accounts_setPassword = async (args: SetPasswordArgs): Promise<string> => {
@@ -173,6 +191,10 @@ _accounts_addMember = secure("admin", _accounts_addMember);
 _accounts_updateMember = secure("admin", _accounts_updateMember);
 _accounts_deleteMember = secure("admin", _accounts_deleteMember);
 _accounts_replaceAllMembers = secure("admin", _accounts_replaceAllMembers);
+// 写真は書き込み・存在確認が管理者のみ。読み取りはログイン済みなら参加者も(エントリー画面などで顔を出すため)。
+_accounts_putMemberPhoto = secure("admin", _accounts_putMemberPhoto);
+_accounts_existsMemberPhotos = secure("admin", _accounts_existsMemberPhotos);
+_accounts_getMemberPhotos = secureMember(_accounts_getMemberPhotos);
 _accounts_setPassword = secure("admin", _accounts_setPassword);
 _accounts_login = secure("public", _accounts_login);
 // キーの発行・失効は管理者のみ。キーでのログインは入口なので公開(キーそのものが資格情報)。
@@ -191,6 +213,9 @@ export const ACCOUNTS_HANDLERS: Record<AccountsEndpointName, (args: any) => Prom
   updateMember: _accounts_updateMember,
   deleteMember: _accounts_deleteMember,
   replaceAllMembers: _accounts_replaceAllMembers,
+  putMemberPhoto: _accounts_putMemberPhoto,
+  existsMemberPhotos: _accounts_existsMemberPhotos,
+  getMemberPhotos: _accounts_getMemberPhotos,
   setPassword: _accounts_setPassword,
   login: _accounts_login,
   issueLoginKey: _accounts_issueLoginKey,
