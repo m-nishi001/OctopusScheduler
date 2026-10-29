@@ -16,7 +16,7 @@ export { useConfirm, useToast, confirmDialog, toast } from './composables/use-fe
 export { lockScroll } from './composables/use-scroll-lock';
 export type { ConfirmOptions, ToastKind } from './composables/use-feedback';
 export { default as MemberEditor } from './components/member-editor/member-editor.vue';
-export type { MemberRow } from './components/member-editor/member-editor.vue';
+export type { MemberRow, PickedPhoto } from './components/member-editor/member-editor.vue';
 export { default as UiToolbar } from './components/ui-toolbar/ui-toolbar.vue';
 export { default as UiBusyOverlay } from './components/ui-busy-overlay/ui-busy-overlay.vue';
 export { default as SyncStatusIndicator } from './components/sync-status-indicator/sync-status-indicator.vue';

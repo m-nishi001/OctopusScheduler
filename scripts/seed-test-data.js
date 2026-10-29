@@ -19,7 +19,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { buildContentEntries } from "./seed-content.js";
+import { buildContentEntries, buildMemberPhoto } from "./seed-content.js";
 import { buildSeedEntries, hashPassword, parseBucketName, wrangler } from "./seed-local-admin.js";
 
 const SCALAR_PREFIX = "__scalars__/";
@@ -60,7 +60,8 @@ export function mergeMembers(existing, testMembers) {
 /** R2 に書くべき [キー, 値] の一覧を組み立てる(純粋関数。テスト対象)。 */
 export function buildTestDataEntries({ count = DEFAULT_COUNT, admin, participantPassword, loginKeys, token, now, existingMembers = [] }) {
   if (!participantPassword || participantPassword.length < 8) throw new Error("participantPassword must be at least 8 characters");
-  const participants = buildTestMembers(count);
+  const photos = buildTestMembers(count).map((_, i) => buildMemberPhoto(i));
+  const participants = buildTestMembers(count).map((m, i) => ({ ...m, photo: photos[i].hash }));
   const keyOf = (id) => loginKeys?.[id] ?? deriveLoginKey(id);
   const entries = buildSeedEntries({
     id: admin.id,
@@ -70,6 +71,8 @@ export function buildTestDataEntries({ count = DEFAULT_COUNT, admin, participant
     now,
     existingMembers: mergeMembers(existingMembers, participants),
   });
+  // 顔写真(名簿の photo が指すファイル)
+  for (const p of photos) entries.push([p.key, p.body, p.mime]);
   for (const m of participants) {
     const salt = deterministicSalt(m.id);
     entries.push([`${SCALAR_PREFIX}accounts-credential/${m.id}`, JSON.stringify({ salt, hash: hashPassword(participantPassword, salt) })]);
