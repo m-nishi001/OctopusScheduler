@@ -17,6 +17,21 @@ export interface ApiCallOptions {
   retryDelay?: number;
 }
 
+/**
+ * 呼び出しが回数の上限で断られた(HTTP 429)。`retryAfterMs` はサーバーが示す待ち時間(`Retry-After`)。
+ * API クライアントは、ここで待たずにそのまま投げる(すぐ再試行しても断られるだけなので、
+ * 並列に送る側が待ち時間を見て、全体の速度を落とす)。
+ */
+export class RateLimitedError extends Error {
+  constructor(
+    message: string,
+    readonly retryAfterMs: number
+  ) {
+    super(message);
+    this.name = "RateLimitedError";
+  }
+}
+
 export interface IApiClient {
   /**
    * `functionName` で指定したサーバー側エンドポイントを呼び出す。

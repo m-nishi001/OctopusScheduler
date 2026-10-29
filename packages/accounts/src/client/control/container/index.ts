@@ -8,6 +8,8 @@ import {
 } from "../../../server/accounts-api-contract";
 import type { AccountsApi } from "../../../server/accounts-api-contract";
 import { AccountsRepository } from "../../model/accounts-repository";
+import { MemberPhotoCache } from "../photo/member-photo-cache";
+import { IndexedDbPhotoStore } from "../photo/indexeddb-photo-store";
 
 /** アカウントのクライアントの依存の登録。ビルド対象(GAS / Cloudflare)ごとの API クライアントなど、環境で変わるものをここで結ぶ。 */
 export class Container {
@@ -26,5 +28,15 @@ export class Container {
     });
 
     container.register(AccountsRepository, { useClass: AccountsRepository });
+    // 顔写真のキャッシュはアプリで1つ(名簿エディタ・エントリー画面などが同じものを通す)。
+    container.register(MemberPhotoCache, {
+      useFactory: instanceCachingFactory(
+        (c) =>
+          new MemberPhotoCache(
+            { fetchPhotos: (hashes) => c.resolve(AccountsRepository).getMemberPhotos(hashes) },
+            { store: new IndexedDbPhotoStore() }
+          )
+      ),
+    });
   }
 }

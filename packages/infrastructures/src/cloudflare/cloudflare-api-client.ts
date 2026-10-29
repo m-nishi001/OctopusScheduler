@@ -7,12 +7,15 @@
  */
 import { injectable } from "tsyringe";
 import { getSessionToken } from "@octopus/client-common/auth/session-token-store";
+import { RateLimitedError } from "../interfaces/api-client";
 import type { ApiCallOptions, ApiResponse, IApiClient } from "../interfaces/api-client";
 import { wrapWithAuth } from "../interfaces/auth-envelope";
 
 const DEFAULT_TIMEOUT_MS = 10000;
 const DEFAULT_RETRIES = 3;
 const DEFAULT_RETRY_DELAY_MS = 1000;
+/** `Retry-After` が無い・読めないときの待ち時間(秒)。 */
+const DEFAULT_RATE_LIMIT_WAIT_S = 60;
 
 /** リトライしても結果が変わらないエラー(認証エラー等)。 */
 class NonRetryableError extends Error {}
@@ -49,6 +52,7 @@ export class CloudflareApiClient implements IApiClient {
         }
         throw new Error(response.message);
       } catch (error) {
+        if (error instanceof RateLimitedError) throw error;
         if (!(error instanceof NonRetryableError) && attempts <= retries) {
           await sleep(retryDelay);
           continue;
@@ -72,6 +76,13 @@ export class CloudflareApiClient implements IApiClient {
         body: JSON.stringify({ name: functionName, args: wrapWithAuth(getSessionToken(), args) }),
         signal: controller.signal,
       });
+      if (res.status === 429) {
+        const seconds = Number(res.headers.get("Retry-After"));
+        throw new RateLimitedError(
+          "Too many requests",
+          (Number.isFinite(seconds) && seconds > 0 ? seconds : DEFAULT_RATE_LIMIT_WAIT_S) * 1000
+        );
+      }
       const text = await res.text();
       try {
         return JSON.parse(text) as ApiResponse<T>;
