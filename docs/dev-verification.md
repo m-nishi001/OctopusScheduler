@@ -88,6 +88,7 @@ npm run staging:down    # Worker / D1 / R2 を削除
 
 - 認証: `wrangler login` するか、`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` を設定しておく
 - **本番と同じアカウントの無料枠を使う**。普段は撤去しておき、確認する時間だけ立てる。人数・時間を絞る
+- テストデータなしで立てるとき(本番に近い空の状態の確認): `OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD=<8文字以上> npm run staging:up:blank`(`--no-seed`)。管理者はブートストラップ用 Secret から作られ(ID は既定 `admin`、変えるなら `OCTOPUS_BOOTSTRAP_ADMIN_ID`)、パスワードを指定しなければランダム生成して最後に表示する。`--with-results` とは併用できない
 - `staging:up` は冪等(再実行しても既存リソースを使い、データを再投入する)
 - Playwright を staging に向ける: `staging:up` の最後に表示される `BASE=… E2E_ADMIN_…=… npx playwright test -c e2e/playwright.config.ts` をそのまま実行する
 - R2 バケットは空でないと削除できない(wrangler に一覧・一括削除が無いため)。`staging:down` は、AWS CLI の profile `r2`(S3 互換 API。設定は[開発環境を作る](dev-environment.md#r2-の-s3-キーバケットを空にする用))でバケットを空にしてから削除するので、1回で消える。profile が無いときは、`staging:up` が付けた「1日で自動削除」のルールにより**翌日以降にもう一度 `staging:down`** すれば消える(ダッシュボードの R2 → 該当バケット → Settings → Empty Bucket でも空にできる)。バケットだけが残っていても、Worker は削除済みなので外からは到達できない

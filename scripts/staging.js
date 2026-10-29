@@ -3,6 +3,7 @@
  * Cloudflare 上の試験環境(staging)の作成と撤去。本番とは Worker・D1・R2 を完全に分ける。
  *
  *   npm run staging:up     D1/R2 作成 → wrangler.staging.toml 生成 → マイグレーション → デプロイ → 架空データ投入
+ *   npm run staging:up:blank  テストデータを入れずにデプロイ(管理者はブートストラップ用の Worker Secret から作られる)
  *   npm run staging:down   Worker / D1 / R2 を削除し、wrangler.staging.toml も消す
  *
  * 認証は wrangler の通常の方法(`wrangler login` または CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID)。
@@ -15,6 +16,7 @@
  * staging:up でバケットに「1日で自動削除」のルールを付けてある(翌日以降にもう一度 staging:down すればよい)。
  */
 import { execFile } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -91,7 +93,21 @@ export function parseDeployUrl(output) {
 }
 
 /** up 完了時に表示する、テストを staging に向けるための案内。 */
-export function renderUpSummary({ url, seed, session, withResults = false }) {
+export function renderUpSummary({ url, seed, session, withResults = false, blank = null }) {
+  if (blank) {
+    return [
+      "",
+      "=== staging 起動完了(テストデータなし) ===",
+      `  URL        : ${url ?? "(デプロイ出力から取得できませんでした。ダッシュボードで確認してください)"}`,
+      `  管理者     : ID ${blank.adminId}(初回ログイン時にブートストラップ用 Secret から作られます)`,
+      blank.generatedPassword
+        ? `  パスワード : ${blank.generatedPassword}(今回ランダムに生成。再表示されないので控えてください)`
+        : "  パスワード : 環境変数 OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD に指定した値",
+      "",
+      "  使い終わったら npm run staging:down(無料枠は本番と共有)",
+      "",
+    ].join("\n");
+  }
   return [
     "",
     "=== staging 起動完了 ===",
@@ -169,7 +185,24 @@ export function renderTimings(timings, totalMs) {
   return ["", "所要時間(並列実行のため合計は一致しません):", ...lines, `  ${"全体".padEnd(10)}: ${(totalMs / 1000).toFixed(1)}s`].join("\n");
 }
 
-async function up({ withResults }) {
+/** ブートストラップ管理者のパスワード(8文字以上)。環境変数に無ければランダムに生成する。ファイルには書かない。 */
+export function resolveBootstrapPassword(env = process.env, random = () => randomBytes(12).toString("hex")) {
+  const given = env.OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD;
+  if (given) {
+    if (given.length < 8) throw new Error("OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD は8文字以上にしてください");
+    return { password: given, generated: false };
+  }
+  return { password: random(), generated: true };
+}
+
+/** Worker Secret を登録する(値は標準入力で渡すので履歴・ファイルに残らない)。 */
+function putSecret(name, value) {
+  runWithRetry(() => runWrangler(["secret", "put", name, "--config", TOML_NAME], { cwd: ROOT, input: value, stdio: ["pipe", "pipe", "pipe"] }));
+}
+
+async function up({ withResults, noSeed }) {
+  if (noSeed && withResults) throw new Error("--no-seed と --with-results は同時に指定できません(テストデータを入れないため)");
+  const bootstrap = noSeed ? resolveBootstrapPassword() : null;
   const startedAt = Date.now();
   const timings = [];
   assertNotProduction(STAGING);
@@ -194,11 +227,22 @@ async function up({ withResults }) {
     timed("lifecycle", timings, () => ensureLifecycleAsync(wranglerRunAsync, STAGING.bucket)),
     timed("migrations", timings, () => wranglerRunAsync(["d1", "migrations", "apply", "DB", "--remote", "--config", TOML_NAME])),
     timed("deploy", timings, () => wranglerRunAsync(["deploy", "--config", TOML_NAME])),
-    timed("seed", timings, async () => (await execFileAsync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).stdout),
+    noSeed ? Promise.resolve(null) : timed("seed", timings, async () => (await execFileAsync("node", [join(ROOT, "scripts/seed-test-data.js"), "--config", TOML_NAME, "--remote"], { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })).stdout),
   ]);
   const url = parseDeployUrl(deployOut);
-  const seed = JSON.parse(seedOut);
   if (url) writeFileSync(urlFile(), url);
+  if (noSeed) {
+    // 最初のログインより前に管理者のパスワードを反映しておく
+    const adminId = process.env.OCTOPUS_BOOTSTRAP_ADMIN_ID?.trim() || "admin";
+    await timed("secret", timings, async () => {
+      putSecret("OCTOPUS_BOOTSTRAP_ADMIN_PASSWORD", bootstrap.password);
+      if (adminId !== "admin") putSecret("OCTOPUS_BOOTSTRAP_ADMIN_ID", adminId);
+    });
+    console.log(renderUpSummary({ url, blank: { adminId, generatedPassword: bootstrap.generated ? bootstrap.password : null } }));
+    console.log(renderTimings(timings, Date.now() - startedAt));
+    return;
+  }
+  const seed = JSON.parse(seedOut);
   const session = url ? await timed("session", timings, () => ensurePortalSession({ baseUrl: url, token: seed.admin.sessionToken })) : null;
   if (url && session && withResults) await timed("results", timings, () => seedDemoResults({ baseUrl: url, token: seed.admin.sessionToken, sessionId: session.id, participantIds: seed.participants.ids }));
   console.log(renderUpSummary({ url, seed, session, withResults }));
@@ -207,10 +251,11 @@ async function up({ withResults }) {
 
 /** `up` / `seed` の引数を解釈する。結果データは `--with-results` を付けたときだけ投入する(既定は含まない)。 */
 export function parseSeedArgs(argv) {
-  const out = { withResults: false, positional: [] };
+  const out = { withResults: false, noSeed: false, positional: [] };
   for (const arg of argv) {
     if (arg === "--with-results") out.withResults = true;
-    else if (arg.startsWith("--")) throw new Error(`不明な引数: ${arg}(--with-results)`);
+    else if (arg === "--no-seed") out.noSeed = true;
+    else if (arg.startsWith("--")) throw new Error(`不明な引数: ${arg}(--with-results / --no-seed)`);
     else out.positional.push(arg);
   }
   return out;
@@ -263,7 +308,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (command === "up") await up(rest);
     else if (command === "down") down();
     else if (command === "seed") await seedOnly(rest.positional[0], rest);
-    else throw new Error("使い方: node scripts/staging.js <up [--with-results]|down|seed [URL] [--with-results]>");
+    else throw new Error("使い方: node scripts/staging.js <up [--with-results|--no-seed]|down|seed [URL] [--with-results]>");
   } catch (e) {
     console.error(e.message);
     // 標準エラーを取り込んで実行したコマンドの失敗は、中身も見せる

@@ -56,8 +56,8 @@ test("renderUpSummary: 結果データの投入有無を要約に正しく出す
 });
 
 test("parseSeedArgs: 既定は結果を含まず、--with-results で含む。不明なフラグは拒否する", () => {
-  assert.deepEqual(parseSeedArgs([]), { withResults: false, positional: [] });
-  assert.deepEqual(parseSeedArgs(["https://x.dev", "--with-results"]), { withResults: true, positional: ["https://x.dev"] });
+  assert.deepEqual(parseSeedArgs([]), { withResults: false, noSeed: false, positional: [] });
+  assert.deepEqual(parseSeedArgs(["https://x.dev", "--with-results"]), { withResults: true, noSeed: false, positional: ["https://x.dev"] });
   assert.throws(() => parseSeedArgs(["--bogus"]), /不明な引数/);
 });
 
