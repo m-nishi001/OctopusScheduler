@@ -41,7 +41,7 @@
         <DataTable :columns="memberColumns" :rows="memberStats" row-key="id" empty-text="メンバー当選状況はありません">
             <template #cell-photo="{ row }">
                 <div class="member-preview">
-                    <img v-if="row.photoAssetId && imageUrls.get(row.photoAssetId)" :src="imageUrls.get(row.photoAssetId)!" alt="photo"
+                    <img v-if="photoUrl(row.photo)" :src="photoUrl(row.photo)" alt="photo"
                         class="preview-img" />
                     <span v-else>写真なし</span>
                 </div>
@@ -75,6 +75,7 @@ import { DataTable, UiButton, UiDialog, UiToolbar } from '@octopus/ui-kit';
 import type { DataTableColumn } from '@octopus/ui-kit';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { container } from 'tsyringe';
+import { MemberPhotoCache } from '@octopus/accounts';
 import { HostAgent, ISessionHubApiToken } from '@octopus/session-hub';
 import type { JackpotState, SessionHubApi, SessionSummary } from '@octopus/session-hub';
 import type { Prize } from '../../../model/prize/prize';
@@ -115,6 +116,13 @@ const members = ref<MemberDto[]>([]);
 const showResetModal = ref(false);
 const errorMessage = ref<string | null>(null);
 const imageUrls = ref(new Map<string, string>());
+// メンバーの写真は共通の名簿の写真キャッシュから
+const photoCache = container.resolve(MemberPhotoCache);
+const photoTick = ref(0);
+const photoUrl = (hash?: string) => {
+    void photoTick.value;
+    return photoCache.get(hash);
+};
 
 const drawColumns: DataTableColumn[] = [
     { key: 'memberName', label: 'メンバー' },
@@ -241,7 +249,7 @@ onMounted(async () => {
     selected.value = hosted ?? sessions.value.find(s => s.status !== 'closed')?.id ?? REHEARSAL;
     await fetchData();
     await Promise.all([
-        ...members.value.map(m => loadImage(m.photoAssetId)),
+        photoCache.ensure(members.value.map(m => m.photo)).then(() => photoTick.value++),
         ...prizes.value.map(p => loadImage(p.imageAssetId)),
     ]);
 });

@@ -1,13 +1,17 @@
 <template>
     <UiDialog :model-value="show" title="データアップロード" size="md" :persistent="uploading" :close-on-overlay="false"
         @close="$emit('close')">
-        <p class="lead">CSVファイルとアセットフォルダを選択してください。</p>
+        <p v-if="type === 'member'" class="lead">
+            メンバーの「ランク」と「当選しやすさ」を、ID をキーにまとめて設定します(1行目は見出し: <code>id,rank,weight</code>)。
+            名簿にいない ID は取り込まれません。メンバーの追加と写真は、設定の「メンバー」(共通の名簿)で行ってください。
+        </p>
+        <p v-else class="lead">CSVファイルとアセットフォルダを選択してください。</p>
         <div class="form-group">
             <label>CSVファイル</label>
             <input type="file" @change="onCsvChange" accept=".csv" />
             <span v-if="csvFile" class="file-name">{{ csvFile.name }}</span>
         </div>
-        <div class="form-group">
+        <div v-if="type === 'prize'" class="form-group">
             <label>アセットフォルダ</label>
             <input type="file" @change="onFolderChange" webkitdirectory multiple />
             <span v-if="assetFiles.length" class="file-name">{{ assetFiles.length }} ファイル選択</span>
@@ -16,17 +20,17 @@
         <template #footer>
             <UiButton :disabled="uploading" @click="$emit('close')">キャンセル</UiButton>
             <UiButton variant="primary" class="upload-btn" :loading="uploading"
-                :disabled="!csvFile || !assetFiles.length" @click="upload">アップロード</UiButton>
+                :disabled="!csvFile || (type === 'prize' && !assetFiles.length)" @click="upload">アップロード</UiButton>
         </template>
     </UiDialog>
 </template>
 <script setup lang="ts">
 import { UiButton, UiDialog } from '@octopus/ui-kit';
 import { ref } from 'vue';
+import { parseMemberExtrasCsv } from './member-extras-csv';
 import { AssetDataService } from '@control/asset/asset-data-service';
 import { MemberService } from '@control/member/member-service';
 import { PrizeService } from '@control/prize/prize-service';
-import { resolveWeight } from '@model/draw/weighted-selector';
 import { container } from 'tsyringe';
 
 const props = defineProps<{
@@ -99,13 +103,18 @@ const norm = (s: string) => {
 };
 
 const upload = async () => {
-    if (!csvFile.value || !assetFiles.value.length) return;
+    if (!csvFile.value || (props.type === 'prize' && !assetFiles.value.length)) return;
     uploading.value = true;
     message.value = 'アップロード中...';
     try {
+        if (props.type === 'member') {
+            await importMemberExtras(await csvFile.value.text());
+            emit('refresh');
+            return;
+        }
         // Parse CSV first to get referenced filenames
         const csvText = await csvFile.value.text();
-        const lines = csvText.split('\n').filter((line) => line.trim());
+        const lines = csvText.replace(/^\uFEFF/, '').split(/\r?\n/).filter((line) => line.trim());
         if (lines.length < 2) throw new Error('CSV is empty or invalid');
 
         const dataLines = lines.slice(1);
@@ -113,19 +122,7 @@ const upload = async () => {
 
         // parseCsvLine and norm available at module scope
 
-        if (props.type === 'member') {
-            for (const line of dataLines) {
-                const cols = parseCsvLine(line).map((c) => c.trim());
-                if (cols.length >= 3 && cols[2]) {
-                    const raw = cols[2];
-                    const rawN = norm(raw);
-                    referencedFilenames.add(rawN);
-                    referencedFilenames.add(rawN.toLowerCase());
-                    try { referencedFilenames.add(rawN.split(/\\|\//).join('/')); } catch { }
-                    referencedFilenames.add(rawN.split(/\\|\//).join('/').toLowerCase());
-                }
-            }
-        } else {
+        {
             for (const line of dataLines) {
                 const cols = parseCsvLine(line).map((c) => c.trim());
                 if (cols.length >= 4) {
@@ -209,11 +206,7 @@ const upload = async () => {
             } catch { /* ignore */ }
         });
 
-        if (props.type === 'member') {
-            await uploadMembers(dataLines, assetMap);
-        } else {
-            await uploadPrizes(dataLines, assetMap);
-        }
+        await uploadPrizes(dataLines, assetMap);
 
         message.value = 'アップロード完了';
         emit('refresh');
@@ -228,26 +221,15 @@ const upload = async () => {
     }
 };
 
-const uploadMembers = async (dataLines: string[], assetMap: Map<string, string>) => {
-    for (let i = 0; i < dataLines.length; i++) {
-        const line = dataLines[i];
-        const cols = parseCsvLine(line).map((c) => c.trim());
-        if (cols.length < 3) continue;
-        const name = cols[0];
-        const rank = parseInt(cols[1]);
-        const photoFilename = cols[2];
-        // 4列目（任意）: 当選しやすさ（1〜100）。無ければ既定値
-        const weight = cols[3] ? resolveWeight(parseInt(cols[3])) : undefined;
-        const photoAssetId = photoFilename ? assetMap.get(norm(photoFilename)) || assetMap.get(norm(photoFilename).toLowerCase()) : undefined;
-        const member = {
-            id: `upload_member_${Date.now()}_${i}`,
-            name,
-            rank,
-            weight,
-            photoAssetId
-        };
-        await memberService.saveMember(member);
-    }
+/** メンバーの rank / 当選しやすさを、ID をキーにして名簿のメンバーへ設定する(メンバーの作成・写真は名簿の仕事)。 */
+const importMemberExtras = async (csvText: string) => {
+    const { rows, errors } = parseMemberExtrasCsv(csvText);
+    if (errors.length) throw new Error(errors.join(' / '));
+    const result = await memberService.importExtras(rows);
+    message.value = result.unknown.length
+        ? `${result.updated}人を更新しました。名簿にいないIDは取り込んでいません: ${result.unknown.join(', ')}`
+        : `${result.updated}人を更新しました`;
+    // 結果を読めるよう、すぐには閉じない
 };
 
 const uploadPrizes = async (dataLines: string[], assetMap: Map<string, string>) => {

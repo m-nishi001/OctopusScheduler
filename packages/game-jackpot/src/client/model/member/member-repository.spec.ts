@@ -24,7 +24,7 @@ function createMockDirectory(initial: DirectoryMember[] = []) {
     listMembers: vi.fn(async () => [...members]),
     addMember: vi.fn(async (args: { id?: string; name: string }) => {
       const id = args.id || `generated-${nextId++}`;
-      const created = { id, name: args.name };
+      const created: DirectoryMember = { id, name: args.name };
       members.push(created);
       return created;
     }),
@@ -94,6 +94,32 @@ describe("MemberRepository (jackpot)", () => {
   it("weight を設定していないメンバーは weight が未設定のまま（抽選では既定値として扱われる）", async () => {
     await repo.addMembers([{ id: "", name: "花子", rank: 2 }]);
     expect((await repo.getMembers())[0].weight).toBeUndefined();
+  });
+
+  it("名簿の写真(photo)は名簿から読み、ジャックポット側には写真を保存しない", async () => {
+    mockDirectory = createMockDirectory([{ id: "s1", name: "写真あり", photo: "aaaaaaaaaaaaaaaa" }, { id: "s2", name: "写真なし" }]);
+    container.register(AccountsRepository, { useValue: mockDirectory as any });
+    repo = container.resolve(MemberRepository);
+    await repo.addMembers([{ id: "s1", name: "写真あり", rank: 2 }]);
+    const members = await repo.getMembers();
+    expect(members.find((m) => m.id === "s1")?.photo).toBe("aaaaaaaaaaaaaaaa");
+    expect(members.find((m) => m.id === "s2")?.photo).toBeUndefined();
+    const stored = (await new LocalStorageService("jackpot-game", "MemberExtraData").getAll<Record<string, unknown>>()).get("s1");
+    expect(Object.keys(stored ?? {}).sort()).toEqual(["memberId", "rank"]);
+  });
+
+  it("setExtras: 名簿にいる id の rank / weight を設定し(省略は保つ)、名簿にいない id は作らずに返す", async () => {
+    mockDirectory = createMockDirectory([{ id: "s1", name: "A" }, { id: "s2", name: "B" }]);
+    container.register(AccountsRepository, { useValue: mockDirectory as any });
+    repo = container.resolve(MemberRepository);
+    await repo.addMembers([{ id: "s1", name: "A", rank: 2, weight: 30 }]);
+    const result = await repo.setExtras([{ id: "s1", rank: 7 }, { id: "s2", weight: 90 }, { id: "ghost", rank: 1 }]);
+    expect(result).toEqual({ updated: 2, unknown: ["ghost"] });
+    const members = await repo.getMembers();
+    expect(members.find((m) => m.id === "s1")).toMatchObject({ rank: 7, weight: 30 });
+    expect(members.find((m) => m.id === "s2")).toMatchObject({ rank: 5, weight: 90 });
+    expect(members.some((m) => m.id === "ghost")).toBe(false);
+    expect(mockDirectory.addMember).not.toHaveBeenCalled();
   });
 
   it("deleteMembers only removes the local extra, not the shared member", async () => {
