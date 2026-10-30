@@ -79,6 +79,11 @@ vi.mock("@control/member/member-service", async () => {
       this.saved.push(m);
       return m;
     }
+    public imported: any[] = [];
+    async importExtras(rows: any[]) {
+      this.imported.push(...rows);
+      return { updated: rows.filter((r) => r.id !== "ghost").length, unknown: rows.filter((r) => r.id === "ghost").map((r) => r.id) };
+    }
   }
   return { MemberService: FakeMemberService } as any;
 });
@@ -176,6 +181,7 @@ const dummyMemberRepo: Pick<
 describe("DataUploadDialog", () => {
   let assetSvc: any;
   let prizeSvc: any;
+  let memberSvc: any;
   beforeEach(async () => {
     assetSvc = new FakeAssetServiceInstance();
     const prizeModule = await import("@control/prize/prize-service");
@@ -189,7 +195,7 @@ describe("DataUploadDialog", () => {
     const memberModule = await import(
       "@control/member/member-service"
     );
-    const memberSvc = new memberModule.MemberService(dummyMemberRepo as any);
+    memberSvc = new memberModule.MemberService(dummyMemberRepo as any);
     container.registerInstance(memberModule.MemberService, memberSvc as any);
     container.registerInstance(prizeModule.PrizeService, prizeSvc as any);
   });
@@ -468,5 +474,37 @@ describe("DataUploadDialog", () => {
     expect(prize.winningImage1AssetId).toBeUndefined();
     expect(prize.winningImage2AssetId).toBeUndefined();
     expect(prize.order).toBe(0);
+  });
+
+  describe("メンバーの取込(ID をキーに rank / 当選しやすさだけ)", () => {
+    const pickCsv = async (wrapper: any, csvText: string) => {
+      const csvFile = { name: "members.csv", type: "text/csv", size: csvText.length, async text() { return csvText; } } as any;
+      const input = wrapper.find('input[type="file"][accept=".csv"]');
+      Object.defineProperty(input.element, "files", { value: { 0: csvFile, length: 1, item: () => csvFile } });
+      await input.trigger("change");
+    };
+
+    it("アセットフォルダの欄は出ず、CSVだけで取り込める。名簿にいない ID は作られず、結果に出る", async () => {
+      const wrapper = mount(DataUploadDialog as any, { props: { show: true, type: "member" }, global: { stubs: { teleport: true } } });
+      expect(wrapper.find("input[webkitdirectory]").exists()).toBe(false);
+      await pickCsv(wrapper, "id,rank,weight\nalice,3,40\nghost,1,1\n");
+      const btn = wrapper.find("button.upload-btn");
+      expect(btn.attributes("disabled")).toBeUndefined();
+      await btn.trigger("click");
+      await new Promise((r) => setTimeout(r, 50));
+      expect(memberSvc.imported).toEqual([{ id: "alice", rank: 3, weight: 40 }, { id: "ghost", rank: 1, weight: 1 }]);
+      expect(memberSvc.saved).toEqual([]); // 生成IDのメンバーは作らない
+      expect(wrapper.find(".message").text()).toContain("ghost");
+      expect(wrapper.emitted("refresh")).toBeTruthy();
+    });
+
+    it("CSV に誤りがあれば何も取り込まず、理由を出す", async () => {
+      const wrapper = mount(DataUploadDialog as any, { props: { show: true, type: "member" }, global: { stubs: { teleport: true } } });
+      await pickCsv(wrapper, "id,rank,weight\nalice,0,40\n");
+      await wrapper.find("button.upload-btn").trigger("click");
+      await new Promise((r) => setTimeout(r, 50));
+      expect(memberSvc.imported).toEqual([]);
+      expect(wrapper.find(".message").text()).toContain("rank");
+    });
   });
 });

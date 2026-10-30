@@ -9,7 +9,7 @@ export const REEL_REPEAT = 10;
 
 /** 表示数に満たないときに埋める、空の枠。 */
 export function emptyReelMember(index: number): MemberDto {
-  return { id: `empty-${index}`, name: '---', photoAssetId: undefined, rank: 0 } as MemberDto;
+  return { id: `empty-${index}`, name: '---', rank: 0 } as MemberDto;
 }
 
 /**

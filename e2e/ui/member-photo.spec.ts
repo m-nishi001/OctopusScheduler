@@ -40,6 +40,11 @@ test.afterAll(async ({ request }) => {
 
 const listed = async (request: Parameters<typeof adminRpc>[0], id: string) =>
   (await adminRpc<Array<{ id: string; photo?: string }>>(request, "accounts_listMembers", {})).find((m) => m.id === id);
+/** 名簿に写真が記録されるまで待って、そのハッシュを返す(画面は更新を先に反映するので、サーバーの保存は少し遅れることがある)。 */
+const savedPhoto = async (request: Parameters<typeof adminRpc>[0], id: string): Promise<string> => {
+  await expect.poll(async () => (await listed(request, id))?.photo, { message: `${id} の写真が名簿に記録される` }).toMatch(/^[0-9a-f]{16}$/);
+  return (await listed(request, id))!.photo!;
+};
 const photoExists = async (request: Parameters<typeof adminRpc>[0], hash: string) =>
   (await adminRpc<{ existing: string[] }>(request, "accounts_existsMemberPhotos", { hashes: [hash] })).existing.includes(hash);
 
@@ -74,9 +79,8 @@ test.describe("名簿の顔写真", () => {
     expect(Math.max(size.w, size.h)).toBe(512);
     expect(size.h).toBe(384);
     // 名簿に写真のハッシュが記録され、写真のファイルがサーバーにある
-    const member = await listed(request, ids[0]);
-    expect(member?.photo).toMatch(/^[0-9a-f]{16}$/);
-    expect(await photoExists(request, member!.photo!)).toBe(true);
+    const member = { photo: await savedPhoto(request, ids[0]) };
+    expect(await photoExists(request, member.photo)).toBe(true);
     // 送信は「存在確認 → 写真の保存 → 名簿の更新」。確認1回、保存1回
     expect(rpcNames.filter((n) => n === "accounts_existsMemberPhotos")).toHaveLength(1);
     expect(rpcNames.filter((n) => n === "accounts_putMemberPhoto")).toHaveLength(1);
@@ -90,7 +94,7 @@ test.describe("名簿の顔写真", () => {
     await admin.page.getByRole("dialog").locator("input[type=text]").nth(1).fill(`${nameOf(ids[0])}改`);
     await admin.page.getByRole("dialog").getByRole("button", { name: "保存" }).click();
     await expect(admin.page.locator("tbody tr", { hasText: `${nameOf(ids[0])}改` }).getByTestId("member-thumb")).toBeVisible();
-    expect((await listed(request, ids[0]))?.photo).toBe(member!.photo);
+    expect((await listed(request, ids[0]))?.photo).toBe(member.photo);
     await adminRpc(request, "accounts_updateMember", { id: ids[0], name: nameOf(ids[0]) });
     await admin.context.close();
   });
@@ -100,21 +104,21 @@ test.describe("名簿の顔写真", () => {
     await admin.page.goto("/#/settings?tab=members");
     await setPhotoInEditor(admin.page, ids[1], photoFile(REPLACE_FIRST_PHOTO));
     await expect(rowOf(admin.page, ids[1]).getByTestId("member-thumb")).toBeVisible();
-    const first = (await listed(request, ids[1]))!.photo!;
+    const first = await savedPhoto(request, ids[1]);
     expect(await photoExists(request, first)).toBe(true);
 
     await setPhotoInEditor(admin.page, ids[1], photoFile(OTHER_PHOTO));
     await expect.poll(async () => (await listed(request, ids[1]))?.photo).not.toBe(first);
     const second = (await listed(request, ids[1]))!.photo!;
     expect(await photoExists(request, second)).toBe(true);
-    expect(await photoExists(request, first)).toBe(false);
+    await expect.poll(() => photoExists(request, first)).toBe(false);
 
     await rowOf(admin.page, ids[1]).getByRole("button", { name: "編集" }).click();
     await admin.page.getByTestId("member-photo-clear").click();
     await admin.page.getByRole("dialog").getByRole("button", { name: "保存" }).click();
     await expect(rowOf(admin.page, ids[1]).getByTestId("member-thumb")).toHaveCount(0);
-    expect((await listed(request, ids[1]))?.photo).toBeUndefined();
-    expect(await photoExists(request, second)).toBe(false);
+    await expect.poll(async () => (await listed(request, ids[1]))?.photo).toBeUndefined();
+    await expect.poll(() => photoExists(request, second)).toBe(false);
     await admin.context.close();
   });
 
@@ -124,7 +128,7 @@ test.describe("名簿の顔写真", () => {
     await admin.page.goto("/#/settings?tab=members");
     await setPhotoInEditor(admin.page, ids[2], photoFile(AUTH_PHOTO));
     await expect(rowOf(admin.page, ids[2]).getByTestId("member-thumb")).toBeVisible();
-    const hash = (await listed(request, ids[2]))!.photo!;
+    const hash = await savedPhoto(request, ids[2]);
 
     const login = await request.post("/rpc", { data: { name: "accounts_loginWithKey", args: { id: ids[2], key: keys.get(ids[2]) } } });
     const participantToken = (await login.json()).data.token as string;
@@ -160,7 +164,7 @@ test.describe("名簿の顔写真", () => {
     await setup.page.goto("/#/settings?tab=members");
     await setPhotoInEditor(setup.page, ids[0], photoFile(BIG_PHOTO));
     await expect(rowOf(setup.page, ids[0]).getByTestId("member-thumb")).toBeVisible();
-    const hash = (await listed(request, ids[0]))!.photo!;
+    const hash = await savedPhoto(request, ids[0]);
     await setup.context.close();
 
     const admin = await newDevice(browser, { signedIn: true });

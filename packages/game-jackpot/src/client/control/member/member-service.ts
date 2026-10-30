@@ -30,6 +30,11 @@ export class MemberService {
     return addedMembers[0];
   }
 
+  /** rank / 当選しやすさを id をキーにまとめて設定する(名簿にいない id は飛ばし、その id を返す)。 */
+  async importExtras(rows: { id: string; rank?: number; weight?: number }[]): Promise<{ updated: number; unknown: string[] }> {
+    return this.repo.setExtras(rows);
+  }
+
   async deleteMember(id: string): Promise<void> {
     await this.repo.deleteMembers([id]);
   }

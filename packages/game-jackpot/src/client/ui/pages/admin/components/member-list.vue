@@ -2,7 +2,7 @@
   <DataTable :columns="columns" :rows="members" row-key="id" selectable :selected="selected"
     empty-text="メンバーはいません" @update:selected="$emit('update:selected', $event)">
     <template #cell-photo="{ row }">
-      <img v-if="row.photoAssetId || row.photoAsset" :src="getMemberImageSrc(row)" alt="photo" class="preview-img" />
+      <img v-if="getMemberImageSrc(row)" :src="getMemberImageSrc(row)" alt="photo" class="preview-img" />
       <span v-else>-</span>
     </template>
     <template #cell-weight="{ row }">{{ resolveWeight(row.weight) }}</template>

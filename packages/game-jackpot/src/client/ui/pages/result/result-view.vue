@@ -37,7 +37,7 @@ import { useJackpotSession } from '../../composables/use-jackpot-session';
 import { useJackpotFinale } from '../../composables/use-jackpot-finale';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
-import { AssetDataService } from '@control/asset/asset-data-service';
+import { MemberPhotoCache } from '@octopus/accounts';
 import { ResultScreenSetting } from '@model/screen-config/result-screen-setting';
 import { useScreenBgm } from '../../composables/use-screen-media';
 import '../../theme/jackpot-theme.css';
@@ -55,14 +55,12 @@ export default {
     const lowestWinner = ref<any | undefined>(undefined);
     const resultConfig = ref<ResultScreenSetting | null>(null);
 
-    // 当選者の写真の表示用URL（画面を離れたら破棄する）
-    const objectUrlMap = new Map<string, string>();
     const bgm = useScreenBgm();
     /** 画面が出てから BGM を鳴らし始めるまでの待ち（ミリ秒）。 */
     const BGM_DELAY_MS = 1200;
 
     const screenSettingsService = container.resolve(ScreenSettingsService);
-    const assetService = container.resolve(AssetDataService);
+    const photoCache = container.resolve(MemberPhotoCache);
     const drawStores = container.resolve(DrawStoreProvider);
     const fetchResults = async () => {
       try {
@@ -71,18 +69,9 @@ export default {
         resultConfig.value = (config as ResultScreenSetting) ?? new ResultScreenSetting("", "", "");
         void bgm.load(resultConfig.value.resultBgm).then(() => bgm.play(BGM_DELAY_MS));
 
-        for (const r of results) {
-          if (r.wonMember) {
-            const aid = r.wonMember.photoAssetId;
-            if (aid) {
-              const asset = await assetService.getAssetDataById(aid);
-              if (asset && asset.id && !objectUrlMap.has(asset.id)) {
-                try { objectUrlMap.set(asset.id, URL.createObjectURL(asset.blob)); } catch { }
-              }
-            }
-          }
-        }
-        winners.value = results.filter(r => r.wonMember).map(r => ({ ...r.wonMember!, prize: r.wonPrize ? r.wonPrize.name : '', id: r.wonMember!.id, photo: r.wonMember!.photoAssetId ? objectUrlMap.get(r.wonMember!.photoAssetId) : undefined }));
+        // 当選者の写真は、共通の名簿の写真キャッシュから(まとめて読む。取れなければ頭文字のアバター)
+        await photoCache.ensure(results.map(r => r.wonMember?.photo));
+        winners.value = results.filter(r => r.wonMember).map(r => ({ ...r.wonMember!, prize: r.wonPrize ? r.wonPrize.name : '', id: r.wonMember!.id, photo: photoCache.get(r.wonMember!.photo) }));
         const ranks = results.filter(r => r.wonMember).map(r => r.wonMember!.rank);
         const minRank = Math.min(...ranks);
         const maxRank = Math.max(...ranks);
@@ -108,10 +97,6 @@ export default {
     onMounted(() => window.addEventListener('keydown', handleKey));
     onUnmounted(() => {
       window.removeEventListener('keydown', handleKey);
-      for (const url of objectUrlMap.values()) {
-        try { URL.revokeObjectURL(url); } catch { /* 破棄できなくても画面は閉じる */ }
-      }
-      objectUrlMap.clear();
     });
 
     const winnerClass = (winner: any) => {

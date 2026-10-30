@@ -1,12 +1,10 @@
 import { ref, computed } from "vue";
 import { container } from "tsyringe";
 import { MemberRepository } from "@model/member/member-repository";
-import { AssetDataService } from "@control/asset/asset-data-service";
 import { MemberService } from "@control/member/member-service";
-import { AccountsRepository } from "@octopus/accounts";
+import { AccountsRepository, MemberPhotoCache } from "@octopus/accounts";
 import type { Member as DirectoryMember } from "@octopus/accounts";
 import type { MemberDto } from "@control/member/dto/member-dto";
-import type { Asset } from "@model/asset/asset-data";
 
 const STORAGE_KEY = "jackpot-game-members-json";
 
@@ -17,24 +15,19 @@ export interface MemberFormInput {
   rank: number;
   /** 当選しやすさ(1〜100)。省略時は既定値。 */
   weight?: number;
-  photoAssetId?: string;
-  /** アップロードモードで選択された、まだ保存されていないアセット。 */
-  tempAsset?: Asset | null;
 }
 
 /** メンバーの管理画面の状態と操作(一覧・選択・削除・アカウントの名簿からの取り込み)。 */
 export function useMembers(
   memberRepoArg?: MemberRepository,
-  assetDataServiceArg?: AssetDataService,
   memberServiceArg?: MemberService,
   directoryRepoArg?: AccountsRepository
 ) {
   const memberRepo = memberRepoArg || container.resolve(MemberRepository);
-  const assetDataService =
-    assetDataServiceArg || container.resolve(AssetDataService);
   const memberService = memberServiceArg || container.resolve(MemberService);
   const directoryRepo =
     directoryRepoArg || container.resolve(AccountsRepository);
+  const photos = container.resolve(MemberPhotoCache);
 
   const members = ref<any[]>([]);
   /** 共有マスタに登録済みだが、まだこのゲームに紐付けていないメンバー。 */
@@ -43,7 +36,8 @@ export function useMembers(
   const deleting = ref(false);
   const deleteMessage = ref("");
 
-  const objectUrlMap = new Map<string, string>();
+  /** 写真が読み込めるたびに進める(一覧の再描画のきっかけ)。 */
+  const photoTick = ref(0);
 
   const isAllSelected = computed({
     get: () =>
@@ -54,15 +48,17 @@ export function useMembers(
     },
   });
 
-  const getMemberImageSrc = (member: any) =>
-    member.photoAssetId ? objectUrlMap.get(member.photoAssetId) || "" : "";
+  /** 顔写真の表示用URL(共通の名簿の写真。読み込み前・写真なしは空)。 */
+  const getMemberImageSrc = (member: any) => {
+    void photoTick.value;
+    return photos.get(member.photo) ?? "";
+  };
 
   const saveMembersToLocalJson = async () => {
     try {
       // sanitize members before saving to avoid persisting preview object URLs
       const clean = (members.value || []).map((m) => {
         const copy: any = { ...m };
-        if (copy.photoDataUrl) delete copy.photoDataUrl;
         for (const k of Object.keys(copy)) {
           const v = copy[k];
           if (typeof v === "string" && v.startsWith && v.startsWith("blob:")) {
@@ -93,21 +89,8 @@ export function useMembers(
   const fetchMembers = async () => {
     try {
       const fetchedMembers = await memberRepo.getMembers();
-      for (const member of fetchedMembers) {
-        if (member.photoAssetId) {
-          const asset = await assetDataService.getAssetDataById(
-            member.photoAssetId
-          );
-          if (asset && asset.id) {
-            try {
-              objectUrlMap.set(member.photoAssetId, URL.createObjectURL(asset.blob));
-            } catch {
-              /* ignore preview URL creation failures */
-            }
-          }
-        }
-      }
       members.value = fetchedMembers;
+      void photos.ensure(fetchedMembers.map((m) => m.photo)).then(() => photoTick.value++);
       await saveMembersToLocalJson();
       await fetchAvailableDirectoryMembers();
     } catch (error) {
@@ -122,37 +105,8 @@ export function useMembers(
       name: input.name,
       rank: input.rank,
       weight: input.weight,
-      photoAssetId: input.photoAssetId || undefined,
     };
-    let previewBlob: Blob | undefined;
-    if (input.tempAsset) {
-      const uploaded = await assetDataService.addAssetData([input.tempAsset]);
-      newMember.photoAssetId = uploaded[0].id;
-      previewBlob = input.tempAsset.blob;
-    }
     const addedMember = await memberService.saveMember(newMember);
-    if (previewBlob && newMember.photoAssetId) {
-      try {
-        objectUrlMap.set(newMember.photoAssetId, URL.createObjectURL(previewBlob));
-      } catch {
-        /* ignore preview URL creation failures */
-      }
-    } else if (newMember.photoAssetId && !objectUrlMap.has(newMember.photoAssetId)) {
-      try {
-        const asset = await assetDataService.getAssetDataById(
-          newMember.photoAssetId
-        );
-        if (asset && asset.blob) {
-          try {
-            objectUrlMap.set(newMember.photoAssetId, URL.createObjectURL(asset.blob));
-          } catch {
-            /* ignore preview URL creation failures */
-          }
-        }
-      } catch {
-        /* ignore lookup failures */
-      }
-    }
     members.value.push(addedMember);
     await saveMembersToLocalJson();
     return addedMember;
@@ -160,18 +114,6 @@ export function useMembers(
 
   const updateMember = async (original: any, input: MemberFormInput) => {
     const updated: any = { ...original, name: input.name, rank: input.rank, weight: input.weight };
-    if (input.tempAsset) {
-      try {
-        const uploaded = await assetDataService.addAssetData([input.tempAsset]);
-        if (uploaded && uploaded[0] && uploaded[0].id) {
-          updated.photoAssetId = uploaded[0].id;
-        }
-      } catch (e) {
-        console.error("Failed to upload photo asset during edit:", e);
-      }
-    } else if (input.photoAssetId) {
-      updated.photoAssetId = input.photoAssetId;
-    }
     await memberRepo.updateMembers([{ id: updated.id, updateFn: () => updated }]);
     await fetchMembers();
     await saveMembersToLocalJson();
@@ -179,7 +121,7 @@ export function useMembers(
 
   const deleteMember = async (id: string) => {
     deleting.value = true;
-    deleteMessage.value = "メンバーの設定(ランク・当選しやすさ・写真)を初期値に戻しています...";
+    deleteMessage.value = "メンバーの設定(ランク・当選しやすさ)を初期値に戻しています...";
     try {
       await memberService.deleteMember(id);
       await fetchMembers();
@@ -194,7 +136,7 @@ export function useMembers(
   const deleteSelectedMembers = async () => {
     if (!selectedMembers.value.length) return;
     deleting.value = true;
-    deleteMessage.value = "メンバーの設定(ランク・当選しやすさ・写真)を初期値に戻しています...";
+    deleteMessage.value = "メンバーの設定(ランク・当選しやすさ)を初期値に戻しています...";
     try {
       await memberService.deleteMembers(selectedMembers.value);
       await fetchMembers();
@@ -208,7 +150,9 @@ export function useMembers(
   };
 
   const exportFormatCsv = () => {
-    const csv = "名前,ランク,写真ファイル名\n";
+    const csv = members.value.length
+      ? "id,rank,weight\n" + members.value.map((m) => `"${String(m.id).replace(/"/g, '""')}",${m.rank},${m.weight ?? ""}`).join("\n") + "\n"
+      : "id,rank,weight\n";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -216,21 +160,6 @@ export function useMembers(
     a.download = "members_format.csv";
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const disposeObjectUrls = () => {
-    try {
-      for (const url of objectUrlMap.values()) {
-        try {
-          URL.revokeObjectURL(url);
-        } catch {
-          /* ignore */
-        }
-      }
-      objectUrlMap.clear();
-    } catch {
-      /* ignore */
-    }
   };
 
   return {
@@ -247,6 +176,5 @@ export function useMembers(
     deleteMember,
     deleteSelectedMembers,
     exportFormatCsv,
-    disposeObjectUrls,
   };
 }

@@ -4,7 +4,7 @@
             <div class="track" ref="track">
                 <div v-for="(m, idx) in displayMembers" :key="m.id + '-' + idx"
                     :class="['member-item', { active: idx === (activeIndex ?? -999), left1: idx === ((activeIndex ?? -999) - 1), right1: idx === ((activeIndex ?? -999) + 1) }]">
-                    <img :src="memberImageMap.get(m.photoAssetId || '') || defaultAvatar" alt="member" :style="{
+                    <img :src="memberImageMap.get(m.photo) || defaultAvatar" alt="member" :style="{
                         transform: `scale(${scales[idx] ?? 1})`,
                         transition: isAnimating ? 'none' : 'transform 220ms ease, filter 220ms ease',
                         willChange: 'transform'
@@ -28,9 +28,10 @@ import { pickStopTarget } from './stop-target';
 import { buildReelLap, reelScale, repeatReel, startButtonCenterY } from './member-reel';
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue';
 import gsap from 'gsap';
+import { container } from 'tsyringe';
 import '../../../theme/jackpot-theme.css';
 import type { MemberDto } from '@control/member/dto/member-dto';
-import { sharedMemberImageCache } from './member-image-cache';
+import { MemberPhotoCache } from '@octopus/accounts';
 import type { DrawMemberResponse } from '@control/draw/dto/draw-member-response';
 import MemberWinnerDialog from './member-winner-dialog.vue';
 import { useMemberDrawBgm } from './use-member-draw-bgm';
@@ -60,7 +61,7 @@ export default {
         const track = ref<HTMLDivElement | null>(null);
         const startButtonContainer = ref<HTMLDivElement | null>(null);
         const tweenRef: { tween: gsap.core.Tween | null } = { tween: null };
-        const memberImageMap = sharedMemberImageCache();
+        const memberImageMap = container.resolve(MemberPhotoCache);
         // inline SVG placeholder (dark rounded avatar) as fallback so images render even when asset loading fails
         const defaultAvatar = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="100%" height="100%" fill="%23111111"/><circle cx="60" cy="44" r="30" fill="%23888"/><rect x="20" y="86" width="80" height="12" rx="6" fill="%23888"/></svg>';
 
@@ -113,7 +114,7 @@ export default {
         // 次のサイクルの下ごしらえで先に読んであればここでは待たない。読み込みは並列。
         const loadImages = async () => {
             const base = displayMembers.value.slice(0, Math.max(displayMembers.value.length / 2, 0));
-            await memberImageMap.preload(base.map((m) => m?.photoAssetId));
+            await memberImageMap.ensure(base.map((m) => m?.photo));
         };
 
         const activeIndex = ref<number | null>(null);
@@ -123,18 +124,17 @@ export default {
         const scales = ref<number[]>([]);
 
         const showWinnerDialog = ref(false);
-        const winnerAssetId = ref('');
+        const winnerPhoto = ref('');
         const winnerName = ref('');
         const winnerTitle = computed(() => {
             const name = (winnerName.value || '').toString().trim();
-            const display = name || (winnerAssetId.value ? winnerAssetId.value : '当選者');
+            const display = name || '当選者';
             // explicit newline so the title does not wrap automatically; the CSS will use `white-space: pre`.
             return `${display} さん当選されました！\n前に出てきてください！`;
         });
 
         const winnerImageUrl = computed(() => {
-            const id = winnerAssetId.value || '';
-            return memberImageMap.get(id) || defaultAvatar;
+            return memberImageMap.get(winnerPhoto.value) || defaultAvatar;
         });
 
         const updateActiveIndex = () => {
@@ -355,7 +355,7 @@ export default {
                         // Set winner info and show dialog
                         const winner = displayMembers.value[targetChildIdx];
                         if (winner) {
-                            winnerAssetId.value = winner.photoAssetId || '';
+                            winnerPhoto.value = winner.photo || '';
                             winnerName.value = winner.name;
                             // only show the internal dialog when the parent is NOT handling the dialog
                             try {
@@ -457,7 +457,7 @@ export default {
             emit('start');
         };
 
-        return { viewport, track, startButtonContainer, displayMembers, memberImageMap, defaultAvatar, start, stopAt, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerAssetId, winnerName, winnerTitle, winnerImageUrl, onWinnerDialogShown, onWinnerDialogClosed };
+        return { viewport, track, startButtonContainer, displayMembers, memberImageMap, defaultAvatar, start, stopAt, activeIndex, startDraw, stopDraw, handleStart, scales, isAnimating, showWinnerDialog, winnerPhoto, winnerName, winnerTitle, winnerImageUrl, onWinnerDialogShown, onWinnerDialogClosed };
     }
 };
 </script>

@@ -25,10 +25,10 @@ const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-member-extras-file-id";
  * jackpot固有のメンバーリポジトリ。
  *
  * メンバーのid/nameは `@octopus/accounts` が持つ共有マスタから取得し、
- * rank/当選しやすさ(weight)/写真といったjackpot固有の設定は `MemberExtraData`(id => JackpotMemberExtra)
+ * rank/当選しやすさ(weight)といったjackpot固有の設定は `MemberExtraData`(id => JackpotMemberExtra)
  * としてローカルに保持してマージする。id/nameは共有マスタへの書き込みで
  * 即座に他デバイスへ反映されるため、バックグラウンド同期の対象はjackpot固有の
- * 拡張設定(rank/写真)のみでよい。
+ * 拡張設定(rank/weight)のみでよい。
  *
  * `MemberRosterOverride` は動作確認用シミュレーション(draw-simulation-service.ts)が
  * 一時的にダミーメンバーへ差し替えるための、共有マスタに一切影響しないローカル専用の
@@ -50,8 +50,7 @@ export class MemberRepository {
       name: directoryMember.name,
       rank: extra?.rank ?? DEFAULT_RANK,
       weight: extra?.weight,
-      photoAssetId: extra?.photoAssetId,
-      photoDataUrl: extra?.photoDataUrl,
+      photo: directoryMember.photo,
     };
   }
 
@@ -73,7 +72,7 @@ export class MemberRepository {
 
   /**
    * メンバーを追加する。`member.id` が既存マスタのIDと一致する場合は
-   * 既存の共有メンバーへ紐付ける(rank/写真の設定のみ)。一致しない場合は
+   * 既存の共有メンバーへ紐付ける(rank/weightの設定のみ)。一致しない場合は
    * 新規メンバーとして共有マスタに追加してから紐付ける。
    */
   async addMembers(members: Member[]): Promise<Member[]> {
@@ -90,8 +89,6 @@ export class MemberRepository {
         memberId: directoryMember.id,
         rank: member.rank,
         weight: member.weight,
-        photoAssetId: member.photoAssetId,
-        photoDataUrl: member.photoDataUrl,
       };
       await this.extraStorage.save(directoryMember.id, extra);
       added.push(this.toMember(directoryMember, extra));
@@ -99,6 +96,36 @@ export class MemberRepository {
     await this.dirtyTracker.touch(SYNC_KIND);
     eventBus.emit("syncDirty");
     return added;
+  }
+
+  /**
+   * 名簿にいるメンバーの rank / 当選しやすさを、id をキーにまとめて設定する(省略した項目は今の値を保つ)。
+   * 名簿にいない id は何もせず、その id を返す(メンバーの作成は名簿の仕事)。保存・同期の記録は1回だけ。
+   */
+  async setExtras(rows: { id: string; rank?: number; weight?: number }[]): Promise<{ updated: number; unknown: string[] }> {
+    const [directoryMembers, extras] = await Promise.all([this.directory.listMembers(), this.extraStorage.getAll<JackpotMemberExtra>()]);
+    const known = new Set(directoryMembers.map((m) => m.id));
+    const unknown: string[] = [];
+    let updated = 0;
+    for (const row of rows) {
+      if (!known.has(row.id)) {
+        unknown.push(row.id);
+        continue;
+      }
+      const current = extras.get(row.id);
+      const extra: JackpotMemberExtra = {
+        memberId: row.id,
+        rank: row.rank ?? current?.rank ?? DEFAULT_RANK,
+        weight: row.weight ?? current?.weight,
+      };
+      await this.extraStorage.save(row.id, extra);
+      updated++;
+    }
+    if (updated > 0) {
+      await this.dirtyTracker.touch(SYNC_KIND);
+      eventBus.emit("syncDirty");
+    }
+    return { updated, unknown };
   }
 
   async updateMembers(
@@ -115,8 +142,6 @@ export class MemberRepository {
         memberId: update.id,
         rank: updated.rank,
         weight: updated.weight,
-        photoAssetId: updated.photoAssetId,
-        photoDataUrl: updated.photoDataUrl,
       };
       await this.extraStorage.save(update.id, extra);
     }
@@ -125,7 +150,7 @@ export class MemberRepository {
   }
 
   /**
-   * メンバーのジャックポット固有の設定（ランク・当選しやすさ・写真）を初期値に戻す。
+   * メンバーのジャックポット固有の設定（ランク・当選しやすさ）を初期値に戻す。
    * 共有マスタ（名簿）からは削除しない。メンバーは名簿にいる限り、ジャックポットのメンバーでもある。
    */
   async deleteMembers(ids: string[]): Promise<void> {
@@ -136,7 +161,7 @@ export class MemberRepository {
 
   /**
    * バックグラウンド同期エンジン向けに、jackpot固有のメンバー拡張設定
-   * (rank/写真)一覧を1つのSyncTargetとして返す。id/nameは共有マスタ経由で
+   * (rank/weight)一覧を1つのSyncTargetとして返す。id/nameは共有マスタ経由で
    * 既に常に最新のため、ここでの同期対象には含めない。
    */
   async listSyncTargets(): Promise<SyncTarget<JackpotMemberExtra[], JackpotMemberExtra[]>[]> {
