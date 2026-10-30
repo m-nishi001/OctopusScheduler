@@ -1,0 +1,174 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OctopusScheduler 取扱説明書</title><style>
+:root{--bg:#fff;--fg:#1c2330;--mut:#566074;--card:#f3f5f9;--line:#d6dbe5;--acc:#1565c0;--red:#d92d20;--note:#e8f1fd;--warnbg:#fff1e6;--warn:#b54708}
+@media (prefers-color-scheme:dark){:root{--bg:#161a22;--fg:#e8ebf1;--mut:#a3adbf;--card:#1f2530;--line:#343c4c;--acc:#7bb4ff;--note:#1b2a41;--warnbg:#3a2616;--warn:#ffb877}}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.85 "Hiragino Sans","Noto Sans JP","Yu Gothic",Meiryo,sans-serif}
+.layout{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:230px 1fr;gap:32px;padding:0 20px}
+nav.toc{position:sticky;top:0;align-self:start;padding:24px 0;max-height:100vh;overflow:auto}
+nav.toc b{display:block;margin-bottom:8px}nav.toc a{display:block;padding:7px 10px;border-radius:8px;color:var(--fg);text-decoration:none;font-size:15px}nav.toc a:hover{background:var(--card)}
+main{min-width:0;padding-bottom:80px}
+header.top{padding:40px 0 8px}header.top h1{margin:0;font-size:32px;line-height:1.4}header.top p{color:var(--mut);margin:6px 0}
+section{margin-top:56px}h2{font-size:26px;border-left:8px solid var(--acc);padding-left:14px;line-height:1.4}h3{font-size:21px;margin-top:44px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.lead{background:var(--card);border-radius:12px;padding:12px 16px}.lead span{display:inline-block;background:var(--acc);color:#fff;font-size:13px;border-radius:99px;padding:0 10px;margin-right:10px;line-height:1.7}
+p{margin:.7em 0}
+figure.shot{margin:18px 0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+figure.shot img{display:block;width:100%;height:auto;cursor:zoom-in}
+figure.phone{max-width:340px}
+figcaption{padding:12px 16px;font-size:15.5px;line-height:1.7}
+ol.marks{list-style:none;padding:0;margin:8px 0 0}ol.marks li{display:flex;gap:10px;align-items:flex-start;margin:4px 0}
+.n{flex:none;display:inline-block;width:26px;height:26px;border-radius:50%;background:var(--red);color:#fff;font-weight:700;text-align:center;line-height:26px;font-size:15px}
+.pair{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}.pair>figure{flex:1 1 300px;margin:10px 0}.pair>figure.phone{flex:0 1 300px}.pair.w>figure{flex:1 1 380px}
+.note,.warn{border-radius:10px;padding:10px 14px;margin:14px 0}.note{background:var(--note);border-left:6px solid var(--acc)}.warn{background:var(--warnbg);border-left:6px solid var(--warn)}
+.note b,.warn b{margin-right:10px}.warn b{color:var(--warn)}.note b{color:var(--acc)}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.trio div{background:var(--card);border-radius:12px;padding:14px}.trio span{display:block;color:var(--mut);font-size:15px}
+ol.flow{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;counter-reset:f}ol.flow li{background:var(--card);border-radius:12px;padding:12px;counter-increment:f}ol.flow li::before{content:counter(f);display:inline-block;background:var(--acc);color:#fff;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;margin-right:6px;font-size:14px}ol.flow b{font-size:16px}ol.flow span{display:block;font-size:14.5px;color:var(--mut);line-height:1.6;margin-top:4px}
+ol.steps li{margin:6px 0}dl.qa dt{font-weight:700;margin-top:16px}dl.qa dd{margin:2px 0 0 0;color:var(--mut)}.small{font-size:14px;color:var(--mut)}
+.mtoc{display:none}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}#lb.on{display:flex}#lb img{max-width:96vw;max-height:96vh}
+@media (max-width:900px){.layout{display:block;padding:0 16px}nav.toc{display:none}.mtoc{display:block;background:var(--card);border-radius:12px;padding:10px 14px;margin:12px 0}.mtoc summary{font-weight:700;cursor:pointer}.mtoc a{display:block;padding:8px 0;color:var(--fg)}.trio{grid-template-columns:1fr}header.top h1{font-size:26px}figure.phone,.pair>figure.phone{max-width:100%;flex-basis:100%}}
+@media print{nav.toc,.mtoc,#lb{display:none}.layout{display:block}body{font-size:12pt}figure.shot,.note,.warn{break-inside:avoid}:root{--bg:#fff;--fg:#000}}
+</style></head><body><div class="layout"><nav class="toc"><b>もくじ</b><a href="#intro">はじめに</a><a href="#participant">1. 参加者の方へ</a><a href="#prep">2. 管理者:事前準備</a><a href="#day">3. 管理者:当日の進行</a><a href="#rehearsal">4. リハーサル</a><a href="#faq">5. Q&A・用語集・クレジット</a></nav><main><header class="top"><h1>OctopusScheduler 取扱説明書</h1><p>クイズ大会とジャックポット抽選会を、迷わず進めるための手引きです。画面の赤い枠と番号が、説明の番号に対応しています。画像をクリックすると拡大します。</p></header><details class="mtoc"><summary>もくじ</summary><a href="#intro">はじめに</a><a href="#participant">1. 参加者の方へ</a><a href="#prep">2. 管理者:事前準備</a><a href="#day">3. 管理者:当日の進行</a><a href="#rehearsal">4. リハーサル</a><a href="#faq">5. Q&A・用語集・クレジット</a></details><section id="intro"><h2>はじめに</h2><p class="lead"><span>この章でできること</span>OctopusScheduler でできること、3つの画面の関係、当日の流れがわかります。</p>
+<p>OctopusScheduler は、忘年会や懇親会などで<strong>クイズ大会</strong>と<strong>ジャックポット抽選会</strong>を行うためのWebアプリです。パソコンやスマホのブラウザだけで使えます。インストールは不要です。</p>
+<h3 id="intro-screens">登場する3つの画面</h3>
+<div class="trio">
+<div><b>① 会場スクリーン</b><span>プロジェクターに映す画面。会場のPCで「ホストとして開く」と、クイズや抽選の演出が映ります。</span></div>
+<div><b>② 手元の操作画面</b><span>司会者が手に持つスマホ(またはPC)。大きなボタンを押すたびに、会場スクリーンが進みます。</span></div>
+<div><b>③ 参加者のスマホ</b><span>参加者が自分のスマホで開く画面。エントリー、クイズの回答、結果の確認ができます。</span></div>
+</div>
+<p class="note"><b>ポイント</b>会場スクリーンと手元の操作画面は、同じ管理者アカウントでログインします。参加者は、受付で配られるQRコードを読み取るだけで入れます。</p>
+<h3 id="intro-flow">当日の全体の流れ</h3>
+<ol class="flow"><li><b>準備</b><span>参加者のアカウントと受付QR、景品、クイズ、画面の文言を前日までに整える</span></li><li><b>受付</b><span>参加者がQRを読み取ってログイン。会場PCに「N人が参加中」と出る</span></li><li><b>エントリー</b><span>参加者が「エントリーする」を押すと、会場スクリーンに顔写真が並ぶ</span></li><li><b>クイズ</b><span>手元の「次へ」で、出題から結果発表まで進める</span></li><li><b>ジャックポット</b><span>当選者を決め、景品の抽選を行う</span></li><li><b>終了</b><span>結果を確認してイベントを終える</span></li></ol>
+<p class="warn"><b>注意</b>本番の前に、必ず「リハーサル(デモ)」を1回行ってください(第4章)。</p>
+</section>
+<section id="participant"><h2>1. 参加者の方へ</h2><p class="lead"><span>この章でできること</span>スマホでログインし、エントリー・クイズ回答・結果の確認ができます。</p>
+<h3 id="p-login">1-1. ログインする</h3>
+<p>受付で渡されたQRコードを、スマホのカメラで読み取ってください。自動でログインされます。QRがない場合は、配られた<strong>ID</strong>と<strong>パスワード</strong>を入力します。</p>
+<figure class="shot phone"><img src="images/p-01-login.webp" alt="参加者のログイン画面" loading="lazy"><figcaption><strong>ログイン画面(IDとパスワードで入る場合)</strong><ol class="marks"><li><span class="n">1</span>受付でもらったID</li><li><span class="n">2</span>パスワード</li><li><span class="n">3</span>ログインする</li></ol></figcaption></figure>
+<figure class="shot phone"><img src="images/p-02-home.webp" alt="参加者のホーム" loading="lazy"><figcaption><strong>ログイン後のホーム</strong><ol class="marks"><li><span class="n">1</span>あなたの名前</li><li><span class="n">2</span>会場とつながっていれば「接続中」</li><li><span class="n">3</span>下のタブで画面を切り替える</li></ol></figcaption></figure>
+<p class="note"><b>ポイント</b>上の「接続中」が出ていれば、会場とつながっています。イベントが始まるまで、この画面を開いたままお待ちください。</p>
+<h3 id="p-entry">1-2. エントリーする</h3>
+<p>司会者がエントリー受付を始めると、画面に大きな丸いボタンが出ます。タップすると「エントリー済み」になり、会場のスクリーンにあなたの顔写真が表示されます。</p>
+<div class="pair"><figure class="shot phone"><img src="images/p-03-entry-card.webp" alt="エントリーカード(受付中)" loading="lazy"><figcaption><strong>受付中</strong><ol class="marks"><li><span class="n">1</span>タップしてエントリーする</li></ol></figcaption></figure><figure class="shot phone"><img src="images/p-04-entry-done.webp" alt="エントリー済み" loading="lazy"><figcaption><strong>エントリー済み</strong><ol class="marks"><li><span class="n">1</span>「エントリー済み」になれば完了</li></ol></figcaption></figure></div>
+<h3 id="p-quiz">1-3. クイズに答える</h3>
+<p>問題と選択肢が出ます。<strong>残り秒数</strong>が0になる前に、答えをタップしてください。受付中は選び直せますが、最後に選んだものが回答になります。</p>
+<div class="pair"><figure class="shot phone"><img src="images/p-05-quiz-play.webp" alt="参加者 クイズ回答画面" loading="lazy"><figcaption><strong>出題中</strong><ol class="marks"><li><span class="n">1</span>問題と選択肢が出る(残り秒数つき)</li><li><span class="n">2</span>答えをタップ</li></ol></figcaption></figure><figure class="shot phone"><img src="images/p-06-quiz-answered.webp" alt="回答後" loading="lazy"><figcaption><strong>回答した後</strong><ol class="marks"><li><span class="n">1</span>回答済み(変更はできない)</li></ol></figcaption></figure></div>
+<div class="pair"><figure class="shot phone"><img src="images/p-07-quiz-closed.webp" alt="回答受付終了" loading="lazy"><figcaption><strong>受付終了</strong></figcaption></figure><figure class="shot phone"><img src="images/p-08-quiz-verdict.webp" alt="参加者 正解発表" loading="lazy"><figcaption><strong>正解発表</strong><ol class="marks"><li><span class="n">1</span>正解・不正解がわかる</li></ol></figcaption></figure></div>
+<p>順位の発表中は「会場の画面をご覧ください」と出ます。会場のスクリーンで確認しましょう。</p>
+<h3 id="p-jackpot">1-4. ジャックポット抽選</h3>
+<p>エントリーした人の中から抽選されます。当選すると、スマホに紙吹雪つきの「あたりました!」が出ます。会場の前に出てきてください。</p>
+<figure class="shot phone"><img src="images/p-13-win-overlay.webp" alt="当選した人のスマホ" loading="lazy"><figcaption><strong>当選したときの画面</strong></figcaption></figure>
+<h3 id="p-results">1-5. 結果を見る・ログアウトする</h3>
+<p>下の「結果」タブで、クイズの順位と、ジャックポットの当選履歴を見られます。自分の当選は目立つ表示になります。</p>
+<div class="pair"><figure class="shot phone"><img src="images/p-10-results-quiz.webp" alt="結果タブ(クイズ)" loading="lazy"><figcaption><strong>結果(クイズ)</strong><ol class="marks"><li><span class="n">1</span>出題ごとの順位・正解</li><li><span class="n">2</span>ジャックポットの結果に切り替え</li></ol></figcaption></figure><figure class="shot phone"><img src="images/p-11-results-jackpot.webp" alt="結果タブ(ジャックポット)" loading="lazy"><figcaption><strong>結果(ジャックポット)</strong><ol class="marks"><li><span class="n">1</span>当選の履歴(自分が当たると強調される)</li></ol></figcaption></figure></div>
+<figure class="shot phone"><img src="images/p-12-mypage.webp" alt="マイページ" loading="lazy"><figcaption><strong>マイページ</strong><ol class="marks"><li><span class="n">1</span>使い終わったらログアウト</li></ol></figcaption></figure>
+<h3 id="p-trouble">1-6. 困ったとき</h3><ul><li>「接続中」にならない → 画面を引き下げて再読み込みしてください。</li><li>ログインできない → IDとパスワードを確認し、それでも入れなければ受付に声をかけてください。QRの再発行ができます。</li><li>エントリーボタンが出ない → 受付が始まっていないか、すでに締め切られています。</li></ul>
+</section>
+<section id="prep"><h2>2. 管理者:事前準備</h2><p class="lead"><span>この章でできること</span>参加者の登録、景品・メンバー・クイズ・画面の準備ができます。</p>
+<p>準備は、管理者のホーム画面から行います。管理者アカウントでログインすると表示されます。</p>
+<figure class="shot "><img src="images/a-01-home.webp" alt="管理者のホーム画面" loading="lazy"><figcaption><strong>管理者のホーム</strong><ol class="marks"><li><span class="n">1</span>イベントを開催・進行する(当日はここから)</li><li><span class="n">2</span>クイズの問題や選択肢をつくる</li><li><span class="n">3</span>景品・メンバー・画面を整える</li><li><span class="n">4</span>アカウント・素材・ショートカット</li></ol></figcaption></figure>
+<h3 id="prep-accounts">2-1. 参加者を登録して受付QRを印刷する</h3>
+<p>「設定」→「アカウント」タブを開きます。参加者を1人ずつ「アカウント追加」で登録するか、すでに登録した人に受付QRを発行します。</p>
+<figure class="shot "><img src="images/a-02-accounts.webp" alt="設定のアカウントタブ" loading="lazy"><figcaption><strong>設定のアカウントタブ</strong><ol class="marks"><li><span class="n">1</span>参加者(や管理者)を1人ずつ追加する</li><li><span class="n">2</span>受付QRをまとめて発行して印刷する</li><li><span class="n">3</span>QRをなくした人に再発行する</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-03-account-add.webp" alt="アカウント追加ダイアログ" loading="lazy"><figcaption><strong>アカウント追加ダイアログ</strong><ol class="marks"><li><span class="n">1</span>ログインIDを入れる(英数字)</li><li><span class="n">2</span>表示される名前を入れる</li><li><span class="n">3</span>保存する</li></ol></figcaption></figure>
+<p>登録しただけの人(QR未発行)がいると、「未発行の参加者に受付QRを発行」が押せるようになります。</p>
+<figure class="shot "><img src="images/a-08-accounts-unissued.webp" alt="未発行の参加者がいるとき" loading="lazy"><figcaption><strong>未発行の参加者がいるとき</strong><ol class="marks"><li><span class="n">1</span>未発行の人にまとめてQRを発行する</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-09-qr-sheet.webp" alt="受付QRコードシート" loading="lazy"><figcaption><strong>受付QRコードシート</strong><ol class="marks"><li><span class="n">1</span>印刷して参加者に配る(QRはここでしか表示されない)</li></ol></figcaption></figure>
+<p class="warn"><b>注意</b>QRコードは、この画面を閉じると二度と表示できません。必ず印刷してから閉じてください。なくした場合は「QR再発行」を使います(以前のQRは使えなくなります)。QRは本人専用です。写真を共有しないよう参加者に伝えてください。</p>
+<h3 id="prep-members">2-2. メンバーの写真を登録する</h3>
+<p>「ジャックポットの準備」→「メンバー」タブを開きます。顔写真は、会場スクリーンのエントリーや抽選に映ります。1人ずつ登録するか、CSVと写真フォルダでまとめて取り込めます。</p>
+<figure class="shot "><img src="images/a-10-jp-members.webp" alt="ジャックポット管理 メンバー" loading="lazy"><figcaption><strong>ジャックポット管理 メンバー</strong><ol class="marks"><li><span class="n">1</span>メンバーを1人追加する</li><li><span class="n">2</span>取り込み用のCSVひな形をダウンロード</li><li><span class="n">3</span>CSVと写真フォルダをまとめて取り込む</li><li><span class="n">4</span>写真・当選しやすさを編集する</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-11-jp-member-edit.webp" alt="メンバー詳細ダイアログ" loading="lazy"><figcaption><strong>メンバー詳細ダイアログ</strong><ol class="marks"><li><span class="n">1</span>写真ファイルを選ぶ</li><li><span class="n">2</span>当選しやすさ(1〜100)</li><li><span class="n">3</span>保存する</li></ol></figcaption></figure>
+<p><strong>まとめて取り込む場合:</strong>「書式CSV」で雛形を受け取り、「名前,ランク,写真ファイル名」を入力します。写真を1つのフォルダに入れ、CSVと一緒に選んでください。</p>
+<figure class="shot "><img src="images/a-12-jp-member-import.webp" alt="メンバーのデータ取込ダイアログ" loading="lazy"><figcaption><strong>メンバーのデータ取込ダイアログ</strong><ol class="marks"><li><span class="n">1</span>CSVファイルを選ぶ</li><li><span class="n">2</span>写真が入ったフォルダを選ぶ</li><li><span class="n">3</span>取り込みを始める</li></ol></figcaption></figure>
+<p class="note"><b>ポイント</b>「当選しやすさ」は1〜100です。全員が同じ値なら、全員が同じ確率で当選します。</p>
+<p class="warn"><b>注意</b>メンバーの写真は、設定した端末(ブラウザ)に保存されます。写真を設定したパソコンを、そのまま会場PCとして使ってください。</p>
+<h3 id="prep-prizes">2-3. 景品を登録する</h3>
+<p>「景品」タブで、景品の名前・画像・抽選アニメーションを設定します。「データ取込」でまとめて登録することもできます。</p>
+<figure class="shot "><img src="images/a-13-jp-prizes.webp" alt="ジャックポット管理 景品" loading="lazy"><figcaption><strong>ジャックポット管理 景品</strong><ol class="marks"><li><span class="n">1</span>景品を追加する</li><li><span class="n">2</span>CSVと画像をまとめて取り込む</li><li><span class="n">3</span>景品の内容を編集する</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-14-jp-prize-edit.webp" alt="景品の編集フォーム" loading="lazy"><figcaption><strong>景品の編集フォーム</strong><ol class="marks"><li><span class="n">1</span>景品の名前</li><li><span class="n">2</span>抽選アニメーション(ルーレット/スロット)</li><li><span class="n">3</span>景品画像(ルーレットなどに出る)</li><li><span class="n">4</span>当選したときに大きく出る画像</li></ol></figcaption></figure>
+<p class="note"><b>ポイント</b>「画像1・2」は抽選中に出る絵、「当選画像1・2」は当選したときに大きく出る絵です。BGMも景品ごとに選べます。</p>
+<figure class="shot "><img src="images/a-15-jp-assets.webp" alt="ジャックポット管理 アセット" loading="lazy"><figcaption><strong>ジャックポット管理 アセット</strong><ol class="marks"><li><span class="n">1</span>画像・音声を追加する</li></ol></figcaption></figure>
+<h3 id="prep-quiz">2-4. クイズを作る</h3>
+<p>ホームの「クイズの準備」を開きます。「新規クイズ追加」で、問題・回答時間・選択肢・正解を入力します。</p>
+<figure class="shot "><img src="images/a-30-quiz-list.webp" alt="クイズ一覧" loading="lazy"><figcaption><strong>クイズ一覧</strong><ol class="marks"><li><span class="n">1</span>クイズを1問追加する</li><li><span class="n">2</span>編集する</li><li><span class="n">3</span>この問題だけ画面で確認(プレビュー)</li><li><span class="n">4</span>削除する</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-31-quiz-edit-top.webp" alt="クイズの追加・編集ダイアログ(上半分)" loading="lazy"><figcaption><strong>クイズの追加・編集ダイアログ(上半分)</strong><ol class="marks"><li><span class="n">1</span>クイズの名前</li><li><span class="n">2</span>回答できる秒数</li><li><span class="n">3</span>出題する文章</li><li><span class="n">4</span>正解の選択肢</li></ol></figcaption></figure>
+<p>選択肢は「選択肢を追加」で1つずつ入れます。文字だけでも、写真つきでも作れます。</p>
+<figure class="shot "><img src="images/a-32-quiz-option.webp" alt="選択肢の追加ダイアログ" loading="lazy"><figcaption><strong>選択肢の追加ダイアログ</strong><ol class="marks"><li><span class="n">1</span>選択肢の文字</li><li><span class="n">2</span>写真をつけたいときに選ぶ(なくてもよい)</li><li><span class="n">3</span>ボタンの色</li><li><span class="n">4</span>保存して一覧に戻る</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-33-quiz-edit-bottom.webp" alt="クイズの追加・編集ダイアログ(下半分)" loading="lazy"><figcaption><strong>クイズの追加・編集ダイアログ(下半分)</strong><ol class="marks"><li><span class="n">1</span>正解した人に贈る景品名(任意)</li><li><span class="n">2</span>選択肢を追加する(2〜8個)</li><li><span class="n">3</span>保存する</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-34-quiz-list-added.webp" alt="クイズ追加後の一覧" loading="lazy"><figcaption><strong>クイズ追加後の一覧</strong><ol class="marks"><li><span class="n">1</span>追加したクイズが一覧に出る</li></ol></figcaption></figure>
+<p class="warn"><b>注意</b>保存する前に「回答(正解)」の欄が正しいか、もう一度確認してください。</p>
+<figure class="shot "><img src="images/a-35-quiz-members.webp" alt="クイズ メンバー管理" loading="lazy"><figcaption><strong>クイズ メンバー管理</strong><ol class="marks"><li><span class="n">1</span>クイズの参加者名簿を追加する</li></ol></figcaption></figure>
+<h3 id="prep-screens">2-5. 抽選会の画面を整える</h3>
+<p>「ジャックポットの準備」→「画面設定」では、会場スクリーンに出る文章・画像・BGMを設定します。変更したら必ず「保存」を押します。</p>
+<figure class="shot "><img src="images/a-17-jp-screen-opening.webp" alt="画面設定 オープニング" loading="lazy"><figcaption><strong>画面設定 オープニング</strong><ol class="marks"><li><span class="n">1</span>BGM(曲)を選ぶ</li><li><span class="n">2</span>表示する文章・画像を追加する</li><li><span class="n">3</span>1つずつ内容を編集する</li><li><span class="n">4</span>変更したら保存を押す</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-18-jp-screen-description.webp" alt="画面設定 説明" loading="lazy"><figcaption><strong>画面設定 説明</strong><ol class="marks"><li><span class="n">1</span>説明の文章・画像を追加する</li><li><span class="n">2</span>保存する</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-19-jp-screen-demo.webp" alt="画面設定 デモ抽選" loading="lazy"><figcaption><strong>画面設定 デモ抽選</strong><ol class="marks"><li><span class="n">1</span>デモ中に流す曲</li><li><span class="n">2</span>保存する</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-20-jp-screen-draw.webp" alt="画面設定 本抽選" loading="lazy"><figcaption><strong>画面設定 本抽選</strong><ol class="marks"><li><span class="n">1</span>抽選中に流す曲</li><li><span class="n">2</span>止まるまでの秒数</li><li><span class="n">3</span>確変(連続当選)の設定</li><li><span class="n">4</span>設定のままテストする</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-21-jp-screen-result.webp" alt="画面設定 最終結果" loading="lazy"><figcaption><strong>画面設定 最終結果</strong><ol class="marks"><li><span class="n">1</span>最終結果の曲</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-22-jp-screen-ending.webp" alt="画面設定 エンディング" loading="lazy"><figcaption><strong>画面設定 エンディング</strong><ol class="marks"><li><span class="n">1</span>エンディングの文章・画像</li></ol></figcaption></figure>
+<figure class="shot "><img src="images/a-16-jp-results.webp" alt="ジャックポット管理 抽選結果" loading="lazy"><figcaption><strong>「抽選結果」タブ(本番前のリセットに使う)</strong><ol class="marks"><li><span class="n">1</span>本番前に結果を空に戻す</li></ol></figcaption></figure>
+<h3 id="prep-other">2-6. 設定の他のタブ</h3>
+<p>ふだんは触らなくて構いません。画像・音声の素材(アセット)、名簿(メンバー)、イベントの実行、キーボードのショートカットを管理する場所です。</p>
+<div class="pair w"><figure class="shot "><img src="images/a-04-settings-members.webp" alt="設定のメンバータブ" loading="lazy"><figcaption><strong>設定のメンバータブ</strong><ol class="marks"><li><span class="n">1</span>名簿に追加する</li></ol></figcaption></figure><figure class="shot "><img src="images/a-05-settings-assets.webp" alt="設定のアセットタブ" loading="lazy"><figcaption><strong>設定のアセットタブ</strong><ol class="marks"><li><span class="n">1</span>画像・音声を登録する</li></ol></figcaption></figure></div>
+<div class="pair w"><figure class="shot "><img src="images/a-06-settings-events.webp" alt="設定のイベントタブ" loading="lazy"><figcaption><strong>設定のイベントタブ</strong><ol class="marks"><li><span class="n">1</span>イベントを追加する</li><li><span class="n">2</span>選んだイベントを実行する</li></ol></figcaption></figure><figure class="shot "><img src="images/a-07-settings-shortcuts.webp" alt="設定のショートカットタブ" loading="lazy"><figcaption><strong>設定のショートカットタブ</strong><ol class="marks"><li><span class="n">1</span>キーとイベントを結びつける</li></ol></figcaption></figure></div>
+</section>
+<section id="day"><h2>3. 管理者:当日の進行</h2><p class="lead"><span>この章でできること</span>会場PCを準備し、手元の操作画面のボタンで、クイズとジャックポットを進められます。</p>
+<h3 id="day-session">3-1. イベントを始める(セッション)</h3>
+<p>ホームの「イベントを開催・進行する」を開きます。「今すぐイベントを開催する」を押すと、参加者への公開と操作画面の起動まで一度に行われます。<strong>会場のPC</strong>では、一覧の「ホストとして開く」を押してください。</p>
+<figure class="shot "><img src="images/d-01-sessions.webp" alt="セッション一覧" loading="lazy"><figcaption><strong>セッション一覧</strong><ol class="marks"><li><span class="n">1</span>ふだんはこのボタン1つで開催できる</li><li><span class="n">2</span>名前をつけて作りたいとき(任意)</li><li><span class="n">3</span>リハーサル用ならチェック</li><li><span class="n">4</span>会場のPCで押す(投影する画面)</li><li><span class="n">5</span>手元のスマホ・PCで押す(進行する画面)</li><li><span class="n">6</span>参加者への公開を切り替える</li><li><span class="n">7</span>イベントを終える</li></ol></figcaption></figure>
+<p class="note"><b>ポイント</b>同時に公開できるイベントは1つです。参加者はログインすると、公開中のイベントに自動で入ります。</p>
+<h3 id="day-host">3-2. 会場PCの画面</h3>
+<p>会場PCで「ホストとして開く」を押し、プロジェクターにつなぎます。ブラウザを全画面(F11キー)にしてください。参加者がログインすると、人数が増えていきます。</p>
+<figure class="shot "><img src="images/s-01-host-lobby.webp" alt="会場PCのロビー" loading="lazy"><figcaption><strong>会場PCのロビー</strong><ol class="marks"><li><span class="n">1</span>イベント名</li><li><span class="n">2</span>ログインして入った人数</li></ol></figcaption></figure>
+<h3 id="day-console">3-3. 手元の操作画面</h3>
+<p>司会者の手元のスマホで「操作する」を開きます。「始める」の3つのカードから、行うものを選びます。</p>
+<figure class="shot phone"><img src="images/d-10-console-start.webp" alt="手元コンソール(始める前)" loading="lazy"><figcaption><strong>手元コンソール(始める前)</strong><ol class="marks"><li><span class="n">1</span>いまの状態(ホスト接続・参加者数)</li><li><span class="n">2</span>出すクイズを選ぶ</li><li><span class="n">3</span>クイズを始める</li><li><span class="n">4</span>ジャックポット抽選を始める</li><li><span class="n">5</span>エントリー受付だけを始める</li></ol></figcaption></figure>
+<p class="warn"><b>注意</b>会場PCの画面が開かれていないと「ホストが不在です」と出ます。会場PCで「ホストとして開く」を行ってください。</p>
+<h3 id="day-entry">3-4. エントリーを受け付ける</h3>
+<p>「エントリー受付を始める」を押すと、参加者のスマホにエントリーボタンが出ます。会場スクリーンには、エントリーした人の顔写真が並びます。</p>
+<div class="pair w"><figure class="shot "><img src="images/s-02-event-entry.webp" alt="会場スクリーン エントリー(顔写真が並ぶ)" loading="lazy"><figcaption><strong>会場スクリーン(エントリー)</strong></figcaption></figure><figure class="shot phone"><img src="images/d-11-console-entry.webp" alt="手元コンソール(エントリー受付中)" loading="lazy"><figcaption><strong>手元の画面</strong><ol class="marks"><li><span class="n">1</span>いまできる操作</li></ol></figcaption></figure></div>
+<h3 id="day-quiz">3-5. クイズを進める</h3>
+<p>クイズを選んで「このクイズを始める」を押します。あとは、大きなボタンを押すたびに、次の画面へ進みます。</p>
+<ol class="steps"><li>イントロ(「これからクイズが始まります」)</li><li>問題の表示と回答受付</li><li>「受付を締め切る」を押す(時間が来ても自動で締め切られます)</li><li>正解発表</li><li>結果発表(順位)</li></ol>
+<div class="pair w"><figure class="shot "><img src="images/s-10-quiz-intro.webp" alt="会場スクリーン クイズのイントロ" loading="lazy"><figcaption><strong>会場スクリーン クイズのイントロ</strong></figcaption></figure><figure class="shot "><img src="images/s-12-quiz-play.webp" alt="会場スクリーン 出題中" loading="lazy"><figcaption><strong>会場スクリーン 出題中</strong></figcaption></figure></div>
+<div class="pair w"><figure class="shot phone"><img src="images/d-12-console-quiz-intro.webp" alt="手元コンソール(クイズ)" loading="lazy"><figcaption><strong>手元コンソール(クイズ)</strong><ol class="marks"><li><span class="n">1</span>押すたびに次の画面へ進む</li><li><span class="n">2</span>いまの進行状況</li></ol></figcaption></figure><figure class="shot phone"><img src="images/d-13-console-quiz-play.webp" alt="手元コンソール(出題中)" loading="lazy"><figcaption><strong>手元コンソール(出題中)</strong><ol class="marks"><li><span class="n">1</span>全員答えたら「受付を締め切る」</li><li><span class="n">2</span>回答が何人集まったか</li></ol></figcaption></figure></div>
+<div class="pair w"><figure class="shot "><img src="images/s-13-quiz-answer.webp" alt="会場スクリーン 正解発表" loading="lazy"><figcaption><strong>会場スクリーン 正解発表</strong></figcaption></figure><figure class="shot "><img src="images/s-15-quiz-result-2.webp" alt="会場スクリーン 結果発表(ランキング)" loading="lazy"><figcaption><strong>会場スクリーン 結果発表(ランキング)</strong></figcaption></figure></div>
+<p class="note"><b>ポイント</b>「次へ」はキーボードのEnterキーでも押せます。</p>
+<h3 id="day-jackpot">3-6. ジャックポットを進める</h3>
+<p>「ジャックポットを始める」を押します。オープニング、エントリー、説明と進み、「抽選を始める」で本抽選に入ります。</p>
+<div class="pair w"><figure class="shot "><img src="images/s-20-jp-opening.webp" alt="ジャックポット オープニング" loading="lazy"><figcaption><strong>ジャックポット オープニング</strong></figcaption></figure><figure class="shot "><img src="images/s-22-jp-description.webp" alt="ジャックポット 説明" loading="lazy"><figcaption><strong>ジャックポット 説明</strong></figcaption></figure></div>
+<p>抽選は「<strong>次へ</strong>(START)」→「<strong>止める</strong>(STOP)」の順に押します。顔写真が回り、止まると当選者が発表されます。</p>
+<div class="pair w"><figure class="shot "><img src="images/s-23-jp-draw-ready.webp" alt="本抽選 START前" loading="lazy"><figcaption><strong>本抽選 START前</strong></figcaption></figure><figure class="shot "><img src="images/s-25-jp-winner.webp" alt="当選者の発表" loading="lazy"><figcaption><strong>当選者の発表</strong></figcaption></figure></div>
+<div class="pair w"><figure class="shot phone"><img src="images/d-21-console-draw.webp" alt="手元コンソール(抽選)" loading="lazy"><figcaption><strong>手元コンソール(抽選)</strong><ol class="marks"><li><span class="n">1</span>「次へ」で始まり、「止める」で止まる</li></ol></figcaption></figure><figure class="shot phone"><img src="images/d-22-console-stop.webp" alt="手元コンソール(止める)" loading="lazy"><figcaption><strong>手元コンソール(止める)</strong><ol class="marks"><li><span class="n">1</span>回っている間は「止める」を押す</li></ol></figcaption></figure></div>
+<p>当選者が出ると、続けて景品の抽選(ルーレットまたはスロット)が始まります。回っている間は「演出中…」と出て押せません。止まったら「次へ」で、次の抽選に進みます。</p>
+<div class="pair w"><figure class="shot "><img src="images/s-26-jp-prize-draw.webp" alt="景品の抽選" loading="lazy"><figcaption><strong>景品の抽選</strong></figcaption></figure><figure class="shot "><img src="images/s-27-jp-prize-result.webp" alt="景品の当選画面" loading="lazy"><figcaption><strong>景品の当選画面</strong></figcaption></figure></div>
+<p class="note"><b>ポイント</b>景品の抽選では、当選した本人のスマホに「止める」ボタンが出る場合があります。その場合は、本人にタップしてもらうと盛り上がります。</p>
+<h3 id="day-end">3-7. 終了と結果の確認</h3>
+<p>すべての抽選が終わったら、「詳細な操作」を開き、「ジャックポット: 結果」「ジャックポット: エンディング」で会場スクリーンを切り替えます。</p>
+<figure class="shot phone"><img src="images/d-15-console-advanced.webp" alt="詳細な操作" loading="lazy"><figcaption><strong>詳細な操作</strong><ol class="marks"><li><span class="n">1</span>ふだんは閉じておく。画面を直接切り替えたいときだけ開く</li></ol></figcaption></figure>
+<div class="pair w"><figure class="shot "><img src="images/s-30-jp-result.webp" alt="会場スクリーン ジャックポット: 結果" loading="lazy"><figcaption><strong>会場スクリーン ジャックポット: 結果</strong></figcaption></figure><figure class="shot "><img src="images/s-31-jp-ending.webp" alt="会場スクリーン ジャックポット: エンディング" loading="lazy"><figcaption><strong>会場スクリーン ジャックポット: エンディング</strong></figcaption></figure></div>
+<p>最後に、セッション一覧の「終了」を押すとイベントが終わります。結果は「ジャックポットの準備」→「抽選結果」でも確認できます。</p>
+</section>
+<section id="rehearsal"><h2>4. リハーサル(デモ)のやり方</h2><p class="lead"><span>この章でできること</span>本番と同じ流れを、本番の結果を残さずに試せます。</p>
+<ol class="steps"><li>セッション一覧で、「デモ(リハーサル)として作る」にチェックを入れてセッションを作る。</li><li>自分のスマホで、受付QRからログインし、本番と同じ手順で進める。</li><li>会場のプロジェクター・音量・文字の大きさを確認する。</li></ol>
+<figure class="shot "><img src="images/x-01-demo-button.webp" alt="管理画面のデモ実行ボタン" loading="lazy"><figcaption><strong>管理画面のデモ実行ボタン</strong><ol class="marks"><li><span class="n">1</span>リハーサル用の抽選をその場で試せる</li></ol></figcaption></figure>
+<p>管理画面の「デモ実行」を押すと、その場でジャックポットの演出だけを試せます。</p>
+<figure class="shot "><img src="images/x-02-demo-screen.webp" alt="デモ抽選の画面" loading="lazy"><figcaption><strong>デモ抽選の画面</strong></figcaption></figure>
+<p class="warn"><b>注意</b>リハーサルの後は、「抽選結果」タブの「結果をリセット」で当選履歴を空にしてから、本番に臨んでください。</p>
+</section>
+<section id="faq"><h2>5. 困ったときのQ&A・用語集</h2><p class="lead"><span>この章でできること</span>よくあるトラブルの対処と、用語の意味がわかります。</p>
+<dl class="qa">
+<dt>参加者の画面が「接続中」にならない</dt><dd>イベントが「ポータルに公開」されているか、セッション一覧で確認してください。参加者側は再読み込みで直ることが多いです。</dd>
+<dt>「ホストが不在です」と出る</dt><dd>会場PCで、セッション一覧の「ホストとして開く」を押してください。</dd>
+<dt>顔写真が出ない(頭文字だけになる)</dt><dd>写真を設定したパソコンとは別のパソコンを会場PCにしていませんか。写真は設定した端末に保存されます。</dd>
+<dt>QRコードをなくした・使えない</dt><dd>設定→アカウントで「QR再発行」を押し、印刷し直してください。以前のQRは使えなくなります。</dd>
+<dt>クイズの正解が違っていた</dt><dd>クイズの編集で「回答(正解)」を直して保存します。</dd>
+<dt>画面を変更したのに反映されない</dt><dd>画面設定は「保存」を押して初めて反映されます。</dd>
+</dl>
+<h3 id="glossary">用語集</h3>
+<dl class="qa"><dt>セッション</dt><dd>1回のイベント(1つの会)のこと。</dd><dt>ホスト</dt><dd>会場のプロジェクターに映す画面。</dd><dt>操作画面(コンソール)</dt><dd>司会者が手元で進行する画面。</dd><dt>ポータル</dt><dd>参加者がスマホで見る画面。</dd><dt>受付QR</dt><dd>参加者がログインするためのQRコード。</dd><dt>エントリー</dt><dd>参加者が「参加します」と押すこと。</dd><dt>確変</dt><dd>運がよいと続けて当選できる演出。</dd><dt>アセット</dt><dd>画像や音声などの素材。</dd></dl>
+<h3 id="credits">画像クレジット</h3>
+<p class="small">この説明書の画面は、架空のテストデータで撮影しています。写っている人物写真・景品画像・クイズ画像は、商用利用が可能なフリー素材です。</p>
+<ul class="small"><li>人物写真(Pexels License): Pexels の写真 ID 1043471, 1130626, 1181690, 1222271, 1239291, 1681010, 2182970, 220453, 2379004, 415829, 733872, 774909, 91227, 614810, 938639, 697509(<a href="https://www.pexels.com/license/">https://www.pexels.com/license/</a>)</li>
+<li>Wikimedia Commons(CC0 / パブリックドメイン): 「Wagyu forefillet - Flat Iron 2026-02-24.jpg」「Bouquet (flowers).jpg」「Washington-Dulles-Airport-Jet-Bridge-1.jpg」「Rice-cooker.jpg」「Flat screens for sale.JPG」「Princess Mary's Gift Box - Christmas 1914 (10132776506).jpg」「Beautiful red apple 01.jpg」「Orange Fruit (Unsplash).jpg」「A bunch of grapes on a vine.jpg」</li></ul>
+</section></main></div><div id="lb"><img alt=""></div><script>(function(){var lb=document.getElementById("lb"),im=lb.querySelector("img");document.querySelectorAll("figure.shot img").forEach(function(i){i.addEventListener("click",function(){im.src=i.src;lb.classList.add("on")})});lb.addEventListener("click",function(){lb.classList.remove("on")});document.addEventListener("keydown",function(e){if(e.key==="Escape")lb.classList.remove("on")})})();</script></body></html>
