@@ -13,3 +13,19 @@ export {
 export type { PreparedPhoto, MemberPhotoSource, MemberPhotoStore, MemberPhotoUploader } from "./control/photo";
 export { mapPool, DEFAULT_POOL_CONCURRENCY } from "./control/pool/promise-pool";
 export type { PoolOptions } from "./control/pool/promise-pool";
+export {
+  exportRoster,
+  previewRosterImport,
+  exportRosterCsv,
+  parseRosterCsv,
+  planRosterImport,
+} from "./control/roster-csv";
+export type {
+  RosterExport,
+  RosterImportInput,
+  RosterImportPreview,
+  RosterImportStats,
+  PlannedRow,
+  RosterImportPlan,
+  ImportStatus,
+} from "./control/roster-csv";
