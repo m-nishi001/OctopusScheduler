@@ -4,7 +4,8 @@
             ここで登録したメンバーは、各ゲーム(ジャックポット・クイズなど)の管理画面から共通の名簿として参照できます。
         </p>
         <MemberEditor :members="members" :loading="loading" :on-add="addMember" :on-update="updateWithPhoto"
-            :on-delete="deleteMembers" :on-pick-photo="pickPhoto" :photo-urls="photoUrls" />
+            :on-delete="deleteMembers" :on-pick-photo="pickPhoto" :photo-urls="photoUrls" :on-export="exportMembers"
+            :on-preview-import="previewImport" />
     </div>
 </template>
 
@@ -12,8 +13,9 @@
 import { onMounted, reactive, watch } from 'vue';
 import { container } from 'tsyringe';
 import { MemberEditor, toast } from '@octopus/ui-kit';
+import type { MemberImportInput, MemberImportPreview } from '@octopus/ui-kit';
 import { useCachedCollection } from '@octopus/composables';
-import { AccountsRepository, MemberPhotoCache, preparePhoto, uploadMemberPhotos } from '@octopus/accounts';
+import { AccountsRepository, MemberPhotoCache, exportRoster, preparePhoto, previewRosterImport, uploadMemberPhotos } from '@octopus/accounts';
 import type { Member } from '@octopus/accounts';
 
 const repo = container.resolve(AccountsRepository);
@@ -59,6 +61,44 @@ async function pickPhoto(file: File) {
     await photos.remember(prepared.hash, prepared.dataUrl);
     photoUrls[prepared.hash] = prepared.dataUrl;
     return { hash: prepared.hash, url: prepared.dataUrl };
+}
+
+/** いまの名簿を CSV(写真も含めるときは ZIP)にしてダウンロードする。取込と同じ書式。 */
+async function exportMembers({ includePhotos }: { includePhotos: boolean }) {
+    const out = await exportRoster(await repo.listMembers(), { includePhotos }, photos);
+    const url = URL.createObjectURL(new Blob([out.bytes as BlobPart], { type: out.mime }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = out.filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    if (out.missingPhotos > 0) toast.error(`${out.missingPhotos}人の写真を取得できず、含めていません`);
+}
+
+const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}秒`;
+
+/** 選んだ CSV・画像を読んでプレビューを作る。確定すると、写真を並列に送ってから名簿を1回だけ書く。 */
+async function previewImport(input: MemberImportInput): Promise<MemberImportPreview> {
+    const preview = await previewRosterImport(input, { repo, photoCache: photos });
+    if (!preview.ok) return preview;
+    return {
+        ok: true,
+        rows: preview.plan.rows,
+        counts: preview.plan.counts,
+        apply: async (onProgress) => {
+            const s = await preview.apply(onProgress);
+            await load();
+            const skipped = s.failedRows ? `、画像を処理できず取り込めなかった行 ${s.failedRows}` : '';
+            return {
+                summary: `追加 ${s.added} / 更新 ${s.updated} / 変更なし ${s.unchanged} / エラーで除外 ${s.errors}${skipped}`,
+                details: [
+                    `写真: 送信 ${s.uploaded}枚 / サーバーに既にあった ${s.alreadyOnServer}枚`,
+                    `所要時間 ${seconds(s.totalMs)}(縮小 ${seconds(s.prepareMs)} / 送信 ${seconds(s.uploadMs)})`,
+                    `同時送信の最大数 ${s.maxConcurrentUploads} / 回数制限(429)で待った回数 ${s.rateLimited}`,
+                ],
+            };
+        },
+    };
 }
 
 onMounted(async () => {

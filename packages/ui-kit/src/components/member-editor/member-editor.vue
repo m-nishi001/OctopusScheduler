@@ -5,6 +5,14 @@
             <UiButton v-if="selectedIds.length" variant="danger" icon="delete" :loading="busy" @click="removeSelected">
                 選択を削除({{ selectedIds.length }})
             </UiButton>
+            <template v-if="onExport">
+                <UiButton icon="download" :loading="exporting" data-testid="member-export" @click="exportCsv">CSVダウンロード</UiButton>
+                <label v-if="photoEnabled" class="ui-member-editor__export-option">
+                    <input v-model="includePhotos" type="checkbox" data-testid="member-export-photos" />
+                    写真も含める(ZIP)
+                </label>
+            </template>
+            <UiButton v-if="onPreviewImport" icon="upload" data-testid="member-import-open" @click="importOpen = true">CSVから取り込む</UiButton>
             <span class="ui-member-editor__count">{{ members.length }}件</span>
         </div>
 
@@ -22,6 +30,8 @@
                 </div>
             </template>
         </DataTable>
+
+        <MemberImportDialog v-if="onPreviewImport" v-model="importOpen" :on-preview="onPreviewImport" />
 
         <UiDialog v-model="dialogOpen" :title="editing ? 'メンバー編集' : 'メンバー追加'" size="sm" :persistent="saving"
             confirm-label="保存" :loading="saving" :confirm-disabled="!canSave" @confirm="save">
@@ -60,6 +70,8 @@ import UiButton from '../ui-button/ui-button.vue';
 import UiDialog from '../ui-dialog/ui-dialog.vue';
 import UiField from '../form-grid/ui-field.vue';
 import { toast, useConfirm } from '../../composables/use-feedback';
+import MemberImportDialog from './member-import-dialog.vue';
+import type { MemberImportInput, MemberImportPreview } from './member-import';
 
 export interface MemberRow {
     id: string;
@@ -92,6 +104,10 @@ const props = withDefaults(
         onPickPhoto?: (file: File) => Promise<PickedPhoto>;
         /** 写真のハッシュ → 表示用のURL。一覧のサムネイルに使う。 */
         photoUrls?: Record<string, string>;
+        /** 指定すると「CSVダウンロード」を出す(取込と同じ書式。`includePhotos` ならZIPで写真も含める)。失敗は例外で伝える。 */
+        onExport?: (options: { includePhotos: boolean }) => Promise<unknown>;
+        /** 指定すると「CSVから取り込む」を出す。選んだファイルを読んで、行ごとの結果と確定の処理を返す。 */
+        onPreviewImport?: (input: MemberImportInput) => Promise<MemberImportPreview>;
     }>(),
     { loading: false, idRequired: false },
 );
@@ -105,6 +121,22 @@ const columns = computed<DataTableColumn[]>(() => [
 ]);
 
 const initialOf = (name: string): string => Array.from(name.trim())[0] ?? '?';
+
+const includePhotos = ref(false);
+const exporting = ref(false);
+const importOpen = ref(false);
+
+async function exportCsv() {
+    if (!props.onExport || exporting.value) return;
+    exporting.value = true;
+    try {
+        await props.onExport({ includePhotos: photoEnabled.value && includePhotos.value });
+    } catch (e) {
+        toast.error(`書き出しに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+        exporting.value = false;
+    }
+}
 
 const { confirmDelete } = useConfirm();
 const selectedIds = ref<string[]>([]);
@@ -218,6 +250,13 @@ const removeSelected = () => remove([...selectedIds.value], `選択した${selec
     align-items: center;
     flex-wrap: wrap;
     gap: var(--ui-space-2, 8px);
+}
+
+.ui-member-editor__export-option {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ui-space-1, 4px);
+    font-size: var(--ui-font-sm, 0.875rem);
 }
 
 .ui-member-editor__count {
