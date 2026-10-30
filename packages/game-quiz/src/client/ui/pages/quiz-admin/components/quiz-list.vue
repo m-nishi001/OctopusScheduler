@@ -36,6 +36,7 @@ import { eventBus } from '@octopus/client-common/events/event-bus';
 import { useRouter } from 'vue-router';
 import { container } from 'tsyringe';
 import { DataTable, UiButton, UiToolbar, toast, useConfirm, type DataTableColumn } from '@octopus/ui-kit';
+import { normalizeCorrectNo } from '../../../../model/quiz';
 import QuizModal from './quiz-modal.vue';
 import { GetAllQuizzesUseCase } from '../../../../control/use-cases/get-all-quizzes-use-case';
 import { AddQuizUseCase } from '../../../../control/use-cases/add-quiz-use-case';
@@ -113,6 +114,7 @@ const addQuiz = () => {
         title: '',
         question: '',
         timeLimit: 30,
+        correctNo: 1,
         options: [],
         bgm: null,
         settings: {
@@ -127,7 +129,13 @@ const addQuiz = () => {
 };
 
 const editQuiz = (index: number) => {
-    currentQuiz.value = { ...quizzes.value[index] };
+    // 編集中の変更がキャンセルで一覧のデータへ漏れないよう、options と settings まで複製する(Blob は共有でよい)
+    const quiz = quizzes.value[index];
+    currentQuiz.value = {
+        ...quiz,
+        options: quiz.options.map((o) => ({ ...o })),
+        settings: quiz.settings ? { ...quiz.settings } : undefined,
+    };
     editingIndex.value = index;
     isEditing.value = true;
     showModal.value = true;
@@ -145,7 +153,8 @@ const deleteQuiz = async (index: number) => {
     }
 };
 
-const handleSave = async (quiz: QuizDto) => {
+const handleSave = async (edited: QuizDto) => {
+    const quiz = normalizeCorrectNo(edited);
     try {
         if (isEditing.value) {
             // 更新
@@ -156,6 +165,7 @@ const handleSave = async (quiz: QuizDto) => {
             const addDto: AddQuizDto = {
                 title: quiz.title,
                 question: quiz.question,
+                correctNo: quiz.correctNo,
                 timeLimit: quiz.timeLimit,
                 options: quiz.options,
                 bgm: quiz.bgm,

@@ -4,7 +4,8 @@
         <form id="quiz-form" class="form" @submit.prevent="saveQuiz">
             <QuizBasicFields :current-quiz="currentQuiz" />
             <QuizMediaFields :current-quiz="currentQuiz" />
-            <QuizOptionsTable :options="currentQuiz.options" @add="addOption" @edit="editOption" />
+            <QuizOptionsTable :options="currentQuiz.options" @add="addOption" @edit="editOption"
+                @remove="removeOption" />
         </form>
         <template #footer>
             <UiButton @click="closeModal">キャンセル</UiButton>
@@ -17,11 +18,12 @@
 
 <script setup lang="ts">
 import { UiButton, UiDialog } from '@octopus/ui-kit';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import QuizOptionModal from './quiz-option-modal.vue';
 import QuizBasicFields from './quiz-basic-fields.vue';
 import QuizMediaFields from './quiz-media-fields.vue';
 import QuizOptionsTable from './quiz-options-table.vue';
+import { addOption as addQuizOption, nextOptionNo, removeOption as removeQuizOption } from '../../../../model/quiz';
 import type { QuizDto } from '../../../../control/dto/quiz-dto';
 
 const props = defineProps<{
@@ -48,9 +50,7 @@ const saveQuiz = () => {
 };
 
 const addOption = () => {
-    const maxNo = props.currentQuiz.options.reduce((m, o) => Math.max(m, o.no || 0), 0);
-    const nextNo = maxNo + 1;
-    currentOption.value = { no: nextNo, text: '', image: null, color: 'red' };
+    currentOption.value = { no: nextOptionNo(props.currentQuiz.options), text: '', image: null, color: 'red' };
     isEditingOption.value = false;
     showOptionModal.value = true;
 };
@@ -68,9 +68,14 @@ const saveOption = () => {
         // objectUrlStoreが自動的に古いプレビューURLを失効させる(noが変わらない前提)。
         props.currentQuiz.options[editingOptionIndex.value] = { ...currentOption.value };
     } else {
-        props.currentQuiz.options.push({ ...currentOption.value });
+        const { no: _no, ...fields } = currentOption.value;
+        Object.assign(props.currentQuiz, addQuizOption(props.currentQuiz, fields));
     }
     closeOptionModal();
+};
+
+const removeOption = (no: number) => {
+    Object.assign(props.currentQuiz, removeQuizOption(props.currentQuiz, no));
 };
 
 const closeOptionModal = () => {
@@ -86,22 +91,6 @@ onMounted(() => {
             prizeName: null,
             prizeBgm: null,
         };
-    }
-
-    // ensure correctNo exists on the quiz object for UI usage
-    if ((props.currentQuiz as any).correctNo == null) {
-        (props.currentQuiz as any).correctNo = 1;
-    }
-});
-
-// Watch option count and fallback correctNo to 1 when out of range
-// Watch option numbers (join of nos) to detect add/remove/reorder and fallback correctNo
-watch(() => props.currentQuiz.options.map(o => o.no).join(','), (_v, _o) => {
-    const cq: any = props.currentQuiz;
-    if (!cq) return;
-    const len = props.currentQuiz.options.length;
-    if (typeof cq.correctNo !== 'number' || cq.correctNo < 1 || cq.correctNo > Math.max(1, len)) {
-        cq.correctNo = 1;
     }
 });
 </script>

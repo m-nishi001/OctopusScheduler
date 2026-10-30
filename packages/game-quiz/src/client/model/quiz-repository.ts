@@ -1,6 +1,6 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
 import { inject, injectable } from "tsyringe";
-import { Quiz } from "./quiz";
+import { Quiz, normalizeCorrectNo } from "./quiz";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { DirtyTracker } from "@octopus/sync-engine";
@@ -215,17 +215,19 @@ export class QuizRepository {
   private async upsertQuizMetadata(entry: QuizWithDataUrl): Promise<void> {
     const existingRaw = await this.localStorage.get<any>(entry.id);
     const existing = existingRaw ? Quiz.fromDto(existingRaw) : null;
+    const options = entry.options.map((o, idx) => ({
+      no: o.no,
+      text: o.text,
+      color: o.color,
+      image: existing?.options[idx]?.image ?? null,
+    }));
+    const { correctNo } = normalizeCorrectNo({ options, correctNo: entry.correctNo });
     const quiz = new Quiz({
       id: entry.id,
       title: entry.title,
       question: entry.question,
-      options: entry.options.map((o, idx) => ({
-        no: o.no,
-        text: o.text,
-        color: o.color,
-        image: existing?.options[idx]?.image ?? null,
-      })),
-      correctNo: entry.correctNo ?? 1,
+      options,
+      correctNo,
       timeLimit: entry.timeLimit,
       bgm: existing?.bgm ?? null,
       settings: entry.settings
