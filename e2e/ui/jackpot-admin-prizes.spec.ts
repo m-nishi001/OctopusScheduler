@@ -1,9 +1,26 @@
+import type { Page } from "@playwright/test";
 import { expect, newDevice, test } from "./fixtures";
 
 /** ジャックポット管理 > 景品: 追加・編集のフォーム(画像4つ・BGM2つの素材欄)が、保存して再読み込みしても戻る。 */
 
 /** 1x1 の PNG。 */
 const PNG_1X1 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC", "base64");
+
+/**
+ * 新しい端末は、前回までの景品が同期で届くまで一覧が空に見え、届くと端末の景品がサーバーの内容で置き換わる。
+ * 追加の途中で届くと自分の景品が消えるので、一覧の行数が落ち着いてから操作を始める。
+ */
+async function untilPrizeListSettles(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: "景品" }).click();
+  let last = -1;
+  let stable = 0;
+  while (stable < 4) {
+    await page.waitForTimeout(1000);
+    const n = await page.getByRole("row").count();
+    stable = n === last ? stable + 1 : 0;
+    last = n;
+  }
+}
 
 test.describe("ジャックポット管理の景品", () => {
   test("画像を選んで景品を追加でき、再読み込みしても残る。編集画面では、その画像が既存の素材として選ばれている", async ({ browser }) => {
@@ -52,7 +69,7 @@ test.describe("ジャックポット管理の景品", () => {
     const names = [`e2e賞A-${stamp}`, `e2e賞B-${stamp}`];
     const edited = [`e2e改A-${stamp}`, `e2e改B-${stamp}`];
     await page.goto("/#/jackpot-admin");
-    await page.getByRole("tab", { name: "景品" }).click();
+    await untilPrizeListSettles(page);
     const row = (name: string) => page.getByRole("row").filter({ hasText: name });
 
     for (const name of names) {
