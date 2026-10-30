@@ -323,19 +323,30 @@ test.describe("エントリー → ジャックポット", () => {
 
     // 景品抽選では、止められる場面で当選者のスマホにだけ停止ボタンが出る → 当選者のスマホで止める
     // (当選者の「あたりました!」は、景品抽選に進めば自動で閉じるので、閉じる操作は要らない)
+    // 管理端末の主ボタンの表示は、ホストが演出に入ってから少し遅れて「演出中…」に変わる(通信の遅れ)。
+    // 「次へ」を押した直後の古い表示のまま押し直すと、景品の停止まで管理端末が進めてしまい、スマホに停止ボタンが出る場面が無くなる。
+    // そこで、押したら表示が「次へ」でなくなる(=ホストが受け付けた)のを待ってから、次の状態を見る。
+    const next = nextButton(admin.page);
+    const readState = async (): Promise<"phone" | "next" | "wait"> => {
+      if (await stopBtn.isVisible().catch(() => false)) return "phone";
+      const label = (await next.innerText({ timeout: 1000 }).catch(() => "")).trim();
+      return label.startsWith("次へ") && (await next.isEnabled().catch(() => false)) ? "next" : "wait";
+    };
     let phoneStopped = false;
-    for (let i = 0; i < 30 && !phoneStopped; i++) {
+    for (let round = 0; round < 10 && !phoneStopped; round++) {
+      let state: "phone" | "next" | "wait" = "wait";
+      await expect
+        .poll(async () => (state = await readState()), { timeout: 60_000, intervals: [100, 200, 300] })
+        .not.toBe("wait");
       await expect(bystanderStop).toBeHidden();
-      if (await stopBtn.isVisible().catch(() => false)) {
+      if (state === "phone") {
         await stopBtn.click();
         phoneStopped = true;
       } else {
-        // 景品を止められる場面では、管理端末は押さず、スマホに停止ボタンが出るのを待つ(演出中は主ボタンが押せないので、押せる時だけ押す)。
-        const next = nextButton(admin.page);
-        const label = (await next.innerText().catch(() => "")).trim();
-        if (!label.includes("止める") && (await next.isEnabled().catch(() => false))) await next.click();
+        await next.click();
+        // ホストが受け付けて「演出中…」(または「止める」)に変わるまで待つ
+        await expect(next).not.toHaveText(/^\s*次へ/, { timeout: 30_000 });
       }
-      await admin.page.waitForTimeout(1500);
     }
     expect(phoneStopped).toBe(true);
 
