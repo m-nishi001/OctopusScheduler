@@ -22,6 +22,7 @@
                 <UiField label="セッション名" required>
                     <input v-model="name" type="text" maxlength="60" autocomplete="off" placeholder="例: 夏祭りイベント" />
                 </UiField>
+                <p class="sessions__name-note">セッション名は作成後に変更できません。</p>
                 <label class="sessions__check">
                     <input v-model="demo" type="checkbox" />
                     デモ(リハーサル)として作る
@@ -233,6 +234,7 @@ onUnmounted(() => {
 .sessions__quick-button { min-height: 56px; font-size: 1.2rem; }
 .sessions__quick-hint { margin: 0; font-size: 0.85rem; opacity: 0.75; }
 .sessions__create { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.sessions__name-note { margin: 0; font-size: 0.85rem; opacity: 0.75; }
 .sessions__check { display: flex; align-items: center; gap: 6px; }
 .sessions__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .sessions__error { color: #ff8a80; margin: 0; }
