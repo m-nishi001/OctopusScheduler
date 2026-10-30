@@ -13,7 +13,7 @@
 import { UiButton, UiDialog } from '@octopus/ui-kit';
 import PrizeForm from '../../../components/prizes/prize-form.vue';
 import type { Asset } from '@model/asset/asset-data';
-import type { Prize } from '@model/prize/prize';
+import type { Prize, PrizeFields } from '@model/prize/prize';
 import { PrizeService } from '@control/prize/prize-service';
 import { container } from 'tsyringe';
 
@@ -39,10 +39,10 @@ const onFormSubmit = async () => {
     }
 };
 
-const onSubmit = async (formData: any) => {
+const onSubmit = async (formData: PrizeFields) => {
     try {
         const prizeService = container.resolve(PrizeService);
-        await prizeService.savePrize(formData);
+        await prizeService.addPrize(formData);
         emit('refresh');
         closeModal();
     } catch (error) {
