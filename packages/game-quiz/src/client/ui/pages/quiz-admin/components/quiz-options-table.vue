@@ -13,7 +13,7 @@
                 <div class="row-actions">
                     <UiButton size="sm" icon="edit" icon-only aria-label="編集" @click="emit('edit', row.index)" />
                     <UiButton size="sm" variant="danger" icon="delete" icon-only aria-label="削除"
-                        @click="removeOption(row.index)" />
+                        @click="removeOption(row.option.no)" />
                 </div>
             </template>
         </DataTable>
@@ -37,6 +37,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     edit: [index: number];
     add: [];
+    remove: [no: number];
 }>();
 
 const columns: DataTableColumn[] = [
@@ -56,10 +57,9 @@ const imageSrc = (option: { no: number; text?: string; image: Blob | null }) => 
     return objectUrlStore.ensure(`option-${option.no}`, option.image) ?? '';
 };
 
-const removeOption = (index: number) => {
-    const option = props.options[index];
-    objectUrlStore.revoke(`option-${option.no}`);
-    props.options.splice(index, 1);
+const removeOption = (no: number) => {
+    objectUrlStore.revoke(`option-${no}`);
+    emit('remove', no);
 };
 </script>
 

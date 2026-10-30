@@ -15,7 +15,7 @@
         <div class="form-group ui-form-grid__full">
             <label>回答（正解）</label>
             <select v-model.number="currentQuiz.correctNo" :disabled="currentQuiz.options.length === 0">
-                <option v-for="(opt, i) in currentQuiz.options" :key="i" :value="i + 1">{{ i + 1 }}: {{ opt.text }}
+                <option v-for="(opt, i) in currentQuiz.options" :key="opt.no" :value="opt.no">{{ i + 1 }}: {{ opt.text }}
                 </option>
             </select>
         </div>

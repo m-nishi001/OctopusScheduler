@@ -63,3 +63,42 @@ export class Quiz {
     return new Quiz(quizData);
   }
 }
+
+/** 選択肢の編集で扱う最小の形。正解 `correctNo` は常に選択肢の `no`(位置ではない)で持つ。 */
+export interface QuizOptionsState<O extends { no: number } = { no: number }> {
+  options: O[];
+  correctNo?: number;
+}
+
+/** 新しい選択肢に振る no(既存の最大値 + 1)。 */
+export function nextOptionNo(options: readonly { no: number }[]): number {
+  return options.reduce((max, o) => Math.max(max, o.no || 0), 0) + 1;
+}
+
+/** 選択肢を末尾に追加する。no は最大値 + 1、正解は変えない。 */
+export function addOption<O extends { no: number }, Q extends QuizOptionsState<O>>(
+  quiz: Q,
+  fields: Omit<O, "no">,
+): Q {
+  const option = { ...fields, no: nextOptionNo(quiz.options) } as O;
+  return { ...quiz, options: [...quiz.options, option] };
+}
+
+/** 選択肢を削除する。消したのが正解のときだけ、残った先頭の選択肢の no に移す。 */
+export function removeOption<Q extends QuizOptionsState>(quiz: Q, no: number): Q & { correctNo: number } {
+  const options = quiz.options.filter((o) => o.no !== no);
+  const correctNo = quiz.correctNo === no ? (options[0]?.no ?? 1) : (quiz.correctNo ?? 1);
+  return { ...quiz, options, correctNo };
+}
+
+/** 正解を選択肢の no で指定する。存在しない no は無視する。 */
+export function setCorrect<Q extends QuizOptionsState>(quiz: Q, no: number): Q {
+  return quiz.options.some((o) => o.no === no) ? { ...quiz, correctNo: no } : quiz;
+}
+
+/** 正解が存在する選択肢の no を指していることを保証する(数値化し、無効なら先頭の no、選択肢なしなら 1)。 */
+export function normalizeCorrectNo<Q extends QuizOptionsState>(quiz: Q): Q & { correctNo: number } {
+  const no = Number(quiz.correctNo);
+  const valid = quiz.options.some((o) => o.no === no);
+  return { ...quiz, correctNo: valid ? no : (quiz.options[0]?.no ?? 1) };
+}
