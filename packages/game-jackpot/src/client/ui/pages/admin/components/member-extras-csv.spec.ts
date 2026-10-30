@@ -10,7 +10,7 @@ describe('parseMemberExtrasCsv', () => {
     });
 
     it('BOM・CRLF・引用符つきの id を読める', () => {
-        const { rows } = parseMemberExtrasCsv('﻿id,rank\r\n"a,1",4\r\n');
+        const { rows } = parseMemberExtrasCsv('\uFEFFid,rank\r\n"a,1",4\r\n');
         expect(rows).toEqual([{ id: 'a,1', rank: 4 }]);
     });
 

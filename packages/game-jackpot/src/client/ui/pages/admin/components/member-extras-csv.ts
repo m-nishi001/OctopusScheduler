@@ -37,7 +37,7 @@ function splitLine(line: string): string[] {
  * TODO: 本格的な CSV パーサ(RFC4180・Shift_JIS)は名簿の CSV 取込で用意するので、そちらができたら置き換える。
  */
 export function parseMemberExtrasCsv(text: string): { rows: MemberExtrasRow[]; errors: string[] } {
-    const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim());
+    const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim());
     const errors: string[] = [];
     if (lines.length === 0) return { rows: [], errors: ['CSV が空です'] };
     const header = splitLine(lines[0]).map((h) => h.toLowerCase());
