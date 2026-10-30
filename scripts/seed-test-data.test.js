@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { hashPassword } from "./seed-local-admin.js";
@@ -103,4 +104,28 @@ test("buildBulkManifest: キーと連番ファイルの対応を作る(キーの
     { key: "x/y/z", file: join("/tmp/d", "g0-0") },
     { key: "q", file: join("/tmp/d", "g0-1") },
   ]);
+});
+
+test("buildTestDataEntries: 参加者に顔写真が付き、名簿の photo が指すファイルが保存先のキーで入る(管理者には付かない)", () => {
+  const entries = buildTestDataEntries({ ...base, count: 3 });
+  const byKey = Object.fromEntries(entries);
+  const members = JSON.parse(byKey["__scalars__/member-directory-members"]);
+  assert.equal(members.find((m) => m.id === "admin").photo, undefined);
+  const hashes = members.filter((m) => m.id.startsWith("test-user-")).map((m) => m.photo);
+  assert.equal(new Set(hashes).size, 3, "写真は人ごとに違う");
+  for (const hash of hashes) {
+    assert.match(hash, /^[0-9a-f]{16}$/);
+    const body = byKey[`accounts/assets/${hash}_photo.png`];
+    assert.ok(Buffer.isBuffer(body));
+    // 名簿のハッシュは、ファイルの中身の SHA-256 先頭16桁と一致する
+    assert.equal(createHash("sha256").update(body).digest("hex").slice(0, 16), hash);
+  }
+  const photoEntry = entries.find(([key]) => key.startsWith("accounts/assets/"));
+  assert.equal(photoEntry[2], "image/png");
+});
+
+test("buildTestDataEntries: 再実行しても顔写真は同じ(決定的)", () => {
+  const photosOf = () =>
+    JSON.parse(Object.fromEntries(buildTestDataEntries({ ...base, count: 2 }))["__scalars__/member-directory-members"]).map((m) => m.photo);
+  assert.deepEqual(photosOf(), photosOf());
 });

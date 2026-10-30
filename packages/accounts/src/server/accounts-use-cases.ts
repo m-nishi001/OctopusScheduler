@@ -1,6 +1,16 @@
 import { utf8ByteLength } from "@octopus/infrastructures/interfaces";
 import type { IKeyValueStorage, ILock, IPasswordHasher, ISecretProvider } from "@octopus/infrastructures/interfaces";
 import type { LoginResult, Member, RosterUsage } from "./accounts-api-contract";
+import { deleteMemberPhotos } from "./member-photos";
+import {
+  addMemberToRoster,
+  deleteMemberFromRoster,
+  ensureAdminInRoster,
+  toPublicMember,
+  updateMemberInRoster,
+  upsertMembers,
+} from "./roster-domain";
+import type { MemberInput } from "./roster-domain";
 
 export interface AccountsUseCaseDeps {
   storage: IKeyValueStorage;
@@ -92,7 +102,6 @@ async function writeMembers(storage: IKeyValueStorage, members: Member[]): Promi
   await storage.set(MEMBERS_KEY, JSON.stringify(members));
 }
 
-/** 表示用の名簿(id/name のみ)。誰でも取得できるよう、管理者フラグ等は含めない。 */
 /** 名簿の容量の使用状況。上限に近いかどうかを管理画面が判断する。 */
 export async function getRosterUsage(deps: AccountsUseCaseDeps): Promise<RosterUsage> {
   const raw = (await deps.storage.get(MEMBERS_KEY)) ?? "[]";
@@ -103,10 +112,10 @@ export async function getRosterUsage(deps: AccountsUseCaseDeps): Promise<RosterU
   };
 }
 
-/** メンバーの一覧(id と名前だけ)。ログインしていれば誰でも見られる範囲。 */
+/** メンバーの一覧(id・名前・写真のハッシュ)。誰でも取得できるよう、管理者フラグ等は含めない。 */
 export async function listMembers(deps: AccountsUseCaseDeps): Promise<Member[]> {
   const members = await readMembers(deps.storage);
-  return members.map((m) => ({ id: m.id, name: m.name }));
+  return members.map(toPublicMember);
 }
 
 /** 管理画面用の一覧。isAdmin / hasPassword / hasLoginKey を含む。 */
@@ -128,54 +137,39 @@ export async function findMemberById(deps: AccountsUseCaseDeps, id: string): Pro
   return members.find((m) => m.id === id) ?? null;
 }
 
+/** 名簿から外れた写真のファイルを消す。名簿のロックの外で行う(消すのに時間がかかっても、名簿の更新を待たせない)。 */
+async function discardPhotos(deps: AccountsUseCaseDeps, orphanPhotos: string[]): Promise<void> {
+  if (orphanPhotos.length > 0) await deleteMemberPhotos(deps, orphanPhotos);
+}
+
 /** メンバーを追加する。名前は必須で、id を省略すると自動で付ける。同じ id が既にあればエラー。名簿のロックの中で行う。 */
-export async function addMember(
-  deps: AccountsUseCaseDeps,
-  args: { id?: string; name: string; isAdmin?: boolean }
-): Promise<Member> {
-  const name = args.name.trim();
-  if (!name) throw new Error("name is required");
+export async function addMember(deps: AccountsUseCaseDeps, args: MemberInput): Promise<Member> {
   return withLock(deps, ROSTER_LOCK_KEY, async () => {
-    const members = await readMembers(deps.storage);
-    const id = args.id?.trim() || deps.generateId();
-    if (members.some((m) => m.id === id)) {
-      throw new Error(`Member with id "${id}" already exists`);
-    }
-    const created: Member = args.isAdmin ? { id, name, isAdmin: true } : { id, name };
-    await writeMembers(deps.storage, [...members, created]);
-    return created;
+    const { next, member } = addMemberToRoster(await readMembers(deps.storage), args, deps.generateId);
+    await writeMembers(deps.storage, next);
+    return member;
   });
 }
 
-/** メンバーを更新する。名簿のロックの中で行う。いなければエラー。 */
-export async function updateMember(deps: AccountsUseCaseDeps, member: Member): Promise<Member> {
-  return withLock(deps, ROSTER_LOCK_KEY, async () => {
-    const members = await readMembers(deps.storage);
-    const index = members.findIndex((m) => m.id === member.id);
-    if (index === -1) {
-      throw new Error(`Member with id "${member.id}" not found`);
-    }
-    // isAdmin 省略時は既存値を保つ(ゲーム側の同期などが管理者権限を落とさないように)。
-    const isAdmin = member.isAdmin ?? members[index].isAdmin;
-    const updated: Member = isAdmin
-      ? { id: member.id, name: member.name, isAdmin: true }
-      : { id: member.id, name: member.name };
-    const next = [...members];
-    next[index] = updated;
-    await writeMembers(deps.storage, next);
-    return updated;
+/** メンバーを更新する。名簿のロックの中で行う。いなければエラー。`isAdmin` / `photo` の省略は、いまの値を保つ。 */
+export async function updateMember(deps: AccountsUseCaseDeps, input: MemberInput & { id: string }): Promise<Member> {
+  const { member, orphanPhotos } = await withLock(deps, ROSTER_LOCK_KEY, async () => {
+    const change = updateMemberInRoster(await readMembers(deps.storage), input);
+    await writeMembers(deps.storage, change.next);
+    return change;
   });
+  await discardPhotos(deps, orphanPhotos);
+  return member;
 }
 
 /** メンバーを削除する。名簿のロックの中で行う。 */
 export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promise<void> {
-  await withLock(deps, ROSTER_LOCK_KEY, async () => {
-    const members = await readMembers(deps.storage);
-    await writeMembers(
-      deps.storage,
-      members.filter((m) => m.id !== id)
-    );
+  const { orphanPhotos } = await withLock(deps, ROSTER_LOCK_KEY, async () => {
+    const change = deleteMemberFromRoster(await readMembers(deps.storage), id);
+    await writeMembers(deps.storage, change.next);
+    return change;
   });
+  await discardPhotos(deps, orphanPhotos);
   await revokeMemberSessions(deps, id);
   await deps.storage.deleteScalar(CREDENTIAL_KEY_PREFIX + id);
   await deps.storage.deleteScalar(LOGIN_KEY_PREFIX + id);
@@ -188,20 +182,15 @@ export async function deleteMember(deps: AccountsUseCaseDeps, id: string): Promi
  */
 export async function replaceAllMembers(
   deps: AccountsUseCaseDeps,
-  members: Member[]
+  members: MemberInput[]
 ): Promise<{ replaced: number }> {
-  return withLock(deps, ROSTER_LOCK_KEY, async () => {
-    const current = await readMembers(deps.storage);
-    const byId = new Map(current.map((m) => [m.id, m] as const));
-    for (const member of members) {
-      const id = member.id?.trim() || deps.generateId();
-      // 一括同期では管理者権限を付与も剥奪もしない(既存値を保つ)。
-      const isAdmin = byId.get(id)?.isAdmin;
-      byId.set(id, isAdmin ? { id, name: member.name, isAdmin: true } : { id, name: member.name });
-    }
-    await writeMembers(deps.storage, Array.from(byId.values()));
-    return { replaced: members.length };
+  const { orphanPhotos } = await withLock(deps, ROSTER_LOCK_KEY, async () => {
+    const change = upsertMembers(await readMembers(deps.storage), members, deps.generateId);
+    await writeMembers(deps.storage, change.next);
+    return change;
   });
+  await discardPhotos(deps, orphanPhotos);
+  return { replaced: members.length };
 }
 
 async function readCredential(storage: IKeyValueStorage, id: string): Promise<StoredCredential | null> {
@@ -326,15 +315,7 @@ async function createBootstrapAdmin(deps: AccountsAuthDeps, id: string, password
   return withLock(deps, AUTH_LOCK_KEY, async () => {
     const members = await readMembers(deps.storage);
     if (await hasLoginableAdmin(deps.storage, members)) return null;
-    const existing = members.find((m) => m.id === id);
-    if (existing) {
-      await writeMembers(
-        deps.storage,
-        members.map((m) => (m.id === id ? { id: m.id, name: m.name, isAdmin: true } : m))
-      );
-    } else {
-      await writeMembers(deps.storage, [...members, { id, name: BOOTSTRAP_ADMIN_NAME, isAdmin: true }]);
-    }
+    await writeMembers(deps.storage, ensureAdminInRoster(members, id, BOOTSTRAP_ADMIN_NAME));
     await setPassword(deps, { id, password });
     return findMemberById(deps, id);
   });

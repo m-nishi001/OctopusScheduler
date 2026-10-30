@@ -12,6 +12,7 @@ export const StorageModule = {
   Jackpot: "jackpot-game",
   Quiz: "quiz-game",
   Results: "results",
+  Accounts: "accounts",
 } as const;
 export type StorageModuleName = (typeof StorageModule)[keyof typeof StorageModule];
 

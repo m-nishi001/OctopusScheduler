@@ -22,7 +22,7 @@ export class AccountsRepository {
     return this.accountsApi.getRosterUsage({});
   }
 
-  async addMember(args: { id?: string; name: string; isAdmin?: boolean }): Promise<Member> {
+  async addMember(args: { id?: string; name: string; isAdmin?: boolean; photo?: string }): Promise<Member> {
     return this.accountsApi.addMember(args);
   }
 
@@ -36,6 +36,21 @@ export class AccountsRepository {
 
   async replaceAllMembers(members: Member[]): Promise<{ replaced: number }> {
     return this.accountsApi.replaceAllMembers({ members });
+  }
+
+  /** 顔写真を保存する(管理者のみ)。同じハッシュなら上書きなので、送り直しても安全。 */
+  async putMemberPhoto(hash: string, dataUrl: string): Promise<void> {
+    await this.accountsApi.putMemberPhoto({ hash, dataUrl });
+  }
+
+  /** 渡したハッシュのうち、サーバーに保存済みのもの(管理者のみ)。 */
+  async existsMemberPhotos(hashes: string[]): Promise<string[]> {
+    return (await this.accountsApi.existsMemberPhotos({ hashes })).existing;
+  }
+
+  /** 写真の中身(ハッシュ → データURL)。最大10枚まで。キャッシュ越しに使うので、画面から直接は呼ばない。 */
+  async getMemberPhotos(hashes: string[]): Promise<Record<string, string>> {
+    return (await this.accountsApi.getMemberPhotos({ hashes })).photos;
   }
 
   async setPassword(id: string, password: string): Promise<void> {

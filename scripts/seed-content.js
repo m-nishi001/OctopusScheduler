@@ -10,6 +10,7 @@
  *   - ジャックポットのアセット jackpot-game/assets/<アセットID>_<ファイル名>
  * アセットID・クイズIDには `_` を入れない(キーの先頭の `_` までをIDとして読むため)。
  */
+import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
 
 const JSON_TYPE = "application/json";
@@ -86,6 +87,25 @@ export function makeBadgePng(c1, c2, { width = 96, height = 96 } = {}) {
     if (d < radius + 3) return mix(base, [255, 255, 255], 0.35);
     return base;
   });
+}
+
+/** HSL(色相0-360・彩度/明度0-1)を #rrggbb にする。 */
+function hslToHex(h, sat, light) {
+  const k = (n) => (n + h / 30) % 12;
+  const a = sat * Math.min(light, 1 - light);
+  const f = (n) => light - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return `#${[f(0), f(8), f(4)].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * 参加者の顔写真(架空)。番号ごとに色の違う円つきの正方形 PNG。名簿の `photo` はこの内容の SHA-256 先頭16桁で、
+ * 保存先のキーは accounts/assets/<ハッシュ>_photo.png(実アプリの putMemberPhoto と同じ)。
+ */
+export function buildMemberPhoto(index) {
+  const hue = (index * 47) % 360;
+  const body = makeBadgePng(hslToHex(hue, 0.7, 0.55), hslToHex((hue + 40) % 360, 0.65, 0.3), { width: 128, height: 128 });
+  const hash = createHash("sha256").update(body).digest("hex").slice(0, 16);
+  return { hash, key: `accounts/assets/${hash}_photo.png`, body, mime: PNG_TYPE };
 }
 
 /** 8bit・8kHz・モノラルの WAV を、(周波数Hz, 秒) の並びから作る(矩形波に近い柔らかい音)。0Hz は無音。 */

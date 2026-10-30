@@ -17,6 +17,9 @@ export const ACCOUNTS_ENDPOINTS = [
   "updateMember",
   "deleteMember",
   "replaceAllMembers",
+  "putMemberPhoto",
+  "existsMemberPhotos",
+  "getMemberPhotos",
   "setPassword",
   "login",
   "issueLoginKey",
@@ -39,6 +42,12 @@ export type AccountsFunctionName =
 export interface Member {
   id: string;
   name: string;
+  /**
+   * 顔写真(縮小後の画像の SHA-256 先頭16桁)。名簿だけが写真の持ち主で、中身は
+   * `getMemberPhotos` で取る。同じ画像なら同じ値なので、クライアントのキャッシュは捨てる判断がいらない。
+   * 追加・更新で省略すると既存の写真を保ち、空文字を渡すと外す。
+   */
+  photo?: string;
   /** 管理画面を操作できるか。未設定は管理者ではない。 */
   isAdmin?: boolean;
   /** パスワードが設定済みか(listAccountsの結果にのみ付く。ハッシュ自体は返さない)。 */
@@ -70,13 +79,15 @@ export interface AddMemberArgs {
   id?: string;
   name: string;
   isAdmin?: boolean;
+  photo?: string;
 }
 
-/** isAdmin を省略した場合は既存の値を保つ。 */
+/** isAdmin / photo を省略した場合は既存の値を保つ(photo は空文字で外す)。 */
 export interface UpdateMemberArgs {
   id: string;
   name: string;
   isAdmin?: boolean;
+  photo?: string;
 }
 
 export interface DeleteMemberArgs {
@@ -89,6 +100,31 @@ export interface ReplaceAllMembersArgs {
 
 export interface ReplaceAllMembersResult {
   replaced: number;
+}
+
+export interface PutMemberPhotoArgs {
+  /** 画像のSHA-256の先頭16桁(16進)。 */
+  hash: string;
+  /** `data:image/webp;base64,…` 形式。500KB以下。 */
+  dataUrl: string;
+}
+
+export interface PutMemberPhotoResult {
+  hash: string;
+}
+
+export interface MemberPhotoHashesArgs {
+  hashes: string[];
+}
+
+export interface ExistsMemberPhotosResult {
+  /** 渡したハッシュのうち、すでに保存されているもの。 */
+  existing: string[];
+}
+
+export interface GetMemberPhotosResult {
+  /** ハッシュ → データURL。保存されていないハッシュは含まれない。 */
+  photos: Record<string, string>;
 }
 
 export interface SetPasswordArgs {
@@ -150,6 +186,12 @@ export interface AccountsApi {
     args: ReplaceAllMembersArgs,
     options?: ApiCallOptions
   ): Promise<ReplaceAllMembersResult>;
+  /** 顔写真を保存する(管理者のみ)。同じハッシュなら上書きなので、送り直しても安全。 */
+  putMemberPhoto(args: PutMemberPhotoArgs, options?: ApiCallOptions): Promise<PutMemberPhotoResult>;
+  /** 保存済みの写真を一度に確かめる(管理者のみ)。 */
+  existsMemberPhotos(args: MemberPhotoHashesArgs, options?: ApiCallOptions): Promise<ExistsMemberPhotosResult>;
+  /** 写真の中身を最大10枚まとめて取る(ログイン済みなら誰でも)。 */
+  getMemberPhotos(args: MemberPhotoHashesArgs, options?: ApiCallOptions): Promise<GetMemberPhotosResult>;
   setPassword(args: SetPasswordArgs, options?: ApiCallOptions): Promise<void>;
   login(args: LoginArgs, options?: ApiCallOptions): Promise<LoginResult>;
   /** 参加者(管理者以外)の受付QR用ログインキーを発行する。管理者には発行できない。 */

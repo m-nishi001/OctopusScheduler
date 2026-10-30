@@ -1,22 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { container } from "tsyringe";
+import { AccountsRepository, MemberPhotoCache } from "@octopus/accounts";
 import { entryRoundKey } from "@octopus/session-hub";
 import { registerEventHost } from "../../../control/session/event-host";
 import type { EventStorage } from "../../../control/session/event-host";
 import { makeDevice, registerHostAgent, setupSessionEnv, settle } from "../session/__tests__/session-test-kit";
 import type { SessionEnv } from "../session/__tests__/session-test-kit";
 
-// 顔写真は、ジャックポットのデータの代わりに用意した対応表から引く
-const photoOf: Record<string, string> = { alice: "blob:photo-alice" };
-const disposed = vi.fn();
-vi.mock("@octopus/game-jackpot", () => ({
-  createMemberPhotoCache: () => ({
-    ensure: async () => undefined,
-    get: (id: string) => photoOf[id],
-    dispose: disposed,
-  }),
-}));
+// 顔写真は、名簿(Member.photo のハッシュ)と、ハッシュ別のキャッシュから引く
+const ALICE_PHOTO = "aaaaaaaaaaaaaaaa";
+const photoUrl = (hash: string) => `data:image/webp;base64,${hash}`;
+const fetchPhotos = vi.fn(async (hashes: string[]) => Object.fromEntries(hashes.map((h) => [h, photoUrl(h)])));
+const listMembers = vi.fn(async () => [
+  { id: "alice", name: "アリス", photo: ALICE_PHOTO },
+  { id: "bob", name: "ボブ" },
+]);
 
 import EntryStageView from "./entry-stage-view.vue";
 
@@ -26,8 +25,11 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(1_700_000_000_000);
   container.clearInstances();
-  disposed.mockClear();
+  fetchPhotos.mockClear();
+  listMembers.mockClear();
   env = setupSessionEnv();
+  container.registerInstance(AccountsRepository, { listMembers } as unknown as AccountsRepository);
+  container.registerInstance(MemberPhotoCache, new MemberPhotoCache({ fetchPhotos }));
 });
 afterEach(() => vi.useRealTimers());
 
@@ -90,7 +92,7 @@ describe("entry-stage-view", () => {
     await s.enter("alice", "アリス");
     expect(s.names()).toEqual(["アリス"]);
     expect(s.text("stage-count")).toBe("1");
-    expect(s.wrapper.get('[data-testid="entry-bubble"] img').attributes("src")).toBe("blob:photo-alice");
+    expect(s.wrapper.get('[data-testid="entry-bubble"] img').attributes("src")).toBe(photoUrl(ALICE_PHOTO));
 
     await s.enter("bob", "ボブ");
     expect(s.names()).toEqual(["アリス", "ボブ"]);
@@ -112,9 +114,14 @@ describe("entry-stage-view", () => {
     s.wrapper.unmount();
   });
 
-  it("画面を閉じると、読み込んだ顔写真を解放する", async () => {
+  it("写真は名簿を1回読み、写真の取得も写真のある人の分だけ1回にまとめる(写真の無いボブは取りに行かない)", async () => {
     const s = await stageScene();
+    await s.command("start", { title: "抽選" });
+    await s.command("openEntry");
+    await s.enter("alice", "アリス");
+    await s.enter("bob", "ボブ");
+    expect(listMembers).toHaveBeenCalledTimes(1);
+    expect(fetchPhotos.mock.calls.flat(2)).toEqual([ALICE_PHOTO]);
     s.wrapper.unmount();
-    expect(disposed).toHaveBeenCalledTimes(1);
   });
 });

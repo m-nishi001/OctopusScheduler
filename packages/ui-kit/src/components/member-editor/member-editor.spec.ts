@@ -66,4 +66,92 @@ describe('MemberEditor', () => {
         await flushPromises();
         expect(onDelete).not.toHaveBeenCalled();
     });
+
+    describe('写真', () => {
+        const hash = 'aaaaaaaaaaaaaaaa';
+        const pick = vi.fn().mockResolvedValue({ hash, url: 'data:image/webp;base64,QUJD' });
+        const photoProps = () => ({ onPickPhoto: pick, photoUrls: { [hash]: 'data:image/webp;base64,QUJD' } });
+        const chooseFile = async () => {
+            const input = document.body.querySelector<HTMLInputElement>('[data-testid="member-photo-input"]')!;
+            Object.defineProperty(input, 'files', { value: [new File(['x'], 'a.png', { type: 'image/png' })], configurable: true });
+            input.dispatchEvent(new Event('change'));
+            await flushPromises();
+        };
+
+        it('onPickPhoto が無ければ、写真の列も欄も出ない', async () => {
+            const { w } = setup();
+            expect(w.find('[data-testid="member-thumb"]').exists()).toBe(false);
+            expect(w.text()).not.toContain('写真');
+            await w.find('.ui-member-editor__toolbar button').trigger('click');
+            await flushPromises();
+            expect(document.body.querySelector('[data-testid="member-photo-input"]')).toBeNull();
+        });
+
+        it('写真を持つメンバーは一覧にサムネイルが出る。持たない人は頭文字', async () => {
+            const { w } = setup({
+                members: [{ id: 'a', name: 'Alice', photo: hash }, { id: 'b', name: 'Bob' }],
+                ...photoProps(),
+            });
+            const thumbs = w.findAll('[data-testid="member-thumb"]');
+            expect(thumbs).toHaveLength(1);
+            expect(thumbs[0].attributes('src')).toBe('data:image/webp;base64,QUJD');
+            expect(w.findAll('.ui-member-editor__thumb--empty')).toHaveLength(1);
+        });
+
+        it('追加で写真を選ぶと、そのハッシュつきで onAdd を呼ぶ', async () => {
+            const { w, onAdd } = setup(photoProps());
+            await w.find('.ui-member-editor__toolbar button').trigger('click');
+            await flushPromises();
+            const inputs = document.body.querySelectorAll<HTMLInputElement>('.ui-member-editor__form input[type="text"]');
+            inputs[1].value = 'Bob';
+            inputs[1].dispatchEvent(new Event('input'));
+            await chooseFile();
+            expect(pick).toHaveBeenCalled();
+            expect(document.body.querySelector('[data-testid="member-photo-preview"]')).not.toBeNull();
+            dialogButtons()[1].click();
+            await flushPromises();
+            expect(onAdd).toHaveBeenCalledWith({ id: undefined, name: 'Bob', photo: hash });
+        });
+
+        it('編集で写真を触らなければ photo は省略(既存を保つ)。外すと空文字、選べばそのハッシュ', async () => {
+            const members = [{ id: 'a', name: 'Alice', photo: hash }];
+            const { w, onUpdate } = setup({ members, ...photoProps() });
+            await w.find('button[aria-label="編集"]').trigger('click');
+            await flushPromises();
+            dialogButtons()[1].click();
+            await flushPromises();
+            expect(onUpdate).toHaveBeenLastCalledWith({ id: 'a', name: 'Alice', photo: undefined });
+
+            await w.find('button[aria-label="編集"]').trigger('click');
+            await flushPromises();
+            document.body.querySelector<HTMLButtonElement>('[data-testid="member-photo-clear"]')!.click();
+            await flushPromises();
+            dialogButtons()[1].click();
+            await flushPromises();
+            expect(onUpdate).toHaveBeenLastCalledWith({ id: 'a', name: 'Alice', photo: '' });
+
+            await w.find('button[aria-label="編集"]').trigger('click');
+            await flushPromises();
+            await chooseFile();
+            dialogButtons()[1].click();
+            await flushPromises();
+            expect(onUpdate).toHaveBeenLastCalledWith({ id: 'a', name: 'Alice', photo: hash });
+        });
+
+        it('写真の保存に失敗したら、エラーを出して、写真は変えない', async () => {
+            const failing = vi.fn().mockRejectedValue(new Error('too large'));
+            const { w, onAdd } = setup({ onPickPhoto: failing });
+            await w.find('.ui-member-editor__toolbar button').trigger('click');
+            await flushPromises();
+            await chooseFile();
+            expect(document.body.textContent).toContain('写真を保存できませんでした: too large');
+            const inputs = document.body.querySelectorAll<HTMLInputElement>('.ui-member-editor__form input[type="text"]');
+            inputs[1].value = 'Bob';
+            inputs[1].dispatchEvent(new Event('input'));
+            await flushPromises();
+            dialogButtons()[1].click();
+            await flushPromises();
+            expect(onAdd).toHaveBeenCalledWith({ id: undefined, name: 'Bob', photo: undefined });
+        });
+    });
 });
