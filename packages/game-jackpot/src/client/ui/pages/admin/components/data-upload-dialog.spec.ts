@@ -179,7 +179,7 @@ describe("DataUploadDialog", () => {
   beforeEach(async () => {
     assetSvc = new FakeAssetServiceInstance();
     const prizeModule = await import("@control/prize/prize-service");
-    prizeSvc = new prizeModule.PrizeService(dummyPrizeRepo as any);
+    prizeSvc = new prizeModule.PrizeService(dummyPrizeRepo as any, {} as any);
     // register into container for DI usage in component
     const assetModule = await import(
       "@control/asset/asset-data-service"

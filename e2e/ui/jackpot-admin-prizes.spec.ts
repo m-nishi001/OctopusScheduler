@@ -44,4 +44,53 @@ test.describe("ジャックポット管理の景品", () => {
     await expect(edit.locator("img.preview-img-small")).toHaveCount(2);
     await d.context.close();
   });
+
+  test("景品を1件ずつ編集して保存しても、他の景品は消えない(再読み込み後も、別の端末の同期後も)", async ({ browser }) => {
+    const d = await newDevice(browser, { signedIn: true });
+    const { page } = d;
+    const stamp = Date.now();
+    const names = [`e2e賞A-${stamp}`, `e2e賞B-${stamp}`];
+    const edited = [`e2e改A-${stamp}`, `e2e改B-${stamp}`];
+    await page.goto("/#/jackpot-admin");
+    await page.getByRole("tab", { name: "景品" }).click();
+    const row = (name: string) => page.getByRole("row").filter({ hasText: name });
+
+    for (const name of names) {
+      await page.getByRole("button", { name: "追加", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByPlaceholder("景品名").fill(name);
+      await dialog.getByRole("button", { name: "保存" }).click();
+      await expect(dialog).toBeHidden();
+      await expect(row(name)).toHaveCount(1);
+    }
+
+    // 1件ずつ編集して保存する
+    for (const [i, name] of names.entries()) {
+      await row(name).getByRole("button", { name: "詳細" }).click();
+      const dialog = page.getByRole("dialog");
+      await dialog.getByPlaceholder("景品名").fill(edited[i]);
+      await dialog.getByRole("button", { name: "保存" }).click();
+      await expect(dialog).toBeHidden();
+    }
+    for (const name of edited) await expect(row(name)).toHaveCount(1);
+    for (const name of names) await expect(row(name)).toHaveCount(0);
+
+    await page.reload();
+    await page.getByRole("tab", { name: "景品" }).click();
+    for (const name of edited) await expect(row(name)).toHaveCount(1);
+
+    // 別の端末(空の端末)にも、バックグラウンド同期のあと両方の景品が届く
+    const other = await newDevice(browser, { signedIn: true });
+    await other.page.goto("/#/jackpot-admin");
+    await other.page.getByRole("tab", { name: "景品" }).click();
+    for (const name of edited) {
+      await expect(async () => {
+        await other.page.reload();
+        await other.page.getByRole("tab", { name: "景品" }).click();
+        await expect(other.page.getByRole("row").filter({ hasText: name })).toHaveCount(1, { timeout: 2000 });
+      }).toPass({ timeout: 60_000 });
+    }
+    await other.context.close();
+    await d.context.close();
+  });
 });
