@@ -28,7 +28,7 @@ export function describeRosterCapacity(usage: RosterUsage): RosterCapacityView |
     return {
       percent,
       level: "full",
-      message: `${used}。あと${remaining ?? 0}人ほどで登録できなくなります。使わないアカウントを削除してください。`,
+      message: `${used}。あと${remaining ?? 0}人ほどで登録できなくなります。使わない人を削除してください。`,
     };
   }
   if (ratio >= ROSTER_WARN_RATIO) {

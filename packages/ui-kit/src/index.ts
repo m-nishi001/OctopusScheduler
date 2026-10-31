@@ -16,6 +16,7 @@ export { useConfirm, useToast, confirmDialog, toast } from './composables/use-fe
 export { lockScroll } from './composables/use-scroll-lock';
 export type { ConfirmOptions, ToastKind } from './composables/use-feedback';
 export { default as MemberEditor } from './components/member-editor/member-editor.vue';
+export { default as MemberImportDialog } from './components/member-editor/member-import-dialog.vue';
 export type { MemberRow, PickedPhoto } from './components/member-editor/member-editor.vue';
 export type {
     MemberImportInput,
