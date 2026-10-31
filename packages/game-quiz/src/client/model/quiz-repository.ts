@@ -1,349 +1,169 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
-import { inject, injectable } from "tsyringe";
-import { Quiz, normalizeCorrectNo } from "./quiz";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
-import { BlobRecordStore, blobRecordSyncTarget, textBlobRecordRemote } from "@octopus/sync-engine";
-import type { BlobRecordLocalStore, SyncTarget } from "@octopus/sync-engine";
-import { IQuizGameApiToken } from "../../server/quiz-api-contract";
-import type { QuizGameApi, QuizWithDataUrl } from "../../server/quiz-api-contract";
+import { inject, injectable } from "tsyringe";
+import {
+  BLOB_HASH_PATTERN,
+  BlobRecordStore,
+  HashedBlobStore,
+  blobRecordSyncTarget,
+  hashBlob,
+  textBlobRecordRemote,
+  withHashedBlobs,
+} from "@octopus/sync-engine";
+import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
+import { IQuizGameApiToken, quizRecordHashes } from "../../server/quiz-api-contract";
+import type { QuizGameApi, QuizRecordEntry } from "../../server/quiz-api-contract";
 import { dataUrlToBlob } from "./blob-utils";
-import type { DriveMetadata } from "@octopus/infrastructures/compositions";
+import { Quiz } from "./quiz";
 
-const METADATA_SYNC_KIND = "quizzes-meta";
-const METADATA_FILE_NAME = "quizzes.json";
-const ASSET_SYNC_KIND = "quiz-asset";
+const RECORD_SYNC_KIND = "quizzes";
+/** 以前の保存形式(クイズ1件ずつの行・更新日時の記録)。移行はせず、使わずに消す。 */
+const LEGACY_STORES = ["QuizData", "QuizMetaStamp"] as const;
 
-type AssetSlotType = "bgm" | "option" | "prizeImage" | "prizeBgm";
-
-/** クイズの保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。画像・音声は `drive:<slotId>` の参照で持つ。 */
+/**
+ * クイズの保存先。正となるのは、この端末(IndexedDB)の「クイズの一覧1件」(`{ data, updatedAt }`)だけ。
+ * 画像・音声は内容のハッシュで一覧から参照する、中身の変わらないファイル(別の置き場)。
+ * 削除は一覧から外すだけで、サーバーが一覧を書くときに、外れたハッシュのファイルを消す。
+ * 一覧が正なので、ファイルだけがあってクイズが無い、という状態は作れない。
+ */
 @injectable()
 export class QuizRepository {
-  private readonly localStorage = new LocalStorageService(
-    "quiz-game",
-    "QuizData"
-  );
-  /** クイズ一覧(同期の対象)の最終更新日時。データは持たず、一覧の編集のたびに更新日時だけを進める(一覧そのものは QuizData から作る)。 */
-  private readonly metaStamp = new BlobRecordStore<null>("quiz-game", "QuizMetaStamp");
+  private readonly list = new BlobRecordStore<QuizRecordEntry[]>("quiz-game", "QuizList");
+  private readonly blobs = new HashedBlobStore("quiz-game", "QuizBlobs");
+  private legacyCleared: Promise<void> | null = null;
 
   constructor(
     @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi
   ) {}
 
+  /** 以前の形式のデータを(初回だけ)消す。 */
+  private clearLegacy(): Promise<void> {
+    this.legacyCleared ??= Promise.all(
+      LEGACY_STORES.map((store) => new LocalStorageService("quiz-game", store).clear())
+    )
+      .then(() => undefined)
+      .catch((e) => console.warn("[QuizRepository] failed to clear legacy stores", e));
+    return this.legacyCleared;
+  }
+
   async getQuizById(id: string): Promise<Quiz | null> {
-    const raw = await this.localStorage.get<any>(id);
-    if (!raw) return null;
-    try {
-      return Quiz.fromDto(raw);
-    } catch (e) {
-      console.warn("[QuizRepository] failed to rehydrate quiz for id=", id, e);
-      return null;
-    }
+    return (await this.getAllQuizzes()).find((q) => q.id === id) ?? null;
   }
 
   async getAllQuizzes(): Promise<Quiz[]> {
-    const allQuizzes = await this.localStorage.getAll<any>();
-    const out: Quiz[] = [];
-    for (const v of Array.from(allQuizzes.values())) {
-      try {
-        if (!v) continue;
-        out.push(Quiz.fromDto(v));
-      } catch (e) {
-        console.warn(
-          "[QuizRepository] getAllQuizzes: failed to rehydrate item",
-          e
-        );
-      }
-    }
-    return out;
+    await this.clearLegacy();
+    const record = await this.list.read();
+    return Promise.all((record?.data ?? []).map((entry) => this.fromEntry(entry)));
   }
 
+  /** 保存する(同じ id があれば置き換え、無ければ末尾に足す)。 */
   async saveQuiz(quiz: Quiz): Promise<void> {
-    await this.localStorage.save(quiz.id, quiz);
-    await this.metaStamp.update(() => null);
+    await this.clearLegacy();
+    const entry = await this.toEntry(quiz);
+    await this.list.update((current) => {
+      const all = current ?? [];
+      return all.some((e) => e.id === entry.id) ? all.map((e) => (e.id === entry.id ? entry : e)) : [...all, entry];
+    });
     eventBus.emit("syncDirty");
   }
 
   async addQuiz(quiz: Omit<Quiz, "id">): Promise<string> {
     const id = crypto.randomUUID();
-    const newQuiz: Quiz = { ...quiz, id };
-    await this.localStorage.save(id, newQuiz);
-    await this.metaStamp.update(() => null);
-    eventBus.emit("syncDirty");
+    await this.saveQuiz(new Quiz({ ...quiz, id }));
     return id;
   }
 
   async deleteQuiz(id: string): Promise<void> {
-    await this.localStorage.delete(id);
-    await this.metaStamp.update(() => null);
+    await this.clearLegacy();
+    await this.list.update((current) => (current ?? []).filter((e) => e.id !== id));
     eventBus.emit("syncDirty");
   }
 
-  // --- 同期対象のid規約 ---
-  // アセットは quiz-game の JSON blob(quizzes.json)には実体を含めず、
-  // `drive:<slotId>` という参照文字列だけを埋め込む。slotIdは
-  // 「クイズid + スロット種別(+ 選択肢番号)」から機械的に組み立てる安定した
-  // idなので、旧実装のようにアップロードのたびに新しいdriveDataIdを生成して
-  // 別ファイルとして積み上がっていく(かつ毎回全消去してからやり直す)ことがない。
-  private slotId(quizId: string, type: AssetSlotType, idx?: number): string {
-    return type === "option" ? `${quizId}::option::${idx}` : `${quizId}::${type}`;
-  }
-
-  /**
-   * バックグラウンド同期エンジン向けに、クイズ一覧のメタデータ(1つのJSON blob)と
-   * 各クイズのアセット(bgm/選択肢画像/賞品画像/賞品bgm、ファイル単位)を
-   * SyncTargetとして列挙する。
-   */
-  async listSyncTargets(): Promise<SyncTarget[]> {
-    let remoteAssetMetas: DriveMetadata[] = [];
-    try {
-      remoteAssetMetas = (await this.quizApi.getDriveMetaData({})) || [];
-    } catch (e) {
-      console.error(
-        "[QuizRepository] Failed to fetch remote quiz asset metadata for sync",
-        e
-      );
-    }
-    const remoteAssetMap = new Map<string, DriveMetadata>();
-    for (const m of remoteAssetMetas) {
-      if (m?.driveDataId) remoteAssetMap.set(String(m.driveDataId), m);
-    }
-
-    const targets: SyncTarget[] = [
-      this.buildQuizzesMetaTarget(),
-      ...(await this.buildAssetTargets(remoteAssetMap)),
-    ];
-    return targets;
-  }
-
-  /**
-   * クイズ一覧のメタデータ(1つのレコード `{ data, updatedAt }`)。データは QuizData のクイズから作り、
-   * 更新日時だけを別に持つ(クイズ1件ごとのレコードは、画像を中に持つのでそのまま残す)。
-   */
-  private buildQuizzesMetaTarget(): SyncTarget<QuizWithDataUrl[], QuizWithDataUrl[]> {
-    const local: BlobRecordLocalStore<QuizWithDataUrl[]> = {
-      read: async () => {
-        const stamp = await this.metaStamp.read();
-        const quizzes = await this.getAllQuizzes();
-        // 一度も編集していない(更新日時が無い)端末は、クイズがあれば更新日時 0(リモートがあればそちらを取り込む)、無ければデータなし
-        if (!stamp && quizzes.length === 0) return null;
-        return { data: quizzes.map((q) => this.toWireEntry(q)), updatedAt: stamp?.updatedAt ?? 0 };
-      },
-      replaceIfUnchanged: async (expectedUpdatedAt, next) => {
-        // 更新日時 0 は「更新日時が無いまま読んだ」(上の read)ので、更新日時の記録としては「無い」(null)
-        const expectedStamp = expectedUpdatedAt === 0 ? null : expectedUpdatedAt;
-        if (!(await this.metaStamp.replaceIfUnchanged(expectedStamp, { data: null, updatedAt: next.updatedAt }))) {
-          return false;
-        }
-        await this.applyRemoteQuizzes(next.data);
-        return true;
-      },
-    };
-    return blobRecordSyncTarget(
-      METADATA_SYNC_KIND,
-      local,
-      textBlobRecordRemote<QuizWithDataUrl[]>({
-        read: async () => (await this.quizApi.getJson({ fileName: METADATA_FILE_NAME })).json,
-        write: (json) => this.quizApi.addJson({ fileName: METADATA_FILE_NAME, json }),
+  /** 同期の対象。一覧1件と、それが参照するファイル(上げる → 一覧 → 取ってくる)。 */
+  listSyncTargets(): SyncTarget[] {
+    const record = blobRecordSyncTarget(
+      RECORD_SYNC_KIND,
+      this.list,
+      textBlobRecordRemote<QuizRecordEntry[]>({
+        read: async () => (await this.quizApi.getRecord({})).json,
+        write: (json) => this.quizApi.saveRecord({ json }),
       })
     );
+    return [
+      withHashedBlobs(record, {
+        local: this.blobs,
+        remote: this.blobRemote(),
+        hashesOf: (data) => quizRecordHashes(data).filter((h) => BLOB_HASH_PATTERN.test(h)),
+      }) as SyncTarget,
+    ];
   }
 
-  /** リモートの一覧に合わせてローカルのクイズを反映する(一覧に無いクイズは消す)。 */
-  private async applyRemoteQuizzes(entries: QuizWithDataUrl[]): Promise<void> {
-    const keep = new Set(entries.map((e) => e.id));
-    const stale = Array.from((await this.localStorage.getAll<any>()).keys()).filter((id) => !keep.has(id));
-    if (stale.length) await this.localStorage.removeMultiple(stale);
-    for (const entry of entries) await this.upsertQuizMetadata(entry);
+  private blobRemote(): HashedBlobRemote {
+    return {
+      exists: async (hashes) => (await this.quizApi.existsBlobs({ hashes })).existing,
+      put: async (hash, blob) => this.quizApi.putBlob({ hash, dataUrl: await blobToDataUrl(blob) }),
+      get: async (hash) => {
+        const { dataUrl } = await this.quizApi.getBlob({ hash });
+        return dataUrl ? dataUrlToBlob(dataUrl) : null;
+      },
+    };
   }
 
-  /** ローカルのQuizを、アセット実体を含まないワイヤー形式(drive:参照のみ)に変換する。 */
-  private toWireEntry(q: Quiz): QuizWithDataUrl {
+  /** ファイルを置き場に入れ、そのハッシュを返す(無ければ null)。 */
+  private async refOf(blob: Blob | null | undefined): Promise<string | null> {
+    if (!blob) return null;
+    const hash = await hashBlob(blob);
+    await this.blobs.put(hash, blob);
+    return hash;
+  }
+
+  private async toEntry(q: Quiz): Promise<QuizRecordEntry> {
+    const s = q.settings;
     return {
       id: q.id,
       title: q.title,
       question: q.question,
-      options: q.options.map((o, idx) => ({
-        no: o.no,
-        text: o.text,
-        color: o.color,
-        image: o.image ? `drive:${this.slotId(q.id, "option", idx)}` : null,
-      })),
+      options: await Promise.all(
+        q.options.map(async (o) => ({ no: o.no, text: o.text, color: o.color, image: await this.refOf(o.image) }))
+      ),
       correctNo: q.correctNo,
       timeLimit: q.timeLimit,
-      bgm: q.bgm ? `drive:${this.slotId(q.id, "bgm")}` : null,
-      settings: q.settings
+      bgm: await this.refOf(q.bgm),
+      settings: s
         ? {
-            // correctBgmは旧実装でもDriveへアップロードされておらず、この
-            // 同期対象には含めない(既存の未解決の欠落を踏襲する)。
-            correctBgmDataUrl: null,
-            prizeImageDataUrl: q.settings.prizeImage
-              ? `drive:${this.slotId(q.id, "prizeImage")}`
-              : null,
-            prizeName: q.settings.prizeName ?? "",
-            prizeBgmDataUrl: q.settings.prizeBgm
-              ? `drive:${this.slotId(q.id, "prizeBgm")}`
-              : null,
+            correctBgm: await this.refOf(s.correctBgm),
+            prizeImage: await this.refOf(s.prizeImage),
+            prizeName: s.prizeName ?? "",
+            prizeBgm: await this.refOf(s.prizeBgm),
           }
         : undefined,
     };
   }
 
-  /**
-   * リモートのメタデータをローカルへ反映する。テキスト系フィールドのみを
-   * 上書きし、アセット(Blob)フィールドは既存のローカル値を保持する
-   * (アセット自体の同期は各SyncTarget(kind: quiz-asset)が独立して担う)。
-   */
-  private async upsertQuizMetadata(entry: QuizWithDataUrl): Promise<void> {
-    const existingRaw = await this.localStorage.get<any>(entry.id);
-    const existing = existingRaw ? Quiz.fromDto(existingRaw) : null;
-    const options = entry.options.map((o, idx) => ({
-      no: o.no,
-      text: o.text,
-      color: o.color,
-      image: existing?.options[idx]?.image ?? null,
-    }));
-    const { correctNo } = normalizeCorrectNo({ options, correctNo: entry.correctNo });
-    const quiz = new Quiz({
-      id: entry.id,
-      title: entry.title,
-      question: entry.question,
-      options,
-      correctNo,
-      timeLimit: entry.timeLimit,
-      bgm: existing?.bgm ?? null,
-      settings: entry.settings
+  /** まだ手元に無いファイル(同期の途中)は null のまま返す。 */
+  private async fromEntry(e: QuizRecordEntry): Promise<Quiz> {
+    const blobOf = (hash: string | null | undefined): Promise<Blob | null> =>
+      hash ? this.blobs.get(hash) : Promise.resolve(null);
+    const s = e.settings;
+    return new Quiz({
+      id: e.id,
+      title: e.title,
+      question: e.question,
+      options: await Promise.all(
+        e.options.map(async (o) => ({ no: o.no, text: o.text, color: o.color, image: await blobOf(o.image) }))
+      ),
+      correctNo: e.correctNo,
+      timeLimit: e.timeLimit,
+      bgm: await blobOf(e.bgm),
+      settings: s
         ? {
-            correctBgm: existing?.settings?.correctBgm ?? null,
-            prizeImage: existing?.settings?.prizeImage ?? null,
-            prizeName: entry.settings.prizeName ?? "",
-            prizeBgm: existing?.settings?.prizeBgm ?? null,
+            correctBgm: await blobOf(s.correctBgm),
+            prizeImage: await blobOf(s.prizeImage),
+            prizeName: s.prizeName,
+            prizeBgm: await blobOf(s.prizeBgm),
           }
         : undefined,
     });
-    await this.localStorage.save(entry.id, quiz);
-  }
-
-  private async buildAssetTargets(
-    remoteAssetMap: Map<string, DriveMetadata>
-  ): Promise<SyncTarget<Blob, DriveMetadata>[]> {
-    const localQuizzes = await this.getAllQuizzes();
-    const localSlotBlob = new Map<string, Blob>();
-
-    for (const q of localQuizzes) {
-      if (q.bgm) localSlotBlob.set(this.slotId(q.id, "bgm"), q.bgm);
-      q.options.forEach((o, idx) => {
-        if (o.image) localSlotBlob.set(this.slotId(q.id, "option", idx), o.image);
-      });
-      if (q.settings?.prizeImage) {
-        localSlotBlob.set(this.slotId(q.id, "prizeImage"), q.settings.prizeImage);
-      }
-      if (q.settings?.prizeBgm) {
-        localSlotBlob.set(this.slotId(q.id, "prizeBgm"), q.settings.prizeBgm);
-      }
-    }
-
-    const slotIds = new Set<string>([
-      ...localSlotBlob.keys(),
-      ...remoteAssetMap.keys(),
-    ]);
-
-    return Array.from(slotIds).map((id) =>
-      this.buildAssetSyncTarget(id, localSlotBlob, remoteAssetMap)
-    );
-  }
-
-  private buildAssetSyncTarget(
-    id: string,
-    localSlotBlob: Map<string, Blob>,
-    remoteAssetMap: Map<string, DriveMetadata>
-  ): SyncTarget<Blob, DriveMetadata> {
-    const quizId = id.split("::")[0];
-    return {
-      id,
-      kind: ASSET_SYNC_KIND,
-      getLocal: async () => {
-        const blob = localSlotBlob.get(id);
-        if (!blob) return null;
-        const stored = await this.localStorage.getWithMeta<any>(quizId);
-        return { data: blob, updatedAt: stored?.updatedAt ?? Date.now() };
-      },
-      getRemote: async () => {
-        const meta = remoteAssetMap.get(id);
-        if (!meta) return null;
-        return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
-      },
-      push: async ({ data: blob }) => {
-        const dataUrl = await blobToDataUrl(blob);
-        const clientNow = new Date().toISOString();
-        const driveData: any = {
-          metadata: {
-            driveDataId: id,
-            fileId: "",
-            parentFolderId: "",
-            lastUpdate: clientNow,
-            size: blob.size || 0,
-          },
-          fileName: id,
-          fileKind: blob.type || "application/octet-stream",
-          fileDataUrl: dataUrl,
-          uploadDate: new Date().toISOString(),
-          parentFolderId: "",
-        };
-        // 更新日時はサーバーの時刻を採る(端末の時計がずれていても、リモートとの新旧比較が狂わないように)
-        if (remoteAssetMap.has(id)) await this.quizApi.updateDriveData({ driveData });
-        else await this.quizApi.addDriveData({ driveData });
-      },
-      pull: async ({ data: meta }) => {
-        const data = await this.quizApi.getDriveData({ dataId: meta.fileId });
-        const blob = data?.fileDataUrl ? dataUrlToBlob(data.fileDataUrl) : new Blob();
-        await this.writeSlotBlob(quizId, id, blob);
-      },
-    };
-  }
-
-  /** リモートから取得したアセットBlobを、対応するクイズのローカルレコードへ書き戻す。 */
-  private async writeSlotBlob(
-    quizId: string,
-    slotId: string,
-    blob: Blob
-  ): Promise<void> {
-    const raw = await this.localStorage.get<any>(quizId);
-    const existing = raw ? Quiz.fromDto(raw) : null;
-    const parts = slotId.split("::");
-    const type = parts[1] as AssetSlotType;
-
-    const quiz =
-      existing ??
-      new Quiz({
-        id: quizId,
-        title: "",
-        question: "",
-        options: [],
-        correctNo: 1,
-        timeLimit: 0,
-        bgm: null,
-      });
-
-    if (type === "bgm") {
-      quiz.bgm = blob;
-    } else if (type === "option") {
-      const idx = Number(parts[2]);
-      while (quiz.options.length <= idx) {
-        quiz.options.push({ no: quiz.options.length + 1, text: "", color: "", image: null });
-      }
-      quiz.options[idx].image = blob;
-    } else if (type === "prizeImage" || type === "prizeBgm") {
-      quiz.settings = quiz.settings ?? {
-        correctBgm: null,
-        prizeImage: null,
-        prizeName: "",
-        prizeBgm: null,
-      };
-      if (type === "prizeImage") quiz.settings.prizeImage = blob;
-      else quiz.settings.prizeBgm = blob;
-    }
-
-    await this.localStorage.save(quizId, quiz);
   }
 }

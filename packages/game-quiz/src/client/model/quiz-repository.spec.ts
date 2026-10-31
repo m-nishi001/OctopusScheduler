@@ -1,20 +1,32 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import "reflect-metadata";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { FixedConcurrencyPolicy, InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
+import { createHashedBlobStore, StorageModule } from "@octopus/infrastructures/compositions";
+import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { SyncRunner } from "@octopus/sync-engine";
 import { QuizRepository } from "./quiz-repository";
 import { Quiz } from "./quiz";
-import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
+import { QUIZ_RECORD_FILE, quizRecordHashes } from "../../server/quiz-api-contract";
 
-/** サーバーが付ける更新日時。端末の時計(いま)とは大きく違う値にして、どちらを採ったか区別できるようにする。 */
-const SERVER_TIME = "2020-01-01T00:00:00.000Z";
+// jsdom + localforage では保存した Blob を読み戻すと本物の Blob ではなくなり FileReader で読めないので、データURL化だけ差し替える
+vi.mock("@octopus/client-common/blob/blob-to-data-url", () => ({
+  blobToDataUrl: async () => "data:image/png;base64,QUJD",
+}));
 
-function makeFakeApi() {
-  return {
-    addDriveData: vi.fn(async (d: any) => ({ ...d.driveData.metadata, fileId: "file-1", lastUpdate: SERVER_TIME })),
-    getDriveMetaData: vi.fn(async (): Promise<unknown[]> => []),
-    getDriveData: vi.fn(),
-    updateDriveData: vi.fn(async (d: any) => ({ ...d.driveData.metadata, fileId: "file-1", lastUpdate: SERVER_TIME })),
-    addJson: vi.fn(async (_blob: { fileName: string; json: string }) => undefined),
-    getJson: vi.fn(async (_args: { fileName: string }): Promise<{ json: string | null }> => ({ json: null })),
+/** サーバーの実装(ハッシュのファイル置き場と一覧の保存)をそのまま使う、メモリ上のサーバー。 */
+function makeServer() {
+  const store = createHashedBlobStore(StorageModule.Quiz);
+  const deps = { storage: new InMemoryKeyValueStorage() };
+  const api = {
+    getRecord: async () => store.getRecord(deps, { fileName: QUIZ_RECORD_FILE }),
+    saveRecord: async (a: { json: string }) => store.saveRecord(deps, { fileName: QUIZ_RECORD_FILE, json: a.json }, quizRecordHashes),
+    existsBlobs: async (a: { hashes: string[] }) => store.exists(deps, a),
+    putBlob: async (a: { hash: string; dataUrl: string }) => store.put(deps, a),
+    getBlob: async (a: { hash: string }) => store.get(deps, a),
   };
+  /** サーバーに残っているハッシュのファイルの数。 */
+  const blobCount = async () => (await deps.storage.listByPrefix("quiz-game/assets/")).length;
+  return { api, blobCount };
 }
 
 function makeQuiz(overrides: Partial<ConstructorParameters<typeof Quiz>[0]> = {}): Quiz {
@@ -30,224 +42,103 @@ function makeQuiz(overrides: Partial<ConstructorParameters<typeof Quiz>[0]> = {}
   } as any);
 }
 
-describe("QuizRepository.listSyncTargets", () => {
-  let fakeApi: ReturnType<typeof makeFakeApi>;
+const img = (text: string) => new Blob([text], { type: "image/png" });
+
+async function clearLocal() {
+  for (const store of ["QuizList", "QuizBlobs", "QuizData", "QuizMetaStamp"]) {
+    await new LocalStorageService("quiz-game", store).clear();
+  }
+}
+
+const runner = new SyncRunner(new FixedConcurrencyPolicy(5));
+const sync = async (repo: QuizRepository) => {
+  const results = (await runner.run(repo.listSyncTargets())).results;
+  for (const r of results) expect(r.error).toBeUndefined();
+  return results;
+};
+
+describe("QuizRepository", () => {
+  let server: ReturnType<typeof makeServer>;
   let repo: QuizRepository;
 
   beforeEach(async () => {
-    await new LocalStorageService("quiz-game", "QuizData").clear();
-    await new LocalStorageService("quiz-game", "QuizMetaStamp").clear();
-    fakeApi = makeFakeApi();
-    repo = new QuizRepository(fakeApi as any);
+    await clearLocal();
+    server = makeServer();
+    repo = new QuizRepository(server.api as any);
   });
 
-  describe("quizzes-meta target", () => {
-    it("returns no local snapshot when there are no local quizzes", async () => {
-      const [metaTarget] = await repo.listSyncTargets();
-      expect(metaTarget.id).toBe("quizzes-meta");
-      expect(await metaTarget.getLocal()).toBeNull();
-    });
-
-    it("push uploads the metadata as a single JSON blob without embedding any asset content", async () => {
-      await repo.saveQuiz(
-        makeQuiz({ bgm: new Blob(["x"], { type: "audio/mpeg" }) as any })
-      );
-
-      const [metaTarget] = await repo.listSyncTargets();
-      const local = await metaTarget.getLocal();
-      expect(local).not.toBeNull();
-      await metaTarget.push(local!);
-
-      expect(fakeApi.addJson).toHaveBeenCalledOnce();
-      const payload = fakeApi.addJson.mock.calls[0][0];
-      expect(payload.fileName).toBe("quizzes.json");
-      // サーバーには { updatedAt, data } をそのまま保存する(更新日時はローカルのものと同じ)
-      const uploaded = JSON.parse(payload.json);
-      expect(uploaded.updatedAt).toBe(local!.updatedAt);
-      expect(uploaded.data).toEqual([
-        expect.objectContaining({ id: "q1", bgm: "drive:q1::bgm" }),
-      ]);
-    });
-
-    it("送信中に編集すると、ローカルのほうが新しいまま残る(書き戻しが無いので、次の判定は push になる)", async () => {
-      await repo.saveQuiz(makeQuiz());
-      let server: string | null = null;
-      fakeApi.getJson.mockImplementation(async () => ({ json: server }));
-      fakeApi.addJson.mockImplementation(async (blob: { json: string }) => {
-        await repo.saveQuiz(makeQuiz({ title: "送信中の編集" })); // 送信の最中の編集
-        server = blob.json;
-      });
-
-      const [metaTarget] = await repo.listSyncTargets();
-      await metaTarget.push((await metaTarget.getLocal())!);
-
-      const local = (await metaTarget.getLocal())!;
-      const remote = (await metaTarget.getRemote())!;
-      expect(local.updatedAt).toBeGreaterThan(remote.updatedAt);
-      expect((local.data as { title: string }[])[0].title).toBe("送信中の編集");
-    });
-
-    it("最後の1件を消して空にした一覧も、データなしとは区別されて同期される", async () => {
-      await repo.saveQuiz(makeQuiz());
-      await repo.deleteQuiz("q1");
-
-      const [metaTarget] = await repo.listSyncTargets();
-      const local = await metaTarget.getLocal();
-      expect(local).not.toBeNull();
-      expect(local!.data).toEqual([]);
-    });
-
-    it("リモートが無ければ null、リモートの読み取りに失敗したら例外(空と取り違えて送らない)", async () => {
-      const [metaTarget] = await repo.listSyncTargets();
-      expect(await metaTarget.getRemote()).toBeNull();
-      fakeApi.getJson.mockRejectedValueOnce(new Error("HTTP 500: boom"));
-      await expect(metaTarget.getRemote()).rejects.toThrow("HTTP 500: boom");
-    });
-
-    it("pull はリモートの一覧に無いクイズを消し、更新日時はリモートのものをそのまま書く(ムダな送信が起きない)", async () => {
-      await repo.saveQuiz(makeQuiz({ id: "gone", title: "消えるクイズ" }));
-      const [metaTarget] = await repo.listSyncTargets();
-      const local = await metaTarget.getLocal();
-      const entry = {
-        id: "q9",
-        title: "新しいクイズ",
-        question: "?",
-        options: [{ no: 1, text: "A", color: "red", image: null }],
-        correctNo: 1,
-        timeLimit: 10,
-        bgm: null,
-      };
-      await metaTarget.pull({ data: [entry], updatedAt: local!.updatedAt + 5000 }, local);
-
-      expect(await repo.getQuizById("gone")).toBeNull();
-      expect((await repo.getQuizById("q9"))!.title).toBe("新しいクイズ");
-      expect((await metaTarget.getLocal())!.updatedAt).toBe(local!.updatedAt + 5000);
-    });
-
-    it("pull の途中(判定のあと)に編集されていたら、書かずに false を返す", async () => {
-      await repo.saveQuiz(makeQuiz({ title: "判定のときの版" }));
-      const [metaTarget] = await repo.listSyncTargets();
-      const local = await metaTarget.getLocal();
-      await repo.saveQuiz(makeQuiz({ title: "そのあとの編集" }));
-
-      const applied = await metaTarget.pull({ data: [], updatedAt: local!.updatedAt + 5000 }, local);
-
-      expect(applied).toBe(false);
-      expect((await repo.getQuizById("q1"))!.title).toBe("そのあとの編集");
-    });
-
-    it("pull updates text fields but preserves existing local asset blobs", async () => {
-      const localBgm = new Blob(["local"], { type: "audio/mpeg" });
-      await repo.saveQuiz(makeQuiz({ title: "Old title", bgm: localBgm as any }));
-
-      const [metaTarget] = await repo.listSyncTargets();
-      await metaTarget.pull(
-        {
-          data: [
-            {
-              id: "q1",
-              title: "New title",
-              question: "Updated?",
-              options: [{ no: 1, text: "A", color: "red", image: "drive:q1::bgm" }],
-              correctNo: 1,
-              timeLimit: 45,
-              bgm: "drive:q1::bgm",
-            },
-          ],
-          updatedAt: Date.now() + 60_000,
-        },
-        await metaTarget.getLocal()
-      );
-
-      const updated = await repo.getQuizById("q1");
-      expect(updated!.title).toBe("New title");
-      expect(updated!.timeLimit).toBe(45);
-      // Note: LocalStorageService round-trips through localforage, which under
-      // jsdom cannot preserve a real Blob's identity/content, so this only
-      // asserts pull() didn't null out the field (the actual guarantee under
-      // test) rather than comparing Blob content byte-for-byte.
-      expect(updated!.bgm).not.toBeNull();
-    });
+  it("保存したクイズを読み戻せ、同じ id は置き換わる", async () => {
+    await repo.saveQuiz(makeQuiz({ title: "A" }));
+    await repo.saveQuiz(makeQuiz({ title: "B" }));
+    await repo.saveQuiz(makeQuiz({ id: "q2" }));
+    expect((await repo.getAllQuizzes()).map((q) => q.title)).toEqual(["B", "Quiz 1"]);
+    expect((await repo.getQuizById("q1"))!.title).toBe("B");
+    expect(await repo.getQuizById("nope")).toBeNull();
   });
 
-  describe("quiz-asset targets", () => {
-    it("enumerates one target per local asset slot", async () => {
-      await repo.saveQuiz(
-        makeQuiz({
-          bgm: new Blob(["bgm"]) as any,
-          options: [{ no: 1, text: "A", color: "red", image: new Blob(["img"]) as any }],
-        })
-      );
+  it("画像はハッシュで参照され、同期でサーバーにファイルが上がる(一覧より先)", async () => {
+    await repo.saveQuiz(makeQuiz({ options: [{ no: 1, text: "A", color: "red", image: img("one") }], bgm: img("bgm") as any }));
+    expect((await sync(repo)).map((r) => r.result)).toEqual(["pushed"]);
+    expect(await server.blobCount()).toBe(2);
+    const { json } = await server.api.getRecord();
+    const data = JSON.parse(json!).data;
+    expect(data[0].options[0].image).toMatch(/^[0-9a-f]{32}$/);
+  });
 
-      const targets = await repo.listSyncTargets();
-      const assetTargets = targets.filter((t) => t.kind === "quiz-asset");
-      const ids = assetTargets.map((t) => t.id).sort();
-      expect(ids).toEqual(["q1::bgm", "q1::option::0"]);
-    });
+  it("削除 → 同期で、サーバーの一覧からもファイルからも消え、再同期しても戻らない", async () => {
+    for (const id of ["a", "b", "c"]) {
+      await repo.saveQuiz(makeQuiz({ id, options: [{ no: 1, text: id, color: "red", image: img(`img-${id}`) }] }));
+    }
+    await sync(repo);
+    expect(await server.blobCount()).toBe(3);
 
-    it("pushes a new slot via addDriveData using a stable slot id (not a randomly generated one)", async () => {
-      await repo.saveQuiz(makeQuiz({ bgm: new Blob(["bgm"]) as any }));
+    // 同期を待たずに続けて全部消す
+    for (const id of ["a", "b", "c"]) await repo.deleteQuiz(id);
+    await sync(repo);
 
-      const targets = await repo.listSyncTargets();
-      const bgmTarget = targets.find((t) => t.id === "q1::bgm")!;
-      // Pushed directly with a freshly-constructed Blob rather than one read
-      // back via getLocal(): LocalStorageService's localforage round-trip
-      // cannot preserve a real Blob under jsdom, so getLocal()'s returned
-      // "blob" here isn't usable with FileReader. push()'s own behavior
-      // (stable id, add-vs-update branching) doesn't depend on where the
-      // blob came from, so this still exercises the real code path.
-      await bgmTarget.push({ data: new Blob(["bgm"], { type: "audio/mpeg" }), updatedAt: 0 });
+    expect(await repo.getAllQuizzes()).toEqual([]);
+    expect(JSON.parse((await server.api.getRecord()).json!).data).toEqual([]);
+    expect(await server.blobCount()).toBe(0);
+    await sync(repo);
+    expect(await repo.getAllQuizzes()).toEqual([]);
+  });
 
-      expect(fakeApi.addDriveData).toHaveBeenCalledOnce();
-      const driveData = fakeApi.addDriveData.mock.calls[0][0].driveData;
-      expect(driveData.metadata.driveDataId).toBe("q1::bgm");
-    });
+  it("別の端末は、一覧を受け取ってクイズとファイルを取り込む。削除も次の同期で反映される", async () => {
+    await repo.saveQuiz(makeQuiz({ id: "x", options: [{ no: 1, text: "A", color: "red", image: img("pic") }] }));
+    await sync(repo);
 
-    it("pushes to an existing slot via updateDriveData (not addDriveData) when a remote counterpart already exists", async () => {
-      fakeApi.getDriveMetaData.mockResolvedValue([
-        {
-          driveDataId: "q1::bgm",
-          fileId: "file-bgm",
-          parentFolderId: "",
-          lastUpdate: new Date(0).toISOString(),
-        },
-      ]);
-      await repo.saveQuiz(makeQuiz({ bgm: new Blob(["bgm"]) as any }));
+    await clearLocal();
+    const other = new QuizRepository(server.api as any);
+    expect((await sync(other)).map((r) => r.result)).toEqual(["pulled"]);
+    const pulled = await other.getQuizById("x");
+    expect(pulled!.options[0].image).not.toBeNull();
 
-      const targets = await repo.listSyncTargets();
-      const bgmTarget = targets.find((t) => t.id === "q1::bgm")!;
-      await bgmTarget.push({ data: new Blob(["bgm"], { type: "audio/mpeg" }), updatedAt: 0 });
+    await other.deleteQuiz("x");
+    await sync(other);
+    await clearLocal();
+    const third = new QuizRepository(server.api as any);
+    await sync(third);
+    expect(await third.getAllQuizzes()).toEqual([]);
+    expect(await server.blobCount()).toBe(0);
+  });
 
-      expect(fakeApi.updateDriveData).toHaveBeenCalledOnce();
-      expect(fakeApi.addDriveData).not.toHaveBeenCalled();
-    });
+  it("サーバーにファイルだけが残っていても、クイズは作られない(ファイルから項目を作る道筋が無い)", async () => {
+    await server.api.putBlob({ hash: "d".repeat(32), dataUrl: "data:image/png;base64,QUJD" });
+    await sync(repo);
+    expect(await repo.getAllQuizzes()).toEqual([]);
+  });
 
-    it("pull writes the fetched blob back into the quiz's local record, creating a stub quiz if needed", async () => {
-      fakeApi.getDriveMetaData.mockResolvedValue([
-        {
-          driveDataId: "q2::prizeImage",
-          fileId: "file-prize",
-          parentFolderId: "",
-          lastUpdate: new Date().toISOString(),
-        },
-      ]);
-      fakeApi.getDriveData.mockResolvedValue({
-        fileDataUrl: "data:image/png;base64,aGVsbG8=",
-        fileKind: "image/png",
-      });
+  it("最後の1件を消して空にした一覧も、データなしとは区別されて同期される", async () => {
+    await repo.saveQuiz(makeQuiz());
+    await sync(repo);
+    await repo.deleteQuiz("q1");
+    expect((await sync(repo)).map((r) => r.result)).toEqual(["pushed"]);
+    expect(JSON.parse((await server.api.getRecord()).json!).data).toEqual([]);
+  });
 
-      const targets = await repo.listSyncTargets();
-      const target = targets.find((t) => t.id === "q2::prizeImage")!;
-      const remote = await target.getRemote();
-      expect(remote).not.toBeNull();
-      await target.pull(remote!, null);
-
-      const quiz = await repo.getQuizById("q2");
-      expect(quiz).not.toBeNull();
-      // See note above: LocalStorageService can't round-trip a real Blob
-      // under jsdom, so this only asserts the slot was populated (not left
-      // null), not exact Blob identity/content.
-      expect(quiz!.settings?.prizeImage).not.toBeNull();
-    });
+  it("以前の形式のデータは使わずに消す", async () => {
+    await new LocalStorageService("quiz-game", "QuizData").save("old", { id: "old", title: "古い" });
+    expect(await repo.getAllQuizzes()).toEqual([]);
+    expect((await new LocalStorageService("quiz-game", "QuizData").getAll()).size).toBe(0);
   });
 });
