@@ -13,6 +13,7 @@ vi.mock("../../../../control/auth/auth-session", () => ({
 }));
 
 import SessionHostView from "../session-host-view.vue";
+import { AudioServiceToken } from "../../../../control/media/audio";
 import { makeDevice, makeRouter, registerHostAgent, setupSessionEnv, settle } from "./session-test-kit";
 import type { SessionEnv } from "./session-test-kit";
 
@@ -38,6 +39,45 @@ async function mountHost(sessionId: string) {
 }
 
 describe("session-host-view", () => {
+  /** 自動再生の制限を真似た音の部品。 */
+  function fakeAudio(initial: "suspended" | "running") {
+    let state = initial;
+    /** 利用者の操作の中でだけ解除できる(操作が無いと、ブラウザは resume を認めない)。 */
+    let gesture = false;
+    const listeners = new Set<() => void>();
+    const audio = {
+      get state() { return state; },
+      unlock: vi.fn(async () => { if (!gesture) return; state = "running"; listeners.forEach((l) => l()); }),
+      allowGesture: () => { gesture = true; },
+      onStateChange: (l: () => void) => { listeners.add(l); return () => listeners.delete(l); },
+    };
+    container.register(AudioServiceToken, { useValue: audio });
+    return audio;
+  }
+
+  it("音の制限(suspended)が残っている間だけ、クリックを促す案内を出し、クリックで解除して消す", async () => {
+    const meta = await env.repo.create({ name: "音" });
+    registerHostAgent(env);
+    const audio = fakeAudio("suspended");
+    const { wrapper } = await mountHost(meta.id);
+    expect(wrapper.find('[data-testid="host-audio-hint"]').text()).toContain("クリック");
+    audio.allowGesture();
+    await wrapper.find(".host-view").trigger("pointerdown");
+    await settle();
+    expect(audio.unlock).toHaveBeenCalled();
+    expect(wrapper.find('[data-testid="host-audio-hint"]').exists()).toBe(false);
+  });
+
+  it("音が出せる状態(running)なら、案内は出さず、解除もしない", async () => {
+    const meta = await env.repo.create({ name: "音" });
+    registerHostAgent(env);
+    const audio = fakeAudio("running");
+    const { wrapper } = await mountHost(meta.id);
+    await wrapper.find(".host-view").trigger("pointerdown");
+    expect(wrapper.find('[data-testid="host-audio-hint"]').exists()).toBe(false);
+    expect(audio.unlock).not.toHaveBeenCalled();
+  });
+
   it("ホストとして入室し、セッション名・参加者の人数・ログインの案内を表示する(参加コードやQRは出さない)", async () => {
     const meta = await env.repo.create({ name: "夏祭り" });
     const { agent } = registerHostAgent(env);
