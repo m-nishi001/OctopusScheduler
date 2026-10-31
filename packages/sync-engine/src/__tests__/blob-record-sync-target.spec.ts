@@ -172,6 +172,8 @@ describe("parseBlobRecord", () => {
   });
 
   it("purgeOtherRows は、一覧のレコード以外の行(以前の形式)だけを消す", async () => {
+    await new LocalStorageService("test-db", "Blob").clear();
+    const store = new BlobRecordStore<string[]>("test-db", "Blob");
     await store.update(() => ["A"]);
     const legacy = new LocalStorageService("test-db", "Blob");
     await legacy.save("old-1", { id: "old-1" });
