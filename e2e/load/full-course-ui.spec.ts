@@ -236,9 +236,13 @@ test("実ブラウザ(ホスト・管理・参加者3)+ 合成の参加者47・�
       } else if (/景品抽選/.test(now) && winnerId && !realIds.includes(winnerId)) {
         // 合成の当選者が自分で止めるのを少し待つ。止まらなければ管理端末の「次へ」で進める
         await admin.page.waitForTimeout(2_500);
+        // 主ボタンが押せるようになる = ホストの進行が止まった。その後に終了の画面を確かめる
+        // (演出中に確かめて押せるのを待つと、終了の画面が出たあとの「結果へ」を押して閉じてしまう)
+        await expect(nextButton(admin.page)).toBeEnabled({ timeout: 60_000 });
         if (!(await host.page.getByTestId("end-dialog").isVisible().catch(() => false))) await nextButton(admin.page).click();
       } else {
-        await nextButton(admin.page).click();
+        await expect(nextButton(admin.page)).toBeEnabled({ timeout: 60_000 });
+        if (!(await host.page.getByTestId("end-dialog").isVisible().catch(() => false))) await nextButton(admin.page).click();
       }
       await admin.page.waitForTimeout(1_500);
     }

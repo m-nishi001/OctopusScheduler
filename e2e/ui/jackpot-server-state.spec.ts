@@ -94,11 +94,17 @@ const consoleText = async (admin: Page) =>
   [await admin.getByTestId("now").innerText(), await admin.getByTestId("jackpot-state").innerText(), await admin.getByTestId("next-hint").innerText().catch(() => "")].join("|");
 
 /**
- * 条件を満たすまで、管理端末の「次へ」で進める。1回押したら画面が変わるのを待つ(通信が遅い環境で、
- * 届く前に押し重ねて、画面が見える前に先へ進めすぎないため)。変わらなければ(押したコマンドが届かなかったとき)押し直す。
+ * 条件を満たすまで、管理端末の「次へ」で進める。
+ * 条件は、ホストの進行が止まって次の操作を待っている間(= 主ボタンが押せる間)に確かめる。「次へ」を押すと主ボタンは
+ * すぐ「演出中…」(押せない)になるが、ホストはその間も進行中で、最後の抽選のあとは少し遅れて終了の画面が出る。
+ * 表示が変わっただけで条件を確かめると、終了の画面が出る前に false と判断し、押せるようになった「結果へ」を押して
+ * 終了の画面を閉じてしまう。そのため、押せるようになるのを待ってから確かめる。
+ * 1回押したら画面が変わるのを待つ(通信が遅い環境で、届く前に押し重ねて先へ進めすぎないため)。
+ * 変わらなければ(押したコマンドが届かなかったとき)押し直す。
  */
 async function stepUntil(admin: Page, done: () => Promise<boolean>, what: string, maxSteps = 120): Promise<void> {
   for (let i = 0; i < maxSteps; i++) {
+    await expect(nextButton(admin)).toBeEnabled({ timeout: 60_000 });
     if (await done()) return;
     const before = await consoleText(admin);
     await nextButton(admin).click();
