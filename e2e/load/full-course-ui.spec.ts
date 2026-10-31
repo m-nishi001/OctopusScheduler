@@ -66,7 +66,7 @@ test("実ブラウザ(ホスト・管理・参加者3)+ 合成の参加者47・�
     watchResponses(admin, "admin");
     const { id: sessionId } = await createSession(admin.page, "負荷会場");
     sessionIds.push(sessionId);
-    await seedRecord(admin.page, "quiz-game", "QuizList", QUIZ_IDS.map((id) => ({ ...sampleQuiz(id, 30), title: `負荷クイズ ${id}` })));
+    await seedRecord(admin.page, "quiz-game", "QuizData", QUIZ_IDS.map((id) => ({ ...sampleQuiz(id, 30), title: `負荷クイズ ${id}` })));
     await admin.page.reload();
     const host = await newDevice(browser, { signedIn: true, projector: true });
     devices.push(host);
@@ -74,7 +74,7 @@ test("実ブラウザ(ホスト・管理・参加者3)+ 合成の参加者47・�
     host.page.on("dialog", (d) => void d.dismiss());
     await host.page.goto(`/#/session/host/${sessionId}`);
     await expect(host.page.locator(".host-view__title")).toContainText("負荷会場");
-    await seedRecord(host.page, "quiz-game", "QuizList", QUIZ_IDS.map((id) => ({ ...sampleQuiz(id, 30), title: `負荷クイズ ${id}` })));
+    await seedRecord(host.page, "quiz-game", "QuizData", QUIZ_IDS.map((id) => ({ ...sampleQuiz(id, 30), title: `負荷クイズ ${id}` })));
     await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
     await publishPortal(request, sessionId);
 

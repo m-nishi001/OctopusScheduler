@@ -45,9 +45,8 @@ function makeQuiz(overrides: Partial<ConstructorParameters<typeof Quiz>[0]> = {}
 const img = (text: string) => new Blob([text], { type: "image/png" });
 
 async function clearLocal() {
-  for (const store of ["QuizList", "QuizBlobs", "QuizData", "QuizMetaStamp"]) {
-    await new LocalStorageService("quiz-game", store).clear();
-  }
+  await new LocalStorageService("quiz-game", "QuizData").clear();
+  await new LocalStorageService("quiz-game-blobs", "Blobs").clear();
 }
 
 const runner = new SyncRunner(new FixedConcurrencyPolicy(5));
@@ -139,6 +138,6 @@ describe("QuizRepository", () => {
   it("以前の形式のデータは使わずに消す", async () => {
     await new LocalStorageService("quiz-game", "QuizData").save("old", { id: "old", title: "古い" });
     expect(await repo.getAllQuizzes()).toEqual([]);
-    expect((await new LocalStorageService("quiz-game", "QuizData").getAll()).size).toBe(0);
+    expect([...(await new LocalStorageService("quiz-game", "QuizData").getAll()).keys()]).toEqual([]);
   });
 });

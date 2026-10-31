@@ -1,5 +1,4 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
-import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { inject, injectable } from "tsyringe";
 import {
@@ -18,32 +17,27 @@ import { dataUrlToBlob } from "./blob-utils";
 import { Quiz } from "./quiz";
 
 const RECORD_SYNC_KIND = "quizzes";
-/** 以前の保存形式(クイズ1件ずつの行・更新日時の記録)。移行はせず、使わずに消す。 */
-const LEGACY_STORES = ["QuizData", "QuizMetaStamp"] as const;
 
 /**
  * クイズの保存先。正となるのは、この端末(IndexedDB)の「クイズの一覧1件」(`{ data, updatedAt }`)だけ。
  * 画像・音声は内容のハッシュで一覧から参照する、中身の変わらないファイル(別の置き場)。
  * 削除は一覧から外すだけで、サーバーが一覧を書くときに、外れたハッシュのファイルを消す。
  * 一覧が正なので、ファイルだけがあってクイズが無い、という状態は作れない。
+ * 一覧は以前のクイズの行と同じ保存先(`QuizData`)に、ファイルは別のデータベースに置く(既存のデータベースにストアを足さない)。
  */
 @injectable()
 export class QuizRepository {
-  private readonly list = new BlobRecordStore<QuizRecordEntry[]>("quiz-game", "QuizList");
-  private readonly blobs = new HashedBlobStore("quiz-game", "QuizBlobs");
+  private readonly list = new BlobRecordStore<QuizRecordEntry[]>("quiz-game", "QuizData");
+  private readonly blobs = new HashedBlobStore("quiz-game-blobs", "Blobs");
   private legacyCleared: Promise<void> | null = null;
 
   constructor(
     @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi
   ) {}
 
-  /** 以前の形式のデータを(初回だけ)消す。 */
+  /** 以前の形式(クイズ1件ずつの行)のデータを、(初回だけ)使わずに消す。移行はしない。 */
   private clearLegacy(): Promise<void> {
-    this.legacyCleared ??= Promise.all(
-      LEGACY_STORES.map((store) => new LocalStorageService("quiz-game", store).clear())
-    )
-      .then(() => undefined)
-      .catch((e) => console.warn("[QuizRepository] failed to clear legacy stores", e));
+    this.legacyCleared ??= this.list.purgeOtherRows().catch((e) => console.warn("[QuizRepository] failed to clear legacy rows", e));
     return this.legacyCleared;
   }
 

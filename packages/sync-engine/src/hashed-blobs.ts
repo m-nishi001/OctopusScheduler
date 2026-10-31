@@ -51,10 +51,16 @@ export interface HashedBlobLocal {
 
 /** この端末(IndexedDB)の、ハッシュをキーにしたファイル置き場。 */
 export class HashedBlobStore implements HashedBlobLocal {
-  private readonly storage: LocalStorageService;
+  private opened: LocalStorageService | null = null;
 
-  constructor(dbName: string, storeName: string) {
-    this.storage = new LocalStorageService(dbName, storeName);
+  /** 最初に使うときまで、データベースを開かない(localforage は作った時点でデータベースを開き始めるので、ファイルを使わない画面では何も開かない)。 */
+  constructor(
+    private readonly dbName: string,
+    private readonly storeName: string
+  ) {}
+
+  private get storage(): LocalStorageService {
+    return (this.opened ??= new LocalStorageService(this.dbName, this.storeName));
   }
 
   async has(hash: string): Promise<boolean> {

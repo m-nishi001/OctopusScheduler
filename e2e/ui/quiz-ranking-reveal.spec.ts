@@ -34,7 +34,7 @@ test.afterAll(async ({ request }) => {
   for (const id of ids) await adminRpc(request, "accounts_deleteMember", { id });
 });
 
-const seedQuiz = (page: Page, id: string, timeLimit = 60) => seedRecord(page, "quiz-game", "QuizList", [sampleQuiz(id, timeLimit)]);
+const seedQuiz = (page: Page, id: string, timeLimit = 60) => seedRecord(page, "quiz-game", "QuizData", [sampleQuiz(id, timeLimit)]);
 
 async function login(browser: import("@playwright/test").Browser, id: string) {
   const d = await newDevice(browser, { mobile: true });

@@ -8,10 +8,6 @@ import { LocalStorageService } from "@octopus/client-common/storage/local-storag
 
 function createMockJackpotApi() {
   return {
-    addDriveData: vi.fn(),
-    getDriveMetaData: vi.fn(),
-    getDriveData: vi.fn(),
-    updateDriveData: vi.fn(),
     addJson: vi.fn(async (_blob: { fileName: string; json: string }) => undefined),
     getJson: vi.fn(async (_fileName: string): Promise<{ json: string | null }> => ({ json: null })),
   };

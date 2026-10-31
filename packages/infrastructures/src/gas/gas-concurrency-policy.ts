@@ -19,7 +19,6 @@ export class GasConcurrencyPolicy implements IConcurrencyPolicy {
   maxConcurrency(kind: string): number {
     switch (kind) {
       case "asset":
-      case "quiz-asset":
         return ASSET_LIKE_CONCURRENCY;
       default:
         return DEFAULT_CONCURRENCY;
