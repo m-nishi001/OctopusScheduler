@@ -57,7 +57,7 @@ GAS 向けのバンドル（`dist/gas/server.js`）を、実機に近い条件�
 
 実機の挙動と完全には一致しません（実際の同時実行の上限、Drive の遅延のばらつきなど）。実デプロイでの最終確認は別に必要です。
 
-CI（`.github/workflows/ci.yml`）は lint / typecheck / test(＋カバレッジの下限。`npm run test:coverage` が全パッケージのテストを1回で流す) / build を並列に流し、build の成果物（dist）を使う check-dist(verify) と e2e がそのあとに続きます。e2e のシャードは spec の所要時間（`e2e/shard-weights.json`、`scripts/e2e-shards.js`）で均等に分けます。新しく重い spec を足したら、重みも足してください（載っていない spec は既定の重みで割り振られます）。E2E が失敗したときは、スクリーンショットとトレースが成果物として残ります。
+CI（`.github/workflows/ci.yml`）は lint / typecheck / test(＋カバレッジの下限。`npm run test:coverage` が全パッケージのテストを1回で流す) / build を並列に流し、build の成果物（dist）を使う check-dist(verify) と e2e がそのあとに続きます。e2e のシャードは spec の所要時間（`e2e/shard-weights.json`、`scripts/e2e-shards.js`）で均等に分けます。新しく重い spec を足したら、重みも足してください（載っていない spec は既定の重みで割り振られます）。重みが古くなって特定のシャードだけ遅くなったら、直近の緑の CI の e2e ジョブのログ（`gh api --allow-escape-sequences repos/<owner>/<repo>/actions/jobs/<job id>/logs`）を何本か集めて `node scripts/e2e-weights-from-logs.js <ログ>... > /tmp/w.json` で測り直し、`e2e/shard-weights.json` に反映します。E2E が失敗したときは、スクリーンショットとトレースが成果物として残ります。
 
 ### カバレッジの下限
 
