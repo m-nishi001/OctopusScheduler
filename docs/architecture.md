@@ -47,7 +47,7 @@ packages/
 
 | もの | 置き場 |
 | --- | --- |
-| 予定イベント（音楽・コンテンツ・スライドショー・画面遷移） | 保存形 `AppEventData`（`model/app-event/`）がそのまま実行時の型。種類ごとの違いは `control/app-event/app-event.ts` の表（実行 `RUNNERS`・新規の初期値 `EMPTY_FIELDS`）だけにある。編集は共通の `ScheduledEventDialog` と、種類ごとのフォーム `ui/pages/settings/app-events/events/*-form.vue`（ショートカットの編集と共通） |
+| 予定イベント（音楽・コンテンツ・スライドショー・画面遷移） | 保存形 `AppEventData`（`model/app-event/`）がそのまま実行時の型。種類ごとの違いは `control/app-event/app-event.ts` の表（実行 `RUNNERS`・新規の初期値 `EMPTY_FIELDS`）だけにある。編集は共通の `ScheduledEventDialog` と、種類ごとのフォーム `ui/pages/settings/app-events/events/*-form.vue` |
 | エンドポイントの成功・失敗の変換 | `respond()`（`infrastructures/interfaces`）。各 `endpoints.ts` はこれで本体を包む |
 | 複数のパッケージで使う小さな部品 | `client-common`（`blobToDataUrl`・`{{asset:…}}` の解析 `assets/asset-placeholder.ts`・日時）、`ui-kit`（`lockScroll` など） |
 | セッション基盤の中核 | `session-hub/src/server/engine/`（`engine-core` / `engine-join` / `engine-feed` / `engine-commands` / `engine-rounds`。外からは `session-engine.ts` 経由）と、`server/room/`（`room-core`・`room-repo`・`room-types`）。詳しくは [session-hub.md](session-hub.md) |
@@ -65,7 +65,7 @@ packages/
 
 端末（IndexedDB）とサーバー（Drive / R2）の間を、バックグラウンドで「新しいほうが勝つ」で揃えます。
 
-- **一覧は、種類(kind)ごとに `{ data, updatedAt }` のレコードを1件**持ちます（画面設定・賞品・メンバー設定・クイズ一覧・ショートカット）。データと最終更新日時は一緒に1回で書き、更新日時は `max(いま, 前の更新日時 + 1)` です（端末の時計がずれても、自分の編集が負けない）。レコードが無いことと、空の一覧 `[]` は区別されるので、全件削除も同期されます。
+- **一覧は、種類(kind)ごとに `{ data, updatedAt }` のレコードを1件**持ちます（画面設定・賞品・メンバー設定・クイズ一覧）。データと最終更新日時は一緒に1回で書き、更新日時は `max(いま, 前の更新日時 + 1)` です（端末の時計がずれても、自分の編集が負けない）。レコードが無いことと、空の一覧 `[]` は区別されるので、全件削除も同期されます。
 - **サーバーにも同じ `{ updatedAt, data }` を、テキストのまま保存**します（`<module>/json/<名前>.json`）。サーバーは中身を見ず、サーバーの時刻も使いません。
 - **push は保存して終わり**で、端末へ書き戻しません。送信の最中に編集しても、端末のほうが新しいままなので、次の同期で送られます。
 - **pull は、判定のときからローカルの更新日時が変わっていなければ、サーバーのレコードをそのまま1回書く**だけです。書く直前にもう一度読み、変わっていたら書かずに戻ります（その編集は次の同期で送られます）。

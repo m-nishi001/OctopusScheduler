@@ -1,68 +1,10 @@
 <template>
     <div class="execute-screen">
-        <!-- execute tab now only responds to AppEventDto messages (actionType/eventId) -->
         <div class="execute-content">
             <router-view />
         </div>
     </div>
 </template>
-
-<script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
-import { container } from 'tsyringe';
-import { AppEventService } from '../../../control/app-event/app-event-service';
-import { executeAppEvent } from '../../../control/app-event/app-event';
-import { eventBus } from '@octopus/client-common/events/event-bus';
-
-
-const channel = new BroadcastChannel('octopus-control');
-
-const handleMessage = async (event: MessageEvent) => {
-    const data = event.data || {};
-
-    // If message follows AppEventDto shape: { actionType, eventId }
-    if (data && typeof data.actionType === 'string') {
-        // Global stopAll command from other tabs/windows -> stop local audio
-        if (data.actionType === 'stopAll') {
-            try {
-                eventBus.emit('stopAudio');
-            } catch {
-                // ignore
-            }
-            return;
-        }
-        const actionType = data.actionType;
-        const eventId = data.eventId || (data.payload && data.payload.eventId);
-
-        if (eventId) {
-            try {
-                const service = container.resolve(AppEventService);
-                const ev = await service.getEventById(String(eventId));
-                if (ev) {
-                    if (actionType === 'start' || actionType === 'trigger') {
-                        await executeAppEvent(ev, true, true);
-                    } else if (actionType === 'stop') {
-                        await executeAppEvent(ev, false, true);
-                    }
-                    return;
-                }
-            } catch (e) {
-                console.error('Failed to resolve or execute app event', e);
-            }
-        }
-    }
-    // ignore other legacy message shapes
-};
-
-onMounted(() => {
-    channel.addEventListener('message', handleMessage as any);
-});
-
-onUnmounted(() => {
-    channel.removeEventListener('message', handleMessage as any);
-    channel.close();
-});
-</script>
 
 <style scoped>
 .execute-screen {

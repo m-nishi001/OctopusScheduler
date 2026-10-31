@@ -1,7 +1,7 @@
 <template>
     <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError" :sync-log="log" :sync-kind-labels="SYNC_KIND_LABELS"
         @backup="onDownloadBackup" @home="router.push({ name: 'home' })">
-        <UiButton icon="external" size="sm" title="投影用の実行画面を新しいタブで開きます。ショートカットの結果はここに表示されます" @click="openExecute">実行画面を開く</UiButton>
+        <UiButton icon="external" size="sm" title="投影用の実行画面を新しいタブで開きます" @click="openExecute">実行画面を開く</UiButton>
         <UiButton icon="help" size="sm" @click="helpOpen = true">ヘルプ</UiButton>
         <UiButton v-if="isSignedIn" size="sm" @click="onSignOut">ログアウト</UiButton>
     </HeaderActions>

@@ -6,9 +6,6 @@ export const eventBus = mitt<{
   stopAudio: { audioId?: string; fadeOutDuration?: number } | undefined;
   showContent: {
     contentType: "image" | "movie" | "html";
-    // If true, the content was triggered manually (via keyboard shortcut)
-    // and should remain visible until hideContent is emitted.
-    manual?: boolean;
     contentId?: string;
     htmlString?: string;
     eventId?: string;

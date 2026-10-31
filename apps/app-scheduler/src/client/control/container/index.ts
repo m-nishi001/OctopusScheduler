@@ -18,8 +18,6 @@ import { AssetRepository } from "../../model/asset/asset-repository";
 import { container, instanceCachingFactory } from "tsyringe";
 import { AppEventService } from "../app-event/app-event-service";
 import { AssetService } from "../asset/asset-service";
-import { KeyboardShortcutRepository } from "@model/keyboard-shortcut/keyboard-shortcut-repository";
-import { KeyboardShortcutService } from "../keyboard-shortcut/keyboard-shortcut-service";
 import { SyncService } from "../sync/sync-service";
 
 /** アプリの依存の登録。ビルド対象(GAS / Cloudflare)ごとの API クライアントなど、環境で変わるものをここで結ぶ。 */
@@ -50,12 +48,6 @@ export class Container {
 
     container.register(AssetService, { useClass: AssetService });
     container.register(AppEventService, { useClass: AppEventService });
-    container.register(KeyboardShortcutRepository, {
-      useClass: KeyboardShortcutRepository,
-    });
-    container.register(KeyboardShortcutService, {
-      useClass: KeyboardShortcutService,
-    });
     container.register(SyncRunner, { useClass: SyncRunner });
     container.register(SyncService, { useClass: SyncService });
   }

@@ -14,8 +14,8 @@ type EventOf<T extends AppEventType> = Extract<AppEvent, { type: T }>;
 /** 予定の時刻と記録用の日時(種類によらず共通のフィールド)。 */
 export type AppEventTiming = Pick<AppEvent, "id" | "startTime" | "endTime" | "processedAt" | "registeredAt" | "updatedAt">;
 
-/** 種類ごとの実行。`isStart` は開始(true)か終了(false)か、`manual` は手動操作(コンテンツ表示は、終了の操作があるまで出したままにする)。 */
-const RUNNERS: { [T in AppEventType]: (ev: EventOf<T>, isStart: boolean, manual: boolean) => void } = {
+/** 種類ごとの実行。`isStart` は開始(true)か終了(false)か。 */
+const RUNNERS: { [T in AppEventType]: (ev: EventOf<T>, isStart: boolean) => void } = {
   PlayAudioEvent: (ev, isStart) => {
     if (isStart) eventBus.emit("playAudio", { audioId: ev.audioId });
     else eventBus.emit("stopAudio");
@@ -23,7 +23,7 @@ const RUNNERS: { [T in AppEventType]: (ev: EventOf<T>, isStart: boolean, manual:
   StopAudioEvent: (ev, isStart) => {
     if (isStart) eventBus.emit("stopAudio", { audioId: ev.audioId, fadeOutDuration: ev.fadeOutDuration });
   },
-  ShowContentEvent: (ev, isStart, manual) => {
+  ShowContentEvent: (ev, isStart) => {
     if (isStart) {
       eventBus.emit("showContent", {
         eventId: ev.id,
@@ -36,7 +36,6 @@ const RUNNERS: { [T in AppEventType]: (ev: EventOf<T>, isStart: boolean, manual:
         fadeInTime: ev.fadeInTime,
         fadeOutTime: ev.fadeOutTime,
         scrollDirection: ev.scrollDirection,
-        manual,
       });
     } else {
       eventBus.emit("hideContent", { contentType: ev.contentType });
@@ -63,10 +62,9 @@ const RUNNERS: { [T in AppEventType]: (ev: EventOf<T>, isStart: boolean, manual:
 /**
  * 予定イベントを実行する。
  * @param isStart 開始(true)か終了(false)か
- * @param manual 手動操作か(コンテンツ表示だけが使う。true なら終了の操作があるまで出したままにする)
  */
-export async function executeAppEvent(ev: AppEvent, isStart: boolean, manual = false): Promise<void> {
-  (RUNNERS[ev.type] as (ev: AppEvent, isStart: boolean, manual: boolean) => void)(ev, isStart, manual);
+export async function executeAppEvent(ev: AppEvent, isStart: boolean): Promise<void> {
+  (RUNNERS[ev.type] as (ev: AppEvent, isStart: boolean) => void)(ev, isStart);
 }
 
 /** 新規作成フォームの初期値(種類ごとの固有フィールド)。 */
@@ -119,23 +117,14 @@ export function reviveAppEvent(raw: AppEventData): AppEvent {
 }
 
 /**
- * フォーム/ショートカットの DTO から、保存・実行できるイベントを作る。
- * `timing` を省略すると「今すぐ実行する1秒のイベント」になる(ショートカットなど、予定せず直接実行する用)。
+ * フォームの DTO から、保存・実行できるイベントを作る。
  */
-export function appEventFromDto(dto: AppEventDto, timing?: AppEventTiming): AppEvent {
-  const { actionType, id, ...fields } = dto;
-  const now = new Date();
+export function appEventFromDto(dto: AppEventDto, timing: AppEventTiming): AppEvent {
+  const { actionType, id: _id, ...fields } = dto;
   const ev = {
     ...fields,
     type: actionType,
-    ...(timing ?? {
-      id: id ?? "",
-      startTime: now,
-      endTime: new Date(now.getTime() + 1000),
-      processedAt: null,
-      registeredAt: now,
-      updatedAt: now,
-    }),
+    ...timing,
   } as AppEvent;
   if (ev.type === "SlideshowEvent") {
     ev.transitionType ??= "fade";
@@ -144,7 +133,7 @@ export function appEventFromDto(dto: AppEventDto, timing?: AppEventTiming): AppE
   return ev;
 }
 
-/** イベントを、編集フォーム/ショートカットが扱う DTO(時刻と記録用の日時を除いた形)にする。 */
+/** イベントを、編集フォームが扱う DTO(時刻と記録用の日時を除いた形)にする。 */
 export function appEventToDto(ev: AppEvent): AppEventDto {
   const { type, id, startTime: _s, endTime: _e, processedAt: _p, registeredAt: _r, updatedAt: _u, ...fields } = ev;
   return { actionType: type, id, ...fields } as AppEventDto;

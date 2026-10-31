@@ -47,6 +47,16 @@ const FULL_DTOS: { [T in AppEventType]: Extract<AppEventDto, { actionType: T }> 
   TransitionPageEvent: { actionType: "TransitionPageEvent", id: "e5", transitionUrl: "/p", fadeOutDuration: 1 },
 };
 
+const fromDto = (dto: Parameters<typeof appEventFromDto>[0]) =>
+  appEventFromDto(dto, {
+    id: dto.id ?? "",
+    startTime: new Date("2026-01-01T00:00:00Z"),
+    endTime: new Date("2026-01-01T00:00:01Z"),
+    processedAt: null,
+    registeredAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-01-01T00:00:00Z"),
+  });
+
 type BusName = "playAudio" | "stopAudio" | "showContent" | "hideContent" | "startSlideshow" | "stopSlideshow" | "transitionPage";
 
 const listen = (name: BusName) => {
@@ -63,7 +73,7 @@ describe("executeAppEvent", () => {
   it("音楽再生: 開始で再生、終了で全停止", async () => {
     const play = listen("playAudio");
     const stop = listen("stopAudio");
-    const ev = appEventFromDto(FULL_DTOS.PlayAudioEvent);
+    const ev = fromDto(FULL_DTOS.PlayAudioEvent);
     await executeAppEvent(ev, true);
     expect(play).toHaveBeenCalledWith({ audioId: "a1" });
     await executeAppEvent(ev, false);
@@ -73,21 +83,19 @@ describe("executeAppEvent", () => {
 
   it("音楽停止: 開始でだけ音声とフェードアウトを指定して止める。終了では何もしない", async () => {
     const stop = listen("stopAudio");
-    const ev = appEventFromDto(FULL_DTOS.StopAudioEvent);
+    const ev = fromDto(FULL_DTOS.StopAudioEvent);
     await executeAppEvent(ev, true);
     expect(stop).toHaveBeenCalledWith({ audioId: "a2", fadeOutDuration: 3 });
     await executeAppEvent(ev, false);
     expect(stop).toHaveBeenCalledOnce();
   });
 
-  it("コンテンツ表示: 開始で表示(手動かどうかを伝える)、終了で種類を指定して隠す", async () => {
+  it("コンテンツ表示: 開始で表示、終了で種類を指定して隠す", async () => {
     const show = listen("showContent");
     const hide = listen("hideContent");
-    const ev = appEventFromDto(FULL_DTOS.ShowContentEvent);
+    const ev = fromDto(FULL_DTOS.ShowContentEvent);
     await executeAppEvent(ev, true);
-    await executeAppEvent(ev, true, true);
-    expect(show.mock.calls[0][0]).toMatchObject({ eventId: "e3", contentType: "html", htmlString: "<p>hi</p>", duration: 4, manual: false });
-    expect(show.mock.calls[1][0]).toMatchObject({ manual: true });
+    expect(show.mock.calls[0][0]).toMatchObject({ eventId: "e3", contentType: "html", htmlString: "<p>hi</p>", duration: 4 });
     await executeAppEvent(ev, false);
     expect(hide).toHaveBeenCalledWith({ contentType: "html" });
   });
@@ -95,7 +103,7 @@ describe("executeAppEvent", () => {
   it("スライドショー: 開始で始め、終了で止める", async () => {
     const start = listen("startSlideshow");
     const stop = listen("stopSlideshow");
-    const ev = appEventFromDto(FULL_DTOS.SlideshowEvent);
+    const ev = fromDto(FULL_DTOS.SlideshowEvent);
     await executeAppEvent(ev, true);
     expect(start).toHaveBeenCalledWith({ folderId: "f1", displayDuration: 6, transitionType: "slide", slideDirection: "up", bgmIds: ["b1", "b2"] });
     await executeAppEvent(ev, false);
@@ -104,7 +112,7 @@ describe("executeAppEvent", () => {
 
   it("画面遷移: 開始でだけ遷移する", async () => {
     const go = listen("transitionPage");
-    const ev = appEventFromDto(FULL_DTOS.TransitionPageEvent);
+    const ev = fromDto(FULL_DTOS.TransitionPageEvent);
     await executeAppEvent(ev, true);
     expect(go).toHaveBeenCalledWith({ transitionUrl: "/p" });
     await executeAppEvent(ev, false);
@@ -131,14 +139,10 @@ describe("createEmptyAppEvent", () => {
 describe("DTO との変換", () => {
   it.each(TYPES)("%s: DTO → イベント → DTO で欠けない", (type) => {
     const dto = FULL_DTOS[type];
-    expect(appEventToDto(appEventFromDto(dto))).toEqual(dto);
+    expect(appEventToDto(fromDto(dto))).toEqual(dto);
   });
 
-  it("時刻を渡さなければ『今すぐ実行する1秒のイベント』、渡せばその時刻と記録を使う", () => {
-    const direct = appEventFromDto(FULL_DTOS.PlayAudioEvent);
-    expect(direct.endTime.getTime() - direct.startTime.getTime()).toBe(1000);
-    expect(direct.processedAt).toBeNull();
-
+  it("渡した時刻と記録をそのまま使う", () => {
     const timing = {
       id: "keep",
       startTime: new Date("2026-01-01T00:00:00Z"),
@@ -151,7 +155,7 @@ describe("DTO との変換", () => {
   });
 
   it("スライドショーの省略された値は既定で補う", () => {
-    const ev = appEventFromDto({ actionType: "SlideshowEvent", folderId: "f", displayDuration: 3 });
+    const ev = fromDto({ actionType: "SlideshowEvent", folderId: "f", displayDuration: 3 });
     expect(ev).toMatchObject({ transitionType: "fade", bgmIds: [] });
   });
 });

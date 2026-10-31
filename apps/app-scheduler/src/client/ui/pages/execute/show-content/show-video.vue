@@ -19,7 +19,6 @@ let objectUrl: string | null = null;
 const videoEl = ref<HTMLVideoElement | null>(null);
 
 const effect = ref(route.query.effect as string || 'fade');
-const manual = ref((route.query.manual as string) === 'true');
 const fadeInTime = ref(parseFloat(route.query.fadeInTime as string) || 1);
 
 const displayModeClass = computed(() => {
@@ -43,7 +42,6 @@ async function initDisplay() {
     videoUrl.value = '';
     // refresh reactive settings
     effect.value = route.query.effect as string || 'fade';
-    manual.value = (route.query.manual as string) === 'true';
     fadeInTime.value = parseFloat(route.query.fadeInTime as string) || 1;
 
     const id = route.params.id as string;
