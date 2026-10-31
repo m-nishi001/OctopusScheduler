@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import { describe, it, expect } from "vitest";
 import { FixedConcurrencyPolicy } from "@octopus/infrastructures/testing";
-import { SyncRunner } from "../sync-runner";
+import { SyncRunner, countResults } from "../sync-runner";
 import type { SyncTarget } from "../sync-target";
 
 function delay(ms: number): Promise<void> {
@@ -17,8 +17,8 @@ function makeTarget(
     kind: "test",
     getLocal: async () => ({ data: "local", updatedAt: 100 }),
     getRemote: async () => ({ data: "remote", updatedAt: 0 }),
-    push: async () => ({ updatedAt: Date.now() }),
-    pull: async () => ({ updatedAt: Date.now() }),
+    push: async () => undefined,
+    pull: async () => undefined,
     ...overrides,
   };
 }
@@ -28,9 +28,8 @@ describe("SyncRunner", () => {
     const pushCalls: string[] = [];
     const targets: SyncTarget[] = [
       makeTarget("newer-local", {
-        push: async (data) => {
-          pushCalls.push(data as string);
-          return { updatedAt: Date.now() };
+        push: async (snapshot) => {
+          pushCalls.push(snapshot.data as string);
         },
       }),
       makeTarget("in-sync", {
@@ -49,7 +48,9 @@ describe("SyncRunner", () => {
     const summary = await runner.run(targets);
 
     expect(pushCalls).toEqual(["local"]);
-    expect(summary).toEqual({ pushed: 1, pulled: 0, skipped: 1, failed: [] });
+    expect(summary.results).toHaveLength(2);
+    expect(summary.results).toContainEqual({ id: "newer-local", kind: "test", result: "pushed" });
+    expect(summary.results).toContainEqual({ id: "in-sync", kind: "test", result: "skipped" });
   });
 
   it("pulls when remote is newer", async () => {
@@ -58,9 +59,9 @@ describe("SyncRunner", () => {
       makeTarget("newer-remote", {
         getLocal: async () => ({ data: "local", updatedAt: 0 }),
         getRemote: async () => ({ data: "remote", updatedAt: 100 }),
-        pull: async (data) => {
-          pullCalls.push(data as string);
-          return { updatedAt: Date.now() };
+        pull: async (remote, local) => {
+          pullCalls.push(remote.data as string);
+          expect(local).toEqual({ data: "local", updatedAt: 0 });
         },
       }),
     ];
@@ -69,7 +70,7 @@ describe("SyncRunner", () => {
     const summary = await runner.run(targets);
 
     expect(pullCalls).toEqual(["remote"]);
-    expect(summary.pulled).toBe(1);
+    expect(countResults(summary, "pulled")).toBe(1);
   });
 
   it("never runs more than maxConcurrency targets of the same kind at once", async () => {
@@ -84,7 +85,6 @@ describe("SyncRunner", () => {
           maxObservedInFlight = Math.max(maxObservedInFlight, inFlight);
           await delay(10);
           inFlight--;
-          return { updatedAt: Date.now() };
         },
       })
     );
@@ -109,8 +109,8 @@ describe("SyncRunner", () => {
     const runner = new SyncRunner(new FixedConcurrencyPolicy(5));
     const summary = await runner.run(targets);
 
-    expect(summary.pushed).toBe(1);
-    expect(summary.failed).toEqual([{ id: "failing", error: "boom" }]);
+    expect(countResults(summary, "pushed")).toBe(1);
+    expect(summary.results).toContainEqual({ id: "failing", kind: "test", result: "failed", action: "push", error: "boom" });
   });
 
   it("runs different kinds concurrently, each honoring its own concurrency cap", async () => {
@@ -122,6 +122,39 @@ describe("SyncRunner", () => {
     const runner = new SyncRunner(new FixedConcurrencyPolicy(1));
     const summary = await runner.run(targets);
 
-    expect(summary.pushed).toBe(2);
+    expect(countResults(summary, "pushed")).toBe(2);
+  });
+
+  it("リモートの読み取りに失敗したら、向きが決まる前の失敗として理由をそのまま残す(ローカルを送らない)", async () => {
+    let pushed = false;
+    const targets: SyncTarget[] = [
+      makeTarget("net", {
+        getRemote: async () => {
+          throw new Error("HTTP 500: server error");
+        },
+        push: async () => {
+          pushed = true;
+        },
+      }),
+    ];
+
+    const summary = await new SyncRunner(new FixedConcurrencyPolicy(5)).run(targets);
+
+    expect(pushed).toBe(false);
+    expect(summary.results).toEqual([{ id: "net", kind: "test", result: "failed", action: undefined, error: "HTTP 500: server error" }]);
+  });
+
+  it("pull が false(判定のあとにローカルが編集されて書かなかった)なら、取り込みではなく skip として数える", async () => {
+    const targets: SyncTarget[] = [
+      makeTarget("edited", {
+        getLocal: async () => ({ data: "local", updatedAt: 0 }),
+        getRemote: async () => ({ data: "remote", updatedAt: 100 }),
+        pull: async () => false,
+      }),
+    ];
+
+    const summary = await new SyncRunner(new FixedConcurrencyPolicy(5)).run(targets);
+
+    expect(summary.results).toEqual([{ id: "edited", kind: "test", result: "skipped" }]);
   });
 });

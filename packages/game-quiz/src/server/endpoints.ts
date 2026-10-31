@@ -63,11 +63,11 @@ _quizGame_updateDriveData = async (args: UpdateDriveDataArgs): Promise<string> =
 };
 
 _quizGame_addJson = async (args: AddJsonArgs): Promise<string> => {
-  return respond(() => addJsonBlob(resolveDeps(), args.driveJson));
+  return respond(() => addJsonBlob(resolveDeps(), args));
 };
 
 _quizGame_getJson = async (args: GetJsonArgs): Promise<string> => {
-  return respond(() => getJsonBlob(resolveDeps(), args.fileId));
+  return respond(() => getJsonBlob(resolveDeps(), args.fileName));
 };
 
 // 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。

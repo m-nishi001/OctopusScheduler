@@ -27,4 +27,4 @@ export type {
 export { default as UiToolbar } from './components/ui-toolbar/ui-toolbar.vue';
 export { default as UiBusyOverlay } from './components/ui-busy-overlay/ui-busy-overlay.vue';
 export { default as SyncStatusIndicator } from './components/sync-status-indicator/sync-status-indicator.vue';
-export type { SyncStatus } from './components/sync-status-indicator/sync-status-indicator.vue';
+export type { SyncLogItem, SyncStatus } from './components/sync-status-indicator/sync-status-indicator.vue';

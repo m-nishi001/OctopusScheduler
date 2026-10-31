@@ -4,7 +4,6 @@
 import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
 import type {
   DriveData,
-  DriveJsonData,
   DriveMetadata,
 } from "@octopus/infrastructures/compositions";
 
@@ -30,20 +29,21 @@ export type JackpotGameFunctionName =
  * その先の use-case 実装(`drive-asset-use-cases.ts`, `add-json-blob-use-case.ts`,
  * `get-json-blob-use-case.ts`)の実際のシグネチャに合わせている。
  */
+/** 同期用のJSONテキスト1件の保存(ファイル名はサーバー側の保存先の名前)。 */
+export interface JsonBlobWrite {
+  fileName: string;
+  json: string;
+}
+
 export interface JackpotGameApi {
   addDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<DriveMetadata>;
   getDriveMetaData(folderId?: string, options?: ApiCallOptions): Promise<DriveMetadata[]>;
   getDriveData(dataId: string, options?: ApiCallOptions): Promise<DriveData>;
   updateDriveData(driveData: DriveData, options?: ApiCallOptions): Promise<DriveMetadata>;
-  addJson(driveJson: DriveJsonData, options?: ApiCallOptions): Promise<DriveMetadata>;
-  /**
-   * updatedAt: 解決されたファイルの最終更新日時(ISO文字列)。バックグラウンド
-   * 同期のLast-Write-Winsに使う。ファイルが見つからない場合はnull。
-   */
-  getJson(
-    fileId?: string,
-    options?: ApiCallOptions
-  ): Promise<{ json: string; updatedAt: string | null }>;
+  /** 同期の `{ updatedAt, data }` のテキストを、中身を見ずにそのまま保存する。 */
+  addJson(blob: JsonBlobWrite, options?: ApiCallOptions): Promise<void>;
+  /** 保存してあるテキストをそのまま返す。まだ保存されていなければ json は null。 */
+  getJson(fileName: string, options?: ApiCallOptions): Promise<{ json: string | null }>;
 }
 
 /** `JackpotGameApi` をDI解決するためのトークン。 */

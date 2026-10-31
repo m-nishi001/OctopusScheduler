@@ -8,7 +8,6 @@
 import type { ApiCallOptions } from "@octopus/infrastructures/interfaces";
 import type {
   DriveData,
-  DriveJsonData,
   DriveMetadata,
 } from "@octopus/infrastructures/compositions";
 
@@ -61,12 +60,14 @@ export interface UpdateDriveDataArgs {
   driveData: DriveData;
 }
 
+/** 同期用のJSONテキスト1件の保存(ファイル名はサーバー側の保存先の名前)。 */
 export interface AddJsonArgs {
-  driveJson: DriveJsonData;
+  fileName: string;
+  json: string;
 }
 
 export interface GetJsonArgs {
-  fileId?: string;
+  fileName: string;
 }
 
 /**
@@ -88,15 +89,10 @@ export interface QuizGameApi {
   ): Promise<DriveMetadata[]>;
   getDriveData(args: GetDriveDataArgs, options?: ApiCallOptions): Promise<DriveData>;
   updateDriveData(args: UpdateDriveDataArgs, options?: ApiCallOptions): Promise<DriveMetadata>;
-  addJson(args: AddJsonArgs, options?: ApiCallOptions): Promise<DriveMetadata>;
-  /**
-   * updatedAt: 解決されたファイルの最終更新日時(ISO文字列)。バックグラウンド
-   * 同期のLast-Write-Winsに使う。ファイルが見つからない場合はnull。
-   */
-  getJson(
-    args: GetJsonArgs,
-    options?: ApiCallOptions
-  ): Promise<{ json: string; updatedAt: string | null }>;
+  /** 同期の `{ updatedAt, data }` のテキストを、中身を見ずにそのまま保存する。 */
+  addJson(args: AddJsonArgs, options?: ApiCallOptions): Promise<void>;
+  /** 保存してあるテキストをそのまま返す。まだ保存されていなければ json は null。 */
+  getJson(args: GetJsonArgs, options?: ApiCallOptions): Promise<{ json: string | null }>;
 }
 
 /** `QuizGameApi` をDI解決するためのトークン。 */

@@ -18,10 +18,13 @@ export interface SyncTarget<TLocal = unknown, TRemote = unknown> {
   readonly kind: string;
   getLocal(): Promise<SyncSnapshot<TLocal> | null>;
   getRemote(): Promise<SyncSnapshot<TRemote> | null>;
-  /** ローカル→リモートへ反映する。 */
-  push(data: TLocal): Promise<{ updatedAt: number }>;
-  /** リモート→ローカルへ反映する。 */
-  pull(data: TRemote): Promise<{ updatedAt: number }>;
+  /** ローカル→リモートへ反映する。送るのは、判定のときに読んだローカルのスナップショット(更新日時もそのまま)。 */
+  push(local: SyncSnapshot<TLocal>): Promise<void>;
+  /**
+   * リモート→ローカルへ反映する。`local` は判定のときに読んだローカルのスナップショット(無ければ null)。
+   * 判定のあとにローカルが編集されていたら、書かずに false を返す(その編集は次の同期で送られる)。
+   */
+  pull(remote: SyncSnapshot<TRemote>, local: SyncSnapshot<TLocal> | null): Promise<boolean | void>;
 }
 
 /**

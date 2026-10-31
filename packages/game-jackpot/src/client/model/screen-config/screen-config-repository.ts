@@ -1,49 +1,27 @@
 import { injectable, inject } from "tsyringe";
-import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
-import { DirtyTracker } from "@octopus/sync-engine";
+import { BlobRecordStore, blobRecordSyncTarget, textBlobRecordRemote } from "@octopus/sync-engine";
 import type { SyncTarget } from "@octopus/sync-engine";
 import { ScreenSetting } from "./screen-setting";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
-import type { DriveJsonData } from "@octopus/infrastructures/compositions";
 
 const SYNC_KIND = "screens";
 const DRIVE_FILE_NAME = "screens.json";
-// getJsonBlobの「fileId省略時は既定ファイル(prizes.json)」というフォールバックは
-// このファイル名には効かないため、pushで得たfileId(フルキー)をこのブラウザに
-// 保存しておき、次回以降はそれを明示的に渡す。
-const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-screens-last-file-id";
-// 初めて開くブラウザ(まだpushしていない)でも、サーバーに画面設定があれば(試験環境のシード等)取り込めるよう、
-// 保存先の既定キー(jackpot-game/json/screens.json)を既定の問い合わせ先にする。
-const DEFAULT_REMOTE_FILE_ID = "jackpot-game/json/screens.json";
 
-/** getJsonBlob は見つからないと既定ファイル(prizes.json)を返すため、画面設定の形をしているものだけ受け入れる。 */
-function isScreenSettingList(value: unknown): value is ScreenSetting[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (v) => v && typeof v.screenName === "string" && typeof v.settingName === "string" && typeof v.settingValue === "string"
-    )
-  );
-}
+const settingKey = (s: ScreenSetting) => s.screenName + "_" + s.settingName;
 
-/** 各画面の設定の保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。 */
+/** 各画面の設定の保存先。この端末(IndexedDB)に一覧全体を1件のレコード `{ data, updatedAt }` で持ち、バックグラウンド同期の対象として Drive / R2 と新しいほうに揃える。 */
 @injectable()
 export class ScreenConfigRepository {
-  private readonly localStorage = new LocalStorageService(
-    "jackpot-game",
-    "ScreenConfigData"
-  );
-  private readonly dirtyTracker = new DirtyTracker("jackpot-game");
+  private readonly store = new BlobRecordStore<ScreenSetting[]>("jackpot-game", "ScreenConfigData");
 
   constructor(
     @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {}
 
   async getScreenSettings(): Promise<ScreenSetting[]> {
-    const allSettings = await this.localStorage.getAll<ScreenSetting>();
-    return Array.from(allSettings.values());
+    return (await this.store.read())?.data ?? [];
   }
 
   async getScreenSettingsByType(type: string): Promise<ScreenSetting[]> {
@@ -52,23 +30,12 @@ export class ScreenConfigRepository {
   }
 
   async updateScreenSettings(settings: ScreenSetting[]): Promise<void> {
-    for (const setting of settings) {
-      await this.localStorage.save(
-        setting.screenName + "_" + setting.settingName,
-        setting
-      );
-    }
-    await this.dirtyTracker.touch(SYNC_KIND);
+    await this.store.update((current) => {
+      const byKey = new Map((current ?? []).map((s) => [settingKey(s), s] as const));
+      for (const setting of settings) byKey.set(settingKey(setting), setting);
+      return Array.from(byKey.values());
+    });
     eventBus.emit("syncDirty");
-  }
-
-  private async replaceAllScreenSettings(settings: ScreenSetting[]): Promise<void> {
-    const all = await this.localStorage.getAll();
-    const keys = Array.from(all.keys());
-    if (keys.length) await this.localStorage.removeMultiple(keys);
-    for (const s of settings) {
-      await this.localStorage.save(s.screenName + "_" + s.settingName, s);
-    }
   }
 
   /**
@@ -77,68 +44,18 @@ export class ScreenConfigRepository {
    *
    * 画面設定はアセットidを内容に埋め込むことがあるが、AssetDataRepositoryの
    * SyncTargetはpush/pullのいずれでもアセット自身のidを変えない(常に同じ
-   * driveDataIdの元でローカル/リモートを行き来する)ため、旧実装にあった
-   * 「先にアセットを同期してidマッピングを作る」処理は不要になった。
+   * driveDataIdの元でローカル/リモートを行き来する)ため、先にアセットを同期する必要はない。
    */
   async listSyncTargets(): Promise<SyncTarget<ScreenSetting[], ScreenSetting[]>[]> {
-    const target: SyncTarget<ScreenSetting[], ScreenSetting[]> = {
-      id: SYNC_KIND,
-      kind: SYNC_KIND,
-      getLocal: async () => {
-        const settings = await this.getScreenSettings();
-        if (settings.length === 0) return null;
-        const trackedAt = await this.dirtyTracker.getUpdatedAt(SYNC_KIND);
-        return { data: settings, updatedAt: trackedAt ?? Date.now() };
-      },
-      getRemote: async () => {
-        const storedFileId = localStorage.getItem(DRIVE_FILE_ID_STORAGE_KEY) || DEFAULT_REMOTE_FILE_ID;
-        let resp;
-        try {
-          resp = await this.jackpotApi.getJson(storedFileId);
-        } catch (e) {
-          console.error(
-            "[ScreenConfigRepository] Failed to fetch remote screen configs for sync",
-            e
-          );
-          return null;
-        }
-        let parsed: ScreenSetting[];
-        try {
-          const raw: unknown = JSON.parse(resp.json);
-          if (!isScreenSettingList(raw)) return null;
-          parsed = raw;
-        } catch {
-          return null;
-        }
-        if (parsed.length === 0) return null;
-        const updatedAt = resp.updatedAt ? new Date(resp.updatedAt).getTime() : 0;
-        return { data: parsed, updatedAt };
-      },
-      push: async (settings) => {
-        const driveJson: DriveJsonData = {
-          metadata: {} as any,
-          fileName: DRIVE_FILE_NAME,
-          jsonText: JSON.stringify(settings),
-          uploadDate: new Date().toISOString(),
-          parentFolderId: "",
-        };
-        const meta = await this.jackpotApi.addJson(driveJson);
-        if (meta?.fileId) {
-          localStorage.setItem(DRIVE_FILE_ID_STORAGE_KEY, meta.fileId);
-        }
-        const updatedAt = meta?.lastUpdate
-          ? new Date(meta.lastUpdate).getTime()
-          : Date.now();
-        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
-        return { updatedAt };
-      },
-      pull: async (settings) => {
-        await this.replaceAllScreenSettings(settings);
-        const updatedAt = Date.now();
-        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
-        return { updatedAt };
-      },
-    };
-    return [target];
+    return [
+      blobRecordSyncTarget(
+        SYNC_KIND,
+        this.store,
+        textBlobRecordRemote<ScreenSetting[]>({
+          read: async () => (await this.jackpotApi.getJson(DRIVE_FILE_NAME)).json,
+          write: (json) => this.jackpotApi.addJson({ fileName: DRIVE_FILE_NAME, json }),
+        })
+      ),
+    ];
   }
 }

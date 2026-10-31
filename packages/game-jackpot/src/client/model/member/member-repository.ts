@@ -1,6 +1,5 @@
-import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
-import { DirtyTracker } from "@octopus/sync-engine";
+import { BlobRecordStore, blobRecordSyncTarget, textBlobRecordRemote } from "@octopus/sync-engine";
 import type { SyncTarget } from "@octopus/sync-engine";
 import { injectable, inject } from "tsyringe";
 import { AccountsRepository } from "@octopus/accounts";
@@ -9,23 +8,16 @@ import type { Member } from "./member";
 import type { JackpotMemberExtra } from "./jackpot-member-extra";
 import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
 import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
-import type { DriveJsonData } from "@octopus/infrastructures/compositions";
 
 const DEFAULT_RANK = 5;
 const SYNC_KIND = "member-extras";
 const DRIVE_FILE_NAME = "member-extras.json";
-// getJsonBlobの「fileId省略時は既定ファイル(prizes.json)」というフォールバックは
-// このファイル名には効かないため、pushで得たfileId(フルキー)をこのブラウザに
-// 保存しておき、次回以降はそれを明示的に渡す。screens(ScreenConfigRepository)
-// と同じ制約: このfileIdをまだ知らない別デバイスからは、他デバイスが既に
-// アップロード済みのmember-extrasを初回pullで見つけられない。
-const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-member-extras-file-id";
 
 /**
  * jackpot固有のメンバーリポジトリ。
  *
  * メンバーのid/nameは `@octopus/accounts` が持つ共有マスタから取得し、
- * rank/当選しやすさ(weight)といったjackpot固有の設定は `MemberExtraData`(id => JackpotMemberExtra)
+ * rank/当選しやすさ(weight)といったjackpot固有の設定は `MemberExtraData`(一覧全体を1件のレコード `{ data: JackpotMemberExtra[], updatedAt }`)
  * としてローカルに保持してマージする。id/nameは共有マスタへの書き込みで
  * 即座に他デバイスへ反映されるため、バックグラウンド同期の対象はjackpot固有の
  * 拡張設定(rank/weight)のみでよい。
@@ -36,8 +28,7 @@ const DRIVE_FILE_ID_STORAGE_KEY = "jackpot-member-extras-file-id";
  */
 @injectable()
 export class MemberRepository {
-  private readonly extraStorage = new LocalStorageService("jackpot-game", "MemberExtraData");
-  private readonly dirtyTracker = new DirtyTracker("jackpot-game");
+  private readonly extraStore = new BlobRecordStore<JackpotMemberExtra[]>("jackpot-game", "MemberExtraData");
 
   constructor(
     @inject(AccountsRepository) private readonly directory: AccountsRepository,
@@ -54,11 +45,24 @@ export class MemberRepository {
     };
   }
 
+  /** 保存してあるメンバー拡張設定(rank/weight)を、memberId をキーにした Map で返す。 */
+  private async getExtras(): Promise<Map<string, JackpotMemberExtra>> {
+    const record = await this.extraStore.read();
+    return new Map((record?.data ?? []).map((e) => [e.memberId, e] as const));
+  }
+
+  /** メンバー拡張設定をまとめて保存する(同期の記録の更新日時も一緒に1回で書く)。 */
+  private async saveExtras(change: (extras: Map<string, JackpotMemberExtra>) => void): Promise<void> {
+    await this.extraStore.update((current) => {
+      const extras = new Map((current ?? []).map((e) => [e.memberId, e] as const));
+      change(extras);
+      return Array.from(extras.values());
+    });
+    eventBus.emit("syncDirty");
+  }
+
   async getMembers(): Promise<Member[]> {
-    const [directoryMembers, extras] = await Promise.all([
-      this.directory.listMembers(),
-      this.extraStorage.getAll<JackpotMemberExtra>(),
-    ]);
+    const [directoryMembers, extras] = await Promise.all([this.directory.listMembers(), this.getExtras()]);
     return directoryMembers.map((m) => this.toMember(m, extras.get(m.id)));
   }
 
@@ -66,7 +70,7 @@ export class MemberRepository {
     const directoryMembers = await this.directory.listMembers();
     const directoryMember = directoryMembers.find((m) => m.id === id);
     if (!directoryMember) return null;
-    const extra = await this.extraStorage.get<JackpotMemberExtra>(id);
+    const extra = (await this.getExtras()).get(id);
     return this.toMember(directoryMember, extra);
   }
 
@@ -78,6 +82,7 @@ export class MemberRepository {
   async addMembers(members: Member[]): Promise<Member[]> {
     const existingIds = new Set((await this.directory.listMembers()).map((m) => m.id));
     const added: Member[] = [];
+    const extras: JackpotMemberExtra[] = [];
     for (const member of members) {
       const directoryMember =
         member.id && existingIds.has(member.id)
@@ -90,11 +95,10 @@ export class MemberRepository {
         rank: member.rank,
         weight: member.weight,
       };
-      await this.extraStorage.save(directoryMember.id, extra);
+      extras.push(extra);
       added.push(this.toMember(directoryMember, extra));
     }
-    await this.dirtyTracker.touch(SYNC_KIND);
-    eventBus.emit("syncDirty");
+    await this.saveExtras((all) => extras.forEach((e) => all.set(e.memberId, e)));
     return added;
   }
 
@@ -103,27 +107,30 @@ export class MemberRepository {
    * 名簿にいない id は何もせず、その id を返す(メンバーの作成は名簿の仕事)。保存・同期の記録は1回だけ。
    */
   async setExtras(rows: { id: string; rank?: number; weight?: number }[]): Promise<{ updated: number; unknown: string[] }> {
-    const [directoryMembers, extras] = await Promise.all([this.directory.listMembers(), this.extraStorage.getAll<JackpotMemberExtra>()]);
+    const directoryMembers = await this.directory.listMembers();
     const known = new Set(directoryMembers.map((m) => m.id));
     const unknown: string[] = [];
     let updated = 0;
+    const changes: { id: string; rank?: number; weight?: number }[] = [];
     for (const row of rows) {
       if (!known.has(row.id)) {
         unknown.push(row.id);
         continue;
       }
-      const current = extras.get(row.id);
-      const extra: JackpotMemberExtra = {
-        memberId: row.id,
-        rank: row.rank ?? current?.rank ?? DEFAULT_RANK,
-        weight: row.weight ?? current?.weight,
-      };
-      await this.extraStorage.save(row.id, extra);
+      changes.push(row);
       updated++;
     }
     if (updated > 0) {
-      await this.dirtyTracker.touch(SYNC_KIND);
-      eventBus.emit("syncDirty");
+      await this.saveExtras((all) => {
+        for (const row of changes) {
+          const current = all.get(row.id);
+          all.set(row.id, {
+            memberId: row.id,
+            rank: row.rank ?? current?.rank ?? DEFAULT_RANK,
+            weight: row.weight ?? current?.weight,
+          });
+        }
+      });
     }
     return { updated, unknown };
   }
@@ -131,6 +138,7 @@ export class MemberRepository {
   async updateMembers(
     updates: { id: string; updateFn: (member: Member) => Member }[]
   ): Promise<void> {
+    const extras: JackpotMemberExtra[] = [];
     for (const update of updates) {
       const current = await this.getMemberById(update.id);
       if (!current) continue;
@@ -138,15 +146,9 @@ export class MemberRepository {
       if (updated.name !== current.name) {
         await this.directory.updateMember({ id: update.id, name: updated.name });
       }
-      const extra: JackpotMemberExtra = {
-        memberId: update.id,
-        rank: updated.rank,
-        weight: updated.weight,
-      };
-      await this.extraStorage.save(update.id, extra);
+      extras.push({ memberId: update.id, rank: updated.rank, weight: updated.weight });
     }
-    await this.dirtyTracker.touch(SYNC_KIND);
-    eventBus.emit("syncDirty");
+    await this.saveExtras((all) => extras.forEach((e) => all.set(e.memberId, e)));
   }
 
   /**
@@ -154,9 +156,7 @@ export class MemberRepository {
    * 共有マスタ（名簿）からは削除しない。メンバーは名簿にいる限り、ジャックポットのメンバーでもある。
    */
   async deleteMembers(ids: string[]): Promise<void> {
-    await this.extraStorage.removeMultiple(ids);
-    await this.dirtyTracker.touch(SYNC_KIND);
-    eventBus.emit("syncDirty");
+    await this.saveExtras((all) => ids.forEach((id) => all.delete(id)));
   }
 
   /**
@@ -165,67 +165,15 @@ export class MemberRepository {
    * 既に常に最新のため、ここでの同期対象には含めない。
    */
   async listSyncTargets(): Promise<SyncTarget<JackpotMemberExtra[], JackpotMemberExtra[]>[]> {
-    const target: SyncTarget<JackpotMemberExtra[], JackpotMemberExtra[]> = {
-      id: SYNC_KIND,
-      kind: SYNC_KIND,
-      getLocal: async () => {
-        const extras = Array.from((await this.extraStorage.getAll<JackpotMemberExtra>()).values());
-        if (extras.length === 0) return null;
-        const trackedAt = await this.dirtyTracker.getUpdatedAt(SYNC_KIND);
-        return { data: extras, updatedAt: trackedAt ?? Date.now() };
-      },
-      getRemote: async () => {
-        const storedFileId = localStorage.getItem(DRIVE_FILE_ID_STORAGE_KEY) || undefined;
-        if (!storedFileId) return null;
-        let resp;
-        try {
-          resp = await this.jackpotApi.getJson(storedFileId);
-        } catch (e) {
-          console.error(
-            "[MemberRepository] Failed to fetch remote member extras for sync",
-            e
-          );
-          return null;
-        }
-        let parsed: JackpotMemberExtra[];
-        try {
-          parsed = JSON.parse(resp.json) as JackpotMemberExtra[];
-        } catch {
-          return null;
-        }
-        if (!Array.isArray(parsed) || parsed.length === 0) return null;
-        const updatedAt = resp.updatedAt ? new Date(resp.updatedAt).getTime() : 0;
-        return { data: parsed, updatedAt };
-      },
-      push: async (extras) => {
-        const driveJson: DriveJsonData = {
-          metadata: {} as any,
-          fileName: DRIVE_FILE_NAME,
-          jsonText: JSON.stringify(extras),
-          uploadDate: new Date().toISOString(),
-          parentFolderId: "",
-        };
-        const meta = await this.jackpotApi.addJson(driveJson);
-        if (meta?.fileId) {
-          localStorage.setItem(DRIVE_FILE_ID_STORAGE_KEY, meta.fileId);
-        }
-        const updatedAt = meta?.lastUpdate
-          ? new Date(meta.lastUpdate).getTime()
-          : Date.now();
-        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
-        return { updatedAt };
-      },
-      pull: async (extras) => {
-        const keys = Array.from((await this.extraStorage.getAll()).keys());
-        if (keys.length) await this.extraStorage.removeMultiple(keys);
-        for (const extra of extras) {
-          await this.extraStorage.save(extra.memberId, extra);
-        }
-        const updatedAt = Date.now();
-        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
-        return { updatedAt };
-      },
-    };
-    return [target];
+    return [
+      blobRecordSyncTarget(
+        SYNC_KIND,
+        this.extraStore,
+        textBlobRecordRemote<JackpotMemberExtra[]>({
+          read: async () => (await this.jackpotApi.getJson(DRIVE_FILE_NAME)).json,
+          write: (json) => this.jackpotApi.addJson({ fileName: DRIVE_FILE_NAME, json }),
+        })
+      ),
+    ];
   }
 }

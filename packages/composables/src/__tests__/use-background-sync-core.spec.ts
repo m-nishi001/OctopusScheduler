@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { useBackgroundSyncCore } from "../use-background-sync-core";
+import type { SyncResultEntry, SyncSummary } from "../use-background-sync-core";
+
+const ok = (result: SyncResultEntry["result"], id = "screens", kind = id): SyncResultEntry => ({ id, kind, result });
+const failed = (id: string, action: SyncResultEntry["action"], error: string): SyncResultEntry => ({ id, kind: id, result: "failed", action, error });
 
 describe("useBackgroundSyncCore: syncPulled", () => {
   beforeEach(() => {
@@ -12,7 +16,7 @@ describe("useBackgroundSyncCore: syncPulled", () => {
   });
 
   /** 起動直後の同期(immediate)を1回流しきる。 */
-  async function runInitialSync(syncAll: () => Promise<{ pulled?: number; failed: { error: string }[] }>) {
+  async function runInitialSync(syncAll: () => Promise<SyncSummary>) {
     const onPulled = vi.fn();
     eventBus.on("syncPulled", onPulled);
     const { cleanup } = useBackgroundSyncCore(syncAll);
@@ -23,22 +27,22 @@ describe("useBackgroundSyncCore: syncPulled", () => {
   }
 
   it("リモートから取り込みがあれば syncPulled を通知する(一覧の再読込のため)", async () => {
-    const onPulled = await runInitialSync(async () => ({ pulled: 2, failed: [] }));
+    const onPulled = await runInitialSync(async () => ({ results: [ok("pulled"), ok("pulled", "prizes"), ok("pushed", "member-extras")] }));
     expect(onPulled).toHaveBeenCalledTimes(1);
   });
 
   it("取り込みが無ければ通知しない", async () => {
-    const onPulled = await runInitialSync(async () => ({ pulled: 0, failed: [] }));
+    const onPulled = await runInitialSync(async () => ({ results: [ok("pushed"), ok("skipped", "prizes")] }));
     expect(onPulled).not.toHaveBeenCalled();
   });
 
-  it("pulled を返さない同期結果でも通知しない", async () => {
-    const onPulled = await runInitialSync(async () => ({ failed: [] }));
+  it("結果が空でも通知しない", async () => {
+    const onPulled = await runInitialSync(async () => ({ results: [] }));
     expect(onPulled).not.toHaveBeenCalled();
   });
 
   it("一部失敗していても、取り込めた分があれば通知する", async () => {
-    const onPulled = await runInitialSync(async () => ({ pulled: 1, failed: [{ error: "x" }] }));
+    const onPulled = await runInitialSync(async () => ({ results: [ok("pulled"), failed("prizes", "push", "x")] }));
     expect(onPulled).toHaveBeenCalledTimes(1);
   });
 });
@@ -64,7 +68,7 @@ describe("useBackgroundSyncCore: 同期の重なり", () => {
       maxActive = Math.max(maxActive, active);
       await new Promise<void>((resolve) => releases.push(resolve));
       active--;
-      return { failed: [] };
+      return { results: [] };
     };
     return {
       syncAll,
@@ -116,5 +120,72 @@ describe("useBackgroundSyncCore: 同期の重なり", () => {
     await vi.advanceTimersByTimeAsync(3000);
     expect(calls).toBe(2);
     cleanup();
+  });
+});
+
+describe("useBackgroundSyncCore: 状態と同期ログ", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function runOnce(syncAll: () => Promise<SyncSummary>) {
+    const sync = useBackgroundSyncCore(syncAll);
+    await vi.advanceTimersByTimeAsync(0);
+    sync.cleanup();
+    return sync;
+  }
+
+  it("失敗が1件でもあれば error にして、件数と最初の理由を出す", async () => {
+    const { status, lastError } = await runOnce(async () => ({ results: [ok("pushed"), failed("prizes", "push", "HTTP 500: boom"), failed("asset", "pull", "x")] }));
+    expect(status.value).toBe("error");
+    expect(lastError.value).toBe("2件の同期に失敗しました: HTTP 500: boom");
+  });
+
+  it("失敗が無ければ idle で、エラーは空", async () => {
+    const { status, lastError } = await runOnce(async () => ({ results: [ok("skipped")] }));
+    expect(status.value).toBe("idle");
+    expect(lastError.value).toBeNull();
+  });
+
+  it("失敗と、他の端末の変更の反映だけをログに残す(送信の成功と skip は残さない)。新しいものが先頭", async () => {
+    const { log } = await runOnce(async () => ({
+      results: [ok("pushed", "prizes"), ok("skipped", "member-extras"), ok("pulled", "screens"), failed("asset", "push", "boom"), failed("quizzes-meta", "pull", "bad"), failed("keyboard-shortcuts", undefined, "net")],
+    }));
+    expect(log.value.map((e) => [e.kind, e.event, e.error])).toEqual([
+      ["keyboard-shortcuts", "syncFailed", "net"],
+      ["quizzes-meta", "pullFailed", "bad"],
+      ["asset", "pushFailed", "boom"],
+      ["screens", "pulledFromOther", undefined],
+    ]);
+    expect(log.value.every((e) => e.at > 0)).toBe(true);
+  });
+
+  it("同期の呼び出し自体が失敗したときも、理由つきでログに残す", async () => {
+    const { log, status } = await runOnce(async () => {
+      throw new Error("offline");
+    });
+    expect(status.value).toBe("error");
+    expect(log.value).toMatchObject([{ kind: "sync", event: "syncFailed", error: "offline" }]);
+  });
+
+  it("同じ失敗が続いても1行にまとめる(他の端末の反映は毎回残す)", async () => {
+    let n = 0;
+    const sync = useBackgroundSyncCore(async () => ({ results: [failed("prizes", "push", "same"), ok("pulled", `s${n++}`, "screens")] }));
+    await vi.advanceTimersByTimeAsync(0);
+    eventBus.emit("syncDirty");
+    await vi.advanceTimersByTimeAsync(3000);
+    sync.cleanup();
+    expect(sync.log.value.filter((e) => e.event === "pushFailed")).toHaveLength(1);
+    expect(sync.log.value.filter((e) => e.event === "pulledFromOther")).toHaveLength(2);
+  });
+
+  it("ログは最大50件まで", async () => {
+    const results = Array.from({ length: 70 }, (_, i) => failed(`t${i}`, "push", "e"));
+    const { log } = await runOnce(async () => ({ results }));
+    expect(log.value).toHaveLength(50);
   });
 });

@@ -79,7 +79,8 @@
 
 <script setup lang="ts">
 import { UiBusyOverlay, UiButton } from '@octopus/ui-kit';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import { eventBus } from '@octopus/client-common/events/event-bus';
 import { onBeforeRouteLeave } from 'vue-router';
 import { container } from 'tsyringe';
 import { ScreenSettingsService } from '@control/screen-config/screen-settings-service';
@@ -148,9 +149,22 @@ const loadConfig = async () => {
     }
 };
 
+// 他の端末の変更が取り込まれたら読み直す(古い値のフォームを、そのまま保存して上書きしないため)。編集中なら読み直さない
+const reloadAfterSync = async () => {
+    if (hasUnsavedChanges.value) return; // 入力の途中は消さない(保存すれば、新しいほうとして残る)
+    await loadConfig();
+    await nextTick();
+    hasUnsavedChanges.value = false;
+};
+
 onMounted(async () => {
+    eventBus.on('syncPulled', reloadAfterSync);
     await Promise.all([loadConfig(), fetchAssets()]);
     hasUnsavedChanges.value = false;
+});
+
+onBeforeUnmount(() => {
+    eventBus.off('syncPulled', reloadAfterSync);
 });
 
 watch([localConfig, kakuhenTimingsText], () => {

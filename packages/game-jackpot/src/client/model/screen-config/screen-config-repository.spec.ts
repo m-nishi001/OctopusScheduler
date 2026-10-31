@@ -9,78 +9,83 @@ function makeFakeApi() {
     getDriveMetaData: vi.fn(),
     getDriveData: vi.fn(),
     updateDriveData: vi.fn(),
-    addJson: vi.fn(async (d: any) => ({
-      driveDataId: d.fileName,
-      fileId: "folder1/screens.json",
-      parentFolderId: "folder1",
-      lastUpdate: new Date().toISOString(),
-    })),
-    getJson: vi.fn(async (..._args: unknown[]): Promise<{ json: string; updatedAt: string | null }> => ({ json: "[]", updatedAt: null })),
+    addJson: vi.fn(async (_blob: { fileName: string; json: string }) => undefined),
+    getJson: vi.fn(async (_fileName: string): Promise<{ json: string | null }> => ({ json: null })),
   };
 }
 
-describe("ScreenConfigRepository.listSyncTargets", () => {
+describe("ScreenConfigRepository", () => {
   let fakeApi: ReturnType<typeof makeFakeApi>;
   let repo: ScreenConfigRepository;
 
   beforeEach(async () => {
     await new LocalStorageService("jackpot-game", "ScreenConfigData").clear();
-    await new LocalStorageService("jackpot-game", "SyncDirtyTracker").clear();
-    localStorage.removeItem("jackpot-screens-last-file-id");
     fakeApi = makeFakeApi();
     repo = new ScreenConfigRepository(fakeApi as any);
   });
 
-  it("returns no local snapshot when no settings have been saved", async () => {
-    const [target] = await repo.listSyncTargets();
-    expect(await target.getLocal()).toBeNull();
+  it("同じ画面名・項目名は上書きし、別の項目は残す", async () => {
+    await repo.updateScreenSettings([new ScreenSetting("home", "a", "1"), new ScreenSetting("home", "b", "2")]);
+    await repo.updateScreenSettings([new ScreenSetting("home", "a", "9")]);
+    expect((await repo.getScreenSettings()).map((s) => [s.settingName, s.settingValue])).toEqual([["a", "9"], ["b", "2"]]);
+    expect(await repo.getScreenSettingsByType("home")).toHaveLength(2);
   });
 
-  it("asks for the default screens.json key before a fileId has been learned", async () => {
-    const [target] = await repo.listSyncTargets();
-    expect(await target.getRemote()).toBeNull();
-    expect(fakeApi.getJson).toHaveBeenCalledWith("jackpot-game/json/screens.json");
-  });
+  describe("listSyncTargets", () => {
+    it("設定を一度も保存していなければ、ローカルは null", async () => {
+      const [target] = await repo.listSyncTargets();
+      expect(await target.getLocal()).toBeNull();
+    });
 
-  it("pulls seeded screen settings on a fresh browser", async () => {
-    const seeded = [{ screenName: "opening", settingName: "opening-screen-settings", settingValue: "{}" }];
-    fakeApi.getJson.mockResolvedValueOnce({ json: JSON.stringify(seeded), updatedAt: "2026-01-01T00:00:00.000Z" });
-    const [target] = await repo.listSyncTargets();
-    const remote = await target.getRemote();
-    expect(remote?.data).toEqual(seeded);
-  });
+    it("初めて開く端末でも、サーバーの screens.json(試験環境のシード等)をそのまま取り込める", async () => {
+      const seeded = [{ screenName: "opening", settingName: "opening-screen-settings", settingValue: "{}" }];
+      fakeApi.getJson.mockResolvedValueOnce({ json: JSON.stringify({ updatedAt: 1000, data: seeded }) });
+      const [target] = await repo.listSyncTargets();
+      const remote = (await target.getRemote())!;
+      expect(fakeApi.getJson).toHaveBeenCalledWith("screens.json");
+      expect(remote).toEqual({ updatedAt: 1000, data: seeded });
 
-  it("ignores the prizes.json fallback the server returns when screens.json does not exist", async () => {
-    fakeApi.getJson.mockResolvedValueOnce({ json: JSON.stringify([{ id: "p1", name: "x", order: 0 }]), updatedAt: "2026-01-01T00:00:00.000Z" });
-    const [target] = await repo.listSyncTargets();
-    expect(await target.getRemote()).toBeNull();
-  });
+      await target.pull(remote, await target.getLocal());
+      expect(await repo.getScreenSettings()).toEqual(seeded);
+    });
 
-  it("push uploads all local screen settings and remembers the returned fileId", async () => {
-    await repo.updateScreenSettings([
-      new ScreenSetting("home", "background", JSON.stringify({ color: "red" })),
-    ]);
+    it("push は { updatedAt, data } をそのまま保存し、ローカルへ書き戻さない", async () => {
+      await repo.updateScreenSettings([new ScreenSetting("home", "background", JSON.stringify({ color: "red" }))]);
+      const [target] = await repo.listSyncTargets();
+      const local = (await target.getLocal())!;
+      await target.push(local);
 
-    const [target] = await repo.listSyncTargets();
-    const local = await target.getLocal();
-    expect(local).not.toBeNull();
-    await target.push(local!.data);
+      expect(fakeApi.addJson).toHaveBeenCalledOnce();
+      const payload = fakeApi.addJson.mock.calls[0][0];
+      expect(payload.fileName).toBe("screens.json");
+      expect(JSON.parse(payload.json)).toEqual({ updatedAt: local.updatedAt, data: local.data });
+      expect(await target.getLocal()).toEqual(local);
+    });
 
-    expect(fakeApi.addJson).toHaveBeenCalledOnce();
-    expect(localStorage.getItem("jackpot-screens-last-file-id")).toBe(
-      "folder1/screens.json"
-    );
-  });
+    it("送信中に別の値を保存しても、その値が残り、ローカルの更新日時のほうが新しいまま(次の同期でまた送られる)", async () => {
+      await repo.updateScreenSettings([new ScreenSetting("main", "main-screen-settings", JSON.stringify({ prizeStopSec: 15 }))]);
+      const [target] = await repo.listSyncTargets();
+      const sent = (await target.getLocal())!;
+      fakeApi.addJson.mockImplementationOnce(async () => {
+        await repo.updateScreenSettings([new ScreenSetting("main", "main-screen-settings", JSON.stringify({ prizeStopSec: 4 }))]);
+      });
+      await target.push(sent);
 
-  it("pull replaces all local screen settings with the remote snapshot", async () => {
-    const [target] = await repo.listSyncTargets();
-    await target.pull([
-      new ScreenSetting("home", "background", JSON.stringify({ color: "blue" })),
-    ]);
+      const local = (await target.getLocal())!;
+      expect(local.updatedAt).toBeGreaterThan(sent.updatedAt);
+      expect(JSON.parse(local.data[0].settingValue)).toEqual({ prizeStopSec: 4 });
+    });
 
-    const settings = await repo.getScreenSettings();
-    expect(settings).toEqual([
-      { screenName: "home", settingName: "background", settingValue: JSON.stringify({ color: "blue" }) },
-    ]);
+    it("pull の途中に保存された値は、書き換えられずに残る", async () => {
+      await repo.updateScreenSettings([new ScreenSetting("home", "a", "1")]);
+      const [target] = await repo.listSyncTargets();
+      const decided = await target.getLocal();
+      await repo.updateScreenSettings([new ScreenSetting("home", "a", "編集中")]);
+
+      const applied = await target.pull({ data: [new ScreenSetting("home", "a", "remote")], updatedAt: decided!.updatedAt + 100_000 }, decided);
+
+      expect(applied).toBe(false);
+      expect((await repo.getScreenSettings())[0].settingValue).toBe("編集中");
+    });
   });
 });

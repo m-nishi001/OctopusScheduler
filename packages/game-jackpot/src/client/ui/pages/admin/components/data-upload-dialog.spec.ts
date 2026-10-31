@@ -132,7 +132,6 @@ const dummyPrizeRepo: Pick<
   | "getPrizeById"
   | "addPrizes"
   | "deletePrizes"
-  | "replaceAllPrizes"
 > = {
   async getPrizes() {
     return [] as any;
@@ -145,9 +144,6 @@ const dummyPrizeRepo: Pick<
   },
   async deletePrizes(_ids: string[]) {
     return undefined as any;
-  },
-  async replaceAllPrizes(_prizes: any[]) {
-    return { replaced: 0 };
   },
 };
 

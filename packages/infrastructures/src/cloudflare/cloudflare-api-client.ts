@@ -84,12 +84,16 @@ export class CloudflareApiClient implements IApiClient {
         );
       }
       const text = await res.text();
+      // 失敗の理由(同期のログなど)で原因を辿れるよう、HTTPの失敗はステータスをメッセージの先頭に付ける
+      const httpPrefix = res.ok ? "" : `HTTP ${res.status}: `;
       try {
-        return JSON.parse(text) as ApiResponse<T>;
+        const parsed = JSON.parse(text) as ApiResponse<T>;
+        if (parsed.status === "error" && httpPrefix) parsed.message = httpPrefix + parsed.message;
+        return parsed;
       } catch (e) {
         return {
           status: "error",
-          message: `応答のパースに失敗しました: ${(e as Error).message}. 応答: ${text}`,
+          message: `${httpPrefix}応答のパースに失敗しました: ${(e as Error).message}. 応答: ${text}`,
         };
       }
     } catch (error) {

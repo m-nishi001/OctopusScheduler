@@ -1,5 +1,5 @@
 import type { APIRequestContext, Browser, Page } from "@playwright/test";
-import { acceptConfirm, adminRpc, createSession, expect, loginByQr, newDevice, nextButton, openAdvanced, route, seedStore, test, type Device } from "./fixtures";
+import { acceptConfirm, adminRpc, createSession, expect, loginByQr, newDevice, nextButton, openAdvanced, route, seedRecord, test, type Device } from "./fixtures";
 
 /**
  * ジャックポットの抽選状態(当選者・景品の在庫・確変の予定)は、ホストの端末ではなくセッションの結果ファイル(サーバー)が正本。
@@ -65,7 +65,7 @@ async function scene(browser: Browser, request: APIRequestContext, label: string
   host.page.on("dialog", (d) => void d.dismiss());
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText(label);
-  await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+  await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
   const guests = await Promise.all(ids.slice(0, memberCount).map((id) => loginByQr(browser, id, keys.get(id)!)));
   await startEvent(admin.page, guests, "状態の抽選会");
@@ -192,7 +192,7 @@ test("(d) 管理画面の結果のリセットで、当選者・景品の記録�
   const results = await newDevice(browser, { signedIn: true });
   await results.page.goto("/#/execute/jackpot-admin/results");
   // この端末には景品が無い(取り置きの印は景品の行に付く)ので、先に入れて読み直す
-  await seedStore(results.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+  await seedRecord(results.page, "jackpot-game", "PrizeData", PRIZES);
   await results.page.reload();
   await results.page.getByTestId("results-source").selectOption(sessionId);
   // 次のサイクルは公開のあと裏で先に確定される(未公開)ので、確定済みの件数は1件とは限らない。サーバーの件数と一致することを確かめる

@@ -3,54 +3,30 @@ import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
 import { addJsonBlob } from "../add-json-blob-use-case";
 import { getJsonBlob } from "../get-json-blob-use-case";
 
-async function makeConfiguredStorage(): Promise<InMemoryKeyValueStorage> {
-  return new InMemoryKeyValueStorage();
-}
-
-describe("getJsonBlob", () => {
-  it("returns an empty array with a null updatedAt when nothing has ever been written", async () => {
-    const storage = await makeConfiguredStorage();
-    const result = await getJsonBlob({ storage });
-    expect(JSON.parse(result.json)).toEqual([]);
-    expect(result.updatedAt).toBeNull();
+describe("addJsonBlob / getJsonBlob", () => {
+  it("まだ何も保存していなければ json は null", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    expect(await getJsonBlob({ storage }, "screens.json")).toEqual({ json: null });
   });
 
-  it("resolves the default file (prizes.json) and returns its updatedAt when no fileId is given", async () => {
-    const storage = await makeConfiguredStorage();
-    await addJsonBlob(
-      { storage },
-      {
-        metadata: {} as any,
-        fileName: "prizes.json",
-        jsonText: JSON.stringify([{ id: "p1" }]),
-        uploadDate: "",
-        parentFolderId: "",
-      }
-    );
-
-    const result = await getJsonBlob({ storage });
-
-    expect(JSON.parse(result.json)).toEqual([{ id: "p1" }]);
-    expect(result.updatedAt).not.toBeNull();
+  it("保存したテキストを、中身を見ずにそのまま返す(配列でなくても、空の一覧でも書き換えない)", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    const records = [
+      JSON.stringify({ updatedAt: 1234, data: [{ screenName: "home" }] }),
+      JSON.stringify({ updatedAt: 99, data: [] }),
+      "not json at all",
+    ];
+    for (const json of records) {
+      await addJsonBlob({ storage }, { fileName: "screens.json", json });
+      expect(await getJsonBlob({ storage }, "screens.json")).toEqual({ json });
+    }
   });
 
-  it("resolves by the exact fileId returned from a previous addJsonBlob and returns its updatedAt", async () => {
-    const storage = await makeConfiguredStorage();
-    const added = await addJsonBlob(
-      { storage },
-      {
-        appFileId: "screens",
-        metadata: {} as any,
-        fileName: "screens.json",
-        jsonText: JSON.stringify([{ screenName: "home" }]),
-        uploadDate: "",
-        parentFolderId: "",
-      }
-    );
-
-    const result = await getJsonBlob({ storage }, added.fileId);
-
-    expect(JSON.parse(result.json)).toEqual([{ screenName: "home" }]);
-    expect(result.updatedAt).toBe(added.lastUpdate);
+  it("ファイル名ごとに別々に保存する", async () => {
+    const storage = new InMemoryKeyValueStorage();
+    await addJsonBlob({ storage }, { fileName: "prizes.json", json: "A" });
+    await addJsonBlob({ storage }, { fileName: "screens.json", json: "B" });
+    expect((await getJsonBlob({ storage }, "prizes.json")).json).toBe("A");
+    expect((await getJsonBlob({ storage }, "screens.json")).json).toBe("B");
   });
 });

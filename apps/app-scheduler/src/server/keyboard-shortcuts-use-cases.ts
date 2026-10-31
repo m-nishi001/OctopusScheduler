@@ -6,13 +6,8 @@ export interface KeyboardShortcutsUseCaseDeps {
 }
 
 // 1キーにshortcuts+config+updatedAtをまとめて保存する(バックグラウンド同期の
-// Last-Write-Winsに使うタイムスタンプはクライアントがpush時に刻む)。
+// 更新日時はクライアントが刻んだものをそのまま保存し、そのまま返す。サーバーの時刻は使わない)。
 const STATE_KEY = "keyboard-shortcuts-state";
-
-// 旧形式(タイムスタンプを持たない2キー)からのフォールバック読み取り用。
-// STATE_KEYが一度も書かれていない既存インストールのために残す。
-const LEGACY_SHORTCUTS_KEY = "keyboard-shortcuts";
-const LEGACY_SHORTCUTS_CONFIG_KEY = "keyboard-shortcuts-config";
 
 interface KeyboardShortcutsState {
   shortcuts: KeyboardShortcutWireItem[];
@@ -38,15 +33,7 @@ export async function getKeyboardShortcuts(
     };
   }
 
-  const [shortcutsStr, configStr] = await Promise.all([
-    deps.kv.get(LEGACY_SHORTCUTS_KEY),
-    deps.kv.get(LEGACY_SHORTCUTS_CONFIG_KEY),
-  ]);
-  return {
-    shortcuts: shortcutsStr ? JSON.parse(shortcutsStr) : [],
-    config: configStr ? JSON.parse(configStr) : { enabled: true },
-    updatedAt: null,
-  };
+  return { shortcuts: [], config: { enabled: true }, updatedAt: null };
 }
 
 /** キーボードショートカットと設定を、更新日時とあわせて1つのキーに保存する(更新日時は同期の後勝ち判定に使う)。 */

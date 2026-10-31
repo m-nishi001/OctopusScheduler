@@ -12,8 +12,8 @@ function createMockJackpotApi() {
     getDriveMetaData: vi.fn(),
     getDriveData: vi.fn(),
     updateDriveData: vi.fn(),
-    addJson: vi.fn(),
-    getJson: vi.fn(async () => ({ json: "[]", updatedAt: null })),
+    addJson: vi.fn(async (_blob: { fileName: string; json: string }) => undefined),
+    getJson: vi.fn(async (_fileName: string): Promise<{ json: string | null }> => ({ json: null })),
   };
 }
 
@@ -43,7 +43,8 @@ describe("MemberRepository (jackpot)", () => {
   let mockDirectory: ReturnType<typeof createMockDirectory>;
   let repo: MemberRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await new LocalStorageService("jackpot-game", "MemberExtraData").clear();
     container.reset();
     mockDirectory = createMockDirectory();
     container.register(AccountsRepository, { useValue: mockDirectory as any });
@@ -104,7 +105,8 @@ describe("MemberRepository (jackpot)", () => {
     const members = await repo.getMembers();
     expect(members.find((m) => m.id === "s1")?.photo).toBe("aaaaaaaaaaaaaaaa");
     expect(members.find((m) => m.id === "s2")?.photo).toBeUndefined();
-    const stored = (await new LocalStorageService("jackpot-game", "MemberExtraData").getAll<Record<string, unknown>>()).get("s1");
+    const record = await new LocalStorageService("jackpot-game", "MemberExtraData").get<{ data: Record<string, unknown>[] }>("record");
+    const stored = record?.data.find((e) => e.memberId === "s1");
     expect(Object.keys(stored ?? {}).sort()).toEqual(["memberId", "rank"]);
   });
 
@@ -148,10 +150,9 @@ describe("MemberRepository.listSyncTargets", () => {
   beforeEach(async () => {
     container.reset();
     localStorage.clear();
-    // MemberExtraData/SyncDirtyTrackerはjsdomのlocalforageを介したグローバルな
+    // MemberExtraDataはjsdomのlocalforageを介したグローバルな
     // ストアなので、他のdescribeブロックの残留データから隔離するため明示的に消す。
     await new LocalStorageService("jackpot-game", "MemberExtraData").clear();
-    await new LocalStorageService("jackpot-game", "SyncDirtyTracker").clear();
     mockDirectory = createMockDirectory([{ id: "shared-1", name: "既存メンバー" }]);
     mockJackpotApi = createMockJackpotApi();
     container.register(AccountsRepository, { useValue: mockDirectory as any });
@@ -164,39 +165,56 @@ describe("MemberRepository.listSyncTargets", () => {
     expect(await target.getLocal()).toBeNull();
   });
 
-  it("returns no remote snapshot until a fileId has been learned (nothing pushed/pulled yet)", async () => {
+  it("getRemote reads member-extras.json as { data, updatedAt } (no fileId to learn first)", async () => {
+    mockJackpotApi.getJson.mockResolvedValueOnce({ json: JSON.stringify({ updatedAt: 55, data: [{ memberId: "shared-1", rank: 2 }] }) });
     const [target] = await repo.listSyncTargets();
-    expect(await target.getRemote()).toBeNull();
-    expect(mockJackpotApi.getJson).not.toHaveBeenCalled();
+    expect(await target.getRemote()).toEqual({ updatedAt: 55, data: [{ memberId: "shared-1", rank: 2 }] });
+    expect(mockJackpotApi.getJson).toHaveBeenCalledWith("member-extras.json");
   });
 
-  it("push uploads local extras and remembers the returned fileId for later pulls", async () => {
+  it("push uploads { updatedAt, data } as-is and writes nothing back locally", async () => {
     await repo.addMembers([{ id: "shared-1", name: "既存メンバー", rank: 4 }]);
-    mockJackpotApi.addJson.mockResolvedValue({
-      fileId: "folder1/member-extras.json",
-      driveDataId: "folder1/member-extras.json",
-      parentFolderId: "folder1",
-      lastUpdate: new Date().toISOString(),
-    });
 
     const [target] = await repo.listSyncTargets();
-    const local = await target.getLocal();
-    expect(local).not.toBeNull();
-    await target.push(local!.data);
+    const local = (await target.getLocal())!;
+    await target.push(local);
 
     expect(mockJackpotApi.addJson).toHaveBeenCalledOnce();
-    expect(localStorage.getItem("jackpot-member-extras-file-id")).toBe(
-      "folder1/member-extras.json"
-    );
+    const payload = mockJackpotApi.addJson.mock.calls[0][0];
+    expect(payload.fileName).toBe("member-extras.json");
+    expect(JSON.parse(payload.json)).toEqual({ updatedAt: local.updatedAt, data: [{ memberId: "shared-1", rank: 4 }] });
+    expect(await target.getLocal()).toEqual(local);
   });
 
-  it("pull replaces local extras with the remote snapshot", async () => {
+  it("an edit made while pushing keeps a newer local updatedAt (sent again next time)", async () => {
+    await repo.addMembers([{ id: "shared-1", name: "既存メンバー", rank: 4 }]);
     const [target] = await repo.listSyncTargets();
-    await target.pull([{ memberId: "shared-1", rank: 9 }]);
+    const sent = (await target.getLocal())!;
+    mockJackpotApi.addJson.mockImplementationOnce(async () => {
+      await repo.setExtras([{ id: "shared-1", rank: 7 }]);
+    });
+    await target.push(sent);
+
+    const local = (await target.getLocal())!;
+    expect(local.updatedAt).toBeGreaterThan(sent.updatedAt);
+    expect(local.data).toEqual([expect.objectContaining({ memberId: "shared-1", rank: 7 })]);
+  });
+
+  it("pull replaces local extras with the remote record and keeps its updatedAt", async () => {
+    const [target] = await repo.listSyncTargets();
+    await target.pull({ data: [{ memberId: "shared-1", rank: 9 }], updatedAt: 777 }, null);
 
     const members = await repo.getMembers();
     expect(members).toEqual([
       expect.objectContaining({ id: "shared-1", rank: 9 }),
     ]);
+    expect((await target.getLocal())!.updatedAt).toBe(777);
+  });
+
+  it("deleting every extra leaves an empty record that is still synced (distinct from no data)", async () => {
+    await repo.addMembers([{ id: "shared-1", name: "既存メンバー", rank: 4 }]);
+    await repo.deleteMembers(["shared-1"]);
+    const [target] = await repo.listSyncTargets();
+    expect((await target.getLocal())!.data).toEqual([]);
   });
 });

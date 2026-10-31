@@ -145,7 +145,7 @@ export class AssetDataRepository {
         if (!meta) return null;
         return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
       },
-      push: async (asset) => {
+      push: async ({ data: asset }) => {
         const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";
         const clientNow = new Date().toISOString();
         const driveData: DriveData = {
@@ -169,9 +169,8 @@ export class AssetDataRepository {
           : await this.jackpotApi.addDriveData(driveData, { timeout: 180000 });
 
         await this.localStorage.save(id, { ...asset, lastUpdated: saved.lastUpdate });
-        return { updatedAt: new Date(saved.lastUpdate).getTime() };
       },
-      pull: async (meta) => {
+      pull: async ({ data: meta }) => {
         const driveData = await this.jackpotApi.getDriveData(meta.fileId, {
           timeout: 180000,
         });
@@ -192,7 +191,6 @@ export class AssetDataRepository {
           blob
         );
         await this.localStorage.save(id, asset);
-        return { updatedAt: new Date(lastUpdated).getTime() };
       },
     };
   }

@@ -5,7 +5,7 @@
  * 既存の per-file 同期実装(AssetRepository.syncAssets の runInBatches)を
  * 一般化したもの: kind ごとに IConcurrencyPolicy が返す上限までの
  * ワーカープールで並列実行し、1件のエラーはバッチ全体を止めずに
- * summary.failed に集約する。
+ * summary.results(結果は対象ごとの一覧)に集約する。
  */
 import { inject, injectable } from "tsyringe";
 import {
@@ -14,21 +14,27 @@ import {
 } from "@octopus/infrastructures/interfaces";
 import type { SyncTarget } from "./sync-target";
 import { resolveSyncAction } from "./conflict-resolution";
+import type { SyncAction } from "./conflict-resolution";
 
-export interface SyncFailure {
+export type SyncResultKind = "pushed" | "pulled" | "skipped" | "failed";
+
+/** 対象1件の同期結果。失敗のときは、例外のメッセージをそのまま `error` に、失敗した時点で決まっていた向きを `action` に入れる(向きが決まる前の失敗は無し)。 */
+export interface SyncTargetResult {
   id: string;
-  error: string;
+  kind: string;
+  result: SyncResultKind;
+  action?: SyncAction;
+  error?: string;
 }
 
+/** 同期の結果。対象ごとの一覧だけを持ち、件数は一覧から数える。 */
 export interface SyncSummary {
-  pushed: number;
-  pulled: number;
-  skipped: number;
-  failed: SyncFailure[];
+  results: SyncTargetResult[];
 }
 
-function createEmptySummary(): SyncSummary {
-  return { pushed: 0, pulled: 0, skipped: 0, failed: [] };
+/** 結果の一覧から、指定した結果の件数を数える。 */
+export function countResults(summary: SyncSummary, result: SyncResultKind): number {
+  return summary.results.filter((r) => r.result === result).length;
 }
 
 /**
@@ -46,7 +52,7 @@ export class SyncRunner {
    * 異なる kind 同士は同時に走る。
    */
   async run(targets: SyncTarget[]): Promise<SyncSummary> {
-    const summary = createEmptySummary();
+    const summary: SyncSummary = { results: [] };
     const targetsByKind = new Map<string, SyncTarget[]>();
     for (const target of targets) {
       const list = targetsByKind.get(target.kind) ?? [];
@@ -77,17 +83,9 @@ export class SyncRunner {
     const worker = async (): Promise<void> => {
       while (nextIndex < targets.length) {
         const target = targets[nextIndex++];
-        try {
-          await this.runOne(target, summary);
-        } catch (e) {
-          summary.failed.push({
-            id: target.id,
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
+        await this.runOne(target, summary);
       }
     };
-
     await Promise.all(Array.from({ length: concurrency }, worker));
   }
 
@@ -95,24 +93,36 @@ export class SyncRunner {
     target: SyncTarget,
     summary: SyncSummary
   ): Promise<void> {
-    const [local, remote] = await Promise.all([
-      target.getLocal(),
-      target.getRemote(),
-    ]);
-    const action = resolveSyncAction(local, remote);
-
-    switch (action) {
-      case "push":
-        await target.push(local!.data);
-        summary.pushed++;
-        break;
-      case "pull":
-        await target.pull(remote!.data);
-        summary.pulled++;
-        break;
-      case "skip":
-        summary.skipped++;
-        break;
+    const record = (result: SyncResultKind) =>
+      summary.results.push({ id: target.id, kind: target.kind, result });
+    let action: SyncAction | undefined;
+    try {
+      const [local, remote] = await Promise.all([
+        target.getLocal(),
+        target.getRemote(),
+      ]);
+      action = resolveSyncAction(local, remote);
+      switch (action) {
+        case "push":
+          await target.push(local!);
+          record("pushed");
+          break;
+        case "pull":
+          // false は、判定のあとにローカルが編集されていて書かなかったこと(その編集は次の同期で送られる)
+          record((await target.pull(remote!, local)) === false ? "skipped" : "pulled");
+          break;
+        case "skip":
+          record("skipped");
+          break;
+      }
+    } catch (e) {
+      summary.results.push({
+        id: target.id,
+        kind: target.kind,
+        result: "failed",
+        action,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 }

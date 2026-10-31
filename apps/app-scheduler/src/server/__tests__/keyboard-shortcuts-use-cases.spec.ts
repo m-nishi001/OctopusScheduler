@@ -29,21 +29,4 @@ describe("keyboard-shortcuts-use-cases", () => {
 
     expect(result).toEqual(payload);
   });
-
-  it("falls back to the legacy two-key format when the combined state was never written", async () => {
-    const kv = new InMemoryKeyValueStorage();
-    await kv.set(
-      "keyboard-shortcuts",
-      JSON.stringify([{ id: "legacy", keys: ["1"], eventIds: [] }])
-    );
-    await kv.set("keyboard-shortcuts-config", JSON.stringify({ enabled: false }));
-
-    const result = await getKeyboardShortcuts({ kv });
-
-    expect(result).toEqual({
-      shortcuts: [{ id: "legacy", keys: ["1"], eventIds: [] }],
-      config: { enabled: false },
-      updatedAt: null,
-    });
-  });
 });

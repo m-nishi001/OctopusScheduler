@@ -51,10 +51,10 @@ describe("AssetRepository.listSyncTargets", () => {
     expect(local).not.toBeNull();
     expect(remote).toBeNull();
 
-    const pushed = await targets[0].push(local!.data);
+    await targets[0].push(local!);
     expect(fakeApi.addDriveData).toHaveBeenCalledOnce();
-    // 端末の時計ではなく、サーバーが付けた更新日時を返す(時計がずれた端末でも、新旧の比較が狂わない)
-    expect(pushed.updatedAt).toBe(new Date(SERVER_TIME).getTime());
+    // 端末の時計ではなく、サーバーが付けた更新日時をローカルにも残す(時計がずれた端末でも、新旧の比較が狂わない)
+    expect((await targets[0].getLocal())!.updatedAt).toBe(new Date(SERVER_TIME).getTime());
   });
 
   it("includes remote-only assets so they can be pulled down", async () => {
@@ -99,7 +99,7 @@ describe("AssetRepository.listSyncTargets", () => {
 
     const [target] = await repo.listSyncTargets();
     const local = await target.getLocal();
-    await target.push(local!.data);
+    await target.push(local!);
 
     expect(fakeApi.updateDriveData).toHaveBeenCalledOnce();
     expect(fakeApi.addDriveData).not.toHaveBeenCalled();

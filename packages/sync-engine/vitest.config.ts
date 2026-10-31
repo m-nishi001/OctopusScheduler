@@ -11,7 +11,7 @@ export default defineConfig({
       exclude: ["**/__tests__/**", "**/*.spec.ts", "**/*.test.ts", "**/testing/**", "**/endpoints.ts", "**/*-contract.ts", "**/container/**"],
       thresholds: { statements: 90, branches: 70, functions: 90, lines: 90 },
     },
-    // dirty-tracker.ts が client-common の LocalStorageService(localforage)を
+    // blob-record-store.ts が client-common の LocalStorageService(localforage)を
     // 使うため、localStorage driverが動くjsdom環境で実行する。
     environment: "jsdom",
     setupFiles: ["reflect-metadata"],
