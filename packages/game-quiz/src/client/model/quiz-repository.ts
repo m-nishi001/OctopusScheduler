@@ -3,12 +3,12 @@ import { inject, injectable } from "tsyringe";
 import { Quiz, normalizeCorrectNo } from "./quiz";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
-import { DirtyTracker } from "@octopus/sync-engine";
-import type { SyncTarget } from "@octopus/sync-engine";
+import { BlobRecordStore, blobRecordSyncTarget, textBlobRecordRemote } from "@octopus/sync-engine";
+import type { BlobRecordLocalStore, SyncTarget } from "@octopus/sync-engine";
 import { IQuizGameApiToken } from "../../server/quiz-api-contract";
 import type { QuizGameApi, QuizWithDataUrl } from "../../server/quiz-api-contract";
 import { dataUrlToBlob } from "./blob-utils";
-import type { DriveJsonData, DriveMetadata } from "@octopus/infrastructures/compositions";
+import type { DriveMetadata } from "@octopus/infrastructures/compositions";
 
 const METADATA_SYNC_KIND = "quizzes-meta";
 const METADATA_FILE_NAME = "quizzes.json";
@@ -23,7 +23,8 @@ export class QuizRepository {
     "quiz-game",
     "QuizData"
   );
-  private readonly dirtyTracker = new DirtyTracker("quiz-game");
+  /** クイズ一覧(同期の対象)の最終更新日時。データは持たず、一覧の編集のたびに更新日時だけを進める(一覧そのものは QuizData から作る)。 */
+  private readonly metaStamp = new BlobRecordStore<null>("quiz-game", "QuizMetaStamp");
 
   constructor(
     @inject(IQuizGameApiToken) private readonly quizApi: QuizGameApi
@@ -59,7 +60,7 @@ export class QuizRepository {
 
   async saveQuiz(quiz: Quiz): Promise<void> {
     await this.localStorage.save(quiz.id, quiz);
-    await this.dirtyTracker.touch(METADATA_SYNC_KIND);
+    await this.metaStamp.update(() => null);
     eventBus.emit("syncDirty");
   }
 
@@ -67,14 +68,14 @@ export class QuizRepository {
     const id = crypto.randomUUID();
     const newQuiz: Quiz = { ...quiz, id };
     await this.localStorage.save(id, newQuiz);
-    await this.dirtyTracker.touch(METADATA_SYNC_KIND);
+    await this.metaStamp.update(() => null);
     eventBus.emit("syncDirty");
     return id;
   }
 
   async deleteQuiz(id: string): Promise<void> {
     await this.localStorage.delete(id);
-    await this.dirtyTracker.touch(METADATA_SYNC_KIND);
+    await this.metaStamp.update(() => null);
     eventBus.emit("syncDirty");
   }
 
@@ -94,20 +95,6 @@ export class QuizRepository {
    * SyncTargetとして列挙する。
    */
   async listSyncTargets(): Promise<SyncTarget[]> {
-    let remoteQuizzes: QuizWithDataUrl[] = [];
-    let remoteMetaUpdatedAt = 0;
-    try {
-      const resp = await this.quizApi.getJson({});
-      remoteMetaUpdatedAt = resp.updatedAt ? new Date(resp.updatedAt).getTime() : 0;
-      const parsed = JSON.parse(resp.json || "[]");
-      if (Array.isArray(parsed)) remoteQuizzes = parsed;
-    } catch (e) {
-      console.error(
-        "[QuizRepository] Failed to fetch remote quizzes metadata for sync",
-        e
-      );
-    }
-
     let remoteAssetMetas: DriveMetadata[] = [];
     try {
       remoteAssetMetas = (await this.quizApi.getDriveMetaData({})) || [];
@@ -123,56 +110,51 @@ export class QuizRepository {
     }
 
     const targets: SyncTarget[] = [
-      this.buildQuizzesMetaTarget(remoteQuizzes, remoteMetaUpdatedAt),
+      this.buildQuizzesMetaTarget(),
       ...(await this.buildAssetTargets(remoteAssetMap)),
     ];
     return targets;
   }
 
-  private buildQuizzesMetaTarget(
-    remoteQuizzes: QuizWithDataUrl[],
-    remoteUpdatedAt: number
-  ): SyncTarget<QuizWithDataUrl[], QuizWithDataUrl[]> {
-    return {
-      id: METADATA_SYNC_KIND,
-      kind: METADATA_SYNC_KIND,
-      getLocal: async () => {
+  /**
+   * クイズ一覧のメタデータ(1つのレコード `{ data, updatedAt }`)。データは QuizData のクイズから作り、
+   * 更新日時だけを別に持つ(クイズ1件ごとのレコードは、画像を中に持つのでそのまま残す)。
+   */
+  private buildQuizzesMetaTarget(): SyncTarget<QuizWithDataUrl[], QuizWithDataUrl[]> {
+    const local: BlobRecordLocalStore<QuizWithDataUrl[]> = {
+      read: async () => {
+        const stamp = await this.metaStamp.read();
         const quizzes = await this.getAllQuizzes();
-        if (quizzes.length === 0) return null;
-        const trackedAt = await this.dirtyTracker.getUpdatedAt(METADATA_SYNC_KIND);
-        return {
-          data: quizzes.map((q) => this.toWireEntry(q)),
-          updatedAt: trackedAt ?? Date.now(),
-        };
+        // 一度も編集していない(更新日時が無い)端末は、クイズがあれば更新日時 0(リモートがあればそちらを取り込む)、無ければデータなし
+        if (!stamp && quizzes.length === 0) return null;
+        return { data: quizzes.map((q) => this.toWireEntry(q)), updatedAt: stamp?.updatedAt ?? 0 };
       },
-      getRemote: async () => {
-        if (remoteQuizzes.length === 0) return null;
-        return { data: remoteQuizzes, updatedAt: remoteUpdatedAt };
-      },
-      push: async (entries) => {
-        const driveJson: DriveJsonData = {
-          metadata: {} as any,
-          fileName: METADATA_FILE_NAME,
-          jsonText: JSON.stringify(entries),
-          uploadDate: new Date().toISOString(),
-          parentFolderId: "",
-        };
-        const meta = await this.quizApi.addJson({ driveJson });
-        const updatedAt = meta?.lastUpdate
-          ? new Date(meta.lastUpdate).getTime()
-          : Date.now();
-        await this.dirtyTracker.touch(METADATA_SYNC_KIND, updatedAt);
-        return { updatedAt };
-      },
-      pull: async (entries) => {
-        for (const entry of entries) {
-          await this.upsertQuizMetadata(entry);
+      replaceIfUnchanged: async (expectedUpdatedAt, next) => {
+        // 更新日時 0 は「更新日時が無いまま読んだ」(上の read)ので、更新日時の記録としては「無い」(null)
+        const expectedStamp = expectedUpdatedAt === 0 ? null : expectedUpdatedAt;
+        if (!(await this.metaStamp.replaceIfUnchanged(expectedStamp, { data: null, updatedAt: next.updatedAt }))) {
+          return false;
         }
-        const updatedAt = Date.now();
-        await this.dirtyTracker.touch(METADATA_SYNC_KIND, updatedAt);
-        return { updatedAt };
+        await this.applyRemoteQuizzes(next.data);
+        return true;
       },
     };
+    return blobRecordSyncTarget(
+      METADATA_SYNC_KIND,
+      local,
+      textBlobRecordRemote<QuizWithDataUrl[]>({
+        read: async () => (await this.quizApi.getJson({ fileName: METADATA_FILE_NAME })).json,
+        write: (json) => this.quizApi.addJson({ fileName: METADATA_FILE_NAME, json }),
+      })
+    );
+  }
+
+  /** リモートの一覧に合わせてローカルのクイズを反映する(一覧に無いクイズは消す)。 */
+  private async applyRemoteQuizzes(entries: QuizWithDataUrl[]): Promise<void> {
+    const keep = new Set(entries.map((e) => e.id));
+    const stale = Array.from((await this.localStorage.getAll<any>()).keys()).filter((id) => !keep.has(id));
+    if (stale.length) await this.localStorage.removeMultiple(stale);
+    for (const entry of entries) await this.upsertQuizMetadata(entry);
   }
 
   /** ローカルのQuizを、アセット実体を含まないワイヤー形式(drive:参照のみ)に変換する。 */
@@ -291,7 +273,7 @@ export class QuizRepository {
         if (!meta) return null;
         return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
       },
-      push: async (blob) => {
+      push: async ({ data: blob }) => {
         const dataUrl = await blobToDataUrl(blob);
         const clientNow = new Date().toISOString();
         const driveData: any = {
@@ -309,16 +291,13 @@ export class QuizRepository {
           parentFolderId: "",
         };
         // 更新日時はサーバーの時刻を採る(端末の時計がずれていても、リモートとの新旧比較が狂わないように)
-        const saved = remoteAssetMap.has(id)
-          ? await this.quizApi.updateDriveData({ driveData })
-          : await this.quizApi.addDriveData({ driveData });
-        return { updatedAt: new Date(saved.lastUpdate).getTime() };
+        if (remoteAssetMap.has(id)) await this.quizApi.updateDriveData({ driveData });
+        else await this.quizApi.addDriveData({ driveData });
       },
-      pull: async (meta) => {
+      pull: async ({ data: meta }) => {
         const data = await this.quizApi.getDriveData({ dataId: meta.fileId });
         const blob = data?.fileDataUrl ? dataUrlToBlob(data.fileDataUrl) : new Blob();
         await this.writeSlotBlob(quizId, id, blob);
-        return { updatedAt: new Date(meta.lastUpdate).getTime() };
       },
     };
   }

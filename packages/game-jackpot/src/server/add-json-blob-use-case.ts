@@ -1,8 +1,6 @@
-import type { DriveJsonData, DriveMetadata } from "@octopus/infrastructures/compositions";
 import {
   StorageKind,
   StorageModule,
-  storageNamespace,
   storagePath,
 } from "@octopus/infrastructures/compositions";
 import type { IKeyValueStorage } from "@octopus/infrastructures/interfaces";
@@ -12,24 +10,13 @@ export interface AddJsonBlobDeps {
 }
 
 /**
- * jackpotGame_addJson。addDriveData とは別の命名規約(id の埋め込みは任意)であり、
- * dedupe キャッシュも使わない(既存挙動を保持)。
+ * jackpotGame_addJson。クライアントが渡したテキスト(同期の `{ updatedAt, data }`)を、中身を見ずにそのまま保存する。
+ * 更新日時はクライアントが刻んだものをテキストの中に持つため、サーバーの時刻は使わない。
  */
 export async function addJsonBlob(
   deps: AddJsonBlobDeps,
-  driveJson: DriveJsonData
-): Promise<DriveMetadata> {
-  const appFileId = driveJson.appFileId ?? "";
-  const localName = appFileId ? `${appFileId}_${driveJson.fileName}` : driveJson.fileName;
-  const key = storagePath(StorageModule.Jackpot, StorageKind.Json, localName);
-
-  const meta = await deps.storage.putText(key, driveJson.jsonText, "application/json");
-
-  return {
-    driveDataId: appFileId || meta.key,
-    fileId: meta.key,
-    parentFolderId: storageNamespace(StorageModule.Jackpot, StorageKind.Json),
-    lastUpdate: meta.updatedAt,
-    size: meta.size,
-  };
+  blob: { fileName: string; json: string }
+): Promise<void> {
+  const key = storagePath(StorageModule.Jackpot, StorageKind.Json, blob.fileName);
+  await deps.storage.putText(key, blob.json, "application/json");
 }

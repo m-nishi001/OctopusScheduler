@@ -3,10 +3,11 @@
  *
  * 画像(PNG)と音(WAV)はこのファイルで生成する(ネットワーク不要・著作権の問題なし・決定的)。
  * R2 のキー・保存形式は実アプリの同期処理に合わせてある:
- *   - クイズ一覧         quiz-game/json/quizzes.json      (QuizWithDataUrl[]、画像は `drive:<slot>` 参照)
+ *   - クイズ一覧         quiz-game/json/quizzes.json      ({ updatedAt, data: QuizWithDataUrl[] }、画像は `drive:<slot>` 参照)
  *   - クイズのアセット   quiz-game/assets/<slot>_<slot>   (slot = `<クイズID>::option::<番号>` など)
- *   - 景品一覧           jackpot-game/json/prizes.json    (Prize[])
- *   - 画面設定           jackpot-game/json/screens.json   (ScreenSetting[]、settingValue は JSON 文字列)
+ *   - 景品一覧           jackpot-game/json/prizes.json    ({ updatedAt, data: Prize[] })
+ *   - 画面設定           jackpot-game/json/screens.json   ({ updatedAt, data: ScreenSetting[] }、settingValue は JSON 文字列)
+ * 一覧のファイルは、アプリの同期が保存する `{ updatedAt, data }` の形(updatedAt はミリ秒)。端末が持つ同じ種類のデータより新しければ、取り込まれる。
  *   - ジャックポットのアセット jackpot-game/assets/<アセットID>_<ファイル名>
  * アセットID・クイズIDには `_` を入れない(キーの先頭の `_` までをIDとして読むため)。
  */
@@ -287,12 +288,15 @@ export function buildQuizAssets() {
 
 // ---------- R2 への書き込み一覧 ----------
 
-/** R2 に書く [キー, 値, Content-Type] の一覧(純粋関数。クイズ・景品・画面設定・アセット)。 */
-export function buildContentEntries() {
+/** アプリの同期が保存する一覧の形 `{ updatedAt, data }`(JSON のテキスト)にする。 */
+const record = (data, updatedAt) => JSON.stringify({ updatedAt, data });
+
+/** R2 に書く [キー, 値, Content-Type] の一覧(クイズ・景品・画面設定・アセット)。`updatedAt` は一覧の更新日時(ミリ秒。既定は今)。 */
+export function buildContentEntries(updatedAt = Date.now()) {
   const entries = [
-    ["quiz-game/json/quizzes.json", JSON.stringify(buildQuizzes()), JSON_TYPE],
-    ["jackpot-game/json/prizes.json", JSON.stringify(buildPrizes()), JSON_TYPE],
-    ["jackpot-game/json/screens.json", JSON.stringify(buildScreenSettings()), JSON_TYPE],
+    ["quiz-game/json/quizzes.json", record(buildQuizzes(), updatedAt), JSON_TYPE],
+    ["jackpot-game/json/prizes.json", record(buildPrizes(), updatedAt), JSON_TYPE],
+    ["jackpot-game/json/screens.json", record(buildScreenSettings(), updatedAt), JSON_TYPE],
   ];
   for (const [id, fileName, mime, body] of buildJackpotAssets()) entries.push([`jackpot-game/assets/${id}_${fileName}`, body, mime]);
   for (const [slotId, mime, body] of buildQuizAssets()) entries.push([`quiz-game/assets/${slotId}_${slotId}`, body, mime]);

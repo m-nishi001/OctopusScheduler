@@ -163,6 +163,14 @@ async function seedStoreOnce(
   );
 }
 
+/**
+ * 一覧全体を1件のレコード `{ data, updatedAt }` で持つストア(PrizeData / ScreenConfigData / MemberExtraData)に、一覧を入れる。
+ * 更新日時は「いま」なので、サーバーより新しいものとして同期で送られる。
+ */
+export async function seedRecord(page: Page, dbName: string, storeName: string, data: unknown[]): Promise<void> {
+  await seedStore(page, dbName, storeName, [{ id: "record", value: { data, updatedAt: Date.now() } }]);
+}
+
 /** E2E用のクイズ(正解は2番)。 */
 export function sampleQuiz(id: string, timeLimit = 60) {
   return {

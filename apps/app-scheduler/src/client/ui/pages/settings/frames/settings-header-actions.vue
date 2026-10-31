@@ -1,5 +1,5 @@
 <template>
-    <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError"
+    <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError" :sync-log="log" :sync-kind-labels="SYNC_KIND_LABELS"
         @backup="onDownloadBackup" @home="router.push({ name: 'home' })">
         <UiButton icon="external" size="sm" title="投影用の実行画面を新しいタブで開きます。ショートカットの結果はここに表示されます" @click="openExecute">実行画面を開く</UiButton>
         <UiButton icon="help" size="sm" @click="helpOpen = true">ヘルプ</UiButton>
@@ -14,11 +14,11 @@ import { HeaderActions, UiButton } from '@octopus/ui-kit';
 import SettingsHelpDialog from '../help/settings-help-dialog.vue';
 import { useRouter } from 'vue-router';
 import { useAuthSession } from '../../../../control/auth/auth-session';
-import { useBackgroundSync } from '../../../composables/use-background-sync';
+import { SYNC_KIND_LABELS, useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
 const router = useRouter();
-const { status, lastError } = useBackgroundSync();
+const { status, lastError, log } = useBackgroundSync();
 
 const helpOpen = ref(false);
 

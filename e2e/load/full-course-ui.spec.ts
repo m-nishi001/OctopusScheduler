@@ -1,5 +1,5 @@
 import type { Browser } from "@playwright/test";
-import { adminRpc, createSession, errors, expect, loginByQr, newDevice, nextButton, openAdvanced, openEventTab, publishPortal, route, sampleQuiz, seedStore, test } from "../ui/fixtures";
+import { adminRpc, createSession, errors, expect, loginByQr, newDevice, nextButton, openAdvanced, openEventTab, publishPortal, route, sampleQuiz, seedStore, seedRecord, test } from "../ui/fixtures";
 import type { Device } from "../ui/fixtures";
 import { Metrics } from "./lib/metrics.mjs";
 import { Participant, createRng } from "./lib/participant.mjs";
@@ -75,7 +75,7 @@ test("実ブラウザ(ホスト・管理・参加者3)+ 合成の参加者47・�
     await host.page.goto(`/#/session/host/${sessionId}`);
     await expect(host.page.locator(".host-view__title")).toContainText("負荷会場");
     await seedStore(host.page, "quiz-game", "QuizData", QUIZ_IDS.map((id) => ({ id, value: { ...sampleQuiz(id, 30), title: `負荷クイズ ${id}` } })));
-    await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+    await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
     await publishPortal(request, sessionId);
 
     // 管理者2人目(合成): 実際の管理端末と並行して、回答の一覧を取得する

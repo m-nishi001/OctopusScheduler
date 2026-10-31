@@ -1,53 +1,32 @@
 import { describe, it, expect } from "vitest";
 import { InMemoryKeyValueStorage } from "@octopus/infrastructures/testing";
-import { StorageKind, StorageModule, storagePath } from "@octopus/infrastructures/compositions";
+import { addJsonBlob } from "../add-json-blob-use-case";
 import { getJsonBlob } from "../get-json-blob-use-case";
 
-const DEFAULT_KEY = storagePath(StorageModule.Quiz, StorageKind.Json, "quizzes.json");
-
-describe("getJsonBlob", () => {
-  it("returns an empty array with a null updatedAt when nothing has ever been written", async () => {
+describe("addJsonBlob / getJsonBlob", () => {
+  it("まだ何も保存していなければ json は null", async () => {
     const storage = new InMemoryKeyValueStorage();
-
-    const result = await getJsonBlob({ storage });
-    expect(result).toEqual({ json: "[]", updatedAt: null });
+    expect(await getJsonBlob({ storage }, "screens.json")).toEqual({ json: null });
   });
 
-  it("reads the default quizzes.json file and returns its updatedAt when no fileId is given", async () => {
+  it("保存したテキストを、中身を見ずにそのまま返す(配列でなくても、空の一覧でも書き換えない)", async () => {
     const storage = new InMemoryKeyValueStorage();
-    await storage.putText(DEFAULT_KEY, JSON.stringify([{ id: "q1" }]), "application/json");
-
-    const result = await getJsonBlob({ storage });
-    expect(JSON.parse(result.json)).toEqual([{ id: "q1" }]);
-    expect(result.updatedAt).not.toBeNull();
+    const records = [
+      JSON.stringify({ updatedAt: 1234, data: [{ screenName: "home" }] }),
+      JSON.stringify({ updatedAt: 99, data: [] }),
+      "not json at all",
+    ];
+    for (const json of records) {
+      await addJsonBlob({ storage }, { fileName: "screens.json", json });
+      expect(await getJsonBlob({ storage }, "screens.json")).toEqual({ json });
+    }
   });
 
-  it("returns an empty array with a null updatedAt when the default file is missing", async () => {
+  it("ファイル名ごとに別々に保存する", async () => {
     const storage = new InMemoryKeyValueStorage();
-
-    const result = await getJsonBlob({ storage });
-    expect(result).toEqual({ json: "[]", updatedAt: null });
-  });
-
-  it("returns an empty array (still success) when the stored content is malformed JSON", async () => {
-    const storage = new InMemoryKeyValueStorage();
-    await storage.putText(DEFAULT_KEY, "{not valid json", "application/json");
-
-    const result = await getJsonBlob({ storage });
-    expect(JSON.parse(result.json)).toEqual([]);
-    expect(result.updatedAt).not.toBeNull();
-  });
-
-  it("falls back to a filename-prefix match and returns that file's updatedAt when the given fileId is not a real key", async () => {
-    const storage = new InMemoryKeyValueStorage();
-    await storage.putText(
-      storagePath(StorageModule.Quiz, StorageKind.Json, "app-123_quizzes.json"),
-      JSON.stringify([{ id: "q2" }]),
-      "application/json"
-    );
-
-    const result = await getJsonBlob({ storage }, "app-123");
-    expect(JSON.parse(result.json)).toEqual([{ id: "q2" }]);
-    expect(result.updatedAt).not.toBeNull();
+    await addJsonBlob({ storage }, { fileName: "prizes.json", json: "A" });
+    await addJsonBlob({ storage }, { fileName: "screens.json", json: "B" });
+    expect((await getJsonBlob({ storage }, "prizes.json")).json).toBe("A");
+    expect((await getJsonBlob({ storage }, "screens.json")).json).toBe("B");
   });
 });

@@ -66,8 +66,8 @@ test("buildPrizes: 確変の画像1と画像2(と当選画像1・2)は別のア�
 });
 
 test("buildContentEntries: 決定的で、キーが重複しない", () => {
-  const a = buildContentEntries();
-  const b = buildContentEntries();
+  const a = buildContentEntries(1);
+  const b = buildContentEntries(1);
   assert.deepEqual(a.map((e) => e[0]), b.map((e) => e[0]));
   assert.ok(a.every(([, v], i) => Buffer.compare(Buffer.from(v), Buffer.from(b[i][1])) === 0));
   assert.equal(new Set(a.map((e) => e[0])).size, a.length);
@@ -124,4 +124,22 @@ test("buildContentEntries: Content-Type が付き、画像と音のMIMEが正し
   assert.ok(keys.includes("quiz-game/json/quizzes.json"));
   assert.ok(keys.includes("jackpot-game/json/prizes.json"));
   assert.ok(keys.includes("jackpot-game/json/screens.json"));
+});
+
+test("buildContentEntries: 一覧のファイルは、アプリの同期が保存する { updatedAt, data } の形", () => {
+  const entries = new Map(buildContentEntries(1234567890).map(([key, value]) => [key, value]));
+  const quizzes = JSON.parse(entries.get("quiz-game/json/quizzes.json"));
+  const prizes = JSON.parse(entries.get("jackpot-game/json/prizes.json"));
+  const screens = JSON.parse(entries.get("jackpot-game/json/screens.json"));
+  for (const record of [quizzes, prizes, screens]) {
+    assert.equal(record.updatedAt, 1234567890);
+    assert.ok(Array.isArray(record.data) && record.data.length > 0);
+  }
+  assert.deepEqual(quizzes.data, JSON.parse(JSON.stringify(buildQuizzes())));
+  assert.deepEqual(prizes.data, JSON.parse(JSON.stringify(buildPrizes())));
+  assert.deepEqual(screens.data, JSON.parse(JSON.stringify(buildScreenSettings())));
+  // 更新日時を渡さなければ、いまの時刻(端末の古いデータより新しいものとして取り込まれる)
+  const before = Date.now();
+  const now = JSON.parse(new Map(buildContentEntries().map(([k, v]) => [k, v])).get("jackpot-game/json/prizes.json")).updatedAt;
+  assert.ok(now >= before);
 });

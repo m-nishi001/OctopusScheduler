@@ -1,6 +1,6 @@
 import type { APIRequestContext } from "@playwright/test";
 import { expectNoHorizontalOverflow, expectOverlayCenteredWithoutScroll } from "./helpers/responsive";
-import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, seedStore, test, type Device } from "./fixtures";
+import { adminRpc, createSession, expect, newDevice, nextButton, openAdvanced, openEventTab, route, seedRecord, test, type Device } from "./fixtures";
 
 /**
  * ジャックポットの抽選の対象:
@@ -66,7 +66,7 @@ async function scene(browser: import("@playwright/test").Browser, request: APIRe
   host.page.on("dialog", (d) => void d.dismiss()); // 想定外の alert で止まらないように
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText(label);
-  await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+  await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
   await publish(request, sessionId);
 
   await openAdvanced(admin.page);
@@ -104,7 +104,7 @@ async function autoScene(browser: import("@playwright/test").Browser, request: A
   host.page.on("dialog", (d) => void d.dismiss());
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText(label);
-  await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+  await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
   await publish(request, sessionId);
 
   await openAdvanced(admin.page);
@@ -397,8 +397,8 @@ test.describe("エントリー → ジャックポット", () => {
 
     // エンディングは設定が空だと一瞬でロビーへ戻るので、長く映る1枚を用意しておく
     const ending = { bgmAssetId: "", contents: [{ id: "e1", type: "text", content: "ご参加ありがとうございました", duration: 60_000 }] };
-    await seedStore(host.page, "jackpot-game", "ScreenConfigData", [
-      { id: "ending_ending-screen-settings", value: { screenName: "ending", settingName: "ending-screen-settings", settingValue: JSON.stringify(ending) } },
+    await seedRecord(host.page, "jackpot-game", "ScreenConfigData", [
+      { screenName: "ending", settingName: "ending-screen-settings", settingValue: JSON.stringify(ending) },
     ]);
     // 結果 → エンディングに切り替わっても、終了の画面のまま(古い画面の後片付けで公開が消えない)
     await admin.page.getByRole("button", { name: "ジャックポット: エンディング" }).click();

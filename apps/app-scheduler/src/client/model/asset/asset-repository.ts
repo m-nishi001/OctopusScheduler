@@ -140,7 +140,7 @@ export class AssetRepository {
         if (!meta) return null;
         return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
       },
-      push: async (asset) => {
+      push: async ({ data: asset }) => {
         const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";
         const clientNow = new Date().toISOString();
         const driveData = {
@@ -163,13 +163,11 @@ export class AssetRepository {
           : await this.schedulerApi.addDriveData(driveData);
 
         await this.localStorage.save(id, { ...asset, lastUpdated: saved.lastUpdate });
-        return { updatedAt: new Date(saved.lastUpdate).getTime() };
       },
-      pull: async (meta) => {
+      pull: async ({ data: meta }) => {
         const res = await this.schedulerApi.getDriveData(meta.fileId);
         const asset = await this.driveDataToAsset(res);
         await this.localStorage.save(id, asset);
-        return { updatedAt: new Date(asset.lastUpdated).getTime() };
       },
     };
   }

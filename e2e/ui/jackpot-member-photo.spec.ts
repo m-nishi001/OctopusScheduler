@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { makeBadgePng } from "../../scripts/seed-content.js";
-import { adminRpc, createSession, expect, loginByQr, nextButton, newDevice, openAdvanced, openEventTab, route, seedStore, test } from "./fixtures";
+import { adminRpc, createSession, expect, loginByQr, nextButton, newDevice, openAdvanced, openEventTab, route, seedRecord, test } from "./fixtures";
 
 /**
  * ジャックポットのメンバーの顔写真は、共通の名簿(Member.photo)から出る。ジャックポット独自の写真は持たない。
@@ -92,7 +92,7 @@ test("メンバー抽選のコマと結果の画面に、名簿の写真が出�
   });
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toContainText("写真抽選会場");
-  await seedStore(host.page, "jackpot-game", "PrizeData", PRIZES.map((p) => ({ id: p.id, value: p })));
+  await seedRecord(host.page, "jackpot-game", "PrizeData", PRIZES);
   await adminRpc(request, "sessionHub_setPortalSession", { sessionId, published: true });
 
   await openAdvanced(admin.page);

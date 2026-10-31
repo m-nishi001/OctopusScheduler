@@ -3,74 +3,48 @@ import { KeyboardShortcut } from "./keyboard-shortcut";
 import type { KeyboardShortcutData } from "./keyboard-shortcut";
 import { KeyboardShortcutConfig } from "./keyboard-shortcut-config";
 import type { KeyboardShortcutConfigData } from "./keyboard-shortcut-config";
-import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
-import { DirtyTracker } from "@octopus/sync-engine";
+import { BlobRecordStore, blobRecordSyncTarget } from "@octopus/sync-engine";
 import type { SyncTarget } from "@octopus/sync-engine";
 import { IOctopusSchedulerApiToken } from "../../../server/scheduler-api-contract";
-import type {
-  KeyboardShortcutWireItem,
-  OctopusSchedulerApi,
-} from "../../../server/scheduler-api-contract";
+import type { OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 
 const SYNC_KIND = "keyboard-shortcuts";
-/** 最後の1件を消して空にしたこと(まだ同期していない)を覚えておく保存先のキー。 */
-const EMPTIED_KEY = "shortcutsEmptied";
 
-interface KeyboardShortcutsLocalSnapshot {
+/** ショートカットと設定をまとめた、同期の1件分のデータ。 */
+interface KeyboardShortcutsRecord {
   shortcuts: KeyboardShortcutData[];
   config: KeyboardShortcutConfigData;
 }
 
-interface KeyboardShortcutsRemoteSnapshot {
-  shortcuts: KeyboardShortcutWireItem[];
-  config: unknown;
-}
-
-/** キーボードショートカットとその設定の保存先。この端末に持ち、変更があればバックグラウンド同期でサーバーへ送る。 */
+/** キーボードショートカットとその設定の保存先。この端末に1件のレコード `{ data, updatedAt }` で持ち、変更があればバックグラウンド同期でサーバーと新しいほうに揃える。 */
 @injectable()
 export class KeyboardShortcutRepository {
-  private readonly localStorage: LocalStorageService;
-  private readonly dirtyTracker: DirtyTracker;
+  private readonly store = new BlobRecordStore<KeyboardShortcutsRecord>("octopus-scheduler", "KeyboardShortcut");
 
   constructor(
     @inject(IOctopusSchedulerApiToken)
     private readonly schedulerApi: OctopusSchedulerApi
-  ) {
-    this.localStorage = new LocalStorageService(
-      "octopus-scheduler",
-      "KeyboardShortcut"
-    );
-    this.dirtyTracker = new DirtyTracker("octopus-scheduler");
-  }
+  ) {}
 
   async getKeyboardShortcutsRaw(): Promise<KeyboardShortcutData[]> {
-    const data =
-      await this.localStorage.get<KeyboardShortcutData[]>("shortcuts");
-    return data || [];
-  }
-
-  /** 最後の1件を消して空にした状態か(まだサーバーへ送っていない)。 */
-  private async wasEmptied(): Promise<boolean> {
-    return (await this.localStorage.get<boolean>(EMPTIED_KEY)) === true;
+    return (await this.store.read())?.data.shortcuts ?? [];
   }
 
   async saveKeyboardShortcuts(shortcuts: KeyboardShortcut[]): Promise<void> {
     const datas = shortcuts.map((s) => s.serialize());
     // Ensure we pass plain JSON-serializable objects to LocalStorageService
     // This strips classes, methods and prototypes that may cause structured clone errors.
-    const serializableDatas = JSON.parse(JSON.stringify(datas));
-    // 最後の1件を消して空になったときは「空にした」印を残す(最初から空の端末=データなし、と区別して、削除を同期するため)
-    const emptied = shortcuts.length === 0 && ((await this.getKeyboardShortcutsRaw()).length > 0 || (await this.wasEmptied()));
-    await this.localStorage.save("shortcuts", serializableDatas as any);
-    await this.localStorage.save(EMPTIED_KEY, emptied);
-    await this.dirtyTracker.touch(SYNC_KIND);
+    const serializableDatas: KeyboardShortcutData[] = JSON.parse(JSON.stringify(datas));
+    await this.store.update((current) => ({
+      shortcuts: serializableDatas,
+      config: current?.config ?? KeyboardShortcutConfig.createEmpty().serialize(),
+    }));
     eventBus.emit("syncDirty");
   }
 
   async getConfig(): Promise<KeyboardShortcutConfig> {
-    const data =
-      await this.localStorage.get<KeyboardShortcutConfigData>("config");
+    const data = (await this.store.read())?.data.config;
     if (data) {
       return KeyboardShortcutConfig.fromData(data);
     }
@@ -79,8 +53,7 @@ export class KeyboardShortcutRepository {
 
   async saveConfig(config: KeyboardShortcutConfig): Promise<void> {
     const data = config.serialize();
-    await this.localStorage.save("config", data);
-    await this.dirtyTracker.touch(SYNC_KIND);
+    await this.store.update((current) => ({ shortcuts: current?.shortcuts ?? [], config: data }));
     eventBus.emit("syncDirty");
   }
 
@@ -88,84 +61,31 @@ export class KeyboardShortcutRepository {
    * バックグラウンド同期エンジン向けに、ショートカット+設定をまとめて1つの
    * SyncTargetとして返す。GAS側はこれらを不透明なJSONとしてしか保存しない
    * ため、個々のショートカット単位ではなくドメイン全体を1つの対象として扱う。
-   *
-   * ローカル側は個々のレコードに更新日時を持たないため、DirtyTracker が
-   * 記録する最終変更日時を使う。まだ一度もtouchされていない場合(この機能を
-   * 導入する前からのローカルデータ)は、既存の未同期の編集を誤ってリモートで
-   * 上書きしないよう「今」を採用してローカル優先にする。
+   * 最後の1件を消して空にした状態も、「レコードが無い」とは区別されて同期される。
    */
-  async listSyncTargets(): Promise<
-    SyncTarget<KeyboardShortcutsLocalSnapshot, KeyboardShortcutsRemoteSnapshot>[]
-  > {
-    const target: SyncTarget<
-      KeyboardShortcutsLocalSnapshot,
-      KeyboardShortcutsRemoteSnapshot
-    > = {
-      id: SYNC_KIND,
-      kind: SYNC_KIND,
-      getLocal: async () => {
-        const shortcuts = await this.getKeyboardShortcutsRaw();
-        // 最初から空なら「データなし」。最後の1件を消して空にしたのなら、「空である」ことを同期する
-        if (shortcuts.length === 0 && !(await this.wasEmptied())) return null;
-        const config = await this.getConfig();
-        const trackedAt = await this.dirtyTracker.getUpdatedAt(SYNC_KIND);
-        const updatedAt = trackedAt ?? Date.now();
-        return { data: { shortcuts, config: config.serialize() }, updatedAt };
-      },
-      getRemote: async () => {
-        let remote;
-        try {
-          remote = await this.schedulerApi.getKeyboardShortcuts(undefined, {
-            timeout: 30000,
-          });
-        } catch (e) {
-          console.error(
-            "[KeyboardShortcutRepository] Failed to fetch remote keyboard shortcuts for sync",
-            e
+  async listSyncTargets(): Promise<SyncTarget<KeyboardShortcutsRecord, KeyboardShortcutsRecord>[]> {
+    return [
+      blobRecordSyncTarget(SYNC_KIND, this.store, {
+        get: async () => {
+          const remote = await this.schedulerApi.getKeyboardShortcuts(undefined, { timeout: 30000 });
+          // 一度も保存されていない(更新日時が無い)なら「データなし」。更新日時があるなら、空でもそれが最新の状態
+          if (!remote?.updatedAt) return null;
+          return {
+            data: { shortcuts: remote.shortcuts, config: remote.config as KeyboardShortcutConfigData },
+            updatedAt: new Date(remote.updatedAt).getTime(),
+          };
+        },
+        put: async ({ data, updatedAt }) => {
+          await this.schedulerApi.setKeyboardShortcuts(
+            {
+              shortcuts: data.shortcuts.map((s) => ({ id: s.id, keys: s.keys, eventIds: s.eventIds ?? [] })),
+              config: data.config,
+              updatedAt: new Date(updatedAt).toISOString(),
+            },
+            { timeout: 30000 }
           );
-          return null;
-        }
-        // 一度も保存されていない(更新日時が無く、中身も空)なら「データなし」。更新日時があるなら、空でもそれが最新の状態
-        if (!remote || (!remote.updatedAt && (remote.shortcuts?.length ?? 0) === 0)) return null;
-        const updatedAt = remote.updatedAt
-          ? new Date(remote.updatedAt).getTime()
-          : 0;
-        return {
-          data: { shortcuts: remote.shortcuts, config: remote.config },
-          updatedAt,
-        };
-      },
-      push: async (local) => {
-        const updatedAtIso = new Date().toISOString();
-        const wireShortcuts: KeyboardShortcutWireItem[] = local.shortcuts.map(
-          (data) => ({
-            id: data.id,
-            keys: data.keys,
-            eventIds: data.eventIds ?? [],
-          })
-        );
-        await this.schedulerApi.setKeyboardShortcuts(
-          {
-            shortcuts: wireShortcuts,
-            config: local.config,
-            updatedAt: updatedAtIso,
-          },
-          { timeout: 30000 }
-        );
-        const updatedAt = new Date(updatedAtIso).getTime();
-        await this.localStorage.save(EMPTIED_KEY, false);
-        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
-        return { updatedAt };
-      },
-      pull: async (remote) => {
-        await this.localStorage.save("shortcuts", remote.shortcuts as any);
-        await this.localStorage.save("config", remote.config as any);
-        await this.localStorage.save(EMPTIED_KEY, false);
-        const updatedAt = Date.now();
-        await this.dirtyTracker.touch(SYNC_KIND, updatedAt);
-        return { updatedAt };
-      },
-    };
-    return [target];
+        },
+      }),
+    ];
   }
 }

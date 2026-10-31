@@ -10,7 +10,6 @@ describe("PrizeService", () => {
 
   beforeEach(async () => {
     await new LocalStorageService("jackpot-game", "PrizeData").clear();
-    await new LocalStorageService("jackpot-game", "SyncDirtyTracker").clear();
     n = 0;
     service = new PrizeService(new PrizeRepository({} as never), { nextId: () => `id-${++n}` } as never);
   });

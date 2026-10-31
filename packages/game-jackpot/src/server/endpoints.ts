@@ -12,8 +12,8 @@ import {
 import type {
   IKeyValueStorage,
 } from "@octopus/infrastructures/interfaces";
-import type { DriveData, DriveJsonData } from "@octopus/infrastructures/compositions";
-import type { JackpotGameEndpointName } from "./jackpot-api-contract";
+import type { DriveData } from "@octopus/infrastructures/compositions";
+import type { JackpotGameEndpointName, JsonBlobWrite } from "./jackpot-api-contract";
 import { JACKPOT_GAME_PREFIX } from "./jackpot-api-contract";
 
 import { createDriveAssets, StorageKind, StorageModule } from "@octopus/infrastructures/compositions";
@@ -35,8 +35,8 @@ declare let _jackpotGame_addDriveData: (driveData: DriveData) => Promise<string>
 declare let _jackpotGame_getDriveMetaData: (folderId?: string) => Promise<string>;
 declare let _jackpotGame_getDriveData: (dataId: string) => Promise<string>;
 declare let _jackpotGame_updateDriveData: (driveData: DriveData) => Promise<string>;
-declare let _jackpotGame_addJson: (driveJson: DriveJsonData) => Promise<string>;
-declare let _jackpotGame_getJson: (fileId?: string) => Promise<string>;
+declare let _jackpotGame_addJson: (blob: JsonBlobWrite) => Promise<string>;
+declare let _jackpotGame_getJson: (fileName: string) => Promise<string>;
 
 _jackpotGame_addDriveData = async (driveData: DriveData): Promise<string> => {
   return respond(() => assets.save(resolveDeps(), driveData));
@@ -54,12 +54,12 @@ _jackpotGame_updateDriveData = async (driveData: DriveData): Promise<string> => 
   return respond(() => assets.save(resolveDeps(), driveData));
 };
 
-_jackpotGame_addJson = async (driveJson: DriveJsonData): Promise<string> => {
-  return respond(() => addJsonBlob(resolveDeps(), driveJson));
+_jackpotGame_addJson = async (blob: JsonBlobWrite): Promise<string> => {
+  return respond(() => addJsonBlob(resolveDeps(), blob));
 };
 
-_jackpotGame_getJson = async (fileId?: string): Promise<string> => {
-  return respond(() => getJsonBlob(resolveDeps(), fileId));
+_jackpotGame_getJson = async (fileName: string): Promise<string> => {
+  return respond(() => getJsonBlob(resolveDeps(), fileName));
 };
 
 // 認可ポリシー。読み取りも書き込みも管理者のみ(投影用の実行画面もログインして使う。参加者はセッションの公開エンドポイントだけを使う)。

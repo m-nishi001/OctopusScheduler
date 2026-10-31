@@ -12,13 +12,8 @@ function makeFakeApi() {
     getDriveMetaData: vi.fn(async (): Promise<unknown[]> => []),
     getDriveData: vi.fn(),
     updateDriveData: vi.fn(async (d: any) => ({ ...d.driveData.metadata, fileId: "file-1", lastUpdate: SERVER_TIME })),
-    addJson: vi.fn(async (d: any) => ({
-      driveDataId: d.driveJson.fileName,
-      fileId: `folder1/${d.driveJson.fileName}`,
-      parentFolderId: "folder1",
-      lastUpdate: new Date().toISOString(),
-    })),
-    getJson: vi.fn(async () => ({ json: "[]", updatedAt: null })),
+    addJson: vi.fn(async (_blob: { fileName: string; json: string }) => undefined),
+    getJson: vi.fn(async (_args: { fileName: string }): Promise<{ json: string | null }> => ({ json: null })),
   };
 }
 
@@ -41,7 +36,7 @@ describe("QuizRepository.listSyncTargets", () => {
 
   beforeEach(async () => {
     await new LocalStorageService("quiz-game", "QuizData").clear();
-    await new LocalStorageService("quiz-game", "SyncDirtyTracker").clear();
+    await new LocalStorageService("quiz-game", "QuizMetaStamp").clear();
     fakeApi = makeFakeApi();
     repo = new QuizRepository(fakeApi as any);
   });
@@ -61,15 +56,84 @@ describe("QuizRepository.listSyncTargets", () => {
       const [metaTarget] = await repo.listSyncTargets();
       const local = await metaTarget.getLocal();
       expect(local).not.toBeNull();
-      await metaTarget.push(local!.data);
+      await metaTarget.push(local!);
 
       expect(fakeApi.addJson).toHaveBeenCalledOnce();
-      const payload = fakeApi.addJson.mock.calls[0][0].driveJson;
+      const payload = fakeApi.addJson.mock.calls[0][0];
       expect(payload.fileName).toBe("quizzes.json");
-      const uploaded = JSON.parse(payload.jsonText);
-      expect(uploaded).toEqual([
+      // サーバーには { updatedAt, data } をそのまま保存する(更新日時はローカルのものと同じ)
+      const uploaded = JSON.parse(payload.json);
+      expect(uploaded.updatedAt).toBe(local!.updatedAt);
+      expect(uploaded.data).toEqual([
         expect.objectContaining({ id: "q1", bgm: "drive:q1::bgm" }),
       ]);
+    });
+
+    it("送信中に編集すると、ローカルのほうが新しいまま残る(書き戻しが無いので、次の判定は push になる)", async () => {
+      await repo.saveQuiz(makeQuiz());
+      let server: string | null = null;
+      fakeApi.getJson.mockImplementation(async () => ({ json: server }));
+      fakeApi.addJson.mockImplementation(async (blob: { json: string }) => {
+        await repo.saveQuiz(makeQuiz({ title: "送信中の編集" })); // 送信の最中の編集
+        server = blob.json;
+      });
+
+      const [metaTarget] = await repo.listSyncTargets();
+      await metaTarget.push((await metaTarget.getLocal())!);
+
+      const local = (await metaTarget.getLocal())!;
+      const remote = (await metaTarget.getRemote())!;
+      expect(local.updatedAt).toBeGreaterThan(remote.updatedAt);
+      expect((local.data as { title: string }[])[0].title).toBe("送信中の編集");
+    });
+
+    it("最後の1件を消して空にした一覧も、データなしとは区別されて同期される", async () => {
+      await repo.saveQuiz(makeQuiz());
+      await repo.deleteQuiz("q1");
+
+      const [metaTarget] = await repo.listSyncTargets();
+      const local = await metaTarget.getLocal();
+      expect(local).not.toBeNull();
+      expect(local!.data).toEqual([]);
+    });
+
+    it("リモートが無ければ null、リモートの読み取りに失敗したら例外(空と取り違えて送らない)", async () => {
+      const [metaTarget] = await repo.listSyncTargets();
+      expect(await metaTarget.getRemote()).toBeNull();
+      fakeApi.getJson.mockRejectedValueOnce(new Error("HTTP 500: boom"));
+      await expect(metaTarget.getRemote()).rejects.toThrow("HTTP 500: boom");
+    });
+
+    it("pull はリモートの一覧に無いクイズを消し、更新日時はリモートのものをそのまま書く(ムダな送信が起きない)", async () => {
+      await repo.saveQuiz(makeQuiz({ id: "gone", title: "消えるクイズ" }));
+      const [metaTarget] = await repo.listSyncTargets();
+      const local = await metaTarget.getLocal();
+      const entry = {
+        id: "q9",
+        title: "新しいクイズ",
+        question: "?",
+        options: [{ no: 1, text: "A", color: "red", image: null }],
+        correctNo: 1,
+        timeLimit: 10,
+        bgm: null,
+      };
+      await metaTarget.pull({ data: [entry], updatedAt: local!.updatedAt + 5000 }, local);
+
+      expect(await repo.getQuizById("gone")).toBeNull();
+      expect((await repo.getQuizById("q9"))!.title).toBe("新しいクイズ");
+      expect((await metaTarget.getLocal())!.updatedAt).toBe(local!.updatedAt + 5000);
+    });
+
+    it("pull の途中(判定のあと)に編集されていたら、書かずに false を返す", async () => {
+      await repo.saveQuiz(makeQuiz({ title: "判定のときの版" }));
+      const [metaTarget] = await repo.listSyncTargets();
+      const local = await metaTarget.getLocal();
+      await repo.saveQuiz(makeQuiz({ title: "そのあとの編集" }));
+
+      const applied = await metaTarget.pull({ data: [], updatedAt: local!.updatedAt + 5000 }, local);
+
+      expect(applied).toBe(false);
+      expect((await repo.getQuizById("q1"))!.title).toBe("そのあとの編集");
     });
 
     it("pull updates text fields but preserves existing local asset blobs", async () => {
@@ -77,17 +141,23 @@ describe("QuizRepository.listSyncTargets", () => {
       await repo.saveQuiz(makeQuiz({ title: "Old title", bgm: localBgm as any }));
 
       const [metaTarget] = await repo.listSyncTargets();
-      await metaTarget.pull([
+      await metaTarget.pull(
         {
-          id: "q1",
-          title: "New title",
-          question: "Updated?",
-          options: [{ no: 1, text: "A", color: "red", image: "drive:q1::bgm" }],
-          correctNo: 1,
-          timeLimit: 45,
-          bgm: "drive:q1::bgm",
+          data: [
+            {
+              id: "q1",
+              title: "New title",
+              question: "Updated?",
+              options: [{ no: 1, text: "A", color: "red", image: "drive:q1::bgm" }],
+              correctNo: 1,
+              timeLimit: 45,
+              bgm: "drive:q1::bgm",
+            },
+          ],
+          updatedAt: Date.now() + 60_000,
         },
-      ]);
+        await metaTarget.getLocal()
+      );
 
       const updated = await repo.getQuizById("q1");
       expect(updated!.title).toBe("New title");
@@ -126,10 +196,8 @@ describe("QuizRepository.listSyncTargets", () => {
       // "blob" here isn't usable with FileReader. push()'s own behavior
       // (stable id, add-vs-update branching) doesn't depend on where the
       // blob came from, so this still exercises the real code path.
-      const pushed = await bgmTarget.push(new Blob(["bgm"], { type: "audio/mpeg" }));
+      await bgmTarget.push({ data: new Blob(["bgm"], { type: "audio/mpeg" }), updatedAt: 0 });
 
-      // 端末の時計ではなく、サーバーが付けた更新日時を返す(時計がずれた端末でも、新旧の比較が狂わない)
-      expect(pushed.updatedAt).toBe(new Date(SERVER_TIME).getTime());
       expect(fakeApi.addDriveData).toHaveBeenCalledOnce();
       const driveData = fakeApi.addDriveData.mock.calls[0][0].driveData;
       expect(driveData.metadata.driveDataId).toBe("q1::bgm");
@@ -148,7 +216,7 @@ describe("QuizRepository.listSyncTargets", () => {
 
       const targets = await repo.listSyncTargets();
       const bgmTarget = targets.find((t) => t.id === "q1::bgm")!;
-      await bgmTarget.push(new Blob(["bgm"], { type: "audio/mpeg" }));
+      await bgmTarget.push({ data: new Blob(["bgm"], { type: "audio/mpeg" }), updatedAt: 0 });
 
       expect(fakeApi.updateDriveData).toHaveBeenCalledOnce();
       expect(fakeApi.addDriveData).not.toHaveBeenCalled();
@@ -172,7 +240,7 @@ describe("QuizRepository.listSyncTargets", () => {
       const target = targets.find((t) => t.id === "q2::prizeImage")!;
       const remote = await target.getRemote();
       expect(remote).not.toBeNull();
-      await target.pull(remote!.data);
+      await target.pull(remote!, null);
 
       const quiz = await repo.getQuizById("q2");
       expect(quiz).not.toBeNull();

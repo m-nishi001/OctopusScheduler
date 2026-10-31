@@ -1,7 +1,7 @@
 <template>
   <PageShell title="管理画面" :tabs="tabs" :active-key="activeKey" @select="router.push(`${BASE}/${$event}`)">
     <template #actions>
-      <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError"
+      <HeaderActions show-backup :backup-busy="downloadingBackup" :sync-status="status" :sync-error="lastError" :sync-log="log" :sync-kind-labels="SYNC_KIND_LABELS"
         @backup="onDownloadBackup" @home="router.push('/home')">
         <UiButton icon="play" size="sm" @click="startDemo">デモ実行</UiButton>
       </HeaderActions>
@@ -19,13 +19,13 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { HeaderActions, PageShell, UiButton, toast } from '@octopus/ui-kit';
 import { DEMO_QUERY_KEY, setJackpotScope } from '@model/jackpot-session';
-import { useBackgroundSync } from '../../../composables/use-background-sync';
+import { SYNC_KIND_LABELS, useBackgroundSync } from '../../../composables/use-background-sync';
 import { exportLocalBackup } from '../../../../control/backup/backup-util';
 
 const BASE = '/jackpot-admin';
 const router = useRouter();
 const route = useRoute();
-const { status, lastError } = useBackgroundSync();
+const { status, lastError, log } = useBackgroundSync();
 
 // 管理画面は常に本番(live)スコープ。デモ実行後に戻ってきた場合もここで戻す。
 setJackpotScope('live');

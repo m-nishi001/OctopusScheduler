@@ -17,8 +17,8 @@
 | UiButton | primary/secondary/danger/ghost、sm/md、loading、icon |
 | UiIcon | 自前SVGアイコン(`components/ui-icon/icons.ts` に追加) |
 | FormGrid / UiField | 2カラム自動折返しのフォーム |
-| HeaderActions | ヘッダー右側の標準操作(同期状態/バックアップ/ホーム)。`sync-status` `sync-error` を渡すと同期インジケータを表示 |
-| SyncStatusIndicator | 同期状態(同期済み/同期中/エラー)の表示 |
+| HeaderActions | ヘッダー右側の標準操作(同期状態/バックアップ/ホーム)。`sync-status` `sync-error` を渡すと同期インジケータを表示(`sync-log` `sync-kind-labels` も渡すと、押して開く詳細に失敗と反映の記録を出す) |
+| SyncStatusIndicator | 同期状態(同期済み/同期中/エラー)の表示。押せるボタンで、`log` を渡すと `UiDialog` で失敗と「他の端末の変更を反映」の記録(時刻・対象・結果・理由)を開く |
 | UiToolbar | 一覧上部の操作ボタン行(折返し対応) |
 | UiBusyOverlay | 保存中/読み込み中などの処理中オーバーレイ(`visible` `title` `message`) |
 | UiDialog | 統一ダイアログ。size(sm/md/lg/xl/full)、モバイルはボトムシート、Escape/オーバーレイ/×で閉じる(`persistent`で抑止)、フォーカストラップ、標準フッター(キャンセル左/主操作右) |

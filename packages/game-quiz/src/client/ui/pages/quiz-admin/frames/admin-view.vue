@@ -1,7 +1,7 @@
 <template>
     <PageShell title="クイズ管理" :tabs="tabs" :active-key="activeKey" @select="router.push({ name: $event })">
         <template #actions>
-            <HeaderActions :sync-status="status" :sync-error="lastError" @home="router.push('/home')">
+            <HeaderActions :sync-status="status" :sync-error="lastError" :sync-log="log" :sync-kind-labels="SYNC_KIND_LABELS" @home="router.push('/home')">
                 <UiButton icon="help" size="sm" @click="helpOpen = true">ヘルプ</UiButton>
             </HeaderActions>
             <UiDialog v-model="helpOpen" title="クイズ管理の使い方" size="md">
@@ -23,11 +23,11 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { HeaderActions, PageShell, UiButton, UiDialog } from '@octopus/ui-kit';
-import { useBackgroundSync } from '../../../composables/use-background-sync';
+import { SYNC_KIND_LABELS, useBackgroundSync } from '../../../composables/use-background-sync';
 
 const router = useRouter();
 const route = useRoute();
-const { status, lastError } = useBackgroundSync();
+const { status, lastError, log } = useBackgroundSync();
 const helpOpen = ref(false);
 
 const tabs = [

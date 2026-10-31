@@ -15,18 +15,19 @@ beforeEach(async () => {
 });
 
 describe("buildLocalBackup", () => {
-  it("景品・メンバーの設定・画面設定を書き出す", async () => {
-    await store("PrizeData").save("p1", { id: "p1", name: "1等", order: 1 });
-    await store("MemberExtraData").save("m1", { memberId: "m1", rank: 3 });
-    await store("ScreenConfigData").save("opening", { screenName: "opening", settingValue: "{}" });
+  it("景品・メンバーの設定・画面設定を書き出す(一覧全体を1件の record として、更新日時つきで)", async () => {
+    await store("PrizeData").save("record", { data: [{ id: "p1", name: "1等", order: 1 }], updatedAt: 111 });
+    await store("MemberExtraData").save("record", { data: [{ memberId: "m1", rank: 3 }], updatedAt: 222 });
+    await store("ScreenConfigData").save("record", { data: [{ screenName: "opening", settingValue: "{}" }], updatedAt: 333 });
 
     const backup = await buildLocalBackup(false);
 
     expect(Object.keys(backup.stores).sort()).toEqual([...BACKUP_STORES].sort());
-    // 保存時に付く更新日時などを含めて、中身がそのまま入っている
-    expect(JSON.stringify(backup.stores.PrizeData.p1)).toContain("1等");
-    expect(JSON.stringify(backup.stores.MemberExtraData.m1)).toContain('"rank":3');
-    expect(JSON.stringify(backup.stores.ScreenConfigData.opening)).toContain("opening");
+    // 一覧の中身と、同期の更新日時がそのまま入っている
+    expect(JSON.stringify(backup.stores.PrizeData.record)).toContain("1等");
+    expect(JSON.stringify(backup.stores.PrizeData.record)).toContain('"updatedAt":111');
+    expect(JSON.stringify(backup.stores.MemberExtraData.record)).toContain('"rank":3');
+    expect(JSON.stringify(backup.stores.ScreenConfigData.record)).toContain("opening");
     // 抽選結果と確変の予定はセッションの結果ファイル(サーバー)にあり、ローカルのバックアップには含めない
     expect(backup.stores.DrawResultData).toBeUndefined();
     expect(backup.stores.PrizeDrawState).toBeUndefined();

@@ -60,7 +60,7 @@ async function setupHosted() {
   return { meta, agent, device, received, nav, payloads };
 }
 
-function registerQuizList(list: Array<{ id: string; title: string; question: string }>, sync = vi.fn(async () => ({ failed: [] }))) {
+function registerQuizList(list: Array<{ id: string; title: string; question: string }>, sync = vi.fn(async () => ({ results: [] }))) {
   let current = list;
   const execute = vi.fn(async () => current);
   container.register(GetAllQuizzesUseCase, { useValue: { execute } as unknown as GetAllQuizzesUseCase });
@@ -115,7 +115,7 @@ describe("管理コンソールのクイズ操作", () => {
     const list = registerQuizList([]);
     list.sync.mockImplementation(async () => {
       list.set([{ id: "q9", title: "取り込んだクイズ", question: "?" }]);
-      return { failed: [] };
+      return { results: [] };
     });
     const { wrapper } = await mountConsole(meta.id);
     expect(list.sync).toHaveBeenCalledTimes(1);

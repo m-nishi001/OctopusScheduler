@@ -21,10 +21,11 @@ export function prepareHostData(): Promise<PrepareResult> {
   if (inFlight) return inFlight;
   inFlight = (async () => {
     const errors: string[] = [];
-    const run = async (label: string, fn: () => Promise<{ failed: unknown[] }>): Promise<void> => {
+    const run = async (label: string, fn: () => Promise<{ results: { result: string }[] }>): Promise<void> => {
       try {
         const summary = await fn();
-        if (summary.failed.length > 0) errors.push(`${label}: ${summary.failed.length}件の取り込みに失敗しました`);
+        const failed = summary.results.filter((r) => r.result === "failed").length;
+        if (failed > 0) errors.push(`${label}: ${failed}件の取り込みに失敗しました`);
       } catch (e) {
         errors.push(`${label}: ${e instanceof Error ? e.message : String(e)}`);
       }

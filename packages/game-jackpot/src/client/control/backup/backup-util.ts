@@ -9,7 +9,9 @@ import { LocalStorageService } from "@octopus/client-common/storage/local-storag
  * 画面設定・抽選結果・アセット）は1つも入らず、ほぼ空のファイルだった。
  */
 
-/** 常に書き出すストア（ストア名 → 内容）。抽選結果と確変の予定はセッションの結果ファイル（サーバー）にあり、ここには無い。 */
+/**
+ * 常に書き出すストア（ストア名 → 内容）。景品・メンバーの設定・画面設定は、一覧全体を `record` というキー1つに
+ * `{ data: 一覧, updatedAt: 最終更新日時 }` の形で持つ（同期の単位。素材は1件ごと）。抽選結果と確変の予定はセッションの結果ファイル（サーバー）にあり、ここには無い。 */
 export const BACKUP_STORES = ["PrizeData", "MemberExtraData", "ScreenConfigData"] as const;
 /** `includeAssets` のときだけ書き出すストア（画像・音声などの中身を含むため大きい）。 */
 export const BACKUP_ASSET_STORE = "AssetData";
@@ -19,7 +21,7 @@ const DB_NAME = "jackpot-game";
 export interface LocalBackup {
   exportedAt: string;
   includeAssets: boolean;
-  /** ストア名 → (キー → 保存されている値)。Blob は `{ __blob: true, type, dataUrl }` に直してある。 */
+  /** ストア名 → (キー → 保存されている値。景品・メンバーの設定・画面設定は `record` のみ)。Blob は `{ __blob: true, type, dataUrl }` に直してある。 */
   stores: Record<string, Record<string, unknown>>;
 }
 
