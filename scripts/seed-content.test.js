@@ -6,6 +6,8 @@ import {
   buildJackpotAssets,
   buildPrizes,
   buildQuizAssets,
+  buildJackpotAssetRecord,
+  blobHash,
   buildQuizzes,
   buildScreenSettings,
   makePng,
@@ -89,6 +91,19 @@ test("buildQuizzes: 正解番号が選択肢にあり、ハッシュ参照には
     const refs = [q.bgm, ...q.options.map((o) => o.image), q.settings?.prizeImage, q.settings?.prizeBgm].filter(Boolean);
     for (const ref of refs) assert.ok(slots.has(ref), `${q.id}: ${ref}`);
   }
+});
+
+test("buildJackpotAssetRecord: 素材の一覧は、固定の id と、対応するファイルのハッシュを持つ", () => {
+  const record = buildJackpotAssetRecord("2024-01-01T00:00:00.000Z");
+  const files = new Map(buildJackpotAssets().map(([id, , , body]) => [id, body]));
+  assert.equal(record.length, files.size);
+  for (const e of record) {
+    assert.match(e.hash, /^[0-9a-f]{32}$/);
+    assert.equal(e.hash, blobHash(files.get(e.id)));
+    assert.equal(e.size, files.get(e.id).length);
+  }
+  const keys = buildContentEntries().map((e) => e[0]);
+  for (const e of record) assert.ok(keys.includes(`jackpot-game/assets/${e.hash}_blob`), e.id);
 });
 
 test("buildPrizes / buildScreenSettings: 参照するアセットがすべて存在する", () => {

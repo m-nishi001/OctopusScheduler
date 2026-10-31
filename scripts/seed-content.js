@@ -163,7 +163,7 @@ const PRIZE_DEFS = [
 /** 景品の画像のアセット ID。1 が通常の画像、2 が確変の 2 回目に出す画像。 */
 const prizeImageId = (p, n) => p.id.replace("prize", n === 1 ? "img" : "img2");
 
-/** ジャックポット側のアセット。`[id, ファイル名, MIME, 中身]`。 */
+/** ジャックポット側のアセット。`[id, ファイル名, MIME, 中身]`(id は景品・画面設定が参照する固定の id)。 */
 export function buildJackpotAssets() {
   const assets = [];
   for (const p of PRIZE_DEFS) {
@@ -295,6 +295,19 @@ export function buildQuizAssets() {
   return [...byHash].map(([hash, [mime, body]]) => [hash, mime, body]);
 }
 
+/** ジャックポットの素材一覧(asset-list.json。アプリの AssetDataRepository と同じ形)。 */
+export function buildJackpotAssetRecord(now = new Date().toISOString()) {
+  return buildJackpotAssets().map(([id, fileName, mime, body]) => ({
+    id,
+    type: mime,
+    name: fileName,
+    hash: blobHash(body),
+    size: body.length,
+    uploadedAt: now,
+    lastUpdated: now,
+  }));
+}
+
 // ---------- R2 への書き込み一覧 ----------
 
 /** アプリの同期が保存する一覧の形 `{ updatedAt, data }`(JSON のテキスト)にする。 */
@@ -304,10 +317,11 @@ const record = (data, updatedAt) => JSON.stringify({ updatedAt, data });
 export function buildContentEntries(updatedAt = Date.now()) {
   const entries = [
     ["quiz-game/json/quiz-list.json", record(buildQuizzes(), updatedAt), JSON_TYPE],
+    ["jackpot-game/json/asset-list.json", record(buildJackpotAssetRecord(new Date(updatedAt).toISOString()), updatedAt), JSON_TYPE],
     ["jackpot-game/json/prizes.json", record(buildPrizes(), updatedAt), JSON_TYPE],
     ["jackpot-game/json/screens.json", record(buildScreenSettings(), updatedAt), JSON_TYPE],
   ];
-  for (const [id, fileName, mime, body] of buildJackpotAssets()) entries.push([`jackpot-game/assets/${id}_${fileName}`, body, mime]);
+  for (const [, , mime, body] of buildJackpotAssets()) entries.push([`jackpot-game/assets/${blobHash(body)}_blob`, body, mime]);
   for (const [hash, mime, body] of buildQuizAssets()) entries.push([`quiz-game/assets/${hash}_blob`, body, mime]);
   return entries;
 }
