@@ -1,4 +1,4 @@
-import { createSession, expect, isGas, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedStore, seedRecord, test, adminRpc } from "./fixtures";
+import { createSession, expect, isGas, newDevice, nextButton, openAdvanced, route, sampleQuiz, seedRecord, test, adminRpc } from "./fixtures";
 import { expectNoHorizontalOverflow, VIEWPORTS } from "./helpers/responsive";
 
 /**
@@ -14,13 +14,13 @@ async function scene(browser: import("@playwright/test").Browser, label: string)
   const admin = await newDevice(browser, { signedIn: true });
   const { id: sessionId } = await createSession(admin.page, label);
   sessionIds.push(sessionId);
-  await seedStore(admin.page, "quiz-game", "QuizData", [{ id: "oc1", value: sampleQuiz("oc1", 60) }]);
+  await seedRecord(admin.page, "quiz-game", "QuizList", [sampleQuiz("oc1", 60)]);
   await admin.page.reload();
   const host = await newDevice(browser, { signedIn: true, projector: true });
   host.page.on("dialog", (d) => void d.dismiss());
   await host.page.goto(`/#/session/host/${sessionId}`);
   await expect(host.page.locator(".host-view__title")).toBeVisible();
-  await seedStore(host.page, "quiz-game", "QuizData", [{ id: "oc1", value: sampleQuiz("oc1", 60) }]);
+  await seedRecord(host.page, "quiz-game", "QuizList", [sampleQuiz("oc1", 60)]);
   return { admin, host, sessionId };
 }
 

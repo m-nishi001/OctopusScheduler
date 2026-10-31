@@ -4,10 +4,9 @@ import type { SyncSummary } from "@octopus/sync-engine";
 import { QuizRepository } from "../../model/quiz-repository";
 
 /**
- * game-quiz内の同期対象(クイズ一覧メタデータ+各クイズのアセット)をまとめて
- * SyncRunnerに渡す薄いオーケストレーション層。旧SyncQuizzesUseCaseと異なり
- * 方向指定は受け取らない — 各SyncTargetが自身のupdatedAtを比較して自律的に
- * push/pull/skipを決める。
+ * game-quiz内の同期対象(クイズの一覧1件と、それが参照する画像・音声のファイル)を
+ * SyncRunnerに渡す薄いオーケストレーション層。方向指定は受け取らない — 一覧のupdatedAtを
+ * 比較してpush/pull/skipが決まる。
  */
 @injectable()
 export class SyncService {
@@ -17,7 +16,7 @@ export class SyncService {
   ) {}
 
   async syncAll(): Promise<SyncSummary> {
-    const targets = await this.quizRepo.listSyncTargets();
+    const targets = this.quizRepo.listSyncTargets();
     return this.runner.run(targets);
   }
 }

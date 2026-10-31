@@ -54,7 +54,7 @@ packages/
 
 ## 保存
 
-アセットや JSON は、環境を問わず `<module>/<kind>/<name>` のルート相対パスで保存します（例: `octopus-scheduler/assets/1_a.png`、`quiz-game/json/quizzes.json`）。パスの組み立ては `packages/infrastructures/src/compositions/storage-paths.ts` に集約され、各環境のアダプタが実体に対応付けます。
+アセットや JSON は、環境を問わず `<module>/<kind>/<name>` のルート相対パスで保存します（例: `octopus-scheduler/assets/1_a.png`、`quiz-game/json/quiz-list.json`）。パスの組み立ては `packages/infrastructures/src/compositions/storage-paths.ts` に集約され、各環境のアダプタが実体に対応付けます。
 
 | 環境 | 単純な値（名簿・設定など） | ファイル・JSON |
 | --- | --- | --- |
