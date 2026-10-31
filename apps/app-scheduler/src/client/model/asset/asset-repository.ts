@@ -85,6 +85,32 @@ export class AssetRepository {
     return v as Asset;
   }
 
+  /** サーバーにある素材の一覧(メタデータ)。`folder` を渡すと、素材置き場直下のそのサブフォルダを一覧する。 */
+  async listRemote(folder?: string): Promise<DriveMetadata[]> {
+    return (await this.schedulerApi.getDriveMetaData(folder)) || [];
+  }
+
+  /**
+   * サーバーから素材 1 件を取って、この端末に保存して返す。
+   * `fileId`(一覧のメタデータの値)が分かっていれば渡す。無いときは一覧から探す。
+   * 失敗は例外で返す(成功のふりはしない)。
+   */
+  async pullRemote(id: string, fileId?: string): Promise<Asset> {
+    let ref = fileId;
+    if (!ref) {
+      const found = (await this.listRemote()).find((m) => m?.driveDataId === id);
+      if (!found) throw new Error(`素材がサーバーにありません: ${id}`);
+      ref = found.fileId;
+    }
+    const res = await this.schedulerApi.getDriveData(ref);
+    if (!res) throw new Error(`素材を取得できませんでした: ${id}`);
+    const asset = await this.driveDataToAsset(res);
+    if (!asset.blob.size) throw new Error(`素材の中身を取得できませんでした: ${id}`);
+    const saved: Asset = { ...asset, id };
+    await this.localStorage.save(id, saved);
+    return saved;
+  }
+
   async deleteAssets(ids: string[]): Promise<void> {
     await this.localStorage.removeMultiple(ids);
   }

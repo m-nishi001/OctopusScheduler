@@ -47,9 +47,10 @@ packages/
 
 | もの | 置き場 |
 | --- | --- |
-| 予定イベント（音楽・コンテンツ・スライドショー・画面遷移） | 保存形 `AppEventData`（`model/app-event/`）がそのまま実行時の型。種類ごとの違いは `control/app-event/app-event.ts` の表（実行 `RUNNERS`・新規の初期値 `EMPTY_FIELDS`）だけにある。編集は共通の `ScheduledEventDialog` と、種類ごとのフォーム `ui/pages/settings/app-events/events/*-form.vue` |
+| 予定イベント（音楽・スクリーン・画面遷移） | 保存形 `AppEventData`（`model/app-event/`）がそのまま実行時の型。種類ごとの違いは `control/app-event/app-event.ts` の表（実行 `RUNNERS`・新規の初期値 `EMPTY_FIELDS`）だけにある。編集は共通の `ScheduledEventDialog` と、種類ごとのフォーム `ui/pages/settings/app-events/events/*-form.vue` |
+| 音楽・スクリーン（投影画面） | `control/media/`。素材の取得は `asset-source.ts` の `ensure(id)` だけ（手元になければサーバーから取って保存。取得中の Promise を使い回す）。`audio.ts`（再生・停止）と `screen.ts`（表示・消す。常に1つ。後から出した指示が勝つ）は、予定イベントから直接呼ぶ。種類の判定と指定の検証は `model/media/` |
 | エンドポイントの成功・失敗の変換 | `respond()`（`infrastructures/interfaces`）。各 `endpoints.ts` はこれで本体を包む |
-| 複数のパッケージで使う小さな部品 | `client-common`（`blobToDataUrl`・`{{asset:…}}` の解析 `assets/asset-placeholder.ts`・日時）、`ui-kit`（`lockScroll` など） |
+| 複数のパッケージで使う小さな部品 | `client-common`（`blobToDataUrl`・日時）、`ui-kit`（`lockScroll` など） |
 | セッション基盤の中核 | `session-hub/src/server/engine/`（`engine-core` / `engine-join` / `engine-feed` / `engine-commands` / `engine-rounds`。外からは `session-engine.ts` 経由）と、`server/room/`（`room-core`・`room-repo`・`room-types`）。詳しくは [session-hub.md](session-hub.md) |
 
 ## 保存

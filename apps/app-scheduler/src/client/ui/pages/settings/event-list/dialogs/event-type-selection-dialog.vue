@@ -13,11 +13,9 @@
 import { UiButton, UiDialog } from '@octopus/ui-kit';
 
 const types = [
-    { type: 'ShowContentEvent', label: 'コンテンツ表示イベント' },
-    { type: 'PlayAudioEvent', label: '音楽再生イベント' },
+    { type: 'AudioEvent', label: '音楽イベント' },
+    { type: 'ScreenEvent', label: 'スクリーンイベント' },
     { type: 'TransitionPageEvent', label: '画面遷移イベント' },
-    { type: 'SlideshowEvent', label: 'スライドショーイベント' },
-    { type: 'StopAudioEvent', label: '音楽停止イベント' },
 ];
 
 const emit = defineEmits<{

@@ -12,7 +12,7 @@ export default defineConfig({
       provider: "v8",
       include: ["src/client/model/**", "src/client/control/**", "src/server/**"],
       exclude: ["**/__tests__/**", "**/*.spec.ts", "**/*.test.ts", "**/testing/**", "**/endpoints.ts", "**/*-contract.ts", "**/container/**"],
-      thresholds: { statements: 55, branches: 58, functions: 55, lines: 53 },
+      thresholds: { statements: 57, branches: 58, functions: 60, lines: 55 },
     },
     environment: "jsdom",
     setupFiles: ["src/client/setup-tests.ts"],

@@ -26,7 +26,7 @@ test.describe("予定イベント(設定 > イベント)", () => {
     const d = await newDevice(browser, { signedIn: true });
     const { page } = d;
     await openEvents(page);
-    for (const label of ["コンテンツ表示イベント", "音楽再生イベント", "スライドショーイベント", "画面遷移イベント", "音楽停止イベント"]) {
+    for (const label of ["音楽イベント", "スクリーンイベント", "画面遷移イベント"]) {
       await addEvent(page, label);
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
@@ -39,93 +39,64 @@ test.describe("予定イベント(設定 > イベント)", () => {
     await d.context.close();
   });
 
-  test("音楽再生: 選んだ音声ファイルは保存のときにアップロードされ、編集画面でその音声が選ばれている", async ({ browser }) => {
+  test("音楽: 選んだ音声ファイルは保存のときにアップロードされ、編集画面でその音声が選ばれている", async ({ browser }) => {
     const d = await newDevice(browser, { signedIn: true });
     const { page } = d;
     await openEvents(page);
-    await addEvent(page, "音楽再生イベント");
+    await addEvent(page, "音楽イベント");
     await page.locator('input[type="file"]').setInputFiles({ name: "beep.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("ID3-e2e") });
-    await page.locator("#fadeOutDuration").fill("1.5");
+    await page.locator("#fadeOutSec").fill("1.5");
     await page.getByRole("button", { name: "追加", exact: true }).last().click();
-    await expect(row(page, "音楽再生")).toHaveCount(1);
+    await expect(row(page, "音楽")).toHaveCount(1);
 
     await page.reload();
-    await row(page, "音楽再生").getByRole("button", { name: "編集" }).click();
+    await row(page, "音楽").getByRole("button", { name: "編集" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.locator("select")).not.toHaveValue("");
     await expect(dialog.locator("select option:checked")).toHaveText("beep.mp3");
-    await expect(page.locator("#fadeOutDuration")).toHaveValue("1.5");
+    await expect(page.locator("#fadeOutSec")).toHaveValue("1.5");
     await d.context.close();
   });
 
-  test("スライドショー: 切替・方向・BGM(その場でアップロード)が保存され、編集画面に戻る", async ({ browser }) => {
+  test("スクリーン(スライドショー): フォルダ・間隔・切替が保存され、編集画面に戻る", async ({ browser }) => {
     const d = await newDevice(browser, { signedIn: true });
     const { page } = d;
     await openEvents(page);
-    await addEvent(page, "スライドショーイベント");
-    await page.locator("#folderId").fill("slides-a");
-    await page.locator("#displayDuration").fill("7");
-    await page.locator("#transitionType").selectOption("slide");
-    await page.locator("#slideDirection").selectOption("up");
-    await page.getByRole("dialog").locator('input[type="file"]').setInputFiles({ name: "bgm.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("ID3-e2e") });
-    await expect(page.getByRole("dialog").locator(".bgm-item")).toContainText("bgm.mp3");
+    await addEvent(page, "スクリーンイベント");
+    await page.locator("#screenKind").selectOption("slideshow");
+    await page.locator("#folder").fill("slides-a");
+    await page.locator("#intervalSec").fill("7");
+    await page.locator("#transition").selectOption("slide");
     await page.getByRole("button", { name: "追加", exact: true }).last().click();
-    await expect(row(page, "スライドショー")).toHaveCount(1);
+    await expect(row(page, "スクリーン")).toHaveCount(1);
 
     await page.reload();
-    await row(page, "スライドショー").getByRole("button", { name: "編集" }).click();
-    await expect(page.locator("#folderId")).toHaveValue("slides-a");
-    await expect(page.locator("#displayDuration")).toHaveValue("7");
-    await expect(page.locator("#transitionType")).toHaveValue("slide");
-    await expect(page.locator("#slideDirection")).toHaveValue("up");
-    await expect(page.getByRole("dialog").locator(".bgm-item")).toContainText("bgm.mp3");
+    await row(page, "スクリーン").getByRole("button", { name: "編集" }).click();
+    await expect(page.locator("#screenKind")).toHaveValue("slideshow");
+    await expect(page.locator("#folder")).toHaveValue("slides-a");
+    await expect(page.locator("#intervalSec")).toHaveValue("7");
+    await expect(page.locator("#transition")).toHaveValue("slide");
     await d.context.close();
   });
 
-  test("コンテンツ表示(HTML): 画像を挿入すると保存時にアップロードされ、仮の id が本物に置き換わる。表示方法も保たれる", async ({ browser }) => {
+  test("スクリーン(画像): 選んだ画像は保存時にアップロードされ、編集画面でその画像が選ばれている", async ({ browser }) => {
     const d = await newDevice(browser, { signedIn: true });
     const { page } = d;
     await openEvents(page);
-    await addEvent(page, "コンテンツ表示イベント");
-    await page.locator("#contentType").selectOption("html");
-    await page.locator("#htmlString").fill("<p>こんにちは</p>");
-    await page.getByRole("dialog").locator('input[type="file"]').setInputFiles({ name: "pic.png", mimeType: "image/png", buffer: PNG_1X1 });
-    await expect(page.locator("#htmlString")).toHaveValue(/\{\{asset:image:TMP_[a-z0-9]+\}\}/);
-    await page.locator("#effect").selectOption("static");
-    await page.locator("#duration").fill("9");
-    await page.getByRole("button", { name: "追加", exact: true }).last().click();
-    await expect(row(page, "コンテンツ表示")).toHaveCount(1);
-
-    await page.reload();
-    await row(page, "コンテンツ表示").getByRole("button", { name: "編集" }).click();
-    await expect(page.locator("#contentType")).toHaveValue("html");
-    const html = await page.locator("#htmlString").inputValue();
-    expect(html).toContain("<p>こんにちは</p>");
-    expect(html).toMatch(/\{\{asset:image:(?!TMP_)[^}]+\}\}/);
-    await expect(page.locator("#effect")).toHaveValue("static");
-    await expect(page.locator("#duration")).toHaveValue("9");
-    await d.context.close();
-  });
-
-  test("コンテンツ表示(画像): 選んだ画像は保存時にアップロードされ、編集画面でその画像が選ばれている", async ({ browser }) => {
-    const d = await newDevice(browser, { signedIn: true });
-    const { page } = d;
-    await openEvents(page);
-    await addEvent(page, "コンテンツ表示イベント");
+    await addEvent(page, "スクリーンイベント");
     await page.getByRole("dialog").locator('input[type="file"]').setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: PNG_1X1 });
-    await expect(page.locator("#contentAsset option:checked")).toContainText("photo.png");
-    await page.locator("#fadeInTime").fill("2");
+    await expect(page.getByRole("dialog")).toContainText("photo.png");
     await page.getByRole("button", { name: "追加", exact: true }).last().click();
-    await expect(row(page, "コンテンツ表示")).toHaveCount(1);
+    await expect(row(page, "スクリーン")).toHaveCount(1);
 
     await page.reload();
-    await row(page, "コンテンツ表示").getByRole("button", { name: "編集" }).click();
-    await expect(page.locator("#contentAsset option:checked")).toHaveText("photo.png");
-    await expect(page.locator("#fadeInTime")).toHaveValue("2");
+    await row(page, "スクリーン").getByRole("button", { name: "編集" }).click();
+    await expect(page.locator("#screenKind")).toHaveValue("image");
+    await expect(page.locator("#screenAsset option:checked")).toHaveText("photo.png");
     await d.context.close();
   });
 
-  test("画面遷移と音楽停止を追加すると一覧に並び、再読み込みしても残る。編集で中身と時刻が保たれ、削除できる", async ({ browser }) => {
+  test("画面遷移と音楽を追加すると一覧に並び、再読み込みしても残る。編集で中身と時刻が保たれ、削除できる", async ({ browser }) => {
     const d = await newDevice(browser, { signedIn: true });
     const { page } = d;
     await openEvents(page);
@@ -140,18 +111,19 @@ test.describe("予定イベント(設定 > イベント)", () => {
     await page.getByRole("button", { name: "追加", exact: true }).last().click();
     await expect(row(page, "画面遷移")).toHaveCount(1);
 
-    // 音楽停止を追加
-    await addEvent(page, "音楽停止イベント");
+    // 音楽を追加
+    await addEvent(page, "音楽イベント");
+    await page.getByRole("dialog").locator('input[type="file"]').setInputFiles({ name: "bgm.mp3", mimeType: "audio/mpeg", buffer: Buffer.from("ID3-e2e") });
     await page.locator("#startTime").fill("2030-03-01T12:00");
     await page.locator("#endTime").fill("2030-03-01T12:05");
-    await page.locator("#fadeOutDuration").fill("4");
+    await page.locator("#fadeOutSec").fill("4");
     await page.getByRole("button", { name: "追加", exact: true }).last().click();
-    await expect(row(page, "音楽停止")).toHaveCount(1);
+    await expect(row(page, "音楽")).toHaveCount(1);
 
     // 再読み込みしても残り、保存した値がそのまま編集画面に出る(日時が9時間ずれない)
     await page.reload();
     await expect(row(page, "画面遷移")).toHaveCount(1);
-    await expect(row(page, "音楽停止")).toHaveCount(1);
+    await expect(row(page, "音楽")).toHaveCount(1);
     await row(page, "画面遷移").getByRole("button", { name: "編集" }).click();
     await expect(page.locator("#startTime")).toHaveValue("2030-03-01T10:00");
     await expect(page.locator("#endTime")).toHaveValue("2030-03-01T11:30");
@@ -169,14 +141,14 @@ test.describe("予定イベント(設定 > イベント)", () => {
     await expect(page.locator("#transitionUrl")).toHaveValue("/jackpot-admin");
     await expect(page.locator("#startTime")).toHaveValue("2030-03-01T10:00");
     await page.getByRole("button", { name: "キャンセル" }).click();
-    await row(page, "音楽停止").getByRole("button", { name: "編集" }).click();
-    await expect(page.locator("#fadeOutDuration")).toHaveValue("4");
+    await row(page, "音楽").getByRole("button", { name: "編集" }).click();
+    await expect(page.locator("#fadeOutSec")).toHaveValue("4");
     await page.getByRole("button", { name: "キャンセル" }).click();
 
     // 削除
-    await row(page, "音楽停止").getByRole("button", { name: "削除" }).click();
+    await row(page, "音楽").getByRole("button", { name: "削除" }).click();
     await confirmDelete(page);
-    await expect(row(page, "音楽停止")).toHaveCount(0);
+    await expect(row(page, "音楽")).toHaveCount(0);
     await row(page, "画面遷移").getByRole("button", { name: "削除" }).click();
     await confirmDelete(page);
     await expect(page.getByText("イベントがありません。")).toBeVisible();

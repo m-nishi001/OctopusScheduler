@@ -1,9 +1,11 @@
 import "reflect-metadata";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import type { AppEventRepository } from "@model/app-event/app-event-repository";
 import type { AppEventData } from "@model/app-event/app-event-data";
-import type { AssetService } from "../asset/asset-service";
+import { container } from "tsyringe";
+import { AudioControl } from "../media/audio";
+import { ScreenControl } from "../media/screen";
 import {
   appEventFromDto,
   appEventToDto,
@@ -15,35 +17,12 @@ import {
 import { AppEventService } from "./app-event-service";
 import type { AppEventDto } from "./dto/app-event-dto";
 
-const TYPES: AppEventType[] = ["PlayAudioEvent", "StopAudioEvent", "ShowContentEvent", "SlideshowEvent", "TransitionPageEvent"];
+const TYPES: AppEventType[] = ["AudioEvent", "ScreenEvent", "TransitionPageEvent"];
 
 /** 種類ごとの、すべてのフィールドを埋めた DTO。往復で欠けないことを見る。 */
 const FULL_DTOS: { [T in AppEventType]: Extract<AppEventDto, { actionType: T }> } = {
-  PlayAudioEvent: { actionType: "PlayAudioEvent", id: "e1", audioId: "a1", fadeOutDuration: 2 },
-  StopAudioEvent: { actionType: "StopAudioEvent", id: "e2", audioId: "a2", fadeOutDuration: 3 },
-  ShowContentEvent: {
-    actionType: "ShowContentEvent",
-    id: "e3",
-    contentType: "html",
-    contentId: "c1",
-    htmlString: "<p>hi</p>",
-    fadeOutDuration: 1,
-    displayMode: "scroll-up",
-    effect: "scroll",
-    duration: 4,
-    fadeInTime: 0.5,
-    fadeOutTime: 0.7,
-    scrollDirection: "left",
-  },
-  SlideshowEvent: {
-    actionType: "SlideshowEvent",
-    id: "e4",
-    folderId: "f1",
-    displayDuration: 6,
-    transitionType: "slide",
-    slideDirection: "up",
-    bgmIds: ["b1", "b2"],
-  },
+  AudioEvent: { actionType: "AudioEvent", id: "e1", audioId: "a1", fadeOutSec: 2 },
+  ScreenEvent: { actionType: "ScreenEvent", id: "e2", spec: { kind: "slideshow", folder: "f1", intervalSec: 6, transition: "slide" } },
   TransitionPageEvent: { actionType: "TransitionPageEvent", id: "e5", transitionUrl: "/p", fadeOutDuration: 1 },
 };
 
@@ -57,61 +36,42 @@ const fromDto = (dto: Parameters<typeof appEventFromDto>[0]) =>
     updatedAt: new Date("2026-01-01T00:00:00Z"),
   });
 
-type BusName = "playAudio" | "stopAudio" | "showContent" | "hideContent" | "startSlideshow" | "stopSlideshow" | "transitionPage";
+const audio = { play: vi.fn(async () => undefined), stop: vi.fn(async () => undefined) };
+const screen = { show: vi.fn(async () => undefined), clear: vi.fn(async () => undefined) };
 
-const listen = (name: BusName) => {
-  const spy = vi.fn();
-  eventBus.on(name as "playAudio", spy);
-  return spy;
-};
+beforeEach(() => {
+  vi.clearAllMocks();
+  container.registerInstance(AudioControl, audio as unknown as AudioControl);
+  container.registerInstance(ScreenControl, screen as unknown as ScreenControl);
+});
 
 afterEach(() => {
   eventBus.all.clear();
 });
 
 describe("executeAppEvent", () => {
-  it("音楽再生: 開始で再生、終了で全停止", async () => {
-    const play = listen("playAudio");
-    const stop = listen("stopAudio");
-    const ev = fromDto(FULL_DTOS.PlayAudioEvent);
+  it("音楽: 開始で再生、終了でフェードアウトして止める", async () => {
+    const ev = fromDto(FULL_DTOS.AudioEvent);
     await executeAppEvent(ev, true);
-    expect(play).toHaveBeenCalledWith({ audioId: "a1" });
+    expect(audio.play).toHaveBeenCalledWith("a1");
+    expect(audio.stop).not.toHaveBeenCalled();
     await executeAppEvent(ev, false);
-    expect(stop).toHaveBeenCalledOnce();
-    expect(stop).toHaveBeenCalledWith(undefined);
+    expect(audio.stop).toHaveBeenCalledWith("a1", 2);
+    expect(audio.play).toHaveBeenCalledOnce();
   });
 
-  it("音楽停止: 開始でだけ音声とフェードアウトを指定して止める。終了では何もしない", async () => {
-    const stop = listen("stopAudio");
-    const ev = fromDto(FULL_DTOS.StopAudioEvent);
+  it("スクリーン: 開始で指定のものを表示、終了で消す", async () => {
+    const ev = fromDto(FULL_DTOS.ScreenEvent);
     await executeAppEvent(ev, true);
-    expect(stop).toHaveBeenCalledWith({ audioId: "a2", fadeOutDuration: 3 });
+    expect(screen.show).toHaveBeenCalledWith({ kind: "slideshow", folder: "f1", intervalSec: 6, transition: "slide" });
+    expect(screen.clear).not.toHaveBeenCalled();
     await executeAppEvent(ev, false);
-    expect(stop).toHaveBeenCalledOnce();
-  });
-
-  it("コンテンツ表示: 開始で表示、終了で種類を指定して隠す", async () => {
-    const show = listen("showContent");
-    const hide = listen("hideContent");
-    const ev = fromDto(FULL_DTOS.ShowContentEvent);
-    await executeAppEvent(ev, true);
-    expect(show.mock.calls[0][0]).toMatchObject({ eventId: "e3", contentType: "html", htmlString: "<p>hi</p>", duration: 4 });
-    await executeAppEvent(ev, false);
-    expect(hide).toHaveBeenCalledWith({ contentType: "html" });
-  });
-
-  it("スライドショー: 開始で始め、終了で止める", async () => {
-    const start = listen("startSlideshow");
-    const stop = listen("stopSlideshow");
-    const ev = fromDto(FULL_DTOS.SlideshowEvent);
-    await executeAppEvent(ev, true);
-    expect(start).toHaveBeenCalledWith({ folderId: "f1", displayDuration: 6, transitionType: "slide", slideDirection: "up", bgmIds: ["b1", "b2"] });
-    await executeAppEvent(ev, false);
-    expect(stop).toHaveBeenCalledOnce();
+    expect(screen.clear).toHaveBeenCalledOnce();
   });
 
   it("画面遷移: 開始でだけ遷移する", async () => {
-    const go = listen("transitionPage");
+    const go = vi.fn();
+    eventBus.on("transitionPage", go);
     const ev = fromDto(FULL_DTOS.TransitionPageEvent);
     await executeAppEvent(ev, true);
     expect(go).toHaveBeenCalledWith({ transitionUrl: "/p" });
@@ -129,10 +89,10 @@ describe("createEmptyAppEvent", () => {
     expect(ev.processedAt).toBeNull();
   });
 
-  it("配列などの初期値は呼び出しごとに別物(1つを書き換えても他に移らない)", () => {
-    const a = createEmptyAppEvent("SlideshowEvent");
-    a.bgmIds.push("x");
-    expect(createEmptyAppEvent("SlideshowEvent").bgmIds).toEqual([]);
+  it("入れ子の初期値は呼び出しごとに別物(1つを書き換えても他に移らない)", () => {
+    const a = createEmptyAppEvent("ScreenEvent");
+    a.spec = { kind: "video", id: "x" };
+    expect(createEmptyAppEvent("ScreenEvent").spec).toEqual({ kind: "image", id: "" });
   });
 });
 
@@ -151,28 +111,32 @@ describe("DTO との変換", () => {
       registeredAt: new Date("2025-12-31T00:00:00Z"),
       updatedAt: new Date("2026-01-02T00:00:00Z"),
     };
-    expect(appEventFromDto(FULL_DTOS.PlayAudioEvent, timing)).toMatchObject({ type: "PlayAudioEvent", audioId: "a1", ...timing });
-  });
-
-  it("スライドショーの省略された値は既定で補う", () => {
-    const ev = fromDto({ actionType: "SlideshowEvent", folderId: "f", displayDuration: 3 });
-    expect(ev).toMatchObject({ transitionType: "fade", bgmIds: [] });
+    expect(appEventFromDto(FULL_DTOS.AudioEvent, timing)).toMatchObject({ type: "AudioEvent", audioId: "a1", ...timing });
   });
 });
 
 describe("reviveAppEvent", () => {
-  it("文字列で入っていた日時を Date にし、無い bgmIds は空にする", () => {
+  it("文字列で入っていた日時を Date にする", () => {
     const raw = {
-      ...createEmptyAppEvent("SlideshowEvent"),
+      ...createEmptyAppEvent("AudioEvent"),
       startTime: "2026-01-01T00:00:00.000Z",
       endTime: "2026-01-01T01:00:00.000Z",
       processedAt: "2026-01-01T00:00:01.000Z",
-      bgmIds: undefined,
     } as unknown as AppEventData;
     const ev = reviveAppEvent(raw);
     expect(ev.startTime).toEqual(new Date("2026-01-01T00:00:00.000Z"));
     expect(ev.processedAt).toEqual(new Date("2026-01-01T00:00:01.000Z"));
-    expect(ev.type === "SlideshowEvent" && ev.bgmIds).toEqual([]);
+  });
+
+  it("以前の版の種類は読み込めない(捨てる)", () => {
+    for (const type of ["PlayAudioEvent", "StopAudioEvent", "ShowContentEvent", "SlideshowEvent"]) {
+      expect(() => reviveAppEvent({ ...createEmptyAppEvent("AudioEvent"), type } as unknown as AppEventData)).toThrow();
+    }
+  });
+
+  it("スクリーンの指定が正しくないものは読み込めない", () => {
+    const raw = { ...createEmptyAppEvent("ScreenEvent"), spec: { kind: "html", id: "x" } } as unknown as AppEventData;
+    expect(() => reviveAppEvent(raw)).toThrow();
   });
 });
 
@@ -192,7 +156,7 @@ describe("AppEventService.saveScheduledEvent", () => {
       }),
       getScheduleEvents: vi.fn(async () => [...stored.values()]),
     } as unknown as AppEventRepository;
-    return { service: new AppEventService(repository, {} as AssetService), stored, repository };
+    return { service: new AppEventService(repository), stored, repository };
   };
 
   const start = new Date("2026-03-01T10:00:00Z");
@@ -209,17 +173,17 @@ describe("AppEventService.saveScheduledEvent", () => {
   it("編集は id・処理済み日時・登録日時を引き継ぎ、時刻と中身だけ更新する", async () => {
     const { service, stored } = makeService();
     const existing = {
-      ...createEmptyAppEvent("PlayAudioEvent"),
+      ...createEmptyAppEvent("AudioEvent"),
       id: "ev-1",
       audioId: "old",
       processedAt: new Date("2026-02-01T00:00:00Z"),
       registeredAt: new Date("2026-01-01T00:00:00Z"),
     };
-    await service.saveScheduledEvent({ actionType: "PlayAudioEvent", audioId: "new", fadeOutDuration: 1, startTime: start, endTime: end }, existing);
+    await service.saveScheduledEvent({ actionType: "AudioEvent", audioId: "new", fadeOutSec: 1, startTime: start, endTime: end }, existing);
     expect(stored.get("ev-1")).toMatchObject({
-      type: "PlayAudioEvent",
+      type: "AudioEvent",
       audioId: "new",
-      fadeOutDuration: 1,
+      fadeOutSec: 1,
       startTime: start,
       endTime: end,
       processedAt: existing.processedAt,

@@ -1,7 +1,11 @@
+import { container } from "tsyringe";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { toDateOrNow, toDateOrNull } from "@octopus/client-common/date-utils/date-utils";
 import type { AppEventData } from "@model/app-event/app-event-data";
 import type { AppEventDto } from "./dto/app-event-dto";
+import { AudioControl } from "../media/audio";
+import { ScreenControl } from "../media/screen";
+import { parseScreenSpec } from "@model/media/screen-spec";
 
 /**
  * 予定イベント。保存形(`AppEventData`)がそのまま実行時の型でもある。
@@ -14,45 +18,15 @@ type EventOf<T extends AppEventType> = Extract<AppEvent, { type: T }>;
 /** 予定の時刻と記録用の日時(種類によらず共通のフィールド)。 */
 export type AppEventTiming = Pick<AppEvent, "id" | "startTime" | "endTime" | "processedAt" | "registeredAt" | "updatedAt">;
 
-/** 種類ごとの実行。`isStart` は開始(true)か終了(false)か。 */
-const RUNNERS: { [T in AppEventType]: (ev: EventOf<T>, isStart: boolean) => void } = {
-  PlayAudioEvent: (ev, isStart) => {
-    if (isStart) eventBus.emit("playAudio", { audioId: ev.audioId });
-    else eventBus.emit("stopAudio");
+/** 種類ごとの実行。`isStart` は開始(true)か終了(false)か。音楽・スクリーンは、単体機能を直接呼ぶ。 */
+const RUNNERS: { [T in AppEventType]: (ev: EventOf<T>, isStart: boolean) => void | Promise<void> } = {
+  AudioEvent: (ev, isStart) => {
+    const audio = container.resolve(AudioControl);
+    return isStart ? audio.play(ev.audioId) : audio.stop(ev.audioId, ev.fadeOutSec);
   },
-  StopAudioEvent: (ev, isStart) => {
-    if (isStart) eventBus.emit("stopAudio", { audioId: ev.audioId, fadeOutDuration: ev.fadeOutDuration });
-  },
-  ShowContentEvent: (ev, isStart) => {
-    if (isStart) {
-      eventBus.emit("showContent", {
-        eventId: ev.id,
-        contentType: ev.contentType,
-        contentId: ev.contentId,
-        htmlString: ev.htmlString,
-        displayMode: ev.displayMode,
-        effect: ev.effect,
-        duration: ev.duration,
-        fadeInTime: ev.fadeInTime,
-        fadeOutTime: ev.fadeOutTime,
-        scrollDirection: ev.scrollDirection,
-      });
-    } else {
-      eventBus.emit("hideContent", { contentType: ev.contentType });
-    }
-  },
-  SlideshowEvent: (ev, isStart) => {
-    if (isStart) {
-      eventBus.emit("startSlideshow", {
-        folderId: ev.folderId,
-        displayDuration: ev.displayDuration,
-        transitionType: ev.transitionType,
-        slideDirection: ev.slideDirection,
-        bgmIds: ev.bgmIds,
-      });
-    } else {
-      eventBus.emit("stopSlideshow");
-    }
+  ScreenEvent: (ev, isStart) => {
+    const screen = container.resolve(ScreenControl);
+    return isStart ? screen.show(ev.spec) : screen.clear();
   },
   TransitionPageEvent: (ev, isStart) => {
     if (isStart) eventBus.emit("transitionPage", { transitionUrl: ev.transitionUrl });
@@ -64,26 +38,13 @@ const RUNNERS: { [T in AppEventType]: (ev: EventOf<T>, isStart: boolean) => void
  * @param isStart 開始(true)か終了(false)か
  */
 export async function executeAppEvent(ev: AppEvent, isStart: boolean): Promise<void> {
-  (RUNNERS[ev.type] as (ev: AppEvent, isStart: boolean) => void)(ev, isStart);
+  await (RUNNERS[ev.type] as (ev: AppEvent, isStart: boolean) => void | Promise<void>)(ev, isStart);
 }
 
 /** 新規作成フォームの初期値(種類ごとの固有フィールド)。 */
 const EMPTY_FIELDS: { [T in AppEventType]: Omit<EventOf<T>, keyof AppEventTiming | "type"> } = {
-  PlayAudioEvent: { audioId: "", fadeOutDuration: 0 },
-  StopAudioEvent: { audioId: undefined, fadeOutDuration: 0 },
-  ShowContentEvent: {
-    contentType: "image",
-    contentId: "",
-    htmlString: "",
-    fadeOutDuration: 0,
-    displayMode: "fade",
-    effect: "fade",
-    duration: 3,
-    fadeInTime: 1,
-    fadeOutTime: 1,
-    scrollDirection: "up",
-  },
-  SlideshowEvent: { folderId: "", displayDuration: 5, transitionType: "fade", slideDirection: "left", bgmIds: [] },
+  AudioEvent: { audioId: "", fadeOutSec: 0 },
+  ScreenEvent: { spec: { kind: "image", id: "" } },
   TransitionPageEvent: { transitionUrl: "", fadeOutDuration: 0 },
 };
 
@@ -102,8 +63,12 @@ export function createEmptyAppEvent<T extends AppEventType>(type: T): EventOf<T>
   } as unknown as EventOf<T>;
 }
 
-/** 保存先から読んだデータの日時を `Date` にそろえ、省略されうる配列を補う。 */
+/**
+ * 保存先から読んだデータの日時を `Date` にそろえる。
+ * 今の種類でないもの(以前の版の種類)や、中身が正しくないスクリーンの指定は、例外にする(読み込み側が捨てる)。
+ */
 export function reviveAppEvent(raw: AppEventData): AppEvent {
+  if (!(raw.type in EMPTY_FIELDS)) throw new Error(`未知の予定イベントの種類です: ${String((raw as { type?: unknown }).type)}`);
   const ev: AppEvent = {
     ...raw,
     startTime: toDateOrNow(raw.startTime),
@@ -112,7 +77,11 @@ export function reviveAppEvent(raw: AppEventData): AppEvent {
     registeredAt: toDateOrNow(raw.registeredAt),
     updatedAt: toDateOrNow(raw.updatedAt),
   };
-  if (ev.type === "SlideshowEvent") ev.bgmIds ??= [];
+  if (ev.type === "ScreenEvent") {
+    const spec = parseScreenSpec(ev.spec);
+    if (!spec) throw new Error("スクリーンの指定が正しくありません");
+    ev.spec = spec;
+  }
   return ev;
 }
 
@@ -121,16 +90,7 @@ export function reviveAppEvent(raw: AppEventData): AppEvent {
  */
 export function appEventFromDto(dto: AppEventDto, timing: AppEventTiming): AppEvent {
   const { actionType, id: _id, ...fields } = dto;
-  const ev = {
-    ...fields,
-    type: actionType,
-    ...timing,
-  } as AppEvent;
-  if (ev.type === "SlideshowEvent") {
-    ev.transitionType ??= "fade";
-    ev.bgmIds ??= [];
-  }
-  return ev;
+  return { ...fields, type: actionType, ...timing } as AppEvent;
 }
 
 /** イベントを、編集フォームが扱う DTO(時刻と記録用の日時を除いた形)にする。 */
