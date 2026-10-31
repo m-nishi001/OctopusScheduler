@@ -32,7 +32,7 @@ const publish = (request: APIRequestContext, sessionId: string, published = true
   adminRpc(request, "sessionHub_setPortalSession", { sessionId, published });
 
 const seedQuiz = (page: Page, id: string, timeLimit = 60) =>
-  seedRecord(page, "quiz-game", "QuizList", [sampleQuiz(id, timeLimit)]);
+  seedRecord(page, "quiz-game", "QuizData", [sampleQuiz(id, timeLimit)]);
 
 async function scene(browser: import("@playwright/test").Browser, request: APIRequestContext, label: string, quizId: string, timeLimit: number) {
   const admin = await newDevice(browser, { signedIn: true });

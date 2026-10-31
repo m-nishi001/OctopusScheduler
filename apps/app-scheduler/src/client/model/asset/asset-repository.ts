@@ -1,5 +1,4 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
-import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { injectable, inject } from "tsyringe";
 import {
   BLOB_HASH_PATTERN,
@@ -15,9 +14,7 @@ import { IOctopusSchedulerApiToken, assetRecordHashes } from "../../../server/sc
 import type { AssetRecordEntry, OctopusSchedulerApi } from "../../../server/scheduler-api-contract";
 import type { Asset } from "./asset";
 
-const RECORD_SYNC_KIND = "assets";
-/** 以前の保存形式(素材1件ずつの行)。移行はせず、使わずに消す。 */
-const LEGACY_STORE = "Asset";
+const RECORD_SYNC_KIND = "asset";
 
 /** データURLを Blob にする。 */
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -31,12 +28,13 @@ function dataUrlToBlob(dataUrl: string): Blob {
  * 素材の保存先。正となるのは、この端末(IndexedDB)の「素材の一覧1件」(`{ data, updatedAt }`)だけ。
  * 素材の中身は内容のハッシュで一覧から参照する、中身の変わらないファイル(別の置き場)。
  * 削除は一覧から外すだけで、サーバーが一覧を書くときに、外れたハッシュのファイルを消す。
- * 一覧が正なので、ファイルだけがあって素材が現れる、ということは起きない。素材の `id` は作成時に決まり、同期で変わらない。
+ * 一覧が正なので、ファイルだけがあって素材が現れる、ということは起きない。
+ * 一覧は以前の素材の行と同じ保存先(`Asset`)に、ファイルは別のデータベースに置く(既存のデータベースにストアを足さない)。素材の `id` は作成時に決まり、同期で変わらない。
  */
 @injectable()
 export class AssetRepository {
-  private readonly list = new BlobRecordStore<AssetRecordEntry[]>("octopus-scheduler", "AssetList");
-  private readonly blobs = new HashedBlobStore("octopus-scheduler", "AssetBlobs");
+  private readonly list = new BlobRecordStore<AssetRecordEntry[]>("octopus-scheduler", "Asset");
+  private readonly blobs = new HashedBlobStore("octopus-scheduler-asset-blobs", "Blobs");
   private legacyCleared: Promise<void> | null = null;
 
   constructor(
@@ -44,11 +42,9 @@ export class AssetRepository {
     private readonly schedulerApi: OctopusSchedulerApi
   ) {}
 
-  /** 以前の形式のデータを(初回だけ)消す。 */
+  /** 以前の形式(素材1件ずつの行)のデータを、(初回だけ)使わずに消す。移行はしない。 */
   private clearLegacy(): Promise<void> {
-    this.legacyCleared ??= new LocalStorageService("octopus-scheduler", LEGACY_STORE)
-      .clear()
-      .catch((e) => console.warn("[AssetRepository] failed to clear legacy store", e));
+    this.legacyCleared ??= this.list.purgeOtherRows().catch((e) => console.warn("[AssetRepository] failed to clear legacy rows", e));
     return this.legacyCleared;
   }
 

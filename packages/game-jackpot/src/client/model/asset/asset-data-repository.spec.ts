@@ -56,9 +56,8 @@ const asset = (id: string, content: string) =>
   new Asset(id, "audio/mpeg", `${id}.mp3`, "2024-01-01T00:00:00.000Z", "2024-01-01T00:00:00.000Z", content.length, new Blob([content], { type: "audio/mpeg" }));
 
 async function clearLocal() {
-  for (const store of ["AssetList", "AssetBlobs", "AssetData"]) {
-    await new LocalStorageService("jackpot-game", store).clear();
-  }
+  await new LocalStorageService("jackpot-game", "AssetData").clear();
+  await new LocalStorageService("jackpot-game-asset-blobs", "Blobs").clear();
 }
 
 const runner = new SyncRunner(new FixedConcurrencyPolicy(5));

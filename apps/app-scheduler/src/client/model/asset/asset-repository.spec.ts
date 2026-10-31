@@ -60,9 +60,8 @@ const asset = (id: string, content: string): Asset => ({
 });
 
 async function clearLocal() {
-  for (const store of ["AssetList", "AssetBlobs", "Asset"]) {
-    await new LocalStorageService("octopus-scheduler", store).clear();
-  }
+  await new LocalStorageService("octopus-scheduler", "Asset").clear();
+  await new LocalStorageService("octopus-scheduler-asset-blobs", "Blobs").clear();
 }
 
 const runner = new SyncRunner(new FixedConcurrencyPolicy(5));

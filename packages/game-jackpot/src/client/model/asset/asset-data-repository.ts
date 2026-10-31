@@ -1,5 +1,4 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
-import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
 import { eventBus } from "@octopus/client-common/events/event-bus";
 import { injectable, inject } from "tsyringe";
 import {
@@ -17,9 +16,7 @@ import { IJackpotGameApiToken, assetRecordHashes } from "../../../server/jackpot
 import type { AssetRecordEntry, JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { Asset } from "./asset-data";
 
-const RECORD_SYNC_KIND = "assets";
-/** 以前の保存形式(素材1件ずつの行)。移行はせず、使わずに消す。 */
-const LEGACY_STORE = "AssetData";
+const RECORD_SYNC_KIND = "asset";
 
 /** データURLを Blob にする。 */
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -34,12 +31,13 @@ function dataUrlToBlob(dataUrl: string): Blob {
  * 素材の中身は内容のハッシュで一覧から参照する、中身の変わらないファイル(別の置き場)。
  * 削除は一覧から外すだけで、サーバーが一覧を書くときに、外れたハッシュのファイルを消す。
  * 一覧が正なので、ファイルだけがあって素材が現れる、ということは起きない。
+ * 一覧は以前の素材の行と同じ保存先(`AssetData`)に、ファイルは別のデータベースに置く(既存のデータベースにストアを足さない)。
  * 素材の `id` は作成時に決まり、同期で変わらない(景品や画面設定が埋め込みで参照するため)。
  */
 @injectable()
 export class AssetDataRepository {
-  private readonly list = new BlobRecordStore<AssetRecordEntry[]>("jackpot-game", "AssetList");
-  private readonly blobs = new HashedBlobStore("jackpot-game", "AssetBlobs");
+  private readonly list = new BlobRecordStore<AssetRecordEntry[]>("jackpot-game", "AssetData");
+  private readonly blobs = new HashedBlobStore("jackpot-game-asset-blobs", "Blobs");
   private legacyCleared: Promise<void> | null = null;
 
   constructor(
@@ -47,11 +45,9 @@ export class AssetDataRepository {
     @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
   ) {}
 
-  /** 以前の形式のデータを(初回だけ)消す。 */
+  /** 以前の形式(素材1件ずつの行)のデータを、(初回だけ)使わずに消す。移行はしない。 */
   private clearLegacy(): Promise<void> {
-    this.legacyCleared ??= new LocalStorageService("jackpot-game", LEGACY_STORE)
-      .clear()
-      .catch((e) => console.warn("[AssetDataRepository] failed to clear legacy store", e));
+    this.legacyCleared ??= this.list.purgeOtherRows().catch((e) => console.warn("[AssetDataRepository] failed to clear legacy rows", e));
     return this.legacyCleared;
   }
 
