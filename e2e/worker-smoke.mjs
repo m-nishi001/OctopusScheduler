@@ -199,23 +199,28 @@ const c2 = await joinAs(await participant("smoke-c2", "花子"));
 const polled = await rpc("sessionHub_poll", { sessionId: meta2.id, deviceId: c2.deviceId, token: c2.token, sinceSeq: 0, stateVersion: 0 });
 check("poll RPC(フォールバック)も DO 経由で動く", polled.session.id === meta2.id && polled.presence.clientCount === 1);
 
-// 素材の保存(追加 → fileId なしで更新 → 取得)。更新が黙って捨てられないこと。
-const assetData = (text) => ({
-  metadata: { driveDataId: "smoke-asset", fileId: "", parentFolderId: "", lastUpdate: "" },
-  fileName: "smoke.png",
-  fileKind: "image/png",
-  fileDataUrl: `data:image/png;base64,${Buffer.from(text).toString("base64")}`,
-  uploadDate: "",
-  parentFolderId: "",
-});
-const assetMeta = await rpc("quizGame_addDriveData", { driveData: assetData("v1") }, ADMIN_TOKEN);
-const assetUpdated = await rpc("quizGame_updateDriveData", { driveData: assetData("v2") }, ADMIN_TOKEN);
-check("素材の更新は、サーバーが付けた更新日時を返す(クライアントはこれで新旧を比べる)", !!assetUpdated?.lastUpdate && assetUpdated.fileId === assetMeta.fileId, JSON.stringify(assetUpdated));
-const assetNow = await rpc("quizGame_getDriveData", { dataId: assetMeta.fileId }, ADMIN_TOKEN);
-check("素材は fileId なしで更新でき、更新後の内容が取れる",
-  Buffer.from(assetNow.fileDataUrl.split("base64,")[1], "base64").toString() === "v2", assetNow?.fileDataUrl);
-const assetList = await rpc("quizGame_getDriveMetaData", {}, ADMIN_TOKEN);
-check("更新しても素材は1件のまま", assetList.filter((m) => m.driveDataId === "smoke-asset").length === 1);
+// クイズの一覧とハッシュ参照のファイル(保存 → 確認 → 取得。一覧から外れたファイルは、一覧を書くときに消える)
+const blobHashA = "a".repeat(32);
+const blobHashB = "b".repeat(32);
+const blobUrl = (text) => `data:image/png;base64,${Buffer.from(text).toString("base64")}`;
+const quizRecord = (...hashes) => JSON.stringify({ updatedAt: Date.now(), data: [{ id: "smoke-q", title: "t", options: hashes.map((image, i) => ({ no: i + 1, image })), bgm: null }] });
+await rpc("quizGame_putBlob", { hash: blobHashA, dataUrl: blobUrl("v1") }, ADMIN_TOKEN);
+await rpc("quizGame_putBlob", { hash: blobHashB, dataUrl: blobUrl("v2") }, ADMIN_TOKEN);
+const blobNow = await rpc("quizGame_getBlob", { hash: blobHashA }, ADMIN_TOKEN);
+check("ハッシュのファイルは保存した内容がそのまま取れる", Buffer.from(blobNow.dataUrl.split("base64,")[1], "base64").toString() === "v1", blobNow?.dataUrl);
+await rpc("quizGame_saveRecord", { json: quizRecord(blobHashA, blobHashB) }, ADMIN_TOKEN);
+await rpc("quizGame_saveRecord", { json: quizRecord(blobHashB) }, ADMIN_TOKEN);
+const blobExists = await rpc("quizGame_existsBlobs", { hashes: [blobHashA, blobHashB] }, ADMIN_TOKEN);
+check("一覧から外れたファイルだけが、一覧を書くときに消える", JSON.stringify(blobExists.existing) === JSON.stringify([blobHashB]), JSON.stringify(blobExists));
+try {
+  await rpc("quizGame_saveRecord", { json: quizRecord(blobHashA) }, ADMIN_TOKEN);
+  check("参照先のファイルが無い一覧は保存できない", false);
+} catch (e) {
+  check("参照先のファイルが無い一覧は保存できない", /not stored/.test(e.message), e.message);
+}
+await rpc("quizGame_saveRecord", { json: JSON.stringify({ updatedAt: Date.now(), data: [] }) }, ADMIN_TOKEN);
+const blobGone = await rpc("quizGame_existsBlobs", { hashes: [blobHashB] }, ADMIN_TOKEN);
+check("一覧を空にすると、ファイルも残らない", blobGone.existing.length === 0, JSON.stringify(blobGone));
 
 // 名簿の容量の使用状況(Cloudflare は上限なし)
 const rosterUsage = await rpc("accounts_getRosterUsage", {}, ADMIN_TOKEN);
