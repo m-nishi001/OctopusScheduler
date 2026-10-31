@@ -138,6 +138,9 @@
                     </UiButton>
                 </div>
 
+                <!-- 音楽・スクリーン(ホストへ指示を送る) -->
+                <MediaPanel :connection="connection" :can-send="canSend" />
+
                 <!-- 普段は使わない操作 -->
                 <details class="console__advanced" data-testid="advanced">
                     <summary>詳細な操作(画面の直接切り替え・ログ など)</summary>
@@ -216,6 +219,7 @@ import type { DrawPool, JackpotStage } from '@octopus/session-hub';
 import type { SessionConnection } from '@octopus/session-hub';
 import { useAuthSession } from '../../../control/auth/auth-session';
 import ConnectionBanner from './components/connection-banner.vue';
+import MediaPanel from './components/media-panel.vue';
 import { describeHostPresence } from './connection-labels';
 import { describeProgress } from './console-guidance';
 import { enterTriggers, resolveConsoleKey } from './console-keys';
