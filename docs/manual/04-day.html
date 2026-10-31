@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>4. 当日の進行 - OctopusScheduler 取扱説明書</title>
+  <link rel="stylesheet" href="manual.css">
+  <script src="manual.js" defer></script>
+</head>
+<body>
+<header class="site">
+  <div class="site-in">
+    <a class="site-title" href="index.html">OctopusScheduler 取扱説明書</a>
+    <nav class="chapters" aria-label="章一覧">
+      <a href="index.html">はじめに</a><a href="01-participant.html">1. 参加者</a><a href="02-prep-people.html">2. 準備:人と景品</a><a href="03-prep-quiz.html">3. 準備:クイズと画面</a><a href="04-day.html" aria-current="page">4. 当日の進行</a><a href="05-faq.html">5. Q&amp;A・用語集</a><a href="credits.html">出典・参考</a>
+    </nav>
+  </div>
+</header>
+<div class="layout">
+  <nav class="toc" aria-label="この章の節">
+    <b>この章の節</b><a href="#day-session">4-1. イベントを始める(セッション)</a><a href="#day-host">4-2. 会場PCの画面</a><a href="#day-console">4-3. 手元の操作画面</a><a href="#day-entry">4-4. エントリーを受け付ける</a><a href="#day-quiz">4-5. クイズを進める</a><a href="#day-jackpot">4-6. ジャックポットを進める</a><a href="#day-end">4-7. 終了と結果の確認</a><a href="#rehearsal">4-8. デモ(リハーサル)のやり方</a>
+  </nav>
+  <main>
+    <details class="mtoc">
+      <summary>この章の節</summary>
+      <a href="#day-session">4-1. イベントを始める(セッション)</a><a href="#day-host">4-2. 会場PCの画面</a><a href="#day-console">4-3. 手元の操作画面</a><a href="#day-entry">4-4. エントリーを受け付ける</a><a href="#day-quiz">4-5. クイズを進める</a><a href="#day-jackpot">4-6. ジャックポットを進める</a><a href="#day-end">4-7. 終了と結果の確認</a><a href="#rehearsal">4-8. デモ(リハーサル)のやり方</a>
+    </details>
+    <section id="day">
+      <h1 class="ch">4. 当日の進行</h1>
+      <p class="lead"><span>この章でできること</span>会場PCを準備し、手元の操作画面のボタンで、クイズとジャックポットを進められます。</p>
+      <h3 id="day-session">4-1. イベントを始める(セッション)</h3>
+      <p>ホームの「イベントを開催・進行する」を開きます。「今すぐイベントを開催する」を押すと、参加者への公開と操作画面の起動まで一度に行われます。<strong>会場のPC</strong>では、一覧の「ホストとして開く」を押してください。</p>
+      <figure class="shot">
+        <img src="images/d-01-sessions.webp" alt="セッション一覧" loading="lazy">
+        <figcaption>
+          <strong>セッション一覧</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>ふだんはこのボタン1つで開催できる</li>
+            <li><span class="n">2</span>名前をつけて作りたいとき(任意)</li>
+            <li><span class="n">3</span>リハーサル用ならチェック</li>
+            <li><span class="n">4</span>会場のPCで押す(投影する画面)</li>
+            <li><span class="n">5</span>手元のスマホ・PCで押す(進行する画面)</li>
+            <li><span class="n">6</span>参加者への公開を切り替える</li>
+            <li><span class="n">7</span>イベントを終える</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p class="note"><b>ポイント</b>同時に公開できるイベントは1つです。参加者はログインすると、公開中のイベントに自動で入ります。</p>
+      <p>セッション名は作成後に変更できません。名前を間違えたときは、新しく作り直してください。</p>
+      <h3 id="day-host">4-2. 会場PCの画面</h3>
+      <p>会場PCで「ホストとして開く」を押し、プロジェクターにつなぎます。ブラウザを全画面(F11キー)にしてください。参加者がログインすると、人数が増えていきます。</p>
+      <figure class="shot">
+        <img src="images/s-01-host-lobby.webp" alt="会場PCのロビー" loading="lazy">
+        <figcaption>
+          <strong>会場PCのロビー</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>イベント名</li>
+            <li><span class="n">2</span>ログインして入った人数</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <h3 id="day-console">4-3. 手元の操作画面</h3>
+      <p>司会者の手元のスマホで「操作する」を開きます。「始める」の3つのカードから、行うものを選びます。</p>
+      <figure class="shot phone">
+        <img src="images/d-10-console-start.webp" alt="手元コンソール(始める前)" loading="lazy">
+        <figcaption>
+          <strong>手元コンソール(始める前)</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>いまの状態(ホスト接続・参加者数)</li>
+            <li><span class="n">2</span>出すクイズを選ぶ</li>
+            <li><span class="n">3</span>クイズを始める</li>
+            <li><span class="n">4</span>ジャックポット抽選を始める</li>
+            <li><span class="n">5</span>エントリー受付だけを始める</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p class="warn"><b>注意</b>会場PCの画面が開かれていないと「ホストが不在です」と出ます。会場PCで「ホストとして開く」を行ってください。</p>
+      <h3 id="day-entry">4-4. エントリーを受け付ける</h3>
+      <p>「エントリー受付を始める」を押すと、参加者のスマホにエントリーボタンが出ます。会場スクリーンには、エントリーした人の顔写真が並びます。</p>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/s-02-event-entry.webp" alt="会場スクリーン エントリー(顔写真が並ぶ)" loading="lazy">
+          <figcaption>
+            <strong>会場スクリーン(エントリー)</strong>
+          </figcaption>
+        </figure>
+        <figure class="shot phone">
+          <img src="images/d-11-console-entry.webp" alt="手元コンソール(エントリー受付中)" loading="lazy">
+          <figcaption>
+            <strong>手元の画面</strong>
+            <ol class="marks">
+              <li><span class="n">1</span>いまできる操作</li>
+            </ol>
+          </figcaption>
+        </figure>
+      </div>
+      <h3 id="day-quiz">4-5. クイズを進める</h3>
+      <p>クイズを選んで「このクイズを始める」を押します。あとは、大きなボタンを押すたびに、次の画面へ進みます。</p>
+      <ol class="steps">
+        <li>イントロ(「これからクイズが始まります」)</li>
+        <li>問題の表示と回答受付</li>
+        <li>「受付を締め切る」を押す(時間が来ても自動で締め切られます)</li>
+        <li>正解発表</li>
+        <li>結果発表(順位)</li>
+      </ol>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/s-10-quiz-intro.webp" alt="会場スクリーン クイズのイントロ" loading="lazy">
+          <figcaption>
+            <strong>会場スクリーン クイズのイントロ</strong>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="images/s-12-quiz-play.webp" alt="会場スクリーン 出題中" loading="lazy">
+          <figcaption>
+            <strong>会場スクリーン 出題中</strong>
+          </figcaption>
+        </figure>
+      </div>
+      <div class="pair w">
+        <figure class="shot phone">
+          <img src="images/d-12-console-quiz-intro.webp" alt="手元コンソール(クイズ)" loading="lazy">
+          <figcaption>
+            <strong>手元コンソール(クイズ)</strong>
+            <ol class="marks">
+              <li><span class="n">1</span>押すたびに次の画面へ進む</li>
+              <li><span class="n">2</span>いまの進行状況</li>
+            </ol>
+          </figcaption>
+        </figure>
+        <figure class="shot phone">
+          <img src="images/d-13-console-quiz-play.webp" alt="手元コンソール(出題中)" loading="lazy">
+          <figcaption>
+            <strong>手元コンソール(出題中)</strong>
+            <ol class="marks">
+              <li><span class="n">1</span>全員答えたら「受付を締め切る」</li>
+              <li><span class="n">2</span>回答が何人集まったか</li>
+            </ol>
+          </figcaption>
+        </figure>
+      </div>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/s-13-quiz-answer.webp" alt="会場スクリーン 正解発表" loading="lazy">
+          <figcaption>
+            <strong>会場スクリーン 正解発表</strong>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="images/s-15-quiz-result-2.webp" alt="会場スクリーン 結果発表(ランキング)" loading="lazy">
+          <figcaption>
+            <strong>会場スクリーン 結果発表(ランキング)</strong>
+          </figcaption>
+        </figure>
+      </div>
+      <p class="note"><b>ポイント</b>「次へ」はキーボードのEnterキーでも押せます。</p>
+      <h3 id="day-jackpot">4-6. ジャックポットを進める</h3>
+      <p>「ジャックポットを始める」を押します。オープニング、エントリー、説明と進み、「抽選を始める」で本抽選に入ります。</p>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/s-20-jp-opening.webp" alt="ジャックポット オープニング" loading="lazy">
+          <figcaption>
+            <strong>ジャックポット オープニング</strong>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="images/s-22-jp-description.webp" alt="ジャックポット 説明" loading="lazy">
+          <figcaption>
+            <strong>ジャックポット 説明</strong>
+          </figcaption>
+        </figure>
+      </div>
+      <p>抽選は「<strong>次へ</strong>」(START)→「<strong>止める</strong>」(STOP)の順に押します。顔写真が回り、止まると当選者が発表されます。</p>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/s-23-jp-draw-ready.webp" alt="本抽選 START前" loading="lazy">
+          <figcaption>
+            <strong>本抽選 START前</strong>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="images/s-25-jp-winner.webp" alt="当選者の発表" loading="lazy">
+          <figcaption>
+            <strong>当選者の発表</strong>
+          </figcaption>
+        </figure>
+      </div>
+      <div class="pair w">
+        <figure class="shot phone">
+          <img src="images/d-21-console-draw.webp" alt="手元コンソール(抽選)" loading="lazy">
+          <figcaption>
+            <strong>手元コンソール(抽選)</strong>
+            <ol class="marks">
+              <li><span class="n">1</span>「次へ」で始まり、「止める」で止まる</li>
+            </ol>
+          </figcaption>
+        </figure>
+        <figure class="shot phone">
+          <img src="images/d-22-console-stop.webp" alt="手元コンソール(止める)" loading="lazy">
+          <figcaption>
+            <strong>手元コンソール(止める)</strong>
+            <ol class="marks">
+              <li><span class="n">1</span>回っている間は「止める」を押す</li>
+            </ol>
+          </figcaption>
+        </figure>
+      </div>
+      <p>当選者が出ると、続けて景品の抽選(ルーレットまたはスロット)が始まります。回っている間は「演出中…」と出て押せません。止まったら「次へ」で、次の抽選に進みます。</p>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/s-26-jp-prize-draw.webp" alt="景品の抽選" loading="lazy">
+          <figcaption>
+            <strong>景品の抽選</strong>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="images/s-27-jp-prize-result.webp" alt="景品の当選画面" loading="lazy">
+          <figcaption>
+            <strong>景品の当選画面</strong>
+          </figcaption>
+        </figure>
+      </div>
+      <p class="note"><b>ポイント</b>景品の抽選では、当選した本人のスマホに「止める」ボタンが出る場合があります。その場合は、本人にタップしてもらうと盛り上がります。</p>
+      <h3 id="day-end">4-7. 終了と結果の確認</h3>
+      <p>すべての抽選が終わったら、「詳細な操作」を開き、「ジャックポット: 結果」「ジャックポット: エンディング」で会場スクリーンを切り替えます。</p>
+      <figure class="shot phone">
+        <img src="images/d-15-console-advanced.webp" alt="詳細な操作" loading="lazy">
+        <figcaption>
+          <strong>詳細な操作</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>ふだんは閉じておく。画面を直接切り替えたいときだけ開く</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/s-30-jp-result.webp" alt="会場スクリーン ジャックポット: 結果" loading="lazy">
+          <figcaption>
+            <strong>会場スクリーン ジャックポット: 結果</strong>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="images/s-31-jp-ending.webp" alt="会場スクリーン ジャックポット: エンディング" loading="lazy">
+          <figcaption>
+            <strong>会場スクリーン ジャックポット: エンディング</strong>
+          </figcaption>
+        </figure>
+      </div>
+      <p>最後に、セッション一覧の「終了」を押すとイベントが終わります。結果は「ジャックポットの準備」→「抽選結果」でも確認できます。</p>
+      <h3 id="rehearsal">4-8. デモ(リハーサル)のやり方</h3>
+      <p>本番と同じ流れを、本番の結果を残さずに試せます。</p>
+      <ol class="steps">
+        <li>セッション一覧で、「デモ(リハーサル)として作る」にチェックを入れてセッションを作る。</li>
+        <li>自分のスマホで、受付QRからログインし、本番と同じ手順で進める。</li>
+        <li>会場のプロジェクター・音量・文字の大きさを確認する。</li>
+      </ol>
+      <figure class="shot">
+        <img src="images/x-01-demo-button.webp" alt="管理画面のデモ実行ボタン" loading="lazy">
+        <figcaption>
+          <strong>管理画面のデモ実行ボタン</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>リハーサル用の抽選をその場で試せる</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p>管理画面の「デモ実行」を押すと、その場でジャックポットの演出だけを試せます。</p>
+      <figure class="shot">
+        <img src="images/x-02-demo-screen.webp" alt="デモ抽選の画面" loading="lazy">
+        <figcaption>
+          <strong>デモ抽選の画面</strong>
+        </figcaption>
+      </figure>
+      <p class="warn"><b>注意</b>リハーサルの後は、「抽選結果」タブの「結果をリセット」で当選履歴を空にしてから、本番に臨んでください。</p>
+    </section>
+    <nav class="pager" aria-label="前後の章">
+      <a class="prev" href="03-prep-quiz.html"><small>前の章</small>‹ 3. 事前準備:クイズと画面</a><a class="next" href="05-faq.html"><small>次の章</small>5. 困ったときのQ&amp;A・用語集 ›</a>
+    </nav>
+  </main>
+</div>
+<div id="lb"><img alt=""></div>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>3. 事前準備:クイズと画面 - OctopusScheduler 取扱説明書</title>
+  <link rel="stylesheet" href="manual.css">
+  <script src="manual.js" defer></script>
+</head>
+<body>
+<header class="site">
+  <div class="site-in">
+    <a class="site-title" href="index.html">OctopusScheduler 取扱説明書</a>
+    <nav class="chapters" aria-label="章一覧">
+      <a href="index.html">はじめに</a><a href="01-participant.html">1. 参加者</a><a href="02-prep-people.html">2. 準備:人と景品</a><a href="03-prep-quiz.html" aria-current="page">3. 準備:クイズと画面</a><a href="04-day.html">4. 当日の進行</a><a href="05-faq.html">5. Q&amp;A・用語集</a><a href="credits.html">出典・参考</a>
+    </nav>
+  </div>
+</header>
+<div class="layout">
+  <nav class="toc" aria-label="この章の節">
+    <b>この章の節</b><a href="#prep-quiz">3-1. クイズを作る</a><a href="#prep-screens">3-2. 抽選会の画面を整える</a><a href="#prep-other">3-3. 設定の他のタブ</a><a href="#prep-sync">3-4. 同期の状態と詳細を確認する</a>
+  </nav>
+  <main>
+    <details class="mtoc">
+      <summary>この章の節</summary>
+      <a href="#prep-quiz">3-1. クイズを作る</a><a href="#prep-screens">3-2. 抽選会の画面を整える</a><a href="#prep-other">3-3. 設定の他のタブ</a><a href="#prep-sync">3-4. 同期の状態と詳細を確認する</a>
+    </details>
+    <section id="prep2">
+      <h1 class="ch">3. 事前準備:クイズと画面</h1>
+      <p class="lead"><span>この章でできること</span>クイズ、抽選会の画面を準備し、同期の状態を確認できます。</p>
+      <p>人と景品の準備(アカウント・メンバー・景品)は、2章で説明しています。</p>
+      <h3 id="prep-quiz">3-1. クイズを作る</h3>
+      <p>ホームの「クイズの準備」を開きます。「新規クイズ追加」で、問題・回答時間・選択肢・正解を入力します。</p>
+      <figure class="shot">
+        <img src="images/a-30-quiz-list.webp" alt="クイズ一覧" loading="lazy">
+        <figcaption>
+          <strong>クイズ一覧</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>クイズを1問追加する</li>
+            <li><span class="n">2</span>編集する</li>
+            <li><span class="n">3</span>この問題だけ画面で確認(プレビュー)</li>
+            <li><span class="n">4</span>削除する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-31-quiz-edit-top.webp" alt="クイズの追加・編集ダイアログ(上半分)" loading="lazy">
+        <figcaption>
+          <strong>クイズの追加・編集ダイアログ(上半分)</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>クイズの名前</li>
+            <li><span class="n">2</span>回答できる秒数</li>
+            <li><span class="n">3</span>出題する文章</li>
+            <li><span class="n">4</span>正解の選択肢</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p>選択肢は「選択肢を追加」で1つずつ入れます。文字だけでも、写真つきでも作れます。</p>
+      <figure class="shot">
+        <img src="images/a-32-quiz-option.webp" alt="選択肢の追加ダイアログ" loading="lazy">
+        <figcaption>
+          <strong>選択肢の追加ダイアログ</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>選択肢の文字</li>
+            <li><span class="n">2</span>写真をつけたいときに選ぶ(なくてもよい)</li>
+            <li><span class="n">3</span>ボタンの色</li>
+            <li><span class="n">4</span>保存して一覧に戻る</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-33-quiz-edit-bottom.webp" alt="クイズの追加・編集ダイアログ(下半分)" loading="lazy">
+        <figcaption>
+          <strong>クイズの追加・編集ダイアログ(下半分)</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>正解した人に贈る景品名(任意)</li>
+            <li><span class="n">2</span>選択肢を追加する(2〜8個)</li>
+            <li><span class="n">3</span>保存する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-34-quiz-list-added.webp" alt="クイズ追加後の一覧" loading="lazy">
+        <figcaption>
+          <strong>クイズ追加後の一覧</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>追加したクイズが一覧に出る</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p class="note"><b>ポイント</b>保存する前に、「回答（正解）」の欄が正しい選択肢になっているか、あらためて確認しておくと安心です。</p>
+      <figure class="shot">
+        <img src="images/a-35-quiz-members.webp" alt="クイズ メンバー管理" loading="lazy">
+        <figcaption>
+          <strong>クイズ メンバー管理</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>クイズの参加者名簿を追加する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <h3 id="prep-screens">3-2. 抽選会の画面を整える</h3>
+      <p>「ジャックポットの準備」→「画面設定」では、会場スクリーンに出る文章・画像・BGMを設定します。変更したら必ず「保存」を押します。</p>
+      <p class="note"><b>ポイント</b>ほかの端末で保存した変更は、この画面の入力欄にも自動で反映されます。ただし、いま編集している欄は書き換わりません。</p>
+      <figure class="shot">
+        <img src="images/a-17-jp-screen-opening.webp" alt="画面設定 オープニング" loading="lazy">
+        <figcaption>
+          <strong>画面設定 オープニング</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>BGM(曲)を選ぶ</li>
+            <li><span class="n">2</span>表示する文章・画像を追加する</li>
+            <li><span class="n">3</span>1つずつ内容を編集する</li>
+            <li><span class="n">4</span>変更したら保存を押す</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-18-jp-screen-description.webp" alt="画面設定 説明" loading="lazy">
+        <figcaption>
+          <strong>画面設定 説明</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>説明の文章・画像を追加する</li>
+            <li><span class="n">2</span>保存する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-19-jp-screen-demo.webp" alt="画面設定 デモ抽選" loading="lazy">
+        <figcaption>
+          <strong>画面設定 デモ抽選</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>デモ中に流す曲</li>
+            <li><span class="n">2</span>保存する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-20-jp-screen-draw.webp" alt="画面設定 本抽選" loading="lazy">
+        <figcaption>
+          <strong>画面設定 本抽選</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>抽選中に流す曲</li>
+            <li><span class="n">2</span>止まるまでの秒数</li>
+            <li><span class="n">3</span>確変(連続当選)の設定</li>
+            <li><span class="n">4</span>設定のままテストする</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-21-jp-screen-result.webp" alt="画面設定 最終結果" loading="lazy">
+        <figcaption>
+          <strong>画面設定 最終結果</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>最終結果の曲</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-22-jp-screen-ending.webp" alt="画面設定 エンディング" loading="lazy">
+        <figcaption>
+          <strong>画面設定 エンディング</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>エンディングの文章・画像</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-16-jp-results.webp" alt="ジャックポット管理 抽選結果" loading="lazy">
+        <figcaption>
+          <strong>「抽選結果」タブ(本番前のリセットに使う)</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>本番前に結果を空に戻す</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <h3 id="prep-other">3-3. 設定の他のタブ</h3>
+      <p>ふだんは触らなくて構いません。画像・音声の素材(アセット)、イベントの実行、キーボードのショートカットを管理する場所です。名簿(メンバー)は 2-2 で説明しています。</p>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/a-05-settings-assets.webp" alt="設定のアセットタブ" loading="lazy">
+          <figcaption>
+            <strong>設定のアセットタブ</strong>
+            <ol class="marks">
+              <li><span class="n">1</span>画像・音声を登録する</li>
+            </ol>
+          </figcaption>
+        </figure>
+      </div>
+      <div class="pair w">
+        <figure class="shot">
+          <img src="images/a-06-settings-events.webp" alt="設定のイベントタブ" loading="lazy">
+          <figcaption>
+            <strong>設定のイベントタブ</strong>
+            <ol class="marks">
+              <li><span class="n">1</span>イベントを追加する</li>
+              <li><span class="n">2</span>選んだイベントを実行する</li>
+            </ol>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="images/a-07-settings-shortcuts.webp" alt="設定のショートカットタブ" loading="lazy">
+          <figcaption>
+            <strong>設定のショートカットタブ</strong>
+            <ol class="marks">
+              <li><span class="n">1</span>キーとイベントを結びつける</li>
+            </ol>
+          </figcaption>
+        </figure>
+      </div>
+      <h3 id="prep-sync">3-4. 同期の状態と詳細を確認する</h3>
+      <p>設定した内容は、この端末に保存されると同時に、自動でサーバーへ送られます。別の端末で変えた内容も、自動で取り込まれます。画面の右上(ヘッダー)の表示で、いまの状態を確かめられます。</p>
+      <ul>
+        <li><b>同期済み</b> … 送るものも取り込むものも残っていません。</li>
+        <li><b>同期中...</b> … 送信または取り込みをしています。</li>
+        <li><b>同期エラー(押すと詳細)</b> … 通信などの失敗で、送れなかったものがあります。次の同期で、自動でもう一度送ります。</li>
+      </ul>
+      <p>この表示は押せます。押すと「同期の状態」が開き、<b>失敗した対象と理由</b>、そして<b>他の端末の変更を反映した記録</b>(直近50件。この画面を開いている間だけ残ります)を、時刻つきで確かめられます。ふだんは見なくて構いません。「値が知らないうちに変わった」「保存したはずなのに反映されない」ときに開いてください。</p>
+      <figure class="shot">
+        <img src="images/a-41-sync-error.webp" alt="ヘッダーの同期エラーの表示" loading="lazy">
+        <figcaption>
+          <strong>ヘッダーの同期エラーの表示</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>押すと、同期の詳細が開く</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-40-sync-detail.webp" alt="同期の状態(詳細)" loading="lazy">
+        <figcaption>
+          <strong>同期の状態(詳細)</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>他の端末の変更を反映した記録</li>
+            <li><span class="n">2</span>送信に失敗した記録(対象と理由)</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p class="note"><b>ポイント</b>送信の途中で別の値を保存しても、あとの値が残り、次の同期で送られます。</p>
+      <p class="warn"><b>注意</b>ゲームの設定(画面設定・景品・名簿・クイズなど)は、一覧全体を1つの単位として「新しく保存したほうが残る」しくみです。2台でほぼ同時に別の項目を編集すると、あとから保存したほうの一覧が残り、先に保存した端末の変更は取り込まれません。先に保存した端末の詳細には「他の端末の変更を反映」と記録されるので、何が起きたかを確かめられます。同じ設定は、できるだけ1台で編集してください。</p>
+    </section>
+    <nav class="pager" aria-label="前後の章">
+      <a class="prev" href="02-prep-people.html"><small>前の章</small>‹ 2. 事前準備:人と景品</a><a class="next" href="04-day.html"><small>次の章</small>4. 当日の進行 ›</a>
+    </nav>
+  </main>
+</div>
+<div id="lb"><img alt=""></div>
+</body>
+</html>
