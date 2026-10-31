@@ -108,8 +108,13 @@ export class AssetDataRepository {
     eventBus.emit("syncDirty");
   }
 
-  /** 同期の対象。素材の一覧1件と、それが参照するファイル(上げる → 一覧 → 取ってくる)。 */
-  listSyncTargets(): SyncTarget[] {
+  /**
+   * 同期の対象。素材の一覧1件と、それが参照するファイル(上げる → 一覧 → 取ってくる)。
+   * 先に一覧の保存先を1つだけ開いておく。同じデータベースの複数のストアを、同時に初めて開くと、
+   * IndexedDB の版の更新が重なって、あとから開いたストアが作られないことがある(景品・画面設定の読み込みが返らなくなる)。
+   */
+  async listSyncTargets(): Promise<SyncTarget[]> {
+    await this.list.read();
     const record = blobRecordSyncTarget(
       RECORD_SYNC_KIND,
       this.list,

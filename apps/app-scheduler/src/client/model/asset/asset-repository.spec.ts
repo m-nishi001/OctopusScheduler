@@ -66,7 +66,7 @@ async function clearLocal() {
 
 const runner = new SyncRunner(new FixedConcurrencyPolicy(5));
 const sync = async (repo: AssetRepository) => {
-  const results = (await runner.run(repo.listSyncTargets())).results;
+  const results = (await runner.run(await repo.listSyncTargets())).results;
   for (const r of results) expect(r.error).toBeUndefined();
   return results;
 };
