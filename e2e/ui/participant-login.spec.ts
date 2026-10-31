@@ -168,7 +168,7 @@ test.describe("管理画面からの受付QR発行", () => {
       if (new URL(req.url()).host !== new URL(process.env.BASE!).host) external.push(req.url());
     });
     await admin.page.goto("/#/settings");
-    await admin.page.getByRole("tab", { name: "アカウント" }).click();
+    await admin.page.getByRole("tab", { name: "メンバー" }).click();
     const row = admin.page.locator("tbody tr", { hasText: id });
     await expect(row).toContainText("未発行");
 
@@ -193,7 +193,7 @@ test.describe("管理画面からの受付QR発行", () => {
   test("管理者の行には発行ボタンが出ない", async ({ browser }) => {
     const admin = await newDevice(browser, { signedIn: true });
     await admin.page.goto("/#/settings");
-    await admin.page.getByRole("tab", { name: "アカウント" }).click();
+    await admin.page.getByRole("tab", { name: "メンバー" }).click();
     const row = admin.page.locator("tbody tr", { hasText: ADMIN_ID }).first();
     await expect(row).toBeVisible();
     await expect(row.getByRole("button", { name: /受付QR/ })).toHaveCount(0);
