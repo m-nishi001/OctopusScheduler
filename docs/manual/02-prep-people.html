@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>2. 事前準備:人と景品 - OctopusScheduler 取扱説明書</title>
+  <link rel="stylesheet" href="manual.css">
+  <script src="manual.js" defer></script>
+</head>
+<body>
+<header class="site">
+  <div class="site-in">
+    <a class="site-title" href="index.html">OctopusScheduler 取扱説明書</a>
+    <nav class="chapters" aria-label="章一覧">
+      <a href="index.html">はじめに</a><a href="01-participant.html">1. 参加者</a><a href="02-prep-people.html" aria-current="page">2. 準備:人と景品</a><a href="03-prep-quiz.html">3. 準備:クイズと画面</a><a href="04-day.html">4. 当日の進行</a><a href="05-faq.html">5. Q&amp;A・用語集</a><a href="credits.html">出典・参考</a>
+    </nav>
+  </div>
+</header>
+<div class="layout">
+  <nav class="toc" aria-label="この章の節">
+    <b>この章の節</b><a href="#prep-accounts">2-1. 参加者を登録して受付QRを印刷する</a><a href="#prep-members">2-2. メンバー(共通の名簿)を登録する</a><a href="#prep-prizes">2-3. 景品を登録する</a>
+  </nav>
+  <main>
+    <details class="mtoc">
+      <summary>この章の節</summary>
+      <a href="#prep-accounts">2-1. 参加者を登録して受付QRを印刷する</a><a href="#prep-members">2-2. メンバー(共通の名簿)を登録する</a><a href="#prep-prizes">2-3. 景品を登録する</a>
+    </details>
+    <section id="prep">
+      <h1 class="ch">2. 事前準備:人と景品</h1>
+      <p class="lead"><span>この章でできること</span>参加者のアカウントと受付QR、メンバー(共通の名簿)、景品を準備できます。</p>
+      <p>準備は、管理者のホーム画面から行います。管理者アカウントでログインすると表示されます。</p>
+      <figure class="shot">
+        <img src="images/a-01-home.webp" alt="管理者のホーム画面" loading="lazy">
+        <figcaption>
+          <strong>管理者のホーム</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>イベントを開催・進行する(当日はここから)</li>
+            <li><span class="n">2</span>クイズの問題や選択肢をつくる</li>
+            <li><span class="n">3</span>景品・メンバー・画面を整える</li>
+            <li><span class="n">4</span>アカウント・素材・ショートカット</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <h3 id="prep-accounts">2-1. 参加者を登録して受付QRを印刷する</h3>
+      <p>「設定」→「アカウント」タブを開きます。参加者を1人ずつ「アカウント追加」で登録するか、すでに登録した人に受付QRを発行します。</p>
+      <figure class="shot">
+        <img src="images/a-02-accounts.webp" alt="設定のアカウントタブ" loading="lazy">
+        <figcaption>
+          <strong>設定のアカウントタブ</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>参加者(や管理者)を1人ずつ追加する</li>
+            <li><span class="n">2</span>受付QRをまとめて発行して印刷する</li>
+            <li><span class="n">3</span>QRをなくした人に再発行する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-03-account-add.webp" alt="アカウント追加ダイアログ" loading="lazy">
+        <figcaption>
+          <strong>アカウント追加ダイアログ</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>ログインIDを入れる(英数字)</li>
+            <li><span class="n">2</span>表示される名前を入れる</li>
+            <li><span class="n">3</span>保存する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p>登録しただけの人(QR未発行)がいると、「未発行の参加者に受付QRを発行」が押せるようになります。</p>
+      <figure class="shot">
+        <img src="images/a-08-accounts-unissued.webp" alt="未発行の参加者がいるとき" loading="lazy">
+        <figcaption>
+          <strong>未発行の参加者がいるとき</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>未発行の人にまとめてQRを発行する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-09-qr-sheet.webp" alt="受付QRコードシート" loading="lazy">
+        <figcaption>
+          <strong>受付QRコードシート</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>印刷して参加者に配る(QRはここでしか表示されない)</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p class="warn"><b>注意</b>QRコードは、この画面を閉じると二度と表示できません。必ず印刷してから閉じてください。なくした場合は「QR再発行」を使います(以前のQRは使えなくなります)。QRは本人専用です。写真を共有しないよう参加者に伝えてください。</p>
+      <h3 id="prep-members">2-2. メンバー(共通の名簿)を登録する</h3>
+      <p>「設定」→「メンバー」タブが、<strong>共通の名簿</strong>です。ここに登録した人は、ジャックポットやクイズなど、すべてのゲームの管理画面から使えます。顔写真も名簿に保存されるので、会場PCがどのパソコンでも、同じ写真が表示されます。</p>
+      <figure class="shot">
+        <img src="images/a-04-settings-members.webp" alt="設定のメンバータブ" loading="lazy">
+        <figcaption>
+          <strong>設定のメンバータブ(共通の名簿)</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>名簿に1人ずつ追加する</li>
+            <li><span class="n">2</span>名簿をCSVで書き出す</li>
+            <li><span class="n">3</span>書き出すときに写真も入れる(ZIPになる)</li>
+            <li><span class="n">4</span>CSVやZIPからまとめて取り込む</li>
+            <li><span class="n">5</span>顔写真(写真がない人は、頭文字のアイコン)</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p><strong>1人ずつ登録する場合:</strong>「追加」を押し、ID(空欄なら自動で付きます)と名前を入れます。「写真(任意)」で写真を選ぶと、長辺512pxに縮小して保存されます。写真をやめたいときは、編集ダイアログの「写真を外す」を押します。</p>
+      <figure class="shot">
+        <img src="images/a-42-roster-member-edit.webp" alt="名簿のメンバー編集ダイアログ" loading="lazy">
+        <figcaption>
+          <strong>メンバー編集ダイアログ</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>ID(追加のときだけ入力できる)</li>
+            <li><span class="n">2</span>名前</li>
+            <li><span class="n">3</span>写真を選ぶ</li>
+            <li><span class="n">4</span>写真を外す</li>
+            <li><span class="n">5</span>保存する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p><strong>まとめて登録する場合:</strong>「CSVダウンロード」で、いまの名簿をCSVで書き出せます。1行目は見出しで、<code>ID,名前,写真</code>の形です。「写真も含める(ZIP)」にチェックを入れると、写真の画像も入ったZIPになります。これを編集して「CSVから取り込む」で戻せば、まとめて追加・更新できます。</p>
+      <ol class="steps">
+        <li>「CSVから取り込む」を押す。</li>
+        <li>「CSV または ZIP」で、CSVか、写真つきで書き出したZIPを選ぶ。</li>
+        <li>CSVの「写真」列にファイル名を書いたときは、「画像フォルダ(任意)」でその画像が入ったフォルダを選ぶ(ZIPなら不要)。</li>
+        <li>プレビューで、行ごとに「追加」「更新」「変更なし」「エラー」を確かめる。エラーの行は取り込まれません。</li>
+        <li>「取り込む」を押す。終わると、取り込んだ結果が表示されます。</li>
+      </ol>
+      <figure class="shot">
+        <img src="images/a-43-roster-import-preview.webp" alt="CSVから取り込むダイアログのプレビュー" loading="lazy">
+        <figcaption>
+          <strong>「CSVから取り込む」ダイアログ(プレビュー)</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>CSVまたはZIPを選ぶ</li>
+            <li><span class="n">2</span>画像フォルダを選ぶ(任意)</li>
+            <li><span class="n">3</span>追加・更新・変更なし・エラーの件数と、行ごとの結果</li>
+            <li><span class="n">4</span>確認できたら取り込む</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p class="note"><b>ポイント</b>IDが同じ人は上書きされ、IDがなければ新しく追加されます。CSVに載っていない人は、削除されません。</p>
+      <p><strong>ジャックポットのメンバーにする:</strong>「ジャックポットの準備」→「メンバー」タブを開き、「追加」で「共有マスタから選択」を選ぶと、名簿にいる人を選べます。ここでは、抽選に使う<strong>ランク</strong>と<strong>当選しやすさ</strong>を決めます。</p>
+      <figure class="shot">
+        <img src="images/a-10-jp-members.webp" alt="ジャックポット管理 メンバー" loading="lazy">
+        <figcaption>
+          <strong>ジャックポット管理 メンバー</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>名簿から選んで、メンバーを追加する</li>
+            <li><span class="n">2</span>ランク・当選しやすさを入れるCSVのひな形をダウンロード</li>
+            <li><span class="n">3</span>ランク・当選しやすさをCSVでまとめて設定する</li>
+            <li><span class="n">4</span>ランク・当選しやすさを編集する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-11-jp-member-edit.webp" alt="メンバー詳細ダイアログ" loading="lazy">
+        <figcaption>
+          <strong>メンバー詳細ダイアログ</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>当選しやすさ(1〜100)</li>
+            <li><span class="n">2</span>顔写真は、ここではなく設定の「メンバー」で設定する</li>
+            <li><span class="n">3</span>保存する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p><strong>ランクと当選しやすさをまとめて設定する場合:</strong>「書式CSV」を押すと、いまのメンバーが入った状態のCSVが書き出されます。1行目は見出しで、<code>id,rank,weight</code>の形です。ランクと当選しやすさを書き換えて、「データ取込」から読み込みます。</p>
+      <figure class="shot">
+        <img src="images/a-12-jp-member-import.webp" alt="メンバーのデータ取込ダイアログ" loading="lazy">
+        <figcaption>
+          <strong>メンバーのデータ取込ダイアログ</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>設定できる列(id,rank,weight)の説明</li>
+            <li><span class="n">2</span>CSVファイルを選ぶ</li>
+            <li><span class="n">3</span>取り込みを始める</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p class="note"><b>ポイント</b>データ取込は、IDごとにランクと当選しやすさを設定するだけです。名簿にいないIDの行は、読み飛ばされます。「当選しやすさ」は1〜100で、全員が同じ値なら、全員が同じ確率で当選します。</p>
+      <h3 id="prep-prizes">2-3. 景品を登録する</h3>
+      <p>「景品」タブで、景品の名前・画像・抽選アニメーションを設定します。「データ取込」でまとめて登録することもできます。</p>
+      <figure class="shot">
+        <img src="images/a-13-jp-prizes.webp" alt="ジャックポット管理 景品" loading="lazy">
+        <figcaption>
+          <strong>ジャックポット管理 景品</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>景品を追加する</li>
+            <li><span class="n">2</span>CSVと画像をまとめて取り込む</li>
+            <li><span class="n">3</span>景品の内容を編集する</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/a-14-jp-prize-edit.webp" alt="景品の編集フォーム" loading="lazy">
+        <figcaption>
+          <strong>景品の編集フォーム</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>景品の名前</li>
+            <li><span class="n">2</span>抽選アニメーション(ルーレット/スロット)</li>
+            <li><span class="n">3</span>景品画像(ルーレットなどに出る)</li>
+            <li><span class="n">4</span>当選したときに大きく出る画像</li>
+          </ol>
+        </figcaption>
+      </figure>
+      <p class="note"><b>ポイント</b>「画像1」「画像2」は抽選中に出る絵、「当選画像1」「当選画像2」は当選したときに大きく出る絵です。BGMも景品ごとに選べます。</p>
+      <figure class="shot">
+        <img src="images/a-15-jp-assets.webp" alt="ジャックポット管理 アセット" loading="lazy">
+        <figcaption>
+          <strong>ジャックポット管理 アセット</strong>
+          <ol class="marks">
+            <li><span class="n">1</span>画像・音声を追加する</li>
+          </ol>
+        </figcaption>
+      </figure>
+    </section>
+    <nav class="pager" aria-label="前後の章">
+      <a class="prev" href="01-participant.html"><small>前の章</small>‹ 1. 参加者の方へ</a><a class="next" href="03-prep-quiz.html"><small>次の章</small>3. 事前準備:クイズと画面 ›</a>
+    </nav>
+  </main>
+</div>
+<div id="lb"><img alt=""></div>
+</body>
+</html>
