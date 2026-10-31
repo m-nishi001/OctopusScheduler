@@ -8,8 +8,8 @@
  *   - 景品一覧           jackpot-game/json/prizes.json    ({ updatedAt, data: Prize[] })
  *   - 画面設定           jackpot-game/json/screens.json   ({ updatedAt, data: ScreenSetting[] }、settingValue は JSON 文字列)
  * 一覧のファイルは、アプリの同期が保存する `{ updatedAt, data }` の形(updatedAt はミリ秒)。端末が持つ同じ種類のデータより新しければ、取り込まれる。
- *   - ジャックポットのアセット jackpot-game/assets/<アセットID>_<ファイル名>
- * アセットID・クイズIDには `_` を入れない(キーの先頭の `_` までをIDとして読むため)。
+ *   - ジャックポットの素材一覧 jackpot-game/json/asset-list.json ({ updatedAt, data: AssetRecordEntry[] }。素材の id は景品・画面設定が参照する固定の id)
+ *   - ジャックポットの素材   jackpot-game/assets/<ハッシュ>_blob  (ハッシュ = 中身の SHA-256 の先頭32桁。アプリの hashBlob と同じ)
  */
 import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";

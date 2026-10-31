@@ -21,7 +21,7 @@ export class SyncService {
 
   async syncAll(): Promise<SyncSummary> {
     const targets = [
-      ...(await this.assetRepo.listSyncTargets()),
+      ...this.assetRepo.listSyncTargets(),
       ...(await this.keyboardShortcutRepo.listSyncTargets()),
     ];
     return this.runner.run(targets);

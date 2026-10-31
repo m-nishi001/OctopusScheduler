@@ -1,196 +1,141 @@
 import { blobToDataUrl } from "@octopus/client-common/blob/blob-to-data-url";
-import { injectable, inject } from "tsyringe";
-import { CryptoIdGenerator } from "../common/crypto-id-generator";
 import { LocalStorageService } from "@octopus/client-common/storage/local-storage-service";
-import type { SyncTarget } from "@octopus/sync-engine";
-import { IJackpotGameApiToken } from "../../../server/jackpot-api-contract";
-import type { JackpotGameApi } from "../../../server/jackpot-api-contract";
+import { injectable, inject } from "tsyringe";
+import {
+  BLOB_HASH_PATTERN,
+  BlobRecordStore,
+  HashedBlobStore,
+  blobRecordSyncTarget,
+  hashBlob,
+  textBlobRecordRemote,
+  withHashedBlobs,
+} from "@octopus/sync-engine";
+import type { HashedBlobRemote, SyncTarget } from "@octopus/sync-engine";
+import { CryptoIdGenerator } from "../common/crypto-id-generator";
+import { IJackpotGameApiToken, assetRecordHashes } from "../../../server/jackpot-api-contract";
+import type { AssetRecordEntry, JackpotGameApi } from "../../../server/jackpot-api-contract";
 import { Asset } from "./asset-data";
-import type {
-  DriveData,
-  DriveMetadata,
-} from "@octopus/infrastructures/compositions";
 
-/** ジャックポットの素材の保存先。この端末(IndexedDB)に持ち、バックグラウンド同期の対象として Drive / R2 と差分をやり取りする。 */
+const RECORD_SYNC_KIND = "assets";
+/** 以前の保存形式(素材1件ずつの行)。移行はせず、使わずに消す。 */
+const LEGACY_STORE = "AssetData";
+
+/** データURLを Blob にする。 */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, base64] = dataUrl.split(",");
+  const mime = /data:([^;]+)/.exec(header)?.[1] ?? "application/octet-stream";
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  return new Blob([bytes], { type: mime });
+}
+
+/**
+ * ジャックポットの素材の保存先。正となるのは、この端末(IndexedDB)の「素材の一覧1件」(`{ data, updatedAt }`)だけ。
+ * 素材の中身は内容のハッシュで一覧から参照する、中身の変わらないファイル(別の置き場)。
+ * 削除は一覧から外すだけで、サーバーが一覧を書くときに、外れたハッシュのファイルを消す。
+ * 一覧が正なので、ファイルだけがあって素材が現れる、ということは起きない。
+ * 素材の `id` は作成時に決まり、同期で変わらない(景品や画面設定が埋め込みで参照するため)。
+ */
 @injectable()
 export class AssetDataRepository {
-  private readonly localStorage: LocalStorageService;
+  private readonly list = new BlobRecordStore<AssetRecordEntry[]>("jackpot-game", "AssetList");
+  private readonly blobs = new HashedBlobStore("jackpot-game", "AssetBlobs");
+  private legacyCleared: Promise<void> | null = null;
 
   constructor(
     @inject(CryptoIdGenerator) private readonly idGenerator: CryptoIdGenerator,
     @inject(IJackpotGameApiToken) private readonly jackpotApi: JackpotGameApi
-  ) {
-    this.localStorage = new LocalStorageService("jackpot-game", "AssetData");
+  ) {}
+
+  /** 以前の形式のデータを(初回だけ)消す。 */
+  private clearLegacy(): Promise<void> {
+    this.legacyCleared ??= new LocalStorageService("jackpot-game", LEGACY_STORE)
+      .clear()
+      .catch((e) => console.warn("[AssetDataRepository] failed to clear legacy store", e));
+    return this.legacyCleared;
   }
 
+  /** 一覧の1件から素材を作る。中身がまだ手元に無ければ null(同期の途中)。 */
+  private async toAsset(entry: AssetRecordEntry): Promise<Asset | null> {
+    const blob = await this.blobs.get(entry.hash);
+    if (!blob) return null;
+    return new Asset(entry.id, entry.type, entry.name, entry.uploadedAt, entry.lastUpdated, entry.size, blob);
+  }
+
+  /** 素材を追加する(同じ id は置き換える。id が空なら発行する)。保存した素材を返す。 */
   async addAssetData(driveData: Asset[]): Promise<Asset[]> {
-    const result: Asset[] = [];
+    await this.clearLegacy();
+    const now = new Date().toISOString();
+    const saved: Asset[] = [];
+    const entries: AssetRecordEntry[] = [];
     for (const dto of driveData) {
-      const id =
-        dto.id && dto.id.trim().length > 0 ? dto.id : this.idGenerator.nextId();
-      const uploadedAt = dto.uploadedAt ?? new Date().toISOString();
-      const lastUpdated = dto.lastUpdated ?? new Date().toISOString();
-
-      let blobToStore: Blob | null = (dto as any).blob ?? null;
-      if (blobToStore && typeof (blobToStore as any) === "string") {
-        try {
-          const resp = await fetch(blobToStore as unknown as string);
-          if (resp.ok) blobToStore = await resp.blob();
-        } catch (e) {
-          blobToStore = null;
-        }
-      }
-
-      const updated: Asset = new Asset(
+      const id = dto.id && dto.id.trim().length > 0 ? dto.id : this.idGenerator.nextId();
+      const hash = await hashBlob(dto.blob);
+      await this.blobs.put(hash, dto.blob);
+      const entry: AssetRecordEntry = {
         id,
-        dto.type,
-        dto.name,
-        uploadedAt,
-        lastUpdated,
-        dto.size ?? 0,
-        (blobToStore as Blob) || dto.blob
-      );
-      await this.localStorage.save(id, updated);
-      result.push(updated);
+        type: dto.type,
+        name: dto.name,
+        hash,
+        size: dto.size ?? dto.blob.size ?? 0,
+        uploadedAt: dto.uploadedAt ?? now,
+        lastUpdated: dto.lastUpdated ?? now,
+      };
+      entries.push(entry);
+      saved.push(new Asset(id, entry.type, entry.name, entry.uploadedAt, entry.lastUpdated, entry.size, dto.blob));
     }
-    return result;
+    await this.list.update((current) => {
+      const replaced = new Set(entries.map((e) => e.id));
+      return [...(current ?? []).filter((e) => !replaced.has(e.id)), ...entries];
+    });
+    return saved;
   }
 
   async getAssetData(): Promise<Asset[]> {
-    const allData = await this.localStorage.getAll<Asset>();
-    return Array.from(allData.values());
+    await this.clearLegacy();
+    const record = await this.list.read();
+    const assets = await Promise.all((record?.data ?? []).map((e) => this.toAsset(e)));
+    return assets.filter((a): a is Asset => a !== null);
   }
 
   async getAssetDataById(id: string): Promise<Asset | null> {
-    return (await this.localStorage.get<Asset>(id)) || null;
+    await this.clearLegacy();
+    const entry = (await this.list.read())?.data.find((e) => e.id === id);
+    return entry ? this.toAsset(entry) : null;
   }
 
   async deleteAssetData(ids: string[]): Promise<void> {
-    await this.localStorage.removeMultiple(ids);
+    await this.clearLegacy();
+    const gone = new Set(ids);
+    await this.list.update((current) => (current ?? []).filter((e) => !gone.has(e.id)));
   }
 
-  private async dataUrlToBlob(
-    dataUrl: string,
-    mime: string | undefined
-  ): Promise<Blob> {
-    if (!dataUrl) return new Blob();
-
-    try {
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      if (blob.type) return blob;
-      return new Blob([await blob.arrayBuffer()], {
-        type: mime || "application/octet-stream",
-      });
-    } catch (e) {
-      return new Blob();
-    }
+  /** 同期の対象。素材の一覧1件と、それが参照するファイル(上げる → 一覧 → 取ってくる)。 */
+  listSyncTargets(): SyncTarget[] {
+    const record = blobRecordSyncTarget(
+      RECORD_SYNC_KIND,
+      this.list,
+      textBlobRecordRemote<AssetRecordEntry[]>({
+        read: async () => (await this.jackpotApi.getAssetRecord(undefined, { timeout: 180000 })).json,
+        write: (json) => this.jackpotApi.saveAssetRecord({ json }, { timeout: 180000 }),
+      })
+    );
+    return [
+      withHashedBlobs(record, {
+        local: this.blobs,
+        remote: this.blobRemote(),
+        hashesOf: (data) => assetRecordHashes(data).filter((h) => BLOB_HASH_PATTERN.test(h)),
+      }) as SyncTarget,
+    ];
   }
 
-  /**
-   * バックグラウンド同期エンジン向けに、アセット1件ごとのSyncTargetを列挙する。
-   * ローカル/リモートいずれかにのみ存在するIDも含めることで、新規アップロード
-   * と新規ダウンロードの両方を1つの差分判定(Last-Write-Wins)で扱う。
-   *
-   * アセットのidはアップロード時に driveDataId としてそのまま使われ、
-   * ダウンロード時もそのidの元で保存するため、同期のたびにidが変わることはない
-   * (画面設定(ScreenConfigRepository)が埋め込みで参照するアセットidが
-   * 同期後にずれる心配がない)。
-   */
-  async listSyncTargets(): Promise<SyncTarget<Asset, DriveMetadata>[]> {
-    let remoteMetas: DriveMetadata[] = [];
-    try {
-      // 空文字列ではなく明示的にundefinedを送る。サーバー側が
-      // 固定のアセット保存先(storage-paths)を解決するため。
-      remoteMetas =
-        (await this.jackpotApi.getDriveMetaData(undefined, {
-          timeout: 180000,
-        })) || [];
-    } catch (e) {
-      console.error(
-        "[AssetDataRepository] Failed to fetch remote asset metadata for sync",
-        e
-      );
-      return [];
-    }
-
-    const remoteMap = new Map<string, DriveMetadata>();
-    for (const m of remoteMetas) {
-      if (m?.driveDataId) remoteMap.set(String(m.driveDataId), m);
-    }
-
-    const localRaw = await this.localStorage.getAll<Asset>();
-    const allIds = new Set<string>([
-      ...Array.from(localRaw.keys()),
-      ...remoteMap.keys(),
-    ]);
-
-    return Array.from(allIds).map((id) => this.buildAssetSyncTarget(id, remoteMap));
-  }
-
-  private buildAssetSyncTarget(
-    id: string,
-    remoteMap: Map<string, DriveMetadata>
-  ): SyncTarget<Asset, DriveMetadata> {
+  private blobRemote(): HashedBlobRemote {
+    const options = { timeout: 180000 };
     return {
-      id,
-      kind: "asset",
-      getLocal: async () => {
-        const asset = await this.getAssetDataById(id);
-        if (!asset) return null;
-        return { data: asset, updatedAt: new Date(asset.lastUpdated).getTime() };
-      },
-      getRemote: async () => {
-        const meta = remoteMap.get(id);
-        if (!meta) return null;
-        return { data: meta, updatedAt: new Date(meta.lastUpdate).getTime() };
-      },
-      push: async ({ data: asset }) => {
-        const dataUrl = asset.blob ? await blobToDataUrl(asset.blob) : "";
-        const clientNow = new Date().toISOString();
-        const driveData: DriveData = {
-          metadata: {
-            driveDataId: id,
-            fileId: "",
-            parentFolderId: "",
-            lastUpdate: clientNow,
-            size: asset.size || 0,
-          },
-          fileName: asset.name,
-          fileKind: asset.blob?.type || "application/octet-stream",
-          fileDataUrl: dataUrl,
-          uploadDate: new Date().toISOString(),
-          parentFolderId: "",
-        };
-
-        // 更新日時はサーバーの時刻を採る(端末の時計がずれていても、リモートとの新旧比較が狂わないように)
-        const saved = remoteMap.has(id)
-          ? await this.jackpotApi.updateDriveData(driveData, { timeout: 180000 })
-          : await this.jackpotApi.addDriveData(driveData, { timeout: 180000 });
-
-        await this.localStorage.save(id, { ...asset, lastUpdated: saved.lastUpdate });
-      },
-      pull: async ({ data: meta }) => {
-        const driveData = await this.jackpotApi.getDriveData(meta.fileId, {
-          timeout: 180000,
-        });
-        const blob = await this.dataUrlToBlob(
-          driveData.fileDataUrl ?? "",
-          driveData.fileKind
-        );
-        const lastUpdated = driveData.metadata?.lastUpdate
-          ? String(driveData.metadata.lastUpdate)
-          : new Date().toISOString();
-        const asset = new Asset(
-          id,
-          driveData.fileKind || "application/octet-stream",
-          driveData.fileName || "",
-          driveData.uploadDate ? String(driveData.uploadDate) : new Date().toISOString(),
-          lastUpdated,
-          driveData.metadata?.size || 0,
-          blob
-        );
-        await this.localStorage.save(id, asset);
+      exists: async (hashes) => (await this.jackpotApi.existsAssetBlobs({ hashes }, options)).existing,
+      put: async (hash, blob) => this.jackpotApi.putAssetBlob({ hash, dataUrl: await blobToDataUrl(blob) }, options),
+      get: async (hash) => {
+        const { dataUrl } = await this.jackpotApi.getAssetBlob({ hash }, options);
+        return dataUrl ? dataUrlToBlob(dataUrl) : null;
       },
     };
   }
