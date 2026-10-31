@@ -25,6 +25,8 @@ export interface SyncTarget<TLocal = unknown, TRemote = unknown> {
    * 判定のあとにローカルが編集されていたら、書かずに false を返す(その編集は次の同期で送られる)。
    */
   pull(remote: SyncSnapshot<TRemote>, local: SyncSnapshot<TLocal> | null): Promise<boolean | void>;
+  /** 送る・取り込む・何もしないのいずれかが成功したあとに呼ばれる(失敗したときは呼ばれない)。ここで失敗したら、その対象は失敗になる。 */
+  afterSync?(): Promise<void>;
 }
 
 /**

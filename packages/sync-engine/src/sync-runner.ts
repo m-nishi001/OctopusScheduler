@@ -93,8 +93,6 @@ export class SyncRunner {
     target: SyncTarget,
     summary: SyncSummary
   ): Promise<void> {
-    const record = (result: SyncResultKind) =>
-      summary.results.push({ id: target.id, kind: target.kind, result });
     let action: SyncAction | undefined;
     try {
       const [local, remote] = await Promise.all([
@@ -102,19 +100,22 @@ export class SyncRunner {
         target.getRemote(),
       ]);
       action = resolveSyncAction(local, remote);
+      let result: SyncResultKind;
       switch (action) {
         case "push":
           await target.push(local!);
-          record("pushed");
+          result = "pushed";
           break;
         case "pull":
           // false は、判定のあとにローカルが編集されていて書かなかったこと(その編集は次の同期で送られる)
-          record((await target.pull(remote!, local)) === false ? "skipped" : "pulled");
+          result = (await target.pull(remote!, local)) === false ? "skipped" : "pulled";
           break;
         case "skip":
-          record("skipped");
+          result = "skipped";
           break;
       }
+      await target.afterSync?.();
+      summary.results.push({ id: target.id, kind: target.kind, result });
     } catch (e) {
       summary.results.push({
         id: target.id,

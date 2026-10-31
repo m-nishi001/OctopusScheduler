@@ -11,8 +11,8 @@ export {
   uploadMemberPhotos,
 } from "./control/photo";
 export type { PreparedPhoto, MemberPhotoSource, MemberPhotoStore, MemberPhotoUploader } from "./control/photo";
-export { mapPool, DEFAULT_POOL_CONCURRENCY } from "./control/pool/promise-pool";
-export type { PoolOptions } from "./control/pool/promise-pool";
+export { mapPool, DEFAULT_POOL_CONCURRENCY } from "@octopus/sync-engine/pool/promise-pool";
+export type { PoolOptions } from "@octopus/sync-engine/pool/promise-pool";
 export {
   exportRoster,
   previewRosterImport,
