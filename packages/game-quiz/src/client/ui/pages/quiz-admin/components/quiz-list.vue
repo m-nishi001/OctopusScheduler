@@ -20,7 +20,7 @@
                     <UiButton size="sm" icon="edit" icon-only aria-label="編集" @click="editQuiz(indexOf(row))" />
                     <UiButton size="sm" icon="play" icon-only aria-label="プレビュー" @click="previewQuiz(indexOf(row))" />
                     <UiButton size="sm" variant="danger" icon="delete" icon-only aria-label="削除"
-                        @click="deleteQuiz(indexOf(row))" />
+                        @click="deleteQuiz(row)" />
                 </div>
             </template>
         </DataTable>
@@ -141,12 +141,12 @@ const editQuiz = (index: number) => {
     showModal.value = true;
 };
 
-const deleteQuiz = async (index: number) => {
-    const quiz = quizzes.value[index];
+// 行の位置ではなく id で消す(確認を待つ間に一覧が入れ替わっても、別のクイズを消さない)
+const deleteQuiz = async (quiz: QuizDto) => {
     if (!(await confirmDelete(`「${quiz.title || quiz.id.substring(0, 8)}」を削除しますか?`))) return;
     try {
         await deleteQuizUseCase.execute({ id: quiz.id });
-        quizzes.value.splice(index, 1);
+        quizzes.value = quizzes.value.filter((q) => q.id !== quiz.id);
     } catch (error) {
         console.error('削除エラー:', error);
         toast.error('削除に失敗しました');
