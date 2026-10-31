@@ -6,7 +6,7 @@
  * - 同じ写真を同時に何度頼まれても、取りに行くのは1回(読み込み中のものに相乗りする)。
  * - 取得に失敗した写真は「まだ無い」ままにして、次の機会に取り直す。サーバーに無かった写真は、この画面を閉じるまで探し直さない。
  */
-import { mapPool } from "../pool/promise-pool";
+import { mapPool } from "@octopus/sync-engine/pool/promise-pool";
 
 /** `getMemberPhotos` が一度に返せる枚数。サーバーの上限(MAX_PHOTOS_PER_READ)に合わせる。 */
 export const PHOTOS_PER_READ = 10;
